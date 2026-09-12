@@ -14,6 +14,7 @@ class GatewayConfig(BaseModel):
     profiles_dir: Path = Path("/etc/alkera/dbt")
     episode_id: str = "local"
     initial_world_fp: str | None = None
+    virtual_time: str = "2026-03-05T09:00:00Z"
     max_rows: int = Field(default=1000, ge=1, le=100_000)
     max_payload_bytes: int = Field(default=1_048_576, ge=1024)
     command_timeout_s: int = Field(default=120, ge=1)
@@ -32,4 +33,3 @@ class GatewayConfig(BaseModel):
     @classmethod
     def load(cls, path: Path):
         return cls.model_validate_json(path.read_text(encoding="utf-8"))
-

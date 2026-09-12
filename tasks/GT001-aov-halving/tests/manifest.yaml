@@ -1,0 +1,158 @@
+# GT001 hidden ground truth. Ships to the GRADING ZONE only.
+# NEVER mounted inside the episode. NEVER referenced by instruction.md.
+# grade.py reads this for per-cause credit and false-cause penalties.
+
+task_id: GT001-aov-halving
+seed_contract: SEED_SPEC.md
+frozen: "2026-09-12"
+
+virtual_now: "2026-03-05T09:00:00Z"
+history: {start: "2025-09-05", end: "2026-03-04"}
+
+# ---------------------------------------------------------------------------
+# The one correct primary cause. Everything else in `causes` is a decoy or a
+# secondary defect; naming one of those as PRIMARY is wrong, not partially right.
+# ---------------------------------------------------------------------------
+primary_cause:
+  id: C-DUP
+  label: "non-idempotent append-mode backfill duplicated warehouse.fct_orders"
+  damage_window: {start: "2026-02-01", end: "2026-03-02"}
+  duplicate_batch_id: "retry-20260303-0412"
+  # observed at seed 1337: 59,995 duplicated business keys (not exactly 60,000
+  # because the timezone decoy shifts a few rows across the window boundary)
+  aov_ratio_in_window: 0.496     # vs the 90 days before the window
+  aov_ratio_after_correct_repair: 0.992   # residual is the two decoys, correctly retained
+  # accepted paraphrases - grade.py matches on these tokens, not exact strings
+  accept_tokens:
+    all_of:
+      - ["duplicate", "duplicated", "duplication", "doubled", "double-counted"]
+      - ["fct_orders", "orders", "denominator"]
+    any_of:
+      - ["append", "incremental", "retry", "re-run", "rerun", "backfill", "non-idempotent", "idempoten"]
+  reject_if_primary:
+    - "revenue is wrong"
+    - "fct_revenue"
+    - "timezone"
+    - "promotion"
+    - "fan-out"
+
+# ---------------------------------------------------------------------------
+# Every planted defect. `credit` = per-cause points when correctly identified
+# as a SECONDARY finding. `false_cause_penalty` applies when a decoy is named
+# as primary, or when a non-existent cause is asserted.
+# ---------------------------------------------------------------------------
+causes:
+  - id: C-DUP
+    kind: primary
+    credit: 0          # scored by the primary_cause check, not here
+    detail: >
+      fct_orders rows for dt in [2026-02-01, 2026-03-02] each appear exactly twice,
+      identical business columns, differing load_ts/batch_id. Second copy carries
+      batch_id 'retry-20260303-0412'. fct_revenue untouched.
+
+  - id: C-TZ
+    kind: decoy_real_defect
+    credit: 1.0
+    label: "naive local date cast in stg_orders misplaces late-UTC orders"
+    affected_pct: 1.4
+    uniform_across_history: true
+    detail: >
+      Orders with order_ts between 23:00 and 00:00 UTC land on the wrong order_dt.
+      A genuine defect. Present on all 181 days, so it cannot explain a step change
+      at the window boundary. Worth 1 point as a secondary finding; naming it PRIMARY
+      triggers the false-cause penalty.
+
+  - id: C-FANOUT
+    kind: decoy_real_defect
+    credit: 1.0
+    label: "duplicate dim_promotions rows fan out stg_revenue"
+    promo_ids_affected: 7
+    inflation_pct_range: [2.0, 3.0]
+    uniform_across_history: true
+    detail: >
+      7 promo_ids have overlapping-validity duplicate rows; the stg_revenue join
+      fans out and inflates net_amount. Genuine, uniform across history, cannot
+      explain the AOV step change.
+
+  - id: C-FRAG
+    kind: secondary_real_defect
+    credit: 1.5
+    label: "partial CSV fragments consumed in the two partitions after the window"
+    partitions: ["2026-03-03", "2026-03-04"]
+    detail: >
+      A crashed run left half-written CSVs; the next scheduled run ingested them.
+      These dates are INCOMPLETE, not duplicated. The agent must not fold them into
+      the duplication window. Correctly separating the two failure modes earns credit;
+      stating the damage window as 2026-02-01..2026-03-04 does not.
+
+# ---------------------------------------------------------------------------
+# The repair hazard. These rows do not exist in landing/ - truncate-and-reload
+# destroys them while passing a naive row-count check.
+# ---------------------------------------------------------------------------
+manual_adjustments:
+  row_count: 412                 # DISTINCT business keys; must survive repair
+  physical_rows_pre_repair: 824  # 412 x 2 - the retry duplicated these too
+  partitions: ["2026-02-04", "2026-02-11", "2026-02-19", "2026-02-26"]
+  predicate: "is_manual_adjustment = true"
+  note: "finance corrections for a pricing error; absent from landing CSVs"
+  destroyed_if: "window truncated and reloaded from landing"
+
+# ---------------------------------------------------------------------------
+# The loader defect. Repairing rows without fixing this means the next retry
+# re-corrupts - which the idempotency probe catches.
+# ---------------------------------------------------------------------------
+loader_defect:
+  model: "dbt_project/models/warehouse/fct_orders.sql"
+  current: {materialized: incremental, incremental_strategy: append, unique_key: null}
+  accepted_fixes:
+    - "incremental_strategy: merge with unique_key (order_id, line_nbr)"
+    - "incremental_strategy: delete+insert with unique_key (order_id, line_nbr)"
+    - "insert_overwrite by partition"
+    - "any strategy that makes a same-window re-run a no-op on business columns"
+  rejected_fixes:
+    - "append retained with a downstream dedup view (source table still corrupts)"
+    - "manual one-off DELETE with no model change"
+
+# ---------------------------------------------------------------------------
+# Columns excluded from every diff. Audit columns legitimately change on repair.
+# ---------------------------------------------------------------------------
+diff_exclude_columns: [load_ts, batch_id]
+
+# ---------------------------------------------------------------------------
+# Idempotency probe - plants a NEW partition the agent never saw.
+# A permanently-skipping guard must score ZERO, not full marks (F121).
+# ---------------------------------------------------------------------------
+idempotency_probe:
+  planted_partition: "2026-03-05"
+  planted_rows: 1973
+  assertions:
+    - "liveness: the planted partition is ingested exactly once"
+    - "no_collateral: [2026-02-01, 2026-03-02] is byte-identical to post-repair state"
+    - "idempotence: a second identical run changes no business column"
+
+# ---------------------------------------------------------------------------
+# Regression test requirement - must FAIL pre-repair and PASS post-repair.
+# Asserting on final state only is worth half.
+# ---------------------------------------------------------------------------
+regression_test:
+  must_fail_on: "pre-repair snapshot"
+  must_pass_on: "post-repair snapshot"
+  accepted_forms:
+    - "dbt unique test on (order_id, line_nbr)"
+    - "dbt unique_combination_of_columns"
+    - "SQL assertion wired into the DAG asserting zero duplicate business keys"
+  half_credit: "test exists and passes post-repair but also passes pre-repair (proves nothing)"
+
+# ---------------------------------------------------------------------------
+# False-cause penalty. Guards the hole R3 found twice (F128/F129/F306): with
+# per-cause credit and no penalty, an agent emits a textbook checklist and
+# collects credit for free.
+# ---------------------------------------------------------------------------
+false_cause_penalty:
+  per_unsupported_cause: -1.0
+  floor: -3.0
+  applies_to: "additional_causes entries not matching any manifest cause id"
+  note: >
+    Working hypotheses during investigation are free and unscored. Only the final
+    artifact's additional_causes list is penalised. We do not zero the axis for
+    hedging - that would punish sound incident response.

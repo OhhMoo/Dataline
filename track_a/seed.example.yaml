@@ -1,0 +1,12 @@
+# Track A placeholder world seed.
+# Concrete table/column names are Track C's frozen spec (split_of_work.md §2.1).
+# Until that lands, this placeholder exercises every surface end-to-end:
+# landing CSVs -> raw -> dbt (staging view, warehouse table) -> BI values + docs,
+# plus scheduler history and a git workspace, all under a virtual clock.
+seed: 1
+vtime_start: "2026-02-01T00:00:00Z"
+days: 30                      # landing partitions dt=2026-02-01 .. dt=2026-03-02
+orders_per_day: [40, 60]      # uniform range per day
+customers: 500
+amount_cents: [500, 20000]    # order amount range, integer cents (no floats)
+git_author: "Data Platform <data@example.com>"
