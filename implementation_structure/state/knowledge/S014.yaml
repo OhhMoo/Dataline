@@ -21,3 +21,6 @@ notes: >
   snapshot date), so only the days processed after the schema change are corrupt while earlier
   partitions are fine. That mixed-state table is a good initial condition: the repair requires
   detecting the boundary date and re-processing only beyond it.
+attacks:
+  - F454
+  - F455

@@ -1,0 +1,40 @@
+id: F454
+target: S013
+also_applies_to:
+  - S014
+attack_type: quote_misread
+severity: high
+finding: >
+  Both dbt-databricks positional-INSERT issues are CLOSED and the bug they describe has been
+  FIXED - months before these records were written - yet S013 and S014 carry confidence=high and
+  are described as a live silent-corruption trap. Checked via the GitHub API 2026-09-12.
+  S014 (issue #1289, filed 2025-12-29 by mlobet-ros) - state CLOSED, labels "not an issue" and
+  "external issue". The single comment is from collaborator sd-db - "In the dbt-databricks Python
+  adapter, this bug is fixed by #1348, released in dbt-databricks 1.11.7 on 2026-04-17. The
+  replace_where (and microbatch) strategies now emit INSERT BY NAME when the runtime supports it
+  (any SQL warehouse, or DBR >= 12.2 cluster), so columns match by name even when
+  on_schema_change - append_new_columns adds a column in the middle of your model SQL."
+  S013 (issue #1211, filed 2025-10-08 by randypitcherii) - state CLOSED, ZERO comments, no labels,
+  no assignee, no maintainer confirmation ever. Its "System information" section is filled with
+  placeholders rather than an environment - dbt version "Multiple versions affected (all current
+  versions)", OS "All platforms", Python "All Python versions" - and the body is a code-reading
+  analysis (it cites macro file paths and line numbers and proposes INSERT BY NAME) rather than
+  an observed failure. Its "Steps To Reproduce" is a written recipe with no output, no logs and
+  no screenshots. Nothing on the page shows anyone ran it. S013's record calls the filer a
+  "practitioner filing a production bug" and its notes claim the issue is "Extremely rebuildable
+  - the issue includes exact repro steps ... and observe values intended for name landing in
+  new_column"; the steps exist as text, the observation does not.
+  Compare S015's notes, which explicitly prize liveness - "Open since 2022, so it is a live trap
+  rather than a fixed historical curiosity" (S015 is genuinely still open, verified). S013/S014
+  failed exactly that check and were not caught.
+  Active archetypes derived - A002 (S013, S014, S015), A010 (S013, S014, S015), A017 (S013),
+  A025 (S013, S014).
+recommended_action: downgrade_confidence
+found_by: R4b
+mitigation: >
+  S014 stays as evidence of a REAL practitioner-observed corruption (concrete config, concrete
+  column shift) but must record that it is fixed in dbt-databricks 1.11.7 (2026-04-17) - any
+  world built on it has to pin an adapter below that version, which is a design constraint the
+  archetypes do not currently state. S013 should drop to confidence=medium or low - it is an
+  unconfirmed static-analysis report, closed without engagement, and must not be counted as a
+  second independent observation of a production incident.

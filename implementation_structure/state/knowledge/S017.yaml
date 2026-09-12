@@ -22,3 +22,5 @@ notes: >
   cheap. Also captures the misdiagnosis path - VACUUM FULL and REINDEX attempted on the
   assumption it was bloat before anyone looked at slot metrics. Corroborates S016 mechanism from
   an independent source.
+attacks:
+  - F453

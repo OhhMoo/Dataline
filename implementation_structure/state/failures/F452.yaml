@@ -1,0 +1,31 @@
+id: F452
+target: S010
+attack_type: wrong_page
+severity: high
+finding: >
+  S010 records a fictional vignette as an attested production incident. Fetched 2026-09-12 - the
+  article (byline "By Pramod Karanam", no company) opens "It's 8:58 AM. The head of risk at a
+  bank opens the morning transaction dashboard..." - a present-tense constructed scenario written
+  to motivate an argument for data contracts / OpenMetadata. The quoted sentence sits inside that
+  scenario - "The post-mortem reveals the cause - three days earlier, the pipeline team renamed
+  the column amount_txn_ccy to txn_amount as part of routine housekeeping. No downstream consumer
+  was notified. The dashboard query silently returned NULL for every row. A divide-by-zero
+  fallback surfaced a garbage value." There is no company, no date, no incident record, and no
+  statement that the author or anyone else lived through it. The record nevertheless assigns
+  author_role "data platform engineer" and company "not stated (banking data warehouse case)",
+  and writes the claim as reportage - "A pipeline team renamed a warehouse column ... found by
+  the head of risk two minutes before a board meeting, not by any alert."
+  The evidentiary value being claimed - a real bank, a real board meeting, a real three-day
+  detection lag - is entirely absent. What the page supports is only that a writer arguing for
+  data contracts finds the scenario plausible. S004's notes additionally list S010 as
+  corroboration for the schema-drift frequency figure, so the fiction is helping prop up a
+  frequency estimate (see F450).
+  Active archetypes derived - A019, A022.
+recommended_action: re-source
+found_by: R4b
+mitigation: >
+  Either re-source the rename-breaks-downstream pattern to an attested case - S022 (Airbyte issue
+  #77627) and S216 (Power BI community thread) are real practitioner reports - or keep S010 with
+  the claim rewritten as "an illustrative scenario in a data-contracts argument describes...".
+  The two-minutes-before-a-board-meeting detail must not survive into any archetype as evidence
+  of how such failures are actually discovered.

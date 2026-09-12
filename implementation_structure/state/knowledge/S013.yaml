@@ -21,3 +21,5 @@ notes: >
   name landing in new_column. Affects append, insert_overwrite and replace_where strategies.
   Corroborated by S014 (independent filer, different config, same positional-matching root cause).
   This is the class of failure where dbt run and dbt test both go green and the data is wrong.
+attacks:
+  - F454

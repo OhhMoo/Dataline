@@ -1,0 +1,45 @@
+id: F450
+target: S004
+also_applies_to:
+  - S005
+  - S006
+  - S007
+attack_type: vendor_as_practitioner
+severity: high
+finding: >
+  The "50 data pipeline postmortems" survey is vendor content with no auditable denominator, and
+  the swarm is setting task-category weights from its percentages. Fetched 2026-09-12: the author
+  is Andrew Tan, "serial entrepreneur and experienced CTO", and the piece carries a layline.io
+  publication note - layline.io sells a data-integration product, so the article is marketing for
+  the exact problem space it quantifies. The post names NOT ONE of the 50 postmortems. Its entire
+  methodology statement is "I focused on public postmortems from companies running large-scale
+  data infrastructure - Uber, Netflix, Stripe, LinkedIn, GitHub, Cloudflare, DoorDash, Airbnb,
+  Spotify, and AWS" plus "The selection wasn't random. I prioritized postmortems that included
+  [...]" - no titles, no URLs, no dates, no inclusion criteria a third party could re-run. The
+  headline figures (schema drift 38%, backpressure 24%, silent data loss 19%, cascade 14%, other
+  5%) are therefore unfalsifiable - nobody can check the corpus, the coding scheme, or whether
+  the corpus exists. The individual cases (eleven days of corrupted loads, 12% of transactions
+  filtered over three weeks, 40x files on Black Friday, the 90-second metadata lock) are
+  introduced as "one well-documented incident" and "one postmortem from a streaming platform"
+  with no citation, so each is unattributable too.
+  This is load-bearing, not cosmetic. S004's own notes say "The 38% figure is the most useful
+  number I found for weighting archetype coverage" - the DE archetype mix is being weighted by a
+  vendor blog's uncheckable arithmetic. Worse, the same source is doing double duty as
+  independent corroboration: S001's notes upgrade a single blog anecdote to "high-frequency
+  rather than a one-off war story" on the strength of "the 50-postmortem survey", while S004's
+  notes cite S010/S013-S015/S019/S022 back the other way - a corroboration ring whose only
+  member supplying a FREQUENCY number is the one member that cannot be audited.
+  Active archetypes derived from these four sources - A001 (S005, S006), A003 (S005),
+  A009 (S006), A025 (S004).
+recommended_action: downgrade_confidence
+found_by: R4b
+mitigation: >
+  Keep the four mechanisms - they are concrete and independently plausible - but strip every
+  percentage and every frequency adjective sourced from this page, and set source_type to
+  vendor_page. Any archetype-mix weighting citing 38/24/19/14 must be re-derived from a corpus
+  that names its members, or declared an explicit design choice rather than an evidenced one.
+  Delete the "independently attested in the 50-postmortem survey" clause from S001's notes.
+notes: >
+  Not a G1 problem - every quote is verbatim on the page. The defect is that the page's
+  evidentiary status (uncited vendor synthesis) does not match the use it is being put to
+  (frequency weighting).

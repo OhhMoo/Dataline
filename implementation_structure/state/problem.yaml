@@ -70,8 +70,13 @@ established:
     status: decided
   - id: E8
     fact: "Labs pay hundreds to low-thousands of dollars per high-quality task."
-    status: reported_in_meeting
-    note: "Single anecdote (Meso econ tasks for Gemini). NEEDS independent sourcing - RQ6."
+    status: AUDITED_SELLER_SIDE_ONLY
+    note: >
+      Audited by R4a 2026-09-12 and DOWNGRADED - see claim C502 and failures F400/F401.
+      The three apparently independent corroborating legs collapse to one seller-side
+      anchor, with an undisclosed conflict on the byline. Treat 200-2000 USD/task as a
+      SELLER-REPORTED working band. Do not set commercial position from it until a
+      buyer-side per-task datum exists.
   - id: E9
     fact: "Polymath is the key inspiration - randomized, controllable, parameterized initial conditions."
     status: decided

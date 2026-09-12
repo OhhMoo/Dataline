@@ -1,0 +1,30 @@
+id: F453
+target: S017
+attack_type: wrong_page
+severity: high
+finding: >
+  S017 is a tutorial exercise recorded as a "written-up production incident", and it is being used
+  to give a vendor blog (S016, RisingWave Labs) independent corroboration it does not have.
+  Fetched 2026-09-12 - adhdecode.com is a learning platform whose footer reads "Complex topics,
+  finally made simple" and this page is numbered "Topic 332 of 367" inside a message-queues
+  course. The narrative opens "I remember a production incident, late on a Tuesday. The primary
+  application servers started throwing IOError - No space left on device" - a teaching device
+  with no named author, no company, no date and no postmortem. The quoted sentence is course
+  prose enumerating options - "Or, in truly dire situations, you might have to consider dropping
+  the replication slot. This is the nuclear option ... You'd have to restart Debezium from
+  scratch, likely requiring a full snapshot of your database, which can take hours or days."
+  Two consequences. (1) S017's claim presents a hypothetical as something that happened, including
+  the misdiagnosis path (VACUUM FULL and REINDEX attempted first), which is course narration, not
+  a reported responder error. (2) S017's notes assert it "Corroborates S016 mechanism from an
+  independent source" - but a tutorial restating standard PostgreSQL WAL and replication-slot
+  behaviour is not an independent observation, it is a third retelling of the documentation, and
+  S016 is itself vendor content. A004 rests on exactly this pair (plus S020/S021 GitLab), so its
+  CDC leg currently carries zero attested practitioner incidents.
+recommended_action: re-source
+found_by: R4b
+mitigation: >
+  The mechanism is sound and checkable against PostgreSQL documentation - keep it, but source it
+  to the documentation rather than to two narratives, and drop the independent-corroboration
+  claim. If A004 needs an attested slot-fills-the-disk incident, find one (Debezium or
+  pgsql-general mailing-list threads, or a company postmortem). If none is found, say so and let
+  A004 stand on documented behaviour rather than on invented war stories.

@@ -1,0 +1,23 @@
+id: F403
+target: S312
+attack_type: unsourced_number
+severity: low
+finding: >
+  S312's claim says "the 1,928-task APEX-Agents OTS training data". The README never states a task
+  count. The only appearance of 1928 anywhere on the page is inside an ILLUSTRATIVE dataset repo
+  name introduced with "e.g.": "a HuggingFace dataset repo of prebuilt harbor tasks (e.g.
+  <HF_ORG>/apex-agents-dev-1928)". The number was read off a placeholder path, and its "-dev"
+  segment points at a development split rather than the full corpus; the repo's own published
+  eval-trace artifact is named mercor/ApexAgentsRecipe-ApexAgents480-EvalTraces, a different count
+  for the eval set. Because the dataset is closed ("Due to license issues, we cannot open-source
+  the data") the figure cannot be checked at all. Low severity because nothing currently depends
+  on it, but it becomes a misstatement the moment it is used as a competitor size anchor against
+  our own task-count target - exactly the use RQ6 invites.
+recommended_action: re-source
+mitigation: >
+  Drop the number from the claim, or restate it as "an example dataset path implies roughly 1.9k
+  tasks; not stated by the source and not verifiable, since the data is closed". Use the size
+  anchors that were re-read in context this round and do hold: Terminal-Bench 2.0 at 89 tasks
+  selected from 229 crowd-sourced submissions by 93 contributors (S433/S435), data-eng-bench at
+  103 tasks (S302), MLE-bench at 75 competitions (S441).
+found_by: R4a

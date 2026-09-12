@@ -19,3 +19,5 @@ notes: >
   Corroborated as a distinct category by the 50-postmortem survey (S004 source), which names
   semantic drift separately from additive and type drift. Rebuildable: shift a source timestamp
   column by a fixed offset partway through history and leave the schema identical.
+attacks:
+  - F451

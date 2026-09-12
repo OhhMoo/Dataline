@@ -1,0 +1,39 @@
+id: F459
+target: A033
+attack_type: anecdote_as_frequency
+severity: medium
+finding: >
+  Ruling on the flagged S122 - A033 question. S122 itself is CLEAN. Verified against the paper
+  2026-09-12 - the speaker is participant P10 of 18 interviewed ML engineers - "There were all
+  sorts of manual issues. Someone would, you know, run something with the wrong sort of inputs
+  from the notebook, and I'm [debugging] for like a day and a half. Then [I'd] figure out this
+  was all garbage", followed by "Eight months ago, we [realized] this was not working. We
+  need[ed] to put in the engineering effort to create [non-notebook] pipelines." The claim, the
+  day-and-a-half, the move out of notebooks, the medium confidence and the explicit
+  "one interviewee's anecdote" caveat are all accurate. The problem is on A033's side.
+  (1) Generalisation. A033's why_hard asserts "Notebook-driven work produces exactly this class
+  of incident - a wrong input silently feeding a reported result (S122)". P10's anecdote supports
+  "at least one team lost a day and a half to wrong notebook inputs and left notebooks over it".
+  It does not support a claim about what notebook work produces as a class. The paper's own
+  finding cuts the other way - S121, also cited by A033, reports that "the vast majority of bugs
+  described to us in the interviews were seemingly bespoke and not shared among participants".
+  (2) None of A033's four planted defects come from S122. Out-of-order cell execution, a CSV
+  overwritten upstream, preprocessing fit before the split, and an unpinned seed are all absent
+  from the anecdote, which is only "wrong sort of inputs". The preprocessing-before-split defect
+  IS well evidenced - by S120 (leakage found only after deployment, same paper) and S111/S112
+  (Princeton, leakage pervasive across fields) - but A033 cites none of them.
+  (3) S106 is in derived_from and is used nowhere. S106 is about MLE-bench agents exhausting
+  container disk and RAM and failing to budget compute. A033 contains no resource-budgeting
+  element. It is a decorative citation.
+  So - S122 can carry the MOTIVATION for a notebook-reproducibility archetype but cannot carry
+  its defect set, and one-of-three of A033's derived_from is inert. A033 is already
+  status=redesign_required on other grounds; this adds a provenance requirement to that redesign.
+recommended_action: re-source
+found_by: R4b
+mitigation: >
+  In the blind redesign, set derived_from to S122 (notebook-driven wrong-input incident, medium,
+  n=1 - motivation only), S121 (bespoke long-tail bugs sharing one observable - justifies a
+  generated rather than fixed defect library), S120 (leakage discovered only after deployment -
+  justifies the fit-before-split defect) and S111/S112 (leakage pervasiveness). Drop S106 unless
+  a resource-budget element is deliberately added. Rewrite the why_hard sentence to attribute the
+  anecdote to one interviewed engineer rather than to notebook work as a class.

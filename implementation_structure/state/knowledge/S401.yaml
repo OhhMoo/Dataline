@@ -14,3 +14,5 @@ confidence: high
 produced_by: L5-competitive-pricing
 notes: >
   Direct practitioner quote underlying S400. The $20k tail is described as rare and specific to especially complex software-engineering tasks. Speaker is on the sell side, so this is a seller view of the price they receive.
+attacks:
+  - F400

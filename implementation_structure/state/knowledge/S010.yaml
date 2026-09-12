@@ -27,3 +27,5 @@ repair_note: >
   G1 repair 2026-09-12: medium.com URL 403-bot-blocked the gate's urllib fetch; url swapped to
   the freedium mirror of the same article (original: https://medium.com/@theinsightengineer/the-column-rename-that-crashed-a-board-meeting-89ebb635a0f0).
   Quote unchanged - verified verbatim on the mirror with gate-identical fetch logic.
+attacks:
+  - F452

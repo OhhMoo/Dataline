@@ -13,3 +13,5 @@ confidence: medium
 produced_by: L3-practitioner-workflow-analytics
 notes: >
   Vendor-adjacent, so discount the framing, but the cause taxonomy is concrete and each cause is independently injectable as pre-existing brokenness (fan-out join, UTC vs local day boundary, test accounts excluded on one side only). The bisect-by-dimension workflow is a multi-step trajectory a grader can check at each hop.
+attacks:
+  - F457

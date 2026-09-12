@@ -20,3 +20,5 @@ notes: >
   also hung, and the entire consumer group went offline within minutes, degrading unrelated
   pipelines sharing the Kafka cluster. Both force the responder to reason about a blast radius
   that appears nowhere in the failing pipeline's own code or DAG.
+attacks:
+  - F450

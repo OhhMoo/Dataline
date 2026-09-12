@@ -20,3 +20,5 @@ notes: >
   sibling forms: a non-idempotent sink under retry producing duplicates despite a nominal
   exactly-once claim, and a 24-hour queue retention window expiring unprocessed data while
   downstream was backed up by an unrelated incident.
+attacks:
+  - F450

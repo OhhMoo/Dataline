@@ -22,3 +22,5 @@ notes: >
   (Airbyte schema change), S013-S015 (dbt on_schema_change) and S019 (33% of data-related issues
   are incorrect data types). Note the detection mechanism: a shortfall small enough to hide inside
   normal variance until it is not - the world must tune that magnitude deliberately.
+attacks:
+  - F450

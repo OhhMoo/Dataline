@@ -19,7 +19,8 @@
       "company": "str",
       "year": "int",
       "notes": "str",
-      "repair_note": "str"
+      "repair_note": "str",
+      "attacks": "list[str]"
     },
     "_rules": [
       "quote must be a verbatim span from url, >= 20 chars - G1 fetches and string-matches it",

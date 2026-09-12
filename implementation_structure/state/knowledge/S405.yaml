@@ -14,3 +14,5 @@ confidence: medium
 produced_by: L5-competitive-pricing
 notes: >
   SECOND, INDEPENDENT SUPPORT FOR E8 - but note it is a FORECAST and an ARGUMENT published by an interested party (Mechanize sells exactly this). Written Aug 2025; Epoch (S400, Jan 2026) subsequently observed $200-$2,000, i.e. the low end of the prediction had materialised. Do not cite as an observed market rate.
+attacks:
+  - F401

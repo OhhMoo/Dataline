@@ -1,0 +1,29 @@
+id: F402
+target: S312
+attack_type: quote_misread
+severity: medium
+finding: >
+  S312 states "SkyRL and Harbor are pip-installed dependencies with zero forks". That phrasing is
+  lifted from the README's architecture FIGURE CAPTION ("indigo = SkyRL and teal = harbor (both
+  pip-installed, no forks)"), which the same README contradicts two paragraphs later in its
+  Dependency pinning section. Only "harbor[modal]==0.21.0" comes from PyPI; "skyrl[megatron]"
+  0.3.0 is "an editable checkout of the release commit (/mnt/local_storage/oss/SkyRL-v0.3.0, git
+  worktree of NovaSky-AI/SkyRL @ b8a5caaa)", and the README says outright: "skyrl can't come from
+  PyPI: uv only honors this repo's custom package sources/indexes (Astral GPU wheels,
+  pytorch-cu128, vllm-cu129, ...) for path-dep requirements; a registry skyrl pulls its GPU stack
+  from PyPI sdists and fails to build. The mirrored [tool.uv.*] blocks must be re-synced when
+  bumping the skyrl pin."
+  "Zero forks" survives - a git worktree of upstream is not a fork - but "pip-installed" does not.
+  This matters because S312 is the evidence for the ADOPT-the-architecture verdict and is being
+  read as "a few hundred lines of glue": the real integration cost also includes a pinned,
+  hand-built GPU stack with mirrored uv index configuration that must be re-synced on every SkyRL
+  bump. The ADOPT-architecture / CANNOT-USE-data verdict itself is undisturbed - the licence
+  sentence is quoted correctly and does scope to the task data (prebuilt harbor task directories:
+  prompts, configs, verifiers), not to the code.
+recommended_action: annotate
+mitigation: >
+  Restate the claim as: harbor is pip-installed; SkyRL must be pinned as an editable git-worktree
+  checkout at a specific commit behind custom uv package indexes - the README's own caption says
+  pip-installed but its dependency section says skyrl cannot come from PyPI. Carry that RL-training
+  integration cost into any plan that assumes SkyRL + Harbor is a drop-in.
+found_by: R4a

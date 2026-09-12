@@ -1,0 +1,25 @@
+id: F455
+target: S014
+attack_type: anecdote_as_frequency
+severity: medium
+finding: >
+  S014's notes convert two bug reports into a frequency claim - "Second, independent report of the
+  S013 mechanism under a different on_schema_change setting - evidence this is frequent, not a
+  one-off." Two issues filed fourteen months apart (2025-10-08 and 2025-12-29) against one adapter
+  are evidence that the defect is real and reachable by more than one configuration. They are not
+  evidence of frequency - there is no denominator (how many dbt-databricks users hit this), no
+  duplicate-report count (both issues have zero and one comment respectively, i.e. no "+1" pileup
+  at all), and the maintainer response labelled #1289 "not an issue / external issue" rather than
+  a widespread regression. A genuinely frequent silent-corruption bug in a major adapter would
+  show duplicates, upvotes and a labelled severity - this one shows none.
+  The frequency word matters because these records sit under four archetypes and the swarm is
+  using "frequent, not a one-off" language to justify category weight. Verified against the
+  GitHub API 2026-09-12 - #1211 zero comments, #1289 one comment; see F454 for the closed/fixed
+  status, which cuts the same way.
+recommended_action: annotate
+found_by: R4b
+mitigation: >
+  Replace "evidence this is frequent" with "evidence the defect is reachable under at least two
+  distinct incremental configurations". Keep the mechanism. If a frequency claim is wanted for
+  schema-change corruption, it needs a source with a denominator - and F450 rules out the only
+  one currently supplying numbers.

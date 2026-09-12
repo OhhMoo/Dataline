@@ -1,0 +1,34 @@
+id: F458
+target: S208
+attack_type: quote_misread
+severity: medium
+finding: >
+  S208 garbles the arithmetic of the incident it reports, and the garbled version is the version
+  an archetype would be built from. Fetched 2026-09-12, the page says - "The daily series showed
+  roughly 28% of finalized days coming back near-zero - 16 to 293 impressions between normal days
+  of 1,200 to 3,700, in clusters, every week or two ... Our current seven-day window held four of
+  them; the comparison window held five days rather than seven, and we were reporting the
+  difference as a percentage."
+  S208's claim renders this as "the comparison window happened to hold five valid days against
+  the current window's seven". That reverses the defect. On the page the CURRENT window is the
+  degraded one - seven calendar days of which four were near-zero, so roughly three valid days -
+  and the comparison window was five days LONG rather than seven, i.e. the two windows differed
+  in LENGTH. The quoted line "Ours were quietly comparing seven days against five" is about
+  window length, not about valid-day counts. S208's version implies a clean current window being
+  compared against a partially empty one, which is the opposite shape and would produce the
+  opposite sign of error.
+  Both defects are real and worth a task - unequal window lengths, and near-zero days inflating
+  a denominator - but they are two different defects and the record fuses them into one wrong
+  statement. An archetype seeding this world from S208 as written would plant the wrong initial
+  condition.
+  Active archetypes derived - A022, A029. Note also that Thicket is an autonomous-agent company
+  and the metric in question is an AI-visibility "share-of-model" metric, so the surrounding
+  analytics stack is unusual - fine as a mechanism, weak as a representative analytics workload.
+recommended_action: annotate
+found_by: R4b
+mitigation: >
+  Rewrite the claim to separate the two defects - (a) the comparison window was five days long
+  against a seven-day current window, and (b) about 28% of finalized days came back near-zero and
+  clustered, so the current window held four near-empty days out of seven. Then decide which one
+  the archetype plants, or plant both deliberately. S207 from the same page (0.0% metric from
+  dividing by questions asked rather than answered) is stated correctly and is unaffected.

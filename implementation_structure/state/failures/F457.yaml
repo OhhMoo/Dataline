@@ -1,0 +1,29 @@
+id: F457
+target: S205
+attack_type: vendor_as_practitioner
+severity: medium
+finding: >
+  S205 is the most heavily reused analytics source in the set (four active archetypes - A006,
+  A021, A022, A029) and it is a vendor SEO guide, not practitioner experience. Fetched
+  2026-09-12 - byline "Max Musing, Founder and CEO of Basedash", and the page closes on a product
+  pitch ("Basedash lets you build charts, dashboards, and reports in seconds using all your
+  data", plus "Reconciliation is much easier when both sides live where you can query them the
+  same way"). The body contains no incident, no company, no date, no data - it is an enumeration
+  of possible causes written to rank for a reconciliation query. It offers no frequency evidence
+  of any kind - the strongest thing on the page is the unquantified "three that catch people most
+  often are time zones, definitions, and grain" and "Almost every mismatch traces back to one of
+  a handful of categories".
+  S205's claim nevertheless opens "A reconciliation guide enumerates the recurring causes of two
+  numbers disagreeing" and the record is typed source_type - blog with author_role "founder and
+  CEO of a BI vendor". The disclosure is there, but downstream the taxonomy is being treated as
+  an observed distribution of real reconciliation failures. It is a vendor's plausible list.
+recommended_action: annotate
+found_by: R4b
+mitigation: >
+  Set source_type to vendor_page and strip "recurring" from the claim - the page supports "a BI
+  vendor's guide enumerates candidate causes and prescribes a bisect-by-dimension workflow", no
+  more. The taxonomy is still useful as a DEFECT LIBRARY for world generation (each cause is
+  independently injectable) but must not be cited as evidence of what analysts actually hit, and
+  no archetype should weight its categories by this page. S203 (Locally Optimistic, practitioner)
+  and S207/S208 (a team's own incidents) are the attested end of this evidence base and should
+  carry the load-bearing claims.

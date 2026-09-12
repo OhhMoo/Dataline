@@ -21,3 +21,5 @@ notes: >
   auto-scaled during a product launch but hit an untested DB connection-pool limit, stalled, and
   let unprocessed events age out of retention - auto-scaling covers compute, not pools, disk, or
   downstream rate limits. Both are parameterizable by input volume.
+attacks:
+  - F450

@@ -1,0 +1,32 @@
+id: F451
+target: S001
+also_applies_to:
+  - S002
+  - S003
+attack_type: quote_misread
+severity: medium
+finding: >
+  S001's notes state "Author states this is a real incident." He does not. Fetched 2026-09-12 -
+  the backfill-doubling story is the essay's opening scene, narrated about "a teammate" who finds
+  a bug and re-runs a pipeline over lunch, with no company, no date, no first-person claim and no
+  "we" framing. The S002 passage is explicitly a pattern sketch rather than an incident - "a
+  source system gets migrated, or bumps a library, and quietly starts sending timestamps in local
+  time instead of UTC", introduced as the author's favourite version of undetected upstream
+  change. Every quote is verbatim and the mechanisms are worth keeping - what is unsupported is
+  the attestation.
+  This matters because S001 is one of only two records carrying confidence=high for the
+  non-idempotent-rerun pattern, and its confidence stands on two legs that both fail - the
+  "author states this is a real incident" leg (false, above) and the "independently attested in
+  the 50-postmortem survey" leg (unauditable vendor synthesis, see F450). The page is also a
+  consulting site carrying a prompt-injection footer aimed at LLM summarizers, which S001
+  correctly flags and ignores - but the same commercial motive should discount the attestation.
+  Active archetypes derived - A001 (S001), A009 (S001, S003), A026 (S001, S003), A003 (S002,
+  S003), A017 (S002), A029 (S002).
+recommended_action: downgrade_confidence
+found_by: R4b
+mitigation: >
+  Drop "Author states this is a real incident" from S001's notes along with the frequency upgrade
+  that depends on it, set confidence to medium across S001-S003, and re-label the content as an
+  experienced practitioner's pattern description rather than an attested incident. The mechanisms
+  (append-mode re-run doubling, silent UTC-to-local shift) are corroborated by S013/S014 and by
+  S008's DST item, so they survive the downgrade.

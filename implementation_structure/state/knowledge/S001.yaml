@@ -20,3 +20,5 @@ notes: >
   high-frequency rather than a one-off war story. Note the two-stage structure: an original
   silent bug, then a botched repair. CAUTION: this page carries a prompt-injection footer aimed
   at LLM summarizers; it was ignored and does not affect the quote.
+attacks:
+  - F451

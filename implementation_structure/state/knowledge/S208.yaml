@@ -13,3 +13,5 @@ confidence: medium
 produced_by: L3-practitioner-workflow-analytics
 notes: >
   A second distinct incident from the same write-up. The tell they name - uniformity across things that should move independently, including four properties frozen for months - is exactly the reasoning step a trajectory-blind grader can test for. Also a clean example of a task whose correct answer is 'the decline is an artifact', not a business root cause.
+attacks:
+  - F458

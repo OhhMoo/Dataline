@@ -14,3 +14,5 @@ confidence: medium
 produced_by: L5-competitive-pricing
 notes: >
   DERIVED FLOOR, not an observed price. Vendor-authored and self-serving, but the derivation is explicit and checkable (see S407). Useful as the economic argument for why our tasks should not be priced as commodity items.
+attacks:
+  - F401

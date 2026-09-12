@@ -1,0 +1,30 @@
+id: F456
+target: S114
+attack_type: anecdote_as_frequency
+severity: medium
+finding: >
+  The substance of S114 checks out - fetched 2026-09-12, Fortune reports "The accuracy of a metric
+  used to evaluate how many items are found at a store dropped to 61% from 93%" beginning in
+  mid-March, "Instead of training a machine-learning model based on several weeks of data ...
+  Instacart now uses up to ten days of data", and "Before, Instacart would typically score its
+  model (based on hundreds of millions of items) every three hours, but it now does so every
+  hour." All three claim elements are supported.
+  The frequency inference is not. S114's notes conclude "The same COVID shock appears
+  independently in DoorDash's and Shankar et al.'s accounts, so this pattern is frequent, not a
+  one-off." Those are three observers of ONE exogenous event - the March 2020 pandemic demand
+  shift. Three reports of the same event are not three events, and they are not independent
+  evidence that abrupt distribution shift of this magnitude recurs. The article itself frames it
+  as a singular shock ("a shock to the system") and as pandemic-specific adaptation, not standard
+  practice. The honest reading is the opposite of the note - a once-in-a-decade shock is the
+  reason so many teams have a story about it.
+  Active archetypes derived - A013, A020.
+recommended_action: annotate
+found_by: R4b
+mitigation: >
+  Keep the record at high confidence (the facts are solid and the world is cheaply
+  parameterizable - inject a shock at a known date, grade whether the agent shortens the lookback
+  and identifies the break date). Rewrite the closing note as "three teams reporting the same
+  March 2020 shock" and remove "this pattern is frequent". If drift frequency is needed to weight
+  the DS archetype mix, source it separately - S117 (DoorDash drift monitoring) and S120-S123
+  (Berkeley interviews, n=18) speak to drift monitoring being routine, which is a different and
+  better-supported claim.

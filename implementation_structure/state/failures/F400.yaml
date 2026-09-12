@@ -1,0 +1,44 @@
+id: F400
+target: S400
+attack_type: vendor_as_practitioner
+severity: high
+finding: >
+  S400 is the ONLY observed-price anchor for E8 in the corpus, and its note over-claims its
+  independence on two counts. (1) "Multiple independent industry interviewees" is Epoch's own
+  unattributed paraphrase. Read in context, the single attributed per-task figure on the page is
+  sell-side: "I've seen $200 to $2000 mostly. $20k per task would be rare but possible." - an RL
+  environment founder, i.e. the party receiving the money. That is S401, which is not a second
+  source but the quote underlying S400's paraphrase, so treating S400 and S401 as two
+  corroborations double-counts one datum. The article gives NO buyer-side per-task figure
+  anywhere. The only buyer-side speaker in the piece, a neolab researcher, speaks to CONTRACT
+  TOTALS ($300k-$500k, S402), not to unit price. Epoch's footnote discloses the interview
+  mechanics ("We had calls with 9 different people, got text/email input from an additional 9
+  people") but never the seller/buyer split, so the "multiple interviewees agreed" ballpark
+  cannot be shown to contain a single buyer.
+  (2) The note's claim that "Epoch AI is a research organisation, not an environment vendor" is
+  true of Epoch but not of the piece's guest co-author. Chris Barber is an angel investor who
+  authors and maintains Pavlov's List (pavlovslist.com, byline "RL envs and data. By
+  @chrisbarber"), a curated directory of the RL-environment and AI-training-data startups whose
+  prices the article reports. The article carries no conflict-of-interest disclosure. This does
+  not make the number false, but it removes the arms-length framing the note rests on.
+  NET EFFECT ON E8: the reported three-legged corroboration is not three independent legs. Leg 2
+  (Mechanize, S405-S407) is a vendor's normative compute model with zero observed price data, and
+  Epoch cites it (S408), so it sits upstream of leg 1 rather than beside it. Leg 3 (S428, S430) is
+  a per-HOUR contributor labour rate - a cost input, not a price paid by a lab - which can only
+  reach a per-task figure through an assumed hours multiplier. E8 therefore rests on exactly one
+  independent observed-price anchor, and that anchor is itself seller-sourced.
+recommended_action: downgrade_confidence
+also_applies_to:
+  - S401
+mitigation: >
+  Set confidence to medium on S400 and rewrite its note to say: single-article anchor,
+  seller-sourced within that article, guest co-author is an ecosystem participant with an
+  undisclosed interest. Keep $200-$2,000 as the working band but label it a SELLER-REPORTED band,
+  and do not present it to Andrew as independently corroborated. Two concrete repairs: (a) obtain
+  one buyer-side per-task figure (a lab or neolab procurement statement) before any commercial
+  position is set from this number - that is what RQ6's "at least 3 independently sourced price
+  or size anchors" actually requires and does not yet have on the price axis; (b) RQ6 currently
+  has NO artifact under state/claims/, so the entire pricing conclusion lives only in
+  rounds/R001/L5-summary.md, outside gate coverage and with no attack history. File the E8 verdict
+  as a claim so it can be attacked like every other assertion.
+found_by: R4a

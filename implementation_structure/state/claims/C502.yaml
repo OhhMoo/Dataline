@@ -1,0 +1,35 @@
+id: C502
+claim: >
+  E8 ("labs pay hundreds to low-thousands of dollars per high-quality task") is supported by
+  ONE genuine anchor, and that anchor is seller-side. It should be treated as a
+  seller-reported working band of 200-2000 USD per task, NOT as an independently corroborated
+  market rate, and NOT as a basis for setting our commercial position until at least one
+  buyer-side per-task datum exists.
+status: attacked
+rq: RQ6
+proposed_by: R4a-citation-auditor
+evidence:
+  - S400
+  - S401
+  - S405
+attacks:
+  - F400
+  - F401
+notes: >
+  R4a found the three "independent" legs collapse into one. LEG 1 (Epoch AI, 200-2000/task)
+  is the only observed-price anchor and is a single article; its only attributed per-task
+  figure comes from an RL-environment founder - sell-side - while its one buyer-side speaker
+  gives CONTRACT TOTALS (300k-500k), not per-task prices. S400 and S401 are the same datum
+  counted twice. UNDISCLOSED CONFLICT: the guest co-author is an angel investor who maintains
+  a public directory of the RL-env/training-data startups whose prices the piece reports;
+  S400's note that "Epoch AI is a research organisation, not an environment vendor" is true
+  of Epoch and false of the byline. LEG 2 (Mechanize) is not corroboration - zero observed
+  price data, both headline figures derived from stipulated assumptions, one explicitly
+  normative and one explicitly a forecast, published by a party that sells the thing being
+  priced - and it is UPSTREAM of leg 1, since Epoch cites it. LEG 3 (75-200 USD/hr) is a cost
+  input, not a price, and needs an assumed hours multiplier to become one.
+  NOT L5's fault at the record level: its per-record notes correctly labelled contract totals,
+  per-environment and per-hour figures, and explicitly flagged two records as non-independent
+  restatements of Epoch. The conflation happened at the ROLLUP - the L5 summary asserts the
+  evidence "independently supports" the band, which the records underneath do not support.
+  ACTION BEFORE ANY PRICING DECISION: obtain one buyer-side per-task figure.

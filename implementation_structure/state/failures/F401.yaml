@@ -1,0 +1,34 @@
+id: F401
+target: S405
+attack_type: vendor_as_practitioner
+severity: medium
+finding: >
+  S405's note labels the Mechanize post "SECOND, INDEPENDENT SUPPORT FOR E8". Read in context it
+  is neither second nor support for an observed price. The post contains no market price data at
+  all: the only external number in it is an API list price (Grok 4 at $15.00 per 1M output
+  tokens), and both headline figures are outputs of four stipulated assumptions - 500k tokens per
+  rollout, $15/1M, group size 64, five reuses - run through one multiplication: "(500,000 tokens x
+  $15 x 64) / 1M = $480 per RL task per run", then five reuses giving "$2,400 for each RL task".
+  The $500 floor (S406) is explicitly normative - "this argument suggests it's inefficient for
+  labs to spend significantly less than ~$500 per RL task" - and the few-thousand figure (S405) is
+  explicitly a forecast: "we expect that labs will likely soon spend", with the figure "likely to
+  increase roughly fivefold" within a year. Mechanize sells exactly the product being priced, so
+  the post is a seller arguing that its own price ought to be higher, not evidence that it is.
+  It is also not independent of leg 1: Epoch links this post as the source of its own $2,400
+  figure (S408 records this correctly), so Mechanize feeds INTO the Epoch piece rather than
+  confirming it from outside. Change any single assumption - shorter rollouts, cheaper tokens,
+  smaller group size, more reuses - and the floor moves, so the number cannot bear weight as a
+  price anchor.
+recommended_action: annotate
+also_applies_to:
+  - S406
+  - S407
+mitigation: >
+  Strike "SECOND, INDEPENDENT SUPPORT FOR E8" from S405's note and relabel all three records as
+  what they are: a COST-SIDE ARGUMENT from an interested party, usable to argue why our tasks
+  should not be priced as commodities, never usable as evidence that labs do pay that. If the
+  $2,400 figure appears in the Andrew report, carry its assumption chain with it, and note that
+  our own measured per-rollout footprint (S438/S439: under 20 minutes and under 10M tokens
+  typical, near 100M tokens in the tail) lets us recompute the figure against our actual
+  environment instead of inheriting a vendor's.
+found_by: R4a

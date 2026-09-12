@@ -13,3 +13,5 @@ confidence: high
 produced_by: L2-practitioner-workflow-ds
 notes: >
   A concrete parameterizable drift world: inject a demand shock at a known date; the correct response is to tune training-window length and scoring cadence, not the architecture. Deterministically gradeable (did the agent shorten the lookback? did it identify the break date?). The same COVID shock appears independently in DoorDash's and Shankar et al.'s accounts, so this pattern is frequent, not a one-off.
+attacks:
+  - F456
