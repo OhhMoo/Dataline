@@ -1,0 +1,14 @@
+id: C001
+claim: >
+  Snowflake (T107) is mock-able via HTTP interception today: fakesnow's standalone HTTP
+  server mode accepts the real Snowflake connector, JDBC driver, and Snowflake CLI pointed
+  at a fake local URL, with per-connection isolated databases suitable for parallel RL
+  rollouts. The E3 strategy for the Snowflake class is therefore an adoption decision
+  (Apache-2.0), not a build decision.
+status: proposed
+rq: RQ3
+proposed_by: S5-http-interception
+evidence:
+  - S316
+  - S500
+attacks: []

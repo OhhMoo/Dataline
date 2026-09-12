@@ -1,0 +1,67 @@
+id: A021
+title: Row-level security and masking misconfiguration behind conflicting exec numbers
+discipline: data_analytics
+description: >
+  Two executives with different warehouse roles see materially different revenue for
+  the same quarter, and both believe the other's dashboard is broken. An org change
+  left a row-level security policy and a column-masking rule mis-scoped: one role
+  silently excludes a region's rows, another sees masked values coerced into sums.
+  The agent must audit the grant/policy state across warehouse roles and the BI
+  layer's own access rules, reconcile the two numbers row by row, repair the policies
+  so every role sees what it is supposed to see, and record the corrected access
+  model in the catalog so the next audit does not start from zero.
+why_hard: >
+  Both numbers are 'correct' outputs of their respective policy scopes, so neither
+  side errors and the discrepancy survives ordinary dashboard sanity checks -
+  row-level security is a documented but under-appreciated cause of number mismatch
+  (S205). Diagnosis requires reasoning about identity and policy state, a surface
+  that never appears in existing data benchmarks, and the fix must be verified per
+  role: making the numbers agree by widening everyone's access is a governance
+  failure, not a repair.
+human_hours: "8-20"
+grading: >
+  Deterministic: per-role query results against a battery of probe queries must equal
+  hidden expected masked/unmasked snapshots for each role; policy DDL diff against a
+  reference access model; assert the two executives' dashboards now return identical
+  totals; assert the catalog entry for the access model exists and matches a
+  structural template. Rubric: 18 points across root-cause localization to the
+  specific mis-scoped policy, least-privilege correctness of the repair, per-role
+  verification coverage, and audit-trail documentation.
+rubric_points: 18
+apps_touched:
+  - warehouse
+  - bi_dashboard
+  - catalog
+  - docs_wiki
+deterministic_checks:
+  - "per-role probe-query results equal hidden expected snapshots"
+  - "policy DDL diff vs reference access model"
+  - "cross-role dashboard total equality after repair"
+  - "catalog access-model entry matches structural template"
+judge_axes:
+  - design
+  - robustness
+failure_modes_expected:
+  - "concludes one dashboard is buggy and patches its SQL instead of the policy"
+  - "grants broad access to make numbers agree (governance regression)"
+  - "fixes the policy but never reconciles row-by-row why the numbers differed"
+existing_coverage: >
+  No surveyed benchmark has an access-control surface at all: DataAgentBench (S315)
+  enforces read-only querying, and ade-bench/data-eng-bench run as a single
+  all-powerful role. OpenMetadata (S525) provides an OSS governance/catalog substrate
+  to simulate against. LOW CONFIDENCE on evidence depth: the only practitioner source
+  naming row-level security as a discrepancy cause is the enumeration in S205; this
+  archetype is the weakest-evidenced of this batch and a candidate for a future
+  literature pass on governance incidents.
+derived_from:
+  - S205
+  - S215
+  - S525
+  - S206
+produced_by: S3-benchmark-gaps
+attacks: []
+notes: >
+  Evidence-thin by construction: derived from a benchmark gap (governance surfaces
+  absent everywhere) rather than from incident-rich literature. If a future RQ1 pass
+  finds no further first-party access-control incidents, consider merging the
+  reconciliation core into A022 and dropping the policy-audit axis.

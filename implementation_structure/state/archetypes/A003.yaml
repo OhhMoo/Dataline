@@ -1,0 +1,68 @@
+id: A003
+title: The quality gate is the bug - silent loss caused by a validation rule
+discipline: data_engineering
+description: >
+  A transactions pipeline has been green for weeks: freshness SLAs met, dashboards
+  updating, dbt tests passing. In fact a data-quality rule written to drop corrupted
+  upstream records also matches legitimate records with unusual-but-valid values, and has
+  quietly removed a meaningful fraction of real transactions since it was deployed.
+  Compounding triage, a source timestamp column silently switched from UTC to local time
+  partway through history - same column name, same type, so no schema check fires - and
+  daily totals appear to cut off before midnight. The agent must detect both defects from
+  the data (distribution shifts, per-source surviving-row analysis, hour-of-day
+  histograms), repair the rule so it drops only genuinely corrupt rows, and restate the
+  affected aggregates, all without the instinctive "add more validation" move that made
+  this worse.
+why_hard: >
+  The failure is caused by the quality control itself, so the agent's default remediation
+  instinct is anti-correlated with success - every additional filter it adds removes more
+  valid data. Detection requires correctness monitoring that essentially nobody has:
+  freshness and volume checks all pass because the loss is tuned to sit inside normal
+  variance. The timezone shift is semantic drift, invisible to every schema-level check,
+  and it mimics a benign business pattern (evening sales dip). The agent must argue from
+  distributions, not from any alert.
+human_hours: "8-20"
+grading: >
+  Deterministic: after repair, count of surviving legitimate rows matches the reference
+  exactly (and count of dropped corrupt rows also matches - both directions checked);
+  hour-of-day distribution of the corrected table matches the reference distribution
+  within tolerance; aggregate revenue for the affected window diffs against reference to
+  the cent; assertion that the agent's modified rule still rejects the planted corrupt
+  fixture rows. Rubric: 22 points across detection of both defects, rule repair precision
+  (false-drop rate), restatement correctness, and monitoring added that would catch a
+  recurrence.
+rubric_points: 22
+apps_touched:
+  - warehouse
+  - dbt
+  - bi_dashboard
+deterministic_checks:
+  - "surviving-row and dropped-row counts both equal reference"
+  - "hour-of-day histogram matches reference within tolerance"
+  - "revenue aggregate diff vs reference to the cent"
+  - "repaired rule still rejects planted corrupt fixture rows"
+judge_axes:
+  - design
+  - robustness
+failure_modes_expected:
+  - "adds stricter validation, increasing silent loss"
+  - "finds the timezone shift, misses the rule-driven loss (or vice versa)"
+  - "restores dropped rows wholesale, re-admitting genuinely corrupt records"
+  - "reports the problem but leaves aggregates unrestated"
+existing_coverage: >
+  Data-quality-monitoring tasks exist in prior art as pass/fail rule authoring; none we
+  found make the quality gate itself the planted defect or combine silent loss with
+  semantic drift in one trace. Closest flavor is ade-bench setup corruption.
+derived_from:
+  - S003
+  - S005
+  - S002
+  - S019
+produced_by: S1-postmortems
+attacks: []
+notes: >
+  S005 supplies the core mechanism (12% of legitimate transactions filtered over three
+  weeks, green throughout); S002 the semantic-drift leg; S003 the monitoring asymmetry
+  that lets it persist; S019 the empirical weight (incorrect data types 33%, cleaning
+  stage 35%) justifying this subcategory's slot count. Loss magnitude must be tuned
+  inside normal variance per S004's eleven-day corruption case.

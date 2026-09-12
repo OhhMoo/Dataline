@@ -1,0 +1,61 @@
+id: A020
+title: Demand-shift model rescue under delayed labels and alert fatigue
+discipline: data_science
+description: >
+  A live scoring pipeline's accuracy has silently collapsed after a demand regime
+  shift (the Instacart COVID pattern). The world contains a noisy alert stream in
+  which roughly 90% of alerts are non-actionable, ground-truth labels that arrive
+  with a multi-week lag so recent performance is partially unobservable, and a
+  training pipeline whose long window now hurts rather than helps. The agent must
+  detect the drift from the signals that exist (not from a planted alert), choose a
+  data-regime fix (shrink training window, raise scoring frequency) rather than a
+  modeling-fanciness fix, retrain within the label-delay constraint, and stand up a
+  drift monitor with a precision good enough to not add to the fatigue.
+why_hard: >
+  The correct remediation is a data-regime change, not model tuning (S114), which
+  inverts the default Kaggle-shaped instinct every existing DS benchmark trains.
+  Labels for the post-shift period do not fully exist yet, so the agent must reason
+  about what can be validated now versus proxied (S123). Building the monitor is as
+  graded as fixing the model, and a high-recall/low-precision monitor is a failure,
+  not a partial pass - it reproduces the fatigue problem (S123).
+human_hours: "15-30"
+grading: >
+  Deterministic: retrained model's metric on a held-out post-shift window must clear
+  a hidden reference threshold (metric comparison); training-set membership checksum
+  verifies the chosen window cutoff (no stale pre-shift data beyond the declared
+  boundary); planted drift events vs emitted alerts scored as precision/recall with a
+  minimum-precision floor; scoring-frequency config diff. Rubric: 24 points across
+  drift detection without prompting, remediation class chosen (data regime vs model
+  swap), validation honesty under label delay, and monitor quality.
+rubric_points: 24
+apps_touched:
+  - notebook
+  - warehouse
+  - airflow
+  - quality_monitoring
+  - docs_wiki
+deterministic_checks:
+  - "post-shift held-out metric >= hidden reference threshold"
+  - "training-window membership checksum matches declared cutoff"
+  - "monitor precision/recall vs planted drift events, with precision floor"
+  - "scoring schedule config diff (e.g. 3-hourly -> hourly)"
+judge_axes:
+  - design
+  - robustness
+failure_modes_expected:
+  - "tunes hyperparameters on the stale window instead of changing the data regime"
+  - "validates on pre-shift data and reports recovery that did not happen"
+  - "ships a high-recall monitor that fires constantly, adding to alert fatigue"
+existing_coverage: >
+  MLE-Bench (S100, S307) is static offline competitions with full labels and a single
+  CSV submission - no serving loop, no label delay, no monitoring surface. Nothing in
+  the surveyed prior art grades the detect-decide-remediate-monitor loop that S114,
+  S117, and S123 describe as the actual job.
+derived_from:
+  - S114
+  - S117
+  - S123
+  - S125
+  - S118
+produced_by: S3-benchmark-gaps
+attacks: []

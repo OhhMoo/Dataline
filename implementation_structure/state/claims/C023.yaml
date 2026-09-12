@@ -1,0 +1,22 @@
+id: C023
+claim: >
+  Class (a) pre-existing brokenness is realistic iff two tests pass: it maps to a documented
+  incident pattern in the corpus, and it is SILENT — the pipeline reports success while the
+  state is wrong (S002's UTC-to-local timestamp shift, S004's eleven days of silently dropped
+  batches, S005's quality rule filtering 12% of legitimate transactions with green dashboards,
+  S022's connector row loss after a source schema change). Loud failures — crashed jobs,
+  stack traces, failing dbt runs — are contrived as initial conditions unless they come from
+  the scheduler/config corpus (S008's datetime.now() DAGs, S015's incremental-model removed-
+  column breakage), because real brokenness that survives to handoff is the kind monitoring
+  did not catch (S003: freshness monitoring near-universal, correctness monitoring
+  near-absent).
+status: proposed
+rq: RQ5
+proposed_by: S8-initial-conditions
+evidence:
+  - S002
+  - S003
+  - S004
+  - S005
+  - S022
+attacks: []

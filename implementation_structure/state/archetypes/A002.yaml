@@ -1,0 +1,64 @@
+id: A002
+title: Positional-INSERT corruption after an incremental model schema change
+discipline: data_engineering
+description: >
+  An incremental dbt model had a column added in the middle of its select list weeks ago.
+  The adapter appended the new column at the end of the target table while the INSERT
+  matched by position, so every value since the change landed one column to the left of
+  where it belongs. dbt run and dbt test are green. Only partitions processed after the
+  change date are corrupt; earlier history is clean. A sibling model whose column was
+  REMOVED now fails loudly with a cryptic warehouse-level "unrecognized name" error that
+  does not name dbt's incremental logic as the cause. The agent must find the corruption
+  boundary, quantify which downstream marts inherited shifted values, repair only the
+  affected partitions, and get the failing sibling model loading again without a
+  destructive full refresh of the large table.
+why_hard: >
+  Every surface the agent trusts is lying in a different way: dbt reports success, tests
+  pass, row counts are exactly right - only the VALUES are wrong, and only after an
+  unknown boundary date that must be discovered from the data itself (e.g. a column that
+  suddenly carries values from a different domain). The loud failure and the silent
+  failure have the same root cause family, and the obvious fix for the loud one
+  (--full-refresh) is destructive and unnecessary. Requires reading dbt's generated SQL
+  and the target-table DDL together, which is where the mechanism actually lives.
+human_hours: "8-20"
+grading: >
+  Deterministic: cell-level diff of the repaired model against the reference for all
+  post-boundary partitions; assertion that pre-boundary partitions are byte-identical to
+  their original state (repair must not touch clean history); the sibling model runs to
+  completion and its target row count is non-decreasing; a dbt test the agent adds
+  (e.g. a column-domain or accepted-values check that would have caught the shift) fails
+  against the pre-repair snapshot and passes after. Rubric: 24 points across boundary
+  detection, blast-radius enumeration, scoped repair, and regression-test quality.
+rubric_points: 24
+apps_touched:
+  - warehouse
+  - dbt
+deterministic_checks:
+  - "cell-level diff vs reference on post-boundary partitions"
+  - "pre-boundary partitions unchanged (checksum equality)"
+  - "sibling model target row count non-decreasing after fix"
+  - "agent-added dbt test fails on corrupted snapshot, passes on repaired"
+judge_axes:
+  - code_quality
+  - design
+  - robustness
+failure_modes_expected:
+  - "full-refreshes the whole table, rewriting clean history"
+  - "repairs the loud failure, never notices the silent column shift"
+  - "repairs from the model-change date in dbt rather than the true data boundary"
+  - "fixes values but not the positional INSERT, so the next schema change re-corrupts"
+existing_coverage: >
+  No benchmark we reviewed exercises schema-change-induced silent value corruption with a
+  mixed-state (part-clean, part-corrupt) target table. The repro mechanics come from two
+  independently filed production bugs, so the initial condition is realistic, not contrived.
+derived_from:
+  - S013
+  - S014
+  - S015
+produced_by: S1-postmortems
+attacks: []
+notes: >
+  S013 and S014 are independent filings of the same mechanism under different
+  on_schema_change settings - evidence of frequency. S015 supplies the complementary
+  loud-failure leg. fakesnow/DuckDB initial conditions can reproduce positional matching
+  directly; the boundary date is a randomizable world parameter.

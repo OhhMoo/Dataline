@@ -1,0 +1,65 @@
+# Derivation path S2 (job-specs): the DS/ML hiring stack is notebook + warehouse +
+# version control (frequency signal: S521 JupyterLab, S520 Hex, S523 GitHub).
+# Task content grounded in the leakage corpus S111/S112/S120/S124.
+
+id: A012
+title: Leakage audit of a suspiciously strong baseline model
+discipline: data_science
+description: >
+  A notebook in the repo trains a churn model that reports an AUC far above what the
+  business baseline should allow, and the team wants to ship it. The world plants
+  three leakage mechanisms drawn from the published failure catalogue: imputation and
+  feature selection fit on the combined train/test set, a temporal leak (features
+  aggregated over a window that extends past the prediction date), and a proxy
+  feature that encodes the outcome (an account-status field only populated after
+  churn). The agent must find and remove all three, rebuild the pipeline with
+  split-safe preprocessing, and deliver an honest re-estimated model with a written
+  account of what changed and why the original numbers were invalid.
+why_hard: >
+  Leakage is invisible in validation metrics - it inflates them - so there is no
+  failing check to start from; detection requires reasoning about what information
+  could exist at prediction time, per the deployed-only discovery pattern. The three
+  mechanisms are at different layers (preprocessing, windowing, schema semantics) and
+  each individually explains part of the inflation, so fixing one leaves a still-
+  plausible-looking but still-invalid model. The honest re-estimate is dramatically
+  worse than the original headline number, which pressures the agent to 'stop early'.
+human_hours: "20-40"
+grading: >
+  Deterministic: the submitted pipeline passes a split-integrity harness (fit state
+  extracted from the training fold only; per-fold refit changes cross-validation
+  scores by less than a tolerance); temporal audit asserts max feature timestamp <
+  prediction timestamp for every row; schema allow-list check rejects the proxy
+  feature; the re-estimated metric lands inside the reference honest-range band.
+  Rubric: 25 points across mechanism identification (all three), split-safe pipeline
+  construction, honest reporting, and quality of the written invalidation argument.
+rubric_points: 25
+apps_touched:
+  - notebook
+  - warehouse
+  - git
+deterministic_checks:
+  - "split-integrity harness: preprocessing refit per fold within tolerance"
+  - "temporal audit: no feature timestamp at or after prediction time"
+  - "proxy-feature schema allow-list check"
+  - "final metric within reference honest-range band"
+judge_axes:
+  - robustness
+  - design
+failure_modes_expected:
+  - "finds the obvious proxy feature and ships the still-leaking pipeline"
+  - "tunes the leaky model instead of questioning its validity"
+  - "removes leakage but reports the old headline metric alongside the honest one"
+  - "over-corrects: drops legitimate features and underfits"
+existing_coverage: >
+  MLE-Bench grades a submission metric, not leakage discovery; a find-the-leak
+  deliverable is a distinct, gap-filling archetype for the DS axis.
+derived_from:
+  - S111
+  - S112
+  - S120
+  - S124
+produced_by: S2-job-specs
+notes: >
+  Frequency signal only: notebook-first DS work with warehouse feature tables
+  (S521, S503) and git review (S523) is the standard job-specification profile;
+  used to prioritize DS-1.

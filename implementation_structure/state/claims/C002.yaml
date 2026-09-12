@@ -1,0 +1,18 @@
+id: C002
+claim: >
+  fakesnow-based interception cannot be the sole fidelity axis for Snowflake-class tasks:
+  it is non-deterministic in row ordering and accepts a more liberal SQL dialect than real
+  Snowflake, and sqlglot (the build-time transpiler we pair it with) is a transpiler, not
+  a validator. Any task graded through an intercepted warehouse mock must therefore use
+  fully-specified ORDER BY queries and grade by execution against ground truth (the
+  DataAgentBench per-query validate.py + ground_truth.csv pattern, run deterministic and
+  multi-seed per MLE-bench), never by transpile-success or fakesnow-pass alone.
+status: proposed
+rq: RQ3
+proposed_by: S5-http-interception
+evidence:
+  - S316
+  - S318
+  - S315
+  - S307
+attacks: []

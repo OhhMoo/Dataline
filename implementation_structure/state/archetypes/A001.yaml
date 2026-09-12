@@ -1,0 +1,62 @@
+id: A001
+title: Non-idempotent backfill repair after a silent doubling incident
+discipline: data_engineering
+description: >
+  A batch job that loads daily partitions into a warehouse revenue table was re-run over
+  30 days of existing partitions in append mode, so a month of rows is now double-counted
+  and every downstream dashboard agrees on the wrong number. The world also contains the
+  original incident's debris: a crashed earlier run left half-written partial output in the
+  landing area, and the next scheduled run silently consumed it. The agent must identify
+  exactly which partitions are duplicated and which contain partial-load artifacts, remove
+  the bad rows without touching legitimate late-arriving ones, re-run with a correct
+  idempotent write mode, and leave the pipeline so that a retry cannot re-double the data.
+why_hard: >
+  There are two stacked failures, not one: the original silent bug and the botched repair
+  (the structure attested in S001). Naive fixes all lose: delete-and-full-refresh destroys
+  legitimate manually-adjusted rows; re-running the DAG re-doubles; trusting the
+  orchestrator's green status misses that the job exits zero on corrupt state. Correctness
+  cannot be read off any single surface - freshness is fine, row counts are merely large,
+  and only a business-key duplicate analysis or a per-partition count comparison against
+  the source files localizes the damage window.
+human_hours: "8-20"
+grading: >
+  Deterministic: row-level diff of the repaired revenue table against a reference table in
+  DuckDB (exact match on the affected 30-day window); assertion of zero duplicate business
+  keys; per-partition row counts match source-file counts; re-running the agent's repaired
+  load twice produces no row-count change (idempotency probe). Rubric: 20 points across
+  damage-window identification, repair correctness, idempotency hardening, and a written
+  explanation of which downstream numbers were wrong and for how long.
+rubric_points: 20
+apps_touched:
+  - warehouse
+  - dbt
+  - airflow
+  - bi_dashboard
+deterministic_checks:
+  - "row-level diff vs expected reference table on the affected window"
+  - "duplicate business-key assertion returns zero rows"
+  - "per-partition counts equal source-file counts"
+  - "idempotency probe: second run of repaired load changes zero rows"
+judge_axes:
+  - code_quality
+  - robustness
+failure_modes_expected:
+  - "re-runs the DAG, doubling the data a second time"
+  - "full-refreshes the table and destroys legitimate manual adjustments"
+  - "cleans the obvious 30-day window but misses partial-load debris from the crashed run"
+  - "fixes data but leaves the load non-idempotent so the next retry re-corrupts"
+existing_coverage: >
+  ade-bench has setup-time corruption tasks of a similar flavor but not the two-stage
+  original-bug-plus-botched-repair structure, and not a live orchestrator whose next
+  scheduled run is a hazard. Thin in data-eng-bench.
+derived_from:
+  - S001
+  - S005
+  - S006
+produced_by: S1-postmortems
+attacks: []
+notes: >
+  S005's sibling mechanism (non-idempotent sink under retry despite nominal exactly-once)
+  and S006's crashed-run partial output consumed by the next schedule are folded in as the
+  second failure layer. Tune the duplicate volume to sit inside normal daily variance so
+  dashboards being green is plausible, per S001/S004's detection-via-human pattern.

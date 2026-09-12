@@ -1,0 +1,60 @@
+id: A018
+title: Cross-system orchestration triage with ran-long vs started-late disambiguation
+discipline: data_engineering
+description: >
+  A business-critical dataset misses its landing SLA. Airflow shows a wall of failed
+  and retried tasks, but the true cause sits behind the orchestrator (a choked
+  ingestion task, a warehouse lock, or an upstream team whose job simply started
+  late). The agent must walk a multi-team dependency tree of dozens of entities,
+  reduce it to the actual bottleneck path of latest-landing ancestors, determine for
+  the bottleneck step whether it ran long or started late, fix the genuine failure,
+  and repair the DAG definition anti-patterns (unbounded retries, sensor starvation,
+  datetime.now() in scheduling) that made the incident worse.
+why_hard: >
+  The orchestrator is the user interface to systems it does not control (S009), so
+  its logs describe symptoms, not causes; the decisive evidence is in the warehouse
+  and ingestion surfaces. Ran-long vs started-late look identical in the Airflow UI
+  but demand opposite remediations (S012). The world also contains DAG-code smells
+  that are real but are NOT the cause of this breach - fixing them while missing the
+  bottleneck, or chasing them as the cause, is the designed trap.
+human_hours: "10-25"
+grading: >
+  Deterministic: submitted root-cause record (bottleneck entity + ran-long/started-late
+  verdict + responsible upstream) string/enum-matched against a hidden answer key;
+  after repair, a re-run of the affected DAG branch lands the target dataset with
+  row-count and freshness-watermark checks against a reference; assert retry and
+  sensor configuration in the DAG file now meets stated bounds (static parse of the
+  DAG source). Rubric: 22 points across bottleneck-path correctness, verdict
+  correctness, repair validity, and DAG hygiene fixes.
+rubric_points: 22
+apps_touched:
+  - airflow
+  - warehouse
+  - ingestion_connector
+  - dbt
+  - docs_wiki
+deterministic_checks:
+  - "hidden answer-key match on bottleneck entity and ran-long/started-late verdict"
+  - "post-repair DAG re-run lands dataset: row-count diff vs reference"
+  - "freshness watermark advances past the breach window"
+  - "static DAG-source assertions: bounded retries, no datetime.now() in schedule"
+judge_axes:
+  - design
+  - robustness
+failure_modes_expected:
+  - "restarts failed tasks until they go green without finding the upstream cause"
+  - "optimizes the bottleneck job when it actually started late (wrong remediation)"
+  - "rewrites the DAG anti-patterns and declares victory while the SLA still breaches"
+existing_coverage: >
+  Harbor (S300) is a generic harness with no data-stack world. data-eng-bench (S302)
+  and ade-bench (S304) run single dbt projects with no live scheduler at all, so no
+  benchmark exercises failure triage ACROSS an orchestrator boundary - the exact
+  setting S009 and S018 identify as the largest practitioner pain.
+derived_from:
+  - S009
+  - S008
+  - S018
+  - S011
+  - S012
+produced_by: S3-benchmark-gaps
+attacks: []

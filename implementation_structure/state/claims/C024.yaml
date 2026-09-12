@@ -1,0 +1,22 @@
+id: C024
+claim: >
+  Class (b) time-scheduled fault injection should weight its fault-family distribution by the
+  surveyed postmortem frequencies rather than uniformly: schema drift ~38% (S004),
+  load-spike/backpressure ~24% (S006), silent data loss ~19% (S005), shared-state cascades
+  ~14% (S007), with scheduler-time faults (DST boundary crossings, retry storms, SLA
+  misconfiguration, S008) as a distinct scheduled family tied to virtual-clock fast-forwards.
+  Each event is parameterized as (fault id, virtual-clock fire time, target surface, payload)
+  in a replayable log; interaction rules are limited to the documented cascade mechanism —
+  one fault seizing shared state (a metadata-table lock, a corrupted partial output) so that a
+  second scheduled event lands on already-degraded state (S006, S007) — which keeps
+  concurrency deterministic while preserving the most catastrophic real failure class.
+status: proposed
+rq: RQ5
+proposed_by: S8-initial-conditions
+evidence:
+  - S004
+  - S005
+  - S006
+  - S007
+  - S008
+attacks: []

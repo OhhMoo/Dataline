@@ -1,0 +1,16 @@
+id: C019
+claim: >
+  Class (a) synthetic world data should be produced by seeded parametric generators —
+  per-column distributions, explicit correlations, volume, and a time range aligned to the
+  virtual clock — and every generated instance must pass a distributional-equivalence
+  calibration: score a known-baseline solution on the instance and require it to land within
+  a fixed tolerance of its score on sibling seeds, reusing MLE-bench's reconstructed-test-set
+  validation pattern. This turns "same difficulty across randomized worlds" into a checkable
+  gate rather than an assumption.
+status: proposed
+rq: RQ5
+proposed_by: S8-initial-conditions
+evidence:
+  - S102
+  - S109
+attacks: []

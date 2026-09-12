@@ -133,7 +133,9 @@ def load_yaml(path: Path) -> dict:
             continue
 
         v = val.strip("\"'")
-        if v.lower() in ("true", "false"):
+        if v == "[]":
+            parent[key] = []
+        elif v.lower() in ("true", "false"):
             parent[key] = v.lower() == "true"
         elif re.fullmatch(r"-?\d+", v):
             parent[key] = int(v)

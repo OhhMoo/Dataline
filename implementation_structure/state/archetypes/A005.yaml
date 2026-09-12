@@ -1,0 +1,71 @@
+id: A005
+title: Training-serving skew hunt after a post-deployment accuracy collapse
+discipline: data_science
+description: >
+  A model that validated at 0.91 offline AUC is producing visibly wrong predictions in
+  production, and the offline/online gap appeared immediately at deployment - not
+  gradually. The world contains three independently sufficient skew mechanisms seeded
+  from real incidents: a feature join table that mutated between training-snapshot time
+  and serving time so the same entity resolves to different features in the two paths; a
+  scoring pipeline copied from a sibling product that still carries the sibling's row
+  filter, silently dropping a meaningful slice of production entities before scoring; and
+  a preprocessing artefact whose imputation constants were fit on the combined
+  train+test set, inflating the offline number the team trusted. The agent must diagnose
+  which mechanisms are live, quantify each one's contribution to the gap, and repair the
+  serving path so logged serving features match training-time features for the same
+  entities.
+why_hard: >
+  The shared symptom of bespoke pipeline bugs is exactly this: a large offline/online
+  accuracy gap right after deployment, with no systematic debugging framework and almost
+  no overlap between practitioners' bugs. Nothing crashes; the model runs and returns
+  plausible-looking scores. The leakage leg means the offline metric itself is evidence
+  of a bug, not a baseline to restore - the agent must distrust the number it is handed.
+  Diagnosis requires comparing logged serving-time features against training features
+  entity-by-entity, the one technique Google's rules actually recommend, and the world
+  only makes that possible if the agent thinks to do it.
+human_hours: "20-40"
+grading: >
+  Deterministic: the agent's diagnosis report must name each live mechanism (checked
+  against the world's seed manifest); after repair, per-entity feature parity between
+  logged serving features and training features is asserted exact on a held-out entity
+  sample; retrained offline AUC on a clean split lands inside a reference band; serving
+  predictions on a probe set diff against reference predictions within tolerance.
+  Rubric: 25 points across mechanism identification (per-mechanism credit), contribution
+  quantification, repair correctness, and whether the agent re-derived an honest offline
+  metric instead of defending the inflated one.
+rubric_points: 25
+apps_touched:
+  - warehouse
+  - jupyter
+  - git
+deterministic_checks:
+  - "diagnosis report matches seeded-mechanism manifest (per-mechanism credit)"
+  - "entity-level feature parity assert between serving log and training snapshot"
+  - "retrained clean-split AUC within reference band"
+  - "probe-set serving predictions diff vs reference within tolerance"
+judge_axes:
+  - code_quality
+  - design
+  - robustness
+failure_modes_expected:
+  - "chases model quality (retraining, hyperparameters) instead of the data path"
+  - "finds the copied-pipeline filter, misses the mutable join table (or vice versa)"
+  - "treats the leaked 0.91 as ground truth and 'restores' it"
+  - "fixes serving but never quantifies which mechanism caused how much of the gap"
+existing_coverage: >
+  MLE-bench (S100-S109) grades end-to-end competition deliverables, not production skew
+  diagnosis against logged serving data. No reviewed benchmark plants multiple
+  independent skew mechanisms and grades per-mechanism attribution.
+derived_from:
+  - S115
+  - S116
+  - S121
+  - S112
+produced_by: S1-postmortems
+attacks: []
+notes: >
+  S115 supplies the mutable-join-table mechanism and the serving-time feature-logging
+  mitigation that becomes the grading hook; S116 the copied-pipeline dropped-filter
+  incident; S121 the symptom signature (offline/online gap at deployment, bespoke bugs);
+  S112 the preprocessing-fit-on-combined-set leakage leg. All mechanisms are seedable as
+  world initial conditions over DuckDB + notebook surfaces; no cloud dependency.

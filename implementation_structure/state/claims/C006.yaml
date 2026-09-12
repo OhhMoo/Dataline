@@ -1,0 +1,17 @@
+id: C006
+claim: >
+  BI REST APIs (Tableau T113, Power BI T114, Looker T115, Sigma T128) are the weakest
+  HTTP-interception candidates in the inventory: the corpus holds no mock repo and no
+  first-party operator evidence for them, and the evidenced path is OSS substitution —
+  running Superset locally as the BI surface — rather than replicating vendor REST
+  formats at a fake URL. Intercepting e.g. the Tableau REST API remains plausible but
+  unevidenced; v1 should substitute, and vendor-fidelity interception should be deferred
+  to a later breadth pass.
+status: proposed
+rq: RQ3
+proposed_by: S5-http-interception
+evidence:
+  - S519
+  - S515
+  - S516
+attacks: []

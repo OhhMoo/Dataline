@@ -1,0 +1,20 @@
+id: C007
+claim: >
+  The warehouse/database tier of the inventory is mock-able by direct OSS substitution
+  without any HTTP interception: Snowflake tasks run hermetically on fakesnow-over-DuckDB
+  (standalone HTTP-server mode gives per-connection isolated databases for parallel rollouts),
+  Redshift/BigQuery surfaces map onto Postgres or DuckDB with sqlglot transpiling dialects at
+  task-build time, and ClickHouse is itself open source. Snowflake's own data-eng-bench
+  validates the pattern by running all 103 tasks on a baked-in DuckDB backend with a real
+  Snowflake variant only as the dialect-fidelity axis.
+status: proposed
+rq: RQ3
+proposed_by: S6-oss-substitution
+evidence:
+  - S316
+  - S318
+  - S507
+  - S505
+  - S303
+  - S506
+attacks: []

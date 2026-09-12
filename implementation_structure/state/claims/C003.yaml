@@ -1,0 +1,14 @@
+id: C003
+claim: >
+  Warehouse mocks that route through a live cloud account are disqualified by E2, and
+  this eliminates the universql path: universql requires a real Snowflake account for
+  catalog and access control and cannot query native Snowflake tables locally, so it is
+  a hybrid-execution proxy, not a hermetic emulator. Fully local fakesnow-over-DuckDB is
+  the only evidenced HTTP-interception substrate for the Snowflake class.
+status: proposed
+rq: RQ3
+proposed_by: S5-http-interception
+evidence:
+  - S317
+  - S316
+attacks: []

@@ -1,0 +1,19 @@
+id: C022
+claim: >
+  Class (c) documentation should be generated as a contradiction graph, not a bag of stale
+  files: each task-relevant fact gets 2-N doc instances scattered across wiki, repo, and
+  tickets with independent staleness ages, and exactly one designated ground-truth doc — the
+  pattern at Airbnb, Uber (10x-100x near-duplicate metric instances with misleading names),
+  and LinkedIn, where the same question yields different documented answers. Generator knobs:
+  doc count and placement, per-doc staleness age, which docs disagree about which fact, and a
+  coverage knob (fraction of task knowledge present in docs at all vs. discoverable only from
+  the systems). The ground-truth designation must be machine-readable so "did the agent use
+  the current definition" is a deterministic check, not a judgment call.
+status: proposed
+rq: RQ5
+proposed_by: S8-initial-conditions
+evidence:
+  - S200
+  - S201
+  - S202
+attacks: []

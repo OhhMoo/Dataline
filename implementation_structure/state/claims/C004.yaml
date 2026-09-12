@@ -1,0 +1,17 @@
+id: C004
+claim: >
+  BigQuery (T108) and Redshift (T119) have no evidenced open-source HTTP-intercept mock
+  in the corpus, so their E3 path is dialect substitution rather than REST replication:
+  author agent-facing SQL in the target dialect, transpile to DuckDB with sqlglot at
+  task-build time (explicit read/write dialects), and grade by execution on the DuckDB
+  substrate. This is weaker than the Snowflake story — transpilation can silently change
+  semantics — and a dedicated BigQuery/Redshift emulator probe remains open RQ3 work.
+status: proposed
+rq: RQ3
+proposed_by: S5-http-interception
+evidence:
+  - S318
+  - S503
+  - S502
+  - S507
+attacks: []

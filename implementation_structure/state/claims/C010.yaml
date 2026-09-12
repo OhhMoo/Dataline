@@ -1,0 +1,20 @@
+id: C010
+claim: >
+  The BI and catalog tier splits cleanly in two: Apache Superset is a run-locally OSS stand-in
+  covering the dashboard surfaces of Tableau, Power BI, Looker, and Sigma, and OpenMetadata is
+  an OSS stand-in for the Unity Catalog / Atlan governance surface (catalog, lineage,
+  observability); but Slack, Jira, Confluence, and GitHub have no drop-in OSS equivalent and
+  must be mocked by HTTP interception per decided fact E3. Those four collaboration/docs apps,
+  not the data stack, are the real mock-ability bottleneck for archetypes in DE-4, DA-5, and
+  any task needing scattered documentation.
+status: proposed
+rq: RQ3
+proposed_by: S6-oss-substitution
+evidence:
+  - S519
+  - S525
+  - S515
+  - S517
+  - S522
+  - S524
+attacks: []

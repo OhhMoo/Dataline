@@ -1,0 +1,64 @@
+# Derivation path S2 (job-specs): ingestion + warehouse + transformation is a core
+# hiring surface (frequency signal: S511 Fivetran, S512 Airbyte, S500 Snowflake).
+# Task content grounded in filed bugs S013/S014/S015/S022.
+
+id: A010
+title: Schema-drift corruption repair across the ingestion-to-dbt path
+discipline: data_engineering
+description: >
+  An upstream source added one column and removed another. The ingestion connector,
+  configured to propagate field changes, silently lost rows on sync. Downstream, an
+  incremental dbt model with on_schema_change enabled now INSERTs with positional
+  column matching, so values from the new column land in the wrong target columns
+  while row counts still look plausible. The agent must trace the corruption from a
+  destination-row-count anomaly back through the raw layer, repair the corrupted
+  columns, recover the lost rows where possible, and reconfigure both connector and
+  model so drift is handled explicitly.
+why_hard: >
+  This is silent data corruption, not a crash: every run succeeds and aggregates stay
+  in a believable range, so detection requires comparing distributions and checking
+  column-level semantics, not reading error logs. The two defects (row loss at
+  ingestion, column permutation at transformation) have interacting symptoms, and the
+  'append-only' raw table has also shrunk, breaking the usual assumption that the raw
+  layer is a safe source of truth for replay.
+human_hours: "8-20"
+grading: >
+  Deterministic: per-column checksum comparison of the repaired model against a
+  reference table; destination-vs-source row-count reconciliation per business day;
+  assertion that the previously mis-mapped column pairs now hold semantically valid
+  values (value-range and regex-format checks); dbt schema tests on the drifted
+  columns pass; connector configuration diff shows explicit (not positional) column
+  mapping. Rubric: 20 points across defect isolation (ingestion vs transformation),
+  correctness of repaired values, recovery of recoverable rows, and drift-hardening
+  of the configuration.
+rubric_points: 20
+apps_touched:
+  - warehouse
+  - dbt
+  - ingestion
+deterministic_checks:
+  - "per-column checksum diff vs reference table"
+  - "source-vs-destination row-count reconciliation per day"
+  - "value-format assertions on previously mis-mapped columns"
+  - "dbt schema tests on drifted columns"
+judge_axes:
+  - code_quality
+  - robustness
+failure_modes_expected:
+  - "full-refreshes everything instead of repairing the corrupted window"
+  - "fixes the dbt model but never notices the connector row loss"
+  - "traps on the shrunken raw table and declares rows unrecoverable prematurely"
+  - "leaves positional INSERT semantics in place for the next drift event"
+existing_coverage: >
+  Filed-bug mechanics are directly translatable to broken-world initial conditions;
+  no known bench combines connector row loss with positional-INSERT corruption.
+derived_from:
+  - S013
+  - S014
+  - S015
+  - S022
+produced_by: S2-job-specs
+notes: >
+  Frequency signal only: managed ingestion (S511) and Airbyte (S512) into a Snowflake-
+  class warehouse (S500) is the standard DE hiring stack; used to prioritize DE-2,
+  the richest subcategory in the corpus.

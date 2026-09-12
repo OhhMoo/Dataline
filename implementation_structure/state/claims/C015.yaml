@@ -1,0 +1,17 @@
+id: C015
+claim: >
+  A reshaped-SDK warehouse can produce grading false positives, because fakesnow accepts a
+  more liberal SQL dialect than real Snowflake and has non-deterministic row ordering, and
+  because sqlglot transpile success does not imply the SQL is valid or executable in the
+  target engine. Therefore deterministic checks must fully specify ORDER BY, and dialect
+  fidelity needs a separate axis: adopt data-eng-bench's dual-backend pattern where passing
+  on the hermetic backend but failing on a real-Snowflake variant isolates a dialect gap
+  rather than a modeling error.
+status: proposed
+rq: RQ3
+proposed_by: S7-sdk-reshaping
+evidence:
+  - S316
+  - S303
+  - S318
+attacks: []

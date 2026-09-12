@@ -1,0 +1,66 @@
+# A025 — DE-2 schema & semantic drift, derived from tool documentation (S5xx)
+# combined with incident findings (S004, S013, S014).
+
+id: A025
+title: Silent column-misalignment repair after an ingestion-connector schema change
+discipline: data_engineering
+description: >
+  An ELT connector (documented Airbyte/Fivetran-style automated data movement surface)
+  begins emitting a new column mid-position in the source payload after an upstream API
+  change. A dbt incremental model loads it into the warehouse using the documented
+  sync/append schema-change behavior, which appends the column at the end of the target
+  table while the INSERT matches positionally. Every value lands one column to the left.
+  The pipeline stays green; a dashboard shows nonsense. The agent must detect the
+  misalignment, reconstruct which load windows are corrupted, fix the model to use an
+  explicit column list, and repair the affected rows from the raw landing table.
+why_hard: >
+  The failure mechanism is exactly the one in filed dbt-databricks bugs S013/S014:
+  positional INSERT matching under on_schema_change makes corruption invisible to schema
+  checks because column names and types are unchanged after the fact — the same invisibility
+  property as the UTC-to-local drift in S002 and the dropped-batch drift in S004. The agent
+  must reason across three documented surfaces (connector, dbt project, warehouse table
+  history) and prove the corruption window, not just patch forward.
+human_hours: "10-20"
+grading: >
+  Deterministic: per-column checksum and row-level diff of the repaired model against an
+  expected/ reference table built from the raw landing zone; assert zero rows where
+  adjacent-column values are swapped (decoy-detection query); dbt test suite must pass
+  including a new not-null/accepted-values test the agent adds on the affected columns.
+  Rubric: 24 points across corruption-window identification, fix correctness (explicit
+  column list, not a brittle reorder), backfill completeness, and regression tests.
+rubric_points: 24
+apps_touched:
+  - warehouse
+  - dbt
+  - ingestion
+  - bi_dashboard
+deterministic_checks:
+  - "column-wise checksum diff vs expected/ reference table"
+  - "row-level diff on repaired partitions"
+  - "dbt test run passes including agent-added schema tests"
+  - "no positional-swap signature remains in corrupted date range"
+judge_axes:
+  - code_quality
+  - robustness
+  - design
+failure_modes_expected:
+  - "fixes only future loads and leaves the corrupted window in place"
+  - "reorders the SELECT list instead of naming columns explicitly"
+  - "mis-identifies the corruption start date and over- or under-repairs"
+  - "drops and rebuilds the full table, destroying history the task says to preserve"
+existing_coverage: >
+  ade-bench covers setup-time corruption; a live positional-drift event inside an
+  incremental dbt model with a connector mock is not present in DataAgentBench (S315)
+  or terminal-bench style corpora.
+derived_from:
+  - S004
+  - S013
+  - S014
+  - S508
+  - S511
+  - S512
+produced_by: S4-tool-docs
+attacks: []
+notes: >
+  Substrate: fakesnow/DuckDB per S316 for the warehouse surface; deterministic checks
+  must order rows explicitly because fakesnow row ordering is non-deterministic.

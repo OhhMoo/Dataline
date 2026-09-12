@@ -1,0 +1,15 @@
+id: C014
+claim: >
+  In-process patching of a vendor SDK is the right call only when the task's action space is
+  pinned to that one language runtime; it breaks whenever the agent shells out to a CLI or
+  curls REST, because the shim lives inside the patched process and subprocess or direct-HTTP
+  traffic bypasses it entirely. fakesnow demonstrates the escape hatch: its standalone
+  HTTP-server mode is usable by any language's connector, including JDBC and the Snowflake
+  CLI, so server-mode interception should be the default and in-process patching reserved for
+  grading-side or single-runtime tasks.
+status: proposed
+rq: RQ3
+proposed_by: S7-sdk-reshaping
+evidence:
+  - S316
+attacks: []

@@ -1,0 +1,58 @@
+id: A017
+title: Ingestion-connector schema drift with silent destination row loss
+discipline: data_engineering
+description: >
+  A SaaS source (mocked behind a local HTTP API) adds a column mid-stream and the
+  ingestion connector is configured to propagate field changes lazily. The destination
+  table in the warehouse silently drops below source row counts, the raw append-only
+  staging table itself shrinks, and the created-date distribution of surviving rows
+  collapses. dbt models downstream keep building green. The agent must detect the loss
+  from reconciliation signals (no alert fires), diagnose the propagation mechanics,
+  re-sync into a side table, validate counts, and swap it in without double-counting
+  or breaking downstream incremental models.
+why_hard: >
+  Nothing in the world is red: jobs succeed, dbt builds pass, and dashboards still
+  render plausible numbers. The signal exists only in cross-surface reconciliation
+  (source count vs destination count, per-day distribution shape) which requires
+  querying both the mock source API and the warehouse and knowing to look. The repair
+  (full re-sync + atomic swap) must preserve downstream incremental state, so a naive
+  truncate-and-reload creates a second incident of the S001 flavor.
+human_hours: "8-20"
+grading: >
+  Deterministic: per-partition row-count equality between the mock source API and the
+  swapped-in destination table; checksum of the per-day created-date distribution
+  against a hidden reference; duplicate business-key assertion after the swap; assert
+  downstream incremental models still build and their row counts match a reference
+  rebuild. Rubric: 20 points across detection (did the agent find the loss without
+  being told), root-cause correctness, swap idempotency, and reconciliation tests
+  added to the dbt project.
+rubric_points: 20
+apps_touched:
+  - ingestion_connector
+  - warehouse
+  - dbt
+  - bi_dashboard
+deterministic_checks:
+  - "source-vs-destination row-count equality per partition"
+  - "per-day distribution checksum vs hidden reference"
+  - "duplicate business-key assertion post-swap"
+  - "dbt build green + downstream row-count match vs reference rebuild"
+judge_axes:
+  - robustness
+  - design
+failure_modes_expected:
+  - "fixes the dbt model or dashboard instead of the connector sync"
+  - "truncate-and-reload that breaks downstream incremental models"
+  - "reports 'counts look fine' because aggregates mask the distribution collapse"
+existing_coverage: >
+  data-eng-bench (S302) is dbt-project-only with a baked-in DuckDB warehouse - no
+  ingestion connector surface exists to drift. ade-bench (S304) seeds DuckDB directly.
+  DataAgentBench (S315) is read-only querying. No existing benchmark simulates a live
+  connector losing rows mid-stream.
+derived_from:
+  - S022
+  - S002
+  - S013
+  - S019
+produced_by: S3-benchmark-gaps
+attacks: []

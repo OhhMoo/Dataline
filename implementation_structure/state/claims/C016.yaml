@@ -1,0 +1,15 @@
+id: C016
+claim: >
+  Apps whose realistic agent surface is a CLI or raw REST API (warehouse CLIs, BI tools
+  without a programmatic local connector) cannot be mocked by SDK reshaping and must be
+  intercepted at the HTTP/DNS layer by pointing the agent at a fake local URL; where no
+  open-source mock server or wire-compatible reimplementation exists for such an app, it
+  should be deprioritized in the app inventory or substituted with a native-OSS equivalent
+  (e.g. DuckDB as the local execution and grading substrate) rather than shimmed in-process.
+status: proposed
+rq: RQ3
+proposed_by: S7-sdk-reshaping
+evidence:
+  - S316
+  - S507
+attacks: []

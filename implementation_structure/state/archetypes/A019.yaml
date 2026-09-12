@@ -1,0 +1,63 @@
+id: A019
+title: dbt refactor with invisible BI blast radius and rename-boundary reconciliation
+discipline: data_analytics
+description: >
+  A legacy transformation is being consolidated into dbt and given stakeholder-friendly
+  names. The rename propagates into the warehouse, but several dashboards reference
+  the old model and column names, the BI layer has its own renames on top that are
+  recorded nowhere, and one board-level dashboard has a silent divide-by-zero fallback
+  that will render a plausible garbage number instead of erroring. The agent must
+  catalogue which BI assets depend on the old model (including through the unrecorded
+  BI rename boundary), migrate or duplicate-then-validate each one, keep the old
+  model alive until dependents move, and prove numbers are unchanged for consumers.
+why_hard: >
+  The dependency graph that matters is split across three surfaces (dbt project,
+  warehouse, BI metadata) and one of the edges - the BI-layer rename on top of the
+  dbt model name - exists nowhere in any system and must be reconstructed from query
+  logs and dashboard definitions (S217). The most dangerous failure is not a broken
+  dashboard but a silently wrong one (S010), so 'nothing errored' is not evidence of
+  success. Migration validation requires value-level comparison, not row counts
+  (S211, S210).
+human_hours: "10-25"
+grading: >
+  Deterministic: cell-level diff of every migrated dashboard's rendered query results
+  against pre-migration reference snapshots (must match exactly); compile/parse check
+  that zero BI assets still reference retired model or column names; audit_helper-style
+  row-level value diff between legacy and refactored models (not just counts/sums);
+  assert the deprecated model is dropped only after dependents are migrated. Rubric:
+  20 points across completeness of the discovered dependency inventory, migration
+  correctness, validation rigor, and deprecation discipline.
+rubric_points: 20
+apps_touched:
+  - dbt
+  - warehouse
+  - bi_dashboard
+  - catalog
+  - docs_wiki
+deterministic_checks:
+  - "rendered dashboard cell values equal to pre-migration reference snapshots"
+  - "zero dangling references to retired names across BI asset definitions"
+  - "row-level value diff legacy vs refactored model (audit_helper style)"
+  - "ordering assertion: dependents migrated before old model dropped"
+judge_axes:
+  - design
+  - code_quality
+failure_modes_expected:
+  - "renames in dbt and declares done while dashboards silently fall back to garbage"
+  - "finds direct dependents but misses assets behind the BI-layer rename boundary"
+  - "validates with row counts and misses value-level divergence from join-key NULLs"
+existing_coverage: >
+  ade-bench and data-eng-bench (S302, S304) end at the warehouse: their graders check
+  materialized tables, and no BI surface exists in the task world, so rename blast
+  radius - the failure mode that actually reached a board meeting in S010 - is
+  structurally untestable there. DA-6 evidence is practitioner blogs and forums
+  (S216), not first-party vendor incidents, so this archetype should be weighted
+  accordingly in the corpus.
+derived_from:
+  - S010
+  - S216
+  - S217
+  - S218
+  - S211
+produced_by: S3-benchmark-gaps
+attacks: []

@@ -1,0 +1,19 @@
+id: C020
+claim: >
+  The leakage argument for banning public datasets (E4) is three-part and each part is a
+  build-time check: (1) construction — data drawn from distributions has no memorizable
+  answer key, removing the failure MLE-bench had to patch with an anti-memorization rule;
+  (2) audit — a provenance-obfuscation pass (strip world-identifying text, re-run a reference
+  agent, require score stability within tolerance) run per world family; (3) generator audit —
+  scan synthesized tables for accidental structure (row order, ID monotonicity, lags encoded
+  in anonymized columns), because Santander showed a leak in generated-looking data can
+  dominate all legitimate modeling (rank 28 vs 2206). A world that fails any of the three is
+  rejected before task authoring.
+status: proposed
+rq: RQ5
+proposed_by: S8-initial-conditions
+evidence:
+  - S103
+  - S109
+  - S124
+attacks: []

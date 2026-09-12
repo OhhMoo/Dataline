@@ -1,0 +1,16 @@
+id: C005
+claim: >
+  Confluence (T110) and Jira (T102) are the easiest HTTP-interception targets after
+  Snowflake, because the environment needs their information-shape semantics — spaces,
+  pages, live docs, files; work items, workflows, boards — not Atlassian-internal fidelity:
+  a fake local REST server returning the vendor's response format over synthetic content
+  satisfies E3 with no Atlassian Cloud call. No mock repo is yet evidenced in the corpus,
+  so this claim asserts feasibility of the REST-shape replication and flags the
+  server-implementation search as open RQ3 work.
+status: proposed
+rq: RQ3
+proposed_by: S5-http-interception
+evidence:
+  - S522
+  - S524
+attacks: []

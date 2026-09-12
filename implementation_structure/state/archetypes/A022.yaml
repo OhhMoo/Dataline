@@ -1,0 +1,65 @@
+id: A022
+title: Long-horizon cross-surface triage - is the metric broken or the business
+discipline: data_analytics
+description: >
+  Leadership sees a multi-week decline in a headline KPI and wants an answer before
+  acting on it. The trace crosses every surface: an upstream analytics endpoint is
+  silently returning near-zero days for a subset of finalized dates (a retired-endpoint
+  variant records failures as real zeros), a fixed-length comparison window sums a
+  varying number of valid days, and the warehouse aggregation coerces failures to 0.0
+  instead of NULL. The agent must first decide data-broken vs business-broken, then
+  trace the defect through ingestion into the metric definition, repair the pipeline
+  and the aggregation semantics, restate the historical series, and update the metric
+  definition in the docs and the dashboard so the corrected number is the one people
+  see.
+why_hard: >
+  The correct first output is a verdict, not a fix: the decline is simultaneously
+  real-looking and mostly artifact (S208 shows both statements can be true), and
+  treating it as a business problem wastes the incident; treating it as purely broken
+  misses the part of the movement that was real. The failure-to-zero coercion (S207)
+  makes every surface downstream of ingestion individually consistent, so the agent
+  must reconstruct per-valid-day accounting across ingestion logs, warehouse, and BI
+  - a single trace crossing four surfaces, which no existing benchmark attempts.
+human_hours: "15-30"
+grading: >
+  Deterministic: submitted verdict (broken-window classification per date) matched
+  against hidden ground truth of poisoned days; restated per-valid-day series
+  compared row-by-row against a reference table; assert the aggregation now maps
+  failures to NULL not 0 (query over planted failure dates); dashboard and docs-metric
+  definition diff checks (updated definition present, stale text absent). Rubric: 26
+  points across verdict correctness, trace completeness across surfaces, restatement
+  accuracy, and propagation of the fix into docs and dashboards.
+rubric_points: 26
+apps_touched:
+  - ingestion_connector
+  - warehouse
+  - dbt
+  - bi_dashboard
+  - docs_wiki
+deterministic_checks:
+  - "per-date broken/valid verdict match vs hidden poisoned-day ground truth"
+  - "restated per-valid-day series row diff vs reference"
+  - "failure dates aggregate to NULL, not 0.0, after repair"
+  - "dashboard query and docs metric-definition content diff vs expected"
+judge_axes:
+  - robustness
+  - design
+failure_modes_expected:
+  - "declares a real business decline and writes a strategy memo instead of fixing data"
+  - "fixes the aggregation but leaves the historical series and docs uncorrected"
+  - "normalizes by window length without discovering the near-zero poisoned days"
+existing_coverage: >
+  ade-bench has setup-time corruption tasks (S304) but ends at the dbt layer;
+  data-eng-bench (S302) grades single dbt projects; DataAgentBench (S315) is
+  read-only Q&A against clean databases. A single long trace crossing
+  ingestion+warehouse+transformation+BI+docs with a verdict-gradeable first step is
+  uncovered everywhere - it is the differentiating format relative to all surveyed
+  prior art.
+derived_from:
+  - S207
+  - S208
+  - S203
+  - S205
+  - S010
+produced_by: S3-benchmark-gaps
+attacks: []

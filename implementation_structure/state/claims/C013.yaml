@@ -1,0 +1,15 @@
+id: C013
+claim: >
+  For warehouse emulation, SDK-reshaping via fakesnow beats the wire-protocol route via
+  universql as the default substrate: universql requires a live Snowflake account for catalog
+  and access control and cannot query native Snowflake tables at all, which violates the
+  no-cloud-at-runtime constraint and defeats cheap parallel sandboxing; fakesnow is fully
+  local over DuckDB, and universql itself is built on SQLGlot + fakesnow, corroborating
+  fakesnow as the more foundational piece. universql is pattern-only, not adoptable.
+status: proposed
+rq: RQ3
+proposed_by: S7-sdk-reshaping
+evidence:
+  - S316
+  - S317
+attacks: []

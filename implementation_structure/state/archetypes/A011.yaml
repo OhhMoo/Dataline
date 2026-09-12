@@ -1,0 +1,64 @@
+# Derivation path S2 (job-specs): orchestration ownership is the defining DE hiring
+# requirement (frequency signal: S509 Airflow, S510 Dagster, plus ticketing/docs
+# surfaces S524 Jira, S522 Confluence). Task content grounded in S008/S009/S018.
+
+id: A011
+title: Cross-system failure triage where the orchestrator is only the messenger
+discipline: data_engineering
+description: >
+  An Airflow DAG has failing tasks and a red UI, but the failure originates in systems
+  behind the orchestrator: one task fails because a DAG authored with datetime.now()
+  in its schedule logic imploded during a backfill, another starves on a sensor
+  holding a worker slot, and a third fails inside the warehouse while Airflow only
+  surfaces the exit code. Scattered runbook pages and ticket history hold partial,
+  partly stale, explanations. The agent must disambiguate the three failure classes,
+  fix the DAG-definition anti-patterns, and restore a green, correctly-scheduled
+  pipeline without unbounded retries masking future failures.
+why_hard: >
+  The orchestrator is the user interface to infrastructure it does not own, so every
+  visible symptom is at least one hop from its cause. DAG-definition bugs are
+  invisible at parse-success time and only detonate under specific triggers (backfill,
+  DST transition, sensor pileup). The documentation surface actively misleads: runbooks
+  describe last quarter's architecture, and ticket comments propose fixes that
+  previously made things worse.
+human_hours: "8-20"
+grading: >
+  Deterministic: static DAG lint assertions (no datetime.now()/relativedelta in
+  schedule expressions, bounded retry policy, sensor timeouts and poke-interval
+  bounds); simulated scheduler run over a parameterized date range including a DST
+  boundary produces the expected execution-date set; end-to-end DAG run exits zero
+  with expected task ordering; warehouse-side task log assertion confirms the real
+  failing statement was identified. Rubric: 18 points across per-failure root-cause
+  classification, anti-pattern fixes, scheduling correctness across DST, and retry/
+  sensor hardening.
+rubric_points: 18
+apps_touched:
+  - airflow
+  - warehouse
+  - docs_wiki
+  - ticketing
+deterministic_checks:
+  - "static DAG lint: no datetime.now in schedule logic, bounded retries, sensor timeouts"
+  - "simulated execution-date set over a DST boundary matches expected dates"
+  - "full DAG run exits zero with expected task dependency order"
+  - "root-cause classification matches the three planted failure classes"
+judge_axes:
+  - design
+  - robustness
+failure_modes_expected:
+  - "retries the failing task until it passes without touching the DAG definition"
+  - "believes the stale runbook and fixes the wrong system"
+  - "adds unbounded retries, converting the incident into an immortal task"
+  - "fixes scheduling but leaves the sensor resource starvation in place"
+existing_coverage: >
+  Terminal-bench family has single-host debugging; orchestrator-as-messenger triage
+  across three systems with a misleading doc surface is not covered in cited prior art.
+derived_from:
+  - S008
+  - S009
+  - S018
+produced_by: S2-job-specs
+notes: >
+  Frequency signal only: Airflow (S509) is the most-named orchestrator in DE job
+  specifications, with Jira (S524) and Confluence (S522) as the operational-context
+  surfaces postings assume fluency in.

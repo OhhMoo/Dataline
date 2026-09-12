@@ -1,0 +1,69 @@
+# Derivation path S2 (job-specs): 'own models in production' postings demand
+# monitoring and retraining judgment (frequency signal: notebooks S521, warehouse
+# S503, quality assertions S526, BI S515). Task content grounded in
+# S114/S117/S119/S123/S125.
+
+id: A013
+title: Silent model degradation diagnosis under distribution shift and delayed labels
+discipline: data_science
+description: >
+  A deployed scoring pipeline's business output has drifted, but ground-truth labels
+  arrive two weeks late, so nobody can compute accuracy for recent predictions.
+  Prediction-volume telemetry and input-distribution snapshots exist in the
+  warehouse; an alerting system fires constantly and is mostly noise (~90% not
+  actionable). The agent must build fit-for-purpose integrity checks from scratch
+  (input-table freshness verification, historical-record checksums, top-k output
+  churn, rank-order correlation over time), attribute the degradation to a demand
+  shift rather than a data bug (one decoy upstream defect exists), and retrain with
+  a regime change: a shortened training window and increased scoring frequency.
+why_hard: >
+  The standard feedback loop is broken by label delay, so the agent must construct
+  proxy evidence of model health and defend the attribution without a ground-truth
+  metric. The decoy upstream data defect is real and worth fixing, but fixing it does
+  not restore performance - misattribution is the designed failure. Alert noise
+  punishes naive threshold-watching, and the correct remediation is a data-regime
+  change, not a better algorithm.
+human_hours: "20-40"
+grading: >
+  Deterministic: the agent's monitoring queries execute and produce the expected
+  detection signals (input-freshness flag, checksum mismatch count, top-k churn
+  series, rank-correlation trend) against a reference timeline; attribution output
+  must name distribution shift as primary cause and the upstream defect as
+  secondary/decoy; retrained model's backtested proxy metric over the shifted window
+  beats the frozen-model baseline by a reference margin; new training-window and
+  scoring-cadence configuration values within reference bounds. Rubric: 22 points
+  across monitoring construction, correct attribution under label delay, regime
+  remediation, and decoy handling.
+rubric_points: 22
+apps_touched:
+  - notebook
+  - warehouse
+  - quality
+  - bi_dashboard
+deterministic_checks:
+  - "monitoring outputs match reference detection timeline"
+  - "attribution: shift named primary, upstream defect named secondary"
+  - "retrained-model proxy metric improvement over frozen baseline above margin"
+  - "training-window and scoring-cadence config within reference bounds"
+judge_axes:
+  - design
+  - robustness
+failure_modes_expected:
+  - "waits for labels instead of building proxy monitoring"
+  - "attributes the degradation to the decoy upstream defect and stops"
+  - "retrains on the same long window, baking in the old regime"
+  - "acts on noisy alerts rather than de-noised aggregate signals"
+existing_coverage: >
+  MLE-Bench tasks end at submission; delayed-label diagnosis with hand-built
+  integrity checks is explicitly un-cached in cited prior art.
+derived_from:
+  - S114
+  - S117
+  - S119
+  - S123
+  - S125
+produced_by: S2-job-specs
+notes: >
+  Frequency signal only: production-ML job specifications pair notebooks (S521)
+  with warehouse telemetry (S503) and quality/monitoring surfaces (S526, S515);
+  used to prioritize DS-3/DS-4 over thinner DS-6.

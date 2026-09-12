@@ -1,0 +1,29 @@
+{
+  "passed": true,
+  "gates": [
+    {
+      "gate": "G0",
+      "name": "schema",
+      "passed": true,
+      "checked": 239,
+      "failures": [],
+      "warnings": []
+    },
+    {
+      "gate": "G3",
+      "name": "coverage and dedup",
+      "passed": true,
+      "checked": 24,
+      "failures": [],
+      "warnings": []
+    },
+    {
+      "gate": "G5",
+      "name": "replication probe recorded",
+      "passed": true,
+      "checked": 0,
+      "failures": [],
+      "warnings": []
+    }
+  ]
+}

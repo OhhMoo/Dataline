@@ -1,0 +1,18 @@
+id: C021
+claim: >
+  For data-science worlds, leak placement must be an explicit generator parameter drawn from
+  a grounded menu, not an emergent accident: the 8-mechanism academic taxonomy (S111) plus the
+  three production-only variants — shared split between an upstream embedding and a downstream
+  model, serving-population class imbalance, and label-lag leakage (S120). Because leakage is
+  invisible from the artifact (none of the 329 surveyed papers' errors were detectable by
+  reading them), initial conditions must place the leak in pipeline STATE (imputation fit
+  scope, feature availability timestamps, split membership tables) so trajectory-blind state
+  checks can grade whether the agent detected and quarantined it.
+status: proposed
+rq: RQ5
+proposed_by: S8-initial-conditions
+evidence:
+  - S111
+  - S120
+  - S124
+attacks: []

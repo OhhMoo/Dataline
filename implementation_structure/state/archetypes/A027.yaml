@@ -1,0 +1,63 @@
+# A027 — DE-4 cross-system orchestration triage, derived from orchestrator and
+# streaming tool documentation combined with the Pinterest cross-system finding.
+
+id: A027
+title: Green-DAG triage of a failure that originates behind the orchestrator
+discipline: data_engineering
+description: >
+  An Airflow DAG reports success on every task, but the fact table it "loads" has not
+  received new rows in three days. Following the documented Airflow pattern where the
+  orchestrator is the user interface to infrastructure behind it (S009), the true cause
+  sits one layer down: a stalled Kafka consumer group (durable topic surface per S513)
+  whose offset committed past a poisoned message, so the micro-batch the DAG triggers is
+  always empty and exits zero. A second, plausible-looking decoy — a Dagster asset job
+  (S510) that is genuinely late but irrelevant to this table — is present in the world.
+  The agent must trace the empty payload through the consumer, reset or skip the poisoned
+  offset safely, replay the gap, and leave an alert that would have caught it.
+why_hard: >
+  Every surface the agent first checks lies: the orchestrator says success, the job log
+  is clean, row counts are non-zero historically. Diagnosis requires reading consumer
+  group state and topic offsets — infrastructure the orchestrator abstracts away, exactly
+  the cross-system triage burden S009 describes at Pinterest scale. The decoy asset job
+  punishes agents that fix the first red thing they see.
+human_hours: "12-24"
+grading: >
+  Deterministic: row-count and checksum diff of the replayed fact table against an
+  expected/ reference table; consumer lag for the group returns to zero; the poisoned
+  message is quarantined to a dead-letter table rather than silently dropped (row-count
+  conservation: source messages = loaded + quarantined); the decoy Dagster asset is
+  unchanged. Rubric: 22 points across root-cause identification, safe offset handling,
+  gap replay completeness, and the added monitoring assertion.
+rubric_points: 22
+apps_touched:
+  - airflow
+  - streaming
+  - warehouse
+  - orchestration_secondary
+deterministic_checks:
+  - "row-level diff vs expected/ reference table after replay"
+  - "consumer group lag equals zero"
+  - "message conservation: loaded + dead-lettered = produced count"
+  - "decoy asset job unmodified (checksum of its output table)"
+judge_axes:
+  - design
+  - robustness
+failure_modes_expected:
+  - "chases the late Dagster asset decoy"
+  - "drops the poisoned message without a dead-letter trail"
+  - "replays from the latest offset and loses the three-day gap"
+  - "resets to earliest and double-loads already-consumed messages"
+existing_coverage: >
+  Terminal-bench-style corpora have Kafka exercises but not a green-orchestrator /
+  stalled-consumer composition with a live decoy; thin in data-eng benchmarks.
+derived_from:
+  - S009
+  - S509
+  - S510
+  - S513
+produced_by: S4-tool-docs
+attacks: []
+notes: >
+  DE-6 adjacency noted: this borrows the stalled-consumer mechanic from the thin DE-6
+  evidence cluster but grounds the workflow in orchestrator/streaming docs (S509-S513),
+  so it does not consume a DE-6 slot.

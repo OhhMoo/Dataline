@@ -19,7 +19,8 @@
       "author_role": "str",
       "company": "str",
       "year": "int",
-      "notes": "str"
+      "notes": "str",
+      "repair_note": "str"
     },
     "_rules": [
       "quote must be a verbatim span from url, >= 20 chars - G1 fetches and string-matches it",

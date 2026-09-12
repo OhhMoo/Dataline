@@ -1,0 +1,66 @@
+# A029 — DA-2 numbers-don't-match triage, derived from warehouse/BI tool
+# documentation combined with the S002/S205/S208 reconciliation findings.
+
+id: A029
+title: Two dashboards, one metric — bisect-by-dimension reconciliation
+discipline: data_analytics
+description: >
+  Two BI dashboards (Superset workbooks per S519, connected to the warehouse per
+  S500/S507) report different values for the same headline metric, and a Jira ticket
+  (S524 work-item surface) demands an explanation by end of day. Three planted causes
+  coexist, drawn from the documented reconciliation taxonomy in S205: a timezone shift
+  on one ingestion path (UTC to local, per S002, so daily totals appear to cut off
+  early), a fan-out join inflating one side, and a comparison window summing a varying
+  number of near-empty "finalized" days (S208). The agent must compare row counts at
+  the same grain before sums, bisect by dimension until each gap localizes, and produce
+  a corrected metric query plus a written explanation of which differences were real.
+why_hard: >
+  S205's guide exists because this is the recurring, unglamorous core of analytics work,
+  and it prescribes a specific method (grain-first row counts, then dimensional bisect)
+  that can be graded as an artifact. S208 shows both contradictory statements can be
+  true simultaneously, so "which dashboard is right" is a trap question; S002 shows the
+  root cause is invisible to schema checks because name and type are unchanged. Multiple
+  simultaneous causes defeat agents that stop at the first explanation.
+human_hours: "10-25"
+grading: >
+  Deterministic: the agent's corrected metric query must match the reference value for
+  each of 12 (day x segment) cells within zero tolerance after timezone normalization;
+  row-count parity at order grain between the two sources must be demonstrated; a
+  causes table submitted by the agent must attribute each of the three planted gaps to
+  the correct mechanism (graded by exact-match on a rubric key, not free text); both
+  dashboards re-queried against the corrected model must agree. Rubric: 20 points across
+  method evidence, cause attribution, corrected query, and dashboard convergence.
+rubric_points: 20
+apps_touched:
+  - warehouse
+  - bi_dashboard
+  - ticketing
+  - dbt
+deterministic_checks:
+  - "corrected metric matches reference in all 12 day-segment cells"
+  - "row-count parity check at common grain executed and passing"
+  - "three planted causes exactly attributed in submitted causes table"
+  - "both dashboard queries return identical totals after fix"
+judge_axes:
+  - design
+  - robustness
+failure_modes_expected:
+  - "declares one dashboard 'right' and stops"
+  - "finds the timezone shift but misses the fan-out join or window effect"
+  - "compares sums before establishing row-count parity at the same grain"
+  - "normalizes timestamps in the BI layer instead of fixing the model"
+existing_coverage: >
+  DataAgentBench (S315) covers question-to-SQL correctness but not multi-cause
+  reconciliation between two existing reporting surfaces with a prescribed method.
+derived_from:
+  - S002
+  - S205
+  - S208
+  - S500
+  - S519
+  - S524
+produced_by: S4-tool-docs
+attacks: []
+notes: >
+  The causes-table exact-match key keeps grading deterministic; free-text explanation is
+  only judge-scored, bounded to one axis.

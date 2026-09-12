@@ -1,0 +1,66 @@
+# Derivation path S2 (job-specs): 'stakeholder asks why two numbers disagree' is the
+# defining analytics hiring surface (frequency signal: BI tools S515-S519, warehouse
+# S500/S503, dbt S508). Task content grounded in S203/S205/S206/S208.
+
+id: A014
+title: Numbers-don't-match reconciliation across BI and warehouse
+discipline: data_analytics
+description: >
+  A BI dashboard's weekly revenue total disagrees with both the source platform's own
+  UI and a second analyst's query. The world plants three compounding causes at once:
+  a timezone/DST boundary mismatch between the platform UI (local time) and the
+  warehouse (UTC), a join fan-out that silently changes the grain in one of the
+  queries, and an upstream source that delivered near-zero values for a subset of
+  finalized days so fixed-length windows compare different numbers of valid days.
+  The agent must bisect the discrepancy by dimension, attribute the gap to its three
+  causes with row-level evidence, fix the grain and timezone defects, and write the
+  reconciliation up where a stakeholder can find it.
+why_hard: >
+  'Wrong' almost always means a mismatch between expectation and reality, and here
+  both sides are arguably correct under their own conventions - measured per valid
+  day the metric can have doubled while the totals fell. There is no error anywhere;
+  the work is methodological: compare row counts at the same grain before sums,
+  bisect by dimension, and resist the temptation to declare one number 'the bug'
+  when three interacting conventions explain the whole gap.
+human_hours: "8-20"
+grading: >
+  Deterministic: the agent's reconciliation table must match a reference attribution
+  (gap decomposed into timezone, grain, and valid-day components within tolerance);
+  row-count comparisons at matched grain present before any sum comparison
+  (checked against the submitted analysis artifact); corrected metric query result
+  equality against ground_truth.csv; per-valid-day and total figures both computed
+  and consistent. Rubric: 18 points across cause attribution completeness, method
+  (grain-first, bisect-by-dimension), correctness of the fixed queries, and clarity
+  of the written reconciliation.
+rubric_points: 18
+apps_touched:
+  - warehouse
+  - bi_dashboard
+  - dbt
+  - docs_wiki
+deterministic_checks:
+  - "attribution table matches reference decomposition within tolerance"
+  - "row-count-at-same-grain comparison present in the analysis artifact"
+  - "corrected metric query result equals ground_truth.csv"
+  - "per-valid-day and total-window figures mutually consistent"
+judge_axes:
+  - robustness
+  - design
+failure_modes_expected:
+  - "declares one side 'wrong' and 'fixes' a number that was convention-correct"
+  - "finds the timezone cause and stops, missing grain and valid-day effects"
+  - "compares sums before reconciling row counts"
+  - "patches the dashboard filter, hiding rather than explaining the gap"
+existing_coverage: >
+  S205's reconciliation guide is effectively a ready-made grading checklist; no cited
+  bench grades attribution quality rather than a single fixed number.
+derived_from:
+  - S203
+  - S205
+  - S206
+  - S208
+produced_by: S2-job-specs
+notes: >
+  Frequency signal only: analytics job specifications cluster on BI fluency
+  (S515 Tableau, S516 Looker, S517 Power BI, S519 Superset) over a warehouse
+  (S500/S503) with dbt (S508); used to prioritize DA-2.

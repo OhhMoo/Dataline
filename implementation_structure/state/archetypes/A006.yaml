@@ -1,0 +1,71 @@
+id: A006
+title: Numbers-don't-match reconciliation across BI, warehouse, and a broken KPI pipeline
+discipline: data_analytics
+description: >
+  Finance's dashboard and Marketing's dashboard both claim to show weekly acquisition
+  cost and active-user counts, and they disagree; meanwhile a headline quality KPI has
+  read a suspiciously clean 0.0% for a quarter. The world contains the real causes from
+  production incidents: the two teams compute from different tables at different grains
+  with one side's join fan-out double-counting rows and a silently applied status filter;
+  daily totals drift because one path uses local time with DST and the other UTC with no
+  adjustment; and the 0.0% KPI is an aggregation artifact - every upstream call to a
+  retired endpoint has been 404ing for months, each failure coerced to a negative
+  observation and divided by questions-asked rather than questions-answered. The agent
+  must localize each discrepancy with a bisect-by-dimension method, state which number
+  (if either) is right, restate the affected metrics, and write the reconciliation
+  memo stakeholders will actually act on.
+why_hard: >
+  Wrong almost never means wrong: each side can be internally consistent while
+  disagreeing, and the correct answer to "which is right" can be "both, at different
+  grains" or "neither". The 0.0% KPI survived precisely because it matched what the team
+  predicted - confirmation bias is a world mechanic the agent must overcome, since no
+  alert fires and the number looks stable and clean. Localization demands the
+  count-at-same-grain-then-bisect discipline rather than eyeballing sums, and the DST
+  leg only manifests on specific boundary weeks, so a casual spot-check can pass.
+human_hours: "8-20"
+grading: >
+  Deterministic: the agent's reconciliation report must attribute each of the three
+  discrepancies to its seeded cause (grain/fan-out + filter; timezone/DST; failure-to-zero
+  coercion) - checked against the world manifest; recomputed weekly aggregates for both
+  teams at a common grain diff equal against reference; the restated KPI series matches
+  the reference per-answered-question series; a boundary-week daily-total comparison
+  proves the DST correction. Rubric: 18 points across correct attribution (per-cause
+  credit), restatement accuracy, method (grain check before sums), and memo clarity.
+rubric_points: 18
+apps_touched:
+  - warehouse
+  - bi_dashboard
+  - dbt
+  - docs_wiki
+deterministic_checks:
+  - "discrepancy attribution matches seeded-cause manifest (per-cause credit)"
+  - "common-grain weekly aggregates diff equal vs reference for both teams"
+  - "restated KPI series matches per-answered reference series"
+  - "DST boundary-week daily totals match after correction"
+judge_axes:
+  - design
+  - robustness
+failure_modes_expected:
+  - "declares one dashboard 'the bug' when both are consistent at different grains"
+  - "accepts 0.0% as real because it matches the stated strategy prediction"
+  - "compares sums before row counts at the same grain, mislocalizing the gap"
+  - "corrects the timezone in one path and leaves the comparison window mismatched"
+existing_coverage: >
+  ade-bench covers text-to-SQL against clean databases; no reviewed benchmark grades
+  multi-surface metric reconciliation with planted per-cause attribution. S205's
+  checklist (counts at same grain, then bisect by dimension) is a ready-made grading
+  rubric for method credit.
+derived_from:
+  - S203
+  - S204
+  - S205
+  - S206
+  - S207
+produced_by: S1-postmortems
+attacks: []
+notes: >
+  Five-source basis, all first-person or practitioner-authored. S207's confirmation-bias
+  survival mechanism (0% matched the prediction) is the key design move for making the
+  KPI leg non-trivial. S208 (varying-valid-day windows) is a natural extension leg if a
+  fourth cause is wanted; left out to keep the cause count gradeable. Deterministic
+  attribution grading requires the manifest format to be fixed at task-build time.

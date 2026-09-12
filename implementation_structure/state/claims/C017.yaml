@@ -1,0 +1,16 @@
+id: C017
+claim: >
+  SDK reshaping's decisive advantage over any hybrid or account-backed emulation is rollout
+  economics: fakesnow offers per-connection isolated databases (FAKESNOW_DB_PATH=":isolated:"),
+  which maps directly onto massively parallel RL rollouts on Harbor, matching data-eng-bench's
+  finding that a fully hermetic DuckDB variant baked into the image is the cheap default while
+  the real-warehouse variant is the fidelity axis. Any mock strategy that requires per-trial
+  cloning against an external account (data-eng-bench's retail_clone_* plus sweeper script) is
+  a fallback for fidelity checks, not the training-time substrate.
+status: proposed
+rq: RQ3
+proposed_by: S7-sdk-reshaping
+evidence:
+  - S316
+  - S303
+attacks: []

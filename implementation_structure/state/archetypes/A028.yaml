@@ -1,0 +1,70 @@
+# A028 — DA-4 migration & refactor validation, derived from dbt/legacy-database/BI
+# tool documentation combined with the S209-S212 migration workflow findings.
+
+id: A028
+title: Legacy SQL-to-dbt migration with audit-style row-level validation
+discipline: data_analytics
+description: >
+  A 1500-line legacy reporting query lives in an Oracle-style database (legacy
+  object-relational surface per S504) and feeds a Superset dashboard (OSS BI stand-in
+  per S519). Following the documented dbt change and migration workflows — dbt list to
+  enumerate downstream-incremental blast radius before merging (S209), audit_helper-style
+  row-level comparison instead of naive aggregates (S210), duplicate-the-BI-report
+  side-by-side validation (S211), and the stakeholder/usage check that sometimes reveals
+  the query is dead (S212) — the agent must decompose the query into modular, tested dbt
+  models, prove value parity with the legacy output, and re-point a duplicated dashboard
+  without changing a single displayed number.
+why_hard: >
+  Naive aggregate checks pass while real differences hide in inconsistent join keys and
+  timezone-shifted date columns (S210 names both as the clustering failure modes), and
+  the documented GitLab workflow (S209) shows schema changes silently break downstream
+  incremental models not configured for append/sync. The migration is large enough that
+  partial credit decomposition choices matter, and the world contains a decoy: one branch
+  of the legacy query is no longer used by any dashboard (S212) and should be flagged,
+  not faithfully ported.
+human_hours: "20-40"
+grading: >
+  Deterministic: audit_helper-style full outer-join row-level diff of each migrated dbt
+  model's output against the materialized legacy output, reporting zero unmatched rows;
+  MINUS-query system test of the changed models dev-vs-prod per S209; checksum equality
+  of every dashboard panel's underlying query before and after re-pointing; dbt test
+  suite passes; usage-log check confirms the flagged dead branch. Rubric: 28 points
+  across parity proof, modularity/naming, test coverage, dashboard equivalence, and
+  dead-code discovery.
+rubric_points: 28
+apps_touched:
+  - warehouse
+  - dbt
+  - bi_dashboard
+  - legacy_database
+  - docs_wiki
+deterministic_checks:
+  - "row-level full outer join diff vs materialized legacy output (zero unmatched)"
+  - "MINUS system test dev build vs production table"
+  - "dashboard panel query checksums equal before/after re-point"
+  - "dbt test run passes"
+judge_axes:
+  - code_quality
+  - design
+failure_modes_expected:
+  - "validates with row counts and column sums only, missing row-level mismatches"
+  - "faithfully ports the dead branch instead of flagging it"
+  - "breaks a downstream incremental model with an unannounced schema change"
+  - "re-points the original dashboard in place instead of a duplicate"
+existing_coverage: >
+  No public benchmark exercises the full documented dbt migration loop (blast radius +
+  audit diff + BI duplication) end to end; DataAgentBench (S315) grades single queries,
+  not migrations.
+derived_from:
+  - S209
+  - S210
+  - S211
+  - S212
+  - S504
+  - S508
+  - S519
+produced_by: S4-tool-docs
+attacks: []
+notes: >
+  Richest DA slot in this batch: S209-S212 are all docs/blog workflow sources, so this
+  archetype is the most faithful to the S4 derivation path.

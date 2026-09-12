@@ -1,0 +1,58 @@
+# A026 — DE-1 backfill & idempotency repair, derived from tool documentation
+# (Airflow/dbt/warehouse docs) combined with backfill incident findings.
+
+id: A026
+title: Duplicate-partition cleanup and idempotent backfill after a wrong-mode re-run
+discipline: data_engineering
+description: >
+  A scheduled Airflow DAG (author/schedule/monitor workflow surface per S509) re-ran a
+  dbt-modeled append job over partitions that already existed after a small bug fix,
+  doubling a month of revenue rows in every downstream aggregate — the S001 incident
+  shape. The agent must find the duplicated partitions, delete exactly the duplicate
+  rows, re-run the load with the correct write mode, and prove the backfill is
+  idempotent by re-running it without changing the result.
+why_hard: >
+  Airflow's docs surface makes re-running and backfilling a first-class operation, so the
+  naive fix (clear and re-run the DAG) re-triggers the original bug. S001 shows the
+  remediation itself became a second, larger incident. S003 explains why the world stays
+  green: freshness monitoring fires, correctness monitoring does not. The agent must
+  hold warehouse state, orchestrator history, and dbt run artifacts in mind at once and
+  avoid double-counting during repair.
+human_hours: "8-20"
+grading: >
+  Deterministic: row-count and checksum diff of the target table against an expected/
+  reference table after repair; duplicate business-key assertion returns zero; re-running
+  the agent's backfill procedure a second time leaves the checksum unchanged (idempotency
+  probe); freshness watermark advances past the gap. Rubric: 20 points across duplicate
+  identification, deletion precision (no valid rows removed), write-mode fix, and
+  idempotency evidence.
+rubric_points: 20
+apps_touched:
+  - warehouse
+  - dbt
+  - airflow
+deterministic_checks:
+  - "row-count and checksum diff vs expected/ reference table"
+  - "duplicate business-key assertion returns zero rows"
+  - "second execution of backfill leaves checksum unchanged"
+  - "freshness watermark advanced past the gap"
+judge_axes:
+  - code_quality
+  - robustness
+failure_modes_expected:
+  - "clears and re-runs the DAG, doubling the data again"
+  - "deletes by date range and removes legitimate late-arriving rows"
+  - "fixes the table but not the write mode, so corruption recurs next schedule"
+existing_coverage: >
+  Backfill-repair tasks exist in DE benchmark drafts; the idempotency probe (grade the
+  agent's own re-run) is the differentiating deterministic check here.
+derived_from:
+  - S001
+  - S003
+  - S508
+  - S509
+produced_by: S4-tool-docs
+attacks: []
+notes: >
+  Initial condition generator: duplicate exactly one calendar month plus two stray
+  days to punish range-based deletion.

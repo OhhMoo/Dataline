@@ -1,0 +1,14 @@
+id: C011
+claim: >
+  The ingestion tier substitutes asymmetrically: Fivetran's automated ELT surface can be
+  replaced by Airbyte, which is open source and connector-oriented, letting DE-2/DA-3
+  ingestion-breakage archetypes run locally; the reverse-ETL surface (Hightouch/Census, T129)
+  has no evidenced OSS substitute in the corpus and should be dropped from v1 scope or
+  deferred pending a dedicated RQ3 probe.
+status: proposed
+rq: RQ3
+proposed_by: S6-oss-substitution
+evidence:
+  - S511
+  - S512
+attacks: []

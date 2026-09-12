@@ -1,0 +1,71 @@
+# A030 — DA-1 metric definition reconciliation, derived from semantic-layer/BI tool
+# documentation combined with the Airbnb/Uber/LinkedIn metric-consistency findings.
+
+id: A030
+title: Consolidating near-duplicate metric definitions into a single semantic layer
+discipline: data_analytics
+description: >
+  A company has the Airbnb problem (S200): Finance and Marketing answer the same
+  question with different numbers from different tables and logic, and — per the Uber
+  finding (S201) — the popular metric has spawned a dozen near-duplicate instances whose
+  names do not capture the filters actually applied. Business logic currently lives in
+  two places at once, frozen in dbt rollup tables and re-modeled inside the BI tool
+  (the documented pre-migration state in S218). The agent must catalogue every metric
+  variant across the dbt project and the Looker-style semantic model (S516), choose and
+  implement one canonical definition in the semantic layer, migrate each dashboard to it,
+  and deprecate the duplicates — including resolving an ambiguity inside the metric name
+  itself (trailing-30-days vs calendar-month, per S204).
+why_hard: >
+  Reconciliation is not "pick the bigger pipeline": S200 shows nobody could tell which
+  answer was right, and S201 shows names actively mislead about applied filters, so the
+  agent must diff definitions row by row to learn what each variant actually computes.
+  S218 documents that logic duplication across dbt and BI is the norm, so the catalogue
+  step spans two surfaces with different expression languages. Deprecation has an
+  invisible blast radius — renaming or removing a variant breaks dashboards that do not
+  declare their dependency anywhere.
+human_hours: "15-30"
+grading: >
+  Deterministic: the canonical metric definition, evaluated over the warehouse, returns
+  the reference value for each of 8 (month x dimension) test cells; every dashboard panel
+  re-queried through the semantic layer agrees with the canonical value; a submitted
+  variant catalogue lists all N planted duplicates with their true filter sets
+  (exact-match key on normalized definitions); deprecated variants are marked in the
+  semantic model and zero dashboards still reference them (reference-count check).
+  Rubric: 24 points across catalogue completeness, canonical-definition correctness,
+  migration completeness, and deprecation hygiene.
+rubric_points: 24
+apps_touched:
+  - semantic_layer
+  - dbt
+  - bi_dashboard
+  - warehouse
+  - docs_wiki
+deterministic_checks:
+  - "canonical metric matches reference in all 8 test cells"
+  - "all dashboard panels agree with canonical value post-migration"
+  - "variant catalogue exact-matches the planted duplicate set and filters"
+  - "zero remaining dashboard references to deprecated variants"
+judge_axes:
+  - design
+  - code_quality
+failure_modes_expected:
+  - "trusts variant names and misses hidden filters (S201 trap)"
+  - "consolidates onto a definition that encodes one team's convention as 'correct'"
+  - "misses variants modeled only inside the BI layer, not in dbt"
+  - "deprecates a variant still referenced by a dashboard, breaking it silently"
+existing_coverage: >
+  No public benchmark exercises metric-consolidation across a semantic layer plus BI
+  blast radius; adjacent to DA-6 but grounded here in the stronger DA-1 evidence base.
+derived_from:
+  - S200
+  - S201
+  - S204
+  - S218
+  - S516
+  - S508
+produced_by: S4-tool-docs
+attacks: []
+notes: >
+  Least confident of this batch: the "correct" canonical definition must be pinned by
+  the world's docs_wiki (a governance page stating the agreed definition), otherwise
+  grading risks arbitrariness — flagged for the verifier pass.

@@ -1,0 +1,19 @@
+id: C008
+claim: >
+  The transformation and orchestration tier needs no mock at all: dbt Core, Apache Airflow,
+  and Dagster are open source and run unchanged in containers, and prior art already proves
+  the packaging model — ade-bench runs full dbt data-engineering tasks in per-task Docker
+  sandboxes over shared DuckDB databases and dbt projects, auto-generating dbt existence and
+  row-equality tests from declared solution seeds. Data-engineering and analytics archetypes
+  anchored on this tier are therefore the cheapest to build and the cheapest to grade
+  deterministically.
+status: proposed
+rq: RQ3
+proposed_by: S6-oss-substitution
+evidence:
+  - S508
+  - S509
+  - S510
+  - S304
+  - S305
+attacks: []

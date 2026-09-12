@@ -1,0 +1,20 @@
+id: C012
+claim: >
+  OSS substitution does not transfer correctness: fakesnow accepts a more liberal SQL dialect
+  than real Snowflake and has non-deterministic row ordering, and sqlglot's own maintainers
+  state that successful transpilation does not imply valid target SQL. Therefore every graded
+  check must execute against the substituted engine's actual state — fully ORDER-BY-specified
+  row diffs, dbt row-equality tests, or per-query validate.py against ground-truth CSVs — and
+  dialect-fidelity must be probed with a dual-backend variant rather than assumed from a
+  passing run on the substitute.
+status: proposed
+rq: RQ3
+proposed_by: S6-oss-substitution
+evidence:
+  - S316
+  - S317
+  - S318
+  - S303
+  - S305
+  - S315
+attacks: []

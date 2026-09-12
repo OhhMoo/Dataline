@@ -1,0 +1,66 @@
+# Derivation path S2 (job-specs): the warehouse+dbt+orchestrator trio is the stack
+# job postings demand most often for data-engineering roles (frequency signal:
+# S505 PostgreSQL, S507 DuckDB, S508 dbt, S509 Airflow). Task content is grounded
+# in incident findings S001/S003/S006/S023.
+
+id: A009
+title: Idempotent repair and backfill after a silent duplication incident
+discipline: data_engineering
+description: >
+  A scheduled transformation job has been re-run over partitions that already existed
+  (append-mode write instead of merge/overwrite), doubling revenue in downstream marts
+  and dashboards. Separately, a model was switched from table to incremental
+  materialization without a full refresh, leaving pre-existing rows under the old
+  schema alongside new ones. The agent must find both defects, quantify the blast
+  radius, clean up the duplicates and stale-schema rows, backfill the affected window
+  idempotently, and add regression tests so the failure cannot recur silently.
+why_hard: >
+  Every surface reports green: the jobs ran, rows were written, freshness monitors
+  pass. Correctness is unmonitored, exactly as in production practice, so the agent
+  must detect the corruption from the data itself (checksums, duplicate business
+  keys, schema-version mismatches) rather than from alerts. Cleanup is dangerous in
+  its own right: a careless delete-and-rerun becomes a second, larger incident, and
+  partial outputs from failed runs must not seed the next backfill.
+human_hours: "20-40"
+grading: >
+  Deterministic: row-level diff of repaired target tables against a reference
+  (row counts, per-key checksums); duplicate business-key assertion returns zero;
+  historical-row schema conformance check (no rows under the old column layout);
+  dbt test suite including a uniqueness test and a not-null test on the join key
+  passes; re-running the agent's backfill a second time changes nothing (idempotency
+  probe). Rubric: 24 points across root-cause identification (both defects),
+  safe cleanup ordering, backfill idempotency, and regression-test coverage.
+rubric_points: 24
+apps_touched:
+  - warehouse
+  - dbt
+  - airflow
+  - bi_dashboard
+deterministic_checks:
+  - "row-level diff vs expected/ reference tables"
+  - "duplicate business-key assertion"
+  - "schema-conformance check on pre-existing historical rows"
+  - "dbt test run: uniqueness + not_null on business key"
+  - "idempotency probe: second backfill run produces zero row diff"
+judge_axes:
+  - code_quality
+  - design
+  - robustness
+failure_modes_expected:
+  - "re-runs the DAG without diagnosing either defect"
+  - "deletes too much and backfills from a corrupted partial output"
+  - "fixes the duplication but misses the materialization-change stale rows"
+  - "backfill is not idempotent; second run re-doubles"
+existing_coverage: >
+  ade-bench has setup-time corruption flavors; a live dbt project with a
+  materialization-change trap plus append-mode duplication is thinner.
+derived_from:
+  - S001
+  - S003
+  - S006
+  - S023
+produced_by: S2-job-specs
+notes: >
+  Frequency signal only: warehouse (S505/S507), dbt (S508), Airflow (S509) are the
+  most universally demanded DE stack in job specifications; they motivated choosing
+  this subcategory, not the task content.
