@@ -1,0 +1,15 @@
+id: T140
+name: "Looker mock"
+category: bi
+role: mock_implementation
+replication_strategy: none_found
+produced_by: B1-connector-scout
+rq: RQ3
+license: ""
+license_verified: false
+replication_ease: blocked
+notes: >
+  Covers T115. NONE FOUND. Looker is SaaS-only, no local edition, no OSS server
+  mock. looker-open-source repos are extensions that require a live Looker
+  instance. Partial mitigation on the modeling side only: joshtemple/lkml (T163)
+  parses LookML files. Fallback: Superset persona (T137). Recorded 2026-09-12.

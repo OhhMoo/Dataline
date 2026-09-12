@@ -1,0 +1,26 @@
+id: T135
+name: Apache Airflow
+category: orchestration
+role: mock_implementation
+replication_strategy: native_oss
+produced_by: B1-connector-scout
+rq: RQ3
+repo_url: https://github.com/apache/airflow
+license: apache-2.0
+license_verified: true
+last_commit: 2026-09-12
+stars: 46833
+archived: false
+replication_ease: medium
+install_probe: pip install apache-airflow --constraint https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-no-providers-3.11.txt (dedicated py3.11.15 venv) && PYTHONUTF8=1 python -c "import airflow; airflow.__version__"
+probe_result: pass
+notes: >
+  B4 probe 2026-09-11: pip install clean, airflow 3.3.1, but two real caveats --
+  upstream warns POSIX-only (Windows support via WSL2/containers, issue 10388), and
+  plain import on this GBK-locale Windows host crashes with UnicodeDecodeError
+  reading config YAML unless PYTHONUTF8=1 is set. Passes with caveats -> medium.
+  Covers T106, REQUIRED for v1. Run the real thing. Determinism work is ours, not
+  theirs: DAG schedules and task-instance timestamps must bind to the virtual clock
+  (F2 D2), and datetime.now() inside DAGs is both a fault to exhibit and
+  infrastructure to control (S008). License Apache-2.0 confirmed via GitHub API
+  2026-09-12; G2 to verify.

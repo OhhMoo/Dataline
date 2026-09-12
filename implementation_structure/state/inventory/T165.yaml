@@ -1,0 +1,24 @@
+id: T165
+name: Delta Lake
+category: lakehouse
+role: oss_substitute
+replication_strategy: oss_equivalent
+produced_by: B1-connector-scout
+rq: RQ3
+repo_url: https://github.com/delta-io/delta
+license: apache-2.0
+license_verified: true
+last_commit: 2026-09-11
+stars: 8991
+archived: false
+replication_ease: easy
+install_probe: pip install delta-spark (batched with pyspark in throwaway py3.11.15 venv) && python -c "import delta; importlib.metadata.version('delta-spark')"
+probe_result: pass
+notes: >
+  B4 probe 2026-09-11: pip install clean on Python 3.11 Windows, delta-spark 4.4.0
+  (pairs with pyspark 4.2.0), imports OK; same JRE-at-runtime caveat as T164.
+  Storage half of the Databricks persona (T112), OPTIONAL / deferred per F2
+  ("cheapest-to-emulate per agent.md 6.1, open Delta spec, not demanded by any v1
+  surface"). Local Delta tables + Spark (T164) cover storage and compute; the
+  Databricks workspace/control plane remains none_found (T166). License
+  Apache-2.0 confirmed via GitHub API 2026-09-12; G2 to verify.

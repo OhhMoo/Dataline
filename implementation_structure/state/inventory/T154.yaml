@@ -1,0 +1,24 @@
+id: T154
+name: adobe/s3mock
+category: storage
+role: mock_implementation
+replication_strategy: http_intercept
+produced_by: B1-connector-scout
+rq: RQ3
+repo_url: https://github.com/adobe/s3mock
+license: apache-2.0
+license_verified: true
+last_commit: 2026-09-11
+stars: 1147
+archived: false
+replication_ease: easy
+install_probe: docker pull adobe/s3mock:latest
+probe_result: pass
+notes: >
+  B4 probe 2026-09-11: s3mock image pulled OK (Docker 29.5.2, Windows).
+  Covers T109 (S3), OPTIONAL. Replacement for the license-blocked MinIO (T153):
+  a lightweight S3 API mock (buckets, objects, metadata, multipart) backed by the
+  local filesystem, Docker-image friendly. Not a full S3 implementation -- IAM,
+  versioning edge cases and consistency semantics are thinner than real S3; scope
+  the staged-file / COPY INTO scenarios (F2 surface 10) accordingly. License
+  Apache-2.0 confirmed via GitHub API 2026-09-12; G2 to verify.

@@ -1,0 +1,26 @@
+id: T163
+name: lkml (LookML parser)
+category: other
+role: harness
+replication_strategy: oss_equivalent
+produced_by: B1-connector-scout
+rq: RQ3
+repo_url: https://github.com/joshtemple/lkml
+license: mit
+license_verified: true
+last_commit: 2025-01-31
+stars: 186
+archived: false
+replication_ease: medium
+install_probe: pip install lkml (batched with duckdb/sqlglot/fakesnow in throwaway py3.11.15 venv) && python -c "import lkml; importlib.metadata.version('lkml')"
+probe_result: pass
+notes: >
+  B4 probe 2026-09-11: installs clean on Python 3.11 Windows, lkml 1.3.7, imports
+  OK -- the hard rating was about staleness/partial coverage, not install; probe
+  upgrades it to medium (stale upstream remains the caveat).
+  Partial cover for the LookML half of T120, OPTIONAL. Parser/serializer for
+  LookML files only -- no Looker runtime, no SQL generation guarantees, last push
+  2025-01 (stale; G2 liveness will flag). Lets the generator READ/WRITE LookML
+  artifacts for metric-definition tasks; anything Looker-execution-shaped remains
+  none_found (T140). License MIT confirmed via GitHub API 2026-09-12; G2 to
+  verify.

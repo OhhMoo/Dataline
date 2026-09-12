@@ -1,0 +1,47 @@
+# License/liveness rejections recorded by B1 (Phase 4) so no future agent re-finds them.
+# One entry per rejected candidate; details live in the linked T1xx inventory artifact.
+- id: F-B1-001
+  name: minio/minio
+  reason: "AGPL-3.0 (disqualifying for shipped network service) AND repo archived 2026-04"
+  artifact: T153
+  checked: "2026-09-12 via api.github.com"
+- id: F-B1-002
+  name: requarks/wiki (Wiki.js)
+  reason: "AGPL-3.0 on a network service"
+  artifact: T144
+  checked: "2026-09-12 via api.github.com"
+- id: F-B1-003
+  name: outline/outline
+  reason: "Business Source License 1.1 (source-available; GitHub reports NOASSERTION)"
+  artifact: T145
+  checked: "2026-09-12 via raw LICENSE file"
+- id: F-B1-004
+  name: airbytehq/airbyte
+  reason: "Root LICENSE is Elastic License 2.0 (source-available); connectors are MIT but the platform is not shippable"
+  artifact: T156
+  checked: "2026-09-12 via raw LICENSE file"
+- id: F-B1-005
+  name: multiwoven/multiwoven
+  reason: "AGPL-3.0 (reverse-ETL substitute for Hightouch/Census)"
+  artifact: T159
+  checked: "2026-09-12 via api.github.com"
+- id: F-B1-006
+  name: rudderlabs/rudder-server
+  reason: "Elastic-2.0 / NOASSERTION (source-available)"
+  artifact: T159
+  checked: "2026-09-12 via api.github.com"
+- id: F-B1-007
+  name: grouparoo/grouparoo
+  reason: "MIT but archived 2022-04 (fails liveness)"
+  artifact: T159
+  checked: "2026-09-12 via api.github.com"
+- id: F-B1-008
+  name: chrishutchinson/slack-testing-library
+  reason: "No LICENSE file in repo = no license granted"
+  artifact: T150
+  checked: "2026-09-12 via raw.githubusercontent.com (404 on master and main)"
+- id: F-B1-009
+  name: LocalStack/localstack
+  reason: "Repo archived 2026-03 with NOASSERTION license (org pivot); not needed -- adobe/s3mock covers S3"
+  artifact: T154
+  checked: "2026-09-12 via api.github.com"

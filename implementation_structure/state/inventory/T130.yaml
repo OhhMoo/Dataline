@@ -1,0 +1,27 @@
+id: T130
+name: fakesnow
+category: warehouse
+role: mock_implementation
+replication_strategy: sdk_reshape
+produced_by: B1-connector-scout
+rq: RQ3
+repo_url: https://github.com/tekumara/fakesnow
+license: apache-2.0
+license_verified: true
+last_commit: 2026-09-11
+stars: 208
+archived: false
+replication_ease: easy
+install_probe: pip install fakesnow (batched with duckdb/sqlglot/lkml in throwaway py3.11.15 venv) && python -c "import fakesnow; importlib.metadata.version('fakesnow')"
+probe_result: pass
+notes: >
+  B4 probe 2026-09-11: installs clean on Python 3.11 Windows, fakesnow 0.11.16,
+  imports OK.
+  Covers T107 (Snowflake). Patches snowflake-connector-python in-process, so it is
+  invisible to agents that shell out to snowsql or curl the REST API (the known
+  sdk_reshape weakness, role doc + F2 section 4). Fakesnow also ships a standalone
+  HTTP server mode that serves JDBC/CLI/Go connectors (S316) -- if adopted, that mode
+  upgrades this to wire_protocol and should be preferred. Fidelity caveats from F2:
+  non-deterministic row ordering and a liberal SQL dialect mean graders need explicit
+  ORDER BY and must not rely on Snowflake rejecting malformed SQL. Declared real,
+  Apache-2.0, actively maintained (pushed 2026-09-11) per role brief; G2 to confirm.

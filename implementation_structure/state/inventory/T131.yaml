@@ -1,0 +1,24 @@
+id: T131
+name: DuckDB
+category: warehouse
+role: oss_substitute
+replication_strategy: oss_equivalent
+produced_by: B1-connector-scout
+rq: RQ3
+repo_url: https://github.com/duckdb/duckdb
+license: mit
+license_verified: true
+last_commit: 2026-09-11
+stars: 41165
+archived: false
+replication_ease: easy
+install_probe: pip install duckdb (batched with sqlglot/fakesnow/lkml in throwaway py3.11.15 venv) && python -c "import duckdb; duckdb.__version__"
+probe_result: pass
+notes: >
+  B4 probe 2026-09-11: installs clean on Python 3.11 Windows, duckdb 1.5.5 wheel,
+  imports OK.
+  Execution substrate behind the Snowflake persona (F2 surface 1). Single-file
+  database makes the D4 hermetic-warehouse check trivial: reset = file copy, hash
+  check, runs with networking disabled (data-eng-bench dual-backend precedent S303).
+  Not Snowflake-shaped on its own -- pair with fakesnow (T130) for the Snowflake
+  surface. License MIT confirmed via GitHub API 2026-09-12; G2 to verify.

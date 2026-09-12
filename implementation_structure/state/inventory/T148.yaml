@@ -1,0 +1,29 @@
+id: T148
+name: Git
+category: vcs
+role: mock_implementation
+replication_strategy: native_oss
+produced_by: B1-connector-scout
+rq: RQ3
+repo_url: https://github.com/git/git
+license: gpl-2.0
+license_verified: false
+last_commit: 2026-09-11
+stars: 63111
+archived: false
+replication_ease: easy
+install_probe: git --version
+probe_result: pass
+notes: >
+  B4 probe 2026-09-11: git 2.51.2.windows.1 already present on the host; trivially
+  available everywhere.
+  Covers the local-git half of T100, REQUIRED for v1. FLAG FOR HUMAN READ: GPL-2.0
+  is not on the auto-accept list (MIT/Apache/BSD/ISC/MPL). It is a local CLI tool
+  we invoke, not a network service we link or re-serve, so the copyleft-over-network
+  concern behind the AGPL rule does not apply -- but the license rulebook says
+  "anything else -> flag", so flagged. repo_url is the official mirror; git is not
+  GitHub-primary (git-scm.com / kernel.org). History must be forced to fixed
+  author/committer timestamps (F2 surface 7).
+  GPL-2.0 needs human read — local CLI tool, not a network service. B2 2026-09-12:
+  GitHub API reports NOASSERTION (detects 'Other'); GPL-2.0-only confirmed from the
+  COPYING file, so license stays gpl-2.0 with license_verified: false.

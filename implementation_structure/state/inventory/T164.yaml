@@ -1,0 +1,24 @@
+id: T164
+name: Apache Spark
+category: transformation
+role: mock_implementation
+replication_strategy: native_oss
+produced_by: B1-connector-scout
+rq: RQ3
+repo_url: https://github.com/apache/spark
+license: apache-2.0
+license_verified: true
+last_commit: 2026-09-12
+stars: 43981
+archived: false
+replication_ease: easy
+install_probe: pip install pyspark (batched with delta-spark in throwaway py3.11.15 venv) && python -c "import pyspark; importlib.metadata.version('pyspark')"
+probe_result: pass
+notes: >
+  B4 probe 2026-09-11: pip install clean on Python 3.11 Windows, pyspark 4.2.0,
+  imports OK; actually RUNNING local mode needs a JRE on the host (install probe
+  does not cover that).
+  Covers T118, OPTIONAL / out of v1 per F2. Run the real thing (local mode).
+  Pair with Delta Lake (T165) for the lakehouse persona. No S5xx evidence exists
+  for Spark (L6 gap, F2 flags section) -- adopt only when an archetype demands it.
+  License Apache-2.0 confirmed via GitHub API 2026-09-12; G2 to verify.

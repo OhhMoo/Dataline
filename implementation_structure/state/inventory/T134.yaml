@@ -1,0 +1,23 @@
+id: T134
+name: dbt (Core)
+category: transformation
+role: mock_implementation
+replication_strategy: native_oss
+produced_by: B1-connector-scout
+rq: RQ3
+repo_url: https://github.com/dbt-labs/dbt
+license: apache-2.0
+license_verified: true
+last_commit: 2026-09-12
+stars: 13806
+archived: false
+replication_ease: easy
+install_probe: pip install dbt-core dbt-duckdb (throwaway py3.11.15 venv) && python -c "import dbt; importlib.metadata.version('dbt-core')"
+probe_result: pass
+notes: >
+  B4 probe 2026-09-11: installs clean on Python 3.11 Windows, dbt-core 1.12.4 +
+  dbt-duckdb 1.11.0, import OK.
+  Covers T105. Run the real thing: dbt is the v1 grading surface for state checks
+  (dbt tests, S305 auto-generated equality tests). REPO RENAMED: the GitHub API
+  returns 301 from dbt-labs/dbt-core to dbt-labs/dbt -- canonical URL used here;
+  license Apache-2.0 read from the redirected repo 2026-09-12. G2 to verify.

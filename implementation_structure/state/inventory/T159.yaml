@@ -1,0 +1,17 @@
+id: T159
+name: "Hightouch / Census (reverse ETL) mock"
+category: other
+role: mock_implementation
+replication_strategy: none_found
+produced_by: B1-connector-scout
+rq: RQ3
+license: ""
+license_verified: false
+replication_ease: blocked
+notes: >
+  Covers T129, OPTIONAL, out of v1 per F2. NONE FOUND license-clean. Rejection
+  ledger (details in state/failures/): multiwoven/multiwoven AGPL-3.0 (reject);
+  rudderlabs/rudder-server Elastic-2.0/NOASSERTION (source-available, reject);
+  grouparoo/grouparoo MIT but ARCHIVED 2022 (fails liveness); castledio/castled
+  repo no longer exists. If reverse ETL ever enters scope, the honest path is
+  dbt + dlt-shaped sync jobs as the persona. Recorded 2026-09-12.

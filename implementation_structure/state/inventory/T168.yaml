@@ -1,0 +1,20 @@
+id: T168
+name: PostgreSQL
+category: database
+role: mock_implementation
+replication_strategy: native_oss
+produced_by: B1-connector-scout
+rq: RQ3
+license: "PostgreSQL License (MIT/BSD-style permissive)"
+license_verified: false
+replication_ease: easy
+install_probe: docker pull postgres:16
+probe_result: pass
+notes: >
+  B4 probe 2026-09-11: postgres:16 image pulled OK (Docker 29.5.2, Windows).
+  Covers T103 and doubles as the Redshift persona substrate (T119/T170). No
+  repo_url: PostgreSQL is not GitHub-primary (postgresql.org; the GitHub mirror is
+  unofficial) -- G2 license/liveness checks against GitHub do not apply; the
+  PostgreSQL License is a long-standing permissive license, flagged here for G2's
+  non-GitHub path. WAL/CDC position and table content are the state to pin (F2
+  surface 9).

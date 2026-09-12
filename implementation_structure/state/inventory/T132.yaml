@@ -1,0 +1,23 @@
+id: T132
+name: sqlglot
+category: warehouse
+role: harness
+replication_strategy: oss_equivalent
+produced_by: B1-connector-scout
+rq: RQ3
+repo_url: https://github.com/tobymao/sqlglot
+license: mit
+license_verified: true
+last_commit: 2026-09-11
+stars: 9604
+archived: false
+replication_ease: easy
+install_probe: pip install sqlglot (batched with duckdb/fakesnow/lkml in throwaway py3.11.15 venv) && python -c "import sqlglot; sqlglot.__version__"
+probe_result: pass
+notes: >
+  B4 probe 2026-09-11: installs clean on Python 3.11 Windows, sqlglot 30.15.0,
+  imports OK.
+  Build-time SQL dialect translation (Snowflake <-> DuckDB) for world generation.
+  F2 constraint: use at build time only, NEVER as verification -- successful parse
+  is not executable SQL (S318). License MIT confirmed via GitHub API 2026-09-12;
+  G2 to verify.

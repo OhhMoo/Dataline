@@ -1,0 +1,25 @@
+id: T147
+name: nektos/act
+category: other
+role: harness
+replication_strategy: native_oss
+produced_by: B1-connector-scout
+rq: RQ3
+repo_url: https://github.com/nektos/act
+license: mit
+license_verified: true
+last_commit: 2026-08-09
+stars: 71902
+archived: false
+replication_ease: easy
+install_probe: curl -sLO https://github.com/nektos/act/releases/latest/download/act_Windows_x86_64.zip && unzip && ./act.exe --version
+probe_result: pass
+notes: >
+  B4 probe 2026-09-11: single-binary download from GitHub releases works, act
+  0.2.89 runs on Windows (GitHub API was rate-limited, used the
+  releases/latest/download direct asset URL).
+  Covers T111 (GitHub Actions as CI flavor, OPTIONAL). Runs GitHub Actions
+  workflow files locally against Docker -- gives deterministic CI check results on
+  the repo surface (T146) without any GitHub dependency. Workflow event payloads
+  and timestamps need pinning to the virtual clock. License MIT confirmed via
+  GitHub API 2026-09-12; G2 to verify.

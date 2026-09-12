@@ -1,0 +1,25 @@
+id: T156
+name: Airbyte
+category: ingestion
+role: mock_implementation
+replication_strategy: none_found
+produced_by: B1-connector-scout
+rq: RQ3
+license: "Elastic-2.0 (platform) / MIT (connectors)"
+license_verified: false
+last_commit: 2026-09-12
+stars: 22037
+archived: false
+replication_ease: blocked
+notes: >
+  REJECTED on license, recorded so nobody re-finds it (also state/failures/).
+  The repo root LICENSE is the Elastic License 2.0 (verified from the raw file
+  2026-09-12; GitHub API reports NOASSERTION). ELv2 is source-available and an
+  automatic G2 failure per schema rules -- this contradicts the Phase-3 claim
+  proposing Airbyte as the Fivetran substitute. Connectors are MIT, so individual
+  connector code MAY be salvageable after a human read, but the platform is not
+  shippable. Ingestion substitutes: dlt (T157), Meltano (T158).
+  B2 2026-09-12: rejection re-confirmed via the GitHub API; see
+  state/failures/B1-license-rejections.yaml F-B1-004. repo_url cleared and
+  replication_strategy set to none_found so this artifact no longer asserts
+  usability.

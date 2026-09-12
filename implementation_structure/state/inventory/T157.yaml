@@ -1,0 +1,26 @@
+id: T157
+name: dlt (data load tool)
+category: ingestion
+role: oss_substitute
+replication_strategy: oss_equivalent
+produced_by: B1-connector-scout
+rq: RQ3
+repo_url: https://github.com/dlt-hub/dlt
+license: apache-2.0
+license_verified: true
+last_commit: 2026-09-11
+stars: 5846
+archived: false
+replication_ease: easy
+install_probe: pip install dlt (batched with dagster/metricflow in throwaway py3.11.15 venv) && python -c "import dlt; importlib.metadata.version('dlt')"
+probe_result: pass
+notes: >
+  B4 probe 2026-09-11: installs clean on Python 3.11 Windows, dlt 1.30.0, imports
+  OK.
+  Partial cover for T117 (Fivetran), OPTIONAL, after the Airbyte license rejection
+  (T156). dlt is a Python ingestion library, not a managed-connector control
+  plane -- it reproduces the MECHANICS Fivetran-shaped tasks need (source ->
+  normalize -> load, schema drift arriving "through" ingestion, S004) but not the
+  connector-catalog UI. Since v1 treats ingestion mostly as a fault source (F2
+  surface 11), the mechanics are the part that matters. License Apache-2.0
+  confirmed via GitHub API 2026-09-12; G2 to verify.

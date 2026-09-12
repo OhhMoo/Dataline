@@ -1,0 +1,23 @@
+id: T133
+name: goccy/bigquery-emulator
+category: warehouse
+role: mock_implementation
+replication_strategy: wire_protocol
+produced_by: B1-connector-scout
+rq: RQ3
+repo_url: https://github.com/goccy/bigquery-emulator
+license: mit
+license_verified: true
+last_commit: 2026-07-24
+stars: 1143
+archived: false
+replication_ease: easy
+install_probe: docker pull ghcr.io/goccy/bigquery-emulator:latest
+probe_result: pass
+notes: >
+  B4 probe 2026-09-11: image pulled OK from GHCR (Docker 29.5.2, Windows).
+  Covers T108 (BigQuery, OPTIONAL alt persona per F2). Standalone server speaking
+  the BigQuery REST and Storage (gRPC) APIs over SQLite/DuckDB-class storage, so it
+  works for any client language below the SDK. Lower cadence than core candidates
+  (last push 2026-07) -- G2 liveness check should weigh that. License MIT confirmed
+  via GitHub API 2026-09-12; G2 to verify.

@@ -1,0 +1,22 @@
+id: T152
+name: MockServer
+category: other
+role: harness
+replication_strategy: http_intercept
+produced_by: B1-connector-scout
+rq: RQ3
+repo_url: https://github.com/mock-server/mockserver-monorepo
+license: apache-2.0
+license_verified: true
+last_commit: 2026-09-12
+stars: 4969
+archived: false
+replication_ease: easy
+install_probe: docker pull mockserver/mockserver:latest
+probe_result: pass
+notes: >
+  B4 probe 2026-09-11: mockserver image pulled OK (Docker 29.5.2, Windows).
+  Generic HTTP(S) mock server + proxy alternative to Mockoon (T151) for the same
+  SaaS-only surfaces (Jira T149, Confluence, Slack). Adds record-and-replay and
+  failure injection, useful for the fault-injection plane. License Apache-2.0
+  confirmed via GitHub API 2026-09-12; G2 to verify.

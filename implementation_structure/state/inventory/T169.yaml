@@ -1,0 +1,25 @@
+id: T169
+name: ClickHouse
+category: database
+role: mock_implementation
+replication_strategy: native_oss
+produced_by: B1-connector-scout
+rq: RQ3
+repo_url: https://github.com/ClickHouse/ClickHouse
+license: apache-2.0
+license_verified: true
+last_commit: 2026-09-12
+stars: 49838
+archived: false
+replication_ease: hard
+install_probe: docker pull clickhouse/clickhouse-server:latest
+probe_result: pass
+notes: >
+  B4 probe 2026-09-11: image pulled OK (Docker 29.5.2, Windows) -- INSTALL is easy,
+  but ease stays hard because the rating reflects the determinism contract (async
+  merges/mutations defeat bit-reproducible resets), not installation.
+  Covers T126, OPTIONAL. Real thing, Apache-2.0 (confirmed via GitHub API
+  2026-09-12; G2 to verify) -- but HARD for our determinism contract: async merges
+  and mutations make bit-reproducible resets structurally hostile (F2 section 6.1
+  note on surface 9). Usable only as a mocked source persona whose query RESULTS
+  are pinned, never as grading substrate.

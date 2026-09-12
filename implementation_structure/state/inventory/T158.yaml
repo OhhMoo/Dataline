@@ -1,0 +1,25 @@
+id: T158
+name: Meltano
+category: ingestion
+role: oss_substitute
+replication_strategy: oss_equivalent
+produced_by: B1-connector-scout
+rq: RQ3
+repo_url: https://github.com/meltano/meltano
+license: mit
+license_verified: true
+last_commit: 2026-09-11
+stars: 2624
+archived: false
+replication_ease: medium
+install_probe: pip install meltano (throwaway py3.11.15 venv) && python -c "import meltano; importlib.metadata.version('meltano')"
+probe_result: pass
+notes: >
+  B4 probe 2026-09-11: meltano 4.2.2 installs and imports OK, BUT it forces
+  pathspec 1.1.1 which conflicts with dbt-core 1.12.4's pathspec<1.1 pin when
+  co-installed -- deploy Meltano in its own env/container. Passes with caveat ->
+  medium.
+  Second ingestion substitute for T117 alongside dlt (T157): CLI-first Singer
+  tap/target runner, self-hosted, config-as-YAML. Closer to a connector-fleet
+  feel than dlt; still no managed-service control plane. License MIT confirmed
+  via GitHub API 2026-09-12; G2 to verify.

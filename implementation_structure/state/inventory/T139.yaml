@@ -1,0 +1,16 @@
+id: T139
+name: "Power BI mock"
+category: bi
+role: mock_implementation
+replication_strategy: none_found
+produced_by: B1-connector-scout
+rq: RQ3
+license: ""
+license_verified: false
+replication_ease: blocked
+notes: >
+  Covers T114. NONE FOUND. Power BI Desktop is free but proprietary, Windows-only,
+  and its license does not permit containerized offline redistribution; Power BI
+  Service is SaaS-only. No OSS mock of the Power BI REST API exists. Same fallback
+  as T138: hand-rolled http_intercept (hard) or Superset persona (T137).
+  Recorded 2026-09-12.

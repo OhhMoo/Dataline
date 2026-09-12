@@ -1,0 +1,17 @@
+id: T138
+name: "Tableau mock"
+category: bi
+role: mock_implementation
+replication_strategy: none_found
+produced_by: B1-connector-scout
+rq: RQ3
+license: ""
+license_verified: false
+replication_ease: blocked
+notes: >
+  Covers T113. NONE FOUND. Tableau Server/Desktop are proprietary with no free
+  offline edition suitable for containers; no OSS mock speaks the Tableau Server
+  REST API. What exists is tableau/tableau-mcp, an MCP server that fronts a REAL
+  Tableau instance -- useless offline. Path forward is either a hand-rolled
+  http_intercept of the Tableau REST API (harness T151/T152, hard) or adopting the
+  Superset persona (T137). Recorded 2026-09-12.

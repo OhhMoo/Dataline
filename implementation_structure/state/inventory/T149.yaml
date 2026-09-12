@@ -1,0 +1,18 @@
+id: T149
+name: "Jira mock"
+category: ticketing
+role: mock_implementation
+replication_strategy: none_found
+produced_by: B1-connector-scout
+rq: RQ3
+license: ""
+license_verified: false
+replication_ease: blocked
+notes: >
+  Covers T102, OPTIONAL. NONE FOUND. No license-clean OSS server speaks the Jira
+  Cloud REST API. What exists: generic HTTP mock harnesses (Mockoon T151,
+  MockServer T152) against which a Jira-shaped fixture set would have to be written
+  by hand; OpenProject (GPL-3.0, flag + not Jira-API-compatible); Jira Data Center
+  trials require an Atlassian license. If ticketing enters v1, the cheapest honest
+  path is http_intercept with a small hand-written Jira API fixture, or accepting
+  Gitea issues (T146) as the ticket surface. Recorded 2026-09-12.

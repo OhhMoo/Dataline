@@ -1,0 +1,25 @@
+id: T143
+name: BookStack
+category: docs
+role: oss_substitute
+replication_strategy: oss_equivalent
+produced_by: B1-connector-scout
+rq: RQ3
+repo_url: https://github.com/BookStackApp/BookStack
+license: mit
+license_verified: true
+last_commit: 2026-09-11
+stars: 19038
+archived: false
+replication_ease: easy
+install_probe: docker pull lscr.io/linuxserver/bookstack:latest
+probe_result: pass
+notes: >
+  B4 probe 2026-09-11: linuxserver/bookstack image pulled OK (Docker 29.5.2,
+  Windows); the maintained container distribution of the PHP app.
+  Covers T110 (Confluence-like wiki), REQUIRED for v1 (F2 surface 5). Self-hosted
+  PHP wiki with a documented REST API; shelves/chapters/pages map to
+  Confluence's spaces/pages info-shape. Per-doc timestamps can be forced to the
+  virtual epoch for the staleness/contradiction metadata (initial-condition class
+  c). Chosen over Wiki.js (T144, AGPL reject) and Outline (T145, BSL reject).
+  License MIT confirmed via GitHub API 2026-09-12; G2 to verify.

@@ -1,0 +1,22 @@
+id: T136
+name: Dagster
+category: orchestration
+role: mock_implementation
+replication_strategy: native_oss
+produced_by: B1-connector-scout
+rq: RQ3
+repo_url: https://github.com/dagster-io/dagster
+license: apache-2.0
+license_verified: true
+last_commit: 2026-09-11
+stars: 16139
+archived: false
+replication_ease: easy
+install_probe: pip install dagster (batched with dlt/metricflow in throwaway py3.11.15 venv) && python -c "import dagster; importlib.metadata.version('dagster')"
+probe_result: pass
+notes: >
+  B4 probe 2026-09-11: installs clean on Python 3.11 Windows, dagster 1.13.22,
+  imports OK.
+  Covers T123, OPTIONAL alt orchestration persona (F2 surface 3). Run the real
+  thing. Same virtual-clock determinism obligations as Airflow (T135). License
+  Apache-2.0 confirmed via GitHub API 2026-09-12; G2 to verify.

@@ -1,0 +1,24 @@
+id: T153
+name: MinIO
+category: storage
+role: mock_implementation
+replication_strategy: none_found
+produced_by: B1-connector-scout
+rq: RQ3
+license: agpl-3.0
+license_verified: false
+last_commit: 2026-04-24
+stars: 61366
+replication_ease: blocked
+archived: true
+notes: >
+  REJECTED -- double failure, recorded so nobody re-finds it (also
+  state/failures/). (1) LICENSE is AGPL-3.0, disqualifying for a shipped network
+  service per problem.yaml. (2) The repo is ARCHIVED as of 2026-04 (org wound down
+  the OSS repo), so it fails G2 liveness regardless. This contradicts the Phase-3
+  claim proposing MinIO for S3 -- use adobe/s3mock (T154) instead. Confirmed via
+  GitHub API 2026-09-12.
+  B2 2026-09-12: rejection re-confirmed via the GitHub API; see
+  state/failures/B1-license-rejections.yaml F-B1-001. repo_url cleared and
+  replication_strategy set to none_found so this artifact no longer asserts
+  usability.

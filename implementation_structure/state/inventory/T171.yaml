@@ -1,0 +1,23 @@
+id: T171
+name: JupyterLab
+category: notebook
+role: mock_implementation
+replication_strategy: native_oss
+produced_by: B1-connector-scout
+rq: RQ3
+repo_url: https://github.com/jupyterlab/jupyterlab
+license: bsd-3-clause
+license_verified: true
+last_commit: 2026-09-11
+stars: 15298
+archived: false
+replication_ease: easy
+install_probe: pip install jupyterlab (batched with great-expectations in throwaway py3.11.15 venv) && python -c "import jupyterlab; importlib.metadata.version('jupyterlab')"
+probe_result: pass
+notes: >
+  B4 probe 2026-09-11: installs clean on Python 3.11 Windows, jupyterlab 4.6.3,
+  imports OK.
+  Covers T104, the v1 native notebook target. Run the real thing. Notebook files
+  with stale cell outputs are the state surface (L2 failure family); kernels must
+  read the virtual clock like every other surface (D2). License BSD-3-Clause
+  confirmed via GitHub API 2026-09-12; G2 to verify.

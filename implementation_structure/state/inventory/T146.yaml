@@ -1,0 +1,23 @@
+id: T146
+name: Gitea
+category: vcs
+role: oss_substitute
+replication_strategy: oss_equivalent
+produced_by: B1-connector-scout
+rq: RQ3
+repo_url: https://github.com/go-gitea/gitea
+license: mit
+license_verified: true
+last_commit: 2026-09-11
+stars: 57954
+archived: false
+replication_ease: easy
+install_probe: docker pull gitea/gitea:latest
+probe_result: pass
+notes: >
+  B4 probe 2026-09-11: image pulled OK (Docker 29.5.2, Windows).
+  Covers the GitHub collaboration half of T100: repos, branches, PRs, reviews,
+  issues via a GitHub-shaped REST API, fully self-hosted (single Go binary +
+  SQLite). Local git itself is T148. Commit/author timestamps must be forced to
+  the virtual epoch for byte-reproducible history (F2 surface 7). License MIT
+  confirmed via GitHub API 2026-09-12; G2 to verify.

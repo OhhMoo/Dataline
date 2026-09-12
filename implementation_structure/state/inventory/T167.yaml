@@ -1,0 +1,17 @@
+id: T167
+name: "Oracle Database mock"
+category: database
+role: mock_implementation
+replication_strategy: none_found
+produced_by: B1-connector-scout
+rq: RQ3
+license: ""
+license_verified: false
+replication_ease: blocked
+notes: >
+  Covers T127, OPTIONAL legacy source persona. NONE FOUND license-clean. Oracle XE
+  and the official Docker images are under OTN/proprietary terms -- no
+  redistribution into shipped lab containers; no OSS substitute speaks Oracle's
+  wire protocol or SQL dialect faithfully. Closest honest path: PostgreSQL (T168)
+  as the legacy-RDBMS persona with sqlglot (T132) for dialect flavoring at build
+  time. Recorded 2026-09-12.

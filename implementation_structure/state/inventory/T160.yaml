@@ -1,0 +1,22 @@
+id: T160
+name: Great Expectations
+category: quality
+role: mock_implementation
+replication_strategy: native_oss
+produced_by: B1-connector-scout
+rq: RQ3
+repo_url: https://github.com/fivetran/great_expectations
+license: apache-2.0
+license_verified: true
+last_commit: 2026-09-11
+stars: 11783
+archived: false
+replication_ease: easy
+install_probe: pip install great-expectations (batched with jupyterlab in throwaway py3.11.15 venv) && python -c "import great_expectations; importlib.metadata.version('great-expectations')"
+probe_result: pass
+notes: >
+  B4 probe 2026-09-11: installs clean on Python 3.11 Windows, great-expectations
+  1.23.0, imports OK.
+  Covers T122, OPTIONAL (F2 surface 12). Run the real thing: expectation suites
+  and last-run results are deterministic state we control. REPO MOVED: the GitHub API 301-redirects great-expectations/great_expectations to fivetran/great_expectations (Fivetran acquired GX); B2 updated repo_url to the canonical target 2026-09-12. License Apache-2.0
+  read from the redirected repo 2026-09-12; G2 to verify.

@@ -1,0 +1,24 @@
+id: T162
+name: MetricFlow
+category: other
+role: oss_substitute
+replication_strategy: oss_equivalent
+produced_by: B1-connector-scout
+rq: RQ3
+repo_url: https://github.com/dbt-labs/metricflow
+license: apache-2.0
+license_verified: true
+last_commit: 2026-09-11
+stars: 1793
+archived: false
+replication_ease: easy
+install_probe: pip install metricflow (batched with dagster/dlt in throwaway py3.11.15 venv) && python -c "import metricflow; importlib.metadata.version('metricflow')"
+probe_result: pass
+notes: >
+  B4 probe 2026-09-11: installs clean on Python 3.11 Windows, metricflow 0.213.0,
+  imports OK.
+  Covers the dbt-Semantic-Layer half of T120, OPTIONAL. dbt Cloud's hosted
+  Semantic Layer is closed SaaS, but the MetricFlow engine underneath is open:
+  Apache-2.0 confirmed via GitHub API 2026-09-12. Metric definitions compile to
+  SQL locally -- enough for metric-drift tasks (S200/S202) without any dbt Cloud
+  account. LookML half is T163. G2 to verify.

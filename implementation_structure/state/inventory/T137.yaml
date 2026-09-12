@@ -1,0 +1,27 @@
+id: T137
+name: Apache Superset
+category: bi
+role: oss_substitute
+replication_strategy: oss_equivalent
+produced_by: B1-connector-scout
+rq: RQ3
+repo_url: https://github.com/apache/superset
+license: apache-2.0
+license_verified: true
+last_commit: 2026-09-12
+stars: 74722
+archived: false
+replication_ease: easy
+install_probe: pip install apache-superset (dedicated py3.11.15 venv) && python -c "import superset"
+probe_result: pass
+notes: >
+  B4 probe 2026-09-11: surprisingly clean pure-pip install on Python 3.11 Windows,
+  apache-superset 6.1.0, imports OK (no build failures); ~150 transitive deps incl.
+  Flask-AppBuilder, celery, pandas.
+  The BI mock REQUIRED for v1 (F2 surface 4 says mock ONE of T113/T114/T115/T128).
+  No vendor ships a license-clean offline BI server (see T138-T142 none_found), so
+  Superset stands in: it hosts dashboard definitions, embedded metric formulas (the
+  duplicated semantic logic that drifts, S200/S202) and last-rendered values for
+  deterministic dashboard checks. NOT protocol-faithful to Tableau/Power BI/Looker;
+  agents see Superset's API, not the vendor's. License Apache-2.0 confirmed via
+  GitHub API 2026-09-12; G2 to verify.

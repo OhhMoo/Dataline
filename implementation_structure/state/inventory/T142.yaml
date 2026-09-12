@@ -1,0 +1,14 @@
+id: T142
+name: "Sigma mock"
+category: bi
+role: mock_implementation
+replication_strategy: none_found
+produced_by: B1-connector-scout
+rq: RQ3
+license: ""
+license_verified: false
+replication_ease: blocked
+notes: >
+  Covers T128, OPTIONAL persona. NONE FOUND. Sigma is SaaS-only; no local edition,
+  no OSS mock, no substitute for the spreadsheet-style BI surface. Fallback:
+  Superset persona (T137). Recorded 2026-09-12.

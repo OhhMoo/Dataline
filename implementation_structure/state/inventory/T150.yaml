@@ -1,0 +1,29 @@
+id: T150
+name: ygalblum/slack-server-mock
+category: other
+role: mock_implementation
+replication_strategy: http_intercept
+produced_by: B1-connector-scout
+rq: RQ3
+repo_url: https://github.com/ygalblum/slack-server-mock
+license: apache-2.0
+license_verified: true
+last_commit: 2025-02-28
+stars: 8
+archived: false
+replication_ease: medium
+install_probe: git clone --depth 1 https://github.com/ygalblum/slack-server-mock.git && pip install <clone> (throwaway py3.11.15 venv) && python -c "import slack_server_mock"
+probe_result: pass
+notes: >
+  B4 probe 2026-09-11: it is a Python/poetry app (no package.json -- B1's notes
+  implied otherwise); pip install from a fresh clone works, imports OK. Probe
+  upgrades install ease, but staleness (last push 2025-02) and small API subset
+  keep this at medium.
+  Covers T101 (Slack), OPTIONAL. The only license-clean Slack-shaped mock found:
+  a mock HTTP + WebSocket (Socket Mode) server, point the SDK's base_url at it.
+  HARD: last push 2025-02 (stale; G2 liveness will flag), and the Slack Web API
+  surface is huge -- this covers a small subset. Rejected alternatives:
+  chrishutchinson/slack-testing-library has NO LICENSE FILE (= no license granted,
+  per role rules); Mattermost is MIT/commercial-mixed (NOASSERTION) and not
+  Slack-API-compatible. Event-feed determinism (D3) is ours to layer on.
+  License Apache-2.0 confirmed via GitHub API 2026-09-12; G2 to verify.

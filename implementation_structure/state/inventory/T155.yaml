@@ -1,0 +1,22 @@
+id: T155
+name: Apache Kafka
+category: streaming
+role: mock_implementation
+replication_strategy: native_oss
+produced_by: B1-connector-scout
+rq: RQ3
+repo_url: https://github.com/apache/kafka
+license: apache-2.0
+license_verified: true
+last_commit: 2026-09-12
+stars: 33708
+archived: false
+replication_ease: easy
+install_probe: docker pull apache/kafka:latest
+probe_result: pass
+notes: >
+  B4 probe 2026-09-11: apache/kafka image pulled OK (Docker 29.5.2, Windows).
+  Covers T116, OPTIONAL (more likely a fault source than a live surface in v1, F2
+  surface 11). Run the real thing (KRaft mode, no ZooKeeper). Offsets and the
+  seeded message log are the state to pin (D3 replayable event log). License
+  Apache-2.0 confirmed via GitHub API 2026-09-12; G2 to verify.

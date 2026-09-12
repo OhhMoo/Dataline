@@ -1,0 +1,26 @@
+id: T161
+name: OpenMetadata
+category: catalog
+role: oss_substitute
+replication_strategy: oss_equivalent
+produced_by: B1-connector-scout
+rq: RQ3
+repo_url: https://github.com/open-metadata/OpenMetadata
+license: apache-2.0
+license_verified: true
+last_commit: 2026-09-12
+stars: 15173
+archived: false
+replication_ease: medium
+install_probe: docker pull docker.getcollate.io/openmetadata/server:latest
+probe_result: pass
+notes: >
+  B4 probe 2026-09-11: server image pulled OK (Docker 29.5.2, Windows), but the
+  pull is the easy part -- a working deployment needs the full compose stack (Java
+  server + Elasticsearch + MySQL), so this stays medium.
+  Covers T125 (Unity Catalog / Atlan), OPTIONAL. Both targets are closed (Unity
+  Catalog's OSS namesake is a Databricks-governed spec server, not Atlan-shaped),
+  so OpenMetadata stands in: catalog metadata, lineage, ownership for the
+  lineage-based triage tasks (L1). Heavy stack (Java + Elasticsearch + MySQL) --
+  expect the biggest container in the world if adopted. License Apache-2.0
+  confirmed via GitHub API 2026-09-12; G2 to verify.

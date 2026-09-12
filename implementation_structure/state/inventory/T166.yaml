@@ -1,0 +1,15 @@
+id: T166
+name: "Databricks workspace mock"
+category: lakehouse
+role: mock_implementation
+replication_strategy: none_found
+produced_by: B1-connector-scout
+rq: RQ3
+license: ""
+license_verified: false
+replication_ease: blocked
+notes: >
+  Covers the control-plane half of T112, OPTIONAL / deferred per F2. NONE FOUND.
+  Databricks Community Edition is SaaS (violates no-cloud constraint); there is no
+  OSS mock of the workspace REST API, SQL-warehouse UI, or jobs control plane.
+  Spark (T164) + Delta (T165) cover compute and storage only. Recorded 2026-09-12.
