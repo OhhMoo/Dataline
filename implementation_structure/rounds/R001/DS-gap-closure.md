@@ -1,6 +1,7 @@
 # R001 — data-science coverage gap closure
 
 **Date:** 2026-09-12 · **Trigger:** code-review finding 11 · **Author:** lead agent (not a
+dispatched strategy agent — see *Provenance caveat* below)
 
 > ## ⚠️ VERDICT (2026-09-12): THE GAP IS NOT CLOSED
 >
@@ -9,8 +10,6 @@
 > now `status: redesign_required` and must not be built from.** The headline "4 → 9" below is
 > the count that was *attempted*, not the count that shipped. Shippable DS archetypes remain
 > **4**. See the Verdict section at the end for the rulings.
-
-dispatched strategy agent — see *Provenance caveat* below)
 
 ---
 
