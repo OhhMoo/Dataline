@@ -1,0 +1,26 @@
+id: S022
+rq: RQ1
+claim: >
+  Airbyte OSS bug report: a Salesforce Opportunity stream syncing Incremental + Deduped into
+  Snowflake lost rows after the Salesforce team added a column, with the connection set to
+  "Propagate field changes only". Row count in the destination dropped below the source, the
+  supposedly append-only airbyte_internal raw table also shrank, and the created-date distribution
+  of surviving rows collapsed so that almost everything appeared to be created in one month. A
+  from-scratch re-sync into a separate destination table returned the correct counts.
+url: https://github.com/airbytehq/airbyte/issues/77627
+quote: "the row count in the destination table in Snowflake is lower than expected"
+source_type: repo
+author_role: data engineer running Airbyte OSS in production
+company: reported against airbytehq/airbyte
+year: 2026
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L1-practitioner-workflow-de
+notes: >
+  Unusually complete as a rebuildable scenario: named connector and version (source-salesforce
+  2.7.16), named destination, named sync mode, the exact schema-change trigger, and two
+  independent symptoms (row count and a distorted createddate distribution) plus the control
+  experiment that isolates it. The distribution check is the detection method that actually
+  worked, which is a good grading signal - a count alone would not have localised it. Note also
+  that it was data-quality monitors detecting a sudden count decrease that raised the alarm,
+  one of the few cases in my sample where monitoring, not a human, caught the problem.

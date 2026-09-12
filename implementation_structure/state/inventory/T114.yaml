@@ -1,0 +1,11 @@
+id: T114
+name: "Power BI"
+category: bi
+role: simulate_target
+replication_strategy: none_found
+produced_by: L6-tooling-inventory
+rq: RQ4
+frequency_rank: 15
+evidence:
+  - S517
+notes: "Business analytics: connection, modeling, reports, dashboards, sharing."

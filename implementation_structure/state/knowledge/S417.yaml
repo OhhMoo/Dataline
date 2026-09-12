@@ -1,0 +1,16 @@
+# Produced by L5-competitive-pricing for RQ6 (competitive landscape and pricing).
+id: S417
+rq: RQ6
+claim: >
+  Anthropic imposes specific sandbox frameworks on environment vendors and has built a dedicated vendor engagement platform.
+url: https://newsletter.semianalysis.com/p/rl-environments-and-rl-for-science
+quote: "requiring vendors to adhere to specific sandbox frameworks in most domains and has built a vendor engagement platform"
+source_type: blog
+author_role: "industry analysts"
+company: "SemiAnalysis"
+year: 2026
+retrieved: "2026-09-11"
+confidence: medium
+produced_by: L5-competitive-pricing
+notes: >
+  WHAT LABS WANT, reported second-hand rather than in a lab own words. Supports E1 (adopt a standard harness rather than inventing one): a vendor that ships in the buyer required sandbox format has lower integration friction.

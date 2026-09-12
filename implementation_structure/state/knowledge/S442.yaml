@@ -1,0 +1,16 @@
+# Produced by L5-competitive-pricing for RQ6 (competitive landscape and pricing).
+id: S442
+rq: RQ6
+claim: >
+  GDPval covers 44 occupations and open-sources a gold subset of 220 tasks out of a larger private set.
+url: https://arxiv.org/abs/2510.04374
+quote: "we open-source a gold subset of 220 tasks"
+source_type: paper
+author_role: "benchmark authors"
+company: "OpenAI"
+year: 2025
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L5-competitive-pricing
+notes: >
+  SIZING ANCHOR plus a STRUCTURAL PRECEDENT for our public/private split: OpenAI publishes 220 tasks and holds the rest back. This is exactly the public-benchmark-as-marketing, private-set-as-product pattern in agent.md 1.

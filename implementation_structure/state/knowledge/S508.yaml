@@ -1,0 +1,11 @@
+id: S508
+rq: RQ4
+claim: dbt is a core transformation-layer surface because it combines data transformation with testing, versioning, and documentation practices.
+url: https://www.getdbt.com/product/what-is-dbt
+quote: "dbt brings software best practices like testing, versioning, and documentation to the world of analytics"
+source_type: vendor_page
+company: dbt Labs
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L6-tooling-inventory
+notes: Official product page; inventory refers to dbt Core-compatible project behavior, not a cloud dependency.

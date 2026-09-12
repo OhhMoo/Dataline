@@ -1,0 +1,23 @@
+id: S006
+rq: RQ1
+claim: >
+  Load-spike and backpressure failures were 24% of the 50 surveyed postmortems. A batch ETL job
+  that had run fine for two years failed on Black Friday when the source emitted files 40x larger
+  than usual: it ran for 18 hours, exhausted temporary storage, failed without cleaning up its
+  partial outputs, and the next scheduled run then started on top of that corrupted partial data.
+url: https://dev.to/andrew_tan_layline/what-i-learned-from-reading-50-data-pipeline-postmortems-1moi
+quote: "the source system emitted files 40x larger than usual"
+source_type: blog
+author_role: CTO / founder, reviewed 50 public postmortems
+company: layline.io
+year: 2026
+retrieved: "2026-09-11"
+confidence: medium
+produced_by: L1-practitioner-workflow-de
+notes: >
+  The compounding step is what makes this hard to unwind: the failure leaves half-written output
+  and the scheduler's next run silently consumes it, so the responder must reason about state
+  left behind by a crash, not just re-run. The same source describes a Kafka consumer group that
+  auto-scaled during a product launch but hit an untested DB connection-pool limit, stalled, and
+  let unprocessed events age out of retention - auto-scaling covers compute, not pools, disk, or
+  downstream rate limits. Both are parameterizable by input volume.

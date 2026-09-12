@@ -1,0 +1,12 @@
+id: T120
+name: "dbt Semantic Layer / LookML"
+category: other
+role: simulate_target
+replication_strategy: none_found
+produced_by: L6-tooling-inventory
+rq: RQ4
+frequency_rank: 21
+evidence:
+  - S516
+  - S508
+notes: "Metrics/semantic-model layer; supported by Looker semantic-model finding and dbt practices."

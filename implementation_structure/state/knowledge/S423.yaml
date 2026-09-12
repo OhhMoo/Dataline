@@ -1,0 +1,15 @@
+# Produced by L5-competitive-pricing for RQ6 (competitive landscape and pricing).
+id: S423
+rq: RQ6
+claim: >
+  A third-party vendor directory tracks 38 companies building RL environments for frontier AI labs.
+url: https://www.rl-list.com/
+quote: "A cited directory of the 38 companies building RL environments for frontier AI labs"
+source_type: other
+company: "rl-list.com"
+year: 2026
+retrieved: "2026-09-11"
+confidence: medium
+produced_by: L5-competitive-pricing
+notes: >
+  INDEPENDENT VENDOR CENSUS, corroborating the SemiAnalysis "more than 35" figure (S414) from a different compiler. rl-list.com is a small independent directory site, not an established publication - medium confidence. Its full dataset (rl-list-dataset.md, 268KB) was downloaded and keyword-searched: no vendor among the 38 is positioned on data engineering, warehouses, dbt, BI or SQL analytics.

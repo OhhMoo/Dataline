@@ -1,0 +1,20 @@
+id: S302
+rq: RQ7
+claim: >
+  Snowflake's data-eng-bench packages 103 dbt data-engineering tasks as ticket-style
+  instructions in containerized dbt projects, graded by a hidden pytest verifier that checks
+  materialized tables row by row against a reference solution, and it runs on Harbor.
+url: https://raw.githubusercontent.com/Snowflake-Labs/data-eng-bench/master/README.md
+quote: "Each task drops an agent into a containerized dbt project with a ticket-style instruction and a hidden verifier"
+source_type: repo
+company: Snowflake Labs
+year: 2026
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L4-prior-art
+notes: >
+  Verdict: ADOPT (tasks + grading pattern). Apache-2.0 (pre-verified); the repo states tasks,
+  dbt models and the synthetic retail dataset are original Snowflake works. This is the
+  closest existing artifact to our product: real DE task archetypes (analytics marts, bug
+  fixes, dimensional modeling/snapshots, incremental pipelines) with deterministic row-level
+  verification. Directly reusable as a task corpus and as the reference for verifier design.

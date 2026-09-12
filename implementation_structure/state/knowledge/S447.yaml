@@ -1,0 +1,16 @@
+# Produced by L5-competitive-pricing for RQ6 (competitive landscape and pricing).
+id: S447
+rq: RQ6
+claim: >
+  Eighteen people across RL environment startups, neolabs and frontier labs were interviewed for the pricing and requirements figures.
+url: https://epoch.ai/gradient-updates/state-of-rl-envs
+quote: "we interviewed 1 18 people across RL environment startups"
+source_type: blog
+author_role: "AI research organisation"
+company: "Epoch AI"
+year: 2026
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L5-competitive-pricing
+notes: >
+  PROVENANCE RECORD for S400-S404 and S444-S446. The "1 18" is a footnote marker rendered adjacent to the number on the page; quoted verbatim as it appears in the fetched text. Establishes that the $200-$2,000 figure rests on many informants, not one.

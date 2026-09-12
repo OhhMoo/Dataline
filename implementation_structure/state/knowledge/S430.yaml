@@ -1,0 +1,15 @@
+# Produced by L5-competitive-pricing for RQ6 (competitive landscape and pricing).
+id: S430
+rq: RQ6
+claim: >
+  Mercor states that expert-level AI training work pays $75-$200 per hour, against a $31/hr platform average.
+url: https://www.mercor.com/resources/experts/ai-trainer-salary-hourly-rates/
+quote: "The average pay range for expert-level AI training work is $75 - $200 per hour"
+source_type: vendor_page
+company: "Mercor"
+year: 2026
+retrieved: "2026-09-11"
+confidence: medium
+produced_by: L5-competitive-pricing
+notes: >
+  VENDOR MARKETING PAGE - evidence of what Mercor CLAIMS it pays contributors. Not a market rate, and not what labs pay Mercor. Per-hour, not per-task. Consistent with the independent Handshake figure (S428).

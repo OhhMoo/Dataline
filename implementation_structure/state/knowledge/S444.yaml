@@ -1,0 +1,16 @@
+# Produced by L5-competitive-pricing for RQ6 (competitive landscape and pricing).
+id: S444
+rq: RQ6
+claim: >
+  Robustness against reward hacking is the single most cited quality criterion buyers apply to environments.
+url: https://epoch.ai/gradient-updates/state-of-rl-envs
+quote: "Interviewees consistently cited robustness against reward hacking as the most important quality criterion."
+source_type: blog
+author_role: "AI research organisation"
+company: "Epoch AI"
+year: 2026
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L5-competitive-pricing
+notes: >
+  BUYER ACCEPTANCE CRITERION #1, from 18 interviews including frontier-lab staff. Our trajectory-blind deterministic grading plus bounded LLM judge is directly responsive; the LLM-judge portion is the part a buyer will attack first.

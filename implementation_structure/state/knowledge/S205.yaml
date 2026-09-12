@@ -1,0 +1,15 @@
+id: S205
+rq: RQ1
+claim: >
+  A reconciliation guide enumerates the recurring causes of two numbers disagreeing - time zone and window boundaries, differing metric definitions, silently applied filters, join fan-out changing the grain, refunded or soft-deleted rows, currency and cents-versus-dollars, float rounding, late-arriving data, null handling in SUM and COUNT, and row-level security - and prescribes comparing row counts at the same grain before comparing sums, then bisecting by dimension until the gap localizes.
+url: https://www.basedash.com/blog/data-reconciliation-how-to-find-why-two-numbers-dont-match
+quote: "If one side has 10,240 orders and the other has 10,311, you have a row-level difference to explain"
+source_type: blog
+author_role: founder and CEO of a BI vendor
+company: Basedash
+year: 2026
+retrieved: "2026-09-11"
+confidence: medium
+produced_by: L3-practitioner-workflow-analytics
+notes: >
+  Vendor-adjacent, so discount the framing, but the cause taxonomy is concrete and each cause is independently injectable as pre-existing brokenness (fan-out join, UTC vs local day boundary, test accounts excluded on one side only). The bisect-by-dimension workflow is a multi-step trajectory a grader can check at each hop.

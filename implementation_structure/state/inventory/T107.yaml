@@ -1,0 +1,11 @@
+id: T107
+name: "Snowflake"
+category: warehouse
+role: simulate_target
+replication_strategy: none_found
+produced_by: L6-tooling-inventory
+rq: RQ4
+frequency_rank: 8
+evidence:
+  - S500
+notes: "Dominant cloud warehouse; connection, warehouse, DB, table, view, loading, transformation surfaces."

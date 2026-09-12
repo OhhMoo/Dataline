@@ -1,0 +1,11 @@
+id: S519
+rq: RQ4
+claim: Apache Superset is an open-source BI and visualization surface that can run locally while connecting to SQL databases.
+url: https://superset.apache.org/
+quote: "Apache Superset™ is an open-source modern data exploration and visualization platform."
+source_type: docs
+company: Apache Software Foundation
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L6-tooling-inventory
+notes: Official project documentation; useful as a native BI surface, not automatically a faithful Tableau or Looker replica.

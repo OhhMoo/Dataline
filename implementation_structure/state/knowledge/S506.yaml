@@ -1,0 +1,16 @@
+id: S506
+rq: RQ4
+claim: ClickHouse represents a column-oriented OLAP database surface for high-volume analytical and observability workloads.
+url: https://learn.clickhouse.com/visitor_catalog_class/show/2300606
+quote: "an open source, column-oriented OLAP database built for real-time analytics at petabyte scale"
+source_type: docs
+company: ClickHouse
+retrieved: "2026-09-12"
+confidence: high
+produced_by: L6-tooling-inventory
+notes: Official ClickHouse Academy material; supports classification and local-runtime plausibility only.
+repair_note: >
+  G1 repair 2026-09-12: old quote was a partial match - the page inserts em-dashes around the
+  cited clause ("what ClickHouse is - an open source ... at petabyte scale - and why"). Quote
+  tightened to the contiguous verbatim clause between the dashes; url unchanged. Verified with
+  gate-identical fetch logic.

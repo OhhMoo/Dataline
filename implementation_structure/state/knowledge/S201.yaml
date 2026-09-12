@@ -1,0 +1,19 @@
+id: S201
+rq: RQ1
+claim: >
+  Uber found that for the same business metric different teams built their own pipelines and surfaced numbers into their own tools, producing observable discrepancies; working across 30+ teams and 10K+ metrics they saw popular metrics spawn 10x-100x near-duplicate instances whose names did not capture the dimensions and filters actually applied.
+url: https://web.archive.org/web/20250616032742/https://www.uber.com/blog/umetric/
+quote: "there can be 10X or 100X instances spinned off for a popular metric and even worse, some of their names are misleading"
+source_type: blog
+author_role: data platform engineers
+company: Uber
+year: 2021
+retrieved: "2026-09-12"
+confidence: high
+produced_by: L3-practitioner-workflow-analytics
+notes: >
+  Gives a concrete generator recipe for a metric-reconciliation world: seed N near-duplicate metric definitions (Completed Trips In New York, Completed Trips Daily In San Francisco...) whose names under-specify their filters, then ask which one a stakeholder actually means. Second independent corroboration of S200.
+repair_note: >
+  G1 repair 2026-09-12: uber.com returned 406 to the gate's urllib fetch; url swapped to a
+  Wayback Machine snapshot (2025-06-16) of the same blog post. Quote unchanged - verified
+  verbatim on the snapshot with gate-identical fetch logic.

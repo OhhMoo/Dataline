@@ -1,0 +1,15 @@
+id: S113
+rq: RQ1
+claim: >
+  External validation of the Epic Sepsis Model - a proprietary model deployed at hundreds of US hospitals - on 38,455 hospitalizations found an AUC of 0.63, substantially worse than its developer reported. It missed 67 percent of septic patients while firing alerts on 18 percent of all hospitalizations, producing large alert fatigue, and added little over existing clinical practice.
+url: https://pmc.ncbi.nlm.nih.gov/articles/PMC8218233/
+quote: 'The ESM had a hospitalization-level area under the receiver operating characteristic curve of 0.63'
+source_type: paper
+author_role: clinical informatics researchers
+company: University of Michigan
+year: 2021
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L2-practitioner-workflow-ds
+notes: >
+  The canonical offline-vs-deployed metric gap with a named model, cohort size and two numbers. A rebuildable task: given a vendor-reported metric and a local cohort, reproduce the external validation and discover the discrepancy. The second-order failure (alert fatigue) is an operating-point problem, not a model-quality problem - a distinct judge axis.

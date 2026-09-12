@@ -1,0 +1,15 @@
+id: S101
+rq: RQ1
+claim: >
+  MLE-bench's task selection is gated on REPLICABILITY of grading, not on task interest: competitions were dropped whenever the team could not reimplement the scoring function locally or could not reconstruct a defensible train/test split from public data. Selection started from 5673 completed Kaggle competitions, narrowed to 586 manually screened, and finished at 75.
+url: https://arxiv.org/html/2410.07095v6
+quote: 'We exclude competitions where we cannot replicate the grading procedure or cannot recreate reasonable train-test splits.'
+source_type: paper
+author_role: ML engineers building agent evals
+company: OpenAI
+year: 2024
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L2-practitioner-workflow-ds
+notes: >
+  This is the most directly transferable construction rule for our environment: a candidate task is only admissible if a deterministic local grader can be written for it. Same constraint as E7 (deterministic functions grade quantitative outputs) arrived at independently.

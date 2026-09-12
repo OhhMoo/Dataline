@@ -1,0 +1,21 @@
+id: S312
+rq: RQ7
+claim: >
+  Mercor's ApexAgents-SkyRL-Recipe is deliberately tiny — SkyRL and Harbor are pip-installed
+  dependencies with zero forks; the only code written is a GeneratorInterface implementation
+  that runs each trial as a Ray task via Harbor's Trial lifecycle, plus an agent and config —
+  but the 1,928-task APEX-Agents OTS training data itself is not open-sourced due to licensing.
+url: https://raw.githubusercontent.com/Mercor-Intelligence/ApexAgents-SkyRL-Recipe/main/README.md
+quote: "Due to license issues, we cannot open-source the data."
+source_type: repo
+company: Mercor
+year: 2026
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L4-prior-art
+notes: >
+  Verdict: ADOPT the architecture / CANNOT-USE the data. The recipe proves our exact thesis:
+  a Harbor-format task dataset (parquet shards of gzipped task dirs: instruction.md, task.toml,
+  environment, tests/) plugs into SkyRL RL training with a few hundred lines of glue. But the
+  Mercor OTS task data is closed — our product's value is precisely being the licensed,
+  open-to-customers equivalent of that dataset for data engineering.

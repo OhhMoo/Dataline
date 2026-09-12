@@ -1,0 +1,16 @@
+# Produced by L5-competitive-pricing for RQ6 (competitive landscape and pricing).
+id: S445
+rq: RQ6
+claim: >
+  Buyers want a minimum non-zero pass rate of roughly 2-3%, or at least one success in 64-128 rollouts, plus a smooth spread of difficulty across the task set.
+url: https://epoch.ai/gradient-updates/state-of-rl-envs
+quote: "Multiple interviewees mentioned wanting a minimum pass rate of around 2-3%, or at least one success out of 64 or 128 rollouts."
+source_type: blog
+author_role: "AI research organisation"
+company: "Epoch AI"
+year: 2026
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L5-competitive-pricing
+notes: >
+  BUYER ACCEPTANCE CRITERION #2 and a hard number for the Phase-0 go/no-go gate in agent.md 2. It QUALIFIES a naive reading of "make it as hard as possible": a 0% task is indistinguishable from a broken task, so every shipped task needs a demonstrated successful rollout or a blind human solve.

@@ -1,0 +1,11 @@
+id: T127
+name: "Oracle Database"
+category: database
+role: simulate_target
+replication_strategy: none_found
+produced_by: L6-tooling-inventory
+rq: RQ4
+frequency_rank: 28
+evidence:
+  - S504
+notes: "Legacy enterprise object-relational surface distinct from cloud warehouses."

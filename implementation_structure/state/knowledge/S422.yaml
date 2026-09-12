@@ -1,0 +1,16 @@
+# Produced by L5-competitive-pricing for RQ6 (competitive landscape and pricing).
+id: S422
+rq: RQ6
+claim: >
+  Every large AI lab builds RL environments in-house, and also buys from third parties for quality and coverage.
+url: https://techcrunch.com/2025/09/21/silicon-valley-bets-big-on-environments-to-train-ai-agents/
+quote: "All the big AI labs are building RL environments in-house"
+source_type: blog
+author_role: "venture investor (Jennifer Li, a16z), quoted"
+company: "TechCrunch"
+year: 2025
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L5-competitive-pricing
+notes: >
+  KEY COMPETITIVE RISK: our largest competitor for any lab is that lab own team. The same source notes labs still buy externally because building environments is complex. The speaker is an a16z general partner (Jennifer Li), an investor in the space and therefore directionally interested.

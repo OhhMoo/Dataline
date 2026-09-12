@@ -1,0 +1,15 @@
+id: S106
+rq: RQ1
+claim: >
+  MLE-bench agents systematically failed at resource budgeting: they issued commands that exhausted the container's disk or RAM and got their process killed, ending the run early, and they rarely reasoned about how long their training code would take. One scaffold (MLAB) repeatedly read files thousands of lines long and filled its own context window.
+url: https://arxiv.org/html/2410.07095v6
+quote: 'All three agents failed to effectively factor in compute and time limitations to their strategies.'
+source_type: paper
+author_role: ML engineers building agent evals
+company: OpenAI
+year: 2024
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L2-practitioner-workflow-ds
+notes: >
+  Resource exhaustion is a first-class, cheaply-instrumented failure mode: disk/RAM limits in the container turn 'did the agent plan its compute budget' into a deterministic check. Also a warning that inspecting a huge raw file is itself a trap worth planting in a world.

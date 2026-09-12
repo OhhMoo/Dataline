@@ -1,0 +1,16 @@
+# Produced by L5-competitive-pricing for RQ6 (competitive landscape and pricing).
+id: S418
+rq: RQ6
+claim: >
+  Anthropic leadership discussed spending more than $1 billion on RL environments in a single year.
+url: https://techcrunch.com/2025/09/21/silicon-valley-bets-big-on-environments-to-train-ai-agents/
+quote: "leaders at Anthropic have discussed spending more than $1 billion on RL environments over the next year"
+source_type: blog
+author_role: "technology journalist (Maxwell Zeff)"
+company: "TechCrunch"
+year: 2025
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L5-competitive-pricing
+notes: >
+  TOP-DOWN MARKET SIZE, attributed by TechCrunch to The Information (Sept 2025). Widely recirculated - treat later repetitions as the same single report, not as corroboration.

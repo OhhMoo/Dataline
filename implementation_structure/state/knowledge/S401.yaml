@@ -1,0 +1,16 @@
+# Produced by L5-competitive-pricing for RQ6 (competitive landscape and pricing).
+id: S401
+rq: RQ6
+claim: >
+  An RL environment founder states the observed per-task price range and its rare upper tail in their own words.
+url: https://epoch.ai/gradient-updates/state-of-rl-envs
+quote: "seen $200 to $2000 mostly. $20k per task would be rare but possible."
+source_type: blog
+author_role: "RL environment startup founder (anonymous)"
+company: "Epoch AI"
+year: 2026
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L5-competitive-pricing
+notes: >
+  Direct practitioner quote underlying S400. The $20k tail is described as rare and specific to especially complex software-engineering tasks. Speaker is on the sell side, so this is a seller view of the price they receive.

@@ -1,0 +1,11 @@
+id: S507
+rq: RQ4
+claim: DuckDB is an analytical database that can provide a compact local execution and grading substrate.
+url: https://duckdb.org/
+quote: "DuckDB is an analytical database system that you can deploy anywhere: from edge devices to servers with hundreds of cores."
+source_type: docs
+company: DuckDB Foundation
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L6-tooling-inventory
+notes: Official project page; an inventory finding, not an install probe.

@@ -1,0 +1,15 @@
+# Produced by L5-competitive-pricing for RQ6 (competitive landscape and pricing).
+id: S424
+rq: RQ6
+claim: >
+  Vendor directories deliberately exclude pricing because per-task and per-environment prices are not published anywhere and surface only in direct engagement.
+url: https://www.rl-list.com/
+quote: "and pricing) are not on the public web and only surface in direct engagement"
+source_type: other
+company: "rl-list.com"
+year: 2026
+retrieved: "2026-09-11"
+confidence: medium
+produced_by: L5-competitive-pricing
+notes: >
+  CRITICAL METHODOLOGICAL FINDING FOR RQ6: there is no public rate card for this market. Every price in this file is an interview report, an analyst estimate, or a vendor claim - none is a contract. This sets the ceiling on how confident any pricing claim in this round can be.

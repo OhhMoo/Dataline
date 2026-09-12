@@ -1,0 +1,21 @@
+id: S305
+rq: RQ7
+claim: >
+  ade-bench auto-generates deterministic graders: declaring solution_seeds tables in task.yaml
+  makes the harness seed reference tables and auto-create dbt existence and row-equality tests
+  (AUTO_*), and its "sage" agent simply runs solution.sh as an answer key so tasks failing
+  under sage are misconfigured tasks, not model failures.
+url: https://raw.githubusercontent.com/dbt-labs/ade-bench/main/README.md
+quote: "ADE-bench includes automatic ways to compare tables to one another."
+source_type: repo
+company: dbt Labs
+year: 2025
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L4-prior-art
+notes: >
+  Verdict: COPY-PATTERN. Two mechanisms worth copying into our deterministic grading layer:
+  (1) declarative reference-table comparison with include/exclude columns and alternate valid
+  solutions (multiple correct answers are a first-class concept); (2) the sage/oracle agent as
+  a CI gate for task quality — every task must pass under its own solution.sh before it enters
+  the corpus. Harbor's oracle agent gives the same answer-key check if we adopt Harbor.

@@ -1,0 +1,16 @@
+# Produced by L5-competitive-pricing for RQ6 (competitive landscape and pricing).
+id: S435
+rq: RQ6
+claim: >
+  Terminal-Bench 2.0 accepted 89 of 229 crowdsourced task submissions from 93 contributors, a roughly 39% acceptance rate.
+url: https://arxiv.org/html/2601.11868v1
+quote: "we crowd-sourced tasks through open-source contributions, with 93 contributors creating 229 tasks"
+source_type: paper
+author_role: "benchmark authors"
+company: "Terminal-Bench"
+year: 2026
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L5-competitive-pricing
+notes: >
+  AUTHORING YIELD ANCHOR: budget roughly 2.5 authored tasks per shipped task. Directly relevant to any per-task price we quote - our cost base has to absorb the rejects.

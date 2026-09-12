@@ -1,0 +1,11 @@
+id: S503
+rq: RQ4
+claim: BigQuery is a managed warehouse and analytics surface used through SQL, Python, command-line, client-library, and API interfaces.
+url: https://docs.cloud.google.com/bigquery/docs/introduction
+quote: "BigQuery is a fully managed, AI-ready data platform that helps you manage and analyze your data"
+source_type: docs
+company: Google Cloud
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L6-tooling-inventory
+notes: Official documentation; supports inclusion and broad interface coverage.

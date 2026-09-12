@@ -1,0 +1,23 @@
+id: S018
+rq: RQ1
+claim: >
+  Peer-reviewed empirical study of Airflow practice: the authors manually coded 1,000 sampled
+  Stack Overflow posts drawn from 9,591 Airflow questions and built a taxonomy of 7 high-level
+  and 14 sub-categories of developer challenge. The largest obstacles arise when defining and
+  executing workflows, and the 10 identified root causes include incorrect workflow configuration,
+  complex environment setup, and missing knowledge of the external systems Airflow interacts with.
+url: https://arxiv.org/abs/2406.00180
+quote: "we manually study 1,000 sampled Stack Overflow posts derived from 9,591 Airflow-related questions"
+source_type: paper
+author_role: software engineering researchers
+company: preprint submitted to Journal of Systems and Software
+year: 2024
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L1-practitioner-workflow-de
+notes: >
+  The best frequency evidence I found that is not vendor-authored. Two details matter for world
+  design: (1) configuration and environment problems dominate over algorithmic ones, so realistic
+  difficulty comes from the surrounding stack rather than clever SQL; (2) the paper reports that
+  answers frequently cite documentation for external systems and third-party providers, not just
+  Airflow docs - which argues for scattered, multi-system documentation as an initial condition.

@@ -1,0 +1,15 @@
+id: S207
+rq: RQ1
+claim: >
+  A team's headline KPI reported 0.0% for three months because all seven measurement runs (40 questions each, 280 consecutive API calls) failed against a retired model that returned 404 and each failure was silently recorded as a negative observation; the aggregation divided by questions asked rather than questions answered, so total failure rendered as a clean 0.0%. It survived undetected because 0% was exactly what the team's strategy predicted.
+url: https://thicket.sh/blog/when-your-metric-is-broken-not-your-business
+quote: "divided mentions by the number of questions asked rather than the number actually answered"
+source_type: blog
+author_role: operating team publishing its own failures
+company: Thicket
+year: 2026
+retrieved: "2026-09-11"
+confidence: medium
+produced_by: L3-practitioner-workflow-analytics
+notes: >
+  The most rebuildable incident found: an upstream source silently erroring, an aggregation that cannot distinguish absence from zero, and a metric that agrees with the prior so nobody audits it. Deterministic grading is easy - did the agent detect the wrong denominator and the failure-to-zero coercion? Note the detection path is not a pipeline alert; it is a human noticing the number never moves.

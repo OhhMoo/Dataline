@@ -1,0 +1,12 @@
+id: S509
+rq: RQ4
+claim: Apache Airflow is a workflow orchestration surface centered on authoring, scheduling, and monitoring data workflows.
+url: https://airflow.apache.org/blog/apache-airflow-for-newcomers/
+quote: "Apache Airflow is a platform to programmatically author, schedule, and monitor workflows."
+source_type: blog
+company: Apache Software Foundation
+year: 2020
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L6-tooling-inventory
+notes: Official Apache Airflow project blog; supports orchestration classification.

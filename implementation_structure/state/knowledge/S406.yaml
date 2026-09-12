@@ -1,0 +1,16 @@
+# Produced by L5-competitive-pricing for RQ6 (competitive landscape and pricing).
+id: S406
+rq: RQ6
+claim: >
+  Mechanize derives a rational floor on per-task procurement spend from RL compute cost: below roughly $500 per task, labs waste expensive compute.
+url: https://www.mechanize.work/blog/cheap-rl-tasks-will-waste-compute/
+quote: "inefficient for AI labs to spend significantly less than ~$500 per RL task"
+source_type: blog
+author_role: "RL environment vendor founders"
+company: "Mechanize, Inc."
+year: 2025
+retrieved: "2026-09-11"
+confidence: medium
+produced_by: L5-competitive-pricing
+notes: >
+  DERIVED FLOOR, not an observed price. Vendor-authored and self-serving, but the derivation is explicit and checkable (see S407). Useful as the economic argument for why our tasks should not be priced as commodity items.

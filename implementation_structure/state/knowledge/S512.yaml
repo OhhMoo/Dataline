@@ -1,0 +1,11 @@
+id: S512
+rq: RQ4
+claim: Airbyte is a connector-oriented data replication surface spanning sources, warehouses, lakes, and databases.
+url: https://docs.airbyte.com/
+quote: "Airbyte is an open source data replication platform and context layer for AI agents."
+source_type: docs
+company: Airbyte
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L6-tooling-inventory
+notes: Official documentation; no license or runtime verdict is inferred here.

@@ -1,0 +1,22 @@
+id: S005
+rq: RQ1
+claim: >
+  Silent data loss accounted for 19% of the 50 surveyed postmortems. One concrete form: a data
+  quality rule written to drop corrupted upstream records also matched legitimate records with
+  unusual-but-valid values and quietly removed 12% of legitimate transactions over three weeks.
+  The pipeline reported success, dashboards were green, and the SLA was met throughout.
+url: https://dev.to/andrew_tan_layline/what-i-learned-from-reading-50-data-pipeline-postmortems-1moi
+quote: "Over three weeks, 12% of legitimate transactions were filtered out."
+source_type: blog
+author_role: CTO / founder, reviewed 50 public postmortems
+company: layline.io
+year: 2026
+retrieved: "2026-09-11"
+confidence: medium
+produced_by: L1-practitioner-workflow-de
+notes: >
+  Important because the failure is caused by the data quality control itself, not by its absence -
+  an agent whose instinct is "add more validation" makes this worse. The same source lists two
+  sibling forms: a non-idempotent sink under retry producing duplicates despite a nominal
+  exactly-once claim, and a 24-hour queue retention window expiring unprocessed data while
+  downstream was backed up by an unrelated incident.

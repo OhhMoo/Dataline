@@ -1,0 +1,19 @@
+id: S300
+rq: RQ7
+claim: >
+  Harbor (from the Terminal-Bench team) is a general agent harness that evaluates arbitrary
+  CLI agents (Claude Code, OpenHands, Codex CLI) in containers, runs thousands of environments
+  in parallel on cloud sandbox providers, and explicitly supports generating rollouts for RL.
+url: https://raw.githubusercontent.com/laude-institute/harbor/main/README.md
+quote: "Evaluate arbitrary agents like Claude Code, OpenHands, Codex CLI, and more."
+source_type: repo
+company: Laude Institute
+year: 2026
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L4-prior-art
+notes: >
+  Verdict: ADOPT. Apache-2.0 (pre-verified). This is the strongest candidate for our harness
+  layer: one CLI (harbor run) covers eval + RL rollout generation, and both Snowflake
+  data-eng-bench and Mercor's ApexAgents-SkyRL-Recipe already build on it, so adopting
+  Harbor makes us compatible with both ecosystems instead of building a bespoke runner.

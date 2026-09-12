@@ -1,0 +1,15 @@
+id: S203
+rq: RQ1
+claim: >
+  A practitioner triage guide for 'the numbers are wrong' reports argues that wrong almost always means a mismatch between expectation and reality, and sorts real incidents into three buckets: the data is confusing but correct (business logic hidden behind the reporting layer, or freshness lag), the stakeholder is checking against a faulty second source, or the data really is wrong.
+url: https://locallyoptimistic.com/post/wrong-data/
+quote: "wrong does not actually mean wrong, it means a mismatch between expectation and reality"
+source_type: blog
+author_role: analytics engineer / software engineer
+company: Real Capital Analytics
+year: 2018
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L3-practitioner-workflow-analytics
+notes: >
+  The task shape stated by a practitioner: the agent is handed a symptom and must determine which of three worlds it is in before fixing anything. The post also names the classic definitional fork - sales as gross or net, at time of sale or at GAAP recognition, with or without returns - which is directly parameterizable in a world generator.

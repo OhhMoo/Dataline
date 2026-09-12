@@ -1,0 +1,25 @@
+id: S008
+rq: RQ1
+claim: >
+  An Airflow Summit 2025 talk by two Astronomer field engineers catalogues the recurring
+  production Airflow failures they see across customers: datetime.now() in a DAG definition
+  (which makes backfills implode), scheduling in local timezones producing daylight-savings
+  incidents, unbounded retries creating immortal tasks, sensors causing resource starvation,
+  dynamic task mapping expanding to 10,000 mapped tasks, XComs used to pass a whole Pandas
+  DataFrame, hand-wired 200-task DAGs nobody will open, and SLAs repurposed as data-quality
+  guarantees producing alerts so noisy nobody reads them.
+url: https://airflowsummit.org/sessions/2025/lessons-from-airflow-gone-wrong/
+quote: "used datetime.now() in your DAG definition and watched your backfills implode"
+source_type: conference_talk
+author_role: Resident Solutions Architect and Sales Engineer
+company: Astronomer
+year: 2025
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L1-practitioner-workflow-de
+notes: >
+  Highest-density single list of concrete, reproducible orchestration failure modes I found, and
+  framed explicitly as "the classics" - i.e. high-frequency across many customers, not one war
+  story. Every item is directly instantiable: a DAG with a non-static start_date, a local-timezone
+  schedule crossing a DST boundary, a sensor pool exhaustion, a 200-task hand-wired graph. The
+  DST item pairs with S002 as a second, independent route to data that is wrong by a few hours.

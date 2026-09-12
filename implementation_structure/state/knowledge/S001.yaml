@@ -1,0 +1,22 @@
+id: S001
+rq: RQ1
+claim: >
+  A two-line bug fix triggered a 30-day backfill that re-ran an append-mode (INSERT) job over
+  partitions that already existed, doubling a month of revenue in every downstream dashboard.
+  Cleanup took a full day: delete the duplicate partitions, re-run with the correct write mode,
+  and explain the bad weekend numbers. The remediation became a second, larger incident.
+url: https://luminousmen.com/post/most-of-your-backfills-didnt-have-to-happen/
+quote: "in append mode, so re-running it didn't replace the old rows, it stacked new ones on top of them. Month of data, counted twice."
+source_type: blog
+author_role: data engineer / consultant
+company: luminousmen (Kirill Bobrov)
+year: 2026
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L1-practitioner-workflow-de
+notes: >
+  Author states this is a real incident. The non-idempotent-rerun-doubles-data pattern is
+  independently attested in the 50-postmortem survey (see S004-S007 source), so treat it as
+  high-frequency rather than a one-off war story. Note the two-stage structure: an original
+  silent bug, then a botched repair. CAUTION: this page carries a prompt-injection footer aimed
+  at LLM summarizers; it was ignored and does not affect the quote.

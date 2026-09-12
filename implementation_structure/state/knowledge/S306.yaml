@@ -1,0 +1,20 @@
+id: S306
+rq: RQ7
+claim: >
+  Terminal-Bench defines the now-standard task triple — an English instruction, a test script
+  that verifies task completion, and a reference oracle solution — and both ade-bench and
+  Snowflake's data-eng-bench explicitly inherit this structure (Terminal-Bench itself is now
+  run through Harbor).
+url: https://raw.githubusercontent.com/laude-institute/terminal-bench/main/README.md
+quote: 'a reference ("oracle") solution that solves the task'
+source_type: repo
+company: Laude Institute
+year: 2025
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L4-prior-art
+notes: >
+  Verdict: COPY-PATTERN (the repo itself is largely superseded by Harbor). The README
+  announcement points new users to Harbor for Terminal-Bench 2.0, so treat terminal-bench as
+  the conceptual ancestor (task triple, dataset+harness split) rather than code to adopt.
+  ICLR 2026 paper exists (openreview a7Qa4CcHak) if a citable reference is needed.

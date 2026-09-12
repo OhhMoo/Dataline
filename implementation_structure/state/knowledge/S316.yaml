@@ -1,0 +1,23 @@
+id: S316
+rq: RQ7
+claim: >
+  fakesnow emulates Snowflake over DuckDB either by in-process patching of the Python
+  connector or as a standalone HTTP server usable by any language's connector (including JDBC
+  and the Snowflake CLI), but its own caveats warn that row ordering is non-deterministic and
+  that it accepts a more liberal SQL dialect than real Snowflake.
+url: https://raw.githubusercontent.com/tekumara/fakesnow/main/README.md
+quote: "fakesnow supports a more liberal SQL dialect than actual Snowflake."
+source_type: repo
+company: tekumara (open source)
+year: 2025
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L4-prior-art
+notes: >
+  Verdict: ADOPT WITH CAVEATS. Apache-2.0 (pre-verified). The HTTP-server mode is the useful
+  one for us: agents connect with the real snowflake connector/JDBC against a local fake,
+  giving hermetic Snowflake-flavored environments with per-connection isolated databases
+  (FAKESNOW_DB_PATH=":isolated:") — ideal for parallel RL rollouts. The caveats matter for
+  grading: verifiers must fully specify ORDER BY, and fakesnow passing does not prove
+  Snowflake-correctness, so it cannot be the sole fidelity axis (pair with real-Snowflake
+  variant like data-eng-bench does). Not implemented: access control, stored procedures.

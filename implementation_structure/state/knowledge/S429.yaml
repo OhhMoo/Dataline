@@ -1,0 +1,16 @@
+# Produced by L5-competitive-pricing for RQ6 (competitive landscape and pricing).
+id: S429
+rq: RQ6
+claim: >
+  Handshake AI reached about $1B gross annualised AI-training revenue by April 2026, of which roughly $300M is net after contractor payouts.
+url: https://sacra.com/c/handshake/
+quote: "gross annualized AI training revenue as of April 2026, up from $550M previously"
+source_type: other
+author_role: "private-markets research analyst"
+company: "Sacra"
+year: 2026
+retrieved: "2026-09-11"
+confidence: medium
+produced_by: L5-competitive-pricing
+notes: >
+  MARGIN STRUCTURE for a human-data vendor: roughly 70% of gross flows through to contributors (the source states the AI segment nets about $300M). If we price like a human-data vendor our margin is thin; if we price like an environment vendor (build once, license repeatedly, exclusivity multiplier S404) it is not. Argues for licensing over per-task billing.

@@ -1,0 +1,60 @@
+{
+  "passed": false,
+  "gates": [
+    {
+      "gate": "G0",
+      "name": "schema",
+      "passed": true,
+      "checked": 192,
+      "failures": [],
+      "warnings": [
+        "state\\knowledge\\S010.yaml: unknown field 'repair_note'",
+        "state\\knowledge\\S011.yaml: unknown field 'repair_note'",
+        "state\\knowledge\\S012.yaml: unknown field 'repair_note'",
+        "state\\knowledge\\S117.yaml: unknown field 'repair_note'",
+        "state\\knowledge\\S200.yaml: unknown field 'repair_note'",
+        "state\\knowledge\\S201.yaml: unknown field 'repair_note'",
+        "state\\knowledge\\S216.yaml: unknown field 'repair_note'",
+        "state\\knowledge\\S505.yaml: unknown field 'repair_note'",
+        "state\\knowledge\\S506.yaml: unknown field 'repair_note'",
+        "state\\knowledge\\S513.yaml: unknown field 'repair_note'",
+        "state\\knowledge\\S521.yaml: unknown field 'repair_note'",
+        "state\\knowledge\\S525.yaml: unknown field 'repair_note'"
+      ]
+    },
+    {
+      "gate": "G1",
+      "name": "citation resolves and quote matches",
+      "passed": false,
+      "checked": 162,
+      "failures": [
+        "state\\knowledge\\S113.yaml: quote NOT FOUND at https://pmc.ncbi.nlm.nih.gov/articles/PMC8218233/ -- possible hallucinated citation"
+      ],
+      "warnings": []
+    },
+    {
+      "gate": "G2",
+      "name": "license and liveness",
+      "passed": true,
+      "checked": 0,
+      "failures": [],
+      "warnings": []
+    },
+    {
+      "gate": "G3",
+      "name": "coverage and dedup",
+      "passed": true,
+      "checked": 0,
+      "failures": [],
+      "warnings": []
+    },
+    {
+      "gate": "G5",
+      "name": "replication probe recorded",
+      "passed": true,
+      "checked": 0,
+      "failures": [],
+      "warnings": []
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+id: S019
+rq: RQ1
+claim: >
+  Empirical study mining GitHub projects and Stack Overflow to locate data-pipeline defects:
+  data-related issues were primarily caused by incorrect data types (33%) and occurred most often
+  in the data cleaning stage (35%), while data integration and ingestion were the most-asked
+  developer topics at nearly half (47%) of all questions. The taxonomy of 41 quality-influencing
+  factors was validated by interviews with eight data engineering practitioners.
+url: https://arxiv.org/abs/2309.07067
+quote: "incorrect data types (33%), mainly occurring in the data cleaning stage of pipelines (35%)"
+source_type: paper
+author_role: software engineering researchers, with eight practitioner interviews
+company: to be published in Journal of Systems and Software
+year: 2023
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L1-practitioner-workflow-de
+notes: >
+  Independent quantitative backing for the type-drift emphasis in S004 and for weighting ingestion
+  and integration heavily in any task mix. The paper also isolates compatibility issues (version
+  and library mismatches between components) as a separate problem area distinct from the usual
+  load / ingest / integrate / clean / transform stages - directly relevant to S020, where a
+  pg_dump major-version mismatch is what killed the backups.

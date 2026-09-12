@@ -1,0 +1,14 @@
+id: S215
+rq: RQ1
+claim: >
+  A data leader describes BI instances degrading into dashboard bloat, where time is wasted hunting for the right visual or recreating ones that already exist, and prescribes an automated deprecation pipeline: pull all dashboards, looks and users through the BI tool's SDK, join them against usage and history metadata (i__looker for Looker, audit logs for Power BI), model one row per visual with creator and last-viewed date, and delete what has not been used. The trigger anecdote is finding a dashboard refreshing every 15 minutes that nobody uses.
+url: https://towardsdatascience.com/why-and-how-to-deprecate-dashboards-357a68f041ba/
+quote: "updating every 15 minutes isn't actually used, sure, it can be deleted once"
+source_type: blog
+author_role: data engineering leader
+year: 2022
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L3-practitioner-workflow-analytics
+notes: >
+  Container-buildable: a BI metadata API plus a usage-history table, and a task that requires joining them and making a retire-or-keep judgment. Also establishes that BI-tool metadata is queryable, which matters for any task asking an agent to compute the blast radius of a model change.

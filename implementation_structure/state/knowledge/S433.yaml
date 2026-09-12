@@ -1,0 +1,16 @@
+# Produced by L5-competitive-pricing for RQ6 (competitive landscape and pricing).
+id: S433
+rq: RQ6
+claim: >
+  Terminal-Bench 2.0, the current reference hard agent benchmark, consists of 89 tasks.
+url: https://arxiv.org/abs/2601.11868
+quote: "a carefully curated hard benchmark composed of 89 tasks in computer terminal environments"
+source_type: paper
+author_role: "benchmark authors (Stanford / Laude Institute / Anthropic)"
+company: "Terminal-Bench"
+year: 2026
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L5-competitive-pricing
+notes: >
+  HEADLINE SIZING ANCHOR for "how big?". 89 tasks is the size of a credible frontier-difficulty public benchmark - an order of magnitude smaller than a saturating leaderboard. Same team as Harbor (E1).

@@ -1,0 +1,15 @@
+id: S100
+rq: RQ1
+claim: >
+  MLE-bench (OpenAI, ICLR 2025) is the benchmark for evaluating AI agents on machine learning engineering; it is built from 75 curated Kaggle competitions. No benchmark named 'Emily Bench' exists in the literature or on arXiv/web search - 'Emily Bench' is a phonetic transcription artifact of 'MLE-bench' (M-L-E pronounced as letters).
+url: https://arxiv.org/abs/2410.07095
+quote: 'We introduce MLE-bench, a benchmark for measuring how well AI agents perform at machine learning engineering.'
+source_type: paper
+author_role: ML engineers building agent evals
+company: OpenAI
+year: 2024
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L2-practitioner-workflow-ds
+notes: >
+  Resolves established fact E11. Two separate web searches for 'Emily Bench' / 'EmilyBench' return zero matching benchmarks and surface MLE-bench as the top hit. The Granola summary's 'Emily Bench' should be corrected to MLE-bench in all downstream artifacts.

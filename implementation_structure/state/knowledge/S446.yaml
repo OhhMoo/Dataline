@@ -1,0 +1,16 @@
+# Produced by L5-competitive-pricing for RQ6 (competitive landscape and pricing).
+id: S446
+rq: RQ6
+claim: >
+  Enterprise workflow environments are the major growth area of lab demand, alongside coding.
+url: https://epoch.ai/gradient-updates/state-of-rl-envs
+quote: "One of the major growth areas is enterprise workflows"
+source_type: blog
+author_role: "AI research organisation"
+company: "Epoch AI"
+year: 2026
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L5-competitive-pricing
+notes: >
+  DEMAND DIRECTION. The examples the source gives are expense reports, spreadsheet pivot tables, slide generation and CRM updates - adjacent to but not the same as warehouse, pipeline and BI work. Our niche sits inside the growing category but in an unclaimed corner of it.

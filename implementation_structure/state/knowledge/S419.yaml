@@ -1,0 +1,16 @@
+# Produced by L5-competitive-pricing for RQ6 (competitive landscape and pricing).
+id: S419
+rq: RQ6
+claim: >
+  Mechanize offers $500,000 salaries to software engineers building RL environments, above what an hourly contractor at Scale AI or Surge earns.
+url: https://techcrunch.com/2025/09/21/silicon-valley-bets-big-on-environments-to-train-ai-agents/
+quote: "the startup is offering software engineers $500,000 salaries to build RL environments"
+source_type: blog
+author_role: "technology journalist"
+company: "TechCrunch"
+year: 2025
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L5-competitive-pricing
+notes: >
+  COST-SIDE ANCHOR, not a price. Indicates the labour model at the quality end of this market is full-time senior engineers rather than crowdsourced contractors - consistent with E5 (tasks representing tens of hours of expert work) and with S405/S432.

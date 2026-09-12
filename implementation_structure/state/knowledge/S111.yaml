@@ -1,0 +1,15 @@
+id: S111
+rq: RQ1
+claim: >
+  A systematic survey of ML-based science found data leakage to be pervasive rather than occasional: 17 fields with documented errors affecting 329 papers, and a taxonomy of 8 distinct leakage mechanisms. In the authors' own reproduction of civil-war prediction, every paper claiming complex ML beat logistic regression failed to reproduce once leakage was corrected, and the complex models were then no better than decades-old logistic regression.
+url: https://arxiv.org/abs/2207.07048
+quote: 'we find 17 fields where errors have been found, collectively affecting 329 papers and in some cases leading to wildly overoptimistic conclusions'
+source_type: paper
+author_role: CS researchers (Princeton CITP)
+company: Princeton University
+year: 2022
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L2-practitioner-workflow-ds
+notes: >
+  Leakage is the highest-frequency, highest-impact DS failure with a real corpus behind it. Crucially the leakage is invisible from the artifact - none of the errors could be caught by reading the papers. That is exactly a task where a trajectory-blind grader must check PIPELINE state (was imputation fit on train only? is feature X a post-outcome proxy?) rather than the reported metric.

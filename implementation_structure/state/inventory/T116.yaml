@@ -1,0 +1,11 @@
+id: T116
+name: "Apache Kafka"
+category: streaming
+role: simulate_target
+replication_strategy: none_found
+produced_by: L6-tooling-inventory
+rq: RQ4
+frequency_rank: 17
+evidence:
+  - S513
+notes: "Event streaming: producers, consumers, durable topics, stream processing."

@@ -1,0 +1,20 @@
+id: S301
+rq: RQ7
+claim: >
+  Harbor's task format packages each task as a directory (instruction.md, task.toml,
+  environment/, optional solution/solve.sh, tests/test.sh) and requires the test script to
+  write a reward file (/logs/verifier/reward.txt or reward.json) that the harness reads to
+  score the trial.
+url: https://harborframework.com/docs/task-format
+quote: "The test script should install test dependencies and verify the agent completed the instruction."
+source_type: docs
+company: Laude Institute / Harbor
+year: 2026
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L4-prior-art
+notes: >
+  Verdict: ADOPT. This is the task-packaging contract to target: tests/ is copied into the
+  sandbox only at verification time (hidden from the agent), the oracle solve.sh doubles as a
+  task sanity check, and reward.json supports multi-metric floats, which maps directly onto
+  deterministic grading for data-engineering tasks (row equality, dbt tests, schema checks).

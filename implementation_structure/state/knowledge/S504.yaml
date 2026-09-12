@@ -1,0 +1,12 @@
+id: S504
+rq: RQ4
+claim: Oracle Database supplies a legacy enterprise object-relational database surface distinct from cloud warehouses.
+url: https://docs.oracle.com/en/database/oracle/oracle-database/19/cncpt/preface.html
+quote: "This manual provides an architectural and conceptual overview of the Oracle database server, which is an object-relational database management system."
+source_type: docs
+company: Oracle
+year: 2019
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L6-tooling-inventory
+notes: Official database concepts manual; current inventory relevance does not imply using Oracle at runtime.

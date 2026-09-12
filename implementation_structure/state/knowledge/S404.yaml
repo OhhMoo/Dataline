@@ -1,0 +1,16 @@
+# Produced by L5-competitive-pricing for RQ6 (competitive landscape and pricing).
+id: S404
+rq: RQ6
+claim: >
+  Selling an environment exclusively to one lab commands roughly 4-5x the price of a non-exclusive sale.
+url: https://epoch.ai/gradient-updates/state-of-rl-envs
+quote: "exclusive deals are roughly 4-5x more expensive than non-exclusive ones"
+source_type: blog
+author_role: "two RL environment founders (anonymous)"
+company: "Epoch AI"
+year: 2026
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L5-competitive-pricing
+notes: >
+  PRICING LEVER, directly relevant to the two-product split in agent.md (public benchmark versus private licence). Two founders independently agreed on the multiplier per the source.

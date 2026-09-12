@@ -1,0 +1,15 @@
+id: S119
+rq: RQ1
+claim: >
+  A published account of an early-intervention system built for two US police departments found that off-the-shelf ML monitoring did not fit and every check had to be built from scratch: data integrity meant verifying a specific input table had updated and checksumming historical records; the performance metric was the number of changes in the top-k outputs; anomalies were tracked as rank-order correlations over time.
+url: https://arxiv.org/html/2011.09926v3
+quote: 'the data integrity check meant verifying updates of a certain input table and checksums on historical records'
+source_type: paper
+author_role: academic survey authors citing Ackermann et al. deployment report
+company: University of Cambridge
+year: 2022
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L2-practitioner-workflow-ds
+notes: >
+  Concrete deterministic monitoring primitives directly implementable as grader checks AND as tasks: did the upstream table actually refresh; did the top-k ranking churn more than expected; did rank correlation with yesterday collapse. More rebuildable than generic 'monitor for drift'.

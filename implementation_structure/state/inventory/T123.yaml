@@ -1,0 +1,11 @@
+id: T123
+name: "Dagster"
+category: orchestration
+role: simulate_target
+replication_strategy: none_found
+produced_by: L6-tooling-inventory
+rq: RQ4
+frequency_rank: 24
+evidence:
+  - S510
+notes: "Asset-aware orchestrator with lineage, observability, testability; later-breadth alternative to Airflow."

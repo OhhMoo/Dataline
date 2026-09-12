@@ -1,0 +1,16 @@
+# Produced by L5-competitive-pricing for RQ6 (competitive landscape and pricing).
+id: S408
+rq: RQ6
+claim: >
+  Epoch AI repeats the roughly $2,400-per-task RL compute estimate as context for why cheap tasks waste compute.
+url: https://epoch.ai/gradient-updates/state-of-rl-envs
+quote: "Mechanize estimates that around $2,400 in compute is spent per task during RL training"
+source_type: blog
+author_role: "AI research organisation"
+company: "Epoch AI"
+year: 2026
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L5-competitive-pricing
+notes: >
+  NOT an independent derivation - Epoch is citing Mechanize (S407). Recorded explicitly so the swarm does not double-count it as corroboration.

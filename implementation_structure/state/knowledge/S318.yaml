@@ -1,0 +1,21 @@
+id: S318
+rq: RQ7
+claim: >
+  sqlglot is a dependency-free Python SQL parser/transpiler covering 30+ dialects with both
+  Snowflake and DuckDB as officially maintained dialects, but its maintainers are explicit that
+  successful parsing does not imply valid or executable SQL in the target engine.
+url: https://raw.githubusercontent.com/tobymao/sqlglot/main/README.md
+quote: "SQLGlot is a transpiler, not a validator."
+source_type: repo
+company: Tobiko Data
+year: 2026
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L4-prior-art
+notes: >
+  Verdict: ADOPT. MIT (pre-verified). Directly adoptable for our DuckDB-default /
+  Snowflake-fidelity dual-backend strategy: transpile task SQL and verifier queries between
+  dialects at task-build time rather than maintaining parallel SQL. Two usage rules from the
+  docs: always pass explicit read/write dialects, and never treat transpilation as
+  verification — grade by executing against the real engine (or fakesnow with its own
+  caveats), since lenient parsing plus best-effort translation can silently change semantics.

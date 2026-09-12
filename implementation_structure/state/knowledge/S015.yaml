@@ -1,0 +1,23 @@
+id: S015
+rq: RQ1
+claim: >
+  Long-open dbt issue: if you remove a column from an incremental model, dbt leaves the column in
+  the target table and then generates an INSERT listing all target-table columns, which fails on
+  BigQuery with "Unrecognized name: <deleted_col>". on_schema_change ignore cannot ignore missing
+  columns, so the model stops loading entirely until someone full-refreshes or manually alters
+  the target relation.
+url: https://github.com/dbt-labs/dbt-adapters/issues/601
+quote: "The generated sql tries to insert all the columns from the target table."
+source_type: repo
+author_role: practitioner filing a bug (awong-evoiq)
+company: reported against dbt-labs/dbt-adapters (dbt-bigquery)
+year: 2022
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L1-practitioner-workflow-de
+notes: >
+  The complementary case to S013/S014: adding a column corrupts silently, removing one fails
+  loudly but with a cryptic warehouse-level error that does not name dbt's incremental logic as
+  the cause. Open since 2022, so it is a live trap rather than a fixed historical curiosity. The
+  obvious fix (--full-refresh) is destructive on a large table and interacts with the
+  full-refresh hazards in S023.

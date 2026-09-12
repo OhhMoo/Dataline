@@ -1,0 +1,24 @@
+id: S017
+rq: RQ1
+claim: >
+  Written-up production incident: application servers began throwing "No space left on device"
+  for the WAL directory and the database froze. Adding disk did not help because the replication
+  slot still would not advance; the slot was held open by a stuck Debezium connector whose
+  downstream had choked. The escape hatch - dropping the replication slot - unblocks the database
+  but destroys CDC continuity and forces a fresh full snapshot taking hours or days.
+url: https://adhdecode.com/message-queues/real-world-incident-case-studies/incident-debezium-slot/
+quote: "restart Debezium from scratch, likely requiring a full snapshot of your database"
+source_type: blog
+author_role: engineer recounting a production incident
+company: not stated
+year: 2026
+retrieved: "2026-09-11"
+confidence: medium
+produced_by: L1-practitioner-workflow-de
+notes: >
+  First-person narrative on a course-style site; identity of the author is not stated, so medium
+  confidence. Value is in the decision structure rather than the prose: the responder faces a
+  forced trade between database availability and pipeline continuity, with no option that is
+  cheap. Also captures the misdiagnosis path - VACUUM FULL and REINDEX attempted on the
+  assumption it was bloat before anyone looked at slot metrics. Corroborates S016 mechanism from
+  an independent source.

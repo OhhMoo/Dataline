@@ -1,0 +1,15 @@
+# Produced by L5-competitive-pricing for RQ6 (competitive landscape and pricing).
+id: S427
+rq: RQ6
+claim: >
+  Prime Intellect application-only environment bounty tier pays $1,000 to $5,000+ per environment.
+url: https://aitraining.jobs/roles/agentic-eval
+quote: "It runs an Environments Bounty Program paying $1,000 to $5,000-plus per environment"
+source_type: other
+company: "aitraining.jobs"
+year: 2026
+retrieved: "2026-09-11"
+confidence: low
+produced_by: L5-competitive-pricing
+notes: >
+  Secondary restatement of Prime Intellect own programme. The primary page (S411) verbatim gives only the $100-500 open-access tier; the $1,000-$5,000+ tier is rendered there via a maths widget and could not be quoted verbatim, hence this secondary citation. Crowdsourced-bounty market, not lab procurement.

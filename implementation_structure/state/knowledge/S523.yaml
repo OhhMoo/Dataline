@@ -1,0 +1,11 @@
+id: S523
+rq: RQ4
+claim: GitHub supplies repository, commit, branch, issue, pull-request, and code-review surfaces needed for realistic code changes.
+url: https://docs.github.com/en/get-started/using-git/about-git
+quote: "GitHub hosts Git repositories and provides developers with tools to ship better code through command line features, issues (threaded discussions), pull requests, code review"
+source_type: docs
+company: GitHub
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L6-tooling-inventory
+notes: Official GitHub documentation; local Git is distinct from GitHub's collaboration API/UI.

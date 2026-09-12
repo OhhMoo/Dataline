@@ -1,0 +1,15 @@
+id: S104
+rq: RQ1
+claim: >
+  MLE-bench enforces its rules with two automated detectors: a GPT-4o log-analysis tool that reads agent transcripts for rule violations, and the Dolos source-code plagiarism detector comparing agent code against the top 50 public Kaggle notebooks for that competition, with a 60 percent similarity threshold for disqualification. The log tool was over-sensitive: every violation it flagged on medal-winning runs (up to 14.1 percent of o1-preview AIDE runs flagged as manually-written submissions) was a false positive on human review.
+url: https://arxiv.org/html/2410.07095v6
+quote: 'we disqualify any attempts where the agent submits code with a high similarity score (over 60%) to any notebook and flag them for further review'
+source_type: paper
+author_role: ML engineers building agent evals
+company: OpenAI
+year: 2024
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L2-practitioner-workflow-ds
+notes: >
+  Direct prior art for a process/governance grader. Note the measured false-positive rate: an LLM-based process judge flagged up to 14.1 percent of runs and was wrong every time. Any LLM judge built on process signals needs calibration and a human-review escape hatch.

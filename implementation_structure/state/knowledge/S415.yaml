@@ -1,0 +1,16 @@
+# Produced by L5-competitive-pricing for RQ6 (competitive landscape and pricing).
+id: S415
+rq: RQ6
+claim: >
+  The enterprise software surfaces vendors are replicating as environments are Slack, Salesforce, AWS terminals, OneDrive, Gmail, Discord and Atlassian.
+url: https://newsletter.semianalysis.com/p/rl-environments-and-rl-for-science
+quote: "Slack, Salesforce, AWS terminals, Microsoft OneDrive, Gmail, Discord, and Atlassian"
+source_type: blog
+author_role: "industry analysts"
+company: "SemiAnalysis"
+year: 2026
+retrieved: "2026-09-11"
+confidence: medium
+produced_by: L5-competitive-pricing
+notes: >
+  THESIS TEST. This is the source own enumeration of covered domains. No warehouse, BI, dbt, orchestrator or SQL-analytics surface appears anywhere in this 37KB market deep-dive (verified by keyword search of the fetched page: zero hits for "data engineer", "warehouse", "dbt", "SQL", "Snowflake", "Databricks"). ARGUMENT FROM ABSENCE - supportive but not proof.

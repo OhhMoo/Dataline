@@ -1,0 +1,16 @@
+# Produced by L5-competitive-pricing for RQ6 (competitive landscape and pricing).
+id: S410
+rq: RQ6
+claim: >
+  High-fidelity replicas of complex products such as Slack cost far more than a simple website replica, with one interviewee citing figures around $300k.
+url: https://epoch.ai/gradient-updates/state-of-rl-envs
+quote: "higher-quality replicas of complex products like Slack can cost significantly more"
+source_type: blog
+author_role: "AI research organisation"
+company: "Epoch AI"
+year: 2026
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L5-competitive-pricing
+notes: >
+  PER-ENVIRONMENT price for a complex stateful product replica; the sentence immediately following the quote gives the ~$300k figure. This is the closest public analogue to what we are building (a multi-service live stack) and it is about 15x the simple-website price. Argues for pricing world images separately from tasks.

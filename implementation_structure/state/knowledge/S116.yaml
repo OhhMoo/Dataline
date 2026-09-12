@@ -1,0 +1,15 @@
+id: S116
+rq: RQ1
+claim: >
+  The same Google document records a real dropped-data incident from copying a pipeline: the Google Plus What's Hot pipeline deliberately discarded older posts, was copied to power Google Plus Stream where older posts are meaningful, and kept silently dropping them. A parallel case in Play: a new pipeline for Play Apps Home also contained examples from the Play Games landing page with no feature to distinguish their origin.
+url: https://developers.google.com/machine-learning/guides/rules-of-ml
+quote: 'Be careful about dropped data when copying pipelines.'
+source_type: docs
+author_role: Research Scientist, Google (Martin Zinkevich)
+company: Google
+year: 2017
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L2-practitioner-workflow-ds
+notes: >
+  A copied-pipeline-with-inherited-filter defect is trivially plantable and hard to spot: the code runs, metrics look plausible, and the only symptom is a subtly wrong training distribution. The Play example - two data sources merged with no provenance column - is a second distinct plantable defect.

@@ -1,0 +1,15 @@
+id: S112
+rq: RQ1
+claim: >
+  The Princeton running list enumerates the specific leakage mechanism per field, giving a reusable failure catalogue: imputation or pre-processing fit on train and test together (medicine, mining, affective computing), feature selection performed on the combined set (clinical epidemiology 48 of 71 papers, genomics 23 of 41), temporal leakage (software engineering 11 of 58, IT operations 3 of 9, law 156 of 171), duplicates across the split (toxicology, dermatology), illegitimate proxy-for-outcome features (law, sustainable energy, medicine), and non-independence between train and test (satellite imaging 17 of 17).
+url: https://reproducible.cs.princeton.edu/
+quote: 'We find 41 papers from 30 fields where errors have been found, collectively affecting 648 papers'
+source_type: paper
+author_role: CS researchers (Princeton CITP)
+company: Princeton University
+year: 2024
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L2-practitioner-workflow-ds
+notes: >
+  This table is a menu of plantable defects: each row is a mechanically-injectable bug (fit the scaler before the split; select k-best on the full frame; shuffle a time series; leave duplicate rows across the split; include a column derived after the outcome). Counts like 17/17 and 156/171 show which are most frequent in practice.

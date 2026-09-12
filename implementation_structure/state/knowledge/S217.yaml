@@ -1,0 +1,15 @@
+id: S217
+rq: RQ1
+claim: >
+  dbt model names leak into the database and therefore into the BI tool, and when they are chosen badly the BI layer is typically renamed on top of them - so an analyst tracing a number back from a dashboard field to the model that produced it must cross a rename boundary that is not recorded anywhere.
+url: https://docs.getdbt.com/blog/stakeholder-friendly-model-names
+quote: "there is a good chance that the BI layer on top of the database tables has been renamed to something more useful for the analysts"
+source_type: blog
+author_role: senior analytics engineer
+company: dbt Labs
+year: 2022
+retrieved: "2026-09-11"
+confidence: medium
+produced_by: L3-practitioner-workflow-analytics
+notes: >
+  Explains why metric-reconciliation tasks are multi-hop: the dashboard field name, the BI view name, the warehouse table name and the dbt model name may all differ. A world generator should deliberately introduce that renaming layer rather than keeping names identical end to end.

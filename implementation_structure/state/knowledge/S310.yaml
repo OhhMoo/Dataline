@@ -1,0 +1,22 @@
+id: S310
+rq: RQ7
+claim: >
+  Mercor's 397B SkyRL training run showed harness quality dominates early RL returns: fixing
+  sandbox/tool issues (missing packages, a PowerPoint MCP tool returning None, PDF table
+  garbling, context-budget wrap-up nudges, tool-result truncation) raised the base model's
+  mean reward from 22.74% to 28.69% with zero training — roughly what one epoch of training
+  would have bought on the unfixed harness.
+url: https://www.mercor.com/blog/training-frontier-knowledge-work-agents-a-397b-rl-training-guide-with-skyrl/
+quote: "Together these fixes raised the base Qwen3.6-35B-A3B from 22.74% to 28.69% mean reward, with zero training."
+source_type: blog
+company: Mercor
+year: 2026
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L4-prior-art
+notes: >
+  Verdict: COPY-PATTERN, arguably our strongest sales evidence. A training/eval substrate whose
+  harness is debugged to near-zero non-model error rate is literally worth an epoch of
+  frontier-scale RL compute. Their de-risking order (drive env failures down at target
+  concurrency BEFORE spending training compute; timeouts on everything; per-process MCP
+  client isolation; classify errors fail-vs-retry) should become our environment-QA checklist.

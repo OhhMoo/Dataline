@@ -1,0 +1,16 @@
+# Produced by L5-competitive-pricing for RQ6 (competitive landscape and pricing).
+id: S443
+rq: RQ6
+claim: >
+  GDPval tasks span the majority of BLS work activities for 44 occupations in the top 9 GDP-contributing sectors.
+url: https://arxiv.org/abs/2510.04374
+quote: "GDPval covers the majority of U.S. Bureau of Labor Statistics Work Activities for 44 occupations"
+source_type: paper
+author_role: "benchmark authors"
+company: "OpenAI"
+year: 2025
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L5-competitive-pricing
+notes: >
+  WHAT A LAB ITSELF BUILT when it wanted economically-grounded evaluation: occupation-anchored, expert-authored, built from real work products. The closest thing available to a lab stating in its own published words what it values in a task set.

@@ -1,0 +1,18 @@
+id: S216
+rq: RQ1
+claim: >
+  A long-running Power BI community thread shows the practitioner reality of renaming a column consumers depend on: the original poster wants to rename a column for clarity without breaking existing reports and dashboards, and a later respondent reports the problem is still unresolved for them because multiple reports and multiple users' own custom reports all reference the column, making a report-level fix infeasible.
+url: https://web.archive.org/web/20250911070533/https://community.fabric.microsoft.com/t5/Desktop/Rename-Column-or-Table-without-breaking-reports-dashboard/m-p/2024262
+quote: "there are multiple reports and multiple users with their own custom reports meaning it is not be feasible to change the columns on the report level"
+source_type: forum
+author_role: Power BI report developers
+year: 2020
+retrieved: "2026-09-12"
+confidence: medium
+produced_by: L3-practitioner-workflow-analytics
+notes: >
+  Low confidence individually, but it is the demand-side counterpart to S209 and S217: a rename that is trivial in the warehouse has an unbounded, unknown blast radius in the BI layer, including artifacts the data team does not own. That asymmetry - cheap upstream change, expensive and invisible downstream breakage - is the core of the BI-breakage hypothesis.
+repair_note: >
+  G1 repair 2026-09-12: community.fabric.microsoft.com 403-bot-blocked the gate's urllib fetch;
+  url swapped to a Wayback Machine snapshot (2025-09-11) of the same forum thread. Quote
+  unchanged - verified verbatim on the snapshot with gate-identical fetch logic.

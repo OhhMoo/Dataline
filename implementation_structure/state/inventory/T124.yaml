@@ -1,0 +1,11 @@
+id: T124
+name: "Hex"
+category: notebook
+role: simulate_target
+replication_strategy: none_found
+produced_by: L6-tooling-inventory
+rq: RQ4
+frequency_rank: 25
+evidence:
+  - S520
+notes: "Collaborative notebook-and-app surface: query, transform, visualize with SQL and Python; cloud-only, later breadth."

@@ -1,0 +1,15 @@
+id: S206
+rq: RQ1
+claim: >
+  Shopify's own UI reports and a warehouse built from Shopify's API systematically disagree: the UI uses the shop's configured local time zone while the API returns UTC with no DST adjustment, so daily totals drift at DST transitions, and the UI's order-status and refund handling (pending vs completed refunds, restock without refund, zero-dollar refunds) differs from what lands in the warehouse.
+url: https://weld.app/blog/shopify-analytics-discrepancies
+quote: "Without adjusting for DST, your warehouse daily totals will drift around March/October (EU) or March/November (US)"
+source_type: blog
+author_role: data integration vendor engineering
+company: Weld
+year: 2025
+retrieved: "2026-09-11"
+confidence: medium
+produced_by: L3-practitioner-workflow-analytics
+notes: >
+  Strong evidence for the 'must read external docs' hypothesis: resolving this class of mismatch requires reading the source system's documented semantics (time zone setting, refund lifecycle, which statuses are counted), not just reading SQL. A natural scattered-docs task where the answer only exists in a vendor doc placed in the world.

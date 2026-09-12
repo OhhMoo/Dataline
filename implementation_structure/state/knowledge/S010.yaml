@@ -1,0 +1,29 @@
+id: S010
+rq: RQ1
+claim: >
+  A pipeline team renamed a warehouse column (amount_txn_ccy to txn_amount) as routine
+  housekeeping and notified no downstream consumer. For three days the risk dashboard's query
+  returned NULL for every row and a divide-by-zero fallback substituted a garbage value, so the
+  failure surfaced as an overnight transaction volume off by a factor of ten - found by the head
+  of risk two minutes before a board meeting, not by any alert.
+url: https://freedium-mirror.cfd/https://medium.com/@theinsightengineer/the-column-rename-that-crashed-a-board-meeting-89ebb635a0f0
+quote: "The dashboard query silently returned NULL for every row."
+source_type: blog
+author_role: data platform engineer
+company: not stated (banking data warehouse case)
+year: 2026
+retrieved: "2026-09-12"
+confidence: medium
+produced_by: L1-practitioner-workflow-de
+notes: >
+  Textbook symptom-first discovery: a human notices a wrong business number and triage runs
+  backwards through lineage to a three-day-old DDL change. Note the amplifier - a defensive
+  fallback converted NULLs into a plausible-looking number instead of an error. The same article
+  lists sibling breakages on the same table: a new enum value in transaction_type that downstream
+  CASE expressions do not handle, a NUMERIC(5,2) to NUMERIC(5,4) precision change, and the daily
+  batch load shifting from 06:00 to 08:00 UTC so a 07:00 finance job reads yesterday's data.
+  The author is arguing for data contracts / OpenMetadata, so treat the remedy as advocacy.
+repair_note: >
+  G1 repair 2026-09-12: medium.com URL 403-bot-blocked the gate's urllib fetch; url swapped to
+  the freedium mirror of the same article (original: https://medium.com/@theinsightengineer/the-column-rename-that-crashed-a-board-meeting-89ebb635a0f0).
+  Quote unchanged - verified verbatim on the mirror with gate-identical fetch logic.

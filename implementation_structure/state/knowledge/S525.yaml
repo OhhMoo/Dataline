@@ -1,0 +1,15 @@
+id: S525
+rq: RQ4
+claim: OpenMetadata provides a combined catalog, discovery, governance, lineage, observability, and collaboration surface.
+url: https://docs.open-metadata.org/latest/features
+quote: "OpenMetadata includes a rapidly growing set of features to address common needs in data discovery, quality, observability, and collaboration."
+source_type: docs
+company: OpenMetadata
+retrieved: "2026-09-12"
+confidence: high
+produced_by: L6-tooling-inventory
+notes: Official documentation; inventory inclusion does not replace a later license and install audit.
+repair_note: >
+  G1 repair 2026-09-12: docs.open-metadata.org/v1.12.x/features is gone (404); url swapped to
+  the versionless docs.open-metadata.org/latest/features, which carries the same features page.
+  Quote unchanged - verified verbatim there with gate-identical fetch logic.

@@ -1,0 +1,16 @@
+# Produced by L5-competitive-pricing for RQ6 (competitive landscape and pricing).
+id: S441
+rq: RQ6
+claim: >
+  MLE-bench, the OpenAI data-science agent benchmark named as our reference in RQ2, comprises 75 curated Kaggle competitions.
+url: https://arxiv.org/abs/2410.07095
+quote: "we curate 75 ML engineering-related competitions from Kaggle"
+source_type: paper
+author_role: "benchmark authors"
+company: "OpenAI"
+year: 2024
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L5-competitive-pricing
+notes: >
+  SIZING ANCHOR, lower end, and the closest published analogue on the data-science axis. Confirms 75-90 tasks is a publishable size for a hard expert-authored benchmark. Relevant to E11: MLE-bench is the plausible referent of the "Emily Bench" transcription artifact.

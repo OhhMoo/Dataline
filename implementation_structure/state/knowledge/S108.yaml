@@ -1,0 +1,15 @@
+id: S108
+rq: RQ1
+claim: >
+  Every MLE-bench task was screened by at least two ML engineers at frontier labs against a 9-point written admissibility checklist, including: the description must be self-contained enough to be solvable without consulting discussion forums, the evaluation metric must be locally computable, the dataset must not be heavily used outside Kaggle (MNIST is explicitly excluded), train and test must be same-distribution so a new split can be cut, and the dataset license must permit inclusion.
+url: https://arxiv.org/html/2410.07095v6
+quote: 'Each competition in our final set was screened by at least two ML engineers working at leading AI companies.'
+source_type: paper
+author_role: ML engineers building agent evals
+company: OpenAI
+year: 2024
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L2-practitioner-workflow-ds
+notes: >
+  The task-construction methodology worth copying wholesale: a written admissibility checklist plus double human screening, applied before any task is authored. Their criterion 5 (avoid datasets used extensively outside the platform) is the contamination hedge that E4 replaces with full synthesis.

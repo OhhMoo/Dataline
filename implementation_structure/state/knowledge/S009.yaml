@@ -1,0 +1,24 @@
+id: S009
+rq: RQ1
+claim: >
+  Pinterest runs over 10,000 Airflow DAGs across many teams, and because Airflow has become the
+  user interface to a range of data and ML infrastructure sitting behind it, failures originating
+  in those other systems surface inside Airflow. Triage is therefore a cross-system problem, and
+  user support has been an ongoing productivity bottleneck for the platform team.
+url: https://airflowsummit.org/sessions/2025/how-pinterest-uses-ai-to-empower-airflow-users-for-troubleshooting/
+quote: "there are over 10,000 DAGs supporting various use cases across different teams and roles"
+source_type: conference_talk
+author_role: Software Engineer
+company: Pinterest
+year: 2025
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L1-practitioner-workflow-de
+notes: >
+  Key structural fact for environment design: the orchestrator is where the symptom appears and
+  almost never where the cause lives. Corroborated at the same summit by a Google session on
+  Airflow-on-Kubernetes task-failure diagnosis (running a distributed system on another
+  distributed system makes troubleshooting harder), by S011/S012 (Airbnb SLA misses trace to
+  other teams' upstreams), and by S018 (the academic taxonomy names missing knowledge of the
+  external systems Airflow talks to as a leading root cause). Uber's session at the same event
+  reports 200,000 pipelines and roughly 1M task executions per day on a single instance.

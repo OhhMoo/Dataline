@@ -1,0 +1,16 @@
+# Produced by L5-competitive-pricing for RQ6 (competitive landscape and pricing).
+id: S434
+rq: RQ6
+claim: >
+  Each Terminal-Bench task ships a unique environment, a human-written reference solution and verification tests.
+url: https://arxiv.org/abs/2601.11868
+quote: "Each task features a unique environment, human-written solution, and comprehensive tests for verification."
+source_type: paper
+author_role: "benchmark authors"
+company: "Terminal-Bench"
+year: 2026
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L5-competitive-pricing
+notes: >
+  PER-TASK DELIVERABLE SPEC. Matches the ade-bench sage-agent pattern in agent.md 5: a reference solution per task is both a QA artifact and part of what is shipped.

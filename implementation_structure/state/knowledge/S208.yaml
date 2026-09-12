@@ -1,0 +1,15 @@
+id: S208
+rq: RQ1
+claim: >
+  The same team reported a three-week traffic decline that did not exist: roughly 28% of finalized days in the upstream analytics source came back near zero, so any fixed-length window summed a varying number of near-empty days, and the comparison window happened to hold five valid days against the current window's seven. Measured per valid day the metric had doubled while the totals fell; both statements were true.
+url: https://thicket.sh/blog/when-your-metric-is-broken-not-your-business
+quote: "Ours were quietly comparing seven days against five."
+source_type: blog
+author_role: operating team publishing its own failures
+company: Thicket
+year: 2026
+retrieved: "2026-09-11"
+confidence: medium
+produced_by: L3-practitioner-workflow-analytics
+notes: >
+  A second distinct incident from the same write-up. The tell they name - uniformity across things that should move independently, including four properties frozen for months - is exactly the reasoning step a trajectory-blind grader can test for. Also a clean example of a task whose correct answer is 'the decline is an artifact', not a business root cause.

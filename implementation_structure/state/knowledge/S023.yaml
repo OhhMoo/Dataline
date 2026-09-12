@@ -1,0 +1,26 @@
+id: S023
+rq: RQ1
+claim: >
+  Consultancy field notes on dbt-core in production describe five recurring failure patterns,
+  including: changing a model from materialized table to incremental without a full refresh, where
+  dbt does not detect the materialisation change, treats the existing relation as the incremental
+  base and appends to it, leaving pre-existing historical rows under the old schema alongside new
+  rows under the new one; and source freshness tests returning false-green after a source table is
+  dropped and recreated with a different schema, because the check only inspects loaded_at.
+url: https://perun.au/insights/dbt-core-production
+quote: "dbt does not detect the materialisation change on the next run"
+source_type: blog
+author_role: consultancy engineering team (AWS / DevOps practice)
+company: Perun Engineering
+year: 2026
+retrieved: "2026-09-11"
+confidence: medium
+produced_by: L1-practitioner-workflow-de
+notes: >
+  Field notes rather than a first-person incident, and the page ends in a sales CTA - discount
+  accordingly. Kept because both mechanisms are precisely specified and checkable, and because the
+  false-green freshness case is the only evidence I found of a data-quality check that actively
+  misleads triage: freshness runs first, passes, and the real failure then appears downstream as a
+  cryptic warehouse error (column not found, invalid cast) with the freshness gate green. Same
+  page notes --full-refresh committed into a CI env var repeatedly dropping production tables, and
+  credential rotation mid-run surfacing as a model Compilation Error rather than an auth error.

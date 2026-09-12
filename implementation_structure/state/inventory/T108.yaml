@@ -1,0 +1,11 @@
+id: T108
+name: "BigQuery"
+category: warehouse
+role: simulate_target
+replication_strategy: none_found
+produced_by: L6-tooling-inventory
+rq: RQ4
+frequency_rank: 9
+evidence:
+  - S503
+notes: "Managed warehouse used via SQL, Python, CLI, client libraries, APIs."

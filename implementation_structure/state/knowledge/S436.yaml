@@ -1,0 +1,16 @@
+# Produced by L5-competitive-pricing for RQ6 (competitive landscape and pricing).
+id: S436
+rq: RQ6
+claim: >
+  Terminal-Bench spent about three reviewer-hours of combined human review per task, on top of authoring time.
+url: https://arxiv.org/html/2601.11868v1
+quote: "the average task received approximately three hours of combined reviewer attention"
+source_type: paper
+author_role: "benchmark authors"
+company: "Terminal-Bench"
+year: 2026
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L5-competitive-pricing
+notes: >
+  QA COST ANCHOR, review only. The source explicitly excludes authoring time, so total human cost per shipped task is authoring hours plus ~3 review hours plus rejected-task overhead (S435). At the S428/S430 expert rates, review alone is $225-$600 per task.

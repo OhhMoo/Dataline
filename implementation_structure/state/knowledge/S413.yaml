@@ -1,0 +1,16 @@
+# Produced by L5-competitive-pricing for RQ6 (competitive landscape and pricing).
+id: S413
+rq: RQ6
+claim: >
+  RL training, not benchmarking, is the dominant commercial use of purchased environments, by roughly 10-20x.
+url: https://epoch.ai/gradient-updates/state-of-rl-envs
+quote: "We have some requests for creating envs for benchmarking"
+source_type: blog
+author_role: "RL environment startup employee (anonymous)"
+company: "Epoch AI"
+year: 2026
+retrieved: "2026-09-11"
+confidence: medium
+produced_by: L5-competitive-pricing
+notes: >
+  The quote is the safe verbatim fragment; the surrounding sentence in the source gives the 10-20x ratio. Supports the agent.md strategy of selling the training licence and using the public benchmark as marketing rather than as the revenue line.

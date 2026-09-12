@@ -1,0 +1,9 @@
+id: T129
+name: "Hightouch / Census (reverse ETL)"
+category: other
+role: simulate_target
+replication_strategy: none_found
+produced_by: L6-tooling-inventory
+rq: RQ4
+frequency_rank: 30
+notes: "Reverse-ETL activation surface moving warehouse data to operational tools; named in meeting list, no S5xx finding yet."

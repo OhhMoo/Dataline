@@ -1,0 +1,15 @@
+id: S209
+rq: RQ1
+claim: >
+  GitLab's public data-team handbook codifies downstream breakage from model changes: a schema change breaks any downstream incremental model not configured with append_new_columns or sync_all_columns, and the workflow requires enumerating all downstream and all downstream-incremental models with dbt list before merging. Their system test is a MINUS query comparing the dev build of a changed model against its production table, and the worked example is a merge request that renamed columns on a single table.
+url: https://handbook.gitlab.com/handbook/enterprise-data/how-we-work/dbt-change-workflow/
+quote: "A downstream model is configured to be incremental and not configured to append_new_column or sync_all_columns when the schema changes"
+source_type: docs
+author_role: analytics engineering team
+company: GitLab
+year: 2025
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L3-practitioner-workflow-analytics
+notes: >
+  First-party process documentation, not opinion. Gives both the hazard (incremental model silently wrong after a schema change) and the expected remediation trajectory (dbt list to enumerate blast radius, MINUS comparison against prod, stakeholder and SME review). A grader can check whether the agent enumerated the downstream set before changing anything.

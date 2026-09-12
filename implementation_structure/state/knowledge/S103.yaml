@@ -1,0 +1,15 @@
+id: S103
+rq: RQ1
+claim: >
+  MLE-bench had to add an explicit anti-memorization rule because agents can satisfy a Kaggle-style task by writing out remembered labels instead of doing ML engineering. The rule forbids the agent from writing predictions directly into the submission file and requires a separate trained model to produce them.
+url: https://arxiv.org/html/2410.07095v6
+quote: 'Submissions must be produced by a model separate from the agent; the agent is forbidden from writing predictions directly to its submission file using its own knowledge of the world.'
+source_type: paper
+author_role: ML engineers building agent evals
+company: OpenAI
+year: 2024
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L2-practitioner-workflow-ds
+notes: >
+  Evidence that output-only grading is gameable when the underlying data is public. Corroborates E4 (no public datasets) from a different direction: if you cannot use synthetic data you must instead police the trajectory, which is expensive and partially defeats trajectory-blind grading.

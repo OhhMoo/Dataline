@@ -1,0 +1,15 @@
+# Produced by L5-competitive-pricing for RQ6 (competitive landscape and pricing).
+id: S431
+rq: RQ6
+claim: >
+  The average freelance AI-trainer rate is about $31 per hour, far below expert-tier environment work.
+url: https://www.mercor.com/resources/experts/ai-trainer-salary-hourly-rates/
+quote: "The national average AI trainer pay per hour is $31, as of early 2026."
+source_type: vendor_page
+company: "Mercor"
+year: 2026
+retrieved: "2026-09-11"
+confidence: medium
+produced_by: L5-competitive-pricing
+notes: >
+  VENDOR CLAIM. Included as the commodity-labelling baseline: the 3-6x gap between this and the expert band is the whole basis of the quality-over-quantity argument in S405.

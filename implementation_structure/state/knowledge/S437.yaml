@@ -1,0 +1,16 @@
+# Produced by L5-competitive-pricing for RQ6 (competitive landscape and pricing).
+id: S437
+rq: RQ6
+claim: >
+  A full Terminal-Bench 2.0 evaluation run costs between one and a hundred dollars depending on model price.
+url: https://arxiv.org/html/2601.11868v1
+quote: "costs anywhere from one to a hundred dollars, depending on the model"
+source_type: paper
+author_role: "benchmark authors"
+company: "Terminal-Bench"
+year: 2026
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L5-competitive-pricing
+notes: >
+  INFERENCE COST PER BENCHMARK RUN (89 tasks). Orders of magnitude below the ~$2,400/task RL training compute in S407 - evaluation is cheap, RL training is not, which is why the training licence and not the eval is the revenue product.

@@ -1,0 +1,15 @@
+id: S102
+rq: RQ1
+claim: >
+  When the original Kaggle test labels were unavailable, MLE-bench rebuilt a test set from the public training data (typically a 10% holdout) and then VALIDATED the reconstruction by checking that a reference sample submission scored comparably on the original and reconstructed sets, so that agent scores stay comparable to the human leaderboard.
+url: https://arxiv.org/html/2410.07095v6
+quote: 'We take care to ensure that the distributions of the original and reconstructed test sets are similar by checking that the example submission scores similarly on both sets.'
+source_type: paper
+author_role: ML engineers building agent evals
+company: OpenAI
+year: 2024
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L2-practitioner-workflow-ds
+notes: >
+  A concrete calibration technique for synthetic or reconstructed world data (relevant to RQ5): generate the holdout, then prove distributional equivalence by scoring a known-baseline solution on both. Gives an objective test that a randomized world instance is the same difficulty as its siblings.

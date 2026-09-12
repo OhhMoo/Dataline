@@ -1,0 +1,11 @@
+id: S510
+rq: RQ4
+claim: Dagster is an asset-aware data orchestrator with integrated lineage, observability, and testability.
+url: https://docs.dagster.io/
+quote: "Dagster is a data orchestrator built for data engineers, with integrated lineage, observability, a declarative programming model, and best-in-class testability."
+source_type: docs
+company: Dagster Labs
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L6-tooling-inventory
+notes: Official documentation; supports later-breadth inclusion rather than equivalence to Airflow.

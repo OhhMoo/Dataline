@@ -1,0 +1,22 @@
+id: S304
+rq: RQ7
+claim: >
+  dbt-labs' ade-bench (created by Benn Stancil) evaluates agents on analytics/data-engineering
+  tasks by running each task in its own Docker sandbox over shared DuckDB databases and shared
+  dbt projects, with file snapshots taken before/after setup and after the agent so every
+  change is diffed and logged.
+url: https://raw.githubusercontent.com/dbt-labs/ade-bench/main/README.md
+quote: "It does this by running each task in a separate temporary sandbox, and then evaluating the agent's work against the expected results."
+source_type: repo
+company: dbt Labs
+year: 2025
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L4-prior-art
+notes: >
+  Verdict: COPY-PATTERN (partly adopt). Apache-2.0 (pre-verified). The shared-project +
+  per-task setup.sh overlay model (tasks share large dbt projects/databases instead of
+  duplicating them) is the pattern to copy for task authoring economics. Its CLI agent
+  invocation matrix (claude/codex/gemini with exact flags) and prompt variants per task
+  (base/hard) are also worth copying. It predates Harbor and runs its own harness, so adopt
+  ideas, not the runner.

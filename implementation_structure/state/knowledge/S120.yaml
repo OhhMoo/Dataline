@@ -1,0 +1,15 @@
+id: S120
+rq: RQ1
+claim: >
+  In an interview study of 18 ML engineers running production pipelines, data leakage - training on data unavailable at serving time - was reported as a routine bug that surfaces only AFTER deployment, once wrong live predictions have been made. Named variants included training an embedding model on the same split as the downstream model, a class-imbalance mismatch between training and serving populations, and ignoring feedback delay (the lag before ground-truth labels arrive) during training.
+url: https://arxiv.org/html/2209.09125v1
+quote: 'an error typically discovered after the model was deployed and several incorrect live predictions were made'
+source_type: paper
+author_role: academic researchers interviewing production ML engineers
+company: UC Berkeley
+year: 2022
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L2-practitioner-workflow-ds
+notes: >
+  Corroborates leakage-is-pervasive (S111/S112) from industry rather than academia, and adds three mechanisms the science taxonomy does not cover: shared split between an upstream embedding and a downstream model, serving-population imbalance, and label-lag leakage. The 'only discovered after deployment' timing is what makes it a multi-hop diagnosis task.

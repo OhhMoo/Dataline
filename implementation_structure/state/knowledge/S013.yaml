@@ -1,0 +1,23 @@
+id: S013
+rq: RQ1
+claim: >
+  Filed dbt-databricks bug: with an incremental model configured on_schema_change sync_all_columns,
+  dbt adds the new column to the target table but the subsequent INSERT uses SELECT * with no
+  explicit column list, so matching is positional. Adding a column anywhere other than the end of
+  the model's select list writes every value into the wrong column - silent data corruption in a
+  table that dbt reports as having built successfully.
+url: https://github.com/databricks/dbt-databricks/issues/1211
+quote: "subsequent INSERT statements use SELECT * without explicit column specifications"
+source_type: repo
+author_role: practitioner filing a production bug (randypitcherii)
+company: reported against databricks/dbt-databricks
+year: 2025
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L1-practitioner-workflow-de
+notes: >
+  Extremely rebuildable - the issue includes exact repro steps: build with columns id, name,
+  status, then change the model to id, new_column, name, status and observe values intended for
+  name landing in new_column. Affects append, insert_overwrite and replace_where strategies.
+  Corroborated by S014 (independent filer, different config, same positional-matching root cause).
+  This is the class of failure where dbt run and dbt test both go green and the data is wrong.

@@ -1,0 +1,22 @@
+id: S003
+rq: RQ1
+claim: >
+  Teams monitor whether a job ran and whether rows were written, but not whether the rows are
+  correct. Freshness monitoring is near-universal and correctness monitoring near-absent, which
+  is why bad data sits in production for months before a human notices and a backfill becomes
+  necessary at all.
+url: https://luminousmen.com/post/most-of-your-backfills-didnt-have-to-happen/
+quote: "What you didn't know was whether any of them were correct."
+source_type: blog
+author_role: data engineer / consultant
+company: luminousmen (Kirill Bobrov)
+year: 2026
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L1-practitioner-workflow-de
+notes: >
+  The same page describes the untouchable table - a mart that stopped being a function of its
+  inputs after years of manual UPDATEs and a column named like flag_v2_final_USE_THIS, set by a
+  query living in the home directory of an engineer who left in 2023, so recomputing from scratch
+  does not reproduce it. That is a strong pre-existing-brokenness initial condition: it punishes
+  the naive "just full-refresh it" move, which is exactly the move a model will reach for.

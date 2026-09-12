@@ -1,0 +1,16 @@
+# Produced by L5-competitive-pricing for RQ6 (competitive landscape and pricing).
+id: S432
+rq: RQ6
+claim: >
+  Vendors expect labs to move to full-time domain experts developing tasks over months, away from cheap contractor-produced or procedurally generated tasks.
+url: https://www.mechanize.work/blog/cheap-rl-tasks-will-waste-compute/
+quote: "full-time domain experts who spend months developing sustained context and crafting individualized tasks"
+source_type: blog
+author_role: "RL environment vendor founders"
+company: "Mechanize, Inc."
+year: 2025
+retrieved: "2026-09-11"
+confidence: medium
+produced_by: L5-competitive-pricing
+notes: >
+  Vendor-authored and self-serving, but it is the explicit statement of the labour model E5 assumes. Supports hand-authored-first (agent.md 6.5) over generator-first for v1.

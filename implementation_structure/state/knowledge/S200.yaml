@@ -1,0 +1,19 @@
+id: S200
+rq: RQ1
+claim: >
+  Airbnb's data org reached a state where different teams answered the same simple business question (which city had the most bookings last week) with different numbers, because Data Science and Finance each used slightly different tables, metric definitions and business logic; nobody could tell which answer was right.
+url: https://web.archive.org/web/20260809070448/https://medium.com/airbnb-engineering/how-airbnb-achieved-metric-consistency-at-scale-f23cc53dea70
+quote: "different teams reported different numbers for very simple business questions, and there was no easy way to know which number was correct"
+source_type: blog
+author_role: data scientist / engineering blog author
+company: Airbnb
+year: 2021
+retrieved: "2026-09-12"
+confidence: high
+produced_by: L3-practitioner-workflow-analytics
+notes: >
+  Direct first-party evidence that metric reconciliation is a real and expensive workflow at scale, not a vendor-marketing invention. Rebuildable situation: two derived tables on top of a shared core table, each with a slightly different definition of a booking, feeding two dashboards that disagree. Independently corroborated by S201 (Uber) and S202 (LinkedIn).
+repair_note: >
+  G1 repair 2026-09-12: medium.com 403-bot-blocked the gate's urllib fetch; url swapped to a
+  Wayback Machine snapshot (2026-08-09) of the same article. Quote unchanged - verified verbatim
+  on the snapshot with gate-identical fetch logic.

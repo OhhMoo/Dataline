@@ -1,0 +1,11 @@
+id: S502
+rq: RQ4
+claim: Amazon Redshift is a warehouse target with both SQL and management/API behavior relevant to data-agent tasks.
+url: https://docs.aws.amazon.com/redshift/latest/dg/welcome.html
+quote: "Amazon Redshift is a fully managed, petabyte-scale data warehouse service in the cloud."
+source_type: docs
+company: Amazon Web Services
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L6-tooling-inventory
+notes: Official documentation; supports warehouse classification.

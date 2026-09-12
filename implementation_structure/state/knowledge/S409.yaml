@@ -1,0 +1,16 @@
+# Produced by L5-competitive-pricing for RQ6 (competitive landscape and pricing).
+id: S409
+rq: RQ6
+claim: >
+  Website-replica RL environments (UI gyms) are priced at roughly $20,000 each, and OpenAI has bought hundreds of them for ChatGPT Agent training.
+url: https://newsletter.semianalysis.com/p/rl-environments-and-rl-for-science
+quote: "often cost about $20,000 per website, and OpenAI has purchased hundreds of sites for ChatGPT Agent training"
+source_type: blog
+author_role: "industry analysts (AJ Kourabi, Dylan Patel)"
+company: "SemiAnalysis"
+year: 2026
+retrieved: "2026-09-11"
+confidence: medium
+produced_by: L5-competitive-pricing
+notes: >
+  PER-ENVIRONMENT price, NOT per task. An industry-analyst estimate (SemiAnalysis, paid newsletter; this line is in the free preview); no contract cited. Independently repeated by Epoch AI. Read with S410: fidelity, not task count, is what drives environment price.

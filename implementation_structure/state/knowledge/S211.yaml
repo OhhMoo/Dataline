@@ -1,0 +1,15 @@
+id: S211
+rq: RQ1
+claim: >
+  A three-month migration of a client's Alteryx workflows into dbt cut model runtime from six hours to nine minutes, but the load-bearing step was validation: the team materialized both the legacy Alteryx output and the refactored dbt model, compared them with audit_helper, then duplicated the BI report against the new model so the two could be inspected side by side - iterating back into the transformation layer to cast column types or change business rules when values diverged.
+url: https://docs.getdbt.com/blog/framework-refactor-alteryx-dbt
+quote: "we recommend duplicating the BI report and connecting this replica to the newly refactored dbt model"
+source_type: blog
+author_role: analytics engineers at a consultancy
+company: Indicium Tech
+year: 2023
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L3-practitioner-workflow-analytics
+notes: >
+  Evidence that BI-layer parity checking is a distinct step after warehouse-layer parity, and that the fix for a visual mismatch often lands back in the transformation code. A container can hold both the legacy artifact and the new model plus a BI definition, and grade on whether the agent validated at both layers rather than only the table.

@@ -1,0 +1,11 @@
+id: S514
+rq: RQ4
+claim: Amazon S3 is the object-storage surface for buckets, objects, permissions, versions, and data-lake files.
+url: https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html
+quote: "Amazon Simple Storage Service (Amazon S3) is an object storage service that offers industry-leading scalability, data availability, security, and performance."
+source_type: docs
+company: Amazon Web Services
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L6-tooling-inventory
+notes: Official documentation; runtime must use a local S3-compatible surface, not AWS.

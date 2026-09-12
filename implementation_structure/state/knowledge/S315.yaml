@@ -1,0 +1,23 @@
+id: S315
+rq: RQ7
+claim: >
+  UC Berkeley/Hasura's DataAgentBench (DAB) grades 54 queries across 12 datasets and 4 DBMSes
+  with a per-query validate.py script checked against a ground_truth.csv, and its agent
+  tooling enforces read-only database querying plus Docker-sandboxed Python execution with a
+  timeout.
+url: https://raw.githubusercontent.com/ucbepic/DataAgentBench/main/README.md
+quote: "Validate if the ground truth is present in the agent's answer."
+source_type: repo
+company: UC Berkeley EPIC Lab / Hasura PromptQL
+year: 2026
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L4-prior-art
+notes: >
+  Verdict: COPY-PATTERN. The per-query (query.json, ground_truth.csv, validate.py) triplet is a
+  minimal, composable deterministic-grading unit we can adopt for query-answering tasks, and
+  the read-only-query guardrail + containerized code execution should be standard in our
+  environments. Also note leaderboard integrity practices: 5 mandatory runs, execution traces
+  required with submissions, and they re-scored a query when a validator was wrong (tied
+  answers) — validators need versioning. Task mix (multi-DB joins, ill-formatted keys,
+  unstructured text) is adjacent to but narrower than full DE work.

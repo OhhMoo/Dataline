@@ -1,0 +1,16 @@
+id: S513
+rq: RQ4
+claim: Apache Kafka supplies the event-streaming surface for producers, consumers, durable topics, and stream processing.
+url: https://kafka.apache.org/intro
+quote: "Apache Kafka® is an event streaming platform. What does that mean?"
+source_type: docs
+company: Apache Software Foundation
+retrieved: "2026-09-12"
+confidence: high
+produced_by: L6-tooling-inventory
+notes: Official documentation; exact interface feasibility belongs to RQ3.
+repair_note: >
+  G1 repair 2026-09-12: kafka.apache.org/documentation/ is now a JavaScript "Documentation
+  Redirect" stub with no content for a plain urllib fetch. url swapped to
+  kafka.apache.org/intro, which carries the same introduction text. Quote unchanged - verified
+  verbatim there with gate-identical fetch logic.

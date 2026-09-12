@@ -1,0 +1,25 @@
+id: S012
+rq: RQ1
+claim: >
+  Once the bottleneck step in a late pipeline is identified, Airbnb engineers still have to
+  determine whether that step ran long or merely started late because its upstream was late. The
+  two answers lead to opposite remediations - optimise your own job, or renegotiate an SLA with
+  the upstream owner - so the tooling had to separate start-time delay from runtime duration.
+url: https://web.archive.org/web/20251107002714/https://medium.com/airbnb-engineering/visualizing-data-timeliness-at-airbnb-ee638fdf4710
+quote: "whether the delay in that step was due to long runtimes or delays in upstream dependencies"
+source_type: blog
+author_role: data experience and visualization engineers on the data platform team
+company: Airbnb
+year: 2021
+retrieved: "2026-09-12"
+confidence: high
+produced_by: L1-practitioner-workflow-de
+notes: >
+  A cleanly gradeable discrimination: given run history, did the job start late or run long? Both
+  look identical in a "finished at 09:14, SLA was 08:00" alert, which is exactly where a naive
+  agent will guess. The same post notes that setting a realistic SLA requires accounting for the
+  entire dependency tree and its SLAs - a second, harder task on the same world state.
+repair_note: >
+  G1 repair 2026-09-12: medium.com 403-bot-blocked the gate's urllib fetch; url swapped to a
+  Wayback Machine snapshot (2025-11-07) of the same article. Quote unchanged - verified verbatim
+  on the snapshot with gate-identical fetch logic.

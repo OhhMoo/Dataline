@@ -1,0 +1,15 @@
+id: S115
+rq: RQ1
+claim: >
+  Google's published ML engineering rules single out a specific, silent training/serving skew mechanism: joining a feature table by key at both training and serving time, where the table's contents mutate between those two moments, so the same entity gets different predictions offline and online. The recommended mitigations are logging features at serving time and snapshotting slow-changing tables hourly or daily.
+url: https://developers.google.com/machine-learning/guides/rules-of-ml
+quote: 'Beware that if you join data from a table at training and serving time, the data in the table may change.'
+source_type: docs
+author_role: Research Scientist, Google (Martin Zinkevich)
+company: Google
+year: 2017
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L2-practitioner-workflow-ds
+notes: >
+  The cleanest single-sentence statement of the mutable-dimension-join bug. Container-rebuildable: give the world a slowly-changing dimension table and a training script that joins it live, and the offline/online gap appears with no explicit bug planted. Corroborated by Rules 29 and 32 in the same document and by feature-store writing at DoorDash and Uber.

@@ -1,0 +1,22 @@
+id: S007
+rq: RQ1
+claim: >
+  Cascade failures through invisible shared state were 14% of the 50 surveyed postmortems and the
+  most catastrophic class. Example: a schema migration for one batch job held a lock on a shared
+  metadata table for 90 seconds, and every other job touching that table failed or timed out,
+  turning a single-team change into a company-wide incident.
+url: https://dev.to/andrew_tan_layline/what-i-learned-from-reading-50-data-pipeline-postmortems-1moi
+quote: "A schema migration for one job locked the metadata table for 90 seconds."
+source_type: blog
+author_role: CTO / founder, reviewed 50 public postmortems
+company: layline.io
+year: 2026
+retrieved: "2026-09-11"
+confidence: medium
+produced_by: L1-practitioner-workflow-de
+notes: >
+  The same source describes the sibling poison-pill case: one malformed record sent a parser into
+  an infinite loop, the consumer thread hung, the partition rebalanced onto a new consumer which
+  also hung, and the entire consumer group went offline within minutes, degrading unrelated
+  pipelines sharing the Kafka cluster. Both force the responder to reason about a blast radius
+  that appears nowhere in the failing pipeline's own code or DAG.

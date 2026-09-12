@@ -1,0 +1,11 @@
+id: T110
+name: "Confluence"
+category: docs
+role: simulate_target
+replication_strategy: none_found
+produced_by: L6-tooling-inventory
+rq: RQ4
+frequency_rank: 11
+evidence:
+  - S522
+notes: "Scattered documentation surface: spaces, pages, live docs, blogs, files; needs info-shape semantics without Atlassian Cloud."

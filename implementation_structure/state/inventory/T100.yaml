@@ -1,0 +1,11 @@
+id: T100
+name: "Git / GitHub"
+category: vcs
+role: simulate_target
+replication_strategy: none_found
+produced_by: L6-tooling-inventory
+rq: RQ4
+frequency_rank: 1
+evidence:
+  - S523
+notes: "Ubiquitous code-change surface: repos, commits, branches, PRs, reviews. Local git distinct from GitHub collaboration API."

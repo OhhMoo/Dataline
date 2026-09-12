@@ -1,0 +1,9 @@
+id: T111
+name: "GitHub Actions"
+category: other
+role: simulate_target
+replication_strategy: none_found
+produced_by: L6-tooling-inventory
+rq: RQ4
+frequency_rank: 12
+notes: "CI surface for data-repo pipelines; named in meeting list, related to GitHub surfaces in S523."

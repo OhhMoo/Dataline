@@ -1,0 +1,20 @@
+id: S307
+rq: RQ7
+claim: >
+  OpenAI's MLE-bench keeps grading fully deterministic (per-competition grading scripts over
+  CSV submissions) and instructs evaluators to repeat each evaluation with at least 3 seeds
+  because agent/LLM variance, not the grader, is the noise source.
+url: https://raw.githubusercontent.com/openai/mle-bench/main/README.md
+quote: "The evaluation (task and grading) itself is deterministic, but agents/LLMs can be quite high-variance!"
+source_type: repo
+company: OpenAI
+year: 2024
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L4-prior-art
+notes: >
+  Verdict: COPY-PATTERN (cannot-use as deliverable). The benchmark content is Kaggle-derived
+  and not a DE corpus, and the README catalogues known label-leakage issues (public test files
+  leaking answers) plus a paused leaderboard — a cautionary tale: our substrate needs
+  hidden-test hygiene and a rule-violation/plagiarism pass (they ship both detectors in
+  extras/). The seed-repetition + deterministic-grader discipline is what to copy.

@@ -1,0 +1,19 @@
+id: S117
+rq: RQ1
+claim: >
+  DoorDash's ML platform team reports that before they built model observability they had repeated production incidents where models silently went out of date and made incorrect predictions (delivery-time and food-prep-time estimates), and that diagnosis took a long time specifically because no drift monitoring existed; COVID is cited as a shock that shifted customer behaviour sharply.
+url: https://web.archive.org/web/20250720014003/https://careersatdoordash.com/blog/monitor-machine-learning-model-drift/
+quote: 'Finding this kind of model drift took a long time because we did not have a way to monitor for it'
+source_type: blog
+author_role: ML platform engineers
+company: DoorDash
+year: 2021
+retrieved: "2026-09-12"
+confidence: high
+produced_by: L2-practitioner-workflow-ds
+notes: >
+  Independent corroboration of the Instacart pattern (COVID demand shock breaks a deployed model). The distinguishing detail for task design is that detection latency, not fix difficulty, was the cost driver - which makes 'how long did the agent take to notice' a legitimate scored dimension.
+repair_note: >
+  G1 repair 2026-09-12: careersatdoordash.com 403-bot-blocked the gate's urllib fetch; url
+  swapped to a Wayback Machine snapshot (2025-07-20) of the same blog post. Quote unchanged -
+  verified verbatim on the snapshot with gate-identical fetch logic.

@@ -1,0 +1,16 @@
+# Produced by L5-competitive-pricing for RQ6 (competitive landscape and pricing).
+id: S402
+rq: RQ6
+claim: >
+  A neolab researcher reports seeing environment and task contracts in the $300k-$500k range, varying with task count.
+url: https://epoch.ai/gradient-updates/state-of-rl-envs
+quote: "A neolab researcher mentioned seeing contracts in the $300k-$500k range"
+source_type: blog
+author_role: "neolab researcher (anonymous)"
+company: "Epoch AI"
+year: 2026
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L5-competitive-pricing
+notes: >
+  TOTAL CONTRACT VALUE, not per task. Useful as a deal-size anchor for a first lab engagement. Buyer-side speaker, which contrasts with the larger vendor-quoted figures in S403.

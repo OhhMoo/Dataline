@@ -1,0 +1,16 @@
+# Produced by L5-competitive-pricing for RQ6 (competitive landscape and pricing).
+id: S412
+rq: RQ6
+claim: >
+  A single computer-use environment can support hundreds of distinct tasks, whereas coding environments commonly hold a single task each.
+url: https://epoch.ai/gradient-updates/state-of-rl-envs
+quote: "a single environment might support hundreds of different tasks"
+source_type: blog
+author_role: "AI research organisation"
+company: "Epoch AI"
+year: 2026
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L5-competitive-pricing
+notes: >
+  SIZING ANCHOR and a pricing-structure hint: our design (one world image, many parameterised tasks) matches computer-use economics, where environment build cost amortises across hundreds of tasks. Combine with S409/S410 to separate the environment line item from the task line item.

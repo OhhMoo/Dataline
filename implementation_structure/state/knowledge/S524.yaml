@@ -1,0 +1,11 @@
+id: S524
+rq: RQ4
+claim: Jira provides work items, workflows, boards, backlogs, and timelines that carry operational context around data incidents and changes.
+url: https://support.atlassian.com/jira-software-cloud/docs/what-is-a-jira-software-project/
+quote: "A Jira space is a collection of related work items that helps your team organize, track, and manage work."
+source_type: docs
+company: Atlassian
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L6-tooling-inventory
+notes: Official support documentation; terminology reflects the current Jira product.

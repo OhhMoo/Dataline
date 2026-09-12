@@ -1,0 +1,11 @@
+id: T126
+name: "ClickHouse"
+category: database
+role: simulate_target
+replication_strategy: none_found
+produced_by: L6-tooling-inventory
+rq: RQ4
+frequency_rank: 27
+evidence:
+  - S506
+notes: "Column-oriented OLAP database for high-volume analytical and observability workloads."

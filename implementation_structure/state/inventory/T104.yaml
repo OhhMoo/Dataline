@@ -1,0 +1,11 @@
+id: T104
+name: "Jupyter / JupyterLab"
+category: notebook
+role: simulate_target
+replication_strategy: none_found
+produced_by: L6-tooling-inventory
+rq: RQ4
+frequency_rank: 5
+evidence:
+  - S521
+notes: "Local notebook, editor, terminal, interactive-computing surface; v1 native notebook target."

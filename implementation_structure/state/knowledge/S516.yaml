@@ -1,0 +1,11 @@
+id: S516
+rq: RQ4
+claim: Looker adds a governed semantic-model and dashboard layer over multiple database and warehouse backends.
+url: https://docs.cloud.google.com/bigquery/docs/looker
+quote: "Looker is an enterprise platform for business intelligence, data applications, and embedded analytics."
+source_type: docs
+company: Google Cloud
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L6-tooling-inventory
+notes: Official Google Cloud documentation; supports classification and semantic-layer relevance.

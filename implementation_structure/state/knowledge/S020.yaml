@@ -1,0 +1,23 @@
+id: S020
+rq: RQ1
+claim: >
+  GitLab.com's public database postmortem: when engineers went to restore, the S3 bucket held no
+  backups at all. The nightly pg_dump ran on an application server where no PostgreSQL data
+  directory exists, so the Omnibus package defaulted to pg_dump 9.2 against a 9.6 database and the
+  dump aborted every night. Cron error notifications were emailed but rejected by the receiver
+  because DMARC was not configured, so nobody learned the backups had been failing.
+url: https://about.gitlab.com/blog/postmortem-of-database-outage-of-january-31/
+quote: "The S3 bucket was empty, and there was no recent backup to be found anywhere."
+source_type: blog
+author_role: infrastructure and database engineers (official company postmortem)
+company: GitLab
+year: 2017
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L1-practitioner-workflow-de
+notes: >
+  Gold-standard first-party postmortem with a full timeline and a five-whys section. Three
+  independent silent failures stack here: a version mismatch, a missing data directory that
+  changes which binary is selected, and an alerting channel that was itself broken. The
+  "verify the recovery path actually works" task is completely unrepresented in anything else I
+  found, and this is the best evidence that it is real work. Pairs with S021 (same incident).

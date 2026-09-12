@@ -1,0 +1,23 @@
+id: S021
+rq: RQ1
+claim: >
+  In the same GitLab incident, the triggering action was a repair gone wrong: pg_basebackup was
+  hanging with no output (normal behaviour while waiting for the primary, but undocumented in
+  their runbooks or upstream docs), so an engineer wiped the PostgreSQL data directory believing
+  he was on the secondary. He was on the primary. He aborted a second or two later, by which time
+  about 300 GB had been removed, and six hours of production data was permanently lost.
+url: https://about.gitlab.com/blog/postmortem-of-database-outage-of-january-31/
+quote: "around 300 GB of data had already been removed"
+source_type: blog
+author_role: infrastructure and database engineers (official company postmortem)
+company: GitLab
+year: 2017
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L1-practitioner-workflow-de
+notes: >
+  The causal chain is the interesting part: a silent, undocumented tool behaviour (a command that
+  hangs instead of erroring) led directly to an operator acting on the wrong host. Data loss was
+  quantified in business terms - roughly 5,000 projects, 5,000 comments and 700 user accounts
+  between 17:20 and 00:00 UTC. Destructive-action-under-ambiguity is a hazard worth building for:
+  the environment can present two near-identical hosts and let a wrong move be genuinely costly.

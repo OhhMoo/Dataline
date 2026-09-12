@@ -1,0 +1,15 @@
+id: S212
+rq: RQ1
+claim: >
+  Migrating legacy analytics SQL into dbt is described as taking a single 1500-line query and decomposing it into modular models - and the first step is a stakeholder meeting, because analytics engineers routinely discover mid-migration that the query is no longer used at all, or that consumers found it so hard to use that they quietly built their own competing versions.
+url: https://docs.getdbt.com/blog/marie-kondo-query-migration
+quote: "only to find out that it was no longer being used? Or people found it so difficult to consume that they instead created their own queries?"
+source_type: blog
+author_role: analytics engineer
+company: dbt Labs
+year: 2022
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L3-practitioner-workflow-analytics
+notes: >
+  Two things for archetype design: the scale unit of a real refactor task (one 1500-line query), and the discovery problem where the correct first action is investigating usage and shadow copies rather than writing SQL. The post also asks whether a known-correct table exists to validate against - the reconciliation oracle question.

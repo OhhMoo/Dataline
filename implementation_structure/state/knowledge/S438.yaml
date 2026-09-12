@@ -1,0 +1,16 @@
+# Produced by L5-competitive-pricing for RQ6 (competitive landscape and pricing).
+id: S438
+rq: RQ6
+claim: >
+  Most agent trials finish in under 20 minutes using fewer than 25 model calls and under 10 million tokens.
+url: https://arxiv.org/html/2601.11868v1
+quote: "Most trials are completed in under 20 minutes, using fewer than 25 model calls and 10 million tokens."
+source_type: paper
+author_role: "benchmark authors"
+company: "Terminal-Bench"
+year: 2026
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L5-competitive-pricing
+notes: >
+  EPISODE-LENGTH ANCHOR for how big one rollout is: about 25 steps, under 10M tokens, under 20 minutes wall clock is the typical case on a hard terminal benchmark. Measured across 32,155 trials per the source.

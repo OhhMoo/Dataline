@@ -1,0 +1,24 @@
+id: S004
+rq: RQ1
+claim: >
+  In a survey of 50 public data-pipeline postmortems, schema drift was the most common root cause
+  (38% of incidents). In one documented case a warehouse loaded corrupted records for eleven days:
+  the source API added a field, the JSON parser treated it as an unexpected key and silently
+  dropped whole record batches, and no alert fired because the pipeline never crashed - it simply
+  produced fewer rows than expected, within normal variance.
+url: https://dev.to/andrew_tan_layline/what-i-learned-from-reading-50-data-pipeline-postmortems-1moi
+quote: "a downstream warehouse had been loading corrupted records for eleven days"
+source_type: blog
+author_role: CTO / founder, reviewed 50 public postmortems
+company: layline.io
+year: 2026
+retrieved: "2026-09-11"
+confidence: medium
+produced_by: L1-practitioner-workflow-de
+notes: >
+  Secondary synthesis, not a first-hand postmortem, and the author sells a data-integration
+  product - discount the framing, keep the frequency signal. The 38% figure is the most useful
+  number I found for weighting archetype coverage. Corroborated by S010 (column rename), S022
+  (Airbyte schema change), S013-S015 (dbt on_schema_change) and S019 (33% of data-related issues
+  are incorrect data types). Note the detection mechanism: a shortfall small enough to hide inside
+  normal variance until it is not - the world must tune that magnitude deliberately.

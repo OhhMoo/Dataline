@@ -1,0 +1,21 @@
+id: S002
+rq: RQ1
+claim: >
+  A source system migration or library bump silently switches emitted timestamps from UTC to
+  local time. Every row shifts by a few hours; no schema check fires because the column name and
+  type are unchanged. The symptom surfaces only as an odd business-level artifact - daily totals
+  appearing to cut off at 10 PM instead of midnight.
+url: https://luminousmen.com/post/most-of-your-backfills-didnt-have-to-happen/
+quote: "quietly starts sending timestamps in local time instead of UTC"
+source_type: blog
+author_role: data engineer / consultant
+company: luminousmen (Kirill Bobrov)
+year: 2026
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L1-practitioner-workflow-de
+notes: >
+  This is semantic drift, not schema drift - the pipeline's own validation has nothing to catch.
+  Corroborated as a distinct category by the 50-postmortem survey (S004 source), which names
+  semantic drift separately from additive and type drift. Rebuildable: shift a source timestamp
+  column by a fixed offset partway through history and leave the schema identical.

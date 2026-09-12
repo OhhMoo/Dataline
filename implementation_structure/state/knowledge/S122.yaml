@@ -1,0 +1,15 @@
+id: S122
+rq: RQ1
+claim: >
+  Notebook-driven workflows produce a distinct reproducible class of incident: one interviewed engineer described running a notebook with the wrong inputs and losing a day and a half of debugging before realising the results were garbage, which drove their company to move anything reproducible or deployable out of notebooks. Other teams take the opposite position and put notebooks in production specifically to minimise dev/prod divergence.
+url: https://arxiv.org/html/2209.09125v1
+quote: 'run something with the wrong sort of inputs from the notebook'
+source_type: paper
+author_role: academic researchers interviewing production ML engineers
+company: UC Berkeley
+year: 2022
+retrieved: "2026-09-11"
+confidence: medium
+produced_by: L2-practitioner-workflow-ds
+notes: >
+  Out-of-order or stale-state notebook execution is a realistic cheaply-seeded initial condition: ship a world containing a notebook whose saved outputs disagree with what re-running it produces. Marked medium because this is one interviewee's anecdote, though the practice split is reported across the cohort.

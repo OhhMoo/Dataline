@@ -1,0 +1,16 @@
+# Produced by L5-competitive-pricing for RQ6 (competitive landscape and pricing).
+id: S421
+rq: RQ6
+claim: >
+  Surge generated a reported $1.2 billion in revenue from AI-lab work and stood up an internal organisation dedicated to RL environments.
+url: https://techcrunch.com/2025/09/21/silicon-valley-bets-big-on-environments-to-train-ai-agents/
+quote: "reportedly generated $1.2 billion in revenue last year from working with AI labs"
+source_type: blog
+author_role: "technology journalist"
+company: "TechCrunch"
+year: 2025
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L5-competitive-pricing
+notes: >
+  INCUMBENT SCALE. The biggest human-data vendors are moving into environments; we cannot compete on staffing capacity, only on domain depth and environment fidelity.

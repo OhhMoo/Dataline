@@ -1,0 +1,16 @@
+# Produced by L5-competitive-pricing for RQ6 (competitive landscape and pricing).
+id: S414
+rq: RQ6
+claim: >
+  More than 35 companies have been founded specifically to sell RL environments to AI labs.
+url: https://newsletter.semianalysis.com/p/rl-environments-and-rl-for-science
+quote: "More than 35 companies have popped up whose goal is to do exactly this across a variety of domains."
+source_type: blog
+author_role: "industry analysts"
+company: "SemiAnalysis"
+year: 2026
+retrieved: "2026-09-11"
+confidence: medium
+produced_by: L5-competitive-pricing
+notes: >
+  MARKET STRUCTURE. Analyst estimate. Establishes that the environment market as a whole is crowded - our "few players" thesis must be about the DATA niche specifically, not about environments in general.

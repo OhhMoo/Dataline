@@ -1,0 +1,14 @@
+id: S213
+rq: RQ1
+claim: >
+  A discovery framework written for data teams is built around the observation that incoming requests are underspecified: a request arriving as 'we need the customer lifetime value calculation' can, once the backstory is uncovered, turn out to be a request about upsell expansion rather than churn reduction, and two collaborators asking for the same-looking artifact can have different underlying goals.
+url: https://locallyoptimistic.com/post/data-product-discovery-template/
+quote: "is actually a request for help with upsells, and not a request for help in reducing churn"
+source_type: blog
+author_role: data practitioner and data team lead
+year: 2023
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L3-practitioner-workflow-analytics
+notes: >
+  Confirms the meeting note's claim that analytics tasks involve vague requirements. The post's own framing is that teams are inundated with quick questions and simple requests that do not connect to the bigger picture. For task design: the correct behavior on an ambiguous brief is sometimes to interrogate and disambiguate, and a grader can score whether the agent surfaced the ambiguity instead of silently picking one definition.

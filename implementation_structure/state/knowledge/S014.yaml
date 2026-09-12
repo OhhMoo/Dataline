@@ -1,0 +1,23 @@
+id: S014
+rq: RQ1
+claim: >
+  Independently filed dbt-databricks bug: in a replace_where incremental model with
+  on_schema_change append_new_columns, dbt appends the new column at the end of the Delta table
+  while the temporary view carries it in its original middle position, and the INSERT matches by
+  position. Values from new_col1 land in old_col2, old_col2's values land in old_col3, and so on -
+  every column after the insertion point is shifted by one.
+url: https://github.com/databricks/dbt-databricks/issues/1289
+quote: "the inserts triggered by dbt use column position, rather than column names"
+source_type: repo
+author_role: practitioner filing a production bug (mlobet-ros)
+company: reported against databricks/dbt-databricks
+year: 2025
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L1-practitioner-workflow-de
+notes: >
+  Second, independent report of the S013 mechanism under a different on_schema_change setting -
+  evidence this is frequent, not a one-off. The failure is partition-scoped (REPLACE WHERE on a
+  snapshot date), so only the days processed after the schema change are corrupt while earlier
+  partitions are fine. That mixed-state table is a good initial condition: the repair requires
+  detecting the boundary date and re-processing only beyond it.

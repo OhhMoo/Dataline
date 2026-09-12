@@ -1,0 +1,15 @@
+id: S125
+rq: RQ1
+claim: >
+  An interview study of 53 AI practitioners working on high-stakes applications (health, conservation, credit) in India, East and West Africa and the USA found data cascades - compounding downstream failures originating in upstream data problems - in 92 percent of cases, and characterises them as invisible and delayed rather than loud.
+url: https://research.google/pubs/everyone-wants-to-do-the-model-work-not-the-data-work-data-cascades-in-high-stakes-ai/
+quote: 'Data cascades are pervasive (92% prevalence), invisible, delayed, but often avoidable.'
+source_type: paper
+author_role: HCI and Responsible AI researchers
+company: Google Research
+year: 2021
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L2-practitioner-workflow-ds
+notes: >
+  The strongest available frequency anchor for 'the failure starts upstream of the model and surfaces late'. Supports building worlds where the visible symptom (a bad metric, a wrong dashboard number) is several hops from the actual cause, and where the correct trajectory walks upstream rather than tuning the model.

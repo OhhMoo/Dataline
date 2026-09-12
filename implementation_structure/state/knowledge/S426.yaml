@@ -1,0 +1,15 @@
+# Produced by L5-competitive-pricing for RQ6 (competitive landscape and pricing).
+id: S426
+rq: RQ6
+claim: >
+  A July 2026 analyst tally counts 50+ vendors selling data and RL environments to labs, with roughly $8.5B combined annual revenue, over 75% concentrated in Scale, Surge, Mercor and Handshake.
+url: https://aitraining.jobs/roles/agentic-eval
+quote: "counts more than 50 companies selling data and RL environments to labs, roughly $8.5 billion in combined annual revenue"
+source_type: other
+company: "aitraining.jobs"
+year: 2026
+retrieved: "2026-09-11"
+confidence: low
+produced_by: L5-competitive-pricing
+notes: >
+  MARKET SIZE, LOW CONFIDENCE. aitraining.jobs is an affiliate-monetised job aggregator restating a Deedy Das (Menlo Ventures) tally; the page itself calls the figures an analyst estimate rather than an audited number. IMPORTANT: its per-task figure is taken from Epoch AI (S400) and is therefore NOT independent corroboration of E8.

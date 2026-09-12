@@ -1,0 +1,26 @@
+id: S011
+rq: RQ1
+claim: >
+  At Airbnb, diagnosing why a dataset missed its landing SLA required reasoning over dependency
+  trees of hundreds of entities spanning pipelines owned by different teams. Their SLA Tracker
+  reduced one real lineage from 82 datasets to an 8-dataset bottleneck path - the chain of
+  latest-landing ancestors that actually blocked the child transformation from starting.
+url: https://web.archive.org/web/20251107002714/https://medium.com/airbnb-engineering/visualizing-data-timeliness-at-airbnb-ee638fdf4710
+quote: "the sequence of the latest-landing data ancestors which prevented a child data transformation from starting"
+source_type: blog
+author_role: data experience and visualization engineers on the data platform team
+company: Airbnb
+year: 2021
+retrieved: "2026-09-12"
+confidence: high
+produced_by: L1-practitioner-workflow-de
+notes: >
+  First-party and it quantifies the search space: 82 candidate ancestors, 8 relevant. That ratio
+  is the difficulty knob for freshness triage - the answer is reachable but only after pruning.
+  The post also states existing tooling let engineers debug within their own pipeline but that
+  doing so across pipelines owned by other teams was exponentially harder, which is the
+  organisational boundary a container world would need to simulate (separate repos, owners, docs).
+repair_note: >
+  G1 repair 2026-09-12: medium.com 403-bot-blocked the gate's urllib fetch; url swapped to a
+  Wayback Machine snapshot (2025-11-07) of the same article. Quote unchanged - verified verbatim
+  on the snapshot with gate-identical fetch logic.

@@ -1,0 +1,15 @@
+# Produced by L5-competitive-pricing for RQ6 (competitive landscape and pricing).
+id: S425
+rq: RQ6
+claim: >
+  The directory segments the market into coding agents and computer-use/browser agents, with enterprise-software replicas (Salesforce, Slack, Excel) as the enterprise category.
+url: https://www.rl-list.com/
+quote: "Vendors focused on computer-use and browser agents, where an agent operates a real or simulated desktop, browser, or GUI"
+source_type: other
+company: "rl-list.com"
+year: 2026
+retrieved: "2026-09-11"
+confidence: medium
+produced_by: L5-competitive-pricing
+notes: >
+  THESIS TEST. The directory own use-case taxonomy has three segments (coding agents, computer-use and browser agents, enterprise workflows). There is no data or analytics segment. Argument from absence.

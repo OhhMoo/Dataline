@@ -1,0 +1,15 @@
+id: S214
+rq: RQ1
+claim: >
+  A BI team at a 500-person, roughly $400M-revenue company operated as a ticket-driven service desk (about 100 unique report users per week, a few days per report) until a business pivot plus a monolith-to-microservices migration meant incoming requests referenced products and data sources the data team had never encountered, removing the step-by-step clarity the service model depended on.
+url: https://locallyoptimistic.com/post/hello-product-data-team-goodbye-ad-hoc-work/
+quote: "we received requests to analyze products we had never heard of"
+source_type: blog
+author_role: data product manager
+company: Unite
+year: 2023
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L3-practitioner-workflow-analytics
+notes: >
+  Second independent source on underspecified requests, with the mechanism named: request ambiguity spikes when upstream systems and business vocabulary change faster than the data team's context. Suggests worlds where the request uses business terms that exist only in scattered docs, not in the warehouse schema.

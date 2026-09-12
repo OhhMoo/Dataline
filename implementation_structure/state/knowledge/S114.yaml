@@ -1,0 +1,15 @@
+id: S114
+rq: RQ1
+claim: >
+  Instacart's item-availability model broke under COVID demand shift: the accuracy metric fell from 93 percent to 61 percent starting mid-March 2020, which is how the team found out. The fix was not a better model but changes to the data regime - shrinking the training window from several weeks to about ten days to favour freshness over volume, and increasing scoring frequency from every three hours to hourly.
+url: https://fortune.com/2020/06/09/instacart-coronavirus-artificial-intelligence/
+quote: 'dropped to 61% from 93%, tipping off the Instacart engineers that they needed to re-train their machine learning model'
+source_type: blog
+author_role: technology journalist quoting Instacart ML director Sharath Rao
+company: Instacart / Fortune
+year: 2020
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L2-practitioner-workflow-ds
+notes: >
+  A concrete parameterizable drift world: inject a demand shock at a known date; the correct response is to tune training-window length and scoring cadence, not the architecture. Deterministically gradeable (did the agent shorten the lookback? did it identify the break date?). The same COVID shock appears independently in DoorDash's and Shankar et al.'s accounts, so this pattern is frequent, not a one-off.

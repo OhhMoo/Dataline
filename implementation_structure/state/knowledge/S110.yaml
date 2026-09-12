@@ -1,0 +1,15 @@
+id: S110
+rq: RQ1
+claim: >
+  MLE-bench's authors state the gap between their benchmark and actual ML work: Kaggle competitions hand the solver a clean problem statement, a documented dataset, and a fixed optimization metric, whereas real ML R&D usually requires defining the problem, the dataset and the metric as part of the work.
+url: https://arxiv.org/html/2410.07095v6
+quote: 'MLE-bench selects for Kaggle competitions that provide clear problem statements, datasets that are clean and well-documented, and have clear metrics for optimization.'
+source_type: paper
+author_role: ML engineers building agent evals
+company: OpenAI
+year: 2024
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L2-practitioner-workflow-ds
+notes: >
+  The explicit hole MLE-bench leaves open, and the clearest place a live-stack environment beats a Kaggle-style benchmark: scattered docs, ambiguous requirements, and metric definition as part of the task. Directly supports the scattered-docs initial conditions in RQ5.

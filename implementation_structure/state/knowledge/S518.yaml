@@ -1,0 +1,11 @@
+id: S518
+rq: RQ4
+claim: Sigma supplies a workbook-style BI surface for ad hoc exploration, reporting, visualizations, and data applications.
+url: https://help.sigmacomputing.com/docs/create-a-workbook
+quote: "Workbooks are a Sigma document type designed to support both ad hoc data exploration and complex long-term reporting."
+source_type: docs
+company: Sigma Computing
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L6-tooling-inventory
+notes: Official documentation; this cloud-only interaction surface is later breadth pending RQ3.

@@ -1,0 +1,11 @@
+id: S520
+rq: RQ4
+claim: Hex is a collaborative notebook-and-app surface in which users query, transform, visualize, and explore data with SQL and Python.
+url: https://learn.hex.tech/docs/getting-started/develop-your-notebook
+quote: "The Notebook view is where you query, transform, visualize, and explore your data."
+source_type: docs
+company: Hex Technologies
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L6-tooling-inventory
+notes: Official documentation; cloud interaction and proprietary UI make this later breadth.

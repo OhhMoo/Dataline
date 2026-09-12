@@ -1,0 +1,15 @@
+id: S105
+rq: RQ1
+claim: >
+  Across all three agent scaffolds tested on MLE-bench, the dominant failure was not producing a gradeable artifact at all. o1-preview with AIDE produced a valid submission in only 82.8 percent of attempts; GPT-4o with AIDE 54.9 percent; Llama 3.1 405B 27.3 percent. A local submission-validation server was available and agents often simply did not use it.
+url: https://arxiv.org/html/2410.07095v6
+quote: 'All agents often failed to create valid submissions, despite having access to the validation server.'
+source_type: paper
+author_role: ML engineers building agent evals
+company: OpenAI
+year: 2024
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L2-practitioner-workflow-ds
+notes: >
+  The most frequent failure mode in a DS agent benchmark is malformed or missing output, not bad modelling. Argues for rubric points separating 'produced a well-formed artifact' from 'produced a good artifact', and for making a validation tool available in-world so non-use is itself a measurable process signal.

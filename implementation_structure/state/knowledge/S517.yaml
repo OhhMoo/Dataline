@@ -1,0 +1,11 @@
+id: S517
+rq: RQ4
+claim: Power BI is a business analytics surface spanning data connection, modeling, reports, dashboards, and sharing.
+url: https://learn.microsoft.com/en-us/power-bi/fundamentals/power-bi-overview
+quote: "Power BI is Microsoft's business analytics platform that helps you turn data into actionable insights."
+source_type: docs
+company: Microsoft
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L6-tooling-inventory
+notes: Official Microsoft documentation; desktop availability does not establish automated replication feasibility.

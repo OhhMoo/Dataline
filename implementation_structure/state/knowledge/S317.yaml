@@ -1,0 +1,22 @@
+id: S317
+rq: RQ7
+claim: >
+  universql is a Snowflake proxy that executes queries locally on DuckDB over Iceberg/Polaris
+  tables while relying on a real Snowflake account for catalog and access control — it cannot
+  query native Snowflake tables locally at all, so it is a hybrid-execution tool, not a
+  self-contained Snowflake emulator.
+url: https://raw.githubusercontent.com/buremba/universql/main/README.md
+quote: "UniverSQL doesn't support querying native Snowflake tables as they're not accessible from outside of Snowflake."
+source_type: repo
+company: buremba (open source)
+year: 2025
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L4-prior-art
+notes: >
+  Verdict: CANNOT-USE for our core need (hermetic Snowflake emulation); pattern only. The
+  fakesnow-vs-universql tradeoff resolves clearly: universql requires a live Snowflake account
+  and Iceberg tables, which defeats cost-free parallel sandboxing; fakesnow is fully local but
+  dialect-liberal. Notably universql itself builds on SQLGlot + fakesnow for query
+  translation, corroborating fakesnow as the more foundational piece. Also pre-verified as
+  less actively maintained (last push 2025-10).

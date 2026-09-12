@@ -1,0 +1,21 @@
+id: S314
+rq: RQ7
+claim: >
+  SkyRL (Berkeley Sky Computing Lab) is a full-stack open RL library for LLMs with a
+  Gymnasium-API environment library (math, coding, search, SQL tasks), a long-horizon agent
+  layer, fully-async training, and an official Harbor integration for training terminal-use
+  agents.
+url: https://raw.githubusercontent.com/NovaSky-AI/SkyRL/main/README.md
+quote: "Our gymnasium of tool-use tasks, including a library of math, coding, search and SQL environments implemented in the Gymnasium API."
+source_type: repo
+company: NovaSky-AI / Berkeley Sky Computing Lab
+year: 2026
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L4-prior-art
+notes: >
+  Verdict: ADOPT (as the RL-side integration target, not something we rebuild). The README
+  news log confirms "SkyRL is officially integrated with Harbor" (2026/02/17) and the Mercor
+  APEX-Agents E2E recipe (2026/09/01). Implication: if our tasks are Harbor-format and our
+  environments expose a clean Gymnasium-style interface, customers get SkyRL RL training
+  nearly for free — compatibility, not our own trainer, is the play.

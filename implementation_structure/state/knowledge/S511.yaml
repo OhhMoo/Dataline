@@ -1,0 +1,11 @@
+id: S511
+rq: RQ4
+claim: Fivetran is a proprietary ingestion target whose central surface is automated data movement and ELT.
+url: https://www.fivetran.com/learn/data-migration
+quote: "Fivetran is known for its automated, zero-maintenance data movement and ELT workflows."
+source_type: vendor_page
+company: Fivetran
+retrieved: "2026-09-11"
+confidence: medium
+produced_by: L6-tooling-inventory
+notes: Official vendor material, so capability is supported but frequency is not independently established.

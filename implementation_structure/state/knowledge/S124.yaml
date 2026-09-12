@@ -1,0 +1,15 @@
+id: S124
+rq: RQ1
+claim: >
+  In the Kaggle Santander Value Prediction Challenge (2018, 4459 teams, $60k prize) the anonymised feature matrix turned out to encode a time series, and the discovered leak dominated every legitimate modelling effort. One competitor's documented ladder shows the gap precisely: a tuned CatBoost/XGBoost/LightGBM ensemble with feature selection, PCA and statistical features reached private LB 1.37273 at rank 2206, while the leakage-exploiting model reached 0.53032 at rank 28. The same write-up notes that anonymised data with leakage leaves almost no room for feature engineering.
+url: https://raw.githubusercontent.com/kweonwooj/kaggle_santander_value_prediction_challenge/master/README.md
+quote: 'Top scoring methods must include data leakage information, otherwise the score is too low to compete.'
+source_type: repo
+author_role: Kaggle competitor publishing his solution and ablation ladder
+company: independent (Kaggle)
+year: 2018
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L2-practitioner-workflow-ds
+notes: >
+  A quantified example of leakage dominating an entire modelling exercise: roughly 2,178 leaderboard places between the best honest model and the leak. Two implications for environment design. (1) If world data is generated from distributions, the generator must be audited for accidental structure (row order, ID monotonicity, encrypted time-series lags) or agents will find it instead of doing the work. (2) 'Did the agent detect and either exploit or quarantine a leak' is a legitimate scored axis, since the human community treats leak-hunting as a real skill.

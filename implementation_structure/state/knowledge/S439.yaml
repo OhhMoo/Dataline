@@ -1,0 +1,16 @@
+# Produced by L5-competitive-pricing for RQ6 (competitive landscape and pricing).
+id: S439
+rq: RQ6
+claim: >
+  The tail of agent episodes runs to two hours and nearly 100 million tokens on a single task.
+url: https://arxiv.org/html/2601.11868v1
+quote: "using almost 100 million tokens on a single task"
+source_type: paper
+author_role: "benchmark authors"
+company: "Terminal-Bench"
+year: 2026
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L5-competitive-pricing
+notes: >
+  TAIL EPISODE FOOTPRINT. Our multi-service live stack will sit at or above this tail, which is the main argument for aggressive reset/snapshot engineering and for including a per-rollout cost estimate in any lab pitch.

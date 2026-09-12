@@ -1,0 +1,11 @@
+id: T118
+name: "Apache Spark"
+category: transformation
+role: simulate_target
+replication_strategy: none_found
+produced_by: L6-tooling-inventory
+rq: RQ4
+frequency_rank: 19
+evidence:
+  - S501
+notes: "Distributed processing engine; named in meeting list, implied by Databricks lakehouse processing surface."

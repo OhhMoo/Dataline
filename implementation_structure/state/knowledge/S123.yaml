@@ -1,0 +1,15 @@
+id: S123
+rq: RQ1
+claim: >
+  Alert fatigue on ML pipelines is quantified in the same study: one engineer estimated roughly 90 percent of alerts are not immediately actionable, on-call rotations were dreaded enough to be staffed with a shadow member, and an internal de-noising tool reported alerts that had fired around 1,000 times and been ignored 45 percent of the time. Separately, ground-truth labels for live predictions often arrive after an unpredictable delay of two weeks or more, so teams may not know how a model is performing at all.
+url: https://arxiv.org/html/2209.09125v1
+quote: 'this alert has been populated this like 1,000 times and ignored 45% of time'
+source_type: paper
+author_role: academic researchers interviewing production ML engineers
+company: UC Berkeley
+year: 2022
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L2-practitioner-workflow-ds
+notes: >
+  Two design implications: (1) a realistic world should ship with a noisy alert backlog so triage-under-noise is part of the task rather than a clean single signal; (2) label lag means the correct answer to 'is the model broken' is often unavailable at task time, forcing proxy-based reasoning - genuine difficulty and a natural LLM-judge axis.

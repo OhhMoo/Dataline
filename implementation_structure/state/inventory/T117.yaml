@@ -1,0 +1,11 @@
+id: T117
+name: "Fivetran"
+category: ingestion
+role: simulate_target
+replication_strategy: none_found
+produced_by: L6-tooling-inventory
+rq: RQ4
+frequency_rank: 18
+evidence:
+  - S511
+notes: "Proprietary automated data movement / ELT ingestion target."

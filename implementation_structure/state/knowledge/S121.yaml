@@ -1,0 +1,15 @@
+id: S121
+rq: RQ1
+claim: >
+  The same study found ML pipeline bugs form a long tail with almost no overlap between practitioners - forgetting to drop special characters for a language model, a corrupted missing-value imputation constant, a JSON feature silently missing half its keys for a long time - but with a shared SYMPTOM: a large gap between offline validation accuracy and production accuracy right after deployment. Engineers reported debugging with no systematic framework.
+url: https://arxiv.org/html/2209.09125v1
+quote: 'the vast majority of bugs described to us in the interviews were seemingly bespoke and not shared among participants'
+source_type: paper
+author_role: academic researchers interviewing production ML engineers
+company: UC Berkeley
+year: 2022
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L2-practitioner-workflow-ds
+notes: >
+  Argues against a small fixed defect library and for a generator that plants arbitrary one-off data defects, all surfacing through the SAME observable (offline/online metric gap). The isolation technique practitioners actually use is slicing data by segment - a gradeable deterministic behaviour.

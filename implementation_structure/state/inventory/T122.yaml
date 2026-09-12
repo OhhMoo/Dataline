@@ -1,0 +1,11 @@
+id: T122
+name: "Great Expectations"
+category: quality
+role: simulate_target
+replication_strategy: none_found
+produced_by: L6-tooling-inventory
+rq: RQ4
+frequency_rank: 23
+evidence:
+  - S526
+notes: "Declarative executable data-quality assertions and validation results; proxy for Monte-Carlo-style observability."

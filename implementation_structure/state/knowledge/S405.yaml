@@ -1,0 +1,16 @@
+# Produced by L5-competitive-pricing for RQ6 (competitive landscape and pricing).
+id: S405
+rq: RQ6
+claim: >
+  An RL environment vendor predicts labs will soon pay a few thousand dollars per task, arguing from compute cost rather than from observed prices.
+url: https://www.mechanize.work/blog/cheap-rl-tasks-will-waste-compute/
+quote: "we expect that labs will likely soon spend a few thousand dollars per task to post-train their flagship models"
+source_type: blog
+author_role: "RL environment vendor founders (Ege Erdil, Matthew Barnett, Tamay Besiroglu)"
+company: "Mechanize, Inc."
+year: 2025
+retrieved: "2026-09-11"
+confidence: medium
+produced_by: L5-competitive-pricing
+notes: >
+  SECOND, INDEPENDENT SUPPORT FOR E8 - but note it is a FORECAST and an ARGUMENT published by an interested party (Mechanize sells exactly this). Written Aug 2025; Epoch (S400, Jan 2026) subsequently observed $200-$2,000, i.e. the low end of the prediction had materialised. Do not cite as an observed market rate.

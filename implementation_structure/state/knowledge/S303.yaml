@@ -1,0 +1,20 @@
+id: S303
+rq: RQ7
+claim: >
+  data-eng-bench runs the same 103 tasks against two backends (hermetic DuckDB baked into the
+  image, or a real Snowflake account selected by DB_TYPE); a task passing on DuckDB but failing
+  on Snowflake isolates a dialect/warehouse-specific gap rather than a modeling error.
+url: https://raw.githubusercontent.com/Snowflake-Labs/data-eng-bench/master/README.md
+quote: "a task that passes on DuckDB but fails on Snowflake isolates a Snowflake-specific gap rather than a modeling error"
+source_type: repo
+company: Snowflake Labs
+year: 2026
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L4-prior-art
+notes: >
+  Verdict: COPY-PATTERN. The dual-backend trick is the design to steal for our substrate:
+  default to a fully hermetic DuckDB variant (no account, no network) for cheap RL rollouts,
+  and offer the Snowflake variant as the dialect-fidelity axis. Also note their Snowflake
+  isolation mechanism: each task's healthcheck clones the source DB into a retail_clone_*
+  database per trial, and they ship a sweeper script because Harbor has no always-run teardown.

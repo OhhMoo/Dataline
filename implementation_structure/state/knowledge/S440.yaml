@@ -1,0 +1,16 @@
+# Produced by L5-competitive-pricing for RQ6 (competitive landscape and pricing).
+id: S440
+rq: RQ6
+claim: >
+  OSWorld, the reference computer-use environment benchmark, contains 369 tasks across real web and desktop applications.
+url: https://arxiv.org/abs/2404.07972
+quote: "we create a benchmark of 369 computer tasks involving real web and desktop apps"
+source_type: paper
+author_role: "benchmark authors"
+company: "OSWorld"
+year: 2024
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L5-competitive-pricing
+notes: >
+  SIZING ANCHOR, upper end. A single reusable environment amortising hundreds of tasks (cf. S412). Each task carries an initial-state setup config and an execution-based evaluation script - the same shape as our deterministic state checks (E7).

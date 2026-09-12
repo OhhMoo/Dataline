@@ -1,0 +1,15 @@
+id: S118
+rq: RQ1
+claim: >
+  Booking.com's experience across 150 models in production is that improving offline model performance frequently did not produce business value, because proxy metrics such as clicks failed to convert into the target metric such as conversion; they had to define and monitor domain metrics (conversion, customer-service tickets, cancellations) alongside accuracy.
+url: https://arxiv.org/html/2011.09926v3
+quote: 'an increase in model performance does not translate into a gain in business value, as Booking.com discovered after deploying 150 models into production'
+source_type: paper
+author_role: academic survey authors citing Booking.com KDD 2019 case study
+company: University of Cambridge / Booking.com
+year: 2022
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L2-practitioner-workflow-ds
+notes: >
+  Evidence that 'the model got better' and 'the task was done well' are different questions at n=150 models. Supports a rubric that scores metric SELECTION and the argument connecting an offline metric to a stated business outcome, separately from the achieved metric value.

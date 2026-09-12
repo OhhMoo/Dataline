@@ -1,0 +1,11 @@
+id: T112
+name: "Databricks"
+category: lakehouse
+role: simulate_target
+replication_strategy: none_found
+produced_by: L6-tooling-inventory
+rq: RQ4
+frequency_rank: 13
+evidence:
+  - S501
+notes: "Lakehouse where storage, processing, transformation, governance, BI, ML coexist."

@@ -1,0 +1,16 @@
+# Produced by L5-competitive-pricing for RQ6 (competitive landscape and pricing).
+id: S420
+rq: RQ6
+claim: >
+  Mercor pitches RL environments for coding, healthcare and law - not for data engineering or analytics.
+url: https://techcrunch.com/2025/09/21/silicon-valley-bets-big-on-environments-to-train-ai-agents/
+quote: "building RL environments for domain-specific tasks such as coding, healthcare, and law"
+source_type: blog
+author_role: "technology journalist"
+company: "TechCrunch"
+year: 2025
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L5-competitive-pricing
+notes: >
+  THESIS TEST. The largest expert-network entrant names three verticals and data work is not among them. Argument from absence, drawn from marketing materials seen by the reporter.

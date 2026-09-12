@@ -1,0 +1,15 @@
+id: S109
+rq: RQ1
+claim: >
+  To test whether agent scores were inflated by pre-training contamination, MLE-bench's authors hand-rewrote all 75 competition descriptions to strip provenance (removing the competition name, all references to Kaggle, and non-essential text) and re-ran GPT-4o with 10 seeds. Medal rate was 8.5 percent on original descriptions versus 8.4 percent on obfuscated ones. They separately found no correlation between GPT-4o's token-level familiarity with a competition's winning discussion posts and its score.
+url: https://arxiv.org/html/2410.07095v6
+quote: 'We manually rewrite the competition descriptions of all 75 competitions in MLE-bench to obfuscate the provenance of each competition whilst retaining the key information.'
+source_type: paper
+author_role: ML engineers building agent evals
+company: OpenAI
+year: 2024
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L2-practitioner-workflow-ds
+notes: >
+  A cheap contamination audit reusable even with synthetic data: paraphrase or obfuscate the task brief and check whether scores move. Also a measurement of familiarity via mean token probability that could be run against any world text we ship.

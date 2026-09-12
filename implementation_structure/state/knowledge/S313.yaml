@@ -1,0 +1,22 @@
+id: S313
+rq: RQ7
+claim: >
+  In the ApexAgents-SkyRL-Recipe, grading ships inside each task directory: tests/ contains a
+  vendored grading runner plus verifiers.json (rubric criteria hidden from the agent) and
+  golden_responses.json, and an LLM judge's per-criterion scores become the RL reward — so no
+  external grading checkout is needed at train time.
+url: https://raw.githubusercontent.com/Mercor-Intelligence/ApexAgents-SkyRL-Recipe/main/README.md
+quote: "The judge's per-criterion scores become the trial reward."
+source_type: repo
+company: Mercor
+year: 2026
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L4-prior-art
+notes: >
+  Verdict: COPY-PATTERN. Self-contained per-task verifiers (grader vendored into tests/, never
+  mounted for the agent, reward emitted in-sandbox) is the right packaging for an RL-ready task
+  corpus: tasks stay portable across Harbor/SkyRL/custom trainers. Note worlds-vs-tasks: one
+  Docker image per simulated-company "world", many tasks per world, referenced via ecr_image —
+  the same sharing economics as ade-bench's shared projects. Rubric grading here depends on
+  Mercor's archipelago runner (github.com/Mercor-Intelligence/archipelago, pinned commit).

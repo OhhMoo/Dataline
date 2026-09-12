@@ -1,0 +1,16 @@
+# Produced by L5-competitive-pricing for RQ6 (competitive landscape and pricing).
+id: S428
+rq: RQ6
+claim: >
+  Handshake AI pays domain experts $100-125 per hour for specialised mathematics, physics and computer science work.
+url: https://sacra.com/c/handshake/
+quote: "per hour for specialized work across mathematics, physics, and computer science"
+source_type: other
+author_role: "private-markets research analyst"
+company: "Sacra"
+year: 2026
+retrieved: "2026-09-11"
+confidence: medium
+produced_by: L5-competitive-pricing
+notes: >
+  PER-HOUR AUTHORING RATE paid to contributors - NOT a per-task price to labs. Sacra is an independent private-markets research firm. At this rate a task representing 10-25 expert hours (E5) carries $1,000-$3,100 of direct labour, which is the cost-side check on the $200-$2,000 price in S400: the top of the observed price band barely covers a genuinely deep task.

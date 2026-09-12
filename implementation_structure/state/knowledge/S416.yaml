@@ -1,0 +1,16 @@
+# Produced by L5-competitive-pricing for RQ6 (competitive landscape and pricing).
+id: S416
+rq: RQ6
+claim: >
+  Most RL environment vendors are seed-stage, under 20 employees, and serve only one to three lab customers.
+url: https://newsletter.semianalysis.com/p/rl-environments-and-rl-for-science
+quote: "Almost all companies are seed stage companies with less than 20 employees, focused on 1 to 3 customers at most."
+source_type: blog
+author_role: "industry analysts"
+company: "SemiAnalysis"
+year: 2026
+retrieved: "2026-09-11"
+confidence: medium
+produced_by: L5-competitive-pricing
+notes: >
+  COMPETITIVE STRUCTURE. The bar for entry is a small team with one anchor customer, which is the shape of the business agent.md describes. Also implies real design-partner concentration risk.

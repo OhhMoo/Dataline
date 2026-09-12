@@ -1,0 +1,23 @@
+id: S016
+rq: RQ1
+claim: >
+  A stalled CDC consumer is one of the most common causes of production incidents in CDC-heavy
+  systems: PostgreSQL cannot recycle WAL segments older than a replication slot's restart_lsn, so
+  if the Debezium connector goes down the slot stays open and WAL accumulates at the database's
+  write rate. A system generating 1 GB/hour of WAL with a connector down for 24 hours retains
+  24 GB; on a 50 GB disk the database fills up and stops accepting writes.
+url: https://risingwave.com/blog/postgresql-replication-slots-debezium-guide/
+quote: "A system generating 1 GB/hour of WAL, with a connector down for 24 hours, accumulates 24 GB of retained WAL"
+source_type: blog
+author_role: streaming database vendor engineering team
+company: RisingWave Labs
+year: 2026
+retrieved: "2026-09-11"
+confidence: medium
+produced_by: L1-practitioner-workflow-de
+notes: >
+  Vendor blog, so treat the product framing sceptically, but the mechanism and the arithmetic are
+  standard and checkable, and the page gives the exact diagnostic query (pg_replication_slots with
+  pg_wal_lsn_diff to compute wal_retained). This is the rare data-engineering failure where the
+  pipeline outage takes the source OLTP database down with it - the blast radius reaches
+  production application writes, which raises the stakes of the triage decision.

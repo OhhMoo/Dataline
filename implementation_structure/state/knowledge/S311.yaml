@@ -1,0 +1,20 @@
+id: S311
+rq: RQ7
+claim: >
+  For agentic RL the harness must guarantee token-in-token-out (TITO): re-tokenizing the
+  inference engine's text output when feeding the trainer silently misaligns what the model
+  generated with what the trainer sees, making training off-policy; Mercor solved it by using
+  the /completions endpoint with raw token IDs instead of /chat/completions.
+url: https://www.mercor.com/blog/training-frontier-knowledge-work-agents-a-397b-rl-training-guide-with-skyrl/
+quote: "a silent misalignment that makes training off-policy"
+source_type: blog
+company: Mercor
+year: 2026
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L4-prior-art
+notes: >
+  Verdict: COPY-PATTERN (RL plumbing requirement). If our substrate sells RL rollouts to
+  frontier labs, TITO compliance is a hard requirement, not a nicety — a harness that returns
+  strings instead of token IDs produces subtly off-policy training data. Our agent-loop API
+  should expose raw token IDs (or document that a proxy-based translation layer is needed).

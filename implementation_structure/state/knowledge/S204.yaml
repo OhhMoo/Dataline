@@ -1,0 +1,15 @@
+id: S204
+rq: RQ1
+claim: >
+  A data leader describes the recurring analytics job of making two teams' KPIs reconcile - Finance computing cost per acquisition by product line while Marketing computes CPA by channel - and notes that unless both come from the same source of truth stakeholders cannot tell which to trust. The same post catalogues ambiguity inside a single metric name: does 'monthly' in Monthly Active Users mean trailing 30 days or the previous full calendar month, and what counts as active.
+url: https://locallyoptimistic.com/post/kpis/
+quote: "Finance may be looking at cost per acquisition (CPA) by product line and Marketing may be considering CPA by marketing channel"
+source_type: blog
+author_role: VP of Data and Analytics
+company: Brooklyn Data Co.
+year: 2019
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L3-practitioner-workflow-analytics
+notes: >
+  Supplies exact axes a randomized world can vary: grain of the denominator (product line vs channel), window semantics (trailing 30 days vs calendar month), and activity predicate (one click vs one share). Each variation yields a legitimately different number from the same warehouse.

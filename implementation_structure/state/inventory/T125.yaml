@@ -1,0 +1,12 @@
+id: T125
+name: "Unity Catalog / Atlan"
+category: catalog
+role: simulate_target
+replication_strategy: none_found
+produced_by: L6-tooling-inventory
+rq: RQ4
+frequency_rank: 26
+evidence:
+  - S501
+  - S525
+notes: "Catalog/governance surface; Unity Catalog implied by Databricks governance, OpenMetadata finding supports catalog category."

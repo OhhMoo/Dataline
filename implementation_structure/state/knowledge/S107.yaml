@@ -1,0 +1,15 @@
+id: S107
+rq: RQ1
+claim: >
+  MLE-bench annotates every task with a human-hours complexity level estimated by experienced ML engineers - Low is under 2 hours of work excluding model training time, Medium 2-10 hours, High over 10 hours - and the released benchmark is deliberately mixed (about 30 percent Low, 50 percent Medium, 20 percent High) with a separate 7-competition development split so agent developers do not overfit the test set.
+url: https://arxiv.org/html/2410.07095v6
+quote: 'if we estimate that an experienced ML engineer can produce a sensible solution in under 2 hours excluding the time taken to train any models,'
+source_type: paper
+author_role: ML engineers building agent evals
+company: OpenAI
+year: 2024
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L2-practitioner-workflow-ds
+notes: >
+  Two adoptable mechanics: (1) express task difficulty in human hours EXCLUDING machine wait time, which is the honest unit; (2) ship a dev split distinct from the graded set. Note their High bar is >10 hours, below the 'tens of hours' target in E5 - our tasks would sit above the top of MLE-bench's scale.

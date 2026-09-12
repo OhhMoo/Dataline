@@ -1,0 +1,11 @@
+id: T113
+name: "Tableau"
+category: bi
+role: simulate_target
+replication_strategy: none_found
+produced_by: L6-tooling-inventory
+rq: RQ4
+frequency_rank: 14
+evidence:
+  - S515
+notes: "BI surface: connect to data, visualize, present, share insights."
