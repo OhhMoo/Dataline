@@ -1,0 +1,38 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "alkera-gateway"
+version = "0.1.0"
+description = "Audited tools for Alkera data-agent environments"
+requires-python = ">=3.11"
+dependencies = [
+  "duckdb>=1.4,<2",
+  "mcp>=1.18,<2",
+  "pydantic>=2.10,<3",
+  "PyYAML>=6,<7",
+  "sqlglot>=27,<31",
+  "filelock>=3.18,<4",
+  "psutil>=7,<8",
+]
+
+[project.optional-dependencies]
+dbt = ["dbt-duckdb>=1.9,<2"]
+
+[dependency-groups]
+dev = ["pytest>=8,<10", "pytest-asyncio>=1,<2", "ruff>=0.12,<1"]
+
+[project.scripts]
+alkera-gateway = "alkera_gateway.cli:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+

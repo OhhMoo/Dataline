@@ -38,3 +38,6 @@ scratch/
 # not rediscover what round N already killed. Ignoring it would silently delete
 # the most expensive thing the swarm produces.
 # -----------------------------------------------------------------------------
+
+# Vendored upstream repos (clone, don't commit)
+vendor/
