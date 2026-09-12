@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -101,16 +102,23 @@ def agent_no_op(world, tmp, root=None):
                             "additional_causes": []}
 
 
+SOLUTION = HERE.parent / "solution" / "solution.sh"
+
+
 def agent_oracle(world, tmp, root=None):
-    if root:
-        fix_loader(root)
-    sql(world, f"""
-      DELETE FROM warehouse.fct_orders WHERE rowid IN (
-        SELECT rowid FROM (
-          SELECT rowid, row_number() OVER (
-            PARTITION BY order_id, line_nbr ORDER BY load_ts) AS rn
-          FROM warehouse.fct_orders) WHERE rn > 1)""")
-    return dict(GOOD_ARTIFACT)
+    """Runs the SHIPPED solution.sh - the sage-agent check. Testing an inline
+    copy would validate the copy, not the artefact that ships with the task."""
+    root = root or (tmp / "workspace")
+    root.mkdir(parents=True, exist_ok=True)
+    env = {**os.environ, "WAREHOUSE": world.as_posix(),
+           "WORKSPACE": root.as_posix()}
+    bash = shutil.which("bash") or "bash"
+    r = subprocess.run([bash, SOLUTION.as_posix()], capture_output=True,
+                       text=True, env=env)
+    if r.returncode != 0:
+        raise RuntimeError("oracle solution.sh FAILED:" + chr(10) + r.stdout + r.stderr)
+    report = root / "final_report.json"
+    return json.loads(report.read_text(encoding="utf-8"))
 
 
 def agent_reference_copy(world, tmp, grading):

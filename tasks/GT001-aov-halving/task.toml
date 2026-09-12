@@ -1,0 +1,66 @@
+# GT001 — Harbor task package metadata.
+
+[task]
+id          = "GT001-aov-halving"
+version     = "0.1.0"
+discipline  = "data_engineering"
+title       = "Average order value looks wrong"
+summary     = "A ratio KPI halved. The denominator fact was duplicated by a non-idempotent append-mode retry; two smaller real defects and an adjacent incomplete-load window compete as explanations."
+
+[difficulty]
+human_hours     = "8-20"
+rubric_points   = 19
+target_pass_at_1 = "0.05-0.20"     # empirical calibration target, not a derivation
+
+[limits]
+wall_clock_seconds = 5400
+memory_mb          = 2048
+disk_mb            = 4096
+max_tool_calls     = 600
+
+[environment]
+seed_contract = "SEED_SPEC.md"
+seed          = 1337
+virtual_now   = "2026-03-05T09:00:00Z"
+network       = "none"
+surfaces      = ["duckdb", "dbt", "git", "scheduler", "bi", "docs"]
+
+[grading]
+mode            = "deterministic"   # official score has zero LLM involvement
+judge           = "shadow"          # advisory only, never affects `total`
+process_signals = "report_only"
+entrypoint      = "tests/grade.py"
+manifest        = "tests/manifest.yaml"
+artifact        = "/workspace/final_report.json"
+
+# The agent sees instruction.md and nothing else. description/why_hard style
+# author prose is NOT shipped - it enumerates the planted defects (F202).
+[agent_visible]
+brief = "instruction.md"
+
+# Task-validity gate. All must hold or the task does not enter the corpus.
+[[validity]]
+agent  = "oracle"
+expect = "== max"
+[[validity]]
+agent  = "no_op"
+expect = "<= 1"
+[[validity]]
+agent  = "reference_copy"
+expect = "unreachable at ATTACH (build gate, not a test)"
+[[validity]]
+agent  = "full_refresh"
+expect = "partial, > 0 and < oracle"
+[[validity]]
+agent  = "dedupe_only"
+expect = "< oracle"
+[[validity]]
+agent  = "checklist"
+expect = "< oracle (false-cause penalty bites)"
+
+[provenance]
+derived_from   = ["S008", "S015"]
+withdrawn_evidence = ["S001", "S005", "S006"]
+withdrawn_reason = "S005/S006 are the vendor-survey cluster (F450); S001's backfill story is an essay's narrated opening scene, not an attested incident (F451)"
+red_team = ["F121", "F128", "F129", "F202", "F306"]
+note = "mechanism is grounded; frequency weighting is NOT re-derived - claim the mechanism only"
