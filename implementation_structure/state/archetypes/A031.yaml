@@ -62,6 +62,7 @@ derived_from:
   - S125
   - S108
 produced_by: lead-agent-ds-gap-closure
+status: redesign_required
 attacks:
   - F202
   - F205
@@ -71,6 +72,10 @@ attacks:
   - F251
   - F252
 notes: >
+  REDESIGN REQUIRED (2026-09-12). Red-teamed by R1/R2/R3; every axis landed
+  high-severity attacks. F300 tautological self-check; F301 unfair hidden-rule properties; F250 unbuildable outcome simulator. Do NOT build from this
+  specification. Redesign must go through BLIND phase-3 dispatch - authoring
+  these with full sight of the attack records is what produced the defects.
   NOT blind-generated - authored by the lead agent to close the DS coverage gap, so the
   phase-3 diversity property does not hold for this artifact. Must be red-teamed before it
   counts as derived. Grading deliberately scores properties rather than an answer key, since

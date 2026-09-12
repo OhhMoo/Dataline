@@ -59,6 +59,7 @@ derived_from:
   - S123
   - S118
 produced_by: lead-agent-ds-gap-closure
+status: redesign_required
 attacks:
   - F201
   - F202
@@ -68,6 +69,10 @@ attacks:
   - F252
   - F253
 notes: >
+  REDESIGN REQUIRED (2026-09-12). Red-teamed by R1/R2/R3; every axis landed
+  high-severity attacks. F302 closed-form quantile solution; F303 self-contradictory checks; F304 redundant with A020; F201 remedy-fingerprint contamination. Do NOT build from this
+  specification. Redesign must go through BLIND phase-3 dispatch - authoring
+  these with full sight of the attack records is what produced the defects.
   NOT blind-generated - authored by the lead agent to close the DS coverage gap; the phase-3
   diversity property does not hold and it needs red-teaming before it counts as derived.
   DELIBERATELY ABSTRACTED from the published clinical case behind S113: synthetic domain,

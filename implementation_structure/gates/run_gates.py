@@ -342,6 +342,20 @@ def gate3_coverage() -> Result:
         n = len(arch)
         if not (ARCHETYPE_MIN <= n <= ARCHETYPE_MAX):
             r.fail(f"archetype count {n} outside target {ARCHETYPE_MIN}-{ARCHETYPE_MAX}")
+
+        # The headline count must not include archetypes we already know are unshippable.
+        # Reporting "N archetypes" while some are under redesign overstates the deliverable.
+        blocked = [p.name for p, d in arch if d.get("status") == "redesign_required"]
+        if blocked:
+            r.warn(f"{len(blocked)} of {n} archetypes are status=redesign_required and do NOT "
+                   f"count toward the deliverable: {', '.join(sorted(blocked))} "
+                   f"-- shippable count is {n - len(blocked)}")
+        # An archetype nobody attacked is a draft, whatever its status says.
+        unattacked = [p.name for p, d in arch if not (d.get("attacks") or [])]
+        if unattacked:
+            r.warn(f"{len(unattacked)} archetypes carry no attack record (draft, not derived): "
+                   f"{', '.join(sorted(unattacked))}")
+
         seen = {d.get("discipline") for _, d in arch}
         for missing in DISCIPLINES - seen:
             r.fail(f"no archetypes for discipline '{missing}'")

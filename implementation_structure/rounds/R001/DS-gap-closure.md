@@ -1,6 +1,15 @@
 # R001 — data-science coverage gap closure
 
 **Date:** 2026-09-12 · **Trigger:** code-review finding 11 · **Author:** lead agent (not a
+
+> ## ⚠️ VERDICT (2026-09-12): THE GAP IS NOT CLOSED
+>
+> All five archetypes below were red-teamed by R1, R2 and R3 after this document was written.
+> **27 attacks landed — 19 high-severity, 24 recommending redesign. Every one of the five is
+> now `status: redesign_required` and must not be built from.** The headline "4 → 9" below is
+> the count that was *attempted*, not the count that shipped. Shippable DS archetypes remain
+> **4**. See the Verdict section at the end for the rulings.
+
 dispatched strategy agent — see *Provenance caveat* below)
 
 ---
@@ -114,3 +123,84 @@ published false-positive rate and a human-review escape hatch before it can carr
 - Corpus is at **28 of the 30 G3 ceiling**. Any further additions need a withdrawal or a
   raised ceiling, which is a deliberate decision rather than a default.
 - **R4 has still not run**; semantic citation auditing remains absent from phase 5.
+
+
+---
+
+# Verdict — red team, 2026-09-12
+
+R1 (leakage), R2 (replication) and R3 (difficulty) ran blind against A031–A035. R4a and R4b
+(citation audit) did not run — see *Outstanding*.
+
+| archetype | attacks | verdict |
+|---|---|---|
+| A031 | 7 | redesign — tautological self-check (F300), properties defined against rules the agent is never given (F301), outcome simulator unbuildable and circular (F250) |
+| A032 | 7 | redesign — the alert budget has a **closed-form solution** (F302), two checks contradict the archetype's own text so correct solutions score zero (F303), redundant with A020 (F304), remedy-fingerprint contamination (F201) |
+| A033 | 8 | redesign — a from-scratch rewrite passes 4 of 5 checks with **zero forensics** (F305), no false-cause penalty (F306), the bitwise gate is unachievable as written (F254) |
+| A034 | 9 | **RULING: not distinct from A012** (F307); free checks plus an un-targetable equivalence test (F308); grades a procedure whose implementation is open source (F203) |
+| A035 | 9 | **RULING: does not clear the E5 tens-of-hours bar** (F309); permutation probe mis-aimed and unimplementable against a prediction file (F310); resource ceilings collide with required world surfaces (F257/F258) |
+
+## The meta-finding, which matters more than any individual attack
+
+F306, in R3's words: this is *"the exact hole recorded in F128 and F129, restated in two
+brand-new archetypes written after those attacks landed — the author defended the specific
+instance and missed the general case."*
+
+R1 found the same shape independently. F101's lesson was "do not re-enact a famous incident";
+A032 dutifully renamed the incident and kept its **published remedy**, which a model emits
+before reading a row. The fingerprint was never the identity — it was the mechanism, and
+then the fix.
+
+**This is what the provenance caveat was warning about, and it was understated.** Authoring
+with full sight of the attack records produced archetypes that defend against the recorded
+instances and reproduce the underlying defect class. The blind-generation property in phase 3
+is not ceremony; removing it measurably degraded output. Redesign must go back through blind
+dispatch.
+
+## What survived
+
+- **A035 survived R1's leakage attack outright.** Everything it grades is heavily blogged,
+  but it grades whether an agent *does* it under pressure, not whether it knows it — and
+  S105/S106 show agents that certainly possess the knowledge still got OOM-killed and shipped
+  no valid submission. Recall buys nothing. (R3 still ruled it under-length; both hold.)
+- **Licences: clean.** No new archetype names a rejected tool. The inventory's traps — MinIO
+  AGPL, Wiki.js AGPL, Outline BSL, Airbyte Elastic-2.0 — are all untouched.
+- **No hidden cloud dependency** in any of the five.
+- **The DS axis itself is viable**, conditional on clause D6 — see C501.
+
+## The single most valuable output of this round
+
+**C501 / clause D6.** R2 tested determinism empirically rather than arguing about it: at a
+fixed thread count, LogisticRegression, HistGradientBoosting, LightGBM and a torch SGD loop
+were byte-identical; unpinned, BLAS-backed linear algebra diverged between 1 and 8 threads.
+Two folk beliefs were refuted — tree ensembles did *not* diverge under varying `n_jobs`, and
+the breakage is narrower and more fixable than assumed.
+
+The danger is specific and would have bitten us silently: OpenMP sizes its pool from detected
+cores, and Harbor runs thousands of environments in parallel on cloud sandboxes — exactly
+where two clean rooms get different core counts. **Unpinned, A033's headline check measures
+the scheduler, not the agent.**
+
+## Structural fixes applied
+
+- **`agent_visible_brief`** added to the archetype schema (F202). The corpus declared a
+  harness-side boundary for grading manifests but none for its own prose — and
+  `description` / `why_hard` / `failure_modes_expected` routinely enumerate the planted
+  defects. A032's description hands over the diagnosis; A033's `why_hard` prints all four
+  "hidden" defects in order. No archetype ships without this field.
+- **`status`** added (`draft|derived|redesign_required|withdrawn`), with the rule that
+  `derived` requires an attack record from each of R1, R2 and R3.
+- **G3 now reports the shippable count**, excluding `redesign_required`, and flags
+  archetypes with no attack record — so the deliverable number cannot drift from reality.
+
+## Outstanding
+
+- **R4a and R4b never ran** (spend limit). Semantic citation auditing is still absent: G1
+  proves quotes *match*, nothing yet proves they *support* their claims. R4b did report, before
+  dying, that **all URLs in S001–S299 resolve — including S117**, which corrects the earlier
+  note that S117 was unreachable. That was a transient block, not a bad citation.
+- **8 original archetypes carry no attack record**: A002, A003, A005, A010, A017, A018, A022,
+  A025. The corpus was never fully red-teamed; the 23 "shippable" figure means shippable by
+  status, not validated. Only 15 have been attacked.
+- **E8 pricing remains un-audited** — R4a was to rule on whether the corroboration is genuinely
+  independent or one source wearing three hats.

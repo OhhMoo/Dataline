@@ -1,0 +1,35 @@
+id: C501
+claim: >
+  Deterministic grading of model-TRAINING tasks is achievable, but only under an explicit
+  determinism clause that does not currently exist in the environment spec, and only if the
+  grader hashes PREDICTIONS rather than fitted model objects. R2 established this empirically
+  rather than by argument: holding seed, data and code fixed and varying only thread
+  environment variables, a 1500x1500 float64 GEMM and a Ridge(solver='cholesky') fit both
+  produced different hashes at 1 thread versus 8, and PYTHONHASHSEED changes altered
+  set-iteration order and so silently reordered features. At any FIXED thread count,
+  LogisticRegression, HistGradientBoosting, LightGBM and a torch SGD loop were byte-identical
+  in coefficients, prediction vectors, AUCs and losses. The pinned path is real, not hopeful.
+status: proposed
+rq: RQ5
+proposed_by: R2-replication-skeptic
+evidence:
+  - S300
+attacks: []
+notes: >
+  PROPOSED CLAUSE D6, to be added to the environment spec before any DS archetype ships:
+  pin OMP_/OPENBLAS_/MKL_NUM_THREADS=1; pin PYTHONHASHSEED; pin exact library versions AND
+  the BLAS build with fixed CPU dispatch (OPENBLAS_CORETYPE) so kernel selection cannot vary
+  by host; BAN GPU for graded training outright, since cuDNN autotuning and atomic reduction
+  order are non-reproducible by construction and lab-side hardware homogeneity cannot be
+  assumed; and compare a rounded reported metric plus a hash of the PREDICTION VECTOR, never
+  a hash of the fitted model.
+  THE SPECIFIC DANGER: OpenMP sizes its thread pool from detected cores, and S300 records
+  that Harbor runs thousands of environments in parallel on cloud sandbox providers - exactly
+  the setting where two clean rooms receive different core counts. Unpinned, A033's headline
+  two-clean-room check measures the scheduler rather than the agent.
+  Two folk beliefs were REFUTED by the probe: tree ensembles did not diverge under varying
+  n_jobs, and the breakage is narrower than assumed - it is BLAS-backed linear algebra
+  specifically, and it is fixable by pinning. Verified on CPython 3.11.15, numpy 2.4.6 /
+  scipy-openblas, sklearn 1.9.0, LightGBM 4.7.0, torch 2.13.0+cpu.
+  This claim is the reason the DS axis survives at all: without D6 the axis is not gradeable,
+  and with it the remaining problems are design problems rather than physics.

@@ -60,6 +60,7 @@ derived_from:
   - S109
   - S111
 produced_by: lead-agent-ds-gap-closure
+status: redesign_required
 attacks:
   - F202
   - F203
@@ -71,6 +72,10 @@ attacks:
   - F254
   - F256
 notes: >
+  REDESIGN REQUIRED (2026-09-12). Red-teamed by R1/R2/R3; every axis landed
+  high-severity attacks. F307 RULING: not distinct from A012; F308 free checks plus un-targetable equivalence test; F203 open-source published methodology. Do NOT build from this
+  specification. Redesign must go through BLIND phase-3 dispatch - authoring
+  these with full sight of the attack records is what produced the defects.
   NOT blind-generated - authored by the lead agent to close the DS coverage gap; needs
   red-teaming before it counts as derived. Deliberately overlaps A012 (leakage audit) only at
   the mechanism level: A012 asks whether a MODEL is leaking, A034 asks whether the EVALUATION

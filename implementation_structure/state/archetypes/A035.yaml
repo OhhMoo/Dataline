@@ -60,6 +60,7 @@ derived_from:
   - S106
   - S103
 produced_by: lead-agent-ds-gap-closure
+status: redesign_required
 attacks:
   - F202
   - F206
@@ -71,6 +72,10 @@ attacks:
   - F258
   - F259
 notes: >
+  REDESIGN REQUIRED (2026-09-12). Red-teamed by R1/R2/R3; every axis landed
+  high-severity attacks. F309 RULING: below the E5 tens-of-hours bar; F310 permutation probe mis-aimed; F257/F258 resource ceilings collide with required surfaces. Do NOT build from this
+  specification. Redesign must go through BLIND phase-3 dispatch - authoring
+  these with full sight of the attack records is what produced the defects.
   NOT blind-generated - authored by the lead agent to close the DS coverage gap; needs
   red-teaming before it counts as derived. Lowest human-hours estimate of the five new DS
   archetypes and sits at the bottom of the E5 "tens of hours" band; R3 should rule on whether

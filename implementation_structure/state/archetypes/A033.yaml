@@ -60,6 +60,7 @@ derived_from:
   - S106
   - S121
 produced_by: lead-agent-ds-gap-closure
+status: redesign_required
 attacks:
   - F202
   - F204
@@ -70,6 +71,10 @@ attacks:
   - F254
   - F255
 notes: >
+  REDESIGN REQUIRED (2026-09-12). Red-teamed by R1/R2/R3; every axis landed
+  high-severity attacks. F305 clean-room rewrite passes 4/5 checks with zero forensics; F306 no false-cause penalty; F254 bitwise gate unachievable. Do NOT build from this
+  specification. Redesign must go through BLIND phase-3 dispatch - authoring
+  these with full sight of the attack records is what produced the defects.
   NOT blind-generated - authored by the lead agent to close the DS coverage gap; needs
   red-teaming before it counts as derived. The double-clean-room-run check is unusually
   cheap and unusually strong, and it is the same shape as the planted-partition idempotency

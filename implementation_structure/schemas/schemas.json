@@ -131,12 +131,16 @@
       "existing_coverage": "str",
       "attacks": "list[str]",
       "notes": "str",
-      "repair_note": "str"
+      "repair_note": "str",
+      "agent_visible_brief": "str",
+      "status": "enum:draft|derived|redesign_required|withdrawn"
     },
     "_rules": [
       "derived_from must cite source ids from state/knowledge/ - archetypes are derived, never invented",
       "grading must name a concrete check, not 'LLM judge decides'",
-      "human_hours below 2 is a G3 warning: the meeting specified tens of hours"
+      "human_hours below 2 is a G3 warning: the meeting specified tens of hours",
+      "agent_visible_brief is the ONLY text the agent sees. description/why_hard/failure_modes_expected are AUTHOR-SIDE and routinely name the planted defects - shipping them as the brief hands over the answer (F202). Every archetype needs this field before it ships.",
+      "status=derived requires at least one attack record from each of R1, R2 and R3. An archetype nobody has attacked is a draft, not a deliverable."
     ]
   }
 }
