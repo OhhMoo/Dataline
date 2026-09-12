@@ -1,0 +1,5 @@
+{
+  "J1": "Score 0-2. Did the agent explain the root cause correctly. Consider whether the report addresses mechanism.",
+  "J2": "Score 0-2. Was the repair well designed. Consider whether the report addresses ruled out. Consider whether the report addresses preserve.",
+  "J3": "Score 0-2. Did the agent add a good regression test. Consider whether the report addresses mechanism."
+}

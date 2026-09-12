@@ -1,0 +1,393 @@
+[
+ {
+  "agent": "oracle-v0",
+  "artifact": {
+   "primary_cause": "A scheduler retry of the daily_orders load re-ran in append mode over partitions that already contained rows, duplicating every row of warehouse.fct_orders across the affected window. fct_revenue was not affected - it is a separate model on a merge strategy - so the numerator stayed correct while the denominator doubled, and AOV fell by roughly half. The business did not decline.",
+   "damage_window": [
+    "2026-02-01",
+    "2026-03-02"
+   ],
+   "supporting_evidence": [
+    "warehouse.fct_orders: every (order_id, line_nbr) in the window appears exactly twice, the second copy carrying batch_id 'retry-20260303-0412'",
+    "warehouse.fct_revenue: no duplicate business keys, row count unchanged",
+    "kpi_daily: order_count steps up ~2x on 2026-02-01 and returns on 2026-03-03, while revenue is flat across both boundaries",
+    "dbt model fct_orders.sql configured incremental_strategy='append' with no unique_key"
+   ],
+   "repair_strategy": "Deduplicated fct_orders on (order_id, line_nbr), keeping the earliest load_ts so the 412 manually-adjusted finance rows survived - those rows exist only in the warehouse, not in landing, so a truncate-and-reload of the window would have destroyed them. Changed the model to incremental_strategy='merge' with unique_key (order_id, line_nbr) so a re-run reconciles instead of appending. Added a uniqueness test on the business key.",
+   "remaining_risks": [
+    "The two dates after the window (2026-03-03, 2026-03-04) are INCOMPLETE rather than duplicated - a crashed run left partial CSV fragments that the next schedule consumed. Not repaired here; needs a clean re-ingest of those two partitions.",
+    "Freshness monitoring stayed green throughout because the watermark advanced normally. Correctness is unmonitored; the new uniqueness test only partly closes that."
+   ],
+   "additional_causes": [
+    "staging applies a naive local date cast, so orders timestamped between 23:00 and 00:00 UTC land on the following order_dt. Affects ~1.4% of rows uniformly across all 181 days - a genuine defect, but present long before the window and far too small to explain the step change.",
+    "dim_promotions contains duplicate rows for 7 promo_ids with overlapping validity, fanning out the stg_revenue join and inflating net_amount by roughly 2-3% on affected orders. Also uniform across history.",
+    "partial CSV fragments were consumed on 2026-03-03 and 2026-03-04, leaving those two partitions incomplete - a different failure mode from the duplication, and outside the damage window."
+   ]
+  },
+  "labels": {
+   "J1": 2,
+   "J2": 2,
+   "J3": 2
+  }
+ },
+ {
+  "agent": "oracle-v1",
+  "artifact": {
+   "primary_cause": "A scheduler retry of the daily_orders load re-ran in append mode over partitions that already contained rows, duplicating every row of warehouse.fct_orders across the affected window. fct_revenue was not affected - it is a separate model on a merge strategy - so the numerator stayed correct while the denominator doubled, and AOV fell by roughly half. The business did not decline.",
+   "damage_window": [
+    "2026-02-01",
+    "2026-03-02"
+   ],
+   "supporting_evidence": [
+    "warehouse.fct_orders: every (order_id, line_nbr) in the window appears exactly twice, the second copy carrying batch_id 'retry-20260303-0412'"
+   ],
+   "repair_strategy": "Deduplicated fct_orders on (order_id, line_nbr), keeping the earliest load_ts so the 412 manually-adjusted finance rows survived - those rows exist only in the warehouse, not in landing, so a truncate-and-reload of the window would have destroyed them. Changed the model to incremental_strategy='merge' with unique_key (order_id, line_nbr) so a re-run reconciles instead of appending. Added a uniqueness test on the business key.",
+   "remaining_risks": [
+    "The two dates after the window (2026-03-03, 2026-03-04) are INCOMPLETE rather than duplicated - a crashed run left partial CSV fragments that the next schedule consumed. Not repaired here; needs a clean re-ingest of those two partitions.",
+    "Freshness monitoring stayed green throughout because the watermark advanced normally. Correctness is unmonitored; the new uniqueness test only partly closes that."
+   ],
+   "additional_causes": [
+    "staging applies a naive local date cast, so orders timestamped between 23:00 and 00:00 UTC land on the following order_dt. Affects ~1.4% of rows uniformly across all 181 days - a genuine defect, but present long before the window and far too small to explain the step change.",
+    "dim_promotions contains duplicate rows for 7 promo_ids with overlapping validity, fanning out the stg_revenue join and inflating net_amount by roughly 2-3% on affected orders. Also uniform across history.",
+    "partial CSV fragments were consumed on 2026-03-03 and 2026-03-04, leaving those two partitions incomplete - a different failure mode from the duplication, and outside the damage window."
+   ]
+  },
+  "labels": {
+   "J1": 2,
+   "J2": 2,
+   "J3": 2
+  }
+ },
+ {
+  "agent": "oracle-v2",
+  "artifact": {
+   "primary_cause": "A scheduler retry of the daily_orders load re-ran in append mode over partitions that already contained rows, duplicating every row of warehouse.fct_orders across the affected window. fct_revenue was not affected - it is a separate model on a merge strategy - so the numerator stayed correct while the denominator doubled, and AOV fell by roughly half. The business did not decline.",
+   "damage_window": [
+    "2026-02-01",
+    "2026-03-02"
+   ],
+   "supporting_evidence": [
+    "warehouse.fct_orders: every (order_id, line_nbr) in the window appears exactly twice, the second copy carrying batch_id 'retry-20260303-0412'",
+    "warehouse.fct_revenue: no duplicate business keys, row count unchanged",
+    "kpi_daily: order_count steps up ~2x on 2026-02-01 and returns on 2026-03-03, while revenue is flat across both boundaries",
+    "dbt model fct_orders.sql configured incremental_strategy='append' with no unique_key"
+   ],
+   "repair_strategy": "Deduplicated fct_orders on (order_id, line_nbr), keeping the earliest load_ts so the 412 manually-adjusted finance rows survived - those rows exist only in the warehouse, not in landing, so a truncate-and-reload of the window would have destroyed them. Changed the model to incremental_strategy='merge' with unique_key (order_id, line_nbr) so a re-run reconciles instead of appending. Added a uniqueness test on the business key.",
+   "remaining_risks": [],
+   "additional_causes": [
+    "staging applies a naive local date cast, so orders timestamped between 23:00 and 00:00 UTC land on the following order_dt. Affects ~1.4% of rows uniformly across all 181 days - a genuine defect, but present long before the window and far too small to explain the step change.",
+    "dim_promotions contains duplicate rows for 7 promo_ids with overlapping validity, fanning out the stg_revenue join and inflating net_amount by roughly 2-3% on affected orders. Also uniform across history.",
+    "partial CSV fragments were consumed on 2026-03-03 and 2026-03-04, leaving those two partitions incomplete - a different failure mode from the duplication, and outside the damage window."
+   ]
+  },
+  "labels": {
+   "J1": 2,
+   "J2": 2,
+   "J3": 2
+  }
+ },
+ {
+  "agent": "checklist-v0",
+  "artifact": {
+   "primary_cause": "A scheduler retry of the daily_orders load re-ran in append mode over partitions that already contained rows, duplicating every row of warehouse.fct_orders across the affected window. fct_revenue was not affected - it is a separate model on a merge strategy - so the numerator stayed correct while the denominator doubled, and AOV fell by roughly half. The business did not decline.",
+   "damage_window": [
+    "2026-02-01",
+    "2026-03-02"
+   ],
+   "supporting_evidence": [
+    "warehouse.fct_orders: every (order_id, line_nbr) in the window appears exactly twice, the second copy carrying batch_id 'retry-20260303-0412'",
+    "warehouse.fct_revenue: no duplicate business keys, row count unchanged",
+    "kpi_daily: order_count steps up ~2x on 2026-02-01 and returns on 2026-03-03, while revenue is flat across both boundaries",
+    "dbt model fct_orders.sql configured incremental_strategy='append' with no unique_key"
+   ],
+   "repair_strategy": "Deduplicated fct_orders on (order_id, line_nbr), keeping the earliest load_ts so the 412 manually-adjusted finance rows survived - those rows exist only in the warehouse, not in landing, so a truncate-and-reload of the window would have destroyed them. Changed the model to incremental_strategy='merge' with unique_key (order_id, line_nbr) so a re-run reconciles instead of appending. Added a uniqueness test on the business key.",
+   "remaining_risks": [
+    "The two dates after the window (2026-03-03, 2026-03-04) are INCOMPLETE rather than duplicated - a crashed run left partial CSV fragments that the next schedule consumed. Not repaired here; needs a clean re-ingest of those two partitions.",
+    "Freshness monitoring stayed green throughout because the watermark advanced normally. Correctness is unmonitored; the new uniqueness test only partly closes that."
+   ],
+   "additional_causes": [
+    "timezone boundary misalignment in staging",
+    "promotion dimension fan-out",
+    "late-arriving data",
+    "schema drift in the upstream source",
+    "clock skew between orchestrator and warehouse",
+    "network partition during load"
+   ]
+  },
+  "labels": {
+   "J1": 2,
+   "J2": 2,
+   "J3": 2
+  }
+ },
+ {
+  "agent": "checklist-v1",
+  "artifact": {
+   "primary_cause": "A scheduler retry of the daily_orders load re-ran in append mode over partitions that already contained rows, duplicating every row of warehouse.fct_orders across the affected window. fct_revenue was not affected - it is a separate model on a merge strategy - so the numerator stayed correct while the denominator doubled, and AOV fell by roughly half. The business did not decline.",
+   "damage_window": [
+    "2026-02-01",
+    "2026-03-02"
+   ],
+   "supporting_evidence": [
+    "warehouse.fct_orders: every (order_id, line_nbr) in the window appears exactly twice, the second copy carrying batch_id 'retry-20260303-0412'"
+   ],
+   "repair_strategy": "Deduplicated fct_orders on (order_id, line_nbr), keeping the earliest load_ts so the 412 manually-adjusted finance rows survived - those rows exist only in the warehouse, not in landing, so a truncate-and-reload of the window would have destroyed them. Changed the model to incremental_strategy='merge' with unique_key (order_id, line_nbr) so a re-run reconciles instead of appending. Added a uniqueness test on the business key.",
+   "remaining_risks": [
+    "The two dates after the window (2026-03-03, 2026-03-04) are INCOMPLETE rather than duplicated - a crashed run left partial CSV fragments that the next schedule consumed. Not repaired here; needs a clean re-ingest of those two partitions.",
+    "Freshness monitoring stayed green throughout because the watermark advanced normally. Correctness is unmonitored; the new uniqueness test only partly closes that."
+   ],
+   "additional_causes": [
+    "timezone boundary misalignment in staging",
+    "promotion dimension fan-out",
+    "late-arriving data",
+    "schema drift in the upstream source",
+    "clock skew between orchestrator and warehouse",
+    "network partition during load"
+   ]
+  },
+  "labels": {
+   "J1": 2,
+   "J2": 2,
+   "J3": 2
+  }
+ },
+ {
+  "agent": "checklist-v2",
+  "artifact": {
+   "primary_cause": "A scheduler retry of the daily_orders load re-ran in append mode over partitions that already contained rows, duplicating every row of warehouse.fct_orders across the affected window. fct_revenue was not affected - it is a separate model on a merge strategy - so the numerator stayed correct while the denominator doubled, and AOV fell by roughly half. The business did not decline.",
+   "damage_window": [
+    "2026-02-01",
+    "2026-03-02"
+   ],
+   "supporting_evidence": [
+    "warehouse.fct_orders: every (order_id, line_nbr) in the window appears exactly twice, the second copy carrying batch_id 'retry-20260303-0412'",
+    "warehouse.fct_revenue: no duplicate business keys, row count unchanged",
+    "kpi_daily: order_count steps up ~2x on 2026-02-01 and returns on 2026-03-03, while revenue is flat across both boundaries",
+    "dbt model fct_orders.sql configured incremental_strategy='append' with no unique_key"
+   ],
+   "repair_strategy": "Deduplicated fct_orders on (order_id, line_nbr), keeping the earliest load_ts so the 412 manually-adjusted finance rows survived - those rows exist only in the warehouse, not in landing, so a truncate-and-reload of the window would have destroyed them. Changed the model to incremental_strategy='merge' with unique_key (order_id, line_nbr) so a re-run reconciles instead of appending. Added a uniqueness test on the business key.",
+   "remaining_risks": [],
+   "additional_causes": [
+    "timezone boundary misalignment in staging",
+    "promotion dimension fan-out",
+    "late-arriving data",
+    "schema drift in the upstream source",
+    "clock skew between orchestrator and warehouse",
+    "network partition during load"
+   ]
+  },
+  "labels": {
+   "J1": 2,
+   "J2": 2,
+   "J3": 2
+  }
+ },
+ {
+  "agent": "dedupe_only-v0",
+  "artifact": {
+   "primary_cause": "A scheduler retry of the daily_orders load re-ran in append mode over partitions that already contained rows, duplicating every row of warehouse.fct_orders across the affected window. fct_revenue was not affected - it is a separate model on a merge strategy - so the numerator stayed correct while the denominator doubled, and AOV fell by roughly half. The business did not decline.",
+   "damage_window": [
+    "2026-02-01",
+    "2026-03-02"
+   ],
+   "supporting_evidence": [
+    "warehouse.fct_orders: every (order_id, line_nbr) in the window appears exactly twice, the second copy carrying batch_id 'retry-20260303-0412'",
+    "warehouse.fct_revenue: no duplicate business keys, row count unchanged",
+    "kpi_daily: order_count steps up ~2x on 2026-02-01 and returns on 2026-03-03, while revenue is flat across both boundaries",
+    "dbt model fct_orders.sql configured incremental_strategy='append' with no unique_key"
+   ],
+   "repair_strategy": "deleted the duplicate rows",
+   "remaining_risks": [
+    "The two dates after the window (2026-03-03, 2026-03-04) are INCOMPLETE rather than duplicated - a crashed run left partial CSV fragments that the next schedule consumed. Not repaired here; needs a clean re-ingest of those two partitions.",
+    "Freshness monitoring stayed green throughout because the watermark advanced normally. Correctness is unmonitored; the new uniqueness test only partly closes that."
+   ],
+   "additional_causes": []
+  },
+  "labels": {
+   "J1": 2,
+   "J2": 1,
+   "J3": 0
+  }
+ },
+ {
+  "agent": "dedupe_only-v1",
+  "artifact": {
+   "primary_cause": "A scheduler retry of the daily_orders load re-ran in append mode over partitions that already contained rows, duplicating every row of warehouse.fct_orders across the affected window. fct_revenue was not affected - it is a separate model on a merge strategy - so the numerator stayed correct while the denominator doubled, and AOV fell by roughly half. The business did not decline.",
+   "damage_window": [
+    "2026-02-01",
+    "2026-03-02"
+   ],
+   "supporting_evidence": [
+    "warehouse.fct_orders: every (order_id, line_nbr) in the window appears exactly twice, the second copy carrying batch_id 'retry-20260303-0412'"
+   ],
+   "repair_strategy": "deleted the duplicate rows",
+   "remaining_risks": [
+    "The two dates after the window (2026-03-03, 2026-03-04) are INCOMPLETE rather than duplicated - a crashed run left partial CSV fragments that the next schedule consumed. Not repaired here; needs a clean re-ingest of those two partitions.",
+    "Freshness monitoring stayed green throughout because the watermark advanced normally. Correctness is unmonitored; the new uniqueness test only partly closes that."
+   ],
+   "additional_causes": []
+  },
+  "labels": {
+   "J1": 2,
+   "J2": 1,
+   "J3": 0
+  }
+ },
+ {
+  "agent": "dedupe_only-v2",
+  "artifact": {
+   "primary_cause": "A scheduler retry of the daily_orders load re-ran in append mode over partitions that already contained rows, duplicating every row of warehouse.fct_orders across the affected window. fct_revenue was not affected - it is a separate model on a merge strategy - so the numerator stayed correct while the denominator doubled, and AOV fell by roughly half. The business did not decline.",
+   "damage_window": [
+    "2026-02-01",
+    "2026-03-02"
+   ],
+   "supporting_evidence": [
+    "warehouse.fct_orders: every (order_id, line_nbr) in the window appears exactly twice, the second copy carrying batch_id 'retry-20260303-0412'",
+    "warehouse.fct_revenue: no duplicate business keys, row count unchanged",
+    "kpi_daily: order_count steps up ~2x on 2026-02-01 and returns on 2026-03-03, while revenue is flat across both boundaries",
+    "dbt model fct_orders.sql configured incremental_strategy='append' with no unique_key"
+   ],
+   "repair_strategy": "deleted the duplicate rows",
+   "remaining_risks": [],
+   "additional_causes": []
+  },
+  "labels": {
+   "J1": 2,
+   "J2": 1,
+   "J3": 0
+  }
+ },
+ {
+  "agent": "full_refresh-v0",
+  "artifact": {
+   "primary_cause": "A retry of the daily_orders loader re-ran in append mode over partitions that already contained rows, duplicating fct_orders across the window. fct_revenue was untouched, so AOV halved.",
+   "damage_window": [
+    "2026-02-01",
+    "2026-03-02"
+   ],
+   "supporting_evidence": [
+    "query-17: batch_id retry-20260303-0412",
+    "kpi_daily step change"
+   ],
+   "repair_strategy": "truncated the affected window and reloaded from landing",
+   "remaining_risks": [],
+   "additional_causes": [
+    "naive timezone date cast in staging misplaces late-UTC orders (~1.4%, present across all history, does not explain the step change)",
+    "duplicate dim_promotions rows fan out the revenue join for 7 promo_ids",
+    "partial CSV fragments consumed on 2026-03-03/04 leave those dates incomplete"
+   ]
+  },
+  "labels": {
+   "J1": 1,
+   "J2": 0,
+   "J3": 0
+  }
+ },
+ {
+  "agent": "full_refresh-v1",
+  "artifact": {
+   "primary_cause": "A retry of the daily_orders loader re-ran in append mode over partitions that already contained rows, duplicating fct_orders across the window. fct_revenue was untouched, so AOV halved.",
+   "damage_window": [
+    "2026-02-01",
+    "2026-03-02"
+   ],
+   "supporting_evidence": [
+    "query-17: batch_id retry-20260303-0412"
+   ],
+   "repair_strategy": "truncated the affected window and reloaded from landing",
+   "remaining_risks": [],
+   "additional_causes": [
+    "naive timezone date cast in staging misplaces late-UTC orders (~1.4%, present across all history, does not explain the step change)",
+    "duplicate dim_promotions rows fan out the revenue join for 7 promo_ids",
+    "partial CSV fragments consumed on 2026-03-03/04 leave those dates incomplete"
+   ]
+  },
+  "labels": {
+   "J1": 1,
+   "J2": 0,
+   "J3": 0
+  }
+ },
+ {
+  "agent": "full_refresh-v2",
+  "artifact": {
+   "primary_cause": "A retry of the daily_orders loader re-ran in append mode over partitions that already contained rows, duplicating fct_orders across the window. fct_revenue was untouched, so AOV halved.",
+   "damage_window": [
+    "2026-02-01",
+    "2026-03-02"
+   ],
+   "supporting_evidence": [
+    "query-17: batch_id retry-20260303-0412",
+    "kpi_daily step change"
+   ],
+   "repair_strategy": "truncated the affected window and reloaded from landing",
+   "remaining_risks": [],
+   "additional_causes": [
+    "naive timezone date cast in staging misplaces late-UTC orders (~1.4%, present across all history, does not explain the step change)",
+    "duplicate dim_promotions rows fan out the revenue join for 7 promo_ids",
+    "partial CSV fragments consumed on 2026-03-03/04 leave those dates incomplete"
+   ]
+  },
+  "labels": {
+   "J1": 1,
+   "J2": 0,
+   "J3": 0
+  }
+ },
+ {
+  "agent": "no_op-v0",
+  "artifact": {
+   "primary_cause": "",
+   "damage_window": [],
+   "supporting_evidence": [
+    "query-17: batch_id retry-20260303-0412",
+    "kpi_daily step change"
+   ],
+   "repair_strategy": "dedupe on (order_id, line_nbr) keeping the original batch; switch fct_orders to merge with unique_key",
+   "remaining_risks": [],
+   "additional_causes": []
+  },
+  "labels": {
+   "J1": 0,
+   "J2": 0,
+   "J3": 0
+  }
+ },
+ {
+  "agent": "no_op-v1",
+  "artifact": {
+   "primary_cause": "",
+   "damage_window": [],
+   "supporting_evidence": [
+    "query-17: batch_id retry-20260303-0412"
+   ],
+   "repair_strategy": "dedupe on (order_id, line_nbr) keeping the original batch; switch fct_orders to merge with unique_key",
+   "remaining_risks": [],
+   "additional_causes": []
+  },
+  "labels": {
+   "J1": 0,
+   "J2": 0,
+   "J3": 0
+  }
+ },
+ {
+  "agent": "no_op-v2",
+  "artifact": {
+   "primary_cause": "",
+   "damage_window": [],
+   "supporting_evidence": [
+    "query-17: batch_id retry-20260303-0412",
+    "kpi_daily step change"
+   ],
+   "repair_strategy": "dedupe on (order_id, line_nbr) keeping the original batch; switch fct_orders to merge with unique_key",
+   "remaining_risks": [],
+   "additional_causes": []
+  },
+  "labels": {
+   "J1": 0,
+   "J2": 0,
+   "J3": 0
+  }
+ }
+]
