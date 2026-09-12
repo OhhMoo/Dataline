@@ -22,10 +22,14 @@ human_hours: "8-20"
 grading: >
   Deterministic: row-level diff of the repaired revenue table against a reference table in
   DuckDB (exact match on the affected 30-day window); assertion of zero duplicate business
-  keys; per-partition row counts match source-file counts; re-running the agent's repaired
-  load twice produces no row-count change (idempotency probe). Rubric: 20 points across
+  keys; per-partition row counts match source-file counts; the idempotency probe plants a NEW partition and
+  requires the repaired load to ingest it exactly once while leaving the repaired window
+  untouched, with a second run a true no-op - a load that never runs must score zero (F121). Rubric: 20 points across
   damage-window identification, repair correctness, idempotency hardening, and a written
   explanation of which downstream numbers were wrong and for how long.
+  GRADING REFERENCE IS HARNESS-SIDE: the expected/reference table lives in a separate
+  DuckDB file attached read-only at scoring time only, never in the agent-visible
+  catalog, or the agent can copy it instead of diagnosing (F121).
 rubric_points: 20
 apps_touched:
   - warehouse
@@ -33,10 +37,10 @@ apps_touched:
   - airflow
   - bi_dashboard
 deterministic_checks:
-  - "row-level diff vs expected reference table on the affected window"
+  - "row-level diff vs HARNESS-SIDE expected reference (attached read-only at scoring time) on the affected window"
   - "duplicate business-key assertion returns zero rows"
   - "per-partition counts equal source-file counts"
-  - "idempotency probe: second run of repaired load changes zero rows"
+  - "idempotency probe: repaired load ingests a newly planted partition exactly once, leaves the repaired window unchanged, and is a no-op on a second run - a permanently skipping load scores zero"
 judge_axes:
   - code_quality
   - robustness

@@ -1,0 +1,39 @@
+{
+  "passed": true,
+  "gates": [
+    {
+      "gate": "G0",
+      "name": "schema",
+      "passed": true,
+      "checked": 298,
+      "failures": [],
+      "warnings": []
+    },
+    {
+      "gate": "G3",
+      "name": "coverage and dedup",
+      "passed": true,
+      "checked": 23,
+      "failures": [],
+      "warnings": []
+    },
+    {
+      "gate": "G4",
+      "name": "attack referential integrity",
+      "passed": true,
+      "checked": 18,
+      "failures": [],
+      "warnings": [
+        "F129.yaml: target A014 is withdrawn (withdrawn/) - attack is moot, kept for the record"
+      ]
+    },
+    {
+      "gate": "G5",
+      "name": "replication probe recorded",
+      "passed": true,
+      "checked": 23,
+      "failures": [],
+      "warnings": []
+    }
+  ]
+}

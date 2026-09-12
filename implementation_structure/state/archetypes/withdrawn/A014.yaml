@@ -1,3 +1,14 @@
+# WITHDRAWN 2026-09-12 - duplicate coverage, absorbed into A006.
+# Found by the high-effort code review; G3's title-similarity check missed it at 0.77
+# (threshold 0.82). The structural-duplicate check added to G3 now catches this shape:
+# same discipline + same apps_touched + same rubric_points.
+# A014 is a strict subset of A006 - same task, same four apps, same 18 points, same
+# 8-20h, same three planted causes (DST/timezone, join fan-out grain, valid-day window)
+# and the same bisect-by-dimension method. A006 additionally plants a 0.0% KPI defect.
+# Kept for the record, excluded from the active corpus (subdirectories are outside the
+# state/archetypes/*.yaml glob, so it no longer counts toward the deliverable).
+# Unique source not already cited by A006: S208 - now cited by A006.
+
 # Derivation path S2 (job-specs): 'stakeholder asks why two numbers disagree' is the
 # defining analytics hiring surface (frequency signal: BI tools S515-S519, warehouse
 # S500/S503, dbt S508). Task content grounded in S203/S205/S206/S208.

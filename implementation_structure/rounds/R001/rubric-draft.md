@@ -9,8 +9,23 @@ anything a state check can grade.
 Binding world names (to be finalized by the environment builder; used below for concreteness):
 target table `warehouse.fct_revenue`, partition column `dt`, business key `(order_id, line_nbr)`,
 source files `landing/daily_revenue/dt=YYYY-MM-DD/*.csv`, watermark table
-`warehouse.pipeline_watermark(job, last_loaded_dt)`, reference table `expected.fct_revenue`
-(seeded per the ade-bench `solution_seeds` pattern, S305). The affected window is 30 consecutive
+`warehouse.pipeline_watermark(job, last_loaded_dt)`.
+
+> **Grading reference is harness-side, never in the world catalog** (F121). `expected.fct_revenue`
+> lives in a separate DuckDB file at `/grading/expected.duckdb`, outside the paths the MCP
+> toolbelt can read and **not attached during the episode**. The grader attaches it read-only at
+> scoring time:
+> ```sql
+> ATTACH '/grading/expected.duckdb' AS expected (READ_ONLY);   -- grader session only
+> ```
+> Rationale: the warehouse *is* the agent's DuckDB instance. With the reference seeded into that
+> same catalog, `CREATE OR REPLACE TABLE warehouse.fct_revenue AS SELECT * FROM
+> expected.fct_revenue` scores D1+D2+D3 — 11 of 14 deterministic points — with zero diagnosis.
+> This applies to every archetype in the corpus, not just A001. The ade-bench `solution_seeds`
+> pattern (S305) supplies the reference *content*; it does not license putting it where the
+> agent can read it.
+
+The affected window is 30 consecutive
 partitions `dt ∈ [W0, W0+29]`; partial-load debris from the crashed run lives in 2 partitions
 `dt ∈ {D1, D2}` adjacent to the window. `expected.fct_revenue` contains the legitimate
 manually-adjusted rows that a full refresh would destroy.
@@ -22,6 +37,8 @@ manually-adjusted rows that a full refresh would destroy.
 ### D1 — Row-level diff vs reference on the affected window (5 pts)
 
 Reads: `warehouse.fct_revenue` vs `expected.fct_revenue`, `dt ∈ [W0, W0+29]`.
+Run in the **grader session only**, after attaching `/grading/expected.duckdb` read-only. The
+`expected` schema does not exist inside the episode.
 
 ```sql
 -- fast gate per partition, then row-level attribution
@@ -77,22 +94,35 @@ for dt in [D1, D2]:
 **Partial credit:** 1.5 per correct partition. Zero if the partition was wholesale-deleted
 (count = 0 ≠ expected) — deleting good rows with the debris is the failure being priced.
 
-### D4 — Idempotency probe (2 pts)
+### D4 — Idempotency probe, with a planted new partition (2 pts)
 
-Reads: harness-controlled re-execution. After the agent finishes, the harness snapshots
-`fct_revenue` (row count + checksum over the full table), re-runs the agent's repaired load
-**twice** over the same 30-day window, and re-snapshots.
+Reads: harness-controlled re-execution against a **newly planted partition** the agent never saw.
+
+The naive version of this check — re-run twice over the same window and assert nothing changed —
+is satisfied by a load that never does anything at all. An `IF NOT EXISTS` guard that always
+skips, or a repair that simply deleted the pipeline, scores full marks while repairing nothing
+(F121). The probe must therefore prove two things at once: the load still *works*, and re-running
+it does not re-corrupt.
 
 ```python
-snap0 = snapshot("fct_revenue")
-run(agent_repaired_load, window=[W0, W0+29]); snap1 = snapshot("fct_revenue")
-run(agent_repaired_load, window=[W0, W0+29]); snap2 = snapshot("fct_revenue")
-assert snap0 == snap1 == snap2   # row count AND checksum, business columns only
+snap0 = snapshot("fct_revenue")                      # post-repair baseline
+plant_partition(W0+30, n_rows=N_NEW)                 # complete source file, unseen by the agent
+
+run(agent_repaired_load, window=[W0, W0+30]); snap1 = snapshot("fct_revenue")
+#  liveness: the new partition was actually ingested, exactly once
+assert rows(snap1, dt=W0+30) == N_NEW
+#  no collateral: the already-repaired window is untouched
+assert restrict(snap1, W0, W0+29) == restrict(snap0, W0, W0+29)
+
+run(agent_repaired_load, window=[W0, W0+30]); snap2 = snapshot("fct_revenue")
+#  idempotence: a second identical run is a true no-op
+assert snap2 == snap1                                # row count AND checksum, business columns
 ```
 
-**Partial credit:** 2.0 if both probes are no-ops; 1.0 if the first probe mutates only
-excluded audit columns and the second is a full no-op (at-least-once-safe but not clean);
-0 if any business row changes. Alternate valid write modes are first-class (S305):
+**Partial credit:** 2.0 if all three assertions hold. 1.0 if liveness and no-collateral hold but
+the second run mutates only excluded audit columns (at-least-once-safe, not clean). **0 if the
+new partition was not ingested** (the no-op guard — repairs nothing, so it earns nothing), or if
+any business row changes on the second run, or if the repaired window moved. Alternate valid write modes are first-class (S305):
 `INSERT OVERWRITE`, `MERGE` on business key, or delete+insert in one transaction all pass.
 
 ### D5 — Freshness watermark advance + safe next schedule (1 pt)
@@ -186,11 +216,21 @@ duplicate rows and fragment rows for exactly `[W0, W0+29]` ∪ `{D1, D2}`, flip 
 `INSERT OVERWRITE` per partition, add a dbt `unique` test, write a committed incident report).
 **Task-validity gate: sage must score 20/20** — all deterministic checks green and all judge
 axes full marks on the oracle's evidence packet. Any task that fails under sage is a
-misconfigured task, not a model failure, and does not enter the corpus. Two calibration
-baselines should also be run at authoring time: a no-op agent (expected ~0; guards against
-free points) and a naive full-refresh agent (expected ~13–15 of 20; confirms the rubric
-prices the manual-adjustment destruction rather than zeroing it, and confirms the ceiling
-separates correct from plausible). Validators are versioned per the DAB lesson (S315): the
+misconfigured task, not a model failure, and does not enter the corpus.
+
+**Four calibration baselines run at authoring time.** The last two are adversarial and exist
+because both were live exploits in the first draft of this rubric (F121):
+
+| Baseline | Expected | What it proves |
+|---|---|---|
+| No-op agent (does nothing) | ~0 / 20 | no free points anywhere |
+| Naive full-refresh agent | 13–15 / 20 | the rubric *prices* destroying manual adjustments rather than zeroing it — correct is separated from plausible |
+| **Reference-copy adversary** — `CREATE OR REPLACE TABLE warehouse.fct_revenue AS SELECT * FROM expected.fct_revenue` | **0 / 20, and it must fail at the ATTACH** | the grading reference is genuinely unreachable from inside the episode. If this agent scores above 0, the world is misbuilt and the task does not ship. |
+| **No-op-guard adversary** — a repaired load wrapped in a condition that always skips | **0 on D4**, and D5 fails | the idempotency probe rewards a load that still works, not one that has been lobotomised into never running |
+
+The last two are permanent corpus-wide CI, not one-time checks: any archetype whose reference is
+co-located, or whose idempotency probe accepts a permanent no-op, is caught by running these two
+agents against it. Validators are versioned per the DAB lesson (S315): the
 exact D1–D5 assertion code and judge prompt hashes are recorded with every episode score, so
 a later rubric fix can trigger re-scoring instead of silent drift.
 
@@ -201,6 +241,11 @@ a later rubric fix can trigger re-scoring instead of silent drift.
 - Concrete schema/table/column names, the 30/2/4 partition counts (window / debris /
   adjustment-bearing), and the D4 "audit-columns-only mutation = 1 pt" tier — binding
   decisions for the environment builder, not from any source.
+- The `/grading/expected.duckdb` path, the planted-partition size `N_NEW`, and the two
+  adversarial baselines in §4 — these come from F121's recorded mitigation, not from a source.
+  They are design decisions made in response to a landed attack, and the environment builder
+  must honour the *property* (reference unreachable in-episode; probe requires real work) even
+  if the mechanism changes.
 - The D5 freshness-watermark check (A001.yaml's `deterministic_checks` list omits it; the
   B3 brief required it and it operationalizes "next scheduled run is a hazard").
 - Partial-credit tiers (5/30 per-partition rounding, D2's 1.5 cap, D4's 1.0 tier) — the

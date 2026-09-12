@@ -1,5 +1,5 @@
 id: T109
-name: "Amazon S3 / MinIO"
+name: "Amazon S3"
 category: storage
 role: simulate_target
 replication_strategy: none_found
@@ -8,4 +8,8 @@ rq: RQ4
 frequency_rank: 10
 evidence:
   - S514
-notes: "Object storage: buckets, objects, permissions, versions, data-lake files; runtime must be local S3-compatible."
+notes: >
+  Object storage: buckets, objects, permissions, versions, data-lake files; runtime must be
+  local S3-compatible. Substitute is adobe/s3mock (T154, Apache-2.0). MinIO (T153) was
+  REJECTED - AGPL-3.0 on a shipped network service, and the repo was archived 2026-04.
+  Do not reintroduce it (F110).

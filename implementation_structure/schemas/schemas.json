@@ -1,6 +1,5 @@
 {
   "_comment": "Minimal schemas enforced by gates/run_gates.py (G0). Deliberately dependency-free: a tiny validator in run_gates.py reads this, so no jsonschema install is needed. Types: str, int, float, bool, list, dict, enum:<a|b|c>, list[str].",
-
   "source": {
     "_file_glob": "state/knowledge/*.yaml",
     "_desc": "One externally-verifiable finding. The unit that G1 checks.",
@@ -27,7 +26,6 @@
       "no claim without a url; 'commonly known' is not a source"
     ]
   },
-
   "claim": {
     "_file_glob": "state/claims/*.yaml",
     "_desc": "An assertion the swarm is making, with provenance and attack history.",
@@ -43,14 +41,14 @@
     "optional": {
       "dependencies": "list[str]",
       "rejected_reason": "str",
-      "gate_results": "dict"
+      "gate_results": "dict",
+      "repair_note": "str"
     },
     "_rules": [
       "evidence entries must be ids that exist in state/knowledge/",
       "status=verified requires >= 1 evidence id and >= 2 attack ids"
     ]
   },
-
   "tool": {
     "_file_glob": "state/inventory/*.yaml",
     "_desc": "A data application or a candidate mock/connector for one.",
@@ -75,7 +73,8 @@
       "frequency_rank": "int",
       "replication_ease": "enum:easy|medium|hard|blocked",
       "notes": "str",
-      "evidence": "list[str]"
+      "evidence": "list[str]",
+      "repair_note": "str"
     },
     "_rules": [
       "repo_url present means G2 fetches license/liveness from the GitHub API",
@@ -83,7 +82,6 @@
       "AGPL or source-available license is an automatic G2 failure"
     ]
   },
-
   "failure": {
     "_file_glob": "state/failures/F[0-9]*.yaml",
     "_desc": "A landed attack. Recorded so a later round does not rediscover it.",
@@ -109,7 +107,6 @@
       "also_applies_to lets one attack scope itself to sibling artifacts; G4 links those too"
     ]
   },
-
   "archetype": {
     "_file_glob": "state/archetypes/*.yaml",
     "_desc": "A high-level task archetype. The RQ2 deliverable.",
@@ -132,7 +129,8 @@
       "failure_modes_expected": "list[str]",
       "existing_coverage": "str",
       "attacks": "list[str]",
-      "notes": "str"
+      "notes": "str",
+      "repair_note": "str"
     },
     "_rules": [
       "derived_from must cite source ids from state/knowledge/ - archetypes are derived, never invented",

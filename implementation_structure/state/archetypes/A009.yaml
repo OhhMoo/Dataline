@@ -30,6 +30,9 @@ grading: >
   passes; re-running the agent's backfill a second time changes nothing (idempotency
   probe). Rubric: 24 points across root-cause identification (both defects),
   safe cleanup ordering, backfill idempotency, and regression-test coverage.
+  GRADING REFERENCE IS HARNESS-SIDE: the expected/reference table lives in a separate
+  DuckDB file attached read-only at scoring time only, never in the agent-visible
+  catalog, or the agent can copy it instead of diagnosing (F121).
 rubric_points: 24
 apps_touched:
   - warehouse
@@ -37,11 +40,11 @@ apps_touched:
   - airflow
   - bi_dashboard
 deterministic_checks:
-  - "row-level diff vs expected/ reference tables"
+  - "row-level diff vs HARNESS-SIDE expected/ reference tables (attached read-only at scoring time)"
   - "duplicate business-key assertion"
   - "schema-conformance check on pre-existing historical rows"
   - "dbt test run: uniqueness + not_null on business key"
-  - "idempotency probe: second backfill run produces zero row diff"
+  - "idempotency probe: backfill ingests a newly planted partition exactly once and is a no-op on a second run - a permanently skipping load scores zero"
 judge_axes:
   - code_quality
   - design

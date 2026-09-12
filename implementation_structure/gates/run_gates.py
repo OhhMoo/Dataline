@@ -418,6 +418,17 @@ def gate4_referential() -> Result:
             if doc.get("id"):
                 index[str(doc["id"])] = (path, doc, kind)
 
+    # Withdrawn artifacts live in a `withdrawn/` subdirectory: outside the active globs
+    # (so they stop counting toward deliverables) but still real records. An attack filed
+    # against one must still resolve, or retiring an artifact would silently orphan its
+    # attack history -- exactly what this gate exists to prevent.
+    withdrawn: set[str] = set()
+    for sub in STATE.glob("*/withdrawn/*.yaml"):
+        doc = load_yaml(sub)
+        if doc.get("id"):
+            index[str(doc["id"])] = (sub, doc, "withdrawn")
+            withdrawn.add(str(doc["id"]))
+
     failures = [(p, d) for p, d in artifacts("failure") if "_items" not in d]
     r.checked = len(failures)
 
@@ -429,6 +440,10 @@ def gate4_referential() -> Result:
             r.fail(f"{path.name}: target '{target}' does not resolve to any artifact")
             continue
         tpath, tdoc, _ = index[target]
+        if target in withdrawn:
+            r.warn(f"{path.name}: target {target} is withdrawn ({tpath.parent.name}/) "
+                   f"- attack is moot, kept for the record")
+            continue
         linked = [str(a) for a in (tdoc.get("attacks") or [])]
         if fid not in linked:
             r.fail(f"{path.name}: attack {fid} is NOT linked on its target {target} "

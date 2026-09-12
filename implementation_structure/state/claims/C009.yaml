@@ -1,6 +1,6 @@
 id: C009
 claim: >
-  The storage and streaming tier is fully localizable: MinIO is a drop-in S3 substitute for
+  The storage and streaming tier is fully localizable: adobe/s3mock (T154, Apache-2.0) is the S3 substitute for
   object-storage surfaces (buckets, objects, versions, data-lake files) and Apache Kafka is
   native open source, so CDC/streaming and data-lake initial conditions (DE-6, DS-2/DS-3 file
   drops) can be built without any cloud endpoint or SDK reshaping.
@@ -13,3 +13,7 @@ evidence:
   - S507
 attacks:
   - F110
+repair_note: >
+  Repaired after F110. Original text named MinIO as the S3 substitute; MinIO is AGPL-3.0
+  on a shipped network service and archived 2026-04, so it is rejected by problem.yaml
+  constraints. Streaming half (Kafka native) is unaffected and still stands.

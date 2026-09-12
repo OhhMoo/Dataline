@@ -70,3 +70,9 @@ notes: >
   KPI leg non-trivial. S208 (varying-valid-day windows) is a natural extension leg if a
   fourth cause is wanted; left out to keep the cause count gradeable. Deterministic
   attribution grading requires the manifest format to be fixed at task-build time.
+repair_note: >
+  Absorbed A014 (withdrawn 2026-09-12, duplicate coverage found by code review). A014 was
+  a strict subset: identical discipline, apps, rubric_points and method. A006 keeps the
+  superset framing (adds the 0.0% KPI defect) and inherits A014's unique source S208.
+  Sibling A029 is the same FAMILY but a distinct shape - ticketing instead of docs_wiki,
+  20 points, 10-25h, and an explicitly prescribed bisect-by-dimension method - so it stays.

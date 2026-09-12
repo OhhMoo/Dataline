@@ -1,5 +1,8 @@
 # S5-http-interception — Phase 3 summary (R001)
 
+> **CORRECTION (post red-team, F110):** the "S3/MinIO (T109)" reference predates the MinIO rejection. Read it as S3 via adobe/s3mock (T154), which is http_intercept.
+
+
 Role: derive CLAIMS (RQ3) for the E3 derivation path — for which of the 30 inventory
 apps can we intercept HTTP and replicate the vendor REST format at a fake local URL.
 

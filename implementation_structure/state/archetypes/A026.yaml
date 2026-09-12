@@ -26,15 +26,18 @@ grading: >
   probe); freshness watermark advances past the gap. Rubric: 20 points across duplicate
   identification, deletion precision (no valid rows removed), write-mode fix, and
   idempotency evidence.
+  GRADING REFERENCE IS HARNESS-SIDE: the expected/reference table lives in a separate
+  DuckDB file attached read-only at scoring time only, never in the agent-visible
+  catalog, or the agent can copy it instead of diagnosing (F121).
 rubric_points: 20
 apps_touched:
   - warehouse
   - dbt
   - airflow
 deterministic_checks:
-  - "row-count and checksum diff vs expected/ reference table"
+  - "row-count and checksum diff vs HARNESS-SIDE expected/ reference table (attached read-only at scoring time)"
   - "duplicate business-key assertion returns zero rows"
-  - "second execution of backfill leaves checksum unchanged"
+  - "backfill ingests a newly planted partition exactly once, then a further execution leaves the checksum unchanged - a permanently skipping load scores zero"
   - "freshness watermark advanced past the gap"
 judge_axes:
   - code_quality

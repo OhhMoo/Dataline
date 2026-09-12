@@ -1,5 +1,8 @@
 # S6-oss-substitution — Phase 3 summary
 
+> **CORRECTION (post red-team, F110 / F111):** C009's storage half named MinIO (AGPL-3.0, archived) and C011 named the Airbyte platform (Elastic-2.0). Both are rejected by problem.yaml constraints. C009 has been re-sourced to adobe/s3mock (T154); the Kafka half is unaffected.
+
+
 ## What I derived
 
 Six RQ3 claim artifacts (C007-C012) arguing mock-ability via OSS substitution, tier by tier

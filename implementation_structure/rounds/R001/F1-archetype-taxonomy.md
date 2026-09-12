@@ -84,12 +84,12 @@ BI and catalog surfaces. Cloud-only apps below must go through these mocks (E2/E
 
 | Subcategory | Core apps (T-ids) | Supporting surfaces |
 |---|---|---|
-| DE-1 | T105 dbt, T106 Airflow, T103 PostgreSQL | T107 Snowflake (via fakesnow), T109 S3/MinIO |
-| DE-2 | T105 dbt, T103 PostgreSQL, T117 Fivetran / T121 Airbyte | T112 Databricks, T108 BigQuery |
+| DE-1 | T105 dbt, T106 Airflow, T103 PostgreSQL | T107 Snowflake (via fakesnow), T109 S3 (s3mock T154) |
+| DE-2 | T105 dbt, T103 PostgreSQL, T117 Fivetran / ~~T121 Airbyte~~ (platform Elastic-2.0, F111 - connector configs only) | T112 Databricks, T108 BigQuery |
 | DE-3 | T122 Great Expectations, T105 dbt, T103 PostgreSQL | T107 Snowflake, T109 |
 | DE-4 | T106 Airflow, T123 Dagster | T101 Slack, T102 Jira, T110 Confluence |
 | DE-5 | T106 Airflow, T107 Snowflake, T113 Tableau / T115 Looker | T125 catalog (or OpenMetadata), T110 |
-| DE-6 | T103 PostgreSQL, T116 Kafka, T109 S3/MinIO | T121 Airbyte, T100 Git |
+| DE-6 | T103 PostgreSQL, T116 Kafka, T109 S3 (s3mock T154) | ~~T121 Airbyte~~ (Elastic-2.0, F111), T100 Git |
 | DS-1 | T104 Jupyter, T103 PostgreSQL | T118 Spark, T112 Databricks |
 | DS-2 | T104 Jupyter, T112 Databricks, T118 Spark | T109, T103 |
 | DS-3 | T112 Databricks, T104 Jupyter, T122 Great Expectations | T103, T109 |

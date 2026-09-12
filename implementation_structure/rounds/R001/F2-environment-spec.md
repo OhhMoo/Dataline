@@ -28,8 +28,8 @@ coverage-driven — agent.md §6.1).
 | 7 | **Version control** | T100 Git/GitHub (T111 GitHub Actions as CI flavor) | REQUIRED | Repo history: branch graph, commits, open PRs, CI check results. Git history is byte-reproducible given fixed author/committer timestamps (must be forced to the virtual epoch). |
 | 8 | **Notebook** | T104 Jupyter; T124 Hex OPTIONAL | OPTIONAL | Notebook files incl. stale cell outputs — L2 names stale notebook state as a realistic failure family. |
 | 9 | **Operational databases** | T103 PostgreSQL (also the Redshift persona, T119), T127 Oracle legacy, T126 ClickHouse | OPTIONAL | Source-system databases the pipeline ingests from: table content, CDC/WAL position. NOTE: ClickHouse is structurally hostile to bit-reproducible resets (async merges/mutations, §6.1) — excluded as *substrate*; usable only as a mocked source persona if ever demanded. |
-| 10 | **Object storage** | T109 S3/MinIO | OPTIONAL | Bucket listing + object bytes; staged files for `COPY INTO` scenarios (§6.1 L4 control plane). |
-| 11 | **Ingestion / streaming** | T117 Fivetran, T121 Airbyte, T116 Kafka | OPTIONAL | Connector configs, offset/cursor state, seeded message log. In v1 these are more likely fault *sources* (schema drift arrives "through" them, S004) than live surfaces. |
+| 10 | **Object storage** | T109 S3 via adobe/s3mock T154 | OPTIONAL | Bucket listing + object bytes; staged files for `COPY INTO` scenarios (§6.1 L4 control plane). |
+| 11 | **Ingestion / streaming** | T117 Fivetran, T116 Kafka (Airbyte *platform* rejected: Elastic-2.0, F111 - only its MIT connectors are usable) | OPTIONAL | Connector configs, offset/cursor state, seeded message log. In v1 these are more likely fault *sources* (schema drift arrives "through" them, S004) than live surfaces. |
 | 12 | **Catalog / quality / semantic layer** | T125 Unity Catalog/Atlan, T122 Great Expectations, T120 dbt Semantic Layer/LookML | OPTIONAL | Catalog metadata, expectation suites and their last-run results, metric definitions. Feeds lineage-based triage tasks (L1). |
 | 13 | **Lakehouse / misc** | T112 Databricks, T118 Spark, T129 Hightouch/Census | OPTIONAL (out of v1) | Cheapest-to-emulate per §6.1 (open Delta spec) but not demanded by any v1 surface; defer. |
 
@@ -112,7 +112,7 @@ Replication strategy per app (fills the `replication_strategy: none_found` place
 T100–T129). Five strategies, in descending order of preference where more than one applies:
 
 1. **native_oss** — run the real open-source thing in the container (PostgreSQL T103, dbt
-   T105, Airflow T106, Jupyter T104, MinIO T109, Dagster T123, Great Expectations T122,
+   T105, Airflow T106, Jupyter T104, s3mock T154, Dagster T123, Great Expectations T122,
    Git T100). Zero fidelity risk; preferred whenever the license permits (AGPL and
    source-available are rejections, not warnings — `problem.yaml`).
 2. **oss_substitute** — a permissively-licensed stand-in presenting the same surface (DuckDB
