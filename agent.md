@@ -73,8 +73,12 @@ the layers existing benchmarks under-cover).
 Go/no-go gates:
 
 - Bit-reproducible resets (same seed → same world, every time).
-- A frontier-model baseline with a meaningful score spread and clear headroom. If top
-  models pass >90% Pass@1, the difficulty thesis is wrong — go harder or stop.
+- A frontier-model baseline with a meaningful score spread and clear headroom.
+  **Target set 2026-09-12: Pass@1 below 20%** against frontier models genuinely trying.
+  Reference points: Terminal-Bench 3.0 tops out at 42.7%, ade-bench 56–78%, DataClawEval
+  74.9% — so sub-20% means harder than anything public. See §8.3 for how (conjunction of
+  5+ independently graded sub-results, not obscurity). If top models pass >90% the
+  difficulty thesis is wrong — go harder or stop.
 - LLM-judge agreement ≥ 98.5% against a human-labeled ground-truth set.
 
 This phase falsifies the thesis cheaply — by design. A failing prototype is a feature,
@@ -558,6 +562,344 @@ in §2.
 7. **Missing source documents.** `de-agent-benchmark-assessment.md` and
    `copy-list-from-existing-sources.md` are cited throughout but are not present in this
    repo. This file is currently the only record of that work.
+
+---
+
+## 7. Sandbox build plan
+
+*Added 2026-09-12. Status: **PROPOSED — for review**. Nothing here is built yet. Items marked
+VERIFIED rest on R001 research or an executed test; items marked PROPOSED are design decisions
+open to challenge.*
+
+### 7.1 Topology — three containers, and the separation is the security model
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ HARBOR (harness, host side)                             │
+│  seeds -> spins world -> runs agent -> tears down -> grades │
+└───────────┬──────────────────────────────┬──────────────┘
+            │                              │
+   ┌────────▼──────────────┐    ┌──────────▼──────────────┐
+   │ WORLD  (agent lives)  │    │ GRADER (agent NEVER     │
+   │  DuckDB warehouse     │    │         reaches)        │
+   │  dbt project          │    │  expected/ references   │
+   │  Airflow (virt clock) │    │  grade.py, rubric       │
+   │  BI mock              │    │  defect manifests       │
+   │  wiki + scattered docs│    │  sage oracle solution   │
+   │  MCP server  :8080    │    └─────────────────────────┘
+   │  network: none        │      mounts world volume
+   └───────────────────────┘      READ-ONLY, post-episode
+```
+
+**The grader does not exist during the episode.** It starts after teardown and mounts the
+world volume read-only.
+
+This is not a convenience. VERIFIED by our own red team (failure record F121): with the
+reference seeded into the agent-visible catalog, `CREATE OR REPLACE TABLE warehouse.fct_revenue
+AS SELECT * FROM expected.fct_revenue` scored 11 of 14 deterministic points with zero
+diagnosis. Physical separation is the only form of that guarantee that survives contact.
+
+### 7.2 Containment
+
+| Control | Mechanism |
+|---|---|
+| No internet | `--network none`; internal services on loopback inside the container |
+| No answer lookup | falls out of the above - the agent cannot search for the incident |
+| No grader access | separate container, separate volume, started post-episode |
+| No host escape | read-only rootfs except `/workspace`, dropped caps, non-root uid, seccomp |
+| Resource bound | hard cgroup limits on RAM/disk/pids; wall-clock kill |
+| No wall-clock leak | virtualized clock, so "what time is it really" cannot orient the agent |
+
+Everything the agent can do goes through the MCP server. There is no second channel.
+
+### 7.3 Toolbelt (PROPOSED - 15 tools)
+
+```
+sql_query(sql)                  read-only against the warehouse
+sql_execute(sql)                writes; destructive patterns FLAGGED, not blocked
+dbt_run(selector) / dbt_test / dbt_compile / dbt_docs
+dag_list / dag_trigger(id, exec_date) / dag_state / dag_logs(task_id)
+lineage(node, direction, depth)
+bi_list / bi_get(dashboard) / bi_render(dashboard)   <- returns COMPUTED VALUES
+fs_read / fs_write / fs_list     scoped to /workspace
+docs_search(query)               the wiki, deliberately stale in places
+git_log / git_diff / git_commit
+ticket_read(id) / ticket_list    the ambiguous-requirements surface
+```
+
+Two deliberate choices worth challenging in review:
+
+- **Destructive SQL is flagged, not blocked.** Whether the agent gates its own destructive
+  actions is a scored governance signal; blocking would destroy the measurement.
+- **`bi_render` returns computed values, not an image**, so "the dashboard disagrees with the
+  warehouse" becomes a real checkable condition rather than a rendering exercise.
+
+### 7.4 Determinism layer
+
+The first thing a buyer tests. Treat as product, not scaffolding.
+
+- Seeded generation: `seed -> world`, same bytes every time.
+- Virtualized clock (shim service). DAG schedules and freshness SLAs are time-dependent;
+  fast-forward is how a multi-day breach is tested in seconds.
+- Pinned image digests, not tags. Pinned package versions.
+- Reset = restore volume from a content-addressed snapshot.
+
+**Clause D6 - VERIFIED EMPIRICALLY (claim C501).** Required before any data-science task ships:
+
+> Pin `OMP_/OPENBLAS_/MKL_NUM_THREADS=1`; pin `PYTHONHASHSEED`; pin exact library versions AND
+> the BLAS build with fixed CPU dispatch (`OPENBLAS_CORETYPE`); **ban GPU for graded training**
+> (cuDNN autotuning and atomic reduction order are non-reproducible by construction); compare a
+> rounded reported metric plus a hash of the **prediction vector**, never of the fitted model.
+
+The evidence: holding seed, data and code fixed and varying only thread env vars, a 1500x1500
+float64 GEMM and a `Ridge(solver='cholesky')` fit produced different hashes at 1 thread vs 8;
+`PYTHONHASHSEED` changes silently reordered features. At any *fixed* thread count,
+LogisticRegression, HistGradientBoosting, LightGBM and a torch SGD loop were byte-identical.
+Two folk beliefs were refuted: tree ensembles did NOT diverge under varying `n_jobs`, and the
+breakage is narrower than assumed - it is BLAS-backed linear algebra, and pinning fixes it.
+
+**The specific danger:** OpenMP sizes its thread pool from detected cores, and Harbor runs
+thousands of environments in parallel on cloud sandboxes - exactly where two clean rooms get
+different core counts. Unpinned, a reproducibility check measures the scheduler, not the agent.
+
+**Proof obligation:** build the world 10x, hash the DuckDB file plus project tree, assert
+identical. That hash goes in the run record and is the single most important artifact for the
+first lab conversation.
+
+### 7.5 Task package (Harbor + Mercor layout)
+
+```
+tasks/<task_id>/
+  task.toml            metadata, resource ceilings, timeouts, difficulty
+  instruction.md       <- THE ONLY TEXT THE AGENT SEES
+  environment/
+    Dockerfile
+    seed.yaml          generator parameters
+  solution/
+    solution.sh        oracle; the sage agent runs exactly this
+  tests/               HIDDEN - ships to the grader container only
+    grade.py
+    verifiers.json
+    expected/
+    manifest.yaml      planted defects, for per-cause credit
+```
+
+**`instruction.md` is generated ONLY from an explicit `agent_visible_brief` field.**
+VERIFIED necessary (failure record F202): author-side prose - `description`, `why_hard`,
+`failure_modes_expected` - routinely enumerates the planted defects in order. One of our own
+drafts printed all four "hidden manifest" defects in its `why_hard`. The build pipeline must
+make that mistake impossible, not merely discouraged.
+
+### 7.6 Trajectory capture and monitoring
+
+One JSONL per episode, one row per tool call:
+
+```json
+{"seq":41,"vts":"2026-03-02T04:15:00Z","wts":1757,"tool":"sql_execute",
+ "args_hash":"9f2c","sql_class":"DELETE","target":"fct_revenue",
+ "rows_affected":18443,"latency_ms":91,"exit":"ok",
+ "rss_mb":412,"disk_mb":2201,"world_fp":"a31c"}
+```
+
+Plus periodic world-state fingerprints, so a failure can be bisected to *when* it went wrong.
+
+**Derived process/governance signals** - the axis no public DE leaderboard reports, and a
+second product later (longitudinal data on agent trustworthiness):
+
+- doom-loop: identical `(tool, args_hash)` repeated n times
+- thrash: state oscillating between two fingerprints
+- ungated destructive action: `DROP`/`TRUNCATE`/unbounded `DELETE` with no prior read of the
+  target and no backup
+- read-before-write ratio, and **time-to-first-write** - a direct proxy for "diagnosed before
+  acting"
+- surface coverage before first write: did it consult lineage, logs, docs - or just start
+  typing SQL
+
+**Hard constraint on this axis (VERIFIED, source S104):** MLE-Bench's GPT-4o log-analysis rule
+checker flagged up to 14.1% of medal runs and **was wrong every single time**. Process signals
+ship with a published false-positive rate and a human-review escape hatch, or they do not ship.
+
+### 7.7 Build order - 10 days to the 2026-09-22 v1 target
+
+| Days | Deliverable | Done when |
+|---|---|---|
+| 1-2 | World image: DuckDB + dbt + seeded data. MCP server, 4 tools. | `sql_query` works from Harbor |
+| 2-3 | **Determinism harness** | 10 builds, identical hash, recorded |
+| 3-4 | Full toolbelt + Airflow on virtual clock | fast-forward triggers a freshness breach |
+| 4-5 | Grader container, hidden tests, `expected/` | reference provably unreachable in-episode |
+| 5-6 | Trajectory logging + process signals | replayable episode file |
+| 6-7 | **First task end to end** + sage validation | sage scores 100%, no-op scores 0 |
+| 7-8 | Adversarial baselines: reference-copy agent, no-op-guard agent | both score 0 |
+| 8-9 | Frontier baseline, n>=5, 2-3 models | a real number |
+| 9-10 | Second and third task, harden, document | one-command spin-up |
+
+Days 2-3 and day 7 are the real gates. If determinism does not hold, nothing downstream
+matters. If the reference-copy agent scores above zero, the task is broken.
+
+### 7.8 Open questions for review
+
+1. Airflow or something lighter? Airflow's own docs want 4GB+ while the RL reference footprint
+   is ~1 CPU / 2GB per session. Dagster? A minimal scheduler shim? This is unresolved and it
+   constrains every task that needs an orchestrator.
+2. Is `--network none` compatible with Airflow's internal components, or do we need an
+   internal-only bridge with no gateway?
+3. Does flagging rather than blocking destructive SQL create an unrecoverable-world problem
+   often enough to matter?
+4. BI mock: one generic mock behind a common API for v1, or per-vendor fidelity? Recommend
+   generic; the meeting named five BI tools, which is too much surface for 10 days.
+
+---
+
+## 8. Problem set design
+
+*Added 2026-09-12. Status: **PROPOSED — for review**, except where marked VERIFIED.*
+
+### 8.1 The target
+
+**Pass rate below 20%, against frontier models genuinely trying.**
+
+Reference points (VERIFIED, R001 prior-art research): Terminal-Bench 3.0 tops out at 42.7%;
+ade-bench clusters frontier models at 56-78%; DataClawEval's best is 74.9%. Below 20% means
+harder than anything public.
+
+### 8.2 What practitioners actually hit
+
+Three lanes researched independently by blind agents. **They converged on one thing**, and it
+is the design key:
+
+> **The system reports green while being wrong.**
+
+Not crashes. Not error messages. Silent, plausible, wrong output that someone downstream
+notices days later.
+
+**Data engineering** *(23 findings)*. The recurring shape is *"not a job that simply crashes:
+a successful-looking pipeline that emitted wrong or incomplete state, followed by a risky
+repair that could create a second incident."* Strongest task seeds: non-idempotent backfills,
+semantic and schema drift, cross-system orchestration diagnosis, lineage-based SLA triage,
+CDC/WAL failures, disaster recovery under destructive ambiguity.
+
+> ⚠️ **This lane took the worst citation-audit damage.** The "50 pipeline postmortems" survey
+> we were using to weight task categories names none of its 50 cases and is vendor-authored;
+> one cited "incident" is a fictional vignette opening "It's 8:58 AM..."; two GitHub bugs cited
+> as live traps were fixed 2026-04-17. The SHAPE of the finding is corroborated by first-party
+> sources that passed audit. The FREQUENCY WEIGHTS are not trustworthy and must be re-derived.
+> See `implementation_structure/rounds/R001/CITATION-AUDIT-VERDICT.md`.
+
+**Data science** *(26 findings - the cleanest lane, audit-verified)*. Leakage dominates, is
+**invisible in the reported metric**, and is found late - typically after wrong predictions
+shipped. Kaggle makes the stakes concrete: honest model ranked 2206th, leaked model 28th.
+Second pattern: the model is fine, **the data regime broke** - Instacart's availability metric
+fell 93% to 61% and the fix was shortening the training window, not touching the model. Third:
+agents fail at *artifact hygiene* before they fail at modelling - valid-submission rates of
+82.8 / 54.9 / 27.3 percent across scaffolds, with a validation tool available and unused.
+
+**Analytics** *(19 findings)*. Metric reconciliation is the dominant family: definition drift,
+grain mismatch, hidden filters, timezone boundaries, fan-out joins, failure-to-zero coercion,
+duplicated semantic logic, and upstream renames whose **BI blast radius is invisible from the
+warehouse**. Also: the correct first move is requirements and usage discovery, *not* writing
+SQL - which is itself a gradeable behaviour.
+
+### 8.3 How to actually reach sub-20%
+
+**Conjunction, not obscurity.** Five independent sub-results each at 70% gives 17% on
+all-green. That arithmetic is the whole design.
+
+It also resolves the apparent conflict with RL training: **pass rate and reward density are
+different quantities.**
+
+- **Pass@1** = every deterministic check green. Low by construction.
+- **Reward** = weighted partial credit across the same checks. Dense, trains well.
+
+Labs get gradient; the leaderboard gets the brutal number. Both from one rubric.
+
+### 8.4 Seven difficulty levers
+
+1. **Causal distance** - symptom several hops from cause, across surfaces.
+2. **Confounders that survive superficial checks** - two decoys that look causal and pass a
+   shallow test.
+3. **Stacked failures** - fixing one does not fix the system.
+4. **Repair hazard** - the obvious fix creates a second incident (the core DE finding). Full
+   refresh destroys manual adjustments; range-delete removes late-arriving rows.
+5. **Verification burden** - the agent must *prove* the fix with a regression test that fails
+   pre-fix and passes post-fix, not merely assert it.
+6. **Destructive ambiguity** - the safe action is not obvious; the wrong choice is
+   unrecoverable.
+7. **Commitment under ambiguity** - hedging scores zero. Listing five candidate causes forfeits
+   the axis.
+
+### 8.5 Six anti-patterns that collapse difficulty
+
+**VERIFIED the hard way** - our red team used every one of these to destroy our own designs.
+Every task ships through this checklist before entering the corpus.
+
+1. **Reference reachable** -> agent copies it instead of diagnosing. (F121)
+2. **One query answers it** -> e.g. a single `pg_replication_slots` lookup naming the stalled
+   slot. (F120)
+3. **Famous incident** -> the model recognises the fingerprint. (F101) **And renaming is not
+   enough:** in one of our designs the fingerprint was the *published remedy*, which a model
+   emits before reading a row. (F201)
+4. **Answer in the brief** -> author-side prose shipped as the task text. (F202)
+5. **No false-cause penalty** -> the agent emits a textbook checklist and collects per-cause
+   credit for free. (F128, F129, F306)
+6. **Closed-form constraint** -> one of our designs reduced to a single quantile per group.
+   (F302)
+
+Plus two **adversarial baselines that must both score 0** on every task, run as permanent CI:
+a reference-copy agent, and a no-op-guard agent.
+
+### 8.6 Task template
+
+```
+SEED INCIDENT     silent wrongness, real mechanism, synthetic surface
+OBSERVATION       symptom surfaces at a BI/consumer layer, N hops downstream
+DECOYS            2 plausible alternate causes, each surviving a shallow check
+REPAIR HAZARD     the naive fix destroys something valuable
+REQUIRED OUTPUTS  5+ independently graded: diagnosis, repair, idempotency,
+                  regression test, written impact statement
+PROCESS SIGNALS   time-to-first-write, surface coverage, destructive gating
+```
+
+Five required outputs is where sub-20% comes from.
+
+### 8.7 Where to start
+
+Build the first three tasks from the **intersection of all three lanes** - cross-surface
+incidents that begin as an analytics symptom, trace through a DE defect, and require a
+DS-flavoured judgement.
+
+That intersection is also the DE lane's single largest stated evidence gap (*"production
+examples that cross a warehouse, transformation layer, orchestrator, and BI surface in one
+trace"*), which makes it simultaneously our hardest task family and our most defensible one -
+nobody else has it either.
+
+**Proposed task 1:** a metric that silently halved, whose cause is a non-idempotent backfill
+two hops upstream, with a timezone-boundary decoy and a fan-out-join decoy, where the obvious
+full-refresh repair destroys manual adjustments, and the agent must ship a regression test that
+fails on the pre-fix world.
+
+### 8.8 Open questions for review
+
+1. Is conjunction-driven difficulty *honest* difficulty, or does it just make a task tedious?
+   A strong reviewer should push here - five sub-results could be five easy things rather than
+   one hard thing.
+2. Where does partial credit stop being dense reward and start being a participation trophy?
+3. The DE frequency weights need re-deriving from audit-clean sources before the taxonomy is
+   locked. Does that block task authoring, or can the first three tasks proceed on the
+   qualitative shape alone?
+4. Should process/governance signals affect the score at all in v1, or only be reported?
+   Given the 14.1% false-positive precedent, reporting-only is the safer launch posture.
+5. How many archetypes does v1 actually need? The corpus currently holds 26 designs but only
+   a minority are both red-teamed and resting on audit-clean sources.
+
+### 8.9 What changed on the commercial side
+
+Pricing and per-task commercial positioning are **no longer a design driver** (decided
+2026-09-12): this ships as part of Alkera AI's services regardless. Sections 1 and 6 still
+carry the earlier framing of the training-substrate business and should be read with that in
+mind. The pricing research from R001 is retained as background only - and note it was audited
+down: claim E8's three "independent" corroborating sources collapse to one seller-side anchor
+with an undisclosed conflict on the byline (claim C502, failure F400). Do not use it as a
+market rate.
 
 *Sources: `de-agent-benchmark-assessment.md`, `copy-list-from-existing-sources.md`
 (neither currently present in this repo — see §6.6), team meeting 2026-09-09.
