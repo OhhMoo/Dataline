@@ -22,6 +22,9 @@ def _state_items(root: Path):
     for sub in SCOPE:
         items += [(f"{sub}/{rel}", data)
                   for rel, data in tree_items(Path(root) / sub)]
+    # .git/index is a local stat cache (inode/device/mtime): never portable
+    # across hosts or builds, and git rebuilds it on first use.
+    items = [it for it in items if it[0] != "workspace/.git/index"]
     return sorted(items, key=lambda t: t[0])
 
 

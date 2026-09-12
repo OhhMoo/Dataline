@@ -1,0 +1,40 @@
+# Three trust zones (split_of_work.md §3):
+#   episode  — agent + world; internal network only, egress impossible
+#   harness  — episode driver; reaches episode, nothing else (profile: harness)
+#   grading  — post-episode only; no network, world mounted READ-ONLY
+# The grader does not exist during the episode (ground rule §1.1).
+
+networks:
+  episode_net:
+    internal: true
+
+services:
+  episode:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: track_a-world:0.1.0
+    networks: [episode_net]
+    volumes:
+      - worlddata:/world
+      # - ../snapshots/world.tar:/snapshot/world.tar:ro  # fast boot path
+    command: ["sleep", "infinity"]  # Track B: replace with the tool gateway
+
+  harness:
+    image: track_a-world:0.1.0
+    profiles: ["harness"]
+    depends_on: [episode]
+    networks: [episode_net]
+    command: ["sleep", "infinity"]
+
+  grading:
+    image: track_a-world:0.1.0
+    profiles: ["grading"]
+    network_mode: none
+    volumes:
+      - worlddata:/world:ro
+      - ../grading:/grading:ro  # Track C fills: grade.py, expected/, manifest.yaml
+    command: ["sleep", "infinity"]
+
+volumes:
+  worlddata:
