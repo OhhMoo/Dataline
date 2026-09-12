@@ -1,3 +1,16 @@
+# WITHDRAWN AS A STANDALONE ARCHETYPE 2026-09-12.
+# F309 (R3) RULING: does not clear the E5 tens-of-hours bar; should not ship standalone.
+# F310: the anti-memorisation permutation probe is mis-aimed and not implementable against
+#   a prediction-file deliverable.
+# F257/F258 (R2): the RAM ceiling that makes it hard collides with the REQUIRED world
+#   surfaces (Airflow alone wants 4GB against a ~1 CPU / 2 GB reference session), and
+#   continuous RSS/disk monitoring is not expressible in Harbor's task contract.
+# KEEP THE IDEA, NOT THE TASK: R1 could not break this one on leakage, and its reasoning
+#   holds - it grades whether an agent DOES resource discipline under pressure, not whether
+#   it knows it, and S105/S106 show agents that certainly know still get OOM-killed.
+#   Resource ceilings and submission-validity should become a MODIFIER applied to longer
+#   archetypes, not a task of their own. Recorded as the disposition for next round.
+
 id: A035
 title: Deliver a gradeable model artefact under hard compute and disk ceilings
 discipline: data_science

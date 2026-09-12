@@ -1,0 +1,52 @@
+{
+  "passed": true,
+  "gates": [
+    {
+      "gate": "G0",
+      "name": "schema",
+      "passed": true,
+      "checked": 330,
+      "failures": [],
+      "warnings": []
+    },
+    {
+      "gate": "G3",
+      "name": "coverage and dedup",
+      "passed": true,
+      "checked": 26,
+      "failures": [],
+      "warnings": [
+        "3 of 26 archetypes are status=redesign_required and do NOT count toward the deliverable: A031.yaml, A032.yaml, A033.yaml -- shippable count is 23",
+        "8 archetypes carry no attack record (draft, not derived): A002.yaml, A003.yaml, A005.yaml, A010.yaml, A017.yaml, A018.yaml, A022.yaml, A025.yaml"
+      ]
+    },
+    {
+      "gate": "G4",
+      "name": "attack referential integrity",
+      "passed": true,
+      "checked": 45,
+      "failures": [],
+      "warnings": [
+        "F129.yaml: target A014 is withdrawn (withdrawn/) - attack is moot, kept for the record",
+        "F203.yaml: target A034 is withdrawn (withdrawn/) - attack is moot, kept for the record",
+        "F206.yaml: target A035 is withdrawn (withdrawn/) - attack is moot, kept for the record",
+        "F256.yaml: target A034 is withdrawn (withdrawn/) - attack is moot, kept for the record",
+        "F257.yaml: target A035 is withdrawn (withdrawn/) - attack is moot, kept for the record",
+        "F258.yaml: target A035 is withdrawn (withdrawn/) - attack is moot, kept for the record",
+        "F259.yaml: target A035 is withdrawn (withdrawn/) - attack is moot, kept for the record",
+        "F307.yaml: target A034 is withdrawn (withdrawn/) - attack is moot, kept for the record",
+        "F308.yaml: target A034 is withdrawn (withdrawn/) - attack is moot, kept for the record",
+        "F309.yaml: target A035 is withdrawn (withdrawn/) - attack is moot, kept for the record",
+        "F310.yaml: target A035 is withdrawn (withdrawn/) - attack is moot, kept for the record"
+      ]
+    },
+    {
+      "gate": "G5",
+      "name": "replication probe recorded",
+      "passed": true,
+      "checked": 23,
+      "failures": [],
+      "warnings": []
+    }
+  ]
+}

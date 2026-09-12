@@ -1,3 +1,16 @@
+# WITHDRAWN 2026-09-12 - two independent high-severity kills.
+# F307 (R3) RULING: not a distinct task from A012. The author's stated distinction
+#   (A012 audits a MODEL for leakage, A034 audits an EVALUATION) does not survive a
+#   solver: near-identical planted content, identical procedure.
+# F203 (R1): grades a procedure that is published twice over - the holdout-reconstruction
+#   and baseline-equivalence method is quoted in S102 from a paper whose IMPLEMENTATION is
+#   open source (per-competition prepare scripts + grading code), and the three planted
+#   defects are three rows of the Kapoor-Narayanan taxonomy the corpus itself cites.
+#   Aggravating: sold to frontier labs, and the lab whose methodology is graded has the
+#   strongest prior of anyone. The archetype's own existing_coverage advertised this as a
+#   selling point - the reasoning was exactly backwards.
+# Any future evaluation-integrity task must start from A012 and add to it, not re-derive.
+
 id: A034
 title: Holdout reconstruction and contamination audit for an untrustworthy evaluation set
 discipline: data_science
