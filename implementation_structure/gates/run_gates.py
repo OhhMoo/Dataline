@@ -302,7 +302,14 @@ def gate2_license_liveness() -> Result:
             with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
                 meta = json.loads(resp.read().decode())
         except Exception as e:
-            r.fail(f"{rel}: GitHub API lookup failed for {owner}/{name} -- {e}")
+            # "could not check" is NOT "failed the check". Conflating them would let a
+            # rate limit or a flaky network masquerade as a license violation -- the
+            # same silent-grading-bug class this whole project exists to avoid.
+            transient = any(t in str(e) for t in
+                            ("rate limit", "403", "timed out", "Connection", "temporarily"))
+            msg = (f"{rel}: could not verify {owner}/{name} -- {e}"
+                   f"{' (set GITHUB_TOKEN to raise the 60/hr limit)' if 'rate limit' in str(e) else ''}")
+            (r.warn if transient else r.fail)(msg)
             continue
 
         spdx = ((meta.get("license") or {}).get("spdx_id") or "NOASSERTION").lower()
