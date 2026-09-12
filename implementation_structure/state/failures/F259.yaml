@@ -1,0 +1,36 @@
+id: F259
+target: A035
+attack_type: grading_machinery_cannot_exist
+severity: medium
+finding: >
+  A035's anti-memorisation permutation probe - "re-scores the pipeline on permuted inputs;
+  predictions that do not degrade under permutation are not reading the data and score zero" -
+  is cargo-culted from a threat model that E4 has already eliminated, and it is not
+  implementable as a clean signal. S103 describes why MLE-bench needed an anti-memorisation
+  rule: its data is public Kaggle data, so an agent can write out REMEMBERED labels instead of
+  doing ML engineering. A035's world is synthetic, generated from distributions per E4, so
+  there are no remembered labels to write - the only way to produce a prediction correlated
+  with the hidden evaluation labels is to read the in-world data. The probe therefore defends
+  against nothing available to the agent. Implementation makes it worse rather than better on
+  three counts. First, it requires re-executing the agent's pipeline, which A035 never
+  specifies as a re-runnable declared-input artefact - the archetype grades a SUBMISSION FILE,
+  and a submission file cannot be re-scored on permuted inputs at all. Second, that
+  re-execution is a second full training pass inside the same ceilings the task is about, so
+  the probe is charged to the budget it is policing. Third, "predictions degrade" is a
+  comparison of two numbers from two separate executions, and per F254 those two numbers are
+  not currently reproducible to any pinned precision, so the degradation threshold is
+  confounded with run-to-run numerical variance and no null distribution has been established
+  to set it against.
+recommended_action: redesign
+mitigation: >
+  Drop the permutation probe from A035 and state plainly that E4 synthesis is what closes the
+  memorisation hole - that is a stronger and cheaper argument than a probe, and it is worth
+  saying explicitly in the pitch, because it is a real advantage over MLE-bench. If a
+  reading-the-data check is still wanted, the cheap deterministic version needs no
+  re-execution: require the submission to cover exactly the harness-held id set, then check
+  that the prediction column is not constant, not a permutation of a trivially derivable
+  column, and correlates with the hidden labels above a floor - all pure arithmetic on the
+  submitted file. If a genuine re-execution probe is wanted later, it requires the declared
+  re-runnable pipeline contract from A033 plus the D6 numerical pins from F254, and should be
+  costed against F255 first.
+found_by: R2

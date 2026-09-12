@@ -1,0 +1,43 @@
+id: F252
+target: A031
+attack_type: missing_surface_no_inventory_substitute
+severity: high
+finding: >
+  All five new DS archetypes require a MODEL TRAINING AND SCORING SURFACE, and that surface
+  exists nowhere in the project's inventory or environment spec. state/inventory/T100-T171
+  contains 72 entries and not one is an ML runtime, experiment tracker, model registry, model
+  server, or feature store: the closest entries are JupyterLab (T171) and Great Expectations
+  (T160), neither of which trains or stores models. The F2 environment spec enumerates 13
+  surfaces and none of them is a modelling surface; its determinism table has no row for model
+  artefacts. So the RQ3 success criterion - "every candidate carries a license verdict and a
+  G5 replication probe result" - is unmet for the substrate these archetypes are entirely
+  built on, and no G5 probe has ever been run against it. Concretely unbuildable as written
+  today: A032's check "model artefact unchanged: retraining or weight modification scores zero"
+  needs a defined artefact format and a content-hash contract that nothing in the spec
+  defines; A032 also lists apps_touched quality_monitoring for "a logged history of alerts and
+  responder actions", a surface the F2 spec itself flags as ungrounded ("Monte-Carlo-style
+  observability is ungrounded", quality coverage "one finding deep"). A033, A034 and A035 all
+  assume an in-container training stack with pinned versions.
+recommended_action: redesign
+mitigation: >
+  This is a gap, not a dead end - the obvious substrates are permissively licensed and pass
+  the licence bar cleanly (scikit-learn BSD-3-Clause, LightGBM MIT, PyTorch BSD-3-Clause,
+  MLflow Apache-2.0, DVC Apache-2.0), so no AGPL or source-available problem arises. The
+  required work before any of A031-A035 can be called derived: add the ML runtime as an
+  inventory surface with a pinned version set and a G5 install probe, add a row to the F2
+  determinism table stating what about a model artefact must be reproducible across resets,
+  and define the artefact format the A032 immutability check hashes. Until then these five
+  archetypes rest on an un-inventoried, un-probed dependency.
+also_applies_to:
+  - A032
+  - A033
+  - A034
+  - A035
+found_by: R2
+notes: >
+  Checked and cleared, so this is a spec gap rather than a licence contradiction: none of
+  A031-A035 names a tool the inventory has rejected. Their apps_touched resolve to BookStack
+  MIT (docs_wiki), Gitea MIT (git), Superset Apache-2.0 (bi_dashboard), DuckDB MIT
+  (warehouse), OpenMetadata Apache-2.0 (catalog) and JupyterLab BSD-3-Clause (notebook). The
+  AGPL and source-available traps in the inventory - MinIO T153, Wiki.js T144, Outline T145,
+  Airbyte platform T156 - are untouched by these five.

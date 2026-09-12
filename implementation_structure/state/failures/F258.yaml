@@ -1,0 +1,37 @@
+id: F258
+target: A035
+attack_type: grading_machinery_cannot_exist
+severity: high
+finding: >
+  Three of A035's six deterministic checks - "peak RSS never exceeded the container ceiling
+  (harness-monitored throughout the episode)", "peak disk usage never exceeded quota", and
+  "wall-clock budget not exceeded" - require CONTINUOUS in-episode instrumentation, and the
+  harness this project has adopted does not offer it. S301 records Harbor's task contract as a
+  directory of instruction.md, task.toml, environment/, optional solution/solve.sh and
+  tests/test.sh, with tests/ copied into the sandbox only at verification time and the test
+  script writing a reward file the harness reads. That is a post-hoc verifier: it observes the
+  state the agent left behind, after the episode, from inside the same sandbox. Peak RSS and
+  peak disk are not state left behind - they are time-series properties that vanish the moment
+  the process exits, and a peak breach is exactly the case where the measuring process may
+  itself have been killed. Nothing in the adopted task format samples cgroup counters during
+  the run or surfaces them to the verifier, so as written these checks are asserted against
+  data that does not exist at scoring time. The archetype compounds this by saying "any breach
+  is scored zero regardless of the final metric", which makes the entire task hinge on the one
+  signal the harness cannot currently produce. A secondary problem sits underneath: the OOM
+  reaper killing the agent process is listed as an expected failure mode, but an OOM kill can
+  also take the container down before any reward file is written, in which case the trial
+  reports as infrastructure failure rather than as a scored zero - and those two outcomes must
+  be distinguishable or the task silently discards its most interesting trajectories.
+recommended_action: redesign
+mitigation: >
+  Do not assert these checks until the measurement path is designed. Two routes, both outside
+  Harbor's task format and therefore harness work rather than task work: read cgroup v2
+  memory.peak and io.stat plus the filesystem quota counters from OUTSIDE the sandbox at
+  teardown, which gives true peaks with no in-episode sampling and survives an OOM kill; or
+  set the container limits so the kernel enforces them and grade the OUTCOME - process killed,
+  ENOSPC, timeout - rather than trying to observe the peak. The second is cheaper and is what
+  S106 actually documents happening to MLE-bench scaffolds. Either way, define explicitly how
+  a resource-kill trial is distinguished from an infrastructure failure in the reward file,
+  and confirm with the harness owner before A035 is scheduled for v1, since this is the
+  archetype that was nominated as the cheapest and earliest to build.
+found_by: R2

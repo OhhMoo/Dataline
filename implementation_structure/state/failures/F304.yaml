@@ -1,0 +1,30 @@
+id: F304
+target: A032
+attack_type: redundancy - shared graded lesson with A020
+severity: medium
+finding: >
+  A032 and A020 grade the same insight with different scenery. Both are data_science, both
+  derive from S123 and S118, both present a model whose surfaces look healthy, both make
+  "retrain or tune the model" the attractive wrong move and score its rejection, and both
+  impose an alert-quality constraint from the same alert-fatigue finding - A020 as a monitor
+  precision floor, A032 as a per-site alert-volume ceiling. A020's listed failure mode "tunes
+  hyperparameters on the stale window instead of changing the data regime" and A032's "retrains
+  or tunes hyperparameters, improving AUC and changing nothing that matters" are the same
+  failure. For a strong solver the playbook is identical and transfers wholesale: confirm the
+  model is fine, refuse to retrain, move the operational knob, satisfy an alert-budget
+  constraint, write it up. The genuinely distinct material is thin on both sides - A020 adds
+  delayed labels, A032 adds cross-site base-rate heterogeneity - and neither difference changes
+  the strategy the agent brings. At the G3 dedup level they are near-siblings occupying two of
+  a capped 30 archetype slots, and a lab buying both gets one lesson twice.
+recommended_action: redesign
+found_by: R3
+mitigation: >
+  Keep both only after removing the shared axis from one. Concretely: strip the anti-retraining
+  rubric axis and the alert-budget constraint from A032 and rebuild it as a pure allocation
+  problem under coupled responder capacity (per F302), so its graded content is threshold
+  ALLOCATION rather than remediation-class choice; leave the "reject the modelling fix" lesson
+  to A020, which needs it for the drift framing. Alternatively merge: fold the per-site
+  base-rate heterogeneity into A020 as a second leg after the drift remediation, giving one
+  longer task that genuinely clears the E5 bar instead of two 20-40h claims that share a spine.
+also_applies_to:
+  - A020

@@ -1,0 +1,46 @@
+id: F309
+target: A035
+attack_type: hours inflation - falls below the E5 tens-of-hours bar
+severity: high
+finding: >
+  RULING: A035 does not clear E5. The claimed 15-30 human hours is not defensible and the
+  archetype should not ship standalone.
+  The task as specified is: read a dataset that does not fit in RAM, train a model whose
+  content the archetype itself calls "deliberately unexciting", clear a stated performance
+  floor, and write a schema-valid artefact without breaching RAM, disk or wall-clock. Every
+  element has a settled, one-call answer in the working practitioner's toolkit - chunked or
+  out-of-core scanning (DuckDB, polars scan, pandas chunksize), incremental fitting
+  (partial_fit, or a gradient-boosting library that bins to disk), delete intermediates after
+  use, write CSV, assert row count and id coverage against the sample submission. A competent
+  practitioner does this in 3-6 hours; nothing in it compounds, nothing requires judgment, and
+  there is no investigation, no ambiguity, and no stakeholder. The archetype's own notes
+  concede the position twice - "the modelling content is intentionally thin" and "it is also
+  the cheapest archetype in the corpus to build" - and cheapness to build is here a direct
+  proxy for cheapness to solve.
+  The evidential basis is also weaker than it looks. The valid-submission rates the archetype
+  leans on (82.8 / 54.9 / 27.3 percent) are properties of three specific MLE-bench SCAFFOLDS,
+  not of a frontier model with a shell and a filesystem; they measure harness ergonomics -
+  including one scaffold that read a large file into its own context window - and that class
+  of failure is exactly what improves fastest between model generations. An archetype whose
+  entire difficulty is a scaffold artefact saturates the moment a lab fixes its scaffold, which
+  is the opposite of the compounding asset the project is selling. It also produces a poor
+  artefact for the stated value proposition: a failing trajectory here says the model could not
+  write a CSV, which is not an interesting explanation of why a model failed a hard task.
+recommended_action: redesign
+found_by: R3
+mitigation: >
+  Do not ship A035 as an archetype. Ship it as a resource ENVELOPE - a reusable task modifier
+  that attaches a RAM ceiling, a disk quota, a wall-clock budget and an artefact-validity gate
+  to an archetype that is already long, with the envelope checks contributing points to that
+  task's existing rubric. A012, A031 and A034 are all natural hosts: each involves repeated
+  model fits over a warehouse-scale table, so the ceilings bind on work that genuinely takes
+  tens of hours, and the long horizon that A035's why_hard correctly identifies as the real
+  difficulty ("early profligacy is only fatal much later") actually exists. This costs almost
+  nothing extra to build, preserves every check A035 proposes, recovers the v1-slice cheapness
+  argument (the envelope is the cheap part), and frees an archetype slot. If a standalone task
+  is still wanted, the modelling content has to stop being thin - the ceiling must force a
+  genuine algorithmic tradeoff the agent has to discover, not a library flag it has to recall.
+notes: >
+  Filed at the explicit request of the lead agent's note on A035, which asked R3 to rule on
+  whether it clears the bar. It does not. Of the five new archetypes this is the only one whose
+  problem is the task rather than the grading.

@@ -1,0 +1,35 @@
+id: F250
+target: A031
+attack_type: grading_machinery_cannot_exist
+severity: high
+finding: >
+  A031's load-bearing deterministic check - "the chosen metric, applied to a harness-held
+  outcome simulation, must rank candidate policies in the same order as realised retention
+  value above a correlation floor" - cannot be built, and is circular where it can. There is
+  no realised retention value in this world: E4 forbids public data, so every outcome is
+  produced by the generator's own causal model. "Realised value" therefore means "whatever
+  the generator's hidden uplift function says", so the check does not test the agent's metric
+  against reality, it tests agreement with an arbitrary hidden simulator. That contradicts
+  A031's own stated design ("checked for PROPERTIES, not for equality to one answer"): the
+  simulator IS an answer key, just an opaque one. Three further pieces are undefined and have
+  no source in the corpus: the candidate policy SET (who writes the policies the metric is
+  scored on, and why those), the correlation FLOOR (no calibration data exists to set it, so
+  any value is a hand-tuned pass line), and the mapping from an arbitrary agent-chosen metric
+  onto a ranking over policies the agent never saw. A submission can be scored zero for
+  disagreeing with a simulator it cannot observe, inspect, or infer - which is a grading bug
+  dressed as a deterministic check.
+recommended_action: redesign
+mitigation: >
+  Drop the simulator-ranking check. The defensible reduction is: the generator plants a known
+  decision structure (a stated action, its cost, its eligibility rule, and a known
+  heterogeneous treatment effect), and the check asks only whether the submitted metric is
+  DECISION-CONSISTENT with that structure - e.g. it is a cost-weighted metric evaluated on
+  the actionable cohort rather than an unweighted rank metric on the full population. That is
+  a property check, needs no counterfactual simulator, and stays inside the declared
+  generator. Retain the other four A031 checks, which are sound.
+found_by: R2
+notes: >
+  The other four deterministic checks in A031 survive: the intervention-manifest overlap
+  check, the eligibility check and the temporal-ordering check are all exact set and
+  timestamp operations on generator-held manifests and are genuinely deterministic and cheap.
+  This attack is scoped to the fifth check only.

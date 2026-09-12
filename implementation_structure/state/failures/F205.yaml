@@ -1,0 +1,44 @@
+id: F205
+target: A031
+attack_type: widely-blogged-tutorial-resemblance / named-solution-prior
+severity: medium
+finding: >
+  A031 picks, as the vehicle for "the real work is deciding what the problem is", the single most
+  tutorialized problem in applied data science. Churn-cohort definition is a saturated genre:
+  the observation-window / performance-window vocabulary the archetype asks the agent to invent is
+  standard blog content, "how do you define churn - does a downgrade count" is a stock section in
+  those posts, and the label-leakage warning ("labels must be assigned exclusively on future
+  activity") appears in the same tutorials. Worse, each of the three graded discoveries has a
+  published name that a model reaches for by reflex. (1) The retention campaign contaminating the
+  label - an account saved by the intervention is labelled not-churned so the model learns the
+  intervention - is the canonical motivating example of uplift modelling, with a literature, named
+  case studies and public challenge datasets built specifically around it; a model that says
+  "this is a treatment-contaminated label, you need uplift/incrementality framing" has produced
+  the archetype's headline insight from a prior. (2) "AUC over a population dominated by
+  unactionable dormant accounts is the wrong metric" is stock content on why AUC misleads under
+  class imbalance and non-actionable segments. (3) Temporal splitting for a churn model is
+  tutorial-default. The property-based grading blunts this - there is no answer key to recall -
+  but the discovery is not what is being measured; compliance with a remembered playbook is.
+  Secondary risk against E4: "churn" plus billing and event tables pulls hard toward the shape of
+  the ubiquitous public telco-churn dataset, whose column vocabulary a generator imitating
+  "realistic churn data" would reproduce by default.
+recommended_action: redesign
+found_by: R1
+mitigation: >
+  Keep the archetype's real novelty - the definition IS the deliverable, graded on properties -
+  and move it off the tutorial rail. (a) Change the decision the model feeds so the cohort
+  question has no canonical form: not "who will churn" but a decision whose eligible population is
+  defined by an operational rule with exceptions (who to route to a scarce specialist queue, who
+  to hold back from an automated action), so the cohort cannot be copied from a blog. (b) Make the
+  contaminating intervention something without a named literature - a mid-window eligibility rule
+  change or a silent backfill - rather than a retention campaign, which is the uplift-modelling
+  textbook opener. (c) Ban the words churn and retention from world text and see whether the task
+  still reads as hard; if it does not, the difficulty was riding on the familiar frame.
+  (d) If the generator is authored from a "realistic churn schema", state explicitly that columns
+  come from the declared distributions and not from any public churn dataset's field list.
+notes: >
+  existing_coverage overclaims: "Not covered anywhere ... the clearest single differentiator
+  available on the data-science axis" is true of the GRADING form (properties, not an answer key)
+  but not of the subject matter, which is covered to saturation outside benchmarks. That sentence
+  should be downgraded to a claim about the grading form. The two contradictory wiki definitions
+  are the one element here with no public analogue and should carry more of the weight.

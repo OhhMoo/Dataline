@@ -1,0 +1,39 @@
+id: F306
+target: A033
+attack_type: canonical-cause shortcut - public checklist defeats per-cause credit with no false-cause penalty
+severity: high
+finding: >
+  A033 and A034 both grade "submitted causes matched against hidden manifest, per-cause credit"
+  and neither specifies a penalty for false causes. This is the exact hole recorded in F128 and
+  F129, restated in two brand-new archetypes written after those attacks landed - the author
+  defended the specific instances and reproduced the general defect.
+  The exploit is worse here than it was in A006/A014 because the candidate space is not merely
+  finite, it is a canonical checklist that every frontier model can recite: unseeded RNG,
+  out-of-order cell execution and stale kernel state, mutated upstream input, preprocessing fit
+  outside the split, unpinned library versions, PYTHONHASHSEED, set and dict iteration order,
+  thread and BLAS non-determinism, GPU atomics. A033 plants four defects and all four are on
+  that list - the description names them itself: out-of-order execution, an overwritten CSV,
+  preprocessing fit before the split, no pinned seed. Submitting the full checklist therefore
+  scores full attribution credit with zero investigation, and costs nothing. A034 has the same
+  structure over the published leakage catalogue: its three defects are duplicate straddle,
+  random split over a time-ordered process, and test rows in feature selection - the first
+  three items anyone would list. The archetype descriptions themselves enumerate the answers in
+  plain text, so if any paraphrase reaches the agent prompt the attribution component is
+  reading comprehension, which is the F124 prompt/design-note leak unmitigated in both files.
+recommended_action: redesign
+found_by: R3
+mitigation: >
+  Three changes, all mechanical. (1) Score attribution as credit minus an equal-weighted
+  penalty per false cause, so a kitchen-sink submission nets zero or negative and the optimal
+  strategy is to claim only what you can evidence. (2) Require row-level or run-level evidence
+  per claimed cause - for A033, the defect-replay toggle from F305; for A034, the specific
+  entity pairs, the specific timestamp violations, and the specific rows used in feature
+  selection - and award credit only on the evidence, never on the label. (3) Plant at least
+  one defect that is NOT on the public checklist, so checklist-dumping demonstrably misses
+  points: for A033, a merge whose output row order depends on the physical ordering of an
+  upstream table that changed after a maintenance operation (deterministic in isolation,
+  non-deterministic across environments, and invisible to every standard remedy). Enforce the
+  F124 split between agent-facing prompt and sealed design notes across all five of A031-A035
+  before any of them ships.
+also_applies_to:
+  - A034

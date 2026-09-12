@@ -1,0 +1,43 @@
+id: F310
+target: A035
+attack_type: grader shortcut - the permutation probe is mis-aimed, unimplementable as written, and unfair to honest artefacts
+severity: medium
+finding: >
+  A035's anti-memorisation permutation probe is presented as the analogue of the F121
+  planted-partition idempotency check. It is not, on three counts.
+  (1) It is not implementable against the stated deliverable. The graded artefact is a
+  prediction file - "the submission must exist and validate against the declared schema (row
+  count, id coverage, dtype, value range)". Permuting the inputs does not change a CSV, so
+  "re-scores the pipeline on permuted inputs" requires a re-runnable pipeline that is nowhere
+  listed as a deliverable or as a check. Either add it explicitly, with the environment and
+  determinism guarantees that re-running implies, or the probe cannot run.
+  (2) It adds no difficulty in the direction it points. Any model that reads its features at
+  all degrades under permuted inputs; the probe is passed by construction by every non-constant
+  submission, so it is a free check for every agent that does the task and catches only an
+  agent that hardcodes a constant - a failure already caught by the performance floor.
+  (3) It is aimed at the wrong threat and penalises an honest one. The S103 anti-memorisation
+  concern is about a model having seen the data before - contamination - and input permutation
+  detects nothing of the kind: a contaminated model still degrades when you shuffle its inputs.
+  Meanwhile, if the performance floor is set near a weak-signal ceiling, a near-constant
+  base-rate predictor is a legitimate, honest artefact, and the probe scores it zero for the
+  crime of the data having little signal.
+  Separately, the rubric structure is a variance trap: any breach of RAM, disk or wall-clock
+  "is scored zero regardless of the final metric", so a 20-point rubric with six checks behaves
+  as a single binary gate. That defeats the dense partial-credit design the R001 rubric draft
+  establishes as the corpus standard, and it makes the episode score a near-Bernoulli variable
+  - poor training signal, and a score that says almost nothing about why the model failed.
+recommended_action: redesign
+found_by: R3
+mitigation: >
+  Drop the permutation probe. If a genuine anti-shortcut check is wanted for a resource-ceiling
+  envelope, use a held-out ID probe instead: the harness appends a block of unseen ids to the
+  evaluation set at scoring time and requires the agent's pipeline to produce calibrated
+  predictions for them at the same resource ceilings, which tests that the artefact is a
+  working function of new input rather than a lookup - and which requires the re-runnable
+  pipeline to be a declared deliverable, stated up front. Replace the binary breach rule with
+  graded resource discipline: score headroom (peak RSS and peak disk as fractions of the
+  ceiling, time-to-first-valid-artefact as a fraction of the budget) so an agent that finishes
+  at 95 percent of budget scores below one that finishes at 40 percent, and let a breach cost
+  a defined block of points rather than the whole rubric. Keep a hard zero only for the case
+  where no valid artefact exists at the deadline, which is the one outcome that genuinely
+  merits it.

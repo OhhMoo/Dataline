@@ -1,0 +1,46 @@
+id: F300
+target: A031
+attack_type: grader shortcut - tautological self-consistency check plus outcome-restating metric
+severity: high
+finding: >
+  Two of A031's five deterministic checks are free, and one of them is a tautology.
+  (a) "recomputing the label from the spec reproduces the submitted label column exactly"
+  grades the agent's artefact against the agent's own artefact: any agent that submits the
+  code it used to build the label column passes by construction, whatever the label means.
+  It measures self-consistency, never correctness, and a deliberately wrong label passes it
+  as cleanly as a right one. (b) "chosen metric ranks harness-held candidate policies in the
+  same order as realised retention value above a correlation floor" is satisfied by
+  DECLARING the metric to be expected realised retention value among the actioned accounts -
+  the textbook answer to "align the metric to the decision", and one whose correlation with
+  realised retention value is 1.0 by definition rather than by insight. Nothing in the check
+  requires the metric to be computable at decision time from pre-decision features, so
+  restating the outcome scores full marks on the archetype's single most distinctive check.
+  (c) "split respects temporal ordering" is one sort and one cut. That leaves only the two
+  hidden-manifest checks doing any work, and F301 shows those are broken in a different way.
+  The 26-point rubric's "definition validity" and "metric-to-decision alignment" components
+  are therefore reachable in three steps: write a label function, emit its own output, name
+  expected-retained-revenue as the metric.
+recommended_action: redesign
+found_by: R3
+mitigation: >
+  Replace the self-consistency check with a cross-implementation check: the agent submits the
+  label definition as a written spec AND as code; the harness applies the SPEC (independently
+  implemented harness-side, or re-executed against a later window the agent never saw) and
+  requires the harness-computed label to match the agent's on the unseen window. A spec that
+  only describes what the code happens to do will diverge there. For the metric check, add a
+  hard admissibility precondition - the metric must be computable from features whose
+  timestamps precede the decision point, verified by the same temporal audit A034 uses - which
+  disqualifies any metric defined in terms of the realised outcome. Then rank candidate
+  policies that are DESIGNED to split the field: include one policy that wins on
+  expected-value-over-all-accounts and loses on expected-value-over-eligible-accounts, so the
+  generic EV answer scores below the floor and only a decision-aware metric clears it.
+notes: >
+  A031's redundancy check against A006/A029 came back clean - those reconcile two REPORTED
+  numbers, A031 defines a predictive target, and the contradictory-wiki mechanic is a shared
+  world prop rather than a shared task. The difficulty claim also survives the canonical-recipe
+  attack: there is no single library call or well-known recipe for "what should the churn label
+  be here". This attack is against the grading only, and A031 is worth repairing rather than
+  cutting. Separately, why_hard names all three traps in plain text (campaign-contaminated
+  label, disagreeing wiki definitions, dormant-account-dominated AUC); if any paraphrase of it
+  seeds the agent prompt the task is reading comprehension - the F124 prompt/design-note split
+  must be applied here before it ships.

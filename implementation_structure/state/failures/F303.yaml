@@ -1,0 +1,38 @@
+id: F303
+target: A032
+attack_type: self-contradictory deterministic checks - correct solutions score zero
+severity: high
+finding: >
+  Two of A032's checks contradict the archetype's own text.
+  (1) why_hard states "per-site calibration is required", while deterministic check 5 states
+  "model artefact unchanged: retraining or weight modification scores zero on this check".
+  Per-site calibration - Platt scaling, isotonic regression, a per-site intercept shift - IS a
+  weight modification and produces a modified artefact under any ordinary reading. An agent
+  that does the thing the archetype says is required can be zeroed by the check that is
+  supposed to punish retraining. The distinction the author wants (recalibration is fine,
+  refitting the decision function is not) is never drawn, so the check is a coin flip on
+  grader interpretation for the most defensible solution class.
+  (2) The failure mode "tunes thresholds directly on the evaluation set and reports the fitted
+  numbers" is structurally impossible in the world as specified: the grading section says the
+  evaluation population is harness-held and attached read-only at scoring time only, so the
+  agent cannot see it to fit it. The anti-overfit check therefore tests a behaviour that cannot
+  occur. If instead the scored population IS agent-visible - which it must be, since thresholds
+  cannot be chosen without it - then selecting thresholds on the data you have is the correct
+  and only possible procedure, and "thresholds are not test-set-optimal: degradation on a
+  second harness-held split stays within tolerance" punishes an agent for the ordinary
+  statistical fact that a threshold fitted on a finite sample degrades out of sample. The
+  check is also cheaply defeated in the direction it cares about: any agent can shrink or round
+  its thresholds toward the population quantile and pass, so it catches only crude overfitting
+  while taxing honest work at small sites where sampling noise is largest.
+recommended_action: redesign
+found_by: R3
+mitigation: >
+  Replace "model artefact unchanged" with a rank-preservation check: within each site, the
+  Spearman correlation between the submitted decision scores and the original model's scores
+  must equal 1. That permits any monotone recalibration (which is what the task wants) and
+  forbids refitting the model (which changes the within-site ranking), and it is mechanical
+  rather than interpretive. Delete the test-optimality heuristic and price overfitting through
+  generalisation instead: evaluate the submitted thresholds on a strictly LATER time slice
+  than anything the agent could see, and grade constraint satisfaction there. Make the recall
+  floor and volume ceiling checks dense rather than binary (distance-to-constraint scoring per
+  site), so a small-sample miss at one site costs proportionally instead of zeroing the axis.

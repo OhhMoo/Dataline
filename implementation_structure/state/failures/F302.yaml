@@ -1,0 +1,34 @@
+id: F302
+target: A032
+attack_type: difficulty collapse - the alert budget has a closed-form solution
+severity: high
+finding: >
+  A032's constraint set determines its own answer. A per-site, per-shift alert-volume ceiling
+  C over a site with n scored records per shift fixes the threshold exactly: take the
+  (1 - C/n) quantile of that site's score distribution. That is one GROUP BY plus one quantile
+  per site, and it is simultaneously the volume-optimal and the recall-optimal point under the
+  ceiling, because recall is monotone in alert count. A frontier model reaches submitted
+  per-site thresholds in three steps - compute per-site score quantiles at the budget, check
+  recall against the floor, report - with no diagnosis of base-rate heterogeneity required at
+  any point. The "discover that the constraints are jointly unsatisfiable at a single global
+  threshold" insight that why_hard sells is not on the critical path: the agent never has a
+  reason to try a global threshold, because the task hands it a per-site budget. Two further
+  checks are free riders on that same computation: "submitted analysis identifies base-rate
+  divergence across sites (hidden per-site prevalence manifest match)" is one GROUP BY over
+  the labelled history and the agent simply reports the numbers it already computed, and
+  "model artefact unchanged" is satisfied by not touching a file. The 20-40h estimate does not
+  survive: this is an afternoon.
+recommended_action: redesign
+found_by: R3
+mitigation: >
+  Break the closed form by making the binding constraint differ by site and by making the
+  quantile estimate wrong. (a) Set the budget non-binding at two sites and the recall floor
+  binding there, so the budget-filling quantile is the wrong answer at half the sites and the
+  agent must find the feasible region rather than its boundary. (b) Share responder capacity
+  across sites and shifts, so per-site ceilings are coupled and cannot be solved independently
+  - an allocation problem, not five quantiles. (c) Make the score distribution non-stationary
+  across shifts (night shift skews low) so a threshold fitted on the pooled history breaches
+  the ceiling on specific shifts; grade volume per shift, not on average. (d) Require a
+  submitted feasibility analysis per site and penalise any site where a feasible point existed
+  and was not found, so "declare it infeasible" is not a safe fallback. Only then does the
+  global-vs-per-site reasoning become load-bearing.

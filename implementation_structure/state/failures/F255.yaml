@@ -1,0 +1,30 @@
+id: F255
+target: A033
+attack_type: resource_footprint
+severity: medium
+finding: >
+  A033 makes re-execution part of grading - "the harness executes the agent's rebuilt pipeline
+  twice in fresh containers from a clean checkout" - and its notes call that check "unusually
+  cheap". Against this project's own economics that claim is unsupported. S438 puts a typical
+  agent trial at under 20 minutes and S439 puts the tail at two hours. A033's graded artefact
+  is a rebuilt TRAINING pipeline, so the two verification runs cost roughly two more
+  executions of the single most expensive thing the agent built, plus two fresh spin-ups of a
+  world whose REQUIRED surfaces per the F2 spec are a warehouse, dbt, Airflow, a BI mock, a
+  wiki and git. Verification can therefore approach or exceed the cost of the episode it
+  verifies, and it lands on the wrong side of the ledger: S407 prices the lifetime RL compute
+  of a single task at about $2,400 assuming group size 64 and five reuses, which means the
+  verifier runs on the order of 320 times per task lifetime, not once. The same shape recurs
+  across the DS axis - A034 scores a reference baseline per submission, A035 runs a full
+  permutation re-scoring pass - so these five archetypes carry a verifier cost multiplier that
+  no DE or analytics archetype in the corpus carries, and that nothing in the corpus has
+  costed.
+recommended_action: annotate
+mitigation: >
+  Keep the double run - A033 is right that it is the only check which actually tests the
+  property - but scope it. Run the rebuilt pipeline twice over a deliberately small graded
+  subsample under a declared per-run wall-clock cap, inside a stripped verification image
+  carrying only the pinned ML runtime and the declared input files rather than the full
+  multi-surface world. Separately, produce a per-rollout cost estimate for the DS axis before
+  any of these five archetypes are priced or promised to a lab, because the verifier
+  multiplier is the number a buyer running RL at scale will ask about first.
+found_by: R2

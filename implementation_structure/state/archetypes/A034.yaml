@@ -60,6 +60,16 @@ derived_from:
   - S109
   - S111
 produced_by: lead-agent-ds-gap-closure
+attacks:
+  - F202
+  - F203
+  - F206
+  - F306
+  - F307
+  - F308
+  - F252
+  - F254
+  - F256
 notes: >
   NOT blind-generated - authored by the lead agent to close the DS coverage gap; needs
   red-teaming before it counts as derived. Deliberately overlaps A012 (leakage audit) only at

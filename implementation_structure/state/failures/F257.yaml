@@ -1,0 +1,41 @@
+id: F257
+target: A035
+attack_type: resource_footprint
+severity: high
+finding: >
+  A035's difficulty depends on a RAM ceiling low enough that "naive loading kills the process"
+  and a disk quota low enough that "naive caching fills the disk", inside a container that
+  must simultaneously host the world. Those two requirements collide with the world this
+  project has specified. Per the F2 environment spec the REQUIRED surfaces are a warehouse, a
+  dbt project, Airflow, a BI mock, a docs wiki and git; Airflow alone publishes a hard floor
+  well above the whole reference session budget - "You should allocate at least 4GB memory for
+  the Docker Engine (ideally 8GB)"
+  (https://airflow.apache.org/docs/apache-airflow/stable/howto/docker-compose/index.html) -
+  before a single row of world data or one byte of model training exists. Against the
+  reference RL packaging footprint of roughly 1 CPU and 2 GB per session, the base world is
+  already over budget, so there is no headroom in which an out-of-core training workload can
+  be made to fail informatively. Two bad outcomes follow. If the ceiling is set to make naive
+  loading fatal, it is below what the base surfaces need and the world will not start. If the
+  ceiling is set above what the base surfaces need, the dataset has to be scaled up until
+  naive loading is fatal at that much larger ceiling, at which point the agent is doing real
+  out-of-core work on a large corpus inside an episode that S438 anchors at under 20 minutes
+  and S439 caps at two hours in the tail. The archetype also claims to be "the cheapest
+  archetype in the corpus to build", which is the opposite of true on the runtime axis: it is
+  the only archetype whose difficulty is a function of the resource envelope, so it is the one
+  that constrains the whole packaging.
+recommended_action: redesign
+mitigation: >
+  Decouple the graded container from the world container. A035 does not need Airflow, a BI
+  mock or a wiki - its own apps_touched list is only notebook, warehouse and git - so run it
+  as a deliberately minimal image (pinned ML runtime, DuckDB file, git) with an explicitly
+  stated and much smaller ceiling, and keep the multi-surface world out of the budget. Then
+  state the three numbers concretely in the archetype: RAM ceiling, disk quota, wall-clock
+  budget, plus the dataset size that makes naive loading fatal at that ceiling, and show the
+  arithmetic that the intended failure fires and the intended solution fits. Until those four
+  numbers exist and are consistent with each other and with the session footprint, A035 is a
+  description of a resource task rather than a specification of one.
+found_by: R2
+notes: >
+  The Airflow memory figure above is quoted from the vendor docs and needs its own S-record in
+  state/knowledge before it is cited as an established fact elsewhere; it is used here as the
+  order-of-magnitude anchor for the collision, not as a settled corpus number.

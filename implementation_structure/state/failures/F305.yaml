@@ -1,0 +1,37 @@
+id: F305
+target: A033
+attack_type: grader shortcut - clean-room rewrite passes four of five checks with zero forensics
+severity: high
+finding: >
+  This is the cheapest exploit in the A031-A035 batch. A033's brief instructs the agent to
+  "rebuild the work as a pipeline", so a from-scratch rewrite is explicitly legal - and a
+  from-scratch rewrite satisfies four of the five deterministic checks without ever opening
+  the broken notebook. Step 1: read the source tables directly and write a fresh, ordinary
+  training script with a pinned seed, PYTHONHASHSEED fixed, single-threaded, preprocessing
+  inside a scikit-learn Pipeline. That alone passes "two clean-room container runs produce
+  identical reported metrics" (determinism is a property the agent CONTROLS, not one it has to
+  earn by diagnosis) and "split-integrity probe: preprocessing refit per fold" (a Pipeline
+  inside cross_val_score does this by default). Step 2: the "reads no file outside its declared
+  input manifest" check is a self-declaration - the agent writes the manifest, so it lists
+  whatever it reads and the audit passes tautologically; it is the same shape of free check as
+  A031's label self-consistency test. Step 3: the honest metric from a clean rebuild lands in
+  the harness-held honest band by construction, because a clean rebuild is what defines that
+  band. The only check that requires actual work is the cause manifest match, and F306 shows
+  that one is defeated by a public checklist. Two of the four expected failure modes
+  ("reproduces the committed number by reconstructing the bug", "fixes the out-of-order
+  execution but leaves preprocessing fit outside the split") presume the agent repairs the
+  notebook in place, which no competent solver will do. The 15-30h claim describes a forensic
+  investigation the grader never requires; the graded path is 2-4 hours.
+recommended_action: redesign
+found_by: R3
+mitigation: >
+  Grade attribution by DEFECT REPLAY rather than by naming. For each cause the agent claims,
+  it must ship a toggle that reintroduces that defect alone into its rebuilt pipeline; the
+  harness flips each toggle and measures the metric delta against the hidden per-defect
+  contribution. A cause you did not localise produces the wrong delta, so a checklist dump
+  earns nothing and a clean rewrite earns nothing, while a real diagnosis reproduces the
+  committed number as the sum of its parts. Make the toggles the load-bearing rubric component.
+  Independently, kill the self-declared input manifest: the harness, not the agent, declares
+  the legal input set at task-build time, and the filesystem audit runs against THAT. Also
+  require the rebuilt pipeline to reproduce the COMMITTED number when all toggles are on,
+  which is impossible without understanding the original defects.

@@ -1,0 +1,46 @@
+id: F206
+target: A035
+attack_type: E4-violation-risk / public-dataset-dependence-unstated
+severity: medium
+finding: >
+  E4 forbids public datasets as world data, and A031 and A032 both state a synthetic-domain
+  commitment in their notes. A033, A034 and A035 state nothing about data provenance at all, and
+  two of them have structural pull toward public data. A035 is the acute case: it requires a
+  dataset that does not fit in a fixed RAM ceiling AND a stated performance floor that a real
+  model must clear, which means the world needs both scale and genuine learnable signal - and the
+  archetype simultaneously advertises itself as "the cheapest archetype in the corpus to build".
+  Those three properties together are only cheap if someone reaches for a large public tabular
+  dataset, which is exactly the failure E4 exists to prevent. The archetype also imports, from
+  S103, an anti-memorisation permutation probe; S103's rule exists BECAUSE MLE-bench's underlying
+  data was public and recallable. Importing the mitigation for public data while saying nothing
+  about using synthetic data is a tell that the design was reasoned in Kaggle terms - and the
+  submission contract it specifies (a CSV artefact validated on row count, id coverage, dtype and
+  range against a declared schema, scored against a floor) is the Kaggle sample-submission
+  contract restated. A034 carries a subtler version: the S102 equivalence method it grades
+  presupposes a real dataset whose original labels existed and were lost, so under synthetic data
+  the harness holds the true generative process, the equivalence check becomes exactly computable
+  rather than an inference, and the task's epistemics change - which the archetype has not
+  reckoned with. A033 needs only a small notebook world and is low risk, but should still say so.
+recommended_action: annotate
+found_by: R1
+also_applies_to:
+  - A033
+  - A034
+mitigation: >
+  Require every archetype to carry an explicit data_provenance line, and fail G0 without one.
+  For A035 specifically, the cheap-to-build claim must be re-costed against synthesis: a
+  larger-than-RAM synthetic table with a signal strong enough to support a meaningful performance
+  floor is a generator design problem, not a free win, and the floor must be calibrated against a
+  harness-held reference model trained on the same synthetic distribution rather than against any
+  public leaderboard. For A034, state whether the "original" split is synthetic-with-known-process
+  (in which case say what the equivalence check is really testing, since the harness can compute
+  the answer exactly) or reconstructed from a world whose generative parameters are deliberately
+  withheld from the grader.
+notes: >
+  Filed as annotate rather than withdraw because nothing here is yet a violation - it is an
+  unstated commitment in three of five files, in a batch that was not blind-generated and so never
+  had a second reader. A035 is the archetype I tried hardest to break on contamination grounds and
+  could not: knowing how to chunk, downcast and checkpoint is extremely well published, but A035
+  grades whether the agent DOES it under pressure, and S105/S106 are direct evidence that agents
+  which certainly possess that knowledge still fail the behaviour. Recall does not help you there.
+  This provenance gap is the only leakage-family finding that lands on it.

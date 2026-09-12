@@ -60,6 +60,15 @@ derived_from:
   - S106
   - S121
 produced_by: lead-agent-ds-gap-closure
+attacks:
+  - F202
+  - F204
+  - F206
+  - F305
+  - F306
+  - F252
+  - F254
+  - F255
 notes: >
   NOT blind-generated - authored by the lead agent to close the DS coverage gap; needs
   red-teaming before it counts as derived. The double-clean-room-run check is unusually

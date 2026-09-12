@@ -1,0 +1,38 @@
+id: F204
+target: A033
+attack_type: widely-blogged-checklist / planted-defects-are-the-canonical-list
+severity: high
+finding: >
+  A033's four planted defects are, in order, the four canonical items of the published
+  notebook-reproducibility literature: out-of-order cell execution leaving hidden kernel state,
+  a stale input file overwritten upstream, preprocessing fit before the split rather than inside
+  it, and an unpinned random seed. This is not an obscure combination - it is the standard list
+  in the empirical notebook-reproducibility studies, in every "rules for reproducible notebooks"
+  post, and in the restart-and-run-all advice that ships with Jupyter's own documentation. A
+  frontier model asked "why does this notebook not reproduce" produces that list as a prior, and
+  three of the four are then confirmable at grep scale: non-monotonic execution_count in the
+  .ipynb, absence of any seed/random_state, and a fit() call textually before the split. Only the
+  stale-CSV defect requires investigation. Since `grading` awards per-cause credit against the
+  hidden manifest, a checklist recitation plus three cheap confirmations collects most of the
+  cause-attribution points without the diagnosis the task exists to measure. The sharpest version
+  of this: A033 cites S121 in its own why_hard for the proposition that "production ML pipeline
+  bugs form a long tail with almost no overlap between practitioners, so pattern-matching one
+  known bug does not generalise" - and then plants the four most-shared bugs in existence. The
+  archetype contradicts the source it invokes to justify itself.
+recommended_action: redesign
+found_by: R1
+mitigation: >
+  Honour S121: replace at least two of the four with bespoke defects that no checklist contains
+  and that share the same observable (the number does not reproduce). Candidates in the S121
+  register: a corrupted imputation constant, a JSON/parquet column silently dropping half its
+  keys after an upstream schema change, a locale- or dtype-dependent parse that differs between
+  the original run and the clean container, a library minor-version behaviour change pinned
+  nowhere. Keep at most one checklist defect as the decoy that rewards the prior and does not
+  close the gap - which is already A033's best idea, stated in its first expected failure mode.
+  Additionally, weight the rubric toward the EVIDENCE for which of the two numbers is correct
+  rather than toward cause enumeration, since the enumeration is the recallable half.
+notes: >
+  The double-clean-room re-execution check is genuinely strong and not contaminated - an agent
+  cannot recall its way past having its artefact run twice. The leak is confined to the
+  cause-attribution points. Downgrading those and keeping the re-execution check would salvage
+  most of the archetype without a full rebuild.

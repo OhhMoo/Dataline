@@ -1,0 +1,58 @@
+id: F254
+target: A033
+attack_type: non_determinism_unachievable_gate
+severity: high
+finding: >
+  A033 sets its acceptance bar at bitwise identity - "rebuild the work as a pipeline that
+  reproduces bitwise across two clean-room runs", "two independent runs agreeing exactly on a
+  pinned seed, not agreeing approximately" - and makes it a deterministic check: "two
+  clean-room container runs of the rebuilt pipeline produce identical reported metrics". That
+  bar is not achievable under the execution model this project has adopted, and the project's
+  determinism contract does not even name the mechanisms that break it. Measured directly on
+  CPython 3.11.15, numpy 2.4.6 on scipy-openblas, scikit-learn 1.9.0, with identical seed,
+  identical data and identical code, varying only thread-count environment variables: a
+  1500x1500 float64 GEMM hashes to f3c892148e69ae1e at OMP_NUM_THREADS=1 and to
+  82348790fa313a48 at 8, and a sklearn Ridge(solver=cholesky) fit on 60000x400 produces
+  coefficients hashing to b472aaa464c22001 at 1 thread and 8fc79d2d3e1d6c41 at 8. Separately,
+  PYTHONHASHSEED changes set-iteration order, so any pipeline deriving a feature ORDER from a
+  Python set silently reorders its design matrix between runs. Thread count is the killer
+  because it is not under the task author's control by default: OpenMP sizes its pool from
+  detected cores, which inside a container reflects the host and whatever CPU quota that
+  container received, and S300 records that Harbor "runs thousands of environments in parallel
+  on cloud sandbox providers" - precisely the setting in which two clean rooms see different
+  effective core counts. The F2 determinism contract D1-D5 covers seeded RNG, virtual clock,
+  event log, warehouse file hash and no-cloud, and says nothing about floating-point reduction
+  order, BLAS threading, hash seed, or CPU-microarchitecture kernel dispatch. As written,
+  A033's headline check measures the scheduler rather than the agent: a correctly repaired
+  pipeline fails whenever the second clean room was allocated a different number of cores.
+recommended_action: redesign
+mitigation: >
+  Deterministic grading of training tasks IS achievable, but only by pinning the numerical
+  environment as part of the world image and by grading a declared precision rather than raw
+  bytes. Add a sixth determinism clause D6 to the F2 contract: pin OMP_NUM_THREADS,
+  OPENBLAS_NUM_THREADS and MKL_NUM_THREADS to 1 in the image environment; pin PYTHONHASHSEED;
+  pin exact library versions and the BLAS build, and fix CPU dispatch (OPENBLAS_CORETYPE) so
+  the same kernels are selected on every host; forbid GPU entirely for graded training, since
+  cuDNN autotuning and atomic reduction order are non-reproducible by design and no
+  hardware homogeneity can be assumed on the lab side; and require the agent to report metrics
+  at a declared rounding precision, with the check comparing the rounded reported value plus a
+  hash of the PREDICTION VECTOR rather than a hash of the fitted model object. Under those
+  pins the divergence collapses: a companion probe holding threads fixed at 1, 4 and 8 across
+  LogisticRegression, HistGradientBoostingClassifier, LightGBM and a torch SGD loop produced
+  byte-identical coefficients, predictions, AUCs and losses at every thread count, which is
+  what makes the pinned path credible rather than merely hoped for. Until D6 exists, A033
+  should state a tolerance-based bar and drop the word bitwise.
+also_applies_to:
+  - A034
+  - A035
+found_by: R2
+notes: >
+  Scoped to A034 and A035 because both re-execute or re-score model code at grading time and
+  inherit the same exposure. A034's equivalence check scores a harness-held reference baseline
+  on the agent's reconstructed split and compares it against its score on a clean reference
+  split "within tolerance", and A035's permutation probe re-scores the agent's pipeline on
+  permuted inputs and asks whether predictions "degrade". Both compare two numbers produced by
+  separate executions, so neither tolerance is meaningful until D6 exists. A034's case is the
+  milder one because it already says "within tolerance" rather than bitwise; A035's is the
+  sharper one because run-to-run variance is directly confounded with the degradation signal
+  the probe is trying to read.

@@ -1,0 +1,43 @@
+id: F203
+target: A034
+attack_type: public-benchmark-resemblance / published-methodology-recall
+severity: high
+finding: >
+  A034 grades an agent on executing a procedure that is published twice over, and its
+  existing_coverage says so proudly: "MLE-bench performed this reconstruction as
+  benchmark-construction work (S101, S102) ... Turning their own methodology into a graded task
+  is a defensible and distinctive position." Two contamination problems follow. (1) The
+  distinctive graded step - prove the reconstructed holdout is distributionally equivalent by
+  scoring a known baseline on both sets - is quoted verbatim in S102 from a paper that is not
+  only in training data but whose implementation is open source at github.com/openai/mle-bench,
+  including the per-competition prepare scripts that cut exactly these splits and the grading
+  code that scores them. The step the archetype calls the hard part is a recalled recipe with a
+  public reference implementation. (2) The three planted defects - near-duplicate entities
+  straddling the boundary, a random split over a time-ordered process, and test rows used during
+  feature selection - are three rows of the Kapoor and Narayanan leakage taxonomy that the
+  corpus itself cites as S111/S112, a paper whose contribution is an eight-type taxonomy plus a
+  "model info sheet" checklist designed precisely so that a reader can enumerate these defects
+  without discovering them. An agent can emit the complete defect list from checklist recall
+  before reading the world, then confirm each one cheaply (fuzzy-key duplicate scan, timestamp
+  min/max across the split, grep the feature-selection script for the full frame), and the
+  per-defect credit pays out in full. The aggravating factor is commercial: this environment is
+  sold to frontier labs, and the lab whose own benchmark methodology is being graded here will
+  have the strongest prior of anyone.
+recommended_action: redesign
+found_by: R1
+mitigation: >
+  Keep the reconstruction, kill the recall. (a) At least one of the planted defects must sit
+  outside the published taxonomy and outside the model-info-sheet checklist - e.g. a
+  reconstruction-time defect that only appears in the agent's own rebuild, such as a stratifying
+  key that is itself post-outcome, so the checklist finds nothing and the agent must reason about
+  the artefact it just made. (b) Make the equivalence proof underdetermined: the S102 recipe
+  assumes a known baseline exists; withhold it and require the agent to argue which baseline is
+  admissible, which the paper does not answer. (c) Drop the existing_coverage framing that the
+  value is in reusing MLE-bench's methodology - that is precisely the property that makes it
+  recallable - and reframe the novelty as the constructive rebuild plus the honest re-report.
+  (d) Run the S109 obfuscation audit on this archetype specifically before it ships.
+notes: >
+  Also worth noting against E4: the S102 method presupposes a real dataset whose original labels
+  existed and were lost. Under synthetic world data the harness holds the true generative
+  process, so "prove the reconstruction is equivalent" can be checked exactly and the epistemics
+  of the task change character - see F206.

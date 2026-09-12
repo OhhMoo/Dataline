@@ -1,0 +1,29 @@
+id: F256
+target: A034
+attack_type: grading_machinery_cannot_exist
+severity: medium
+finding: >
+  A034 lists "zero entity overlap between reconstructed train and test under fuzzy key
+  matching" as a DETERMINISTIC check. Fuzzy matching is not a deterministic property, it is a
+  function of an algorithm and a threshold - edit distance versus token-set versus phonetic,
+  and where the cutoff sits. The pass/fail boundary therefore depends on a harness
+  hyperparameter the agent cannot see and that has no principled correct value, and small
+  changes to it move submissions across the line. Worse, the check is unnecessary by
+  construction: in a synthetic world (E4) the generator MINTED the near-duplicate records and
+  knows exactly which surface keys denote the same underlying entity, so an exact
+  entity-identity manifest is available for free. A034 chose the approximate, tunable,
+  arguable form of a check for which an exact form already exists inside the generator's own
+  state. The same substitution is available wherever else the archetype leans on approximate
+  identity; the temporal-ordering check and the per-defect manifest match are already exact and
+  are unaffected.
+recommended_action: redesign
+mitigation: >
+  Replace the fuzzy matcher with a generator-held entity-identity manifest: every synthesised
+  record carries a hidden true_entity_id, the duplicate-straddle defect is injected by
+  emitting one entity under two surface keys, and the check becomes an exact set intersection
+  on true_entity_id between the agent's train and test partitions. Deterministic, zero
+  tunables, and strictly stronger, because it also catches duplicate pairs that a fuzzy
+  matcher would miss. This does not make the task easier - the agent still has no access to
+  true_entity_id and must find the duplicates by its own means - it only makes the grader
+  exact.
+found_by: R2

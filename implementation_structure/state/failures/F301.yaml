@@ -1,0 +1,35 @@
+id: F301
+target: A031
+attack_type: unfair-or-trivial dilemma in hidden-rule property checks
+severity: high
+finding: >
+  A031 grades properties instead of an answer key, which is the right instinct, but two of the
+  properties are defined against rules the agent is explicitly not given. "cohort excludes
+  ineligible accounts per hidden eligibility rules" and "label contains no post-treatment
+  variable: zero overlap with hidden intervention manifest" both face the same dilemma. If the
+  eligibility rules and the campaign roster are fully derivable from world data, both checks
+  are single joins against the campaign and entitlement tables and carry no difficulty. If
+  they are genuinely hidden - as the word "hidden" states - then a correct, well-argued cohort
+  built from the evidence actually present in the world fails a check it had no way to target,
+  and the grader is scoring the agent's luck at guessing an unstated business rule. Eligibility
+  for a retention offer is a business rule, not a secret; there is no coherent world in which
+  the analyst is expected to honour it and forbidden to read it.
+  Worse, the contamination check has a degenerate optimum. "Zero overlap with the intervention
+  manifest" is guaranteed by dropping every account the retention campaign touched. That is one
+  filter, it maxes the contamination-avoidance rubric axis, and it is a bad analysis - it
+  removes exactly the treated population whose risk the model is supposed to estimate and
+  leaves a cohort that no longer represents the decision. The check rewards the most
+  conservative move available rather than the correct handling of post-treatment bias.
+recommended_action: redesign
+found_by: R3
+mitigation: >
+  Publish the eligibility rules in-world (a governance page plus the entitlement table) and
+  stop grading them as a recall-only exclusion. Score the cohort as a precision/recall pair
+  against the harness eligibility set, with an explicit penalty for excluding ELIGIBLE
+  accounts, so blanket over-exclusion nets negative and only a correctly scoped cohort clears
+  both sides. Replace the set-overlap contamination check with a behavioural one: fit the
+  agent's declared label definition on a harness-held PRE-campaign window and verify that the
+  resulting top-k risk set does not concentrate on campaign-targeted accounts above a chance
+  band. That test cannot be passed by deleting the treated population, and it fails precisely
+  the agent whose label encodes the intervention - the failure the archetype actually cares
+  about.

@@ -59,6 +59,8 @@ derived_from:
   - S120
   - S124
 produced_by: S2-job-specs
+attacks:
+  - F307
 notes: >
   Frequency signal only: notebook-first DS work with warehouse feature tables
   (S521, S503) and git review (S523) is the standard job-specification profile;

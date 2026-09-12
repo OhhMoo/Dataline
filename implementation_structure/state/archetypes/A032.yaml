@@ -59,6 +59,14 @@ derived_from:
   - S123
   - S118
 produced_by: lead-agent-ds-gap-closure
+attacks:
+  - F201
+  - F202
+  - F302
+  - F303
+  - F304
+  - F252
+  - F253
 notes: >
   NOT blind-generated - authored by the lead agent to close the DS coverage gap; the phase-3
   diversity property does not hold and it needs red-teaming before it counts as derived.

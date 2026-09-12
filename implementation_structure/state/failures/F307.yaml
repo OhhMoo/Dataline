@@ -1,0 +1,38 @@
+id: F307
+target: A034
+attack_type: redundancy - collapses into A012 for a strong solver
+severity: high
+finding: >
+  RULING: A034 and A012 are not distinct tasks. The author's stated distinction - A012 asks
+  whether a MODEL is leaking, A034 whether the EVALUATION is trustworthy - does not survive
+  contact with a solver, because the planted content is nearly the same catalogue and the
+  procedure is identical. A012 plants preprocessing and feature selection fit on the combined
+  train/test set, a temporal leak, and an outcome-encoding proxy feature. A034 plants test rows
+  used during feature selection, a random split over a time-ordered process, and near-duplicate
+  entities straddling the boundary. Two of three are the same mechanism under different
+  wording; the third is another entry from the same published leakage catalogue both cite.
+  Both are data_science on notebook plus warehouse, both are 20-40 human hours, both are 25
+  rubric points, both grade "final metric within reference honest-range band" in nearly
+  identical words, and both name "reports the old number / declines to report the lower one"
+  as a failure mode. A solver runs one procedure for both: sweep the leakage checklist over the
+  split and the pipeline, remove what it finds, re-cut a temporal split with entity dedup,
+  re-estimate, report a lower number. Nothing learned on one fails to transfer to the other.
+  The only genuinely additional element in A034 is the S102 baseline-equivalence calibration -
+  one extra step, and F308 shows that step is broken as specified. Two of a capped thirty
+  archetype slots are being spent on one lesson, and a lab that buys both gets a duplicate.
+recommended_action: redesign
+found_by: R3
+mitigation: >
+  Do not ship both as written. If A034 stays, it must stop being a leakage hunt: replace all
+  three planted defects with defects that are NOT in A012's catalogue and that are specific to
+  EVALUATION-SET construction rather than pipeline construction - a holdout whose class or
+  segment mix was silently resampled during the migration, a partially recovered label set
+  where a subset of labels was reconstructed by a heuristic and is systematically wrong, and a
+  test set whose entity population no longer covers a segment the model serves. Make the
+  equivalence proof and the honest restatement carry the majority of the 25 points, and grade
+  the reconstruction on distributional fidelity rather than on leak removal. If that reshaping
+  is not wanted, merge A034 into A012 as a second phase (audit the model, then discover the
+  holdout itself is untrustworthy and rebuild it), which yields one task that genuinely clears
+  the E5 tens-of-hours bar instead of two that share a spine.
+also_applies_to:
+  - A012

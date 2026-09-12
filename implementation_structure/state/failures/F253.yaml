@@ -1,0 +1,38 @@
+id: F253
+target: A032
+attack_type: internally_contradictory_check
+severity: high
+finding: >
+  A032's third deterministic check contradicts A032's own grading premise, and is
+  uncalibratable even if the contradiction is resolved. The premise: "the evaluation
+  population and the responder-action ground truth live outside the agent-visible catalog,
+  attached read-only at scoring time only". If that holds, the agent CANNOT tune thresholds on
+  the evaluation set, so the check "thresholds are not test-set-optimal" and the failure mode
+  "tunes thresholds directly on the evaluation set and reports the fitted numbers" both
+  describe an impossible action. One of the two statements must be wrong, and the archetype
+  does not say which. Second, independent of that: the check as stated ("degradation on a
+  second harness-held split stays within tolerance") has no power and no defined tolerance. An
+  agent that chooses excellent thresholds on its own legitimate validation data and an agent
+  that fitted the eval set produce degradation distributions that overlap heavily at any
+  realistic split size - the difference is a few points of sampling noise on per-site recall
+  computed over a site-level subsample. With no labelled corpus of honest-versus-cheating
+  submissions to calibrate against, any tolerance is arbitrary: set it tight and a correct
+  agent is scored zero by sampling noise, set it loose and it detects nothing. Because it can
+  fail a correct submission on a coin flip, it is not a deterministic check, it is a
+  stochastic penalty.
+recommended_action: redesign
+mitigation: >
+  Resolve the contradiction first. If the evaluation set is genuinely harness-held, delete the
+  check and the matching failure mode outright - the threat model is already closed by
+  construction, which is the stronger design. If the intent is that the agent gets a labelled
+  tuning set in-world and the harness holds a separate one, say so explicitly and replace the
+  statistical test with a mechanical one: require the agent to declare its tuning set, and
+  check deterministically that the declared thresholds are reproducible from that declared set
+  by a stated rule. That is an exact recomputation, not a hypothesis test.
+found_by: R2
+notes: >
+  A032's other four checks are sound and cheap - recomputing per-site precision, recall and
+  volume at submitted thresholds on a held set is pure arithmetic over a fixed score column,
+  fully deterministic, no training involved. A032 is the least broken of the five and the
+  closest to buildable, once the modelling surface from F252 exists and the model is shipped
+  as a frozen score column rather than as a live model.

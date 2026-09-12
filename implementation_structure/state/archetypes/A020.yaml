@@ -60,3 +60,4 @@ derived_from:
 produced_by: S3-benchmark-gaps
 attacks:
   - F102
+  - F304

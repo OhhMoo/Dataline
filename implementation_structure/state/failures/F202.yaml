@@ -1,0 +1,44 @@
+id: F202
+target: A032
+attack_type: answer-leakage-in-spec / no-agent-visible-boundary
+severity: high
+finding: >
+  The five new archetypes declare a harness-side boundary for GRADING REFERENCES ("the
+  definition manifest ... live outside the agent-visible catalog", per F121) but declare no
+  boundary at all for their own prose, and their prose is the natural source text for the task
+  brief. As written, description / why_hard / failure_modes_expected are an answer key.
+  A032 is the worst instance: the task is stated as "The agent must diagnose why", and the same
+  description then supplies the diagnosis in its last sentence - "The model itself is fine; the
+  threshold is a single global constant." why_hard supplies the conclusion ("they are jointly
+  unsatisfiable at any single global threshold, so per-site calibration is required") and the
+  trap ("Retraining does not help and is the attractive wrong move"), which together are three
+  of the four rubric axes named in `grading`. A033 is the second worst: why_hard enumerates all
+  four planted defects in order, and `grading` then awards "per-cause credit" for matching them
+  against a manifest the archetype has already printed. A034's why_hard names its three defects
+  and prescribes the equivalence check. A031's why_hard names the post-treatment contamination
+  and the dormant-segment metric trap; A035's failure_modes_expected lists the five resource
+  behaviours it scores. None of this is wrong in a design document - it is wrong that nothing in
+  the schema or the file separates design text from brief text, and the brief author's cheapest
+  path is to paraphrase `description`.
+recommended_action: annotate
+found_by: R1
+also_applies_to:
+  - A031
+  - A033
+  - A034
+  - A035
+mitigation: >
+  Add an explicit two-part split to every archetype, the same way `grading` already marks
+  harness-side material: an `agent_visible_brief` field containing only the stakeholder ask and
+  the observable symptom, and treat description/why_hard/failure_modes_expected as author-only
+  by convention, stated in the file. For A032 the brief is "responders are ignoring the score;
+  here is the alert budget and the policy floor; recommend a deployment change" with the
+  diagnosis sentence deleted. Then adopt the S109 audit as a standing check: paraphrase the
+  brief to strip design provenance and confirm scores do not move. A cheap mechanical gate is
+  available too - assert that no rubric-item keyword (threshold, retrain, per-site, seed,
+  temporal, duplicate) appears in the agent-visible brief of the archetype that grades it.
+notes: >
+  Filed as annotate rather than redesign because the task designs survive the fix; only the
+  visibility contract is missing. It becomes a redesign if a brief has already been drafted from
+  these fields. This is a corpus-wide defect of the lead-authored batch, plausibly because the
+  blind strategy agents wrote for a reader and the lead wrote for the record.

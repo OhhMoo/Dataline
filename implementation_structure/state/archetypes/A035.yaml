@@ -60,6 +60,16 @@ derived_from:
   - S106
   - S103
 produced_by: lead-agent-ds-gap-closure
+attacks:
+  - F202
+  - F206
+  - F309
+  - F310
+  - F252
+  - F254
+  - F257
+  - F258
+  - F259
 notes: >
   NOT blind-generated - authored by the lead agent to close the DS coverage gap; needs
   red-teaming before it counts as derived. Lowest human-hours estimate of the five new DS

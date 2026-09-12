@@ -1,0 +1,41 @@
+id: F308
+target: A034
+attack_type: grader shortcut plus un-targetable check - the equivalence test contradicts its own failure mode
+severity: high
+finding: >
+  A034's deterministic surface splits into checks that are free and one check the agent cannot
+  aim at.
+  Free: "zero entity overlap between reconstructed train and test under fuzzy key matching" and
+  "temporal ordering holds" fall out of a single standard action - make the test set the latest
+  contiguous time block, then drop from train any record that fuzzy-matches a test record.
+  Dropping is always permitted, so zero overlap is guaranteed by construction rather than
+  earned; one call to a record-linkage library plus connected components does it. The fuzzy
+  matcher is also unspecified, which is its own dilemma: if the harness publishes its matcher
+  and threshold the agent just runs the same one, and if it does not, a correct dedup under a
+  slightly different threshold fails a check it could not target.
+  Un-targetable: "harness-held reference baseline scores within tolerance on reconstructed vs
+  clean reference split" asks the agent to hit a number it is structurally forbidden to
+  measure, with an unstated tolerance, in one shot. Worse, it inverts the archetype's own
+  intent. The listed failure mode is "reconstructs a split that scores conveniently close to
+  the original number", but the highest-scoring strategy under this check is precisely to
+  engineer a split that reproduces a reference score - the grader pays for convergence to a
+  hidden number and then declares convergence to a number the failure mode. An agent
+  maximising expected points will tune split composition until a proxy baseline stabilises,
+  which is the cheating behaviour, and an agent that builds the most defensible split and
+  lands outside an unpublished tolerance is failed for honesty.
+recommended_action: redesign
+found_by: R3
+mitigation: >
+  Publish the equivalence protocol in-world and grade the agent on RUNNING it, not on hitting
+  a hidden target: ship the reference baseline model and the scoring harness as agent-visible
+  tools, require the agent to score that baseline on the original split, its reconstruction,
+  and a bootstrap of reconstructions, and grade whether the submitted equivalence argument is
+  internally valid - a stated tolerance, a confidence interval, and a conclusion consistent
+  with its own numbers. That prices the methodology, which is the thing worth grading, and
+  removes the guess-the-number lottery. Separately, grade the split on distributional fidelity
+  against a harness-held clean split using a published statistic (segment-mix and
+  time-coverage distances under a stated threshold) rather than on a baseline score, so an
+  agent cannot pass by reverse-engineering a metric value. Publish the fuzzy-matching
+  specification - the blocking keys and the similarity threshold - as a stated requirement,
+  and move the difficulty into which entities actually collide rather than into guessing the
+  matcher.

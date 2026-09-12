@@ -1,0 +1,27 @@
+id: F251
+target: A031
+attack_type: grading_machinery_cannot_exist
+severity: medium
+finding: >
+  A031 requires the harness to check that "recomputing the label from the spec reproduces the
+  submitted label column exactly". That presupposes the agent's cohort/label/metric
+  specification is MACHINE-EXECUTABLE, but nothing in A031, in the archetype corpus, or in the
+  F2 environment spec defines a submission language for it. The description asks the agent to
+  "define" and "justify" - natural-language and notebook work - while the grader needs
+  something it can run. Without a declared spec format the check has only two implementations,
+  both bad: an LLM judge re-deriving the label from prose, which breaks E7's split (this is
+  listed as a DETERMINISTIC check, not a judge axis) and is non-reproducible; or the harness
+  re-executing the agent's own notebook code, which makes the check tautological, since the
+  code that produced the label column trivially reproduces it. The same gap weakens the
+  contamination and eligibility checks, which are stated as operations over "the label" and
+  "the cohort" without saying in what artefact those are submitted.
+recommended_action: redesign
+mitigation: >
+  Fix a submission contract before this archetype is buildable: a small declarative spec file
+  (cohort predicate, label event plus observation window, split rule, metric name and
+  parameters) in a constrained schema the harness can evaluate against the warehouse, plus the
+  materialised label column. Then "recompute from spec and compare" is genuinely
+  deterministic and non-tautological, because the spec is evaluated by the harness rather
+  than by the agent's code. The prose justification remains, but as a judge axis, not as a
+  deterministic check.
+found_by: R2

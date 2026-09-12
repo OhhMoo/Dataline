@@ -1,0 +1,45 @@
+id: F201
+target: A032
+attack_type: training-data-leakage / famous-incident-derivation / solution-prior-contamination
+severity: high
+finding: >
+  A032's claim that it is "DELIBERATELY ABSTRACTED from the published clinical case behind
+  S113 ... no recognisable fingerprints" does not hold. Two separate leaks survive the
+  abstraction. (1) REGISTER: the abstraction renamed nouns but kept the source domain's
+  vocabulary. "Four sites", an alert-volume budget "per site per shift", "responders" and
+  "responder actions", a "recall floor set by policy", and a risk score the team it serves has
+  learned to ignore are the exact lexicon of the clinical early-warning-score and sepsis-alert
+  literature that S113 sits in. A hospital was renamed a site and a clinician a responder;
+  nothing structural moved. Any world text written from this description re-identifies the
+  Epic Sepsis Model family for a reader who has seen Wong et al. 2021, and the archetype
+  places no bar on the world carrying the incident's numeric fingerprints (AUC 0.63, 18 percent
+  of hospitalizations alerted, 67 percent of cases missed) which would make identification
+  instant. (2) SOLUTION PRIOR, which is the leak that actually matters. The abstraction removed
+  the identity but not the published answer. "A single global threshold fails across sites with
+  different base rates; validate and recalibrate per site against an alert budget; do not
+  retrain" is the standard, heavily published recommendation of the clinical-prediction-model
+  and alert-fatigue literature that followed S113, and the same recommendation appears in the
+  SOC alert-tuning literature behind the S123 90-percent statistic. A frontier model emits this
+  prescription as a first-response prior before it has looked at a single row. The archetype's
+  distinctive graded content - identify base-rate divergence, reject retraining, calibrate per
+  site - is therefore recall, not diagnosis. F101's lesson was that renaming the incident is not
+  enough when the fingerprint is mechanical; here the fingerprint is the remedy.
+recommended_action: redesign
+found_by: R1
+mitigation: >
+  Three changes, in order of value. (a) Make the per-site base rates NOT directly readable. As
+  written the agent is handed the scored population per site, so prevalence is a GROUP BY and
+  the prior does the rest. Instead force the base rates to be estimated under the label lag
+  S123 documents (outcomes arrive two-plus weeks late, responder actions are logged but
+  confirmations are not), so the graded step is a measurement the prior cannot supply.
+  (b) Break the register: no sites/shifts/responders/recall-floor lexicon, no clinical or
+  SOC-shaped world text, and an explicit ban on any S113 numeric appearing in world data.
+  (c) Add at least one constraint that the published playbook does not solve - e.g. a shared
+  responder pool across two sites so per-site thresholds are coupled and the naive per-site
+  recalibration violates the global budget - so that reciting the standard answer lands the
+  agent in a failure the rubric can see.
+notes: >
+  Verdict on the archetype's own abstraction claim: PARTIALLY TRUE AND MISLEADING AS WRITTEN.
+  The identity was abstracted; the mechanism was deliberately preserved (the note says so) and
+  the mechanism's published remedy came with it. The note should not assert "no recognisable
+  fingerprints" until (b) is enforced in the world text and (a) or (c) removes the free answer.

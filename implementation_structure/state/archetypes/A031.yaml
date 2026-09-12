@@ -62,6 +62,14 @@ derived_from:
   - S125
   - S108
 produced_by: lead-agent-ds-gap-closure
+attacks:
+  - F202
+  - F205
+  - F300
+  - F301
+  - F250
+  - F251
+  - F252
 notes: >
   NOT blind-generated - authored by the lead agent to close the DS coverage gap, so the
   phase-3 diversity property does not hold for this artifact. Must be red-teamed before it
