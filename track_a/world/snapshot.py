@@ -11,14 +11,34 @@ import io
 import tarfile
 from pathlib import Path
 
-from .hashing import file_hash, tree_hash, tree_items
+from .hashing import file_hash, tree_items
 
 DB = Path("var/warehouse/warehouse.duckdb")
+SCOPE = ("workspace", "var")  # episode state; build/ is host-specific metadata
+
+
+def _state_items(root: Path):
+    items = []
+    for sub in SCOPE:
+        items += [(f"{sub}/{rel}", data)
+                  for rel, data in tree_items(Path(root) / sub)]
+    return sorted(items, key=lambda t: t[0])
+
+
+def _state_hash(root: Path) -> str:
+    import hashlib
+    h = hashlib.sha256()
+    for rel, data in _state_items(root):
+        h.update(rel.encode())
+        h.update(b"\0")
+        h.update(data)
+        h.update(b"\0")
+    return h.hexdigest()
 
 
 def save(root: Path, out: Path) -> Path:
     with tarfile.open(out, "w") as tf:
-        for rel, data in tree_items(Path(root)):
+        for rel, data in _state_items(root):
             ti = tarfile.TarInfo(rel)
             ti.size = len(data)
             ti.mtime = 0
@@ -38,8 +58,8 @@ def restore(tar_path: Path, dest: Path) -> Path:
 
 
 def verify(root_a: Path, root_b: Path) -> bool:
-    """Restore gate: full tree and warehouse bytes must match exactly."""
-    return (tree_hash(Path(root_a)) == tree_hash(Path(root_b))
+    """Restore gate: episode-state tree and warehouse bytes must match exactly."""
+    return (_state_hash(Path(root_a)) == _state_hash(Path(root_b))
             and file_hash(Path(root_a) / DB) == file_hash(Path(root_b) / DB))
 
 

@@ -16,7 +16,6 @@ import importlib.metadata
 import json
 import os
 import re
-import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -70,13 +69,17 @@ group by order_date
 order by order_date
 """
 
+# NOTE: the duckdb catalog takes the file's stem ("warehouse"), which collides
+# with the `warehouse` schema — two-part references like warehouse.fct_revenue
+# are ambiguous. World content therefore uses three-part names, and Track B's
+# sql_* tools should ATTACH the file under a distinct alias (e.g. `wh`).
 DASHBOARD = {
     "dashboard": "revenue_daily",
     "panels": [
         {"name": "daily_revenue",
-         "sql": "select order_date, revenue from warehouse.fct_revenue order by order_date"},
+         "sql": "select order_date, revenue from warehouse.warehouse.fct_revenue order by order_date"},
         {"name": "total_revenue",
-         "sql": "select sum(revenue) as total_revenue from warehouse.fct_revenue"},
+         "sql": "select sum(revenue) as total_revenue from warehouse.warehouse.fct_revenue"},
     ],
 }
 
@@ -156,20 +159,23 @@ def _load_raw(workspace: Path, db_path: Path) -> None:
 
 
 def _dbt_build(workspace: Path, db_path: Path, build_dir: Path) -> None:
-    from dbt.cli.main import dbtRunner
-
     proj = workspace / "dbt_project"
     profiles = {"world_dbt": {"target": "dev", "outputs": {"dev": {
         "type": "duckdb", "path": str(db_path), "threads": 1}}}}
     # profiles carry an absolute path, so they live outside the fingerprinted
     # workspace (in build/) to keep workspace content root-location-independent.
     _write(build_dir / "profiles.yml", yaml.safe_dump(profiles))
-    res = dbtRunner().invoke(["build", "--quiet", "--project-dir", str(proj),
-                              "--profiles-dir", str(build_dir)])
-    if not res.success:
-        raise SystemExit(f"dbt build failed: {res.exception or res.result}")
-    shutil.rmtree(proj / "target", ignore_errors=True)
-    shutil.rmtree(proj / "logs", ignore_errors=True)
+    # subprocess, not dbtRunner: dbt's in-process adapter pool would keep the
+    # duckdb file locked after the build returns (and past snapshot/restore).
+    r = subprocess.run(
+        [sys.executable, "-c", "from dbt.cli.main import cli; cli()",
+         "build", "--quiet", "--project-dir", str(proj),
+         "--profiles-dir", str(build_dir),
+         "--target-path", str(build_dir / "target"),
+         "--log-path", str(build_dir / "logs")],
+        env={**os.environ, "PYTHONUTF8": "1"}, capture_output=True, text=True)
+    if r.returncode != 0:
+        raise SystemExit(f"dbt build failed:\n{r.stdout}\n{r.stderr}")
 
 
 def build(seed_path: Path, root: Path, lock_path: Path | None = None) -> Path:

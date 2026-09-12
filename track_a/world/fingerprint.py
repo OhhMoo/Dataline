@@ -27,6 +27,7 @@ SCHEMAS = ("raw", "staging", "warehouse")
 
 def _warehouse_hash(db_path: Path) -> dict:
     con = duckdb.connect(str(db_path), read_only=True)
+    catalog = db_path.stem  # duckdb names the catalog after the file stem
     tables = {}
     try:
         rows = con.execute(
@@ -41,7 +42,9 @@ def _warehouse_hash(db_path: Path) -> dict:
             h = hashlib.sha256()
             h.update(json_canon({"table": f"{schema}.{table}", "columns": cols}))
             order = ", ".join(f'"{c}"' for c, _ in cols)
-            cur = con.execute(f'select * from "{schema}"."{table}" order by {order}')
+            # three-part name: schema `warehouse` collides with the catalog name
+            cur = con.execute(
+                f'select * from "{catalog}"."{schema}"."{table}" order by {order}')
             for row in cur.fetchall():
                 h.update(json_canon([canon_value(c) for c in row]) + b"\n")
             tables[f"{schema}.{table}"] = h.hexdigest()

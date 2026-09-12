@@ -25,10 +25,12 @@ primary_cause:
   # accepted paraphrases - grade.py matches on these tokens, not exact strings
   accept_tokens:
     all_of:
-      - ["duplicate", "duplicated", "duplication", "doubled", "double-counted"]
+      # STEMS, not whole words: "duplicating" contains none of duplicate/
+      # duplicated/duplication, and the oracle's own wording used it.
+      - ["duplicat", "doubl", "twice", "two copies"]
       - ["fct_orders", "orders", "denominator"]
     any_of:
-      - ["append", "incremental", "retry", "re-run", "rerun", "backfill", "non-idempotent", "idempoten"]
+      - ["append", "incremental", "retr", "re-run", "rerun", "re-ran", "backfill", "idempoten"]
   reject_if_primary:
     - "revenue is wrong"
     - "fct_revenue"
