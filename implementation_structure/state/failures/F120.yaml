@@ -1,0 +1,25 @@
+id: F120
+target: A004
+attack_type: canonical-cause shortcut (single-query diagnosis)
+severity: high
+finding: >
+  A004's why_hard claims "nothing in any single system's logs names the chain", but
+  replication slots are a PRIMARY-side object: one query - SELECT slot_name, active,
+  restart_lsn, pg_wal_lsn_diff(pg_current_wal_lsn(), restart_lsn) FROM
+  pg_replication_slots - names the stalled Debezium slot and the retained WAL bytes
+  directly on the database that is filling. This is the canonical, training-data-saturated
+  answer to "Postgres disk full / WAL growing", and the project's own knowledge base
+  (S016 notes) admits the source page "gives the exact diagnostic query". A frontier model
+  will run this query within its first few actions; the promised cross-database/streaming/
+  scheduler multi-hop chain is optional color, not required work. The backup leg is
+  similarly one command (pg_dump --version vs server version) plus reading the cron mail
+  rejection. Deterministic checks themselves are robust (probe insert, data-dir invariant),
+  so this attacks the difficulty claim, not the grading.
+recommended_action: redesign
+found_by: R3
+mitigation: >
+  Make the slot state lie: the Debezium slot shows active=true because a zombie consumer
+  holds the connection but never confirms flush, and the actual bloat comes from a second,
+  forgotten slot with an opaque name (slot_7) left by a decommissioned experiment. Grade
+  that the agent verified the slot's consumer identity in connector configs before taking
+  action, and make the failing job log nothing useful (consumer dies with exit 0).

@@ -1,0 +1,22 @@
+id: F102
+target: A020
+attack_type: training-data-leakage / famous-incident-derivation
+severity: medium
+finding: >
+  A020 is derived from the Instacart COVID demand-shift story (S114, Fortune 2020, widely
+  re-told in ML-monitoring literature and vendor blogs) and the archetype description says
+  so out loud: "(the Instacart COVID pattern)". Worse, the deterministic grading hardcodes
+  the published remediation as the reference answer — "scoring schedule config diff
+  (e.g. 3-hourly -> hourly)" is literally the Instacart fix (3-hourly to hourly scoring,
+  multi-week window shrunk to ~10 days), and the "remediation class chosen (data regime vs
+  model swap)" rubric item is the story's famous moral. A model that recognizes the
+  narrative can name the correct remediation class and the target cadence without detecting
+  anything from world evidence.
+recommended_action: redesign
+found_by: R1
+notes: >
+  Keep the detect-decide-remediate-monitor loop (it is genuinely uncovered in prior art)
+  but de-correlate the answer key from the public story: randomize the pre/post scoring
+  cadence and window lengths away from 3-hourly/10-day, use a non-COVID demand-shock
+  narrative, and ensure no agent-visible or grader-adjacent text references Instacart,
+  COVID, or the Fortune article.

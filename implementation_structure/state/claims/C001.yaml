@@ -5,10 +5,11 @@ claim: >
   at a fake local URL, with per-connection isolated databases suitable for parallel RL
   rollouts. The E3 strategy for the Snowflake class is therefore an adoption decision
   (Apache-2.0), not a build decision.
-status: proposed
+status: attacked
 rq: RQ3
 proposed_by: S5-http-interception
 evidence:
   - S316
   - S500
-attacks: []
+attacks:
+  - F112

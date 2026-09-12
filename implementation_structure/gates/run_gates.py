@@ -63,6 +63,26 @@ def _strip_comment(line: str) -> str:
     return "".join(out).rstrip()
 
 
+def _parse_top_sequence(text: str) -> list[dict]:
+    """Parse a top-level `- key: val` sequence of flat mappings."""
+    items, cur = [], None
+    for raw in text.splitlines():
+        if not raw.strip() or raw.lstrip().startswith("#"):
+            continue
+        line = _strip_comment(raw).strip()
+        if not line:
+            continue
+        if line.startswith("- "):
+            cur = {}
+            items.append(cur)
+            line = line[2:].strip()
+        if cur is None or ":" not in line:
+            continue
+        k, _, v = line.partition(":")
+        cur[k.strip()] = v.strip().strip("\"'")
+    return items
+
+
 def load_yaml(path: Path) -> dict:
     """Tiny YAML reader for the flat docs this swarm writes.
 
@@ -71,6 +91,16 @@ def load_yaml(path: Path) -> dict:
     if you hit that, add pyyaml and swap this out.
     """
     text = path.read_text(encoding="utf-8")
+
+    # A file whose first real line is "- " is a top-level sequence. The indent-stack
+    # parser below assumes a mapping root and would silently return {}, so handle the
+    # sequence-of-mappings shape explicitly.
+    for _l in text.splitlines():
+        if _l.strip() and not _l.lstrip().startswith("#"):
+            if _l.lstrip().startswith("- "):
+                return {"_items": _parse_top_sequence(text)}
+            break
+
     root: dict = {}
     stack = [(-1, root)]
     lines = text.splitlines()
@@ -317,6 +347,23 @@ def gate3_coverage() -> Result:
                     r.fail(f"near-duplicate ({ratio:.2f}): "
                            f"{titles[i][0].name} vs {titles[j][0].name}")
 
+        # Title similarity alone misses archetypes that are worded differently but
+        # structurally identical. Same discipline + same apps + same rubric weight is
+        # a strong duplicate signal that slips under any string threshold.
+        def sig(d: dict):
+            return (d.get("discipline"),
+                    tuple(sorted(str(a) for a in (d.get("apps_touched") or []))),
+                    d.get("rubric_points"))
+        for i in range(len(arch)):
+            for j in range(i + 1, len(arch)):
+                si, sj = sig(arch[i][1]), sig(arch[j][1])
+                if si == sj and all(si):
+                    ratio = difflib.SequenceMatcher(
+                        None, titles[i][1], titles[j][1]).ratio()
+                    r.warn(f"structural duplicate: {arch[i][0].name} vs {arch[j][0].name} "
+                           f"share discipline+apps+rubric_points (title sim {ratio:.2f}) "
+                           f"- confirm they are distinct tasks")
+
         known_sources = {d.get("id") for _, d in artifacts("source")}
         for p, d in arch:
             df = d.get("derived_from") or []
@@ -348,6 +395,64 @@ def gate3_coverage() -> Result:
     return r
 
 
+def gate4_referential() -> Result:
+    """Attacks must be linked in BOTH directions.
+
+    The roles/README contract says every attack is written to its target's
+    `attacks:` list and to state/failures/. Nothing enforced that, so landed
+    attacks stayed invisible on the artifacts a later round reads -- which is
+    the most expensive possible thing to lose.
+    """
+    r = Result("G4", "attack referential integrity")
+
+    index: dict[str, tuple[Path, dict, str]] = {}
+    for kind in ("archetype", "claim", "tool", "source"):
+        for path, doc in artifacts(kind):
+            if doc.get("id"):
+                index[str(doc["id"])] = (path, doc, kind)
+
+    failures = [(p, d) for p, d in artifacts("failure") if "_items" not in d]
+    r.checked = len(failures)
+
+    for path, fdoc in failures:
+        fid, target = fdoc.get("id"), str(fdoc.get("target", ""))
+        if not fid or not target:
+            continue
+        if target not in index:
+            r.fail(f"{path.name}: target '{target}' does not resolve to any artifact")
+            continue
+        tpath, tdoc, _ = index[target]
+        linked = [str(a) for a in (tdoc.get("attacks") or [])]
+        if fid not in linked:
+            r.fail(f"{path.name}: attack {fid} is NOT linked on its target {target} "
+                   f"({tpath.name} attacks={linked or 'missing'})")
+        # an attack may scope itself to siblings; those must be linked too
+        for sib in (fdoc.get("also_applies_to") or []):
+            sdoc = index.get(str(sib))
+            if sdoc is None:
+                r.fail(f"{path.name}: also_applies_to '{sib}' does not resolve")
+            elif fid not in [str(a) for a in (sdoc[1].get("attacks") or [])]:
+                r.fail(f"{path.name}: attack {fid} scopes to {sib} but is not linked there")
+
+    # reverse direction: every id in an attacks: list must be a real failure record
+    known_f = {str(d.get("id")) for _, d in failures if d.get("id")}
+    for kind in ("archetype", "claim", "tool"):
+        for path, doc in artifacts(kind):
+            for a in (doc.get("attacks") or []):
+                if str(a) not in known_f:
+                    r.fail(f"{path.name}: attacks lists '{a}' but no such failure record exists")
+
+    # a target with an unresolved high-severity attack must not read as settled
+    for path, fdoc in failures:
+        if fdoc.get("severity") != "high" or fdoc.get("resolved"):
+            continue
+        tgt = index.get(str(fdoc.get("target", "")))
+        if tgt and tgt[1].get("status") in ("verified", "proposed"):
+            r.warn(f"{tgt[0].name}: status='{tgt[1]['status']}' but carries unresolved "
+                   f"high-severity {fdoc.get('id')} ({fdoc.get('recommended_action')})")
+    return r
+
+
 def gate5_replication() -> Result:
     """Did anyone actually run the install probe?  We record, we do not execute."""
     r = Result("G5", "replication probe recorded")
@@ -364,7 +469,7 @@ def gate5_replication() -> Result:
 
 
 GATES = {"G0": gate0_schema, "G1": gate1_citations, "G2": gate2_license_liveness,
-         "G3": gate3_coverage, "G5": gate5_replication}
+         "G3": gate3_coverage, "G4": gate4_referential, "G5": gate5_replication}
 ONLINE = {"G1", "G2"}
 
 

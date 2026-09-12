@@ -60,7 +60,8 @@ derived_from:
   - S519
   - S524
 produced_by: S4-tool-docs
-attacks: []
+attacks:
+  - F105
 notes: >
   The causes-table exact-match key keeps grading deterministic; free-text explanation is
   only judge-scored, bounded to one axis.

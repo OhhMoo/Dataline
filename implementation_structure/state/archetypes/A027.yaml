@@ -56,7 +56,8 @@ derived_from:
   - S510
   - S513
 produced_by: S4-tool-docs
-attacks: []
+attacks:
+  - F125
 notes: >
   DE-6 adjacency noted: this borrows the stalled-consumer mechanic from the thin DE-6
   evidence cluster but grounds the workflow in orchestrator/streaming docs (S509-S513),

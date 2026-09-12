@@ -84,6 +84,32 @@
     ]
   },
 
+  "failure": {
+    "_file_glob": "state/failures/F[0-9]*.yaml",
+    "_desc": "A landed attack. Recorded so a later round does not rediscover it.",
+    "required": {
+      "id": "str",
+      "target": "str",
+      "attack_type": "str",
+      "severity": "enum:high|medium|low",
+      "finding": "str",
+      "recommended_action": "enum:withdraw|downgrade_confidence|re-source|annotate|redesign",
+      "found_by": "str"
+    },
+    "optional": {
+      "mitigation": "str",
+      "notes": "str",
+      "also_applies_to": "list[str]",
+      "resolved": "bool",
+      "resolution_note": "str"
+    },
+    "_rules": [
+      "target must resolve to a real artifact id - G4 checks this",
+      "the failure id must appear in its target's attacks: list - G4 checks both directions",
+      "also_applies_to lets one attack scope itself to sibling artifacts; G4 links those too"
+    ]
+  },
+
   "archetype": {
     "_file_glob": "state/archetypes/*.yaml",
     "_desc": "A high-level task archetype. The RQ2 deliverable.",

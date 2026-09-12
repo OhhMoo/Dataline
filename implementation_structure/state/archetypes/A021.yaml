@@ -59,7 +59,8 @@ derived_from:
   - S525
   - S206
 produced_by: S3-benchmark-gaps
-attacks: []
+attacks:
+  - F127
 notes: >
   Evidence-thin by construction: derived from a benchmark gap (governance surfaces
   absent everywhere) rather than from incident-rich literature. If a future RQ1 pass

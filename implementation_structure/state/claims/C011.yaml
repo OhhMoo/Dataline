@@ -5,10 +5,11 @@ claim: >
   ingestion-breakage archetypes run locally; the reverse-ETL surface (Hightouch/Census, T129)
   has no evidenced OSS substitute in the corpus and should be dropped from v1 scope or
   deferred pending a dedicated RQ3 probe.
-status: proposed
+status: attacked
 rq: RQ3
 proposed_by: S6-oss-substitution
 evidence:
   - S511
   - S512
-attacks: []
+attacks:
+  - F111

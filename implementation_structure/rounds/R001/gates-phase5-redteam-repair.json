@@ -1,0 +1,39 @@
+{
+  "passed": true,
+  "gates": [
+    {
+      "gate": "G0",
+      "name": "schema",
+      "passed": true,
+      "checked": 299,
+      "failures": [],
+      "warnings": []
+    },
+    {
+      "gate": "G3",
+      "name": "coverage and dedup",
+      "passed": true,
+      "checked": 24,
+      "failures": [],
+      "warnings": [
+        "structural duplicate: A006.yaml vs A014.yaml share discipline+apps+rubric_points (title sim 0.77) - confirm they are distinct tasks"
+      ]
+    },
+    {
+      "gate": "G4",
+      "name": "attack referential integrity",
+      "passed": true,
+      "checked": 18,
+      "failures": [],
+      "warnings": []
+    },
+    {
+      "gate": "G5",
+      "name": "replication probe recorded",
+      "passed": true,
+      "checked": 23,
+      "failures": [],
+      "warnings": []
+    }
+  ]
+}

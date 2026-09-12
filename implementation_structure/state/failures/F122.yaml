@@ -1,0 +1,22 @@
+id: F122
+target: A028
+attack_type: grader shortcut - parity by copying the in-world legacy output
+severity: high
+finding: >
+  The grading reference is "the materialized legacy output", which by construction lives in
+  the world's legacy database and is agent-reachable (the legacy query runs there and feeds
+  the dashboard). Nothing in the deterministic checks forbids building the dbt models as
+  wrappers - SELECT * FROM legacy_output in staging models - which yields a zero-unmatched-row
+  full outer join diff, a passing MINUS dev-vs-prod test, and identical dashboard checksums
+  with no decomposition, no parity reasoning, and no understanding of the 1500-line query.
+  The core difficulty claim ("prove value parity", the 20-40h estimate) collapses to
+  re-pointing; only the modularity/test rubric axis survives, and that is judge-scored, not
+  deterministic.
+recommended_action: redesign
+found_by: R3
+mitigation: >
+  Add a static check that no dbt model SQL references the legacy database/schema or the
+  materialized legacy output, and recompute the grading reference harness-side from the
+  legacy SOURCE tables (which the agent may read) rather than from a materialized output
+  table the agent can wrap. Alternatively retire the legacy output object at task start so
+  only the query text and source data exist.

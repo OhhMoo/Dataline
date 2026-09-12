@@ -1,0 +1,22 @@
+id: F128
+target: A006
+attack_type: gameable attribution grading plus a world mechanic that does not bind agents
+severity: medium
+finding: >
+  Two independent holes. First, attribution grading is "per-cause credit" against a seeded
+  manifest drawn from S205's published reconciliation taxonomy - a finite, public list; if
+  extra attributions are unpunished (nothing in the spec says otherwise), an agent that
+  submits the whole taxonomy scores full attribution with zero localization work. Second, the
+  0.0%-KPI leg's difficulty rests on confirmation bias ("it matched what the team predicted"),
+  but the agent has no stake in any prediction: a KPI pinned at exactly 0.0% for a quarter is
+  a zero-variance smell that any distribution check flags in one query, and the description
+  itself calls it "suspiciously clean". The DST leg's "casual spot-check can pass" claim also
+  weakens once the agent is instructed (or inclined) to bisect by dimension - boundary weeks
+  fall out of a per-day diff immediately.
+recommended_action: annotate
+found_by: R3
+mitigation: >
+  Cap attribution score with an explicit penalty per false cause so kitchen-sink attribution
+  nets negative. Make the KPI noisy-near-zero (small random positive values, mean ~0.4%)
+  rather than constant, so variance checks do not flag it and only reconstructing the
+  denominator semantics (questions-asked vs questions-answered) reveals the defect.

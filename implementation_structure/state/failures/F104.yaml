@@ -1,0 +1,22 @@
+id: F104
+target: A019
+attack_type: training-data-leakage / resembles-public-benchmark-task
+severity: medium
+finding: >
+  A019's core mechanic — rename a dbt model/column and propagate the breaking change
+  through downstream models — is a public ade-bench task: helixops_saas008 ("Rename
+  account_status to customer_status in staging and propagate the breaking change through
+  five downstream models") and the adjacent helixops_saas009 (renamed-column v2 model while
+  the original stays unchanged). ade-bench is public on GitHub with task.yaml, setup,
+  solution and tests, so both the mechanic and a reference solution are in training data.
+  A019's BI-layer rename boundary and divide-by-zero fallback are not in ade-bench and
+  remain differentiating, but the warehouse-side rename-propagation half of the task is
+  covered by a public task with a public oracle.
+recommended_action: annotate
+found_by: R1
+notes: >
+  existing_coverage in A019 claims ade-bench "ends at the warehouse" — true for the BI
+  blast radius, but it under-states that the warehouse-side rename mechanic itself is a
+  shipped ade-bench task. Annotate existing_coverage accordingly; keep the archetype only
+  if grading weight sits on the BI-boundary discovery and silent-fallback legs that
+  ade-bench cannot express.

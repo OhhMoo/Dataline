@@ -1,0 +1,16 @@
+id: F110
+target: C009
+attack_type: contradicts_inventory_license_rejection
+severity: high
+finding: >
+  C009 asserts "MinIO is a drop-in S3 substitute" and names it as the substrate for
+  data-lake initial conditions, but T153 and state/failures/B1-license-rejections.yaml
+  F-B1-001 reject MinIO twice over: AGPL-3.0 on a shipped network service (disqualifying
+  per problem.yaml) and the upstream repo is archived as of 2026-04. The claim's storage
+  half is unbuildable as written, and the actual replacement (adobe/s3mock, T154) is
+  explicitly thinner -- no real IAM, weaker versioning/consistency semantics -- so
+  "drop-in" overreaches even after substitution. The Kafka half survives but inherits
+  time-semantics determinism risk (message timestamps, offsetsForTimes) that the claim
+  does not mention.
+recommended_action: re-source
+found_by: R2

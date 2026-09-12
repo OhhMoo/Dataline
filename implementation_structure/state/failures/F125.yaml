@@ -1,0 +1,23 @@
+id: F125
+target: A027
+attack_type: answer leakage plus weak decoy plus canonical-pattern diagnosis
+severity: medium
+finding: >
+  The description names the entire root cause verbatim - "a stalled Kafka consumer group
+  whose offset committed past a poisoned message" - and states the gap length ("three days"),
+  handing the agent its replay window; if this text (or a paraphrase) reaches the prompt, the
+  triage is solved on reading. Even prompt-clean, the poison-pill/committed-offset pattern is
+  canonical Kafka knowledge (skip-or-DLQ is the textbook remedy), and the state check that
+  distinguishes it - end offsets vs committed offsets vs table watermark - is two commands.
+  The decoy fails criterion (d): a Dagster job that is "genuinely late but irrelevant to this
+  table" is ruled out by a single lineage lookup (does it feed this fact table? no), so it
+  only punishes agents that fix things at random - not a plausible frontier-model failure.
+  The 12-24h estimate is not credible against a two-command state read.
+recommended_action: redesign
+found_by: R3
+mitigation: >
+  Make the decoy a job that DOES feed a sibling partition of the same fact table and is
+  genuinely broken but explains only one day of the three-day gap, so fixing it yields
+  partial recovery and looks like success. Keep consumer lag nonzero-but-stale via a second
+  abandoned consumer group on the same topic. Do not state the gap length anywhere; make the
+  failing micro-batch log nothing useful (exit 0, "0 records processed").

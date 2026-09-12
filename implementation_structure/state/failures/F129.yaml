@@ -1,0 +1,20 @@
+id: F129
+target: A014
+attack_type: grading artifact named and placed inside the world
+severity: medium
+finding: >
+  The deterministic check "corrected metric query result equality against ground_truth.csv"
+  names the grading artifact literally. If that file ships anywhere in the agent-visible
+  filesystem (and the spec gives no contrary instruction), find/-name plus one read hands the
+  agent the corrected answer, from which a "corrected query" can be reverse-engineered or the
+  file itself selected from - the entire three-cause reconciliation collapses to file
+  discovery. Even absent direct read access, the attribution check ("matches a reference
+  attribution ... within tolerance") inherits the F128 kitchen-sink problem: S205's taxonomy
+  is public and finite, and no false-cause penalty is specified.
+recommended_action: redesign
+found_by: R3
+mitigation: >
+  Keep all grading references harness-side, never in the world image, and never name them in
+  agent-reachable text; grade by submitting the query and executing it harness-side against a
+  sealed reference. Add a false-cause penalty to the attribution table and require row-level
+  evidence per claimed cause, graded for internal consistency.

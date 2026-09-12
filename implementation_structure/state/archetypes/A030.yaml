@@ -64,7 +64,8 @@ derived_from:
   - S516
   - S508
 produced_by: S4-tool-docs
-attacks: []
+attacks:
+  - F126
 notes: >
   Least confident of this batch: the "correct" canonical definition must be pinned by
   the world's docs_wiki (a governance page stating the agreed definition), otherwise

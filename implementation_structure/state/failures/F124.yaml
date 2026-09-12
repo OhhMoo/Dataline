@@ -1,0 +1,22 @@
+id: F124
+target: A013
+attack_type: answer leakage in spec text plus enumerable attribution
+severity: medium
+finding: >
+  A013's description states the entire solution: "attribute the degradation to a demand
+  shift rather than a data bug (one decoy upstream defect exists)", names all four required
+  monitors (freshness, checksums, top-k churn, rank correlation), and prescribes the
+  remediation (shortened training window, increased scoring frequency). If any close
+  paraphrase of this seeds the agent prompt - and nothing in the artifact separates design
+  notes from agent-facing text - the task is reading comprehension, not diagnosis. Even with
+  a clean prompt, the graded attribution is a binary choice between two named candidates
+  (shift primary / defect secondary), so a coin flip earns the attribution points, and the
+  four monitors are standard, enumerable implementations once listed.
+recommended_action: annotate
+found_by: R3
+mitigation: >
+  Formally split every archetype into agent-facing prompt vs sealed design notes, and audit
+  prompts for solution leakage. Make attribution multi-candidate (plant 3+ plausible causes
+  including one that is data-broken) with a false-positive penalty so guessing loses points.
+  A020 carries the same leak (remediation class and config targets named in description) and
+  needs the same treatment.

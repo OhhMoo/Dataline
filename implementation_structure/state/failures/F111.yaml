@@ -1,0 +1,15 @@
+id: F111
+target: C011
+attack_type: contradicts_inventory_license_rejection
+severity: high
+finding: >
+  C011 asserts Airbyte "is open source and connector-oriented" and makes it the Fivetran
+  substitute for DE-2/DA-3 ingestion archetypes, but T156 and F-B1-004 reject the Airbyte
+  platform: the repo root LICENSE is Elastic License 2.0 (source-available, automatic G2
+  failure), verified from the raw LICENSE file on 2026-09-12. Only individual connectors
+  are MIT; the platform that would provide the connector-fleet surface is not shippable.
+  The claim's premise ("can be replaced by Airbyte") is false as stated; the salvageable
+  path is dlt (T157) / Meltano (T158), which reproduce ingestion mechanics but no
+  managed-connector control plane.
+recommended_action: re-source
+found_by: R2

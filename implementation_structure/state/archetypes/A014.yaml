@@ -60,6 +60,8 @@ derived_from:
   - S206
   - S208
 produced_by: S2-job-specs
+attacks:
+  - F129
 notes: >
   Frequency signal only: analytics job specifications cluster on BI fluency
   (S515 Tableau, S516 Looker, S517 Power BI, S519 Superset) over a warehouse

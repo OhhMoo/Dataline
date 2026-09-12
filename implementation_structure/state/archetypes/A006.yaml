@@ -62,7 +62,8 @@ derived_from:
   - S206
   - S207
 produced_by: S1-postmortems
-attacks: []
+attacks:
+  - F128
 notes: >
   Five-source basis, all first-person or practitioner-authored. S207's confirmation-bias
   survival mechanism (0% matched the prediction) is the key design move for making the

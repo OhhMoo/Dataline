@@ -1,0 +1,22 @@
+id: F103
+target: A013
+attack_type: training-data-leakage / famous-incident-derivation
+severity: medium
+finding: >
+  A013 grades as correct the exact remediation published in two well-known public sources
+  it derives from: Instacart's COVID response (S114: shorten the training window, increase
+  scoring frequency) and the Ackermann et al. police-department deployment report cited in
+  the Cambridge survey (S119: input-table freshness checks, checksums on historical
+  records, top-k churn, rank-order correlation). The deterministic checks literally
+  enumerate S119's four monitoring primitives as the expected outputs, so a model reciting
+  the survey's monitoring section produces the reference detection timeline by recall.
+  Attribution grading (demand shift primary, upstream defect decoy) also mirrors the
+  published Instacart/DoorDash moral rather than a world-specific discovery.
+recommended_action: annotate
+found_by: R1
+notes: >
+  Less exposed than A020 because the agent must still build working queries in-world, but
+  the rubric should be annotated that the monitoring-primitive checklist is public
+  knowledge from the derivation sources, and the reference remediation config should be
+  randomized away from the published Instacart parameters. Consider merging the
+  leakage-review of A013 with F102 since both draw on S114.

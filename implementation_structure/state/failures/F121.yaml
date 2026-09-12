@@ -1,0 +1,26 @@
+id: F121
+target: A001
+attack_type: grader shortcut - reference co-location plus no-op idempotency
+severity: high
+finding: >
+  The grading spec places "a reference table in DuckDB" without stating it is hidden from
+  the agent; the warehouse IS the DuckDB instance, so as written the agent can SHOW TABLES,
+  find the reference, and CREATE TABLE revenue AS SELECT * FROM reference - passing the
+  row-level diff, duplicate-key, and per-partition checks with zero diagnosis. Independently,
+  the idempotency probe ("second run of repaired load changes zero rows") is satisfied by
+  making the repaired load a permanent no-op (an IF NOT EXISTS guard that always skips),
+  which is idempotent by construction while repairing nothing. All four deterministic checks
+  are therefore satisfiable without identifying the duplicated partitions or the partial-load
+  debris. The same two holes apply to sibling archetypes A009 and A026, which share the
+  S001 incident shape, the same probe design, and 8-20h estimates that collapse to
+  single-digit hours once the shortcuts exist.
+recommended_action: redesign
+found_by: R3
+mitigation: >
+  Keep every grading reference outside the agent-visible catalog (separate harness-side
+  DuckDB file or sealed schema). Make the idempotency probe require the load to actually
+  process a NEW planted partition on the re-run (row count must grow by exactly the new
+  partition, and a third run must change nothing), so no-op guards fail.
+also_applies_to:
+  - A009
+  - A026

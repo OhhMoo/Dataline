@@ -1,0 +1,23 @@
+id: F123
+target: A011
+attack_type: difficulty collapse - deterministic checks are a static lint pass
+severity: medium
+finding: >
+  Every deterministic check in A011 is a static DAG-source assertion: no datetime.now()/
+  relativedelta in schedule logic, bounded retries, sensor timeouts and poke-interval bounds.
+  A frontier model can grep the dags/ folder for these three canonical Airflow anti-patterns
+  (all extensively documented in Airflow docs and best-practice posts) and fix every instance
+  blind, without reading a single task log or disambiguating which of the three failure
+  classes caused which symptom - the multi-hop triage the why_hard promises is never required
+  to pass. The "root-cause classification" check grades an enum match against three classes
+  the description itself enumerates, and the stale-runbook decoy is irrelevant because the
+  winning strategy ignores documentation entirely. With the lint shortcut the 8-20h estimate
+  collapses to 1-3 hours, below the E5 "tens of hours" bar.
+recommended_action: redesign
+found_by: R3
+mitigation: >
+  Plant anti-patterns that parse and lint clean yet fail only at runtime (e.g. a
+  timezone-naive custom timetable, a sensor whose poke interval interacts with pool size),
+  and make the graded end-state a LIVE scheduler run whose warehouse-side task still fails
+  until the real statement is fixed - so static fixes alone leave the pipeline red. Add a
+  lint-clean DAG that must NOT be modified, graded by checksum, to punish blind rewrites.

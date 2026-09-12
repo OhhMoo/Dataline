@@ -4,11 +4,12 @@ claim: >
   object-storage surfaces (buckets, objects, versions, data-lake files) and Apache Kafka is
   native open source, so CDC/streaming and data-lake initial conditions (DE-6, DS-2/DS-3 file
   drops) can be built without any cloud endpoint or SDK reshaping.
-status: proposed
+status: attacked
 rq: RQ3
 proposed_by: S6-oss-substitution
 evidence:
   - S514
   - S513
   - S507
-attacks: []
+attacks:
+  - F110

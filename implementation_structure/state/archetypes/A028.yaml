@@ -64,7 +64,8 @@ derived_from:
   - S508
   - S519
 produced_by: S4-tool-docs
-attacks: []
+attacks:
+  - F122
 notes: >
   Richest DA slot in this batch: S209-S212 are all docs/blog workflow sources, so this
   archetype is the most faithful to the S4 derivation path.

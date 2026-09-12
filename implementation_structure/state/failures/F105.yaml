@@ -1,0 +1,24 @@
+id: F105
+target: A029
+attack_type: training-data-leakage / resembles-public-benchmark-task
+severity: medium
+finding: >
+  A029's highest-signal planted cause — a timezone mismatch where one path's daily totals
+  cut off early because of UTC-vs-local handling — is the subject of a public
+  data-eng-bench task, dbt-fix-timezone-sales ("Fix timezone handling bug in sales
+  aggregation causing incorrect daily sales totals"), which ships with a public verifier
+  and reference solution. data-eng-bench also contains reconciliation-named tasks
+  (dbt-order-reconciliation, dbt-gl-reconciliation, dbt-fix-refund-reconciliation,
+  late-arriving-orders-reconciliation), so the reconciliation task family and its
+  row-level-diff grading pattern are well represented in public training data. A029's
+  three-cause composition with a prescribed bisect method is not itself a public task, but
+  one of its three graded causes has a public worked example.
+recommended_action: annotate
+found_by: R1
+notes: >
+  Same exposure applies to the shared timezone leg in A006 and A014 (both plant a
+  UTC/local/DST cause drawn from S002/S206). No withdrawal warranted — the multi-cause
+  attribution grading is the differentiator — but existing_coverage in A029/A006/A014
+  should acknowledge dbt-fix-timezone-sales explicitly, and the generator should vary the
+  timezone mechanism (e.g. DST-direction, offset magnitude) away from the public task's
+  shape.

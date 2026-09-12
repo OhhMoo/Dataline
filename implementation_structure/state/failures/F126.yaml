@@ -1,0 +1,23 @@
+id: F126
+target: A030
+attack_type: difficulty self-sabotage - the grading fix destroys the core judgment
+severity: medium
+finding: >
+  The archetype's own notes concede grading is arbitrary unless "the 'correct' canonical
+  definition [is] pinned by the world's docs_wiki (a governance page stating the agreed
+  definition)". But that pin converts the archetype's central hard judgment - deciding what
+  the metric SHOULD mean, including the trailing-30-days vs calendar-month ambiguity - into
+  locating and obeying one docs page: lookup, not reconciliation. The remaining work
+  (catalogue variants, migrate dashboards) is tedious but mechanical, and the catalogue check
+  ("exact-matches the planted duplicate set") as specified carries no false-positive penalty,
+  so an over-inclusive catalogue listing every plausible variant scores full completeness.
+  This is the least-confident-flagged archetype in its batch and the flag is justified:
+  15-30h is not credible once the canonical definition is a documented answer.
+recommended_action: redesign
+found_by: R3
+mitigation: >
+  Ship TWO governance pages with conflicting agreed definitions of different vintages, plus
+  a ticket thread showing the newer decision superseded the wiki, so the agent must reconcile
+  provenance rather than obey a page. Penalize each false catalogue entry. Keep one variant
+  whose filter set is only discoverable by row-level diffing, not by reading its SQL (e.g.
+  filter applied in a view two layers down).

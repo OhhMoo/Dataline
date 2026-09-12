@@ -60,4 +60,5 @@ derived_from:
   - S218
   - S211
 produced_by: S3-benchmark-gaps
-attacks: []
+attacks:
+  - F104

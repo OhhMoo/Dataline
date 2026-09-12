@@ -63,6 +63,9 @@ derived_from:
   - S123
   - S125
 produced_by: S2-job-specs
+attacks:
+  - F103
+  - F124
 notes: >
   Frequency signal only: production-ML job specifications pair notebooks (S521)
   with warehouse telemetry (S503) and quality/monitoring surfaces (S526, S515);

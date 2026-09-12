@@ -60,7 +60,9 @@ derived_from:
   - S020
   - S021
 produced_by: S1-postmortems
-attacks: []
+attacks:
+  - F101
+  - F120
 notes: >
   S016/S017 supply the WAL/slot mechanics and the 24 GB / 50 GB sizing arithmetic, which
   parameterizes the world's disk headroom; S020 supplies the silently-failing backup leg

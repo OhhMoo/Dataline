@@ -64,3 +64,5 @@ notes: >
   Frequency signal only: warehouse (S505/S507), dbt (S508), Airflow (S509) are the
   most universally demanded DE stack in job specifications; they motivated choosing
   this subcategory, not the task content.
+attacks:
+  - F121

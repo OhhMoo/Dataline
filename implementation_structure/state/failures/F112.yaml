@@ -1,0 +1,18 @@
+id: F112
+target: C001
+attack_type: install_probe_vs_runtime_overreach
+severity: medium
+finding: >
+  C001 asserts fakesnow server mode "accepts the real Snowflake connector, JDBC driver,
+  and Snowflake CLI pointed at a fake local URL" as the basis for an adoption decision.
+  R2 probe (fakesnow 0.11.16, local venv): the real snowflake-connector-python over HTTP
+  does round-trip (create/insert/select OK) and :isolated: per-connection isolation works,
+  but JDBC-driver and Snowflake CLI compatibility is unevidenced anywhere in the corpus --
+  server.py implements only 5 routes (login-request, session, query-request,
+  abort-request, monitoring) with no token-renewal or result-chunk endpoints those clients
+  use. Worse, `PUT file://up.csv @%t` over the wire fails with a sqlglot Parser Error,
+  so the staged-file / COPY INTO scenarios (F2 surface 10) do not work through server
+  mode. "Adoption decision, not a build decision" overreaches: staging is a gap we must
+  build around.
+recommended_action: annotate
+found_by: R2

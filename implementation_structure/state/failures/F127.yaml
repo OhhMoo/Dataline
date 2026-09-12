@@ -1,0 +1,22 @@
+id: F127
+target: A021
+attack_type: canonical-cause shortcut plus below-bar hours
+severity: medium
+finding: >
+  "Two principals see different numbers for the same query" has exactly one canonical,
+  training-data-saturated explanation - row-level security / policy scoping - and any
+  frontier model will check policy definitions within its first few steps; the why_hard claim
+  that the discrepancy "survives ordinary dashboard sanity checks" does not matter because no
+  sane agent stops at dashboard sanity checks when role-scoped divergence is the presenting
+  symptom. The per-role probe-query check forces a real repair, but the repair space is small
+  (fix two mis-scoped policies), and the catalog-entry check is satisfied by writing a doc.
+  The archetype is self-flagged as the weakest-evidenced of its batch, and its 8-20h estimate
+  concedes the modal case lands below the E5 "tens of hours" bar even before the shortcut.
+recommended_action: downgrade_confidence
+found_by: R3
+mitigation: >
+  Add a simultaneous second cause on the BI side (a dashboard-level filter that also
+  suppresses the region) so the RLS-first instinct earns only partial credit and the
+  divergence persists after the policy fix; require the reconciliation to quantify each
+  cause's contribution. Keep the archetype merged-or-dropped decision pending a governance
+  incident literature pass, as its own notes suggest.

@@ -58,6 +58,8 @@ derived_from:
   - S009
   - S018
 produced_by: S2-job-specs
+attacks:
+  - F123
 notes: >
   Frequency signal only: Airflow (S509) is the most-named orchestrator in DE job
   specifications, with Jira (S524) and Confluence (S522) as the operational-context

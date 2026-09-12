@@ -54,7 +54,8 @@ derived_from:
   - S005
   - S006
 produced_by: S1-postmortems
-attacks: []
+attacks:
+  - F121
 notes: >
   S005's sibling mechanism (non-idempotent sink under retry despite nominal exactly-once)
   and S006's crashed-run partial output consumed by the next schedule are folded in as the
