@@ -50,11 +50,12 @@ def main() -> int:
         print("could not parse gate output:\n", proc.stdout, proc.stderr, file=sys.stderr)
         return 2
 
-    # 2. persist the raw verdict next to the round's report
-    outdir = IMPL / "rounds" / args.round
-    outdir.mkdir(parents=True, exist_ok=True)
-    (outdir / f"gates-{args.phase}.json").write_text(
-        json.dumps(verdict, indent=2), encoding="utf-8")
+    # 2. persist the raw verdict next to the round's report (never on a dry run)
+    if not args.dry_run:
+        outdir = IMPL / "rounds" / args.round
+        outdir.mkdir(parents=True, exist_ok=True)
+        (outdir / f"gates-{args.phase}.json").write_text(
+            json.dumps(verdict, indent=2), encoding="utf-8")
 
     # 3. build a commit message that carries the verdict
     counts = {}
