@@ -1,0 +1,69 @@
+id: A033
+title: Reproducibility repair of a notebook-driven model result
+discipline: data_science
+description: >
+  A reported model result cannot be reproduced. The agent inherits the notebook that produced
+  it, the committed metrics, and a cluster of supporting scripts. Re-running the notebook
+  top-to-bottom yields a materially different number. The agent must find every source of
+  non-determinism and hidden state, rebuild the work as a pipeline that reproduces bitwise
+  across two clean-room runs, and report which of the two numbers - the committed one or the
+  reproduced one - is correct, with evidence.
+why_hard: >
+  There are several independent causes and fixing any one of them does not close the gap.
+  Cells were executed out of order, so a variable in kernel memory differed from what the code
+  as written produces; one cell reads a CSV that has since been overwritten upstream; a
+  preprocessing step is fit before the split rather than inside it; and no seed is pinned, so
+  the remaining delta is stochastic noise that masks whether the real defects were fixed.
+  Notebook-driven work produces exactly this class of incident - a wrong input silently
+  feeding a reported result (S122) - and production ML pipeline bugs form a long tail with
+  almost no overlap between practitioners, so pattern-matching one known bug does not
+  generalise (S121). The agent must also resist the trap of declaring reproducibility once the
+  numbers merely land close: the acceptance bar is two independent runs agreeing exactly on a
+  pinned seed, not agreeing approximately.
+human_hours: "15-30"
+grading: >
+  GRADING REFERENCE IS HARNESS-SIDE: the true metric and the planted-defect manifest live
+  outside the agent-visible catalog, attached read-only at scoring time only (F121).
+  Deterministic: the harness executes the agent's rebuilt pipeline twice in fresh containers
+  from a clean checkout and asserts the reported metrics are identical between runs; asserts
+  the rebuilt pipeline reads no file outside declared inputs; verifies the preprocessing is
+  fit inside each fold via a split-integrity probe; and matches the agent's submitted causes
+  against the hidden manifest with per-cause credit, so finding two of four defects earns two
+  of four. Rubric: 22 points.
+rubric_points: 22
+apps_touched:
+  - notebook
+  - warehouse
+  - git
+  - docs_wiki
+deterministic_checks:
+  - "two clean-room container runs of the rebuilt pipeline produce identical reported metrics"
+  - "rebuilt pipeline reads no file outside its declared input manifest (filesystem audit)"
+  - "split-integrity probe: preprocessing refit per fold, no statistics leak across the split"
+  - "submitted causes matched against hidden planted-defect manifest, per-cause credit"
+  - "final reported metric falls within the harness-held honest-range band"
+judge_axes:
+  - code_quality
+  - design
+  - robustness
+failure_modes_expected:
+  - "pins a seed, sees the numbers stabilise, and declares victory with the stale-input defect intact"
+  - "reproduces the committed number by reconstructing the bug rather than fixing it"
+  - "accepts approximate agreement between runs as reproducibility"
+  - "fixes the out-of-order execution but leaves preprocessing fit outside the split"
+existing_coverage: >
+  No surveyed benchmark grades reproducibility as the objective. ade-bench and data-eng-bench
+  grade final state; MLE-bench grades a submission file. None re-execute the agent's artefact
+  twice in clean rooms and compare, which is the only check that actually tests the property.
+derived_from:
+  - S122
+  - S106
+  - S121
+produced_by: lead-agent-ds-gap-closure
+notes: >
+  NOT blind-generated - authored by the lead agent to close the DS coverage gap; needs
+  red-teaming before it counts as derived. The double-clean-room-run check is unusually
+  cheap and unusually strong, and it is the same shape as the planted-partition idempotency
+  probe from F121: the grader must make the agent's artefact actually run again, not merely
+  inspect the state it left behind. S122 is a single interviewed-engineer anecdote at medium
+  confidence, so the archetype leans on the mechanism rather than the specific incident.

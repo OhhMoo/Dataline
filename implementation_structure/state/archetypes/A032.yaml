@@ -1,0 +1,68 @@
+id: A032
+title: Operating-point selection under base-rate shift and a fixed alert budget
+discipline: data_science
+description: >
+  A deployed risk-scoring model has an acceptable global AUC but is being ignored by the team
+  it serves. The agent must diagnose why, choose deployable operating points, and justify
+  them. The world contains the scored population across four sites with materially different
+  base rates, a logged history of alerts and responder actions, a stated alert-volume budget
+  per site per shift, and a recall floor set by policy. The model itself is fine; the
+  threshold is a single global constant.
+why_hard: >
+  Model quality and deployment usefulness are different problems, and every surface reports
+  the model as healthy. A single global threshold applied across sites with different base
+  rates produces wildly different precision per site: the high-prevalence site is flooded and
+  the low-prevalence site sees almost nothing, which is how a numerically respectable model
+  becomes a system that responders learn to ignore (S113 documents exactly this operating-point
+  failure pattern - acceptable discrimination, unacceptable deployed behaviour). Alert fatigue
+  compounds it: roughly 90 percent of alerts being non-actionable is a reported norm (S123).
+  The agent must satisfy two constraints that trade against each other - a recall floor and a
+  per-site volume ceiling - and discover that they are jointly unsatisfiable at any single
+  global threshold, so per-site calibration is required. Retraining does not help and is the
+  attractive wrong move.
+human_hours: "20-40"
+grading: >
+  GRADING REFERENCE IS HARNESS-SIDE: the evaluation population and the responder-action
+  ground truth live outside the agent-visible catalog, attached read-only at scoring time
+  only (F121). Deterministic: precision, recall and alert volume are recomputed at the agent's
+  submitted per-site thresholds on a harness-held evaluation set; each site must meet the
+  recall floor and stay under the volume ceiling; a threshold-tuning-on-test check fails the
+  submission if the chosen thresholds are optimal on the held-out set to a degree only
+  achievable by fitting it. Rubric: 24 points across constraint satisfaction, per-site
+  reasoning, correct rejection of retraining, and the written deployment recommendation.
+rubric_points: 24
+apps_touched:
+  - warehouse
+  - notebook
+  - bi_dashboard
+  - quality_monitoring
+deterministic_checks:
+  - "per-site recall at submitted thresholds >= policy floor on harness-held evaluation set"
+  - "per-site alert volume at submitted thresholds <= stated per-shift ceiling"
+  - "thresholds are not test-set-optimal: degradation on a second harness-held split stays within tolerance"
+  - "submitted analysis identifies base-rate divergence across sites (hidden per-site prevalence manifest match)"
+  - "model artefact unchanged: retraining or weight modification scores zero on this check"
+judge_axes:
+  - design
+  - robustness
+failure_modes_expected:
+  - "retrains or tunes hyperparameters, improving AUC and changing nothing that matters"
+  - "picks one global threshold that satisfies the aggregate but no individual site"
+  - "satisfies the volume ceiling by suppressing alerts below the recall floor"
+  - "tunes thresholds directly on the evaluation set and reports the fitted numbers"
+existing_coverage: >
+  Absent from every DE/analytics benchmark surveyed and from MLE-bench, which grades a single
+  scalar metric on a fixed split and therefore cannot express an operating-point or
+  alert-budget constraint at all.
+derived_from:
+  - S113
+  - S123
+  - S118
+produced_by: lead-agent-ds-gap-closure
+notes: >
+  NOT blind-generated - authored by the lead agent to close the DS coverage gap; the phase-3
+  diversity property does not hold and it needs red-teaming before it counts as derived.
+  DELIBERATELY ABSTRACTED from the published clinical case behind S113: synthetic domain,
+  synthetic sites, no recognisable fingerprints, because re-enacting a famous incident is the
+  training-data-leakage failure R1 filed as F101. The mechanism (global threshold vs
+  heterogeneous base rates vs finite responder attention) is preserved; the identity is not.

@@ -1,0 +1,23 @@
+id: C500
+claim: >
+  S100, S104 and S107 are benchmark-CONSTRUCTION methodology, not practitioner incidents, and
+  are therefore deliberately not cited by any archetype. They describe what MLE-bench is
+  (S100), its automated rule-enforcement detectors and their measured false-positive behaviour
+  (S104), and its human-hours difficulty annotation scheme (S107). Their value is to our
+  process - admissibility screening, difficulty labelling, and the calibration of any
+  process/governance grader we build - not to any single task. Leaving them uncited is a
+  decision, not a coverage gap.
+status: proposed
+rq: RQ2
+proposed_by: lead-agent-ds-gap-closure
+evidence:
+  - S100
+  - S104
+  - S107
+attacks: []
+notes: >
+  Recorded so a later round does not re-open these three as "missed sources". S104 in
+  particular carries a finding we should act on elsewhere: MLE-bench's GPT-4o log-analysis
+  rule checker flagged up to 14.1 percent of medal runs and was wrong every single time,
+  which is direct evidence that our process/governance axis needs published false-positive
+  rates and a human-review escape hatch before it can be a headline differentiator.

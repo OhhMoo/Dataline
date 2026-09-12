@@ -1,0 +1,68 @@
+id: A034
+title: Holdout reconstruction and contamination audit for an untrustworthy evaluation set
+discipline: data_science
+description: >
+  A team's benchmark numbers are no longer believable: the original held-out labels were lost
+  in a migration, and the replacement split was cut by someone who is no longer around. The
+  agent must establish whether the current split is sound, rebuild a defensible holdout from
+  the available data, and prove the reconstruction is distributionally equivalent to the
+  original - then re-report the headline metric honestly, which will be lower.
+why_hard: >
+  Proving a split is sound is much harder than cutting one. The current split has three
+  independent defects that each inflate the score differently: near-duplicate records straddle
+  the boundary so the same entity appears on both sides under different keys; the split is
+  random over a time-ordered process, so the model trains on the future; and a small number of
+  test rows were used during feature selection. None is visible in the reported metric - the
+  number simply looks good - which is the defining property of leakage (S111, S112). Rebuilding
+  is not enough either: the agent must demonstrate equivalence, which requires the calibration
+  step MLE-bench used when it faced the same problem - score a known baseline on both the
+  original and reconstructed sets and show the results are comparable (S102). The honest
+  outcome is a worse headline number, and the agent has to be willing to report it.
+human_hours: "20-40"
+grading: >
+  GRADING REFERENCE IS HARNESS-SIDE: the defect manifest, the reference baseline and the
+  clean reference split live outside the agent-visible catalog, attached read-only at scoring
+  time only (F121). Deterministic: entity-level overlap between the agent's train and test
+  sets must be zero under fuzzy key matching, not just exact keys; temporal ordering must hold
+  for every pair; the harness-held reference baseline scored on the agent's reconstructed set
+  must land within tolerance of its score on the clean reference split (the S102 equivalence
+  check); and the agent's re-reported metric must fall inside the harness-held honest band.
+  Submitted defect attributions are matched per-defect against the hidden manifest.
+  Rubric: 25 points.
+rubric_points: 25
+apps_touched:
+  - warehouse
+  - notebook
+  - catalog
+  - docs_wiki
+deterministic_checks:
+  - "zero entity overlap between reconstructed train and test under fuzzy key matching"
+  - "temporal ordering holds: no training row timestamped after any test row"
+  - "harness-held reference baseline scores within tolerance on reconstructed vs clean reference split"
+  - "re-reported headline metric falls inside the harness-held honest band"
+  - "submitted defect list matched per-defect against hidden manifest, per-defect credit"
+judge_axes:
+  - design
+  - robustness
+failure_modes_expected:
+  - "cuts a fresh random split, fixing the duplicate straddle but preserving the temporal leak"
+  - "finds the duplicates, declares the split repaired, never runs an equivalence check"
+  - "reconstructs a split that scores conveniently close to the original number"
+  - "reports the defects but declines to re-report the lower metric"
+existing_coverage: >
+  Unique. MLE-bench performed this reconstruction as benchmark-construction work (S101, S102)
+  and audited contamination by obfuscating task statements (S109), but no benchmark asks an
+  agent to do it. Turning their own methodology into a graded task is a defensible and
+  distinctive position.
+derived_from:
+  - S101
+  - S102
+  - S109
+  - S111
+produced_by: lead-agent-ds-gap-closure
+notes: >
+  NOT blind-generated - authored by the lead agent to close the DS coverage gap; needs
+  red-teaming before it counts as derived. Deliberately overlaps A012 (leakage audit) only at
+  the mechanism level: A012 asks whether a MODEL is leaking, A034 asks whether the EVALUATION
+  is trustworthy and requires a constructive rebuild plus an equivalence proof. Confirm with
+  R3 that the distinction survives contact with a strong model before both ship.

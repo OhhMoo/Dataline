@@ -1,0 +1,69 @@
+id: A035
+title: Deliver a gradeable model artefact under hard compute and disk ceilings
+discipline: data_science
+description: >
+  A modelling task on a dataset that does not fit in memory, inside a container with a fixed
+  RAM ceiling, a fixed disk quota, and a wall-clock budget. The agent must produce a valid,
+  schema-conforming prediction artefact that beats a stated performance floor, without ever
+  breaching a resource limit. Intermediate artefacts must be managed: naive caching fills the
+  disk, and naive loading kills the process.
+why_hard: >
+  This grades the failure that actually dominates agent performance rather than the one people
+  design for. Across every scaffold MLE-bench tested, the single most common outcome was not a
+  weak model but no gradeable submission at all - valid-submission rates of 82.8, 54.9 and
+  27.3 percent, with a validation tool available and simply not used (S105). All three
+  scaffolds also exhausted container disk or RAM and were killed mid-run, and one filled its
+  own context window by reading a large file into it (S106). The modelling here is deliberately
+  unexciting; the difficulty is entirely in budgeting, chunking, checkpointing, cleaning up
+  intermediates, and validating the artefact before the clock runs out. A long horizon makes
+  it worse, because early profligacy is only fatal much later.
+human_hours: "15-30"
+grading: >
+  GRADING REFERENCE IS HARNESS-SIDE: the evaluation labels and the permutation probe live
+  outside the agent-visible catalog, attached read-only at scoring time only (F121).
+  Deterministic: the submission must exist and validate against the declared schema (row
+  count, id coverage, dtype, value range); the harness monitors peak RSS, peak disk and
+  wall-clock throughout and any breach is scored zero regardless of the final metric; the
+  metric on the harness-held evaluation set must clear the stated floor; and an
+  anti-memorisation probe re-scores the pipeline on permuted inputs - predictions that do not
+  degrade under permutation are not reading the data and score zero (the concern behind
+  S103's explicit anti-memorisation rule). Rubric: 20 points, weighted toward artefact
+  validity and resource discipline rather than metric headroom.
+rubric_points: 20
+apps_touched:
+  - notebook
+  - warehouse
+  - git
+deterministic_checks:
+  - "submission exists and validates against declared schema: row count, id coverage, dtype, range"
+  - "peak RSS never exceeded the container ceiling (harness-monitored throughout the episode)"
+  - "peak disk usage never exceeded quota; intermediates cleaned up"
+  - "wall-clock budget not exceeded"
+  - "metric on harness-held evaluation set clears the stated floor"
+  - "anti-memorisation probe: predictions degrade under input permutation"
+judge_axes:
+  - code_quality
+  - robustness
+failure_modes_expected:
+  - "produces a strong model and no valid submission file"
+  - "loads the full dataset and is killed by the OOM reaper mid-run"
+  - "caches every intermediate and fills the disk quota late in the episode"
+  - "never runs the available validation tool before submitting"
+  - "spends the wall-clock budget on modelling and leaves no time to write the artefact"
+existing_coverage: >
+  MLE-bench measures this as an incidental property of its scaffolds (S105, S106) rather than
+  grading it directly. No DE or analytics benchmark expresses resource ceilings at all. It is
+  also the cheapest archetype in the corpus to build - the modelling content is intentionally
+  thin - which makes it a good early candidate for the v1 slice.
+derived_from:
+  - S105
+  - S106
+  - S103
+produced_by: lead-agent-ds-gap-closure
+notes: >
+  NOT blind-generated - authored by the lead agent to close the DS coverage gap; needs
+  red-teaming before it counts as derived. Lowest human-hours estimate of the five new DS
+  archetypes and sits at the bottom of the E5 "tens of hours" band; R3 should rule on whether
+  it clears the bar or should be merged into a longer task. The permutation probe is the
+  anti-memorisation analogue of the planted-partition idempotency check - it forces the
+  artefact to demonstrate it is actually a function of the input.

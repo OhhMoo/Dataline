@@ -1,0 +1,70 @@
+id: A031
+title: Define the problem, cohort, label and metric from a vague stakeholder ask
+discipline: data_science
+description: >
+  A product lead asks for "a model that tells us which accounts are about to churn so we can
+  save them." Nothing else is specified. The agent must define the prediction cohort, the
+  label and its observation window, the evaluation metric, and the train/test split - then
+  justify each against the business decision the model actually feeds. The warehouse contains
+  the raw event and billing tables, the wiki holds two contradictory internal definitions of
+  "churn", and a retention campaign ran mid-window.
+why_hard: >
+  This is the axis MLE-bench explicitly excludes: Kaggle hands the agent a clean problem
+  statement, a documented dataset and a fixed metric, whereas the real work is deciding what
+  those should be (S110). Several definitions are defensible, so there is no single answer
+  key - but most are wrong in ways that only surface downstream. The naive label is
+  contaminated by the retention campaign itself (an account "saved" by the intervention is
+  labelled not-churned, so the model learns the intervention rather than the risk), the two
+  wiki definitions disagree on whether a downgrade counts, and the obvious metric (AUC over
+  all accounts) is dominated by a large dormant-account segment that nobody would ever
+  action - the Booking.com finding that offline metric gains routinely fail to convert into
+  business value (S118). Getting this wrong produces a technically competent model that is
+  useless, which is the most expensive failure in the discipline.
+human_hours: "25-45"
+grading: >
+  GRADING REFERENCE IS HARNESS-SIDE: the definition manifest and the outcome simulator live
+  outside the agent-visible catalog and are attached read-only at scoring time only (F121).
+  Deterministic: the agent's submitted cohort/label/metric specification is checked for
+  PROPERTIES, not for equality to one answer - no post-treatment variable may appear in the
+  label (checked against a hidden manifest of intervention-touched accounts); the cohort must
+  exclude accounts ineligible for the retention action; the split must respect temporal
+  ordering; and the chosen metric, applied to a harness-held outcome simulation, must rank
+  candidate policies in the same order as realised retention value above a correlation floor.
+  Rubric: 26 points across definition validity, contamination avoidance, metric-to-decision
+  alignment, and the written justification.
+rubric_points: 26
+apps_touched:
+  - warehouse
+  - notebook
+  - docs_wiki
+  - bi_dashboard
+deterministic_checks:
+  - "label contains no post-treatment variable: zero overlap with hidden intervention manifest"
+  - "cohort excludes ineligible accounts per hidden eligibility rules"
+  - "split respects temporal ordering: no training row timestamped after any test row"
+  - "chosen metric ranks harness-held candidate policies in realised-value order above correlation floor"
+  - "declared definition is internally consistent: recomputing the label from the spec reproduces the submitted label column exactly"
+judge_axes:
+  - design
+  - robustness
+failure_modes_expected:
+  - "adopts the naive churn label and silently learns the retention campaign"
+  - "picks one wiki definition without noticing the two disagree"
+  - "optimises AUC over a population dominated by unactionable dormant accounts"
+  - "defines a defensible cohort but never states the decision the metric serves"
+existing_coverage: >
+  Not covered anywhere. MLE-bench names this as its own gap (S110); ade-bench and
+  data-eng-bench are repair/transform tasks with the objective already fixed. This is the
+  clearest single differentiator available on the data-science axis.
+derived_from:
+  - S110
+  - S118
+  - S125
+  - S108
+produced_by: lead-agent-ds-gap-closure
+notes: >
+  NOT blind-generated - authored by the lead agent to close the DS coverage gap, so the
+  phase-3 diversity property does not hold for this artifact. Must be red-teamed before it
+  counts as derived. Grading deliberately scores properties rather than an answer key, since
+  multiple definitions are legitimate; the hidden manifests make that mechanical rather than
+  a judge call. Synthetic domain, no real-company fingerprints (F101).

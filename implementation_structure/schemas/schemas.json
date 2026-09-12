@@ -42,7 +42,8 @@
       "dependencies": "list[str]",
       "rejected_reason": "str",
       "gate_results": "dict",
-      "repair_note": "str"
+      "repair_note": "str",
+      "notes": "str"
     },
     "_rules": [
       "evidence entries must be ids that exist in state/knowledge/",
