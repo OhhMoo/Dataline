@@ -1,0 +1,21 @@
+# EXAMPLE artifact - copy this shape into state/knowledge/<id>.yaml
+# One externally-verifiable finding. G1 will fetch `url` and string-match `quote`.
+# If the quote is not literally on the page, this FAILS as a hallucinated citation.
+
+id: S001
+rq: RQ1
+claim: >
+  Freshness-SLA breaches are commonly discovered by a downstream consumer rather than by
+  monitoring, which means triage starts from a dashboard symptom and works upstream.
+url: https://example.com/engineering-blog/post
+quote: "the first person to notice the pipeline had failed was an analyst asking why the numbers looked wrong"
+source_type: blog
+author_role: staff data engineer
+company: ExampleCo
+year: 2025
+retrieved: "2026-09-11"
+confidence: high
+produced_by: L1-practitioner-workflow-de
+notes: >
+  Directly supports archetype A004 (freshness-SLA breach triage). Note the direction of
+  discovery - symptom first, cause second - which is what makes the task multi-hop.

@@ -1,0 +1,56 @@
+# EXAMPLE artifact - copy this shape into state/archetypes/<id>.yaml
+# An archetype is DERIVED from sources. `derived_from` must cite real ids in
+# state/knowledge/ or G3 rejects it. Inventing archetypes is the failure mode
+# this field exists to prevent.
+
+id: A004
+title: Freshness-SLA breach triage across a multi-hop lineage
+discipline: data_engineering
+description: >
+  A downstream dashboard shows stale numbers. The agent must work backward through the
+  lineage to find which upstream job silently stopped landing rows, distinguish the true
+  cause from two plausible-looking confounders, repair it, and backfill the gap without
+  double-counting.
+why_hard: >
+  The symptom and the cause are separated by several hops, and the orchestrator reports
+  the failing job as SUCCEEDED because it exited zero on an empty payload. Requires
+  reading logs, lineage, and the warehouse together rather than any single surface.
+  Two decoy signals in the world look like causes but are not.
+human_hours: "8-20"
+grading: >
+  Deterministic: row-count and checksum diff of the target table against the reference
+  after backfill; assert no duplicate business keys; assert the freshness metadata column
+  advances. Rubric: 22 points across root-cause identification, repair correctness,
+  backfill idempotency, and whether a regression test was added.
+rubric_points: 22
+apps_touched:
+  - warehouse
+  - dbt
+  - airflow
+  - bi_dashboard
+deterministic_checks:
+  - "row-level diff vs expected/ reference table"
+  - "duplicate business-key assertion"
+  - "freshness watermark advanced past the gap"
+judge_axes:
+  - code_quality
+  - design
+  - robustness
+failure_modes_expected:
+  - "fixes the symptom by re-running the DAG without finding the cause"
+  - "backfills with double-counting"
+  - "chases one of the two decoy signals"
+existing_coverage: >
+  ade-bench has setup-time corruption tasks of a similar flavor, but not time-scheduled
+  breaches across a live orchestrator. Thin in data-eng-bench.
+derived_from:
+  - S001
+  - S014
+  - S027
+produced_by: S1-archetypes-from-postmortems
+attacks:
+  - R3-difficulty-skeptic-001
+notes: >
+  Difficulty skeptic flagged that a frontier model may shortcut this by grepping the
+  Airflow logs. Mitigation under discussion: make the failing job log nothing useful,
+  which is also what actually happens in practice.

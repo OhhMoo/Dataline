@@ -1,0 +1,40 @@
+# --- secrets -----------------------------------------------------------------
+# G2 needs GITHUB_TOKEN. Never let it land in history.
+.env
+.env.*
+*.token
+*credentials*
+
+# --- python ------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+
+# --- os ----------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- build artifacts (v1 onward) ---------------------------------------------
+# World images and warehouses are regenerated from seeds; committing them
+# defeats the point of bit-reproducible resets.
+*.duckdb
+*.duckdb.wal
+*.db-journal
+data/raw/
+.tmp/
+scratch/
+
+# -----------------------------------------------------------------------------
+# DELIBERATELY NOT IGNORED - these ARE the research record:
+#   implementation_structure/state/**   the blackboard, including failures/
+#   implementation_structure/rounds/**  per-round reports and gate output
+#   verifier/runs/**                    append-only verification history
+#
+# state/failures/ in particular must be committed. It exists so round N+1 does
+# not rediscover what round N already killed. Ignoring it would silently delete
+# the most expensive thing the swarm produces.
+# -----------------------------------------------------------------------------

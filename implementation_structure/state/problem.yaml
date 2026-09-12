@@ -1,0 +1,186 @@
+# Frozen problem specification for the research swarm.
+# Every agent reads this. No agent edits it mid-round.
+# Sources: agent.md, team meeting 2026-09-09 (raw notes + Granola summary).
+
+meta:
+  round: 1
+  frozen_at: "2026-09-11"
+  mode: research_only          # NO environment code this round
+  report_to: Andrew
+  report_due: "2026-09-15"     # Tuesday
+  v1_target: "2026-09-22"
+  hard_deadline: "2026-09-30"
+
+# ---------------------------------------------------------------------------
+# What we are building, in one paragraph, so no agent has to infer it.
+# ---------------------------------------------------------------------------
+context: >
+  A training and evaluation substrate for data agents, sold to frontier model labs
+  (OpenAI, Google/Gemini) rather than to enterprises. Each task runs inside a live,
+  containerized data stack: warehouse, dbt, orchestrator, BI, scattered docs. Worlds are
+  randomized and parameterized so the asset compounds instead of saturating. Grading is
+  trajectory-blind: deterministic state checks plus a bounded LLM judge plus process and
+  governance signals. Harbor is the harness. One engine powers a public benchmark
+  (marketing) and a private training-environment license (revenue).
+
+value_prop:
+  core: >
+    Controlled environments that look like the real thing but are cheaper and more
+    measurable. Deeper control means easier data collection and cleaner traces.
+  what_labs_actually_buy: >
+    Labs want to see their models FAIL on hard tasks. Failing trajectories plus
+    explanations of why they failed are the compelling artifact, not high pass rates.
+  deliverable_to_lab: "environment + grading rubric + embedded test set, RL-pluggable"
+  competitive_angle: "few players focused specifically on DATA environments"
+
+# ---------------------------------------------------------------------------
+# Facts established in the meeting. Agents may build on these without re-sourcing,
+# but must flag any that their research CONTRADICTS.
+# ---------------------------------------------------------------------------
+established:
+  - id: E1
+    fact: "Harbor (Laude Institute) is the harness. Terminal-bench derived."
+    status: decided
+  - id: E2
+    fact: >
+      Avoid cloud dependencies entirely. Labs run RL at scale and will not accept
+      external paid services in the loop.
+    status: decided
+  - id: E3
+    fact: >
+      Mock cloud APIs with open-source equivalents or reshaped SDKs: intercept HTTP
+      calls, replicate the API format, point the agent at a fake local URL.
+      Fallback: free trials or desktop versions inside a VM.
+    status: decided
+  - id: E4
+    fact: >
+      Synthetic data generated from distributions, NOT public datasets - models are
+      already trained on public data and it contaminates the benchmark.
+    status: decided
+  - id: E5
+    fact: "Tasks should be hard and multi-step, representing tens of hours of human work."
+    status: decided
+  - id: E6
+    fact: "Evaluation uses a multi-point rubric, 15-30 points per task."
+    status: decided
+  - id: E7
+    fact: >
+      Deterministic functions grade quantitative outputs (e.g. querying DuckDB);
+      LLM-as-judge grades qualitative signals: code quality, design, robustness.
+    status: decided
+  - id: E8
+    fact: "Labs pay hundreds to low-thousands of dollars per high-quality task."
+    status: reported_in_meeting
+    note: "Single anecdote (Meso econ tasks for Gemini). NEEDS independent sourcing - RQ6."
+  - id: E9
+    fact: "Polymath is the key inspiration - randomized, controllable, parameterized initial conditions."
+    status: decided
+  - id: E10
+    fact: "APEX Agents recently updated their judge; their prompt-optimized rubrics are worth studying."
+    status: lead
+  - id: E11
+    fact: "'Emily Bench' named as data-science inspiration in the Granola summary."
+    status: UNVERIFIED
+    note: >
+      Almost certainly a transcription artifact for MLE-Bench (OpenAI). Confirm with
+      Andrew before citing. Do not build on this name.
+
+# ---------------------------------------------------------------------------
+# Research questions. These are the units the coordinator allocates against.
+# ---------------------------------------------------------------------------
+research_questions:
+
+  - id: RQ1
+    priority: 1
+    title: "What do data engineers / scientists / analysts actually do day to day?"
+    owner_phase: literature
+    detail: >
+      Deep research into real workflows, not job-description boilerplate. Sources:
+      engineering blogs, incident post-mortems, conference talks (dbt Coalesce, Data
+      Council, Airflow Summit), practitioner communities (r/dataengineering, dbt Slack,
+      Locally Optimistic), and academic/industry papers. Anchor on PROBLEMS ENCOUNTERED,
+      not tools listed.
+    output: state/knowledge/*.yaml
+    success: ">= 40 sourced, distinct real-world problem instances with citations"
+
+  - id: RQ2
+    priority: 1
+    title: "10-30 high-level task archetypes across DE, DS, and analytics"
+    owner_phase: strategy
+    detail: >
+      Derived FROM RQ1 evidence, not invented. MLE-Bench is the reference for the data
+      science axis. Each archetype must state what makes it hard, roughly how many human
+      hours it represents, and how it would be graded.
+    output: state/archetypes/*.yaml
+    success: "10-30 archetypes, all three disciplines covered, G3 dedup passes"
+    seed: "agent.md 6.3 has a 22-item DRAFT list. Treat it as a prior to beat, not an answer."
+
+  - id: RQ3
+    priority: 1
+    title: "Which connectors / tools are actually easy to replicate?"
+    owner_phase: builder
+    detail: >
+      Dig through GitHub for open-source clients, mock servers, API-compatible
+      reimplementations, wire-protocol shims, and SDK interception layers for every app
+      in the inventory. For each: license, liveness, and whether it actually installs.
+    output: state/inventory/*.yaml
+    success: "every candidate carries a license verdict and a G5 replication probe result"
+
+  - id: RQ4
+    priority: 2
+    title: "Inventory of 20-30 data applications the environment must simulate"
+    owner_phase: literature
+    detail: >
+      Named so far: Snowflake, Databricks, Redshift, Oracle (legacy), ClickHouse, dbt,
+      Airflow, Tableau, Hex, Looker, Power BI, Sigma, Confluence. Fill to 20-30 and rank
+      by (frequency in real workflows from RQ1) x (ease of replication from RQ3).
+    output: state/inventory/applications.yaml
+    success: "20-30 apps, each ranked on both axes with sources"
+
+  - id: RQ5
+    priority: 2
+    title: "Initial conditions: synthetic data, scattered docs, pre-existing brokenness"
+    owner_phase: strategy
+    detail: >
+      How do we generate realistic data from distributions without touching public
+      datasets? What does a realistic scattered-documentation surface look like? What
+      kinds of pre-existing brokenness are realistic versus contrived?
+    output: state/claims/*.yaml
+    success: "a concrete generation strategy per element, with leakage argument"
+
+  - id: RQ6
+    priority: 2
+    title: "Competitive landscape and pricing"
+    owner_phase: literature
+    detail: >
+      What do comparable environment/eval vendors charge? What does a high-quality public
+      dataset look like in SIZE (task count, steps per task)? Independently source or
+      refute E8.
+    output: state/claims/*.yaml
+    success: "at least 3 independently sourced price or size anchors"
+
+  - id: RQ7
+    priority: 3
+    title: "Prior art review: Harbor, Snowflake DataAgentBench, APEX Agents, ade-bench"
+    owner_phase: literature
+    detail: >
+      Michael's action item from the meeting. What is directly adoptable, what is only a
+      pattern, what is a paid deliverable we cannot have. Include APEX's updated judge and
+      its prompt-optimized rubrics (E10).
+    output: state/knowledge/prior_art_*.yaml
+    success: "per-project verdict: adopt / copy-pattern / cannot-use, with license evidence"
+
+# ---------------------------------------------------------------------------
+# Hard constraints. A proposal violating any of these is rejected at G0.
+# ---------------------------------------------------------------------------
+constraints:
+  - "No cloud dependency at agent runtime. Anything requiring a paid external service is out."
+  - "No public datasets as world data - contamination risk."
+  - "License must permit our use. AGPL and 'source-available' are rejections, not warnings."
+  - "Every numeric claim needs a source URL and an exact quote."
+  - "No environment code this round. Research artifacts only."
+
+anti_goals:
+  - "Do not design the generator yet - hand-authored tasks come first (agent.md 6.5)."
+  - "Do not build the LLM judge - blocked on human-labeled ground truth."
+  - "Do not write Dockerfiles, dbt projects, or MCP servers this round."

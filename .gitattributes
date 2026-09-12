@@ -1,0 +1,7 @@
+# Normalize line endings so diffs stay readable across machines.
+# Without this, Windows CRLF vs LF shows whole files as changed.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.duckdb binary

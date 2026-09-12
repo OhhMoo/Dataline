@@ -1,0 +1,29 @@
+# EXAMPLE artifact - copy this shape into state/inventory/<id>.yaml
+# Two uses: (a) an app we must SIMULATE, (b) a candidate MOCK we could adopt.
+# If repo_url is a GitHub URL, G2 fetches the real license/liveness and will FAIL
+# the artifact if the declared license does not match reality.
+
+id: T012
+rq: RQ3
+name: fakesnow
+category: warehouse
+role: mock_implementation
+replication_strategy: sdk_reshape
+produced_by: B1-connector-scout
+repo_url: https://github.com/tekumara/fakesnow
+license: apache-2.0
+license_verified: false        # set true only AFTER G2 confirms it
+last_commit: ""                # G2 fills this in
+stars: 0                       # G2 fills this in
+archived: false
+install_probe: "pip install fakesnow && python -c 'import fakesnow'"
+probe_result: not_run          # pass | fail | not_run
+replication_ease: medium       # 'easy' requires probe_result=pass, enforced at G5
+frequency_rank: 0              # filled from RQ1 frequency data
+evidence:
+  - S033
+notes: >
+  Candidate for the Snowflake mock. Intercepts the Python connector rather than serving
+  the wire protocol, so it covers agents using snowflake-connector-python but NOT agents
+  that shell out to snowsql or hit the REST API directly. Pair with a wire-protocol
+  option before deciding. UNVERIFIED until G2 and G5 both run.

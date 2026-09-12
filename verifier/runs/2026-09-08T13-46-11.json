@@ -1,0 +1,14 @@
+{
+  "timestamp": "2026-09-08T13:46:11",
+  "verifier_version": "v1",
+  "method": "manual checklist encoded as substring checks against deliverable",
+  "exit_code": 0,
+  "results": {
+    "1_feasibility_all_axes": true,
+    "2_goal_and_milestones": true,
+    "3_defensibility_mechanics": true,
+    "4_alkera_both_readings": true,
+    "5_grounding_and_correction": true,
+    "6_next_actions": true
+  }
+}
