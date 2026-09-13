@@ -28,11 +28,11 @@ class Operations:
     def dbt_compile(self, selector, variables, observation):
         return self.commands.dbt("compile", selector, variables, False, observation)
 
-    def fs_read(self, path, observation):
-        return self.workspace.read(path, observation)
+    def fs_read(self, path, observation, encoding="utf-8"):
+        return self.workspace.read(path, observation, encoding)
 
-    def fs_write(self, path, content, observation):
-        return self.workspace.write(path, content, observation)
+    def fs_write(self, path, content, observation, encoding="utf-8"):
+        return self.workspace.write(path, content, observation, encoding)
 
     def fs_list(self, path, recursive, observation):
         return self.workspace.list(path, recursive, observation)

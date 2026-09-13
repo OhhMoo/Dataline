@@ -21,20 +21,51 @@ class Workspace:
     def name(self, path: Path) -> str:
         return path.relative_to(self.root).as_posix()
 
-    def read(self, path: str, observation: Observation):
+    def read(self, path: str, observation: Observation, encoding: str = "utf-8"):
         resolved = self.path(path)
         observation.targets = observation.read_targets = [self.name(resolved)]
         with resolved.open("rb") as stream:
             content = stream.read(self.max_bytes + 1)
         if len(content) > self.max_bytes:
             raise ToolError("file_too_large", "File exceeds the configured read limit")
-        return {"path": self.name(resolved), "content": content.decode("utf-8")}
+        return {"path": self.name(resolved),
+                "content": self._decode(content, encoding),
+                "encoding": encoding}
 
-    def write(self, path: str, content: str, observation: Observation):
+    @staticmethod
+    def _decode(content: bytes, encoding: str) -> str:
+        """Decode strictly, and report the offending byte when it fails.
+
+        Deliberately NOT errors="replace". Silently substituting U+FFFD would
+        hand the agent plausible-looking wrong data with no signal, which is the
+        worst outcome for a benchmark - it converts a findable defect into an
+        unfindable one. A real toolchain raises here, so we raise here, and we
+        say where, because that is the evidence the diagnosis needs.
+        """
+        try:
+            return content.decode(encoding)
+        except LookupError:
+            raise ToolError("unknown_encoding", f"No codec named {encoding!r}") from None
+        except UnicodeDecodeError as e:
+            raise ToolError(
+                "decode_error",
+                f"Byte 0x{content[e.start]:02x} at offset {e.start} is not valid "
+                f"{encoding}. Re-read with the correct 'encoding' if you know it.") from None
+
+    def write(self, path: str, content: str, observation: Observation,
+              encoding: str = "utf-8"):
         resolved = self.path(path)
         observation.op_class = "write"
         observation.targets = [self.name(resolved)]
-        data = content.encode("utf-8")
+        try:
+            data = content.encode(encoding)
+        except LookupError:
+            raise ToolError("unknown_encoding", f"No codec named {encoding!r}") from None
+        except UnicodeEncodeError as e:
+            raise ToolError(
+                "encode_error",
+                f"{content[e.start:e.start + 1]!r} at offset {e.start} cannot be "
+                f"represented in {encoding}") from None
         if len(data) > self.max_bytes:
             raise ToolError("file_too_large", "Content exceeds the configured write limit")
         if resolved.exists():
