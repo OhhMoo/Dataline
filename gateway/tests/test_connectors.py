@@ -111,3 +111,47 @@ def test_invalid_arguments_are_logged(gateway):
     rows = read_rows(gateway.audit.actions)
     assert rows[0]["exit"] == "error"
     assert rows[0]["error"]["code"] == "invalid_arguments"
+
+
+def test_non_utf8_files_are_readable_and_diagnosable(gateway, tmp_path):
+    """Real data work hits files that are not UTF-8.
+
+    T3 (R002) found the toolbelt could not represent this at all: fs_read ended in
+    a bare content.decode("utf-8"), so an EBCDIC mainframe extract or a cp1252
+    export raised an unhandled UnicodeDecodeError. Four planned environment themes
+    exist specifically to plant encoding defects, and the tool surface was
+    sanitizing away the very defect they plant.
+    """
+    workspace = gateway.config.workspace
+
+    # A cp037 (EBCDIC) extract, as a mainframe would hand it over.
+    (workspace / "extract.dat").write_bytes("CUSTOMER 00417".encode("cp037"))
+    # A cp1252 export with a character that is NOT valid UTF-8 on its own.
+    (workspace / "export.csv").write_bytes("name,city\nJos\xe9,M\xfcnchen\n".encode("cp1252"))
+
+    # 1. Strict UTF-8 read fails LOUDLY and says where, rather than silently
+    #    substituting U+FFFD - a replacement char would hand the agent
+    #    plausible-looking wrong data and turn a findable defect into an
+    #    unfindable one.
+    bad = gateway.call("fs_read", {"path": "export.csv"})
+    assert bad["ok"] is False
+    assert bad["error"]["code"] == "decode_error"
+    assert "offset" in bad["error"]["message"]
+
+    # 2. Naming the right codec recovers the data.
+    good = assert_ok(gateway.call("fs_read", {"path": "export.csv", "encoding": "cp1252"}))
+    assert "José" in good["content"] and "München" in good["content"]
+    assert good["encoding"] == "cp1252"
+
+    ebcdic = assert_ok(gateway.call("fs_read", {"path": "extract.dat", "encoding": "cp037"}))
+    assert ebcdic["content"] == "CUSTOMER 00417"
+
+    # 3. Round-trip: an agent that diagnoses the encoding can write it back.
+    assert_ok(gateway.call("fs_write", {"path": "out.csv", "content": "Jos\xe9\n",
+                                        "encoding": "cp1252"}))
+    assert (workspace / "out.csv").read_bytes() == "Jos\xe9\n".encode("cp1252")
+
+    # 4. A nonsense codec is a clean error, not a traceback.
+    assert gateway.call("fs_read", {"path": "extract.dat", "encoding": "cp9999"})["error"][
+        "code"
+    ] == "unknown_encoding"
