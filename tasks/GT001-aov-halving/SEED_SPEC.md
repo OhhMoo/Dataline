@@ -139,7 +139,7 @@ duplication window exactly.
 3. Fix the **loader** so a re-run is idempotent (merge / insert-overwrite / delete+insert in one
    transaction — all accepted).
 4. Add an executable regression test that **fails on the pre-repair world and passes after**.
-5. Submit the structured final artifact (`split_of_work.md` §2.5).
+5. Submit the structured final artifact (`agent.md` §9.2.5).
 
 ## 10. Hidden — grading zone only, never mounted in the episode
 

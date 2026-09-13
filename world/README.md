@@ -1,6 +1,6 @@
 # World — deterministic data-agent worlds
 
-Seed → reproducible data-agent world, per `split_of_work.md` §3 (the
+Seed → reproducible data-agent world, per `agent.md` §9.3 Track A (the
 "world and determinism" track). The product here is not the tools; it is
 that the world is **provably the same world** every time it is built, and
 that the grader can never be reached during an episode.

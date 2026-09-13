@@ -2,7 +2,9 @@
 
 *Distilled from `de-agent-benchmark-assessment.md` (2026-09-08). This document explains
 what the project is, how we would develop it, and what the system looks like.
-Updated 2026-09-09 with the working backlog and v1 deadline from the team meeting (§6).*
+Updated 2026-09-09 with the working backlog and v1 deadline from the team meeting (§6).
+Updated 2026-09-13: `split_of_work.md` merged in as §9, and §10 added for the as-built
+repository architecture.*
 
 ---
 
@@ -265,6 +267,10 @@ public benchmark and the private training product.
 - **One engine, two products:** the public leaderboard is a strict subset view (prompts
   and scores out, nothing private in), while labs license private, rotating variants for
   RL training.
+- **§10 records where the built code has since diverged from this diagram** — the
+  orchestrator is a deterministic state machine rather than Airflow/Dagster, the gateway
+  exposes a CLI alongside MCP, and two boxes drawn here (the calibration flywheel and the
+  product plane) are not built at all.
 - **The 2026-09-09 meeting extends this diagram** in three places not yet redrawn above:
   the world gains a *documentation surface* (scattered files + a Confluence-like wiki) and
   *emulated vendor APIs* in front of the warehouse; the world's initial state includes
@@ -900,6 +906,350 @@ mind. The pricing research from R001 is retained as background only - and note i
 down: claim E8's three "independent" corroborating sources collapse to one seller-side anchor
 with an undisclosed conflict on the byline (claim C502, failure F400). Do not use it as a
 market rate.
+
+---
+
+## 9. v1 build — contracts, ground rules, and track status
+
+*Merged from `split_of_work.md` (created 2026-09-12, retired 2026-09-13 once all three
+tracks landed). The three-way split across Claude / Kimi / Astra is now history; what
+survives it are the ground rules, the frozen contracts, and the honest flags.*
+
+### 9.1 Ground rules — non-negotiable, all tracks
+
+These are not style preferences. Each was learned by having a red-team agent destroy an
+earlier design. Violating one silently invalidates the task.
+
+1. **The grader does not exist during the episode.** It starts after teardown and mounts the
+   world read-only. With the reference co-located in the agent's own catalog, an earlier
+   design scored 11 of 14 points via `CREATE TABLE x AS SELECT * FROM expected.x` with zero
+   diagnosis (F121).
+2. **The agent sees only `agent_visible_brief`.** Author-side prose routinely enumerates the
+   planted defects in order — one draft printed all four "hidden" defects in its `why_hard`
+   (F202). The build pipeline must make shipping that impossible, not merely discouraged.
+3. **No network egress from the episode zone.** Containment *and* contamination control — the
+   agent must not be able to look the incident up.
+4. **The official score is fully deterministic for v1.** The LLM judge runs in **shadow mode**
+   and does not affect the score. Process/governance signals are **report-only**.
+5. **Destructive operations are flagged, not blocked.** Whether the agent gates its own
+   destructive actions is a measurement; blocking destroys the measurement.
+6. **Five surfaces only.** Real DuckDB, real dbt Core, real Git workspace, a deterministic
+   scheduler state machine, a generic BI-values + docs surface. The 30-app inventory in §6.1
+   is a prioritisation map, not a v1 checklist.
+7. **Adversarial baselines are CI, not a one-time check.** They run on every change to the
+   task, the grader, or the world generator.
+
+### 9.2 Frozen contracts
+
+Tracks meet here and nowhere else. Amending one of these requires re-running every
+downstream suite.
+
+#### 9.2.1 World layout
+
+```
+AGENT-VISIBLE
+/workspace/                          git repo root
+  dbt_project/{dbt_project.yml,models/,tests/}
+  data/landing/daily_revenue/dt=YYYY-MM-DD/*.csv
+  docs/                              scattered markdown, deliberately stale in places
+  README.md
+/var/warehouse/warehouse.duckdb      reachable ONLY through sql_* tools, not fs_*
+/var/sched/state.json                scheduler run history
+/var/bi/dashboards/*.yml             BI definitions
+
+GRADING ZONE — never mounted inside the episode
+/grading/expected.duckdb
+/grading/manifest.yaml               planted defects, for per-cause credit
+/grading/grade.py
+/grading/solution.sh                 oracle
+```
+
+Warehouse schemas: `raw`, `staging`, `warehouse`.
+
+**Mandatory access rule — never open the warehouse file directly.** DuckDB names the catalog
+after the file stem, so `warehouse.duckdb` holding a schema named `warehouse` makes catalog
+and schema collide, and *every* two-part reference raises
+`Binder Error: Ambiguous reference to catalog or schema "warehouse"`. No view formulation
+survives it, and `warehouse.kpi_daily` is the symptom surface the agent starts from — so the
+collision made GT001 unsolvable end to end while every track's own tests stayed green.
+Connect in-memory and attach under an alias:
+
+```python
+con = duckdb.connect(":memory:", config={"threads": 1})
+con.execute("ATTACH '<path>' AS wh (READ_ONLY)")
+con.execute("USE wh.warehouse")
+```
+
+This is the most expensive thing integration taught us: it is invisible to any track working
+alone, because it only appears when the file is deployed under its contract name.
+
+#### 9.2.2 Action log — one row per tool call, identical from every transport
+
+```json
+{"seq": 41, "vts": "2026-03-02T04:15:00Z", "wts": 1757000000000,
+ "transport": "mcp|cli", "tool": "sql_execute",
+ "args_hash": "9f2c1a...", "args_summary": "DELETE FROM warehouse.fct_revenue WHERE ...",
+ "op_class": "read|write|ddl|destructive|exec",
+ "target": "warehouse.fct_revenue", "rows_affected": 18443,
+ "result_hash": "a31c4d...", "result_bytes": 210,
+ "latency_ms": 91, "exit": "ok", "error": null,
+ "rss_mb": 412, "disk_mb": 2201, "world_fp": "cc90fe..."}
+```
+
+`world_fp` is written at checkpoints only, not on every row. `op_class` lives in the log, not
+in the tool response — the log is the artifact the grader and the process signals consume.
+
+#### 9.2.3 Task package
+
+```
+tasks/<task_id>/
+  task.toml            metadata, resource ceilings, timeouts, validity gates
+  instruction.md       <- generated ONLY from agent_visible_brief
+  SEED_SPEC.md         frozen world contract for this task
+  solution/solution.sh oracle
+  tests/               HIDDEN — ships to the grading zone only
+    grade.py  manifest.yaml  fixture_contract.py  fixtures/  judge/
+```
+
+**Amended 2026-09-13.** The original draft specified `environment/{Dockerfile,seed.yaml}` and
+`tests/expected/`. Neither is how GT001 actually builds: the container lives once in
+`world/docker/`, and the reference world is *generated* by
+`tests/fixtures/make_fixture_world.py` rather than committed, because `*.duckdb` is gitignored
+on purpose — committing a world defeats bit-reproducible resets. The empty directories were
+removed rather than left as decoration.
+
+#### 9.2.4 `grade.py` interface
+
+**In:** final world (read-only), `/grading`, action-log path, agent's final artifact.
+**Out:** `score.json`
+
+```json
+{"total": 14.5, "max": 20,
+ "checks": [{"id": "D1", "points": 4.5, "max": 5, "passed": false, "detail": "..."}],
+ "process_signals": {"time_to_first_write_s": 412, "surfaces_before_write": 3,
+                     "doom_loops": 0, "ungated_destructive": 1},
+ "shadow_judge": {"J1": 2, "J2": 1, "J3": 0, "advisory_only": true}}
+```
+
+#### 9.2.5 Agent's final artifact
+
+```json
+{"primary_cause": "...", "damage_window": ["2026-02-01", "2026-03-02"],
+ "supporting_evidence": ["query-17", "log-4"],
+ "repair_strategy": "...", "remaining_risks": ["..."],
+ "additional_causes": []}
+```
+
+Working hypotheses are free during investigation. The **final** submission commits to one
+`primary_cause`. Unsupported entries in `additional_causes` incur a **false-cause penalty** —
+we do not zero the axis for hedging, which would punish sound incident response.
+
+### 9.3 Track status as of 2026-09-13
+
+| Track | Scope | State |
+|---|---|---|
+| **A — World & determinism** | `world/` | seed to world builder, semantic fingerprint, snapshot save/restore/verify, deterministic scheduler, BI values surface, 3-zone Docker topology. **7 tests green.** |
+| **B — Gateway & connectors** | `gateway/` | 17 tools, MCP **and** CLI over one audited core, destructive classification, replay, report-only process signals. **11 tests green.** |
+| **C — Task, grader, GEPA** | `tasks/GT001-aov-halving/` | seed spec, generator, oracle, 8-check deterministic grader (19 pts), 6 adversarial baselines, fixture-contract guard, shadow judge + GEPA loop. **TASK VALID.** |
+| **Integration** | `tasks/.../tests/test_integration.py` | all three tracks in one process against a real world. **12 assertions green.** |
+
+Baseline profile — the task-validity gate. If any lands outside its band the *task* is broken,
+not the agent:
+
+| Baseline | Score | Required |
+|---|---|---|
+| oracle | 19/19 | = max |
+| no_op | 0 | ≤ 1 |
+| full_refresh | 9 | partial, **not** zero (it destroys the 412 manual adjustments) |
+| dedupe_only | 17 | < oracle (data fixed, loader still on append) |
+| checklist | 17 | < oracle (the false-cause penalty must bite) |
+| reference_copy | 17 | **0 in production** — scores high in fixtures *by design*, proving topology is the only defence |
+
+That last row is the one to read carefully. `reference_copy` scoring 17 is not a failing
+grader; it is the grader honestly reporting that when the reference sits in a reachable
+directory, copying it works. Track A must prove `/grading` is unreachable **in the real
+container** — a build gate, not a test.
+
+### 9.4 Honest flags
+
+**GEPA here is a machinery demo, not a validated judge.** The labelled set is small and
+derived from baseline agents rather than human annotation of real trajectories. The loop runs
+end to end with a proper held-out split, and on the current data it **overfits** — which is
+the held-out split doing its job, and exactly why agreement must never be quoted from data the
+search saw. The ≥98.5% agreement bar remains a Phase-1 gate. Presenting it as anything more is
+the one thing that would cost us credibility.
+
+**Process signals ship with a published false-positive rate and a human-review path, or they
+do not ship.** Precedent: MLE-Bench's LLM log-analysis rule checker flagged up to 14.1% of
+medal runs and was wrong every single time. `gateway/src/alkera_gateway/signals.py` currently
+self-reports `false_positive_rate: None`, `calibration: unmeasured`,
+`human_review_required: True`. That is the correct posture, not a defect.
+
+**Cut order if time runs short:** GEPA first, then the CLI adapter, then scheduler realism.
+**Never cut:** determinism, the unreachable grader, adversarial baselines.
+
+### 9.5 Corpus status — read before trusting any count
+
+The research corpus reports 26 active archetypes, 162 sources, 72 tool records, 60 failure
+records. Do not read that as validated.
+
+- 3 archetypes are `redesign_required` (A031, A032, A033); 8 have never been attacked
+  (A002, A003, A005, A010, A017, A018, A022, A025).
+- Only 15 active archetypes carry any red-team record.
+- 11 archetypes rest on sources damaged by the citation audit.
+- 49 of 68 practitioner sources were never semantically audited; of those sampled, roughly
+  **47% failed semantic review despite passing every mechanical check** — each had a perfect
+  verbatim quote match.
+- **Nothing has been promoted to `state/verified/`.**
+- `G4` verifies that attack records are cross-linked — **not** that an archetype survived two
+  independent attacks. `G5` confirms a probe was *recorded*, not executed.
+
+Status is **discovery-complete, disposition-incomplete**. See
+`implementation_structure/rounds/R001/CITATION-AUDIT-VERDICT.md`.
+
+The recurring lesson across both the corpus and the code: **mechanical verification is not
+quality.** Every failed source passed its citation check. Every track passed its own tests
+while the composition was broken.
+
+---
+
+## 10. Repository architecture
+
+§3 is the *product* architecture — the four planes, the north star. This section is the
+**code** architecture: what actually exists on disk, why it is shaped that way, and what
+should change next. Written 2026-09-13 after the three-track merge and cleanup.
+
+### 10.1 Directory map
+
+```
+alkera/
+├── agent.md                    THIS FILE — the single source of truth
+│
+├── world/                      TRACK A · the world factory (was track_a/)
+│   ├── world/                  importable package
+│   │   ├── gen.py              seeded data synthesis
+│   │   ├── build.py            a seed file -> materialized world root
+│   │   ├── fingerprint.py      SEMANTIC hash (schemas + canonical contents)
+│   │   ├── hashing.py          raw byte hash — diagnostic only
+│   │   ├── snapshot.py         save / restore / verify
+│   │   ├── scheduler.py        deterministic state machine, NOT Airflow
+│   │   └── bi.py               dashboards -> computed values
+│   ├── docker/                 3-zone topology + egress_test.py
+│   ├── grading/                post-episode zone (never mounted in-episode)
+│   ├── scripts/acceptance.sh   the determinism gate battery
+│   ├── tests/                  7 tests
+│   ├── seed.example.yaml       worked seed contract
+│   └── requirements.lock       pinned — determinism depends on it
+│
+├── gateway/                    TRACK B · the only way an agent touches the world
+│   ├── src/alkera_gateway/
+│   │   ├── core.py             THE audited chokepoint — every call passes here
+│   │   ├── tools.py            the 17-tool registry
+│   │   ├── operations.py       op_class: read|write|ddl|destructive|exec
+│   │   ├── sql.py  files.py  commands.py  surfaces.py     connectors
+│   │   ├── audit.py  records.py                           the action log
+│   │   ├── server.py  cli.py                              MCP + CLI transports
+│   │   ├── replay.py           reconstruct a session from the log alone
+│   │   ├── signals.py          process signals — REPORT ONLY, uncalibrated
+│   │   └── config.py           enforces audit_dir/warehouse outside workspace
+│   └── tests/                  11 tests
+│
+├── tasks/                      TRACK C · the graded content
+│   └── GT001-aov-halving/
+│       ├── SEED_SPEC.md        frozen world contract
+│       ├── task.toml           limits + machine-readable validity gates
+│       ├── instruction.md      all the agent ever sees
+│       ├── solution/           the oracle
+│       └── tests/              HIDDEN — grade.py, manifest, baselines,
+│                               fixture_contract.py, judge/, test_integration.py
+│
+├── implementation_structure/   the research swarm and its record
+│   ├── ARCHITECTURE.md  ROUND_PLAN.md  roles/    how the swarm runs
+│   ├── schemas/  gates/                          G0–G5 machine verdict
+│   ├── state/                                    THE BLACKBOARD — commit always
+│   │   ├── archetypes/  claims/  knowledge/  inventory/
+│   │   ├── failures/                             what round N killed, so N+1 need not
+│   │   └── verified/                             still empty — see §9.5
+│   └── rounds/R001/                              per-round reports incl. the audit verdict
+│
+├── verifier/                   append-only acceptance history (2026-09-08 assessment)
+└── vendor/                     cloned upstreams (gepa) — gitignored, never committed
+```
+
+### 10.2 The one dependency rule
+
+```
+   tasks/  ──depends on──▶  gateway/  ──depends on──▶  world/
+      │                                                   ▲
+      └───────────────depends on (layout only)────────────┘
+
+   implementation_structure/  ──feeds task design──▶  tasks/
+```
+
+**Dependencies point one way, and the arrows never reverse.** `world/` knows nothing about
+the gateway; the gateway knows nothing about any particular task; a task knows the world's
+*layout* (§9.2.1) but never imports its internals. `implementation_structure/` is upstream of
+everything and imports nothing — it is a corpus, not a library.
+
+The seam where this broke is instructive: all three respected the rule and integration still
+failed, because the contract they shared (§9.2.1) was under-specified. A shared *path* is not
+a shared *contract* until it says how to open the file.
+
+### 10.3 How the code maps onto the four planes of §3
+
+| §3 plane | Where it lives | Honest state |
+|---|---|---|
+| Control plane (generator + determinism) | `world/` | built; cross-host fingerprint gate not yet run in CI |
+| World instance | `world/docker/` | 3 zones defined; `/grading` unreachability not yet proven in a live container |
+| Toolbelt / gateway | `gateway/` | built, both transports, 17 tools |
+| Grading plane — deterministic | `tasks/*/tests/grade.py` | built, 8 checks, 19 points |
+| Grading plane — LLM judge | `tasks/*/tests/judge/` | **shadow only**, overfits on current labels |
+| Grading plane — process signals | `gateway/.../signals.py` | **report only**, uncalibrated by design |
+| Calibration flywheel | — | **not built.** Needs run telemetry that does not exist yet |
+| Product plane | — | **not built.** Phase 1+ |
+
+Two rows of that table are empty, and they are the two the §3 diagram draws most confidently.
+Worth saying out loud when showing the diagram.
+
+### 10.4 Proposed changes
+
+Ordered by what a second task would force us to confront, not by effort.
+
+1. **Extract the task-authoring kit out of GT001.** `fixture_contract.py`,
+   `run_baselines.py` and the `judge/` harness are 90% task-agnostic but currently live
+   inside one task directory. GT002 would copy-paste them, and the two copies would drift.
+   Proposed: `harness/` at the root, with per-task files reduced to `manifest.yaml`,
+   `grade.py` checks, and the generator. **Do this before GT002, not after.**
+2. **One virtualenv, not two.** `world/.venv` and `gateway/.venv` have diverged —
+   `world/.venv` has no pytest, so Track A's tests can only be run through the gateway's
+   interpreter. That is a trap for anyone who clones this. Either one root venv, or a
+   `make test` that hides the difference.
+3. **Promote `test_integration.py` to a root-level suite.** It tests all three tracks, so
+   living under `tasks/GT001/tests/` mislabels it as task-specific. It is the suite that
+   caught the only defect no other suite could see.
+4. **CI that runs the four suites plus `acceptance.sh`.** The baselines are declared CI in
+   §9.1 rule 7 and are not actually wired to anything. A rule nothing enforces is a comment.
+5. **Fold `verifier/` into `implementation_structure/`.** It is an append-only verification
+   record — the same species as `rounds/` — and sits at the root only for historical reasons.
+   Low value, do it when touching that tree anyway.
+
+### 10.5 Structural gaps
+
+Listed so they are not rediscovered.
+
+- **`state/verified/` is empty.** Nothing in the research corpus has been promoted. The gates
+  check cross-linking and recording, not survival (§9.5).
+- **`replay.final_world_verified: False`** — replay confirms responses match but never
+  verifies the final world state matches. A replay that does not check the world is a
+  transcript, not a reproduction.
+- **`/grading` unreachability is unproven in a live container.** `reference_copy` scores 17
+  in fixtures by design; only the container topology makes it 0.
+- **GEPA has no `reflection_lm` wired**, so real reflective mutation never runs — the loop
+  falls back to a local search.
+- **Cross-host determinism has never been executed.** `acceptance.sh` gate 1 builds twice on
+  *the same* host, which proves far less than the acceptance criterion claims.
+
+---
 
 *Sources: `de-agent-benchmark-assessment.md`, `copy-list-from-existing-sources.md`
 (neither currently present in this repo — see §6.6), team meeting 2026-09-09.

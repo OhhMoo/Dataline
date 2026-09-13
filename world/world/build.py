@@ -1,6 +1,6 @@
 """seed.yaml -> world builder.
 
-Produces the contract layout (split_of_work.md §2.1) under <root>:
+Produces the contract layout (agent.md §9.2.1) under <root>:
   workspace/    git repo: dbt_project/, data/landing/, docs/, README.md
   var/warehouse/warehouse.duckdb   (raw loaded by builder; staging/warehouse by dbt)
   var/sched/state.json             (scheduler history + v-clock)
