@@ -29,7 +29,8 @@ def mcp_server(gateway):
         result = await anyio.to_thread.run_sync(gateway.call, name, arguments, "mcp")
         return types.CallToolResult(
             content=[types.TextContent(type="text", text=canonical(result).decode("utf-8"))],
-            structuredContent=result, isError=not result["ok"],
+            structuredContent=result,
+            isError=not result["ok"],
         )
 
     return server
@@ -37,7 +38,9 @@ def mcp_server(gateway):
 
 def http_app(gateway):
     manager = StreamableHTTPSessionManager(
-        mcp_server(gateway), json_response=True, stateless=True,
+        mcp_server(gateway),
+        json_response=True,
+        stateless=True,
         max_request_body_size=gateway.config.max_payload_bytes + 4096,
     )
 
@@ -62,16 +65,22 @@ def http_app(gateway):
                 raise ValueError("Expected a tool name and an argument object")
         except (ValueError, TypeError) as exc:
             return JSONResponse({"error": str(exc)}, status_code=400)
-        result = await anyio.to_thread.run_sync(gateway.call, payload["tool"], payload["args"], "cli")
+        result = await anyio.to_thread.run_sync(
+            gateway.call, payload["tool"], payload["args"], "cli"
+        )
         return JSONResponse(result)
 
     async def health(request):
         return JSONResponse({"ok": gateway.healthy, "tools": len(TOOLS)})
 
-    return Starlette(lifespan=lifespan, routes=[
-        Route("/call", call, methods=["POST"]), Route("/health", health),
-        Mount("/mcp", app=manager.handle_request),
-    ])
+    return Starlette(
+        lifespan=lifespan,
+        routes=[
+            Route("/call", call, methods=["POST"]),
+            Route("/health", health),
+            Mount("/mcp", app=manager.handle_request),
+        ],
+    )
 
 
 async def serve_stdio(gateway):

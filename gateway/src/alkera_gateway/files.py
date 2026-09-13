@@ -11,7 +11,7 @@ class Workspace:
 
     def path(self, name: str) -> Path:
         if name == "/workspace" or name.startswith("/workspace/"):
-            name = name[len("/workspace"):].lstrip("/")
+            name = name[len("/workspace") :].lstrip("/")
         candidate = self.root / name
         path = candidate.resolve()
         if not path.is_relative_to(self.root) or ".git" in path.relative_to(self.root).parts:
@@ -38,7 +38,6 @@ class Workspace:
         if len(data) > self.max_bytes:
             raise ToolError("file_too_large", "Content exceeds the configured write limit")
         if resolved.exists():
-            observation.op_class = "destructive"
             observation.flags.append("overwrite")
         resolved.parent.mkdir(parents=True, exist_ok=True)
         resolved.write_bytes(data)
@@ -54,7 +53,9 @@ class Workspace:
                 continue
             if not item.resolve().is_relative_to(self.root):
                 continue
-            entries.append({"path": self.name(item), "type": "directory" if item.is_dir() else "file"})
+            entries.append(
+                {"path": self.name(item), "type": "directory" if item.is_dir() else "file"}
+            )
             if len(entries) == 1001:
                 break
         return {"entries": entries[:1000], "truncated": len(entries) > 1000}
@@ -76,4 +77,3 @@ class Workspace:
                     if len(matches) == limit:
                         return {"matches": matches, "limit_reached": True}
         return {"matches": matches, "limit_reached": False}
-

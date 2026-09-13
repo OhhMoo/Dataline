@@ -32,7 +32,11 @@ def _warehouse_hash(db_path: Path) -> dict:
     try:
         rows = con.execute(
             "select table_schema, table_name from information_schema.tables "
-            "where table_schema in ('raw','staging','warehouse') order by 1, 2"
+            "where table_schema in ('raw','staging','warehouse') "
+            # BASE TABLES only. A view is a deterministic function of the tables
+            # it reads, so hashing it is redundant - and a view whose body uses a
+            # 2-part name breaks when the catalog shares the schema's name.
+            "and table_type = 'BASE TABLE' order by 1, 2"
         ).fetchall()
         for schema, table in rows:
             cols = con.execute(

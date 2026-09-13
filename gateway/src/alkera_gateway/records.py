@@ -28,7 +28,11 @@ def json_value(value):
 
 def canonical(value) -> bytes:
     return json.dumps(
-        json_value(value), sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False
+        json_value(value),
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        allow_nan=False,
     ).encode("utf-8")
 
 
@@ -53,8 +57,19 @@ class ToolError(Exception):
 
 def operation_record(row: dict) -> dict:
     keys = (
-        "seq", "vts", "tool", "args", "args_hash", "op_class", "targets", "read_targets",
-        "flags", "rows_affected", "result", "result_hash", "exit", "error",
+        "seq",
+        "vts",
+        "tool",
+        "args",
+        "args_hash",
+        "op_class",
+        "targets",
+        "read_targets",
+        "flags",
+        "rows_affected",
+        "result",
+        "result_hash",
+        "exit",
+        "error",
     )
     return {key: row[key] for key in keys}
-

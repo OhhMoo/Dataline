@@ -56,10 +56,24 @@ class Commands:
             observation.op_class = "destructive"
             observation.flags.append("full_refresh")
         argv = [
-            executable, "--no-use-colors", "--no-send-anonymous-usage-stats", command,
-            "--project-dir", str(self.workspace.path("dbt_project")),
-            "--profiles-dir", str(self.config.profiles_dir), "--threads", "1",
-            "--select", selector, "--vars", json.dumps(variables),
+            executable,
+            "--no-use-colors",
+            "--no-send-anonymous-usage-stats",
+            command,
+            "--project-dir",
+            str(self.workspace.path("dbt_project")),
+            "--profiles-dir",
+            str(self.config.profiles_dir),
+            "--threads",
+            "1",
+            "--target-path",
+            str(self.config.audit_dir / "dbt-target"),
+            "--log-path",
+            str(self.config.audit_dir / "dbt-logs"),
+            "--select",
+            selector,
+            "--vars",
+            json.dumps(variables, sort_keys=True),
         ]
         if full_refresh:
             argv.append("--full-refresh")
@@ -71,22 +85,37 @@ class Commands:
     def git(self, args: list[str], *, vts: str, observation: Observation, paths=None):
         observation.targets = ["workspace"]
         env = {
-            **os.environ, "GIT_TERMINAL_PROMPT": "0", "GIT_CONFIG_NOSYSTEM": "1",
-            "GIT_CONFIG_GLOBAL": os.devnull, "GIT_AUTHOR_NAME": "Agent",
-            "GIT_AUTHOR_EMAIL": "agent@alkera.local", "GIT_COMMITTER_NAME": "Agent",
-            "GIT_COMMITTER_EMAIL": "agent@alkera.local", "GIT_AUTHOR_DATE": vts,
+            **os.environ,
+            "GIT_TERMINAL_PROMPT": "0",
+            "GIT_CONFIG_NOSYSTEM": "1",
+            "GIT_CONFIG_GLOBAL": os.devnull,
+            "GIT_AUTHOR_NAME": "Agent",
+            "GIT_AUTHOR_EMAIL": "agent@alkera.local",
+            "GIT_COMMITTER_NAME": "Agent",
+            "GIT_COMMITTER_EMAIL": "agent@alkera.local",
+            "GIT_AUTHOR_DATE": vts,
             "GIT_COMMITTER_DATE": vts,
         }
         base = [
-            "git", "--no-pager", "-c", f"core.hooksPath={os.devnull}", "-c", "commit.gpgsign=false",
-            "-c", "core.autocrlf=false", "-c", "core.quotePath=false",
+            "git",
+            "--no-pager",
+            "-c",
+            f"core.hooksPath={os.devnull}",
+            "-c",
+            "commit.gpgsign=false",
+            "-c",
+            "core.autocrlf=false",
+            "-c",
+            "core.quotePath=false",
         ]
         if paths:
             names = [self.workspace.name(self.workspace.path(path)) for path in paths]
             observation.op_class = "write"
             staged = run_command(
-                [*base, "--literal-pathspecs", "add", "--", *names], self.config.workspace,
-                self.config, env,
+                [*base, "--literal-pathspecs", "add", "--", *names],
+                self.config.workspace,
+                self.config,
+                env,
             )
             if staged["returncode"]:
                 return staged

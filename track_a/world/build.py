@@ -77,9 +77,9 @@ DASHBOARD = {
     "dashboard": "revenue_daily",
     "panels": [
         {"name": "daily_revenue",
-         "sql": "select order_date, revenue from warehouse.warehouse.fct_revenue order by order_date"},
+         "sql": "select order_date, revenue from warehouse.fct_revenue order by order_date"},
         {"name": "total_revenue",
-         "sql": "select sum(revenue) as total_revenue from warehouse.warehouse.fct_revenue"},
+         "sql": "select sum(revenue) as total_revenue from warehouse.fct_revenue"},
     ],
 }
 

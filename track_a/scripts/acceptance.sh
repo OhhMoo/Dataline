@@ -30,16 +30,27 @@ $PY -m world.snapshot verify "$tmp/w1" "$tmp/wr"
 
 if docker info >/dev/null 2>&1; then
   echo "== gate 3: episode-zone egress is impossible"
-  docker build -q -f docker/Dockerfile -t "$IMG" . >/dev/null
+  docker build -q -f track_a/docker/Dockerfile -t "$IMG" .. >/dev/null
   t0=$SECONDS
   $COMPOSE up -d episode >/dev/null
   until $COMPOSE exec -T episode test -f /world/var/sched/state.json 2>/dev/null; do
     [ $((SECONDS - t0)) -gt 120 ] && { echo "  FAIL: boot timeout"; exit 1; }
     sleep 2
   done
+  until $COMPOSE --profile harness run --rm harness \
+      python -c "import urllib.request; urllib.request.urlopen('http://episode:8080/health')" \
+      >/dev/null 2>&1; do
+    [ $((SECONDS - t0)) -gt 120 ] && { echo "  FAIL: gateway timeout"; exit 1; }
+    sleep 2
+  done
   echo "  boot: $((SECONDS - t0))s (limit 60s)"
   [ $((SECONDS - t0)) -lt 60 ] || { echo "  FAIL: boot too slow"; exit 1; }
   $COMPOSE exec -T episode python /opt/world/egress_test.py
+  $COMPOSE --profile harness run --rm harness \
+      alkera-mcp-smoke http://episode:8080/mcp/
+  $COMPOSE --profile harness run --rm harness \
+      alkera-gateway call sql_query --url http://episode:8080 \
+      --arg "sql=select count(*) as days from warehouse.fct_revenue"
   size_mb=$(docker image inspect "$IMG" --format '{{.Size}}' | awk '{print int($1/1048576)}')
   echo "  image footprint: ${size_mb}MB (budget ~2GB)"
   [ "$size_mb" -lt 2048 ] || { echo "  FAIL: image too large"; exit 1; }

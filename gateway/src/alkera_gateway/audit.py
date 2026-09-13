@@ -29,19 +29,38 @@ class AuditLog:
             if [row["seq"] for row in rows] != list(range(1, len(rows) + 1)):
                 raise ValueError("Audit sequence is not contiguous")
             if [row["seq"] for row in requests] != [row["seq"] for row in rows]:
-                raise ValueError("Unfinished request; inspect the world before starting a new episode")
+                raise ValueError(
+                    "Unfinished request; inspect the world before starting a new episode"
+                )
             self.seq = len(rows)
             manifest_path = self.directory / "session.json"
+            versions = {
+                name: version(name)
+                for name in (
+                    "alkera-gateway",
+                    "dbt-core",
+                    "dbt-duckdb",
+                    "duckdb",
+                    "mcp",
+                    "pydantic",
+                    "PyYAML",
+                    "sqlglot",
+                )
+            }
             if manifest_path.exists():
                 manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
                 if manifest["episode_id"] != config.episode_id:
                     raise ValueError("Audit directory belongs to another episode")
+                if manifest["initial_world_fp"] != config.initial_world_fp:
+                    raise ValueError("Audit directory belongs to another initial world")
+                if manifest["versions"] != versions:
+                    raise ValueError("Audit directory uses another dependency set")
             else:
                 manifest = {
                     "schema_version": 1,
                     "episode_id": config.episode_id,
                     "initial_world_fp": config.initial_world_fp,
-                    "versions": {name: version(name) for name in ("alkera-gateway", "duckdb", "mcp")},
+                    "versions": versions,
                 }
                 manifest_path.write_bytes(canonical(manifest))
         except Exception:

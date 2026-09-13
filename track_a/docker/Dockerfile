@@ -1,20 +1,25 @@
 FROM python:3.11-slim
 
-ENV PYTHONUTF8=1 TZ=UTC PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+ENV PYTHONUTF8=1 TZ=UTC PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/opt/world
 
 RUN apt-get update && apt-get install -y --no-install-recommends git \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /opt/world
-COPY requirements.lock ./
-RUN pip install --no-cache-dir -r requirements.lock
+COPY gateway/requirements.lock /opt/gateway/requirements.lock
+RUN pip install --no-cache-dir --require-hashes -r /opt/gateway/requirements.lock
 
-COPY world/ ./world/
-COPY seed.example.yaml ./seed.yaml
-COPY docker/entrypoint.sh docker/egress_test.py ./
+COPY gateway/pyproject.toml /opt/gateway/
+COPY gateway/src/ /opt/gateway/src/
+RUN pip install --no-cache-dir --no-deps /opt/gateway
+
+COPY track_a/world/ ./world/
+COPY track_a/seed.example.yaml ./seed.yaml
+COPY track_a/requirements.lock ./requirements.lock
+COPY track_a/docker/entrypoint.sh track_a/docker/egress_test.py ./
+COPY gateway/config.example.json /etc/alkera/gateway.json
 RUN chmod +x entrypoint.sh
 
-# Boot: restore /snapshot/world.tar if mounted, else build from seed, then run
-# CMD. Episode CMD is a placeholder — Track B replaces it with the tool gateway.
 ENTRYPOINT ["./entrypoint.sh"]
-CMD ["sleep", "infinity"]
+CMD ["alkera-gateway", "serve", "--config", "/etc/alkera/gateway.json", "--host", "0.0.0.0"]

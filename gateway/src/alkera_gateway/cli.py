@@ -13,10 +13,27 @@ from .replay import replay
 from .signals import process_signals
 
 
+def parse_pairs(values: list[str]) -> dict:
+    result = {}
+    for value in values:
+        if "=" not in value:
+            raise ValueError(f"Expected NAME=VALUE, got: {value}")
+        name, raw = value.split("=", 1)
+        if not name:
+            raise ValueError("Argument name cannot be empty")
+        try:
+            result[name] = json.loads(raw)
+        except json.JSONDecodeError:
+            result[name] = raw
+    return result
+
+
 def call_remote(url: str, tool: str, args: dict, timeout: int = 180) -> dict:
     request = Request(
-        url.rstrip("/") + "/call", data=canonical({"tool": tool, "args": args}),
-        headers={"Content-Type": "application/json"}, method="POST",
+        url.rstrip("/") + "/call",
+        data=canonical({"tool": tool, "args": args}),
+        headers={"Content-Type": "application/json"},
+        method="POST",
     )
     with urlopen(request, timeout=timeout) as response:
         return json.load(response)
@@ -33,8 +50,9 @@ def main(argv=None):
     call = commands.add_parser("call")
     call.add_argument("tool")
     source = call.add_mutually_exclusive_group()
-    source.add_argument("--args", default="{}")
+    source.add_argument("--args")
     source.add_argument("--args-file", type=Path)
+    source.add_argument("--arg", action="append", default=[])
     call.add_argument("--url", default="http://127.0.0.1:8080")
     call.add_argument("--timeout", type=int, default=180)
     trace = commands.add_parser("trace")
@@ -62,8 +80,13 @@ def main(argv=None):
             gateway.close()
         return 0
     if args.command == "call":
-        content = args.args_file.read_text(encoding="utf-8") if args.args_file else args.args
-        result = call_remote(args.url, args.tool, json.loads(content), args.timeout)
+        if args.args_file:
+            values = json.loads(args.args_file.read_text(encoding="utf-8"))
+        elif args.args:
+            values = json.loads(args.args)
+        else:
+            values = parse_pairs(args.arg)
+        result = call_remote(args.url, args.tool, values, args.timeout)
         print(canonical(result).decode("utf-8"))
         return 0 if result["ok"] else 1
     rows = validate_trace(args.audit_dir / "actions.jsonl")

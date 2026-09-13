@@ -1,0 +1,12 @@
+{
+  "workspace": "/world/workspace",
+  "warehouse": "/world/var/warehouse/warehouse.duckdb",
+  "scheduler": "/world/var/sched/state.json",
+  "dashboards": "/world/var/bi/dashboards",
+  "audit_dir": "/audit",
+  "profiles_dir": "/world/build",
+  "world_root": "/world",
+  "episode_id": "demo",
+  "initial_world_fp": null,
+  "virtual_time": "2026-03-05T09:00:00Z"
+}

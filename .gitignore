@@ -42,3 +42,7 @@ scratch/
 # Vendored upstream repos (clone, don't commit)
 vendor/
 tasks/**/tests/fixtures/build/
+
+# tooling caches
+.pytest_cache/
+.ruff_cache/

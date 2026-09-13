@@ -145,14 +145,21 @@ FROM q
 """
 
 
+# NOTE the UNQUALIFIED table names in the body. SEED_SPEC deploys this file as
+# /var/warehouse/warehouse.duckdb, so at runtime the DuckDB catalog is also
+# called "warehouse" and a stored 2-part reference like warehouse.fct_orders is
+# ambiguous ("Ambiguous reference to catalog or schema"). Unqualified names
+# resolve against the view's own schema and work under both filenames.
+# This only reproduces when the file is named warehouse.duckdb - the fixture
+# builds world.duckdb, so it surfaced solely at Track A/B/C integration.
 KPI_VIEW = """
 CREATE OR REPLACE VIEW warehouse.kpi_daily AS
 SELECT o.order_dt AS dt, COUNT(*) AS order_count,
        COALESCE(r.revenue, 0) AS revenue,
        ROUND(COALESCE(r.revenue,0) / NULLIF(COUNT(*),0), 2) AS aov
-FROM warehouse.fct_orders o
+FROM fct_orders o
 LEFT JOIN (SELECT order_dt, SUM(net_amount) AS revenue
-           FROM warehouse.fct_revenue GROUP BY order_dt) r ON r.order_dt = o.order_dt
+           FROM fct_revenue GROUP BY order_dt) r ON r.order_dt = o.order_dt
 GROUP BY o.order_dt, r.revenue ORDER BY 1;
 """
 

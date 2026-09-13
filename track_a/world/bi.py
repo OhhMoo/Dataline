@@ -19,7 +19,15 @@ DASHBOARDS = Path("var/bi/dashboards")
 def render(root: Path) -> dict:
     root = Path(root)
     out = {}
-    con = duckdb.connect(str(root / DB), read_only=True)
+    # Connect in-memory and ATTACH under a neutral alias rather than opening the
+    # file directly. DuckDB names the catalog after the file stem, so opening
+    # warehouse.duckdb directly makes catalog == schema == "warehouse" and every
+    # reference to warehouse.<table> raises "Ambiguous reference to catalog or
+    # schema". An alias removes the collision, and `USE wh.warehouse` keeps
+    # dashboard SQL writable in the natural two-part form.
+    con = duckdb.connect(":memory:", config={"threads": 1})
+    con.execute("ATTACH '" + str(root / DB).replace("'", "''") + "' AS wh (READ_ONLY)")
+    con.execute("USE wh.warehouse")
     try:
         for f in sorted((root / DASHBOARDS).glob("*.yml")):
             spec = yaml.safe_load(f.read_text(encoding="utf-8"))

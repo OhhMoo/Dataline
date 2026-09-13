@@ -11,7 +11,9 @@ def replay(source: Path, gateway):
     if gateway.audit.seq:
         raise ValueError("Replay needs a fresh destination episode")
     manifest = json.loads((source / "session.json").read_text(encoding="utf-8"))
-    destination = json.loads((gateway.config.audit_dir / "session.json").read_text(encoding="utf-8"))
+    destination = json.loads(
+        (gateway.config.audit_dir / "session.json").read_text(encoding="utf-8")
+    )
     if not manifest["initial_world_fp"]:
         raise ValueError("Source session has no initial world fingerprint")
     if manifest["initial_world_fp"] != destination["initial_world_fp"]:
@@ -29,6 +31,8 @@ def replay(source: Path, gateway):
         if digest(actual) != digest(expected):
             differences.append({"seq": row["seq"], "tool": row["tool"]})
     return {
-        "calls": len(rows), "responses_match": not differences, "differences": differences,
+        "calls": len(rows),
+        "responses_match": not differences,
+        "differences": differences,
         "final_world_verified": False,
     }

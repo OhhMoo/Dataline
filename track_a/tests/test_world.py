@@ -74,10 +74,15 @@ class WorldTest(unittest.TestCase):
     def test_bi_render_matches_warehouse(self):
         import duckdb
         rendered = bi.render(self.w1)
-        con = duckdb.connect(str(self.w1 / "var/warehouse/warehouse.duckdb"),
-                             read_only=True)
+        # attach under a neutral alias: opening warehouse.duckdb directly makes
+        # the catalog and the schema both "warehouse", and every 2-part
+        # reference becomes ambiguous
+        con = duckdb.connect(":memory:")
+        con.execute("ATTACH '" + str(self.w1 / "var/warehouse/warehouse.duckdb")
+                    .replace("'", "''") + "' AS wh (READ_ONLY)")
+        con.execute("USE wh.warehouse")
         total = con.execute(
-            "select sum(revenue) from warehouse.warehouse.fct_revenue").fetchone()[0]
+            "select sum(revenue) from warehouse.fct_revenue").fetchone()[0]
         con.close()
         self.assertEqual(rendered["revenue_daily"]["total_revenue"][0][0], str(total))
         self.assertEqual(len(rendered["revenue_daily"]["daily_revenue"]), 30)

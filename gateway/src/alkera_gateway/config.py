@@ -12,6 +12,7 @@ class GatewayConfig(BaseModel):
     dashboards: Path = Path("/var/bi/dashboards")
     audit_dir: Path = Path("/audit")
     profiles_dir: Path = Path("/etc/alkera/dbt")
+    world_root: Path | None = None
     episode_id: str = "local"
     initial_world_fp: str | None = None
     virtual_time: str = "2026-03-05T09:00:00Z"
@@ -22,8 +23,17 @@ class GatewayConfig(BaseModel):
 
     @model_validator(mode="after")
     def resolve_paths(self):
-        for name in ("workspace", "warehouse", "scheduler", "dashboards", "audit_dir", "profiles_dir"):
+        for name in (
+            "workspace",
+            "warehouse",
+            "scheduler",
+            "dashboards",
+            "audit_dir",
+            "profiles_dir",
+        ):
             setattr(self, name, getattr(self, name).resolve())
+        if self.world_root is not None:
+            self.world_root = self.world_root.resolve()
         if self.audit_dir.is_relative_to(self.workspace):
             raise ValueError("audit_dir must be outside workspace")
         if self.warehouse.is_relative_to(self.workspace):

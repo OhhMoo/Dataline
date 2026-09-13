@@ -43,7 +43,9 @@ class Operations:
     def git_log(self, limit, observation):
         observation.read_targets = ["workspace"]
         return self.commands.git(
-            ["log", f"-{limit}", "--format=%H %aI %s"], vts=self.clock(), observation=observation,
+            ["log", f"-{limit}", "--format=%H %aI %s"],
+            vts=self.clock(),
+            observation=observation,
         )
 
     def git_diff(self, staged, observation):
@@ -55,7 +57,10 @@ class Operations:
 
     def git_commit(self, message, paths, observation):
         return self.commands.git(
-            ["commit", "-m", message], vts=self.clock(), observation=observation, paths=paths,
+            ["commit", "-m", message],
+            vts=self.clock(),
+            observation=observation,
+            paths=paths,
         )
 
     def bi_render(self, dashboard, observation):
@@ -71,9 +76,11 @@ class Operations:
         return self.scheduler.trigger(job_id, execution_date, variables)
 
     def sched_state(self, run_id, observation):
-        observation.read_targets = observation.targets = [f"scheduler:{run_id}"]
+        target = f"scheduler:{run_id}" if run_id else "scheduler"
+        observation.read_targets = observation.targets = [target]
         return self.scheduler.state(run_id)
 
     def sched_logs(self, run_id, observation):
-        observation.read_targets = observation.targets = [f"scheduler:{run_id}"]
+        target = f"scheduler:{run_id}" if run_id else "scheduler"
+        observation.read_targets = observation.targets = [target]
         return self.scheduler.logs(run_id)

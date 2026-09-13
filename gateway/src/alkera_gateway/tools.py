@@ -68,12 +68,15 @@ class Trigger(Arguments):
 
 
 class Run(Arguments):
-    run_id: str
+    run_id: str | None = None
 
 
 TOOLS = {
     "sql_query": (Query, "Run one read-only DuckDB query; results include column types."),
-    "sql_execute": (SQL, "Run one warehouse statement. Destructive writes are flagged and allowed."),
+    "sql_execute": (
+        SQL,
+        "Run one warehouse statement. Destructive writes are flagged and allowed.",
+    ),
     "dbt_run": (DbtRun, "Run selected dbt models with optional variables and full refresh."),
     "dbt_test": (Dbt, "Run selected dbt tests."),
     "dbt_compile": (Dbt, "Compile selected dbt models."),
@@ -83,10 +86,13 @@ TOOLS = {
     "git_log": (GitLog, "Read recent workspace commits."),
     "git_diff": (GitDiff, "Read working-tree or staged changes."),
     "git_commit": (GitCommit, "Stage the listed paths and commit with the virtual clock."),
-    "docs_search": (Search, "Search documentation for a literal phrase, with file and line evidence."),
+    "docs_search": (
+        Search,
+        "Search documentation for a literal phrase, with file and line evidence.",
+    ),
     "bi_render": (BI, "Compute a dashboard's current warehouse values."),
     "sched_list": (Empty, "List scheduler jobs."),
     "sched_trigger": (Trigger, "Execute a job for an explicit logical date."),
-    "sched_state": (Run, "Read a scheduler run's status."),
-    "sched_logs": (Run, "Read a scheduler run's output."),
+    "sched_state": (Run, "Read scheduler state or one run's status."),
+    "sched_logs": (Run, "Read scheduler history or one run's output."),
 }
