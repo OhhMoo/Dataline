@@ -5,7 +5,6 @@ role: simulate_target
 replication_strategy: wire_protocol
 produced_by: R002-T2-snowflake
 rq: RQ7
-replication_ease: medium
 evidence:
   - S850
   - S864
@@ -16,3 +15,14 @@ notes: >
   /session, POST /queries/v1/query-request, POST /queries/v1/abort-request, GET
   /monitoring/queries/{sfqid}. Results go back as base64 Arrow IPC inline. fakesnow implements
   all five in 320 lines. Distinct from the public SQL API below - do not conflate them.
+replication_ease: easy
+probe_result: pass
+install_probe: "pip install 'fakesnow[server]' snowflake-connector-python; run fakesnow.server:app under uvicorn; connect with protocol='http', host/port overridden"
+repair_note: >
+  PROBED 2026-09-13 by LEAD-R002, closing T2's open probe. The REAL
+  snowflake-connector-python driver connects to fakesnow's server over HTTP and round-trips
+  CREATE DATABASE / CREATE SCHEMA / CREATE TABLE / SELECT, returning (42, '0.0.0'). Routes
+  served are /session/v1/login-request, /session, /queries/v1/query-request,
+  /queries/v1/abort-request and /monitoring/queries/{sfqid}. Upgraded medium -> easy: the only
+  client-side change is host/port plus protocol="http". NOTE the version string - see S951,
+  current_version() returns 0.0.0, which is a one-query sandbox tell.
