@@ -65,3 +65,18 @@ attacks:
 notes: >
   The causes-table exact-match key keeps grading deterministic; free-text explanation is
   only judge-scored, bounded to one axis.
+repair_note: >
+  EVIDENCE DOWNGRADE 2026-09-13 (D2, R002 evidence repair) - derived_from unchanged, licences
+  changed. This archetype cites S002, which F451 ruled on 2026-09-12 and which nothing executed
+  until now (F553). S002 is now attestation=unattested at confidence=medium: the UTC-to-local
+  timestamp shift is explicitly a pattern sketch - "a source system gets migrated, or bumps a
+  library, and quietly starts sending timestamps in local time instead of UTC" - introduced as the
+  author's favourite version of undetected upstream change, not as an incident. It retains a
+  mechanism licence (the defect is precisely enough specified to rebuild) but attests nothing.
+  It also cites S205, now typed vendor_marketing and capped at world_texture (F457, executed
+  2026-09-13): a BI vendor's candidate-cause list may seed a defect library but may not be cited as
+  what analysts actually hit, and this archetype must not weight its categories by that page.
+  PARTIAL CORROBORATION AVAILABLE: S008 (named Astronomer field engineers, firsthand_named) attests
+  daylight-savings incidents from SCHEDULING in local timezones. That is adjacent to, not the same
+  as, source data values shifting - do not merge them. Not otherwise re-derived here; this
+  archetype was outside the 11 I was given.

@@ -1,0 +1,17 @@
+# Produced by T3-environment-themes (R002) for RQ3 -- legacy / flat-file environment tooling.
+id: T283
+name: MicroStrategy / BusinessObjects-era enterprise BI
+category: bi
+role: simulate_target
+replication_strategy: none_found
+produced_by: T3-environment-themes
+rq: RQ3
+replication_ease: medium
+notes: >
+  No OSS stand-in that resembles the semantic-layer-plus-scheduled-burst-report shape of these
+  tools. FORTUNATELY THE EXISTING DECISION ALREADY COVERS IT: the project's BI surface returns
+  computed VALUES rather than rendered images (agent.md 7.3), and at the level of values a 1990s
+  enterprise BI tool and a modern dashboard are the same object -- a stored query definition plus
+  a cached result. The legacy-specific texture is the CACHE: these tools served scheduled snapshot
+  extracts, so the dashboard can legitimately disagree with the warehouse because it is showing
+  last night's burst, which is a better reconciliation puzzle than a live dashboard offers.

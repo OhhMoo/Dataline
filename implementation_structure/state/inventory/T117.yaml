@@ -2,10 +2,43 @@ id: T117
 name: "Fivetran"
 category: ingestion
 role: simulate_target
-replication_strategy: none_found
+replication_strategy: custom_mock_required
 produced_by: L6-tooling-inventory
 rq: RQ4
 frequency_rank: 18
+license: ""
+license_verified: false
+replication_ease: hard
+effort_estimate: "4-6 d"
+demand_archetypes:
+  - A010
+  - A017
+  - A018
+  - A022
+  - A025
+fidelity_gap: >
+  This is the honest 'no substitute exists' case in the inventory, and the reason is
+  specific. dlt and Meltano MOVE DATA; Fivetran's role in these five archetypes is not
+  moving data, it is being a control plane that made a schema-drift decision, recorded a
+  sync as successful, and showed a green status while rows went missing. No OSS
+  ingestion tool reproduces a sync-history timeline, a per-table schema-change policy,
+  or a connector alert - because those are product surfaces, not data-movement features.
+  Fivetran's own Connector SDK debug mode runs locally and writes a DuckDB warehouse.db
+  (S806), a real way to generate believable connector OUTPUT offline, but it downloads a
+  roughly 200MB proprietary tester binary on first run and still has no control plane.
+  Surface a real task needs, counted honestly: 4 objects (connector, sync run,
+  table-level schema config, alert), about 6 read endpoints, 2 actions (re-sync, pause).
+  Not 'the Fivetran API'.
 evidence:
   - S511
-notes: "Proprietary automated data movement / ELT ingestion target."
+  - S806
+notes: >
+  T1 2026-09-13 (round R002, mock-priority pass): RESOLVED from none_found to
+  custom_mock_required - and this is the item most likely to eat a week. Five archetypes
+  depend on it (A010, A017, A018, A022, A025), more than ticketing, catalog, streaming,
+  semantic layer and legacy database combined, so it cannot be dropped. Nothing runs for
+  real: Fivetran is SaaS, and the one honest OSS-adjacent path (Airbyte) is
+  licence-blocked under ELv2 (T121, T156). The danger is not that it is impossible -
+  four objects is a small build - it is that 'connector control plane' sounds like a
+  product and will grow endpoints for weeks unless someone writes those four objects
+  down and freezes them. See T203 for the build record.

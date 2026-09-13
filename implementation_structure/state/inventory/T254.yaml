@@ -1,0 +1,15 @@
+id: T254
+name: "Snowflake SQL API (/api/v2/statements)"
+category: warehouse
+role: simulate_target
+replication_strategy: http_intercept
+produced_by: R002-T2-snowflake
+rq: RQ7
+replication_ease: easy
+evidence:
+  - S864
+notes: >
+  The documented public REST API. NOT implemented by fakesnow - verified by reading its route
+  table. Anything in a world that calls /api/v2/statements (certain Airflow operators, shell
+  scripts, an agent writing curl) gets a 404 today. Small gap to close: one route that reuses
+  the same cursor, plus the async statement-handle polling shape. Estimate under a day.

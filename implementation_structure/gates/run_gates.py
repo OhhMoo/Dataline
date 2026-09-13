@@ -557,9 +557,108 @@ def gate6_source_quality() -> Result:
     return r
 
 
+def gate7_rulings_executed() -> Result:
+    """A recorded decision is not the decision being carried out.
+
+    F451 ruled that S001-S003 should be downgraded. Nothing downgraded them. S001
+    sat at confidence: high for a day while a failure record on disk said its core
+    attestation claim was false, and every gate stayed green throughout - because
+    no gate asked whether a ruling had been ACTED ON. My own round brief then
+    repeated the error, telling eight agents those sources were withdrawn when they
+    were not.
+
+    That is the citation-audit failure one level up. There, a verbatim quote match
+    was mistaken for the claim being true. Here, a written ruling was mistaken for
+    the work being done. Both are the same mistake: checking that a record exists
+    instead of checking what it asserts about the world.
+
+    A ruling is closed by recording HOW it was executed (executed_by + executed_on),
+    or by explicitly declining it (deferred + deferred_reason). Silence is not
+    closure, and "someone probably did it" is exactly the assumption that produced
+    this gate.
+    """
+    r = Result("G7", "failure rulings executed")
+    for path, doc in artifacts("failure"):
+        if "__parse_error__" in doc:
+            continue
+        action = doc.get("recommended_action")
+        if not action:
+            continue
+        r.checked += 1
+        executed = doc.get("executed_by") and doc.get("executed_on")
+        deferred = doc.get("deferred") and doc.get("deferred_reason")
+        if not (executed or deferred):
+            r.fail(f"{path.name}: recommended_action={action!r} with no execution record. "
+                   f"Add executed_by + executed_on, or deferred + deferred_reason.")
+    return r
+
+
+def gate8_claim_containment() -> Result:
+    """An archetype must stay inside what its sources actually license.
+
+    G6 checks that a SOURCE declares what it may support. Nothing checked that the
+    archetype citing it stayed inside that declaration - which is how A019 survived
+    every gate while resting entirely on a single vendor blog post. D2 named this
+    exact hole: "G6 checks a source declares its licence - nothing checks an
+    archetype stays inside it."
+
+    An archetype inherently asserts a MECHANISM: this failure works like this. So at
+    least one cited source must license 'mechanism'. Citing only world_texture
+    sources means the archetype is describing a mood, not a mechanism.
+    """
+    r = Result("G8", "archetype claims stay inside source licences")
+    # An archetype whose shortfall is recorded and reasoned on a failure record is a
+    # WARNING, not a failure. Silence means nobody looked; a deferral with a reason and
+    # a date means somebody looked, judged, and wrote it down - which is exactly the
+    # distinction G7 enforces one level up. Without this a known-and-accepted debt keeps
+    # the gate permanently red, and a permanently red gate gets ignored, which would
+    # cost more than the debt does.
+    deferred_targets = set()
+    for _p, _d in artifacts("failure"):
+        if isinstance(_d, dict) and _d.get("deferred") and _d.get("deferred_reason"):
+            deferred_targets.add(_d.get("target"))
+            deferred_targets.update(_d.get("also_applies_to") or [])
+    lic, withdrawn = {}, set()
+    for path, doc in artifacts("source"):
+        if "__parse_error__" in doc:
+            continue
+        lic[doc.get("id")] = set(doc.get("usable_for") or [])
+    wdir = STATE / "knowledge" / "withdrawn"
+    if wdir.is_dir():
+        for p in wdir.glob("*.yaml"):
+            withdrawn.add(p.stem)
+
+    for path, doc in artifacts("archetype"):
+        if "__parse_error__" in doc or doc.get("status") == "redesign_required":
+            continue
+        r.checked += 1
+        cited = doc.get("derived_from") or []
+        if not cited:
+            r.fail(f"{path.name}: no derived_from -- an archetype with no source is a guess")
+            continue
+        dead = [c for c in cited if c in withdrawn]
+        if dead:
+            r.fail(f"{path.name}: cites withdrawn source(s) {dead}")
+        known = [c for c in cited if c in lic]
+        missing = [c for c in cited if c not in lic and c not in withdrawn]
+        if missing:
+            r.warn(f"{path.name}: derived_from names unknown source(s) {missing}")
+        if known and not any("mechanism" in lic[c] for c in known):
+            aid = doc.get("id")
+            msg = (f"{path.name}: no cited source licenses 'mechanism' (cited {known}) "
+                   f"-- the archetype asserts a mechanism its own evidence does not support")
+            if aid in deferred_targets:
+                r.warn(msg + "  [deferred on the record; still owed]")
+            else:
+                r.fail(msg)
+    return r
+
+
 GATES = {"G0": gate0_schema, "G1": gate1_citations, "G2": gate2_license_liveness,
          "G3": gate3_coverage, "G4": gate4_referential, "G5": gate5_replication,
-         "G6": gate6_source_quality}
+         "G6": gate6_source_quality,
+         "G7": gate7_rulings_executed,
+         "G8": gate8_claim_containment}
 ONLINE = {"G1", "G2"}
 
 

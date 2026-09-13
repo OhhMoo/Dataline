@@ -57,6 +57,7 @@ derived_from:
   - S513
 produced_by: S4-tool-docs
 attacks:
+  - F554
   - F125
 notes: >
   DE-6 adjacency noted: this borrows the stalled-consumer mechanic from the thin DE-6

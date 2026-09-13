@@ -1,0 +1,25 @@
+id: T208
+name: "Metabase"
+category: bi
+role: oss_substitute
+replication_strategy: drop
+produced_by: T1-mock-bottleneck
+rq: RQ3
+license: "NOASSERTION (needs human read)"
+license_verified: false
+archived: false
+last_commit: 2026-09-13
+replication_ease: blocked
+effort_estimate: "0 d (flagged, not adopted)"
+demand_archetypes: []
+fidelity_gap: >
+  Not applicable - flagged on licence before fidelity is assessed.
+notes: >
+  T1 2026-09-13 (round R002, mock-priority pass): NEW RECORD, written as a warning
+  rather than a candidate. Metabase is the obvious reflex when someone says 'open-source
+  BI', and the GitHub API reports NOASSERTION for metabase/metabase (checked 2026-09-13,
+  49,221 stars, pushed 2026-09-13). Per the role rules, anything that is not a
+  recognised permissive licence needs a human read and must not be assumed usable.
+  repo_url deliberately NOT recorded so this artifact asserts no usability. Superset
+  (T137, Apache-2.0, probed pass) and Redash (BSD-2-Clause per the same API check) are
+  the licence-clean OSS BI options; Superset is already in the stack.

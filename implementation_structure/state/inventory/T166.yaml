@@ -2,14 +2,22 @@ id: T166
 name: "Databricks workspace mock"
 category: lakehouse
 role: mock_implementation
-replication_strategy: none_found
+replication_strategy: drop
 produced_by: B1-connector-scout
 rq: RQ3
 license: ""
 license_verified: false
 replication_ease: blocked
+effort_estimate: "0 d"
+demand_archetypes: []
+fidelity_gap: >
+  Not applicable for v1. Were it built, the surface would be jobs, clusters, SQL
+  warehouses and notebook revisions - a genuinely large control plane, not a four-object
+  one like T203.
 notes: >
-  Covers the control-plane half of T112, OPTIONAL / deferred per F2. NONE FOUND.
-  Databricks Community Edition is SaaS (violates no-cloud constraint); there is no
-  OSS mock of the workspace REST API, SQL-warehouse UI, or jobs control plane.
-  Spark (T164) + Delta (T165) cover compute and storage only. Recorded 2026-09-12.
+  T1 2026-09-13 (round R002, mock-priority pass): verdict changed from none_found to
+  drop for v1. B1's finding stands: Community Edition is SaaS and violates the no-egress
+  constraint, and no OSS mock of the workspace REST API exists. One update: the catalog
+  half is now free - Unity Catalog OSS is Apache-2.0 with a real image (T200, S802) - so
+  if Databricks ever returns, the remaining build is the control plane alone. Zero
+  archetypes touch it today.

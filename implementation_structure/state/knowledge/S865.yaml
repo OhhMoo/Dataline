@@ -1,0 +1,25 @@
+id: S865
+rq: RQ7
+claim: >
+  ClickHouse implements UPDATE and DELETE as ALTER TABLE mutations that are asynchronous by
+  default and are explicitly documented as heavy operations not intended for frequent use,
+  unlike Snowflake's transactional row-level DML.
+url: https://clickhouse.com/docs/sql-reference/statements/alter/update
+quote: "this is a heavy operation not designed for frequent use"
+source_type: docs
+company: ClickHouse
+year: 2026
+retrieved: "2026-09-13"
+confidence: high
+produced_by: R002-T2-snowflake
+vividness: low
+attestation: unattested
+usable_for:
+  - mechanism
+notes: >
+  Core evidence against the ClickHouse-wrapping hypothesis. dbt incremental models, MERGE-based
+  upserts and every 'the backfill overwrote yesterday' archetype depend on synchronous
+  transactional row-level DML. On ClickHouse that becomes an async mutation whose visibility
+  timing is a background-merge detail - a silent-divergence generator sitting inside the exact
+  mechanism our tasks are about. The same page states the synchronicity is governed by the
+  mutations_sync setting and that by default it is asynchronous.

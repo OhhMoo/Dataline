@@ -1,0 +1,29 @@
+id: T212
+name: "Zulip"
+category: other
+role: oss_substitute
+replication_strategy: oss_equivalent
+produced_by: T1-mock-bottleneck
+rq: RQ3
+repo_url: https://github.com/zulip/zulip
+license: "apache-2.0"
+license_verified: false
+archived: false
+last_commit: 2026-09-11
+stars: 25886
+replication_ease: medium
+probe_result: not_run
+effort_estimate: "2 d (only if comms re-enters scope)"
+demand_archetypes: []
+fidelity_gap: >
+  Zulip's topic-threading model is not Slack's channel model, so transcripts would read
+  differently to an agent trained on Slack-shaped conversation. Since no archetype
+  touches comms, this gap is currently theoretical.
+notes: >
+  T1 2026-09-13 (round R002, mock-priority pass): NEW RECORD, filed because Slack was
+  dropped (T101) and somebody will eventually ask 'what if we do want chat'. Zulip is
+  the licence-clean answer: Apache-2.0, 25,886 stars, pushed 2026-09-11 per GitHub API
+  2026-09-13. NOT PROBED. The alternatives people reach for first are not clean -
+  Mattermost and Rocket.Chat both report NOASSERTION on the same check and would need a
+  human licence read. Still: zero archetypes touch comms, so this should stay on the
+  shelf.

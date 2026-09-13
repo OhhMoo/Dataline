@@ -1,25 +1,25 @@
 id: T156
-name: Airbyte
+name: "Airbyte"
 category: ingestion
 role: mock_implementation
-replication_strategy: none_found
+replication_strategy: drop
 produced_by: B1-connector-scout
 rq: RQ3
 license: "Elastic-2.0 (platform) / MIT (connectors)"
 license_verified: false
-last_commit: 2026-09-12
-stars: 22037
 archived: false
+last_commit: 2026-09-12
 replication_ease: blocked
+effort_estimate: "0 d"
+demand_archetypes: []
+fidelity_gap: >
+  Not applicable - rejected on licence. The ingestion CONTROL PLANE gap this leaves open
+  is recorded on T117 and T203, and is not solved by dlt or Meltano.
 notes: >
-  REJECTED on license, recorded so nobody re-finds it (also state/failures/).
-  The repo root LICENSE is the Elastic License 2.0 (verified from the raw file
-  2026-09-12; GitHub API reports NOASSERTION). ELv2 is source-available and an
-  automatic G2 failure per schema rules -- this contradicts the Phase-3 claim
-  proposing Airbyte as the Fivetran substitute. Connectors are MIT, so individual
-  connector code MAY be salvageable after a human read, but the platform is not
-  shippable. Ingestion substitutes: dlt (T157), Meltano (T158).
-  B2 2026-09-12: rejection re-confirmed via the GitHub API; see
-  state/failures/B1-license-rejections.yaml F-B1-004. repo_url cleared and
-  replication_strategy set to none_found so this artifact no longer asserts
-  usability.
+  T1 2026-09-13 (round R002, mock-priority pass): verdict changed from none_found to
+  drop. Re-confirmed by T1 2026-09-13: the GitHub API still reports NOASSERTION for
+  airbytehq/airbyte, consistent with the Elastic License 2.0 in the repo root that B1
+  read from the raw file. ELv2 is source-available and disqualifying for a shipped
+  product. Connectors are MIT and individually salvageable after a human read.
+  Licence-clean data movement: dlt (T157, Apache-2.0, PROBED pass by T1 at version
+  1.30.0) and Meltano (T158, MIT).

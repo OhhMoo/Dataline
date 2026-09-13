@@ -1,0 +1,18 @@
+id: T253
+name: "Snowflake connector protocol (session/query REST)"
+category: warehouse
+role: simulate_target
+replication_strategy: wire_protocol
+produced_by: R002-T2-snowflake
+rq: RQ7
+replication_ease: medium
+evidence:
+  - S850
+  - S864
+  - S870
+notes: >
+  The actual interception seam, and it is far smaller than 'Snowflake'. Five endpoints carry
+  everything the Python, JDBC and ODBC connectors do: POST /session/v1/login-request, POST
+  /session, POST /queries/v1/query-request, POST /queries/v1/abort-request, GET
+  /monitoring/queries/{sfqid}. Results go back as base64 Arrow IPC inline. fakesnow implements
+  all five in 320 lines. Distinct from the public SQL API below - do not conflate them.

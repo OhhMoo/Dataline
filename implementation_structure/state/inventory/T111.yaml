@@ -2,8 +2,27 @@ id: T111
 name: "GitHub Actions"
 category: other
 role: simulate_target
-replication_strategy: none_found
+replication_strategy: drop
 produced_by: L6-tooling-inventory
 rq: RQ4
 frequency_rank: 12
-notes: "CI surface for data-repo pipelines; named in meeting list, related to GitHub surfaces in S523."
+license: "MIT (nektos/act, if it re-enters)"
+license_verified: false
+replication_ease: medium
+effort_estimate: "0 d (dropped); ~1 d if act is adopted later"
+demand_archetypes: []
+fidelity_gap: >
+  Not applicable. If CI re-enters scope, act runs workflow YAML locally but does not
+  reproduce GitHub's hosted-runner environment, its secrets model, or the Checks API
+  that a PR-gating task would turn on.
+notes: >
+  T1 2026-09-13 (round R002, mock-priority pass): RESOLVED from none_found to drop for
+  v1. Zero archetypes touch CI. nektos/act (T147, MIT, 71,954 stars, last push
+  2026-08-09 per GitHub API 2026-09-13) is real and cheap, and Gitea Actions consumes
+  GitHub workflow YAML - Gitea's own documentation describes it as 'similar and mostly
+  compatible' - so this is a fast reopen if a CI-gating archetype is ever authored. It
+  is simply not earning container space today.
+  G5 note: replication_ease downgraded from easy to medium by T1 because no
+  install probe was run for this item. Under the gate's rule an unprobed 'easy' is
+  an unearned claim, and the distinction between 'this should be easy' and 'I ran it'
+  is the whole point of G5.

@@ -12,7 +12,7 @@ author_role: data engineer / consultant
 company: luminousmen (Kirill Bobrov)
 year: 2026
 retrieved: "2026-09-11"
-confidence: high
+confidence: medium
 vividness: medium
 attestation: unattested
 usable_for:
@@ -25,4 +25,14 @@ notes: >
   does not reproduce it. That is a strong pre-existing-brokenness initial condition: it punishes
   the naive "just full-refresh it" move, which is exactly the move a model will reach for.
 attacks:
+  - F553
   - F451
+repair_note: >
+  F451 mitigation EXECUTED 2026-09-13 by D2 (R002 evidence repair); ruling landed 2026-09-12,
+  never acted on (F553). confidence lowered high-to-medium. Typed attestation=unattested,
+  usable_for=[world_texture] ONLY: "freshness monitoring is near-universal and correctness
+  monitoring near-absent" is the author's assertion about the industry, not a measurement, and
+  under the two-axis model an unattested industry generalisation cannot license mechanism or
+  frequency. It remains excellent world texture - the untouchable-mart detail (years of manual
+  UPDATEs, a column named flag_v2_final_USE_THIS, set by a query in the home directory of an
+  engineer who left in 2023) is directly buildable and punishes the full-refresh move.

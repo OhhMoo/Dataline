@@ -1,15 +1,19 @@
 id: S017
 rq: RQ1
 claim: >
-  Written-up production incident: application servers began throwing "No space left on device"
-  for the WAL directory and the database froze. Adding disk did not help because the replication
-  slot still would not advance; the slot was held open by a stuck Debezium connector whose
-  downstream had choked. The escape hatch - dropping the replication slot - unblocks the database
-  but destroys CDC continuity and forces a fresh full snapshot taking hours or days.
+  A course exercise on a learning platform narrates, as a teaching device, the shape of a
+  replication-slot incident: application servers throwing "No space left on device" for the WAL
+  directory and the database freezing; adding disk not helping because the slot's restart_lsn still
+  will not advance; the slot held open by a stuck Debezium connector whose downstream has choked.
+  The page then enumerates the responder's options and names dropping the replication slot as the
+  "nuclear option" - it unblocks the database but destroys CDC continuity and forces a fresh full
+  snapshot taking hours or days. NOT AN ATTESTED INCIDENT: there is no named author, no company, no
+  date and no postmortem, and the page is numbered "Topic 332 of 367" inside a message-queues
+  course. The decision structure is the usable content; the narration is not evidence.
 url: https://adhdecode.com/message-queues/real-world-incident-case-studies/incident-debezium-slot/
 quote: "restart Debezium from scratch, likely requiring a full snapshot of your database"
 source_type: blog
-author_role: engineer recounting a production incident
+author_role: course author narrating an illustrative incident (identity not stated)
 company: not stated
 year: 2026
 retrieved: "2026-09-11"
@@ -18,25 +22,36 @@ vividness: medium
 attestation: unattested
 usable_for:
   - world_texture
-status: withdrawn
 produced_by: L1-practitioner-workflow-de
 notes: >
-  First-person narrative on a course-style site; identity of the author is not stated, so medium
-  confidence. Value is in the decision structure rather than the prose: the responder faces a
-  forced trade between database availability and pipeline continuity, with no option that is
-  cheap. Also captures the misdiagnosis path - VACUUM FULL and REINDEX attempted on the
-  assumption it was bloat before anyone looked at slot metrics. Corroborates S016 mechanism from
-  an independent source.
+  Value is the decision structure, not the prose: the responder faces a forced trade between
+  database availability and pipeline continuity with no cheap option, and the page also walks the
+  misdiagnosis path (VACUUM FULL and REINDEX tried on a bloat assumption before anyone looked at
+  slot metrics). That is good world texture for a runbook or a colleague's bad advice inside a
+  generated world.
+  THE INDEPENDENT-CORROBORATION CLAIM IS STRUCK. This record previously asserted it "Corroborates
+  S016 mechanism from an independent source". It does not: a tutorial restating standard PostgreSQL
+  WAL and replication-slot behaviour is a retelling of the documentation, and S016 is itself vendor
+  content (RisingWave Labs). Two retellings of one manual are not two observations.
 attacks:
   - F453
-
-withdrawal_note: >
-  WITHDRAWN 2026-09-13 by D2 (R002 evidence repair), failure F551. F453 established that
-  adhdecode.com is a learning platform and that this page is "Topic 332 of 367" inside a
-  message-queues course; the "I remember a production incident, late on a Tuesday" opening is a
-  teaching device with no named author, company, date or postmortem. S017's claim field opens
-  "Written-up production incident:" and its notes assert it "Corroborates S016 mechanism from an
-  independent source" - both false. A tutorial restating PostgreSQL WAL behaviour is a third
-  retelling of the documentation, not an independent observation, and S016 is itself vendor
-  content (RisingWave). A004's CDC leg is re-grounded on S750 (Zalando, firsthand_named),
-  S751 (Debezium mailing list, firsthand_anonymous) and S752 (PostgreSQL documentation).
+  - F551
+repair_note: >
+  F453 mitigation EXECUTED 2026-09-13 by D2 (R002 evidence repair). F453's recommended_action was
+  re-source, and its mitigation said in terms: "The mechanism is sound and checkable against
+  PostgreSQL documentation - keep it, but source it to the documentation rather than to two
+  narratives, and drop the independent-corroboration claim. If A004 needs an attested
+  slot-fills-the-disk incident, find one."
+  All three parts are now done. (1) The claim field no longer opens "Written-up production
+  incident:" and states plainly that this is a course exercise. (2) The independent-corroboration
+  sentence is struck from notes. (3) A004's mechanism is re-sourced to S752 (PostgreSQL's own
+  documentation of the WAL-retention guarantee) and the attested incidents F453 asked for were
+  found: S750 (Zalando, named Senior Principal Engineer, his own platform team, firsthand_named)
+  and S751 (Debezium mailing list, a practitioner watching his own slot grow from 152 kB to 16 MB
+  after three inserted rows, firsthand_anonymous). Both quote-verified 2026-09-13 with
+  gate-identical fetch logic.
+  NOT WITHDRAWN. An earlier pass in this same repair moved this record to withdrawn/ and filed
+  F551 recommending withdrawal. That was an escalation beyond what F453 ruled, and it has been
+  reversed - F453 said keep, so the record stays, retyped honestly. F551 is rewritten to record
+  the execution rather than to recommend a withdrawal. Confidence stays low: the page is real and
+  the mechanism is right, but nothing here is attested.

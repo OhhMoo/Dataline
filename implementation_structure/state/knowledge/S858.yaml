@@ -1,0 +1,24 @@
+id: S858
+rq: RQ4
+claim: >
+  SNOWFLAKE.ACCOUNT_USAGE.QUERY_HISTORY retains 365 days of query history but its data can lag
+  reality by up to 45 minutes, so an operator debugging a live incident from ACCOUNT_USAGE is
+  reading a stale view by construction.
+url: https://docs.snowflake.com/en/sql-reference/account-usage/query_history.md
+quote: "Latency for the view may be up to 45 minutes."
+source_type: docs
+company: Snowflake
+year: 2026
+retrieved: "2026-09-13"
+confidence: high
+produced_by: R002-T2-snowflake
+vividness: medium
+attestation: unattested
+usable_for:
+  - mechanism
+notes: >
+  The single most task-generative fact I found about Snowflake's observability surface. A mock
+  that reproduces the 45-minute lag creates a real, non-obscure trap: the agent's most recent
+  queries are absent from ACCOUNT_USAGE, while the INFORMATION_SCHEMA table function that has no
+  lag only covers 7 days (S859). Choosing between the two is a genuine diagnostic skill, and the
+  lag is one WHERE clause in a view.

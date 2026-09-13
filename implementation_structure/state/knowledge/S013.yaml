@@ -13,7 +13,7 @@ author_role: practitioner filing a production bug (randypitcherii)
 company: reported against databricks/dbt-databricks
 year: 2025
 retrieved: "2026-09-11"
-confidence: high
+confidence: medium
 vividness: medium
 attestation: firsthand_anonymous
 usable_for:
@@ -21,10 +21,30 @@ usable_for:
   - mechanism
 produced_by: L1-practitioner-workflow-de
 notes: >
-  Extremely rebuildable - the issue includes exact repro steps: build with columns id, name,
+  CLOSED AND FIXED - not a live trap. Re-verified via the GitHub API 2026-09-13: state=closed,
+  ZERO comments, no labels, no assignee, never confirmed by a maintainer. The body is a code-reading
+  analysis (it cites macro file paths and line numbers and proposes INSERT BY NAME), not an observed
+  failure: the System information section is placeholders (dbt version 'Multiple versions affected',
+  OS 'All platforms', Python 'All Python versions') and Steps To Reproduce is a written recipe with
+  no output, no logs and no screenshots. The steps exist as text; the observation does not.
+  The recipe itself is still rebuildable: build with columns id, name,
   status, then change the model to id, new_column, name, status and observe values intended for
   name landing in new_column. Affects append, insert_overwrite and replace_where strategies.
-  Corroborated by S014 (independent filer, different config, same positional-matching root cause).
+  S014 is a separate filing of the same root cause under a different config - that makes the defect
+  reachable from at least two configurations, NOT frequent (F455). S013 must not be counted as a
+  second independent OBSERVATION; S014 is the only one of the pair that observed anything.
   This is the class of failure where dbt run and dbt test both go green and the data is wrong.
 attacks:
   - F454
+repair_note: >
+  F454 mitigation EXECUTED 2026-09-13 by D2 (R002 evidence repair); the ruling landed 2026-09-12
+  with recommended_action=downgrade_confidence and was never acted on (F553). confidence lowered
+  high-to-medium per F454's text ("S013 should drop to confidence=medium or low"). Liveness
+  re-checked independently via the GitHub API on 2026-09-13 and F454's finding confirmed: issue
+  #1211 is closed with zero comments. Typed attestation=firsthand_anonymous, vividness=medium,
+  usable_for=[world_texture, mechanism] - the mechanism is real (a maintainer confirmed it on the
+  sibling issue #1289) even though this filer never demonstrated it.
+  DESIGN CONSTRAINT the dependent archetypes now state explicitly: the bug is fixed in
+  dbt-databricks 1.11.7 (2026-04-17), so any world planting silent positional-INSERT corruption must
+  pin the adapter below that version. A002, A010, A017 and A025 carry that constraint; S753
+  (dbt-clickhouse #258, verified OPEN 2026-09-13) is the live replacement trap.

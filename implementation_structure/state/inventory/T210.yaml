@@ -1,0 +1,27 @@
+id: T210
+name: "Confluent Schema Registry"
+category: streaming
+role: oss_substitute
+replication_strategy: drop
+produced_by: T1-mock-bottleneck
+rq: RQ3
+license: "Confluent Community License (source-available)"
+license_verified: false
+archived: false
+last_commit: 2026-09-13
+replication_ease: blocked
+effort_estimate: "0 d (rejected)"
+demand_archetypes: []
+fidelity_gap: >
+  Not applicable - rejected on licence.
+evidence:
+  - S803
+notes: >
+  T1 2026-09-13 (round R002, mock-priority pass): NEW RECORD, and the best-disguised
+  licence trap in the inventory. Kafka is Apache-2.0, so people reasonably assume the
+  Confluent ecosystem around it is too. It is not: confluentinc/schema-registry is under
+  the Confluent Community License, whose text explicitly binds anyone installing,
+  downloading, accessing, using OR DISTRIBUTING the software (S803). The GitHub API
+  reports NOASSERTION (checked 2026-09-13). The same applies to the other cp-*
+  components that every Kafka tutorial reaches for. repo_url deliberately NOT recorded.
+  If a schema registry is ever needed, use Apicurio Registry (T213, Apache-2.0).

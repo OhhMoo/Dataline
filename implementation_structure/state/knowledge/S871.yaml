@@ -1,0 +1,23 @@
+id: S871
+rq: RQ7
+claim: >
+  fakesnow returns wrong numeric types for some expressions, an open defect since March 2025 -
+  the class of silent divergence that damages benchmark grading rather than merely annoying a
+  developer.
+url: https://github.com/tekumara/fakesnow/issues/199
+quote: "Wrong numeric type returned · Issue #199"
+source_type: forum
+year: 2025
+retrieved: "2026-09-13"
+confidence: medium
+produced_by: R002-T2-snowflake
+vividness: low
+attestation: firsthand_anonymous
+usable_for:
+  - world_texture
+notes: >
+  Issue #199, opened 2025-03-20, CONFIRMED STILL OPEN at retrieval. The quote is drawn from the
+  page title because I did not extract the issue body, so this is filed as world_texture only at
+  medium confidence. It corroborates my own measurement that SELECT 1.0::NUMBER(38,10) / 3 comes
+  back as a float rather than fixed-point. The mitigation is the same either way: grade values
+  through an explicit cast and a tolerance, never on the wire type.

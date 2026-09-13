@@ -2,10 +2,50 @@ id: T113
 name: "Tableau"
 category: bi
 role: simulate_target
-replication_strategy: none_found
+replication_strategy: custom_mock_required
 produced_by: L6-tooling-inventory
 rq: RQ4
 frequency_rank: 14
+license: ""
+license_verified: false
+replication_ease: medium
+effort_estimate: "3-4 d (shared build, see T204)"
+demand_archetypes:
+  - A001
+  - A003
+  - A006
+  - A009
+  - A013
+  - A017
+  - A019
+  - A021
+  - A022
+  - A025
+  - A028
+  - A029
+  - A030
+  - A031
+  - A032
+fidelity_gap: >
+  Wearing Superset as a Tableau skin diverges on the one axis the archetypes actually
+  use: refresh. Tableau's extract/live split and extract refresh schedules are not
+  Superset's cache model, and A001, A003, A006, A022 and A029 all turn on 'the number on
+  the dashboard disagrees with the warehouse' - which is a statement about WHEN the
+  dashboard last materialised its data. Borrowing another product's caching semantics
+  for that is how a task grades green for the wrong reason. LOD expressions, published
+  datasources and workbook XML are also absent, but no current archetype needs them.
 evidence:
   - S515
-notes: "BI surface: connect to data, visualize, present, share insights."
+notes: >
+  T1 2026-09-13 (round R002, mock-priority pass): RESOLVED from none_found to
+  custom_mock_required, pointing at the shared BI-values surface (T204) rather than at a
+  Tableau-specific mock. This is the central recommendation of the round. Fifteen
+  archetypes touch bi_dashboard - joint second-highest demand - and not one needs
+  Tableau: they need a dashboard tile with a number on it, the definition behind that
+  number, and a last-refreshed timestamp. That is four objects, and building them
+  ourselves buys a refresh model we control and can grade deterministically. Ground rule
+  6 already freezes v1 on 'a BI-values + docs surface', so this verdict agrees with a
+  decision the repo has already made; T113, T114, T115 and T128 collapse into it as
+  cosmetic skins. Tableau Server remains what B1 found: proprietary, no offline edition,
+  no OSS server mock, and tableau/tableau-mcp fronts a live instance and is useless
+  offline.

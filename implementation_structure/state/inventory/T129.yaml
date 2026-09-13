@@ -2,8 +2,21 @@ id: T129
 name: "Hightouch / Census (reverse ETL)"
 category: other
 role: simulate_target
-replication_strategy: none_found
+replication_strategy: drop
 produced_by: L6-tooling-inventory
 rq: RQ4
 frequency_rank: 30
-notes: "Reverse-ETL activation surface moving warehouse data to operational tools; named in meeting list, no S5xx finding yet."
+license: ""
+license_verified: false
+replication_ease: blocked
+effort_estimate: "0 d (dropped)"
+demand_archetypes: []
+fidelity_gap: >
+  Not applicable. If reverse ETL ever enters scope, the honest persona is a dbt model
+  plus a dlt-shaped sync job - which reproduces the data motion but not the sync-status
+  control plane, the same shortfall recorded on T117.
+notes: >
+  T1 2026-09-13 (round R002, mock-priority pass): RESOLVED from none_found to drop. Zero
+  archetypes, already out of v1 per F2, and the OSS field is a licence graveyard:
+  multiwoven AGPL-3.0, rudder-server Elastic-2.0, grouparoo MIT but archived since 2022,
+  castled gone. B1's ledger stands; T1 adds only the verdict.

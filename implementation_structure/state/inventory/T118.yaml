@@ -2,10 +2,24 @@ id: T118
 name: "Apache Spark"
 category: transformation
 role: simulate_target
-replication_strategy: none_found
+replication_strategy: drop
 produced_by: L6-tooling-inventory
 rq: RQ4
 frequency_rank: 19
+license: "Apache-2.0"
+license_verified: false
+replication_ease: medium
+effort_estimate: "0 d (dropped)"
+demand_archetypes: []
+fidelity_gap: >
+  Not applicable for v1. If a distributed-compute archetype is ever authored, Spark is
+  Apache-2.0 and T164 already covers it; the cost is container weight and JVM startup,
+  not licence or availability.
 evidence:
   - S501
-notes: "Distributed processing engine; named in meeting list, implied by Databricks lakehouse processing surface."
+notes: >
+  T1 2026-09-13 (round R002, mock-priority pass): RESOLVED from none_found to drop for
+  v1. Zero archetypes touch Spark. It is a large JVM container earning nothing, and
+  every transformation in the corpus is expressed in dbt and SQL. apache/spark is
+  Apache-2.0 and healthy per GitHub API 2026-09-13 - this is a scope decision, not a
+  licence or liveness one.

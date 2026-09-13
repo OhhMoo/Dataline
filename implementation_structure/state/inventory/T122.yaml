@@ -2,10 +2,34 @@ id: T122
 name: "Great Expectations"
 category: quality
 role: simulate_target
-replication_strategy: none_found
+replication_strategy: native_oss
 produced_by: L6-tooling-inventory
 rq: RQ4
 frequency_rank: 23
+repo_url: https://github.com/great-expectations/great_expectations
+license: "Apache-2.0"
+license_verified: false
+replication_ease: medium
+probe_result: not_run
+effort_estimate: "2 d"
+demand_archetypes:
+  - A013
+  - A020
+  - A032
+fidelity_gap: >
+  The risk here is inverted from everywhere else. A003 is literally 'the quality gate is
+  the bug' - silent loss caused by a validation - so the gate's behaviour IS the planted
+  defect. Building that on a third-party library makes the defect depend on that
+  library's version semantics, and GX's API has churned hard across major versions. A
+  hand-written check, or plain dbt tests, gives a defect we own. Use GX for texture and
+  realism; do not let it own the grading-critical behaviour.
 evidence:
   - S526
-notes: "Declarative executable data-quality assertions and validation results; proxy for Monte-Carlo-style observability."
+notes: >
+  T1 2026-09-13 (round R002, mock-priority pass): RESOLVED from none_found to
+  native_oss. Apache-2.0 and healthy per GitHub API 2026-09-13 (11,785 stars, pushed
+  2026-09-11). NOT PROBED - T1 ran out of probe budget here and is recording that
+  honestly rather than inheriting T160's earlier pass. Three archetypes touch quality
+  (A013, A020, A032) plus A003 structurally. Elementary (T207, Apache-2.0) is a lighter
+  alternative that reads dbt artifacts rather than imposing its own config tree, and is
+  probably the better fit for a dbt-centric world; it was not probed either.

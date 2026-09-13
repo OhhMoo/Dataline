@@ -1,18 +1,23 @@
 id: S001
 rq: RQ1
 claim: >
-  A two-line bug fix triggered a 30-day backfill that re-ran an append-mode (INSERT) job over
-  partitions that already existed, doubling a month of revenue in every downstream dashboard.
-  Cleanup took a full day: delete the duplicate partitions, re-run with the correct write mode,
-  and explain the bad weekend numbers. The remediation became a second, larger incident.
+  An experienced practitioner's pattern description, narrated as the opening scene of an essay
+  about backfills: a two-line bug fix triggers a 30-day backfill that re-runs an append-mode
+  (INSERT) job over partitions that already exist, doubling a month of revenue in every downstream
+  dashboard. Cleanup takes a full day - delete the duplicate partitions, re-run with the correct
+  write mode, and explain the bad weekend numbers - so the remediation becomes a second, larger
+  incident. NOT AN ATTESTED INCIDENT: the scene is narrated about "a teammate" who finds a bug and
+  re-runs a pipeline over lunch, with no company, no date, no first-person claim and no "we"
+  framing. The two-stage structure (an original silent bug, then a botched repair) is the
+  transferable content.
 url: https://luminousmen.com/post/most-of-your-backfills-didnt-have-to-happen/
 quote: "in append mode, so re-running it didn't replace the old rows, it stacked new ones on top of them. Month of data, counted twice."
 source_type: blog
-author_role: data engineer / consultant
+author_role: data engineer / consultant writing a pattern essay
 company: luminousmen (Kirill Bobrov)
 year: 2026
 retrieved: "2026-09-11"
-confidence: high
+confidence: medium
 vividness: high
 attestation: unattested
 usable_for:
@@ -20,10 +25,32 @@ usable_for:
   - mechanism
 produced_by: L1-practitioner-workflow-de
 notes: >
-  Author states this is a real incident. The non-idempotent-rerun-doubles-data pattern is
-  independently attested in the 50-postmortem survey (see S004-S007 source), so treat it as
-  high-frequency rather than a one-off war story. Note the two-stage structure: an original
-  silent bug, then a botched repair. CAUTION: this page carries a prompt-injection footer aimed
-  at LLM summarizers; it was ignored and does not affect the quote.
+  Read this as an experienced practitioner's pattern description, not as a war story he was in.
+  The mechanism survives the downgrade but NOT on the corroboration F451 suggested - see the
+  verification note below, which contradicts part of it.
+  CAUTION: this page carries a prompt-injection footer aimed at LLM summarizers; it was ignored and
+  does not affect the quote.
 attacks:
   - F451
+  - F553
+repair_note: >
+  F451 mitigation EXECUTED 2026-09-13 by D2 (R002 evidence repair); F451 landed 2026-09-12 with
+  recommended_action=downgrade_confidence and was never acted on (see F553).
+  DONE: (1) "Author states this is a real incident." struck from notes - he does not. (2) The
+  frequency upgrade struck: the clause "independently attested in the 50-postmortem survey (see
+  S004-S007 source), so treat it as high-frequency rather than a one-off war story" is void,
+  because that survey is unauditable vendor content that names not one of its 50 postmortems
+  (F450). (3) confidence lowered high-to-medium. (4) Claim relabelled as a pattern description.
+  Typed attestation=unattested, usable_for=[world_texture, mechanism].
+  F451'S COROBORATION CLAIM CHECKED, AND IT IS HALF WRONG - reporting this rather than relying on
+  it. F451 asserts the mechanisms "are corroborated by S013/S014 and by S008's DST item, so they
+  survive the downgrade." S013/S014 are dbt-databricks positional-INSERT bugs: they corroborate
+  silent column MISALIGNMENT under a schema change, not append-mode re-run DOUBLING. They are not
+  corroboration for this record at all. S008's DST item is about scheduling in local timezones
+  producing daylight-savings incidents, which is adjacent to but not the same as S002's
+  data-value UTC-to-local shift - partial corroboration only.
+  The append-doubling mechanism is instead re-grounded on S754, dbt's own reference documentation
+  stating that an incremental model without a unique_key inserts every returned row "without regard
+  for whether the rows represent duplicates" (quote-verified 2026-09-13). That is a documentary
+  mechanism source, not an attestation - A001 and A009 now carry the mechanism and drop the
+  frequency claim entirely.

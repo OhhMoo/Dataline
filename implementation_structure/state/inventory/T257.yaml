@@ -1,0 +1,22 @@
+id: T257
+name: "snowflake-vcrpy"
+category: quality
+role: mock_implementation
+replication_strategy: http_intercept
+produced_by: R002-T2-snowflake
+rq: RQ7
+repo_url: "https://github.com/Snowflake-Labs/snowflake-vcrpy"
+license: "Apache-2.0"
+last_commit: "2025-05-29"
+license_verified: true
+archived: false
+stars: 30
+probe_result: not_run
+replication_ease: blocked
+evidence:
+  - S869
+notes: >
+  REJECTED for the benchmark. Record/replay of connector HTTP traffic into VCR cassettes; it can
+  only answer requests that were recorded, and an agent issues SQL nobody anticipated. Kept in
+  inventory as evidence that Snowflake's own engineers treat the connector's HTTP surface as
+  stable enough to intercept, which is the premise our whole interception plan rests on.

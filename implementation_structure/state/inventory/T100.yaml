@@ -2,10 +2,36 @@ id: T100
 name: "Git / GitHub"
 category: vcs
 role: simulate_target
-replication_strategy: none_found
+replication_strategy: native_oss
 produced_by: L6-tooling-inventory
 rq: RQ4
 frequency_rank: 1
+license: "MIT (Gitea); git itself is GPL-2.0"
+license_verified: false
+replication_ease: easy
+install_probe: "docker run -d -p 3000:3000 -e GITEA__database__DB_TYPE=sqlite3 -e GITEA__security__INSTALL_LOCK=true gitea/gitea:latest && curl -s localhost:3000/api/v1/version"
+probe_result: pass
+effort_estimate: "0.5 d"
+demand_archetypes:
+  - A005
+  - A012
+  - A033
+fidelity_gap: >
+  Gitea is a forge, not GitHub. Its REST base path is /api/v1/... and its JSON payloads
+  are Gitea-shaped, so the gh CLI and octokit do NOT work against it unmodified; a
+  path-rewriting proxy would be needed if an archetype ever drove the GitHub API itself.
+  None currently does: A005, A012 and A033 need local git only - log, diff, blame,
+  branch, commit history - which is the real binary with zero substitution risk.
 evidence:
   - S523
-notes: "Ubiquitous code-change surface: repos, commits, branches, PRs, reviews. Local git distinct from GitHub collaboration API."
+notes: >
+  T1 2026-09-13 (round R002, mock-priority pass): RESOLVED from none_found to
+  native_oss. Two surfaces hide under one name. (1) Local git: use the real thing, it is
+  in every base image. GPL-2.0, invoked as a subprocess and never linked, which is the
+  ordinary shipping posture for a CLI - flag it for the human licence read but it is not
+  a blocker. (2) The forge, meaning issues, PRs and reviews: Gitea (T146, MIT). PROBED
+  by T1 2026-09-13 on Docker 29.5.2 / Windows 11: the container came up and
+  /api/v1/version returned {"version":"1.27.3"}. Worth recording that the first probe
+  attempt FAILED because the readiness loop had no sleep and burned 60 curl retries in
+  under five seconds - Gitea needs roughly 30-60s to initialise sqlite. Anyone scripting
+  this needs a real backoff.

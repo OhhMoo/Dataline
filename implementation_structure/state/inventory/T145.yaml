@@ -1,22 +1,22 @@
 id: T145
-name: Outline
+name: "Outline"
 category: docs
 role: mock_implementation
-replication_strategy: none_found
+replication_strategy: drop
 produced_by: B1-connector-scout
 rq: RQ3
-license: bsl-1.1
+license: "bsl-1.1"
 license_verified: false
-last_commit: 2026-09-12
-stars: 40521
 archived: false
+last_commit: 2026-09-12
 replication_ease: blocked
+effort_estimate: "0 d"
+demand_archetypes: []
+fidelity_gap: >
+  Not applicable - rejected on licence before fidelity matters.
 notes: >
-  REJECTED on license (also state/failures/). Outline's LICENSE is the Business
-  Source License 1.1 -- source-available, an automatic G2 failure per schema rules
-  (GitHub API reports NOASSERTION because BSL is non-SPDX-standard here; the
-  LICENSE file is BSL). Use BookStack (T143) instead. Recorded 2026-09-12.
-  B2 2026-09-12: rejection re-confirmed via the GitHub API; see
-  state/failures/B1-license-rejections.yaml F-B1-003. repo_url cleared and
-  replication_strategy set to none_found so this artifact no longer asserts
-  usability.
+  T1 2026-09-13 (round R002, mock-priority pass): verdict changed from none_found to
+  drop. BSL 1.1 is source-available and an automatic rejection; the GitHub API reports
+  NOASSERTION because BSL is not SPDX-standard here, which is exactly the case where the
+  API's silence must not be read as permission. B1 and B2 rejections stand; see
+  F-B1-003. repo_url stays cleared. BookStack (T143) is the MIT alternative.

@@ -2,16 +2,40 @@ id: T138
 name: "Tableau mock"
 category: bi
 role: mock_implementation
-replication_strategy: none_found
+replication_strategy: custom_mock_required
 produced_by: B1-connector-scout
 rq: RQ3
 license: ""
 license_verified: false
-replication_ease: blocked
+replication_ease: medium
+effort_estimate: "3-4 d (this IS T204)"
+demand_archetypes:
+  - A001
+  - A003
+  - A006
+  - A009
+  - A013
+  - A017
+  - A019
+  - A021
+  - A022
+  - A025
+  - A028
+  - A029
+  - A030
+  - A031
+  - A032
+fidelity_gap: >
+  See T204 for the build's own fidelity boundary. The gap specific to calling it
+  'Tableau': no extract/live distinction, no extract refresh schedule, no LOD
+  expressions, no published datasources, no workbook XML for the agent to read. Only the
+  refresh model matters to current archetypes, and T204 supplies one deliberately.
 notes: >
-  Covers T113. NONE FOUND. Tableau Server/Desktop are proprietary with no free
-  offline edition suitable for containers; no OSS mock speaks the Tableau Server
-  REST API. What exists is tableau/tableau-mcp, an MCP server that fronts a REAL
-  Tableau instance -- useless offline. Path forward is either a hand-rolled
-  http_intercept of the Tableau REST API (harness T151/T152, hard) or adopting the
-  Superset persona (T137). Recorded 2026-09-12.
+  T1 2026-09-13 (round R002, mock-priority pass): verdict changed from none_found to
+  custom_mock_required. B1's finding was correct and is unchanged - Tableau Server has
+  no offline edition and no OSS mock speaks its REST API - but 'none found' is the wrong
+  terminal state for a surface fifteen archetypes touch. The resolution is not to mock
+  Tableau; it is to build the small BI-values surface (T204) that those fifteen
+  archetypes actually read, and let Tableau, Power BI, Looker and Sigma be names on it.
+  Superset (T137) stays available as the heavyweight option for when a task needs a real
+  BI tool rather than believable BI values.

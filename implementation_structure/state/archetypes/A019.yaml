@@ -70,7 +70,10 @@ repair_note: >
   REDESIGN REQUIRED 2026-09-13 (D2, R002 evidence repair) - see F552. This is one of two
   archetypes this repair could NOT save, and the honest outcome is to mark it broken rather than
   paper over it.
-  WITHDRAWN: S010 moved to state/knowledge/withdrawn/ (F550, extending F452). It was a
+  RE-SOURCED, NOT WITHDRAWN: S010 stays in state/knowledge/ with its claim rewritten as F452
+  prescribed - "an illustrative scenario in a data-contracts argument describes..." - and typed
+  attestation=unattested, usable_for=[world_texture]. It is dropped from this archetype's
+  derived_from because texture is all it can now supply. It was a
   constructed present-tense vignette - "It's 8:58 AM. The head of risk at a bank opens the
   morning transaction dashboard..." - written to argue for data contracts, and S010's claim field
   rewrote it as reportage of a real bank incident with a real three-day detection lag and a real

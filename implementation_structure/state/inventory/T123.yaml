@@ -2,10 +2,30 @@ id: T123
 name: "Dagster"
 category: orchestration
 role: simulate_target
-replication_strategy: none_found
+replication_strategy: native_oss
 produced_by: L6-tooling-inventory
 rq: RQ4
 frequency_rank: 24
+repo_url: https://github.com/dagster-io/dagster
+license: "Apache-2.0"
+license_verified: false
+replication_ease: medium
+probe_result: not_run
+effort_estimate: "2 d"
+demand_archetypes:
+  - A027
+fidelity_gap: >
+  Dagster's asset graph is a genuinely different mental model from Airflow's task DAG,
+  which is the point for A027 - the archetype needs a second orchestrator whose view of
+  the world disagrees with the first. The gap is cost: running two orchestrators doubles
+  the surface the harness must seed and reset deterministically.
 evidence:
   - S510
-notes: "Asset-aware orchestrator with lineage, observability, testability; later-breadth alternative to Airflow."
+notes: >
+  T1 2026-09-13 (round R002, mock-priority pass): RESOLVED from none_found to
+  native_oss. Apache-2.0, 16,142 stars, pushed 2026-09-11 per GitHub API 2026-09-13. NOT
+  PROBED. One archetype needs it (A027, as orchestration_secondary). Given ground rule 6
+  freezes v1 on a deterministic scheduler state machine, the cheapest honest reading of
+  A027 is that the 'secondary orchestrator' is a second instance of that state machine
+  with a different config, not a second real product. Worth confirming with whoever owns
+  A027 before anyone containerises Dagster for a single task.

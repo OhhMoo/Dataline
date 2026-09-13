@@ -76,7 +76,9 @@ notes: >
 repair_note: >
   RE-GROUNDED 2026-09-13 (D2, R002 evidence repair). This archetype is STRONGER after repair than
   before - it is the clearest win in this round.
-  WITHDRAWN: S017 moved to state/knowledge/withdrawn/ (F551, extending F453). It was a
+  RE-SOURCED, NOT WITHDRAWN: S017 stays in state/knowledge/ with its claim rewritten, because F453
+  ruled re-source and said keep (F551 records the execution; an earlier pass in this repair wrongly
+  withdrew it and that was reversed). What changed is what it is allowed to say. It was a
   message-queues course exercise - "Topic 332 of 367" on a learning platform - recorded as a
   "Written-up production incident", and its notes claimed it corroborated S016 "from an
   independent source" when S016 is vendor content (RisingWave Labs) and the page is a retelling

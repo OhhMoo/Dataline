@@ -1,0 +1,28 @@
+id: T261
+name: "ClickHouse"
+category: database
+role: oss_substitute
+replication_strategy: oss_equivalent
+produced_by: R002-T2-snowflake
+rq: RQ7
+repo_url: "https://github.com/ClickHouse/ClickHouse"
+license: "Apache-2.0"
+license_verified: true
+probe_result: not_run
+replication_ease: hard
+evidence:
+  - S865
+notes: >
+  EVALUATED AND NOT RECOMMENDED as the backend for a fake Snowflake, against the meeting's
+  hypothesis. Not on weight - the clickhouse-server image is ~285MB compressed amd64 per Docker
+  Hub on 2026-09-13, comfortably inside the 2GB budget - but on three other counts. (1)
+  sqlglot's Snowflake-to-ClickHouse path is materially worse than Snowflake-to-DuckDB: in a
+  30-statement probe, PARSE_JSON, OBJECT_CONSTRUCT, LATERAL FLATTEN, TRANSIENT TABLE and
+  PERCENTILE_CONT ... WITHIN GROUP all produced invalid or untranslated ClickHouse, where DuckDB
+  got native equivalents. (2) ClickHouse has no MERGE INTO and implements UPDATE/DELETE as
+  asynchronous mutations, so dbt incremental and upsert archetypes - our core task family - land
+  on the one mechanism whose timing is a background-merge detail. (3) Choosing it discards
+  fakesnow, the only working Apache-2.0 Snowflake front end, whose ~3.2k lines of transforms are
+  hard-wired to DuckDB. The one genuine ClickHouse advantage, system.query_log as a free
+  QUERY_HISTORY, evaporates because our proxy already sees every statement and can write its own
+  history table.

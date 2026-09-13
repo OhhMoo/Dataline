@@ -1,0 +1,23 @@
+id: S856
+rq: RQ3
+claim: >
+  LocalStack's Snowflake emulator is reached through a real DNS name that resolves to 127.0.0.1
+  and ships a matching SSL certificate so clients get valid-looking HTTPS endpoints - the same
+  fake-hostname plus TLS-interception shape our sandbox plan assumes.
+url: https://docs.localstack.cloud/snowflake/getting-started/faq/
+quote: "we also publish an SSL certificate that is automatically used inside LocalStack, in order to enable HTTPS endpoints with valid certificates"
+source_type: vendor_page
+company: LocalStack
+year: 2026
+retrieved: "2026-09-13"
+confidence: high
+produced_by: R002-T2-snowflake
+vividness: medium
+attestation: vendor_marketing
+usable_for:
+  - world_texture
+notes: >
+  Vendor page: world_texture only. Useful as an existence proof that the DNS-plus-certificate
+  approach works against unmodified Snowflake drivers in production use. The same page notes
+  clients may need an /etc/hosts entry when the resolver does not cooperate, which is what we
+  would do inside a sealed container in any case.

@@ -2,10 +2,30 @@ id: T103
 name: "PostgreSQL"
 category: database
 role: simulate_target
-replication_strategy: none_found
+replication_strategy: native_oss
 produced_by: L6-tooling-inventory
 rq: RQ4
 frequency_rank: 4
+license: "PostgreSQL License (permissive, OSI-approved)"
+license_verified: false
+replication_ease: easy
+install_probe: "docker run -d --name pg -e POSTGRES_PASSWORD=p postgres:16 && docker exec pg psql -U postgres -tAc "select version()""
+probe_result: pass
+effort_estimate: "0.5 d"
+demand_archetypes:
+  - A028
+fidelity_gap: >
+  None for its own persona. Where it is worn as a Redshift or Oracle skin (T119, T127)
+  the gap is real and is recorded on those records.
 evidence:
   - S505
-notes: "Realistic operational database and permissive local runtime candidate for relational tasks."
+notes: >
+  T1 2026-09-13 (round R002, mock-priority pass): RESOLVED from none_found to
+  native_oss. PROBED by T1 2026-09-13: postgres:16 started and reported 'PostgreSQL
+  16.15 (Debian 16.15-1.pgdg13+2) on x86_64-pc-linux-gnu'. This is the least risky item
+  in the inventory. It serves three jobs at once: the legacy-RDBMS source in A028, the
+  CDC source whose replication slot bloats in A004, and the metadata store that Airflow,
+  Superset and OpenMetadata each need anyway. No repo_url recorded deliberately - the
+  postgres/postgres GitHub mirror reports NOASSERTION to the licence API and would
+  generate a spurious G2 warning; the PostgreSQL Licence is asserted from the project's
+  own COPYRIGHT file and should be confirmed in the human licence read.

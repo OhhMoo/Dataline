@@ -1,0 +1,25 @@
+id: T264
+name: "sqlglot Snowflake dialect"
+category: transformation
+role: oss_substitute
+replication_strategy: sdk_reshape
+produced_by: R002-T2-snowflake
+rq: RQ7
+repo_url: "https://github.com/tobymao/sqlglot"
+license: "MIT"
+install_probe: "pip install sqlglot; transpile(sql, read='snowflake', write='duckdb')"
+license_verified: true
+probe_result: pass
+replication_ease: medium
+evidence:
+  - S318
+  - S865
+notes: >
+  Verified at 30.15.0 on 2026-09-13 with a 30-statement Snowflake corpus. Sharpens S318's
+  'transpiler, not validator' warning into a concrete boundary: sqlglot translates the
+  EXPRESSION layer well onto DuckDB (VARIANT path access, OBJECT_CONSTRUCT, FLATTEN, QUALIFY,
+  LISTAGG, TABLESAMPLE, IFF/NVL/ZEROIFNULL all got native forms) and gives you NOTHING on the
+  PLATFORM layer - AT/BEFORE, CLONE, CREATE STREAM, CREATE TASK, RESULT_SCAN, GET_DDL, SYSTEM$
+  functions and ACCOUNT_USAGE all pass through verbatim, and UNDROP raises 'Unsupported
+  expression type Undrop'. That platform layer is exactly what fakesnow's transforms package
+  exists to supply, and exactly what any Snowflake mock has to build itself.

@@ -1,0 +1,24 @@
+# Produced by T3-environment-themes (R002) for RQ3 -- legacy / flat-file environment tooling.
+id: T294
+name: Time-based batch dependency mode (proposed scheduler option)
+category: orchestration
+role: harness
+replication_strategy: native_oss
+produced_by: T3-environment-themes
+rq: RQ3
+evidence:
+  - S913
+notes: >
+  A PROPOSED CHANGE TO AN EXISTING COMPONENT rather than a new tool, recorded here so it is
+  costed. The deterministic scheduler currently models runs and logical dates. Enterprise batch
+  schedulers differ in one behaviourally decisive way: a downstream job fires on the CLOCK, not on
+  upstream completion, so a late-but-successful upstream yields a green downstream run computed
+  over stale inputs. Adding a per-job trigger mode of clock versus upstream, plus a window cutoff,
+  is a small change to world/world/scheduler.py (currently 98 lines) and unlocks themes C1, C7 and
+  most of the hybrid family. Zero RAM, zero new services, zero new images.
+repair_note: >
+  replication_ease REMOVED 2026-09-13 by LEAD-R002. T294 is role: harness - a proposed
+  option for the scheduler state machine we write ourselves. 'replication_ease: easy' is a
+  category error: there is no third-party artifact to replicate, so there is nothing to
+  probe and G5's question does not apply. Effort for something we build belongs in
+  effort_estimate; its verification is our own test suite, not an install probe.

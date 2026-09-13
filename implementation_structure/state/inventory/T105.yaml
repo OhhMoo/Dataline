@@ -2,10 +2,52 @@ id: T105
 name: "dbt (Core)"
 category: transformation
 role: simulate_target
-replication_strategy: none_found
+replication_strategy: native_oss
 produced_by: L6-tooling-inventory
 rq: RQ4
 frequency_rank: 6
+repo_url: https://github.com/dbt-labs/dbt-core
+license: "Apache-2.0"
+license_verified: false
+replication_ease: easy
+install_probe: "docker run --rm python:3.11-slim sh -c "pip install -q dbt-core dbt-duckdb duckdb && dbt --version""
+probe_result: pass
+effort_estimate: "1 d"
+demand_archetypes:
+  - A001
+  - A002
+  - A003
+  - A006
+  - A009
+  - A010
+  - A017
+  - A018
+  - A019
+  - A022
+  - A025
+  - A026
+  - A028
+  - A029
+  - A030
+fidelity_gap: >
+  THE HIGHEST-CONSEQUENCE FIDELITY GAP IN THE INVENTORY, and it is not in dbt - it is in
+  the adapter. dbt-duckdb supports delete+insert, append, merge and microbatch
+  incremental strategies (S807); dbt-snowflake's merge, its unique_key handling and its
+  snapshot semantics do not line up one for one. A002 (positional-INSERT corruption
+  after an incremental schema change), A009 and A026 (idempotent repair after a silent
+  duplication) and A025 (column misalignment) are all authored ON those exact semantics.
+  If the adapter merges where Snowflake would delete+insert, the planted defect either
+  does not fire or fires for the wrong reason - and the task still grades, just not on
+  the thing we meant, which is the worst failure mode this project has. Every
+  incremental-model archetype must be pinned to the exact adapter and version shipped,
+  and re-verified whenever that version moves.
 evidence:
   - S508
-notes: "Core transformation layer combining transformation with testing, versioning, documentation."
+  - S807
+notes: >
+  T1 2026-09-13 (round R002, mock-priority pass): RESOLVED from none_found to
+  native_oss. PROBED by T1 2026-09-13: dbt-core 1.12.4 with dbt-duckdb 1.11.0 and duckdb
+  1.5.5 installed clean into python:3.11-slim and 'dbt --version' reported all three.
+  Fifteen of 26 archetypes touch dbt; only the warehouse itself is touched more.
+  Standing it up is trivial. Making it behave like the warehouse the archetype was
+  written against is not, and that is where the time goes.

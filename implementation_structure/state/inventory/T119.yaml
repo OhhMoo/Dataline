@@ -2,10 +2,27 @@ id: T119
 name: "Amazon Redshift"
 category: warehouse
 role: simulate_target
-replication_strategy: none_found
+replication_strategy: oss_equivalent
 produced_by: L6-tooling-inventory
 rq: RQ4
 frequency_rank: 20
+license: "PostgreSQL License (permissive, OSI-approved)"
+license_verified: false
+replication_ease: easy
+install_probe: "docker run -d --name pg -e POSTGRES_PASSWORD=p postgres:16 && docker exec pg psql -U postgres -tAc "select version()""
+probe_result: pass
+effort_estimate: "0.5 d (reuses T103)"
+demand_archetypes: []
+fidelity_gap: >
+  Postgres wearing a Redshift name has no DISTKEY, SORTKEY, VACUUM, ANALYZE-driven
+  planning or WLM queues, and no columnar storage. Every classic Redshift incident -
+  skew, an unsorted region, a queue backing up - is therefore inexpressible. What
+  survives is the SQL dialect, and only approximately.
 evidence:
   - S502
-notes: "Warehouse target with SQL and management/API behavior."
+notes: >
+  T1 2026-09-13 (round R002, mock-priority pass): RESOLVED from none_found to
+  oss_equivalent via the existing Postgres persona (T170). Zero archetypes touch
+  Redshift, so this stays a naming skin. sqlglot (T132, MIT per GitHub API 2026-09-13)
+  can flavour DDL toward the Redshift dialect at build time, which is enough for a task
+  that merely mentions Redshift and nowhere near enough for one that depends on it.

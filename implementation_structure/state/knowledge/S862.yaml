@@ -1,0 +1,22 @@
+id: S862
+rq: RQ4
+claim: >
+  Snowflake persists query results for 24 hours and serves repeat queries from that cache when
+  nothing has changed, so identical SQL can return instantly without touching a warehouse.
+url: https://docs.snowflake.com/en/user-guide/querying-persisted-results.md
+quote: "For persisted query results of all sizes, the cache expires after 24 hours."
+source_type: docs
+company: Snowflake
+year: 2026
+retrieved: "2026-09-13"
+confidence: high
+produced_by: R002-T2-snowflake
+vividness: low
+attestation: unattested
+usable_for:
+  - mechanism
+notes: >
+  Relevant to detectability and to one archetype shape: an agent that re-runs a query after a
+  data change and gets an unchanged answer is seeing cache semantics, a real Snowflake
+  confusion. Cheap to fake because our proxy already sees every statement and can key a cache on
+  normalised SQL text.

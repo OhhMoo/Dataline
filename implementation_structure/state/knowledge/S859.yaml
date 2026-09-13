@@ -1,0 +1,21 @@
+id: S859
+rq: RQ4
+claim: >
+  The INFORMATION_SCHEMA.QUERY_HISTORY table function - the low-latency alternative to
+  ACCOUNT_USAGE - only covers queries from the last 7 days, so the two query-history surfaces
+  trade latency against window length.
+url: https://docs.snowflake.com/en/sql-reference/functions/query_history.md
+quote: "within the last 7 days, in which the query completed running"
+source_type: docs
+company: Snowflake
+year: 2026
+retrieved: "2026-09-13"
+confidence: high
+produced_by: R002-T2-snowflake
+vividness: medium
+attestation: unattested
+usable_for:
+  - mechanism
+notes: >
+  Pairs with S858. Together they define a two-surface observability puzzle that is free to
+  reproduce in a mock and that no existing emulator implements at all.

@@ -1,0 +1,24 @@
+id: S869
+rq: RQ7
+claim: >
+  Snowflake Labs ships snowflake-vcrpy, a pytest plugin that records and replays the HTTP
+  traffic of snowflake-connector-python into cassette files - interception by record/replay
+  rather than emulation.
+url: https://raw.githubusercontent.com/Snowflake-Labs/snowflake-vcrpy/main/README.md
+quote: "pytest fixtures to enable record and replay HTTP-based tests"
+source_type: repo
+company: Snowflake Labs
+year: 2025
+retrieved: "2026-09-13"
+confidence: high
+produced_by: R002-T2-snowflake
+vividness: low
+attestation: unattested
+usable_for:
+  - mechanism
+notes: >
+  GitHub API at retrieval: Apache-2.0, 30 stars, pushed 2025-05-29, 7 open issues, not archived.
+  REJECTED for our use because cassettes only replay traffic that was recorded and an agent
+  issues SQL nobody anticipated. Retained as the strongest evidence that the connector's HTTP
+  surface is stable enough to intercept faithfully - Snowflake's own engineers ship a tool that
+  does exactly that.

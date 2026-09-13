@@ -1,0 +1,25 @@
+id: S864
+rq: RQ3
+claim: >
+  Snowflake has two distinct HTTP surfaces: the documented public SQL REST API for submitting
+  statements, and the undocumented session and query protocol that the Python, JDBC and ODBC
+  connectors actually speak - an emulator must implement whichever one the client uses.
+url: https://docs.snowflake.com/en/developer-guide/sql-api/index.md
+quote: "The Snowflake SQL API is a REST API that you can use to access and update data in a Snowflake database."
+source_type: docs
+company: Snowflake
+year: 2026
+retrieved: "2026-09-13"
+confidence: high
+produced_by: R002-T2-snowflake
+vividness: low
+attestation: unattested
+usable_for:
+  - mechanism
+notes: >
+  Important scoping fact for the interception-versus-emulation question. fakesnow implements the
+  CONNECTOR protocol - /session/v1/login-request, /session, /queries/v1/query-request,
+  /queries/v1/abort-request, /monitoring/queries/{sfqid} - and does NOT implement the public
+  /api/v2/statements SQL API; verified by reading fakesnow/server.py's route table on
+  2026-09-13. Anything in a world that talks to /api/v2/statements, such as some Airflow
+  operators or agent-written curl calls, would 404 today.

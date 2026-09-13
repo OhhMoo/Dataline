@@ -2,11 +2,36 @@ id: T120
 name: "dbt Semantic Layer / LookML"
 category: other
 role: simulate_target
-replication_strategy: none_found
+replication_strategy: native_oss
 produced_by: L6-tooling-inventory
 rq: RQ4
 frequency_rank: 21
+repo_url: https://github.com/dbt-labs/metricflow
+license: "Apache-2.0"
+license_verified: false
+replication_ease: medium
+install_probe: "docker run --rm python:3.11-slim sh -c "pip install -q lkml && python -c 'import lkml'""
+probe_result: pass
+effort_estimate: "2 d"
+demand_archetypes:
+  - A030
+fidelity_gap: >
+  MetricFlow compiles metric definitions into SQL, which is what A030 needs in order to
+  consolidate near-duplicate metric definitions into one. It is not the dbt Cloud
+  Semantic Layer API, so nothing turning on the hosted metrics endpoint, its caching or
+  its entitlements is reproducible. Running MetricFlow against dbt-duckdb rather than a
+  warehouse adapter is the usual integration friction, and it is why this is medium
+  rather than easy.
 evidence:
   - S516
   - S508
-notes: "Metrics/semantic-model layer; supported by Looker semantic-model finding and dbt practices."
+  - S812
+notes: >
+  T1 2026-09-13 (round R002, mock-priority pass): RESOLVED from none_found to
+  native_oss, and it corrects a widely-held belief worth stating plainly: MetricFlow is
+  Apache-2.0, not BSL. Verified twice on 2026-09-13 - the GitHub API reports Apache-2.0
+  for dbt-labs/metricflow, and the LICENSE file itself opens 'Apache License Version
+  2.0, January 2004' (S812). Anyone who remembers the Transform-era licensing and writes
+  this off without checking will drop a shippable dependency for no reason. lkml covers
+  the LookML dialect of the same surface and was probed pass. Only one archetype (A030)
+  needs any of this today.

@@ -1,0 +1,29 @@
+# Produced by T3-environment-themes (R002) for RQ3 -- legacy / flat-file environment tooling.
+id: T290
+name: openpyxl (spreadsheet fixture generation)
+category: other
+role: harness
+replication_strategy: native_oss
+produced_by: T3-environment-themes
+rq: RQ3
+license: MIT
+license_verified: false
+evidence:
+  - S915
+  - S916
+  - S924
+  - S925
+  - S926
+notes: >
+  The route to a spreadsheet theme that needs no spreadsheet application. Everything the Excel
+  sources describe is a property of the emitted file: a cell whose stored value is a date serial
+  where an identifier was intended, a numeric cell holding only 15 significant digits, a workbook
+  flagged to the 1904 date system so every date reads 1462 days off. Writing those directly is
+  both cheaper and MORE FAITHFUL than driving a real application, because the corruption is
+  deterministic and seedable. Licence stated from common knowledge and NOT verified by T3 -- G2
+  must confirm.
+replication_ease: easy
+probe_result: pass
+install_probe: "docker run --rm python:3.11-slim sh -c 'pip install openpyxl && python -c ...'"
+repair_note: >
+  PROBED 2026-09-13 by LEAD-R002 in a clean python:3.11-slim container. openpyxl 3.1.5 round-trips a workbook, preserves a formula string (=B2*2) and keeps a leading-zero text cell as '00417' rather than coercing it to 417 - the latter matters because number-stored-as-text is one of the defects the spreadsheet themes plant. Was probe_result: not_run while claiming replication_ease: easy, which G5 correctly failed.

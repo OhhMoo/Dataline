@@ -2,10 +2,36 @@ id: T116
 name: "Apache Kafka"
 category: streaming
 role: simulate_target
-replication_strategy: none_found
+replication_strategy: native_oss
 produced_by: L6-tooling-inventory
 rq: RQ4
 frequency_rank: 17
+repo_url: https://github.com/apache/kafka
+license: "Apache-2.0"
+license_verified: false
+replication_ease: easy
+install_probe: "docker run -d --name k apache/kafka:latest && docker exec k /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --topic probe.events --partitions 1"
+probe_result: pass
+effort_estimate: "2 d"
+demand_archetypes:
+  - A027
+fidelity_gap: >
+  Kafka itself is faithful because it IS Kafka. The gap is around it: no schema registry
+  unless one is added, and the obvious one is licence-poisoned (see notes). A027's
+  defect originates behind the orchestrator in the streaming layer, so what it needs is
+  consumer lag and partition state - both native - rather than schema evolution.
 evidence:
   - S513
-notes: "Event streaming: producers, consumers, durable topics, stream processing."
+  - S809
+notes: >
+  T1 2026-09-13 (round R002, mock-priority pass): RESOLVED from none_found to
+  native_oss. PROBED by T1 2026-09-13: apache/kafka:latest came up in KRaft mode with no
+  ZooKeeper, created topic probe.events, listed it back, and
+  kafka-broker-api-versions.sh answered. LICENCE LANDMINE, and the one most likely to be
+  stepped on: Apache Kafka is Apache-2.0, but almost every tutorial reaches for
+  Confluent's cp-* images, and confluentinc/schema-registry is under the Confluent
+  Community License (S803) - source-available, explicitly binding on anyone distributing
+  the software, an automatic rejection here. Redpanda, the other reflex, is BSL 1.1
+  (S804). If a schema registry is ever needed, Apicurio Registry is Apache-2.0 (T213,
+  S811). Only one archetype touches streaming, so none of this is urgent - but the trap
+  is well disguised.

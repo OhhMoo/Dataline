@@ -2,10 +2,22 @@ id: T128
 name: "Sigma"
 category: bi
 role: simulate_target
-replication_strategy: none_found
+replication_strategy: drop
 produced_by: L6-tooling-inventory
 rq: RQ4
 frequency_rank: 29
+license: ""
+license_verified: false
+replication_ease: blocked
+effort_estimate: "0 d (skin only, on T204)"
+demand_archetypes: []
+fidelity_gap: >
+  Not applicable - a naming skin over T204. Sigma's spreadsheet-style interaction model
+  has no OSS analogue, so a task about an analyst's ad-hoc spreadsheet manipulation is
+  not buildable.
 evidence:
   - S518
-notes: "Workbook-style BI for ad hoc exploration, reporting, data apps; cloud-only, later breadth."
+notes: >
+  T1 2026-09-13 (round R002, mock-priority pass): RESOLVED from none_found to drop.
+  SaaS-only, no local edition, no OSS mock, zero archetypes. Folds into the shared BI
+  surface (T204) as a name if anyone wants the variety.

@@ -1,0 +1,23 @@
+id: S860
+rq: RQ4
+claim: >
+  A Snowflake stream exposes changes as the source table's own columns plus METADATA$ACTION,
+  METADATA$ISUPDATE and METADATA$ROW_ID, and represents an UPDATE as a paired DELETE and INSERT.
+url: https://docs.snowflake.com/en/user-guide/streams-intro.md
+quote: "Indicates whether the operation was part of an UPDATE statement."
+source_type: docs
+company: Snowflake
+year: 2026
+retrieved: "2026-09-13"
+confidence: high
+produced_by: R002-T2-snowflake
+vividness: medium
+attestation: unattested
+usable_for:
+  - mechanism
+notes: >
+  The delete-plus-insert representation is exactly what DuckLake's table_changes() emits as
+  update_preimage/update_postimage, which is why Streams are a view rewrite rather than a
+  rebuild on a DuckDB backend - verified on the DuckLake side by hand on 2026-09-13, see S866.
+  The other half of stream semantics, the offset advancing only when the stream is consumed
+  inside a DML transaction, is state we would have to keep ourselves.

@@ -2,10 +2,34 @@ id: T102
 name: "Jira"
 category: ticketing
 role: simulate_target
-replication_strategy: none_found
+replication_strategy: oss_equivalent
 produced_by: L6-tooling-inventory
 rq: RQ4
 frequency_rank: 3
+license: "MIT (Gitea)"
+license_verified: false
+replication_ease: easy
+install_probe: "docker run -d -p 3000:3000 -e GITEA__database__DB_TYPE=sqlite3 -e GITEA__security__INSTALL_LOCK=true gitea/gitea:latest && curl -s localhost:3000/api/v1/version"
+probe_result: pass
+effort_estimate: "0.5 d (reuses T146)"
+demand_archetypes:
+  - A011
+  - A029
+fidelity_gap: >
+  Gitea issues have no JQL, no sprints or boards, no custom fields, and no workflow
+  transition rules with status categories. A011 and A029 need a ticket with a title, a
+  body, comments and a status change, and Gitea carries all four. The moment an
+  archetype turns on JQL semantics or a workflow-transition guard, that is when the
+  roughly six-endpoint Jira mock gets built - not before.
 evidence:
   - S524
-notes: "Work items, workflows, boards, backlogs carrying operational context around data incidents and changes."
+notes: >
+  T1 2026-09-13 (round R002, mock-priority pass): RESOLVED from none_found to
+  oss_equivalent. The ticketing surface rides on the Gitea instance already being stood
+  up for the forge, so its marginal cost is near zero. Worth recording what was
+  rejected: atlassian/jira-software IS a real Docker Hub image (tag 'latest' verified
+  present via the Docker Hub API, pushed 2026-09-12), but it is proprietary Data Center
+  software requiring a licence key and activation - not shippable into a lab container,
+  and not probed for that reason. OpenProject is GPL-3.0, Plane and Vikunja are
+  AGPL-3.0, Redmine reports NOASSERTION (all via GitHub API 2026-09-13): the OSS
+  ticketing field is almost entirely copyleft, which is why Gitea's MIT issues matter.

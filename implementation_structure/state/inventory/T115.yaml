@@ -2,10 +2,34 @@ id: T115
 name: "Looker"
 category: bi
 role: simulate_target
-replication_strategy: none_found
+replication_strategy: oss_equivalent
 produced_by: L6-tooling-inventory
 rq: RQ4
 frequency_rank: 16
+license: "MIT (lkml)"
+license_verified: false
+replication_ease: medium
+install_probe: "docker run --rm python:3.11-slim sh -c "pip install -q lkml && python -c 'import lkml; lkml.load(open(0).read())'""
+probe_result: pass
+effort_estimate: "1 d for the LookML half; dashboards ride on T204"
+demand_archetypes:
+  - A019
+  - A030
+fidelity_gap: >
+  lkml parses and dumps LookML; it does not evaluate it. There is no query generation,
+  no join resolution, no symmetric aggregates. So a Looker-flavoured task can be about
+  the MODEL being wrong or inconsistent - which is what A019 and A030 need - but cannot
+  be about Looker's SQL generation differing from what the analyst expected.
 evidence:
   - S516
-notes: "Governed semantic-model and dashboard layer over multiple warehouse backends."
+notes: >
+  T1 2026-09-13 (round R002, mock-priority pass): RESOLVED from none_found to
+  oss_equivalent, split across two halves. The dashboard half folds into T204 like
+  Tableau and Power BI. The semantic half is genuinely useful and genuinely cheap:
+  joshtemple/lkml (T163, MIT per GitHub API 2026-09-13) PROBED by T1 - it installed
+  clean and parsed a LookML view with a dimension into a Python dict. That gives A019
+  (rename-bound BI blast radius) and A030 (consolidating near-duplicate metric
+  definitions) a real artifact to break. Caveat for G2: lkml's last push was 2025-01-31,
+  roughly nineteen months back, exceeding the 365-day threshold and raising a liveness
+  warning. It is a stable parser, not an abandoned service, but somebody should see the
+  warning rather than be surprised by it.

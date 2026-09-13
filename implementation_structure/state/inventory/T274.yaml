@@ -1,0 +1,24 @@
+# Produced by T3-environment-themes (R002) for RQ3 -- legacy / flat-file environment tooling.
+id: T274
+name: SQL Server Integration Services (SSIS)
+category: transformation
+role: simulate_target
+replication_strategy: none_found
+produced_by: T3-environment-themes
+rq: RQ3
+replication_ease: blocked
+evidence:
+  - S930
+  - S931
+notes: >
+  RESOLVED THIS ROUND AND DEFINITIVELY BLOCKED: Microsoft's own Linux setup documentation states
+  that installing SSIS on containers is not supported, and that even on a supported bare Linux
+  install the design and management tools are Windows applications, the SSIS catalog database is
+  unavailable, and there is no agent scheduling. No maintained open-source package EXECUTOR exists
+  either -- the projects that read .dtsx files extract metadata or convert the pipeline to another
+  engine, and none reproduce SSIS runtime semantics. PROPOSED PROXY: the mechanism is a flat-file
+  connection manager that pins each text column to a fixed declared width and code page, so a
+  column that grows or acquires a non-mappable character truncates with the S930 error string.
+  That is a property of a LOADER CONFIG FILE, and reproducing it needs a config file, a loader
+  that honours it, and the error string -- not SSIS. The .dtsx package can be present in the
+  workspace as the artifact the agent reads to discover the declared width.

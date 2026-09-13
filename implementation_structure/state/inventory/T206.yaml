@@ -1,0 +1,30 @@
+id: T206
+name: "Evidence.dev"
+category: bi
+role: oss_substitute
+replication_strategy: oss_equivalent
+produced_by: T1-mock-bottleneck
+rq: RQ3
+repo_url: https://github.com/evidence-dev/evidence
+license: "mit"
+license_verified: false
+archived: false
+last_commit: 2026-09-11
+stars: 6934
+replication_ease: medium
+probe_result: not_run
+effort_estimate: "2 d"
+demand_archetypes: []
+fidelity_gap: >
+  BI-as-code: dashboards are markdown files containing SQL, which makes them
+  git-diffable and seed-reproducible - genuinely attractive properties here. But it is a
+  static site generator, so there is no refresh model of its own and no interactive
+  filtering; the staleness axis the archetypes grade on would still have to be supplied
+  by us. That is most of the reason T204 exists.
+notes: >
+  T1 2026-09-13 (round R002, mock-priority pass): NEW RECORD, logged as the runner-up
+  for the BI surface so the option is on the record rather than rediscovered later. MIT,
+  6,934 stars, pushed 2026-09-11 per GitHub API 2026-09-13. NOT PROBED. Its appeal is
+  determinism - a dashboard that is a text file in git fits this project's
+  rebuild-from-seed requirement better than any server-backed BI tool. If T204 turns out
+  harder than estimated, this is where to look next.

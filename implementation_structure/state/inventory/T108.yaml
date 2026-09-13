@@ -2,10 +2,32 @@ id: T108
 name: "BigQuery"
 category: warehouse
 role: simulate_target
-replication_strategy: none_found
+replication_strategy: wire_protocol
 produced_by: L6-tooling-inventory
 rq: RQ4
 frequency_rank: 9
+repo_url: https://github.com/goccy/bigquery-emulator
+license: "MIT"
+license_verified: false
+replication_ease: easy
+install_probe: "docker run -d -p 9050:9050 ghcr.io/goccy/bigquery-emulator:latest --project=test --port=9050 && curl -s -XPOST -H "Content-Type: application/json" -d '{"query":"SELECT 1 AS n","useLegacySql":false}' localhost:9050/bigquery/v2/projects/test/queries"
+probe_result: pass
+effort_estimate: "1 d"
+demand_archetypes: []
+fidelity_gap: >
+  The emulator implements the REST query surface, not BigQuery's economics or
+  operational semantics: no slots, no reservations, no bytes-billed, no
+  partition-pruning cost signal, no INFORMATION_SCHEMA.JOBS history. A BigQuery task
+  whose whole point is 'this query got expensive' cannot be built on it.
 evidence:
   - S503
-notes: "Managed warehouse used via SQL, Python, CLI, client libraries, APIs."
+  - S801
+notes: >
+  T1 2026-09-13 (round R002, mock-priority pass): RESOLVED from none_found to
+  wire_protocol. PROBED by T1 2026-09-13, and this was the most convincing probe of the
+  set: the container came up and a POST to /bigquery/v2/projects/test/queries returned a
+  real result envelope - jobReference, a schema with field n of type INTEGER, rows
+  [{f:[{v:"1"}]}], totalRows 1, jobComplete true. That is a genuine wire-protocol pass,
+  not a docs claim. Demand is the catch: ZERO archetypes name BigQuery. It is cheap and
+  it works, so it earns a place as a second warehouse persona for breadth, but nothing
+  needs it today and it must not displace work on surfaces that 26 archetypes do need.

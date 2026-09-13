@@ -1,0 +1,21 @@
+# Produced by T3-environment-themes (R002) for RQ3 -- legacy / flat-file environment tooling.
+id: T271
+name: Mainframe batch estate (JCL, VSAM, CICS, nightly batch window)
+category: orchestration
+role: simulate_target
+replication_strategy: none_found
+produced_by: T3-environment-themes
+rq: RQ3
+replication_ease: blocked
+evidence:
+  - S913
+  - S900
+notes: >
+  NOT CONTAINERIZABLE and, importantly, MOSTLY NOT WORTH CONTAINERIZING. What a downstream data
+  engineer actually experiences of a mainframe is: a file appears in a landing area some time
+  during a nightly window, sometimes late, sometimes truncated, sometimes twice, with a copybook
+  that changed without notice. Every one of those is reproducible with a deterministic scheduler
+  and a file generator. PROPOSED PROXY: model the batch window as a hard cutoff in the existing
+  scheduler state machine (world/world/scheduler.py) -- a job whose logical date advances whether
+  or not the upstream extract landed. That is a schedule semantics change, not a new service, so
+  it costs zero RAM.

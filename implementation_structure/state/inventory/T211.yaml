@@ -1,0 +1,33 @@
+id: T211
+name: "Trino"
+category: warehouse
+role: oss_substitute
+replication_strategy: oss_equivalent
+produced_by: T1-mock-bottleneck
+rq: RQ3
+repo_url: https://github.com/trinodb/trino
+license: "apache-2.0"
+license_verified: false
+archived: false
+last_commit: 2026-09-12
+stars: 13225
+replication_ease: medium
+probe_result: not_run
+effort_estimate: "3 d (if T2 wants it)"
+demand_archetypes: []
+fidelity_gap: >
+  Trino federates; it is not Snowflake-shaped by itself. Its value in this project would
+  be as the SQL layer in front of another store if T2's warehouse design needs one, and
+  its dialect differs from Snowflake's in ways sqlglot only partially papers over.
+  Recorded as an option, not a recommendation.
+evidence:
+  - S814
+notes: >
+  T1 2026-09-13 (round R002, mock-priority pass): NEW RECORD, filed for T2's benefit
+  rather than T1's. Apache-2.0, 13,225 stars, pushed 2026-09-12 per GitHub API
+  2026-09-13; the image trinodb/trino:latest is verified present on Docker Hub (pushed
+  2026-07-18, 1.0GB) via a registry query - tag existence only, NOT PROBED, and at 1GB
+  it is a heavy default. Relevant because the house plan for the warehouse is 'wrap
+  something to serve a Snowflake-shaped API', and Trino plus ClickHouse (T126, probed
+  pass) is one of the two obvious shapes that could take. T1 did not evaluate it further
+  - Snowflake is T2's assignment this round.

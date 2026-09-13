@@ -1,0 +1,40 @@
+id: T203
+name: "Ingestion connector control-plane mock"
+category: ingestion
+role: mock_implementation
+replication_strategy: custom_mock_required
+produced_by: T1-mock-bottleneck
+rq: RQ3
+license: "n/a (ours)"
+license_verified: false
+replication_ease: hard
+effort_estimate: "4-6 d"
+demand_archetypes:
+  - A010
+  - A017
+  - A018
+  - A022
+  - A025
+fidelity_gap: >
+  Deliberately narrow, and the narrowness is the whole design. FOUR OBJECTS: connector
+  (name, source, destination, status, schedule); sync run (started_at, finished_at,
+  rows_inserted, rows_updated, status); table-level schema config (column list, and the
+  policy applied when a column appears or disappears); alert (fired_at, kind,
+  acknowledged). ABOUT SIX read endpoints and TWO actions (re-sync, pause). It will NOT
+  have: authentication flows, connector marketplace, transformations, dbt integration,
+  billing, webhooks, or per-row logs. If any of those get built, the scope has escaped
+  and somebody should say so out loud.
+evidence:
+  - S806
+notes: >
+  T1 2026-09-13 (round R002, mock-priority pass): NEW RECORD - the build implied by
+  T117, given its own artifact so the scope can be frozen in writing. This is the one
+  genuine custom mock the evidence supports, and it serves five archetypes (A010, A017,
+  A018, A022, A025) whose defects are all about a connector handling schema drift badly
+  while reporting success. The reason it cannot be bought or borrowed: dlt and Meltano
+  move data but have no control plane, and Airbyte - the only OSS product with one - is
+  licence-blocked under ELv2. Fivetran's Connector SDK debug mode does run locally and
+  emits a DuckDB warehouse.db (S806), which is a legitimate way to generate the
+  connector's OUTPUT offline; it does not supply the status timeline the archetypes
+  read. RISK: 'connector control plane' sounds like a product. The four objects above
+  are the contract; anything beyond them needs a named archetype demanding it.

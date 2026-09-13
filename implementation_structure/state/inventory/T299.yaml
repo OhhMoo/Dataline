@@ -1,0 +1,22 @@
+# Produced by T3-environment-themes (R002) for RQ3 -- legacy / flat-file environment tooling.
+id: T299
+name: formulas (spreadsheet formula evaluation in Python)
+category: other
+role: harness
+replication_strategy: oss_equivalent
+produced_by: T3-environment-themes
+rq: RQ3
+repo_url: https://github.com/vinci1it2000/formulas
+license: EUPL-1.1
+license_verified: false
+archived: false
+probe_result: not_run
+replication_ease: medium
+notes: >
+  The cheap alternative to T298 if a task must recalculate a workbook rather than merely read one
+  -- for instance a finance-close theme where the discrepancy lives inside a formula rather than
+  inside a value. Reported as actively maintained, not archived, with a push in 2026. A sibling
+  project was checked and is the weaker choice: it carries a more restrictive licence for
+  embedding in a closed product and has reported compatibility problems, so prefer this one.
+  NEITHER LICENCE NOR MAINTENANCE VERIFIED BY T3, and the EUPL is an unusual enough licence that
+  it needs a real read rather than an assumption before adoption.

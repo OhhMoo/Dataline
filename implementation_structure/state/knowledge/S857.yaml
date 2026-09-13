@@ -1,0 +1,24 @@
+id: S857
+rq: RQ4
+claim: >
+  Snowflake Time Travel is on by default with a 1-day retention period, is raised to at most 90
+  days only on Enterprise Edition, and is addressed through AT/BEFORE with TIMESTAMP, OFFSET or
+  STATEMENT plus the UNDROP command.
+url: https://docs.snowflake.com/en/user-guide/data-time-travel.md
+quote: "The standard retention period is 1 day (24 hours) and is automatically enabled for all Snowflake accounts"
+source_type: docs
+company: Snowflake
+year: 2026
+retrieved: "2026-09-13"
+confidence: high
+produced_by: R002-T2-snowflake
+vividness: medium
+attestation: unattested
+usable_for:
+  - mechanism
+notes: >
+  The 1-day default is the important number for archetype design: a plausible incident window is
+  longer than the retention an agent actually has, so 'just time-travel back' is a trap rather
+  than a solution, and DATA_RETENTION_TIME_IN_DAYS becomes a plantable defect. Note for future
+  retrievals: docs.snowflake.com serves a markdown twin of every page by appending .md, which is
+  stable and exact-matchable for G1.

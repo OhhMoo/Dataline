@@ -1,0 +1,26 @@
+# Produced by T3-environment-themes (R002) for RQ3 -- legacy / flat-file environment tooling.
+id: T284
+name: Fixed-width / EBCDIC flat-file surface (proposed harness component)
+category: storage
+role: harness
+replication_strategy: native_oss
+produced_by: T3-environment-themes
+rq: RQ3
+install_probe: python -c codecs.lookup for cp037/cp273/cp500/cp1140/cp875/cp424/cp1047; plus a cp037-encode / cp500-decode round trip -- run by T3 2026-09-13 on CPython 3.11
+probe_result: pass
+replication_ease: easy
+evidence:
+  - S900
+  - S904
+  - S910
+  - S912
+  - S914
+notes: >
+  THE SINGLE HIGHEST-VALUE NEW BUILD IN THIS INVENTORY, and it is nearly free. T3 measured:
+  CPython 3.11 ships cp037, cp273, cp500, cp1140, cp875 and cp424 in the standard library, so a
+  code-page-confusion world needs ZERO new dependencies and ZERO new containers. cp1047 is NOT in
+  the standard library (measured), so a task turning on it must ship a codec table. Measured
+  demonstration of the mechanism: the string [ ] ! encoded cp037 and decoded cp500 returns three
+  different characters and raises nothing. The surface should generate: a fixed-width file, a
+  copybook beside it, packed-decimal and zoned-decimal numeric fields, and a record length that
+  the file length must divide evenly by (S912's check).

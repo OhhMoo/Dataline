@@ -1,0 +1,26 @@
+id: T209
+name: "Redpanda"
+category: streaming
+role: oss_substitute
+replication_strategy: drop
+produced_by: T1-mock-bottleneck
+rq: RQ3
+license: "bsl-1.1"
+license_verified: false
+archived: false
+last_commit: 2026-08-22
+replication_ease: blocked
+effort_estimate: "0 d (rejected)"
+demand_archetypes: []
+fidelity_gap: >
+  Not applicable - rejected on licence.
+evidence:
+  - S804
+notes: >
+  T1 2026-09-13 (round R002, mock-priority pass): NEW RECORD, written so nobody re-finds
+  it. Redpanda is the usual 'lighter Kafka' recommendation and is BSL 1.1 with a
+  use-restriction grant (S804) - source-available, not open source, and an automatic
+  rejection for something we ship. The GitHub API reports no detected licence at all for
+  redpanda-data/redpanda (checked 2026-09-13), which is exactly the silence that must
+  not be read as permission. repo_url deliberately NOT recorded. Apache Kafka (T116) is
+  Apache-2.0, publishes its own images, and was PROBED pass by T1.

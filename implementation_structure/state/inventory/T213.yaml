@@ -1,0 +1,32 @@
+id: T213
+name: "Apicurio Registry"
+category: streaming
+role: oss_substitute
+replication_strategy: oss_equivalent
+produced_by: T1-mock-bottleneck
+rq: RQ3
+repo_url: https://github.com/Apicurio/apicurio-registry
+license: "apache-2.0"
+license_verified: false
+archived: false
+last_commit: 2026-09-12
+stars: 934
+replication_ease: medium
+probe_result: not_run
+effort_estimate: "1 d (only if a schema registry is needed)"
+demand_archetypes: []
+fidelity_gap: >
+  Apicurio stores and serves schemas and supports compatibility rules, which is the
+  substance of what a schema registry contributes to a data incident. It is not
+  wire-compatible with Confluent's registry client protocol in every respect, so a task
+  that pins a Confluent client version and grades on its exact error text would need
+  checking.
+evidence:
+  - S811
+notes: >
+  T1 2026-09-13 (round R002, mock-priority pass): NEW RECORD, the licence-clean
+  replacement for the rejected Confluent Schema Registry (T210). Apache-2.0, 934 stars,
+  pushed 2026-09-12 per GitHub API 2026-09-13 (S811). NOT PROBED. Only one archetype
+  touches streaming at all (A027) and it does not need schema evolution, so this is a
+  contingency record - but it is the difference between 'Kafka is licence-blocked for
+  us' (false) and 'the Confluent components are' (true).

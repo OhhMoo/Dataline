@@ -2,11 +2,40 @@ id: T125
 name: "Unity Catalog / Atlan"
 category: catalog
 role: simulate_target
-replication_strategy: none_found
+replication_strategy: native_oss
 produced_by: L6-tooling-inventory
 rq: RQ4
 frequency_rank: 26
+repo_url: https://github.com/unitycatalog/unitycatalog
+license: "Apache-2.0"
+license_verified: false
+replication_ease: medium
+install_probe: "curl -s https://hub.docker.com/v2/repositories/unitycatalog/unitycatalog/tags/latest"
+probe_result: not_run
+effort_estimate: "2 d for UC OSS; 1 d for a seeded lineage+grants file"
+demand_archetypes:
+  - A019
+  - A021
+fidelity_gap: >
+  Atlan is not reproduced by anything and is not being reproduced. Unity Catalog OSS is
+  a real governance server but a heavy one, and what A019 and A021 need is narrower than
+  either product: A019 needs column-level lineage so a rename's blast radius is
+  discoverable, A021 needs a grants-and-masking table with contradictory entries. Both
+  are a table and a graph. Standing up a 2.6GB Java catalog, or OpenMetadata's Java +
+  Elasticsearch + MySQL stack, to serve two archetypes is a poor trade unless catalog
+  demand grows.
 evidence:
   - S501
   - S525
-notes: "Catalog/governance surface; Unity Catalog implied by Databricks governance, OpenMetadata finding supports catalog category."
+  - S802
+notes: >
+  T1 2026-09-13 (round R002, mock-priority pass): RESOLVED from none_found to
+  native_oss, with a recommendation against using it yet. NEW FINDING since B1 wrote
+  this off: Unity Catalog has an Apache-2.0 OSS implementation that also speaks the Hive
+  metastore and Iceberg REST catalog APIs (S802), verified via GitHub API 2026-09-13
+  (Apache-2.0, 3,520 stars, pushed 2026-09-11), with a real image on Docker Hub -
+  unitycatalog/unitycatalog:latest, pushed 2026-08-20, 2.6GB. B1's note that 'Unity
+  Catalog's OSS namesake is a Databricks-governed spec server' is out of date; it is now
+  an LF AI and Data Foundation sandbox project. NOT PROBED - only the image manifest was
+  verified through the registry API, which proves the tag exists and nothing about
+  whether it starts. Recommendation stands: seed lineage and grants as data for now.

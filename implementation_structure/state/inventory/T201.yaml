@@ -1,0 +1,38 @@
+id: T201
+name: "moto (motoserver)"
+category: storage
+role: mock_implementation
+replication_strategy: http_intercept
+produced_by: T1-mock-bottleneck
+rq: RQ3
+repo_url: https://github.com/getmoto/moto
+license: "apache-2.0"
+license_verified: false
+archived: false
+last_commit: 2026-09-12
+stars: 8658
+replication_ease: easy
+install_probe: "docker run -d -p 5000:5000 motoserver/moto:latest && curl -s -o /dev/null -w "%{http_code}" localhost:5000/moto-api/"
+probe_result: pass
+effort_estimate: "1 d"
+demand_archetypes:
+  - A010
+  - A017
+  - A022
+  - A025
+fidelity_gap: >
+  moto mocks AWS API behaviour in Python; it is not a storage engine, and its durability
+  and performance characteristics are irrelevant by design. Against adobe/S3Mock the
+  tradeoff is breadth versus focus: moto covers many AWS services (useful if a task ever
+  touches Secrets Manager or Glue), S3Mock covers S3 more single-mindedly and is a
+  smaller JVM service. Neither implements IAM policy evaluation well enough for a
+  permissions-misconfiguration task.
+evidence:
+  - S808
+notes: >
+  T1 2026-09-13 (round R002, mock-priority pass): NEW RECORD, second option for the S3
+  surface alongside T154. PROBED by T1 2026-09-13: motoserver/moto:latest came up and
+  /moto-api/ returned HTTP 200. Apache-2.0, 8,658 stars, pushed 2026-09-12 per GitHub
+  API. Recorded chiefly because the two obvious alternatives both died this year - MinIO
+  is AGPL and archived, LocalStack is archived (T202) - and having a second live,
+  permissively-licensed AWS mock materially de-risks the storage surface.

@@ -1,0 +1,24 @@
+id: S863
+rq: RQ4
+claim: >
+  Snowflake's physical layer is micro-partitions of 50-500MB uncompressed carrying per-column
+  min/max metadata, and query performance is a function of how well those partitions prune -
+  there is no user-managed partitioning DDL.
+url: https://docs.snowflake.com/en/user-guide/tables-clustering-micropartitions.md
+quote: "structure allows for extremely granular pruning of very large tables, which can be comprised of millions, or even hundreds of millions, of micro-partitions."
+source_type: docs
+company: Snowflake
+year: 2026
+retrieved: "2026-09-13"
+confidence: high
+produced_by: R002-T2-snowflake
+vividness: low
+attestation: unattested
+usable_for:
+  - mechanism
+notes: >
+  Recorded mainly to argue the opposite of the obvious: micro-partition pruning is the one
+  Snowflake behaviour I would NOT try to emulate. Its only observable signature is a query
+  profile and a wall-clock number, neither of which a sub-second DuckDB backend can produce
+  honestly, and a fabricated profile is a fabricated artifact the agent would then be graded
+  against. Drop the clustering and pruning task class rather than fake it.

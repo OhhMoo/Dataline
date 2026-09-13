@@ -2,13 +2,17 @@ id: T142
 name: "Sigma mock"
 category: bi
 role: mock_implementation
-replication_strategy: none_found
+replication_strategy: drop
 produced_by: B1-connector-scout
 rq: RQ3
 license: ""
 license_verified: false
 replication_ease: blocked
+effort_estimate: "0 d"
+demand_archetypes: []
+fidelity_gap: >
+  Not applicable - superseded by T204.
 notes: >
-  Covers T128, OPTIONAL persona. NONE FOUND. Sigma is SaaS-only; no local edition,
-  no OSS mock, no substitute for the spreadsheet-style BI surface. Fallback:
-  Superset persona (T137). Recorded 2026-09-12.
+  T1 2026-09-13 (round R002, mock-priority pass): verdict changed from none_found to
+  drop. Zero archetype demand, no local edition, and no OSS analogue for the
+  spreadsheet-style surface. Settled.

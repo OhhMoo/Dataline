@@ -1,16 +1,23 @@
 id: S010
 rq: RQ1
 claim: >
-  A pipeline team renamed a warehouse column (amount_txn_ccy to txn_amount) as routine
-  housekeeping and notified no downstream consumer. For three days the risk dashboard's query
-  returned NULL for every row and a divide-by-zero fallback substituted a garbage value, so the
-  failure surfaced as an overnight transaction volume off by a factor of ten - found by the head
-  of risk two minutes before a board meeting, not by any alert.
+  An illustrative scenario in a data-contracts argument describes a column rename breaking a
+  downstream dashboard: a pipeline team renames a warehouse column (amount_txn_ccy to txn_amount)
+  as routine housekeeping and notifies no downstream consumer; the risk dashboard's query then
+  returns NULL for every row for three days and a divide-by-zero fallback substitutes a
+  plausible-looking garbage value, so the failure surfaces as a business number off by a factor of
+  ten rather than as an error. NOT AN ATTESTED INCIDENT: the article is written in the present
+  tense as a constructed vignette - it opens "It's 8:58 AM. The head of risk at a bank opens the
+  morning transaction dashboard..." - with no company, no date, no incident record and no claim
+  that the author or anyone else lived through it. The same article sketches sibling breakages on
+  the same table (a new enum value that downstream CASE expressions do not handle, a NUMERIC(5,2)
+  to NUMERIC(5,4) precision change, and a batch load shifting from 06:00 to 08:00 UTC so a 07:00
+  finance job reads yesterday's data).
 url: https://freedium-mirror.cfd/https://medium.com/@theinsightengineer/the-column-rename-that-crashed-a-board-meeting-89ebb635a0f0
 quote: "The dashboard query silently returned NULL for every row."
 source_type: blog
-author_role: data platform engineer
-company: not stated (banking data warehouse case)
+author_role: writer arguing for data contracts (byline Pramod Karanam, no company)
+company: not stated
 year: 2026
 retrieved: "2026-09-12"
 confidence: low
@@ -18,29 +25,32 @@ vividness: high
 attestation: unattested
 usable_for:
   - world_texture
-status: withdrawn
 produced_by: L1-practitioner-workflow-de
 notes: >
-  Textbook symptom-first discovery: a human notices a wrong business number and triage runs
-  backwards through lineage to a three-day-old DDL change. Note the amplifier - a defensive
-  fallback converted NULLs into a plausible-looking number instead of an error. The same article
-  lists sibling breakages on the same table: a new enum value in transaction_type that downstream
-  CASE expressions do not handle, a NUMERIC(5,2) to NUMERIC(5,4) precision change, and the daily
-  batch load shifting from 06:00 to 08:00 UTC so a 07:00 finance job reads yesterday's data.
-  The author is arguing for data contracts / OpenMetadata, so treat the remedy as advocacy.
-repair_note: >
-  G1 repair 2026-09-12: medium.com URL 403-bot-blocked the gate's urllib fetch; url swapped to
-  the freedium mirror of the same article (original: https://medium.com/@theinsightengineer/the-column-rename-that-crashed-a-board-meeting-89ebb635a0f0).
-  Quote unchanged - verified verbatim on the mirror with gate-identical fetch logic.
+  What this page supports is that a writer arguing for data contracts finds the scenario plausible,
+  and that the defect LIBRARY it sketches is coherent and injectable. What it does NOT support, and
+  what earlier versions of this record asserted, is a real bank, a real board meeting, or a real
+  three-day detection lag. The two-minutes-before-a-board-meeting detail must not reach any
+  archetype as evidence of how such failures are discovered.
+  The author is advocating data contracts / OpenMetadata, so treat the remedy as advocacy.
+  Note the amplifier the vignette does get right and which is worth building: a defensive fallback
+  converting NULLs into a plausible number instead of an error. That property IS attested
+  elsewhere in this corpus - S207 (Thicket, firsthand_named) reports a headline KPI rendering a
+  clean 0.0% because total upstream failure was coerced to zero. Cite S207 for the mechanism and
+  this page for texture only.
 attacks:
   - F452
-
-withdrawal_note: >
-  WITHDRAWN 2026-09-13 by D2 (R002 evidence repair), failure F550. F452 established that the
-  page is a present-tense constructed vignette written to motivate a data-contracts argument -
-  "It's 8:58 AM. The head of risk at a bank opens the morning transaction dashboard..." - and
-  that S010's claim rewrites it as reportage of a real bank incident, complete with a three-day
-  detection lag and a board meeting. The two-axis model is not sufficient here: relabelling the
-  attestation would leave a claim field that asserts an incident nobody says occurred. The record
-  is kept, not deleted, so the corroboration ring it fed (S004 cited it back as schema-drift
-  corroboration) stays auditable. Archetypes affected and re-grounded: A019, A022.
+  - F550
+repair_note: >
+  F452 mitigation EXECUTED 2026-09-13 by D2 (R002 evidence repair). F452's recommended_action was
+  re-source and its mitigation offered two routes: re-source the pattern to an attested case, or
+  "keep S010 with the claim rewritten as 'an illustrative scenario in a data-contracts argument
+  describes...'". Both are now done - the claim is rewritten in exactly that form, and the
+  archetypes that depended on it have been re-sourced (A022 to S207/S208, a named team publishing
+  its own incidents; A019 could not be re-sourced and is now status: redesign_required, see F552).
+  Typed attestation=unattested, usable_for=[world_texture], confidence lowered high-to-low.
+  NOT WITHDRAWN. An earlier pass in this same repair moved this record to withdrawn/ and filed F550
+  recommending withdrawal. That escalated a re-source ruling into a withdrawal, which is not what
+  F452 decided, and it has been reversed. F550 is rewritten to record the execution.
+  Also struck: S004's notes listed this page as corroboration for its 38% schema-drift figure
+  (F450). That corroboration is void in both directions - see F553.

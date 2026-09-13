@@ -1,0 +1,19 @@
+id: T258
+name: "SpotOnInc/asbestos"
+category: quality
+role: mock_implementation
+replication_strategy: sdk_reshape
+produced_by: R002-T2-snowflake
+rq: RQ7
+repo_url: "https://github.com/SpotOnInc/asbestos"
+license: "MIT"
+last_commit: "2025-10-09"
+license_verified: true
+archived: false
+stars: 9
+probe_result: not_run
+replication_ease: blocked
+notes: >
+  REJECTED. Canned-response mocking of snowflake-connector-python calls for unit tests - you
+  register the query and the rows it should return. No engine, so no arbitrary SQL. Listed only
+  to close out the prior-art sweep: I checked it so nobody has to check it again.

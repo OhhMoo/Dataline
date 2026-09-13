@@ -1,7 +1,9 @@
 id: S002
 rq: RQ1
 claim: >
-  A source system migration or library bump silently switches emitted timestamps from UTC to
+  An experienced practitioner's pattern description, explicitly introduced as the author's
+  favourite version of undetected upstream change rather than as an incident he was in: a source
+  system migration or library bump silently switches emitted timestamps from UTC to
   local time. Every row shifts by a few hours; no schema check fires because the column name and
   type are unchanged. The symptom surfaces only as an odd business-level artifact - daily totals
   appearing to cut off at 10 PM instead of midnight.
@@ -12,7 +14,7 @@ author_role: data engineer / consultant
 company: luminousmen (Kirill Bobrov)
 year: 2026
 retrieved: "2026-09-11"
-confidence: high
+confidence: medium
 vividness: medium
 attestation: unattested
 usable_for:
@@ -21,8 +23,21 @@ usable_for:
 produced_by: L1-practitioner-workflow-de
 notes: >
   This is semantic drift, not schema drift - the pipeline's own validation has nothing to catch.
-  Corroborated as a distinct category by the 50-postmortem survey (S004 source), which names
-  semantic drift separately from additive and type drift. Rebuildable: shift a source timestamp
+  The 50-postmortem survey (S004) previously cited here as corroboration is void - it is
+  unauditable vendor content that names none of its 50 cases (F450). Rebuildable: shift a source timestamp
   column by a fixed offset partway through history and leave the schema identical.
 attacks:
+  - F553
   - F451
+repair_note: >
+  F451 mitigation EXECUTED 2026-09-13 by D2 (R002 evidence repair); the ruling landed 2026-09-12
+  and was never acted on (F553). confidence lowered high-to-medium; the claim is relabelled as a
+  pattern sketch, which is what the page is - "a source system gets migrated, or bumps a library,
+  and quietly starts sending timestamps in local time instead of UTC"; the S004 corroboration is
+  struck. Typed attestation=unattested, usable_for=[world_texture, mechanism] - the mechanism is
+  precisely enough specified to rebuild (shift a source timestamp column by a fixed offset partway
+  through history, leave the schema identical) even though nobody attests it happened.
+  PARTIAL CORROBORATION ONLY: F451 pointed at S008's DST item. S008 (named Astronomer field
+  engineers, firsthand_named) attests daylight-savings incidents from SCHEDULING in local
+  timezones. That is adjacent to, not the same as, source DATA VALUES silently switching from UTC
+  to local. A003 and A017 now cite both and must not treat them as one mechanism.
