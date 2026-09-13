@@ -1,0 +1,23 @@
+id: S861
+rq: RQ4
+claim: >
+  Snowflake compute is billed per warehouse size on a doubling credit curve (X-Small 1
+  credit/hour, Small 2, Medium 4, Large 8 for Gen1 warehouses), and a warehouse is required for
+  every query and every DML operation including loads.
+url: https://docs.snowflake.com/en/user-guide/warehouses-overview.md
+quote: "Warehouses are required for queries, as well as all DML operations, including loading data into tables."
+source_type: docs
+company: Snowflake
+year: 2026
+retrieved: "2026-09-13"
+confidence: high
+produced_by: R002-T2-snowflake
+vividness: medium
+attestation: unattested
+usable_for:
+  - mechanism
+notes: >
+  The credits-per-hour column on this page at retrieval read X-Small 1, Small 2, Medium 4, Large
+  8 for Gen1 warehouses. A credit-burn archetype needs no real compute: warehouse size, auto-
+  suspend setting and elapsed virtual time are enough to compute a deterministic synthetic
+  credit number, which is exactly the kind of arithmetic a deterministic grader can check.

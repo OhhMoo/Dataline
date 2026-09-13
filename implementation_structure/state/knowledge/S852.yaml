@@ -1,0 +1,22 @@
+id: S852
+rq: RQ7
+claim: >
+  fakesnow's stage transforms interpolate identifiers into SQL without escaping, which both
+  breaks quoted identifiers and creates a SQL-injection path inside the emulator.
+url: https://github.com/tekumara/fakesnow/issues/292
+quote: "Unescaped identifiers in stage transforms cause SQL injection and break quoted identifiers"
+source_type: forum
+year: 2025
+retrieved: "2026-09-13"
+confidence: high
+produced_by: R002-T2-snowflake
+vividness: medium
+attestation: firsthand_anonymous
+usable_for:
+  - world_texture
+  - mechanism
+notes: >
+  Issue #292, opened 2025-12-13, CONFIRMED STILL OPEN at retrieval. Relevant to us only as a
+  containment note: the emulator executes agent-authored SQL, so the emulator process sits
+  inside the blast radius and must not be trusted infrastructure. Does not block adoption given
+  the three-zone topology of agent.md 7.1.

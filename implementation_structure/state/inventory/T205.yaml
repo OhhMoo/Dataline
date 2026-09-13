@@ -1,0 +1,45 @@
+id: T205
+name: "Seeded docs file tree"
+category: docs
+role: mock_implementation
+replication_strategy: custom_mock_required
+produced_by: T1-mock-bottleneck
+rq: RQ3
+license: "n/a (ours)"
+license_verified: false
+replication_ease: medium
+effort_estimate: "1 d"
+demand_archetypes:
+  - A004
+  - A006
+  - A011
+  - A018
+  - A019
+  - A020
+  - A021
+  - A022
+  - A028
+  - A030
+  - A031
+  - A033
+fidelity_gap: >
+  THREE OBJECTS: a page tree, page bodies in markdown, and a last-modified date per
+  page. No revision history, no comments, no authorship beyond a name in frontmatter, no
+  write path. Every one of the twelve archetypes that touches docs_wiki READS
+  documentation and none of them WRITES it, so the missing write path costs nothing
+  today. The day an archetype grades on the agent updating a runbook, BookStack (T143,
+  MIT) is the upgrade.
+notes: >
+  T1 2026-09-13 (round R002, mock-priority pass): NEW RECORD, and the best
+  effort-to-demand ratio in the inventory: roughly a day of work serving twelve
+  archetypes. What all twelve need from documentation is identical - it must be stale,
+  partial, or quietly contradicted by the warehouse, so the agent has to decide whether
+  to trust it. A directory of seeded markdown does that, rebuilds byte-identically from
+  the seed (which a database-backed wiki does not, without extra work), and needs no
+  container. Recorded as custom_mock_required rather than drop because somebody does
+  have to author the content, and authoring believable stale documentation is real work
+  even though the runtime is free.
+  G5 note: replication_ease downgraded from easy to medium by T1 because no
+  install probe was run for this item. Under the gate's rule an unprobed 'easy' is
+  an unearned claim, and the distinction between 'this should be easy' and 'I ran it'
+  is the whole point of G5.

@@ -1,0 +1,24 @@
+# Produced by T3-environment-themes (R002) for RQ3 -- legacy / flat-file environment tooling.
+id: T279
+name: Vendor SFTP drop-folder file exchange
+category: ingestion
+role: simulate_target
+replication_strategy: native_oss
+produced_by: T3-environment-themes
+rq: RQ3
+evidence:
+  - S919
+  - S921
+  - S929
+notes: >
+  Fully reproducible, and the cheapest realistic legacy theme to build. The three mechanisms are
+  all file-system level: a file read while still being written (S919), a file redelivered under
+  the same name with different content (S921), and the sentinel-file idiom that distinguishes
+  complete from in-progress (S929). None of them require an actual SFTP daemon -- they require a
+  directory whose contents change on the virtual clock. An SSH daemon (T288) is optional realism,
+  not a requirement.
+replication_ease: easy
+probe_result: pass
+install_probe: "see T289 - atmoz/sftp:alpine is this pattern's implementation"
+repair_note: >
+  PROBE BY REFERENCE, 2026-09-13, LEAD-R002. T279 is the drop-folder EXCHANGE PATTERN, not a product; its OSS implementation is T289, which was pulled and started successfully (32.7MB, ready ~2s). Recording the dependency rather than an independent probe, because probing a pattern separately from its implementation would be theatre. Was probe_result: missing.

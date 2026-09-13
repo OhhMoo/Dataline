@@ -1,0 +1,21 @@
+id: T265
+name: "Snowflake ACCOUNT_USAGE / INFORMATION_SCHEMA observability views"
+category: warehouse
+role: simulate_target
+replication_strategy: none_found
+produced_by: R002-T2-snowflake
+rq: RQ7
+replication_ease: medium
+evidence:
+  - S858
+  - S859
+  - S861
+notes: >
+  No emulator implements this - not fakesnow, not nnnkkk7, not LocalStack. It is also the
+  highest task-value-per-line surface on the whole Snowflake platform, because the 45-minute
+  ACCOUNT_USAGE lag versus the 7-day INFORMATION_SCHEMA window is a genuine diagnostic trap
+  rather than trivia. Cheap to build on a proxy architecture: the server already sees every
+  statement, and fakesnow already keeps its own metadata tables under
+  _fs_global._fs_information_schema (including a _fs_load_history for COPY). Estimate 1-2 days
+  for a query_history table, a warehouse_metering_history view with synthetic credits derived
+  from warehouse size, and the lag as a WHERE clause.

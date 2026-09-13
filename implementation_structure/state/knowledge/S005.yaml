@@ -1,28 +1,56 @@
 id: S005
 rq: RQ1
 claim: >
-  Silent data loss accounted for 19% of the 50 surveyed postmortems. One concrete form: a data
+  PERCENTAGE STRUCK (F450) - the '19% of 50 surveyed postmortems' figure is unfalsifiable and may
+  not be cited. One unattributable case sketched on the page: a data
   quality rule written to drop corrupted upstream records also matched legitimate records with
   unusual-but-valid values and quietly removed 12% of legitimate transactions over three weeks.
   The pipeline reported success, dashboards were green, and the SLA was met throughout.
 url: https://dev.to/andrew_tan_layline/what-i-learned-from-reading-50-data-pipeline-postmortems-1moi
 quote: "Over three weeks, 12% of legitimate transactions were filtered out."
-source_type: blog
+source_type: vendor_page
 author_role: CTO / founder, reviewed 50 public postmortems
 company: layline.io
 year: 2026
 retrieved: "2026-09-11"
-confidence: medium
+confidence: low
 vividness: medium
 attestation: vendor_marketing
 usable_for:
   - world_texture
 produced_by: L1-practitioner-workflow-de
 notes: >
-  Important because the failure is caused by the data quality control itself, not by its absence -
-  an agent whose instinct is "add more validation" makes this worse. The same source lists two
+  The IDEA is important - the failure is caused by the data quality control itself, not by its
+  absence, so an agent whose instinct is "add more validation" makes it worse. But the 12% and the
+  three weeks are unattributable and may not be used as findings; A003 now carries the loss
+  magnitude as an explicit world parameter and takes its mechanism from S756 (PostgreSQL's own
+  documentation of how an exclusion predicate silently drops rows whose value is unknown). The same source lists two
   sibling forms: a non-idempotent sink under retry producing duplicates despite a nominal
   exactly-once claim, and a 24-hour queue retention window expiring unprocessed data while
   downstream was backed up by an unrelated incident.
 attacks:
+  - F553
   - F450
+repair_note: >
+  F450 mitigation EXECUTED 2026-09-13 by D2 (R002 evidence repair). F450 landed 2026-09-12 with
+  recommended_action=downgrade_confidence and was never acted on (F553) - a day later every
+  percentage was still in place and still weighting the archetype mix.
+  DONE, exactly as F450's mitigation specified: source_type set to vendor_page; every percentage
+  and every frequency adjective sourced from this page struck from the claim and notes; the
+  mechanism kept, because the mechanisms are concrete and independently plausible. Typed
+  attestation=vendor_marketing, which caps usable_for at [world_texture] by the F400 rule - so this
+  page can no longer license a mechanism either, only texture.
+  WHY THE NUMBERS CANNOT BE REHABILITATED: the author is Andrew Tan, "serial entrepreneur and
+  experienced CTO", and the piece carries a layline.io publication note; layline.io sells a
+  data-integration product, so the article markets the exact problem space it quantifies. The post
+  names NOT ONE of the 50 postmortems - no titles, no URLs, no dates, no inclusion criteria a third
+  party could re-run. Nobody can check the corpus, the coding scheme, or whether the corpus exists.
+  The individual cases are introduced as "one well-documented incident" and "one postmortem from a
+  streaming platform", so each is unattributable too.
+  THE CORROBORATION RING IS BROKEN IN BOTH DIRECTIONS: this record's notes cited S010, S013-S015,
+  S019 and S022 as corroboration while S001's notes cited this page back to upgrade a single
+  anecdote to "high-frequency". S010 is a constructed vignette (F452), S013/S014 are closed and
+  fixed (F454). Those cross-citations are struck here and in S001.
+  TASK-CATEGORY WEIGHTS: any archetype-mix weighting that cited 38/24/19/14 must be re-derived from
+  attested sources or declared an explicit design choice. A025 dropped this record from
+  derived_from for exactly that reason; A001, A003 and A009 dropped S005/S006.

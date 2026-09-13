@@ -2,14 +2,16 @@ id: T141
 name: "Hex mock"
 category: notebook
 role: mock_implementation
-replication_strategy: none_found
+replication_strategy: drop
 produced_by: B1-connector-scout
 rq: RQ3
 license: ""
 license_verified: false
 replication_ease: blocked
+effort_estimate: "0 d"
+demand_archetypes: []
+fidelity_gap: >
+  Not applicable - JupyterLab (T171) covers the notebook surface.
 notes: >
-  Covers T124, OPTIONAL. NONE FOUND. Hex is SaaS-only with no local edition and no
-  OSS substitute for its notebook-app surface. JupyterLab (T171) covers the generic
-  notebook surface; Hex's app-builder UI has no offline analogue. Recorded
-  2026-09-12.
+  T1 2026-09-13 (round R002, mock-priority pass): verdict changed from none_found to
+  drop. Zero archetype demand and a probed Jupyter already in the stack. Settled.

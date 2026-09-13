@@ -2,10 +2,23 @@ id: T114
 name: "Power BI"
 category: bi
 role: simulate_target
-replication_strategy: none_found
+replication_strategy: drop
 produced_by: L6-tooling-inventory
 rq: RQ4
 frequency_rank: 15
+license: ""
+license_verified: false
+replication_ease: blocked
+effort_estimate: "0 d (skin only, on T204)"
+demand_archetypes: []
+fidelity_gap: >
+  Not applicable - covered as a naming skin over T204. DAX measure semantics and the
+  Power BI dataset-refresh model would be absent if anything ever needed them.
 evidence:
   - S517
-notes: "Business analytics: connection, modeling, reports, dashboards, sharing."
+notes: >
+  T1 2026-09-13 (round R002, mock-priority pass): RESOLVED from none_found to drop.
+  Power BI Desktop is free but proprietary and Windows-only, and the Service is SaaS;
+  neither is containerisable for a Linux lab image. The BI demand it nominally
+  represents is served by T204. Keeping it as a name on a dashboard costs nothing;
+  keeping it as a build target costs weeks and buys nothing.

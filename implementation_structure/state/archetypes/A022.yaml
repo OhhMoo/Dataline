@@ -70,8 +70,12 @@ status: draft
 repair_note: >
   RE-GROUNDED 2026-09-13 (D2, R002 evidence repair). This archetype survives, and its two best
   sources were never in doubt.
-  WITHDRAWN: S010 dropped (F550/F452 - constructed vignette recorded as an attested bank
-  incident). It was the weakest leg here and nothing load-bearing went with it.
+  DROPPED FROM derived_from, NOT WITHDRAWN: S010 (F452 - a constructed vignette recorded as an
+  attested bank incident). The record stays in state/knowledge/ with its claim rewritten as an
+  illustrative scenario and typed attestation=unattested, usable_for=[world_texture]; it is simply
+  no longer cited here, because texture is all it can now supply. It was the weakest leg and
+  nothing load-bearing went with it. F550 records that F452's mitigation, written 2026-09-12, was
+  never executed until 2026-09-13.
   DEMOTED: S205 retained at attestation=vendor_marketing, usable_for=[world_texture] only (F457 -
   byline "Max Musing, Founder and CEO of Basedash", closing on a product pitch, no incident, no
   company, no date). Its cause taxonomy is still valuable as a DEFECT LIBRARY for world

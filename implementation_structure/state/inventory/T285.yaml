@@ -1,0 +1,28 @@
+# Produced by T3-environment-themes (R002) for RQ3 -- legacy / flat-file environment tooling.
+id: T285
+name: Microsoft SQL Server (official Linux container)
+category: database
+role: mock_implementation
+replication_strategy: native_oss
+produced_by: T3-environment-themes
+rq: RQ3
+license: proprietary -- Developer edition, EULA-gated via ACCEPT_EULA
+install_probe: docker run -e ACCEPT_EULA=Y -e MSSQL_PID=Developer mcr.microsoft.com/mssql/server:2022-latest -- run by T3 2026-09-13
+license_verified: false
+probe_result: pass
+replication_ease: medium
+evidence:
+  - S930
+  - S931
+notes: >
+  MEASURED BY T3 2026-09-13, not estimated: 2.34GB UNCOMPRESSED on local disk, with 0 bytes shared
+  with any other image in the store; 13 seconds from docker run to the ready-for-client-
+  connections log line; 847.5 MiB resident while idle and untouched. Registry-compressed size is
+  about 600MB, so quote the 2.34GB figure when budgeting disk and the 600MB figure only when
+  budgeting pull bandwidth -- conflating them understates per-sandbox disk by a factor of four.
+  Microsoft's own Linux docs give 2GB as the minimum memory to start the engine, which matches the
+  measured idle figure with headroom. VERDICT: it fits a 2GB RAM budget only as the single heavy
+  service. LICENSE IS THE REAL BLOCKER, NOT THE SIZE: Developer edition may not be used in
+  production, and whether a paid benchmark product counts as production is a legal question T3
+  cannot answer. Do not ship without a legal read. Prefer T291's tsql dialect shim, which has
+  neither problem.

@@ -1,0 +1,25 @@
+id: S855
+rq: RQ7
+claim: >
+  LocalStack's commercial Snowflake emulator lists STREAM, TASK and WAREHOUSE DDL as supported
+  in its feature-coverage matrix, but that matrix contains no entry for Time Travel,
+  ACCOUNT_USAGE or QUERY_HISTORY.
+url: https://docs.localstack.cloud/snowflake/feature-coverage/
+quote: "<td><strong>STREAM</strong></td>"
+source_type: vendor_page
+company: LocalStack
+year: 2026
+retrieved: "2026-09-13"
+confidence: medium
+produced_by: R002-T2-snowflake
+vividness: low
+attestation: vendor_marketing
+usable_for:
+  - world_texture
+notes: >
+  Vendor page, so licensed for world_texture only under G6; cited in the R002 decision doc as
+  competitive context, never as evidence. The load-bearing observation is an ABSENCE, which no
+  quote can carry: at retrieval the page had rows for STREAM, TASK, WAREHOUSE, STAGE and ROLE,
+  and the strings 'Time Travel', 'QUERY_HISTORY' and 'ACCOUNT_USAGE' did not occur anywhere on
+  the page. Read it as: the best-funded Snowflake emulator on the market has not shipped Time
+  Travel either.

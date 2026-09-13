@@ -1,0 +1,27 @@
+id: T202
+name: "LocalStack"
+category: storage
+role: mock_implementation
+replication_strategy: drop
+produced_by: T1-mock-bottleneck
+rq: RQ3
+license: "NOASSERTION (needs human read)"
+license_verified: false
+archived: true
+last_commit: 2026-03-23
+replication_ease: blocked
+effort_estimate: "0 d (rejected)"
+demand_archetypes: []
+fidelity_gap: >
+  Not applicable - rejected on liveness and licence before fidelity matters.
+evidence:
+  - S805
+notes: >
+  T1 2026-09-13 (round R002, mock-priority pass): NEW RECORD, written so nobody re-finds
+  it. LocalStack is the reflex answer for AWS emulation and it is no longer available to
+  us: the open-source repository was archived and made read-only in 2026 (S805), and the
+  GitHub API reports NOASSERTION for the licence (checked 2026-09-13, archived=true,
+  last pushed 2026-03-23). An archived repo fails G2 liveness on its own, and
+  NOASSERTION means no licence has been granted rather than 'probably fine'. repo_url
+  deliberately NOT recorded so this artifact asserts no usability. Use adobe/s3mock
+  (T154) or moto (T201), both Apache-2.0 and both probed pass.

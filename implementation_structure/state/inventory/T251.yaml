@@ -1,0 +1,26 @@
+id: T251
+name: "DuckDB"
+category: database
+role: oss_substitute
+replication_strategy: native_oss
+produced_by: R002-T2-snowflake
+rq: RQ7
+repo_url: "https://github.com/duckdb/duckdb"
+license: "MIT"
+last_commit: "2026-09-11"
+install_probe: "pip install duckdb; duckdb.connect(':memory:')"
+license_verified: true
+archived: false
+stars: 41203
+probe_result: pass
+replication_ease: easy
+evidence:
+  - S866
+  - S853
+notes: >
+  The execution engine under fakesnow and the recommended backend for a fake Snowflake. Verified
+  1.5.5 on 2026-09-13. Single-node ACID columnar with native MERGE INTO, QUALIFY, STRUCT/JSON,
+  TABLESAMPLE - the closest widely-available semantic match to Snowflake's table model.
+  Embedded, so it adds a 36MB library rather than a second daemon. Already the frozen v1
+  warehouse surface per agent.md 9.2.1, which means a Snowflake face over DuckDB reuses the
+  existing world builder rather than forking it.

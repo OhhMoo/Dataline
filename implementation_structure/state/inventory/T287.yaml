@@ -1,0 +1,24 @@
+# Produced by T3-environment-themes (R002) for RQ3 -- legacy / flat-file environment tooling.
+id: T287
+name: AbsaOSS/cobrix (COBOL copybook reader)
+category: transformation
+role: oss_substitute
+replication_strategy: oss_equivalent
+produced_by: T3-environment-themes
+rq: RQ3
+repo_url: https://github.com/AbsaOSS/cobrix
+probe_result: not_run
+replication_ease: hard
+evidence:
+  - S908
+  - S909
+  - S910
+  - S911
+  - S912
+notes: >
+  The most active OSS copybook-and-EBCDIC reader T3 found, and the source of five records in this
+  round's corpus including two live open issues (S908, S910) that T3 verified are still open.
+  VALUE HERE IS AS A BUG CORPUS, NOT AS A DEPENDENCY: it is a Scala/Spark library, so adopting it
+  means adopting a JVM and Spark inside the episode container, which is flatly incompatible with a
+  2GB budget. Read its issue tracker for mechanisms; implement the parsing in Python. Licence NOT
+  verified by T3 -- G2 must check before any code is borrowed rather than merely read.

@@ -1,0 +1,16 @@
+# Produced by T3-environment-themes (R002) for RQ3 -- legacy / flat-file environment tooling.
+id: T280
+name: Microsoft Access / SharePoint-list shadow IT database
+category: database
+role: simulate_target
+replication_strategy: none_found
+produced_by: T3-environment-themes
+rq: RQ3
+replication_ease: medium
+notes: >
+  The departmental database nobody knows is load-bearing until it breaks. NOT containerizable
+  (Access is a Windows desktop product) and NOT well sourced in this round -- T3 harvested no
+  verified sources for it, so it is listed as an inventory target rather than promoted to a theme.
+  PROPOSED PROXY if it is ever wanted: a single-file SQLite or .mdb-shaped artifact sitting in a
+  shared folder, holding a mapping table that a production pipeline joins against and that no
+  repository tracks.

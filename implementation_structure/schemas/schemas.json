@@ -114,12 +114,17 @@
    "notes": "str",
    "also_applies_to": "list[str]",
    "resolved": "bool",
-   "resolution_note": "str"
+   "resolution_note": "str",
+   "executed_by": "str",
+   "executed_on": "str",
+   "deferred": "bool",
+   "deferred_reason": "str"
   },
   "_rules": [
    "target must resolve to a real artifact id - G4 checks this",
    "the failure id must appear in its target's attacks: list - G4 checks both directions",
-   "also_applies_to lets one attack scope itself to sibling artifacts; G4 links those too"
+   "also_applies_to lets one attack scope itself to sibling artifacts; G4 links those too",
+   "G7: a recommended_action is CLOSED by recording executed_by + executed_on, or declined by deferred + deferred_reason. Silence is not closure. F451 ruled that S001-S003 be downgraded; nothing downgraded them; S001 sat at confidence: high for a day with every gate green, and the R002 brief then told eight agents those sources were withdrawn when they were not."
   ]
  },
  "archetype": {

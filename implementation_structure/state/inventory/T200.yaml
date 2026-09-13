@@ -1,0 +1,38 @@
+id: T200
+name: "Unity Catalog (OSS)"
+category: catalog
+role: oss_substitute
+replication_strategy: native_oss
+produced_by: T1-mock-bottleneck
+rq: RQ3
+repo_url: https://github.com/unitycatalog/unitycatalog
+license: "apache-2.0"
+license_verified: false
+archived: false
+last_commit: 2026-09-11
+stars: 3520
+replication_ease: medium
+install_probe: "curl -s https://hub.docker.com/v2/repositories/unitycatalog/unitycatalog/tags/latest"
+probe_result: not_run
+effort_estimate: "2 d"
+demand_archetypes:
+  - A019
+  - A021
+fidelity_gap: >
+  It is a governance server, not a discovery/lineage product: it holds catalogs,
+  schemas, tables, volumes, functions and models with an access-control model, but the
+  rich column-level lineage graph that A019 needs is not its centre of gravity.
+  OpenMetadata (T161) is stronger on lineage and much heavier. Neither reproduces Atlan.
+evidence:
+  - S802
+notes: >
+  T1 2026-09-13 (round R002, mock-priority pass): NEW RECORD. The catalog situation
+  changed since B1's pass and the inventory did not reflect it.
+  unitycatalog/unitycatalog is Apache-2.0, an LF AI and Data Foundation sandbox project,
+  and speaks the Hive metastore and Iceberg REST catalog APIs as well as its own (S802).
+  Verified via GitHub API 2026-09-13: Apache-2.0, 3,520 stars, pushed 2026-09-11, not
+  archived. The image unitycatalog/unitycatalog:latest is verified PRESENT on Docker Hub
+  - pushed 2026-08-20, 2.6GB - by a registry API query, which is a weaker claim than a
+  probe: it proves the tag exists, not that the container starts. NOT PROBED, and 2.6GB
+  for two archetypes is why it was not prioritised over items that eight or fifteen
+  archetypes need.

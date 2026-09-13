@@ -1,0 +1,23 @@
+id: S854
+rq: RQ7
+claim: >
+  nnnkkk7/snowflake-emulator, an MIT-licensed Go plus DuckDB Snowflake emulator, explicitly
+  excludes Time Travel, zero-copy cloning, Streams, Tasks, Pipes, external stages, JavaScript
+  stored procedures and user-defined functions.
+url: https://raw.githubusercontent.com/nnnkkk7/snowflake-emulator/main/README.md
+quote: "This emulator is designed for development and testing. The following features are not supported:"
+source_type: repo
+year: 2026
+retrieved: "2026-09-13"
+confidence: high
+produced_by: R002-T2-snowflake
+vividness: low
+attestation: unattested
+usable_for:
+  - mechanism
+notes: >
+  GitHub API at retrieval: MIT, 48 stars, pushed 2026-08-17, 10 open issues, not archived, not a
+  fork. The unsupported list sits immediately below the quoted line and names 'Time Travel /
+  Zero-Copy Cloning' and 'Streams, Tasks, Pipes'. Second-best OSS emulator after fakesnow and
+  strictly narrower, so not adopted. OswaldOniSango/snowflake-emulator, which surfaces as a
+  separate search result, is a one-star FORK of this repo and not independent prior art.

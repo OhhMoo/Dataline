@@ -1,0 +1,23 @@
+id: T263
+name: "testcontainers-fakesnow"
+category: other
+role: harness
+replication_strategy: wire_protocol
+produced_by: R002-T2-snowflake
+rq: RQ7
+repo_url: "https://github.com/anjeongkyun/testcontainers-fakesnow"
+license: "Apache-2.0"
+last_commit: "2026-09-13"
+license_verified: true
+archived: false
+stars: 2
+probe_result: not_run
+replication_ease: medium
+evidence:
+  - S870
+notes: >
+  Not adopted; recorded as corroboration only. Two stars, so this is one person's module, not an
+  ecosystem signal. The reason it is in the inventory is that it is the only third-party
+  evidence I found that the official snowflake-jdbc driver connects to fakesnow unmodified. If a
+  world ever needs a JVM client - Spark, a JDBC-based BI tool - this is the pattern to copy
+  rather than the dependency to take.

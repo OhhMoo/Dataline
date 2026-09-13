@@ -1,0 +1,47 @@
+id: T204
+name: "BI values + docs surface"
+category: bi
+role: mock_implementation
+replication_strategy: custom_mock_required
+produced_by: T1-mock-bottleneck
+rq: RQ3
+license: "n/a (ours)"
+license_verified: false
+replication_ease: medium
+effort_estimate: "3-4 d"
+demand_archetypes:
+  - A001
+  - A003
+  - A006
+  - A009
+  - A013
+  - A017
+  - A019
+  - A021
+  - A022
+  - A025
+  - A028
+  - A029
+  - A030
+  - A031
+  - A032
+fidelity_gap: >
+  FOUR OBJECTS: dashboard (name, owner, tiles); tile (title, the number, the query or
+  metric behind it, last_refreshed_at); metric definition (name, expression, owner, the
+  doc it is described in); refresh event (tile, ran_at, source_watermark). What it will
+  NOT have: a query builder, drill-down, permissions beyond a simple row filter for
+  A021, scheduling UI, or chart rendering beyond a rendered value. The deliberate design
+  choice is that WE own the refresh and watermark model, because that is the axis A001,
+  A003, A006, A022 and A029 grade on - 'the dashboard disagrees with the warehouse' is a
+  claim about staleness, and borrowing Superset's or Tableau's caching semantics for it
+  means grading on someone else's implementation detail.
+notes: >
+  T1 2026-09-13 (round R002, mock-priority pass): NEW RECORD - the highest-leverage
+  build on the list, and the one that makes four 'none found' BI rows disappear at once.
+  Fifteen archetypes touch bi_dashboard, joint second-highest demand in the corpus, and
+  every one of them needs a number, its definition, and when it last refreshed. Tableau
+  (T113), Power BI (T114), Looker (T115) and Sigma (T128) become names on this surface
+  rather than four separate impossible mocks. It also agrees with ground rule 6, which
+  already freezes v1 on 'a BI-values + docs surface' - so this is less a new proposal
+  than a costed one. Superset (T137, Apache-2.0, PROBED pass by T1 2026-09-13: /health
+  returned OK) remains the escape hatch for a task that needs a real BI tool.

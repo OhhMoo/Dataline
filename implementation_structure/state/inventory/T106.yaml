@@ -2,10 +2,43 @@ id: T106
 name: "Apache Airflow"
 category: orchestration
 role: simulate_target
-replication_strategy: none_found
+replication_strategy: native_oss
 produced_by: L6-tooling-inventory
 rq: RQ4
 frequency_rank: 7
+repo_url: https://github.com/apache/airflow
+license: "Apache-2.0"
+license_verified: false
+replication_ease: easy
+install_probe: "docker run --rm --entrypoint /bin/bash apache/airflow:3.0.2 -c "airflow version""
+probe_result: pass
+effort_estimate: "2 d as a read surface; 5+ d if it becomes the executor of record"
+demand_archetypes:
+  - A001
+  - A004
+  - A009
+  - A011
+  - A018
+  - A020
+  - A026
+  - A027
+fidelity_gap: >
+  Real Airflow fights the frozen determinism requirement. Its scheduler makes wall-clock
+  and task-ordering decisions that do not reproduce byte for byte from a seed, and A018
+  grades precisely on distinguishing ran-long from started-late - a distinction that
+  only means something if the timings are ours. Conversely the deterministic state
+  machine that ground rule 6 freezes for v1 has no real DAG parser, so a task turning on
+  an import error or a scheduler-level misconfiguration cannot be expressed in it.
 evidence:
   - S509
-notes: "Workflow orchestration: authoring, scheduling, monitoring data workflows."
+notes: >
+  T1 2026-09-13 (round R002, mock-priority pass): RESOLVED from none_found to
+  native_oss, with a flag the meeting should see. PROBED by T1 2026-09-13:
+  apache/airflow:3.0.2 ran and reported '3.0.2'. But ground rule 6 in the shared brief
+  freezes v1 on 'a deterministic scheduler state machine', not on Airflow, while eight
+  archetypes name airflow. RECOMMENDED SPLIT: keep the deterministic state machine as
+  the executor of record, since that is what gets graded, and use Airflow's ARTIFACTS -
+  DAG files the agent reads and edits, task logs, a run-history table - as the read
+  surface. That buys the texture eight archetypes need without importing the scheduler's
+  non-determinism into grading. Someone should confirm this reading of ground rule 6
+  rather than letting two agents build two different orchestrators.

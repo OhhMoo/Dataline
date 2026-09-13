@@ -2,10 +2,25 @@ id: T121
 name: "Airbyte"
 category: ingestion
 role: simulate_target
-replication_strategy: none_found
+replication_strategy: drop
 produced_by: L6-tooling-inventory
 rq: RQ4
 frequency_rank: 22
+license: "Elastic-2.0 (platform) / MIT (connectors)"
+license_verified: false
+replication_ease: blocked
+effort_estimate: "0 d (dropped on licence)"
+demand_archetypes: []
+fidelity_gap: >
+  Not applicable - rejected before fidelity is reached. dlt (Apache-2.0, probed pass)
+  and Meltano (MIT) move data licence-cleanly but neither has a control plane, which is
+  the actual gap recorded on T117.
 evidence:
   - S512
-notes: "Connector-oriented replication across sources, warehouses, lakes, databases."
+notes: >
+  T1 2026-09-13 (round R002, mock-priority pass): RESOLVED from none_found to drop, on
+  licence, permanently. The repo root LICENSE is Elastic License 2.0 - source-available,
+  an automatic rejection - and the GitHub API still reports NOASSERTION as of
+  2026-09-13, consistent with what B1 and B2 found. Individual connectors are MIT and
+  may be salvageable after a human read; the platform is not. This is settled and should
+  not be re-litigated: see T156 and state/failures/B1-license-rejections.yaml F-B1-004.

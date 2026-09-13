@@ -1,0 +1,26 @@
+id: S851
+rq: RQ7
+claim: >
+  fakesnow's server mode turns unhandled internal exceptions into HTTP 500, and snowflake-
+  connector-python treats 500 as retryable, so an unsupported statement hangs the client in a
+  retry loop for minutes instead of returning an error.
+url: https://github.com/tekumara/fakesnow/issues/403
+quote: "returning HTTP 500. The snowflake connector then retries the 500 in a loop, so the client hangs for ~10 minutes instead of failing fast."
+source_type: forum
+year: 2026
+retrieved: "2026-09-13"
+confidence: high
+produced_by: R002-T2-snowflake
+vividness: high
+attestation: firsthand_anonymous
+usable_for:
+  - world_texture
+  - mechanism
+notes: >
+  Issue #403, opened 2026-08-31, CONFIRMED STILL OPEN at retrieval. Reporter runs fakesnow in
+  docker for a Postgres-to-Snowflake sync service's integration tests and enumerates eight
+  failures across CREATE OR REPLACE STAGE / CREATE FILE FORMAT / FORMAT_NAME / PUT / table
+  stages / MERGE row counts. I independently reproduced the 500-then-retry-loop class on
+  2026-09-13 with SELECT $1 FROM VALUES (1),(2) - a duckdb InvalidInputException became a 500
+  and the connector reached retryCount=42 before I killed it. This is a hang, not an error, and
+  would silently consume an episode's wall-clock budget.

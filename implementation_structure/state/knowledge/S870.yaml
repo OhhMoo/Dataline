@@ -1,0 +1,23 @@
+id: S870
+rq: RQ7
+claim: >
+  A third party has packaged fakesnow as a Testcontainers module for the JVM on the explicit
+  basis that the official snowflake-jdbc driver connects to it unmodified, i.e. the emulator's
+  protocol fidelity is good enough for someone else's integration tests.
+url: https://raw.githubusercontent.com/anjeongkyun/testcontainers-fakesnow/main/README.md
+quote: "fakesnow speaks enough of Snowflake's REST protocol that the official `snowflake-jdbc` driver connects to it unmodified."
+source_type: repo
+year: 2026
+retrieved: "2026-09-13"
+confidence: medium
+produced_by: R002-T2-snowflake
+vividness: low
+attestation: unattested
+usable_for:
+  - mechanism
+notes: >
+  GitHub API at retrieval: Apache-2.0, 2 stars, pushed 2026-09-13, not a fork. Two stars means
+  this is corroboration, not endorsement - I did not run it and cannot confirm the JDBC claim
+  independently, which is why confidence is medium. Recorded because it is the only non-author
+  evidence I found for the JDBC path working, and because if a world ever needs a JVM client
+  such as Spark or a JDBC-based BI tool, this is the pattern.

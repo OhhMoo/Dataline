@@ -1,0 +1,33 @@
+id: T207
+name: "Elementary"
+category: quality
+role: oss_substitute
+replication_strategy: oss_equivalent
+produced_by: T1-mock-bottleneck
+rq: RQ3
+repo_url: https://github.com/elementary-data/elementary
+license: "apache-2.0"
+license_verified: false
+archived: false
+last_commit: 2026-09-10
+stars: 2406
+replication_ease: medium
+probe_result: not_run
+effort_estimate: "2 d"
+demand_archetypes:
+  - A013
+  - A020
+  - A032
+fidelity_gap: >
+  Elementary reads dbt's artifacts (manifest, run_results) rather than imposing its own
+  configuration tree, which is lighter than Great Expectations in a dbt-centric world
+  and keeps the test definitions where the models are. The cost is coupling: it inherits
+  whatever dbt-duckdb does, so the adapter fidelity gap recorded on T105 propagates into
+  the quality surface too.
+notes: >
+  T1 2026-09-13 (round R002, mock-priority pass): NEW RECORD. Apache-2.0, 2,406 stars,
+  pushed 2026-09-10 per GitHub API 2026-09-13. NOT PROBED. Recorded as the lighter
+  alternative to Great Expectations (T122/T160) for the three archetypes that touch
+  quality monitoring. The standing recommendation on T122 applies here as well: where a
+  quality gate's behaviour IS the planted defect (A003), own the check rather than
+  inheriting a library's version semantics.

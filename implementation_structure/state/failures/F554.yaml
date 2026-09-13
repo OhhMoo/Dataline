@@ -1,0 +1,39 @@
+id: F554
+target: A027
+attack_type: claim_exceeds_licence
+severity: high
+finding: >
+  A027 ("Green-DAG triage of a failure that originates behind the orchestrator") asserts a
+  specific causal mechanism - the orchestrator reports success while the failure occurs on a
+  surface it does not observe - and not one of its four cited sources is licensed to support a
+  mechanism claim. S009 (conference_talk, firsthand_named), S509 (blog, unattested), S510 and
+  S513 (docs, unattested) are ALL usable_for: [world_texture] and nothing more.
+  Found automatically by gate G8 on its first run, which is the point: this is the same shape as
+  F552/A019, where an archetype's entire why_hard rested on a single vendor blog post and every
+  existing gate stayed green. D2 named the hole in its R002 report - "G6 checks a source declares
+  its licence, nothing checks an archetype stays inside it" - and G8 was written to close it.
+  The archetype is not necessarily wrong. Green-DAG-over-real-failure is a plausible and probably
+  common situation. What is missing is any evidence WE HOLD that licenses us to assert it, which
+  is a different and much cheaper problem to fix than a broken design.
+recommended_action: re-source
+found_by: G8 / LEAD-R002
+executed_by: null
+executed_on: null
+deferred: true
+deferred_reason: >
+  Surfaced 2026-09-13 at the close of R002 by a gate written the same evening. Deferred to the
+  R003 disposition pass rather than repaired at speed: A027 needs a source that attests the
+  mechanism, and finding one is literature work, not an edit. Deliberately NOT downgraded to
+  status: redesign_required, because the design may well be sound and only the grounding is
+  missing - marking it broken would overstate what G8 actually found.
+mitigation: >
+  Find at least one source attesting that an orchestrator reported success while the real failure
+  occurred on an unobserved surface, and that is usable_for: [mechanism]. Incident postmortems and
+  open orchestrator issues are the likely pools; the R002 experience is that GitHub issues
+  outperform forums here, and Reddit is unreachable from this environment regardless. If no such
+  source exists, A027 should be withdrawn rather than re-worded - this is the F400/F450 lesson,
+  where vividness was repeatedly mistaken for attestation.
+notes: >
+  Recorded with deferred + deferred_reason rather than left silent, which is what G7 now requires
+  of every ruling. This record is therefore also the first worked example of the convention it
+  depends on.

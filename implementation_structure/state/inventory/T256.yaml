@@ -1,0 +1,25 @@
+id: T256
+name: "nnnkkk7/snowflake-emulator"
+category: warehouse
+role: mock_implementation
+replication_strategy: wire_protocol
+produced_by: R002-T2-snowflake
+rq: RQ7
+repo_url: "https://github.com/nnnkkk7/snowflake-emulator"
+license: "MIT"
+last_commit: "2026-08-17"
+license_verified: true
+archived: false
+stars: 48
+probe_result: not_run
+replication_ease: medium
+evidence:
+  - S854
+notes: >
+  NOT ADOPTED. Go plus DuckDB, MIT, 48 stars, 10 open issues, actively pushed. Strictly narrower
+  than fakesnow: its README excludes Time Travel, zero-copy cloning, Streams, Tasks, Pipes,
+  external stages, JS stored procedures and UDFs. I did not run it - the Python ecosystem fit of
+  fakesnow, its dbt compatibility and its 208-star maintenance signal all favour fakesnow, and
+  running two emulators is not worth the comparison. Worth a second look only if we ever need a
+  single static binary with no Python runtime. OswaldOniSango/snowflake-emulator is a one-star
+  fork of this, not a separate project.

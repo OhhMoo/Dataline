@@ -1,24 +1,23 @@
 id: T153
-name: MinIO
+name: "MinIO"
 category: storage
 role: mock_implementation
-replication_strategy: none_found
+replication_strategy: drop
 produced_by: B1-connector-scout
 rq: RQ3
-license: agpl-3.0
+license: "agpl-3.0"
 license_verified: false
-last_commit: 2026-04-24
-stars: 61366
-replication_ease: blocked
 archived: true
+last_commit: 2026-04-24
+replication_ease: blocked
+effort_estimate: "0 d"
+demand_archetypes: []
+fidelity_gap: >
+  Not applicable - double rejection.
 notes: >
-  REJECTED -- double failure, recorded so nobody re-finds it (also
-  state/failures/). (1) LICENSE is AGPL-3.0, disqualifying for a shipped network
-  service per problem.yaml. (2) The repo is ARCHIVED as of 2026-04 (org wound down
-  the OSS repo), so it fails G2 liveness regardless. This contradicts the Phase-3
-  claim proposing MinIO for S3 -- use adobe/s3mock (T154) instead. Confirmed via
-  GitHub API 2026-09-12.
-  B2 2026-09-12: rejection re-confirmed via the GitHub API; see
-  state/failures/B1-license-rejections.yaml F-B1-001. repo_url cleared and
-  replication_strategy set to none_found so this artifact no longer asserts
-  usability.
+  T1 2026-09-13 (round R002, mock-priority pass): verdict changed from none_found to
+  drop. Re-confirmed independently by T1 via the GitHub API on 2026-09-13: minio/minio
+  is AGPL-3.0 AND archived=true, last pushed 2026-04-24. Both failures are permanent.
+  This contradicts an older Phase-3 claim that proposed MinIO for S3 (F110); the live
+  substitutes are adobe/s3mock (T154) and moto (T201), both Apache-2.0 and both PROBED
+  pass by T1. repo_url stays cleared. Nobody should spend time on this again.

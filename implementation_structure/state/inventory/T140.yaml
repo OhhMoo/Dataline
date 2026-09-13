@@ -2,14 +2,19 @@ id: T140
 name: "Looker mock"
 category: bi
 role: mock_implementation
-replication_strategy: none_found
+replication_strategy: drop
 produced_by: B1-connector-scout
 rq: RQ3
 license: ""
 license_verified: false
 replication_ease: blocked
+effort_estimate: "0 d (LookML half lives in T163)"
+demand_archetypes: []
+fidelity_gap: >
+  Not applicable - superseded by T204 for dashboards and T163 for LookML.
 notes: >
-  Covers T115. NONE FOUND. Looker is SaaS-only, no local edition, no OSS server
-  mock. looker-open-source repos are extensions that require a live Looker
-  instance. Partial mitigation on the modeling side only: joshtemple/lkml (T163)
-  parses LookML files. Fallback: Superset persona (T137). Recorded 2026-09-12.
+  T1 2026-09-13 (round R002, mock-priority pass): verdict changed from none_found to
+  drop, for the Looker SERVER only. B1's finding stands: SaaS-only, and the
+  looker-open-source repos need a live instance. The useful half survives elsewhere -
+  lkml (T163, MIT) was probed pass by T1 and gives A019 and A030 a real LookML artifact
+  to break. Nobody should spend another hour hunting for a Looker server mock.

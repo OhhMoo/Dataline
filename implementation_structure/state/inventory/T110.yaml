@@ -2,10 +2,53 @@ id: T110
 name: "Confluence"
 category: docs
 role: simulate_target
-replication_strategy: none_found
+replication_strategy: custom_mock_required
 produced_by: L6-tooling-inventory
 rq: RQ4
 frequency_rank: 11
+license: "MIT (BookStack, if the server route is taken)"
+license_verified: false
+replication_ease: medium
+install_probe: "docker pull lscr.io/linuxserver/bookstack:latest"
+probe_result: not_run
+effort_estimate: "1 d for the seeded file tree; 2-3 d if BookStack is stood up instead"
+demand_archetypes:
+  - A004
+  - A006
+  - A011
+  - A018
+  - A019
+  - A020
+  - A021
+  - A022
+  - A028
+  - A030
+  - A031
+  - A033
+fidelity_gap: >
+  A file tree has no page history, no comments, no author metadata and no edit path.
+  That matters in exactly one case: if an archetype grades on the agent UPDATING
+  documentation after a fix, or on reading a page's revision history to date a change,
+  the file tree is not enough and BookStack (T143) comes back. All twelve current
+  archetypes read docs; none write docs. Surface a real task needs: a page tree, page
+  bodies, a last-modified date. Three objects.
 evidence:
   - S522
-notes: "Scattered documentation surface: spaces, pages, live docs, blogs, files; needs info-shape semantics without Atlassian Cloud."
+notes: >
+  T1 2026-09-13 (round R002, mock-priority pass): RESOLVED from none_found to
+  custom_mock_required - and the mock in question is a directory of seeded markdown,
+  which is the cheapest item on the priority list relative to what it serves. Twelve of
+  26 archetypes touch docs_wiki, third-highest demand in the corpus, and every one of
+  them needs the same thing: stale, partial or contradictory documentation the agent
+  must read and then decide to distrust. A seeded file tree delivers that, rebuilds
+  identically from the seed, and costs nothing to grade. BookStack (T143, MIT, image
+  already cached locally) stays as the upgrade path. Recorded for completeness:
+  atlassian/confluence is a real Docker Hub image (verified present, pushed 2026-09-12)
+  but is proprietary Data Center software needing a licence key - not shippable, not
+  probed. T1 could NOT find a citable source stating the licence-key requirement and is
+  asserting it from the product's nature; a human should confirm before anyone quotes
+  it.
+  G5 note: replication_ease downgraded from easy to medium by T1 because no
+  install probe was run for this item. Under the gate's rule an unprobed 'easy' is
+  an unearned claim, and the distinction between 'this should be easy' and 'I ran it'
+  is the whole point of G5.

@@ -21,11 +21,25 @@ usable_for:
   - mechanism
 produced_by: L1-practitioner-workflow-de
 notes: >
-  Second, independent report of the S013 mechanism under a different on_schema_change setting -
-  evidence this is frequent, not a one-off. The failure is partition-scoped (REPLACE WHERE on a
+  Evidence the defect is reachable under at least two distinct incremental configurations - NOT
+  evidence of frequency (F455): two issues filed fourteen months apart against one adapter, with
+  zero and one comment respectively, have no denominator and no duplicate pile-up.
+  CLOSED AND FIXED: re-verified via the GitHub API 2026-09-13 - state=closed, labels 'not an issue'
+  and 'external issue', with a collaborator comment confirming the fix shipped in dbt-databricks
+  1.11.7 on 2026-04-17 (replace_where and microbatch now emit INSERT BY NAME where the runtime
+  supports it). A world built on this mechanism must pin the adapter below 1.11.7. The failure is partition-scoped (REPLACE WHERE on a
   snapshot date), so only the days processed after the schema change are corrupt while earlier
   partitions are fine. That mixed-state table is a good initial condition: the repair requires
   detecting the boundary date and re-processing only beyond it.
 attacks:
   - F454
   - F455
+repair_note: >
+  F454 and F455 mitigations EXECUTED 2026-09-13 by D2 (R002 evidence repair); both landed 2026-09-12
+  and neither was acted on (F553). The "evidence this is frequent" language is struck and replaced
+  with F455's own prescribed wording. The closed-and-fixed status and the required version pin are
+  now recorded on the record itself rather than only in the failure file - which is where the
+  dependent archetypes were reading from, and why F454 landed at all.
+  S014 KEEPS its mechanism licence and high vividness: unlike S013 this filer reported a real
+  observed corruption with a concrete config and a concrete column shift. It is the genuine
+  observation of the pair.

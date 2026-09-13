@@ -1,0 +1,23 @@
+id: T260
+name: "universql"
+category: warehouse
+role: mock_implementation
+replication_strategy: wire_protocol
+produced_by: R002-T2-snowflake
+rq: RQ7
+repo_url: "https://github.com/buremba/universql"
+license: "Apache-2.0"
+last_commit: "2025-10-20"
+license_verified: true
+archived: false
+stars: 206
+probe_result: not_run
+replication_ease: blocked
+evidence:
+  - S317
+notes: >
+  Re-checked for R002 and the R001 verdict stands: DISQUALIFIED by the no-egress rule because it
+  needs a live Snowflake account for catalog and access control. Last push 2025-10-20, so eleven
+  months stale as of retrieval - the staleness is new information since R001 and makes it a dead
+  end rather than a deferred option. Its architecture is still the one to imitate: sqlglot
+  rewriting in front of a DuckDB executor behind the Snowflake connector protocol.

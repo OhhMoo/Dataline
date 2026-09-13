@@ -1,0 +1,29 @@
+id: T252
+name: "DuckLake"
+category: storage
+role: oss_substitute
+replication_strategy: native_oss
+produced_by: R002-T2-snowflake
+rq: RQ7
+repo_url: "https://github.com/duckdb/ducklake"
+license: "MIT"
+last_commit: "2026-09-10"
+install_probe: "INSTALL ducklake; LOAD ducklake; ATTACH 'ducklake:meta.ducklake' AS lake"
+license_verified: true
+archived: false
+stars: 2981
+probe_result: pass
+replication_ease: medium
+evidence:
+  - S866
+  - S860
+  - S867
+notes: >
+  The mechanism that makes Snowflake Time Travel, UNDROP, AT/BEFORE clones and Streams reachable
+  on a DuckDB backend. Verified by running it on 2026-09-13: AT (VERSION => n) and AT (TIMESTAMP
+  => ts) both correct across INSERT/UPDATE/DELETE; snapshots() gives the version-to-timestamp
+  map an AT(TIMESTAMP) rewrite needs; table_changes(tbl, from, to) emits insert / delete /
+  update_preimage / update_postimage, which maps onto METADATA$ACTION and METADATA$ISUPDATE;
+  schema evolution does not break historic reads. Extension is 24MB and must be baked into the
+  image because the episode has no egress. License confirmed MIT via the GitHub API on
+  2026-09-13 (duckdb/ducklake, 2981 stars, pushed 2026-09-10).

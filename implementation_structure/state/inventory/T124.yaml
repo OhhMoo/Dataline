@@ -2,10 +2,24 @@ id: T124
 name: "Hex"
 category: notebook
 role: simulate_target
-replication_strategy: none_found
+replication_strategy: drop
 produced_by: L6-tooling-inventory
 rq: RQ4
 frequency_rank: 25
+license: ""
+license_verified: false
+replication_ease: blocked
+effort_estimate: "0 d (dropped)"
+demand_archetypes: []
+fidelity_gap: >
+  Not applicable. JupyterLab (T104) covers the notebook surface. Hex's app builder - the
+  published, parameterised notebook-as-app - has no offline analogue, so a task about a
+  published app breaking for a business user is not buildable at any reasonable cost.
 evidence:
   - S520
-notes: "Collaborative notebook-and-app surface: query, transform, visualize with SQL and Python; cloud-only, later breadth."
+notes: >
+  T1 2026-09-13 (round R002, mock-priority pass): RESOLVED from none_found to drop. Zero
+  archetypes touch Hex, it is SaaS-only with no local edition, and the generic notebook
+  surface it would stand in for is already covered by a probed, BSD-licensed Jupyter.
+  Nothing to reconsider unless an archetype is authored specifically about
+  notebook-as-app publishing.

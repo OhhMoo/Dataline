@@ -2,14 +2,38 @@ id: T109
 name: "Amazon S3"
 category: storage
 role: simulate_target
-replication_strategy: none_found
+replication_strategy: http_intercept
 produced_by: L6-tooling-inventory
 rq: RQ4
 frequency_rank: 10
+license: "Apache-2.0 (adobe/S3Mock and moto)"
+license_verified: false
+replication_ease: easy
+install_probe: "docker run -d -p 9090:9090 adobe/s3mock:latest && curl -X PUT localhost:9090/probe-bucket && curl -X PUT --data hello localhost:9090/probe-bucket/a.txt && curl localhost:9090/probe-bucket/a.txt"
+probe_result: pass
+effort_estimate: "1 d"
+demand_archetypes:
+  - A010
+  - A017
+  - A022
+  - A025
+fidelity_gap: >
+  S3Mock is explicit that it is a testing tool lacking production security features. No
+  IAM, so a task about a bucket permissions misconfiguration cannot be built on it;
+  versioning and consistency edge cases are thinner than real S3. Staged-file and COPY
+  INTO scenarios sit comfortably inside what it does.
 evidence:
   - S514
+  - S800
+  - S808
 notes: >
-  Object storage: buckets, objects, permissions, versions, data-lake files; runtime must be
-  local S3-compatible. Substitute is adobe/s3mock (T154, Apache-2.0). MinIO (T153) was
-  REJECTED - AGPL-3.0 on a shipped network service, and the repo was archived 2026-04.
-  Do not reintroduce it (F110).
+  T1 2026-09-13 (round R002, mock-priority pass): RESOLVED from none_found to
+  http_intercept. PROBED by T1 2026-09-13 as a full round trip, not just a pull:
+  ListAllMyBuckets returned valid XML, PUT bucket 200, PUT object 200, and GET of the
+  object returned the body 'hello'. moto (T201) probed pass as a second option. Note the
+  first probe attempt FAILED with a connection error because S3Mock is a JVM service
+  needing longer to bind than the retry loop allowed - the pass above is the corrected
+  run. Two rejections stand and one is NEW: MinIO is AGPL-3.0 and archived (re-confirmed
+  via GitHub API 2026-09-13, pushed 2026-04-24), and LocalStack is now ALSO archived,
+  read-only since 2026-03-23, reporting NOASSERTION (S805, T202). The obvious
+  AWS-emulation shelf is emptier than it was six months ago.

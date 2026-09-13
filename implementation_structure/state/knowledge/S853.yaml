@@ -1,0 +1,25 @@
+id: S853
+rq: RQ7
+claim: >
+  The fakesnow README states two fidelity caveats that bound its use as a grading substrate:
+  non-deterministic row ordering unless ORDER BY is fully specified, and a more liberal SQL
+  dialect than real Snowflake.
+url: https://raw.githubusercontent.com/tekumara/fakesnow/main/README.md
+quote: "Row ordering is non-deterministic and may differ from Snowflake unless you fully specify the ORDER BY clause."
+source_type: repo
+company: tekumara (open source)
+year: 2026
+retrieved: "2026-09-13"
+confidence: high
+produced_by: R002-T2-snowflake
+vividness: low
+attestation: unattested
+usable_for:
+  - mechanism
+notes: >
+  Re-cites the caveat already held as S316 but from the current README, because R002's backend
+  decision rests on it. I verified divergences beyond the README's own list, all of them silent
+  rather than error-raising: 1/0 returns inf and 0/0 returns nan where real Snowflake raises
+  division by zero; CREATE DYNAMIC TABLE silently creates a plain table; ALTER TABLE ... CLUSTER
+  BY is accepted as a no-op; a SQL UDF body is returned as a string literal instead of being
+  evaluated.

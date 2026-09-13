@@ -1,0 +1,25 @@
+# Produced by T3-environment-themes (R002) for RQ3 -- legacy / flat-file environment tooling.
+id: T296
+name: Oracle Database Free container
+category: database
+role: mock_implementation
+replication_strategy: native_oss
+produced_by: T3-environment-themes
+rq: RQ3
+license: proprietary -- Oracle Free Use Terms
+license_verified: false
+probe_result: not_run
+replication_ease: medium
+evidence:
+  - S939
+  - S940
+notes: >
+  NOT PULLED OR RUN BY T3; figures are sub-search-reported from vendor documentation and registry
+  APIs. Reported: a community-published slim image around 1.19GB compressed, whose wrapper scripts
+  are permissively licensed but whose engine carries Oracle's own terms regardless of publisher.
+  TWO FACTS THAT MATTER MORE THAN THE SIZE. First, the engine hard-caps itself at 2GB RAM no
+  matter how much is available, which is the entire world budget consumed by one service -- a
+  self-enforcing ceiling, not a tuning knob. Second, the Free Use Terms reportedly permit
+  redistribution only if end users are charged no additional fee for use of the programs, which is
+  a direct and unresolved conflict with a paid benchmark product. LEGAL REVIEW REQUIRED BEFORE ANY
+  PLAN DEPENDS ON THIS. The sqlglot oracle dialect (T291) carries neither constraint.

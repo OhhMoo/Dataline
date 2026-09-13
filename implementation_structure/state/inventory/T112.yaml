@@ -2,10 +2,26 @@ id: T112
 name: "Databricks"
 category: lakehouse
 role: simulate_target
-replication_strategy: none_found
+replication_strategy: drop
 produced_by: L6-tooling-inventory
 rq: RQ4
 frequency_rank: 13
+license: ""
+license_verified: false
+replication_ease: blocked
+effort_estimate: "0 d (dropped)"
+demand_archetypes: []
+fidelity_gap: >
+  Spark (T164), Delta Lake (T165) and Unity Catalog OSS (T200) reproduce compute, table
+  format and catalog respectively. What none of them reproduces is the workspace control
+  plane - jobs, clusters, SQL warehouses, notebook revision history - which is where
+  most real Databricks incidents actually live.
 evidence:
   - S501
-notes: "Lakehouse where storage, processing, transformation, governance, BI, ML coexist."
+notes: >
+  T1 2026-09-13 (round R002, mock-priority pass): RESOLVED from none_found to drop for
+  v1. Zero archetypes touch Databricks and it was already deferred by F2. Community
+  Edition is SaaS and violates the no-egress constraint outright. The one genuinely new
+  fact since B1 wrote this off: Unity Catalog's OSS implementation is Apache-2.0 with a
+  real image (T200, S802), so if Databricks ever returns the catalog half is now free.
+  The control plane still is not, and would be a from-scratch build.

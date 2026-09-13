@@ -1,0 +1,22 @@
+# Produced by T3-environment-themes (R002) for RQ3 -- legacy / flat-file environment tooling.
+id: T293
+name: IBM Db2 Community Edition container
+category: database
+role: mock_implementation
+replication_strategy: native_oss
+produced_by: T3-environment-themes
+rq: RQ3
+license: proprietary -- Community Edition, stated non-production use only
+license_verified: false
+probe_result: not_run
+replication_ease: medium
+notes: >
+  NOT PULLED OR RUN BY T3 -- every figure here is reported by a sub-search from vendor pages and
+  registry APIs, not measured locally, which is a weaker basis than the T285 numbers. Reported:
+  roughly 1.31GB compressed for amd64; a documented minimum of 512MB RAM for an instance plus
+  about 512MB per database; licence stated as intended for non-production use and offered without
+  support. ADDITIONAL RISK: the Docker Hub location reportedly carries a sunset notice pointing at
+  a different registry, and the tag there was last pushed in 2022, so the obvious pull path is
+  stale. Combined with the absence of a db2 dialect in sqlglot (measured by T3), Db2 is the
+  weakest-supported legacy engine on both routes. Do not plan a Db2-specific theme; T270 explains
+  why the extract file is the better target anyway.

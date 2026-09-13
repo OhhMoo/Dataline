@@ -17,6 +17,15 @@ usable_for:
   - mechanism
 produced_by: L2-practitioner-workflow-ds
 notes: >
-  A concrete parameterizable drift world: inject a demand shock at a known date; the correct response is to tune training-window length and scoring cadence, not the architecture. Deterministically gradeable (did the agent shorten the lookback? did it identify the break date?). The same COVID shock appears independently in DoorDash's and Shankar et al.'s accounts, so this pattern is frequent, not a one-off.
+  A concrete parameterizable drift world: inject a demand shock at a known date; the correct response is to tune training-window length and scoring cadence, not the architecture. Deterministically gradeable (did the agent shorten the lookback? did it identify the break date?). Three teams reporting the same March 2020 shock (this record, S117 DoorDash, and the Berkeley interviews) are three observers of ONE exogenous event, not three events - the honest reading is that a once-in-a-decade shock is why so many teams have a story about it (F456). This record does NOT license a frequency claim. If drift frequency is needed to weight the DS mix, source it from S117 and S120-S123, which speak to drift MONITORING being routine - a different and better-supported claim.
 attacks:
   - F456
+repair_note: >
+  F456 mitigation EXECUTED 2026-09-13 by D2 (R002 evidence repair); ruling landed 2026-09-12,
+  never acted on (F553). The closing note's "this pattern is frequent" is struck and rewritten in
+  F456's own prescribed terms. confidence stays high - F456 explicitly affirmed the factual content
+  (accuracy 93% to 61% from mid-March, training window shortened to about ten days, scoring moved
+  from three-hourly to hourly are all verbatim-supported) and the world is cheaply parameterizable.
+  Typed attestation=secondhand (a journalist quoting Instacart's ML director), vividness=high,
+  usable_for=[world_texture, mechanism] - deliberately NOT frequency, which is the whole point of
+  the ruling. Affects A013 and A020.

@@ -1,0 +1,25 @@
+id: S867
+rq: RQ4
+claim: >
+  Snowflake CREATE ... CLONE is a metadata operation whose result is affected by Time Travel and
+  data retention on the source object, so cloning and Time Travel are one coupled feature rather
+  than two independent ones.
+url: https://docs.snowflake.com/en/sql-reference/sql/create-clone.md
+quote: "Creates a copy of an existing object in the system. This command is primarily used for creating"
+source_type: docs
+company: Snowflake
+year: 2026
+retrieved: "2026-09-13"
+confidence: high
+produced_by: R002-T2-snowflake
+vividness: low
+attestation: unattested
+usable_for:
+  - mechanism
+notes: >
+  The companion cloning-considerations page states that factors 'such as DDL and DML
+  transactions (on the source object), Time Travel, and data retention periods can affect the
+  object clone'. Design consequence: if Time Travel is built on DuckLake snapshots, CREATE TABLE
+  ... CLONE AT(...) is a CTAS from a pinned snapshot and comes almost free; without Time Travel,
+  clone degrades to a plain copy that is observably wrong the moment an archetype depends on the
+  source changing afterwards.

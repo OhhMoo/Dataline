@@ -1,0 +1,19 @@
+id: T262
+name: "PostgreSQL"
+category: database
+role: oss_substitute
+replication_strategy: oss_equivalent
+produced_by: R002-T2-snowflake
+rq: RQ7
+probe_result: not_run
+replication_ease: hard
+evidence:
+  - S855
+notes: >
+  EVALUATED AND NOT RECOMMENDED. Notable because LocalStack's commercial Snowflake emulator
+  reportedly uses a PostgreSQL backend per account, so it is a proven choice for someone.
+  Against it for us: row-store performance on analytical scans, no native VARIANT semantics
+  beyond jsonb, no QUALIFY, weaker Snowflake dialect coverage in sqlglot than DuckDB, and a
+  separate daemon with its own lifecycle. Its one real advantage over DuckDB - genuine multi-
+  session concurrency with row-level locking - only matters for archetypes about lock
+  contention, which Snowflake does not have in the same shape anyway.

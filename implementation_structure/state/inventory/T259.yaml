@@ -1,0 +1,18 @@
+id: T259
+name: "Snowpark Python local testing framework"
+category: warehouse
+role: mock_implementation
+replication_strategy: sdk_reshape
+produced_by: R002-T2-snowflake
+rq: RQ7
+license: "Apache-2.0"
+license_verified: false
+probe_result: not_run
+replication_ease: blocked
+evidence:
+  - S868
+notes: >
+  REJECTED. Snowflake's own local mode, shipped inside snowpark-python. DataFrame API only -
+  Session.sql() is explicitly unsupported, and query tags, query history and lineage are
+  documented as unsupported. Useless for an agent that writes SQL. Its real value is as
+  calibration: the vendor with full source access did not attempt query history locally either.

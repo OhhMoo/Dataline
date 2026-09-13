@@ -2,10 +2,32 @@ id: T127
 name: "Oracle Database"
 category: database
 role: simulate_target
-replication_strategy: none_found
+replication_strategy: drop
 produced_by: L6-tooling-inventory
 rq: RQ4
 frequency_rank: 28
+license: "Oracle proprietary (image contents); UPL-1.0 (build scripts only)"
+license_verified: false
+replication_ease: blocked
+effort_estimate: "0 d (dropped); Postgres persona reuses T103"
+demand_archetypes:
+  - A028
+fidelity_gap: >
+  Postgres wearing an Oracle name diverges on exactly the things a legacy-migration task
+  would notice: PL/SQL, packages, sequences and triggers, ROWNUM and CONNECT BY, NUMBER
+  precision, and empty-string-is-NULL. A028 is a legacy SQL-to-dbt migration with
+  row-level validation, so it needs legacy SQL that LOOKS Oracle-ish and produces stable
+  numbers - achievable with sqlglot flavouring at build time. It does not need Oracle's
+  runtime, and must not be authored as though it does.
 evidence:
   - S504
-notes: "Legacy enterprise object-relational surface distinct from cloud warehouses."
+  - S810
+notes: >
+  T1 2026-09-13 (round R002, mock-priority pass): RESOLVED from none_found to drop, on
+  licence. Oracle publishes container build scripts under UPL-1.0, but the README is
+  explicit that the resulting images contain Oracle Database binaries (S810), and those
+  carry Oracle's own terms. T1 could NOT establish that those terms permit
+  redistribution inside a commercial training product, and the correct posture for an
+  unverified proprietary licence is to treat it as blocked rather than to assume. Not
+  probed, deliberately - pulling it would not change the licence answer. One archetype
+  (A028) names a legacy database; Postgres plus sqlglot serves it.

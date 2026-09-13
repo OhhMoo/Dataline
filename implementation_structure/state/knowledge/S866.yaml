@@ -1,0 +1,27 @@
+id: S866
+rq: RQ7
+claim: >
+  DuckLake, DuckDB's snapshot-based table format, records every historic snapshot and supports
+  querying any of them by timestamp or version - giving a DuckDB backend the primitive that
+  Snowflake Time Travel needs.
+url: https://ducklake.select/docs/stable/duckdb/usage/time_travel
+quote: "Using time travel, it is possible to query the state of the database as of any recorded snapshot."
+source_type: docs
+company: DuckDB Labs
+year: 2026
+retrieved: "2026-09-13"
+confidence: high
+produced_by: R002-T2-snowflake
+vividness: medium
+attestation: unattested
+usable_for:
+  - mechanism
+notes: >
+  VERIFIED BY RUNNING IT on 2026-09-13 with duckdb 1.5.5 and the ducklake extension (24MB,
+  bakeable into an image): SELECT * FROM tbl AT (VERSION => 2) and AT (TIMESTAMP => ...) both
+  returned correct historic states across INSERT, UPDATE and DELETE; snapshots() listed every
+  version with timestamps; ALTER TABLE ADD COLUMN did not break older-version reads; an out-of-
+  range version failed cleanly with 'No snapshot found at version 99'. Separately,
+  table_changes('fct', 3, 5) returned rows tagged insert, delete, update_preimage and
+  update_postimage, which is the Snowflake stream contract of S860. This is the finding that
+  makes Time Travel and Streams affordable on a DuckDB backend.

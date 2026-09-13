@@ -2,8 +2,27 @@ id: T101
 name: "Slack"
 category: other
 role: simulate_target
-replication_strategy: none_found
+replication_strategy: drop
 produced_by: L6-tooling-inventory
 rq: RQ4
 frequency_rank: 2
-notes: "Team-communication surface carrying operational context around data work; named in meeting list, no S5xx finding yet."
+license: ""
+license_verified: false
+replication_ease: blocked
+effort_estimate: "0 d (dropped)"
+demand_archetypes: []
+fidelity_gap: >
+  Not applicable - nothing is being substituted. A static transcript loses threading,
+  reactions, search, and the agent's ability to post. If a future archetype grades on
+  the agent asking a human a question in a channel, this decision reopens.
+notes: >
+  T1 2026-09-13 (round R002, mock-priority pass): RESOLVED from none_found to drop for
+  v1. Slack is frequency_rank 2 on the meeting's list and is touched by ZERO of the 26
+  archetypes. The organisational context Slack carries in real life is already carried
+  here by docs_wiki (12 archetypes) and ticketing (2). Cheapest honest form if that
+  texture is wanted: a seeded read-only exported transcript in the docs surface - no
+  server, no licence, deterministic from the seed. If a live Slack-shaped API is ever
+  needed, ygalblum/slack-server-mock (T150, Apache-2.0) exists but is thin (8 stars,
+  last push 2025-02-28); Zulip (T212, Apache-2.0) is the licence-clean real server.
+  Mattermost and Rocket.Chat both report NOASSERTION on the GitHub API (checked
+  2026-09-13) and would need a human licence read before anyone reaches for them.

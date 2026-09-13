@@ -60,3 +60,18 @@ attacks:
 notes: >
   Initial condition generator: duplicate exactly one calendar month plus two stray
   days to punish range-based deletion.
+repair_note: >
+  EVIDENCE DOWNGRADE 2026-09-13 (D2, R002 evidence repair) - derived_from unchanged, licences
+  changed. This archetype cites S001 and S003, both of which F451 ruled on 2026-09-12 and which
+  nothing executed until now (F553). Both are now attestation=unattested at confidence=medium:
+  S001's backfill-doubling story is an essay's opening scene narrated about "a teammate", not an
+  incident the author was in, and S003's near-universal-freshness / near-absent-correctness
+  monitoring claim is an industry generalisation, not a measurement - it is world_texture ONLY and
+  may no longer carry a mechanism.
+  CONSEQUENCE: any sentence in this archetype asserting that the failure it plants is common, or
+  that correctness monitoring is absent in practice, is now unsourced. The mechanism itself is
+  re-grounded corpus-wide on S754 (dbt reference documentation: an incremental model without a
+  unique_key inserts every returned row "without regard for whether the rows represent duplicates",
+  quote-verified 2026-09-13). Cite that, drop the frequency language, and treat the magnitude as a
+  world parameter. Not otherwise re-derived here - this archetype was outside the 11 I was given
+  and has not been re-read end to end.

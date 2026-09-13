@@ -2,10 +2,58 @@ id: T107
 name: "Snowflake"
 category: warehouse
 role: simulate_target
-replication_strategy: none_found
+replication_strategy: sdk_reshape
 produced_by: L6-tooling-inventory
 rq: RQ4
 frequency_rank: 8
+license: "Apache-2.0 (fakesnow); Apache-2.0 (universql)"
+license_verified: false
+replication_ease: medium
+install_probe: "docker run --rm python:3.11-slim sh -c "pip install -q fakesnow && python -c 'import fakesnow, snowflake.connector'""
+probe_result: pass
+effort_estimate: "DEFERRED to T2"
+demand_archetypes:
+  - A001
+  - A002
+  - A003
+  - A004
+  - A005
+  - A006
+  - A009
+  - A010
+  - A011
+  - A012
+  - A013
+  - A017
+  - A018
+  - A019
+  - A020
+  - A021
+  - A022
+  - A025
+  - A026
+  - A027
+  - A028
+  - A029
+  - A030
+  - A031
+  - A032
+  - A033
+fidelity_gap: >
+  DEFERRED to T2. Recorded here only so the inventory is not silent: fakesnow is
+  sdk_reshape, so an agent that shells out to snowsql or curls the REST API bypasses the
+  shim entirely - the exact tradeoff the B1 brief warned about. universql is
+  wire_protocol and does not have that hole, but its last push was 2025-10-20, roughly
+  eleven months before this record, which will trip G2's liveness warning.
 evidence:
   - S500
-notes: "Dominant cloud warehouse; connection, warehouse, DB, table, view, loading, transformation surfaces."
+notes: >
+  T1 2026-09-13 (round R002, mock-priority pass): RESOLVED from none_found to
+  sdk_reshape AS A PLACEHOLDER ONLY. T2 is researching Snowflake in depth this round and
+  owns the mock design; T1 deliberately did not do it. What T1 contributes is one probe:
+  fakesnow installed clean into python:3.11-slim and a round trip through
+  snowflake.connector under fakesnow.patch() - CREATE TABLE, INSERT, SELECT a+1 -
+  returned 42, with CURRENT_VERSION() reporting '0.0.0'. That last detail is a real
+  tell: a task that reads CURRENT_VERSION() or any account-level metadata gets an
+  obviously fake answer. All 26 archetypes touch the warehouse surface, so whatever T2
+  concludes is the highest-leverage decision in this round.

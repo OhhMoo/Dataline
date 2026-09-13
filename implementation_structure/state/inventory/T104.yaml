@@ -2,10 +2,39 @@ id: T104
 name: "Jupyter / JupyterLab"
 category: notebook
 role: simulate_target
-replication_strategy: none_found
+replication_strategy: native_oss
 produced_by: L6-tooling-inventory
 rq: RQ4
 frequency_rank: 5
+license: "BSD-3-Clause"
+license_verified: false
+replication_ease: easy
+install_probe: "docker run -d -p 8888:8888 quay.io/jupyter/base-notebook:latest start-notebook.py --IdentityProvider.token=probe && curl -s "localhost:8888/api?token=probe""
+probe_result: pass
+effort_estimate: "1 d"
+demand_archetypes:
+  - A005
+  - A012
+  - A013
+  - A020
+  - A031
+  - A032
+  - A033
+fidelity_gap: >
+  The real fidelity question is not the server, it is execution state. A033 grades
+  reproducibility repair, which turns on out-of-order cell execution and a stale kernel
+  namespace - properties of the .ipynb execution_count and the live kernel, not of the
+  UI. Those are reproducible, but only if the harness seeds and inspects execution_count
+  and kernel restarts deliberately. A notebook surface that always runs top to bottom
+  cannot express A033 at all.
 evidence:
   - S521
-notes: "Local notebook, editor, terminal, interactive-computing surface; v1 native notebook target."
+  - S813
+notes: >
+  T1 2026-09-13 (round R002, mock-priority pass): RESOLVED from none_found to
+  native_oss. PROBED by T1 2026-09-13: quay.io/jupyter/base-notebook came up and /api
+  returned {"version": "2.21.0"}. TRAP worth writing down: the jupyter/* images on
+  Docker Hub still resolve, but jupyter/base-notebook:latest was last pushed 2023-10-20
+  - the project moved to quay.io (S813). Anyone copying an older tutorial gets a
+  three-year-old image and a confusing set of version mismatches. Seven archetypes touch
+  the notebook surface, behind only warehouse, dbt and BI.

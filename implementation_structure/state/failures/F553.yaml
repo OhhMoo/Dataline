@@ -1,0 +1,67 @@
+id: F553
+target: S004
+also_applies_to:
+  - S001
+  - S002
+  - S003
+  - S005
+  - S006
+  - S007
+attack_type: unexecuted_mitigation
+severity: high
+finding: >
+  NOTHING IN THIS REPOSITORY VERIFIES THAT A LANDED ATTACK WAS EVER ACTED ON. 77 of 78 failure
+  records carry a `recommended_action`. No gate checks whether any of them happened, and the
+  schema has no field that records execution, so a mitigation can be written, reviewed and
+  forgotten while every gate stays green.
+  The proof case is this cluster. F450 and F451 both landed 2026-09-12 with
+  recommended_action=downgrade_confidence and both wrote precise mitigations. A day later, at the
+  start of R002, NOT ONE instruction had been carried out: S001 still read `confidence: high` and
+  its notes still said "Author states this is a real incident" (he does not) and "independently
+  attested in the 50-postmortem survey ... so treat it as high-frequency" (the survey names none
+  of its 50 cases). S004-S007 still read `source_type: blog` and still carried the 38/24/19/14
+  percentages, and S004's notes still called 38% "the most useful number I found for weighting
+  archetype coverage". The corpus was still weighting its task mix from an unauditable vendor blog,
+  a full round after that was formally established as a high-severity finding.
+  This is worse than the original error. The original error was a mistake; this is a mistake that
+  survived detection. The R002 brief itself inherited the illusion - it described S001, S005 and
+  S006 as already withdrawn, which was never true of any of them.
+  MECHANICAL SCAN 2026-09-13 (heuristic: does the target artifact carry any repair_note referencing
+  the failure id, or a status change consistent with the ruling?). 26 R001-era rulings show no
+  trace of execution:
+  F101 F102 F103 F104 F105 F111 F112 F120 F121 F122 F123 F124 F125 F126 F127 F128 F202 F255
+  F400 F401 F402 F403 F454 F455 F456 F457.
+  Six more are R002-era and still legitimately in flight: F502 F503 F505 F509 F510 F514.
+  Read the 26 as a worklist, not a verdict - the heuristic cannot see a fix that was made without
+  being recorded, and several (F121 in particular) do appear to have shaped the text of their
+  targets without ever being cited. That ambiguity is itself the finding: there is no way to tell.
+recommended_action: annotate
+found_by: D2-reground
+resolved: false
+mitigation: >
+  ADD A GATE. The cheapest version needs one optional schema field on `failure`, for example
+  `executed_by` / `executed_on`, or simply a rule that an unresolved failure whose target carries no
+  repair_note mentioning its id is a G-level warning. That is close to the scan run above and it
+  would have caught this cluster the moment R002 opened. F459's ruling already showed the pattern
+  from the other side: honest sources, dishonest derivation. This is honest findings, absent
+  execution.
+  EXECUTED IN THIS ROUND by D2, so these can come off the worklist: F450 (S004-S007 set to
+  source_type=vendor_page, all percentages and frequency adjectives struck, corroboration ring
+  broken in both directions), F451 (S001-S003 lowered to confidence=medium, the false attestation
+  clause struck, claims relabelled as pattern descriptions), F452 (S010 claim rewritten in F452's
+  own prescribed wording), F453 (S017 claim rewritten, independent-corroboration claim struck,
+  A004 re-sourced to S750/S751/S752), F454 (S013 lowered to medium, closed-and-fixed status and the
+  required adapter version pin recorded on the record), F455 ("evidence this is frequent" struck
+  from S014), F456 ("this pattern is frequent" struck from S114), F457 (S205 set to vendor_page,
+  "recurring" struck), F458 (S208's reversed window arithmetic corrected), F459 (A033's
+  derived_from rebuilt, decorative S106 dropped).
+  Left deliberately for their owners: F400-F403 (RQ6/RQ7 pricing and prior-art slice, outside this
+  repair's scope - though note the R002 back-classification independently reached F400's conclusion
+  and typed S400 secondhand with no frequency licence), and every F1xx archetype-design ruling,
+  which needs a designer rather than an evidence pass.
+notes: >
+  Filed 2026-09-13 in R002 evidence repair. The two-axis model added in R002 is a genuine
+  improvement and G6 now mechanically enforces the vendor and frequency rules. But note what G6
+  still cannot see: it checks that a source DECLARES what it may license. It does not check that
+  anything acted on a ruling about that source, and it does not check that an archetype's claims
+  stay inside its sources' licences. Both of those gaps are live.

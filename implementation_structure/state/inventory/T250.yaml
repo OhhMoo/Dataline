@@ -1,0 +1,38 @@
+id: T250
+name: "fakesnow"
+category: warehouse
+role: mock_implementation
+replication_strategy: wire_protocol
+produced_by: R002-T2-snowflake
+rq: RQ7
+repo_url: "https://github.com/tekumara/fakesnow"
+license: "Apache-2.0"
+last_commit: "2026-09-13"
+install_probe: "pip install 'fakesnow[server]' && fakesnow -s -p 18765"
+license_verified: true
+archived: false
+stars: 208
+probe_result: pass
+replication_ease: easy
+evidence:
+  - S850
+  - S851
+  - S852
+  - S853
+  - S871
+notes: >
+  RECOMMENDED BASE. Verified 2026-09-13 at v0.11.16: server boots in 1.3s, RSS 172MB holding a
+  1M-row table, snowflake-connector-python 4.7.3 and dbt-snowflake 1.12.0 both connect over the
+  server path, 2M-row CTAS in 0.2s, 500k-row fetch over HTTP in 0.62s, per-session isolation via
+  FAKESNOW_DB_PATH=':isolated:' confirmed. ~3.4k lines of package code plus ~3.2k lines of
+  sqlglot transforms; the entire protocol surface is server.py at 320 lines and five routes.
+  Passed in my probe: VARIANT and the : path operator, LATERAL FLATTEN, CLONE for table and
+  database, stages plus COPY INTO, SHOW TABLES/SCHEMAS/DATABASES/COLUMNS, DESCRIBE, MERGE,
+  QUALIFY, information_schema.tables, TRY_TO_NUMBER/IFF/NVL/ZEROIFNULL,
+  DATEADD/DATEDIFF/DATE_TRUNC. Failed: all three Time Travel forms, UNDROP, STREAM, TASK,
+  CREATE/ALTER/USE WAREHOUSE, every RBAC statement, CREATE FILE FORMAT, RESULT_SCAN,
+  information_schema.query_history(), the whole SNOWFLAKE.ACCOUNT_USAGE catalog, stored
+  procedures, masking policies, QUERY_TAG. Silently wrong: 1/0 returns inf, CREATE DYNAMIC TABLE
+  makes a plain table, CLUSTER BY is a no-op, a SQL UDF body comes back as a string. Also found:
+  dbt incremental models fail on the second run with 'TEMPORARY table names can only use the
+  temp catalog'.

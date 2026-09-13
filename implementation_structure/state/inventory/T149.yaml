@@ -2,17 +2,29 @@ id: T149
 name: "Jira mock"
 category: ticketing
 role: mock_implementation
-replication_strategy: none_found
+replication_strategy: oss_equivalent
 produced_by: B1-connector-scout
 rq: RQ3
-license: ""
+license: "MIT (Gitea)"
 license_verified: false
-replication_ease: blocked
+replication_ease: easy
+install_probe: "docker run -d -p 3000:3000 -e GITEA__database__DB_TYPE=sqlite3 -e GITEA__security__INSTALL_LOCK=true gitea/gitea:latest && curl -s localhost:3000/api/v1/version"
+probe_result: pass
+effort_estimate: "0.5 d"
+demand_archetypes:
+  - A011
+  - A029
+fidelity_gap: >
+  Inherited from T102: no JQL, no boards or sprints, no custom fields, no workflow
+  transitions. A011 and A029 need a title, a body, comments and a status change, and
+  Gitea issues carry all four. Surface a real Jira mock would need if that ever changes:
+  about six endpoints - issue read, issue search, comment list, comment create,
+  transition, and one project/field metadata call. Not 'the Jira Cloud API'.
 notes: >
-  Covers T102, OPTIONAL. NONE FOUND. No license-clean OSS server speaks the Jira
-  Cloud REST API. What exists: generic HTTP mock harnesses (Mockoon T151,
-  MockServer T152) against which a Jira-shaped fixture set would have to be written
-  by hand; OpenProject (GPL-3.0, flag + not Jira-API-compatible); Jira Data Center
-  trials require an Atlassian license. If ticketing enters v1, the cheapest honest
-  path is http_intercept with a small hand-written Jira API fixture, or accepting
-  Gitea issues (T146) as the ticket surface. Recorded 2026-09-12.
+  T1 2026-09-13 (round R002, mock-priority pass): verdict changed from none_found to
+  oss_equivalent. B1 was right that no licence-clean server speaks the Jira Cloud REST
+  API, and T1 re-checked the OSS ticketing field on 2026-09-13 with the same result:
+  OpenProject GPL-3.0, Plane AGPL-3.0, Vikunja AGPL-3.0, Redmine NOASSERTION. But 'what
+  speaks Jira's API' is the wrong question. The right one is 'what carries a ticket the
+  agent can read and update', and Gitea - already in the stack for the forge, MIT,
+  PROBED pass by T1 at version 1.27.3 - carries it for effectively zero marginal cost.

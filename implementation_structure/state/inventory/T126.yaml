@@ -2,10 +2,33 @@ id: T126
 name: "ClickHouse"
 category: database
 role: simulate_target
-replication_strategy: none_found
+replication_strategy: native_oss
 produced_by: L6-tooling-inventory
 rq: RQ4
 frequency_rank: 27
+repo_url: https://github.com/ClickHouse/ClickHouse
+license: "Apache-2.0"
+license_verified: false
+replication_ease: easy
+install_probe: "docker run -d -p 8123:8123 -e CLICKHOUSE_PASSWORD=probe clickhouse/clickhouse-server:latest && curl -s -u default:probe "localhost:8123/?query=SELECT%20version()""
+probe_result: pass
+effort_estimate: "1 d standalone; Snowflake-shaping it is a separate and much larger job"
+demand_archetypes: []
+fidelity_gap: >
+  As itself, none worth noting. As the engine under a Snowflake-shaped API - the house
+  example - the gap is the whole project: ClickHouse's SQL dialect, transaction model
+  and DDL differ from Snowflake's substantially, and that translation layer is T2's
+  problem, not a property of ClickHouse.
 evidence:
   - S506
-notes: "Column-oriented OLAP database for high-volume analytical and observability workloads."
+notes: >
+  T1 2026-09-13 (round R002, mock-priority pass): RESOLVED from none_found to
+  native_oss. PROBED by T1 2026-09-13: the server came up and returned version 26.8.2.7.
+  Two things worth recording. First, the initial probe FAILED with 'Authentication
+  failed: password is incorrect' - current images require CLICKHOUSE_PASSWORD to be set
+  rather than defaulting to a passwordless default user, which will trip anyone
+  following an older recipe. Second, T169 rates this replication_ease=hard; on the
+  evidence of this probe, RUNNING ClickHouse is easy - one command - and what is hard is
+  making it speak Snowflake. Those are different claims and T169 currently blurs them.
+  Zero archetypes touch ClickHouse directly; its relevance is strategic, as the
+  candidate backend for T2's warehouse work.

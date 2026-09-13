@@ -1,10 +1,10 @@
 id: S205
 rq: RQ1
 claim: >
-  A reconciliation guide enumerates the recurring causes of two numbers disagreeing - time zone and window boundaries, differing metric definitions, silently applied filters, join fan-out changing the grain, refunded or soft-deleted rows, currency and cents-versus-dollars, float rounding, late-arriving data, null handling in SUM and COUNT, and row-level security - and prescribes comparing row counts at the same grain before comparing sums, then bisecting by dimension until the gap localizes.
+  A BI vendor's guide enumerates candidate causes of two numbers disagreeing (the page contains no incident, no company, no date and no data, and offers no frequency evidence of any kind - 'recurring' is struck per F457) - time zone and window boundaries, differing metric definitions, silently applied filters, join fan-out changing the grain, refunded or soft-deleted rows, currency and cents-versus-dollars, float rounding, late-arriving data, null handling in SUM and COUNT, and row-level security - and prescribes comparing row counts at the same grain before comparing sums, then bisecting by dimension until the gap localizes.
 url: https://www.basedash.com/blog/data-reconciliation-how-to-find-why-two-numbers-dont-match
 quote: "If one side has 10,240 orders and the other has 10,311, you have a row-level difference to explain"
-source_type: blog
+source_type: vendor_page
 author_role: founder and CEO of a BI vendor
 company: Basedash
 year: 2026
@@ -16,6 +16,17 @@ usable_for:
   - world_texture
 produced_by: L3-practitioner-workflow-analytics
 notes: >
-  Vendor-adjacent, so discount the framing, but the cause taxonomy is concrete and each cause is independently injectable as pre-existing brokenness (fan-out join, UTC vs local day boundary, test accounts excluded on one side only). The bisect-by-dimension workflow is a multi-step trajectory a grader can check at each hop.
+  Vendor content, not vendor-adjacent: byline 'Max Musing, Founder and CEO of Basedash', closing on a product pitch. The cause taxonomy is concrete and each cause is independently injectable as pre-existing brokenness (fan-out join, UTC vs local day boundary, test accounts excluded on one side only). The bisect-by-dimension workflow is a multi-step trajectory a grader can check at each hop.
 attacks:
   - F457
+repair_note: >
+  F457 mitigation EXECUTED 2026-09-13 by D2 (R002 evidence repair); ruling landed 2026-09-12,
+  never acted on (F553). source_type set to vendor_page and "recurring" struck from the claim, as
+  F457 specified. Typed attestation=vendor_marketing, which caps usable_for at [world_texture].
+  WHAT IT MAY AND MAY NOT BE USED FOR: the taxonomy remains useful as a DEFECT LIBRARY for world
+  generation - each cause (fan-out join, UTC vs local day boundary, test accounts excluded on one
+  side only, cents vs dollars, soft-deleted rows) is independently injectable. It may NOT be cited
+  as evidence of what analysts actually hit, and no archetype may weight its categories by this
+  page. S203 (practitioner) and S207/S208 (a named team's own incidents) carry the load-bearing
+  claims instead. This record is reused by A006, A021, A022 and A029 - the most heavily reused
+  analytics source in the set, which is why F457 mattered.

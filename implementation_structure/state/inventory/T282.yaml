@@ -1,0 +1,16 @@
+# Produced by T3-environment-themes (R002) for RQ3 -- legacy / flat-file environment tooling.
+id: T282
+name: SAS
+category: transformation
+role: simulate_target
+replication_strategy: none_found
+produced_by: T3-environment-themes
+rq: RQ3
+replication_ease: blocked
+notes: >
+  Very large installed base in pharma, government statistics, and banking risk. No verified
+  sources harvested in this round, so listed for completeness only. NOTE FOR A LATER ROUND: unlike
+  the other blocked entries, SAS has a partial open analogue in the form of its dataset file
+  format, which some open libraries can read, so a SAS-flavoured theme might be buildable as a
+  file-format problem the way T270 is. T3 did NOT verify the licensing or maintenance state of any
+  such library and is not recommending one.

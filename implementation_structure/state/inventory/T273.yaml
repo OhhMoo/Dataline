@@ -1,0 +1,21 @@
+# Produced by T3-environment-themes (R002) for RQ3 -- legacy / flat-file environment tooling.
+id: T273
+name: Informatica PowerCenter
+category: transformation
+role: simulate_target
+replication_strategy: none_found
+produced_by: T3-environment-themes
+rq: RQ3
+replication_ease: blocked
+evidence:
+  - S937
+  - S941
+notes: >
+  No container and no legally usable free edition known to T3; the vendor's own knowledge base
+  returned 403 to every fetch attempt during this round, so even the documentation could not be
+  read. Treat as BLOCKED. PROPOSED PROXY: the agent-relevant properties are (a) transformation
+  logic expressed in a non-diffable artifact that git shows as one opaque blob, and (b) a reject
+  file that receives dropped rows while the workflow reports success. Both are reproducible with a
+  generated XML-ish mapping file plus a bad-file the scheduler writes. CAVEAT ON (b), from S937:
+  this corpus does NOT yet have a verified source establishing that the workflow reports success
+  while rejecting rows. Get that anchor before authoring the task.

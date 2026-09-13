@@ -1,0 +1,21 @@
+id: T255
+name: "LocalStack for Snowflake"
+category: warehouse
+role: mock_implementation
+replication_strategy: wire_protocol
+produced_by: R002-T2-snowflake
+rq: RQ7
+license: "proprietary"
+license_verified: true
+probe_result: not_run
+replication_ease: blocked
+evidence:
+  - S855
+  - S856
+notes: >
+  DISQUALIFIED, not rejected on merit. The most complete Snowflake emulator in existence - its
+  coverage matrix claims STREAM, TASK, WAREHOUSE, STAGE and ROLE DDL - but it is commercially
+  licensed with per-user seat tokens and no community edition, which is incompatible with
+  shipping world images to labs. Useful for two things: as calibration (their matrix has no Time
+  Travel, ACCOUNT_USAGE or QUERY_HISTORY entry either, so nobody has solved Time Travel) and as
+  precedent for the DNS-plus-certificate interception the meeting proposed.
