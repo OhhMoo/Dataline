@@ -55,8 +55,9 @@ existing_coverage: >
   scheduled run is a hazard. Thin in data-eng-bench.
 derived_from:
   - S001
-  - S005
-  - S006
+  - S754
+  - S755
+  - S008
 produced_by: S1-postmortems
 attacks:
   - F121
@@ -65,3 +66,27 @@ notes: >
   and S006's crashed-run partial output consumed by the next schedule are folded in as the
   second failure layer. Tune the duplicate volume to sit inside normal daily variance so
   dashboards being green is plausible, per S001/S004's detection-via-human pattern.
+repair_note: >
+  RE-GROUNDED 2026-09-13 (D2, R002 evidence repair).
+  WITHDRAWN OR DEMOTED: S005 and S006 dropped from derived_from. Both are the layline.io
+  "50 postmortems" vendor synthesis condemned by F450 - the piece names not one of the 50
+  postmortems, and under the R002 two-axis model both are attestation=vendor_marketing and
+  therefore license world_texture ONLY. They can no longer carry the non-idempotent-sink leg or
+  the crashed-run-partial-output leg. S001 is RETAINED but retyped: F451 showed the
+  backfill-doubling story is the essay's narrated opening scene about "a teammate", not an
+  attested incident, so it is now attestation=unattested, usable_for=[world_texture, mechanism].
+  REPLACED WITH: S754 (dbt's own reference documentation stating that an incremental model
+  without a unique_key appends every returned row "without regard for whether the rows represent
+  duplicates" - mechanism, quote-verified 2026-09-13) and S755 (SPARK-8513, a Spark committer
+  reporting an observed failure in which a failed write job leaves its _temporary output behind -
+  firsthand_named, mechanism, quote-verified 2026-09-13). S008 (Airflow Summit talk by two named
+  Astronomer field engineers, firsthand_named and the one source here that legitimately licenses
+  frequency) is added for the backfill-implosion and DST items.
+  FREQUENCY CLAIM DROPPED: nothing in derived_from now supports "this is common". S001's notes
+  previously upgraded a single anecdote to "high-frequency" by citing the vendor survey; that
+  clause is void. The duplicate volume, the 30-day window and the "sits inside normal daily
+  variance" tuning are WORLD PARAMETERS chosen by the designer, not findings.
+  HONEST GAP: S755 attests that a failed write leaves partial output behind. NO source in this
+  corpus attests the second half of this archetype's story - that the next scheduled run then
+  silently consumes that debris. That chain is a deliberate design choice and must be labelled as
+  one in the world spec, not cited.

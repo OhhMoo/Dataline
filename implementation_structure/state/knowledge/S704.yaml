@@ -1,0 +1,30 @@
+id: S704
+rq: RQ1
+claim: >
+  A dbt-core bug report (issue 5138, CT-547) filed against dbt 1.0 on Snowflake states that the
+  first run of an incremental model does not apply unique_key or the incremental strategy, so any
+  duplicates present in the model's own select land in the target table on that first run and
+  survive every subsequent incremental run. The issue was closed as wontfix, which means the
+  behaviour is current and by design - a dormant duplication hazard that never expresses itself
+  until something causes a rebuild or a replay.
+url: https://github.com/dbt-labs/dbt-core/issues/5138
+quote: "When running an incremental model for the first time it doesn't use the unique_key plus incremental_strategy. This means that if your model doesn't have duplicate elimination inside of it that duplicates will appear on the first run of model."
+source_type: repo
+author_role: dbt user filing a bug report
+company: not stated
+year: 2022
+retrieved: "2026-09-13"
+confidence: high
+produced_by: E3-compound
+vividness: high
+attestation: firsthand_anonymous
+usable_for:
+  - world_texture
+  - mechanism
+notes: >
+  Liveness checked on 2026-09-13: the issue is CLOSED, labelled resolution wontfix. It must NOT
+  be cited anywhere as an open issue. That it was closed as wontfix is the useful part - the
+  behaviour is not a regression awaiting a patch, it is the documented contract, so a world built
+  on it is reproducible rather than dependent on a version pin. vividness high: names dbt 1.0,
+  Snowflake, Python 3.9.5, and a falsifiable behaviour. Single anonymous report, so no frequency
+  claim under any reading.

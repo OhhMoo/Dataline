@@ -11,6 +11,10 @@ company: "OSWorld"
 year: 2024
 retrieved: "2026-09-11"
 confidence: high
+vividness: medium
+attestation: unattested
+usable_for:
+  - world_texture
 produced_by: L5-competitive-pricing
 notes: >
   SIZING ANCHOR, upper end. A single reusable environment amortising hundreds of tasks (cf. S412). Each task carries an initial-state setup config and an execution-based evaluation script - the same shape as our deterministic state checks (E7).

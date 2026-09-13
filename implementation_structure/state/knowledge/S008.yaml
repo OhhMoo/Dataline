@@ -16,6 +16,12 @@ company: Astronomer
 year: 2025
 retrieved: "2026-09-11"
 confidence: high
+vividness: high
+attestation: firsthand_named
+usable_for:
+  - world_texture
+  - mechanism
+  - frequency
 produced_by: L1-practitioner-workflow-de
 notes: >
   Highest-density single list of concrete, reproducible orchestration failure modes I found, and

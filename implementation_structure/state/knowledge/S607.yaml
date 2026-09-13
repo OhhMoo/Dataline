@@ -1,0 +1,35 @@
+id: S607
+rq: RQ1
+claim: >
+  In Airflow 3.3.1 a stale executor SUCCESS event from a deferrable task's defer-exit can be
+  drained after the resumed attempt is already RUNNING; because both attempts share one
+  TaskInstanceKey and try_number does not increment on resume, the scheduler logs a state
+  mismatch and fails a task whose work in fact completed, and the run history is the only
+  place the true ordering is visible.
+url: https://github.com/apache/airflow/issues/72716
+quote: "Not deterministically reproducible: anything that makes the scheduler slower to drain the event buffer widens the window."
+source_type: repo
+retrieved: "2026-09-13"
+confidence: high
+produced_by: E1-concurrency
+vividness: high
+attestation: firsthand_anonymous
+usable_for:
+  - world_texture
+  - mechanism
+year: 2026
+notes: >
+  LIVENESS CHECKED 2026-09-13 via GitHub API: state=open, created 2026-09-08, author
+  miquelmartorell. The body carries a millisecond timeline of one occurrence that is exactly
+  the artifact an agent would have to reconstruct - 04:01:22.031 TI to deferred (worker
+  exits, executor will report success), 04:01:23.377 trigger fired success, 04:01:25.648 TI
+  to running, 04:01:28.516 state mismatch, 04:01:28.520 TI to failed, 04:01:33.967 resumed
+  worker heartbeat 409 and process killed. It also names its own diagnostic signature: a
+  state mismatch row in the log table immediately followed by failed, for a task whose
+  trigger event was success.
+  The quote is a plain-prose sentence chosen because the surrounding paragraphs are dense
+  with backticked identifiers that do not survive tag-stripping cleanly; the specifics above
+  are recorded in notes rather than smuggled into the quote as if they were one span.
+  The ticket links four earlier closed variants of the same family (#23824, #23846, #66374,
+  #67287), which is why I treat "stale event lands after the retry started" as a durable
+  shape rather than a one-off. That is a shape argument, not a frequency claim.

@@ -10,6 +10,11 @@ company: OpenAI
 year: 2024
 retrieved: "2026-09-11"
 confidence: high
+vividness: medium
+attestation: firsthand_named
+usable_for:
+  - world_texture
+  - mechanism
 produced_by: L2-practitioner-workflow-ds
 notes: >
   Resource exhaustion is a first-class, cheaply-instrumented failure mode: disk/RAM limits in the container turn 'did the agent plan its compute budget' into a deterministic check. Also a warning that inspecting a huge raw file is itself a trap worth planting in a world.

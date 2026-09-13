@@ -10,6 +10,10 @@ company: "Prime Intellect"
 year: 2026
 retrieved: "2026-09-11"
 confidence: high
+vividness: medium
+attestation: vendor_marketing
+usable_for:
+  - world_texture
 produced_by: L5-competitive-pricing
 notes: >
   FLOOR OF THE MARKET, and a different market: crowdsourced open-source environments, not lab procurement. VENDOR PAGE - evidence of what Prime Intellect pays contributors, not of what labs pay. The application-only tier is quoted elsewhere at $1,000-$5,000+ (S427). Shows the 20-100x gap between crowdsourced and lab-procured environments.

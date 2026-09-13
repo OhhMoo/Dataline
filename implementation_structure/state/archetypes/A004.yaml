@@ -55,14 +55,17 @@ existing_coverage: >
   destructive-operator-action avoidance. DE-6 is evidence-thin overall (two incident
   clusters), so this single archetype absorbs the whole subcategory.
 derived_from:
-  - S016
-  - S017
+  - S750
+  - S751
+  - S752
   - S020
   - S021
+  - S016
 produced_by: S1-postmortems
 attacks:
   - F101
   - F120
+  - F551
 notes: >
   S016/S017 supply the WAL/slot mechanics and the 24 GB / 50 GB sizing arithmetic, which
   parameterizes the world's disk headroom; S020 supplies the silently-failing backup leg
@@ -70,3 +73,32 @@ notes: >
   world must grade as catastrophic. Simulation feasibility of real WAL behaviour under
   E2 (no cloud) needs a builder-phase probe - Postgres in-container supports slots
   natively, so risk is moderate.
+repair_note: >
+  RE-GROUNDED 2026-09-13 (D2, R002 evidence repair). This archetype is STRONGER after repair than
+  before - it is the clearest win in this round.
+  WITHDRAWN: S017 moved to state/knowledge/withdrawn/ (F551, extending F453). It was a
+  message-queues course exercise - "Topic 332 of 367" on a learning platform - recorded as a
+  "Written-up production incident", and its notes claimed it corroborated S016 "from an
+  independent source" when S016 is vendor content (RisingWave Labs) and the page is a retelling
+  of the PostgreSQL documentation. Before this repair the CDC leg had ZERO attested incidents.
+  DEMOTED: S016 retained at attestation=vendor_marketing, usable_for=[world_texture] only. Its 24
+  GB / 50 GB sizing arithmetic may still flavour the world but may no longer be cited as the
+  mechanism.
+  REPLACED WITH, all quote-verified 2026-09-13 with gate-identical fetch logic:
+  S750 - Zalando engineering blog, a named Senior Principal Engineer on his own platform team's
+  multi-year production experience (firsthand_named, mechanism). Adds a BETTER trap than the one
+  currently planted: uncontrolled WAL growth on LOW-activity databases persists even with
+  Debezium heartbeat configured, because the slot advances only when the connector commits an
+  offset and a quiet database gives it nothing to commit. The world spec should adopt this.
+  S751 - Debezium mailing-list report from a practitioner watching his own slot go 152 kB to
+  16 MB after three inserted rows on Debezium 0.8.3, with the verbatim log line
+  "Timed out waiting to flush EmbeddedConnector ... offsets" (firsthand_anonymous, mechanism;
+  source_type=forum so frequency is machine-blocked, correctly).
+  S752 - PostgreSQL documentation of the WAL-retention guarantee (unattested, mechanism). F453
+  explicitly recommended sourcing the mechanism to the documentation rather than to narratives.
+  UNCHANGED AND SOUND: S020 and S021, GitLab's own 2017 database postmortem - firsthand_named,
+  full timeline, five-whys. These were never in question and remain the strongest records in the
+  whole corpus.
+  FREQUENCY CLAIM DROPPED: "one of the most common causes of production incidents in CDC-heavy
+  systems" came from S016, a vendor. Nothing here licenses frequency. S750's "our single biggest
+  operational issue" is one company ranking its own problems.

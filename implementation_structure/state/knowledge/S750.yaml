@@ -1,0 +1,35 @@
+id: S750
+rq: RQ1
+claim: >
+  Zalando's own account of running PostgreSQL logical replication at scale names uncontrolled WAL
+  growth on LOW-activity databases as their single biggest operational problem - the failure mode
+  survives even with Debezium's heartbeat configured, because the slot's confirmed_flush_lsn only
+  advances when the connector commits an offset, and a database whose captured tables are quiet
+  gives it nothing to commit. The post also records the earlier, cruder form of the same problem:
+  replication slots that would not advance without table activity, piling up WAL until the disk
+  ran out. They ran their fix in production on Debezium 2.7.4 pinned to pgjdbc 42.7.2 for nearly
+  two years before a later upstream change hard-coded the keepalive flush off and blocked the
+  upgrade path.
+url: https://engineering.zalando.com/posts/2025/12/contributing-to-debezium.html
+quote: "Our single biggest operational issue when rolling out this event infrastructure at scale was uncontrolled WAL growth on low-activity databases"
+source_type: blog
+author_role: Senior Principal Engineer (named), describing his own team's production platform
+company: Zalando
+year: 2025
+retrieved: "2026-09-13"
+confidence: high
+vividness: high
+attestation: firsthand_named
+usable_for:
+  - world_texture
+  - mechanism
+produced_by: D2-reground
+notes: >
+  Replaces the CDC attestation that F453 removed from A004. This is a named engineer at a named
+  company describing their own multi-year production experience, which is what S016 (RisingWave
+  vendor blog) and S017 (course-site narrative, now withdrawn) only appeared to be. Quote verified
+  verbatim 2026-09-13 with gate-identical fetch logic (urllib + tag strip + whitespace collapse).
+  IMPORTANT SCOPE LIMIT - this licenses the MECHANISM and the world texture (versions, the
+  heartbeat-is-not-enough subtlety, the upgrade-blocked-by-upstream-revert dynamic). It does NOT
+  license a frequency claim - "our single biggest operational issue" is one company ranking its
+  own problems, not a rate across the industry. A004 must not say this is common.

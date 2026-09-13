@@ -1,0 +1,40 @@
+id: F551
+target: S017
+attack_type: fiction_as_incident
+severity: high
+finding: >
+  S017 is withdrawn for the same reason as S010. F453 established that adhdecode.com is a learning
+  platform and that this page is "Topic 332 of 367" inside a message-queues course; the "I remember
+  a production incident, late on a Tuesday" framing is a teaching device with no named author, no
+  company, no date and no postmortem. S017's claim field nevertheless opens "Written-up production
+  incident:" and its notes assert it "Corroborates S016 mechanism from an independent source". Both
+  statements are false, and the second is the more damaging one: a tutorial restating standard
+  PostgreSQL WAL and replication-slot behaviour is a retelling of the documentation, not an
+  independent observation - and S016, the thing it was said to corroborate, is itself vendor content
+  (RisingWave Labs, a streaming-database vendor). Under the R002 two-axis model S016 is
+  vendor_marketing and therefore licenses world_texture only.
+  Consequence at the time of this repair: A004's entire CDC leg rested on a vendor blog and a course
+  exercise, with zero attested practitioner incidents, while carrying rebuildable sizing arithmetic
+  (24 GB / 50 GB) as though it came from somewhere.
+recommended_action: withdraw
+found_by: D2-reground
+also_applies_to:
+  - A004
+mitigation: >
+  Record moved to state/knowledge/withdrawn/S017.yaml with a withdrawal_note, status: withdrawn,
+  confidence lowered to low, and attestation=unattested / usable_for=[world_texture].
+  A004 re-grounded on three new records, all quote-verified 2026-09-13 with gate-identical fetch
+  logic: S750 (Zalando, a named Senior Principal Engineer describing his own platform team's
+  multi-year production experience - firsthand_named), S751 (Debezium mailing-list report from a
+  practitioner watching his own slot grow from 152 kB to 16 MB after three inserted rows -
+  firsthand_anonymous, source_type=forum so frequency is machine-blocked), and S752 (PostgreSQL's
+  own documentation of the WAL-retention guarantee - unattested, mechanism). S016 is retained at
+  world_texture only.
+  This is a strict upgrade: the leg that had zero attested incidents now has one firsthand_named and
+  one firsthand_anonymous, and the arithmetic is sourced to the documentation rather than to a
+  vendor's worked example.
+notes: >
+  Withdrawn 2026-09-13 in R002 evidence repair. Note that S750 adds a subtlety neither S016 nor S017
+  had: WAL growth on LOW-activity databases persists even with Debezium heartbeat configured,
+  because the slot only advances when the connector commits an offset. That is a better trap than
+  the one A004 currently plants, and A004's world spec should adopt it.

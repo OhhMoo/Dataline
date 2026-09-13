@@ -1,0 +1,112 @@
+id: A042
+title: A retry that started while the first attempt was still writing, and an audit log that says otherwise
+discipline: data_engineering
+description: >
+  A loader task was marked failed by the scheduler on the strength of a stale executor event
+  that arrived after the attempt had already resumed and was running normally. The configured
+  retry started thirty seconds later while the original worker process was still alive; that
+  process was not killed for another two minutes, by which time it had already committed two
+  of its five batches. The result is that two batches exist twice and three exist once, and the
+  load audit table records a single FAILED row for the first attempt and a SUCCEEDED row for
+  the second - so the system's own bookkeeping asserts that the first attempt wrote nothing.
+  A downstream incremental model's scheduled tick landed between the two attempts and captured
+  the table in that intermediate state, so a derived aggregate now holds a value that
+  corresponds to no complete state its parent ever had. The agent must reconstruct the true
+  write extent of the failed attempt from the task log timeline and row-level stamps, repair
+  both tables, correct the audit record, and stop a stale completion event from being able to
+  fail a running attempt.
+why_hard: >
+  The single most authoritative artifact in the world - the audit table - is wrong in the exact
+  way that makes the correct answer invisible. An agent that reasons from it concludes there is
+  nothing to clean up, and the row counts do not contradict that conclusion strongly enough to
+  force a second look, because a duplicated batch is a plausible volume for a busy hour. The
+  evidence that overturns it is purely ordinal: a sub-second sequence in the task log in which a
+  mismatch entry is followed by a failure entry for a task whose own trigger event had already
+  succeeded, and a heartbeat rejection three minutes later proving the first process outlived
+  its own failure record. Reconstructing that requires reading three clocks against each other.
+  The derived aggregate compounds it: recomputing the aggregate from the parent is the obvious
+  move and is wrong until the parent is repaired, and the aggregate also carries a manual
+  reconciliation adjustment from the previous quarter-end that recomputation silently discards.
+  A decoy is present and real: one of the five batches genuinely dropped a small number of rows
+  to a malformed-record quarantine, which accounts for part of the gap between the source
+  count and the table count and must be subtracted before the duplicate arithmetic works out.
+  The workspace also contains the on-call's own incident notes proposing a confident and wrong
+  theory; agreeing with it is the most common failure.
+human_hours: "10-24"
+grading: >
+  Deterministic. (1) Row-level diff of the repaired landing table and the repaired derived
+  aggregate against reference tables held in a separate database file attached read-only at
+  scoring time - GRADING REFERENCE IS HARNESS-SIDE, never in the agent-visible catalog (F121).
+  (2) The derived aggregate must equal the value recomputed from the repaired parent, and must
+  still contain the quarter-end reconciliation adjustment. (3) The audit table's row for the
+  first attempt must record a non-zero write extent naming the batches it actually committed.
+  (4) The quarantined malformed records must remain in quarantine and be accounted for in the
+  written reconciliation, not silently re-admitted to make the counts tie. (5) Stale-event
+  probe: the harness replays a stale completion event against a running attempt of the repaired
+  task and requires that the attempt is not failed and that no second writer starts; a task
+  hardened by having its retries removed fails a separate check that a genuinely crashed attempt
+  is still retried. Rubric: 24 points across write-extent reconstruction, duplicate removal,
+  derived-aggregate repair, audit correction, and stale-event hardening.
+rubric_points: 24
+apps_touched:
+  - warehouse
+  - airflow
+  - dbt
+  - git
+  - docs
+deterministic_checks:
+  - "row-level diff of landing table and derived aggregate vs HARNESS-SIDE references attached read-only at scoring time"
+  - "derived aggregate equals recomputation from the repaired parent AND retains the quarter-end reconciliation adjustment"
+  - "audit row for the first attempt records the batches it actually committed, not a zero write extent"
+  - "quarantined malformed records remain quarantined and are reconciled in the write-up rather than re-admitted"
+  - "stale-event probe: replaying a stale completion event against a running attempt neither fails it nor starts a second writer"
+  - "retry-still-works probe: a genuinely crashed attempt is still retried, so disabling retries scores zero"
+judge_axes:
+  - robustness
+  - code_quality
+failure_modes_expected:
+  - "believes the audit table's FAILED row and concludes the first attempt wrote nothing"
+  - "recomputes the derived aggregate from the parent before repairing the parent, and discards the quarter-end reconciliation adjustment while doing it"
+  - "re-runs the loader task, adding a third writer to a table that already has two"
+  - "full-refreshes the derived model, destroying the reconciliation adjustment and the evidence that the aggregate was ever torn"
+  - "adopts the on-call's incident note theory from the workspace without testing it"
+  - "re-admits the quarantined malformed records to make source and target counts tie"
+  - "disables retries as the hardening, which passes the stale-event probe and fails the crashed-attempt probe"
+existing_coverage: >
+  Retry-duplication tasks in existing corpora model the retry as firing after a genuine
+  failure, which makes the audit log truthful and the task an arithmetic exercise. Overlapping
+  attempts with a lying audit log, plus a downstream reader that sampled the intermediate state,
+  is not covered anywhere I am aware of.
+agent_visible_brief: >
+  Overnight the events loader went red and then green on the retry, which is normal for us. This
+  morning the daily active number in the exec dashboard is higher than the weekly rollup that
+  feeds off the same data, and the two are supposed to agree by construction. Everything is
+  green right now.
+  Have a look and get both numbers to something we can defend, and tell us which one was wrong
+  and since when. Heads up that Dana added an adjustment to the rollup at quarter end that has
+  to stay, there are some notes from last night's on-call in the repo that may or may not be
+  right, and there is a quarantine table that the loader writes bad records to. Also please make
+  sure the loader behaves next time this happens - it is going red and green a lot lately and I
+  do not want to find out later that it matters.
+derived_from:
+  - S607
+  - S603
+  - S605
+  - S608
+produced_by: E1-concurrency
+notes: >
+  S607 supplies the exact mechanism and, more importantly, the exact diagnostic fingerprint the
+  world should carry: a state mismatch entry in the log table immediately followed by a failure
+  entry, for a task whose trigger event was success, plus a heartbeat rejection from the still
+  living first process after the failure was recorded. Reproduce that ordering in the scheduler
+  state machine, including the sub-second gaps - the timeline in S607 is at millisecond
+  resolution and that resolution is what makes the reconstruction possible at all.
+  S603 supplies the partial-commit shape: the first writer got two of five batches in before it
+  was killed, and both registrations look legitimate afterwards. S603's diagnostic move is the
+  one I want the agent to find - not a row count but a self-join on the write metadata that
+  shows the same batch registered twice.
+  The audit table lying is the load-bearing difficulty and must be authored as an ordinary
+  consequence of the mechanism, not as malice: the audit row is written by the scheduler's
+  failure handler, which by construction does not know what the worker had committed.
+  The on-call note is a decoy of the permitted kind: it identifies a real contributing fact (the
+  quarantine drops) and draws the wrong conclusion from it.

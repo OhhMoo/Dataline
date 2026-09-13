@@ -7,5 +7,10 @@ source_type: docs
 company: Atlassian
 retrieved: "2026-09-11"
 confidence: high
+vividness: low
+attestation: unattested
+usable_for:
+  - world_texture
+  - mechanism
 produced_by: L6-tooling-inventory
 notes: Official support documentation; a v1 environment needs these information-shape semantics without calling Atlassian Cloud.

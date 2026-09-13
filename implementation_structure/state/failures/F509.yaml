@@ -1,0 +1,46 @@
+id: F509
+target: A022
+attack_type: cheap_win - the hidden answer key is a threshold query, and a docs check is satisfied by deletion
+severity: high
+finding: >
+  A022's headline grading axis is recoverable without any of the cross-surface work the
+  archetype is built to force.
+  (1) THE VERDICT IS DEFINITIONALLY RECOVERABLE. Check 1 is "per-date broken/valid verdict
+  match vs hidden poisoned-day ground truth". A022 defines the poisoned days as the dates on
+  which "an upstream analytics endpoint is silently returning near-zero days" and on which
+  "the warehouse aggregation coerces failures to 0.0". So the ground-truth label of a date is
+  a deterministic function of that date's value in the warehouse: poisoned iff the value is
+  at or near zero. `SELECT dt FROM kpi_daily WHERE value < eps` reproduces the hidden key
+  exactly, from one table, on one surface, with no ingestion-log reading, no metric-definition
+  archaeology, and no verdict reasoning. The archetype names no legitimate near-zero dates
+  and no non-zero poisoned dates, so there is nothing for the threshold to get wrong. Once
+  check 1 falls, check 3 ("failure dates aggregate to NULL, not 0.0, after repair") is
+  mechanical on the same date set, and check 2 (the restated per-valid-day series) is the
+  same arithmetic over the complement. Three of four checks flow from one WHERE clause.
+  This is the same shape F128 found in A006's 0.0% leg - a zero-variance value that any
+  distribution check flags in one query - and A022 reproduces it with the threshold now doing
+  double duty as the answer key.
+  (2) "STALE TEXT ABSENT" IS SATISFIED BY DELETING THE DOC. Check 4 is "dashboard query and
+  docs metric-definition content diff vs expected", elaborated in grading as "updated
+  definition present, stale text absent". The absence half is trivially satisfied by removing
+  the docs file or the paragraph. The presence half is worse: an exact content diff against
+  an expected string the agent cannot see is unpassable except by luck, and a non-exact one
+  is a judge, which ground rule 4 bars from the v1 score. As specified this check is either
+  ungradeable or free, and there is no third option.
+recommended_action: redesign
+found_by: D1-redteam
+mitigation: >
+  (1) Break the value-equals-label identity. Plant legitimate low days (a holiday shutdown,
+  a genuine outage in the measured property) that are NOT poisoned, and plant poisoned days
+  whose coerced value is NOT near zero (a partial-failure variant where, say, 6 of 40
+  questions answered still produces a plausible mid-range number). Then the only way to
+  label a date is the ingestion-side per-valid-day accounting the archetype claims to
+  require, and a threshold query scores at chance. This is the F128 mitigation applied
+  one level up: make the tell noisy rather than definitional.
+  (2) Replace the docs check with a machine-checkable artifact. Grade the dashboard's
+  SQL/definition file by parsing it and asserting the denominator expression changed from
+  questions-asked to questions-answered and that failures map to NULL - a structural
+  assertion on a file the harness controls the schema of. Grade "the fix propagated" by
+  recomputing the dashboard's VALUE through the BI values surface, not by diffing prose.
+  If a docs update is genuinely wanted as a signal, make it report-only, as §9.2.4 already
+  does for process signals.

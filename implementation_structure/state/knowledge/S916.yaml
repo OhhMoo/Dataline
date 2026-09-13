@@ -1,0 +1,27 @@
+# Produced by T3-environment-themes (R002) for RQ4 -- legacy / flat-file environment themes.
+id: S916
+rq: RQ4
+claim: >
+  A 2014-2020 rescan of PubMed Central supplementary files found spreadsheet-induced identifier
+  corruption in 30.9 percent of articles carrying Excel gene lists, a higher rate than the 2016
+  study that first reported the problem.
+url: https://journals.plos.org/ploscompbiol/article?id=10.1371%2Fjournal.pcbi.1008984
+quote: >
+  gene name errors in 30.9% (3,436/11,117) of articles with supplementary Excel gene lists
+source_type: paper
+author_role: "academic researchers"
+year: 2021
+retrieved: "2026-09-13"
+confidence: medium
+vividness: high
+attestation: firsthand_named
+usable_for:
+  - world_texture
+  - mechanism
+  - frequency
+produced_by: T3-environment-themes
+notes: >
+  The second frequency-licensed source in this block, and the more valuable of the pair because it
+  shows the rate RISING after five years of awareness campaigns. That is the commercially
+  interesting claim: spreadsheet corruption is not a legacy problem being designed away, it is a
+  stable property of the tool. NOT re-fetched by T3.

@@ -10,6 +10,10 @@ company: dbt Labs
 year: 2022
 retrieved: "2026-09-11"
 confidence: high
+vividness: medium
+attestation: vendor_marketing
+usable_for:
+  - world_texture
 produced_by: L3-practitioner-workflow-analytics
 notes: >
   Two things for archetype design: the scale unit of a real refactor task (one 1500-line query), and the discovery problem where the correct first action is investigating usage and shadow copies rather than writing SQL. The post also asks whether a known-correct table exists to validate against - the reconciliation oracle question.

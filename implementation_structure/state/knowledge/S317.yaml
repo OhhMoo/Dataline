@@ -12,6 +12,11 @@ company: buremba (open source)
 year: 2025
 retrieved: "2026-09-11"
 confidence: high
+vividness: medium
+attestation: unattested
+usable_for:
+  - world_texture
+  - mechanism
 produced_by: L4-prior-art
 notes: >
   Verdict: CANNOT-USE for our core need (hermetic Snowflake emulation); pattern only. The

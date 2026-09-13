@@ -1,0 +1,30 @@
+id: S703
+rq: RQ1
+claim: >
+  PostgreSQL's documentation states that row security policies restrict on a per-user basis which
+  rows normal queries return, and separately that superusers and roles holding BYPASSRLS always
+  bypass the row security system entirely. Those two facts together are the evidence-collision
+  mechanism: an investigator debugging a number mismatch gets a different answer depending on
+  which role they happen to be connected as, and the role that sees everything is usually not
+  the role anyone investigates from.
+url: https://www.postgresql.org/docs/current/ddl-rowsecurity.html
+quote: "Superusers and roles with the BYPASSRLS attribute always bypass the row security system when accessing a table."
+source_type: docs
+author_role: PostgreSQL Global Development Group documentation
+company: PostgreSQL
+year: 2026
+retrieved: "2026-09-13"
+confidence: high
+produced_by: E3-compound
+vividness: medium
+attestation: unattested
+usable_for:
+  - world_texture
+  - mechanism
+notes: >
+  A second confirmed verbatim span on the same page carries the first half of the mechanism,
+  "tables can have row security policies that restrict, on a per-user basis, which rows can be
+  returned by normal queries or inserted, updated, or deleted by data modification commands",
+  but it contains inline markup in the rendered HTML, so the BYPASSRLS sentence was chosen for
+  the quote field as the cleaner string match for G1. Reference documentation: unattested, no
+  frequency claim, mechanism only.

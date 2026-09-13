@@ -11,6 +11,10 @@ company: "Epoch AI"
 year: 2026
 retrieved: "2026-09-11"
 confidence: high
+vividness: low
+attestation: secondhand
+usable_for:
+  - world_texture
 produced_by: L5-competitive-pricing
 notes: >
   SIZING ANCHOR and a pricing-structure hint: our design (one world image, many parameterised tasks) matches computer-use economics, where environment build cost amortises across hundreds of tasks. Combine with S409/S410 to separate the environment line item from the task line item.

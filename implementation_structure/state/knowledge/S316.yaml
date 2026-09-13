@@ -12,6 +12,11 @@ company: tekumara (open source)
 year: 2025
 retrieved: "2026-09-11"
 confidence: high
+vividness: medium
+attestation: unattested
+usable_for:
+  - world_texture
+  - mechanism
 produced_by: L4-prior-art
 notes: >
   Verdict: ADOPT WITH CAVEATS. Apache-2.0 (pre-verified). The HTTP-server mode is the useful

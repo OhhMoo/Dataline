@@ -11,6 +11,10 @@ company: "Sacra"
 year: 2026
 retrieved: "2026-09-11"
 confidence: medium
+vividness: medium
+attestation: secondhand
+usable_for:
+  - world_texture
 produced_by: L5-competitive-pricing
 notes: >
   PER-HOUR AUTHORING RATE paid to contributors - NOT a per-task price to labs. Sacra is an independent private-markets research firm. At this rate a task representing 10-25 expert hours (E5) carries $1,000-$3,100 of direct labour, which is the cost-side check on the $200-$2,000 price in S400: the top of the observed price band barely covers a genuinely deep task.

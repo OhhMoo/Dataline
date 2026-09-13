@@ -10,6 +10,11 @@ company: Google
 year: 2017
 retrieved: "2026-09-11"
 confidence: high
+vividness: medium
+attestation: firsthand_named
+usable_for:
+  - world_texture
+  - mechanism
 produced_by: L2-practitioner-workflow-ds
 notes: >
   A copied-pipeline-with-inherited-filter defect is trivially plantable and hard to spot: the code runs, metrics look plausible, and the only symptom is a subtly wrong training distribution. The Play example - two data sources merged with no provenance column - is a second distinct plantable defect.

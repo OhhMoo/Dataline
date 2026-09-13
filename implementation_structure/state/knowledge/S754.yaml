@@ -1,0 +1,32 @@
+id: S754
+rq: RQ1
+claim: >
+  dbt's own documentation states the append-duplication mechanism normatively: if an incremental
+  model does not specify a unique_key, most adapters fall back to append-only behaviour and dbt
+  inserts every row the model's SQL returns into the pre-existing target table with no regard for
+  whether those rows are duplicates. The same page warns that a unique_key whose columns contain
+  nulls may fail to match rows and generate duplicates anyway.
+url: https://docs.getdbt.com/docs/build/incremental-models
+quote: "which means dbt inserts all rows returned by the model's SQL into the preexisting target table without regard for whether the rows represent duplicates"
+source_type: docs
+company: dbt Labs
+retrieved: "2026-09-13"
+confidence: high
+vividness: medium
+attestation: unattested
+usable_for:
+  - world_texture
+  - mechanism
+produced_by: D2-reground
+notes: >
+  Mechanism ground for the re-run-doubles-the-data family after F450 and F451 removed the
+  attestation from S001 (an essay's narrated opening scene) and S005/S006 (an unauditable vendor
+  survey). Reference documentation, so attestation=unattested and no frequency licence - but the
+  behaviour is specified, falsifiable and directly rebuildable in a dbt/DuckDB world, which is what
+  the mechanism axis is for. NOTE the vendor question honestly - this is dbt Labs' own product
+  reference documentation, not dbt Labs marketing, and the two-axis rules put a vendor's neutral
+  technical reference under unattested docs. R002's other back-classification pass typed every
+  docs.getdbt.com/blog/ page vendor_marketing; /docs/ pages are a different channel. If a later
+  reviewer disagrees and retypes this vendor_marketing, the mechanism licence disappears and
+  A001/A009 lose their last mechanism source - that should be reported, not quietly patched.
+  Quote verified verbatim 2026-09-13 with gate-identical fetch logic.

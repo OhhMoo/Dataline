@@ -1,0 +1,113 @@
+id: A060
+title: Quarter-end revenue shortfall where a drop-filter and a re-run partly cancel
+discipline: data_engineering
+description: >
+  COMPOUND. Two planted defects in one revenue pipeline whose errors run in opposite directions
+  and partly net out. Defect A, the A003 mechanism: a data-quality predicate added 68 days ago to
+  the staging model to reject a corrupt vendor feed also rejects legitimate rows - transactions
+  above an amount ceiling, and rows whose customer_tier is the code the enrichment job legitimately
+  leaves in place for self-serve signups. It silently removes about 7.9 percent of rows carrying
+  about 13.1 percent of quarter revenue. Defect B, the A026 mechanism: after a bugfix deploy on
+  day 61 the loader was re-run in append mode over days 49 to 60, duplicating twelve partitions
+  and adding about 9.0 percent of quarter revenue. Finance's ledger says the quarter is 43.1M;
+  the warehouse says 41.3M. Neither defect alone produces a 4.2 percent shortfall. The agent must
+  find both, repair them in the order the data forces, and restate the quarter.
+why_hard: >
+  AUTHOR-SIDE. Three interactions make this harder than the sum of A003 and A026. First, MASKING
+  of the baseline: days 49 to 60 are the most recent complete pre-incident weeks, so they are
+  exactly the window an agent picks as its known-good comparison period - and they are the
+  duplicated ones. Every "compare the broken window against a healthy window" instinct is
+  calibrated against doubled data and mis-sizes the filter loss by roughly a factor of two.
+  Second, REPAIR-INDUCES: deduplicating first moves the reported total from minus 4.2 percent to
+  minus 13.1 percent, further from the ledger. The agent's own progress signal inverts, and a
+  model that hill-climbs on "did my change move the number toward the target" will revert the one
+  correct action it took. Third, ORDER IS FORCED: the filter dropped the original row but not the
+  later amendment row for 212 transactions in the duplicated window, because amendments carry a
+  populated customer_tier and originals do not. Any de-duplication run before the filter repair
+  therefore de-duplicates against an incomplete population and silently strands amendments with
+  no original. Repairing the filter first and then de-duplicating is clean; the reverse order
+  requires a third repair pass the agent must detect it needs. Also: deleting the filter outright
+  re-admits genuinely corrupt fixture rows and is graded as a failure, so the A003 anti-instinct
+  survives into the compound.
+human_hours: "12-20"
+grading: >
+  Deterministic. GRADING REFERENCE IS HARNESS-SIDE: the expected revenue table, the finance
+  ledger, the amendment manifest and the corrupt-fixture set live in a separate DuckDB file
+  attached read-only at scoring time only. They never appear in the agent-visible catalog, so
+  CREATE TABLE AS SELECT FROM expected cannot score (F121). Checks: quarter revenue total equals
+  the harness ledger to the cent, which is the conjunction check and closes only if both defects
+  were repaired; per-day row counts for days 49 to 60 equal the harness reference; the count of
+  rows in the quarter matching the over-rejected predicate equals the harness reference;
+  amendment integrity, where every transaction_id in the harness amendment manifest carries the
+  amended amount rather than the original; the repaired predicate still rejects all planted
+  corrupt fixture rows; and an idempotency probe. Rubric: 24 points across defect A localisation,
+  defect B localisation, restated total, amendment integrity, predicate correctness, idempotency.
+rubric_points: 24
+apps_touched:
+  - warehouse
+  - dbt
+  - airflow
+  - git
+  - bi_dashboard
+deterministic_checks:
+  - "CONJUNCTION CHECK: restated quarter revenue equals the harness-side finance ledger to the cent. Repairing only the filter overshoots to plus 9.0 percent; repairing only the duplication undershoots to minus 13.1 percent. Neither single repair can pass this."
+  - "per-day row counts for days 49 through 60 equal the harness-side reference counts"
+  - "count of rows in the quarter whose amount is at or above the ceiling, or whose customer_tier is the self-serve code, equals the harness-side reference count"
+  - "CONJUNCTION CHECK: for every transaction_id in the harness-side amendment manifest, the surviving row carries the amended amount and the amended_at timestamp. A de-duplication that keeps the earliest copy fails this, and it can only be got right if the filter repair restored the missing originals first."
+  - "repaired staging predicate still rejects 100 percent of the planted corrupt fixture rows (null amount, negative quantity, malformed currency_code)"
+  - "idempotency probe: the repaired loader ingests one newly planted partition exactly once, is a no-op on a second execution, and leaves the restated window byte-identical. A load that permanently skips scores zero."
+  - "pre-quarter partitions unchanged (checksum equality) - nothing outside the incident window may be rewritten"
+judge_axes:
+  - diagnosis_quality
+  - destructive_action_discipline
+failure_modes_expected:
+  - "finds the duplication, de-duplicates, sees the total move away from the ledger, and reverts the correct fix"
+  - "finds the filter, removes it entirely, re-admitting corrupt rows and overshooting the ledger"
+  - "de-duplicates before repairing the filter and strands 212 amendments with no original row"
+  - "declares victory after one defect because the remaining gap is inside what it assumes is rounding"
+  - "attempts a full rebuild from the landing zone and loses the first 45 days permanently"
+existing_coverage: >
+  A003 and A026 exist separately and are each solvable by a competent agent. Nothing in the
+  corpus makes two defects net against each other so that the agent's own feedback signal points
+  the wrong way. That inversion, not the presence of two bugs, is the contribution.
+attacks: []
+status: draft
+composed_of:
+  - A003
+  - A026
+derived_from:
+  - S001
+  - S003
+  - S005
+  - S700
+  - S704
+  - S705
+produced_by: E3-compound
+agent_visible_brief: >
+  From: Priya Raghavan, Group Controller. Ticket FIN-4471, priority high.
+  We closed the quarter on Friday and Revenue Operations will not sign off. Our ledger has the
+  quarter at 43.1M. The revenue dashboard has it at 41.3M and has had it there since Monday. That
+  is a 1.8M hole and I need it explained before the board pack goes out on Thursday, not patched
+  over. Two things to save you time. Our ledger figure is independently reconciled against the
+  payment processor and I am confident in it. And the dashboard was right at the end of last
+  quarter, so whatever this is, it is recent. Please tell me what the correct quarter number is,
+  what made the warehouse disagree with it, and make the warehouse produce the correct number
+  going forward. I do not want a manual adjustment entry - Audit will ask about it.
+notes: >
+  Interaction mechanism: MASKING plus SHARED-SYMPTOM arithmetic plus REPAIR-INDUCES, with a
+  forced repair order. composed_of names A003 (quality gate is the bug, silent valid-row loss)
+  and A026 (duplicate partitions after a wrong-mode re-run). The composed_of and
+  interaction_mechanism concepts are not yet in the archetype schema; recorded here and in the
+  composed_of field, which G0 will flag as an unknown field until the schema adds it.
+  Not solvable by full refresh: the landing zone has a 45-day retention policy and the quarter is
+  90 days, so a rebuild from raw loses the first 45 days irrecoverably. That is the thing a full
+  refresh destroys.
+  Anti-trench-coat justification: an agent that fixes A003-in-isolation and A026-in-isolation in
+  either order still fails, because the amendment check requires the filter repair to precede the
+  de-duplication and because neither single repair can close the ledger arithmetic. The defects
+  are not separable.
+  Generator note: choose the magnitudes so the net gap is small enough to look like a rounding or
+  timezone problem (target 4 to 5 percent) while each component is large (9 percent and 13
+  percent). The small net is what keeps the agent from suspecting two causes.
+  Length control: kept at the low end of the band by giving both defects the same table and the
+  same 90-day window. Do not add a third surface to this one - it is already at 20 hours.

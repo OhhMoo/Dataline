@@ -10,6 +10,12 @@ company: Uber
 year: 2021
 retrieved: "2026-09-12"
 confidence: high
+vividness: high
+attestation: firsthand_named
+usable_for:
+  - world_texture
+  - mechanism
+  - frequency
 produced_by: L3-practitioner-workflow-analytics
 notes: >
   Gives a concrete generator recipe for a metric-reconciliation world: seed N near-duplicate metric definitions (Completed Trips In New York, Completed Trips Daily In San Francisco...) whose names under-specify their filters, then ask which one a stakeholder actually means. Second independent corroboration of S200.

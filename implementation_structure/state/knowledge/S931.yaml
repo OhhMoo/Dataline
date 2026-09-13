@@ -1,0 +1,26 @@
+# Produced by T3-environment-themes (R002) for RQ4 -- legacy / flat-file environment themes.
+id: S931
+rq: RQ4
+claim: >
+  A flat-file connection manager defaults every text column to a fixed 50-character width, so a
+  column that later grows past that width truncates rather than widening.
+url: https://www.sqlservercentral.com/forums/topic/truncation-error-in-flat-file-source
+quote: >
+  By default, external columns and output columns are specified with 50 characters.
+source_type: forum
+retrieved: "2026-09-13"
+confidence: medium
+vividness: medium
+attestation: firsthand_anonymous
+usable_for:
+  - world_texture
+  - mechanism
+produced_by: T3-environment-themes
+notes: >
+  ATTESTATION IS A JUDGMENT CALL, stated plainly: the thread is someone reporting their own
+  truncation incident, but this particular quote is an answer stating a tool default, not an
+  incident report. Recorded as firsthand_anonymous on the thread as a whole. A sub-search
+  identified one respondent as a recognised named consultant; T3 did not verify that identity, so
+  the record does not rest on it. Independent of S930's thread, which matters -- two unrelated
+  threads reproducing the same failure is the closest this block gets to corroboration without
+  earning a frequency licence.

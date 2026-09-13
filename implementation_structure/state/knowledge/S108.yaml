@@ -10,6 +10,11 @@ company: OpenAI
 year: 2024
 retrieved: "2026-09-11"
 confidence: high
+vividness: low
+attestation: unattested
+usable_for:
+  - world_texture
+  - mechanism
 produced_by: L2-practitioner-workflow-ds
 notes: >
   The task-construction methodology worth copying wholesale: a written admissibility checklist plus double human screening, applied before any task is authored. Their criterion 5 (avoid datasets used extensively outside the platform) is the contamination hedge that E4 replaces with full synthesis.

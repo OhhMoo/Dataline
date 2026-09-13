@@ -11,6 +11,11 @@ company: "Terminal-Bench"
 year: 2026
 retrieved: "2026-09-11"
 confidence: high
+vividness: medium
+attestation: firsthand_named
+usable_for:
+  - world_texture
+  - frequency
 produced_by: L5-competitive-pricing
 notes: >
   QA COST ANCHOR, review only. The source explicitly excludes authoring time, so total human cost per shipped task is authoring hours plus ~3 review hours plus rejected-task overhead (S435). At the S428/S430 expert rates, review alone is $225-$600 per task.

@@ -10,6 +10,10 @@ company: OpenAI
 year: 2024
 retrieved: "2026-09-11"
 confidence: high
+vividness: low
+attestation: unattested
+usable_for:
+  - world_texture
 produced_by: L2-practitioner-workflow-ds
 notes: >
   Resolves established fact E11. Two separate web searches for 'Emily Bench' / 'EmilyBench' return zero matching benchmarks and surface MLE-bench as the top hit. The Granola summary's 'Emily Bench' should be corrected to MLE-bench in all downstream artifacts.

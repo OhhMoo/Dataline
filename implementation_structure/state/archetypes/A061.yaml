@@ -1,0 +1,138 @@
+id: A061
+title: Feature corruption that raised the metric, over a baseline that was already leaking
+discipline: data_science
+description: >
+  COMPOUND. A nightly-retrained churn model. Defect A, a rename-collision in the feature source:
+  forty days ago the upstream billing team renamed plan_tier to plan_code and, in the same
+  release, introduced a NEW column also called plan_tier carrying the churn-reason code, a field
+  only populated at or after churn. The staging model selects plan_tier by name, so from that
+  boundary the feature the model calls plan_tier silently carries churn-reason values. Same name,
+  same type, no schema test fires - the invisibility property of S002. Training AUC rose
+  from 0.88 to 0.94 at the boundary and nobody investigated a metric going up. The serving path
+  reads plan_tier from a different, uncorrupted source, so production predictions degraded while
+  offline numbers improved. Defect B, the A012 mechanism, eight months old and pre-existing: the
+  label churned_within_90d is computed with an upper window bound of current_date rather than the
+  per-row prediction date, so for recent cohorts the label is partly computed from the same period
+  the features are observed over. The 0.88 that looks like the healthy historical baseline is
+  itself inflated by roughly 0.15. The honest AUC on a clean temporally-disjoint split is in the
+  low 0.70s. The agent must repair the feature table, find the label leak, and deliver an honest
+  re-estimate.
+why_hard: >
+  AUTHOR-SIDE. The interaction is bidirectional masking around a poisoned reference point.
+  Forward: defect A is hidden because it made the headline metric better. The diagnostic an agent
+  reaches for first - did model quality regress - answers no, it improved, which actively argues
+  against investigating. Backward: defect B is hidden because 0.88 has been the number for eight
+  months and therefore reads as the baseline rather than as a symptom. REPAIR-INDUCES is the
+  designed trap: correcting the column collision drops AUC from 0.94 to 0.88, the agent observes
+  "restored to historical baseline", and stops. That stopping point is the single most likely
+  terminal state and it is wrong. EVIDENCE COLLISION compounds it: every before-and-after
+  comparison the agent can run is measured against a contaminated reference, so the usual agentic
+  verification loop cannot distinguish "I fixed it" from "I returned it to a different broken
+  state". Closing the task requires the agent to reason about what AUC a churn model on these
+  features could honestly achieve, rather than about what it used to achieve - an argument from
+  first principles, not from a metric.
+human_hours: "12-20"
+grading: >
+  Deterministic. GRADING REFERENCE IS HARNESS-SIDE: the uncorrupted feature reference table, the
+  per-row prediction-time manifest, the planted-mechanism manifest and the clean evaluation split
+  live in a separate read-only store attached at scoring time only, never in the agent-visible
+  catalog or notebook environment (F121). Checks: cell-level diff of post-boundary feature
+  partitions against the reference; checksum equality on pre-boundary partitions; a temporal
+  audit asserting no feature carries a source timestamp at or after its row's prediction time; and
+  the conjunction check, that the retrained model's AUC on the harness-held clean split falls
+  inside the honest band. A submission that fixed only the column collision lands near 0.88, above
+  the band. A submission that fixed only the label leak lands near 0.82 on still-corrupt features,
+  also outside the band. Rubric: 22 points across corruption boundary identification, partition
+  repair precision, leak identification, honest re-estimate, and the written account.
+rubric_points: 22
+apps_touched:
+  - warehouse
+  - dbt
+  - notebook
+  - ingestion_connector
+  - git
+deterministic_checks:
+  - "cell-level diff of post-boundary feature partitions against the HARNESS-SIDE uncorrupted reference: zero mismatched cells"
+  - "pre-boundary partitions unchanged (checksum equality) - a full refresh of the feature table fails this and cannot be undone"
+  - "temporal audit against the HARNESS-SIDE per-row prediction-time manifest: no feature value carries a source timestamp at or after that row's prediction time"
+  - "CONJUNCTION CHECK: retrained model AUC on the harness-held clean temporally-disjoint split falls inside the honest band. Fixing only the column collision lands near 0.88 and fails high; fixing only the label window lands near 0.82 on corrupt features and also fails. Only both repairs land in band."
+  - "CONJUNCTION CHECK: the submitted causes table matches the harness-side planted-mechanism manifest on both entries, with per-cause credit and zero credit for a manifest naming only one"
+  - "serving-versus-training feature parity assertion holds for a harness-held probe entity set"
+  - "no row in the corrupted date range carries a plan_tier value drawn from the churn-reason domain, and the restored plan_tier matches the harness-side reference for every row"
+judge_axes:
+  - diagnosis_quality
+  - honest_reporting
+failure_modes_expected:
+  - "repairs the renamed column, observes AUC return to the 0.88 historical baseline, and declares the incident closed"
+  - "sees AUC drop after its repair, concludes the repair was a regression, and reverts it"
+  - "runs dbt with full-refresh, destroying the pre-boundary partitions that cannot be rebuilt"
+  - "treats the rising AUC as evidence of model health and investigates the serving infrastructure instead"
+  - "finds the label leak, reports an honest number, and never notices plan_tier is carrying the wrong column"
+existing_coverage: >
+  A012 exists separately and the silent-corruption family (A002, A010, A025) is under redesign.
+  What does not exist anywhere in the corpus is a world in which
+  a data defect IMPROVES the monitored metric, so that the agent's detection instinct is inverted,
+  and in which the historical baseline is itself a planted defect so that "restore to baseline" is
+  the designed failure. That is the contribution.
+attacks: []
+status: draft
+composed_of:
+  - A025
+  - A012
+derived_from:
+  - S002
+  - S216
+  - S111
+  - S112
+  - S115
+  - S120
+  - S704
+produced_by: E3-compound
+agent_visible_brief: >
+  From: Marcus Oyelaran, Director of Retention. Ticket DS-2209.
+  Our save team works a daily list of accounts the churn model flags as high risk. Since roughly
+  the start of last month that list has been junk - reps are calling accounts that renewed two
+  weeks ago and the accounts that actually cancelled were not on it. I pulled the model's own
+  dashboard and it says the model is performing better than it ever has, which is not what my
+  team is experiencing. Before the QBR on the 30th I need to know whether we can trust this model
+  and, if we can't, what it would actually be worth. Please give me a straight answer on whether
+  the scores we are acting on are sound, fix whatever is making them unsound, and tell me what
+  performance I should honestly expect from it. If the answer is that this model is not good
+  enough to run a save program on, say so - I would rather know now.
+notes: >
+  Interaction mechanism: MASKING (bidirectional) plus REPAIR-INDUCES plus EVIDENCE-COLLISION.
+  composed_of names A025 and A012. LINEAGE ONLY for A025: see repair_note. The silent-corruption
+  leg here is a rename-collision, not a positional INSERT, and does not inherit A025's
+  implementation. composed_of is not yet a schema field.
+  Not solvable by full refresh: the raw landing zone has a 30-day retention and the collision
+  boundary is 40 days back, so the pre-boundary partitions cannot be rebuilt from source. A blind
+  dbt run --full-refresh also does not repair the collision, because rebuilding still selects the
+  new plan_tier by name - the repair requires selecting plan_code and aliasing it, which is the
+  diagnosis. The reference is NOT a computable function of the agent-visible landing zone (F511):
+  the pre-boundary semantics survive only in the harness reference.
+  Anti-trench-coat justification: the two defects share one number. The single metric the agent
+  can observe is the sum of both effects, the honest band is reachable from neither single repair,
+  and defect A's symptom is a metric INCREASE that argues against the investigation that would
+  find defect B. An agent cannot solve these independently because it cannot measure either one
+  in isolation.
+  Generator note: set the label-leak magnitude so that the corrupted-plus-leaking AUC (0.94) is
+  high enough to look like an unusually good model but not so high that it screams leakage. 0.94
+  on churn is suspicious to an expert and unremarkable to a metric dashboard, which is the
+  intended asymmetry.
+  Honest caveat: the brief's last line ("if this model is not good enough, say so") is close to
+  hinting that the answer is bad news. It is there because a real director would write it and
+  because without it the agent has no licence to return a worse number. A reviewer may judge it
+  too generous a hint and should feel free to cut it.
+repair_note: >
+  Authored 2026-09-13. During this session A002, A010 and A025 were all moved to
+  status=redesign_required under F500: the positional-INSERT mechanism cannot occur on dbt Core
+  plus dbt-duckdb, so it can only be fabricated as an agent-visible macro override. My first draft
+  of this archetype used that mechanism for defect A and was therefore unbuildable. Defect A has
+  been re-mechanismed to a rename-collision - upstream renames plan_tier to plan_code and
+  simultaneously ships a NEW plan_tier carrying a different field - which needs no adapter
+  behaviour at all, is pure SQL and source schema, and preserves every property the compound
+  depends on: silent, name-and-type-stable, invisible to schema tests, and boundary-dated.
+  derived_from was also repointed off S013 and S014 (positional-INSERT filings) onto S002 and S216
+  (same-name-different-meaning column drift). composed_of still names A025 for lineage so the
+  disposition owner can see where the shape came from; this archetype does not depend on A025
+  being repaired.

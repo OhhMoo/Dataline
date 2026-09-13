@@ -10,6 +10,12 @@ company: OpenAI
 year: 2024
 retrieved: "2026-09-11"
 confidence: high
+vividness: medium
+attestation: firsthand_named
+usable_for:
+  - world_texture
+  - mechanism
+  - frequency
 produced_by: L2-practitioner-workflow-ds
 notes: >
   Direct prior art for a process/governance grader. Note the measured false-positive rate: an LLM-based process judge flagged up to 14.1 percent of runs and was wrong every time. Any LLM judge built on process signals needs calibration and a human-review escape hatch.

@@ -1,0 +1,31 @@
+id: S701
+rq: RQ1
+claim: >
+  InfoQ's write-up of Joel Koshy's account of LinkedIn's Kafka production incidents describes an
+  offset manager that was fed a stale offset, causing consumers to re-read messages they had
+  already consumed and re-deliver duplicate emails. The same write-up describes a later incident
+  in which the cleanup of stale offsets interacted with delayed log compaction and a concurrent
+  offset-load to strand replication - a fix to one problem exposing a second latent one.
+url: https://www.infoq.com/news/2016/06/linkedin-kafka-debugging
+quote: "a formatting change to messages, and the subsequent termination of cache loading on an offset manager that had been fed a stale offset"
+source_type: blog
+author_role: reporting on a talk by Joel Koshy, LinkedIn software engineer
+company: LinkedIn is the incident, InfoQ is the reporting
+year: 2016
+retrieved: "2026-09-13"
+confidence: medium
+produced_by: E3-compound
+vividness: medium
+attestation: secondhand
+usable_for:
+  - world_texture
+  - mechanism
+notes: >
+  confidence is medium, not high, for two reasons I want on the record. First, this is InfoQ
+  reporting a conference talk, so it is secondhand - the incident is LinkedIn's, the words are a
+  journalist's. Second, the quoted span was extracted by a fetch-and-summarise step and I did not
+  independently re-read the surrounding paragraph to confirm the span is contiguous and unedited.
+  Treat it as needing a human re-read before it is leaned on. The mechanism it licenses, that
+  rewinding a consumer position causes redelivery of already-processed records, is independently
+  documented in S706, so no archetype rests on this record alone. Not usable for frequency: one
+  reported incident, secondhand.

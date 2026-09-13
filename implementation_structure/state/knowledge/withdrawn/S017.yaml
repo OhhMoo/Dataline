@@ -13,7 +13,12 @@ author_role: engineer recounting a production incident
 company: not stated
 year: 2026
 retrieved: "2026-09-11"
-confidence: medium
+confidence: low
+vividness: medium
+attestation: unattested
+usable_for:
+  - world_texture
+status: withdrawn
 produced_by: L1-practitioner-workflow-de
 notes: >
   First-person narrative on a course-style site; identity of the author is not stated, so medium
@@ -24,3 +29,14 @@ notes: >
   an independent source.
 attacks:
   - F453
+
+withdrawal_note: >
+  WITHDRAWN 2026-09-13 by D2 (R002 evidence repair), failure F551. F453 established that
+  adhdecode.com is a learning platform and that this page is "Topic 332 of 367" inside a
+  message-queues course; the "I remember a production incident, late on a Tuesday" opening is a
+  teaching device with no named author, company, date or postmortem. S017's claim field opens
+  "Written-up production incident:" and its notes assert it "Corroborates S016 mechanism from an
+  independent source" - both false. A tutorial restating PostgreSQL WAL behaviour is a third
+  retelling of the documentation, not an independent observation, and S016 is itself vendor
+  content (RisingWave). A004's CDC leg is re-grounded on S750 (Zalando, firsthand_named),
+  S751 (Debezium mailing list, firsthand_anonymous) and S752 (PostgreSQL documentation).

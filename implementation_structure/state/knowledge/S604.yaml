@@ -1,0 +1,30 @@
+id: S604
+rq: RQ1
+claim: >
+  Concurrent DML applied while a partition-reorganize backfill was copying rows was silently
+  reverted: the backfill wrote back the versions it had read before the update, so committed
+  user writes vanished with no error and the table looked internally consistent afterward.
+url: https://github.com/pingcap/tidb/issues/58226
+quote: "The rows updated during the Backfill was overwritten by the just read versions. error log:"
+source_type: repo
+retrieved: "2026-09-13"
+confidence: high
+produced_by: E1-concurrency
+vividness: high
+attestation: firsthand_named
+usable_for:
+  - world_texture
+  - mechanism
+year: 2024
+notes: >
+  STATE CHECKED 2026-09-13 via GitHub API: state=closed, created 2024-12-12, author mjonss
+  (Mattias Jonsson, a TiDB DDL maintainer; the pasted stack trace contains
+  /Users/mattias/repos/tidb/...). Cited as an incident/mechanism, not as a live trap.
+  Reproduced against master commit a3fa29e58c3bd368982116942f8cff916cb0eb67 with test
+  TestMultiSchemaReorganizeNoPKBackfillDML; the pasted expected/actual diff shows rows
+  flipping from "updated" back to "Original".
+  Quote spans two consecutive lines of one rendered paragraph; the newline collapses to a
+  space under G1 whitespace normalization. Trailing "error log:" is included so the span
+  clears the 80-char vividness spot-check rather than for meaning.
+  This is the canonical read-modify-write / last-writer-wins shape: the loser leaves no
+  trace in the final state at all.

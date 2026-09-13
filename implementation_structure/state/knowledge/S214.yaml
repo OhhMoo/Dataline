@@ -10,6 +10,10 @@ company: Unite
 year: 2023
 retrieved: "2026-09-11"
 confidence: high
+vividness: high
+attestation: firsthand_named
+usable_for:
+  - world_texture
 produced_by: L3-practitioner-workflow-analytics
 notes: >
   Second independent source on underspecified requests, with the mechanism named: request ambiguity spikes when upstream systems and business vocabulary change faster than the data team's context. Suggests worlds where the request uses business terms that exist only in scattered docs, not in the warehouse schema.

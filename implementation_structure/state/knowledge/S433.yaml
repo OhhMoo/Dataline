@@ -11,6 +11,10 @@ company: "Terminal-Bench"
 year: 2026
 retrieved: "2026-09-11"
 confidence: high
+vividness: medium
+attestation: unattested
+usable_for:
+  - world_texture
 produced_by: L5-competitive-pricing
 notes: >
   HEADLINE SIZING ANCHOR for "how big?". 89 tasks is the size of a credible frontier-difficulty public benchmark - an order of magnitude smaller than a saturating leaderboard. Same team as Harbor (E1).

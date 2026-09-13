@@ -1,0 +1,26 @@
+# Produced by T3-environment-themes (R002) for RQ4 -- legacy / flat-file environment themes.
+id: S937
+rq: RQ4
+claim: >
+  Rows rejected by the writer or the target database during an enterprise ETL session are written
+  to a reject file rather than failing the session outright.
+url: https://dwbi.org/pages/85
+quote: >
+  the integration service logs the rejected records into the reject file
+source_type: blog
+author_role: "DW/BI practitioner blogger"
+retrieved: "2026-09-13"
+confidence: medium
+vividness: medium
+attestation: firsthand_named
+usable_for:
+  - world_texture
+  - mechanism
+produced_by: T3-environment-themes
+notes: >
+  Substrate for the rejects-nobody-reads mechanism behind theme C3. IMPORTANT LIMIT, stated
+  because it changes what a task may assume: this source establishes that reject files exist and
+  receive rejected rows, but it does NOT establish that the workflow reports overall success while
+  rows are being rejected. The sub-search could not fetch any vendor documentation confirming that
+  default, because the vendor's knowledge base returned 403 on every attempt. Any task turning on
+  a green-workflow-with-silent-rejects needs that second anchor first. NOT re-fetched by T3.

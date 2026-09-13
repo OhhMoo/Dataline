@@ -1,0 +1,25 @@
+# Produced by T3-environment-themes (R002) for RQ4 -- legacy / flat-file environment themes.
+id: S934
+rq: RQ4
+claim: >
+  A load into a table with a unique primary index fails with a duplicate-unique-prime-key error
+  when the source file itself carries repeated key values.
+url: https://teradataforum.com/teradata/20081209_192828.htm
+quote: >
+  have more than 1 record with the same UPI
+source_type: forum
+year: 2008
+retrieved: "2026-09-13"
+confidence: low
+vividness: medium
+attestation: firsthand_anonymous
+usable_for:
+  - world_texture
+produced_by: T3-environment-themes
+notes: >
+  The loud counterpart to S932's silent failure: the same duplicate data errors under a unique
+  primary index and vanishes under a SET table with a non-unique one. A world can carry both table
+  shapes so that the agent's first instinct, generalising from the table that errored, is wrong
+  for the table that did not. Archived mailing list, so no frequency licence regardless of
+  authorship. Quote reduced to a short span for literal-match safety. NOT re-fetched by T3, hence
+  confidence low.

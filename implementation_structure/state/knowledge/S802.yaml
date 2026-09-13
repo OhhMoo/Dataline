@@ -1,0 +1,18 @@
+id: S802
+rq: RQ3
+claim: "Unity Catalog now has an Apache-2.0 open-source server implementation that also speaks the Hive metastore and Iceberg REST catalog APIs, so the catalog surface no longer requires Databricks."
+url: https://raw.githubusercontent.com/unitycatalog/unitycatalog/main/README.md
+quote: "OpenAPI spec and OSS implementation (Apache 2.0 license)."
+source_type: repo
+retrieved: "2026-09-13"
+confidence: high
+produced_by: T1-mock-bottleneck
+vividness: medium
+attestation: unattested
+usable_for:
+  - mechanism
+notes: >
+  Documentation / repository artifact, not an incident report. It licenses a
+  mechanism claim only: it says how the thing is built or licensed, not that
+  anyone hit a problem with it and not how often. Retrieved and string-checked
+  against the live URL on 2026-09-13 by T1.

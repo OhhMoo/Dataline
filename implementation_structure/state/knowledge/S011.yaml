@@ -13,6 +13,11 @@ company: Airbnb
 year: 2021
 retrieved: "2026-09-12"
 confidence: high
+vividness: high
+attestation: firsthand_named
+usable_for:
+  - world_texture
+  - mechanism
 produced_by: L1-practitioner-workflow-de
 notes: >
   First-party and it quantifies the search space: 82 candidate ancestors, 8 relevant. That ratio

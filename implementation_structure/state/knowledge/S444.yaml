@@ -11,6 +11,11 @@ company: "Epoch AI"
 year: 2026
 retrieved: "2026-09-11"
 confidence: high
+vividness: low
+attestation: secondhand
+usable_for:
+  - world_texture
+  - frequency
 produced_by: L5-competitive-pricing
 notes: >
   BUYER ACCEPTANCE CRITERION #1, from 18 interviews including frontier-lab staff. Our trajectory-blind deterministic grading plus bounded LLM judge is directly responsive; the LLM-judge portion is the part a buyer will attack first.

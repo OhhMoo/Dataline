@@ -1,0 +1,24 @@
+id: S654
+rq: RQ1
+claim: A state:modified selector on a roughly 409-model dbt project selected every seed and large unrelated downstream subgraphs even though an offline manifest comparison showed zero model checksum diffs, zero seed checksum diffs and zero new nodes, turning a minutes-long job into an hours-long one.
+url: https://github.com/dbt-labs/dbt/issues/15231
+quote: "We verified the baseline is a full project parse (~409 models), not a truncated manifest."
+source_type: repo
+retrieved: "2026-09-13"
+confidence: high
+produced_by: E2-scale
+author_role: analytics engineer (GitHub, pseudonymous)
+year: 2026
+vividness: high
+attestation: firsthand_anonymous
+usable_for:
+  - world_texture
+  - mechanism
+notes: >
+  Liveness checked 2026-09-13 via GitHub REST API: state=open, opened 2026-06-10, 3 comments.
+  Also verbatim in the same body: Job runtime goes from minutes to hours; we cancel before
+  completion. And: Offline comparison of defer baseline vs current-run manifest shows 0 model
+  checksum diffs, 0 seed checksum diffs, and 0 new nodes. Two things matter here. First, the
+  selector the agent would reach for to narrow a large project can lie to it. Second, the
+  reporter found the truth by diffing two manifests offline, which is exactly the good search
+  strategy a scale archetype should reward.

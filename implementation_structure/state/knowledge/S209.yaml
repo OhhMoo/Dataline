@@ -10,6 +10,11 @@ company: GitLab
 year: 2025
 retrieved: "2026-09-11"
 confidence: high
+vividness: medium
+attestation: unattested
+usable_for:
+  - world_texture
+  - mechanism
 produced_by: L3-practitioner-workflow-analytics
 notes: >
   First-party process documentation, not opinion. Gives both the hazard (incremental model silently wrong after a schema change) and the expected remediation trajectory (dbt list to enumerate blast radius, MINUS comparison against prod, stakeholder and SME review). A grader can check whether the agent enumerated the downstream set before changing anything.

@@ -1,0 +1,25 @@
+# Produced by T3-environment-themes (R002) for RQ4 -- legacy / flat-file environment themes.
+id: S922
+rq: RQ4
+claim: >
+  Per-chunk dtype inference in a CSV reader is order-dependent, so the same column can be typed
+  differently depending on which value appears first, yielding a column whose distinct values mix
+  strings and integers.
+url: https://github.com/pandas-dev/pandas/issues/13746
+quote: >
+  the column that contains '1' and 1 is inferred as string; one that contains 1 and '1' is inferred as numeric.
+source_type: repo
+year: 2016
+retrieved: "2026-09-13"
+confidence: medium
+vividness: medium
+attestation: firsthand_anonymous
+usable_for:
+  - world_texture
+  - mechanism
+produced_by: T3-environment-themes
+notes: >
+  ORDER-DEPENDENT TYPING IS A DETERMINISM HAZARD AS WELL AS A TASK MECHANISM: a world generator
+  that produces landing files in a nondeterministic row order would make the resulting dtype
+  nondeterministic too, which would break the bit-reproducible reset gate. Worth a note in the
+  flat-file world builder regardless of whether a task uses it. NOT re-fetched by T3.

@@ -1,0 +1,35 @@
+id: F503
+target: A003
+also_applies_to:
+  - A005
+attack_type: determinism - undefined tolerance is a knob, not a check
+severity: medium
+finding: >
+  Both archetypes list checks whose pass/fail boundary is an unnamed free parameter, which
+  means they cannot be computed from final state by anyone who was not in the room.
+  A003 check 2: "hour-of-day histogram matches reference within tolerance". No tolerance is
+  stated, no distance metric is stated (L1 over 24 bins? per-bin max deviation? chi-square
+  p-value? at what alpha?), and the archetype's own description says the timezone shift
+  "mimics a benign business pattern (evening sales dip)" - i.e. the signal is deliberately
+  close to the null. A threshold that close to the decision boundary is not a deterministic
+  check; it is a dial that gets set after someone looks at baseline scores, which is exactly
+  the calibration-after-the-fact that makes a benchmark unfalsifiable.
+  A005 has the same defect twice: "retrained clean-split AUC within reference band" (no band
+  stated) and "probe-set serving predictions diff vs reference within tolerance" (no
+  tolerance stated, and see F504 for why floating-point predictions cannot be compared
+  exactly across runs at all).
+  Contrast the checks in the same archetypes that ARE deterministic - "revenue aggregate
+  diff vs reference to the cent", "surviving-row and dropped-row counts both equal
+  reference". Those are computable and reproducible. The tolerance checks are the ones
+  carrying the difficulty, and they are the ones that are not checks yet.
+recommended_action: annotate
+found_by: D1-redteam
+mitigation: >
+  Replace each tolerance check with an exact one over a derived integer or fixed-point
+  quantity. For A003: assert the per-hour ROW COUNTS of the corrected table equal the
+  reference per-hour counts exactly (the timezone repair is a shift of whole rows between
+  buckets, so exactness is achievable and is the honest test), rather than comparing
+  histogram shapes. For A005 see F504 - the retraining check should be dropped rather than
+  toleranced. If a tolerance is genuinely required, the archetype must state the metric,
+  the threshold and the reason that threshold separates the oracle from every adversarial
+  baseline.

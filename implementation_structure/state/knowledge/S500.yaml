@@ -7,5 +7,9 @@ source_type: docs
 company: Snowflake
 retrieved: "2026-09-11"
 confidence: high
+vividness: low
+attestation: unattested
+usable_for:
+  - world_texture
 produced_by: L6-tooling-inventory
 notes: Official documentation landing page; supports inclusion by workflow surface, not a market-share estimate.

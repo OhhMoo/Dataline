@@ -11,6 +11,10 @@ company: "SemiAnalysis"
 year: 2026
 retrieved: "2026-09-11"
 confidence: medium
+vividness: medium
+attestation: secondhand
+usable_for:
+  - world_texture
 produced_by: L5-competitive-pricing
 notes: >
   THESIS TEST. This is the source own enumeration of covered domains. No warehouse, BI, dbt, orchestrator or SQL-analytics surface appears anywhere in this 37KB market deep-dive (verified by keyword search of the fetched page: zero hits for "data engineer", "warehouse", "dbt", "SQL", "Snowflake", "Databricks"). ARGUMENT FROM ABSENCE - supportive but not proof.

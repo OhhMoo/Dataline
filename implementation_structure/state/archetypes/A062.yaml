@@ -1,0 +1,125 @@
+id: A062
+title: Reconciling two exec numbers while your own query is silently policy-filtered
+discipline: data_analytics
+description: >
+  COMPOUND. Finance's dashboard shows 41.8M for the quarter and RevOps' shows 44.6M; the signed
+  contract ledger says 43.1M, so neither is right. Defect A, the A021 mechanism: an org change
+  moved a region between cost centres and the mapping table behind the row access policy was never
+  updated, so the role Finance's dashboard runs as silently loses that region, about 3.0M. Defect
+  B, the A029 mechanism: RevOps' model joins the opportunity dimension to contract lines on
+  account_id alone instead of on account_id and contract_id, fanning out multi-contract accounts
+  and inflating its figure by about 1.5M. The interaction that defines this task: the analytics
+  role the agent itself works as is bound by the same mapping table, so every arbitration query
+  the agent writes against the revenue mart reproduces Finance's wrong answer. The agent must
+  establish that its own lens is filtered before any arithmetic it does means anything, then
+  repair the policy to the correct access model, fix the join, and make both dashboards agree
+  with the ledger without widening anyone's access.
+why_hard: >
+  AUTHOR-SIDE. EVIDENCE COLLISION is the primary mechanism and it attacks the single most
+  reliable move an agent has. Faced with two disagreeing dashboards, a capable agent computes the
+  number itself from the base tables and uses that as the arbiter. Here that produces a third
+  figure that agrees with Finance, for exactly the same wrong reason, and the agreement reads as
+  corroboration. There is no error, no warning and no row in any log; the policy is applied as a
+  query rewrite, so the SQL text the agent reads is not the SQL that ran (S702, S703). The only
+  uncontaminated evidence in the world is the policy DDL and its mapping table, an unpoliced
+  table-statistics surface that reports true row counts, and the contract summaries in the docs
+  surface. Nothing prompts the agent toward any of the three. CONFLICTING REPAIR is the second
+  mechanism: the obvious way to make two numbers agree is to widen access or drop the policy,
+  which makes both dashboards show 44.6M - still wrong, because the fan-out is untouched - and is
+  separately graded as a governance failure by per-role probe queries. And the two errors have
+  opposite signs, so the discrepancy between the dashboards, 2.8M, is not the size of either
+  defect; an agent that anchors on the gap between the two dashboards is chasing a number that
+  corresponds to nothing.
+human_hours: "10-18"
+grading: >
+  Deterministic. GRADING REFERENCE IS HARNESS-SIDE: the contract ledger, the reference access
+  model, the per-role expected result snapshots and the planted-cause manifest live in a separate
+  read-only store attached at scoring time only, never in the agent-visible catalog (F121).
+  Checks: per-role probe queries for four roles return the harness-held expected snapshots, which
+  fails both if the policy is left broken and if it is widened; both dashboard totals equal the
+  harness ledger to the cent, which is the conjunction check; the policy mapping table diffs
+  clean against the reference access model with zero roles granted beyond it; a fan-out assertion
+  that the contract-line row count is unchanged, which catches a SELECT DISTINCT that fixes the
+  number by destroying legitimate duplicate contract lines; and exact attribution of the two
+  planted causes with signed magnitudes. Rubric: 21 points.
+rubric_points: 21
+apps_touched:
+  - warehouse
+  - bi_dashboard
+  - dbt
+  - catalog
+  - docs_wiki
+deterministic_checks:
+  - "per-role probe queries for fin_analyst, revops_analyst, analytics_engineer and exec_readonly each return the HARNESS-SIDE expected row set. Leaving the policy broken fails this; widening access to make the numbers agree also fails it."
+  - "CONJUNCTION CHECK: both dashboard totals equal the harness-side contract ledger to the cent. Repairing only the policy leaves RevOps 1.5M high; repairing only the join leaves Finance 3.0M low. Neither single repair passes."
+  - "row-count parity at common grain executed and equal across both dashboard queries before any sum is compared"
+  - "policy mapping table diffs clean against the harness-side reference access model, and zero roles hold access beyond it"
+  - "fan-out guard: total row count of the contract-line table is unchanged from its pre-task value. A DISTINCT or GROUP BY that removes legitimate repeated contract lines fails this."
+  - "CONJUNCTION CHECK: submitted causes table attributes both planted causes with signed magnitudes within tolerance of the harness manifest. A single-cause submission scores zero on this check, not partial."
+  - "catalog access-model entry matches the structural template and names the corrected cost-centre mapping"
+judge_axes:
+  - diagnosis_quality
+  - governance_discipline
+failure_modes_expected:
+  - "writes its own arbitration query, gets Finance's number, and concludes Finance is right and RevOps is broken"
+  - "grants the analytics role broader access to make the numbers reconcile, a governance failure that also leaves the fan-out unfixed"
+  - "anchors on the 2.8M gap between the dashboards, a quantity that equals neither defect"
+  - "fixes the fan-out, watches RevOps land exactly on the ledger, and closes the ticket while Finance is still 3.0M low"
+  - "collapses the fan-out with DISTINCT, correcting the total while deleting legitimate multi-line contracts"
+existing_coverage: >
+  A021 covers policy mis-scope and A029 covers dimensional bisect reconciliation. Neither corpus
+  entry makes the access policy apply to the AGENT, which is the whole task here: the agent's own
+  instrument returns a policy-filtered answer and looks like independent corroboration of one of
+  the two wrong dashboards. No benchmark we know of models the investigator's own identity as
+  part of the defect surface.
+attacks: []
+status: draft
+composed_of:
+  - A021
+  - A029
+derived_from:
+  - S203
+  - S200
+  - S205
+  - S702
+  - S703
+  - S519
+produced_by: E3-compound
+agent_visible_brief: >
+  From: Dana Whitlock, Chief of Staff. Ticket BI-1180.
+  I have two VPs in a standoff. Finance's quarterly revenue board shows 41.8M. RevOps' shows
+  44.6M. Each of them has sent me a screenshot of their own dashboard as proof the other one is
+  broken, and I have to put one number in front of the operating committee on Tuesday. I do not
+  need a lecture on data governance, I need to know which number is right and why the other one
+  is wrong, and I need both boards showing the same thing by Tuesday morning so this does not
+  happen again next quarter. Signed contract values are in the contracts space on the wiki if
+  that helps. Whatever you do, do not change anyone's permissions to make this go away - Legal
+  signed off on the current access rules after the reorg and reopening that is a month of my life
+  I am not spending.
+notes: >
+  Interaction mechanism: EVIDENCE-COLLISION (primary) plus CONFLICTING-REPAIR. composed_of names
+  A021 (row-level security and masking misconfiguration) and A029 (bisect-by-dimension
+  reconciliation). composed_of is not yet a schema field.
+  Surface note: v1 has five surfaces and does not include a warehouse with native row access
+  policies. This archetype is implemented against DuckDB as a deterministic policy layer - a
+  session role variable plus a mapping table plus policy-applying views, with an equivalent
+  role binding in the BI surface - and NOT against a real Snowflake or Postgres RLS engine. The
+  mechanism is faithful to S702 and S703; the implementation is a stand-in. Saying so because
+  ground rule 6 requires it.
+  Not solvable by full refresh: no rebuild of any table changes a policy. The thing a full refresh
+  destroys here is the mapping table's history rows, which are what let the agent date the org
+  change and therefore date the onset of the exclusion.
+  Anti-trench-coat justification: this is the compound I am most confident in. The two defects are
+  not independently solvable because the diagnostic procedure for B - compute the true number and
+  compare - returns a value corrupted by A, and because the two errors have opposite signs so the
+  observable discrepancy corresponds to neither. An agent literally cannot measure the fan-out
+  correctly until it has escaped the policy filter.
+  The brief's final sentence forbids widening access. That is deliberate: it removes the cheap
+  win without naming the defect, and it is the kind of thing a chief of staff actually writes.
+repair_note: >
+  Authored 2026-09-13. derived_from originally cited S010 (the amount_txn_ccy rename with no
+  downstream notification). S010 was deleted from state/knowledge during this same session by the
+  parallel citation-repair work, so the citation was repointed to S203, the wrong-numbers triage
+  guide, which supports the same claim used here - that a number mismatch is usually an
+  expectation mismatch rather than a broken query. No other change. Flagging it because a reader
+  comparing this file against an earlier draft will see the swap.

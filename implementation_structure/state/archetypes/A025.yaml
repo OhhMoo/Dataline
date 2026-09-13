@@ -53,14 +53,37 @@ existing_coverage: >
   incremental dbt model with a connector mock is not present in DataAgentBench (S315)
   or terminal-bench style corpora.
 derived_from:
-  - S004
   - S013
   - S014
+  - S753
   - S508
   - S511
   - S512
 produced_by: S4-tool-docs
-attacks: []
+attacks:
+  - F500
+  - F511
+  - F512
+  - F513
 notes: >
   Substrate: fakesnow/DuckDB per S316 for the warehouse surface; deterministic checks
   must order rows explicitly because fakesnow row ordering is non-deterministic.
+status: redesign_required
+repair_note: >
+  RE-GROUNDED 2026-09-13 (D2, R002 evidence repair).
+  DEMOTED: S004 dropped from derived_from. It is the layline.io "50 postmortems" vendor synthesis
+  (F450) - the piece names not one of its 50 postmortems, and under the two-axis model it is
+  attestation=vendor_marketing, world_texture only. It supplied this archetype's
+  "dropped-batch drift" analogy and, through its 38 percent headline, the weighting that put
+  DE-2 at the top of the corpus. Both uses are void.
+  LIVENESS CORRECTED: as A002 and A010. dbt-databricks #1211 (S013) and #1289 (S014) re-verified
+  CLOSED via the GitHub API 2026-09-13; the bug is fixed in dbt-databricks 1.11.7 (2026-04-17).
+  A world planting silent positional-INSERT corruption MUST pin the adapter below that version
+  and say so. S013 is an unconfirmed code-reading report (zero comments, placeholder environment)
+  and must not be counted as a second independent observation - S014 is the real one.
+  ADDED: S753 (dbt-clickhouse #258, verified OPEN 2026-09-13) as a live unfixed trap in the same
+  family, with the caveat that it fails loudly rather than silently.
+  FREQUENCY CLAIM DROPPED: S508, S511 and S512 are retained ONLY as world_texture - they are
+  product documentation and vendor pages describing what dbt, Fivetran and Airbyte are. They were
+  being used as a "documented surfaces" justification, which is fine, and implicitly as a
+  popularity signal, which is not. Nothing in this derived_from licenses a frequency claim.

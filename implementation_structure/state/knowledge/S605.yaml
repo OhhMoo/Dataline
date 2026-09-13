@@ -1,0 +1,32 @@
+id: S605
+rq: RQ1
+claim: >
+  dbt-redshift's view materialization swaps a view inside BEGIN/COMMIT, but on Redshift the
+  ALTER ... RENAME takes effect for other sessions before the wrapping transaction commits,
+  so a concurrent reader mid-swap gets relation does not exist or could not open relation
+  with OID - a BI or test process reading a model that is being rebuilt sees torn state.
+url: https://github.com/dbt-labs/dbt-adapters/issues/2162
+quote: "In our testing, it isn't atomic from a concurrent reader's point of view on Redshift."
+source_type: repo
+retrieved: "2026-09-13"
+confidence: high
+produced_by: E1-concurrency
+vividness: high
+attestation: firsthand_anonymous
+usable_for:
+  - world_texture
+  - mechanism
+year: 2026
+notes: >
+  LIVENESS CHECKED 2026-09-13 via GitHub API: state=open, created 2026-09-05, author pstyer.
+  Body carries the exact 4-statement swap (CREATE VIEW my_view__dbt_tmp / ALTER TABLE
+  my_view RENAME TO my_view__dbt_backup / ALTER TABLE my_view__dbt_tmp RENAME TO my_view /
+  COMMIT / DROP VIEW my_view__dbt_backup), a standalone repro.py using redshift_connector,
+  and the two reader-side error strings. Reporter says it hit a real pipeline where an
+  independently scheduled test process queried a view-materialized model while another
+  process was mid-rebuild on a sub-minute cadence.
+  The quote is short by design. Most of this body interleaves code spans with punctuation,
+  and a span crossing a backtick-then-comma boundary does not survive G1 tag-stripping
+  (the stripper turns the code span into a space, so the comma detaches). The chosen
+  sentence is bolded in the source, which strips cleanly.
+  This is my anchor for a dashboard read landing inside someone else's write window.

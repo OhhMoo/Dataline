@@ -12,6 +12,11 @@ company: Laude Institute / Harbor
 year: 2026
 retrieved: "2026-09-11"
 confidence: high
+vividness: medium
+attestation: unattested
+usable_for:
+  - world_texture
+  - mechanism
 produced_by: L4-prior-art
 notes: >
   Verdict: ADOPT. This is the task-packaging contract to target: tests/ is copied into the

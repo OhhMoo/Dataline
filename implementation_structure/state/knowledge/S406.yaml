@@ -11,6 +11,10 @@ company: "Mechanize, Inc."
 year: 2025
 retrieved: "2026-09-11"
 confidence: medium
+vividness: medium
+attestation: vendor_marketing
+usable_for:
+  - world_texture
 produced_by: L5-competitive-pricing
 notes: >
   DERIVED FLOOR, not an observed price. Vendor-authored and self-serving, but the derivation is explicit and checkable (see S407). Useful as the economic argument for why our tasks should not be priced as commodity items.

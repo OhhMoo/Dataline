@@ -1,0 +1,22 @@
+id: S663
+rq: RQ1
+claim: An organisation changed its column naming convention and could not find a way to rename a column across a dbt project, because renames are applied far upstream in intermediate models and every downstream model must then be updated to reference the new name; the offered answer was to clone the repo and use an editor-wide find and replace.
+url: https://discourse.getdbt.com/t/find-and-replace-column-names-across-all-models-in-a-project-dbt-cloud/12925
+quote: "My org has decided to change some of our column naming conventions. Our models have been built so that column renames happen pretty far upstream in intermediate models"
+source_type: forum
+retrieved: "2026-09-13"
+confidence: high
+produced_by: E2-scale
+author_role: analytics engineer (Discourse, pseudonymous)
+year: 2024
+vividness: medium
+attestation: firsthand_anonymous
+usable_for:
+  - world_texture
+notes: >
+  Fetched 2026-09-13 through the Discourse JSON API for topic 12925; topic reports 2638 views.
+  Deliberately licensed for world_texture only: it establishes that a single column identity
+  is spread across many models and that the rename is applied at one upstream point, which is
+  the situation a semantic-drift archetype needs, but it contains no falsifiable statement
+  about how the failure works, so it does not earn mechanism. The replies confirm there is no
+  in-product way to do it, which is why an agent at scale must fall back on grep.

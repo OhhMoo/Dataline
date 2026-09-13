@@ -1,0 +1,21 @@
+id: S658
+rq: RQ1
+claim: dbt documents that column-level lineage fails with an unknown error when a model uses hardcoded table names instead of ref statements, which is the documented signature of a dependency that exists in the warehouse but not in the lineage graph.
+url: https://docs.getdbt.com/docs/explore/column-level-lineage
+quote: "An example of this would be if a dbt best practice is not being followed, like using hardcoded table names instead of"
+source_type: docs
+company: dbt Labs
+retrieved: "2026-09-13"
+confidence: high
+produced_by: E2-scale
+year: 2026
+vividness: medium
+attestation: unattested
+usable_for:
+  - world_texture
+  - mechanism
+notes: >
+  Verified verbatim against raw page HTML on 2026-09-13 by exact substring match. The span is
+  cut before the words ref statements because the page wraps ref in a code element, which
+  would break a naive substring match for a mechanical citation checker. Same page as S657;
+  kept as a separate record because it licenses a different mechanism.

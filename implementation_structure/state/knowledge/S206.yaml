@@ -10,6 +10,10 @@ company: Weld
 year: 2025
 retrieved: "2026-09-11"
 confidence: medium
+vividness: medium
+attestation: vendor_marketing
+usable_for:
+  - world_texture
 produced_by: L3-practitioner-workflow-analytics
 notes: >
   Strong evidence for the 'must read external docs' hypothesis: resolving this class of mismatch requires reading the source system's documented semantics (time zone setting, refund lifecycle, which statuses are counted), not just reading SQL. A natural scattered-docs task where the answer only exists in a vendor doc placed in the world.

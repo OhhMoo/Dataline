@@ -11,6 +11,10 @@ company: "TechCrunch"
 year: 2025
 retrieved: "2026-09-11"
 confidence: high
+vividness: low
+attestation: secondhand
+usable_for:
+  - world_texture
 produced_by: L5-competitive-pricing
 notes: >
   THESIS TEST. The largest expert-network entrant names three verticals and data work is not among them. Argument from absence, drawn from marketing materials seen by the reporter.

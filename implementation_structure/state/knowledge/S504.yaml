@@ -8,5 +8,9 @@ company: Oracle
 year: 2019
 retrieved: "2026-09-11"
 confidence: high
+vividness: low
+attestation: unattested
+usable_for:
+  - world_texture
 produced_by: L6-tooling-inventory
 notes: Official database concepts manual; current inventory relevance does not imply using Oracle at runtime.

@@ -11,6 +11,10 @@ company: "OpenAI"
 year: 2024
 retrieved: "2026-09-11"
 confidence: high
+vividness: medium
+attestation: unattested
+usable_for:
+  - world_texture
 produced_by: L5-competitive-pricing
 notes: >
   SIZING ANCHOR, lower end, and the closest published analogue on the data-science axis. Confirms 75-90 tasks is a publishable size for a hard expert-authored benchmark. Relevant to E11: MLE-bench is the plausible referent of the "Emily Bench" transcription artifact.

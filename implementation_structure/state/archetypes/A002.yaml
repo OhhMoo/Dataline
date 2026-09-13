@@ -52,13 +52,46 @@ existing_coverage: >
   mixed-state (part-clean, part-corrupt) target table. The repro mechanics come from two
   independently filed production bugs, so the initial condition is realistic, not contrived.
 derived_from:
-  - S013
   - S014
   - S015
+  - S753
+  - S013
 produced_by: S1-postmortems
-attacks: []
+attacks:
+  - F500
+  - F501
+  - F513
+  - F514
 notes: >
   S013 and S014 are independent filings of the same mechanism under different
   on_schema_change settings - evidence of frequency. S015 supplies the complementary
   loud-failure leg. fakesnow/DuckDB initial conditions can reproduce positional matching
   directly; the boundary date is a randomizable world parameter.
+status: redesign_required
+repair_note: >
+  RE-GROUNDED 2026-09-13 (D2, R002 evidence repair). Note: attacks previously [] - F121 is not an
+  attack on this archetype and has been left off; this archetype still carries zero red-team
+  attacks and is a draft by the schema's own rule.
+  LIVENESS CORRECTED: F454 established, and I re-verified via the GitHub API on 2026-09-13, that
+  BOTH dbt-databricks issues behind this archetype are CLOSED and the bug FIXED.
+  #1211 (S013): state=closed, ZERO comments, no labels, never confirmed by a maintainer; its
+  "System information" is placeholders ("all current versions", "all platforms"), so it is a
+  code-reading analysis, not an observed failure. Retyped firsthand_anonymous, vividness=medium.
+  #1289 (S014): state=closed, labelled "not an issue"/"external issue", one comment from a
+  collaborator confirming the fix shipped in dbt-databricks 1.11.7 on 2026-04-17. S014 remains
+  the real observation and keeps its mechanism licence.
+  DESIGN CONSTRAINT NOW EXPLICIT (it was not before, which is what F454 punished): a world that
+  plants the SILENT positional-INSERT corruption MUST pin dbt-databricks below 1.11.7 and say so
+  in its world spec. Shipping this archetype against a current adapter produces a task whose
+  premise the tooling has already fixed.
+  ADDED: S753 - dbt-clickhouse issue #258, verified OPEN via the GitHub API 2026-09-13 (labels
+  bug / good first issue, 3 comments, filed 2024-03-20), with a two-step repro, full environment
+  (dbt 1.7.8, dbt-clickhouse 1.7.3, ClickHouse 24.1.5.6) and the verbatim error
+  "Code: 20. DB::Exception: Number of columns doesn't match." This is the live unfixed trap the
+  archetype needed. It fails LOUDLY rather than silently, which maps onto this archetype's
+  sibling-model leg rather than its primary defect - do not conflate the two.
+  S015 (dbt-adapters #601) re-verified OPEN 2026-09-13, 9 comments, open since 2022. The
+  loud-failure leg is sound.
+  FREQUENCY CLAIM DROPPED: the existing_coverage line "two independently filed production bugs,
+  so the initial condition is realistic" survives; the notes line "evidence of frequency" does
+  not (F455 - two issues fourteen months apart with zero and one comment have no denominator).

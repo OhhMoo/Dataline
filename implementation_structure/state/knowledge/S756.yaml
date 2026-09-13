@@ -1,0 +1,29 @@
+id: S756
+rq: RQ1
+claim: >
+  PostgreSQL documents the three-valued-logic behaviour that makes an exclusion filter silently drop
+  legitimate rows: an ordinary comparison against NULL yields NULL rather than true or false, so a
+  WHERE predicate written to exclude bad values also excludes every row whose value is unknown, and
+  a query filter treats that UNKNOWN as false. The documented remedy is IS DISTINCT FROM, which
+  treats null as a comparable value - returning false when both inputs are null and true when only
+  one is.
+url: https://www.postgresql.org/docs/17/functions-comparison.html
+quote: "However, if both inputs are null it returns false, and if only one input is null it returns true."
+source_type: docs
+company: PostgreSQL Global Development Group
+retrieved: "2026-09-13"
+confidence: high
+vividness: low
+attestation: unattested
+usable_for:
+  - world_texture
+  - mechanism
+produced_by: D2-reground
+notes: >
+  Mechanism ground for A003's "the quality gate is the bug" after F450 stripped S005 - the
+  unauditable "12 percent of legitimate transactions filtered over three weeks" vendor anecdote -
+  down to world_texture. What survives is a specified, rebuildable way for a validation predicate to
+  remove valid rows silently while passing every schema check. What does NOT survive is any number:
+  the 12 percent, the three weeks, and "this is common" are all unevidenced, and A003 now carries
+  the loss magnitude as an explicit world parameter rather than as a finding.
+  Quote verified verbatim 2026-09-13 with gate-identical fetch logic.

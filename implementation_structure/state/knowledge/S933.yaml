@@ -1,0 +1,24 @@
+# Produced by T3-environment-themes (R002) for RQ4 -- legacy / flat-file environment themes.
+id: S933
+rq: RQ4
+claim: >
+  Set-based inserts into a SET table drop duplicates with no error raised, whereas a single-row
+  insert of a duplicate raises one, so the silent variant is specifically the ETL path.
+url: https://www.dwhpro.com/teradata-multiset-table/
+quote: >
+  duplicate rows are declined automatically for SET tables (no error occurs)
+source_type: blog
+retrieved: "2026-09-13"
+confidence: medium
+vividness: medium
+attestation: unattested
+usable_for:
+  - world_texture
+  - mechanism
+produced_by: T3-environment-themes
+notes: >
+  THE NUANCE THAT MAKES S932 USABLE AS A TASK rather than a trivia question: the behaviour is
+  silent exactly on the bulk path an ETL job takes and loud on the interactive path an engineer
+  would use to probe it by hand. That asymmetry punishes an agent that reproduces the problem
+  interactively and concludes the load is fine. Specialist blog, no incident, hence unattested.
+  NOT re-fetched by T3.

@@ -11,6 +11,10 @@ company: "SemiAnalysis"
 year: 2026
 retrieved: "2026-09-11"
 confidence: medium
+vividness: low
+attestation: secondhand
+usable_for:
+  - world_texture
 produced_by: L5-competitive-pricing
 notes: >
   WHAT LABS WANT, reported second-hand rather than in a lab own words. Supports E1 (adopt a standard harness rather than inventing one): a vendor that ships in the buyer required sandbox format has lower integration friction.

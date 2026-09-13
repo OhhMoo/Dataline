@@ -10,6 +10,11 @@ company: Real Capital Analytics
 year: 2018
 retrieved: "2026-09-11"
 confidence: high
+vividness: medium
+attestation: unattested
+usable_for:
+  - world_texture
+  - mechanism
 produced_by: L3-practitioner-workflow-analytics
 notes: >
   The task shape stated by a practitioner: the agent is handed a symptom and must determine which of three worlds it is in before fixing anything. The post also names the classic definitional fork - sales as gross or net, at time of sale or at GAAP recognition, with or without returns - which is directly parameterizable in a world generator.

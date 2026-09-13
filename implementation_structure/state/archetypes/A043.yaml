@@ -1,0 +1,115 @@
+id: A043
+title: A reported number captured mid-rebuild, and the compensating change it provoked
+discipline: data_analytics
+description: >
+  A BI extract snapshots a revenue mart into a reporting table every fifteen minutes. The mart
+  is rebuilt hourly by a create-new, rename-old-out, rename-new-in swap wrapped in a
+  transaction. On one morning the extract fired inside the swap window and captured a torn
+  state - current fact rows against the previous build's dimension rows - producing a figure
+  that was wrong in a way no single table was wrong. Finance escalated. An analyst, unable to
+  reproduce the number from the mart (because by then the swap had finished and the mart was
+  correct), concluded the mart was double counting and added a filter predicate to it. That
+  change is in the workspace on a branch, is now live, and silently excludes an entire customer
+  segment. Separately and genuinely, a currency conversion rate for one region loaded a day
+  late, which does make a real part of the reported gap real. The agent must establish that the
+  escalated figure came from a read landing inside a write window rather than from the data,
+  revert the compensating change, apply the genuine currency fix, correct the affected snapshot
+  rows, and make the extract incapable of observing a partial rebuild.
+why_hard: >
+  Nothing in the mart is wrong at the moment the agent looks at it, so the artifact that caused
+  the incident no longer exists in queryable form. The only surviving evidence is ordinal and
+  indirect: the extract's own run timestamps lined up against the build's run timestamps, the
+  snapshot row itself (whose fact and dimension columns are internally inconsistent in a way
+  that pins it to a specific pair of builds), and a leftover backup-suffixed relation from a
+  swap whose final drop did not complete. Reconstructing the interleave means noticing that a
+  read at a certain second could only have seen a particular half-swapped arrangement - and
+  then proving it, because the plausible alternative explanations are all about the data.
+  The conjunction is what makes it hard rather than clever: the compensating change is itself a
+  defect and is the kind of thing an agent will read as a fix and leave alone; the currency
+  lateness is a genuine defect that accounts for a real fraction of the gap, so the clean
+  answer "it was all a torn read, nothing is wrong" is scored as wrong; and the snapshot table
+  is append-only history that Finance cites in board material, so overwriting the whole history
+  to make it consistent destroys the record of what was reported when, which is the thing the
+  task actually needs preserved. A full refresh of the mart drops the leftover backup relation
+  and the snapshot history together, taking both the evidence and the deliverable.
+human_hours: "8-20"
+grading: >
+  Deterministic. (1) The mart's compiled SQL must no longer contain the analyst's filter
+  predicate, verified by comparing the compiled artifact and the git diff against a HARNESS-SIDE
+  expectation - the reference lives in a read-only attachment applied at scoring time only and
+  is never in the agent-visible catalog (F121). (2) The excluded customer segment reappears in
+  the mart with the row count the harness-side reference specifies. (3) The late currency
+  conversion is applied: the affected region's converted revenue matches the harness-side
+  reference to the cent. (4) The specific torn snapshot rows are corrected in place and every
+  other snapshot row is byte-identical to its pre-episode value, so wholesale rewriting of the
+  reporting history fails. (5) Read-during-write probe: the harness starts a rebuild of the mart
+  and fires the extract inside the swap window at a fixed offset; the extract must return a
+  self-consistent state - fact and dimension rows from one and the same build - or must not
+  return at all, and must not be merely disabled, which is checked by asserting the extract
+  still produces a fresh snapshot outside the window. Rubric: 20 points across diagnosis of the
+  read-during-write, reversion of the compensating change, the currency correction, snapshot
+  history integrity, and ordering hardening.
+rubric_points: 20
+apps_touched:
+  - bi_dashboard
+  - warehouse
+  - dbt
+  - git
+  - docs
+deterministic_checks:
+  - "compiled mart SQL and git diff no longer carry the analyst's filter predicate, checked against a HARNESS-SIDE expectation attached read-only at scoring time"
+  - "the excluded customer segment is present at the reference row count"
+  - "the late currency conversion is applied and the affected region's converted revenue matches the reference exactly"
+  - "only the torn snapshot rows changed; every other snapshot row is byte-identical to its pre-episode value"
+  - "read-during-write probe: an extract fired at a fixed offset inside the swap window returns fact and dimension rows from a single build"
+  - "extract-still-runs probe: the extract still produces a fresh snapshot outside the rebuild window, so disabling it scores zero"
+judge_axes:
+  - robustness
+  - code_quality
+failure_modes_expected:
+  - "queries the mart, finds it correct, and closes the ticket as unreproducible"
+  - "treats the analyst's filter predicate as the existing fix and leaves the customer segment excluded"
+  - "concludes the whole gap was a torn read and never applies the genuine currency correction"
+  - "rewrites the entire snapshot history to be internally consistent, destroying the record of what was reported when"
+  - "full-refreshes the mart, dropping the leftover backup relation that is the only physical evidence of the interrupted swap"
+  - "disables or reschedules the extract as the hardening without establishing that the read can no longer observe a partial rebuild"
+existing_coverage: >
+  Analytics archetypes in the corpus generally place the defect in the data or in the model.
+  Placing it in the interleaving of a reader and a writer - so that the number was wrong and
+  every table was right - is not represented, and it is the case that most directly punishes
+  reasoning from final state.
+agent_visible_brief: >
+  Finance escalated a revenue figure on Tuesday morning that was well outside what they
+  expected, and they have since used a corrected figure in the board pack. Ravi looked at it
+  that afternoon, could not get the mart to reproduce the number, decided it was double
+  counting and pushed a change. Revenue has looked low since, and the APAC team says their
+  region has looked wrong for longer than that.
+  Please get to the bottom of all of it and leave the reporting numbers in a state Finance can
+  rely on. The snapshot table is what Finance quotes from historically, so treat it as a record
+  rather than a cache. When you are done I need a short written account of what the Tuesday
+  figure actually was, why it was what it was, and what we changed - Ravi is on leave and
+  Finance will ask.
+derived_from:
+  - S605
+  - S611
+  - S608
+  - S609
+produced_by: E1-concurrency
+notes: >
+  S605 is the direct mechanism: a concurrent reader mid-swap on a create/rename/rename/commit
+  view rebuild sees a state the transaction was supposed to hide, and the reporter hit it in a
+  real pipeline with an independently scheduled reader on a sub-minute cadence. The leftover
+  backup-suffixed relation comes from the same source's swap sequence, where the final drop
+  sits outside the transaction.
+  S608 supplies the human sequence that makes the compensating change plausible rather than
+  contrived: a report arrives, the first investigator cannot reproduce it, a wrong local theory
+  is adopted, and the correction ships. That is the ordinary shape of this failure and it is
+  what makes the analyst's change a real defect rather than a planted one.
+  On the v1 surfaces this is built with the BI-values surface plus DuckDB; per S611 the engine
+  will not raise anything, so the torn read must be staged as a committed snapshot row whose
+  fact and dimension columns belong to different builds, with build stamps that pin it. Keep
+  the extract's cadence and the rebuild's cadence coprime enough that the collision is rare -
+  one occurrence in the retained history - so that the agent cannot find the pattern by
+  frequency and has to find it by alignment.
+  Discipline is data_analytics deliberately: the work is reconstruction and reporting, and the
+  deliverable Finance needs is a defensible account of a past number, not a clean table.

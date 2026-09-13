@@ -1,0 +1,140 @@
+id: A064
+title: Building a drift monitor whose only clean reference window has already been poisoned
+discipline: data_science
+description: >
+  COMPOUND. A demand-forecasting scorer whose business output has degraded over six weeks, with
+  ground-truth labels arriving fourteen days late. Defect A, the A017 mechanism: one of four
+  ingestion connectors has been silently losing about 22 percent of rows for stores in one region
+  since week two, because the upstream team renamed the column the incremental cursor reads, so
+  the cursor stalls and only rows swept up by periodic full syncs arrive. Defect B, the A020
+  mechanism: a genuine demand regime shift in weeks four to six, concentrated in an overlapping
+  set of products. Both move the same input-distribution statistics on overlapping feature
+  dimensions at overlapping times, and neither alone accounts for the degradation - A explains
+  roughly 40 percent of the error increase and B roughly 60 percent. The agent must repair the
+  connector, date the onset of the loss, attribute the two contributions, retrain under a
+  shortened window, and stand up a drift monitor that is graded for PRECISION as well as recall
+  against a harness-held labelled event set in which the ingestion-loss onset is explicitly
+  labelled NOT a demand shift.
+why_hard: >
+  AUTHOR-SIDE. EVIDENCE COLLISION is the load-bearing mechanism and it sits inside the deliverable
+  rather than beside it. The graded artefact here is a monitor, and a monitor needs a reference
+  window. Every window an agent would naturally choose - the last stable eight weeks, the four
+  weeks before the degradation - overlaps the ingestion loss, so the reference distribution is
+  itself shifted toward the loss. A monitor calibrated that way fires on everything once the
+  connector is repaired, and the precision floor converts that into a failing grade rather than a
+  cosmetic problem. Choosing a clean window requires dating defect A's onset, and dating it
+  requires source-versus-destination reconciliation across the connector, which nothing in the
+  world prompts and which no drift statistic can recover. The monitor is graded against
+  historical events, so it cannot be sidestepped by building it only on post-repair data. Two
+  further interactions: the harness labels the ingestion-loss onset as a non-event, so a monitor
+  that cannot separate a data defect from a demand shift is penalised as a false positive - the
+  agent must encode the distinction it learned in diagnosis into the artefact. And REPAIR-INDUCES
+  bites again, because the under-sampled region is where the regime shift is strongest, so
+  repairing the connector makes measured drift worse and the short-term accuracy proxy worse. The
+  agent's feedback signal points away from the action that is correct.
+human_hours: "14-22"
+grading: >
+  Deterministic. GRADING REFERENCE IS HARNESS-SIDE: the true source row counts, the planted onset
+  date, the labelled drift-event set with its non-event annotations, the delayed-label evaluation
+  set and the contribution manifest live in the harness, attached read-only at scoring time only,
+  never in the agent-visible warehouse or notebook (F121). The conjunction check is the monitor
+  evaluation: recall at or above the floor requires understanding the regime shift, precision at
+  or above the floor requires a reference window that excludes the contaminated period, which
+  requires having found and dated the ingestion loss. Further checks: per-store-day
+  source-to-destination row-count reconciliation; onset-date verdict within two days of the
+  planted date; post-shift held-out metric on harness-held labels above threshold;
+  training-window membership checksum; a two-cause attribution table with contribution shares;
+  and a connector-config diff plus a backfill that ran exactly once. Rubric: 24 points.
+rubric_points: 24
+apps_touched:
+  - ingestion_connector
+  - warehouse
+  - notebook
+  - quality_monitoring
+  - airflow
+deterministic_checks:
+  - "CONJUNCTION CHECK: the submitted monitor, replayed by the harness over the full historical window, achieves recall at or above the floor AND precision at or above the floor against the harness-side labelled event set, in which the ingestion-loss onset is annotated as a NON-event. Recall needs the regime shift understood; precision needs a reference window that excludes the contaminated period, which is unreachable without finding and dating the ingestion loss."
+  - "per-store-day source-versus-destination row-count reconciliation equals the harness-side reference after repair"
+  - "submitted onset date for the ingestion loss falls within two days of the harness-side planted onset"
+  - "post-shift held-out metric on the harness-held delayed-label evaluation set is at or above the reference threshold"
+  - "training-window membership checksum matches the agent's own declared cutoff - the declared regime change must be the one that was actually applied"
+  - "CONJUNCTION CHECK: attribution table names both causes with contribution shares within tolerance of the harness-side manifest. A single-cause attribution scores zero here, not partial."
+  - "connector cursor config diffs to the current upstream column name, and the backfill of missing store-days ran exactly once - duplicate-key assertion on the restored rows returns zero"
+  - "restorability discipline: store-days inside the unrecoverable pre-retention window are excluded from the declared training population and are flagged in the submission, rather than being trained on as if complete or silently imputed"
+judge_axes:
+  - diagnosis_quality
+  - monitoring_design
+failure_modes_expected:
+  - "builds a monitor on the last eight weeks as reference, repairs the connector, and the monitor fires on every subsequent day - failing the precision floor"
+  - "repairs the connector, sees measured drift and the accuracy proxy get worse, and reverts"
+  - "attributes the whole degradation to the demand shift, retrains on a short window, and leaves 22 percent of a region still missing"
+  - "attributes the whole degradation to the data defect, repairs the connector, and never changes the training regime"
+  - "builds a high-recall low-precision monitor and reproduces the alert-fatigue problem it was asked to avoid"
+  - "backfills the missing store-days twice while repairing the cursor"
+existing_coverage: >
+  A020 already contains a decoy upstream defect, but by design that decoy explains none of the
+  gap. Here both defects are partial causes of one degradation, they interact through the
+  reference window of the monitor the agent is asked to build, and the harness grades the monitor
+  on its ability to tell the two apart. The contamination of the agent's own calibration data is
+  the new thing.
+attacks: []
+status: draft
+composed_of:
+  - A020
+  - A017
+derived_from:
+  - S114
+  - S117
+  - S123
+  - S022
+  - S512
+  - S704
+produced_by: E3-compound
+agent_visible_brief: >
+  From: Renata Sousa, Supply Planning. Ticket ML-3317.
+  Our availability forecasts have been getting steadily worse since about the middle of July.
+  Store managers have stopped trusting them and several regions have gone back to ordering off
+  last year's numbers, which is expensive. I know we cannot measure accuracy properly for the last
+  two weeks because the actuals lag, and I know the alerting is mostly noise so nobody looked at
+  it. What I need out of this: tell me what changed and how much of the degradation each thing
+  accounts for, get the forecasts back to something my planners will use, and leave me a warning
+  signal that is worth reading. If you hand me another monitor that alerts every morning my team
+  will turn it off in a week and we will be back here in January.
+notes: >
+  Interaction mechanism: EVIDENCE-COLLISION (primary, via contamination of the monitor's own
+  reference window) plus SHARED-SYMPTOM with two partial causes plus a REPAIR-INDUCES twist.
+  composed_of names A020 (demand-shift rescue under delayed labels and alert fatigue) and A017
+  (ingestion-connector schema drift with silent destination row loss). composed_of is not yet a
+  schema field.
+  HONEST SELF-ASSESSMENT: this is the weakest of my five on the anti-trench-coat test and I want
+  that on the record. An agent could in principle repair the connector, then build a monitor from
+  scratch on clean post-repair data, and never reason about the interaction at all. Two design
+  choices are what stop that: the monitor is replayed by the harness over the FULL historical
+  window, so it must score the contaminated period and cannot be built on post-repair data alone;
+  and the ingestion-loss onset is labelled a non-event, so the monitor must actively distinguish
+  a data defect from a demand shift. If either of those is dropped in implementation this
+  archetype collapses into two tasks in a container. They are load-bearing, not decoration.
+  Not solvable by a from-scratch re-sync, and this is the specific trap F506 caught in A017, so it
+  is designed against here rather than inherited. The upstream point-of-sale API serves a rolling
+  30-day window, and the loss began six weeks ago, so a re-sync recovers only the most recent half
+  of the missing rows. The earlier half survives nowhere in raw form; it can only be reconstructed
+  at day grain from the store daily-summary table, which means the agent must decide what is
+  restorable, restore it, and explicitly exclude the unrestorable window from the training
+  population rather than silently training on a hole. The destination also carries
+  manually-reconciled store-day corrections from a prior incident that exist nowhere upstream, so
+  a truncate-and-reload destroys them and fails the reconciliation check. The grading reference is
+  therefore not a computable function of the agent-visible source (F511).
+  Length risk: at 14 to 22 hours this is the longest of my five and it is at the top of the
+  deployable band. If playtesting puts it past 22, cut the connector repair to a single region and
+  a single cursor column rather than cutting the monitor - the monitor is where the compound lives.
+repair_note: >
+  Authored 2026-09-13. A017, one of the two constituents, was moved to status=redesign_required
+  during this session under F506: as specified, the mock source API is intact, so a from-scratch
+  re-sync recovers everything and passes every check with zero diagnosis. That failure would have
+  been inherited here verbatim. It is designed against explicitly in notes and in the added
+  restorability check: the upstream API now serves only a rolling 30-day window while the loss
+  spans six weeks, so a re-sync is a partial remedy at best and the agent must reason about what
+  cannot be recovered. A017's own repair_note proposes exactly this direction ("window the mock
+  source API so mid-history rows exist only in the destination"), so this archetype and a repaired
+  A017 should share that world parameter. composed_of still names A017 for lineage; this archetype
+  does not depend on A017 being repaired.

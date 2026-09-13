@@ -1,0 +1,117 @@
+id: A052
+title: A dependency that is in the warehouse and not in the graph
+discipline: data_engineering
+description: >
+  Margin is wrong, and only for products introduced after a cutover eight weeks ago, so the
+  error is small and growing. In a ~500 model project the margin mart reads a product dimension
+  through a hardcoded relation written inside a shared macro rather than through ref(), so the
+  edge does not exist in the dbt graph: dbt ls --select +fct_margin does not list it, the docs
+  DAG looks clean, and column-level lineage reports an unknown-origin warning rather than a
+  defect, which is the documented signature of exactly this mistake (S658). When the product
+  dimension was versioned, the hardcoded path stayed pinned to the frozen previous version, so
+  new products resolve to a default price band. A second, real defect sits alongside it: the
+  properly ref-ed product dimension that IS in the graph carries a one-day lag in its
+  incremental predicate, which accounts for a genuine but minority slice of the discrepancy.
+  The deterministic scheduler also holds a task that recreates a stale copy of the frozen
+  relation on its next tick, so a repair that does not also address the scheduler reverts.
+why_hard: >
+  The single most authoritative artifact in the environment, the lineage graph, is wrong by
+  construction, and it is wrong silently rather than loudly. Grepping for ref( cannot find the
+  edge because the edge is not written as a ref. Reading the mart does not find it because the
+  hardcoded relation is inside a macro two levels away. The strategy that wins is a set
+  difference: enumerate the relations actually read by the compiled SQL under target/compiled,
+  or the relations DuckDB reports as touched, and subtract the depends_on nodes recorded in
+  manifest.json - every out-of-graph read falls out at once, in one pass over artifacts rather
+  than 500 passes over models. That is the same manifest-diffing move the reporter in S654 used
+  to prove the selector was lying to them. The incremental-lag decoy is a genuine defect that
+  accounts for part of the gap, so an agent that finds it, fixes it, and sees the number move
+  has strong but false confirmation. And because the scheduler will recreate the frozen copy,
+  a repair that is correct at the SQL layer and blind to the orchestration layer passes a
+  one-shot check and fails a second tick, which is the conjunction that makes this more than
+  one defect on one surface.
+human_hours: "10-24"
+grading: >
+  Deterministic. GRADING REFERENCE IS HARNESS-SIDE (F121): the expected margin table is in a
+  separate DuckDB file attached read-only at scoring time only, so copying it is not a path to
+  points. Checks are a row-level diff of the repaired mart, a graph-integrity assertion that
+  manifest.json now records the product dimension as a real dependency of the mart, a
+  persistence probe that advances the deterministic scheduler one tick and re-runs every check,
+  a check that the incremental-lag decoy was also repaired, and a check that the frozen legacy
+  relation still exists with its pre-episode row count so the historical damage remains
+  quantifiable. A bounded judge scores only the written impact statement.
+rubric_points: 24
+apps_touched:
+  - warehouse
+  - dbt
+  - git
+  - airflow
+  - bi_dashboard
+  - catalog
+deterministic_checks:
+  - "row-level diff of the repaired margin mart against a HARNESS-SIDE reference attached read-only at scoring time"
+  - "manifest.json depends_on for the margin mart now contains the product dimension node - the edge exists in the graph, not only in the SQL"
+  - "no compiled model under target/compiled references a relation that is absent from manifest.json nodes and sources - the out-of-graph read set is empty"
+  - "scheduler persistence probe: advance the deterministic scheduler one tick, rebuild, and re-run every check - a fix that the next tick reverts scores zero"
+  - "the incremental predicate lag decoy is repaired, asserted as a boundary-row match on the day of the cutover"
+  - "the frozen legacy relation still exists with its pre-episode row count - dropping it scores zero on the damage-quantification axis"
+  - "findings file names the cutover date and the count of affected products, exact match against harness-side values"
+judge_axes:
+  - code_quality
+  - robustness
+failure_modes_expected:
+  - "reads the lineage graph, finds no path to the frozen relation, and concludes the mart cannot be affected by it"
+  - "greps for ref( and for the dimension name in models, missing the relation because it is assembled inside a macro"
+  - "finds and fixes the incremental lag decoy, sees the number improve, and reports the incident resolved"
+  - "repairs the SQL but leaves the scheduler task, so the frozen copy returns on the next tick"
+  - "drops the legacy relation as cleanup, which turns a wrong number into an error and destroys the evidence of historical damage"
+  - "rewrites the macro to use ref() without reconciling the historical rows the frozen relation had already produced"
+existing_coverage: >
+  Lineage-reasoning tasks exist, but they nearly all assume the lineage graph is a trustworthy
+  oracle and test whether the agent can traverse it. Inverting that assumption, so that the
+  graph is complete-looking and incomplete, is not something I found covered. The mechanism is
+  documented by the vendor itself (S658) and has a six-year-old open sibling bug (S653), so it
+  is a live trap rather than an invented one.
+derived_from:
+  - S658
+  - S653
+  - S655
+  - S654
+  - S650
+  - S664
+produced_by: E2-scale
+attacks:
+  - F121
+  - F202
+agent_visible_brief: >
+  Gross margin on the exec dashboard drifted away from the finance model about two months ago
+  and the gap is widening every week. Product management says the numbers look fine for our
+  established SKUs. The margin models have not been edited this quarter and the DAG looks
+  healthy in dbt docs. Work out what is producing the wrong margin, fix it so it stays fixed
+  through the next scheduled run, and tell us which products and which date range were affected.
+status: draft
+notes: >
+  HOW THE CLUTTER IS GENERATED, DETERMINISTICALLY. Same seeded generator as A050 and A051:
+  a fixture spec of 12 source systems expands to ~500 models with sorted iteration and one
+  seeded PRNG. The macro layer is generated too, and that is what makes the trap fair rather
+  than arbitrary: the spec declares ~30 shared macros and the generator emits 26 of them using
+  ref() correctly and 4 assembling a relation name from string parts, which is precisely the
+  mix a project accumulates when conventions are applied unevenly. Only one of those four is
+  load-bearing; the other three point at relations that are also in the graph, so finding a
+  hardcoded relation is not by itself the answer and the agent must still do the arithmetic.
+  The frozen legacy relation is created by the world builder as a plain table with no owning
+  model, which is exactly how such relics exist in real warehouses. THE SCHEDULER IS PART OF
+  THE DEFECT, NOT DECORATION: the deterministic scheduler state machine carries a task that
+  recreates the frozen copy, so the persistence probe tests whether the agent looked at the
+  orchestration surface at all. WHAT A FULL REFRESH DESTROYS: the frozen relation is produced
+  by no model, so a full refresh or a schema rebuild removes it entirely; the mart then errors
+  loudly instead of being quietly wrong, which is worse, because the grader asks how many
+  products and how many days were affected and that can only be answered from the frozen rows.
+  NAIVE BASELINES: reading the DAG must fail cleanly; fixing the incremental lag must partially
+  succeed and move the number; a correct SQL fix without the scheduler fix must pass on the
+  first check and fail the tick probe. RESOURCE BUDGET: the compiled-SQL set difference the
+  winning strategy needs is a scan of ~500 compiled files, tens of megabytes, comfortably inside
+  the ceiling; the DuckDB file ships prebuilt and is attached, and ~500 tables is far below the
+  catalog-load pressure measured in S659. The dbt parse cost is the same warm-partial-parse
+  story as A050, but this archetype edits models rather than tests, which also invalidates the
+  partial parse, so the same unmeasured extrapolation from S650 applies and the same honest
+  caveat stands.

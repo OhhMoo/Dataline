@@ -54,15 +54,44 @@ existing_coverage: >
   found make the quality gate itself the planted defect or combine silent loss with
   semantic drift in one trace. Closest flavor is ade-bench setup corruption.
 derived_from:
-  - S003
-  - S005
+  - S756
   - S002
+  - S008
   - S019
+  - S003
 produced_by: S1-postmortems
-attacks: []
+attacks:
+  - F502
+  - F503
+  - F513
+  - F514
 notes: >
   S005 supplies the core mechanism (12% of legitimate transactions filtered over three
   weeks, green throughout); S002 the semantic-drift leg; S003 the monitoring asymmetry
   that lets it persist; S019 the empirical weight (incorrect data types 33%, cleaning
   stage 35%) justifying this subcategory's slot count. Loss magnitude must be tuned
   inside normal variance per S004's eleven-day corruption case.
+status: draft
+repair_note: >
+  RE-GROUNDED 2026-09-13 (D2, R002 evidence repair).
+  WITHDRAWN OR DEMOTED: S005 dropped. It supplied this archetype's ENTIRE core mechanism - "a
+  data quality rule ... quietly removed 12% of legitimate transactions over three weeks" - and it
+  is an unattributable anecdote inside the layline.io vendor synthesis (F450), now
+  attestation=vendor_marketing and world_texture only. S003 is retained but retyped
+  attestation=unattested, world_texture only (F451): the near-universal-freshness-monitoring /
+  near-absent-correctness-monitoring claim is the author's assertion, not a measurement.
+  S002 retained as unattested but mechanism-licensed - the UTC-to-local semantic-drift pattern is
+  precisely specified even though the page presents it as a pattern sketch, not an incident.
+  REPLACED WITH: S756 - PostgreSQL's own documentation of three-valued logic, which specifies how
+  an exclusion predicate silently drops every row whose value is unknown and passes every schema
+  check while doing it. That is the mechanism this archetype actually needs, it is normative and
+  falsifiable, and it is directly rebuildable in DuckDB. S008 (named Astronomer field engineers,
+  firsthand_named, frequency-licensed) is added for the local-timezone/DST leg, giving the
+  semantic-drift element a second and attested route.
+  FREQUENCY AND MAGNITUDE CLAIMS DROPPED: the 12 percent, the three weeks, and "silent loss was
+  19% of incidents" are all void. The loss magnitude and the requirement that it sit inside
+  normal variance are WORLD PARAMETERS the designer chooses; they must not be presented as
+  findings. S019 (peer-reviewed, mines GitHub and Stack Overflow, secondhand, frequency-licensed)
+  is the only remaining source that may be cited for how often anything happens, and what it
+  supports is the weighting toward data-cleaning-stage and type defects - not this specific
+  failure.

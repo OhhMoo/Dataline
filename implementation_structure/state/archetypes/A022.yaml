@@ -60,6 +60,34 @@ derived_from:
   - S208
   - S203
   - S205
-  - S010
 produced_by: S3-benchmark-gaps
-attacks: []
+attacks:
+  - F509
+  - F510
+  - F513
+  - F550
+status: draft
+repair_note: >
+  RE-GROUNDED 2026-09-13 (D2, R002 evidence repair). This archetype survives, and its two best
+  sources were never in doubt.
+  WITHDRAWN: S010 dropped (F550/F452 - constructed vignette recorded as an attested bank
+  incident). It was the weakest leg here and nothing load-bearing went with it.
+  DEMOTED: S205 retained at attestation=vendor_marketing, usable_for=[world_texture] only (F457 -
+  byline "Max Musing, Founder and CEO of Basedash", closing on a product pitch, no incident, no
+  company, no date). Its cause taxonomy is still valuable as a DEFECT LIBRARY for world
+  generation, because each cause is independently injectable - but it may NOT be cited as an
+  observed distribution of what analysts actually hit, and no archetype may weight its categories
+  by this page.
+  SOUND: S207 and S208, a named operating team publishing its own two failures - firsthand_named,
+  vividness high, mechanism-licensed. These carry the archetype.
+  S203 (Locally Optimistic) retained, attestation=unattested, mechanism-licensed: it is a
+  practitioner's triage framework rather than an incident report, and the three-worlds fork
+  (confusing-but-correct / faulty second source / genuinely wrong) is what makes the first graded
+  output a verdict rather than a fix.
+  ARITHMETIC CORRECTED IN S208 PER F458: the record previously said "the comparison window
+  happened to hold five valid days against the current window's seven", which reverses the
+  defect. The page describes TWO separate defects - (a) the comparison window was five days LONG
+  against a seven-day current window, and (b) roughly 28 percent of finalized days came back
+  near-zero, so the current window held four near-empty days out of seven. A world seeded from
+  the old wording would have planted the wrong initial condition and produced the opposite sign
+  of error. The archetype must decide which defect it plants, or plant both deliberately.

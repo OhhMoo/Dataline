@@ -1,0 +1,27 @@
+id: S601
+rq: RQ1
+claim: >
+  An Airflow 3.1.6 backfill reported itself COMPLETE within seconds of submission while the
+  DAG runs it had created were still executing, so the orchestrator's own status surface
+  said "finished" over a window in which the pipeline was still writing.
+url: https://github.com/apache/airflow/issues/61375
+quote: "Interestingly, while the backfill job itself marks itself as finished immediately, the actual DAG runs triggered by that backfill appear to be running and processing normally in the background."
+source_type: repo
+retrieved: "2026-09-13"
+confidence: high
+produced_by: E1-concurrency
+vividness: high
+attestation: firsthand_anonymous
+usable_for:
+  - world_texture
+  - mechanism
+year: 2026
+notes: >
+  STATE CHECKED 2026-09-13 via GitHub API: state=closed, created 2026-02-03. Cited as an
+  incident, not as a live trap. Body carries rebuildable specifics: Airflow 3.1.6,
+  Ubuntu 24.04.3 LTS, dag-id etl_vitess_load_v2, schedule
+  CronTriggerTimetable('0 6 * * *', timezone='Asia/Seoul'), and the exact CLI
+  "airflow backfill create --from-date 2023-11-20 --to-date 2024-06-10 --max-active-runs 1
+  --run-backwards". The operator-facing consequence is the one that matters for archetype
+  design: a human who trusts "backfill complete" will start the next action while the
+  backfill is still writing.

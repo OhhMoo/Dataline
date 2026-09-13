@@ -10,6 +10,10 @@ company: dbt Labs
 year: 2022
 retrieved: "2026-09-11"
 confidence: medium
+vividness: low
+attestation: vendor_marketing
+usable_for:
+  - world_texture
 produced_by: L3-practitioner-workflow-analytics
 notes: >
   Explains why metric-reconciliation tasks are multi-hop: the dashboard field name, the BI view name, the warehouse table name and the dbt model name may all differ. A world generator should deliberately introduce that renaming layer rather than keeping names identical end to end.

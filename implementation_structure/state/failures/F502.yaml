@@ -1,0 +1,54 @@
+id: F502
+target: A003
+attack_type: grounding - planted defect set rests on zero attested incidents
+severity: high
+finding: >
+  A003's own notes name S005 as the load-bearing source: "S005 supplies the core mechanism
+  (12% of legitimate transactions filtered over three weeks, green throughout)". S005 is one
+  of the four records F450 demolished: it is a paragraph inside
+  dev.to/andrew_tan_layline/what-i-learned-from-reading-50-data-pipeline-postmortems, a
+  vendor-adjacent synthesis (layline.io sells data integration) that names NOT ONE of the 50
+  postmortems it counts and introduces this particular case with no citation, no company and
+  no date. The "12% over three weeks" figure has no attributable incident behind it. F450's
+  mitigation explicitly says to strip every percentage sourced from that page - but the 12%
+  is not decoration in A003, it IS the planted loss magnitude and the thing the world
+  generator would parameterise.
+  The rest of A003's derived_from does not rescue it. S002 is the UTC-to-local leg, and F451
+  established that the S002 passage is "explicitly a pattern sketch rather than an incident -
+  'a source system gets migrated, or bumps a library, and quietly starts sending timestamps
+  in local time instead of UTC'", on a consulting site, with no company, date or first-person
+  claim. S003 is the same blog post and the same author. S019 is a genuine peer-reviewed
+  paper (arxiv 2309.07067) but it supplies only stage/type percentages used for slot
+  weighting - it contains no quality-gate-drops-valid-rows mechanism at all.
+  So both planted defects and the loss magnitude trace to two unattested essays by two
+  authors with commercial motives, and the archetype's "existing_coverage" claim of novelty
+  is not the issue - the issue is that nothing here is evidence the failure has ever
+  happened to anyone. Under the R002 two-axis model this source set licenses world_texture
+  at best; A003 is using it for mechanism AND frequency.
+recommended_action: re-source
+found_by: D1-redteam
+mitigation: >
+  The mechanism is worth keeping - a filter tuned to sit inside normal variance is a good
+  world, and A003 is the only one of the eight unattacked archetypes whose design survives
+  both the no-op and the full-refresh baselines (see notes). But it must be re-sourced to an
+  attested case before it can be promoted. Candidates already in the corpus: S022 (Airbyte
+  #77627, verified still OPEN 2026-09-13, a named practitioner's own row-loss incident with
+  a control experiment) for silent loss; S008's DST item (Airflow Summit, two named
+  Astronomer field engineers) as a second independent route to hours-wrong data in place of
+  S002. If no attested source for a validation-rule-drops-valid-rows incident can be found,
+  say so and label the defect an explicit design choice rather than an evidenced one.
+notes: >
+  A003 resists the two baselines that killed its siblings, and that is worth recording.
+  A no-op scores zero (all four checks are equality-against-reference). A full refresh does
+  NOT fix it: re-running with the rule removed restores the dropped legitimate rows but
+  re-admits the planted corrupt rows, failing both "dropped-row counts equal reference" and
+  "repaired rule still rejects planted corrupt fixture rows". The remediation-is-anti-
+  correlated inversion (every filter the agent adds removes more valid data) is a genuine
+  trap rather than a decorative one. Verdict is repairable, not redesign - the defect is
+  provenance, not design.
+  Filesystem check 2026-09-13: S005 is still an ACTIVE source (state/knowledge/S005.yaml,
+  confidence: medium) - F450 recommended downgrade_confidence and the record carries the
+  F450 link, but nothing downstream was re-derived. S001, whose S002 leg A003 also uses, is
+  still at confidence: high even though F451's mitigation says to set it to medium. So A003's
+  provenance problem is not "it cites sources that were retracted"; it is "the retractions
+  landed and the archetypes built on them were never revisited".

@@ -1,0 +1,106 @@
+id: A041
+title: A backfill reported complete while its own runs were still writing, and the repair that raced it
+discipline: data_engineering
+description: >
+  An operator submitted a seven-month backfill of a daily revenue table shortly after 02:00.
+  The orchestrator's status surface reported the backfill COMPLETE within seconds, before any
+  of its runs had materialised. Reading that status, the on-call then launched a separate
+  repair job over an overlapping date range to fix a known-bad fortnight. The backfill's runs
+  were in fact still executing. Every date in the overlap therefore fell into one of four
+  categories - written only by the backfill, only by the repair, by both in one order, or by
+  neither, because the repair's skip logic saw an already-created run row for that date and
+  passed over it. The final table is superficially healthy: every date has rows, no date is
+  empty, and the monthly totals move less than a percent. The agent has to classify every date
+  in the window from the scheduler's own state history and the per-row load stamp, then repair
+  in place. Rebuilding is not available: the source files for the oldest six weeks of the
+  window have aged out of the landing zone, so the rows currently in the table are the only
+  surviving copy of that period.
+why_hard: >
+  The four categories are not distinguishable from row counts. A both-written date and a
+  backfill-only date can have identical row counts when the repair was a full-partition
+  overwrite, and a neither-written date can be indistinguishable from a genuinely low-volume
+  day. The only discriminator is the ordering: which load stamp is on each row, against which
+  run row in the scheduler history, against which of the two jobs was actually executing at
+  that wall-clock time - and the status surface actively lies about that, because it recorded
+  the backfill as finished before it started. So the agent must decide that its most
+  authoritative surface is wrong, which is the step models skip. Layered on top: one date in
+  the window genuinely has fewer rows because the upstream source was down that morning, which
+  is written up in a runbook page in the docs surface and accounts for a real part of the
+  shortfall; treating it as a missing load and synthesising rows is a scored error. The
+  retention cliff makes full refresh not merely destructive but silently destructive - it
+  completes successfully and returns an empty six weeks. Naive re-submission of the backfill
+  re-enters the same race, and this time against whatever the agent has already repaired.
+human_hours: "12-30"
+grading: >
+  Deterministic. (1) The agent must write a per-date classification table (date, verdict) and
+  it is diffed exactly against a HARNESS-SIDE reference - the reference database is attached
+  read-only at scoring time only and is never in the agent-visible catalog, so the
+  classification cannot be copied instead of derived (F121). (2) Row-level diff of the repaired
+  revenue table against that same harness-side reference. (3) The six-week retention window
+  must still match its pre-episode row count and column checksum, which fails for any agent
+  that attempted a rebuild. (4) The source-outage date must be left short and must be recorded
+  as such in the classification table, not backfilled. (5) Orchestrator probe: the harness
+  submits a fresh backfill against the repaired scheduler configuration and asserts the status
+  surface never reports the backfill complete while any of its runs are queued or running, and
+  that a concurrently submitted job over the same dates is refused or serialised rather than
+  interleaved. Rubric: 26 points across date classification, in-place repair, retention-window
+  preservation, correct handling of the genuine outage date, and orchestrator hardening.
+rubric_points: 26
+apps_touched:
+  - warehouse
+  - airflow
+  - dbt
+  - docs
+  - bi_dashboard
+deterministic_checks:
+  - "per-date classification table diffed exactly against HARNESS-SIDE reference attached read-only at scoring time"
+  - "row-level diff of the repaired revenue table vs the harness-side reference"
+  - "six-week retention window row count and column checksum unchanged from pre-episode values"
+  - "the genuine source-outage date remains short and is classified as such, not synthesised"
+  - "orchestrator probe: a newly submitted backfill is never reported complete while its runs are queued or running, and an overlapping job over the same dates is serialised or refused"
+judge_axes:
+  - robustness
+  - code_quality
+failure_modes_expected:
+  - "trusts the orchestrator's completion status and concludes the backfill finished before the repair started"
+  - "classifies dates by row count alone, which cannot separate both-written from backfill-only"
+  - "full-refreshes or re-runs the backfill, which succeeds, returns an empty six weeks from the aged-out source, and destroys the only copy"
+  - "synthesises rows for the genuine source-outage date"
+  - "re-submits the backfill to fix the gaps, re-entering the race against its own repair"
+  - "repairs the data but leaves the status surface able to report complete before runs exist, so the next operator makes the same decision"
+existing_coverage: >
+  Backfill-repair tasks are common in the corpus, but they assume the backfill is the only
+  writer. The novel element here is that a second well-intentioned operator action was licensed
+  by a false status reading, so the agent's job is to distrust the orchestrator rather than the
+  data, and the two writers are both legitimate.
+agent_visible_brief: >
+  We reloaded daily_revenue back to March last night to pick up the restated tax field, and
+  separately Marco ran the fix for the bad fortnight in May. This morning the numbers look
+  roughly right but a few days are moving around in the weekly report and nobody can say which
+  job produced which day. Marco is out until Thursday.
+  Can you establish, day by day, what state that table is actually in and get it to what it
+  should be? Please produce the day-by-day breakdown as a table in the warehouse as well as in
+  your write-up - Reporting wants to see it. Note the landing bucket only keeps 90 days, and
+  there is a runbook in the docs folder covering that week in April when the upstream feed went
+  down. Last thing: make sure whatever let this get confusing does not do it again, because we
+  have two more restatements queued for next month.
+derived_from:
+  - S601
+  - S602
+  - S608
+  - S611
+produced_by: E1-concurrency
+notes: >
+  The false-completion mechanic is taken straight from S601 (Airflow 3.1.6, backfill reports
+  finished within seconds while its DAG runs process normally in the background) and S602
+  gives the code-level reason it is a timing window rather than a logic bug: the completion
+  sweep runs on a ~30s timer against a backfill row committed before its run rows exist.
+  Build the scheduler state as a committed event log with explicit ordering, not by racing
+  live jobs - the deterministic scheduler state machine is a frozen v1 surface and is the right
+  place to express this.
+  Two design cautions. First, the four-category classification must not be inferable from any
+  single column; keep at least one category pair that is only separable by joining the load
+  stamp to the scheduler event log. Second, the retention cliff is the full-refresh trap and it
+  must fail SILENTLY - a rebuild that errors out teaches the agent the answer. Size the outage
+  date's shortfall so it is a real fraction of the total gap, per the shared brief's rule that a
+  decoy must account for part of the discrepancy.

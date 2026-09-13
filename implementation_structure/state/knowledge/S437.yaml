@@ -11,6 +11,10 @@ company: "Terminal-Bench"
 year: 2026
 retrieved: "2026-09-11"
 confidence: high
+vividness: medium
+attestation: unattested
+usable_for:
+  - world_texture
 produced_by: L5-competitive-pricing
 notes: >
   INFERENCE COST PER BENCHMARK RUN (89 tasks). Orders of magnitude below the ~$2,400/task RL training compute in S407 - evaluation is cheap, RL training is not, which is why the training licence and not the eval is the revenue product.

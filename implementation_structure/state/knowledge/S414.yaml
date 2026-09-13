@@ -11,6 +11,11 @@ company: "SemiAnalysis"
 year: 2026
 retrieved: "2026-09-11"
 confidence: medium
+vividness: medium
+attestation: secondhand
+usable_for:
+  - world_texture
+  - frequency
 produced_by: L5-competitive-pricing
 notes: >
   MARKET STRUCTURE. Analyst estimate. Establishes that the environment market as a whole is crowded - our "few players" thesis must be about the DATA niche specifically, not about environments in general.

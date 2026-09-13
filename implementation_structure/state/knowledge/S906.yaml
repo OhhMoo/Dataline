@@ -1,0 +1,23 @@
+# Produced by T3-environment-themes (R002) for RQ4 -- legacy / flat-file environment themes.
+id: S906
+rq: RQ4
+claim: >
+  COMP-3 packed decimal stores two digits per byte with a trailing sign nibble, conventionally 0xD
+  for negative, 0xC for positive and 0xF for unsigned.
+url: https://gist.github.com/zorchenhimer/fd4d4208312d4175d106
+quote: >
+  Once the full number is encoded (456) an additional digit is placed on the end to denote positve or negative.
+source_type: repo
+retrieved: "2026-09-13"
+confidence: medium
+vividness: medium
+attestation: firsthand_anonymous
+usable_for:
+  - world_texture
+  - mechanism
+produced_by: T3-environment-themes
+notes: >
+  Public gist implementing COMP-3 pack and unpack, useful as a generator reference for
+  synthesising packed-decimal fixtures with deliberately corrupted sign nibbles. The misspelling
+  positve is in the original and must be preserved verbatim or G1's string match will fail. NOT
+  re-fetched by T3.

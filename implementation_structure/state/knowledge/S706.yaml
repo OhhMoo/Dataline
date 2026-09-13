@@ -1,0 +1,31 @@
+id: S706
+rq: RQ1
+claim: >
+  A practitioner-facing article on Kafka's auto.offset.reset configuration states that resetting a
+  consumer to the earliest offset on a topic with a large backlog means reprocessing that whole
+  backlog, and that the surrounding system must therefore be idempotent because duplicate delivery
+  is the expected outcome. This is the mechanism behind the repair-induces-defect shape in stream
+  ingestion: rewinding a stalled consumer is the correct remedy for the stall and simultaneously
+  the trigger for every non-idempotent sink downstream of it.
+url: https://quix.io/docs/blog/2024/02/26/kafka-auto-offset-reset-use-cases-and-pitfalls.html
+quote: "Reprocessing huge volumes of data can increase operational costs and strain system resources, leading to performance degradation, higher latency, instability and potential bottlenecks in data pipelines."
+source_type: blog
+author_role: streaming-platform engineering writer
+company: Quix
+year: 2024
+retrieved: "2026-09-13"
+confidence: medium
+produced_by: E3-compound
+vividness: medium
+attestation: unattested
+usable_for:
+  - world_texture
+  - mechanism
+notes: >
+  A tutorial, not an incident report. Nobody is claiming this happened to them, so attestation is
+  unattested and frequency is off the table. A second verbatim span from the same page states the
+  idempotency requirement directly, "ensuring your ecosystem handles duplicate messages gracefully
+  (i.e., idempotent processing) is critical", and is the half A063 actually leans on; contiguity
+  with the quoted sentence was not confirmed so it is recorded here rather than in the quote
+  field. This is a vendor's engineering blog. I judged it educational rather than
+  vendor_marketing, but a reviewer may reasonably downgrade it to world_texture only.

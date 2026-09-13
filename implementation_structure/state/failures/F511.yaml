@@ -1,0 +1,45 @@
+id: F511
+target: A025
+attack_type: reference reconstructible by the agent - the full rebuild IS the reference
+severity: high
+finding: >
+  A025 defines its grading reference as a deterministic function of data the agent can read,
+  and then lists rebuilding from that data as a failure mode. The two statements cannot both
+  hold.
+  The grading text: "per-column checksum and row-level diff of the repaired model against an
+  expected/ reference table BUILT FROM THE RAW LANDING ZONE". The description: "repair the
+  affected rows FROM THE RAW LANDING TABLE". Per the frozen world layout (§9.2.1) the landing
+  zone is /workspace/data/landing/... - agent-visible, inside the git workspace, readable with
+  fs_* tools. So the reference is reference = f(raw_landing), the agent holds raw_landing and
+  can compute f (f is the model's own SELECT, which is also agent-visible), and therefore
+  `DROP TABLE model; CREATE TABLE model AS <the model SQL over raw landing>` - or equivalently
+  `dbt run --full-refresh` once the SELECT names its columns - reproduces the reference
+  exactly. Checks 1 and 2 (column-wise checksum, row-level diff on repaired partitions) pass.
+  Check 4 ("no positional-swap signature remains in corrupted date range") passes because
+  nothing swapped survives a rebuild. Check 3 is the agent's own added dbt tests, which it
+  authors. All four fall to one command.
+  A025 lists "drops and rebuilds the full table, destroying history the task says to
+  preserve" as an expected failure mode. But A025 never names any history that is NOT
+  derivable from the landing zone - no manual adjustments, no late-arriving corrections, no
+  windowed source. There is nothing for the rebuild to destroy, so the stated failure mode is
+  not a failure at all; it is the oracle with a shorter trajectory. This is the F121 shape
+  translated from "the reference is in a table the agent can SELECT" to "the reference is in a
+  directory the agent can read" - the reference does not have to be materialised to be
+  copyable, only computable.
+  Note also the literal token "expected/" in A025's grading. In the F121 world that string is
+  a path, and ground rule 1 requires the archetype to say explicitly that the reference is
+  harness-side. A025 says the opposite: it says where the reference comes from, and it is
+  inside the episode zone.
+recommended_action: redesign
+found_by: D1-redteam
+mitigation: >
+  The reference must not be computable from agent-visible inputs. Either the landing zone is
+  windowed (the corrupted partitions' source files have aged out, so only the warehouse holds
+  them, misaligned, and the agent must invert the shift rather than reload), or the target
+  table carries post-load state the landing zone never had - manual corrections, a
+  downstream-applied FX restatement, rows from a second source that no longer serves history.
+  Whichever is chosen, add a check that fails for a full rebuild: assert those rows are
+  byte-identical before and after, against a harness-held snapshot. Restate the grading to
+  say the reference lives outside the episode zone (§9.2.1 /grading) regardless of how it was
+  produced. Until then A025 has no failing baseline for the strongest naive strategy and by
+  ground rule 7 is not a task.

@@ -1,0 +1,18 @@
+id: S803
+rq: RQ3
+claim: "Confluent Schema Registry is distributed under the Confluent Community License, not Apache-2.0 - a source-available license that binds anyone distributing the software."
+url: https://raw.githubusercontent.com/confluentinc/schema-registry/master/LICENSE-ConfluentCommunity
+quote: "BY INSTALLING, DOWNLOADING, ACCESSING, USING OR DISTRIBUTING ANY OF THE SOFTWARE, YOU AGREE TO THE TERMS OF SUCH LICENSE AGREEMENT."
+source_type: repo
+retrieved: "2026-09-13"
+confidence: high
+produced_by: T1-mock-bottleneck
+vividness: low
+attestation: unattested
+usable_for:
+  - mechanism
+notes: >
+  Documentation / repository artifact, not an incident report. It licenses a
+  mechanism claim only: it says how the thing is built or licensed, not that
+  anyone hit a problem with it and not how often. Retrieved and string-checked
+  against the live URL on 2026-09-13 by T1.

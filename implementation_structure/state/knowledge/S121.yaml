@@ -10,6 +10,11 @@ company: UC Berkeley
 year: 2022
 retrieved: "2026-09-11"
 confidence: high
+vividness: low
+attestation: secondhand
+usable_for:
+  - world_texture
+  - frequency
 produced_by: L2-practitioner-workflow-ds
 notes: >
   Argues against a small fixed defect library and for a generator that plants arbitrary one-off data defects, all surfacing through the SAME observable (offline/online metric gap). The isolation technique practitioners actually use is slicing data by segment - a gradeable deterministic behaviour.

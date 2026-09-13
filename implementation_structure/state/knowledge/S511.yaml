@@ -7,5 +7,9 @@ source_type: vendor_page
 company: Fivetran
 retrieved: "2026-09-11"
 confidence: medium
+vividness: low
+attestation: vendor_marketing
+usable_for:
+  - world_texture
 produced_by: L6-tooling-inventory
 notes: Official vendor material, so capability is supported but frequency is not independently established.

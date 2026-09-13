@@ -1,0 +1,22 @@
+# Produced by T3-environment-themes (R002) for RQ4 -- legacy / flat-file environment themes.
+id: S927
+rq: RQ4
+claim: >
+  A column explicitly formatted as text still loses its leading zero once round-tripped through
+  CSV, so the usual text-format safeguard does not survive export and reopen.
+url: https://help.zoho.com/portal/en/community/topic/plain-text-column-loses-leading-zero-when-exported-to-csv
+quote: >
+  Plain text column loses leading zero when exported to csv
+source_type: forum
+retrieved: "2026-09-13"
+confidence: low
+vividness: low
+attestation: firsthand_anonymous
+usable_for:
+  - world_texture
+produced_by: T3-environment-themes
+notes: >
+  WEAKEST RECORD IN THIS BLOCK and retained only because leading-zero loss on zip codes and
+  account numbers is a load-bearing mechanic for theme D2. The quote is essentially the thread
+  title, so vividness is low and this licenses texture only. A reviewer would be justified in
+  dropping it; it is kept with its weakness stated rather than dressed up. NOT re-fetched by T3.

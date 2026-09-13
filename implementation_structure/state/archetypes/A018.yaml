@@ -57,4 +57,17 @@ derived_from:
   - S011
   - S012
 produced_by: S3-benchmark-gaps
-attacks: []
+attacks:
+  - F507
+  - F508
+  - F513
+status: redesign_required
+repair_note: >
+  Fatal as specified. F507: three of four deterministic checks and one whole rubric axis
+  require Airflow, and the frozen v1 contract specifies a deterministic scheduler state
+  machine, NOT Airflow; the DAG-hygiene axis is Airflow trivia either way. F508: the hygiene
+  axis is a grep-and-edit worth ~25% of the rubric, restart-until-green banks two more checks
+  in the started-late world variant, the ran-long/started-late verdict is a coin flip, and the
+  dozens-of-entities dependency walk is an argmax over run-history timestamps - tedium, not
+  conjunction. The S012 ran-long-vs-started-late discrimination is the good idea here and it
+  ports cleanly to /var/sched/state.json; everything built on top of it does not.

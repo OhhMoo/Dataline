@@ -10,6 +10,11 @@ company: OpenAI
 year: 2024
 retrieved: "2026-09-11"
 confidence: high
+vividness: low
+attestation: unattested
+usable_for:
+  - world_texture
+  - mechanism
 produced_by: L2-practitioner-workflow-ds
 notes: >
   Evidence that output-only grading is gameable when the underlying data is public. Corroborates E4 (no public datasets) from a different direction: if you cannot use synthetic data you must instead police the trajectory, which is expensive and partially defeats trajectory-blind grading.

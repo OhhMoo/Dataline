@@ -1,0 +1,110 @@
+id: A040
+title: Two overlapping incremental builds that both read the same high-water mark
+discipline: data_engineering
+description: >
+  The hourly scheduled build of an incremental fact model and an operator-triggered catch-up
+  build of the same model overlapped for roughly half an hour on two separate days. Both
+  invocations evaluated the incremental predicate (max of the updated-at column on the target)
+  before either committed, so both selected the same boundary slice and both inserted it: the
+  table now carries a duplicated band of rows whose width is exactly the overlap window, not a
+  whole partition. A second, smaller band came in differently - because the intermediate
+  relation for this model is a permanently named object in the shared schema rather than a
+  session temp, one invocation staged rows that the other invocation's merge then consumed, so
+  a third set of rows carries the wrong invocation stamp and a subtly stale version of two
+  dimension columns. Sitting inside the affected window is a legitimate manual correction: an
+  analyst hand-patched three refunded orders and annotated them, and the warehouse holds the
+  only copy. The agent must reconstruct which invocation wrote which rows from the run
+  artifacts and row-level stamps, remove exactly the surplus, preserve the correction, and
+  leave the model so that two overlapping triggers cannot repeat it.
+why_hard: >
+  Four things have to be separated and only one of them is visible in a row count. The
+  duplicated band is narrower than a partition, so per-partition counts look merely high; the
+  staged-relation band is not duplicated at all but wrong, so deduplication alone leaves it in
+  place; a genuine upstream vendor resend has put real duplicate business keys in the source,
+  which accounts for part of the excess and must be subtracted arithmetically rather than
+  assumed away; and a timezone defect in a neighbouring model explains part of the dashboard
+  discrepancy that first raised the alarm but none of the row surplus. Correctness is not
+  readable from the final state: the surviving rows are internally consistent and the totals
+  sit inside normal daily variance. The ordering has to be recovered from dbt run artifacts
+  (invocation ids and start/end timestamps), a load audit table, and the per-row invocation
+  stamp - three surfaces that disagree about how many loads happened. Re-running the model is
+  actively harmful because the operator trigger is still armed; a full refresh destroys the
+  analyst's correction, which exists nowhere else, and also erases the invocation stamps that
+  are the only evidence of the interleave. S611 is why the engine never complained: on the
+  target surface appends never conflict, so both writers succeeded and no error was logged
+  anywhere.
+human_hours: "10-24"
+grading: >
+  Deterministic. (1) Row-level diff of the repaired fact table against a reference table that
+  lives in a separate database file attached read-only at scoring time - GRADING REFERENCE IS
+  HARNESS-SIDE and is never present in the agent-visible catalog, because an earlier design
+  scored most of its points by selecting from an expected table with zero diagnosis (F121).
+  (2) Zero duplicate (order_id, order_version) pairs. (3) The three manually corrected rows are
+  present with their correction annotation byte-identical to the pre-episode value. (4) The
+  rows that came from the staged relation carry the corrected dimension values, which is a
+  different assertion from the duplicate check and fails for any agent that only deduplicated.
+  (5) Concurrency probe: the harness plants a new slice of source rows and starts two
+  overlapping invocations of the repaired model, offset by a fixed interval inside the former
+  race window; the new slice must be present exactly once and the repaired window must be
+  unchanged. A model that has been hardened by being disabled, or that skips the planted slice,
+  scores zero on this check. Rubric: 22 points across interleave reconstruction, surplus
+  removal, preservation of the correction, the staged-relation correction, and hardening.
+rubric_points: 22
+apps_touched:
+  - warehouse
+  - dbt
+  - airflow
+  - bi_dashboard
+  - git
+deterministic_checks:
+  - "row-level diff vs HARNESS-SIDE reference attached read-only at scoring time"
+  - "zero duplicate (order_id, order_version) pairs in the fact table"
+  - "the three annotated manual-correction rows survive byte-identical"
+  - "rows sourced from the shared staged relation carry corrected dimension values, not the stale pair"
+  - "concurrency probe: two deliberately overlapping invocations of the repaired model ingest a newly planted slice exactly once and leave the repaired window untouched; a disabled or always-skipping model scores zero"
+judge_axes:
+  - code_quality
+  - robustness
+failure_modes_expected:
+  - "deduplicates on the business key and stops, leaving the stale-dimension band from the shared staged relation untouched"
+  - "re-runs or re-triggers the model, which re-enters the same race because the operator trigger is still armed"
+  - "full-refreshes, destroying the analyst's manual correction and every row-level invocation stamp"
+  - "attributes the whole surplus to the upstream vendor resend, which only accounts for part of it"
+  - "chases the neighbouring timezone defect, which explains part of the dashboard gap and none of the row surplus"
+  - "adds a unique_key without a mutual-exclusion guard, so two overlapping runs still both stage and merge"
+existing_coverage: >
+  Duplicate-row repair tasks exist in ade-bench-style corpora, but as single-cause re-run
+  duplication. The distinguishing feature here is that the duplicate band is bounded by an
+  overlap interval rather than a partition boundary, and that a second band is wrong rather
+  than duplicated - so a dedup-shaped solution is measurably partial rather than wrong.
+agent_visible_brief: >
+  Finance flagged that yesterday's order revenue on the Orders Overview dashboard is about 4%
+  above what the billing export shows, and they say last Thursday looked off too. Nothing is
+  failing - the hourly job is green all the way back, freshness checks pass, and the daily
+  totals are inside our normal range, which is probably why nobody caught it sooner. I pulled
+  a few order ids at random and most of them look fine.
+  Please work out what the fact table should actually contain for the affected days and get it
+  there, then make sure whatever caused this cannot happen again. Two things to be careful
+  about: Priya hand-fixed three refunded orders in there a couple of weeks ago at Finance's
+  request and that fix is not in any source system, and the older source files have already
+  aged out of the landing bucket, so a rebuild from scratch is not on the table. Write up what
+  was wrong, which days and which downstream numbers were affected, and for how long.
+derived_from:
+  - S600
+  - S606
+  - S610
+  - S611
+produced_by: E1-concurrency
+notes: >
+  Authoring note on determinism: do NOT stage this by racing two live processes at world-build
+  time. S611 establishes that the target engine's appends never conflict, so the interleave
+  produces no error and nothing forces a particular winner - a live race would make the world
+  non-reproducible from the seed. Build the post-race state directly as committed artifacts
+  (two invocation ids with overlapping start/end times in run_results and the audit table,
+  per-row invocation stamps, the stale dimension pair on the staged band) and let the
+  concurrency PROBE be the only thing that actually runs concurrently at scoring time, with a
+  fixed offset so it is deterministic.
+  Tune the surplus so the daily total stays inside normal variance (S608's detection story:
+  the CircleCI metrics were back to normal before anyone believed there was an incident).
+  The vendor-resend decoy must be sized by arithmetic - roughly a fifth of the excess - so
+  ruling it out requires subtraction, not taste.

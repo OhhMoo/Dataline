@@ -10,6 +10,10 @@ company: dbt Labs
 year: 2024
 retrieved: "2026-09-11"
 confidence: medium
+vividness: low
+attestation: vendor_marketing
+usable_for:
+  - world_texture
 produced_by: L3-practitioner-workflow-analytics
 notes: >
   Vendor-authored, so discount the prescription; the premise is the useful part. A realistic world has the same aggregation implemented twice, once in dbt and once in LookML or Tableau, with the two free to drift. That is the generator recipe for a metric-mismatch task that cannot be solved by reading the warehouse alone.

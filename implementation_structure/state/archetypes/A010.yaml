@@ -53,12 +53,36 @@ existing_coverage: >
   Filed-bug mechanics are directly translatable to broken-world initial conditions;
   no known bench combines connector row loss with positional-INSERT corruption.
 derived_from:
-  - S013
   - S014
   - S015
   - S022
+  - S753
+  - S013
 produced_by: S2-job-specs
 notes: >
   Frequency signal only: managed ingestion (S511) and Airbyte (S512) into a Snowflake-
   class warehouse (S500) is the standard DE hiring stack; used to prioritize DE-2,
   the richest subcategory in the corpus.
+attacks:
+  - F500
+  - F505
+  - F513
+  - F514
+status: redesign_required
+repair_note: >
+  RE-GROUNDED 2026-09-13 (D2, R002 evidence repair). Note: this archetype had no attacks field at
+  all; F121's harness-side-reference rule applies to its reference-table grading and is now
+  linked.
+  LIVENESS CORRECTED: same finding as A002. Re-verified via the GitHub API 2026-09-13 -
+  dbt-databricks #1211 (S013) and #1289 (S014) are both CLOSED, fixed in dbt-databricks 1.11.7
+  (2026-04-17). A world planting the silent positional-INSERT corruption MUST pin the adapter
+  below 1.11.7 and state that in its world spec.
+  ADDED: S753 (dbt-clickhouse #258, verified OPEN 2026-09-13) as the live unfixed trap.
+  STRONGEST LEG UNCHANGED: S022, Airbyte issue #77627 - re-verified OPEN via the GitHub API
+  2026-09-13, 6 comments, filed 2026-04-30, source-salesforce 2.7.16 named, with two independent
+  symptoms (destination row count below source, and a collapsed created-date distribution) plus
+  the control experiment that isolates it. firsthand_anonymous, vividness high. This is the best
+  ingestion-side record in the corpus and the archetype should lean harder on it.
+  FREQUENCY CLAIM DROPPED: the notes claimed a "frequency signal" for the hiring stack from S511
+  (Fivetran) and S512 (Airbyte) and S500 (Snowflake) - vendor pages and product docs, which count
+  nothing. Removed. S014's "evidence this is frequent" language is void per F455.

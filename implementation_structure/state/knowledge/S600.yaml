@@ -1,0 +1,25 @@
+id: S600
+rq: RQ1
+claim: >
+  Two dbt jobs building the same incremental model concurrently race on the schema-evolution
+  step: both read the target's column list, both emit the same ALTER TABLE, and the slower
+  executor dies on a compilation error - there is no atomic check-then-alter in the adapter.
+url: https://github.com/dbt-labs/dbt-adapters/issues/710
+quote: "When running an incremental table with the on_schema_change policy set to append_new_columns, a race condition can occur. If two jobs perform the column check at the same time, the same ALTER TABLE statement will be generated, resulting in a SQL compilation error on the slower executor"
+source_type: repo
+retrieved: "2026-09-13"
+confidence: high
+produced_by: E1-concurrency
+vividness: high
+attestation: firsthand_anonymous
+usable_for:
+  - world_texture
+  - mechanism
+year: 2024
+notes: >
+  LIVENESS CHECKED 2026-09-13 via GitHub API: state=open, created 2024-07-18. Originally
+  filed as dbt-labs/dbt-snowflake#1123; the repo transferred it, and the API now returns
+  html_url dbt-labs/dbt-adapters/issues/710. Environment block in the body gives
+  Ubuntu 22.04 / Python 3.9 / dbt-core 1.5.7 / dbt-snowflake 1.5.7 and the error string
+  "column '<new_column>' already exists". Reporter is a GitHub handle, not a named
+  engineer, so attestation is anonymous and this may NOT license a frequency claim.

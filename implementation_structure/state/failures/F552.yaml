@@ -1,0 +1,42 @@
+id: F552
+target: A019
+attack_type: mechanism_unsourced
+severity: high
+finding: >
+  A019 cannot be re-grounded and is now status: redesign_required. Its load-bearing mechanism is the
+  BI-layer rename boundary: "one of the edges - the BI-layer rename on top of the dbt model name -
+  exists nowhere in any system and must be reconstructed from query logs and dashboard definitions
+  (S217)". After the R002 back-classification, NONE of A019's sources licenses that mechanism.
+  - S010, which supplied the silently-wrong-dashboard leg and the divide-by-zero fallback, is
+    withdrawn as a constructed vignette (F550/F452).
+  - S217, S218, S211 and S210 are all docs.getdbt.com/blog content - dbt Labs' owned publication
+    channel, with Indicium Tech partner posts advocating a dbt Labs package. All four are typed
+    attestation=vendor_marketing, which caps them at usable_for=[world_texture] by the F400 rule.
+    S217 is the record that actually states the rename boundary exists, and it may no longer be
+    cited for that.
+  - S216 (Power BI community thread) is genuine firsthand_anonymous practitioner voice and survives,
+    but it is vividness=low / world_texture only: it attests that a rename has a wide, unowned blast
+    radius in the BI layer, not HOW the rename boundary comes to be unrecorded.
+  So the archetype's difficulty claim - a dependency edge that exists in no system - currently rests
+  entirely on a vendor blog post. That is precisely the F400/F450 failure shape, reproduced one
+  layer up.
+  Searching for a replacement during this repair did not find one. Reddit is not fetchable by either
+  the gate or the research tooling, so r/dataengineering could not be used at all; the Power BI /
+  Microsoft Fabric community threads that describe the phenomenon 403-block the gate's urllib fetch
+  and are only citable through Wayback snapshots (as S216 already is).
+recommended_action: redesign
+found_by: D2-reground
+mitigation: >
+  Either (a) find an attested source for the unrecorded-rename-boundary mechanism - candidates worth
+  trying are a named company's BI-migration postmortem, a Looker/Tableau/Metabase issue tracker
+  thread where a lineage gap is diagnosed, or a conference talk walking through a metric-layer
+  migration - or (b) redesign A019 around a mechanism that IS attested: S207's failure-to-zero
+  coercion (a named team's own incident, firsthand_named, mechanism-licensed) delivers the same
+  "nothing errored but the number is wrong" difficulty without requiring the rename boundary.
+  Do not simply re-add a dbt Labs blog post. The world-texture value of S210/S211/S217/S218 is real
+  and they should stay in derived_from for that purpose - they just cannot carry the why_hard.
+notes: >
+  Filed 2026-09-13 in R002 evidence repair. A019 is one of two archetypes (with A033) that this
+  repair could not save. The distinction is worth keeping: A033 was already redesign_required on
+  red-team grounds and F459 added a provenance requirement; A019 was healthy-looking and failed only
+  when its sources were typed honestly.

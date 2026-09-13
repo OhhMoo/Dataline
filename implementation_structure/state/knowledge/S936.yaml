@@ -1,0 +1,25 @@
+# Produced by T3-environment-themes (R002) for RQ4 -- legacy / flat-file environment themes.
+id: S936
+rq: RQ4
+claim: >
+  A vendor support record exists for a connector rejecting duplicate rows even against a MULTISET
+  target, which is the opposite of the documented table semantics.
+url: https://www.ibm.com/support/pages/teradata-connector-stage-using-teradata-parallel-transporter-tpt-rejecting-duplicates-rows-even-multiset-tables
+quote: >
+  Teradata Connector Stage using Teradata Parallel Transporter (TPT) is rejecting duplicates rows even with Multiset tables
+source_type: docs
+company: "IBM"
+retrieved: "2026-09-13"
+confidence: low
+vividness: low
+attestation: unattested
+usable_for:
+  - world_texture
+produced_by: T3-environment-themes
+notes: >
+  THE BODY OF THIS PAGE IS LOGIN-WALLED and was not read -- the quote is the article title only.
+  Recorded with that limitation stated rather than omitted, because the existence of the filed
+  defect is itself the useful fact: the connector layer can override the table semantics, so an
+  agent reasoning purely from CREATE TABLE can be wrong. Do NOT build a task on this without first
+  obtaining the body. vividness low precisely because nothing rebuildable is visible. NOT re-
+  fetched by T3.

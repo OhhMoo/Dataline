@@ -1,0 +1,30 @@
+# Produced by T3-environment-themes (R002) for RQ4 -- legacy / flat-file environment themes.
+id: S909
+rq: RQ4
+claim: >
+  Combining several record-type copybooks through REDEFINES to parse a variable-length record
+  stream that carries no RDW headers throws an index-out-of-bounds error, where a single copybook
+  over the same bytes succeeds.
+url: https://github.com/AbsaOSS/cobrix/issues/772
+quote: >
+  Both r giving arrayindexouf of bounds exception
+source_type: repo
+year: 2025
+retrieved: "2026-09-13"
+confidence: medium
+vividness: medium
+attestation: firsthand_anonymous
+usable_for:
+  - world_texture
+  - mechanism
+produced_by: T3-environment-themes
+notes: >
+  Reported still-open by a T3 sub-search as of 2026-09-13. T3 directly verified issues 835 and 752
+  in this repository but did NOT re-fetch 772, so treat the open status as reported-not-confirmed.
+  The quote is deliberately a short sub-span carrying the original's misspellings, because G1 does
+  an exact string match and the surrounding text is long and typo-dense. Mechanism value:
+  REDEFINES makes record offsets conditional on a discriminator field, which is the fixed-width
+  analogue of a polymorphic schema.
+  VIVIDNESS DEMOTED TO MEDIUM BY T3 after G6 warned the quote is short: the underlying
+  incident is rebuildable but the span T3 is willing to certify verbatim is not, and the quote is
+  what the record actually licenses. Recorded as a demotion rather than argued around.

@@ -1,0 +1,36 @@
+id: F514
+target: A003
+also_applies_to:
+  - A002
+  - A005
+  - A010
+attack_type: F121 recurrence - the grading reference has no stated location
+severity: medium
+finding: >
+  Ground rule 1 requires an archetype to "say explicitly in grading that the reference is
+  harness-side". These four do not. They say "the reference", "a reference table", "the
+  reference distribution", "a reference table" - a noun with no address. F121 killed A001 on
+  precisely this: "The grading spec places 'a reference table in DuckDB' without stating it
+  is hidden from the agent; the warehouse IS the DuckDB instance, so as written the agent can
+  SHOW TABLES, find the reference, and CREATE TABLE revenue AS SELECT * FROM reference." A001
+  was at least specific enough to be caught. These four are merely silent, which is not
+  safer - it leaves the placement to whoever builds the world, and §9.3's baseline profile
+  records that reference_copy scores 17 of 19 on GT001 in fixtures for exactly this reason.
+  Contrast the three of my eight that get it right: A017 says "a hidden reference", A018 says
+  "a hidden answer key", A022 says "hidden ground truth". The vocabulary exists in the corpus;
+  these four did not use it.
+  A005 is a partial case worth separating: it says the diagnosis report is "checked against
+  the world's seed manifest". The manifest IS harness-side by §9.2.1 (/grading/manifest.yaml,
+  never mounted in-episode), so the intent is probably right - but "the WORLD's seed manifest"
+  reads as an in-world artifact, and a world generator handed that sentence could reasonably
+  write the seed manifest into the world root. A025 is excluded from this record only because
+  F511 covers its reference placement as a fatal rather than a wording defect.
+recommended_action: annotate
+found_by: D1-redteam
+mitigation: >
+  One sentence per archetype, in grading: "the reference is harness-side, materialised in
+  /grading and never mounted inside the episode". Then make it mechanical rather than
+  editorial - G3 (or G0) should fail any archetype whose grading names a reference without a
+  harness-side qualifier, and the adversarial-baseline suite should carry a reference_copy
+  baseline per archetype, scoring 0 in the production topology, as §9.3 already does for
+  GT001.

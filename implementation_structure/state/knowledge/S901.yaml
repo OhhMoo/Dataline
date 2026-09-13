@@ -1,0 +1,25 @@
+# Produced by T3-environment-themes (R002) for RQ4 -- legacy / flat-file environment themes.
+id: S901
+rq: RQ4
+claim: >
+  A zoned-decimal EBCDIC field carrying its sign as an overpunch on a digit is mis-parsed when
+  ASCII sign-style rules are applied to EBCDIC-encoded bytes.
+url: https://issues.apache.org/jira/browse/DAFFODIL-2873
+quote: >
+  Unable to parse zoned xs:decimal from text: R99999999. Invalid zoned digit: R
+source_type: repo
+author_role: "Apache Daffodil PMC member"
+year: 2024
+retrieved: "2026-09-13"
+confidence: high
+vividness: high
+attestation: firsthand_named
+usable_for:
+  - world_texture
+  - mechanism
+produced_by: T3-environment-themes
+notes: >
+  Apache JIRA, reported by Mike Beckerle on 2026-01-18, status Closed and fixed in 3.7.0 -- status
+  and quote both re-verified by T3 on 2026-09-13. This is therefore a MECHANISM reference, not a
+  live trap. The character R is EBCDIC 0xD9, the minus overpunch on digit 9, which should decode
+  to -9.

@@ -11,6 +11,10 @@ company: "Epoch AI"
 year: 2026
 retrieved: "2026-09-11"
 confidence: high
+vividness: low
+attestation: secondhand
+usable_for:
+  - world_texture
 produced_by: L5-competitive-pricing
 notes: >
   DEMAND DIRECTION. The examples the source gives are expense reports, spreadsheet pivot tables, slide generation and CRM updates - adjacent to but not the same as warehouse, pipeline and BI work. Our niche sits inside the growing category but in an unclaimed corner of it.

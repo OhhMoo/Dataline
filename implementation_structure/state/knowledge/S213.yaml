@@ -9,6 +9,10 @@ author_role: data practitioner and data team lead
 year: 2023
 retrieved: "2026-09-11"
 confidence: high
+vividness: low
+attestation: unattested
+usable_for:
+  - world_texture
 produced_by: L3-practitioner-workflow-analytics
 notes: >
   Confirms the meeting note's claim that analytics tasks involve vague requirements. The post's own framing is that teams are inundated with quick questions and simple requests that do not connect to the bigger picture. For task design: the correct behavior on an ambiguous brief is sometimes to interrogate and disambiguate, and a grader can score whether the agent surfaced the ambiguity instead of silently picking one definition.

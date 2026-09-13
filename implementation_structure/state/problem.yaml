@@ -110,14 +110,14 @@ research_questions:
 
   - id: RQ2
     priority: 1
-    title: "10-30 high-level task archetypes across DE, DS, and analytics"
+    title: "40 SHIPPABLE task archetypes across DE, DS, and analytics"
     owner_phase: strategy
     detail: >
       Derived FROM RQ1 evidence, not invented. MLE-Bench is the reference for the data
       science axis. Each archetype must state what makes it hard, roughly how many human
       hours it represents, and how it would be graded.
     output: state/archetypes/*.yaml
-    success: "10-30 archetypes, all three disciplines covered, G3 dedup passes"
+    success: "40 shippable (status != redesign_required) archetypes, all three disciplines covered, G3 dedup passes. Raised from 10-30 on 2026-09-13 per the 2026-09-12 Environments Project meeting. The target counts SHIPPABLE, not raw: reporting a headline that includes archetypes under redesign overstates the deliverable, which is the error G3 exists to prevent."
     seed: "agent.md 6.3 has a 22-item DRAFT list. Treat it as a prior to beat, not an answer."
 
   - id: RQ3

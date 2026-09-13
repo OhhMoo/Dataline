@@ -10,6 +10,11 @@ company: independent (Kaggle)
 year: 2018
 retrieved: "2026-09-11"
 confidence: high
+vividness: high
+attestation: firsthand_anonymous
+usable_for:
+  - world_texture
+  - mechanism
 produced_by: L2-practitioner-workflow-ds
 notes: >
   A quantified example of leakage dominating an entire modelling exercise: roughly 2,178 leaderboard places between the best honest model and the leak. Two implications for environment design. (1) If world data is generated from distributions, the generator must be audited for accidental structure (row order, ID monotonicity, encrypted time-series lags) or agents will find it instead of doing the work. (2) 'Did the agent detect and either exploit or quarantine a leak' is a legitimate scored axis, since the human community treats leak-hunting as a real skill.

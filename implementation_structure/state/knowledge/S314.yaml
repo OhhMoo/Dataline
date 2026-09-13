@@ -12,6 +12,10 @@ company: NovaSky-AI / Berkeley Sky Computing Lab
 year: 2026
 retrieved: "2026-09-11"
 confidence: high
+vividness: low
+attestation: unattested
+usable_for:
+  - world_texture
 produced_by: L4-prior-art
 notes: >
   Verdict: ADOPT (as the RL-side integration target, not something we rebuild). The README

@@ -1,0 +1,18 @@
+id: S807
+rq: RQ3
+claim: "dbt-duckdb implements a different set of incremental strategies from dbt-snowflake, which is exactly the axis several archetypes turn on - the substitution is not behaviour-neutral."
+url: https://raw.githubusercontent.com/duckdb/dbt-duckdb/master/README.md
+quote: "dbt-duckdb supports the `delete+insert`, `append`, `merge`, and `microbatch` strategies for incremental `table` models."
+source_type: repo
+retrieved: "2026-09-13"
+confidence: high
+produced_by: T1-mock-bottleneck
+vividness: medium
+attestation: unattested
+usable_for:
+  - mechanism
+notes: >
+  Documentation / repository artifact, not an incident report. It licenses a
+  mechanism claim only: it says how the thing is built or licensed, not that
+  anyone hit a problem with it and not how often. Retrieved and string-checked
+  against the live URL on 2026-09-13 by T1.

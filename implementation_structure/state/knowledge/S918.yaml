@@ -1,0 +1,24 @@
+# Produced by T3-environment-themes (R002) for RQ4 -- legacy / flat-file environment themes.
+id: S918
+rq: RQ4
+claim: >
+  A national health agency ran financial consolidation, journals and business-critical reporting
+  out of a single hard-coded spreadsheet, with an external review finding prior-period changes did
+  not flow through and source lineage was limited.
+url: https://www.theregister.com/2025/03/10/nz_health_excel_spreadsheet/
+quote: >
+  highly prone to human error, such as accidental typing
+source_type: blog
+year: 2025
+retrieved: "2026-09-13"
+confidence: low
+vividness: medium
+attestation: secondhand
+usable_for:
+  - world_texture
+produced_by: T3-environment-themes
+notes: >
+  ORG-SHAPE TEXTURE ONLY -- it licenses the claim that a very large organisation really does run
+  its close on one workbook, which is the org premise behind theme D2. It does not license any
+  mechanism: the quote is generic and carries no rebuildable specifics, hence vividness medium and
+  no mechanism licence. NOT re-fetched by T3.

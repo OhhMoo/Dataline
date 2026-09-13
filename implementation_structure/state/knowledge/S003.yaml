@@ -13,6 +13,10 @@ company: luminousmen (Kirill Bobrov)
 year: 2026
 retrieved: "2026-09-11"
 confidence: high
+vividness: medium
+attestation: unattested
+usable_for:
+  - world_texture
 produced_by: L1-practitioner-workflow-de
 notes: >
   The same page describes the untouchable table - a mart that stopped being a function of its

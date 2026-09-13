@@ -1,0 +1,54 @@
+id: F510
+target: A022
+attack_type: grounding - the world spec encodes an arithmetic misread of its own source
+severity: high
+finding: >
+  A022's description IS the misread F458 identified, promoted from a source record into a
+  world specification. A022 plants "a fixed-length comparison window sums a varying number of
+  valid days". F458 established, from the page itself, that the Thicket write-up describes
+  TWO distinct defects: (a) the comparison window was five days LONG against a seven-day
+  current window - "Ours were quietly comparing seven days against five" is about window
+  LENGTH - and (b) roughly 28% of finalized days came back near-zero, so the CURRENT window
+  held four near-empty days out of seven. S208 fused these into "the comparison window
+  happened to hold five valid days against the current window's seven", which F458 says
+  "reverses the defect" and "would produce the opposite sign of error", and which it warns
+  "an archetype seeding this world from S208 as written would plant the wrong initial
+  condition". A022 is that archetype - F458 names it - and it seeded from S208 as written.
+  The concrete consequence: A022's world would be built with the clean window as the
+  comparison and the degraded window as the current, or with the two fused into a single
+  varying-valid-day defect, when the attested incident had a length mismatch AND a
+  poisoned-day problem as separate causes. The archetype's own restatement check ("restated
+  per-valid-day series row diff vs reference") therefore grades against a reference derived
+  from arithmetic that does not match any real incident.
+  The rest of the evidence base is thin in a way the archetype does not disclose. Of five
+  derived_from entries, three are already damaged and all three name A022 in their attack
+  records: S208 (F458, above), S010 (F452 - a constructed present-tense vignette in a
+  data-contracts argument, recorded as an attested banking incident), S205 (F457 - a BI
+  vendor's SEO guide by Basedash's founder/CEO, whose cause taxonomy is being treated as an
+  observed distribution). S203 is a 2018 practitioner blog supplying the task SHAPE
+  (data-broken vs business-broken) rather than any mechanism. That leaves S207 as the single
+  attested mechanism behind a 26-point, five-surface archetype - and S207 is one blog post
+  from one company about an AI-visibility "share-of-model" metric, a workload F458 already
+  flagged as "weak as a representative analytics workload". URL verified 2026-09-13:
+  thicket.sh/blog/when-your-metric-is-broken-not-your-business returns HTTP 200.
+recommended_action: re-source
+found_by: D1-redteam
+mitigation: >
+  Rewrite the description to plant the two defects separately and deliberately, per F458's
+  mitigation: (a) a comparison window of five calendar days against a current window of
+  seven, and (b) a clustered set of near-zero finalized days, roughly 28% of the series. Both
+  are worth planting; fusing them is what produces an ungradeable reference. Then decide
+  whether A022 needs both or whether the length mismatch is a cleaner single defect for a
+  separate archetype. Drop S010 and S205 from derived_from - neither supports any mechanism
+  A022 plants - and either find a second attested source for failure-coerced-to-zero
+  aggregation or state plainly that the archetype rests on one incident at one company.
+notes: >
+  Filesystem check 2026-09-13: S010 has since been moved to state/knowledge/withdrawn/, so
+  A022's derived_from now cites a withdrawn source. G4 tolerates this (it only indexes
+  withdrawn records so attack history does not orphan) and G3 does not appear to check
+  derived_from against the withdrawn set - which means an archetype can keep citing a
+  retracted source indefinitely with every gate green. Worth a gate, separately from A022.
+  Also note that F450's and F451's mitigations were never actioned: S001 still carries
+  confidence: high despite F451 explicitly saying to set it to medium, and S005 is still an
+  active source at confidence: medium. An attack record that lands and is then not applied
+  leaves the corpus in exactly the state the attack described.

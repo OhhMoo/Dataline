@@ -1,0 +1,121 @@
+id: A053
+title: Three written definitions of one metric, five hundred models, and a frozen number that settles it
+discipline: data_analytics
+description: >
+  An executive dashboard and a finance report disagree about active customers and the dispute
+  has been open for weeks. The world contains three written definitions and they conflict: an
+  internal wiki page last edited fourteen months ago, a dbt doc block that has been
+  copy-pasted into the schema YAML of sixty models, and the SQL those models actually run. The
+  world also contains a frozen extract of the numbers that were published to the business last
+  quarter. Exactly one of the three written definitions reproduces that published series; a
+  second reproduces it only up to a policy change eight months ago, and the third reproduces
+  only the last six weeks, so which document to trust is settled by arithmetic against the
+  extract rather than by editorial judgement. On top of that, two of the sixty models silently
+  implement a fourth variant, a ninety-day window rather than thirty, because they were emitted
+  from an older revision of the generator template, and those two feed the exec dashboard. The
+  agent must determine which definition is authoritative, find the two divergent models among
+  sixty that all look alike, repair them, and reconcile the documentation so that one
+  definition survives.
+why_hard: >
+  This is the shape most likely to collapse into a taste judgement, and it does not, because
+  the frozen published extract makes every candidate definition falsifiable. The difficulty is
+  that the three documents are all plausible, all internally consistent, and two of them are
+  partially corroborated by the data, which is exactly the decoy discipline the ground rules
+  demand: each wrong definition explains part of the series, so ruling it out requires
+  computing it and comparing, not reading it and deciding. Sixty near-identical models is past
+  the point where reading them is a strategy. The move that wins is to normalise each model's
+  window expression and group by its hash, which collapses sixty to three groups in one pass
+  and exposes the two outliers immediately; an agent that instead reads schema YAML descriptions
+  learns only that all sixty carry the same copy-pasted doc block, which is the trap. The
+  documentation repair is also load-bearing rather than cosmetic, because the doc block is
+  shared and the grader checks that the sixty descriptions collapse to one string in the
+  manifest, which a per-file edit will not achieve.
+human_hours: "10-24"
+grading: >
+  Deterministic. GRADING REFERENCE IS HARNESS-SIDE (F121): the correct active-customer series
+  is computed offline and stored in a separate DuckDB file attached read-only at scoring time
+  only; it is never queryable from the agent's catalog, so the task cannot be short-circuited
+  by selecting the answer. Checks are an exact series match of the repaired models over the
+  frozen window, a structural check that all sixty model descriptions in the agent's
+  manifest.json hash to a single value, an enumerated-choice check that the findings file names
+  the authoritative definition by its identifier and the divergence date, and a snapshot
+  integrity check. A bounded judge scores only the reconciliation memo.
+rubric_points: 22
+apps_touched:
+  - warehouse
+  - dbt
+  - docs_wiki
+  - bi_dashboard
+  - git
+deterministic_checks:
+  - "repaired active-customer series matches a HARNESS-SIDE reference exactly over the frozen published window, attached read-only at scoring time"
+  - "the two divergent models are repaired and the other fifty-eight are unchanged byte for byte - a blanket rewrite scores zero on blast radius"
+  - "all sixty model descriptions in the agent's manifest.json hash to a single value - the doc block was fixed once, not sixty times"
+  - "findings file names the authoritative definition by its enumerated identifier and the date the definitions diverged, exact string match"
+  - "snapshot snp_metric_definitions retains its pre-episode row count and original min(dbt_valid_from) - rebuilding it scores zero on the divergence-date question"
+  - "the stale wiki page file is amended in the git workspace and the amendment is detectable as a content change, not merely a timestamp"
+judge_axes:
+  - code_quality
+  - communication
+failure_modes_expected:
+  - "reads the wiki, treats it as authoritative because it is the only prose that sounds official, and repairs the models to match the wrong definition"
+  - "reads the sixty schema YAML descriptions, finds them unanimous, and concludes the documentation is fine"
+  - "picks the definition the SQL currently implements on the grounds that code is truth, which reproduces only the last six weeks of the published series"
+  - "rewrites all sixty models to one definition, passing the series check and failing the blast-radius check"
+  - "edits sixty description fields individually so they no longer share a doc block, which passes a naive text comparison and fails the manifest hash"
+  - "runs dbt snapshot --full-refresh and loses the only evidence of when the doc and the SQL diverged"
+existing_coverage: >
+  Documentation-versus-code conflicts appear in agent benchmarks mostly as two-way conflicts
+  that are resolved by preferring code. A three-way conflict where code is not the answer, and
+  where the tiebreaker is a frozen published series rather than an authority rule, is not
+  something I found. The scale element, sixty models carrying one copy-pasted doc block, is
+  drawn from a measured real project shape rather than assumed (S664).
+derived_from:
+  - S656
+  - S663
+  - S661
+  - S650
+  - S662
+  - S664
+produced_by: E2-scale
+attacks:
+  - F121
+  - F202
+agent_visible_brief: >
+  The exec dashboard and the finance pack have been reporting different active customer counts
+  since roughly the start of the year and the two teams have stopped trying to reconcile it. We
+  have a definition on the internal wiki, we have descriptions in the dbt project, and we have
+  whatever the SQL is doing, and people disagree about which is current. Last quarter's
+  published numbers are in the warehouse as a frozen extract. Please work out which definition
+  is the real one, get the models telling the truth, and leave the documentation in a state
+  where this cannot happen again. We need to know when the definitions drifted apart.
+status: draft
+notes: >
+  HOW THE CLUTTER IS GENERATED, DETERMINISTICALLY. The sixty near-identical models are not
+  written sixty times; they are emitted once per business unit from a single template revision
+  recorded in the fixture spec, which is exactly how a real multi-tenant project reaches this
+  shape (S662: code generation that inspects metadata to decide which units get which models,
+  and emits the models, seeds and YAML together). The defect is generated, not injected: the
+  spec pins two business units to template revision 3 and the rest to revision 4, and revision
+  3 carries the ninety-day window. That is why the two outliers are internally coherent rather
+  than looking tampered with, and it is a failure mode that only exists at scale, because with
+  six models nobody pins half of them to an old template. The doc block is emitted once and
+  referenced by all sixty via the doc() macro, so the manifest hash check is testing a real
+  property rather than a formatting convention. The wiki page is a markdown file in the git
+  workspace with a fabricated but plausible edit history recorded in the world's commit log,
+  generated from the same seed. THE TIEBREAKER IS DATA, NOT TASTE: the frozen published extract
+  is computed by the world builder under the authoritative definition, and the two wrong
+  definitions are calibrated so that each matches a contiguous stretch of the series and
+  neither matches all of it, which is what turns this from a judgement call into arithmetic.
+  WHAT A FULL REFRESH DESTROYS: snp_metric_definitions is a dbt snapshot over the model
+  descriptions and the compiled window expressions, and it is the only record of the order in
+  which the doc and the SQL changed; a full refresh rebuilds it from current state and the
+  divergence date, which the grader asks for explicitly, becomes unrecoverable. NAIVE
+  BASELINES: preferring the wiki must fail; preferring the current SQL must partially succeed
+  on the last six weeks and fail overall; reading descriptions must fail cleanly. RESOURCE
+  BUDGET: same prebuilt DuckDB attach and warm partial parse as A050; the expensive operation
+  here is recomputing three candidate series over the frozen window, which is three aggregate
+  scans over a few hundred megabytes and is well inside the ceiling. HONEST CAVEAT: the
+  communication judge axis is doing real work here and the memo is not deterministically
+  gradeable; everything that decides pass or fail is, but the quality of the reconciliation
+  narrative is not, and I have kept the rubric weight on the deterministic half.

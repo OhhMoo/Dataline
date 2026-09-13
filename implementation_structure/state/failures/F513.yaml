@@ -1,0 +1,52 @@
+id: F513
+target: A017
+also_applies_to:
+  - A002
+  - A003
+  - A005
+  - A010
+  - A018
+  - A022
+  - A025
+attack_type: F202 recurrence - no agent_visible_brief, so the only shippable prose is the answer key
+severity: high
+finding: >
+  None of the eight archetypes in this assignment has an agent_visible_brief. Checked
+  2026-09-13 with `grep -l agent_visible_brief state/archetypes/*.yaml` - the result is
+  empty, corpus-wide, across all 26 active archetypes. The schema's own rule is explicit:
+  "agent_visible_brief is the ONLY text the agent sees. description/why_hard/
+  failure_modes_expected are AUTHOR-SIDE and routinely name the planted defects - shipping
+  them as the brief hands over the answer (F202). Every archetype needs this field before it
+  ships." Ground rule 2 says the build pipeline "must make shipping that impossible, not
+  merely discouraged", and §9.2.3 says instruction.md is "generated ONLY from
+  agent_visible_brief". With the field absent there is no legal input to that generator, so
+  the only prose that exists to become instruction.md is the prose that enumerates the
+  defects.
+  This is not hypothetical for these eight; their author-side text is unusually explicit.
+  A002's description names the mechanism ("the INSERT matched by position"), the direction of
+  the error ("one column to the left"), the scope ("only partitions processed after the
+  change date"), and the sibling's status - and its why_hard then hands over the DETECTION
+  METHOD: "a column that suddenly carries values from a different domain". A003's description
+  names both planted defects and why the second is invisible ("same column name, same type,
+  so no schema check fires"). A005 enumerates all three skew mechanisms in order, which also
+  hands over the kitchen-sink answer F504 describes. A022's description names the endpoint
+  behaviour, the window defect and the coercion. A018's why_hard identifies the decoys as
+  decoys: "DAG code-smells that are real but are NOT the cause of this breach". A025 states
+  the mechanism, the direction and the repair.
+  Each of those is F202 exactly - "one draft printed all four hidden defects in its why_hard"
+  - and F202 was filed before any of these eight were written. Treating this as a
+  documentation gap understates it: until the field exists, no one can attack the thing the
+  agent actually sees, so no attack on any of these archetypes (including mine) has tested
+  the real task.
+recommended_action: redesign
+found_by: D1-redteam
+mitigation: >
+  Every archetype needs agent_visible_brief before any further disposition work, written as
+  the ticket a colleague would file: the SYMPTOM and the ask, no mechanism, no window, no
+  decoy labels, no detection method. For A002 that is roughly "finance says Q1 margin by
+  region looks wrong on the regional P&L dashboard and fct_margin_daily won't build since
+  Tuesday - can you find out what happened and fix it without a full reload, the table is
+  400M rows". The gate should be mechanical: G0 should require the field, and a lint should
+  fail any brief containing a token that appears in the archetype's failure_modes_expected.
+  Until then, treat every attack record on these eight as provisional - including the ones
+  filed in this round.

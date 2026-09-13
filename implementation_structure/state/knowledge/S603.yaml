@@ -1,0 +1,33 @@
+id: S603
+rq: RQ1
+claim: >
+  A coordinator crash between "Iceberg commit succeeded" and "control-topic offset advanced"
+  makes the replacement coordinator re-consume a stale DATA_WRITTEN event and register the
+  same physical parquet file in a second snapshot; the table is internally consistent, every
+  row in that file is simply counted twice, and the only evidence is two snapshots sharing a
+  file_path.
+url: https://github.com/apache/iceberg/issues/16282
+quote: "We have observed this in production across two independent incidents on IKC 1.10.1 with a REST catalog (backed by GCS storage)."
+source_type: repo
+retrieved: "2026-09-13"
+confidence: high
+produced_by: E1-concurrency
+vividness: high
+attestation: firsthand_named
+usable_for:
+  - world_texture
+  - mechanism
+year: 2026
+company: Appier
+notes: >
+  LIVENESS CHECKED 2026-09-13 via GitHub API: state=open, created 2026-05-11, 13 comments.
+  Author handle is tongwai-wong-appier; the company attribution rests on that handle suffix
+  and the first-person plural "we ... in production", NOT on a signed byline - flagging that
+  explicitly rather than over-claiming. Even at firsthand_named I am NOT claiming frequency:
+  two incidents at one company is an existence proof, not a base rate.
+  Rebuildable specifics in the body: incident 2026-05-07 13:00 UTC, 4,873 duplicate groups /
+  9,746 duplicate rows, snapshot ids 8264179290764999750 (13:14:36) and 314603727896153559
+  (13:36:44), 20 consecutive minutes of "Commit timeout reached", and a data_files
+  time-travel query that finds the same file_path with the same record_count in two
+  snapshots. That last detail is the whole reason this source is valuable: the diagnosis is
+  a metadata self-join, not a row count.

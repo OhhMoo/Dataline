@@ -11,6 +11,10 @@ company: "TechCrunch"
 year: 2025
 retrieved: "2026-09-11"
 confidence: high
+vividness: low
+attestation: secondhand
+usable_for:
+  - world_texture
 produced_by: L5-competitive-pricing
 notes: >
   KEY COMPETITIVE RISK: our largest competitor for any lab is that lab own team. The same source notes labs still buy externally because building environments is complex. The speaker is an a16z general partner (Jennifer Li), an investor in the space and therefore directionally interested.

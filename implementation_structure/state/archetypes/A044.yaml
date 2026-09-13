@@ -1,0 +1,118 @@
+id: A044
+title: Late-arriving events landing inside a window that was already being repaired
+discipline: data_engineering
+description: >
+  A mobile client buffered events offline and flushed several days' worth in one burst. The
+  flush landed while a repair job was already running across an overlapping date range to fix
+  an unrelated deduplication bug. Some late events were swept up by the repair, some arrived
+  after the repair had passed their partition and were then picked up by the regular
+  incremental load, and some were picked up by both. At the same time the repair job did a
+  read-modify-write on a daily active users aggregate - it read the pre-repair value, computed,
+  and wrote back - overwriting increments the regular load had committed in between. The result
+  is two errors pointing in opposite directions: the fact table holds more rows than the source
+  supports, and the aggregate holds a smaller number than the fact table supports, so the
+  headline figure moved by less than a percent and nobody noticed for eleven days. The agent
+  must reconstruct arrival order from event time against ingestion time against processing
+  time, repair both tables, and must not simply recompute the aggregate from the fact table,
+  because the fact table is itself wrong.
+why_hard: >
+  The two defects mask each other arithmetically, so every top-down check the agent is likely
+  to run agrees with itself. Finding either one requires giving up on totals and working at row
+  level with three different timestamps whose relationships are the whole content of the
+  problem: an event's own time, the time it was ingested, and the time a job stamped it. Only
+  the second and third are evidence of ordering, and the ingestion stamp is assigned at
+  ingestion - so any reload re-stamps it and erases the one artifact that distinguishes a late
+  arrival from an ordinary one. That makes a full refresh not merely lossy but self-concealing:
+  it produces a clean, internally consistent, and permanently undiagnosable table. The
+  lost-update side of the problem is worse, because the losing write left no trace at all in the
+  final state; it can only be inferred from the repair job's read timestamp falling before a
+  load the aggregate does not reflect. A genuine timezone boundary defect moves a real couple of
+  percent of events across one day boundary and accounts for part of the fact-table excess, so
+  the duplicate arithmetic does not close until it is handled separately. And there is a
+  backdated correction the finance team applied to two days in the window that must survive,
+  which recomputation from source silently discards.
+human_hours: "12-28"
+grading: >
+  Deterministic. (1) Row-level diff of both the repaired event fact table and the repaired
+  daily aggregate against reference tables in a separate database file attached read-only at
+  scoring time - GRADING REFERENCE IS HARNESS-SIDE and never appears in the agent-visible
+  catalog, because a reference the agent can read is a reference the agent can copy without
+  diagnosing (F121). (2) The aggregate must equal the value recomputed from the repaired fact
+  table for every date in the window. (3) No event carries more than one processing stamp.
+  (4) The distribution of ingestion timestamps must be unchanged from its pre-episode values,
+  which fails for any agent that reloaded rather than repaired. (5) The finance team's backdated
+  correction is present on both affected dates with its annotation intact. (6) Late-arrival
+  probe: the harness plants a burst of events whose event time falls inside the already repaired
+  window and whose ingestion time is now, then runs the repaired pipeline; each planted event
+  must appear exactly once, the aggregate must move by exactly the planted amount, and a second
+  run must be a no-op. Rubric: 25 points across arrival-order reconstruction, fact-table repair,
+  aggregate repair, preservation of ingestion stamps and the finance correction, and hardening
+  against a repair racing a load.
+rubric_points: 25
+apps_touched:
+  - warehouse
+  - dbt
+  - airflow
+  - bi_dashboard
+  - docs
+  - git
+deterministic_checks:
+  - "row-level diff of event fact table and daily aggregate vs HARNESS-SIDE references attached read-only at scoring time"
+  - "aggregate equals recomputation from the repaired fact table for every date in the window"
+  - "no event carries more than one processing stamp"
+  - "ingestion-timestamp distribution unchanged from pre-episode values, so any reload fails"
+  - "the finance team's backdated correction survives on both dates with its annotation intact"
+  - "late-arrival probe: planted late events land exactly once, move the aggregate by exactly the planted amount, and a second run is a no-op"
+judge_axes:
+  - robustness
+  - code_quality
+failure_modes_expected:
+  - "checks totals, finds them close, and concludes the window is healthy"
+  - "recomputes the aggregate from the fact table, inheriting the fact table's surplus"
+  - "reprocesses or reloads the window, re-stamping ingestion times and destroying the only evidence of arrival order"
+  - "full-refreshes, which discards the finance team's backdated correction and makes the incident permanently undiagnosable"
+  - "deduplicates the fact table and never finds the lost update, because the losing write left nothing behind"
+  - "attributes the whole fact-table excess to the timezone boundary defect, which accounts for only part of it"
+  - "re-runs the repair job, which races the regular load exactly as before"
+existing_coverage: >
+  Late-arriving-data tasks exist and are usually framed as a windowing bug with one correct
+  lookback. What is absent is late arrival that overlaps an in-flight repair, and in particular
+  the pairing of a row-level surplus with an aggregate-level deficit so that the two conceal
+  each other at every level above the row.
+agent_visible_brief: >
+  Product noticed that daily active users for the first week of June never quite matched what
+  the event counts imply, and it has been that way since. The gap is small - under a percent
+  most days - which is why it sat for a while. There was a dedup fix run over that range at the
+  start of the month, and around the same time the Android team shipped a build that batches
+  events when the device is offline.
+  Please work out what happened and get both the event table and the daily numbers to something
+  correct, and tell us which days were wrong and in which direction. Two constraints: Finance
+  backdated an adjustment into two of those days and it needs to still be there afterwards, and
+  the ingestion timestamps on that table are what Support uses to answer "when did we receive
+  this", so they need to keep meaning what they mean. Also make sure that if we have to run a
+  repair again while the normal loads are going, we do not end up back here.
+derived_from:
+  - S603
+  - S604
+  - S610
+  - S611
+produced_by: E1-concurrency
+notes: >
+  S604 is the anchor for the lost-update half and is the reason this archetype exists: rows
+  updated during a backfill were overwritten by the versions the backfill had already read, with
+  no error and no residue. That is the hardest sub-shape in my whole block because the losing
+  write is absent from the final state by construction, and it is why the aggregate must be
+  authored as a read-modify-write rather than as a derived view.
+  S603 supplies the both-paths-took-it half: the same payload committed twice through two
+  different routes, each of which looks legitimate in isolation, diagnosable only by a
+  metadata-level self-join.
+  S610 supplies the predicate shape and the honest limit of the documentation: dbt's own
+  idempotence guidance frames this as a re-run hazard, sequential in time, and says nothing
+  about two overlapping runs - which is exactly the gap this archetype measures.
+  Build guidance: the two errors must be sized so they nearly cancel at the daily level, because
+  the cancellation is the difficulty. If the agent can see the problem in a daily total, the
+  task collapses to arithmetic. The timezone decoy must be a genuine defect with a genuine fix,
+  per the shared brief's rule against decoys that explain the whole symptom.
+  Per S611 the engine will not surface a conflict on the target surface, so the interleave is
+  staged as committed artifacts with the three timestamp columns carrying the ordering; nothing
+  races at world-build time except the scoring probe, at a fixed offset.

@@ -1,0 +1,42 @@
+id: F512
+target: A025
+attack_type: grounding - derived_from contains no attested incident, and the substrate is wrong
+severity: high
+finding: >
+  A025's six derived_from entries contain zero attested live incidents, and its own notes
+  specify a warehouse that is not a v1 surface.
+  S004 - the dev.to "50 postmortems" synthesis. F450: vendor-adjacent (layline.io sells data
+  integration), names not one of the 50 postmortems, every figure unfalsifiable,
+  recommended_action downgrade_confidence, and A025 is listed by name in that record.
+  S013, S014 - the dbt-databricks positional-INSERT issues. F454, verified via the GitHub API:
+  both CLOSED, the bug FIXED in dbt-databricks 1.11.7 on 2026-04-17, #1289 labelled "not an
+  issue / external issue", #1211 with zero comments and a body that is code-reading analysis
+  rather than an observed failure. A025 is listed by name in that record too. F455 separately
+  strips the "evidence this is frequent" reading.
+  S508, S511, S512 - tool documentation for Airbyte/Fivetran-class connectors. Under the
+  R002 two-axis model these are vendor pages: they license world_texture and nothing more.
+  A025's description leans on them for MECHANISM - "the documented sync/append schema-change
+  behavior, which appends the column at the end of the target table while the INSERT matches
+  positionally". A vendor's own docs describing how their connector propagates schema changes
+  is not evidence that the propagation corrupts anything.
+  So: one unauditable synthesis, two closed-and-fixed bug reports (one of which nobody ever
+  confirmed anyone ran), and three vendor doc pages. Nothing here attests that this failure
+  has happened to a named practitioner on a surface v1 can build. Combine with F500 - the
+  mechanism cannot occur on dbt Core + dbt-duckdb at all - and A025's realism claim is
+  entirely borrowed.
+  Substrate mismatch: A025's notes say "Substrate: fakesnow/DuckDB per S316 for the warehouse
+  surface; deterministic checks must order rows explicitly because fakesnow row ordering is
+  non-deterministic." The frozen contract (§9.2.1, ground rule 6) specifies real DuckDB, not
+  fakesnow, and pins threads=1 with a mandatory ATTACH-under-alias access rule. An archetype
+  whose determinism caveat is about a substrate the harness does not use has not been checked
+  against the harness that will run it.
+recommended_action: re-source
+found_by: D1-redteam
+mitigation: >
+  If the redesign F500 and F511 require keeps any schema-drift content, source it to S022
+  (Airbyte #77627 - verified OPEN 2026-09-13, named practitioner, named connector version,
+  control experiment) and to S015 (dbt-adapters #601 - verified OPEN 2026-09-13, the loud
+  removed-column leg, which does reproduce on DuckDB). Drop S004 and the three vendor doc
+  pages from derived_from or restrict them in the record to world_texture. Delete the
+  fakesnow caveat and replace it with the actual determinism constraint from §9.2.1
+  (in-memory connect, ATTACH under an alias, threads=1).

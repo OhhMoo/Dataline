@@ -1,0 +1,25 @@
+# Produced by T3-environment-themes (R002) for RQ4 -- legacy / flat-file environment themes.
+id: S905
+rq: RQ4
+claim: >
+  A signed DISPLAY numeric field that is REDEFINEd and moved into an unsigned field can retain a
+  stray sign-code nibble because the compiler assumed the zone bits were always x'F'.
+url: https://www.ibm.com/support/pages/apar/PH02465
+quote: >
+  the byte corresponding to the sign code in B will still contain a sign code
+source_type: docs
+company: "IBM"
+year: 2018
+retrieved: "2026-09-13"
+confidence: medium
+vividness: medium
+attestation: firsthand_named
+usable_for:
+  - world_texture
+  - mechanism
+produced_by: T3-environment-themes
+notes: >
+  IBM APAR -- a vendor's own defect record against its own compiler, which is the structural
+  opposite of vendor marketing, so classified attestation=firsthand_named and source_type=docs
+  rather than vendor_page. JUDGMENT CALL, FLAGGED FOR REVIEW: if a reviewer disagrees, reclassify
+  to vendor_marketing, which forces usable_for down to world_texture only. NOT re-fetched by T3.

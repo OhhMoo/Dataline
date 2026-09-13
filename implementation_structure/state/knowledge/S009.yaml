@@ -13,6 +13,10 @@ company: Pinterest
 year: 2025
 retrieved: "2026-09-11"
 confidence: high
+vividness: medium
+attestation: firsthand_named
+usable_for:
+  - world_texture
 produced_by: L1-practitioner-workflow-de
 notes: >
   Key structural fact for environment design: the orchestrator is where the symptom appears and

@@ -1,0 +1,27 @@
+# Produced by T3-environment-themes (R002) for RQ4 -- legacy / flat-file environment themes.
+id: S912
+rq: RQ4
+claim: >
+  A fixed-width extract whose byte length is not an exact multiple of the copybook-derived record
+  size fails record-boundary detection, which is the cheapest available integrity check on such a
+  file.
+url: https://github.com/AbsaOSS/cobrix/issues/68
+quote: >
+  NOT DIVISIBLE by the RECORD SIZE calculated from the copybook
+source_type: repo
+year: 2019
+retrieved: "2026-09-13"
+confidence: medium
+vividness: medium
+attestation: firsthand_anonymous
+usable_for:
+  - world_texture
+  - mechanism
+produced_by: T3-environment-themes
+notes: >
+  Closed. A 1513-byte record length is named in the surrounding discussion. Directly reusable as a
+  deterministic grading check: file size modulo record length must be zero is a check a competent
+  agent runs early and a naive one never runs at all. NOT re-fetched by T3.
+  VIVIDNESS DEMOTED TO MEDIUM BY T3 after G6 warned the quote is short: the underlying
+  incident is rebuildable but the span T3 is willing to certify verbatim is not, and the quote is
+  what the record actually licenses. Recorded as a demotion rather than argued around.

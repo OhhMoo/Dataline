@@ -1,0 +1,33 @@
+id: S611
+rq: RQ1
+claim: >
+  DuckDB combines MVCC with optimistic concurrency control inside a single writer process:
+  conflicting edits fail loudly, but appends never conflict even on the same table - so two
+  interleaved appending writers both succeed and leave a table that is internally consistent
+  and factually impossible, with no error anywhere to find.
+url: https://duckdb.org/docs/current/connect/concurrency.html
+quote: "As long as there are no write conflicts, multiple concurrent writes will succeed. Appends will never conflict, even on the same table."
+source_type: docs
+retrieved: "2026-09-13"
+confidence: high
+produced_by: E1-concurrency
+vividness: medium
+attestation: unattested
+usable_for:
+  - mechanism
+  - world_texture
+year: 2026
+notes: >
+  Official DuckDB documentation. Unattested (guidance, not an incident) and therefore cannot
+  license frequency; recorded because DuckDB is one of the five frozen v1 surfaces and this
+  is the buildability constraint for every archetype in my block.
+  The operative consequence: a concurrency archetype on DuckDB cannot rely on the engine
+  raising a conflict. Interleaving has to be staged by the world generator as committed
+  artifacts (two writers' rows, two load-log entries, two scheduler state rows) rather than
+  produced live by a racing harness - which is also what makes it deterministic and
+  replayable. The page does document a conflict error string
+  ("Transaction conflict: cannot update a table that has been altered!") for the
+  update/alter path, which is available as world texture if a task needs a loud failure
+  somewhere in the log.
+  Note: duckdb.org/docs/stable/connect/concurrency.html 301-redirects to this /current/ URL;
+  citing /current/ so G1 does not trip on the redirect.

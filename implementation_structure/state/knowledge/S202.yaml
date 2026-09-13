@@ -9,6 +9,10 @@ author_role: analytics platform team
 company: LinkedIn
 retrieved: "2026-09-11"
 confidence: medium
+vividness: low
+attestation: firsthand_named
+usable_for:
+  - world_texture
 produced_by: L3-practitioner-workflow-analytics
 notes: >
   Third independent large-company corroboration of the same failure mode as S200/S201. Three unrelated companies describing an identical problem is the frequency signal: metric divergence is endemic, not anecdotal.

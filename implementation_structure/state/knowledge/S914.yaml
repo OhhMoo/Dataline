@@ -1,0 +1,26 @@
+# Produced by T3-environment-themes (R002) for RQ4 -- legacy / flat-file environment themes.
+id: S914
+rq: RQ4
+claim: >
+  A Python package supplying extra EBCDIC code-page codecs documents that the standard library
+  silently takes precedence for several code-page names, so requesting a code page does not
+  guarantee getting that code page's table.
+url: https://pypi.org/project/ebcdic/
+quote: >
+  Codecs in the standard library overrule some of these codecs.
+source_type: repo
+author_role: "package author"
+year: 2026
+retrieved: "2026-09-13"
+confidence: medium
+vividness: medium
+attestation: firsthand_named
+usable_for:
+  - world_texture
+  - mechanism
+produced_by: T3-environment-themes
+notes: >
+  BUILDABILITY-CRITICAL, not merely texture. T3 measured directly, which is not itself a citable
+  source: CPython 3.11 ships cp037, cp273, cp500, cp1140, cp875 and cp424 in the standard library
+  but NOT cp1047. A CP037-versus-CP500 confusion task therefore needs zero extra dependencies,
+  while any task turning on CP1047 must ship a codec table. NOT re-fetched by T3.

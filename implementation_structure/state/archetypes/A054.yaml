@@ -1,0 +1,119 @@
+id: A054
+title: A reconciliation whose obvious query is correct and never finishes
+discipline: data_engineering
+description: >
+  Settlement operations need a reconciliation between roughly 38 million payment events and a
+  crosswalk that maps merchant outlets, where an event's reference may legitimately match
+  either the outlet identifier or the terminal identifier. The natural formulation joins on
+  one predicate OR the other, which DuckDB plans as a blockwise nested loop and which does not
+  finish inside the episode wall clock at the memory limit the harness imposes; the same
+  shape is measured in the wild at a factor of nearly a thousand, 1m 42s against 144ms for the
+  rewritten form (S660). The rewrite is not merely a performance change, because it carries a
+  grain hazard: roughly eleven hundred crosswalk rows have both identifiers populated and match
+  different events, so a union all over the two hash-join arms double counts and a plain
+  distinct union collapses legitimate duplicate events that share every projected column. A
+  third element sits outside the join entirely: a hand-curated override table, produced by no
+  model, supplies three hundred matches that neither key resolves. The agent must produce a
+  reconciliation that is correct on all three counts and that completes inside the budget.
+why_hard: >
+  The naive query is not wrong, which is what makes it a trap: it returns the right answer and
+  it returns it after the episode has ended, so an agent that writes it and waits loses without
+  ever being told it was wrong. The levers an agent reaches for first are all capped or
+  useless - the memory limit is enforced by the harness and cannot be raised past the ceiling,
+  more threads do not help a nested loop, and sampling produces a number that the exactness
+  checks reject. The move that wins is to read the plan: EXPLAIN shows BLOCKWISE_NL_JOIN, and
+  the rewrite into two hash joins combined with an explicit anti-join or a de-duplication on a
+  surrogate event key is then obvious. That is a genuine strategy separation rather than a
+  tedium test, because the cheap diagnostic changes the whole approach. The conjunction is what
+  keeps it from being one defect on one surface: getting the plan right and the set semantics
+  wrong produces a fast wrong number, getting both right and missing the override table
+  produces a fast nearly-right number, and the three errors are separable by the checks so
+  partial credit is real rather than accidental.
+human_hours: "6-14"
+grading: >
+  Deterministic. GRADING REFERENCE IS HARNESS-SIDE (F121): the expected reconciliation is
+  materialised in a separate DuckDB file attached read-only at scoring time only, never in the
+  agent-visible catalog. Checks are an exact row-set match of the produced reconciliation, a
+  wall-clock and memory ceiling enforced by the harness on the agent's final query rather than
+  on the agent's exploration, a plan assertion that the executed plan contains no blockwise
+  nested loop join, a separated check on the eleven hundred both-key rows and on the three
+  hundred override matches so double counting and over-collapsing are distinguishable, and a
+  check that the override table survived. No judge axis is load-bearing.
+rubric_points: 18
+apps_touched:
+  - warehouse
+  - dbt
+  - git
+deterministic_checks:
+  - "produced reconciliation row-set matches a HARNESS-SIDE reference exactly, attached read-only at scoring time"
+  - "the agent's final reconciliation query completes within the harness wall clock at the enforced memory limit - a correct query that does not finish scores zero"
+  - "EXPLAIN of the agent's final query contains no BLOCKWISE_NL_JOIN operator"
+  - "the eleven hundred crosswalk rows with both identifiers populated appear exactly once each - union all double counting is a distinct, detectable failure"
+  - "legitimate duplicate events sharing every projected column are both present - a distinct union that collapses them is a distinct, detectable failure"
+  - "the three hundred hand-curated override matches are present in the output"
+  - "the crosswalk_override table still exists with its pre-episode row count - a full refresh that drops it scores zero"
+judge_axes:
+  - code_quality
+failure_modes_expected:
+  - "writes the OR-join, starts it, and waits until the wall clock ends with nothing produced"
+  - "attempts to raise memory_limit or thread count and reports the environment as under-resourced"
+  - "samples or limits the fact table to make it finish, producing a number the exactness check rejects"
+  - "narrows the join to a single key so it completes fast, silently dropping every terminal-matched event"
+  - "rewrites into two hash joins with union all and double counts the eleven hundred both-key rows"
+  - "rewrites into two hash joins with a distinct union and collapses legitimate duplicate events"
+  - "ignores the override table because nothing in the lineage graph points at it"
+  - "runs a full refresh to get a clean slate and destroys the hand-curated override rows"
+existing_coverage: >
+  Query-optimisation tasks exist in text-to-SQL and SQL-tuning benchmarks, but they almost
+  always grade the rewritten query against a reference query rather than running it under a
+  real ceiling, so an agent that produces a plausible-looking rewrite scores well without the
+  rewrite ever having to work. Running the thing under an enforced wall clock and memory limit,
+  and conjoining the performance cliff with a set-semantics hazard so speed alone is not the
+  answer, is what I did not find covered.
+derived_from:
+  - S660
+  - S659
+  - S651
+  - S650
+produced_by: E2-scale
+attacks:
+  - F121
+  - F202
+agent_visible_brief: >
+  Settlement ops need the daily reconciliation between payment events and the merchant outlet
+  crosswalk rebuilt - the old job was retired and nobody documented it. An event reference can
+  match either the outlet id or the terminal id on the crosswalk, and both are valid matches.
+  We need one row per matched event with the outlet attached. Whatever you write has to run
+  inside the nightly window on the standard warehouse allocation, so please make sure it
+  actually completes there rather than just looking right. Ops will check the totals against
+  their own count.
+status: draft
+notes: >
+  HOW THE CLUTTER IS GENERATED, DETERMINISTICALLY. This archetype needs volume rather than
+  model count, and the volume is built in-engine: the world builder emits 38 million payment
+  events with INSERT INTO ... SELECT ... FROM range(38000000) plus seeded hash expressions, and
+  the crosswalk with roughly four hundred thousand rows the same way. Nothing is loaded from
+  CSV, deliberately, because S651 measures dbt seed at up to 2Gb of resident memory for 125Mb
+  of seed files, which would consume the entire episode ceiling before the task starts.
+  Determinism comes from the seed feeding the hash expressions rather than from any random
+  function, so the same seed yields the same bytes. The eleven hundred both-key collision rows
+  and the three hundred override rows are not sprinkled randomly: they are computed by the
+  builder as the deterministic consequence of the crosswalk generation rule, so they sit where
+  a real crosswalk would put them. WHY THE CEILING BITES THE WAY IT SHOULD: the reporter in
+  S660 observed full throttle on the CPU with low memory usage on the nested-loop plan, so the
+  failure mode here is the wall clock rather than an out-of-memory kill, and the build side of
+  the correct hash join is the four hundred thousand row crosswalk, which is small. The fact
+  table at 38 million narrow rows is roughly 1.2GB on disk in the DuckDB file and streams; it
+  is attached, not loaded, so boot is an attach rather than an ingest. RESOURCE BUDGET,
+  HONESTLY: this is the archetype whose budget I am least able to assert without measuring.
+  S660's 1m 42s was on roughly 20MB of parquet, so scaling to 38 million events should put the
+  nested-loop plan far outside any plausible wall clock, which is the intent, but the exact
+  row count must be tuned empirically so that the correct hash-join plan finishes comfortably
+  while the nested loop does not finish at all. If piloting shows the correct plan also strains
+  the ceiling, the fact table should be reduced rather than the memory limit raised, because
+  raising the limit removes the point of the task. WHAT A FULL REFRESH DESTROYS: crosswalk_override
+  is hand-curated and produced by no model, so any rebuild of the schema removes three hundred
+  matches permanently and there is nothing in the world from which to regenerate them.
+  NAIVE BASELINES: the OR-join must be correct and must not finish; single-key narrowing must
+  finish fast and fail the row-set check; union all and distinct union must each fail a
+  different, separately identified check.

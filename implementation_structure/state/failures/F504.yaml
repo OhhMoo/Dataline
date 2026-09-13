@@ -1,0 +1,49 @@
+id: F504
+target: A005
+attack_type: cheap_win - kitchen-sink attribution plus nondeterministic grading
+severity: high
+finding: >
+  Two independent holes, one a direct recurrence of F128.
+  (1) KITCHEN-SINK ATTRIBUTION. A005 plants "three independently sufficient skew
+  mechanisms", says "the agent must diagnose WHICH mechanisms are live", and grades by
+  "diagnosis report must name each live mechanism (checked against the world's seed
+  manifest), per-mechanism credit". The candidate set is three, it is enumerable, and
+  nothing in the archetype states a penalty for naming a mechanism that is not live.
+  An agent that submits all three - a five-token guess requiring no investigation - collects
+  100% of the mechanism-identification axis in every world variant. This is exactly the hole
+  F128 found in A006 ("if extra attributions are unpunished, an agent that submits the whole
+  taxonomy scores full attribution with zero localization work"), and A005 was authored
+  after it. Note that agent.md §9.2.5 DOES specify a false-cause penalty on
+  additional_causes at the harness level; A005 neither cites it nor sizes it, so whether the
+  hole is open is currently undetermined by the archetype itself - which is the defect.
+  (2) THE GRADING IS NOT REPRODUCIBLE. "Retrained offline AUC on a clean split lands inside
+  a reference band" requires the GRADER to retrain, or to trust a model the agent trained.
+  Model fitting is nondeterministic across runs in exactly the ways the brief names:
+  RNG seeding, BLAS/OpenMP thread count, data ordering, and library version. The frozen
+  contract pins DuckDB to threads=1 for precisely this reason and says nothing about a
+  training stack. "Probe-set serving predictions diff vs reference within tolerance" has the
+  same problem one layer down - float predictions from a refit model are not comparable
+  across hosts. Two of four deterministic_checks are therefore not deterministic; with the
+  report-matching check in (1) gameable, the only genuinely solid check left is
+  "entity-level feature parity assert between serving log and training snapshot".
+  (3) Surface. apps_touched names "jupyter" and the task requires a model training and
+  serving stack. Ground rule 6 freezes v1 at DuckDB, dbt Core, git, the scheduler state
+  machine and BI+docs, and permits designing against more only if the archetype SAYS SO.
+  A005 does not say so. This is the smallest of the three findings but it means A005 cannot
+  be scheduled against the v1 harness as written.
+recommended_action: redesign
+found_by: D1-redteam
+mitigation: >
+  (1) State the false-cause penalty and size it so that naming all three nets strictly below
+  naming only the live ones - i.e. per-mechanism credit minus a penalty at least equal to
+  the credit. Better: require per-mechanism CONTRIBUTION quantification (each mechanism's
+  share of the offline/online gap, checked to a stated precision against the manifest), which
+  a kitchen-sink guess cannot produce.
+  (2) Drop the retraining check entirely. The gradeable core of A005 is the feature-parity
+  assertion, which is exact and needs no model: assert that for every entity in a held-out
+  probe set, the logged serving feature vector equals the training-time feature vector
+  byte-for-byte. Grade the leakage leg on the ARTEFACT (was the imputation constant refit on
+  the training split only - checkable from the saved preprocessing object) rather than on a
+  retrained AUC.
+  (3) Declare the notebook/training surface explicitly, or re-scope A005 to the feature-path
+  half, which lives entirely on DuckDB + git and is the half that carries the difficulty.

@@ -1,0 +1,24 @@
+# Produced by T3-environment-themes (R002) for RQ4 -- legacy / flat-file environment themes.
+id: S930
+rq: RQ4
+claim: >
+  A flat-file source feeding a SQL Server data flow fails on a named column with a status-4 data-
+  conversion error when the declared column width or code page does not match the incoming text.
+url: https://www.sqlservercentral.com/forums/topic/text-was-truncated-or-one-or-more-characters-had-no-match-in-the-target-code-page-1
+quote: >
+  Text was truncated or one or more characters had no match in the target code page.
+source_type: forum
+retrieved: "2026-09-13"
+confidence: medium
+vividness: high
+attestation: firsthand_anonymous
+usable_for:
+  - world_texture
+  - mechanism
+produced_by: T3-environment-themes
+notes: >
+  The canonical SSIS flat-file error string, and the highest-value world texture in the Microsoft-
+  shop theme. The quote has been reduced to the inner error sentence rather than the full nested
+  message, because the full message embeds escaped double quotes around the column name that would
+  be mangled on the way into YAML and would then fail G1's literal match. A task author wanting
+  the full form should re-fetch the page. NOT re-fetched by T3, hence confidence medium.

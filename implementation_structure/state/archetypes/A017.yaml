@@ -52,7 +52,26 @@ existing_coverage: >
 derived_from:
   - S022
   - S002
-  - S013
   - S019
+  - S013
 produced_by: S3-benchmark-gaps
-attacks: []
+attacks:
+  - F506
+  - F513
+status: redesign_required
+repair_note: >
+  RE-GROUNDED 2026-09-13 (D2, R002 evidence repair). This archetype needed the lightest touch of
+  the eleven - its primary source was never damaged.
+  SOUND AND RE-VERIFIED: S022 (Airbyte #77627) confirmed OPEN via the GitHub API 2026-09-13, 6
+  comments. Named connector version, named destination, named sync mode, the exact schema-change
+  trigger, two independent symptoms and a control experiment. firsthand_anonymous, vividness
+  high, mechanism-licensed. Everything this archetype's core actually needs.
+  RETYPED, NOT REMOVED: S013 is now attestation=firsthand_anonymous at vividness=medium and the
+  dbt-databricks issue behind it is CLOSED and fixed in 1.11.7 (F454) - it may still be cited for
+  the mechanism but not as a live trap, and a silent-corruption world must pin the adapter. S002
+  is attestation=unattested (F451): the UTC-to-local pattern is a pattern sketch, not an
+  incident, though it remains mechanism-licensed and rebuildable.
+  FREQUENCY CLAIM: S019 is the only source here that licenses frequency (peer-reviewed, mines
+  9,591-question and GitHub corpora, secondhand). It supports weighting toward ingestion and
+  data-cleaning defects generally. It does NOT support "connector row loss is common" - no source
+  in this corpus does, and the archetype must not imply it.

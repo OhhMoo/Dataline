@@ -10,6 +10,10 @@ company: "Mercor"
 year: 2026
 retrieved: "2026-09-11"
 confidence: medium
+vividness: medium
+attestation: vendor_marketing
+usable_for:
+  - world_texture
 produced_by: L5-competitive-pricing
 notes: >
   VENDOR CLAIM. Included as the commodity-labelling baseline: the 3-6x gap between this and the expert band is the whole basis of the quality-over-quantity argument in S405.

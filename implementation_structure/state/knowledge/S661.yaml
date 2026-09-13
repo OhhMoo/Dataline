@@ -1,0 +1,25 @@
+id: S661
+rq: RQ1
+claim: dbt model filenames must be globally unique across a project regardless of directory or custom schema, because ref() takes only the filename; the collision produces a named compilation error, and the recommended workaround is the source__object naming convention.
+url: https://discourse.getdbt.com/t/is-it-possible-to-have-multiple-files-with-the-same-name-in-dbt/647
+quote: "dbt found two resources with the name "stg_payments". Since these resources have the same name, dbt will be unable to find the correct resource when ref("stg_payments") is used."
+source_type: forum
+company: dbt Labs
+retrieved: "2026-09-13"
+confidence: high
+produced_by: E2-scale
+author_role: Claire Carroll, dbt Labs (then Fishtown Analytics), answering
+year: 2019
+vividness: high
+attestation: firsthand_named
+usable_for:
+  - world_texture
+  - mechanism
+notes: >
+  Fetched 2026-09-13 through the Discourse JSON API for topic 647; topic reports 17014 views
+  and is closed to new replies. The answer is by the forum user claire, identified in the
+  post as a dbt Labs employee; attestation is firsthand_named for the tool behaviour she is
+  describing, but usable_for deliberately excludes frequency because source_type is forum and
+  G6 forbids it regardless of attestation. The verbatim error text and the stated convention
+  source__object are the raw material for a world where naming discipline is load-bearing and
+  unevenly applied.

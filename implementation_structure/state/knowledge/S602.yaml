@@ -1,0 +1,28 @@
+id: S602
+rq: RQ1
+claim: >
+  The Airflow scheduler's completion sweep runs on a ~30s timer against backfill rows that
+  are committed before their DagRun rows exist, so a sweep landing inside that window
+  concludes a zero-run backfill is finished; the current fix is an EXISTS guard plus a
+  two-minute time heuristic, not an atomic transaction.
+url: https://github.com/apache/airflow/issues/64534
+quote: "The scheduler runs _mark_backfills_complete() every ~30 seconds, looking for backfills where all associated DagRuns have finished."
+source_type: repo
+retrieved: "2026-09-13"
+confidence: high
+produced_by: E1-concurrency
+vividness: high
+attestation: secondhand
+usable_for:
+  - world_texture
+  - mechanism
+year: 2026
+notes: >
+  LIVENESS CHECKED 2026-09-13 via GitHub API: state=open, created 2026-03-31. This is a
+  follow-up ticket written against the code path, citing the original user bug report
+  (#61375, recorded here as S601) and PR #62561, so it reports someone else's incident plus
+  a maintainer code reading: attestation=secondhand. Deliberately NOT claiming frequency -
+  one bug report and one review thread is not evidence of prevalence.
+  Quote is the rendered-page form: the body writes _mark_backfills_complete() inside
+  backticks, which GitHub renders as a code span and the G1 tag-stripper flattens to the
+  same characters.

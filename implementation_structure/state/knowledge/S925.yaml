@@ -1,0 +1,24 @@
+# Produced by T3-environment-themes (R002) for RQ4 -- legacy / flat-file environment themes.
+id: S925
+rq: RQ4
+claim: >
+  Two spreadsheet date systems coexist, so the same serial number denotes two dates exactly 1462
+  days apart depending on which platform wrote the file.
+url: https://support.microsoft.com/en-us/office/date-systems-in-excel-e7fe7167-48a9-4b96-bb53-5612a800b487
+quote: >
+  The difference between the two date systems is 1,462 days.
+source_type: docs
+company: "Microsoft"
+retrieved: "2026-09-13"
+confidence: medium
+vividness: medium
+attestation: unattested
+usable_for:
+  - world_texture
+  - mechanism
+produced_by: T3-environment-themes
+notes: >
+  A four-year date shift that is EXACT and CONSTANT is an unusually good benchmark mechanism,
+  because it is arithmetically detectable once suspected and invisible until then, and because
+  1462 is a distinctive enough number that a correct diagnosis is unambiguous to a deterministic
+  grader. NOT re-fetched by T3.

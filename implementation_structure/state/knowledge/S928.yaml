@@ -1,0 +1,24 @@
+# Produced by T3-environment-themes (R002) for RQ4 -- legacy / flat-file environment themes.
+id: S928
+rq: RQ4
+claim: >
+  A vendor explainer gives the byte-level account of mojibake, where a multi-byte UTF-8 sequence
+  decoded one byte at a time under a single-byte code page yields two visible characters in place
+  of one.
+url: https://datalion.com/en/blog/mojibake-fix-garbled-characters-utf-8/
+quote: >
+  If a program mistakenly reads the file as Windows-1252 or ISO-8859-1, it interprets each byte as its own character
+source_type: blog
+retrieved: "2026-09-13"
+confidence: medium
+vividness: medium
+attestation: vendor_marketing
+usable_for:
+  - world_texture
+produced_by: T3-environment-themes
+notes: >
+  attestation=vendor_marketing therefore usable_for is world_texture ONLY, per G6 and failure F400
+  -- the mechanism it describes is real but this source may not license it. That costs nothing
+  here: T3 verified the same mechanism by direct measurement, and measurement does not need a
+  citation to be true, it needs a test. Task authors should take the mechanism from the
+  measurement and the phrasing from this page.

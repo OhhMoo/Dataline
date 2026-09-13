@@ -11,6 +11,10 @@ company: "Mechanize, Inc."
 year: 2025
 retrieved: "2026-09-11"
 confidence: medium
+vividness: low
+attestation: vendor_marketing
+usable_for:
+  - world_texture
 produced_by: L5-competitive-pricing
 notes: >
   Vendor-authored and self-serving, but it is the explicit statement of the labour model E5 assumes. Supports hand-authored-first (agent.md 6.5) over generator-first for v1.

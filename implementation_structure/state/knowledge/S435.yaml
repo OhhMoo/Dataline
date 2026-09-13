@@ -11,6 +11,11 @@ company: "Terminal-Bench"
 year: 2026
 retrieved: "2026-09-11"
 confidence: high
+vividness: medium
+attestation: firsthand_named
+usable_for:
+  - world_texture
+  - frequency
 produced_by: L5-competitive-pricing
 notes: >
   AUTHORING YIELD ANCHOR: budget roughly 2.5 authored tasks per shipped task. Directly relevant to any per-task price we quote - our cost base has to absorb the rejects.

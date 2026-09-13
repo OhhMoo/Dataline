@@ -14,6 +14,11 @@ company: GitLab
 year: 2017
 retrieved: "2026-09-11"
 confidence: high
+vividness: high
+attestation: firsthand_named
+usable_for:
+  - world_texture
+  - mechanism
 produced_by: L1-practitioner-workflow-de
 notes: >
   Gold-standard first-party postmortem with a full timeline and a five-whys section. Three

@@ -7,6 +7,10 @@ source_type: docs
 company: PostgreSQL Global Development Group
 retrieved: "2026-09-12"
 confidence: high
+vividness: low
+attestation: unattested
+usable_for:
+  - world_texture
 produced_by: L6-tooling-inventory
 notes: Official project documentation; license and runtime verification remain RQ3 work.
 repair_note: >

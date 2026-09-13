@@ -10,6 +10,12 @@ company: University of Michigan
 year: 2021
 retrieved: "2026-09-11"
 confidence: high
+vividness: medium
+attestation: secondhand
+usable_for:
+  - world_texture
+  - mechanism
+  - frequency
 produced_by: L2-practitioner-workflow-ds
 notes: >
   The canonical offline-vs-deployed metric gap with a named model, cohort size and two numbers. A rebuildable task: given a vendor-reported metric and a local cohort, reproduce the external validation and discover the discrepancy. The second-order failure (alert fatigue) is an operating-point problem, not a model-quality problem - a distinct judge axis.

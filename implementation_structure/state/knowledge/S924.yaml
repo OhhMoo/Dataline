@@ -1,0 +1,26 @@
+# Produced by T3-environment-themes (R002) for RQ4 -- legacy / flat-file environment themes.
+id: S924
+rq: RQ4
+claim: >
+  A vendor's own documentation warns that merely opening a CSV export in a spreadsheet converts
+  long numeric identifiers to scientific notation, reinterprets date-like strings, and zero-fills
+  any value beyond 15 digits.
+url: https://docs.oracle.com/en/cloud/saas/sales/faiem/potential-issues-when-opening-csv-files-in-excel.html
+quote: >
+  Excel replaces the digits beyond 15 with zeroes.
+source_type: docs
+company: "Oracle"
+retrieved: "2026-09-13"
+confidence: medium
+vividness: high
+attestation: unattested
+usable_for:
+  - world_texture
+  - mechanism
+produced_by: T3-environment-themes
+notes: >
+  Classified attestation=unattested because it is product documentation describing behaviour
+  rather than anyone reporting an incident; it is NOT vendor_marketing, since the vendor is
+  warning about a third party's tool damaging its own exports, which is the opposite of a
+  marketing posture. Mechanism licence is justified by the specificity: 15 digits, zero-fill, and
+  the named transformations are all falsifiable. NOT re-fetched by T3.

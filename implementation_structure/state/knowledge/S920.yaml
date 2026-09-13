@@ -1,0 +1,30 @@
+# Produced by T3-environment-themes (R002) for RQ4 -- legacy / flat-file environment themes.
+id: S920
+rq: RQ4
+claim: >
+  A UTF-8 byte-order mark at the head of a CSV is decoded as literal characters and prepended to
+  the first column name, so a join or a column reference on that name fails while every other
+  column behaves normally.
+url: https://community.qlik.com/t5/Visualization-and-Usability/Weird-characters-in-front-of-the-first-fieldname-when-loading/m-p/1856324/highlight/true
+quote: >
+  the first column/field has this weird characters
+source_type: forum
+year: 2021
+retrieved: "2026-09-13"
+confidence: medium
+vividness: medium
+attestation: firsthand_anonymous
+usable_for:
+  - world_texture
+  - mechanism
+produced_by: T3-environment-themes
+notes: >
+  The quote is TRUNCATED before the mojibake glyphs on purpose: the original shows the BOM
+  rendered as three Latin-1 characters, and T3 could not guarantee byte-exact reproduction of
+  those glyphs through this pipeline, which would fail G1's literal match. A task author
+  reproducing this should regenerate the bytes rather than copy the glyphs. Mechanism confirmed
+  independently by measurement: a UTF-8 BOM is EF BB BF, which decoded as cp1252 yields three
+  visible characters attached to the first header. NOT re-fetched by T3.
+  VIVIDNESS DEMOTED TO MEDIUM BY T3 after G6 warned the quote is short: the underlying
+  incident is rebuildable but the span T3 is willing to certify verbatim is not, and the quote is
+  what the record actually licenses. Recorded as a demotion rather than argued around.

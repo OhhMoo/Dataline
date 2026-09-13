@@ -1,0 +1,29 @@
+# Produced by T3-environment-themes (R002) for RQ4 -- legacy / flat-file environment themes.
+id: S900
+rq: RQ4
+claim: >
+  EBCDIC code pages CP037 and CP1047 assign different byte values to square brackets, so an
+  extract decoded under the wrong code page silently substitutes characters instead of raising an
+  error.
+url: https://bit.listserv.ibm-main.narkive.com/rAoqij8D/codepage-37-vs-1047
+quote: >
+  The significant difference is that square brackets "[]" are represented by CP37 as x'BA' x'BB' and by CP1047 as x'AD' x'BD'.
+source_type: forum
+author_role: "mainframe practitioner on the IBM-MAIN mailing list"
+year: 2006
+retrieved: "2026-09-13"
+confidence: high
+vividness: high
+attestation: firsthand_named
+usable_for:
+  - world_texture
+  - mechanism
+produced_by: T3-environment-themes
+notes: >
+  Named poster (Rob Wunderlich); quote re-fetched and confirmed verbatim by T3 on 2026-09-13.
+  Mailing-list archive counts as source_type=forum, so this can never license frequency. NEAR-MISS
+  LOGGED: a sub-search initially attributed a near-identical sentence to an AWS Database Blog post
+  on Db2-to-RDS migration. T3 fetched that post and the sentence is NOT on it, so that candidate
+  source was DROPPED rather than cited. Independently corroborated by direct measurement, which is
+  not itself a citable source: encoding the string [ ] ! as cp037 and decoding it as cp500 under
+  CPython 3.11 returns three different characters and raises no exception.

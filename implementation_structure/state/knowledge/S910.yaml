@@ -1,0 +1,24 @@
+# Produced by T3-environment-themes (R002) for RQ4 -- legacy / flat-file environment themes.
+id: S910
+rq: RQ4
+claim: >
+  A copybook-driven EBCDIC reader silently parses the year 2025 as 2015 in specific date fields
+  while 2024 parses correctly, producing a plausible in-range wrong date with no error raised.
+url: https://github.com/AbsaOSS/cobrix/issues/752
+quote: >
+  Suppose Mainframe value = 2025062 then CoBrix value is showing as 2015062
+source_type: repo
+year: 2025
+retrieved: "2026-09-13"
+confidence: high
+vividness: high
+attestation: firsthand_anonymous
+usable_for:
+  - world_texture
+  - mechanism
+produced_by: T3-environment-themes
+notes: >
+  LIVE TRAP -- T3 verified on 2026-09-13 that this issue is still OPEN, filed by GitHub user
+  suryagits on 2026-03-10, and re-fetched the quote verbatim. Second crown-jewel mechanism in this
+  block alongside S904: one digit changes, the value stays plausible, nothing throws. Ideal for a
+  task whose only detectable symptom is a downstream aggregate drifting by a bounded amount.
