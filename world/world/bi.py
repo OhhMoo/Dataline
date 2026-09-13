@@ -1,6 +1,6 @@
 """BI-values surface: dashboards are YAML of named SQL panels; rendering
 returns computed values (not images) so 'dashboard disagrees with warehouse'
-is a checkable condition (split_of_work.md §4).
+is a checkable condition (agent.md §9.3 Track B).
 """
 import argparse
 import json

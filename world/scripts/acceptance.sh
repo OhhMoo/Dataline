@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# World-factory acceptance battery (split_of_work.md §3).
+# World-factory acceptance battery (agent.md §9.3 Track A).
 #   bash scripts/acceptance.sh     (any shell; venv auto-detected)
 # Set PYTHON to override the interpreter. Docker gates are skipped when no
 # docker daemon is reachable.

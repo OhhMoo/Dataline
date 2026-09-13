@@ -2,7 +2,7 @@
 
 save(): sorted entries, zeroed mtime/uid/gid, fixed modes -> identical tar
 bytes for identical world contents. restore(): byte-exact extraction.
-Gates (split_of_work.md §3): snapshot restore must reproduce the identical
+Gates (agent.md §9.3 Track A): snapshot restore must reproduce the identical
 raw byte hash; building from scratch twice must reproduce the identical
 semantic fingerprint — the two are deliberately separate.
 """

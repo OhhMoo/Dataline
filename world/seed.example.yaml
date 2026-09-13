@@ -1,5 +1,5 @@
 # Placeholder world seed.
-# Concrete table/column names are Track C's frozen spec (split_of_work.md §2.1).
+# Concrete table/column names are Track C's frozen spec (agent.md §9.2.1).
 # Until that lands, this placeholder exercises every surface end-to-end:
 # landing CSVs -> raw -> dbt (staging view, warehouse table) -> BI values + docs,
 # plus scheduler history and a git workspace, all under a virtual clock.

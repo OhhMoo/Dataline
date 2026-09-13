@@ -2,6 +2,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
@@ -47,7 +48,11 @@ class Commands:
         self.workspace = workspace
 
     def dbt(self, command: str, selector: str, variables: dict, full_refresh: bool, observation):
-        executable = shutil.which("dbt")
+        # Look beside the running interpreter BEFORE falling back to PATH. Launching
+        # the gateway as `.venv/bin/python -m alkera_gateway` (how CI and the
+        # integration test do it) never puts the venv's script dir on PATH, so a
+        # PATH-only lookup silently degrades every dbt tool to dependency_missing.
+        executable = shutil.which("dbt", path=str(Path(sys.executable).parent)) or shutil.which("dbt")
         if executable is None:
             raise ToolError("dependency_missing", "Install the dbt extra to run dbt tools")
         observation.op_class = "exec"

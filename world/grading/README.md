@@ -1,7 +1,7 @@
 # /grading — post-episode grading zone (owned by Track C)
 
 This directory is mounted read-only into the `grading` container, which has
-no network and never runs during the episode (split_of_work.md §1.1, §2.1).
+no network and never runs during the episode (agent.md §9.1 rule 1, §9.2.1).
 
 Track C fills it per §2.3/§2.4:
 
