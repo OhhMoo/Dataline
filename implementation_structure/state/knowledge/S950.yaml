@@ -1,0 +1,50 @@
+id: S950
+claim: >
+  dbt parse time at the scale the E2 archetypes need is dominated by a fixed ~4.1s
+  interpreter/adapter startup, not by model count. Measured on dbt-core + dbt-duckdb as
+  installed in this repo: an empty project parses in 4.08s; 570 models / 1,710 manifest
+  nodes cold-parse in 11.12s; 900 models / 2,700 nodes in 12.81s. Going from 100 to 900
+  models (300 to 2,700 nodes) costs only +2.5s, so scaling across this range is mild and
+  sublinear in wall-clock, not superlinear. With partial_parse.msgpack present, 570 models
+  re-parse in 4.55s and 900 in 5.02s - essentially the startup floor. Partial parsing is
+  per-file and survives edits: after editing one model file, 570 models re-parse in 4.96s;
+  after editing the schema.yml carrying 1,140 tests, 4.57s.
+url: "https://github.com/dbt-labs/dbt"
+quote: >
+  Partial parsing is enabled by default. dbt will use the partial parsing feature to
+  reduce the time it takes to parse your project.
+source_type: repo
+retrieved: "2026-09-13"
+confidence: high
+produced_by: LEAD-R002
+rq: RQ2
+vividness: high
+attestation: firsthand_named
+usable_for:
+  - mechanism
+author_role: "measured in-repo by the lead agent, not reported by a third party"
+year: 2026
+notes: >
+  FIRSTHAND MEASUREMENT, not a literature finding. Generated four synthetic dbt projects
+  (100/300/570/900 models) in a stg->int->rpt shape at S664's measured prefix ratios, two
+  generic tests per model, and timed `dbt parse` against the dbt in gateway/.venv. Raw
+  numbers and method in rounds/R002/LEAD-parse-budget.md.
+
+  WHY THIS EXISTS: E2 flagged its parse-time budget as the weakest number in its report and
+  said plainly that nothing had been built or measured. Its estimate extrapolated linearly
+  from S650 (~3 min at 1,599 models) to ~40-70s at 570 models, at or over Track A's 60s boot
+  budget - which would have made the entire scale-archetype family undeployable. Measured,
+  the cold figure is ~11s and the warm figure ~4.6s. The extrapolation was wrong by roughly
+  4-6x, in the safe direction.
+
+  HONEST LIMIT - this is a FLOOR, not a prediction. The generated models are one-line
+  selects with no packages, no macro layer, no snapshots, no seeds and trivial Jinja.
+  S650's 3-minute project is presumably far heavier per node, and macro-heavy projects parse
+  much more slowly at the same node count. What this establishes is that NODE COUNT ALONE
+  does not blow the budget in this range; it does not establish that any particular realistic
+  570-model project will parse in 11s. The generator's actual output must be re-measured
+  once it exists.
+
+  The quoted span is dbt's own documentation of partial parsing, which is the mechanism the
+  warm numbers exercise; the performance figures are mine and are attested by the method
+  above rather than by the URL.
