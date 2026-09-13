@@ -60,7 +60,7 @@ expect = "< oracle (false-cause penalty bites)"
 
 [provenance]
 derived_from   = ["S008", "S015"]
-withdrawn_evidence = ["S001", "S005", "S006"]
-withdrawn_reason = "S005/S006 are the vendor-survey cluster (F450); S001's backfill story is an essay's narrated opening scene, not an attested incident (F451)"
+excluded_evidence = ["S001", "S005", "S006"]
+excluded_reason = "Not used by this task. S005/S006 are in the vendor-survey cluster F450 targets (F450's own target is S004); S001's backfill story is an essay's narrated opening scene, not an attested incident (F451). CORRECTED 2026-09-13: an earlier version of this block called these 'withdrawn'. They were not, and are not - both F450 and F451 recommended downgrade_confidence, and neither recommendation had been executed as of 2026-09-13 (S001 still read confidence: high). Only S010 and S017 are actually in knowledge/withdrawn/. GT001 excluding them was a local choice, not a corpus disposition."
 red_team = ["F121", "F128", "F129", "F202", "F306"]
 note = "mechanism is grounded; frequency weighting is NOT re-derived - claim the mechanism only"
