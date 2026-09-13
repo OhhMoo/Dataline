@@ -504,8 +504,57 @@ def gate5_replication() -> Result:
     return r
 
 
+FREQ_OK_ATTEST = {"firsthand_named", "secondhand"}
+FREQ_BAD_TYPE = {"forum", "vendor_page"}
+
+
+def gate6_source_quality() -> Result:
+    """Two-axis source model: vividness and attestation are independent.
+
+    The citation audit found ~47% of sampled sources failing semantic review
+    while passing every mechanical check - each had a perfect verbatim quote.
+    A quote match proves the words exist on the page. It proves nothing about
+    whether the author witnessed the thing, or whether it is common. This gate
+    checks the second question, which is the one that was going unasked.
+    """
+    r = Result("G6", "source quality (vividness / attestation split)")
+    allowed = {"world_texture", "mechanism", "frequency"}
+    for path, doc in artifacts("source"):
+        if "__parse_error__" in doc or doc.get("status") == "withdrawn":
+            continue
+        r.checked += 1
+        uses = doc.get("usable_for") or []
+        if not isinstance(uses, list) or not uses:
+            r.fail(f"{path.name}: usable_for missing -- say what this source may license")
+            continue
+        bad = [u for u in uses if u not in allowed]
+        if bad:
+            r.fail(f"{path.name}: usable_for has unknown entries {bad}")
+
+        attest, stype = doc.get("attestation"), doc.get("source_type")
+        if "frequency" in uses:
+            if attest not in FREQ_OK_ATTEST:
+                r.fail(f"{path.name}: claims usable_for=frequency on attestation="
+                       f"{attest!r}. An anonymous or unattested source cannot establish "
+                       f"that something is common.")
+            if stype in FREQ_BAD_TYPE:
+                r.fail(f"{path.name}: source_type={stype!r} can never license a frequency "
+                       f"claim -- drop 'frequency' or find a second attested source.")
+        if attest == "vendor_marketing" and uses != ["world_texture"]:
+            r.fail(f"{path.name}: vendor_marketing may only license world_texture, got {uses} (F400)")
+
+        # vividness is a promise about rebuildability, so spot-check the quote carries specifics
+        if doc.get("vividness") == "high":
+            q = str(doc.get("quote", ""))
+            if len(q) < 80 and not any(c.isdigit() for c in q):
+                r.warn(f"{path.name}: vividness=high but the quote is short and carries no "
+                       f"concrete specifics -- a world generator could not rebuild this")
+    return r
+
+
 GATES = {"G0": gate0_schema, "G1": gate1_citations, "G2": gate2_license_liveness,
-         "G3": gate3_coverage, "G4": gate4_referential, "G5": gate5_replication}
+         "G3": gate3_coverage, "G4": gate4_referential, "G5": gate5_replication,
+         "G6": gate6_source_quality}
 ONLINE = {"G1", "G2"}
 
 

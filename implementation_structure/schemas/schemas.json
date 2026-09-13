@@ -1,147 +1,155 @@
 {
-  "_comment": "Minimal schemas enforced by gates/run_gates.py (G0). Deliberately dependency-free: a tiny validator in run_gates.py reads this, so no jsonschema install is needed. Types: str, int, float, bool, list, dict, enum:<a|b|c>, list[str].",
-  "source": {
-    "_file_glob": "state/knowledge/*.yaml",
-    "_desc": "One externally-verifiable finding. The unit that G1 checks.",
-    "required": {
-      "id": "str",
-      "claim": "str",
-      "url": "str",
-      "quote": "str",
-      "source_type": "enum:blog|conference_talk|paper|repo|docs|forum|jobpost|vendor_page|other",
-      "retrieved": "str",
-      "confidence": "enum:high|medium|low",
-      "produced_by": "str",
-      "rq": "str"
-    },
-    "optional": {
-      "author_role": "str",
-      "company": "str",
-      "year": "int",
-      "notes": "str",
-      "repair_note": "str",
-      "attacks": "list[str]"
-    },
-    "_rules": [
-      "quote must be a verbatim span from url, >= 20 chars - G1 fetches and string-matches it",
-      "no claim without a url; 'commonly known' is not a source"
-    ]
+ "_comment": "Minimal schemas enforced by gates/run_gates.py (G0). Deliberately dependency-free: a tiny validator in run_gates.py reads this, so no jsonschema install is needed. Types: str, int, float, bool, list, dict, enum:<a|b|c>, list[str].",
+ "source": {
+  "_file_glob": "state/knowledge/*.yaml",
+  "_desc": "One externally-verifiable finding. The unit that G1 checks.",
+  "required": {
+   "id": "str",
+   "claim": "str",
+   "url": "str",
+   "quote": "str",
+   "source_type": "enum:blog|conference_talk|paper|repo|docs|forum|jobpost|vendor_page|other",
+   "retrieved": "str",
+   "confidence": "enum:high|medium|low",
+   "produced_by": "str",
+   "rq": "str",
+   "vividness": "enum:high|medium|low",
+   "attestation": "enum:firsthand_named|firsthand_anonymous|secondhand|vendor_marketing|unattested",
+   "usable_for": "list[str]"
   },
-  "claim": {
-    "_file_glob": "state/claims/*.yaml",
-    "_desc": "An assertion the swarm is making, with provenance and attack history.",
-    "required": {
-      "id": "str",
-      "claim": "str",
-      "status": "enum:proposed|attacked|repaired|verified|rejected",
-      "rq": "str",
-      "proposed_by": "str",
-      "evidence": "list[str]",
-      "attacks": "list[str]"
-    },
-    "optional": {
-      "dependencies": "list[str]",
-      "rejected_reason": "str",
-      "gate_results": "dict",
-      "repair_note": "str",
-      "notes": "str"
-    },
-    "_rules": [
-      "evidence entries must be ids that exist in state/knowledge/",
-      "status=verified requires >= 1 evidence id and >= 2 attack ids"
-    ]
+  "optional": {
+   "author_role": "str",
+   "company": "str",
+   "year": "int",
+   "notes": "str",
+   "repair_note": "str",
+   "attacks": "list[str]"
   },
-  "tool": {
-    "_file_glob": "state/inventory/*.yaml",
-    "_desc": "A data application or a candidate mock/connector for one.",
-    "required": {
-      "id": "str",
-      "name": "str",
-      "category": "enum:warehouse|lakehouse|database|transformation|orchestration|bi|catalog|ingestion|quality|docs|notebook|storage|streaming|vcs|ticketing|other",
-      "role": "enum:simulate_target|mock_implementation|oss_substitute|harness|dataset",
-      "replication_strategy": "enum:oss_equivalent|http_intercept|sdk_reshape|wire_protocol|native_oss|vm_desktop|none_found",
-      "produced_by": "str",
-      "rq": "str"
-    },
-    "optional": {
-      "repo_url": "str",
-      "license": "str",
-      "license_verified": "bool",
-      "last_commit": "str",
-      "stars": "int",
-      "archived": "bool",
-      "install_probe": "str",
-      "probe_result": "enum:pass|fail|not_run",
-      "frequency_rank": "int",
-      "replication_ease": "enum:easy|medium|hard|blocked",
-      "notes": "str",
-      "evidence": "list[str]",
-      "repair_note": "str"
-    },
-    "_rules": [
-      "repo_url present means G2 fetches license/liveness from the GitHub API",
-      "replication_ease=easy requires probe_result=pass",
-      "AGPL or source-available license is an automatic G2 failure"
-    ]
+  "_rules": [
+   "quote must be a verbatim span from url, >= 20 chars - G1 fetches and string-matches it",
+   "no claim without a url; 'commonly known' is not a source",
+   "TWO-AXIS SOURCE MODEL (2026-09-13). vividness and attestation are INDEPENDENT. A Reddit or Stack Overflow thread is routinely high-vividness and firsthand_anonymous: excellent for world texture, worthless as evidence that something is common.",
+   "vividness=high requires rebuildable specifics: error strings, tool+version, table/column names, timings, org context. 'A pipeline broke' is low no matter how long the quote is.",
+   "usable_for entries must be a subset of [world_texture, mechanism, frequency].",
+   "frequency REQUIRES attestation in {firsthand_named, secondhand} AND source_type not in {forum, vendor_page}. An anonymous forum post can never license a frequency claim - this is the rule the 47% citation-audit failure would have caught.",
+   "vendor_marketing sources may carry usable_for=[world_texture] only (F400: claim E8's three 'independent' sources collapsed to one seller-side anchor)."
+  ]
+ },
+ "claim": {
+  "_file_glob": "state/claims/*.yaml",
+  "_desc": "An assertion the swarm is making, with provenance and attack history.",
+  "required": {
+   "id": "str",
+   "claim": "str",
+   "status": "enum:proposed|attacked|repaired|verified|rejected",
+   "rq": "str",
+   "proposed_by": "str",
+   "evidence": "list[str]",
+   "attacks": "list[str]"
   },
-  "failure": {
-    "_file_glob": "state/failures/F[0-9]*.yaml",
-    "_desc": "A landed attack. Recorded so a later round does not rediscover it.",
-    "required": {
-      "id": "str",
-      "target": "str",
-      "attack_type": "str",
-      "severity": "enum:high|medium|low",
-      "finding": "str",
-      "recommended_action": "enum:withdraw|downgrade_confidence|re-source|annotate|redesign",
-      "found_by": "str"
-    },
-    "optional": {
-      "mitigation": "str",
-      "notes": "str",
-      "also_applies_to": "list[str]",
-      "resolved": "bool",
-      "resolution_note": "str"
-    },
-    "_rules": [
-      "target must resolve to a real artifact id - G4 checks this",
-      "the failure id must appear in its target's attacks: list - G4 checks both directions",
-      "also_applies_to lets one attack scope itself to sibling artifacts; G4 links those too"
-    ]
+  "optional": {
+   "dependencies": "list[str]",
+   "rejected_reason": "str",
+   "gate_results": "dict",
+   "repair_note": "str",
+   "notes": "str"
   },
-  "archetype": {
-    "_file_glob": "state/archetypes/*.yaml",
-    "_desc": "A high-level task archetype. The RQ2 deliverable.",
-    "required": {
-      "id": "str",
-      "title": "str",
-      "discipline": "enum:data_engineering|data_science|data_analytics",
-      "description": "str",
-      "why_hard": "str",
-      "human_hours": "str",
-      "grading": "str",
-      "apps_touched": "list[str]",
-      "derived_from": "list[str]",
-      "produced_by": "str"
-    },
-    "optional": {
-      "deterministic_checks": "list[str]",
-      "judge_axes": "list[str]",
-      "rubric_points": "int",
-      "failure_modes_expected": "list[str]",
-      "existing_coverage": "str",
-      "attacks": "list[str]",
-      "notes": "str",
-      "repair_note": "str",
-      "agent_visible_brief": "str",
-      "status": "enum:draft|derived|redesign_required|withdrawn"
-    },
-    "_rules": [
-      "derived_from must cite source ids from state/knowledge/ - archetypes are derived, never invented",
-      "grading must name a concrete check, not 'LLM judge decides'",
-      "human_hours below 2 is a G3 warning: the meeting specified tens of hours",
-      "agent_visible_brief is the ONLY text the agent sees. description/why_hard/failure_modes_expected are AUTHOR-SIDE and routinely name the planted defects - shipping them as the brief hands over the answer (F202). Every archetype needs this field before it ships.",
-      "status=derived requires at least one attack record from each of R1, R2 and R3. An archetype nobody has attacked is a draft, not a deliverable."
-    ]
-  }
+  "_rules": [
+   "evidence entries must be ids that exist in state/knowledge/",
+   "status=verified requires >= 1 evidence id and >= 2 attack ids"
+  ]
+ },
+ "tool": {
+  "_file_glob": "state/inventory/*.yaml",
+  "_desc": "A data application or a candidate mock/connector for one.",
+  "required": {
+   "id": "str",
+   "name": "str",
+   "category": "enum:warehouse|lakehouse|database|transformation|orchestration|bi|catalog|ingestion|quality|docs|notebook|storage|streaming|vcs|ticketing|other",
+   "role": "enum:simulate_target|mock_implementation|oss_substitute|harness|dataset",
+   "replication_strategy": "enum:oss_equivalent|http_intercept|sdk_reshape|wire_protocol|native_oss|vm_desktop|none_found",
+   "produced_by": "str",
+   "rq": "str"
+  },
+  "optional": {
+   "repo_url": "str",
+   "license": "str",
+   "license_verified": "bool",
+   "last_commit": "str",
+   "stars": "int",
+   "archived": "bool",
+   "install_probe": "str",
+   "probe_result": "enum:pass|fail|not_run",
+   "frequency_rank": "int",
+   "replication_ease": "enum:easy|medium|hard|blocked",
+   "notes": "str",
+   "evidence": "list[str]",
+   "repair_note": "str"
+  },
+  "_rules": [
+   "repo_url present means G2 fetches license/liveness from the GitHub API",
+   "replication_ease=easy requires probe_result=pass",
+   "AGPL or source-available license is an automatic G2 failure"
+  ]
+ },
+ "failure": {
+  "_file_glob": "state/failures/F[0-9]*.yaml",
+  "_desc": "A landed attack. Recorded so a later round does not rediscover it.",
+  "required": {
+   "id": "str",
+   "target": "str",
+   "attack_type": "str",
+   "severity": "enum:high|medium|low",
+   "finding": "str",
+   "recommended_action": "enum:withdraw|downgrade_confidence|re-source|annotate|redesign",
+   "found_by": "str"
+  },
+  "optional": {
+   "mitigation": "str",
+   "notes": "str",
+   "also_applies_to": "list[str]",
+   "resolved": "bool",
+   "resolution_note": "str"
+  },
+  "_rules": [
+   "target must resolve to a real artifact id - G4 checks this",
+   "the failure id must appear in its target's attacks: list - G4 checks both directions",
+   "also_applies_to lets one attack scope itself to sibling artifacts; G4 links those too"
+  ]
+ },
+ "archetype": {
+  "_file_glob": "state/archetypes/*.yaml",
+  "_desc": "A high-level task archetype. The RQ2 deliverable.",
+  "required": {
+   "id": "str",
+   "title": "str",
+   "discipline": "enum:data_engineering|data_science|data_analytics",
+   "description": "str",
+   "why_hard": "str",
+   "human_hours": "str",
+   "grading": "str",
+   "apps_touched": "list[str]",
+   "derived_from": "list[str]",
+   "produced_by": "str"
+  },
+  "optional": {
+   "deterministic_checks": "list[str]",
+   "judge_axes": "list[str]",
+   "rubric_points": "int",
+   "failure_modes_expected": "list[str]",
+   "existing_coverage": "str",
+   "attacks": "list[str]",
+   "notes": "str",
+   "repair_note": "str",
+   "agent_visible_brief": "str",
+   "status": "enum:draft|derived|redesign_required|withdrawn"
+  },
+  "_rules": [
+   "derived_from must cite source ids from state/knowledge/ - archetypes are derived, never invented",
+   "grading must name a concrete check, not 'LLM judge decides'",
+   "human_hours below 2 is a G3 warning: the meeting specified tens of hours",
+   "agent_visible_brief is the ONLY text the agent sees. description/why_hard/failure_modes_expected are AUTHOR-SIDE and routinely name the planted defects - shipping them as the brief hands over the answer (F202). Every archetype needs this field before it ships.",
+   "status=derived requires at least one attack record from each of R1, R2 and R3. An archetype nobody has attacked is a draft, not a deliverable."
+  ]
+ }
 }
