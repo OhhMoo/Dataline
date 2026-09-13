@@ -11,6 +11,10 @@ company: "TechCrunch"
 year: 2025
 retrieved: "2026-09-11"
 confidence: high
+vividness: medium
+attestation: secondhand
+usable_for:
+  - world_texture
 produced_by: L5-competitive-pricing
 notes: >
   INCUMBENT SCALE. The biggest human-data vendors are moving into environments; we cannot compete on staffing capacity, only on domain depth and environment fidelity.

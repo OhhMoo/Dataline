@@ -10,6 +10,10 @@ company: "aitraining.jobs"
 year: 2026
 retrieved: "2026-09-11"
 confidence: low
+vividness: medium
+attestation: secondhand
+usable_for:
+  - world_texture
 produced_by: L5-competitive-pricing
 notes: >
   MARKET SIZE, LOW CONFIDENCE. aitraining.jobs is an affiliate-monetised job aggregator restating a Deedy Das (Menlo Ventures) tally; the page itself calls the figures an analyst estimate rather than an audited number. IMPORTANT: its per-task figure is taken from Epoch AI (S400) and is therefore NOT independent corroboration of E8.

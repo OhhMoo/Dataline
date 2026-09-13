@@ -1,0 +1,24 @@
+# Produced by T3-environment-themes (R002) for RQ4 -- legacy / flat-file environment themes.
+id: S926
+rq: RQ4
+claim: >
+  Four distinct 17-digit identifiers collapse to a single identical value when opened in a
+  spreadsheet, so precision loss produces key collisions rather than merely rounded display.
+url: https://endjin.com/blog/2022/07/excel-data-loss-ieee754-and-precision
+quote: >
+  Excel discards everything after the 15th decimal digit even in cases where the IEEE 754 specification would have been able to offer higher precision
+source_type: blog
+year: 2022
+retrieved: "2026-09-13"
+confidence: medium
+vividness: high
+attestation: unattested
+usable_for:
+  - world_texture
+  - mechanism
+produced_by: T3-environment-themes
+notes: >
+  The collision framing is what makes this worth keeping over the generic precision references: a
+  task where four customer identifiers silently become one produces a row-count discrepancy and a
+  join fan-out, both of which a deterministic grader can check exactly. Consultancy blog with no
+  incident report, hence unattested. NOT re-fetched by T3.

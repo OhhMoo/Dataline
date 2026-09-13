@@ -10,6 +10,11 @@ company: OpenAI
 year: 2024
 retrieved: "2026-09-11"
 confidence: high
+vividness: low
+attestation: unattested
+usable_for:
+  - world_texture
+  - mechanism
 produced_by: L2-practitioner-workflow-ds
 notes: >
   This is the most directly transferable construction rule for our environment: a candidate task is only admissible if a deterministic local grader can be written for it. Same constraint as E7 (deterministic functions grade quantitative outputs) arrived at independently.

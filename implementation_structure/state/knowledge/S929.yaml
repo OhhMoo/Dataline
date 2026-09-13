@@ -1,0 +1,25 @@
+# Produced by T3-environment-themes (R002) for RQ4 -- legacy / flat-file environment themes.
+id: S929
+rq: RQ4
+claim: >
+  A managed file-transfer resource monitor watches for a trigger file and treats its arrival, not
+  the data file's arrival, as the signal that a transfer is complete.
+url: https://ibm.com/support/knowledgecenter/SSFKSJ_9.3.0/administer/trigger_contents.html
+quote: >
+  Each time a matching trigger file is detected, its contents are parsed for source file paths
+source_type: docs
+company: "IBM"
+retrieved: "2026-09-13"
+confidence: high
+vividness: medium
+attestation: unattested
+usable_for:
+  - world_texture
+  - mechanism
+produced_by: T3-environment-themes
+notes: >
+  RE-FETCHED AND CONFIRMED VERBATIM BY T3 on 2026-09-13, including that the URL resolves to a real
+  documentation page rather than a redirect landing page. This is the correct fix for the partial-
+  read race in S919, and the contrast between the two is the task: S919's practitioner reached for
+  a modification-time heuristic, this documents the sentinel that actually guarantees completion.
+  A world can plant a drop folder where some feeds carry a sentinel and one does not.

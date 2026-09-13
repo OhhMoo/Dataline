@@ -10,6 +10,11 @@ company: Google
 year: 2017
 retrieved: "2026-09-11"
 confidence: high
+vividness: low
+attestation: unattested
+usable_for:
+  - world_texture
+  - mechanism
 produced_by: L2-practitioner-workflow-ds
 notes: >
   The cleanest single-sentence statement of the mutable-dimension-join bug. Container-rebuildable: give the world a slowly-changing dimension table and a training script that joins it live, and the offline/online gap appears with no explicit bug planted. Corroborated by Rules 29 and 32 in the same document and by feature-store writing at DoorDash and Uber.

@@ -1,0 +1,47 @@
+id: F508
+target: A018
+attack_type: cheap_win - restart-until-green plus a grep-and-edit rubric axis
+severity: high
+finding: >
+  A018's naive baselines are not separated from the oracle by enough of the rubric.
+  (1) THE HYGIENE AXIS IS FREE. "DAG hygiene fixes" is one of four named rubric axes on 22
+  points (~5.5 points), and one of four deterministic checks is "static DAG-source
+  assertions: bounded retries, no datetime.now() in schedule". Both are satisfied by
+  `grep -n "datetime.now()\|retries" dags/` followed by two edits. No diagnosis, no
+  traversal, no verdict. A018's own failure_modes_expected admits this exact trajectory -
+  "rewrites the DAG anti-patterns and declares victory while the SLA still breaches" - but
+  an intended failure mode that still banks a quarter of the rubric is a hole, not a trap.
+  The brief's target is Pass@1 below 20%; a floor of ~25% before any investigation begins is
+  incompatible with it.
+  (2) RESTART-UNTIL-GREEN BANKS TWO MORE CHECKS IN AT LEAST ONE WORLD VARIANT. A018 offers
+  three candidate causes: a choked ingestion task, a warehouse lock, or an upstream team
+  whose job started late. In the started-late variant the upstream data has since landed, so
+  simply re-running the affected branch satisfies "post-repair DAG re-run lands dataset:
+  row-count diff vs reference" and "freshness watermark advances past the breach window".
+  Combined with (1) that is 3 of 4 deterministic checks and a full rubric axis from a
+  trajectory that never looks past the orchestrator - which is precisely the behaviour A018
+  exists to punish. A variant-dependent baseline floor also means the task's difficulty is
+  set by a seed draw, which the validity gate cannot express.
+  (3) THE VERDICT IS A COIN FLIP. "ran-long vs started-late" is binary and answer-key matched.
+  Expected value of a guess is half the verdict credit, for free.
+  (4) THE BOTTLENECK IS TEDIUM, NOT CONJUNCTION. A018 asks the agent to "walk a multi-team
+  dependency tree of dozens of entities" and "reduce it to the bottleneck path of
+  latest-landing ancestors". That is a one-line computation over run-history timestamps -
+  repeatedly take the argmax of ancestor finish times. S011 is evidence for this, not against
+  it: Airbnb AUTOMATED it, reducing 82 candidate ancestors to an 8-dataset path with a tool.
+  Scaling the entity count raises the token cost of the traversal and nothing else. The brief
+  names it: "Difficulty by tedium - 200 identical edits. That measures patience."
+recommended_action: redesign
+found_by: D1-redteam
+mitigation: >
+  Delete the hygiene axis (F507 gives an independent reason to). Make the verdict
+  three-or-more-way and quantitative rather than binary - e.g. require the minutes of delay
+  attributable to start-time slip versus to runtime growth for the bottleneck step, checked
+  against the manifest to a stated precision; a guess cannot produce a number. Make the
+  re-run check discriminating: seed the started-late variant so that a bare re-run produces a
+  dataset that is complete but WRONG (the upstream landed a corrected partition after the
+  first attempt, so a re-run without reprocessing the dependent window silently keeps stale
+  derived rows), and grade row-level equality rather than row counts. Replace the
+  dozens-of-entities tree with a smaller tree in which the latest-landing ancestor is NOT the
+  cause - e.g. a fast-finishing ancestor that wrote a partial partition - so the argmax
+  heuristic gives the wrong answer and the agent must reason about content, not timestamps.

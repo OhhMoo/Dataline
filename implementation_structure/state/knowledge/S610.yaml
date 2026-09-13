@@ -1,0 +1,30 @@
+id: S610
+rq: RQ1
+claim: >
+  dbt's own idempotence guidance states that an incremental model's result depends on the
+  current state of its target table, and that the canonical incremental predicate (filter on
+  max(event_at) from this) re-appends boundary rows on re-run when no unique_key is set -
+  which is exactly the read-modify-write step two overlapping runs interleave on.
+url: https://docs.getdbt.com/best-practices/idempotence
+quote: "Incremental models only process new or changed rows, which means they depend on the existing state of the target table. If you're not careful, re-running an incremental model can produce duplicate rows or inconsistent results."
+source_type: docs
+retrieved: "2026-09-13"
+confidence: high
+produced_by: E1-concurrency
+vividness: medium
+attestation: unattested
+usable_for:
+  - mechanism
+year: 2026
+notes: >
+  Official dbt documentation, so unattested by construction: nobody is claiming an incident
+  here, it is guidance. Recorded only to ground the mechanism, and usable_for is narrowed to
+  mechanism alone for that reason.
+  vividness=medium: the page carries a concrete non-idempotent code block
+  (where event_at >= (select max(event_at) from this) with no unique_key) which is directly
+  rebuildable, but no org context, no timings, no error strings.
+  Why this matters to my assignment: the documented failure is framed as a re-run hazard,
+  sequential in time. The same predicate under two OVERLAPPING runs is a different and worse
+  failure - run B reads max(event_at) before run A commits, so both runs select the same
+  boundary rows and both insert them, and no re-run ever happened. The docs do not say this.
+  That gap is the difficulty I am trying to author against.

@@ -13,6 +13,11 @@ company: luminousmen (Kirill Bobrov)
 year: 2026
 retrieved: "2026-09-11"
 confidence: high
+vividness: high
+attestation: unattested
+usable_for:
+  - world_texture
+  - mechanism
 produced_by: L1-practitioner-workflow-de
 notes: >
   Author states this is a real incident. The non-idempotent-rerun-doubles-data pattern is

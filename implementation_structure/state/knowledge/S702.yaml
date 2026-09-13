@@ -1,0 +1,32 @@
+id: S702
+rq: RQ1
+claim: >
+  Snowflake's row access policy documentation states that row-level security is implemented by
+  policies that decide which rows a query returns, and that at query runtime Snowflake rewrites
+  the access into a dynamic secure inline view. The consequence that matters for compound tasks
+  is that the filtering is invisible at the SQL level: identical SELECT text returns different
+  row sets to different roles with no error, no warning and no diagnostic in the result.
+url: https://docs.snowflake.com/en/user-guide/security-row-intro
+quote: "Snowflake supports row-level security through the use of row access policies to determine which rows to return in the query result."
+source_type: docs
+author_role: vendor product reference documentation
+company: Snowflake
+year: 2026
+retrieved: "2026-09-13"
+confidence: high
+produced_by: E3-compound
+vividness: medium
+attestation: unattested
+usable_for:
+  - world_texture
+  - mechanism
+notes: >
+  Documentation, so nobody is claiming an incident happened. attestation is unattested and this
+  can never license frequency. It licenses the mechanism only: a policy-filtered result set is
+  indistinguishable from an unfiltered one at the query surface. A second verbatim span from the
+  same page describes the runtime rewrite, "Snowflake creates a dynamic secure view (i.e. a
+  secure inline view) of the database object.", kept out of the quote field because contiguity
+  with the quoted sentence was not confirmed. This is a vendor doc but NOT vendor_marketing: it
+  is reference material for a feature, not a page selling a solution to a problem, so the F400
+  rule restricting vendor_marketing to world_texture does not apply. Flagging that judgement
+  call explicitly so a reviewer can overrule it.

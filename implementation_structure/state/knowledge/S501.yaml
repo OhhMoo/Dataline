@@ -7,5 +7,9 @@ source_type: docs
 company: Databricks
 retrieved: "2026-09-11"
 confidence: high
+vividness: low
+attestation: unattested
+usable_for:
+  - world_texture
 produced_by: L6-tooling-inventory
 notes: Official documentation; cloud-specific URL documents the cross-cloud lakehouse concept.

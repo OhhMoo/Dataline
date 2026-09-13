@@ -1,0 +1,28 @@
+# Produced by T3-environment-themes (R002) for RQ4 -- legacy / flat-file environment themes.
+id: S908
+rq: RQ4
+claim: >
+  EBCDIC low-values embedded in character fields survive conversion to Parquet and then break the
+  downstream load into PostgreSQL, so the corruption surfaces one system past where it was
+  introduced.
+url: https://github.com/AbsaOSS/cobrix/issues/835
+quote: >
+  Some of the fields have Low values along with data in the Character/String fields.
+source_type: repo
+author_role: "Cobrix user running Databricks against mainframe extracts"
+year: 2026
+retrieved: "2026-09-13"
+confidence: high
+vividness: high
+attestation: firsthand_anonymous
+usable_for:
+  - world_texture
+  - mechanism
+produced_by: T3-environment-themes
+notes: >
+  LIVE TRAP -- T3 verified on 2026-09-13 that this issue is still OPEN, filed by GitHub user
+  pinakigit on 2026-03-12, and re-fetched the quote verbatim. Two further sentences from the same
+  body were also confirmed verbatim by T3 and are available to task authors: When we read the
+  binary files they look like empty boxes. / But when we load them to Postgres DB the load is
+  failing as it is not able to recognize these characters. GitHub handle only, hence
+  firsthand_anonymous.

@@ -1,0 +1,28 @@
+# Produced by T3-environment-themes (R002) for RQ4 -- legacy / flat-file environment themes.
+id: S917
+rq: RQ4
+claim: >
+  A national test-result pipeline that landed lab CSVs into a legacy XLS workbook silently dropped
+  positive cases once the 65536-row limit was reached, with no error raised at the truncation
+  point.
+url: https://www.theregister.com/2020/10/05/excel_england_coronavirus_contact_error/
+quote: >
+  stored in rows in an older .XLS Excel format that limited the number of rows to 65,536 per spreadsheet
+source_type: blog
+year: 2020
+retrieved: "2026-09-13"
+confidence: medium
+vividness: high
+attestation: secondhand
+usable_for:
+  - world_texture
+  - mechanism
+produced_by: T3-environment-themes
+notes: >
+  Named journalism, so secondhand rather than firsthand, and source_type is recorded as blog
+  because the schema's enum has no news category -- flagged so a reviewer can retype it if the
+  enum grows. DELIBERATELY NOT licensed for frequency: this is one very well documented incident,
+  and one incident is not a rate, whichever way the gate would rule. Mechanism value is high and
+  specific -- a hard container limit reached silently is the cleanest possible instance of the
+  benchmark's anything-solvable-by-full-refresh prohibition, because the lost rows are simply
+  gone. NOT re-fetched by T3.

@@ -1,0 +1,24 @@
+id: S653
+rq: RQ1
+claim: A ref() call written inside a set_sql_header block resolves to the current model rather than to the model actually named, so the compiled SQL reads a different relation than the source text appears to say, and the bug has been open since 2020.
+url: https://github.com/dbt-labs/dbt/issues/2793
+quote: "select * from `project`.`dataset`.`test_tmp_2`;"
+source_type: repo
+retrieved: "2026-09-13"
+confidence: high
+produced_by: E2-scale
+author_role: dbt practitioner (GitHub, pseudonymous)
+year: 2020
+vividness: high
+attestation: firsthand_anonymous
+usable_for:
+  - world_texture
+  - mechanism
+notes: >
+  Liveness checked 2026-09-13 via GitHub REST API: state=open, opened 2020-09-26, 19 comments,
+  9 reactions. The quoted line is the compiled output for test_tmp_2 where the source text
+  said ref('test_tmp_1'). The issue title, verbatim, is: using {{ ref('anything') }} in a
+  set_sql_header call resolves to the current model and not 'anything'. Licensed for the
+  mechanism that the dependency you read in the model file is not necessarily the dependency
+  that executes, which is the core of the out-of-graph-reference archetype. Six years open is
+  itself world texture: a live trap nobody is going to fix under the agent.

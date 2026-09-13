@@ -1,0 +1,125 @@
+id: A050
+title: The assertion that never ran, inside a suite of four thousand green tests
+discipline: data_engineering
+description: >
+  A dbt project of roughly 570 models carries roughly 4100 generic tests and every scheduled
+  build for six weeks reports zero failures. A revenue mart is nevertheless short by a small,
+  stable percentage. The single assertion that would have caught the defect is a relationships
+  test whose to: ref() target was renamed during a source migration; dbt drops such a test
+  silently at parse time, so it is present in git, absent from manifest.json, and absent from
+  run_results.json, and no log line anywhere says it was skipped (S652). The underlying defect
+  is a staging model that emits a source key the conformed dimension no longer carries, so the
+  fact-to-dimension join silently discards those rows. Two further real defects sit in the
+  world and each explains part, but only part, of the shortfall: two tests were set to
+  severity warn during an unrelated incident and their warnings scroll past inside a
+  4100-test log, and one test carries enabled false with a stale comment dating it to a
+  migration that finished months ago. The agent must account for the whole discrepancy
+  arithmetically, repair the data, and restore the suite to a state where the same defect
+  would fail the build.
+why_hard: >
+  Every surface the agent would normally trust agrees that nothing is wrong: the orchestrator
+  is green, the test summary is green, and the model that is actually broken was not touched.
+  The contradiction is only visible as a set difference between the tests declared in YAML and
+  the test nodes that exist in the compiled manifest, and nothing in the product surfaces that
+  difference. Reading 4100 tests is not feasible inside the wall clock, so this task separates
+  strategies rather than measuring patience: an agent that diffs dbt ls --resource-type test
+  against a parse of the schema YAML files finds the dropped assertion in seconds, while an
+  agent that greps for suspicious test names, or reads the run log more carefully, or reruns
+  the suite, can burn the entire budget and learn nothing. The two decoys are real defects
+  that each account for a genuine slice of the shortfall, so ruling them out requires summing
+  the slices rather than judging which looks worst, and an agent that stops after the visible
+  disabled test will be short by roughly sixty percent and cannot know it without the
+  arithmetic.
+human_hours: "6-16"
+grading: >
+  Deterministic. GRADING REFERENCE IS HARNESS-SIDE (F121): the expected revenue table lives in
+  a separate DuckDB file attached read-only at scoring time only and is never present in the
+  agent-visible catalog, so it cannot be copied in place of a diagnosis. Checks are a row-level
+  diff of the repaired mart over the affected quarter, a structural assertion on the agent's
+  post-change manifest.json that the previously-dropped test node exists and is enabled, a
+  live-fire probe in which the harness plants one fresh bad source key and requires dbt build
+  to exit nonzero (a suite that cannot fail scores zero on that axis), a snapshot-integrity
+  check, and an exact-match check on the damage window dates written to a findings file.
+  A bounded judge scores only the written explanation of which downstream numbers were wrong.
+rubric_points: 22
+apps_touched:
+  - warehouse
+  - dbt
+  - git
+  - airflow
+  - bi_dashboard
+deterministic_checks:
+  - "row-level diff of the repaired revenue mart against a HARNESS-SIDE reference attached read-only at scoring time, exact match across the affected quarter"
+  - "agent's manifest.json contains a test node whose depends_on includes the conformed dimension and whose config.enabled is true - the dropped assertion is back and live"
+  - "live-fire probe: harness plants one orphan source key and dbt build must exit nonzero; on the clean world the same command must exit zero"
+  - "the two severity warn tests are escalated to error in manifest.json, or carry a config key recording a dated justification - checked structurally, not by prose"
+  - "the enabled false test is either enabled true in manifest.json or carries an updated dated rationale in its config"
+  - "snapshot snp_dim_source_system retains its pre-episode row count and its original min(dbt_valid_from) - rebuilding it from current state scores zero"
+  - "findings file names the first and last affected month boundaries, exact string match against harness-side dates"
+judge_axes:
+  - code_quality
+  - robustness
+failure_modes_expected:
+  - "trusts the green build and reports that the pipeline is healthy and the mart is correct"
+  - "finds the visible enabled false test, re-enables it, declares victory, and is still short by roughly sixty percent of the discrepancy"
+  - "finds the two severity warn tests, escalates them, and stops - a partial credit path that must not reach full marks"
+  - "reads models rather than artifacts and exhausts the wall clock inside a 4100-test suite"
+  - "repairs the mart data by hand without restoring the dropped assertion, so the live-fire probe still cannot fail"
+  - "runs dbt snapshot --full-refresh while investigating and destroys the only record of when the rename happened"
+existing_coverage: >
+  ade-bench and data-eng-bench both contain broken-test tasks, but at a scale where reading
+  every test is a viable strategy, which collapses the search dimension entirely. The specific
+  mechanism here, an assertion that is in source control and not in the manifest with no
+  diagnostic emitted, is not covered anywhere I found, and it is a currently-open dbt bug
+  rather than a synthetic contrivance.
+derived_from:
+  - S652
+  - S650
+  - S661
+  - S654
+  - S662
+  - S664
+produced_by: E2-scale
+attacks:
+  - F121
+  - F202
+agent_visible_brief: >
+  Finance closed the quarter and our fct_revenue_daily total is 4.1 percent under their number.
+  It has been under by about the same amount since the start of the quarter. Every dbt build in
+  that window is green - the last 40 scheduled runs all report zero test failures - and nobody
+  has deployed anything to the revenue models in that time. Please work out why the number is
+  wrong, fix it, and make sure the pipeline would catch this if it happened again. Finance needs
+  to know exactly which months are affected so they can decide whether to restate.
+status: draft
+notes: >
+  HOW THE CLUTTER IS GENERATED, DETERMINISTICALLY. The project is emitted by
+  world/gen_dbt.py --seed N from a declarative fixture spec, not hand-authored, which is how
+  real projects of this size are actually maintained (S662: python code gen builds the YAML
+  from a metadata spec). Determinism comes from a single random.Random(seed) drawn in a fixed
+  order, sorted iteration over every collection, and no wall-clock or uuid input. Shape: 12
+  source systems in the spec, each with 24 to 32 tables, one stg_ model per source table
+  (~340 models), ~140 int_ models each performing one of six real patterns (row_number dedupe,
+  pivot to a new grain, date-spine join, bridge fan-out, SCD2 flatten, tenant union), and ~90
+  marts. That ratio is a scaled copy of a measured real repo rather than an invented one:
+  S664 measures 787 stg_ to 330 int_ to 265 rpt_ to 52 dim_ to 28 fct_ in a live 1507-model
+  project. Generic tests are emitted from the spec at roughly 7 per model, giving ~4100, which
+  brackets the 5000 measured in S650. THE BULK IS NOT FILLER: every stg_ model is a real
+  projection with real renames from a per-source column dictionary, every int_ model does real
+  work, and each mart aggregates a real grain, so a model opened at random reads like a model,
+  not like padding. CONVENTION NOISE IS SEEDED, NOT UNIFORM: three of the twelve sources are
+  marked acquired in the spec and emit rpt_ and base_ prefixes under models/gold/ instead of
+  the canonical layout, matching both the measured real distribution (S664) and the documented
+  consequence that non-conforming models fall out of layer filters entirely (S656). That is
+  what stops grep-by-convention being a one-shot win while keeping the answer findable.
+  WHAT A FULL REFRESH DESTROYS: snp_dim_source_system is a dbt snapshot and the only artifact
+  that dates the rename; dbt snapshot --full-refresh rebuilds it from current state and erases
+  the valid_from the grader asks for. NAIVE BASELINES: rerunning the suite must succeed and
+  reveal nothing; re-enabling the visible disabled test must partially succeed; manual data
+  repair must pass the row diff and fail the live-fire probe. RESOURCE BUDGET, HONESTLY:
+  S650 measures ~3 minutes of cold parse at 1599 models plus 5000 tests, so a cold parse here
+  is plausibly 40 to 70 seconds. The image therefore ships a prebuilt target/partial_parse.msgpack
+  so episode start is a warm parse of a few seconds. This archetype is the one at risk on that
+  budget, because editing a test invalidates partial parsing: the wall clock must allow at
+  least eight full reparses. If it cannot, this archetype should be cut to ~300 models rather
+  than shipped with a budget it does not fit. That number is an extrapolation from S650 and has
+  not been measured.

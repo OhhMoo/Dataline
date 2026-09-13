@@ -1,0 +1,40 @@
+id: F505
+target: A010
+attack_type: duplicate archetype with two free static checks
+severity: high
+finding: >
+  A010 is A002 and A017 stapled together, and it adds nothing that either does not already
+  have. Its "ingestion row loss" leg is A017's leg from the same source (S022, Airbyte
+  #77627); its "positional column permutation in an incremental dbt model" leg is A002's leg
+  from the same sources (S013/S014); its derived_from is literally A002's set plus A017's
+  primary source. Its four deterministic checks decompose without residue into A002's
+  cell-level diff and A017's source-vs-destination reconciliation. The corpus counts 26
+  active archetypes; A002 + A010 + A025 are three of them planting one mechanism from one
+  now-fixed upstream bug pair (F500, F454), and A010 + A017 are two of them planting one
+  row-loss mechanism from one issue. The headline count is inflated by roughly this much.
+  A010 also inherits every kill on its parents: F500 (the positional mechanism cannot occur
+  on dbt Core + dbt-duckdb) and F506 (a from-scratch re-sync recovers the row loss and is
+  the reporter's own stated remedy).
+  Independently of the duplication, two of A010's four checks are free. "Connector
+  configuration diff shows explicit (not positional) column mapping" and "dbt schema tests
+  on the drifted columns pass" are both static-configuration assertions on files the agent
+  can read and edit directly. An agent that never diagnoses anything can set the connector to
+  explicit mapping and add a schema test to the drifted columns in two edits, because A010's
+  own description tells the agent which columns drifted the moment the brief is written from
+  it. That is 2 of 4 deterministic checks and one named rubric axis ("drift-hardening of the
+  configuration", 1 of 4 axes of 20 points) obtainable by editing configuration.
+  Finally, A010 carried NO attacks: key at all before this round - it is the only one of the
+  eight unattacked archetypes that had not even been given the empty list, which is why it
+  reads as covered in the corpus tally.
+recommended_action: withdraw
+found_by: D1-redteam
+mitigation: >
+  Withdraw A010 and let A017 own the ingestion-row-loss leg and a redesigned A002 own the
+  transformation leg. If a genuinely two-defect cross-boundary archetype is wanted, it needs
+  the two defects to INTERACT arithmetically - the current pair does not: row loss and column
+  permutation are separable by two independent queries and the archetype grades them
+  separately. The interaction A010 gestures at ("the append-only raw table has also shrunk,
+  breaking the assumption that raw is a safe replay source") is the one genuinely novel idea
+  here, but note it does NOT by itself block the full-refresh shortcut F506 describes, because
+  the source of record in A017 is an intact mock API rather than the raw table. It only bites
+  if the source itself is windowed or lossy.

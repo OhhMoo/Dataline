@@ -11,6 +11,10 @@ company: "Epoch AI"
 year: 2026
 retrieved: "2026-09-11"
 confidence: medium
+vividness: low
+attestation: secondhand
+usable_for:
+  - world_texture
 produced_by: L5-competitive-pricing
 notes: >
   The quote is the safe verbatim fragment; the surrounding sentence in the source gives the 10-20x ratio. Supports the agent.md strategy of selling the training licence and using the public benchmark as marketing rather than as the revenue line.

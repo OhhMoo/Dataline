@@ -13,6 +13,11 @@ company: Airbnb
 year: 2021
 retrieved: "2026-09-12"
 confidence: high
+vividness: medium
+attestation: firsthand_named
+usable_for:
+  - world_texture
+  - mechanism
 produced_by: L1-practitioner-workflow-de
 notes: >
   A cleanly gradeable discrimination: given run history, did the job start late or run long? Both

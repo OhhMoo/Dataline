@@ -62,10 +62,25 @@ derived_from:
   - S121
   - S112
 produced_by: S1-postmortems
-attacks: []
+attacks:
+  - F503
+  - F504
+  - F513
+  - F514
 notes: >
   S115 supplies the mutable-join-table mechanism and the serving-time feature-logging
   mitigation that becomes the grading hook; S116 the copied-pipeline dropped-filter
   incident; S121 the symptom signature (offline/online gap at deployment, bespoke bugs);
   S112 the preprocessing-fit-on-combined-set leakage leg. All mechanisms are seedable as
   world initial conditions over DuckDB + notebook surfaces; no cloud dependency.
+status: draft
+repair_note: >
+  Repairable; the premise survives, the grading does not. The exact entity-level
+  feature-parity assertion is a genuinely good deterministic check and should be the spine of
+  the task. Repairs: (1) F504 - state and size a false-cause penalty so naming all three
+  mechanisms nets strictly below naming only the live ones, or replace naming with
+  per-mechanism contribution quantification. (2) F504/F503 - drop the retrained-AUC band and
+  the float prediction-diff checks; neither is reproducible across runs. Grade the leakage leg
+  on the saved preprocessing artefact instead. (3) F504 - declare the notebook/training
+  surface explicitly per ground rule 6, or re-scope to the feature-path half, which lives
+  entirely on DuckDB + git. (4) F513, F514.

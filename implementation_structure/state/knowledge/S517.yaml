@@ -7,5 +7,9 @@ source_type: docs
 company: Microsoft
 retrieved: "2026-09-11"
 confidence: high
+vividness: low
+attestation: unattested
+usable_for:
+  - world_texture
 produced_by: L6-tooling-inventory
 notes: Official Microsoft documentation; desktop availability does not establish automated replication feasibility.

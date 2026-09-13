@@ -11,6 +11,10 @@ company: "SemiAnalysis"
 year: 2026
 retrieved: "2026-09-11"
 confidence: medium
+vividness: medium
+attestation: secondhand
+usable_for:
+  - world_texture
 produced_by: L5-competitive-pricing
 notes: >
   PER-ENVIRONMENT price, NOT per task. An industry-analyst estimate (SemiAnalysis, paid newsletter; this line is in the free preview); no contract cited. Independently repeated by Epoch AI. Read with S410: fidelity, not task count, is what drives environment price.

@@ -1,0 +1,32 @@
+id: S755
+rq: RQ1
+claim: >
+  Apache Spark bug SPARK-8513, reported by a Spark committer from observed failures: when a write
+  job using FileOutputCommitter fails, task cancellation is asynchronous, so the committer tries to
+  delete the _temporary directory while still-running tasks recreate subdirectories underneath it.
+  The directory therefore survives the failed job, with the observed error "Failed to delete file
+  or dir [...] _temporary/0/_temporary]: it still exists". A failed write leaves partial output on
+  storage rather than cleaning up after itself.
+url: https://issues.apache.org/jira/browse/SPARK-8513
+quote: "may be left undeleted when a write job committed with FileOutputCommitter fails due to a race condition"
+source_type: repo
+author_role: Spark committer reporting an observed failure (Cheng Lian)
+company: reported against Apache Spark
+year: 2015
+retrieved: "2026-09-13"
+confidence: medium
+vividness: high
+attestation: firsthand_named
+usable_for:
+  - world_texture
+  - mechanism
+produced_by: D2-reground
+notes: >
+  Replaces the S006 (vendor-survey) leg of A001/A009's "the crashed run left partial output"
+  initial condition. HONEST SCOPE LIMIT, and it matters - this attests that a failed write job
+  leaves partial output behind. It does NOT attest the second half of the story A001 and A009 tell,
+  that the next scheduled run then silently consumes that debris. No source in this corpus attests
+  that chain; it is a deliberate world-design choice and the archetypes now label it as such rather
+  than cite it. Status Resolved (affected versions 1.2.2, 1.3.1, 1.4.0), so this is history, not a
+  live trap - recorded explicitly because F454 was caused by exactly the opposite omission.
+  Quote verified verbatim 2026-09-13 with gate-identical fetch logic.

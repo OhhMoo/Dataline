@@ -11,6 +11,10 @@ company: "Epoch AI"
 year: 2026
 retrieved: "2026-09-11"
 confidence: high
+vividness: medium
+attestation: secondhand
+usable_for:
+  - world_texture
 produced_by: L5-competitive-pricing
 notes: >
   PER-ENVIRONMENT price for a complex stateful product replica; the sentence immediately following the quote gives the ~$300k figure. This is the closest public analogue to what we are building (a multi-service live stack) and it is about 15x the simple-website price. Argues for pricing world images separately from tasks.

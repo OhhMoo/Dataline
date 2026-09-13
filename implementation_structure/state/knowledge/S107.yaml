@@ -10,6 +10,10 @@ company: OpenAI
 year: 2024
 retrieved: "2026-09-11"
 confidence: high
+vividness: low
+attestation: unattested
+usable_for:
+  - world_texture
 produced_by: L2-practitioner-workflow-ds
 notes: >
   Two adoptable mechanics: (1) express task difficulty in human hours EXCLUDING machine wait time, which is the honest unit; (2) ship a dev split distinct from the graded set. Note their High bar is >10 hours, below the 'tens of hours' target in E5 - our tasks would sit above the top of MLE-bench's scale.

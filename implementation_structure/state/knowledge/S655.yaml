@@ -1,0 +1,24 @@
+id: S655
+rq: RQ1
+claim: Column-level lineage tooling returned an empty array with isError false for every model tested, on a project where model-level lineage for the same three-hop chain was confirmed to resolve correctly.
+url: https://github.com/dbt-labs/dbt/issues/15396
+quote: "for every model tested, regardless of whether upstream lineage exists"
+source_type: repo
+retrieved: "2026-09-13"
+confidence: high
+produced_by: E2-scale
+author_role: dbt platform user (GitHub, pseudonymous)
+year: 2026
+vividness: medium
+attestation: firsthand_anonymous
+usable_for:
+  - world_texture
+  - mechanism
+notes: >
+  Liveness checked 2026-09-13 via GitHub REST API: state=open, opened 2026-06-30, 11 comments.
+  vividness medium for the same reason as S652: the chosen span is a behaviour statement, but
+  the body carries the reproducible chain settlement_credit_eod to stg_foo to foo, the exact
+  tool calls get_lineage and get_column_lineage, the empty result on column session_id, and
+  the note that both uppercase and lowercase column names were tried. The point for archetype
+  design: column-level lineage is the first tool an agent reaches for at scale, and it can
+  return nothing at all without raising an error.

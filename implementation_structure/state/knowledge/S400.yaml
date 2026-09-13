@@ -11,6 +11,10 @@ company: "Epoch AI"
 year: 2026
 retrieved: "2026-09-11"
 confidence: high
+vividness: medium
+attestation: secondhand
+usable_for:
+  - world_texture
 produced_by: L5-competitive-pricing
 notes: >
   PRIMARY CORROBORATION OF E8. Epoch AI is a research organisation, not an environment vendor; the piece rests on 18 interviews across RL-environment startups, neolabs and frontier labs. This is a PER-TASK PRICE PAID BY LABS TO VENDORS - not an hourly authoring rate and not a contract total. Independent of the Meso/Gemini meeting anecdote. Caveat: self-reported interview data, not contracts the authors saw.

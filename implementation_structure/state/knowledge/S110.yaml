@@ -10,6 +10,10 @@ company: OpenAI
 year: 2024
 retrieved: "2026-09-11"
 confidence: high
+vividness: low
+attestation: unattested
+usable_for:
+  - world_texture
 produced_by: L2-practitioner-workflow-ds
 notes: >
   The explicit hole MLE-bench leaves open, and the clearest place a live-stack environment beats a Kaggle-style benchmark: scattered docs, ambiguous requirements, and metric definition as part of the task. Directly supports the scattered-docs initial conditions in RQ5.

@@ -15,6 +15,10 @@ company: Perun Engineering
 year: 2026
 retrieved: "2026-09-11"
 confidence: medium
+vividness: medium
+attestation: vendor_marketing
+usable_for:
+  - world_texture
 produced_by: L1-practitioner-workflow-de
 notes: >
   Field notes rather than a first-person incident, and the page ends in a sales CTA - discount

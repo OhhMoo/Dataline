@@ -10,6 +10,11 @@ company: University of Cambridge
 year: 2022
 retrieved: "2026-09-11"
 confidence: high
+vividness: medium
+attestation: secondhand
+usable_for:
+  - world_texture
+  - mechanism
 produced_by: L2-practitioner-workflow-ds
 notes: >
   Concrete deterministic monitoring primitives directly implementable as grader checks AND as tasks: did the upstream table actually refresh; did the top-k ranking churn more than expected; did rank correlation with yesterday collapse. More rebuildable than generic 'monitor for drift'.

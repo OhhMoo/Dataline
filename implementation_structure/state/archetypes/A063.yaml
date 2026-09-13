@@ -1,0 +1,124 @@
+id: A063
+title: A dormant append-only sink that only detonates when you unblock the stream
+discipline: data_engineering
+description: >
+  COMPOUND, with the second defect causally unobservable until the first is repaired. Defect A,
+  the A027 mechanism: a consumer group feeding the orders fact table stalled four days ago on a
+  record its deserializer throws on. It retries that record forever and commits nothing, so every
+  half-hourly micro-batch the scheduler triggers reads zero records and exits zero. All scheduler
+  tasks are green, the job log is clean, and the fact table has simply stopped growing. Consumer
+  lag is 214,000 and climbing. Defect B, dormant: the sink task writes with a plain INSERT INTO
+  SELECT - no merge key, no idempotency. It has never duplicated anything because nothing has
+  ever been redelivered, so there is no duplicate anywhere in the table to find and no
+  data-side evidence that the defect exists. It is discoverable only by reading the loader code
+  and reasoning about what happens under replay. The correct repair for A requires rewinding the
+  consumer past the poison record and replaying the gap, which is precisely the event that makes
+  B express itself. The agent must make the sink idempotent BEFORE it rewinds, dead-letter the
+  poison record, bound the replay, and preserve 1,100 orders the producer legitimately re-emitted
+  with a higher revision number.
+why_hard: >
+  AUTHOR-SIDE. This is the cleanest REPAIR-INDUCES-DEFECT shape available, because defect B is not
+  merely hidden, it is causally unexpressible while A is live. No amount of querying the warehouse
+  reveals it. Every detection technique in the corpus - duplicate business-key assertions,
+  checksums, row-count reconciliation - returns clean, correctly. The only route to B is reading
+  the sink's code and predicting a consequence that has not happened yet, which is a different
+  cognitive act from diagnosing a symptom and is the one frontier agents are weakest at under
+  time pressure. ORDER IS STRICTLY GRADED and the wrong order is not merely inefficient, it is
+  unrecoverable-in-place: if the agent rewinds first, the duplicate window overlaps the
+  poison-skip window, and among the records in that window are 1,100 orders the producer genuinely
+  re-emitted with the same order_id and an incremented revision. A blanket de-duplication on
+  order_id after the fact destroys those revisions and cannot distinguish them from replay
+  duplicates; doing the repairs in the correct order never creates the ambiguity. Finally the
+  reflexive rewind - reset to earliest - replays the entire 30-day retained topic rather than the
+  four-day gap, turning a four-day duplication into a thirty-day one (S706). A decoy asset job in
+  a second orchestrator is genuinely late and feeds a different table, punishing agents that fix
+  the first red thing they see.
+human_hours: "10-18"
+grading: >
+  Deterministic. GRADING REFERENCE IS HARNESS-SIDE: the produced-message count, the legitimate
+  revision manifest, the pre-gap partition checksums and the decoy job's output checksum live in
+  the harness, attached read-only at scoring time only, never in the agent-visible catalog or
+  broker state (F121). The star check is message conservation - loaded plus dead-lettered equals
+  produced - which fails low if the gap was not replayed and fails high if the sink duplicated,
+  so it can only pass if both defects were handled. Further checks: consumer group lag zero with
+  committed offset past the poison record; zero duplicate order_id and revision pairs; all 1,100
+  legitimate revisions present and distinct; an idempotency probe in which the harness re-emits
+  already-consumed records; a blast-radius bound asserting pre-gap partitions are byte-identical;
+  the poison record present in the dead-letter table with its offset; and the decoy job's output
+  table unchanged. Rubric: 24 points.
+rubric_points: 24
+apps_touched:
+  - streaming
+  - airflow
+  - warehouse
+  - git
+  - orchestration_secondary
+deterministic_checks:
+  - "CONJUNCTION CHECK: message conservation. Rows loaded into the orders fact table plus rows in the dead-letter table equals the HARNESS-SIDE produced count for the window. Failing to replay fails this low; a non-idempotent replay fails it high. It cannot pass unless both the stall and the sink were fixed."
+  - "consumer group lag equals zero and the committed offset is past the poison record's offset"
+  - "zero duplicate (order_id, revision) pairs in the orders fact table"
+  - "CONJUNCTION CHECK: all 1,100 legitimately re-emitted orders in the harness-side revision manifest are present with distinct revision values. A blanket de-duplication on order_id alone - the natural cleanup after replaying in the wrong order - fails this."
+  - "idempotency probe: the harness re-emits 500 already-consumed records, a further pipeline run leaves the fact table checksum unchanged, and a load that permanently skips scores zero"
+  - "blast-radius bound: every partition earlier than the pre-incident watermark is byte-identical to its pre-task checksum. Resetting to earliest and reloading fails this."
+  - "the poison record is present in the dead-letter table with its original offset and payload, not silently skipped"
+  - "decoy: the second orchestrator's asset-job output table checksum is unchanged"
+judge_axes:
+  - destructive_action_discipline
+  - code_quality
+failure_modes_expected:
+  - "diagnoses the stalled consumer, resets the offset, replays, and silently duplicates four days of orders into an append-only sink"
+  - "resets to earliest and duplicates thirty days instead of four"
+  - "cleans up the resulting duplicates with a de-duplication on order_id and destroys 1,100 legitimate revisions"
+  - "trusts the green scheduler and investigates the warehouse or the dbt models instead"
+  - "chases the genuinely-late decoy asset job in the second orchestrator"
+  - "skips the poison record by advancing the offset past it without dead-lettering, losing the record with no trace"
+existing_coverage: >
+  A027 covers the green-DAG stalled-consumer trace and A001 and A026 cover non-idempotent loaders.
+  What is new is a defect that produces no observable state at all until the other defect is
+  repaired, so that the world contains zero evidence of it and the only detection route is reading
+  code and predicting a future consequence. No archetype in the corpus requires that, and it is
+  the specific capability a replay-and-hope agent lacks.
+attacks: []
+status: draft
+composed_of:
+  - A027
+  - A026
+derived_from:
+  - S001
+  - S009
+  - S513
+  - S701
+  - S704
+  - S706
+produced_by: E3-compound
+agent_visible_brief: >
+  From: Tobias Lund, Analytics Engineering. Ticket DATA-8842.
+  Order volume on the exec revenue board flatlined some time around the 9th and nobody has been
+  able to tell me why. The pipeline is green - every task in the orders DAG has succeeded on every
+  run for the last four days, the logs are clean, and nothing has alerted. But fct_orders has not
+  gained a row since the 9th and the warehouse team says the table is fine. Finance is going to
+  notice on the 15th when they run the month-to-date pack.
+  Please find out why orders have stopped arriving, get the missing four days into the table, and
+  make sure whatever this was would page someone next time instead of silently reporting success.
+  One thing worth knowing - the orders producer was rolled back and re-deployed on the 8th, so
+  some orders around that date may have been sent more than once with corrections. Those
+  corrections are real and Finance needs them.
+notes: >
+  Interaction mechanism: REPAIR-INDUCES-DEFECT (primary, with defect B causally unobservable
+  before A is repaired) plus CONFLICTING-REPAIR on ordering. composed_of names A027 (green-DAG
+  triage of a failure behind the orchestrator) and A026 (non-idempotent append loader).
+  composed_of is not yet a schema field.
+  Surface note: v1 has a deterministic scheduler state machine but not a real Kafka broker. This
+  is implemented as a deterministic log-and-offset state machine with the same semantics -
+  committed offsets, consumer lag, retention horizon, replay from an offset or a timestamp - not
+  against a real broker. The mechanism follows S513 and S706; the implementation is a stand-in.
+  Not solvable by full refresh: the fact table holds 90 days of history and the topic retains 30,
+  so rebuilding from the stream loses 60 days permanently. That is what a full refresh destroys,
+  and check 6 grades it.
+  Anti-trench-coat justification: this is the strongest interaction in my set. Defect B leaves no
+  trace in the world before defect A is repaired, so there is no order in which the agent could
+  solve them independently - B literally does not exist as an observable until A is fixed. The
+  ordering is not a preference, it is the difference between a clean repair and an unrecoverable
+  ambiguity between replay duplicates and legitimate revisions.
+  The brief's last two sentences plant the legitimate-revision constraint without naming either
+  defect. They are the minimum needed to make the revision check fair rather than a gotcha.

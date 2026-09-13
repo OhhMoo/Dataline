@@ -54,11 +54,43 @@ existing_coverage: >
   (S216), not first-party vendor incidents, so this archetype should be weighted
   accordingly in the corpus.
 derived_from:
-  - S010
   - S216
+  - S207
   - S217
   - S218
   - S211
+  - S210
 produced_by: S3-benchmark-gaps
 attacks:
   - F104
+  - F550
+  - F552
+status: redesign_required
+repair_note: >
+  REDESIGN REQUIRED 2026-09-13 (D2, R002 evidence repair) - see F552. This is one of two
+  archetypes this repair could NOT save, and the honest outcome is to mark it broken rather than
+  paper over it.
+  WITHDRAWN: S010 moved to state/knowledge/withdrawn/ (F550, extending F452). It was a
+  constructed present-tense vignette - "It's 8:58 AM. The head of risk at a bank opens the
+  morning transaction dashboard..." - written to argue for data contracts, and S010's claim field
+  rewrote it as reportage of a real bank incident with a real three-day detection lag and a real
+  board meeting. That supplied this archetype's silently-wrong-dashboard leg and its
+  divide-by-zero fallback.
+  WHY IT CANNOT BE RE-GROUNDED: the load-bearing mechanism is the BI-layer rename boundary that
+  "exists nowhere in any system". The only record that states that is S217 - and S217, S218, S211
+  and S210 are all docs.getdbt.com/blog content, which the R002 back-classification typed
+  attestation=vendor_marketing, capping them at world_texture by the F400 rule. S216 (Power BI
+  community thread) is genuine firsthand_anonymous practitioner voice and is retained, but it is
+  vividness=low and world_texture only: it attests that a rename has a wide unowned blast radius,
+  not how the rename boundary comes to be unrecorded. So after honest typing, the archetype's
+  entire why_hard rests on a vendor blog post. That is the F400/F450 failure shape one layer up.
+  ADDED AS A PARTIAL REPLACEMENT: S207 (Thicket, a named team publishing its own incidents,
+  firsthand_named, mechanism-licensed) carries the "nothing errored but the number is wrong"
+  property honestly - a headline KPI rendering a clean 0.0 percent because total upstream failure
+  was coerced to zero. A redesign built on S207 rather than on the rename boundary would be
+  defensible today.
+  WHAT WAS SEARCHED AND NOT FOUND: no attested source for the unrecorded-rename-boundary
+  mechanism. r/dataengineering could not be searched at all - reddit.com is blocked to the
+  research tooling and unreachable by the gate's fetcher. Power BI and Microsoft Fabric community
+  threads 403-block the gate and are citable only through Wayback snapshots, as S216 already is.
+  DO NOT re-add a dbt Labs blog post to fix this.

@@ -1,0 +1,23 @@
+id: S656
+rq: RQ1
+claim: The dbt docs modeling-layer filter infers a model layer from hardcoded path and prefix conventions (staging/ or stg_, intermediate/ or int/ or int_, marts/ or fct_ or dim_), and any model that does not match one of those patterns appears under no layer filter at all.
+url: https://github.com/dbt-labs/dbt/issues/15213
+quote: "Models that don't match any of these patterns don't appear under any layer filter."
+source_type: repo
+retrieved: "2026-09-13"
+confidence: high
+produced_by: E2-scale
+year: 2026
+vividness: high
+attestation: firsthand_anonymous
+usable_for:
+  - world_texture
+  - mechanism
+notes: >
+  Liveness checked 2026-09-13 via GitHub REST API: state=open, opened 2026-06-08, 2 comments.
+  The body enumerates the exact inference rules, which is what makes it rebuildable. The
+  author speculates that non-conforming projects are most likely a significant portion of
+  real-world projects; that is speculation by an unnamed reporter and is explicitly NOT
+  carried as a frequency claim here. Paired with S664, which measures an actual large dbt
+  repo whose prefix distribution includes 265 rpt_ models and 6 base_ models that this filter
+  would drop on the floor.

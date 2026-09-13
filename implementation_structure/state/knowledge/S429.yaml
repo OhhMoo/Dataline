@@ -11,6 +11,10 @@ company: "Sacra"
 year: 2026
 retrieved: "2026-09-11"
 confidence: medium
+vividness: medium
+attestation: secondhand
+usable_for:
+  - world_texture
 produced_by: L5-competitive-pricing
 notes: >
   MARGIN STRUCTURE for a human-data vendor: roughly 70% of gross flows through to contributors (the source states the AI segment nets about $300M). If we price like a human-data vendor our margin is thin; if we price like an environment vendor (build once, license repeatedly, exclusivity multiplier S404) it is not. Argues for licensing over per-task billing.

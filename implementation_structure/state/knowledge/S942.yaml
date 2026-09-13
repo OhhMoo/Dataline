@@ -1,0 +1,24 @@
+# Produced by T3-environment-themes (R002) for RQ4 -- legacy / flat-file environment themes.
+id: S942
+rq: RQ4
+claim: >
+  Business logic strands itself in stored procedures because the tooling for versioning and
+  migrating them is poor and offers no way to keep them consistent with application invariants.
+url: https://news.ycombinator.com/item?id=20872938
+quote: >
+  the tooling for migrating and managing schemas and stored procedures is hot garbage
+source_type: forum
+year: 2019
+retrieved: "2026-09-13"
+confidence: medium
+vividness: medium
+attestation: firsthand_anonymous
+usable_for:
+  - world_texture
+produced_by: T3-environment-themes
+notes: >
+  The non-vendor corroboration for S941's premise, and a better explanation than the vendor's:
+  logic ends up undiffable for a tooling reason rather than a discipline reason. That distinction
+  matters to world design, because it means the world should contain stored procedures with no
+  meaningful git history, not stored procedures with sloppy git history. Pseudonymous, so no
+  frequency licence. NOT re-fetched by T3.

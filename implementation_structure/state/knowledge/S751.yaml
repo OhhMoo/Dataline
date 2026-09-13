@@ -1,0 +1,31 @@
+id: S751
+rq: RQ1
+claim: >
+  Debezium mailing-list report from a practitioner running the connector in production: the
+  PostgreSQL replication slot kept growing even though Debezium appeared to be consuming the WAL.
+  Measured slot size fluctuated from 152 kB to 16 MB after only three rows were inserted into the
+  single whitelisted table, on Debezium 0.8.3, with the log repeating "Timed out waiting to flush
+  EmbeddedConnector offsets". The poster traced it to EmbeddedEngine.commitOffsets() never
+  completing the flush, so confirmed_flush_lsn was never advanced and PostgreSQL retained WAL
+  segments indefinitely while, in his words, the production system kept growing.
+url: https://groups.google.com/g/debezium/c/AGcqiByF9UM/m/NTjlYW0SAAAJ
+quote: "Postgres replication slot size keeps growing even though Debezium is consuming the WAL"
+source_type: forum
+author_role: engineer running Debezium against a production PostgreSQL
+year: 2018
+retrieved: "2026-09-13"
+confidence: medium
+vividness: high
+attestation: firsthand_anonymous
+usable_for:
+  - world_texture
+  - mechanism
+produced_by: D2-reground
+notes: >
+  The practitioner-voice counterpart to S750 - same mechanism (offset flush never completing, so
+  the slot never advances), seen from inside a small deployment rather than a platform team, with
+  the exact log line an agent would have to notice. Quote verified verbatim 2026-09-13 with
+  gate-identical fetch logic. source_type=forum, so this can NEVER license frequency - that is the
+  machine rule doing exactly what the 47 percent audit failure needed it to do. Old (2018) and the
+  specific Debezium bug is long fixed - cited for the SHAPE of the incident and the diagnostic
+  trail, not as a live trap.

@@ -1,0 +1,25 @@
+# Produced by T3-environment-themes (R002) for RQ4 -- legacy / flat-file environment themes.
+id: S939
+rq: RQ4
+claim: >
+  The two databases disagree on whether an empty string is null, so a predicate that filters
+  correctly on one silently changes its result set on the other.
+url: https://aws.amazon.com/blogs/database/handle-empty-strings-when-migrating-from-oracle-to-postgresql
+quote: >
+  in PostgreSQL, empty strings and NULL are different
+source_type: vendor_page
+company: "Amazon Web Services"
+retrieved: "2026-09-13"
+confidence: medium
+vividness: medium
+attestation: vendor_marketing
+usable_for:
+  - world_texture
+produced_by: T3-environment-themes
+notes: >
+  attestation=vendor_marketing, therefore usable_for is world_texture ONLY under G6 and failure
+  F400. FLAGGED AS A CORPUS GAP RATHER THAN A SOLVED PROBLEM: the empty-string-is-null divergence
+  is one of the best migration mechanisms available for theme E-family tasks, and this corpus
+  currently has no non-vendor anchor for it. Before a task turns on it, get the primary database
+  documentation for both engines. Unlike S928's mojibake, T3 could not settle this one by
+  measurement, because it needs an Oracle instance. NOT re-fetched by T3.

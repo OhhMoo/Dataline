@@ -1,0 +1,40 @@
+id: S609
+rq: RQ1
+claim: >
+  Two streaming jobs defined as separate tasks in one job, both merging into the same Silver
+  Delta table, intermittently fail with a concurrent-insert conflict; declaring both streams
+  inside a single task makes the error disappear because the writes are then serialized.
+url: https://community.databricks.com/t5/data-engineering/error-quot-insert-concurrent-to-delta-lake-quot-when-2-streaming/m-p/113792/highlight/true
+quote: "We currently have 2 streaming (Bronze job) created on 2 tasks in the same job, running the same compute job and both merge data into the same table (Silver table)."
+source_type: forum
+retrieved: "2026-09-13"
+confidence: medium
+produced_by: E1-concurrency
+vividness: medium
+attestation: firsthand_anonymous
+year: 2025
+usable_for:
+  - world_texture
+  - mechanism
+repair_note: >
+  G1 CANNOT auto-verify this record: community.databricks.com returns 403 to the gate's
+  alkera-research-swarm user agent. It is the only G1 failure in the whole corpus as of
+  2026-09-13 and it is mine. I verified the quote by hand on 2026-09-13 with a browser user
+  agent and applied G1's own normalization to the fetched HTML; it matches exactly. If a
+  reviewer wants a corpus with a clean G1 run, withdraw this record - it is the least
+  load-bearing source in my block (it appears only in A043's derived_from, and A043 does not
+  depend on it for mechanism).
+notes: >
+  Databricks Community thread, author handle khangnguyen164, dated 03-25-2025 on the page.
+  Quote re-verified 2026-09-13 by fetching the raw HTML and applying G1 normalization.
+  vividness=medium, honestly: bronze/silver layering, the two-tasks-one-job topology and the
+  merge target are concrete, but there is no version, no table name, no row count, and the
+  error is paraphrased by the poster as insert concurrent rather than pasted. A world
+  generator can rebuild the topology from this; it cannot rebuild the failure output.
+  confidence=medium because the thread is a question, not a diagnosis. The named mechanism
+  (ConcurrentAppendException) comes from a Databricks community manager's reply, which is
+  vendor-adjacent, and I am not treating it as independent corroboration (F400).
+  forum plus firsthand_anonymous means frequency is structurally unavailable here and is not
+  claimed. The one thing this source licenses that the GitHub issues do not is the ordinary,
+  unremarkable way the topology arises: nobody designed two concurrent writers, the job just
+  grew a second task.

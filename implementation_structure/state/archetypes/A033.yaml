@@ -57,10 +57,11 @@ existing_coverage: >
   twice in clean rooms and compare, which is the only check that actually tests the property.
 derived_from:
   - S122
-  - S106
   - S121
+  - S120
+  - S111
+  - S112
 produced_by: lead-agent-ds-gap-closure
-status: redesign_required
 attacks:
   - F202
   - F204
@@ -82,3 +83,33 @@ notes: >
   probe from F121: the grader must make the agent's artefact actually run again, not merely
   inspect the state it left behind. S122 is a single interviewed-engineer anecdote at medium
   confidence, so the archetype leans on the mechanism rather than the specific incident.
+status: redesign_required
+repair_note: >
+  PROVENANCE REPAIRED 2026-09-13 (D2, R002 evidence repair). Status remains redesign_required on
+  the red-team grounds already recorded (F305, F306, F254) - this repair fixes only the
+  derivation, per F459's ruling.
+  S122 IS CLEAN; A033'S USE OF IT WAS NOT. Verified again here: the speaker is participant P10 of
+  18 interviewed ML engineers, and every element of S122 - the day and a half, the "all garbage"
+  realisation, the medium confidence, the explicit one-interviewee caveat - is verbatim
+  supported. S122 is now attestation=secondhand (an academic study reporting what its subject
+  said), vividness=high, usable_for=[world_texture, mechanism]. It does NOT license frequency and
+  never did.
+  GENERALISATION STRUCK: why_hard's claim that "notebook-driven work produces exactly this class
+  of incident" is a class-level claim from n=1, and it is contradicted by S121 - also cited here -
+  which found "the vast majority of bugs described to us in the interviews were seemingly bespoke
+  and not shared among participants". S122 may carry MOTIVATION only. Whoever performs the blind
+  redesign must attribute the anecdote to one interviewed engineer, not to notebook work as a
+  class.
+  DECORATIVE CITATION REMOVED: S106 dropped. It is about MLE-bench agents exhausting container
+  disk and RAM and failing to budget compute; A033 contains no resource-budgeting element at all.
+  Re-add it only if such an element is deliberately designed in.
+  DEFECT SET NOW SOURCED: S120 added (leakage discovered only AFTER deployment, from the same
+  Berkeley n=18 study - this is what actually justifies the fit-before-split planted defect, and
+  A033 previously cited nothing for it) and S111/S112 added (Princeton - leakage across 17 fields
+  and 329 papers, then 41 papers across 30 fields affecting 648, with per-field counts;
+  secondhand, frequency-licensed, and the only records in this archetype's derivation that may
+  support a claim about how often anything happens).
+  STILL UNSOURCED: out-of-order cell execution, a CSV overwritten upstream, and an unpinned seed.
+  Three of the four planted defects have no source in derived_from. The redesign must either
+  source them or generate them from S121's long-tail argument and say explicitly that it is doing
+  so.

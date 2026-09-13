@@ -11,6 +11,11 @@ company: "Terminal-Bench"
 year: 2026
 retrieved: "2026-09-11"
 confidence: high
+vividness: medium
+attestation: firsthand_named
+usable_for:
+  - world_texture
+  - frequency
 produced_by: L5-competitive-pricing
 notes: >
   EPISODE-LENGTH ANCHOR for how big one rollout is: about 25 steps, under 10M tokens, under 20 minutes wall clock is the typical case on a hard terminal benchmark. Measured across 32,155 trials per the source.

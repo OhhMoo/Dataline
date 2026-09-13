@@ -11,6 +11,10 @@ company: "TechCrunch"
 year: 2025
 retrieved: "2026-09-11"
 confidence: high
+vividness: medium
+attestation: secondhand
+usable_for:
+  - world_texture
 produced_by: L5-competitive-pricing
 notes: >
   COST-SIDE ANCHOR, not a price. Indicates the labour model at the quality end of this market is full-time senior engineers rather than crowdsourced contractors - consistent with E5 (tasks representing tens of hours of expert work) and with S405/S432.

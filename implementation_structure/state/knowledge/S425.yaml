@@ -10,6 +10,10 @@ company: "rl-list.com"
 year: 2026
 retrieved: "2026-09-11"
 confidence: medium
+vividness: low
+attestation: unattested
+usable_for:
+  - world_texture
 produced_by: L5-competitive-pricing
 notes: >
   THESIS TEST. The directory own use-case taxonomy has three segments (coding agents, computer-use and browser agents, enterprise workflows). There is no data or analytics segment. Argument from absence.

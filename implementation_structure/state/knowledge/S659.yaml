@@ -1,0 +1,23 @@
+id: S659
+rq: RQ1
+claim: Opening a DuckDB database file containing roughly 300,000 tables spikes memory to over 20 GB during the initial connection because LoadFromStorage deserializes the whole catalog eagerly, and memory grows linearly with table count.
+url: https://github.com/duckdb/duckdb/issues/20756
+quote: "When opening a DuckDB database file containing a large number of tables (approximately 300,000 tables), memory consumption spikes to 20+ GB during the initial connection, leading to Out-Of-Memory (OOM) errors in production environments."
+source_type: repo
+retrieved: "2026-09-13"
+confidence: high
+produced_by: E2-scale
+author_role: DuckDB user in production (GitHub, pseudonymous)
+year: 2026
+vividness: high
+attestation: firsthand_anonymous
+usable_for:
+  - world_texture
+  - mechanism
+notes: >
+  Liveness checked 2026-09-13 via GitHub REST API: state=open, opened 2026-01-31, 2 comments.
+  The body names the code path: SingleFileCheckpointReader LoadFromStorage in
+  src/storage/checkpoint_manager.cpp. Used here as a budget constraint rather than as a trap:
+  it establishes that catalog load in DuckDB is linear in table count, so a 500 to 600 table
+  world sits at roughly 0.2 percent of the reported pathological case and catalog load is NOT
+  the thing that will blow the 2GB ceiling. What will is the query plan, which is S660.

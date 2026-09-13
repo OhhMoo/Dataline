@@ -1,0 +1,29 @@
+id: S705
+rq: RQ1
+claim: >
+  A dbt Community Forum thread shows a practitioner discovering that unique_key on an incremental
+  model is not a uniqueness constraint: with unique_key set to a three-column list, dbt loaded
+  multiple rows sharing the same key without raising an error. The replies clarify that
+  unique_key exists to decide which existing target rows to replace, not to reject duplicate
+  source rows, and that de-duplication must happen before the insert.
+url: https://discourse.getdbt.com/t/incremental-model-unique-constraint-still-allows-duplicates/17298
+quote: "dbt is disregarding unique constraint when I have multiple rows with same yearmonth/doman_id/pzn (unique constraint). dbt loads those multiple rows without causing an error."
+source_type: forum
+author_role: dbt practitioner, anonymous
+company: not stated
+year: 2026
+retrieved: "2026-09-13"
+confidence: medium
+produced_by: E3-compound
+vividness: medium
+attestation: firsthand_anonymous
+usable_for:
+  - world_texture
+  - mechanism
+notes: >
+  Forum plus anonymous: cannot license frequency under any circumstances, and I am not claiming
+  it. confidence medium because the thread carries no marked accepted answer, so the corrective
+  explanation in the replies is community consensus rather than a maintainer ruling. The
+  underlying behaviour is consistent with S704. The typo in the quote, doman_id for domain_id, is
+  the poster's and is reproduced verbatim - do not silently correct it or the G1 string match
+  will break.

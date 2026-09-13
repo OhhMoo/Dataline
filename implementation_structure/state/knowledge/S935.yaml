@@ -1,0 +1,23 @@
+# Produced by T3-environment-themes (R002) for RQ4 -- legacy / flat-file environment themes.
+id: S935
+rq: RQ4
+claim: >
+  Practitioner-language description of row-hash routing to an AMP followed by a full-row
+  comparison, which is the implementation reason duplicates disappear without an error.
+url: https://www.geekinterview.com/question_details/56787
+quote: >
+  If its a duplicate it silently skips it without throwing any error.
+source_type: forum
+retrieved: "2026-09-13"
+confidence: low
+vividness: medium
+attestation: firsthand_anonymous
+usable_for:
+  - world_texture
+produced_by: T3-environment-themes
+notes: >
+  WEAK SOURCE, KEPT ONLY FOR PHRASING. A Q&A site of uncertain provenance, so confidence low and
+  world_texture only -- the mechanism licence belongs to S932 and S933, which are the vendor's own
+  documentation and a specialist explainer respectively. Retained because the sentence is the
+  clearest plain-language statement of the failure and is useful as wiki texture inside a world. A
+  reviewer would be justified in dropping it. NOT re-fetched by T3.

@@ -1,0 +1,122 @@
+id: A051
+title: A predicate the lineage tool cannot see, on a column that appears in forty models
+discipline: data_engineering
+description: >
+  A nightly churn-risk export to the CRM has been silently dropping roughly seven percent of
+  accounts. The account status column exists in more than forty models across a ~500 model
+  project. Upstream, one source system began emitting NULL rather than false for records
+  created before a backfill cutover. Every model that merely selects the column is unaffected.
+  The three models that use it in a predicate written as status = false drop the NULL rows on
+  the floor. Column-level lineage, the first tool an engineer reaches for at this scale, is by
+  documented design derived from select statements and does not reflect a column's use in
+  joins or filters (S657), so it returns a clean graph. The world also contains a model that
+  handles the case correctly with coalesce, which reads as reassurance, and a second genuinely
+  NULL-unsafe model written as status != true that sits on a branch feeding a decommissioned
+  dashboard, so repairing it changes no number the ticket is about. The agent must localise the
+  drop, repair it at the correct layer rather than in forty places, and quantify how many days
+  of exports were affected.
+why_hard: >
+  The obvious searches all return too many candidates or the wrong answer. Grep on the column
+  name returns forty-plus models. Column-level lineage returns a graph with no defect in it,
+  and returns it confidently, because filter usage is outside its contract. The row counts are
+  not obviously wrong anywhere, because seven percent sits inside ordinary day-to-day variance
+  on this table. A better strategy is decisively faster: compiling the project and searching
+  target/compiled for the column in predicate position rather than in projection position cuts
+  forty candidates to five, and a per-hop reconciliation of count(*) against
+  count(*) filter (where status is null) down the eight-hop DAG binary-searches the drop to a
+  single edge in a handful of queries. An agent that instead opens models one at a time, or
+  trusts the lineage view, or rewrites every model that mentions the column, fails on time or
+  on the correctness checks. The two decoys do real work: the coalesce model is correct and
+  must not be touched, and the second NULL-unsafe model is a genuine defect whose repair moves
+  nothing, so an agent that stops there has a plausible story and the wrong answer.
+human_hours: "8-20"
+grading: >
+  Deterministic. GRADING REFERENCE IS HARNESS-SIDE (F121): the expected export is materialised
+  in a separate DuckDB file attached read-only at scoring time, never in the agent-visible
+  catalog. Checks are an exact row-set match of the regenerated export against that reference,
+  a structural check that the repair was made at the single correct layer rather than sprayed
+  across the project, a no-regression check that the correctly-written coalesce model is
+  byte-identical to its pre-episode form, a replay probe that plants fresh NULL-bearing rows
+  and requires the export to carry them, and an exact-match check on the affected date range
+  in a findings file. A bounded judge scores only the written root-cause narrative.
+rubric_points: 20
+apps_touched:
+  - warehouse
+  - dbt
+  - git
+  - bi_dashboard
+  - ingestion_connector
+deterministic_checks:
+  - "regenerated CRM export row-set matches a HARNESS-SIDE reference exactly, attached read-only at scoring time"
+  - "diff of the agent's git workspace touches at most three model files and includes the single upstream model where the semantics actually broke"
+  - "the already-correct coalesce model is unchanged from its pre-episode contents, byte for byte"
+  - "replay probe: harness inserts new pre-cutover-shaped rows with NULL status and the export must include them on the next build"
+  - "raw landing table row count and its NULL-status subcount are unchanged from the pre-episode values - a full refresh of the landing layer scores zero"
+  - "findings file states the first and last affected export dates, exact string match against harness-side values"
+judge_axes:
+  - code_quality
+  - robustness
+failure_modes_expected:
+  - "runs column-level lineage, sees a clean graph, and reports no defect in the lineage"
+  - "rewrites all forty models that mention the column, passing the row check and failing the blast-radius check"
+  - "fixes the decommissioned-branch model that is genuinely NULL-unsafe and reports the case closed with no number changed"
+  - "patches the export model at the bottom of the DAG so the count is right and the replay probe still drops new rows"
+  - "runs dbt build --full-refresh to get a clean baseline and destroys the pre-cutover rows that are the evidence"
+  - "concludes the source system is at fault and files a ticket upstream without repairing the warehouse"
+existing_coverage: >
+  NULL-semantics bugs are well covered in SQL-correctness benchmarks, but always at a scale
+  where the defective predicate is in the file you were handed. What is uncovered is the search
+  itself, and specifically a defect placed in the one position that the standard lineage tool
+  documents itself as blind to. I found no benchmark that exploits a documented blind spot in
+  the agent's own tooling as the source of difficulty.
+derived_from:
+  - S657
+  - S655
+  - S663
+  - S650
+  - S662
+  - S664
+produced_by: E2-scale
+attacks:
+  - F121
+  - F202
+agent_visible_brief: >
+  Support escalated that customers are missing from the churn-risk export we push to the CRM
+  every morning. They gave us six account ids to check and all six exist in the warehouse and
+  look normal. The export model has not been changed in months and the job is green every night.
+  Roughly forty models touch the account status field, so please do not just rewrite all of them -
+  find what is actually dropping the rows, fix it in the right place, and tell us how many days
+  of exports were wrong so we can decide whether to resend.
+status: draft
+notes: >
+  HOW THE CLUTTER IS GENERATED, DETERMINISTICALLY. Same generator and same seeded spec as A050:
+  world/gen_dbt.py --seed N emits ~500 models from a 12-source fixture spec, one stg_ per source
+  table, six real int_ patterns, marts on real grains, with sorted iteration and a single seeded
+  PRNG so two runs at the same seed are byte-identical. The forty-model spread of the status
+  column is not decoration and not hand-placed: the spec marks the column as a shared conformed
+  attribute, and the generator propagates it wherever the lineage rules say it would propagate,
+  which is exactly the situation S663 describes, where one column identity is spread across a
+  project and renamed at a single upstream point. The generator then classifies each of those
+  forty usages as projection, predicate or join key, and plants the defect only in predicate
+  position, because that is the position S657 documents column-level lineage as unable to see.
+  The decoys are placed by the same classifier: one predicate usage is emitted in the safe
+  coalesce form and one in the unsafe != true form on a branch the spec marks decommissioned.
+  DATA VOLUME WITHOUT SEEDS: the fact and account tables are built with INSERT ... FROM range()
+  and generate_series inside DuckDB rather than from dbt seed CSVs, deliberately, because
+  S651 measures dbt seed at up to 2Gb of resident memory for 125Mb of CSV, which alone would
+  eat the episode ceiling. WHAT A FULL REFRESH DESTROYS: the pre-cutover rows survive only in a
+  raw landing table that is materialized as a table with no loader inside the world;
+  dbt build --full-refresh drops and rebuilds it from the post-cutover source, the NULLs vanish,
+  and the symptom becomes unreproducible and unquantifiable. NAIVE BASELINES: a grep for the
+  column must partially succeed by narrowing to forty; reading the lineage graph must fail
+  cleanly and confidently; repairing the export model must pass the row diff and fail the
+  replay probe. RESOURCE BUDGET: ~500 tables is about 0.2 percent of the 300k table case that
+  produced a 20GB catalog load in S659, so catalog load is not a risk here; the DuckDB file is
+  prebuilt in the image and attached rather than loaded, so boot is an attach plus a warm dbt
+  partial parse. HONEST CAVEAT: this is the archetype in my set closest to the tedium line.
+  Forty candidates is small enough that a patient agent could read all forty. It stays on the
+  right side only because the predicate-position classifier cuts forty to five in one pass and
+  the per-hop count reconciliation localises in a handful of queries, so a better strategy is
+  genuinely and measurably faster. If piloting shows frontier models simply read all forty and
+  succeed, the correct response is to raise the spread to 120 models and add a second conformed
+  column with the same name in a different source, not to make the defect subtler.

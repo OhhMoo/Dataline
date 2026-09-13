@@ -10,6 +10,11 @@ company: UC Berkeley
 year: 2022
 retrieved: "2026-09-11"
 confidence: medium
+vividness: high
+attestation: secondhand
+usable_for:
+  - world_texture
+  - mechanism
 produced_by: L2-practitioner-workflow-ds
 notes: >
   Out-of-order or stale-state notebook execution is a realistic cheaply-seeded initial condition: ship a world containing a notebook whose saved outputs disagree with what re-running it produces. Marked medium because this is one interviewee's anecdote, though the practice split is reported across the cohort.

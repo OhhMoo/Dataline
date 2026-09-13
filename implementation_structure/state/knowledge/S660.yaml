@@ -1,0 +1,27 @@
+id: S660
+rq: RQ1
+claim: In DuckDB 1.2.2 an inner join whose ON clause matches either of two keys with OR is planned as BLOCKWISE_NL_JOIN and takes 1m 42s on roughly 20MB of parquet, while the semantically equivalent two hash joins plus a union return in 144ms, a gap of nearly three orders of magnitude.
+url: https://github.com/duckdb/duckdb/issues/17392
+quote: "-- very slow query - 1 row returned in 1m 42s, BLOCKWISE_NL_JOIN"
+source_type: repo
+retrieved: "2026-09-13"
+confidence: high
+produced_by: E2-scale
+author_role: DuckDB user (GitHub, pseudonymous)
+year: 2025
+vividness: high
+attestation: firsthand_anonymous
+usable_for:
+  - world_texture
+  - mechanism
+notes: >
+  Liveness checked 2026-09-13 via GitHub REST API: state=open, opened 2025-05-07, 7 comments.
+  The reproduction in the body sets memory_limit = 1GB and threads = 4, joins arrivals to
+  stopdata on arrivals.stopPointRef = stopdata.stop_id or arrivals.stopPointRef =
+  stopdata.quay_id, and contrasts it with the union of two separate hash joins, verbatim
+  annotated: very fast query - 1 row returned in 144ms - 2 hash joins, then union. The
+  reporter also notes, verbatim, that the correct result is produced. This is the cleanest
+  available evidence for a performance cliff where the obvious formulation is correct and
+  unusable and a strategy change, not more hardware, is the fix. The reporter also flags the
+  either-key semantics explicitly: I can use a union all here because I know that no stop_id
+  equals quay_id, which is exactly the grain trap to conjoin with the cliff.

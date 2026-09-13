@@ -1,0 +1,23 @@
+# Produced by T3-environment-themes (R002) for RQ4 -- legacy / flat-file environment themes.
+id: S941
+rq: RQ4
+claim: >
+  Undocumented business logic in long-lived enterprise ETL estates lives inside proprietary
+  mapping and graph artifacts rather than in any readable specification.
+url: https://www.legacyleap.ai/blog/data-platform-modernization/
+quote: >
+  Legacy ETL environments built over 10 to 20 years contain business rules that exist only in the code
+source_type: vendor_page
+author_role: "Customer Delivery Manager"
+retrieved: "2026-09-13"
+confidence: medium
+vividness: medium
+attestation: vendor_marketing
+usable_for:
+  - world_texture
+produced_by: T3-environment-themes
+notes: >
+  attestation=vendor_marketing so world_texture ONLY -- and the conflict is direct, since the
+  seller's product is legacy modernisation. Kept because it licenses the ORG PREMISE behind themes
+  C3 and C4, which is all a theme document needs, and the premise is independently corroborated in
+  a non-vendor voice by S942. It licenses nothing about how common this is. NOT re-fetched by T3.

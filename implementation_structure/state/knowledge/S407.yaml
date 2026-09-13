@@ -11,6 +11,10 @@ company: "Mechanize, Inc."
 year: 2025
 retrieved: "2026-09-11"
 confidence: medium
+vividness: medium
+attestation: vendor_marketing
+usable_for:
+  - world_texture
 produced_by: L5-competitive-pricing
 notes: >
   COMPUTE FOOTPRINT PER TASK - the key number behind the argument that a task must be worth the compute spent on it. The assumption chain is stated in the source (Grok 4 at $15 per 1M output tokens, DeepSeek-R1 group size 64, five reuses). Epoch repeats this figure (S408) rather than deriving it independently.

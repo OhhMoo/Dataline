@@ -1,0 +1,30 @@
+# Produced by T3-environment-themes (R002) for RQ4 -- legacy / flat-file environment themes.
+id: S915
+rq: RQ4
+claim: >
+  A programmatic screen of 35175 supplementary Excel files across 18 genomics journals found that
+  roughly one in five papers carrying Excel gene lists contained autocorrect-corrupted
+  identifiers.
+url: https://d-nb.info/1114219509/34
+quote: >
+  approximately one-fifth of papers with supplementary Excel gene lists contain erroneous gene name conversions
+source_type: paper
+author_role: "academic researchers"
+year: 2016
+retrieved: "2026-09-13"
+confidence: medium
+vividness: high
+attestation: firsthand_named
+usable_for:
+  - world_texture
+  - mechanism
+  - frequency
+produced_by: T3-environment-themes
+notes: >
+  ONE OF ONLY TWO SOURCES IN THIS BLOCK THAT LEGITIMATELY EARNS usable_for=frequency: peer-
+  reviewed paper, named authors, quantified population, so it satisfies G6's requirement of
+  firsthand_named plus a source_type outside forum and vendor_page. This is the citation that
+  turns Excel-mangles-identifiers from an anecdote into a defensible statement about prevalence.
+  The URL is a national-library mirror of the Genome Biology article rather than the publisher
+  page; if G1 cannot resolve it, substitute the publisher DOI and re-verify the quote before
+  trusting it. NOT re-fetched by T3.

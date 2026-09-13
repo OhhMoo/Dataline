@@ -11,6 +11,11 @@ company: "Epoch AI"
 year: 2026
 retrieved: "2026-09-11"
 confidence: high
+vividness: medium
+attestation: secondhand
+usable_for:
+  - world_texture
+  - frequency
 produced_by: L5-competitive-pricing
 notes: >
   BUYER ACCEPTANCE CRITERION #2 and a hard number for the Phase-0 go/no-go gate in agent.md 2. It QUALIFIES a naive reading of "make it as hard as possible": a 0% task is indistinguishable from a broken task, so every shipped task needs a demonstrated successful rollout or a blind human solve.

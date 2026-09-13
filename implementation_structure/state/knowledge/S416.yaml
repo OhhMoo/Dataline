@@ -11,6 +11,11 @@ company: "SemiAnalysis"
 year: 2026
 retrieved: "2026-09-11"
 confidence: medium
+vividness: medium
+attestation: secondhand
+usable_for:
+  - world_texture
+  - frequency
 produced_by: L5-competitive-pricing
 notes: >
   COMPETITIVE STRUCTURE. The bar for entry is a small team with one anchor customer, which is the shape of the business agent.md describes. Also implies real design-partner concentration risk.

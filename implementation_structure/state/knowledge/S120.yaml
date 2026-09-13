@@ -10,6 +10,12 @@ company: UC Berkeley
 year: 2022
 retrieved: "2026-09-11"
 confidence: high
+vividness: medium
+attestation: secondhand
+usable_for:
+  - world_texture
+  - mechanism
+  - frequency
 produced_by: L2-practitioner-workflow-ds
 notes: >
   Corroborates leakage-is-pervasive (S111/S112) from industry rather than academia, and adds three mechanisms the science taxonomy does not cover: shared split between an upstream embedding and a downstream model, serving-population imbalance, and label-lag leakage. The 'only discovered after deployment' timing is what makes it a multi-hop diagnosis task.

@@ -1,0 +1,25 @@
+id: S662
+rq: RQ1
+claim: A fast-growing multi-tenant dbt project, where identically structured canonical models exist once per customer database, is maintained by generating models, seeds and their YAML from metadata using Python code generation rather than by hand-authoring them.
+url: https://discourse.getdbt.com/t/scalable-yaml-code-generation/6835
+quote: "python code gen builds dictionaries in memory, use pyyaml's dump to output to corresponding yaml files"
+source_type: forum
+retrieved: "2026-09-13"
+confidence: high
+produced_by: E2-scale
+author_role: analytics engineering lead (Discourse, pseudonymous)
+year: 2023
+vividness: high
+attestation: firsthand_anonymous
+usable_for:
+  - world_texture
+  - mechanism
+notes: >
+  Fetched 2026-09-13 through the Discourse JSON API for topic 6835; topic reports 1944 views.
+  Also verbatim in the same post: we can have code generation that inspects some metadata
+  that indicates what customers should have what data models/data pipelines, and then
+  generate the corresponding assets (models, seeds, and corresponding yaml) in the
+  corresponding locations in the dbt project. This is the load-bearing realism argument for
+  every archetype in the A050 block: a 500-model world does not have to pretend to be
+  hand-written, because real projects at that size are themselves machine-generated from a
+  metadata spec. Generated bulk is the realistic case, not the shortcut.

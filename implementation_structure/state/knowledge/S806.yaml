@@ -1,0 +1,18 @@
+id: S806
+rq: RQ3
+claim: "Fivetran's Connector SDK debug mode runs entirely locally and materialises its output into a DuckDB file, so connector-side behaviour can be reproduced offline even though the Fivetran control plane cannot."
+url: https://fivetran.com/docs/connector-sdk/testing/local-testing
+quote: "generates a local warehouse.db file, a DuckDB representation of the data delivered by the connection to the destination"
+source_type: docs
+retrieved: "2026-09-13"
+confidence: high
+produced_by: T1-mock-bottleneck
+vividness: medium
+attestation: unattested
+usable_for:
+  - mechanism
+notes: >
+  Documentation / repository artifact, not an incident report. It licenses a
+  mechanism claim only: it says how the thing is built or licensed, not that
+  anyone hit a problem with it and not how often. Retrieved and string-checked
+  against the live URL on 2026-09-13 by T1.

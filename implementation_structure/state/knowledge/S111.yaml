@@ -10,6 +10,12 @@ company: Princeton University
 year: 2022
 retrieved: "2026-09-11"
 confidence: high
+vividness: medium
+attestation: secondhand
+usable_for:
+  - world_texture
+  - mechanism
+  - frequency
 produced_by: L2-practitioner-workflow-ds
 notes: >
   Leakage is the highest-frequency, highest-impact DS failure with a real corpus behind it. Crucially the leakage is invisible from the artifact - none of the errors could be caught by reading the papers. That is exactly a task where a trajectory-blind grader must check PIPELINE state (was imputation fit on train only? is feature X a post-outcome proxy?) rather than the reported metric.

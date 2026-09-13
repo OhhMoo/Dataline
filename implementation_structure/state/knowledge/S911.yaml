@@ -1,0 +1,27 @@
+# Produced by T3-environment-themes (R002) for RQ4 -- legacy / flat-file environment themes.
+id: S911
+rq: RQ4
+claim: >
+  A copybook can make a group's presence conditional on a non-integer flag field through OCCURS
+  DEPENDING ON, so record offsets vary per record rather than being fixed.
+url: https://github.com/AbsaOSS/cobrix/issues/151
+quote: >
+  DEPENDING ON FIELD_TYPE
+source_type: repo
+year: 2019
+retrieved: "2026-09-13"
+confidence: medium
+vividness: medium
+attestation: firsthand_anonymous
+usable_for:
+  - world_texture
+  - mechanism
+produced_by: T3-environment-themes
+notes: >
+  Closed as an accepted enhancement. The quote is kept to a short exact span because the original
+  is a copybook fragment whose internal whitespace T3 could not confirm, and G1 matches literally.
+  NOT re-fetched by T3. Mechanism value: this is the cleanest available statement of why so-called
+  fixed-width files frequently are not fixed-width.
+  VIVIDNESS DEMOTED TO MEDIUM BY T3 after G6 warned the quote is short: the underlying
+  incident is rebuildable but the span T3 is willing to certify verbatim is not, and the quote is
+  what the record actually licenses. Recorded as a demotion rather than argued around.

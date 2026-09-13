@@ -11,6 +11,10 @@ company: "TechCrunch"
 year: 2025
 retrieved: "2026-09-11"
 confidence: high
+vividness: medium
+attestation: secondhand
+usable_for:
+  - world_texture
 produced_by: L5-competitive-pricing
 notes: >
   TOP-DOWN MARKET SIZE, attributed by TechCrunch to The Information (Sept 2025). Widely recirculated - treat later repetitions as the same single report, not as corroboration.

@@ -15,6 +15,11 @@ company: reported against airbytehq/airbyte
 year: 2026
 retrieved: "2026-09-11"
 confidence: high
+vividness: high
+attestation: firsthand_anonymous
+usable_for:
+  - world_texture
+  - mechanism
 produced_by: L1-practitioner-workflow-de
 notes: >
   Unusually complete as a rebuildable scenario: named connector and version (source-salesforce

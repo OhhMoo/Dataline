@@ -10,6 +10,11 @@ company: DoorDash
 year: 2021
 retrieved: "2026-09-12"
 confidence: high
+vividness: medium
+attestation: firsthand_named
+usable_for:
+  - world_texture
+  - mechanism
 produced_by: L2-practitioner-workflow-ds
 notes: >
   Independent corroboration of the Instacart pattern (COVID demand shock breaks a deployed model). The distinguishing detail for task design is that detection latency, not fix difficulty, was the cost driver - which makes 'how long did the agent take to notice' a legitimate scored dimension.

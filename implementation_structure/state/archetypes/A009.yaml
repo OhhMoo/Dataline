@@ -59,8 +59,10 @@ existing_coverage: >
   materialization-change trap plus append-mode duplication is thinner.
 derived_from:
   - S001
+  - S754
+  - S755
+  - S008
   - S003
-  - S006
   - S023
 produced_by: S2-job-specs
 notes: >
@@ -69,3 +71,25 @@ notes: >
   this subcategory, not the task content.
 attacks:
   - F121
+repair_note: >
+  RE-GROUNDED 2026-09-13 (D2, R002 evidence repair).
+  DEMOTED: S006 dropped from the mechanism role (layline.io vendor synthesis, F450,
+  vendor_marketing / world_texture only). S001 and S003 retained but retyped
+  attestation=unattested (F451). S023 (Perun Engineering consultancy field notes, page ends in a
+  sales CTA) is now attestation=vendor_marketing, world_texture only.
+  REPLACED WITH: S754 (dbt reference docs - append-only behaviour without a unique_key inserts
+  every row "without regard for whether the rows represent duplicates", mechanism) and S755
+  (SPARK-8513, firsthand_named, a failed write job leaving _temporary output behind). S008 added
+  (firsthand_named Astronomer field engineers).
+  HONEST GAP - THIS ARCHETYPE HAS AN UNSOURCED LEG: the second defect, "a model was switched from
+  table to incremental materialization without a full refresh, leaving pre-existing rows under
+  the old schema alongside new ones", came ONLY from S023, which may no longer license a
+  mechanism. No replacement was found in this repair. Either find an attested or documentary
+  source for the materialisation-change behaviour (dbt's own docs on materialisation changes are
+  the obvious first place to look and were not checked here), or drop that leg. Do not ship it
+  citing S023.
+  FREQUENCY CLAIM DROPPED - and this one was explicit and wrong: the header comment and notes
+  claimed a "frequency signal" from S505 (PostgreSQL docs), S507 (DuckDB docs), S508 (dbt docs)
+  and S509 (Airflow docs) for "the stack job postings demand most often". Those are product
+  documentation and vendor pages; none of them counts job postings, and three of the four are now
+  typed vendor_marketing. The stack choice is a design decision, not an evidenced one. Say that.

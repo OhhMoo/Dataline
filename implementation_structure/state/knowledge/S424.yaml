@@ -10,6 +10,10 @@ company: "rl-list.com"
 year: 2026
 retrieved: "2026-09-11"
 confidence: medium
+vividness: low
+attestation: unattested
+usable_for:
+  - world_texture
 produced_by: L5-competitive-pricing
 notes: >
   CRITICAL METHODOLOGICAL FINDING FOR RQ6: there is no public rate card for this market. Every price in this file is an interview report, an analyst estimate, or a vendor claim - none is a contract. This sets the ceiling on how confident any pricing claim in this round can be.

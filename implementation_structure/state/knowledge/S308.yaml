@@ -12,6 +12,10 @@ company: Mercor
 year: 2026
 retrieved: "2026-09-11"
 confidence: high
+vividness: medium
+attestation: vendor_marketing
+usable_for:
+  - world_texture
 produced_by: L4-prior-art
 notes: >
   Verdict: COPY-PATTERN (benchmark is closed/paid; methodology is public). Critical lesson for

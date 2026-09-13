@@ -1,0 +1,24 @@
+# Produced by T3-environment-themes (R002) for RQ4 -- legacy / flat-file environment themes.
+id: S907
+rq: RQ4
+claim: >
+  A practitioner walkthrough of EBCDIC encoding, COMP-3 nibble packing with a sign-code table, and
+  the difference between fixed and variable copybook record layouts.
+url: https://niallbunting.com/ebcdic/cobol/packing/copybooks/2019/12/09/ebcdic-character-format-guide.html
+quote: >
+  Packing uses nibbles (4 bits) rather than full bytes to store numeric information.
+source_type: blog
+author_role: "named individual technical blogger"
+year: 2019
+retrieved: "2026-09-13"
+confidence: medium
+vividness: medium
+attestation: firsthand_named
+usable_for:
+  - world_texture
+  - mechanism
+produced_by: T3-environment-themes
+notes: >
+  Vocabulary and background reference for authors writing mainframe-proxy worlds. A single-author
+  explainer with no incident, so it licenses texture and mechanism vocabulary and nothing about
+  prevalence. NOT re-fetched by T3.

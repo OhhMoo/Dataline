@@ -1,0 +1,18 @@
+id: S800
+rq: RQ3
+claim: "adobe/S3Mock is a self-contained server implementing a subset of the Amazon S3 API for local testing, which is the license-clean replacement for the AGPL/archived MinIO."
+url: https://raw.githubusercontent.com/adobe/S3Mock/main/README.md
+quote: "S3Mock is a lightweight server that implements a subset of the"
+source_type: repo
+retrieved: "2026-09-13"
+confidence: high
+produced_by: T1-mock-bottleneck
+vividness: medium
+attestation: unattested
+usable_for:
+  - mechanism
+notes: >
+  Documentation / repository artifact, not an incident report. It licenses a
+  mechanism claim only: it says how the thing is built or licensed, not that
+  anyone hit a problem with it and not how often. Retrieved and string-checked
+  against the live URL on 2026-09-13 by T1.

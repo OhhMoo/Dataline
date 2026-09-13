@@ -10,6 +10,11 @@ company: Brooklyn Data Co.
 year: 2019
 retrieved: "2026-09-11"
 confidence: high
+vividness: medium
+attestation: unattested
+usable_for:
+  - world_texture
+  - mechanism
 produced_by: L3-practitioner-workflow-analytics
 notes: >
   Supplies exact axes a randomized world can vary: grain of the denominator (product line vs channel), window semantics (trailing 30 days vs calendar month), and activity predicate (one click vs one share). Each variation yields a legitimately different number from the same warehouse.

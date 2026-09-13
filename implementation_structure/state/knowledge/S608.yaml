@@ -1,0 +1,35 @@
+id: S608
+rq: RQ1
+claim: >
+  A deploy introduced a race in workflow termination so that concurrently terminating jobs
+  published duplicate completion events; downstream automation fanned those into 33,135
+  duplicate workflows across 38 projects, and the symptom surfaced in three apparently
+  unrelated domains before anyone correlated them into a single incident.
+url: https://status.circleci.com/incidents/fjpg0vmh476k
+quote: "On December 2, 2025, at 16:20, we deployed a code change that introduced a race condition in how workflows are terminated. When workflows failed with concurrent jobs terminating, our system published duplicate workflow completion events."
+source_type: other
+retrieved: "2026-09-13"
+confidence: high
+produced_by: E1-concurrency
+vividness: high
+attestation: firsthand_named
+company: CircleCI
+year: 2025
+usable_for:
+  - world_texture
+  - mechanism
+notes: >
+  Public postmortem on CircleCI's own status page, first person, named company: the strongest
+  attestation I found this round. Quote re-verified 2026-09-13 by fetching the page and
+  applying G1's own normalization (strip script/style, strip tags, collapse whitespace,
+  lowercase) - it matches. Also verbatim on the page: "38 projects were impacted by the
+  auto-rerun issue with a total of 33,135 duplicate workflows created."
+  I am deliberately NOT claiming frequency even though firsthand_named plus a non-forum
+  source_type would clear the G6 rule. One incident report establishes that this happened at
+  CircleCI, not that it is common. Claiming frequency here is precisely the move the
+  citation audit caught.
+  The most valuable detail for archetype design is the detection story, not the bug: the
+  first customer report arrived at 21:40 (5h20m in), was misread as one customer's own
+  automation, metrics were back to normal by 22:19, and the investigation was deferred to the
+  next day. That is the texture of a race whose surviving state under-determines what
+  happened.

@@ -1,0 +1,38 @@
+id: F507
+target: A018
+attack_type: load-bearing surface does not exist in v1
+severity: high
+finding: >
+  A018 is an Airflow task, and v1 has no Airflow. The frozen contract (agent.md §9.2.1,
+  ground rule 6) specifies "a deterministic scheduler state machine, NOT Airflow" - see also
+  world/world/scheduler.py, whose docstring line in the §10.1 map reads "deterministic state
+  machine, NOT Airflow". A018 does not say it is designing against an additional surface;
+  it simply assumes one.
+  This is not a labelling problem, because the Airflow dependency is where A018's difficulty
+  lives. Three of its four deterministic checks are Airflow-specific: "static DAG-source
+  assertions: bounded retries, no datetime.now() in schedule" has no analogue in a state
+  machine that has no DAG source files; "post-repair DAG re-run lands dataset" presumes
+  Airflow's re-run semantics; and the described symptom surface is "a wall of failed and
+  retried tasks" in "the Airflow UI". The DAG-hygiene rubric axis is drawn wholesale from
+  S008, which is a list of Airflow-specific anti-patterns (datetime.now() in a DAG
+  definition, sensor starvation, unbounded retries, dynamic task mapping to 10,000 tasks).
+  Knowing that datetime.now() in a DAG definition breaks backfills is Airflow trivia. The
+  brief names this anti-pattern by name: "Difficulty by obscurity - a flag nobody could know.
+  That measures trivia." A frontier model either has the Airflow idioms memorised, in which
+  case the axis is free, or it does not, in which case the axis measures recall of one
+  vendor's scheduler rather than incident-response engineering. Neither is what the task
+  claims to measure.
+  Grounding note, verified 2026-09-13: S008 and S009 both resolve (HTTP 200,
+  airflowsummit.org session pages) and S011/S012 are Airbnb first-party via Wayback. The
+  sources are fine. The problem is that the world they describe is not the world v1 builds.
+recommended_action: redesign
+found_by: D1-redteam
+mitigation: >
+  Port the archetype to the scheduler state machine or drop it. The port is feasible for the
+  part that matters: /var/sched/state.json holds run history, so start-time versus
+  duration per run is available, and the ran-long/started-late discrimination (S012, the
+  genuinely good idea in A018) survives intact. What does NOT port is the DAG-hygiene axis -
+  delete it rather than inventing state-machine equivalents of Airflow anti-patterns, because
+  a fabricated anti-pattern in a bespoke scheduler is pure obscurity with no practitioner
+  evidence behind it at all. See F508 for why deleting that axis is also necessary on
+  baseline-separation grounds.

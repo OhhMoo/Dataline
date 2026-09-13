@@ -1,0 +1,33 @@
+id: S700
+rq: RQ1
+claim: >
+  Cloudflare's own deep-dive postmortem of the 2025-09-12 dashboard and API outage records a
+  remediation built on an incorrect causal theory: the team attributed the ongoing dashboard
+  failures to errors they had observed, shipped a patch expecting API health to recover, and the
+  patch made the outage worse and had to be reverted. This is the repair-induces-defect shape at
+  a named company with a published timeline - the fix for the diagnosed cause created a second,
+  distinct degradation.
+url: https://blog.cloudflare.com/deep-dive-into-cloudflares-sept-12-dashboard-and-api-outage/
+quote: "We theorized that these were responsible for the ongoing Dashboard availability issues and made a patch to the service with the expectation that it would improve the API health and restore the dashboard to a healthy state."
+source_type: blog
+author_role: Cloudflare engineering, incident postmortem authors
+company: Cloudflare
+year: 2025
+retrieved: "2026-09-13"
+confidence: high
+produced_by: E3-compound
+vividness: medium
+attestation: firsthand_named
+usable_for:
+  - world_texture
+  - mechanism
+notes: >
+  A second verbatim span was retrieved from the same page and is the punchline of this record,
+  "Ultimately this change degraded service further and was quickly reverted.", but I could not
+  confirm it is contiguous with the quoted sentence, so only the confirmed contiguous span sits
+  in the quote field. vividness is medium not high: the postmortem names the service and the date
+  but this record is used for the SHAPE of the failure, not for rebuildable data-pipeline detail.
+  This is a control-plane outage, not a data-pipeline incident. It licenses the claim that
+  remediation-induced second failures occur at competent named organisations, and nothing about
+  data warehouses. Deliberately NOT claiming frequency from a single incident even though the
+  attestation and source_type would technically permit it.

@@ -10,6 +10,11 @@ company: "rl-list.com"
 year: 2026
 retrieved: "2026-09-11"
 confidence: medium
+vividness: medium
+attestation: secondhand
+usable_for:
+  - world_texture
+  - frequency
 produced_by: L5-competitive-pricing
 notes: >
   INDEPENDENT VENDOR CENSUS, corroborating the SemiAnalysis "more than 35" figure (S414) from a different compiler. rl-list.com is a small independent directory site, not an established publication - medium confidence. Its full dataset (rl-list-dataset.md, 268KB) was downloaded and keyword-searched: no vendor among the 38 is positioned on data engineering, warehouses, dbt, BI or SQL analytics.

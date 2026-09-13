@@ -1,0 +1,26 @@
+# Produced by T3-environment-themes (R002) for RQ4 -- legacy / flat-file environment themes.
+id: S932
+rq: RQ4
+claim: >
+  Tables created with the SET attribute reject duplicate rows automatically, so a load into such a
+  table can silently contain fewer rows than the source.
+url: https://docs.teradata.com/r/Enterprise_IntelliFlex_VMware/Database-Design/Primary-Index-Primary-AMP-Index-and-NoPI-Objects/Duplicate-Row-Checks-for-SET-Tables-with-NUPIs
+quote: >
+  Database tables defined with the SET attribute in the CREATE TABLE kind clause do not permit duplicate rows.
+source_type: docs
+company: "Teradata"
+retrieved: "2026-09-13"
+confidence: medium
+vividness: medium
+attestation: unattested
+usable_for:
+  - world_texture
+  - mechanism
+produced_by: T3-environment-themes
+notes: >
+  AUTHORITATIVE PRIMARY SOURCE for the single best legacy-warehouse mechanism found in this round.
+  Classified unattested because it is product documentation describing designed behaviour, not an
+  incident -- but it is the vendor documenting its own semantics, which is exactly what a task
+  author needs to build on safely. The task shape it enables: a load reports success, the source
+  file and the target table disagree on row count, and no error exists anywhere in the logs to
+  explain the gap. NOT re-fetched by T3.

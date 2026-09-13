@@ -9,6 +9,10 @@ author_role: Power BI report developers
 year: 2020
 retrieved: "2026-09-12"
 confidence: medium
+vividness: low
+attestation: firsthand_anonymous
+usable_for:
+  - world_texture
 produced_by: L3-practitioner-workflow-analytics
 notes: >
   Low confidence individually, but it is the demand-side counterpart to S209 and S217: a rename that is trivial in the warehouse has an unbounded, unknown blast radius in the BI layer, including artifacts the data team does not own. That asymmetry - cheap upstream change, expensive and invisible downstream breakage - is the core of the BI-breakage hypothesis.

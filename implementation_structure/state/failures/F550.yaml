@@ -1,0 +1,36 @@
+id: F550
+target: S010
+attack_type: fiction_as_incident
+severity: high
+finding: >
+  S010 is withdrawn, not merely downgraded. F452 already established that the cited page is a
+  present-tense constructed vignette written to motivate an argument for data contracts - it opens
+  "It's 8:58 AM. The head of risk at a bank opens the morning transaction dashboard..." - with no
+  company, no date, no incident record and no statement that anyone lived through it. The two-axis
+  model added in R002 is not sufficient to contain this one. Relabelling it
+  attestation=unattested would leave a `claim` field that still reads as reportage: "A pipeline
+  team renamed a warehouse column (amount_txn_ccy to txn_amount) ... found by the head of risk two
+  minutes before a board meeting, not by any alert." Every consumer of this record consumed the
+  reportage, not the vignette. A source whose claim text asserts an event that nobody says occurred
+  cannot be repaired by a metadata field.
+  Compounding: S004's notes listed S010 as corroboration for the 38% schema-drift frequency figure
+  (F450), so the fiction was propping up a frequency estimate which was itself propping up the
+  archetype mix.
+recommended_action: withdraw
+found_by: D2-reground
+also_applies_to:
+  - A019
+  - A022
+mitigation: >
+  Record moved to state/knowledge/withdrawn/S010.yaml with a withdrawal_note, status: withdrawn,
+  confidence lowered to low, and attestation=unattested / usable_for=[world_texture]. It is NOT
+  deleted - the corroboration ring it fed stays auditable.
+  A022's derived_from drops S010 and now rests on S207 and S208 (a named team publishing its own
+  incidents, firsthand_named) plus S203; the silent-wrong-number leg S010 used to supply is carried
+  by S207, where a metric rendered a clean 0.0% because total upstream failure was coerced to zero -
+  the same "plausible garbage instead of an error" shape, attested.
+  A019 could not be re-grounded and is now status: redesign_required - see F552.
+notes: >
+  Withdrawn 2026-09-13 in R002 evidence repair. This is the second-order cost of F452: the audit
+  correctly identified the problem and recommended re-source, but nothing re-sourced it, so two
+  archetypes carried an invented board meeting for another round.

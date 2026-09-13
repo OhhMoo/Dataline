@@ -11,6 +11,10 @@ company: "OpenAI"
 year: 2025
 retrieved: "2026-09-11"
 confidence: high
+vividness: medium
+attestation: unattested
+usable_for:
+  - world_texture
 produced_by: L5-competitive-pricing
 notes: >
   SIZING ANCHOR plus a STRUCTURAL PRECEDENT for our public/private split: OpenAI publishes 220 tasks and holds the rest back. This is exactly the public-benchmark-as-marketing, private-set-as-product pattern in agent.md 1.

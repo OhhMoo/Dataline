@@ -1,0 +1,54 @@
+id: F500
+target: A002
+also_applies_to:
+  - A010
+  - A025
+attack_type: mechanism_unbuildable_on_v1_surface
+severity: high
+finding: >
+  The positional-INSERT corruption these three archetypes plant cannot occur on the frozen v1
+  surface, and the only way to make it occur announces itself in one grep.
+  Verified 2026-09-13 against the dbt actually installed in this repo
+  (gateway/.venv/Lib/site-packages/dbt). dbt-core's
+  include/global_project/macros/materializations/models/incremental/strategies.sql defines
+  get_insert_into_sql as
+  "{%- set dest_cols_csv = get_quoted_csv(dest_columns | map(attribute='name')) -%}
+  insert into {{ target_relation }} ({{ dest_cols_csv }}) (select {{ dest_cols_csv }} from
+  {{ temp_relation }})" - an explicit, NAME-derived column list on BOTH sides. dbt-duckdb's
+  own duckdb__get_delete_insert_merge_sql (include/duckdb/macros/materializations/
+  incremental_strategy/delete_insert.sql) does exactly the same. There is no SELECT * path
+  and no positional matching anywhere in dbt Core or dbt-duckdb. The bug is specific to the
+  dbt-databricks adapter's Delta/replace_where macros (S013/S014) - which F454 already
+  established are CLOSED and FIXED in dbt-databricks 1.11.7 (2026-04-17) - and to BigQuery
+  for the sibling leg. Ground rule 6 freezes the v1 warehouse at DuckDB and the transform at
+  dbt Core. Databricks and BigQuery are not v1 surfaces and none of the three archetypes
+  says it is designing against an extra one.
+  Consequence: to plant the defect the world generator must ship a hand-written macro
+  override in /workspace/dbt_project/macros/ that replaces dbt's name-matched insert with a
+  positional one. That directory is agent-visible by the §9.2.1 layout. So the planted
+  mechanism is discoverable by `grep -rn "select \*" dbt_project/macros/` - one query, one
+  surface, and the override is an artifact no real adapter contains, so its mere presence is
+  the answer. This collapses the conjunction these archetypes claim their difficulty from,
+  and it converts "realistic, grounded in two filed production bugs" into an
+  author-fabricated defect wearing a citation.
+  Separately verified and NOT part of this finding: the LOUD sibling leg (S015,
+  dbt-adapters#601, confirmed still OPEN via the GitHub API 2026-09-13) DOES reproduce on
+  DuckDB. With on_schema_change: ignore, incremental.sql falls through to
+  "dest_columns = adapter.get_columns_in_relation(existing_relation)", so a column removed
+  from the model is still named in the INSERT and the warehouse raises a binder error. Only
+  the error text differs from BigQuery's "Unrecognized name". That leg is sound; the silent
+  leg is not.
+recommended_action: redesign
+found_by: D1-redteam
+mitigation: >
+  Either (a) declare a sixth surface and pin dbt-databricks < 1.11.7, which contradicts the
+  frozen contract and ships a task that only reproduces on a superseded adapter build; or
+  (b) re-plant the silent-corruption leg on a mechanism that IS native to DuckDB + dbt Core.
+  Two candidates that need no fabricated macro: an implicit CAST that silently truncates or
+  rounds on insert into a narrower declared type, and a seed/source CSV whose header order
+  changed while the model reads by position via a read_csv with header=false. Both are
+  name-matched-insert-proof and both are invisible to dbt test. If the positional mechanism
+  is kept anyway, it must NOT live in an agent-visible macro file.
+notes: >
+  Also note the corpus-integrity angle: A002, A010 and A025 are three active archetypes
+  planting one mechanism from one (now-fixed) upstream bug pair. See F505.

@@ -1,0 +1,25 @@
+id: S652
+rq: RQ1
+claim: A dbt generic test whose ref() points at a non-existent model is silently dropped at parse time rather than erroring, so it never appears in the manifest and never appears in run results as a failure or a skip.
+url: https://github.com/dbt-labs/dbt/issues/12975
+quote: "generic tests that have invalid references in them are silently ignored"
+source_type: repo
+retrieved: "2026-09-13"
+confidence: high
+produced_by: E2-scale
+author_role: analytics engineer (GitHub, pseudonymous)
+year: 2026
+vividness: medium
+attestation: firsthand_anonymous
+usable_for:
+  - world_texture
+  - mechanism
+notes: >
+  Liveness checked 2026-09-13 via GitHub REST API: state=open, opened 2026-05-17, 1 comment.
+  vividness is medium because the chosen verbatim span is a bare behaviour statement; the
+  rebuildable detail sits in the attached YAML in the same body, which shows three sibling
+  relationships tests on fk_insertion_order, fk_line_item and fk_adgroup where exactly one
+  to: ref(...) target does not exist, annotated by the reporter as THIS AND ONLY THIS ref is
+  invalid, followed by the sentence: this test is skipped and not added to manifest at
+  parsing time. That is the exact mechanism for a test that is present in source control,
+  absent from the manifest, and invisible in a green run summary.

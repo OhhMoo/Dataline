@@ -1,0 +1,55 @@
+id: F506
+target: A017
+attack_type: full_refresh IS the oracle - the stated trap is not graded
+severity: high
+finding: >
+  A017 is solvable by reloading everything, and its own grading rewards the move it calls a
+  trap.
+  The world is: a mock source API holding the true data, a connector that lost rows into the
+  destination, and downstream dbt models built on the destination. A017's stated repair is
+  "re-sync into a side table, validate counts, and swap it in". That is a full refresh with a
+  rename on the end. The source of record - the mock API - is intact by construction, so
+  every byte the incident destroyed is recoverable by re-reading it. This is not an inference:
+  it is what the reporter of the underlying issue did. Verified via the GitHub API 2026-09-13,
+  airbytehq/airbyte#77627 (state OPEN, 6 comments, filed by larsen 2026-04-30) says "I tried
+  re-syncing from scratch using a separate connection ... and I could see that the sync is
+  able to fetch all the records I expect" and "I think I can just refresh this individual
+  stream and then proceed with the incremental syncs". The source's own remedy is the naive
+  baseline. The brief's anti-pattern list is explicit: "Anything solvable by full-refresh...
+  the task is dead. There must be something in the world that a full refresh destroys."
+  A017 does name a trap - "a naive truncate-and-reload creates a second incident of the S001
+  flavor" by breaking downstream incremental state - but NOTHING IN ITS GRADING DETECTS IT.
+  Check 4 is "dbt build green + downstream row-count match vs REFERENCE REBUILD". If the
+  reference for the downstream models is itself a rebuild, then an agent that truncates,
+  reloads from the API and runs `dbt build --full-refresh` produces exactly the reference and
+  passes. Checks 1-3 (per-partition source-vs-destination counts, per-day distribution
+  checksum, no duplicate business keys) are all satisfied by the same from-scratch re-sync,
+  since a from-scratch sync is deduped by the connector's own Incremental+Deduped semantics.
+  All four deterministic checks fall to one command with zero diagnosis. The "detection" and
+  "root-cause correctness" rubric axes that would have separated the lazy agent are
+  report-graded, i.e. judge axes, which ground rule 4 bars from the v1 score.
+  The detection leg is also thinner than claimed. why_hard says the signal "exists only in
+  cross-surface reconciliation... and knowing to look". The signal is count(*) on the source
+  versus count(*) on the destination - two queries, one comparison, and the archetype's own
+  claim is that the destination count "silently drops below source row counts", i.e. the
+  discrepancy is in the first aggregate anyone computes. S022 records that in the real
+  incident it was an automated data-quality monitor, not a human insight, that caught it.
+recommended_action: redesign
+found_by: D1-redteam
+mitigation: >
+  Something must survive only in the destination. Two options that fit the existing world:
+  (a) make the mock source API WINDOWED - it serves only the last N days, so the rows lost
+  from the middle of history exist nowhere but the shrunken raw table and a partial snapshot,
+  and the agent must reconstruct the recoverable set and prove which rows are unrecoverable;
+  (b) plant manual downstream corrections or a late-arriving-data watermark in the
+  destination that a truncate-and-reload erases, and grade against PRESERVED state rather
+  than against a rebuild. Check 4 must be re-specified: compare downstream models against a
+  reference that encodes the preserved incremental state, so that `dbt build --full-refresh`
+  scores strictly below the scoped repair. Until one of these exists, A017 has no failing
+  baseline and by ground rule 7 is not a task.
+notes: >
+  S022 itself is clean and unusually good - verified OPEN with 6 comments 2026-09-13, named
+  connector version source-salesforce 2.7.16, named sync mode, a control experiment, and the
+  createddate-distribution symptom. The defect is entirely on A017's side. A017 also cites
+  S001 in its why_hard ("a second incident of the S001 flavor"); F451 downgraded S001 from an
+  attested incident to a pattern sketch, so that clause should not survive the redesign.

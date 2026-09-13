@@ -11,6 +11,10 @@ company: "OpenAI"
 year: 2025
 retrieved: "2026-09-11"
 confidence: high
+vividness: medium
+attestation: unattested
+usable_for:
+  - world_texture
 produced_by: L5-competitive-pricing
 notes: >
   WHAT A LAB ITSELF BUILT when it wanted economically-grounded evaluation: occupation-anchored, expert-authored, built from real work products. The closest thing available to a lab stating in its own published words what it values in a task set.

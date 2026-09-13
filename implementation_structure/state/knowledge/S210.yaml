@@ -10,6 +10,10 @@ company: Indicium Tech
 year: 2023
 retrieved: "2026-09-11"
 confidence: high
+vividness: medium
+attestation: vendor_marketing
+usable_for:
+  - world_texture
 produced_by: L3-practitioner-workflow-analytics
 notes: >
   Names the exact failure categories a comparison must surface: perfect match, both null, values do not match, null in A only, null in B only, missing from A, missing from B. That is a ready-made rubric axis. Also confirms that matching row counts is an insufficient check - a trap worth building into a task.

@@ -10,6 +10,11 @@ company: Google Research
 year: 2021
 retrieved: "2026-09-11"
 confidence: high
+vividness: low
+attestation: secondhand
+usable_for:
+  - world_texture
+  - frequency
 produced_by: L2-practitioner-workflow-ds
 notes: >
   The strongest available frequency anchor for 'the failure starts upstream of the model and surfaces late'. Supports building worlds where the visible symptom (a bad metric, a wrong dashboard number) is several hops from the actual cause, and where the correct trajectory walks upstream rather than tuning the model.

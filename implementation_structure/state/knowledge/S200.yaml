@@ -10,6 +10,11 @@ company: Airbnb
 year: 2021
 retrieved: "2026-09-12"
 confidence: high
+vividness: medium
+attestation: firsthand_named
+usable_for:
+  - world_texture
+  - mechanism
 produced_by: L3-practitioner-workflow-analytics
 notes: >
   Direct first-party evidence that metric reconciliation is a real and expensive workflow at scale, not a vendor-marketing invention. Rebuildable situation: two derived tables on top of a shared core table, each with a slightly different definition of a booking, feeding two dashboards that disagree. Independently corroborated by S201 (Uber) and S202 (LinkedIn).

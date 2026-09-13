@@ -1,0 +1,25 @@
+id: S650
+rq: RQ1
+claim: A production dbt project on Databricks carries 1599 models, 694 snapshots, 5000 data tests, 1457 sources and 837 macros, and spends roughly three minutes in the parsing phase before it will even select a model to run.
+url: https://github.com/dbt-labs/dbt/issues/11421
+quote: "Found 1599 models, 694 snapshots, 5000 data tests, 1457 sources, 837 macros, 1 unit test"
+source_type: repo
+retrieved: "2026-09-13"
+confidence: high
+produced_by: E2-scale
+author_role: dbt practitioner (GitHub, pseudonymous)
+year: 2025
+vividness: high
+attestation: firsthand_anonymous
+usable_for:
+  - world_texture
+  - mechanism
+notes: >
+  Liveness checked 2026-09-13 via the GitHub REST API: repo dbt-labs/dbt-core now redirects
+  to dbt-labs/dbt, issue 11421 state=open, opened 2025-03-24, 3 comments. The same body also
+  carries, verbatim, the line: dbt takes approximately 3 minutes before picking up the model
+  for execution, during which it is stuck in the parsing phase. Also verbatim: Unable to do
+  partial parsing because saved manifest not found. Starting full parse. Environment is
+  dbt-core 1.9.2 with dbt-databricks 1.9.4, concurrency 5 threads. This is the anchor number
+  for what a real large dbt project looks like, and for the cold-parse cost that any
+  500-model generated world must budget for. No frequency claim: one anonymous reporter.

@@ -67,11 +67,14 @@
    "name": "str",
    "category": "enum:warehouse|lakehouse|database|transformation|orchestration|bi|catalog|ingestion|quality|docs|notebook|storage|streaming|vcs|ticketing|other",
    "role": "enum:simulate_target|mock_implementation|oss_substitute|harness|dataset",
-   "replication_strategy": "enum:oss_equivalent|http_intercept|sdk_reshape|wire_protocol|native_oss|vm_desktop|none_found",
+   "replication_strategy": "enum:oss_equivalent|http_intercept|sdk_reshape|wire_protocol|native_oss|vm_desktop|custom_mock_required|drop|none_found",
    "produced_by": "str",
    "rq": "str"
   },
   "optional": {
+   "demand_archetypes": "list[str]",
+   "fidelity_gap": "str",
+   "effort_estimate": "str",
    "repo_url": "str",
    "license": "str",
    "license_verified": "bool",
@@ -87,6 +90,8 @@
    "repair_note": "str"
   },
   "_rules": [
+   "replication_strategy=drop means v1 does not build this surface at all - record why (no archetype demand, or licence/cost)",
+   "replication_strategy=custom_mock_required must state, in notes or fidelity_gap, how many endpoints/objects a real TASK needs - not how many the product has",
    "repo_url present means G2 fetches license/liveness from the GitHub API",
    "replication_ease=easy requires probe_result=pass",
    "AGPL or source-available license is an automatic G2 failure"
@@ -142,14 +147,17 @@
    "notes": "str",
    "repair_note": "str",
    "agent_visible_brief": "str",
-   "status": "enum:draft|derived|redesign_required|withdrawn"
+   "status": "enum:draft|derived|redesign_required|withdrawn",
+   "composed_of": "list[str]",
+   "interaction_mechanism": "enum:masking|repair_induces|shared_symptom|conflicting_repair|evidence_collision"
   },
   "_rules": [
    "derived_from must cite source ids from state/knowledge/ - archetypes are derived, never invented",
    "grading must name a concrete check, not 'LLM judge decides'",
    "human_hours below 2 is a G3 warning: the meeting specified tens of hours",
    "agent_visible_brief is the ONLY text the agent sees. description/why_hard/failure_modes_expected are AUTHOR-SIDE and routinely name the planted defects - shipping them as the brief hands over the answer (F202). Every archetype needs this field before it ships.",
-   "status=derived requires at least one attack record from each of R1, R2 and R3. An archetype nobody has attacked is a draft, not a deliverable."
+   "status=derived requires at least one attack record from each of R1, R2 and R3. An archetype nobody has attacked is a draft, not a deliverable.",
+   "COMPOUND ARCHETYPES (R002). composed_of names the archetypes intertwined; interaction_mechanism names HOW they interact. Two unrelated bugs in one world is not a compound - if the agent can solve them independently in either order, it is added length, not added difficulty. A compound must carry at least one deterministic check that cannot pass unless BOTH defects were found."
   ]
  }
 }

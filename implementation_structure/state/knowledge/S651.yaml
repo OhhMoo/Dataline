@@ -1,0 +1,23 @@
+id: S651
+rq: RQ1
+claim: dbt seed consumes up to 2Gb of resident memory to load a seed folder of roughly 125Mb, which breaks per-task Kubernetes resource limits, while other dbt commands stay in the 200Mb to 400Mb range.
+url: https://github.com/dbt-labs/dbt/issues/9524
+quote: "When I run DBT seed and the command using htop in the terminal it's evident that the command is consuming up to 2Gb of memory to perform this task."
+source_type: repo
+retrieved: "2026-09-13"
+confidence: high
+produced_by: E2-scale
+author_role: data platform engineer (GitHub, pseudonymous)
+year: 2024
+vividness: high
+attestation: firsthand_anonymous
+usable_for:
+  - world_texture
+  - mechanism
+notes: >
+  Liveness checked 2026-09-13 via GitHub REST API: state=open, opened 2024-02-06, 15 comments.
+  Environment stated in the issue: dbt-core 1.6.9, dbt-bigquery 1.6.7, macOS, Python 3.10.
+  Author also states verbatim: I am trying to set kubernetes resources per DAG task and
+  struggle due to the amount of resource this command needs. Directly constrains how a
+  generated world may ship its bulk data: CSV seeds are the wrong carrier under a 2GB
+  ceiling, so generated worlds must build volume with in-engine SQL instead.

@@ -1,0 +1,29 @@
+# Produced by T3-environment-themes (R002) for RQ4 -- legacy / flat-file environment themes.
+id: S913
+rq: RQ4
+claim: >
+  A named engineering director describes VSAM datasets held open by the online CICS region
+  blocking overnight batch updates, and quantifies the batch-window reduction won by moving to
+  concurrent file sharing.
+url: https://planetmainframe.com/2025/12/turning-nightly-downtime-into-a-competitive-advantage/
+quote: >
+  We have reduced our batch window by 2
+source_type: blog
+author_role: "Director of Engineering"
+year: 2025
+retrieved: "2026-09-13"
+confidence: low
+vividness: high
+attestation: firsthand_named
+usable_for:
+  - world_texture
+produced_by: T3-environment-themes
+notes: >
+  DELIBERATELY NOT licensed for frequency even though attestation=firsthand_named plus
+  source_type=blog would pass G6: one named org's story is not evidence of prevalence, and this
+  round treats frequency as the hardest licence to earn. Value is world texture -- the batch
+  window is a real, named, quantified operational constraint, which is what makes a cutoff-time
+  task credible. The quote has been TRUNCATED to a short prefix on purpose: the sub-search
+  transcribed the figure as 2 1/2 hours and T3 could not confirm whether the page uses ASCII 1/2
+  or the glyph U+00BD, and a wrong glyph would fail G1's exact match. NOT re-fetched by T3, hence
+  confidence low.

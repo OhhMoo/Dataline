@@ -1,0 +1,40 @@
+id: F501
+target: A002
+attack_type: cheap_win - no_op and full_refresh both score
+severity: high
+finding: >
+  A002's four deterministic checks do not separate the naive baselines the brief requires
+  them to separate.
+  (1) NO-OP scores 2 of 4. Check 2 is "pre-boundary partitions unchanged (checksum
+  equality)" - an agent that touches nothing passes it by definition. Check 3 is "sibling
+  model target row count non-decreasing after fix" - the sibling model is described as
+  FAILING TO LOAD, so its target row count is frozen; doing nothing leaves it equal, and
+  equal satisfies non-decreasing. Two of four checks are therefore satisfied by the empty
+  trajectory. The GT001 validity gate requires no_op <= 1 point of max; A002 as specified
+  hands it half the deterministic surface.
+  (2) FULL REFRESH is unopposed. A002's why_hard calls --full-refresh "destructive and
+  unnecessary", but the archetype never names anything in the world that a full refresh
+  destroys. Nothing corresponds to GT001's 412 manual adjustments. The post-boundary cells
+  are recomputed from the same source data, so check 1 passes; the pre-boundary partitions
+  are recomputed deterministically from the same source, so their checksums are unchanged
+  and check 2 passes; the sibling model reloads, so check 3 passes. On the stated world
+  "dbt run --full-refresh" scores 3 of 4 with zero diagnosis, and the brief's own
+  anti-pattern list says "Anything solvable by full-refresh... the task is dead."
+  (3) Check 4 is self-gradeable. "A dbt test the agent adds fails against the pre-repair
+  snapshot and passes after" is satisfied by any assertion that happens to discriminate the
+  two states - e.g. an accepted_values test enumerating exactly the post-repair value set,
+  or a singular test asserting sum(col) equals the post-repair total. Both fail before,
+  pass after, and have zero regression value. The check measures "did the value change",
+  not "would this have caught the shift". It also requires executing agent-authored SQL
+  inside the grading zone against a retained pre-repair snapshot, which is an isolation
+  problem the archetype does not acknowledge.
+recommended_action: redesign
+found_by: D1-redteam
+mitigation: >
+  Check 3 must be an increase, not a non-decrease: assert the sibling's target row count
+  equals a reference count after loading a specific planted post-fix partition. Something
+  must exist that full refresh destroys - the natural candidate here is a set of manual
+  corrections applied directly to pre-boundary partitions and not derivable from source,
+  which also makes check 2 bite. Check 4 must grade the agent's test against a HARNESS-HELD
+  mutation battery (inject k known column shifts; the test must reject all k and accept the
+  clean table) rather than against a single before/after pair.

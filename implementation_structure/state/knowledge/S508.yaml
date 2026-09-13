@@ -7,5 +7,9 @@ source_type: vendor_page
 company: dbt Labs
 retrieved: "2026-09-11"
 confidence: high
+vividness: low
+attestation: vendor_marketing
+usable_for:
+  - world_texture
 produced_by: L6-tooling-inventory
 notes: Official product page; inventory refers to dbt Core-compatible project behavior, not a cloud dependency.

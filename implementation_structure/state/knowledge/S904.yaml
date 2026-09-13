@@ -1,0 +1,25 @@
+# Produced by T3-environment-themes (R002) for RQ4 -- legacy / flat-file environment themes.
+id: S904
+rq: RQ4
+claim: >
+  A signed zoned-decimal field parsed with an incorrect overpunch table yields a plausible, in-
+  range, wrong number rather than an error.
+url: https://bobj-board.org/t/cobol-zoned-decimal-negative-numbers/103455
+quote: >
+  I am receiving a value of '000000291Q' which should resolve to -29.18, but instead it is resolving to -29.11.
+source_type: forum
+year: 2008
+retrieved: "2026-09-13"
+confidence: medium
+vividness: high
+attestation: firsthand_anonymous
+usable_for:
+  - world_texture
+  - mechanism
+produced_by: T3-environment-themes
+notes: >
+  One of the two highest-value mechanisms in this block. Minus 29.11 instead of minus 29.18 is
+  precisely the silent-wrong-answer shape the archetype design calls for: nothing throws, and the
+  value passes any range or sign check a naive agent would apply. Forum with display-name authors,
+  so firsthand_anonymous and no frequency licence. Quote reported by a T3 sub-search and NOT re-
+  fetched by T3, hence confidence medium.

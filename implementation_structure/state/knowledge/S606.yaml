@@ -1,0 +1,30 @@
+id: S606
+rq: RQ1
+claim: >
+  When a dbt incremental model's temp relation cannot be session-scoped it is materialized as
+  a permanent table in the shared schema under a deterministic model__dbt_tmp name, so two
+  concurrent runs of the same model collide on one intermediate object and each run can read
+  or clobber the other's staged rows.
+url: https://github.com/dbt-labs/dbt-adapters/issues/1893
+quote: "When running incremental models on Iceberg (catalog-linked) tables in Snowflake, the tmp relation is created as a permanent table because temporary tables are not supported in catalog-linked database schemas."
+source_type: repo
+retrieved: "2026-09-13"
+confidence: high
+produced_by: E1-concurrency
+vividness: medium
+attestation: secondhand
+usable_for:
+  - world_texture
+  - mechanism
+year: 2026
+notes: >
+  LIVENESS CHECKED 2026-09-13 via GitHub API: state=open, created 2026-04-24, author b-per
+  (a dbt Labs maintainer) writing up a user-facing limitation rather than an outage he was
+  in - hence secondhand, and no frequency claim.
+  vividness=medium honestly: it names the macro file
+  (dbt-snowflake/src/dbt/include/snowflake/macros/materializations/incremental.sql) and the
+  colliding object-name pattern, but there is no incident timeline, no row counts, no error
+  string. A generator can rebuild the collision; it cannot rebuild a specific outage.
+  Value for this round is narrow and real: it establishes that a deterministically named
+  intermediate relation is a genuine shared mutable object between concurrent runs, which is
+  the substrate an interleaved-build archetype needs.

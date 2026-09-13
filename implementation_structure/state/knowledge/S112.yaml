@@ -10,6 +10,12 @@ company: Princeton University
 year: 2024
 retrieved: "2026-09-11"
 confidence: high
+vividness: medium
+attestation: secondhand
+usable_for:
+  - world_texture
+  - mechanism
+  - frequency
 produced_by: L2-practitioner-workflow-ds
 notes: >
   This table is a menu of plantable defects: each row is a mechanically-injectable bug (fit the scaler before the split; select k-best on the full frame; shuffle a time series; leave duplicate rows across the split; include a column derived after the outcome). Counts like 17/17 and 156/171 show which are most frequent in practice.

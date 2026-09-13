@@ -1,0 +1,34 @@
+id: S753
+rq: RQ1
+claim: >
+  Open dbt-clickhouse bug (issue #258, filed 2024-03-20, state OPEN with labels bug and
+  good-first-issue, 3 comments, re-checked via the GitHub API 2026-09-13): an incremental MergeTree
+  model configured on_schema_change='append_new_columns' builds and re-runs cleanly, but adding a
+  new column to the model's select list makes the next run fail with a ClickHouse column-count
+  error. The filer gives a complete two-step repro (first SELECT 1 AS column1, 1 AS column2, then
+  add a third column) and the full environment - dbt 1.7.8, dbt-clickhouse 1.7.3, ClickHouse
+  24.1.5.6, Python 3.12.2, macOS.
+url: https://github.com/ClickHouse/dbt-clickhouse/issues/258
+quote: "Code: 20. DB::Exception: Number of columns doesn't match. (NUMBER_OF_COLUMNS_DOESNT_MATCH) (version 24.1.5.6 (official build))"
+source_type: repo
+author_role: practitioner filing a bug against the adapter they use (ebfbertoli)
+company: reported against ClickHouse/dbt-clickhouse
+year: 2024
+retrieved: "2026-09-13"
+confidence: high
+vividness: high
+attestation: firsthand_anonymous
+usable_for:
+  - world_texture
+  - mechanism
+produced_by: D2-reground
+notes: >
+  Liveness checked the way F454 said it should be and S013/S014 were not - GitHub API 2026-09-13
+  reports state=open, labels [bug, good first issue], 3 comments, opened 2024-03-20. This is the
+  replacement LIVE trap for the incremental-model schema-change family, after F454 established that
+  dbt-databricks 1211 and 1289 are both CLOSED and the bug fixed in dbt-databricks 1.11.7 on
+  2026-04-17. Be honest about the difference in failure MODE downstream - dbt-databricks 1289
+  corrupts SILENTLY by positional INSERT, while this issue fails LOUDLY with a column-count error.
+  An archetype that wants the silent variant must pin dbt-databricks below 1.11.7 and say so in its
+  world spec; an archetype that wants a live unfixed trap should use this one and grade the loud
+  failure. Quote verified verbatim 2026-09-13 with gate-identical fetch logic.

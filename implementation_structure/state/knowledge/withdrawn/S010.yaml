@@ -13,7 +13,12 @@ author_role: data platform engineer
 company: not stated (banking data warehouse case)
 year: 2026
 retrieved: "2026-09-12"
-confidence: medium
+confidence: low
+vividness: high
+attestation: unattested
+usable_for:
+  - world_texture
+status: withdrawn
 produced_by: L1-practitioner-workflow-de
 notes: >
   Textbook symptom-first discovery: a human notices a wrong business number and triage runs
@@ -29,3 +34,13 @@ repair_note: >
   Quote unchanged - verified verbatim on the mirror with gate-identical fetch logic.
 attacks:
   - F452
+
+withdrawal_note: >
+  WITHDRAWN 2026-09-13 by D2 (R002 evidence repair), failure F550. F452 established that the
+  page is a present-tense constructed vignette written to motivate a data-contracts argument -
+  "It's 8:58 AM. The head of risk at a bank opens the morning transaction dashboard..." - and
+  that S010's claim rewrites it as reportage of a real bank incident, complete with a three-day
+  detection lag and a board meeting. The two-axis model is not sufficient here: relabelling the
+  attestation would leave a claim field that asserts an incident nobody says occurred. The record
+  is kept, not deleted, so the corroboration ring it fed (S004 cited it back as schema-drift
+  corroboration) stays auditable. Archetypes affected and re-grounded: A019, A022.

@@ -1,0 +1,25 @@
+id: S657
+rq: RQ1
+claim: dbt column-level lineage is derived from select statements only and by documented design does not reflect a column's use in joins or filters, so a defect planted in a WHERE clause is invisible to the lineage tool an engineer would reach for first.
+url: https://docs.getdbt.com/docs/explore/column-level-lineage
+quote: "It doesn't reflect other usage like joins and filters."
+source_type: docs
+company: dbt Labs
+retrieved: "2026-09-13"
+confidence: high
+produced_by: E2-scale
+year: 2026
+vividness: medium
+attestation: unattested
+usable_for:
+  - world_texture
+  - mechanism
+notes: >
+  Verified verbatim against the raw HTML of the page on 2026-09-13 by exact substring match,
+  not by eyeballing a rendering. The adjacent caveat, also verified verbatim in raw HTML, is:
+  Column-level lineage relies on SQL parsing. Errors can occur when parsing fails or a
+  column's origin is unknown (like with JSON unpacking, lateral joins, and so on). In these
+  cases, lineage may be incomplete and ... This is documentation, not an incident, so
+  attestation is unattested and vividness is medium; its value is that it establishes the
+  blind spot as designed behaviour rather than as a bug, which is what makes a WHERE-clause
+  needle fair rather than unfair.

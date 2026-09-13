@@ -11,6 +11,11 @@ company: Snowflake Labs
 year: 2026
 retrieved: "2026-09-11"
 confidence: high
+vividness: medium
+attestation: unattested
+usable_for:
+  - world_texture
+  - mechanism
 produced_by: L4-prior-art
 notes: >
   Verdict: COPY-PATTERN. The dual-backend trick is the design to steal for our substrate:

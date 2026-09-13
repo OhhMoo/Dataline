@@ -1,0 +1,18 @@
+id: S805
+rq: RQ3
+claim: "LocalStack's open-source repository was archived and made read-only in 2026, so it can no longer be treated as a maintained AWS emulation dependency."
+url: https://raw.githubusercontent.com/localstack/localstack/master/README.md
+quote: "This decision reflects our commitment to reducing fragmentation and focusing our resources on building the most robust AWS emulation layer possible."
+source_type: repo
+retrieved: "2026-09-13"
+confidence: high
+produced_by: T1-mock-bottleneck
+vividness: low
+attestation: unattested
+usable_for:
+  - mechanism
+notes: >
+  Documentation / repository artifact, not an incident report. It licenses a
+  mechanism claim only: it says how the thing is built or licensed, not that
+  anyone hit a problem with it and not how often. Retrieved and string-checked
+  against the live URL on 2026-09-13 by T1.

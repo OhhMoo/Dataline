@@ -11,6 +11,10 @@ company: "Epoch AI"
 year: 2026
 retrieved: "2026-09-11"
 confidence: high
+vividness: medium
+attestation: secondhand
+usable_for:
+  - world_texture
 produced_by: L5-competitive-pricing
 notes: >
   TOTAL CONTRACT VALUE per quarter, not per task. Sits above S402; together they bracket plausible deal sizes from a roughly $300k pilot to $1M+/quarter at scale.

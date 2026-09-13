@@ -1,7 +1,7 @@
 id: S208
 rq: RQ1
 claim: >
-  The same team reported a three-week traffic decline that did not exist: roughly 28% of finalized days in the upstream analytics source came back near zero, so any fixed-length window summed a varying number of near-empty days, and the comparison window happened to hold five valid days against the current window's seven. Measured per valid day the metric had doubled while the totals fell; both statements were true.
+  The same team reported a three-week traffic decline that did not exist. TWO SEPARATE DEFECTS, which an earlier version of this record wrongly fused into one (F458): (a) the comparison window was five days LONG against a seven-day current window - unequal window lengths, which is what the quoted line is about; and (b) roughly 28% of finalized days in the upstream analytics source came back near zero (16 to 293 impressions against normal days of 1,200 to 3,700, clustered, every week or two), so the current seven-day window held four near-empty days and roughly three valid ones. Measured per valid day the metric had doubled while the totals fell; both statements were true.
 url: https://thicket.sh/blog/when-your-metric-is-broken-not-your-business
 quote: "Ours were quietly comparing seven days against five."
 source_type: blog
@@ -10,8 +10,21 @@ company: Thicket
 year: 2026
 retrieved: "2026-09-11"
 confidence: medium
+vividness: high
+attestation: firsthand_named
+usable_for:
+  - world_texture
+  - mechanism
 produced_by: L3-practitioner-workflow-analytics
 notes: >
   A second distinct incident from the same write-up. The tell they name - uniformity across things that should move independently, including four properties frozen for months - is exactly the reasoning step a trajectory-blind grader can test for. Also a clean example of a task whose correct answer is 'the decline is an artifact', not a business root cause.
 attacks:
   - F458
+repair_note: >
+  F458 arithmetic corrected 2026-09-13 by D2 (R002 evidence repair). The record previously read
+  "the comparison window happened to hold five valid days against the current window's seven",
+  which reverses the defect and would have made a world generator plant the wrong initial
+  condition - and the opposite sign of error. The page describes two independent defects; the
+  claim now separates them. The quote is unchanged and still verifies verbatim, but note it
+  supports only defect (a): defect (b)'s numbers live elsewhere on the same page, which is why
+  confidence stays medium. A022 must decide which defect it plants, or plant both deliberately.

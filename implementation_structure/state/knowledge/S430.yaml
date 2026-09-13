@@ -10,6 +10,10 @@ company: "Mercor"
 year: 2026
 retrieved: "2026-09-11"
 confidence: medium
+vividness: medium
+attestation: vendor_marketing
+usable_for:
+  - world_texture
 produced_by: L5-competitive-pricing
 notes: >
   VENDOR MARKETING PAGE - evidence of what Mercor CLAIMS it pays contributors. Not a market rate, and not what labs pay Mercor. Per-hour, not per-task. Consistent with the independent Handshake figure (S428).

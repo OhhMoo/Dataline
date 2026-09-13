@@ -11,6 +11,10 @@ company: "Epoch AI"
 year: 2026
 retrieved: "2026-09-11"
 confidence: high
+vividness: medium
+attestation: secondhand
+usable_for:
+  - world_texture
 produced_by: L5-competitive-pricing
 notes: >
   NOT an independent derivation - Epoch is citing Mechanize (S407). Recorded explicitly so the swarm does not double-count it as corroboration.

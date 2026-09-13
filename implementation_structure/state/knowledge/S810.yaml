@@ -1,0 +1,18 @@
+id: S810
+rq: RQ3
+claim: "Oracle's published container build scripts are UPL-licensed but the images they produce contain Oracle Database binaries, which carry Oracle's own terms - the script license does not grant redistribution of the database."
+url: https://raw.githubusercontent.com/oracle/docker-images/main/OracleDatabase/SingleInstance/README.md
+quote: "The resulting images will be an image with the Oracle binaries installed."
+source_type: repo
+retrieved: "2026-09-13"
+confidence: high
+produced_by: T1-mock-bottleneck
+vividness: low
+attestation: unattested
+usable_for:
+  - mechanism
+notes: >
+  Documentation / repository artifact, not an incident report. It licenses a
+  mechanism claim only: it says how the thing is built or licensed, not that
+  anyone hit a problem with it and not how often. Retrieved and string-checked
+  against the live URL on 2026-09-13 by T1.

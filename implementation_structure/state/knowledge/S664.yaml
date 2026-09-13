@@ -1,0 +1,27 @@
+id: S664
+rq: RQ1
+claim: A public, actively maintained production dbt monorepo contains 1990 SQL files and 1518 YAML files across ten dbt projects, and its largest project alone holds 1507 SQL files whose filename prefixes are distributed stg_ 787, int_ 330, rpt_ 265, dim_ 52, fct_ 28, test_ 20, bridge_ 8, base_ 6, with a handful carrying no recognised prefix at all.
+url: https://github.com/TEAMSchools/teamster
+quote: "Teamster is the data engineering platform powering analytics and reporting"
+source_type: repo
+company: KIPP TEAM and Family Schools
+retrieved: "2026-09-13"
+confidence: high
+produced_by: E2-scale
+year: 2026
+vividness: medium
+attestation: unattested
+usable_for:
+  - world_texture
+notes: >
+  Counts were measured on 2026-09-13, not estimated: the GitHub REST API git trees endpoint
+  for TEAMSchools/teamster at HEAD with recursive=1 returned 5444 paths with truncated=false;
+  filtering by extension gives 1990 .sql and 1518 .yml, and grouping the 1507 .sql paths under
+  src/dbt/kipptaf by basename prefix gives the distribution in the claim. Repo metadata at the
+  same time: not archived, last push 2026-09-11. The record is attestation=unattested because
+  a repository is an artifact and nobody is claiming an incident; vividness is medium because
+  the quoted span is a README sentence while the rebuildable substance is the measurement,
+  which anyone can re-run. Its job here is to calibrate the generated world: the layer
+  prefixes a real project uses are NOT the canonical three from S656, rpt_ outnumbers fct_
+  and dim_ nine to one, and base_ coexists with stg_. That is what conventions inconsistently
+  applied actually looks like, measured rather than imagined.

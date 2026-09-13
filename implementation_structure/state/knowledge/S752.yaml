@@ -1,0 +1,27 @@
+id: S752
+rq: RQ1
+claim: >
+  PostgreSQL's own documentation specifies the WAL-retention mechanism behind replication-slot disk
+  exhaustion: a slot guarantees the primary will not remove WAL segments until every standby
+  consuming that slot has received them, and will not remove rows that could cause a recovery
+  conflict, and it does this even while the standby is disconnected. That guarantee is
+  unconditional - a slot whose consumer is dead retains WAL at the database's full write rate until
+  the volume fills.
+url: https://www.postgresql.org/docs/17/warm-standby.html
+quote: "Replication slots provide an automated way to ensure that the primary server does not remove WAL segments until they have been received by all standbys"
+source_type: docs
+company: PostgreSQL Global Development Group
+retrieved: "2026-09-13"
+confidence: high
+vividness: low
+attestation: unattested
+usable_for:
+  - world_texture
+  - mechanism
+produced_by: D2-reground
+notes: >
+  F453's explicit recommendation was "source it to the documentation rather than to two
+  narratives". Nobody is claiming an incident here, so attestation=unattested and vividness=low -
+  but the behaviour is normative and falsifiable, which is exactly what a mechanism licence is for.
+  This is the load-bearing mechanism source for A004; S750 and S751 supply the attested incidents
+  on top of it. Quote verified verbatim 2026-09-13 with gate-identical fetch logic.

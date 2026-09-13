@@ -1,0 +1,24 @@
+# Produced by T3-environment-themes (R002) for RQ4 -- legacy / flat-file environment themes.
+id: S940
+rq: RQ4
+claim: >
+  A numeric column declared without explicit precision is bound by the driver as a floating-point
+  type during migration, so values past roughly fifteen significant digits round.
+url: https://support.ispirer.com/knowledge-base/database-migration/setup-and-troubleshooting/oracle/numbers-without-precision
+quote: >
+  the driver binds Oracle NUMBER types without explicit precision as DOUBLE
+source_type: vendor_page
+retrieved: "2026-09-13"
+confidence: low
+vividness: medium
+attestation: vendor_marketing
+usable_for:
+  - world_texture
+produced_by: T3-environment-themes
+notes: >
+  attestation=vendor_marketing, so world_texture ONLY. Same gap as S939: the mechanism is good and
+  the anchor is weak. Note the convergence worth exploiting if it can be properly sourced -- this
+  is the same fifteen-significant-digit ceiling as the spreadsheet precision loss in S924 and
+  S926, arriving by a completely different route. A task that plants both in one hybrid world
+  would make the two indistinguishable by symptom and separable only by tracing provenance. NOT
+  re-fetched by T3.

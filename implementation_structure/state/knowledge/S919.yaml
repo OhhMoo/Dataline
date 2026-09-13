@@ -1,0 +1,24 @@
+# Produced by T3-environment-themes (R002) for RQ4 -- legacy / flat-file environment themes.
+id: S919
+rq: RQ4
+claim: >
+  A scheduled job pulling from an SFTP drop reads a file that is still being written, and the
+  practitioner's fix is an age threshold on file modification time rather than a sentinel file.
+url: https://community.qlik.com/t5/Design-and-Development/tFtpGET-fetches-the-file-which-is-still-being-uploaded/td-p/2310484
+quote: >
+  It fetches the file from SFTP which is still being uploaded.
+source_type: forum
+year: 2018
+retrieved: "2026-09-13"
+confidence: medium
+vividness: medium
+attestation: firsthand_anonymous
+usable_for:
+  - world_texture
+  - mechanism
+produced_by: T3-environment-themes
+notes: >
+  Confirms the partial-read race that defines theme D1, and is more useful than a textbook
+  description because the fix chosen in the field is the WRONG one in general: an mtime threshold
+  is a heuristic that fails on a slow transfer, whereas a sentinel file is a guarantee. That gap
+  between the common fix and the correct fix is exactly where a task lives. NOT re-fetched by T3.

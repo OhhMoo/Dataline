@@ -10,6 +10,11 @@ company: OpenAI
 year: 2024
 retrieved: "2026-09-11"
 confidence: high
+vividness: low
+attestation: unattested
+usable_for:
+  - world_texture
+  - mechanism
 produced_by: L2-practitioner-workflow-ds
 notes: >
   A concrete calibration technique for synthetic or reconstructed world data (relevant to RQ5): generate the holdout, then prove distributional equivalence by scoring a known-baseline solution on both. Gives an objective test that a randomized world instance is the same difficulty as its siblings.

@@ -9,6 +9,11 @@ author_role: data engineering leader
 year: 2022
 retrieved: "2026-09-11"
 confidence: high
+vividness: high
+attestation: unattested
+usable_for:
+  - world_texture
+  - mechanism
 produced_by: L3-practitioner-workflow-analytics
 notes: >
   Container-buildable: a BI metadata API plus a usage-history table, and a task that requires joining them and making a retire-or-keep judgment. Also establishes that BI-tool metadata is queryable, which matters for any task asking an agent to compute the blast radius of a model change.
