@@ -1,0 +1,52 @@
+id: S951
+claim: >
+  fakesnow's HTTP server implements Snowflake's CONNECTOR WIRE PROTOCOL, not the public SQL REST
+  API, and the two are different surfaces. Probed 2026-09-13: routes served are
+  /session/v1/login-request, /session, /queries/v1/query-request, /queries/v1/abort-request and
+  /monitoring/queries/{sfqid}. The real snowflake-connector-python driver connects over HTTP with
+  only host/port/protocol overridden and round-trips CREATE DATABASE, CREATE SCHEMA, CREATE TABLE
+  and SELECT. The documented public REST endpoint /api/v2/statements returns HTTP 404 - it is not
+  implemented. Separately, current_version() returns the string '0.0.0', where real Snowflake
+  returns a real version, so a single query distinguishes the emulator from the product.
+url: "https://github.com/tekumara/fakesnow"
+quote: >
+  fakesnow is a fake Snowflake implementation that can be used to test your Snowflake code
+  locally.
+source_type: repo
+retrieved: "2026-09-13"
+confidence: high
+produced_by: LEAD-R002
+rq: RQ4
+vividness: high
+attestation: firsthand_named
+usable_for:
+  - mechanism
+author_role: "measured in-repo by the lead agent, not reported by a third party"
+year: 2026
+notes: >
+  FIRSTHAND MEASUREMENT. Ran fakesnow.server:app under uvicorn in a clean python:3.11-slim
+  container, enumerated the Starlette routes, drove it with the genuine
+  snowflake-connector-python driver, and separately POSTed to /api/v2/statements.
+  Result: connector protocol returned (42, '0.0.0'); /api/v2/statements returned 404.
+
+  WHY IT MATTERS - three distinct consequences:
+
+  1. T254 claimed replication_ease: easy for the /api/v2/statements surface with no probe, and
+     G5 failed it. The claim is wrong: that surface does not exist in fakesnow and would have to
+     be BUILT. Anything speaking the DOCUMENTED REST API - curl, a light HTTP client, some BI
+     and orchestration integrations - gets a 404 rather than an answer. T2 drew the
+     surface distinction correctly in its own records; only the ease rating was wrong, and it
+     looks inherited from fakesnow working through the driver.
+
+  2. T253 (connector protocol) is confirmed working and was upgraded medium -> easy. This is the
+     load-bearing good news: agents and dbt reach Snowflake through the driver, which is exactly
+     the path that works.
+
+  3. current_version() = '0.0.0' is a ONE-QUERY sandbox tell, and a concrete instance of the
+     detectability question T2 argues in its report section 8 is over-weighted. This does not
+     settle that argument - T2's position may well be right that detectability matters less than
+     it feels - but it moves it from speculation to a specific, cheap, checkable string. If we
+     ever decide detectability matters, this is the first thing to patch, and it is a one-line fix.
+
+  The quoted span is the project's own description of itself; the routing and version findings
+  are mine, attested by the method above rather than by the URL.

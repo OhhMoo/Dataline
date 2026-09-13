@@ -5,7 +5,6 @@ role: simulate_target
 replication_strategy: http_intercept
 produced_by: R002-T2-snowflake
 rq: RQ7
-replication_ease: easy
 evidence:
   - S864
 notes: >
@@ -13,3 +12,17 @@ notes: >
   table. Anything in a world that calls /api/v2/statements (certain Airflow operators, shell
   scripts, an agent writing curl) gets a 404 today. Small gap to close: one route that reuses
   the same cursor, plus the async statement-handle polling shape. Estimate under a day.
+replication_ease: hard
+probe_result: fail
+install_probe: "POST /api/v2/statements against fakesnow.server:app"
+repair_note: >
+  CLAIM CORRECTED 2026-09-13 by LEAD-R002. This record carried replication_ease: easy with no
+  probe, and G5 failed it. Probed: fakesnow's server returns HTTP 404 for
+  /api/v2/statements. It does NOT implement the public SQL REST API at all - it implements the
+  CONNECTOR WIRE PROTOCOL (T253), which is a different Snowflake surface. T2 drew that
+  distinction correctly in its own records; what was wrong was only the ease rating, which
+  appears to have been inherited from fakesnow working via the driver.
+  Consequence: anything that talks to Snowflake over the DOCUMENTED REST API - curl, a
+  lightweight HTTP client, some BI and orchestration integrations - gets a 404, not an
+  answer. Downgraded easy -> hard: this surface would have to be BUILT on top of fakesnow, not
+  merely intercepted. http_intercept is retained as the right strategy; it is just not free.
