@@ -1,4 +1,4 @@
-# Track A placeholder world seed.
+# Placeholder world seed.
 # Concrete table/column names are Track C's frozen spec (split_of_work.md §2.1).
 # Until that lands, this placeholder exercises every surface end-to-end:
 # landing CSVs -> raw -> dbt (staging view, warehouse table) -> BI values + docs,

@@ -14,10 +14,10 @@ COPY gateway/pyproject.toml /opt/gateway/
 COPY gateway/src/ /opt/gateway/src/
 RUN pip install --no-cache-dir --no-deps /opt/gateway
 
-COPY track_a/world/ ./world/
-COPY track_a/seed.example.yaml ./seed.yaml
-COPY track_a/requirements.lock ./requirements.lock
-COPY track_a/docker/entrypoint.sh track_a/docker/egress_test.py ./
+COPY world/world/ ./world/
+COPY world/seed.example.yaml ./seed.yaml
+COPY world/requirements.lock ./requirements.lock
+COPY world/docker/entrypoint.sh world/docker/egress_test.py ./
 COPY gateway/config.example.json /etc/alkera/gateway.json
 RUN chmod +x entrypoint.sh
 

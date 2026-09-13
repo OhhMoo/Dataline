@@ -1,9 +1,9 @@
-# Track A — World and determinism
+# World — deterministic data-agent worlds
 
-Seed → reproducible data-agent world, per `split_of_work.md` §3. The product
-here is not the tools; it is that the world is **provably the same world**
-every time it is built, and that the grader can never be reached during an
-episode.
+Seed → reproducible data-agent world, per `split_of_work.md` §3 (the
+"world and determinism" track). The product here is not the tools; it is
+that the world is **provably the same world** every time it is built, and
+that the grader can never be reached during an episode.
 
 ## Layout
 
@@ -52,14 +52,16 @@ container): `workspace/` git repo (dbt project, landing CSVs, docs),
 - dbt runs as a subprocess (in-process `dbtRunner` leaks duckdb file locks)
   with `--target-path`/`--log-path` outside the fingerprinted workspace.
 
-## Known contract wart
+## Resolved contract wart: catalog/schema name collision
 
 The duckdb catalog takes the file stem (`warehouse`), which collides with the
-`warehouse` schema: `warehouse.fct_revenue` is an ambiguous two-part name.
-World content uses three-part names (`warehouse.warehouse.fct_revenue`).
-**Track B's sql_* tools should `ATTACH` the file under a distinct alias**
-(e.g. `wh`) so agents write `wh.warehouse.fct_revenue`. Flagged for the §2.1
-freeze with Track C — renaming the schema to `marts` would kill the wart.
+`warehouse` schema: `warehouse.fct_revenue` is ambiguous when the file is
+opened directly. **Resolution (integration commit 1f7bd8c): never open the
+warehouse file unprefixed — always `ATTACH` under an alias.** `bi.py` attaches
+as `wh` + `USE wh.warehouse`, and Track B's gateway does the same, so world
+content stays clean two-part SQL. `fingerprint.py` hashes BASE TABLES only —
+a view is a deterministic function of its inputs, so hashing it is redundant
+and was fragile.
 
 ## Trust zones
 
@@ -72,8 +74,8 @@ mounted, else builds from seed.
 
 ```bash
 python -m venv .venv && .venv/Scripts/pip install -r requirements.lock
-PYTHON=.venv/Scripts/python.exe ./scripts/acceptance.sh   # the full battery
-python -m unittest discover -s tests                      # just the tests
+bash scripts/acceptance.sh          # the full battery (venv auto-detected)
+.venv/Scripts/python -m unittest discover -s tests   # just the tests
 ```
 
 ## Deliberate limits (out of scope per §3)

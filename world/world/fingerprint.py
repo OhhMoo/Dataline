@@ -1,4 +1,4 @@
-"""World fingerprint: the two Track A determinism gates plus a diagnostic.
+"""World fingerprint: the two determinism gates plus a diagnostic.
 
 - semantic_hash  — THE GATE. Canonical logical contents: warehouse schemas +
   canonically-ordered rows, scheduler state (incl. v-clock), BI definitions,

@@ -13,4 +13,5 @@ Track C fills it per §2.3/§2.4:
 
 Track A's only obligations to this zone: the world volume restores
 byte-identically from a snapshot, and `world.fingerprint` gives the grader a
-stable semantic identity for the world it is scoring.
+stable semantic identity for the world it is scoring. (This directory ships
+with the world-factory repo — see `world/`.)

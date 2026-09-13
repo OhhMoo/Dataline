@@ -12,8 +12,8 @@ services:
   episode:
     build:
       context: ../..
-      dockerfile: track_a/docker/Dockerfile
-    image: track_a-world:0.1.0
+      dockerfile: world/docker/Dockerfile
+    image: alkera-world:0.1.0
     networks: [episode_net]
     volumes:
       - worlddata:/world
@@ -22,7 +22,7 @@ services:
     command: ["alkera-gateway", "serve", "--config", "/etc/alkera/gateway.json", "--host", "0.0.0.0"]
 
   harness:
-    image: track_a-world:0.1.0
+    image: alkera-world:0.1.0
     profiles: ["harness"]
     depends_on: [episode]
     networks: [episode_net]
@@ -30,7 +30,7 @@ services:
     command: ["sleep", "infinity"]
 
   grading:
-    image: track_a-world:0.1.0
+    image: alkera-world:0.1.0
     profiles: ["grading"]
     network_mode: none
     volumes:

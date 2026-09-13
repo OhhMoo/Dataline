@@ -9,7 +9,7 @@ SEED_SPEC mandates, invisible to every track working alone.
 
     python test_integration.py
 
-Requires the gateway venv (it has mcp/pydantic) and track_a on PYTHONPATH.
+Requires the gateway venv (it has mcp/pydantic) and world/ on PYTHONPATH.
 """
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
 GATEWAY = REPO / "gateway"
-TRACK_A = REPO / "track_a"
+TRACK_A = REPO / "world"
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 PY = GATEWAY / ".venv" / "Scripts" / "python.exe"
 if not PY.exists():                                   # posix venv layout

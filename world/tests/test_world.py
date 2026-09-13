@@ -1,4 +1,4 @@
-"""Track A acceptance tests (stdlib unittest).
+"""World-factory acceptance tests (stdlib unittest).
 
 Cross-host determinism (same seed, two different machines -> identical
 semantic fingerprint) is the CI version of test_semantic_fingerprint_stable:
@@ -23,7 +23,7 @@ LOCK = TRACK_A / "requirements.lock"
 class WorldTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.tmp = Path(tempfile.mkdtemp(prefix="track_a_"))
+        cls.tmp = Path(tempfile.mkdtemp(prefix="world_"))
         lock = LOCK if LOCK.exists() else None
         cls.w1 = wbuild.build(SEED, cls.tmp / "w1", lock)
         cls.w2 = wbuild.build(SEED, cls.tmp / "w2", lock)

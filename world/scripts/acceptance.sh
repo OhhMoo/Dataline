@@ -1,14 +1,19 @@
 #!/usr/bin/env bash
-# Track A acceptance battery (split_of_work.md §3).
-# Host gates need a python with requirements.lock installed:
-#   PYTHON=.venv/Scripts/python.exe ./scripts/acceptance.sh           (Windows)
-#   PYTHON=.venv/bin/python ./scripts/acceptance.sh                   (Linux)
-# Docker gates run when a docker daemon is reachable; otherwise skipped.
+# World-factory acceptance battery (split_of_work.md §3).
+#   bash scripts/acceptance.sh     (any shell; venv auto-detected)
+# Set PYTHON to override the interpreter. Docker gates are skipped when no
+# docker daemon is reachable.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-PY="${PYTHON:-python}"
-IMG=track_a-world:0.1.0
-COMPOSE="docker compose -f docker/docker-compose.yml -p track_a"
+if [ -z "${PYTHON:-}" ]; then
+  for c in .venv/Scripts/python.exe .venv/bin/python python; do
+    [ -x "$c" ] || command -v "$c" >/dev/null 2>&1 || continue
+    "$c" -c "import duckdb, dbt, yaml" 2>/dev/null && { PYTHON="$c"; break; }
+  done
+fi
+PY="${PYTHON:?no python with requirements.lock deps found (create .venv first)}"
+IMG=alkera-world:0.1.0
+COMPOSE="docker compose -f docker/docker-compose.yml -p alkera"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
@@ -30,7 +35,7 @@ $PY -m world.snapshot verify "$tmp/w1" "$tmp/wr"
 
 if docker info >/dev/null 2>&1; then
   echo "== gate 3: episode-zone egress is impossible"
-  docker build -q -f track_a/docker/Dockerfile -t "$IMG" .. >/dev/null
+  docker build -q -f world/docker/Dockerfile -t "$IMG" .. >/dev/null
   t0=$SECONDS
   $COMPOSE up -d episode >/dev/null
   until $COMPOSE exec -T episode test -f /world/var/sched/state.json 2>/dev/null; do
