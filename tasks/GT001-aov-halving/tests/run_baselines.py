@@ -30,6 +30,8 @@ from pathlib import Path
 
 import duckdb
 
+from fixture_contract import FixtureDrift, verify as verify_fixture
+
 HERE = Path(__file__).resolve().parent
 WIN_START, WIN_END = "2026-02-01", "2026-03-02"
 
@@ -182,6 +184,11 @@ def main() -> int:
     ap.add_argument("--fixtures", default=str(HERE / "fixtures" / "build"))
     a = ap.parse_args()
     fx = Path(a.fixtures)
+    try:                              # never score against a drifted fixture
+        verify_fixture(fx)
+    except FixtureDrift as e:
+        print(str(e))
+        return 1
     grading = fx                      # fixture dir doubles as the grading zone
     shutil.copy(HERE / "manifest.yaml", grading / "manifest.yaml")
 
