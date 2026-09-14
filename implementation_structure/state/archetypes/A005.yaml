@@ -56,6 +56,16 @@ existing_coverage: >
   MLE-bench (S100-S109) grades end-to-end competition deliverables, not production skew
   diagnosis against logged serving data. No reviewed benchmark plants multiple
   independent skew mechanisms and grades per-mechanism attribution.
+agent_visible_brief: >
+  From: Hyun-woo Park, Risk Analytics. Ticket DS-1904.
+  The propensity model went live three weeks ago and the scores coming out of it do not look
+  like anything we saw in testing. Our reviewers reckon roughly one in five of the accounts it
+  puts in front of them is obviously not a candidate. It has been like this since the first day
+  it was serving rather than drifting there. The offline evaluation had it at 0.91 AUC and the
+  team are confident in that number. I need to know why production disagrees with the notebook,
+  how much of the gap you can actually account for, and the scores we act on put right.
+  Whatever you find, write it up properly - I have to take this to the model review group in
+  November and they will want more than an assurance.
 derived_from:
   - S115
   - S116

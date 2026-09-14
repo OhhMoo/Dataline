@@ -56,6 +56,16 @@ failure_modes_expected:
 existing_coverage: >
   MLE-Bench tasks end at submission; delayed-label diagnosis with hand-built
   integrity checks is explicitly un-cached in cited prior art.
+agent_visible_brief: >
+  From: Ruth Kalinowski, Collections. Ticket DS-1520.
+  The prioritisation scores we work our daily queue from have been getting less useful since
+  around the middle of last quarter. Recovery rate is down and the accounts that do end up
+  paying are not coming out near the top the way they used to. I cannot prove any of that with
+  numbers, because our outcomes are only confirmed about two weeks after the fact, and the
+  monitoring we have alerts on something most mornings so nobody reads it. What I need is
+  someone to establish what is actually going on here, tell me what to do about it, and leave
+  me a small number of checks I can look at each week that would tell me if it starts
+  happening again. The queue is the thing I need fixed.
 derived_from:
   - S114
   - S117
@@ -66,6 +76,7 @@ produced_by: S2-job-specs
 attacks:
   - F103
   - F124
+  - F625
 notes: >
   Frequency signal only: production-ML job specifications pair notebooks (S521)
   with warehouse telemetry (S503) and quality/monitoring surfaces (S526, S515);

@@ -55,6 +55,16 @@ existing_coverage: >
   No public benchmark exercises the full documented dbt migration loop (blast radius +
   audit diff + BI duplication) end to end; DataAgentBench (S315) grades single queries,
   not migrations.
+agent_visible_brief: >
+  From: Helen Quist, Reporting Lead. Ticket DATA-8015.
+  We are finally getting the weekly commercial report off the old reporting database. It is one
+  enormous query that nobody has read end to end in years, and it feeds the board the regional
+  managers open every Monday. I need it rebuilt properly in dbt, broken into something
+  maintainable and tested, and the board pointed at the new version. The hard requirement is
+  that not one number on that board changes - the regional managers will spot it immediately
+  and we will lose them for the year, and I will be asked to show how we know. The old
+  database is not going away until you say it can. Also flag anything in there you think we
+  should not be carrying forward.
 derived_from:
   - S209
   - S210

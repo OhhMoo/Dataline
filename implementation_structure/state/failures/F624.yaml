@@ -1,0 +1,80 @@
+id: F624
+target: A063
+attack_type: the defect that is supposed to have no observable trace has one, computable in three read-only queries
+severity: high
+finding: >
+  EXECUTED against the GT002 fixture world as built (tests/fixtures/build/world.duckdb, seed 2029).
+  A063's why_hard rests its entire difficulty claim on one property - "defect B is not merely hidden,
+  it is causally unexpressible while A is live. No amount of querying the warehouse reveals it. Every
+  detection technique in the corpus - duplicate business-key assertions, checksums, row-count
+  reconciliation - returns clean, correctly. The only route to B is reading the sink's code and
+  predicting a consequence that has not happened yet."
+  In the built world a replay overlap is directly computable before any repair.
+  raw.consumer_offsets for the sink group orders_fct_sink has committed_offset 4105307 with
+  committed_at 2026-03-09 13:00:12. MAX(event_ts) in warehouse.fct_orders is 2026-03-09 13:29:38.4.
+  Comparing those two scalars - one query each, no join - shows the table holds data newer than the
+  offset the consumer would resume from. Going one step further,
+  SELECT MAX(offset_id) FROM raw.orders_topic WHERE event_ts <= (SELECT MAX(event_ts) FROM
+  warehouse.fct_orders) returns 4106389, and 4106389 - 4105307 = 1082 records already loaded that a
+  replay will re-deliver. Counting them in the topic confirms 1082.
+  The world also ships raw.v_consumer_lag, a purpose-built view that hands the agent
+  committed_offset, end_offset and lag for that group, so the offset arithmetic needs no
+  reconstruction at all.
+  The generator's own header anticipates the objection - "The overlap is NOT evidence of defect B.
+  Defect B is the sink has no merge key, and its only trace is the sink's own source code." That is
+  true of the defect and false of the claim built on it. The archetype's stated difficulty is that
+  the agent must PREDICT a consequence from code; here the consequence is visible as an internal
+  inconsistency in a two-row table, and an agent that notices it will go and read the sink. The
+  cognitive act the archetype says frontier models are weakest at is replaced by an ordinary
+  reconciliation, which the archetype explicitly claims "returns clean, correctly". It does not.
+  This does not make GT002 easy and it does not make it invalid. It falsifies the one property the
+  designer identified as the entire point of the task, and a difficulty claim that survives only
+  until someone queries the world is not a difficulty claim.
+recommended_action: annotate
+found_by: REVIEWER-R003
+mitigation: >
+  Either restore the property or stop claiming it. To restore it, make committed_at and
+  committed_offset consistent with the data actually loaded - have the catch-up run die BEFORE
+  writing its batch rather than before committing the offset, and generate the replay overlap from
+  producer re-emission alone; or drop raw.v_consumer_lag, which exists only to do the arithmetic for
+  the agent. To stop claiming it, rewrite why_hard to say what is true - that the overlap is
+  discoverable but the sink's missing merge key is not, and the difficulty is in acting on the
+  overlap correctly rather than in inferring that it exists. Record which was chosen before GT002
+  ships; the choice changes the expected pass rate and therefore what the measured number means.
+notes: >
+  Reviewed at the point where only the fixture world and the generator exist - GT002 has no
+  instruction.md, task.toml, grade.py or manifest.yaml yet, so this finding is about the world and
+  the archetype claim, not about the grader.
+executed_by: C2-GT002
+executed_on: "2026-09-13"
+resolution_note: >
+  FINDING CONFIRMED AND THE PROPERTY RESTORED. The reviewer's queries were re-run verbatim against
+  the world as it then stood and reproduced exactly: committed_at 2026-03-09 13:00:12 against
+  MAX(event_ts) 2026-03-09 13:29:42, isolating 1,300 records with no join and no payload decoding.
+  F624's first mitigation option was taken - the trigger no longer comes from a partially-committed
+  batch at all.
+  WHAT CHANGED. Topic offsets are now assigned by EMIT time (when a record entered the log) while
+  the payload carries EVENT time (when the order happened), and emit time is deliberately not a
+  column anywhere. committed_offset is now exactly consistent with what is loaded: it sits on a
+  poll-window boundary, nothing in the table is past it, and committed_at equals the emit time of
+  the last record below it. The redelivery comes instead from producer re-emission alone, as F624
+  suggested: the same rollback that broke the payload made the producer resume from a stale
+  checkpoint and re-send 1,300 orders from 2026-02-04. Those orders are in fct_orders; their
+  ORIGINAL log records were emitted before the 30-day retention horizon and have aged out, so the
+  topic holds one copy and the table holds one row and there is no duplicate in either place.
+  raw.v_consumer_lag was KEPT. F624 offers dropping it as an alternative; it is the instrument an
+  engineer needs to diagnose the stall at all, and with the offsets now self-consistent it does its
+  arithmetic on a state that betrays nothing.
+  HOW IT IS VERIFIED, which matters more than the fix. tests/test_dormancy.py encodes the standard -
+  NO QUERY AN AGENT WOULD RUN TO DIAGNOSE DEFECT A MAY SURFACE THE TRIGGER - as 12 probes: the
+  three hygiene checks A063 names, the whole F624 metadata-reconciliation family including the
+  reviewer's own query run verbatim, both directions of row-count reconciliation, the audit
+  columns, a grep of every agent-visible file and of the scheduler state for a prose disclosure,
+  and a POSITIVE check that the trigger is still present. run_baselines.py runs it before any
+  baseline and refuses to print TASK VALID if any probe finds anything.
+  HONEST RESIDUE, because F624's real lesson is that the claim outran the world: the trigger is not
+  unobservable, it is unobservable-by-stall-diagnosis. An agent who asks "which pending records are
+  already in the table?" finds it with one decode-and-join. That query is replay diligence, not
+  stall diagnosis, and an agent who writes it has done the reasoning the task is measuring. A063's
+  why_hard should be read as narrowed accordingly - see the C2-GT002 round report, which states the
+  weaker claim that is actually true.

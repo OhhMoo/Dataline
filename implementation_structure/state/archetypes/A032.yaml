@@ -54,6 +54,16 @@ existing_coverage: >
   Absent from every DE/analytics benchmark surveyed and from MLE-bench, which grades a single
   scalar metric on a fixed split and therefore cannot express an operating-point or
   alert-budget constraint at all.
+agent_visible_brief: >
+  From: Gideon Marsh, Head of Operations. Ticket DS-2800.
+  The risk model we rolled out last year is not being used. Reviewers work from the alert list
+  it produces and the honest position is that most of them have stopped taking it seriously -
+  they work the top of the list and ignore the rest, which rather defeats the point. Analytics
+  keep telling me the model scores well and I believe them, which is why I am asking you and
+  not them. Two constraints you have to work inside: each of our sites can properly work about
+  forty alerts a shift and I am not getting more headcount, and compliance sets a floor on what
+  we are allowed to miss that is not negotiable. Tell me how to run this thing so it is worth a
+  reviewer's attention. If that is not possible with what we have, tell me that instead.
 derived_from:
   - S113
   - S123

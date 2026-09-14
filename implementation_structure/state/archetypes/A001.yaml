@@ -53,6 +53,16 @@ existing_coverage: >
   ade-bench has setup-time corruption tasks of a similar flavor but not the two-stage
   original-bug-plus-botched-repair structure, and not a live orchestrator whose next
   scheduled run is a hazard. Thin in data-eng-bench.
+agent_visible_brief: >
+  From: Ade Okonjo, FP&A. Ticket DATA-2210.
+  Revenue by day on the commercial board is running well ahead of what we actually billed. I
+  spot-checked a handful of days over the summer and every one of them is out; the more recent
+  days look right to me. I raised it in the data channel a week ago and was told the pipeline
+  is green, which it is - freshness is fine and nothing has alerted. We close the month on the
+  5th. I need the reported numbers right by then, and a list of exactly which days were wrong
+  and by how much, because anything we already published in that period may have to be
+  restated. One thing to be careful with: Yusra entered a few corrections into that table by
+  hand at our request and they are not in any source file.
 derived_from:
   - S001
   - S754
@@ -61,6 +71,12 @@ derived_from:
 produced_by: S1-postmortems
 attacks:
   - F121
+  - F601
+  - F620
+  - F621
+  - F622
+  - F623
+  - F625
 notes: >
   S005's sibling mechanism (non-idempotent sink under retry despite nominal exactly-once)
   and S006's crashed-run partial output consumed by the next schedule are folded in as the

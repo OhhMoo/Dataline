@@ -55,6 +55,17 @@ existing_coverage: >
   No surveyed benchmark grades reproducibility as the objective. ade-bench and data-eng-bench
   grade final state; MLE-bench grades a submission file. None re-execute the agent's artefact
   twice in clean rooms and compare, which is the only check that actually tests the property.
+agent_visible_brief: >
+  From: Aurelie Ndiaye, Research Lead. Ticket DS-3350.
+  The uplift result we published internally in the spring is being used to justify a fairly
+  large piece of work, and somebody has finally asked to see it reproduced. I ran the notebook
+  myself last week and got a materially different number - not a rounding difference, different
+  enough that the conclusion could go either way. The person who did the work has left. I need
+  to know which number is right, the committed one or the one the notebook produces now, with
+  evidence rather than an opinion, and I need the whole thing rebuilt as something that
+  produces the same answer every time it is run, by someone who is not me, on a clean machine.
+  If the original result does not survive that, we need to know before the programme board
+  meets on the 30th.
 derived_from:
   - S122
   - S121
@@ -72,6 +83,7 @@ attacks:
   - F459
   - F254
   - F255
+  - F620
 notes: >
   REDESIGN REQUIRED (2026-09-12). Red-teamed by R1/R2/R3; every axis landed
   high-severity attacks. F305 clean-room rewrite passes 4/5 checks with zero forensics; F306 no false-cause penalty; F254 bitwise gate unachievable. Do NOT build from this

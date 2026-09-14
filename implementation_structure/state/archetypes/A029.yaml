@@ -52,6 +52,16 @@ failure_modes_expected:
 existing_coverage: >
   DataAgentBench (S315) covers question-to-SQL correctness but not multi-cause
   reconciliation between two existing reporting surfaces with a prescribed method.
+agent_visible_brief: >
+  From: Dev Chaudhary, Commercial Analytics. Ticket ANA-2277, due end of day.
+  The weekly bookings number on the Commercial board and the same number on the Regional board
+  do not agree and have not for a while. Sam only noticed because he built a slide off one of
+  them and someone had already built one off the other. Both boards were signed off when they
+  were built and neither has been touched since. I need a corrected figure for the period in
+  dispute, broken out by segment, and an explanation of where the difference comes from that
+  is worked through rather than asserted, because whatever I put in this ticket is what the
+  two teams will be held to. Once it is settled both boards need to be reading the same
+  thing. This goes in the weekly pack tomorrow morning.
 derived_from:
   - S002
   - S205

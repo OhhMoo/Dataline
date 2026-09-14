@@ -1,0 +1,1050 @@
+{
+  "schema": "track_status/1",
+  "generated_at": "2026-09-14T02:45:08Z",
+  "generated_at_epoch": 1789353908.4063733,
+  "root": "C:\\Users\\OhhMoo\\Desktop\\research\\alkera",
+  "spec": "3_track.md sections 3 and 4",
+  "tracks": {
+    "A": {
+      "track": "A",
+      "owner": "Kimi",
+      "path": "world/",
+      "checks": [
+        {
+          "id": "A1",
+          "title": "World shape lifted out of build.py into a declarative theme spec",
+          "status": "in_progress",
+          "summary": "constants gone and the builder consumes a theme, but the world suite is not green in this run -- the lift is unverified",
+          "evidence": "reference",
+          "constants_present": [],
+          "constants_absent": [
+            "DBT_PROJECT_YML",
+            "SOURCES_YML",
+            "STG_SQL",
+            "FCT_SQL",
+            "DASHBOARD",
+            "README",
+            "DOC_DATA_DICTIONARY",
+            "DOC_RUNBOOK"
+          ],
+          "theme_contract": {
+            "exists": true,
+            "files": [
+              "gen.py",
+              "theme.yaml"
+            ],
+            "dirs": [
+              "bi",
+              "workspace"
+            ],
+            "gen_hooks": [
+              "load_raw",
+              "write_landing"
+            ],
+            "manifest_keys": [
+              "dbt_profile",
+              "jobs",
+              "name"
+            ],
+            "derived_from": [
+              "world/world/themes/__init__.py",
+              "world/world/build.py"
+            ]
+          },
+          "theme_dirs": {
+            "excel_close": {
+              "path": "world/world/themes/excel_close",
+              "status": "incomplete",
+              "missing": [
+                "workspace/ (missing or empty)"
+              ],
+              "gen_hooks": [
+                "_accounts",
+                "_col",
+                "_sheet_xml",
+                "adj_rows",
+                "line_rows",
+                "load_raw",
+                "write_landing",
+                "write_xlsx"
+              ],
+              "manifest_keys": [
+                "dbt_profile",
+                "jobs",
+                "name"
+              ]
+            },
+            "mainframe_batch": {
+              "path": "world/world/themes/mainframe_batch",
+              "status": "complete",
+              "missing": [],
+              "gen_hooks": [
+                "day_rows",
+                "load_raw",
+                "pack_comp3",
+                "record_bytes",
+                "write_landing"
+              ],
+              "manifest_keys": [
+                "dbt_profile",
+                "jobs",
+                "name"
+              ]
+            },
+            "revenue_daily": {
+              "path": "world/world/themes/revenue_daily",
+              "status": "complete",
+              "missing": [],
+              "gen_hooks": [
+                "day_rows",
+                "load_raw",
+                "write_landing"
+              ],
+              "manifest_keys": [
+                "dbt_profile",
+                "jobs",
+                "name"
+              ]
+            },
+            "sftp_vendor": {
+              "path": "world/world/themes/sftp_vendor",
+              "status": "complete",
+              "missing": [],
+              "gen_hooks": [
+                "_write_feed",
+                "day_rows",
+                "load_raw",
+                "write_landing"
+              ],
+              "manifest_keys": [
+                "dbt_profile",
+                "jobs",
+                "name"
+              ]
+            }
+          },
+          "builder_hooks": [
+            "seed['theme']",
+            "theme module import",
+            "theme symbol"
+          ]
+        },
+        {
+          "id": "A2",
+          "title": "Three new world shapes: C1 mainframe, D1 SFTP/cron, D2 Excel",
+          "status": "in_progress",
+          "summary": "4 theme dir(s), 3 complete; C1/D1/D2 present: ['C1', 'D1', 'D2'] (3 owed); incomplete: {'excel_close': ['workspace/ (missing or empty)']}",
+          "evidence": "reference",
+          "theme_count": 4,
+          "theme_detail": {
+            "excel_close": {
+              "path": "world/world/themes/excel_close",
+              "status": "incomplete",
+              "missing": [
+                "workspace/ (missing or empty)"
+              ],
+              "gen_hooks": [
+                "_accounts",
+                "_col",
+                "_sheet_xml",
+                "adj_rows",
+                "line_rows",
+                "load_raw",
+                "write_landing",
+                "write_xlsx"
+              ],
+              "manifest_keys": [
+                "dbt_profile",
+                "jobs",
+                "name"
+              ]
+            },
+            "mainframe_batch": {
+              "path": "world/world/themes/mainframe_batch",
+              "status": "complete",
+              "missing": [],
+              "gen_hooks": [
+                "day_rows",
+                "load_raw",
+                "pack_comp3",
+                "record_bytes",
+                "write_landing"
+              ],
+              "manifest_keys": [
+                "dbt_profile",
+                "jobs",
+                "name"
+              ]
+            },
+            "revenue_daily": {
+              "path": "world/world/themes/revenue_daily",
+              "status": "complete",
+              "missing": [],
+              "gen_hooks": [
+                "day_rows",
+                "load_raw",
+                "write_landing"
+              ],
+              "manifest_keys": [
+                "dbt_profile",
+                "jobs",
+                "name"
+              ]
+            },
+            "sftp_vendor": {
+              "path": "world/world/themes/sftp_vendor",
+              "status": "complete",
+              "missing": [],
+              "gen_hooks": [
+                "_write_feed",
+                "day_rows",
+                "load_raw",
+                "write_landing"
+              ],
+              "manifest_keys": [
+                "dbt_profile",
+                "jobs",
+                "name"
+              ]
+            }
+          },
+          "structurally_complete": [
+            "mainframe_batch",
+            "revenue_daily",
+            "sftp_vendor"
+          ],
+          "incomplete": {
+            "excel_close": [
+              "workspace/ (missing or empty)"
+            ]
+          },
+          "owed_themes": {
+            "C1": {
+              "name": "Mainframe extract + batch window",
+              "status": "in_progress",
+              "evidence": "existence",
+              "theme_dirs": [],
+              "structurally_complete": [],
+              "signature_files": [
+                "world/world/themes/mainframe_batch/gen.py",
+                "world/world/themes/mainframe_batch/seed.example.yaml",
+                "world/world/themes/mainframe_batch/workspace/README.md",
+                "world/world/themes/mainframe_batch/workspace/docs/data_dictionary.md",
+                "world/world/themes/mainframe_batch/workspace/docs/runbook_batch_window.md",
+                "world/world/themes/mainframe_batch/workspace/loader/load_extract.py"
+              ],
+              "test_files": []
+            },
+            "D1": {
+              "name": "SFTP-and-cron vendor exchange",
+              "status": "done",
+              "evidence": "reference",
+              "theme_dirs": [
+                "sftp_vendor"
+              ],
+              "structurally_complete": [
+                "sftp_vendor"
+              ],
+              "signature_files": [
+                "world/tests/test_theme_sftp_vendor.py",
+                "world/world/themes/sftp_vendor/gen.py",
+                "world/world/themes/sftp_vendor/seed.example.yaml",
+                "world/world/themes/sftp_vendor/theme.yaml",
+                "world/world/themes/sftp_vendor/workspace/README.md",
+                "world/world/themes/sftp_vendor/workspace/docs/runbook_vendor_feeds.md",
+                "world/world/themes/sftp_vendor/workspace/loader/vendor_load.py"
+              ],
+              "test_files": [
+                "world/tests/test_theme_sftp_vendor.py"
+              ]
+            },
+            "D2": {
+              "name": "Excel as the integration layer",
+              "status": "in_progress",
+              "evidence": "reference",
+              "theme_dirs": [
+                "excel_close"
+              ],
+              "structurally_complete": [],
+              "signature_files": [
+                "world/world/themes/excel_close/gen.py",
+                "world/world/themes/excel_close/seed.example.yaml",
+                "world/world/themes/excel_close/theme.yaml"
+              ],
+              "test_files": []
+            }
+          }
+        },
+        {
+          "id": "A3",
+          "title": "/grading proven unreachable in a live container",
+          "status": "in_progress",
+          "summary": "3 probe line(s) exist but nothing records a run -- an unrun gate is not a demonstration",
+          "evidence": "reference",
+          "probes": [
+            {
+              "path": "world/scripts/acceptance.sh",
+              "line": 103,
+              "text": "$COMPOSE exec -T episode test ! -e /grading \\"
+            },
+            {
+              "path": "world/scripts/acceptance.sh",
+              "line": 105,
+              "text": "$COMPOSE --profile harness run --rm harness test ! -e /grading \\"
+            },
+            {
+              "path": "world/scripts/acceptance.sh",
+              "line": 117,
+              "text": "$COMPOSE exec -T episode test ! -e /grading \\"
+            }
+          ],
+          "artifacts": []
+        },
+        {
+          "id": "A4a",
+          "title": "acceptance.sh gate 1 is cross-host",
+          "status": "not_started",
+          "summary": "gate 1 runs 1 builds on one host; the script says nothing about hosts; no CI workflow runs it",
+          "evidence": "existence",
+          "builds_in_gate1": 1,
+          "self_declared_same_host": false,
+          "ci_workflows": []
+        },
+        {
+          "id": "A4b",
+          "title": "No extra service writes into the fingerprinted world volume",
+          "status": "unknown",
+          "summary": "only ['episode -> worlddata:/world'] writes worlddata, which is by design; read-only: ['grading -> worlddata:/world:ro']. This check is the tripwire for B2: it turns into a hazard the moment a second service mounts the fingerprinted tree.",
+          "evidence": "existence",
+          "writable_mounts": [
+            "episode -> worlddata:/world"
+          ],
+          "readonly_mounts": [
+            "grading -> worlddata:/world:ro"
+          ],
+          "services": [
+            "episode",
+            "grading",
+            "harness"
+          ]
+        }
+      ],
+      "tests": {
+        "expected_baseline": 7,
+        "ran": true,
+        "passed": 13,
+        "failed": 1,
+        "errors": 0,
+        "skipped": 0,
+        "xfailed": 0,
+        "returncode": 1,
+        "interpreter": "gateway/.venv/Scripts/python.exe",
+        "ran_at": 1789353908.407382,
+        "duration_s": 66.5,
+        "summary": "1 failed, 13 passed in 65.97s (0:01:05)",
+        "status": "FAIL",
+        "output_tail": "...F..........                                                           [100%]\n================================== FAILURES ===================================\n__________ MainframeBatchThemeTest.test_semantic_fingerprint_stable ___________\n\nself = <test_theme_mainframe_batch.MainframeBatchThemeTest testMethod=test_semantic_fingerprint_stable>\n\n    def test_semantic_fingerprint_stable(self):\n>       self.assertEqual(fingerprint.semantic(self.w1), fingerprint.semantic(self.w2))\nE       AssertionError: {'war[451 chars]e': '7c35ea7bd3a97f96e122d07aebad3deed52520fc7[20 chars]ebe'} != {'war[451 chars]e': '9a97b6fc4a9d8d98170183e4249cfcc2bab6de394[20 chars]912'}\nE       Diff is 668 characters long. Set self.maxDiff to None to see it.\n\ntests\\test_theme_mainframe_batch.py:35: AssertionError\n=========================== short test summary info ===========================\nFAILED tests/test_theme_mainframe_batch.py::MainframeBatchThemeTest::test_semantic_fingerprint_stable\n1 failed, 13 passed in 65.97s (0:01:05)",
+        "collected_statically": 14,
+        "files_touched_after_run": [
+          "world/world/themes/excel_close/gen.py",
+          "world/world/themes/excel_close/workspace/dbt_project/dbt_project.yml",
+          "world/world/themes/excel_close/workspace/dbt_project/macros/schema.sql",
+          "world/world/themes/excel_close/workspace/dbt_project/models/sources.yml",
+          "world/world/themes/excel_close/workspace/dbt_project/models/staging/stg_gl_lines.sql",
+          "world/world/themes/excel_close/workspace/dbt_project/models/warehouse/fct_gl_monthly.sql",
+          "world/world/themes/excel_close/workspace/loader/import_close.py"
+        ]
+      }
+    },
+    "B": {
+      "track": "B",
+      "owner": "Astra",
+      "path": "gateway/",
+      "checks": [
+        {
+          "id": "B1",
+          "title": "Warehouse de-hardcoded behind a frozen connector interface",
+          "status": "in_progress",
+          "summary": "5 duckdb couplings remain at lines [3, 15, 50, 78, 119]; CONNECTOR_CONTRACT.md is published but NOTHING in src/ implements it -- declared interface, zero implementation",
+          "evidence": "existence",
+          "coupling_sites": [
+            {
+              "line": 3,
+              "kind": "import duckdb",
+              "text": "import duckdb"
+            },
+            {
+              "line": 15,
+              "kind": "dialect=\"duckdb\"",
+              "text": "tables = sorted({table.sql(dialect=\"duckdb\") for table in tree.find_all(exp.Table)})"
+            },
+            {
+              "line": 50,
+              "kind": "dialect=\"duckdb\"",
+              "text": "statements = [item for item in sqlglot.parse(sql, dialect=\"duckdb\") if item is not None]"
+            },
+            {
+              "line": 78,
+              "kind": "duckdb.connect()",
+              "text": "conn = duckdb.connect("
+            },
+            {
+              "line": 119,
+              "kind": "dialect=\"duckdb\"",
+              "text": "self.result(conn.execute(statement.sql(dialect=\"duckdb\")), row_limit)"
+            }
+          ],
+          "spec_claimed_lines": [
+            3,
+            15,
+            50,
+            78,
+            119
+          ],
+          "interface": {
+            "contract_doc": "gateway/CONNECTOR_CONTRACT.md",
+            "connector_module": [],
+            "protocol_symbol": [],
+            "factory_symbol": [],
+            "config_backend_field": false
+          }
+        },
+        {
+          "id": "B2",
+          "title": "Multi-container episode zone with egress proven from each",
+          "status": "not_started",
+          "summary": "1 episode-zone service(s): ['episode']; profiled (other zones): {'harness': ['harness'], 'grading': ['grading']}",
+          "evidence": "existence",
+          "episode_zone_services": [
+            "episode"
+          ],
+          "other_zone_services": {
+            "harness": [
+              "harness"
+            ],
+            "grading": [
+              "grading"
+            ]
+          },
+          "egress_covered": [
+            "episode"
+          ],
+          "egress_uncovered": [],
+          "egress_invocations": [
+            {
+              "path": "world/scripts/acceptance.sh",
+              "line": 67,
+              "text": "$COMPOSE exec -T episode python /opt/world/egress_test.py"
+            },
+            {
+              "path": "scripts/track_status.py",
+              "line": 828,
+              "text": "summary = (f\"{len(episode_zone)} episode-zone services but egress_test only runs from \""
+            },
+            {
+              "path": "scripts/track_status.py",
+              "line": 833,
+              "text": "summary = (\"every episode-zone service has an egress_test invocation; `done` needs the \""
+            }
+          ],
+          "host_published_ports": {},
+          "gateway_is_only_channel": "unknown"
+        },
+        {
+          "id": "B3",
+          "title": "Docs / BI / S3 surfaces",
+          "status": "not_started",
+          "summary": "0 of 10 new surface tools registered; present already: ['bi_render', 'docs_search']",
+          "evidence": "existence",
+          "registered_tools": [
+            "bi_render",
+            "dbt_compile",
+            "dbt_run",
+            "dbt_test",
+            "docs_search",
+            "fs_list",
+            "fs_read",
+            "fs_write",
+            "git_commit",
+            "git_diff",
+            "git_log",
+            "sched_list",
+            "sched_logs",
+            "sched_state",
+            "sched_trigger",
+            "sql_execute",
+            "sql_query"
+          ],
+          "tool_count": 17,
+          "surfaces": {
+            "docs": {
+              "docs_list": {
+                "registered": false,
+                "exercised_by_tests": false,
+                "preexisting": false
+              },
+              "docs_get": {
+                "registered": false,
+                "exercised_by_tests": false,
+                "preexisting": false
+              },
+              "docs_search": {
+                "registered": true,
+                "exercised_by_tests": true,
+                "preexisting": true
+              }
+            },
+            "bi": {
+              "bi_render": {
+                "registered": true,
+                "exercised_by_tests": true,
+                "preexisting": true
+              },
+              "bi_list": {
+                "registered": false,
+                "exercised_by_tests": false,
+                "preexisting": false
+              },
+              "bi_get": {
+                "registered": false,
+                "exercised_by_tests": false,
+                "preexisting": false
+              },
+              "bi_refresh": {
+                "registered": false,
+                "exercised_by_tests": false,
+                "preexisting": false
+              },
+              "bi_cached": {
+                "registered": false,
+                "exercised_by_tests": false,
+                "preexisting": false
+              }
+            },
+            "s3": {
+              "s3_list": {
+                "registered": false,
+                "exercised_by_tests": false,
+                "preexisting": false
+              },
+              "s3_get": {
+                "registered": false,
+                "exercised_by_tests": false,
+                "preexisting": false
+              },
+              "s3_put": {
+                "registered": false,
+                "exercised_by_tests": false,
+                "preexisting": false
+              },
+              "s3_delete": {
+                "registered": false,
+                "exercised_by_tests": false,
+                "preexisting": false
+              }
+            }
+          }
+        },
+        {
+          "id": "B4",
+          "title": "fakesnow plumbing (socket only; Andrew owns semantics)",
+          "status": "not_started",
+          "summary": "no fakesnow/snowflake reference in gateway or world code or dependencies; named only in docs: ['gateway/CONNECTOR_CONTRACT.md', 'world/README.md']",
+          "evidence": "existence",
+          "code_refs": [],
+          "dependency_refs": [],
+          "doc_refs": [
+            "gateway/CONNECTOR_CONTRACT.md",
+            "world/README.md"
+          ],
+          "wire_markers": {
+            "login-request": false,
+            "query-request": false,
+            "tls": false,
+            "hostname": false
+          }
+        }
+      ],
+      "tests": {
+        "expected_baseline": 12,
+        "ran": true,
+        "passed": 12,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "xfailed": 0,
+        "returncode": 0,
+        "interpreter": "gateway/.venv/Scripts/python.exe",
+        "ran_at": 1789353975.0807774,
+        "duration_s": 24.1,
+        "summary": "12 passed in 22.85s",
+        "status": "pass",
+        "collected_statically": 12,
+        "files_touched_after_run": []
+      }
+    }
+  },
+  "findings": [
+    {
+      "kind": "cross_track_import",
+      "severity": "note",
+      "path": "gateway/src/alkera_gateway/core.py",
+      "name": "world",
+      "line": null,
+      "detail": "track B imports `world` from another track's package -- a rename over there breaks this at runtime and neither track's own suite has to notice",
+      "key": "cross_track_import|gateway/src/alkera_gateway/core.py|world"
+    },
+    {
+      "kind": "defined_never_referenced",
+      "severity": "note",
+      "path": "gateway/src/alkera_gateway/surfaces.py",
+      "name": "Scheduler",
+      "line": 12,
+      "detail": "Scheduler is defined and never named anywhere in world/, gateway/ or scripts/ (dynamic dispatch would be a false positive)",
+      "key": "defined_never_referenced|gateway/src/alkera_gateway/surfaces.py|Scheduler"
+    },
+    {
+      "kind": "changed_during_scan",
+      "severity": "warn",
+      "path": "world/world/themes/excel_close/gen.py",
+      "name": "live",
+      "line": null,
+      "detail": "changed while this scan was running -- another agent is editing it now",
+      "key": "changed_during_scan|world/world/themes/excel_close/gen.py|live"
+    },
+    {
+      "kind": "changed_during_scan",
+      "severity": "warn",
+      "path": "world/world/themes/excel_close/workspace/dbt_project/dbt_project.yml",
+      "name": "live",
+      "line": null,
+      "detail": "changed while this scan was running -- another agent is editing it now",
+      "key": "changed_during_scan|world/world/themes/excel_close/workspace/dbt_project/dbt_project.yml|live"
+    },
+    {
+      "kind": "changed_during_scan",
+      "severity": "warn",
+      "path": "world/world/themes/excel_close/workspace/dbt_project/macros/schema.sql",
+      "name": "live",
+      "line": null,
+      "detail": "changed while this scan was running -- another agent is editing it now",
+      "key": "changed_during_scan|world/world/themes/excel_close/workspace/dbt_project/macros/schema.sql|live"
+    },
+    {
+      "kind": "changed_during_scan",
+      "severity": "warn",
+      "path": "world/world/themes/excel_close/workspace/dbt_project/models/sources.yml",
+      "name": "live",
+      "line": null,
+      "detail": "changed while this scan was running -- another agent is editing it now",
+      "key": "changed_during_scan|world/world/themes/excel_close/workspace/dbt_project/models/sources.yml|live"
+    },
+    {
+      "kind": "changed_during_scan",
+      "severity": "warn",
+      "path": "world/world/themes/excel_close/workspace/dbt_project/models/staging/stg_gl_lines.sql",
+      "name": "live",
+      "line": null,
+      "detail": "changed while this scan was running -- another agent is editing it now",
+      "key": "changed_during_scan|world/world/themes/excel_close/workspace/dbt_project/models/staging/stg_gl_lines.sql|live"
+    },
+    {
+      "kind": "changed_during_scan",
+      "severity": "warn",
+      "path": "world/world/themes/excel_close/workspace/dbt_project/models/warehouse/fct_gl_monthly.sql",
+      "name": "live",
+      "line": null,
+      "detail": "changed while this scan was running -- another agent is editing it now",
+      "key": "changed_during_scan|world/world/themes/excel_close/workspace/dbt_project/models/warehouse/fct_gl_monthly.sql|live"
+    },
+    {
+      "kind": "changed_during_scan",
+      "severity": "warn",
+      "path": "world/world/themes/excel_close/workspace/loader/import_close.py",
+      "name": "live",
+      "line": null,
+      "detail": "changed while this scan was running -- another agent is editing it now",
+      "key": "changed_during_scan|world/world/themes/excel_close/workspace/loader/import_close.py|live"
+    }
+  ],
+  "git": {
+    "available": true,
+    "untracked": [
+      "3_track.md",
+      "gateway/CONNECTOR_CONTRACT.md",
+      "implementation_structure/rounds/R003/C2-briefs.md",
+      "implementation_structure/state/failures/F600.yaml",
+      "implementation_structure/state/failures/F601.yaml",
+      "implementation_structure/state/failures/F620.yaml",
+      "implementation_structure/state/failures/F621.yaml",
+      "implementation_structure/state/failures/F622.yaml",
+      "implementation_structure/state/failures/F623.yaml",
+      "implementation_structure/state/failures/F624.yaml",
+      "implementation_structure/state/failures/F625.yaml",
+      "implementation_structure/state/failures/F626.yaml",
+      "scripts/track_status.py",
+      "scripts/track_status_baseline.json",
+      "tasks/GT001-aov-halving/tests/build_world.py",
+      "tasks/GT002-orders-flatline/solution/solution.sh",
+      "tasks/GT002-orders-flatline/tests/fixture_contract.py",
+      "tasks/GT002-orders-flatline/tests/fixtures/make_fixture_world.py",
+      "tasks/GT002-orders-flatline/tests/fixtures/workspace/README.md",
+      "tasks/GT002-orders-flatline/tests/fixtures/workspace/asset_platform/asset_runs.json",
+      "tasks/GT002-orders-flatline/tests/fixtures/workspace/dbt_project/models/warehouse/kpi_orders_daily.sql",
+      "tasks/GT002-orders-flatline/tests/fixtures/workspace/docs/data_dictionary.md",
+      "tasks/GT002-orders-flatline/tests/fixtures/workspace/docs/runbooks/orders_stream.md",
+      "tasks/GT002-orders-flatline/tests/fixtures/workspace/pipelines/README.md",
+      "tasks/GT002-orders-flatline/tests/fixtures/workspace/pipelines/orders_commit.sql",
+      "tasks/GT002-orders-flatline/tests/fixtures/workspace/pipelines/orders_quarantine.sql",
+      "tasks/GT002-orders-flatline/tests/fixtures/workspace/pipelines/orders_sink.sql",
+      "tasks/GT002-orders-flatline/tests/fixtures/workspace_files.py",
+      "tasks/GT002-orders-flatline/tests/grade.py",
+      "tasks/GT002-orders-flatline/tests/manifest.yaml",
+      "tasks/GT003-tuesday-figure/tests/fixtures/build2/sched_state.json",
+      "tasks/GT003-tuesday-figure/tests/fixtures/make_fixture_world.py",
+      "tasks/GT003-tuesday-figure/tests/fixtures/workspace/dbt_project/models/staging/stg_revenue_lines.sql",
+      "tasks/GT003-tuesday-figure/tests/fixtures/workspace/docs/runbook-revenue-mart.md",
+      "tasks/GT003-tuesday-figure/tests/fixtures/workspace/pipelines/bi_extract.sql",
+      "tasks/GT003-tuesday-figure/tests/fixtures/workspace/pipelines/mart_rebuild.sql",
+      "tasks/harness/agent_under_test.py",
+      "tasks/harness/blindness.py",
+      "tasks/harness/classify.py",
+      "tasks/harness/episode.py",
+      "tasks/harness/redteam/look_for_the_answer.md",
+      "tasks/harness/report.py",
+      "tasks/harness/rollout.py",
+      "tasks/harness/run_rollouts.py",
+      "tasks/harness/selftest.py",
+      "tasks/harness/taskspec.py",
+      "world/tests/test_theme_mainframe_batch.py",
+      "world/tests/test_theme_sftp_vendor.py",
+      "world/world/themes/__init__.py",
+      "world/world/themes/excel_close/bi/close_summary.yml",
+      "world/world/themes/excel_close/gen.py",
+      "world/world/themes/excel_close/seed.example.yaml",
+      "world/world/themes/excel_close/theme.yaml",
+      "world/world/themes/excel_close/workspace/dbt_project/dbt_project.yml",
+      "world/world/themes/excel_close/workspace/dbt_project/macros/schema.sql",
+      "world/world/themes/excel_close/workspace/dbt_project/models/sources.yml",
+      "world/world/themes/excel_close/workspace/dbt_project/models/staging/stg_gl_lines.sql",
+      "world/world/themes/excel_close/workspace/dbt_project/models/warehouse/fct_gl_monthly.sql",
+      "world/world/themes/excel_close/workspace/loader/import_close.py",
+      "world/world/themes/mainframe_batch/bi/claims_daily.yml",
+      "world/world/themes/mainframe_batch/gen.py",
+      "world/world/themes/mainframe_batch/seed.example.yaml",
+      "world/world/themes/mainframe_batch/theme.yaml",
+      "world/world/themes/mainframe_batch/workspace/README.md",
+      "world/world/themes/mainframe_batch/workspace/copybooks/CLAIMS.CPY",
+      "world/world/themes/mainframe_batch/workspace/dbt_project/dbt_project.yml",
+      "world/world/themes/mainframe_batch/workspace/dbt_project/macros/schema.sql",
+      "world/world/themes/mainframe_batch/workspace/dbt_project/models/sources.yml",
+      "world/world/themes/mainframe_batch/workspace/dbt_project/models/staging/stg_claims.sql",
+      "world/world/themes/mainframe_batch/workspace/dbt_project/models/warehouse/fct_claims_daily.sql",
+      "world/world/themes/mainframe_batch/workspace/docs/data_dictionary.md",
+      "world/world/themes/mainframe_batch/workspace/docs/runbook_batch_window.md",
+      "world/world/themes/mainframe_batch/workspace/loader/load_extract.py",
+      "world/world/themes/revenue_daily/bi/revenue_daily.yml",
+      "world/world/themes/revenue_daily/gen.py",
+      "world/world/themes/revenue_daily/seed.example.yaml",
+      "world/world/themes/revenue_daily/theme.yaml",
+      "world/world/themes/revenue_daily/workspace/README.md",
+      "world/world/themes/revenue_daily/workspace/dbt_project/dbt_project.yml",
+      "world/world/themes/revenue_daily/workspace/dbt_project/macros/schema.sql",
+      "world/world/themes/revenue_daily/workspace/dbt_project/models/sources.yml",
+      "world/world/themes/revenue_daily/workspace/dbt_project/models/staging/stg_revenue.sql",
+      "world/world/themes/revenue_daily/workspace/dbt_project/models/warehouse/fct_revenue.sql",
+      "world/world/themes/revenue_daily/workspace/docs/data_dictionary.md",
+      "world/world/themes/revenue_daily/workspace/docs/runbook_daily_load.md",
+      "world/world/themes/sftp_vendor/bi/vendor_daily.yml",
+      "world/world/themes/sftp_vendor/gen.py",
+      "world/world/themes/sftp_vendor/seed.example.yaml",
+      "world/world/themes/sftp_vendor/theme.yaml",
+      "world/world/themes/sftp_vendor/workspace/README.md",
+      "world/world/themes/sftp_vendor/workspace/dbt_project/dbt_project.yml",
+      "world/world/themes/sftp_vendor/workspace/dbt_project/macros/schema.sql",
+      "world/world/themes/sftp_vendor/workspace/dbt_project/models/sources.yml",
+      "world/world/themes/sftp_vendor/workspace/dbt_project/models/staging/stg_orders.sql",
+      "world/world/themes/sftp_vendor/workspace/dbt_project/models/staging/stg_returns.sql",
+      "world/world/themes/sftp_vendor/workspace/dbt_project/models/warehouse/fct_orders_daily.sql",
+      "world/world/themes/sftp_vendor/workspace/docs/data_dictionary.md",
+      "world/world/themes/sftp_vendor/workspace/docs/runbook_vendor_feeds.md",
+      "world/world/themes/sftp_vendor/workspace/loader/vendor_load.py"
+    ],
+    "modified": [
+      "implementation_structure/state/archetypes/A001.yaml",
+      "implementation_structure/state/archetypes/A002.yaml",
+      "implementation_structure/state/archetypes/A003.yaml",
+      "implementation_structure/state/archetypes/A004.yaml",
+      "implementation_structure/state/archetypes/A005.yaml",
+      "implementation_structure/state/archetypes/A006.yaml",
+      "implementation_structure/state/archetypes/A009.yaml",
+      "implementation_structure/state/archetypes/A010.yaml",
+      "implementation_structure/state/archetypes/A011.yaml",
+      "implementation_structure/state/archetypes/A012.yaml",
+      "implementation_structure/state/archetypes/A013.yaml",
+      "implementation_structure/state/archetypes/A017.yaml",
+      "implementation_structure/state/archetypes/A018.yaml",
+      "implementation_structure/state/archetypes/A019.yaml",
+      "implementation_structure/state/archetypes/A020.yaml",
+      "implementation_structure/state/archetypes/A021.yaml",
+      "implementation_structure/state/archetypes/A022.yaml",
+      "implementation_structure/state/archetypes/A025.yaml",
+      "implementation_structure/state/archetypes/A026.yaml",
+      "implementation_structure/state/archetypes/A027.yaml",
+      "implementation_structure/state/archetypes/A028.yaml",
+      "implementation_structure/state/archetypes/A029.yaml",
+      "implementation_structure/state/archetypes/A030.yaml",
+      "implementation_structure/state/archetypes/A031.yaml",
+      "implementation_structure/state/archetypes/A032.yaml",
+      "implementation_structure/state/archetypes/A033.yaml",
+      "tasks/GT001-aov-halving/task.toml",
+      "tasks/GT001-aov-halving/tests/test_integration.py",
+      "world/README.md",
+      "world/docker/docker-compose.yml",
+      "world/docker/entrypoint.sh",
+      "world/scripts/acceptance.sh",
+      "world/seed.example.yaml",
+      "world/world/build.py",
+      "world/world/scheduler.py"
+    ],
+    "staged": [],
+    "deleted": [
+      "world/world/gen.py"
+    ],
+    "stashes": 0,
+    "head": "bbfd237",
+    "head_at": 1789351258,
+    "by_track": {
+      "A (world)": {
+        "untracked": [
+          "world/tests/test_theme_mainframe_batch.py",
+          "world/tests/test_theme_sftp_vendor.py",
+          "world/world/themes/__init__.py",
+          "world/world/themes/excel_close/bi/close_summary.yml",
+          "world/world/themes/excel_close/gen.py",
+          "world/world/themes/excel_close/seed.example.yaml",
+          "world/world/themes/excel_close/theme.yaml",
+          "world/world/themes/excel_close/workspace/dbt_project/dbt_project.yml",
+          "world/world/themes/excel_close/workspace/dbt_project/macros/schema.sql",
+          "world/world/themes/excel_close/workspace/dbt_project/models/sources.yml",
+          "world/world/themes/excel_close/workspace/dbt_project/models/staging/stg_gl_lines.sql",
+          "world/world/themes/excel_close/workspace/dbt_project/models/warehouse/fct_gl_monthly.sql",
+          "world/world/themes/excel_close/workspace/loader/import_close.py",
+          "world/world/themes/mainframe_batch/bi/claims_daily.yml",
+          "world/world/themes/mainframe_batch/gen.py",
+          "world/world/themes/mainframe_batch/seed.example.yaml",
+          "world/world/themes/mainframe_batch/theme.yaml",
+          "world/world/themes/mainframe_batch/workspace/README.md",
+          "world/world/themes/mainframe_batch/workspace/copybooks/CLAIMS.CPY",
+          "world/world/themes/mainframe_batch/workspace/dbt_project/dbt_project.yml",
+          "world/world/themes/mainframe_batch/workspace/dbt_project/macros/schema.sql",
+          "world/world/themes/mainframe_batch/workspace/dbt_project/models/sources.yml",
+          "world/world/themes/mainframe_batch/workspace/dbt_project/models/staging/stg_claims.sql",
+          "world/world/themes/mainframe_batch/workspace/dbt_project/models/warehouse/fct_claims_daily.sql",
+          "world/world/themes/mainframe_batch/workspace/docs/data_dictionary.md",
+          "world/world/themes/mainframe_batch/workspace/docs/runbook_batch_window.md",
+          "world/world/themes/mainframe_batch/workspace/loader/load_extract.py",
+          "world/world/themes/revenue_daily/bi/revenue_daily.yml",
+          "world/world/themes/revenue_daily/gen.py",
+          "world/world/themes/revenue_daily/seed.example.yaml",
+          "world/world/themes/revenue_daily/theme.yaml",
+          "world/world/themes/revenue_daily/workspace/README.md",
+          "world/world/themes/revenue_daily/workspace/dbt_project/dbt_project.yml",
+          "world/world/themes/revenue_daily/workspace/dbt_project/macros/schema.sql",
+          "world/world/themes/revenue_daily/workspace/dbt_project/models/sources.yml",
+          "world/world/themes/revenue_daily/workspace/dbt_project/models/staging/stg_revenue.sql",
+          "world/world/themes/revenue_daily/workspace/dbt_project/models/warehouse/fct_revenue.sql",
+          "world/world/themes/revenue_daily/workspace/docs/data_dictionary.md",
+          "world/world/themes/revenue_daily/workspace/docs/runbook_daily_load.md",
+          "world/world/themes/sftp_vendor/bi/vendor_daily.yml",
+          "world/world/themes/sftp_vendor/gen.py",
+          "world/world/themes/sftp_vendor/seed.example.yaml",
+          "world/world/themes/sftp_vendor/theme.yaml",
+          "world/world/themes/sftp_vendor/workspace/README.md",
+          "world/world/themes/sftp_vendor/workspace/dbt_project/dbt_project.yml",
+          "world/world/themes/sftp_vendor/workspace/dbt_project/macros/schema.sql",
+          "world/world/themes/sftp_vendor/workspace/dbt_project/models/sources.yml",
+          "world/world/themes/sftp_vendor/workspace/dbt_project/models/staging/stg_orders.sql",
+          "world/world/themes/sftp_vendor/workspace/dbt_project/models/staging/stg_returns.sql",
+          "world/world/themes/sftp_vendor/workspace/dbt_project/models/warehouse/fct_orders_daily.sql",
+          "world/world/themes/sftp_vendor/workspace/docs/data_dictionary.md",
+          "world/world/themes/sftp_vendor/workspace/docs/runbook_vendor_feeds.md",
+          "world/world/themes/sftp_vendor/workspace/loader/vendor_load.py"
+        ],
+        "modified": [
+          "world/README.md",
+          "world/docker/docker-compose.yml",
+          "world/docker/entrypoint.sh",
+          "world/scripts/acceptance.sh",
+          "world/seed.example.yaml",
+          "world/world/build.py",
+          "world/world/scheduler.py"
+        ],
+        "staged": [],
+        "deleted": [
+          "world/world/gen.py"
+        ]
+      },
+      "B (gateway)": {
+        "untracked": [
+          "gateway/CONNECTOR_CONTRACT.md"
+        ],
+        "modified": [],
+        "staged": [],
+        "deleted": []
+      },
+      "C (tasks)": {
+        "untracked": [
+          "tasks/GT001-aov-halving/tests/build_world.py",
+          "tasks/GT002-orders-flatline/solution/solution.sh",
+          "tasks/GT002-orders-flatline/tests/fixture_contract.py",
+          "tasks/GT002-orders-flatline/tests/fixtures/make_fixture_world.py",
+          "tasks/GT002-orders-flatline/tests/fixtures/workspace/README.md",
+          "tasks/GT002-orders-flatline/tests/fixtures/workspace/asset_platform/asset_runs.json",
+          "tasks/GT002-orders-flatline/tests/fixtures/workspace/dbt_project/models/warehouse/kpi_orders_daily.sql",
+          "tasks/GT002-orders-flatline/tests/fixtures/workspace/docs/data_dictionary.md",
+          "tasks/GT002-orders-flatline/tests/fixtures/workspace/docs/runbooks/orders_stream.md",
+          "tasks/GT002-orders-flatline/tests/fixtures/workspace/pipelines/README.md",
+          "tasks/GT002-orders-flatline/tests/fixtures/workspace/pipelines/orders_commit.sql",
+          "tasks/GT002-orders-flatline/tests/fixtures/workspace/pipelines/orders_quarantine.sql",
+          "tasks/GT002-orders-flatline/tests/fixtures/workspace/pipelines/orders_sink.sql",
+          "tasks/GT002-orders-flatline/tests/fixtures/workspace_files.py",
+          "tasks/GT002-orders-flatline/tests/grade.py",
+          "tasks/GT002-orders-flatline/tests/manifest.yaml",
+          "tasks/GT003-tuesday-figure/tests/fixtures/build2/sched_state.json",
+          "tasks/GT003-tuesday-figure/tests/fixtures/make_fixture_world.py",
+          "tasks/GT003-tuesday-figure/tests/fixtures/workspace/dbt_project/models/staging/stg_revenue_lines.sql",
+          "tasks/GT003-tuesday-figure/tests/fixtures/workspace/docs/runbook-revenue-mart.md",
+          "tasks/GT003-tuesday-figure/tests/fixtures/workspace/pipelines/bi_extract.sql",
+          "tasks/GT003-tuesday-figure/tests/fixtures/workspace/pipelines/mart_rebuild.sql",
+          "tasks/harness/agent_under_test.py",
+          "tasks/harness/blindness.py",
+          "tasks/harness/classify.py",
+          "tasks/harness/episode.py",
+          "tasks/harness/redteam/look_for_the_answer.md",
+          "tasks/harness/report.py",
+          "tasks/harness/rollout.py",
+          "tasks/harness/run_rollouts.py",
+          "tasks/harness/selftest.py",
+          "tasks/harness/taskspec.py"
+        ],
+        "modified": [
+          "tasks/GT001-aov-halving/task.toml",
+          "tasks/GT001-aov-halving/tests/test_integration.py"
+        ],
+        "staged": [],
+        "deleted": []
+      },
+      "corpus": {
+        "untracked": [
+          "implementation_structure/rounds/R003/C2-briefs.md",
+          "implementation_structure/state/failures/F600.yaml",
+          "implementation_structure/state/failures/F601.yaml",
+          "implementation_structure/state/failures/F620.yaml",
+          "implementation_structure/state/failures/F621.yaml",
+          "implementation_structure/state/failures/F622.yaml",
+          "implementation_structure/state/failures/F623.yaml",
+          "implementation_structure/state/failures/F624.yaml",
+          "implementation_structure/state/failures/F625.yaml",
+          "implementation_structure/state/failures/F626.yaml"
+        ],
+        "modified": [
+          "implementation_structure/state/archetypes/A001.yaml",
+          "implementation_structure/state/archetypes/A002.yaml",
+          "implementation_structure/state/archetypes/A003.yaml",
+          "implementation_structure/state/archetypes/A004.yaml",
+          "implementation_structure/state/archetypes/A005.yaml",
+          "implementation_structure/state/archetypes/A006.yaml",
+          "implementation_structure/state/archetypes/A009.yaml",
+          "implementation_structure/state/archetypes/A010.yaml",
+          "implementation_structure/state/archetypes/A011.yaml",
+          "implementation_structure/state/archetypes/A012.yaml",
+          "implementation_structure/state/archetypes/A013.yaml",
+          "implementation_structure/state/archetypes/A017.yaml",
+          "implementation_structure/state/archetypes/A018.yaml",
+          "implementation_structure/state/archetypes/A019.yaml",
+          "implementation_structure/state/archetypes/A020.yaml",
+          "implementation_structure/state/archetypes/A021.yaml",
+          "implementation_structure/state/archetypes/A022.yaml",
+          "implementation_structure/state/archetypes/A025.yaml",
+          "implementation_structure/state/archetypes/A026.yaml",
+          "implementation_structure/state/archetypes/A027.yaml",
+          "implementation_structure/state/archetypes/A028.yaml",
+          "implementation_structure/state/archetypes/A029.yaml",
+          "implementation_structure/state/archetypes/A030.yaml",
+          "implementation_structure/state/archetypes/A031.yaml",
+          "implementation_structure/state/archetypes/A032.yaml",
+          "implementation_structure/state/archetypes/A033.yaml"
+        ],
+        "staged": [],
+        "deleted": []
+      },
+      "monitor": {
+        "untracked": [
+          "scripts/track_status.py",
+          "scripts/track_status_baseline.json"
+        ],
+        "modified": [],
+        "staged": [],
+        "deleted": []
+      },
+      "other": {
+        "untracked": [
+          "3_track.md"
+        ],
+        "modified": [],
+        "staged": [],
+        "deleted": []
+      }
+    },
+    "head_subject": "Add README: what this is, the layout, the one dependency rule, how to verify"
+  },
+  "changed_during_scan": {
+    "A": [
+      {
+        "path": "world/world/themes/excel_close/gen.py",
+        "mtime": "2026-09-14T02:45:59Z"
+      },
+      {
+        "path": "world/world/themes/excel_close/workspace/dbt_project/dbt_project.yml",
+        "mtime": "2026-09-14T02:46:37Z"
+      },
+      {
+        "path": "world/world/themes/excel_close/workspace/dbt_project/macros/schema.sql",
+        "mtime": "2026-09-14T02:46:37Z"
+      },
+      {
+        "path": "world/world/themes/excel_close/workspace/dbt_project/models/sources.yml",
+        "mtime": "2026-09-14T02:46:37Z"
+      },
+      {
+        "path": "world/world/themes/excel_close/workspace/dbt_project/models/staging/stg_gl_lines.sql",
+        "mtime": "2026-09-14T02:46:37Z"
+      },
+      {
+        "path": "world/world/themes/excel_close/workspace/dbt_project/models/warehouse/fct_gl_monthly.sql",
+        "mtime": "2026-09-14T02:46:37Z"
+      },
+      {
+        "path": "world/world/themes/excel_close/workspace/loader/import_close.py",
+        "mtime": "2026-09-14T02:46:37Z"
+      }
+    ],
+    "B": [],
+    "monitor": []
+  },
+  "finding_counts": {
+    "blocker": 0,
+    "warn": 7,
+    "note": 2
+  },
+  "finding_counts_by_kind": {
+    "cross_track_import": 1,
+    "defined_never_referenced": 1,
+    "changed_during_scan": 7
+  },
+  "verdict": {
+    "suites_green": false,
+    "blockers": 0
+  }
+}

@@ -24,3 +24,25 @@ mitigation: >
 also_applies_to:
   - A009
   - A026
+executed_by: C2-GT002
+executed_on: "2026-09-13"
+resolution_note: >
+  EXECUTED for the A026 leg, in GT002, which composes A026's non-idempotent-append mechanism.
+  Both mitigations are implemented and both are measured by adversarial baselines.
+  (1) REFERENCE HARNESS-SIDE. expected.duckdb, harness_truth.json and manifest.yaml live in the
+  grading zone and are attached read-only at scoring time. Every quantity the conservation check
+  compares against - produced message count, decodable-record manifest, dead-letter offset set,
+  revision manifest, partition fingerprints - is read from there, never from the agent's catalog.
+  An agent that edits its own copy of the topic to make its books balance still fails, because
+  produced is counted harness-side. The reference_copy baseline scores 18/24 in fixtures BY DESIGN,
+  which is the grader honestly reporting that a reachable reference can be copied; Track A still
+  owes the container proof.
+  (2) THE IDEMPOTENCY PROBE CANNOT BE PASSED BY A NO-OP. It plants 3 records the agent has never
+  seen alongside 500 exact redeliveries and executes the agent's OWN sink file. A permanent skip
+  satisfies "redelivery adds nothing" and then fails liveness, scoring zero - the hole F121 named.
+  Measured: no_op scores 0/6 on it, and so does reference_copy, because copying a table does not
+  change the file the probe executes.
+  NOT DONE: A001 and A009 were not re-read or re-designed. They share F121's shape and this record
+  does not close them - only the A026 leg, only as realised in GT002. F553's finding applies: a fix
+  made without being recorded is indistinguishable from no fix, so what was actually done is
+  written here rather than left to be inferred.

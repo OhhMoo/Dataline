@@ -51,6 +51,16 @@ existing_coverage: >
   No benchmark we reviewed exercises schema-change-induced silent value corruption with a
   mixed-state (part-clean, part-corrupt) target table. The repro mechanics come from two
   independently filed production bugs, so the initial condition is realistic, not contrived.
+agent_visible_brief: >
+  From: Lena Castellanos, Finance Systems. Ticket DATA-3902.
+  Two things. Finance are disputing the regional margin numbers - the split across regions
+  stopped making sense some time this year, we have regions carrying figures that cannot be
+  right, and the group total still ties, which is why it took so long for anyone to say
+  anything. Separately, stg_margin_components has failed every scheduled run since Tuesday
+  with an unrecognized name error that means nothing to me. Please work out what happened,
+  establish how far back the numbers are affected and which downstream figures inherited them,
+  and get both sorted. The margin table is around 400 million rows and there is no window to
+  rebuild it from scratch before quarter end, so please do not plan on that.
 derived_from:
   - S014
   - S015
@@ -62,6 +72,8 @@ attacks:
   - F501
   - F513
   - F514
+  - F601
+  - F625
 notes: >
   S013 and S014 are independent filings of the same mechanism under different
   on_schema_change settings - evidence of frequency. S015 supplies the complementary

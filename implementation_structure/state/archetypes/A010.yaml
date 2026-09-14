@@ -52,6 +52,16 @@ failure_modes_expected:
 existing_coverage: >
   Filed-bug mechanics are directly translatable to broken-world initial conditions;
   no known bench combines connector row loss with positional-INSERT corruption.
+agent_visible_brief: >
+  From: Gemma Alarcon, Sales Operations. Ticket DATA-2088.
+  The account reporting we pull out of the warehouse has stopped agreeing with the source
+  system. My team exported their own list on Monday and the totals are not close, and when they
+  went through a sample the records that are there did not all look right either. Nothing has
+  changed on our side beyond the usual admin work as far as anyone here knows, and I am told
+  the pipeline has not failed once. We plan territories off these reports and the quarter
+  starts in two weeks. I need the warehouse copy actually matching the source, whatever is
+  recoverable recovered, and some way of us knowing next time that does not depend on one of
+  my reps noticing first.
 derived_from:
   - S014
   - S015
@@ -68,6 +78,8 @@ attacks:
   - F505
   - F513
   - F514
+  - F601
+  - F625
 status: redesign_required
 repair_note: >
   RE-GROUNDED 2026-09-13 (D2, R002 evidence repair). Note: this archetype had no attacks field at

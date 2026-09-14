@@ -17,7 +17,14 @@ echo "[oracle] 1/4  repairing the duplicated denominator fact"
 python - "$WAREHOUSE" "$WIN_START" "$WIN_END" <<'PY'
 import sys, duckdb
 db, w0, w1 = sys.argv[1], sys.argv[2], sys.argv[3]
-con = duckdb.connect(db); con.execute("SET threads TO 1;")
+# Never open the warehouse file directly. DuckDB names the catalog after the
+# file stem, so at the contracted path /var/warehouse/warehouse.duckdb the
+# catalog is ALSO called "warehouse" and every 2-part reference below is
+# ambiguous. The oracle aborted on step 1 there while passing in fixtures,
+# which use a differently-named file (F622).
+con = duckdb.connect(":memory:", config={"threads": "1"})
+con.execute("ATTACH '" + db.replace("'", "''") + "' AS wh")
+con.execute("USE wh.warehouse")
 
 # Keep the ORIGINAL row of each business key, not an arbitrary one: the retry
 # copy carries a later load_ts. Ordering by load_ts preserves the manual

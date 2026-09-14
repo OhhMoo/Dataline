@@ -55,6 +55,16 @@ existing_coverage: >
   multi-surface metric reconciliation with planted per-cause attribution. S205's
   checklist (counts at same grain, then bisect by dimension) is a ready-made grading
   rubric for method credit.
+agent_visible_brief: >
+  From: Tomas Ferreira, Chief of Staff. Ticket BI-0902.
+  The growth page in the board pack carries weekly acquisition cost and active users, and
+  Finance and Marketing hand me different versions of both. Each team is certain their own
+  figures are right and neither will move. The board reads this page on the 28th and I sign it
+  off, so I need one set of numbers I can defend, a plain statement of which team was closer to
+  the truth and why, and the underlying tables corrected so we are not doing this again in
+  January. Treat the whole page as in scope rather than only the two numbers being argued
+  about - if I cannot trust the ones people are fighting over I am not going to assume the rest
+  are fine. The actual deliverable is a short memo both teams will accept.
 derived_from:
   - S203
   - S204

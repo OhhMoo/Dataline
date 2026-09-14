@@ -56,6 +56,16 @@ existing_coverage: >
   Not covered anywhere. MLE-bench names this as its own gap (S110); ade-bench and
   data-eng-bench are repair/transform tasks with the objective already fixed. This is the
   clearest single differentiator available on the data-science axis.
+agent_visible_brief: >
+  From: Yara Solberg, VP Product. Ticket DS-1001.
+  I want a model that tells us which accounts are about to churn so the save team can get to
+  them before they go. We have all the data - billing, usage, support tickets, it is all in the
+  warehouse somewhere. I am not fussy about the technique. I care that it works and that my
+  team can act on it every week. What I want back is the model and something written down that
+  tells me what it is predicting and how well it does it, in terms I can repeat to the exec
+  team without getting caught out. Ask me if you genuinely need something, but please do not
+  come back with a list of questions - work with what is there and tell me what you decided
+  and why.
 derived_from:
   - S110
   - S118

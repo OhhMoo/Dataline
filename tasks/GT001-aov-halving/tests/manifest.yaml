@@ -109,7 +109,9 @@ loader_defect:
   accepted_fixes:
     - "incremental_strategy: merge with unique_key (order_id, line_nbr)"
     - "incremental_strategy: delete+insert with unique_key (order_id, line_nbr)"
-    - "insert_overwrite by partition"
+    # insert_overwrite REMOVED 2026-09-14 (F621): dbt-duckdb rejects it outright
+    # with "not valid for this adapter", so it was an accepted fix that cannot
+    # actually run on the stack this task ships on.
     - "any strategy that makes a same-window re-run a no-op on business columns"
   rejected_fixes:
     - "append retained with a downstream dedup view (source table still corrupts)"

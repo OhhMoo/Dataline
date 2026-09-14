@@ -36,7 +36,13 @@ class FixtureDrift(Exception):
 
 
 def _stats(db: Path) -> dict:
-    con = duckdb.connect(str(db))
+    # READ ONLY, and it matters beyond tidiness. A read-write connection takes
+    # duckdb's exclusive file lock, so K rollouts verifying the same cached
+    # fixture at once knocked each other over with
+    # "The process cannot access the file because it is being used by another
+    # process" - the verifier is the one component that must never be the reason
+    # a run fails.
+    con = duckdb.connect(str(db), read_only=True)
     con.execute("SET threads TO 1;")
     try:
         return {

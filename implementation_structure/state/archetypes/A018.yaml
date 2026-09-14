@@ -50,6 +50,15 @@ existing_coverage: >
   and ade-bench (S304) run single dbt projects with no live scheduler at all, so no
   benchmark exercises failure triage ACROSS an orchestrator boundary - the exact
   setting S009 and S018 identify as the largest practitioner pain.
+agent_visible_brief: >
+  From: Harriet Moss, Revenue Operations. Ticket DATA-5501.
+  The daily commercial extract was not there when my team came in this morning, and it was late
+  on Tuesday as well. It is meant to land by 06:00 and the whole reporting day is built on it.
+  The orchestrator is a wall of red and retried tasks and every team I ask says it is not them.
+  I need two things: the extract landed for today and for the days we missed, and a straight
+  account of what actually made it late that I can take to the owners involved, because
+  otherwise we are having this conversation again next week. For what it is worth, on Tuesday
+  we cleared the failed tasks and reran them and it came out green, and here we are again.
 derived_from:
   - S009
   - S008

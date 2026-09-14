@@ -56,6 +56,16 @@ failure_modes_expected:
 existing_coverage: >
   No public benchmark exercises metric-consolidation across a semantic layer plus BI
   blast radius; adjacent to DA-6 but grounded here in the stronger DA-1 evidence base.
+agent_visible_brief: >
+  From: Anselm Bright, Head of Data. Ticket DATA-9001.
+  We are standing up the semantic layer this quarter and the first metric through it is active
+  customers, because it is the one that causes the most arguments - Finance and Marketing answer
+  that question differently and have done for years. There is an agreed definition on the
+  governance page from the last time somebody tried to settle it. What I want from you: find
+  every place that metric is currently computed, in the dbt project and inside the BI tool;
+  implement one version of it in the semantic layer; move the dashboards onto it; and retire
+  the rest without breaking anything still using them. I want the written-up version of this
+  too, because I will be asked to defend the choice. Planning starts in November.
 derived_from:
   - S200
   - S201
@@ -66,6 +76,7 @@ derived_from:
 produced_by: S4-tool-docs
 attacks:
   - F126
+  - F625
 notes: >
   Least confident of this batch: the "correct" canonical definition must be pinned by
   the world's docs_wiki (a governance page stating the agreed definition), otherwise

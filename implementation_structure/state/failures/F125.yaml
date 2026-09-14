@@ -21,3 +21,30 @@ mitigation: >
   partial recovery and looks like success. Keep consumer lag nonzero-but-stale via a second
   abandoned consumer group on the same topic. Do not state the gap length anywhere; make the
   failing micro-batch log nothing useful (exit 0, "0 records processed").
+executed_by: C2-GT002
+executed_on: "2026-09-13"
+resolution_note: >
+  EXECUTED in GT002 (tasks/GT002-orders-flatline), which is built on A027's mechanism.
+  All three mitigations are implemented and measured.
+  (1) DECOY REBUILT. F125 rejected "a job in a second orchestrator that is genuinely late but
+  irrelevant to this table" as ruled out by one lineage lookup. GT002's decoy - channel_dim_refresh
+  on the asset platform, dead since 2026-03-07 on an expired service account key - feeds
+  warehouse.dim_channel, which the KPI view the ticket is about actually joins. The lineage lookup
+  says YES. It starts one day BEFORE the flatline, so the timeline does not dismiss it either, and
+  it explains a real labelling anomaly (three reseller channels reading 'unmapped') and zero
+  missing rows. It also carries its own repair hazard: its asset job materialises by full replace
+  and would drop four hand-curated mappings, graded as a -2 penalty.
+  (2) LAG IS AMBIGUOUS. A second, decommissioned consumer group (orders_archive_legacy) sits on the
+  same topic with a lag of 150,411 - two orders of magnitude worse than the real one, and stale
+  since November - so "find the group with lag" returns two candidates.
+  (3) THE MICRO-BATCH LOGS NOTHING USEFUL. Every scheduled run since the stall reports success with
+  "orders_stream_sink: 0 records" and nothing else. There is no failed run in the history at all.
+  NOT EXECUTED ON A027 ITSELF. A027's description still names its root cause verbatim and still
+  states "three days". GT002 does not ship that text - contract 9.2.3 generates instruction.md only
+  from agent_visible_brief, and A027 has none - so the leak is not live, but the archetype is
+  unrepaired and F125 stands against A027 as a design document. Recorded rather than silently
+  narrowed.
+  MECHANISM DISCREPANCY, for whoever repairs A027: A027 says the offset "committed past" the
+  poisoned message; A063 says the consumer "retries that record forever and commits nothing". Those
+  are different mechanics with different lag signatures and different replay windows. GT002
+  implements A063's version, which is the one consistent with a strict cast aborting the statement.

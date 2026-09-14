@@ -1,0 +1,52 @@
+id: F621
+target: A001
+attack_type: durability check inverted - the grader rewards a loader that still corrupts and fails one that does not
+severity: high
+finding: >
+  EXECUTED against the shipped grader AND against the dbt actually installed in this repo
+  (dbt-core 1.12.4, dbt-duckdb 1.11.0, duckdb 1.5.5). GT001 tests/grade.py d7_loader_fixed is the
+  only check on "make the fix durable", and it is wrong in three separate ways. tasks/harness
+  task.toml lists D7 in pass_requires_checks, so each of these lands directly in the Pass@1 number.
+  ONE. The strategy regex at line 229 is incremental_strategy\s*=\s*['"](\w+)['"]. The plus in
+  delete+insert is not a word character, so the match fails, strat is None, and the answer falls to
+  the "unclear" branch worth 1 of 2. delete+insert with a unique_key is manifest accepted_fixes
+  entry two, and MEASURED it is idempotent on this stack: a two-row source re-run left two rows. The
+  branch at line 232 that names delete+insert is unreachable dead code. A correct repair is scored
+  as a failure, and under the harness pass rule the whole rollout is classified FAIL - reasoning.
+  This is the same shape as the earlier defect where cause tokens matched as whole words so
+  "duplicating" matched nothing.
+  TWO. has_key is the bare substring "unique_key" in the lowered file. MEASURED: a model configured
+  incremental_strategy='merge' with unique_key=none scores 2 of 2, and on a real dbt re-run the
+  table went from 2 rows to 4 - it duplicates exactly like the unrepaired append model. Read the
+  installed macro to see why: dbt/include/duckdb/macros/materializations/incremental_strategy/merge.sql,
+  duckdb__merge_join_clause, appends the literal predicate FALSE when unique_key is falsy, so every
+  source row falls through to WHEN NOT MATCHED THEN INSERT. The token in a bare comment
+  ("TODO: pick a unique_key") also scores 2 of 2, as does the wrong grain unique_key='order_id'
+  when the manifest specifies (order_id, line_nbr).
+  THREE. insert_overwrite scores 2 of 2 and is listed in manifest accepted_fixes. MEASURED: a real
+  dbt run raises Runtime Error - The incremental strategy 'insert_overwrite' is not valid for this
+  adapter. dbt/adapters/duckdb/constants.py sets DUCKDB_BASE_INCREMENTAL_STRATEGIES to append and
+  delete+insert, plus merge and microbatch above duckdb 1.4; insert_overwrite is a builtin but not
+  valid here, and adapters/base/impl.py line 1841 raises. There is no insert_overwrite macro
+  anywhere under include/duckdb. The grader awards full marks for a config that cannot run.
+  FOUR, minor but free: any file the regex does not recognise scores 1 of 2. An agent that deletes
+  the incremental config, or empties the model, banks a point that an agent who correctly leaves the
+  file alone does not.
+  NET EFFECT, measured end to end through tasks/harness taskspec.scores_pass with GT001's own
+  [harness] block: full correct data repair plus delete+insert = 18/19, D7 1.0, FAIL. Full correct
+  data repair plus merge/unique_key=none = 19/19, D7 2.0, PASS, loader still duplicating. Full
+  correct data repair plus insert_overwrite = 19/19, D7 2.0, PASS, loader unable to run.
+recommended_action: redesign
+found_by: REVIEWER-R003
+mitigation: >
+  Stop parsing the config text. Either run the model twice and diff the business columns - the
+  idempotency probe manifest.yaml already specifies and grade.py never implemented - or, if a static
+  check must stand in until then, resolve the config with dbt itself rather than a regex, validate
+  the strategy against adapter.valid_incremental_strategies(), and require unique_key to parse to a
+  non-empty key list matching the manifest grain. Correct the manifest too: accepted_fixes entry
+  three (insert_overwrite by partition) is not achievable on dbt-duckdb and must be struck or
+  rewritten. Until D7 is repaired, no Pass@1 figure that includes D7 in pass_requires_checks should
+  be published.
+notes: >
+  Reproduction: scratchpad rev/attack_d7.py (grader behaviour), rev/dbtp (a five-model dbt project
+  run twice against duckdb to measure real idempotency), rev/attack_passfail.py (harness verdict).

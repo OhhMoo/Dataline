@@ -57,6 +57,16 @@ failure_modes_expected:
 existing_coverage: >
   ade-bench has setup-time corruption flavors; a live dbt project with a
   materialization-change trap plus append-mode duplication is thinner.
+agent_visible_brief: >
+  From: Nadia Brennan, Head of Commercial Reporting. Ticket DATA-4412.
+  Revenue in the commercial marts is overstating against the source extract and has been for
+  weeks. It is not every day and it is not a constant amount, which is presumably why the daily
+  checks never caught it. Everything reports green. We have been asked to certify these marts
+  for the annual audit next month, so patching the worst days is not enough - I need the mart
+  demonstrably correct across its whole history, a note of exactly which days and which
+  downstream numbers were wrong, and enough hardening that an auditor can see this will not
+  quietly happen again. One practical thing: the nightly schedule keeps running while you work,
+  so please do not leave the marts in a worse state overnight than you found them.
 derived_from:
   - S001
   - S754
@@ -71,6 +81,7 @@ notes: >
   this subcategory, not the task content.
 attacks:
   - F121
+  - F601
 repair_note: >
   RE-GROUNDED 2026-09-13 (D2, R002 evidence repair).
   DEMOTED: S006 dropped from the mechanism role (layline.io vendor synthesis, F450,

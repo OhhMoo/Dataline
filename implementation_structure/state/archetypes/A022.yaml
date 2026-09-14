@@ -55,6 +55,16 @@ existing_coverage: >
   ingestion+warehouse+transformation+BI+docs with a verdict-gradeable first step is
   uncovered everywhere - it is the differentiating format relative to all surveyed
   prior art.
+agent_visible_brief: >
+  From: Stefan Bruckner, VP Product. Ticket DATA-6120.
+  The headline weekly engagement metric has been declining for about seven weeks and leadership
+  is close to acting on it - there is a proposal on the table to move budget away from two teams
+  on the strength of this chart. Before anyone does that I want to know whether the decline is
+  real. I need someone to establish whether the number itself is trustworthy, and if it is not,
+  say by how much and correct the history so we are looking at the right series. If the decline
+  is real then say so plainly and I will take it from there.
+  Either way the definition on the wiki and the chart itself need to end up agreeing with the
+  corrected data, because people quote all three at me interchangeably.
 derived_from:
   - S207
   - S208
@@ -66,6 +76,7 @@ attacks:
   - F510
   - F513
   - F550
+  - F625
 status: draft
 repair_note: >
   RE-GROUNDED 2026-09-13 (D2, R002 evidence repair). This archetype survives, and its two best
