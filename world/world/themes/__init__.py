@@ -4,6 +4,9 @@ A theme is a directory world/themes/<name>/ holding:
   theme.yaml   manifest: name, dbt_profile, scheduler job specs
   gen.py       hooks: write_landing(workspace, seed) -> None
                       load_raw(workspace, db_path) -> None
+                      write_ingest(root, seed, manifest) -> None  (optional;
+                      seeds var/ingest/state.json and the fingerprint's
+                      conditional "ingest" section)
   workspace/   static files copied verbatim into the built workspace/
   bi/*.yml     dashboard specs copied verbatim to var/bi/dashboards/
   seed.example.yaml

@@ -18,3 +18,34 @@ jobs:
     duration_s: 90
     after: {job: vendor_load, minutes: 5}
     detail: null
+ingest:
+  # The connector control plane (gateway/INGEST_CONTRACT.md). One green sync
+  # per connector per day, timed after sftp_poll and before vendor_load; row
+  # counts come from the same per-day RNG as the drop folders.
+  connectors:
+    acme_orders:
+      name: "Acme orders (SFTP drop)"
+      source: {type: sftp, location: data/drop/acme}
+      destination: {schema: raw, tables: [vendor_orders]}
+      status: active
+      schedule: "31 5 * * *"
+      time: "05:31"
+      duration_s: 40
+      feed: orders
+      rows_per_sync: 50
+      columns: [order_id, order_date, customer_id, amount]
+      column_added: propagate
+      column_removed: ignore
+    globex_returns:
+      name: "Globex returns (SFTP drop)"
+      source: {type: sftp, location: data/drop/globex}
+      destination: {schema: raw, tables: [vendor_returns]}
+      status: active
+      schedule: "32 5 * * *"
+      time: "05:32"
+      duration_s: 30
+      feed: returns
+      rows_per_sync: 2
+      columns: [return_id, order_id, return_date, amount]
+      column_added: propagate
+      column_removed: ignore

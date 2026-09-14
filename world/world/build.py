@@ -93,6 +93,9 @@ def build(seed_path: Path, root: Path, lock_path: Path | None = None) -> Path:
     theme.gen.load_raw(workspace, db_path)
     _dbt_build(workspace, db_path, build_dir, theme.manifest["dbt_profile"])
     scheduler.save(root, scheduler.initial_state(seed, theme.manifest["jobs"]))
+    write_ingest = getattr(theme.gen, "write_ingest", None)
+    if write_ingest is not None:
+        write_ingest(root, seed, theme.manifest)
     for f in sorted((theme.dir / "bi").glob("*.yml")):
         shutil.copyfile(f, root / "var" / "bi" / "dashboards" / f.name)
     _git(workspace, seed)

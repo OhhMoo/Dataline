@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -106,6 +108,31 @@ class ObjectPut(ObjectKey):
     metadata: dict[str, str] = Field(default_factory=dict)
 
 
+class IngestConnector(Arguments):
+    connector_id: str
+
+
+class IngestRuns(Arguments):
+    connector_id: str | None = None
+    limit: int = Field(default=50, ge=1, le=500)
+    continuation_token: str | None = None
+
+
+class IngestRun(Arguments):
+    run_id: str
+
+
+class IngestAlerts(Arguments):
+    connector_id: str | None = None
+    acknowledged: bool | None = None
+
+
+class IngestPolicy(IngestConnector):
+    table: str
+    column_added: Literal["propagate", "ignore", "alert"] | None = None
+    column_removed: Literal["propagate", "ignore", "alert"] | None = None
+
+
 TOOLS = {
     "sql_query": (Query, "Run one read-only warehouse query; results include column types."),
     "sql_execute": (
@@ -152,4 +179,21 @@ TOOLS = {
     "sched_trigger": (Trigger, "Execute a job for an explicit logical date."),
     "sched_state": (Run, "Read scheduler state or one run's status."),
     "sched_logs": (Run, "Read scheduler history or one run's output."),
+    "ingest_list": (Empty, "List ingestion connectors with last-run status."),
+    "ingest_get": (IngestConnector, "Read one connector's configuration and status."),
+    "ingest_runs": (
+        IngestRuns,
+        "List sync runs, newest first, with continuation for additional pages.",
+    ),
+    "ingest_run": (IngestRun, "Read one sync run's timeline and per-table row counts."),
+    "ingest_schema": (
+        IngestConnector,
+        "Read a connector's table-level schema configs and drift policies.",
+    ),
+    "ingest_alerts": (IngestAlerts, "List ingestion alerts, optionally filtered."),
+    "ingest_trigger": (IngestConnector, "Trigger a sync run on the virtual clock."),
+    "ingest_schema_update": (
+        IngestPolicy,
+        "Set the schema-drift policy for one connector table.",
+    ),
 }
