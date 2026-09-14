@@ -1,0 +1,39 @@
+id: F622
+target: A001
+attack_type: the shipped oracle cannot run against the world in its own contracted layout
+severity: high
+finding: >
+  EXECUTED. GT001 solution/solution.sh - the oracle, the sage-agent validity check, the thing
+  run_baselines.py asserts must score max - aborts on step 1 of 4 when WAREHOUSE points at the path
+  SEED_SPEC and agent.md 9.2.1 mandate.
+  The script does duckdb.connect(db) and then two-part references, DELETE FROM warehouse.fct_orders.
+  Deployed as /var/warehouse/warehouse.duckdb the catalog is named warehouse after the file stem and
+  the schema is also named warehouse, so DuckDB raises Binder Error - Ambiguous reference to catalog
+  or schema "warehouse" - use a fully qualified path like "warehouse.warehouse". Reproduced on
+  duckdb 1.5.5 with the shipped fixture copied to the contract path: the run prints
+  "[oracle] 1/4 repairing the duplicated denominator fact", raises, and under set -euo pipefail
+  never writes final_report.json. run_baselines.agent_oracle would raise RuntimeError and the task
+  would be TASK BROKEN.
+  It does not, because every test uses a different filename. run_baselines copies
+  fixtures/build/world.duckdb to tmp/world.duckdb, where the stem is world and there is no
+  collision. tests/build_world.py - the entrypoint the R003 rollout harness calls - deploys the same
+  bytes to var/warehouse/warehouse.duckdb. So the world that is VALIDATED and the world that is
+  MEASURED are addressed by different names, and only the measured one triggers the collision.
+  This is verbatim the defect agent.md 9.2.1 calls "the most expensive thing integration taught us"
+  and records as learned. It is still live, in the oracle, and no suite covers it:
+  test_integration.py deploys under the contract name but never runs solution.sh or grade.py.
+  grade.py itself is safe - it ATTACHes under aliases w and e. fixture_contract._stats and
+  run_baselines.sql carry the same two-part pattern and are latent for the same reason.
+recommended_action: redesign
+found_by: REVIEWER-R003
+mitigation: >
+  Make every direct connection in the task tree use the 9.2.1 form - connect to :memory:, ATTACH the
+  file under an alias, USE alias.schema - in solution.sh, fixture_contract.py and run_baselines.sql.
+  Then close the hole that hid it: run_baselines must build its scratch world at
+  var/warehouse/warehouse.duckdb rather than tmp/world.duckdb, so the validity gate and the harness
+  address the same world by the same name. Add one assertion to test_integration.py that executes
+  solution.sh against the contract path and grades the result - today the Track C section of that
+  test touches no Track C artefact at all.
+notes: >
+  Reproduction: copy fixtures/build/world.duckdb to <dir>/var/warehouse/warehouse.duckdb, then
+  WAREHOUSE=<that path> WORKSPACE=<dir>/workspace bash solution/solution.sh.

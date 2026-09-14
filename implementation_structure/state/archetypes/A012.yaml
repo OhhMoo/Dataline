@@ -53,6 +53,16 @@ failure_modes_expected:
 existing_coverage: >
   MLE-Bench grades a submission metric, not leakage discovery; a find-the-leak
   deliverable is a distinct, gap-filling archetype for the DS axis.
+agent_visible_brief: >
+  From: Dele Adeyemi, VP Customer Success. Ticket DS-2411.
+  The churn model the analytics team built goes in front of the steering group next week and
+  they want it wired into our save workflow straight after. The headline number they are
+  quoting is far better than anything we have managed before and better than the vendor tool it
+  replaces, and I have been burned by exactly this kind of good news. Before I sign anything I
+  want someone who did not build it to go through the notebook and tell me whether the number
+  is real. If it is, say so and I will happily have been wrong. If it is not, I need to know
+  what it honestly is, what in the work produced the difference, and a version of this we can
+  trust the next time it is retrained.
 derived_from:
   - S111
   - S112

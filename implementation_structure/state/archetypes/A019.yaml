@@ -53,6 +53,15 @@ existing_coverage: >
   structurally untestable there. DA-6 evidence is practitioner blogs and forums
   (S216), not first-party vendor incidents, so this archetype should be weighted
   accordingly in the corpus.
+agent_visible_brief: >
+  From: Jonah Whitfield, Analytics Engineering Manager. Ticket DATA-7702.
+  We consolidated the legacy revenue logic into dbt and renamed the models and a good number of
+  columns to something stakeholders can actually read. That merged on Friday. This morning
+  somebody in Risk says their view is broken, which is how I discovered we had no real idea who
+  was using the old names. I need the full list of everything that reads those models, every one
+  of them moved across, and proof that what people see today is the same as what they saw last
+  week, number for number. Do not retire the old model until you can show nothing is still
+  pointing at it. Assume I cannot tell you who owns what - half of this predates the team.
 derived_from:
   - S216
   - S207
@@ -65,6 +74,7 @@ attacks:
   - F104
   - F550
   - F552
+  - F625
 status: redesign_required
 repair_note: >
   REDESIGN REQUIRED 2026-09-13 (D2, R002 evidence repair) - see F552. This is one of two

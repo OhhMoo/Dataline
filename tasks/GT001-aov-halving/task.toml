@@ -64,3 +64,62 @@ excluded_evidence = ["S001", "S005", "S006"]
 excluded_reason = "Not used by this task. S005/S006 are in the vendor-survey cluster F450 targets (F450's own target is S004); S001's backfill story is an essay's narrated opening scene, not an attested incident (F451). CORRECTED 2026-09-13: an earlier version of this block called these 'withdrawn'. They were not, and are not - both F450 and F451 recommended downgrade_confidence, and neither recommendation had been executed as of 2026-09-13 (S001 still read confidence: high). Only S010 and S017 are actually in knowledge/withdrawn/. GT001 excluding them was a local choice, not a corpus disposition."
 red_team = ["F121", "F128", "F129", "F202", "F306"]
 note = "mechanism is grounded; frequency weighting is NOT re-derived - claim the mechanism only"
+
+# ---------------------------------------------------------------------------
+# Rollout-harness contract (tasks/harness/). Added R003 by C1-HARNESS.
+#
+# The harness is task-agnostic: it knows only the key names below. Everything
+# GT001-specific - how the world is assembled, what argv the grader takes, which
+# checks are load-bearing - is declared HERE, in the task.
+# ---------------------------------------------------------------------------
+[harness]
+# python <world_builder> --root <dir> --grading <dir> --seed <n>
+#   -> one json object on stdout with the §9.2.1 layout it produced.
+world_builder = "tests/build_world.py"
+
+# argv appended to `python <grading.entrypoint>`. {placeholders} are filled from
+# the world-builder's json plus {artifact}.
+grade_argv = ["--world", "{warehouse}", "--grading", "{grading}",
+              "--artifact", "{artifact}", "--world-root", "{workspace}", "--json"]
+
+# Read-only probes run against a THROWAWAY copy of the world before the episode,
+# with their own audit dir. They answer "which surfaces are actually live in the
+# world this task ships", so a failure can be attributed to a dead surface
+# instead of silently counted as reasoning. Never run during the episode.
+surface_probes = [
+  { label = "sql",        tool = "sql_query",   args = { sql = "SELECT 1" } },
+  { label = "bi_render",  tool = "bi_render",   args = { dashboard = "commercial_daily" } },
+  { label = "bi_list",    tool = "bi_list",     args = {} },
+  { label = "bi_cached",  tool = "bi_cached",   args = { dashboard = "commercial_daily" } },
+  { label = "sched",      tool = "sched_state", args = {} },
+  { label = "sched_list", tool = "sched_list",  args = {} },
+  { label = "sched_logs", tool = "sched_logs",  args = {} },
+  { label = "fs",         tool = "fs_list",     args = { path = "." } },
+  { label = "git_log",    tool = "git_log",     args = { limit = 5 } },
+  { label = "git_diff",   tool = "git_diff",    args = {} },
+  { label = "docs",       tool = "docs_search", args = { query = "aov" } },
+  { label = "docs_list",  tool = "docs_list",   args = {} },
+  { label = "s3",         tool = "s3_list",     args = { bucket = "raw" }, covers = ["s3_get", "s3_put", "s3_delete"] },
+  # dbt_run and dbt_test cannot be probed read-only, so dbt_compile speaks for them
+  { label = "dbt",        tool = "dbt_compile", args = { selector = "fct_orders" }, covers = ["dbt_run", "dbt_test"] },
+]
+
+# Pass@1 criterion. A rollout passes iff every listed check passed AND the total
+# clears the floor. Chosen against the measured baseline profile:
+#   oracle 19 · dedupe_only 17 · checklist 17 · full_refresh 9 · no_op 0
+# D6 (secondary causes, 2 pts) is deliberately NOT required - an agent that
+# diagnoses and durably repairs the incident has solved the ticket whether or
+# not it also enumerated the two decoys. D4 is a penalty-only check, so
+# `passed` there means "did not damage fct_revenue".
+#
+# KNOWN PROPERTY, flagged rather than quietly patched: because D6 is excluded,
+# the `checklist` baseline clears this criterion. That agent diagnoses, repairs
+# and hardens correctly, then pads its report with six causes it never
+# evidenced; the rubric docks it 2 points and it still lands on 17. So this
+# criterion measures "did it fix the incident", NOT "did it report honestly".
+# Requiring D6 would fix that and would also fail an agent that solved the
+# incident without enumerating the two decoys, which is too strict. The choice
+# belongs to whoever owns the task, not to the harness - the harness just
+# reports what it was told to count.
+pass_requires_checks = ["D1", "D2", "D3", "D4", "D5a", "D5b", "D7"]
+pass_min_total = 17.0

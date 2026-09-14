@@ -78,13 +78,17 @@ existing_coverage: >
   repaired, so that the world contains zero evidence of it and the only detection route is reading
   code and predicting a future consequence. No archetype in the corpus requires that, and it is
   the specific capability a replay-and-hope agent lacks.
-attacks: []
+attacks:
+  - F624
+  - F626
 status: draft
+interaction_mechanism: repair_induces
 composed_of:
   - A027
   - A026
 derived_from:
   - S001
+  - S754
   - S009
   - S513
   - S701
@@ -122,3 +126,47 @@ notes: >
   ambiguity between replay duplicates and legitimate revisions.
   The brief's last two sentences plant the legitimate-revision constraint without naming either
   defect. They are the minimum needed to make the revision check fair rather than a gotcha.
+built_as: GT002-orders-flatline
+repair_note: >
+  BUILT 2026-09-13 by C2-GT002 as tasks/GT002-orders-flatline. TASK VALID: oracle 24/24, no_op 0,
+  single_defect_only 7, naive_dedupe 6, reset_earliest 2.05, full_refresh 12, checklist 21,
+  reference_copy 18 (high by design; container topology is the only defence). Two findings landed
+  during the build and both changed the design.
+
+  F624 - THE CENTRAL CLAIM WAS TOO STRONG, AND IS NOW NARROWED. why_hard asserts that defect B is
+  "causally unexpressible while A is live" and that "no amount of querying the warehouse reveals
+  it". The first build made that false: the redelivery was triggered by a partially-committed batch
+  at the stall boundary, and because topic offsets were ordered by event time, two read-only
+  queries an agent runs anyway while diagnosing the stall isolated the whole overlap. The world was
+  rebuilt so that offsets order by EMIT time while payloads carry EVENT time, the committed offset
+  is exactly consistent with what is loaded, and the redelivery comes from producer re-emission of
+  orders whose original log records have aged out of retention - so there is no duplicate in the
+  table, none in the topic, and no timestamp that contradicts another. Twelve probes
+  (tests/test_dormancy.py) now assert this on every build and block TASK VALID if any fires.
+
+  THE CLAIM THAT SURVIVES, AND IT IS WEAKER THAN THE ONE WRITTEN ABOVE. Defect B itself - the sink
+  has no merge key - genuinely has no data-side trace, and that part of why_hard holds. But a
+  conjunction of this shape REQUIRES a redelivery trigger, and a trigger is a fact about the world,
+  so some query can always find it. What is achievable, and what was achieved, is narrower:
+
+    NO QUERY AN AGENT WOULD RUN TO DIAGNOSE DEFECT A SURFACES THE TRIGGER.
+
+  Finding it takes decoding the pending payloads and joining them against the fact table - replay
+  diligence, not stall diagnosis. An agent who writes that query has done the reasoning the task
+  measures, and should find it. Anyone quoting A063's why_hard should quote this paragraph with it.
+
+  F626 - THE BRIEF PRE-ANNOUNCED A SCORED ANSWER. The closing sentence ("those corrections are real
+  and Finance needs them") is a genuine business constraint no query reveals, so it was kept; but
+  paying 4 of 24 points for acting on it was charging twice, since message conservation already
+  fails by exactly -1,100 when the revisions are collapsed. The revision check is now penalty-only
+  and the points moved to conservation and the idempotency probe.
+
+  ALSO ESTABLISHED, against the installed stack rather than assumed: a strict CAST over a
+  locale-mangled numeric aborts the whole INSERT and writes nothing (duckdb 1.5.5), which is what
+  makes "reads a batch, writes zero, exits zero" reproducible without a broker; and the
+  surface note in `notes` is confirmed - the log-and-offset state machine carries committed
+  offsets, lag, a retention horizon and replay-from-offset with no Kafka anywhere.
+
+  STATUS LEFT AT draft DELIBERATELY. The schema requires attack records from R1, R2 and R3 for
+  status: derived. A063 now carries two (F624, F626), both from R3 and both from the same reviewer.
+  Promoting it would be the F553 error - recording a disposition instead of doing the work.

@@ -1,0 +1,25 @@
+{
+  "platform": "asset_platform",
+  "note": "read-only mirror of the marketing data team's orchestrator",
+  "mirrored_at": "2026-03-13T08:55:00Z",
+  "assets": [
+    {
+      "asset": "channel_dim_refresh",
+      "target": "warehouse.dim_channel",
+      "schedule": "daily 05:00",
+      "last_success": "2026-03-07T05:00:00Z",
+      "last_attempt": "2026-03-13T05:00:00Z",
+      "status": "failed",
+      "error": "AuthError: service account key expired 2026-03-07",
+      "materialisation": "full replace of warehouse.dim_channel from the channel master export"
+    },
+    {
+      "asset": "marketing_spend_daily",
+      "target": "warehouse.fct_spend",
+      "schedule": "daily 05:30",
+      "last_success": "2026-03-13T05:30:00Z",
+      "last_attempt": "2026-03-13T05:30:00Z",
+      "status": "success"
+    }
+  ]
+}

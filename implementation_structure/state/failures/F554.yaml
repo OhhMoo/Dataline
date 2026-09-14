@@ -37,3 +37,25 @@ notes: >
   Recorded with deferred + deferred_reason rather than left silent, which is what G7 now requires
   of every ruling. This record is therefore also the first worked example of the convention it
   depends on.
+deferred: true
+deferred_reason: >
+  RE-DEFERRED 2026-09-13 by C2-GT002, with the exposure narrowed rather than closed, and stating
+  plainly what was and was not done.
+  NOT DONE: no source was found or added attesting that an orchestrator reported success while the
+  real failure occurred on a surface it does not observe. The literature work F554 asks for has not
+  been carried out. S009, S509, S510 and S513 remain usable_for [world_texture] only, and A027's
+  mechanism claim remains ungrounded.
+  WHAT GT002 DID INSTEAD, which changes the exposure but not the ruling: in GT002's world the
+  green-DAG behaviour is not asserted on any source's authority. It is a DOCUMENTED CONFIGURATION -
+  on_failure_policy ignore, stated in the workspace's own pipelines/README.md and in
+  /var/sched/state.json - that the agent can read, and whose consequence (a raised statement is
+  logged, the task still reports success) is reproduced mechanically by the world rather than
+  claimed about the world. The task therefore does not depend on green-DAG failures being common,
+  typical, or attested anywhere; it depends only on a setting existing and doing what it says.
+  CONSEQUENCE, and this must not be lost: GT002 must NOT be cited as evidence that the pattern is
+  common. task.toml carries that prohibition in provenance.open_reason and SEED_SPEC.md section 12
+  repeats it. A task demonstrating that a mechanism CAN be built is not evidence about its
+  frequency, and conflating the two is the F400/F450 failure one level up.
+  OWNER: still the R003 disposition pass. implementation_structure/roles/disposition/ exists and is
+  empty; someone has to be given it. If no attesting source exists, F554's own escalation clause
+  stands - A027 should be withdrawn rather than re-worded.

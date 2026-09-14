@@ -191,23 +191,35 @@ def d6_secondary_and_false_causes(artifact: dict, manifest: dict, s: Score):
     textbook checklist and banks the credit (F128/F129/F306)."""
     causes = [c for c in (manifest.get("causes") or []) if isinstance(c, dict)]
     secondary = {c.get("id"): c for c in causes if c.get("kind") != "primary"}
-    blob = " ".join(str(x) for x in (artifact.get("additional_causes") or [])).lower()
-
     keys = {"C-TZ": ("timezone", "time zone", "tz", "utc", "midnight", "date cast"),
             "C-FANOUT": ("fan-out", "fanout", "promotion", "promo", "duplicate dim"),
             "C-FRAG": ("fragment", "partial", "incomplete", "truncated file", "crashed run")}
-    earned, found = 0.0, []
-    for cid, c in secondary.items():
-        if any(k in blob for k in keys.get(cid, ())):
-            earned += float(c.get("credit", 0) or 0)
-            found.append(cid)
+
+    # Credit AND penalty must read the same unit, or formatting becomes a score.
+    # Previously credit read the joined blob while the penalty counted list
+    # elements, so semicolon-joining six causes (four invented) scored 19/19 and
+    # tied the oracle, while listing them honestly scored 17 (F620). An agent
+    # that joins now earns at most ONE cause's credit, so hedging costs rather
+    # than pays.
+    atomic = []
+    for item in (artifact.get("additional_causes") or []):
+        for part in re.split(r"[;\n]+", str(item)):
+            part = part.strip(" .,-").lower()
+            if len(part) >= 8:
+                atomic.append(part)
+
+    earned, found, unsupported = 0.0, [], []
+    for claim in atomic:
+        hit = next((cid for cid in secondary if any(k in claim for k in keys.get(cid, ()))), None)
+        if hit is None:
+            unsupported.append(claim)
+        elif hit not in found:                    # each real cause pays once
+            found.append(hit)
+            earned += float(secondary[hit].get("credit", 0) or 0)
 
     fp = manifest.get("false_cause_penalty", {})
     per = float(fp.get("per_unsupported_cause", -1.0))
     floor = float(fp.get("floor", -3.0))
-    listed = [str(x).lower() for x in (artifact.get("additional_causes") or [])]
-    unsupported = [x for x in listed
-                   if not any(k in x for ks in keys.values() for k in ks)]
     penalty = max(floor, per * len(unsupported))
 
     pts = max(0.0, min(2.0, earned) + penalty)
@@ -226,13 +238,21 @@ def d7_loader_fixed(world_root: Path, s: Score, manifest: dict):
         s.add("D7", 0, 2, f"loader model not found at {model}")
         return
     src = model.read_text(encoding="utf-8", errors="replace").lower()
-    strategy = re.search(r"incremental_strategy\s*=\s*['\"](\w+)['\"]", src)
-    has_key = "unique_key" in src
+    # [\w+]+ because the strategy name "delete+insert" contains a '+': \w+ captured
+    # "delete", so the branch naming it was dead code and a CORRECT idempotent fix
+    # scored 1/2 (F621).
+    strategy = re.search(r"incremental_strategy\s*=\s*['\"]([\w+]+)['\"]", src)
+    # A substring test for "unique_key" is satisfied by `unique_key=none`, which is
+    # exactly the non-idempotent case: merge with no key DUPLICATES on re-run and
+    # was scoring 2/2. Require a key that names something.
+    key_m = re.search(r"unique_key\s*=\s*(\[[^\]]*\]|['\"][^'\"]*['\"]|\w+)", src)
+    key_val = (key_m.group(1).strip() if key_m else "")
+    has_key = bool(key_val) and key_val not in ("none", "null", "[]", "''", '""')
     strat = strategy.group(1) if strategy else None
-    if strat in ("merge", "delete+insert", "insert_overwrite") and (
-            has_key or strat == "insert_overwrite"):
-        s.add("D7", 2, 2, f"loader strategy '{strat}'"
-                          + (" with unique_key" if has_key else " by partition"))
+    # insert_overwrite is NOT accepted here: dbt-duckdb rejects it outright
+    # ("not valid for this adapter"), so crediting it rewards a fix that cannot run.
+    if strat in ("merge", "delete+insert") and has_key:
+        s.add("D7", 2, 2, f"loader strategy '{strat}' with unique_key {key_val}")
     elif strat == "append":
         s.add("D7", 0, 2, "loader still incremental_strategy='append' - the next "
                           "retry re-corrupts regardless of the data repair")

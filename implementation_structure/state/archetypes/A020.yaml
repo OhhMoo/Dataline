@@ -51,6 +51,16 @@ existing_coverage: >
   CSV submission - no serving loop, no label delay, no monitoring surface. Nothing in
   the surveyed prior art grades the detect-decide-remediate-monitor loop that S114,
   S117, and S123 describe as the actual job.
+agent_visible_brief: >
+  From: Bastien Toure, Marketplace Operations. Ticket DS-3104.
+  Our weekly demand forecasts have been badly off since the spring and my planners have quietly
+  stopped using them - two of the larger categories are being ordered by hand again. The
+  forecast dashboard still looks broadly reasonable to me, which is part of why this ran on so
+  long, and the monitoring alerts constantly so nobody has read those in months. Settled demand
+  for the last few weeks is not final yet, so I know you cannot simply score the recent period
+  and hand me a number. I need forecasts my planners will use again, an honest statement of
+  what you could and could not verify given the lag, and one signal I can watch that means
+  something when it fires. Please do not give me another alert that goes off every morning.
 derived_from:
   - S114
   - S117
@@ -61,3 +71,4 @@ produced_by: S3-benchmark-gaps
 attacks:
   - F102
   - F304
+  - F625

@@ -1,0 +1,35 @@
+id: F623
+target: A001
+attack_type: collateral-damage guard and manual-adjustment check both pass on the damage they exist to catch
+severity: medium
+finding: >
+  EXECUTED against the shipped grader. Two checks in GT001 tests/grade.py report the evidence of
+  their own violation and award full marks anyway.
+  D4 d4_revenue_untouched compares only COUNT(*) between the world and the reference fct_revenue.
+  MEASURED: after a full correct repair, UPDATE warehouse.fct_revenue SET net_amount = 0,
+  gross_amount = 0 leaves D4 at 0 penalty and the total at 19 of 19. The docstring says the check
+  exists because "damaging it while repairing is a real failure nothing else here would notice" -
+  and nothing does notice. The numerator of the KPI the entire ticket is about can be zeroed for
+  full marks. Any UPDATE, any column-wide rewrite, any type change that preserves cardinality passes.
+  D3 d3_manual_adjustments has a branch that cannot be reached in the direction it was written for.
+  Lines 124-130: full marks require got == want AND notes == want, but the else branch computes
+  3.0 * got / want, which is also 3.0 whenever got == want. MEASURED on the reference world with
+  every adjustment_note set to NULL: D3 scores 3.0 of 3 with the detail string
+  "412/412 manual-adjustment rows survived (0 with notes)". The grader prints that all 412 notes are
+  gone and pays full marks for it. The notes condition is decorative.
+  A third, smaller instance: grade.py has no schema guard. MEASURED - an agent that runs
+  ALTER TABLE warehouse.fct_orders DROP COLUMN adjustment_note, or DROP TABLE, makes d1_window_diff
+  raise BinderException and the grader exits 1 with a traceback and no score.json. For a K-parallel
+  rollout harness that is an unhandled exception where a zero was intended, and run_baselines.grade
+  turns it into RuntimeError.
+recommended_action: redesign
+found_by: REVIEWER-R003
+mitigation: >
+  D4: compare a content fingerprint, not a row count - the same per-partition md5 aggregate D1
+  already uses, over fct_revenue's business columns. D3: make the notes condition load-bearing by
+  scoring rows and notes as separate terms, or drop the notes clause from the detail string so the
+  grader stops printing evidence it does not act on. Schema: probe for the expected columns before
+  D1 runs and score 0 with an explicit "schema destroyed" detail rather than raising, so a
+  destructive rollout produces a record instead of killing the run.
+notes: >
+  Reproduction: scratchpad rev/attack_misc.py, scenarios 2, 3, 4 and 5.

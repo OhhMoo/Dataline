@@ -53,6 +53,16 @@ failure_modes_expected:
 existing_coverage: >
   Terminal-bench family has single-host debugging; orchestrator-as-messenger triage
   across three systems with a misleading doc surface is not covered in cited prior art.
+agent_visible_brief: >
+  From: Bex Hartnell, Data Platform. Ticket OPS-3310.
+  The nightly analytics DAG has been half red for four days. Different tasks fail on different
+  nights, a couple have been retrying all week, and the run has not finished cleanly since
+  Saturday. People downstream are asking why their tables are stale and all I have for them is
+  a screenshot of red squares. I have been restarting the failed tasks each morning, which
+  sometimes gets them through and sometimes does not, and we are still here four days later.
+  Please work out what is behind this, fix it properly, and leave the
+  schedule so that a bad night pages someone with something useful. There are old runbooks in
+  the wiki and a stack of tickets from the last time we had a week like this.
 derived_from:
   - S008
   - S009

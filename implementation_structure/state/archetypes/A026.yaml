@@ -49,6 +49,16 @@ failure_modes_expected:
 existing_coverage: >
   Backfill-repair tasks exist in DE benchmark drafts; the idempotency probe (grade the
   agent's own re-run) is the differentiating deterministic check here.
+agent_visible_brief: >
+  From: Kofi Anaman, Group Finance. Ticket DATA-3140.
+  The revenue figures we take out of the warehouse for management reporting are too high for
+  part of the summer. We only caught it because a regional total came out larger than that
+  region's entire budget. I am told there was a small fix deployed to that job around the same
+  time, if that is any use to you. Everything since looks normal to us and nothing has been
+  raised by the pipeline. I need the table corrected, and I need to be able to state exactly
+  which days were affected, because anything already reported in that period may have to be
+  restated and the auditors will want the list. Please also make sure the repair itself is
+  something we could safely run again if we have to.
 derived_from:
   - S001
   - S003
@@ -57,6 +67,8 @@ derived_from:
 produced_by: S4-tool-docs
 attacks:
   - F121
+  - F601
+  - F625
 notes: >
   Initial condition generator: duplicate exactly one calendar month plus two stray
   days to punish range-based deletion.

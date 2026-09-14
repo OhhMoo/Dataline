@@ -53,6 +53,16 @@ existing_coverage: >
   Data-quality-monitoring tasks exist in prior art as pass/fail rule authoring; none we
   found make the quality gate itself the planted defect or combine silent loss with
   semantic drift in one trace. Closest flavor is ade-bench setup corruption.
+agent_visible_brief: >
+  From: Marguerite Bissett, Payments Operations. Ticket DATA-1755.
+  Our transaction counts do not match what the processor settles. We are consistently short,
+  it is not a fixed number of transactions, and it has been that way for a while - I went back
+  and the two lines sat on top of each other in the spring. Nothing has changed on my side. I
+  am told the pipeline has been green throughout, which is not as reassuring as the person who
+  told me seemed to think. Please find out where the difference is coming from, correct the
+  tables and whatever reporting has been built on them, and tell me which weeks I need to
+  restate for the board. If it turns out we genuinely are settling fewer transactions than we
+  think, I need to know that too, with evidence.
 derived_from:
   - S756
   - S002
@@ -65,6 +75,7 @@ attacks:
   - F503
   - F513
   - F514
+  - F625
 notes: >
   S005 supplies the core mechanism (12% of legitimate transactions filtered over three
   weeks, green throughout); S002 the semantic-drift leg; S003 the monitoring asymmetry

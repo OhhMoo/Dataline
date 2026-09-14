@@ -1,0 +1,71 @@
+id: F626
+target: A063
+attack_type: brief pre-announces the disambiguator the trap depends on - F625 pattern in a task under construction
+severity: medium
+finding: >
+  A063's agent_visible_brief closes with: "One thing worth knowing - the orders producer was rolled
+  back and re-deployed on the 8th, so some orders around that date may have been sent more than once
+  with corrections. Those corrections are real and Finance needs them."
+  A063's why_hard says the unrecoverable-in-place failure is that "among the records in that window
+  are 1,100 orders the producer genuinely re-emitted with the same order_id and an incremented
+  revision. A blanket de-duplication on order_id after the fact destroys those revisions and cannot
+  distinguish them from replay duplicates." The grading section makes this scored: "all 1,100
+  legitimate revisions present and distinct".
+  The brief states the inverse of that failure mode, before the agent has looked at anything. An
+  agent told up front that some orders were sent more than once with corrections, and that the
+  corrections are real and wanted, will not blanket-dedupe on order_id. The single most valuable
+  piece of information in the task is handed over in the ticket.
+  Apply the F625 test. Q1 provenance: partly world-knowable - the revision column exists and the
+  140 pre-gap corrections are already loaded, so an agent that looks can learn revisions are a real
+  thing; but the in-gap corrections are by construction not yet in the warehouse, so the specific
+  hazard is not establishable before repair. Q2: "Finance needs the corrections" is a genuine
+  constraint - no query reveals that Finance wants revision history preserved rather than collapsed,
+  and withholding it would grade the agent on guessing a business rule. Q3: a deterministic check
+  pays for it. Constraint plus a check that pays is the exact combination F625 says must not stand.
+  The brief is also generous about the window - "flatlined some time around the 9th", "the missing
+  four days" - which gives away both the boundary and the count of affected days. For defect A that
+  is the symptom and legitimate; combined with "rolled back on the 8th" it hands over precisely the
+  overlap region the archetype says is the hard part.
+recommended_action: annotate
+found_by: REVIEWER-R003
+mitigation: >
+  Resolve it the way F625 prescribes rather than by deleting the sentence, because the constraint is
+  real. Options in preference order. One, keep the sentence and stop scoring the revisions as a
+  separate axis - fold them into the message-conservation check, which the agent must satisfy
+  anyway and which the sentence does not tell it how to satisfy. Two, weaken the sentence to the
+  constraint without the warning: "Finance treats corrections to an order as part of the record, not
+  as duplicates" states the business rule and leaves the agent to discover that any exist. Three,
+  move the fact into the world - a wiki page or a ticket comment the agent must find - so it becomes
+  world_knowable under Q1 rather than handed over. Whichever is chosen, record it in
+  brief_constraints so GT003 does not re-derive the judgement.
+notes: >
+  Raised while GT002 is mid-build: the fixture world and generator exist, instruction.md does not.
+  The brief is the legal generator input under contract 9.2.3, so this lands before the instruction
+  is written rather than after.
+executed_by: C2-GT002
+executed_on: "2026-09-13"
+resolution_note: >
+  EXECUTED, option one. The brief sentence was KEPT - F626's own Q2 establishes that "Finance needs
+  the corrections" is a genuine business constraint that no query reveals, and withholding it would
+  grade the agent on guessing a business rule - and the check it enables was converted from a
+  4-point scored axis to a PENALTY-ONLY guard (max 0, down to -4). The four points went to the two
+  checks that cannot be passed without handling both defects: message conservation 6 -> 8 and the
+  idempotency probe 4 -> 6.
+  F626's reasoning is correct and worth restating: message conservation already fails by exactly
+  -1,100 when the revisions are collapsed, so the behaviour was being graded twice, and the second
+  payment was for acting on information the ticket hands over in its last sentence. The guard
+  remains because it names the failure precisely in the score report ("1,100 destroyed, almost
+  certainly by a de-duplication on order_id alone"), which a conservation delta does not.
+  Measured effect: naive_dedupe 6.0/24, single_defect_only 7.0/24, oracle 24.0/24.
+  The guard is gated on the gap having actually been replayed, so an agent that did nothing is not
+  charged for the absence of rows it was never given - a penalty must fire for destroying
+  something, never for failing to create it.
+  ON THE WINDOW. F626 also flags the brief as generous about the boundary ("around the 9th", "the
+  missing four days"). Kept verbatim: it is the frozen agent_visible_brief, which contract 9.2.3
+  makes the only legal generator input. It is defensible on F626's own Q1 - both the flatline date
+  and its length are derivable from fct_orders and from the scheduler history in one query each.
+  What is NOT stated, and not derivable from the dates, is the offset boundary, which is what a
+  replay actually needs: the poll window is 2,000 offsets wide and the committed offset sits 1,713
+  records before the first bad record, so "the 9th" does not locate it.
+  Both dispositions are recorded in tests/manifest.yaml under brief_constraints, as F626 requires,
+  so GT003 does not re-derive the judgement.

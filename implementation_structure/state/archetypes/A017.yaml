@@ -49,6 +49,16 @@ existing_coverage: >
   ingestion connector surface exists to drift. ade-bench (S304) seeds DuckDB directly.
   DataAgentBench (S315) is read-only querying. No existing benchmark simulates a live
   connector losing rows mid-stream.
+agent_visible_brief: >
+  From: Idris Vaughan, Customer Marketing. Ticket DATA-1330.
+  The signups figure on the growth dashboard has looked light to me for a couple of weeks. I
+  compared it against what the app team reports for the same weeks and ours is lower - not
+  dramatically, but consistently, and it did not used to be. The data team tell me nothing has
+  failed and the dashboard definition has not changed, which I believe, and the number is still
+  wrong. We present growth to the exec team at the end of the month and I would rather not
+  stand up with something I have already been told to doubt. Please find out why our figure is
+  short, get the history right, and put something in place that would flag this next time
+  before I am the one who notices.
 derived_from:
   - S022
   - S002
@@ -58,6 +68,8 @@ produced_by: S3-benchmark-gaps
 attacks:
   - F506
   - F513
+  - F600
+  - F601
 status: redesign_required
 repair_note: >
   RE-GROUNDED 2026-09-13 (D2, R002 evidence repair). This archetype needed the lightest touch of

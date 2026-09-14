@@ -1,0 +1,40 @@
+id: F620
+target: A001
+also_applies_to:
+  - A033
+attack_type: false-cause penalty evaded by concatenation - F128/F306 recurrence
+severity: high
+finding: >
+  EXECUTED against the shipped grader. GT001 tests/grade.py d6_secondary_and_false_causes counts
+  UNSUPPORTED CAUSES BY LIST ENTRY, not by claim. Line 208-211 builds `listed` from
+  artifact["additional_causes"] and marks an entry unsupported only if NO manifest keyword appears
+  anywhere in that entry. Credit, by contrast, is computed at line 194 from `blob`, the whole list
+  joined into one string. So one string containing one real keyword earns every matching credit and
+  incurs zero penalty.
+  MEASURED, three runs each, deterministic. Taking the checklist baseline's own six causes
+  (two real, four invented - late-arriving data, schema drift, clock skew, network partition) and
+  writing them as SIX list entries scores D6 0.0 and total 17.0. Writing THE SAME SIX CLAIMS as ONE
+  semicolon-joined entry scores D6 2.0 and total 19.0, equal to the oracle. A pure hedge with no
+  investigation at all - additional_causes = ["possible contributing factors: timezone/date-cast
+  handling in staging, promotion dimension fan-out, and partial/incomplete file fragments"] - also
+  scores D6 2.0 and total 19.0. Honest reporting of no secondary findings (empty list) scores D6 0.0
+  and total 17.0, so the grader pays MORE for unevidenced hedging than for honesty, inverting both
+  the manifest note and instruction.md's promise that unconfirmed possibilities "will count against
+  you".
+  This reopens exactly the hole F128 and F306 closed. task.toml declares the validity gate
+  "checklist - < oracle (false-cause penalty bites)"; run_baselines.py asserts it; the assertion
+  passes only because agent_checklist happens to use six list entries. A subject that writes one
+  sentence defeats it. The measured TASK VALID verdict therefore certifies a discriminator that does
+  not discriminate.
+recommended_action: redesign
+found_by: REVIEWER-R003
+mitigation: >
+  Score claims, not list entries. Split every additional_causes entry on sentence and clause
+  boundaries before counting, or - better - require each entry to carry its own evidence reference
+  and penalise per unmatched claim rather than per unmatched element. Either way the credit side and
+  the penalty side must operate on the same unit; today credit uses the joined blob and the penalty
+  uses the list, and that asymmetry IS the exploit. Re-run the baselines with a concatenated
+  checklist added as a seventh adversarial agent so the regression cannot return silently.
+notes: >
+  Reproduction script: scratchpad rev/attack_d6.py. Five scenarios, run against the shipped
+  grade.py and the shipped solution.sh, fixture seed 1337.

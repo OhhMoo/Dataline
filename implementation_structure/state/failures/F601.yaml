@@ -1,0 +1,69 @@
+id: F601
+target: A026
+also_applies_to:
+  - A001
+  - A009
+  - A002
+  - A010
+  - A017
+  - A025
+attack_type: archetypes that are distinct on the author side collapse into the same ticket on the agent side - the brief is the task, and these briefs are the same task
+severity: medium
+finding: >
+  Writing all 26 briefs in one pass made something visible that no gate catches and that
+  reading the archetypes one at a time cannot show. G3 dedups on title similarity and on
+  the discipline+apps+rubric_points signature; on 2026-09-13 it reports exactly one
+  structural duplicate in the whole corpus (A040 vs A050) and no near-duplicate titles.
+  But the agent never sees a title, a discipline or an apps list. It sees the brief, and
+  what it then experiences is the investigation that brief sets off. Read as tasks rather
+  than as documents, these collapse into five shapes - and they collapse semantically, not
+  lexically, which is why nothing mechanical has ever flagged them. See the measurement in
+  the mitigation: brief-to-brief string similarity is LOWER than title-to-title.
+  Cluster one - "a month of revenue is overstated, nobody noticed because everything is
+  green, fix it without destroying the manual adjustments and make the repair rerunnable":
+  A001, A009, A026. A026 is close to a strict subset of A001. A001 adds partial-load debris
+  from a crashed run; A009 adds stale-schema rows from a materialisation change, and A009's
+  own repair_note records that leg as unsourced after S023 was demoted and says it should be
+  dropped if no source is found. Drop it and A009 collapses onto A001 too. There is
+  precedent for exactly this call: A014 was withdrawn on 2026-09-12 as a strict subset of
+  A006.
+  Cluster two - "an upstream change silently corrupted or lost data, every run was green,
+  trace it and repair the window": A002, A010, A017, A025. A010 and A017 are both connector
+  row loss against the same source issue (S022). A002 and A025 are both positional-INSERT
+  column shift against the same issues (S013/S014). A010 is the two stapled together. All
+  four briefs reduce to "the warehouse copy stopped agreeing with the source and nothing
+  failed".
+  Three further clusters exist but I am not scoping the attack to them, because the merge
+  call is less clear and belongs to whoever owns disposition: "two reporting surfaces
+  disagree, tell me which is right" (A006, A021, A029, and R002's A062); "the orchestrator
+  says X, the cause is somewhere else" (A011, A018, A027, and R002's A063); "a model has
+  quietly stopped being useful, labels lag, alerts are noise" (A013, A020, and R002's A064).
+  Fifteen of the 26 sit in one of these five shapes.
+  Why this matters beyond tidiness: the corpus headline is a count of archetypes, and §8
+  already warns against quoting counts that include unshippable work. A count that treats
+  A001, A009 and A026 as three deliverables overstates by two, because a model that solves
+  one has solved the shape of all three. The difficulty thesis rests on conjunction, not on
+  repetition of the same conjunction.
+recommended_action: annotate
+found_by: C2-briefs
+mitigation: >
+  Before any of these is authored as a task: (1) decide explicitly whether A026 is retained
+  or withdrawn as a subset of A001, using the A014 precedent, and record the decision on
+  both records; (2) resolve A009's unsourced materialisation-change leg one way or the
+  other, since that leg is the only thing distinguishing it from A001; (3) keep at most one
+  of A010/A017 and at most one of A002/A025, or state in writing what a solver of one would
+  still have to discover in the other. Build at most one task per cluster in the first
+  batch - shipping two tasks with the same ticket measures the same capability twice and
+  reports it as coverage.
+  Gate-side: do NOT try to close this with a string metric, and specifically do not extend
+  G3's matcher to agent_visible_brief. I measured that before recommending it and it does
+  not work. Using G3's own difflib.SequenceMatcher ratio on 2026-09-13: A001 vs A026 scores
+  0.51 on title and 0.06 on brief; A001 vs A009 scores 0.76 on title and 0.02 on brief;
+  A010 vs A017 scores 0.27 on title and 0.05 on brief. Brief similarity is LOWER than title
+  similarity across every cluster, because the briefs deliberately differ in voice, name,
+  department, domain and phrasing - that variation is a requirement of the brief, not a
+  defect in it. The duplication here is in investigative shape (what the agent must
+  discover, in what order, against which surfaces), and no lexical metric reaches it. This
+  is a human disposition call, or at best a check on the manifest of planted defects once
+  tasks exist. Recording the negative result so the next round does not spend a day
+  rediscovering it.

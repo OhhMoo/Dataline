@@ -50,6 +50,16 @@ failure_modes_expected:
 existing_coverage: >
   Terminal-bench-style corpora have Kafka exercises but not a green-orchestrator /
   stalled-consumer composition with a live decoy; thin in data-eng benchmarks.
+agent_visible_brief: >
+  From: Marta Ivaskeviciute, Payments Data. Ticket DATA-4980.
+  The settlement events table stopped gaining rows three days ago. I have been through the
+  schedule twice and every task has succeeded on every run since - green all the way down,
+  clean logs, nothing in the failure channel. The table itself looks healthy, it is simply not
+  growing, and the daily settlement report has been quietly showing three zero days as though
+  that were normal. We reconcile with the processor on Friday. Please find out where the events
+  are actually stopping, get those days in without duplicating anything we already hold, and
+  leave something behind that would have told us on day one. Anything that cannot be loaded
+  needs to be kept somewhere we can inspect it rather than discarded.
 derived_from:
   - S009
   - S509
@@ -59,6 +69,7 @@ produced_by: S4-tool-docs
 attacks:
   - F554
   - F125
+  - F625
 notes: >
   DE-6 adjacency noted: this borrows the stalled-consumer mechanic from the thin DE-6
   evidence cluster but grounds the workflow in orchestrator/streaming docs (S509-S513),

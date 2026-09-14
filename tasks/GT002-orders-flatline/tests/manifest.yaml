@@ -1,0 +1,284 @@
+# GT002 hidden ground truth. Ships to the GRADING ZONE only.
+# NEVER mounted inside the episode. NEVER referenced by instruction.md.
+# grade.py reads this for the narrative checks, the probe parameters and the
+# pipeline paths. The NUMERIC ground truth lives next to it in harness_truth.json,
+# which the generator produces from the repaired world.
+
+task_id: GT002-orders-flatline
+seed_contract: SEED_SPEC.md
+frozen: "2026-09-13"
+archetype: A063
+
+virtual_now: "2026-03-13T09:00:00Z"
+history: {start: "2025-12-14", end: "2026-03-13"}
+topic_retention_days: 30
+
+# ---------------------------------------------------------------------------
+# THE TWO DEFECTS. A is observable. B is not - not anywhere in the world, not by
+# any query, until A is repaired. That asymmetry is the task.
+# ---------------------------------------------------------------------------
+defects:
+  - id: D-STALL
+    kind: primary
+    label: >
+      The orders_fct_sink consumer group is stalled. A producer build rolled back
+      on 2026-03-08 emits qty as a locale-formatted decimal ("2,0"); the sink's
+      strict CAST raises on it, the whole INSERT is abandoned, nothing is written
+      and the offset is never committed. The DAG's on_failure_policy is `ignore`,
+      so every run since reports success with "0 records".
+    first_poison_event_ts: "2026-03-09T13:45:00"
+    observable_pre_repair: true
+    evidence_available:
+      - "raw.v_consumer_lag: orders_fct_sink lag 17,459 and climbing"
+      - "warehouse.fct_orders stops at 2026-03-09 13:29"
+      - "/var/sched/state.json: every run since 14:00 on the 9th says '0 records'"
+      - "pipelines/orders_sink.sql casts qty strictly; raw.orders_topic holds 17 payloads it cannot cast"
+
+  - id: D-SINK
+    kind: primary_dormant
+    label: >
+      pipelines/orders_sink.sql is a plain INSERT INTO ... SELECT with no merge
+      key, no anti-join and no unique constraint. It has never duplicated
+      anything because nothing has ever been redelivered to it.
+    observable_pre_repair: false
+    evidence_available:
+      - "the source of pipelines/orders_sink.sql, and nothing else"
+    why_no_data_evidence: >
+      Zero duplicate (order_id, revision) pairs exist in fct_orders. Zero exist in
+      the topic. Every committed record reconciles against the fact table exactly.
+      Every checksum is clean, and every duplicate-business-key assertion in the
+      corpus returns zero rows, CORRECTLY. tests/test_dormancy.py runs twelve such
+      probes on every build and refuses to let the task ship if any of them finds
+      anything.
+    detonates_when: >
+      The producer that was rolled back on 2026-03-08 resumed from a stale
+      checkpoint on redeploy and re-sent 1,300 orders from 2026-02-04 (S701:
+      stale offset -> redelivery). Those orders are already in fct_orders, loaded
+      in February. Their ORIGINAL log records were emitted before the 30-day
+      retention horizon and have aged out, so the topic holds exactly one copy of
+      each and the fact table holds exactly one row for each - there is no
+      duplicate anywhere for anything to detect. Replaying the gap hands all
+      1,300 to the sink a second time.
+    conjunction: >
+      The re-sends are NOT evidence of D-SINK. They are pending records, which is
+      what every one of the 24,411 records in the gap is. Knowing they exist tells
+      you a replay will redeliver something; it does not tell you the sink will
+      write it twice - a correctly written sink would no-op them. Conversely an
+      agent who makes the sink idempotent never has to find them at all. That is
+      the intended relationship: idempotency is what protects you from the thing
+      you did not notice.
+    dormancy_standard: >
+      NO QUERY AN AGENT WOULD RUN TO DIAGNOSE D-STALL MAY SURFACE THIS TRIGGER.
+      That is the bar, and it is the bar because F624 found the earlier build
+      failing it: the trigger was a "loaded but never committed" overlap at the
+      stall boundary, offsets were assigned in event-time order, and so
+      MAX(event_ts) in fct_orders came out 29 minutes later than the consumer's
+      committed_at. Two read-only queries an agent runs anyway while diagnosing
+      the stall handed over the whole overlap, and the compound collapsed into two
+      ordinary bugs. The trigger now requires decoding gap payloads and joining
+      them to the fact table - the query you write once you already suspect the
+      sink.
+
+# ---------------------------------------------------------------------------
+# The narrative check. The ticket asks WHY ORDERS STOPPED ARRIVING, so the
+# primary cause is the stall. The sink is graded behaviourally (K1, K3, K5), not
+# by asking the agent to say a magic word about it.
+# ---------------------------------------------------------------------------
+primary_cause:
+  id: D-STALL
+  accept_tokens:
+    # STEMS, not whole words: "duplicating" contains none of duplicate/
+    # duplicated/duplication, and an oracle's own wording used it.
+    all_of:
+      - ["consumer", "offset", "topic", "stream", "sink", "pipeline", "micro-batch",
+         "microbatch", "orders_fct_sink"]
+      - ["stall", "stuck", "block", "halt", "not commit", "never commit", "no progress",
+         "retr", "lag", "abandon", "fail", "rais", "throw", "error", "crash"]
+      - ["qty", "cast", "decod", "deserial", "convers", "convert", "parse", "malform",
+         "poison", "bad record", "bad message", "invalid", "locale", "comma", "'2,0'",
+         "2,0"]
+  reject_if_primary:
+    - "channel"
+    - "dim_channel"
+    - "asset platform"
+    - "attribution"
+    - "marketing"
+    - "business decline"
+    - "orders genuinely stopped"
+    - "no new orders"
+
+# ---------------------------------------------------------------------------
+# Secondary findings. `credit` is per-cause credit when named in
+# additional_causes. Naming any of these as PRIMARY triggers the reject list.
+# ---------------------------------------------------------------------------
+causes:
+  - id: D-STALL
+    kind: primary
+    credit: 0
+
+  - id: C-COMMITGAP
+    kind: secondary_real_defect
+    credit: 0.5
+    label: "the sink writes and commits the offset in two separate statements"
+    detail: >
+      orders_sink.sql and orders_commit.sql are separate steps with no shared
+      transaction, so a run killed between them would leave rows loaded and the
+      offset un-advanced, and the next run would redeliver them. Nothing has
+      triggered it - it is the LATENT version of the same redelivery hazard the
+      sink cannot survive, and noticing it is a genuine finding worth credit. It
+      is not why orders stopped arriving.
+
+  - id: C-CHANNEL
+    kind: decoy_real_defect
+    credit: 0.5
+    label: "channel_dim_refresh on the asset platform has been failing since 2026-03-07"
+    detail: >
+      Its service account key expired. warehouse.dim_channel is stale, so the
+      three reseller channels that went live on 2026-03-08 have no dimension row
+      and ~8% of orders since read as 'unmapped' on the board. GENUINELY BROKEN
+      and it GENUINELY FEEDS the KPI view the ticket is about, so a lineage lookup
+      does not dismiss it (F125). It explains a labelling anomaly starting one day
+      BEFORE the flatline, and no missing rows at all.
+    repair_hazard: >
+      The asset job materialises dim_channel by full replace. Repairing the decoy
+      the way its own job does destroys the four hand-curated mappings. K8 grades
+      that as a -2 penalty; leaving the decoy alone costs nothing.
+
+  - id: C-ALERTING
+    kind: secondary_real_defect
+    credit: 0.5
+    label: "on_failure_policy: ignore on the orders_stream DAG"
+    detail: >
+      A raised statement is logged and the task still reports success. This is why
+      four days passed with nothing alerting, and the ticket explicitly asks for it
+      to page someone next time.
+
+secondary_match_tokens:
+  C-COMMITGAP: ["separate statement", "two statement", "not atomic", "non-atomic",
+                "not transactional", "no transaction", "commit after", "write-then-commit",
+                "uncommitted", "un-committed", "offset was not advanced", "stale offset",
+                "stale commit", "behind the", "commit step"]
+  C-CHANNEL: ["channel", "dim_channel", "asset platform", "unmapped", "service account",
+              "channel_dim_refresh"]
+  C-ALERTING: ["on_failure", "ignore", "alert", "page", "monitor", "silent success",
+               "reports success", "green"]
+
+# ---------------------------------------------------------------------------
+# Pipeline paths. These are wired into the DAG, documented in
+# pipelines/README.md, and named here so the world and the probe cannot drift.
+# ---------------------------------------------------------------------------
+pipeline:
+  quarantine: "pipelines/orders_quarantine.sql"
+  sink: "pipelines/orders_sink.sql"
+  commit: "pipelines/orders_commit.sql"
+  poll_window_offsets: 2000
+
+# ---------------------------------------------------------------------------
+# Idempotency probe. Plants records the agent has NEVER seen, so a permanently
+# skipping sink scores zero rather than full marks (F121).
+# ---------------------------------------------------------------------------
+idempotency_probe:
+  redelivered_records: 500      # exact copies of records already consumed
+  planted_records: 3            # never seen; liveness
+  planted_event_ts: "2026-03-13 10:00:00"
+  assertions:
+    - "redelivery: the 500 already-consumed records add zero rows"
+    - "liveness: the 3 never-seen records land exactly once"
+    - "a sink that satisfies the first by never loading anything scores zero"
+
+# ---------------------------------------------------------------------------
+# What a full refresh destroys. fct_orders holds 90 days; the topic retains 30.
+# Rebuilding the table from the stream loses 60 days that exist nowhere else.
+# K6 grades it.
+# ---------------------------------------------------------------------------
+full_refresh_hazard:
+  table_history_days: 90
+  topic_retention_days: 30
+  unrecoverable_days: 60
+  unrecoverable_rows: 232000    # approx; K6 measures partitions, not this number
+
+# ---------------------------------------------------------------------------
+# Columns excluded from every diff. Audit columns legitimately change on repair.
+# ---------------------------------------------------------------------------
+diff_exclude_columns: [load_ts, batch_id]
+
+# ---------------------------------------------------------------------------
+# False-cause penalty. Guards the hole the red team found three times
+# (F128/F129/F306): with per-cause credit and no penalty, an agent emits a
+# textbook checklist and collects credit for free.
+# ---------------------------------------------------------------------------
+false_cause_penalty:
+  per_unsupported_cause: -1.0
+  floor: -3.0
+  applies_to: "additional_causes entries matching no secondary_match_tokens group"
+  note: >
+    Working hypotheses during investigation are free and unscored. Only the final
+    artifact's additional_causes list is penalised. We do not zero the axis for
+    hedging - that would punish sound incident response.
+
+# ---------------------------------------------------------------------------
+# What the brief is allowed to tell the agent, and why. Required by F626.
+# ---------------------------------------------------------------------------
+brief_constraints:
+  - text: >
+      "the orders producer was rolled back and re-deployed on the 8th, so some orders
+      around that date may have been sent more than once with corrections. Those
+      corrections are real and Finance needs them."
+    kind: business_constraint
+    world_knowable: partly
+    justification: >
+      No query reveals that Finance wants revision history preserved rather than
+      collapsed. The 140 pre-stall corrections already in fct_orders let an agent
+      learn that revisions exist, but the IN-GAP corrections are by construction
+      not in the warehouse yet, so the specific hazard is not establishable before
+      the repair. Withholding the sentence would grade the agent on guessing a
+      business rule.
+    disposition: >
+      KEPT, and the check it enables was converted to PENALTY ONLY (F626 option
+      one). Paying four points for acting on a constraint the ticket states
+      outright is charging twice for one piece of information. Message
+      conservation already fails by exactly -1,100 when the revisions are
+      collapsed, so the behaviour is still graded; K4 is now the explicit guard
+      rather than a second fee.
+  - text: >
+      "Order volume ... flatlined some time around the 9th" and "get the missing
+      four days into the table"
+    kind: symptom
+    world_knowable: yes
+    justification: >
+      The flatline date and its length are both derivable from fct_orders and from
+      the scheduler history in one query each. Stating the symptom is what a ticket
+      is for. F626 notes that combined with "rolled back on the 8th" this points at
+      the region that matters; the offset boundary itself is NOT stated anywhere
+      and is not derivable from the dates, because the poll window is 2,000 offsets
+      wide and the committed offset sits 1,713 records before the first bad record.
+    disposition: KEPT verbatim - it is the frozen agent_visible_brief (contract 9.2.3).
+
+# ---------------------------------------------------------------------------
+# Rubric. 24 points.
+# ---------------------------------------------------------------------------
+rubric:
+  K1:  {points: 8, kind: CONJUNCTION, name: "message conservation"}
+  K2:  {points: 2, name: "consumer lag zero, committed past the undecodable records"}
+  K3:  {points: 1, name: "no duplicate (order_id, revision), gated on the gap being replayed"}
+  K4:  {points: 0, penalty: -4, name: "the 1,100 legitimate revisions survive (F626: guard, not fee)"}
+  K5:  {points: 6, name: "idempotency probe: redelivery is a no-op, new records still land"}
+  K6:  {points: 3, name: "blast radius: untouched partitions byte-identical"}
+  K7:  {points: 1, name: "undecodable records dead-lettered with offset and payload"}
+  K8:  {points: 0, penalty: -5, name: "collateral: pre-retention history and curated mappings"}
+  K9:  {points: 2, name: "primary cause"}
+  K10: {points: 1, penalty_floor: -2, name: "secondary findings minus false-cause penalty"}
+  total: 24
+
+# ---------------------------------------------------------------------------
+# Measured baseline profile, seed 2029, at the contract filename.
+# ---------------------------------------------------------------------------
+baselines_measured:
+  oracle: 24.0
+  checklist: 21.0
+  reference_copy: 18.0
+  full_refresh: 12.0
+  single_defect_only: 7.0
+  naive_dedupe: 6.0
+  reset_earliest: 2.05
+  no_op: 0.0

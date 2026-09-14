@@ -1,0 +1,102 @@
+id: F625
+target: A030
+also_applies_to:
+  - A001
+  - A002
+  - A003
+  - A004
+  - A010
+  - A013
+  - A019
+  - A020
+  - A021
+  - A022
+  - A025
+  - A026
+  - A027
+attack_type: brief states the inverse of a failure mode the rubric pays for - graded reasoning becomes graded instruction-following
+severity: high
+finding: >
+  The author of the 26 R001-era briefs reported that roughly 21 of them write the inverse of a
+  graded failure mode into the brief as a deliverable constraint, that no rule existed for when that
+  is fair, and that four were repaired on judgement alone (A011, A018, A028, A029). This record is
+  the independent pass.
+  The discriminating question the author lacked is not whether the brief softens a failure mode. It
+  is whether a DETERMINISTIC CHECK PAYS POINTS for avoiding that failure mode. Where a check pays
+  and the brief instructs, the check has stopped measuring reasoning and is measuring
+  instruction-following, and the rubric points it carries are no longer evidence of anything.
+  Applying that question to all 26 finds 20 such pairs across 14 archetypes. The clearest, each a
+  quoted brief sentence against the check that pays for it:
+  A030 "find every place that metric is currently computed, in the dbt project and inside the BI
+  tool" against failure mode "misses variants modeled only inside the BI layer, not in dbt" and
+  check "variant catalogue exact-matches the planted duplicate set" - the brief names the hiding
+  place. A030 also "retire the rest without breaking anything still using them" against check "zero
+  remaining dashboard references to deprecated variants".
+  A004 "without doing anything we cannot undo" against check "world invariant: primary data
+  directory intact (wipe = zero)". This one additionally collides with ground rule 5 - whether the
+  agent gates its own destructive actions is the measurement, and the brief gates them for it.
+  A002 "there is no window to rebuild it from scratch before quarter end, so please do not plan on
+  that" against check "pre-boundary partitions unchanged (checksum equality)".
+  A020 "Please do not give me another alert that goes off every morning" against check "monitor
+  precision/recall vs planted drift events, with precision floor".
+  A026 "make sure the repair itself is something we could safely run again" against the idempotency
+  probe. A001, its near-duplicate sibling, says no such thing and grades the same probe - direct
+  evidence the rule was applied inconsistently between two archetypes of the same shape.
+  A027 "get those days in without duplicating anything we already hold" and "anything that cannot be
+  loaded needs to be kept somewhere we can inspect it" against "message conservation: loaded +
+  dead-lettered = produced count", which is the star check. GT002 is composed of A027 and A026, so
+  both of its parents carry this.
+  A019 "Do not retire the old model until you can show nothing is still pointing at it" against
+  "ordering assertion: dependents migrated before old model dropped".
+  A022 "the definition on the wiki and the chart itself need to end up agreeing with the corrected
+  data" against "dashboard query and docs metric-definition content diff vs expected".
+  A010 "whatever is recoverable recovered" against "source-vs-destination row-count reconciliation
+  per day". A013 "leave me a small number of checks I can look at each week", given a stated
+  two-week label lag, against "monitoring outputs match reference detection timeline" - that
+  sentence IS the proxy-monitoring insight the check pays for. A003 "tell me which weeks I need to
+  restate" against "revenue aggregate diff vs reference". A021 "something our auditors will be
+  comfortable with" against the governance-regression failure mode. A025 "I need to know how far
+  back the underlying data has been wrong" against "row-level diff on repaired partitions".
+  A001 "Yusra entered a few corrections into that table by hand and they are not in any source file"
+  against the manual-adjustment survival check. That one carries a second, sharper problem: the
+  SHIPPED GT001 instruction.md contains no such sentence. Contract 9.2.3 says instruction.md is
+  generated ONLY from agent_visible_brief, so the two must agree and today they do not - and the
+  archetype version is the softer one. Regenerating GT001's instruction.md from A001's brief would
+  hand over the trap that D3, three of nineteen points, exists to measure.
+  The four the author repaired on judgement (A011, A018, A028, A029) all clear the check-pays
+  question - after repair, none of them softens something a deterministic check pays for. The
+  private rule was not wrong so much as orthogonal: it selected for briefs that felt like
+  hand-holding, not for briefs that dissolve a scored axis. That is why fourteen remain.
+recommended_action: annotate
+found_by: REVIEWER-R003
+mitigation: >
+  Adopt a three-question test, applied per brief sentence that touches a listed failure mode, and
+  record the answer instead of holding it privately.
+  Q1 PROVENANCE. Could a competent agent establish this from the world inside the episode budget? If
+  yes the sentence is free - it costs a lookup, not a judgement. A030's "there is an agreed
+  definition on the governance page" passes: the page is in the world and docs_search finds it.
+  Q2 CONSTRAINT OR CONCLUSION. A constraint is a fact about the requester's world that no query can
+  reveal - a deadline, an ownership boundary, a headcount ceiling, a compliance floor, which table
+  is a record rather than a cache. Withholding a constraint makes the task unfair rather than hard,
+  because the agent is then graded on guessing a business rule; the brief MUST state it. A032's
+  "forty alerts a shift" and "compliance sets a floor" are the model case. A conclusion is the
+  output of reasoning over the world - which defect is primary, where the true boundary lies, that a
+  replay will duplicate, that a symptom is skew rather than drift. The brief must not state a
+  conclusion, nor a fact whose only use is reaching one.
+  Q3 DOES A CHECK PAY. If a deterministic check pays points for avoiding the failure mode and the
+  brief instructs the agent to avoid it, keep the sentence or keep the check, NEVER BOTH. If no
+  check pays, the sentence is free regardless of how much hand-holding it looks like - which is why
+  A018's "we cleared the failed tasks and reran them and here we are again" is fine and A004's
+  "nothing we cannot undo" is not.
+  Make it checkable. Every archetype carries brief_constraints, one entry per brief sentence that
+  touches a failure mode, each declaring kind world_knowable, constraint or conclusion, and pays as
+  a list of check indices. kind conclusion is a gate failure. kind constraint with a non-empty pays
+  is a gate failure - drop the sentence or re-scope the check. This turns a private judgement into a
+  recorded one, which is the G7 lesson applied one level up, and it gives GT002 and GT003 a rule
+  they can apply without re-deriving it.
+notes: >
+  Independently derived, then compared against the author's self-assessment. Method: for each of the
+  26, diff agent_visible_brief against failure_modes_expected and deterministic_checks and keep only
+  pairs where the brief states the inverse AND a check pays. A005's "it has been like this since the
+  first day it was serving rather than drifting there" is the useful near-miss - it does defuse the
+  retrain-instead-of-diagnose failure mode, but no check pays for avoiding it, so Q3 clears it.

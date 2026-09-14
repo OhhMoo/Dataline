@@ -1,0 +1,40 @@
+id: F600
+target: A017
+attack_type: graded axis cannot survive the existence of an agent_visible_brief - credit for "detection without being told" is unscorable once a ticket exists
+severity: medium
+finding: >
+  A017's rubric awards credit for "detection (did the agent find the loss without being
+  told)", and its why_hard rests on the claim that "nothing in the world is red" so the
+  signal exists only in cross-surface reconciliation. Writing the agent_visible_brief that
+  F513 requires makes that axis unscorable, and the conflict is structural rather than a
+  matter of how carefully the brief is worded. The brief is the ticket that starts the
+  episode; §9.2.3 makes instruction.md generatable only from it, and ground rule 2 makes it
+  the only text the agent sees. An episode therefore cannot begin unless some named person
+  states an observable that gives the agent a reason to look at anything at all. Every
+  honest observable this world can produce is a statement that a count is short - silent
+  destination row loss is the whole planted defect, and there is nothing else for a human
+  in this world to have noticed. So the brief either says a number looks low, in which case
+  the agent has been told, or it says nothing, in which case no instruction.md exists and
+  the task cannot ship. There is no third option.
+  I wrote the brief the first way, and deliberately withheld the second planted symptom -
+  the collapsed per-day created-date distribution - so that localisation and attribution
+  still have to be earned. That is the most the brief can preserve. The "without being told"
+  wording is now false and the rubric must stop claiming it.
+  This is not an argument against briefs. It is an archetype-level defect that the
+  corpus-wide absence of briefs had hidden: an axis was written that only a world with no
+  ticket could score, and no world has no ticket. A017 is not unique in kind - A003, A006,
+  A013 and A020 all lean on the agent noticing something unprompted - but it is the only
+  one that wrote the assumption into a graded axis in so many words, which is why it is the
+  one that can be attacked.
+recommended_action: redesign
+found_by: C2-briefs
+mitigation: >
+  Drop or rewrite A017's detection axis. The defensible successors survive a ticket that
+  says a number looks short: which surface is losing the rows, which days, how many, how
+  far the loss propagated, and whether the agent found the distribution collapse it was not
+  told about. Re-weight the freed points onto those. A017 is already
+  status=redesign_required on F506, so fold this in rather than opening a separate repair.
+  Corpus-wide corollary for anyone writing the remaining rubrics: no rubric axis may pay
+  for noticing that a problem exists, because the brief always states that a problem
+  exists. Credit belongs to what the agent establishes about it. The same test should be
+  applied to A003, A006, A013 and A020 before any of them is built.

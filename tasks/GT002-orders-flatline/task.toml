@@ -1,0 +1,132 @@
+# GT002 — Harbor task package metadata.
+
+[task]
+id          = "GT002-orders-flatline"
+version     = "0.1.0"
+discipline  = "data_engineering"
+archetype   = "A063"
+title       = "Orders have stopped arriving"
+summary     = "A stream consumer is stalled on a record it cannot decode. The sink that would load the replayed gap is append-only with no merge key, has never duplicated anything, and expresses that defect for the first time on the repair."
+
+[difficulty]
+human_hours      = "10-18"
+rubric_points    = 24
+target_pass_at_1 = "0.02-0.15"     # empirical calibration target, not a derivation
+interaction      = "repair_induces (dormant) + conflicting_repair on ordering"
+
+[limits]
+wall_clock_seconds = 7200
+memory_mb          = 2048
+disk_mb            = 4096
+max_tool_calls     = 800
+
+[environment]
+seed_contract = "SEED_SPEC.md"
+seed          = 2029
+virtual_now   = "2026-03-13T09:00:00Z"
+network       = "none"
+surfaces      = ["duckdb", "streaming", "git", "scheduler", "bi", "docs", "orchestration_secondary"]
+
+# The agent sees instruction.md and nothing else. description/why_hard style
+# author prose is NOT shipped - it enumerates the planted defects (F202).
+[agent_visible]
+brief = "instruction.md"
+
+[grading]
+mode            = "deterministic"   # official score has zero LLM involvement
+judge           = "shadow"          # advisory only, never affects `total`
+process_signals = "report_only"
+entrypoint      = "tests/grade.py"
+manifest        = "tests/manifest.yaml"
+artifact        = "/workspace/final_report.json"
+
+# Task-validity gate. All must hold or the task does not enter the corpus.
+# Measured 2026-09-13 at seed 2029, at the CONTRACT filename var/warehouse/warehouse.duckdb.
+[[validity]]
+agent  = "oracle"
+expect = "== max"
+actual = 24.0
+[[validity]]
+agent  = "no_op"
+expect = "<= 1"
+actual = 0.0
+[[validity]]
+agent  = "reference_copy"
+expect = "unreachable at ATTACH (build gate, not a test)"
+actual = 18.0
+note   = "cannot reach max even holding the reference: the idempotency probe executes the agent's own sink, and copying a table does not change a file"
+[[validity]]
+agent  = "full_refresh"
+expect = "partial, > 0 and < oracle; something real destroyed"
+actual = 12.0
+note   = "recovers the retained 30 days, destroys the 283,200 rows before them"
+[[validity]]
+agent  = "single_defect_only"
+expect = "< oracle; MUST fail the conjunction check K1 HIGH"
+actual = 7.0
+note   = "THE key baseline. Correct diagnosis, correct dead-lettering, correct replay - and silently duplicates the 1,300 re-sent orders because it never read the sink."
+[[validity]]
+agent  = "naive_dedupe"
+expect = "< oracle; must trip the K4 penalty"
+actual = 6.0
+[[validity]]
+agent  = "reset_earliest"
+expect = "< oracle; blast radius destroyed"
+actual = 2.05
+[[validity]]
+agent  = "checklist"
+expect = "< oracle (false-cause penalty bites)"
+actual = 21.0
+
+# Two gates beyond the baselines. run_baselines.py runs both BEFORE any baseline
+# and refuses to print TASK VALID if either fails.
+[[validity]]
+agent  = "deployed_path"
+expect = "oracle scores max against a world at var/warehouse/warehouse.duckdb"
+actual = "pass"
+note   = "F622: GT001 printed TASK VALID while its oracle aborted on statement one, because its baselines ran against a file stem that does not collide with the schema name"
+[[validity]]
+agent  = "dormancy_audit"
+expect = "12 probes clean; the trigger present but reachable only by decode+join"
+actual = "pass"
+note   = "F624: the property the task exists for. Not a style check - if this fails the compound has collapsed into two ordinary bugs."
+
+# ---------------------------------------------------------------------------
+# Rollout-harness contract (tasks/harness/).
+# ---------------------------------------------------------------------------
+[harness]
+world_builder = "tests/build_world.py"
+
+grade_argv = ["--world", "{warehouse}", "--grading", "{grading}",
+              "--artifact", "{artifact}", "--world-root", "{workspace}", "--json"]
+
+surface_probes = [
+  { label = "sql",   tool = "sql_query",   args = { sql = "SELECT 1" } },
+  { label = "fs",    tool = "fs_list",     args = { path = "." } },
+  { label = "sched", tool = "sched_state", args = {} },
+  { label = "git",   tool = "git_log",     args = { limit = 5 } },
+  { label = "docs",  tool = "docs_search", args = { query = "redelivery" } },
+  { label = "bi",    tool = "bi_render",   args = { dashboard = "exec_revenue" } },
+]
+
+# Pass@1 criterion. A rollout passes iff every listed check passed AND the total
+# clears the floor. K1 and K5 are the conjunction: K1 cannot pass unless BOTH
+# defects were handled, and K5 proves the sink is idempotent AND still live.
+# K4 is the ordering lock - the 1,100 corrections have to survive.
+# Chosen against the measured baseline profile:
+#   oracle 24 · checklist 21 · reference_copy 18 · full_refresh 12
+#   · single_defect_only 7 · naive_dedupe 6 · reset_earliest 2.05 · no_op 0
+# K9/K10 are deliberately NOT required: an agent that diagnoses and durably
+# repairs the incident has solved the ticket whether or not its prose also
+# enumerated the decoy. The behavioural checks carry the verdict.
+# K4 and K8 are penalty-only, so `passed` there means "destroyed nothing".
+pass_requires_checks = ["K1", "K2", "K3", "K4", "K5", "K6", "K7", "K8"]
+pass_min_total = 21.0
+
+[provenance]
+derived_from   = ["S001", "S009", "S513", "S701", "S704", "S706", "S754"]
+composed_of    = ["A027", "A026"]
+red_team       = ["F121", "F125", "F202", "F128", "F129", "F306", "F622", "F624", "F626"]
+open_rulings   = ["F554"]
+open_reason    = "F554 (A027, re-source) rules that no source in the corpus is licensed to assert the green-DAG-over-unobserved-surface mechanism. GT002 narrows the exposure by making that mechanism a DOCUMENTED CONFIGURATION the agent can read (on_failure_policy: ignore) rather than a claim resting on a source's authority. It does not close F554. Do not cite this task as evidence that the pattern is common."
+note = "mechanisms are verified against installed DuckDB 1.5.5, not asserted; frequency is NOT established and must not be claimed from this task"

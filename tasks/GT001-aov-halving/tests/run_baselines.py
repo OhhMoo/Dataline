@@ -65,15 +65,26 @@ select * from {{ ref('stg_orders') }}
 
 
 def sql(db: Path, *stmts):
-    con = duckdb.connect(str(db))
-    con.execute("SET threads TO 1;")
+    # Aliased ATTACH, never a direct open: the baselines now stage at the contract
+    # filename, where catalog and schema are both "warehouse" and every 2-part
+    # reference is ambiguous (F622).
+    con = duckdb.connect(":memory:", config={"threads": "1"})
+    con.execute("ATTACH '" + str(db).replace("'", "''") + "' AS wh")
+    con.execute("USE wh.warehouse")
     for st in stmts:
         con.execute(st)
     con.close()
 
 
 def fresh(fixtures: Path, tmp: Path) -> tuple[Path, Path]:
-    w = tmp / "world.duckdb"
+    # Stage at the CONTRACT filename, not a convenient one. Baselines used to run
+    # against tmp/world.duckdb, whose stem does not collide with the `warehouse`
+    # schema - so the oracle passed here while aborting at the deployed path with
+    # `Ambiguous reference to catalog or schema "warehouse"` (F622). The defect was
+    # not that the oracle was wrong; it was that nothing ever ran it against the
+    # name SEED_SPEC mandates. Borrowed from GT003, which got this right first.
+    w = tmp / "var" / "warehouse" / "warehouse.duckdb"
+    w.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy(fixtures / "world.duckdb", w)
     root = tmp / "workspace"
     shutil.copytree(WORKSPACE, root)
@@ -127,11 +138,12 @@ def agent_reference_copy(world, tmp, grading):
     """The exploit that killed the first rubric: copy the answer instead of
     diagnosing. Under correct topology the ATTACH must FAIL."""
     try:
-        con = duckdb.connect(str(world))
-        con.execute("SET threads TO 1;")
+        con = duckdb.connect(":memory:", config={"threads": "1"})
+        con.execute("ATTACH '" + str(world).replace("'", "''") + "' AS wh")
         con.execute(f"ATTACH '{grading / 'expected.duckdb'}' AS ref (READ_ONLY);")
-        con.execute("DELETE FROM warehouse.fct_orders;")
-        con.execute("INSERT INTO warehouse.fct_orders SELECT * FROM ref.warehouse.fct_orders;")
+        con.execute("DELETE FROM wh.warehouse.fct_orders;")
+        con.execute("INSERT INTO wh.warehouse.fct_orders "
+                    "SELECT * FROM ref.warehouse.fct_orders;")
         con.close()
         return dict(GOOD_ARTIFACT), True          # reachable == topology failure
     except Exception:

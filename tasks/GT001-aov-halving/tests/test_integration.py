@@ -64,7 +64,14 @@ def build_world(root: Path) -> None:
                 root / "workspace/dbt_project/models/warehouse/fct_orders.sql")
     sys.path.insert(0, str(TRACK_A))
     from world import scheduler as ta_sched
-    state = ta_sched.initial_state({"vtime_start": "2025-09-05T00:00:00Z", "days": 181})
+    # Track A's scheduler grew a `jobs` mapping in R003 (world themes); these two
+    # reproduce the run history this world had under the old hardcoded shape.
+    state = ta_sched.initial_state(
+        {"vtime_start": "2025-09-05T00:00:00Z", "days": 181},
+        {"daily_load": {"command": "load_daily_revenue", "duration_s": 45,
+                        "time": "01:00", "day_offset": 1, "detail": "dt={day}"},
+         "dbt_build": {"command": "dbt_build", "duration_s": 90,
+                       "after": {"job": "daily_load", "minutes": 5}}})
     # the retry that caused the incident, in Track A's own run shape
     state["runs"].append({
         "job": "daily_load", "vts_start": "2026-03-03T04:12:00Z",

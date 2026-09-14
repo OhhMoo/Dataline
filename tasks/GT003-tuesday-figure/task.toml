@@ -1,0 +1,116 @@
+# GT003 — Harbor task package metadata.
+
+[task]
+id          = "GT003-tuesday-figure"
+version     = "0.1.0"
+discipline  = "data_analytics"
+archetype   = "A043"
+title       = "The Tuesday revenue figure"
+summary     = "A reported revenue figure was produced by a read that landed between the two halves of a mart publish. Nothing in the warehouse is wrong by the time the agent looks; the analyst's compensating change is itself a defect, and a late currency rate makes part of the reported gap real."
+
+[difficulty]
+human_hours      = "8-20"
+rubric_points    = 20
+target_pass_at_1 = "0.05-0.20"     # empirical calibration target, not a derivation
+
+[limits]
+wall_clock_seconds = 5400
+memory_mb          = 2048
+disk_mb            = 4096
+max_tool_calls     = 600
+
+[environment]
+seed_contract = "SEED_SPEC.md"
+seed          = 4211
+virtual_now   = "2026-03-05T09:00:00Z"
+network       = "none"
+surfaces      = ["duckdb", "dbt", "git", "scheduler", "bi", "docs"]
+
+[grading]
+mode            = "deterministic"   # official score has zero LLM involvement
+judge           = "shadow"          # advisory only, never affects `total`
+process_signals = "report_only"
+entrypoint      = "tests/grade.py"
+manifest        = "tests/manifest.yaml"
+artifact        = "/workspace/final_report.json"
+# grade.py needs the agent's workspace for the static check and the ordering
+# probe, which EXECUTES the agent's own publish and extract scripts.
+world_root_required = true
+
+# The agent sees instruction.md and nothing else. description/why_hard style
+# author prose is NOT shipped - it enumerates the planted defects (F202).
+# instruction.md is generated from A043's agent_visible_brief only.
+[agent_visible]
+brief = "instruction.md"
+
+# Task-validity gate. All must hold or the task does not enter the corpus.
+# Measured 2026-09-13; see implementation_structure/rounds/R003/C2-GT003.md.
+[[validity]]
+agent  = "oracle"
+expect = "== max"
+actual = 20
+
+[[validity]]
+agent  = "no_op"
+expect = "<= 1"
+actual = 0
+
+[[validity]]
+agent  = "reference_copy"
+expect = "unreachable at ATTACH (build gate, not a test)"
+actual = 15
+note   = "scores high in fixtures BY DESIGN; only container topology makes it 0"
+
+[[validity]]
+agent  = "full_refresh"
+expect = "partial, > 0 and < oracle, AND destroys both pieces of evidence"
+actual = 6
+note   = "asserted structurally: leftover relation DESTROYED, reporting record REWRITTEN"
+
+[[validity]]
+agent  = "rebuild_only"
+expect = "< oracle (hardening without undoing the compensating change fails)"
+actual = 12
+
+[[validity]]
+agent  = "checklist"
+expect = "< oracle (false-cause penalty bites)"
+actual = 17
+
+[[validity]]
+agent  = "checklist_joined"
+expect = "== checklist (F620 regression: joining causes must not defeat the penalty)"
+actual = 17
+
+[[validity]]
+agent  = "schema_vandal"
+expect = "scored, not crashed on, and low"
+actual = 4
+note   = "regression for the grader that raised instead of scoring a destroyed schema"
+
+[provenance]
+derived_from      = ["S605", "S608", "S611"]
+excluded_evidence = ["S609"]
+excluded_reason   = "Not used by this task. S609 is the corpus's only G1 failure (community.databricks.com returns 403 to the gate's user agent) and A043's own author recorded in the source's repair_note that A043 does not depend on it for mechanism. This is a local choice for GT003, NOT a corpus disposition: S609 is not withdrawn and no ruling has been executed against it."
+red_team          = ["F121", "F128", "F129", "F202", "F306", "F620", "F621", "F622"]
+rulings_status    = "no G7 ruling targets A043 or any of S605/S608/S611 as of 2026-09-13; verified by scanning every failure record's `target`. Nothing to execute or defer."
+note              = "mechanism is grounded AND executed against the engine in fixture_contract.py; no frequency claim is made. S605 is a Redshift adapter issue - the DuckDB behaviour this task rests on was measured here, not carried over."
+
+# Ablation on the defining property of A043 - "the wrong number is gone from the
+# warehouse by the time the agent arrives" - measured 2026-09-13, not asserted.
+# Section 0 of SEED_SPEC.md carries the table.
+[property_ablation]
+reported_figure_usd            = 15385785.19
+reproducible_from_live_tables  = false
+reproducible_from_the_evidence = "stg_revenue_lines x mart_revenue_dim__dbt_backup, to the cent, and only after the compensating change has been reverted"
+duplication_exists_in          = ["warehouse.mart_revenue_dim__dbt_backup"]
+shortcuts_found_and_closed     = 2
+residual                       = "the excess can still be matched against a live cohort by brute-force search over candidate groupings; that yields WHOSE money was counted twice, never that the dimension was a build behind, so it scores 0 on the primary-cause check"
+
+[deviations]
+# Recorded departures from A043, with reasons. Full text in SEED_SPEC.md.
+mart_is_sql_not_dbt = "A043 puts the mart in dbt and grades 'compiled SQL plus git diff'. The ordering probe has to execute the agent's own publish script statement by statement, which is not reachable through `dbt run` in the grading zone. The mart's business logic lives in pipelines/mart_rebuild.sql; dbt keeps the staging layer."
+git_diff_deferred   = "The fixture world has no git history, so the static check reads the working-tree file. SEED_SPEC section 3 freezes the commit Track A must create; the git half of A043's check 1 is DEFERRED until it lands."
+dim_was_latently_wrong = "A043 says the torn figure was 'wrong in a way no single table was wrong'. Under an inner join, a mixed read can only UNDERSTATE unless the older dimension fans out - so the analyst's double-counting theory requires the previous build's dim to have carried duplicates. Those rows were latent and unobservable for a week (the accounts had no revenue), so no reported number was ever wrong from a single build, which is the operative property. Recorded rather than papered over."
+duplicated_set_is_a_subset = "The accounts the previous build's dimension carried twice are 883 of the 1,180 in the launch cohort, not all of them. Found by ablation: when the two sets were equal, the tick's excess equalled the launch cohort's launch-day revenue, so `source_batch`, `valid_from` and 'first order on 2026-03-02' each reproduced the excess from LIVE data and the leftover relation stopped being load-bearing. The vendor packaged one chunk of the onboarding file twice, which has no reason to cover the whole batch."
+two_accepted_restatements = "A043 says the torn rows are 'corrected in place' without saying to what. Two readings are equally defensible and the world does not disambiguate them, so grade.py accepts either."

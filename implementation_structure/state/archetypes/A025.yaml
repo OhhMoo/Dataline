@@ -52,6 +52,15 @@ existing_coverage: >
   ade-bench covers setup-time corruption; a live positional-drift event inside an
   incremental dbt model with a connector mock is not present in DataAgentBench (S315)
   or terminal-bench style corpora.
+agent_visible_brief: >
+  From: Oona Fairweather, Category Analytics. Ticket DATA-2901.
+  The product performance board has been wrong for at least a week - not slightly out, wrong in
+  a way you can see from across the room. Nothing has been changed on the board itself in
+  months and I am told the pipeline has been green throughout. This feeds the supplier reviews
+  that start on the 22nd, and some of those reviews have already happened on numbers I now do
+  not trust. I need the board correct, and I need to know how far back the underlying data has
+  been wrong so I can work out which conversations have to be reopened. Please fix the data
+  rather than putting something over the top of it in the BI layer.
 derived_from:
   - S013
   - S014
@@ -65,6 +74,8 @@ attacks:
   - F511
   - F512
   - F513
+  - F601
+  - F625
 notes: >
   Substrate: fakesnow/DuckDB per S316 for the warehouse surface; deterministic checks
   must order rows explicitly because fakesnow row ordering is non-deterministic.
