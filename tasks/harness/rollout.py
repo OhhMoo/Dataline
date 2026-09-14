@@ -209,7 +209,7 @@ def run_rollout(args) -> dict:
         "run_id": args.run_id,
         "model": args.model,
         "driver": args.driver,
-        "blindness_guarantee": ("tool_surface_revoked" if args.driver == "mcp"
+        "blindness_guarantee": ("tool_surface_revoked" if args.driver in ("mcp", "kimi")
                                 else "detection_only"),
         "redteam_detector_test": args.driver == "scripted",
         "seed": spec.seed,
@@ -423,7 +423,8 @@ def main() -> int:
     ap.add_argument("--run-id", default="adhoc")
     ap.add_argument("--out")
     ap.add_argument("--model", default="opus")
-    ap.add_argument("--driver", default="mcp", choices=["mcp", "cli", "scripted"])
+    ap.add_argument("--driver", default="mcp",
+                    choices=["mcp", "cli", "scripted", "kimi"])
     ap.add_argument("--wall-clock", type=int, default=None,
                     help="override the task's wall-clock ceiling (seconds)")
     ap.add_argument("--max-tool-calls", type=int, default=None,

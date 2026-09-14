@@ -55,12 +55,27 @@ dead. Ground rule 1 is structural here, not a convention.
 | driver | subject | tool surface | blindness |
 |---|---|---|---|
 | `mcp` | `claude --print` | **only** the gateway tools, over MCP stdio | `tool_surface_revoked` |
+| `kimi` | `kimi -p` (Kimi Code CLI) | **only** the gateway tools, over MCP stdio | `tool_surface_revoked` |
 | `cli` | `claude --print` | Bash + a `gw.sh` shim | `detection_only` |
 | `scripted` | `redteam/scripted_subject.py` | n/a | detector tests only |
 
 Under `mcp` the revocation is real and verified per rollout from the subject's
 own session-init event, not from our flags: `--tools ""` plus
 `--strict-mcp-config` leaves it with `mcp__alkera__*` and nothing else.
+
+Under `kimi` the same revocation is assembled from different parts (see
+`kimi_subject.py` for the full reasoning): a per-rollout isolated
+`KIMI_CODE_HOME` whose user-level `mcp.json` names only the gateway (the
+subject's config.toml and credentials are hardlinked/junctioned in, so it
+authenticates as the same account without the harness reading a secret), an
+`--agent-file` whose `tools: [mcp__alkera__*]` allowlist removes every
+built-in tool from the model's surface, `subagents: []` so there is no
+delegation, and an empty `--skills-dir`. Kimi's stdout stream has no init
+event, so the capability evidence comes from the session wire log's
+`llm.tools_snapshot` — the exact tool list the subject's client sent to the
+model API — translated into the claude-shaped transcript the detectors parse.
+The translation fails closed: any unrecognised wire event becomes an
+unparsed transcript line, which quarantines the rollout as unobserved.
 
 A tool the task does not probe is a tool whose failures cannot be attributed, so
 every rollout records `unprobed_tools` and the report names them. The toolbelt
