@@ -120,8 +120,7 @@ class FileScheduler:
         if run_id is None:
             state = self.load()
             state["runs"] = [
-                {"id": f"run-{index:06d}", **run}
-                for index, run in enumerate(state["runs"], 1)
+                {"id": f"run-{index:06d}", **run} for index, run in enumerate(state["runs"], 1)
             ]
             return state
         return self.find(run_id)
@@ -152,6 +151,18 @@ class Panel(BaseModel):
     model_config = ConfigDict(extra="forbid")
     name: str
     sql: str
+    title: str | None = None
+    metric: str | None = None
+    row_filter: str | None = None
+    watermark_sql: str | None = None
+
+
+class Metric(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: str
+    expression: str
+    owner: str | None = None
+    doc: str | None = None
 
 
 class Dashboard(BaseModel):
@@ -159,6 +170,8 @@ class Dashboard(BaseModel):
     version: int = Field(default=1, ge=1, le=1)
     dashboard: str
     title: str | None = None
+    owner: str | None = None
+    metrics: list[Metric] = Field(default_factory=list)
     panels: list[Panel] = Field(min_length=1)
 
 
@@ -176,7 +189,10 @@ def render_dashboard(directory: Path, dashboard: str, warehouse, observation):
     tables = set()
     for panel in spec.panels:
         panel_observation = Observation()
-        panels[panel.name] = warehouse.execute(panel.sql, panel_observation, read_only=True)
+        query = panel.sql
+        if panel.row_filter:
+            query = f"SELECT * FROM ({query}) AS tile WHERE {panel.row_filter}"
+        panels[panel.name] = warehouse.execute(query, panel_observation, read_only=True)
         tables.update(panel_observation.read_targets)
     observation.targets = [f"dashboard:{dashboard}", *sorted(tables)]
     observation.read_targets = observation.targets

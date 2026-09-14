@@ -101,7 +101,9 @@ def world_hash(root: Path):
     return digest.hexdigest()
 
 
-def config(root: Path, audit: Path, fingerprint: str | None = None):
+def config(root: Path, audit: Path, fingerprint: str | None = None, **overrides):
+    """Fixture config. `overrides` reaches fields no existing test needs (s3_endpoint,
+    s3_buckets, max_payload_bytes) without changing any existing call site."""
     return GatewayConfig(
         workspace=root / "workspace",
         warehouse=root / "var" / "warehouse" / "warehouse.duckdb",
@@ -111,6 +113,7 @@ def config(root: Path, audit: Path, fingerprint: str | None = None):
         profiles_dir=root / "build",
         episode_id=audit.name,
         initial_world_fp=fingerprint or world_hash(root),
+        **overrides,
     )
 
 

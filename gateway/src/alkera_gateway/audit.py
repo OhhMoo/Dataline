@@ -45,6 +45,8 @@ class AuditLog:
                     "pydantic",
                     "PyYAML",
                     "sqlglot",
+                    "psycopg",
+                    "boto3",
                 )
             }
             if manifest_path.exists():

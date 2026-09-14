@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -8,6 +9,12 @@ class GatewayConfig(BaseModel):
 
     workspace: Path = Path("/workspace")
     warehouse: Path = Path("/var/warehouse/warehouse.duckdb")
+    warehouse_backend: Literal["duckdb", "postgres", "snowflake"] = "duckdb"
+    warehouse_dsn_env: str = "ALKERA_POSTGRES_DSN"
+    snowflake_options_env: str = "ALKERA_SNOWFLAKE_OPTIONS"
+    bi_state_dir: Path | None = None
+    s3_endpoint: str | None = None
+    s3_buckets: list[str] = Field(default_factory=list)
     scheduler: Path = Path("/var/sched/state.json")
     dashboards: Path = Path("/var/bi/dashboards")
     audit_dir: Path = Path("/audit")
@@ -34,6 +41,13 @@ class GatewayConfig(BaseModel):
             setattr(self, name, getattr(self, name).resolve())
         if self.world_root is not None:
             self.world_root = self.world_root.resolve()
+        self.bi_state_dir = (self.bi_state_dir or self.audit_dir / "bi").resolve()
+        if self.bi_state_dir.is_relative_to(self.workspace) or (
+            self.world_root and self.bi_state_dir.is_relative_to(self.world_root)
+        ):
+            raise ValueError("bi_state_dir must be outside the world tree")
+        if self.warehouse_backend != "duckdb" and not self.initial_world_fp:
+            raise ValueError("Remote warehouses require an explicit initial_world_fp")
         if self.audit_dir.is_relative_to(self.workspace):
             raise ValueError("audit_dir must be outside workspace")
         if self.warehouse.is_relative_to(self.workspace):
