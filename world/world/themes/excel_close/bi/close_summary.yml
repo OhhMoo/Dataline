@@ -1,0 +1,6 @@
+dashboard: close_summary
+panels:
+- name: monthly_net_by_account
+  sql: select period, account, net_amount from warehouse.fct_gl_monthly order by period, account
+- name: adjustments_total
+  sql: select period, sum(adj_total) as adjustments from warehouse.fct_gl_monthly group by period order by period

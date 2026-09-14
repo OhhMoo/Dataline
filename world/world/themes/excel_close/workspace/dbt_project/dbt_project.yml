@@ -1,0 +1,9 @@
+name: world_dbt
+version: "1.0.0"
+config-version: 2
+profile: world_dbt
+model-paths: ["models"]
+models:
+  world_dbt:
+    staging: {+materialized: view, +schema: staging}
+    warehouse: {+materialized: table, +schema: warehouse}

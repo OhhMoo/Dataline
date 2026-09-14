@@ -1,0 +1,20 @@
+name: mainframe_batch
+dbt_profile: world_dbt
+jobs:
+  nightly_extract:
+    command: extract_claims
+    duration_s: 300
+    time: "23:00"
+    day_offset: 0
+    after: null
+    detail: "dt={day}"
+  batch_load:
+    command: load_claims_extract
+    duration_s: 120
+    after: {job: nightly_extract, minutes: 45}
+    detail: null
+  dbt_build:
+    command: dbt_build
+    duration_s: 90
+    after: {job: batch_load, minutes: 10}
+    detail: null

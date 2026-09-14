@@ -1,0 +1,10 @@
+# sftp_vendor world seed: SFTP drop folders + cron loader + dbt + dashboard.
+theme: sftp_vendor          # world/world/themes/<name>/
+seed: 1
+vtime_start: "2026-02-01T00:00:00Z"
+days: 30                    # drop files ORDERS_20260201 .. ORDERS_20260302
+orders_per_day: [40, 60]    # uniform range per day
+returns_per_day: [0, 5]     # returns reference an order from the same day
+customers: 500
+amount_cents: [500, 20000]  # order/return amount range, integer cents (no floats)
+git_author: "Data Platform <data@example.com>"

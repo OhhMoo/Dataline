@@ -1,0 +1,12 @@
+# excel_close world seed: a finance team whose monthly close runs on an Excel
+# workbook. The warehouse is fed FROM the workbook (loader/import_close.py);
+# manual adjustments exist only on the MANUAL_ADJ sheet.
+theme: excel_close            # world/world/themes/<name>/
+seed: 1
+vtime_start: "2026-02-01T00:00:00Z"
+days: 30                      # workbooks CLOSE_202602.xlsx + CLOSE_202603.xlsx
+lines_per_day: [30, 50]       # GL lines per day, uniform range
+accounts: ["4000-REV", "4100-REV", "4200-REV", "5000-COGS", "5100-OPEX", "5200-PAYROLL"]
+amount_cents: [500, 50000]    # line amount range, integer cents (no floats)
+adjustments_per_month: [3, 6] # MANUAL_ADJ rows per workbook
+git_author: "Finance Systems <fin-sys@example.com>"

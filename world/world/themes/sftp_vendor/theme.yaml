@@ -1,0 +1,20 @@
+name: sftp_vendor
+dbt_profile: world_dbt
+jobs:
+  sftp_poll:
+    command: sftp_poll
+    duration_s: 20
+    time: "05:30"
+    day_offset: 1
+    after: null
+    detail: null
+  vendor_load:
+    command: vendor_load
+    duration_s: 60
+    after: {job: sftp_poll, minutes: 10}
+    detail: "dt={day}"
+  dbt_build:
+    command: dbt_build
+    duration_s: 90
+    after: {job: vendor_load, minutes: 5}
+    detail: null

@@ -1,0 +1,6 @@
+dashboard: vendor_daily
+panels:
+- name: daily_net_revenue
+  sql: select order_date, net_revenue from warehouse.fct_orders_daily order by order_date
+- name: totals
+  sql: select sum(orders) as orders, sum(returns) as returns, sum(net_revenue) as net_revenue from warehouse.fct_orders_daily

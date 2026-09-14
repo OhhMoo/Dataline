@@ -1,0 +1,6 @@
+dashboard: claims_daily
+panels:
+- name: daily_claims
+  sql: select claim_date, claims, total_amount from warehouse.fct_claims_daily order by claim_date
+- name: grand_total
+  sql: select sum(total_amount) as grand_total_amount from warehouse.fct_claims_daily
