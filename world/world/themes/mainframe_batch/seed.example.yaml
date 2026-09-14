@@ -1,0 +1,13 @@
+# Mainframe batch world seed.
+# An insurer's system-of-record mainframe sends a nightly fixed-width EBCDIC
+# (cp037) claims extract; a batch-window loader unpacks it (copybook layout,
+# COMP-3 packed decimal) into raw, dbt builds staging/warehouse, a dashboard
+# reads the result.
+theme: mainframe_batch      # world/world/themes/<name>/
+seed: 1
+vtime_start: "2026-02-01T00:00:00Z"
+days: 30                    # landing partitions dt=2026-02-01 .. dt=2026-03-02
+claims_per_day: [30, 50]    # uniform range per day
+customers: 400
+amount_cents: [1000, 500000]  # claim amount range, integer cents (no floats)
+git_author: "Data Platform <data@example.com>"

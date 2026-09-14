@@ -10,13 +10,20 @@ Track C wires real load/dbt behavior through the same state transitions.
 import argparse
 import json
 import sys
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from .gen import iso, parse_vtime
 from .hashing import json_canon
-from datetime import timedelta
 
 STATE = Path("var/sched/state.json")
+
+
+def parse_vtime(s: str) -> datetime:
+    return datetime.fromisoformat(s.replace("Z", "+00:00")).astimezone(timezone.utc)
+
+
+def iso(dt: datetime) -> str:
+    return dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _path(root: Path) -> Path:
@@ -31,26 +38,38 @@ def save(root: Path, state: dict) -> None:
     _path(root).write_bytes(json_canon(state) + b"\n")
 
 
-def initial_state(seed: dict) -> dict:
-    """vnow = start + days; one successful daily_load + dbt_build per past day."""
+def initial_state(seed: dict, jobs: dict) -> dict:
+    """vnow = start + days; one successful run per manifest job per past day.
+
+    jobs maps name -> {command, duration_s, time, day_offset, after, detail}
+    (theme.yaml). Run start = day + day_offset days + time, except `after`
+    jobs start that many minutes after the referenced job's start (which must
+    precede them in the mapping). detail formats {day} with the ISO date.
+    """
     start = parse_vtime(seed["vtime_start"])
-    jobs = {
-        "daily_load": {"command": "load_daily_revenue", "duration_s": 45},
-        "dbt_build": {"command": "dbt_build", "duration_s": 90},
-    }
     runs = []
     for i in range(seed["days"]):
         day = start + timedelta(days=i)
-        load_at = day + timedelta(days=1, hours=1)
-        runs.append({"job": "daily_load", "vts_start": iso(load_at),
-                     "vts_end": iso(load_at + timedelta(seconds=45)),
-                     "status": "success", "detail": f"dt={day.date()}"})
-        build_at = load_at + timedelta(minutes=5)
-        runs.append({"job": "dbt_build", "vts_start": iso(build_at),
-                     "vts_end": iso(build_at + timedelta(seconds=90)),
-                     "status": "success", "detail": None})
+        starts = {}
+        for name, spec in jobs.items():
+            if spec.get("after"):
+                at = (starts[spec["after"]["job"]]
+                      + timedelta(minutes=spec["after"]["minutes"]))
+            else:
+                hh, mm = (int(x) for x in spec["time"].split(":"))
+                at = (day + timedelta(days=spec["day_offset"],
+                                      hours=hh, minutes=mm))
+            starts[name] = at
+            detail = (spec["detail"].format(day=day.date().isoformat())
+                      if spec.get("detail") else None)
+            runs.append({"job": name, "vts_start": iso(at),
+                         "vts_end": iso(at + timedelta(
+                             seconds=spec["duration_s"])),
+                         "status": "success", "detail": detail})
+    job_defs = {n: {"command": s["command"], "duration_s": s["duration_s"]}
+                for n, s in jobs.items()}
     return {"vnow": iso(start + timedelta(days=seed["days"])),
-            "jobs": jobs, "runs": runs}
+            "jobs": job_defs, "runs": runs}
 
 
 def trigger(root: Path, job: str) -> dict:

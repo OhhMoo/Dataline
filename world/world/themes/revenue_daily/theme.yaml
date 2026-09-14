@@ -1,0 +1,15 @@
+name: revenue_daily
+dbt_profile: world_dbt
+jobs:
+  daily_load:
+    command: load_daily_revenue
+    duration_s: 45
+    time: "01:00"
+    day_offset: 1
+    after: null
+    detail: "dt={day}"
+  dbt_build:
+    command: dbt_build
+    duration_s: 90
+    after: {job: daily_load, minutes: 5}
+    detail: null

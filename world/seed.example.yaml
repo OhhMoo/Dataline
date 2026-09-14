@@ -3,6 +3,7 @@
 # Until that lands, this placeholder exercises every surface end-to-end:
 # landing CSVs -> raw -> dbt (staging view, warehouse table) -> BI values + docs,
 # plus scheduler history and a git workspace, all under a virtual clock.
+theme: revenue_daily          # world/world/themes/<name>/
 seed: 1
 vtime_start: "2026-02-01T00:00:00Z"
 days: 30                      # landing partitions dt=2026-02-01 .. dt=2026-03-02

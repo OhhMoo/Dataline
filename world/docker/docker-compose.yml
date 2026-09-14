@@ -19,6 +19,12 @@ services:
       - worlddata:/world
       - auditdata:/audit
       # - ../snapshots/world.tar:/snapshot/world.tar:ro  # fast boot path
+      # Boot a different theme without rebuilding the image — mount its seed
+      # over the default (entrypoint.sh honors WORLD_SEED, default ./seed.yaml):
+      # - ../world/world/themes/<name>/seed.example.yaml:/opt/world/seed.yaml:ro
+      # or mount it at another path and set WORLD_SEED to that path.
+    # environment:
+    #   WORLD_SEED: /opt/world/seed.yaml  # seed-build path only; snapshot path ignores it
     command: ["alkera-gateway", "serve", "--config", "/etc/alkera/gateway.json", "--host", "0.0.0.0"]
 
   harness:

@@ -1,0 +1,94 @@
+"""excel_close theme acceptance tests (stdlib unittest).
+
+Mirrors test_world.py's build-twice gate for the excel_close theme; the
+semantic fingerprint covers the workspace bytes, so it exercises the
+ZIP_STORED / fixed-timestamp xlsx determinism.
+"""
+import random
+import shutil
+import sys
+import tempfile
+import unittest
+from datetime import timedelta
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from world import bi, build as wbuild, fingerprint, scheduler  # noqa: E402
+from world.themes import load_theme  # noqa: E402
+
+THEME = Path(__file__).resolve().parents[1] / "world" / "themes" / "excel_close"
+SEED = THEME / "seed.example.yaml"
+
+
+class ExcelCloseThemeTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = Path(tempfile.mkdtemp(prefix="excel_close_"))
+        cls.w1 = wbuild.build(SEED, cls.tmp / "w1")
+        cls.w2 = wbuild.build(SEED, cls.tmp / "w2")
+        print("\nsemantic_hash:", fingerprint.semantic_hash(cls.w1))
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def _attach(self):
+        import duckdb
+        # attach under a neutral alias: the file stem is "warehouse", which
+        # would collide with the raw/staging/warehouse schemas
+        con = duckdb.connect(":memory:")
+        con.execute("ATTACH '" + str(self.w1 / "var/warehouse/warehouse.duckdb")
+                    .replace("'", "''") + "' AS wh (READ_ONLY)")
+        return con
+
+    def test_semantic_fingerprint_stable(self):
+        self.assertEqual(fingerprint.semantic(self.w1),
+                         fingerprint.semantic(self.w2))
+
+    def test_git_head_stable(self):
+        head1, head2 = fingerprint.git_head(self.w1), fingerprint.git_head(self.w2)
+        self.assertIsNotNone(head1)
+        self.assertEqual(head1, head2)
+
+    def test_scheduler_jobs(self):
+        state = scheduler.load(self.w1)
+        self.assertEqual(list(state["jobs"]), ["close_import", "dbt_build"])
+        self.assertEqual(state["vnow"], "2026-03-03T00:00:00Z")
+
+    def test_bi_render_matches_warehouse(self):
+        rendered = bi.render(self.w1)
+        panels = rendered["close_summary"]
+        con = self._attach()
+        total = con.execute(
+            "select sum(adj_total) from wh.warehouse.fct_gl_monthly").fetchone()[0]
+        con.close()
+        adjustments = sum(float(r[1]) for r in panels["adjustments_total"])
+        self.assertAlmostEqual(adjustments, float(total))
+        self.assertEqual(len(panels["adjustments_total"]), 2)  # 202602 + 202603
+
+    def test_leading_zero_line_id_round_trip(self):
+        """GL_LINES text cells (incl. leading zeros) reach raw.gl_lines intact."""
+        import yaml
+        seed = yaml.safe_load(SEED.read_text(encoding="utf-8"))
+        gen = load_theme("excel_close").gen
+        start = scheduler.parse_vtime(seed["vtime_start"])
+        expected = {}
+        for i in range(seed["days"]):
+            day = (start + timedelta(days=i)).date()
+            for row in gen.line_rows(random.Random(f"{seed['seed']}:{i}"),
+                                     day, seed):
+                expected[row[0]] = row
+        leading = sorted(k for k in expected if k.startswith("0"))
+        self.assertTrue(leading, "seed must produce leading-zero line_ids")
+        con = self._attach()
+        rows = con.execute(
+            "select line_id, account, post_date, period, amount "
+            "from wh.raw.gl_lines").fetchall()
+        con.close()
+        got = {r[0]: list(r) for r in rows}
+        self.assertEqual(expected, got)
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)

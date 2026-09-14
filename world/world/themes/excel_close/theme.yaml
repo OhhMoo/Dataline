@@ -1,0 +1,15 @@
+name: excel_close
+dbt_profile: world_dbt
+jobs:
+  close_import:
+    command: import_close
+    duration_s: 60
+    time: "08:00"
+    day_offset: 1
+    after: null
+    detail: null
+  dbt_build:
+    command: dbt_build
+    duration_s: 90
+    after: {job: close_import, minutes: 10}
+    detail: null

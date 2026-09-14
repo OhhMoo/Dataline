@@ -1,21 +1,24 @@
 """seed.yaml -> world builder.
 
 Produces the contract layout (agent.md §9.2.1) under <root>:
-  workspace/    git repo: dbt_project/, data/landing/, docs/, README.md
-  var/warehouse/warehouse.duckdb   (raw loaded by builder; staging/warehouse by dbt)
+  workspace/    git repo: the theme's workspace/ tree + generated landing data
+  var/warehouse/warehouse.duckdb   (raw loaded by the theme; staging/warehouse by dbt)
   var/sched/state.json             (scheduler history + v-clock)
   var/bi/dashboards/*.yml
   build/provenance.json
 
-Determinism rules enforced here: per-day seeded RNG (gen.py), integer-cent
-amounts, duckdb PRAGMA threads=1 + ORDER BY on load, dbt threads: 1, git
-author/committer dates pinned to vtime_start, no wall-clock reads anywhere.
+The world *shape* lives in world/themes/<name>/ (manifest + gen hooks + static
+files); seed["theme"] (default "revenue_daily") selects it, and this module is
+only the assembly line. Determinism rules enforced here: byte-verbatim copies,
+duckdb PRAGMA threads=1 + dbt threads: 1, git author/committer dates pinned to
+vtime_start, no wall-clock reads anywhere.
 """
 import argparse
 import importlib.metadata
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -24,93 +27,8 @@ import duckdb
 import yaml
 
 from . import __version__, scheduler
-from .gen import write_landing
 from .hashing import file_hash, json_canon
-
-DBT_PROJECT_YML = """\
-name: world_dbt
-version: "1.0.0"
-config-version: 2
-profile: world_dbt
-model-paths: ["models"]
-models:
-  world_dbt:
-    staging: {+materialized: view, +schema: staging}
-    warehouse: {+materialized: table, +schema: warehouse}
-"""
-
-SCHEMA_MACRO = """\
-{% macro generate_schema_name(custom_schema_name, node) -%}
-{{ custom_schema_name if custom_schema_name else target.schema }}
-{%- endmacro %}
-"""
-
-SOURCES_YML = """\
-version: 2
-sources:
-  - name: raw
-    schema: raw
-    tables: [{name: daily_revenue}]
-"""
-
-STG_SQL = """\
-select
-  cast(order_id as integer) as order_id,
-  cast(order_date as date) as order_date,
-  customer_id,
-  cast(amount as decimal(12,2)) as amount
-from {{ source('raw', 'daily_revenue') }}
-"""
-
-FCT_SQL = """\
-select order_date, count(*) as orders, sum(amount) as revenue
-from {{ ref('stg_revenue') }}
-group by order_date
-order by order_date
-"""
-
-# NOTE: the duckdb catalog takes the file's stem ("warehouse"), which collides
-# with the `warehouse` schema — two-part references like warehouse.fct_revenue
-# are ambiguous. World content therefore uses three-part names, and Track B's
-# sql_* tools should ATTACH the file under a distinct alias (e.g. `wh`).
-DASHBOARD = {
-    "dashboard": "revenue_daily",
-    "panels": [
-        {"name": "daily_revenue",
-         "sql": "select order_date, revenue from warehouse.fct_revenue order by order_date"},
-        {"name": "total_revenue",
-         "sql": "select sum(revenue) as total_revenue from warehouse.fct_revenue"},
-    ],
-}
-
-README = """\
-# revenue workspace
-
-- `dbt_project/` — dbt Core project (staging view + warehouse table over `raw`)
-- `data/landing/daily_revenue/dt=*/revenue.csv` — daily order landings
-- `docs/` — data dictionary and runbooks
-
-The warehouse is reachable only through the sql_* tools, never via fs_*.
-"""
-
-DOC_DATA_DICTIONARY = """\
-# Data dictionary
-
-- `raw.daily_revenue` — as-landed order rows from the landing zone.
-  `amount` is a string here; cast happens in staging.
-- `staging.stg_revenue` — typed order rows (`amount` decimal(12,2)).
-- `warehouse.fct_revenue` — one row per `order_date`: `orders`, `revenue`.
-
-Dashboard `revenue_daily` reads `warehouse.fct_revenue`.
-"""
-
-DOC_RUNBOOK = """\
-# Runbook: daily_load
-
-Scheduler job `daily_load` lands one day partition into `raw.daily_revenue`
-(runs 01:00 UTC), followed by `dbt_build` at 01:05 UTC. Both should be
-green in `sched_state`; investigate the first non-success run, not the last.
-"""
+from .themes import load_theme
 
 
 def load_seed(path: Path) -> dict:
@@ -139,28 +57,10 @@ def _git(workspace: Path, seed: dict) -> None:
     run("commit", "-q", "-m", f"world seed {seed['seed']}")
 
 
-def _load_raw(workspace: Path, db_path: Path) -> None:
-    glob = (workspace / "data" / "landing" / "daily_revenue").as_posix() + "/dt=*/*.csv"
-    con = duckdb.connect(str(db_path))
-    try:
-        con.execute("PRAGMA threads=1")
-        con.execute("CREATE SCHEMA IF NOT EXISTS raw")
-        con.execute(f"""
-            CREATE OR REPLACE TABLE raw.daily_revenue AS
-            SELECT cast(order_id as integer) AS order_id,
-                   cast(order_date as date) AS order_date,
-                   customer_id, amount, dt
-            FROM read_csv('{glob}', hive_partitioning=true, columns={{
-                'order_id': 'VARCHAR', 'order_date': 'VARCHAR',
-                'customer_id': 'VARCHAR', 'amount': 'VARCHAR'}})
-            ORDER BY order_date, order_id""")
-    finally:
-        con.close()
-
-
-def _dbt_build(workspace: Path, db_path: Path, build_dir: Path) -> None:
+def _dbt_build(workspace: Path, db_path: Path, build_dir: Path,
+               profile: str) -> None:
     proj = workspace / "dbt_project"
-    profiles = {"world_dbt": {"target": "dev", "outputs": {"dev": {
+    profiles = {profile: {"target": "dev", "outputs": {"dev": {
         "type": "duckdb", "path": str(db_path), "threads": 1}}}}
     # profiles carry an absolute path, so they live outside the fingerprinted
     # workspace (in build/) to keep workspace content root-location-independent.
@@ -180,6 +80,7 @@ def _dbt_build(workspace: Path, db_path: Path, build_dir: Path) -> None:
 
 def build(seed_path: Path, root: Path, lock_path: Path | None = None) -> Path:
     seed = load_seed(seed_path)
+    theme = load_theme(seed.get("theme", "revenue_daily"))
     root = Path(root)
     workspace, build_dir = root / "workspace", root / "build"
     db_path = root / "var" / "warehouse" / "warehouse.duckdb"
@@ -187,29 +88,19 @@ def build(seed_path: Path, root: Path, lock_path: Path | None = None) -> Path:
               root / "var" / "sched", root / "var" / "bi" / "dashboards"):
         d.mkdir(parents=True, exist_ok=True)
 
-    write_landing(workspace, seed)
-
-    proj = workspace / "dbt_project"
-    _write(proj / "dbt_project.yml", DBT_PROJECT_YML)
-    _write(proj / "macros" / "schema.sql", SCHEMA_MACRO)
-    _write(proj / "models" / "sources.yml", SOURCES_YML)
-    _write(proj / "models" / "staging" / "stg_revenue.sql", STG_SQL)
-    _write(proj / "models" / "warehouse" / "fct_revenue.sql", FCT_SQL)
-    _write(workspace / "README.md", README)
-    _write(workspace / "docs" / "data_dictionary.md", DOC_DATA_DICTIONARY)
-    _write(workspace / "docs" / "runbook_daily_load.md", DOC_RUNBOOK)
-    _write(root / "var" / "bi" / "dashboards" / "revenue_daily.yml",
-           yaml.safe_dump(DASHBOARD, sort_keys=True))
-
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-    _load_raw(workspace, db_path)
-    _dbt_build(workspace, db_path, build_dir)
-    scheduler.save(root, scheduler.initial_state(seed))
+    shutil.copytree(theme.dir / "workspace", workspace, dirs_exist_ok=True)
+    theme.gen.write_landing(workspace, seed)
+    theme.gen.load_raw(workspace, db_path)
+    _dbt_build(workspace, db_path, build_dir, theme.manifest["dbt_profile"])
+    scheduler.save(root, scheduler.initial_state(seed, theme.manifest["jobs"]))
+    for f in sorted((theme.dir / "bi").glob("*.yml")):
+        shutil.copyfile(f, root / "var" / "bi" / "dashboards" / f.name)
     _git(workspace, seed)
 
     provenance = {
         "seed_sha256": file_hash(Path(seed_path)),
         "generator_version": __version__,
+        "theme": theme.name,
         "duckdb_version": duckdb.__version__,
         "dbt_version": importlib.metadata.version("dbt-core"),
         "dbt_duckdb_version": importlib.metadata.version("dbt-duckdb"),
