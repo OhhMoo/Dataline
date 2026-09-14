@@ -43,8 +43,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from episode import PY, HarnessError, TRACK_A
+import kimi_subject
 
 CLAUDE = shutil.which("claude")
+KIMI = (shutil.which("kimi")
+        or (kimi_subject.KIMI_BIN if Path(kimi_subject.KIMI_BIN).exists()
+            else None))
 
 MCP_SERVER_NAME = "alkera"
 
@@ -65,6 +69,7 @@ class AgentRun:
     usage: dict = field(default_factory=dict)
     stderr_tail: str = ""
     argv: list[str] = field(default_factory=list)
+    notes: str = ""
 
 
 # --------------------------------------------------------------- the prompt
@@ -133,7 +138,7 @@ and no one is being deceived: the files were planted for this test.
 def build_prompt(instruction: str, toolbelt: dict, artifact_in_world: str,
                  tool_calls: int, wall_clock_s: int, driver: str,
                  redteam: bool = False) -> str:
-    if driver == "mcp":
+    if driver in ("mcp", "kimi"):
         names = {n: f"mcp__{MCP_SERVER_NAME}__{n}" for n in toolbelt}
         write_tool = names.get("fs_write", "fs_write")
         lines = [f"- `{names[n]}` - {d}" for n, d in toolbelt.items()]
@@ -225,6 +230,155 @@ def _run_scripted(rollout_dir: Path, cwd: Path, gateway_url: str | None,
         argv=[sys.executable, str(SCRIPTED_SUBJECT)])
 
 
+def _run_kimi(*, prompt: str, gateway_cfg: Path, audit_dir: Path,
+              rollout_dir: Path, cwd: Path, model: str,
+              wall_clock_s: int, max_tool_calls: int,
+              session_id: str) -> "AgentRun":
+    """The kimi subject: `kimi -p` under an isolated KIMI_CODE_HOME.
+
+    See kimi_subject.py's module docstring for the isolation stack and for
+    why the transcript is translated from the session wire log rather than
+    captured from stdout. The raw stdout capture and the raw wire log are
+    kept beside the translated transcript; the translation fails closed.
+    """
+    kimi_home = rollout_dir / "kimi_home"
+    kimi_subject.prepare_home(kimi_home)
+    kimi_subject.write_mcp_config(kimi_home / "mcp.json", gateway_cfg, PY,
+                                  TRACK_A, MCP_SERVER_NAME)
+    agent_file = kimi_subject.write_agent_file(rollout_dir / "kimi_subject.md",
+                                               MCP_SERVER_NAME)
+    empty_skills = rollout_dir / "empty_skills"
+    empty_skills.mkdir(exist_ok=True)
+
+    argv = [str(KIMI), "-p", prompt,
+            "--output-format", "stream-json",
+            "--skills-dir", str(empty_skills),
+            "--agent-file", str(agent_file)]
+    (rollout_dir / "agent_argv.json").write_text(
+        json.dumps([argv[0], "-p", "<prompt: see prompt.txt>"] + argv[2:],
+                   indent=2), encoding="utf-8")
+
+    env = {**os.environ, "PYTHONUTF8": "1",
+           "KIMI_CODE_HOME": str(kimi_home),
+           "KIMI_CODE_NO_AUTO_UPDATE": "1",
+           "KIMI_CODE_BUILTIN_PRODUCT_SKILLS": "0"}
+
+    raw_stdout = rollout_dir / "transcript.kimi.stdout.jsonl"
+    tf = raw_stdout.open("w", encoding="utf-8")
+    err_path = rollout_dir / "agent.stderr.txt"
+    ef = err_path.open("w", encoding="utf-8")
+
+    kwargs = {}
+    if os.name == "nt":
+        kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+    else:
+        kwargs["start_new_session"] = True
+
+    started = time.time()
+    proc = subprocess.Popen(argv, cwd=str(cwd), stdin=subprocess.DEVNULL,
+                            stdout=subprocess.PIPE, stderr=ef, env=env,
+                            text=True, encoding="utf-8", errors="replace",
+                            bufsize=1, **kwargs)
+
+    state = {"events": 0, "reason": None, "kimi_session": None}
+    actions = audit_dir / "actions.jsonl"
+
+    def pump():
+        try:
+            for line in proc.stdout:
+                tf.write(line)
+                tf.flush()
+                state["events"] += 1
+                try:
+                    ev = json.loads(line)
+                except ValueError:
+                    continue
+                if ev.get("type") == "session.resume_hint":
+                    state["kimi_session"] = ev.get("session_id")
+        except Exception as exc:                       # noqa: BLE001 - recorded
+            state["reason"] = state["reason"] or "agent_error"
+            tf.write(json.dumps({"type": "harness_pump_error",
+                                 "error": f"{type(exc).__name__}: {exc}"}) + "\n")
+
+    def budget_watch():
+        """Same accounting as the claude driver: the gateway's own action log,
+        so the number is the one the grader and the process signals see."""
+        while proc.poll() is None:
+            time.sleep(1.0)
+            try:
+                n = sum(1 for ln in actions.read_text(encoding="utf-8").splitlines()
+                        if ln.strip())
+            except OSError:
+                continue
+            if n > max_tool_calls:
+                state["reason"] = "budget"
+                _kill_tree(proc)
+                return
+
+    reader = threading.Thread(target=pump, daemon=True)
+    reader.start()
+    watcher = threading.Thread(target=budget_watch, daemon=True)
+    watcher.start()
+
+    try:
+        proc.wait(timeout=wall_clock_s)
+    except subprocess.TimeoutExpired:
+        state["reason"] = state["reason"] or "timeout"
+        _kill_tree(proc)
+
+    reader.join(timeout=30)
+    watcher.join(timeout=5)
+    tf.close()
+    ef.close()
+    ended = time.time()
+
+    # the transcript the detectors read is translated from the wire log -
+    # kimi's stdout stream has no init event and no thinking, the wire log
+    # has both plus llm.tools_snapshot, which IS the capability evidence.
+    notes = []
+    meta = {"events": 0, "final_text": "", "usage": {}, "tools": []}
+    wire = None
+    sid = state["kimi_session"]
+    candidates = []
+    if sid:
+        candidates = sorted(kimi_home.glob(
+            f"sessions/*/{sid}/agents/main/wire.jsonl"))
+    if not candidates:
+        candidates = sorted(kimi_home.glob("sessions/*/*/agents/main/wire.jsonl"),
+                            key=lambda p: p.stat().st_mtime)
+    if candidates:
+        wire = candidates[-1]
+    if wire is not None:
+        shutil.copyfile(wire, rollout_dir / "transcript.kimi.wire.jsonl")
+        meta = kimi_subject.translate_wire(
+            wire, rollout_dir / "transcript.jsonl")
+    else:
+        # no wire log -> no init event -> the evidence gate quarantines this
+        # rollout as unobserved. Deliberate: fail closed, never assumed blind.
+        notes.append("no wire.jsonl found under the isolated KIMI_CODE_HOME; "
+                     "transcript.jsonl not written so the episode quarantines "
+                     "as unobserved")
+
+    rc = proc.returncode
+    reason = state["reason"]
+    if reason is None:
+        reason = "completed" if rc == 0 else "agent_error"
+
+    return AgentRun(
+        driver="kimi", model=model, exit_reason=reason, returncode=rc,
+        wall_clock_s=round(ended - started, 2),
+        started_wts=int(started * 1000), ended_wts=int(ended * 1000),
+        transcript_path=str(rollout_dir / "transcript.jsonl"),
+        events=meta["events"], final_text=meta["final_text"],
+        session_id=sid or session_id,
+        usage={**meta["usage"],
+               "note": "kimi subscription; token counts from usage.record, "
+                       "no per-call USD available"},
+        stderr_tail=err_path.read_text(encoding="utf-8", errors="replace")[-4000:],
+        argv=[argv[0], "-p", "<prompt: see prompt.txt>"] + argv[2:],
+        notes=" ".join(notes))
+
+
 # --------------------------------------------------------------- the runner
 def _kill_tree(proc: subprocess.Popen) -> None:
     if proc.poll() is not None:
@@ -249,8 +403,11 @@ def run(*, instruction: str, toolbelt: dict, artifact_in_world: str,
         rollout_dir: Path, model: str, driver: str,
         wall_clock_s: int, max_tool_calls: int,
         redteam: bool = False) -> AgentRun:
-    if CLAUDE is None and driver != "scripted":
+    if CLAUDE is None and driver not in ("scripted", "kimi"):
         raise HarnessError("the `claude` CLI is not on PATH; no subject to run")
+    if KIMI is None and driver == "kimi":
+        raise HarnessError("the `kimi` CLI was not found (PATH or "
+                           "~/.kimi-code/bin/kimi.exe); no subject to run")
 
     cwd = rollout_dir / "agent_cwd"
     cwd.mkdir(parents=True, exist_ok=True)
@@ -265,6 +422,12 @@ def run(*, instruction: str, toolbelt: dict, artifact_in_world: str,
         # a real subject that is not a model - see redteam/scripted_subject.py
         return _run_scripted(rollout_dir, cwd, gateway_url, wall_clock_s,
                              model, session_id)
+
+    if driver == "kimi":
+        return _run_kimi(prompt=prompt, gateway_cfg=gateway_cfg,
+                         audit_dir=audit_dir, rollout_dir=rollout_dir,
+                         cwd=cwd, model=model, wall_clock_s=wall_clock_s,
+                         max_tool_calls=max_tool_calls, session_id=session_id)
 
     argv = [CLAUDE, "--print",
             "--output-format", "stream-json", "--verbose",

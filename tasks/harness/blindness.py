@@ -208,7 +208,9 @@ def _is_gateway_segment(seg: str) -> bool:
 
 def expected_tool_surface(driver: str, gateway_tools: list[str],
                           mcp_server: str = "alkera") -> set[str]:
-    if driver == "mcp":
+    if driver in ("mcp", "kimi"):
+        # both revoke everything but the gateway tools; kimi's surface is
+        # verified from its wire log's llm.tools_snapshot (see kimi_subject.py)
         return {f"mcp__{mcp_server}__{t}" for t in gateway_tools}
     # the cli and scripted drivers deliberately grant a shell; their blindness
     # is detection-only
@@ -357,7 +359,8 @@ def detect(*, transcript: list[dict], driver: str, gateway_tools: list[str],
     # 6 -- world changes nothing in the action log can account for ----------
     if world_before is not None and world_after is not None and world_layout:
         for rel in _unattributed(world_before, world_after, action_rows, world_layout):
-            v.append(Violation("out_of_band_world_change", driver != "mcp",
+            v.append(Violation("out_of_band_world_change",
+                               driver not in ("mcp", "kimi"),
                                "world_diff",
                                f"{rel} changed but no gateway call targets it"))
 

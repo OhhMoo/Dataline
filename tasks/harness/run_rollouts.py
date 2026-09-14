@@ -76,7 +76,8 @@ def main() -> int:
     ap.add_argument("--task", required=True)
     ap.add_argument("--k", type=int, default=5)
     ap.add_argument("--model", default="opus")
-    ap.add_argument("--driver", default="mcp", choices=["mcp", "cli", "scripted"])
+    ap.add_argument("--driver", default="mcp",
+                    choices=["mcp", "cli", "scripted", "kimi"])
     ap.add_argument("--out", default=str(DEFAULT_OUT))
     ap.add_argument("--run-id", default=None)
     ap.add_argument("--concurrency", type=int, default=0,
