@@ -147,11 +147,13 @@ def test_non_utf8_files_are_readable_and_diagnosable(gateway, tmp_path):
     assert ebcdic["content"] == "CUSTOMER 00417"
 
     # 3. Round-trip: an agent that diagnoses the encoding can write it back.
-    assert_ok(gateway.call("fs_write", {"path": "out.csv", "content": "Jos\xe9\n",
-                                        "encoding": "cp1252"}))
+    assert_ok(
+        gateway.call("fs_write", {"path": "out.csv", "content": "Jos\xe9\n", "encoding": "cp1252"})
+    )
     assert (workspace / "out.csv").read_bytes() == "Jos\xe9\n".encode("cp1252")
 
     # 4. A nonsense codec is a clean error, not a traceback.
-    assert gateway.call("fs_read", {"path": "extract.dat", "encoding": "cp9999"})["error"][
-        "code"
-    ] == "unknown_encoding"
+    assert (
+        gateway.call("fs_read", {"path": "extract.dat", "encoding": "cp9999"})["error"]["code"]
+        == "unknown_encoding"
+    )

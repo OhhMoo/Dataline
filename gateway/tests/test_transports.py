@@ -4,6 +4,7 @@ from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 
 from alkera_gateway.server import http_app
+from alkera_gateway.tools import TOOLS
 
 
 @pytest.mark.asyncio
@@ -24,7 +25,7 @@ async def test_mcp_and_cli_http_share_the_gateway(gateway):
                 async with ClientSession(read_stream, write_stream) as session:
                     await session.initialize()
                     tools = await session.list_tools()
-                    assert len(tools.tools) == 17
+                    assert {tool.name for tool in tools.tools} == set(TOOLS)
                     result = await session.call_tool("sql_query", {"sql": "select 2 as value"})
                     assert result.structuredContent["result"]["rows"] == [[2]]
                     assert not result.isError

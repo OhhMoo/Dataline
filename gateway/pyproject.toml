@@ -15,10 +15,13 @@ dependencies = [
   "sqlglot>=27,<31",
   "filelock>=3.18,<4",
   "psutil>=7,<8",
+  "psycopg[binary]>=3.2,<4",
+  "boto3>=1.35,<2",
 ]
 
 [project.optional-dependencies]
 dbt = ["dbt-duckdb>=1.9,<2"]
+snowflake = ["snowflake-connector-python>=3,<5"]
 
 [dependency-groups]
 dev = ["httpx>=0.28,<1", "pytest>=8,<10", "pytest-asyncio>=1,<2", "ruff>=0.12,<1"]

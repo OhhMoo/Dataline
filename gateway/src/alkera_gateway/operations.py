@@ -1,7 +1,10 @@
+from .bi import BIStore
 from .commands import Commands
 from .files import Workspace
-from .sql import Warehouse
+from .records import ToolError
+from .storage import ObjectStorage
 from .surfaces import FileScheduler, render_dashboard
+from .warehouse import create_warehouse
 
 
 class Operations:
@@ -9,7 +12,9 @@ class Operations:
         self.config = config
         self.clock = clock
         self.workspace = Workspace(config)
-        self.warehouse = Warehouse(config)
+        self.warehouse = create_warehouse(config)
+        self.bi = BIStore(config, self.warehouse, clock)
+        self.storage = ObjectStorage(config)
         self.commands = Commands(config, self.workspace)
         self.scheduler = scheduler or FileScheduler(config.scheduler, self.commands, clock)
 
@@ -37,8 +42,48 @@ class Operations:
     def fs_list(self, path, recursive, observation):
         return self.workspace.list(path, recursive, observation)
 
-    def docs_search(self, query, limit, observation):
-        return self.workspace.search(query, limit, observation)
+    def docs_search(self, query, limit, observation, encoding="utf-8"):
+        return self.workspace.search(query, limit, observation, encoding)
+
+    def docs_list(self, observation):
+        return self.workspace.list("docs", True, observation)
+
+    def docs_get(self, path, observation):
+        resolved = self.workspace.path(path)
+        if not resolved.is_relative_to(self.config.workspace / "docs"):
+            raise ToolError("path_denied", "Documentation must be inside workspace/docs")
+        result = self.workspace.read(path, observation)
+        result["lines"] = [
+            {"line": n, "text": line} for n, line in enumerate(result["content"].splitlines(), 1)
+        ]
+        return result
+
+    def bi_list(self, observation):
+        return self.bi.list(observation)
+
+    def bi_get(self, dashboard, observation):
+        return self.bi.get(dashboard, observation)
+
+    def bi_cached(self, dashboard, observation):
+        return self.bi.cached(dashboard, observation)
+
+    def bi_refresh(self, dashboard, observation):
+        return self.bi.refresh(dashboard, observation)
+
+    def bi_update(self, dashboard, definition, observation):
+        return self.bi.update(dashboard, definition, observation)
+
+    def s3_list(self, bucket, prefix, continuation_token, limit, observation):
+        return self.storage.list(bucket, prefix, continuation_token, limit, observation)
+
+    def s3_get(self, bucket, key, observation):
+        return self.storage.get(bucket, key, observation)
+
+    def s3_put(self, bucket, key, body_base64, metadata, observation):
+        return self.storage.put(bucket, key, body_base64, metadata, observation)
+
+    def s3_delete(self, bucket, key, observation):
+        return self.storage.delete(bucket, key, observation)
 
     def git_log(self, limit, observation):
         observation.read_targets = ["workspace"]

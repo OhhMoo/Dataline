@@ -1,3 +1,4 @@
+import codecs
 from pathlib import Path
 
 from .config import GatewayConfig
@@ -28,9 +29,11 @@ class Workspace:
             content = stream.read(self.max_bytes + 1)
         if len(content) > self.max_bytes:
             raise ToolError("file_too_large", "File exceeds the configured read limit")
-        return {"path": self.name(resolved),
-                "content": self._decode(content, encoding),
-                "encoding": encoding}
+        return {
+            "path": self.name(resolved),
+            "content": self._decode(content, encoding),
+            "encoding": encoding,
+        }
 
     @staticmethod
     def _decode(content: bytes, encoding: str) -> str:
@@ -50,10 +53,10 @@ class Workspace:
             raise ToolError(
                 "decode_error",
                 f"Byte 0x{content[e.start]:02x} at offset {e.start} is not valid "
-                f"{encoding}. Re-read with the correct 'encoding' if you know it.") from None
+                f"{encoding}. Re-read with the correct 'encoding' if you know it.",
+            ) from None
 
-    def write(self, path: str, content: str, observation: Observation,
-              encoding: str = "utf-8"):
+    def write(self, path: str, content: str, observation: Observation, encoding: str = "utf-8"):
         resolved = self.path(path)
         observation.op_class = "write"
         observation.targets = [self.name(resolved)]
@@ -64,8 +67,9 @@ class Workspace:
         except UnicodeEncodeError as e:
             raise ToolError(
                 "encode_error",
-                f"{content[e.start:e.start + 1]!r} at offset {e.start} cannot be "
-                f"represented in {encoding}") from None
+                f"{content[e.start : e.start + 1]!r} at offset {e.start} cannot be "
+                f"represented in {encoding}",
+            ) from None
         if len(data) > self.max_bytes:
             raise ToolError("file_too_large", "Content exceeds the configured write limit")
         if resolved.exists():
@@ -91,20 +95,56 @@ class Workspace:
                 break
         return {"entries": entries[:1000], "truncated": len(entries) > 1000}
 
-    def search(self, query: str, limit: int, observation: Observation):
+    def search(self, query: str, limit: int, observation: Observation, encoding: str = "utf-8"):
+        """Search the docs tree, and account for every document it could not read.
+
+        The old body swallowed ToolError and UnicodeError with a bare `continue`
+        and still returned limit_reached=false - an affirmative claim that the
+        search was complete. A cp1252 export and an oversized runbook, both
+        containing the query, vanished with nothing saying so. That is the same
+        failure class `_decode` exists to close, one method away: it does not
+        merely omit data, it hides the omission. Several archetypes plant the
+        defect *in* the document, so the surface that quietly skips the corrupted
+        file removes the planted defect from the agent's reach.
+
+        So: a document is either searched, or named in `skipped` with the reason
+        it could not be. `encoding` is symmetric with fs_read - diagnose the
+        codec, then search the document in it.
+        """
+        try:
+            codecs.lookup(encoding)
+        except LookupError:
+            raise ToolError("unknown_encoding", f"No codec named {encoding!r}") from None
         docs = self.path("docs")
         observation.targets = observation.read_targets = ["docs"]
-        matches = []
+        matches, skipped = [], []
         for path in sorted(docs.rglob("*")):
             if path.suffix not in {".md", ".txt"} or not path.is_file():
                 continue
+            name = self.name(path)
             try:
-                content = self.read(self.name(path), Observation())["content"]
-            except (ToolError, UnicodeError):
+                content = self.read(name, Observation(), encoding)["content"]
+            except ToolError as exc:
+                skipped.append({"path": name, "code": exc.code, "reason": str(exc)})
+                continue
+            except OSError as exc:
+                skipped.append({"path": name, "code": "read_failed", "reason": str(exc)})
                 continue
             for number, line in enumerate(content.splitlines(), 1):
                 if query.casefold() in line.casefold():
-                    matches.append({"path": self.name(path), "line": number, "text": line})
+                    matches.append({"path": name, "line": number, "text": line})
                     if len(matches) == limit:
-                        return {"matches": matches, "limit_reached": True}
-        return {"matches": matches, "limit_reached": False}
+                        return self._search_result(matches, True, skipped, encoding)
+        return self._search_result(matches, False, skipped, encoding)
+
+    @staticmethod
+    def _search_result(matches, limit_reached, skipped, encoding):
+        return {
+            "matches": matches,
+            "limit_reached": limit_reached,
+            # Never empty by accident: an empty list is the claim that nothing
+            # was skipped, and it is only ever written here alongside the loop
+            # that would have filled it.
+            "skipped": skipped,
+            "encoding": encoding,
+        }
