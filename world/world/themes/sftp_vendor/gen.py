@@ -1,10 +1,12 @@
-"""sftp_vendor theme hooks: drop-folder generation + raw load.
+"""sftp_vendor theme hooks: drop-folder generation, raw load, ingest seeding.
 
 write_landing: one RNG per day keyed on (seed, day_index), so output does not
 depend on iteration order. Each day lands a CSV plus a `<name>.done` sentinel
 per feed. Amounts are integer cents rendered %.2f — no binary floats anywhere.
 load_raw: runs the workspace's own loader/vendor_load.py via subprocess, so
 the script the agent reads is the code that actually loads the drop folders.
+write_ingest: seeds the connector control-plane state (var/ingest/state.json)
+from the same per-day RNG, so sync history reconciles with raw exactly.
 """
 import csv
 import random
@@ -13,7 +15,8 @@ import sys
 from datetime import timedelta
 from pathlib import Path
 
-from world.scheduler import parse_vtime
+from world.hashing import json_canon
+from world.scheduler import iso, parse_vtime
 
 ORDER_FIELDS = ["order_id", "order_date", "customer_id", "amount"]
 RETURN_FIELDS = ["return_id", "order_id", "return_date", "amount"]
@@ -73,3 +76,57 @@ def load_raw(workspace: Path, db_path: Path) -> None:
         capture_output=True, text=True)
     if r.returncode != 0:
         raise SystemExit(f"vendor_load failed:\n{r.stdout}\n{r.stderr}")
+
+
+def write_ingest(root: Path, seed: dict, manifest: dict) -> None:
+    """Seed var/ingest/state.json per gateway/INGEST_CONTRACT.md.
+
+    One green sync per connector per day, timed after sftp_poll and before
+    vendor_load, with row counts from the same per-day RNG that wrote the
+    drop folders — so the sync history agrees with raw exactly. A clean
+    baseline: planted drift defects are Track C's job.
+    """
+    start = parse_vtime(seed["vtime_start"])
+    specs = manifest["ingest"]["connectors"]
+    connectors, schemas, runs = {}, [], []
+    for cid, spec in specs.items():
+        full = f"{spec['destination']['schema']}.{spec['destination']['tables'][0]}"
+        connectors[cid] = {
+            "name": spec["name"],
+            "source": spec["source"],
+            "destination": spec["destination"],
+            "status": spec["status"],
+            "schedule": spec["schedule"],
+            "sync": {"duration_s": spec["duration_s"],
+                     "tables": {full: {"rows_inserted": spec["rows_per_sync"],
+                                       "rows_updated": 0}}},
+        }
+        schemas.append({
+            "connector_id": cid, "table": full, "columns": spec["columns"],
+            "column_added": spec["column_added"],
+            "column_removed": spec["column_removed"],
+        })
+    for i in range(seed["days"]):
+        day = (start + timedelta(days=i)).date()
+        orders, returns = day_rows(seed["seed"], i, day, seed)
+        daily = {"orders": orders, "returns": returns}
+        for cid, spec in specs.items():
+            hh, mm = (int(x) for x in spec["time"].split(":"))
+            started = start + timedelta(days=i + 1, hours=hh, minutes=mm)
+            finished = started + timedelta(seconds=spec["duration_s"])
+            full = f"{spec['destination']['schema']}.{spec['destination']['tables'][0]}"
+            runs.append({
+                "id": f"sync-{len(runs) + 1:06d}",
+                "connector_id": cid,
+                "started_at": iso(started),
+                "finished_at": iso(finished),
+                "status": "success",
+                "tables": {full: {"rows_inserted": len(daily[spec["feed"]]),
+                                  "rows_updated": 0}},
+                "timeline": [{"at": iso(started), "event": "started"},
+                             {"at": iso(finished), "event": "succeeded"}],
+            })
+    state = {"connectors": connectors, "runs": runs, "schemas": schemas, "alerts": []}
+    path = root / "var" / "ingest" / "state.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(json_canon(state) + b"\n")

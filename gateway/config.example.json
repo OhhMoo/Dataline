@@ -2,6 +2,7 @@
   "workspace": "/world/workspace",
   "warehouse": "/world/var/warehouse/warehouse.duckdb",
   "scheduler": "/world/var/sched/state.json",
+  "ingest": "/world/var/ingest/state.json",
   "dashboards": "/world/var/bi/dashboards",
   "audit_dir": "/audit",
   "profiles_dir": "/world/build",

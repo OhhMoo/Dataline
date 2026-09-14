@@ -38,6 +38,12 @@ class WorldTest(unittest.TestCase):
         """Build-from-scratch-twice gate (same host here; CI runs cross-host)."""
         self.assertEqual(fingerprint.semantic(self.w1), fingerprint.semantic(self.w2))
 
+    def test_no_ingest_section_without_control_plane(self):
+        """revenue_daily seeds no var/ingest, so its fingerprint keeps the
+        original four sections and its recorded semantic hash cannot move."""
+        sem = fingerprint.semantic(self.w1)
+        self.assertEqual(sorted(sem), ["bi", "scheduler", "warehouse", "workspace"])
+
     def test_git_head_stable(self):
         head1, head2 = fingerprint.git_head(self.w1), fingerprint.git_head(self.w2)
         self.assertIsNotNone(head1)

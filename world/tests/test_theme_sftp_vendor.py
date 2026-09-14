@@ -49,6 +49,44 @@ class SftpVendorThemeTest(unittest.TestCase):
         self.assertEqual(rendered["vendor_daily"]["totals"][0][2], str(net))
         self.assertEqual(len(rendered["vendor_daily"]["daily_net_revenue"]), 30)
 
+    def test_ingest_state_seeded_and_consistent(self):
+        """The connector control plane seeds a clean baseline: one green sync
+        per connector per day whose row counts reconcile with raw exactly."""
+        import json
+        state = json.loads(
+            (self.w1 / "var" / "ingest" / "state.json").read_text(encoding="utf-8"))
+        self.assertEqual(sorted(state["connectors"]), ["acme_orders", "globex_returns"])
+        self.assertEqual(len(state["runs"]), 60)
+        self.assertTrue(all(r["status"] == "success" for r in state["runs"]))
+        self.assertEqual(state["alerts"], [])
+        self.assertEqual(len(state["schemas"]), 2)
+        # sync history stays inside the scheduler's run window: every sync
+        # finishes before the last dbt_build and starts after the first poll
+        sched = json.loads(
+            (self.w1 / "var" / "sched" / "state.json").read_text(encoding="utf-8"))
+        window_end = max(r["vts_end"] for r in sched["runs"])
+        window_start = min(r["vts_start"] for r in sched["runs"])
+        self.assertTrue(all(r["finished_at"] <= window_end for r in state["runs"]))
+        self.assertTrue(all(r["started_at"] >= window_start for r in state["runs"]))
+        # per-table inserted totals match the raw tables the loader produced
+        import duckdb
+        totals = {}
+        for run in state["runs"]:
+            for table, counts in run["tables"].items():
+                totals[table] = totals.get(table, 0) + counts["rows_inserted"]
+        con = duckdb.connect(str(self.w1 / DB), read_only=True)
+        try:
+            for full, expected in totals.items():
+                schema, table = full.split(".")
+                n = con.execute(
+                    f'select count(*) from "warehouse"."{schema}"."{table}"'
+                ).fetchone()[0]
+                self.assertEqual(n, expected)
+        finally:
+            con.close()
+        # the fingerprint carries the conditional ingest section
+        self.assertIn("ingest", fingerprint.semantic(self.w1))
+
     def test_drop_layout_and_raw_counts(self):
         """Every CSV has a .done sentinel; raw row counts match the files."""
         import duckdb

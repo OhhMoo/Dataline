@@ -2,8 +2,10 @@
 
 - semantic_hash  — THE GATE. Canonical logical contents: warehouse schemas +
   canonically-ordered rows, scheduler state (incl. v-clock), BI definitions,
-  workspace files (dbt project, landing CSVs, docs). Equal across hosts <=>
-  same world. Comparison excludes `git_head` (informational).
+  workspace files (dbt project, landing CSVs, docs), and — only when the theme
+  seeds one — the ingestion control-plane state (var/ingest/state.json).
+  Equal across hosts <=> same world. Comparison excludes `git_head`
+  (informational).
 - provenance     — attestation: seed hash, generator + dependency versions,
   requirements.lock hash, image digest.
 - raw_byte_hash  — diagnostic only (duckdb page layout may differ across
@@ -59,13 +61,20 @@ def _warehouse_hash(db_path: Path) -> dict:
 
 def semantic(root: Path) -> dict:
     root = Path(root)
-    return {
+    sections = {
         "warehouse": _warehouse_hash(root / DB),
         "scheduler": json_hash(json.loads(
             (root / "var" / "sched" / "state.json").read_text(encoding="utf-8"))),
         "bi": tree_hash(root / "var" / "bi"),
         "workspace": tree_hash(root / "workspace", exclude=(".git",)),
     }
+    # Conditional: only themes that seed a connector control plane (an
+    # optional write_ingest gen hook) get the section, so worlds without one
+    # keep their recorded semantic hash.
+    ingest = root / "var" / "ingest" / "state.json"
+    if ingest.is_file():
+        sections["ingest"] = json_hash(json.loads(ingest.read_text(encoding="utf-8")))
+    return sections
 
 
 def semantic_hash(root: Path) -> str:

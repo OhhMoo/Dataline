@@ -18,6 +18,7 @@ def make_world(root: Path):
     (workspace / "docs").mkdir()
     (root / "var" / "warehouse").mkdir(parents=True)
     (root / "var" / "sched").mkdir(parents=True)
+    (root / "var" / "ingest").mkdir(parents=True)
     dashboards = root / "var" / "bi" / "dashboards"
     dashboards.mkdir(parents=True)
     build = root / "build"
@@ -72,6 +73,100 @@ def make_world(root: Path):
     (root / "var" / "sched" / "state.json").write_text(
         json.dumps(state, sort_keys=True), encoding="utf-8"
     )
+    ingest = {
+        "connectors": {
+            "acme_orders": {
+                "name": "Acme orders",
+                "source": {"type": "sftp", "location": "data/drop/acme"},
+                "destination": {"schema": "raw", "tables": ["vendor_orders"]},
+                "status": "active",
+                "schedule": "31 5 * * *",
+                "sync": {
+                    "duration_s": 45,
+                    "tables": {"raw.vendor_orders": {"rows_inserted": 50, "rows_updated": 0}},
+                },
+            },
+            "globex_returns": {
+                "name": "Globex returns",
+                "source": {"type": "sftp", "location": "data/drop/globex"},
+                "destination": {"schema": "raw", "tables": ["vendor_returns"]},
+                "status": "paused",
+                "schedule": "32 5 * * *",
+                "sync": {
+                    "duration_s": 30,
+                    "tables": {"raw.vendor_returns": {"rows_inserted": 2, "rows_updated": 0}},
+                },
+            },
+        },
+        "runs": [
+            {
+                "id": "sync-000001",
+                "connector_id": "acme_orders",
+                "started_at": "2026-03-04T05:31:00Z",
+                "finished_at": "2026-03-04T05:31:45Z",
+                "status": "success",
+                "tables": {"raw.vendor_orders": {"rows_inserted": 48, "rows_updated": 0}},
+                "timeline": [
+                    {"at": "2026-03-04T05:31:00Z", "event": "started"},
+                    {"at": "2026-03-04T05:31:45Z", "event": "succeeded"},
+                ],
+            },
+            {
+                "id": "sync-000002",
+                "connector_id": "globex_returns",
+                "started_at": "2026-03-04T05:32:00Z",
+                "finished_at": "2026-03-04T05:32:30Z",
+                "status": "failed",
+                "tables": {"raw.vendor_returns": {"rows_inserted": 0, "rows_updated": 0}},
+                "timeline": [
+                    {"at": "2026-03-04T05:32:00Z", "event": "started"},
+                    {"at": "2026-03-04T05:32:30Z", "event": "failed"},
+                ],
+            },
+            {
+                "id": "sync-000003",
+                "connector_id": "acme_orders",
+                "started_at": "2026-03-05T05:31:00Z",
+                "finished_at": "2026-03-05T05:31:45Z",
+                "status": "success",
+                "tables": {"raw.vendor_orders": {"rows_inserted": 52, "rows_updated": 0}},
+                "timeline": [
+                    {"at": "2026-03-05T05:31:00Z", "event": "started"},
+                    {"at": "2026-03-05T05:31:45Z", "event": "succeeded"},
+                ],
+            },
+        ],
+        "schemas": [
+            {
+                "connector_id": "acme_orders",
+                "table": "raw.vendor_orders",
+                "columns": ["order_id", "order_date", "customer_id", "amount"],
+                "column_added": "propagate",
+                "column_removed": "ignore",
+            },
+            {
+                "connector_id": "globex_returns",
+                "table": "raw.vendor_returns",
+                "columns": ["return_id", "order_id", "return_date", "amount"],
+                "column_added": "propagate",
+                "column_removed": "ignore",
+            },
+        ],
+        "alerts": [
+            {
+                "id": "alert-000001",
+                "connector_id": "globex_returns",
+                "run_id": "sync-000002",
+                "kind": "sync_failed",
+                "fired_at": "2026-03-04T05:32:30Z",
+                "message": "Sync sync-000002 failed",
+                "acknowledged": False,
+            }
+        ],
+    }
+    (root / "var" / "ingest" / "state.json").write_text(
+        json.dumps(ingest, sort_keys=True), encoding="utf-8"
+    )
     subprocess.run(["git", "init", "-q"], cwd=workspace, check=True)
     subprocess.run(["git", "add", "-A"], cwd=workspace, check=True)
     env = {
@@ -108,6 +203,7 @@ def config(root: Path, audit: Path, fingerprint: str | None = None, **overrides)
         workspace=root / "workspace",
         warehouse=root / "var" / "warehouse" / "warehouse.duckdb",
         scheduler=root / "var" / "sched" / "state.json",
+        ingest=root / "var" / "ingest" / "state.json",
         dashboards=root / "var" / "bi" / "dashboards",
         audit_dir=audit,
         profiles_dir=root / "build",

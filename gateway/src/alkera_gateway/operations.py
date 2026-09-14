@@ -1,6 +1,7 @@
 from .bi import BIStore
 from .commands import Commands
 from .files import Workspace
+from .ingest import IngestStore
 from .records import ToolError
 from .storage import ObjectStorage
 from .surfaces import FileScheduler, render_dashboard
@@ -17,6 +18,7 @@ class Operations:
         self.storage = ObjectStorage(config)
         self.commands = Commands(config, self.workspace)
         self.scheduler = scheduler or FileScheduler(config.scheduler, self.commands, clock)
+        self.ingest = IngestStore(config.ingest, clock)
 
     def sql_query(self, sql, limit, observation):
         return self.warehouse.execute(sql, observation, read_only=True, limit=limit)
@@ -129,3 +131,39 @@ class Operations:
         target = f"scheduler:{run_id}" if run_id else "scheduler"
         observation.read_targets = observation.targets = [target]
         return self.scheduler.logs(run_id)
+
+    def ingest_list(self, observation):
+        observation.read_targets = observation.targets = ["ingest"]
+        return self.ingest.list_connectors()
+
+    def ingest_get(self, connector_id, observation):
+        observation.read_targets = observation.targets = [f"ingest:{connector_id}"]
+        return self.ingest.get_connector(connector_id)
+
+    def ingest_runs(self, connector_id, limit, continuation_token, observation):
+        target = f"ingest:{connector_id}" if connector_id else "ingest"
+        observation.read_targets = observation.targets = [target]
+        return self.ingest.list_runs(connector_id, limit, continuation_token)
+
+    def ingest_run(self, run_id, observation):
+        observation.read_targets = observation.targets = [f"ingest:{run_id}"]
+        return self.ingest.get_run(run_id)
+
+    def ingest_schema(self, connector_id, observation):
+        observation.read_targets = observation.targets = [f"ingest:{connector_id}"]
+        return self.ingest.get_schema(connector_id)
+
+    def ingest_alerts(self, connector_id, acknowledged, observation):
+        target = f"ingest:{connector_id}" if connector_id else "ingest"
+        observation.read_targets = observation.targets = [target]
+        return self.ingest.list_alerts(connector_id, acknowledged)
+
+    def ingest_trigger(self, connector_id, observation):
+        observation.op_class = "exec"
+        observation.targets = [f"ingest:{connector_id}"]
+        return self.ingest.trigger(connector_id)
+
+    def ingest_schema_update(self, connector_id, table, column_added, column_removed, observation):
+        observation.op_class = "write"
+        observation.targets = [f"ingest:{connector_id}"]
+        return self.ingest.set_policy(connector_id, table, column_added, column_removed)

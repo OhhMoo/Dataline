@@ -16,6 +16,7 @@ class GatewayConfig(BaseModel):
     s3_endpoint: str | None = None
     s3_buckets: list[str] = Field(default_factory=list)
     scheduler: Path = Path("/var/sched/state.json")
+    ingest: Path = Path("/var/ingest/state.json")
     dashboards: Path = Path("/var/bi/dashboards")
     audit_dir: Path = Path("/audit")
     profiles_dir: Path = Path("/etc/alkera/dbt")
@@ -34,6 +35,7 @@ class GatewayConfig(BaseModel):
             "workspace",
             "warehouse",
             "scheduler",
+            "ingest",
             "dashboards",
             "audit_dir",
             "profiles_dir",

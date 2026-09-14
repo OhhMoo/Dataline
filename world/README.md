@@ -41,6 +41,9 @@ build.py / scheduler.py / fingerprint.py / bi.py. A theme provides:
   dbt_project.yml), and `jobs` (scheduler run specs per past day).
 - `gen.py` — two hooks: `write_landing(workspace, seed)` and
   `load_raw(workspace, db_path)`. Imported in place; themes are not packages.
+  An optional third hook, `write_ingest(root, seed, manifest)`, seeds the
+  ingestion control-plane state (`var/ingest/state.json`); only themes that
+  define it get the fingerprint's conditional `ingest` section.
 - `workspace/` — static files (dbt project, README, docs) copied byte-verbatim
   into the built workspace.
 - `bi/*.yml` — dashboard specs copied verbatim to `var/bi/dashboards/`.
@@ -54,7 +57,9 @@ Themes must load their base tables into schemas `raw`, `staging`, `warehouse`
 1. **Semantic fingerprint** — same seed built from scratch twice, on different
    hosts, must give the identical `semantic_hash`. Covers: warehouse schemas +
    canonically-ordered rows, scheduler state incl. v-clock, BI definitions,
-   workspace files. Canonicalization rules live in `world/hashing.py`.
+   workspace files, and — only when the theme seeds `var/ingest/state.json` —
+   the ingestion control-plane state. Canonicalization rules live in
+   `world/hashing.py`.
    `scripts/acceptance.sh` gate 3 proves this live: it builds the same seed on
    the host and inside the `alkera-world:0.1.0` container and requires equal
    semantic hashes (with no docker daemon it falls back to a weaker same-host
