@@ -66,9 +66,14 @@ def main(argv=None):
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO)
     if args.command == "serve":
+        from .scheduling import episode_scheduler
         from .server import http_app, serve_stdio
 
-        gateway = Gateway(GatewayConfig.load(args.config))
+        cfg = GatewayConfig.load(args.config)
+        # An episode gets the EXECUTING scheduler; see scheduling.py. Serving a
+        # world with a scheduler the agent cannot drive is what let a rollout
+        # call sched_trigger five times and be told success every time.
+        gateway = Gateway(cfg, scheduler=episode_scheduler(cfg))
         try:
             if args.transport == "stdio":
                 asyncio.run(serve_stdio(gateway))

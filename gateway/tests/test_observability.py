@@ -725,20 +725,29 @@ def test_logs_enumerate_runs_and_name_what_they_could_not_capture(obs):
 
 def test_logs_capture_the_transcript_of_a_run_the_gateway_executed(obs):
     """A job the gateway actually runs leaves a real transcript, and the log
-    surface reads it. This is the path that grows when the scheduler starts
-    executing seeded jobs for real."""
+    surface reads it.
+
+    This used to trigger `daily_load`, which the scheduler never executed: the
+    `run_result` it read back was the inert `{"intent": "load_daily"}` blob, so
+    the one test named for the executed path was the one test proving nothing
+    executed. It now triggers a job that really runs, and reads dbt's own
+    output - `run_output`, the source no test exercised before."""
+    state = json.loads(obs.config.scheduler.read_text(encoding="utf-8"))
+    state["jobs"]["nightly_build"] = {"command": "dbt build --select sample", "duration_s": 5}
+    obs.config.scheduler.write_text(json.dumps(state, sort_keys=True), encoding="utf-8")
+
     assert_ok(
         obs.call(
             "sched_trigger",
-            {"job_id": "daily_load", "execution_date": "2026-03-05", "variables": {"x": 1}},
+            {"job_id": "nightly_build", "execution_date": "2026-03-05", "variables": {}},
         )
     )
     listing = assert_ok(obs.call("logs_list", {}))["runs"]
     assert listing[0]["run_id"] == "run-000005"
-    assert listing[0]["output_source"] == "run_result"
+    assert listing[0]["output_source"] == "run_output"
     body = assert_ok(obs.call("logs_get", {"run_id": "run-000005"}))
-    assert body["source"] == "run_result"
-    assert any("load_daily" in line["text"] for line in body["lines"])
+    assert body["source"] == "run_output"
+    assert any("sample" in line["text"] for line in body["lines"])
 
 
 def test_logs_search_finds_the_failure_and_accounts_for_every_run_it_skipped(obs):

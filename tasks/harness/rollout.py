@@ -20,6 +20,7 @@ invoked until the subject's process is dead. Ground rule 1.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -39,6 +40,7 @@ import blindness                        # noqa: E402
 import classify as classifier           # noqa: E402
 import container_episode                # noqa: E402
 import episode                          # noqa: E402
+import surface_audit                    # noqa: E402
 import taskspec                         # noqa: E402
 
 REPO = Path(__file__).resolve().parents[2]
@@ -137,7 +139,10 @@ def reclassify(rollout_dir: Path) -> dict:
     """
     rollout_dir = Path(rollout_dir).resolve()
     rec = json.loads((rollout_dir / "rollout.json").read_text(encoding="utf-8"))
-    spec = taskspec.load(rec["task"])
+    # the package this rollout was actually run from, not wherever tasks live by
+    # default: a fixture package under a --tasks-dir must reclassify too
+    spec = taskspec.load(rec["task"],
+                         Path(rec["tasks_dir"]) if rec.get("tasks_dir") else None)
     world = rec.get("world") or {}
     grading = rollout_dir / "grading"
 
@@ -172,6 +177,16 @@ def reclassify(rollout_dir: Path) -> dict:
         topology=rec.get("topology", "host"), containment=stored_containment)
 
     before = rec.get("classification")
+    # The surface audit is re-derived too, from the probe results already stored
+    # on the record. That is the whole point of --reclassify: a task that only
+    # now declares its required_surfaces can have the gate applied to rollouts
+    # already spent, instead of those rollouts keeping a verdict issued under a
+    # policy that did not exist. It cannot re-probe - the world has been graded
+    # against since - so a record with no stored probe results stays unaudited
+    # and says so.
+    rec["surface_audit"] = surface_audit.audit(
+        spec=spec, surfaces=rec.get("surfaces") or {},
+        toolbelt=sorted(rec.get("toolbelt") or []))
     rec["blindness"] = blindness.summarise(violations)
     rec["blindness_guarantee"] = blindness.guarantee(
         driver=rec["driver"], topology=rec.get("topology", "host"),
@@ -186,7 +201,8 @@ def reclassify(rollout_dir: Path) -> dict:
         artifact_present=bool(rec.get("artifact_present")),
         wall_clock_s=rec["limits"]["wall_clock_seconds"],
         max_tool_calls=rec["limits"]["max_tool_calls"],
-        unprobed_tools=rec.get("unprobed_tools") or []))
+        unprobed_tools=rec.get("unprobed_tools") or [],
+        surface_audit=rec.get("surface_audit")))
     rec["reclassified_from"] = before
     rec["reclassified_note"] = ("world-diff verdict carried forward; the world "
                                 "cannot be re-inventoried after the fact")
@@ -196,7 +212,8 @@ def reclassify(rollout_dir: Path) -> dict:
 
 
 def run_rollout(args) -> dict:
-    spec = taskspec.load(args.task)
+    tasks_dir = Path(args.tasks_dir).resolve() if args.tasks_dir else None
+    spec = taskspec.load(args.task, tasks_dir)
     rollout_dir = Path(args.out).resolve()
     rollout_dir.mkdir(parents=True, exist_ok=True)
 
@@ -227,9 +244,17 @@ def run_rollout(args) -> dict:
                                 else "detection_only"),
         "redteam_detector_test": args.driver == "scripted",
         "seed": spec.seed,
+        # A run must name which ticket produced it. The same precedent as the
+        # surface set: a rate whose conditions are not stated is not a result,
+        # and prompt variant and live-surface set are two halves of the same
+        # "what world and what ticket was this?" block in the report.
+        "prompt_sha256": hashlib.sha256(
+            spec.instruction_path.read_bytes()).hexdigest(),
+        "prompt_variant": taskspec.prompt_variant_of(spec),
         "limits": {"wall_clock_seconds": wall, "max_tool_calls": budget},
         "started_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "rollout_dir": str(rollout_dir),
+        "tasks_dir": str(tasks_dir) if tasks_dir else None,
     }
     harness_failure: str | None = None
     grader_crashed = False
@@ -257,7 +282,21 @@ def run_rollout(args) -> dict:
         record["world_fp_before"] = episode.fingerprint(world_root)
         tree_before = episode.tree_manifest(world_root)
 
-        episode_id = f"{spec.task_id}-{args.run_id}-{args.rollout_id}"
+        # BLINDNESS: the audit manifest is bind-mounted at /audit inside the
+        # episode container (container_episode.AUDIT_IN_CONTAINER) and the subject
+        # has bash, so every byte of episode_id is readable BY THE SUBJECT. The
+        # composite that used to go here named the task - "GT004-doubling-window"
+        # hands the agent the defect mechanism outright - and under the
+        # <variant>-<date>-kN run-id convention it handed over the prompt variant
+        # too. audit.py:54 only ever compares this value for equality and nothing
+        # parses it, so an opaque digest preserves every use it has. The readable
+        # label stays host-side in the rollout record, where the subject cannot
+        # reach it and our own analysis still needs it.
+        episode_label = f"{spec.task_id}-{args.run_id}-{args.rollout_id}"
+        episode_id = hashlib.sha256(
+            episode_label.encode("utf-8")).hexdigest()[:24]
+        record["episode_label"] = episode_label
+        record["episode_id"] = episode_id
         mcp_server_argv: list[str] | None = None
 
         if args.topology == "container":
@@ -308,28 +347,66 @@ def run_rollout(args) -> dict:
             # The host venv is a different build - two agents are editing
             # gateway/src right now - and the toolbelt decides both the prompt
             # and what counts as a tool the subject was allowed to hold.
-            surfaces = stack.probe_surfaces()
+            #
+            # Toolbelt FIRST, then the probes: the task's surface_probes are a
+            # floor, and the sweep over everything else in the toolbelt cannot
+            # be assembled until the toolbelt is known. On GT004 the report
+            # already named 23 live tools the task does not probe; an unprobed
+            # tool that is dead must not be able to hide behind that.
             toolbelt = stack.toolbelt()
+            stack.set_probes(surface_audit.all_probes(toolbelt, spec.surface_probes),
+                             rollout_dir / "container")
+            surfaces = stack.probe_surfaces()
             gateway_cfg = rollout_dir / "container" / "container_gateway.json"
             mcp_server_argv = stack.mcp_argv()
         else:
             # --- surface probe, on a throwaway copy, BEFORE the episode ---
-            surfaces = episode.probe_surfaces(spec, world, scratch)
             toolbelt = episode.gateway_tool_names()
+            surfaces = episode.probe_surfaces(
+                spec, world, scratch,
+                surface_audit.all_probes(toolbelt, spec.surface_probes))
             gateway_cfg = episode.write_gateway_config(
                 rollout_dir / "gateway.json", world, audit_dir, episode_id,
                 spec.virtual_time)
 
         record["surfaces"] = surfaces
         record["toolbelt"] = sorted(toolbelt)
+
+        # --- THE SURFACE GATE. Before the subject is handed the terminal. ----
+        # GT004 scored five rollouts in a world where eight surfaces answered
+        # `no_issue_tracker` / `no_chat` / `no_knowledge_base` /
+        # `no_observability` / `no_ingest_state`, and the only consequence was a
+        # line at the bottom of the report. A run measured in a half-absent
+        # world produces a number indistinguishable from one measured in a whole
+        # one, so the dead surface has to be an outcome, not an annotation.
+        #
+        # This follows blindness.py's precedent deliberately: a compromised
+        # episode is QUARANTINED rather than scored. The grounds differ - there
+        # the subject may have seen what it must not, here the subject was never
+        # given the world the task describes - but the consequence is the same,
+        # because in both cases the score is not a measurement of this task.
+        record["surface_audit"] = surface_audit.audit(
+            spec=spec, surfaces=surfaces, toolbelt=toolbelt)
+        gate = surface_audit.gate_error(record["surface_audit"])
+        if gate:
+            raise episode.HarnessError(gate)
         # A tool the task never probed is a tool whose failures cannot be
         # attributed: they fall through the dead-surface rule and land on the
         # agent as `reasoning`. The gateway grew from 17 tools to 28 mid-round
         # and GT001 still probed 7 of them, so this is recorded on every
         # rollout rather than assumed away.
+        #
+        # Two lists, because the sweep split one question into two. A tool the
+        # TASK does not declare is now usually swept, so its liveness is known
+        # even though the task never asked. What remains unattributable is the
+        # tool nobody verified either way: never declared AND not callable with
+        # no arguments. That, not the old list, is what makes an error land on
+        # the agent as `reasoning` with nothing to check it against.
+        record["undeclared_tools"] = sorted(
+            set(toolbelt) - surface_audit.declared_tools(spec.surface_probes))
         record["unprobed_tools"] = sorted(
-            set(toolbelt) - {pr["tool"] for pr in spec.surface_probes}
-            - {c for pr in spec.surface_probes for c in (pr.get("covers") or [])})
+            set(record["surface_audit"]["unprobed_tools"])
+            | set(record["surface_audit"]["unswept_tools"]))
 
         # --- the episode --------------------------------------------------
         gateway_url = None
@@ -506,7 +583,8 @@ def run_rollout(args) -> dict:
         blindness=record["blindness"], action_rows=action_rows,
         surfaces=surfaces.get("surfaces", {}), artifact_present=artifact_present,
         wall_clock_s=wall, max_tool_calls=budget,
-        unprobed_tools=record.get("unprobed_tools") or [])
+        unprobed_tools=record.get("unprobed_tools") or [],
+        surface_audit=record.get("surface_audit"))
     record.update(verdict)
     record["ended_utc"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     record["wall_clock_s"] = agent.wall_clock_s if agent else None
@@ -526,6 +604,10 @@ def main() -> int:
                          "log and artefact. Never re-runs the episode and never "
                          "re-grades - for applying a detector fix to rollouts "
                          "already spent.")
+    ap.add_argument("--tasks-dir", default=None,
+                    help="directory holding the task package, when it is not "
+                         "tasks/. Used by surface_gate_check.py to stand up "
+                         "fixture packages outside the repo.")
     ap.add_argument("--rollout-id", default="r0")
     ap.add_argument("--run-id", default="adhoc")
     ap.add_argument("--out")

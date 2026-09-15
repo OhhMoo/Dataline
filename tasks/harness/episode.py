@@ -101,6 +101,25 @@ def tree_manifest(root: Path) -> dict:
 
 
 # ----------------------------------------------------------------- gateway
+# Planes whose GatewayConfig default is an ABSOLUTE path outside any world root
+# (gateway/src/alkera_gateway/config.py:19-23,31: `/var/ingest/state.json`,
+# `/var/obs/observability.yml`, `/var/workflow`, all `.resolve()`d). A config
+# that does not name them leaves the gateway looking somewhere the world is not,
+# and issues_*/chat_*/kb_*/metrics_*/alarms_*/deploy_*/ingest_* answer
+# `no_issue_tracker` / `no_observability` / `no_ingest_state` NO MATTER WHAT THE
+# WORLD SEEDS. That is what made GT004's five Opus rollouts a measurement of a
+# half-absent world: the content was there and the harness never said where.
+#
+# Optional on purpose: a task whose world builder does not publish these keys is
+# unaffected, so a world that genuinely has no workflow plane still reports one
+# absent rather than being handed a path to nothing.
+WORLD_PLANE_KEYS = ("workflow_dir", "observability", "obs_samples", "ingest")
+
+
+def _plane_paths(world: dict) -> dict:
+    return {k: world[k] for k in WORLD_PLANE_KEYS if world.get(k)}
+
+
 def write_gateway_config(path: Path, world: dict, audit_dir: Path,
                          episode_id: str, virtual_time: str) -> Path:
     """The gateway config. Note what is NOT here: any path under the grading
@@ -110,6 +129,7 @@ def write_gateway_config(path: Path, world: dict, audit_dir: Path,
         "warehouse": world["warehouse"],
         "scheduler": world["scheduler"],
         "dashboards": world["dashboards"],
+        **_plane_paths(world),
         "audit_dir": str(audit_dir),
         "profiles_dir": world["profiles_dir"],
         "world_root": world["world_root"],
@@ -143,17 +163,24 @@ def call_tool_http(url: str, tool: str, args: dict, timeout: int = 180) -> dict:
 
 
 # ----------------------------------------------------------------- probes
-def probe_surfaces(spec, world: dict, scratch: Path) -> dict:
+def probe_surfaces(spec, world: dict, scratch: Path,
+                   probes: list[dict] | None = None) -> dict:
     """Which surfaces are actually live in the world this task ships?
 
     Run against a THROWAWAY COPY with its own audit dir, before the episode, so
     it perturbs neither the world the agent gets nor its action log. This is how
     a failure gets attributed to a dead surface instead of counted as reasoning.
+
+    `probes` defaults to the task's own declarations. The caller passes a longer
+    list - the task's probes plus surface_audit.sweep_probes over the rest of
+    the toolbelt - so that a dead surface cannot hide behind a tool the task
+    never thought to declare.
     """
     import socket
     import time
 
-    if not spec.surface_probes:
+    probes = spec.surface_probes if probes is None else probes
+    if not probes:
         return {"probed": False, "surfaces": {}}
 
     copy_root = scratch / "probe_world"
@@ -189,14 +216,17 @@ def probe_surfaces(spec, world: dict, scratch: Path) -> dict:
                 if proc.poll() is not None:
                     raise HarnessError("probe gateway died; see probe_server.log")
         url = f"http://127.0.0.1:{port}"
-        for probe in spec.surface_probes:
+        for probe in probes:
             label = probe.get("label") or probe["tool"]
+            declared = bool(probe.get("declared", True))
             try:
                 res = call_tool_http(url, probe["tool"], probe.get("args", {}), 60)
             except Exception as exc:                      # noqa: BLE001 - recorded
                 surfaces[label] = {"tool": probe["tool"],
                                    "covers": list(probe.get("covers") or []),
+                                   "declared": declared,
                                    "live": False,
+                                   "error_code": "probe_transport_failure",
                                    "error": f"{type(exc).__name__}: {exc}"}
                 continue
             err = res.get("error")
@@ -208,7 +238,14 @@ def probe_surfaces(spec, world: dict, scratch: Path) -> dict:
                 # a probe may speak for its siblings: dbt_compile standing in
                 # for dbt_run and dbt_test, which cannot be probed read-only
                 "covers": list(probe.get("covers") or []),
+                # whether the TASK declared this probe or the harness swept it
+                "declared": declared,
                 "live": bool(res.get("ok")),
+                # the code, separately: `no_chat` means the world has no chat,
+                # `invalid_arguments` means the probe could not even be formed,
+                # and conflating the two is how a dead surface reads as a bad
+                # probe (or, worse, the other way round)
+                "error_code": None if res.get("ok") else (err or {}).get("code"),
                 "error": None if res.get("ok") else json.dumps(err)[:300],
                 "result_summary": json.dumps(res.get("result"))[:300],
             }

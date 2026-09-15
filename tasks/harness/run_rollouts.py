@@ -41,6 +41,8 @@ def _one(args, run_dir: Path, idx: int) -> dict:
            "--task", args.task, "--rollout-id", rid, "--run-id", run_dir.name,
            "--out", str(out), "--model", args.model, "--driver", args.driver,
            "--topology", args.topology, "--image", args.image]
+    if args.tasks_dir:
+        cmd += ["--tasks-dir", args.tasks_dir]
     if args.wall_clock:
         cmd += ["--wall-clock", str(args.wall_clock)]
     if args.max_tool_calls:
@@ -77,6 +79,8 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--task", required=True)
     ap.add_argument("--k", type=int, default=5)
+    ap.add_argument("--tasks-dir", default=None,
+                    help="directory holding the task package, when it is not tasks/")
     ap.add_argument("--model", default="opus")
     ap.add_argument("--driver", default="mcp",
                     choices=["mcp", "cli", "scripted", "kimi"])
@@ -97,7 +101,8 @@ def main() -> int:
                          "is marked and must never be reported as a measurement")
     a = ap.parse_args()
 
-    spec = taskspec.load(a.task)
+    spec = taskspec.load(a.task,
+                         Path(a.tasks_dir).resolve() if a.tasks_dir else None)
     run_id = a.run_id or time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
     run_dir = Path(a.out).resolve() / a.task / run_id
     run_dir.mkdir(parents=True, exist_ok=True)

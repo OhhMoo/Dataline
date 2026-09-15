@@ -103,15 +103,31 @@ def save_live(root: Path, live: dict) -> None:
 
 
 def live_seed(live: dict | None) -> dict | None:
-    """The seed-shaped dict a theme's gen hooks expect, rebuilt from live.json."""
-    if not live:
+    """The seed-shaped dict a theme's gen hooks expect, rebuilt from live.json.
+
+    None when the live block does not describe a generated stream. A TASK world
+    carries a live block for one reason - to give its jobs `exec` specs, which
+    is what `_execute` reads - while its data is pre-built by a fixture
+    generator rather than landed day by day. Such a block has no `vtime_start`
+    and no `days_landed`, and demanding them raised KeyError before any job
+    could run, which is why a task's jobs could not execute at all.
+    """
+    if not live or "vtime_start" not in live or "days_landed" not in live:
         return None
     return {**live.get("params", {}), "vtime_start": live["vtime_start"],
             "days": live["days_landed"]}
 
 
 def live_gen(live: dict | None):
-    if not live:
+    """The theme's gen hooks, or None when the live block names no theme.
+
+    Only `_kind_theme` uses these; a job that is `sql`, `script`, `dbt` or
+    `scan` never touches them. `_execute` builds them eagerly though, so a live
+    block without a `theme` - which is what a task world has, since a task is
+    not a registered theme - used to raise KeyError before the executor was
+    ever reached.
+    """
+    if not live or not live.get("theme"):
         return None
     from .themes import load_theme          # local: gen hooks import this module
     return load_theme(live["theme"]).gen
