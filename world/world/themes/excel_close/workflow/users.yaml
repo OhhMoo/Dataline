@@ -1,0 +1,21 @@
+# The roster, authored once and copied into issues.json and chat.json.
+#
+# The four finance handles are the same strings that appear in the `owner`
+# column of raw.manual_adj, because the people who key the adjustments are the
+# people in the channel. An agent that reads an adjustment's owner can look the
+# person up in the tracker and ask them, which is the whole point of having
+# both surfaces.
+users:
+  - {id: m.diaz, name: Marta Diaz, role: Financial controller, team: Finance}
+  - {id: j.chen, name: Jia Chen, role: GL accountant, team: Finance}
+  - {id: s.okafor, name: Simi Okafor, role: Group reporting, team: Finance}
+  - {id: a.patel, name: Arjun Patel, role: Finance systems analyst, team: Finance systems}
+  - id: rboateng
+    name: Rita Boateng
+    role: Data engineer
+    team: Data
+    # The only person who has read the dbt model, on leave, and the assignee on
+    # the ticket that would have documented the column this week turns on.
+    away_until: "+7d"
+  - {id: closebot, name: Close monitor, role: Automation, team: Finance systems}
+  - {id: agent, name: On-call data engineer, role: On call, team: Data}

@@ -2,10 +2,13 @@ from .bi import BIStore
 from .commands import Commands
 from .files import Workspace
 from .ingest import IngestStore
+from .observability import ObservabilityStore
 from .records import ToolError
+from .runlogs import RunLogs
 from .storage import ObjectStorage
 from .surfaces import FileScheduler, render_dashboard
 from .warehouse import create_warehouse
+from .workflow import Chat, IssueTracker, KnowledgeBase
 
 
 class Operations:
@@ -19,6 +22,14 @@ class Operations:
         self.commands = Commands(config, self.workspace)
         self.scheduler = scheduler or FileScheduler(config.scheduler, self.commands, clock)
         self.ingest = IngestStore(config.ingest, clock)
+        self.observability = ObservabilityStore(
+            config, self.warehouse, self.scheduler, self.commands, clock
+        )
+        self.runlogs = RunLogs(self.scheduler, config)
+        actor = config.workflow_actor
+        self.issues = IssueTracker(config.workflow_dir, clock, actor)
+        self.chat = Chat(config.workflow_dir, clock, actor)
+        self.kb = KnowledgeBase(config.workflow_dir, clock, actor)
 
     def sql_query(self, sql, limit, observation):
         return self.warehouse.execute(sql, observation, read_only=True, limit=limit)
@@ -167,3 +178,118 @@ class Operations:
         observation.op_class = "write"
         observation.targets = [f"ingest:{connector_id}"]
         return self.ingest.set_policy(connector_id, table, column_added, column_removed)
+
+    def metrics_list(self, observation):
+        return self.observability.list_metrics(observation)
+
+    def metrics_get(self, metric, observation):
+        return self.observability.get_metric(metric, observation)
+
+    def metrics_series(self, metric, limit, observation):
+        return self.observability.get_series(metric, limit, observation)
+
+    def alarms_list(self, state, observation):
+        return self.observability.list_alarms(state, observation)
+
+    def alarms_get(self, alarm, observation):
+        return self.observability.get_alarm(alarm, observation)
+
+    def alarms_history(self, alarm, limit, observation):
+        return self.observability.alarm_history(alarm, limit, observation)
+
+    def deploy_list(self, observation):
+        return self.observability.list_deploys(observation)
+
+    def deploy_run(self, deploy, full_refresh, variables, observation):
+        return self.observability.run_deploy(deploy, full_refresh, variables, observation)
+
+    def deploy_history(self, deploy, limit, observation):
+        return self.observability.deploy_history(deploy, limit, observation)
+
+    def logs_list(self, job, status, limit, observation):
+        return self.runlogs.list(job, status, limit, observation)
+
+    def logs_get(self, run_id, observation):
+        return self.runlogs.get(run_id, observation)
+
+    def logs_search(self, query, job, limit, observation):
+        return self.runlogs.search(query, job, limit, observation)
+
+    def issues_list(self, status, assignee, label, limit, observation):
+        observation.read_targets = observation.targets = ["issues"]
+        return self.issues.list_issues(status, assignee, label, limit)
+
+    def issues_get(self, issue, observation):
+        observation.read_targets = observation.targets = [f"issue:{issue}"]
+        return self.issues.get_issue(issue)
+
+    def issues_search(self, query, limit, observation):
+        observation.read_targets = observation.targets = ["issues"]
+        return self.issues.search(query, limit)
+
+    def issues_comment(self, issue, body, observation):
+        observation.op_class = "write"
+        observation.targets = [f"issue:{issue}"]
+        return self.issues.comment(issue, body)
+
+    def issues_update(
+        self, issue, status, assignee, unassign, add_labels, remove_labels, observation
+    ):
+        observation.op_class = "write"
+        observation.targets = [f"issue:{issue}"]
+        result = self.issues.update(issue, status, assignee, unassign, add_labels, remove_labels)
+        if not result["changes"]:
+            # A write that changed nothing says so rather than reporting success
+            # over an unchanged ticket.
+            observation.flags.append("no_change")
+        return result
+
+    def chat_channels(self, observation):
+        observation.read_targets = observation.targets = ["chat"]
+        return self.chat.list_channels()
+
+    def chat_history(self, channel, limit, before, observation):
+        observation.read_targets = observation.targets = [f"chat:{channel}"]
+        return self.chat.history(channel, limit, before)
+
+    def chat_thread(self, message_id, observation):
+        result = self.chat.thread(message_id)
+        observation.read_targets = observation.targets = [
+            f"chat:{result['channel']}",
+            f"thread:{result['thread_id']}",
+        ]
+        return result
+
+    def chat_search(self, query, channel, limit, observation):
+        target = f"chat:{channel}" if channel else "chat"
+        observation.read_targets = observation.targets = [target]
+        return self.chat.search(query, channel, limit)
+
+    def chat_post(self, channel, text, thread_id, observation):
+        observation.op_class = "write"
+        observation.targets = [f"chat:{channel}"]
+        return self.chat.post(channel, text, thread_id)
+
+    def kb_list(self, observation):
+        observation.read_targets = observation.targets = ["kb"]
+        return self.kb.list_pages()
+
+    def kb_get(self, page, observation):
+        observation.read_targets = observation.targets = [f"kb:{page}"]
+        return self.kb.get_page(page)
+
+    def kb_search(self, query, limit, observation):
+        observation.read_targets = observation.targets = ["kb"]
+        return self.kb.search(query, limit)
+
+    def kb_edit(self, page, body, comment, observation):
+        observation.op_class = "write"
+        observation.targets = [f"kb:{page}"]
+        result = self.kb.edit(page, body, comment)
+        observation.flags.append("overwrite")
+        return result
+
+    def kb_create(self, page, title, body, parent, labels, observation):
+        observation.op_class = "write"
+        observation.targets = [f"kb:{page}"]
+        return self.kb.create(page, title, body, parent, labels)

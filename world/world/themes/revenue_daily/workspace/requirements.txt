@@ -1,0 +1,6 @@
+# Runtime for the loader and the dbt project. Pinned: the warehouse file
+# format is version-sensitive and a minor duckdb bump has rewritten pages
+# under us before.
+dbt-core==1.12.4
+dbt-duckdb==1.11.0
+duckdb==1.5.5

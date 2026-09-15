@@ -1,0 +1,160 @@
+# Observability definitions for sftp_vendor (OBS_STORE_CONTRACT.md).
+#
+# ONE definitions file per theme: `world/world/observe.py` writes samples from
+# it and the gateway's metrics/alarms/deploy tools evaluate from it. The gateway
+# refuses to load a world that has two, because a writer and a reader describing
+# different metric sets is the one way this surface can be wrong without
+# anything looking wrong.
+#
+# This theme ships its fault catalogue ENABLED - a genuinely flaky vendor feed -
+# so these readings are the record of a world that misbehaves on its own. Late
+# deliveries move `orders_freshness`; a torn upload that never got its sentinel
+# moves `vendor_order_rows` (the poll fails, so nothing loads); a redelivery
+# moves it the other way, past what the day's deliveries should have carried.
+#
+# The pathology: the data arrives because somebody else's job dropped a file,
+# and the returns feed is low-volume enough that a missing day looks quiet.
+#
+# Only raw.* and warehouse.* are referenced: the staging.* dbt views are
+# unreadable through the gateway's ATTACH ... AS wh connection.
+version: 1
+
+retention:
+  days: 14
+
+metrics:
+  - id: orders_freshness
+    kind: freshness
+    unit: seconds
+    title: Vendor orders freshness
+    source: {table: warehouse.fct_orders_daily, timestamp_column: order_date}
+  - id: vendor_order_rows
+    kind: row_count
+    unit: rows
+    title: Raw vendor order rows
+    source: {table: raw.vendor_orders}
+    series: {bucket_column: order_date}
+  - id: vendor_return_rows
+    kind: row_count
+    unit: rows
+    title: Raw vendor return rows
+    source: {table: raw.vendor_returns}
+    series: {bucket_column: return_date}
+  - id: fct_orders_rows
+    kind: row_count
+    unit: rows
+    title: Order fact rows
+    source: {table: warehouse.fct_orders_daily}
+    series: {bucket_column: order_date}
+  - id: vendor_amount_null_rate
+    kind: null_rate
+    unit: ratio
+    title: Landed order rows with no amount
+    description: The vendor's CSV is all strings; a blank amount lands as a null, not as an error.
+    source: {table: raw.vendor_orders, column: amount}
+    series: {bucket_column: order_date}
+  - id: net_revenue_latest
+    kind: sql_scalar
+    unit: currency
+    title: Net revenue on the most recent day
+    source:
+      sql: select net_revenue from warehouse.fct_orders_daily order by order_date desc limit 1
+    series:
+      sql: >-
+        select cast(order_date as varchar) as bucket, net_revenue as value
+        from warehouse.fct_orders_daily order by order_date
+  - id: returns_latest_day
+    kind: sql_scalar
+    unit: returns
+    title: Returns on the most recent day
+    description: >-
+      Returns booked on the newest day present in the fact table. This is the
+      per-day reading; vendor_return_rows counts every return ever landed.
+    source:
+      sql: select returns from warehouse.fct_orders_daily order by order_date desc limit 1
+    series:
+      sql: >-
+        select cast(order_date as varchar) as bucket, returns as value
+        from warehouse.fct_orders_daily order by order_date
+  - id: sftp_poll_error_rate
+    kind: job_error_rate
+    unit: ratio
+    title: SFTP poll error rate
+    description: sftp_poll fails when no delivery sentinel is present, so this says the vendor did not deliver.
+    job: sftp_poll
+    window_runs: 10
+  - id: vendor_load_duration
+    kind: job_duration
+    unit: seconds
+    title: Vendor load duration
+    job: vendor_load
+  - id: vendor_load_error_rate
+    kind: job_error_rate
+    unit: ratio
+    title: Vendor load error rate
+    job: vendor_load
+    window_runs: 10
+
+alarms:
+  - id: orders_stale
+    metric: orders_freshness
+    comparison: gt
+    threshold: 180000
+    severity: critical
+    title: Vendor orders are more than two days old
+    description: >-
+      Freshness peaks just under two days between deliveries on a healthy feed,
+      so a flat two-day threshold would flicker every morning. Fifty hours means
+      a delivery was genuinely missed.
+    runbook: docs/runbook_vendor_feed.md
+  - id: vendor_feed_unreliable
+    metric: sftp_poll_error_rate
+    comparison: gte
+    threshold: 0.3
+    severity: warning
+    title: The vendor drop folder is missing on more than three polls in ten
+    runbook: docs/runbook_vendor_feed.md
+  - id: vendor_load_slow
+    metric: vendor_load_duration
+    comparison: gt
+    threshold: 240
+    severity: warning
+    title: The vendor load ran long
+    description: The load takes about a minute; four means it caught up more than one drop.
+  - id: returns_feed_thin
+    metric: returns_latest_day
+    comparison: lt
+    threshold: 2
+    severity: warning
+    title: Almost no returns across three consecutive readings
+    evaluate_on: series
+    datapoints_to_alarm: 3
+    known_imprecision:
+      kind: blind_spot
+      note: >-
+        AUTHOR-SIDE. Cadence. With a recorded sample store, datapoints_to_alarm
+        counts *readings*, not days, and the world records one reading per
+        executed run - so two consecutive datapoints can be six minutes apart on
+        a night the pipeline ran twice, and a whole quiet day can pass without
+        producing the two it wants. Without a store the same alarm compares two
+        per-day buckets and means what it says. The two readings are both
+        defensible and they are not the same question.
+  - id: vendor_amount_unparseable
+    metric: vendor_amount_null_rate
+    comparison: gt
+    threshold: 0.0
+    severity: warning
+    title: Some landed order rows carry no amount
+
+deploys:
+  - id: rebuild_orders_daily
+    kind: dbt
+    title: Rebuild the daily orders fact table
+    selector: fct_orders_daily
+    canary:
+      metrics: [vendor_order_rows, vendor_return_rows, fct_orders_rows,
+                orders_freshness, net_revenue_latest, returns_latest_day]
+      alarms: [orders_stale, returns_feed_thin]
+      guards:
+        - {metric: vendor_order_rows, max_decrease_pct: 5}
+        - {metric: net_revenue_latest, max_decrease_pct: 25}

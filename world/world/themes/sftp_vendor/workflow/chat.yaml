@@ -1,0 +1,262 @@
+# sftp_vendor: three channels, and the sentence that settles the week is in
+# the one nobody has read.
+#
+# The honest observation - the RETURNS file arrived on both "missing" days and
+# was header-only - is in #vendor-ops, from the person who looked in the drop
+# folder, addressed to somebody on leave, with no replies. #support-escalation
+# is where the story that the feed is dead was agreed to, confidently.
+channels:
+  - id: feeds
+    topic: Vendor feeds, loader, warehouse
+    purpose: Where the integrations work happens.
+    members: [rhaddad, pnovak, sokonkwo, feedbot, agent]
+    messages:
+      - id: feeds/0001
+        author: rhaddad
+        at: "-26d 09:31"
+        thread_id: null
+        text: |-
+          Do not do what I just did. Acme were late, so I ran vendor_load with
+          --no-require-sentinel to get the day in early and loaded a file they
+          were still uploading. The sentinel is the only thing that tells us a
+          transfer finished.
+
+          Worth saying: the 05:30 poll was green that morning. It counts
+          sentinels across the whole drop folder, so yesterday's are enough to
+          pass it. Nothing anywhere told us the delivery was late.
+        reactions: {"+1": 4}
+        authoring:
+          kind: accurate
+          note: >-
+            SV-C1. True, and the origin of the rule in FEEDS-50 and
+            int/runbooks/sentinels. The second paragraph is the sharpest
+            observation in the channel and the least corroborable from the
+            agent's surfaces: sftp_poll is green on every night in the history,
+            which is consistent both with "no delivery was ever late" and with
+            "the poll cannot see lateness". An agent that treats a green poll as
+            evidence the feed arrived on time is making the mistake this message
+            is warning about.
+      - id: feeds/0002
+        author: pnovak
+        at: "-26d 09:52"
+        thread_id: feeds/0001
+        text: |-
+          Decision, so it is somewhere: require-sentinel stays on, always. If a
+          delivery is late we wait. And the redelivery default is overwrite -
+          the loader deletes by _source_file and reinserts - whatever the old
+          runbook says. I am not editing that page from my phone.
+        reactions: {"+1": 2}
+        authoring:
+          kind: undocumented_decision
+          note: >-
+            SV-C2. Two rules agreed in a reply. One of them later reached the
+            wiki (int/runbooks/sentinels); the other only reached a *new* page
+            while the wrong page stayed up. Both halves are checkable against
+            workspace/loader/vendor_load.py, which is the point: the decision is
+            in chat, the proof is in the repo, and the wiki is where it went
+            wrong.
+      - id: feeds/0003
+        author: sokonkwo
+        at: "-14d 08:10"
+        thread_id: null
+        text: "@pnovak is out until the 12th. Vendor questions to @rhaddad."
+        reactions: {}
+        authoring:
+          kind: true_and_irrelevant
+          note: >-
+            SV-C3. Verifiable against the roster and irrelevant except that it
+            explains why two open tickets and the useful observation in
+            #vendor-ops are all addressed to somebody who cannot answer.
+      - id: feeds/0004
+        author: feedbot
+        at: "-4d 05:31"
+        thread_id: null
+        text: |-
+          sftp_poll FAILED 2026-02-27 05:30 (try 1 of 2) -
+          paramiko.ssh_exception.SSHException: Connection reset by peer.
+          Retrying at 05:37.
+        reactions: {}
+        authoring:
+          kind: noise
+          note: >-
+            SV-C4. Real, and the most dangerous true sentence in this corpus.
+            The run history carries exactly this: sftp_poll failed at 05:30:08 on
+            2026-02-27, retried at 05:37 and succeeded, and vendor_load ran
+            normally at 05:40. 2026-02-27 is also one of the six days the returns
+            feed delivered an empty file, so the queue has a red scheduler run
+            and a zero-returns day on the same morning with no causal link
+            between them. An agent that reaches for the coincidence gets a
+            confident, wrong, and well-evidenced answer.
+      - id: feeds/0005
+        author: feedbot
+        at: "-2d 05:31"
+        thread_id: null
+        text: |-
+          sftp_poll FAILED 2026-03-01 05:30 (try 1 of 2) -
+          paramiko.ssh_exception.SSHException: Connection reset by peer.
+          Retrying at 05:37.
+        reactions: {}
+        authoring:
+          kind: true_and_irrelevant
+          note: >-
+            SV-C5. The same reset two nights later, also recovered on the retry.
+            It is here to make the pair legible as a recurring transport flake
+            rather than as an event: 2026-03-01 landed 2 returns, so the reset
+            and the empty days do not line up.
+      - id: feeds/0006
+        author: ychen
+        at: "-1d 14:20"
+        thread_id: null
+        text: |-
+          Raised FEEDS-54. I have gross 150,001.10 and net 141,760.03 for the
+          month off warehouse.fct_orders_daily and I need a sentence I can put
+          next to the difference.
+        reactions: {}
+        authoring:
+          kind: accurate
+          note: >-
+            SV-C6. Both figures measured and correct. The answer is
+            sum(return_total) = 8241.07 and it is one query away; nobody
+            answered here either.
+
+      - id: feeds/0007
+        author: rhaddad
+        at: "-1d 17:40"
+        thread_id: null
+        text: |-
+          End of day: I have not touched the returns question. If somebody
+          picks it up, start in the drop folder rather than in the connector -
+          Sam already looked and said something arrived.
+        reactions: {}
+        authoring:
+          kind: accurate_but_partial
+          note: >-
+            SV-C7. True, and it hands over the one piece of advice that would
+            settle the week without repeating what Sam found. An agent that
+            reads only this channel gets the pointer and not the answer.
+
+  - id: vendor-ops
+    topic: Acme and Globex - deliveries, chasers, credentials
+    purpose: Everything that involves talking to a vendor.
+    members: [sokonkwo, rhaddad, pnovak, lmartin, agent]
+    messages:
+      - id: vendor-ops/0001
+        author: sokonkwo
+        at: "-59d 16:10"
+        thread_id: null
+        text: Globex are on the new host from today. Same folder, same filenames, same sentinel convention.
+        reactions: {}
+      - id: vendor-ops/0002
+        author: lmartin
+        at: "-1d 09:02"
+        thread_id: null
+        text: |-
+          Three credit queries open and none of the returns are in the
+          warehouse. I think Globex have stopped sending. Raising it.
+        reactions: {}
+        authoring:
+          kind: incident_report_lay
+          note: SV-C8. The same false premise as FEEDS-52, in the reporter's own words.
+      - id: vendor-ops/0003
+        author: sokonkwo
+        at: "-1d 09:58"
+        thread_id: vendor-ops/0002
+        text: |-
+          @pnovak I looked in data/drop/globex. RETURNS_20260224.csv and
+          RETURNS_20260227.csv are both there with their .done files, and both
+          .done say 0. The files are a header row and nothing else. Globex sent
+          us an empty day, twice, which is not the same as not sending.
+
+          Six of the thirty days this month have no returns at all. I do not
+          think anything is broken.
+        reactions: {}
+        authoring:
+          kind: unanswered_mention
+          note: >-
+            SV-C9. The answer, from the person who actually opened the folder,
+            addressed to somebody on leave, with zero replies. Every claim in it
+            is measured: 30 RETURNS files delivered, 24 with rows, six zero-return
+            days, and the sentinel really does carry the row count. chat_thread
+            on vendor-ops/0002 returns this one reply and then stops, which is
+            the shape of a real thread that died rather than concluded.
+      - id: vendor-ops/0004
+        author: lmartin
+        at: "-1d 10:40"
+        thread_id: vendor-ops/0002
+        text: An empty file is still a failure from where support are sitting. Customers have no credit note.
+        reactions: {}
+        authoring:
+          kind: partial_conclusion
+          note: >-
+            SV-C10. True as a statement about support's experience and being used
+            as a statement about the pipeline. Both things can hold: the feed is
+            healthy and the customers still have no credit note, and separating
+            them is the judgement the ticket needs.
+
+      - id: vendor-ops/0005
+        author: rhaddad
+        at: "-1d 11:55"
+        thread_id: vendor-ops/0002
+        text: |-
+          Before anybody chases Globex: a chaser for a day they did deliver
+          costs us credibility with them, and we have done it twice this year.
+          Check what landed first.
+        reactions: {}
+        authoring:
+          kind: constraint
+          note: >-
+            SV-C11. A real limit on the shape of an acceptable answer, and an
+            unusual one: the cheap action - email the vendor - has a cost that
+            is not in any system. It also lands in the thread that already
+            holds the evidence, under the reply nobody read.
+
+  - id: support-escalation
+    topic: Escalations from customer services
+    purpose: Where support hand something to engineering.
+    members: [lmartin, sokonkwo, rhaddad, ychen, agent]
+    messages:
+      - id: support-escalation/0001
+        author: lmartin
+        at: "-1d 11:15"
+        thread_id: null
+        text: |-
+          Confirming for the queue: the Globex returns connector is paused and
+          has been since the host move. That is why returns stopped. Support to
+          hold credit queries until engineering re-enable it.
+        reactions: {"+1": 3}
+        authoring:
+          kind: confident_wrong
+          note: >-
+            SV-C12. Stated flatly, agreed with three times, and wrong in a way
+            the ingestion surface refutes in one call: ingest_get on
+            globex_returns reports status active with a green sync every day,
+            including both of the days support say are missing, each with
+            rows_inserted 0. This is the version of the week an agent that reads
+            the escalation channel first will meet.
+      - id: support-escalation/0002
+        author: rhaddad
+        at: "-1d 11:31"
+        thread_id: support-escalation/0001
+        text: I would check the connector state before telling customers that. I have not had a chance to look.
+        reactions: {}
+        authoring:
+          kind: accurate_but_partial
+          note: >-
+            SV-C13. The correct instinct, hedged into uselessness, and then
+            nobody looked. It names the surface that settles it without using it.
+      - id: support-escalation/0003
+        author: lmartin
+        at: "-1d 12:40"
+        thread_id: support-escalation/0001
+        text: |-
+          Holding the three credit queries until engineering confirm. If it
+          turns out the returns were never coming, support need to know that
+          too, because we have told three customers a credit is on its way.
+        reactions: {}
+        authoring:
+          kind: constraint
+          note: >-
+            SV-C14. The cost of the wrong answer, stated plainly: customers have
+            already been told something on the strength of support-escalation's
+            confident diagnosis. Whatever the agent concludes has to account for
+            what was already said, not only for what is true.

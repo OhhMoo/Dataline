@@ -1,0 +1,39 @@
+version: 2
+
+models:
+  - name: stg_claims
+    description: >
+      Claims activity as extracted from POLICYMASTER, typed. One row per claim
+      per extract partition.
+
+      The raw layer holds the extract exactly as the copybook defines it:
+      CLAIM-DATE arrives as an eight-character PIC 9(8) string in YYYYMMDD
+      form and is converted to a date here, and CLAIM-AMT is PIC S9(7)V99
+      COMP-3, unpacked to a decimal by loader/load_extract.py before it ever
+      reaches the warehouse. Neither conversion is reversible, which is why
+      the raw layer keeps the as-extracted forms.
+
+      Record layout: copybooks/CLAIMS.CPY. That copybook is the interface
+      contract with the system of record; see
+      docs/decisions/DR-0007-copybook-is-the-contract.md.
+    columns:
+      - name: claim_id
+        description: >
+          CLAIM-ID, PIC X(10). Assigned by POLICYMASTER and stable for the life
+          of the claim. Space-padded on the right in the extract.
+        tests: [not_null]
+      - name: claim_date
+        description: >
+          CLAIM-DATE, PIC 9(8), converted from YYYYMMDD. The date the activity
+          was recorded on the system of record, which is not necessarily the
+          date it was transmitted.
+        tests: [not_null]
+      - name: cust_id
+        description: CUST-ID, PIC X(8). Customer on the system of record.
+        tests: [not_null]
+      - name: claim_amt
+        description: >
+          CLAIM-AMT, PIC S9(7)V99 COMP-3, five packed bytes with two implied
+          decimal places. Negative values are legitimate: a reversal carries a
+          D sign nibble.
+        tests: [not_null]

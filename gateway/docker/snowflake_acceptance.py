@@ -17,7 +17,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from containment import HERE, Stack, out
@@ -27,7 +27,7 @@ PORT = 8443
 BUNDLE = "/etc/alkera/snowflake-tls/bundle.pem"
 PROBE_IMAGE = "alkera-snowflake:plumbing"
 
-INSIDE = r'''
+INSIDE = r"""
 import json, os, socket, ssl, sys
 import snowflake.connector as sc
 
@@ -70,7 +70,8 @@ def roundtrip(bundle):
         ("create_db", "create database if not exists analytics"),
         ("create_schema", "create schema if not exists analytics.warehouse"),
         ("create_table",
-         "create table if not exists analytics.warehouse.socket_check(id int, amount decimal(10,2))"),
+         "create table if not exists analytics.warehouse.socket_check"
+         "(id int, amount decimal(10,2))"),
         ("insert", "insert into analytics.warehouse.socket_check values (1, 10.50)"),
         ("read_back", "select id, amount from analytics.warehouse.socket_check order by id"),
         ("drop", "drop table analytics.warehouse.socket_check"),
@@ -112,7 +113,7 @@ for path, payload in [("/session/v1/login-request",
         wire[path] = {"status": None, "error": f"{type(exc).__name__}: {exc}"[:160]}
 result["wire_routes"] = wire
 print(json.dumps(result))
-'''
+"""
 
 
 def main() -> int:
@@ -123,8 +124,12 @@ def main() -> int:
     args = parser.parse_args()
 
     stack = Stack(args.project, ["snowflake"])
-    evidence = {"generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                "project": args.project, "hostname": HOSTNAME, "port": PORT}
+    evidence = {
+        "generated": datetime.now(UTC).isoformat(timespec="seconds"),
+        "project": args.project,
+        "hostname": HOSTNAME,
+        "port": PORT,
+    }
     try:
         stack.compose("up", "-d", "--wait")
         specs = {c["Config"]["Labels"]["com.docker.compose.service"]: c for c in stack.containers()}
@@ -135,72 +140,107 @@ def main() -> int:
             name: {"ip": net["IPAddress"], "aliases": net.get("Aliases") or []}
             for name, net in networks.items()
         }
-        trust = next(m["Name"] for m in snowflake["Mounts"]
-                     if m["Destination"] == "/etc/alkera/snowflake-tls")
+        trust = next(
+            m["Name"]
+            for m in snowflake["Mounts"]
+            if m["Destination"] == "/etc/alkera/snowflake-tls"
+        )
         evidence["trust_volume"] = trust
         evidence["private_key_mounted_into_episode"] = any(
-            m["Destination"] == "/tls" for m in specs["episode"]["Mounts"])
+            m["Destination"] == "/tls" for m in specs["episode"]["Mounts"]
+        )
 
         # The client runs in its own container so DNS, TLS and the wire are all
         # crossed for real; nothing is proved from inside the server.
-        evidence["client"] = json.loads(out([
-            "docker", "run", "--rm", "--network", backend,
-            "-v", f"{trust}:/etc/alkera/snowflake-tls:ro",
-            "--entrypoint", "python", PROBE_IMAGE, "-c", INSIDE,
-        ]))
+        evidence["client"] = json.loads(
+            out(
+                [
+                    "docker",
+                    "run",
+                    "--rm",
+                    "--network",
+                    backend,
+                    "-v",
+                    f"{trust}:/etc/alkera/snowflake-tls:ro",
+                    "--entrypoint",
+                    "python",
+                    PROBE_IMAGE,
+                    "-c",
+                    INSIDE,
+                ]
+            )
+        )
 
         # The gateway's own container is the intended client: it must resolve the
         # hostname and already carry the bundle.
-        evidence["episode_view"] = json.loads(stack.compose(
-            "exec", "-T", "episode", "python", "-c",
-            "import json,os,socket;"
-            "r={};"
-            "\ntry: r['dns']=sorted({i[4][0] for i in socket.getaddrinfo('%s',%d)})"
-            "\nexcept OSError as e: r['dns']=type(e).__name__"
-            "\nr['bundle_env']=os.environ.get('REQUESTS_CA_BUNDLE')"
-            "\nr['bundle_bytes']=os.path.getsize(r['bundle_env']) if r['bundle_env'] "
-            "and os.path.exists(r['bundle_env']) else None"
-            "\nr['sees_private_key']=os.path.exists('/tls/server.key')"
-            "\nprint(json.dumps(r))" % (HOSTNAME, PORT),
-        ).stdout.strip())
+        evidence["episode_view"] = json.loads(
+            stack.compose(
+                "exec",
+                "-T",
+                "episode",
+                "python",
+                "-c",
+                "import json,os,socket,sys;"
+                "r={};"
+                "\ntry: r['dns']=sorted({i[4][0] for i in "
+                "socket.getaddrinfo(sys.argv[1],int(sys.argv[2]))})"
+                "\nexcept OSError as e: r['dns']=type(e).__name__"
+                "\nr['bundle_env']=os.environ.get('REQUESTS_CA_BUNDLE')"
+                "\nr['bundle_bytes']=os.path.getsize(r['bundle_env']) if r['bundle_env'] "
+                "and os.path.exists(r['bundle_env']) else None"
+                "\nr['sees_private_key']=os.path.exists('/tls/server.key')"
+                "\nprint(json.dumps(r))",
+                HOSTNAME,
+                str(PORT),
+            ).stdout.strip()
+        )
 
         # The agent's zone must not see the socket at all.
-        evidence["agent_view"] = stack.run_json("harness", (
-            "import json,socket\n"
-            "r={}\n"
-            "try:\n"
-            " r['dns']=sorted({i[4][0] for i in socket.getaddrinfo('%s',%d)})\n"
-            "except OSError as e:\n"
-            " r['dns']=type(e).__name__\n"
-            "try:\n"
-            " socket.create_connection(('%s',%d),timeout=2).close(); r['tcp']='CONNECTED'\n"
-            "except OSError as e:\n"
-            " r['tcp']=type(e).__name__\n"
-            "print(json.dumps(r))" % (HOSTNAME, PORT, HOSTNAME, PORT)))
+        evidence["agent_view"] = stack.run_json(
+            "harness",
+            (
+                "import json,socket,sys\n"
+                "r={}\n"
+                "try:\n"
+                " r['dns']=sorted({i[4][0] for i in "
+                "socket.getaddrinfo(sys.argv[1],int(sys.argv[2]))})\n"
+                "except OSError as e:\n"
+                " r['dns']=type(e).__name__\n"
+                "try:\n"
+                " socket.create_connection((sys.argv[1],int(sys.argv[2])),timeout=2).close()\n"
+                " r['tcp']='CONNECTED'\n"
+                "except OSError as e:\n"
+                " r['tcp']=type(e).__name__\n"
+                "print(json.dumps(r))"
+            ),
+            args=(HOSTNAME, str(PORT)),
+        )
     finally:
         if not args.keep_up:
             stack.compose("down", "-v", "-t", "5", check=False)
 
     client, episode, agent = evidence["client"], evidence["episode_view"], evidence["agent_view"]
     checks = {
-        "hostname_resolves_in_backend_zone": isinstance(client["dns"], list) and bool(client["dns"]),
+        "hostname_resolves_in_backend_zone": isinstance(client["dns"], list)
+        and bool(client["dns"]),
         "hostname_resolves_for_gateway": isinstance(episode["dns"], list) and bool(episode["dns"]),
         "hostname_hidden_from_agent_zone": not isinstance(agent["dns"], list)
-                                           and agent["tcp"] != "CONNECTED",
+        and agent["tcp"] != "CONNECTED",
         "tls_verifies_against_published_bundle": client["handshake_published_bundle"]["ok"],
         "tls_rejected_without_bundle": not client["handshake_default_trust"]["ok"],
         "san_covers_hostname": any(
-            HOSTNAME in pair for pair in
-            client.get("handshake_published_bundle", {}).get("subject_alt_name", [])),
+            HOSTNAME in pair
+            for pair in client.get("handshake_published_bundle", {}).get("subject_alt_name", [])
+        ),
         "driver_roundtrip": client["driver_with_bundle"]["ok"],
         "driver_refuses_untrusted": not client["driver_without_bundle"]["ok"],
         "gateway_carries_bundle": bool(episode.get("bundle_bytes")),
         "private_key_stays_in_snowflake_service": not evidence["private_key_mounted_into_episode"]
-                                                  and not episode["sees_private_key"],
-        "connector_wire_route_served": client["wire_routes"]
-            ["/session/v1/login-request"]["status"] == 200,
-        "rest_api_absent_as_documented": client["wire_routes"]
-            ["/api/v2/statements"]["status"] == 404,
+        and not episode["sees_private_key"],
+        "connector_wire_route_served": client["wire_routes"]["/session/v1/login-request"]["status"]
+        == 200,
+        "rest_api_absent_as_documented": client["wire_routes"]["/api/v2/statements"]["status"]
+        == 404,
     }
     evidence["checks"] = checks
     evidence["passed"] = all(checks.values())

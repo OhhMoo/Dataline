@@ -1,0 +1,291 @@
+# excel_close: the finance wiki, where the page describing the warehouse column
+# this week turns on has been wrong since it was written.
+#
+# The contradiction is settleable three ways: the edit dates (149 days against
+# 10), the dbt model in the agent's own workspace, and one query against
+# fct_gl_monthly. The stale page is not subtly wrong - it states the opposite -
+# and it is still the page a search for "close figure" reaches first.
+pages:
+  - id: fin/close
+    title: The close
+    parent: null
+    labels: [index]
+    body: |-
+      # The close
+
+      - [Close calendar](fin/close/calendar)
+      - [Manual adjustments](fin/close/manual-adjustments)
+    version: 2
+    author: m.diaz
+    last_edited_by: a.patel
+    last_edited_at: "-70d 09:20"
+    edit_comment: link the adjustments page
+    history:
+      - {version: 1, at: "-240d 09:00", by: m.diaz, comment: null}
+
+  - id: fin/close/calendar
+    title: Close calendar
+    parent: fin/close
+    labels: [close, process]
+    body: |-
+      # Close calendar
+
+      All times UTC.
+
+      | when | what |
+      |---|---|
+      | day 1, 08:00 | `close_import` reads `finance/workbooks/CLOSE_YYYYMM.xlsx` into `raw.gl_lines` and `raw.manual_adj` |
+      | day 1, 08:10 | `dbt_build` rebuilds `staging.stg_gl_lines` and `warehouse.fct_gl_monthly` |
+      | day 1, EOD | the controller reviews `close_summary` against the workbook and signs off |
+      | day 2 | group reporting pack |
+
+      One workbook per period, owned by the GL team, with the controller as
+      final owner. A period is never reopened after sign-off: a late correction
+      goes into the **current** period's workbook as a new line.
+
+      The import is a full rebuild from the workbooks every morning, so
+      whatever is in the workbook is what is in `raw` an hour later, and
+      nothing that is not in a workbook survives.
+    version: 4
+    author: m.diaz
+    last_edited_by: m.diaz
+    last_edited_at: "-70d 09:05"
+    edit_comment: state that the import is a full rebuild
+    history:
+      - {version: 3, at: "-150d 10:20", by: a.patel, comment: null}
+      - {version: 2, at: "-200d 11:00", by: m.diaz, comment: null}
+      - {version: 1, at: "-240d 09:10", by: m.diaz, comment: null}
+    authoring:
+      kind: accurate
+      note: >-
+        EC-K1. Current and correct: the times match the manifest, and the
+        full-rebuild sentence is verifiable by reading loader/import_close.py.
+        The "never reopened, correct in the current period" rule is what makes
+        FIN-233's four March adjustments compliant rather than suspicious.
+
+  - id: fin/close/manual-adjustments
+    title: Manual adjustments
+    parent: fin/close
+    labels: [close, policy]
+    body: |-
+      # Manual adjustments
+
+      Adjustments are keyed on the `MANUAL_ADJ` sheet of the period's workbook.
+      **Nowhere else.** Not in the warehouse, not in a side file, not in the
+      pack.
+
+      Every row needs an `adj_id`, an `account`, a `period`, an `amount`, an
+      `owner` and a `note`. The sheet is the audit trail; the owner is the
+      person who answers for it.
+
+      In December somebody patched a period total directly in the warehouse to
+      make a pack tie. The next morning's `close_import` rebuilt `raw` from the
+      workbooks and the patch disappeared, so the pack and the warehouse
+      disagreed for a week and nobody could tell which one had moved (FIN-226).
+
+      If the number is wrong, the workbook is wrong. Fix the workbook.
+
+      Adjustments do **not** post into the GL lines. They are carried
+      separately all the way through, which is what
+      fin/warehouse/reading-the-close-numbers is about.
+    version: 2
+    author: a.patel
+    last_edited_by: a.patel
+    last_edited_at: "-70d 09:10"
+    edit_comment: add the December incident
+    history:
+      - {version: 1, at: "-71d 16:40", by: a.patel, comment: null}
+    authoring:
+      kind: constraint
+      note: >-
+        EC-K2. A real limit on the shape of an acceptable solution, stated in
+        two places (here and the repo runbook) and self-enforcing: the morning
+        import really would erase a hand-written warehouse row. The last
+        paragraph points at the page that holds the answer, and does not repeat
+        it.
+
+  - id: fin/warehouse
+    title: The warehouse
+    parent: null
+    labels: [index]
+    body: |-
+      # The warehouse
+
+      - [fct_gl_monthly](fin/warehouse/fct-gl-monthly)
+      - [Reading the close numbers](fin/warehouse/reading-the-close-numbers)
+    version: 3
+    author: rboateng
+    last_edited_by: rboateng
+    last_edited_at: "-10d 11:05"
+    edit_comment: link the new page
+    history:
+      - {version: 2, at: "-149d 15:00", by: rboateng, comment: null}
+      - {version: 1, at: "-240d 09:20", by: a.patel, comment: null}
+    authoring:
+      kind: accurate
+      note: >-
+        EC-K3. Both pages, in the order that puts the wrong one first, with
+        nothing to distinguish them. kb_list's children index does the same.
+
+  - id: fin/warehouse/fct-gl-monthly
+    title: fct_gl_monthly
+    parent: fin/warehouse
+    labels: [warehouse, model]
+    body: |-
+      # fct_gl_monthly
+
+      One row per period and account.
+
+      | column | meaning |
+      |---|---|
+      | `period` | YYYYMM, from the workbook |
+      | `account` | the GL account code |
+      | `lines` | how many GL lines were posted |
+      | `net_amount` | the **final** figure for the account: GL lines net of the manual adjustments for that period |
+      | `adj_total` | the adjustments, shown separately for information |
+
+      Because `net_amount` already includes the adjustments, the close pack can
+      be taken straight off it. Do not add `adj_total` on top - that would
+      count the adjustments twice.
+
+      The dashboard `close_summary` reads this table.
+    version: 3
+    author: rboateng
+    last_edited_by: rboateng
+    last_edited_at: "-149d 14:50"
+    edit_comment: clarify that adj_total is informational
+    history:
+      - {version: 2, at: "-190d 10:15", by: rboateng, comment: null}
+      - {version: 1, at: "-240d 09:30", by: a.patel, comment: null}
+    authoring:
+      kind: stale
+      contradicts: [fin/warehouse/reading-the-close-numbers]
+      note: >-
+        EC-K4. Published, 149 days untouched, and it states the exact opposite
+        of the truth with a warning attached that makes the correct action look
+        like the error. The model is one file away:
+        fct_gl_monthly.sql selects sum(g.amount) as net_amount and
+        coalesce(a.adj_total, 0) as adj_total without ever adding them. Measured,
+        202602 is net_amount 276509.97 and adj_total 227.20, and the workbook
+        total the controller is quoting is 276737.17 - the sum. This page is why
+        the pack has been GL-only all year and why FIN-231 reads as a defect.
+
+  - id: fin/warehouse/reading-the-close-numbers
+    title: Reading the close numbers
+    parent: fin/warehouse
+    labels: [warehouse, close, current]
+    body: |-
+      # Reading the close numbers
+
+      **This supersedes fin/warehouse/fct-gl-monthly, which has `net_amount`
+      backwards.** That page is still up; FIN-214 is the ticket to take it
+      down.
+
+      ## What the columns are
+
+      - `net_amount` is the sum of the GL lines for that period and account.
+        **It does not include the manual adjustments.** The model never adds
+        them.
+      - `adj_total` is the sum of `raw.manual_adj` for the same period and
+        account, or zero where there are none.
+
+      ## The figure the pack needs
+
+          net_amount + adj_total
+
+      per account, or summed over the period. The `close_summary` dashboard's
+      `monthly_net_by_account` panel selects `net_amount` only, so the number
+      on the screen is the GL-only figure, not the close figure. That is the
+      panel, not the model, and changing it is a change like any other.
+
+      ## Why it is built this way
+
+      Adjustments are not postings. Keeping them in their own column means the
+      workbook, `raw.manual_adj` and the fact table all agree line for line,
+      and an adjustment can always be traced to the person who keyed it.
+
+      ## Known gap
+
+      An adjustment for a period and account with no GL lines never appears at
+      all - the join runs from the GL side. FIN-217. It has not bitten since
+      January.
+    version: 2
+    author: rboateng
+    last_edited_by: rboateng
+    last_edited_at: "-10d 10:55"
+    edit_comment: add the known gap
+    history:
+      - {version: 1, at: "-38d 15:10", by: rboateng, comment: null}
+    authoring:
+      kind: current_and_contradicting
+      contradicts: [fin/warehouse/fct-gl-monthly]
+      note: >-
+        EC-K5. The page that wins, saying so in its own first line, ten days old
+        against the other page's 149. Every claim is checkable against
+        fct_gl_monthly.sql and close_summary.yml. It is the complete answer to
+        FIN-231, it names the open gap that makes FIN-221 a red herring for
+        February, and nobody in #close has read it - which is exactly how a wiki
+        fails in practice.
+
+  - id: fin/postmortems
+    title: Postmortems
+    parent: null
+    labels: [index]
+    body: |-
+      # Postmortems
+
+      - [Missing adjustment, 2026-01-23](fin/postmortems/2026-01-23-missing-adjustment)
+    version: 2
+    author: rboateng
+    last_edited_by: rboateng
+    last_edited_at: "-39d 11:00"
+    edit_comment: link January
+    history:
+      - {version: 1, at: "-240d 09:40", by: a.patel, comment: null}
+
+  - id: fin/postmortems/2026-01-23-missing-adjustment
+    title: "Postmortem: missing adjustment, 2026-01-23"
+    parent: fin/postmortems
+    labels: [postmortem, warehouse]
+    body: |-
+      # Postmortem: missing adjustment, 2026-01-23
+
+      ## What happened
+
+      `ADJ-202601-03` was keyed on the January workbook against a dormant
+      intercompany account and never appeared in `fct_gl_monthly`. Group
+      reporting found it when the pack would not tie.
+
+      ## Why
+
+      The model joins `raw.manual_adj` onto the GL lines from the GL side. The
+      account had no postings in January, so there was no row to join onto and
+      the adjustment was dropped. No error, no warning, no row.
+
+      ## Actions
+
+      1. Make an orphaned adjustment visible rather than silent. **Open.**
+         FIN-217.
+      2. Book January by hand for the pack. Done.
+      3. Say in the wiki what `net_amount` actually is. **Open.** FIN-214.
+
+      ## What we still do not know
+
+      Whether the pack figure has been right in any month. We checked that
+      January's adjustment was missing and we never checked what the pack takes
+      off the dashboard in a normal month.
+    version: 2
+    author: rboateng
+    last_edited_by: rboateng
+    last_edited_at: "-39d 10:50"
+    edit_comment: record both open actions
+    history:
+      - {version: 1, at: "-40d 16:20", by: rboateng, comment: null}
+    authoring:
+      kind: accurate_but_partial
+      note: >-
+        EC-K6. True, and silent about the half that matters. It diagnoses a real
+        mechanism that does not apply to February, which is what makes FIN-221
+        such a comfortable wrong answer; and its closing paragraph states this
+        week's finding - nobody ever checked what the pack takes off the
+        dashboard - six weeks early, as an open question nobody picked up.

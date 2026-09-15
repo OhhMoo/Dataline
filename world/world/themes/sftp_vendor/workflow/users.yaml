@@ -1,0 +1,17 @@
+# The roster, authored once and copied into issues.json and chat.json.
+# `agent` is the persona the episode's agent writes as (theme.yaml
+# workflow.actor).
+users:
+  - {id: rhaddad, name: Rana Haddad, role: Data engineer, team: Data}
+  - id: pnovak
+    name: Petr Novak
+    role: Integrations engineer
+    team: Data
+    # The person who built both connectors, on leave, and still the assignee
+    # on the documentation ticket that would have answered this week's question.
+    away_until: "+9d"
+  - {id: sokonkwo, name: Sam Okonkwo, role: Vendor operations, team: Ops}
+  - {id: lmartin, name: Lena Martin, role: Support lead, team: Support}
+  - {id: ychen, name: Yuki Chen, role: Finance analyst, team: Finance}
+  - {id: feedbot, name: Feed monitor, role: Automation, team: Data}
+  - {id: agent, name: On-call data engineer, role: On call, team: Data}

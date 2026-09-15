@@ -70,6 +70,9 @@ _NEUTRAL_TOP = {
     "token_counting.measured", "token_counting.turn_recorded",
     "turn.ended", "prompt.completed", "mcp.tools_discovered",
     "llm.tools_snapshot", "turn.prompt",
+    # provider-retry noise: the step is still observed in full, so these are
+    # recorded as neutral system events rather than quarantining the episode
+    "turn.step.retrying", "turn.step.interrupted",
 }
 _NEUTRAL_LOOP = {"step.begin", "step.end"}
 

@@ -13,6 +13,7 @@ from pathlib import Path
 
 import duckdb
 
+from world import scheduler, workflow
 from world.scheduler import parse_vtime
 
 FIELDS = ["order_id", "order_date", "customer_id", "amount"]
@@ -33,17 +34,25 @@ def day_rows(seed: int, day_index: int, day, params: dict) -> list[dict]:
     return rows
 
 
+def write_day(workspace: Path, seed: dict, day_index: int, day) -> dict:
+    """One day's landing partition. A pure function of (seed, day_index): the
+    live-world arrival stream calls this for day N and gets the same bytes the
+    initial build would have written, whatever order it got to N in."""
+    d = workspace / "data" / "landing" / "daily_revenue" / f"dt={day}"
+    d.mkdir(parents=True, exist_ok=True)
+    rows = day_rows(seed["seed"], day_index, day, seed)
+    with (d / "revenue.csv").open("w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=FIELDS, lineterminator="\n")
+        w.writeheader()
+        w.writerows(rows)
+    return {"partition": f"dt={day}", "rows": len(rows)}
+
+
 def write_landing(workspace: Path, seed: dict) -> None:
     """Write data/landing/daily_revenue/dt=YYYY-MM-DD/revenue.csv for each day."""
     start = parse_vtime(seed["vtime_start"])
     for i in range(seed["days"]):
-        day = (start + timedelta(days=i)).date()
-        d = workspace / "data" / "landing" / "daily_revenue" / f"dt={day}"
-        d.mkdir(parents=True, exist_ok=True)
-        with (d / "revenue.csv").open("w", newline="", encoding="utf-8") as f:
-            w = csv.DictWriter(f, fieldnames=FIELDS, lineterminator="\n")
-            w.writeheader()
-            w.writerows(day_rows(seed["seed"], i, day, seed))
+        write_day(workspace, seed, i, (start + timedelta(days=i)).date())
 
 
 def load_raw(workspace: Path, db_path: Path) -> None:
@@ -63,3 +72,15 @@ def load_raw(workspace: Path, db_path: Path) -> None:
             ORDER BY order_date, order_id""")
     finally:
         con.close()
+
+
+def write_workflow(root: Path, seed: dict, manifest: dict) -> None:
+    """Seed var/workflow/{issues,chat,kb}.json per gateway/WORKFLOW_CONTRACT.md.
+
+    The corpus is authored as data in this theme's workflow/ directory and
+    dated against the world clock, which is read out of the scheduler state
+    `build` has already written rather than re-derived from the seed - one
+    definition of `vnow`, so a ticket cannot be filed after today.
+    """
+    workflow.seed(root, Path(__file__).resolve().parent, manifest["workflow"],
+                  scheduler.load(root)["vnow"])

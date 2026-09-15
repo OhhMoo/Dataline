@@ -1,0 +1,29 @@
+# Verification pipeline. This is not a deployment pipeline: releases are cut
+# from a tag by the release job in the platform group, not from here.
+
+stages:
+  - verify
+
+default:
+  image: python:3.11-slim
+  before_script:
+    - pip install --quiet -r requirements.txt
+
+verify:
+  stage: verify
+  script:
+    - ./run.sh check
+  variables:
+    DBT_TARGET: ci
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "main"
+
+# Disabled 2025-11 under CR-2025-203: the runner image has no cp037 locale and
+# the fixture extract cannot be decoded there. Re-enable once the runner image
+# is rebuilt; the test itself is correct.
+#
+# verify:extract:
+#   stage: verify
+#   script:
+#     - ./run.sh verify

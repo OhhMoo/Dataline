@@ -1,5 +1,22 @@
 name: excel_close
 dbt_profile: world_dbt
+
+# The human-context plane (gateway/WORKFLOW_CONTRACT.md). Content is data, in
+# workflow/{users,issues,chat,kb}.yaml; timestamps are offsets from the world
+# clock ("-12d 09:15"), resolved at build time.
+#
+# Finance systems runs a service desk, and the status that matters is
+# `waiting_on_finance`: most of this queue is not blocked on engineering, it is
+# blocked on a controller signing something. A tracker that cannot say so puts
+# every one of those tickets in `in_progress` and lies about the backlog.
+workflow:
+  dir: workflow
+  actor: agent                  # the id the agent writes as (workflow_actor)
+  project: {key: FIN, name: Finance systems}
+  statuses: [open, in_progress, waiting_on_finance, done, wontfix]
+  workspace: controller-office
+  space: {key: FIN, name: Finance close}
+
 jobs:
   close_import:
     command: import_close
@@ -8,8 +25,75 @@ jobs:
     day_offset: 1
     after: null
     detail: null
+    # Runs the workspace's own loader/import_close.py through the theme hook:
+    # the workbook parse that the agent can read is the one that runs.
+    exec:
+      kind: theme
+      op: load_raw
+      args: [workspace, db]
+      tables: [raw.gl_lines, raw.manual_adj]
   dbt_build:
     command: dbt_build
     duration_s: 90
     after: {job: close_import, minutes: 10}
     detail: null
+    exec:
+      kind: dbt
+      command: build
+      tables: [warehouse.fct_gl_monthly]
+
+live:
+  params: [seed, lines_per_day, accounts, amount_cents, adjustments_per_month]
+  # Excel is the integration layer, so a day does not land a file - it is
+  # posted into the month's workbook, which is rewritten from every day landed
+  # so far (gen.months_upto is pure in (seed, days), so this reproduces).
+  arrival:
+    name: close_workbook
+    op: write_day
+    at: {day_offset: 1, time: "07:00"}
+
+  # ------------------------------------------------------------------
+  # Seeded fault layer, all OFF.
+  #
+  # Two arrival faults are deliberately NOT offered here and the reason is
+  # structural, not an oversight: excel_close's "partition" is a month, and
+  # write_day rewrites the whole workbook from every day landed so far. A
+  # missing day therefore heals itself on the next day's write, and a duplicate
+  # file is not a redelivery because the loader reads one workbook per period.
+  # A fault that silently does not happen is worse than no fault, so only the
+  # ones that genuinely bite are declared.
+  #
+  # `faults_in_history` is OFF here, and it is the same argument one step
+  # further. The backstory can only record what shows up in var/sched/state.json
+  # - a failed run, a retry, a stretched window. This theme's one arrival fault
+  # produces none of those: close_import is a theme hook that parses whichever
+  # workbook it finds and SUCCEEDS with one day fewer in it, so a late close has
+  # no scheduler-visible consequence to record. Its two job faults would show,
+  # but both ship off by the same authoring decision that keeps this theme
+  # clean. Turning history on over a catalogue where nothing is enabled costs
+  # a rebuild and changes not one byte, so it stays off until a fault here is
+  # switched on. The scar excel_close actually deserves - a month whose
+  # workbook was reopened and re-saved after the close - lives in the workbook
+  # bytes, not in the run history, and nothing in this layer can write it.
+  # ------------------------------------------------------------------
+  faults:
+    # The controller posts the month late; the 08:00 import finds a workbook
+    # that is a day behind.
+    - id: close_workbook_late
+      kind: late_arrival
+      enabled: false
+      rate: 0.12
+      params: {delay_minutes: 180}
+    - id: close_import_retry
+      kind: job_retry
+      enabled: false
+      rate: 0.10
+      jobs: [close_import]
+      params: {attempts: 2, retry_delay_minutes: 15, fail_after_s: 6,
+               error: "PermissionError: [Errno 13] CLOSE_202603.xlsx is open in another process"}
+    - id: close_import_timeout
+      kind: job_timeout
+      enabled: false
+      rate: 0.05
+      jobs: [close_import]
+      params: {timeout_s: 60}

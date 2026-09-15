@@ -3,7 +3,10 @@
 - semantic_hash  — THE GATE. Canonical logical contents: warehouse schemas +
   canonically-ordered rows, scheduler state (incl. v-clock), BI definitions,
   workspace files (dbt project, landing CSVs, docs), and — only when the theme
-  seeds one — the ingestion control-plane state (var/ingest/state.json).
+  seeds them — the ingestion control-plane state (var/ingest/state.json), the
+  live-world control plane (var/world/live.json, which carries the fault
+  catalogue and the ledger of what fired), and the observability store
+  (var/obs/: metric definitions plus the appended sample record).
   Equal across hosts <=> same world. Comparison excludes `git_head`
   (informational).
 - provenance     — attestation: seed hash, generator + dependency versions,
@@ -68,12 +71,47 @@ def semantic(root: Path) -> dict:
         "bi": tree_hash(root / "var" / "bi"),
         "workspace": tree_hash(root / "workspace", exclude=(".git",)),
     }
-    # Conditional: only themes that seed a connector control plane (an
-    # optional write_ingest gen hook) get the section, so worlds without one
-    # keep their recorded semantic hash.
-    ingest = root / "var" / "ingest" / "state.json"
-    if ingest.is_file():
-        sections["ingest"] = json_hash(json.loads(ingest.read_text(encoding="utf-8")))
+    # Conditional sections: a world only gets one when it actually seeds the
+    # surface, so a world without it keeps its recorded semantic hash.
+    #   ingest — the connector control plane (a theme's write_ingest hook)
+    #   live   — the live-world control plane: schedule, exec blocks, arrival
+    #            stream and how far the traffic generator has run. It is not
+    #            reachable from any gateway tool, but it IS world state, so it
+    #            is hashed: a tampered live.json must not pass as the same world.
+    for name, path in (("ingest", root / "var" / "ingest" / "state.json"),
+                       ("live", root / "var" / "world" / "live.json")):
+        if path.is_file():
+            sections[name] = json_hash(json.loads(path.read_text(encoding="utf-8")))
+    #   obs — the observability store (OBS_STORE_CONTRACT.md): the metric and
+    #         alarm definitions a theme seeds, AND samples.jsonl, the record of
+    #         what those metrics read as the world moved. Both are world state.
+    #         OPS-SURFACE's patch shape hashed the parsed definitions YAML; this
+    #         hashes the whole directory byte-exact instead, because the samples
+    #         file is generated here and must reproduce byte for byte anyway,
+    #         and because an append-only record whose bytes are not pinned is
+    #         not evidence. Conditional like the rest: a world that seeds no
+    #         definitions writes no samples, has no var/obs, and keeps its
+    #         recorded hash.
+    obs = root / "var" / "obs"
+    if obs.is_dir():
+        sections["obs"] = tree_hash(obs)
+    #   workflow — the issue tracker, the chat workspace and the wiki
+    #         (gateway/WORKFLOW_CONTRACT.md). The seeded backlog is part of
+    #         what makes two builds the same world, and the agent writes into
+    #         these same documents during an episode, so they are world state
+    #         on the same footing as var/sched/state.json.
+    #
+    #         tree_hash, not json_hash of the parsed documents, on the obs
+    #         precedent and for a sharper reason: the build writes them with
+    #         ensure_ascii=True and the gateway rewrites them with
+    #         ensure_ascii=False, so hashing bytes is what forces the seed to
+    #         stay ASCII (world/workflow.py refuses anything else) instead of
+    #         letting the file change under a world nobody changed.
+    #         Conditional like the rest: a theme with no workflow corpus has no
+    #         var/workflow and keeps its recorded hash.
+    workflow = root / "var" / "workflow"
+    if workflow.is_dir():
+        sections["workflow"] = tree_hash(workflow)
     return sections
 
 

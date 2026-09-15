@@ -16,6 +16,16 @@ PY="${PYTHON:?no python with requirements.lock deps found (create .venv first)}"
 IMG=alkera-world:0.1.0
 COMPOSE="docker compose -f docker/docker-compose.yml -p alkera"
 tmp="$(mktemp -d)"
+# Under Git Bash, mktemp -d yields an MSYS path (/tmp/tmp.X) that bash resolves
+# against the MSYS root while a Windows python resolves it to C:\tmp\X - two
+# different directories, so the heredoc below lands where python cannot read it
+# and gate 2c aborts with FileNotFoundError. cygpath -m gives the C:/... form
+# that bash and a Windows python both accept. Three separate agents hit this and
+# each stopped at gate 2c, so gates 3-7 (including the cross-host determinism
+# check) had never run on this host.
+command -v cygpath >/dev/null 2>&1 && case "$PY" in
+  *.exe|*Scripts/python*) tmp="$(cygpath -m "$tmp")" ;;
+esac
 STACK_UP=0
 cleanup() {
   rm -rf "$tmp"
@@ -36,6 +46,67 @@ echo "== gate 2: snapshot restore -> identical raw bytes"
 $PY -m world.snapshot save "$tmp/w1" "$tmp/world.tar" >/dev/null
 $PY -m world.snapshot restore "$tmp/world.tar" "$tmp/wr" >/dev/null
 $PY -m world.snapshot verify "$tmp/w1" "$tmp/wr"
+
+echo "== gate 2b: live world -> the same advance from one seed reproduces"
+# The scheduler executes for real (dbt, loaders, DuckDB) and the arrival stream
+# lands new partitions, so this is the gate that says making the world evolve
+# did not cost us reproducibility. w1 is left pristine for gate 3.
+for w in lw_a lw_b; do
+  $PY -m world.build --seed seed.example.yaml --root "$tmp/$w" --lock requirements.lock >/dev/null
+  $PY -m world.scheduler "$tmp/$w" advance 30 >/dev/null
+done
+ha="$($PY -m world.fingerprint "$tmp/lw_a")"
+hb="$($PY -m world.fingerprint "$tmp/lw_b")"
+[ "$ha" = "$hb" ] || { echo "  FAIL: advance is not reproducible: $ha vs $hb"; exit 1; }
+[ "$ha" != "$h1" ] || { echo "  FAIL: advance(30) changed nothing"; exit 1; }
+echo "  advanced semantic_hash: $ha"
+echo "  PASS (two from-scratch builds + the same advance == one world, and it moved)"
+
+echo "== gate 2c: the world misbehaves on its own, and still reproduces"
+# Gate 2b proves the happy path reproduces. This proves the UNhappy one does:
+# late partitions, gaps, redeliveries, retries and overruns, all firing, and
+# still one world. A fault layer that cannot pass this is worth nothing, and
+# the failure mode it guards against (a world that cannot be rebuilt) is a
+# Phase-0 go/no-go gate, not a nice-to-have.
+cat > "$tmp/faulty.yaml" <<'YAML'
+theme: revenue_daily
+seed: 1
+vtime_start: "2026-02-01T00:00:00Z"
+days: 30
+orders_per_day: [40, 60]
+customers: 500
+amount_cents: [500, 20000]
+git_author: "Data Platform <data@example.com>"
+faults:
+  late_partition:      {enabled: true, rate: 0.5}
+  missing_partition:   {enabled: true, rate: 0.2}
+  duplicate_partition: {enabled: true, rate: 0.2}
+  load_retry:          {enabled: true, rate: 0.5, params: {retry_delay_minutes: 95}}
+  load_overrun:        {enabled: true, rate: 0.4}
+  load_timeout:        {enabled: true, rate: 0.15}
+  load_partial:        {enabled: true, rate: 0.15}
+YAML
+for w in fx_a fx_b; do
+  $PY -m world.build --seed "$tmp/faulty.yaml" --root "$tmp/$w" --lock requirements.lock >/dev/null
+  $PY -m world.scheduler "$tmp/$w" advance 120 >/dev/null
+done
+# and the same distance walked one hour at a time: a late arrival or a retry
+# that straddles a span boundary must land on the same instant either way
+$PY -m world.build --seed "$tmp/faulty.yaml" --root "$tmp/fx_c" --lock requirements.lock >/dev/null
+for _ in $(seq 120); do $PY -m world.scheduler "$tmp/fx_c" advance 1 >/dev/null; done
+fa="$($PY -m world.fingerprint "$tmp/fx_a")"
+fb="$($PY -m world.fingerprint "$tmp/fx_b")"
+fc="$($PY -m world.fingerprint "$tmp/fx_c")"
+fired="$($PY -c "import json,sys;print(len(json.load(open(sys.argv[1]))['fault_log']))" \
+  "$tmp/fx_a/var/world/live.json")"
+[ "$fa" = "$fb" ] || { echo "  FAIL: faults are not reproducible: $fa vs $fb"; exit 1; }
+[ "$fa" = "$fc" ] || { echo "  FAIL: faults are not path-independent: $fa vs $fc"; exit 1; }
+[ "$fired" -gt 0 ] || { echo "  FAIL: no fault fired - the gate proved nothing"; exit 1; }
+cmp -s "$tmp/fx_a/var/obs/samples.jsonl" "$tmp/fx_b/var/obs/samples.jsonl" \
+  || { echo "  FAIL: the observability record is not byte-identical"; exit 1; }
+echo "  faults fired: $fired"
+echo "  faulty semantic_hash: $fa"
+echo "  PASS (faults on: two builds + the same advance == one world, by two paths)"
 
 if docker info >/dev/null 2>&1; then
   echo "== gate 3: cross-host determinism — host build vs in-container build"

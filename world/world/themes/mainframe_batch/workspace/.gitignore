@@ -1,0 +1,20 @@
+# Build and run artefacts. Nothing under here is ever committed.
+dbt_project/target/
+dbt_project/logs/
+logs/
+__pycache__/
+*.pyc
+
+# Workstation overrides. `.envrc` is held in the repository under change
+# control and carries no credentials; `.env` is the operator's own file and is
+# never committed.
+.env
+.env.local
+
+# Warehouse files. The warehouse is held outside the repository; see
+# docs/decisions/DR-0007-copybook-is-the-contract.md.
+*.duckdb
+*.duckdb.wal
+
+# Extract data. Landing partitions are delivered, not authored.
+data/landing/**/*.DAT.bak

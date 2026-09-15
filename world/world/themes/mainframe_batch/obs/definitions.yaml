@@ -1,0 +1,168 @@
+# Observability definitions for mainframe_batch (OBS_STORE_CONTRACT.md).
+#
+# ONE definitions file per theme: `world/world/observe.py` writes samples from
+# it and the gateway's metrics/alarms/deploy tools evaluate from it. The gateway
+# refuses to load a world that has two.
+#
+# The batch window is the story here: `batch_load_duration` is what an overrun
+# moves, and it is the reading that makes an overlap with dbt_build legible
+# without anything having to announce the overlap. nightly_extract verifies the
+# 23:00 extract arrived, batch_load runs 45 minutes later, dbt_build 10 minutes
+# after that, and the whole chain has to finish before morning. The failure mode
+# is *late*, and late is only visible against a clock.
+#
+# Only raw.* and warehouse.* are referenced: the staging.* dbt views are
+# unreadable through the gateway's ATTACH ... AS wh connection.
+version: 1
+
+# One week. The operations team keeps seven days of batch telemetry and no more,
+# so a question about the month-end run genuinely cannot be answered from the
+# record - it has to be answered from the run logs, or not at all.
+retention:
+  days: 7
+
+metrics:
+  - id: claims_freshness
+    kind: freshness
+    unit: seconds
+    title: Claims freshness
+    source: {table: warehouse.fct_claims_daily, timestamp_column: claim_date}
+  - id: claims_rows
+    kind: row_count
+    unit: rows
+    title: Raw claim rows
+    description: >-
+      Every extract row loaded so far. The series buckets by dt, so a point is
+      one night's extract while the scalar is every extract ever loaded - same
+      unit, different scope.
+    source: {table: raw.claims_extract}
+    series: {bucket_column: dt}
+  - id: fct_claims_rows
+    kind: row_count
+    unit: rows
+    title: Claim fact rows
+    source: {table: warehouse.fct_claims_daily}
+    series: {bucket_column: claim_date}
+  - id: claim_amount_null_rate
+    kind: null_rate
+    unit: ratio
+    title: Extracted claims with no amount
+    description: A fixed-width field that did not parse lands as null, not as an error.
+    source: {table: raw.claims_extract, column: claim_amt}
+    series: {bucket_column: dt}
+  - id: claims_total_latest
+    kind: sql_scalar
+    unit: currency
+    title: Claim value on the most recent day
+    source:
+      sql: select total_amount from warehouse.fct_claims_daily order by claim_date desc limit 1
+    series:
+      sql: >-
+        select cast(claim_date as varchar) as bucket, total_amount as value
+        from warehouse.fct_claims_daily order by claim_date
+  - id: claims_latest_night
+    kind: sql_scalar
+    unit: claims
+    title: Claims on the most recent night
+    description: >-
+      Claims on the newest night present in the fact table. This is the per-night
+      reading; claims_rows counts every claim ever extracted.
+    source:
+      sql: select claims from warehouse.fct_claims_daily order by claim_date desc limit 1
+    series:
+      sql: >-
+        select cast(claim_date as varchar) as bucket, claims as value
+        from warehouse.fct_claims_daily order by claim_date
+  - id: batch_load_duration
+    kind: job_duration
+    unit: seconds
+    title: Batch load duration
+    job: batch_load
+  - id: nightly_extract_duration
+    kind: job_duration
+    unit: seconds
+    title: Nightly extract duration
+    job: nightly_extract
+  - id: nightly_extract_error_rate
+    kind: job_error_rate
+    unit: ratio
+    title: Nightly extract error rate
+    description: nightly_extract fails when the extract file did not arrive.
+    job: nightly_extract
+    window_runs: 10
+  - id: batch_load_error_rate
+    kind: job_error_rate
+    unit: ratio
+    title: Batch load error rate
+    job: batch_load
+    window_runs: 10
+
+alarms:
+  - id: claims_stale
+    metric: claims_freshness
+    comparison: gt
+    threshold: 180000
+    severity: critical
+    title: Claims are more than two days old
+    description: >-
+      The extract for day D reaches the fact table by D 23:56, so freshness
+      peaks at about 47 hours on a healthy world. A flat two-day threshold has
+      only four minutes of margin; fifty hours means a night was genuinely lost.
+    runbook: docs/runbook_batch.md
+  - id: batch_window_overrun
+    metric: batch_load_duration
+    comparison: gt
+    threshold: 600
+    severity: warning
+    title: The batch load ran longer than its ten-minute window
+  - id: extract_missing
+    metric: nightly_extract_error_rate
+    comparison: gt
+    threshold: 0.0
+    severity: critical
+    title: An extract did not arrive in the last ten nights
+    runbook: docs/runbook_batch.md
+  - id: batch_load_failing
+    metric: batch_load_error_rate
+    comparison: gte
+    threshold: 0.2
+    severity: warning
+    title: The batch load is failing more than one run in five
+  - id: claims_volume_floor
+    metric: claims_latest_night
+    comparison: lt
+    threshold: 20
+    severity: warning
+    title: Two consecutive readings show a short extract
+    description: Nightly volume runs 33-50 claims; twenty is a truncated extract.
+    evaluate_on: series
+    datapoints_to_alarm: 2
+    known_imprecision:
+      kind: blind_spot
+      note: >-
+        AUTHOR-SIDE. Cadence. With a recorded sample store, datapoints_to_alarm
+        counts *readings*, not days, and the world records one reading per
+        executed run - so two consecutive datapoints can be six minutes apart on
+        a night the pipeline ran twice, and a whole quiet day can pass without
+        producing the two it wants. Without a store the same alarm compares two
+        per-day buckets and means what it says. The two readings are both
+        defensible and they are not the same question.
+  - id: claim_amount_missing
+    metric: claim_amount_null_rate
+    comparison: gt
+    threshold: 0.0
+    severity: warning
+    title: Some extracted claims carry no amount
+
+deploys:
+  - id: rebuild_claims
+    kind: dbt
+    title: Rebuild the daily claims fact table
+    selector: fct_claims_daily
+    canary:
+      metrics: [claims_rows, fct_claims_rows, claims_freshness,
+                claims_total_latest, claims_latest_night]
+      alarms: [claims_stale, claims_volume_floor]
+      guards:
+        - {metric: claims_rows, max_decrease_pct: 5}
+        - {metric: claims_total_latest, max_decrease_pct: 25}

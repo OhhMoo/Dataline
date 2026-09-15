@@ -1,0 +1,29 @@
+# dbt targets. run.sh exports DBT_PROFILES_DIR=config so this is the profile
+# used by anything run through run.sh.
+#
+# The nightly close import and its dbt build are run by the scheduler, which
+# renders its own profile with an absolute warehouse path. This file is for
+# people, not for the schedule.
+world_dbt:
+  target: "{{ env_var('DBT_TARGET', 'dev') }}"
+  outputs:
+
+    # The close laptop and any analyst checkout.
+    dev:
+      type: duckdb
+      path: "{{ env_var('DBT_WAREHOUSE_PATH', '../var/warehouse/warehouse.duckdb') }}"
+      threads: 1
+
+    ci:
+      type: duckdb
+      path: "/tmp/ci_warehouse.duckdb"
+      threads: 1
+
+    # Read-only copy finance uses for the quarter-end pack. It is a snapshot
+    # taken after sign-off, never written to from here. Building against it is
+    # blocked by the file being on a read-only mount, not by anything in this
+    # file — do not rely on that.
+    reporting:
+      type: duckdb
+      path: "{{ env_var('DBT_REPORTING_WAREHOUSE_PATH', '/mnt/finance/reporting/close.duckdb') }}"
+      threads: 2

@@ -1,5 +1,23 @@
 name: sftp_vendor
 dbt_profile: world_dbt
+
+# The human-context plane (gateway/WORKFLOW_CONTRACT.md). Content is data, in
+# workflow/{users,issues,chat,kb}.yaml; timestamps are offsets from the world
+# clock ("-12d 09:15"), resolved at build time.
+#
+# Two statuses on purpose. The contract says the status set is declared by the
+# world rather than hardcoded, and the integrations team that owns these feeds
+# runs its backlog in GitHub Issues, where a ticket is open or it is closed and
+# the labels carry everything else. If the surface only ever served the same
+# six-state Jira vocabulary, "declared by the world" would be untested prose.
+workflow:
+  dir: workflow
+  actor: agent                  # the id the agent writes as (workflow_actor)
+  project: {key: FEEDS, name: Vendor feeds}
+  statuses: [open, closed]
+  workspace: acme-integrations
+  space: {key: INT, name: Integrations}
+
 jobs:
   sftp_poll:
     command: sftp_poll
@@ -8,16 +26,122 @@ jobs:
     day_offset: 1
     after: null
     detail: null
+    # A real poll of the real drop folders: it counts the delivery sentinels
+    # and fails if the vendor did not deliver.
+    exec:
+      kind: scan
+      path: data/drop
+      pattern: "*/*.done"
+      min: 1
   vendor_load:
     command: vendor_load
     duration_s: 60
     after: {job: sftp_poll, minutes: 10}
     detail: "dt={day}"
+    # Runs the workspace's own loader/vendor_load.py - the script the agent
+    # reads is the script that runs.
+    exec:
+      kind: theme
+      op: load_raw
+      args: [workspace, db]
+      tables: [raw.vendor_orders, raw.vendor_returns]
   dbt_build:
     command: dbt_build
     duration_s: 90
     after: {job: vendor_load, minutes: 5}
     detail: null
+    exec:
+      kind: dbt
+      command: build
+      tables: [warehouse.fct_orders_daily]
+
+live:
+  params: [seed, orders_per_day, returns_per_day, customers, amount_cents]
+  arrival:
+    name: vendor_drop
+    op: write_day
+    at: {day_offset: 1, time: "05:00"}
+
+  # The backstory carries the catalogue too, so this world's past looks like
+  # its present rather than like thirty flawless nights that stop the moment
+  # the episode opens. sftp_connection_reset draws over the seeded days at the
+  # same 0.15 it draws at now, so `sched_logs` opens on a poll that has been
+  # dropping its connection every week or so, and telling "this is new" from
+  # "this has always been broken" becomes work the agent has to do.
+  # In practice this is the job faults only: see vendor_late_delivery below for
+  # the measured reason the arrival fault records nothing in the past.
+  faults_in_history: true
+
+  # ------------------------------------------------------------------
+  # Seeded fault layer. sftp_vendor ships its catalogue ENABLED: a vendor drop
+  # folder is the least reliable integration in any real stack, and this theme
+  # exists to model one. "This world has a flaky vendor feed" is an authoring
+  # decision made here, and it reproduces byte for byte on every rebuild.
+  # A seed file can quiet it down: faults: {vendor_partial_upload: {enabled: false}}
+  # ------------------------------------------------------------------
+  faults:
+    # The vendor uploads two and a half hours late.
+    #
+    # MEASURED, and not what this comment used to claim: sftp_poll does NOT
+    # fail. Its scan globs `*/*.done` across the whole of data/drop with
+    # min: 1, and the drop folder is cumulative - at 05:30 on 2026-03-04, with
+    # the day's delivery deferred to 07:30, it counted 60 older sentinels and
+    # succeeded. The night's entire signature is vendor_load's effects
+    # (rows_after == rows_before: nothing new loaded) and the day landing one
+    # night behind. So `missed_by: []` - no job in this theme fails when the
+    # delivery is not there, and the backstory therefore records no failed
+    # poll, because our own live path would not produce one. Giving the poll
+    # something it can fail on means scoping its pattern to the day's own
+    # delivery, which lives in this theme's `jobs:` subtree, not here.
+    - id: vendor_late_delivery
+      kind: late_arrival
+      enabled: true
+      rate: 0.20
+      params: {delay_minutes: 150, missed_by: []}
+    # The signature pathology this theme was built for: a read landing inside a
+    # write. The ORDERS csv is cut mid-line at 55% and its .done sentinel never
+    # appears, so the folder holds exactly what a delivery in flight looks like.
+    # The loader skips unsentinelled files, so the day does not load; drop the
+    # sentinel requirement and it reads a file with a torn final record.
+    # It does NOT heal, measured: a world advanced three nights past a torn
+    # 2026-03-04 upload still has no 2026-03-04 in raw.vendor_orders, because
+    # the file stays truncated and unsentinelled and the loader never revisits
+    # it. That permanence is why the seeded backstory does not carry this kind
+    # (faults.py, HISTORY_ARRIVAL_KINDS) - the built landing zone is complete,
+    # so a torn night in the past would be a story the data contradicts.
+    - id: vendor_partial_upload
+      kind: torn_write
+      enabled: true
+      rate: 0.12
+      params: {match: "ORDERS_*.csv", remove: "ORDERS_*.done", keep_fraction: 0.55}
+    # The vendor re-sends the batch. raw.vendor_orders is append-only and keyed
+    # on _source_file, so a differently-named copy of the same rows is loaded
+    # again and the day's revenue doubles.
+    - id: vendor_double_delivery
+      kind: duplicate_arrival
+      enabled: true
+      rate: 0.08
+      params: {match: "ORDERS_*.csv", suffix: ".resend"}
+    # SFTP drops the connection. The first attempt never reaches the folder;
+    # seven minutes later the poll runs for real.
+    - id: sftp_connection_reset
+      kind: job_retry
+      enabled: true
+      rate: 0.15
+      jobs: [sftp_poll]
+      params: {attempts: 2, retry_delay_minutes: 7, fail_after_s: 8,
+               error: "paramiko.ssh_exception.SSHException: Connection reset by peer"}
+    # Declared and off: the loader is append-only, so a torn commit here does
+    # NOT heal on the next night the way it does in the reload themes. That is
+    # a sharper defect than a task author usually wants by default.
+    - id: vendor_load_partial
+      kind: partial_write
+      enabled: false
+      rate: 0.05
+      jobs: [vendor_load]
+      params: {table: raw.vendor_orders, partition_column: order_date,
+               order_column: order_id, keep_fraction: 0.5}
+
 ingest:
   # The connector control plane (gateway/INGEST_CONTRACT.md). One green sync
   # per connector per day, timed after sftp_poll and before vendor_load; row

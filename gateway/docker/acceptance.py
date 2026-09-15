@@ -1,20 +1,4 @@
-"""Acceptance for the Track B stack: does it work, and is it contained.
-
-Two halves, deliberately separated:
-
-* **function** - the gateway serves both transports over the network, both warehouse
-  backends produce identical action-log rows, and the docs/BI/S3 surfaces behave.
-  That half lives here and in ``acceptance_inside.py``.
-* **containment** - egress, zones, channel and determinism. That half lives in
-  ``containment.py``, which owns the stack lifecycle because the grading zone can only
-  be probed *after* teardown, and writes ``evidence/containment.json``.
-
-They were one script and the egress logic was written twice. Two implementations of a
-safety check is one implementation and one thing that can quietly disagree with it, so
-this one now calls the other rather than repeating it.
-
-    python acceptance.py --profile snowflake
-"""
+"""Check transport parity and live surfaces, then run the containment lifecycle."""
 
 from __future__ import annotations
 
@@ -22,7 +6,6 @@ import argparse
 import json
 import subprocess
 import sys
-from pathlib import Path
 
 from containment import HERE, Stack
 
@@ -47,7 +30,8 @@ def main() -> int:
     # Backend/transport parity and the live surfaces, from inside the episode.
     report["inside"] = json.loads(
         stack.compose("exec", "-T", "episode", "python", "/opt/stack/acceptance_inside.py")
-        .stdout.strip().splitlines()[-1]
+        .stdout.strip()
+        .splitlines()[-1]
     )
     print(json.dumps(report, indent=2))
 

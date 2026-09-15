@@ -1,0 +1,32 @@
+name: close-checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - name: dbt parse + dag check
+        run: ./run.sh check
+        env:
+          DBT_TARGET: ci
+
+  # Finance asked for a reminder on the close date. It has never worked -
+  # the schedule fires but the notification step needs a secret nobody has
+  # created. Left in place because deleting it would end the conversation
+  # rather than resolve it.
+  #
+  # signoff-reminder:
+  #   runs-on: ubuntu-latest
+  #   if: github.event_name == 'schedule'
+  #   steps:
+  #     - name: notify controller
+  #       run: echo "close sign-off due" # TODO: needs CONTROLLER_WEBHOOK

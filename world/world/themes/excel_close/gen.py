@@ -17,6 +17,7 @@ from datetime import timedelta
 from pathlib import Path
 from xml.sax.saxutils import escape
 
+from world import scheduler, workflow
 from world.scheduler import parse_vtime
 
 GL_HEADER = ["line_id", "account", "post_date", "period", "amount"]
@@ -92,6 +93,12 @@ def write_xlsx(path: Path, sheets: list[tuple[str, list]]) -> None:
     with zipfile.ZipFile(path, "w") as z:
         for name, xml in parts:
             zi = zipfile.ZipInfo(name, date_time=ZIP_TS)
+            # ZipInfo.__init__ sets create_system to 0 on win32 and 3 everywhere
+            # else, so the identical workbook differed by one byte per entry
+            # across hosts at identical total length - which is why this was
+            # invisible to every length or row-count check. Pinned to 3 (Unix),
+            # the value the episode container already produces.
+            zi.create_system = 3
             zi.compress_type = zipfile.ZIP_STORED
             z.writestr(zi, xml.encode("utf-8"))
 
@@ -122,15 +129,18 @@ def adj_rows(rng: random.Random, period: str, params: dict) -> list[list[str]]:
             for i in range(rng.randint(lo_n, hi_n))]
 
 
-def write_landing(workspace: Path, seed: dict) -> None:
-    """Write finance/workbooks/CLOSE_YYYYMM.xlsx for each covered month.
+def months_upto(seed: dict, days: int) -> dict:
+    """Period -> {lines, adj} for the first `days` covered days.
 
     A month's adjustments are drawn from the first covered day of that month,
-    after that day's GL lines, keeping every draw on a per-day RNG.
+    after that day's GL lines, keeping every draw on a per-day RNG. Because the
+    landed days are always a prefix 0..days-1, this is a pure function of
+    (seed, days) - which is what lets a workbook grow as virtual time passes
+    and still be reproducible.
     """
     start = parse_vtime(seed["vtime_start"])
     months: dict[str, dict] = {}
-    for i in range(seed["days"]):
+    for i in range(days):
         day = (start + timedelta(days=i)).date()
         rng = random.Random(f"{seed['seed']}:{i}")
         lines = line_rows(rng, day, seed)
@@ -138,10 +148,33 @@ def write_landing(workspace: Path, seed: dict) -> None:
         bucket["lines"] += lines
         if bucket["adj"] is None:
             bucket["adj"] = adj_rows(rng, f"{day:%Y%m}", seed)
+    return months
+
+
+def _write_workbook(workspace: Path, period: str, bucket: dict) -> None:
+    write_xlsx(workspace / "finance" / "workbooks" / f"CLOSE_{period}.xlsx",
+               [("GL_LINES", [GL_HEADER] + bucket["lines"]),
+                ("MANUAL_ADJ", [ADJ_HEADER] + bucket["adj"])])
+
+
+def write_day(workspace: Path, seed: dict, day_index: int, day) -> dict:
+    """Post one more day into its month's workbook.
+
+    Excel is the integration layer here, so a "partition" is a month, not a
+    file per day: the workbook for day's period is rewritten from every day
+    landed so far. Same purity argument as months_upto.
+    """
+    period = f"{day:%Y%m}"
+    bucket = months_upto(seed, day_index + 1)[period]
+    _write_workbook(workspace, period, bucket)
+    return {"workbook": f"CLOSE_{period}.xlsx", "lines": len(bucket["lines"])}
+
+
+def write_landing(workspace: Path, seed: dict) -> None:
+    """Write finance/workbooks/CLOSE_YYYYMM.xlsx for each covered month."""
+    months = months_upto(seed, seed["days"])
     for period in sorted(months):
-        wb = workspace / "finance" / "workbooks" / f"CLOSE_{period}.xlsx"
-        write_xlsx(wb, [("GL_LINES", [GL_HEADER] + months[period]["lines"]),
-                        ("MANUAL_ADJ", [ADJ_HEADER] + months[period]["adj"])])
+        _write_workbook(workspace, period, months[period])
 
 
 def load_raw(workspace: Path, db_path: Path) -> None:
@@ -152,3 +185,15 @@ def load_raw(workspace: Path, db_path: Path) -> None:
         capture_output=True, text=True)
     if r.returncode != 0:
         raise SystemExit(f"import_close failed:\n{r.stdout}\n{r.stderr}")
+
+
+def write_workflow(root: Path, seed: dict, manifest: dict) -> None:
+    """Seed var/workflow/{issues,chat,kb}.json per gateway/WORKFLOW_CONTRACT.md.
+
+    The corpus is authored as data in this theme's workflow/ directory and
+    dated against the world clock, which is read out of the scheduler state
+    `build` has already written rather than re-derived from the seed - one
+    definition of `vnow`, so a ticket cannot be filed after today.
+    """
+    workflow.seed(root, Path(__file__).resolve().parent, manifest["workflow"],
+                  scheduler.load(root)["vnow"])

@@ -20,6 +20,7 @@ pins, so the suite and the stack exercise the same build.
 import os
 import subprocess
 import time
+from uuid import uuid4
 
 import pytest
 from conftest import config
@@ -41,7 +42,6 @@ BACKENDS = ["duckdb", "postgres"]
 PG_IMAGE = "postgres@sha256:f1c3376c26f2609ab9f29f71f824103fe2fcd8ee0346485cb6122a4f93df6f94"
 PG_SUPERUSER_PASSWORD = "alkera-test"
 # Mirrors docker/postgres.sql: the gateway never connects as a superuser.
-PG_ROLE_DSN = "postgresql://episode:episode-local@127.0.0.1:{port}/episode"
 PG_ADMIN_DSN = f"postgresql://postgres:{PG_SUPERUSER_PASSWORD}@127.0.0.1:{{port}}/episode"
 # A container we just started deserves patience; a DSN the operator supplied does not.
 PG_START_TIMEOUT_S = 90
@@ -52,9 +52,7 @@ DECIMAL_20_25 = {"type": "decimal", "value": "20.25"}
 DECIMAL_5_00 = {"type": "decimal", "value": "5.00"}
 
 SEED = (
-    "DROP SCHEMA IF EXISTS warehouse CASCADE",
-    "CREATE SCHEMA warehouse AUTHORIZATION episode",
-    "SET ROLE episode",
+    "CREATE SCHEMA warehouse",
     "CREATE TABLE warehouse.items(id INTEGER, amount DECIMAL(10,2))",
     "INSERT INTO warehouse.items VALUES (1, 10.50), (2, 20.25)",
 )
@@ -94,7 +92,7 @@ def postgres_admin_dsn():
     if supplied:
         failure = wait_for_postgres(supplied, PG_SUPPLIED_TIMEOUT_S)
         if failure is not None:
-            pytest.skip(f"ALKERA_TEST_POSTGRES_DSN is set but unreachable: {failure}")
+            pytest.fail(f"ALKERA_TEST_POSTGRES_DSN is set but unreachable: {failure}")
         yield supplied
         return
 
@@ -148,19 +146,35 @@ def postgres_admin_dsn():
 
 @pytest.fixture
 def postgres_dsn(postgres_admin_dsn):
-    """Reseed the warehouse schema so each test starts from the fixture world."""
+    """Create an isolated database and role; never reset an operator's schema."""
     import psycopg
+    from psycopg import sql
+    from psycopg.conninfo import make_conninfo
 
-    with psycopg.connect(postgres_admin_dsn, autocommit=True) as conn:
-        if not conn.execute("SELECT 1 FROM pg_roles WHERE rolname = 'episode'").fetchone():
-            conn.execute(
-                "CREATE ROLE episode LOGIN PASSWORD 'episode-local' "
-                "NOSUPERUSER NOCREATEDB NOCREATEROLE"
+    name = f"alkera_test_{uuid4().hex}"
+    identifier = sql.Identifier(name)
+    password = uuid4().hex
+    role_created = database_created = False
+    with psycopg.connect(postgres_admin_dsn, autocommit=True) as admin:
+        try:
+            admin.execute(
+                sql.SQL(
+                    "CREATE ROLE {} LOGIN PASSWORD {} NOSUPERUSER NOCREATEDB NOCREATEROLE"
+                ).format(identifier, sql.Literal(password))
             )
-        for statement in SEED:
-            conn.execute(statement)
-    port = postgres_admin_dsn.rsplit(":", 1)[1].split("/")[0]
-    return PG_ROLE_DSN.format(port=port)
+            role_created = True
+            admin.execute(sql.SQL("CREATE DATABASE {} OWNER {}").format(identifier, identifier))
+            database_created = True
+            dsn = make_conninfo(postgres_admin_dsn, dbname=name, user=name, password=password)
+            with psycopg.connect(dsn) as conn:
+                for statement in SEED:
+                    conn.execute(statement)
+            yield dsn
+        finally:
+            if database_created:
+                admin.execute(sql.SQL("DROP DATABASE {} WITH (FORCE)").format(identifier))
+            if role_created:
+                admin.execute(sql.SQL("DROP ROLE {}").format(identifier))
 
 
 @pytest.fixture(params=BACKENDS)
@@ -227,8 +241,9 @@ EXPECTED_ROWS = [
         },
         read_targets=["warehouse.items"],
     ),
-    expected_row(2, "sql_execute", CALLS[1][1]["sql"], counted(1), op_class="write",
-                 rows_affected=1),
+    expected_row(
+        2, "sql_execute", CALLS[1][1]["sql"], counted(1), op_class="write", rows_affected=1
+    ),
     expected_row(
         3,
         "sql_query",
@@ -236,8 +251,15 @@ EXPECTED_ROWS = [
         {"columns": [{"name": "n", "type": "BIGINT"}], "rows": [[2]], "truncated": False},
         read_targets=["warehouse.items"],
     ),
-    expected_row(4, "sql_execute", CALLS[3][1]["sql"], counted(2), op_class="destructive",
-                 flags=["delete", "unbounded_delete"], rows_affected=2),
+    expected_row(
+        4,
+        "sql_execute",
+        CALLS[3][1]["sql"],
+        counted(2),
+        op_class="destructive",
+        flags=["delete", "unbounded_delete"],
+        rows_affected=2,
+    ),
 ]
 
 

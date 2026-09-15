@@ -1,0 +1,263 @@
+# excel_close: the close channel, the systems channel and the group-reporting
+# channel.
+#
+# The sentence that settles the week - net_amount is the GL lines and nothing
+# else, the adjustments are a separate column - is said once, by the person who
+# read the model, addressed to somebody on leave, with no reply. #close is busy
+# with a confident explanation that the MANUAL_ADJ sheet is not being imported
+# at all, which the warehouse refutes in one query.
+channels:
+  - id: close
+    topic: Month-end close
+    purpose: The close calendar, sign-off, and anything that holds it up.
+    members: [m.diaz, j.chen, s.okafor, a.patel, closebot, agent]
+    messages:
+      - id: close/0001
+        author: closebot
+        at: "-30d 08:11"
+        thread_id: null
+        text: close_import completed for 2026-02-01. raw.gl_lines and raw.manual_adj refreshed from finance/workbooks/.
+        reactions: {}
+        authoring:
+          kind: noise
+          note: >-
+            EC-C1. A routine bot line. It is also the only place in the chat
+            archive that states plainly that the import rebuilds raw from the
+            workbooks every morning, which is the mechanism behind the rule in
+            FIN-226.
+      - id: close/0002
+        author: m.diaz
+        at: "-1d 08:30"
+        thread_id: null
+        text: |-
+          The February pack is out against the workbook by 227.20 and I have
+          already sent it to group. My four adjustments for the month come to
+          227.20. Raising it.
+        reactions: {}
+        authoring:
+          kind: incident_report_lay
+          note: >-
+            EC-C2. The whole diagnosis is in this message and the author does
+            not know it. Measured: the four 202602 adjustments are +52.43,
+            +15.58, -335.94 and +495.13, which sum to 227.20, and that is
+            exactly fct_gl_monthly's adj_total for the period.
+      - id: close/0003
+        author: s.okafor
+        at: "-1d 09:40"
+        thread_id: close/0002
+        text: |-
+          This is the MANUAL_ADJ sheet not being imported. It happened in
+          January too - the adjustment was in the workbook and never reached
+          the warehouse. The import is dropping them.
+        reactions: {"+1": 2}
+        authoring:
+          kind: confident_wrong
+          note: >-
+            EC-C3. Stated flatly, agreed with twice, and wrong, and it is made
+            plausible by a real January incident with a different cause. The
+            warehouse refutes it in one call: raw.manual_adj holds nine rows,
+            four of them February, and fct_gl_monthly's adj_total is 495.13 on
+            4100-REV, 52.43 on 5000-COGS and -320.36 on 5100-OPEX. The
+            adjustments are imported and they are in the fact table. This is the
+            version of events an agent that reads #close first will meet.
+      - id: close/0004
+        author: j.chen
+        at: "-1d 09:52"
+        thread_id: close/0002
+        text: |-
+          If they are being dropped we should re-key February into March so
+          the numbers at least tie going forward.
+        reactions: {}
+        authoring:
+          kind: partial_conclusion
+          note: >-
+            EC-C4. A reasonable next step conditional on a false premise, and
+            the most expensive thing in this channel: acting on it would double
+            February's adjustments in the March period, in the workbook, where
+            it is durable. An agent that accepts close/0003 has a plausible path
+            straight to making the world worse.
+      - id: close/0005
+        author: a.patel
+        at: "-1d 15:10"
+        thread_id: null
+        text: |-
+          Separate thing: 5000-COGS has four adjustments in March already and
+          two of them say prior-period correction. FIN-233. Probably nothing,
+          flagging it so it is on the record.
+        reactions: {}
+        authoring:
+          kind: true_and_irrelevant
+          note: >-
+            EC-C5. True, checkable, and unrelated. A second thread of real
+            texture running beside the incident, which is what a channel on a
+            close week actually looks like.
+
+      - id: close/0006
+        author: m.diaz
+        at: "-1d 17:20"
+        thread_id: close/0002
+        text: |-
+          Nobody re-key anything until we know what the 227.20 is. If the
+          adjustments are in the warehouse and I re-key them into March I will
+          have double-counted them in a period I then have to sign.
+        reactions: {}
+        authoring:
+          kind: constraint
+          note: >-
+            EC-C6. The controller stopping the most dangerous suggestion in the
+            channel, one message after it was made. It is also a real limit on
+            the agent: the workbook is durable, the import rebuilds raw from it
+            every morning, and a bad edit there survives everything.
+
+  - id: fin-systems
+    topic: Finance systems, the warehouse, the import
+    purpose: Where the systems work happens.
+    members: [a.patel, rboateng, m.diaz, closebot, agent]
+    messages:
+      - id: fin-systems/0001
+        author: rboateng
+        at: "-38d 13:50"
+        thread_id: null
+        text: |-
+          For the record, because it keeps coming up: fct_gl_monthly.net_amount
+          is the sum of the GL lines and nothing else. adj_total is a separate
+          column carrying the MANUAL_ADJ rows for that period and account. The
+          model does not add them together and never has.
+
+          The wiki page says otherwise. I will fix the page.
+        reactions: {"+1": 2}
+        authoring:
+          kind: accurate
+          note: >-
+            EC-C7. True, thirty-eight days old, and it is the answer to this
+            week's incident sitting in the archive of a channel the finance team
+            are not in. Verifiable against
+            dbt_project/models/warehouse/fct_gl_monthly.sql, which selects
+            sum(g.amount) as net_amount and coalesce(a.adj_total, 0) as
+            adj_total in the same row without summing them.
+      - id: fin-systems/0002
+        author: a.patel
+        at: "-38d 14:12"
+        thread_id: fin-systems/0001
+        text: So the close pack has been reporting GL-only all year? Nobody has ever said that out loud.
+        reactions: {}
+      - id: fin-systems/0003
+        author: rboateng
+        at: "-38d 14:20"
+        thread_id: fin-systems/0001
+        text: |-
+          It has. It has never mattered before because the adjustments have
+          been small. Decision, so it is written down somewhere: the pack
+          figure is net_amount + adj_total, and the dashboard panel should
+          select both. I am not changing a panel in close week.
+        reactions: {}
+        authoring:
+          kind: undocumented_decision
+          note: >-
+            EC-C8. The decision that defines what the right answer is, agreed in
+            a reply and never carried out. The panel still selects net_amount
+            alone - var/bi/dashboards/close_summary.yml is checkable - and the
+            page that would have recorded it was started and left. Reachable
+            from chat and, in this exact form, from nowhere else.
+      - id: fin-systems/0004
+        author: a.patel
+        at: "-12d 08:30"
+        thread_id: null
+        text: "@rboateng is out until the 10th. Warehouse questions to me and I will be honest about what I do not know."
+        reactions: {}
+        authoring:
+          kind: true_and_irrelevant
+          note: >-
+            EC-C9. Verifiable against the roster, and the reason FIN-214 has not
+            moved and the message below has no reply.
+      - id: fin-systems/0005
+        author: a.patel
+        at: "-1d 16:05"
+        thread_id: null
+        text: |-
+          @rboateng the 227.20 the controller is chasing is adj_total for
+          202602 - 495.13 on 4100-REV, 52.43 on 5000-COGS, -320.36 on
+          5100-OPEX. The adjustments are in the warehouse. The pack takes
+          net_amount off the dashboard and net_amount is GL lines only, so the
+          pack has been GL-only every month and February is the first month the
+          adjustments were big enough to see.
+
+          Nothing is broken. Do we restate the pack or fix the panel first?
+        reactions: {}
+        authoring:
+          kind: unanswered_mention
+          note: >-
+            EC-C10. The complete answer, addressed to the one person on leave,
+            with zero replies under it. Every figure is measured and every one
+            of them is reachable through sql_query or bi_render. The question it
+            ends on is the decision the agent has to make, and the fact that
+            nobody answered is the content, not an empty result.
+
+      - id: fin-systems/0006
+        author: a.patel
+        at: "-1d 16:50"
+        thread_id: null
+        text: |-
+          Note for whoever picks this up cold: the close_summary panel and the
+          model are different things. Read dbt_project/models/warehouse/
+          fct_gl_monthly.sql and var/bi/dashboards/close_summary.yml before
+          believing any wiki page about either.
+        reactions: {}
+        authoring:
+          kind: accurate
+          note: >-
+            EC-C11. Current, correct, and the shortest path through this world's
+            wiki problem: two named files, both in the agent's reach, both of
+            which settle the question the two contradicting pages argue about.
+
+  - id: group-reporting
+    topic: Group reporting deadlines
+    purpose: Where the pack goes after sign-off.
+    members: [s.okafor, m.diaz, agent]
+    messages:
+      - id: group-reporting/0001
+        author: s.okafor
+        at: "-6d 10:00"
+        thread_id: null
+        text: |-
+          Group want February by Wednesday. A restatement after that goes to
+          the audit committee with a note explaining why, so if February is
+          going to move I would rather it moved this week than next.
+        reactions: {}
+        authoring:
+          kind: constraint
+          note: >-
+            EC-C12. A real limit on the shape of an acceptable answer: there is
+            a deadline, a restatement is expensive, and the cost of being wrong
+            is asymmetric. An agent that quietly changes a number without saying
+            it changed has broken this even if the new number is right.
+      - id: group-reporting/0002
+        author: m.diaz
+        at: "-1d 17:10"
+        thread_id: null
+        text: |-
+          Possible restatement on February, 227.20, waiting on systems. I will
+          confirm tomorrow either way.
+        reactions: {}
+        authoring:
+          kind: accurate_but_partial
+          note: >-
+            EC-C13. True, and silent about the half that decides it: the
+            question is not whether the number is wrong but which of two
+            defensible numbers the pack was always supposed to carry. Read
+            alone, it makes a restatement sound like the expected outcome.
+      - id: group-reporting/0003
+        author: s.okafor
+        at: "-1d 17:45"
+        thread_id: group-reporting/0002
+        text: |-
+          If it is a presentation change rather than a wrong number, group
+          would rather have a note in the pack than a restatement. Say which it
+          is when you know.
+        reactions: {}
+        authoring:
+          kind: constraint
+          note: >-
+            EC-C14. The distinction the whole incident turns on - a wrong figure
+            versus a figure that was never the one the pack wanted - named by
+            the person who receives the pack, with a different remedy for each.

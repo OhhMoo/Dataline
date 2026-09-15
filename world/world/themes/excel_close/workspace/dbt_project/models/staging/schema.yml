@@ -1,0 +1,30 @@
+version: 2
+
+models:
+  - name: stg_gl_lines
+    description: >
+      GL detail as posted in the close workbooks, typed. One row per journal
+      line. This is not the general ledger — it is what the GL team posted into
+      the workbook, which is the source of record for the close.
+    columns:
+      - name: line_id
+        description: >
+          Line reference from the workbook. Stays a string: the GL team uses a
+          letter suffix for a re-posted line and casting it to a number has
+          silently dropped those before.
+        tests: [not_null]
+      - name: account
+        description: Four-digit GL account code.
+        tests: [not_null]
+      - name: post_date
+        description: Posting date. Always inside the period it is posted to.
+        tests: [not_null]
+      - name: period
+        description: Accounting period, YYYYMM. The workbook a line came from.
+        tests: [not_null]
+      - name: amount
+        description: >
+          Signed amount. Debits positive, credits negative, as finance keys
+          them. Do not flip the sign anywhere downstream — the controller
+          reconciles against the workbook and the workbook is signed.
+        tests: [not_null]

@@ -1,6 +1,6 @@
 {
   "compose_file": "C:\\Users\\OhhMoo\\Desktop\\research\\alkera\\gateway\\docker\\compose.yml",
-  "generated": "2026-09-14T05:37:50+00:00",
+  "generated": "2026-09-14T22:13:27+00:00",
   "host": {
     "docker": "29.5.2",
     "platform": "Windows-10-10.0.26200-SP0"
@@ -410,6 +410,16 @@
     "published_host_ports": {},
     "tool_surface": {
       "fields": {
+        "alarms_get": [
+          "alarm"
+        ],
+        "alarms_history": [
+          "alarm",
+          "limit"
+        ],
+        "alarms_list": [
+          "state"
+        ],
         "bi_cached": [
           "dashboard"
         ],
@@ -427,6 +437,25 @@
           "dashboard",
           "definition"
         ],
+        "chat_channels": [],
+        "chat_history": [
+          "before",
+          "channel",
+          "limit"
+        ],
+        "chat_post": [
+          "channel",
+          "text",
+          "thread_id"
+        ],
+        "chat_search": [
+          "channel",
+          "limit",
+          "query"
+        ],
+        "chat_thread": [
+          "message_id"
+        ],
         "dbt_compile": [
           "selector",
           "variables"
@@ -438,6 +467,16 @@
         ],
         "dbt_test": [
           "selector",
+          "variables"
+        ],
+        "deploy_history": [
+          "deploy",
+          "limit"
+        ],
+        "deploy_list": [],
+        "deploy_run": [
+          "deploy",
+          "full_refresh",
           "variables"
         ],
         "docs_get": [
@@ -471,6 +510,100 @@
         ],
         "git_log": [
           "limit"
+        ],
+        "ingest_alerts": [
+          "acknowledged",
+          "connector_id"
+        ],
+        "ingest_get": [
+          "connector_id"
+        ],
+        "ingest_list": [],
+        "ingest_run": [
+          "run_id"
+        ],
+        "ingest_runs": [
+          "connector_id",
+          "continuation_token",
+          "limit"
+        ],
+        "ingest_schema": [
+          "connector_id"
+        ],
+        "ingest_schema_update": [
+          "column_added",
+          "column_removed",
+          "connector_id",
+          "table"
+        ],
+        "ingest_trigger": [
+          "connector_id"
+        ],
+        "issues_comment": [
+          "body",
+          "issue"
+        ],
+        "issues_get": [
+          "issue"
+        ],
+        "issues_list": [
+          "assignee",
+          "label",
+          "limit",
+          "status"
+        ],
+        "issues_search": [
+          "limit",
+          "query"
+        ],
+        "issues_update": [
+          "add_labels",
+          "assignee",
+          "issue",
+          "remove_labels",
+          "status",
+          "unassign"
+        ],
+        "kb_create": [
+          "body",
+          "labels",
+          "page",
+          "parent",
+          "title"
+        ],
+        "kb_edit": [
+          "body",
+          "comment",
+          "page"
+        ],
+        "kb_get": [
+          "page"
+        ],
+        "kb_list": [],
+        "kb_search": [
+          "limit",
+          "query"
+        ],
+        "logs_get": [
+          "run_id"
+        ],
+        "logs_list": [
+          "job",
+          "limit",
+          "status"
+        ],
+        "logs_search": [
+          "job",
+          "limit",
+          "query"
+        ],
+        "metrics_get": [
+          "metric"
+        ],
+        "metrics_list": [],
+        "metrics_series": [
+          "limit",
+          "metric"
         ],
         "s3_delete": [
           "bucket",
@@ -514,7 +647,7 @@
       },
       "no_socket_primitive": true,
       "socket_arguments": [],
-      "tool_count": 28
+      "tool_count": 63
     }
   },
   "p4_determinism": {
@@ -552,7 +685,7 @@
     "tree_digest_after_idle": "651f4974766df5ea39723b1aa8a38a25456c50c7b502a32ebd4aada0d236b813",
     "tree_digest_after_load": "651f4974766df5ea39723b1aa8a38a25456c50c7b502a32ebd4aada0d236b813",
     "tree_digest_start": "651f4974766df5ea39723b1aa8a38a25456c50c7b502a32ebd4aada0d236b813",
-    "worlddata_volume": "alkera-b2b4_worlddata",
+    "worlddata_volume": "alkera-image-check_worlddata",
     "writable_in_running": [
       "episode"
     ],
@@ -578,48 +711,48 @@
   "profiles": [
     "snowflake"
   ],
-  "project": "alkera-b2b4",
+  "project": "alkera-image-check",
   "services": [
     {
       "aliases": {
-        "alkera-b2b4_backend_net": [
-          "alkera-b2b4-episode-1",
+        "alkera-image-check_backend_net": [
+          "alkera-image-check-episode-1",
           "episode"
         ],
-        "alkera-b2b4_episode_net": [
-          "alkera-b2b4-episode-1",
+        "alkera-image-check_episode_net": [
+          "alkera-image-check-episode-1",
           "episode"
         ]
       },
-      "container": "alkera-b2b4-episode-1",
+      "container": "alkera-image-check-episode-1",
       "egress_blocked": true,
       "image": "alkera-stack:track-b",
       "mounts": [
         {
           "rw": true,
-          "source": "alkera-b2b4_worlddata",
+          "source": "alkera-image-check_worlddata",
           "target": "/world"
         },
         {
           "rw": true,
-          "source": "alkera-b2b4_auditdata",
+          "source": "alkera-image-check_auditdata",
           "target": "/audit"
         },
         {
           "rw": true,
-          "source": "alkera-b2b4_bistate",
+          "source": "alkera-image-check_bistate",
           "target": "/service-state/bi"
         },
         {
           "rw": true,
-          "source": "alkera-b2b4_snowflaketrust",
+          "source": "alkera-image-check_snowflaketrust",
           "target": "/etc/alkera/snowflake-tls"
         }
       ],
       "netns": {
         "addresses": {
-          "eth0": "172.23.0.2",
-          "eth1": "172.22.0.5",
+          "eth0": "172.22.0.5",
+          "eth1": "172.23.0.2",
           "lo": "127.0.0.1"
         },
         "default_route": false,
@@ -661,43 +794,43 @@
           {
             "dest": "172.22.0.0",
             "gateway": "0.0.0.0",
-            "iface": "eth1"
+            "iface": "eth0"
           },
           {
             "dest": "172.23.0.0",
             "gateway": "0.0.0.0",
-            "iface": "eth0"
+            "iface": "eth1"
           }
         ]
       },
-      "network_mode": "alkera-b2b4_backend_net",
+      "network_mode": "alkera-image-check_backend_net",
       "networks": {
-        "alkera-b2b4_backend_net": "172.22.0.5",
-        "alkera-b2b4_episode_net": "172.23.0.2"
+        "alkera-image-check_backend_net": "172.22.0.5",
+        "alkera-image-check_episode_net": "172.23.0.2"
       },
       "published_ports": {},
       "service": "episode"
     },
     {
       "aliases": {
-        "alkera-b2b4_backend_net": [
-          "alkera-b2b4-postgres-1",
+        "alkera-image-check_backend_net": [
+          "alkera-image-check-postgres-1",
           "postgres"
         ]
       },
-      "container": "alkera-b2b4-postgres-1",
+      "container": "alkera-image-check-postgres-1",
       "egress_blocked": true,
       "image": "postgres@sha256:f1c3376c26f2609ab9f29f71f824103fe2fcd8ee0346485cb6122a4f93df6f94",
       "mounts": [
         {
-          "rw": true,
-          "source": "alkera-b2b4_pgdata",
-          "target": "/var/lib/postgresql/data"
+          "rw": false,
+          "source": "C:\\Users\\OhhMoo\\Desktop\\research\\alkera\\gateway\\docker\\postgres.sql",
+          "target": "/docker-entrypoint-initdb.d/seed.sql"
         },
         {
-          "rw": false,
-          "source": "/run/desktop/mnt/host/c/Users/OhhMoo/Desktop/research/alkera/gateway/docker/postgres.sql",
-          "target": "/docker-entrypoint-initdb.d/seed.sql"
+          "rw": true,
+          "source": "alkera-image-check_pgdata",
+          "target": "/var/lib/postgresql/data"
         }
       ],
       "netns": {
@@ -747,21 +880,21 @@
           }
         ]
       },
-      "network_mode": "alkera-b2b4_backend_net",
+      "network_mode": "alkera-image-check_backend_net",
       "networks": {
-        "alkera-b2b4_backend_net": "172.22.0.4"
+        "alkera-image-check_backend_net": "172.22.0.4"
       },
       "published_ports": {},
       "service": "postgres"
     },
     {
       "aliases": {
-        "alkera-b2b4_backend_net": [
-          "alkera-b2b4-s3-1",
+        "alkera-image-check_backend_net": [
+          "alkera-image-check-s3-1",
           "s3"
         ]
       },
-      "container": "alkera-b2b4-s3-1",
+      "container": "alkera-image-check-s3-1",
       "egress_blocked": true,
       "image": "adobe/s3mock@sha256:e7c36014dcf4c7f0f6bec9de888477d1d9b8f55eceb7d9c1186f70d7aadf81ca",
       "mounts": [],
@@ -812,38 +945,38 @@
           }
         ]
       },
-      "network_mode": "alkera-b2b4_backend_net",
+      "network_mode": "alkera-image-check_backend_net",
       "networks": {
-        "alkera-b2b4_backend_net": "172.22.0.2"
+        "alkera-image-check_backend_net": "172.22.0.2"
       },
       "published_ports": {},
       "service": "s3"
     },
     {
       "aliases": {
-        "alkera-b2b4_backend_net": [
-          "alkera-b2b4-snowflake-1",
+        "alkera-image-check_backend_net": [
+          "alkera-image-check-snowflake-1",
           "snowflake",
           "acme.snowflake.local"
         ]
       },
-      "container": "alkera-b2b4-snowflake-1",
+      "container": "alkera-image-check-snowflake-1",
       "egress_blocked": true,
       "image": "alkera-snowflake:plumbing",
       "mounts": [
         {
           "rw": true,
-          "source": "alkera-b2b4_snowflakedata",
+          "source": "alkera-image-check_snowflakedata",
           "target": "/snowflake-data"
         },
         {
           "rw": true,
-          "source": "alkera-b2b4_snowflaketls",
+          "source": "alkera-image-check_snowflaketls",
           "target": "/tls"
         },
         {
           "rw": true,
-          "source": "alkera-b2b4_snowflaketrust",
+          "source": "alkera-image-check_snowflaketrust",
           "target": "/etc/alkera/snowflake-tls"
         }
       ],
@@ -894,9 +1027,9 @@
           }
         ]
       },
-      "network_mode": "alkera-b2b4_backend_net",
+      "network_mode": "alkera-image-check_backend_net",
       "networks": {
-        "alkera-b2b4_backend_net": "172.22.0.3"
+        "alkera-image-check_backend_net": "172.22.0.3"
       },
       "published_ports": {},
       "service": "snowflake"

@@ -1,0 +1,175 @@
+# Observability definitions for excel_close (OBS_STORE_CONTRACT.md).
+#
+# ONE definitions file per theme: `world/world/observe.py` writes samples from
+# it and the gateway's metrics/alarms/deploy tools evaluate from it. The gateway
+# refuses to load a world that has two, because a writer and a reader describing
+# different metric sets is the one way this surface can be wrong without
+# anything looking wrong.
+#
+# The pathology this theme carries: the integration layer is a spreadsheet, and
+# the numbers that matter most are the ones typed into it by hand. A manual
+# adjustment is not an error - it is how the close works - so the reading that
+# matters is not "is there an adjustment" but "how much of this period's number
+# is one". Nothing upstream fails when that ratio goes wrong, which is exactly
+# why it needs a metric: no job status will ever tell you.
+#
+# Only raw.* and warehouse.* are referenced: the staging.* dbt views are
+# unreadable through the gateway's ATTACH ... AS wh connection.
+version: 1
+
+# Forty-five days. A close cycle spans a month and gets reopened, so the record
+# has to outlive the period it describes or it cannot answer the question the
+# close actually asks: what did this look like before the adjustment went in.
+retention:
+  days: 45
+
+metrics:
+  - id: gl_freshness
+    kind: freshness
+    unit: seconds
+    title: General ledger freshness
+    description: >-
+      Seconds between the newest post_date in the landed GL and the reading.
+      Lines are posted daily and imported at 08:00 the following morning.
+    source: {table: raw.gl_lines, timestamp_column: post_date}
+  - id: gl_lines_rows
+    kind: row_count
+    unit: rows
+    title: Landed GL lines
+    source: {table: raw.gl_lines}
+    series: {bucket_column: post_date}
+  - id: gl_amount_null_rate
+    kind: null_rate
+    unit: ratio
+    title: Landed GL lines with no amount
+    description: >-
+      A cell the workbook left blank, or one the parse could not read, lands as
+      a null. The line still counts towards the period.
+    source: {table: raw.gl_lines, column: amount}
+    series: {bucket_column: post_date}
+  - id: manual_adjustments
+    kind: row_count
+    unit: adjustments
+    title: Manual adjustments on the books
+    description: Rows in raw.manual_adj; the series buckets them by accounting period.
+    source: {table: raw.manual_adj}
+    series: {bucket_column: period}
+  - id: open_period_adjustments
+    kind: sql_scalar
+    unit: adjustments
+    title: Adjustments booked into the open period
+    description: >-
+      Adjustments in the newest period only. manual_adjustments counts every
+      adjustment ever booked, which is a different question and a growing number.
+    source:
+      sql: >-
+        select count(*) from raw.manual_adj
+        where period = (select max(period) from raw.manual_adj)
+    series:
+      sql: select period as bucket, count(*) as value from raw.manual_adj group by period order by period
+  - id: manual_adjustment_share
+    kind: sql_scalar
+    unit: ratio
+    title: Share of the open period that is a manual adjustment
+    description: >-
+      Absolute adjustment value over absolute posted value, for the newest
+      period in warehouse.fct_gl_monthly. This is the reading the close turns on,
+      and nothing upstream of it can fail in a way that moves it.
+    source:
+      sql: >-
+        select sum(abs(adj_total)) / nullif(sum(abs(net_amount)), 0) as share
+        from warehouse.fct_gl_monthly
+        where period = (select max(period) from warehouse.fct_gl_monthly)
+    series:
+      sql: >-
+        select period as bucket,
+               sum(abs(adj_total)) / nullif(sum(abs(net_amount)), 0) as value
+        from warehouse.fct_gl_monthly group by period order by period
+  - id: close_import_duration
+    kind: job_duration
+    unit: seconds
+    title: Close import duration
+    job: close_import
+  - id: close_import_error_rate
+    kind: job_error_rate
+    unit: ratio
+    title: Close import error rate
+    description: close_import fails when the workbook will not parse.
+    job: close_import
+    window_runs: 10
+  - id: dbt_build_duration
+    kind: job_duration
+    unit: seconds
+    title: dbt build duration
+    job: dbt_build
+
+alarms:
+  - id: gl_stale
+    metric: gl_freshness
+    comparison: gt
+    threshold: 180000
+    severity: critical
+    title: The ledger is more than two days behind
+    runbook: docs/runbook_close.md
+  - id: close_import_failing
+    metric: close_import_error_rate
+    comparison: gte
+    threshold: 0.2
+    severity: critical
+    title: The workbook is failing to import more than one run in five
+    runbook: docs/runbook_close.md
+  - id: close_import_slow
+    metric: close_import_duration
+    comparison: gt
+    threshold: 300
+    severity: warning
+    title: The close import ran long
+    description: The import takes about a minute; five means the workbook grew or re-parsed.
+  - id: manual_adjustments_material
+    metric: manual_adjustment_share
+    comparison: gt
+    threshold: 0.05
+    severity: warning
+    title: Manual adjustments are material to the open period
+    description: >-
+      More than five percent of the open period's absolute value came from the
+      adjustment tab rather than from a posted line.
+    known_imprecision:
+      kind: blind_spot
+      note: >-
+        AUTHOR-SIDE. Scope. The scalar covers only the newest period, so an
+        adjustment booked into a period that has already closed does not move it
+        at all - and a period early in the month has a small denominator, so one
+        adjustment can look material for the first few days and then stop
+        looking material without anything being fixed. metrics_series on the
+        same metric shows every period, and is where the evidence lives.
+  - id: adjustment_count_spike
+    metric: open_period_adjustments
+    comparison: gt
+    threshold: 8
+    severity: warning
+    title: More than eight adjustments booked into the open period
+    description: >-
+      Counts the open period only. Pointing this at manual_adjustments instead
+      would compare a threshold against every adjustment ever booked, which
+      crosses eight and stays crossed for reasons that have nothing to do with
+      the open close.
+  - id: gl_amount_missing
+    metric: gl_amount_null_rate
+    comparison: gt
+    threshold: 0.0
+    severity: warning
+    title: Some landed GL lines carry no amount
+
+deploys:
+  - id: rebuild_close
+    kind: dbt
+    title: Rebuild the monthly close fact table
+    selector: fct_gl_monthly
+    canary:
+      metrics: [gl_lines_rows, manual_adjustments, open_period_adjustments,
+                manual_adjustment_share, gl_freshness]
+      alarms: [manual_adjustments_material, gl_stale]
+      guards:
+        - {metric: gl_lines_rows, max_decrease_pct: 5}
+        - {metric: manual_adjustment_share, max_increase_abs: 0.02}

@@ -1,0 +1,747 @@
+{
+  "generated": "2026-09-14T22:11:17+00:00",
+  "head_revision": "f9c0ec542cf65ae5eab1909ad40c888121c31679",
+  "image_id": "sha256:1c6861cf3a25b57dcb26ddaf93519915789cc6d787f2942bf90372a3a25a295a",
+  "labels": {
+    "org.alkera.source.overlay": "8cc7cb4605d55c07848b67aa432bf5c63a1b241d6ed984b7436f2892c5376e00",
+    "org.alkera.source.revision": "f9c0ec542cf65ae5eab1909ad40c888121c31679"
+  },
+  "measured_inside_container": {
+    "binaries": [
+      {
+        "argv": [
+          "bash",
+          "--version"
+        ],
+        "binary": "bash",
+        "exit": 0,
+        "first_line": "GNU bash, version 5.2.37(1)-release (x86_64-pc-linux-gnu)",
+        "ok": true,
+        "path": "/usr/bin/bash",
+        "reason": null
+      },
+      {
+        "argv": [
+          "sh",
+          "-c",
+          "echo sh-ok"
+        ],
+        "binary": "sh",
+        "exit": 0,
+        "first_line": "sh-ok",
+        "ok": true,
+        "path": "/usr/bin/sh",
+        "reason": null
+      },
+      {
+        "argv": [
+          "ls",
+          "--version"
+        ],
+        "binary": "ls",
+        "exit": 0,
+        "first_line": "ls (GNU coreutils) 9.7",
+        "ok": true,
+        "path": "/usr/bin/ls",
+        "reason": null
+      },
+      {
+        "argv": [
+          "cat",
+          "--version"
+        ],
+        "binary": "cat",
+        "exit": 0,
+        "first_line": "cat (GNU coreutils) 9.7",
+        "ok": true,
+        "path": "/usr/bin/cat",
+        "reason": null
+      },
+      {
+        "argv": [
+          "sort",
+          "--version"
+        ],
+        "binary": "sort",
+        "exit": 0,
+        "first_line": "sort (GNU coreutils) 9.7",
+        "ok": true,
+        "path": "/usr/bin/sort",
+        "reason": null
+      },
+      {
+        "argv": [
+          "wc",
+          "--version"
+        ],
+        "binary": "wc",
+        "exit": 0,
+        "first_line": "wc (GNU coreutils) 9.7",
+        "ok": true,
+        "path": "/usr/bin/wc",
+        "reason": null
+      },
+      {
+        "argv": [
+          "cut",
+          "--version"
+        ],
+        "binary": "cut",
+        "exit": 0,
+        "first_line": "cut (GNU coreutils) 9.7",
+        "ok": true,
+        "path": "/usr/bin/cut",
+        "reason": null
+      },
+      {
+        "argv": [
+          "xargs",
+          "--version"
+        ],
+        "binary": "xargs",
+        "exit": 0,
+        "first_line": "xargs (GNU findutils) 4.10.0",
+        "ok": true,
+        "path": "/usr/bin/xargs",
+        "reason": null
+      },
+      {
+        "argv": [
+          "find",
+          "--version"
+        ],
+        "binary": "find",
+        "exit": 0,
+        "first_line": "find (GNU findutils) 4.10.0",
+        "ok": true,
+        "path": "/usr/bin/find",
+        "reason": null
+      },
+      {
+        "argv": [
+          "grep",
+          "--version"
+        ],
+        "binary": "grep",
+        "exit": 0,
+        "first_line": "grep (GNU grep) 3.11",
+        "ok": true,
+        "path": "/usr/bin/grep",
+        "reason": null
+      },
+      {
+        "argv": [
+          "sed",
+          "--version"
+        ],
+        "binary": "sed",
+        "exit": 0,
+        "first_line": "sed (GNU sed) 4.9",
+        "ok": true,
+        "path": "/usr/bin/sed",
+        "reason": null
+      },
+      {
+        "argv": [
+          "awk",
+          "--version"
+        ],
+        "binary": "awk",
+        "exit": 0,
+        "first_line": "mawk 1.3.4 20250131",
+        "ok": true,
+        "path": "/usr/bin/awk",
+        "reason": null
+      },
+      {
+        "argv": [
+          "diff",
+          "--version"
+        ],
+        "binary": "diff",
+        "exit": 0,
+        "first_line": "diff (GNU diffutils) 3.10",
+        "ok": true,
+        "path": "/usr/bin/diff",
+        "reason": null
+      },
+      {
+        "argv": [
+          "tar",
+          "--version"
+        ],
+        "binary": "tar",
+        "exit": 0,
+        "first_line": "tar (GNU tar) 1.35",
+        "ok": true,
+        "path": "/usr/bin/tar",
+        "reason": null
+      },
+      {
+        "argv": [
+          "gzip",
+          "--version"
+        ],
+        "binary": "gzip",
+        "exit": 0,
+        "first_line": "gzip 1.13",
+        "ok": true,
+        "path": "/usr/bin/gzip",
+        "reason": null
+      },
+      {
+        "argv": [
+          "df",
+          "--version"
+        ],
+        "binary": "df",
+        "exit": 0,
+        "first_line": "df (GNU coreutils) 9.7",
+        "ok": true,
+        "path": "/usr/bin/df",
+        "reason": null
+      },
+      {
+        "argv": [
+          "du",
+          "--version"
+        ],
+        "binary": "du",
+        "exit": 0,
+        "first_line": "du (GNU coreutils) 9.7",
+        "ok": true,
+        "path": "/usr/bin/du",
+        "reason": null
+      },
+      {
+        "argv": [
+          "git",
+          "--version"
+        ],
+        "binary": "git",
+        "exit": 0,
+        "first_line": "git version 2.47.3",
+        "ok": true,
+        "path": "/usr/bin/git",
+        "reason": null
+      },
+      {
+        "argv": [
+          "openssl",
+          "version"
+        ],
+        "binary": "openssl",
+        "exit": 0,
+        "first_line": "OpenSSL 3.5.7 9 Jun 2026 (Library: OpenSSL 3.5.7 9 Jun 2026)",
+        "ok": true,
+        "path": "/usr/bin/openssl",
+        "reason": null
+      },
+      {
+        "argv": [
+          "curl",
+          "--version"
+        ],
+        "binary": "curl",
+        "exit": 0,
+        "first_line": "curl 8.14.1 (x86_64-pc-linux-gnu) libcurl/8.14.1 OpenSSL/3.5.7 zlib/1.3.1 brotli/1.1.0 zstd/1.5.7 libidn2/2.3.8 libpsl/0.21.2 libssh2/1.11.1 nghttp2/1.64.0 nght",
+        "ok": true,
+        "path": "/usr/bin/curl",
+        "reason": null
+      },
+      {
+        "argv": [
+          "jq",
+          "--version"
+        ],
+        "binary": "jq",
+        "exit": 0,
+        "first_line": "jq-1.7",
+        "ok": true,
+        "path": "/usr/bin/jq",
+        "reason": null
+      },
+      {
+        "argv": [
+          "less",
+          "--version"
+        ],
+        "binary": "less",
+        "exit": 0,
+        "first_line": "less 668 (GNU regular expressions)",
+        "ok": true,
+        "path": "/usr/bin/less",
+        "reason": null
+      },
+      {
+        "argv": [
+          "make",
+          "--version"
+        ],
+        "binary": "make",
+        "exit": 0,
+        "first_line": "GNU Make 4.4.1",
+        "ok": true,
+        "path": "/usr/bin/make",
+        "reason": null
+      },
+      {
+        "argv": [
+          "unzip",
+          "-v"
+        ],
+        "binary": "unzip",
+        "exit": 0,
+        "first_line": "UnZip 6.00 of 20 April 2009, by Debian. Original by Info-ZIP.",
+        "ok": true,
+        "path": "/usr/bin/unzip",
+        "reason": null
+      },
+      {
+        "argv": [
+          "ps",
+          "--version"
+        ],
+        "binary": "ps",
+        "exit": 0,
+        "first_line": "ps from procps-ng 4.0.4",
+        "ok": true,
+        "path": "/usr/bin/ps",
+        "reason": null
+      },
+      {
+        "argv": [
+          "top",
+          "-v"
+        ],
+        "binary": "top",
+        "exit": 1,
+        "first_line": "top: invalid option -- 'v'",
+        "ok": true,
+        "path": "/usr/bin/top",
+        "reason": null
+      },
+      {
+        "argv": [
+          "tree",
+          "--version"
+        ],
+        "binary": "tree",
+        "exit": 0,
+        "first_line": "tree v2.2.1 \u00a9 1996 - 2024 by Steve Baker, Thomas Moore, Francesc Rocher, Florian Sesser, Kyosuke Tokoro",
+        "ok": true,
+        "path": "/usr/bin/tree",
+        "reason": null
+      },
+      {
+        "argv": [
+          "file",
+          "--version"
+        ],
+        "binary": "file",
+        "exit": 0,
+        "first_line": "file-5.46",
+        "ok": true,
+        "path": "/usr/bin/file",
+        "reason": null
+      },
+      {
+        "argv": [
+          "vim",
+          "--version"
+        ],
+        "binary": "vim",
+        "exit": 0,
+        "first_line": "VIM - Vi IMproved 9.1 (2024 Jan 02, compiled May 23 2025 00:48:59)",
+        "ok": true,
+        "path": "/usr/bin/vim",
+        "reason": null
+      },
+      {
+        "argv": [
+          "nano",
+          "--version"
+        ],
+        "binary": "nano",
+        "exit": 0,
+        "first_line": "GNU nano, version 8.4",
+        "ok": true,
+        "path": "/usr/bin/nano",
+        "reason": null
+      },
+      {
+        "argv": [
+          "nc",
+          "-h"
+        ],
+        "binary": "nc",
+        "exit": 0,
+        "first_line": "OpenBSD netcat (Debian patchlevel 1.229-1)",
+        "ok": true,
+        "path": "/usr/bin/nc",
+        "reason": null
+      },
+      {
+        "argv": [
+          "dig",
+          "-v"
+        ],
+        "binary": "dig",
+        "exit": 0,
+        "first_line": "DiG 9.20.26-1~deb13u1-Debian",
+        "ok": true,
+        "path": "/usr/bin/dig",
+        "reason": null
+      },
+      {
+        "argv": [
+          "nslookup",
+          "-version"
+        ],
+        "binary": "nslookup",
+        "exit": 0,
+        "first_line": "nslookup 9.20.26-1~deb13u1-Debian",
+        "ok": true,
+        "path": "/usr/bin/nslookup",
+        "reason": null
+      },
+      {
+        "argv": [
+          "ping",
+          "-V"
+        ],
+        "binary": "ping",
+        "exit": 0,
+        "first_line": "ping from iputils 20240905",
+        "ok": true,
+        "path": "/usr/bin/ping",
+        "reason": null
+      },
+      {
+        "argv": [
+          "ssh",
+          "-V"
+        ],
+        "binary": "ssh",
+        "exit": 0,
+        "first_line": "OpenSSH_10.0p2 Debian-7+deb13u4, OpenSSL 3.5.7 9 Jun 2026",
+        "ok": true,
+        "path": "/usr/bin/ssh",
+        "reason": null
+      },
+      {
+        "argv": [
+          "sftp",
+          "-h"
+        ],
+        "binary": "sftp",
+        "exit": 1,
+        "first_line": "usage: sftp [-46AaCfNpqrv] [-B buffer_size] [-b batchfile] [-c cipher]",
+        "ok": true,
+        "path": "/usr/bin/sftp",
+        "reason": null
+      },
+      {
+        "argv": [
+          "ssh-keygen",
+          "-h"
+        ],
+        "binary": "ssh-keygen",
+        "exit": 1,
+        "first_line": "Generating public/private ed25519 key pair.",
+        "ok": true,
+        "path": "/usr/bin/ssh-keygen",
+        "reason": null
+      },
+      {
+        "argv": [
+          "psql",
+          "--version"
+        ],
+        "binary": "psql",
+        "exit": 0,
+        "first_line": "psql (PostgreSQL) 17.11 (Debian 17.11-0+deb13u1)",
+        "ok": true,
+        "path": "/usr/bin/psql",
+        "reason": null
+      },
+      {
+        "argv": [
+          "pg_dump",
+          "--version"
+        ],
+        "binary": "pg_dump",
+        "exit": 0,
+        "first_line": "pg_dump (PostgreSQL) 17.11 (Debian 17.11-0+deb13u1)",
+        "ok": true,
+        "path": "/usr/bin/pg_dump",
+        "reason": null
+      },
+      {
+        "argv": [
+          "pg_isready",
+          "--version"
+        ],
+        "binary": "pg_isready",
+        "exit": 0,
+        "first_line": "pg_isready (PostgreSQL) 17.11 (Debian 17.11-0+deb13u1)",
+        "ok": true,
+        "path": "/usr/bin/pg_isready",
+        "reason": null
+      },
+      {
+        "argv": [
+          "aws",
+          "--version"
+        ],
+        "binary": "aws",
+        "exit": 0,
+        "first_line": "aws-cli/1.46.1 Python/3.11.16 Linux/6.6.87.2-microsoft-standard-WSL2 botocore/1.43.62",
+        "ok": true,
+        "path": "/opt/toolbelt/bin/aws",
+        "reason": null
+      },
+      {
+        "argv": [
+          "sqlfluff",
+          "--version"
+        ],
+        "binary": "sqlfluff",
+        "exit": 0,
+        "first_line": "sqlfluff, version 4.3.0",
+        "ok": true,
+        "path": "/opt/toolbelt/bin/sqlfluff",
+        "reason": null
+      },
+      {
+        "argv": [
+          "csvlook",
+          "--version"
+        ],
+        "binary": "csvlook",
+        "exit": 0,
+        "first_line": "csvlook 2.2.0",
+        "ok": true,
+        "path": "/opt/toolbelt/bin/csvlook",
+        "reason": null
+      },
+      {
+        "argv": [
+          "csvstat",
+          "--version"
+        ],
+        "binary": "csvstat",
+        "exit": 0,
+        "first_line": "csvstat 2.2.0",
+        "ok": true,
+        "path": "/opt/toolbelt/bin/csvstat",
+        "reason": null
+      },
+      {
+        "argv": [
+          "in2csv",
+          "--version"
+        ],
+        "binary": "in2csv",
+        "exit": 0,
+        "first_line": "in2csv 2.2.0",
+        "ok": true,
+        "path": "/opt/toolbelt/bin/in2csv",
+        "reason": null
+      },
+      {
+        "argv": [
+          "csvsql",
+          "--version"
+        ],
+        "binary": "csvsql",
+        "exit": 0,
+        "first_line": "csvsql 2.2.0",
+        "ok": true,
+        "path": "/opt/toolbelt/bin/csvsql",
+        "reason": null
+      },
+      {
+        "argv": [
+          "python",
+          "--version"
+        ],
+        "binary": "python",
+        "exit": 0,
+        "first_line": "Python 3.11.16",
+        "ok": true,
+        "path": "/usr/local/bin/python",
+        "reason": null
+      },
+      {
+        "argv": [
+          "pip",
+          "--version"
+        ],
+        "binary": "pip",
+        "exit": 0,
+        "first_line": "pip 24.0 from /usr/local/lib/python3.11/site-packages/pip (python 3.11)",
+        "ok": true,
+        "path": "/usr/local/bin/pip",
+        "reason": null
+      },
+      {
+        "argv": [
+          "dbt",
+          "--version"
+        ],
+        "binary": "dbt",
+        "exit": 0,
+        "first_line": "Core:",
+        "ok": true,
+        "path": "/usr/local/bin/dbt",
+        "reason": null
+      },
+      {
+        "argv": [
+          "alkera-gateway",
+          "--help"
+        ],
+        "binary": "alkera-gateway",
+        "exit": 0,
+        "first_line": "usage: alkera-gateway [-h] {serve,call,trace,replay,signals} ...",
+        "ok": true,
+        "path": "/usr/local/bin/alkera-gateway",
+        "reason": null
+      }
+    ],
+    "binaries_failed": [],
+    "binaries_ok": [
+      "alkera-gateway",
+      "awk",
+      "aws",
+      "bash",
+      "cat",
+      "csvlook",
+      "csvsql",
+      "csvstat",
+      "curl",
+      "cut",
+      "dbt",
+      "df",
+      "diff",
+      "dig",
+      "du",
+      "file",
+      "find",
+      "git",
+      "grep",
+      "gzip",
+      "in2csv",
+      "jq",
+      "less",
+      "ls",
+      "make",
+      "nano",
+      "nc",
+      "nslookup",
+      "openssl",
+      "pg_dump",
+      "pg_isready",
+      "ping",
+      "pip",
+      "ps",
+      "psql",
+      "python",
+      "sed",
+      "sftp",
+      "sh",
+      "sort",
+      "sqlfluff",
+      "ssh",
+      "ssh-keygen",
+      "tar",
+      "top",
+      "tree",
+      "unzip",
+      "vim",
+      "wc",
+      "xargs"
+    ],
+    "interpreter": "/usr/local/bin/python",
+    "os_release": "Debian GNU/Linux 13 (trixie)",
+    "passed": true,
+    "path": "/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/toolbelt/bin",
+    "platform": "Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.41",
+    "python_not_shadowed": true,
+    "python_on_path": "/usr/local/bin/python",
+    "source_revision": "f9c0ec542cf65ae5eab1909ad40c888121c31679",
+    "tool_count": 36,
+    "tools": [
+      "bi_cached",
+      "bi_get",
+      "bi_list",
+      "bi_refresh",
+      "bi_render",
+      "bi_update",
+      "dbt_compile",
+      "dbt_run",
+      "dbt_test",
+      "docs_get",
+      "docs_list",
+      "docs_search",
+      "fs_list",
+      "fs_read",
+      "fs_write",
+      "git_commit",
+      "git_diff",
+      "git_log",
+      "ingest_alerts",
+      "ingest_get",
+      "ingest_list",
+      "ingest_run",
+      "ingest_runs",
+      "ingest_schema",
+      "ingest_schema_update",
+      "ingest_trigger",
+      "s3_delete",
+      "s3_get",
+      "s3_list",
+      "s3_put",
+      "sched_list",
+      "sched_logs",
+      "sched_state",
+      "sched_trigger",
+      "sql_execute",
+      "sql_query"
+    ],
+    "tools_error": null
+  },
+  "overlay": {
+    "files": [
+      "gateway/docker/acceptance.py",
+      "gateway/docker/acceptance_inside.py",
+      "gateway/docker/aws-config",
+      "gateway/docker/aws-keys",
+      "gateway/docker/build_episode.py",
+      "gateway/docker/compose.episode.yml",
+      "gateway/docker/compose.yml",
+      "gateway/docker/containment.py",
+      "gateway/docker/Dockerfile",
+      "gateway/docker/Dockerfile.snowflake",
+      "gateway/docker/postgres.sql",
+      "gateway/docker/snowflake.in",
+      "gateway/docker/snowflake.lock",
+      "gateway/docker/snowflake_acceptance.py",
+      "gateway/docker/snowflake_start.py",
+      "gateway/docker/start.py",
+      "gateway/docker/toolbelt.in",
+      "gateway/docker/toolbelt.lock",
+      "gateway/docker/TOOLBELT.md",
+      "gateway/docker/toolbelt_acceptance.py",
+      "gateway/docker/toolbelt_check.py"
+    ],
+    "hash": "8cc7cb4605d55c07848b67aa432bf5c63a1b241d6ed984b7436f2892c5376e00"
+  },
+  "repo_digests": [
+    "alkera-episode@sha256:1c6861cf3a25b57dcb26ddaf93519915789cc6d787f2942bf90372a3a25a295a"
+  ],
+  "size_bytes": 300200133,
+  "source_revision": "f9c0ec542cf65ae5eab1909ad40c888121c31679",
+  "tag": "alkera-episode:head"
+}

@@ -38,3 +38,18 @@ mitigation: >
 notes: >
   Reproduction script: scratchpad rev/attack_d6.py. Five scenarios, run against the shipped
   grade.py and the shipped solution.sh, fixture seed 1337.
+executed_by: C4-INTEGRATION
+executed_on: "2026-09-14"
+resolution_note: >
+  EXECUTED, both halves, and the second half was still open until today.
+  Half one (R003): grade.py:206 now splits every additional_causes entry on a semicolon-or-newline
+  character class before
+  counting, so the credit side and the penalty side operate on the same unit - atomic claims,
+  not list containers. That was the asymmetry the finding named as the exploit.
+  Half two (R004): the mitigation also asked for "a concatenated checklist added as a seventh
+  adversarial agent so the regression cannot return silently". That agent did not exist. The
+  fix had been shipped with nothing standing guard over it, which is the same shape as a
+  registered tool with no test. run_baselines.agent_checklist_joined now submits the identical
+  six causes as ONE semicolon-joined string - the literal exploit - and two verdicts assert it.
+  MEASURED 2026-09-14: checklist_joined 17.0 == checklist 17.0, both < oracle 19.0. The form
+  that once scored 19.0 and tied the oracle now scores 17.0. TASK VALID, 9 verdicts, 0 failing.

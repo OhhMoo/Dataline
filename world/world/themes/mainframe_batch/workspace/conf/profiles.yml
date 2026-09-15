@@ -1,0 +1,22 @@
+# dbt profiles. conf/ is the profiles directory; run.sh exports
+# DBT_PROFILES_DIR accordingly, per conf/claims.cfg [dbt] profiles_dir.
+#
+# A bare `dbt` invocation reads ~/.dbt/profiles.yml instead and will build
+# against whatever that file points at. Use run.sh.
+world_dbt:
+  target: "{{ env_var('DBT_TARGET', 'dev') }}"
+  outputs:
+
+    # Operator workstation and the batch node both use this target. The
+    # warehouse file is outside the repository.
+    dev:
+      type: duckdb
+      path: "{{ env_var('DBT_WAREHOUSE_PATH', '../var/warehouse/warehouse.duckdb') }}"
+      threads: 1
+
+    # Verification build. Throwaway file; a failed verification must not be
+    # able to damage a warehouse anyone is reading.
+    ci:
+      type: duckdb
+      path: "/tmp/ci_warehouse.duckdb"
+      threads: 1

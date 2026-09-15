@@ -1,0 +1,22 @@
+name: ci
+
+on: [push, pull_request]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - name: dbt parse + dag check
+        run: ./run.sh check
+        env:
+          DBT_TARGET: ci
+      # was failing on the initech folder that no longer has files in it.
+      # left non-blocking until somebody has ten minutes.
+      - name: shellcheck
+        continue-on-error: true
+        run: shellcheck run.sh

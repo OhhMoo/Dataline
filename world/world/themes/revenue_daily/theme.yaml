@@ -1,5 +1,25 @@
 name: revenue_daily
 dbt_profile: world_dbt
+
+# The human-context plane (gateway/WORKFLOW_CONTRACT.md): the ticket the work
+# arrives in, the channel the context is scattered across, and the wiki that is
+# right in some places and out of date in others.
+#
+# The *vocabulary* is world shape and lives here - the status set especially,
+# because the contract lets a world run a Jira workflow or a two-state one and
+# issues_update names the legal set in its error. The *content* is data, in
+# workflow/{users,issues,chat,kb}.yaml, with every timestamp written as an
+# offset from the world clock ("-12d 09:15") so the backlog stays coherent
+# under a seed that moves vtime_start instead of quietly filing tickets in the
+# future.
+workflow:
+  dir: workflow
+  actor: agent                  # the id the agent writes as (workflow_actor)
+  project: {key: DATA, name: Data platform}
+  statuses: [open, triage, in_progress, blocked, done, wontfix]
+  workspace: retail-data
+  space: {key: DE, name: Data Engineering}
+
 jobs:
   daily_load:
     command: load_daily_revenue
@@ -8,8 +28,105 @@ jobs:
     day_offset: 1
     after: null
     detail: "dt={day}"
+    # Real work: the theme's own raw loader, the same code the initial build
+    # ran. It reads every landed partition, so it picks up whatever the traffic
+    # generator dropped - and it fails for real on a malformed partition.
+    exec:
+      kind: theme
+      op: load_raw
+      args: [workspace, db]
+      tables: [raw.daily_revenue]
   dbt_build:
     command: dbt_build
     duration_s: 90
     after: {job: daily_load, minutes: 5}
     detail: null
+    exec:
+      kind: dbt
+      command: build
+      tables: [warehouse.fct_revenue]
+
+# Live world: what happens as virtual time passes.
+live:
+  # the ONLY seed keys carried into the built world (var/world/live.json)
+  params: [seed, orders_per_day, customers, amount_cents]
+  # the partition for day D lands at the start of D+1, an hour before the
+  # 01:00 load that consumes it - which is exactly where the seeded history
+  # left the world: dt=2026-03-02 exists at vnow 2026-03-03T00:00:00Z.
+  arrival:
+    name: daily_revenue
+    op: write_day
+    at: {day_offset: 1, time: "00:00"}
+
+  # ------------------------------------------------------------------
+  # Seeded fault layer (world/world/faults.py). Declared here, applied by
+  # `advance`, drawn from (fault_seed, fault id, occurrence) and nothing else.
+  #
+  # ALL OFF for revenue_daily. This is the seed the acceptance battery and the
+  # cross-host determinism gate build, and it is the theme every worked example
+  # in the docs uses, so its default behaviour stays the clean metronome it has
+  # always been. The catalogue is declared anyway because that is what makes
+  # "faults off => the world is clean" a checkable property of a world that
+  # KNOWS about faults, rather than of one that has never heard of them.
+  #
+  # A seed file turns one on without touching the theme:
+  #   faults:
+  #     late_partition: {enabled: true}
+  #     load_partial:   {enabled: true, rate: 1.0}
+  # ------------------------------------------------------------------
+  faults:
+    # The partition for day D shows up four hours after the 01:00 load that
+    # consumes it. The load runs on time, finds only yesterday, and succeeds
+    # while being a day behind - the quiet failure, not the loud one.
+    - id: late_partition
+      kind: late_arrival
+      enabled: false
+      rate: 0.15
+      params: {delay_minutes: 240}
+    # The partition never arrives. A gap, and then the world carries on.
+    - id: missing_partition
+      kind: missing_arrival
+      enabled: false
+      rate: 0.05
+    # The same partition delivered twice: a second CSV in the same dt= folder,
+    # which the loader's dt=*/*.csv glob picks up. Every downstream number
+    # doubles for that day.
+    - id: duplicate_partition
+      kind: duplicate_arrival
+      enabled: false
+      rate: 0.05
+      params: {match: "*.csv", suffix: ".dup"}
+    # The load is killed at its own declared duration. Nothing runs, nothing
+    # is written, and the run record says so.
+    - id: load_timeout
+      kind: job_timeout
+      enabled: false
+      rate: 0.05
+      jobs: [daily_load]
+      params: {timeout_s: 45}
+    - id: load_retry
+      kind: job_retry
+      enabled: false
+      rate: 0.10
+      jobs: [daily_load]
+      params: {attempts: 2, retry_delay_minutes: 10, fail_after_s: 5,
+               error: "duckdb: could not open database: resource temporarily unavailable"}
+    # 45s nominal, 12x = 9 minutes, which swallows the 01:05 dbt_build: two
+    # runs with overlapping recorded windows, staged - never raced. Raise it to
+    # `extra_minutes: 1500` and the load is still running when tomorrow's own
+    # occurrence is due, which is the other half of the pathology.
+    - id: load_overrun
+      kind: job_overrun
+      enabled: false
+      rate: 0.10
+      jobs: [daily_load]
+      params: {multiplier: 12}
+    # The load really runs, really writes, and then the process dies with 40%
+    # of the newest partition committed and no transaction to roll back.
+    - id: load_partial
+      kind: partial_write
+      enabled: false
+      rate: 0.05
+      jobs: [daily_load]
+      params: {table: raw.daily_revenue, partition_column: dt,
+               order_column: order_id, keep_fraction: 0.4}

@@ -1,0 +1,51 @@
+# Episode overlay: run ONE graded rollout inside the `episode` service.
+#
+# Used by tasks/harness/container_episode.py, never by hand. It layers onto
+# compose.yml and changes exactly three things:
+#
+#   1. /world and /audit become bind mounts of the rollout's own directories.
+#      The named `worlddata` / `auditdata` volumes are for Track B's fixture
+#      world, which start.py provisions; a rollout brings its own world, built
+#      on the host by the task's declared builder. The bind mounts expose ONE
+#      directory each - a bind mount does not expose its parent, which is why
+#      the grading zone (a SIBLING of the world root on the host) has no path
+#      inside the container at all.
+#
+#   2. The entrypoint becomes a parked process. The gateway is not a long-lived
+#      server here: it is started per episode over `docker exec -i` as an MCP
+#      stdio server, because exactly one process may hold the audit writer lock
+#      and stdio needs no published port. `published_host_ports: {}` stays a
+#      containment pass condition.
+#
+#   3. The healthcheck matches the new entrypoint. compose.yml's healthcheck
+#      polls the gateway's /health route, which nothing serves once the
+#      entrypoint is parked, so `up --wait` would hang for 120s and then fail.
+#
+# Everything else - both internal networks, the backends, the profile split,
+# no published ports - is inherited unchanged from compose.yml.
+#
+# ALKERA_EPISODE_IMAGE names the image to run. It exists because two other
+# agents are editing gateway/src right now: an episode must run a build whose
+# toolbelt is known, not whatever happens to be uncommitted. The harness builds
+# it from a clean worktree and records the digest on every rollout.
+services:
+  episode:
+    image: ${ALKERA_EPISODE_IMAGE:-alkera-stack:track-b}
+    entrypoint: ["sleep", "infinity"]
+    stop_grace_period: 2s
+    volumes: !override
+      - "${ALKERA_EPISODE_WORLD:?episode world directory}:/world"
+      # The same directory, also mounted where contract 9.2.1 says the repository
+      # lives. The agent has a shell now, so `cd /workspace` has to be true rather
+      # than a convention the tools paper over. Both mounts are the one host
+      # directory, so a write through either is one change in the world tree.
+      - "${ALKERA_EPISODE_WORLD:?episode world directory}/workspace:/workspace"
+      - "${ALKERA_EPISODE_AUDIT:?episode audit directory}:/audit"
+      - bistate:/service-state/bi
+      - snowflaketrust:/etc/alkera/snowflake-tls
+    healthcheck: !override
+      test: ["CMD", "python", "-c", "import alkera_gateway, pathlib, sys; sys.exit(0 if pathlib.Path('/world').is_dir() and pathlib.Path('/audit').is_dir() else 1)"]
+      interval: 1s
+      timeout: 5s
+      retries: 60
+      start_period: 1s

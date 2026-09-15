@@ -1,0 +1,17 @@
+version: 2
+
+models:
+  - name: fct_revenue
+    description: >
+      Daily revenue fact: one row per order date. This is what the
+      `revenue_daily` dashboard reads.
+    columns:
+      - name: order_date
+        description: Business date. The grain of this table.
+        tests: [not_null, unique]
+      - name: orders
+        description: Count of order lines on that date.
+        tests: [not_null]
+      - name: revenue
+        description: Sum of `amount` over the date.
+        tests: [not_null]

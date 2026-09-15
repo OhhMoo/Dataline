@@ -25,16 +25,10 @@ services:
       - worlddata:/world
       - auditdata:/audit
       - bistate:/service-state/bi
-      # Public half of the Snowflake socket's TLS material. The image already seeds
-      # this path with certifi and points REQUESTS_CA_BUNDLE at it, so the mount is
-      # valid whether or not the snowflake profile is running. The private key is
-      # never mounted here.
+      # Public certificates only; the private key stays in the Snowflake service.
       - snowflaketrust:/etc/alkera/snowflake-tls
     entrypoint: ["python", "/opt/stack/start.py"]
-    # `up --wait` on a service with no healthcheck returns as soon as the container is
-    # running, which here is before the control plane has finished provisioning and
-    # long before the gateway is listening - measured: the first MCP call from the
-    # harness failed with ConnectError against a perfectly healthy stack.
+    # Wait for provisioning and the gateway listener, not just the process.
     healthcheck:
       test: ["CMD", "python", "-c",
              "import sys,urllib.request;sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=3).status == 200 else 1)"]
@@ -61,16 +55,7 @@ services:
   s3:
     image: adobe/s3mock@sha256:e7c36014dcf4c7f0f6bec9de888477d1d9b8f55eceb7d9c1186f70d7aadf81ca
     networks: [backend_net]
-    # `initialBuckets`, `root` and `retainFilesOnExit` were all set here and are all
-    # ignored on this digest - measured 2026-09-13, found by B3-FINISH: ListAllMyBuckets
-    # came back empty, /s3-data and the image's own /s3mockroot stayed empty, and the
-    # file store is a random /tmp/s3mockFileStore* directory. They are removed rather
-    # than left in place because their presence is why nobody noticed the bucket was
-    # missing and the storage half of acceptance_inside.py had never passed.
-    # Consequences, both real: the control plane creates the buckets
-    # (start.py provision_storage), and object storage here is effectively in-memory
-    # and does not survive a restart of this service. Anything that needs S3 state
-    # across a restart - snapshot/restore before replay - needs another mechanism.
+    # start.py creates buckets. This configuration does not persist S3 across restarts.
 
   harness:
     image: alkera-stack:track-b

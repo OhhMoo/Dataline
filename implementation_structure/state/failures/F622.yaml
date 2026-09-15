@@ -37,3 +37,26 @@ mitigation: >
 notes: >
   Reproduction: copy fixtures/build/world.duckdb to <dir>/var/warehouse/warehouse.duckdb, then
   WAREHOUSE=<that path> WORKSPACE=<dir>/workspace bash solution/solution.sh.
+executed_by: C4-INTEGRATION
+executed_on: "2026-09-14"
+deferred: partial
+deferred_reason: >
+  Four of the mitigation's five parts are executed; the fifth is covered elsewhere and is
+  recorded as deferred rather than claimed.
+  Executed (R003): solution.sh connects to :memory: and ATTACHes under an alias; run_baselines
+  .sql does the same; run_baselines.fresh() stages the scratch world at the CONTRACT filename
+  var/warehouse/warehouse.duckdb rather than tmp/world.duckdb, so the world that is VALIDATED
+  and the world that is MEASURED are now addressed by the same name. That last change is what
+  exposed the other two instances.
+  Executed (R004): fixture_contract.py was the remaining latent case the finding itself named
+  ("fixture_contract._stats and run_baselines.sql carry the same two-part pattern and are
+  latent for the same reason"). Both connections - _stats and the AOV-ratio block - now
+  :memory: + ATTACH AS wh (READ_ONLY) + USE wh.warehouse. _stats takes its path from its
+  caller, so it was one caller away from firing. MEASURED 2026-09-14 against the contract path
+  var/warehouse/warehouse.duckdb AND the convenient path world.duckdb: both return
+  {rows 419675, adj 824, dupkeys 59995}. GT001/GT002/GT003 all TASK VALID after the change.
+  NOT executed: the extra assertion in test_integration.py that runs solution.sh at the
+  contract path and grades the result. run_baselines already executes exactly that - the oracle
+  is the shipped solution.sh, staged at the contract filename, graded by the shipped grade.py,
+  and asserted to score max - so the assertion would duplicate existing coverage rather than
+  add any. Deferred on that ground, not on effort.

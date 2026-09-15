@@ -1,0 +1,12 @@
+version: 2
+
+models:
+  - name: fct_orders_daily
+    description: daily vendor orders + returns. feeds the vendor_daily dashboard.
+    columns:
+      - name: order_date
+        tests: [not_null, unique]
+      - name: net_revenue
+        description: gross_revenue - return_total. can go negative on a day
+          where a return lands and the matching order day did not, which is
+          normal and is why assert_net_revenue_not_negative is a warning.

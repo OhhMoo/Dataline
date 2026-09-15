@@ -1,0 +1,8 @@
+dbt-core==1.12.4
+dbt-duckdb==1.11.0
+duckdb==1.5.5
+
+# The workbook import parses xlsx with the standard library (zipfile +
+# ElementTree) on purpose: the close laptop is locked down and cannot install
+# openpyxl. Do not add it here without asking IT first — the import will then
+# work on your machine and not on the one that matters.

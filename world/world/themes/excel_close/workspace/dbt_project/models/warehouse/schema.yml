@@ -1,0 +1,26 @@
+version: 2
+
+models:
+  - name: fct_gl_monthly
+    description: >
+      Period-by-account summary of the close. One row per period per account.
+      This is what the controller reviews on the close_summary dashboard
+      against the workbook totals before signing.
+    columns:
+      - name: period
+        description: Accounting period, YYYYMM.
+        tests: [not_null]
+      - name: account
+        description: GL account code.
+        tests: [not_null]
+      - name: lines
+        description: Number of GL lines in the period for the account.
+      - name: net_amount
+        description: Sum of the signed line amounts.
+        tests: [not_null]
+      - name: adj_total
+        description: >
+          Manual adjustments for the period and account, from the workbook's
+          MANUAL_ADJ sheet. Zero where there are none. This is NOT included in
+          net_amount — the two are reported side by side so that the
+          adjustment is always visible as an adjustment.

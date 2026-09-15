@@ -96,6 +96,7 @@ def aggregate(records: list[dict]) -> dict:
         "needs_review": [r["rollout_id"] for r in records if r.get("needs_review")],
         "models": sorted({r.get("model") for r in records if r.get("model")}),
         "drivers": sorted({r.get("driver") for r in records if r.get("driver")}),
+        "topologies": sorted({r.get("topology", "host") for r in records}),
         "blindness_guarantees": sorted({r.get("blindness_guarantee")
                                         for r in records if r.get("blindness_guarantee")}),
     }
@@ -105,6 +106,7 @@ def render(task: str, run_id: str, agg: dict, records: list[dict]) -> str:
     L = [f"# {task} - rollout report ({run_id})", ""]
     L.append(f"subject: {', '.join(agg['models']) or 'unknown'} "
              f"via driver {', '.join(agg['drivers'])} "
+             f"in topology {', '.join(agg.get('topologies') or ['host'])} "
              f"(blindness: {', '.join(agg['blindness_guarantees'])})")
     L.append("")
     L.append(f"K = {agg['rollouts']} rollouts, {agg['scored']} scored, "

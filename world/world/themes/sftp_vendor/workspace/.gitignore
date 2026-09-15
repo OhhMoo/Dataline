@@ -1,0 +1,15 @@
+# .envrc is committed (no secrets in it). .env is yours.
+.env
+.env.local
+
+*.duckdb
+*.duckdb.wal
+dbt_project/target/
+dbt_project/logs/
+logs/
+__pycache__/
+*.pyc
+# vendor keys - these must never end up in here
+secrets/
+*.pem
+*.ppk

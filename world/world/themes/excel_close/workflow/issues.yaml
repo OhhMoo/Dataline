@@ -1,0 +1,278 @@
+# excel_close: a finance service desk in the first week of a month-end close.
+#
+# `waiting_on_finance` exists in this world's status set because most of this
+# queue is not blocked on engineering - it is blocked on a controller signing
+# something (theme.yaml declares the set). A tracker without it files all of
+# those under in_progress and misreports the backlog.
+#
+# Measured against a built world - nothing below is invented:
+#   warehouse.fct_gl_monthly 202602    net_amount 276509.97, adj_total 227.20
+#   the two added together              276737.17
+#   warehouse.fct_gl_monthly 202603    net_amount 17665.39, adj_total 170.48
+#   raw.gl_lines                        1129 rows in 202602, 75 in 202603
+#   raw.manual_adj                      9 rows: 4 in 202602, 5 in 202603
+#   202602 by account                   4000-REV 47070.73 / 4100-REV 44599.88
+#                                       4200-REV 53712.60 / 5000-COGS 40402.84
+#                                       5100-OPEX 45854.06 / 5200-PAYROLL 44869.86
+#   202602 adjustments                  +52.43, +15.58, -335.94, +495.13
+#   202603 adjustments to 5000-COGS     -463.28, +455.45, -466.04, +456.95
+#   workbooks on disk                   CLOSE_202602.xlsx, CLOSE_202603.xlsx
+#   scheduler runs                      60, all success
+#
+# `authoring` is author-side: workflow.py strips it from every tool response.
+issues:
+  - id: FIN-208
+    title: Retire the old close mailbox
+    body: |-
+      Nothing has arrived in fin-close@ since we moved sign-off into the
+      tracker. Close it and forward to the team address.
+    status: done
+    reporter: a.patel
+    assignee: a.patel
+    labels: [cleanup]
+    created_at: "-88d 10:15"
+    updated_at: "-80d 09:40"
+    comments:
+      - id: FIN-208#1
+        author: a.patel
+        at: "-80d 09:40"
+        body: Closed and forwarded.
+    history:
+      - {at: "-80d 09:40", actor: a.patel, field: status, from: in_progress, to: done}
+    links: []
+    authoring:
+      kind: noise
+      note: >-
+        EC-I1. True, closed, irrelevant. It is here so issues_list is not a
+        queue in which every ticket matters.
+
+  - id: FIN-214
+    title: Document what net_amount and adj_total actually mean
+    body: |-
+      Nobody outside the data team can say whether the figure on the close
+      dashboard includes the manual adjustments or not, and the wiki page on
+      fct_gl_monthly says one thing while the model says another.
+
+      One paragraph would do it. Please write the paragraph.
+    status: open
+    reporter: m.diaz
+    assignee: rboateng
+    labels: [documentation]
+    created_at: "-41d 11:20"
+    updated_at: "-38d 14:05"
+    comments:
+      - id: FIN-214#1
+        author: rboateng
+        at: "-38d 14:05"
+        body: |-
+          Started a page at fin/warehouse/reading-the-close-numbers. I have not
+          got the old one taken down yet.
+    history: []
+    links: []
+    authoring:
+      kind: stale
+      note: >-
+        EC-I2. Open 41 days, assigned to somebody on leave, and it is the exact
+        ticket whose non-completion causes this week's incident. The comment
+        explains why the wiki holds two pages that disagree, and the newer page
+        is dated ten days ago while this comment is thirty-eight days old -
+        which an agent can notice, and which says the author came back to it.
+
+  - id: FIN-217
+    title: An adjustment on an account with no GL lines never reaches the warehouse
+    body: |-
+      Action from the January postmortem. fct_gl_monthly joins raw.manual_adj
+      onto the GL lines with a left join from the GL side, so an adjustment for
+      a (period, account) pair that has no posted lines in that period is
+      dropped on the floor. No error, no row, nothing.
+
+      It has not bitten since January because every account has had lines every
+      month. It will bite on the first month somebody adjusts a dormant
+      account.
+    status: open
+    reporter: rboateng
+    assignee: null
+    labels: [data-quality, postmortem-action]
+    created_at: "-39d 09:50"
+    updated_at: "-39d 09:50"
+    comments: []
+    history: []
+    links: []
+    authoring:
+      kind: unactioned_remediation
+      note: >-
+        EC-I3. The control that would have prevented January's defect, still
+        open and unassigned. Every word of it is verifiable by reading
+        dbt_project/models/warehouse/fct_gl_monthly.sql, which does exactly
+        this. Currently latent: all six accounts carry lines in both built
+        periods, so the join drops nothing today. Latent and correct is the
+        hardest kind of finding to keep in view, which is why it has sat for
+        thirty-nine days.
+
+  - id: FIN-221
+    title: The January reclass is not in the warehouse
+    body: |-
+      ADJ-202601-03 is on the MANUAL_ADJ sheet of CLOSE_202601.xlsx and does
+      not appear anywhere in fct_gl_monthly. The account had no postings in
+      January - it is a dormant intercompany account we only ever adjust.
+    status: done
+    reporter: s.okafor
+    assignee: rboateng
+    labels: [incident, warehouse]
+    created_at: "-40d 08:30"
+    updated_at: "-39d 10:10"
+    comments:
+      - id: FIN-221#1
+        author: rboateng
+        at: "-39d 10:10"
+        body: |-
+          Confirmed and understood: the model joins adjustments onto GL lines,
+          so an account with no lines that period loses its adjustment. Booked
+          manually for January. Raised FIN-217 for the real fix.
+    history:
+      - {at: "-39d 10:10", actor: rboateng, field: status, from: in_progress, to: done}
+    links:
+      - {type: relates_to, issue: FIN-217}
+    authoring:
+      kind: near_duplicate_trap
+      note: >-
+        EC-I4. The same symptom as this week - an adjustment that is in the
+        workbook and not in the reported figure - with a completely different
+        and already-diagnosed cause. An agent that searches the tracker for
+        "adjustment" or "manual_adj" meets this first, and the mechanism it
+        describes is real, which makes it a very comfortable wrong answer. It
+        does not apply in February: all six accounts carry lines, and the
+        February adjustments are present in adj_total.
+
+  - id: FIN-226
+    title: No manual entries straight into the warehouse
+    body: |-
+      Somebody patched a period total with SQL in December to make a pack tie.
+      The next close_import rebuilt raw from the workbooks and the patch
+      vanished, so the pack and the warehouse disagreed for a week and nobody
+      knew which had moved.
+
+      Rule: adjustments live on the MANUAL_ADJ sheet of the period's workbook.
+      Nowhere else. If the number is wrong, the workbook is wrong.
+    status: done
+    reporter: m.diaz
+    assignee: a.patel
+    labels: [policy]
+    created_at: "-72d 16:00"
+    updated_at: "-70d 09:15"
+    comments:
+      - id: FIN-226#1
+        author: a.patel
+        at: "-70d 09:15"
+        body: Written up at fin/close/manual-adjustments and in the repo runbook. Closing.
+    history:
+      - {at: "-70d 09:15", actor: m.diaz, field: status, from: in_progress, to: done}
+    links: []
+    authoring:
+      kind: constraint
+      note: >-
+        EC-I5. A real limit on the shape of an acceptable solution, and closed
+        rather than open, which is how policy usually lives in a tracker. It is
+        also self-enforcing in a way an agent can verify: close_import rebuilds
+        raw from the workbooks every morning, so a hand-written warehouse row
+        really would disappear at the next run. The tempting fix for FIN-231 is
+        exactly the thing this forbids.
+
+  - id: FIN-231
+    title: February close pack does not agree with the workbook
+    body: |-
+      The pack I signed off shows 276,509.97 for February. The workbook total
+      on CLOSE_202602.xlsx is 276,737.17. That is 227.20 apart and I have
+      already sent the pack to group.
+
+      The four adjustments I keyed in February come to 227.20. I would very
+      much like somebody to tell me that is a coincidence.
+
+      Group reporting need the restated pack by Wednesday if there is one.
+    status: open
+    reporter: m.diaz
+    assignee: null
+    labels: [close, reconciliation]
+    created_at: "-1d 08:40"
+    updated_at: "-1d 09:25"
+    comments:
+      - id: FIN-231#1
+        author: a.patel
+        at: "-1d 09:25"
+        body: |-
+          Looking. The pack takes net_amount off the close_summary dashboard
+          and I have never been sure what that column is.
+    history: []
+    links: []
+    authoring:
+      kind: incident_report_lay
+      note: >-
+        EC-I6. The incident in the reporter's own words, with the answer
+        already in it and not recognised as one. Both figures are measured and
+        exact: fct_gl_monthly 202602 has net_amount 276509.97 and adj_total
+        227.20, which sum to 276737.17. net_amount is GL lines only - the
+        adjustments sit in a separate column that the close_summary panel
+        `monthly_net_by_account` does not select. Nothing is broken and nothing
+        is missing; a column was read as something it is not. Settled by
+        reading fct_gl_monthly.sql and close_summary.yml, or by one query.
+
+  - id: FIN-232
+    title: Feb numbers wrong
+    body: |-
+      Controller says the February pack is out. Needs someone before the group
+      deadline.
+    status: open
+    reporter: s.okafor
+    assignee: null
+    labels: [close]
+    created_at: "-1d 09:18"
+    updated_at: "-1d 09:18"
+    comments: []
+    history: []
+    links: []
+    authoring:
+      kind: duplicate
+      duplicate_of: FIN-231
+      linked: false
+      note: >-
+        EC-I7. Filed 38 minutes after FIN-231, for the same event, by somebody
+        who had read it, with no link either way and every useful number
+        dropped. Deciding these are one incident is the judgement the queue
+        demands and will not make.
+
+  - id: FIN-233
+    title: Why does 5000-COGS have four adjustments already this month?
+    body: |-
+      March is two days old and 5000-COGS has four manual adjustments on it:
+      -463.28, +455.45, -466.04, +456.95. They very nearly cancel. Two are
+      labelled prior-period correction.
+
+      Is somebody correcting the same thing over and over, or is this normal?
+    status: waiting_on_finance
+    reporter: a.patel
+    assignee: j.chen
+    labels: [manual-adjustments, review]
+    created_at: "-1d 15:05"
+    updated_at: "-1d 16:30"
+    comments:
+      - id: FIN-233#1
+        author: j.chen
+        at: "-1d 16:30"
+        body: |-
+          Two of those are mine and they are what the runbook asks for - a late
+          correction to February goes into the March workbook as a new line,
+          not back into a closed period. Whether four of them in two days is
+          normal is a question for the controller, not for me.
+    history:
+      - {at: "-1d 16:30", actor: a.patel, field: status, from: open, to: waiting_on_finance}
+    links: []
+    authoring:
+      kind: true_and_irrelevant
+      note: >-
+        EC-I8. Every number in it is real - those are the four 202603
+        adjustments to 5000-COGS and they do net to -16.92 - and it has nothing
+        to do with FIN-231. It is also policy-compliant: the repo runbook does
+        say a late correction goes into the current period as a new line. An
+        agent that reads "prior-period correction" as a smell will spend the
+        morning here, and the status is the honest one, which is a status
+        revenue_daily's tracker cannot express.

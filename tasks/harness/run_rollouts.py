@@ -22,6 +22,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import container_episode  # noqa: E402
 import episode      # noqa: E402
 import report       # noqa: E402
 import taskspec     # noqa: E402
@@ -38,7 +39,8 @@ def _one(args, run_dir: Path, idx: int) -> dict:
     out = run_dir / rid
     cmd = [sys.executable, str(HERE / "rollout.py"),
            "--task", args.task, "--rollout-id", rid, "--run-id", run_dir.name,
-           "--out", str(out), "--model", args.model, "--driver", args.driver]
+           "--out", str(out), "--model", args.model, "--driver", args.driver,
+           "--topology", args.topology, "--image", args.image]
     if args.wall_clock:
         cmd += ["--wall-clock", str(args.wall_clock)]
     if args.max_tool_calls:
@@ -78,6 +80,12 @@ def main() -> int:
     ap.add_argument("--model", default="opus")
     ap.add_argument("--driver", default="mcp",
                     choices=["mcp", "cli", "scripted", "kimi"])
+    ap.add_argument("--topology", default="host", choices=["host", "container"],
+                    help="`container` runs each rollout's world, gateway, audit "
+                         "log and shell inside the episode service of "
+                         "gateway/docker/compose.yml. One compose project per "
+                         "rollout, so K rollouts stay genuinely independent.")
+    ap.add_argument("--image", default=container_episode.DEFAULT_IMAGE)
     ap.add_argument("--out", default=str(DEFAULT_OUT))
     ap.add_argument("--run-id", default=None)
     ap.add_argument("--concurrency", type=int, default=0,
@@ -94,7 +102,8 @@ def main() -> int:
     run_dir = Path(a.out).resolve() / a.task / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
 
-    print(f"\n  task {a.task} · K={a.k} · model {a.model} · driver {a.driver}")
+    print(f"\n  task {a.task} · K={a.k} · model {a.model} · driver {a.driver}"
+          f" · topology {a.topology}")
     print(f"  run  {run_dir}")
     print(f"  pass criterion: all of {spec.pass_requires_checks} "
           f"and total >= {spec.pass_min_total}\n")
