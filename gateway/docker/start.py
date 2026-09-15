@@ -15,19 +15,7 @@ from alkera_gateway.warehouse import create_warehouse
 
 
 def provision_storage(config):
-    """Create the world's buckets. The control plane owns this, not the image.
-
-    Measured 2026-09-13 against the pinned ``adobe/s3mock`` digest: ``initialBuckets``
-    is ignored - ``ListAllMyBuckets`` comes back empty and no file store is created -
-    so every ``s3_*`` tool call returned ``NoSuchBucket`` and the S3 half of
-    ``acceptance_inside.py`` had never once passed. ``root`` is ignored the same way,
-    which makes the ``s3data`` volume and ``retainFilesOnExit`` decorative: object
-    storage in this stack is in-memory and does not survive a restart of that service.
-    Anything that needs S3 state across a restart needs a different mechanism.
-
-    Failing loudly here is deliberate. A world that serves a missing bucket is a world
-    where every storage task fails for a reason that has nothing to do with the agent.
-    """
+    """Create buckets explicitly; the pinned image ignores initialBuckets."""
     if not config.s3_endpoint or not config.s3_buckets:
         return []
     import boto3
@@ -40,8 +28,12 @@ def provision_storage(config):
         region_name="us-east-1",
         aws_access_key_id="episode",
         aws_secret_access_key="episode",
-        config=Config(s3={"addressing_style": "path"}, connect_timeout=3, read_timeout=10,
-                      retries={"max_attempts": 0}),
+        config=Config(
+            s3={"addressing_style": "path"},
+            connect_timeout=3,
+            read_timeout=10,
+            retries={"max_attempts": 0},
+        ),
     )
     deadline = time.monotonic() + 120
     for bucket in config.s3_buckets:
@@ -51,7 +43,8 @@ def provision_storage(config):
                 break
             except ClientError as exc:
                 if exc.response["Error"]["Code"] in {
-                    "BucketAlreadyExists", "BucketAlreadyOwnedByYou"
+                    "BucketAlreadyExists",
+                    "BucketAlreadyOwnedByYou",
                 }:
                     break
                 raise

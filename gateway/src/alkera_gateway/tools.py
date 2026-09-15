@@ -133,6 +133,128 @@ class IngestPolicy(IngestConnector):
     column_removed: Literal["propagate", "ignore", "alert"] | None = None
 
 
+class MetricRef(Arguments):
+    metric: str
+
+
+class MetricSeriesRef(MetricRef):
+    limit: int = Field(default=200, ge=1, le=1000)
+
+
+class AlarmList(Arguments):
+    state: Literal["firing", "ok", "pending", "insufficient_data"] | None = None
+
+
+class AlarmRef(Arguments):
+    alarm: str
+
+
+class AlarmHistory(Arguments):
+    alarm: str | None = None
+    limit: int = Field(default=50, ge=1, le=500)
+
+
+class DeployRun(Arguments):
+    deploy: str
+    full_refresh: bool = False
+    variables: dict = Field(default_factory=dict)
+
+
+class DeployHistory(Arguments):
+    deploy: str | None = None
+    limit: int = Field(default=20, ge=1, le=200)
+
+
+class LogList(Arguments):
+    job: str | None = None
+    status: str | None = None
+    limit: int = Field(default=50, ge=1, le=500)
+
+
+class LogRef(Arguments):
+    run_id: str
+
+
+class LogSearch(Arguments):
+    query: str = Field(min_length=1)
+    job: str | None = None
+    limit: int = Field(default=20, ge=1, le=100)
+
+
+class IssueList(Arguments):
+    status: str | None = None
+    assignee: str | None = None
+    label: str | None = None
+    limit: int = Field(default=50, ge=1, le=500)
+
+
+class IssueRef(Arguments):
+    issue: str = Field(min_length=1)
+
+
+class IssueComment(IssueRef):
+    body: str = Field(min_length=1)
+
+
+class IssueUpdate(IssueRef):
+    status: str | None = None
+    assignee: str | None = None
+    # Explicit, because "assignee: null" cannot be told apart from "leave the
+    # assignee alone" once the argument is optional, and unassigning a ticket is
+    # a real thing an engineer does when handing work back to triage.
+    unassign: bool = False
+    add_labels: list[str] = Field(default_factory=list)
+    remove_labels: list[str] = Field(default_factory=list)
+
+
+class IssueSearch(Arguments):
+    query: str = Field(min_length=1)
+    limit: int = Field(default=20, ge=1, le=200)
+
+
+class ChatHistory(Arguments):
+    channel: str = Field(min_length=1)
+    limit: int = Field(default=50, ge=1, le=500)
+    before: str | None = None
+
+
+class ChatThread(Arguments):
+    message_id: str = Field(min_length=1)
+
+
+class ChatSearch(Arguments):
+    query: str = Field(min_length=1)
+    channel: str | None = None
+    limit: int = Field(default=20, ge=1, le=200)
+
+
+class ChatPost(Arguments):
+    channel: str = Field(min_length=1)
+    text: str = Field(min_length=1)
+    thread_id: str | None = None
+
+
+class PageRef(Arguments):
+    page: str = Field(min_length=1)
+
+
+class PageEdit(PageRef):
+    body: str
+    comment: str | None = None
+
+
+class PageCreate(PageRef):
+    title: str = Field(min_length=1)
+    body: str
+    parent: str | None = None
+    labels: list[str] = Field(default_factory=list)
+
+
+class PageSearch(Arguments):
+    query: str = Field(min_length=1)
+    limit: int = Field(default=20, ge=1, le=200)
+
+
 TOOLS = {
     "sql_query": (Query, "Run one read-only warehouse query; results include column types."),
     "sql_execute": (
@@ -196,4 +318,72 @@ TOOLS = {
         IngestPolicy,
         "Set the schema-drift policy for one connector table.",
     ),
+    "metrics_list": (
+        Empty,
+        "List metrics with their current values, each measured from the world when called.",
+    ),
+    "metrics_get": (
+        MetricRef,
+        "Measure one metric now, with the raw reading it was derived from.",
+    ),
+    "metrics_series": (
+        MetricSeriesRef,
+        "Read a metric's history: points derived from the world, plus this session's readings.",
+    ),
+    "alarms_list": (
+        AlarmList,
+        "Evaluate every alarm against live metrics; optionally filter by state.",
+    ),
+    "alarms_get": (AlarmRef, "Evaluate one alarm and read its state history."),
+    "alarms_history": (AlarmHistory, "Read recorded alarm state transitions."),
+    "deploy_list": (Empty, "List deploy targets and the canary each one checks."),
+    "deploy_run": (
+        DeployRun,
+        "Apply a deploy, then re-measure its canary metrics and alarms. "
+        "Never blocked; breaches are reported.",
+    ),
+    "deploy_history": (DeployHistory, "Read recorded deploys and their canary outcomes."),
+    "logs_list": (LogList, "List scheduler runs and whether each captured output."),
+    "logs_get": (LogRef, "Read one run's output with numbered evidence lines."),
+    "logs_search": (
+        LogSearch,
+        "Search run output for a literal phrase. Runs that could not be read are "
+        "listed in 'skipped' with the reason.",
+    ),
+    "issues_list": (
+        IssueList,
+        "List issues newest-updated first, with the project's statuses and people.",
+    ),
+    "issues_get": (IssueRef, "Read one issue with its body, comments, history and links."),
+    "issues_search": (
+        IssueSearch,
+        "Search issue titles, bodies and comments for a literal phrase, with evidence lines.",
+    ),
+    "issues_comment": (IssueComment, "Add a comment to an issue on the virtual clock."),
+    "issues_update": (
+        IssueUpdate,
+        "Change an issue's status, assignee or labels. Every change is recorded in its history.",
+    ),
+    "chat_channels": (Empty, "List chat channels with topic, membership and message counts."),
+    "chat_history": (
+        ChatHistory,
+        "Read a channel's thread starters oldest-first, with reply counts.",
+    ),
+    "chat_thread": (ChatThread, "Read one thread: its root message and every reply in order."),
+    "chat_search": (
+        ChatSearch,
+        "Search message text for a literal phrase across channels or within one.",
+    ),
+    "chat_post": (ChatPost, "Post a message to a channel, or reply in a thread."),
+    "kb_list": (
+        Empty,
+        "List wiki pages with parent, version, who last edited it and how old that edit is.",
+    ),
+    "kb_get": (PageRef, "Read a wiki page with numbered evidence lines and its revision history."),
+    "kb_search": (
+        PageSearch,
+        "Search wiki page bodies for a literal phrase; each hit carries its page's edit date.",
+    ),
+    "kb_edit": (PageEdit, "Replace a wiki page's body; the previous revision is kept in history."),
+    "kb_create": (PageCreate, "Create a new wiki page under an existing parent."),
 }

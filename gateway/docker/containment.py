@@ -30,7 +30,7 @@ import json
 import platform
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -140,7 +140,8 @@ def call(tool, **args):
 out = {}
 call("sql_execute", sql="CREATE TABLE warehouse.containment_probe(id INTEGER)")
 call("sql_execute", sql="INSERT INTO warehouse.containment_probe VALUES (1), (2)")
-out["warehouse_rows"] = len(call("sql_query", sql="SELECT * FROM warehouse.containment_probe")["rows"])
+rows = call("sql_query", sql="SELECT * FROM warehouse.containment_probe")["rows"]
+out["warehouse_rows"] = len(rows)
 call("sql_execute", sql="DROP TABLE warehouse.containment_probe")
 # The pinned adobe/s3mock digest ignores `initialBuckets`, so read the bucket list off
 # the wire from inside the container rather than trusting the compose declaration.
@@ -214,7 +215,9 @@ print(json.dumps(out))
 
 
 def run(argv, check=True):
-    result = subprocess.run(argv, capture_output=True, text=True, encoding="utf-8", errors="replace")
+    result = subprocess.run(
+        argv, capture_output=True, text=True, encoding="utf-8", errors="replace"
+    )
     if check and result.returncode:
         raise RuntimeError(f"command failed: {argv}\n{result.stdout}\n{result.stderr}")
     return result
@@ -248,16 +251,37 @@ class Stack:
         return [json.loads(out(["docker", "inspect", cid]))[0] for cid in ids if cid]
 
     def netns_probe(self, container_id, code=NETNS_PROBE, args=()):
-        return json.loads(out(["docker", "run", "--rm", "--network", f"container:{container_id}",
-                               "--entrypoint", "python", PROBE_IMAGE, "-c", code, *args]))
+        return json.loads(
+            out(
+                [
+                    "docker",
+                    "run",
+                    "--rm",
+                    "--network",
+                    f"container:{container_id}",
+                    "--entrypoint",
+                    "python",
+                    PROBE_IMAGE,
+                    "-c",
+                    code,
+                    *args,
+                ]
+            )
+        )
 
     def exec_json(self, service, code, args=()):
-        return json.loads(self.compose("exec", "-T", service, "python", "-c", code,
-                                       *args).stdout.strip().splitlines()[-1])
+        return json.loads(
+            self.compose("exec", "-T", service, "python", "-c", code, *args)
+            .stdout.strip()
+            .splitlines()[-1]
+        )
 
     def run_json(self, service, code, args=()):
-        return json.loads(self.compose("run", "--rm", "--entrypoint", "python", service,
-                                       "-c", code, *args).stdout.strip().splitlines()[-1])
+        return json.loads(
+            self.compose("run", "--rm", "--entrypoint", "python", service, "-c", code, *args)
+            .stdout.strip()
+            .splitlines()[-1]
+        )
 
 
 def service_facts(spec):
@@ -279,27 +303,41 @@ def service_facts(spec):
 
 
 def declared_mounts(declared, service):
-    return [{"source": v.get("source"), "target": v.get("target"),
-             "read_only": bool(v.get("read_only"))}
-            for v in (declared["services"].get(service, {}).get("volumes") or [])]
+    return [
+        {
+            "source": v.get("source"),
+            "target": v.get("target"),
+            "read_only": bool(v.get("read_only")),
+        }
+        for v in (declared["services"].get(service, {}).get("volumes") or [])
+    ]
 
 
 def property_2_egress(stack, evidence):
     """Every running service, probed from inside its own network namespace."""
     # Positive control first: the same probe, somewhere egress is allowed. Without it
     # a probe that can never connect reports "contained" for a stack with a hole in it.
-    control = json.loads(out(["docker", "run", "--rm", "--entrypoint", "python",
-                              PROBE_IMAGE, "-c", NETNS_PROBE]))
+    control = json.loads(
+        out(["docker", "run", "--rm", "--entrypoint", "python", PROBE_IMAGE, "-c", NETNS_PROBE])
+    )
     rows = []
     for spec in evidence["_specs"]:
         probe = stack.netns_probe(spec["Id"])
-        rows.append({**service_facts(spec), "netns": probe,
-                     "egress_blocked": probe["egress_blocked"]})
+        rows.append(
+            {**service_facts(spec), "netns": probe, "egress_blocked": probe["egress_blocked"]}
+        )
     # The agent's own vantage has no long-lived container, so raise one.
     harness = stack.run_json("harness", NETNS_PROBE)
-    rows.append({"service": "harness", "container": "(compose run)", "netns": harness,
-                 "egress_blocked": harness["egress_blocked"], "mounts": [],
-                 "networks": {"episode_net": harness["addresses"].get("eth0")}})
+    rows.append(
+        {
+            "service": "harness",
+            "container": "(compose run)",
+            "netns": harness,
+            "egress_blocked": harness["egress_blocked"],
+            "mounts": [],
+            "networks": {"episode_net": harness["addresses"].get("eth0")},
+        }
+    )
     evidence["services"] = rows
     declared = set(evidence["_declared"]["services"])
     probed = {r["service"] for r in rows}
@@ -313,11 +351,16 @@ def property_2_egress(stack, evidence):
         },
         "probed": sorted(probed),
         "declared_but_not_probed": sorted(declared - probed),
-        "extra_interfaces": {r["service"]: r["netns"]["interfaces"] for r in rows
-                             if set(r["netns"]["interfaces"]) - {"lo", "eth0", "eth1"}},
-        "passed": (all(r["egress_blocked"] for r in rows)
-                   and not control["egress_blocked"]
-                   and not (declared - probed - {"grading"})),
+        "extra_interfaces": {
+            r["service"]: r["netns"]["interfaces"]
+            for r in rows
+            if set(r["netns"]["interfaces"]) - {"lo", "eth0", "eth1"}
+        },
+        "passed": (
+            all(r["egress_blocked"] for r in rows)
+            and not control["egress_blocked"]
+            and not (declared - probed - {"grading"})
+        ),
     }
     return evidence["p2_egress"]
 
@@ -326,21 +369,33 @@ def property_3_channel(stack, evidence):
     """The gateway is the only channel the agent has."""
     names = {"postgres", "s3", "snowflake", "acme.snowflake.local", "episode"}
     evidence["_names"] = names
-    role = {spec["Config"]["Labels"]["com.docker.compose.service"]: spec
-            for spec in evidence["_specs"]}
-    backend_ips = sorted({net["IPAddress"]
-                          for service, spec in role.items() if service not in EPISODE_ZONE
-                          for net in spec["NetworkSettings"]["Networks"].values()
-                          if net["IPAddress"]})
-    episode_ips = sorted({net["IPAddress"]
-                          for net in role["episode"]["NetworkSettings"]["Networks"].values()
-                          if net["IPAddress"]})
+    role = {
+        spec["Config"]["Labels"]["com.docker.compose.service"]: spec for spec in evidence["_specs"]
+    }
+    backend_ips = sorted(
+        {
+            net["IPAddress"]
+            for service, spec in role.items()
+            if service not in EPISODE_ZONE
+            for net in spec["NetworkSettings"]["Networks"].values()
+            if net["IPAddress"]
+        }
+    )
+    episode_ips = sorted(
+        {
+            net["IPAddress"]
+            for net in role["episode"]["NetworkSettings"]["Networks"].values()
+            if net["IPAddress"]
+        }
+    )
     evidence["_backend_ips"] = backend_ips
-    spec = json.dumps({
-        "names": sorted(names),
-        "addresses": [[ip, port] for ip in backend_ips for port in BACKEND_PORTS]
-                     + [[ip, 8080] for ip in episode_ips],
-    })
+    spec = json.dumps(
+        {
+            "names": sorted(names),
+            "addresses": [[ip, port] for ip in backend_ips for port in BACKEND_PORTS]
+            + [[ip, 8080] for ip in episode_ips],
+        }
+    )
     agent = stack.run_json("harness", REACH_PROBE, [spec])
     reachable = [a["target"] for a in agent["addresses"] if a["result"] == "CONNECTED"]
     resolved = [n["name"] for n in agent["names"] if isinstance(n["result"], list)]
@@ -359,8 +414,11 @@ def property_3_channel(stack, evidence):
         "episode_container_resolution": inside["names"],
         "episode_direct_backend_connection": stack.exec_json("episode", DIRECT_BACKEND),
         "tool_surface": stack.exec_json("episode", TOOL_SURFACE),
-        "published_host_ports": {s["service"]: s["published_ports"]
-                                 for s in evidence["services"] if s.get("published_ports")},
+        "published_host_ports": {
+            s["service"]: s["published_ports"]
+            for s in evidence["services"]
+            if s.get("published_ports")
+        },
     }
     section["passed"] = (
         not section["backends_reachable_from_agent"]
@@ -386,12 +444,23 @@ def property_4_determinism(stack, evidence, settle_seconds):
                 (writers if mount["rw"] else readers).append(row["service"])
     declared = evidence["_declared"]
     declared_world = {
-        service: [m for m in declared_mounts(declared, service)
-                  if (m["source"] or "") == "worlddata"]
+        service: [
+            m for m in declared_mounts(declared, service) if (m["source"] or "") == "worlddata"
+        ]
         for service in declared["services"]
     }
-    probe = ["docker", "run", "--rm", "-v", f"{worlddata}:/world:ro",
-             "--entrypoint", "python", PROBE_IMAGE, "-c", TREE_HASH]
+    probe = [
+        "docker",
+        "run",
+        "--rm",
+        "-v",
+        f"{worlddata}:/world:ro",
+        "--entrypoint",
+        "python",
+        PROBE_IMAGE,
+        "-c",
+        TREE_HASH,
+    ]
     first = json.loads(out(probe))
     run(["docker", "run", "--rm", "--entrypoint", "sleep", PROBE_IMAGE, str(settle_seconds)])
     idle = json.loads(out(probe))
@@ -399,8 +468,9 @@ def property_4_determinism(stack, evidence, settle_seconds):
     after = json.loads(out(probe))
 
     def delta(a, b):
-        return sorted(k for k in set(a["files"]) | set(b["files"])
-                      if a["files"].get(k) != b["files"].get(k))
+        return sorted(
+            k for k in set(a["files"]) | set(b["files"]) if a["files"].get(k) != b["files"].get(k)
+        )
 
     section = {
         "worlddata_volume": worlddata,
@@ -416,8 +486,11 @@ def property_4_determinism(stack, evidence, settle_seconds):
         "files_changed_under_load": delta(first, after),
         "load_exercised": load,
         "writable_state_outside_world": {
-            row["service"]: sorted(m["target"] for m in row.get("mounts", [])
-                                   if m["rw"] and not m["target"].startswith("/world"))
+            row["service"]: sorted(
+                m["target"]
+                for m in row.get("mounts", [])
+                if m["rw"] and not m["target"].startswith("/world")
+            )
             for row in evidence["services"]
         },
     }
@@ -425,8 +498,12 @@ def property_4_determinism(stack, evidence, settle_seconds):
         writers == ["episode"]
         and not delta(first, idle)
         and not delta(first, after)
-        and all(m["read_only"] for service, mounts in declared_world.items()
-                for m in mounts if service != "episode")
+        and all(
+            m["read_only"]
+            for service, mounts in declared_world.items()
+            for m in mounts
+            if service != "episode"
+        )
     )
     evidence["p4_determinism"] = section
     return section
@@ -444,9 +521,14 @@ def property_1_grading(stack, evidence):
         "services_live_during_episode": live,
         "absent_during_episode": "grading" not in live,
         "episode_sees_grading_path": stack.compose(
-            "exec", "-T", "episode", "python", "-c",
+            "exec",
+            "-T",
+            "episode",
+            "python",
+            "-c",
             "import os,json;print(json.dumps(os.path.exists('/grading')))",
-            check=False).stdout.strip(),
+            check=False,
+        ).stdout.strip(),
     }
     return evidence["p1_grading_zone"]
 
@@ -454,18 +536,30 @@ def property_1_grading(stack, evidence):
 def property_1_grading_after_teardown(stack, evidence):
     """Second half: start the grader only after the episode is gone, then probe it."""
     section = evidence["p1_grading_zone"]
-    running = sorted({c["Config"]["Labels"]["com.docker.compose.service"]
-                      for c in stack.containers()})
+    running = sorted(
+        {c["Config"]["Labels"]["com.docker.compose.service"] for c in stack.containers()}
+    )
     if running:
         stack.compose("stop", "-t", "5", *running, check=False)
     section["stopped_before_grader_started"] = running
     section["still_running_when_grader_started"] = sorted(
-        {c["Config"]["Labels"]["com.docker.compose.service"] for c in stack.containers()})
+        {c["Config"]["Labels"]["com.docker.compose.service"] for c in stack.containers()}
+    )
     probe = stack.run_json("grading", NETNS_PROBE)
-    reach = stack.run_json("grading", REACH_PROBE, [json.dumps({
-        "names": sorted(evidence["_names"]),
-        "addresses": [[ip, port] for ip in evidence["_backend_ips"] for port in BACKEND_PORTS],
-    })])
+    reach = stack.run_json(
+        "grading",
+        REACH_PROBE,
+        [
+            json.dumps(
+                {
+                    "names": sorted(evidence["_names"]),
+                    "addresses": [
+                        [ip, port] for ip in evidence["_backend_ips"] for port in BACKEND_PORTS
+                    ],
+                }
+            )
+        ],
+    )
     mounts = stack.run_json("grading", GRADER_MOUNTS)
     section["grader_netns"] = probe
     section["grader_reachability"] = reach
@@ -498,12 +592,14 @@ def main():
 
     stack = Stack(args.project, args.profile)
     evidence = {
-        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generated": datetime.now(UTC).isoformat(timespec="seconds"),
         "project": args.project,
         "profiles": args.profile,
         "compose_file": str(COMPOSE_FILE),
-        "host": {"platform": platform.platform(),
-                 "docker": out(["docker", "version", "--format", "{{.Server.Version}}"])},
+        "host": {
+            "platform": platform.platform(),
+            "docker": out(["docker", "version", "--format", "{{.Server.Version}}"]),
+        },
     }
     try:
         stack.compose("up", "-d", "--wait")
@@ -531,8 +627,13 @@ def main():
         "warehouse_rows": load["warehouse_rows"],
         "bi_panels": load["bi_panels"],
         "docs_lines": load["docs_lines"],
-        "passed": ("landing" in load["s3_buckets_on_the_wire"] and load["s3_roundtrip"]
-                   and load["warehouse_rows"] == 2 and load["bi_panels"] and load["docs_lines"]),
+        "passed": (
+            "landing" in load["s3_buckets_on_the_wire"]
+            and load["s3_roundtrip"]
+            and load["warehouse_rows"] == 2
+            and load["bi_panels"]
+            and load["docs_lines"]
+        ),
     }
     evidence["p0_world_provisioned"] = p0
     evidence["summary"] = {
@@ -545,10 +646,18 @@ def main():
     evidence["passed"] = all(evidence["summary"].values())
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(evidence, indent=2, sort_keys=True), encoding="utf-8")
-    print(json.dumps({"artifact": str(args.out), **evidence["summary"],
-                      "probe_can_detect_egress": p2["probe_control"]["probe_can_detect_egress"],
-                      "services_probed": [s["service"] for s in evidence["services"]],
-                      "passed": evidence["passed"]}, indent=2))
+    print(
+        json.dumps(
+            {
+                "artifact": str(args.out),
+                **evidence["summary"],
+                "probe_can_detect_egress": p2["probe_control"]["probe_can_detect_egress"],
+                "services_probed": [s["service"] for s in evidence["services"]],
+                "passed": evidence["passed"],
+            },
+            indent=2,
+        )
+    )
     return 0 if evidence["passed"] else 1
 
 

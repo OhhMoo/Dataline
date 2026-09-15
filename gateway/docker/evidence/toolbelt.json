@@ -1,0 +1,281 @@
+{
+  "checks": [
+    {
+      "check": "psql_reaches_postgres",
+      "command": "psql \"$ALKERA_POSTGRES_DSN\" -At -c \"select current_database()\"",
+      "exit": 0,
+      "expected_substring": "episode",
+      "ok": true,
+      "stderr": "",
+      "stdout": "episode"
+    },
+    {
+      "check": "psql_reads_the_warehouse_schema",
+      "command": "psql \"$ALKERA_POSTGRES_DSN\" -At -c \"select count(*) from information_schema.schemata where schema_name='warehouse'\"",
+      "exit": 0,
+      "expected_substring": "1",
+      "ok": true,
+      "stderr": "",
+      "stdout": "1"
+    },
+    {
+      "check": "pg_dump_major_is_not_older_than_the_server",
+      "command": "pg_dump --version | grep -oE '[0-9]+' | head -1",
+      "exit": 0,
+      "expected_substring": "17",
+      "ok": true,
+      "stderr": "",
+      "stdout": "17"
+    },
+    {
+      "check": "aws_lists_buckets",
+      "command": "aws s3 ls | awk '{print $NF}' | sort | tr '\\n' ' '",
+      "exit": 0,
+      "expected_substring": "landing",
+      "ok": true,
+      "stderr": "",
+      "stdout": "landing"
+    },
+    {
+      "check": "aws_round_trips_an_object",
+      "command": "printf toolbelt-acceptance > /tmp/tb.txt && aws s3 cp --quiet /tmp/tb.txt s3://landing/toolbelt.txt && aws s3 cp --quiet s3://landing/toolbelt.txt - && aws s3 rm --quiet s3://landing/toolbelt.txt",
+      "exit": 0,
+      "expected_substring": "toolbelt-acceptance",
+      "ok": true,
+      "stderr": "",
+      "stdout": "toolbelt-acceptance"
+    },
+    {
+      "check": "curl_and_jq_drive_a_tool_call",
+      "command": "curl -sS -X POST http://127.0.0.1:8080/call -H 'content-type: application/json' -d '{\"tool\":\"sql_query\",\"args\":{\"sql\":\"select 1 as n\"}}' | jq -r '.result.rows[0][0] | if type==\"object\" then .value else . end'",
+      "exit": 0,
+      "expected_substring": "1",
+      "ok": true,
+      "stderr": "",
+      "stdout": "1"
+    },
+    {
+      "check": "jq_reads_the_action_log",
+      "command": "jq -r .tool /audit/actions.jsonl | sort -u | tr '\\n' ' '",
+      "exit": 0,
+      "expected_substring": "(any non-empty output)",
+      "ok": true,
+      "stderr": "",
+      "stdout": "sql_query"
+    },
+    {
+      "check": "sqlfluff_lints_sql",
+      "command": "printf 'select A from warehouse.items\\n' > /tmp/model.sql && sqlfluff lint --dialect postgres --format json /tmp/model.sql | jq '[.[].violations[].code] | length > 0'",
+      "exit": 0,
+      "expected_substring": "true",
+      "ok": true,
+      "stderr": "",
+      "stdout": "true"
+    },
+    {
+      "check": "csvkit_profiles_a_csv",
+      "command": "printf 'a,b\\n1,2\\n3,4\\n' > /tmp/t.csv && csvstat --count /tmp/t.csv",
+      "exit": 0,
+      "expected_substring": "2",
+      "ok": true,
+      "stderr": "",
+      "stdout": "2"
+    },
+    {
+      "check": "in2csv_reads_an_xlsx",
+      "command": "python /tmp/mkxlsx.py /tmp/toolbelt.xlsx && in2csv /tmp/toolbelt.xlsx | tr '\\n' ' '",
+      "exit": 0,
+      "expected_substring": "h1,h2 v1,v2",
+      "ok": true,
+      "stderr": "",
+      "stdout": "h1,h2 v1,v2"
+    },
+    {
+      "check": "unzip_opens_an_xlsx",
+      "command": "unzip -l /tmp/toolbelt.xlsx | grep -c xl/worksheets",
+      "exit": 0,
+      "expected_substring": "1",
+      "ok": true,
+      "stderr": "",
+      "stdout": "1"
+    },
+    {
+      "check": "file_identifies_an_xlsx",
+      "command": "file -b /tmp/toolbelt.xlsx | cut -c1-20",
+      "exit": 0,
+      "expected_substring": "Microsoft Excel 2007",
+      "ok": true,
+      "stderr": "",
+      "stdout": "Microsoft Excel 2007"
+    },
+    {
+      "check": "git_reads_the_workspace",
+      "command": "git -C /world/workspace rev-parse --is-inside-work-tree",
+      "exit": 0,
+      "expected_substring": "true",
+      "ok": true,
+      "stderr": "",
+      "stdout": "true"
+    },
+    {
+      "check": "tree_walks_the_world",
+      "command": "tree -L 2 /world | tail -1",
+      "exit": 0,
+      "expected_substring": "director",
+      "ok": true,
+      "stderr": "",
+      "stdout": "6 directories, 0 files"
+    },
+    {
+      "check": "ps_sees_the_gateway",
+      "command": "ps -eo args= | grep -c '[a]lkera-gateway'",
+      "exit": 0,
+      "expected_substring": "1",
+      "ok": true,
+      "stderr": "",
+      "stdout": "1"
+    },
+    {
+      "check": "nc_probes_a_backend_port",
+      "command": "nc -z -w 3 postgres 5432 && echo open",
+      "exit": 0,
+      "expected_substring": "open",
+      "ok": true,
+      "stderr": "Connection to postgres (172.22.0.3) 5432 port [tcp/postgresql] succeeded!",
+      "stdout": "open"
+    },
+    {
+      "check": "dig_resolves_a_service_name",
+      "command": "dig +short postgres | head -1 | grep -cE '^[0-9]+\\.'",
+      "exit": 0,
+      "expected_substring": "1",
+      "ok": true,
+      "stderr": "",
+      "stdout": "1"
+    },
+    {
+      "check": "less_pages_a_file",
+      "command": "less -F -X /world/workspace/docs/metrics.md",
+      "exit": 0,
+      "expected_substring": "(any non-empty output)",
+      "ok": true,
+      "stderr": "",
+      "stdout": "# Revenue\nFinance owns revenue. The dashboard uses a cached snapshot."
+    },
+    {
+      "check": "make_runs_a_makefile",
+      "command": "mkdir -p /tmp/mk && printf 'x:\\n\\t@echo made\\n' > /tmp/mk/Makefile && make -C /tmp/mk x",
+      "exit": 0,
+      "expected_substring": "made",
+      "ok": true,
+      "stderr": "",
+      "stdout": "make: Entering directory '/tmp/mk'\nmade\nmake: Leaving directory '/tmp/mk'"
+    },
+    {
+      "check": "openssl_hashes",
+      "command": "printf abc | openssl dgst -sha256 -r | cut -c1-8",
+      "exit": 0,
+      "expected_substring": "ba7816bf",
+      "ok": true,
+      "stderr": "",
+      "stdout": "ba7816bf"
+    },
+    {
+      "check": "ssh_client_present",
+      "command": "ssh -V 2>&1 | cut -c1-8",
+      "exit": 0,
+      "expected_substring": "OpenSSH_",
+      "ok": true,
+      "stderr": "",
+      "stdout": "OpenSSH_"
+    },
+    {
+      "check": "vim_is_the_real_vim",
+      "command": "vim --version | head -1",
+      "exit": 0,
+      "expected_substring": "VIM - Vi IMproved",
+      "ok": true,
+      "stderr": "",
+      "stdout": "VIM - Vi IMproved 9.1 (2024 Jan 02, compiled May 23 2025 00:48:59)"
+    },
+    {
+      "check": "nano_present",
+      "command": "nano --version | head -1",
+      "exit": 0,
+      "expected_substring": "GNU nano",
+      "ok": true,
+      "stderr": "",
+      "stdout": "GNU nano, version 8.4"
+    }
+  ],
+  "egress_attempts": [
+    {
+      "check": "curl_cannot_reach_pypi",
+      "command": "curl -sS --max-time 6 https://pypi.org/simple/",
+      "exit": 6,
+      "expectation": "command fails or returns nothing",
+      "ok": true,
+      "stderr": "curl: (6) Could not resolve host: pypi.org",
+      "stdout": ""
+    },
+    {
+      "check": "curl_cannot_reach_a_bare_ip",
+      "command": "curl -sS --max-time 6 http://1.1.1.1/",
+      "exit": 7,
+      "expectation": "command fails or returns nothing",
+      "ok": true,
+      "stderr": "curl: (7) Failed to connect to 1.1.1.1 port 80 after 0 ms: Could not connect to server",
+      "stdout": ""
+    },
+    {
+      "check": "dig_cannot_resolve_a_public_name",
+      "command": "dig +short +time=2 +tries=1 example.com",
+      "exit": 0,
+      "expectation": "command fails or returns nothing",
+      "ok": true,
+      "stderr": "",
+      "stdout": ""
+    },
+    {
+      "check": "ping_cannot_leave",
+      "command": "ping -c 1 -W 2 8.8.8.8",
+      "exit": 2,
+      "expectation": "command fails or returns nothing",
+      "ok": true,
+      "stderr": "ping: connect: Network is unreachable",
+      "stdout": ""
+    },
+    {
+      "check": "nc_cannot_open_a_public_port",
+      "command": "nc -z -w 3 1.1.1.1 443 && echo open",
+      "exit": 1,
+      "expectation": "command fails or returns nothing",
+      "ok": true,
+      "stderr": "",
+      "stdout": ""
+    },
+    {
+      "check": "aws_cannot_reach_real_s3",
+      "command": "aws s3 ls --endpoint-url https://s3.amazonaws.com",
+      "exit": 255,
+      "expectation": "command fails or returns nothing",
+      "ok": true,
+      "stderr": "Could not connect to the endpoint URL: \"https://s3.amazonaws.com/\"",
+      "stdout": ""
+    },
+    {
+      "check": "ssh_cannot_leave",
+      "command": "ssh -o ConnectTimeout=4 -o StrictHostKeyChecking=no -o BatchMode=yes git@github.com true",
+      "exit": 255,
+      "expectation": "command fails or returns nothing",
+      "ok": true,
+      "stderr": "ssh: Could not resolve hostname github.com: Temporary failure in name resolution",
+      "stdout": ""
+    }
+  ],
+  "failed": [],
+  "generated": "2026-09-14T22:13:22+00:00",
+  "passed": true,
+  "project": "alkera-toolbelt",
+  "vantage": "sh -c inside the episode container - the agent's own shell"
+}

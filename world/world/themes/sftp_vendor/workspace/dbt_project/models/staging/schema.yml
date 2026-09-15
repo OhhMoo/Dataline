@@ -1,0 +1,23 @@
+version: 2
+
+models:
+  - name: stg_orders
+    description: >
+      Acme orders, typed. Everything arrives as VARCHAR in raw because the
+      vendor has shipped a non-numeric amount more than once and we would
+      rather see the bad row than a null.
+    columns:
+      - name: order_id
+        description: Acme's order id. Unique per order per day, NOT globally -
+          they recycle ids across years, which is why nothing is keyed on it
+          alone.
+        tests: [not_null]
+      - name: order_date
+        description: Acme's business date, from the filename's date, not the row.
+        tests: [not_null]
+      - name: amount
+        description: Gross order amount.
+        tests: [not_null]
+
+  # stg_returns: TODO. globex's returns feed is documented in the vendor's own
+  # spec pdf on the share and nowhere else.

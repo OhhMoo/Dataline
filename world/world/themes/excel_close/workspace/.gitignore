@@ -1,0 +1,26 @@
+# Excel lock files. These appear whenever someone has a workbook open and they
+# must never be committed - the import globs CLOSE_*.xlsx and a lock file is
+# not a workbook.
+~$*.xlsx
+*.xlsx#
+
+# `.envrc` is committed; `.env` is your own and is sourced on top of it.
+.env
+.env.local
+
+# dbt
+dbt_project/target/
+dbt_project/logs/
+logs/
+
+# warehouse files
+*.duckdb
+*.duckdb.wal
+
+__pycache__/
+*.pyc
+
+# Working copies. Finance keeps drafts next to the real workbook; only the
+# signed-off CLOSE_YYYYMM.xlsx belongs in the repo.
+finance/workbooks/*DRAFT*.xlsx
+finance/workbooks/*_wip.xlsx

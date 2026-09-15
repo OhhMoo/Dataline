@@ -1,0 +1,217 @@
+# revenue_daily: the channel the context is scattered across.
+#
+# Message ids are positional (`<channel>/<index:04d>`) because that is how
+# chat_post derives the next one; workflow.py refuses a corpus that numbers
+# them any other way. A message with thread_id null is a thread root.
+#
+# The useful sentence - that the total_revenue panel has no date filter and so
+# was never a February number - is in one reply, addressed to somebody on
+# leave, with no answer under it. The loudest message in #incidents says
+# something else, gets two agreements, and is wrong.
+channels:
+  - id: data-eng
+    topic: Pipelines, loads and the warehouse
+    purpose: Where the data team works. Incidents move to #incidents.
+    members: [dpatel, kliu, tokafor, alertbot, agent]
+    messages:
+      - id: data-eng/0001
+        author: kliu
+        at: "-24d 09:02"
+        thread_id: null
+        text: |-
+          heads up, I changed daily_load. It used to append the one new
+          partition; it now does CREATE OR REPLACE TABLE raw.daily_revenue over
+          data/landing/daily_revenue/dt=*/*.csv, so every run rebuilds the whole
+          table from whatever is on disk.
+        reactions: {}
+        authoring:
+          kind: accurate
+          note: >-
+            RD-C1. True, and the root of the thread that holds the decision
+            nobody wrote down. Checkable: raw.daily_revenue carries 30 dt values
+            and daily_load's recorded duration is a flat 45s on every one of the
+            30 nights, which is not what an appending loader looks like.
+      - id: data-eng/0002
+        author: dpatel
+        at: "-24d 09:09"
+        thread_id: data-eng/0001
+        text: so it is idempotent now? the runbook still says append-only.
+        reactions: {}
+      - id: data-eng/0003
+        author: kliu
+        at: "-24d 09:14"
+        thread_id: data-eng/0001
+        text: |-
+          Idempotent, yes. Decision: nobody hand-backfills any more. Re-land the
+          partition under its dt= folder and let the 01:00 run pick it up. The
+          --from/--to flags in the runbook do not exist.
+        reactions: {"+1": 3}
+        authoring:
+          kind: undocumented_decision
+          note: >-
+            RD-C2. The rule that governs this world, agreed in a reply and
+            written down nowhere else. The wiki page that contradicts it is
+            still the top hit for "backfill", and docs/runbook_daily_load.md in
+            the repo contradicts it too. Reachable from chat and from nowhere
+            else, which is the point of having a chat surface at all.
+      - id: data-eng/0004
+        author: tokafor
+        at: "-24d 09:21"
+        thread_id: data-eng/0001
+        text: Good. Someone put that in the runbook please.
+        reactions: {}
+      - id: data-eng/0005
+        author: tokafor
+        at: "-14d 08:05"
+        thread_id: null
+        text: "@kliu is out until 21 March. Load questions to @dpatel until then."
+        reactions: {}
+        authoring:
+          kind: true_and_irrelevant
+          note: >-
+            RD-C3. Verifiable against the roster (kliu carries an away_until)
+            and irrelevant to the incident - except that it is the reason the
+            one useful observation below never got an answer, and the reason two
+            open tickets are assigned to somebody who cannot work them.
+      - id: data-eng/0006
+        author: mrivera
+        at: "-1d 08:20"
+        thread_id: null
+        text: |-
+          The February revenue total on the dashboard has gone up twice since I
+          circulated the pack. Raising a ticket.
+        reactions: {}
+      - id: data-eng/0007
+        author: jbeck
+        at: "-1d 08:58"
+        thread_id: null
+        text: sorry for the double ticket, I filed DATA-150 before I saw Maya's.
+        reactions: {}
+        authoring:
+          kind: accurate
+          note: >-
+            RD-C4. The only place the duplicate is admitted. Neither ticket
+            links to the other, so this message is the evidence that they are
+            one incident.
+      - id: data-eng/0008
+        author: dpatel
+        at: "-1d 09:31"
+        thread_id: null
+        text: |-
+          @kliu the total_revenue panel is `select sum(revenue) as total_revenue
+          from warehouse.fct_revenue` with no date filter - it is not a February
+          number, it is every day we hold. February on its own is 139,823.60 and
+          the panel is 10,177.50 above that, which is 03-01 and 03-02. Nothing
+          is broken, the panel is mislabelled. Do we fix the panel or the pack?
+        reactions: {}
+        authoring:
+          kind: unanswered_mention
+          note: >-
+            RD-C5. The whole answer, addressed to the one person who is on
+            leave, with zero replies under it. Every number in it is measured
+            against the built world, and the question it ends on - fix the panel
+            or fix the pack - is the decision the agent has to make and nobody
+            made. chat_thread on this id returns reply_count 0, which is the
+            content, not an empty result.
+
+  - id: incidents
+    topic: Live incidents only
+    purpose: Alarms land here. Keep discussion in the thread.
+    members: [dpatel, kliu, tokafor, jbeck, alertbot, agent]
+    messages:
+      - id: incidents/0001
+        author: alertbot
+        at: "-44d 01:19"
+        thread_id: null
+        text: |-
+          ALARM revenue_amount_missing (warning): Some landed rows carry no
+          amount. revenue_amount_null_rate = 0.017 > 0.0
+        reactions: {}
+        authoring:
+          kind: noise
+          note: >-
+            RD-C6. January's alarm, long since recovered - the built world has
+            zero rows with a missing amount now. It is outside the 14-day
+            observability retention, so metrics_series reports it aged_out
+            rather than absent, and the only trace left is this message and the
+            postmortem page. That asymmetry is real and worth having.
+      - id: incidents/0002
+        author: dpatel
+        at: "-43d 09:40"
+        thread_id: incidents/0001
+        text: |-
+          Root cause was the upstream renaming a column. Backfilled. Postmortem
+          at de/postmortems/2026-01-19-missing-amounts, one action still open.
+        reactions: {}
+      - id: incidents/0003
+        author: jbeck
+        at: "-2d 09:20"
+        thread_id: null
+        text: |-
+          Not an alarm but it should be: the loader has been dropping rows since
+          the dbt bump. raw.daily_revenue is about 1,500 rows and a month at our
+          volume is 1,800. That is where the missing revenue is going.
+        reactions: {"+1": 2}
+        authoring:
+          kind: confident_wrong
+          note: >-
+            RD-C7. Flat, agreed with twice, and wrong, and it is the version of
+            events an agent that reads #incidents first will meet before it
+            reads #data-eng. 1800 assumes 60 orders every day; measured, the
+            band is 43 to 60 and the mean is 50.1, so 1504 rows over 30
+            partitions is correct. One sql_query settles it.
+      - id: incidents/0004
+        author: tokafor
+        at: "-2d 09:44"
+        thread_id: incidents/0003
+        text: That would explain the dashboard too. Rolling back the loader is a change, so it waits for the freeze window.
+        reactions: {}
+        authoring:
+          kind: partial_conclusion
+          note: >-
+            RD-C8. "That would explain the dashboard" is true as a conditional
+            and is being used as a diagnosis. The freeze half of the sentence is
+            correct and is the constraint that also blocks DATA-146.
+
+  - id: finance-data
+    topic: Finance and the data team
+    purpose: Reporting cycle, close, board pack.
+    members: [mrivera, dpatel, tokafor, agent]
+    messages:
+      - id: finance-data/0001
+        author: mrivera
+        at: "-2d 11:05"
+        thread_id: null
+        text: |-
+          Building the February pack today off the revenue_daily dashboard.
+          Using the headline total as it stands on the screen.
+        reactions: {}
+      - id: finance-data/0002
+        author: tokafor
+        at: "-2d 11:22"
+        thread_id: finance-data/0001
+        text: |-
+          Use the dashboard rather than your own SQL - the board pack has to
+          match what people can see on the screen. That has bitten us before.
+        reactions: {}
+        authoring:
+          kind: accurate_but_partial
+          note: >-
+            RD-C9. Sound advice about reconciliation, and silent about the half
+            that matters: the panel on that screen is unfiltered, so "what the
+            screen says" is not a period number. Following it correctly is how
+            the wrong number reached the pack.
+      - id: finance-data/0003
+        author: mrivera
+        at: "-1d 16:30"
+        thread_id: null
+        text: |-
+          Board pack goes out Thursday. I need the February figure frozen by
+          Wednesday noon, and if it changes I have to re-issue what I sent.
+        reactions: {}
+        authoring:
+          kind: constraint
+          note: >-
+            RD-C10. A real limit on an acceptable answer: whatever the agent
+            concludes has to be a February number it can defend, delivered
+            before a deadline, and it has to account for what was already sent.

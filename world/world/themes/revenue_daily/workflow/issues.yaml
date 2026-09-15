@@ -1,0 +1,264 @@
+# revenue_daily: the backlog a data engineer inherits on their first morning.
+#
+# The world itself is clean - this theme ships its fault catalogue disabled, so
+# every one of the 60 scheduler runs is green and every partition is present.
+# That is deliberate: the mess here is the *organisation* around a healthy
+# pipeline, which is what a data engineer actually spends the morning on. Two
+# people have filed the same ticket, the loudest diagnosis is arithmetic rather
+# than evidence, the remediation from January's postmortem is still open, and
+# two tickets are assigned to somebody on leave.
+#
+# Every claim a ticket makes is checkable through another surface, and the
+# numbers below were measured against a built world, not invented:
+#   sum(revenue) over warehouse.fct_revenue            150001.10
+#   the same sum for February alone                    139823.60
+#   warehouse.fct_revenue on 2026-03-01 / 2026-03-02   4428.24 / 5749.26
+#   lowest revenue day: 2026-02-17                     49 orders / 4135.90
+#   orders per day across the month                    43 .. 60, mean 50.1
+#   raw.daily_revenue                                  1504 rows / 30 dt values
+#   rows with a missing amount                         0
+#   scheduler runs                                     60, all success
+#
+# `authoring` is author-side: workflow.py strips it from every tool response.
+issues:
+  - id: DATA-107
+    title: Pin duckdb in the image instead of tracking latest
+    body: |-
+      The image installs duckdb unpinned, so a rebuild can move the engine
+      under us between one world and the next. Pin it in requirements.lock and
+      let dependabot raise the bump as a PR.
+    status: done
+    reporter: tokafor
+    assignee: dpatel
+    labels: [maintenance, build]
+    created_at: "-96d 11:03"
+    updated_at: "-88d 16:41"
+    comments:
+      - id: DATA-107#1
+        author: dpatel
+        at: "-88d 16:41"
+        body: Pinned and merged. No behaviour change in the nightly build.
+    history:
+      - {at: "-88d 16:41", actor: dpatel, field: status, from: in_progress, to: done}
+    links: []
+    authoring:
+      kind: noise
+      note: >-
+        RD-I1. True, closed, and irrelevant to anything a task will ask. It
+        exists so issues_list is not eight tickets that all matter, which is
+        the shape that turns a backlog into a solution manual.
+
+  - id: DATA-118
+    title: Add a not_null test on raw.daily_revenue.amount
+    body: |-
+      Action 1 from the 19 January postmortem. We found rows landing with a
+      blank amount and nothing anywhere failed - not the load, not dbt, not the
+      dashboard. The revenue_amount_missing alarm was added afterwards and it
+      reads the null rate, but an alarm tells you after the fact; a dbt test
+      stops the build.
+
+      Model: staging.stg_revenue. Add not_null on amount and order_date.
+    status: open
+    reporter: dpatel
+    assignee: null
+    labels: [data-quality, postmortem-action]
+    created_at: "-43d 09:26"
+    updated_at: "-43d 09:26"
+    comments: []
+    history: []
+    links: []
+    authoring:
+      kind: unactioned_remediation
+      note: >-
+        RD-I2. The control that would have caught January's defect, still open
+        six weeks later and unassigned. Currently harmless - the built world has
+        zero rows with a missing amount - which is exactly why nobody has done
+        it, and exactly why it is still the first thing that should be done.
+
+  - id: DATA-121
+    title: Rewrite the daily_load runbook - it describes a loader we do not run
+    body: |-
+      de/runbooks/nightly-revenue-load still says the job appends the new
+      partition and that a hand backfill needs --from/--to. That has not been
+      true since Kenji changed it. docs/runbook_daily_load.md in the repo says
+      the same thing.
+
+      Whoever picks this up: the accurate version is in #data-eng, not in the
+      wiki.
+    status: open
+    reporter: tokafor
+    assignee: kliu
+    labels: [documentation]
+    created_at: "-47d 14:02"
+    updated_at: "-46d 08:19"
+    comments:
+      - id: DATA-121#1
+        author: kliu
+        at: "-46d 08:19"
+        body: Will do after the Q1 freeze.
+    history: []
+    links: []
+    authoring:
+      kind: stale
+      note: >-
+        RD-I3. Open 47 days, one comment promising a rewrite, assignee on
+        leave. The page it asks for has since been written as a *separate*
+        page (de/runbooks/revenue-backfill) and nobody closed this or deleted
+        the old one, which is how the wiki came to hold both.
+
+  - id: DATA-134
+    title: Revenue dropped on 17 February
+    body: |-
+      The daily_revenue panel shows 4,135.90 for 2026-02-17, which is the
+      lowest day in the month. Asking whether the load ran short.
+    status: wontfix
+    reporter: jbeck
+    assignee: dpatel
+    labels: [revenue, dashboard]
+    created_at: "-13d 09:41"
+    updated_at: "-12d 10:55"
+    comments:
+      - id: DATA-134#1
+        author: dpatel
+        at: "-12d 10:55"
+        body: |-
+          Checked. daily_load and dbt_build are both green for that night in
+          sched_state and the partition has 49 orders, which is mid-band -
+          daily volume runs 43 to 60 across the month. It is a quiet day, not a
+          short load. The revenue_volume_floor alarm did not fire either.
+    history:
+      - {at: "-12d 10:55", actor: dpatel, field: status, from: open, to: wontfix}
+    links: []
+    authoring:
+      kind: near_duplicate_trap
+      note: >-
+        RD-I4. The same symptom as DATA-149 - a revenue number that looks too
+        low - with a completely different and already-settled cause. An agent
+        that pattern-matches on "revenue looks low" lands here. The comment is
+        true and measured: 2026-02-17 really is the minimum revenue day at
+        4135.90, with 49 orders against a 43-60 band.
+
+  - id: DATA-142
+    title: The loader has been dropping rows since the dbt bump
+    body: |-
+      raw.daily_revenue is about 1,500 rows for a month that should hold 1,800.
+      At 60 orders a day over 30 days that is 300 rows short, and the only
+      thing that changed in that window is the dbt upgrade in DATA-107.
+
+      We should roll the loader back.
+    status: open
+    reporter: jbeck
+    assignee: tokafor
+    labels: [revenue, needs-triage]
+    created_at: "-2d 09:12"
+    updated_at: "-2d 09:12"
+    comments: []
+    history: []
+    links:
+      - {type: relates_to, issue: DATA-107}
+    authoring:
+      kind: confident_wrong
+      note: >-
+        RD-I5. Stated flatly, linked to an unrelated ticket, and wrong. The row
+        count is real (1504 across 30 dt values); the 1800 is the reporter's own
+        arithmetic on the top of the band. Measured, orders per day run 43 to 60
+        with a mean of 50.1, so 1504 is exactly what the month should hold.
+        Disprovable in one query, and repeated in #incidents where it collects
+        two agreements.
+
+  - id: DATA-146
+    title: Backfill 14-16 February for the growth report
+    body: |-
+      Growth need those three days re-landed with the corrected currency file.
+      Can we re-run daily_load for dt=2026-02-14 through dt=2026-02-16?
+    status: blocked
+    reporter: jbeck
+    assignee: kliu
+    labels: [backfill]
+    created_at: "-9d 15:30"
+    updated_at: "-8d 09:05"
+    comments:
+      - id: DATA-146#1
+        author: tokafor
+        at: "-8d 09:05"
+        body: |-
+          Blocked until finance sign off. de/policies/change-freeze closes
+          warehouse writes from the 1st to the 3rd business day of the month
+          while the close runs, and a backfill is a warehouse write.
+    history:
+      - {at: "-8d 09:05", actor: tokafor, field: status, from: open, to: blocked}
+    links: []
+    authoring:
+      kind: constraint
+      note: >-
+        RD-I6. A real limit on the shape of an acceptable answer, stated on the
+        ticket and again on the policy page: re-landing partitions is not free
+        this week. An agent that re-runs the load to "fix" DATA-149 walks
+        straight through it.
+
+  - id: DATA-149
+    title: February revenue pack does not match the dashboard any more
+    body: |-
+      I took the February revenue total off the revenue_daily dashboard on the
+      morning of the 1st and it said 139,823.60. I built the pack on that and
+      circulated it. I looked again this morning and the same panel says a
+      bigger number, and it went up again overnight.
+
+      I did not change anything. It is the same dashboard and the same panel.
+
+      The board pack goes out on Thursday, so I need to know which number is
+      right before Wednesday noon.
+    status: open
+    reporter: mrivera
+    assignee: null
+    labels: [revenue, dashboard, finance]
+    created_at: "-1d 08:14"
+    updated_at: "-1d 08:52"
+    comments:
+      - id: DATA-149#1
+        author: dpatel
+        at: "-1d 08:52"
+        body: |-
+          Picking this up. First thing to check is what the panel actually
+          covers, because I do not think it is February.
+    history: []
+    links:
+      - {type: relates_to, issue: DATA-134}
+    authoring:
+      kind: incident_report_lay
+      note: >-
+        RD-I7. The incident as a non-engineer describes it: no schema, no job
+        name, a symptom and a deadline. There is no defect in the pipeline. The
+        total_revenue panel in var/bi/dashboards/revenue_daily.yml is
+        `select sum(revenue) from warehouse.fct_revenue` with no date filter, so
+        it grows every night and was never a February number. Measured: the
+        panel reads 150001.10 at the world clock, February alone is 139823.60,
+        and the 10177.50 between them is 2026-03-01 (4428.24) plus 2026-03-02
+        (5749.26). Everything needed to say so is in bi_render plus one
+        sql_query. The `relates_to` link points at the wrong ticket, because a
+        human added it.
+
+  - id: DATA-150
+    title: Revenue dashboard is broken
+    body: |-
+      Numbers on revenue_daily moved between yesterday and today. Flagging,
+      finance are asking.
+    status: open
+    reporter: jbeck
+    assignee: null
+    labels: [dashboard]
+    created_at: "-1d 08:51"
+    updated_at: "-1d 08:51"
+    comments: []
+    history: []
+    links: []
+    authoring:
+      kind: duplicate
+      duplicate_of: DATA-149
+      linked: false
+      note: >-
+        RD-I8. Filed 37 minutes after DATA-149, by a different person, for the
+        same event, with no link in either direction. The tracker will not
+        de-duplicate it for the agent, and it should not: deciding that these
+        are one incident is the judgement the queue is there to demand. The
+        reporter admits it in #data-eng.

@@ -1,0 +1,62 @@
+; ---------------------------------------------------------------------------
+; CLAIMS BATCH - SITE CONFIGURATION
+;
+; Change control: this file is under CR. Do not edit it on a running node
+; without a raised change. The values here are read by the batch_load step and
+; by run.sh; the DAG passes nothing but the target name.
+;
+; Last reviewed: CR-2026-014 (2026-02-19)
+; ---------------------------------------------------------------------------
+
+[source]
+; System of record. The extract is cut by CLMEXTR on the mainframe; nothing in
+; this repository connects to it. The JCL is held here for reference only, at
+; jcl/CLMEXTR.jcl, and the authoritative copy is in the mainframe PROCLIB.
+system              = POLICYMASTER
+lpar                = PLEX1
+extract_job         = CLMEXTR
+proclib_member      = CLMEXTR
+copybook            = copybooks/CLAIMS.CPY
+record_length       = 31
+codepage            = cp037
+
+[landing]
+; Transmission target. NDM (Connect:Direct) writes here; the batch window
+; opens at 23:00 and the extract must be complete before batch_load starts.
+root                = data/landing/claims_extract
+partition_format    = dt=%Y-%m-%d
+data_file           = CLAIMS.DAT
+; Minutes after the window opens before the load step is permitted to run.
+; Raised from 30 to 45 under CR-2025-203 after three consecutive short reads.
+settle_minutes      = 45
+
+[warehouse]
+; DuckDB file, held outside the repository. The environment variable wins if
+; it is set; the relative path is the fallback for a fresh clone.
+path_env            = DBT_WAREHOUSE_PATH
+path_default        = ../var/warehouse/warehouse.duckdb
+raw_table           = raw.claims_extract
+
+[dbt]
+profiles_dir        = conf
+default_target      = dev
+
+[contacts]
+; Batch operations, 24h. Escalation path is in docs/runbook_batch_window.md.
+operations          = batch-ops@example.invalid
+application_owner   = claims-data@example.invalid
+
+; ---------------------------------------------------------------------------
+; SUPERSEDED - retained under records policy, do NOT re-enable.
+;
+; [ftp] was the pre-NDM transmission. Credentials were held in a userid/password
+; pair in this file until CR-2024-077 moved transmission to Connect:Direct and
+; the account was deleted. The section is kept because two runbooks on the
+; share still reference it by name.
+;
+; [ftp]
+; host              = <deleted at CR-2024-077>
+; user              = <deleted at CR-2024-077>
+; password          = <deleted at CR-2024-077>
+; remote_dir        = /u/policymaster/outbound
+; ---------------------------------------------------------------------------

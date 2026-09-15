@@ -1,0 +1,8 @@
+version: 2
+
+models:
+  - name: fct_claims_daily
+    description: Daily claims totals. Read by the claims_daily dashboard.
+    columns:
+      - name: claim_date
+        tests: [not_null, unique]

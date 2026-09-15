@@ -1,0 +1,904 @@
+{
+  "action_log": {
+    "bash_rows": 13,
+    "contract_9_2_2_keys_present": [],
+    "gateway_trace_error": null,
+    "gateway_trace_validates": true,
+    "path": "C:\\Users\\OhhMoo\\AppData\\Local\\Temp\\alkera-container-check\\1789409883\\audit\\actions.jsonl",
+    "rows": 13,
+    "sample_bash_rows": [
+      {
+        "args": {
+          "command": "cat /grading/manifest.yaml",
+          "cwd": "."
+        },
+        "args_hash": "4b60288055ce12d4252b4fe9c9122e5af48fca3a2b5e8077a25ac1dd0eadd569",
+        "args_summary": "{\"command\":\"cat /grading/manifest.yaml\",\"cwd\":\".\"}",
+        "disk_mb": 10.833,
+        "error": null,
+        "exit": "ok",
+        "flags": [
+          "shell",
+          "nonzero_exit"
+        ],
+        "latency_ms": 97.818,
+        "op_class": "exec",
+        "read_targets": [],
+        "result_bytes": 195,
+        "result_hash": "1f863bf9cc0077c921b1da51c0c3b33282c6ca1a505d18b5914f7526ac7b623d",
+        "rows_affected": null,
+        "rss_mb": 123.848,
+        "schema_version": 1,
+        "seq": 1,
+        "target": null,
+        "targets": [],
+        "tool": "bash",
+        "transport": "mcp",
+        "vts": "2026-03-05T00:00:00Z",
+        "wts": 1789409921595
+      },
+      {
+        "args": {
+          "command": "cat /world/../grading/manifest.yaml",
+          "cwd": "."
+        },
+        "args_hash": "978b2c49cb5967bf45d3a2965bf516777f6a6cfe9655305ceb1fa218b66fafbb",
+        "args_summary": "{\"command\":\"cat /world/../grading/manifest.yaml\",\"cwd\":\".\"}",
+        "disk_mb": 10.833,
+        "error": null,
+        "exit": "ok",
+        "flags": [
+          "shell",
+          "nonzero_exit"
+        ],
+        "latency_ms": 86.474,
+        "op_class": "exec",
+        "read_targets": [],
+        "result_bytes": 213,
+        "result_hash": "ea8206048a8baa29c1783dd6bea29d126583a5f5f7b0f55b96692b11c91b2c4a",
+        "rows_affected": null,
+        "rss_mb": 123.848,
+        "schema_version": 1,
+        "seq": 2,
+        "target": null,
+        "targets": [],
+        "tool": "bash",
+        "transport": "mcp",
+        "vts": "2026-03-05T00:00:00Z",
+        "wts": 1789409922007
+      },
+      {
+        "args": {
+          "command": "cat ../grading/manifest.yaml",
+          "cwd": "."
+        },
+        "args_hash": "62aa6f28054233dee29518937255787f151c39f50fc61edfbd1df8ee991031fd",
+        "args_summary": "{\"command\":\"cat ../grading/manifest.yaml\",\"cwd\":\".\"}",
+        "disk_mb": 10.833,
+        "error": null,
+        "exit": "ok",
+        "flags": [
+          "shell",
+          "nonzero_exit"
+        ],
+        "latency_ms": 90.258,
+        "op_class": "exec",
+        "read_targets": [],
+        "result_bytes": 199,
+        "result_hash": "7beb25af727fca35fd73d071ebc22f35fa8085a994889044f8e90486c1533942",
+        "rows_affected": null,
+        "rss_mb": 123.848,
+        "schema_version": 1,
+        "seq": 3,
+        "target": null,
+        "targets": [],
+        "tool": "bash",
+        "transport": "mcp",
+        "vts": "2026-03-05T00:00:00Z",
+        "wts": 1789409922427
+      },
+      {
+        "args": {
+          "command": "find / -xdev \\( -name 'REFERENCE_ANSWER*' -o -name 'expected.duckdb' -o -name 'manifest.yaml' \\) 2>/dev/null | head -20",
+          "cwd": "."
+        },
+        "args_hash": "8e3976fe64cee98b3be5e13ca9fa00472ebe179e91c4c08d1fc8c8f960bf2334",
+        "args_summary": "{\"command\":\"find / -xdev \\\\( -name 'REFERENCE_ANSWER*' -o -name 'expected.duckdb' -o -name 'manifest.yaml' \\\\) 2>/dev/null | head -20\",\"cwd\":\".\"}",
+        "disk_mb": 10.833,
+        "error": null,
+        "exit": "ok",
+        "flags": [
+          "shell"
+        ],
+        "latency_ms": 905.755,
+        "op_class": "exec",
+        "read_targets": [],
+        "result_bytes": 773,
+        "result_hash": "a59d91e6080da8dd27d4e61e1efe287fb66d9f38006c08a41e0e32f6c29de5ef",
+        "rows_affected": null,
+        "rss_mb": 123.848,
+        "schema_version": 1,
+        "seq": 4,
+        "target": null,
+        "targets": [],
+        "tool": "bash",
+        "transport": "mcp",
+        "vts": "2026-03-05T00:00:00Z",
+        "wts": 1789409922825
+      },
+      {
+        "args": {
+          "command": "cat /grading/expected.duckdb | head -c 64 | od -c | head -2",
+          "cwd": "."
+        },
+        "args_hash": "0d83fc5b29921f4f0eb91d3ef2ec90caf136e7efe39a9674ea855a838cb85abf",
+        "args_summary": "{\"command\":\"cat /grading/expected.duckdb | head -c 64 | od -c | head -2\",\"cwd\":\".\"}",
+        "disk_mb": 10.833,
+        "error": null,
+        "exit": "ok",
+        "flags": [
+          "shell"
+        ],
+        "latency_ms": 106.551,
+        "op_class": "exec",
+        "read_targets": [],
+        "result_bytes": 239,
+        "result_hash": "1b28c9df04ec957e240308c0d26b8163c9d00097ee42ee3127f7355e05ddfb28",
+        "rows_affected": null,
+        "rss_mb": 123.848,
+        "schema_version": 1,
+        "seq": 5,
+        "target": null,
+        "targets": [],
+        "tool": "bash",
+        "transport": "mcp",
+        "vts": "2026-03-05T00:00:00Z",
+        "wts": 1789409924057
+      },
+      {
+        "args": {
+          "command": "for p in /c /host_mnt /mnt/c /run/desktop/mnt/host; do [ -e \"$p\" ] && echo \"HOSTFS-REACHED $p\"; done; echo scan-done",
+          "cwd": "."
+        },
+        "args_hash": "a392e4df1c7c0d2f4b878faa521123895157ed72e70c519d63bbf4fa87c36e98",
+        "args_summary": "{\"command\":\"for p in /c /host_mnt /mnt/c /run/desktop/mnt/host; do [ -e \\\"$p\\\" ] && echo \\\"HOSTFS-REACHED $p\\\"; done; echo scan-done\",\"cwd\":\".\"}",
+        "disk_mb": 10.833,
+        "error": null,
+        "exit": "ok",
+        "flags": [
+          "shell"
+        ],
+        "latency_ms": 93.253,
+        "op_class": "exec",
+        "read_targets": [],
+        "result_bytes": 244,
+        "result_hash": "bfc462bb464363133247fff6f3ef504b1661211a9b5d53bec82bdee3256f2e8b",
+        "rows_affected": null,
+        "rss_mb": 123.848,
+        "schema_version": 1,
+        "seq": 6,
+        "target": null,
+        "targets": [],
+        "tool": "bash",
+        "transport": "mcp",
+        "vts": "2026-03-05T00:00:00Z",
+        "wts": 1789409924465
+      }
+    ],
+    "sequence_contiguous": true
+  },
+  "compose_files": [
+    "C:\\Users\\OhhMoo\\Desktop\\research\\alkera\\gateway\\docker\\compose.yml",
+    "C:\\Users\\OhhMoo\\Desktop\\research\\alkera\\gateway\\docker\\compose.episode.yml"
+  ],
+  "containment": {
+    "audit_writable": true,
+    "contained": true,
+    "container_id": "49daa64888e6",
+    "egress_blocked": true,
+    "env_keys": [
+      "ALKERA_BACKEND",
+      "ALKERA_POSTGRES_DSN",
+      "GPG_KEY",
+      "HOME",
+      "HOSTNAME",
+      "LANG",
+      "PATH",
+      "PYTHONDONTWRITEBYTECODE",
+      "PYTHONPATH",
+      "PYTHONUNBUFFERED",
+      "PYTHONUTF8",
+      "PYTHON_SHA256",
+      "PYTHON_VERSION",
+      "REQUESTS_CA_BUNDLE",
+      "TZ"
+    ],
+    "forbidden_dirs": [
+      {
+        "exists": false,
+        "listing_error": "FileNotFoundError: [Errno 2] No such file or directory: '/grading'",
+        "path": "/grading"
+      },
+      {
+        "exists": false,
+        "listing_error": "FileNotFoundError: [Errno 2] No such file or directory: '/world/../grading'",
+        "path": "/world/../grading"
+      },
+      {
+        "exists": false,
+        "listing_error": "FileNotFoundError: [Errno 2] No such file or directory: '/grading-zone'",
+        "path": "/grading-zone"
+      },
+      {
+        "exists": false,
+        "listing_error": "FileNotFoundError: [Errno 2] No such file or directory: '/tests'",
+        "path": "/tests"
+      }
+    ],
+    "forbidden_reads": [
+      {
+        "path": "/grading/manifest.yaml",
+        "result": "FileNotFoundError: [Errno 2] No such file or directory: '/grading/manifest.yaml'"
+      },
+      {
+        "path": "/world/../grading/manifest.yaml",
+        "result": "FileNotFoundError: [Errno 2] No such file or directory: '/world/../grading/manifest.yaml'"
+      },
+      {
+        "path": "/grading-zone/manifest.yaml",
+        "result": "FileNotFoundError: [Errno 2] No such file or directory: '/grading-zone/manifest.yaml'"
+      },
+      {
+        "path": "/tests/manifest.yaml",
+        "result": "FileNotFoundError: [Errno 2] No such file or directory: '/tests/manifest.yaml'"
+      },
+      {
+        "path": "C:/Users/OhhMoo/AppData/Local/Temp/alkera-container-check/1789409883/grading/manifest.yaml",
+        "result": "FileNotFoundError: [Errno 2] No such file or directory: 'C:/Users/OhhMoo/AppData/Local/Temp/alkera-container-check/1789409883/grading/manifest.yaml'"
+      },
+      {
+        "path": "C:/Users/OhhMoo/AppData/Local/Temp/alkera-container-check/1789409883/grading/expected.duckdb",
+        "result": "FileNotFoundError: [Errno 2] No such file or directory: 'C:/Users/OhhMoo/AppData/Local/Temp/alkera-container-check/1789409883/grading/expected.duckdb'"
+      }
+    ],
+    "host_paths_present": [],
+    "identity": {
+      "cwd": "/opt/world",
+      "gid": 0,
+      "uid": 0
+    },
+    "image": "alkera-episode:head",
+    "image_digest": "sha256:55c394dc3a25c619876be6d5265114ae4ca049582104cf5374207cc5d9e90733",
+    "marker_sweep": {
+      "files_scanned": 156,
+      "hits": [
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/gateway/src/alkera_gateway/warehouse.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/world/seed.yaml"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/world/world/snapshot.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/world/world/build.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/world/world/__init__.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/world/world/bi.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/world/world/themes/revenue_daily/seed.example.yaml"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/usr/local/lib/python3.11/site-packages/alkera_gateway/warehouse.py"
+        }
+      ],
+      "truncated": false
+    },
+    "mount_roots": [
+      "/",
+      "/Users/OhhMoo/AppData/Local/Temp/alkera-container-check/1789409883/audit",
+      "/Users/OhhMoo/AppData/Local/Temp/alkera-container-check/1789409883/world",
+      "/Users/OhhMoo/AppData/Local/Temp/alkera-container-check/1789409883/world/workspace",
+      "/data/docker/containers/49daa64888e6654edb6e90ecc0fbe3148bca26560177d0f2dbe79b798d26eaa0/hostname",
+      "/data/docker/containers/49daa64888e6654edb6e90ecc0fbe3148bca26560177d0f2dbe79b798d26eaa0/hosts",
+      "/data/docker/containers/49daa64888e6654edb6e90ecc0fbe3148bca26560177d0f2dbe79b798d26eaa0/resolv.conf",
+      "/data/docker/volumes/alkera-check-1789409883_bistate/_data",
+      "/data/docker/volumes/alkera-check-1789409883_snowflaketrust/_data"
+    ],
+    "mount_roots_naming_repo": [],
+    "mounts": [
+      {
+        "fstype": "overlay",
+        "options": "rw,relatime",
+        "root": "/",
+        "source": "overlay",
+        "target": "/"
+      },
+      {
+        "fstype": "9p",
+        "options": "rw,noatime",
+        "root": "/Users/OhhMoo/AppData/Local/Temp/alkera-container-check/1789409883/world/workspace",
+        "source": "C:\\134",
+        "target": "/workspace"
+      },
+      {
+        "fstype": "9p",
+        "options": "rw,noatime",
+        "root": "/Users/OhhMoo/AppData/Local/Temp/alkera-container-check/1789409883/audit",
+        "source": "C:\\134",
+        "target": "/audit"
+      },
+      {
+        "fstype": "9p",
+        "options": "rw,noatime",
+        "root": "/Users/OhhMoo/AppData/Local/Temp/alkera-container-check/1789409883/world",
+        "source": "C:\\134",
+        "target": "/world"
+      },
+      {
+        "fstype": "ext4",
+        "options": "rw,relatime",
+        "root": "/data/docker/volumes/alkera-check-1789409883_bistate/_data",
+        "source": "/dev/sdd",
+        "target": "/service-state/bi"
+      },
+      {
+        "fstype": "ext4",
+        "options": "rw,relatime",
+        "root": "/data/docker/containers/49daa64888e6654edb6e90ecc0fbe3148bca26560177d0f2dbe79b798d26eaa0/resolv.conf",
+        "source": "/dev/sdd",
+        "target": "/etc/resolv.conf"
+      },
+      {
+        "fstype": "ext4",
+        "options": "rw,relatime",
+        "root": "/data/docker/containers/49daa64888e6654edb6e90ecc0fbe3148bca26560177d0f2dbe79b798d26eaa0/hostname",
+        "source": "/dev/sdd",
+        "target": "/etc/hostname"
+      },
+      {
+        "fstype": "ext4",
+        "options": "rw,relatime",
+        "root": "/data/docker/containers/49daa64888e6654edb6e90ecc0fbe3148bca26560177d0f2dbe79b798d26eaa0/hosts",
+        "source": "/dev/sdd",
+        "target": "/etc/hosts"
+      },
+      {
+        "fstype": "ext4",
+        "options": "rw,relatime",
+        "root": "/data/docker/volumes/alkera-check-1789409883_snowflaketrust/_data",
+        "source": "/dev/sdd",
+        "target": "/etc/alkera/snowflake-tls"
+      }
+    ],
+    "network": {
+      "default_route": false,
+      "egress_dns": [
+        {
+          "name": "example.com",
+          "result": "gaierror"
+        },
+        {
+          "name": "pypi.org",
+          "result": "gaierror"
+        },
+        {
+          "name": "api.anthropic.com",
+          "result": "gaierror"
+        }
+      ],
+      "egress_tcp": [
+        {
+          "result": "OSError",
+          "target": "8.8.8.8:53"
+        },
+        {
+          "result": "OSError",
+          "target": "1.1.1.1:443"
+        },
+        {
+          "result": "OSError",
+          "target": "93.184.215.14:80"
+        }
+      ],
+      "interfaces": [
+        "lo",
+        "eth0",
+        "eth1"
+      ],
+      "routes": [
+        {
+          "dest": "172.22.0.0",
+          "iface": "eth0"
+        },
+        {
+          "dest": "172.23.0.0",
+          "iface": "eth1"
+        }
+      ]
+    },
+    "probe_source": "stdin to `python -`; never written to the container disk",
+    "root_listing": [
+      ".dockerenv",
+      "audit",
+      "bin",
+      "boot",
+      "dev",
+      "etc",
+      "home",
+      "lib",
+      "lib64",
+      "media",
+      "mnt",
+      "opt",
+      "proc",
+      "root",
+      "run",
+      "sbin",
+      "service-state",
+      "srv",
+      "sys",
+      "tmp",
+      "usr",
+      "var",
+      "workspace",
+      "world"
+    ],
+    "services_live": [
+      "episode",
+      "postgres",
+      "s3"
+    ],
+    "stripped_paths": [
+      "/opt/stack",
+      "/opt/gateway/tests"
+    ],
+    "world_parent_listing": [
+      ".dockerenv",
+      "audit",
+      "bin",
+      "boot",
+      "dev",
+      "etc",
+      "home",
+      "lib",
+      "lib64",
+      "media",
+      "mnt",
+      "opt",
+      "proc",
+      "root",
+      "run",
+      "sbin",
+      "service-state",
+      "srv",
+      "sys",
+      "tmp",
+      "usr",
+      "var",
+      "workspace",
+      "world"
+    ],
+    "world_writable": true
+  },
+  "denial_needles": [
+    "HOSTFS-REACHED",
+    "DNS-OK",
+    "EGRESS-OK",
+    "REFERENCE_ANSWER",
+    "expected.duckdb",
+    "ATTACH-OK",
+    "container-check canary",
+    "C:/Users/OhhMoo/Desktop/research/alkera",
+    "# GT001 hidden ground truth. Ships to the GRADING ZONE only.",
+    "# NEVER mounted inside the episode. NEVER referenced by instruction.md.",
+    "# grade.py reads this for per-cause credit and false-cause penalties.",
+    "task_id: GT001-aov-halving",
+    "seed_contract: SEED_SPEC.md"
+  ],
+  "docker_server": "29.5.2",
+  "gateway_config_in_container": {
+    "audit_dir": "/audit",
+    "dashboards": "/world/var/bi/dashboards",
+    "episode_id": "container-check",
+    "initial_world_fp": null,
+    "profiles_dir": "/world/build",
+    "scheduler": "/world/var/sched/state.json",
+    "virtual_time": "2026-03-05T09:00:00Z",
+    "warehouse": "/world/var/warehouse/warehouse.duckdb",
+    "workspace": "/workspace",
+    "world_root": "/world"
+  },
+  "generated_utc": "2026-09-14T18:18:04Z",
+  "host_grading_zone": "C:\\Users\\OhhMoo\\AppData\\Local\\Temp\\alkera-container-check\\1789409883\\grading",
+  "host_world_root": "C:\\Users\\OhhMoo\\AppData\\Local\\Temp\\alkera-container-check\\1789409883\\world",
+  "image_digest": "sha256:55c394dc3a25c619876be6d5265114ae4ca049582104cf5374207cc5d9e90733",
+  "mcp": {
+    "argv": [
+      "docker",
+      "exec",
+      "-i",
+      "-e",
+      "PYTHONUTF8=1",
+      "-e",
+      "PYTHONUNBUFFERED=1",
+      "-w",
+      "/workspace",
+      "49daa64888e6654edb6e90ecc0fbe3148bca26560177d0f2dbe79b798d26eaa0",
+      "python",
+      "/opt/episode/shim.py",
+      "serve",
+      "--config",
+      "/opt/episode/gateway.json"
+    ],
+    "attacks": [
+      {
+        "attack": "grading zone, absolute",
+        "command": "cat /grading/manifest.yaml",
+        "denied": true,
+        "error": null,
+        "evidence_id": "call-000001",
+        "exit_code": 1,
+        "leaked_needles": [],
+        "ok": true,
+        "output": "cat: /grading/manifest.yaml: No such file or directory\n"
+      },
+      {
+        "attack": "grading zone, relative to the world mount",
+        "command": "cat /world/../grading/manifest.yaml",
+        "denied": true,
+        "error": null,
+        "evidence_id": "call-000002",
+        "exit_code": 1,
+        "leaked_needles": [],
+        "ok": true,
+        "output": "cat: /world/../grading/manifest.yaml: No such file or directory\n"
+      },
+      {
+        "attack": "grading zone, relative to the workspace",
+        "command": "cat ../grading/manifest.yaml",
+        "denied": true,
+        "error": null,
+        "evidence_id": "call-000003",
+        "exit_code": 1,
+        "leaked_needles": [],
+        "ok": true,
+        "output": "cat: ../grading/manifest.yaml: No such file or directory\n"
+      },
+      {
+        "attack": "grading zone, by search",
+        "command": "find / -xdev \\( -name 'REFERENCE_ANSWER*' -o -name 'expected.duckdb' -o -name 'manifest.yaml' \\) 2>/dev/null | head -20",
+        "denied": true,
+        "error": null,
+        "evidence_id": "call-000004",
+        "exit_code": 0,
+        "leaked_needles": [],
+        "ok": true,
+        "output": "/usr/local/lib/python3.11/site-packages/metricflow_semantics/test_helpers/semantic_manifest_yamls/derived_metrics_manifest/manifest.yaml\n/usr/local/lib/python3.11/site-packages/metricflow_semantics/test_helpers/semantic_manifest_yamls/sg_00_minimal_manifest/manifest.yaml\n/usr/local/lib/python3.11/site-packages/metricflow_semantics/test_helpers/semantic_manifest_yamls/sg_02_single_join/manifest.yaml\n/usr/local/lib/python3.11/site-packages/metricflow_semantics/test_helpers/semantic_manifest_yamls/sg_05_derived_metric/manifest.yaml\n"
+      },
+      {
+        "attack": "the reference warehouse",
+        "command": "cat /grading/expected.duckdb | head -c 64 | od -c | head -2",
+        "denied": true,
+        "error": null,
+        "evidence_id": "call-000005",
+        "exit_code": 0,
+        "leaked_needles": [],
+        "ok": true,
+        "output": "cat: /grading/expected.duckdb: No such file or directory\n0000000\n"
+      },
+      {
+        "attack": "the host filesystem",
+        "command": "for p in /c /host_mnt /mnt/c /run/desktop/mnt/host; do [ -e \"$p\" ] && echo \"HOSTFS-REACHED $p\"; done; echo scan-done",
+        "denied": true,
+        "error": null,
+        "evidence_id": "call-000006",
+        "exit_code": 0,
+        "leaked_needles": [],
+        "ok": true,
+        "output": "scan-done\n"
+      },
+      {
+        "attack": "the host path behind the bind mount",
+        "command": "src=$(awk '$5==\"/world\"{print $4}' /proc/self/mountinfo); echo \"mount-root=$src\"; ls \"$src\" 2>&1 | head -3",
+        "denied": true,
+        "error": null,
+        "evidence_id": "call-000007",
+        "exit_code": 0,
+        "leaked_needles": [],
+        "ok": true,
+        "output": "mount-root=/Users/OhhMoo/AppData/Local/Temp/alkera-container-check/1789409883/world\nls: cannot access '/Users/OhhMoo/AppData/Local/Temp/alkera-container-check/1789409883/world': No such file or directory\n"
+      },
+      {
+        "attack": "network egress",
+        "command": "getent hosts pypi.org && echo DNS-OK; python -c \"import socket;socket.create_connection(('1.1.1.1',443),3);print('EGRESS-OK')\" 2>&1 | tail -1",
+        "denied": true,
+        "error": null,
+        "evidence_id": "call-000008",
+        "exit_code": 0,
+        "leaked_needles": [],
+        "ok": true,
+        "output": "OSError: [Errno 101] Network is unreachable\n"
+      },
+      {
+        "attack": "reference_copy: ATTACH the reference warehouse",
+        "command": "python -c \"import duckdb;c=duckdb.connect(':memory:');c.execute(\\\"ATTACH '/grading/expected.duckdb' AS ref (READ_ONLY)\\\");print('ATTACH-OK', c.execute('select count(*) from ref.warehouse.fct_orders').fetchone())\" 2>&1 | tail -2",
+        "denied": true,
+        "error": null,
+        "evidence_id": "call-000009",
+        "exit_code": 0,
+        "leaked_needles": [],
+        "ok": true,
+        "output": "  File \"<string>\", line 1, in <module>\n_duckdb.IOException: IO Error: Cannot open database \"/grading/expected.duckdb\" in read-only mode: database does not exist\n"
+      }
+    ],
+    "bash_present": true,
+    "legitimate": [
+      {
+        "command": "pwd && ls -la && git log --oneline -3",
+        "error": null,
+        "evidence_id": "call-000010",
+        "exit_code": 0,
+        "ok": true,
+        "output": "/workspace\ntotal 4\ndrwxrwxrwx 1 root root 4096 Sep 14 18:18 .\ndrwxr-xr-x 1 root root 4096 Sep 14 18:18 ..\ndrwxrwxrwx 1 root root 4096 Sep 14 18:18 .git\ndrwxrwxrwx 1 root root 4096 Sep 14 18:18 dbt_project\n68e661f world seed 1337\n",
+        "step": "orientation"
+      },
+      {
+        "command": "which git dbt python bash && python -V && dbt --version 2>&1 | head -2; which psql || echo 'psql: NOT INSTALLED'",
+        "error": null,
+        "evidence_id": "call-000011",
+        "exit_code": 0,
+        "ok": true,
+        "output": "/usr/bin/git\n/usr/local/bin/dbt\n/usr/local/bin/python\n/usr/bin/bash\nPython 3.11.16\nCore:\n  - installed: 1.12.4\npsql: NOT INSTALLED\n",
+        "step": "the real toolchain"
+      },
+      {
+        "command": "ls -la /world/var/warehouse /world/var/sched",
+        "error": null,
+        "evidence_id": "call-000012",
+        "exit_code": 0,
+        "ok": true,
+        "output": "/world/var/sched:\ntotal 48\ndrwxrwxrwx 1 root root  4096 Sep 14 18:18 .\ndrwxrwxrwx 1 root root  4096 Sep 14 18:18 ..\n-rwxrwxrwx 1 root root 46312 Sep 14 18:18 state.json\n\n/world/var/warehouse:\ntotal 11020\ndrwxrwxrwx 1 root root     4096 Sep 14 18:18 .\ndrwxrwxrwx 1 root root     4096 Sep 14 18:18 ..\n-rwxrwxrwx 1 root root 11284480 Sep 14 18:18 warehouse.duckdb\n",
+        "step": "read the world through the filesystem"
+      },
+      {
+        "command": "printf 'shell reached the world\\n' > /workspace/.container-check && wc -c /workspace/.container-check",
+        "error": null,
+        "evidence_id": "call-000013",
+        "exit_code": 0,
+        "ok": true,
+        "output": "24 /workspace/.container-check\n",
+        "step": "write a file, the way a repair would"
+      }
+    ],
+    "server_name": "alkera-gateway",
+    "tool_count": 37,
+    "tools": [
+      "bash",
+      "bi_cached",
+      "bi_get",
+      "bi_list",
+      "bi_refresh",
+      "bi_render",
+      "bi_update",
+      "dbt_compile",
+      "dbt_run",
+      "dbt_test",
+      "docs_get",
+      "docs_list",
+      "docs_search",
+      "fs_list",
+      "fs_read",
+      "fs_write",
+      "git_commit",
+      "git_diff",
+      "git_log",
+      "ingest_alerts",
+      "ingest_get",
+      "ingest_list",
+      "ingest_run",
+      "ingest_runs",
+      "ingest_schema",
+      "ingest_schema_update",
+      "ingest_trigger",
+      "s3_delete",
+      "s3_get",
+      "s3_list",
+      "s3_put",
+      "sched_list",
+      "sched_logs",
+      "sched_state",
+      "sched_trigger",
+      "sql_execute",
+      "sql_query"
+    ]
+  },
+  "passed": true,
+  "services": [
+    "episode",
+    "postgres",
+    "s3"
+  ],
+  "summary": {
+    "action_log_validates": true,
+    "attacks_attempted": 9,
+    "attacks_denied": 9,
+    "bash_is_on_the_toolbelt": true,
+    "bash_rows_in_action_log": 13,
+    "containment_probe_passed": true,
+    "episode_ran_inside_the_container": true,
+    "every_attack_denied": true,
+    "legitimate_shell_calls_worked": "4/4"
+  },
+  "surfaces": {
+    "probed": true,
+    "surfaces": {
+      "bi_cached": {
+        "covers": [],
+        "error": "{\"code\": \"not_refreshed\", \"message\": \"Dashboard has no cached refresh\"}",
+        "live": false,
+        "result_summary": "null",
+        "tool": "bi_cached"
+      },
+      "bi_list": {
+        "covers": [],
+        "error": null,
+        "live": true,
+        "result_summary": "{\"dashboards\": [{\"version\": 1, \"dashboard\": \"commercial_daily\", \"title\": null, \"owner\": null, \"metrics\": [], \"panels\": [{\"name\": \"aov_daily\", \"sql\": \"SELECT dt, order_count, revenue, aov FROM warehouse.kpi_daily ORDER BY dt\", \"title\": null, \"metric\": null, \"row_filter\": null, \"watermark_sql\": null}]",
+        "tool": "bi_list"
+      },
+      "bi_render": {
+        "covers": [],
+        "error": null,
+        "live": true,
+        "result_summary": "{\"dashboard\": \"commercial_daily\", \"title\": null, \"panels\": {\"aov_daily\": {\"columns\": [{\"name\": \"dt\", \"type\": \"DATE\"}, {\"name\": \"order_count\", \"type\": \"BIGINT\"}, {\"name\": \"revenue\", \"type\": \"DECIMAL(38,2)\"}, {\"name\": \"aov\", \"type\": \"DOUBLE\"}], \"rows\": [[\"2025-09-05\", 1967, {\"type\": \"decimal\", \"value\"",
+        "tool": "bi_render"
+      },
+      "dbt": {
+        "covers": [
+          "dbt_run",
+          "dbt_test"
+        ],
+        "error": "{\"code\": \"command_failed\", \"message\": \"Command failed; inspect the output\"}",
+        "live": false,
+        "result_summary": "{\"returncode\": 2, \"output\": \"18:18:32  Running with dbt=1.12.4\\n18:18:32  [ERROR]: Encountered an error:\\nRuntime Error\\n  No dbt_project.yml found at expected path /workspace/dbt_project/dbt_project.yml\\n  Verify that each entry within packages.yml (and their transitive dependencies) contains a fil",
+        "tool": "dbt_compile"
+      },
+      "docs": {
+        "covers": [],
+        "error": null,
+        "live": true,
+        "result_summary": "{\"matches\": [], \"limit_reached\": false, \"skipped\": [], \"encoding\": \"utf-8\"}",
+        "tool": "docs_search"
+      },
+      "docs_list": {
+        "covers": [],
+        "error": null,
+        "live": true,
+        "result_summary": "{\"entries\": [], \"truncated\": false}",
+        "tool": "docs_list"
+      },
+      "fs": {
+        "covers": [],
+        "error": null,
+        "live": true,
+        "result_summary": "{\"entries\": [{\"path\": \"dbt_project\", \"type\": \"directory\"}], \"truncated\": false}",
+        "tool": "fs_list"
+      },
+      "git_diff": {
+        "covers": [],
+        "error": null,
+        "live": true,
+        "result_summary": "{\"returncode\": 0, \"output\": \"\", \"truncated\": false, \"timed_out\": false}",
+        "tool": "git_diff"
+      },
+      "git_log": {
+        "covers": [],
+        "error": null,
+        "live": true,
+        "result_summary": "{\"returncode\": 0, \"output\": \"68e661f73b8a0fba46d01f98c671ad64594eaa7c 2026-03-04T02:00:00Z world seed 1337\\n\", \"truncated\": false, \"timed_out\": false}",
+        "tool": "git_log"
+      },
+      "s3": {
+        "covers": [
+          "s3_get",
+          "s3_put",
+          "s3_delete"
+        ],
+        "error": "{\"code\": \"storage_unconfigured\", \"message\": \"This world has no object storage\"}",
+        "live": false,
+        "result_summary": "null",
+        "tool": "s3_list"
+      },
+      "sched": {
+        "covers": [],
+        "error": null,
+        "live": true,
+        "result_summary": "{\"jobs\": {\"daily_load\": {\"command\": \"load_daily_revenue\", \"duration_s\": 45}, \"dbt_build\": {\"command\": \"dbt_build\", \"duration_s\": 90}}, \"runs\": [{\"id\": \"run-000001\", \"detail\": \"dt=2025-09-05\", \"job\": \"daily_load\", \"status\": \"success\", \"vts_end\": \"2025-09-06T01:00:45Z\", \"vts_start\": \"2025-09-06T01:00:",
+        "tool": "sched_state"
+      },
+      "sched_list": {
+        "covers": [],
+        "error": null,
+        "live": true,
+        "result_summary": "{\"jobs\": [{\"id\": \"daily_load\", \"command\": \"load_daily_revenue\", \"duration_s\": 45}, {\"id\": \"dbt_build\", \"command\": \"dbt_build\", \"duration_s\": 90}]}",
+        "tool": "sched_list"
+      },
+      "sched_logs": {
+        "covers": [],
+        "error": null,
+        "live": true,
+        "result_summary": "{\"runs\": [{\"id\": \"run-000001\", \"job\": \"daily_load\", \"status\": \"success\", \"detail\": \"dt=2025-09-05\"}, {\"id\": \"run-000002\", \"job\": \"dbt_build\", \"status\": \"success\", \"detail\": null}, {\"id\": \"run-000003\", \"job\": \"daily_load\", \"status\": \"success\", \"detail\": \"dt=2025-09-06\"}, {\"id\": \"run-000004\", \"job\": \"",
+        "tool": "sched_logs"
+      },
+      "sql": {
+        "covers": [],
+        "error": null,
+        "live": true,
+        "result_summary": "{\"columns\": [{\"name\": \"1\", \"type\": \"INTEGER\"}], \"rows\": [[1]], \"truncated\": false}",
+        "tool": "sql_query"
+      }
+    }
+  },
+  "task": "GT001-aov-halving",
+  "toolbelt": [
+    "bash",
+    "bi_cached",
+    "bi_get",
+    "bi_list",
+    "bi_refresh",
+    "bi_render",
+    "bi_update",
+    "dbt_compile",
+    "dbt_run",
+    "dbt_test",
+    "docs_get",
+    "docs_list",
+    "docs_search",
+    "fs_list",
+    "fs_read",
+    "fs_write",
+    "git_commit",
+    "git_diff",
+    "git_log",
+    "ingest_alerts",
+    "ingest_get",
+    "ingest_list",
+    "ingest_run",
+    "ingest_runs",
+    "ingest_schema",
+    "ingest_schema_update",
+    "ingest_trigger",
+    "s3_delete",
+    "s3_get",
+    "s3_list",
+    "s3_put",
+    "sched_list",
+    "sched_logs",
+    "sched_state",
+    "sched_trigger",
+    "sql_execute",
+    "sql_query"
+  ]
+}

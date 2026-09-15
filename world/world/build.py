@@ -26,9 +26,26 @@ from pathlib import Path
 import duckdb
 import yaml
 
-from . import __version__, scheduler
+from . import __version__, executor, faults, observe, scheduler
 from .hashing import file_hash, json_canon
 from .themes import load_theme
+
+
+def _seed_observability(root: Path, theme) -> None:
+    """Copy the theme's metric/alarm definitions into var/obs/, verbatim.
+
+    Verbatim, because the definitions are fingerprinted and a re-serialized
+    YAML is a different set of bytes on a different libyaml. A theme with no
+    obs/ directory seeds nothing, writes no samples, and keeps the fingerprint
+    section count it had.
+    """
+    for name in observe.DEFINITION_NAMES:
+        src = theme.dir / "obs" / name
+        if src.is_file():
+            dest = root / observe.OBS / name
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(src, dest)
+            return
 
 
 def load_seed(path: Path) -> dict:
@@ -57,25 +74,15 @@ def _git(workspace: Path, seed: dict) -> None:
     run("commit", "-q", "-m", f"world seed {seed['seed']}")
 
 
-def _dbt_build(workspace: Path, db_path: Path, build_dir: Path,
-               profile: str) -> None:
-    proj = workspace / "dbt_project"
-    profiles = {profile: {"target": "dev", "outputs": {"dev": {
-        "type": "duckdb", "path": str(db_path), "threads": 1}}}}
-    # profiles carry an absolute path, so they live outside the fingerprinted
-    # workspace (in build/) to keep workspace content root-location-independent.
-    _write(build_dir / "profiles.yml", yaml.safe_dump(profiles))
-    # subprocess, not dbtRunner: dbt's in-process adapter pool would keep the
-    # duckdb file locked after the build returns (and past snapshot/restore).
-    r = subprocess.run(
-        [sys.executable, "-c", "from dbt.cli.main import cli; cli()",
-         "build", "--quiet", "--project-dir", str(proj),
-         "--profiles-dir", str(build_dir),
-         "--target-path", str(build_dir / "target"),
-         "--log-path", str(build_dir / "logs")],
-        env={**os.environ, "PYTHONUTF8": "1"}, capture_output=True, text=True)
-    if r.returncode != 0:
-        raise SystemExit(f"dbt build failed:\n{r.stdout}\n{r.stderr}")
+def _dbt_build(root: Path, build_dir: Path, profile: str) -> None:
+    """Initial build. Same invocation the scheduler's `dbt` job kind uses -
+    one implementation (executor.dbt_invoke), so the build and the episode run
+    dbt identically. profiles.yml carries an absolute path, so it is written
+    into build/, outside the fingerprinted workspace."""
+    rc, output = executor.dbt_invoke(root, "build", out_dir=build_dir,
+                                     profile=profile)
+    if rc != 0:
+        raise SystemExit(f"dbt build failed:\n{output}")
 
 
 def build(seed_path: Path, root: Path, lock_path: Path | None = None) -> Path:
@@ -91,13 +98,45 @@ def build(seed_path: Path, root: Path, lock_path: Path | None = None) -> Path:
     shutil.copytree(theme.dir / "workspace", workspace, dirs_exist_ok=True)
     theme.gen.write_landing(workspace, seed)
     theme.gen.load_raw(workspace, db_path)
-    _dbt_build(workspace, db_path, build_dir, theme.manifest["dbt_profile"])
-    scheduler.save(root, scheduler.initial_state(seed, theme.manifest["jobs"]))
+    _dbt_build(root, build_dir, theme.manifest["dbt_profile"])
+    # Faults in the seeded backstory are opt-in per theme (`live.faults_in_
+    # history`) and cover job faults only. Left off, initial_state produces the
+    # byte-identical history it always did - which GT001 depends on, since it
+    # calls initial_state directly.
+    live_spec = theme.manifest.get("live") or {}
+    history_faults = None
+    if live_spec.get("faults_in_history") and live_spec.get("faults"):
+        history_faults = faults.catalogue(live_spec["faults"], seed.get("faults"))
+    scheduler.save(root, scheduler.initial_state(
+        seed, theme.manifest["jobs"], faults=history_faults,
+        fault_seed=seed["seed"]))
+    # The live-world control plane: the schedule, each job's exec block and the
+    # arrival stream, so the world keeps evolving after the seed file is gone
+    # (a restored snapshot has no seed). Outside the agent-visible surface.
+    live = scheduler.initial_live(seed, theme)
+    if live is not None:
+        scheduler.save_live(root, live)
     write_ingest = getattr(theme.gen, "write_ingest", None)
     if write_ingest is not None:
         write_ingest(root, seed, theme.manifest)
+    # The workflow plane (gateway/WORKFLOW_CONTRACT.md): the ticket the work
+    # arrives in, the channel the context is scattered across, and the wiki
+    # that is right in some places and out of date in others. Optional on the
+    # same terms as write_ingest - a theme without the hook seeds nothing, gets
+    # no var/workflow/, and keeps its recorded fingerprint. It runs AFTER
+    # scheduler.save because the corpus is dated against the world clock, and
+    # the hook reads `vnow` out of the state file rather than re-deriving it.
+    write_workflow = getattr(theme.gen, "write_workflow", None)
+    if write_workflow is not None:
+        write_workflow(root, seed, theme.manifest)
     for f in sorted((theme.dir / "bi").glob("*.yml")):
         shutil.copyfile(f, root / "var" / "bi" / "dashboards" / f.name)
+    # The observability store (OBS_STORE_CONTRACT.md). Definitions are world
+    # state a theme seeds; the first sample is the reading the world held at
+    # build time, which nothing can re-derive once advance has moved it on.
+    _seed_observability(root, theme)
+    observe.record(root, scheduler.load(root),
+                   scheduler.parse_vtime(scheduler.load(root)["vnow"]), "build")
     _git(workspace, seed)
 
     provenance = {

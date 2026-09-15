@@ -1,0 +1,144 @@
+{
+  "agent_view": {
+    "dns": "gaierror",
+    "tcp": "gaierror"
+  },
+  "checks": {
+    "connector_wire_route_served": true,
+    "driver_refuses_untrusted": true,
+    "driver_roundtrip": true,
+    "gateway_carries_bundle": true,
+    "hostname_hidden_from_agent_zone": true,
+    "hostname_resolves_for_gateway": true,
+    "hostname_resolves_in_backend_zone": true,
+    "private_key_stays_in_snowflake_service": true,
+    "rest_api_absent_as_documented": true,
+    "san_covers_hostname": true,
+    "tls_rejected_without_bundle": true,
+    "tls_verifies_against_published_bundle": true
+  },
+  "client": {
+    "dns": [
+      "172.24.0.3"
+    ],
+    "driver_version": "4.7.3",
+    "driver_with_bundle": {
+      "ok": true,
+      "rows": {
+        "create_db": [
+          [
+            "Database ANALYTICS successfully created."
+          ]
+        ],
+        "create_schema": [
+          [
+            "Schema WAREHOUSE successfully created."
+          ]
+        ],
+        "create_table": [
+          [
+            "Table SOCKET_CHECK successfully created."
+          ]
+        ],
+        "drop": [
+          [
+            "SOCKET_CHECK successfully dropped."
+          ]
+        ],
+        "insert": [
+          [
+            "1"
+          ]
+        ],
+        "read_back": [
+          [
+            "1",
+            "10.50"
+          ]
+        ],
+        "select": [
+          [
+            "1"
+          ]
+        ]
+      }
+    },
+    "driver_without_bundle": {
+      "error": "OperationalError: 250001: Could not connect to Snowflake backend after 2 attempt(s).Aborting\nVerify that the hostnames and port numbers in SYSTEM$ALLOWLIST are added to your firewall's allowed list.\nT",
+      "ok": false
+    },
+    "handshake_default_trust": {
+      "error": "SSLCertVerificationError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate (_ssl.c:1016)",
+      "ok": false
+    },
+    "handshake_published_bundle": {
+      "ok": true,
+      "subject": [
+        [
+          [
+            "commonName",
+            "acme.snowflake.local"
+          ]
+        ]
+      ],
+      "subject_alt_name": [
+        [
+          "DNS",
+          "acme.snowflake.local"
+        ],
+        [
+          "DNS",
+          "*.snowflake.local"
+        ],
+        [
+          "DNS",
+          "localhost"
+        ],
+        [
+          "IP Address",
+          "127.0.0.1"
+        ]
+      ],
+      "tls_version": "TLSv1.3"
+    },
+    "wire_routes": {
+      "/api/v2/statements": {
+        "body": "{\"success\":false,\"message\":\"Unsupported wire route\"}",
+        "status": 404
+      },
+      "/session/v1/login-request": {
+        "body": "{\"data\":{\"token\":\"9Z0l0XNwWSIvvljmH_BW9FVvd93gjfJoZfbALgjJDHE\",\"parameters\":[{\"name\":\"AUTOCOMMIT\",\"value\":true},{\"name\":\"CLIENT_SESSION_KEEP_ALIVE_HEARTBEAT_FRE",
+        "status": 200
+      },
+      "/telemetry/send": {
+        "body": "{\"success\":false,\"message\":\"Unsupported wire route\"}",
+        "status": 404
+      }
+    }
+  },
+  "episode_view": {
+    "bundle_bytes": 241458,
+    "bundle_env": "/etc/alkera/snowflake-tls/bundle.pem",
+    "dns": [
+      "172.24.0.3"
+    ],
+    "sees_private_key": false
+  },
+  "generated": "2026-09-14T16:13:56+00:00",
+  "hostname": "acme.snowflake.local",
+  "passed": true,
+  "port": 8443,
+  "private_key_mounted_into_episode": false,
+  "project": "alkera-cleanup-socket",
+  "service_networks": {
+    "alkera-cleanup-socket_backend_net": {
+      "aliases": [
+        "alkera-cleanup-socket-snowflake-1",
+        "snowflake",
+        "acme.snowflake.local"
+      ],
+      "ip": "172.24.0.3"
+    }
+  },
+  "trust_volume": "alkera-cleanup-socket_snowflaketrust"
+}

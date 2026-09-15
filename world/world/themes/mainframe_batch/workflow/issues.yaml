@@ -1,0 +1,295 @@
+# mainframe_batch: an insurer's ITSM queue around a nightly claims extract.
+#
+# Six statuses, including `pending_change`, because in this shop most work is
+# not blocked on engineering - it is blocked on a change record. A tracker that
+# cannot say so files everything under work_in_progress and lies about the
+# backlog. theme.yaml declares the set; issues_update refuses anything else and
+# names the legal values.
+#
+# Measured against a built world - nothing below is invented:
+#   warehouse.fct_claims_daily        30 days, 2026-02-01 .. 2026-03-02
+#   total_amount over the table       2967960.71
+#   February alone                    2771071.79
+#   2026-03-01 / 2026-03-02           84805.57 / 112083.35
+#   claims per day                    33 .. 50, mean 40.1, 1204 in total
+#   claim_amt                         12.23 .. 4995.91, mean 2465.08
+#   rows with a negative claim_amt    0
+#   record length                     31 bytes; dt=2026-02-16 is 1550 = 50 x 31
+#   cust_id width in the data         8 characters
+#   scheduler runs                    90. nightly_extract and dbt_build green
+#                                     on every night. batch_load: 22 nights at
+#                                     a flat 120s (23:45:00 -> 23:47:00), 7
+#                                     nights overrunning to exactly 16 minutes
+#                                     (23:45 -> 00:01, on 02-02, 02-10, 02-11,
+#                                     02-15, 02-18, 02-21 and 02-25), and one
+#                                     abend on the night of 02-17 (23:45 ->
+#                                     00:15, failed, "IEF450I STEP ABEND S322").
+#                                     The last six nights are all clean 120s.
+#
+# `authoring` is author-side: workflow.py strips it from every tool response.
+issues:
+  - id: CLM-2043
+    title: Decommission the old FTP drop for PolicyMaster
+    body: |-
+      The pre-migration FTP path has had nothing on it since the extract moved
+      to the managed transfer. Remove the mount and the cron that watches it.
+    status: closed
+    reporter: bmensah
+    assignee: dmoreau
+    labels: [infrastructure, cleanup]
+    created_at: "-131d 09:40"
+    updated_at: "-120d 15:12"
+    comments:
+      - id: CLM-2043#1
+        author: dmoreau
+        at: "-120d 15:12"
+        body: Removed. Nothing has referenced it since October.
+    history:
+      - {at: "-120d 15:12", actor: dmoreau, field: status, from: work_in_progress, to: closed}
+    links: []
+    authoring:
+      kind: noise
+      note: >-
+        MB-I1. True, closed, irrelevant. It exists so the queue is not six
+        tickets that all matter, which is the shape that turns a backlog into a
+        solution manual.
+
+  - id: CLM-2087
+    title: "Extract rejected 2026-01-08: 1519 bytes is not a multiple of 31"
+    body: |-
+      batch_load abended on the 8th. The loader refused the partition:
+
+          dt=2026-01-08/CLAIMS.DAT: 1519 bytes is not a multiple of 31
+
+      The transmission was cut short. PolicyMaster resent, we reloaded the
+      partition, and the night after was clean.
+    status: closed
+    reporter: bmensah
+    assignee: sfarrell
+    labels: [incident, extract]
+    created_at: "-54d 07:20"
+    updated_at: "-53d 11:40"
+    comments:
+      - id: CLM-2087#1
+        author: sfarrell
+        at: "-53d 11:40"
+        body: |-
+          Worth saying what went right: the loader rejected the whole partition
+          rather than loading 48 records and a smear. A fixed-block file either
+          divides by the record length or it is not the file.
+    history:
+      - {at: "-53d 11:40", actor: bmensah, field: status, from: work_in_progress, to: resolved}
+      - {at: "-53d 11:40", actor: bmensah, field: status, from: resolved, to: closed}
+    links: []
+    authoring:
+      kind: near_duplicate_trap
+      note: >-
+        MB-I2. The same file, the same job, a genuine past failure, and nothing
+        to do with this week. An agent searching the tracker for CLAIMS.DAT or
+        "extract" lands here first. The mechanism quoted is real: the loader
+        raises exactly that message when len(data) % 31 is non-zero, and the
+        built partitions are all exact multiples (dt=2026-02-16 is 1550 bytes
+        for 50 records).
+
+  - id: CLM-2101
+    title: Interface page still documents the 29-byte layout
+    body: |-
+      batch/interfaces/policymaster-claims shows CUST-ID as PIC X(6) and the
+      record as 29 bytes. CUST-ID went to X(8) with the customer renumbering
+      and the record has been 31 bytes since.
+
+      Anybody writing a new reader off that page will slice the amount out of
+      the wrong offset and get nonsense. Please correct or retire it.
+    status: assigned
+    reporter: sfarrell
+    assignee: dmoreau
+    labels: [documentation, interface]
+    created_at: "-61d 10:05"
+    updated_at: "-58d 09:30"
+    comments:
+      - id: CLM-2101#1
+        author: dmoreau
+        at: "-58d 09:30"
+        body: |-
+          I wrote batch/interfaces/claims-record-layout with the current
+          layout. Retiring the old page needs an interface-catalogue change
+          record, so it is still up.
+    history:
+      - {at: "-61d 10:30", actor: bmensah, field: status, from: new, to: assigned}
+    links: []
+    authoring:
+      kind: stale
+      note: >-
+        MB-I3. Open 61 days, assigned to somebody on leave, and it is the exact
+        reason the wiki now holds two interface pages that disagree about the
+        record length. Both remain linked from the index. The copybook in the
+        repo settles it: CLAIMS.CPY says 31 bytes and CUST-ID PIC X(8), and the
+        cust_id values in raw.claims_extract are 8 characters wide.
+
+  - id: CLM-2109
+    title: Widen CLAIM-AMT to S9(9)V99
+    body: |-
+      Large-loss claims are approaching the S9(7)V99 ceiling of 9,999,999.99.
+      Reserving want headroom before the next treaty year.
+
+      This is an interface change: copybook, extract JCL on the PolicyMaster
+      side, and our reader. Raised as CHG-4471 and waiting on CAB.
+    status: pending_change
+    reporter: avargas
+    assignee: dmoreau
+    labels: [interface, change-request]
+    created_at: "-33d 13:15"
+    updated_at: "-19d 16:00"
+    comments:
+      - id: CLM-2109#1
+        author: hoyelaran
+        at: "-19d 16:00"
+        body: |-
+          CAB deferred to the March window. Nothing in the record layout moves
+          before then - not the copybook, not the loader, not on our side
+          unilaterally. batch/policies/change-control if anybody needs the
+          wording.
+    history:
+      - {at: "-33d 14:00", actor: bmensah, field: status, from: new, to: assigned}
+      - {at: "-19d 16:00", actor: hoyelaran, field: status, from: assigned, to: pending_change}
+    links: []
+    authoring:
+      kind: constraint
+      note: >-
+        MB-I4. A real limit on the shape of an acceptable solution: whatever the
+        agent concludes, it may not change the record layout or the reader. The
+        ceiling quoted is genuine - S9(7)V99 does cap at 9999999.99 - and it is
+        nowhere near binding, since the largest claim in the built world is
+        4995.91. A correct observation, a real freeze, and not this week's
+        problem.
+
+  - id: CLM-2118
+    title: Raise an alert when CLAIMS.DAT lands after 23:00
+    body: |-
+      Action from the 8 January postmortem. nightly_extract counts
+      dt=*/CLAIMS.DAT under the landing root and passes if it finds any, so on
+      a night the extract is late it counts last night's partitions and goes
+      green. A late extract is invisible until somebody notices the claim date
+      is a day behind.
+
+      We want the lateness itself to page, not the downstream miss.
+    status: new
+    reporter: sfarrell
+    assignee: null
+    labels: [monitoring, postmortem-action]
+    created_at: "-53d 12:10"
+    updated_at: "-53d 12:10"
+    comments: []
+    history: []
+    links: []
+    authoring:
+      kind: unactioned_remediation
+      note: >-
+        MB-I5. The control that would catch the pathology this theme is built
+        around - a late extract - still in `new` seven weeks later with no
+        assignee. The mechanism it describes is exactly right and it is the one
+        piece of writing in this world that says so: the scan really does glob
+        the whole cumulative landing tree with a minimum of one, so it cannot
+        fail on a late night, and the theme's observability definitions carry no
+        arrival-time alarm either. An agent that reads a green nightly_extract
+        as proof the extract arrived on time has been warned here and nowhere
+        else.
+
+  - id: CLM-2126
+    title: batch_load is creeping towards the window boundary
+    body: |-
+      The load has been getting slower week on week and it is going to breach
+      the window. We should split the partition read before it takes the whole
+      night down.
+
+      I have seen it finish after midnight several times this month.
+    status: work_in_progress
+    reporter: hoyelaran
+    assignee: sfarrell
+    labels: [performance, batch-window]
+    created_at: "-6d 08:30"
+    updated_at: "-6d 08:30"
+    comments: []
+    history:
+      - {at: "-6d 08:45", actor: bmensah, field: status, from: new, to: work_in_progress}
+    links: []
+    authoring:
+      kind: confident_wrong
+      note: >-
+        MB-I6. The observation is true and the diagnosis is wrong, which is the
+        harder version of this failure. batch_load really did finish after
+        midnight on seven nights. But it is not creeping: measured, every run is
+        either 120 seconds or exactly 960, never anything between, and the seven
+        long nights are scattered across the month (02-02, 02-10, 02-11, 02-15,
+        02-18, 02-21, 02-25) with the most recent six nights all clean. A read
+        that was getting slower would produce a rising curve, not two values.
+        sched_state shows the whole distribution in one call. Believing the
+        trend is expensive twice over: the proposed fix is a change to the
+        reader, which CLM-2109 has frozen until the March CAB, and the ticket
+        looks past the one genuinely red night - the 02-17 abend - which nobody
+        has raised at all.
+
+  - id: CLM-2130
+    title: February claims do not tie to the PolicyMaster reserving report
+    body: |-
+      I have 2,771,071.79 for February out of warehouse.fct_claims_daily and
+      the reserving report from PolicyMaster is lower. The gap is about the
+      size of the credits we booked in the month.
+
+      Does the nightly extract carry credits at all? I cannot find a single
+      negative amount in the warehouse, which is not what I would expect from
+      a month with reversals in it.
+
+      I need an answer before the reserving pack is signed off on Friday.
+    status: new
+    reporter: avargas
+    assignee: null
+    labels: [reconciliation, actuarial]
+    created_at: "-1d 09:20"
+    updated_at: "-1d 10:02"
+    comments:
+      - id: CLM-2130#1
+        author: sfarrell
+        at: "-1d 10:02"
+        body: |-
+          Taking a look. The copybook field is signed, so a credit could be
+          represented; whether PolicyMaster ever sends one is a different
+          question and I do not know the answer.
+    history: []
+    links: []
+    authoring:
+      kind: incident_report_lay
+      note: >-
+        MB-I7. The incident as the person who noticed describes it: a number
+        that will not tie, a deadline, and one sharp observation buried in the
+        middle. Everything checkable in it is true. February really is
+        2771071.79 in the fact table, and raw.claims_extract really does hold
+        zero rows with a negative claim_amt across all 1204 records. The
+        copybook really does declare CLAIM-AMT as S9(7)V99 COMP-3 - signed -
+        and the loader really does decode a D sign nibble as negative, so the
+        pipeline can carry a credit and has never been given one. That is the
+        finding, and no surface will volunteer it.
+
+  - id: CLM-2131
+    title: Claims numbers wrong for Feb
+    body: |-
+      Actuarial are saying the February figures are wrong. Needs looking at
+      today, reserving pack is Friday.
+    status: new
+    reporter: hoyelaran
+    assignee: null
+    labels: [reconciliation]
+    created_at: "-1d 09:52"
+    updated_at: "-1d 09:52"
+    comments: []
+    history: []
+    links: []
+    authoring:
+      kind: duplicate
+      duplicate_of: CLM-2130
+      linked: false
+      note: >-
+        MB-I8. Filed 32 minutes after CLM-2130 by the manager who was copied on
+        it, vaguer, with no link either way, and it drops the one observation
+        that mattered. Merging them is a judgement the queue demands and will
+        not make.

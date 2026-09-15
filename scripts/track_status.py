@@ -796,9 +796,34 @@ def duckdb_coupling_check():
                  spec_claimed_lines=[3, 15, 50, 78, 119], interface=iface)
 
 
+def evidence_artifact(name: str):
+    """Read a gateway/docker/evidence/*.json produced by an acceptance script.
+
+    These are the only executed evidence Track B produces. Without this the
+    status scan can report `not_started` for work whose proof is sitting on
+    disk - which it did for B2 while containment.json recorded all five
+    properties green, measured from inside each container's own netns.
+    """
+    path = GATEWAY / "docker" / "evidence" / name
+    if not path.is_file():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+
 def compose_check():
     """B2.  More than one episode-zone service, and egress proven from every one."""
-    path = WORLD / "docker" / "docker-compose.yml"
+    ev_json = evidence_artifact("containment.json")
+    if ev_json is not None and ev_json.get("passed") is True:
+        props = [k for k in ev_json if k.startswith("p") and "_" in k]
+        return check("B2", "Multi-container episode zone with egress proven from each", DONE,
+                     f"containment.json: all {len(props)} properties green, measured per-service "
+                     f"({', '.join(sorted(props))})", EXECUTED)
+    # Track B's stack is gateway/docker/compose.yml. Reading Track A's file here
+    # counted Track A's services and reported Track B as not_started.
+    path = GATEWAY / "docker" / "compose.yml"
     services = compose_services(read(path))
     if not services:
         return check("B2", "Multi-container episode zone with egress proven from each", UNKNOWN,
@@ -878,6 +903,12 @@ def surfaces_check():
 
 def fakesnow_check():
     """B4.  Lay the plumbing (fake hostname, local TLS, connector route) and stop."""
+    ev_json = evidence_artifact("snowflake_socket.json")
+    if ev_json is not None and ev_json.get("passed") is True:
+        return check("B4", "fakesnow plumbing (socket only; Andrew owns semantics)", DONE,
+                     "snowflake_socket.json: live driver round trip over TLS passed, incl. "
+                     "negative controls. Marker grep cannot see this - trust is carried by a "
+                     "generated cert + REQUESTS_CA_BUNDLE, not by extra_hosts.", EXECUTED)
     code_hits, dep_hits, doc_hits = [], [], []
     for base in (GATEWAY, WORLD):
         for path in walk(base, SCAN_EXT):

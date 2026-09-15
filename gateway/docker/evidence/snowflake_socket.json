@@ -19,7 +19,7 @@
   },
   "client": {
     "dns": [
-      "172.23.0.3"
+      "172.22.0.4"
     ],
     "driver_version": "4.7.3",
     "driver_with_bundle": {
@@ -107,7 +107,7 @@
         "status": 404
       },
       "/session/v1/login-request": {
-        "body": "{\"data\":{\"token\":\"ffPAVXhWXtDf7M19R5RJAg1YHt6AvGNeM5O2U1-1ibs\",\"parameters\":[{\"name\":\"AUTOCOMMIT\",\"value\":true},{\"name\":\"CLIENT_SESSION_KEEP_ALIVE_HEARTBEAT_FRE",
+        "body": "{\"data\":{\"token\":\"dgt9sqN1bw4FUy-SIFJO8mDbAC0jtlT1wxl3ZClsN80\",\"parameters\":[{\"name\":\"AUTOCOMMIT\",\"value\":true},{\"name\":\"CLIENT_SESSION_KEEP_ALIVE_HEARTBEAT_FRE",
         "status": 200
       },
       "/telemetry/send": {
@@ -120,25 +120,25 @@
     "bundle_bytes": 241458,
     "bundle_env": "/etc/alkera/snowflake-tls/bundle.pem",
     "dns": [
-      "172.23.0.3"
+      "172.22.0.4"
     ],
     "sees_private_key": false
   },
-  "generated": "2026-09-14T05:33:58+00:00",
+  "generated": "2026-09-14T21:57:47+00:00",
   "hostname": "acme.snowflake.local",
   "passed": true,
   "port": 8443,
   "private_key_mounted_into_episode": false,
-  "project": "alkera-b2b4-snowflake",
+  "project": "alkera-socket-check",
   "service_networks": {
-    "alkera-b2b4-snowflake_backend_net": {
+    "alkera-socket-check_backend_net": {
       "aliases": [
-        "alkera-b2b4-snowflake-snowflake-1",
+        "alkera-socket-check-snowflake-1",
         "snowflake",
         "acme.snowflake.local"
       ],
-      "ip": "172.23.0.3"
+      "ip": "172.22.0.4"
     }
   },
-  "trust_volume": "alkera-b2b4-snowflake_snowflaketrust"
+  "trust_volume": "alkera-socket-check_snowflaketrust"
 }

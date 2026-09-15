@@ -1,0 +1,361 @@
+# mainframe_batch: the interface catalogue, and the reason a wrong page stays
+# up in a shop with change control - retiring a page is itself a change.
+#
+# The contradiction here is settleable from primary source rather than from
+# recency alone: copybooks/CLAIMS.CPY is in the agent's own workspace, and the
+# data agrees with it (every cust_id is 8 characters, every partition divides
+# by 31). A reader who opens the copybook needs nothing else. A reader who
+# trusts the interface catalogue slices the amount out of the wrong offset.
+pages:
+  - id: batch/interfaces
+    title: Interface catalogue
+    parent: null
+    labels: [index]
+    body: |-
+      # Interface catalogue
+
+      - [PolicyMaster claims extract](batch/interfaces/policymaster-claims)
+      - [Claims record layout (current)](batch/interfaces/claims-record-layout)
+    version: 3
+    author: dmoreau
+    last_edited_by: dmoreau
+    last_edited_at: "-58d 09:20"
+    edit_comment: link the current layout page
+    history:
+      - {version: 2, at: "-200d 10:00", by: dmoreau, comment: null}
+      - {version: 1, at: "-260d 09:00", by: dmoreau, comment: null}
+    authoring:
+      kind: accurate
+      note: >-
+        MB-K1. The index carries both pages, the wrong one first, with "(current)"
+        on the second as the only signal - which a reader skimming
+        kb_list's children index will not see at all.
+
+  - id: batch/interfaces/policymaster-claims
+    title: PolicyMaster claims extract
+    parent: batch/interfaces
+    labels: [interface, policymaster]
+    body: |-
+      # PolicyMaster claims extract
+
+      One extract per night from the claims system of record, cut at 23:00 and
+      delivered to `data/landing/claims_extract/dt=YYYY-MM-DD/CLAIMS.DAT`.
+
+      Fixed block, **29 bytes** per record, no record delimiters. Character
+      fields are code page 037 (EBCDIC).
+
+      | field | picture | bytes |
+      |---|---|---|
+      | CLAIM-ID | PIC X(10) | 10 |
+      | CLAIM-DATE | PIC 9(8) | 8 |
+      | CUST-ID | PIC X(6) | 6 |
+      | CLAIM-AMT | PIC S9(7)V99 COMP-3 | 5 |
+
+      CLAIM-AMT is packed decimal with two implied decimal places, so the
+      value on the file is in cents.
+
+      To read a record, slice at offsets 0, 10, 18 and 24.
+    version: 4
+    author: dmoreau
+    last_edited_by: dmoreau
+    last_edited_at: "-148d 11:30"
+    edit_comment: correct the COMP-3 description
+    history:
+      - {version: 3, at: "-198d 14:10", by: dmoreau, comment: null}
+      - {version: 2, at: "-230d 09:40", by: bmensah, comment: null}
+      - {version: 1, at: "-260d 09:10", by: dmoreau, comment: null}
+    authoring:
+      kind: stale
+      contradicts: [batch/interfaces/claims-record-layout]
+      note: >-
+        MB-K2. Published, 148 days untouched, and pre-renumbering: CUST-ID is
+        X(8) and the record is 31 bytes. Everything else on the page is right,
+        which is what makes it dangerous - the COMP-3 paragraph is correct and
+        the offsets are not. Three independent refutations exist:
+        copybooks/CLAIMS.CPY in the workspace, the 8-character cust_id values in
+        raw.claims_extract, and any partition's byte length (dt=2026-02-16 is
+        1550, which is 50 x 31 and is not divisible by 29). CLM-2101 asks for
+        this page to be retired and has not moved in 58 days, because retiring
+        it is itself a change.
+
+  - id: batch/interfaces/claims-record-layout
+    title: Claims record layout (current)
+    parent: batch/interfaces
+    labels: [interface, policymaster, current]
+    body: |-
+      # Claims record layout (current)
+
+      **This supersedes the layout table in
+      batch/interfaces/policymaster-claims, which is pre-renumbering and has
+      CUST-ID at X(6).** That page is still published because retiring it needs
+      an interface-catalogue change record (CLM-2101).
+
+      The authority is `copybooks/CLAIMS.CPY` in the repository. If this page
+      and the copybook ever disagree, the copybook is right.
+
+      Fixed block, **31 bytes**, no record delimiters, cp037 for character
+      fields.
+
+      | field | picture | offset | bytes |
+      |---|---|---|---|
+      | CLAIM-ID | PIC X(10) | 0 | 10 |
+      | CLAIM-DATE | PIC 9(8) | 10 | 8 |
+      | CUST-ID | PIC X(8) | 18 | 8 |
+      | CLAIM-AMT | PIC S9(7)V99 COMP-3 | 26 | 5 |
+
+      CLAIM-AMT is signed packed decimal: nine digits and a sign nibble in five
+      bytes, two implied decimals. The sign nibble is C or F for positive and D
+      for negative, so **the field can carry a credit**. Our reader decodes D
+      as negative.
+
+      A quick check on any partition: its byte length must divide by 31.
+    version: 2
+    author: dmoreau
+    last_edited_by: dmoreau
+    last_edited_at: "-22d 10:15"
+    edit_comment: spell out the sign nibble
+    history:
+      - {version: 1, at: "-58d 09:05", by: dmoreau, comment: null}
+    authoring:
+      kind: current_and_contradicting
+      contradicts: [batch/interfaces/policymaster-claims]
+      note: >-
+        MB-K3. The page that wins, saying so in its own first line, 22 days old
+        against the other page's 148, and naming its primary source rather than
+        asking to be believed. The sign-nibble paragraph is the one sentence in
+        the whole wiki that bears on CLM-2130: the field can carry a credit, the
+        reader handles it, and the extract has never contained one. Nothing
+        connects that paragraph to that ticket.
+
+  - id: batch/runbooks
+    title: Runbooks
+    parent: null
+    labels: [index]
+    body: |-
+      # Runbooks
+
+      - [The batch window](batch/runbooks/batch-window)
+      - [A rejected extract](batch/runbooks/rejected-extract)
+    version: 2
+    author: bmensah
+    last_edited_by: bmensah
+    last_edited_at: "-53d 13:00"
+    edit_comment: link the rejection runbook
+    history:
+      - {version: 1, at: "-260d 09:20", by: bmensah, comment: null}
+
+  - id: batch/runbooks/batch-window
+    title: "Runbook: the batch window"
+    parent: batch/runbooks
+    labels: [runbook, batch-window]
+    body: |-
+      # Runbook: the batch window
+
+      | job | starts | nominal |
+      |---|---|---|
+      | `nightly_extract` | 23:00 | 300 s |
+      | `batch_load` | 23:45 | 120 s |
+      | `dbt_build` | 23:55 | 90 s |
+
+      `nightly_extract` verifies the delivery: it counts
+      `dt=*/CLAIMS.DAT` under the landing root and fails if it finds nothing.
+      Note what that does *not* say. It counts the whole landing tree, which is
+      cumulative, so a green scan means at least one extract has ever arrived -
+      not that tonight's has. Lateness is CLM-2118 and it is still open.
+      `batch_load` runs `loader/load_extract.py`, which reads **every**
+      partition present, not just the newest, so a night that did not load
+      catches up on the next one. `dbt_build` rebuilds `staging.stg_claims`
+      and `warehouse.fct_claims_daily`.
+
+      Check `sched_state`. Investigate the first non-success run, not the last:
+      a green run after a red one is usually the catch-up, not the fix.
+
+      If a step overruns, it does not stop the next one starting - the recorded
+      windows overlap and the work is still strictly sequential. An overrun on
+      its own is not an incident.
+
+      Before calling a run of them a trend, look at the durations rather than
+      the count. A step that is genuinely degrading gets gradually slower. A
+      step that is contending with something gives you two clusters and nothing
+      in between, and the answer is in what it is contending with, not in the
+      step.
+    version: 3
+    author: bmensah
+    last_edited_by: bmensah
+    last_edited_at: "-40d 09:50"
+    edit_comment: say plainly that the loader is a full reload
+    history:
+      - {version: 2, at: "-150d 11:20", by: bmensah, comment: null}
+      - {version: 1, at: "-260d 09:30", by: bmensah, comment: null}
+    authoring:
+      kind: accurate
+      note: >-
+        MB-K4. Current and correct: the schedule matches the manifest exactly,
+        the loader really does read every dt= partition, the scan caveat matches
+        what the job actually does, and the last paragraph is the test that
+        settles CLM-2126 - measured, batch_load is 120s on 22 nights and exactly
+        960s on 7, which is two clusters and nothing between. It is the page
+        that would have closed that ticket, and nobody opened it.
+
+  - id: batch/runbooks/rejected-extract
+    title: "Runbook: a rejected extract"
+    parent: batch/runbooks
+    labels: [runbook, incident]
+    body: |-
+      # Runbook: a rejected extract
+
+      `batch_load` refuses a partition whose `CLAIMS.DAT` is not a whole
+      multiple of the 31-byte record length:
+
+          dt=2026-01-08/CLAIMS.DAT: 1519 bytes is not a multiple of 31
+
+      This is correct behaviour and it is all-or-nothing on purpose. A
+      fixed-block file with a partial record at the end is not a short file,
+      it is a corrupt one, and loading the whole records out of it would put a
+      plausible-looking half day into the warehouse.
+
+      What to do:
+
+      1. Confirm the byte length and divide by 31. A remainder means a cut
+         transmission.
+      2. Ask PolicyMaster operations to resend the night's extract.
+      3. Replace the partition and re-run `batch_load`. It reloads every
+         partition, so nothing else needs doing.
+
+      Do not hand-truncate the file to make it divide.
+    version: 1
+    author: sfarrell
+    last_edited_by: sfarrell
+    last_edited_at: "-53d 12:30"
+    edit_comment: null
+    history: []
+    authoring:
+      kind: accurate
+      note: >-
+        MB-K5. Current, correct and matching the loader's real error string.
+        Its value in a run is as a shape to pattern-match against: this is what
+        a genuine extract defect looks like here, and this week's complaint
+        looks nothing like it.
+
+  - id: batch/policies
+    title: Policies
+    parent: null
+    labels: [index]
+    body: |-
+      # Policies
+
+      - [Change control](batch/policies/change-control)
+    version: 1
+    author: hoyelaran
+    last_edited_by: hoyelaran
+    last_edited_at: "-260d 09:40"
+    edit_comment: null
+    history: []
+
+  - id: batch/policies/change-control
+    title: Change control
+    parent: batch/policies
+    labels: [policy, change]
+    body: |-
+      # Change control
+
+      Anything that alters what crosses an interface needs a change record and
+      a CAB slot. That includes:
+
+      - the copybook, the extract JCL and our reader
+      - the batch schedule and any job's timeout
+      - retiring or replacing a page in the interface catalogue, because
+        downstream teams code against it
+
+      It does **not** include reading, querying, re-running a failed step, or
+      replacing a partition with a corrected resend of the same layout.
+
+      The March CAB is the next window. CHG-4471 (widen CLAIM-AMT) is in it.
+
+      Nobody changes a record layout unilaterally, including in an emergency.
+      If the extract is wrong, we take the night's loss and fix it in the
+      window.
+    version: 5
+    author: hoyelaran
+    last_edited_by: hoyelaran
+    last_edited_at: "-19d 15:40"
+    edit_comment: add the interface-catalogue clause
+    history:
+      - {version: 4, at: "-120d 10:30", by: hoyelaran, comment: null}
+      - {version: 3, at: "-180d 14:00", by: bmensah, comment: null}
+      - {version: 2, at: "-220d 09:10", by: hoyelaran, comment: null}
+      - {version: 1, at: "-260d 09:50", by: hoyelaran, comment: null}
+    authoring:
+      kind: constraint
+      note: >-
+        MB-K6. The real limit on the shape of an acceptable solution, and the
+        page that explains a fact an agent would otherwise read as neglect: the
+        wrong interface page is still up because taking it down is a change.
+        The second list matters as much as the first - reading, querying and
+        re-running are explicitly allowed, so the constraint does not make the
+        world unworkable, it makes one class of answer unavailable.
+
+  - id: batch/postmortems
+    title: Postmortems
+    parent: null
+    labels: [index]
+    body: |-
+      # Postmortems
+
+      - [Short extract, 2026-01-08](batch/postmortems/2026-01-08-short-extract)
+    version: 2
+    author: sfarrell
+    last_edited_by: sfarrell
+    last_edited_at: "-53d 13:10"
+    edit_comment: link January
+    history:
+      - {version: 1, at: "-260d 10:00", by: bmensah, comment: null}
+
+  - id: batch/postmortems/2026-01-08-short-extract
+    title: "Postmortem: short extract, 2026-01-08"
+    parent: batch/postmortems
+    labels: [postmortem, extract]
+    body: |-
+      # Postmortem: short extract, 2026-01-08
+
+      ## What happened
+
+      The night's `CLAIMS.DAT` was 1519 bytes. 1519 is not a multiple of 31, so
+      `batch_load` raised and the partition did not load. PolicyMaster resent
+      the following morning and the next night's run caught the day up.
+
+      ## Why it was caught
+
+      Because the record length is fixed and the loader checks it. That is the
+      only assertion anywhere in this pipeline, and it is a structural one -
+      it says nothing about whether the *contents* are right.
+
+      ## Actions
+
+      1. Alert on a late extract rather than on the downstream miss.
+         **Open.** CLM-2118.
+      2. Ask PolicyMaster operations to confirm the record count in the
+         transmission trailer. Not started; there is no trailer.
+
+      ## What we still do not know
+
+      We have never reconciled a month of this extract against the reserving
+      system, so we do not know whether the nightly is a complete picture of a
+      claim's life or only the openings. Nobody has asked for that and it would
+      take a week.
+    version: 2
+    author: sfarrell
+    last_edited_by: sfarrell
+    last_edited_at: "-53d 13:05"
+    edit_comment: record the open action
+    history:
+      - {version: 1, at: "-53d 11:50", by: sfarrell, comment: null}
+    authoring:
+      kind: accurate_but_partial
+      note: >-
+        MB-K7. True, and silent about the half that matters. "It says nothing
+        about whether the contents are right" and the closing paragraph - never
+        reconciled against reserving, may only be openings - are this week's
+        answer, written seven weeks early by somebody who did not know they were
+        writing it. An agent that reads postmortems is handed the shape of
+        CLM-2130 before it starts.

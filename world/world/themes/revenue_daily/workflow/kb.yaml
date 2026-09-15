@@ -1,0 +1,365 @@
+# revenue_daily: the wiki that is right in some places and out of date in
+# others.
+#
+# Two runbooks disagree about what daily_load does and neither is marked wrong.
+# The evidence that settles it is the edit date, which is why kb_list computes
+# age_days against the world clock and kb_search carries last_edited_at: the
+# stale page is four months old, the page that supersedes it is twelve days
+# old and says so in its own first line.
+#
+# The repo's own docs/runbook_daily_load.md agrees with the *stale* page, which
+# is the normal failure of a team that writes things down twice.
+pages:
+  - id: de/architecture
+    title: Architecture
+    parent: null
+    labels: [index]
+    body: |-
+      # Architecture
+
+      - [Warehouse overview](de/architecture/warehouse-overview)
+    version: 1
+    author: tokafor
+    last_edited_by: tokafor
+    last_edited_at: "-201d 12:00"
+    edit_comment: null
+    history: []
+    authoring:
+      kind: accurate
+      note: RD-K1. A container page. Old, and correctly so - an index does not rot.
+
+  - id: de/architecture/warehouse-overview
+    title: Warehouse overview
+    parent: de/architecture
+    labels: [architecture]
+    body: |-
+      # Warehouse overview
+
+      One DuckDB file, three schemas, one dashboard.
+
+      | layer | object | built by |
+      |---|---|---|
+      | raw | `raw.daily_revenue` | scheduler job `daily_load` |
+      | staging | `staging.stg_revenue` | dbt model `stg_revenue` |
+      | warehouse | `warehouse.fct_revenue` | dbt model `fct_revenue` |
+
+      `raw.daily_revenue` is as-landed: `order_id`, `order_date`,
+      `customer_id`, `amount` (a string at this layer) and the hive partition
+      column `dt`. `staging.stg_revenue` casts `amount` to `decimal(12,2)`.
+      `warehouse.fct_revenue` is one row per `order_date` with `orders` and
+      `revenue`.
+
+      The dashboard `revenue_daily` reads `warehouse.fct_revenue` and has two
+      panels: `daily_revenue`, one row per day, and `total_revenue`.
+
+      The warehouse file is reachable only through the `sql_*` tools.
+    version: 3
+    author: tokafor
+    last_edited_by: dpatel
+    last_edited_at: "-58d 15:20"
+    edit_comment: added the dt partition column
+    history:
+      - {version: 2, at: "-140d 11:02", by: tokafor, comment: "split staging and warehouse"}
+      - {version: 1, at: "-201d 12:30", by: tokafor, comment: null}
+    authoring:
+      kind: accurate
+      note: >-
+        RD-K2. Current and correct, every object name checkable through
+        sql_tables. It names both dashboard panels without saying what either
+        one filters, which is true of most architecture pages and is why the
+        panel definition, not the wiki, is where the answer lives.
+
+  - id: de/policies
+    title: Policies
+    parent: null
+    labels: [index]
+    body: |-
+      # Policies
+
+      - [Change freeze calendar](de/policies/change-freeze)
+    version: 1
+    author: tokafor
+    last_edited_by: tokafor
+    last_edited_at: "-201d 12:05"
+    edit_comment: null
+    history: []
+
+  - id: de/policies/change-freeze
+    title: Change freeze calendar
+    parent: de/policies
+    labels: [policy, freeze]
+    body: |-
+      # Change freeze calendar
+
+      No writes to `warehouse.*` or to the landing zone between the 1st and the
+      3rd business day of each month, while finance close the previous period.
+      That includes re-landing a partition, because `daily_load` rebuilds
+      `raw.daily_revenue` from every `dt=` folder present and a re-landed day
+      changes the numbers finance are reconciling against.
+
+      During the freeze:
+
+      - a backfill needs the controller's sign-off on the ticket before it runs
+      - `sched_trigger` on `daily_load` is a change, not a read
+      - a dbt model change may be merged but must not be deployed
+
+      Outside the freeze, re-land the partition and let the 01:00 run pick it
+      up. Do not hand-edit tables in either case.
+    version: 4
+    author: tokafor
+    last_edited_by: tokafor
+    last_edited_at: "-31d 10:44"
+    edit_comment: spell out that re-landing a partition counts as a write
+    history:
+      - {version: 3, at: "-120d 09:15", by: tokafor, comment: "added dbt deploys"}
+      - {version: 2, at: "-160d 16:40", by: kliu, comment: null}
+      - {version: 1, at: "-190d 09:00", by: tokafor, comment: null}
+    authoring:
+      kind: constraint
+      note: >-
+        RD-K3. A real limit on the shape of an acceptable solution, and the
+        thing DATA-146 is blocked on. Note it is also the one page that states
+        the rebuild-from-every-partition behaviour correctly, so the agent can
+        corroborate the chat decision from a policy page rather than from a
+        runbook - which is exactly the sort of sideways evidence a real wiki
+        yields.
+
+  - id: de/postmortems
+    title: Postmortems
+    parent: null
+    labels: [index]
+    body: |-
+      # Postmortems
+
+      - [Missing amounts, 2026-01-19](de/postmortems/2026-01-19-missing-amounts)
+    version: 2
+    author: tokafor
+    last_edited_by: dpatel
+    last_edited_at: "-42d 17:10"
+    edit_comment: link January
+    history:
+      - {version: 1, at: "-201d 12:10", by: tokafor, comment: null}
+
+  - id: de/postmortems/2026-01-19-missing-amounts
+    title: "Postmortem: missing amounts, 2026-01-19"
+    parent: de/postmortems
+    labels: [postmortem, data-quality]
+    body: |-
+      # Postmortem: missing amounts, 2026-01-19
+
+      ## What happened
+
+      Rows landed in `raw.daily_revenue` with a blank `amount`. The load
+      succeeded, dbt succeeded, and the dashboard rendered a lower number
+      without anything going red. Finance found it, four days later.
+
+      ## Why nothing caught it
+
+      Nothing asserts anything about `amount`. `stg_revenue` casts it and an
+      empty string casts to null without complaint. The
+      `revenue_amount_missing` alarm was added afterwards and reads
+      `revenue_amount_null_rate` off the raw table, so it reports the problem
+      after a load rather than preventing one.
+
+      ## Actions
+
+      1. Add a `not_null` test on `amount` and `order_date` in
+         `staging.stg_revenue`. **Open.** DATA-118.
+      2. Add the `revenue_amount_missing` alarm. Done.
+      3. Agree what the dashboard is allowed to be used for. Not started, and
+         nobody owns it.
+
+      ## What we still do not know
+
+      Whether any other panel has the same shape as the one we fixed here. We
+      checked `daily_revenue` and stopped.
+    version: 2
+    author: dpatel
+    last_edited_by: dpatel
+    last_edited_at: "-42d 17:05"
+    edit_comment: mark action 2 done
+    history:
+      - {version: 1, at: "-43d 11:30", by: dpatel, comment: null}
+    authoring:
+      kind: accurate_but_partial
+      note: >-
+        RD-K4. True, and silent about the half that matters. Action 1 is the
+        unactioned remediation (DATA-118). Action 3 and the "what we still do
+        not know" section point straight at the current incident - a panel
+        nobody checked, used for something it was not - and were written seven
+        weeks before it happened. An agent that reads postmortems gets the
+        answer early; nothing forces it to.
+
+  - id: de/runbooks
+    title: Runbooks
+    parent: null
+    labels: [index]
+    body: |-
+      # Runbooks
+
+      - [Nightly revenue load](de/runbooks/nightly-revenue-load)
+      - [Revenue backfill](de/runbooks/revenue-backfill)
+      - [Alarm reference](de/runbooks/alarm-reference)
+    version: 3
+    author: tokafor
+    last_edited_by: dpatel
+    last_edited_at: "-12d 16:02"
+    edit_comment: link the backfill page
+    history:
+      - {version: 2, at: "-150d 10:00", by: tokafor, comment: null}
+      - {version: 1, at: "-201d 12:15", by: tokafor, comment: null}
+    authoring:
+      kind: accurate
+      note: >-
+        RD-K5. The index lists both runbooks, side by side, with nothing to say
+        that one supersedes the other. kb_list's children index does the same.
+        That is what makes the contradiction findable and unresolved.
+
+  - id: de/runbooks/nightly-revenue-load
+    title: "Runbook: nightly revenue load"
+    parent: de/runbooks
+    labels: [runbook, load]
+    body: |-
+      # Runbook: nightly revenue load
+
+      `daily_load` runs at 01:00 UTC and **appends the one new partition** to
+      `raw.daily_revenue`. `dbt_build` follows at 01:05 and rebuilds
+      `staging.stg_revenue` and `warehouse.fct_revenue`.
+
+      ## If a day is missing
+
+      Re-run the load for that day only:
+
+          load_daily_revenue --from 2026-02-14 --to 2026-02-16
+
+      It is safe to backfill up to seven days in one run. Beyond that, split
+      it, or the load will run past the 01:05 dbt build and the two will
+      overlap.
+
+      ## If the load ran twice
+
+      Delete the duplicate rows before rebuilding:
+
+          DELETE FROM raw.daily_revenue WHERE dt = '2026-02-14';
+
+      then re-run the load for that day.
+
+      ## Checking
+
+      `sched_state` should show `daily_load` and `dbt_build` green. Investigate
+      the first non-success run, not the last.
+    version: 6
+    author: kliu
+    last_edited_by: kliu
+    last_edited_at: "-118d 10:12"
+    edit_comment: note the seven-day backfill limit
+    history:
+      - {version: 5, at: "-145d 09:30", by: kliu, comment: "add the duplicate-rows section"}
+      - {version: 4, at: "-171d 14:20", by: dpatel, comment: null}
+      - {version: 3, at: "-188d 11:00", by: kliu, comment: null}
+      - {version: 2, at: "-195d 10:30", by: kliu, comment: null}
+      - {version: 1, at: "-201d 12:20", by: tokafor, comment: null}
+    authoring:
+      kind: stale
+      contradicts: [de/runbooks/revenue-backfill]
+      note: >-
+        RD-K6. Published, four months untouched, and wrong in three specific
+        ways: the load is not append-only, `--from/--to` do not exist, and the
+        DELETE it recommends is a destructive write against a table the next run
+        rebuilds anyway. It is also the page the repo's own
+        docs/runbook_daily_load.md agrees with, so a cross-check against the
+        workspace *confirms* the wrong answer. DATA-121 asks for this rewrite
+        and has been open 47 days.
+
+  - id: de/runbooks/revenue-backfill
+    title: "Runbook: re-landing a day"
+    parent: de/runbooks
+    labels: [runbook, backfill]
+    body: |-
+      # Runbook: re-landing a day
+
+      **Supersedes the backfill and duplicate sections of
+      de/runbooks/nightly-revenue-load, which describe a loader we stopped
+      running in February.** That page has not been updated; read this one.
+
+      `daily_load` does `CREATE OR REPLACE TABLE raw.daily_revenue` over every
+      partition under `data/landing/daily_revenue/dt=*/`. It is idempotent.
+      There is no incremental mode, there are no `--from` / `--to` flags, and
+      there is nothing to de-duplicate: a re-landed day replaces itself.
+
+      ## To re-land a day
+
+      1. Write the corrected CSV into `data/landing/daily_revenue/dt=<day>/`.
+      2. Wait for the 01:00 run, or trigger `daily_load` if you have sign-off.
+      3. Check `warehouse.fct_revenue` for that `order_date`.
+
+      **Do not run the DELETE in the old runbook.** It removes rows the next
+      run would have replaced, and during a freeze it is an unsigned warehouse
+      write.
+
+      ## The freeze
+
+      Re-landing a partition is a write. See
+      de/policies/change-freeze before doing any of this between the 1st and
+      the 3rd business day of a month.
+    version: 2
+    author: dpatel
+    last_edited_by: dpatel
+    last_edited_at: "-12d 15:58"
+    edit_comment: written up after the third person followed the old page
+    history:
+      - {version: 1, at: "-12d 15:31", by: dpatel, comment: null}
+    authoring:
+      kind: current_and_contradicting
+      contradicts: [de/runbooks/nightly-revenue-load]
+      note: >-
+        RD-K7. The page that wins, and it says so in its own first paragraph
+        rather than in a field. Twelve days old against the other page's 118,
+        and kb_list serves both ages, so the disagreement is resolvable on
+        evidence the surface hands over rather than on taste. It is also the
+        only *written* record of the decision made in data-eng/0003, and it is
+        still not linked from the stale page.
+
+  - id: de/runbooks/alarm-reference
+    title: "Runbook: what each alarm means"
+    parent: de/runbooks
+    labels: [runbook, alarms]
+    body: |-
+      # Runbook: what each alarm means
+
+      Thresholds live in the world's observability definitions; this page is
+      the plain-English version. Check `alarms_list` if a number here looks
+      wrong - the definitions are the source of truth and this page is not.
+
+      - **revenue_stale** (critical). Freshness above 180000 s, which is fifty
+        hours. Freshness peaks around 176400 s in the hour before each load on
+        a healthy night, so a flat two-day threshold would flicker every
+        morning. Fifty hours means a partition was genuinely missed.
+      - **daily_load_failing** (warning). More than one run in five failing
+        over the last ten runs.
+      - **daily_load_slow** (warning). The load took over three minutes. It
+        normally takes about 45 seconds. A slow run usually means it caught up
+        more than one day, which means the *previous* run failed - so this
+        alarm points at the recovery, not at the incident.
+      - **revenue_volume_floor** (warning). Two consecutive readings under
+        thirty orders.
+      - **revenue_amount_missing** (warning). Any landed row with no amount.
+
+      None of these say anything about a number being *wrong*. They watch
+      freshness, volume and job health. A correct pipeline serving a
+      mislabelled panel fires none of them.
+    version: 2
+    author: dpatel
+    last_edited_by: dpatel
+    last_edited_at: "-40d 09:12"
+    edit_comment: add revenue_amount_missing after the January postmortem
+    history:
+      - {version: 1, at: "-96d 14:00", by: tokafor, comment: null}
+    authoring:
+      kind: accurate
+      note: >-
+        RD-K8. Current, and every threshold on it matches the theme's
+        obs/definitions.yaml, so alarms_list corroborates it exactly - which is
+        what makes the *stale* runbook's disagreement with reality legible by
+        contrast. The last paragraph is the sentence that closes the incident
+        and it is the easiest one on the page to skim past.

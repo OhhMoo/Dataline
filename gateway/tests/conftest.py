@@ -7,6 +7,7 @@ from pathlib import Path
 import duckdb
 import pytest
 import yaml
+from workflow_seed import seed_workflow
 
 from alkera_gateway import Gateway, GatewayConfig
 
@@ -19,6 +20,10 @@ def make_world(root: Path):
     (root / "var" / "warehouse").mkdir(parents=True)
     (root / "var" / "sched").mkdir(parents=True)
     (root / "var" / "ingest").mkdir(parents=True)
+    # Definitions live in the world so a task author can plant them; the
+    # directory is seeded empty, so a world without observability behaves like
+    # one without an ingestion control plane - the tools say so and stop.
+    (root / "var" / "obs").mkdir(parents=True)
     dashboards = root / "var" / "bi" / "dashboards"
     dashboards.mkdir(parents=True)
     build = root / "build"
@@ -167,6 +172,9 @@ def make_world(root: Path):
     (root / "var" / "ingest" / "state.json").write_text(
         json.dumps(ingest, sort_keys=True), encoding="utf-8"
     )
+    # Ticketing, chat and the wiki, seeded from the reference corpus in
+    # workflow_seed.py. Same bytes every build; no wall-clock timestamps.
+    seed_workflow(root)
     subprocess.run(["git", "init", "-q"], cwd=workspace, check=True)
     subprocess.run(["git", "add", "-A"], cwd=workspace, check=True)
     env = {
@@ -199,6 +207,8 @@ def world_hash(root: Path):
 def config(root: Path, audit: Path, fingerprint: str | None = None, **overrides):
     """Fixture config. `overrides` reaches fields no existing test needs (s3_endpoint,
     s3_buckets, max_payload_bytes) without changing any existing call site."""
+    overrides.setdefault("observability", root / "var" / "obs" / "observability.yml")
+    overrides.setdefault("workflow_dir", root / "var" / "workflow")
     return GatewayConfig(
         workspace=root / "workspace",
         warehouse=root / "var" / "warehouse" / "warehouse.duckdb",

@@ -1,0 +1,17 @@
+# The roster, authored once and copied into issues.json and chat.json.
+# `agent` is the persona the episode's agent writes as (theme.yaml
+# workflow.actor).
+users:
+  - {id: bmensah, name: Kwabena Mensah, role: Batch operations, team: Operations}
+  - {id: sfarrell, name: Siobhan Farrell, role: Data engineer, team: Data}
+  - id: dmoreau
+    name: Denis Moreau
+    role: Systems programmer
+    team: Core systems
+    # The only person who reads the copybook, on leave, and the assignee on the
+    # ticket to correct the interface page that this week's confusion rests on.
+    away_until: "+6d"
+  - {id: avargas, name: Ana Vargas, role: Reserving analyst, team: Actuarial}
+  - {id: hoyelaran, name: Hakeem Oyelaran, role: Service delivery manager, team: Operations}
+  - {id: opsbot, name: Batch monitor, role: Automation, team: Operations}
+  - {id: agent, name: On-call data engineer, role: On call, team: Data}

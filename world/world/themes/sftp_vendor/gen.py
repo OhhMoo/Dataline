@@ -16,6 +16,7 @@ from datetime import timedelta
 from pathlib import Path
 
 from world.hashing import json_canon
+from world import scheduler, workflow
 from world.scheduler import iso, parse_vtime
 
 ORDER_FIELDS = ["order_id", "order_date", "customer_id", "amount"]
@@ -52,19 +53,30 @@ def _write_feed(folder: Path, name: str, fields: list, rows: list) -> None:
         w = csv.DictWriter(f, fieldnames=fields, lineterminator="\n")
         w.writeheader()
         w.writerows(rows)
-    (folder / f"{name}.done").write_text(f"{len(rows)}\n", encoding="utf-8")
+    # newline="" or Windows text mode writes 53\r\n where Linux writes 53\n, and
+    # the sentinel is fingerprinted workspace state. The .csv above already passes
+    # newline=""; this line was the one that did not, and it broke cross-host
+    # determinism for all 60 sentinels while the paired .csv stayed identical.
+    (folder / f"{name}.done").write_text(
+        f"{len(rows)}\n", encoding="utf-8", newline="")
+
+
+def write_day(workspace: Path, seed: dict, day_index: int, day) -> dict:
+    """One day's vendor delivery. Pure in (seed, day_index) - the live-world
+    arrival stream and the initial build write identical bytes for day N."""
+    drop = workspace / "data" / "drop"
+    stamp = day.strftime("%Y%m%d")
+    orders, returns = day_rows(seed["seed"], day_index, day, seed)
+    _write_feed(drop / "acme", f"ORDERS_{stamp}", ORDER_FIELDS, orders)
+    _write_feed(drop / "globex", f"RETURNS_{stamp}", RETURN_FIELDS, returns)
+    return {"orders": len(orders), "returns": len(returns)}
 
 
 def write_landing(workspace: Path, seed: dict) -> None:
     """Write data/drop/<vendor>/<FEED>_<YYYYMMDD>.csv (+ .done) per day."""
     start = parse_vtime(seed["vtime_start"])
-    drop = workspace / "data" / "drop"
     for i in range(seed["days"]):
-        day = (start + timedelta(days=i)).date()
-        stamp = day.strftime("%Y%m%d")
-        orders, returns = day_rows(seed["seed"], i, day, seed)
-        _write_feed(drop / "acme", f"ORDERS_{stamp}", ORDER_FIELDS, orders)
-        _write_feed(drop / "globex", f"RETURNS_{stamp}", RETURN_FIELDS, returns)
+        write_day(workspace, seed, i, (start + timedelta(days=i)).date())
 
 
 def load_raw(workspace: Path, db_path: Path) -> None:
@@ -130,3 +142,15 @@ def write_ingest(root: Path, seed: dict, manifest: dict) -> None:
     path = root / "var" / "ingest" / "state.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(json_canon(state) + b"\n")
+
+
+def write_workflow(root: Path, seed: dict, manifest: dict) -> None:
+    """Seed var/workflow/{issues,chat,kb}.json per gateway/WORKFLOW_CONTRACT.md.
+
+    The corpus is authored as data in this theme's workflow/ directory and
+    dated against the world clock, which is read out of the scheduler state
+    `build` has already written rather than re-derived from the seed - one
+    definition of `vnow`, so a ticket cannot be filed after today.
+    """
+    workflow.seed(root, Path(__file__).resolve().parent, manifest["workflow"],
+                  scheduler.load(root)["vnow"])

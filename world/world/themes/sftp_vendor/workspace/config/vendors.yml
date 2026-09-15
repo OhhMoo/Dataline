@@ -1,0 +1,60 @@
+# Vendor connection + feed config.
+#
+# Read by the pull cron on the edge box (NOT in this repo) and by
+# loader/vendor_load.py for the filename conventions. Hosts and usernames are
+# placeholders here; the real ones come from the vault entry named in `vault`.
+
+defaults:
+  protocol: sftp
+  port: 22
+  remote_dir: /outbound
+  local_dir: data/drop
+  # how long we keep a file after it has loaded, before the sweeper removes it
+  retention_days: 30
+
+vendors:
+
+  acme:
+    name: "Acme Retail"
+    enabled: true
+    host: "sftp.acme.example.invalid"
+    username: "svc_dataplatform"
+    vault: "vendor/acme/sftp"
+    key_path_env: ACME_SFTP_KEY_PATH
+    host_key_fingerprint: "SHA256:PLACEHOLDER-PIN-ME"
+    feeds:
+      orders:
+        pattern: "ORDERS_%Y%m%d.csv"
+        sentinel: ".done"
+        target_table: raw.vendor_orders
+        expected_daily: true
+    # acme's clock is ~2h behind ours and they cut the file on their midnight,
+    # so a file can land up to 05:30 our time. do not tighten the poll window.
+    sla_local_time: "05:30"
+
+  globex:
+    name: "Globex Returns"
+    enabled: true
+    host: "files.globex.example.invalid"
+    username: "acme_returns_ro"     # yes, "acme". their naming, not ours.
+    vault: "vendor/globex/sftp"
+    key_path_env: GLOBEX_SFTP_KEY_PATH
+    host_key_fingerprint: "SHA256:PLACEHOLDER-PIN-ME"
+    feeds:
+      returns:
+        pattern: "RETURNS_%Y%m%d.csv"
+        sentinel: ".done"
+        target_table: raw.vendor_returns
+        expected_daily: false       # returns are sparse; empty days are normal
+    sla_local_time: "05:30"
+
+  # initech offboarded 2025-11. left here because the sweeper still has to know
+  # about the folder to clean it up. delete both together or not at all.
+  initech:
+    name: "Initech (offboarded)"
+    enabled: false
+    host: "sftp.initech.example.invalid"
+    username: "dataplatform"
+    vault: "vendor/initech/sftp"
+    key_path_env: INITECH_SFTP_KEY_PATH
+    feeds: {}

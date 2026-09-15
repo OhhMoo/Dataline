@@ -16,6 +16,10 @@ If any lands outside its expected band, the TASK is broken, not the agent.
   dedupe_only     fixes the data, leaves the loader on append -> partial
   checklist       correct primary cause + every textbook decoy it can think of
                   -> must LOSE points to the false-cause penalty (F128/F306)
+  checklist_joined  the SAME decoys as one semicolon-joined string (F620)
+                  -> must score EXACTLY what checklist scores. Joining six wrong
+                  causes once scored 19.0 and tied the oracle, because credit
+                  read the joined blob while the penalty counted list elements.
 """
 from __future__ import annotations
 
@@ -191,6 +195,25 @@ def agent_checklist(world, tmp, root=None):
     return a
 
 
+def agent_checklist_joined(world, tmp, root=None):
+    """The F620 exploit itself, as a standing adversary.
+
+    Identical claims to agent_checklist, submitted as ONE string instead of six
+    list entries. That asymmetry was the exploit: credit was computed over the
+    joined blob while the false-cause penalty counted list elements, so joining
+    six wrong causes with semicolons scored 19.0 and TIED THE ORACLE while the
+    same six as a list scored 17.0. grade.py now splits every entry on [;\\n]+
+    so both forms are one unit, and this baseline is what stops that regressing
+    silently - F620's mitigation asks for exactly this seventh agent.
+
+    It must score the same as agent_checklist. Scoring higher means the penalty
+    is back to counting containers instead of claims.
+    """
+    a = agent_checklist(world, tmp, root)
+    a["additional_causes"] = ["; ".join(a["additional_causes"])]
+    return a
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--fixtures", default=str(HERE / "fixtures" / "build"))
@@ -206,7 +229,7 @@ def main() -> int:
 
     rows, topology_ok = [], None
     for name in ("oracle", "no_op", "reference_copy", "full_refresh",
-                 "dedupe_only", "checklist"):
+                 "dedupe_only", "checklist", "checklist_joined"):
         with tempfile.TemporaryDirectory() as td:
             tmp = Path(td)
             w, root = fresh(fx, tmp)
@@ -217,7 +240,8 @@ def main() -> int:
                 art = {"oracle": agent_oracle, "no_op": agent_no_op,
                        "full_refresh": agent_full_refresh,
                        "dedupe_only": agent_dedupe_only,
-                       "checklist": agent_checklist}[name](w, tmp, root)
+                       "checklist": agent_checklist,
+                       "checklist_joined": agent_checklist_joined}[name](w, tmp, root)
             res = grade(w, grading, art, tmp, world_root=root)
             rows.append((name, res["total"], res["max"], res))
 
@@ -226,7 +250,8 @@ def main() -> int:
     print("  " + "-" * 52)
     expect = {"oracle": f"= {mx} (max)", "no_op": "~0", "reference_copy": "0, unreachable",
               "full_refresh": "partial, NOT 0", "dedupe_only": "partial",
-              "checklist": "< oracle (penalty)"}
+              "checklist": "< oracle (penalty)",
+              "checklist_joined": "== checklist (F620 regression guard)"}
     for n, t, m, _ in rows:
         print(f"  {n:<16}{t:>8} /{m:<4} {expect[n]}")
 
@@ -241,6 +266,10 @@ def main() -> int:
         ("full_refresh < oracle", d["full_refresh"] < d["oracle"]),
         ("dedupe_only < oracle", d["dedupe_only"] < d["oracle"]),
         ("checklist penalised vs oracle", d["checklist"] < d["oracle"]),
+        ("joining causes does not beat listing them (F620)",
+         d["checklist_joined"] == d["checklist"]),
+        ("concatenated checklist still penalised vs oracle (F620)",
+         d["checklist_joined"] < d["oracle"]),
     ]
     bad = 0
     for label, ok in verdicts:

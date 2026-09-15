@@ -6,6 +6,7 @@ status; reads report "running" while vnow is still before finished_at, so the
 state machine advances exactly when the world's clock does. The seeded `sync`
 template on each connector is mock plumbing and is stripped from all output.
 """
+
 import json
 from datetime import UTC, datetime, timedelta
 
@@ -92,13 +93,18 @@ class IngestStore:
             raise ToolError(
                 "invalid_token", "continuation_token must come from ingest_runs"
             ) from None
-        runs = [run for run in state["runs"]
-                if connector_id is None or run["connector_id"] == connector_id]
+        runs = [
+            run
+            for run in state["runs"]
+            if connector_id is None or run["connector_id"] == connector_id
+        ]
         runs.sort(key=lambda run: (run["started_at"], run["id"]), reverse=True)
-        page = runs[offset:offset + limit]
+        page = runs[offset : offset + limit]
         summaries = [
-            {key: self.effective(run)[key]
-             for key in ("id", "connector_id", "started_at", "finished_at", "status")}
+            {
+                key: self.effective(run)[key]
+                for key in ("id", "connector_id", "started_at", "finished_at", "status")
+            }
             for run in page
         ]
         next_offset = offset + limit
@@ -118,8 +124,9 @@ class IngestStore:
         self.connector(state, connector_id)
         return {
             "connector_id": connector_id,
-            "tables": [entry for entry in state["schemas"]
-                       if entry["connector_id"] == connector_id],
+            "tables": [
+                entry for entry in state["schemas"] if entry["connector_id"] == connector_id
+            ],
         }
 
     def list_alerts(self, connector_id, acknowledged):

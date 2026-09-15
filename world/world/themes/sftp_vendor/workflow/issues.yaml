@@ -1,0 +1,273 @@
+# sftp_vendor: the backlog of a two-person integrations team whose inbox is a
+# drop folder.
+#
+# Two statuses, open and closed, because this team runs GitHub Issues and the
+# labels carry everything else (theme.yaml declares the set). That is a real
+# vocabulary difference from revenue_daily, not a cosmetic one: there is no
+# `blocked` here, so a blocked ticket is an open ticket with a label and a
+# comment, and telling the two apart means reading.
+#
+# Measured against a built world - nothing below is invented:
+#   warehouse.fct_orders_daily          30 days, 2026-02-01 .. 2026-03-02
+#   orders per day / returns per day    43 .. 60 / 0 .. 5
+#   totals                              1504 orders, 79 returns
+#   gross / returns / net               150001.10 / 8241.07 / 141760.03
+#   days with zero returns              6, including 2026-02-24 and 2026-02-27
+#   raw.vendor_orders                   1504 rows, 30 distinct _source_file
+#   raw.vendor_returns                  79 rows, 24 distinct _source_file
+#   RETURNS files actually delivered    30 - six of them are header-only
+#   scheduler runs                      92. sftp_poll dropped its connection at
+#                                       05:30 on 2026-02-27 and again on
+#                                       2026-03-01, retried at 05:37 and
+#                                       succeeded both times. Everything else
+#                                       green. 2026-02-27 is ALSO one of the six
+#                                       zero-returns days, and the two facts are
+#                                       unrelated.
+#
+# `authoring` is author-side: workflow.py strips it from every tool response.
+issues:
+  - id: FEEDS-31
+    title: Move the Globex transfer to the new SFTP host
+    body: |-
+      Globex are retiring the old host at the end of the year. Re-key, re-point
+      the connector, confirm one clean delivery, then close.
+    status: closed
+    reporter: pnovak
+    assignee: pnovak
+    labels: [vendor, infrastructure]
+    created_at: "-78d 10:20"
+    updated_at: "-59d 16:05"
+    comments:
+      - id: FEEDS-31#1
+        author: pnovak
+        at: "-59d 16:05"
+        body: New host is live and a full day has landed clean. Closing.
+    history:
+      - {at: "-59d 16:05", actor: pnovak, field: status, from: open, to: closed}
+    links: []
+    authoring:
+      kind: noise
+      note: >-
+        SV-I1. True, closed, irrelevant. It also quietly seeds the wrong idea
+        that the Globex transfer is fragile, which is the frame the reporter of
+        FEEDS-52 arrives with.
+
+  - id: FEEDS-39
+    title: Duplicate orders for 2026-01-12 after Acme redelivered
+    body: |-
+      Acme resent ORDERS_20260112.csv with a corrected amount column. Every
+      order for that day appeared twice in raw.vendor_orders and the day's
+      gross doubled.
+
+      Cause: the load was run by hand with --on-redelivery append, because the
+      runbook says append is the default and that you have to ask for
+      overwrite. It is the other way round. Fixed by reloading the day.
+    status: closed
+    reporter: rhaddad
+    assignee: rhaddad
+    labels: [incident, loader]
+    created_at: "-50d 08:40"
+    updated_at: "-49d 11:15"
+    comments:
+      - id: FEEDS-39#1
+        author: pnovak
+        at: "-49d 11:15"
+        body: |-
+          Confirmed from the script: --on-redelivery defaults to overwrite and
+          deletes rows by _source_file before inserting. The runbook page is
+          wrong and has been since I wrote it. Raised FEEDS-44 to fix the docs.
+    history:
+      - {at: "-49d 11:15", actor: rhaddad, field: status, from: open, to: closed}
+    links:
+      - {type: relates_to, issue: FEEDS-44}
+    authoring:
+      kind: near_duplicate_trap
+      note: >-
+        SV-I2. The same symptom family as this week's complaint - "the Globex
+        feed did something wrong" - with a different, already-settled cause on
+        the *other* vendor. An agent that searches the tracker for "Globex" or
+        "feed" meets this first. The comment is verifiable against
+        workspace/loader/vendor_load.py, which really does default to overwrite
+        and really does DELETE ... WHERE _source_file = ? first.
+
+  - id: FEEDS-44
+    title: The vendor-load runbook documents the wrong redelivery default
+    body: |-
+      int/runbooks/vendor-load says --on-redelivery defaults to append. It
+      defaults to overwrite. This already cost us a day of duplicated orders
+      (FEEDS-39).
+
+      Fix the page, or delete it and point at the new one.
+    status: open
+    reporter: rhaddad
+    assignee: pnovak
+    labels: [documentation]
+    created_at: "-49d 11:20"
+    updated_at: "-45d 09:02"
+    comments:
+      - id: FEEDS-44#1
+        author: pnovak
+        at: "-45d 09:02"
+        body: Wrote int/runbooks/redelivery instead. Leaving this open until the old page is deleted.
+    history: []
+    links:
+      - {type: relates_to, issue: FEEDS-39}
+    authoring:
+      kind: stale
+      note: >-
+        SV-I3. Open 49 days, assigned to somebody on leave, and it is the exact
+        ticket that explains why the wiki now holds two pages saying opposite
+        things. Nobody deleted the old page; both are still linked from the
+        index.
+
+  - id: FEEDS-47
+    title: Check the sentinel row count against what actually landed
+    body: |-
+      Action from the 12 January postmortem. The vendor writes <name>.done
+      containing the row count of the file it just finished. We do not read it.
+
+      If the loader compared that number to the rows it inserted from that
+      file, a truncated transfer would fail loudly instead of loading a short
+      day that looks fine.
+    status: open
+    reporter: pnovak
+    assignee: null
+    labels: [data-quality, postmortem-action]
+    created_at: "-49d 14:30"
+    updated_at: "-49d 14:30"
+    comments: []
+    history: []
+    links: []
+    authoring:
+      kind: unactioned_remediation
+      note: >-
+        SV-I4. The control that would have prevented the pathology this theme
+        is built around, still open. It is also true and checkable that the
+        sentinel carries a count - world/themes/sftp_vendor/gen.py writes
+        len(rows) into <name>.done, and fs_read on any .done shows a bare
+        number - so the proposal is implementable, not hand-waving.
+
+  - id: FEEDS-50
+    title: Never run the loader with --no-require-sentinel again
+    body: |-
+      On 5 February somebody ran the load with --no-require-sentinel to "get
+      the day in early" and picked up a file the vendor was still writing. Half
+      a day of orders, no error.
+
+      Agreed rule: the sentinel requirement stays on. If a delivery is late, it
+      is late; we wait or we chase the vendor.
+    status: closed
+    reporter: sokonkwo
+    assignee: rhaddad
+    labels: [policy, loader]
+    created_at: "-26d 09:50"
+    updated_at: "-25d 10:10"
+    comments:
+      - id: FEEDS-50#1
+        author: rhaddad
+        at: "-25d 10:10"
+        body: Written up at int/runbooks/sentinels. Closing.
+    history:
+      - {at: "-25d 10:10", actor: sokonkwo, field: status, from: open, to: closed}
+    links: []
+    authoring:
+      kind: constraint
+      note: >-
+        SV-I5. A real limit on an acceptable solution, closed rather than open,
+        which is how policy usually lives in a tracker. An agent that reaches
+        for --no-require-sentinel to force a stuck day through is breaking a
+        rule that is written down in two places.
+
+  - id: FEEDS-52
+    title: Globex have stopped sending us returns
+    body: |-
+      Customer services opened three credit queries this week that we cannot
+      answer because the return is not in the warehouse.
+
+      Looking at the dashboard, returns are zero on the 27th and zero on the
+      24th. It looks like the feed died some time last week. Can somebody chase
+      Globex?
+    status: open
+    reporter: lmartin
+    assignee: null
+    labels: [vendor, needs-triage]
+    created_at: "-1d 09:05"
+    updated_at: "-1d 09:44"
+    comments:
+      - id: FEEDS-52#1
+        author: sokonkwo
+        at: "-1d 09:44"
+        body: |-
+          I can see RETURNS files in the drop folder for both those days with
+          their .done next to them, so something arrived. Checking what was in
+          them.
+
+          Fair warning before anyone else looks: the poll did go red on the
+          morning of the 27th. It came back on the retry seven minutes later
+          and the load ran fine, so I do not think it is that.
+    history: []
+    links: []
+    authoring:
+      kind: incident_report_lay
+      note: >-
+        SV-I6. The incident as a non-engineer describes it, and the premise is
+        false in a way the surfaces settle completely. Measured: returns run 0
+        to 5 a day, six of the thirty days are zero, and 2026-02-24 and
+        2026-02-27 are two of them. The file arrived on both - 30 RETURNS files
+        were delivered and only 24 carried any rows - so fs_list on
+        data/drop/globex, ingest_runs (rows_inserted 0 on those syncs) and
+        count(distinct _source_file) on raw.vendor_returns all agree. The
+        comment is the first honest step and stops short of the answer, and it
+        names the coincidence that makes the wrong answer attractive: sftp_poll
+        really did fail at 05:30:08 on 2026-02-27 with a connection reset,
+        retried at 05:37 and succeeded, and vendor_load ran normally at 05:40.
+        A red run and an empty delivery on the same morning, causally unrelated,
+        both real.
+
+  - id: FEEDS-53
+    title: Returns feed down
+    body: |-
+      Returns missing for several days. Raised by support. Needs someone today.
+    status: open
+    reporter: sokonkwo
+    assignee: null
+    labels: [vendor]
+    created_at: "-1d 09:38"
+    updated_at: "-1d 09:38"
+    comments: []
+    history: []
+    links: []
+    authoring:
+      kind: duplicate
+      duplicate_of: FEEDS-52
+      linked: false
+      note: >-
+        SV-I7. Filed 33 minutes after FEEDS-52 by the person who had already
+        commented on it, with no link either way and a vaguer body. Deciding
+        these are one thing is a judgement the queue demands and will not make.
+
+  - id: FEEDS-54
+    title: Net revenue is about 8k under gross for February - is that right?
+    body: |-
+      Reconciling the vendor pack. warehouse.fct_orders_daily gives me
+      150,001.10 gross and 141,760.03 net for the month and I need to be able
+      to explain the gap before I sign it off.
+
+      If returns really have been failing, is the net number even complete?
+    status: open
+    reporter: ychen
+    assignee: null
+    labels: [finance, reconciliation]
+    created_at: "-1d 14:12"
+    updated_at: "-1d 14:12"
+    comments: []
+    history: []
+    links: []
+    authoring:
+      kind: partial_conclusion
+      note: >-
+        SV-I8. Both figures are real and the gap is exactly sum(return_total) =
+        8241.07, which one query settles. The second sentence is the trap: it
+        makes a correct reconciliation question contingent on FEEDS-52 being
+        true, so an agent that accepts the premise of FEEDS-52 will also answer
+        this one wrongly. The two tickets are not linked.

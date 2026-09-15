@@ -38,11 +38,28 @@ class WorldTest(unittest.TestCase):
         """Build-from-scratch-twice gate (same host here; CI runs cross-host)."""
         self.assertEqual(fingerprint.semantic(self.w1), fingerprint.semantic(self.w2))
 
-    def test_no_ingest_section_without_control_plane(self):
-        """revenue_daily seeds no var/ingest, so its fingerprint keeps the
-        original four sections and its recorded semantic hash cannot move."""
+    def test_conditional_sections_track_what_the_theme_actually_seeds(self):
+        """A conditional section appears only when the world seeds the surface.
+
+        revenue_daily has no connector control plane, so there is no `ingest`
+        section; it does seed a live-world control plane (R003) and an
+        observability store (R003 FAULTS, per OBS_STORE_CONTRACT.md), so there
+        are `live` and `obs` ones. R004 WORKFLOW seeds the human-context
+        surface (issues/chat/kb), so there is a `workflow` one. A theme that
+        seeds none keeps the original four.
+        """
         sem = fingerprint.semantic(self.w1)
-        self.assertEqual(sorted(sem), ["bi", "scheduler", "warehouse", "workspace"])
+        self.assertEqual(sorted(sem),
+                         ["bi", "live", "obs", "scheduler", "warehouse",
+                          "workflow", "workspace"])
+        self.assertNotIn("ingest", sem)
+        # and the obs section really covers the appended record, not only the
+        # definitions: a COPY that has advanced must hash differently. (A copy,
+        # because w1 is shared with the raw-byte gate below and advancing it
+        # would move the duckdb file under that test's feet.)
+        moved = shutil.copytree(self.w1, self.tmp / "obs_moved")
+        scheduler.advance(moved, 30)
+        self.assertNotEqual(sem["obs"], fingerprint.semantic(moved)["obs"])
 
     def test_git_head_stable(self):
         head1, head2 = fingerprint.git_head(self.w1), fingerprint.git_head(self.w2)
@@ -92,6 +109,15 @@ class WorldTest(unittest.TestCase):
         con.close()
         self.assertEqual(rendered["revenue_daily"]["total_revenue"][0][0], str(total))
         self.assertEqual(len(rendered["revenue_daily"]["daily_revenue"]), 30)
+
+    def test_every_dbt_view_is_readable_through_the_alias(self):
+        """A view's body is STORED, so it can be created and still be
+        unreadable. dbt bakes `warehouse.` into any three-part reference it
+        renders (it opens the file directly, where the catalog is the file
+        stem); every reader must ATTACH under an alias instead, and the baked
+        name then fails to bind. Reads every view, not one."""
+        from world import executor
+        self.assertEqual(executor.unreadable_views(self.w1), {})
 
 
 if __name__ == "__main__":

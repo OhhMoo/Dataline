@@ -110,6 +110,15 @@ class SftpVendorThemeTest(unittest.TestCase):
         finally:
             con.close()
 
+    def test_every_dbt_view_is_readable_through_the_alias(self):
+        """A view's body is STORED, so it can be created and still be
+        unreadable. dbt bakes `warehouse.` into any three-part reference it
+        renders (it opens the file directly, where the catalog is the file
+        stem); every reader must ATTACH under an alias instead, and the baked
+        name then fails to bind. Reads every view, not one."""
+        from world import executor
+        self.assertEqual(executor.unreadable_views(self.w1), {})
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

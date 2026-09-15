@@ -1,0 +1,20 @@
+# The roster, authored once and copied into issues.json and chat.json, so a
+# person cannot exist in the channel and not in the tracker.
+#
+# `agent` is the persona the episode's agent writes as (theme.yaml
+# workflow.actor). Nothing lets it write as anybody else.
+users:
+  - {id: mrivera, name: Maya Rivera, role: Finance analyst, team: Finance}
+  - {id: dpatel, name: Divya Patel, role: Analytics engineer, team: Data}
+  - id: kliu
+    name: Kenji Liu
+    role: Data engineer
+    team: Data
+    # On leave, and still the assignee on two open tickets. That is the normal
+    # state of a real queue, and it is why the useful observation in
+    # #data-eng is addressed to somebody who cannot answer it.
+    away_until: "+18d"
+  - {id: tokafor, name: Tolu Okafor, role: Data platform lead, team: Data}
+  - {id: jbeck, name: Jonas Beck, role: Growth marketing, team: Marketing}
+  - {id: alertbot, name: Alert bot, role: Automation, team: Data}
+  - {id: agent, name: On-call data engineer, role: On call, team: Data}

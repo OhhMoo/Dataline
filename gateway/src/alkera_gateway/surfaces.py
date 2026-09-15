@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Protocol
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from .records import Observation, ToolError, canonical
 
@@ -175,16 +175,29 @@ class Dashboard(BaseModel):
     panels: list[Panel] = Field(min_length=1)
 
 
-def render_dashboard(directory: Path, dashboard: str, warehouse, observation):
+def dashboard_path(directory: Path, dashboard: str, suffix="yml") -> Path:
     allowed = "abcdefghijklmnopqrstuvwxyz0123456789_-"
     if not dashboard or any(char not in allowed for char in dashboard):
         raise ToolError("invalid_dashboard", "Use a dashboard ID containing a-z, 0-9, _ or -")
-    path = (directory / f"{dashboard}.yml").resolve()
+    path = (directory / f"{dashboard}.{suffix}").resolve()
     if not path.is_relative_to(directory):
         raise ToolError("path_denied", "Dashboard must stay inside the dashboard directory")
-    spec = Dashboard.model_validate(yaml.safe_load(path.read_text(encoding="utf-8")))
+    return path
+
+
+def load_dashboard(directory: Path, dashboard: str) -> Dashboard:
+    path = dashboard_path(directory, dashboard)
+    try:
+        spec = Dashboard.model_validate(yaml.safe_load(path.read_text(encoding="utf-8")))
+    except (ValidationError, yaml.YAMLError, UnicodeError) as exc:
+        raise ToolError("invalid_dashboard", f"Invalid definition {path.name}: {exc}") from None
     if spec.dashboard != dashboard:
-        raise ToolError("invalid_dashboard", "Dashboard ID does not match its filename")
+        raise ToolError("invalid_dashboard", f"Dashboard ID does not match {path.name}")
+    return spec
+
+
+def render_dashboard(directory: Path, dashboard: str, warehouse, observation):
+    spec = load_dashboard(directory, dashboard)
     panels = {}
     tables = set()
     for panel in spec.panels:

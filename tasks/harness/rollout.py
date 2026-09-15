@@ -22,6 +22,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import secrets
 import shutil
 import socket
@@ -36,6 +37,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import agent_under_test as aut          # noqa: E402
 import blindness                        # noqa: E402
 import classify as classifier           # noqa: E402
+import container_episode                # noqa: E402
 import episode                          # noqa: E402
 import taskspec                         # noqa: E402
 
@@ -158,16 +160,22 @@ def reclassify(rollout_dir: Path) -> dict:
     # before/after diff verdict is carried forward rather than re-derived
     tree = episode.tree_manifest(Path(world["world_root"])) if world else None
 
+    stored_containment = [c for c in (rec.get("containment"),
+                                      rec.get("containment_after")) if c]
     violations = blindness.detect(
         transcript=transcript, driver=rec["driver"],
         gateway_tools=sorted(rec.get("toolbelt") or []),
         canaries=_recover_canaries(rollout_dir, grading),
         repo_root=REPO, action_rows=action_rows,
         world_before=tree, world_after=tree,       # diff already consumed
-        world_layout=world or None, artifact_text=artifact_text)
+        world_layout=world or None, artifact_text=artifact_text,
+        topology=rec.get("topology", "host"), containment=stored_containment)
 
     before = rec.get("classification")
     rec["blindness"] = blindness.summarise(violations)
+    rec["blindness_guarantee"] = blindness.guarantee(
+        driver=rec["driver"], topology=rec.get("topology", "host"),
+        containment=stored_containment)
     rec.update(classifier.classify(
         spec=spec, score=rec.get("score"), score_stable=rec.get("score_stable", True),
         grader_crashed=bool(rec.get("grader_crashed")),
@@ -209,6 +217,12 @@ def run_rollout(args) -> dict:
         "run_id": args.run_id,
         "model": args.model,
         "driver": args.driver,
+        "topology": args.topology,
+        # Provisional. Under `container` the guarantee is not settled until the
+        # containment probe has run against THIS rollout's own container - see
+        # the assignment below and blindness.detect()'s containment gate. Writing
+        # the stronger claim here and hoping is exactly the failure mode the
+        # blindness detector exists to prevent.
         "blindness_guarantee": ("tool_surface_revoked" if args.driver in ("mcp", "kimi")
                                 else "detection_only"),
         "redteam_detector_test": args.driver == "scripted",
@@ -230,6 +244,8 @@ def run_rollout(args) -> dict:
     artifact_present = False
     http_proc = None
     http_log = None
+    stack: container_episode.ContainerEpisode | None = None
+    containment: dict | None = None
 
     try:
         # --- world -------------------------------------------------------
@@ -241,11 +257,70 @@ def run_rollout(args) -> dict:
         record["world_fp_before"] = episode.fingerprint(world_root)
         tree_before = episode.tree_manifest(world_root)
 
-        # --- surface probe, on a throwaway copy, BEFORE the episode -------
-        surfaces = episode.probe_surfaces(spec, world, scratch)
-        record["surfaces"] = surfaces
+        episode_id = f"{spec.task_id}-{args.run_id}-{args.rollout_id}"
+        mcp_server_argv: list[str] | None = None
 
-        toolbelt = episode.gateway_tool_names()
+        if args.topology == "container":
+            # Containment FIRST. The terminal is handed over only after this
+            # rollout's own container has been probed and found sealed; if the
+            # probe does not run or does not pass, blindness.detect() quarantines
+            # the rollout rather than letting it into the number.
+            if args.driver != "mcp":
+                raise episode.HarnessError(
+                    f"--topology container is wired for the mcp driver only, "
+                    f"not {args.driver!r}")
+            ok, docker_version = container_episode.docker_available()
+            if not ok:
+                raise episode.HarnessError(f"docker is not usable: {docker_version}")
+            project = re.sub(r"[^a-z0-9_-]+", "-",
+                             f"alkera-ep-{args.run_id}-{args.rollout_id}".lower())
+            stack = container_episode.ContainerEpisode(
+                project=project, world_root=world_root, audit_dir=audit_dir,
+                image=args.image)
+            stack.up()
+            container_cfg = container_episode.container_gateway_config(
+                world, episode_id, spec.virtual_time)
+            stack.prepare(container_cfg, spec.surface_probes,
+                          rollout_dir / "container")
+            record["container"] = {
+                "project": project, "docker_server": docker_version,
+                "image": stack.image, "image_digest": stack.image_digest,
+                "container_id": stack.container_id[:12],
+                "services": stack.services,
+                "compose_files": [str(container_episode.COMPOSE_BASE),
+                                  str(container_episode.COMPOSE_OVERLAY)],
+                "gateway_config": container_cfg,
+            }
+            containment = stack.containment_probe(
+                forbidden_files=[f"{d}/manifest.yaml"
+                                 for d in container_episode.FORBIDDEN_DIRS]
+                + [str(grading / "manifest.yaml").replace("\\", "/"),
+                   str(grading / "expected.duckdb").replace("\\", "/")],
+                host_paths=[str(world_root).replace("\\", "/"),
+                            str(grading).replace("\\", "/"),
+                            str(rollout_dir).replace("\\", "/"),
+                            str(REPO).replace("\\", "/"),
+                            "/c", "/host_mnt", "/mnt/c"],
+                repo_root=REPO)
+            containment["when"] = "before_episode"
+            record["containment"] = containment
+            # the surfaces and the toolbelt are read from INSIDE the container.
+            # The host venv is a different build - two agents are editing
+            # gateway/src right now - and the toolbelt decides both the prompt
+            # and what counts as a tool the subject was allowed to hold.
+            surfaces = stack.probe_surfaces()
+            toolbelt = stack.toolbelt()
+            gateway_cfg = rollout_dir / "container" / "container_gateway.json"
+            mcp_server_argv = stack.mcp_argv()
+        else:
+            # --- surface probe, on a throwaway copy, BEFORE the episode ---
+            surfaces = episode.probe_surfaces(spec, world, scratch)
+            toolbelt = episode.gateway_tool_names()
+            gateway_cfg = episode.write_gateway_config(
+                rollout_dir / "gateway.json", world, audit_dir, episode_id,
+                spec.virtual_time)
+
+        record["surfaces"] = surfaces
         record["toolbelt"] = sorted(toolbelt)
         # A tool the task never probed is a tool whose failures cannot be
         # attributed: they fall through the dead-surface rule and land on the
@@ -255,10 +330,6 @@ def run_rollout(args) -> dict:
         record["unprobed_tools"] = sorted(
             set(toolbelt) - {pr["tool"] for pr in spec.surface_probes}
             - {c for pr in spec.surface_probes for c in (pr.get("covers") or [])})
-
-        gateway_cfg = episode.write_gateway_config(
-            rollout_dir / "gateway.json", world, audit_dir,
-            f"{spec.task_id}-{args.run_id}-{args.rollout_id}", spec.virtual_time)
 
         # --- the episode --------------------------------------------------
         gateway_url = None
@@ -295,8 +366,24 @@ def run_rollout(args) -> dict:
             audit_dir=audit_dir, rollout_dir=rollout_dir,
             model=args.model, driver=args.driver,
             wall_clock_s=wall, max_tool_calls=budget,
-            redteam=bool(args.adversarial_suffix))
+            redteam=bool(args.adversarial_suffix),
+            mcp_server_argv=mcp_server_argv,
+            shell="bash" in toolbelt)
         record["agent"] = asdict(agent)
+
+        if stack is not None:
+            # Probe the SAME container again, after the subject has had its way
+            # with it. Containment that held at t=0 and not at t=end is not
+            # containment, and the agent had a root shell in there.
+            after = stack.containment_probe(
+                forbidden_files=[f"{d}/manifest.yaml"
+                                 for d in container_episode.FORBIDDEN_DIRS],
+                host_paths=[str(world_root).replace("\\", "/"),
+                            str(grading).replace("\\", "/"),
+                            str(REPO).replace("\\", "/"), "/c", "/host_mnt"],
+                repo_root=REPO)
+            after["when"] = "after_episode"
+            record["containment_after"] = after
 
     except episode.HarnessError as exc:
         harness_failure = str(exc)
@@ -312,6 +399,15 @@ def run_rollout(args) -> dict:
                 http_proc.kill()
         if http_log is not None:
             http_log.close()
+        # The container comes down here, inside teardown, and everything below
+        # this line is post-episode: the world inventory, the fingerprint and the
+        # grader all run against a world nothing is still holding open.
+        if stack is not None:
+            try:
+                stack.down()
+            except Exception as exc:                   # noqa: BLE001 - recorded
+                record.setdefault("teardown_errors", []).append(
+                    f"{type(exc).__name__}: {exc}")
         shutil.rmtree(scratch, ignore_errors=True)
 
     action_rows: list[dict] = []
@@ -369,8 +465,19 @@ def run_rollout(args) -> dict:
         canaries=canaries, repo_root=REPO, action_rows=action_rows,
         world_before=tree_before if world else None,
         world_after=episode.tree_manifest(world_root) if world else None,
-        world_layout=world or None, artifact_text=artifact_text)
+        world_layout=world or None, artifact_text=artifact_text,
+        topology=args.topology,
+        containment=[c for c in (record.get("containment"),
+                                 record.get("containment_after")) if c])
     record["blindness"] = blindness.summarise(violations)
+    # The guarantee is now READ OFF the evidence rather than declared from the
+    # flags we passed. Under `container` it is only the stronger claim when this
+    # rollout's own container was probed, before and after, and was sealed both
+    # times; otherwise it stays what it can defend and the rollout quarantines.
+    record["blindness_guarantee"] = blindness.guarantee(
+        driver=args.driver, topology=args.topology,
+        containment=[c for c in (record.get("containment"),
+                                 record.get("containment_after")) if c])
 
     # --- grading. AFTER teardown, never before. --------------------------
     if world and harness_failure is None:
@@ -425,6 +532,17 @@ def main() -> int:
     ap.add_argument("--model", default="opus")
     ap.add_argument("--driver", default="mcp",
                     choices=["mcp", "cli", "scripted", "kimi"])
+    ap.add_argument("--topology", default="host",
+                    choices=["host", "container"],
+                    help="where the WORLD and the TOOLS run. `host`: the gateway "
+                         "is a host subprocess beside the grading zone, and "
+                         "blindness rests on the tool surface being revoked. "
+                         "`container`: the world, the gateway, the audit log and "
+                         "a real shell live inside the episode service of "
+                         "gateway/docker/compose.yml, and blindness rests on the "
+                         "container - measured per rollout, never assumed.")
+    ap.add_argument("--image", default=container_episode.DEFAULT_IMAGE,
+                    help="image for the episode service under --topology container")
     ap.add_argument("--wall-clock", type=int, default=None,
                     help="override the task's wall-clock ceiling (seconds)")
     ap.add_argument("--max-tool-calls", type=int, default=None,

@@ -15,17 +15,15 @@ from .records import Observation, ToolError
 
 def run_command(argv: list[str], cwd: Path, config: GatewayConfig, env=None):
     with tempfile.TemporaryFile() as output:
-        # stdin=DEVNULL is load-bearing, not hygiene. Without it the child
-        # inherits the gateway's stdin - and under the MCP *stdio* transport that
-        # is the JSON-RPC pipe from the client, which never reaches EOF. Every
-        # subprocess-backed tool (git_*, dbt_*) then blocked until
-        # command_timeout_s and returned an empty output with returncode 1.
-        # Invisible over HTTP, where stdin is not the protocol channel, so both
-        # the gateway suite and the surface probe passed while every real
-        # episode lost two minutes per git or dbt call. Measured: stdio
-        # sql_query 0.06s, stdio git_log 10.05s against a 10s timeout.
-        process = subprocess.Popen(argv, cwd=cwd, env=env, stdin=subprocess.DEVNULL,
-                                   stdout=output, stderr=subprocess.STDOUT)
+        # Children must not inherit the MCP JSON-RPC input pipe.
+        process = subprocess.Popen(
+            argv,
+            cwd=cwd,
+            env=env,
+            stdin=subprocess.DEVNULL,
+            stdout=output,
+            stderr=subprocess.STDOUT,
+        )
         timed_out = False
         try:
             process.wait(timeout=config.command_timeout_s)
@@ -62,16 +60,16 @@ class Commands:
         if self.config.warehouse_backend != "duckdb":
             profile_path = self.config.profiles_dir / "profiles.yml"
             profiles = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
-            outputs = [profile["outputs"][profile["target"]]
-                       for profile in profiles.values() if isinstance(profile, dict)
-                       and "outputs" in profile and "target" in profile]
-            if not outputs or any(output.get("type") != self.config.warehouse_backend
-                                  for output in outputs):
+            outputs = [
+                profile["outputs"][profile["target"]]
+                for profile in profiles.values()
+                if isinstance(profile, dict) and "outputs" in profile and "target" in profile
+            ]
+            if not outputs or any(
+                output.get("type") != self.config.warehouse_backend for output in outputs
+            ):
                 raise ToolError("backend_mismatch", "dbt profile must match the warehouse backend")
-        # Look beside the running interpreter BEFORE falling back to PATH. Launching
-        # the gateway as `.venv/bin/python -m alkera_gateway` (how CI and the
-        # integration test do it) never puts the venv's script dir on PATH, so a
-        # PATH-only lookup silently degrades every dbt tool to dependency_missing.
+        # A direct venv Python launch does not add its scripts directory to PATH.
         executable = shutil.which("dbt", path=str(Path(sys.executable).parent)) or shutil.which(
             "dbt"
         )

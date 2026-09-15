@@ -1,0 +1,322 @@
+# sftp_vendor: the wiki, with the page that is wrong still linked from the
+# index next to the page that corrects it.
+#
+# The disagreement here is unusually cheap to settle and that is deliberate:
+# the loader is in the workspace, so int/runbooks/vendor-load can be checked
+# against workspace/loader/vendor_load.py directly. An agent that reads the
+# script needs nothing else. An agent that trusts the wiki duplicates a day of
+# orders, which is exactly what happened in FEEDS-39.
+pages:
+  - id: int/vendors
+    title: Vendors
+    parent: null
+    labels: [index]
+    body: |-
+      # Vendors
+
+      - [Acme - orders](int/vendors/acme-orders)
+      - [Globex - returns](int/vendors/globex-returns)
+    version: 1
+    author: pnovak
+    last_edited_by: pnovak
+    last_edited_at: "-180d 09:00"
+    edit_comment: null
+    history: []
+
+  - id: int/vendors/acme-orders
+    title: Acme - orders feed
+    parent: int/vendors
+    labels: [vendor, acme]
+    body: |-
+      # Acme - orders feed
+
+      One file per day into `data/drop/acme/`, named `ORDERS_YYYYMMDD.csv`,
+      followed by `ORDERS_YYYYMMDD.done` when the transfer completes. The
+      sentinel contains the row count of the file it belongs to.
+
+      Columns: `order_id`, `order_date`, `customer_id`, `amount`. Everything is
+      a string in `raw.vendor_orders`; `staging.stg_orders` casts. The loader
+      adds `_source_file`, which is how a redelivery is matched to the rows it
+      replaces.
+
+      Volume runs roughly 40-60 orders a day. Connector: `acme_orders`, cron
+      `31 5 * * *`.
+    version: 4
+    author: pnovak
+    last_edited_by: pnovak
+    last_edited_at: "-60d 11:40"
+    edit_comment: document the sentinel row count
+    history:
+      - {version: 3, at: "-120d 10:00", by: pnovak, comment: "add _source_file"}
+      - {version: 2, at: "-150d 09:20", by: rhaddad, comment: null}
+      - {version: 1, at: "-180d 09:10", by: pnovak, comment: null}
+    authoring:
+      kind: accurate
+      note: >-
+        SV-K1. Current and correct on every checkable claim - the sentinel does
+        carry a row count, _source_file does exist, the connector id and cron
+        match var/ingest/state.json, and measured volume is 43 to 60. It is the
+        page that makes FEEDS-47 implementable.
+
+  - id: int/vendors/globex-returns
+    title: Globex - returns feed
+    parent: int/vendors
+    labels: [vendor, globex]
+    body: |-
+      # Globex - returns feed
+
+      One file per **business day** into `data/drop/globex/`, named
+      `RETURNS_YYYYMMDD.csv` with a matching `.done`. Globex do not run their
+      export at weekends, so expect five files a week and do not raise a
+      chaser for a Saturday.
+
+      Columns: `return_id`, `order_id`, `return_date`, `amount`. Lands in
+      `raw.vendor_returns`.
+
+      A return always references an order from the same day.
+    version: 2
+    author: pnovak
+    last_edited_by: pnovak
+    last_edited_at: "-172d 14:05"
+    edit_comment: note the weekday-only schedule
+    history:
+      - {version: 1, at: "-180d 09:20", by: pnovak, comment: null}
+    authoring:
+      kind: stale
+      note: >-
+        SV-K2. Published, 172 days untouched, and false in the way that matters
+        this week: Globex deliver every day. Measured, all 30 RETURNS files are
+        present in data/drop/globex including weekends, and six of them are
+        header-only. A reader who believes this page will explain away a zero
+        day as a weekend and stop looking - and 2026-02-27 is a Friday, so the
+        explanation does not even fit. One fs_list settles it.
+
+  - id: int/runbooks
+    title: Runbooks
+    parent: null
+    labels: [index]
+    body: |-
+      # Runbooks
+
+      - [Loading the vendor drop](int/runbooks/vendor-load)
+      - [Redeliveries and corrections](int/runbooks/redelivery)
+      - [Sentinels](int/runbooks/sentinels)
+    version: 4
+    author: pnovak
+    last_edited_by: rhaddad
+    last_edited_at: "-45d 09:10"
+    edit_comment: link the redelivery page
+    history:
+      - {version: 3, at: "-100d 08:30", by: pnovak, comment: null}
+      - {version: 2, at: "-150d 09:30", by: pnovak, comment: null}
+      - {version: 1, at: "-180d 09:30", by: pnovak, comment: null}
+    authoring:
+      kind: accurate
+      note: >-
+        SV-K3. The index lists the wrong page and the page that corrects it, in
+        that order, with nothing to distinguish them. kb_list's children index
+        does the same. That ordering is the whole trap.
+
+  - id: int/runbooks/vendor-load
+    title: "Runbook: loading the vendor drop"
+    parent: int/runbooks
+    labels: [runbook, loader]
+    body: |-
+      # Runbook: loading the vendor drop
+
+      `sftp_poll` at 05:30 counts the delivery sentinels. `vendor_load` runs
+      ten minutes later:
+
+          loader/vendor_load.py --drop data/drop --db <warehouse.duckdb>
+
+      `dbt_build` follows five minutes after that.
+
+      ## Sentinels
+
+      `--require-sentinel` is on by default. Pass `--no-require-sentinel` if a
+      vendor is late and you need the day in before the dbt build.
+
+      ## Redeliveries
+
+      `--on-redelivery` defaults to **append**: a resent file is added
+      alongside the rows already loaded from it, so history is preserved. If
+      the vendor is sending a full replacement of the day, pass
+      `--on-redelivery overwrite` yourself, or you will double the day.
+
+      ## If a day is short
+
+      Delete the rows and reload:
+
+          DELETE FROM raw.vendor_orders WHERE _source_file = 'ORDERS_20260214.csv';
+    version: 5
+    author: pnovak
+    last_edited_by: pnovak
+    last_edited_at: "-133d 16:20"
+    edit_comment: add the short-day procedure
+    history:
+      - {version: 4, at: "-151d 11:00", by: pnovak, comment: null}
+      - {version: 3, at: "-163d 10:10", by: rhaddad, comment: null}
+      - {version: 2, at: "-171d 09:40", by: pnovak, comment: null}
+      - {version: 1, at: "-180d 09:40", by: pnovak, comment: null}
+    authoring:
+      kind: stale
+      contradicts: [int/runbooks/redelivery, int/runbooks/sentinels]
+      note: >-
+        SV-K4. Wrong twice, and both are refutable against
+        workspace/loader/vendor_load.py in the agent's own repo. The script's
+        --on-redelivery default is overwrite, and it DELETEs by _source_file
+        before inserting; and the team's standing rule is that
+        --no-require-sentinel is never used, which this page offers as routine
+        advice. FEEDS-39 is the cost of believing it and FEEDS-44 is the ticket
+        to delete it, open for 49 days.
+
+  - id: int/runbooks/redelivery
+    title: "Runbook: redeliveries and corrections"
+    parent: int/runbooks
+    labels: [runbook, loader]
+    body: |-
+      # Runbook: redeliveries and corrections
+
+      **This supersedes the Redeliveries section of
+      int/runbooks/vendor-load, which has the default backwards.** That page is
+      still up because nobody has deleted it (FEEDS-44).
+
+      Read the script, not this page, if the two ever disagree:
+      `loader/vendor_load.py`.
+
+      ## What the loader actually does
+
+      `--on-redelivery` defaults to `overwrite`. For every eligible file it
+      runs `DELETE FROM raw.<table> WHERE _source_file = <filename>` and then
+      inserts the file's current contents. A vendor resending the same filename
+      therefore replaces its own earlier rows, and running the load twice over
+      an unchanged folder is a no-op.
+
+      `append` exists for the case where a vendor sends a *supplement* under a
+      new filename and you want both. It is not the default and you should
+      almost never pass it.
+
+      ## So
+
+      - full replacement under the same name: do nothing, the next run handles it
+      - correction under a new name: that is a new file, it just loads
+      - you ran it with `append` by mistake: delete by `_source_file` and reload
+
+      ## Sentinels
+
+      `--require-sentinel` stays on. See int/runbooks/sentinels.
+    version: 2
+    author: pnovak
+    last_edited_by: pnovak
+    last_edited_at: "-45d 08:55"
+    edit_comment: state plainly that the old page is wrong
+    history:
+      - {version: 1, at: "-45d 08:31", by: pnovak, comment: null}
+    authoring:
+      kind: current_and_contradicting
+      contradicts: [int/runbooks/vendor-load]
+      note: >-
+        SV-K5. The page that wins, and it says so in its own first line rather
+        than in a field. 45 days old against the other page's 133, and kb_list
+        serves both ages. Unusually for this catalogue it also names the
+        primary source - the loader script - so the contradiction is settleable
+        on evidence rather than on recency alone.
+
+  - id: int/runbooks/sentinels
+    title: "Runbook: sentinels"
+    parent: int/runbooks
+    labels: [runbook, policy]
+    body: |-
+      # Runbook: sentinels
+
+      Every feed file is paired with `<name>.done`, written by the vendor after
+      the transfer completes. The sentinel contains the row count of the file.
+
+      **The loader only picks up a CSV whose sentinel exists. Keep it that
+      way.** On 5 February a load run with `--no-require-sentinel` read a file
+      Acme were still uploading and landed half a day of orders with no error
+      at all (FEEDS-50).
+
+      A late delivery is a late delivery. Wait for it, or chase the vendor. Do
+      not force it through.
+
+      We do not currently compare the count in the sentinel against the rows we
+      inserted. That is FEEDS-47 and it is still open, which is why a short
+      file loads quietly.
+    version: 1
+    author: rhaddad
+    last_edited_by: rhaddad
+    last_edited_at: "-25d 10:05"
+    edit_comment: null
+    history: []
+    authoring:
+      kind: constraint
+      note: >-
+        SV-K6. A real limit on the shape of an acceptable solution, current and
+        correct, and it names its own gap in the last paragraph - the control
+        that is open rather than done. An agent that reaches for
+        --no-require-sentinel has been told twice not to.
+
+  - id: int/postmortems
+    title: Postmortems
+    parent: null
+    labels: [index]
+    body: |-
+      # Postmortems
+
+      - [Duplicate orders, 2026-01-12](int/postmortems/2026-01-12-duplicate-orders)
+    version: 2
+    author: rhaddad
+    last_edited_by: rhaddad
+    last_edited_at: "-49d 12:00"
+    edit_comment: link January
+    history:
+      - {version: 1, at: "-180d 09:50", by: pnovak, comment: null}
+
+  - id: int/postmortems/2026-01-12-duplicate-orders
+    title: "Postmortem: duplicate orders, 2026-01-12"
+    parent: int/postmortems
+    labels: [postmortem, loader]
+    body: |-
+      # Postmortem: duplicate orders, 2026-01-12
+
+      ## What happened
+
+      Acme resent `ORDERS_20260112.csv` with a corrected amount column. The
+      day was loaded by hand with `--on-redelivery append`, because the runbook
+      says append is the default. Every order for the day existed twice and the
+      day's gross doubled. Finance found it.
+
+      ## Why
+
+      The runbook is wrong. The flag defaults to `overwrite`, which deletes by
+      `_source_file` and reinserts. Nobody had read the script in months.
+
+      ## Actions
+
+      1. Fix or delete int/runbooks/vendor-load. **Open.** FEEDS-44.
+      2. Compare the sentinel's row count against rows inserted, and fail the
+         load when they disagree. **Open.** FEEDS-47.
+      3. Reload the affected day. Done.
+
+      ## What we still do not know
+
+      Whether any other day was loaded by hand with the same flag. We checked
+      January and stopped. A day loaded twice and a day delivered empty look
+      nothing alike in the fact table, but nobody has ever checked which days
+      the returns feed delivered empty either.
+    version: 2
+    author: rhaddad
+    last_edited_by: rhaddad
+    last_edited_at: "-49d 11:55"
+    edit_comment: record both open actions
+    history:
+      - {version: 1, at: "-49d 10:30", by: rhaddad, comment: null}
+    authoring:
+      kind: accurate_but_partial
+      note: >-
+        SV-K7. True, and silent about the half that matters. Two of its three
+        actions are still open, and the closing paragraph names this week's
+        question - which days the returns feed delivered empty - seven weeks
+        before anybody asked it, and then says nobody checked. An agent that
+        reads postmortems is handed the shape of the answer early.

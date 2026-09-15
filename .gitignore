@@ -28,11 +28,45 @@ data/raw/
 .tmp/
 scratch/
 
+# --- tooling / editor / merge debris (added R004 cleanup) -------------------
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+*.egg-info/
+build/
+dist/
+.direnv/
+.idea/
+.vscode/
+*.swp
+*~
+*.orig
+*.rej
+*.log
+
+# --- built world roots -------------------------------------------------------
+# A built world materialises var/{warehouse,sched,obs,ingest,world}. Worlds are
+# rebuilt from seeds and are fingerprinted, never committed. No tracked path
+# contains a var/ segment - checked before adding this rule.
+var/
+
+# -----------------------------------------------------------------------------
+# LINE ENDINGS ARE A FINGERPRINT INPUT - see .gitattributes (`* text=auto eol=lf`).
+# build.py copies themes/*/workspace byte-for-byte into the world and
+# fingerprint.py hashes those bytes, so a checkout whose line endings differ from
+# a clone's produces a DIFFERENT workspace hash. Measured on revenue_daily:
+# as-is eefdae93..., as cloned 48eda34a.... Gate 3 cannot catch this - it builds
+# twice from ONE tree, where the CR is present in both. Never relax .gitattributes.
+# -----------------------------------------------------------------------------
+
 # -----------------------------------------------------------------------------
 # DELIBERATELY NOT IGNORED - these ARE the research record:
 #   implementation_structure/state/**   the blackboard, including failures/
 #   implementation_structure/rounds/**  per-round reports and gate output
 #   verifier/runs/**                    append-only verification history
+#   gateway/docker/evidence/**          containment / toolbelt / image proofs
+#   tasks/harness/evidence/**           rollout and container-check evidence
 #
 # state/failures/ in particular must be committed. It exists so round N+1 does
 # not rediscover what round N already killed. Ignoring it would silently delete

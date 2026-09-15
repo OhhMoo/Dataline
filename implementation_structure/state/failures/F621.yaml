@@ -50,3 +50,22 @@ mitigation: >
 notes: >
   Reproduction: scratchpad rev/attack_d7.py (grader behaviour), rev/dbtp (a five-model dbt project
   run twice against duckdb to measure real idempotency), rev/attack_passfail.py (harness verdict).
+executed_by: C4-INTEGRATION
+executed_on: "2026-09-14"
+deferred: partial
+deferred_reason: >
+  The STAND-IN is executed; the mitigation's preferred fix is not, and this record says so
+  rather than letting a narrower repair read as the whole ruling.
+  Executed (R003): the strategy regex is [\w+]+ so "delete+insert" is captured whole rather
+  than truncated at the '+', and has_key now requires unique_key to resolve to a real value -
+  `unique_key=none` no longer satisfies a substring test. Before: merge + unique_key=none
+  (duplicates on re-run) scored 2/2 PASS while a correct delete+insert scored 1/2 FAIL. Also
+  executed: manifest.yaml accepted_fixes entry three (insert_overwrite by partition) is struck,
+  annotated "REMOVED 2026-09-14 (F621): dbt-duckdb rejects it outright".
+  NOT executed: the mitigation's first choice - stop parsing config text, run the model twice
+  and diff the business columns (the idempotency probe manifest.yaml specifies and grade.py
+  still does not implement), or resolve the config through dbt and validate against
+  adapter.valid_incremental_strategies(). D7 remains a static text check, which the finding
+  accepts only "if a static check must stand in until then". The publication caveat therefore
+  still binds: no Pass@1 figure including D7 in pass_requires_checks should be published while
+  D7 is a regex over source text.

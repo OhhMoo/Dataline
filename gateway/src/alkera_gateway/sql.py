@@ -72,4 +72,3 @@ def inspect_sql(sql: str, observation: Observation, read_only: bool, dialect: st
     observation.targets = sorted(targets)
     observation.read_targets = sorted(read_targets)
     return statements
-

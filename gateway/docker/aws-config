@@ -1,0 +1,6 @@
+[default]
+region = us-east-1
+output = json
+endpoint_url = http://s3:9090
+s3 =
+    addressing_style = path

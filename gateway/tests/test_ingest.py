@@ -98,8 +98,12 @@ def test_schema_config_read_and_update(gateway):
     updated = assert_ok(
         gateway.call(
             "ingest_schema_update",
-            {"connector_id": "acme_orders", "table": "raw.vendor_orders",
-             "column_added": "alert", "column_removed": None},
+            {
+                "connector_id": "acme_orders",
+                "table": "raw.vendor_orders",
+                "column_added": "alert",
+                "column_removed": None,
+            },
         )
     )
     assert updated["column_added"] == "alert"
@@ -124,8 +128,7 @@ def test_schema_config_read_and_update(gateway):
 
     result = gateway.call(
         "ingest_schema_update",
-        {"connector_id": "acme_orders", "table": "raw.vendor_orders",
-         "column_added": "explode"},
+        {"connector_id": "acme_orders", "table": "raw.vendor_orders", "column_added": "explode"},
     )
     assert not result["ok"]
     assert result["error"]["code"] == "invalid_arguments"
@@ -139,9 +142,7 @@ def test_alerts(gateway):
     unacked = assert_ok(gateway.call("ingest_alerts", {"acknowledged": False}))["alerts"]
     assert len(unacked) == 1
     assert assert_ok(gateway.call("ingest_alerts", {"acknowledged": True}))["alerts"] == []
-    assert (
-        assert_ok(gateway.call("ingest_alerts", {"connector_id": "acme_orders"}))["alerts"] == []
-    )
+    assert assert_ok(gateway.call("ingest_alerts", {"connector_id": "acme_orders"}))["alerts"] == []
 
 
 def test_action_log_rows_match_existing_shape(gateway):
@@ -149,8 +150,7 @@ def test_action_log_rows_match_existing_shape(gateway):
     gateway.call("ingest_trigger", {"connector_id": "acme_orders"})
     gateway.call(
         "ingest_schema_update",
-        {"connector_id": "acme_orders", "table": "raw.vendor_orders",
-         "column_added": "ignore"},
+        {"connector_id": "acme_orders", "table": "raw.vendor_orders", "column_added": "ignore"},
     )
     rows = read_rows(gateway.audit.actions)
     keys = set(operation_record(rows[0]))

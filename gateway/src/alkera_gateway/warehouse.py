@@ -30,13 +30,7 @@ def count_result(count):
 
 
 class DuckDBWarehouse:
-    """The default backend, and the only one a world gets without declaring one.
-
-    Never open the warehouse file as the primary catalog: DuckDB names the
-    catalog after the file stem, so `/var/warehouse/warehouse.duckdb` holding a
-    schema named `warehouse` makes every two-part reference ambiguous. Attach it
-    under `wh` to an in-memory connection instead (agent.md 9.2.1).
-    """
+    """Attach as wh to avoid the warehouse filename/schema collision."""
 
     dialect = "duckdb"
 
@@ -173,9 +167,11 @@ class PostgresWarehouse:
                         )
                     else:
                         count = max(cursor.rowcount, 0)
-                        empty_column = {"name": "Success", "type": "BOOLEAN"} if isinstance(
-                            statement, (exp.Drop, exp.Alter)
-                        ) else {"name": "Count", "type": "BIGINT"}
+                        empty_column = (
+                            {"name": "Success", "type": "BOOLEAN"}
+                            if isinstance(statement, (exp.Drop, exp.Alter))
+                            else {"name": "Count", "type": "BIGINT"}
+                        )
                         results.append(
                             count_result(count)
                             if cursor.rowcount >= 0

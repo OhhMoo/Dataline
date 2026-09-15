@@ -42,8 +42,18 @@ def _stats(db: Path) -> dict:
     # "The process cannot access the file because it is being used by another
     # process" - the verifier is the one component that must never be the reason
     # a run fails.
-    con = duckdb.connect(str(db), read_only=True)
+    # Aliased ATTACH, never a direct open (F622, agent.md 9.2.1). Opening the
+    # file directly names the catalog after its stem, so at the CONTRACT path
+    # var/warehouse/warehouse.duckdb the catalog and the schema are both
+    # `warehouse` and every two-part reference below raises Binder Error -
+    # Ambiguous reference. It has not fired yet only because callers happen to
+    # pass fixture paths whose stem is `world`; `db` is an argument, so that is
+    # luck, not a property. Under the alias the catalog is `wh` and
+    # `warehouse.fct_orders` reads unambiguously as schema.table.
+    con = duckdb.connect(":memory:")
     con.execute("SET threads TO 1;")
+    con.execute("ATTACH '" + str(db).replace("'", "''") + "' AS wh (READ_ONLY)")
+    con.execute("USE wh.warehouse")
     try:
         return {
             "rows": con.execute(
@@ -78,8 +88,14 @@ def verify(fx: Path, quiet: bool = False) -> None:
 
     ratio = None
     if not problems:
-        con = duckdb.connect(str(fx / "world.duckdb"))
+        # Same F622 form as _stats above. READ_ONLY too: this block only reads,
+        # and a read-write handle takes duckdb's exclusive lock, which is what
+        # knocked concurrent rollouts over on the sibling connection.
+        con = duckdb.connect(":memory:")
         con.execute("SET threads TO 1;")
+        con.execute("ATTACH '" + str(fx / "world.duckdb").replace("'", "''")
+                    + "' AS wh (READ_ONLY)")
+        con.execute("USE wh.warehouse")
         a, b = con.execute(
             "SELECT ROUND(AVG(CASE WHEN dt BETWEEN DATE '" + WIN_START
             + "' AND DATE '" + WIN_END + "' THEN aov END), 2),"

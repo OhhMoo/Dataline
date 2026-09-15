@@ -266,6 +266,125 @@ def test_missing_evidence():
           f"{s['hard_count']} hard rows, reason {s['quarantine_reason']}")
 
 
+# ------------------------------------------------- container topology + shell
+def probe(when, **overrides):
+    """A containment probe result of the shape container_episode writes."""
+    base = {
+        "when": when,
+        "contained": True,
+        "egress_blocked": True,
+        "forbidden_dirs": [{"path": "/grading", "exists": False}],
+        "forbidden_reads": [{"path": "/grading/manifest.yaml",
+                             "result": "FileNotFoundError: no such file"}],
+        "host_paths_present": [],
+        "marker_sweep": {"files_scanned": 150, "truncated": False, "hits": []},
+        "network": {"default_route": False},
+    }
+    base.update(overrides)
+    return base
+
+
+def test_container_topology():
+    """The guarantee moves from the tool surface to the container - and the
+    container has to be MEASURED, per rollout, or the move is a downgrade."""
+    print("\n  container topology: containment is evidence, never a flag")
+
+    both = [probe("before_episode"), probe("after_episode")]
+    check("a probed, sealed container earns `filesystem_isolated`",
+          blindness.guarantee(driver="mcp", topology="container",
+                              containment=both) == "filesystem_isolated")
+    check("the host topology keeps `tool_surface_revoked` and is unaffected",
+          blindness.guarantee(driver="mcp", topology="host",
+                              containment=None) == "tool_surface_revoked")
+    check("no evidence at all does NOT earn the stronger claim",
+          blindness.guarantee(driver="mcp", topology="container",
+                              containment=None)
+          == "tool_surface_revoked+unverified_container")
+    check("evidence from only one end of the episode does not earn it either",
+          blindness.guarantee(driver="mcp", topology="container",
+                              containment=[probe("before_episode")])
+          == "tool_surface_revoked+unverified_container")
+
+    def det(containment):
+        return blindness.detect(
+            transcript=tr(), driver="mcp", gateway_tools=GATEWAY_TOOLS + ["bash"],
+            canaries=[CANARY], repo_root=REPO, action_rows=[],
+            world_before={}, world_after={}, world_layout=LAYOUT,
+            topology="container", containment=containment)
+
+    v = det(None)
+    s = blindness.summarise(v)
+    check("an unprobed container quarantines rather than passing",
+          s["quarantined"] and "unverified_containment" in kinds(v))
+    check("...as UNOBSERVED - a statement about us, not about the subject",
+          s["quarantine_reason"] == "unobserved")
+
+    v = det([probe("before_episode"),
+             probe("after_episode", contained=False,
+                   forbidden_dirs=[{"path": "/grading", "exists": True}])])
+    check("a grading path that EXISTS inside the container quarantines",
+          "unverified_containment" in kinds(v))
+
+    v = det([probe("before_episode"),
+             probe("after_episode", contained=False, egress_blocked=False)])
+    check("egress from inside the container quarantines", "unverified_containment" in kinds(v))
+
+    v = det([probe("before_episode"),
+             probe("after_episode", contained=False, forbidden_reads=[
+                 {"path": "/grading/manifest.yaml", "result": "READ"}])])
+    check("a grading file that was actually READ quarantines",
+          "unverified_containment" in kinds(v))
+
+    v = det([probe("before_episode"),
+             probe("after_episode", contained=False, marker_sweep={
+                 "files_scanned": 9, "truncated": False,
+                 "hits": [{"kind": "marker_filename", "path": "/opt/x/grade.py"}]})])
+    check("a marker-shaped FILE readable inside the container quarantines",
+          "unverified_containment" in kinds(v))
+
+    v = det([probe("before_episode"), probe("after_episode")])
+    check("a container probed at both ends and sealed is NOT quarantined",
+          not blindness.summarise(v)["quarantined"], str(kinds(v)))
+
+    # the shell itself
+    t = tr(tools=[f"mcp__alkera__{x}" for x in GATEWAY_TOOLS + ["bash"]],
+           uses=[("mcp__alkera__bash", {"command": "git log --oneline -3"})])
+    v = blindness.detect(
+        transcript=t, driver="mcp", gateway_tools=GATEWAY_TOOLS + ["bash"],
+        canaries=[CANARY], repo_root=REPO, action_rows=[],
+        world_before={}, world_after={}, world_layout=LAYOUT,
+        topology="container",
+        containment=[probe("before_episode"), probe("after_episode")])
+    check("the gateway's own bash tool is not a capability leak",
+          not blindness.summarise(v)["quarantined"], str(kinds(v)))
+
+    # the shell writes to the world, and the row must account for it
+    rows = [{"seq": 1, "tool": "bash", "op_class": "exec",
+             "targets": ["var/sched/state.json", "workspace/models/fct.sql"],
+             "flags": ["shell"]}]
+    v = blindness.detect(
+        transcript=t, driver="mcp", gateway_tools=GATEWAY_TOOLS + ["bash"],
+        canaries=[CANARY], repo_root=REPO, action_rows=rows,
+        world_before={"var/sched/state.json": [1, "a"],
+                      "workspace/models/fct.sql": [1, "a"]},
+        world_after={"var/sched/state.json": [2, "b"],
+                     "workspace/models/fct.sql": [2, "b"]},
+        world_layout=LAYOUT, topology="container",
+        containment=[probe("before_episode"), probe("after_episode")])
+    check("a shell write the bash row NAMES is attributed, not flagged off-channel",
+          "out_of_band_world_change" not in kinds(v, hard_only=False), str(kinds(v, False)))
+
+    v = blindness.detect(
+        transcript=t, driver="mcp", gateway_tools=GATEWAY_TOOLS + ["bash"],
+        canaries=[CANARY], repo_root=REPO, action_rows=rows,
+        world_before={"var/other/secret.json": [1, "a"]},
+        world_after={"var/other/secret.json": [2, "b"]},
+        world_layout=LAYOUT, topology="container",
+        containment=[probe("before_episode"), probe("after_episode")])
+    check("a world change NO row names is still flagged off-channel",
+          "out_of_band_world_change" in kinds(v, hard_only=False), str(kinds(v, False)))
+
+
 # ------------------------------------------------------------ kimi driver
 def wire(*, tools=None, calls=(), texts=(), thinks=(), results=(),
          snapshot=True, extra=()):
@@ -483,6 +602,7 @@ def main() -> int:
     print("\n  harness self-test")
     test_blindness()
     test_missing_evidence()
+    test_container_topology()
     test_kimi_driver()
     test_classifier()
     print(f"\n  {len(OK)} passed, {len(BAD)} failed")

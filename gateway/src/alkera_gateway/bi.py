@@ -5,7 +5,7 @@ import json
 import yaml
 
 from .records import Observation, ToolError, canonical, digest
-from .surfaces import Dashboard
+from .surfaces import Dashboard, dashboard_path, load_dashboard
 
 
 class BIStore:
@@ -15,22 +15,9 @@ class BIStore:
         self.warehouse = warehouse
         self.clock = clock
 
-    def path(self, dashboard, directory, suffix):
-        if not dashboard or any(
-            c not in "abcdefghijklmnopqrstuvwxyz0123456789_-" for c in dashboard
-        ):
-            raise ToolError("invalid_dashboard", "Use a dashboard ID containing a-z, 0-9, _ or -")
-        path = (directory / f"{dashboard}.{suffix}").resolve()
-        if not path.is_relative_to(directory):
-            raise ToolError("path_denied", "Dashboard path escapes its directory")
-        return path
-
     def get(self, dashboard, observation):
-        path = self.path(dashboard, self.definitions, "yml")
-        spec = Dashboard.model_validate(yaml.safe_load(path.read_text(encoding="utf-8")))
-        if spec.dashboard != dashboard:
-            raise ToolError("invalid_dashboard", "Dashboard ID does not match its filename")
         observation.targets = observation.read_targets = [f"dashboard:{dashboard}"]
+        spec = load_dashboard(self.definitions, dashboard)
         return spec.model_dump()
 
     def list(self, observation):
@@ -48,7 +35,7 @@ class BIStore:
         spec = Dashboard.model_validate(definition)
         if spec.dashboard != dashboard:
             raise ToolError("invalid_dashboard", "Dashboard ID does not match the target")
-        path = self.path(dashboard, self.definitions, "yml")
+        path = dashboard_path(self.definitions, dashboard)
         self.definitions.mkdir(parents=True, exist_ok=True)
         observation.op_class = "write"
         observation.targets = [f"dashboard:{dashboard}"]
@@ -71,7 +58,7 @@ class BIStore:
 
     def cached(self, dashboard, observation):
         self.get(dashboard, observation)
-        path = self.path(dashboard, self.state, "json")
+        path = dashboard_path(self.state, dashboard, "json")
         if not path.exists():
             raise ToolError("not_refreshed", "Dashboard has no cached refresh")
         return json.loads(path.read_text(encoding="utf-8"))
@@ -89,7 +76,7 @@ class BIStore:
                 observation.read_targets = sorted(
                     set(observation.read_targets + current.read_targets)
                 )
-        path = self.path(dashboard, self.state, "json")
+        path = dashboard_path(self.state, dashboard, "json")
         previous = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
         events = previous.get("refresh_events", [])
         event = {

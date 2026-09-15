@@ -1,0 +1,996 @@
+{
+  "compose_file": "C:\\Users\\OhhMoo\\Desktop\\research\\alkera\\gateway\\docker\\compose.yml",
+  "generated": "2026-09-14T16:13:56+00:00",
+  "host": {
+    "docker": "29.5.2",
+    "platform": "Windows-10-10.0.26200-SP0"
+  },
+  "p0_world_provisioned": {
+    "bi_panels": true,
+    "docs_lines": true,
+    "passed": true,
+    "s3_buckets_on_the_wire": [
+      "landing"
+    ],
+    "s3_roundtrip_through_gateway": true,
+    "warehouse_rows": 2
+  },
+  "p1_grading_zone": {
+    "absent_during_episode": true,
+    "declared_mounts": [
+      {
+        "read_only": true,
+        "source": "worlddata",
+        "target": "/world"
+      },
+      {
+        "read_only": true,
+        "source": "auditdata",
+        "target": "/audit"
+      },
+      {
+        "read_only": true,
+        "source": "bistate",
+        "target": "/service-state/bi"
+      }
+    ],
+    "declared_network_mode": "none",
+    "declared_networks": [],
+    "declared_profiles": [
+      "grading"
+    ],
+    "episode_sees_grading_path": "false",
+    "grader_isolated": true,
+    "grader_mounts": {
+      "grading_dir_present": false,
+      "world_exists": true,
+      "world_file_count": 21,
+      "world_writable": false,
+      "world_write_error": "OSError: [Errno 30] Read-only file system: '/world/.containment-write-probe'"
+    },
+    "grader_netns": {
+      "addresses": {
+        "lo": "127.0.0.1"
+      },
+      "default_route": false,
+      "egress_blocked": true,
+      "egress_dns": [
+        {
+          "name": "example.com",
+          "result": "gaierror"
+        },
+        {
+          "name": "google.com",
+          "result": "gaierror"
+        },
+        {
+          "name": "pypi.org",
+          "result": "gaierror"
+        }
+      ],
+      "egress_tcp": [
+        {
+          "result": "OSError",
+          "target": "8.8.8.8:53"
+        },
+        {
+          "result": "OSError",
+          "target": "1.1.1.1:443"
+        },
+        {
+          "result": "OSError",
+          "target": "93.184.215.14:80"
+        }
+      ],
+      "interfaces": [
+        "lo"
+      ],
+      "routes": []
+    },
+    "grader_reachability": {
+      "addresses": [
+        {
+          "result": "OSError",
+          "target": "172.22.0.2:5432"
+        },
+        {
+          "result": "OSError",
+          "target": "172.22.0.2:9090"
+        },
+        {
+          "result": "OSError",
+          "target": "172.22.0.2:8443"
+        },
+        {
+          "result": "OSError",
+          "target": "172.22.0.2:8080"
+        },
+        {
+          "result": "OSError",
+          "target": "172.22.0.2:80"
+        },
+        {
+          "result": "OSError",
+          "target": "172.22.0.2:443"
+        },
+        {
+          "result": "OSError",
+          "target": "172.22.0.3:5432"
+        },
+        {
+          "result": "OSError",
+          "target": "172.22.0.3:9090"
+        },
+        {
+          "result": "OSError",
+          "target": "172.22.0.3:8443"
+        },
+        {
+          "result": "OSError",
+          "target": "172.22.0.3:8080"
+        },
+        {
+          "result": "OSError",
+          "target": "172.22.0.3:80"
+        },
+        {
+          "result": "OSError",
+          "target": "172.22.0.3:443"
+        },
+        {
+          "result": "OSError",
+          "target": "172.22.0.5:5432"
+        },
+        {
+          "result": "OSError",
+          "target": "172.22.0.5:9090"
+        },
+        {
+          "result": "OSError",
+          "target": "172.22.0.5:8443"
+        },
+        {
+          "result": "OSError",
+          "target": "172.22.0.5:8080"
+        },
+        {
+          "result": "OSError",
+          "target": "172.22.0.5:80"
+        },
+        {
+          "result": "OSError",
+          "target": "172.22.0.5:443"
+        }
+      ],
+      "names": [
+        {
+          "name": "acme.snowflake.local",
+          "result": "gaierror"
+        },
+        {
+          "name": "episode",
+          "result": "gaierror"
+        },
+        {
+          "name": "postgres",
+          "result": "gaierror"
+        },
+        {
+          "name": "s3",
+          "result": "gaierror"
+        },
+        {
+          "name": "snowflake",
+          "result": "gaierror"
+        }
+      ]
+    },
+    "passed": true,
+    "services_live_during_episode": [
+      "episode",
+      "postgres",
+      "s3",
+      "snowflake"
+    ],
+    "still_running_when_grader_started": [],
+    "stopped_before_grader_started": [
+      "episode",
+      "postgres",
+      "s3",
+      "snowflake"
+    ]
+  },
+  "p2_egress": {
+    "declared_but_not_probed": [
+      "grading"
+    ],
+    "extra_interfaces": {},
+    "passed": true,
+    "probe_control": {
+      "egress_blocked": false,
+      "egress_dns": [
+        {
+          "name": "example.com",
+          "result": "RESOLVED"
+        },
+        {
+          "name": "google.com",
+          "result": "RESOLVED"
+        },
+        {
+          "name": "pypi.org",
+          "result": "RESOLVED"
+        }
+      ],
+      "egress_tcp": [
+        {
+          "result": "CONNECTED",
+          "target": "8.8.8.8:53"
+        },
+        {
+          "result": "CONNECTED",
+          "target": "1.1.1.1:443"
+        },
+        {
+          "result": "TimeoutError",
+          "target": "93.184.215.14:80"
+        }
+      ],
+      "probe_can_detect_egress": true,
+      "vantage": "default bridge network, same image and probe"
+    },
+    "probed": [
+      "episode",
+      "harness",
+      "postgres",
+      "s3",
+      "snowflake"
+    ]
+  },
+  "p3_only_channel": {
+    "agent_name_resolution": [
+      {
+        "name": "acme.snowflake.local",
+        "result": "gaierror"
+      },
+      {
+        "name": "episode",
+        "result": [
+          "172.23.0.2"
+        ]
+      },
+      {
+        "name": "postgres",
+        "result": "gaierror"
+      },
+      {
+        "name": "s3",
+        "result": "gaierror"
+      },
+      {
+        "name": "snowflake",
+        "result": "gaierror"
+      }
+    ],
+    "agent_reachable": [
+      "172.23.0.2:8080"
+    ],
+    "agent_resolved": [
+      "episode"
+    ],
+    "agent_vantage": "harness container, episode_net only",
+    "backends_reachable_from_agent": [],
+    "episode_container_reachability": [
+      {
+        "result": "ConnectionRefusedError",
+        "target": "172.22.0.2:5432"
+      },
+      {
+        "result": "CONNECTED",
+        "target": "172.22.0.2:9090"
+      },
+      {
+        "result": "ConnectionRefusedError",
+        "target": "172.22.0.2:8443"
+      },
+      {
+        "result": "ConnectionRefusedError",
+        "target": "172.22.0.2:8080"
+      },
+      {
+        "result": "ConnectionRefusedError",
+        "target": "172.22.0.2:80"
+      },
+      {
+        "result": "ConnectionRefusedError",
+        "target": "172.22.0.2:443"
+      },
+      {
+        "result": "CONNECTED",
+        "target": "172.22.0.3:5432"
+      },
+      {
+        "result": "ConnectionRefusedError",
+        "target": "172.22.0.3:9090"
+      },
+      {
+        "result": "ConnectionRefusedError",
+        "target": "172.22.0.3:8443"
+      },
+      {
+        "result": "ConnectionRefusedError",
+        "target": "172.22.0.3:8080"
+      },
+      {
+        "result": "ConnectionRefusedError",
+        "target": "172.22.0.3:80"
+      },
+      {
+        "result": "ConnectionRefusedError",
+        "target": "172.22.0.3:443"
+      },
+      {
+        "result": "ConnectionRefusedError",
+        "target": "172.22.0.5:5432"
+      },
+      {
+        "result": "ConnectionRefusedError",
+        "target": "172.22.0.5:9090"
+      },
+      {
+        "result": "CONNECTED",
+        "target": "172.22.0.5:8443"
+      },
+      {
+        "result": "ConnectionRefusedError",
+        "target": "172.22.0.5:8080"
+      },
+      {
+        "result": "ConnectionRefusedError",
+        "target": "172.22.0.5:80"
+      },
+      {
+        "result": "ConnectionRefusedError",
+        "target": "172.22.0.5:443"
+      },
+      {
+        "result": "CONNECTED",
+        "target": "172.22.0.4:8080"
+      },
+      {
+        "result": "CONNECTED",
+        "target": "172.23.0.2:8080"
+      }
+    ],
+    "episode_container_resolution": [
+      {
+        "name": "acme.snowflake.local",
+        "result": [
+          "172.22.0.5"
+        ]
+      },
+      {
+        "name": "episode",
+        "result": [
+          "172.22.0.4"
+        ]
+      },
+      {
+        "name": "postgres",
+        "result": [
+          "172.22.0.3"
+        ]
+      },
+      {
+        "name": "s3",
+        "result": [
+          "172.22.0.2"
+        ]
+      },
+      {
+        "name": "snowflake",
+        "result": [
+          "172.22.0.5"
+        ]
+      }
+    ],
+    "episode_direct_backend_connection": {
+      "connected": true,
+      "dsn_present": true,
+      "identity": [
+        "episode",
+        "episode"
+      ],
+      "superuser": false
+    },
+    "gateway_port_reachable": [
+      "172.23.0.2:8080"
+    ],
+    "passed": true,
+    "published_host_ports": {},
+    "tool_surface": {
+      "fields": {
+        "bi_cached": [
+          "dashboard"
+        ],
+        "bi_get": [
+          "dashboard"
+        ],
+        "bi_list": [],
+        "bi_refresh": [
+          "dashboard"
+        ],
+        "bi_render": [
+          "dashboard"
+        ],
+        "bi_update": [
+          "dashboard",
+          "definition"
+        ],
+        "dbt_compile": [
+          "selector",
+          "variables"
+        ],
+        "dbt_run": [
+          "full_refresh",
+          "selector",
+          "variables"
+        ],
+        "dbt_test": [
+          "selector",
+          "variables"
+        ],
+        "docs_get": [
+          "path"
+        ],
+        "docs_list": [],
+        "docs_search": [
+          "encoding",
+          "limit",
+          "query"
+        ],
+        "fs_list": [
+          "path",
+          "recursive"
+        ],
+        "fs_read": [
+          "encoding",
+          "path"
+        ],
+        "fs_write": [
+          "content",
+          "encoding",
+          "path"
+        ],
+        "git_commit": [
+          "message",
+          "paths"
+        ],
+        "git_diff": [
+          "staged"
+        ],
+        "git_log": [
+          "limit"
+        ],
+        "ingest_alerts": [
+          "acknowledged",
+          "connector_id"
+        ],
+        "ingest_get": [
+          "connector_id"
+        ],
+        "ingest_list": [],
+        "ingest_run": [
+          "run_id"
+        ],
+        "ingest_runs": [
+          "connector_id",
+          "continuation_token",
+          "limit"
+        ],
+        "ingest_schema": [
+          "connector_id"
+        ],
+        "ingest_schema_update": [
+          "column_added",
+          "column_removed",
+          "connector_id",
+          "table"
+        ],
+        "ingest_trigger": [
+          "connector_id"
+        ],
+        "s3_delete": [
+          "bucket",
+          "key"
+        ],
+        "s3_get": [
+          "bucket",
+          "key"
+        ],
+        "s3_list": [
+          "bucket",
+          "continuation_token",
+          "limit",
+          "prefix"
+        ],
+        "s3_put": [
+          "body_base64",
+          "bucket",
+          "key",
+          "metadata"
+        ],
+        "sched_list": [],
+        "sched_logs": [
+          "run_id"
+        ],
+        "sched_state": [
+          "run_id"
+        ],
+        "sched_trigger": [
+          "execution_date",
+          "job_id",
+          "variables"
+        ],
+        "sql_execute": [
+          "sql"
+        ],
+        "sql_query": [
+          "limit",
+          "sql"
+        ]
+      },
+      "no_socket_primitive": true,
+      "socket_arguments": [],
+      "tool_count": 36
+    }
+  },
+  "p4_determinism": {
+    "declared_worlddata_mounts": {
+      "episode": [
+        {
+          "read_only": false,
+          "source": "worlddata",
+          "target": "/world"
+        }
+      ],
+      "grading": [
+        {
+          "read_only": true,
+          "source": "worlddata",
+          "target": "/world"
+        }
+      ]
+    },
+    "file_count": 3,
+    "files_changed_under_load": [],
+    "files_changed_while_idle": [],
+    "idle_seconds": 20,
+    "load_exercised": {
+      "bi_panels": true,
+      "docs_lines": true,
+      "s3_buckets_on_the_wire": [
+        "landing"
+      ],
+      "s3_roundtrip": true,
+      "warehouse_rows": 2
+    },
+    "passed": true,
+    "read_only_in_running": [],
+    "tree_digest_after_idle": "651f4974766df5ea39723b1aa8a38a25456c50c7b502a32ebd4aada0d236b813",
+    "tree_digest_after_load": "651f4974766df5ea39723b1aa8a38a25456c50c7b502a32ebd4aada0d236b813",
+    "tree_digest_start": "651f4974766df5ea39723b1aa8a38a25456c50c7b502a32ebd4aada0d236b813",
+    "worlddata_volume": "alkera-cleanup-review_worlddata",
+    "writable_in_running": [
+      "episode"
+    ],
+    "writable_state_outside_world": {
+      "episode": [
+        "/audit",
+        "/etc/alkera/snowflake-tls",
+        "/service-state/bi"
+      ],
+      "harness": [],
+      "postgres": [
+        "/var/lib/postgresql/data"
+      ],
+      "s3": [],
+      "snowflake": [
+        "/etc/alkera/snowflake-tls",
+        "/snowflake-data",
+        "/tls"
+      ]
+    }
+  },
+  "passed": true,
+  "profiles": [
+    "snowflake"
+  ],
+  "project": "alkera-cleanup-review",
+  "services": [
+    {
+      "aliases": {
+        "alkera-cleanup-review_backend_net": [
+          "alkera-cleanup-review-episode-1",
+          "episode"
+        ],
+        "alkera-cleanup-review_episode_net": [
+          "alkera-cleanup-review-episode-1",
+          "episode"
+        ]
+      },
+      "container": "alkera-cleanup-review-episode-1",
+      "egress_blocked": true,
+      "image": "alkera-stack:track-b",
+      "mounts": [
+        {
+          "rw": true,
+          "source": "alkera-cleanup-review_auditdata",
+          "target": "/audit"
+        },
+        {
+          "rw": true,
+          "source": "alkera-cleanup-review_bistate",
+          "target": "/service-state/bi"
+        },
+        {
+          "rw": true,
+          "source": "alkera-cleanup-review_snowflaketrust",
+          "target": "/etc/alkera/snowflake-tls"
+        },
+        {
+          "rw": true,
+          "source": "alkera-cleanup-review_worlddata",
+          "target": "/world"
+        }
+      ],
+      "netns": {
+        "addresses": {
+          "eth0": "172.23.0.2",
+          "eth1": "172.22.0.4",
+          "lo": "127.0.0.1"
+        },
+        "default_route": false,
+        "egress_blocked": true,
+        "egress_dns": [
+          {
+            "name": "example.com",
+            "result": "gaierror"
+          },
+          {
+            "name": "google.com",
+            "result": "gaierror"
+          },
+          {
+            "name": "pypi.org",
+            "result": "gaierror"
+          }
+        ],
+        "egress_tcp": [
+          {
+            "result": "OSError",
+            "target": "8.8.8.8:53"
+          },
+          {
+            "result": "OSError",
+            "target": "1.1.1.1:443"
+          },
+          {
+            "result": "OSError",
+            "target": "93.184.215.14:80"
+          }
+        ],
+        "interfaces": [
+          "lo",
+          "eth0",
+          "eth1"
+        ],
+        "routes": [
+          {
+            "dest": "172.22.0.0",
+            "gateway": "0.0.0.0",
+            "iface": "eth1"
+          },
+          {
+            "dest": "172.23.0.0",
+            "gateway": "0.0.0.0",
+            "iface": "eth0"
+          }
+        ]
+      },
+      "network_mode": "alkera-cleanup-review_backend_net",
+      "networks": {
+        "alkera-cleanup-review_backend_net": "172.22.0.4",
+        "alkera-cleanup-review_episode_net": "172.23.0.2"
+      },
+      "published_ports": {},
+      "service": "episode"
+    },
+    {
+      "aliases": {
+        "alkera-cleanup-review_backend_net": [
+          "alkera-cleanup-review-postgres-1",
+          "postgres"
+        ]
+      },
+      "container": "alkera-cleanup-review-postgres-1",
+      "egress_blocked": true,
+      "image": "postgres@sha256:f1c3376c26f2609ab9f29f71f824103fe2fcd8ee0346485cb6122a4f93df6f94",
+      "mounts": [
+        {
+          "rw": true,
+          "source": "alkera-cleanup-review_pgdata",
+          "target": "/var/lib/postgresql/data"
+        },
+        {
+          "rw": false,
+          "source": "/run/desktop/mnt/host/c/Users/OhhMoo/Desktop/research/alkera/gateway/docker/postgres.sql",
+          "target": "/docker-entrypoint-initdb.d/seed.sql"
+        }
+      ],
+      "netns": {
+        "addresses": {
+          "eth0": "172.22.0.3",
+          "lo": "127.0.0.1"
+        },
+        "default_route": false,
+        "egress_blocked": true,
+        "egress_dns": [
+          {
+            "name": "example.com",
+            "result": "gaierror"
+          },
+          {
+            "name": "google.com",
+            "result": "gaierror"
+          },
+          {
+            "name": "pypi.org",
+            "result": "gaierror"
+          }
+        ],
+        "egress_tcp": [
+          {
+            "result": "OSError",
+            "target": "8.8.8.8:53"
+          },
+          {
+            "result": "OSError",
+            "target": "1.1.1.1:443"
+          },
+          {
+            "result": "OSError",
+            "target": "93.184.215.14:80"
+          }
+        ],
+        "interfaces": [
+          "lo",
+          "eth0"
+        ],
+        "routes": [
+          {
+            "dest": "172.22.0.0",
+            "gateway": "0.0.0.0",
+            "iface": "eth0"
+          }
+        ]
+      },
+      "network_mode": "alkera-cleanup-review_backend_net",
+      "networks": {
+        "alkera-cleanup-review_backend_net": "172.22.0.3"
+      },
+      "published_ports": {},
+      "service": "postgres"
+    },
+    {
+      "aliases": {
+        "alkera-cleanup-review_backend_net": [
+          "alkera-cleanup-review-s3-1",
+          "s3"
+        ]
+      },
+      "container": "alkera-cleanup-review-s3-1",
+      "egress_blocked": true,
+      "image": "adobe/s3mock@sha256:e7c36014dcf4c7f0f6bec9de888477d1d9b8f55eceb7d9c1186f70d7aadf81ca",
+      "mounts": [],
+      "netns": {
+        "addresses": {
+          "eth0": "172.22.0.2",
+          "lo": "127.0.0.1"
+        },
+        "default_route": false,
+        "egress_blocked": true,
+        "egress_dns": [
+          {
+            "name": "example.com",
+            "result": "gaierror"
+          },
+          {
+            "name": "google.com",
+            "result": "gaierror"
+          },
+          {
+            "name": "pypi.org",
+            "result": "gaierror"
+          }
+        ],
+        "egress_tcp": [
+          {
+            "result": "OSError",
+            "target": "8.8.8.8:53"
+          },
+          {
+            "result": "OSError",
+            "target": "1.1.1.1:443"
+          },
+          {
+            "result": "OSError",
+            "target": "93.184.215.14:80"
+          }
+        ],
+        "interfaces": [
+          "lo",
+          "eth0"
+        ],
+        "routes": [
+          {
+            "dest": "172.22.0.0",
+            "gateway": "0.0.0.0",
+            "iface": "eth0"
+          }
+        ]
+      },
+      "network_mode": "alkera-cleanup-review_backend_net",
+      "networks": {
+        "alkera-cleanup-review_backend_net": "172.22.0.2"
+      },
+      "published_ports": {},
+      "service": "s3"
+    },
+    {
+      "aliases": {
+        "alkera-cleanup-review_backend_net": [
+          "alkera-cleanup-review-snowflake-1",
+          "snowflake",
+          "acme.snowflake.local"
+        ]
+      },
+      "container": "alkera-cleanup-review-snowflake-1",
+      "egress_blocked": true,
+      "image": "alkera-snowflake:plumbing",
+      "mounts": [
+        {
+          "rw": true,
+          "source": "alkera-cleanup-review_snowflakedata",
+          "target": "/snowflake-data"
+        },
+        {
+          "rw": true,
+          "source": "alkera-cleanup-review_snowflaketls",
+          "target": "/tls"
+        },
+        {
+          "rw": true,
+          "source": "alkera-cleanup-review_snowflaketrust",
+          "target": "/etc/alkera/snowflake-tls"
+        }
+      ],
+      "netns": {
+        "addresses": {
+          "eth0": "172.22.0.5",
+          "lo": "127.0.0.1"
+        },
+        "default_route": false,
+        "egress_blocked": true,
+        "egress_dns": [
+          {
+            "name": "example.com",
+            "result": "gaierror"
+          },
+          {
+            "name": "google.com",
+            "result": "gaierror"
+          },
+          {
+            "name": "pypi.org",
+            "result": "gaierror"
+          }
+        ],
+        "egress_tcp": [
+          {
+            "result": "OSError",
+            "target": "8.8.8.8:53"
+          },
+          {
+            "result": "OSError",
+            "target": "1.1.1.1:443"
+          },
+          {
+            "result": "OSError",
+            "target": "93.184.215.14:80"
+          }
+        ],
+        "interfaces": [
+          "lo",
+          "eth0"
+        ],
+        "routes": [
+          {
+            "dest": "172.22.0.0",
+            "gateway": "0.0.0.0",
+            "iface": "eth0"
+          }
+        ]
+      },
+      "network_mode": "alkera-cleanup-review_backend_net",
+      "networks": {
+        "alkera-cleanup-review_backend_net": "172.22.0.5"
+      },
+      "published_ports": {},
+      "service": "snowflake"
+    },
+    {
+      "container": "(compose run)",
+      "egress_blocked": true,
+      "mounts": [],
+      "netns": {
+        "addresses": {
+          "eth0": "172.23.0.3",
+          "lo": "127.0.0.1"
+        },
+        "default_route": false,
+        "egress_blocked": true,
+        "egress_dns": [
+          {
+            "name": "example.com",
+            "result": "gaierror"
+          },
+          {
+            "name": "google.com",
+            "result": "gaierror"
+          },
+          {
+            "name": "pypi.org",
+            "result": "gaierror"
+          }
+        ],
+        "egress_tcp": [
+          {
+            "result": "OSError",
+            "target": "8.8.8.8:53"
+          },
+          {
+            "result": "OSError",
+            "target": "1.1.1.1:443"
+          },
+          {
+            "result": "OSError",
+            "target": "93.184.215.14:80"
+          }
+        ],
+        "interfaces": [
+          "lo",
+          "eth0"
+        ],
+        "routes": [
+          {
+            "dest": "172.23.0.0",
+            "gateway": "0.0.0.0",
+            "iface": "eth0"
+          }
+        ]
+      },
+      "networks": {
+        "episode_net": "172.23.0.3"
+      },
+      "service": "harness"
+    }
+  ],
+  "summary": {
+    "p0_world_actually_provisioned": true,
+    "p1_grading_zone_isolated": true,
+    "p2_no_egress_from_any_service": true,
+    "p3_gateway_is_only_channel": true,
+    "p4_no_service_perturbs_world_tree": true
+  }
+}

@@ -1,15 +1,4 @@
-"""bi_list, plus the two places a surface can answer without answering.
-
-`bi_list` shipped registered with no test. The failure it has to be held against is
-not a crash - it is an empty success: a listing tool that returns `{"dashboards": []}`
-or a row of hollow stubs looks fine to any caller that only checks `ok`, and fifteen
-archetypes depend on the agent being able to see what a dashboard actually claims.
-
-The two xfail tests at the bottom are known defects of exactly that shape, asserted as
-the behaviour we want rather than the behaviour we have. They are `strict`, so whoever
-fixes one gets told to delete the marker instead of leaving a passing test that
-documents nothing.
-"""
+"""Dashboard content, audit attribution, and incomplete-document diagnostics."""
 
 import json
 
@@ -143,12 +132,6 @@ def test_bi_list_fails_loudly_on_an_unreadable_definition(gateway):
     assert row["tool"] == "bi_list"
 
 
-# --------------------------------------------------------------------------------
-# Known defects. Asserted as the behaviour we want, marked strict so a fix turns the
-# suite red until the marker is removed.
-# --------------------------------------------------------------------------------
-
-
 def test_docs_search_does_not_silently_drop_unreadable_documents(gateway):
     """B1-FINISH: fixed. The xfail(strict) marker B3 left here has been removed.
 
@@ -192,19 +175,17 @@ def test_docs_search_does_not_silently_drop_unreadable_documents(gateway):
     )
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "A junk .yml beside the dashboards makes bi_list fail with code "
-        "'invalid_arguments' and a pydantic dump about the Dashboard model. The agent "
-        "called bi_list with {}; nothing about its arguments was invalid. A model told "
-        "its arguments are wrong when the world is wrong burns turns rewriting a call "
-        "that was already correct, and that gets scored as reasoning. Remove this marker "
-        "when the error names the offending definition instead."
-    ),
-)
-def test_bi_list_blames_the_world_not_the_agents_arguments(gateway):
-    (gateway.config.dashboards / "notes.yml").write_text("hello: world\n", encoding="utf-8")
-    error = gateway.call("bi_list", {})["error"]
-    assert error["code"] != "invalid_arguments"
+@pytest.mark.parametrize("content", ["hello: world\n", "panels: [\n"])
+@pytest.mark.parametrize("tool", ["bi_list", "bi_get", "bi_render"])
+def test_bad_dashboard_names_the_world_defect(gateway, content, tool):
+    (gateway.config.dashboards / "notes.yml").write_text(content, encoding="utf-8")
+    args = {} if tool == "bi_list" else {"dashboard": "notes"}
+    error = gateway.call(tool, args)["error"]
+    assert error["code"] == "invalid_dashboard"
     assert "notes" in error["message"]
+
+
+def test_invalid_dashboard_update_is_still_an_argument_error(gateway):
+    result = gateway.call("bi_update", {"dashboard": "notes", "definition": {"hello": "world"}})
+    assert result["error"]["code"] == "invalid_arguments"
+    assert not (gateway.config.dashboards / "notes.yml").exists()

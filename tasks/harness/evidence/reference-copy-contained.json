@@ -1,0 +1,88 @@
+{
+  "artifact_present": true,
+  "baseline": "reference_copy",
+  "baseline_run": {
+    "artifact_step": {
+      "exit_code": 0,
+      "output": "{\"submitted\": \"no_op\"}\n"
+    },
+    "copy_step": {
+      "exit_code": 0,
+      "output": "{\"world\": \"/world/var/warehouse/warehouse.duckdb\", \"reference\": \"/grading/expected.duckdb\", \"reference_reachable\": false, \"error\": \"IOException: IO Error: Cannot open database \\\"/grading/expected.duckdb\\\" in read-only mode: database does not exist\"}\n",
+      "verdict": {
+        "error": "IOException: IO Error: Cannot open database \"/grading/expected.duckdb\" in read-only mode: database does not exist",
+        "reference": "/grading/expected.duckdb",
+        "reference_reachable": false,
+        "world": "/world/var/warehouse/warehouse.duckdb"
+      }
+    }
+  },
+  "declared_expectation": "unreachable at ATTACH (build gate, not a test)",
+  "generated_utc": "2026-09-14T18:20:17Z",
+  "grading_zone_in_container": "not mounted",
+  "grading_zone_on_host": "C:\\Users\\OhhMoo\\AppData\\Local\\Temp\\alkera-refcopy\\1789410016\\grading",
+  "image_digest": "sha256:55c394dc3a25c619876be6d5265114ae4ca049582104cf5374207cc5d9e90733",
+  "passed": true,
+  "reference_reachable_from_inside_the_episode": false,
+  "score": {
+    "checks": {
+      "D1": {
+        "detail": "0/30 window partitions match the reference exactly",
+        "max": 5,
+        "passed": false,
+        "points": 0.0
+      },
+      "D2": {
+        "detail": "59995 duplicate business keys across 30 partitions",
+        "max": 3,
+        "passed": false,
+        "points": 0.0
+      },
+      "D3": {
+        "detail": "824 adjustment rows present but only 412 distinct - adjustments preserved yet still duplicated, not repaired",
+        "max": 3,
+        "passed": false,
+        "points": 0.0
+      },
+      "D4": {
+        "detail": "fct_revenue rows 359680 vs reference 359680",
+        "max": 0,
+        "passed": true,
+        "points": 0.0
+      },
+      "D5a": {
+        "detail": "primary cause not identified",
+        "max": 2,
+        "passed": false,
+        "points": 0.0
+      },
+      "D5b": {
+        "detail": "no damage window stated",
+        "max": 2,
+        "passed": false,
+        "points": 0.0
+      },
+      "D6": {
+        "detail": "secondary found none (+0.0); 0 unsupported cause(s) (-0.0)",
+        "max": 2,
+        "passed": false,
+        "points": 0.0
+      },
+      "D7": {
+        "detail": "loader still incremental_strategy='append' - the next retry re-corrupts regardless of the data repair",
+        "max": 2,
+        "passed": false,
+        "points": 0.0
+      }
+    },
+    "max": 19,
+    "stable": true,
+    "total": 0.0
+  },
+  "services": [
+    "episode",
+    "postgres",
+    "s3"
+  ],
+  "task": "GT001-aov-halving"
+}

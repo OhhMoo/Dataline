@@ -1,0 +1,39 @@
+# Close configuration.
+#
+# Owned jointly by the GL team and data. Changes here need the controller's
+# agreement because the sign-off checklist is derived from it.
+
+calendar:
+  # The close runs on day 1 of the following month; the import job runs daily
+  # so that a workbook posted late is picked up without an operator.
+  import_time_utc: "08:00"
+  # Working days after period end by which the controller expects to sign.
+  signoff_target_days: 3
+
+workbooks:
+  directory: finance/workbooks
+  pattern: "CLOSE_%Y%m.xlsx"
+  sheets:
+    gl_lines: GL_LINES
+    manual_adj: MANUAL_ADJ
+  # A workbook is read in full on every import. Old periods are re-read every
+  # night; that is intentional, and it is what makes a late correction to a
+  # prior period appear without anyone re-running anything.
+  reimport_closed_periods: true
+
+review:
+  # Variance above this is escalated to the controller before sign-off.
+  # NOTE: finance raised this to 10000 for FY26 and it was changed in .envrc
+  # but not here. The BI variance panel reads this file. Unresolved.
+  materiality_threshold: 5000
+  # Accounts the controller reviews line by line regardless of variance.
+  always_review_accounts:
+    - "4000"   # revenue
+    - "4900"   # revenue - manual adjustments
+    - "6100"   # professional fees
+
+signoff:
+  controller: "controller@example.invalid"
+  preparer: "gl-team@example.invalid"
+  # Sign-off is recorded in the workbook, not here. This file only says who.
+  evidence: "MANUAL_ADJ sheet, owner and note columns"
