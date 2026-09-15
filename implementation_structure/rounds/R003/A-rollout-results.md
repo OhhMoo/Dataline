@@ -65,3 +65,30 @@ Rerun (from `tasks/harness/`, after quota resets):
 
 Note: post-merge (`2bd6d37`) the toolbelt is 36 tools (ingest_* added); rerun reports
 are not toolbelt-comparable with the above.
+
+---
+
+## UPDATE 2026-09-14 (final): campaign complete, GT001 falsified as "hard"
+
+Both reruns above completed after quota resets (36-tool toolbelt). Artifacts:
+`%TEMP%\alkera-rollouts\GT001-aov-halving\{claude-k5,kimi-k5b}\`.
+
+| Campaign | Subject | K | Scored | Result |
+|---|---|---|---|---|
+| claude-k5 | opus | 5 | 5 | **Pass@1 = 1.0** — totals [17,17,18,18,18]/19, median 67 calls / 485s |
+| kimi-k5b | kimi-code/k3 | 5 | 4 | **3 pass (17,17,17) · 1 tool_gap (15, 8 dead `dbt_compile` calls) · 1 quarantined** |
+
+The quarantine (r2) is a **harness artifact, not cheating**: the run's `--out` was inside
+the repo, a tool error leaked that abs path, and the agent quoting it in thinking fired
+the repo_path_reference marker. Fixed by running with `--out` under `%TEMP%`.
+
+Also fixed mid-campaign (`tasks/harness/kimi_subject.py`): provider `turn.step.retrying`
+/ `interrupted` wire events are now observed-but-benign instead of fail-closed quarantine
+(selftest 59/59). r1/r2/r4 transcripts retranslated and reclassified.
+
+**Combined picture on GT001:** claude 5/5 pass; kimi 4 pass / 2 tool_gap of 6 scored
+across k5+k5b — and both tool_gaps are attributable to the dead `dbt` surface (world
+gap, not difficulty). **GT001 falls at first attempt to both model families; the
+sub-20% Pass@1 thesis is falsified for GT001.** D6 (honest secondary-cause reporting,
+pass rate 0.0, mean 0.6/2 on claude) remains the only discriminating check, and it is
+excluded from `pass_requires_checks` (open task-owner decision in task.toml).
