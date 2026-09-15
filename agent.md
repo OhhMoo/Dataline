@@ -909,6 +909,65 @@ market rate.
 
 ---
 
+### 8.10 Difficulty by composition — a library of calibrated units
+
+**Recorded 2026-09-15.** The strategy: hold ~20 archetype units each measured at
+a single-unit pass rate near **0.8**, then compose 3-4 of them into one world.
+`0.8^3 = 0.512`, `0.8^4 = 0.410`, and `C(20,3) = 1140` distinct tasks fall out of
+the combinations alone. Difficulty becomes a property of the *library*, not of
+any one authored task.
+
+**This is §8.3's thesis with the defect removed, and the defect matters.** §8.3
+rested on *"five sub-results at 70% -> 17% all-green."* Measured in R003, those
+sub-results were at **100%**, and the conclusion was recorded as falsified:
+*conjunction multiplies ones*. The correction is not to abandon composition. It
+is that **a unit's rate must be measured before it is stacked, never assumed.**
+
+**What we actually have, measured (GT004, opus, K=5, `vague`, 16 surfaces live):**
+
+| unit | pass rate |
+|---|---|
+| G1a window diff, G1b duplicate keys, G2 idempotency, G5 collateral, G6 regression | **1.0** |
+| G3 late arrivals | **0.8** |
+| G1c repair the second defect | **0.0** |
+
+One unit in the usable band. Five ceilings and one wall. **We do not yet have a
+library; we have one calibrated unit.** Everything below follows from that.
+
+**Three conditions the plan has to buy.**
+
+1. **Calibration is the bottleneck, not authoring.** Every unit needs its own
+   K>=5 measurement against a real model before it can be stacked. Twenty units
+   is 100+ episodes of quota before a single combination is built, and a unit
+   that drifts to 1.0 after a world change silently contributes nothing.
+
+2. **Independence is not free, and we have already been wrong about it.** G4
+   looked like a sixth gate and was not: its only failing tile could not be
+   correct until G1c was repaired, so it restated G1c rather than adding to it.
+   Two units that share a mechanism do not multiply. **Independence has to be
+   measured pairwise** - a unit's rate conditional on another unit passing -
+   which is a second calibration cost the raw combinatorics hides.
+
+3. **Composition has to be mechanical.** GT004 took six parallel agents plus
+   integration. `C(20,3)` is only cheap if a world builder can take N archetype
+   modules and emit one coherent world, grader, oracle and adversary suite
+   without an authoring round each time. That builder does not exist and is the
+   real deliverable behind this idea.
+
+**Sensitivity, because the target band is narrow.** Units at 0.9 give
+`0.729 / 0.656` for 3 and 4 stacked; at 0.8, `0.512 / 0.410`; at 0.7,
+`0.343 / 0.240`. A library calibrated loosely lands anywhere between "trivial"
+and "impossible", so the unit measurement has to be tight and re-checked
+whenever the world moves.
+
+**Corollary worth keeping.** A unit at 1.0 is not a difficulty unit, it is a
+**prerequisite**. G1a, G1b, G2, G5 and G6 are all at 1.0 and all worth keeping -
+they are what makes the world coherent and what stops a shortcut scoring - but
+none of them belongs in the difficulty arithmetic. Counting them is how §8.3
+went wrong the first time.
+
+---
+
 ## 9. v1 build — contracts, ground rules, and track status
 
 *Merged from `split_of_work.md` (created 2026-09-12, retired 2026-09-13 once all three
@@ -1043,6 +1102,82 @@ removed rather than left as decoration.
 Working hypotheses are free during investigation. The **final** submission commits to one
 `primary_cause`. Unsupported entries in `additional_causes` incur a **false-cause penalty** —
 we do not zero the axis for hedging, which would punish sound incident response.
+
+#### 9.2.6 Observability sample store
+
+**Frozen 2026-09-14** (merged here from `OBS_STORE_CONTRACT.md`, 2026-09-15).
+The writer is `world/world/` and the reader is
+`gateway/src/alkera_gateway/observability.py`; this seam is the only thing they
+share, and neither changes it without saying so loudly.
+
+**Why a store at all.** A real observability system **records what happened**;
+a recomputing one **computes what is**. Those differ the moment the world
+moves: once `advance` has run, the state that produced yesterday's freshness
+reading is gone, and the recorded sample is the only evidence it ever held that
+value. The defect this fixes was named precisely by its own author -
+*"reading the alarms is strictly dominated by reading the data - an agent that
+consults the dashboard can be misled, one that ignores it cannot."*
+
+```
+/var/obs/samples.jsonl      append-only, one JSON object per line, ordered by vts
+/var/obs/definitions.yaml   metric + alarm definitions, seeded by the theme
+```
+
+`/var/obs/` sits beside `/var/sched/` and `/var/bi/` in the §9.2.1 layout and is
+**agent-readable** - an observability store the agent cannot read is not a
+surface.
+
+```json
+{"vts": "2026-03-04T05:30:00Z", "metric": "orders_freshness_seconds",
+ "value": 32400.0, "source": "advance", "run_id": "sftp_poll-0031",
+ "detail": {"watermark": "2026-03-03T20:30:00Z"}}
+```
+
+- `vts` - **virtual** time, never wall clock. A wall-clock stamp breaks the
+  reproducible-rebuild gate.
+- `value` - `null` is legal and means *insufficient data*, which is not `0.0`.
+  Writing `0.0` for "could not measure" is the silent-wrong failure this project
+  treats as disqualifying.
+- `source` - `advance` | `trigger` | `deploy` | `build`.
+- `detail` - the components the value came from, so a reader can re-derive it.
+
+**Writer.** During `build` and `advance`, append one sample per defined metric
+after each job. Same seed plus same span must produce a byte-identical
+`samples.jsonl`. **Appending is the only permitted operation** - a store that
+can be edited after the fact is not evidence.
+
+**Reader.** `metrics_series` and `alarms_history` read the file rather than
+recomputing; `metrics_get` may still compute live current state. Retention is
+**read-side**: `retention: {days: N}` is declared in the definitions file,
+nothing is truncated on disk, and the reader reports how many samples it refused
+(`aged_out`).
+
+**The invariant that matters.** *A reader must never be able to reconstruct a
+past sample from present state.* If it can, the store is decoration. Test it:
+advance the world, then assert a sample recorded before the advance is not
+derivable from the world as it now stands.
+
+**Settled while building the reader.**
+- **One definitions file per world.** `observe.py` and the gateway both read
+  `definitions.yaml` or `observability.yml`, and the gateway **refuses a world
+  that ships both** (`invalid_observability`) - a writer and a reader describing
+  different metric sets is the one way this surface can be wrong without
+  anything looking wrong. Every theme ships exactly one, `obs/definitions.yaml`.
+- **Definition spelling is accepted both ways.** A job metric may be `metric.job`
+  or `metric.source.job`, and `window_runs` may sit at the top level; the gateway
+  lifts the top-level spelling rather than rejecting it. Anything genuinely
+  unrecognised still fails loudly.
+- **`not_yet_observed`.** A `job_overrun` can push a run past the clock, so a
+  sample can carry a `vts` after the resulting `vnow`. The reader refuses to
+  serve those and reports the count: a reader at `vnow` cannot honestly claim to
+  have observed a reading stamped later.
+- **A recorded sample is always a scalar**, so `datapoints_to_alarm` counts
+  readings rather than days, and a floor over a cumulative `row_count` can never
+  fire. Three of four themes needed a per-period `sql_scalar` metric for their
+  series alarms.
+
+`fingerprint.py` includes `/var/obs/` in the semantic fingerprint - it is world
+state.
 
 ### 9.3 Track status as of 2026-09-13
 
@@ -1248,6 +1383,97 @@ Listed so they are not rediscovered.
   falls back to a local search.
 - **Cross-host determinism has never been executed.** `acceptance.sh` gate 1 builds twice on
   *the same* host, which proves far less than the acceptance criterion claims.
+
+---
+
+---
+
+## 11. Three tracks — build and validate
+
+**Merged here from `3_track.md`, 2026-09-15.** Three agents build in parallel:
+**Kimi (A)**, **Astra (B)**, **Claude (C)**; each owns the code it built. The
+counts below are as of 2026-09-15 and supersede the ones `3_track.md` carried.
+
+### 11.1 Where the project is
+
+| | R002 | R003 | now (2026-09-15) |
+|---|---|---|---|
+| tasks built | 1 | 3 | **4** - GT001-GT004, all TASK VALID |
+| world shapes | 1 | 4 themes | 4 themes + per-task fixture worlds |
+| gateway tools | 17 | 48 | **63** |
+| gateway tests | 12 | 78 | **143** |
+| world tests | 7 | 37 | **120 + 66 subtests** |
+| harness selftest | - | 51 | **133** |
+| the scheduler | literal `"success"` | executes dbt | **executes, or returns `not_executed` - never a status it did not observe** |
+| episode topology | host subprocess | container | container, containment re-proved; `WorldScheduler` now injected |
+| cross-host determinism | never executed | never executed | **executed, host == container** |
+| frontier rollouts | zero | GT001 Pass@1 = 1.0 | **GT004 Pass@1 = 0.0, Pass^5 = 0.0** |
+
+### 11.2 The rule R003 paid the most to learn
+
+**A check that never ran against the thing it ships against proves nothing.**
+GT001 printed TASK VALID for a round while its oracle aborted on its first
+statement, because the baselines staged the warehouse under a *convenient*
+filename instead of the contract one.
+
+Corollaries, each of which has now cost real time more than once:
+- A registered tool with no test is indistinguishable from a dead one.
+- A metric that does not read real state is a lie the grader may believe.
+- A passing test that never exercised the surface is not honest; a skipped test
+  that names why is.
+- **A check can be guarding the bug.** Two gateway tests asserted the inert
+  scheduler's `"status": "success"` - including the one named for the executed
+  path - which is why 14 of 20 job shapes stayed inert for three rounds.
+- **A skipped gate needs an owner or it is indistinguishable from a passing
+  one.** Three agents each hit the same `acceptance.sh` abort and each correctly
+  said "not mine"; two determinism defects rode through on it.
+
+### 11.3 Track A - Worlds
+
+**Done:** theme-lifted builder; four themes; the executing scheduler; faults;
+cross-host determinism now executed and passing.
+
+**Open:**
+- **`late_arrival` is inert.** `_kind_scan` globs the cumulative folder with
+  `min: 1`, so after day one a poll cannot fail, while two themes ship the fault
+  enabled and assert in comments that it "FAILS for real".
+- Themes 5+; 19 of 30 have no archetype.
+
+### 11.4 Track B - Gateway and stack
+
+**Done:** warehouse connector (DuckDB + Postgres); 63 tools; multi-container
+compose with containment measured per service; workflow and observability
+planes; the honest scheduler trigger.
+
+**Open:**
+- Postgres is proven for four SQL statements; `render_dashboard`,
+  `BIStore.refresh`, watermark queries and dbt are DuckDB-only.
+- `core.py:23` guards `from world.fingerprint import semantic_hash` - a Track A
+  rename breaks Track B at runtime and **neither suite goes red**.
+
+### 11.5 Track C - Tasks, harness, grading
+
+**Done:** GT001-GT004 TASK VALID; rollout harness with enforced blindness,
+failure classification and quarantine; container episodes plus the terminal;
+gates G0-G8; **the live-surface gate** (a required surface that is dead is a
+harness error, not a score) and **Pass^k**.
+
+**Open:**
+- **Engineering-quality axis.** Process signals exist and are report-only.
+- **G7: 89 failure records, ~80 with no execution record.** Red on purpose.
+- **The F620 comma residual.** A comma-joined checklist naming one real cause
+  and five invented ones escapes the per-atom penalty. Hygiene only, excluded
+  from `pass_requires_checks`, so it cannot move a verdict. Recorded, not hidden.
+
+### 11.6 What is still not true
+
+- **Nothing has been promoted to `state/verified/`.** Zero of 41.
+- **6 of 162 sources are a practitioner describing their own incident** - 3.7%,
+  and that is the thing this project sells.
+- **The difficulty thesis as written in §8.3 is falsified.** §8.10 records the
+  revised form and what it would cost to make true.
+- **No container-topology number exists for GT004.** `gateway/src` is baked into
+  the image, so a container measurement needs a commit and a rebuild.
 
 ---
 

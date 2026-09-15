@@ -191,7 +191,12 @@ def register_bash() -> None:
 # --------------------------------------------------------------------- modes
 def _gateway(config_path: Path) -> Gateway:
     register_bash()
-    return Gateway(GatewayConfig.load(config_path))
+    cfg = GatewayConfig.load(config_path)
+    # The executing scheduler, same choice the host path makes in
+    # alkera_gateway.cli. Without it the container served a scheduler that
+    # reported success for every non-dbt job and ran none of them.
+    from alkera_gateway.scheduling import episode_scheduler
+    return Gateway(cfg, scheduler=episode_scheduler(cfg))
 
 
 def cmd_serve(args) -> int:
@@ -246,10 +251,18 @@ def cmd_probe(args) -> int:
         for probe in probes:
             label = probe.get("label") or probe["tool"]
             response = gateway.call(probe["tool"], probe.get("args", {}), "probe")
+            error = response.get("error") or {}
             surfaces[label] = {
                 "tool": probe["tool"],
                 "covers": list(probe.get("covers") or []),
+                # declared by the task, or swept by the harness over the rest of
+                # the toolbelt (surface_audit.sweep_probes)
+                "declared": bool(probe.get("declared", True)),
                 "live": bool(response.get("ok")),
+                # the code on its own line: `no_chat` is a fact about the WORLD,
+                # `invalid_arguments` is a fact about the PROBE, and the audit
+                # must not read one as the other
+                "error_code": None if response.get("ok") else error.get("code"),
                 "error": None if response.get("ok") else json.dumps(response.get("error"))[:300],
                 "result_summary": json.dumps(response.get("result"))[:300],
             }

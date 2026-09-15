@@ -114,3 +114,83 @@ git_diff_deferred   = "The fixture world has no git history, so the static check
 dim_was_latently_wrong = "A043 says the torn figure was 'wrong in a way no single table was wrong'. Under an inner join, a mixed read can only UNDERSTATE unless the older dimension fans out - so the analyst's double-counting theory requires the previous build's dim to have carried duplicates. Those rows were latent and unobservable for a week (the accounts had no revenue), so no reported number was ever wrong from a single build, which is the operative property. Recorded rather than papered over."
 duplicated_set_is_a_subset = "The accounts the previous build's dimension carried twice are 883 of the 1,180 in the launch cohort, not all of them. Found by ablation: when the two sets were equal, the tick's excess equalled the launch cohort's launch-day revenue, so `source_batch`, `valid_from` and 'first order on 2026-03-02' each reproduced the excess from LIVE data and the leftover relation stopped being load-bearing. The vendor packaged one chunk of the onboarding file twice, which has no reason to cover the whole batch."
 two_accepted_restatements = "A043 says the torn rows are 'corrected in place' without saying to what. Two readings are equally defensible and the world does not disambiguate them, so grade.py accepts either."
+
+# ---------------------------------------------------------------------------
+# Rollout-harness contract (tasks/harness/). Added 2026-09-14 by SPEC while
+# building GT004. Until this block existed, taskspec.load("GT003-tuesday-figure")
+# raised TaskSpecError and GT003 could not be rolled out at all - the harness
+# refuses to guess a world builder, a grader argv or a pass threshold, because
+# each of them decides the measured number.
+#
+# SPEC changed NOTHING else about GT003: not the grader, not the manifest, not a
+# fixture, not a baseline. Everything below is either read out of GT003's own
+# files or marked as a choice that needs an owner's confirmation.
+# ---------------------------------------------------------------------------
+[harness]
+# NOT PRESENT YET. GT003 has tests/fixtures/make_fixture_world.py, which takes
+# --out/--seed and prints a human summary - it is a FIXTURE builder, not the
+# --root/--grading/--seed json-on-stdout world builder the harness calls. GT001
+# and GT002 each have a tests/build_world.py that wraps theirs; GT003 does not,
+# and writing it is not SPEC's to do. taskspec.load() does not check this path,
+# so the spec loads and `rollout.py` will fail on it at run time with a clear
+# error. That is the honest state: GT003's spec is now loadable, GT003 is not
+# yet runnable, and the remaining gap is one file with a named owner.
+world_builder = "tests/build_world.py"
+
+# Read out of tests/grade.py's own argparse (--world, --grading, --artifact,
+# --world-root, --json), which is identical to GT001's and GT002's. GT003 sets
+# grading.world_root_required = true: grade.py needs the agent's workspace for
+# the static check and for the ordering probe, which EXECUTES the agent's own
+# publish and extract scripts.
+grade_argv = ["--world", "{warehouse}", "--grading", "{grading}",
+              "--artifact", "{artifact}", "--world-root", "{workspace}", "--json"]
+
+# Deliberately short, and deliberately not copied from GT001. A probe for a
+# surface the world does not seed fails against every world the harness can
+# build and reports a dead surface that was never alive (GT002 shipped exactly
+# that with a bi_render probe for a dashboard defined nowhere). Checked against
+# tests/fixtures/: the build has world.duckdb and sched_state.json, and the
+# workspace has docs/ and dbt_project/models/, so those are probed. No dashboard
+# is defined anywhere in GT003's fixtures, so bi is probed only with bi_list,
+# which takes no arguments and answers "is there a BI layer at all" honestly
+# instead of asserting a dashboard id. git_log is probed knowing it may report
+# dead: task.toml's own [deviations] records that the fixture world carries no
+# git history, and a probe that says so is the probe working.
+surface_probes = [
+  { label = "sql",       tool = "sql_query",   args = { sql = "SELECT 1" } },
+  { label = "fs",        tool = "fs_list",     args = { path = "." } },
+  { label = "sched",     tool = "sched_state", args = {}, covers = ["sched_list"] },
+  { label = "sched_log", tool = "sched_logs",  args = {} },
+  { label = "docs",      tool = "docs_list",   args = {}, covers = ["docs_search", "docs_get"] },
+  { label = "dbt",       tool = "dbt_compile", args = { selector = "*" }, covers = ["dbt_run", "dbt_test"] },
+  { label = "git",       tool = "git_log",     args = { limit = 5 }, covers = ["git_diff"] },
+  { label = "bi_list",   tool = "bi_list",     args = {} },
+]
+
+# Pass@1 criterion. A rollout passes iff every listed check passed AND the total
+# clears the floor. Check ids are GT003's own rubric, read from
+# tests/manifest.yaml: D1 primary cause (4), D2 the figure stated (1),
+# D3 compensating change reverted (4), D4 late APAC rate applied (3),
+# D5 reporting record restated not rewritten (4), D6 a read can no longer
+# observe a partial rebuild (3), D7 secondary findings minus the false-cause
+# penalty (1), D8 collateral guard (0, penalty only). Total 20.
+#
+# D7 is NOT required, on GT001's and GT002's precedent: an agent that diagnoses
+# and durably repairs the incident has solved the ticket whether or not its
+# prose also enumerated the decoys. D8 is penalty-only, so `passed` there means
+# "destroyed nothing".
+#
+# The floor is set from the baseline profile ALREADY RECORDED in this file's
+# [[validity]] blocks (measured 2026-09-13, not by SPEC):
+#   oracle 20 - checklist 17 - checklist_joined 17 - reference_copy 15
+#   - rebuild_only 12 - full_refresh 6 - schema_vandal 4 - no_op 0
+# 17.0 puts the floor above reference_copy and rebuild_only.
+#
+# UNVERIFIED, and flagged rather than quietly assumed: whether `checklist` (17)
+# clears this criterion depends on it passing D1-D6 and D8, which the recorded
+# totals do not say either way. GT001 and GT002 both knowingly let their
+# checklist baseline pass, so this would not be new - but it has not been
+# measured here, and whoever owns GT003 should run run_baselines.py through
+# TaskSpec.scores_pass before quoting a Pass@1 from it.
+pass_requires_checks = ["D1", "D2", "D3", "D4", "D5", "D6", "D8"]
+pass_min_total = 17.0

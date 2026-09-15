@@ -65,6 +65,8 @@ import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import episode          # WORLD_PLANE_KEYS: one list, two topologies
+
 REPO = Path(__file__).resolve().parents[2]
 DOCKER_DIR = REPO / "gateway" / "docker"
 COMPOSE_BASE = DOCKER_DIR / "compose.yml"
@@ -163,6 +165,15 @@ def container_gateway_config(world: dict, episode_id: str, virtual_time: str) ->
         "warehouse": inside["warehouse"],
         "scheduler": inside["scheduler"],
         "dashboards": inside["dashboards"],
+        # The workflow / observability / ingest planes, re-rooted into the
+        # container by container_world() like every other world path. Without
+        # them the gateway falls back to GatewayConfig's ABSOLUTE defaults
+        # (/var/workflow, /var/obs/observability.yml, /var/ingest/state.json),
+        # which are outside the world root, and seven whole surfaces answer
+        # "this world has no ..." however richly the world was seeded. See
+        # episode.WORLD_PLANE_KEYS for the full reasoning; this run was measured
+        # in a half-absent world for exactly that reason.
+        **{k: inside[k] for k in episode.WORLD_PLANE_KEYS if inside.get(k)},
         "profiles_dir": inside["profiles_dir"],
         "world_root": inside["world_root"],
         "audit_dir": AUDIT_IN_CONTAINER,
@@ -428,9 +439,20 @@ class ContainerEpisode:
         scratch.mkdir(parents=True, exist_ok=True)
         cfg = scratch / "container_gateway.json"
         cfg.write_text(json.dumps(gateway_config, indent=2), encoding="utf-8")
+        _run(["docker", "cp", str(cfg), f"{self.container_id}:{CONFIG_IN_CONTAINER}"])
+        self.set_probes(probes, scratch)
+
+    def set_probes(self, probes: list[dict], scratch: Path) -> None:
+        """Replace the probe list inside the container.
+
+        Called a second time once `toolbelt()` is known - and the toolbelt can
+        only be read after the shim is in, so the sweep over undeclared tools
+        cannot be assembled at prepare() time. Rewriting one json file is
+        cheaper than reordering the containment-first sequence above it.
+        """
+        scratch.mkdir(parents=True, exist_ok=True)
         pr = scratch / "container_probes.json"
         pr.write_text(json.dumps(probes), encoding="utf-8")
-        _run(["docker", "cp", str(cfg), f"{self.container_id}:{CONFIG_IN_CONTAINER}"])
         _run(["docker", "cp", str(pr), f"{self.container_id}:{PROBES_IN_CONTAINER}"])
 
     # ------------------------------------------------------------- evidence

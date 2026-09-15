@@ -23,6 +23,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import blindness                      # noqa: E402
 import classify as classifier         # noqa: E402
 import kimi_subject                   # noqa: E402
+import report                         # noqa: E402
+import surface_audit                  # noqa: E402
+import taskspec                       # noqa: E402
 
 REPO = Path(__file__).resolve().parents[2]
 GATEWAY_TOOLS = ["sql_query", "sql_execute", "fs_read", "fs_write", "fs_list",
@@ -598,6 +601,345 @@ def test_classifier():
           any("no_final_artifact" in f for f in r["flags"]))
 
 
+# ------------------------------------------------------- the surface gate
+def surf(tool, *, live=True, code=None, declared=True, covers=()):
+    return {"tool": tool, "covers": list(covers), "declared": declared,
+            "live": live, "error_code": code,
+            "error": None if live else json.dumps({"code": code}),
+            "result_summary": "{}"}
+
+
+class SurfaceSpec(FakeSpec):
+    def __init__(self, probes=(), required=(), by_design=()):
+        self.surface_probes = list(probes)
+        self.required_surfaces = list(required)
+        self.dead_by_design = [{"label": l, "reason": "declared"} for l in by_design]
+
+
+def sa(surfaces, *, probes=(), required=(), by_design=(), toolbelt=None):
+    spec = SurfaceSpec(probes, required, by_design)
+    return surface_audit.audit(
+        spec=spec, surfaces={"probed": bool(surfaces), "surfaces": surfaces},
+        toolbelt=toolbelt if toolbelt is not None else GATEWAY_TOOLS)
+
+
+def test_surface_audit():
+    print("\n  pre-episode surface audit")
+    probes = [{"label": "sql", "tool": "sql_query"},
+              {"label": "chat", "tool": "chat_channels"}]
+
+    a = sa({"sql": surf("sql_query"), "chat": surf("chat_channels")},
+           probes=probes, required=["sql", "chat"])
+    check("every required surface live: the gate passes", a["gate"] == "pass",
+          a["gate_reason"])
+    check("...and nothing stops the rollout",
+          surface_audit.gate_error(a) is None)
+    check("...and the run is clean", a["clean"], str(a["not_clean_because"]))
+
+    a = sa({"sql": surf("sql_query"),
+            "chat": surf("chat_channels", live=False, code="no_chat")},
+           probes=probes, required=["sql", "chat"])
+    check("a REQUIRED surface that is dead fails the gate", a["gate"] == "fail")
+    check("...and names it", a["dead_required"] == ["chat"], str(a["dead_required"]))
+    check("...and produces the HarnessError that stops the rollout",
+          "chat" in (surface_audit.gate_error(a) or ""))
+    check("...and the run is not clean", not a["clean"])
+
+    a = sa({"sql": surf("sql_query"),
+            "chat": surf("chat_channels", live=False, code="no_chat")},
+           probes=probes, required=["sql"], by_design=["chat"])
+    check("a surface declared DEAD BY DESIGN does not fail the gate",
+          a["gate"] == "pass" and a["dead_by_design"] == ["chat"])
+    check("...and a deliberately minimal world stays clean", a["clean"],
+          str(a["not_clean_because"]))
+    check("...and it is not counted as undeclared", a["dead_undeclared"] == [])
+
+    a = sa({"sql": surf("sql_query"),
+            "chat": surf("chat_channels", live=False, code="no_chat")},
+           probes=probes, required=["sql"])
+    check("a dead surface that is NEITHER required nor declared is named "
+          "`dead_undeclared`", a["dead_undeclared"] == ["chat"])
+    check("...and makes the run un-clean without stopping it",
+          not a["clean"] and a["gate"] == "pass"
+          and surface_audit.gate_error(a) is None)
+
+    a = sa({"sql": surf("sql_query"), "chat": surf("chat_channels")},
+           probes=probes, required=["sql"], by_design=["chat"])
+    check("a dead_by_design declaration for a LIVE surface is reported stale",
+          a["dead_by_design_but_live"] == ["chat"])
+
+    # the ceiling: a tool the task never declared
+    a = sa({"sql": surf("sql_query"),
+            "~kb_list": surf("kb_list", live=False, code="no_knowledge_base",
+                             declared=False)},
+           probes=[{"label": "sql", "tool": "sql_query"}], required=["sql"])
+    check("an UNPROBED tool that is dead cannot hide: the sweep finds it",
+          a["dead"] == ["~kb_list"] and a["dead_undeclared"] == ["~kb_list"])
+    check("...and it is fatal when the task requires it",
+          sa({"~kb_list": surf("kb_list", live=False, code="no_knowledge_base",
+                               declared=False)},
+             probes=[{"label": "~kb_list", "tool": "kb_list"}],
+             required=["kb_list"])["gate"] == "fail")
+
+    a = sa({"~sql_execute": surf("sql_execute", live=False,
+                                 code="invalid_arguments", declared=False)},
+           probes=[], required=[])
+    check("a SWEPT tool that needs arguments is `unreachable`, never `dead` - "
+          "a probe we could not form says nothing about the world",
+          a["unreachable_by_sweep"] == ["~sql_execute"] and a["dead"] == [])
+    a = sa({"dbt": surf("dbt_compile", live=False, code="invalid_arguments")},
+           probes=[{"label": "dbt", "tool": "dbt_compile"}], required=[])
+    check("...but a DECLARED probe that will not validate is dead: the task "
+          "asked, and nothing answered", a["dead"] == ["dbt"])
+
+    a = sa({"logs": surf("logs_get", live=False, code="no_output")},
+           probes=[{"label": "logs", "tool": "logs_get"}], required=[])
+    check("an absence-shaped code this harness does not know is SUSPECT, "
+          "not automatically fatal",
+          a["suspect"] == ["logs"] and a["dead"] == [] and not a["clean"])
+
+    sweep = surface_audit.sweep_probes(
+        ["sql_query", "dbt_compile", "dbt_run", "dbt_test", "kb_list"],
+        [{"label": "dbt", "tool": "dbt_compile", "covers": ["dbt_run"]}])
+    names = sorted(p["tool"] for p in sweep)
+    check("the sweep skips what the task already declares, and what it covers",
+          "dbt_compile" not in names and "dbt_run" not in names, str(names))
+    check("...and never runs dbt_test, which would mutate the probe copy",
+          "dbt_test" not in names, str(names))
+    check("...and does sweep everything else", names == ["kb_list", "sql_query"],
+          str(names))
+    check("...marking swept probes as NOT declared by the task",
+          all(p["declared"] is False for p in sweep))
+
+    check("a task with no probes at all cannot claim a verified world",
+          sa({}, probes=[], required=[])["gate"] == "unprobed")
+    check("a task that declares no required_surfaces cannot fail the gate, "
+          "and the audit says so rather than reading as 'all fine'",
+          sa({"sql": surf("sql_query")},
+             probes=[{"label": "sql", "tool": "sql_query"}])["gate"]
+          == "not_declared")
+
+
+def test_taskspec_declarations():
+    print("\n  task declarations the gate depends on")
+    probes = [{"label": "sql", "tool": "sql_query"},
+              {"label": "dbt", "tool": "dbt_compile", "covers": ["dbt_run"]}]
+
+    def raises(fn):
+        try:
+            fn()
+        except taskspec.TaskSpecError as exc:
+            return str(exc)
+        return ""
+
+    check("requiring a surface nobody probes is refused - an unverifiable gate "
+          "would silently pass",
+          "no surface_probe declares" in raises(
+              lambda: taskspec._check_surface_declarations(
+                  "T", probes, ["chat"], [])))
+    check("...while requiring a probe LABEL is accepted",
+          not raises(lambda: taskspec._check_surface_declarations(
+              "T", probes, ["sql"], [])))
+    check("...and so is requiring a tool a probe `covers`",
+          not raises(lambda: taskspec._check_surface_declarations(
+              "T", probes, ["dbt_run"], [])))
+    check("declaring a surface both required and dead_by_design is refused",
+          "both required and dead_by_design" in raises(
+              lambda: taskspec._check_surface_declarations(
+                  "T", probes, ["sql"], [{"label": "sql", "reason": "x"}])))
+    check("dead_by_design without a reason is refused",
+          "no `reason`" in raises(
+              lambda: taskspec._dead_by_design(
+                  "T", {"dead_by_design": [{"label": "chat"}]})))
+    check("...and with one is accepted",
+          taskspec._dead_by_design(
+              "T", {"dead_by_design": [{"label": "chat", "reason": "no chat "
+                                        "in this world by design"}]})
+          == [{"label": "chat", "reason": "no chat in this world by design"}])
+
+
+def test_gate_classification():
+    print("\n  a dead required surface as a run outcome")
+    audit = {"gate": "fail", "dead_required": ["chat"], "dead_undeclared": [],
+             "dead_by_design": []}
+    r = cls(surface_audit=audit)
+    check("a rollout that started with a required surface dead is a "
+          "harness_error, not a score", r["classification"] == "harness_error")
+    check("...and is NOT scored, so it never enters Pass@1",
+          r["scored"] is False and r["passed"] is False)
+    check("...even though the grader gave it full marks - the world it was "
+          "measured in was not the task's",
+          r["classification"] == "harness_error")
+    check("...and it carries needs_review", r["needs_review"])
+    check("...and the dead surface is flagged by name",
+          any("dead_required_surfaces=['chat']" in f for f in r["flags"]),
+          str(r["flags"]))
+
+    r = cls(surface_audit=audit,
+            blindness={"quarantined": True, "hard_count": 1, "soft_count": 0,
+                       "kinds": ["canary_leak"], "hard_kinds": ["canary_leak"]})
+    check("a subject caught reaching outside the toolbelt still outranks the "
+          "gate - a cheat is a cheat whatever the world looked like",
+          r["classification"] == "blindness_violation")
+
+    r = cls(surface_audit=audit, harness_failure="the gateway never started")
+    check("a harness failure we can NAME outranks the gate, for the same reason "
+          "it outranks `unobserved`",
+          r["classification"] == "harness_error"
+          and "gateway never started" in r["why"])
+
+    r = cls(surface_audit={"gate": "pass", "dead_required": [],
+                           "dead_undeclared": [], "dead_by_design": []})
+    check("a passing gate changes nothing about an ordinary rollout",
+          r["classification"] == "pass" and r["scored"] and r["passed"])
+
+    r = cls(surface_audit={"gate": "pass", "dead_required": [],
+                           "dead_undeclared": ["kb"], "dead_by_design": []})
+    check("an undeclared dead surface is FLAGGED but does not quarantine - we "
+          "do not know it mattered, and the report is where that is settled",
+          r["classification"] == "pass" and r["scored"]
+          and any("dead_undeclared_surfaces" in f for f in r["flags"]))
+
+
+# -------------------------------------------------------------- the report
+def rec(rid, cls_, *, passed=None, scored=None, model="opus", variant="vague",
+        gate="pass", dead_required=(), dead_undeclared=(), live=("sql", "fs"),
+        redteam=False):
+    passed = (cls_ == "pass") if passed is None else passed
+    scored = (cls_ not in ("blindness_violation", "unobserved", "harness_error",
+                           "grader_defect")) if scored is None else scored
+    return {
+        "rollout_id": rid, "classification": cls_, "passed": passed,
+        "scored": scored, "model": model, "driver": "mcp", "topology": "host",
+        "prompt_variant": variant, "prompt_sha256": "sha-" + variant,
+        "blindness_guarantee": "tool_surface_revoked",
+        "redteam_detector_test": redteam,
+        "blindness": {"quarantined": not scored, "hard_kinds": [],
+                      "violations": []},
+        "score": {"total": 10 if passed else 4, "max": 10},
+        "checks": {"D1": {"points": 5, "max": 5, "passed": passed, "detail": ""}},
+        "tool_calls": 20, "wall_clock_s": 100, "why": "", "needs_review": False,
+        "unprobed_tools": [],
+        "surface_audit": {
+            "probed": True, "gate": gate, "clean": True,
+            "live": list(live), "dead": sorted(set(dead_required) | set(dead_undeclared)),
+            "suspect": [], "unreachable_by_sweep": [],
+            "required_labels": list(live), "dead_required": list(dead_required),
+            "dead_by_design": [], "dead_by_design_but_live": [],
+            "dead_undeclared": list(dead_undeclared),
+            "declared_probes": 2, "swept_probes": 40,
+            "unprobed_tools": [], "unswept_tools": [],
+        },
+    }
+
+
+def test_report_conditions():
+    print("\n  the report: conditions, and the refusal to publish without them")
+    clean = [rec("r0", "pass"), rec("r1", "reasoning")]
+    agg = report.aggregate(clean)
+    md = report.render("T", "run", agg, clean)
+    check("a clean run PUBLISHES Pass@1", agg["measurement_valid"]
+          and "**Pass@1 = 0.5**" in md, str(agg["invalidated_because"]))
+    check("...and states the live-surface set beside every rate it prints",
+          all("surfaces: " in l for l in md.splitlines()
+              if "Pass@1 = " in l or "Pass^k = " in l))
+    check("...and names the prompt variant that produced it",
+          "prompt variant: vague" in md)
+    check("...with the conditions ABOVE the number, not under it",
+          md.index("## Run conditions") < md.index("Pass@1 = "))
+
+    dead = [rec("r0", "harness_error", gate="fail", dead_required=["chat"]),
+            rec("r1", "pass", gate="fail", dead_required=["chat"])]
+    agg = report.aggregate(dead)
+    md = report.render("T", "run", agg, dead)
+    check("a run with a DEAD REQUIRED surface cannot publish a Pass@1",
+          not agg["measurement_valid"] and "Pass@1 = WITHHELD" in md)
+    check("...and the reason is a fact about the world, not about the model",
+          any("required surfaces were DEAD" in x
+              for x in agg["invalidated_because"]),
+          str(agg["invalidated_because"]))
+    check("...and the rate is still computed, marked provisional, never dropped",
+          agg["pass_at_1"] == 1.0 and "provisional, do not publish" in md)
+
+    undecl = [rec("r0", "pass", dead_undeclared=["kb"])]
+    agg = report.aggregate(undecl)
+    check("a run with a dead surface the task never addressed cannot publish "
+          "either", not agg["measurement_valid"]
+          and any("neither requires nor declares" in x
+                  for x in agg["invalidated_because"]))
+
+    mixed = [rec("r0", "pass", variant="vague"),
+             rec("r1", "pass", variant="guided")]
+    agg = report.aggregate(mixed)
+    check("a run that mixes prompt variants cannot publish one rate for both",
+          not agg["measurement_valid"]
+          and any("mixes prompts" in x for x in agg["invalidated_because"]))
+
+    unlocked = [rec("r0", "pass", variant="UNLOCKED (brief sha256 ab matches "
+                                          "none of ['vague'])")]
+    check("a brief matching no locked variant cannot be attributed to a ticket",
+          not report.aggregate(unlocked)["measurement_valid"])
+
+    drifted = [rec("r0", "pass", live=("sql", "fs")),
+               rec("r1", "pass", live=("sql",))]
+    check("a live-surface set that differs across a byte-identical K is itself "
+          "an invalidation",
+          any("DIFFERS between rollouts" in x
+              for x in report.aggregate(drifted)["invalidated_because"]))
+
+    legacy = [rec("r0", "pass")]
+    legacy[0].pop("surface_audit")
+    agg = report.aggregate(legacy)
+    check("a rollout with no surface audit at all cannot be published - the "
+          "world it ran in is undescribed",
+          not agg["measurement_valid"]
+          and agg["run_conditions"]["rollouts_without_surface_audit"] == 1)
+
+
+def test_pass_hat_k():
+    print("\n  Pass^k")
+    allpass = [rec(f"r{i}", "pass") for i in range(5)]
+    agg = report.aggregate(allpass)
+    check("five of five passed: Pass^k = 1.0",
+          agg["pass_hat_k"] == 1.0 and agg["pass_hat_k_k"] == 5)
+    check("...and Pass@1 agrees at 1.0", agg["pass_at_1"] == 1.0)
+
+    one_bad = [rec(f"r{i}", "pass") for i in range(4)] + [rec("r4", "reasoning")]
+    agg = report.aggregate(one_bad)
+    check("four of five is Pass@1 0.8 and Pass^k 0.0 - the metric that "
+          "separates 'usually' from 'always'",
+          agg["pass_at_1"] == 0.8 and agg["pass_hat_k"] == 0.0)
+
+    agg = report.aggregate([rec(f"r{i}", "pass") for i in range(3)]
+                           + [rec("r3", "unobserved")])
+    check("a quarantined rollout leaves k, it does not count as a failure - "
+          "that would blame the model for the harness",
+          agg["pass_hat_k"] == 1.0 and agg["pass_hat_k_k"] == 3)
+    check("...and the report says the claim is weaker than the run intended",
+          agg["pass_hat_k_complete"] is False
+          and agg["pass_hat_k_attempted"] == 4)
+    check("...and says so in the rendered report",
+          "k < K" in report.render("T", "run", agg,
+                                   [rec(f"r{i}", "pass") for i in range(3)]
+                                   + [rec("r3", "unobserved")]))
+
+    agg = report.aggregate([rec("r0", "harness_error")])
+    check("a run with nothing scored has no Pass^k, rather than a 0 that reads "
+          "as a model result", agg["pass_hat_k"] is None)
+
+    # the GT001 shape that made this metric worth adding
+    two = ([rec(f"c{i}", "pass", model="claude") for i in range(5)]
+           + [rec("k0", "pass", model="kimi"), rec("k1", "pass", model="kimi"),
+              rec("k2", "pass", model="kimi"), rec("k3", "reasoning", model="kimi")])
+    agg = report.aggregate(two)
+    check("Pass^k is computed per model: one number over two models says "
+          "nothing about either",
+          agg["pass_hat_k_by_model"]["claude"]["pass_hat_k"] == 1.0
+          and agg["pass_hat_k_by_model"]["kimi"]["pass_hat_k"] == 0.0)
+    check("...and the rendered report breaks it out when a run has two models",
+          "| claude | 1.0 |" in report.render("T", "run", agg, two))
+
+
 def main() -> int:
     print("\n  harness self-test")
     test_blindness()
@@ -605,6 +947,11 @@ def main() -> int:
     test_container_topology()
     test_kimi_driver()
     test_classifier()
+    test_surface_audit()
+    test_taskspec_declarations()
+    test_gate_classification()
+    test_report_conditions()
+    test_pass_hat_k()
     print(f"\n  {len(OK)} passed, {len(BAD)} failed")
     if BAD:
         print("  FAILED: " + ", ".join(BAD))

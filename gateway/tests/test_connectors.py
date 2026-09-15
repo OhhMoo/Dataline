@@ -35,14 +35,19 @@ def test_all_tools(gateway):
     assert jobs["jobs"][0]["id"] == "daily_load"
     assert assert_ok(gateway.call("sched_state", {}))["vnow"] == "2026-03-05T09:00:00Z"
     assert assert_ok(gateway.call("sched_logs", {}))["runs"] == []
-    run = assert_ok(
-        gateway.call(
-            "sched_trigger",
-            {"job_id": "daily_load", "execution_date": "2026-03-05", "variables": {}},
-        )
+    # `load_daily` is not dbt, and this adapter can only run dbt. It used to
+    # return {"intent": "load_daily"} and record `success` having executed
+    # nothing - and this assertion used to certify that. A trigger now either
+    # does the work or says it did not; see test_surfaces.py.
+    answer = gateway.call(
+        "sched_trigger",
+        {"job_id": "daily_load", "execution_date": "2026-03-05", "variables": {}},
     )
-    assert assert_ok(gateway.call("sched_state", {"run_id": run["id"]}))["status"] == "success"
-    assert "intent" in assert_ok(gateway.call("sched_logs", {"run_id": run["id"]}))["result"]
+    assert not answer["ok"] and answer["error"]["code"] == "command_failed"
+    run = answer["result"]
+    assert assert_ok(gateway.call("sched_state", {"run_id": run["id"]}))["status"] == "not_executed"
+    logs = assert_ok(gateway.call("sched_logs", {"run_id": run["id"]}))["result"]
+    assert logs["executed"] is False and "intent" not in logs
 
     assert_ok(gateway.call("dbt_compile", {"selector": "sample", "variables": {}}))
     assert_ok(

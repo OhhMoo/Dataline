@@ -7,7 +7,8 @@ specific to a task is declared in that task's own `task.toml` under `[harness]`.
 ```bash
 PY=../../gateway/.venv/Scripts/python.exe
 
-$PY selftest.py                                        # 73 detector/classifier checks
+$PY selftest.py                                        # 133 detector/classifier/gate checks
+$PY surface_gate_check.py                              # live proof the surface gate fires, no model
 $PY container_check.py --task GT001-aov-halving        # live containment proof, no model
 $PY reference_copy_check.py --task GT001-aov-halving   # the reference_copy baseline, contained
 $PY run_rollouts.py --task GT001-aov-halving --k 5     # K rollouts + report
@@ -36,16 +37,24 @@ the measured number, and none of them is the harness's to choose.
 world_builder        = "tests/build_world.py"    # --root --grading --seed -> json on stdout
 grade_argv           = ["--world", "{warehouse}", ...]   # {} filled from that json
 surface_probes       = [{ label = "dbt", tool = "dbt_compile", args = {...} }, ...]
+required_surfaces    = ["sql", "dbt"]            # dead -> harness error, never a score
+dead_by_design       = [{ label = "chat", reason = "this world has no chat" }]
 pass_requires_checks = ["D1", "D2", ...]         # all must pass
 pass_min_total       = 17.0
 ```
+
+`required_surfaces` and `dead_by_design` are optional, and the harness invents
+neither: a task that declares no requirements cannot fail the surface gate, and
+the report names that as a run condition rather than letting it read as "all
+surfaces fine". What is not optional is the consequence of not declaring - see
+**The surface gate** below.
 
 ## The order of operations, which is the contract
 
 ```
 build world  ->  plant canaries  ->  fingerprint  ->  probe surfaces (throwaway
-copy, own audit dir)  ->  run the subject  ->  TEARDOWN  ->  fingerprint  ->
-grade (twice)  ->  detect  ->  classify
+copy, own audit dir)  ->  SURFACE GATE  ->  run the subject  ->  TEARDOWN  ->
+fingerprint  ->  grade (twice)  ->  detect  ->  classify
 ```
 
 The grading zone is built as a **sibling** of the world root, the gateway config
@@ -149,8 +158,76 @@ unparsed transcript line, which quarantines the rollout as unobserved.
 
 A tool the task does not probe is a tool whose failures cannot be attributed, so
 every rollout records `unprobed_tools` and the report names them. The toolbelt
-grew from 17 to 28 mid-round; a probe may declare `covers = [...]` to speak for
-siblings that cannot be probed read-only (`dbt_compile` for `dbt_run`/`dbt_test`).
+grew from 17 tools to 63; a probe may declare `covers = [...]` to speak for
+siblings that cannot be probed read-only (`dbt_compile` for `dbt_run`/`dbt_test`),
+and everything still undeclared is SWEPT - see below.
+
+## The surface gate
+
+GT004 ran five scored Opus rollouts in a world where eight of the agent's
+surfaces answered `no_issue_tracker` / `no_chat` / `no_knowledge_base` /
+`no_observability` / `no_ingest_state`. The harness printed that at the bottom of
+the report, under the number, and did nothing with it. A run measured in a
+half-absent world produces a Pass@1 indistinguishable from one measured in a
+whole one, so a dead surface is now a run OUTCOME (`surface_audit.py`), on
+`blindness.py`'s precedent: a compromised episode is quarantined rather than let
+into the number. The grounds differ - there the subject may have seen what it
+must not, here the subject was never given the world the task describes - but in
+both cases the score is not a measurement of this task.
+
+| the world says | the task says | what happens |
+|---|---|---|
+| surface DEAD | `required_surfaces` | **the rollout never starts.** `harness_error`, not scored, not graded, subject never handed the terminal |
+| surface DEAD | `dead_by_design` (+ reason) | fine. A deliberately minimal world is not flagged forever |
+| surface DEAD | nothing | the rollout RUNS - we do not know it mattered - but the report **withholds** Pass@1 until the task says which |
+| surface live | anything | nothing |
+
+`required_surfaces` may name a probe label, a probe's tool, or anything in a
+probe's `covers`. Naming something no probe reaches is refused at load: a gate
+that cannot be evaluated would silently pass. Requiring and declaring
+dead-by-design the same surface is refused for the same reason. A
+`dead_by_design` entry with no `reason` is refused - "dead on purpose" without
+the purpose written down is the flag being switched off.
+
+**The probes are a floor, not a ceiling.** Every gateway tool the task does not
+declare is swept as well, called with no arguments, so a dead surface cannot hide
+behind a tool nobody thought to declare. It fires: on GT001, whose task declares
+14 probes, the sweep finds 10 further DEAD surfaces behind tools the task never
+named (`alarms_list`, `chat_channels`, `deploy_list`, `ingest_list`,
+`issues_list`, `kb_list`, `metrics_list`, ...). The error CODE decides, not the
+fact of an error: `no_chat` is a fact about the world, `invalid_arguments` is a
+fact about the probe, and a swept tool that needs arguments is recorded as
+`unreachable`, never as dead. `dbt_run` and `dbt_test` are never swept - they
+would run. Everything else that accepts `{}` is read-only: measured, 23 of the 63
+tools validate against `{}` and only those two mutate. Probes run against a
+throwaway copy of the world with their own audit directory, which is what makes
+the sweep safe structurally rather than by naming convention.
+
+### The plane paths, and what a "dead surface" usually means
+
+GT004's eight dead surfaces were not a world gap. `GatewayConfig`'s defaults for
+`workflow_dir`, `observability` and `ingest` are ABSOLUTE
+(`/var/workflow`, `/var/obs/observability.yml`, `/var/ingest/state.json` -
+`gateway/src/alkera_gateway/config.py:19-23`) and resolve outside any world root,
+and neither config writer here named them. So `issues_*`, `chat_*`, `kb_*`,
+`metrics_*`, `alarms_*`, `deploy_*` and `ingest_*` answered "this world has no
+..." however richly the world was seeded. The world was not half absent; it was
+half addressed. Both writers now pass through `episode.WORLD_PLANE_KEYS` -
+`workflow_dir`, `observability`, `obs_samples`, `ingest` - whenever the world
+builder publishes them, and pass nothing when it does not, so a world that
+genuinely has no workflow plane still reports one absent.
+
+`surface_gate_check.py` keeps that fixed. It stands up a world that seeds all
+three planes and drives the real gateway over it twice, with and without those
+keys, showing the same bytes answer `no_issue_tracker`/`no_chat`/... in one and
+`ok` in the other. Then it proves the gate itself: two fixture task packages
+outside the repo, differing in one line of `task.toml`, run through the real
+`rollout.py` with `--driver scripted` (no model quota). One is quarantined before
+the subject is handed the terminal; the other is left completely alone. Which
+surfaces are live and which are dead is measured off the world first, never
+hardcoded, so the check cannot decay into "require something that happens to be
+live".
+
 
 Not `--safe-mode`. It disables MCP servers along with every other
 customisation, which leaves the subject with no toolbelt at all and an episode
@@ -216,16 +293,43 @@ weakness section of `rounds/R003/C1-harness.md`.
 
 ## Reports
 
-`report.md` and `report.json` per run. Two denominators, both labelled:
+`report.md` and `report.json` per run. Three rates, each labelled with its
+denominator AND with the live-surface set it was measured in:
 
 - `pass_at_1` over **scored** rollouts (attempted; not quarantined; no harness
   or grader defect)
-- `pass_at_1_reasoning_only` over passes + reasoning failures only — an upper
+- `pass_at_1_reasoning_only` over passes + reasoning failures only - an upper
   bound on what the task measures about reasoning
+- `pass_hat_k` (Pass^k): 1.0 iff EVERY one of the k scored rollouts passed. The
+  consistency metric, and a cheap one - the world is byte-identical across K by
+  construction. It discriminates where Pass@1 does not: on GT001, re-aggregated
+  from the stored records, Claude scored Pass@1 1.0 and Pass^5 1.0 while Kimi
+  scored Pass@1 0.5 and Pass^k 0.0. `k` is the SCORED count, not K, because
+  counting a quarantined rollout as a failure blames the model for the harness;
+  when k < K the report says the claim is weaker than the run intended. Broken
+  out per model whenever a run has more than one, since a single Pass^k over two
+  models says nothing about either.
+
+**Run conditions come first, above the number.** The prompt variant (matched by
+sha256 against `[prompt_variants]` - the job `prompts/variant.py identify` does
+for a finished run), the live-surface set, the dead set split into *required* /
+*by design* / *undeclared*, and the gate verdict. A pass rate whose world is not
+described is not a result, and describing it after the reader has taken the
+number is the same as not describing it.
+
+The report then **refuses to present a Pass@1 as a measurement** when any of
+these holds. The value is still computed, marked provisional, and never dropped:
+
+- a required surface was dead
+- a surface was dead that the task neither requires nor declares by design
+- the task declares no probes at all, or a rollout carries no surface audit
+- the live-surface set differs between rollouts of a byte-identical K
+- the run mixes prompt variants, or its brief matches no locked variant
+- the run contains red-team detector tests
 
 Plus per-check pass rates, the classification counts, the quarantine count split
-into *caught violating* vs *unobservable*, median tool calls and wall clock, and
-the dead surfaces found by the pre-episode probe.
+into *caught violating* vs *unobservable*, and median tool calls and wall clock.
+
 
 ## `redteam/`
 

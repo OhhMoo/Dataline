@@ -1,10 +1,10 @@
 {
-  "generated": "2026-09-14T22:11:17+00:00",
-  "head_revision": "f9c0ec542cf65ae5eab1909ad40c888121c31679",
-  "image_id": "sha256:1c6861cf3a25b57dcb26ddaf93519915789cc6d787f2942bf90372a3a25a295a",
+  "generated": "2026-09-15T00:49:44+00:00",
+  "head_revision": "36d93db46fdc681fd36580fef77284ffce281e74",
+  "image_id": "sha256:b86fa3d9822411a471277680ed4943f4c6c61d28e5d639209366302b84742d7b",
   "labels": {
-    "org.alkera.source.overlay": "8cc7cb4605d55c07848b67aa432bf5c63a1b241d6ed984b7436f2892c5376e00",
-    "org.alkera.source.revision": "f9c0ec542cf65ae5eab1909ad40c888121c31679"
+    "org.alkera.source.overlay": "",
+    "org.alkera.source.revision": "36d93db46fdc681fd36580fef77284ffce281e74"
   },
   "measured_inside_container": {
     "binaries": [
@@ -670,18 +670,29 @@
     "platform": "Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.41",
     "python_not_shadowed": true,
     "python_on_path": "/usr/local/bin/python",
-    "source_revision": "f9c0ec542cf65ae5eab1909ad40c888121c31679",
-    "tool_count": 36,
+    "source_revision": "36d93db46fdc681fd36580fef77284ffce281e74",
+    "tool_count": 63,
     "tools": [
+      "alarms_get",
+      "alarms_history",
+      "alarms_list",
       "bi_cached",
       "bi_get",
       "bi_list",
       "bi_refresh",
       "bi_render",
       "bi_update",
+      "chat_channels",
+      "chat_history",
+      "chat_post",
+      "chat_search",
+      "chat_thread",
       "dbt_compile",
       "dbt_run",
       "dbt_test",
+      "deploy_history",
+      "deploy_list",
+      "deploy_run",
       "docs_get",
       "docs_list",
       "docs_search",
@@ -699,6 +710,22 @@
       "ingest_schema",
       "ingest_schema_update",
       "ingest_trigger",
+      "issues_comment",
+      "issues_get",
+      "issues_list",
+      "issues_search",
+      "issues_update",
+      "kb_create",
+      "kb_edit",
+      "kb_get",
+      "kb_list",
+      "kb_search",
+      "logs_get",
+      "logs_list",
+      "logs_search",
+      "metrics_get",
+      "metrics_list",
+      "metrics_series",
       "s3_delete",
       "s3_get",
       "s3_list",
@@ -713,35 +740,13 @@
     "tools_error": null
   },
   "overlay": {
-    "files": [
-      "gateway/docker/acceptance.py",
-      "gateway/docker/acceptance_inside.py",
-      "gateway/docker/aws-config",
-      "gateway/docker/aws-keys",
-      "gateway/docker/build_episode.py",
-      "gateway/docker/compose.episode.yml",
-      "gateway/docker/compose.yml",
-      "gateway/docker/containment.py",
-      "gateway/docker/Dockerfile",
-      "gateway/docker/Dockerfile.snowflake",
-      "gateway/docker/postgres.sql",
-      "gateway/docker/snowflake.in",
-      "gateway/docker/snowflake.lock",
-      "gateway/docker/snowflake_acceptance.py",
-      "gateway/docker/snowflake_start.py",
-      "gateway/docker/start.py",
-      "gateway/docker/toolbelt.in",
-      "gateway/docker/toolbelt.lock",
-      "gateway/docker/TOOLBELT.md",
-      "gateway/docker/toolbelt_acceptance.py",
-      "gateway/docker/toolbelt_check.py"
-    ],
-    "hash": "8cc7cb4605d55c07848b67aa432bf5c63a1b241d6ed984b7436f2892c5376e00"
+    "files": [],
+    "hash": ""
   },
   "repo_digests": [
-    "alkera-episode@sha256:1c6861cf3a25b57dcb26ddaf93519915789cc6d787f2942bf90372a3a25a295a"
+    "alkera-episode@sha256:b86fa3d9822411a471277680ed4943f4c6c61d28e5d639209366302b84742d7b"
   ],
-  "size_bytes": 300200133,
-  "source_revision": "f9c0ec542cf65ae5eab1909ad40c888121c31679",
+  "size_bytes": 300497291,
+  "source_revision": "36d93db46fdc681fd36580fef77284ffce281e74",
   "tag": "alkera-episode:head"
 }

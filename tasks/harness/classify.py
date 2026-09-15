@@ -89,7 +89,8 @@ def classify(*, spec, score: dict | None, score_stable: bool,
              surfaces: dict, artifact_present: bool,
              wall_clock_s: int | None = None,
              max_tool_calls: int | None = None,
-             unprobed_tools: list[str] | None = None) -> dict:
+             unprobed_tools: list[str] | None = None,
+             surface_audit: dict | None = None) -> dict:
     # the EFFECTIVE ceilings this rollout actually ran under, which are not the
     # task's defaults whenever the caller overrode them
     wall_clock_s = wall_clock_s or spec.wall_clock_seconds
@@ -98,7 +99,12 @@ def classify(*, spec, score: dict | None, score_stable: bool,
     flags: list[str] = []
     dead = sorted({lbl for lbl, s in surfaces.items() if not s.get("live")})
     if dead:
-        flags.append(f"dead_surfaces={dead}")
+        # a COUNT plus the ones the task declared. Since the harness began
+        # sweeping every undeclared tool as well, listing all of them here ran
+        # to 45 entries on GT001 and turned the flag into wallpaper; the three
+        # flags below say which of them actually decide anything.
+        named = [d for d in dead if not d.startswith("~")]
+        flags.append(f"dead_surfaces={len(dead)} (task-declared: {named})")
     if not artifact_present:
         flags.append("no_final_artifact")
     if blindness.get("soft_count"):
@@ -111,6 +117,16 @@ def classify(*, spec, score: dict | None, score_stable: bool,
                              if x["errors"] and t in set(unprobed_tools or [])})
     if unattributable:
         flags.append(f"errors_on_unprobed_tools={unattributable}")
+    sa = surface_audit or {}
+    if sa.get("dead_required"):
+        flags.append(f"dead_required_surfaces={sa['dead_required']}")
+    if sa.get("dead_undeclared"):
+        flags.append(f"dead_undeclared_surfaces={sa['dead_undeclared']}")
+    if sa.get("dead_by_design"):
+        flags.append(f"dead_by_design={sa['dead_by_design']}")
+    if sa.get("dead_by_design_but_live"):
+        flags.append("stale_dead_by_design_declaration="
+                     f"{sa['dead_by_design_but_live']}")
 
     def out(cls, why, needs_review=False, passed=False):
         return {"classification": cls, "why": why, "needs_review": needs_review,
@@ -138,6 +154,26 @@ def classify(*, spec, score: dict | None, score_stable: bool,
         return out("harness_error",
                    "the subject process exited non-zero without finishing; this is "
                    "infrastructure, not the agent's reasoning", needs_review=True)
+
+    # A required surface that was dead before the subject started is a HARNESS
+    # error, not a score. rollout.py's gate normally raises before the episode,
+    # so this branch is the backstop: it also catches a --reclassify of a
+    # rollout recorded before the gate existed, or a run whose gate was somehow
+    # bypassed. A gate that only works when it is reached is the defect this
+    # repo has already shipped once.
+    #
+    # It sits BELOW blindness_violation - a subject caught reaching outside the
+    # toolbelt is quarantined whatever the world looked like - and BELOW the
+    # named harness_failure, for the same reason that one outranks `unobserved`:
+    # when we already know the cause, say the cause. It sits ABOVE `unobserved`,
+    # `grader_defect` and everything scored, because none of those is worth
+    # attributing in a world the task does not describe.
+    if (surface_audit or {}).get("gate") == "fail":
+        return out("harness_error",
+                   f"required surfaces were dead before the episode started: "
+                   f"{(surface_audit or {}).get('dead_required')}; the subject "
+                   f"was never given the world the task describes",
+                   needs_review=True)
 
     if blindness.get("quarantined"):
         return out("unobserved",
