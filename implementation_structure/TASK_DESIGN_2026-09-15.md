@@ -2,6 +2,60 @@
 
 Design proposal, 2026-09-15. No new model runs or implementation performed.
 
+## Update after the interference experiment
+
+User-reported results: baseline 10/10 at 22 points; interference 4/5 with
+scores 16, 22, 22, 22, 22. All five agents read and rejected the false claim.
+The failing episode subsequently broke loader liveness while making a schema
+change. These new trajectories were not independently re-run for this note.
+The standalone deference mechanism did not occur in this batch. The original
+experiment proposal below is retained as history, not pending work.
+
+Scope closure is a plausible replacement hypothesis, not an established
+mechanism. Test the interaction with four conditions:
+
+| | Neutral context | Ticket excuses defect B |
+|---|---|---|
+| Defect B alone | baseline | completed interference experiment |
+| Easy defect A plus B | new control | proposed stacked treatment |
+
+Measure repair of B separately from aggregate task success, and record whether
+A was repaired. Keep B's data, contract, and repair difficulty fixed. Within
+each row, keep instructions and acceptance criteria identical between context
+conditions. The stacked control is necessary: otherwise more work, budget
+pressure, or incidental breakage can explain a lower pass rate. Evidence of a
+larger ticket effect in the stacked condition supports an interaction; it does
+not establish a general compositional library. Replication on another mechanism
+and model remains necessary. Five trials are a screen: a true 0.8 success rate
+still produces five successes with probability 0.8^5 = 0.32768.
+
+The observed extra-edit failure also motivates measuring whether agents
+preserve a verified repair through subsequent edits. It should remain a
+separate failure category from stopping with an obligation unresolved. Treat
+causal attribution as uncertain: the trap might affect effort or investigation
+length without inducing belief in its claim.
+
+Concrete extension: recover the payment gap while a consumer publishes a
+settlement file. During recovery, deliver a higher-version correction and an
+older replay, and inject a retry between sink commit and checkpoint update.
+Contracts define version precedence, publication cutoff, adjustment ownership,
+and correction handling. Grade exact consumer-visible records, continued
+ingestion, and checkpoint consistency. Record consumer receipts in a protected
+world ledger so a later good state cannot erase a bad publication. If corrections
+are allowed, grade the specified correction protocol instead of inventing an
+absolute ban on intermediate errors. Safe staging and rollback remain valid.
+
+A deterministic model of job durations and publication boundaries is required;
+do not inject events merely because an arbitrary number of tool calls elapsed.
+This extension measures the consequences of decisions without claiming to
+infer whether the agent mentally consulted a canary. It is proposed, not built.
+
+The working tree now contains GT007 deployment changes and reusable liveness
+probes; the dual-warehouse integration patch is still present separately.
+Adversarial axis separation validates grading behavior, not independence of
+frontier-model failures. These additions need integration and model evaluation
+before calling the environment complete or carrying forward old task rates.
+
 ## What this project is building
 
 A reproducible data engineer's working environment: warehouse, transformation
@@ -51,7 +105,7 @@ GT007 is a useful counterexample: its wrong explanation was overcome. The
 candidate distinction is between misinformation about **what happened** and
 misinformation about **what should be changed**. This is a hypothesis to test.
 
-## First experiment: isolate interference before making more tasks
+## Original experiment proposal: isolate interference
 
 Use GT006's currently solvable data defect. Keep the initial warehouse, source
 contract, required outcome, tool access, and grading probes identical.
@@ -189,3 +243,57 @@ This candidate has a higher environment-fidelity cost than the first two.
 - Strong-agent difficulty remains unmeasured for these proposals. The central
   hypothesis is that coupled obligations and evidence about repair scope will
   discriminate better than another isolated SQL defect.
+
+## Framework proposal: contract maintenance under a live process (2026-09-15, Track A)
+
+The archetype-combination idea assumes difficulty is additive in defect count.
+Our own measurements say it is not: GT001/GT005/GT006/GT007 each carry one
+mechanism and all fall at 4/5 or 5/5; two independent defects would be two easy
+searches done sequentially. Every measured discriminator (GT004's clock advance,
+GT006's live-fire gate, GT001's D6 honesty check) involves time, liveness, or
+obligation interaction — never discovery. Frontier models are excellent at
+search; a static world turns any defect into grep.
+
+Proposed generator contract — a task is four layers, not an injected defect:
+
+1. **Contract layer (few, fixed).** Real data work is maintaining invariants
+   while the world moves: exactly-once loading, version precedence, cutoff
+   integrity, SLA freshness, schema compatibility, consumer-visible consistency,
+   auditability. A task picks 2–4 that must hold *simultaneously*. Difficulty
+   lives in the conjunction, not the count.
+2. **Stressor layer (the archetype library, re-roled).** Archetypes stop being
+   tasks and become ways to stress a contract: retry-backfill stresses
+   exactly-once; late correction stresses version precedence; a `.dbtignore`d
+   assertion stresses auditability. One archetype serves many contracts — reuse
+   without repetition.
+3. **Coupling rule (the validity filter the original idea lacked).** Two
+   stressors compound only if they share state — same table, checkpoint, repair
+   window, or metric. Mechanically checkable: perturb defect A; if the correct
+   repair of B changes, they are coupled. The generator auto-rejects
+   disconnected compositions (two easy tasks in a trench coat) before any model
+   token is spent.
+4. **Live-time layer (the multiplier).** A deterministic, seeded event schedule
+   (vclock + airflow_bridge) turns each defect into a decision with
+   irreversibility: publish now or wait for the late correction; rollback or
+   patch. Grade invariants at multiple checkpoints along the trajectory, in a
+   protected ledger, so a good final state cannot erase a bad intermediate
+   publication — the consumer-receipts idea above generalized into the grading
+   model.
+
+Why this scales: few contracts (~8) x many stressors (~30) x coupling graphs x
+event schedules x context layers is a large combinatorial space, and generation
+is cheap to validate without a model — coupling is mechanically testable, the
+shortcut-baseline battery (no-op, full-refresh, disable-the-rule, blind
+rollback, naive merge) runs deterministically, and oracle-must-score-max is
+checkable. Only survivors spend frontier-model tokens. Difficulty becomes a
+certified property: oracle passes, every named shortcut fails a required check,
+screen on a cheap model, then measure on two frontier families. This pipeline
+cannot produce another GT001, because GT001 would fail its own gate (full-refresh
+nearly passes; one checkpoint; no coupling).
+
+The three candidates above are the first instances of this framework, not
+separate ideas: moving cutoff (contracts: version precedence + continued
+ingestion + checkpoint consistency), two-valid-times (cutoff integrity +
+consumer consistency), rollback-restores-cause (SLA freshness + correctness).
+Build the checkpoint-ledger grader and the event scheduler once; each task
+becomes a config, not a codebase.
