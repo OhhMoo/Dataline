@@ -1,0 +1,220 @@
+# GT007 hidden ground truth and scoring rubric. Ships to the GRADING ZONE only.
+# NEVER mounted inside the episode. NEVER referenced by the agent-visible brief.
+#
+# THIS FILE IS EXECUTABLE DOCUMENTATION. grade.py reads its `checks:` table for
+# the point value, the axis and the pass-criterion membership of every check it
+# emits, and refuses to run if the set it emits differs from the set declared
+# here. A manifest that documents checks nobody runs is worse than no manifest.
+#
+# CONTRACT DISCIPLINE. Every number, date and digest resolves through
+# fixtures/fixture_contract.py's CONTRACT. Nothing numeric is hardcoded here.
+
+task_id: GT007-ran-long-or-started-late
+archetype: A018
+frozen: "2026-09-15"
+reference: expected_extract.json   # harness-side, read at scoring time (F121)
+
+# ---------------------------------------------------------------------------
+# THE UNIT. One mechanism, one discriminating gate.
+#
+# A job misses its deadline. It either RAN LONG or STARTED LATE, the run
+# history is the only place that says which, and the two have opposite fixes.
+# In this world it started late, and the world is built so that no ran-long
+# remedy can help: the export begins at 04:10 against an 04:00 deadline, so no
+# reduction in its runtime - not even to zero - can land it on time, and
+# `timeout_s`, the one "it ran long" knob the repo offers, is not an input to
+# the scheduler at all.
+#
+# ORTHOGONALITY TO A009 (GT004), which is the reason this unit exists. GT004's
+# mechanism is data corruption: duplicated business keys from an append-mode
+# re-run, plus rows left under a stale column layout. Here the warehouse is
+# CORRECT on every night - fixture_contract.verify refuses a fixture carrying a
+# single duplicated key, precisely so the two units' failures stay independent.
+# The evidence here is vts_start/vts_end against a declared schedule; the
+# repair is a schedule edit and touches no data at all. An agent good at
+# de-duplication earns nothing here, and vice versa, which is what 0.8^N needs.
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# THE CHECK TABLE. grade.py reads points / axis / pass-criterion membership
+# from here. Changing a number here changes the score; there is no second copy.
+#
+#   DIAGNOSIS   8 pts   57%   D1   (the one discriminating gate)
+#   EVIDENCE    6 pts   43%   S1a S1b S2  (minimal supporting correctness)
+#   HYGIENE     0 pts    -    H1   (penalty-only, floor -2)
+#   -------------------------------------
+#   TOTAL      14 pts, floor -2
+#
+# The rubric floor is BELOW the 0 an idle agent scores. That is deliberate:
+# without it, "assert the textbook cause and change something" would weakly
+# dominate careful work.
+# ---------------------------------------------------------------------------
+checks:
+
+  - id: D1
+    axis: DIAGNOSIS
+    points: 8
+    in_pass_criterion: true
+    assertion: >
+      The agent distinguished ran-long from started-late correctly AND applied
+      the repair that follows from the correct one. Two paying clauses, folded
+      into one gate because they are one decision: a verdict nobody acts on and
+      an action nobody can justify are each half of an answer.
+    clauses:
+      verdict:
+        weight: 0.375                # 3 of 8
+        pays: true
+        detail: >
+          final_report.json says verdict == "started_late" AND puts
+          start_shift_minutes within CONTRACT.report.shift_tolerance_minutes of
+          the true 60. The measured number is the point: a two-value enum alone
+          is a coin flip, and 60 minutes is not guessable - it comes out of
+          lining the export's vts_start up across fifteen nights.
+      repair:
+        weight: 0.625                # 5 of 8
+        pays: true
+        detail: >
+          The agent's own orchestration/schedule.yml is re-deployed into a
+          throwaway copy of the graded world and the virtual clock is advanced
+          one night. export_commercial's run must END on or before the
+          CONTRACT deadline. Behavioural, not string-matched: any schedule that
+          lands on time counts, whether the agent shrank the `after` offset or
+          replaced it with an absolute time.
+    fatal_clauses:
+      # Every one of these is satisfied by the SHIPPED world, so an idle agent
+      # satisfies it by construction. They therefore GATE and never PAY - a
+      # clause a do-nothing agent clears is a subsidy, not a measurement.
+      # MEASURED on GT004: paying for such clauses handed its no_op baseline
+      # 6.25 of 33 points for behaviour it never produced.
+      deadline_intact: >
+        schedule.yml still declares the CONTRACT SLA job and deadline. Moving
+        the deadline is not a repair.
+      vendor_window: >
+        No job is scheduled to start before 01:05. The vendor drop does not
+        exist before 01:00; this is stated in schedule.yml, in the runbook and
+        in DATA-7690.
+      no_overlap: >
+        Each job in the chain starts no earlier than the previous one ends.
+        Starting the export into a half-built mart is the incident the world
+        already had (2026-04-08) and re-creating it is not a repair. The
+        engine's `after` is an offset from a predecessor's START, so this is
+        the only thing that holds the dependency.
+      liveness_ran: >
+        All three jobs actually ran in the advanced night with executed=true
+        and status=success. MANDATORY. A chain "fixed" into never running is
+        trivially on time and repairs nothing; it scores ZERO, not full marks.
+      liveness_incorporated: >
+        warehouse.commercial_extract, dropped before the advance, is rebuilt
+        and matches the harness-side reference EXACTLY, including the planted
+        night dt=2026-04-15 that the agent has never seen. Both halves matter:
+        "rebuilt" without "matches" allows an empty table, "matches" without
+        the plant allows a pipeline that only ever reproduces yesterday.
+    zero_for_doing_nothing: >
+      Yes, verified rather than asserted. The shipped schedule lands the export
+      at 04:30 against an 04:00 deadline, so `repair` fails; an idle agent
+      writes no artifact, so `verdict` fails. tests/run_baselines.py asserts
+      no_op <= 1.
+
+  - id: S1a
+    axis: EVIDENCE
+    points: 2
+    in_pass_criterion: false
+    assertion: >
+      The report names the SLA-breaching job (1 pt) and the time the extract is
+      actually landing on the breach nights (1 pt). Both are readable off the
+      run history without any diagnosis, which is the point: this is the credit
+      an agent earns for looking, and it is what keeps the wrong-diagnosis
+      adversary above zero instead of level with a vandal.
+    zero_for_doing_nothing: >
+      Yes: an agent that writes no final_report.json scores 0.
+
+  - id: S1b
+    axis: EVIDENCE
+    points: 2
+    in_pass_criterion: false
+    assertion: >
+      The report dates the regression - the first night the export started
+      late. Full credit for CONTRACT.history.regression_date; half credit for
+      the night before, which is the incident that provoked it and is a
+      defensible reading of "when did this start".
+    zero_for_doing_nothing: >
+      Yes: no artifact, no credit.
+
+  - id: S2
+    axis: EVIDENCE
+    points: 2
+    in_pass_criterion: false
+    assertion: >
+      The discriminating MEASUREMENT, stated: runtime_changed is false (1 pt)
+      and observed_runtime_s is within CONTRACT.report.runtime_tolerance_s of
+      the export's true, constant per-run duration (1 pt). An agent that
+      believes the export ran long cannot state this, which is why S2 separates
+      the careful-but-wrong adversary from the careful one.
+    zero_for_doing_nothing: >
+      Yes: no artifact, no credit.
+
+  - id: H1
+    axis: HYGIENE
+    points: 0
+    penalty: -2
+    in_pass_criterion: false
+    assertion: >
+      PENALTY ONLY, and deliberately narrow. -2 when the report ASSERTS the
+      false diagnosis - verdict == "ran_long", or a verdict outside the
+      declared enum. It reads ONE dedicated field and never free text.
+    why_narrow: >
+      A correct report will say "the timeout was raised on the 9th and it did
+      not help" and a keyword penalty over free prose would fire on exactly the
+      sentence the task asks for. Four rubric defects of that shape were found
+      across this corpus in one day. A penalty that cannot tell a mention from
+      an assertion does not belong in a rubric.
+
+# ---------------------------------------------------------------------------
+# What grade.py must be handed. All harness-side; none of it is reachable from
+# the episode (F121).
+# ---------------------------------------------------------------------------
+grading_zone:
+  expected_extract.json: >
+    The reference contents of warehouse.commercial_extract after one night is
+    advanced with the plant in place. Produced by running the SHIPPED pipeline
+    against a workspace that has dt=2026-04-15, never by restating the
+    arithmetic somewhere else.
+  next_night/: >
+    dt=2026-04-15 of the vendor drop - the liveness plant. Copied into the
+    throwaway world immediately before the advance. It is NOT in the
+    agent-visible drop; fixture_contract.verify refuses a fixture where it has
+    leaked in.
+  manifest.yaml: this file.
+
+contract_keys_grade_py_requires:
+  # grade.py exits 2 (a packaging error, never a score) if any is absent.
+  - sla.job
+  - sla.deadline
+  - sla.deadline_next_night
+  - durations
+  - history.export_runtime_s
+  - history.start_shift_minutes
+  - history.regression_date
+  - history.breach_finish
+  - history.overrun_date
+  - plant.extract_rows_after
+  - report.verdict_expected
+  - report.runtime_tolerance_s
+  - report.shift_tolerance_minutes
+
+# ---------------------------------------------------------------------------
+# Copied into task.toml's [harness] block. The two must agree; grade.py prints
+# pass_requires_checks in its json, derived from the table above, so they
+# cannot drift silently.
+# ---------------------------------------------------------------------------
+recommended_harness:
+  grade_argv: ["--world", "{warehouse}", "--grading", "{grading}",
+               "--artifact", "{artifact}", "--workspace", "{workspace}",
+               "--world-root", "{world_root}", "--json"]
+  pass_requires_checks: ["D1"]
+  # D1 alone is 8. EVIDENCE is scored and excluded from the pass criterion, and
+  # that exclusion is only real while the floor cannot readmit it: a floor of
+  # 8.0 is exactly D1's own value, so a run that passes D1 and writes nothing
+  # else still clears it. RAISING IT ABOVE 8 SILENTLY PUTS EVIDENCE BACK INTO
+  # THE PASS CRITERION.
+  pass_min_total: 8.0

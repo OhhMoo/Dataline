@@ -299,7 +299,8 @@ def initial_state(seed: dict, jobs: dict, faults: list | None = None,
             # day's arrival was fine or did not concern it. A run that really
             # executed and found nothing FAILS; one the scheduler never started
             # is untouched, because it never got as far as looking.
-            missed = faultlib.missed_by(arrival, name)
+            missed = faultlib.missed_by(arrival, name,
+                                        executor.day_tokens(day.date()))
             status = "failed" if missed else "success"
             if kind == "job_timeout":
                 timeout_s = int(params.get("timeout_s", spec["duration_s"]))
@@ -370,24 +371,42 @@ def _run_record(job: str, at: datetime, duration_s: int, result: dict,
 
 
 def _execute(root: Path, state: dict, live: dict | None, job: str,
-             variables: dict | None = None) -> dict:
+             variables: dict | None = None, day: str | None = None) -> dict:
+    """Run one job's declared work. `day` is the EXECUTION day, not the wall
+    date - the day whose delivery this occurrence is responsible for.
+
+    It is the same value that goes into the run record's `execution_date` and
+    into `detail`'s `{day}`, and a `scan` job scopes its glob with it. Without
+    it every scan globbed its delivery tree cumulatively, which is why no poll
+    in this world could fail after day one.
+    """
     spec = ((live or {}).get("jobs", {}).get(job) or {}).get("exec")
     return executor.execute(
         root, job, spec, gen=live_gen(live) if spec else None,
         theme=(live or {}).get("theme"), seed=live_seed(live),
-        variables=variables, log_name=f"run-{len(state['runs']) + 1:06d}")
+        variables=variables, day=day,
+        log_name=f"run-{len(state['runs']) + 1:06d}")
 
 
 def trigger(root: Path, job: str, variables: dict | None = None,
             execution_date: str | None = None) -> dict:
-    """Run `job` now, for real, and record what happened."""
+    """Run `job` now, for real, and record what happened.
+
+    A manual trigger scopes the same way a scheduled run does: `execution_date`
+    IS the logical day (`sched_trigger`: "Execute a job for an explicit logical
+    date"), so it supplies the execution day a `scan` job polls for. An
+    explicit `variables["day"]` wins, so an agent can aim a poll at a date
+    other than the one it is filing the run under.
+    """
     root = Path(root)
     state = load(root)
     if job not in state["jobs"]:
         raise SystemExit(f"unknown job: {job} (have: {', '.join(state['jobs'])})")
     live = load_live(root)
     start = parse_vtime(state["vnow"])
-    result = _execute(root, state, live, job, variables)
+    day = (variables or {}).get("day") or (
+        str(execution_date)[:10] if execution_date else None)
+    result = _execute(root, state, live, job, variables, day)
     run = _run_record(job, start, state["jobs"][job]["duration_s"], result,
                       "manual", None, execution_date)
     state["runs"].append(run)
@@ -659,7 +678,7 @@ def _simulate_job(root: Path, state: dict, live: dict, event: dict,
         # The work runs for real and its status is derived as always; only the
         # recorded window stretches, over the next occurrence or past vnow.
         # This is the staged interleave: the evidence of a race, never a race.
-        result = _execute(root, state, live, job)
+        result = _execute(root, state, live, job, day=day_iso)
         stretched = _overrun_seconds(duration, params)
         emit(_run_record(job, at, stretched, result, "schedule", detail, day_iso))
         _fault_log(live, at, fault, job,
@@ -667,7 +686,7 @@ def _simulate_job(root: Path, state: dict, live: dict, event: dict,
         return made, None
 
     if kind == "partial_write":
-        result = _execute(root, state, live, job)
+        result = _execute(root, state, live, job, day=day_iso)
         trimmed = faultlib.apply_partial_write(root, params) if result["ok"] else None
         if trimmed:
             tables = (spec.get("exec") or {}).get("tables") or []
@@ -686,7 +705,7 @@ def _simulate_job(root: Path, state: dict, live: dict, event: dict,
         _fault_log(live, at, fault, job, {"trimmed": trimmed})
         return made, None
 
-    result = _execute(root, state, live, job)
+    result = _execute(root, state, live, job, day=day_iso)
     emit(_run_record(job, at, duration, result, "schedule", detail, day_iso))
     return made, None
 

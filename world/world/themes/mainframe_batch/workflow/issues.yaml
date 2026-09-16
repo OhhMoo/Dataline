@@ -16,8 +16,13 @@
 #   rows with a negative claim_amt    0
 #   record length                     31 bytes; dt=2026-02-16 is 1550 = 50 x 31
 #   cust_id width in the data         8 characters
-#   scheduler runs                    90. nightly_extract and dbt_build green
-#                                     on every night. batch_load: 22 nights at
+#   scheduler runs                    90. dbt_build green on every night.
+#                                     nightly_extract failed on five: it ran at
+#                                     23:00 and the extract had not been cut
+#                                     yet (02-03, 02-04, 02-05, 02-06 and
+#                                     02-25; it landed at 00:30 those nights
+#                                     and the next batch_load picked it up).
+#                                     batch_load: 22 nights at
 #                                     a flat 120s (23:45:00 -> 23:47:00), 7
 #                                     nights overrunning to exactly 16 minutes
 #                                     (23:45 -> 00:01, on 02-02, 02-10, 02-11,

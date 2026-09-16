@@ -1,0 +1,20 @@
+# GT007 - the roster. Authored once and copied into issues.json and chat.json
+# by world/workflow.py, so nobody can exist in the channel and not the tracker.
+#
+# Two properties are load-bearing and neither is stated anywhere the agent can
+# read:
+#
+#   * pdiallo made the 2026-04-09 schedule change and is on leave for the
+#     length of the episode. The one message that would close the question has
+#     no reply, and the ticket that records the change was closed by him.
+#   * hmoss sits outside the data team. She reports a symptom and a deadline
+#     and has no vocabulary for the chain, which is why the headline ticket is
+#     a complaint rather than a diagnosis.
+#
+# `agent` is the persona the episode's agent writes as (manifest workflow.actor).
+users:
+  - {id: hmoss, name: Harriet Moss, role: Head of Commercial Reporting, team: Commercial}
+  - {id: pdiallo, name: Paul Diallo, role: Data platform engineer, team: Data, away_until: "+9d"}
+  - {id: srao, name: Suni Rao, role: Analytics engineer, team: Data}
+  - {id: mcarver, name: Mel Carver, role: On-call SRE, team: Platform}
+  - {id: agent, name: Automation, role: Platform automation, team: Data}

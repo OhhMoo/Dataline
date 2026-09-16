@@ -113,15 +113,32 @@ fault too (a retry's final attempt, an overrun) fails on the missing delivery;
 one the scheduler never started (a timeout) does not, because it never got as
 far as looking.
 
-As of this round **every shipped theme declares `missed_by: []`**, and that is
-a measurement, not a shrug: no theme has a job that fails when a delivery is
-missing. Every `scan` job globs the CUMULATIVE landing tree with `min: 1`, so
-`sftp_poll` at 05:30 finds sixty older `.done` sentinels and succeeds, and
-`nightly_extract` at 23:00 finds thirty older partitions and succeeds. A late
-delivery's whole live signature is a run whose `effects` show `rows_after ==
-rows_before`. Recording a failed poll in the backstory would describe a world
-our own live path does not produce, so we do not. Scoping those scans to the
-day's own delivery lives in each theme's `jobs:` subtree.
+This used to read "every shipped theme declares `missed_by: []`", and that was
+a measurement of a DEFECT rather than of the world: every `scan` job globbed
+the CUMULATIVE landing tree with `min: 1`, so `sftp_poll` at 05:30 counted
+sixty older `.done` sentinels and succeeded and `nightly_extract` at 23:00
+counted thirty older partitions and succeeded. A poll that cannot fail after
+day one makes `late_arrival` inert, whatever the catalogue says, and declaring
+`missed_by: []` to match was the honest reading of an inert mechanism.
+
+Both scans are now scoped to the execution day's own delivery
+(`pattern: "*/*_{day_compact}.done"`, `pattern: "dt={day}/CLAIMS.DAT"`), so a
+withheld delivery is a real count of zero against a real minimum and the poll
+FAILS. `missed_by` follows the measurement, not the other way round:
+`vendor_late_delivery` declares `[sftp_poll]` and `extract_late` declares
+`[nightly_extract]`, each with the `missed_error` the live path produces
+verbatim for that night. The consumers - `vendor_load`, `batch_load` - are
+still NOT named, and that too is measured: both are theme `load_raw` hooks that
+parse whatever is in the landing zone and succeed with one day fewer in it,
+leaving `rows_after == rows_before` as their whole signature.
+
+The run history is not the only seeded plane that describes those nights, and
+the moment the poll could fail, sftp_vendor's connector control plane started
+contradicting it: `write_ingest` seeded a green sync per connector per day
+unconditionally, so six nights had `ingest_runs` reporting rows out of a drop
+folder `sched_logs` says was empty for another two hours. `history_catalogue`
+and `history_arrivals` below are the fix for the class, not the instance: one
+decision about which nights were late, read by every plane the builder seeds.
 
 ## What is NOT here, and why
 
@@ -298,19 +315,73 @@ def delay_for(fault: dict) -> timedelta:
 # the backstory
 # --------------------------------------------------------------------------
 
-def missed_by(fault: dict | None, job: str) -> str | None:
+def history_catalogue(manifest: dict, seed: dict | None = None) -> list:
+    """The catalogue the seeded backstory replays, or [] when the theme opts out.
+
+    One definition of "which faults does this world's PAST carry", because more
+    than one seeded plane has to agree about it. `build.py` hands the result to
+    `initial_state`, which decides which nights the scheduler recorded a failed
+    poll on; a theme's `write_ingest` hook reads the same list so the connector
+    control plane fails on exactly those nights and no others. Two planes each
+    deriving their own answer is how the two surfaces drift apart.
+    """
+    live = (manifest or {}).get("live") or {}
+    if not (live.get("faults_in_history") and live.get("faults")):
+        return []
+    return catalogue(live["faults"], (seed or {}).get("faults"))
+
+
+def history_arrivals(catalogue_: list, fault_seed, days: int) -> dict:
+    """{day_index: fault} for the seeded nights a CARRIED arrival fault took.
+
+    The single answer to "was the delivery there at its slot that night". It is
+    the same draw `initial_state` makes - `arrival_decision` over the same
+    catalogue and the same `fault_seed` - filtered to the kinds the backstory
+    can honestly carry (`HISTORY_ARRIVAL_KINDS`). A day carrying an arrival
+    fault the history does NOT carry is absent from the result, because the
+    builder wrote that night's delivery whole and every seeded plane must read
+    it as a normal night.
+
+    Consumers must not re-decide. `write_ingest` calling this is what makes a
+    night whose 05:30 poll failed the same night whose 05:31 sync failed: one
+    decision, two surfaces, rather than two surfaces guessing.
+    """
+    live = {"faults": catalogue_ or [], "fault_seed": fault_seed}
+    out = {}
+    for day_index in range(int(days)):
+        fault = arrival_decision(live, day_index)
+        if fault and fault["kind"] in HISTORY_ARRIVAL_KINDS:
+            out[day_index] = fault
+    return out
+
+
+def missed_by(fault: dict | None, job: str, tokens: dict | None = None) -> str | None:
     """What `job` reported when this arrival fault took its delivery, or None.
 
     None means the job was untouched: either no fault applied to the day, or
     the fault is one the backstory does not carry, or the job simply did not
     read the delivery at the slot the fault covered. `initial_state` then
     records the night it always recorded.
+
+    `tokens` are the day's spellings (`executor.day_tokens`), applied to
+    `missed_error` so the backstory can quote the error the LIVE path produces
+    for that night verbatim - `data/drop holds 0 file(s) matching
+    */*_20260205.done, ...` rather than a paraphrase. The caller supplies them;
+    this module deliberately imports nothing from the executor. A message with
+    no tokens in it formats to itself, so an existing catalogue is unaffected.
     """
     if not fault or fault["kind"] not in HISTORY_ARRIVAL_KINDS:
         return None
     if job not in (fault["params"].get("missed_by") or []):
         return None
-    return fault["params"]["missed_error"]
+    message = fault["params"]["missed_error"]
+    try:
+        return str(message).format(**(tokens or {}))
+    except (KeyError, IndexError, ValueError) as exc:
+        raise BadFault(
+            f"{fault['id']!r} params.missed_error {message!r} names a token "
+            f"this day cannot resolve ({type(exc).__name__}: {exc}); known "
+            f"tokens: {', '.join(sorted(tokens or {})) or 'none'}") from exc
 
 
 def check_history(catalogue_: list, jobs) -> None:

@@ -1,5 +1,6 @@
 FROM alkera-stack:track-b
 COPY gateway/docker/snowflake.lock /opt/snowflake.lock
 RUN pip install --no-cache-dir --require-hashes -r /opt/snowflake.lock
+COPY gateway/docker/snowflake_fidelity.py /opt/stack/snowflake_fidelity.py
 COPY gateway/docker/snowflake_start.py /opt/stack/snowflake_start.py
 CMD ["python", "/opt/stack/snowflake_start.py"]

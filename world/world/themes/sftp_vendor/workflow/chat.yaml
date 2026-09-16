@@ -229,10 +229,16 @@ channels:
           note: >-
             SV-C12. Stated flatly, agreed with three times, and wrong in a way
             the ingestion surface refutes in one call: ingest_get on
-            globex_returns reports status active with a green sync every day,
-            including both of the days support say are missing, each with
-            rows_inserted 0. This is the version of the week an agent that reads
-            the escalation channel first will meet.
+            globex_returns reports status active, and ingest_runs shows a green
+            sync on both of the days support say are missing (2026-02-24 and
+            2026-02-27, synced 05:32 the following morning), each with
+            rows_inserted 0. Measured, because the connector is NOT green every
+            day any more: it failed on the six nights the vendor delivered
+            late - and neither of the two days support are complaining about is
+            one of them, so the refutation stands and the agent still has to
+            tell "the file was not there" from "the file was empty" to see it.
+            This is the version of the week an agent that reads the escalation
+            channel first will meet.
       - id: support-escalation/0002
         author: rhaddad
         at: "-1d 11:31"

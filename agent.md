@@ -954,6 +954,78 @@ library; we have one calibrated unit.** Everything below follows from that.
    without an authoring round each time. That builder does not exist and is the
    real deliverable behind this idea.
 
+**MEASURED 2026-09-15, and it corrects two things written above.** Opus 5, K=5,
+host topology, live-surface gate clean:
+
+| task | variant | Pass@1 | Pass^5 | verdict |
+|---|---|---|---|---|
+| GT001 | - | **1.0** | 1.0 | ceiling |
+| GT002 | - | **0.8** | 0.0 | **unit** |
+| GT004 | vague / guided / specific | **0.0 / 0.0 / 0.0** | 0.0 | wall |
+| GT006 | guided / vague | **1.0 / 1.0** | 1.0 | ceiling |
+| GT005 | guided | **1.0** | 1.0 | ceiling |
+| GT007 | guided | **1.0** | 1.0 | ceiling |
+
+**Correction 3 - we cannot yet build a 0.8 unit on purpose.** GT005, GT006 and
+GT007 were authored specifically to land near 0.8, by three agents that each had
+the calibration table above in hand and were briefed that the risk was the
+ceiling, not the floor. GT005's author went further: it probed its own ceiling,
+found that the strongest honest fake scored full marks, and added a sibling chain
+that took that fake from 19/19 to 9/19 without making the oracle harder. **All
+three measured 1.0, Pass^5 1.0, every check at 1.0.** Five of six calibrated
+tasks are ceilings; the single unit (GT002) got there by accident and nobody
+knows why.
+
+The tasks are not badly built - between them they caught three rubric defects by
+adversary, falsified one of our own sources against the engine, and made a design
+choice that saved a sibling task from destruction. The mechanisms are genuinely
+well hidden (GT006 loses 6.4% of rows a day inside a 14.75% volume swing).
+**Concealment is not difficulty.** It delays a model that queries the data, and
+this model always queries the data.
+
+**What actually stopped it, once, is the interesting result.** GT004's second
+defect is not hidden at all - the model NAMES it in most rollouts - and it is
+never repaired, across 21 episodes and three prompt framings. The obstacle is a
+closed `wontfix` ticket plus a changelog page asserting history was already
+full-refreshed: **the world supplies a reason not to act, and the model defers to
+it over its own reading of the data.** That is the only lever measured to move
+this model, it is a world lever, and it suggests the composition thesis needs
+restating: difficulty is unlikely to come from stacking obscure mechanisms
+(1.0 x 1.0 = 1.0), and more likely from **interference** - a defect paired with a
+plausible, authoritative reason to leave it alone.
+
+**Correction 1 - the prompt variant is NOT the difficulty dial.** This section and
+three agent briefs asserted that "the variant is how a unit gets tuned toward
+0.8", on the strength of ADE-bench reporting prompt vagueness as its biggest
+lever. Five variant measurements across two tasks moved the pass rate by
+**zero** in either direction. GT004 stayed at 0.0 even under `specific`, which
+states the acceptance criteria outright; GT006 stayed at 1.0 even under `vague`.
+
+The explanation that fits: **our gates grade final world state, not the
+narrative.** A brief changes what the agent is *told*; a competent agent
+investigates the data regardless, and the grader only looks at what it did. So
+where the obstacle is a *belief the world plants* - GT004's `wontfix` ticket and
+the changelog page asserting history was full-refreshed - telling the agent more
+cannot help, because the brief was never what stopped it. **To tune a unit, change
+the world, not the prompt.** Keep the variants: they still make a run's
+conditions explicit and reproducible. Do not expect them to move a rate.
+
+**Correction 2 - the yield is roughly one unit in four.** Of four calibrated
+tasks, two are ceilings, one is a wall, one is a unit. If that rate holds, a
+20-unit library needs on the order of **80 authored tasks**, each with its own
+calibration run. Combined with the ~64 rollouts needed to pin a unit to +/-0.05
+(below), the library is an order of magnitude more expensive than "author 20
+tasks and stack them".
+
+Two failure directions, both instructive and opposite. **GT006 is a single clean
+mechanism** - a NULL-unsafe `NOT IN` predicate dropping 6.4% of rows a day inside
+a 14.75% volume swing - beautifully hidden, and a strong model recognises it the
+moment it reads the predicate. Hiding only delays a model that queries the data,
+and it always queries the data. **GT004 is a judgment trap**, and it holds: 21
+episodes, three framings, zero repairs. Neither is a difficulty *unit*. What sits
+at 0.8 is GT002, whose single failing rollout lost three sub-checks *together* -
+one mechanism failing occasionally, not three independent gates.
+
 **Sensitivity, because the target band is narrow.** Units at 0.9 give
 `0.729 / 0.656` for 3 and 4 stacked; at 0.8, `0.512 / 0.410`; at 0.7,
 `0.343 / 0.240`. A library calibrated loosely lands anywhere between "trivial"
@@ -1434,9 +1506,24 @@ Corollaries, each of which has now cost real time more than once:
 cross-host determinism now executed and passing.
 
 **Open:**
-- **`late_arrival` is inert.** `_kind_scan` globs the cumulative folder with
-  `min: 1`, so after day one a poll cannot fail, while two themes ship the fault
-  enabled and assert in comments that it "FAILS for real".
+- ~~`late_arrival` is inert~~ — **FIXED 2026-09-15.** `_kind_scan` templated its
+  `path`/`pattern` with `{day}`/`{day_compact}`, the scheduler now threads the
+  execution day to the executor on all three scheduled branches, and the two
+  scan-bearing themes scope their patterns to the night they are polling for.
+  Measured before: 60 stale sentinels, `min: 1`, **success**. After: `0 file(s)
+  matching */*_20260303.done, expected at least 2`, **failed**, with the fault
+  log, the run record and the healed data telling one story. `torn_write`'s own
+  docstring claim was inert for the same reason and is now true at `min: 2`.
+  Seeded failures went 2 → 8 (sftp_vendor) and 1 → 6 (mainframe_batch).
+  **A test was living off the defect** — `test_the_incident_is_reachable_through_
+  the_scheduler_surface` asserted `try_number == 1` on the *first* failed run,
+  which only held while SSH resets were the only failures the past could
+  contain. Third such test found in two days.
+- **NEW, introduced by that fix and not yet resolved:** `sftp_vendor`'s ingest
+  plane now contradicts its scheduler history. `gen.write_ingest` seeds one green
+  sync per connector per day unconditionally at 05:31, so on the six withheld
+  nights a connector reports `rows_inserted: 53` from files that were not on disk
+  until 07:30. The two planes agreed trivially while the poll could not fail.
 - Themes 5+; 19 of 30 have no archetype.
 
 ### 11.4 Track B - Gateway and stack

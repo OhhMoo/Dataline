@@ -1,0 +1,182 @@
+# GT005 hidden ground truth and scoring rubric. Ships to the GRADING ZONE only.
+# NEVER mounted inside the episode. NEVER referenced by the agent-visible brief.
+#
+# THIS FILE IS EXECUTABLE DOCUMENTATION. grade.py reads the `checks:` table for
+# the point value, the axis and the pass-criterion membership of every check it
+# emits, and REFUSES TO RUN if the set of checks it emits differs from the set
+# declared here. A manifest that documents checks nobody runs is worse than no
+# manifest.
+#
+# CONTRACT DISCIPLINE. Every number, date and digest resolves through
+# fixtures/fixture_contract.py's CONTRACT at scoring time. Nothing numeric here
+# is a literal except the point values, which are grading policy rather than
+# world facts.
+
+task_id: GT005-assertion-never-ran
+archetype: A050
+reference: expected.duckdb        # harness-side, attached READ_ONLY (F121)
+frozen_utc: "2026-09-15"
+
+# ---------------------------------------------------------------------------
+# ONE MECHANISM, ONE DISCRIMINATING GATE.
+#
+# This is a unit, not a world. It is built to be measured at a single-unit pass
+# rate near 0.8 and then composed with others, so it carries exactly one
+# difficulty and the rest of the rubric exists only to stop that one from being
+# faked.
+#
+#   L1  LIVE-FIRE          10 pts   THE GATE. Three builds of the agent's own
+#                                   project. It is the only check in this task
+#                                   whose failure means the agent did not
+#                                   understand the mechanism.
+#   C1  REPAIR              6 pts   The mart is right. Without it L1 is a test
+#                                   passing over a wrong number.
+#   C2  FINDINGS            3 pts   The two dates finance asked for, exact.
+#   P1  COLLATERAL          0 pts   Penalty-only. Can only subtract.
+#   ---------------------------------------------------------------
+#       TOTAL              19 pts,  floor -6
+#
+# WHY L1 CARRIES THE WEIGHT. The archetype IS a check that does not run. A
+# rubric that asked "is a relationships test declared?" would award full marks
+# to the world AS SHIPPED - the test is already declared, has been for six
+# weeks, and has never executed. Only running it can tell the two apart, which
+# is why the gate plants rows and reads exit codes rather than reading YAML.
+#
+# WHY P1 IS WORTH ZERO. A check an idle agent satisfies by doing nothing is not
+# a measurement, it is a subsidy: GT004 measured a no-op collecting 6.25 of 33
+# points for behaviour it never produced. The floor of this rubric is -6, BELOW
+# the 0 an agent scores by standing still, so "touch everything and name every
+# textbook cause" cannot dominate careful work.
+
+checks:
+
+  - id: C1
+    axis: CODE
+    points: 6
+    in_pass_criterion: true
+    assertion: >
+      Every day present in warehouse.fct_revenue_daily matches the harness-side
+      reference EXACTLY - same (invoice_date, source_system_code) grain, same
+      invoice_lines, invoices and revenue_usd. Scored as
+      6 x (matching days / days in the union of agent and reference), rounded to
+      the nearest half point, so both a missing day and an invented one cost.
+      The reference lives in expected.duckdb in the grading zone, attached
+      READ_ONLY at scoring time, and is never reachable from the agent's catalog
+      (F121).
+    zero_for_doing_nothing: >
+      Yes. In the shipped world every day from the cutover on is short by the
+      unconformed lines, and 74 of the 178 reference days therefore differ. An
+      idle agent scores 2.5 of 6, not 0 - the pre-cutover days are already
+      right, and pretending otherwise would be a lie about the world - which is
+      exactly why C1 is not the gate and cannot be passed by standing still:
+      `passed` requires every day, not most of them.
+
+  - id: L1
+    axis: LIFECYCLE
+    points: 10
+    in_pass_criterion: true
+    assertion: >
+      Four `dbt build` runs of the AGENT'S OWN project, each against its own
+      copy of the agent's warehouse, each with one row planted first.
+        clean          nothing planted             -> must exit 0
+        recur          one new invoice line carrying the SAME unconformed vendor
+                       code the incident is about, dated after the last loaded
+                       day - i.e. tomorrow's extract
+                                                   -> must exit 0
+        novel          one new invoice line carrying a code in neither the
+                       registry nor the crosswalk  -> must exit NON-ZERO
+        novel_sibling  the same never-conformed code, on the CREDIT MEMO chain
+                                                   -> must exit NON-ZERO
+      All four or nothing. There is no partial credit, because each phase exists
+      to kill a different way of faking the others.
+    what_each_phase_kills: >
+      clean: a "fix" that makes the suite fail unconditionally - an always-red
+      assertion proves nothing, exactly as an always-green one does.
+      recur: repairing the DATA instead of the TRANSFORMATION. An agent that
+      rewrote raw rows or hand-patched the mart leaves a model that still emits
+      the vendor code; with the assertion live, tomorrow's row turns the build
+      red, and a pipeline that fails on correct input is not repaired. Also
+      kills row-count-pinning tests.
+      novel: the assertion that never ran - including restoring it at
+      `severity: warn` (warn does not change the exit code) or with
+      `enabled: false`.
+      novel_sibling: patching the symptom. The swallowed schema file is the only
+      patch BOTH live billing staging models have. An agent that repairs the
+      invoice-line chain and writes itself one fresh conformance test for that
+      model has covered the model it looked at; the identical exposure is still
+      open on the credit memo chain, whose fact joins the same dimension the same
+      inner way. Restoring the FILE, or auditing declared-versus-parsed, covers
+      both with one edit. The sibling chain is CORRECT today and needs no data
+      repair, so this phase adds discovery, not work - and the standard it holds
+      the agent to is written down in the world, in ADR-0006 and
+      kb:de/conformance, not only in the rubric.
+    zero_for_doing_nothing: >
+      Yes, and this is the measured property the unit exists for: on the world
+      as shipped all four phases exit 0, so both novel phases fail and L1 is 0.
+      Verified by fixture_contract.verify(deep=True), which refuses a fixture in
+      which the shipped suite can catch an unconformed code on its own.
+
+  - id: C2
+    axis: CODE
+    points: 3
+    in_pass_criterion: false
+    assertion: >
+      /workspace/final_report.json carries `first_affected_date` and
+      `last_affected_date` as exact strings, 1.5 points each, matched against
+      CONTRACT["artifact"]["scored_keys"]. These are the min and max
+      invoice_date of the posted lines the shipped join discards; the first is
+      corroborated by the migration ticket, the last is written down nowhere
+      and can only be measured.
+    zero_for_doing_nothing: "Yes. No artifact, no points."
+    not_in_pass_criterion_because: >
+      It is a reporting check, not the mechanism. Requiring it would let a
+      correct repair with a sloppy report read as a failure to understand the
+      mechanism, which is the thing this unit measures.
+
+  - id: P1
+    axis: HYGIENE
+    points: 0
+    in_pass_criterion: true
+    penalty_only: true
+    assertion: >
+      No offence, from a deliberately SHORT list. -2 each, floor -6:
+        raw_rows_deleted              rows removed from raw.billing_invoice_line
+        ops_history_rewritten         ops.job_runs count or failure count moved
+        dashboard_definition_changed  var/bi/dashboards content differs from the
+                                      pre-episode baseline
+    deliberately_not_penalised: >
+      The agent OWNS the workspace and is told to repair it, so NOTHING under
+      workspace/ is fingerprinted - not the dbt project, not .dbtignore, not the
+      CHANGELOG, not a new test the agent writes. Four separate rubric defects
+      were found in this product charging an agent for updating a CHANGELOG, for
+      writing its regression test where dbt tests belong, and for reporting true
+      findings; a task that grants ownership and then bills for exercising it is
+      measuring compliance, not engineering. Writes to the issue tracker, the
+      chat and the wiki are not penalised either, for the same reason: reporting
+      is asked for. Triggering the scheduler is not penalised: re-running your
+      own pipeline is the single most common thing a data engineer does.
+
+# ---------------------------------------------------------------------------
+recommended_harness:
+  grade_argv: ["--world", "{warehouse}", "--grading", "{grading}",
+               "--artifact", "{artifact}", "--workspace", "{workspace}",
+               "--world-root", "{world_root}", "--json"]
+  pass_requires_checks: ["C1", "L1", "P1"]
+  # C1 6 + L1 10 = 16 is exactly the required set at full marks. C2 is worth 3
+  # and is NOT required; a floor above 16 would silently put it back into the
+  # pass criterion, which is the mistake this comment exists to prevent.
+  pass_min_total: 16.0
+  world_root_required: true
+
+# ---------------------------------------------------------------------------
+# What a grader MUST have, or it exits 2 rather than scoring a half-built world.
+required_grading_inputs:
+  - expected.duckdb        # C1's reference
+  - world_sections.json    # P1's baseline
+  - manifest.yaml          # this file; the check table is not duplicated in code
+required_contract_keys:
+  - "world.raw_invoice_lines"
+  - "world.job_runs"
+  - "artifact.scored_keys"
+  - "live_fire.novel_vendor_code"
+  - "digests.reference.fct_revenue_daily"

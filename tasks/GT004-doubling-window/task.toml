@@ -77,7 +77,7 @@ world_root_required = true
 # variant lock covers is how the shipped prompt drifts away from the graded one.
 # ---------------------------------------------------------------------------
 [agent_visible]
-brief = "prompts/vague.md"
+brief = "prompts/specific.md"
 
 # ---------------------------------------------------------------------------
 # The difficulty dial. Three descriptions of the SAME task, identical world,

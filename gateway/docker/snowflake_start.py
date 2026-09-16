@@ -61,10 +61,16 @@ def upstream() -> None:
     import fakesnow.server as fakesnow_server
     from fakesnow.instance import FakeSnow
 
+    import snowflake_fidelity
+
     DATA.mkdir(parents=True, exist_ok=True)
     fakesnow_server.shared_fs = FakeSnow(db_path=str(DATA))
+    # Patch fakesnow before the first login: qualified temp relations, the
+    # 500 -> retry-storm catch-all, strict mode, the silent-wrong fences and session
+    # identity. See gateway/docker/snowflake_fidelity.py; ALKERA_SNOWFLAKE_* tunes it.
+    app = snowflake_fidelity.apply(fakesnow_server)
     server = uvicorn.Server(
-        uvicorn.Config(fakesnow_server.app, host="127.0.0.1", port=UPSTREAM_PORT, log_level="info")
+        uvicorn.Config(app, host="127.0.0.1", port=UPSTREAM_PORT, log_level="info")
     )
     thread = threading.Thread(target=server.run, name="fakesnow", daemon=True)
     thread.start()

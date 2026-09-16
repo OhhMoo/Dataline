@@ -28,11 +28,24 @@ jobs:
     # The extract itself is produced by the arrival stream (that is what the
     # system of record does, and it is outside the batch window we model), so
     # this job verifies the delivery rather than creating it: a real count of
-    # real files, and a real failure when the extract did not arrive.
+    # real files, and a real failure when TONIGHT's extract did not arrive.
+    #
+    # `{day}` is the execution day in ISO, which is the dialect this landing
+    # tree speaks - gen.write_day writes dt=<YYYY-MM-DD>/CLAIMS.DAT from the
+    # data day (gen.py:60) - and day_offset: 0 means the 23:00 job is looking
+    # for the extract cut at 23:00 that same night. Arrivals sort before jobs
+    # at the same instant, so on an unfaulted night the file is already there.
+    #
+    # The pattern used to be `dt=*/CLAIMS.DAT` with min: 1 over a CUMULATIVE
+    # tree, so from the second night onward the count could not fall below the
+    # minimum and the scan could not fail - which made this theme's
+    # `late_arrival` fault, shipped enabled, cost nothing a scheduler could
+    # see. min: 1 stays meaningful now that the glob names one night: a night
+    # delivers exactly one CLAIMS.DAT, and zero is the failure.
     exec:
       kind: scan
       path: data/landing/claims_extract
-      pattern: "dt=*/CLAIMS.DAT"
+      pattern: "dt={day}/CLAIMS.DAT"
       min: 1
   batch_load:
     command: load_claims_extract
@@ -81,21 +94,28 @@ live:
   faults:
     # The extract is cut 90 minutes late.
     #
-    # MEASURED, and not what this comment used to claim: nightly_extract does
-    # NOT fail. It scans `dt=*/CLAIMS.DAT` across the whole landing tree with
-    # min: 1, and the tree is cumulative - at 23:00 on 2026-03-03, with the
-    # night's extract deferred to 00:30, it counted 30 older partitions and
-    # succeeded. The night's signature is batch_load's effects (rows_after ==
-    # rows_before) and the claim day landing one night behind. `missed_by: []`
-    # records that no job here fails on a missing extract, so the backstory
-    # records no failed scan; planting one would describe a world our own live
-    # path does not produce. Scoping the pattern to the night's own dt= lives
-    # in this theme's `jobs:` subtree, not here.
+    # MEASURED, both before and after. BEFORE the scan was day-scoped this
+    # fault was inert: nightly_extract globbed `dt=*/CLAIMS.DAT` across a
+    # cumulative tree with min: 1 and counted 30+ older partitions, so it
+    # SUCCEEDED on a night whose extract had been deferred past it, and the
+    # night's only signature was batch_load's effects (rows_after ==
+    # rows_before) and the claim day landing one night behind. AFTER: the same
+    # occurrence counts 0 files matching `dt=<that night>/CLAIMS.DAT` and
+    # FAILS.
+    #
+    # `missed_by: [nightly_extract]` is that measurement written down, and
+    # `missed_error` is the executor's own message with `{day}` resolved per
+    # night, so the backstory quotes what the live path produces. batch_load is
+    # NOT named: it is a theme load_raw hook that reloads every partition it
+    # finds and succeeds with one night fewer in it.
     - id: extract_late
       kind: late_arrival
       enabled: true
       rate: 0.15
-      params: {delay_minutes: 90, missed_by: []}
+      params:
+        delay_minutes: 90
+        missed_by: [nightly_extract]
+        missed_error: "data/landing/claims_extract holds 0 file(s) matching dt={day}/CLAIMS.DAT, expected at least 1"
     # 120s nominal, 8x = 16 minutes, which reaches past the 10-minute gap to
     # dbt_build: the load is still recorded as running when the build starts.
     # Overlapping windows in the run history; the execution itself is strictly

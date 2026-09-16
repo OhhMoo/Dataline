@@ -182,6 +182,7 @@ def load_raw(workspace: Path, db_path: Path) -> None:
         [sys.executable, str(workspace / "loader" / "import_close.py"),
          "--workbooks", str(workspace / "finance" / "workbooks"),
          "--db", str(db_path)],
+        stdin=subprocess.DEVNULL,  # never inherit the MCP JSON-RPC pipe; see executor.py
         capture_output=True, text=True)
     if r.returncode != 0:
         raise SystemExit(f"import_close failed:\n{r.stdout}\n{r.stderr}")

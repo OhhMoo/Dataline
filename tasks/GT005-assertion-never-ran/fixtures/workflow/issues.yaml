@@ -1,0 +1,148 @@
+# The backlog. Every timestamp is an offset from the world clock; a literal date
+# would be a lie the moment the clock moved.
+#
+# NOTHING HERE NAMES THE CAUSE. DATA-5107 says the legacy directory is excluded
+# from the parse, which is true and is in the changelog too; it does not say
+# that anything live went with it. RFC-118 says the crosswalk row was added,
+# which is also true. The trail is real and the conclusion is not written down.
+issues:
+  - id: DATA-5301
+    title: Q1 revenue in the close pack is under the ledger
+    status: open
+    priority: high
+    reporter: tvarga
+    assignee: rmehta
+    labels: [finance, close, revenue]
+    created_at: "-4d 08:40"
+    updated_at: "-1d 16:05"
+    body: >-
+      Finance closed Q1 on our numbers and the ledger disagrees. mart_revenue_by_month
+      is under by roughly four and a half per cent and it has been under by about
+      the same proportion every month since January. Nothing about the shape looks
+      wrong - the daily curve tracks, the currencies are right - it is just
+      consistently light. We need to know which months are affected before we
+      decide whether to restate, and we need it before the audit pack goes out.
+    comments:
+      - id: DATA-5301#1
+        author: rmehta
+        at: "-4d 10:12"
+        body: >-
+          Checked the obvious things first. The nightly build is green - I went back
+          through the last forty runs in the scheduler and every one is PASS with
+          zero errors. Nobody has deployed to the revenue models since December.
+      - id: DATA-5301#2
+        author: sberg
+        at: "-3d 09:30"
+        body: >-
+          The gap is stable month on month, which argues against a one-off load
+          problem. If we had lost a day we would see a notch, not a slope.
+      - id: DATA-5301#3
+        author: jodonnell
+        at: "-1d 16:05"
+        body: >-
+          Handing this to the platform shift. Please work from the extract, not
+          from the marts - the marts are the thing under suspicion.
+
+  - id: DATA-5107
+    title: Delete models/staging/legacy once the v1 billing extract is switched off
+    status: open
+    priority: low
+    reporter: lchen
+    assignee: lchen
+    labels: [tech-debt, billing]
+    created_at: "-82d 11:20"
+    updated_at: "-30d 14:02"
+    body: >-
+      RFC-118 retired the v1 billing staging models. The v1 raw tables still land
+      so the models still compile; they are excluded from the parse via
+      dbt_project/.dbtignore until the vendor switches the extract off, which is
+      scheduled for 2026.2. Delete the directory then.
+    comments:
+      - id: DATA-5107#1
+        author: lchen
+        at: "-30d 14:02"
+        body: >-
+          Vendor has moved the switch-off to the 2026.2 window. Leaving the ignore
+          entry in place until then.
+
+  - id: DATA-5044
+    title: RFC-118 - EMEA billing cutover to the new vendor instance
+    status: done
+    priority: high
+    reporter: jodonnell
+    assignee: lchen
+    labels: [migration, billing]
+    created_at: "-96d 09:05"
+    updated_at: "-81d 17:40"
+    body: >-
+      EMEA billing moves onto the new vendor instance on the 14th. Register the
+      conformed source system, add the crosswalk row for the new instance code,
+      retire the v1 staging models.
+    comments:
+      - id: DATA-5044#1
+        author: lchen
+        at: "-82d 12:15"
+        body: >-
+          Cutover done. Conformed system registered, crosswalk row added, v1
+          staging models retired and excluded from the parse (DATA-5107).
+      - id: DATA-5044#2
+        author: rmehta
+        at: "-81d 17:40"
+        body: >-
+          Nightly build green the morning after. Closing.
+    links:
+      - issue: DATA-5107
+        kind: relates
+
+  - id: INC-2291
+    title: Currency normalisation gap in the payment gateway feed
+    status: done
+    priority: high
+    reporter: rmehta
+    assignee: rmehta
+    labels: [incident, currency]
+    created_at: "-62d 02:11"
+    updated_at: "-60d 15:20"
+    body: >-
+      The gateway feed briefly delivered unnormalised amounts and the nightly build
+      started failing on the amount controls at 02:00. Dropped the two controls on
+      fct_invoice_line to warn severity to stop the paging while we fixed the feed.
+    comments:
+      - id: INC-2291#1
+        author: rmehta
+        at: "-60d 15:20"
+        body: >-
+          Feed fixed upstream, amounts normalised again. Closing the incident. The
+          two controls are still at warn severity; raising that separately.
+
+  - id: DATA-5188
+    title: Restore the revenue range control after the November backfill
+    status: blocked
+    priority: low
+    reporter: rmehta
+    assignee: rmehta
+    labels: [tech-debt]
+    created_at: "-140d 13:25"
+    updated_at: "-45d 10:00"
+    body: >-
+      The accepted-range control on fct_revenue_daily.revenue_usd was disabled for
+      the November backfill. Re-enable it once the restated months are signed off.
+    comments:
+      - id: DATA-5188#1
+        author: sberg
+        at: "-45d 10:00"
+        body: >-
+          Sign-off is waiting on the Q1 close. Still blocked.
+
+  - id: DATA-5262
+    title: Close pack extract refresh should run after the marts, not beside them
+    status: open
+    priority: low
+    reporter: sberg
+    assignee: jodonnell
+    labels: [scheduling]
+    created_at: "-20d 08:00"
+    updated_at: "-20d 08:00"
+    body: >-
+      refresh_close_extract runs at 02:05 and build_marts at 01:40. On a slow night
+      they overlap. Not urgent, the marts have never run past 01:42.

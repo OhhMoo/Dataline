@@ -80,6 +80,7 @@ def load_raw(workspace: Path, db_path: Path) -> None:
         [sys.executable, str(script), "--landing", str(landing),
          "--db", str(db_path)],
         env={**os.environ, "PYTHONUTF8": "1"},
+        stdin=subprocess.DEVNULL,  # never inherit the MCP JSON-RPC pipe; see executor.py
         capture_output=True, text=True)
     if r.returncode != 0:
         raise SystemExit(f"load_extract.py failed:\n{r.stdout}\n{r.stderr}")

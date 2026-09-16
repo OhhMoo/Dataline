@@ -1,0 +1,126 @@
+# GT007 - the wiki.
+#
+# THE ENABLING PAGE. de/how-to/read-scheduler-history states the method and
+# nothing else: a job misses a deadline either because it ran long or because
+# it started late, the run history answers which, and the two have opposite
+# fixes. It contains no figure from this world and names no job, so it teaches
+# the move without handing over the answer. It is what makes this unit a
+# reasoning task rather than a trivia task.
+#
+# THE INCIDENT PAGE records that the gap was increased and does not say by how
+# much, and does not say that the overrun it was reacting to has never
+# recurred. Both of those are in the scheduler and in git.
+#
+# Page ids carry no derived values: world/workflow.py restricts them to
+# [a-z0-9_-./].
+pages:
+  - id: de
+    title: Data Engineering
+    parent: null
+    version: 3
+    body: |-
+      Runbooks, incident notes and how-to pages for the data platform.
+    last_edited_by: pdiallo
+    last_edited_at: "-120d 10:00"
+
+  - id: de/how-to/read-scheduler-history
+    title: How to read the scheduler's run history
+    parent: de
+    version: 2
+    body: |-
+      Every run the scheduler has ever executed is in its state, with two
+      timestamps: the virtual time it STARTED and the virtual time it ENDED.
+      Two different quantities come out of those and people mix them up
+      constantly.
+
+      * DURATION is end minus start, for one run. It is how long the job took.
+      * LATENCY is the gap between the start of the chain and the moment the
+        last job in it finished. It is what a consumer feels.
+
+      Latency can grow without any duration changing, and that is the normal
+      case, not an exotic one.
+
+      When a job misses a deadline it is one of exactly two things:
+
+        it RAN LONG      its start is where it has always been and its duration
+                         is bigger than it used to be. The fix is on the job:
+                         less work, more resource, a different plan.
+
+        it STARTED LATE  its duration is exactly what it has always been and
+                         its start has moved. The fix is on the schedule: the
+                         job, or something it waits on, is being told to begin
+                         later than it needs to.
+
+      Line up the durations of the job's own runs, night after night, before
+      you conclude anything. If they are flat, it did not run long, however
+      much later the output is arriving.
+
+      A timeout is not a lever on either of these. A timeout is when we give
+      up on a job; it is not when the job starts and it is not how long the job
+      takes. Raising one changes who gets paged.
+    last_edited_by: mcarver
+    last_edited_at: "-90d 15:30"
+    edit_comment: add the timeout paragraph
+    history:
+      - version: 1
+        by: mcarver
+        at: "-140d 11:05"
+        comment: first draft, duration vs latency only
+
+  - id: de/runbooks/commercial-nightly
+    title: Commercial nightly chain
+    parent: de
+    version: 5
+    body: |-
+      vendor_sync -> build_commercial -> export_commercial.
+
+      The vendor drops at 01:00. vendor_sync starts at 01:05. The other two
+      follow it, and the gaps between them live in
+      orchestration/schedule.yml in the commercial-nightly repo, which is what
+      is deployed.
+
+      The service level is on export_commercial:
+      warehouse.commercial_extract must be complete by 04:00, because the
+      Commercial pack is built from it at 06:00.
+
+      Current known issue: the pack has been late since the 9th. The extract
+      is arriving around 04:30. The team's working theory is that the export
+      has outgrown its window as volume has grown; the timeout has been raised
+      once already without effect. Do not schedule anything before 01:05.
+    last_edited_by: srao
+    last_edited_at: "-3d 12:10"
+    edit_comment: note the current known issue
+    history:
+      - version: 4
+        by: pdiallo
+        at: "-38d 16:50"
+        comment: vendor drop moved to 01:00
+      - version: 3
+        by: pdiallo
+        at: "-95d 09:15"
+        comment: added the service level
+
+  - id: de/incidents/2026-04-08-partial-export
+    title: "Incident 2026-04-08: export_commercial published nothing"
+    parent: de
+    version: 1
+    body: |-
+      What happened. export_commercial exited non-zero overnight. Its freshness
+      guard fired because commercial_daily was still being rebuilt when the
+      export began, so no extract was produced for that date and it was rerun
+      by hand in the morning.
+
+      Why. build_commercial ran considerably longer than usual that night. The
+      export is scheduled a fixed number of minutes after the build STARTS, not
+      after it finishes, so a long build eats the gap.
+
+      Mitigation. The gap before export_commercial was increased in
+      orchestration/schedule.yml and the export's timeout was raised at the
+      same time. Deployed on the 9th.
+
+      Follow-up we did not do. Nobody established why the build doubled that
+      night or whether it was going to happen again, and nobody checked what
+      the larger gap does to the 04:00 service level.
+    last_edited_by: pdiallo
+    last_edited_at: "-5d 08:40"
+    edit_comment: incident writeup
