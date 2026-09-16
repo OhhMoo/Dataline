@@ -23,3 +23,31 @@ notes: >
   invalid, followed by the sentence: this test is skipped and not added to manifest at
   parsing time. That is the exact mechanism for a test that is present in source control,
   absent from the manifest, and invisible in a green run summary.
+
+# ---------------------------------------------------------------------------
+# EXECUTED AGAINST THE ENGINE, 2026-09-15 (UNIT-A050, while building GT005).
+# The claim DOES NOT REPRODUCE on the version this project ships.
+falsified_against_engine:
+  engine: "dbt-core 1.12.4 / dbt-duckdb 1.11.0"
+  executed_on: "2026-09-15"
+  executed_by: UNIT-A050
+  finding: >
+    A relationships test whose `to: ref()` names a model that does not exist is
+    NOT silently dropped. The node STAYS in manifest.json and dbt emits a
+    [WARNING] naming it. The silent-drop mechanism the claim describes was not
+    observed. Three other candidate vectors were also executed and also failed
+    to be silent: duplicate YAML keys emit a deprecation warning WITH file and
+    line, and YAML under analysis-paths / test-paths is not dropped at all.
+    The only genuinely silent vector found was `.dbtignore` excluding the path
+    that holds a model's only schema file - dbt drops an ignored path at
+    file-read time, so the assertions are in the working tree, in git, absent
+    from manifest["nodes"], absent from manifest["disabled"], absent from
+    run_results.json, and named in no log line. Exit code 0.
+  consequence: >
+    GT005 is built on `.dbtignore`, NOT on this claim, and must not be cited as
+    evidence for it (recorded in that task's [provenance] note as well).
+    `usable_for: mechanism` is now doubtful for the version we ship; the issue
+    may be real on another dbt version, unfixed at the time of the report, or
+    the reporter's setup may have differed. Nobody has established which.
+  status: mechanism_not_reproduced
+

@@ -50,25 +50,65 @@ class SftpVendorThemeTest(unittest.TestCase):
         self.assertEqual(len(rendered["vendor_daily"]["daily_net_revenue"]), 30)
 
     def test_ingest_state_seeded_and_consistent(self):
-        """The connector control plane seeds a clean baseline: one green sync
-        per connector per day whose row counts reconcile with raw exactly."""
+        """The connector control plane: one sync per connector per day whose
+        row counts reconcile with raw exactly, and whose failures are the same
+        nights the scheduler recorded a failed poll on.
+
+        It used to seed a GREEN sync unconditionally. Once the poll became able
+        to fail, that made six nights where `ingest_runs` reported rows out of
+        a drop folder `sched_logs` says was empty for another two hours. The
+        late nights are read back out of the scheduler here - not re-derived
+        from the fault catalogue - so this asserts the two planes agree rather
+        than asserting that one of them can compute itself.
+        """
         import json
         state = json.loads(
             (self.w1 / "var" / "ingest" / "state.json").read_text(encoding="utf-8"))
         self.assertEqual(sorted(state["connectors"]), ["acme_orders", "globex_returns"])
         self.assertEqual(len(state["runs"]), 60)
-        self.assertTrue(all(r["status"] == "success" for r in state["runs"]))
-        self.assertEqual(state["alerts"], [])
         self.assertEqual(len(state["schemas"]), 2)
+        sched_state = json.loads(
+            (self.w1 / "var" / "sched" / "state.json").read_text(encoding="utf-8"))
+        withheld = {r["vts_start"][:10] for r in sched_state["runs"]
+                    if r["job"] == "sftp_poll" and r["status"] == "failed"
+                    and "file(s) matching" in (r.get("error") or "")}
+        # Non-vacuous on both sides: nights where the poll failed exist, and
+        # nights where it did not exist too. Without the first, "every sync is
+        # green" would pass this; without the second, "every sync failed" would.
+        self.assertTrue(withheld, "no withheld delivery in the backstory")
+        failed = [r for r in state["runs"] if r["status"] == "failed"]
+        green = [r for r in state["runs"] if r["status"] == "success"]
+        self.assertTrue(green)
+        self.assertEqual({r["started_at"][:10] for r in failed}, withheld)
+        self.assertEqual(len(failed), 2 * len(withheld))   # both connectors
+        for run in failed:
+            self.assertTrue(all(c["rows_inserted"] == 0
+                                for c in run["tables"].values()), run)
+            self.assertEqual(run["timeline"][-1]["event"], "failed")
+        # every failure raised exactly one alert, and nothing else did
+        self.assertEqual(len(state["alerts"]), len(failed))
+        self.assertEqual({a["run_id"] for a in state["alerts"]},
+                         {r["id"] for r in failed})
+        for alert in state["alerts"]:
+            self.assertEqual(alert["kind"], "sync_failed")
+            self.assertIs(alert["acknowledged"], False)
         # sync history stays inside the scheduler's run window: every sync
         # finishes before the last dbt_build and starts after the first poll
-        sched = json.loads(
-            (self.w1 / "var" / "sched" / "state.json").read_text(encoding="utf-8"))
-        window_end = max(r["vts_end"] for r in sched["runs"])
-        window_start = min(r["vts_start"] for r in sched["runs"])
+        window_end = max(r["vts_end"] for r in sched_state["runs"])
+        window_start = min(r["vts_start"] for r in sched_state["runs"])
         self.assertTrue(all(r["finished_at"] <= window_end for r in state["runs"]))
         self.assertTrue(all(r["started_at"] >= window_start for r in state["runs"]))
-        # per-table inserted totals match the raw tables the loader produced
+        # per-table inserted totals match the raw tables the loader produced.
+        # A withheld night does not lose its rows, it delays them: the delivery
+        # lands hours before the connector's next slot, so the next morning's
+        # sync carries both nights and the sum is unchanged. That only holds
+        # while the LAST seeded night arrived - otherwise its rows are still
+        # outstanding when the history ends, which is the honest reading and
+        # not this assertion. Measured: the last night is not a withheld one.
+        self.assertNotIn(max(r["started_at"][:10] for r in state["runs"]),
+                         withheld, "the last seeded night was withheld: its "
+                                   "rows are still outstanding, so the totals "
+                                   "below cannot reconcile with raw")
         import duckdb
         totals = {}
         for run in state["runs"]:

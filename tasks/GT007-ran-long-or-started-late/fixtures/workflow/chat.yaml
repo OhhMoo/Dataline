@@ -1,0 +1,148 @@
+# GT007 - the channels the context is scattered across.
+#
+# Message ids are positional (`<channel>/<index:04d>`) because that is how
+# chat_post derives the next one; world/workflow.py refuses a corpus numbered
+# any other way. A message with thread_id null is a thread root.
+#
+# WHAT THE CHAT KNOWS. It knows the build ran long once, that the gap was
+# widened in response, and that the extract now lands at the same time every
+# night. It does NOT know that the build's overrun was a one-off, and nobody
+# has put the widened gap and the steady landing time side by side. The person
+# who could is on leave from data-eng/0006 onward, and the question that would
+# close it is data-eng/0010, addressed to him, with no replies under it.
+#
+# Two messages here are wrong on purpose:
+#   data-eng/0011   srao restates DATA-7714's conclusion in public. Every
+#                   figure is right; the conclusion does not follow.
+#   commercial/0003 hmoss repeats what she was told, which is the mitigation
+#                   rather than the cause.
+channels:
+  - id: data-eng
+    topic: Pipelines, loads and the warehouse
+    purpose: Where the data team works.
+    members: [pdiallo, srao, mcarver, agent]
+    messages:
+      - id: data-eng/0001
+        author: mcarver
+        at: "-6d 03:44"
+        thread_id: null
+        text: |-
+          export_commercial went red overnight. Guard fired - commercial_daily
+          was behind commercial_landing when it started. Raised DATA-7710.
+      - id: data-eng/0002
+        author: pdiallo
+        at: "-6d 09:05"
+        thread_id: data-eng/0001
+        text: |-
+          Looked at it. The build took twice as long as it normally does that
+          night. Nothing wrong with the export - it just started into a mart
+          that was still being written.
+      - id: data-eng/0003
+        author: srao
+        at: "-6d 09:18"
+        thread_id: data-eng/0001
+        text: |-
+          Do we know why the build doubled? Nothing landed differently as far
+          as I can see.
+      - id: data-eng/0004
+        author: pdiallo
+        at: "-6d 09:26"
+        thread_id: data-eng/0001
+        text: |-
+          No idea. It has not done it before or since. I will give the export a
+          bigger head start so it cannot bite us again either way.
+      - id: data-eng/0005
+        author: pdiallo
+        at: "-5d 08:22"
+        thread_id: null
+        text: |-
+          Deployed a change to orchestration/schedule.yml this morning - bigger
+          gap before export_commercial, and I bumped its timeout while I was in
+          there. DATA-7710 closed.
+      - id: data-eng/0006
+        author: pdiallo
+        at: "-5d 08:24"
+        thread_id: data-eng/0005
+        text: |-
+          I am off from tomorrow for a couple of weeks. Anything on the
+          commercial chain, please go to Suni.
+      - id: data-eng/0007
+        author: hmoss
+        at: "-4d 08:15"
+        thread_id: null
+        text: |-
+          The pack was not ready this morning. Raised DATA-7702.
+      - id: data-eng/0008
+        author: srao
+        at: "-3d 11:35"
+        thread_id: data-eng/0007
+        text: |-
+          It is landing, just late. Extract appeared at 04:30 again. Deadline
+          is 04:00.
+      - id: data-eng/0009
+        author: mcarver
+        at: "-3d 11:44"
+        thread_id: data-eng/0007
+        text: |-
+          04:30 on the dot every night this week, which is odd for a job that
+          is supposedly struggling with volume. A job under load does not land
+          to the minute.
+      - id: data-eng/0010
+        author: srao
+        at: "-3d 11:47"
+        thread_id: data-eng/0007
+        text: |-
+          Paul, what exactly did you change on the 9th? The diff is in the repo
+          but I would rather hear what you were trying to fix.
+      - id: data-eng/0011
+        author: srao
+        at: "-3d 11:58"
+        thread_id: null
+        text: |-
+          Raised DATA-7714. End to end we were at about two and a half hours in
+          March and we are at three and a half now, and volume is up a fifth.
+          I think the export has simply outgrown its window and we should give
+          it more room.
+      - id: data-eng/0012
+        author: mcarver
+        at: "-2d 14:08"
+        thread_id: data-eng/0011
+        text: |-
+          Maybe. The timeout has already been raised once and the landing time
+          did not move at all. Before we spend money on a worker, has anybody
+          actually pulled the per-run durations out of the scheduler rather
+          than measuring end to end?
+      - id: data-eng/0013
+        author: srao
+        at: "-1d 09:44"
+        thread_id: null
+        text: |-
+          Harriet is asking again. I am out on the certification work for the
+          rest of the week - if anyone has a morning, the run history is all
+          there in the scheduler.
+
+  - id: commercial
+    topic: Commercial reporting
+    purpose: Where the pack gets assembled.
+    members: [hmoss, srao, agent]
+    messages:
+      - id: commercial/0001
+        author: hmoss
+        at: "-4d 08:10"
+        thread_id: null
+        text: |-
+          Pack is not there again. Third time in a week.
+      - id: commercial/0002
+        author: srao
+        at: "-4d 08:31"
+        thread_id: commercial/0001
+        text: |-
+          Sorry - the upstream extract is landing after the cut-off. Chasing it.
+      - id: commercial/0003
+        author: hmoss
+        at: "-2d 08:20"
+        thread_id: commercial/0001
+        text: |-
+          I have been told it was fixed on the 9th and it clearly was not. What
+          I need for the group on Thursday is one sentence saying what actually
+          made it late, not another mitigation.

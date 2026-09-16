@@ -31,6 +31,7 @@ import os
 import re
 import subprocess
 import sys
+from datetime import date
 from pathlib import Path
 
 import duckdb
@@ -124,8 +125,17 @@ def dbt_invoke(root: Path, command: str, *, selector: str | None = None,
         argv.append("--full-refresh")
     if variables:
         argv += ["--vars", json_canon(variables).decode()]
+    # stdin=DEVNULL, never inherited. When this runs inside the episode's MCP
+    # stdio server the parent's stdin IS the JSON-RPC input pipe, and the
+    # server's reader thread holds a pending synchronous ReadFile on it. On
+    # Windows the child's own lseek(fd 0) during interpreter startup queues
+    # behind that read, so the child cannot finish starting until the client
+    # next writes - measured at ~1810s per call, 7 calls across 5 GT007
+    # rollouts, 3h31m of dead wall clock. The gateway has carried exactly this
+    # guard for the same reason since it was written (commands.py:18-24); this
+    # module never needed it until scheduling.py put it on the in-episode path.
     r = subprocess.run(argv, env={**os.environ, "PYTHONUTF8": "1"},
-                       capture_output=True, text=True)
+                       stdin=subprocess.DEVNULL, capture_output=True, text=True)
     return r.returncode, (r.stdout or "") + (r.stderr or "")
 
 
@@ -261,8 +271,17 @@ def _kind_script(root, spec, ctx):
     for arg in spec.get("args", []):
         argv.append(str(arg).format(root=root, workspace=ctx["workspace"],
                                     db=root / DB))
+    # stdin=DEVNULL, never inherited. When this runs inside the episode's MCP
+    # stdio server the parent's stdin IS the JSON-RPC input pipe, and the
+    # server's reader thread holds a pending synchronous ReadFile on it. On
+    # Windows the child's own lseek(fd 0) during interpreter startup queues
+    # behind that read, so the child cannot finish starting until the client
+    # next writes - measured at ~1810s per call, 7 calls across 5 GT007
+    # rollouts, 3h31m of dead wall clock. The gateway has carried exactly this
+    # guard for the same reason since it was written (commands.py:18-24); this
+    # module never needed it until scheduling.py put it on the in-episode path.
     r = subprocess.run(argv, env={**os.environ, "PYTHONUTF8": "1"},
-                       capture_output=True, text=True)
+                       stdin=subprocess.DEVNULL, capture_output=True, text=True)
     output = (r.stdout or "") + (r.stderr or "")
     ctx["raw_output"] = output
     error = None if r.returncode == 0 else normalize_output(output, root)
@@ -292,20 +311,74 @@ def _kind_theme(root, spec, ctx):
     return True, f"theme:{spec['op']}", None, extra
 
 
+def day_tokens(day) -> dict:
+    """The spellings of the execution day a theme may name in a scan spec.
+
+    A delivery folder is laid out in whatever date dialect the upstream system
+    speaks, and the two that ship differ: sftp_vendor writes
+    `data/drop/<vendor>/ORDERS_20260305.csv` (+ `.done`) and mainframe_batch
+    writes `data/landing/claims_extract/dt=2026-03-05/CLAIMS.DAT`. So a scan
+    needs BOTH spellings, and a theme author gets them as named tokens rather
+    than as a format spec: `{day}` and `{day_compact}`, never `{day:%Y%m%d}`.
+
+    `day` is the job's execution day - the day the delivery it is polling for
+    belongs to - not the wall date the job happens to run on. The two differ by
+    `day_offset` in every theme that polls the morning after.
+    """
+    if day in (None, ""):
+        return {}
+    d = date.fromisoformat(str(day)[:10])
+    return {"day": d.isoformat(), "day_compact": d.strftime("%Y%m%d")}
+
+
+def _template(text: str, tokens: dict, what: str) -> str:
+    """Resolve `{day}`-style tokens, LOUDLY. Same idea as `detail` and `args`.
+
+    An unresolvable token raises `Unsupported`, which the run record reports as
+    a failure. It must never fall through to the literal string: a scan for
+    `*/*_{day_compact}.done` that silently matched nothing would look exactly
+    like a vendor who did not deliver, and the scheduler would be asserting an
+    incident it did not observe.
+    """
+    try:
+        return str(text).format(**tokens)
+    except KeyError as exc:
+        raise Unsupported(
+            f"scan {what} {text!r} names {exc.args[0]!r}, which this run does "
+            f"not know (have: {', '.join(sorted(tokens)) or 'nothing'}). A "
+            f"scheduled run carries its execution day; a manual trigger takes "
+            f"it from `execution_date`.") from exc
+    except (IndexError, ValueError) as exc:
+        raise Unsupported(f"scan {what} {text!r} is not a valid template: "
+                          f"{type(exc).__name__}: {exc}") from exc
+
+
 def _kind_scan(root, spec, ctx):
-    """Poll a delivery folder: real files, real count, real failure."""
-    base = (ctx["workspace"] / spec["path"]).resolve()
+    """Poll a delivery folder: real files, real count, real failure.
+
+    `path` and `pattern` are templated with `day_tokens`, which is what makes
+    the poll able to fail at all. Globbing the delivery tree UNSCOPED was
+    cumulative - every day ever delivered matched - so with any `min` at or
+    below the number of days already landed the count could not fall below the
+    minimum and the scan could not fail after day one. Two themes shipped
+    `late_arrival` enabled against that, so a withheld delivery cost nothing
+    the scheduler could see. Scoping the pattern to the execution day's own
+    delivery is what makes "the vendor did not deliver tonight" observable.
+    """
+    tokens = day_tokens(ctx.get("day"))
+    rel = _template(spec["path"], tokens, "path")
+    base = (ctx["workspace"] / rel).resolve()
     if not base.is_relative_to(ctx["workspace"]):
         raise Unsupported("scan path must live inside workspace/")
-    pattern = spec.get("pattern", "**/*")
+    pattern = _template(spec.get("pattern", "**/*"), tokens, "pattern")
     if not base.is_dir():
-        return False, f"scan {spec['path']}", (
-            f"delivery folder missing: {spec['path']}"), {"files": 0}
+        return False, f"scan {rel}", (
+            f"delivery folder missing: {rel}"), {"files": 0}
     files = sorted(p for p in base.glob(pattern) if p.is_file())
     minimum = int(spec.get("min", 1))
-    detail = f"scan {spec['path']}: {len(files)} file(s)"
+    detail = f"scan {rel}: {len(files)} file(s)"
     if len(files) < minimum:
-        return False, detail, (f"{spec['path']} holds {len(files)} file(s) "
+        return False, detail, (f"{rel} holds {len(files)} file(s) "
                                f"matching {pattern}, expected at least "
                                f"{minimum}"), {"files": len(files)}
     return True, detail, None, {"files": len(files)}
@@ -317,7 +390,8 @@ KINDS = {"dbt": _kind_dbt, "sql": _kind_sql, "script": _kind_script,
 
 def execute(root: Path, job: str, spec: dict | None, *, gen=None,
             theme: str | None = None, seed: dict | None = None,
-            variables: dict | None = None, log_name: str | None = None) -> dict:
+            variables: dict | None = None, day: str | None = None,
+            log_name: str | None = None) -> dict:
     """Run one job's declared work. Returns a result, never raises on failure.
 
     {"ok", "detail", "error", "error_kind", "effects"}
@@ -326,11 +400,22 @@ def execute(root: Path, job: str, spec: dict | None, *, gen=None,
     executor does not implement, the result is ok=False with
     error_kind="unsupported" - the run record then says, in the agent's own
     log, that the scheduler could not run the job. It never says success.
+
+    `day` is the execution day, and it is a separate channel from `variables`
+    ON PURPOSE. `variables` is the agent's: `sched_trigger` forwards it
+    verbatim to dbt as `--vars`, and that contract is frozen. Folding the
+    scheduler's own execution day into it would silently start passing
+    `--vars {"day": ...}` to every scheduled dbt build - a change to what the
+    engine is invoked with, to buy a token only `scan` reads. `variables["day"]`
+    is still honoured when the caller sets it, so an agent can aim a manual
+    poll at a specific logical date.
     """
     root = Path(root)
     ctx = {"root": root, "workspace": root / "workspace", "db": root / DB,
            "seed": seed, "gen": gen, "theme": theme,
-           "variables": variables or {}, "raw_output": None}
+           "variables": variables or {},
+           "day": day if day is not None else (variables or {}).get("day"),
+           "raw_output": None}
     if not spec:
         return {"ok": False, "detail": None, "effects": {},
                 "error_kind": "unsupported",
@@ -368,13 +453,16 @@ def main(argv=None):
     p = argparse.ArgumentParser(prog="world.executor")
     p.add_argument("root", type=Path)
     p.add_argument("job")
+    p.add_argument("--day", help="execution day (YYYY-MM-DD) a `scan` job "
+                                 "polls for; the scheduler supplies its own")
     a = p.parse_args(argv)
     from .scheduler import load_live, live_gen, live_seed
     live = load_live(a.root)
     spec = ((live or {}).get("jobs", {}).get(a.job) or {}).get("exec")
     print(json.dumps(execute(a.root, a.job, spec,
                              gen=live_gen(live), theme=(live or {}).get("theme"),
-                             seed=live_seed(live)), indent=2, sort_keys=True))
+                             seed=live_seed(live), day=a.day),
+                     indent=2, sort_keys=True))
 
 
 if __name__ == "__main__":

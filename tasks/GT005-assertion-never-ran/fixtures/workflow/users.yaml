@@ -1,0 +1,21 @@
+# The roster, authored once and copied into both documents that need one, so a
+# person cannot exist in chat and not in the tracker.
+users:
+  - id: agent
+    name: Platform Agent
+    role: Data platform (on shift)
+  - id: rmehta
+    name: Rhea Mehta
+    role: Analytics engineer, commercial marts
+  - id: jodonnell
+    name: Joe O'Donnell
+    role: Data platform lead
+  - id: sberg
+    name: Sanna Berg
+    role: Finance systems
+  - id: lchen
+    name: Li Chen
+    role: Data engineer, source integrations
+  - id: tvarga
+    name: Tamas Varga
+    role: Financial controller

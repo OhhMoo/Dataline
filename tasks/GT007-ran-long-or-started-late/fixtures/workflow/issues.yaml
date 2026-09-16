@@ -1,0 +1,150 @@
+# GT007 - the backlog.
+#
+# THE SHAPE. No ticket holds the diagnosis, and the loudest one is wrong.
+#
+#   DATA-7702  the headline. A symptom with a deadline, filed from outside the
+#              data team. No job name, no timestamp, no table.
+#   DATA-7710  caused the breach and reads as the most routine ticket here: an
+#              incident, mitigated, closed. It says the gap between the build
+#              and the export was increased. It does not say by how much, and
+#              it does not say that the build's overrun was a one-off.
+#   DATA-7714  THE TRAP. It is careful, quantified, written by a competent
+#              engineer, and wrong: it reads a growing wall-clock gap between
+#              the start of the chain and the arrival of the extract as the
+#              export getting slower. Every number in it is true. The
+#              conclusion does not follow, and the run history says so.
+#   DATA-7690  true, closed, and the reason the vendor window is 01:00.
+#   DATA-7655  the control that would have caught this on the first night,
+#              open since February.
+#
+# Nothing here states the export's per-run duration. That is in the scheduler.
+issues:
+  - id: DATA-7655
+    title: Alert when commercial_extract has not landed by 04:00
+    body: |-
+      We have a service level on the extract and nothing that notices when we
+      miss it. Commercial find out at 06:00 when the pack is empty and we find
+      out when Commercial tell us. Asking for a check on the landing time of
+      warehouse.commercial_extract against the deadline in the schedule.
+    status: open
+    reporter: srao
+    assignee: pdiallo
+    labels: [observability, sla]
+    created_at: "-58d 10:05"
+    updated_at: "-58d 10:05"
+
+  - id: DATA-7690
+    title: Vendor moved the commercial drop to 01:00
+    body: |-
+      The vendor has moved the commercial drop from 00:15 to 01:00 with effect
+      from the start of March. Chain start times moved to suit: vendor_sync now
+      begins at 01:05 and everything downstream follows it. Nothing may be
+      scheduled before 01:05 - the bucket is genuinely empty until 01:00 and a
+      job that runs against an empty bucket takes the chain down.
+    status: done
+    reporter: pdiallo
+    assignee: pdiallo
+    labels: [vendor, schedule]
+    created_at: "-41d 09:20"
+    updated_at: "-38d 16:45"
+    comments:
+      - id: DATA-7690#1
+        author: mcarver
+        at: "-38d 16:45"
+        body: |-
+          Deployed. schedule.yml has the window written in it now so nobody
+          moves the chain earlier by accident.
+
+  - id: DATA-7710
+    title: export_commercial failed overnight - exported a partial day
+    body: |-
+      export_commercial exited non-zero at about 03:10. Its freshness guard
+      fired: commercial_daily was still being rebuilt when the export started,
+      so the export refused rather than publishing a half-built day. No extract
+      for that date until we reran it by hand.
+    status: done
+    reporter: mcarver
+    assignee: pdiallo
+    labels: [incident, schedule]
+    created_at: "-6d 03:41"
+    updated_at: "-5d 08:20"
+    comments:
+      - id: DATA-7710#1
+        author: pdiallo
+        at: "-6d 09:02"
+        body: |-
+          The build took much longer than it usually does overnight. The export
+          starts a fixed number of minutes after the build starts, so a long
+          build eats the gap and the export walks into a mart that is still
+          being written.
+      - id: DATA-7710#2
+        author: pdiallo
+        at: "-5d 08:20"
+        body: |-
+          Mitigated: increased the gap between build_commercial and
+          export_commercial in orchestration/schedule.yml, and raised the
+          export's timeout while I was in there. Deployed this morning. It
+          cannot walk into a half-built mart again. Closing.
+
+  - id: DATA-7702
+    title: Commercial pack was not ready this morning
+    body: |-
+      The pack was not there when my team came in, and it was late on Friday as
+      well. It is meant to be ready for 06:00 and the whole reporting day is
+      built on it. I am told every time that it is fixed and here we are again.
+      I need it landing on time and I need to be able to tell the group exactly
+      what went wrong, because otherwise we are having this conversation again
+      next week.
+    status: open
+    reporter: hmoss
+    assignee: srao
+    labels: [commercial, sla]
+    created_at: "-4d 08:12"
+    updated_at: "-1d 09:30"
+    comments:
+      - id: DATA-7702#1
+        author: srao
+        at: "-3d 11:40"
+        body: |-
+          Confirmed - the extract is landing after the 04:00 deadline. It is
+          still landing, it is just landing late. Raised DATA-7714 to look at
+          the export job itself.
+      - id: DATA-7702#2
+        author: hmoss
+        at: "-1d 09:30"
+        body: |-
+          Still late this morning. Please can somebody give me the actual
+          reason rather than another mitigation.
+
+  - id: DATA-7714
+    title: export_commercial has outgrown its window
+    body: |-
+      Working theory on the pack being late.
+
+      Commercial volume is up about a fifth on March and the export is the
+      heaviest thing in the chain. Measuring from the moment the chain starts
+      to the moment the extract appears, we were at just under two and a half
+      hours at the end of March and we are at a bit over three and a half hours
+      now. That is a big move in two weeks and the only thing that has changed
+      in the pipeline is how much data there is.
+
+      Proposal: raise the export's timeout again so it is not fighting the
+      window, and look at putting it on a bigger worker. If neither helps we
+      should talk about splitting the extract by region.
+    status: open
+    reporter: srao
+    assignee: srao
+    labels: [performance]
+    created_at: "-3d 11:52"
+    updated_at: "-2d 14:05"
+    comments:
+      - id: DATA-7714#1
+        author: mcarver
+        at: "-2d 14:05"
+        body: |-
+          The timeout was already raised on the 9th and the extract still lands
+          at the same time every night, to the minute. If it were a resource
+          problem I would expect the landing time to wander. Something to check
+          before we buy a bigger worker.
+    links:
+      - {issue: DATA-7702, type: relates}

@@ -1,60 +1,72 @@
 # alkera — data-agent benchmark
 
-A training and evaluation substrate for AI data agents, delivered to frontier labs through
-Alkera's services. Each task runs inside a **live, containerized data stack** — warehouse,
-dbt, scheduler, BI, scattered docs. The agent reaches it only through an **audited tool
-gateway**. Grading is **trajectory-blind and deterministic**, and the world **rebuilds
-identically from a seed**.
+A training and evaluation substrate for AI data agents, sold to frontier labs.
 
-The target: **Pass@1 below 20%** for frontier models genuinely trying. Difficulty comes from
-*conjunction* — five or more independently graded sub-results — never from obscurity. The
-design key, from the research: *the system reports green while being wrong.*
+## Northstar
 
-Full project guide: [`agent.md`](agent.md). Architecture detail: §10 there.
+**Mock a real data engineer's working computer — as it actually is.** Messy, moving, and
+honest: a surface never reports success for work it did not do. Difficulty must come from
+the job, not from contrived obscurity. Data science is out of scope; this is data
+engineering.
 
-## Layout
+## Built
+
+- [x] **The world** — deterministic from a seed, byte-identical rebuilds, verified
+      host-vs-container. Virtual clock (`advance(1)×N == advance(N)`).
+- [x] **The stack** — DuckDB warehouse, Postgres, S3, fakesnow, a real dbt project that
+      compiles/runs/tests, a scheduler that really executes jobs.
+- [x] **The surfaces** — 63 MCP tools + a real bash shell over a 50-binary toolbelt
+      (psql, aws, sqlfluff, csvkit, dbt). Issues, chat, knowledge base, BI, metrics,
+      alarms, deploys, ingest, docs, git.
+- [x] **Containment** — grader unreachable from the episode, no egress, proven per service.
+- [x] **The harness** — per-tool-call audit log, transcripts, Pass@1 **and Pass^k**,
+      blindness detection, and a gate that *refuses to publish a rate* if a required
+      surface was dead.
+- [x] **7 tasks** (GT001–GT007), 6 calibrated against Opus 5 at K=5.
+- [x] **Airflow** — real, under the virtual clock; editing a DAG changes execution. (~4 of
+      ~20 days)
+- [x] **Snowflake** — real dbt runs against fakesnow, `PASS=36 ERROR=0`. (~4 of 8–12 days)
+- [ ] **Difficulty** — the open problem. See below.
+- [ ] Container-topology numbers for GT002–GT007 (all current numbers are host).
+- [ ] A second model family (Kimi) on the new tasks.
+
+## Where we are
+
+| task | Pass@1 | |
+|---|---|---|
+| GT002 | **0.8** | the only unit |
+| GT004 | **0.0** | a wall |
+| GT001, GT005, GT006, GT007 | **1.0** | ceilings |
+
+GT005/GT006/GT007 were built *specifically* to land near 0.8, by builders holding this
+table. All three came out at 1.0.
+
+Ruled out by measurement: **prompt wording** (5 variant runs, zero movement) and
+**concealment** (GT006 hides a 6.4%/day loss inside a 14.75% swing and still scores 1.0).
+
+What worked, reproducibly: **GT004's closed `wontfix` ticket.** The model *names* the second
+defect and never repairs it — 21 episodes, 3 prompt framings, 0 repairs. The world hands it
+an authoritative reason to leave the thing alone, and it defers to that over the data.
+
+## Next
+
+1. **The interference experiment.** Take GT006 (clean 1.0), add nothing but a closed ticket
+   asserting the behaviour is intentional. Re-run K=5. One change, one run, tests the only
+   lever we have measured.
+2. **Filter the archetype corpus for depth** — keep the ones needing repeated edit/verify
+   cycles inside one episode; drop the one-shot diagnoses.
+3. Distractors and live mid-episode events in the theme layer.
+
+## Structure
 
 ```
-world/                    the world factory: seed -> warehouse + dbt + scheduler + BI,
-                          semantic fingerprint, snapshot/restore, 3-zone Docker topology
-gateway/                  the only way an agent touches the world: 17 tools, MCP + CLI over
-                          one audited core, destructive ops flagged not blocked
-tasks/GT001-aov-halving/  the golden task: seed spec, generator, oracle, hidden grader,
-                          six adversarial baselines, shadow judge
-implementation_structure/ the research swarm and its record: archetypes, sources, tool
-                          inventory, failure records, and the gates that judge them
+world/        world factory: themes, seeds, scheduler, faults, fingerprint, Airflow bridge
+gateway/      the only way an agent touches the world — 63 MCP tools, containment, docker
+tasks/        GT001-GT007 task packages + harness/ (rollouts, grading, blindness, reports)
+implementation_structure/   research record: 41 archetypes, sources, failure rulings, gates
+verifier/     append-only verification history
+scripts/      status tooling
 ```
 
-## The one rule
-
-```
-tasks/ ──▶ gateway/ ──▶ world/
-```
-
-Dependencies point one way. `world/` knows nothing of the gateway; the gateway knows nothing
-of any task. `implementation_structure/` is upstream of everything and imports nothing.
-
-## Three trust zones
-
-**Harness** builds the world and runs the agent. **Episode** has no network egress and no
-grader. **Grading** starts only after teardown and mounts the world read-only. The grader does
-not exist during the episode — with the reference reachable, an earlier design scored 11 of 14
-points by copying it.
-
-## Verify
-
-```
-cd gateway  && .venv/Scripts/python -m pytest tests               # 12 tests
-cd world    && PYTHONPATH=. ../gateway/.venv/Scripts/python -m pytest tests   # 7 tests
-cd tasks/GT001-aov-halving/tests && python run_baselines.py        # TASK VALID
-                                    python test_integration.py     # 12 assertions
-python implementation_structure/gates/run_gates.py                 # G0-G8
-```
-
-G7 fails on purpose: it lists every red-team ruling nobody has executed yet.
-
-## Where things stand
-
-41 archetypes (32 shippable), 285 sources, 132 tool records, 80 failure records, 0 promoted
-to `verified/`. One task runs end to end. The corpus is honest about itself; that is not the
-same as strong. See `agent.md` §9.5 and `implementation_structure/rounds/`.
+Full guide: [`agent.md`](agent.md) — §8.10 difficulty, §9 contracts and ground rules,
+§10 architecture, §11 track status.

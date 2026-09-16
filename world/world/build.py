@@ -103,10 +103,11 @@ def build(seed_path: Path, root: Path, lock_path: Path | None = None) -> Path:
     # history`) and cover job faults only. Left off, initial_state produces the
     # byte-identical history it always did - which GT001 depends on, since it
     # calls initial_state directly.
-    live_spec = theme.manifest.get("live") or {}
-    history_faults = None
-    if live_spec.get("faults_in_history") and live_spec.get("faults"):
-        history_faults = faults.catalogue(live_spec["faults"], seed.get("faults"))
+    # `history_catalogue` is the single definition, because `write_ingest`
+    # below reads the same list: the nights the scheduler records a failed poll
+    # on and the nights the connector plane records a failed sync on must be
+    # the same nights, decided once.
+    history_faults = faults.history_catalogue(theme.manifest, seed) or None
     scheduler.save(root, scheduler.initial_state(
         seed, theme.manifest["jobs"], faults=history_faults,
         fault_seed=seed["seed"]))

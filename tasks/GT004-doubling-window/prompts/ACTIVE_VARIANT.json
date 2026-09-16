@@ -1,7 +1,7 @@
 {
   "task": "GT004-doubling-window",
-  "variant": "vague",
-  "file": "prompts/vague.md",
-  "sha256": "406a669db45a222b64dad43d43f9a5b8c5ecb57e6db122661b54dcefb3bac0de",
-  "selected_utc": "2026-09-15T01:08:22Z"
+  "variant": "specific",
+  "file": "prompts/specific.md",
+  "sha256": "c636a14b457a11027d1b4b2f0159b4d903499e640bbcf8522c4d68a09f748e67",
+  "selected_utc": "2026-09-15T08:02:28Z"
 }

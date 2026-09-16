@@ -26,13 +26,32 @@ jobs:
     day_offset: 1
     after: null
     detail: null
-    # A real poll of the real drop folders: it counts the delivery sentinels
-    # and fails if the vendor did not deliver.
+    # A real poll of the real drop folders: it counts THIS NIGHT's delivery
+    # sentinels and fails if the vendor did not deliver.
+    #
+    # `{day_compact}` is the execution day in the dialect the drop folder
+    # speaks - gen.write_day names its files ORDERS_<YYYYMMDD>.csv/.done from
+    # the data day (gen.py:68), and this job's day_offset: 1 means the 05:30
+    # poll on D+1 is looking for day D's delivery. Verified against the seeded
+    # history: the run record for 2026-03-04T05:30:00Z carries
+    # execution_date 2026-03-03, which is the stamp on the files it wants.
+    #
+    # Scoping matters more than it looks. The pattern used to be `*/*.done`
+    # with min: 1 over a CUMULATIVE tree, so from day two onward the count
+    # could not fall below the minimum and the poll could not fail - which
+    # made this theme's `late_arrival` fault, shipped enabled, cost nothing a
+    # scheduler could see.
+    #
+    # min: 2 because a night's delivery is BOTH feeds: acme ORDERS and globex
+    # RETURNS. That also gives vendor_partial_upload (torn_write) something to
+    # bite: it withholds the ORDERS sentinel, and faults.apply_torn_write's
+    # own docstring claims "a poll that checks for one genuinely reports the
+    # vendor as not finished" - with a day-scoped min: 2 that claim is true.
     exec:
       kind: scan
       path: data/drop
-      pattern: "*/*.done"
-      min: 1
+      pattern: "*/*_{day_compact}.done"
+      min: 2
   vendor_load:
     command: vendor_load
     duration_s: 60
@@ -82,22 +101,34 @@ live:
   faults:
     # The vendor uploads two and a half hours late.
     #
-    # MEASURED, and not what this comment used to claim: sftp_poll does NOT
-    # fail. Its scan globs `*/*.done` across the whole of data/drop with
-    # min: 1, and the drop folder is cumulative - at 05:30 on 2026-03-04, with
-    # the day's delivery deferred to 07:30, it counted 60 older sentinels and
-    # succeeded. The night's entire signature is vendor_load's effects
-    # (rows_after == rows_before: nothing new loaded) and the day landing one
-    # night behind. So `missed_by: []` - no job in this theme fails when the
-    # delivery is not there, and the backstory therefore records no failed
-    # poll, because our own live path would not produce one. Giving the poll
-    # something it can fail on means scoping its pattern to the day's own
-    # delivery, which lives in this theme's `jobs:` subtree, not here.
+    # MEASURED, both before and after. BEFORE the scan was day-scoped this
+    # fault was inert: at 05:30 on 2026-03-04, with day 2026-03-03's delivery
+    # deferred to 07:30, sftp_poll's cumulative `*/*.done` glob counted 60
+    # older sentinels and SUCCEEDED, so the night's entire signature was
+    # vendor_load's effects (rows_after == rows_before) and the day landing one
+    # night behind. AFTER: the same occurrence counts 0 files matching
+    # `*/*_20260303.done` against min: 2 and FAILS, which is the poll this
+    # theme always claimed to have.
+    #
+    # `missed_by: [sftp_poll]` is that measurement written down, and
+    # `missed_error` is the executor's own message for the night, with
+    # `{day_compact}` resolved per night so the seeded backstory quotes what
+    # the live path produces rather than paraphrasing it. vendor_load is NOT
+    # named: it is a theme load_raw hook that parses whatever is in the drop
+    # folder and succeeds with one day fewer in it.
+    #
+    # The delivery lands at 07:30 and the next night's load picks it up, so the
+    # landing zone the builder wrote is still the landing zone this fault would
+    # have left - which is the whole reason `late_arrival` is the one arrival
+    # fault the backstory carries (faults.py, HISTORY_ARRIVAL_KINDS).
     - id: vendor_late_delivery
       kind: late_arrival
       enabled: true
       rate: 0.20
-      params: {delay_minutes: 150, missed_by: []}
+      params:
+        delay_minutes: 150
+        missed_by: [sftp_poll]
+        missed_error: "data/drop holds 0 file(s) matching */*_{day_compact}.done, expected at least 2"
     # The signature pathology this theme was built for: a read landing inside a
     # write. The ORDERS csv is cut mid-line at 55% and its .done sentinel never
     # appears, so the folder holds exactly what a delivery in flight looks like.
@@ -143,9 +174,17 @@ live:
                order_column: order_id, keep_fraction: 0.5}
 
 ingest:
-  # The connector control plane (gateway/INGEST_CONTRACT.md). One green sync
-  # per connector per day, timed after sftp_poll and before vendor_load; row
-  # counts come from the same per-day RNG as the drop folders.
+  # The connector control plane (gateway/INGEST_CONTRACT.md). One sync per
+  # connector per day, timed after sftp_poll and before vendor_load; row counts
+  # come from the same per-day RNG as the drop folders.
+  #
+  # It reads the SAME seeded-fault decision the run history does
+  # (faults.history_arrivals), so the nights sftp_poll failed on are the nights
+  # these connectors failed on. It used to seed a green sync unconditionally,
+  # which after the poll was day-scoped left six nights where `ingest_runs`
+  # claimed rows out of files `sched_logs` says were still two hours from
+  # landing. A withheld night is now a failed sync with zero rows and a
+  # `sync_failed` alert, and the next morning's sync carries both nights.
   connectors:
     acme_orders:
       name: "Acme orders (SFTP drop)"

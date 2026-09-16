@@ -1,0 +1,303 @@
+# GT005 - Harbor task package metadata.
+#
+# This is a UNIT, not a world. It is built for the library described in
+# agent.md §8.10: ~20 units each measured at a single-unit pass rate near 0.8,
+# composed 3-4 at a time. A unit therefore carries exactly ONE mechanism and
+# ONE discriminating gate, and everything else in its rubric exists to stop that
+# gate being faked. Nineteen points, four checks, one of which is the task.
+
+[task]
+id          = "GT005-assertion-never-ran"
+version     = "0.1.0"
+discipline  = "data_engineering"
+archetype   = "A050"
+composed_of = ["A050"]
+title       = "The assertion that never ran"
+summary     = "A revenue mart is short by 4.5% and every nightly dbt build is green, because the one assertion that would have caught it sits in a directory named by .dbtignore - in git, absent from manifest.json, absent from its disabled list, and named in no log line."
+
+[difficulty]
+human_hours          = "6-16"      # A050's own estimate
+target_pass_at_1     = "0.80"      # the library target; see [handover], NOT measured
+axis                 = "lifecycle"
+rubric_points        = 19
+rubric_points_source = "tests/manifest.yaml check table"
+# ONE MECHANISM, ONE GATE, and the reason for it. GT004 has six gates and five
+# of them measure at 1.0; a clause that passes for everyone contributes no
+# variance to a composition. Here L1 carries the discrimination and C1/C2/P1
+# exist only to make it mean something. L1 is FOUR phases of one gate, not four
+# gates: every phase asks the same question - can this suite fail when the
+# defect recurs - and each one closes a different way of answering it falsely.
+#   L1  live fire         10   THE gate (4 phases, all-or-nothing)
+#   C1  the mart is right  6   without it L1 is a test over a wrong number
+#   C2  the two dates      3   scored, NOT in the pass criterion
+#   P1  collateral         0   penalty-only, floor -6
+mechanism = "an assertion that is in source control and absent from the compiled manifest, with no diagnostic emitted - so the suite reports green having never run the only check that could have failed"
+
+[limits]
+# PLACEHOLDER, scaled off GT004's 10800s/1200 calls for its 20-40 human hours
+# against A050's 6-16. Not calibrated against any run. Raise or lower on the
+# first K>=5 run whose failures classify as `budget`: a task whose failures are
+# budget exhaustion is measuring the limit, not the model.
+#
+# The one budget fact that IS measured: a full `dbt build` of this project is
+# ~25 s warm and ~40 s cold on the reference machine, and editing a schema file
+# invalidates partial parsing. An agent that reruns the suite ten times spends
+# under ten minutes doing it, so this archetype is NOT at the wall-clock risk
+# A050's notes flag at 570 models - that risk is why this unit is 89.
+wall_clock_seconds = 7200
+memory_mb          = 2048
+disk_mb            = 4096
+max_tool_calls     = 800
+
+[environment]
+seed_contract = "fixtures/fixture_contract.py"
+seed          = 5005
+virtual_now   = "2026-04-06T09:00:00Z"
+network       = "none"
+surfaces      = ["duckdb", "dbt", "git", "scheduler", "bi", "obs", "workflow", "docs"]
+# The engine the mechanism was VERIFIED against, not the one it was assumed for.
+# A050's source (S652) describes a relationships test whose renamed ref() target
+# is dropped silently; on dbt-core 1.12.4 that is NOT what happens - the node
+# stays in the manifest and a WARNING names it. The mechanism shipped here was
+# selected by executing four candidate vectors against the installed engine and
+# keeping the one that is genuinely silent. See DESIGN.md "what was measured".
+engine        = "dbt-core 1.12.4, dbt-duckdb 1.11.0, duckdb 1.5.5"
+
+[grading]
+mode            = "deterministic"   # the official score has zero LLM involvement
+judge           = "none"
+process_signals = "report_only"
+entrypoint      = "tests/grade.py"
+manifest        = "tests/manifest.yaml"
+artifact        = "/workspace/final_report.json"
+# L1 executes the agent's OWN dbt project against copies of the agent's own
+# warehouse, and P1 diffs a world section that lives outside the workspace, so
+# the grader cannot be run without both trees.
+world_root_required = true
+
+# ---------------------------------------------------------------------------
+# The agent sees exactly one file: the variant [agent_visible].brief points at.
+# There is deliberately no instruction.md - a fourth copy of the ticket that no
+# variant lock covers is how the shipped prompt drifts from the graded one.
+# ---------------------------------------------------------------------------
+[agent_visible]
+brief = "prompts/guided.md"
+
+# ---------------------------------------------------------------------------
+# THE DIFFICULTY DIAL. Three descriptions of the SAME task: identical world,
+# identical rubric, identical pass criterion. Only the ticket changes, and the
+# variant is how this unit is tuned toward 0.8.
+#
+#   vague    - a controller who is not sure whose problem it is. No mart named,
+#              no confirmation the warehouse is wrong at all.
+#   guided   - names the symptom, the mart, and that the build is green. Not the
+#              cause, not the mechanism, not the window.
+#   specific - states what must be true at the end, including that the repair
+#              must survive one more day of the same input and that a
+#              never-conformed key must fail the build. A floor, not a
+#              walkthrough: it still names neither the model nor .dbtignore.
+#
+# NONE of the three names the cause, the file, the ignore mechanism or the
+# dates. `specific` deliberately describes the live-fire property in words,
+# because an agent that cannot satisfy a requirement it has been TOLD is the
+# requirement has failed at the mechanism, which is what this unit measures.
+#
+# sha256 is over the file's exact bytes (LF, no BOM).
+# ---------------------------------------------------------------------------
+[prompt_variants]
+default   = "guided"
+select    = "prompts/variant.py select <name>   (rewrites [agent_visible].brief)"
+attribute = "prompts/variant.py identify <run-dir>   (reads each rollout's own prompt.txt)"
+guided   = { file = "prompts/guided.md", sha256 = "6a462ec62e0dd12de4c3140c07e86fe0c9f46eb770abd81a85aa965c76d818b3" }
+specific = { file = "prompts/specific.md", sha256 = "52547247e7b4698de55932f288ec858e06468f78d7176cff27ad83ab449d76d3" }
+vague    = { file = "prompts/vague.md", sha256 = "955e17a8613a245d977480b300c68f9db211bbab76850ef6ca1e8a1530c3bfec" }
+
+# ---------------------------------------------------------------------------
+# Task-validity gate. Every `actual` below was MEASURED by
+# `python tests/run_baselines.py` on the date named, at seed 5005, against a
+# world staged at the CONTRACT warehouse filename.
+# ---------------------------------------------------------------------------
+[[validity]]
+agent  = "oracle"
+expect = "== max (19.0), required checks pass"
+actual = "19.00/19.0, required checks PASS (measured 2026-09-15, seed 5005)"
+
+[[validity]]
+agent  = "no_op"
+expect = "== 0.0 exactly; every paying check fails, the penalty-only check passes"
+actual = "0.00/19.0; C1/C2/L1 fail, P1 passes; live-fire fails novel + novel_sibling (measured 2026-09-15, seed 5005)"
+note   = "The first draft of this rubric handed a no-op 3.5 of 6 on C1, because C1 scored the fraction of ALL 178 days that match and 104 of them predate the cutover and were already correct. That is GT004's measured defect - paying for a clause a do-nothing agent satisfies by construction - reproduced exactly. C1 now scores over the damaged window only."
+
+[[validity]]
+agent  = "data_only"
+expect = "C1 and C2 pass, L1 == 0 on the `novel` phase"
+actual = "9.00/19.0; C1+C2+P1 pass, L1 = 0 failing novel and novel_sibling (measured 2026-09-15, seed 5005)"
+note   = "A050's headline partial path: the number is right and the pipeline still cannot catch it happening again."
+
+[[validity]]
+agent  = "suite_only"
+expect = "C1 and L1 both fail; the failing live-fire phase is `clean`"
+actual = "3.00/19.0; C1 and L1 fail, live-fire fails clean + recur (measured 2026-09-15, seed 5005)"
+
+[[validity]]
+agent  = "hand_patch"
+expect = "C1 passes, L1 == 0 on `novel`"
+actual = "9.00/19.0; C1+C2 pass, L1 = 0 failing novel and novel_sibling (measured 2026-09-15, seed 5005)"
+note   = "Repairing the tables by hand. Passes the row diff, cannot pass the gate."
+
+[[validity]]
+agent  = "raw_rewrite"
+expect = "L1 == 0, and the failing phase is `recur` specifically"
+actual = "9.00/19.0; L1 = 0 failing RECUR ONLY - clean and both novel phases behave (measured 2026-09-15, seed 5005)"
+note   = "THE reason the live-fire gate has three phases rather than two. This agent rewrites the source rows and restores the assertion, so today's number is right AND a never-conformed key fails the build. Only one more day of the input the world already has exposes it: the model still cannot resolve a vendor code."
+
+[[validity]]
+agent  = "warn_severity"
+expect = "C1 passes, L1 == 0 on `novel`"
+actual = "9.00/19.0; C1 passes, L1 = 0 failing novel and novel_sibling (measured 2026-09-15, seed 5005)"
+note   = "THE archetype-specific fake. The assertion is back, parsed, listed in the manifest, running every night, reporting - and at warn severity it cannot change an exit code, so the build is exactly as incapable of failing as it was before. A rubric that checked for the test's existence would score this full marks."
+
+[[validity]]
+agent  = "delete_assertion"
+expect = "C1 passes, L1 == 0 on `novel`"
+actual = "9.00/19.0; C1 passes, L1 = 0 failing novel and novel_sibling (measured 2026-09-15, seed 5005)"
+
+[[validity]]
+agent  = "always_fail"
+expect = "L1 == 0, and the failing phase is `clean`"
+actual = "9.00/19.0; L1 = 0 failing clean + recur (measured 2026-09-15, seed 5005)"
+note   = "A test that passes on both the broken and the repaired world proves nothing; so does one that fails on both. The `clean` phase is the half of the gate that says so."
+
+[[validity]]
+agent  = "count_pin"
+expect = "L1 == 0, and the failing phase is `recur`"
+actual = "9.00/19.0; L1 = 0 failing RECUR ONLY (measured 2026-09-15, seed 5005)"
+
+[[validity]]
+agent  = "patch_the_symptom"
+expect = "C1 and C2 pass, L1 == 0, and the failing phase is `novel_sibling` specifically"
+actual = "9.00/19.0; C1+C2+P1 pass, clean/recur/novel all behave, L1 = 0 failing NOVEL_SIBLING ONLY (measured 2026-09-15, seed 5005)"
+note   = "THE strongest honest fake, and the reason the gate has a fourth phase. Repair the transformation properly, then do what a competent engineer does when told to make the pipeline catch it: write a fresh conformance test for the model you just fixed, in a file that is actually parsed. Correct mart, green build, live assertion - three of four phases. The identical exposure is still open on the credit memo chain, whose assertion went into the same ignored directory. This baseline was added AFTER the coordinator's calibration data (GT001 1.0, GT006 1.0/1.0, GT002 0.8) said the realistic risk for this unit is the ceiling."
+
+[[validity]]
+agent  = "decoys_only"
+expect = "C1 and L1 both fail; AND the build stays green after the escalation"
+actual = "3.00/19.0; C1 and L1 fail; the anti-trap assertion held - escalating both warn controls and enabling the disabled one left dbt build at exit 0 (measured 2026-09-15, seed 5005)"
+note   = "Doubles as the ANTI-TRAP gate. Escalating a control the world muted during a closed incident, and enabling one disabled for a finished backfill, is exactly what the ticket invites. The suite fails loudly if either turns the build red, because a world in which the sensible move is punished measures compliance, not engineering."
+
+[[validity]]
+agent  = "vandal"
+expect = "total < no_op's total; P1 fails"
+actual = "-3.00/19.0, below no_op's 0.00; P1 = -6 at the floor (measured 2026-09-15, seed 5005)"
+note   = "Penalties must be able to score BELOW doing nothing, or 'touch everything and name every cause' strictly dominates careful work."
+
+[[validity]]
+agent  = "reference_copy"
+expect = "unreachable at ATTACH (a build gate, not a score)"
+actual = "gate ok: the grading zone is outside the world root and no reference-shaped file is inside it (measured 2026-09-15, seed 5005)"
+note   = "F121. expected.duckdb lives in the grading zone, which write_grading_zone refuses to place inside the world root. Holding the reference could not reach max anyway: L1 executes the agent's own project files, and copying a table does not change a file."
+
+[[validity]]
+agent  = "deployed_path"
+expect = "the world is staged at var/warehouse/warehouse.duckdb and read by ATTACH ... AS wh"
+actual = "gate ok (measured 2026-09-15, seed 5005)"
+note   = "F622. The fixture is GENERATED under the deployed filename too, not generated at world.duckdb and staged to warehouse.duckdb - otherwise the catalog/schema collision is tested in one place and shipped in another."
+
+[[validity]]
+agent  = "green_surface_audit"
+expect = "no failed scheduler run, no failed job in ops, zero failing dq rows, shipped project builds green"
+actual = "gate ok: 0 non-success scheduler runs, 0 failed ops jobs, 0 failing dq rows, shipped dbt build exit 0 (measured 2026-09-15, seed 5005)"
+note   = "A050's premise. If any surface goes red on its own the unit has collapsed into ordinary triage."
+
+[[validity]]
+agent  = "solution_matches_reference"
+expect = "solution.sh writes bytes identical to make_fixture_world.ORACLE_PATCH"
+actual = "gate ok for both files (measured 2026-09-15, seed 5005)"
+note   = "The reference warehouse is built from ORACLE_PATCH. If the human-readable solution drifts from it, the suite is grading a fix nobody can reproduce, and the drift is invisible while both happen to work."
+
+# ---------------------------------------------------------------------------
+# Rollout-harness contract (tasks/harness/).
+# ---------------------------------------------------------------------------
+[harness]
+world_builder = "tests/build_world.py"
+
+# argv appended to `python <grading.entrypoint>`. {placeholders} come from the
+# world-builder's json plus {artifact}. Copied from the `recommended_harness`
+# block of tests/manifest.yaml and checked against grade.py's own argparse.
+grade_argv = ["--world", "{warehouse}", "--grading", "{grading}",
+              "--artifact", "{artifact}", "--workspace", "{workspace}",
+              "--world-root", "{world_root}", "--json"]
+
+# Read-only probes against a THROWAWAY copy of the world, before the episode.
+# They answer "which surfaces are actually live", so a failure can be attributed
+# to a dead surface instead of silently counted as reasoning.
+surface_probes = [
+  { label = "sql",       tool = "sql_query",      args = { sql = "SELECT 1" } },
+  { label = "fs",        tool = "fs_list",        args = { path = "." } },
+  { label = "git",       tool = "git_log",        args = { limit = 5 }, covers = ["git_diff"] },
+  { label = "dbt",       tool = "dbt_compile",    args = { selector = "fct_revenue_daily" }, covers = ["dbt_run", "dbt_test"] },
+  { label = "sched",     tool = "sched_state",    args = {}, covers = ["sched_list"] },
+  { label = "sched_log", tool = "sched_logs",     args = {} },
+  { label = "logs",      tool = "logs_list",      args = {}, covers = ["logs_get", "logs_search"] },
+  { label = "bi_list",   tool = "bi_list",        args = {} },
+  { label = "bi_render", tool = "bi_render",      args = { dashboard = "revenue_close" }, covers = ["bi_get", "bi_cached"] },
+  { label = "docs",      tool = "docs_list",      args = {}, covers = ["docs_search", "docs_get"] },
+  { label = "metrics",   tool = "metrics_list",   args = {}, covers = ["metrics_get", "metrics_series"] },
+  { label = "alarms",    tool = "alarms_list",    args = {}, covers = ["alarms_get", "alarms_history"] },
+  { label = "issues",    tool = "issues_list",    args = {}, covers = ["issues_get", "issues_search"] },
+  { label = "chat",      tool = "chat_channels",  args = {}, covers = ["chat_history", "chat_thread", "chat_search"] },
+  { label = "kb",        tool = "kb_list",        args = {}, covers = ["kb_get", "kb_search"] },
+  { label = "deploy",    tool = "deploy_list",    args = {}, covers = ["deploy_history"] },
+]
+
+# REQUIRED SURFACES. Every one is verified live before the subject is handed the
+# terminal; if any is dead the rollout is a harness_error and is never scored,
+# because the agent would not have been given the world this task describes.
+# GT004's first five Opus rollouts were scored with eight surfaces dead and the
+# harness printed that fact UNDER the number instead of refusing to produce one.
+required_surfaces = [
+  "sql", "fs", "git", "dbt", "sched", "sched_log", "logs", "bi_list", "bi_render",
+  "docs", "metrics", "alarms", "issues", "chat", "kb", "deploy",
+]
+
+# Dead ON PURPOSE, each with the reason. A minimal world is a choice; an
+# unexplained hole is a bug wearing a choice's clothes.
+dead_by_design = [
+  { label = "ingest", reason = "This world has no ingestion plane. The extract is a landed table with no connector story, and the defect is a transformation bug downstream of landing: a seeded ingest surface would be decoration an agent could spend its budget reading. build_world.py deliberately does not publish the `ingest` key, so the gateway serves no_ingest_state rather than a fabricated one." },
+]
+
+# Pass@1 criterion. A rollout passes iff every listed check passed AND the total
+# clears the floor.
+#
+#   C1 the mart matches the reference, every day
+#   L1 LIVE FIRE - all three phases
+#   P1 no collateral damage (penalty-only; passing means no offence)
+#
+# C2 is scored and EXCLUDED, per tests/manifest.yaml: it is a reporting check,
+# and requiring it would let a correct repair with a sloppy report read as a
+# failure to understand the mechanism.
+pass_requires_checks = ["C1", "L1", "P1"]
+
+# C1 6 + L1 10 = 16 is exactly the required set at full marks, and C2's 3 points
+# are not required. RAISING THIS ABOVE 16 SILENTLY PUTS C2 BACK INTO THE PASS
+# CRITERION. Tighten the checks instead.
+pass_min_total = 16.0
+pass_min_total_measured = false
+
+[provenance]
+derived_from = ["S652", "S650", "S661", "S654", "S662", "S664"]
+composed_of  = ["A050"]
+derived_from_note = "A050's own derived_from, read from implementation_structure/state/archetypes/A050.yaml on 2026-09-15. This task does not re-derive any source's licence."
+red_team     = ["F121", "F622"]
+independence = "GT004 covers A009: an append-mode re-run that DUPLICATED a window, plus a table->incremental switch that left stale-layout rows. GT005 duplicates nothing and changes no materialisation. Its fault is an unresolved join key that makes an INNER JOIN discard rows, and its gate is whether an assertion executes at all - measured by planting rows and reading exit codes, not by diffing tables. Neither the fault nor the gate overlaps, which is the condition for the two composing instead of collapsing into one."
+note = "S652 describes the parse-drop as a relationships test whose renamed ref() target is dropped silently. That behaviour does NOT reproduce on dbt-core 1.12.4: the node stays in the manifest and a WARNING names it (executed 2026-09-15). This task therefore does not rest on S652's specific vector; it ships a different, VERIFIED vector for the same mechanism and fixture_contract.verify() re-executes the verification on every build. Do not cite GT005 as evidence for S652."
+
+[handover]
+written_utc = "2026-09-15"
+measured_utc = "2026-09-15"
+measured_by = "tests/run_baselines.py, seed 5005, dbt-core 1.12.4 / dbt-duckdb 1.11.0, world staged at var/warehouse/warehouse.duckdb"
+measured_note = "Every [[validity]].actual above is a real number from that run. What is NOT measured is the thing the target_pass_at_1 names: no model has been run against this task, so 0.80 remains a target and the variant dial remains untuned. The one calibration input that DID shape the design is second-hand - GT001 1.0, GT006 1.0/1.0, GT002 0.8, GT004 0.0 - and it is why the live-fire gate carries a fourth phase."
+placeholders = [
+  "limits.* - scaled from GT004, not calibrated against any rollout",
+  "difficulty.target_pass_at_1 = 0.80 - the LIBRARY TARGET, not an observation. No model has been run against this task. The variant dial exists to move the measured rate toward it and nothing here claims it is already there.",
+]

@@ -16,13 +16,31 @@
 #   raw.vendor_orders                   1504 rows, 30 distinct _source_file
 #   raw.vendor_returns                  79 rows, 24 distinct _source_file
 #   RETURNS files actually delivered    30 - six of them are header-only
-#   scheduler runs                      92. sftp_poll dropped its connection at
-#                                       05:30 on 2026-02-27 and again on
-#                                       2026-03-01, retried at 05:37 and
-#                                       succeeded both times. Everything else
-#                                       green. 2026-02-27 is ALSO one of the six
+#   scheduler runs                      92. sftp_poll failed 8 times, in two
+#                                       different shapes. SIX polls ran and
+#                                       found the drop folder empty (05:30 on
+#                                       02-02, 02-07, 02-15, 02-19, 02-21 and
+#                                       02-26): the vendor uploaded those
+#                                       nights at 07:30 instead of 05:00. TWO
+#                                       dropped the connection before reaching
+#                                       the folder (05:30 on 02-27 and 03-01),
+#                                       retried at 05:37 and succeeded; those
+#                                       two carry try_number, the other six do
+#                                       not, which is what tells them apart.
+#                                       vendor_load and dbt_build are green on
+#                                       every night - the loader reloads every
+#                                       partition, so a late delivery is picked
+#                                       up by the next night.
+#                                       2026-02-27 is ALSO one of the six
 #                                       zero-returns days, and the two facts are
 #                                       unrelated.
+#   ingest_runs                         60 syncs, 48 success / 12 failed. The
+#                                       12 are both connectors on the same six
+#                                       late nights above, each with
+#                                       rows_inserted 0 and a sync_failed
+#                                       alert; the next morning's sync carries
+#                                       both nights, so the per-table totals
+#                                       still add up to 1504 / 79.
 #
 # `authoring` is author-side: workflow.py strips it from every tool response.
 issues:

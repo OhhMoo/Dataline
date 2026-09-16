@@ -45,4 +45,12 @@ class SnowflakeWarehouse:
                         "truncated": len(rows) > limit,
                     }
         except snowflake.connector.Error as exc:
-            raise ToolError("warehouse_error", f"Snowflake connector error {exc.errno}") from None
+            # Surface the connector's MESSAGE, not just its number. The hardened
+            # fakesnow now returns Snowflake-shaped, NAMED refusals - "Unsupported
+            # feature 'CREATE DYNAMIC TABLE'", "Division by zero" - and throwing
+            # them away left the agent a bare integer, which discards the entire
+            # point of making the fake loud instead of silently wrong. Matches the
+            # Postgres driver, which already surfaces diag.message_primary
+            # (warehouse.py:186-188).
+            message = getattr(exc, "msg", None) or str(exc) or "Snowflake connection failed"
+            raise ToolError("warehouse_error", message) from None

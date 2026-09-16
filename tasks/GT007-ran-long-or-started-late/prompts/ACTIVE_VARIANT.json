@@ -1,0 +1,7 @@
+{
+  "task": "GT007-ran-long-or-started-late",
+  "variant": "guided",
+  "file": "prompts/guided.md",
+  "sha256": "64e59c9040d37ea6e5c6cc1ab9e74c99632d73e46e48e42d797b7633f46ae887",
+  "selected_utc": "2026-09-15T07:54:21Z"
+}

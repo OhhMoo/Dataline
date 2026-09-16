@@ -715,6 +715,249 @@ class HistoryFaultTest(unittest.TestCase):
 
 
 # --------------------------------------------------------------------------
+# the regression test for an ENABLED fault that could not cost anything
+# --------------------------------------------------------------------------
+
+class LateArrivalIsNotInertTest(unittest.TestCase):
+    """`late_arrival` shipped enabled in two themes and was INERT.
+
+    `_kind_scan` globbed the delivery tree CUMULATIVELY - `*/*.done` with
+    `min: 1` over a folder holding every day ever delivered - so from day two
+    onward the count could not fall below the minimum and the poll could not
+    fail. Measured before the fix: on the night of 2026-03-03, with the vendor
+    drop deferred to 07:30, `sftp_poll` counted 60 older sentinels and recorded
+    `success`; `nightly_extract` counted 30 older partitions and did the same.
+    Two `theme.yaml` comments asserted the poll "FAILS for real" the whole time.
+
+    Nothing caught it because nothing had ever run a poll against a tree WITH
+    HISTORY IN IT, which is the only condition under which the defect shows. So
+    every test here reproduces that condition first - N older days really on
+    disk, in the theme's real layout, written by the theme's own `write_day` -
+    and then withholds exactly one day. Against the cumulative glob each one
+    goes red; `test_the_cumulative_glob_is_the_defect` pins down why, by
+    running the OLD spec over the SAME tree and watching it succeed.
+
+    Cheap on purpose: the layout comes from `gen.write_day`, not from a build.
+    """
+    # theme -> (scan job, the late_arrival fault it declares)
+    THEMES = {"sftp_vendor": ("sftp_poll", "vendor_late_delivery"),
+              "mainframe_batch": ("nightly_extract", "extract_late")}
+    DAYS = 30                       # older days on disk before the withheld one
+
+    def _theme(self, name):
+        from world.themes import load_theme
+        return load_theme(name)
+
+    def _spec(self, name, job):
+        return self._theme(name).manifest["jobs"][job]["exec"]
+
+    def _fault(self, name, fault_id):
+        manifest = self._theme(name).manifest
+        return next(f for f in faults.catalogue(manifest["live"]["faults"])
+                    if f["id"] == fault_id)
+
+    def _tree(self, name, root, withhold):
+        """The theme's real delivery layout for days 0..DAYS-1, minus one.
+
+        `withhold` is the day_index a late arrival deferred past its consumer.
+        Every other day is written exactly as the builder would have written
+        it, so the poll runs against a tree with a month of history in it.
+        """
+        from datetime import timedelta
+        gen, seed = self._theme(name).gen, manifest_seed(name)
+        start = scheduler.parse_vtime(seed["vtime_start"])
+        workspace = Path(root) / "workspace"
+        for i in range(self.DAYS):
+            if i == withhold:
+                continue
+            gen.write_day(workspace, seed, i, (start + timedelta(days=i)).date())
+        return (start + timedelta(days=withhold)).date()
+
+    def _run(self, name, job, root, day):
+        from world import executor
+        return executor.execute(root, job, self._spec(name, job), day=day)
+
+    def test_a_withheld_delivery_fails_the_poll_over_a_tree_of_history(self):
+        """The defect itself: a month on disk, tonight's delivery missing."""
+        for name, (job, _) in self.THEMES.items():
+            with self.subTest(name), tempfile.TemporaryDirectory() as tmp:
+                day = self._tree(name, tmp, withhold=self.DAYS - 1)
+                result = self._run(name, job, tmp, day.isoformat())
+                self.assertFalse(result["ok"], f"{name}: the poll did not fail")
+                self.assertEqual(result["effects"]["files"], 0)
+                self.assertEqual(result["error_kind"], "scan")
+
+    def test_the_cumulative_glob_is_the_defect(self):
+        """Same tree, same withheld night, the OLD spec: it SUCCEEDS.
+
+        This is the assertion that makes the class a regression test rather
+        than a description. If a later edit re-widens a pattern, the day-scoped
+        test above goes red while this one keeps passing, and the pair says
+        exactly which half moved.
+        """
+        old = {"sftp_vendor": {"kind": "scan", "path": "data/drop",
+                               "pattern": "*/*.done", "min": 1},
+               "mainframe_batch": {"kind": "scan",
+                                   "path": "data/landing/claims_extract",
+                                   "pattern": "dt=*/CLAIMS.DAT", "min": 1}}
+        from world import executor
+        for name, (job, _) in self.THEMES.items():
+            with self.subTest(name), tempfile.TemporaryDirectory() as tmp:
+                day = self._tree(name, tmp, withhold=self.DAYS - 1)
+                result = executor.execute(tmp, job, old[name],
+                                          day=day.isoformat())
+                self.assertTrue(result["ok"],
+                                f"{name}: the cumulative glob was expected to "
+                                f"succeed on a night with no delivery")
+                self.assertGreater(result["effects"]["files"], 1)
+
+    def test_a_night_that_did_arrive_still_passes(self):
+        """The other half: day-scoping must not fail every night."""
+        from datetime import timedelta
+        for name, (job, _) in self.THEMES.items():
+            with self.subTest(name), tempfile.TemporaryDirectory() as tmp:
+                seed = manifest_seed(name)
+                self._tree(name, tmp, withhold=self.DAYS - 1)
+                start = scheduler.parse_vtime(seed["vtime_start"])
+                for i in (0, self.DAYS // 2, self.DAYS - 2):
+                    day = (start + timedelta(days=i)).date().isoformat()
+                    result = self._run(name, job, tmp, day)
+                    self.assertTrue(result["ok"],
+                                    f"{name} {day}: {result['error']}")
+                    self.assertGreaterEqual(result["effects"]["files"],
+                                            int(self._spec(name, job)["min"]))
+
+    def test_the_declared_missed_error_is_the_one_the_executor_produces(self):
+        """`missed_by` must agree with what happens, not with prose.
+
+        `check_history` can only verify that a named job EXISTS. This compares
+        the backstory's declared text, resolved for the night, against the
+        string the live executor produces for that same night - byte for byte.
+        A theme that renames its folders or moves its `min` and forgets the
+        catalogue goes red here.
+        """
+        from world import executor
+        for name, (job, fault_id) in self.THEMES.items():
+            with self.subTest(name), tempfile.TemporaryDirectory() as tmp:
+                day = self._tree(name, tmp, withhold=self.DAYS - 1)
+                live = self._run(name, job, tmp, day.isoformat())["error"]
+                declared = faults.missed_by(self._fault(name, fault_id), job,
+                                            executor.day_tokens(day))
+                # Both halves must be REAL, or `None == None` passes the test
+                # while the fault costs nothing - which is exactly the state
+                # this class exists to catch.
+                self.assertIsNotNone(
+                    live, f"{name}: {job} did not fail on the withheld night")
+                self.assertIsNotNone(
+                    declared, f"{name}: {fault_id} does not name {job} in "
+                              f"params.missed_by, so the backstory records no "
+                              f"cost for a night the live path fails on")
+                self.assertEqual(declared, live, name)
+
+    def test_the_backstory_records_the_failed_poll_it_declares(self):
+        """Every late night in the seeded past must show a failed poll.
+
+        With `missed_by: []` - which is what both themes shipped while the scan
+        was inert - this finds nothing and goes red.
+        """
+        from datetime import timedelta
+        from world import executor
+        for name, (job, fault_id) in self.THEMES.items():
+            with self.subTest(name):
+                manifest = self._theme(name).manifest
+                seed = manifest_seed(name)
+                catalogue = faults.catalogue(manifest["live"]["faults"])
+                state = scheduler.initial_state(seed, manifest["jobs"],
+                                                faults=catalogue,
+                                                fault_seed=seed["seed"])
+                start = scheduler.parse_vtime(seed["vtime_start"])
+                live = {"faults": catalogue, "fault_seed": seed["seed"]}
+                late = [i for i in range(seed["days"])
+                        if (faults.arrival_decision(live, i) or {}).get("id")
+                        == fault_id]
+                self.assertTrue(late, f"{name}: no late night in the backstory")
+                failed = [r for r in state["runs"]
+                          if r["job"] == job and r["status"] == "failed"]
+                for i in late:
+                    day = (start + timedelta(days=i)).date()
+                    want = faults.missed_by(self._fault(name, fault_id), job,
+                                            executor.day_tokens(day))
+                    self.assertTrue(
+                        [r for r in failed if r.get("error") == want],
+                        f"{name}: the backstory records no failed {job} for "
+                        f"the withheld night {day} (declared {want!r})")
+
+    def test_a_scan_that_cannot_resolve_its_day_is_loud(self):
+        """No day, no silent zero.
+
+        An unresolved `{day_compact}` left literal would glob for a file named
+        after the token, match nothing, and report a failure indistinguishable
+        from the one a real missing delivery produces - the scheduler asserting
+        an incident it did not observe. It is `unsupported` instead.
+        """
+        for name, (job, _) in self.THEMES.items():
+            with self.subTest(name), tempfile.TemporaryDirectory() as tmp:
+                self._tree(name, tmp, withhold=self.DAYS - 1)
+                result = self._run(name, job, tmp, None)
+                self.assertFalse(result["ok"])
+                self.assertEqual(result["error_kind"], "unsupported")
+                self.assertIn("execution day", result["error"])
+
+    def test_every_scheduled_branch_hands_the_executor_its_execution_day(self):
+        """The plumbing, at all three sites `_simulate_job` executes from.
+
+        This is the half that was actually missing: `_kind_scan` could not see
+        which day it was running for because the scheduled path called
+        `_execute` with nothing at all. Driven through `_simulate_job` with a
+        stub control plane, so it covers the plain branch, `job_overrun` and
+        `partial_write` without a build.
+        """
+        from datetime import timedelta
+        name, job = "sftp_vendor", "sftp_poll"
+        spec = self._spec(name, job)
+        occurrence = "2026-03-05T05:30:00Z"
+        branches = {
+            "plain": [],
+            "job_overrun": [{"id": "o", "kind": "job_overrun", "enabled": True,
+                             "only": [f"{job}@{occurrence}"],
+                             "params": {"multiplier": 2}}],
+            "partial_write": [{"id": "p", "kind": "partial_write",
+                               "enabled": True,
+                               "only": [f"{job}@{occurrence}"],
+                               "params": {"table": "raw.vendor_orders",
+                                          "order_column": "order_id"}}],
+        }
+        for branch, catalogue in branches.items():
+            with self.subTest(branch), tempfile.TemporaryDirectory() as tmp:
+                withheld = self._tree(name, tmp, withhold=self.DAYS - 1)
+                start = scheduler.parse_vtime(manifest_seed(name)["vtime_start"])
+                live = {"jobs": {job: {"duration_s": 20, "detail": None,
+                                       "exec": spec}},
+                        "faults": catalogue, "fault_seed": 0}
+                event = {"kind": "job", "name": job, "day_index": self.DAYS - 1,
+                         "vts": scheduler.parse_vtime(occurrence)}
+                made, _ = scheduler._simulate_job(tmp, {"runs": []}, live,
+                                                  event, withheld)
+                self.assertEqual(len(made), 1, branch)
+                run = made[0]
+                # the withheld night, seen for real: 0 files, not 58
+                self.assertEqual(run["status"], "failed", branch)
+                self.assertEqual(run["effects"]["files"], 0, branch)
+                self.assertEqual(run["execution_date"], withheld.isoformat())
+                # And a night that DID arrive still passes down the same path.
+                # Not on the partial_write branch: a successful run there goes
+                # on to trim the newest partition, which needs a warehouse this
+                # stub world does not have. The failing half above is the half
+                # that carries the day.
+                if branch == "partial_write":
+                    continue
+                ok_day = (start + timedelta(days=0)).date()
+                made, _ = scheduler._simulate_job(
+                    tmp, {"runs": []}, live, {**event, "day_index": 0}, ok_day)
+                self.assertEqual(made[0]["status"], "success", branch)
+
+
+# --------------------------------------------------------------------------
 # the backstory as the agent meets it: built world, gateway-shaped surface
 # --------------------------------------------------------------------------
 
@@ -724,6 +967,13 @@ class HistoryIsLegibleTest(unittest.TestCase):
     sftp_vendor ships `faults_in_history: true`, so its seeded history carries
     real SFTP connection resets. This drives the same reader the gateway's
     `sched_state` / `sched_logs` call and asserts the incident is reachable.
+
+    And reachable on EVERY seeded plane that describes the same night. The
+    world hands the agent two independent surfaces over one backstory -
+    `sched_state`/`sched_logs` over var/sched/state.json and
+    `ingest_runs`/`ingest_alerts` over var/ingest/state.json - and an agent
+    that finds them contradicting each other is being taught that the evidence
+    is noise. The last three tests here are that contradiction, pinned.
     """
     THEME = "sftp_vendor"
 
@@ -754,24 +1004,182 @@ class HistoryIsLegibleTest(unittest.TestCase):
         self.assertEqual(rebuilt["runs"], runs)
 
     def test_the_incident_is_reachable_through_the_scheduler_surface(self):
+        """The SSH reset incident, named rather than assumed.
+
+        This used to take `listed[0]` - the first failed run in the backstory -
+        and assert `try_number == 1`, which only held because the first failure
+        could not be anything but a retry: `late_arrival` was inert, so a
+        withheld vendor drop cost nothing and the SSH resets were the ONLY
+        failures sftp_vendor's past contained. The moment the poll could
+        genuinely fail, the first failed row became a failed poll and this went
+        `KeyError: 'try_number'`. It was not asserting the bug, but it was
+        living off it, so it now names the shape it is about.
+        """
         from world.gateway_scheduler import WorldScheduler
         api = WorldScheduler(self.root)
         listed = [r for r in api.logs(None)["runs"] if r["status"] == "failed"]
         self.assertTrue(listed, "sched_logs shows no failed historical run")
-        run_id = listed[0]["id"]
+        rows = [api.state(r["id"]) for r in listed]
+        retries = [r for r in rows if r.get("try_number")]
+        self.assertTrue(retries, "no retry-shaped failure in the backstory")
+        row = retries[0]
         # sched_state hands back the whole row: the error AND the attempt count
-        row = api.state(run_id)
         self.assertEqual(row["status"], "failed")
         self.assertTrue(row["error"])
         self.assertEqual(row["try_number"], 1)
         self.assertEqual(row["max_tries"], 2)
         # sched_logs(run_id) carries the error too, which is what makes the
         # gateway's logs_search able to match on it
-        self.assertEqual(api.logs(run_id)["result"]["error"], row["error"])
+        self.assertEqual(api.logs(row["id"])["result"]["error"], row["error"])
         # the retry that followed is in the history as a second attempt
         after = api.state(None)["runs"]
-        index = next(i for i, r in enumerate(after) if r["id"] == run_id)
+        index = next(i for i, r in enumerate(after) if r["id"] == row["id"])
         self.assertEqual(after[index + 1]["try_number"], 2)
+
+    def test_the_withheld_delivery_is_reachable_too(self):
+        """The other incident the backstory now carries, on the same surface.
+
+        A late vendor drop used to leave NOTHING in `sched_state` - it was an
+        arrival fault whose only consumer could not fail. It is now a failed
+        poll the agent can find, with the executor's own count in the error and
+        no attempt number, which is what tells it apart from an SSH reset.
+        """
+        from datetime import timedelta
+        from world.gateway_scheduler import WorldScheduler
+        api = WorldScheduler(self.root)
+        polls = [r for r in api.state(None)["runs"]
+                 if r["job"] == "sftp_poll" and r["status"] == "failed"
+                 and "file(s) matching" in (r.get("error") or "")]
+        self.assertTrue(polls, "the backstory records no withheld delivery")
+        for row in polls:
+            # no attempt count: this is a poll that ran and found nothing, not
+            # a transport failure that never reached the folder
+            self.assertNotIn("try_number", row)
+            stamp = row["error"].split("*/*_")[1][:8]
+            self.assertRegex(stamp, r"^[0-9]{8}$")
+            # and it names the day whose delivery it wanted - the poll runs the
+            # morning after (day_offset: 1), so the stamp is vts_start minus a
+            # day. A scan scoped to the wrong day would fail every night, which
+            # looks identical to the fault firing; this is what tells them apart.
+            self.assertEqual(
+                (scheduler.parse_vtime(row["vts_start"])
+                 - timedelta(days=1)).strftime("%Y%m%d"), stamp, row)
+            self.assertEqual(api.logs(row["id"])["result"]["error"],
+                             row["error"])
+
+    # ----------------------------------------------------------------
+    # the same night, on the other seeded plane
+    # ----------------------------------------------------------------
+
+    def _ingest(self):
+        return json.loads((self.root / "var" / "ingest" / "state.json")
+                          .read_text(encoding="utf-8"))
+
+    def _withheld(self):
+        """The nights the SCHEDULER says the delivery was not there.
+
+        Read out of the run history rather than re-drawn from the catalogue,
+        so what follows compares two planes instead of comparing one plane
+        with itself.
+        """
+        return {r["vts_start"][:10] for r in scheduler.load(self.root)["runs"]
+                if r["job"] == "sftp_poll" and r["status"] == "failed"
+                and "file(s) matching" in (r.get("error") or "")}
+
+    def test_the_two_planes_never_disagree_about_a_night(self):
+        """The bar: no surface claims success out of data another says was gone.
+
+        MEASURED before this, in a built world: six nights whose 05:30 poll
+        recorded `data/drop holds 0 file(s) matching */*_20260201.done,
+        expected at least 2` and whose 05:31 sync recorded `success` with
+        `{'raw.vendor_orders': {'rows_inserted': 53}}` off the same folder -
+        the connector claiming rows out of files that did not land until
+        07:30. Both halves are asserted REAL, so neither "no night was ever
+        withheld" nor "every sync failed" can pass this vacuously.
+        """
+        ingest, withheld = self._ingest(), self._withheld()
+        self.assertTrue(withheld, "no withheld delivery in the backstory")
+        self.assertTrue(ingest["runs"], "no sync history to check")
+        claiming = [r for r in ingest["runs"]
+                    if r["started_at"][:10] in withheld
+                    and (r["status"] == "success"
+                         or any(c["rows_inserted"] for c in r["tables"].values()))]
+        self.assertEqual(
+            claiming, [],
+            "a sync reports rows on a night the scheduler recorded an empty "
+            "drop folder for")
+        # ...and the other half, or "every sync failed" would satisfy the above
+        self.assertTrue(
+            [r for r in ingest["runs"]
+             if r["started_at"][:10] not in withheld and r["status"] == "success"
+             and any(c["rows_inserted"] for c in r["tables"].values())],
+            "no delivered night ingests anything: the plane is not reporting")
+        # the failure is legible as one, with the contract's own alert
+        failed = [r for r in ingest["runs"] if r["status"] == "failed"]
+        self.assertTrue(failed)
+        self.assertEqual({a["run_id"] for a in ingest["alerts"]},
+                         {r["id"] for r in failed})
+        self.assertTrue(all(a["kind"] == "sync_failed" for a in ingest["alerts"]))
+
+    def test_the_withheld_rows_are_late_rather_than_lost(self):
+        """The counts have to agree with the DATA, not just with each other.
+
+        A withheld night's file lands 150 minutes after the slot, which is a
+        full day before the connector comes round again - so the next sync
+        carries it, and after the sync for data day `i` the connector has
+        inserted every row of days 0..i except the ones still withheld. That
+        is asserted against `gen.day_rows`, the same function that wrote the
+        drop folders, so a run record that invented or double-counted a row
+        goes red here even if both planes agree about which nights were bad.
+        """
+        from datetime import timedelta
+        from world.themes import load_theme
+        theme = load_theme(self.THEME)
+        seed = manifest_seed(self.THEME)
+        start = scheduler.parse_vtime(seed["vtime_start"])
+        rows = {}
+        for i in range(seed["days"]):
+            day = (start + timedelta(days=i)).date()
+            orders, returns = theme.gen.day_rows(seed["seed"], i, day, seed)
+            rows[day.isoformat()] = {"orders": len(orders),
+                                     "returns": len(returns)}
+        feeds = {cid: spec["feed"] for cid, spec
+                 in theme.manifest["ingest"]["connectors"].items()}
+        ingest, withheld = self._ingest(), self._withheld()
+        self.assertTrue(withheld, "no withheld delivery in the backstory")
+        bit = 0                     # nights where the subtraction actually bit
+        for cid, feed in feeds.items():
+            seq = [r for r in ingest["runs"] if r["connector_id"] == cid]
+            self.assertEqual(len(seq), seed["days"], cid)
+            cumulative = 0
+            for run in seq:
+                # the sync for data day `i` runs the morning after it
+                data_day = (scheduler.parse_vtime(run["started_at"])
+                            - timedelta(days=1)).date().isoformat()
+                cumulative += sum(c["rows_inserted"]
+                                  for c in run["tables"].values())
+                owed = (rows[data_day][feed]
+                        if run["started_at"][:10] in withheld else 0)
+                bit += bool(owed)
+                want = sum(rows[d][feed] for d in sorted(rows)
+                           if d <= data_day) - owed
+                self.assertEqual(cumulative, want,
+                                 f"{cid} after {data_day}: the sync history "
+                                 f"and the drop folders disagree")
+        self.assertTrue(bit, "no night was ever withheld from a connector")
+
+    def test_the_connector_plane_never_names_the_fault_either(self):
+        """Same rule as var/sched/state.json: the agent meets the incident.
+
+        `ingest_runs` and `ingest_alerts` are gateway-visible, so the ledger
+        that names `vendor_late_delivery` stays in var/world/live.json.
+        """
+        blob = json.dumps(self._ingest())
+        catalogue = live_of(self.root)["faults"]
+        self.assertTrue(catalogue)
+        for fault in catalogue:
+            self.assertNotIn(fault["id"], blob)
+            self.assertNotIn(fault["kind"], blob)
 
 
 if __name__ == "__main__":

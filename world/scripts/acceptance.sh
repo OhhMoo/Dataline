@@ -108,6 +108,76 @@ echo "  faults fired: $fired"
 echo "  faulty semantic_hash: $fa"
 echo "  PASS (faults on: two builds + the same advance == one world, by two paths)"
 
+echo "== gate 2d: scan-bearing worlds — the day-scoped globs really run, and fail"
+# Gates 1/2b/2c all build revenue_daily, which declares no `scan` job. So the
+# whole day-scoped globbing path - `executor.day_tokens`, `_template`,
+# `_kind_scan`, and the execution day `scheduler._execute` threads through it -
+# had never been under any acceptance gate, cross-host or otherwise. Two
+# determinism defects have already ridden through on gates that did not cover
+# the code they shipped against, so this builds sftp_vendor (pattern
+# `*/*_{day_compact}.done`, min 2) and advances it far enough to execute the
+# poll twice: 2026-03-04, whose delivery vendor_late_delivery defers to 07:30,
+# and 2026-03-05, which arrives. One executed scan that FAILS and one that
+# SUCCEEDS - a gate that only ever saw the passing branch would prove nothing
+# about the scoping.
+SV_SEED=world/themes/sftp_vendor/seed.example.yaml
+SV_ADVANCE=54
+MB_SEED_FILE=world/themes/mainframe_batch/seed.example.yaml
+MB_ADVANCE=48
+$PY -m world.build --seed "$SV_SEED" --root "$tmp/sv1" --lock requirements.lock >/dev/null
+# the event log is the scan's own output - vts, status and the executor's
+# verbatim count-vs-minimum error - so gate 3b compares it line for line
+$PY -m world.scheduler "$tmp/sv1" advance "$SV_ADVANCE" | tr -d '\r' > "$tmp/adv_host.json"
+hs1="$($PY -m world.fingerprint "$tmp/sv1" | tr -d '\r')"
+# executed==true is what separates a poll that RAN the scan from the retry's
+# first attempt, which never reached the folder and so proves nothing here
+counts="$($PY -c "import json,sys
+s = json.load(open(sys.argv[1]))
+e = [r for r in s['runs'] if r.get('trigger') == 'schedule'
+     and r['job'] == 'sftp_poll' and r.get('executed')]
+print(sum(1 for r in e if r['status'] == 'failed'),
+      sum(1 for r in e if r['status'] == 'success'))" \
+  "$tmp/sv1/var/sched/state.json" | tr -d '\r')"
+scan_failed="${counts% *}"
+scan_ok="${counts#* }"
+[ "$scan_failed" -ge 1 ] || { echo "  FAIL: no executed scan failed — the day-scoped poll was not exercised"; exit 1; }
+[ "$scan_ok" -ge 1 ] || { echo "  FAIL: no executed scan succeeded — only the failing branch was exercised"; exit 1; }
+echo "  executed polls: $scan_failed failed (day-scoped), $scan_ok succeeded"
+echo "  scan-world semantic_hash: $hs1"
+
+# The OTHER scan dialect, and it is a different shape of glob: sftp_vendor
+# templates a FILENAME suffix (`*/*_{day_compact}.done`), mainframe_batch
+# templates a DIRECTORY component (`dt={day}/CLAIMS.DAT`). Path segments are
+# where a host difference would actually hide, so the second one is measured
+# rather than argued from the first.
+#
+# The fault is PLACED with `only:` instead of left to its own draw, and that is
+# a runtime decision with numbers behind it: mainframe_batch's next late night
+# under its shipped seed is day_index 38, eight nights past vnow, and walking
+# there costs 2m07s of advance per leg (measured) because every night reloads a
+# growing landing tree and rebuilds dbt. Placed on day_index 30 the same code
+# runs over a 48h span in 44s per leg. `only:` is an OVERRIDABLE seed key and
+# changes nothing about what the scan does.
+{ cat "$MB_SEED_FILE"
+  echo "faults: {extract_late: {enabled: true, only: ['day:30']}}"; } > "$tmp/mb.yaml"
+$PY -m world.build --seed "$tmp/mb.yaml" --root "$tmp/mb1" --lock requirements.lock >/dev/null
+$PY -m world.scheduler "$tmp/mb1" advance "$MB_ADVANCE" | tr -d '\r' > "$tmp/advmb_host.json"
+hm1="$($PY -m world.fingerprint "$tmp/mb1" | tr -d '\r')"
+mcounts="$($PY -c "import json,sys
+s = json.load(open(sys.argv[1]))
+e = [r for r in s['runs'] if r.get('trigger') == 'schedule'
+     and r['job'] == 'nightly_extract' and r.get('executed')]
+print(sum(1 for r in e if r['status'] == 'failed'),
+      sum(1 for r in e if r['status'] == 'success'))" \
+  "$tmp/mb1/var/sched/state.json" | tr -d '\r')"
+mb_failed="${mcounts% *}"
+mb_ok="${mcounts#* }"
+[ "$mb_failed" -ge 1 ] || { echo "  FAIL: no executed dt=-scoped scan failed"; exit 1; }
+[ "$mb_ok" -ge 1 ] || { echo "  FAIL: no executed dt=-scoped scan succeeded"; exit 1; }
+echo "  executed extracts: $mb_failed failed (dt=-scoped), $mb_ok succeeded"
+echo "  dt-scan-world semantic_hash: $hm1"
+echo "  PASS (both shipped scan dialects executed, each way, on this host)"
+
 if docker info >/dev/null 2>&1; then
   echo "== gate 3: cross-host determinism — host build vs in-container build"
   docker build -q -f docker/Dockerfile -t "$IMG" .. >/dev/null
@@ -119,6 +189,45 @@ if docker info >/dev/null 2>&1; then
   echo "  container semantic_hash: $hc"
   [ "$h1" = "$hc" ] || { echo "  FAIL: host and container fingerprints differ"; exit 1; }
   echo "  PASS (cross-host: host build == in-container build)"
+
+  echo "== gate 3b: cross-host determinism — the DAY-SCOPED SCAN, host vs container"
+  # Gate 3 above compares revenue_daily, which has no `scan` job and which was
+  # measured byte-identical across the change that introduced day scoping - so
+  # it proved nothing about this code. This repeats gate 2d's build+advance in
+  # the container and compares two things: the semantic hash, and the advance
+  # event log itself, which carries the poll's status and the executor's own
+  # `holds N file(s) matching */*_YYYYMMDD.done` string. `date.fromisoformat`
+  # and `strftime("%Y%m%d")` are host-independent and `str.format` is not
+  # locale-sensitive, but that is an argument; this is the measurement.
+  out3b="$(docker run --rm --entrypoint sh "$IMG" -c \
+    "python -m world.build --seed /opt/world/$SV_SEED --root /tmp/sv --lock /opt/world/requirements.lock >/dev/null && python -m world.scheduler /tmp/sv advance $SV_ADVANCE && python -m world.fingerprint /tmp/sv" \
+    | tr -d '\r')"
+  hs2="$(printf '%s\n' "$out3b" | tail -1)"
+  printf '%s\n' "$out3b" | sed '$d' > "$tmp/adv_cont.json"
+  echo "  container scan-world semantic_hash: $hs2"
+  [ "$hs1" = "$hs2" ] || { echo "  FAIL: host and container scan-world fingerprints differ"; exit 1; }
+  diff -u "$tmp/adv_host.json" "$tmp/adv_cont.json" \
+    || { echo "  FAIL: the day-scoped scan produced a different event log in the container"; exit 1; }
+  grep -q 'file(s) matching' "$tmp/adv_cont.json" \
+    || { echo "  FAIL: the container run never executed a failing scan"; exit 1; }
+  echo "  PASS (cross-host: the day-scoped poll fails identically, byte for byte)"
+
+  # ...and the dt=<day>/ dialect. The container builds from the SAME seed bytes
+  # the host used - the file is handed over as an env var rather than rebuilt
+  # in the image - so a difference here can only come from the code.
+  out3c="$(docker run --rm -e MB_SEED_YAML="$(cat "$tmp/mb.yaml")" \
+    --entrypoint sh "$IMG" -c \
+    'printf "%s\n" "$MB_SEED_YAML" > /tmp/mb.yaml && python -m world.build --seed /tmp/mb.yaml --root /tmp/mb --lock /opt/world/requirements.lock >/dev/null && python -m world.scheduler /tmp/mb advance '"$MB_ADVANCE"' && python -m world.fingerprint /tmp/mb' \
+    | tr -d '\r')"
+  hm2="$(printf '%s\n' "$out3c" | tail -1)"
+  printf '%s\n' "$out3c" | sed '$d' > "$tmp/advmb_cont.json"
+  echo "  container dt-scan-world semantic_hash: $hm2"
+  [ "$hm1" = "$hm2" ] || { echo "  FAIL: host and container dt-scan-world fingerprints differ"; exit 1; }
+  diff -u "$tmp/advmb_host.json" "$tmp/advmb_cont.json" \
+    || { echo "  FAIL: the dt=-scoped scan produced a different event log in the container"; exit 1; }
+  grep -q 'file(s) matching' "$tmp/advmb_cont.json" \
+    || { echo "  FAIL: the container run never executed a failing dt=-scoped scan"; exit 1; }
+  echo "  PASS (cross-host: both scan dialects fail identically, byte for byte)"
 
   echo "== gate 4: episode boot <60s; episode-zone egress is impossible"
   t0=$SECONDS
@@ -200,6 +309,8 @@ if docker info >/dev/null 2>&1; then
 else
   echo "== gate 3: no docker daemon — WEAKER same-host double-build fallback"
   echo "  (the cross-host container comparison did NOT run; gates 4-7 SKIPPED)"
+  echo "  (gates 3b/3c did NOT run either: both day-scoped scan dialects were"
+  echo "   exercised on this host by gate 2d, but never compared against another OS)"
   $PY -m world.build --seed seed.example.yaml --root "$tmp/w2" --lock requirements.lock >/dev/null
   h2="$($PY -m world.fingerprint "$tmp/w2")"
   echo "  semantic_hash (second same-host build): $h2"

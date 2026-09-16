@@ -1,0 +1,318 @@
+# GT007 - Harbor task package metadata.
+#
+# This is a CALIBRATED DIFFICULTY UNIT, not a monolith (agent.md 8.10): ONE
+# mechanism, ONE discriminating gate, built to be composed with three or four
+# siblings rather than to stand alone. Every value here that is a measurement
+# says so and says when; everything else says it is not.
+
+[task]
+id          = "GT007-ran-long-or-started-late"
+version     = "0.1.0"
+discipline  = "data_engineering"
+archetype   = "A018"
+composed_of = ["A018"]
+title       = "The commercial extract is landing after its deadline"
+summary     = "A nightly chain misses its landing SLA every night. The job that carries the SLA either ran long or started late; the run history is the only place that says which, and the two have opposite fixes. The world's loudest voices say it ran long. It did not."
+
+[difficulty]
+human_hours          = "1-3"        # one mechanism; A018's own 10-25 is for the
+                                    # six-axis monolith its repair_note rejected
+target_pass_at_1     = "0.8"        # the LIBRARY target (agent.md 8.10): ~20
+                                    # units near 0.8, composed 3-4 at a time.
+                                    # NOT a measurement - no model rollout of
+                                    # this unit has been run. The prompt variant
+                                    # is the dial; see [prompt_variants].
+target_pass_measured = false
+axis                 = "diagnosis"  # ran-long vs started-late, and the fix that
+                                    # follows from the right one
+rubric_points        = 14
+rubric_points_source = "tests/manifest.yaml check table"
+
+# Orthogonality, which is the whole reason this unit exists. GT004 (A009) is
+# data corruption - duplicated business keys from an append-mode re-run, plus
+# rows under a stale column layout - found by querying the warehouse and
+# repaired with SQL. GT007 is timing: the warehouse is CORRECT on every night
+# (fixtures/fixture_contract.py refuses a fixture carrying a single duplicated
+# key), the evidence is vts_start/vts_end against a declared schedule, and the
+# repair is a schedule edit that touches no data. 0.8^N only holds if the two
+# units' failures are genuinely independent, and this is how that is enforced
+# rather than asserted.
+orthogonal_to      = ["GT004-doubling-window", "A009"]
+orthogonality_gate = "fixtures/fixture_contract.py::_problems_warehouse (refuses a duplicated business key)"
+
+[limits]
+# PLACEHOLDER (estimate, not calibrated). One mechanism, one repair, one
+# report, scaled down from GT002's 7200s/800 calls. Raise or lower on the first
+# K>=5 run that shows budget exhaustion in the classifier; a task whose
+# failures classify as `budget` is measuring the limit, not the model.
+wall_clock_seconds = 5400
+memory_mb          = 2048
+disk_mb            = 2048
+max_tool_calls     = 500
+
+[environment]
+seed_contract = "fixtures/fixture_contract.py"
+seed          = 7007
+virtual_now   = "2026-04-14T09:00:00Z"
+network       = "none"
+# Declared surfaces must match what the builder actually seeds. A
+# declared-but-unseeded surface is not cosmetic: GT002 shipped a probe for a
+# dashboard that existed nowhere. Everything absent here is in
+# [harness].dead_by_design with a reason.
+surfaces      = ["duckdb", "git", "scheduler", "bi", "workflow", "docs"]
+# The grader advances the clock by one night to decide D1's repair clause. The
+# amount is a CONTRACT value, not a literal here.
+clock_advance = "fixtures/fixture_contract.py::CONTRACT.advance_hours"
+
+[grading]
+mode            = "deterministic"   # official score has zero LLM involvement
+judge           = "shadow"          # advisory only, never affects `total`
+process_signals = "report_only"
+entrypoint      = "tests/grade.py"
+manifest        = "tests/manifest.yaml"
+artifact        = "/workspace/final_report.json"
+# D1 re-deploys the agent's own orchestration/schedule.yml into a throwaway
+# copy of the world and advances the virtual clock, so the grader cannot run
+# without the world tree.
+world_root_required = true
+
+# ---------------------------------------------------------------------------
+# The agent sees exactly one file: the prompt variant [agent_visible].brief
+# points at. No author prose ships - a description that enumerates the planted
+# defect is answer leakage (F202/F125). There is deliberately NO instruction.md:
+# a fourth copy of the ticket that no variant lock covers is how the shipped
+# prompt drifts away from the graded one.
+# ---------------------------------------------------------------------------
+[agent_visible]
+brief = "prompts/guided.md"
+
+# ---------------------------------------------------------------------------
+# The difficulty dial, and how this unit gets tuned toward 0.8. Three
+# descriptions of the SAME task: identical world, identical rubric, identical
+# pass criterion. Only the ticket changes.
+#
+#   vague    - Harriet's complaint and nothing else. No job name, no deadline,
+#              no pointer at the scheduler.
+#   guided   - names the symptom and the surfaces that hold the evidence. Not
+#              the cause, not the job, not the date.
+#   specific - states what must be true at the end, including the constraints a
+#              repair must respect. The floor, not a walkthrough.
+#
+# None of the three names the cause, says which of the two verdicts is right,
+# or quotes a runtime. All three carry the SAME final_report.json schema,
+# because a rubric that reads keys the prompt never named is measuring luck.
+#
+# sha256 is over the file's exact bytes (LF, no BOM). `prompts/variant.py list`
+# reports drift; `variant.py lock` reprints this block. A prompt that changes
+# under a frozen lock invalidates every rollout already attributed to it.
+# ---------------------------------------------------------------------------
+[prompt_variants]
+default = "guided"
+select  = "prompts/variant.py select <name>  (rewrites [agent_visible].brief)"
+attribute = "prompts/variant.py identify <run-dir>  (reads each rollout's own prompt.txt)"
+guided   = { file = "prompts/guided.md",   sha256 = "64e59c9040d37ea6e5c6cc1ab9e74c99632d73e46e48e42d797b7633f46ae887" }
+specific = { file = "prompts/specific.md", sha256 = "82d4eb6b7b269430ad8857018c2f7096eefb8412ea061f4155e3763391956aa2" }
+vague    = { file = "prompts/vague.md",    sha256 = "716c1d6e44bd3808d1eccab55ab509f0c3fde13bda047e78c4998da2f2de8ee7" }
+
+# ---------------------------------------------------------------------------
+# Task-validity gate. All must hold or the task does not enter the corpus.
+# MEASURED 2026-09-15 by tests/run_baselines.py at seed 7007, against worlds
+# built by tests/build_world.py at the CONTRACT warehouse filename.
+# ---------------------------------------------------------------------------
+[[validity]]
+agent  = "oracle"
+expect = "== max"
+actual = "14.0 / 14.0, D1 passed (measured 2026-09-15)"
+
+[[validity]]
+agent  = "no_op"
+expect = "<= 1"
+actual = "0.0 (measured 2026-09-15)"
+note   = "Every clause an idle agent satisfies by construction GATES and never PAYS. On GT004 the same clauses paying handed its no_op 6.25 of 33 points for behaviour it never produced."
+
+[[validity]]
+agent  = "wrong_fix_timeout"
+expect = "partial: > no_op and < oracle; MUST fail D1"
+actual = "2.0 / 14.0, D1 0.0 (measured 2026-09-15)"
+note   = "THE baseline this unit exists for. An agent that believes the export ran long widens its timeout and reports `ran_long`. It acted, and it acted on the wrong diagnosis, so it keeps the evidence credit it earned by looking (S1a, S1b) and loses the diagnosis gate and the measurement check, plus the false-assertion penalty. `timeout_s` is not an input to the scheduler, so the extract still lands at 04:30."
+
+[[validity]]
+agent  = "wrong_fix_later"
+expect = "< oracle; MUST fail D1"
+actual = "2.0 / 14.0, D1 0.0 (measured 2026-09-15)"
+note   = "The other wrong-diagnosis move - give the job more room - which makes it strictly later."
+
+[[validity]]
+agent  = "report_only"
+expect = "> wrong_fix_timeout; MUST fail D1"
+actual = "9.0 / 14.0, D1 3.0 of 8 (measured 2026-09-15)"
+note   = "The right diagnosis, unacted on. It clears the 8.0 floor on total but does not pass, because D1 is in pass_requires_checks and its repair clause is unearned. A verdict nobody applies is half an answer."
+
+[[validity]]
+agent  = "stub_export"
+expect = "D1 == 0, NOT full marks"
+actual = "6.0 total, D1 0.0 (measured 2026-09-15)"
+note   = "THE MANDATORY LIVENESS CLAUSE. The export is edited into a no-op that exits 0 and the schedule is otherwise correct: it is trivially on time and repairs nothing. GT002's K5 is the pattern - every check-shaped assertion needs a paired liveness assertion or `never run anything` satisfies it."
+
+[[validity]]
+agent  = "overlap"
+expect = "D1 == 0"
+actual = "6.0 total, D1 0.0 (measured 2026-09-15)"
+note   = "Pulls the export in so far that it runs into a half-built mart - the 2026-04-08 incident, re-created. It lands on time and the extract is correct, and it is still zero. The engine's `after` is an offset from a predecessor's START, so nothing but this gate holds the dependency."
+
+[[validity]]
+agent  = "moved_deadline"
+expect = "D1 == 0"
+actual = "6.0 total, D1 0.0 (measured 2026-09-15)"
+
+[[validity]]
+agent  = "chain_earlier"
+expect = "D1 == 0"
+actual = "6.0 total, D1 0.0 (measured 2026-09-15)"
+note   = "Moves the whole chain before the vendor drop. It would land on time and the data would not be there."
+
+[[validity]]
+agent  = "checklist"
+expect = "< no_op"
+actual = "-2.0 (measured 2026-09-15)"
+note   = "Penalties must be able to score below doing nothing, or `assert the textbook cause and change something` weakly dominates careful work. The rubric floor is -2."
+
+[[validity]]
+agent  = "reference_copy"
+expect = "unreachable at build time (a gate, not a test)"
+actual = "no expected_extract.json, next_night/ or manifest.yaml anywhere under the world root (measured 2026-09-15, run_baselines.structural_gates)"
+note   = "F121. The reference and the liveness plant live only in the grading zone, which write_grading_zone refuses to place inside the world root."
+
+[[validity]]
+agent  = "deployed_path"
+expect = "the world deploys at the CONTRACT warehouse filename"
+actual = "var/warehouse/warehouse.duckdb (measured 2026-09-15)"
+note   = "F622. GT001 printed TASK VALID while its oracle aborted on statement one, because its baselines ran against a file stem that does not collide with the schema name."
+
+[[validity]]
+agent  = "fixture_falsifier"
+expect = "verify() catches every planted damage"
+actual = "21/21 (measured 2026-09-15, fixture_contract.py --falsify)"
+
+# ---------------------------------------------------------------------------
+# Rollout-harness contract (tasks/harness/). The harness is task-agnostic: it
+# knows only the key names below and refuses to run a task that has not
+# declared them, because each of them decides the measured number.
+# ---------------------------------------------------------------------------
+[harness]
+# python <world_builder> --root <dir> --grading <dir> --seed <n>
+#   -> one json object on stdout:
+#      {"world_root","workspace","warehouse","scheduler","dashboards",
+#       "profiles_dir","grading","virtual_time","seed","workflow_dir"}
+#
+# `workflow_dir` is load-bearing, not decoration: episode.py:WORLD_PLANE_KEYS
+# passes it into the gateway config, and GatewayConfig's default is the
+# ABSOLUTE `/var/workflow`, which resolves outside any world tree. A config
+# that does not name it makes issues_*/chat_*/kb_* answer `no_issue_tracker`
+# whatever is seeded - which is exactly how GT004's first five Opus rollouts
+# were scored in a half-absent world. `observability` and `ingest` are NOT
+# published because this world seeds neither; see dead_by_design.
+world_builder = "tests/build_world.py"
+
+# argv appended to `python <grading.entrypoint>`. Copied from the
+# recommended_harness block of tests/manifest.yaml and checked against
+# grade.py's own argparse.
+grade_argv = ["--world", "{warehouse}", "--grading", "{grading}",
+              "--artifact", "{artifact}", "--workspace", "{workspace}",
+              "--world-root", "{world_root}", "--json"]
+
+# Read-only probes against a THROWAWAY copy of the world, before the episode.
+# They answer "which surfaces are actually live in the world this task ships",
+# so a failure can be attributed to a dead surface instead of silently counted
+# as reasoning. `covers` lets one probe speak for siblings that cannot be
+# probed read-only.
+surface_probes = [
+  { label = "sql",       tool = "sql_query",     args = { sql = "SELECT 1" } },
+  { label = "fs",        tool = "fs_list",       args = { path = "." } },
+  { label = "git",       tool = "git_log",       args = { limit = 5 }, covers = ["git_diff"] },
+  { label = "sched",     tool = "sched_state",   args = {}, covers = ["sched_list", "sched_trigger"] },
+  { label = "sched_log", tool = "sched_logs",    args = {} },
+  { label = "logs",      tool = "logs_list",     args = {}, covers = ["logs_get", "logs_search"] },
+  { label = "bi_list",   tool = "bi_list",       args = {} },
+  { label = "bi_render", tool = "bi_render",     args = { dashboard = "commercial_sla" }, covers = ["bi_get", "bi_cached"] },
+  { label = "docs",      tool = "docs_list",     args = {}, covers = ["docs_search", "docs_get"] },
+  { label = "issues",    tool = "issues_list",   args = {}, covers = ["issues_get", "issues_search"] },
+  { label = "chat",      tool = "chat_channels", args = {}, covers = ["chat_history", "chat_thread", "chat_search"] },
+  { label = "kb",        tool = "kb_list",       args = {}, covers = ["kb_get", "kb_search"] },
+  # Probed even though it is DEAD BY DESIGN, and that is the point: an
+  # undeclared probe leaves dbt_compile to the blind sweep, which cannot tell
+  # "this world has no dbt project" from "we could not form the call", and the
+  # run is then reported unclean for a hole the task already explained.
+  { label = "dbt",       tool = "dbt_compile",   args = { selector = "*" }, covers = ["dbt_run", "dbt_test"] },
+]
+
+# Surfaces that are dead ON PURPOSE in this world. The reason is mandatory and
+# taskspec.py refuses a bare label: "dead on purpose" with no purpose written
+# down is just the flag being switched off.
+dead_by_design = [
+  { label = "dbt",             reason = "there is no dbt project in this world. The three jobs are python scripts under workspace/pipelines and the scheduler executes them through the `script` exec kind; a dbt_project.yml nobody builds from would be a surface that exists to be probed. Probed explicitly above so the audit records it as declared-dead rather than as an unexplained hole." },
+  { label = "~metrics_list",   reason = "no observability plane is seeded, and that is the world's own fact rather than an omission: DATA-7655 - 'alert when commercial_extract has not landed by 04:00' - has been open since February and is load-bearing narrative. A monitor whose whole job is to notice this breach would answer the question the unit asks." },
+  { label = "~alarms_list",    reason = "same as metrics: nothing in this world watches the landing time. That is why Commercial find out at 06:00 and the data team find out when Commercial tell them." },
+  { label = "~alarms_history", reason = "as ~alarms_list: no observability plane, so there is no alarm history either." },
+  { label = "~deploy_list",    reason = "deploy_* reads the observability plane, which this world does not seed. Deployment evidence lives where this world actually keeps it - two commits in the workspace git history, reachable through git_log/git_diff." },
+  { label = "~ingest_list",    reason = "no ingestion connector plane. The vendor drop is files under workspace/data/vendor_drop, which is what the pipeline actually reads, and inventing a connector in front of them would be a surface with nothing behind it." },
+  { label = "~ingest_runs",    reason = "as ~ingest_list: no connector, so no connector runs." },
+  { label = "~ingest_alerts",  reason = "as ~ingest_list: no connector, so no connector alerts." },
+]
+
+
+# REQUIRED SURFACES. Every one is verified live before the subject is handed
+# the terminal; if any is dead the rollout is a harness_error and is never
+# scored, because the agent would not have been given the world this task
+# describes. All twelve were verified live on 2026-09-15 against a real
+# gateway; the list exists because GT004's first five Opus rollouts were scored
+# and reported with eight surfaces dead and the harness printed that fact under
+# the number instead of refusing to produce one.
+#
+# `issues`, `chat` and `kb` are NOT decoration here. The folk explanation - "the
+# export has outgrown its window" - lives in DATA-7714, in #data-eng and in the
+# runbook, and it is the thing the run history has to overrule. A world served
+# without them is a world in which the designed trap does not exist.
+required_surfaces = [
+  "sql", "fs", "git", "sched", "sched_log", "logs",
+  "bi_list", "bi_render", "docs", "issues", "chat", "kb",
+]
+
+pass_requires_checks = ["D1"]
+
+# D1 alone is worth 8. EVIDENCE (S1a/S1b/S2) is scored and EXCLUDED from
+# pass/fail, and that exclusion is only real while the floor cannot readmit it:
+# a floor of 8.0 is exactly D1's own value, so a run that passes D1 and writes
+# nothing else still clears it. RAISING IT ABOVE 8 SILENTLY PUTS EVIDENCE BACK
+# INTO THE PASS CRITERION. Confirmed by baseline 2026-09-15: report_only totals
+# 9.0 - above the floor - and does not pass, because D1 is required.
+pass_min_total = 8.0
+pass_min_total_measured = true
+
+[provenance]
+derived_from = ["S009", "S008", "S018", "S011", "S012"]
+composed_of  = ["A018"]
+derived_from_note = "A018's own derived_from list, read from implementation_structure/state/archetypes/A018.yaml on 2026-09-15. No source's licence was re-derived here; whoever cites this task must."
+red_team     = ["F121", "F202", "F507", "F508", "F622"]
+repair_note_executed = "A018 shipped status: redesign_required. F507: three of its four deterministic checks and one whole rubric axis required Airflow, which the frozen v1 contract does not have. F508: the DAG-hygiene axis was a grep-and-edit worth a quarter of the rubric, the dozens-of-entities dependency walk was an argmax over timestamps, and the ran-long/started-late verdict was a coin flip. This package builds ONLY what the repair_note blessed - 'the S012 ran-long-vs-started-late discrimination is the good idea here and it ports cleanly to /var/sched/state.json' - and nothing that was built on top of it. The coin flip is closed by requiring a MEASURED number (start_shift_minutes, and separately observed_runtime_s on S2) alongside the two-value verdict, and by making the paying repair clause an executed outcome rather than an assertion."
+open_rulings = []
+note = "Mechanisms are verified against the installed engine by fixtures/fixture_contract.py, not asserted. No frequency claim is made or licensed by this task."
+
+# ---------------------------------------------------------------------------
+# [handover] - every value in this file that is NOT a measurement, and who
+# would measure it. A reviewer should be able to read this block alone and know
+# what is not yet real.
+# ---------------------------------------------------------------------------
+[handover]
+written_utc = "2026-09-15"
+measured = [
+  "every [[validity]].actual - run tests/run_baselines.py to reproduce",
+  "harness.pass_min_total = 8.0 - checked against the baseline profile above",
+  "harness.required_surfaces - all twelve probed live against a real gateway on 2026-09-15",
+  "environment.seed / virtual_now - read from fixtures/fixture_contract.py",
+]
+not_measured = [
+  "difficulty.target_pass_at_1 = 0.8 - the library target, NOT an observation. No model rollout of GT007 has been run. Which variant lands nearest 0.8 is unknown; the default is `guided` on the reasoning that `vague` gives no pointer at the run history at all and `specific` enumerates the repair constraints, but that ordering is an argument, not a measurement.",
+  "limits.* - scaled down from GT002, not calibrated against any run",
+  "difficulty.human_hours - one mechanism, one repair; estimated, not timed",
+]
