@@ -1,0 +1,466 @@
+# Native-mode overlay: the agent gets bash and a network, not a tool list.
+#
+#   docker compose -p <project> \
+#     -f compose.yml -f compose.episode.yml -f compose.native.yml up -d --wait
+#
+# It layers on the episode overlay, never instead of it: compose.episode.yml is
+# what parks the entrypoint, binds the rollout's own world and audit
+# directories and fixes the healthcheck, and none of that changes here. This
+# file changes what the episode container can *see*.
+#
+# -------------------------------------------------------------------------
+# The DNS restriction, and why there is no dnsmasq
+# -------------------------------------------------------------------------
+# NATIVE_SURFACES.md: "DNS in the episode network resolves *.internal to the
+# fake services; nothing else resolves." Two mechanisms already in the stack
+# produce that, and a third container would only add a thing to go wrong:
+#
+#   1. `networks.<net>.aliases` gives each service its `<name>.internal` name
+#      on episode_net. Docker's embedded resolver (127.0.0.11) answers those
+#      for every container attached to that network, and answers nothing else
+#      it has not been told about.
+#   2. episode_net is `internal: true` (compose.yml). An unknown name is
+#      forwarded by the embedded resolver to the daemon's upstream resolvers -
+#      which sit on a route this network does not have - so the forward times
+#      out and the lookup fails. That is the same mechanism evidence/
+#      containment.json already records for `example.com` under P2/P3.
+#
+# The third piece is new here: the episode container is detached from
+# backend_net (`networks: !override [episode_net]`). Without that it would
+# keep resolving the bare compose service names `postgres`, `s3` and
+# `acme.snowflake.local`, and "only the fake services resolve" would be false
+# while every `.internal` probe still passed. containment.py P6 probes the
+# bare names as controls for exactly this reason.
+#
+# Consequence, deliberate: every backend the agent is allowed to reach must
+# appear below with an episode_net alias. A backend that is not listed is not
+# reachable, and that is the property, not an oversight.
+#
+# -------------------------------------------------------------------------
+# Egress
+# -------------------------------------------------------------------------
+# Unchanged and not re-proven here. Both networks are `internal: true` in
+# compose.yml; P2 probes every running service from inside its own network
+# namespace, with a positive control that shows the probe can detect egress
+# when there is some. Nothing in this file adds a network, a port publication
+# or a second interface, and P6 records each container's interface list so a
+# future edit that does cannot pass quietly.
+#
+# -------------------------------------------------------------------------
+# Ports and aliases
+# -------------------------------------------------------------------------
+#   jira.internal:8080        slack.internal:8081        airbyte.internal:8001
+#   deploy.internal:8085      confluence.internal:8090   metabase.internal:3000
+#   prometheus.internal:9090  alertmanager.internal:9093 loki.internal:3100
+#     -> all nine are one process in the `native-services` container
+#        (alkera_gateway/native/serve.py, one uvicorn Server per port).
+#        The ports are NOT a free choice: tasks/harness/agent_under_test
+#        .NATIVE_SERVICES is what the subject env carries, and
+#        tasks/harness/NATIVE_DRIVER_REQUESTS.md item 3 fixes them.
+#   native-services.internal:8099  the aggregate /health over all nine
+#   native-services.internal:8110  MinIO's audit webhook receiver. Served by
+#        the same process; dialled by MinIO, never by the episode, and so not
+#        a row in destinations.jsonl.
+#   postgres.internal:5432    the primary warehouse, log_statement=all
+#   minio.internal:9000       object storage, audit webhook -> the tailer
+#   airflow.internal:8080     the scheduler's REST API and CLI
+#   snowflake.internal:8443   fakesnow, the second warehouse
+#
+# Nothing in THIS file publishes a host port, and the episode container never
+# gets one: `published_host_ports` for `episode` is a P6 and a P7 pass
+# condition, and the harness reaches the episode with `docker exec`.
+#
+# The per-rollout overlay the harness writes DOES publish `native-services` and
+# `minio` on 127.0.0.1, and the reason is worth the line. The surface gate
+# (`tasks/harness/surface_audit.probe_native`) asks each service for `/health`
+# from the HARNESS process, which is on the host and cannot resolve
+# `jira.internal`. The alternative is a probe file copied into the episode
+# container - and the episode container is the one place a file describing the
+# harness may not be, because the agent has a shell there. So the services are
+# published to loopback for the harness and the episode stays unpublished; the
+# direction that matters is out of the episode, and nothing about a loopback
+# port on `native-services` gives the episode a route it did not have. P7
+# records both facts rather than asserting either.
+
+services:
+
+  # The agent's box. Same parked entrypoint compose.episode.yml gives it; the
+  # difference is the network it sits on and what it therefore resolves.
+  episode:
+    networks: !override [episode_net]
+    depends_on: !override
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      native-services:
+        condition: service_started
+    environment:
+      # The endpoint variables, in the process environment. The workspace's
+      # own .envrc exports the same names with the same values, on purpose: the
+      # .envrc is what an engineer reads and what `run.sh` sources, and these
+      # are what a process that never sourced it still sees. One table
+      # (world/world/native_workspace.environment, itself pinned to
+      # tasks/harness/agent_under_test.NATIVE_SERVICES) feeds both, and
+      # world/tests/test_native_workspace.py fails when they drift.
+      AIRBYTE_API_KEY: alkera-local-dev
+      AIRBYTE_URL: http://airbyte.internal:8001
+      AIRFLOW_API_URL: http://airflow.internal:8080/api/v2
+      AIRFLOW_PASSWORD: alkera-local-dev
+      AIRFLOW_USER: alkera-local-dev
+      ALERTMANAGER_URL: http://alertmanager.internal:9093
+      AWS_ACCESS_KEY_ID: alkera-local-dev
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_ENDPOINT_URL: http://minio.internal:9000
+      AWS_SECRET_ACCESS_KEY: alkera-local-dev
+      CONFLUENCE_API_TOKEN: alkera-local-dev
+      CONFLUENCE_URL: http://confluence.internal:8090
+      CONFLUENCE_USER: alkera-local-dev
+      DBT_PROFILES_DIR: /root/.dbt
+      DEPLOY_API_TOKEN: alkera-local-dev
+      DEPLOY_URL: http://deploy.internal:8085
+      JIRA_API_TOKEN: alkera-local-dev
+      JIRA_URL: http://jira.internal:8080
+      JIRA_USER: alkera-local-dev
+      LOKI_ADDR: http://loki.internal:3100
+      LOKI_URL: http://loki.internal:3100
+      METABASE_API_KEY: alkera-local-dev
+      METABASE_URL: http://metabase.internal:3000
+      PGDATABASE: alkera
+      PGHOST: postgres.internal
+      PGPASSWORD: alkera-local-dev
+      PGPORT: "5432"
+      PGUSER: alkera
+      PROMETHEUS_URL: http://prometheus.internal:9090
+      SLACK_BASE_URL: http://slack.internal:8081
+      SLACK_BOT_TOKEN: alkera-local-dev
+      SNOWFLAKE_ACCOUNT: acme
+      SNOWFLAKE_HOST: snowflake.internal
+      SNOWFLAKE_PASSWORD: alkera-local-dev
+      SNOWFLAKE_USER: alkera-local-dev
+      # Every row the agent's own shims write lands in the same file the
+      # services write (gateway/src/alkera_gateway/native/audit.py).
+      ALKERA_NATIVE_AUDIT: /audit/actions.jsonl
+      HOME: /root
+    # THE MOUNT SET, AND IT REPLACES compose.episode.yml'S. `!override` and not
+    # a merge: the episode overlay binds the WHOLE world root at /world, and
+    # that single mount is what made a host-topology native rollout
+    # unmeasurable. Measured, GT001 native-20260916-k5: two of five subjects
+    # ran `cp var/warehouse/warehouse.duckdb <a backup name>` - good practice,
+    # nothing audits it, and the world diff read the new file as an
+    # out_of_band_world_change and threw the rollout away. Here the warehouse
+    # is mounted as a FILE, so the same `cp` writes into the container's own
+    # filesystem at /world/var/warehouse/ and the world never moves.
+    #
+    #   /workspace  the working tree, read-write. The agent's repository.
+    #   /audit      this rollout's audit directory, read-write: the PATH shims
+    #               run INSIDE this container and append their 9.2.2 rows to
+    #               the same actions.jsonl the services write.
+    #   /world/var/ledger  an empty read-only tmpfs, exactly as before. /world
+    #               itself is no longer a mount, so the shadow now shadows a
+    #               container-local directory - kept because P7 measures that
+    #               the ledger path answers read-only from inside, and because
+    #               a topology where it silently stopped being checked is worse
+    #               than one where the check is cheap.
+    #
+    # The warehouse FILES are NOT here: their names and their number come from
+    # the world the rollout built (`blindness.declared_warehouses`, which is
+    # `world/world/fingerprint.py`'s own rule), so compose cannot spell them.
+    # `tasks/harness/container_episode.NativeContainerEpisode` writes one more
+    # overlay per rollout with exactly those file binds, the published loopback
+    # ports the surface gate needs, and the shim PATH. That file is kept in the
+    # rollout directory as evidence.
+    #
+    # `<world>/home:/root` is gone with the rest: home is COPIED in instead
+    # (`docker cp`), so `~/.dbt/profiles.yml` is there for a bare `dbt` and an
+    # edit to it stays inside the box.
+    volumes: !override
+      - "${ALKERA_EPISODE_WORLD:?episode world directory}/workspace:/workspace"
+      - "${ALKERA_EPISODE_AUDIT:?episode audit directory}:/audit"
+      - type: tmpfs
+        target: /world/var/ledger
+        read_only: true
+        tmpfs:
+          size: 4096
+
+  # The nine fake vendor services, one port each, one process.
+  #
+  # `sh -c` rather than a plain argument list because ALKERA_NATIVE_STUBS is a
+  # whole word list (`--stub jira --stub slack`), and compose substitutes it as
+  # one string; the shell is what splits it. Empty in a complete stack - it
+  # exists so containment P6 can be measured against serve.py before every
+  # service module has landed, and the evidence records the value it ran with.
+  native-services:
+    image: ${ALKERA_EPISODE_IMAGE:-alkera-stack:track-b}
+    entrypoint: ["sh", "-c"]
+    command:
+      - >-
+        exec python -m alkera_gateway.native.serve
+        --audit /audit --world /world --bind 0.0.0.0
+        ${ALKERA_NATIVE_STUBS:-}
+    stop_grace_period: 2s
+    networks:
+      episode_net:
+        aliases:
+          # native-services.internal is the aggregate /health on 8099, not a
+          # tenth service.
+          - native-services.internal
+          - jira.internal
+          - confluence.internal
+          - slack.internal
+          - deploy.internal
+          - airbyte.internal
+          - metabase.internal
+          - prometheus.internal
+          - alertmanager.internal
+          - loki.internal
+    volumes:
+      # The same world the episode mounts: NATIVE_SURFACES.md's rule is that a
+      # fake service serves and mutates the fixture files the MCP tools serve,
+      # so there is one world and the graders do not change.
+      - "${ALKERA_EPISODE_WORLD:?episode world directory}:/world"
+      - "${ALKERA_EPISODE_AUDIT:?episode audit directory}:/audit"
+      # The publication ledger is world evidence, not an agent surface
+      # (world/LEDGER_CONTRACT.md). This container answers HTTP for the agent,
+      # so a service module that read /world/var/ledger would be a channel to
+      # it. The same tmpfs shadow the episode container gets, for the same
+      # reason, so no service module can become that channel by accident.
+      - type: tmpfs
+        target: /world/var/ledger
+        read_only: true
+        tmpfs:
+          size: 4096
+      # Read-only: the Postgres statement log is a source for the action-log
+      # tailer, and a tailer that could edit its own source is not evidence.
+      - pgdata:/pgdata:ro
+    healthcheck:
+      # Probe the process over HTTP. destinations.jsonl exists before any
+      # listener starts and survives a crash, so it cannot prove readiness.
+      test: ["CMD", "python", "-c",
+             "import json,urllib.request; r=json.load(urllib.request.urlopen('http://127.0.0.1:8099/health',timeout=3)); assert r['ok']"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+      start_period: 2s
+
+  # The primary warehouse, and in native mode the agent's own psql target.
+  #
+  # The server log is the action-log source: every statement the AGENT runs
+  # appears in it with its timestamp, and the tailer turns each one into a
+  # 9.2.2 row (`psql.statement`). logging_collector writes files rather than
+  # the container's stdout, because a row source the harness reads must survive
+  # `compose logs` rotation and be mountable read-only somewhere else.
+  #
+  # ROLE-SCOPED, not global, and both settings move together. Measured in
+  # native/PARITY.md on postgres 16.15: with `log_statement=all` globally, a
+  # bare container start plus one readiness probe put FIVE statements the agent
+  # never typed into its action log (`SELECT 1 FROM pg_database`,
+  # `CREATE DATABASE "episode"`, `BEGIN`, `SELECT 1`, `COMMIT`) - provisioning
+  # rows indistinguishable from agent work by content alone. With
+  # `log_statement=none` globally and `ALTER ROLE alkera SET
+  # log_statement='all'` (in the config below), the `alkera` role's statements
+  # are logged and the superuser's are not.
+  #
+  # `log_min_duration_statement=-1` globally is the other half and the half
+  # that is easy to get wrong: left at 0 globally, the superuser's statements
+  # come back anyway in the combined `duration: N ms  statement: ...` form,
+  # which the tailer parses exactly like a plain statement entry. Measured, and
+  # the reason AUDIT asked for BOTH (native/AUDIT_REQUESTS.md item 2): setting
+  # one and not the other silently re-pollutes the log while looking fixed.
+  #
+  # log_directory is `log`, which postgres resolves under PGDATA - so the log
+  # lands in the `pgdata` volume, which the entrypoint has already chowned to
+  # the `postgres` user. A separate named volume would be created root-owned at
+  # a path the image does not have, and the server would fail to open its own
+  # log file. The harness and the grader mount `pgdata:/pgdata:ro` and read
+  # /pgdata/log/postgresql.log.
+  postgres:
+    command:
+      - postgres
+      - -c
+      - log_statement=none
+      - -c
+      - log_min_duration_statement=-1
+      - -c
+      - log_destination=stderr
+      - -c
+      - logging_collector=on
+      - -c
+      - log_directory=log
+      - -c
+      - log_filename=postgresql.log
+      - -c
+      - log_rotation_age=0
+      - -c
+      - log_rotation_size=0
+      - -c
+      - log_line_prefix=%m [%p] %u@%d
+      # The wall clock is not the world clock. An absolute timestamp in this
+      # log is only ever used to order statements against each other and
+      # against the audit file, never to date one in the world.
+      - -c
+      - log_timezone=UTC
+    networks:
+      backend_net: {}
+      episode_net:
+        aliases: [postgres.internal]
+    environment:
+      # The identity the harness ships (NATIVE_DRIVER_REQUESTS.md item 7):
+      # PGUSER=alkera, PGDATABASE=alkera, password alkera-local-dev. The
+      # superuser stays `postgres` and the agent is NOT it - compose.yml's
+      # own postgres.sql runs first and is unchanged; zz-native.sql below adds
+      # the non-superuser role the episode connects as.
+      POSTGRES_PASSWORD: control-plane-local
+      POSTGRES_DB: alkera
+    configs:
+      - source: pg_native_role
+        target: /docker-entrypoint-initdb.d/zz-native.sql
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./postgres.sql:/docker-entrypoint-initdb.d/seed.sql:ro
+
+  # Object storage. MinIO and not adobe/s3mock because the audit webhook is
+  # the row source for the storage plane: s3mock has no such hook, so an `aws
+  # s3 cp` against it would move the world with nothing in the action log,
+  # which is the one failure native mode may not have.
+  #
+  # MINIO_AUDIT_WEBHOOK_* (not MINIO_NOTIFY_WEBHOOK_*): the notify webhook
+  # fires on object events only, while the audit webhook fires on every API
+  # call including the reads, and "what did the agent look at" is half of the
+  # blindness rule.
+  #
+  # QUEUE_DIR is what makes the tailer's own startup order irrelevant: events
+  # raised before the tailer is up are spooled on disk and delivered when it
+  # answers, so a slow import in a service module cannot silently cost the
+  # episode its storage rows.
+  minio:
+    image: minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
+    # MinIO serves each top-level directory under /data as a bucket, so the
+    # bucket the harness ships (`alkera`, NATIVE_DRIVER_REQUESTS.md item 7) is
+    # created by making the directory rather than by a second container running
+    # `mc mb`. `HEAD /alkera` then answers 200, which is what the s3 surface
+    # check reads as live (item 8).
+    entrypoint: ["sh", "-c"]
+    command: ["mkdir -p /data/alkera && exec minio server /data"]
+    networks:
+      backend_net: {}
+      episode_net:
+        aliases: [minio.internal]
+    environment:
+      MINIO_ROOT_USER: alkera-local-dev
+      MINIO_ROOT_PASSWORD: alkera-local-dev
+      MINIO_AUDIT_WEBHOOK_ENABLE_alkera: "on"
+      MINIO_AUDIT_WEBHOOK_ENDPOINT_alkera: >-
+        ${ALKERA_MINIO_AUDIT_ENDPOINT:-http://native-services.internal:8110/minio/audit}
+      MINIO_AUDIT_WEBHOOK_QUEUE_DIR_alkera: /audit-spool
+      MINIO_AUDIT_WEBHOOK_QUEUE_SIZE_alkera: "100000"
+      # 8110 and not 8099: 8099 is serve.py's aggregate /health. The receiver
+      # is AUDIT's `native/tailers/minio.py:build_app()`, hosted by serve.py in
+      # the native-services process (serve.MINIO_AUDIT_PORT) - one process, so
+      # one writer for the `seq` lock `native.audit` takes per audit directory.
+      # The queue directory above still matters: MinIO raises events while that
+      # process is starting, and they are spooled on disk and delivered when it
+      # answers rather than lost.
+      #
+      # That port is deliberately NOT in destinations.jsonl. MinIO dials it,
+      # the episode never does, and a counted row there would be a destination
+      # outside the episode's endpoint map - which blindness reads as a hard
+      # `network_destination` violation on every rollout that touched storage.
+    volumes:
+      - miniodata:/data
+      - minioaudit:/audit-spool
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  # The control plane. `airflow standalone` is the single-process form: API
+  # server, scheduler and a SQLite metadata database in one container, which is
+  # what a world that advances under a virtual clock needs - one process to
+  # stop and start, no second database to keep deterministic.
+  #
+  # DESIGNED, NOT EXECUTED. Nothing in this repository drives Airflow yet
+  # (there is no DAG bundle, no vclock bridge wired to this container), so
+  # containment.py P6 has never probed `airflow.internal` and
+  # evidence/containment-native.json does not claim it. It is declared here so
+  # the alias table is complete and the next builder edits a stanza instead of
+  # inventing one.
+  airflow:
+    image: apache/airflow@sha256:d1a74224f2a653e7eba97cd631125524fa0eb97cf9e76342d623931e554c9fd9
+    profiles: [airflow]
+    command: ["standalone"]
+    networks:
+      episode_net:
+        aliases: [airflow.internal]
+    environment:
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__DAGS_FOLDER: /world/workspace/dags
+      AIRFLOW__API__BASE_URL: http://airflow.internal:8080
+      TZ: UTC
+    volumes:
+      - "${ALKERA_EPISODE_WORLD:?episode world directory}:/world"
+      - airflowdata:/opt/airflow
+
+  # The second warehouse. compose.yml already builds it and puts it on
+  # backend_net under `acme.snowflake.local`, deliberately out of the agent's
+  # reach. In native mode the agent addresses warehouses directly, so it gains
+  # an episode_net alias - and keeps the old one, because the fake account
+  # hostname is what the connector's own URL construction expects.
+  snowflake:
+    networks:
+      backend_net:
+        aliases: [acme.snowflake.local]
+      episode_net:
+        aliases: [snowflake.internal]
+
+  # adobe/s3mock is replaced by minio above. A profile it is not started
+  # under is the only way an overlay can take a service out of a stack; this
+  # leaves compose.yml untouched and keeps the mock one `--profile mock-s3`
+  # away for anyone who wants to compare the two.
+  s3:
+    profiles: [mock-s3]
+
+  harness:
+    volumes:
+      # The statement log (/pgdata/log/postgresql.log), read-only, so the
+      # harness can fold Postgres rows into the action log after teardown
+      # without being able to edit them.
+      - pgdata:/pgdata:ro
+
+  grading:
+    volumes:
+      - worlddata:/world:ro
+      - auditdata:/audit:ro
+      - bistate:/service-state/bi:ro
+      - pgdata:/pgdata:ro
+
+# An inline file rather than one on disk: gateway/docker/postgres.sql belongs
+# to the MCP stack and is not this overlay's to edit, and a second .sql file
+# beside it would be a file nobody reading compose.native.yml would find.
+configs:
+  pg_native_role:
+    content: |
+      -- Native mode: the role the episode connects as. NOT a superuser - the
+      -- agent has psql now, and a superuser session is a second channel to
+      -- everything the server can reach (the same rule containment P3 checks
+      -- for the gateway's own role in MCP mode).
+      CREATE ROLE alkera LOGIN PASSWORD 'alkera-local-dev'
+        NOSUPERUSER NOCREATEDB NOCREATEROLE;
+      GRANT USAGE, CREATE ON SCHEMA raw, staging, warehouse TO alkera;
+      GRANT SELECT, INSERT, UPDATE, DELETE
+        ON ALL TABLES IN SCHEMA raw, staging, warehouse TO alkera;
+      -- The statement log is the agent's action log, so it logs the AGENT'S
+      -- role and nothing else. The server-level settings above it are
+      -- `log_statement=none` and `log_min_duration_statement=-1`; these two
+      -- lines are what puts the episode's own statements back in. Both are
+      -- required: with only the first, the superuser's provisioning
+      -- statements return through the combined `duration: ... statement: ...`
+      -- entry (native/PARITY.md, measured).
+      ALTER ROLE alkera SET log_statement = 'all';
+      ALTER ROLE alkera SET log_min_duration_statement = 0;
+
+volumes:
+  miniodata:
+  minioaudit:
+  airflowdata:

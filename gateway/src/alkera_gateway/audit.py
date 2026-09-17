@@ -1,6 +1,6 @@
 import json
 import os
-from importlib.metadata import version
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
 from filelock import FileLock
@@ -34,9 +34,8 @@ class AuditLog:
                 )
             self.seq = len(rows)
             manifest_path = self.directory / "session.json"
-            versions = {
-                name: version(name)
-                for name in (
+            versions = {}
+            for name in (
                     "alkera-gateway",
                     "dbt-core",
                     "dbt-duckdb",
@@ -47,8 +46,14 @@ class AuditLog:
                     "sqlglot",
                     "psycopg",
                     "boto3",
-                )
-            }
+                ):
+                try:
+                    versions[name] = version(name)
+                except PackageNotFoundError:
+                    # dbt is optional; SQL-only installations still need audit.
+                    if name not in {"dbt-core", "dbt-duckdb"}:
+                        raise
+                    versions[name] = None
             if manifest_path.exists():
                 manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
                 if manifest["episode_id"] != config.episode_id:

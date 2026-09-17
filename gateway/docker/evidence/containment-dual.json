@@ -1,0 +1,1215 @@
+{
+  "backend": "duckdb",
+  "compose_file": "C:\\Users\\OhhMoo\\Desktop\\research\\alkera\\gateway\\docker\\compose.yml",
+  "generated": "2026-09-16T03:50:49+00:00",
+  "host": {
+    "docker": "29.5.2",
+    "platform": "Windows-10-10.0.26200-SP0"
+  },
+  "p0_world_provisioned": {
+    "bi_panels": true,
+    "docs_lines": true,
+    "dual": {
+      "attachments": {
+        "pg": "attached read-only as a postgres catalog"
+      },
+      "by_name": {
+        "pg": [
+          [
+            1,
+            {
+              "type": "decimal",
+              "value": "10.50"
+            }
+          ],
+          [
+            2,
+            {
+              "type": "decimal",
+              "value": "20.25"
+            }
+          ]
+        ],
+        "primary": [
+          [
+            1,
+            {
+              "type": "decimal",
+              "value": "10.50"
+            }
+          ],
+          [
+            2,
+            {
+              "type": "decimal",
+              "value": "20.25"
+            }
+          ]
+        ]
+      },
+      "cross_join": [],
+      "declared": [
+        "primary",
+        "pg"
+      ],
+      "undeclared_attach": {
+        "error": "unsupported_sql",
+        "ok": false
+      }
+    },
+    "dual_passed": true,
+    "passed": true,
+    "s3_buckets_on_the_wire": [
+      "landing"
+    ],
+    "s3_roundtrip_through_gateway": true,
+    "warehouse_rows": 2
+  },
+  "p1_grading_zone": {
+    "absent_during_episode": true,
+    "declared_mounts": [
+      {
+        "read_only": true,
+        "source": "worlddata",
+        "target": "/world"
+      },
+      {
+        "read_only": true,
+        "source": "auditdata",
+        "target": "/audit"
+      },
+      {
+        "read_only": true,
+        "source": "bistate",
+        "target": "/service-state/bi"
+      }
+    ],
+    "declared_network_mode": "none",
+    "declared_networks": [],
+    "declared_profiles": [
+      "grading"
+    ],
+    "episode_sees_grading_path": "false",
+    "grader_isolated": true,
+    "grader_mounts": {
+      "grading_dir_present": false,
+      "world_exists": true,
+      "world_file_count": 21,
+      "world_writable": false,
+      "world_write_error": "OSError: [Errno 30] Read-only file system: '/world/.containment-write-probe'"
+    },
+    "grader_netns": {
+      "addresses": {
+        "lo": "127.0.0.1"
+      },
+      "default_route": false,
+      "egress_blocked": true,
+      "egress_dns": [
+        {
+          "name": "example.com",
+          "result": "gaierror"
+        },
+        {
+          "name": "google.com",
+          "result": "gaierror"
+        },
+        {
+          "name": "pypi.org",
+          "result": "gaierror"
+        }
+      ],
+      "egress_tcp": [
+        {
+          "result": "OSError",
+          "target": "8.8.8.8:53"
+        },
+        {
+          "result": "OSError",
+          "target": "1.1.1.1:443"
+        },
+        {
+          "result": "OSError",
+          "target": "93.184.215.14:80"
+        }
+      ],
+      "interfaces": [
+        "lo"
+      ],
+      "routes": []
+    },
+    "grader_reachability": {
+      "addresses": [
+        {
+          "result": "OSError",
+          "target": "172.24.0.2:5432"
+        },
+        {
+          "result": "OSError",
+          "target": "172.24.0.2:9090"
+        },
+        {
+          "result": "OSError",
+          "target": "172.24.0.2:8443"
+        },
+        {
+          "result": "OSError",
+          "target": "172.24.0.2:8080"
+        },
+        {
+          "result": "OSError",
+          "target": "172.24.0.2:80"
+        },
+        {
+          "result": "OSError",
+          "target": "172.24.0.2:443"
+        },
+        {
+          "result": "OSError",
+          "target": "172.24.0.3:5432"
+        },
+        {
+          "result": "OSError",
+          "target": "172.24.0.3:9090"
+        },
+        {
+          "result": "OSError",
+          "target": "172.24.0.3:8443"
+        },
+        {
+          "result": "OSError",
+          "target": "172.24.0.3:8080"
+        },
+        {
+          "result": "OSError",
+          "target": "172.24.0.3:80"
+        },
+        {
+          "result": "OSError",
+          "target": "172.24.0.3:443"
+        },
+        {
+          "result": "OSError",
+          "target": "172.24.0.4:5432"
+        },
+        {
+          "result": "OSError",
+          "target": "172.24.0.4:9090"
+        },
+        {
+          "result": "OSError",
+          "target": "172.24.0.4:8443"
+        },
+        {
+          "result": "OSError",
+          "target": "172.24.0.4:8080"
+        },
+        {
+          "result": "OSError",
+          "target": "172.24.0.4:80"
+        },
+        {
+          "result": "OSError",
+          "target": "172.24.0.4:443"
+        }
+      ],
+      "names": [
+        {
+          "name": "acme.snowflake.local",
+          "result": "gaierror"
+        },
+        {
+          "name": "episode",
+          "result": "gaierror"
+        },
+        {
+          "name": "postgres",
+          "result": "gaierror"
+        },
+        {
+          "name": "s3",
+          "result": "gaierror"
+        },
+        {
+          "name": "snowflake",
+          "result": "gaierror"
+        }
+      ]
+    },
+    "passed": true,
+    "services_live_during_episode": [
+      "episode",
+      "postgres",
+      "s3",
+      "snowflake"
+    ],
+    "still_running_when_grader_started": [],
+    "stopped_before_grader_started": [
+      "episode",
+      "postgres",
+      "s3",
+      "snowflake"
+    ]
+  },
+  "p2_egress": {
+    "declared_but_not_probed": [
+      "grading"
+    ],
+    "extra_interfaces": {},
+    "passed": true,
+    "probe_control": {
+      "egress_blocked": false,
+      "egress_dns": [
+        {
+          "name": "example.com",
+          "result": "RESOLVED"
+        },
+        {
+          "name": "google.com",
+          "result": "RESOLVED"
+        },
+        {
+          "name": "pypi.org",
+          "result": "RESOLVED"
+        }
+      ],
+      "egress_tcp": [
+        {
+          "result": "CONNECTED",
+          "target": "8.8.8.8:53"
+        },
+        {
+          "result": "CONNECTED",
+          "target": "1.1.1.1:443"
+        },
+        {
+          "result": "TimeoutError",
+          "target": "93.184.215.14:80"
+        }
+      ],
+      "probe_can_detect_egress": true,
+      "vantage": "default bridge network, same image and probe"
+    },
+    "probed": [
+      "episode",
+      "harness",
+      "postgres",
+      "s3",
+      "snowflake"
+    ]
+  },
+  "p3_only_channel": {
+    "agent_name_resolution": [
+      {
+        "name": "acme.snowflake.local",
+        "result": "gaierror"
+      },
+      {
+        "name": "episode",
+        "result": [
+          "172.25.0.2"
+        ]
+      },
+      {
+        "name": "postgres",
+        "result": "gaierror"
+      },
+      {
+        "name": "s3",
+        "result": "gaierror"
+      },
+      {
+        "name": "snowflake",
+        "result": "gaierror"
+      }
+    ],
+    "agent_reachable": [
+      "172.25.0.2:8080"
+    ],
+    "agent_resolved": [
+      "episode"
+    ],
+    "agent_vantage": "harness container, episode_net only",
+    "backends_reachable_from_agent": [],
+    "episode_container_reachability": [
+      {
+        "result": "ConnectionRefusedError",
+        "target": "172.24.0.2:5432"
+      },
+      {
+        "result": "CONNECTED",
+        "target": "172.24.0.2:9090"
+      },
+      {
+        "result": "ConnectionRefusedError",
+        "target": "172.24.0.2:8443"
+      },
+      {
+        "result": "ConnectionRefusedError",
+        "target": "172.24.0.2:8080"
+      },
+      {
+        "result": "ConnectionRefusedError",
+        "target": "172.24.0.2:80"
+      },
+      {
+        "result": "ConnectionRefusedError",
+        "target": "172.24.0.2:443"
+      },
+      {
+        "result": "ConnectionRefusedError",
+        "target": "172.24.0.3:5432"
+      },
+      {
+        "result": "ConnectionRefusedError",
+        "target": "172.24.0.3:9090"
+      },
+      {
+        "result": "CONNECTED",
+        "target": "172.24.0.3:8443"
+      },
+      {
+        "result": "ConnectionRefusedError",
+        "target": "172.24.0.3:8080"
+      },
+      {
+        "result": "ConnectionRefusedError",
+        "target": "172.24.0.3:80"
+      },
+      {
+        "result": "ConnectionRefusedError",
+        "target": "172.24.0.3:443"
+      },
+      {
+        "result": "CONNECTED",
+        "target": "172.24.0.4:5432"
+      },
+      {
+        "result": "ConnectionRefusedError",
+        "target": "172.24.0.4:9090"
+      },
+      {
+        "result": "ConnectionRefusedError",
+        "target": "172.24.0.4:8443"
+      },
+      {
+        "result": "ConnectionRefusedError",
+        "target": "172.24.0.4:8080"
+      },
+      {
+        "result": "ConnectionRefusedError",
+        "target": "172.24.0.4:80"
+      },
+      {
+        "result": "ConnectionRefusedError",
+        "target": "172.24.0.4:443"
+      },
+      {
+        "result": "CONNECTED",
+        "target": "172.24.0.5:8080"
+      },
+      {
+        "result": "CONNECTED",
+        "target": "172.25.0.2:8080"
+      }
+    ],
+    "episode_container_resolution": [
+      {
+        "name": "acme.snowflake.local",
+        "result": [
+          "172.24.0.3"
+        ]
+      },
+      {
+        "name": "episode",
+        "result": [
+          "172.24.0.5"
+        ]
+      },
+      {
+        "name": "postgres",
+        "result": [
+          "172.24.0.4"
+        ]
+      },
+      {
+        "name": "s3",
+        "result": [
+          "172.24.0.2"
+        ]
+      },
+      {
+        "name": "snowflake",
+        "result": [
+          "172.24.0.3"
+        ]
+      }
+    ],
+    "episode_direct_backend_connection": {
+      "connected": true,
+      "dsn_present": true,
+      "identity": [
+        "episode",
+        "episode"
+      ],
+      "superuser": false
+    },
+    "gateway_port_reachable": [
+      "172.25.0.2:8080"
+    ],
+    "passed": true,
+    "published_host_ports": {},
+    "tool_surface": {
+      "fields": {
+        "alarms_get": [
+          "alarm"
+        ],
+        "alarms_history": [
+          "alarm",
+          "limit"
+        ],
+        "alarms_list": [
+          "state"
+        ],
+        "bi_cached": [
+          "dashboard"
+        ],
+        "bi_get": [
+          "dashboard"
+        ],
+        "bi_list": [],
+        "bi_refresh": [
+          "dashboard"
+        ],
+        "bi_render": [
+          "dashboard"
+        ],
+        "bi_update": [
+          "dashboard",
+          "definition"
+        ],
+        "chat_channels": [],
+        "chat_history": [
+          "before",
+          "channel",
+          "limit"
+        ],
+        "chat_post": [
+          "channel",
+          "text",
+          "thread_id"
+        ],
+        "chat_search": [
+          "channel",
+          "limit",
+          "query"
+        ],
+        "chat_thread": [
+          "message_id"
+        ],
+        "dbt_compile": [
+          "selector",
+          "variables"
+        ],
+        "dbt_run": [
+          "full_refresh",
+          "selector",
+          "variables"
+        ],
+        "dbt_test": [
+          "selector",
+          "variables"
+        ],
+        "deploy_history": [
+          "deploy",
+          "limit"
+        ],
+        "deploy_list": [],
+        "deploy_run": [
+          "deploy",
+          "full_refresh",
+          "variables"
+        ],
+        "docs_get": [
+          "path"
+        ],
+        "docs_list": [],
+        "docs_search": [
+          "encoding",
+          "limit",
+          "query"
+        ],
+        "fs_list": [
+          "path",
+          "recursive"
+        ],
+        "fs_read": [
+          "encoding",
+          "path"
+        ],
+        "fs_write": [
+          "content",
+          "encoding",
+          "path"
+        ],
+        "git_commit": [
+          "message",
+          "paths"
+        ],
+        "git_diff": [
+          "staged"
+        ],
+        "git_log": [
+          "limit"
+        ],
+        "ingest_alerts": [
+          "acknowledged",
+          "connector_id"
+        ],
+        "ingest_get": [
+          "connector_id"
+        ],
+        "ingest_list": [],
+        "ingest_run": [
+          "run_id"
+        ],
+        "ingest_runs": [
+          "connector_id",
+          "continuation_token",
+          "limit"
+        ],
+        "ingest_schema": [
+          "connector_id"
+        ],
+        "ingest_schema_update": [
+          "column_added",
+          "column_removed",
+          "connector_id",
+          "table"
+        ],
+        "ingest_trigger": [
+          "connector_id"
+        ],
+        "issues_comment": [
+          "body",
+          "issue"
+        ],
+        "issues_get": [
+          "issue"
+        ],
+        "issues_list": [
+          "assignee",
+          "label",
+          "limit",
+          "status"
+        ],
+        "issues_search": [
+          "limit",
+          "query"
+        ],
+        "issues_update": [
+          "add_labels",
+          "assignee",
+          "issue",
+          "remove_labels",
+          "status",
+          "unassign"
+        ],
+        "kb_create": [
+          "body",
+          "labels",
+          "page",
+          "parent",
+          "title"
+        ],
+        "kb_edit": [
+          "body",
+          "comment",
+          "page"
+        ],
+        "kb_get": [
+          "page"
+        ],
+        "kb_list": [],
+        "kb_search": [
+          "limit",
+          "query"
+        ],
+        "logs_get": [
+          "run_id"
+        ],
+        "logs_list": [
+          "job",
+          "limit",
+          "status"
+        ],
+        "logs_search": [
+          "job",
+          "limit",
+          "query"
+        ],
+        "metrics_get": [
+          "metric"
+        ],
+        "metrics_list": [],
+        "metrics_series": [
+          "limit",
+          "metric"
+        ],
+        "s3_delete": [
+          "bucket",
+          "key"
+        ],
+        "s3_get": [
+          "bucket",
+          "key"
+        ],
+        "s3_list": [
+          "bucket",
+          "continuation_token",
+          "limit",
+          "prefix"
+        ],
+        "s3_put": [
+          "body_base64",
+          "bucket",
+          "key",
+          "metadata"
+        ],
+        "sched_list": [],
+        "sched_logs": [
+          "run_id"
+        ],
+        "sched_state": [
+          "run_id"
+        ],
+        "sched_trigger": [
+          "execution_date",
+          "job_id",
+          "variables"
+        ],
+        "sql_execute": [
+          "sql",
+          "warehouse"
+        ],
+        "sql_query": [
+          "limit",
+          "sql",
+          "warehouse"
+        ]
+      },
+      "no_socket_primitive": true,
+      "socket_arguments": [],
+      "source": "alkera_gateway.warehouses.build_tools(/tmp/gateway.json)",
+      "tool_count": 63
+    }
+  },
+  "p4_determinism": {
+    "declared_worlddata_mounts": {
+      "episode": [
+        {
+          "read_only": false,
+          "source": "worlddata",
+          "target": "/world"
+        }
+      ],
+      "grading": [
+        {
+          "read_only": true,
+          "source": "worlddata",
+          "target": "/world"
+        }
+      ]
+    },
+    "file_count": 3,
+    "files_changed_under_load": [
+      "var/warehouse/warehouse.duckdb"
+    ],
+    "files_changed_under_load_unexpected": [],
+    "files_changed_while_idle": [],
+    "gateway_writes_expected_under_load": [
+      "var/warehouse/warehouse.duckdb",
+      "var/warehouse/warehouse.duckdb.wal"
+    ],
+    "idle_seconds": 20,
+    "load_exercised": {
+      "bi_panels": true,
+      "docs_lines": true,
+      "dual": {
+        "attachments": {
+          "pg": "attached read-only as a postgres catalog"
+        },
+        "by_name": {
+          "pg": [
+            [
+              1,
+              {
+                "type": "decimal",
+                "value": "10.50"
+              }
+            ],
+            [
+              2,
+              {
+                "type": "decimal",
+                "value": "20.25"
+              }
+            ]
+          ],
+          "primary": [
+            [
+              1,
+              {
+                "type": "decimal",
+                "value": "10.50"
+              }
+            ],
+            [
+              2,
+              {
+                "type": "decimal",
+                "value": "20.25"
+              }
+            ]
+          ]
+        },
+        "cross_join": [],
+        "declared": [
+          "primary",
+          "pg"
+        ],
+        "undeclared_attach": {
+          "error": "unsupported_sql",
+          "ok": false
+        }
+      },
+      "s3_buckets_on_the_wire": [
+        "landing"
+      ],
+      "s3_roundtrip": true,
+      "warehouse_rows": 2
+    },
+    "passed": true,
+    "read_only_in_running": [],
+    "tree_digest_after_idle": "651f4974766df5ea39723b1aa8a38a25456c50c7b502a32ebd4aada0d236b813",
+    "tree_digest_after_load": "9ce792fe5440a76cde85bdc468f23844d9ba58d4e239d7530cf24bc33a1a2c0f",
+    "tree_digest_start": "651f4974766df5ea39723b1aa8a38a25456c50c7b502a32ebd4aada0d236b813",
+    "worlddata_volume": "alkera-dualcont3_worlddata",
+    "writable_in_running": [
+      "episode"
+    ],
+    "writable_state_outside_world": {
+      "episode": [
+        "/audit",
+        "/etc/alkera/snowflake-tls",
+        "/service-state/bi"
+      ],
+      "harness": [],
+      "postgres": [
+        "/var/lib/postgresql/data"
+      ],
+      "s3": [],
+      "snowflake": [
+        "/etc/alkera/snowflake-tls",
+        "/snowflake-data",
+        "/tls"
+      ]
+    }
+  },
+  "passed": true,
+  "profiles": [
+    "snowflake"
+  ],
+  "project": "alkera-dualcont3",
+  "services": [
+    {
+      "aliases": {
+        "alkera-dualcont3_backend_net": [
+          "alkera-dualcont3-episode-1",
+          "episode"
+        ],
+        "alkera-dualcont3_episode_net": [
+          "alkera-dualcont3-episode-1",
+          "episode"
+        ]
+      },
+      "container": "alkera-dualcont3-episode-1",
+      "egress_blocked": true,
+      "image": "alkera-stack:track-b",
+      "mounts": [
+        {
+          "rw": true,
+          "source": "alkera-dualcont3_snowflaketrust",
+          "target": "/etc/alkera/snowflake-tls"
+        },
+        {
+          "rw": true,
+          "source": "alkera-dualcont3_worlddata",
+          "target": "/world"
+        },
+        {
+          "rw": true,
+          "source": "alkera-dualcont3_auditdata",
+          "target": "/audit"
+        },
+        {
+          "rw": true,
+          "source": "alkera-dualcont3_bistate",
+          "target": "/service-state/bi"
+        }
+      ],
+      "netns": {
+        "addresses": {
+          "eth0": "172.24.0.5",
+          "eth1": "172.25.0.2",
+          "lo": "127.0.0.1"
+        },
+        "default_route": false,
+        "egress_blocked": true,
+        "egress_dns": [
+          {
+            "name": "example.com",
+            "result": "gaierror"
+          },
+          {
+            "name": "google.com",
+            "result": "gaierror"
+          },
+          {
+            "name": "pypi.org",
+            "result": "gaierror"
+          }
+        ],
+        "egress_tcp": [
+          {
+            "result": "OSError",
+            "target": "8.8.8.8:53"
+          },
+          {
+            "result": "OSError",
+            "target": "1.1.1.1:443"
+          },
+          {
+            "result": "OSError",
+            "target": "93.184.215.14:80"
+          }
+        ],
+        "interfaces": [
+          "lo",
+          "eth0",
+          "eth1"
+        ],
+        "routes": [
+          {
+            "dest": "172.24.0.0",
+            "gateway": "0.0.0.0",
+            "iface": "eth0"
+          },
+          {
+            "dest": "172.25.0.0",
+            "gateway": "0.0.0.0",
+            "iface": "eth1"
+          }
+        ]
+      },
+      "network_mode": "alkera-dualcont3_backend_net",
+      "networks": {
+        "alkera-dualcont3_backend_net": "172.24.0.5",
+        "alkera-dualcont3_episode_net": "172.25.0.2"
+      },
+      "published_ports": {},
+      "service": "episode"
+    },
+    {
+      "aliases": {
+        "alkera-dualcont3_backend_net": [
+          "alkera-dualcont3-postgres-1",
+          "postgres"
+        ]
+      },
+      "container": "alkera-dualcont3-postgres-1",
+      "egress_blocked": true,
+      "image": "postgres@sha256:f1c3376c26f2609ab9f29f71f824103fe2fcd8ee0346485cb6122a4f93df6f94",
+      "mounts": [
+        {
+          "rw": false,
+          "source": "C:\\Users\\OhhMoo\\Desktop\\research\\alkera\\gateway\\docker\\postgres.sql",
+          "target": "/docker-entrypoint-initdb.d/seed.sql"
+        },
+        {
+          "rw": true,
+          "source": "alkera-dualcont3_pgdata",
+          "target": "/var/lib/postgresql/data"
+        }
+      ],
+      "netns": {
+        "addresses": {
+          "eth0": "172.24.0.4",
+          "lo": "127.0.0.1"
+        },
+        "default_route": false,
+        "egress_blocked": true,
+        "egress_dns": [
+          {
+            "name": "example.com",
+            "result": "gaierror"
+          },
+          {
+            "name": "google.com",
+            "result": "gaierror"
+          },
+          {
+            "name": "pypi.org",
+            "result": "gaierror"
+          }
+        ],
+        "egress_tcp": [
+          {
+            "result": "OSError",
+            "target": "8.8.8.8:53"
+          },
+          {
+            "result": "OSError",
+            "target": "1.1.1.1:443"
+          },
+          {
+            "result": "OSError",
+            "target": "93.184.215.14:80"
+          }
+        ],
+        "interfaces": [
+          "lo",
+          "eth0"
+        ],
+        "routes": [
+          {
+            "dest": "172.24.0.0",
+            "gateway": "0.0.0.0",
+            "iface": "eth0"
+          }
+        ]
+      },
+      "network_mode": "alkera-dualcont3_backend_net",
+      "networks": {
+        "alkera-dualcont3_backend_net": "172.24.0.4"
+      },
+      "published_ports": {},
+      "service": "postgres"
+    },
+    {
+      "aliases": {
+        "alkera-dualcont3_backend_net": [
+          "alkera-dualcont3-s3-1",
+          "s3"
+        ]
+      },
+      "container": "alkera-dualcont3-s3-1",
+      "egress_blocked": true,
+      "image": "adobe/s3mock@sha256:e7c36014dcf4c7f0f6bec9de888477d1d9b8f55eceb7d9c1186f70d7aadf81ca",
+      "mounts": [],
+      "netns": {
+        "addresses": {
+          "eth0": "172.24.0.2",
+          "lo": "127.0.0.1"
+        },
+        "default_route": false,
+        "egress_blocked": true,
+        "egress_dns": [
+          {
+            "name": "example.com",
+            "result": "gaierror"
+          },
+          {
+            "name": "google.com",
+            "result": "gaierror"
+          },
+          {
+            "name": "pypi.org",
+            "result": "gaierror"
+          }
+        ],
+        "egress_tcp": [
+          {
+            "result": "OSError",
+            "target": "8.8.8.8:53"
+          },
+          {
+            "result": "OSError",
+            "target": "1.1.1.1:443"
+          },
+          {
+            "result": "OSError",
+            "target": "93.184.215.14:80"
+          }
+        ],
+        "interfaces": [
+          "lo",
+          "eth0"
+        ],
+        "routes": [
+          {
+            "dest": "172.24.0.0",
+            "gateway": "0.0.0.0",
+            "iface": "eth0"
+          }
+        ]
+      },
+      "network_mode": "alkera-dualcont3_backend_net",
+      "networks": {
+        "alkera-dualcont3_backend_net": "172.24.0.2"
+      },
+      "published_ports": {},
+      "service": "s3"
+    },
+    {
+      "aliases": {
+        "alkera-dualcont3_backend_net": [
+          "alkera-dualcont3-snowflake-1",
+          "snowflake",
+          "acme.snowflake.local"
+        ]
+      },
+      "container": "alkera-dualcont3-snowflake-1",
+      "egress_blocked": true,
+      "image": "alkera-snowflake:plumbing",
+      "mounts": [
+        {
+          "rw": true,
+          "source": "alkera-dualcont3_snowflaketls",
+          "target": "/tls"
+        },
+        {
+          "rw": true,
+          "source": "alkera-dualcont3_snowflaketrust",
+          "target": "/etc/alkera/snowflake-tls"
+        },
+        {
+          "rw": true,
+          "source": "alkera-dualcont3_snowflakedata",
+          "target": "/snowflake-data"
+        }
+      ],
+      "netns": {
+        "addresses": {
+          "eth0": "172.24.0.3",
+          "lo": "127.0.0.1"
+        },
+        "default_route": false,
+        "egress_blocked": true,
+        "egress_dns": [
+          {
+            "name": "example.com",
+            "result": "gaierror"
+          },
+          {
+            "name": "google.com",
+            "result": "gaierror"
+          },
+          {
+            "name": "pypi.org",
+            "result": "gaierror"
+          }
+        ],
+        "egress_tcp": [
+          {
+            "result": "OSError",
+            "target": "8.8.8.8:53"
+          },
+          {
+            "result": "OSError",
+            "target": "1.1.1.1:443"
+          },
+          {
+            "result": "OSError",
+            "target": "93.184.215.14:80"
+          }
+        ],
+        "interfaces": [
+          "lo",
+          "eth0"
+        ],
+        "routes": [
+          {
+            "dest": "172.24.0.0",
+            "gateway": "0.0.0.0",
+            "iface": "eth0"
+          }
+        ]
+      },
+      "network_mode": "alkera-dualcont3_backend_net",
+      "networks": {
+        "alkera-dualcont3_backend_net": "172.24.0.3"
+      },
+      "published_ports": {},
+      "service": "snowflake"
+    },
+    {
+      "container": "(compose run)",
+      "egress_blocked": true,
+      "mounts": [],
+      "netns": {
+        "addresses": {
+          "eth0": "172.25.0.3",
+          "lo": "127.0.0.1"
+        },
+        "default_route": false,
+        "egress_blocked": true,
+        "egress_dns": [
+          {
+            "name": "example.com",
+            "result": "gaierror"
+          },
+          {
+            "name": "google.com",
+            "result": "gaierror"
+          },
+          {
+            "name": "pypi.org",
+            "result": "gaierror"
+          }
+        ],
+        "egress_tcp": [
+          {
+            "result": "OSError",
+            "target": "8.8.8.8:53"
+          },
+          {
+            "result": "OSError",
+            "target": "1.1.1.1:443"
+          },
+          {
+            "result": "OSError",
+            "target": "93.184.215.14:80"
+          }
+        ],
+        "interfaces": [
+          "lo",
+          "eth0"
+        ],
+        "routes": [
+          {
+            "dest": "172.25.0.0",
+            "gateway": "0.0.0.0",
+            "iface": "eth0"
+          }
+        ]
+      },
+      "networks": {
+        "episode_net": "172.25.0.3"
+      },
+      "service": "harness"
+    }
+  ],
+  "summary": {
+    "p0_world_actually_provisioned": true,
+    "p1_grading_zone_isolated": true,
+    "p2_no_egress_from_any_service": true,
+    "p3_gateway_is_only_channel": true,
+    "p4_no_service_perturbs_world_tree": true
+  },
+  "warehouses": [
+    {
+      "backend": "postgres",
+      "name": "pg"
+    }
+  ]
+}

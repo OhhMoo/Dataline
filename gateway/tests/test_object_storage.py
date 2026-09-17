@@ -1,4 +1,4 @@
-"""s3_list / s3_get / s3_put / s3_delete, exercised against a real adobe/s3mock.
+"""s3_list / s3_get / s3_put / s3_delete, exercised against real object storage.
 
 These four tools shipped registered in `tools.py` with no test at all. A registered
 tool with no test looks finished from every angle that does not execute it, and when
@@ -12,6 +12,16 @@ exact failure mode being guarded against: a tool that returns an empty success.
 The container is pinned to the same digest as `gateway/docker/compose.yml`. If it
 cannot be started the tests SKIP with a reason naming what was unavailable - never
 pass without touching the surface.
+
+TWO SERVERS, AND WHY. s3mock checks no credentials at all, so every assertion
+here about *content* holds against it and none about *authentication* can.
+native/AUDIT_REQUESTS.md item 1 measured what that hid: `ObjectStorage` signed
+with the literal `episode`, seven characters, and MinIO refuses a root secret
+shorter than eight - so the MCP transport could not talk to the one S3 server
+whose audit webhook produces the native rows, and the Phase 1 parity test had to
+put the MCP leg's object in s3mock and the native leg's in MinIO. The MinIO
+block at the end of this file is that gap closed: the same tools, against the
+digest `compose.native.yml` pins, with the credentials the harness ships.
 """
 
 import base64
@@ -32,6 +42,12 @@ from conftest import make_world
 from alkera_gateway import Gateway
 from alkera_gateway.audit import read_rows, validate_trace
 from alkera_gateway.records import digest
+from alkera_gateway.storage import (
+    ACCESS_KEY_ENV,
+    DEFAULT_CREDENTIAL,
+    SECRET_KEY_ENV,
+    credentials,
+)
 
 # Same digest as the `s3` service in gateway/docker/compose.yml. Pinned, not :latest,
 # so a test that passes today is testing the same binary a rollout talks to.
@@ -40,6 +56,16 @@ S3MOCK_IMAGE = (
 )
 # T1 (R002): "adobe/S3Mock is a JVM service and binds slower than an eager loop expects."
 READY_TIMEOUT_S = 90
+
+# Same digest as the `minio` service in gateway/docker/compose.native.yml, and
+# the same credentials it sets for MINIO_ROOT_USER / MINIO_ROOT_PASSWORD - which
+# are the ones tasks/harness/NATIVE_DRIVER_REQUESTS.md item 8 says the harness
+# ships. A test that invented its own would prove the client works and not that
+# the episode's two transports can reach one server.
+MINIO_IMAGE = (
+    "minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e"
+)
+MINIO_BUCKET = "alkera"
 
 
 def _run(*args, timeout=120):
@@ -421,3 +447,141 @@ def test_storage_tools_report_a_world_without_object_storage(gateway):
         "write",
         "destructive",
     ]
+
+
+# --------------------------------------------------------------------------
+# MinIO: the server the native transport is audited from (AUDIT_REQUESTS.md 1)
+# --------------------------------------------------------------------------
+
+
+def test_the_signing_credentials_are_configurable_and_obviously_fake(monkeypatch):
+    """No docker needed, so this assertion runs everywhere the suite does.
+
+    The length is the point, not decoration: MinIO refuses a root secret under
+    eight characters, which is what the old literal `episode` fell foul of.
+    """
+    monkeypatch.delenv(ACCESS_KEY_ENV, raising=False)
+    monkeypatch.delenv(SECRET_KEY_ENV, raising=False)
+    assert credentials() == (DEFAULT_CREDENTIAL, DEFAULT_CREDENTIAL)
+    assert len(DEFAULT_CREDENTIAL) >= 8
+    # Obviously fake, by repo rule: never a realistic key format.
+    assert DEFAULT_CREDENTIAL == "alkera-local-dev"
+    assert not DEFAULT_CREDENTIAL.startswith("AKIA")
+
+    monkeypatch.setenv(ACCESS_KEY_ENV, "other-access")
+    monkeypatch.setenv(SECRET_KEY_ENV, "other-secret")
+    assert credentials() == ("other-access", "other-secret")
+
+
+@pytest.fixture(scope="session")
+def minio_endpoint():
+    """A MinIO with the harness's credentials, or a skip naming what was missing."""
+    external = os.environ.get("ALKERA_TEST_MINIO_ENDPOINT")
+    if external:
+        yield external
+        return
+
+    docker = shutil.which("docker")
+    if docker is None:
+        pytest.skip(
+            "MinIO not exercised: no `docker` on PATH and ALKERA_TEST_MINIO_ENDPOINT is unset"
+        )
+    started = _run(
+        docker, "run", "-d", "--rm", "-p", "9000",
+        "-e", f"MINIO_ROOT_USER={DEFAULT_CREDENTIAL}",
+        "-e", f"MINIO_ROOT_PASSWORD={DEFAULT_CREDENTIAL}",
+        # The bucket is a top-level directory under /data, exactly the way
+        # compose.native.yml makes it; a second container running `mc mb` would
+        # be testing a different setup from the one the episode gets.
+        "--entrypoint", "sh", MINIO_IMAGE,
+        "-c", f"mkdir -p /data/{MINIO_BUCKET} && exec minio server /data",
+        timeout=300,
+    )
+    if started.returncode != 0:
+        pytest.skip(
+            f"MinIO not exercised: `docker run {MINIO_IMAGE}` failed: "
+            f"{started.stderr.strip()[:300]}"
+        )
+    container = started.stdout.strip()
+    try:
+        mapped = _run(docker, "port", container, "9000/tcp")
+        if mapped.returncode != 0 or not mapped.stdout.strip():
+            pytest.skip(
+                "MinIO not exercised: the container started but published no host port "
+                f"for 9000/tcp ({mapped.stderr.strip()[:200]})"
+            )
+        port = mapped.stdout.strip().splitlines()[0].rsplit(":", 1)[1]
+        endpoint = f"http://127.0.0.1:{port}"
+        failure = _wait_for_http(f"{endpoint}/minio/health/live",
+                                 time.monotonic() + READY_TIMEOUT_S)
+        if failure is not None:
+            pytest.skip(
+                f"MinIO not exercised: no answer on {endpoint} within "
+                f"{READY_TIMEOUT_S}s (last: {failure})"
+            )
+        yield endpoint
+    finally:
+        _run(docker, "rm", "-f", container)
+
+
+@pytest.fixture
+def minio_gateway(tmp_path, minio_endpoint):
+    world = make_world(tmp_path / "world")
+    instance = Gateway(
+        world_config(world, tmp_path / "audit",
+                     s3_endpoint=minio_endpoint, s3_buckets=[MINIO_BUCKET])
+    )
+    yield instance
+    instance.close()
+
+
+def test_the_mcp_transport_authenticates_against_minio(minio_gateway):
+    """The gap AUDIT measured, closed and measured back.
+
+    A round trip through the tools, against the server whose audit webhook
+    produces the native rows - so both transports can now talk to one S3 and
+    the Phase 1 parity claim stops resting on two different servers.
+    """
+    key = f"parity/{uuid.uuid4().hex[:8]}.csv"
+    body = b"id,amount\n1,10.50\n"
+    written = assert_ok(minio_gateway.call("s3_put", {
+        "bucket": MINIO_BUCKET, "key": key,
+        "body_base64": base64.b64encode(body).decode(),
+    }))
+    assert written["bytes_written"] == len(body)
+
+    fetched = assert_ok(minio_gateway.call("s3_get", {"bucket": MINIO_BUCKET, "key": key}))
+    assert base64.b64decode(fetched["body_base64"]) == body
+
+    listed = assert_ok(minio_gateway.call("s3_list", {"bucket": MINIO_BUCKET,
+                                                      "prefix": "parity/"}))
+    assert key in [item["key"] for item in listed["objects"]]
+
+    assert assert_ok(minio_gateway.call("s3_delete", {"bucket": MINIO_BUCKET,
+                                                      "key": key}))["deleted"] is True
+    gone = minio_gateway.call("s3_get", {"bucket": MINIO_BUCKET, "key": key})
+    assert gone["error"]["code"] == "storage_error"
+
+
+def test_minio_actually_checks_the_credential_the_gateway_signs_with(
+        tmp_path, minio_endpoint, monkeypatch):
+    """Without this the test above would pass against a server checking nothing.
+
+    s3mock is exactly that server, which is why the configurability could sit
+    unnoticed: every assertion about content passed while the credential was
+    seven characters and unusable.
+    """
+    monkeypatch.setenv(ACCESS_KEY_ENV, "wrong-access-key")
+    monkeypatch.setenv(SECRET_KEY_ENV, "wrong-secret-key")
+    world = make_world(tmp_path / "wrong-world")
+    instance = Gateway(
+        world_config(world, tmp_path / "wrong-audit",
+                     s3_endpoint=minio_endpoint, s3_buckets=[MINIO_BUCKET])
+    )
+    try:
+        refused = instance.call("s3_list", {"bucket": MINIO_BUCKET})
+    finally:
+        instance.close()
+    assert not refused["ok"]
+    assert refused["error"]["code"] == "storage_error"
+    assert refused["error"]["message"] in ("InvalidAccessKeyId", "SignatureDoesNotMatch")

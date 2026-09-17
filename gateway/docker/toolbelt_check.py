@@ -112,6 +112,46 @@ def probe(binary, argv, ok_codes):
     }
 
 
+def duckdb_extensions(names) -> dict:
+    out = {}
+    try:
+        import hashlib
+
+        import duckdb
+    except Exception as exc:  # noqa: BLE001
+        return {name: {"loaded": False, "reason": f"{type(exc).__name__}: {exc}"[:200]}
+                for name in names}
+    for name in names:
+        row = {"loaded": False, "installed": False, "install_path": None,
+               "version": None, "sha256": None, "reason": None}
+        try:
+            conn = duckdb.connect(
+                ":memory:",
+                config={"autoinstall_known_extensions": False,
+                        "autoload_known_extensions": False},
+            )
+            conn.execute(f"LOAD {name}")
+            # `LOAD postgres` loads the extension duckdb_extensions() lists as
+            # `postgres_scanner` (its canonical name; `postgres` is the alias),
+            # so match on the alias list rather than the name asked for.
+            found = conn.execute(
+                "select extension_name, installed, loaded, install_path, extension_version "
+                "from duckdb_extensions() where loaded and (extension_name = ? "
+                "or list_contains(aliases, ?))", [name, name]
+            ).fetchone()
+            conn.close()
+            if found:
+                row.update(canonical_name=found[0], installed=bool(found[1]),
+                           loaded=bool(found[2]), install_path=found[3], version=found[4])
+                if found[3] and os.path.isfile(found[3]):
+                    with open(found[3], "rb") as fh:
+                        row["sha256"] = hashlib.sha256(fh.read()).hexdigest()
+        except Exception as exc:  # noqa: BLE001 - the reason is the finding
+            row["reason"] = f"{type(exc).__name__}: {exc}"[:200]
+        out[name] = row
+    return out
+
+
 def main() -> int:
     binaries = [probe(*spec) for spec in PROBES]
     report = {
@@ -143,10 +183,17 @@ def main() -> int:
         report["tools"] = []
         report["tool_count"] = 0
         report["tools_error"] = f"{type(exc).__name__}: {exc}"[:300]
+    # The DuckDB extensions the image ships, LOADED rather than listed: a
+    # dual-warehouse world attaches a Postgres peer with `LOAD postgres` and the
+    # episode zone cannot INSTALL anything (no egress), so an extension that is
+    # not here at build time is not there at all. Loaded on a connection with
+    # autoinstall/autoload off, the way the gateway opens its own.
+    report["duckdb_extensions"] = duckdb_extensions(("postgres",))
     report["passed"] = (
         not report["binaries_failed"]
         and report["python_not_shadowed"]
         and report["tool_count"] > 0
+        and all(row["loaded"] for row in report["duckdb_extensions"].values())
     )
     print(json.dumps(report, sort_keys=True))
     return 0 if report["passed"] else 1

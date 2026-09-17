@@ -11,7 +11,6 @@ from starlette.responses import JSONResponse
 from starlette.routing import Mount, Route
 
 from .records import canonical
-from .tools import TOOLS
 
 
 def mcp_server(gateway):
@@ -21,7 +20,7 @@ def mcp_server(gateway):
     async def list_tools():
         return [
             types.Tool(name=name, description=description, inputSchema=model.model_json_schema())
-            for name, (model, description) in TOOLS.items()
+            for name, (model, description) in gateway.tools.items()
         ]
 
     @server.call_tool(validate_input=False)
@@ -50,6 +49,8 @@ def http_app(gateway):
             yield
 
     async def call(request: Request):
+        if not gateway.healthy:
+            return JSONResponse({"error": "gateway_unavailable"}, status_code=503)
         data = bytearray()
         async for chunk in request.stream():
             data.extend(chunk)
@@ -71,7 +72,10 @@ def http_app(gateway):
         return JSONResponse(result)
 
     async def health(request):
-        return JSONResponse({"ok": gateway.healthy, "tools": len(TOOLS)})
+        return JSONResponse(
+            {"ok": gateway.healthy, "tools": len(gateway.tools)},
+            status_code=200 if gateway.healthy else 503,
+        )
 
     return Starlette(
         lifespan=lifespan,

@@ -100,9 +100,38 @@ RUN chmod 600 /root/.aws/credentials
 
 COPY gateway/requirements.lock /opt/gateway/requirements.lock
 RUN pip install --no-cache-dir --retries 5 --timeout 120 --require-hashes -r /opt/gateway/requirements.lock
+# The `native` extra (gateway/NATIVE_SURFACES.md): fastapi/uvicorn for the nine
+# fake vendor services and the one process that mounts them, httpx for the
+# tailers, and the REAL vendor clients (jira, slack_sdk, atlassian-python-api)
+# their compatibility tests are driven by. Until this line existed the service
+# modules were in the image and none of them could be imported - measured,
+# `services.load()` returned nine `No module named 'fastapi'`, which is why
+# containment P6 had to be measured against `--stub`ped services
+# (gateway/docker/COMPOSE_REQUESTS.md item 1).
+#
+# A second --require-hashes lock and not `pip install '.[native]'`: this
+# repository installs from locks, and both locks are exported from the one
+# gateway/uv.lock, so a package in both carries the same version in both by
+# construction. Refresh with
+#   uv export --locked --extra native --no-dev --no-emit-project \
+#     --format requirements-txt --output-file requirements-native.lock
+COPY gateway/requirements-native.lock /opt/gateway/requirements-native.lock
+RUN pip install --no-cache-dir --retries 5 --timeout 120 --require-hashes -r /opt/gateway/requirements-native.lock
 COPY gateway/pyproject.toml /opt/gateway/
 COPY gateway/src /opt/gateway/src
 RUN pip install --no-cache-dir --retries 5 --timeout 120 --no-deps /opt/gateway
+# The DuckDB `postgres` extension, baked in. A dual-warehouse world with a DuckDB
+# primary and a Postgres peer attaches the peer into the primary's catalog
+# (gateway/src/alkera_gateway/warehouses.py, AttachedDuckDBWarehouse) and needs
+# `LOAD postgres`; `INSTALL` fetches from extensions.duckdb.org, and the episode
+# zone has no egress (evidence/toolbelt.json: curl -> "Could not resolve host"),
+# so it cannot happen at run time. Installed here, where the build has the
+# network, into the interpreter's own extension directory (~/.duckdb, root's, the
+# user every process in this image runs as), for the exact duckdb the lock pins.
+# The gateway opens connections with autoinstall/autoload OFF, so the extension
+# is only ever loaded by an explicit LOAD before the connection is locked down.
+# toolbelt_check.py records its presence and sha256 in evidence/image.json.
+RUN python -c "import duckdb; c = duckdb.connect(); c.execute('INSTALL postgres'); c.execute('LOAD postgres'); rows = c.execute(\"select extension_name, extension_version, install_path from duckdb_extensions() where loaded and (extension_name = 'postgres' or list_contains(aliases, 'postgres'))\").fetchall(); print(rows); assert rows, 'postgres extension did not load'"
 COPY world/world /opt/world/world
 COPY world/seed.example.yaml /opt/world/seed.yaml
 COPY world/requirements.lock /opt/world/requirements.lock

@@ -41,6 +41,21 @@ services:
       # directory, so a write through either is one change in the world tree.
       - "${ALKERA_EPISODE_WORLD:?episode world directory}/workspace:/workspace"
       - "${ALKERA_EPISODE_AUDIT:?episode audit directory}:/audit"
+      # The publication ledger is world evidence, not an agent surface
+      # (world/LEDGER_CONTRACT.md). /world is one bind of the whole world root,
+      # so without this the shell would `cat /world/var/ledger/receipts.jsonl`.
+      # An empty read-only tmpfs mounted OVER that path shadows it: the
+      # directory exists and is empty, the receipts underneath are unreachable
+      # from this container, and a write fails on a read-only filesystem - so
+      # the agent can neither read the ledger nor forge a line in it. The world
+      # writes the real file from OUTSIDE the container (world/world/scheduler.py
+      # `advance`, run by the harness on the host), which is why shadowing the
+      # path costs the writer nothing.
+      - type: tmpfs
+        target: /world/var/ledger
+        read_only: true
+        tmpfs:
+          size: 4096
       - bistate:/service-state/bi
       - snowflaketrust:/etc/alkera/snowflake-tls
     healthcheck: !override
