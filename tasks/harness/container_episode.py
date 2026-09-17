@@ -1362,3 +1362,76 @@ def prune_projects(prefix: str) -> list[str]:
                             "ALKERA_EPISODE_AUDIT": "/tmp",
                             "ALKERA_EPISODE_IMAGE": DEFAULT_IMAGE})
     return projects
+
+
+# ------------------------------------------------------------ the P7 vantage
+def _native_cli(argv: list[str] | None = None) -> int:
+    """`native-up` / `native-down`: a native episode stack, kept up.
+
+    It exists for one caller: `gateway/docker/containment.py --native-episode`,
+    which measures P7 and deliberately owns no lifecycle - the stack P7
+    describes has to be one built from a real task's world, with that world's
+    warehouse mounts, and a stack stood up inside the containment script would
+    be a stack no rollout ever ran in. So the recipe is three commands and they
+    are in `tasks/harness/NATIVE_CONTAINER.md`:
+
+        python container_episode.py native-up --task GT001-aov-halving \
+            --dir <scratch> --project alkera-p7
+        python ../../gateway/docker/containment.py --native-episode \
+            --project alkera-p7 --world <scratch>/world \
+            --out ../../gateway/docker/evidence/containment-native-episode.json
+        python container_episode.py native-down --dir <scratch> --project alkera-p7
+
+    The world is built by the task's own declared builder, through the same
+    `episode.build_world` a rollout calls, so `--dir` ends up holding a world
+    and a grading zone laid out exactly as a rollout's.
+    """
+    import argparse
+
+    parser = argparse.ArgumentParser(prog="container_episode")
+    sub = parser.add_subparsers(dest="mode", required=True)
+    for name in ("native-up", "native-down"):
+        one = sub.add_parser(name)
+        one.add_argument("--dir", required=True, type=Path,
+                         help="scratch directory: world/, grading/, audit/")
+        one.add_argument("--project", required=True)
+        one.add_argument("--task", default="GT001-aov-halving")
+        one.add_argument("--tasks-dir", default=None)
+        one.add_argument("--image", default=DEFAULT_IMAGE)
+    args = parser.parse_args(argv)
+
+    import taskspec
+
+    spec = taskspec.load(args.task,
+                         Path(args.tasks_dir).resolve() if args.tasks_dir else None)
+    root = Path(args.dir).resolve()
+    manifest = root / "world.json"
+    if args.mode == "native-up":
+        root.mkdir(parents=True, exist_ok=True)
+        episode.prepare_task(spec)
+        world = episode.build_world(spec, root / "world", root / "grading")
+        manifest.write_text(json.dumps(world, indent=2), encoding="utf-8")
+    elif not manifest.is_file():
+        raise ContainerError(f"{manifest} does not exist; nothing to take down")
+    else:
+        world = json.loads(manifest.read_text(encoding="utf-8"))
+
+    stack = NativeContainerEpisode(
+        project=args.project, world=world, audit_dir=root / "audit",
+        rollout_dir=root, image=args.image)
+    if args.mode == "native-down":
+        stack._up = True                      # `down` on a stack this process did not start
+        stack.down()
+        print(json.dumps({"project": args.project, "state": "down"}, indent=2))
+        return 0
+    stack.up()
+    print(json.dumps({"project": args.project,
+                      "episode": stack.container_id[:12],
+                      "world": str(root / "world"),
+                      "warehouse_mounts": stack.warehouses,
+                      "prepared": stack.prepare()}, indent=2))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(_native_cli())

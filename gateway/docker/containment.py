@@ -1025,17 +1025,26 @@ def property_7_native_episode(stack, evidence, warehouses, services):
     # rather than off the compose file. `/world/...` binds must all be files
     # the caller named; a `/world` bind itself is the failure this property
     # exists to detect.
-    binds = {mount["target"]: mount for mount in episode["mounts"]}
-    world_binds = sorted(t for t in binds if t == "/world" or t.startswith("/world/"))
+    # HOST BINDS ONLY. The ledger shadow at /world/var/ledger is a read-only
+    # tmpfs and carries no source, so it is not a path out of the container and
+    # must not be read as one; `service_facts` leaves its `source` empty, which
+    # is the difference.
+    binds = {mount["target"]: mount for mount in episode["mounts"]
+             if mount.get("source")}
+    world_binds = sorted(target for target in binds
+                         if target == "/world" or target.startswith("/world/"))
     unexpected_world_binds = [
-        t for t in world_binds
-        if t.removeprefix("/world/") not in set(warehouses)]
+        target for target in world_binds
+        if target.removeprefix("/world/") not in set(warehouses)]
+    shadowed = [mount["target"] for mount in episode["mounts"]
+                if not mount.get("source")]
     section = {
         "compose_files": [str(p) for p in stack.files],
         "vantage": "episode container, native topology",
         "warehouses_declared": sorted(warehouses),
         "episode_mounts": sorted(binds),
         "world_binds_on_the_episode": world_binds,
+        "shadowed_paths_with_no_host_source": sorted(shadowed),
         "world_binds_that_are_not_declared_warehouses": unexpected_world_binds,
         "published_host_ports": {
             row["service"]: row["published_ports"] for row in rows
@@ -1080,7 +1089,15 @@ def native_episode_main(args):
             "platform": platform.platform(),
             "docker": out(["docker", "version", "--format", "{{.Server.Version}}"]),
         },
-        "_specs": stack.containers(),
+        # By compose LABEL and not by `compose ps`: this script is attaching to
+        # someone else's project, and `compose ps` would have to interpolate
+        # that project's own ALKERA_EPISODE_* variables, which belong to the
+        # rollout and not to us. The label is what compose itself stamps.
+        "_specs": [
+            json.loads(out(["docker", "inspect", cid]))[0]
+            for cid in out(["docker", "ps", "-q", "--filter",
+                            f"label=com.docker.compose.project={args.project}"]
+                           ).split()],
     }
     if not evidence["_specs"]:
         raise SystemExit(

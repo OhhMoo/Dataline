@@ -29,6 +29,19 @@ ADAPTER PROTOCOL (duck-typed, see coupling.py):
     .repair(name, db)                  apply one stressor's oracle repair in place
     .clauses(name, db) -> list[dict]   evaluate that stressor's contract clauses
 
+CLOCKED ADAPTERS add four more, and `coupling.py --clock` needs all four:
+    .clocked           True
+    .world(subset, dest) -> Path       build a WORLD ROOT (var/ + workspace/)
+    .warehouse(root) -> Path           that world's primary duckdb
+    .advance(root)                     move the clock over the planted events,
+                                       executing the world's own jobs for real
+
+The split matters. `build` stages a stressor as STATE - rows already in a
+landing table, a file already in a feed - which is all a t0 comparison can
+express. `world` + `advance` stages it as an EVENT: the repair lands first, and
+then the thing happens. COUPLING.md's limitation 2 is exactly the gap between
+those two stagings, and the two GT004 verdicts below are what it costs.
+
 NEW FILE. Edits nothing under tasks/GT*/, world/, gateway/ or the rest of
 tasks/harness/.
 """
@@ -139,11 +152,12 @@ class GT004Adapter:
             / "make_fixture_world.py", "_gt004_mfw")
 
     # ---------------------------------------------------------------- build
-    def build(self, subset, dest: Path) -> Path:
+    def build(self, subset, dest: Path, *, db_path: Path | None = None) -> Path:
         m, subset = self.m, set(subset)
         dest = Path(dest)
         dest.mkdir(parents=True, exist_ok=True)
-        db = dest / "world.duckdb"
+        db = Path(db_path) if db_path else dest / "world.duckdb"
+        db.parent.mkdir(parents=True, exist_ok=True)
         for f in (db, Path(str(db) + ".wal")):
             f.unlink(missing_ok=True)
         con = _connect(db)
@@ -510,10 +524,465 @@ FROM warehouse.kpi_daily ORDER BY dt
         ]
 
 
-ADAPTERS = {GT004Adapter.task: GT004Adapter}
+# ===========================================================================
+# GT004 -- the same world, on a clock
+# ===========================================================================
+#
+# WHY THIS EXISTS. `late_arrival` is not a defect, it is an EVENT: rows that
+# arrive AFTER a repair has been made. The unclocked adapter can only stage it
+# as rows that are already in `raw.orders_landing` when the comparison starts,
+# which is a world in which the repair and the arrival are simultaneous - and
+# in that world the dedupe never reads the landing table, so the pair reads
+# uncoupled. COUPLING.md calls that its weakest limitation and predicts the
+# verdict would move. This is the measurement of that prediction.
+#
+# The clocked world is the same warehouse under a two-job nightly:
+#   02:00 `late_delivery`   only when `late_arrival` is in the subset. Inserts
+#                           the late batch into raw.orders_landing - the
+#                           delivery, at the moment it is delivered.
+#   03:00 `revenue_nightly` the world's own loader, in APPEND mode, which is
+#                           the defect GT004 is built around. It inserts the
+#                           late batch into warehouse.fct_orders without asking
+#                           whether those business keys are already there.
+# Both are `sql` exec specs, so nothing here needs a workspace script and the
+# live plane carries no host path.
+VTIME_START_GT004 = "2026-03-01T00:00:00Z"
+GT004_NIGHT = "2026-03-02T00:00:00Z"
 
 
-def get_adapter(task_dir):
-    """Resolve an adapter from a task directory path or name. None if unknown."""
-    cls = ADAPTERS.get(Path(task_dir).name)
+class GT004ClockedAdapter(GT004Adapter):
+    """GT004Adapter plus a world root and an advance. Same stressors, same
+    repairs, same clauses - only the staging of `late_arrival` changes."""
+
+    clocked = True
+
+    def _nightly_sql(self) -> list:
+        m = self.m
+        return [
+            # append mode: the batch goes in, the business key is not consulted
+            """INSERT INTO warehouse.fct_orders
+               SELECT l.order_id, l.line_nbr, l.order_dt, l.order_ts,
+                      l.customer_id, l.sku, l.qty, l.unit_price, l.promo_id,
+                      FALSE, NULL, TIMESTAMP '""" + m.LATE_ARRIVAL_TS + """',
+                      '""" + m.LATE_BATCH + """'
+                 FROM raw.orders_landing l
+                WHERE l.batch_id = '""" + m.LATE_BATCH + """'""",
+            self._KPI_REBUILD,
+            self._BI_REBUILD,
+        ]
+
+    def _delivery_sql(self) -> list:
+        m = self.m
+        return [
+            "CREATE TEMP TABLE late_rows AS " + m.late_rows_sql(),
+            """INSERT INTO raw.orders_landing
+               SELECT arrival_ts, batch_id, order_id, line_nbr, order_dt,
+                      order_ts, customer_id, sku, qty, unit_price, promo_id,
+                      'landing/orders/dt=' || strftime(order_dt, '%Y-%m-%d')
+                        || '/orders.csv'
+                 FROM late_rows ORDER BY order_dt, order_id, line_nbr""",
+        ]
+
+    def world(self, subset, dest: Path) -> Path:
+        import json
+        subset = set(subset)
+        root = Path(dest)
+        (root / "workspace").mkdir(parents=True, exist_ok=True)
+        # `late_arrival` is staged as a DELIVERY here, not as rows: the whole
+        # point is that it happens after the repair.
+        self.build(subset - {"late_arrival"}, root,
+                   db_path=root / "var" / "warehouse" / "warehouse.duckdb")
+        jobs = {}
+        if "late_arrival" in subset:
+            jobs["late_delivery"] = {
+                "command": "late_delivery", "duration_s": 30,
+                "time": "02:00", "day_offset": 0,
+                "exec": {"kind": "sql", "statements": self._delivery_sql(),
+                         "detail": "late_delivery"}}
+        jobs["revenue_nightly"] = {
+            "command": "revenue_nightly", "duration_s": 120,
+            "time": "03:00", "day_offset": 0,
+            "exec": {"kind": "sql", "statements": self._nightly_sql(),
+                     "detail": "revenue_nightly"}}
+        state = {"vnow": VTIME_START_GT004,
+                 "jobs": {n: {"command": s["command"],
+                              "duration_s": s["duration_s"],
+                              "time": s["time"], "day_offset": s["day_offset"]}
+                          for n, s in jobs.items()},
+                 "runs": []}
+        live = {"vtime_start": VTIME_START_GT004, "days_landed": 1, "jobs": jobs}
+        for rel, doc in (("var/sched/state.json", state),
+                         ("var/world/live.json", live)):
+            path = root / rel
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with path.open("w", encoding="utf-8", newline="") as fh:
+                fh.write(json.dumps(doc, indent=2, sort_keys=True) + "\n")
+        return root
+
+    @staticmethod
+    def warehouse(root: Path) -> Path:
+        return Path(root) / "var" / "warehouse" / "warehouse.duckdb"
+
+    @staticmethod
+    def advance(root: Path) -> dict:
+        scheduler = _world_scheduler()
+        return scheduler.advance(Path(root), 24.0)
+
+
+# ===========================================================================
+# GT009 -- the settlement cutoff. Clocked by construction.
+# ===========================================================================
+#
+# EVERY STRESSOR HERE IS AN EVENT, and none of them is stageable as t0 state:
+# the obligation each one creates does not exist until the night it arrives.
+# `build` therefore stages what the unclocked filter CAN see - the partition
+# sitting in the feed, unread - and that is the honest answer to "what does
+# this stressor look like at t0": nothing in the warehouse has moved, and no
+# repair applied at t0 can satisfy a clause about a publication that has not
+# happened. `--selfcheck` without `--clock` says so, per stressor, rather than
+# returning a verdict computed on a world where the question is not yet asked.
+class GT009Adapter:
+    task = "GT009-settlement-cutoff"
+    clocked = True
+
+    stressors = [
+        "higher_version_correction_after_cutoff",
+        "older_replay_after_the_correction",
+        "retried_delivery_between_commit_and_checkpoint",
+    ]
+    kinds = {name: "event" for name in stressors}
+
+    # A stressor that is harmless ALONE and harmful only beside another. The
+    # self-check's teeth test presumes harm in isolation, and a stressor that
+    # breaks nothing on its own is exactly what a COUPLED stressor looks like -
+    # so the teeth leg is staged with the partner present (and unrepaired).
+    # The replay is the worked example: re-sending version 1 of six payments is
+    # a no-op in a world where version 2 was never delivered.
+    conditional_on = {
+        "older_replay_after_the_correction":
+            ["higher_version_correction_after_cutoff"],
+    }
+
+    canonical_tables = {
+        "warehouse.settlement_handoff": (
+            ["settlement_day", "merchant_id"],
+            ["settlement_day", "merchant_id", "payments", "net_cents",
+             "correction_ref"]),
+        "warehouse.clearing_window": (
+            ["closed_on", "settlement_day"],
+            ["closed_on", "settlement_day", "status", "payments", "net_cents"]),
+        "warehouse.fct_payments": (
+            ["payment_id"],
+            ["payment_id", "payment_day", "merchant_id", "amount_cents",
+             "version"]),
+    }
+
+    repair_writes = {
+        "higher_version_correction_after_cutoff":
+            ["warehouse.settlement_handoff", "warehouse.settlement_corrections"],
+        "older_replay_after_the_correction":
+            ["warehouse.fct_payments", "warehouse.settlement_handoff"],
+        "retried_delivery_between_commit_and_checkpoint":
+            ["raw.payments_events", "warehouse.fct_payments",
+             "warehouse.settlement_handoff"],
+    }
+
+    LOADER = "pipelines/load_payments.py"
+    PUBLISHER = "pipelines/publish_settlement.py"
+    SUBSET_FILE = ".coupling-subset.json"
+
+    def __init__(self, repo: Path = REPO):
+        self.repo = Path(repo)
+        task_dir = self.repo / "tasks" / self.task
+        self.build_dir = task_dir / "fixtures" / "build"
+        self.m = _load_module(task_dir / "fixtures" / "make_fixture_world.py",
+                              "_gt009_mfw")
+        self.contract = _load_module(
+            task_dir / "fixtures" / "fixture_contract.py",
+            "_gt009_contract").CONTRACT
+        self.good_loader = (task_dir / "solution" / "load_payments.py").read_text(
+            encoding="utf-8")
+        self.good_publisher = (
+            task_dir / "solution" / "publish_settlement.py").read_text(
+                encoding="utf-8")
+        self.feed = self.m.build_feed(self.m.SEED)
+        refs = self.m.trajectories(self.feed)
+        closed = self.contract["closed_day"]
+        self.closed_day = closed
+        self.v1_closed = sorted(
+            row[:4] for row in refs["t0"][self.m.HANDOFF] if row[0] == closed)
+        self.v2_closed = sorted(
+            row[:4] for row in
+            refs["variants"]["oracle"]["nights"][1][self.m.HANDOFF]
+            if row[0] == closed)
+        self.restated = set(refs["restated_payments"])
+        last = self.contract["plant_dates"][-1]
+        self.last_day = last
+        self.last_day_payments = len({
+            row["payment_id"] for row in self.feed.plants[last]
+            if row["payment_day"] == last})
+
+    # ------------------------------------------------------------ partitions
+    def _rows(self, day: str, subset: set) -> tuple[list, list]:
+        """(base rows, the extra file's rows) for one planted partition."""
+        rows = [[r["event_id"], r["delivered_at"], r["payment_day"],
+                 r["payment_id"], r["version"], r["event_type"],
+                 r["merchant_id"], r["amount_cents"]]
+                for r in self.feed.plants[day]]
+        night = self.contract["plant_dates"].index(day) + 1
+        if night == 2 and "higher_version_correction_after_cutoff" not in subset:
+            rows = [r for r in rows if r[2] != self.closed_day]
+        if night == 3 and "older_replay_after_the_correction" not in subset:
+            rows = [r for r in rows if r[2] != self.closed_day]
+        retry = []
+        if night == 4 and \
+                "retried_delivery_between_commit_and_checkpoint" in subset:
+            retry = list(rows)
+        return rows, retry
+
+    def _land(self, root: Path, day: str, subset: set) -> None:
+        rows, retry = self._rows(day, subset)
+        feed = (Path(root) / "workspace"
+                / self.contract["layout"]["feed_relpath"] / ("dt=" + day))
+        self.m._write(feed / "events.csv", self.m._csv(rows))
+        if retry:
+            self.m._write(feed / "events-retry.csv", self.m._csv(retry))
+
+    def _stage_root(self, dest: Path) -> Path:
+        root = Path(dest) / "world"
+        self.m.stage_world_root(self.build_dir, root)
+        return root
+
+    # ---------------------------------------------------------------- build
+    def build(self, subset, dest: Path) -> Path:
+        """t0 staging: the partitions sit in the feed and nothing has read them.
+
+        This is everything an unclocked comparison can express about an event.
+        The warehouse is byte-identical across every subset, which is the
+        honest answer and is what `--selfcheck` without `--clock` reports.
+        """
+        subset = set(subset)
+        root = self._stage_root(dest)
+        for day in self.contract["plant_dates"]:
+            self._land(root, day, subset)
+        return self.warehouse(root)
+
+    # ---------------------------------------------------------------- clock
+    def world(self, subset, dest: Path) -> Path:
+        import json
+        root = self._stage_root(dest)
+        with (root / self.SUBSET_FILE).open("w", encoding="utf-8",
+                                            newline="") as fh:
+            fh.write(json.dumps(sorted(subset)) + "\n")
+        return root
+
+    @staticmethod
+    def warehouse(root: Path) -> Path:
+        return Path(root) / "var" / "warehouse" / "warehouse.duckdb"
+
+    def advance(self, root: Path) -> dict:
+        """Land each planted partition and advance a night, four times.
+
+        GT009's stressors sit on three different nights - the correction on 2,
+        the replay on 3, the retried delivery on 4 - so "the next planted
+        event" for a PAIR is the whole schedule. Advancing all four is what
+        makes every ordered pair measurable on one staging.
+        """
+        import json
+        root = Path(root)
+        subset = set(json.loads(
+            (root / self.SUBSET_FILE).read_text(encoding="utf-8")))
+        scheduler = _world_scheduler()
+        out = None
+        for day in self.contract["plant_dates"]:
+            self._land(root, day, subset)
+            out = scheduler.advance(
+                root, float(self.contract["advance_hours_per_night"]))
+        return out
+
+    # --------------------------------------------------------------- repair
+    def _root_of(self, db: Path) -> Path:
+        """The world root a warehouse path belongs to.
+
+        GT009's repairs are PIPELINE changes - a file in the workspace and a
+        row in a register - because the decisions they encode are taken before
+        the events they answer. The protocol only hands a db path, so the root
+        is derived from the layout agent.md 9.2.1 freezes.
+        """
+        db = Path(db)
+        if db.parent.name == "warehouse" and db.parent.parent.name == "var":
+            return db.parent.parent.parent
+        raise ValueError(f"{db} is not <root>/var/warehouse/warehouse.duckdb")
+
+    def _put(self, root: Path, relpath: str, source: str) -> None:
+        self.m._write(Path(root) / "workspace" / relpath, source)
+
+    def repair(self, name: str, db: Path) -> None:
+        root = self._root_of(db)
+        if name == "higher_version_correction_after_cutoff":
+            # the protocol: register the approval, then publish under it
+            self._put(root, self.PUBLISHER, self.good_publisher)
+            correction = self.contract["correction"]
+            con = _connect(db)
+            con.execute(
+                "INSERT INTO warehouse.settlement_corrections VALUES "
+                f"(DATE '{self.closed_day}', '{correction['ticket']}', "
+                f"'{correction['approver']}', "
+                f"DATE '{correction['approved_at']}')")
+            _close(con)
+        else:
+            # both remaining stressors are answered by the same loader: the
+            # published contract's fold, and one row per delivered event.
+            # Sharing a repair is a fact about the pair, not a defect here.
+            self._put(root, self.LOADER, self.good_loader)
+
+    # -------------------------------------------------------------- clauses
+    def clauses(self, name: str, db: Path) -> list:
+        con = duckdb.connect(":memory:", config={"threads": 1})
+        con.execute("ATTACH '" + Path(db).as_posix() + "' AS wh (READ_ONLY)")
+        con.execute("USE wh")
+        try:
+            return getattr(self, "_clauses_" + name)(con)
+        finally:
+            con.close()
+
+    @staticmethod
+    def _c(name, contract, ok, detail):
+        return {"clause": name, "contract": contract, "ok": bool(ok),
+                "detail": detail}
+
+    # The published source contract, as SQL over whatever the world has been
+    # delivered. Stated RELATIVE to the feed rather than against a constant,
+    # because a subset world is a world where fewer events arrived: a clause
+    # that demanded the version-2 figures would fail on a world in which the
+    # version-2 events were never delivered, which is a bug in the clause and
+    # not a property of the pair.
+    _CONTRACT_FOLD = """
+        SELECT payment_day, merchant_id, COUNT(*) AS payments,
+               SUM(amount_cents) AS net_cents
+        FROM (SELECT *, row_number() OVER (
+                         PARTITION BY payment_id
+                         ORDER BY version DESC, delivered_at DESC,
+                                  event_id DESC) AS rn
+              FROM raw.payments_events)
+        WHERE rn = 1 AND event_type <> 'void' AND payment_day = DATE '{day}'
+        GROUP BY 1, 2"""
+
+    def _closed_rows(self, con) -> list:
+        return sorted([str(r[0]), r[1], int(r[2]), int(r[3])] for r in con.execute(
+            "SELECT settlement_day, merchant_id, payments, net_cents "
+            "FROM warehouse.settlement_handoff WHERE settlement_day = DATE '"
+            + self.closed_day + "'").fetchall())
+
+    def _fold_rows(self, con) -> list:
+        return sorted([str(r[0]), r[1], int(r[2]), int(r[3])] for r in con.execute(
+            self._CONTRACT_FOLD.replace("{day}", self.closed_day)).fetchall())
+
+    def _clauses_higher_version_correction_after_cutoff(self, con) -> list:
+        held, want = self._closed_rows(con), self._fold_rows(con)
+        refs = con.execute(
+            "SELECT COUNT(*), COUNT(correction_ref) FROM "
+            "warehouse.settlement_handoff WHERE settlement_day = DATE '"
+            + self.closed_day + "'").fetchone()
+        approved = con.execute(
+            "SELECT COUNT(*) FROM warehouse.settlement_handoff h "
+            "JOIN warehouse.settlement_corrections c "
+            "  ON c.settlement_day = h.settlement_day "
+            " AND c.ticket = h.correction_ref "
+            "WHERE h.settlement_day = DATE '" + self.closed_day + "'").fetchone()[0]
+        return [
+            self._c("closed_day_holds_the_contract_fold", "cutoff_integrity",
+                    held == want,
+                    {"held": held[:2], "contract_fold": want[:2]}),
+            self._c("restatement_carries_an_approved_ref", "cutoff_integrity",
+                    refs[0] > 0 and refs[1] == refs[0] and approved == refs[0],
+                    {"rows": refs[0], "with_ref": refs[1],
+                     "matching_an_approval": approved}),
+        ]
+
+    def _clauses_older_replay_after_the_correction(self, con) -> list:
+        stale = con.execute("""
+            SELECT COUNT(*) FROM warehouse.fct_payments f
+            JOIN (SELECT payment_id, MAX(version) AS top
+                    FROM raw.payments_events GROUP BY 1) r
+              ON r.payment_id = f.payment_id
+            WHERE f.version < r.top""").fetchone()[0]
+        twice = con.execute(
+            "SELECT COUNT(*) FROM (SELECT event_id FROM raw.payments_events "
+            "GROUP BY 1 HAVING COUNT(*) > 1)").fetchone()[0]
+        return [
+            self._c("superseded_version_is_not_current", "version_precedence",
+                    int(stale) == 0,
+                    {"payments_held_below_their_top_version": int(stale)}),
+            # deliberately NOT "the closed day holds the contract fold": that is
+            # the CORRECTION's obligation, and putting it here would make the
+            # replay's clause set unsatisfiable by the replay's own repair -
+            # the G4-restates-G1c error agent.md 8.10 records.
+            self._c("replayed_events_land_once", "exactly_once",
+                    int(twice) == 0,
+                    {"event_ids_delivered_more_than_once": int(twice)}),
+        ]
+
+    def _clauses_retried_delivery_between_commit_and_checkpoint(self, con) -> list:
+        """MEASURED TOOTHLESS against this world, and kept for that reason.
+
+        `--selfcheck --clock` reports `planted_world_fails: False` for this
+        stressor: the shipped loader already folds by business key, so a
+        partition delivered twice collapses on its own and there is nothing for
+        a repair to fix. The duplicate only reaches the bank under a publisher
+        that counts DELIVERIES rather than payments, which is a rubric
+        adversary (tests/run_baselines.py:duplicate_counted) and not a property
+        of the world. Every pair involving this stressor is therefore reported
+        `executed` and INVALID, which is the self-check doing its job - the
+        same way it caught GT004's event/clean-world confusion.
+        """
+        doubled = con.execute(
+            "SELECT COALESCE(SUM(payments), 0) FROM warehouse.settlement_handoff "
+            "WHERE settlement_day = DATE '" + self.last_day + "'").fetchone()[0]
+        dup = con.execute(
+            "SELECT COUNT(*) FROM (SELECT payment_id FROM warehouse.fct_payments "
+            "GROUP BY 1 HAVING COUNT(*) > 1)").fetchone()[0]
+        return [
+            self._c("retried_delivery_settled_once", "version_precedence",
+                    int(doubled) == self.last_day_payments,
+                    {"payments_settled": int(doubled),
+                     "payments_delivered": self.last_day_payments}),
+            self._c("one_row_per_payment", "version_precedence", int(dup) == 0,
+                    {"payments_at_multiplicity_above_one": int(dup)}),
+        ]
+
+
+def _world_scheduler():
+    """`world.scheduler`, imported on demand.
+
+    A task adapter may know the world's LAYOUT and not its internals
+    (agent.md 10.2); advancing a clock is the one thing that cannot be done
+    from outside, so the import is here, local, and nothing else in this module
+    touches `world/`.
+    """
+    import sys as _sys
+    path = str(REPO / "world")
+    if path not in _sys.path:
+        _sys.path.insert(0, path)
+    from world import scheduler                                    # noqa: PLC0415
+    return scheduler
+
+
+ADAPTERS = {GT004Adapter.task: GT004Adapter,
+            GT009Adapter.task: GT009Adapter}
+
+# `--clock` on GT004 selects the clocked subclass; everything else is unchanged.
+CLOCKED = {GT004Adapter.task: GT004ClockedAdapter,
+           GT009Adapter.task: GT009Adapter}
+
+
+def get_adapter(task_dir, *, clock: bool = False):
+    """Resolve an adapter from a task directory path or name. None if unknown.
+
+    `clock=True` prefers the clocked variant where one exists. GT009 has only
+    one class - every stressor it carries is an event, so there is no unclocked
+    version of it that means anything.
+    """
+    table = CLOCKED if clock else ADAPTERS
+    cls = table.get(Path(task_dir).name) or ADAPTERS.get(Path(task_dir).name)
     return cls() if cls else None

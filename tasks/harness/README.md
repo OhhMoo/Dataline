@@ -81,7 +81,7 @@ directory and an overlay of four files cannot drift.
 
 | piece | where | what it decides |
 |---|---|---|
-| `overlay` | a directory under the task | files copied over `fixtures/` at staging time; base first, overlay second, last write wins |
+| `overlay` | a directory, or a LIST of them, under the task | trees copied over `fixtures/` at staging time in the order declared: base first, then each overlay, last write wins. A list so two arms of a 2x2 can share a base overlay instead of duplicating a 1,100-line generator into both |
 | `prompt` | a `[prompt_variants]` NAME | the brief, so replaying a recorded arm takes one flag instead of a flag plus a `variant.py select` |
 | `grading` | free-form table | flags the TASK's own `grade.py` reads. The harness carries them and knows what none of them mean. `pass_requires_checks` and `pass_min_total` are the two it does read, as per-arm overrides |
 | `note` | mandatory | why the arm exists. An unexplained arm is an unexplained number six weeks later |
@@ -101,8 +101,13 @@ shipped context, so zones built before variants existed still grade.
 
 **What carries the arm out of the run.** `variant: <name>` in every rollout
 record, `run_conditions.variants` in `report.json`, a `- context variant:` line
-at the top of `report.md`'s run-conditions block, and `--variant` appended to
-the **default** run id (an explicit `--run-id` is left exactly as given). A run
+at the top of `report.md`'s run-conditions block, and the arm appended to the
+**default** run id - `20260917T041215Z-no-ticket` - so two arms measured the
+same afternoon cannot land in one directory. An explicit `--run-id` is left
+exactly as given, and `default` is NOT appended: a default-arm run directory is
+named exactly as every GT004 run directory recorded before variants existed,
+which is what keeps those recorded runs comparable to new ones. The record and
+the report still say `default` in as many words. A run
 whose records name two arms is **invalidated** by `report.py` rather than
 averaged — the arms are different worlds, and one rate over two of them is not a
 rate for either.
