@@ -990,6 +990,31 @@ host topology, live-surface gate clean:
 | GT001 | **native mode**, host topology, 2026-09-16 | withheld (2 scored, 3 quarantined) | - | all 5 did the work natively (18-19/19 via duckdb/dbt/git/./ops/sched); quarantines are host-topology artifacts: `cp` backups of the warehouse file, one canary reachable through bash |
 | GT004 | **native mode**, host topology, default context, 2026-09-16 | **0.25** (4 scored, 1 canary quarantine) | 0.0 | **G1c repaired in 2 of 5** - the historical rewrite 0 of 21 MCP episodes performed on the same world; r0 32/33 pass; ~30 min, ~150 calls. Signal, not a number: n=5, host topology |
 
+**Arm directory -> variant name (folded in 2026-09-16).** The seven arm
+DIRECTORIES above no longer exist. They were byte-for-byte copies of their
+parent package with two to four `fixtures/workflow/*.yaml` files changed, and
+they are now `[variants]` of the one task directory, selected with
+`run_rollouts.py --variant <name>`. Every row in the MEASURED table stays
+resolvable through this mapping, and the recorded rollouts under
+`%TEMP%/alkera-rollouts/` keep their old directory names:
+
+| MEASURED row / run directory | task, today | `--variant` |
+|---|---|---|
+| `GT004a` / `GT004a-no-ticket/ablate-T-*` | GT004-doubling-window | `no-ticket` |
+| `GT004b` / `GT004b-no-refresh-claim/ablate-R-*` | GT004-doubling-window | `no-refresh-claim` |
+| `GT004c` / `GT004c-no-stale-definition/ablate-D-*` | GT004-doubling-window | `no-stale-definition` |
+| `GT004d` / `GT004d-none/ablate-none-*` | GT004-doubling-window | `no-context` |
+| `GT004e` / `GT004e-ticket-only/ablate-ticketonly-*` | GT004-doubling-window | `ticket-only` |
+| `GT006c` / `GT006c-stacked-neutral/stacked-neutral-*` | GT006-quality-gate-drops-rows | `stacked-neutral` |
+| `GT006d` / `GT006d-stacked-ticket/stacked-ticket-*` | GT006-quality-gate-drops-rows | `stacked-ticket` |
+| `GT006 + closed ticket` | GT006-quality-gate-drops-rows | `default` (= `trap-ticket`; DATA-2118 has been in the shipped fixtures since the interference build, so the trap is the default context, not a switch) |
+
+Two GT004 arms were added at the same time and are **unmeasured against any
+model**: `authorized` (the default world plus an approval trace for the
+historical rewrite) and `escalation-credited` (the default world, with G1c paid
+for the rewrite OR a recorded escalation). Both are task-valid; neither has a
+Pass@1.
+
 **Correction 5 - no context lever is the wall; the historical rewrite is
 (GT004 ablation, 2026-09-16).** *Addendum, same day:* the first native-mode
 run of GT004 (no tool list, real CLIs, default context) repaired the rows in 2 of 5

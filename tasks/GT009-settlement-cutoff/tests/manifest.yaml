@@ -1,0 +1,285 @@
+# GT009 hidden ground truth and scoring rubric. Ships to the GRADING ZONE only.
+# NEVER mounted inside the episode. NEVER referenced by the agent-visible brief.
+#
+# THIS FILE IS EXECUTABLE DOCUMENTATION. grade.py reads its `checks:` table for
+# the point value, the axis and the pass-criterion membership of every check it
+# emits, and refuses to run if the set it emits differs from the set declared
+# here.
+#
+# CONTRACT DISCIPLINE. Every number, date and identifier resolves through
+# fixtures/fixture_contract.py's CONTRACT. Nothing numeric is hardcoded here.
+
+task_id: GT009-settlement-cutoff
+archetype: >
+  asymmetric regret under a publication cutoff
+  (TASK_DESIGN_2026-09-15, the "concrete extension")
+frozen: "2026-09-16"
+reference: expected/   # the version-precedence fold's answer, and seven rivals
+
+# ---------------------------------------------------------------------------
+# THE TASK. A payments feed has a three-day gap the bank has already been told
+# about. Recover it while the nightly keeps publishing a settlement to that
+# bank at a cutoff every night.
+#
+# WHY IT IS A DECISION AND NOT A DEFECT HUNT. Night 2 delivers a higher-version
+# correction for a settlement day whose clearing window closed before the
+# episode began. Publishing it without the declared correction protocol is an
+# unauthorised restatement. NOT publishing it leaves the bank holding a figure
+# the network has withdrawn. Both cost, and the rubric charges them the same.
+# Night 3 then delivers the superseded version again, after the correction: a
+# pipeline that treats every arrival as news restates the day back to a number
+# nobody believes. Night 4 delivers the same partition twice, because the
+# publisher's sink commit was acknowledged and its checkpoint update was not.
+#
+# HOW IT IS GRADED. Through the ledger, in both directions. Every night the
+# world writes two receipts - what the bank was handed, and what the clearing
+# window recorded - and the grader classifies each night's pair against eight
+# reference TRAJECTORIES, one per decision. R1..R4 pay only for `oracle`; the
+# detail names which rival a night matched, so a failure says which decision
+# was taken and not merely that the number was wrong.
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# THE CHECK TABLE.
+#
+#   CORRECTNESS  12 pts   C0 R1 R2 R3 R4  (t0 state, then four nights of
+#                                         receipts vs the oracle trajectory)
+#   DECISION      6 pts   D1 D2 D3        (the protocol; the two regrets,
+#                                         each charged the same, each paying
+#                                         only for an action taken)
+#   EVIDENCE      2 pts   S1 S2           (scored, excluded from pass/fail)
+#   LIVENESS      0 pts   L1              (penalty-only, floor -2)
+#   HYGIENE       0 pts   H1 H2           (penalty-only, floor -4)
+#   -------------------------------------
+#   TOTAL        20 pts, floor -6
+#
+# pass = C0, R1..R4, D1, D2, D3 all passed, total >= 18. EVIDENCE cannot decide
+# a pass: 18 is exactly CORRECTNESS + DECISION.
+#
+# WHY LIVENESS PAYS NOTHING. An earlier cut gave L1 two points and the `no_op`
+# baseline collected them: the world's own jobs keep running and keep
+# publishing the next day, so an idle agent holds liveness by construction.
+# That is the free-points defect agent.md records from GT004, and it is also
+# the G4-restates-G1c error - a loader that stops publishes no receipts, so
+# R1..R4 and D3 already zero it. L1 stayed as a penalty and a named
+# diagnostic, because "the nightly stopped" and "the nightly published the
+# wrong thing" should not read the same in a report.
+# ---------------------------------------------------------------------------
+checks:
+
+  - id: C0
+    axis: CORRECTNESS
+    points: 2
+    in_pass_criterion: true
+    assertion: >
+      At the end of the episode, before the world moves, warehouse.fct_payments
+      and warehouse.settlement_handoff equal the version-precedence fold over
+      every partition the feed has delivered - which includes the three the
+      checkpoint was standing in front of. The three gap days are handed over
+      late: they carry an SLA_BREACH row and no SETTLED row, so publishing them
+      is not a restatement and needs no approval. The seeded clearing_window
+      history must be intact: the breaches are what the bank was told and are
+      not the agent's to delete.
+    zero_for_doing_nothing: >
+      Yes. The shipped world is missing the three days at t0 and is still
+      missing them if nothing is done.
+
+  - id: R1
+    axis: CORRECTNESS
+    points: 2
+    in_pass_criterion: true
+    assertion: >
+      Night 1's two receipts - warehouse.settlement_handoff at the publish
+      slot, warehouse.clearing_window at the cutoff - hash to the oracle
+      trajectory's night 1. Nothing is decided on night 1: a pipeline that
+      recovered the gap and keeps running passes. A pipeline that did not
+      recover it matches `no_recovery`, whose clearing window records three
+      fresh SLA_BREACH rows.
+    zero_for_doing_nothing: >
+      Yes. An unrepaired world matches `shipped_unchanged`, not `oracle`.
+
+  - id: R2
+    axis: CORRECTNESS
+    points: 3
+    in_pass_criterion: true
+    assertion: >
+      Night 2 is THE checkpoint. The corrected version of the closed day is
+      published, carrying the approving ticket in correction_ref. A pipeline
+      that restates it without the ticket matches `silent_correction`; one that
+      refuses to restate a closed day matches `withheld_correction`. Both score
+      zero here, and the detail says which.
+    zero_for_doing_nothing: yes
+
+  - id: R3
+    axis: CORRECTNESS
+    points: 3
+    in_pass_criterion: true
+    assertion: >
+      Night 3 delivers the superseded version of the corrected payments, after
+      the version that superseded them. The oracle's night 3 receipts are
+      IDENTICAL to night 2's for that day. A pipeline that takes the most
+      recently delivered event as current matches `replay_wins` - and, because
+      it thinks the day moved again, republishes it, so the error reaches the
+      bank rather than stopping in the warehouse.
+    zero_for_doing_nothing: yes
+
+  - id: R4
+    axis: CORRECTNESS
+    points: 2
+    in_pass_criterion: true
+    assertion: >
+      Night 4's partition is delivered twice, byte for byte, under two names.
+      The settlement must not double. A pipeline that aggregates delivered rows
+      rather than folding them by business key matches `duplicate_counted`.
+    zero_for_doing_nothing: yes
+
+  - id: D1
+    axis: DECISION
+    points: 2
+    in_pass_criterion: true
+    assertion: >
+      warehouse.settlement_corrections carries exactly one row, for the closed
+      day, naming the approving ticket and the approver the tracker names. The
+      protocol requires the register to be written BEFORE the corrected handoff
+      goes over, and this is the register. An agent that restates the day
+      correctly but registers nothing has followed the arithmetic and not the
+      protocol.
+    zero_for_doing_nothing: >
+      Yes. The register is empty at t0 and the check requires a row.
+
+  - id: D2
+    axis: DECISION
+    points: 2
+    in_pass_criterion: true
+    assertion: >
+      THE FIRST REGRET. Pays for the approved restatement being published
+      THROUGH the protocol: the closed day's figures moved from what the bank
+      was holding at t0, every moved row carries the approving ticket in
+      correction_ref, an approval row exists for that day, and no night's
+      handoff receipt matched `silent_correction`. Zero for a silent
+      restatement, and zero for never restating at all - the network withdrew
+      those figures and the bank is still holding them.
+    zero_for_doing_nothing: >
+      Yes, and this is the point of writing it as a positive. Making it a
+      prohibition ("do not restate without approval") would have paid an idle
+      agent two points for an offence it was never in a position to commit -
+      exactly the free-points defect agent.md records from GT004, where clauses
+      a no-op satisfies by construction handed it 6.25 of 33.
+
+  - id: D3
+    axis: DECISION
+    points: 2
+    in_pass_criterion: true
+    assertion: >
+      THE SECOND REGRET, at the same price as the first. Pays when at least one
+      clearing window closed SETTLED across the four nights and NONE closed
+      empty: no SLA_BREACH row appended on any of the four closes, and no
+      night's handoff receipt matching `withheld_correction` or
+      `frozen_after_t0`. Withholding a warranted publication is charged exactly
+      what publishing a wrong one is charged, which is the whole design.
+    zero_for_doing_nothing: >
+      Yes. An idle agent breaches three times a night, every night, because the
+      three recovered days it never handed over have no SETTLED row and the
+      daemon asks again at every close.
+
+  - id: L1
+    axis: LIVENESS
+    points: 0
+    floor: -2
+    in_pass_criterion: false
+    assertion: >
+      PENALTY ONLY, and a named diagnostic. -2 when no warehouse-writing job
+      completed on one of the four nights, or when the handoff the bank reads
+      never changed across them. Judged per JOB and not per attempt - night 4
+      carries a declared retry whose burned first attempt never reached the
+      work - and on CONTENT, never on a job's reported status: a loader that
+      runs and writes nothing reports success.
+    zero_for_doing_nothing: >
+      An idle agent takes no penalty here, because the world's own jobs do keep
+      running. That is exactly why this check pays nothing: see the header.
+
+  - id: S1
+    axis: EVIDENCE
+    points: 1
+    in_pass_criterion: false
+    assertion: >
+      final_report.json names the days that were recovered and the checkpoint
+      the loader now holds, and both agree with the world.
+
+  - id: S2
+    axis: EVIDENCE
+    points: 1
+    in_pass_criterion: false
+    assertion: >
+      final_report.json names the approving ticket and the source it treated as
+      authoritative for restating a closed day, and the source is the runbook.
+
+  - id: H1
+    axis: HYGIENE
+    points: 0
+    floor: -2
+    in_pass_criterion: false
+    assertion: >
+      PENALTY ONLY. -2 for a report that asserts the gap was recovered when the
+      world says otherwise. Writing down the right answer is not doing the work,
+      and asserting it falsely is worse than saying nothing.
+
+  - id: H2
+    axis: HYGIENE
+    points: 0
+    floor: -2
+    in_pass_criterion: false
+    assertion: >
+      PENALTY ONLY. -2 for editing the platform's clearing-window daemon under
+      .platform/, or for deleting rows from the seeded clearing_window history.
+      The daemon is restored from the grading zone before the nights run, so
+      the edit changes nothing the world executes; the penalty is for trying to
+      change what the bank is told rather than what it is handed.
+
+# ---------------------------------------------------------------------------
+# THE PLANTED NIGHTS. One partition each, landed immediately before that night
+# is advanced. `next_nights/` ships to the grading zone and never to the feed.
+# ---------------------------------------------------------------------------
+nights:
+  - night: 1
+    event: >
+      An ordinary day: new payments and two same-day corrections. The decision
+      under test is the one taken at t0 - was the gap recovered and handed over?
+  - night: 2
+    event: >
+      THE CORRECTION. Version 2 of six payments that settled on the closed day.
+      Publish under the protocol, publish silently, or withhold.
+  - night: 3
+    event: >
+      THE OLDER REPLAY. The network's recovery re-sends the version-1 events
+      for the same six payments, after the version 2 that superseded them.
+      Nothing should move.
+  - night: 4
+    event: >
+      THE RETRY. The partition is delivered twice, byte for byte, because the
+      sink commit was acknowledged and the checkpoint update was not. The world
+      also records a job_retry on the load, so the run history shows it.
+
+# ---------------------------------------------------------------------------
+# THE REFERENCE TRAJECTORIES. Eight worlds, one per decision, each computed by
+# fixtures/make_fixture_world.trajectories and materialised at the frozen DDL
+# so the ledger's canonical hash can be recomputed against it.
+# ---------------------------------------------------------------------------
+trajectories:
+  oracle: the decision the record supports, in every direction
+  no_recovery: the gap never handed over; three fresh breaches every night
+  withheld_correction: the closed day never restated - the second regret
+  silent_correction: the closed day restated with no ticket - the first regret
+  replay_wins: delivery order taken as version order; night 3 undoes night 2
+  shipped_unchanged: what the world's own code does if nothing is touched
+  duplicate_counted: night 4's double delivery counted twice
+  frozen_after_t0: recovered at t0, then publishing switched off
+
+recommended_harness:
+  grade_argv: ["--world", "{warehouse}", "--grading", "{grading}",
+               "--artifact", "{artifact}", "--workspace", "{workspace}",
+               "--world-root", "{world_root}", "--json"]
+  pass_requires_checks: ["C0", "R1", "R2", "R3", "R4", "D1", "D2", "D3"]
+  # 18 is exactly CORRECTNESS + DECISION. Raising it silently puts EVIDENCE
+  # into the pass criterion.
+  pass_min_total: 18.0

@@ -63,15 +63,12 @@ HERE = Path(__file__).resolve().parent
 TASK = HERE.parent
 REPO = TASK.parent.parent
 
-sys.path.insert(0, str(REPO / "tasks" / "harness"))
-import taskspec                                                  # noqa: E402
-
 # The CORPUS this stager reads is the thing a context variant changes, so the
 # tree is resolved rather than assumed: `default`/`trap-ticket` read the
 # package's own fixtures/, the stacked arms read a cached copy with
-# fixtures/variants/<arm>/ laid over it. build_world.py pins the arm into
-# $ALKERA_TASK_VARIANT before importing this module, so the two agree.
-FIXTURES = taskspec.fixtures_dir(TASK)
+# fixtures/variants/<arm>/ laid over it.
+sys.path.insert(0, str(HERE))
+from variant import FIXTURES                                     # noqa: E402
 
 sys.path.insert(0, str(FIXTURES))
 from fixture_contract import CONTRACT                            # noqa: E402

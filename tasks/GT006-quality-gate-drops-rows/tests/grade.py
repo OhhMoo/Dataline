@@ -66,39 +66,10 @@ HERE = Path(__file__).resolve().parent
 TASK = HERE.parent
 REPO = TASK.parent.parent
 
-sys.path.insert(0, str(REPO / "tasks" / "harness"))
-import taskspec                                                    # noqa: E402
-
-
-def graded_variant() -> str | None:
-    """Which arm built the world under grade, from the grading zone itself.
-
-    argparse runs too late - `fixture_contract` is imported FROM the arm's
-    fixtures tree - so `--grading` is read straight off argv and the
-    `variant.json` build_world.py left there is the authority. Falling back to
-    $ALKERA_TASK_VARIANT (which `taskspec` resolves for us when this returns
-    None) covers a grading zone written before variants existed.
-    """
-    argv = sys.argv[1:]
-    grading = None
-    for i, arg in enumerate(argv):
-        if arg == "--grading" and i + 1 < len(argv):
-            grading = argv[i + 1]
-        elif arg.startswith("--grading="):
-            grading = arg.split("=", 1)[1]
-    if grading is None:
-        return None
-    marker = Path(grading) / "variant.json"
-    if not marker.is_file():
-        return None
-    return json.loads(marker.read_text(encoding="utf-8")).get("variant") or None
-
-
-VARIANT = taskspec.variant_of(TASK, graded_variant())
-FIXTURES = taskspec.fixtures_dir(TASK, graded_variant())
+sys.path.insert(0, str(HERE))
+from variant import VARIANT, FIXTURES                              # noqa: E402
 
 sys.path.insert(0, str(FIXTURES))
-sys.path.insert(0, str(HERE))
 
 from fixture_contract import CONTRACT                              # noqa: E402
 import collateral                                                  # noqa: E402
@@ -846,6 +817,19 @@ def main() -> int:
     grading = Path(a.grading)
     try:
         man = load_manifest(grading)
+        # THE ARM AND THE WORLD MUST AGREE. task.toml declares `stacked = true`
+        # on the two stacked arms and build_world.py copies that declaration
+        # into the grading zone; CONTRACT["stack"] is what the world actually
+        # carries. If those two ever disagree, the grader is about to score one
+        # arm's world against another arm's rubric, which is a packaging error
+        # and not a number.
+        if bool(VARIANT.grading.get("stacked")) != bool(STACK):
+            raise PackagingError(
+                f"variant {VARIANT.name!r} declares stacked="
+                f"{bool(VARIANT.grading.get('stacked'))} but the fixture "
+                f"contract it resolved {'carries' if STACK else 'has no'} "
+                f"`stack` block. The arm and the world disagree about which "
+                f"rubric applies.")
         table = check_table(man)
         expected = Path(a.expected) if a.expected else grading / "expected.duckdb"
         if not expected.is_file():

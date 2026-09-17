@@ -13,11 +13,20 @@ directory and gateway. Nothing is shared but the read-only task package and the
 cached generator fixture, which is built ONCE here before any rollout forks -
 K generator processes racing over the same output directory is exactly how a
 stale reference once got written under a validated run.
+
+`--variant <name>` selects one of the task's declared context variants
+(task.toml `[variants]`). It is exported as ALKERA_TASK_VARIANT for every child
+process, because the world builder, the surface stager and the grader are
+subprocesses whose argv this file does not own; it is written into every rollout
+record; and it is appended to the DEFAULT run id, so two arms measured minutes
+apart cannot land in the same run directory. An explicit --run-id is left
+exactly as given - a caller who names the directory has said what it is.
 """
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -29,6 +38,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import container_episode  # noqa: E402
 import episode      # noqa: E402
+import native_stack  # noqa: E402
 import report       # noqa: E402
 import taskspec     # noqa: E402
 
@@ -37,6 +47,42 @@ HERE = Path(__file__).resolve().parent
 # subject one `..` from the grader, and "it cannot get there anyway" is exactly
 # the assumption this harness refuses to make.
 DEFAULT_OUT = Path(tempfile.gettempdir()) / "alkera-rollouts"
+
+
+def _default_run_id(variant: str) -> str:
+    """`<utc>` for a one-context task, `<utc>-<variant>` for an arm.
+
+    The run id is what the run DIRECTORY is called and what every recorded
+    number is filed under. Two arms of one task measured the same afternoon
+    would otherwise be two directories distinguishable only by their contents.
+    """
+    stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
+    return f"{stamp}-{variant}" if variant and variant != "default" else stamp
+
+
+def _stamp_variant(rec: dict, variant: str, path: Path) -> dict:
+    """Put the arm INTO the rollout record, on disk as well as in memory.
+
+    rollout.py is owned by another builder and does not yet record it (see
+    VARIANTS_REQUESTS.md); this file is the one that knows which arm it asked
+    for, so it writes it. When rollout.py starts recording it itself this
+    becomes a check rather than a write - which is why a DIFFERENT recorded
+    value is a hard error and not a silent overwrite.
+    """
+    if not variant:
+        return rec
+    recorded = rec.get("variant")
+    if recorded and recorded != variant:
+        raise SystemExit(
+            f"{path} records variant {recorded!r} and this run asked for "
+            f"{variant!r}. One of the two built the world; the harness will not "
+            f"guess which, and a rate averaged over two contexts is not a rate.")
+    if recorded:
+        return rec
+    rec["variant"] = variant
+    path.write_text(json.dumps(rec, indent=2, sort_keys=True) + "\n",
+                    encoding="utf-8", newline="")
+    return rec
 
 
 def _one(args, run_dir: Path, idx: int) -> dict:
@@ -61,6 +107,7 @@ def _one(args, run_dir: Path, idx: int) -> dict:
     rec_path = out / "rollout.json"
     if rec_path.exists():
         rec = json.loads(rec_path.read_text(encoding="utf-8"))
+        rec = _stamp_variant(rec, getattr(args, "variant_resolved", ""), rec_path)
         print(f"  [{rid}] {rec['classification']:<20} "
               f"total={(rec.get('score') or {}).get('total')} "
               f"calls={rec.get('tool_calls')} "
@@ -77,6 +124,7 @@ def _one(args, run_dir: Path, idx: int) -> dict:
         "stderr_tail": (proc.stderr or "")[-4000:],
         "stdout_tail": (proc.stdout or "")[-2000:],
         "wall_clock_s": round(time.time() - started, 2), "tool_calls": 0,
+        "variant": getattr(args, "variant_resolved", ""),
         "blindness": {"quarantined": False, "hard_count": 0, "soft_count": 0,
                       "kinds": [], "hard_kinds": [], "violations": []},
     }
@@ -103,6 +151,11 @@ def main() -> int:
     ap.add_argument("--image", default=container_episode.DEFAULT_IMAGE)
     ap.add_argument("--out", default=str(DEFAULT_OUT))
     ap.add_argument("--run-id", default=None)
+    ap.add_argument("--variant", default=None,
+                    help="context variant from the task's [variants] table. "
+                         "Omitted means `default` - the shipped context. A task "
+                         "that declares no [variants] refuses this flag rather "
+                         "than ignoring it.")
     ap.add_argument("--concurrency", type=int, default=0,
                     help="0 = all K at once")
     ap.add_argument("--wall-clock", type=int, default=None)
@@ -113,13 +166,29 @@ def main() -> int:
     a = ap.parse_args()
 
     spec = taskspec.load(a.task,
-                         Path(a.tasks_dir).resolve() if a.tasks_dir else None)
-    run_id = a.run_id or time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
+                         Path(a.tasks_dir).resolve() if a.tasks_dir else None,
+                         variant=a.variant)
+    # Every child process - rollout.py, the world builder it starts, the surface
+    # stager and the grader - reads the arm from here. Set even when it resolved
+    # to `default`, so a stale value inherited from the shell cannot quietly
+    # move the world out from under a run.
+    a.variant_resolved = spec.variant
+    if spec.variant:
+        os.environ[taskspec.VARIANT_ENV] = spec.variant
+    run_id = a.run_id or _default_run_id(spec.variant)
     run_dir = Path(a.out).resolve() / a.task / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"\n  task {a.task} · K={a.k} · model {a.model} · driver {a.driver}"
           f" · topology {a.topology}")
+    if a.driver == "native" and a.topology == "host":
+        # Once, at the start, from the module that owns the topology - see
+        # tasks/harness/NATIVE_CONTAINER.md. A run that is not measurement_valid
+        # has to say so before it produces a number, not in a footnote under one.
+        print(native_stack.HOST_TOPOLOGY_WARNING)
+    if spec.variant:
+        print(f"  variant {spec.variant}: "
+              f"{spec.variant_note.strip().splitlines()[0]}")
     print(f"  run  {run_dir}")
     print(f"  pass criterion: all of {spec.pass_requires_checks} "
           f"and total >= {spec.pass_min_total}\n")

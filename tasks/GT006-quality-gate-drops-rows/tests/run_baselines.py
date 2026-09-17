@@ -48,6 +48,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -60,17 +61,11 @@ HERE = Path(__file__).resolve().parent
 TASK = HERE.parent
 REPO = TASK.parent.parent
 
-sys.path.insert(0, str(REPO / "tasks" / "harness"))
-import taskspec                                                   # noqa: E402
 sys.path.insert(0, str(HERE))
-from build_world import argv_variant                              # noqa: E402
-
-VARIANT = taskspec.variant_of(TASK, argv_variant())
-# Pin the arm so build_world.py and grade.py, both run below as subprocesses,
-# resolve the same context this process did without being handed a second flag.
-import os                                                         # noqa: E402
-os.environ[taskspec.VARIANT_ENV] = VARIANT.name
-FIXTURES = taskspec.fixtures_dir(TASK)
+# Resolving the arm also pins it into the environment, so build_world.py and
+# grade.py - both run below as subprocesses - resolve the same context this
+# process asserts about without being handed a second flag.
+from variant import VARIANT, FIXTURES                             # noqa: E402
 
 sys.path.insert(0, str(FIXTURES))
 
@@ -738,9 +733,10 @@ def main() -> int:
     ap.add_argument("--verbose", action="store_true")
     ap.add_argument("--keep", action="store_true", help="do not delete the scratch tree")
     ap.add_argument("--variant", default=None,
-                    help=f"context variant; also read from ${taskspec.VARIANT_ENV}. "
-                         f"Resolved at import time, because the fixture contract "
-                         f"is imported from the arm's own fixtures tree.")
+                    help="context variant; also read from ALKERA_TASK_VARIANT. "
+                         "Resolved at import time by tests/variant.py, because "
+                         "the fixture contract is imported from the arm's own "
+                         "fixtures tree.")
     a = ap.parse_args()
 
     problems: list[str] = []

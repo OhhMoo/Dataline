@@ -3,11 +3,24 @@
 check_claims.py - the gate that stops GT006's seeded narrative drifting.
 
 ONE FILE, FOUR CONTEXTS. GT006 ships four `[variants]` of one context and this
-file is shared by all of them: the machinery below reads whichever claims.yaml
-the resolved variant staged, so a claim that exists only in the stacked corpus
-is checked only there and nothing has to be kept in step by hand. `default` and
-`trap-ticket` read the package's own fixtures/workflow/; `stacked-neutral` and
-`stacked-ticket` read fixtures/variants/<arm>/workflow/ copied over it.
+file is shared by all of them:
+
+    python fixtures/workflow/check_claims.py --world fixtures/build/world.duckdb
+    python fixtures/workflow/check_claims.py --variant stacked-ticket \
+        --world %TEMP%/alkera-fixtures/GT006-quality-gate-drops-rows/stacked-ticket/build/world.duckdb
+
+An arm's `build/` is generated, not shipped, so prepare it first:
+`python tests/build_world.py --prepare-only --variant <arm>`. Without that the
+staged tree still holds the parent's world and the world phase below reports
+drift against a world that is not the arm's.
+
+`--variant` (or $ALKERA_TASK_VARIANT) selects the CORPUS and the CONTRACT this
+run checks - the package's own fixtures/workflow/ and fixture_contract.py for
+`default`/`trap-ticket`, the staged tree with fixtures/variants/<arm>/ laid over
+it for the stacked arms. The machinery below is identical for all four; a claim
+that exists only in the stacked corpus is checked only there, and nothing has to
+be kept in step by hand. RUN IT FROM THE PACKAGE: a copy of this file inside a
+staged fixtures tree has no task.toml above it and cannot resolve an arm.
 
 WHY THIS FILE EXISTS, and why it is narrower than GT004's. GT006's corpus was
 written under a rule that makes most of GT004's machinery unnecessary: it quotes
@@ -78,6 +91,13 @@ HERE = Path(__file__).resolve().parent
 FIXTURES = HERE.parent
 TASK = FIXTURES.parent
 REPO = TASK.parent.parent
+
+# WHICH ARM'S CORPUS. tests/variant.py is the one place that resolves it; see
+# the module docstring for why a copy of this file in a staged tree cannot.
+sys.path.insert(0, str(TASK / "tests"))
+from variant import FIXTURES as ARM_FIXTURES                       # noqa: E402
+
+CORPUS = ARM_FIXTURES / "workflow"
 SEEDS = ("users.yaml", "issues.yaml", "chat.yaml", "kb.yaml")
 CONTRACT_RE = re.compile(r"<<contract:([a-z0-9_.]+)>>")
 
@@ -126,11 +146,11 @@ def load_contract():
     """CONTRACT from fixtures/fixture_contract.py, or None. Absence is PENDING,
     never PASS: a run that could substantiate nothing must not look like a run
     in which everything held."""
-    path = FIXTURES / "fixture_contract.py"
+    path = ARM_FIXTURES / "fixture_contract.py"
     if not path.is_file():
         return None
-    if str(FIXTURES) not in sys.path:
-        sys.path.insert(0, str(FIXTURES))
+    if str(ARM_FIXTURES) not in sys.path:
+        sys.path.insert(0, str(ARM_FIXTURES))
     import importlib.util
 
     spec = importlib.util.spec_from_file_location("gt006_fixture_contract", path)
@@ -170,7 +190,7 @@ def resolved_corpus(contract):
     sys.path.insert(0, str(REPO / "world"))
     from world import workflow as wf                               # noqa: E402
 
-    scratch = ss._resolve_tokens(FIXTURES / "workflow")
+    scratch = ss._resolve_tokens(CORPUS)
     try:
         return wf.documents(scratch.parent, ss.WORKFLOW_SPEC,
                             contract["virtual_now"])
@@ -265,17 +285,23 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--world", help="a built world .duckdb, or a world root")
     parser.add_argument("--json", action="store_true")
+    parser.add_argument("--variant", default=None,
+                        help="context variant; also read from "
+                             "ALKERA_TASK_VARIANT. Resolved at import time by "
+                             "tests/variant.py; this declaration documents it "
+                             "and rejects a typo.")
     args = parser.parse_args()
 
     report = Report()
-    manifest = yaml.safe_load((HERE / "claims.yaml").read_text(encoding="utf-8"))
+    manifest = yaml.safe_load((CORPUS / "claims.yaml").read_text(encoding="utf-8"))
     claims = manifest.get("claims") or []
     surface_file = manifest["surfaces"]
-    raw_text = {name: (HERE / name).read_text(encoding="utf-8") for name in SEEDS}
+    raw_text = {name: (CORPUS / name).read_text(encoding="utf-8") for name in SEEDS}
     text = {name: norm(body) for name, body in raw_text.items()}
     contract = load_contract()
     if contract is None:
-        report.unresolved("[load] fixtures/fixture_contract.py does not exist; "
+        report.unresolved(f"[load] {ARM_FIXTURES}/fixture_contract.py does not "
+                          f"exist; "
                           "nothing could be substantiated")
 
     # ---- phase 1: structure -------------------------------------------------

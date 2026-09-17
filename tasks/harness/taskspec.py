@@ -59,8 +59,14 @@ class Variant:
     name      the selector; `default` is always the shipped context.
     note      why this variant exists. Mandatory - an unexplained arm is an
               unexplained number six weeks later.
-    overlay   a directory whose tree is copied OVER `fixtures/` at staging
-              time, or None for the shipped fixtures unmodified.
+    overlay   the directories whose trees are copied OVER `fixtures/` at
+              staging time, in the order given - base first, then each overlay,
+              last write wins. Empty for the shipped fixtures unmodified.
+              A LIST rather than one directory because two arms of a 2x2 differ
+              from each other in three files and share three more: with one
+              level, the shared three have to be duplicated into both arms, and
+              a duplicated 1,100-line generator is the drift this whole design
+              exists to remove.
     prompt    the declared prompt-variant name this arm was measured under, or
               "" to leave the brief where `[agent_visible].brief` points.
     grading   free-form flags the TASK's grade.py interprets. The harness only
@@ -71,9 +77,16 @@ class Variant:
     """
     name: str
     note: str
-    overlay: Path | None = None
+    overlays: tuple = ()
     prompt: str = ""
     grading: dict = field(default_factory=dict)
+
+    @property
+    def overlay(self) -> Path | None:
+        """The LAST overlay, or None. The arm's own tree, in the common case
+        where it declares one; what a caller means by "where does this arm's
+        content live"."""
+        return self.overlays[-1] if self.overlays else None
 
 
 @dataclass(frozen=True)
@@ -117,7 +130,7 @@ class TaskSpec:
     # one context" apart from "this run used the default one".
     variant: str = ""
     variant_note: str = ""
-    variant_overlay: Path | None = None
+    variant_overlays: tuple = ()
     variant_grading: dict = field(default_factory=dict)
     variant_names: list[str] = field(default_factory=list)
 
@@ -218,18 +231,22 @@ def _declared_variants(task_id: str, root: Path, raw: dict) -> dict[str, Variant
             raise TaskSpecError(
                 f"{task_id} [variants].{name} has no `note`. An arm nobody "
                 f"wrote a reason for is an unexplained number six weeks later.")
-        overlay = None
-        if block.get("overlay"):
-            overlay = (root / str(block["overlay"])).resolve()
-            if not overlay.is_dir():
+        declared = block.get("overlay") or []
+        if isinstance(declared, str):
+            declared = [declared]
+        overlays = []
+        for entry in declared:
+            path = (root / str(entry)).resolve()
+            if not path.is_dir():
                 raise TaskSpecError(
-                    f"{task_id} [variants].{name}.overlay points at "
-                    f"{overlay}, which is not a directory.")
+                    f"{task_id} [variants].{name}.overlay names {path}, which "
+                    f"is not a directory.")
+            overlays.append(path)
         out[name] = Variant(
-            name=name, note=note, overlay=overlay,
+            name=name, note=note, overlays=tuple(overlays),
             prompt=str(block.get("prompt", "")),
             grading=dict(block.get("grading") or {}))
-    if out["default"].overlay is not None:
+    if out["default"].overlays:
         raise TaskSpecError(
             f"{task_id} [variants].default declares an overlay. `default` IS "
             f"the shipped fixtures; an overlay on it means the directory and "
@@ -273,6 +290,11 @@ def resolve_variant(task_id: str, variants: dict[str, Variant],
 def _tree_stamp(*roots: Path) -> str:
     """A digest of every file the staged tree is built from.
 
+    Note for anyone holding a path into a staged tree: it is a CACHE. Editing
+    ANY file under `fixtures/` - including one no overlay names - moves this
+    digest and the next `stage_fixtures` call deletes and rebuilds the tree, so
+    anything generated into it disappears without warning.
+
     Staging a 25 MB fixture tree on every call is how a K=5 run spends more
     time copying duckdb files than running the model, so the staged tree is
     cached. It is only safe to cache it if the cache can tell that a source
@@ -304,18 +326,20 @@ def stage_fixtures(task_root: Path, variant: Variant,
     so much as a byte-order mark, and test_variants.py proves that by building
     the world both ways.
 
-    A variant WITH an overlay gets `fixtures/` copied to a cache directory
-    (minus `variants/`, which a variant does not ship to itself) and the
-    overlay tree copied over the top. Overlay order is fixed and one-deep:
-    base first, overlay second, last write wins.
+    A variant WITH overlays gets `fixtures/` copied to a cache directory (minus
+    `variants/`, which a variant does not ship to itself) and each overlay tree
+    copied over the top IN THE ORDER DECLARED: base first, then overlay 1, then
+    overlay 2, last write wins. The order is the task's, written down in
+    task.toml, so two arms that share a base overlay declare it rather than
+    duplicating it.
     """
     fixtures = Path(task_root) / "fixtures"
     if not fixtures.is_dir():
         raise TaskSpecError(f"{task_root} has no fixtures/ directory")
-    if variant.overlay is None:
+    if not variant.overlays:
         return fixtures
     dest = Path(dest) if dest else STAGE_ROOT / Path(task_root).name / variant.name
-    stamp = _tree_stamp(fixtures, variant.overlay)
+    stamp = _tree_stamp(fixtures, *variant.overlays)
     marker = dest / ".variant-stamp"
     if marker.is_file() and marker.read_text(encoding="utf-8").strip() == stamp:
         return dest
@@ -323,8 +347,9 @@ def stage_fixtures(task_root: Path, variant: Variant,
         shutil.rmtree(dest)
     dest.parent.mkdir(parents=True, exist_ok=True)
     shutil.copytree(fixtures, dest, ignore=_STAGE_IGNORE)
-    shutil.copytree(variant.overlay, dest, dirs_exist_ok=True,
-                    ignore=_STAGE_IGNORE)
+    for overlay in variant.overlays:
+        shutil.copytree(overlay, dest, dirs_exist_ok=True,
+                        ignore=_STAGE_IGNORE)
     marker.write_text(stamp, encoding="utf-8", newline="")
     return dest
 
@@ -445,7 +470,7 @@ def load(task_id: str, tasks_dir: Path | None = None,
         prompt_variant_default=str(declared_prompts.get("default", "")),
         variant=arm.name,
         variant_note=arm.note,
-        variant_overlay=arm.overlay,
+        variant_overlays=arm.overlays,
         variant_grading=dict(arm.grading),
         variant_names=sorted(variants),
         # An arm may move the pass criterion - a stacked arm has two more

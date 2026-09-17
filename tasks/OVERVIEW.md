@@ -7,8 +7,9 @@ a blind model against one and reports a pass rate it can defend.
 ```
 GT001 … GT008/          one task each: task.toml, prompts/, fixtures/, solution/, tests/
                         tests/ = grade.py, manifest.yaml, probes/, run_baselines.py (prints TASK VALID or why not)
-GT004a-e, GT006c-d      ablation and 2x2 arms of GT004 / GT006 (context-only variants)
-contracts/              LAYER 1 — six invariants as reusable clause functions (CONTRACTS.md)
+                        task.toml [variants] = named context arms of ONE task, `--variant <name>`
+                        (GT004's eight, GT006's four; the seven arm DIRECTORIES were folded in)
+contracts/              LAYER 1 — seven invariants as reusable clause functions (CONTRACTS.md)
 stressors/registry.yaml LAYER 2 — every planted defect/event, which contracts it stresses, what state it touches
 harness/                rollouts, grading, blindness, surface gate, Pass@1/Pass^k report;
                         coupling.py (LAYER 3), ledger.py (LAYER 4 reader), native_stack.py (--driver native)

@@ -746,6 +746,29 @@ def _first_issue_key(world: dict) -> str:
 # call. Serving `sched_*` the way the other eight planes are served is designed
 # and not built - `tasks/harness/NATIVE_CONTAINER.md`, weakest finding.
 
+#: Printed once at the start of every `--driver native --topology host` run.
+#:
+#: It is not a style note. GT001 K=5 under this topology did the work in five of
+#: five episodes and QUARANTINED THREE, all three on actions the host topology
+#: makes reachable and nothing audits: two `cp` backups of the warehouse file
+#: into the world tree, and one `ls` of the rollout directory that put a planted
+#: canary in the transcript. A rate computed over what survives that is a rate
+#: over the subjects that happened not to take a backup, which is not a property
+#: of the task.
+HOST_TOPOLOGY_WARNING = "\n".join((
+    "  WARNING  --driver native --topology host is NOT measurement_valid for",
+    "           a task whose subject can reach the world's var/ tree or the",
+    "           rollout directory. The subject's bash is a HOST process here:",
+    "           a backup taken beside the warehouse is an unattributable world",
+    "           change (hard) and an `ls` of the rollout directory is a canary",
+    "           leak (hard). Measured: GT001 K=5, run-id native-20260916-k5,",
+    "           quarantined 3 of 5 for exactly those two behaviours, both of",
+    "           them good practice. Use --topology container to measure; the",
+    "           design, the mount table and what it costs are in",
+    "           tasks/harness/NATIVE_CONTAINER.md.",
+    "",
+))
+
 #: Where the subject's script is put inside the episode container. `/tmp` and
 #: not the workspace: the workspace is fingerprinted and diffed, and a file the
 #: HARNESS added to it mid-episode is a world change with no row to explain it.

@@ -52,34 +52,9 @@ HERE = Path(__file__).resolve().parent
 TASK = HERE.parent
 REPO = TASK.parent.parent
 
-sys.path.insert(0, str(REPO / "tasks" / "harness"))
-import taskspec                                                    # noqa: E402
+sys.path.insert(0, str(HERE))
+from variant import VARIANT, FIXTURES                              # noqa: E402
 
-
-def argv_variant() -> str | None:
-    """`--variant NAME` / `--variant=NAME`, read straight off argv.
-
-    argparse runs too late: `fixture_contract` and `make_fixture_world` are
-    imported FROM the variant's fixtures tree, so the arm has to be known at
-    import time. The flag is still declared on the parser below, so `--help`
-    documents it and a typo is still a parse error rather than silence.
-    """
-    argv = sys.argv[1:]
-    for i, arg in enumerate(argv):
-        if arg == "--variant" and i + 1 < len(argv):
-            return argv[i + 1]
-        if arg.startswith("--variant="):
-            return arg.split("=", 1)[1]
-    return None
-
-
-VARIANT = taskspec.variant_of(TASK, argv_variant())
-# PIN THE ARM FOR EVERYTHING DOWNSTREAM. stage_surfaces resolves its own
-# fixtures tree at import, and `dbt`/`git` subprocesses inherit this environment;
-# writing the resolved name back means the flag is read in exactly one place and
-# every later resolution agrees with it by construction.
-os.environ[taskspec.VARIANT_ENV] = VARIANT.name
-FIXTURES = taskspec.fixtures_dir(TASK)
 BUILD = FIXTURES / "build"
 
 # Which arm built the generated half of a STAGED fixtures tree. `fixtures/build/`
@@ -192,8 +167,7 @@ def build(root: Path, grading: Path, seed: int) -> dict:
     (grading / "variant.json").write_text(
         json.dumps({"variant": VARIANT.name, "note": VARIANT.note,
                     "grading": VARIANT.grading,
-                    "fixtures": FIXTURES.as_posix()}, indent=2) + "
-",
+                    "fixtures": FIXTURES.as_posix()}, indent=2) + "\n",
         encoding="utf-8", newline="")
 
     warehouse = root / CONTRACT["layout"]["deployed_world_relpath"]
@@ -237,9 +211,9 @@ def main() -> int:
     ap.add_argument("--seed", type=int, default=SEED)
     ap.add_argument("--prepare-only", action="store_true")
     ap.add_argument("--variant", default=None,
-                    help=f"context variant; also read from "
-                         f"${taskspec.VARIANT_ENV}. Resolved at import time by "
-                         f"argv_variant(); this declaration documents it.")
+                    help="context variant; also read from ALKERA_TASK_VARIANT. "
+                         "Resolved at import time by tests/variant.py; this "
+                         "declaration documents it and rejects a typo.")
     a = ap.parse_args()
     prepare(a.seed)
     if a.prepare_only:

@@ -420,18 +420,53 @@ def native_discovery(workspace: str | Path | None,
     return found
 
 
+#: Where the container topology puts the two set-up files that are NOT in the
+#: working tree. `container_episode` copies the world's `home/` to /root and
+#: stages the re-rooted dbt profile at /root/.dbt/profiles.yml, which is the
+#: path `compose.native.yml`'s own `DBT_PROFILES_DIR` already names.
+CONTAINER_DBT_DIR = "/root/.dbt"
+CONTAINER_WORKSPACE = "/workspace"
+
+
+def container_discovery_path(host_path: str, workspace: str | Path | None) -> str:
+    """One discovery file, spelled the way the episode container spells it.
+
+    A prompt that named the host path would send the subject after a directory
+    that does not exist on the box it is actually on, which is the same class of
+    mistake as promising it a `docs/onboarding.md` no world ever wrote.
+    """
+    path = Path(host_path)
+    if workspace:
+        try:
+            return (f"{CONTAINER_WORKSPACE}/"
+                    f"{path.resolve().relative_to(Path(workspace).resolve()).as_posix()}")
+        except (ValueError, OSError):
+            pass
+    return f"{CONTAINER_DBT_DIR}/{path.name}"
+
+
 def build_prompt(instruction: str, toolbelt: dict, artifact_in_world: str,
                  tool_calls: int, wall_clock_s: int, driver: str,
                  redteam: bool = False, shell: bool = False,
                  workspace: str | Path | None = None,
-                 profiles_dir: str | Path | None = None) -> str:
+                 profiles_dir: str | Path | None = None,
+                 container_shell: bool = False) -> str:
     if driver == "native":
         # no `names` table and no tool lines, on purpose: see CHANNEL_NATIVE
         rel = artifact_in_world
         if rel.startswith("/workspace/"):
             rel = rel[len("/workspace/"):]
-        root = Path(workspace).as_posix() if workspace else "/workspace"
+        # Under the container topology the subject's shell runs inside the
+        # episode container, where the tree is at /workspace and the host path
+        # does not exist. `native_discovery` still reads the HOST copy, because
+        # the same bytes are on both sides of the bind and only the harness can
+        # see them before the container is up - it is the spelling that changes,
+        # not the file.
+        root = ("/workspace" if container_shell
+                else (Path(workspace).as_posix() if workspace else "/workspace"))
         files = native_discovery(workspace, profiles_dir)
+        if container_shell:
+            files = [container_discovery_path(f, workspace) for f in files]
         discovery = (NATIVE_DISCOVERY_PRESENT.format(
                          files="\n".join(f"- `{f}`" for f in files))
                      if files else NATIVE_DISCOVERY_ABSENT)
@@ -754,7 +789,8 @@ def run(*, instruction: str, toolbelt: dict, artifact_in_world: str,
         workspace: str | Path | None = None,
         profiles_dir: str | Path | None = None,
         scheduler: str | Path | None = None,
-        native_gateway_config: str | Path | None = None) -> AgentRun:
+        native_gateway_config: str | Path | None = None,
+        container_shell: dict | None = None) -> AgentRun:
     if CLAUDE is None and driver not in ("scripted", "kimi"):
         raise HarnessError("the `claude` CLI is not on PATH; no subject to run")
     if KIMI is None and driver == "kimi":
@@ -767,7 +803,12 @@ def run(*, instruction: str, toolbelt: dict, artifact_in_world: str,
     prompt = build_prompt(instruction, toolbelt, artifact_in_world,
                           max_tool_calls, wall_clock_s, driver, redteam,
                           shell=shell, workspace=workspace,
-                          profiles_dir=profiles_dir)
+                          profiles_dir=profiles_dir,
+                          # `--driver native --topology container`: the subject's
+                          # shell runs inside the episode container, so the tree
+                          # is at /workspace there and naming the host path would
+                          # send it after a directory it cannot reach.
+                          container_shell=bool(container_shell))
     (rollout_dir / "prompt.txt").write_text(prompt, encoding="utf-8")
 
     session_id = str(uuid.uuid4())
@@ -814,6 +855,27 @@ def run(*, instruction: str, toolbelt: dict, artifact_in_world: str,
                                        profiles_dir=profiles_dir or "",
                                        scheduler=scheduler or "",
                                        gateway_config=native_gateway_config or "")
+        if container_shell:
+            # THE SUBJECT'S SHELL IS NOT A SHELL. Under the container topology
+            # every command has to execute inside this rollout's episode
+            # container, so the `bash` the model finds is the wrapper
+            # `container_episode.write_bash_wrapper` materialised: one
+            # `docker exec`, same command text, no host fallback.
+            #
+            # Two hooks, because `claude` finds its shell two ways.
+            # CLAUDE_CODE_GIT_BASH_PATH is the one it reads on Windows; the
+            # PATH-front directory is what everything else resolves through,
+            # and it carries `bash` and `bash.cmd` for exactly the reason
+            # `alkera_gateway.native.shims.install` writes both.
+            #
+            # The endpoint variables are NOT the host's here: the addresses the
+            # episode uses come from compose, inside the container. What stays
+            # in this process's environment is only what starts `claude`.
+            subject_env_extra = {
+                "CLAUDE_CODE_GIT_BASH_PATH": container_shell["launcher"],
+                "PATH": os.pathsep.join(
+                    [container_shell["bin"], os.environ.get("PATH", "")]),
+            }
         (rollout_dir / "native_env.json").write_text(
             json.dumps(subject_env_extra, indent=2, sort_keys=True),
             encoding="utf-8")
