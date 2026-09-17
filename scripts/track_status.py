@@ -6,7 +6,7 @@ Silent partial completion is this project's most expensive failure mode: every
 track passes its own tests while the composition is broken.  This script makes
 "started but not finished" *detectable* instead of discovered by accident.
 
-It answers, mechanically and against `3_track.md` sections 3 and 4:
+It answers, mechanically and against agent.md section 11 (formerly `3_track.md` sections 3 and 4):
 
   Track A (world/)    A1 theme spec lifted out of build.py?  A2 how many world
                       themes, which of C1/D1/D2?  A3 /grading unreachability
@@ -68,11 +68,11 @@ SKIP_DIRS = {".git", ".venv", "venv", "__pycache__", ".pytest_cache", ".ruff_cac
              ".mypy_cache", "node_modules", "site-packages", "dist", "build-cache"}
 SCAN_EXT = {".py", ".md", ".sh", ".yml", ".yaml", ".json", ".toml", ".sql", ".txt", ".cfg", ".ini"}
 
-# 3_track.md section 3 A1: the eight module-level constants that ARE the world shape
+# agent.md s11 (ex-3_track.md) section 3 A1: the eight module-level constants that ARE the world shape
 A1_CONSTANTS = ["DBT_PROJECT_YML", "SOURCES_YML", "STG_SQL", "FCT_SQL",
                 "DASHBOARD", "README", "DOC_DATA_DICTIONARY", "DOC_RUNBOOK"]
 
-# 3_track.md section 3 A2 / R002 T3 section 1: the three T1-tier themes owed this round
+# agent.md s11 (ex-3_track.md) section 3 A2 / R002 T3 section 1: the three T1-tier themes owed this round
 THEMES = {
     "C1": {"name": "Mainframe extract + batch window",
            "keywords": ["ebcdic", "copybook", "packed decimal", "fixed-width", "fixed width",
@@ -85,7 +85,7 @@ THEMES = {
                         "1462", "date system", "sig figs", "significant digits"]},
 }
 
-# 3_track.md section 4 B3 / gateway/CONNECTOR_CONTRACT.md: the surfaces owed
+# agent.md s11 (ex-3_track.md) section 4 B3 / gateway/CONNECTOR_CONTRACT.md: the surfaces owed
 B3_SURFACES = {
     "docs":  ["docs_list", "docs_get", "docs_search"],
     "bi":    ["bi_render", "bi_list", "bi_get", "bi_refresh", "bi_cached"],
@@ -171,7 +171,7 @@ def parse_py(path: Path):
 
 
 def _docstring_stripped(body):
-    if body and isinstance(body[0], ast.Expr) and isinstance(body[0].value, ast.Constant) \
+    if body and isinstance(body[0], ast.Expr) and isinstance(body[0].value, ast.Constant)\
             and isinstance(body[0].value.value, str):
         return body[1:], True
     return list(body), False
@@ -392,7 +392,7 @@ def module_constants(path: Path) -> set[str]:
 # ----------------------------------------------------------------------- tests
 
 def interpreters():
-    """3_track.md section 7 runs both suites on the gateway venv; world/.venv is a fallback."""
+    """agent.md s11 (ex-3_track.md section 7) runs both suites on the gateway venv; world/.venv is a fallback."""
     cands = [GATEWAY / ".venv" / "Scripts" / "python.exe", GATEWAY / ".venv" / "bin" / "python",
              WORLD / ".venv" / "Scripts" / "python.exe", WORLD / ".venv" / "bin" / "python"]
     return [p for p in cands if p.exists()]
@@ -415,7 +415,7 @@ def run_suite(track: str, cwd: Path, pythonpath: Path | None, timeout: int):
     env["PYTHONIOENCODING"] = "utf-8"
     started = time.time()
     try:
-        proc = subprocess.run([str(exe), "-m", "pytest", "tests", "-q", "-p", "no:cacheprovider"],
+        proc = subprocess.run([str(exe), "-m", "pytest", "tests", "-q", "-rs", "-p", "no:cacheprovider"],
                               cwd=str(cwd), env=env, capture_output=True, text=True,
                               encoding="utf-8", errors="replace", timeout=timeout)
         out = (proc.stdout or "") + (proc.stderr or "")
@@ -430,6 +430,7 @@ def run_suite(track: str, cwd: Path, pythonpath: Path | None, timeout: int):
         return result
     result["ran"] = True
     result["ran_at"] = started
+    result["skips"] = [ln.strip()[:200] for ln in out.splitlines() if ln.startswith("SKIPPED")]
     result["duration_s"] = round(time.time() - started, 1)
     result["interpreter"] = rel(exe)
     tail = [ln for ln in out.splitlines() if ln.strip()][-1:] or [""]
@@ -624,6 +625,8 @@ def theme_evidence(tid: str, meta: dict, themes: dict):
         if any(k in low for k in meta["keywords"]):
             signature_files.append(rel(path))
     tested = [p for p in signature_files if "/tests/" in p or "/test_" in p]
+    tested += [rel(WORLD / "tests" / f"test_theme_{n}.py") for n in owning
+               if (WORLD / "tests" / f"test_theme_{n}.py").exists()]
     if not owning and not signature_files:
         status, ev = NOT_STARTED, EXISTENCE
     elif owning and all(themes[n]["status"] == "complete" for n in owning) and tested:
@@ -637,8 +640,27 @@ def theme_evidence(tid: str, meta: dict, themes: dict):
             "test_files": sorted(set(tested))[:10]}
 
 
+def acceptance_evidence():
+    """world/evidence/acceptance.json, written by acceptance.sh only when every gate
+    it ran passed; None when no run has recorded itself."""
+    path = WORLD / "evidence" / "acceptance.json"
+    try:
+        data = json.loads(read(path))
+    except ValueError:
+        return None
+    return data if isinstance(data, dict) and data.get("schema") == "acceptance/1" else None
+
+
 def grading_check():
     """A3.  A build gate, not a test: the proof has to come from a live container."""
+    ev = acceptance_evidence()
+    g7 = (ev or {}).get("gate7_grading_unreachable") or {}
+    if g7.get("ran"):
+        return check("A3", "/grading proven unreachable in a live container", DONE,
+                     f"acceptance.sh gate 7 ran on {ev['git_head'][:9]} at {ev['generated_at']}: "
+                     + "; ".join(g7["commands"][:2]), EXECUTED,
+                     evidence_file="world/evidence/acceptance.json", commands=g7["commands"],
+                     world_tree_dirty=ev.get("world_tree_dirty"))
     probes, artifacts = [], []
     # a command run INSIDE a container, not a compose volume mount and not this file
     probe_cmd = re.compile(r"(exec\b[^|]*|run\s+--rm\s+\S+[^|]*)"
@@ -673,11 +695,25 @@ def grading_check():
                  EXISTENCE, probes=probes, artifacts=artifacts)
 
 
+A4A_TITLE = "cross-host determinism: host build == in-container build (gate 3)"
+
+
 def cross_host_check():
-    """A4a.  Gate 1 builds twice on the same host, which proves less than claimed."""
+    """A4a.  Gate 1 builds twice on the same host, which proves less than claimed;
+    gate 3 is the cross-host comparison (host build vs in-container build), and only
+    a recorded run of it counts."""
+    ev = acceptance_evidence()
+    if ev and ev.get("cross_host") and ev.get("gate3_container_semantic_hash"):
+        same = ev["gate1_host_semantic_hash"] == ev["gate3_container_semantic_hash"]
+        return check("A4a", A4A_TITLE, DONE if same else IN_PROGRESS,
+                     f"gate 3 on {ev['git_head'][:9]} at {ev['generated_at']}: host "
+                     f"{ev['gate1_host_semantic_hash'][:12]} vs container "
+                     f"{ev['gate3_container_semantic_hash'][:12]} -> {'equal' if same else 'DIFFER'}",
+                     EXECUTED, evidence_file="world/evidence/acceptance.json",
+                     world_tree_dirty=ev.get("world_tree_dirty"))
     path = WORLD / "scripts" / "acceptance.sh"
     if not path.exists():
-        return check("A4a", "acceptance.sh gate 1 is cross-host", UNKNOWN,
+        return check("A4a", A4A_TITLE, UNKNOWN,
                      "world/scripts/acceptance.sh not found", EXISTENCE)
     text = read(path)
     gate1 = gate_blocks(text).get("gate1", "")
@@ -687,12 +723,12 @@ def cross_host_check():
                                           r"REMOTE_HOST|\bpodman\b", gate1)})
     ci = [rel(p) for p in walk(ROOT / ".github", {".yml", ".yaml"}) if "acceptance" in read(p)]
     if cross or ci:
-        return check("A4a", "acceptance.sh gate 1 is cross-host", IN_PROGRESS,
+        return check("A4a", A4A_TITLE, IN_PROGRESS,
                      f"cross-host markers present ({cross or ci}); this script cannot confirm two "
                      "distinct hosts actually ran", UNKNOWN if not ci else REFERENCE,
                      builds_in_gate1=builds, self_declared_same_host=same_host, ci_workflows=ci)
     says = "the script itself says 'same host'" if same_host else "the script says nothing about hosts"
-    return check("A4a", "acceptance.sh gate 1 is cross-host", NOT_STARTED,
+    return check("A4a", A4A_TITLE, NOT_STARTED,
                  f"gate 1 runs {builds} builds on one host; {says}; no CI workflow runs it",
                  EXISTENCE, builds_in_gate1=builds, self_declared_same_host=same_host, ci_workflows=ci)
 
@@ -736,18 +772,18 @@ def count_test_defs(base: Path) -> int:
 # --------------------------------------------------------------------- track B
 
 def track_b(run_tests: bool, timeout: int):
-    checks = [duckdb_coupling_check(), compose_check(), surfaces_check(), fakesnow_check()]
     tests = {"expected_baseline": 12}
     if run_tests:
         tests.update(run_suite("gateway", GATEWAY, None, timeout))
     else:
         tests.update({"ran": False, "status": UNKNOWN, "summary": "skipped (--no-tests)"})
+    checks = [duckdb_coupling_check(tests), compose_check(), surfaces_check(), fakesnow_check()]
     tests["collected_statically"] = count_test_defs(GATEWAY / "tests")
     return {"track": "B", "owner": "Astra", "path": "gateway/", "checks": checks, "tests": tests}
 
 
-def duckdb_coupling_check():
-    """B1.  3_track.md names lines 3, 15, 50, 78, 119 -- report where they are now."""
+def duckdb_coupling_check(tests: dict | None = None):
+    """B1.  3_track.md (now agent.md s11) named lines 3, 15, 50, 78, 119 -- report where they are now."""
     sql = GATEWAY / "src" / "alkera_gateway" / "sql.py"
     text = read(sql)
     sites = []
@@ -788,12 +824,31 @@ def duckdb_coupling_check():
             f"connector machinery appeared ({iface['protocol_symbol'] or iface['connector_module']}) "
             f"but {len(sites)} duckdb couplings still in sql.py"), REFERENCE
     else:
-        status, summary, ev = IN_PROGRESS, (
-            "sql.py no longer names duckdb directly; `done` needs byte-identical action-log rows "
-            "on two backends, which this script does not verify"), REFERENCE
+        status, summary, ev = backend_parity(tests or {})
     return check("B1", "Warehouse de-hardcoded behind a frozen connector interface",
                  status, summary, ev, coupling_sites=sites,
                  spec_claimed_lines=[3, 15, 50, 78, 119], interface=iface)
+
+
+def backend_parity(tests: dict):
+    """B1 `done` = agent.md 9.2.2 rows byte-identical whichever backend served them.
+    gateway/tests/test_warehouse_backends.py parametrises that over BACKENDS; the
+    postgres half skips without docker, and a skip is not a pass."""
+    text = read(GATEWAY / "tests" / "test_warehouse_backends.py")
+    if "def test_action_log_rows" not in text:
+        return IN_PROGRESS, ("sql.py no longer names duckdb directly; no test compares "
+                             "action-log rows across backends"), REFERENCE
+    m = re.search(r"BACKENDS\s*=\s*\[([^\]]*)\]", text)
+    backends = re.findall(r'"(\w+)"', m.group(1)) if m else []
+    if tests.get("status") != "pass":
+        return IN_PROGRESS, (f"test_warehouse_backends.py compares 9.2.2 rows over {backends}; "
+                             "the gateway suite did not run green here, so unverified"), REFERENCE
+    skipped = [x for x in tests.get("skips", []) if "test_warehouse_backends" in x]
+    if skipped:
+        return IN_PROGRESS, (f"rows compared over {backends}, but a parametrisation skipped "
+                             f"this run: {skipped[0][:110]}"), REFERENCE
+    return DONE, (f"9.2.2 action-log rows byte-identical over {backends} "
+                  "(test_warehouse_backends.py, executed green in this run)"), EXECUTED
 
 
 def evidence_artifact(name: str):
@@ -948,11 +1003,15 @@ def fakesnow_check():
 def scan_incomplete(bases: dict[str, Path], venv_check: bool = True):
     """Work that is started but not finished.  Every finding names its file."""
     findings, protocols, defined, referenced = [], {}, {}, set()
+    workspace_skipped = []  # agent-facing fixture files under themes/*/workspace
     absolute_imports: dict[str, set[str]] = {}
 
     for track, base in bases.items():
         for path in walk(base, SCAN_EXT):
             relp = rel(path)
+            if "/themes/" in relp and "/workspace/" in relp:
+                workspace_skipped.append(relp)
+                continue
             text = read(path)
 
             # -- TODO / FIXME markers
@@ -1069,6 +1128,12 @@ def scan_incomplete(bases: dict[str, Path], venv_check: bool = True):
     # -- imports of modules that do not exist
     if venv_check:
         findings.extend(unresolvable_imports(absolute_imports))
+    if workspace_skipped:
+        findings.append(finding("workspace_content", "note", "world/world/themes",
+                                f"{len(workspace_skipped)} agent-facing fixture files under "
+                                "themes/*/workspace were not scanned: their TODOs, stubs and "
+                                "airflow/pendulum imports are world content, run by the episode's "
+                                "own interpreters, not track code", name="workspace"))
     return findings
 
 
@@ -1115,12 +1180,29 @@ def relative_import_findings(path: Path, relp: str, level: int, module: str, nam
                                f"under {rel(pkg)}", name=module))
     else:
         for name in names:
-            if not (pkg / f"{name}.py").exists() and not (pkg / name / "__init__.py").exists() \
+            if not (pkg / f"{name}.py").exists() and not (pkg / name / "__init__.py").exists()\
                     and not re.search(rf"^\s*(def|class)\s+{name}\b|^{name}\s*=",
                                       read(pkg / "__init__.py"), re.M):
                 out.append(finding("import_missing", "blocker", relp,
                                    f"`from {'.' * level} import {name}` resolves to no module or "
                                    f"symbol under {rel(pkg)}", name=name))
+    return out
+
+
+# distribution -> import name where they differ; everything else is dist with - as _
+DIST_IMPORT = {"snowflake-connector-python": "snowflake", "pyyaml": "yaml", "psycopg2-binary": "psycopg2"}
+
+
+def optional_extras(base: Path) -> dict[str, str]:
+    """import name -> extra, from [project.optional-dependencies] of base/pyproject.toml."""
+    text = read(base / "pyproject.toml")
+    m = re.search(r"\[project\.optional-dependencies\]\n(.*?)(?=\n\[|\Z)", text, re.S)
+    out = {}
+    if not m:
+        return out
+    for extra, body in re.findall(r"^(\w+)\s*=\s*\[([^\]]*)\]", m.group(1), re.M):
+        for dist in re.findall(r'"([A-Za-z0-9_.-]+)', body):
+            out[DIST_IMPORT.get(dist.lower(), dist.lower().replace("-", "_"))] = extra
     return out
 
 
@@ -1147,7 +1229,7 @@ def unresolvable_imports(absolute_imports: dict[str, dict]):
         base = {"A": WORLD, "B": GATEWAY}.get(track, ROOT)
         # the path pytest actually builds: track root, src/, tests/ (rootdir conftest),
         # the repo root and the sibling world package (gateway soft-depends on it)
-        path_parts = [base, base / "src", base / "tests", ROOT, WORLD]
+        path_parts = [base, base / "src", base / "tests", base / "docker", base / "scripts", ROOT, WORLD]
         env = dict(os.environ)
         env["PYTHONPATH"] = os.pathsep.join(str(p) for p in path_parts if p.exists())
         for kind, names in (("module_level", groups["module_level"]), ("deferred", groups["deferred"])):
@@ -1164,7 +1246,14 @@ def unresolvable_imports(absolute_imports: dict[str, dict]):
                                    name=f"{track}:{kind}"))
                 continue
             for name in missing:
-                if kind == "module_level":
+                extra = optional_extras(base).get(name)
+                if kind == "module_level" and extra:
+                    out.append(finding("import_optional_extra", "warn", rel(base),
+                                       f"track {track} imports `{name}` at module level; it is the "
+                                       f"optional extra [{extra}] of {rel(base)}/pyproject.toml, "
+                                       "absent from this venv, so those scripts run only with it "
+                                       "installed", name=name))
+                elif kind == "module_level":
                     out.append(finding("import_missing", "blocker", rel(base),
                                        f"track {track} imports `{name}` at module level and it does "
                                        f"not resolve in {rel(exes[0])} -- the module cannot import",
@@ -1195,11 +1284,26 @@ def truncation_findings(path: Path, relp: str, text: str):
         if text.count("```") % 2:
             out.append(finding("truncated", "warn", relp,
                                "odd number of ``` fences -- unclosed code block", name="fence"))
-        if re.search(r"[,;]$|\($|\b(and|or|the|a|to|of|with|is|are|which|that)$", last, re.I) \
+        if re.search(r"[,;]$|\($|\b(and|or|the|a|to|of|with|is|are|which|that)$", last, re.I)\
                 and not last.startswith(("|", "#", "-", "*", ">")):
             out.append(finding("truncated", "warn", relp,
                                f"last line ends mid-sentence: {last[-70:]!r}", name="tail"))
         return out
+    if path.suffix in {".yml", ".yaml"}:
+        try:
+            import yaml
+
+            class Tolerant(yaml.SafeLoader):  # compose files carry !override / !reset
+                pass
+            Tolerant.add_multi_constructor("!", lambda loader, suffix, node: None)
+            yaml.load(text, Loader=Tolerant)
+            return out  # a document that parses is not cut off; an apostrophe in prose is not a quote
+        except ImportError:
+            pass
+        except Exception as exc:  # yaml.YAMLError
+            out.append(finding("truncated", "warn", relp, f"YAML does not parse: {str(exc)[:100]}",
+                               name="yaml"))
+            return out
     if path.suffix in {".yml", ".yaml", ".toml", ".sh", ".sql"}:
         if last.endswith((",", "\\", "|", "&&")) or last.count('"') % 2 or last.count("'") % 2:
             out.append(finding("truncated", "warn", relp,
@@ -1233,7 +1337,7 @@ def git_signals(scan_started: float):
         if code[1] not in " ?D":
             out["modified"].append(path)
     stash = git("stash", "list") or ""
-    out["stashes"] = len([l for l in stash.splitlines() if l.strip()])
+    out["stashes"] = len([line for line in stash.splitlines() if line.strip()])
     head = git("log", "-1", "--format=%h|%ct|%s") or ""
     if head.strip():
         h, ct, subject = head.strip().split("|", 2)
@@ -1247,8 +1351,7 @@ def git_signals(scan_started: float):
             key: sorted(p for p in out[key] if p.startswith(prefix))
             for key in ("untracked", "modified", "staged", "deleted")}
     out["by_track"]["other"] = {
-        key: sorted(p for p in out[key] if not p.split("/")[0] + "/" in
-                    {"world/", "gateway/", "tasks/", "implementation_structure/", "scripts/"})
+        key: sorted(p for p in out[key] if p.split("/")[0] + "/" not in {"world/", "gateway/", "tasks/", "implementation_structure/", "scripts/"})
         for key in ("untracked", "modified", "staged", "deleted")}
     return out
 
@@ -1277,7 +1380,7 @@ def collect(args):
         "generated_at": stamp(scan_started),
         "generated_at_epoch": scan_started,
         "root": str(ROOT),
-        "spec": "3_track.md sections 3 and 4",
+        "spec": "agent.md section 11 (the merged 3_track.md sections 3 and 4)",
         "tracks": {},
     }
     report["tracks"]["A"] = track_a(not args.no_tests, args.timeout)

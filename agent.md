@@ -28,8 +28,13 @@ The core bets of the project:
    thousands of coherent world variants — schemas, lineage depth, org conventions, data
    distributions, seeded faults — so the asset compounds instead of leaking and
    saturating like a static benchmark.
-3. **MCP everywhere.** Agents interact through an MCP gateway with a realistic DE
-   toolbelt, matching how agent harnesses actually connect today.
+3. **Native surfaces, not a tool list** (revised 2026-09-16; was "MCP everywhere").
+   The agent works the way a data engineer does - `psql`/`duckdb`, `dbt`, `aws`,
+   `git`, `curl` and the vendors' own SDKs against vendor-shaped APIs (Jira, Slack,
+   Confluence, Metabase, Prometheus, Loki, Airbyte) - and discovers what exists from
+   `.envrc`, `profiles.yml` and the onboarding doc, not from a tool schema. The MCP
+   gateway (63 tools) stays as a second transport so the two can be compared; every
+   action on either transport lands in the same audited row (§9.2.2, §12).
 4. **Trajectory-blind, deterministic grading.** Correctness is checked against the world
    state (dbt tests, output diffs, dashboard values) — pipelines either produce the right
    rows or they don't. Judgment axes (metric reconciliation, convention adherence, design
@@ -271,6 +276,13 @@ public benchmark and the private training product.
   orchestrator is a deterministic state machine rather than Airflow/Dagster, the gateway
   exposes a CLI alongside MCP, and two boxes drawn here (the calibration flywheel and the
   product plane) are not built at all.
+- **2026-09-16: two more divergences, both deliberate.** The "MCP GATEWAY + TOOLBELT"
+  box is now one of two transports: in native mode the agent reaches the same world
+  through real CLIs/SDKs and vendor-shaped fake services, with the action log written
+  on the server side (§12). And grading gained a fourth input beside the final world
+  state: a protected, append-only ledger of what the world *published* at each
+  virtual-time checkpoint, so a good final state cannot erase a bad intermediate
+  publication (§8.11).
 - **The 2026-09-09 meeting extends this diagram** in three places not yet redrawn above:
   the world gains a *documentation surface* (scattered files + a Confluence-like wiki) and
   *emulated vendor APIs* in front of the warehouse; the world's initial state includes
@@ -965,6 +977,45 @@ host topology, live-surface gate clean:
 | GT006 | guided / vague | **1.0 / 1.0** | 1.0 | ceiling |
 | GT005 | guided | **1.0** | 1.0 | ceiling |
 | GT007 | guided | **1.0** | 1.0 | ceiling |
+| GT006 | + closed ticket excusing the defect (2026-09-15) | **0.8** | 0.0 | ceiling; 5/5 read and overruled the ticket |
+| GT006c | + easy defect A, neutral context (2026-09-16) | **1.0** | 1.0 | ceiling, 28/28 x5 |
+| GT006d | + easy defect A + ticket excusing B (2026-09-16) | **1.0** | 1.0 | ceiling, 28/28 x5 |
+| GT004a | GT004 with the wontfix ticket REMOVED (2026-09-16) | **0.2** | 0.0 | 1 pass 31/33 + 1 partial G1c repair (34,825/94,097 rows left); H1b named 4/5 |
+| GT004c | GT004 with the stale definition REMOVED (2026-09-16) | **0.0** | 0.0 | wall; 27-29/33 x5, G1c 0/2 x5, H1b named 3/5 |
+| GT004b | GT004 with the refresh claim REMOVED (2026-09-16) | **0.2** | 0.0 | r2 31/33 with G1c repaired; first classified `unknown_tool` for a runtime-REFUSED malformed call, reclassified `pass` via `rollout.py --reclassify` after BLINDNESS.patch (recorded as `reclassified_from`) |
+| GT004d | GT004 with ALL THREE context levers REMOVED (2026-09-16) | **0.0** | 0.0 | wall; 27-30/33 x5, G1c 0/2 x5, H1b named 2/5 |
+| GT004e | GT004 with ONLY the ticket kept (refresh claim + stale definition removed), 2026-09-16 | **0.0** | 0.0 | wall; 26-29/33 x5, G1c 0/2 x5, H1b named 3/5 |
+| GT008 | guided; first task certified through all four layers (contracts + coupling + ledger + shortcut battery), 2026-09-16 | **1.0** | 1.0 | ceiling; 20/20 x5, median 66 calls / ~6 min; C5 audited 4 real receipts per episode |
+| GT008 | vague, 2026-09-16 | **1.0** | 1.0 | ceiling; 20/20 x5, 65 calls, ~12.6 min (2x the guided wall-clock, same outcome) |
+| GT001 | **native mode**, host topology, 2026-09-16 | withheld (2 scored, 3 quarantined) | - | all 5 did the work natively (18-19/19 via duckdb/dbt/git/./ops/sched); quarantines are host-topology artifacts: `cp` backups of the warehouse file, one canary reachable through bash |
+| GT004 | **native mode**, host topology, default context, 2026-09-16 | **0.25** (4 scored, 1 canary quarantine) | 0.0 | **G1c repaired in 2 of 5** - the historical rewrite 0 of 21 MCP episodes performed on the same world; r0 32/33 pass; ~30 min, ~150 calls. Signal, not a number: n=5, host topology |
+
+**Correction 5 - no context lever is the wall; the historical rewrite is
+(GT004 ablation, 2026-09-16).** *Addendum, same day:* the first native-mode
+run of GT004 (no tool list, real CLIs, default context) repaired the rows in 2 of 5
+episodes. If that holds in the container topology at K=5, the tool list itself was part
+of the wall - the map told the model which surfaces were the job and the rewrite was
+not among them. Measured next in container topology; see §12. With every context lever removed (GT004d) the
+rate is still 0.0. Across the five context arms: 2 scored passes in 25 episodes
+(GT004a r1, GT004b r2), zero in the 26 with the ticket present. What the model will not do is rewrite 94,097
+pre-existing fact rows under the corrected layout - it names the defect (H1b in
+9/19) and declines the irreversible-looking repair. That is a decision under
+irreversibility, the mechanism layer 4 of TASK_DESIGN_2026-09-15 manufactures
+on purpose. Ticket removed: 0.2 (plus one quota-era scored pass:
+2 of 7 no-ticket episodes repaired defect 2, vs 0 of 21 with the ticket). Stale
+definition removed: 0.0, five for five. In both arms most episodes NAME the
+table->incremental switch (H1b 7/10) and do not repair it - GT004's signature
+survives every context ablation. Evidence: %TEMP%/alkera-rollouts/GT004{a,c}-*/ablate-{T,D}-20260916-k5/report.json.
+
+**Correction 4 - scope closure is falsified on GT006's mechanism (2x2, 2026-09-16).**
+The four-condition design from TASK_DESIGN_2026-09-15 ran complete: B alone
+neutral 1.0 / ticket 0.8; A+B neutral 1.0 / A+B ticket 1.0. Adding an easy defect
+on top of the ticket moved nothing - B was repaired in all ten stacked episodes,
+A in all ten, and the ticket's only measurable effect is ~2 min more wall-clock
+(935 s vs 818 s median): effort, not belief. So neither interference nor scope
+closure is a general lever; whatever makes GT004 a wall is specific to GT004's
+definition conflict, and the GT004a-e ablation is the experiment that isolates it.
+Evidence: %TEMP%/alkera-rollouts/GT006{c,d}-*/{stacked-neutral,stacked-ticket}-20260916-k5/report.json.
 
 **Correction 3 - we cannot yet build a 0.8 unit on purpose.** GT005, GT006 and
 GT007 were authored specifically to land near 0.8, by three agents that each had
@@ -1039,6 +1090,31 @@ none of them belongs in the difficulty arithmetic. Counting them is how §8.3
 went wrong the first time.
 
 ---
+
+### 8.11 The four-layer framework: built, and its first measured result (2026-09-16)
+
+`implementation_structure/TASK_DESIGN_2026-09-15.md` proposed that a task is four
+layers - contracts, stressors, a coupling rule, live time with a checkpoint ledger -
+and that difficulty is a certified property. All four are now code, each with its own
+contract doc, executed tests and a stated weakest finding:
+
+| layer | where | what is measured |
+|---|---|---|
+| 1 contracts | `tasks/contracts/` (six invariants, `Clause`/`Context`, `REGISTRY`) | 75 tests; **18/18 equivalence** with GT004's own grader across six baseline states (`equivalence_gt004.py`) |
+| 2 stressors | `tasks/stressors/registry.yaml` (30 entries, `stresses:` + `state:`) | 24 of 30 not yet subset-stageable (GT005/6/7/8 plant everything in one build) |
+| 3 coupling | `tasks/harness/coupling.py` + `coupling_adapters.py` | GT004, 12 ordered pairs, ~14 s each, **2 accepted / 10 rejected**; the doubling couples into both other defects, nothing couples back. **No clock**: event-type stressors read *untested*, not rejected |
+| 4 ledger | `world/world/ledger.py`, `tasks/harness/ledger.py`, containment P5 | receipts written only by clock-advanced job runs; read-only tmpfs in the episode, every path escape `path_denied`; `advance(30)` == `advance(1)x30` byte-identical |
+| gate | `tasks/GT008-warehouse-cutover/tests/run_baselines.py` | oracle 20/20, 19 named shortcuts fail incl. two at 18/20; C5 audits 4 real receipts per episode |
+
+**Result: GT008 (the first task certified through all four layers) is a ceiling** -
+Pass@1 1.0 / Pass^5 1.0 on both the guided (6 min) and vague (12.6 min) briefs. The
+gate certifies shortcut-resistance, not difficulty: five ceilings have now passed such
+gates. What *has* measured hard, across 46 GT004 episodes in six context arms, is a
+correct action that looks irreversible - a historical rewrite the model names and
+declines (Correction 5). GT008 contains no such decision; the note's unbuilt
+"concrete extension" (a higher-version correction *and* an older replay *and* a retry
+across a publication cutoff) is precisely one. That, plus giving the coupling filter a
+clock, is the next design item - to be decided together, not by the builders.
 
 ## 9. v1 build — contracts, ground rules, and track status
 
@@ -1129,6 +1205,17 @@ alone, because it only appears when the file is deployed under its contract name
 
 `world_fp` is written at checkpoints only, not on every row. `op_class` lives in the log, not
 in the tool response — the log is the artifact the grader and the process signals consume.
+
+**Native transport (2026-09-16).** The same 23 keys, written on the *server* side by the
+thing the agent talked to: `transport: "native"`, `tool: "<service>.<mcp_tool>"` wherever an
+MCP equivalent exists (`jira.issues_comment`, `deploy.deploy_run`, `sched.sched_trigger`;
+graders suffix-match), `duckdb.statement` / `shim.<binary>` for local binaries, `seq`
+allocated under the same `writer.lock` a live `AuditLog` holds so two writers into one
+directory raise instead of interleaving. Two harness-authored row families are excluded
+from every count and attribution: `workspace.edit` (the harness accounting for working-tree
+changes the transcript licenses) and rows whose targets are all `health:<service>` (gate
+polls). `alkera_gateway.native.audit.record` is the only writer; `native/PARITY.md`
+measures that the same scripted episode yields the same target set over both transports.
 
 #### 9.2.3 Task package
 
@@ -1251,31 +1338,29 @@ derivable from the world as it now stands.
 `fingerprint.py` includes `/var/obs/` in the semantic fingerprint - it is world
 state.
 
-### 9.3 Track status as of 2026-09-13
+### 9.3 Track status as of 2026-09-16
 
-| Track | Scope | State |
+Every count below was produced by a command on this host on 2026-09-16; the scanner
+(`scripts/track_status.py`, baseline in `scripts/track_status_baseline.json`) re-derives
+the track table from the tree and reports **0 blockers**, A1-A4a and B1-B4 `done /
+executed`, A4b `unknown` by design (a tripwire, not a gap).
+
+| suite | command | count |
 |---|---|---|
-| **A — World & determinism** | `world/` | seed to world builder, semantic fingerprint, snapshot save/restore/verify, deterministic scheduler, BI values surface, 3-zone Docker topology. **7 tests green.** |
-| **B — Gateway & connectors** | `gateway/` | 17 tools, MCP **and** CLI over one audited core, destructive classification, replay, report-only process signals. **11 tests green.** |
-| **C — Task, grader, GEPA** | `tasks/GT001-aov-halving/` | seed spec, generator, oracle, 8-check deterministic grader (19 pts), 6 adversarial baselines, fixture-contract guard, shadow judge + GEPA loop. **TASK VALID.** |
-| **Integration** | `tasks/.../tests/test_integration.py` | all three tracks in one process against a real world. **12 assertions green.** |
+| gateway | `gateway/.venv/Scripts/python.exe -m pytest tests -q` (from `gateway/`) | **321 passed**, 0 skipped (incl. native: audit 11, context 19, human plane 41, ops plane 71, object storage 10 with a real MinIO) |
+| world | same interpreter, `-m pytest tests` (from `world/`) | **166 passed, 81 subtests** (incl. ledger 17, native workspace 21) |
+| harness | `tasks/harness/selftest.py` | **147 / 147** (MCP path byte-identical after native mode) |
+| harness, native | `test_native_driver.py` / `test_native_stack.py` / `test_ledger_harness.py` / `test_blindness_refused.py` | **122 / 35 / 22 / 4** |
+| contracts | `pytest tasks/contracts -q` | **75** |
+| acceptance | `world/scripts/acceptance.sh` -> `world/evidence/acceptance.json` | **all 7 gates**; host == container `85ce4cbb...`; gate 7 (/grading) executed |
+| containment | `gateway/docker/evidence/containment{,-ledger,-native}.json` | P0-P4, **P5** (ledger read-only in the episode), **P6** (only the fake services reachable) - each measured on a real Docker stack |
+| task validity | every `tasks/GT*/tests/run_baselines.py` | GT001-GT008 TASK VALID; GT008 oracle 20/20 with 19 shortcuts failing |
 
-Baseline profile — the task-validity gate. If any lands outside its band the *task* is broken,
-not the agent:
+Model measurements live in §8.10 (Opus 5, K=5, host topology, all `measurement_valid`).
 
-| Baseline | Score | Required |
-|---|---|---|
-| oracle | 19/19 | = max |
-| no_op | 0 | ≤ 1 |
-| full_refresh | 9 | partial, **not** zero (it destroys the 412 manual adjustments) |
-| dedupe_only | 17 | < oracle (data fixed, loader still on append) |
-| checklist | 17 | < oracle (the false-cause penalty must bite) |
-| reference_copy | 17 | **0 in production** — scores high in fixtures *by design*, proving topology is the only defence |
-
-That last row is the one to read carefully. `reference_copy` scoring 17 is not a failing
-grader; it is the grader honestly reporting that when the reference sits in a reachable
-directory, copying it works. Track A must prove `/grading` is unreachable **in the real
-container** — a build gate, not a test.
+The world venv (`world/.venv`) still lacks pytest, so two world test modules that import
+it (`test_dual_world`, `test_warehouse_seed`) only run through the gateway interpreter -
+§10.4 item 2 remains true.
 
 ### 9.4 Honest flags
 
@@ -1328,59 +1413,60 @@ should change next. Written 2026-09-13 after the three-track merge and cleanup.
 
 ### 10.1 Directory map
 
+Rewritten 2026-09-16. Counts are the executed ones from §9.3.
+
 ```
 alkera/
 ├── agent.md                    THIS FILE — the single source of truth
+├── README.md                   the tick-list view of it
+├── scripts/track_status.py     the scanner: re-derives §11's table from the tree, 0 blockers
 │
-├── world/                      TRACK A · the world factory (was track_a/)
-│   ├── world/                  importable package
-│   │   ├── gen.py              seeded data synthesis
-│   │   ├── build.py            a seed file -> materialized world root
-│   │   ├── fingerprint.py      SEMANTIC hash (schemas + canonical contents)
-│   │   ├── hashing.py          raw byte hash — diagnostic only
-│   │   ├── snapshot.py         save / restore / verify
-│   │   ├── scheduler.py        deterministic state machine, NOT Airflow
-│   │   └── bi.py               dashboards -> computed values
-│   ├── docker/                 3-zone topology + egress_test.py
-│   ├── grading/                post-episode zone (never mounted in-episode)
-│   ├── scripts/acceptance.sh   the determinism gate battery
-│   ├── tests/                  7 tests
-│   ├── seed.example.yaml       worked seed contract
-│   └── requirements.lock       pinned — determinism depends on it
+├── world/                      TRACK A · the world factory
+│   ├── world/
+│   │   ├── build.py  gen.py  themes/            seed -> world; 4 themes; `native:`/`warehouses:` seed flags, OFF by default
+│   │   ├── fingerprint.py                        SEMANTIC hash; conditional sections: obs, workflow, warehouses, home
+│   │   ├── scheduler.py  gateway_scheduler.py    the virtual clock and the job runner the gateway injects
+│   │   ├── executor.py  faults.py                what a job run actually does, and how it breaks
+│   │   ├── ledger.py                             LAYER 4: protected receipts of what the world published (P5)
+│   │   ├── native_workspace.py                   .envrc / profiles.yml / onboarding.md for native mode
+│   │   ├── warehouse_seed.py  vclock.py  airflow_bridge.py  airflow_logs.py
+│   │   └── LEDGER_CONTRACT.md
+│   ├── docker/  scripts/acceptance.sh  evidence/acceptance.json
+│   └── tests/                  166 + 81 subtests
 │
-├── gateway/                    TRACK B · the only way an agent touches the world
+├── gateway/                    TRACK B · every way an agent touches the world
+│   ├── NATIVE_SURFACES.md      the spec native mode was built against (+ amendment)
+│   ├── NATIVE_INTEGRATION.md   what runs, with the numbers
+│   ├── DUAL_WAREHOUSE_CONTRACT.md
 │   ├── src/alkera_gateway/
-│   │   ├── core.py             THE audited chokepoint — every call passes here
-│   │   ├── tools.py            the 17-tool registry
-│   │   ├── operations.py       op_class: read|write|ddl|destructive|exec
-│   │   ├── sql.py  files.py  commands.py  surfaces.py     connectors
-│   │   ├── audit.py  records.py                           the action log
-│   │   ├── server.py  cli.py                              MCP + CLI transports
-│   │   ├── replay.py           reconstruct a session from the log alone
-│   │   ├── signals.py          process signals — REPORT ONLY, uncalibrated
-│   │   └── config.py           enforces audit_dir/warehouse outside workspace
-│   └── tests/                  11 tests
+│   │   ├── core.py  tools.py  operations.py      THE audited chokepoint; 63 MCP tools; op_class + targets
+│   │   ├── records.py  audit.py                  the 9.2.2 row; sealable/nested Observation
+│   │   ├── sql.py  files.py  storage.py  workflow.py  observability.py  bi.py  ingest.py  scheduling.py
+│   │   ├── warehouse_spec.py  warehouses.py      dual-warehouse registry (DuckDB / Postgres / fakesnow)
+│   │   ├── server.py  cli.py  replay.py  signals.py
+│   │   └── native/                              NATIVE MODE (§12)
+│   │       ├── audit.py  context.py             the one row writer; the shared run-and-record span
+│   │       ├── services/{jira,slack,confluence,metabase,prometheus,alertmanager,loki,airbyte,deploy}.py
+│   │       ├── tailers/{postgres,minio,airflow}.py   server logs -> rows
+│   │       ├── shims/{run,duckdb_cli,sched_cli,install}.py   PATH-front wrappers, ./ops/sched
+│   │       ├── serve.py                          one process, nine ports, destinations.jsonl
+│   │       └── PARITY.md  services/{HUMAN,OPS}_PLANE.md  INTEGRATION_GATEWAY.md
+│   ├── docker/                 compose.yml (+ .episode, .native), containment.py P0-P6, evidence/, NATIVE_STACK.md
+│   └── tests/                  321
 │
 ├── tasks/                      TRACK C · the graded content
-│   └── GT001-aov-halving/
-│       ├── SEED_SPEC.md        frozen world contract
-│       ├── task.toml           limits + machine-readable validity gates
-│       ├── instruction.md      all the agent ever sees
-│       ├── solution/           the oracle
-│       └── tests/              HIDDEN — grade.py, manifest, baselines,
-│                               fixture_contract.py, judge/, test_integration.py
+│   ├── contracts/              LAYER 1: six invariants as clause functions; 75 tests; CONTRACTS.md
+│   ├── stressors/registry.yaml LAYER 2: 30 stressors -> contracts + shared state
+│   ├── harness/                rollouts, grading, blindness, surface gate, report; ledger.py; coupling.py (LAYER 3)
+│   │   ├── native_stack.py     host-topology bring-up for --driver native
+│   │   ├── selftest.py  test_native_driver.py  test_native_stack.py  test_ledger_harness.py
+│   │   └── README.md  NATIVE_DRIVER.md  COUPLING.md
+│   ├── GT001 … GT008/          each: task.toml, prompts/, fixtures/, solution/, tests/ (grade.py, manifest, probes/, run_baselines.py)
+│   └── GT004a-e, GT006c-d      the ablation and 2x2 arms (context-only variants)
 │
-├── implementation_structure/   the research swarm and its record
-│   ├── ARCHITECTURE.md  ROUND_PLAN.md  roles/    how the swarm runs
-│   ├── schemas/  gates/                          G0–G5 machine verdict
-│   ├── state/                                    THE BLACKBOARD — commit always
-│   │   ├── archetypes/  claims/  knowledge/  inventory/
-│   │   ├── failures/                             what round N killed, so N+1 need not
-│   │   └── verified/                             still empty — see §9.5
-│   └── rounds/R001/                              per-round reports incl. the audit verdict
-│
-├── verifier/                   append-only acceptance history (2026-09-08 assessment)
-└── vendor/                     cloned upstreams (gepa) — gitignored, never committed
+├── implementation_structure/   the research record: archetypes, sources, failure rulings, TASK_DESIGN_2026-09-15.md
+├── verifier/                   append-only acceptance history
+└── var/                        gitignored scratch (reconcile logs, campaign output)
 ```
 
 ### 10.2 The one dependency rule
@@ -1422,7 +1508,8 @@ Worth saying out loud when showing the diagram.
 
 Ordered by what a second task would force us to confront, not by effort.
 
-1. **Extract the task-authoring kit out of GT001.** `fixture_contract.py`,
+1. *(partly done 2026-09-16: `tasks/contracts/` lifts the invariants; `probes/_common.py`
+   is still copied per task.)* **Extract the task-authoring kit out of GT001.** `fixture_contract.py`,
    `run_baselines.py` and the `judge/` harness are 90% task-agnostic but currently live
    inside one task directory. GT002 would copy-paste them, and the two copies would drift.
    Proposed: `harness/` at the root, with per-task files reduced to `manifest.yaml`,
@@ -1449,12 +1536,19 @@ Listed so they are not rediscovered.
 - **`replay.final_world_verified: False`** — replay confirms responses match but never
   verifies the final world state matches. A replay that does not check the world is a
   transcript, not a reproduction.
-- **`/grading` unreachability is unproven in a live container.** `reference_copy` scores 17
-  in fixtures by design; only the container topology makes it 0.
+- **`/grading` unreachability: proven in a live container** - `acceptance.sh` gate 7 passed
+  on 2026-09-15 11:48 and 2026-09-16 (episode + harness containers: `test ! -e /grading`,
+  no grading container while live, NetworkMode none after boot, hostname unresolvable).
+  Recorded to `world/evidence/acceptance.json` by the script on its all-pass path;
+  `scripts/track_status.py` A3 reads that file. `reference_copy` still scores 17 in
+  fixtures by design; only the container topology makes it 0.
 - **GEPA has no `reflection_lm` wired**, so real reflective mutation never runs — the loop
   falls back to a local search.
-- **Cross-host determinism has never been executed.** `acceptance.sh` gate 1 builds twice on
-  *the same* host, which proves far less than the acceptance criterion claims.
+- **Cross-host determinism: executed.** `acceptance.sh` gate 3 builds the same seed inside
+  the container and compares semantic hashes with the host build: equal
+  (`85ce4cbb...`) on 2026-09-15 and again on 2026-09-16 after SUBSTRATE and LEDGER
+  were applied - so both left the default world byte-identical. Gates 3b/3c do the same
+  for the day-scoped scans. Gate 1 alone is still a same-host double build.
 
 ---
 
@@ -1468,18 +1562,18 @@ counts below are as of 2026-09-15 and supersede the ones `3_track.md` carried.
 
 ### 11.1 Where the project is
 
-| | R002 | R003 | now (2026-09-15) |
-|---|---|---|---|
-| tasks built | 1 | 3 | **4** - GT001-GT004, all TASK VALID |
-| world shapes | 1 | 4 themes | 4 themes + per-task fixture worlds |
-| gateway tools | 17 | 48 | **63** |
-| gateway tests | 12 | 78 | **143** |
-| world tests | 7 | 37 | **120 + 66 subtests** |
-| harness selftest | - | 51 | **133** |
-| the scheduler | literal `"success"` | executes dbt | **executes, or returns `not_executed` - never a status it did not observe** |
-| episode topology | host subprocess | container | container, containment re-proved; `WorldScheduler` now injected |
-| cross-host determinism | never executed | never executed | **executed, host == container** |
-| frontier rollouts | zero | GT001 Pass@1 = 1.0 | **GT004 Pass@1 = 0.0, Pass^5 = 0.0** |
+| | R002 | R003 | 2026-09-15 | **now (2026-09-16)** |
+|---|---|---|---|---|
+| tasks built | 1 | 3 | 4 | **8** (GT001-GT008) + 7 ablation/2x2 arms, all TASK VALID |
+| world shapes | 1 | 4 themes | 4 + fixture worlds | 4 + fixture worlds; `warehouses:` and `native:` seed flags |
+| agent surfaces | 17 tools | 48 | 63 | **63 MCP tools, or native: 9 vendor-shaped services + real CLIs** |
+| gateway tests | 12 | 78 | 143 | **321** |
+| world tests | 7 | 37 | 120 + 66 | **166 + 81 subtests** |
+| harness | - | 51 | 133 | **147 + 122 + 35 + 22 + 4**; contracts 75 |
+| the scheduler | literal `"success"` | executes dbt | honest `not_executed` | + a protected ledger of what it published |
+| episode topology | host | container | container, containment re-proved | + P5 (ledger) and P6 (native DNS), measured |
+| cross-host determinism | never | never | executed | executed, recorded to `world/evidence/` |
+| frontier rollouts | zero | GT001 1.0 | GT004 0.0 | **§8.10 table: 2x2 done, GT004 six-arm ablation done, GT008 1.0/1.0**; native Phase 4 pending |
 
 ### 11.2 The rule R003 paid the most to learn
 
@@ -1503,64 +1597,129 @@ Corollaries, each of which has now cost real time more than once:
 ### 11.3 Track A - Worlds
 
 **Done:** theme-lifted builder; four themes; the executing scheduler; faults;
-cross-host determinism now executed and passing.
+cross-host determinism executed and recorded; `late_arrival` fixed (2026-09-15);
+the dual-warehouse seed path (`warehouses:` block, byte-identical default proven);
+the publication ledger (`ledger.py`, P5); the native workspace files (`native:` flag).
 
 **Open:**
-- ~~`late_arrival` is inert~~ — **FIXED 2026-09-15.** `_kind_scan` templated its
-  `path`/`pattern` with `{day}`/`{day_compact}`, the scheduler now threads the
-  execution day to the executor on all three scheduled branches, and the two
-  scan-bearing themes scope their patterns to the night they are polling for.
-  Measured before: 60 stale sentinels, `min: 1`, **success**. After: `0 file(s)
-  matching */*_20260303.done, expected at least 2`, **failed**, with the fault
-  log, the run record and the healed data telling one story. `torn_write`'s own
-  docstring claim was inert for the same reason and is now true at `min: 2`.
-  Seeded failures went 2 → 8 (sftp_vendor) and 1 → 6 (mainframe_batch).
-  **A test was living off the defect** — `test_the_incident_is_reachable_through_
-  the_scheduler_surface` asserted `try_number == 1` on the *first* failed run,
-  which only held while SSH resets were the only failures the past could
-  contain. Third such test found in two days.
-- **NEW, introduced by that fix and not yet resolved:** `sftp_vendor`'s ingest
-  plane now contradicts its scheduler history. `gen.write_ingest` seeds one green
-  sync per connector per day unconditionally at 05:31, so on the six withheld
-  nights a connector reports `rows_inserted: 53` from files that were not on disk
-  until 07:30. The two planes agreed trivially while the poll could not fail.
-- Themes 5+; 19 of 30 have no archetype.
+- `sftp_vendor`'s ingest plane still contradicts its scheduler history on the six
+  withheld nights (`gen.write_ingest` seeds a green sync unconditionally).
+- The world-diff allowlist in `tasks/harness/blindness.py` is hand-kept - every entry
+  was added the day a run tripped on it (`var/sched`, `var/bi`, `var/obs`, `build/sched`).
+  A generated manifest of which planes each job kind writes belongs here, in `world/`.
+- Themes 5+; 19 of 30 archetypes have no theme.
 
 ### 11.4 Track B - Gateway and stack
 
-**Done:** warehouse connector (DuckDB + Postgres); 63 tools; multi-container
-compose with containment measured per service; workflow and observability
-planes; the honest scheduler trigger.
+**Done:** warehouse connector (DuckDB + Postgres + fakesnow), dual-warehouse
+registry, 9.2.2 rows byte-identical over DuckDB and Postgres (executed); 63 MCP
+tools; **native mode** (§12): nine vendor-shaped services with equivalence to the
+MCP rows *obtained* from the same `Observation`, server-side tailers, PATH shims,
+`serve.py`, `compose.native.yml`, containment P6; MinIO authentication with real
+credential checks; silences and deploy statuses persisted in the world.
 
 **Open:**
-- Postgres is proven for four SQL statements; `render_dashboard`,
-  `BIStore.refresh`, watermark queries and dbt are DuckDB-only.
-- `core.py:23` guards `from world.fingerprint import semantic_hash` - a Track A
-  rename breaks Track B at runtime and **neither suite goes red**.
+- `alarms_ack` / `alarms_silences` / `deploy_status` exist as operations but are
+  not registered MCP tools - held until the native-vs-MCP comparison is measured
+  against the same 63-tool surface, then to be registered.
+- fakesnow has a statement log now but no tailer; Postgres-served tasks have no
+  host-topology bring-up; `--topology container` still refuses `--driver native`.
+- Docker's embedded resolver answers bare compose service names (`postgres`,
+  `minio`) beside the `*.internal` aliases - pinned to our own addresses and
+  recorded in P6, but a "you are on compose" tell.
+- `core.py` guards `from world.fingerprint import semantic_hash`; a Track A rename
+  breaks Track B at runtime and neither suite goes red.
 
 ### 11.5 Track C - Tasks, harness, grading
 
-**Done:** GT001-GT004 TASK VALID; rollout harness with enforced blindness,
-failure classification and quarantine; container episodes plus the terminal;
-gates G0-G8; **the live-surface gate** (a required surface that is dead is a
-harness error, not a score) and **Pass^k**.
+**Done:** GT001-GT008 TASK VALID; the rollout harness with enforced blindness,
+classification, quarantine, the live-surface gate and Pass^k; `--reclassify` (used
+once for real: a runtime-refused malformed tool name, `BLINDNESS.patch`); the
+contracts library, the coupling filter, the ledger-fold check (GT008 C5); the
+`--driver native` path with the content-bearing surface gate, the workspace-plane
+rule and the network-destination detector; scripted native episodes end to end on
+GT001, GT004, GT006, GT008.
 
 **Open:**
-- **Engineering-quality axis.** Process signals exist and are report-only.
-- **G7: 89 failure records, ~80 with no execution record.** Red on purpose.
-- **The F620 comma residual.** A comma-joined checklist naming one real cause
-  and five invented ones escapes the per-atom penalty. Hygiene only, excluded
-  from `pass_requires_checks`, so it cannot move a verdict. Recorded, not hidden.
+- **Phase 4 of native mode - the actual comparison - is not run.** GT001/GT004/
+  GT006/GT008 native K=5 against the recorded MCP numbers 1.0/0.0/1.0/1.0.
+- The working-tree rule is coarse: one shell command in the transcript licenses
+  every change under `workspace/`; `workspace.edit` rows say what changed, not
+  which command did it.
+- `items` in a service's `/health` is self-reported; the gate catches a world never
+  seeded, not one seeded wrong.
+- Engineering-quality axis: process signals exist and are report-only. G7: ~80
+  failure records with no execution record, red on purpose. The F620 comma residual.
 
 ### 11.6 What is still not true
 
 - **Nothing has been promoted to `state/verified/`.** Zero of 41.
-- **6 of 162 sources are a practitioner describing their own incident** - 3.7%,
-  and that is the thing this project sells.
-- **The difficulty thesis as written in §8.3 is falsified.** §8.10 records the
-  revised form and what it would cost to make true.
-- **No container-topology number exists for GT004.** `gateway/src` is baked into
-  the image, so a container measurement needs a commit and a rebuild.
+- **6 of 162 sources are a practitioner describing their own incident** - 3.7%.
+- **The difficulty thesis as written in §8.3 is falsified**, and so are conjunction,
+  prompt wording, concealment, interference and scope closure (§8.10 Corrections 1-5).
+  The one measured lever is a correct action that looks irreversible; no task is yet
+  built around it on purpose.
+- **The four-layer gate certifies shortcut-resistance, not difficulty** (§8.11).
+- **No container-topology number exists for any task but GT001**, and no native-mode
+  model number exists at all.
+- Native-mode smoke (every declared job triggered, per task): executed 2026-09-16 (`ALKERA_TRIGGER_ALL=1`, run-id `native-smoke-all`): ten triggers over four job shapes on GT001/GT004/GT006/GT008, zero quarantines, no allowlist change; GT001 reports `gate: not_declared` because its task.toml declares no required_surfaces - a property of the task under both drivers. Recorded in `gateway/NATIVE_INTEGRATION.md` §4b.
+
+---
+
+## 12. Native surfaces — the agent works like an engineer (2026-09-16)
+
+**Direction.** The 63-tool list was a map of the world: `sched_trigger`,
+`bi_render`, `ingest_alerts`, `deploy_run` told the agent which surfaces exist and
+matter before it had read a file, and every difficulty number in §8.10 was measured
+with that map in hand. Native mode removes it: bash only, no MCP server, discovery
+from `.envrc`, `~/.dbt/profiles.yml`, `~/.config/alkera/services.toml`,
+`docs/onboarding.md` and `--help`. Spec: `gateway/NATIVE_SURFACES.md`.
+
+**The constraint that shaped it: the action log survives.** §9.2.2 is what
+blindness detection, containment proofs and `--reclassify` rest on, so in native
+mode every row is written where the agent's request lands - by the fake service, the
+server's statement log, or a PATH shim - never reconstructed from the transcript.
+
+| plane | the agent uses | backing | rows |
+|---|---|---|---|
+| workspace | bash, git | real | `workspace.edit` (harness-authored, from the tree diff the transcript licenses) |
+| data | `duckdb` CLI (shim), `dbt`, `psql`, `aws`/boto3 | DuckDB file; Postgres + fakesnow (served); MinIO | `duckdb.statement` via `sql.inspect_sql`; Postgres statement-log tailer (role-scoped); MinIO audit webhook |
+| control | `./ops/sched list|logs|trigger` | `WorldScheduler`, same as MCP | `sched.sched_*` - there is deliberately **no `advance`**: MCP has none, the grader moves the clock |
+| human | `jira` / `slack_sdk` / `atlassian` clients, curl | fake Jira, Slack, Confluence over the same `var/workflow` files | `jira.issues_*`, `slack.chat_*`, `confluence.kb_*` |
+| ops | Metabase, Prometheus/Alertmanager, Loki, Airbyte, GitHub-deployments-shaped release API | fake services over the same obs/bi/ingest/deploy stores | `<service>.<mcp_tool>` |
+
+**Measured** (all executed, with commands in `gateway/NATIVE_INTEGRATION.md`):
+target-set parity over both transports (`native/PARITY.md`); row equivalence 16/16
+(human) and 19/19 (ops), the latter *obtained* from the same `Observation` the MCP
+path sets and a handler that skips the module call now raises; P6 on a real stack
+with the real nine services in the image; scripted native episodes on GT001, GT004,
+GT006 and GT008 - every required surface live, real DuckDB writes attributed, blindness
+clean, `report.json` carrying `driver: native`. MCP behaviour is byte-identical:
+selftest 147 before and after.
+
+**Decisions, recorded with their reasons:** the DuckDB *file* stays the warehouse
+for existing tasks (the scheduler, dbt and every grader use it; serving Postgres would
+split the world) - the amendment in `NATIVE_SURFACES.md`; a runtime-refused malformed
+tool name is soft, not a quarantine; the content-bearing gate binds only where a task
+declares `warehouse_schemas` (GT008's target is empty *because building it is the
+task*); `advance` removed from `./ops/sched` for comparability.
+
+**Weakest findings the builders left, in their own docs:** a Python script embedding
+DuckDB yields a file-level row, not tables; one shell command licenses every
+working-tree change; `/health` item counts are self-reported; the world-diff allowlist
+is hand-kept; the `dbt` surface proves the toolchain resolves, not that `dbt compile`
+succeeds; `advance`'s absence means a native agent cannot see the world move except by
+`trigger`, exactly like an MCP agent.
+
+**Phase 4, first two runs (host topology, 2026-09-16):** GT001 withheld (3 of 5
+quarantined for host-only reasons - `cp` backups of the warehouse, a canary reachable via
+bash - while all 5 scored 18-19/19); GT004 **0.25** with the historical rewrite performed
+in 2 of 5 episodes versus 0 of 21 under MCP. Both quarantine causes are impossible by
+construction only in the container topology, which is being built; host-topology native
+numbers carry that caveat until then. Reviewer's reading order:
+`NATIVE_SURFACES.md` -> `native/PARITY.md` -> `native/services/{HUMAN,OPS}_PLANE.md` ->
+`tasks/harness/NATIVE_DRIVER.md` -> `gateway/docker/NATIVE_STACK.md` ->
+`gateway/NATIVE_INTEGRATION.md` (two dated sections).
 
 ---
 
