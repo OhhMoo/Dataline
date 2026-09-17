@@ -112,6 +112,38 @@ def semantic(root: Path) -> dict:
     workflow = root / "var" / "workflow"
     if workflow.is_dir():
         sections["workflow"] = tree_hash(workflow)
+    #   home - the box's HOME, written only when the seed says `native: true`
+    #         (world/world/native_workspace.py): ~/.dbt/profiles.yml and
+    #         ~/.config/alkera/services.toml. Those two files are part of what
+    #         the agent discovers its stack from, so a world whose home was
+    #         edited after the build is not the world that was built - and
+    #         until this section existed it passed `semantic_hash` unchanged,
+    #         the runner-up finding in gateway/docker/NATIVE_STACK.md.
+    #         Conditional like the rest, and load-bearingly so: every world
+    #         built without the flag has no home/ and keeps its recorded hash.
+    home = root / "home"
+    if home.is_dir():
+        sections["home"] = tree_hash(home)
+    #   warehouses - an episode may run a SECOND live warehouse (the source or
+    #         the target of a migration). Every additional *.duckdb beside the
+    #         primary is hashed by the same rule the primary gets: canonical
+    #         logical contents, not file bytes. Conditional like the rest, so a
+    #         world with one warehouse finds nothing here and keeps its recorded
+    #         hash - which is the whole reason this is a new section rather than
+    #         a change to the "warehouse" one.
+    #
+    #         A warehouse that does NOT live in the tree (postgres, snowflake)
+    #         cannot be reached from here and is not silently skipped: it is
+    #         covered by world/warehouse_seed.logical_hash, which produces this
+    #         same canonical shape from a live server, and the gateway already
+    #         refuses to boot such a world without an explicit initial_world_fp
+    #         (gateway/src/alkera_gateway/config.py:75-76).
+    extra = sorted(
+        path for path in (root / "var" / "warehouse").glob("*.duckdb")
+        if path.name != DB.name
+    )
+    if extra:
+        sections["warehouses"] = {p.stem: _warehouse_hash(p) for p in extra}
     return sections
 
 

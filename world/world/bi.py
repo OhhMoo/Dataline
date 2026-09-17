@@ -3,7 +3,6 @@ returns computed values (not images) so 'dashboard disagrees with warehouse'
 is a checkable condition (agent.md §9.3 Track B).
 """
 import argparse
-import json
 import sys
 from pathlib import Path
 

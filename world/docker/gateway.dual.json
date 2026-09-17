@@ -1,0 +1,23 @@
+{
+  "workspace": "/world/workspace",
+  "warehouse": "/world/var/warehouse/warehouse.duckdb",
+  "scheduler": "/world/var/sched/state.json",
+  "ingest": "/world/var/ingest/state.json",
+  "observability": "/world/var/obs/observability.yml",
+  "obs_samples": "/world/var/obs/samples.jsonl",
+  "workflow_dir": "/world/var/workflow",
+  "workflow_actor": "agent",
+  "dashboards": "/world/var/bi/dashboards",
+  "audit_dir": "/audit",
+  "profiles_dir": "/world/build",
+  "world_root": "/world",
+  "episode_id": "demo-dual",
+  "initial_world_fp": null,
+  "virtual_time": "2026-03-05T09:00:00Z",
+  "warehouses": [
+    {"name": "legacy", "backend": "duckdb", "path": "/world/var/warehouse/legacy.duckdb",
+     "read_only": true, "attach": true},
+    {"name": "target", "backend": "duckdb", "path": "/world/var/warehouse/target.duckdb",
+     "read_only": false, "attach": true}
+  ]
+}

@@ -306,7 +306,9 @@ if docker info >/dev/null 2>&1; then
   $COMPOSE --profile grading down -v >/dev/null
   STACK_UP=0
   echo "  PASS"
+  CROSS=1; G7=1; GATES="1 2 2b 2c 2d 3 3b 3c 4 5 6 7"
 else
+  hc=""; CROSS=0; G7=0; GATES="1 2 2b 2c 2d 3-weak-same-host"
   echo "== gate 3: no docker daemon — WEAKER same-host double-build fallback"
   echo "  (the cross-host container comparison did NOT run; gates 4-7 SKIPPED)"
   echo "  (gates 3b/3c did NOT run either: both day-scoped scan dialects were"
@@ -317,5 +319,41 @@ else
   [ "$h1" = "$h2" ] || { echo "  FAIL: fingerprints differ"; exit 1; }
   echo "  PASS (weaker same-host variant only)"
 fi
+
+
+# Evidence of THIS run, for scripts/track_status.py (A3 and A4a read it). Written
+# only on the all-pass path (set -e aborts earlier otherwise), so its presence
+# means every listed gate passed on the commit it names.
+mkdir -p evidence
+HOST_HASH="$h1" CONTAINER_HASH="${hc:-}" CROSS_HOST="$CROSS" G7="$G7" GATES="$GATES" $PY - <<'PYEOF'
+import datetime, json, os, subprocess, sys
+head = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
+dirty = bool(subprocess.run(["git", "status", "--porcelain", "--", "world"],
+                            capture_output=True, text=True).stdout.strip())
+g7 = os.environ["G7"] == "1"
+ev = {
+    "schema": "acceptance/1",
+    "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
+    "git_head": head, "world_tree_dirty": dirty, "python": sys.version.split()[0],
+    "gates_passed": os.environ["GATES"].split(),
+    "gate1_host_semantic_hash": os.environ["HOST_HASH"],
+    "gate3_container_semantic_hash": os.environ["CONTAINER_HASH"] or None,
+    "cross_host": os.environ["CROSS_HOST"] == "1",
+    "gate7_grading_unreachable": {
+        "ran": g7,
+        "commands": [
+            "docker compose exec -T episode test ! -e /grading -> exit code 0",
+            "docker compose --profile harness run --rm harness test ! -e /grading -> exit code 0",
+            "docker compose ps -a: no grading container while the episode is live",
+            "grading NetworkMode == none after boot; /grading still absent in episode;",
+            "episode cannot resolve the grading hostname",
+        ] if g7 else [],
+        "note": None if g7 else "no docker daemon: gates 4-7 did not run",
+    },
+}
+with open("evidence/acceptance.json", "w", encoding="utf-8", newline="\n") as fh:
+    json.dump(ev, fh, indent=2); fh.write("\n")
+print("  evidence: world/evidence/acceptance.json")
+PYEOF
 
 echo "ALL ACCEPTANCE GATES PASSED"

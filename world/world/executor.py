@@ -82,20 +82,41 @@ def dbt_profile_name(workspace: Path) -> str:
     return yaml.safe_load(project.read_text(encoding="utf-8"))["profile"]
 
 
+def extra_warehouses(root: Path) -> list[Path]:
+    """Every DuckDB file beside the primary, sorted. The one rule three modules
+    share: fingerprint.py hashes each as a `warehouses` section, build.py seeds
+    one at `var/warehouse/<name>.duckdb`, and write_profiles below renders a
+    dbt output per file named by its stem - so a warehouse's NAME is its dbt
+    target is its file, and none of the three needs a config the others could
+    drift from. A world with one warehouse finds nothing here."""
+    return sorted(p for p in (Path(root) / DB.parent).glob("*.duckdb")
+                  if p.name != DB.name)
+
+
 def write_profiles(root: Path, out_dir: Path, profile: str | None = None) -> Path:
     """profiles.yml with an absolute warehouse path, written OUTSIDE workspace/.
 
     The profile carries a root-dependent path, so it must not live in the
     fingerprinted tree; build/ is the only writable place that is in neither
     the fingerprint nor the snapshot.
+
+    `target` stays `dev`, the primary, so every dbt invocation that names no
+    target builds what it always built. An additional DuckDB warehouse beside
+    the primary (extra_warehouses) gets an output of its own, named by its
+    file stem, which is how `dbt run --target legacy` - from the scheduler's
+    `dbt` job kind or from the gateway's `dbt_run(warehouse="legacy")` -
+    reaches the second warehouse. A world with one file writes the byte-
+    identical profiles.yml it wrote before the second output existed.
     """
     root, out_dir = Path(root), Path(out_dir)
     profile = profile or dbt_profile_name(root / "workspace")
     out_dir.mkdir(parents=True, exist_ok=True)
+    outputs = {"dev": {"type": "duckdb", "path": str(root / DB), "threads": 1}}
+    for extra in extra_warehouses(root):
+        outputs[extra.stem] = {"type": "duckdb", "path": str(extra), "threads": 1}
     (out_dir / "profiles.yml").write_text(yaml.safe_dump({profile: {
         "target": "dev",
-        "outputs": {"dev": {"type": "duckdb",
-                            "path": str(root / DB), "threads": 1}}}}),
+        "outputs": outputs}}),
         encoding="utf-8")
     return out_dir
 
@@ -103,12 +124,15 @@ def write_profiles(root: Path, out_dir: Path, profile: str | None = None) -> Pat
 def dbt_invoke(root: Path, command: str, *, selector: str | None = None,
                variables: dict | None = None, full_refresh: bool = False,
                out_dir: Path | None = None, profile: str | None = None,
-               quiet: bool = True) -> tuple[int, str]:
+               quiet: bool = True, target: str | None = None) -> tuple[int, str]:
     """Run one dbt command against the world. Returns (returncode, output).
 
     Single implementation, shared by build.py's initial build and by the
     scheduler's `dbt` job kind, so the build and the episode run dbt the
     same way.
+
+    `target` names a profiles.yml output other than the primary's (the stem
+    of a second DuckDB file, see write_profiles); None runs what always ran.
     """
     root = Path(root)
     out_dir = write_profiles(root, Path(out_dir or root / RUN_DIR), profile)
@@ -119,6 +143,8 @@ def dbt_invoke(root: Path, command: str, *, selector: str | None = None,
              "--profiles-dir", str(out_dir),
              "--target-path", str(out_dir / "target"),
              "--log-path", str(out_dir / "logs")]
+    if target:
+        argv += ["--target", target]
     if selector and selector != "*":
         argv += ["--select", selector]
     if full_refresh:
@@ -229,11 +255,18 @@ def _kind_dbt(root, spec, ctx):
     if command not in ("build", "run", "test", "compile", "seed", "snapshot"):
         raise Unsupported(f"dbt command {command!r} is not allowed")
     selector = spec.get("selector")
+    # `target`: the second warehouse's dbt output (its file stem, see
+    # write_profiles). A job that names one the world does not have fails
+    # in dbt's own words ("The profile ... does not have a target named"),
+    # recorded as the run's error rather than asserted here.
+    target = spec.get("target")
     rc, output = dbt_invoke(root, command, selector=selector,
                             variables=ctx.get("variables") or None,
-                            full_refresh=bool(spec.get("full_refresh")))
+                            full_refresh=bool(spec.get("full_refresh")),
+                            target=target)
     ctx["raw_output"] = output
-    detail = f"dbt {command}" + (f" --select {selector}" if selector else "")
+    detail = (f"dbt {command}" + (f" --target {target}" if target else "")
+              + (f" --select {selector}" if selector else ""))
     error = None if rc == 0 else normalize_output(output, root)
     return rc == 0, detail, error, {"returncode": rc}
 

@@ -25,7 +25,6 @@ into a tree whose bytes are inside the semantic fingerprint.
 """
 import ast
 import importlib.util
-import json
 import re
 import shutil
 import subprocess

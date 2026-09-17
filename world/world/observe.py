@@ -323,7 +323,6 @@ def samples(root: Path) -> list:
 
 def main(argv=None):
     import argparse
-    import sys
     p = argparse.ArgumentParser(prog="world.observe")
     p.add_argument("root", type=Path)
     p.add_argument("--metric", default=None)

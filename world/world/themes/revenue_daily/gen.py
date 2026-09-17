@@ -8,12 +8,14 @@ ORDER BY so duckdb page layout is deterministic.
 """
 import csv
 import random
+from collections import OrderedDict
 from datetime import timedelta
+from decimal import Decimal
 from pathlib import Path
 
 import duckdb
 
-from world import scheduler, workflow
+from world import scheduler, warehouse_seed, workflow
 from world.scheduler import parse_vtime
 
 FIELDS = ["order_id", "order_date", "customer_id", "amount"]
@@ -72,6 +74,63 @@ def load_raw(workspace: Path, db_path: Path) -> None:
             ORDER BY order_date, order_id""")
     finally:
         con.close()
+
+
+LEGACY_RAW_TYPES = OrderedDict([
+    ("order_id", "INTEGER"), ("order_date", "DATE"),
+    ("customer_id", "VARCHAR"), ("amount", "DECIMAL(12,2)"),
+])
+LEGACY_FCT_TYPES = OrderedDict([
+    ("order_date", "DATE"), ("orders", "INTEGER"), ("revenue", "DECIMAL(14,2)"),
+])
+
+
+def _legacy_tables(root: Path, seed: dict, name: str, with_fact: bool) -> dict:
+    """The pre-dbt mart's tables, from the same landing rows.
+
+    A pure function of the seed, like write_day: `day_rows` for every landed
+    day, typed the way the old loader typed them (amount as a DECIMAL rather
+    than the VARCHAR the current raw load keeps), and - when asked - the daily
+    fact precomputed in exact decimal arithmetic. Returns the `tables` mapping
+    `world.warehouse_seed.seed_duckdb` bulk-loads; the CSVs land under build/,
+    which is neither fingerprinted nor snapshotted, so the seed material does
+    not become world state twice.
+    """
+    start = parse_vtime(seed["vtime_start"])
+    raw, fct = [], {}
+    for i in range(seed["days"]):
+        day = (start + timedelta(days=i)).date()
+        for row in day_rows(seed["seed"], i, day, seed):
+            raw.append((row["order_id"], row["order_date"], row["customer_id"],
+                        row["amount"]))
+            orders, revenue = fct.get(row["order_date"], (0, Decimal("0.00")))
+            fct[row["order_date"]] = (orders + 1, revenue + Decimal(row["amount"]))
+    out = root / "build" / "warehouse_seed" / name
+    tables = {
+        "raw.daily_revenue": (
+            warehouse_seed.write_rows_csv(out / "daily_revenue.csv",
+                                          list(LEGACY_RAW_TYPES), raw),
+            dict(LEGACY_RAW_TYPES)),
+    }
+    if with_fact:
+        tables["warehouse.fct_revenue"] = (
+            warehouse_seed.write_rows_csv(
+                out / "fct_revenue.csv", list(LEGACY_FCT_TYPES),
+                [(day, n, f"{total:.2f}") for day, (n, total) in sorted(fct.items())]),
+            dict(LEGACY_FCT_TYPES))
+    return tables
+
+
+def seed_legacy(root: Path, seed: dict, manifest: dict, name: str) -> dict:
+    """The `legacy` warehouse: raw layer AND the precomputed daily fact - the
+    mart the platform ran before dbt, complete, and decommissioned."""
+    return _legacy_tables(root, seed, name, with_fact=True)
+
+
+def seed_target(root: Path, seed: dict, manifest: dict, name: str) -> dict:
+    """The `target` warehouse: the raw layer only. Where a cutover lands; the
+    marts are the agent's to build there (`dbt_run(warehouse="target")`)."""
+    return _legacy_tables(root, seed, name, with_fact=False)
 
 
 def write_workflow(root: Path, seed: dict, manifest: dict) -> None:

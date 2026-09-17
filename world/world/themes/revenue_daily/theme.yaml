@@ -1,6 +1,35 @@
 name: revenue_daily
 dbt_profile: world_dbt
 
+# Additional warehouses this world shape can run (world/world/build.py,
+# `_seed_warehouses`). OFF unless a seed file opts in, e.g.
+#   warehouses: [legacy, target]
+# so the default world - the one every recorded fingerprint and the
+# acceptance battery build - is byte-identical to before this block existed.
+# Both are seeded by a gen hook through world.warehouse_seed (bulk, never the
+# connector) into var/warehouse/<name>.duckdb, and attached read-only into
+# the primary's catalog so the agent can reconcile in one statement.
+#
+# `legacy` is the mart the platform ran before dbt: the same landing data,
+# typed the way the old loader typed it, the daily fact precomputed. It is
+# the decommissioned writer - read-only at the engine, and NOT a dbt target,
+# because dbt opens a file directly and would write straight past the
+# read-only rule (build.py refuses `dbt: true` on a read-only warehouse).
+# `target` is where a cutover lands: the raw layer only, writable, and a dbt
+# target (`dbt: true` => a `target` output in build/profiles.yml, so
+# `dbt_run(warehouse="target")` builds the marts there).
+warehouses:
+  legacy:
+    backend: duckdb
+    read_only: true
+    attach: true
+    dbt: false
+  target:
+    backend: duckdb
+    read_only: false
+    attach: true
+    dbt: true
+
 # The human-context plane (gateway/WORKFLOW_CONTRACT.md): the ticket the work
 # arrives in, the channel the context is scattered across, and the wiki that is
 # right in some places and out of date in others.
