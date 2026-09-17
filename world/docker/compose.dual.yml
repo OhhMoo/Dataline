@@ -1,0 +1,18 @@
+# Dual-warehouse overlay for the world-factory stack (docker-compose.yml).
+#
+#   docker compose -f docker/docker-compose.yml -f docker/compose.dual.yml -p alkera-dual up -d episode
+#
+# Changes exactly two things about the `episode` service and nothing about the
+# networks, the harness or the grading zone: the seed the entrypoint builds
+# from opts the theme's additional warehouses in (`warehouses: [legacy,
+# target]`, see world/world/themes/revenue_daily/theme.yaml), and the gateway
+# config declares them. Everything acceptance gates 4-7 assert about the
+# one-warehouse stack is re-asserted against this one by
+# world/scripts/acceptance_dual.sh.
+services:
+  episode:
+    environment:
+      WORLD_SEED: /opt/world/seed.dual.yaml
+    volumes:
+      - ./seed.dual.yaml:/opt/world/seed.dual.yaml:ro
+      - ./gateway.dual.json:/etc/alkera/gateway.json:ro

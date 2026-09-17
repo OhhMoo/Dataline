@@ -1,0 +1,35 @@
+{
+  "schema": "acceptance/1",
+  "generated_at": "2026-09-16T18:27:35+00:00",
+  "git_head": "a97e23cae8eb0a8a881cd9a5e6a0fca37a9a7c0e",
+  "world_tree_dirty": true,
+  "python": "3.11.15",
+  "gates_passed": [
+    "1",
+    "2",
+    "2b",
+    "2c",
+    "2d",
+    "3",
+    "3b",
+    "3c",
+    "4",
+    "5",
+    "6",
+    "7"
+  ],
+  "gate1_host_semantic_hash": "85ce4cbbb86d66679c0b28be79af0b43e9773a5a559e6dbeb595aee3e669ba7d",
+  "gate3_container_semantic_hash": "85ce4cbbb86d66679c0b28be79af0b43e9773a5a559e6dbeb595aee3e669ba7d",
+  "cross_host": true,
+  "gate7_grading_unreachable": {
+    "ran": true,
+    "commands": [
+      "docker compose exec -T episode test ! -e /grading -> exit code 0",
+      "docker compose --profile harness run --rm harness test ! -e /grading -> exit code 0",
+      "docker compose ps -a: no grading container while the episode is live",
+      "grading NetworkMode == none after boot; /grading still absent in episode;",
+      "episode cannot resolve the grading hostname"
+    ],
+    "note": null
+  }
+}

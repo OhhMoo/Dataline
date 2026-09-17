@@ -44,6 +44,11 @@ fingerprinted:
   live.json rather than recomputed, which is what makes the two paths agree.
 - observability samples (observe.py) are appended after every executed run, so
   a fault leaves a trace in the record as well as in the world.
+- publication receipts (ledger.py) are appended after every occurrence that
+  actually ran the job's command, for every `publishes` entry the job declares.
+  The ledger is written HERE and nowhere else: the world records what a
+  consumer could see, the agent cannot reach the file, and a later good state
+  cannot erase an earlier bad publication. See world/LEDGER_CONTRACT.md.
 """
 import argparse
 import json
@@ -51,7 +56,7 @@ import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from . import executor, faults as faultlib, observe
+from . import executor, faults as faultlib, ledger as ledgerlib, observe
 from .hashing import json_canon
 
 STATE = Path("var/sched/state.json")
@@ -584,6 +589,34 @@ def _land(root: Path, live: dict, gen, seed: dict, event: dict, day):
     return (produced if isinstance(produced, dict) else None), effect
 
 
+def _publish(root: Path, state: dict, live: dict | None, job: str,
+             run: dict, day: str | None) -> list:
+    """Append this occurrence's publication receipts. Returns them.
+
+    Called from the three places in `_simulate_job` where the job's command
+    ACTUALLY RAN, and from nowhere else. That is the whole rule, and the three
+    branches that do not call it are the argument for it: a `job_timeout` and a
+    burned `job_retry` attempt never reached the work, so nothing was
+    published, and a receipt there would claim a publication the world did not
+    make. A `partial_write` run DOES call it - the loader really wrote before it
+    died, so a consumer really could see the torn table, and that is exactly the
+    bad intermediate publication this ledger exists to pin down.
+
+    `run["vts_end"]` is the receipt's vnow: a publication becomes visible when
+    the job that made it finishes, which for an overrun is the stretched end,
+    not the nominal one. Status is deliberately NOT in the receipt - the
+    canonical hash says what a consumer could see, and whether the job called
+    itself successful is already in var/sched/state.json.
+
+    `trigger()` does not call this. A manual trigger runs inside the episode
+    container, where var/ledger is shadowed by an empty read-only mount, so a
+    receipt written there would land on a tmpfs and vanish at teardown -
+    a silently incomplete ledger, which is worse than a ledger with a stated
+    boundary. LEDGER_CONTRACT.md states it.
+    """
+    return ledgerlib.record(root, live, state, job, run["vts_end"], day)
+
+
 def _simulate_job(root: Path, state: dict, live: dict, event: dict,
                   day) -> list:
     """Run one job occurrence, under whatever fault applies.
@@ -680,7 +713,9 @@ def _simulate_job(root: Path, state: dict, live: dict, event: dict,
         # This is the staged interleave: the evidence of a race, never a race.
         result = _execute(root, state, live, job, day=day_iso)
         stretched = _overrun_seconds(duration, params)
-        emit(_run_record(job, at, stretched, result, "schedule", detail, day_iso))
+        _publish(root, state, live, job,
+                 emit(_run_record(job, at, stretched, result, "schedule",
+                                  detail, day_iso)), day_iso)
         _fault_log(live, at, fault, job,
                    {"duration_s": stretched, "nominal_duration_s": duration})
         return made, None
@@ -701,12 +736,16 @@ def _simulate_job(root: Path, state: dict, live: dict, event: dict,
                       "effects": effects,
                       "error": params.get("error")
                       or "loader process exited with code 137 (killed)"}
-        emit(_run_record(job, at, duration, result, "schedule", detail, day_iso))
+        _publish(root, state, live, job,
+                 emit(_run_record(job, at, duration, result, "schedule", detail,
+                                  day_iso)), day_iso)
         _fault_log(live, at, fault, job, {"trimmed": trimmed})
         return made, None
 
     result = _execute(root, state, live, job, day=day_iso)
-    emit(_run_record(job, at, duration, result, "schedule", detail, day_iso))
+    _publish(root, state, live, job,
+             emit(_run_record(job, at, duration, result, "schedule", detail,
+                              day_iso)), day_iso)
     return made, None
 
 

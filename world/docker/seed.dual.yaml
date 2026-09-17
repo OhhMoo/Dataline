@@ -1,0 +1,12 @@
+# world/seed.example.yaml with the theme's additional warehouses opted in.
+# Built at boot by docker/compose.dual.yml (WORLD_SEED); see theme.yaml
+# `warehouses:` for what `legacy` and `target` are.
+theme: revenue_daily
+seed: 1
+vtime_start: "2026-02-01T00:00:00Z"
+days: 30
+orders_per_day: [40, 60]
+customers: 500
+amount_cents: [500, 20000]
+git_author: "Data Platform <data@example.com>"
+warehouses: [legacy, target]
