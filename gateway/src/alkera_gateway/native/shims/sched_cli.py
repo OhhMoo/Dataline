@@ -4,11 +4,11 @@
     ./ops/sched logs [RUN_ID | JOB]
     ./ops/sched trigger JOB [--date ISO] [--var KEY=VALUE ...]
 
-WHY THIS EXISTS. `gateway/NATIVE_SURFACES.md` maps `sched_*` onto "Airflow 3
+WHY THIS EXISTS. `gateway/NATIVE.md` maps `sched_*` onto "Airflow 3
 under vclock", and there is no Airflow: until this module existed native mode
 had no scheduler surface at all, so three of GT001's probes and two of GT004's
 sixteen required surfaces were dead by construction and no task requiring them
-could be run under `--driver native` (gateway/NATIVE_INTEGRATION.md, runner-up
+could be run under `--driver native` (gateway/NATIVE.md, runner-up
 finding 2). The world's scheduler is a state file plus an executor, not a
 server, so the native surface is a CLI in the repo - the shape `./ops/deploy`
 already has. Under the container topology the FILES it drives are not on the

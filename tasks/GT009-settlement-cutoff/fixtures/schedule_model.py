@@ -85,7 +85,7 @@ def _check_publishes(name: str, raw):
 
     The WORLD writes one receipt per entry per scheduled run into the protected
     ledger (var/ledger/receipts.jsonl); nothing in this task package writes it.
-    Shape, from world/LEDGER_CONTRACT.md: a list of mappings with `target`,
+    Shape, from world/README.md#publication-ledger: a list of mappings with `target`,
     `kind` in (table, file) and an optional `consumer`.
     """
     if raw is None:

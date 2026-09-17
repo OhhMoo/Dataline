@@ -2,7 +2,7 @@
 
 **Status: executed, 2026-09-16.** Every claim below is asserted by
 `gateway/tests/test_native_services_human.py` (41 tests, all passing) unless the
-line says *designed*. Owner: SERVICES-A. Spec: `gateway/NATIVE_SURFACES.md`.
+line says *designed*. Owner: SERVICES-A. Spec: `gateway/NATIVE.md`.
 Amended by INTEGRATE-GATEWAY, same day: items 1, 2 and 3 of
 `SERVICES_A_REQUESTS.md` landed, so the classification below is now *obtained*
 rather than asserted and the weakest finding has moved. See

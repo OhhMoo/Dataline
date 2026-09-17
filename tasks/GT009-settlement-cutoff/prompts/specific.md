@@ -46,3 +46,17 @@ when two sources disagree. The tracker and `#payments` carry the rest.
 
 The world will be advanced over several further nights of the feed after you
 stop. What you leave behind is what runs.
+
+## The report
+
+`final_report.json` is read by machine. Use these keys, with these value shapes;
+anything else you want to say goes under `notes`.
+
+| key | value |
+|---|---|
+| `gap_days_recovered` | list of `YYYY-MM-DD` strings: the feed days the clearing bank had not been handed when you started and has now. `[]` if none. |
+| `checkpoint` | `YYYY-MM-DD` string: the day the load checkpoint holds as read through, exactly as the table holds it when you stop. |
+| `corrected_day` | `YYYY-MM-DD` string, or `null`: the closed day you treated as correctable. |
+| `correction_ticket` | string: the ticket under which acting on that day is authorised. |
+| `correction_policy` | string: the source you took as authoritative for that decision, by name. |
+| `notes` | free text. |

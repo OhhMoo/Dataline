@@ -16,11 +16,11 @@ P2  no service in the episode zone can reach the internet - proven from inside t
 P3  the gateway is the only channel: the agent's vantage reaches the gateway port and
     nothing else, and the gateway's own tool surface exposes no socket primitive.
 P4  no service perturbs the fingerprinted world tree, idle or under load.
-P5  the publication ledger (world/LEDGER_CONTRACT.md) is world evidence and not
+P5  the publication ledger (world/README.md#publication-ledger) is world evidence and not
     an agent surface: a receipt planted in the world volume is unreadable and
     unwritable from the episode shell, and unreachable through every gateway tool.
 
-P6  native mode only (gateway/NATIVE_SURFACES.md): only the fake services are
+P6  native mode only (gateway/NATIVE.md): only the fake services are
     reachable. Every `<name>.internal` resolves and answers, a control name does
     not, and a port that is not a service port is refused - measured from inside
     the episode container by gateway/docker/native_probe.py.
@@ -522,7 +522,7 @@ def property_3_channel(stack, evidence):
 
 
 # --------------------------------------------------------------------------
-# P5 - the publication ledger. world/LEDGER_CONTRACT.md.
+# P5 - the publication ledger. world/README.md#publication-ledger.
 # --------------------------------------------------------------------------
 
 # The ledger's path in the world tree, and the canary receipt planted in it.
@@ -903,7 +903,7 @@ def property_1_grading_after_teardown(stack, evidence):
 
 
 # --------------------------------------------------------------------------
-# P6 - native mode. gateway/NATIVE_SURFACES.md, gateway/docker/NATIVE_STACK.md.
+# P6 - native mode. gateway/NATIVE.md, gateway/docker/NATIVE_STACK.md.
 # --------------------------------------------------------------------------
 
 
@@ -1158,7 +1158,7 @@ def main():
     )
     parser.add_argument(
         "--native", action="store_true",
-        help="native mode (gateway/NATIVE_SURFACES.md): layer compose.episode.yml "
+        help="native mode (gateway/NATIVE.md): layer compose.episode.yml "
              "and compose.native.yml, and measure P6 alone. P0-P5 are properties of "
              "the MCP-transport stack and are NOT re-run here - the overlay parks the "
              "gateway, swaps the object store and detaches the episode from "

@@ -1,6 +1,6 @@
 """Containment P6, measured from inside the episode container.
 
-`gateway/NATIVE_SURFACES.md`: in native mode the agent has bash and a network
+`gateway/NATIVE.md`: in native mode the agent has bash and a network
 instead of a tool list, and the boundary moves from the tool surface to the
 episode network. P6 is the claim that moved boundary makes:
 
@@ -200,7 +200,7 @@ def probe(expected: list[dict], controls: tuple[str, ...],
     # Docker's embedded resolver registers a container's COMPOSE SERVICE NAME on
     # every network it joins, and compose offers no way to unregister it. So
     # `postgres` resolves from the episode for the same reason `postgres
-    # .internal` does, and NATIVE_SURFACES.md's "nothing else resolves" is not
+    # .internal` does, and NATIVE.md's "nothing else resolves" is not
     # literally true. Recorded rather than asserted away, and pinned: each of
     # these must resolve to an address that is already one of OUR services, so
     # a name that resolves to something else is still a failure.

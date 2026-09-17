@@ -14,7 +14,7 @@ literal.
 WHAT IS NOT EXECUTED. MinIO (no task in the corpus REQUIRES the s3 surface, so
 `needs_object_storage` is exercised as a pure function and the container is
 not started here), and the Postgres-served warehouse, which native mode does
-not use for the existing tasks. `gateway/NATIVE_INTEGRATION.md` records both.
+not use for the existing tasks. `gateway/NATIVE.md` records both.
 
 It is a script and not a pytest module for the reason `test_native_driver.py`
 is: it starts processes and binds ports, and a run that half-failed must print

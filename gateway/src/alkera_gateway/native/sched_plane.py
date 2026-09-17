@@ -1,6 +1,6 @@
 """The scheduler plane: `./ops/sched`'s backend, served like the other eight.
 
-WHY THERE IS A SERVER FOR A CLI. `gateway/NATIVE_SURFACES.md` maps `sched_*`
+WHY THERE IS A SERVER FOR A CLI. `gateway/NATIVE.md` maps `sched_*`
 onto a scheduler, and this world's scheduler is a state file plus an executor -
 `var/sched/state.json`, the run logs beside it, `var/obs`, `build/sched`. On the
 HOST topology `shims/sched_cli.py` drives all of that in its own process, which

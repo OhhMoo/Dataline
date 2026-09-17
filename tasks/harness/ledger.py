@@ -1,4 +1,4 @@
-"""The grading side of the publication ledger (world/LEDGER_CONTRACT.md).
+"""The grading side of the publication ledger (world/README.md#publication-ledger).
 
 The world writes `<world_root>/var/ledger/receipts.jsonl` while it advances; a
 grader reads it afterwards to ask what a consumer could see, and when. This

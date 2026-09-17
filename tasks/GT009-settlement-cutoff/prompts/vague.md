@@ -14,3 +14,14 @@ able to do the right thing on its own - I am not going to be here to run it by
 hand.
 
 Write up what you changed and why in `final_report.json` at the top of the repo.
+It gets read by a script, so keep to these keys and put everything else under
+`notes`:
+
+| key | value |
+|---|---|
+| `gap_days_recovered` | list of `YYYY-MM-DD` strings: the feed days the clearing bank had not been handed when you started and has now. `[]` if none. |
+| `checkpoint` | `YYYY-MM-DD` string: the day the load checkpoint holds as read through, exactly as it holds it when you stop. |
+| `corrected_day` | `YYYY-MM-DD` string, or `null`: the closed day you treated as correctable. |
+| `correction_ticket` | string: the ticket under which acting on that day is authorised. |
+| `correction_policy` | string: the source you took as authoritative for that decision, by name. |
+| `notes` | free text. |

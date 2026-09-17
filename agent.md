@@ -1479,15 +1479,15 @@ alkera/
 │   │   ├── executor.py  faults.py                what a job run actually does, and how it breaks
 │   │   ├── ledger.py                             LAYER 4: protected receipts of what the world published (P5)
 │   │   ├── native_workspace.py                   .envrc / profiles.yml / onboarding.md for native mode
-│   │   ├── warehouse_seed.py  vclock.py  airflow_bridge.py  airflow_logs.py
-│   │   └── LEDGER_CONTRACT.md
+│   │   └── warehouse_seed.py  vclock.py  airflow_bridge.py  airflow_logs.py
+│   ├── README.md               the guide, incl. the publication-ledger contract (#publication-ledger)
 │   ├── docker/  scripts/acceptance.sh  evidence/acceptance.json
 │   └── tests/                  166 + 81 subtests
 │
 ├── gateway/                    TRACK B · every way an agent touches the world
-│   ├── NATIVE_SURFACES.md      the spec native mode was built against (+ amendment)
-│   ├── NATIVE_INTEGRATION.md   what runs, with the numbers
-│   ├── DUAL_WAREHOUSE_CONTRACT.md
+│   ├── README.md               run, audit/replay, the stacks
+│   ├── SURFACES.md             the five surface contracts: #warehouse-connector #dual-warehouse #ingest #workflow #observability
+│   ├── NATIVE.md               native mode: spec (+ amendment), mapping, what is measured
 │   ├── src/alkera_gateway/
 │   │   ├── core.py  tools.py  operations.py      THE audited chokepoint; 63 MCP tools; op_class + targets
 │   │   ├── records.py  audit.py                  the 9.2.2 row; sealable/nested Observation
@@ -1712,7 +1712,7 @@ GT001, GT004, GT006, GT008.
 - **The four-layer gate certifies shortcut-resistance, not difficulty** (§8.11).
 - **No container-topology number exists for any task but GT001**, and no native-mode
   model number exists at all.
-- Native-mode smoke (every declared job triggered, per task): executed 2026-09-16 (`ALKERA_TRIGGER_ALL=1`, run-id `native-smoke-all`): ten triggers over four job shapes on GT001/GT004/GT006/GT008, zero quarantines, no allowlist change; GT001 reports `gate: not_declared` because its task.toml declares no required_surfaces - a property of the task under both drivers. Recorded in `gateway/NATIVE_INTEGRATION.md` §4b.
+- Native-mode smoke (every declared job triggered, per task): executed 2026-09-16 (`ALKERA_TRIGGER_ALL=1`, run-id `native-smoke-all`): ten triggers over four job shapes on GT001/GT004/GT006/GT008, zero quarantines, no allowlist change; GT001 reports `gate: not_declared` because its task.toml declares no required_surfaces - a property of the task under both drivers. Recorded in `gateway/NATIVE.md` ("Measured — NATIVE-FIXES", trigger-all smoke).
 
 ---
 
@@ -1723,7 +1723,7 @@ GT001, GT004, GT006, GT008.
 matter before it had read a file, and every difficulty number in §8.10 was measured
 with that map in hand. Native mode removes it: bash only, no MCP server, discovery
 from `.envrc`, `~/.dbt/profiles.yml`, `~/.config/alkera/services.toml`,
-`docs/onboarding.md` and `--help`. Spec: `gateway/NATIVE_SURFACES.md`.
+`docs/onboarding.md` and `--help`. Spec: `gateway/NATIVE.md`.
 
 **The constraint that shaped it: the action log survives.** §9.2.2 is what
 blindness detection, containment proofs and `--reclassify` rest on, so in native
@@ -1738,7 +1738,7 @@ server's statement log, or a PATH shim - never reconstructed from the transcript
 | human | `jira` / `slack_sdk` / `atlassian` clients, curl | fake Jira, Slack, Confluence over the same `var/workflow` files | `jira.issues_*`, `slack.chat_*`, `confluence.kb_*` |
 | ops | Metabase, Prometheus/Alertmanager, Loki, Airbyte, GitHub-deployments-shaped release API | fake services over the same obs/bi/ingest/deploy stores | `<service>.<mcp_tool>` |
 
-**Measured** (all executed, with commands in `gateway/NATIVE_INTEGRATION.md`):
+**Measured** (all executed, with commands in `gateway/NATIVE.md`):
 target-set parity over both transports (`native/PARITY.md`); row equivalence 16/16
 (human) and 19/19 (ops), the latter *obtained* from the same `Observation` the MCP
 path sets and a handler that skips the module call now raises; P6 on a real stack
@@ -1749,7 +1749,7 @@ selftest 147 before and after.
 
 **Decisions, recorded with their reasons:** the DuckDB *file* stays the warehouse
 for existing tasks (the scheduler, dbt and every grader use it; serving Postgres would
-split the world) - the amendment in `NATIVE_SURFACES.md`; a runtime-refused malformed
+split the world) - the amendment in `NATIVE.md`; a runtime-refused malformed
 tool name is soft, not a quarantine; the content-bearing gate binds only where a task
 declares `warehouse_schemas` (GT008's target is empty *because building it is the
 task*); `advance` removed from `./ops/sched` for comparability.
@@ -1777,9 +1777,9 @@ bash - while all 5 scored 18-19/19); GT004 **0.25** with the historical rewrite 
 in 2 of 5 episodes versus 0 of 21 under MCP. Both quarantine causes are impossible by
 construction only in the container topology, which is being built; host-topology native
 numbers carry that caveat until then. Reviewer's reading order:
-`NATIVE_SURFACES.md` -> `native/PARITY.md` -> `native/services/{HUMAN,OPS}_PLANE.md` ->
-`tasks/harness/NATIVE_DRIVER.md` -> `gateway/docker/NATIVE_STACK.md` ->
-`gateway/NATIVE_INTEGRATION.md` (two dated sections).
+`gateway/NATIVE.md` (spec, mapping, then the two dated "Measured" sections) ->
+`native/PARITY.md` -> `native/services/{HUMAN,OPS}_PLANE.md` ->
+`tasks/harness/NATIVE_DRIVER.md` -> `gateway/docker/NATIVE_STACK.md`.
 
 ---
 

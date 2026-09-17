@@ -1,4 +1,4 @@
-"""Issue tracker, team chat and the wiki (see WORKFLOW_CONTRACT.md).
+"""Issue tracker, team chat and the wiki (see SURFACES.md#workflow).
 
 The three surfaces a data engineer's day actually starts in, and the half of the
 job the warehouse tools cannot represent: a request written by somebody who does

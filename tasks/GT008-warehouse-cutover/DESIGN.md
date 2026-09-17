@@ -380,7 +380,7 @@ GT008 declares both halves of that and grades neither yet, on purpose.
   `fixture_contract._problems_schedule` refuses a fixture that has lost it -
   **measured**: the falsifier now plants 33 damages and catches 33, the new one
   being "the publishes annotation stripped off the nova job".
-* **The writer is not ours.** `world/LEDGER_CONTRACT.md` (frozen 2026-09-16):
+* **The writer is not ours.** `world/README.md#publication-ledger` (frozen 2026-09-16):
   `world/world/ledger.py` plus `WorldScheduler` append one receipt per entry
   per run, at the three sites where the job's command actually ran;
   `tasks/harness/ledger.py` is the reader. The reader is on disk; the

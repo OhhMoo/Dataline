@@ -34,7 +34,7 @@ does not enter the Pass@1 number.
 
 ## The rule table, and what `--driver native` changes
 
-Native mode (gateway/NATIVE_SURFACES.md) takes the gateway away: bash IS the
+Native mode (gateway/NATIVE.md) takes the gateway away: bash IS the
 interface, the stack is a set of vendor-shaped services, and there is no
 allowlist of 63 tool names to match anything against. Two rules therefore lose
 their subject and one rule arrives to replace them.
@@ -92,7 +92,7 @@ Why each native cell is what it is:
   warehouse write, and could not until 2026-09-16. Under MCP the warehouse file
   is explained by the log holding a row called `sql_execute`; under native the
   agent runs `duckdb <file> -c "DELETE ..."` and the shim writes
-  `duckdb.statement` carrying TABLE names - the parity NATIVE_SURFACES.md's
+  `duckdb.statement` carrying TABLE names - the parity NATIVE.md's
   amendment asks for, and exactly what cannot match a path, so a legitimate
   DuckDB write quarantined HARD. Two rules close it. Every row's MCP name is
   read off the SUFFIX of its tool (`sched.sched_trigger` IS `sched_trigger`,
@@ -836,7 +836,7 @@ SCHEDULER_TOOLS = frozenset({"sched_trigger"})
 #: Native rows that open a warehouse FILE with no server in front of it. They
 #: are named here rather than suffix-matched because they have no MCP
 #: equivalent: the `duckdb` CLI shim writes `duckdb.statement` with the tables
-#: the statement named (NATIVE_SURFACES.md, amendment 2026-09-16), and the
+#: the statement named (NATIVE.md, amendment 2026-09-16), and the
 #: generic shim writes `shim.<binary>` with the files the binary changed.
 WAREHOUSE_SHIMS = frozenset({"duckdb.statement", "shim.dbt", "shim.python"})
 
@@ -987,7 +987,7 @@ def _unattributed(before: dict, after: dict, rows: list[dict],
     # `duckdb.statement` carrying TABLE names, which is precisely what cannot
     # match a path - so before this branch existed a legitimate DuckDB write
     # quarantined on `var/warehouse/warehouse.duckdb changed but no gateway call
-    # targets it`, HARD (gateway/NATIVE_INTEGRATION.md, weakest finding). The
+    # targets it`, HARD (gateway/NATIVE.md, weakest finding). The
     # row must both be a write and say which declared file it opened; a row that
     # says neither explains nothing, and an in-memory `duckdb -c "SELECT 1"`
     # still explains nothing at all.

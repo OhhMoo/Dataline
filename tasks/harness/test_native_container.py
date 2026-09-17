@@ -74,38 +74,89 @@ def section(title: str) -> None:
 
 # ---------------------------------------------------------------- pure tests
 def test_bash_wrapper_contract(tmp: Path) -> None:
-    section("the bash wrapper: what it runs, and what it refuses")
+    """The BASH_ENV redirect (container_episode.BASH_HOOK), exercised through
+    a real bash with a stand-in `docker`: no daemon, no model.
+
+    This replaced a PATH-front wrapper that the CLI silently ignored (the
+    measurement in container_episode.py's wrapper section). The test therefore
+    checks the thing that failed - that a bash started the way the CLI starts
+    one, with the subject's own environment, hands its command to `docker exec`
+    - and not just that files were written.
+    """
+    section("the bash redirect: it fires from BASH_ENV, and it carries the command")
+    fake = tmp / "fakedocker"
+    fake.mkdir(parents=True, exist_ok=True)
+    # A stand-in that prints its argv. The hook execs it directly, so it has to
+    # be a real executable to bash: a script with a shebang is one.
+    stub = fake / "docker"
+    with open(stub, "w", encoding="utf-8", newline="\n") as stream:
+        stream.write('#!/bin/bash\nprintf "FAKE-DOCKER"; for a in "$@"; do '
+                     'printf " [%s]" "$a"; done; printf "\\n"\n')
+    os.chmod(stub, 0o755)
+
     wrapper = ce.write_bash_wrapper(tmp / "shell", container="deadbeef",
                                     interpreter=sys.executable,
-                                    env={"ALKERA_X": "1"})
+                                    env={"ALKERA_X": "1"}, docker=stub.as_posix())
     files = {Path(p).name for p in wrapper["files"]}
-    check("it writes the module, its config and a `bash` launcher",
-          {"container_bash.py", "container_bash.json", "bash"} <= files,
-          sorted(files))
+    check("it writes the hook, the three profile files and its config",
+          {"alkera_bash_env.sh", ".bash_profile", ".bashrc", ".profile",
+           "container_bash.json"} <= files, sorted(files))
     config = json.loads(Path(wrapper["config"]).read_text(encoding="utf-8"))
-    check("the config names the container, the workdir and the forwarded env",
+    check("the config names the container, the workdir, the forwarded env and the bash",
           config["container"] == "deadbeef"
           and config["workdir"] == ce.WORKSPACE_IN_CONTAINER
-          and config["env"] == {"ALKERA_X": "1"}, json.dumps(config))
+          and config["env"] == {"ALKERA_X": "1"}
+          and config["bash"] == wrapper["launcher"], json.dumps(config))
+    launcher = wrapper["launcher"]
+    check("the launcher is a real bash.exe, not the WSL launcher",
+          launcher.lower().endswith(".exe" if os.name == "nt" else "bash")
+          and "system32" not in launcher.lower(), launcher)
+    sub = wrapper["subject_env"]
+    check("the subject env pins the CLI to that bash and points BASH_ENV at the hook",
+          sub["CLAUDE_CODE_GIT_BASH_PATH"] == launcher
+          and sub["BASH_ENV"] == Path(wrapper["hook"]).as_posix()
+          and sub["HOME"] == str(tmp / "shell"), json.dumps(sub))
 
-    # The argv contract, exercised through the generated module itself rather
-    # than a copy of its rules: `parse` is what decides whether a command runs.
-    namespace: dict = {"__file__": wrapper["wrapper"]}
-    source = Path(wrapper["wrapper"]).read_text(encoding="utf-8")
-    exec(compile(source, wrapper["wrapper"], "exec"), namespace)   # noqa: S102
-    parse = namespace["parse"]
-    for argv, expected in ((["-c", "ls"], "ls"),
-                           (["-lc", "ls -la"], "ls -la"),
-                           (["-l", "-c", "echo hi"], "echo hi"),
-                           (["-ic", "pwd"], "pwd")):
-        command, why = parse(argv)
-        check(f"`bash {' '.join(argv)}` runs {expected!r}",
-              command == expected and why is None, f"{command!r} {why!r}")
-    for argv in (["/tmp/script.sh"], ["-c"], ["-x", "-c", "ls"],
-                 ["-c", "ls", "extra"], []):
-        command, why = parse(argv)
-        check(f"`bash {' '.join(argv) or '(nothing)'}` is REFUSED, not run on "
-              f"the host", command is None and bool(why), f"{why!r}")
+    def run(args: list[str]) -> subprocess.CompletedProcess:
+        return subprocess.run([launcher, *args], capture_output=True, text=True,
+                              encoding="utf-8", errors="replace",
+                              env={**os.environ, **sub}, timeout=60)
+
+    # `bash -c`, the form the CLI's Bash tool uses: BASH_ENV fires.
+    out = run(["-c", "hostname"]).stdout.strip()
+    check("`bash -c hostname` never runs hostname: the hook execs docker instead",
+          out.startswith("FAKE-DOCKER"), out[-300:])
+    check("...as `docker exec -i -w /workspace <env> deadbeef bash -c <command>`",
+          out == "FAKE-DOCKER [exec] [-i] [-w] [/workspace] [-e] [ALKERA_X=1] "
+                 "[deadbeef] [bash] [-c] [hostname]", out[-300:])
+    # `bash -lc`, the login form the CLI also uses: .bash_profile fires.
+    out = run(["-lc", "ls -la /"]).stdout.strip()
+    check("`bash -lc` reaches the same exec through .bash_profile",
+          out.endswith("[bash] [-c] [ls -la /]"), out[-300:])
+    # The cwd rewrite: the CLI prefixes `cd <host cwd> &&`, and the host cwd
+    # does not exist in the container.
+    cwd = tmp / "shell"
+    plain = {k: v for k, v in {**os.environ, **sub}.items() if k != "BASH_ENV"}
+    host_pwd = subprocess.run([launcher, "-c", "pwd"], capture_output=True, text=True,
+                              encoding="utf-8", errors="replace", env=plain,
+                              cwd=str(cwd), timeout=60).stdout.strip()
+    r = subprocess.run([launcher, "-c", f"cd {host_pwd} && pwd"], capture_output=True,
+                       text=True, encoding="utf-8", errors="replace",
+                       env={**os.environ, **sub}, cwd=str(cwd), timeout=60)
+    check("a `cd <host cwd>` in the command is rewritten to the container's workdir",
+          "[cd /workspace && pwd]" in r.stdout,
+          f"host cwd {host_pwd!r} -> {r.stdout.strip()[-200:]}")
+    # And the boundary it is not: the documented escape stays documented.
+    out = run(["--noprofile", "--norc", "-c", "echo host"]).stdout.strip()
+    check("`bash --noprofile --norc -c` (BASH_ENV still set) still redirects",
+          out.startswith("FAKE-DOCKER"), out[-200:])
+    r = subprocess.run([launcher, "-c", "echo host"], capture_output=True,
+                       text=True, encoding="utf-8", errors="replace",
+                       env={k: v for k, v in {**os.environ, **sub}.items()
+                            if k != "BASH_ENV"}, timeout=60)
+    check("...but with BASH_ENV unset, `bash -c` is on the host - a REDIRECT, not a boundary, "
+          "which is why rollout.py proves it before every episode",
+          r.stdout.strip() == "host", r.stdout.strip()[-200:])
 
 
 def test_warehouse_mounts(tmp: Path) -> None:
@@ -337,17 +388,126 @@ def build_world(tmp: Path, task: str, tasks_dir: Path | None) -> dict:
 
 def run_in(stack: ce.NativeContainerEpisode, command: str,
            env: dict | None = None) -> subprocess.CompletedProcess:
-    """Run one command through the SUBJECT's own wrapper, not through docker."""
-    wrapper = ce.write_bash_wrapper(stack.rollout_dir / "shell",
-                                    container=stack.container_id,
-                                    interpreter=str(episode.PY),
-                                    env=env or {})
-    return subprocess.run([wrapper["launcher"], "-lc", command],
+    """Run one command through the SUBJECT's own shell path, not through docker.
+
+    `stack.shell()` and its `subject_env`, exactly as `agent_under_test` arms
+    the model's process: the redirect lives in `BASH_ENV` and `HOME`, so a
+    launcher run without that environment is Git Bash on the HOST - which is
+    what this helper silently was until 2026-09-17, and the reason the live
+    half's first check failed with `cd: /world/var/warehouse: No such file`.
+    """
+    shell = stack.shell(stack.rollout_dir / "shell", env=env or {})
+    if not shell["proof"]["verified"]:
+        raise RuntimeError(f"the subject's shell does not reach the container: "
+                           f"{shell['proof']}")
+    return subprocess.run([shell["launcher"], "-lc", command],
                           capture_output=True, text=True, encoding="utf-8",
-                          errors="replace", timeout=600)
+                          errors="replace", timeout=600,
+                          env={**os.environ, **shell["subject_env"]})
 
 
-def test_live(tmp: Path, task: str, tasks_dir: Path | None, image: str) -> None:
+#: Where the one-turn model smoke's verdict is recorded, beside the other
+#: containment evidence. The wrapper section of container_episode.py cites
+#: `shell-redirect-*.json`; this is the file that citation now resolves to.
+SMOKE_EVIDENCE = ce.DOCKER_DIR / "evidence" / "shell-redirect-bash-env.json"
+
+#: The harness half of the same acceptance, recorded on its own: the proof
+#: rollout.py takes before every episode (`bash -lc hostname` through the
+#: subject's launcher and env), plus `ls /` through the same path. This is a
+#: measurement of the redirect mechanism; it is NOT a measurement of the CLI's
+#: Bash tool taking that path - that is SMOKE_EVIDENCE, and the record below
+#: says in its own words whether the model turn has been taken.
+SHELL_EVIDENCE = ce.DOCKER_DIR / "evidence" / "shell-redirect-harness-proof.json"
+
+
+def test_shell_redirect_live(stack: ce.NativeContainerEpisode, tmp: Path,
+                             model_smoke: str | None) -> None:
+    """§4.1 acceptance. The proof rollout.py takes before every episode, taken
+    here against a live container; then, when a model is named, the one turn
+    that the scripted subject can never stand in for."""
+    section("the shell redirect, against a live container (the §4.1 acceptance)")
+    shell = stack.shell(tmp / "roll" / "shell")
+    proof = shell["proof"]
+    check("rollout.py's proof: `bash -lc hostname` through the subject's own path "
+          "returns the container's hostname", proof["verified"], json.dumps(proof)[:300])
+    env = {**os.environ, **shell["subject_env"]}
+    r = subprocess.run([shell["launcher"], "-c", "ls /"], capture_output=True,
+                       text=True, encoding="utf-8", errors="replace", env=env,
+                       timeout=120)
+    root = set(r.stdout.split())
+    check("`bash -c 'ls /'` lists a Linux root with this topology's three mounts",
+          {"workspace", "world", "audit"} <= root, sorted(root)[:20])
+    check("...and none of Git Bash's", not (root & set(ce.HOST_ROOT_MARKERS)),
+          sorted(root & set(ce.HOST_ROOT_MARKERS)))
+    shell_ok = (proof["verified"] and {"workspace", "world", "audit"} <= root
+                and not (root & set(ce.HOST_ROOT_MARKERS)))
+    if shell_ok:
+        # The mechanism, measured without a model. Written only when all three
+        # checks above held, for the same reason SMOKE_EVIDENCE is: a record of
+        # a failed proof is a bug report, not evidence of the redirect.
+        SHELL_EVIDENCE.parent.mkdir(parents=True, exist_ok=True)
+        with open(SHELL_EVIDENCE, "w", encoding="utf-8", newline="\n") as stream:
+            json.dump({
+                "measurement": "the BASH_ENV redirect against a live episode container, "
+                               "through the subject's launcher and environment, with no "
+                               "model in the loop",
+                "configuration": "HOME at the rollout's hook dir; BASH_ENV at the hook; "
+                                 "launcher = the real bash.exe rollout.py resolves",
+                "harness_proof": proof,
+                "ls_root": sorted(root),
+                "host_root_markers_seen": sorted(root & set(ce.HOST_ROOT_MARKERS)),
+                "model_turn": ("taken; see " + SMOKE_EVIDENCE.name) if model_smoke
+                              else "NOT taken - pass --model-smoke <model>; this file "
+                                   "does not show that the CLI's Bash tool uses this path",
+                "image": stack.image,
+                "measured_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+            }, stream, indent=2, sort_keys=True)
+            stream.write("\n")
+        print(f"  evidence: {SHELL_EVIDENCE}")
+    if not model_smoke:
+        print("  [SKIP] one-turn model smoke: pass --model-smoke <model> to spend one turn")
+        return
+    verdict = ce.model_shell_smoke(shell, stack.container_id, tmp / "smoke",
+                                   model=model_smoke)
+    check("the model used its Bash tool", verdict["bash_tool_used"], verdict["commands"])
+    check("the hostname it printed is the container's",
+          verdict["hostname_is_the_container"],
+          f"expected {verdict['expected_hostname']!r}; final {verdict['final'][-200:]!r}")
+    check("the root it listed has /workspace /world /audit",
+          {"workspace", "world", "audit"} <= set(verdict["container_root_markers_seen"]),
+          verdict["container_root_markers_seen"])
+    check("...and no Git Bash entry", not verdict["host_root_markers_seen"],
+          verdict["host_root_markers_seen"])
+    check("the one-turn smoke is VERIFIED end to end", verdict["verified"])
+    record = {
+        "measurement": "one model turn through the CLI's Bash tool with the BASH_ENV "
+                       "redirect armed, against a live episode container",
+        "configuration": "CLAUDE_CODE_GIT_BASH_PATH at the real bash.exe; HOME at the "
+                         "rollout's hook dir; BASH_ENV at the hook",
+        "harness_proof": proof,
+        "smoke": {k: v for k, v in verdict.items() if k not in ("subject_env", "argv")},
+        "image": stack.image,
+    }
+    if verdict["verified"]:
+        # Only a verified turn is evidence of the redirect. A turn the model
+        # never took (quota, auth, a CLI that would not start) says nothing
+        # about the shell and is kept out of the repository's evidence.
+        SMOKE_EVIDENCE.parent.mkdir(parents=True, exist_ok=True)
+        with open(SMOKE_EVIDENCE, "w", encoding="utf-8", newline="\n") as stream:
+            json.dump(record, stream, indent=2, sort_keys=True)
+            stream.write("\n")
+        print(f"  evidence: {SMOKE_EVIDENCE}")
+    else:
+        kept = Path(tempfile.gettempdir()) / f"alkera-shell-smoke-{int(time.time())}.json"
+        with open(kept, "w", encoding="utf-8", newline="\n") as stream:
+            json.dump(record, stream, indent=2, sort_keys=True)
+        print(f"  NOT evidence (unverified turn); record kept at {kept}")
+        if not verdict["bash_tool_used"]:
+            print(f"  the model took no turn: {verdict['final'][-300:]!r}")
+
+
+def test_live(tmp: Path, task: str, tasks_dir: Path | None, image: str,
+              model_smoke: str | None = None) -> None:
     section("a real stack, a real world, and the three quarantines that are gone")
     ok, version = ce.docker_available()
     if not check("docker answers", ok, version):
@@ -456,16 +616,38 @@ def test_live(tmp: Path, task: str, tasks_dir: Path | None, image: str) -> None:
               blindness.containment_faults([{**evidence, "when": "before_episode"},
                                             {**evidence, "when": "after_episode"}])
               == [])
-        check("...and the guarantee it earns is filesystem_isolated",
-              blindness.guarantee(
-                  driver="native", topology="container",
-                  containment=[{**evidence, "when": "before_episode"},
-                               {**evidence, "when": "after_episode"}])
-              == "filesystem_isolated")
+        # The guarantee needs TWO pieces of evidence under native+container:
+        # the containment probe AND the proof that the subject's shell reached
+        # the container. Without the second it is refused by name - this is
+        # the record `native-container-20260917-k5` should have carried.
+        pair = [{**evidence, "when": "before_episode"},
+                {**evidence, "when": "after_episode"}]
+        check("...but containment alone does NOT earn filesystem_isolated for a "
+              "native subject: the shell proof is required too",
+              blindness.guarantee(driver="native", topology="container",
+                                  containment=pair)
+              == "detection_only+unverified_container",
+              blindness.guarantee(driver="native", topology="container",
+                                  containment=pair))
+        shell_proof = stack.shell(tmp / "roll" / "shell")["proof"]
+        check("...and with the shell proved, the guarantee it earns is filesystem_isolated",
+              blindness.guarantee(driver="native", topology="container",
+                                  containment=pair,
+                                  container_execution=shell_proof)
+              == "filesystem_isolated", json.dumps(shell_proof)[:200])
+        check("...and a proof that did NOT verify is refused the same way",
+              blindness.guarantee(driver="native", topology="container",
+                                  containment=pair,
+                                  container_execution={**shell_proof, "verified": False})
+              == "detection_only+unverified_container")
 
         # 5. THE SCHEDULER PLANE. The one plane whose files this topology does
         #    not mount, so the one that has to be served.
         test_scheduler(stack, tmp, world)
+
+        # 5b. THE SHELL REDIRECT, and the one model turn the scripted subject
+        #     cannot stand in for.
+        test_shell_redirect_live(stack, tmp, model_smoke)
 
         # 6. The surface gate's vantage: relayed, never published.
         endpoints = stack.gate_endpoints()
@@ -630,6 +812,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--task", default=DEFAULT_TASK)
     parser.add_argument("--tasks-dir", default=None)
     parser.add_argument("--image", default=DEFAULT_IMAGE)
+    parser.add_argument("--model-smoke", default=None, metavar="MODEL",
+                        help="spend ONE model turn proving the CLI's Bash tool "
+                             "reaches the container (§4.1 acceptance); writes "
+                             f"{SMOKE_EVIDENCE.relative_to(ce.REPO)}")
     args = parser.parse_args(argv)
 
     tmp = Path(tempfile.mkdtemp(prefix="alkera-tnc-"))
@@ -645,7 +831,7 @@ def main(argv: list[str] | None = None) -> int:
         if not args.no_docker:
             test_live(tmp, args.task,
                       Path(args.tasks_dir).resolve() if args.tasks_dir else None,
-                      args.image)
+                      args.image, model_smoke=args.model_smoke)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     print(f"\n  {PASSED} passed, {FAILED} failed")

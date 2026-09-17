@@ -305,13 +305,98 @@ scored the same as a regeneration. It cost r3 four points, and r3 failed no othe
 required check: with D5 credited, r3 scores **17.0**, clears the floor, passes
 every required check, and the run's Pass@1 is **0.2** rather than 0.0.
 
-**Not changed here.** Fixing it means editing `grade.py`'s D5, which moves every
-recorded baseline and the whole `[[validity]]` table with it and needs its own
-validity run — a task change, not a harness change. It is recorded as measured,
-with the command that shows it, so whoever owns the rubric decides against
-evidence rather than against an anecdote. Until then the honest reading of
-**Pass@1 = 0.0** is: *one of the five failures is a rubric boundary nobody had
-tested, because no baseline agent had ever run the extract.*
+**Not changed at the time of the run.** Fixing it means editing `grade.py`'s D5,
+which moves every recorded baseline and the whole `[[validity]]` table with it
+and needs its own validity run — a task change, not a harness change. It was
+recorded as measured, with the command that shows it, so whoever owns the rubric
+decides against evidence rather than against an anecdote. The honest reading of
+the run's original **Pass@1 = 0.0** was: *one of the five failures is a rubric
+boundary nobody had tested, because no baseline agent had ever run the extract.*
+
+---
+
+## 7. Rubric revision 2026-09-17 (D5, D7) and the regrade
+
+Decided against the evidence in §6 and against the two kimi episodes that
+completed (`kimi-20260917-k5` r0, r3). Three defects in the rubric, none in the
+agents:
+
+1. **D5 read an appended tick as a rewrite.** The outside-tick diff compared
+   every row; a tick the repaired extract appended after the record's last one
+   counted as "history rewritten". Four of the seven completed episodes (opus
+   r3, r4; kimi r0, r3) did exactly that and nothing else. Fixed: the diff is bounded at
+   `MAX(snapshot_ts)` in the reference. A tick inserted INTO the past, or any
+   existing tick changed, still lands in the diff; an appended tick is counted
+   and named in the detail, never charged.
+2. **D7 charged true statements as unsupported causes.** The rubric had families
+   for the two secondary defects (C-FX, C-VDUP) and nothing for the two defects
+   the task is *about* — the DATA-5518 compensating change (D3) and the
+   non-atomic publish (D6). Seven of seven completed episodes named both in
+   `additional_causes`, accurately, and paid -1 each. Fixed: zero-credit families
+   `C-COMP`, `C-ATOMIC`, `C-DIM` in `grade.py KEYS` and `manifest.yaml causes`.
+   They pay nothing (`creditable` reads `credit > 0` only); they stop a true
+   sentence being a penalty.
+3. **Two false-cause tokens were the world's own vocabulary.** `backfill` (F-LATE)
+   is the runbook's word for the JPY rate file in `raw.fx_rates_inbox`, and every
+   episode that described C-FX correctly tripped it. `loaded twice` /
+   `double loaded` (F-RETRY) is the plain description of C-VDUP, and both kimi
+   episodes tripped it for stating that real defect. Removed; what remains in
+   each family names the false cause and nothing else (`retried`, `retry`,
+   `second load`, `fourth attempt`; `late-arriving data`, `watermark`, ...).
+
+**Not changed.** D6 still executes the agent's publish script through the probe's
+own DuckDB connection, so a file that is right is credited whether or not the
+agent ever ran it through the tool (`sql_execute` refuses `BEGIN TRANSACTION` as
+`unsupported_sql`; the probe does not). In this run the boundary did not bind:
+every D6 failure is a script that is still torn under the probe (r1, r2: a read
+after statement 8 of 12 saw a mart from no single build; r4: after 5 of 6). D1a
+still credits the torn-read *label* without the mechanism. Both are recorded,
+not fixed: neither moved a pass/fail boundary in the measured runs.
+
+**Validity re-run** (`run_baselines.py`, 2026-09-17): the eight recorded baselines
+are unchanged to the point — oracle 20, no_op 0, reference_copy 15, full_refresh
+6, rebuild_only 12, checklist 17, checklist_joined 17, schema_vandal 4 — because
+none of them appended a tick or wrote honest prose. Three baselines were added to
+put the new boundaries under measurement rather than argument:
+
+| baseline | what it does | expected | actual |
+|---|---|---|---|
+| `oracle_appended` | oracle, then one tick appended at `2026-03-05 09:15` | == oracle | **20** |
+| `oracle_backdated` | oracle, then a tick inserted at `2026-03-01 12:07:30`, inside history | oracle − 4 (D5 = 0) | **16** |
+| `honest_report` | oracle's repair; `additional_causes` = the four real findings in the world's words ("backfill file", "loaded twice", DATA-5518, non-atomic publish) | == oracle | **20** |
+
+`build_world_equivalence.py`: 7 baselines, every check, zero differences.
+`fixture_contract.py`: verified. TASK VALID, 13/13 verdicts.
+
+**Regrade of `mcp-20260917-k5`** (copied to `mcp-20260917-k5-regrade-d5d7`;
+`run_rollouts.py --regrade-run`; subject not re-run, world not rebuilt; grader
+`253f25dd2f13`, which now hashes `grade.py` AND the manifest — the first regrade
+attempt re-ran the new `grade.py` against the grading zone's episode-time
+manifest copy and reported the old F-LATE penalty five times, so `--regrade` now
+refreshes that copy from `tests/manifest.yaml`, keeping the planted canary line;
+`tasks/harness/rollout.py _refresh_grading_manifest`).
+
+| | before | after |
+|---|---|---|
+| **Pass@1** | 0.0 | **0.2** |
+| Pass^5 | 0.0 | 0.0 |
+| totals | 6, 9, 10, 12, 13 (median 10) | **9, 12, 15, 17, 20** (median 15) |
+| D5 pass rate | 0.0 | 0.4 (r3, r4: the appended tick) |
+| D7 | -2.0 x5 | **+1.0 x5** |
+| classification | reasoning x5 | pass x1 (r3, 20/20), reasoning x4 |
+| regrade status | | `partial` x5: `world_tree_before` was never saved by that run; world-diff verdict carried forward from the record |
+
+r0, r1, r2 still lose D5 for regenerating history (3,131 / 642 / 3,131 rows);
+r1, r2, r4 still lose D6. **0.2 is inside `target_pass_at_1 = "0.05-0.20"`**, at
+the top of it, with the K=5 caveat (±0.18 at p=0.5).
+
+**Regrade of `kimi-20260917-k5`** (copied to `kimi-20260917-k5-regrade-d5d7`):
+r0 10 → **17**, r3 9 → **16**: both had restated the torn tick to the accepted
+vector and appended one verification tick (D5 0 → 4), and both take D7 -2 → +1
+with zero false-cause charges. Both remain `harness_error` — the Kimi
+subject exited non-zero (quota) before finishing, so neither is scored and the
+run has no Pass@1. r1, r2, r4 wrote no artefact and are refused by `--regrade`
+by design. No Kimi number for GT003 yet.
 
 
 ---

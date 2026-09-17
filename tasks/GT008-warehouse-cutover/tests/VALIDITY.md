@@ -57,7 +57,7 @@ Two reach max; both rows at 18.0 fail on a required check, which is what
 `tasks/harness/ledger.py` imports; the publish hook is in `LEDGER.patch`, **unapplied here**,
 so nothing writes `var/ledger/receipts.jsonl`, C5 records `not_evaluable: the advanced world
 published no receipts ...` and decides nothing - **measured: total still 20, no baseline
-moved**. Scope is `world/LEDGER_CONTRACT.md`'s, not taste: `trigger()` writes no receipt, so
+moved**. Scope is `world/README.md#publication-ledger`'s, not taste: `trigger()` writes no receipt, so
 **C5 audits only the four nights this grader advances** - never a publication the agent caused
 by hand, never the history nights, whose partial folds are not frozen. Night *k* is the
 half-open span `[t0+H(k-1), t0+Hk)` via `ledger.receipts_between`, receipts at or before t0

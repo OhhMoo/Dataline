@@ -96,7 +96,7 @@ def semantic(root: Path) -> dict:
     if obs.is_dir():
         sections["obs"] = tree_hash(obs)
     #   workflow — the issue tracker, the chat workspace and the wiki
-    #         (gateway/WORKFLOW_CONTRACT.md). The seeded backlog is part of
+    #         (gateway/SURFACES.md#workflow). The seeded backlog is part of
     #         what makes two builds the same world, and the agent writes into
     #         these same documents during an episode, so they are world state
     #         on the same footing as var/sched/state.json.

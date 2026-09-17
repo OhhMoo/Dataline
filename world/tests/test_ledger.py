@@ -1,6 +1,6 @@
 """The publication ledger: the world records what a consumer could see.
 
-Read world/LEDGER_CONTRACT.md first. Three claims are under test here and the
+Read world/README.md#publication-ledger first. Three claims are under test here and the
 suite is built around the fact that they pull against each other:
 
 - the ledger records a publication at the virtual moment it became visible,
@@ -277,7 +277,7 @@ class LedgerTest(unittest.TestCase):
     def test_a_manual_trigger_publishes_nothing(self):
         """Stated, not incidental: a trigger runs INSIDE the episode container,
         where var/ledger is shadowed by an empty read-only mount, so a receipt
-        written there would be lost at teardown. LEDGER_CONTRACT.md carries the
+        written there would be lost at teardown. README.md#publication-ledger carries the
         consequence - a task that wants triggered publications graded must
         advance the clock over them."""
         root = self.copy("triggered")

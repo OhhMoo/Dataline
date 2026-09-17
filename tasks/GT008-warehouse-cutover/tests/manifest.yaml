@@ -203,7 +203,7 @@ checks:
     in_pass_criterion: false
     assertion: >
       PENALTY ONLY, and NOT EVALUABLE UNTIL THE PUBLISH HOOK LANDS. No receipt
-      in the publication ledger (world/LEDGER_CONTRACT.md, frozen 2026-09-16:
+      in the publication ledger (world/README.md#publication-ledger, frozen 2026-09-16:
       the world appends to <world_root>/var/ledger/receipts.jsonl from a job
       spec's `publishes:` block; tasks/harness/ledger.py is the reader) ever
       published a state the ledger-fold oracle could not have produced at that

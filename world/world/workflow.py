@@ -1,6 +1,6 @@
 """The workflow plane as world state: the ticket, the channel and the wiki.
 
-`gateway/WORKFLOW_CONTRACT.md` defines three JSON documents under
+`gateway/SURFACES.md#workflow` defines three JSON documents under
 `var/workflow/` — `issues.json`, `chat.json`, `kb.json` — seeded at build time,
 written to by the agent during the episode, and read by the grader after
 teardown. Until now no theme seeded them, so in every world we could actually
@@ -11,7 +11,7 @@ This module is the assembly line for that surface, on the same footing as
 *data* (`themes/<name>/workflow/{users,issues,chat,kb}.yaml`) and declares the
 surface in its manifest's `workflow:` block; `gen.write_workflow` calls `seed`.
 
-Three determinism rules, all structural (WORKFLOW_CONTRACT.md §Determinism):
+Three determinism rules, all structural (gateway/SURFACES.md#workflow, "Determinism"):
 
 1. **Static bytes.** The documents are dumped with `json_canon` — sorted keys,
    tight separators — so two builds of one seed produce identical SHA-256s.

@@ -1,5 +1,5 @@
 """Native surfaces: the agent works through real CLIs, SDKs and vendor-shaped
-APIs instead of a bespoke tool list. Specification: gateway/NATIVE_SURFACES.md.
+APIs instead of a bespoke tool list. Specification: gateway/NATIVE.md.
 
 Layout
     audit.py      the single 9.2.2 row writer every service and shim calls

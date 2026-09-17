@@ -2589,7 +2589,7 @@ def write_workspace(out: Path) -> dict:
 # make_fixture_world did not already generate.
 
 # ---------------------------------------------------------------------------
-# LAYER 4 - the publication ledger (world/LEDGER_CONTRACT.md, frozen
+# LAYER 4 - the publication ledger (world/README.md#publication-ledger, frozen
 # 2026-09-16). A job may declare `publishes: [{target, kind, consumer}]`, and
 # `WorldScheduler._simulate_job` appends one receipt per entry at the three
 # sites where the job's command actually ran. GT004's consumer-facing jobs are

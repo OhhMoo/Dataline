@@ -1,7 +1,7 @@
 # Gateway-side integration: the items five builders filed, closed
 
 **Status: executed, 2026-09-16.** Owner: INTEGRATE-GATEWAY. Spec:
-`gateway/NATIVE_SURFACES.md`. Every number below came out of
+`gateway/NATIVE.md`. Every number below came out of
 `gateway/.venv/Scripts/python.exe -m pytest tests -q`, run from `gateway/` on this
 machine; anything not measured says *designed*.
 

@@ -1,6 +1,6 @@
 """The discovery layer: what a data engineer finds on the box.
 
-`gateway/NATIVE_SURFACES.md`: in native mode the subject gets bash and no tool
+`gateway/NATIVE.md`: in native mode the subject gets bash and no tool
 list, so everything the 63-tool schema used to announce has to be discoverable
 the way it is on a real machine - from `.envrc`, `~/.dbt/profiles.yml`, a
 config file under `~/.config`, and the onboarding page the team wrote. This
@@ -117,6 +117,27 @@ SERVICES = (
              note="alarms"),
 )
 
+#: The planes the workspace reaches through a CLI OF ITS OWN, not a vendor
+#: client. One entry: `./ops/sched`. Mirrors
+#: `tasks.harness.agent_under_test.NATIVE_WORKSPACE_SERVICES`, and is kept out
+#: of SERVICES on purpose - that table is the nine vendor-shaped services the
+#: aggregate health reports and containment probes by registry.
+#:
+#: DELIBERATELY NOT IN `environment()` AND SO NOT IN `.envrc`. `SCHED_URL`
+#: unset is how `./ops/sched` selects its local mode, which is what the HOST
+#: topology runs (the shim does the three operations in-process against the
+#: world's own files). Under the CONTAINER topology those files are not
+#: mounted, so compose.native.yml sets `SCHED_URL` in the episode's process
+#: environment and the shim dials the served plane at `sched.internal:8120`.
+#: The `.envrc` is one file written at build time for both topologies; an
+#: `export SCHED_URL` in it would flip a host-topology shim into dialling a
+#: host that nothing resolves. The drift test reads this table so compose and
+#: the shim cannot disagree about the alias, the variable or the port.
+WORKSPACE_PLANES = (
+    Endpoint("sched", "sched.internal", 8120, "SCHED_URL",
+             note="the team's own scheduler CLI, ./ops/sched; served, not a vendor"),
+)
+
 #: The real backends. Their variables are the vendor's own, because the whole
 #: point is that `psql`, `aws` and `dbt` work with no arguments.
 POSTGRES = {"PGHOST": "postgres.internal", "PGPORT": "5432",
@@ -224,7 +245,7 @@ def merge_envrc(existing: str, block: str) -> str:
 def profiles_yaml(profile: str) -> str:
     """`~/.dbt/profiles.yml`: the warehouse a bare `dbt` finds.
 
-    Postgres, not the DuckDB file in the tree. NATIVE_SURFACES.md's standing
+    Postgres, not the DuckDB file in the tree. NATIVE.md's standing
     decision is that the native-mode warehouse is served and never a file -
     a served warehouse is what turns `log_statement=all` into action-log rows,
     and a file the agent opens directly leaves none. The repository's own

@@ -1,7 +1,7 @@
 # `--driver native --topology container`
 
 **Built and executed 2026-09-16 unless a line says *designed*.** Owner NATIVE-CONTAINER. Spec
-`gateway/NATIVE_SURFACES.md`; host `NATIVE_DRIVER.md`; stack `gateway/docker/NATIVE_STACK.md`; proof
+`gateway/NATIVE.md`; host `NATIVE_DRIVER.md`; stack `gateway/docker/NATIVE_STACK.md`; proof
 `test_native_container.py` (88/88, no model).
 
 GT001, `--driver native`, K=5, run-id `native-20260916-k5`: five of five subjects did the work and **three

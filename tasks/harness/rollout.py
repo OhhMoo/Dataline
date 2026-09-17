@@ -24,7 +24,7 @@ grader included, for a run whose grader was broken or whose harness died before
 it wrote the record - see the regrade block below. Neither ever re-runs the
 subject, and neither rebuilds the world.
 
-`--driver native` (gateway/NATIVE_SURFACES.md) replaces the gateway with
+`--driver native` (gateway/NATIVE.md) replaces the gateway with
 vendor-shaped services the subject reaches through its shell. The sequence above
 is unchanged; what changes is that "probe surfaces" becomes a set of service
 health checks, there is no gateway config to write, and blindness gains the
@@ -161,6 +161,48 @@ def _recover_canaries(rollout_dir: Path, grading: Path) -> list[str]:
         except Exception:                                  # noqa: BLE001
             pass
     return sorted(set(t for t in toks if t))
+
+
+def _refresh_grading_manifest(spec, grading: Path) -> dict:
+    """Bring the grading zone's manifest.yaml up to the task's current one,
+    for a regrade. Returns what was done, for the record.
+
+    The canary comment rollout.py appended at episode time is carried over
+    byte for byte: `_recover_canaries` reads the token back off this file, and
+    a refreshed copy that dropped it would turn the transcript detector blind
+    to the one bait that guards the manifest itself. Nothing else from the old
+    copy survives - the whole point is that the old copy is what was wrong.
+
+    When the task declares no `[grading].manifest`, or the zone holds no copy
+    (a task whose grader reads none), nothing is written and the record says
+    so; the hash is then of nothing, and `regrade_grader_sha256` reduces to
+    grade.py alone, which is what it always was for such a task.
+    """
+    copy = grading / "manifest.yaml"
+    src = getattr(spec, "grade_manifest", None)
+    if src is None or not Path(src).exists():
+        # `sha256` is None and not the copy's hash on purpose: the copy carries
+        # a per-rollout canary, and a per-rollout grader hash would make
+        # report.py read one run as five graders.
+        return {"source": "task declares no [grading].manifest", "refreshed": False,
+                "sha256": None}
+    if not copy.exists():
+        return {"source": "grading zone holds no manifest.yaml copy",
+                "refreshed": False, "sha256": None}
+    canary_lines = [
+        line for line in copy.read_text(encoding="utf-8", errors="replace").splitlines()
+        if line.strip().startswith("# canary ALKERA-CANARY-")]
+    fresh = Path(src).read_text(encoding="utf-8")
+    before = hashlib.sha256(copy.read_bytes()).hexdigest()
+    new_text = fresh if fresh.endswith("\n") else fresh + "\n"
+    if canary_lines:
+        new_text += "\n" + "\n".join(canary_lines) + "\n"
+    changed = new_text.encode("utf-8") != copy.read_bytes()
+    if changed:
+        copy.write_text(new_text, encoding="utf-8")
+    return {"source": f"refreshed from {src}" if changed else f"already current with {src}",
+            "refreshed": changed, "sha256": hashlib.sha256(fresh.encode("utf-8")).hexdigest(),
+            "previous_sha256": before, "canary_lines_kept": len(canary_lines)}
 
 
 # Run through the gateway venv rather than imported, for the same reason
@@ -1037,7 +1079,22 @@ def regrade(rollout_dir, task: str | None = None,
         container_execution=rec.get("container_execution_proof"))
 
     # --- STAGE 4: grade, twice, exactly as run_rollout does ---------------
-    grade_sha = hashlib.sha256(spec.grade_entrypoint.read_bytes()).hexdigest()
+    # The grader is TWO files: grade.py and the manifest it reads out of the
+    # grading zone. build_world.py copied the manifest there at episode time
+    # and rollout.py appended a canary comment to that copy; grade.py reads
+    # the copy, never the task tree. A regrade exists because the grader was
+    # wrong, and half of what makes it wrong lives in the manifest - GT003's
+    # 2026-09-17 fix moved token lists and added cause families there - so
+    # the copy is refreshed from the task's current manifest, the canary
+    # comment is carried over verbatim (it is what _recover_canaries reads
+    # back), and the hash below covers both halves. MEASURED before this:
+    # a regrade of mcp-20260917-k5 re-ran the new grade.py against the old
+    # manifest and reported the old F-LATE penalty on all five episodes.
+    manifest_refresh = _refresh_grading_manifest(spec, Path(world["grading"]))
+    sources["grading_manifest"] = manifest_refresh["source"]
+    grade_sha = hashlib.sha256(
+        spec.grade_entrypoint.read_bytes()
+        + (manifest_refresh["sha256"] or "").encode("ascii")).hexdigest()
     score, score_stable, grader_crashed = None, True, False
     try:
         score, score_stable = episode.grade_twice(
@@ -1084,6 +1141,7 @@ def regrade(rollout_dir, task: str | None = None,
         "status": "partial" if missing else "complete",
         "grade_entrypoint": str(spec.grade_entrypoint),
         "grade_sha256": grade_sha,
+        "grading_manifest": manifest_refresh,
         "sources": sources,
         "missing": missing,
         "carried_forward": carried,

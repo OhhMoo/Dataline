@@ -1,4 +1,4 @@
-"""The Confluence REST subset the `kb_*` tools cover (gateway/NATIVE_SURFACES.md).
+"""The Confluence REST subset the `kb_*` tools cover (gateway/NATIVE.md).
 
 Same bargain as jira.py and slack.py: the agent is handed a wiki URL and a
 token, so the acceptance test is `atlassian.Confluence` driving this app, not
@@ -494,7 +494,7 @@ def content_update(identifier: str, payload: dict, request: Request) -> dict:
 def content_create(payload: dict, request: Request) -> dict:
     """Create a page under an existing parent. The equivalent of `kb_create`.
 
-    Beyond the endpoint list in NATIVE_SURFACES.md, and deliberately: without it
+    Beyond the endpoint list in NATIVE.md, and deliberately: without it
     an agent in native mode can read and edit the wiki but cannot write the
     postmortem an archetype asks for, which would make native mode a strictly
     smaller world than MCP mode rather than the same one.

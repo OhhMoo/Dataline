@@ -1,4 +1,4 @@
-"""Metrics, alarms and canaried deploys (see OBSERVABILITY_CONTRACT.md).
+"""Metrics, alarms and canaried deploys (see SURFACES.md#observability).
 
 The single rule this module exists to keep: **every number is read from the
 world at the moment it is asked for.** There is no stored "current value" for a
@@ -205,7 +205,7 @@ class MetricDef(BaseModel):
 
 
 class Imprecision(BaseModel):
-    """Author-side. Stripped from every tool response; see OBSERVABILITY_CONTRACT.md."""
+    """Author-side. Stripped from every tool response; see SURFACES.md#observability."""
 
     model_config = ConfigDict(extra="forbid")
     kind: Literal["false_positive", "blind_spot", "both"]

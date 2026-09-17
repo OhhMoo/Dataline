@@ -430,7 +430,7 @@ pass_min_total_measured = true
 [provenance]
 derived_from = ["implementation_structure/TASK_DESIGN_2026-09-15.md Candidate 1",
                 "implementation_structure/TASK_DESIGN_2026-09-15.md 'Framework proposal' - the four layers; see [composition]",
-                "gateway/DUAL_WAREHOUSE_CONTRACT.md",
+                "gateway/SURFACES.md#dual-warehouse",
                 "tasks/GT007-ran-long-or-started-late (deploy axis, probes)",
                 "tasks/GT004-doubling-window (lifecycle gates, F121/F622)"]
 red_team     = ["F121", "F202", "F620", "F622"]

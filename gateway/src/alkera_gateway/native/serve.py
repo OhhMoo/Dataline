@@ -1,6 +1,6 @@
 """Serve every native fake service from one process, one port per service.
 
-`gateway/NATIVE_SURFACES.md` gives each service module a `NAME`, a `HOST` (its
+`gateway/NATIVE.md` gives each service module a `NAME`, a `HOST` (its
 DNS alias in the episode network), a `PORT` and an `app`. This module mounts
 whatever `services.load()` returns - one `uvicorn.Server` per service inside a
 single asyncio loop - prints which services loaded and which did not, and keeps

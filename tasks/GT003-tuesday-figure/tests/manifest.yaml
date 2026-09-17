@@ -235,6 +235,32 @@ causes:
       it is present in BOTH the broken and the reference world, so an agent is
       not penalised for leaving it. Naming it PRIMARY is a false cause.
 
+  # Zero-credit families, ADDED 2026-09-17. Real defects this rubric already
+  # grades elsewhere; listed so that naming them in additional_causes is not an
+  # "unsupported cause". MEASURED before the change: 7 of 7 completed episodes
+  # (5 opus, 2 kimi) named DATA-5518 and the non-atomic publish as additional
+  # causes - both true, both graded under D3 and D6 - and were charged -1 each.
+  # Token lists live in grade.py KEYS; credit stays 0 so nothing is paid twice.
+  - id: C-COMP
+    kind: graded_elsewhere
+    credit: 0
+    label: "the DATA-5518 compensating change excludes the RESELLER segment"
+    detail: "true; it is the defect D3 grades and reverts"
+
+  - id: C-ATOMIC
+    kind: graded_elsewhere
+    credit: 0
+    label: "the mart publish is non-atomic and non-idempotent; the leftover
+            __dbt_backup relation wedged every rebuild from 08:14:58 on"
+    detail: "true; it is the mechanism D6 grades and the runbook's own known gap"
+
+  - id: C-DIM
+    kind: graded_elsewhere
+    credit: 0
+    label: "raw.customer_master accumulated bundle cm-20260225-0001 and the
+            dimension carried two rows for 883 customers"
+    detail: "true; it is the second half of the primary cause D1 grades"
+
   - id: C-RETRY
     kind: true_event_no_defect
     credit: 0
@@ -261,8 +287,12 @@ causes:
 # ---------------------------------------------------------------------------
 known_false_causes:
   - id: F-RETRY
+    # "loaded twice" / "double loaded" REMOVED 2026-09-17: they are the plain
+    # description of C-VDUP (the vendor's resend batch WAS loaded twice), and
+    # two kimi episodes were charged F-RETRY for stating that real defect.
+    # What remains names the load's own retry, which is the false cause.
     tokens: ["retried", "retry", "re-ran the load", "reran the load",
-             "double loaded", "double-loaded", "loaded twice", "second load"]
+             "second load", "fourth attempt"]
     why: "the load did retry, three times, and delete+insert made it a no-op"
   - id: F-SCHEMA
     tokens: ["schema drift", "schema change", "column added", "type change"]
@@ -274,8 +304,13 @@ known_false_causes:
     tokens: ["timezone", "time zone", "utc offset", "daylight", "midnight boundary"]
     why: "every timestamp in this world is UTC and no cast crosses a boundary"
   - id: F-LATE
-    tokens: ["late-arriving data", "late arriving data", "watermark",
-             "high-water mark", "high water mark", "backfill"]
+    # "backfill" REMOVED 2026-09-17: it is the runbook's own word for the JPY
+    # rate file sitting in raw.fx_rates_inbox ("redeliveries and backfills
+    # arrive in the same place"), and every completed episode was charged
+    # F-LATE for describing the C-FX defect in the world's vocabulary.
+    tokens: ["late-arriving data", "late arriving data", "late-arriving rows",
+             "watermark", "high-water mark", "high water mark",
+             "arrived late and was excluded", "outside the load window"]
     why: >
       the 2026-03-02 bundle WAS late, and that is why the rebuild ran off its
       schedule - but lateness is not what made the number wrong, and no row

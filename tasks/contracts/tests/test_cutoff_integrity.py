@@ -5,7 +5,7 @@ Receipts only - this contract deliberately never reads the warehouse, because
 the failure it exists to catch is invisible in the end state.
 
 EVERY SYNTHETIC RECEIPT HERE CARRIES `kind: "table"`, which is what
-`world/LEDGER_CONTRACT.md` freezes it to.  Purpose is what the task says a
+`world/README.md#publication-ledger` freezes it to.  Purpose is what the task says a
 receipt was FOR, and it comes from `params.purpose_of` (here: which job wrote
 it) or from the default classifier over the three target lists.  The last test
 in this file is the first one in the package to feed a contract receipts a real

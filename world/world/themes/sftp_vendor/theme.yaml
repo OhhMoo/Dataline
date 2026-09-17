@@ -1,7 +1,7 @@
 name: sftp_vendor
 dbt_profile: world_dbt
 
-# The human-context plane (gateway/WORKFLOW_CONTRACT.md). Content is data, in
+# The human-context plane (gateway/SURFACES.md#workflow). Content is data, in
 # workflow/{users,issues,chat,kb}.yaml; timestamps are offsets from the world
 # clock ("-12d 09:15"), resolved at build time.
 #
@@ -174,7 +174,7 @@ live:
                order_column: order_id, keep_fraction: 0.5}
 
 ingest:
-  # The connector control plane (gateway/INGEST_CONTRACT.md). One sync per
+  # The connector control plane (gateway/SURFACES.md#ingest). One sync per
   # connector per day, timed after sftp_poll and before vendor_load; row counts
   # come from the same per-day RNG as the drop folders.
   #

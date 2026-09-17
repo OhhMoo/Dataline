@@ -295,6 +295,67 @@ def agent_schema_vandal(world, root, grading):
     return a
 
 
+def agent_oracle_appended(world, root, grading):
+    """The oracle, then ONE fresh tick appended after the record's last tick -
+    what the repaired extract itself does when an agent runs it to verify.
+
+    ADDED 2026-09-17. MEASURED in `mcp-20260917-k5`: four of the seven episodes
+    that reached rev_snapshot did exactly this and scored D5 = 0 for it, because
+    the outside-tick diff read every row. The table's own contract is "one row
+    per region per tick, appended", so this must score the same as the oracle."""
+    a = run_oracle(world, root)
+    con = open_world(world)
+    con.execute("""
+        INSERT INTO warehouse.rev_snapshot
+        SELECT TIMESTAMP '2026-03-05 09:15:00', region,
+               mtd_revenue_usd, mtd_order_count, active_accounts
+        FROM warehouse.rev_snapshot
+        WHERE snapshot_ts = (SELECT MAX(snapshot_ts) FROM warehouse.rev_snapshot)""")
+    con.close()
+    return a
+
+
+def agent_oracle_backdated(world, root, grading):
+    """The oracle, then a tick inserted INTO the past at a timestamp the record
+    never held. The append allowance must not cover this: a row written into
+    history is a rewrite of history whatever its timestamp says."""
+    a = run_oracle(world, root)
+    con = open_world(world)
+    con.execute("""
+        INSERT INTO warehouse.rev_snapshot
+        SELECT TIMESTAMP '2026-03-01 12:07:30', region,
+               mtd_revenue_usd, mtd_order_count, active_accounts
+        FROM warehouse.rev_snapshot
+        WHERE snapshot_ts = TIMESTAMP '2026-03-01 12:00:00'""")
+    con.close()
+    return a
+
+
+HONEST_CAUSES = [
+    "The JPY rate series stopped on 2026-02-15; the backfill file "
+    "fx_jpy_20260216_20260304.csv sat unmerged in raw.fx_rates_inbox",
+    "DATA-5518 added a RESELLER exclusion to mart_rebuild.sql as a compensating "
+    "change for a number it had misdiagnosed as double counting",
+    "The mart publish is non-atomic: the fact is renamed before the dimension, "
+    "and the leftover mart_revenue_dim__dbt_backup wedged every rebuild after 08:14:58",
+    "The 2026-02-24 revenue file was loaded twice - batch rev-20260225-0500 and its "
+    "resend - leaving 31 duplicate order lines",
+]
+
+
+def agent_honest_report(world, root, grading):
+    """The oracle's repair with additional_causes written the way every
+    completed episode wrote them: the four real findings, in the world's own
+    vocabulary ("backfill" is the runbook's word for the JPY file; "loaded twice"
+    is what happened to the resend). MEASURED before 2026-09-17 this scored
+    D7 = -2 on every episode - two entries "unsupported" because the rubric had
+    no family for the defects D3 and D6 grade, and "backfill" / "loaded twice"
+    matched the F-LATE / F-RETRY token lists. It must now score as the oracle."""
+    a = run_oracle(world, root)
+    a["additional_causes"] = list(HONEST_CAUSES)
+    return a
+
+
 _GOOD: dict = {}
 
 
@@ -322,10 +383,13 @@ def evidence_state(world: Path, grading: Path) -> tuple[bool, bool]:
         "AND table_name = 'mart_revenue_dim__dbt_backup'").fetchone()[0] > 0
     cols = "snapshot_ts, region, mtd_revenue_usd, mtd_order_count, active_accounts"
     try:
+        # same bound as grade.py D5: the record is every tick the reference
+        # holds; a tick appended after its last one is the extract's contract
         intact = con.execute(f"""
         SELECT COUNT(*) FROM (
           SELECT {cols} FROM w.warehouse.rev_snapshot
           WHERE snapshot_ts <> TIMESTAMP '{TORN_TS}'
+            AND snapshot_ts <= (SELECT MAX(snapshot_ts) FROM e.warehouse.rev_snapshot)
           EXCEPT ALL
           SELECT {cols} FROM e.warehouse.rev_snapshot
           WHERE snapshot_ts <> TIMESTAMP '{TORN_TS}')""").fetchone()[0] == 0
@@ -341,7 +405,10 @@ AGENTS = {"oracle": agent_oracle, "no_op": agent_no_op,
           "rebuild_only": agent_rebuild_only,
           "checklist": agent_checklist,
           "checklist_joined": agent_checklist_joined,
-          "schema_vandal": agent_schema_vandal}
+          "schema_vandal": agent_schema_vandal,
+          "oracle_appended": agent_oracle_appended,
+          "oracle_backdated": agent_oracle_backdated,
+          "honest_report": agent_honest_report}
 
 
 def main() -> int:
@@ -382,7 +449,10 @@ def main() -> int:
               "rebuild_only": "< oracle",
               "checklist": "< oracle (penalty)",
               "checklist_joined": "== checklist (F620)",
-              "schema_vandal": "scored, not crashed"}
+              "schema_vandal": "scored, not crashed",
+              "oracle_appended": "== oracle (an appended tick is the contract)",
+              "oracle_backdated": "< oracle (a tick written into history is a rewrite)",
+              "honest_report": "== oracle (true findings in the world's words)"}
     for n, t, m, _ in rows:
         print(f"  {n:<16}{t:>8} /{m:<4} {expect[n]}")
 
@@ -413,6 +483,13 @@ def main() -> int:
         ("the oracle preserves the record it was asked to preserve", oi),
         ("a schema-destroying rollout is SCORED, not crashed on, and scores low",
          d["schema_vandal"] < d["no_op"] + 8),
+        ("an appended tick after the record's last tick scores as the oracle",
+         d["oracle_appended"] == d["oracle"] and evidence["oracle_appended"][1]),
+        ("a tick written INTO the past is still a rewrite (D5 = 0)",
+         d["oracle_backdated"] == d["oracle"] - 4
+         and not evidence["oracle_backdated"][1]),
+        ("the four real findings, in the world's own words, take no penalty",
+         d["honest_report"] == d["oracle"]),
     ]
     bad = 0
     for label, ok in verdicts:

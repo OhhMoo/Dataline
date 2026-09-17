@@ -23,7 +23,7 @@ LIFTED FROM GT004's measured wall (46 episodes, 0 historical rewrites) and
             GT009's approval trace: a ticket state naming what it approves.
 """
 
-# The workflow plane as world state: gateway/WORKFLOW_CONTRACT.md fixes these
+# The workflow plane as world state: gateway/SURFACES.md#workflow fixes these
 # three documents under var/workflow/. They are JSON, so this package reads them
 # without a YAML dependency (see __init__'s dependency rule).
 WORKFLOW = Path("var") / "workflow"

@@ -69,7 +69,8 @@ var/
 #   tasks/harness/evidence/**           rollout and container-check evidence
 #   world/evidence/**               acceptance.sh's all-pass record (host == container hash, gate 7)
 #   gateway/requirements*.lock, gateway/uv.lock   pinned deps; determinism and the image depend on them
-#   */OVERVIEW.md                    the one-screen purpose + layout note in every top-level folder
+#   */README.md                      the per-folder guide (gateway/, world/ and implementation_structure/
+#                                    fold their former OVERVIEW.md and contract docs into it)
 #
 # state/failures/ in particular must be committed. It exists so round N+1 does
 # not rediscover what round N already killed. Ignoring it would silently delete
@@ -84,3 +85,6 @@ tasks/**/tests/fixtures/build/
 .hypothesis/
 nohup.out
 *.pid
+
+# local working status, not committed
+STATUS.md

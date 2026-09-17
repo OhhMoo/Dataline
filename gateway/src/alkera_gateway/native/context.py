@@ -1,4 +1,4 @@
-"""The one context every native service runs in (gateway/NATIVE_SURFACES.md).
+"""The one context every native service runs in (gateway/NATIVE.md).
 
 WHY THIS FILE EXISTS. Nine fake services answer a vendor-shaped HTTP request by
 running `alkera_gateway.operations.Operations` methods against the episode's

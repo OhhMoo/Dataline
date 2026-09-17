@@ -284,7 +284,7 @@ def dashboard_matches(rendered: dict, reference_mart: list[dict]) -> tuple[bool,
 # ============================================================ the replay
 # ------------------------------------------------------------ the ledger (C5)
 # The publication ledger is owned by the WORLD and the harness, not by this
-# task (world/LEDGER_CONTRACT.md, frozen 2026-09-16): world/world/ledger.py
+# task (world/README.md#publication-ledger, frozen 2026-09-16): world/world/ledger.py
 # plus WorldScheduler append one receipt per `publishes:` entry per run, at the
 # three sites where the job's command actually ran; tasks/harness/ledger.py is
 # the only reader. GT008 declares `publishes:` on the two jobs that refresh

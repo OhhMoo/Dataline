@@ -87,7 +87,7 @@ fails unconditionally, recompute-everything.
 
   **The `kind` amendment (2026-09-16).** This module used to split receipts by
   `kind`, reading it as the publication's PURPOSE.
-  `world/LEDGER_CONTRACT.md` freezes `kind` to `"table" | "file"` — the
+  `world/README.md#publication-ledger` freezes `kind` to `"table" | "file"` — the
   **storage shape**. GT009, the first task in the repo to write real receipts,
   is where the two met: both of its publications are `kind: table`, one is the
   settlement the clearing bank reads and the other the platform's own
@@ -154,7 +154,7 @@ fails unconditionally, recompute-everything.
 
 Receipts are `{seq, vnow, day, job, target, kind, canonical_hash, row_count,
 sample, consumer}`, and `kind` is `"table" | "file"` — the storage shape, frozen
-by `world/LEDGER_CONTRACT.md`. No contract in this package reads a publication's
+by `world/README.md#publication-ledger`. No contract in this package reads a publication's
 purpose out of it. With an **empty ledger**, `cutoff_integrity` and
 `consumer_consistency` each return exactly one clause, `passed=False`,
 `fatal=False`, detail `"no receipts: contract not evaluable"` — a missing ledger
@@ -241,7 +241,7 @@ own tests wrote, not against dbt.
    grades that in its own `grade.py` — so the contract is measured against real
    evidence and not yet against a real offence.
    A second limitation the real ledger exposed and the amendment does not fix:
-   a receipt's `day` is the **execution** day (`world/LEDGER_CONTRACT.md`), so
+   a receipt's `day` is the **execution** day (`world/README.md#publication-ledger`), so
    for a target published whole every night each night is its own period and the
    per-period comparison has a single receipt in it. The contract finds a
    restatement only where a task republishes the same `day`, which is the shape

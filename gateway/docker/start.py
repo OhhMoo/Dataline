@@ -102,7 +102,7 @@ def main():
             )
         )
         subprocess.run(["git", "init", "-q", str(workspace)], check=True)
-    # Additional warehouses (gateway/DUAL_WAREHOUSE_CONTRACT.md), from the
+    # Additional warehouses (gateway/SURFACES.md#dual-warehouse), from the
     # ALKERA_WAREHOUSES env compose.yml passes through. A DuckDB one whose file
     # does not exist is seeded here with the same two-row fixture the primary
     # gets, one amount changed, so a cross-warehouse reconciliation query has

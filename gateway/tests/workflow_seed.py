@@ -1,7 +1,7 @@
 """Deterministic seed content for the issue tracker, chat and wiki.
 
 This is the reference corpus the `workflow_*` tools were built against, and the
-shape a world theme has to emit (`gateway/WORKFLOW_CONTRACT.md`). It lives in
+shape a world theme has to emit (`gateway/SURFACES.md#workflow`). It lives in
 `gateway/tests/` rather than in `world/` because Track A owns `world/` and is
 editing it right now; nothing here imports the gateway, so a theme generator can
 port it verbatim without reversing the dependency arrow.

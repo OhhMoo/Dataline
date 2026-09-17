@@ -16,7 +16,7 @@ TWO CLAIMS ARE UNDER TEST HERE, AND ONLY THE SECOND ONE IS HARD.
 
 WHAT IS NOT EXECUTED HERE. `promtool` and `logcli` are not on PATH in this
 environment, so the "a real client library works against it" half of the
-NATIVE_SURFACES rule is *designed* for those two, not measured. The HTTP client
+NATIVE.md rule is *designed* for those two, not measured. The HTTP client
 that is used is `httpx` over `ASGITransport`, which is the same client the real
 Metabase/Airbyte SDKs use underneath.
 """

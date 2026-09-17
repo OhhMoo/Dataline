@@ -1,4 +1,4 @@
-"""Ingestion connector control plane (see INGEST_CONTRACT.md).
+"""Ingestion connector control plane (see SURFACES.md#ingest).
 
 State lives in var/ingest/state.json beside the scheduler state; every
 timestamp is a virtual-clock value. A run's stored status is its terminal

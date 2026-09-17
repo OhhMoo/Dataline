@@ -220,7 +220,7 @@ default_is_off = """
 `ledger=False` is the shipped staging, and that is load-bearing rather than
 timid. `publishes:` lives in var/world/live.json and the schedule an advance
 needs lives in var/sched/state.json, and BOTH are sections of
-world.fingerprint.semantic() - world/LEDGER_CONTRACT.md says so in as many
+world.fingerprint.semantic() - world/README.md#publication-ledger says so in as many
 words. Declaring either by default would move the default arm's semantic_hash
 and every recorded world hash with it. So the shipped world is byte-identical,
 G7 reports `not_evaluable` in every rollout, no existing score moves, and the

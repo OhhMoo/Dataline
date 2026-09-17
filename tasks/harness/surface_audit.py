@@ -247,7 +247,7 @@ def audit(*, spec, surfaces: dict, toolbelt) -> dict:
 
 
 # =========================================================== NATIVE MODE ====
-# `--driver native` (gateway/NATIVE_SURFACES.md) has no gateway to probe: the
+# `--driver native` (gateway/NATIVE.md) has no gateway to probe: the
 # surfaces are services, and the question "is this surface there" becomes "does
 # the service answer". So a native probe is a health check - GET <base>/health
 # for each fake service, `SELECT 1` through psycopg for the warehouse, HEAD on
@@ -273,7 +273,7 @@ def audit(*, spec, surfaces: dict, toolbelt) -> dict:
 #             because GT008's primary warehouse is empty at t0 by design and a
 #             native gate stricter than the MCP gate would make one task.toml
 #             describe two tasks. The warehouse is a
-#             DuckDB FILE for every task in the corpus (NATIVE_SURFACES.md,
+#             DuckDB FILE for every task in the corpus (NATIVE.md,
 #             amendment 2026-09-16), so the check opens it through an ALIASED
 #             READ-ONLY attach - `connect(":memory:")` then `ATTACH <file> AS wh
 #             (READ_ONLY)` - which takes no write lock on the world's warehouse
@@ -486,7 +486,7 @@ def warehouse_verdict(tables: list[tuple[str, str]], nonempty: list[str],
     `sql_query(sql = "SELECT 1")`, which asks nothing about content and passes.
     A native gate stricter than the MCP gate on the same `task.toml` would mean
     the file described two different tasks under the two drivers, which
-    `gateway/NATIVE_SURFACES.md` forbids outright - the two measurements would
+    `gateway/NATIVE.md` forbids outright - the two measurements would
     not be comparable, and comparing them is the whole experiment.
 
     The count is reported either way, so an empty warehouse is always visible in

@@ -35,7 +35,7 @@ import stat
 import sys
 from pathlib import Path
 
-# `duckdb`, `dbt`, `python` and `git` are the binaries NATIVE_SURFACES.md leaves
+# `duckdb`, `dbt`, `python` and `git` are the binaries NATIVE.md leaves
 # as real binaries touching the world directly. `psql` and `aws` are
 # deliberately absent: their rows come from the server-side tailers, and
 # shimming them too would double every statement in the action log.

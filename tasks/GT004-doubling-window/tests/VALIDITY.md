@@ -47,7 +47,7 @@ weight** — which is why G3 keeps 0.45/0.30/0.25 where the contract's are 0.45/
 
 The third row is why the second exists. `publishes:` lives in `var/world/live.json` and an
 advance's schedule in `var/sched/state.json`; both are sections of `semantic()`, and
-`world/LEDGER_CONTRACT.md` says declaring one "would move every recorded world hash with it".
+`world/README.md#publication-ledger` says declaring one "would move every recorded world hash with it".
 So the ledger plane is opt-in and the shipped world is byte-identical.
 
 ## 3 — layer 3, re-measured

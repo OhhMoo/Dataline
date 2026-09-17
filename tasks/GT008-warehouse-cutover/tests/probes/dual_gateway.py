@@ -12,7 +12,7 @@ cutover task can be exercised at all:
   * it reads `warehouse_name` and `warehouses` out of the world manifest and
     passes them into `GatewayConfig`, so `sql_query`/`sql_execute` grow the
     `warehouse` field and the primary carries its peers as attached catalogs
-    (gateway/DUAL_WAREHOUSE_CONTRACT.md). Without them the consumer view over
+    (gateway/SURFACES.md#dual-warehouse). Without them the consumer view over
     the legacy catalog cannot resolve and `bi_render` is dead;
   * it injects `scheduling.episode_scheduler(config)` - the WorldScheduler -
     exactly as `alkera_gateway.cli serve` does, so `sched_trigger` executes the

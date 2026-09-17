@@ -30,7 +30,7 @@ warehouses:
     attach: true
     dbt: true
 
-# The human-context plane (gateway/WORKFLOW_CONTRACT.md): the ticket the work
+# The human-context plane (gateway/SURFACES.md#workflow): the ticket the work
 # arrives in, the channel the context is scattered across, and the wiki that is
 # right in some places and out of date in others.
 #

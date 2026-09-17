@@ -1,4 +1,4 @@
-"""The single action-log row writer for native mode (gateway/NATIVE_SURFACES.md).
+"""The single action-log row writer for native mode (gateway/NATIVE.md).
 
 Every tailer, shim and fake service calls `record` and nothing else, so the
 native transport produces the same agent.md 9.2.2 row the MCP gateway does.

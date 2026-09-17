@@ -48,7 +48,7 @@ fingerprinted:
   actually ran the job's command, for every `publishes` entry the job declares.
   The ledger is written HERE and nowhere else: the world records what a
   consumer could see, the agent cannot reach the file, and a later good state
-  cannot erase an earlier bad publication. See world/LEDGER_CONTRACT.md.
+  cannot erase an earlier bad publication. See world/README.md#publication-ledger.
 """
 import argparse
 import json
@@ -612,7 +612,7 @@ def _publish(root: Path, state: dict, live: dict | None, job: str,
     container, where var/ledger is shadowed by an empty read-only mount, so a
     receipt written there would land on a tmpfs and vanish at teardown -
     a silently incomplete ledger, which is worse than a ledger with a stated
-    boundary. LEDGER_CONTRACT.md states it.
+    boundary. README.md#publication-ledger states it.
     """
     return ledgerlib.record(root, live, state, job, run["vts_end"], day)
 

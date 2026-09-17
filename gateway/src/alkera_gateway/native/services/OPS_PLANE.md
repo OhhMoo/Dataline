@@ -1,6 +1,6 @@
 # The ops plane: six vendor-shaped services over the modules the MCP tools use
 
-**Owner: SERVICES-B.** Spec: `gateway/NATIVE_SURFACES.md`. Everything is
+**Owner: SERVICES-B.** Spec: `gateway/NATIVE.md`. Everything is
 **executed** unless a line says *designed*. Test: `gateway/tests/test_native_services_ops.py`
 — **71 green**, `gateway/.venv/Scripts/python.exe -m pytest`, 2026-09-16.
 Amended by INTEGRATE-GATEWAY, same day: items 2 and 3 of `SERVICES_B_REQUESTS.md`

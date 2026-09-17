@@ -8,7 +8,7 @@ WHY THIS BINARY IS NOT WRAPPED LIKE THE OTHERS
 which files changed and nothing about what was done to them. That is the honest
 answer for `dbt` and `python`, whose effects have no other description. It is
 the wrong answer for `duckdb`, because the statement IS the description, and
-`NATIVE_SURFACES.md`'s 2026-09-16 amendment makes that the difference between
+`NATIVE.md`'s 2026-09-16 amendment makes that the difference between
 the native and the MCP log:
 
 > the `duckdb` shim parses `-c`/`.read`/stdin statements through

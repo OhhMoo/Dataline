@@ -134,7 +134,7 @@ def seed_target(root: Path, seed: dict, manifest: dict, name: str) -> dict:
 
 
 def write_workflow(root: Path, seed: dict, manifest: dict) -> None:
-    """Seed var/workflow/{issues,chat,kb}.json per gateway/WORKFLOW_CONTRACT.md.
+    """Seed var/workflow/{issues,chat,kb}.json per gateway/SURFACES.md#workflow.
 
     The corpus is authored as data in this theme's workflow/ directory and
     dated against the world clock, which is read out of the scheduler state

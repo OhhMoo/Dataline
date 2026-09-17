@@ -11,7 +11,7 @@
 # -------------------------------------------------------------------------
 # The DNS restriction, and why there is no dnsmasq
 # -------------------------------------------------------------------------
-# NATIVE_SURFACES.md: "DNS in the episode network resolves *.internal to the
+# NATIVE.md: "DNS in the episode network resolves *.internal to the
 # fake services; nothing else resolves." Two mechanisms already in the stack
 # produce that, and a third container would only add a thing to go wrong:
 #
@@ -246,13 +246,13 @@ services:
           # tasks/harness/NATIVE_CONTAINER.md.
           - sched.internal
     volumes:
-      # The same world the episode mounts: NATIVE_SURFACES.md's rule is that a
+      # The same world the episode mounts: NATIVE.md's rule is that a
       # fake service serves and mutates the fixture files the MCP tools serve,
       # so there is one world and the graders do not change.
       - "${ALKERA_EPISODE_WORLD:?episode world directory}:/world"
       - "${ALKERA_EPISODE_AUDIT:?episode audit directory}:/audit"
       # The publication ledger is world evidence, not an agent surface
-      # (world/LEDGER_CONTRACT.md). This container answers HTTP for the agent,
+      # (world/README.md#publication-ledger). This container answers HTTP for the agent,
       # so a service module that read /world/var/ledger would be a channel to
       # it. The same tmpfs shadow the episode container gets, for the same
       # reason, so no service module can become that channel by accident.

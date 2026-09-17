@@ -60,11 +60,13 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import socket
 import subprocess
 import sys
 import threading
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -736,9 +738,15 @@ def image_path(image: str) -> str:
 #: How the subject's shell is moved into the episode container, and why it is
 #: this and not a wrapper on PATH.
 #:
-#: MEASURED 2026-09-17, one model turn per configuration
-#: (`gateway/docker/evidence/shell-redirect-*.json`), prompt "Run these two
-#: commands and reply with their raw output only: hostname; ls /":
+#: MEASURED 2026-09-17, one model turn per configuration, prompt "Run these two
+#: commands and reply with their raw output only: hostname; ls /". Those turns
+#: were taken by hand while the mechanism was being found; what is ON DISK is
+#: `gateway/docker/evidence/shell-redirect-harness-proof.json` (the redirect
+#: through the subject's launcher and env, no model: hostname and `ls /` are the
+#: container's; written by test_native_container.py's live half) and, once a
+#: `--model-smoke <model>` turn verifies, `shell-redirect-bash-env.json` (the
+#: CLI's Bash tool taking that path). Until the second file exists, the claim
+#: "a real model's shell lands in the container" rests on the by-hand turns:
 #:
 #:   * nothing set                      -> `OhhMooZephyrus`, a Git Bash root
 #:     (`bin cmd mingw64 …`). The CLI finds Git Bash itself.
@@ -766,8 +774,10 @@ def image_path(image: str) -> str:
 #: command to the container verbatim and the transcript still records what the
 #: model asked for.
 #:
-#: IT IS A REDIRECT, NOT A BOUNDARY. A subject that runs `bash --noprofile
-#: --norc -c …`, or unsets `BASH_ENV`, is back on the host. That is why
+#: IT IS A REDIRECT, NOT A BOUNDARY. A subject that unsets `BASH_ENV` (`env -u
+#: BASH_ENV bash -c …`) is back on the host. (`--noprofile --norc` is NOT an
+#: escape: `BASH_ENV` is read by every non-interactive bash regardless -
+#: measured in test_native_container.py's pure half.) That is why
 #: `rollout.py` verifies it by measurement before handing the terminal over and
 #: refuses the `filesystem_isolated` guarantee when the proof is missing -
 #: `container_execution_proof`. The alternative, running the model process
@@ -803,24 +813,54 @@ PROFILE = """# Generated per rollout. See {hook}.
 """
 
 
+#: Where Git for Windows puts the bash the CLI wants, in the order the CLI's
+#: own documentation names them. Checked before PATH, because PATH on a
+#: Windows box with WSL puts `C:\WINDOWS\system32\bash.exe` first and that is
+#: not a bash at all - it is the WSL launcher, it does not read a Windows
+#: `BASH_ENV`, and the redirect would never fire. MEASURED 2026-09-17: the
+#: harness process's `shutil.which("bash")` returned the WSL launcher on this
+#: machine; `verify_container_execution` would have refused the rollout, which
+#: is the right outcome, but with a message that blames the container.
+GIT_BASH_CANDIDATES = (
+    r"C:\Program Files\Git\bin\bash.exe",
+    r"C:\Program Files\Git\usr\bin\bash.exe",
+    r"C:\Program Files (x86)\Git\bin\bash.exe",
+)
+
+
 def _real_bash() -> str:
     """The bash the CLI will actually spawn.
 
-    `shutil.which`, and it must end in `.exe` on Windows: the CLI ignores a
-    `CLAUDE_CODE_GIT_BASH_PATH` that does not, which is the measurement at the
-    top of this section.
+    On Windows it must be Git for Windows' `bash.exe`: the CLI ignores a
+    `CLAUDE_CODE_GIT_BASH_PATH` that does not end in `.exe` (the measurement at
+    the top of this section), and the WSL launcher that Windows itself puts on
+    PATH under the same name does not read the hook. An operator who has set
+    `CLAUDE_CODE_GIT_BASH_PATH` already is believed; otherwise the standard
+    install locations are tried, then PATH, skipping anything under System32.
     """
-    found = shutil.which("bash")
-    if not found:
-        raise ContainerError(
-            "no `bash` on PATH; the container topology redirects the subject's "
-            "shell from inside bash and needs a real one to point the CLI at")
-    return found
+    pinned = os.environ.get("CLAUDE_CODE_GIT_BASH_PATH", "").strip()
+    if pinned and pinned.lower().endswith(".exe") and Path(pinned).exists():
+        return pinned
+    if os.name == "nt":
+        for candidate in GIT_BASH_CANDIDATES:
+            if Path(candidate).exists():
+                return candidate
+    for directory in os.environ.get("PATH", "").split(os.pathsep):
+        if os.name == "nt" and "system32" in directory.lower():
+            continue
+        found = shutil.which("bash", path=directory)
+        if found:
+            return found
+    raise ContainerError(
+        "no usable `bash` found: not at CLAUDE_CODE_GIT_BASH_PATH, not at a Git "
+        "for Windows install location, not on PATH outside System32. The "
+        "container topology redirects the subject's shell from inside bash and "
+        "needs a real one to point the CLI at (the WSL launcher is not one).")
 
 
 def write_bash_wrapper(bin_dir: Path, *, container: str, interpreter: str,
                        workdir: str = WORKSPACE_IN_CONTAINER,
-                       env: dict | None = None) -> dict:
+                       env: dict | None = None, docker: str | None = None) -> dict:
     """Materialise the redirect and return the environment that arms it.
 
     `interpreter` is unused by the hook itself and is kept because the caller
@@ -831,9 +871,14 @@ def write_bash_wrapper(bin_dir: Path, *, container: str, interpreter: str,
     `env` is forwarded to every `docker exec`, baked into the hook as literal
     `-e K=V` arguments rather than passed through a shell variable, because a
     value with a space in it would word-split.
+
+    `docker` names the binary the hook execs; the default is the one on PATH.
+    `test_native_container.py` passes a stand-in so the redirect itself - the
+    hook firing from `BASH_ENV`, the cwd rewrite, the argument order - can be
+    exercised through a real bash with no daemon and no model.
     """
     bin_dir.mkdir(parents=True, exist_ok=True)
-    docker = shutil.which("docker") or "docker"
+    docker = docker or shutil.which("docker") or "docker"
     env_args = "".join(f' -e {name}={value}'
                        for name, value in sorted((env or {}).items()))
     hook = bin_dir / "alkera_bash_env.sh"
@@ -908,6 +953,110 @@ def verify_container_execution(wrapper: dict, container: str,
         "stderr": (result.stderr or "")[-400:],
         "verified": bool(expected) and observed == expected,
     }
+
+
+#: The prompt of the one-turn model smoke, verbatim from the measurement at the
+#: top of this section, so a re-run is the same measurement.
+SMOKE_PROMPT = ("Run these two commands and reply with their raw output only: "
+                "hostname; ls /")
+#: Entries a Git Bash root lists and a Linux container root does not. Any one
+#: of them in the model's `ls /` output means the shell ran on the host.
+HOST_ROOT_MARKERS = ("mingw64", "git-bash.exe", "git-cmd.exe", "cmd", "ReleaseNotes.html",
+                     "LICENSE.txt", "unins000.exe")
+#: Entries the episode container's root must show: the three mounts this
+#: topology makes and two that any Linux root has.
+CONTAINER_ROOT_MARKERS = ("workspace", "world", "audit", "etc", "usr")
+
+
+def model_shell_smoke(wrapper: dict, container: str, out_dir: Path, *,
+                      model: str, claude: str | None = None,
+                      timeout: int = 300) -> dict:
+    """ONE model turn through the subject's real path: the CLI, its Bash tool,
+    the hook, `docker exec`. The measurement `verify_container_execution`
+    approximates from outside the CLI, taken from inside it.
+
+    The scripted subject and the harness's own `bash -lc hostname` both go
+    through `bash.exe`; the CLI's Bash tool goes through whatever the CLI
+    decides to spawn, and that decision is what silently put run-id
+    `native-container-20260917-k5` on the host. So the acceptance for this
+    topology is a real model, asked to run `hostname; ls /`, and its transcript
+    read for three things: the Bash tool was used, the hostname it printed is
+    the container's, and the root it listed is a Linux root with this
+    topology's three mounts and none of Git Bash's entries.
+
+    Writes `transcript.jsonl` and `smoke.json` into `out_dir` and returns the
+    verdict. Costs one short turn of whichever model is named; the shell
+    mechanics it measures do not depend on the model.
+    """
+    claude = claude or shutil.which("claude")
+    if not claude:
+        raise ContainerError("no `claude` on PATH; the model smoke needs the CLI")
+    expected = _run(["docker", "exec", container, "hostname"]).stdout.strip()
+    out_dir.mkdir(parents=True, exist_ok=True)
+    argv = [claude, "--print", "--output-format", "stream-json", "--verbose",
+            "--model", model, "--setting-sources", "", "--disable-slash-commands",
+            "--no-session-persistence", "--permission-mode", "bypassPermissions",
+            "--permission-prompts", "none", "--strict-mcp-config",
+            "--mcp-config", json.dumps({"mcpServers": {}}), "--tools", "Bash"]
+    env = {**os.environ, "PYTHONUTF8": "1", **wrapper["subject_env"]}
+    env.pop("CLAUDE_PROJECT_DIR", None)
+    started = time.time()
+    proc = subprocess.run(argv, input=SMOKE_PROMPT, cwd=str(out_dir),
+                          capture_output=True, text=True, encoding="utf-8",
+                          errors="replace", env=env, timeout=timeout)
+    (out_dir / "transcript.jsonl").write_text(proc.stdout, encoding="utf-8")
+    (out_dir / "agent.stderr.txt").write_text(proc.stderr or "", encoding="utf-8")
+
+    commands, results, final = [], [], ""
+    for line in proc.stdout.splitlines():
+        try:
+            ev = json.loads(line)
+        except ValueError:
+            continue
+        if ev.get("type") == "result":
+            final = ev.get("result") or final
+        for block in ((ev.get("message") or {}).get("content") or []):
+            if not isinstance(block, dict):
+                continue
+            if block.get("type") == "tool_use" and block.get("name") == "Bash":
+                commands.append(str((block.get("input") or {}).get("command", "")))
+            if block.get("type") == "tool_result":
+                content = block.get("content")
+                if isinstance(content, list):
+                    content = "\n".join(str(c.get("text", "")) for c in content
+                                        if isinstance(c, dict))
+                results.append(str(content or ""))
+    seen = "\n".join(results + [final])
+    tokens = set(re.findall(r"[A-Za-z0-9_.\-]+", seen))
+    host_markers = sorted(m for m in HOST_ROOT_MARKERS if m in tokens)
+    container_markers = sorted(m for m in CONTAINER_ROOT_MARKERS if m in tokens)
+    verdict = {
+        "prompt": SMOKE_PROMPT,
+        "model": model,
+        "claude": claude,
+        "argv": argv,
+        "subject_env": wrapper["subject_env"],
+        "launcher": wrapper["launcher"],
+        "expected_hostname": expected,
+        "bash_tool_used": bool(commands),
+        "commands": commands,
+        "tool_results": [r[-600:] for r in results],
+        "final": final[-1200:],
+        "hostname_is_the_container": bool(expected) and expected in tokens,
+        "host_root_markers_seen": host_markers,
+        "container_root_markers_seen": container_markers,
+        "returncode": proc.returncode,
+        "stderr": (proc.stderr or "")[-600:],
+        "wall_s": round(time.time() - started, 2),
+        "measured_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    }
+    verdict["verified"] = (verdict["bash_tool_used"]
+                           and verdict["hostname_is_the_container"]
+                           and not host_markers
+                           and set(container_markers) >= {"workspace", "world", "audit"})
+    with open(out_dir / "smoke.json", "w", encoding="utf-8", newline="") as stream:
+        json.dump(verdict, stream, indent=2, sort_keys=True)
+    return verdict
 
 
 # ----------------------------------------------------- the surface gate's relay

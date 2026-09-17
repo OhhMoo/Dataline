@@ -189,7 +189,7 @@ def load_raw(workspace: Path, db_path: Path) -> None:
 
 
 def write_workflow(root: Path, seed: dict, manifest: dict) -> None:
-    """Seed var/workflow/{issues,chat,kb}.json per gateway/WORKFLOW_CONTRACT.md.
+    """Seed var/workflow/{issues,chat,kb}.json per gateway/SURFACES.md#workflow.
 
     The corpus is authored as data in this theme's workflow/ directory and
     dated against the world clock, which is read out of the scheduler state

@@ -1,7 +1,7 @@
 # `--driver native` — the harness side
 
 **Status: built and executed except where marked *designed*.** Spec
-`gateway/NATIVE_SURFACES.md`; proof `tasks/harness/test_native_driver.py`
+`gateway/NATIVE.md`; proof `tasks/harness/test_native_driver.py`
 (75/75, no model); owner NATIVE-DRIVER. The subject gets `claude --print` with
 the built-in shell and **no MCP server** —
 `--mcp-config '{"mcpServers": {}}' --tools Bash --strict-mcp-config`
@@ -18,7 +18,7 @@ inventory — addresses and obviously fake credentials only.
 |---|---|
 | `ALKERA_NATIVE_AUDIT` | `<audit_dir>/actions.jsonl` — the 9.2.2 log every service and shim appends to, the same file the MCP gateway writes, which is why the budget watcher, the detectors and the report need no native branch |
 | `JIRA_URL` `SLACK_BASE_URL` `CONFLUENCE_URL` `METABASE_URL` `PROMETHEUS_URL` `ALERTMANAGER_URL` `LOKI_URL` `AIRBYTE_URL` `DEPLOY_URL` | `http://<name>.internal:<port>` — jira 8080, slack 8081, confluence 8090, metabase 3000, prometheus 9090, alertmanager 9093, loki 3100, airbyte 8001, deploy 8085; the vendor's own default wherever one exists |
-| `AWS_ENDPOINT_URL` `AWS_ACCESS_KEY_ID` `AWS_SECRET_ACCESS_KEY` `AWS_DEFAULT_REGION` | `http://minio.internal:9000`, `alkera-local-dev`, `us-east-1`. The credentials are **not** in NATIVE_SURFACES.md's list; boto3 and the aws CLI refuse to sign without them and an unreachable bucket would read as a world gap |
+| `AWS_ENDPOINT_URL` `AWS_ACCESS_KEY_ID` `AWS_SECRET_ACCESS_KEY` `AWS_DEFAULT_REGION` | `http://minio.internal:9000`, `alkera-local-dev`, `us-east-1`. The credentials are **not** in NATIVE.md's list; boto3 and the aws CLI refuse to sign without them and an unreachable bucket would read as a world gap |
 | `PGHOST` `PGPORT` `PGUSER` `PGDATABASE` `PGPASSWORD` | `postgres.internal` `5432` `alkera` `alkera` `alkera-local-dev` — the warehouse, served, never a file |
 | `DBT_PROFILES_DIR` | the world's `profiles_dir` |
 | `ALKERA_SCHEDULER` | the world's `var/sched/state.json`. It is the VIRTUAL CLOCK as much as the scheduler: `native.audit.virtual_time` reads `vnow` out of it, so a shim that runs without it stamps every row with `GatewayConfig.virtual_time` instead of the world's own time. The nine services get it from `serve.py`; the shims run in the subject's process tree and get it here or not at all |
@@ -155,7 +155,7 @@ no task with `required_surfaces` could run under this driver at all.
 at t0 because building it is the task, and the MCP probe for that surface is
 `sql_query(sql = "SELECT 1")`, which asks nothing about content. A native gate
 stricter than the MCP gate on the same `task.toml` would mean one file described
-two different tasks — which `NATIVE_SURFACES.md` forbids, because comparing the
+two different tasks — which `NATIVE.md` forbids, because comparing the
 two measurements is the whole experiment. Emptiness is reported in the surface's
 `result_summary` either way.
 
@@ -276,7 +276,7 @@ executed, against a stub speaking enough S3 for a signed `HEAD` and
 `list_objects_v2`. The nine fake services, the compose stack's
 `destinations.jsonl`, the shims, `./ops/sched` and the whole gate are executed
 against real worlds by `test_native_stack.py` and by the three acceptance runs in
-`gateway/NATIVE_INTEGRATION.md`. `NATIVE_DRIVER_REQUESTS.md` lists what the
+`gateway/NATIVE.md`. `NATIVE_DRIVER_REQUESTS.md` lists what the
 others must send.
 
 `./ops/sched trigger` runs a job for real through `WorldScheduler`, and what
@@ -293,7 +293,7 @@ is the only way to find the next entry before a scored rollout does. Run over
 GT001, GT004, GT006 and GT008 (ten triggers, four job shapes: a dbt build, a sql
 loader, a noop, two script-style nightly loaders) it added nothing: every write
 landed inside the entries the `sched_trigger` branch already had. Recorded in
-`gateway/NATIVE_INTEGRATION.md` §4b with the per-task job lists.
+`gateway/NATIVE.md` ("Measured — NATIVE-FIXES", trigger-all smoke) with the per-task job lists.
 
 ## Weakest finding
 

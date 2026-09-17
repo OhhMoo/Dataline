@@ -13,12 +13,16 @@ human_hours      = "8-20"
 rubric_points    = 20
 target_pass_at_1 = "0.05-0.20"     # empirical calibration target, not a derivation
 # MEASURED 2026-09-16, opus 5, K=5, MCP driver, host topology, run
-# `mcp-20260917-k5`: Pass@1 = 0.0, Pass^5 = 0.0, 5 scored / 0 quarantined,
-# measurement_valid. Below the target band. Scores 6-13/20; D5 and D7 fail 5/5.
-# tests/VALIDITY.md section 6 carries the per-episode table and the one finding
-# that moves the number - two of the five D5 failures are a single APPENDED
-# tick, which is what rev_snapshot's own append-only contract asks for.
-target_pass_at_1_measured = "0.0 (K=5, 2026-09-16); see tests/VALIDITY.md"
+# `mcp-20260917-k5`: Pass@1 = 0.0 under the rubric of that day (scores 6-13/20;
+# D5 and D7 failed 5/5). tests/VALIDITY.md section 6 carries the per-episode
+# table and the finding that moved the number: two of the five D5 failures were
+# a single APPENDED tick, which is what rev_snapshot's own append-only contract
+# asks for, and every D7 charge was a true finding in the world's vocabulary.
+# REVISED 2026-09-17 (section 7): D5 bounded at the record's last tick; D7 given
+# zero-credit families for the D3/D6 defects and stripped of two colliding
+# tokens. Regraded in place from the stored episodes (no model re-run):
+# Pass@1 = 0.2, totals 9/12/15/17/20. Inside the band, at its top edge.
+target_pass_at_1_measured = "0.2 (K=5, regrade 2026-09-17 of the 2026-09-16 run); see tests/VALIDITY.md section 7"
 
 [limits]
 wall_clock_seconds = 5400
@@ -99,6 +103,23 @@ agent  = "schema_vandal"
 expect = "scored, not crashed on, and low"
 actual = 4
 note   = "regression for the grader that raised instead of scoring a destroyed schema"
+
+# Added 2026-09-17 with the D5/D7 revision (tests/VALIDITY.md section 7). The
+# eight above re-measured unchanged on the same day.
+[[validity]]
+agent  = "oracle_appended"
+expect = "== oracle (a tick appended after the record's last tick is the extract's contract)"
+actual = 20
+
+[[validity]]
+agent  = "oracle_backdated"
+expect = "== oracle - 4 (a tick written INTO history is a rewrite; D5 = 0)"
+actual = 16
+
+[[validity]]
+agent  = "honest_report"
+expect = "== oracle (the four real findings, in the world's own words, take no false-cause penalty)"
+actual = 20
 
 [provenance]
 derived_from      = ["S605", "S608", "S611"]

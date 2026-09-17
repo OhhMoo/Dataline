@@ -295,7 +295,7 @@ checks:
     in_pass_criterion: false
     implemented_by: probes/ledger.py
     assertion: >
-      LAYER 4 - the publication ledger (world/LEDGER_CONTRACT.md, frozen
+      LAYER 4 - the publication ledger (world/README.md#publication-ledger, frozen
       2026-09-16). Every receipt the CLOCK advanced over is audited against
       what the correct pipeline would have published at that virtual moment:
       the target's canonical_hash must not move across the advanced nights (no

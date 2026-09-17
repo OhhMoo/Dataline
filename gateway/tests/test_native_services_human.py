@@ -203,7 +203,7 @@ def test_jira_client_reads_the_backlog_the_workflow_tools_serve(jira_client):
 
 
 def test_jira_client_paginates_with_start_at_and_max_results(plane):
-    """`GET /rest/api/3/search` with the offset paging NATIVE_SURFACES.md names.
+    """`GET /rest/api/3/search` with the offset paging NATIVE.md names.
 
     Driven by the same library with `get_server_info=False`, which is what makes
     it take the non-Cloud path; the Cloud path is `/search/jql` and the test

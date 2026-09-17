@@ -115,7 +115,7 @@ def main(argv: list[str] | None = None) -> int:
         # The one binary whose row is not a file diff: its statements are the
         # description of what it did, and `duckdb_cli` runs them through the
         # gateway's own `sql.inspect_sql` so the targets are table names on
-        # both transports (NATIVE_SURFACES.md, amendment 2026-09-16).
+        # both transports (NATIVE.md, amendment 2026-09-16).
         from . import duckdb_cli
 
         return duckdb_cli.main(rest)

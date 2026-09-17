@@ -30,7 +30,7 @@ consumer, on the right day, with non-null `row_count`. GT008 shipped a `publishe
 annotation no ledger had ever read; this one is read on every build.
 
 **GT008's weakest finding is closed.** Its C5 could not recompute `canonical_hash` and
-said so. `grade.py` restates the rule from `world/LEDGER_CONTRACT.md` and
+said so. `grade.py` restates the rule from `world/README.md#publication-ledger` and
 `_audit_restated_rule` requires a receipt **the world wrote** to be reproduced byte for
 byte by the grader's own implementation. Every graded result carries
 `ledger.hash_rule_audited`; on the oracle it is
@@ -240,6 +240,61 @@ still `ok` with the search living in the library.
 `tasks/contracts`: **98 passed** (was 82) in 54 s, of which 14 are `cutoff_integrity`'s
 and 20 `authorization`'s.
 
+## 2026-09-17 — the first valid measurement, and the report keys disclosed
+
+**Run `clean-20260917-k5`: Opus 5, K=5, MCP driver, host topology, prompt `guided`
+(sha `add35af4…`), 5 attempted, 5 scored, 0 quarantined.** `before_episode.json` is on
+disk for all five — `rollout.py` writes it immediately before the terminal is handed
+over, which is what the 2026-09-16 run (`mcp-20260917-k5`, five `unobserved`) lacked and
+what makes this one observable.
+
+| | |
+|---|---|
+| **Pass@1** | **0.2** over 5 scored |
+| Pass^5 | 0.0 (1 of 5 passed) |
+| totals | **8, 8, 8, 8, 18** of 20 — median 8, mean 10 |
+| median tool calls / wall | 80 / 470 s |
+| classification | pass ×1 (r1), reasoning ×4 |
+| surfaces | 15 live / 4 dead, gate `pass`; caveat: `dead_by_design` names `deploy`, which the MCP probe reports live (declared, with the reason, in task.toml) |
+
+Per-check: C0, D1, D2, D3 **1.0** across five — every episode found the fold, the
+checkpoint defect and the decision. R1–R4 **0.2** — only r1 left a nightly that keeps
+the bank correct on its own. **S1, S2: 0.0 across five**, and that half is the rubric's:
+
+**The report schema was never disclosed.** All five artefacts carry the facts S1/S2
+ask for under names the grader does not read — `recovered`, `load_checkpoint`,
+`ticket`, `authoritative_source`, `correctable_day` (five of five) against the grader's
+`gap_days_recovered`, `checkpoint`, `correction_ticket`, `correction_policy`,
+`corrected_day`. A fixed 2-point charge regardless of quality, on a task whose pass
+criterion happens not to require S1/S2 (r1's 18 is a pass; it would be 20). GT008,
+whose brief states its schema, lost nothing on the same axis.
+
+**Fixed 2026-09-17.** All three prompt variants gained the same "The report" table:
+the six keys, their value shapes (`YYYY-MM-DD` strings, a list, `null`), and nothing
+about what belongs in them — the runbook, the ticket key and the checkpoint day are
+still the agent's to find. The variants remain variants of framing only. Hashes
+re-locked in `task.toml [prompt_variants]`; runs before this carry the old hashes in
+their `prompt.txt` and `prompt_sha256`. The rubric is unchanged, so no baseline moves.
+
+**Re-verified after the re-lock, 2026-09-17 08:23-08:37.** `run_baselines.py`: 12
+baselines, oracle 20.0 and passes, `rebuilt_not_updated` 20.0 (positive control),
+every other decision below max, asymmetric regret 7.0 vs 8.0, `TASK VALID` in 13 min.
+And one rollout through `run_rollouts.py --driver scripted --k 1` (run
+`gt009-acc-20260917`): `before_episode.json` written before the terminal was handed
+over, `rollout.json.prompt_sha256 = 605882a5…` (the new `guided` lock), and the
+subject quarantined as `blindness_violation` — which is the correct verdict: the
+`scripted` driver IS the red-team detector subject (`redteam/scripted_subject.py`,
+"never a measurement") and reaches outside the toolbelt on purpose. What that run
+proves is the harness path — brief served under the new hash, pre-terminal
+observation, quarantine — not the brief's effect on a model. There is no
+oracle-through-`rollout.py` driver; the oracle is exercised by `run_baselines.py`,
+which does not read the prompt. The new brief's effect on S1/S2 is a model
+measurement and waits for quota.
+
+**Read as difficulty:** with S1/S2 disclosed the run reads 10, 10, 10, 10, 20 and
+Pass@1 stays **0.2**. The wall is R1–R4 — leaving the nightly correct without the
+agent — not the report.
+
 ## Weakest
 
 **Three, in order of how much they would cost to be wrong about.** Two of them were
@@ -250,7 +305,7 @@ findings list that deletes what it fixed is a list nobody can audit.
    **CLOSED 2026-09-16 (B above).**
 
    > Its `publish_kinds` / `correction_kinds` split expects a receipt `kind` naming the
-   > publication's *purpose*; `world/LEDGER_CONTRACT.md` freezes `kind` to
+   > publication's *purpose*; `world/README.md#publication-ledger` freezes `kind` to
    > `"table" | "file"`, the storage shape. The first task to write real receipts is the
    > first to find that the contract module and the ledger contract disagree about what
    > `kind` means. GT009 therefore grades `cutoff_integrity` in its own `grade.py` and

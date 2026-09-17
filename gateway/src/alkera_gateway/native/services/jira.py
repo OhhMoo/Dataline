@@ -1,6 +1,6 @@
 """Jira Cloud REST v3 - the subset a data engineer's morning needs.
 
-Why a fake Jira rather than the `issues_*` tools (gateway/NATIVE_SURFACES.md):
+Why a fake Jira rather than the `issues_*` tools (gateway/NATIVE.md):
 in native mode nobody hands the agent a tool list. It gets `JIRA_URL` and a
 token in `.envrc` and reaches for the client library it already knows. So the
 acceptance test for this module is the python `jira` package driving it
@@ -50,7 +50,7 @@ TOKEN = DEV_TOKEN
 ALL = 100_000
 
 # Jira status categories. The world declares its own `statuses` vocabulary
-# (WORKFLOW_CONTRACT.md), so the category is inferred from the name rather than
+# (SURFACES.md#workflow), so the category is inferred from the name rather than
 # looked up: "done"-like names close, "progress"/"review"/"blocked"/"triage" are
 # in flight, everything else is new. Wrong only for a vocabulary that names a
 # terminal state something unrecognisable, which no theme does today.
@@ -568,7 +568,7 @@ def issue_comment(key: str, payload: dict, request: Request) -> dict:
 def transitions_get(key: str, request: Request) -> dict:
     """The statuses this ticket can move to - every other status the world declares.
 
-    The world's `statuses` list *is* the workflow (WORKFLOW_CONTRACT.md), so
+    The world's `statuses` list *is* the workflow (SURFACES.md#workflow), so
     there is no transition graph to invent; an id is a position in that list,
     which makes it stable for a given world. The one question this asks of the
     world is "what status is this ticket in", so the row is an `issues_get`.
@@ -663,7 +663,7 @@ def assignee_of(supplied: dict) -> tuple[str | None, bool]:
 
     `assignee: null` is Jira's unassign, and it is exactly why `issues_update`
     carries a separate boolean: once the field is optional, a null cannot be
-    told apart from an absent one (WORKFLOW_CONTRACT.md).
+    told apart from an absent one (SURFACES.md#workflow).
     """
     if "assignee" not in supplied:
         return None, False

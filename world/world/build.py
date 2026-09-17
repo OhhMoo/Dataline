@@ -312,7 +312,7 @@ def build(seed_path: Path, root: Path, lock_path: Path | None = None) -> Path:
     write_ingest = getattr(theme.gen, "write_ingest", None)
     if write_ingest is not None:
         write_ingest(root, seed, theme.manifest)
-    # The workflow plane (gateway/WORKFLOW_CONTRACT.md): the ticket the work
+    # The workflow plane (gateway/SURFACES.md#workflow): the ticket the work
     # arrives in, the channel the context is scattered across, and the wiki
     # that is right in some places and out of date in others. Optional on the
     # same terms as write_ingest - a theme without the hook seeds nothing, gets
@@ -330,7 +330,7 @@ def build(seed_path: Path, root: Path, lock_path: Path | None = None) -> Path:
     _seed_observability(root, theme)
     observe.record(root, scheduler.load(root),
                    scheduler.parse_vtime(scheduler.load(root)["vnow"]), "build")
-    # Native mode's discovery layer (gateway/NATIVE_SURFACES.md): .envrc, the
+    # Native mode's discovery layer (gateway/NATIVE.md): .envrc, the
     # onboarding page, ~/.dbt/profiles.yml, ~/.config/alkera/services.toml.
     # Opt-in on the same terms as `faults:` and `warehouses:` - a seed without
     # `native: true` writes nothing, gets no `home/` directory, and keeps every

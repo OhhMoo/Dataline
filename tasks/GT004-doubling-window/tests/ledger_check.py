@@ -8,7 +8,7 @@ LAYER 4, EXECUTED - G7 against real receipts written by a real clock advance.
 WHY THIS FILE EXISTS RATHER THAN A ROW IN run_baselines.py. Nothing in GT004's
 grading path advances the clock through `world.scheduler.advance`: G3 moves
 `vnow` by editing var/sched/state.json, and `trigger()` writes no receipts by
-contract (world/LEDGER_CONTRACT.md: a manual trigger runs inside the episode
+contract (world/README.md#publication-ledger: a manual trigger runs inside the episode
 container where var/ledger is an empty read-only tmpfs). So a rollout reaches G7
 with an empty ledger and G7 says `not_evaluable`, worth zero, moving nothing.
 That is the right answer for a rollout and a useless one for a builder: a check

@@ -1,4 +1,4 @@
-"""Metabase-shaped BI service over `alkera_gateway.bi` (gateway/NATIVE_SURFACES.md).
+"""Metabase-shaped BI service over `alkera_gateway.bi` (gateway/NATIVE.md).
 
 The MCP agent reads a dashboard with `bi_get`, runs its panels with `bi_render`,
 re-materialises the cached tiles with `bi_refresh` and reads those tiles back

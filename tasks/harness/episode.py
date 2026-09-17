@@ -116,7 +116,7 @@ def tree_manifest(root: Path) -> dict:
 # absent rather than being handed a path to nothing.
 WORLD_PLANE_KEYS = ("workflow_dir", "observability", "obs_samples", "ingest")
 
-# The same pattern for a SECOND warehouse (gateway/DUAL_WAREHOUSE_CONTRACT.md).
+# The same pattern for a SECOND warehouse (gateway/SURFACES.md#dual-warehouse).
 # A world builder that runs one publishes `warehouses` - the list GatewayConfig
 # takes, each entry a WarehouseSpec with an ABSOLUTE `path` for a DuckDB file
 # (world.build.gateway_warehouses produces exactly this) - and may publish
@@ -314,7 +314,7 @@ def probe_surfaces(spec, world: dict, scratch: Path,
 def grade(spec, world: dict, artifact_path: Path, out_dir: Path) -> dict:
     """Run the task's hidden grader. AFTER teardown. Never during the episode."""
     # The publication ledger moves into the grading zone first
-    # (world/LEDGER_CONTRACT.md). The grader reads that copy and not
+    # (world/README.md#publication-ledger). The grader reads that copy and not
     # <world_root>/var/ledger, for the same reason it reads no other evidence
     # out of the tree the subject just worked in. A world that published
     # nothing stages nothing and `{ledger}` substitutes to the empty string;

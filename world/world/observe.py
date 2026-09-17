@@ -42,7 +42,7 @@ import yaml
 
 OBS = Path("var") / "obs"
 SAMPLES = OBS / "samples.jsonl"
-# OBS_STORE_CONTRACT.md names definitions.yaml; gateway/OBSERVABILITY_CONTRACT.md
+# OBS_STORE_CONTRACT.md names definitions.yaml; gateway/SURFACES.md#observability
 # named observability.yml first. Read either, prefer the frozen seam's name.
 DEFINITION_NAMES = ("definitions.yaml", "observability.yml", "observability.yaml")
 
@@ -118,7 +118,7 @@ def _scalar(con, sql: str):
 
 def _as_datetime(value):
     """A DATE measures to midnight - that is the honest reading for a column
-    with no time of day, not a rounding error (OBSERVABILITY_CONTRACT)."""
+    with no time of day, not a rounding error (SURFACES.md#observability)."""
     from datetime import date
     if isinstance(value, datetime):
         return value
@@ -180,7 +180,7 @@ def _finished(runs, job, vts: datetime):
     """Runs of `job` that had finished by `vts`, oldest first.
 
     A run that has not finished by `vts` is not history and contributes to
-    nothing (OBSERVABILITY_CONTRACT). Sorted on `vts_end` rather than trusted
+    nothing (SURFACES.md#observability). Sorted on `vts_end` rather than trusted
     to be in order: a retried occurrence appends its second attempt after the
     downstream job that was scheduled between them, so the run list is in
     completion order, not clock order, and "the latest finished run" has to be

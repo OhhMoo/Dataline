@@ -3,7 +3,7 @@
 # ONE definitions file per theme. Both halves of the seam read this file:
 # `world/world/observe.py` (FAULTS) takes one reading per metric after every
 # executed run and appends it to var/obs/samples.jsonl, and the gateway's
-# metrics/alarms/deploy tools (OBS-HISTORY, gateway/OBSERVABILITY_CONTRACT.md)
+# metrics/alarms/deploy tools (OBS-HISTORY, gateway/SURFACES.md#observability)
 # read it to know what to evaluate. A second file would let the writer and the
 # reader describe different metric sets, which is the one way this surface can
 # be wrong without anything looking wrong - the gateway refuses to load a world

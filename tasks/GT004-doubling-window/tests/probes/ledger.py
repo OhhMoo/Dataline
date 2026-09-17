@@ -10,7 +10,7 @@ WHAT IT IS FOR. Every other gate in this package reads the world's FINAL state.
 A grader that reads only the final state cannot tell a pipeline that was right
 all along from one that published a wrong number on Tuesday and corrected it on
 Thursday - `var/sched/state.json` says a job succeeded, not what it made
-visible. `world/LEDGER_CONTRACT.md` closes that: a job may declare
+visible. `world/README.md#publication-ledger` closes that: a job may declare
 `publishes: [{target, kind, consumer}]`, and the world appends one receipt per
 publication, at the virtual moment a consumer could first see it, carrying the
 canonical contents of what was published.

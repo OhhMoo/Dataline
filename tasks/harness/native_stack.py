@@ -23,11 +23,11 @@ WHAT IT BRINGS UP, AND WHAT IT DOES NOT
   Most tasks do not: GT001 declares an `s3_list` probe and requires nothing, and
   starting a container per rollout for a surface the task does not require is a
   minute of docker per rollout bought for nothing.
-* NOT Postgres. The 2026-09-16 amendment to `gateway/NATIVE_SURFACES.md` keeps
+* NOT Postgres. The 2026-09-16 amendment to `gateway/NATIVE.md` keeps
   the warehouse a DuckDB FILE for the existing tasks, so the warehouse the
   subject reaches is the world's own file through the `duckdb` shim. A task that
   declares `warehouse_backend: postgres` needs a server this module does not
-  start; `gateway/NATIVE_INTEGRATION.md` records that as designed, not built.
+  start; `gateway/NATIVE.md` records that as designed, not built.
 
 PORTS
 -----
@@ -480,7 +480,7 @@ class NativeStack:
 #:
 #: The warehouse statements CREATE, DELETE and DROP a throwaway table, in that
 #: order, and each of the three matters. The DELETE is the case
-#: `gateway/NATIVE_INTEGRATION.md` recorded as the weakest finding - a DuckDB
+#: `gateway/NATIVE.md` recorded as the weakest finding - a DuckDB
 #: write whose row names TABLES and cannot be matched against the warehouse
 #: FILE - so an acceptance whose only statement was a `SELECT`, which is what
 #: this script used to run, could not have caught it. The DROP puts the

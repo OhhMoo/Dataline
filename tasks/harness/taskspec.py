@@ -109,6 +109,13 @@ class TaskSpec:
     grade_argv: list[str]
     world_builder: Path
     instruction_path: Path
+    # `[grading].manifest`, when the task declares one. The grader's other
+    # half: every task's build_world.py copies it into the grading zone and
+    # grade.py reads THAT copy, so a regrade that re-runs a changed grade.py
+    # against the copy made at episode time is half a regrade. rollout.py
+    # --regrade refreshes the copy from this path (keeping the planted canary)
+    # and hashes both halves into `regrade_grader_sha256`.
+    grade_manifest: Path | None = None
     surface_probes: list[dict] = field(default_factory=list)
 
     # Which surfaces this task's world MUST have. A rollout that starts with one
@@ -460,6 +467,7 @@ def load(task_id: str, tasks_dir: Path | None = None,
         disk_mb=int(limits.get("disk_mb", 0)),
         artifact_in_world=str(_require(grading, "artifact", f"{task_id} [grading]")),
         grade_entrypoint=root / _require(grading, "entrypoint", f"{task_id} [grading]"),
+        grade_manifest=(root / str(grading["manifest"])) if grading.get("manifest") else None,
         grade_argv=list(_require(harness, "grade_argv", f"{task_id} [harness]")),
         world_builder=root / _require(harness, "world_builder", f"{task_id} [harness]"),
         instruction_path=instruction_path,

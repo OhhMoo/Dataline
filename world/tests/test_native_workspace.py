@@ -62,8 +62,10 @@ try:  # the harness half: the table the subject's environment is built from.
     # other by bare name (`import episode`) rather than as a package.
     sys.path.insert(0, str(REPO / "tasks" / "harness"))
     from agent_under_test import NATIVE_SERVICES as harness_services
+    from agent_under_test import NATIVE_WORKSPACE_SERVICES as harness_planes
 except Exception:  # pragma: no cover
     harness_services = None
+    harness_planes = None
 
 
 class _ComposeLoader(yaml.SafeLoader):
@@ -112,17 +114,40 @@ class EndpointTableTest(unittest.TestCase):
         for key, value in sorted(overlap.items()):
             self.assertEqual(self.env[key], value, f"{key} differs")
         # Anything compose declares and the table does not must be a variable
-        # that is not an endpoint at all, or the .envrc is incomplete.
-        not_in_table = sorted(set(declared) - set(self.env))
+        # that is not an endpoint at all, or a workspace plane the .envrc
+        # withholds on purpose (WORKSPACE_PLANES: `SCHED_URL` set is what
+        # switches `./ops/sched` into its container mode, so the build-time
+        # .envrc, shared by both topologies, must not export it).
+        planes = {p.url_var for p in native_workspace.WORKSPACE_PLANES}
+        not_in_table = sorted(set(declared) - set(self.env) - planes)
         self.assertEqual(not_in_table, ["ALKERA_NATIVE_AUDIT", "HOME"],
                          "compose declares an endpoint the .envrc does not export")
+        for plane in native_workspace.WORKSPACE_PLANES:
+            self.assertEqual(str(declared.get(plane.url_var)), plane.url,
+                             f"{plane.url_var}: compose and the plane table differ")
+            self.assertNotIn(plane.url_var, self.env,
+                             f"{plane.url_var} in .envrc would flip the host-topology shim")
 
     def test_compose_aliases_are_the_service_table(self):
         aliases = set(
             self.compose["services"]["native-services"]["networks"]["episode_net"]["aliases"]
         )
         expected = {f"{service.name}.internal" for service in native_workspace.SERVICES}
+        expected |= {plane.alias for plane in native_workspace.WORKSPACE_PLANES}
         self.assertEqual(aliases - {"native-services.internal"}, expected)
+
+    @unittest.skipIf(harness_planes is None, "tasks/harness not importable")
+    def test_workspace_planes_match_the_harness(self):
+        """`agent_under_test.NATIVE_WORKSPACE_SERVICES` and WORKSPACE_PLANES are
+        one table: same names, same variables, same ports."""
+        mine = {p.name: (p.url_var, p.port) for p in native_workspace.WORKSPACE_PLANES}
+        self.assertEqual(mine, dict(harness_planes))
+
+    @unittest.skipIf(native_serve is None, "alkera_gateway not importable")
+    def test_workspace_planes_match_the_server(self):
+        """The plane is served where the episode's `SCHED_URL` says it is."""
+        (sched,) = native_workspace.WORKSPACE_PLANES
+        self.assertEqual(native_serve.SCHED_PORT, sched.port)
 
     def test_backend_aliases_are_declared(self):
         """Every `<name>.internal` the table points a client at is an alias some

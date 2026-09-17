@@ -4,7 +4,7 @@ Three levels, and the split is deliberate.
 
 `WorkflowCorpusTest` resolves each theme's corpus without building a world, so
 it is fast and it covers all four themes. It asserts *content*, not `ok`: that
-the deliberate-imperfection catalogue in `gateway/WORKFLOW_CONTRACT.md` is
+the deliberate-imperfection catalogue in `gateway/SURFACES.md#workflow` is
 actually planted, that the stale page really is older than the page that
 supersedes it, and that the status vocabulary each theme declares is the one
 its tickets use. A backlog where every ticket matters is a solution manual, and
@@ -139,7 +139,7 @@ class WorkflowCorpusTest(unittest.TestCase):
             self.assertGreaterEqual(len(used), 2, f"{name} uses one status")
 
     def test_the_deliberate_imperfection_catalogue_is_planted_in_every_theme(self):
-        """WORKFLOW_CONTRACT.md's table is the content bar. A corpus that
+        """SURFACES.md#workflow's table is the content bar. A corpus that
         carries none of it is a solution manual, and nothing downstream would
         say so - the tools would answer every call correctly over a backlog in
         which every ticket mattered."""

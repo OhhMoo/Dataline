@@ -1,4 +1,4 @@
-"""Registry of the fake vendor-shaped services (gateway/NATIVE_SURFACES.md).
+"""Registry of the fake vendor-shaped services (gateway/NATIVE.md).
 
 Each module in NAMES exposes `NAME`, `HOST` (DNS alias in the episode network),
 `PORT` and `app` (a FastAPI application). `serve.py` mounts whatever imports;

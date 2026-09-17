@@ -130,7 +130,7 @@ carries the evidence.
 **Why layer 4 is opt-in, and why that is the design rather than a compromise.**
 `publishes:` lives in `var/world/live.json` and the schedule an advance needs lives in
 `var/sched/state.json`; both are sections of `world.fingerprint.semantic()`, and
-`world/LEDGER_CONTRACT.md` says declaring one "would move every recorded world hash
+`world/README.md#publication-ledger` says declaring one "would move every recorded world hash
 with it". Nothing in GT004's grading path advances the clock through
 `world.scheduler.advance` anyway — `trigger()` writes no receipts by contract, and G3
 moves `vnow` by editing the state file — so a rollout would reach G7 with an empty

@@ -146,7 +146,7 @@ advances the clock four times, executing the agent's pipelines for real. Then it
 
 **The canonical hash is recomputed here, and the restatement is audited.** GT008's C5 shipped
 with `canonical_hash` unchecked and named that its weakest finding. `grade.py` restates the
-rule from `world/LEDGER_CONTRACT.md` (a task knows the world's layout, not its internals) and
+rule from `world/README.md#publication-ledger` (a task knows the world's layout, not its internals) and
 `_audit_restated_rule` requires a receipt **the world wrote** to be reproduced byte for byte
 by the grader's own implementation; every result carries `ledger.hash_rule_audited`
 **[measured: `oracle/night1`]**.
@@ -237,7 +237,7 @@ They are listed with their evidence in `tests/VALIDITY.md`. The three that matte
    remains open is the execution-day vs period mismatch, tests/VALIDITY.md.)*
    **`tasks/contracts/cutoff_integrity.py` cannot read this ledger.** Its `publish_kinds` /
    `correction_kinds` split expects a receipt `kind` naming the publication's *purpose*, and
-   `world/LEDGER_CONTRACT.md` freezes `kind` to `"table" | "file"` - the storage shape. The
+   `world/README.md#publication-ledger` freezes `kind` to `"table" | "file"` - the storage shape. The
    first task to write real receipts is the first to find that the contract module and the
    ledger contract disagree about what `kind` means. GT009 grades `cutoff_integrity` in its
    own `grade.py` rather than through the module, and the module needs an amendment before

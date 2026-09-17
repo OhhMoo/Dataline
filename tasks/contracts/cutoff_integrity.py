@@ -27,7 +27,7 @@ EMPTY_DETAIL = "no receipts: contract not evaluable"
 # WHAT A RECEIPT IS FOR, and why the task has to say.
 #
 # This module used to split receipts by `kind`, reading it as the publication's
-# PURPOSE.  `world/LEDGER_CONTRACT.md` freezes `kind` to "table" | "file" - the
+# PURPOSE.  `world/README.md#publication-ledger` freezes `kind` to "table" | "file" - the
 # STORAGE SHAPE.  GT009, the first task in the repository to write real
 # receipts, is where the two met: both of its publications are `kind: table`,
 # one is the settlement the clearing bank reads and the other the platform's

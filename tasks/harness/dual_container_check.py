@@ -3,7 +3,7 @@
 
     python dual_container_check.py [--image alkera-episode:head] [--no-postgres]
 
-gateway/DUAL_WAREHOUSE_CONTRACT.md's containment section is an argument from
+gateway/SURFACES.md#dual-warehouse's containment section is an argument from
 the compose topology; this is the measurement. It runs the same lifecycle a
 `--topology container` rollout runs - the world built on the host by a task-
 shaped builder, `compose up`, the containment probe, the toolbelt and surface

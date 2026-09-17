@@ -241,7 +241,7 @@ def stage_workflow(root: Path, vnow: str) -> dict:
 # A literal, not a yaml.dump: the bytes are the contract and a serialiser's key
 # order is not something to stake byte-identity on.
 DEFINITIONS_YAML = """\
-# Observability definitions for GT006 (gateway/OBSERVABILITY_CONTRACT.md).
+# Observability definitions for GT006 (gateway/SURFACES.md#observability).
 # Staged by tests/stage_surfaces.py.
 #
 # EVERY SURFACE IS GREEN. Jobs ran, freshness passed, data quality passed,

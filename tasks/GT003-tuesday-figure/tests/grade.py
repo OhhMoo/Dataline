@@ -314,24 +314,42 @@ def d5_snapshot_record(con, m: dict, s: Score):
                        for r in sorted(sr.get("torn_as_shipped") or [],
                                        key=lambda r: r["region"]))
 
-    # history outside the torn tick must be byte-identical to the reference
+    # History outside the torn tick must be byte-identical to the reference -
+    # for every tick the RECORD holds. Ticks after the record's last one are
+    # not history: rev_snapshot's own contract (bi_extract.sql, the runbook,
+    # the ticket) is "one row per region per tick, appended", and an agent
+    # that runs the repaired extract to verify its fix appends exactly that.
+    # MEASURED 2026-09-16 (tests/VALIDITY.md section 6): four of the seven
+    # episodes that reached this table restated the torn tick to the accepted
+    # vector, touched no other historical row, and were scored 0 here for one
+    # appended tick. The diff is therefore bounded at the record's last tick;
+    # an appended tick is counted and named, never charged. A tick inserted
+    # INTO the past, or an existing tick changed, still lands in the diff.
+    last_ref = con.execute(
+        "SELECT MAX(snapshot_ts) FROM e.warehouse.rev_snapshot").fetchone()[0]
+    bound = f"AND snapshot_ts <= TIMESTAMP '{last_ref}'"
     diff = con.execute(f"""
         SELECT (SELECT COUNT(*) FROM (
                  SELECT {cols} FROM w.warehouse.rev_snapshot
-                 WHERE snapshot_ts <> TIMESTAMP '{ts}'
+                 WHERE snapshot_ts <> TIMESTAMP '{ts}' {bound}
                  EXCEPT ALL
                  SELECT {cols} FROM e.warehouse.rev_snapshot
-                 WHERE snapshot_ts <> TIMESTAMP '{ts}'))
+                 WHERE snapshot_ts <> TIMESTAMP '{ts}' {bound}))
              + (SELECT COUNT(*) FROM (
                  SELECT {cols} FROM e.warehouse.rev_snapshot
-                 WHERE snapshot_ts <> TIMESTAMP '{ts}'
+                 WHERE snapshot_ts <> TIMESTAMP '{ts}' {bound}
                  EXCEPT ALL
                  SELECT {cols} FROM w.warehouse.rev_snapshot
-                 WHERE snapshot_ts <> TIMESTAMP '{ts}'))""").fetchone()[0]
+                 WHERE snapshot_ts <> TIMESTAMP '{ts}' {bound}))""").fetchone()[0]
+    appended = con.execute(f"""
+        SELECT COUNT(DISTINCT snapshot_ts) FROM w.warehouse.rev_snapshot
+        WHERE snapshot_ts > TIMESTAMP '{last_ref}'""").fetchone()[0]
+    tail = (f"; {appended} tick(s) appended after the record's last tick, "
+            "which is the extract's own contract") if appended else ""
     if diff:
         s.add("D5", 0, 4, f"{diff} row(s) of reporting history outside the tick "
                           "differ from the record - the history was rewritten, "
-                          "not restated")
+                          f"not restated{tail}")
         return
 
     n_regions = len(as_shipped) or 4
@@ -340,13 +358,13 @@ def d5_snapshot_record(con, m: dict, s: Score):
                           f"requires {n_regions} - the pack joins on the tick")
     elif any(got == acc for acc in accepted):
         s.add("D5", 4, 4, "the torn tick is restated to a single whole build and "
-                          "the rest of the record is untouched")
+                          f"the rest of the record is untouched{tail}")
     elif got == as_shipped:
         s.add("D5", 0, 4, "the torn tick still carries the figures the mixed read "
-                          "produced")
+                          f"produced{tail}")
     else:
         s.add("D5", 1, 4, "the torn tick was changed but matches neither accepted "
-                          "restatement")
+                          f"restatement{tail}")
 
 
 # D6 ---------------------------------------------------------------- 3 pts
@@ -547,6 +565,32 @@ KEYS = {
     "C-VDUP": ("duplicate line", "duplicated line", "re-sent", "resent", "redeliver",
                "re-deliver", "vendor duplicate", "02-24", "february 24", "feb 24",
                "duplicate order line", "twice by the vendor", "delivered twice"),
+    # Zero-credit families, ADDED 2026-09-17. These are REAL defects the rubric
+    # already grades elsewhere (D3: the compensating change; D6: the
+    # non-atomic, non-idempotent publish; D1: the duplicated dimension). Before
+    # this, an entry naming one of them matched no family and was charged as
+    # "unsupported" - MEASURED across 7 completed episodes, every one lost
+    # 2 points for accurately reporting the two defects the task is about.
+    # `creditable` only reads causes with credit > 0 in the manifest, so these
+    # pay nothing; their only effect is that a true statement is not a penalty.
+    # Tokens are kept specific on purpose: every token here widens the set of
+    # phrases that count as "names a real defect", and a generic word ("swap",
+    # "rename") would let a novel invented cause ride out of the penalty.
+    "C-COMP": ("data-5518", "data 5518", "reseller", "compensating change",
+               "segment filter", "excluded the segment"),
+    "C-ATOMIC": ("non-atomic", "not atomic", "non-idempotent", "not idempotent",
+                 "__dbt_backup", "dbt_backup", "backup relation", "leftover relation",
+                 "wedged", "already exists", "catalog error",
+                 "two statements", "two separate statements",
+                 "fact before the dim", "half-published", "publish sequence",
+                 "failing hourly", "failed every hour", "mart_hourly_rebuild",
+                 "rebuild has been failing", "rebuilds have failed",
+                 "rebuild fail"),
+    "C-DIM": ("883", "duplicate customer", "duplicated customer",
+              "customer_master", "customer master", "dimension carried",
+              "duplicated dimension", "two rows per customer",
+              "two rows for each", "cm-20260225", "cm-20260303",
+              "active_accounts"),
 }
 
 def d7_secondary(artifact: dict, m: dict, s: Score):

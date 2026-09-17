@@ -94,7 +94,7 @@ def load_raw(workspace: Path, db_path: Path) -> None:
 
 
 def write_ingest(root: Path, seed: dict, manifest: dict) -> None:
-    """Seed var/ingest/state.json per gateway/INGEST_CONTRACT.md.
+    """Seed var/ingest/state.json per gateway/SURFACES.md#ingest.
 
     One sync per connector per day at its cron slot, with row counts from the
     same per-day RNG that wrote the drop folders — so the sync history agrees
@@ -227,7 +227,7 @@ def write_ingest(root: Path, seed: dict, manifest: dict) -> None:
 
 
 def write_workflow(root: Path, seed: dict, manifest: dict) -> None:
-    """Seed var/workflow/{issues,chat,kb}.json per gateway/WORKFLOW_CONTRACT.md.
+    """Seed var/workflow/{issues,chat,kb}.json per gateway/SURFACES.md#workflow.
 
     The corpus is authored as data in this theme's workflow/ directory and
     dated against the world clock, which is read out of the scheduler state

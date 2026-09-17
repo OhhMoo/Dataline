@@ -1,10 +1,10 @@
 {
-  "generated": "2026-09-16T03:45:11+00:00",
-  "head_revision": "3db7cf00c78b14c7e749409e34c6e2eec5b2c0b4",
-  "image_id": "sha256:8ce099f8ec61b53c9609348de59866ff426efc500b445044baea22db69b43887",
+  "generated": "2026-09-17T09:05:12+00:00",
+  "head_revision": "6ee7db951cf6a3bbca1b19670e38ba4d43782ff2",
+  "image_id": "sha256:23713afdead347a277a014b761684153315728ec258ba10e8a6f55031debd4c4",
   "labels": {
-    "org.alkera.source.overlay": "1225a4075b5f86b34d3a67f22bd74a127268a931090980aaa8485e4191a6be83",
-    "org.alkera.source.revision": "3db7cf00c78b14c7e749409e34c6e2eec5b2c0b4"
+    "org.alkera.source.overlay": "91e0801be43fa79e23e64702ed0cf7f9f3108b54b4c992cc678fd1c9f5c3b48a",
+    "org.alkera.source.revision": "6ee7db951cf6a3bbca1b19670e38ba4d43782ff2"
   },
   "measured_inside_container": {
     "binaries": [
@@ -681,7 +681,7 @@
     "platform": "Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.41",
     "python_not_shadowed": true,
     "python_on_path": "/usr/local/bin/python",
-    "source_revision": "3db7cf00c78b14c7e749409e34c6e2eec5b2c0b4",
+    "source_revision": "6ee7db951cf6a3bbca1b19670e38ba4d43782ff2",
     "tool_count": 63,
     "tools": [
       "alarms_get",
@@ -758,10 +758,16 @@
       "gateway/docker/aws-keys",
       "gateway/docker/build_episode.py",
       "gateway/docker/compose.episode.yml",
+      "gateway/docker/compose.native.yml",
       "gateway/docker/compose.yml",
+      "gateway/docker/COMPOSE_REQUESTS.md",
       "gateway/docker/containment.py",
       "gateway/docker/Dockerfile",
       "gateway/docker/Dockerfile.snowflake",
+      "gateway/docker/ledger_probe.py",
+      "gateway/docker/native_episode_probe.py",
+      "gateway/docker/native_probe.py",
+      "gateway/docker/NATIVE_STACK.md",
       "gateway/docker/postgres.sql",
       "gateway/docker/snowflake.in",
       "gateway/docker/snowflake.lock",
@@ -776,12 +782,12 @@
       "gateway/docker/toolbelt_acceptance.py",
       "gateway/docker/toolbelt_check.py"
     ],
-    "hash": "1225a4075b5f86b34d3a67f22bd74a127268a931090980aaa8485e4191a6be83"
+    "hash": "91e0801be43fa79e23e64702ed0cf7f9f3108b54b4c992cc678fd1c9f5c3b48a"
   },
   "repo_digests": [
-    "alkera-episode@sha256:8ce099f8ec61b53c9609348de59866ff426efc500b445044baea22db69b43887"
+    "alkera-episode@sha256:23713afdead347a277a014b761684153315728ec258ba10e8a6f55031debd4c4"
   ],
-  "size_bytes": 315512103,
-  "source_revision": "3db7cf00c78b14c7e749409e34c6e2eec5b2c0b4",
+  "size_bytes": 319198417,
+  "source_revision": "6ee7db951cf6a3bbca1b19670e38ba4d43782ff2",
   "tag": "alkera-episode:head"
 }

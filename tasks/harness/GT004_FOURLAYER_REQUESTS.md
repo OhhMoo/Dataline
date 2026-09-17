@@ -29,7 +29,7 @@ What already works, and was measured on this host:
   carry 6 offences, and **the two states are separated by the ledger alone**.
 
 What does not: **no rollout path moves the clock.** `trigger()` writes no
-receipts by contract (`world/LEDGER_CONTRACT.md`: a manual trigger runs inside
+receipts by contract (`world/README.md#publication-ledger`: a manual trigger runs inside
 the episode container, where `var/ledger` is an empty read-only tmpfs), and
 GT004's G3 probe advances `vnow` by editing `var/sched/state.json` on a *copy*
 of the world rather than by calling `advance`. So a real episode ends with an

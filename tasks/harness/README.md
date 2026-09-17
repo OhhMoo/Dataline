@@ -59,6 +59,14 @@ and its consequence is written out:
 | the action-log watermark | rows the harness cannot name are counted as the subject's — it can only over-count |
 | the agent's exit reason | recorded as `unrecorded`, which matches no classifier branch. `not_started` would be a claim, and a false one |
 
+**The grader is two files.** `grade.py` reads `manifest.yaml` out of the grading zone — the
+copy `build_world.py` made at episode time, with the canary comment `rollout.py` appended. A
+regrade refreshes that copy from the task's current `[grading].manifest` (the canary line is
+carried over byte for byte, since `_recover_canaries` reads it back) and
+`regrade_grader_sha256` hashes both halves. Measured before this: GT003's first regrade re-ran
+a new `grade.py` against the old manifest and reported the old token-list penalty five times.
+A task that declares no manifest hashes `grade.py` alone, as before.
+
 Every record carries `regraded_from` (the classification it replaced, or `no_record`),
 `regraded_at`, `regrade_grader_sha256` and a `regrade` block with the source of each input.
 `report.py` puts `- regraded: true` at the top of the run-conditions block, above the number,
@@ -203,8 +211,8 @@ dead. Ground rule 1 is structural here, not a convention.
 offset, the shims on PATH, MinIO in docker only when the task REQUIRES the s3
 surface, and teardown in the rollout's `finally`. Pass `--native-endpoints` to
 point at a stack you are running yourself instead. `--topology container` is
-still refused for every driver but `mcp`. Spec `gateway/NATIVE_SURFACES.md`;
-what is executed and what is designed, `gateway/NATIVE_INTEGRATION.md`.
+still refused for every driver but `mcp`. Spec, and what is executed versus
+designed: `gateway/NATIVE.md`.
 
 ## Topology: where the WORLD and the TOOLS run
 

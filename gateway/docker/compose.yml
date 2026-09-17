@@ -22,7 +22,7 @@ services:
       ALKERA_POSTGRES_DSN: postgresql://episode:episode-local@postgres/episode
       ALKERA_BACKEND: ${ALKERA_BACKEND:-postgres}
       # Additional warehouses for the fixture world, as a JSON list of
-      # WarehouseSpec objects (gateway/DUAL_WAREHOUSE_CONTRACT.md); empty means
+      # WarehouseSpec objects (gateway/SURFACES.md#dual-warehouse); empty means
       # the one-warehouse stack every recorded evidence file describes. Read by
       # start.py; set by containment.py --warehouses.
       ALKERA_WAREHOUSES: ${ALKERA_WAREHOUSES:-}
@@ -30,7 +30,7 @@ services:
       - worlddata:/world
       - auditdata:/audit
       # The publication ledger is world evidence, not an agent surface
-      # (world/LEDGER_CONTRACT.md). /world is one bind of the whole world root,
+      # (world/README.md#publication-ledger). /world is one bind of the whole world root,
       # so without this the shell would `cat /world/var/ledger/receipts.jsonl`.
       # An empty read-only tmpfs mounted OVER that path shadows it: the
       # directory exists and is empty, the receipts underneath are unreachable

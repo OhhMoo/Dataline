@@ -1,4 +1,4 @@
-"""The Slack Web API subset the `chat_*` tools cover (gateway/NATIVE_SURFACES.md).
+"""The Slack Web API subset the `chat_*` tools cover (gateway/NATIVE.md).
 
 Same bargain as jira.py: the agent is handed a bot token and reaches for
 `slack_sdk`, so the acceptance test is `slack_sdk.WebClient` driving this app,

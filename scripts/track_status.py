@@ -85,7 +85,7 @@ THEMES = {
                         "1462", "date system", "sig figs", "significant digits"]},
 }
 
-# agent.md s11 (ex-3_track.md) section 4 B3 / gateway/CONNECTOR_CONTRACT.md: the surfaces owed
+# agent.md s11 (ex-3_track.md) section 4 B3 / gateway/SURFACES.md#warehouse-connector: the surfaces owed
 B3_SURFACES = {
     "docs":  ["docs_list", "docs_get", "docs_search"],
     "bi":    ["bi_render", "bi_list", "bi_get", "bi_refresh", "bi_cached"],
@@ -795,7 +795,7 @@ def duckdb_coupling_check(tests: dict | None = None):
                 sites.append({"line": i, "kind": label, "text": line.strip()[:100]})
     src = GATEWAY / "src" / "alkera_gateway"
     iface = {
-        "contract_doc": rel(GATEWAY / "CONNECTOR_CONTRACT.md") if (GATEWAY / "CONNECTOR_CONTRACT.md").exists() else None,
+        "contract_doc": (rel(GATEWAY / "SURFACES.md") + "#warehouse-connector") if (GATEWAY / "SURFACES.md").exists() else None,
         "connector_module": [rel(p) for p in walk(src, {".py"}) if "connector" in p.name.lower()],
         "protocol_symbol": [], "factory_symbol": [], "config_backend_field": False,
     }
@@ -812,7 +812,7 @@ def duckdb_coupling_check(tests: dict | None = None):
     if sites and not implemented and iface["contract_doc"]:
         status = IN_PROGRESS
         summary = (f"{len(sites)} duckdb couplings remain at lines "
-                   f"{[s['line'] for s in sites]}; CONNECTOR_CONTRACT.md is published but NOTHING "
+                   f"{[s['line'] for s in sites]}; SURFACES.md#warehouse-connector is published but NOTHING "
                    "in src/ implements it -- declared interface, zero implementation")
         ev = EXISTENCE
     elif sites and not implemented:

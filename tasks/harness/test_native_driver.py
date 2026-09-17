@@ -549,7 +549,7 @@ def main() -> int:
               "out_of_band_world_change" in hard(v), str(hard(v)))
 
         # --- 6a. a NATIVE warehouse write, attributed -------------------
-        # The finding gateway/NATIVE_INTEGRATION.md recorded as weakest: under
+        # The finding gateway/NATIVE.md recorded as weakest: under
         # MCP the warehouse file is explained by a row called `sql_execute`,
         # under native by a `duckdb.statement` whose targets are TABLES, and a
         # table name can never match a path. Both directions, on one world.

@@ -1,6 +1,6 @@
 # SERVICES-A: requests for files we do not own
 
-Written 2026-09-16 against `gateway/NATIVE_SURFACES.md`. SERVICES-A owns
+Written 2026-09-16 against `gateway/NATIVE.md`. SERVICES-A owns
 `native/services/{jira,slack,confluence}.py`, their test and `HUMAN_PLANE.md`
 and has edited nothing else. Each item below names the owner and what we did in
 the meantime, so nothing here blocks anybody.

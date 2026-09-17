@@ -32,7 +32,7 @@ Three things make that different from grading a final warehouse.
    excluded from the weight base, so it can take the axis to zero and can never
    add to it.
 
-THE CANONICAL HASH IS RECOMPUTED HERE. `world/LEDGER_CONTRACT.md` freezes the
+THE CANONICAL HASH IS RECOMPUTED HERE. `world/README.md#publication-ledger` freezes the
 rule; this file restates it (`_canonical_hash`) rather than importing it,
 because agent.md 10.2 says a task knows the world's LAYOUT and not its
 internals - and because a seam that is one import is not a seam. The
@@ -94,7 +94,7 @@ def first_line(value, limit: int = 220) -> str | None:
 
 
 # ===========================================================================
-# the canonical hash, restated from world/LEDGER_CONTRACT.md
+# the canonical hash, restated from world/README.md#publication-ledger
 # ===========================================================================
 def _json_canon(obj) -> bytes:
     return json.dumps(obj, sort_keys=True, separators=(",", ":"),

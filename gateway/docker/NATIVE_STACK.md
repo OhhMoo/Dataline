@@ -1,6 +1,6 @@
 # The native-mode stack
 
-Spec: `gateway/NATIVE_SURFACES.md`. Harness side: `tasks/harness/NATIVE_DRIVER.md`.
+Spec: `gateway/NATIVE.md`. Harness side: `tasks/harness/NATIVE_DRIVER.md`.
 Owner: COMPOSE-DISCOVERY. **Measured 2026-09-16 unless a line says *designed*.**
 
     docker compose -p <project> \
@@ -205,7 +205,7 @@ episode's own action log.
 is no way to turn that off.** `postgres`, `minio`, `native-services` and
 `episode` resolve from the episode container alongside their `.internal`
 aliases, because Docker registers a container's service name on every network
-it joins. `NATIVE_SURFACES.md` says "nothing else resolves", and that sentence
+it joins. `NATIVE.md` says "nothing else resolves", and that sentence
 is not literally true today. It is recorded rather than excused: P6 pins each
 such name to an address that is already one of this stack's own services, so a
 name resolving anywhere else still fails. The cost is a tell — an agent that

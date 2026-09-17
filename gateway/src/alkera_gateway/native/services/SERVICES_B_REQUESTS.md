@@ -81,7 +81,7 @@ ignore the `health:` target namespace when diffing target sets.
 `pyproject.toml`'s `native` extra carries real clients for the human plane
 (`jira`, `slack_sdk`, `atlassian-python-api`) and none for this one, and neither
 `promtool` nor `logcli` is on PATH here. The compatibility half of the
-NATIVE_SURFACES rule is therefore *designed* for the ops plane, not measured.
+NATIVE.md rule is therefore *designed* for the ops plane, not measured.
 Requested: add one real client per shape to the extra (e.g.
 `prometheus-api-client`), and `promtool`/`logcli` binaries to the episode image,
 so the test can be driven by the library the agent would actually reach for.

@@ -202,7 +202,7 @@ def stage_workflow(root: Path, vnow: str) -> dict:
 # the seam - world-side writers and the gateway's metrics/alarms/deploy tools.
 DEFINITIONS_YAML = """\
 # Observability definitions for GT004 (OBS_STORE_CONTRACT.md,
-# gateway/OBSERVABILITY_CONTRACT.md). Staged by tests/stage_surfaces.py.
+# gateway/SURFACES.md#observability). Staged by tests/stage_surfaces.py.
 #
 # ARCHETYPE A027 - EVERY SURFACE IS GREEN. Jobs ran, freshness passed, data
 # quality passed, nothing alerted. That is not a convenience: this world's own

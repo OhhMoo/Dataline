@@ -29,7 +29,7 @@ Either way blindness is DETECTED, never assumed: flags can be overridden by
 managed policy, a future CLI can rename a flag, and a shell is a shell. See
 blindness.py.
 
-NATIVE, added by NATIVE-DRIVER (gateway/NATIVE_SURFACES.md). `--driver native`
+NATIVE, added by NATIVE-DRIVER (gateway/NATIVE.md). `--driver native`
 removes the MCP server entirely: the subject gets `claude --print` with the
 built-in shell and nothing else, and the stack it talks to is a set of
 vendor-shaped services reached the way a data engineer reaches them - `psql`,
@@ -228,7 +228,7 @@ def native_env(*, endpoints: dict, audit_dir: Path,
         "AWS_ENDPOINT_URL": endpoints["s3"],
         # boto3 and the aws CLI refuse to sign a request without these, so a
         # bucket the episode is meant to reach would be unreachable for a reason
-        # that has nothing to do with the world. Not in NATIVE_SURFACES.md's
+        # that has nothing to do with the world. Not in NATIVE.md's
         # list; added here and written down rather than discovered later.
         "AWS_ACCESS_KEY_ID": str(endpoints["s3_access_key"]),
         "AWS_SECRET_ACCESS_KEY": str(endpoints["s3_secret_key"]),

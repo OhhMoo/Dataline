@@ -25,10 +25,17 @@ summary     = "A checkpoint-driven loader advanced past three nights the vendor 
 
 [difficulty]
 human_hours          = "3-6"
-target_pass_at_1     = "0.8"        # the LIBRARY target (agent.md 8.10). NOT a
-                                    # measurement - no model rollout has been
-                                    # run. See [handover].
-target_pass_measured = false
+target_pass_at_1     = "0.8"        # the LIBRARY target (agent.md 8.10), not a
+                                    # measurement. See [handover].
+# MEASURED 2026-09-17, opus 5, K=5, MCP driver, host topology, prompt `guided`,
+# run `clean-20260917-k5`: Pass@1 = 0.2, Pass^5 = 0.0, 5 scored / 0 quarantined,
+# before_episode.json on disk for all five. Totals 8/8/8/8/18: C0 and D1-D3 at
+# ceiling, R1-R4 passed by one episode, S1/S2 0 of 5 because the report keys
+# were not disclosed (fixed the same day; the pass criterion does not read
+# them). tests/VALIDITY.md, 2026-09-17 section. Far below the 0.8 library
+# target: a wall on the "leave the nightly correct without you" axis.
+target_pass_at_1_measured = "0.2 (K=5, 2026-09-17, guided); see tests/VALIDITY.md"
+target_pass_measured = true
 axis                 = "decision"   # the obstacle is not concealment. The
                                     # mechanisms are stated plainly in the
                                     # source contract and the runbook; what the
@@ -269,9 +276,16 @@ brief = "prompts/guided.md"
 default = "guided"
 select  = "prompts/variant.py select <name>  (rewrites [agent_visible].brief)"
 attribute = "prompts/variant.py identify <run-dir>  (reads each rollout's own prompt.txt)"
-guided   = { file = "prompts/guided.md", sha256 = "add35af4e84f2dd32ae20886d08e2c54fe7f0c8063b2346efa5cbeda04cc5f8d" }
-specific = { file = "prompts/specific.md", sha256 = "696f9b53a0a363bc0e45433d57650ddc885c8ddb9f2009d2cc0e72eb033d6245" }
-vague    = { file = "prompts/vague.md", sha256 = "d9f827c5cada8f5c992d321838565a6cb7703f36fad8852c012d92e1ffe3dee4" }
+# RE-LOCKED 2026-09-17: every variant gained the same "The report" table naming
+# final_report.json's keys and value shapes. MEASURED before it (run
+# `clean-20260917-k5`, guided, opus, K=5): S1 and S2 scored 0 in 5 of 5 with
+# the prose asking for the right facts under the wrong names - a fixed 2-point
+# charge for an undisclosed schema, not a measurement of the task. The keys
+# are disclosed; what goes in them (the runbook, the ticket, the checkpoint
+# day) is not. Runs before this lock carry the old hashes in prompt.txt.
+guided   = { file = "prompts/guided.md", sha256 = "605882a55931a2f0e3392e2c80ba999912f32f0b454347b9ae7e4430a2f8219b" }
+specific = { file = "prompts/specific.md", sha256 = "228b50aac0163929b7e27573b094740dea3773f62afdf827df1886ba78440778" }
+vague    = { file = "prompts/vague.md", sha256 = "746eac157939e5a6b860bd1bc5c5ca9855566eb67803bfcc119cdef9dfce56c2" }
 
 # ---------------------------------------------------------------------------
 # Task-validity gate. MEASURED 2026-09-16 by tests/run_baselines.py at seed
@@ -405,7 +419,7 @@ pass_min_total_measured = true
 [provenance]
 derived_from = ["implementation_structure/TASK_DESIGN_2026-09-15.md, the \"concrete extension\" paragraph",
                 "implementation_structure/TASK_DESIGN_2026-09-15.md 'Framework proposal' - the four layers; see [composition]",
-                "world/LEDGER_CONTRACT.md (the receipts this task is the first to write for real)",
+                "world/README.md#publication-ledger (the receipts this task is the first to write for real)",
                 "tasks/GT008-warehouse-cutover (the five-checkpoint replay shape, the falsifier, the validity suite)",
                 "tasks/GT006-quality-gate-drops-rows (the payments theme)",
                 "agent.md 8.10 correction: interference is the only measured lever"]
@@ -428,7 +442,7 @@ measured = [
   "the clocked coupling filter - tasks/harness/coupling.py --clock over GT009's stressor pairs, and GT004's late_arrival pairs re-run with the clock",
 ]
 not_measured = [
-  "difficulty.target_pass_at_1 - no model rollout has been run (NO MODEL ROLLOUTS was the brief)",
+  "difficulty.target_pass_at_1 under the `vague` and `specific` prompts - only `guided` has a K=5 (0.2, 2026-09-17)",
   "limits.* - estimated, not calibrated",
   "the [composition] table as a GENERATOR input - it is declarative; nothing reads it",
   "the native driver - required_surfaces is declared against the MCP probe table; no native episode has been run on this world",

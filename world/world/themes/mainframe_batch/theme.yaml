@@ -1,7 +1,7 @@
 name: mainframe_batch
 dbt_profile: world_dbt
 
-# The human-context plane (gateway/WORKFLOW_CONTRACT.md). Content is data, in
+# The human-context plane (gateway/SURFACES.md#workflow). Content is data, in
 # workflow/{users,issues,chat,kb}.yaml; timestamps are offsets from the world
 # clock ("-12d 09:15"), resolved at build time.
 #

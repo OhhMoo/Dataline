@@ -1,4 +1,4 @@
-"""Phase 1 acceptance for native-mode auditing (gateway/NATIVE_SURFACES.md).
+"""Phase 1 acceptance for native-mode auditing (gateway/NATIVE.md).
 
 Two claims are proved here and nothing else is.
 

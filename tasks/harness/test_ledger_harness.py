@@ -9,7 +9,7 @@ surface goes in beside it rather than inside it.
 
 Fast and synthetic: no world is built here. The receipts are written by hand in
 the exact shape world/world/ledger.py emits, which is the point - this file is
-the reader half of the seam described in world/LEDGER_CONTRACT.md, and a reader
+the reader half of the seam described in world/README.md#publication-ledger, and a reader
 tested only against its own writer proves that the two agree, not that either
 is right. The writer side is proved in world/tests/test_ledger.py against a
 real advanced world.
