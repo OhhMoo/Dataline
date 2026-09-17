@@ -56,10 +56,41 @@ class Commands:
         self.config = config
         self.workspace = workspace
 
-    def dbt(self, command: str, selector: str, variables: dict, full_refresh: bool, observation):
+    def _profiles(self) -> dict:
+        profile_path = self.config.profiles_dir / "profiles.yml"
+        return yaml.safe_load(profile_path.read_text(encoding="utf-8")) or {}
+
+    def _check_target(self, target: str, spec) -> None:
+        """A second warehouse's dbt output must exist and be the engine the
+        world declared. The world's profiles file is not rewritten here - it
+        belongs to the world builder (world/world/executor.py:write_profiles
+        renders one output per DuckDB file) - it is only read, and a name
+        that is missing or points at the wrong engine is refused before dbt
+        runs, in a message that names the output, rather than surfacing as a
+        dbt profile error thirty turns into an episode."""
+        profiles = [
+            profile
+            for profile in self._profiles().values()
+            if isinstance(profile, dict) and isinstance(profile.get("outputs"), dict)
+        ]
+        outputs = [profile["outputs"].get(target) for profile in profiles]
+        if not profiles or any(output is None for output in outputs):
+            raise ToolError(
+                "dbt_target_missing",
+                f"warehouse {spec.name!r} maps to dbt target {target!r}, which the "
+                "profiles file does not define",
+            )
+        if any(output.get("type") != spec.backend for output in outputs):
+            raise ToolError(
+                "backend_mismatch",
+                f"dbt target {target!r} is not a {spec.backend} output, but warehouse "
+                f"{spec.name!r} is {spec.backend}",
+            )
+
+    def dbt(self, command: str, selector: str, variables: dict, full_refresh: bool, observation,
+            *, target: str | None = None, spec=None):
         if self.config.warehouse_backend != "duckdb":
-            profile_path = self.config.profiles_dir / "profiles.yml"
-            profiles = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
+            profiles = self._profiles()
             outputs = [
                 profile["outputs"][profile["target"]]
                 for profile in profiles.values()
@@ -69,6 +100,8 @@ class Commands:
                 output.get("type") != self.config.warehouse_backend for output in outputs
             ):
                 raise ToolError("backend_mismatch", "dbt profile must match the warehouse backend")
+        if target is not None:
+            self._check_target(target, spec)
         # A direct venv Python launch does not add its scripts directory to PATH.
         executable = shutil.which("dbt", path=str(Path(sys.executable).parent)) or shutil.which(
             "dbt"
@@ -76,7 +109,11 @@ class Commands:
         if executable is None:
             raise ToolError("dependency_missing", "Install the dbt extra to run dbt tools")
         observation.op_class = "exec"
-        observation.targets = ["dbt_project"]
+        # Qualified only when a second warehouse was addressed, on the rule
+        # Registry.execute applies to sql rows: a one-warehouse world keeps
+        # the frozen `["dbt_project"]`, and a dbt build that ran against the
+        # legacy mart is not credited as a build of the primary.
+        observation.targets = [f"{spec.name}:dbt_project" if spec is not None else "dbt_project"]
         if full_refresh:
             observation.op_class = "destructive"
             observation.flags.append("full_refresh")
@@ -100,6 +137,8 @@ class Commands:
             "--vars",
             json.dumps(variables, sort_keys=True),
         ]
+        if target is not None:
+            argv += ["--target", target]
         if full_refresh:
             argv.append("--full-refresh")
         env = {**os.environ, "DBT_SEND_ANONYMOUS_USAGE_STATS": "false", "PYTHONHASHSEED": "0"}

@@ -1,10 +1,10 @@
 {
-  "generated": "2026-09-15T00:49:44+00:00",
-  "head_revision": "36d93db46fdc681fd36580fef77284ffce281e74",
-  "image_id": "sha256:b86fa3d9822411a471277680ed4943f4c6c61d28e5d639209366302b84742d7b",
+  "generated": "2026-09-16T03:45:11+00:00",
+  "head_revision": "3db7cf00c78b14c7e749409e34c6e2eec5b2c0b4",
+  "image_id": "sha256:8ce099f8ec61b53c9609348de59866ff426efc500b445044baea22db69b43887",
   "labels": {
-    "org.alkera.source.overlay": "",
-    "org.alkera.source.revision": "36d93db46fdc681fd36580fef77284ffce281e74"
+    "org.alkera.source.overlay": "1225a4075b5f86b34d3a67f22bd74a127268a931090980aaa8485e4191a6be83",
+    "org.alkera.source.revision": "3db7cf00c78b14c7e749409e34c6e2eec5b2c0b4"
   },
   "measured_inside_container": {
     "binaries": [
@@ -663,6 +663,17 @@
       "wc",
       "xargs"
     ],
+    "duckdb_extensions": {
+      "postgres": {
+        "canonical_name": "postgres_scanner",
+        "install_path": "/root/.duckdb/extensions/v1.5.5/linux_amd64/postgres_scanner.duckdb_extension",
+        "installed": true,
+        "loaded": true,
+        "reason": null,
+        "sha256": "b1ced4cfc6311313e117c2afb3eac76508718778dde0716421503c7dbfb5605c",
+        "version": "41223e5"
+      }
+    },
     "interpreter": "/usr/local/bin/python",
     "os_release": "Debian GNU/Linux 13 (trixie)",
     "passed": true,
@@ -670,7 +681,7 @@
     "platform": "Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.41",
     "python_not_shadowed": true,
     "python_on_path": "/usr/local/bin/python",
-    "source_revision": "36d93db46fdc681fd36580fef77284ffce281e74",
+    "source_revision": "3db7cf00c78b14c7e749409e34c6e2eec5b2c0b4",
     "tool_count": 63,
     "tools": [
       "alarms_get",
@@ -740,13 +751,37 @@
     "tools_error": null
   },
   "overlay": {
-    "files": [],
-    "hash": ""
+    "files": [
+      "gateway/docker/acceptance.py",
+      "gateway/docker/acceptance_inside.py",
+      "gateway/docker/aws-config",
+      "gateway/docker/aws-keys",
+      "gateway/docker/build_episode.py",
+      "gateway/docker/compose.episode.yml",
+      "gateway/docker/compose.yml",
+      "gateway/docker/containment.py",
+      "gateway/docker/Dockerfile",
+      "gateway/docker/Dockerfile.snowflake",
+      "gateway/docker/postgres.sql",
+      "gateway/docker/snowflake.in",
+      "gateway/docker/snowflake.lock",
+      "gateway/docker/snowflake_acceptance.py",
+      "gateway/docker/snowflake_divergence.py",
+      "gateway/docker/snowflake_fidelity.py",
+      "gateway/docker/snowflake_start.py",
+      "gateway/docker/start.py",
+      "gateway/docker/toolbelt.in",
+      "gateway/docker/toolbelt.lock",
+      "gateway/docker/TOOLBELT.md",
+      "gateway/docker/toolbelt_acceptance.py",
+      "gateway/docker/toolbelt_check.py"
+    ],
+    "hash": "1225a4075b5f86b34d3a67f22bd74a127268a931090980aaa8485e4191a6be83"
   },
   "repo_digests": [
-    "alkera-episode@sha256:b86fa3d9822411a471277680ed4943f4c6c61d28e5d639209366302b84742d7b"
+    "alkera-episode@sha256:8ce099f8ec61b53c9609348de59866ff426efc500b445044baea22db69b43887"
   ],
-  "size_bytes": 300497291,
-  "source_revision": "36d93db46fdc681fd36580fef77284ffce281e74",
+  "size_bytes": 315512103,
+  "source_revision": "3db7cf00c78b14c7e749409e34c6e2eec5b2c0b4",
   "tag": "alkera-episode:head"
 }

@@ -149,6 +149,25 @@ def test_every_shipped_binary_actually_runs(image_report):
     )
 
 
+def test_image_ships_the_duckdb_postgres_extension(image_report):
+    """A DuckDB primary attaches a Postgres peer with `LOAD postgres`
+    (gateway/src/alkera_gateway/warehouses.py). The episode zone has no egress,
+    so the extension cannot be INSTALLed at run time; the Dockerfile bakes it in
+    and this asserts it LOADS inside the image, on a connection with
+    autoinstall/autoload off - the way the gateway opens every connection."""
+    extensions = image_report.get("duckdb_extensions")
+    assert extensions is not None, (
+        f"{IMAGE} was measured by a toolbelt_check.py that predates the extension "
+        "probe; rebuild and re-measure: " + BUILD_RECIPE
+    )
+    postgres = extensions.get("postgres") or {}
+    assert postgres.get("loaded"), (
+        f"`LOAD postgres` does not work inside {IMAGE}: {postgres}. A dual-warehouse "
+        "world with a Postgres peer cannot boot there. " + BUILD_RECIPE
+    )
+    assert postgres.get("sha256"), "the extension file was loaded but not found on disk"
+
+
 def test_the_toolbelt_venv_does_not_shadow_the_gateways_python(image_report):
     """/opt/toolbelt must be appended to PATH, never prepended.
 

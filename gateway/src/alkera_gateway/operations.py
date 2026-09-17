@@ -7,7 +7,7 @@ from .records import ToolError
 from .runlogs import RunLogs
 from .storage import ObjectStorage
 from .surfaces import FileScheduler, render_dashboard
-from .warehouse import create_warehouse
+from .warehouses import create_registry
 from .workflow import Chat, IssueTracker, KnowledgeBase
 
 
@@ -16,7 +16,9 @@ class Operations:
         self.config = config
         self.clock = clock
         self.workspace = Workspace(config)
-        self.warehouse = create_warehouse(config)
+        # One warehouse: `registry.primary` IS `create_warehouse(config)`.
+        self.warehouses = create_registry(config)
+        self.warehouse = self.warehouses.primary
         self.bi = BIStore(config, self.warehouse, clock)
         self.storage = ObjectStorage(config)
         self.commands = Commands(config, self.workspace)
@@ -31,20 +33,37 @@ class Operations:
         self.chat = Chat(config.workflow_dir, clock, actor)
         self.kb = KnowledgeBase(config.workflow_dir, clock, actor)
 
-    def sql_query(self, sql, limit, observation):
-        return self.warehouse.execute(sql, observation, read_only=True, limit=limit)
+    def sql_query(self, sql, limit, observation, warehouse=None):
+        return self.warehouses.execute(
+            warehouse, sql, observation, read_only=True, limit=limit
+        )
 
-    def sql_execute(self, sql, observation):
-        return self.warehouse.execute(sql, observation)
+    def sql_execute(self, sql, observation, warehouse=None):
+        return self.warehouses.execute(warehouse, sql, observation)
 
-    def dbt_run(self, selector, variables, full_refresh, observation):
-        return self.commands.dbt("run", selector, variables, full_refresh, observation)
+    # `warehouse` on the three dbt tools follows the sql_query rule exactly:
+    # the argument exists in the served schema only when more than one
+    # warehouse can be a dbt target (warehouses.build_tools), so a world with
+    # one warehouse - or one warehouse plus a peer dbt cannot build - keeps
+    # today's schema and today's action rows. When it is present the registry
+    # resolves it to a profiles.yml output and Commands.dbt runs `--target`.
+    def dbt_run(self, selector, variables, full_refresh, observation, warehouse=None):
+        return self.commands.dbt(
+            "run", selector, variables, full_refresh, observation,
+            **self.warehouses.dbt_plan(warehouse),
+        )
 
-    def dbt_test(self, selector, variables, observation):
-        return self.commands.dbt("test", selector, variables, False, observation)
+    def dbt_test(self, selector, variables, observation, warehouse=None):
+        return self.commands.dbt(
+            "test", selector, variables, False, observation,
+            **self.warehouses.dbt_plan(warehouse),
+        )
 
-    def dbt_compile(self, selector, variables, observation):
-        return self.commands.dbt("compile", selector, variables, False, observation)
+    def dbt_compile(self, selector, variables, observation, warehouse=None):
+        return self.commands.dbt(
+            "compile", selector, variables, False, observation,
+            **self.warehouses.dbt_plan(warehouse),
+        )
 
     def fs_read(self, path, observation, encoding="utf-8"):
         return self.workspace.read(path, observation, encoding)
@@ -197,6 +216,22 @@ class Operations:
     def alarms_history(self, alarm, limit, observation):
         return self.observability.alarm_history(alarm, limit, observation)
 
+    # The alarm surface's write. Until this landed the 63-tool list had three
+    # alarm reads and no write at all, so the native Alertmanager's silences
+    # lived in its own process: audited, invisible to the world, gone on restart
+    # (SERVICES_B_REQUESTS.md item 2). `alarms_ack` puts the state in the world
+    # where both transports reach it. It is an operation, not yet a registered
+    # MCP tool - adding one changes the served tool list, which is `tools.py`'s
+    # to decide and is recorded as the remaining step in INTEGRATION_GATEWAY.md.
+    def alarms_ack(self, alarms, until, comment, actor, observation):
+        return self.observability.silence(alarms, until, comment, actor, observation)
+
+    def alarms_silences(self, observation):
+        return self.observability.list_silences(observation)
+
+    def alarms_unack(self, silence_id, observation):
+        return self.observability.expire_silence(silence_id, observation)
+
     def deploy_list(self, observation):
         return self.observability.list_deploys(observation)
 
@@ -205,6 +240,14 @@ class Operations:
 
     def deploy_history(self, deploy, limit, observation):
         return self.observability.deploy_history(deploy, limit, observation)
+
+    # An operator's verdict on a deploy, on the same footing as `alarms_ack`:
+    # the native release service used to hold these in memory too.
+    def deploy_status(self, deploy, state, description, actor, observation):
+        return self.observability.deploy_status(deploy, state, description, actor, observation)
+
+    def deploy_statuses(self, deploy, limit, observation):
+        return self.observability.deploy_statuses(deploy, limit, observation)
 
     def logs_list(self, job, status, limit, observation):
         return self.runlogs.list(job, status, limit, observation)
@@ -215,9 +258,20 @@ class Operations:
     def logs_search(self, query, job, limit, observation):
         return self.runlogs.search(query, job, limit, observation)
 
+    # SERVICES_A_REQUESTS.md item 3. A Jira issue has to name a project and a
+    # Slack `auth.test` has to name a workspace, and neither was on any result,
+    # so the two native services opened the raw document for that one header -
+    # the only place either of them went round `workflow.py`, which is the code
+    # that strips the author-side `authoring` block on the way out of a record.
+    # Both headers are in the documents already and neither is author-side.
+    PROJECT = {"key": "JIRA", "name": "JIRA"}
+    WORKSPACE = "alkera"
+
     def issues_list(self, status, assignee, label, limit, observation):
         observation.read_targets = observation.targets = ["issues"]
-        return self.issues.list_issues(status, assignee, label, limit)
+        listing = self.issues.list_issues(status, assignee, label, limit)
+        project = self.issues.load().get("project") or {}
+        return {**listing, "project": project if "key" in project else dict(self.PROJECT)}
 
     def issues_get(self, issue, observation):
         observation.read_targets = observation.targets = [f"issue:{issue}"]
@@ -246,7 +300,8 @@ class Operations:
 
     def chat_channels(self, observation):
         observation.read_targets = observation.targets = ["chat"]
-        return self.chat.list_channels()
+        listing = self.chat.list_channels()
+        return {**listing, "workspace": self.chat.load().get("workspace") or self.WORKSPACE}
 
     def chat_history(self, channel, limit, before, observation):
         observation.read_targets = observation.targets = [f"chat:{channel}"]

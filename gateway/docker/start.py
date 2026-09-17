@@ -102,11 +102,40 @@ def main():
             )
         )
         subprocess.run(["git", "init", "-q", str(workspace)], check=True)
+    # Additional warehouses (gateway/DUAL_WAREHOUSE_CONTRACT.md), from the
+    # ALKERA_WAREHOUSES env compose.yml passes through. A DuckDB one whose file
+    # does not exist is seeded here with the same two-row fixture the primary
+    # gets, one amount changed, so a cross-warehouse reconciliation query has
+    # exactly one row to find. Written with the duckdb driver, never the
+    # connector: the audit log has not been opened yet and world construction
+    # must not appear in it. A Postgres one is the compose `postgres` service,
+    # already seeded by postgres.sql.
+    warehouses = json.loads(os.environ.get("ALKERA_WAREHOUSES") or "[]")
+    secondary_contents = {}
+    for spec in warehouses:
+        if spec.get("backend", "duckdb") != "duckdb":
+            continue
+        path = Path(spec["path"])
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if not path.exists():
+            with duckdb.connect(":memory:") as conn:
+                conn.execute(f"ATTACH '{path}' AS peer")
+                conn.execute("CREATE SCHEMA peer.warehouse")
+                conn.execute("CREATE TABLE peer.warehouse.items(id INTEGER, amount DECIMAL(10,2))")
+                conn.execute("INSERT INTO peer.warehouse.items VALUES (1, 10.50), (2, 99.99)")
+        with duckdb.connect(str(path), read_only=True) as conn:
+            secondary_contents[spec["name"]] = [
+                [row[0], str(row[1])]
+                for row in conn.execute(
+                    f'SELECT * FROM "{path.stem}".warehouse.items ORDER BY id'
+                ).fetchall()
+            ]
     config = GatewayConfig(
         workspace=workspace,
         warehouse=warehouse,
         dashboards=dashboards,
         warehouse_backend=os.environ.get("ALKERA_BACKEND", "postgres"),
+        warehouses=warehouses,
         audit_dir=Path("/audit"),
         bi_state_dir=Path("/service-state/bi"),
         initial_world_fp=digest({"fixture": "track-b-integration-v1"}),
@@ -125,9 +154,16 @@ def main():
             for p in sorted(root.rglob("*"))
             if p.is_file() and ".git" not in p.parts and p.suffix != ".duckdb"
         }
-        config.initial_world_fp = digest(
-            {"warehouse": contents, "files": files, "backend": config.warehouse_backend}
-        )
+        fingerprint = {"warehouse": contents, "files": files, "backend": config.warehouse_backend}
+        if warehouses:
+            # Conditional, so the one-warehouse stack keeps the fingerprint it
+            # always computed. The Postgres peer's contents are the primary's
+            # own fixture when the primary is Postgres, and postgres.sql's
+            # otherwise; the declaration is what the fingerprint pins.
+            fingerprint["warehouses"] = {
+                "declared": warehouses, "duckdb_contents": secondary_contents,
+            }
+        config.initial_world_fp = digest(fingerprint)
     print(f"object storage buckets: {provision_storage(config)}", flush=True)
     path = Path("/tmp/gateway.json")
     path.write_text(config.model_dump_json())

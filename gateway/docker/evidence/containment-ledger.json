@@ -1,0 +1,141 @@
+{
+  "compose_file": "C:\\Users\\OhhMoo\\Desktop\\research\\alkera-ledger\\gateway\\docker\\compose.yml",
+  "generated": "2026-09-16T07:15:56+00:00",
+  "host": {
+    "docker": "29.5.2",
+    "platform": "Windows-10-10.0.26200-SP0"
+  },
+  "p5_ledger_protected": {
+    "ledger_after_the_attempts": {
+      "exists": true,
+      "lines": 1,
+      "listing": [
+        "receipts.jsonl"
+      ],
+      "sha256": "d062bf9a467ebfe09331433fa8121971ca14102b39dea5b8355c89b0576dfa32"
+    },
+    "ledger_path_in_container": "/world/var/ledger/receipts.jsonl",
+    "passed": true,
+    "planted": {
+      "bytes": 264,
+      "path": "/w/var/ledger/receipts.jsonl",
+      "sha256": "d062bf9a467ebfe09331433fa8121971ca14102b39dea5b8355c89b0576dfa32"
+    },
+    "planted_from": "a separate container mounting the world volume",
+    "shadow_mount": [
+      {
+        "fstype": "tmpfs",
+        "options": "ro,nosuid,nodev,noexec,relatime",
+        "target": "/world/var/ledger"
+      }
+    ],
+    "shell": {
+      "canary_sweep": {
+        "files_scanned": 3,
+        "hits": []
+      },
+      "ledger_mount": [
+        {
+          "fstype": "tmpfs",
+          "options": "ro,nosuid,nodev,noexec,relatime",
+          "target": "/world/var/ledger"
+        }
+      ],
+      "listing": [],
+      "read": {
+        "result": "FileNotFoundError: [Errno 2] No such file or directory: '/world/var/ledger/receipts.jsonl'"
+      },
+      "write": {
+        "result": "OSError: [Errno 30] Read-only file system: '/world/var/ledger/forged.jsonl'"
+      }
+    },
+    "tools": {
+      "any_leak": [],
+      "config_keys_naming_ledger": [],
+      "escape_attempts": {
+        "fs_list ../../var/ledger/receipts.jsonl": {
+          "error": "{\"code\": \"path_denied\", \"message\": \"Path must stay inside workspace and outside .git\"}",
+          "leaked": false,
+          "ok": false
+        },
+        "fs_list ../var/ledger/receipts.jsonl": {
+          "error": "{\"code\": \"path_denied\", \"message\": \"Path must stay inside workspace and outside .git\"}",
+          "leaked": false,
+          "ok": false
+        },
+        "fs_list /workspace/../var/ledger/receipts.jsonl": {
+          "error": "{\"code\": \"path_denied\", \"message\": \"Path must stay inside workspace and outside .git\"}",
+          "leaked": false,
+          "ok": false
+        },
+        "fs_list /world/var/ledger/receipts.jsonl": {
+          "error": "{\"code\": \"path_denied\", \"message\": \"Path must stay inside workspace and outside .git\"}",
+          "leaked": false,
+          "ok": false
+        },
+        "fs_read ../../var/ledger/receipts.jsonl": {
+          "error": "{\"code\": \"path_denied\", \"message\": \"Path must stay inside workspace and outside .git\"}",
+          "leaked": false,
+          "ok": false
+        },
+        "fs_read ../var/ledger/receipts.jsonl": {
+          "error": "{\"code\": \"path_denied\", \"message\": \"Path must stay inside workspace and outside .git\"}",
+          "leaked": false,
+          "ok": false
+        },
+        "fs_read /workspace/../var/ledger/receipts.jsonl": {
+          "error": "{\"code\": \"path_denied\", \"message\": \"Path must stay inside workspace and outside .git\"}",
+          "leaked": false,
+          "ok": false
+        },
+        "fs_read /world/var/ledger/receipts.jsonl": {
+          "error": "{\"code\": \"path_denied\", \"message\": \"Path must stay inside workspace and outside .git\"}",
+          "leaked": false,
+          "ok": false
+        },
+        "fs_write ../../var/ledger/receipts.jsonl": {
+          "error": "{\"code\": \"path_denied\", \"message\": \"Path must stay inside workspace and outside .git\"}",
+          "leaked": false,
+          "ok": false
+        },
+        "fs_write ../var/ledger/receipts.jsonl": {
+          "error": "{\"code\": \"path_denied\", \"message\": \"Path must stay inside workspace and outside .git\"}",
+          "leaked": false,
+          "ok": false
+        },
+        "fs_write /workspace/../var/ledger/receipts.jsonl": {
+          "error": "{\"code\": \"path_denied\", \"message\": \"Path must stay inside workspace and outside .git\"}",
+          "leaked": false,
+          "ok": false
+        },
+        "fs_write /world/var/ledger/receipts.jsonl": {
+          "error": "{\"code\": \"path_denied\", \"message\": \"Path must stay inside workspace and outside .git\"}",
+          "leaked": false,
+          "ok": false
+        }
+      },
+      "escapes_that_worked": [],
+      "workspace_attempts": {
+        "docs_search canary": {
+          "leaked": false,
+          "ok": true,
+          "result": "{\"matches\": [], \"limit_reached\": false, \"skipped\": [], \"encoding\": \"utf-8\"}"
+        },
+        "fs_read var/ledger/receipts.jsonl": {
+          "error": "{\"code\": \"FileNotFoundError\", \"message\": \"[Errno 2] No such file or directory: '/world/workspace/var/ledger/receipts.jsonl'\"}",
+          "leaked": false,
+          "ok": false
+        },
+        "fs_write var/ledger/receipts.jsonl": {
+          "leaked": false,
+          "ok": true,
+          "result": "{\"path\": \"var/ledger/receipts.jsonl\", \"bytes_written\": 6}"
+        }
+      }
+    }
+  },
+  "passed": true,
+  "project": "alkera-ledger-p5",
+  "property": "p5_ledger_protected",
+  "scope": "P5 only; P1-P4 come from a full containment.py run"
+}

@@ -21,9 +21,29 @@ services:
     environment:
       ALKERA_POSTGRES_DSN: postgresql://episode:episode-local@postgres/episode
       ALKERA_BACKEND: ${ALKERA_BACKEND:-postgres}
+      # Additional warehouses for the fixture world, as a JSON list of
+      # WarehouseSpec objects (gateway/DUAL_WAREHOUSE_CONTRACT.md); empty means
+      # the one-warehouse stack every recorded evidence file describes. Read by
+      # start.py; set by containment.py --warehouses.
+      ALKERA_WAREHOUSES: ${ALKERA_WAREHOUSES:-}
     volumes:
       - worlddata:/world
       - auditdata:/audit
+      # The publication ledger is world evidence, not an agent surface
+      # (world/LEDGER_CONTRACT.md). /world is one bind of the whole world root,
+      # so without this the shell would `cat /world/var/ledger/receipts.jsonl`.
+      # An empty read-only tmpfs mounted OVER that path shadows it: the
+      # directory exists and is empty, the receipts underneath are unreachable
+      # from this container, and a write fails on a read-only filesystem - so
+      # the agent can neither read the ledger nor forge a line in it. The world
+      # writes the real file from OUTSIDE the container (world/world/scheduler.py
+      # `advance`, run by the harness on the host), which is why shadowing the
+      # path costs the writer nothing.
+      - type: tmpfs
+        target: /world/var/ledger
+        read_only: true
+        tmpfs:
+          size: 4096
       - bistate:/service-state/bi
       # Public certificates only; the private key stays in the Snowflake service.
       - snowflaketrust:/etc/alkera/snowflake-tls

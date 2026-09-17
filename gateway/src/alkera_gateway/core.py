@@ -11,7 +11,7 @@ from .audit import AuditLog
 from .config import GatewayConfig
 from .operations import Operations
 from .records import Observation, ToolError, canonical, digest, json_value
-from .tools import TOOLS
+from .warehouses import build_tools
 
 logger = logging.getLogger(__name__)
 
@@ -27,11 +27,17 @@ class Gateway:
                 update={"initial_world_fp": semantic_hash(config.world_root)}
             )
         self.config = config
+        # The tool table this episode serves. With one warehouse this IS
+        # `tools.TOOLS`, the same object, so a later runtime registration
+        # (container_shim.register_bash) still reaches the served table.
+        self.tools = build_tools(config)
         self.clock = clock or self._virtual_time
         self.audit = AuditLog(config)
         self.operations = Operations(config, self.clock, scheduler)
         self.lock = RLock()
         self.healthy = True
+        self._disk_sample = None
+        self._disk_sample_at = float("-inf")
 
     def _virtual_time(self):
         try:
@@ -41,6 +47,16 @@ class Gateway:
             return self.config.virtual_time
 
     def _disk_mb(self):
+        # Disk usage is telemetry, not world evidence. Rewalking a large world
+        # on every read can cost more than the operation being measured.
+        now = time.monotonic()
+        if now - self._disk_sample_at < 5:
+            return self._disk_sample
+        self._disk_sample = self._measure_disk_mb()
+        self._disk_sample_at = now
+        return self._disk_sample
+
+    def _measure_disk_mb(self):
         paths = [
             self.config.workspace,
             self.config.warehouse,
@@ -83,17 +99,21 @@ class Gateway:
             "tool": tool,
             "args": args,
         }
-        self.audit.begin(request)
+        try:
+            self.audit.begin(request)
+        except Exception:
+            self.healthy = False
+            raise
         observation = Observation()
         error = None
         result = None
         normalized_args = args
         try:
-            if tool not in TOOLS:
+            if tool not in self.tools:
                 raise ToolError("unknown_tool", f"Unknown tool: {tool}")
             if len(canonical(args)) > self.config.max_payload_bytes:
                 raise ToolError("request_too_large", "Request exceeds the configured payload limit")
-            model, _ = TOOLS[tool]
+            model, _ = self.tools[tool]
             normalized_args = model.model_validate(args).model_dump()
             result = getattr(self.operations, tool)(**normalized_args, observation=observation)
             result = json_value(result)

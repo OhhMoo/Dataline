@@ -3,6 +3,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from .warehouse_spec import NAME_PATTERN, WarehouseSpec
+
 
 class GatewayConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -12,6 +14,12 @@ class GatewayConfig(BaseModel):
     warehouse_backend: Literal["duckdb", "postgres", "snowflake"] = "duckdb"
     warehouse_dsn_env: str = "ALKERA_POSTGRES_DSN"
     snowflake_options_env: str = "ALKERA_SNOWFLAKE_OPTIONS"
+    # The four fields above spell the PRIMARY warehouse and keep their exact
+    # meaning. `warehouses` lists the ADDITIONAL warehouses an episode runs, so
+    # a world that declares one warehouse sets neither of the two fields below
+    # and is byte-identical to today by construction (see warehouses.py).
+    warehouse_name: str = Field(default="primary", pattern=NAME_PATTERN)
+    warehouses: list[WarehouseSpec] = Field(default_factory=list)
     bi_state_dir: Path | None = None
     s3_endpoint: str | None = None
     s3_buckets: list[str] = Field(default_factory=list)
@@ -74,6 +82,27 @@ class GatewayConfig(BaseModel):
             raise ValueError("obs_state_dir must be outside the world tree")
         if self.warehouse_backend != "duckdb" and not self.initial_world_fp:
             raise ValueError("Remote warehouses require an explicit initial_world_fp")
+        names = {self.warehouse_name}
+        for spec in self.warehouses:
+            if spec.name in names:
+                raise ValueError(f"warehouse name {spec.name!r} is declared twice")
+            names.add(spec.name)
+            if spec.path is not None:
+                spec.path = spec.path.resolve()
+                if spec.path.is_relative_to(self.workspace):
+                    raise ValueError(
+                        f"warehouse {spec.name!r} must be outside workspace"
+                    )
+                if spec.path == self.warehouse:
+                    raise ValueError(
+                        f"warehouse {spec.name!r} names the primary warehouse file"
+                    )
+            elif not self.initial_world_fp:
+                # Same rule the primary already lives under: the gateway does not
+                # pretend a hash of the local world tree covers a remote server.
+                raise ValueError(
+                    "Remote warehouses require an explicit initial_world_fp"
+                )
         if self.audit_dir.is_relative_to(self.workspace):
             raise ValueError("audit_dir must be outside workspace")
         if self.warehouse.is_relative_to(self.workspace):

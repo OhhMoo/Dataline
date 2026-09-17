@@ -42,7 +42,7 @@ from typing import Literal
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
-from .records import Observation, ToolError, canonical
+from .records import Observation, ToolError, canonical, digest
 
 # Kinds whose *scalar* value is a function of the virtual clock, and can
 # therefore honestly be re-evaluated "as of" an earlier time.
@@ -62,6 +62,9 @@ MALFORMED_CAP = 20
 # default is observability.yml; a world that seeds definitions.yaml is read too,
 # so the two documents cannot drift into a world that answers no_observability.
 ALTERNATE_DEFINITIONS = "definitions.yaml"
+# The operator's own edits to the alarm surface, beside the definitions and
+# inside the world tree (see the silences block in `ObservabilityStore`).
+SILENCES_FILE = "silences.json"
 
 
 def parse_vts(value: str) -> datetime:
@@ -573,8 +576,14 @@ class ObservabilityStore:
     def record(self) -> dict:
         path = self.state_dir / "observations.json"
         if not path.exists():
-            return {"schema_version": 1, "samples": {}, "alarms": {}, "deploys": []}
-        return json.loads(path.read_text(encoding="utf-8"))
+            return {"schema_version": 1, "samples": {}, "alarms": {}, "deploys": [],
+                    "statuses": []}
+        written = json.loads(path.read_text(encoding="utf-8"))
+        # `statuses` arrived after the first records were written. A default
+        # here rather than a migration: a record from before it existed is a
+        # record with no statuses in it, which is exactly what it means.
+        written.setdefault("statuses", [])
+        return written
 
     def save_record(self, record: dict) -> None:
         self.state_dir.mkdir(parents=True, exist_ok=True)
@@ -1272,6 +1281,136 @@ class ObservabilityStore:
             "samples": store.status,
         }
 
+    # ---- silences ---------------------------------------------------------
+    #
+    # A silence is the one thing an operator does TO the alarm surface, and
+    # until now no transport could do it: the 63-tool list has `alarms_list`,
+    # `alarms_get` and `alarms_history` and no write, so the native
+    # Alertmanager kept its silences in the service process - audited, but
+    # invisible to the world fingerprint and gone on restart
+    # (SERVICES_B_REQUESTS.md item 2).
+    #
+    # They live in `var/obs/silences.json`, beside the definitions and inside
+    # the world tree, NOT in the observation record next door. The record holds
+    # what the gateway *observed* while reading (samples, alarm transitions,
+    # deploy history) and is deliberately outside the world so that observing
+    # cannot perturb Track A's fingerprint. A silence is not an observation: it
+    # changes what the surface reports to everyone who reads it afterwards, so
+    # it is world state, and a grader's world diff has to be able to see it.
+
+    def silences_path(self) -> Path:
+        return self.path.parent / SILENCES_FILE
+
+    def silences(self) -> list[dict]:
+        """Every silence written into this world, oldest first."""
+        try:
+            raw = json.loads(self.silences_path().read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            return []
+        except (ValueError, UnicodeError) as exc:
+            raise ToolError(
+                "invalid_observability", f"{SILENCES_FILE} is not readable: {exc}"
+            ) from None
+        return list(raw.get("silences", []))
+
+    def active_silences(self, at: str | None = None) -> dict[str, dict]:
+        """-> the silence in force over each alarm at a virtual timestamp.
+
+        Latest wins when two silences cover one alarm, which is what re-acking
+        an alarm with a longer window means.
+        """
+        now = parse_vts(at or self.clock())
+        in_force: dict[str, dict] = {}
+        for entry in self.silences():
+            if parse_vts(entry["at"]) <= now < parse_vts(entry["until"]):
+                for alarm in entry["alarms"]:
+                    in_force[alarm] = entry
+        return in_force
+
+    def list_silences(self, observation: Observation) -> dict:
+        """Read the silence log, with each entry's state at the world clock."""
+        self.spec()  # a world with no observability has no silence surface at all
+        observation.targets = observation.read_targets = ["alarms"]
+        now = parse_vts(self.clock())
+        return {
+            "evaluated_at": self.clock(),
+            "silences": [
+                {**entry,
+                 "state": "active"
+                 if parse_vts(entry["at"]) <= now < parse_vts(entry["until"])
+                 else "expired"}
+                for entry in self.silences()
+            ],
+        }
+
+    def silence(self, alarms, until: str, comment, actor, observation: Observation) -> dict:
+        """Silence one or more declared alarms until a virtual timestamp.
+
+        One entry covering several alarms rather than one entry each, because
+        that is what an operator does - "not this class of page until the
+        backfill lands" - and because it keeps one action on one row, whose
+        `targets` name every alarm it covers.
+
+        Every alarm is resolved against the spec first, so a typo is a refusal
+        and not a silence that quietly covers nothing.
+        """
+        spec = self.spec()
+        wanted = sorted({name for name in alarms})
+        if not wanted:
+            raise ToolError("invalid_silence", "Name at least one alarm to silence")
+        for name in wanted:
+            self.alarm_def(spec, name)
+        now = self.clock()
+        if parse_vts(until) <= parse_vts(now):
+            raise ToolError(
+                "invalid_silence",
+                f"A silence has to end after the world clock ({now}); {until} is not later",
+            )
+        observation.op_class = "write"
+        observation.targets = [f"alarm:{name}" for name in wanted]
+        entry = {
+            "alarms": wanted,
+            "at": now,
+            "until": until,
+            "comment": comment or "",
+            "actor": actor or "agent",
+        }
+        # The id is derived from the entry, the way deploy ids are derived from
+        # the history entry they name: the id a write returns is the id a later
+        # read returns, in this process or another, with no counter to keep.
+        entry = {"id": digest(entry)[:16], **entry}
+        entries = self.silences() + [entry]
+        path = self.silences_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        pending = path.with_suffix(".pending")
+        pending.write_bytes(canonical({"schema_version": 1, "silences": entries}) + b"\n")
+        pending.replace(path)
+        return entry
+
+    def expire_silence(self, silence_id: str, observation: Observation) -> dict:
+        """End a silence now. Without this a silence written too wide is
+        permanent, which is a worse lie than one that does not outlive a process.
+
+        Rewrites the entry rather than appending a cancellation, because the
+        question every reader asks is "is this alarm silenced now" and answering
+        it from a log of edits is how two readers come to disagree.
+        """
+        self.spec()
+        entries = self.silences()
+        for entry in entries:
+            if entry["id"] == silence_id:
+                break
+        else:
+            raise ToolError("silence_not_found", f"Unknown silence: {silence_id}")
+        observation.op_class = "write"
+        observation.targets = [f"alarm:{name}" for name in entry["alarms"]]
+        entry["until"] = min(entry["until"], self.clock())
+        path = self.silences_path()
+        pending = path.with_suffix(".pending")
+        pending.write_bytes(canonical({"schema_version": 1, "silences": entries}) + b"\n")
+        pending.replace(path)
+        return entry
+
     # ---- deploys ----------------------------------------------------------
 
     def snapshot(self, spec, deploy: DeployDef, observation: Observation, record) -> dict:
@@ -1486,3 +1625,40 @@ class ObservabilityStore:
             entry for entry in self.record()["deploys"] if name is None or entry["deploy"] == name
         ]
         return {"deploys": entries[-limit:]}
+
+    # An operator's verdict on a deploy: "the canary said clean but the numbers
+    # are wrong, treat this as failed". It goes in the observation record beside
+    # the deploy history it annotates, and NOT in the world tree the way a
+    # silence does, because it changes nothing any other reader of the world
+    # sees - it is a note about what was observed, which is what that record is.
+
+    def deploy_status(self, name, state: str, description, actor,
+                      observation: Observation) -> dict:
+        """Record a verdict on a declared deploy."""
+        self.deploy_def(self.spec(), name)
+        if not state or not isinstance(state, str):
+            raise ToolError("invalid_status", "A deployment status needs a state")
+        observation.op_class = "write"
+        observation.targets = [f"deploy:{name}"]
+        entry = {
+            "deploy": name,
+            "state": state,
+            "description": description or "",
+            "actor": actor or "agent",
+            "at": self.clock(),
+        }
+        record = self.record()
+        record["statuses"].append(entry)
+        self.save_record(record)
+        return entry
+
+    def deploy_statuses(self, name, limit: int, observation: Observation) -> dict:
+        """The verdicts recorded against one deploy, or against every deploy."""
+        observation.targets = observation.read_targets = [f"deploy:{name}" if name else "deploys"]
+        if name:
+            self.deploy_def(self.spec(), name)
+        entries = [
+            entry for entry in self.record()["statuses"]
+            if name is None or entry["deploy"] == name
+        ]
+        return {"statuses": entries[-limit:]}
