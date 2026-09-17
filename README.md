@@ -1,4 +1,4 @@
-# alkera — data-agent benchmark
+# Alkera-DE Benchmark
 
 A training and evaluation substrate for AI data agents.
 

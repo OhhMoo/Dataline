@@ -1,4 +1,4 @@
-# DE Agent Benchmark — Project Guide
+# Alkera-DE Benchmark — Project Guide
 
 *Distilled from `de-agent-benchmark-assessment.md` (2026-09-08). This document explains
 what the project is, how we would develop it, and what the system looks like.
