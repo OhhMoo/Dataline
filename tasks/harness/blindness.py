@@ -860,7 +860,17 @@ def _warehouses_named(row: dict, rel, warehouses: set[str],
     speak for one.
     """
     args = row.get("args") if isinstance(row.get("args"), dict) else {}
-    candidates = [args.get("database"), *(row.get("targets") or [])]
+    database = args.get("database")
+    candidates = [database, *(row.get("targets") or [])]
+    # `duckdb warehouse.duckdb -c ...` after a `cd` into the warehouse
+    # directory is how a real engineer types it, and it is what GT001's r0
+    # subject typed: `args.database` is then the bare filename and matches no
+    # declared path. The shim records the `cwd` it ran in for exactly this
+    # reason, so the joined form is offered alongside the literal one. Only
+    # joined, never substituted: an absolute `database` must not be re-rooted
+    # under a cwd it has nothing to do with.
+    if database and not str(database).startswith("/") and args.get("cwd"):
+        candidates.append(f"{str(args['cwd']).rstrip('/')}/{database}")
     out: set[str] = set()
     for candidate in candidates:
         if not candidate:

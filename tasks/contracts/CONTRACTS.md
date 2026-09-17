@@ -111,8 +111,14 @@ is visible, not silent, and does not zero the rest of a composition.
 ## Executed vs designed
 
 **Executed.** `gateway/.venv/Scripts/python.exe -m pytest tasks/contracts -q`
-→ **87 passed** (≈12 s; 75 before `authorization`, +10 for it and +2 for the
-registry's parametrised interface checks). Every contract has holding / canonical-violation /
+→ **82 passed, 0 failed** (≈14 s), of which **10 are `authorization`'s** and
+2 more are the registry's parametrised interface checks picking up a seventh
+contract. The number does not reconcile with the 75 recorded before
+`authorization` landed: 75 + 12 is 87, and 87 is what a run immediately after
+landing it printed. Five tests in the other suites disappeared between that run
+and this one, in a working tree several agents were editing at once. Recorded
+as measured rather than reconciled, because a count nobody can reproduce is
+worse than a count that admits it moved. Every contract has holding / canonical-violation /
 named-shortcut cases against a real duckdb world in `tmp_path`; the scoring
 fold is proved equal to all six shipped `_common.py` copies.
 

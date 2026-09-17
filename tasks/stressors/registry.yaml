@@ -680,6 +680,130 @@ stressors:
       CHANGED, not about what happened.
 
 # ===========================================================================
+# GT009 -- settlement cutoff. Every entry here is an EVENT, and none of them is
+# measurable without a clock: the obligation each one creates does not exist
+# until the night it arrives, so no repair applied at t0 can satisfy a clause
+# about it. `coupling.py --selfcheck` without `--clock` reports exactly that,
+# per stressor, rather than returning a verdict computed before the question is
+# asked. With `--clock` the adapter stages a world root, the repair lands at
+# t0, and the world's own jobs run over the planted nights.
+# ===========================================================================
+  - name: checkpoint_past_an_unread_partition
+    task: GT009-settlement-cutoff
+    implemented_in: tasks/GT009-settlement-cutoff/fixtures/make_fixture_world.py:CHECKPOINT_T0
+    kind: defect
+    verified: true
+    stresses: [liveness, cutoff_integrity]
+    state:
+      tables: [warehouse.load_checkpoint]
+      checkpoints: [warehouse.load_checkpoint]
+      window: [["2026-06-08", "2026-06-10"]]
+      metrics: [unsettled_days, sla_breaches]
+    derived_tables: [warehouse.fct_payments, warehouse.settlement_handoff,
+                     warehouse.clearing_window]
+    repair: "solution/load_payments.py -- reload from the whole feed and record
+             the newest partition actually READ"
+    stageable_subset: false
+    notes: >
+      The shipped loader advances the checkpoint to the EXECUTION DAY rather
+      than to the newest partition it read, so three nights the vendor never
+      delivered moved it past them; the vendor then re-delivered those
+      partitions under their own dt= folders, which are now behind it. The data
+      is on disk and will never be read. Not stageable as a subset: it is the
+      world's t0 state, not an event, and removing it would be a different
+      world rather than a smaller one.
+
+  - name: higher_version_correction_after_cutoff
+    task: GT009-settlement-cutoff
+    implemented_in: tasks/GT009-settlement-cutoff/fixtures/make_fixture_world.py:build_feed (night 2)
+    kind: event
+    verified: true
+    stresses: [cutoff_integrity, consumer_consistency]
+    state:
+      tables: [warehouse.settlement_handoff]
+      checkpoints: [warehouse.clearing_window, warehouse.settlement_corrections]
+      window: [["2026-06-11", "2026-06-11"]]
+      metrics: [settled_net_cents]
+    derived_tables: [warehouse.fct_payments]
+    repair: "coupling_adapters.GT009Adapter.repair -- register the approval and
+             install the protocol publisher (solution/publish_settlement.py)"
+    stageable_subset: true
+    notes: >
+      Version 2 of six payments that settled on a day whose clearing window
+      closed before the episode began. THE decision: the corrections runbook
+      permits the restatement under an approval and a correction_ref; a closed
+      April ticket forbids it outright. Both wrong answers are charged the same
+      by the task's D2 and D3.
+
+  - name: older_replay_after_the_correction
+    task: GT009-settlement-cutoff
+    implemented_in: tasks/GT009-settlement-cutoff/fixtures/make_fixture_world.py:build_feed (night 3)
+    kind: event
+    verified: true
+    stresses: [version_precedence, cutoff_integrity]
+    state:
+      tables: [warehouse.fct_payments]
+      checkpoints: []
+      window: [["2026-06-11", "2026-06-11"]]
+      metrics: [settled_net_cents]
+    derived_tables: [warehouse.settlement_handoff]
+    repair: "coupling_adapters.GT009Adapter.repair -- install the
+             version-precedence loader (solution/load_payments.py)"
+    stageable_subset: true
+    notes: >
+      The network's recovery re-sends the version-1 events, byte for byte,
+      AFTER the version 2 that superseded them. At t0 this is a file nobody has
+      read and the warehouse is unmoved; one advance later it has undone the
+      correction, and - because the publisher sees the day move again - it has
+      reached the bank. This is the pair the clocked filter exists to catch.
+
+  - name: retried_delivery_between_commit_and_checkpoint
+    task: GT009-settlement-cutoff
+    implemented_in: tasks/GT009-settlement-cutoff/fixtures/make_fixture_world.py:write_next_nights (night 4)
+    kind: event
+    verified: true
+    stresses: [version_precedence, consumer_consistency]
+    state:
+      tables: [raw.payments_events]
+      checkpoints: [warehouse.load_checkpoint]
+      window: [["2026-06-15", "2026-06-15"]]
+      metrics: [settled_net_cents, payments_held]
+    derived_tables: [warehouse.fct_payments, warehouse.settlement_handoff]
+    repair: "coupling_adapters.GT009Adapter.repair -- install the loader that
+             collapses a duplicated delivery on event_id"
+    stageable_subset: true
+    notes: >
+      The publisher's sink commit was acknowledged and its checkpoint update
+      was not, so it re-sent the partition: two byte-identical files under one
+      dt=. The world also declares a `job_retry` fault on that night's load
+      (fixtures/make_fixture_world.py:live_state), so the run history shows the
+      retry as well as the data. The doubling family, delivered as an event
+      rather than planted as rows.
+
+  - name: gt009_closed_ticket_forbidding_restatement
+    task: GT009-settlement-cutoff
+    implemented_in: tasks/GT009-settlement-cutoff/fixtures/workflow/issues.yaml:PAY-3120
+    kind: context
+    verified: true
+    stresses: [cutoff_integrity]
+    state:
+      tables: []
+      checkpoints: [var/workflow/issues.json]
+      window: []
+      metrics: []
+    repair: null
+    stageable_subset: true
+    notes: >
+      "Settlement days must not be restated after the clearing window closes",
+      closed `wontfix` in April by an analytics engineer, with the Head of Data
+      Platform's own close comment saying it is no longer policy - and a chat
+      thread in which nobody settles the argument. The counterweight is the
+      corrections runbook, which supersedes it by name, and pay/how-we-decide,
+      which orders the two. GT004's lever pointed at a DECISION rather than at
+      a repair: tests/run_baselines.py's wrong_precedence baseline follows this
+      ticket, keeps D3 and loses D2, and does not pass.
+
+# ===========================================================================
 # Synthetic -- not a task stressor. The filter's negative control.
 # ===========================================================================
   - name: synthetic_null_unsafe_exclusion

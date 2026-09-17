@@ -160,6 +160,36 @@ What was measured from inside the episode container (`native_probe.py`):
   ten rows; `native-services.internal:8099` ends at `count: 0` — offered,
   never dialled, which is the distinction the harness reads.
 
+## P7 — the episode's filesystem, measured 2026-09-16
+
+P6 is the network. **P7 is the mounts**, and the two came apart the day
+`--driver native` met real models: three of five GT001 rollouts quarantined on a
+`cp` of the warehouse file into the world tree and on an `ls` of the rollout
+directory, neither of which the network has anything to say about. So
+`compose.native.yml` now gives the `episode` service its OWN mount set with
+`!override` — `/workspace`, `/audit`, and the read-only ledger tmpfs, and no
+`/world` bind at all. The warehouse FILES are added per rollout by
+`tasks/harness/container_episode.py`, which writes a fourth compose file into the
+rollout directory; `<world>/home` is copied in rather than mounted.
+
+Measured by `gateway/docker/native_episode_probe.py` from inside that container,
+through `containment.py --native-episode`:
+`evidence/containment-native-episode.json`, **passed: true** — `/world` holds the
+mounted warehouses and nothing else, no grading, rollout, canary, marker or
+repository path exists, the ledger is present, empty and read-only, the episode
+can still work, every alias is reachable, egress is refused, and
+`published_host_ports` is `{}`. The recipe and the acceptance table are in
+`tasks/harness/NATIVE_CONTAINER.md`.
+
+Two changes this forced on the stanzas above. The `native-services` healthcheck
+no longer dials its own aggregate over HTTP — `serve.py` counts every accepted
+connection, so it was putting 23 connections the episode never made into
+`destinations.jsonl` and quarantining the rollout; it now reads
+`destinations.jsonl` and `/proc/net/tcp` instead. And the `episode` healthcheck
+names `/usr/local/bin/python`, because the shim directory is first on that
+container's PATH and every health poll was writing a `shim.python` row into the
+episode's own action log.
+
 ## Weakest finding
 
 **Docker's embedded resolver also answers the compose service names, and there

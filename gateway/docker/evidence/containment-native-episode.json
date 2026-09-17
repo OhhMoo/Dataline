@@ -1,0 +1,465 @@
+{
+  "compose_file": "C:\\Users\\OhhMoo\\Desktop\\research\\alkera\\gateway\\docker\\compose.yml",
+  "compose_overlays": [
+    "C:\\Users\\OhhMoo\\Desktop\\research\\alkera\\gateway\\docker\\compose.episode.yml",
+    "C:\\Users\\OhhMoo\\Desktop\\research\\alkera\\gateway\\docker\\compose.native.yml",
+    "+ the rollout's own compose.native-mounts.yml"
+  ],
+  "generated": "2026-09-17T04:07:13+00:00",
+  "host": {
+    "docker": "29.5.2",
+    "platform": "Windows-10-10.0.26200-SP0"
+  },
+  "mode": "native-episode",
+  "not_measured_here": "P0-P5 describe the MCP-transport stack (evidence/containment.json) and P6 the native network (evidence/containment-native.json); this run measures P7 only.",
+  "p7_native_episode_filesystem": {
+    "compose_files": [
+      "C:\\Users\\OhhMoo\\Desktop\\research\\alkera\\gateway\\docker\\compose.yml",
+      "C:\\Users\\OhhMoo\\Desktop\\research\\alkera\\gateway\\docker\\compose.episode.yml",
+      "C:\\Users\\OhhMoo\\Desktop\\research\\alkera\\gateway\\docker\\compose.native.yml"
+    ],
+    "episode_mounts": [
+      "/audit",
+      "/workspace",
+      "/world/var/warehouse/warehouse.duckdb"
+    ],
+    "episode_publishes_no_host_port": true,
+    "passed": true,
+    "probe": {
+      "bind_targets": [
+        "/audit",
+        "/workspace",
+        "/world/var/warehouse/warehouse.duckdb"
+      ],
+      "checks": {
+        "egress_refused": true,
+        "every_declared_warehouse_is_mounted": true,
+        "every_service_is_reachable_from_the_episode": true,
+        "ledger_is_present_empty_and_read_only": true,
+        "no_canary_and_no_marker_is_readable": true,
+        "no_grading_or_rollout_path_exists": true,
+        "no_mount_root_names_the_repository": true,
+        "the_episode_can_still_work": true,
+        "world_holds_only_the_mounted_warehouses": true
+      },
+      "contained": true,
+      "egress_blocked": true,
+      "forbidden_dirs": [
+        {
+          "exists": false,
+          "listing_error": "FileNotFoundError: [Errno 2] No such file or directory: '/grading'",
+          "path": "/grading"
+        },
+        {
+          "exists": false,
+          "listing_error": "FileNotFoundError: [Errno 2] No such file or directory: '/world/../grading'",
+          "path": "/world/../grading"
+        },
+        {
+          "exists": false,
+          "listing_error": "FileNotFoundError: [Errno 2] No such file or directory: '/workspace/../grading'",
+          "path": "/workspace/../grading"
+        },
+        {
+          "exists": false,
+          "listing_error": "FileNotFoundError: [Errno 2] No such file or directory: '/grading-zone'",
+          "path": "/grading-zone"
+        },
+        {
+          "exists": false,
+          "listing_error": "FileNotFoundError: [Errno 2] No such file or directory: '/tests'",
+          "path": "/tests"
+        }
+      ],
+      "forbidden_reads": [],
+      "host_paths_present": [],
+      "identity": {
+        "cwd": "/opt/world",
+        "gid": 0,
+        "uid": 0
+      },
+      "ledger": {
+        "exists": true,
+        "listing": [],
+        "path": "/world/var/ledger",
+        "write": "OSError"
+      },
+      "mount_roots_naming_repo": [],
+      "mounts": [
+        {
+          "fstype": "9p",
+          "options": "rw,noatime",
+          "root": "/Users/OhhMoo/AppData/Local/Temp/claude/C--Users-OhhMoo-desktop-research-alkera/8e0194ed-9fad-4596-a2aa-3db725359add/scratchpad/p7/world/workspace",
+          "target": "/workspace"
+        },
+        {
+          "fstype": "9p",
+          "options": "rw,noatime",
+          "root": "/Users/OhhMoo/AppData/Local/Temp/claude/C--Users-OhhMoo-desktop-research-alkera/8e0194ed-9fad-4596-a2aa-3db725359add/scratchpad/p7/audit",
+          "target": "/audit"
+        },
+        {
+          "fstype": "tmpfs",
+          "options": "ro,nosuid,nodev,noexec,relatime",
+          "root": "/",
+          "target": "/world/var/ledger"
+        },
+        {
+          "fstype": "9p",
+          "options": "rw,noatime",
+          "root": "/Users/OhhMoo/AppData/Local/Temp/claude/C--Users-OhhMoo-desktop-research-alkera/8e0194ed-9fad-4596-a2aa-3db725359add/scratchpad/p7/world/var/warehouse/warehouse.duckdb",
+          "target": "/world/var/warehouse/warehouse.duckdb"
+        }
+      ],
+      "network": {
+        "default_route": false,
+        "egress_dns": [
+          {
+            "name": "example.com",
+            "result": "gaierror"
+          },
+          {
+            "name": "pypi.org",
+            "result": "gaierror"
+          },
+          {
+            "name": "api.anthropic.com",
+            "result": "gaierror"
+          }
+        ],
+        "egress_tcp": [
+          {
+            "result": "OSError",
+            "target": "8.8.8.8:53"
+          },
+          {
+            "result": "OSError",
+            "target": "1.1.1.1:443"
+          },
+          {
+            "result": "OSError",
+            "target": "93.184.215.14:80"
+          }
+        ],
+        "interfaces": [
+          "lo",
+          "eth0"
+        ],
+        "routes": [
+          {
+            "dest": "172.22.0.0",
+            "iface": "eth0"
+          }
+        ]
+      },
+      "root_listing": [
+        ".dockerenv",
+        "audit",
+        "bin",
+        "boot",
+        "dev",
+        "etc",
+        "home",
+        "lib",
+        "lib64",
+        "media",
+        "mnt",
+        "opt",
+        "proc",
+        "root",
+        "run",
+        "sbin",
+        "srv",
+        "sys",
+        "tmp",
+        "usr",
+        "var",
+        "workspace",
+        "world"
+      ],
+      "services": [
+        {
+          "populated": false,
+          "reachable": true,
+          "service": "airbyte",
+          "status": 503,
+          "url": "http://airbyte.internal:8001"
+        },
+        {
+          "populated": false,
+          "reachable": true,
+          "service": "alertmanager",
+          "status": 503,
+          "url": "http://alertmanager.internal:9093"
+        },
+        {
+          "populated": false,
+          "reachable": true,
+          "service": "confluence",
+          "status": 503,
+          "url": "http://confluence.internal:8090"
+        },
+        {
+          "populated": false,
+          "reachable": true,
+          "service": "deploy",
+          "status": 503,
+          "url": "http://deploy.internal:8085"
+        },
+        {
+          "populated": false,
+          "reachable": true,
+          "service": "jira",
+          "status": 503,
+          "url": "http://jira.internal:8080"
+        },
+        {
+          "items": 182,
+          "ok": true,
+          "populated": true,
+          "reachable": true,
+          "service": "loki",
+          "status": 200,
+          "url": "http://loki.internal:3100"
+        },
+        {
+          "items": 1,
+          "ok": true,
+          "populated": true,
+          "reachable": true,
+          "service": "metabase",
+          "status": 200,
+          "url": "http://metabase.internal:3000"
+        },
+        {
+          "populated": false,
+          "reachable": true,
+          "service": "prometheus",
+          "status": 503,
+          "url": "http://prometheus.internal:9090"
+        },
+        {
+          "populated": false,
+          "reachable": true,
+          "service": "slack",
+          "status": 503,
+          "url": "http://slack.internal:8081"
+        }
+      ],
+      "services_unreachable": [],
+      "services_with_no_content": [
+        "airbyte",
+        "alertmanager",
+        "confluence",
+        "deploy",
+        "jira",
+        "prometheus",
+        "slack"
+      ],
+      "sweep": {
+        "files_scanned": 66,
+        "hits": [],
+        "roots": [
+          "/world",
+          "/workspace",
+          "/audit",
+          "/root",
+          "/opt/episode",
+          "/tmp"
+        ],
+        "truncated": false
+      },
+      "warehouses_expected": [
+        "var/warehouse/warehouse.duckdb"
+      ],
+      "warehouses_present": [
+        "var/warehouse/warehouse.duckdb"
+      ],
+      "work": {
+        "audit_writable": true,
+        "warehouses_writable": {
+          "var/warehouse/warehouse.duckdb": true
+        },
+        "workspace_writable": true
+      },
+      "world_listing": [
+        "var/warehouse/warehouse.duckdb"
+      ],
+      "world_planes_present": []
+    },
+    "published_host_ports": {},
+    "shadowed_paths_with_no_host_source": [
+      "/world/var/ledger"
+    ],
+    "vantage": "episode container, native topology",
+    "warehouses_declared": [
+      "var/warehouse/warehouse.duckdb"
+    ],
+    "world_binds_on_the_episode": [
+      "/world/var/warehouse/warehouse.duckdb"
+    ],
+    "world_binds_that_are_not_declared_warehouses": []
+  },
+  "passed": true,
+  "project": "alkera-p7",
+  "services": [
+    {
+      "aliases": {
+        "alkera-p7_episode_net": [
+          "alkera-p7-episode-1",
+          "episode"
+        ]
+      },
+      "container": "alkera-p7-episode-1",
+      "image": "alkera-native:probe",
+      "mounts": [
+        {
+          "rw": true,
+          "source": "C:/Users/OhhMoo/AppData/Local/Temp/claude/C--Users-OhhMoo-desktop-research-alkera/8e0194ed-9fad-4596-a2aa-3db725359add/scratchpad/p7/audit",
+          "target": "/audit"
+        },
+        {
+          "rw": true,
+          "source": "C:/Users/OhhMoo/AppData/Local/Temp/claude/C--Users-OhhMoo-desktop-research-alkera/8e0194ed-9fad-4596-a2aa-3db725359add/scratchpad/p7/world/var/warehouse/warehouse.duckdb",
+          "target": "/world/var/warehouse/warehouse.duckdb"
+        },
+        {
+          "rw": false,
+          "source": "",
+          "target": "/world/var/ledger"
+        },
+        {
+          "rw": true,
+          "source": "C:/Users/OhhMoo/AppData/Local/Temp/claude/C--Users-OhhMoo-desktop-research-alkera/8e0194ed-9fad-4596-a2aa-3db725359add/scratchpad/p7/world/workspace",
+          "target": "/workspace"
+        }
+      ],
+      "network_mode": "alkera-p7_episode_net",
+      "networks": {
+        "alkera-p7_episode_net": "172.22.0.5"
+      },
+      "published_ports": {},
+      "service": "episode"
+    },
+    {
+      "aliases": {
+        "alkera-p7_backend_net": [
+          "alkera-p7-postgres-1",
+          "postgres"
+        ],
+        "alkera-p7_episode_net": [
+          "alkera-p7-postgres-1",
+          "postgres",
+          "postgres.internal"
+        ]
+      },
+      "container": "alkera-p7-postgres-1",
+      "image": "postgres@sha256:f1c3376c26f2609ab9f29f71f824103fe2fcd8ee0346485cb6122a4f93df6f94",
+      "mounts": [
+        {
+          "rw": false,
+          "source": "C:\\Users\\OhhMoo\\Desktop\\research\\alkera\\gateway\\docker\\postgres.sql",
+          "target": "/docker-entrypoint-initdb.d/seed.sql"
+        },
+        {
+          "rw": true,
+          "source": "alkera-p7_pgdata",
+          "target": "/var/lib/postgresql/data"
+        }
+      ],
+      "network_mode": "alkera-p7_backend_net",
+      "networks": {
+        "alkera-p7_backend_net": "172.23.0.3",
+        "alkera-p7_episode_net": "172.22.0.2"
+      },
+      "published_ports": {},
+      "service": "postgres"
+    },
+    {
+      "aliases": {
+        "alkera-p7_episode_net": [
+          "alkera-p7-native-services-1",
+          "native-services",
+          "native-services.internal",
+          "jira.internal",
+          "confluence.internal",
+          "slack.internal",
+          "deploy.internal",
+          "airbyte.internal",
+          "metabase.internal",
+          "prometheus.internal",
+          "alertmanager.internal",
+          "loki.internal"
+        ]
+      },
+      "container": "alkera-p7-native-services-1",
+      "image": "alkera-native:probe",
+      "mounts": [
+        {
+          "rw": false,
+          "source": "alkera-p7_pgdata",
+          "target": "/pgdata"
+        },
+        {
+          "rw": false,
+          "source": "",
+          "target": "/world/var/ledger"
+        },
+        {
+          "rw": true,
+          "source": "C:/Users/OhhMoo/AppData/Local/Temp/claude/C--Users-OhhMoo-desktop-research-alkera/8e0194ed-9fad-4596-a2aa-3db725359add/scratchpad/p7/world",
+          "target": "/world"
+        },
+        {
+          "rw": true,
+          "source": "C:/Users/OhhMoo/AppData/Local/Temp/claude/C--Users-OhhMoo-desktop-research-alkera/8e0194ed-9fad-4596-a2aa-3db725359add/scratchpad/p7/audit",
+          "target": "/audit"
+        }
+      ],
+      "network_mode": "alkera-p7_episode_net",
+      "networks": {
+        "alkera-p7_episode_net": "172.22.0.3"
+      },
+      "published_ports": {},
+      "service": "native-services"
+    },
+    {
+      "aliases": {
+        "alkera-p7_backend_net": [
+          "alkera-p7-minio-1",
+          "minio"
+        ],
+        "alkera-p7_episode_net": [
+          "alkera-p7-minio-1",
+          "minio",
+          "minio.internal"
+        ]
+      },
+      "container": "alkera-p7-minio-1",
+      "image": "minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e",
+      "mounts": [
+        {
+          "rw": true,
+          "source": "alkera-p7_miniodata",
+          "target": "/data"
+        },
+        {
+          "rw": true,
+          "source": "alkera-p7_minioaudit",
+          "target": "/audit-spool"
+        }
+      ],
+      "network_mode": "alkera-p7_backend_net",
+      "networks": {
+        "alkera-p7_backend_net": "172.23.0.2",
+        "alkera-p7_episode_net": "172.22.0.4"
+      },
+      "published_ports": {},
+      "service": "minio"
+    }
+  ],
+  "summary": {
+    "p7_native_episode_filesystem": true
+  },
+  "world_root_on_the_host": "C:\\Users\\OhhMoo\\AppData\\Local\\Temp\\claude\\C--Users-OhhMoo-Desktop-research-alkera\\8e0194ed-9fad-4596-a2aa-3db725359add\\scratchpad\\p7\\world"
+}
