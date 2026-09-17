@@ -172,15 +172,21 @@ def venv_env() -> dict:
 def install_workspace_cli(world: dict, topology: str = "host") -> dict:
     """Write `./ops/sched` into the working tree. Returns what it wrote.
 
-    NOT under `--topology container`, and the refusal is the honest answer
-    rather than a limitation being worked around. This CLI runs
-    `Operations.sched_*` against the world's OWN FILES - `var/sched/state.json`,
-    the run logs beside it, `var/obs`, `build/sched` - and the native container
-    topology mounts none of them into the episode. Installed there it would be
-    a tool in the agent's repo that fails on its first call, which is worse for
-    the measurement than a plane the agent can see is absent. The rollout
-    records the gap (`native_container_unreachable_planes`) and
-    `tasks/harness/NATIVE_CONTAINER.md` carries it as the weakest finding.
+    Installed under BOTH topologies, and the difference is two baked-in strings.
+    On the host the CLI runs the three `Operations` methods in its own process
+    against the world's own files. In the container it is written with the
+    IMAGE's interpreter and Track A's path inside the image, and `SCHED_URL`
+    (set by `gateway/docker/compose.native.yml`) makes it send the same three
+    operations to the scheduler plane `native/serve.py` serves at
+    `sched.internal` - which it must, because the episode container mounts the
+    workspace and the warehouse files and nothing else, so `var/sched`, its run
+    logs, `var/obs` and `build/sched` are not on the subject's filesystem.
+
+    The agent sees one CLI either way: `shims/sched_cli` shares the three
+    operations and the renderer between the modes, and
+    `tasks/harness/test_native_container.py` diffs local against remote for
+    `list`, `logs` and `trigger` over one world rather than asserting they
+    agree.
 
     CALLED BEFORE THE WORLD IS FINGERPRINTED, from `rollout.py`, and that is
     the whole of why it is not part of `up()`. The workspace is fingerprinted
@@ -196,17 +202,18 @@ def install_workspace_cli(world: dict, topology: str = "host") -> dict:
     """
     from alkera_gateway.native.shims import install
 
-    if topology == "container":
-        return {"cli": None, "files": [],
-                "why": ("the native container topology mounts the workspace and "
-                        "the warehouse files only, so this CLI's world - "
-                        "var/sched, var/obs, build/sched - is not on the "
-                        "episode's filesystem")}
     target = Path(world["workspace"]) / SCHED_CLI_PATH
+    if topology == "container":
+        interpreter = container_episode._native_probe().CONTAINER_PYTHON
+        pythonpath = container_episode.WORLD_PYTHONPATH_IN_CONTAINER
+    else:
+        interpreter, pythonpath = str(episode.PY), str(episode.TRACK_A)
     written = install.install_cli(target, SCHED_CLI_MODULE,
-                                  interpreter=str(episode.PY),
-                                  pythonpath=str(episode.TRACK_A))
-    return {"cli": SCHED_CLI_PATH, "files": [str(p) for p in written]}
+                                  interpreter=interpreter,
+                                  pythonpath=pythonpath)
+    return {"cli": SCHED_CLI_PATH, "topology": topology,
+            "interpreter": interpreter, "pythonpath": pythonpath,
+            "files": [str(p) for p in written]}
 
 
 class NativeStack:
@@ -551,7 +558,7 @@ SCRATCH_TABLE = "native_acceptance_scratch"
 
 def run_scripted(*, rollout_dir: Path, world: dict, audit_dir: Path,
                  endpoints: dict, wall_clock_s: int, instruction: str = "",
-                 issue_key: str = "",
+                 issue_key: str = "", variant: str = "",
                  gateway_config: str | Path = "") -> aut.AgentRun:
     """Run the scripted native subject and return an `AgentRun` like any other.
 
@@ -577,7 +584,7 @@ def run_scripted(*, rollout_dir: Path, world: dict, audit_dir: Path,
            **aut.native_env(endpoints=endpoints, audit_dir=audit_dir,
                             profiles_dir=world.get("profiles_dir") or "",
                             scheduler=world.get("scheduler") or "",
-                            gateway_config=gateway_config),
+                            gateway_config=gateway_config, variant=variant),
            "ALKERA_WORKSPACE": str(workspace),
            "ALKERA_WAREHOUSE": str(world["warehouse"]),
            "ALKERA_SCRATCH_TABLE": SCRATCH_TABLE,
@@ -730,21 +737,18 @@ def _first_issue_key(world: dict) -> str:
 # side of it - which script runs, where its files are, and what the world's
 # paths are called once the episode is inside the box.
 #
-# WHAT THE EPISODE CONTAINER CANNOT REACH, AND WHY THAT IS THE POINT
-# ------------------------------------------------------------------
+# WHERE THE WORLD IS, ONCE THE EPISODE CANNOT SEE IT
+# --------------------------------------------------
 # The mount set is the workspace, the warehouse FILES and the audit directory.
 # Everything else in the world tree - `var/sched`, `var/obs`, `var/workflow`,
-# `var/bi`, `var/world`, `build` - is served by the nine vendor services in the
-# `native-services` container, which mounts the whole world exactly as before.
-# One plane has no server: the SCHEDULER. `./ops/sched` is a CLI in the
-# workspace that drives `world.gateway_scheduler.WorldScheduler` against the
-# world's own files, and in this topology those files are not on the episode's
-# filesystem. So the CLI is NOT installed under `--topology container`
-# (`install_workspace_cli` returns the reason instead), a native container
-# episode has no scheduler surface, and `rollout.py` records it as an
-# unreachable plane rather than shipping a CLI that would exit 1 on its first
-# call. Serving `sched_*` the way the other eight planes are served is designed
-# and not built - `tasks/harness/NATIVE_CONTAINER.md`, weakest finding.
+# `var/bi`, `var/world`, `build` - is reached through the `native-services`
+# container, which mounts the whole world exactly as before. Eight planes were
+# already served there by the nine vendor-shaped services; the SCHEDULER is the
+# ninth plane and it is served too, at `sched.internal`, by
+# `alkera_gateway.native.serve.sched_plane`. `./ops/sched` is still the surface
+# the agent finds in its own repo: the CLI's remote mode (`SCHED_URL`) sends the
+# same three operations that its local mode runs in-process on the host
+# topology, and the row is written by whichever side ran them.
 
 #: Printed once at the start of every `--driver native --topology host` run.
 #:
@@ -799,11 +803,19 @@ CONTAINER_SUBJECTS = {
     "default": r"""#!/bin/sh
 set -eu
 cd "$ALKERA_WORKSPACE"
+echo "== scheduler =="
+./ops/sched list
 echo "== warehouse =="
 duckdb "$ALKERA_WAREHOUSE" \
   -c "CREATE TABLE main.$ALKERA_SCRATCH_TABLE AS SELECT 1 AS n" \
   -c "DELETE FROM main.$ALKERA_SCRATCH_TABLE WHERE n = 1" \
   -c "DROP TABLE main.$ALKERA_SCRATCH_TABLE"
+echo "== scheduler runs =="
+for job in $ALKERA_TRIGGER_JOBS; do
+  echo "-- trigger $job"
+  ./ops/sched trigger "$job"
+done
+./ops/sched logs | tail -5
 echo "== jira =="
 if [ -n "$ALKERA_ISSUE_KEY" ]; then
   curl -sS "$JIRA_URL/rest/api/3/issue/$ALKERA_ISSUE_KEY" | head -c 400
@@ -906,7 +918,7 @@ def in_container(world: dict, host_path: str | Path,
 
 def run_scripted_container(*, rollout_dir: Path, world: dict, audit_dir: Path,
                            stack, wall_clock_s: int, instruction: str = "",
-                           issue_key: str = "") -> aut.AgentRun:
+                           issue_key: str = "", variant: str = "") -> aut.AgentRun:
     """Run the scripted subject INSIDE the episode container, through the
     wrapper the model would use.
 
@@ -934,22 +946,39 @@ def run_scripted_container(*, rollout_dir: Path, world: dict, audit_dir: Path,
         "ALKERA_ISSUE_KEY": issue_key or _first_issue_key(world),
         "ALKERA_DELETE_SQL": REPLAY_DELETE_SQL,
         "ALKERA_CANARY_NEEDLE": CANARY_NEEDLE,
+        # Job ids are identifiers, so a space-separated list is safe to
+        # word-split in `sh`. `trigger_plan` reads them out of the world's own
+        # state file in declaration order, and `ALKERA_TRIGGER_ALL` in the
+        # HARNESS's environment is what turns the first into all of them.
+        "ALKERA_TRIGGER_JOBS": " ".join(trigger_plan(world)),
+        # The arm this world was built from, forwarded into the container with
+        # the rest (VARIANTS_REQUESTS.md item 6). The compose overlay carries it
+        # too; this is the path a MODEL's command would take, and both have to
+        # agree or a variant rollout would answer for `default` inside an arm.
+        **({"ALKERA_TASK_VARIANT": variant} if variant else {}),
     }
-    wrapper = container_episode.write_bash_wrapper(
-        rollout_dir / "shell", container=stack.container_id,
-        interpreter=str(episode.PY), env=env)
+    # The same call `rollout.py` verified with, with this subject's own
+    # variables added: one mechanism, and the thing proved is the thing used.
+    wrapper = stack.shell(rollout_dir / "shell", env)
     (rollout_dir / "native_env.json").write_text(
         json.dumps({"in_container": env,
                     "from_compose": sorted(aut.NATIVE_SERVICES),
-                    "wrapper": wrapper["launcher"]},
+                    "shell": wrapper["launcher"],
+                    "subject_env": wrapper["subject_env"],
+                    "container_execution_proof": wrapper["proof"]},
                    indent=2, sort_keys=True), encoding="utf-8")
+    if not wrapper["proof"]["verified"]:
+        raise episode.HarnessError(
+            f"the subject's shell does not reach the episode container: "
+            f"{wrapper['proof']}")
 
     command = f"sh {SUBJECT_IN_CONTAINER}"
     argv = [wrapper["launcher"], "-lc", command]
     started = time.time()
-    proc = subprocess.run(argv, cwd=str(rollout_dir), capture_output=True,
-                          text=True, encoding="utf-8", errors="replace",
-                          timeout=wall_clock_s)
+    proc = subprocess.run(argv, cwd=str(rollout_dir),
+                          env={**os.environ, **wrapper["subject_env"]},
+                          capture_output=True, text=True, encoding="utf-8",
+                          errors="replace", timeout=wall_clock_s)
     ended = time.time()
     transcript = _transcript_command(rollout_dir / "transcript.jsonl", command,
                                      proc.stdout)
@@ -964,7 +993,9 @@ def run_scripted_container(*, rollout_dir: Path, world: dict, audit_dir: Path,
         argv=argv,
         notes=(f"scripted native subject {name!r}, run inside the episode "
                f"container through the bash wrapper: not a model and not a "
-               f"measurement"))
+               f"measurement; triggered {trigger_plan(world) or '(no jobs)'}"
+               + (f" ({TRIGGER_ALL_ENV} set: every job this world declares)"
+                  if os.environ.get(TRIGGER_ALL_ENV) else "")))
 
 
 def _transcript_command(path: Path, command: str, stdout: str) -> Path:

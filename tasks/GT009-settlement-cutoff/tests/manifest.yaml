@@ -171,12 +171,13 @@ checks:
     points: 2
     in_pass_criterion: true
     assertion: >
-      THE SECOND REGRET, at the same price as the first. Pays when at least one
-      clearing window closed SETTLED across the four nights and NONE closed
-      empty: no SLA_BREACH row appended on any of the four closes, and no
-      night's handoff receipt matching `withheld_correction` or
-      `frozen_after_t0`. Withholding a warranted publication is charged exactly
-      what publishing a wrong one is charged, which is the whole design.
+      THE SECOND REGRET, at the same price as the first: two points, the same
+      as D2. Pays when at least one clearing window closed SETTLED across the
+      four nights and NONE closed empty - no SLA_BREACH row appended on any of
+      the four closes. It is deliberately about the SLA direction ALONE: the
+      withheld CORRECTION is D2's to charge, and billing it here as well would
+      bill one decision twice and make withholding cost double what publishing
+      wrongly costs, which is the opposite of the design.
     zero_for_doing_nothing: >
       Yes. An idle agent breaches three times a night, every night, because the
       three recovered days it never handed over have no SETTLED row and the

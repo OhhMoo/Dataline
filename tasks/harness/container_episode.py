@@ -60,6 +60,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import socket
 import subprocess
 import sys
@@ -659,6 +660,16 @@ SHIMS_IN_CONTAINER = "/opt/alkera/shims"
 #: must stay inside the box like every other write outside the workspace.
 DBT_DIR_IN_CONTAINER = "/root/.dbt"
 HOME_IN_CONTAINER = "/root"
+#: Track A on the episode image's import path. The Dockerfile bakes
+#: `PYTHONPATH=/opt/world`; `./ops/sched` bakes its own copy because a CLI that
+#: depended on the agent's environment for its own imports would break the
+#: moment the agent exported something (shims/install.install_cli).
+WORLD_PYTHONPATH_IN_CONTAINER = "/opt/world"
+#: Surfaces this topology serves over HTTP rather than off the world's
+#: filesystem, handed to `surface_audit.probe_native`. One entry, and it is the
+#: whole of what the mount set costs: the scheduler's files are not in the
+#: episode, so the gate has to ask `sched.internal` what the subject would ask.
+SERVED_PLANES = frozenset({"sched"})
 #: The world-relative directory `world/world/fingerprint.py` hashes warehouses
 #: by, and therefore the directory `warehouse_mounts` globs.
 WAREHOUSE_REL_DIR = "var/warehouse"
@@ -722,130 +733,181 @@ def image_path(image: str) -> str:
 
 
 # ------------------------------------------------------------ the bash wrapper
-#: The wrapper body. A module and not an `sh` one-liner because it has to run
-#: on the HOST, which is Windows here, and because "refuse what you do not
-#: understand" is more than one line.
-BASH_WRAPPER = '''#!/usr/bin/env python3
-"""The subject\'s `bash`, in the episode container.
-
-Generated per rollout by `tasks/harness/container_episode.write_bash_wrapper`.
-`claude --print --tools Bash` (and the scripted acceptance subject) runs this
-instead of a shell: every command is executed by `docker exec` inside this
-rollout\'s episode container, with the same command text, and the transcript
-records what it always recorded.
-
-It accepts `-c COMMAND` and the `-lc` spelling, and REFUSES everything else.
-The refusal is the point: a wrapper that fell through to a host shell for an
-argv it did not recognise would put the subject back on the host filesystem,
-which is the one thing this topology exists to prevent, and it would do it
-without saying so.
+#: How the subject's shell is moved into the episode container, and why it is
+#: this and not a wrapper on PATH.
+#:
+#: MEASURED 2026-09-17, one model turn per configuration
+#: (`gateway/docker/evidence/shell-redirect-*.json`), prompt "Run these two
+#: commands and reply with their raw output only: hostname; ls /":
+#:
+#:   * nothing set                      -> `OhhMooZephyrus`, a Git Bash root
+#:     (`bin cmd mingw64 …`). The CLI finds Git Bash itself.
+#:   * `CLAUDE_CODE_GIT_BASH_PATH` at a `.cmd`, plus that directory first on
+#:     PATH  -> **the variable is ignored, silently**: the wrapper was never
+#:     called once, and the subject ran on the host. This is the configuration
+#:     that shipped, and it is how run-id `native-container-20260917-k5` put a
+#:     real model on the HOST filesystem while the record said
+#:     `filesystem_isolated`.
+#:   * `CLAUDE_CODE_GIT_BASH_PATH` at a path ending `.exe` -> honoured: the CLI
+#:     spawned it twice on start-up (`-c env`, `-lc echo "$PATH"`). A shell
+#:     script wearing that name then failed `EUNKNOWN: uv_spawn`, because the
+#:     CLI spawns it directly rather than through a shell. So the path has to be
+#:     a real executable, and the only real executable we have is bash itself.
+#:
+#: Hence: point the CLI at the REAL `bash.exe` and redirect from inside bash.
+#: `BASH_ENV` is read by every non-interactive bash (`bash -c …`) and
+#: `$HOME/.bash_profile` by every login one (`bash -lc …`); the CLI uses both
+#: forms, so both are written and both do the same thing. `HOME` is pointed at
+#: this rollout's own directory so nothing in the operator's home is touched -
+#: on Windows the CLI reads its own credentials from `USERPROFILE`, which is
+#: left alone.
+#:
+#: `$BASH_EXECUTION_STRING` is the `-c` argument, so the hook can hand the
+#: command to the container verbatim and the transcript still records what the
+#: model asked for.
+#:
+#: IT IS A REDIRECT, NOT A BOUNDARY. A subject that runs `bash --noprofile
+#: --norc -c …`, or unsets `BASH_ENV`, is back on the host. That is why
+#: `rollout.py` verifies it by measurement before handing the terminal over and
+#: refuses the `filesystem_isolated` guarantee when the proof is missing -
+#: `container_execution_proof`. The alternative, running the model process
+#: itself inside the episode container, is written up in
+#: `tasks/harness/NATIVE_CONTAINER.md`: it would be a real boundary and it would
+#: cost the episode container its "no egress" property, because the CLI needs
+#: the inference API.
+BASH_HOOK = """# Generated per rollout by tasks/harness/container_episode.py.
+# Sourced by every bash this rollout's subject starts: as $BASH_ENV for
+# `bash -c` and from .bash_profile/.bashrc for `bash -lc`. When the shell was
+# given a command, that command is executed INSIDE the episode container and
+# this shell is replaced by the `docker exec` that carries it.
+if [ -n "${{BASH_EXECUTION_STRING:-}}" ]; then
+  # The CLI keeps its own working directory by putting a `cd <that directory>`
+  # in the command it sends, and that directory is a HOST path which does not
+  # exist in the container: measured, the first container turn came back
+  # correct but with `bash: line 1: /c/Users/.../claude-<id>-cwd: No such file
+  # or directory` and exit 1 on every command. So the host cwd is rewritten to
+  # the container's before the command crosses over. Rewritten and not created:
+  # a directory of that name inside the container would put the host's own
+  # layout in front of the subject, which is the thing this topology exists to
+  # take away.
+  __alkera_cmd=${{BASH_EXECUTION_STRING//"$PWD"/{workdir_plain}}}
+  exec {docker} exec -i -w {workdir}{env_args} {container} bash -c "$__alkera_cmd"
+fi
 """
-import json
-import os
-import subprocess
-import sys
 
-CONFIG = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                      "container_bash.json")
-#: Flags that only ever change how the shell greets the caller. Accepted and
-#: dropped: `docker exec ... bash -c` is the one form this wrapper runs.
-IGNORED_FLAGS = ("-l", "--login", "-i", "-s")
-
-
-def parse(argv):
-    """(command, None) or (None, why-this-argv-is-refused)."""
-    rest = list(argv)
-    command = None
-    while rest:
-        item = rest.pop(0)
-        if item in IGNORED_FLAGS:
-            continue
-        combined = (item.startswith("-") and not item.startswith("--")
-                    and item.endswith("c")
-                    and set(item[1:-1]) <= set("lis"))
-        if item == "-c" or combined:
-            if not rest:
-                return None, "%s was given no command" % item
-            command = rest.pop(0)
-            continue
-        return None, "unsupported argument %r" % item
-    if command is None:
-        return None, "no -c COMMAND; this wrapper has no interactive mode"
-    if rest:
-        return None, "unexpected trailing arguments %r" % rest
-    return command, None
-
-
-def main(argv):
-    with open(CONFIG, encoding="utf-8") as stream:
-        config = json.load(stream)
-    command, why = parse(argv)
-    if command is None:
-        sys.stderr.write(
-            "container bash wrapper: %s.\\n"
-            "This shell only runs `-c COMMAND` inside the episode container; "
-            "it deliberately has no host fallback.\\n" % why)
-        return 2
-    exec_argv = ["docker", "exec", "-i", "-w", config["workdir"]]
-    for name, value in sorted(config["env"].items()):
-        exec_argv += ["-e", "%s=%s" % (name, value)]
-    exec_argv += [config["container"], "bash", "-c", command]
-    return subprocess.run(exec_argv).returncode
-
-
-if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
-'''
-
-LAUNCHER_CMD = """@echo off
-"{interpreter}" "{wrapper}" %*
+#: The two files a login shell reads, both of which just source the hook. Two
+#: and not one because bash reads `.bash_profile` for a login shell and
+#: `.bashrc` for an interactive one, and the CLI has used both spellings.
+PROFILE = """# Generated per rollout. See {hook}.
+. "{hook}"
 """
-LAUNCHER_SH = """#!/bin/sh
-exec "{interpreter}" "{wrapper}" "$@"
-"""
+
+
+def _real_bash() -> str:
+    """The bash the CLI will actually spawn.
+
+    `shutil.which`, and it must end in `.exe` on Windows: the CLI ignores a
+    `CLAUDE_CODE_GIT_BASH_PATH` that does not, which is the measurement at the
+    top of this section.
+    """
+    found = shutil.which("bash")
+    if not found:
+        raise ContainerError(
+            "no `bash` on PATH; the container topology redirects the subject's "
+            "shell from inside bash and needs a real one to point the CLI at")
+    return found
 
 
 def write_bash_wrapper(bin_dir: Path, *, container: str, interpreter: str,
                        workdir: str = WORKSPACE_IN_CONTAINER,
                        env: dict | None = None) -> dict:
-    """Materialise the wrapper and the `bash` launcher that fronts it.
+    """Materialise the redirect and return the environment that arms it.
 
-    Two files for the launcher, the same pair `alkera_gateway.native.shims
-    .install` writes and for the same reason: `bash.cmd` is what cmd.exe and
-    PowerShell find through PATHEXT, the extensionless `bash` is what Git Bash
-    and every POSIX shell look for. Both exec the one wrapper module, so the
-    logic exists once.
+    `interpreter` is unused by the hook itself and is kept because the caller
+    knows which Python this episode runs under and a future mechanism may need
+    it; it is recorded in the config file beside the hook so a reader of a
+    rollout can see what the harness thought it was doing.
 
-    `env` is forwarded to every `docker exec`. The compose file already gives
-    the container the endpoint variables; this carries the per-episode values
-    only the harness knows - which file the subject edits, which issue key this
-    world has - and, on the model path, whatever
-    `agent_under_test.native_env` assembled.
+    `env` is forwarded to every `docker exec`, baked into the hook as literal
+    `-e K=V` arguments rather than passed through a shell variable, because a
+    value with a space in it would word-split.
     """
     bin_dir.mkdir(parents=True, exist_ok=True)
-    wrapper = bin_dir / "container_bash.py"
-    with open(wrapper, "w", encoding="utf-8", newline="") as stream:
-        stream.write(BASH_WRAPPER)
+    docker = shutil.which("docker") or "docker"
+    env_args = "".join(f' -e {name}={value}'
+                       for name, value in sorted((env or {}).items()))
+    hook = bin_dir / "alkera_bash_env.sh"
+    with open(hook, "w", encoding="utf-8", newline="") as stream:
+        stream.write(BASH_HOOK.format(
+            docker=_sh_quote(docker), workdir=_sh_quote(workdir),
+            workdir_plain=str(workdir), env_args=env_args,
+            container=_sh_quote(container)))
+    written = [hook]
+    for name in (".bash_profile", ".bashrc", ".profile"):
+        path = bin_dir / name
+        with open(path, "w", encoding="utf-8", newline="") as stream:
+            stream.write(PROFILE.format(hook=hook.as_posix()))
+        written.append(path)
     config = bin_dir / "container_bash.json"
     with open(config, "w", encoding="utf-8", newline="") as stream:
         json.dump({"container": container, "workdir": workdir,
-                   "env": dict(env or {})}, stream, indent=2, sort_keys=True)
-    written = [wrapper, config]
-    launcher = bin_dir / "bash"
-    with open(launcher, "w", encoding="utf-8", newline="") as stream:
-        stream.write(LAUNCHER_SH.format(interpreter=interpreter,
-                                        wrapper=wrapper.as_posix()))
-    launcher.chmod(launcher.stat().st_mode | 0o111)
-    written.append(launcher)
-    if os.name == "nt":
-        cmd = bin_dir / "bash.cmd"
-        with open(cmd, "w", encoding="utf-8", newline="") as stream:
-            stream.write(LAUNCHER_CMD.format(interpreter=interpreter,
-                                             wrapper=str(wrapper)))
-        written.append(cmd)
-    return {"bin": str(bin_dir), "wrapper": str(wrapper), "config": str(config),
-            "launcher": str(bin_dir / ("bash.cmd" if os.name == "nt" else "bash")),
-            "files": [str(p) for p in written]}
+                   "env": dict(env or {}), "bash": _real_bash(),
+                   "docker": docker, "interpreter": interpreter},
+                  stream, indent=2, sort_keys=True)
+    written.append(config)
+    return {
+        "bin": str(bin_dir),
+        "hook": str(hook),
+        "config": str(config),
+        "launcher": _real_bash(),
+        "files": [str(p) for p in written],
+        # What the subject's process must carry for the redirect to arm. The
+        # CLI is pinned to the same bash the harness verified with, `HOME` is
+        # this rollout's own so the hook is found and the operator's home is
+        # untouched, and MSYS is told to stop rewriting `/workspace` into a
+        # Windows path on its way to `docker exec`.
+        "subject_env": {
+            "CLAUDE_CODE_GIT_BASH_PATH": _real_bash(),
+            "HOME": str(bin_dir),
+            "BASH_ENV": hook.as_posix(),
+            "MSYS_NO_PATHCONV": "1",
+            "MSYS2_ARG_CONV_EXCL": "*",
+        },
+    }
+
+
+def _sh_quote(text: str) -> str:
+    """One shell word, for a path that may contain spaces (`Program Files`)."""
+    return "'" + str(text).replace("'", "'\\''") + "'"
+
+
+def verify_container_execution(wrapper: dict, container: str,
+                               timeout: int = 120) -> dict:
+    """Run `hostname` through the SUBJECT'S OWN shell path and compare.
+
+    This is the whole of what stands between the container topology and the
+    failure it has already had once: a mechanism that silently does not fire,
+    and a rollout that records `filesystem_isolated` about an episode that ran
+    on the host. The proof is taken the way the subject will take it - the same
+    binary, the same environment, the same `-lc` - immediately before the
+    terminal is handed over, and `blindness.guarantee` will not issue the
+    container guarantee without it.
+    """
+    expected = _run(["docker", "exec", container, "hostname"]).stdout.strip()
+    env = {**os.environ, **wrapper["subject_env"]}
+    result = subprocess.run([wrapper["launcher"], "-lc", "hostname"],
+                            capture_output=True, text=True, encoding="utf-8",
+                            errors="replace", env=env, timeout=timeout)
+    observed = result.stdout.strip().splitlines()[-1].strip() if result.stdout.strip() else ""
+    return {
+        "how": f"{Path(wrapper['launcher']).name} -lc hostname, with the "
+               f"subject's own environment",
+        "expected": expected,
+        "observed": observed,
+        "returncode": result.returncode,
+        "stderr": (result.stderr or "")[-400:],
+        "verified": bool(expected) and observed == expected,
+    }
 
 
 # ----------------------------------------------------- the surface gate's relay
@@ -1012,6 +1074,15 @@ class NativeContainerEpisode:
     audit_dir: Path
     rollout_dir: Path
     image: str = DEFAULT_IMAGE
+    #: The context variant this rollout's world was built from, "" for a task
+    #: with one context. It is carried INTO the container (VARIANTS_REQUESTS.md
+    #: item 6) because everything the subject runs in there that re-resolves the
+    #: task - `./ops/sched`, a `dbt` invocation, a generator the workspace
+    #: ships - reads `ALKERA_TASK_VARIANT`, and a container that did not carry
+    #: it would silently answer for `default` while the world around it is an
+    #: arm. The world itself is built on the HOST, before the container exists,
+    #: so this is about agreement and not about which world got built.
+    variant: str = ""
     container_id: str = ""
     image_digest: str = ""
     services: list = field(default_factory=list)
@@ -1037,6 +1108,16 @@ class NativeContainerEpisode:
         return [COMPOSE_BASE, COMPOSE_OVERLAY, NATIVE_OVERLAY, self.overlay]
 
     # -------------------------------------------------------------- overlay
+    def variant_env(self) -> dict:
+        """`{ALKERA_TASK_VARIANT: <arm>}`, or `{}` for a one-context task.
+
+        Empty rather than `""` on purpose: an empty value exported into the
+        container is a value, and `taskspec.requested_variant` reads any
+        non-empty string as a request. A task with one context must look to
+        everything inside the box exactly as it did before variants existed.
+        """
+        return {"ALKERA_TASK_VARIANT": self.variant} if self.variant else {}
+
     def write_overlay(self) -> Path:
         """The per-rollout overlay: warehouse binds, shim PATH, published ports.
 
@@ -1051,6 +1132,8 @@ class NativeContainerEpisode:
                 f"under {WAREHOUSE_REL_DIR}/; with nothing to mount the episode "
                 f"container would have no warehouse at all")
         path_value = f"{SHIMS_IN_CONTAINER}:{image_path(self.image)}"
+        variant = "".join(f'\n      {name}: "{value}"'
+                          for name, value in sorted(self.variant_env().items()))
         binds = "\n".join(
             f'      - "{(self.world_root / rel).as_posix()}:'
             f'{WORLD_IN_CONTAINER}/{rel}"'
@@ -1068,8 +1151,11 @@ class NativeContainerEpisode:
 #      the CONTAINER's - and a `cp` beside the warehouse, which is what two of
 #      five GT001 native subjects did before deleting rows, lands there instead
 #      of in the world.
-#   2. THE SHIM PATH. `{SHIMS_IN_CONTAINER}` goes in front of the image's own
-#      PATH, which is read off the image so that /opt/toolbelt/bin survives.
+#   2. THE SHIM PATH, and the CONTEXT VARIANT. The shims go in front of the
+#      image's own PATH, which is read off the image so /opt/toolbelt/bin
+#      survives; `ALKERA_TASK_VARIANT` appears only when this world was built
+#      from an arm, because an empty value is still a value to
+#      `taskspec.requested_variant`.
 #
 # NOT here, and it was here for one afternoon: published host ports. Both
 # compose networks are `internal: true`, and Docker cannot publish a host port
@@ -1086,7 +1172,7 @@ services:
       PATH: "{path_value}"
       ALKERA_SHIM_BIN: "{SHIMS_IN_CONTAINER}"
       ALKERA_SHIM_WORKSPACE: "{WORKSPACE_IN_CONTAINER}"
-      ALKERA_WORKSPACE: "{WORKSPACE_IN_CONTAINER}"
+      ALKERA_WORKSPACE: "{WORKSPACE_IN_CONTAINER}"{variant}
     volumes:
 {binds}
 """
@@ -1272,7 +1358,13 @@ services:
         import agent_under_test as aut
 
         targets = {name: (f"{name}.internal", port)
-                   for name, (_, port) in aut.NATIVE_SERVICES.items()}
+                   for name, (_, port) in {
+                       **aut.NATIVE_SERVICES,
+                       # The scheduler plane is relayed like the nine, because
+                       # the gate's `sched` check is a `/health` here and not a
+                       # read of the world's state file: the subject cannot
+                       # reach that file, so neither may the gate.
+                       **aut.NATIVE_WORKSPACE_SERVICES}.items()}
         targets["s3"] = ("minio.internal", MINIO_PORT)
         self.gate = ServiceGate(self.services_container, targets,
                                 _native_probe().CONTAINER_PYTHON)
@@ -1282,6 +1374,22 @@ services:
         with open(path, "w", encoding="utf-8", newline="") as stream:
             json.dump(overrides, stream, indent=2, sort_keys=True)
         return aut.resolve_endpoints(path)
+
+    # ----------------------------------------------------------------- shell
+    def shell(self, bin_dir: Path, env: dict | None = None) -> dict:
+        """The subject's shell redirect for THIS container, and its proof.
+
+        One method, two callers - the scripted subject and `agent_under_test`
+        for a model - so the thing verified before the terminal is handed over
+        is the thing the subject then uses, rather than something that resembles
+        it.
+        """
+        wrapper = write_bash_wrapper(bin_dir, container=self.container_id,
+                                     interpreter=str(_interpreter()),
+                                     env=env or {})
+        wrapper["proof"] = verify_container_execution(wrapper,
+                                                      self.container_id)
+        return wrapper
 
     # -------------------------------------------------------------- evidence
     def containment_probe(self, *, when: str, canaries: list[str],
@@ -1298,7 +1406,12 @@ services:
         endpoints = self.episode_endpoints()
         spec = _native_probe().spec(
             warehouses=self.warehouses,
-            services={name: endpoints[name] for name in sorted(aut.NATIVE_SERVICES)},
+            # The nine vendor services AND the scheduler plane: P7's question E
+            # is about every address the episode is expected to reach, and the
+            # scheduler is the one whose files this topology does not mount.
+            services={name: endpoints[name]
+                      for name in sorted({**aut.NATIVE_SERVICES,
+                                          **aut.NATIVE_WORKSPACE_SERVICES})},
             forbidden_files=[
                 Path(grading, "manifest.yaml").as_posix(),
                 Path(grading, "expected.duckdb").as_posix()],
@@ -1329,8 +1442,19 @@ services:
             "services": self.services,
             "compose_files": [str(p) for p in self.compose_files()],
             "warehouse_mounts": list(self.warehouses),
+            "variant": self.variant,
             "shims_in_container": SHIMS_IN_CONTAINER,
         }
+
+
+def _interpreter() -> Path:
+    """The interpreter this harness runs episodes under (`episode.PY`).
+
+    Imported here rather than at module import time: `episode` is already a
+    dependency of this module, and the indirection keeps the one place that
+    knows the venv layout in one file.
+    """
+    return episode.PY
 
 
 def _native_probe():

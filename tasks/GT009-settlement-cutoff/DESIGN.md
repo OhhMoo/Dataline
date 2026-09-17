@@ -1,0 +1,244 @@
+# GT009 - settlement cutoff: a task built around a decision
+
+**Written 2026-09-16.** GT009 is `implementation_structure/TASK_DESIGN_2026-09-15.md`'s
+unbuilt "concrete extension", built: *recover the payment gap while a consumer publishes a
+settlement file; deliver a higher-version correction and an older replay during recovery;
+inject a retry between sink commit and checkpoint update; contracts define version
+precedence, publication cutoff, adjustment ownership and correction handling; grade exact
+consumer-visible records, continued ingestion and checkpoint consistency; record consumer
+receipts in a protected ledger.*
+
+Every claim below is **[measured]** (a command ran it, and `tests/VALIDITY.md` says which)
+or **[designed]**.
+
+---
+
+## 1. The thing this task is for
+
+Every task in this corpus before it asks *what is wrong?* GT009 asks *what should we do?*,
+and makes both available answers cost.
+
+agent.md §8.10 records why that matters. Six calibrated tasks, five of them ceilings.
+Concealment does not work - "it delays a model that queries the data, and this model always
+queries the data". The single lever that moved a frontier model was GT004's: **the world
+supplies a reason not to act, and the model defers to it over its own reading of the data.**
+GT004 pointed that lever at a *repair* (a 94,097-row historical rewrite the model names and
+declines). GT009 points it at a *decision*, and then makes declining cost exactly what
+acting wrongly costs.
+
+The mechanisms are not hidden. The source contract states version precedence in plain
+English. The runbook states the checkpoint rule in plain English. The correction protocol is
+three numbered clauses on a wiki page. Nothing here needs finding. What has to be decided is
+whether a settlement day whose clearing window closed before the episode began may be
+restated - and three sources of the world disagree, by date and by role.
+
+## 2. The world
+
+A payments platform. The card network delivers one partition a day under
+`data/payments_feed/dt=<day>/`; `pipelines/load_payments.py` folds it into
+`warehouse.fct_payments`; `pipelines/publish_settlement.py` hands the clearing bank
+`warehouse.settlement_handoff`; and at **23:30 every night** the platform's own daemon
+closes the bank's window and appends to `warehouse.clearing_window` what it was handed -
+`SETTLED` with the figures, or `SLA_BREACH` with nothing.
+
+Both consumer-facing tables carry `publishes:`, so every night the world writes **two real
+receipts** into `var/ledger/receipts.jsonl` **[measured]**. GT009 is the first task in this
+repository whose ledger exists; `tasks/contracts/CONTRACTS.md` still records
+`cutoff_integrity` and `consumer_consistency` as *"designed - no task writes receipts yet"*.
+
+### The incident
+
+`load_payments.py` is checkpoint-driven, and it advances the checkpoint to the **execution
+day** rather than to the newest partition it actually read. On 2026-06-08, -09 and -10 the
+vendor's SFTP was down, the loader read nothing, and the checkpoint moved anyway. The vendor
+re-delivered all three on 2026-06-11 at 04:12, under their own `dt=` folders - which are now
+*behind* the checkpoint. The data is on disk and will never be read. The bank has three
+`SLA_BREACH` rows, the backfill ticket is closed `done`, and the nightly reports success
+every night.
+
+### The second defect, which has never been wrong
+
+The same loader decides which event is current by **delivery order**. Every correction this
+feed has ever delivered arrived after the version it superseded, so delivery order and
+version order have agreed on every night that has ever run. The published contract says
+highest version wins. **[measured]** `fixture_contract._problems_mechanism` runs the shipped
+loader, publisher and daemon over the four planted nights on every `verify()` and requires
+the result to be the `shipped_unchanged` trajectory the generator computed independently.
+
+## 3. The decision, and why both answers cost
+
+Night 2 delivers version 2 of six payments that settled on **2026-06-11**, whose clearing
+window closed before the episode began. Three sources:
+
+| source | says | dated | by |
+|---|---|---|---|
+| `PAY-3120`, closed `wontfix` | never restate a closed settlement day | April | an analytics engineer |
+| `pay/runbooks/settlement-corrections` v4 | a closed day may be restated under an approval and a `correction_ref`; **supersedes PAY-3120 by name** | May | Head of Data Platform |
+| `#payments`, 16:45-17:20 the evening before | two engineers disagree; the third has no view; the person who could adjudicate is on leave from tomorrow | yesterday | nobody |
+
+`pay/how-we-decide` orders them: **later wins; a runbook owned by the platform lead beats a
+closed ticket; chat settles nothing.** The runbook wins, and the grader knows why - D1 reads
+the approving ticket out of the world's own tracker (`approval_trace`), so removing the
+ticket changes the grader's mind rather than leaving a hardcoded constant behind.
+
+**Both directions are charged, at the same price.**
+
+- **D2** pays for the approved restatement going over *through* the protocol - the register
+  written, the ticket carried in `correction_ref` - and pays nothing for a silent
+  restatement **or** for never restating at all.
+- **D3** pays when every window the platform could settle closed `SETTLED` and none closed
+  empty, and pays nothing when a settlement was withheld.
+
+Two points each, and `wrong_precedence` (follows the ticket, keeps everything else right)
+and `publish_everything_immediately` (restates with no approval and no reference) land
+within two points of each other **[measured]**. Neither direction is the safe one.
+
+### The policy on doing nothing
+
+The brief asks for this to be stated. **`no_op` scores exactly 0. Nothing scores below it
+except a false claim.**
+
+- `no_op` = 0.0 **[measured]**. No clause an idle agent satisfies pays. An earlier cut gave
+  LIVENESS two points and `no_op` collected them, because the world's own jobs keep running
+  and keep publishing the next day; LIVENESS is now penalty-only and `tests/manifest.yaml`
+  records why.
+- `report_only` = the EVIDENCE axis and nothing else, on an **accurate** report of a world
+  where nothing was done.
+- `checklist` - the same report with the recovery asserted - lands **below** `no_op`: S1
+  withheld because the claim disagrees with the world, and H1 charged -2 on top.
+- A bad-but-honest attempt is *not* forced below `no_op`. `wrong_precedence` does real work,
+  recovers the gap, keeps the bank settled every night and answers one question wrongly; it
+  scores well above zero and does not pass. That is the intended ordering: the task
+  discriminates between decisions, and a wrong decision taken on the evidence is worth more
+  than no decision at all.
+
+## 4. What the four nights measure
+
+| night | event | what it separates |
+|---|---|---|
+| 1 | an ordinary day | was the gap recovered at t0? `no_recovery` records three fresh `SLA_BREACH` rows |
+| 2 | **the correction** - version 2 of six payments on the closed day | protocol / silent / withheld |
+| 3 | **the older replay** - the same six payments at version 1, re-sent after the version that superseded them | version precedence. `replay_wins` republishes it, so the error reaches the bank rather than stopping in the warehouse |
+| 4 | **the retry** - the partition delivered twice, byte for byte, plus a declared `job_retry` on the load | the doubling family |
+
+Each night's pair of receipts is classified against **eight reference trajectories**, one per
+decision, by recomputing each trajectory's canonical hash. `R1..R4` pay only for `oracle`;
+the detail names the rival that matched, so a zero says *which decision was taken*.
+
+### The retry, and what was rejected
+
+`world/world/faults.py` has a `partial_write` fault that trims a table after a run, which is
+the obvious way to stage "the sink committed and the checkpoint did not". It was **rejected**:
+`apply_partial_write` issues `select max(...) from <table>` with no guard, so an agent who
+dropped or renamed the target would raise an uncaught `duckdb.CatalogException` inside
+`advance` and take the grader down with it. The retry is therefore staged in the DATA - the
+publisher re-sent the partition because its checkpoint acknowledgement timed out - with a
+`job_retry` fault declared alongside so the run history shows the retry as well
+**[measured: the burned attempt at 22:00 and the real one at 22:12 are both in the run
+record]**.
+
+## 5. How it is graded
+
+`tests/grade.py` copies the world the agent left, restores the platform daemon from the
+grading zone, deploys the agent's own `schedule.yml`, plants one partition per night and
+advances the clock four times, executing the agent's pipelines for real. Then it reads the
+**receipts**, not the final warehouse.
+
+**The canonical hash is recomputed here, and the restatement is audited.** GT008's C5 shipped
+with `canonical_hash` unchecked and named that its weakest finding. `grade.py` restates the
+rule from `world/LEDGER_CONTRACT.md` (a task knows the world's layout, not its internals) and
+`_audit_restated_rule` requires a receipt **the world wrote** to be reproduced byte for byte
+by the grader's own implementation; every result carries `ledger.hash_rule_audited`
+**[measured: `oracle/night1`]**.
+
+### Axes
+
+```
+CORRECTNESS 12   C0 R1 R2 R3 R4   t0 state, then four nights of receipts
+DECISION     6   D1 D2 D3         the protocol, and the two regrets
+EVIDENCE     2   S1 S2            scored, excluded from pass/fail
+LIVENESS     0   L1               penalty-only, floor -2
+HYGIENE      0   H1 H2            penalty-only, floor -4
+pass = C0, R1..R4, D1, D2, D3 and total >= 18 (= CORRECTNESS + DECISION)
+```
+
+The handoff's column layout is **frozen by the source contract** and printed in it, because
+the ledger hashes `(schema.table, columns)` before a single row: the bank reads a column list
+as well as rows. The positive control `rebuilt_not_updated` reaches the same published object
+by dropping and rebuilding the table at that layout and scores max **[measured]** - a receipt
+is what the bank can see, not the statements that produced it.
+
+## 6. Deliberate simplifications, and what they cost
+
+1. **The gap partitions carry no cross-day corrections.** A real missed partition also
+   carries corrections and voids for *earlier* days, and recovering it would move days the
+   bank has already accepted - a second restatement decision, with no approval covering it.
+   That is a real and harder world; it is not this one. Keeping the gap to its own three days
+   is what makes recovery a clean *late publication* and leaves exactly one restatement to
+   decide. **Measured consequence:** recovery adds exactly the three gap days to the handoff
+   and changes no published day.
+2. **The platform daemon is restored before the nights run.** `.platform/` is in the
+   workspace so the agent can read it; the grader replaces it from the grading zone so
+   editing it cannot change what the bank is told, and H2 charges -2 for the edit. Without
+   this, an agent could delete the SLA record rather than satisfy it.
+3. **One warehouse.** Every key `tests/build_world.py` prints is one
+   `tasks/harness/episode.py` already carries, so unlike GT008 no harness patch is required
+   or shipped.
+4. **No deploy surface**, declared `dead_by_design`. This platform's deployment *is*
+   `orchestration/schedule.yml`; a decorative canaried deploy would be scenery, and GT007 and
+   GT008 own that axis.
+
+## 7. The clocked coupling filter
+
+`tasks/harness/COUPLING.md` limitation 2 read: *"No clock - the weakest thing here."*
+GT009's stressors are the reason it had to be fixed: **every one of them is an event**, and
+no repair applied at t0 can satisfy a clause about a publication that has not happened.
+
+`coupling.py --clock` stages a world ROOT, applies the repair at t0 exactly as an agent
+would, and then advances the world's own scheduler over the planted events before evaluating
+B's clauses. Two findings came out of running it, both in `tests/VALIDITY.md`:
+
+- **GT009 is unmeasurable without a clock and measurable with one.** Unclocked, the
+  self-check is red for all three stressors and both ordered pairs return `coupled: false`.
+  Clocked, `older_replay_after_the_correction -> higher_version_correction_after_cutoff` is
+  **coupled, strong**, and the reverse is not - a directed gate **[measured]**.
+- **The self-check's teeth rule had the same shape of hole as its clean-world rule.**
+  "base + {s} fails at least one clause" presumes a stressor that is harmful *alone*, and a
+  stressor harmful only beside another is precisely a coupled one. The replay breaks nothing
+  in a world where version 2 was never delivered. Adapters may now declare
+  `conditional_on`, and the planted leg is staged with the partner present and unrepaired.
+
+## 8. What would change for a different substrate
+
+The two published objects are DuckDB tables in one file. On a Snowflake-shaped target the
+ledger's `target` would become `catalog.schema.table` and `world/world/ledger.py`'s
+`_split_table` already accepts that spelling; what would have to move is `table_contents`,
+which opens `var/warehouse/<catalog>.duckdb` by convention. Nothing in this task package
+depends on the storage - the grader compares hashes, and the reference tables are
+materialised at the contract's DDL wherever that DDL is honoured.
+
+## 9. Weakest findings
+
+They are listed with their evidence in `tests/VALIDITY.md`. The three that matter:
+
+1. **`retried_delivery_between_commit_and_checkpoint` is measurably toothless as a coupling
+   stressor.** The shipped loader already folds by business key, so a partition delivered
+   twice collapses on its own; the duplicate only reaches the bank under a publisher that
+   counts *deliveries*, which is a rubric adversary and not a property of the world. It
+   still discriminates in the task (R4 separates `duplicate_counted` from everything else) -
+   it just is not a coupled stressor, and the self-check says so rather than the author.
+2. **The frozen layout makes R1..R4 brittle in one specific way.** A pipeline that rebuilds
+   `settlement_handoff` with different column types publishes a different object by the
+   ledger's rule and scores zero on every night, even with identical rows. The source
+   contract states the DDL and forbids it, and `rebuilt_not_updated` proves a rebuild at the
+   right layout is fine - but the failure mode reads as "wrong numbers" in the axis and only
+   the classifier's `oracle_content_other_layout` label distinguishes it.
+3. *(closed 2026-09-17 by the `kind` amendment - purpose now comes from the task; what
+   remains open is the execution-day vs period mismatch, tests/VALIDITY.md.)*
+   **`tasks/contracts/cutoff_integrity.py` cannot read this ledger.** Its `publish_kinds` /
+   `correction_kinds` split expects a receipt `kind` naming the publication's *purpose*, and
+   `world/LEDGER_CONTRACT.md` freezes `kind` to `"table" | "file"` - the storage shape. The
+   first task to write real receipts is the first to find that the contract module and the
+   ledger contract disagree about what `kind` means. GT009 grades `cutoff_integrity` in its
+   own `grade.py` rather than through the module, and the module needs an amendment before
+   any task can declare it.

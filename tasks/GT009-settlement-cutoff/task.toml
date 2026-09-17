@@ -108,7 +108,9 @@ D2, which pays for the approved restatement going over THROUGH the protocol and
 zero for a silent one - and by R2, whose `silent_correction` rival is exactly a
 closed day republished with the right arithmetic and no ticket. This is the
 first task in the repository that evaluates it against real receipts;
-tasks/contracts/CONTRACTS.md records it as `designed`.
+tasks/contracts/CONTRACTS.md: the `kind` amendment landed 2026-09-17 and the module
+# is measured on this task's real receipts; the cutoff DECISION is still graded by D2
+# here, because receipts carry the execution day, not the period published (VALIDITY.md).
 """
 consumer_consistency = """
 Every receipt's canonical hash must equal the hash of the object the oracle
@@ -373,11 +375,15 @@ surface_probes = [
   { label = "kb",       tool = "kb_list",       args = {}, covers = ["kb_get", "kb_search"] },
   { label = "metrics",  tool = "metrics_list",  args = {}, covers = ["metrics_get", "metrics_series"] },
   { label = "alarms",   tool = "alarms_list",   args = {}, covers = ["alarms_get", "alarms_history"] },
+  # Probed explicitly although both are dead, so the audit records them as
+  # DECLARED-dead rather than as a surprise in the unnamed-service sweep.
+  { label = "dbt",      tool = "dbt_compile",   args = { selector = "*" }, covers = ["dbt_run", "dbt_test"] },
+  { label = "deploy",   tool = "deploy_list",   args = {}, covers = ["deploy_run", "deploy_history"] },
 ]
 
 dead_by_design = [
   { label = "dbt",            reason = "there is no dbt project in this world. Both pipelines are python scripts under workspace/pipelines and the scheduler executes them through the `script` exec kind. Probed explicitly so the audit records it as declared-dead." },
-  { label = "deploy",         reason = "this platform has no release surface. What runs is orchestration/schedule.yml, and changing it is a commit rather than a rollout; var/obs/definitions.yaml therefore declares no deploys. GT007 and GT008 own the deploy axis." },
+  { label = "deploy",         reason = "this platform has no release surface. What runs is orchestration/schedule.yml, and changing it is a commit rather than a rollout; var/obs/definitions.yaml therefore declares no deploys. GT007 and GT008 own the deploy axis. MEASURED 2026-09-16: the MCP probe reports deploy LIVE anyway, because `deploy_list` answers ok with an empty list - and the native gate (NATIVE_DRIVER.md) counts `items`, so the same world reads dead there. Declared here so the two drivers cannot disagree about whether that is a finding." },
   { label = "~ingest_list",   reason = "no ingestion connector plane. The feed is files under workspace/data/payments_feed, which is what the loaders read." },
   { label = "~ingest_runs",   reason = "as ~ingest_list." },
   { label = "~ingest_alerts", reason = "as ~ingest_list." },

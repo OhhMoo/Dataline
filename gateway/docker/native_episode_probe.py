@@ -24,7 +24,18 @@ Six questions, each answered by trying:
   D. the workspace is read-write and the warehouse file is read-write, because
      a topology that contained the episode by making its own job impossible
      would pass every question above and be useless.
-  E. the nine services answer `/health` with a count, from this vantage.
+  E. the nine services AND the scheduler plane answer `/health` from this
+     vantage. The scheduler is asked by name because it is the one plane whose
+     files this topology deliberately does not mount: `var/sched`, its run
+     logs, `var/obs` and `build/sched` are absent by question A, so if
+     `sched.internal` did not answer the episode would have no scheduler
+     surface at all and a task needing `sched_*` could not be measured here.
+     What the probe does NOT do is trigger a job: P7 runs before and after
+     every episode and a containment probe that moved the world would be
+     evidence about itself. That half - a `trigger` writing a
+     `sched.sched_trigger` row and the run log appearing in the HOST world - is
+     asserted by `tasks/harness/test_native_container.py` and by the GT004
+     acceptance, where moving the world is the point.
   F. egress is refused - TCP and DNS, with the interface and route list read
      from `/proc` so a second interface nobody declared cannot hide.
 
@@ -227,6 +238,12 @@ out["services_unreachable"] = [r["service"] for r in services
                                if not r["reachable"]]
 out["services_with_no_content"] = [r["service"] for r in services
                                    if r["reachable"] and not r["populated"]]
+# The scheduler plane is named separately because its answer means something
+# different: the nine may legitimately be empty in a world whose seed does not
+# fill their plane, while a scheduler with no jobs is a world the episode
+# cannot be asked to schedule anything in. `items` is the job count.
+out["scheduler"] = next((r for r in services if r["service"] == spec["scheduler"]),
+                        None)
 
 # --- F. egress -------------------------------------------------------------
 ifaces, routes = [], []
@@ -282,6 +299,8 @@ out["checks"] = {
         and all(work["warehouses_writable"].values()),
     "every_service_is_reachable_from_the_episode":
         bool(services) and not out["services_unreachable"],
+    "the_scheduler_plane_answers_with_jobs":
+        bool(out["scheduler"]) and out["scheduler"].get("populated") is True,
     "egress_refused": out["egress_blocked"] and not out["network"]["default_route"],
 }
 out["contained"] = all(out["checks"].values())
@@ -305,6 +324,9 @@ MARKER_NAMES = ("SEED_SPEC.md", "expected.duckdb", "manifest.yaml", "grade.py",
 FORBIDDEN_DIRS = ("/grading", "/world/../grading", "/workspace/../grading",
                   "/grading-zone", "/tests")
 LEDGER_DIR = "/world/var/ledger"
+#: The one served plane that is not a vendor: the backend of the workspace's own
+#: `./ops/sched`. Named to the probe so question E can single it out.
+SCHEDULER_SERVICE = "sched"
 #: The episode image's own interpreter. Named absolutely on purpose: the
 #: episode container's PATH puts `/opt/alkera/shims` first, and `python` there
 #: is the audited shim - a harness probe run through it writes a row into the
@@ -316,7 +338,8 @@ SWEEP_LIMIT = 40_000
 
 def spec(*, warehouses, services, forbidden_files=(), host_paths=(),
          canaries=(), repo_root="", world_planes=WORLD_PLANES,
-         sweep_roots=SWEEP_ROOTS, sweep_limit=SWEEP_LIMIT) -> dict:
+         sweep_roots=SWEEP_ROOTS, sweep_limit=SWEEP_LIMIT,
+         scheduler=SCHEDULER_SERVICE) -> dict:
     """The probe's one JSON argument, built in one place.
 
     `warehouses` are world-relative posix paths (`var/warehouse/x.duckdb`) and
@@ -336,6 +359,7 @@ def spec(*, warehouses, services, forbidden_files=(), host_paths=(),
         "marker_names": list(MARKER_NAMES),
         "repo_path_leaf_forms": [leaf] if leaf else [],
         "ledger": LEDGER_DIR,
+        "scheduler": scheduler,
         "sweep_roots": list(sweep_roots),
         "sweep_limit": int(sweep_limit),
     }
@@ -373,7 +397,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--service", action="append", default=[],
                         metavar="NAME=URL",
                         help="a service the episode must reach, e.g. "
-                             "jira=http://jira.internal:8080; repeatable")
+                             "jira=http://jira.internal:8080; repeatable. The "
+                             "scheduler plane is one of them and must be named "
+                             f"{SCHEDULER_SERVICE!r}")
     parser.add_argument("--out", type=Path, default=None)
     args = parser.parse_args(argv)
 

@@ -111,7 +111,7 @@ populated world, which is GT004 exactly.
 | `issues_*` `chat_*` `kb_*` `bi_*` `metrics_*` `alarms_*` `logs_*` `ingest_*` `deploy_*` | the nine services | `/health` → `{"ok": true, "items": n>0}` | `ok:false` (`health_not_ok`), `items == 0` (`no_content`), no answer |
 | `sql_*` | the warehouse FILE | it opens, and — only when the task declares `[harness].warehouse_schemas` — a table in them holds a row | it does not open (`service_unreachable`); with declared schemas, every sampled table is empty (`no_content`) |
 | `dbt_*` | the dbt toolchain | `dbt` resolves on PATH **and** an output in `$DBT_PROFILES_DIR/profiles.yml` names this world's warehouse file | no dbt (`no_dbt_toolchain`); a profile that builds another file (`no_dbt_profile`) |
-| `sched_*` | the world's scheduler | `var/sched/state.json` parses and declares ≥1 job | absent (`no_scheduler`), unparseable (`no_scheduler_state`), no job (`no_content`) |
+| `sched_*` | the world's scheduler — the state file on the host topology, `sched.internal` under `--topology container`, which is the only one the subject there can reach (`probe_native(served_planes=...)`) | `var/sched/state.json` parses and declares ≥1 job; or `/health` answers `items > 0` | absent (`no_scheduler`), unparseable (`no_scheduler_state`), no job (`no_content`) |
 | `docs_*` | `workspace/docs` | the directory holds ≥1 file | absent (`no_docs`), empty (`no_content`) |
 | `fs_*` | the working tree | the directory holds ≥1 file | absent (`no_working_tree`), empty (`no_content`) |
 | `git_*` | the repository | ...and `git rev-parse HEAD` resolves | not a repo (`no_git_repository`), no commit (`no_content`) |
@@ -222,6 +222,21 @@ Without it `episode_scheduler` refuses to downgrade and every service answers
 COMPOSE-DISCOVERY's file and does not yet name `./ops/sched`. Until it does, a
 native subject discovers the CLI by looking in its own repo, which is how
 `./ops/deploy` is discovered too.
+
+**Two modes, added 2026-09-16.** Everything above is `SCHED_URL` UNSET - the host
+topology - where the three operations run in the CLI's own process against the
+world's files and the CLI writes the row. Set, which is what
+`gateway/docker/compose.native.yml` does inside the episode container, the same
+three go to `alkera_gateway/native/sched_plane.py` at `sched.internal:8120` and
+the PLANE writes the row, through `native/context.py`, exactly as the nine
+services write theirs. The container topology needs it because the episode there
+mounts the working tree and the warehouse files and nothing else: `var/sched` is
+not on the subject's box at all. `shims/sched_cli` shares the three operations
+and the renderer between the modes, and `test_native_container.py` diffs `list`
+and `logs` byte for byte across them rather than asserting they agree. The
+surface gate follows: under `--topology container` the `sched` check is
+`GET sched.internal/health` with `items` = the declared jobs, not a read of the
+host's state file, because the gate must ask the plane the SUBJECT can reach.
 
 ## The host topology is not measurement_valid where the subject can reach `var/`
 

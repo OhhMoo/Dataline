@@ -107,3 +107,48 @@ generator silently overwrote a reference once and every verdict still printed PA
 | **PROBES** | `tests/probes/**` | `tests/grade.py`, `fixtures/**` |
 | **VALIDITY** | `tests/run_baselines.py`, `solution/**` | `tests/grade.py`, `tests/probes/**` |
 | **SPEC** | `task.toml`, `BRIEF.md`, `prompts/**`, and GT003's missing `[harness]` section | everything else in GT004 |
+
+## Four layers — the retrofit (2026-09-16)
+
+GT004 was designed before
+`implementation_structure/TASK_DESIGN_2026-09-15.md` proposed that a task is four
+layers — contracts, stressors, a coupling rule, live time with a checkpoint ledger.
+GT008 was written against that framework; **GT004 is the retrofit**, and the test of
+a retrofit is that it changes nothing the task measures. It does not: every check
+keeps its id, points and semantics, every baseline keeps its per-check score, all
+eight `[variants]` arms stay TASK VALID, and the default arm's world fingerprint is
+byte-identical (`semantic_hash 8e7919ff…c474` before and after). `tests/VALIDITY.md`
+carries the evidence.
+
+| layer | what GT004 already had | what it now DECLARES and, where marked, EXECUTES |
+|---|---|---|
+| 1 contracts | G1b, G2, G3 and H3 each implemented their invariant one-off | `[composition].contracts = [exactly_once, liveness, authorization]`. **Wired**: `grade.py::exactly_once_clauses` decides G1b, `probes/late_arrival.py` asks the same contract for G3, `probes/idempotency.py` asks `liveness` for G2, and H3 already read `authorization`. The contract owns the **verdict**; the manifest owns the **weight** — which is why G3 keeps its own 0.45/0.30/0.25 over the contract's 0.45/0.30/0.30 |
+| 2 stressors | three defects and three context levers, described in prose | six named `[[composition.stressors]]`, each a `verified: true` row in `tasks/stressors/registry.yaml`. Declarative only, and it says so |
+| 3 coupling | asserted ("two stacked defects") | **measured**: 12 ordered pairs, 2 accepted / 10 rejected, a one-directional gate. `tests/coupling_check.py` re-runs the filter and fails if a verdict moves, because **no baseline score can detect a fixture edit that decouples the defects** |
+| 4 ledger | live time via G3's clock advance | `publishes:` on the two consumer-facing jobs (opt-in), and **G7**: 0 points, penalty −2, `not_evaluable` with no receipts. Exercised by `tests/ledger_check.py` — 4 nights advanced, 8 real receipts, oracle clean, un-repaired world 6 offences |
+
+**Why layer 4 is opt-in, and why that is the design rather than a compromise.**
+`publishes:` lives in `var/world/live.json` and the schedule an advance needs lives in
+`var/sched/state.json`; both are sections of `world.fingerprint.semantic()`, and
+`world/LEDGER_CONTRACT.md` says declaring one "would move every recorded world hash
+with it". Nothing in GT004's grading path advances the clock through
+`world.scheduler.advance` anyway — `trigger()` writes no receipts by contract, and G3
+moves `vnow` by editing the state file — so a rollout would reach G7 with an empty
+ledger regardless. The shipped world therefore stays byte-identical, G7 reports
+`not_evaluable` and moves nothing, and the gate is exercised where it can actually
+see a receipt.
+
+**The policy G7 encodes.** A receipt is evidence about a *moment*. An agent whose
+final warehouse is perfect and whose night-2 extract was double the truth is charged,
+and keeps every other gate it earned. A clean ledger buys nothing, because an agent
+that broke the loader so thoroughly that nothing was ever published would otherwise
+be paid for silence — the same asymmetry G5 and H3 already carry.
+
+**The shortcut battery.** `tasks/contracts/CONTRACTS.md` says each contract's `DOC`
+names the shortcut it exists to kill, and that list is what a baseline battery should
+be built from. `permanent_skip`, `full_refresh` and `no_op` already covered the
+permanent skip, the snapshot restore and the full reload; `report_only` (hygiene
+only), `naive_merge` (passes G1b, fails G1a), `blind_rollback` (fails G1c —
+consistency is not correctness) and `disable_the_rule` (fails the code gate, G6 pays
+half) complete it. Each fails in a **named direction**: a baseline that is merely low
+proves nothing, because so is a crash.

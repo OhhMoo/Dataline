@@ -125,6 +125,28 @@ MINIO_AUDIT_PORT = 8110
 #: never dials it (MinIO does, from inside the stack), so it is excluded from
 #: the aggregate's service list the way any non-agent surface would be.
 MINIO_AUDIT_NAME = "minio-audit"
+#: The SCHEDULER plane, under its own alias `sched.internal`.
+#:
+#: It is not one of the nine and it is not a vendor: `sched_*` has no fake
+#: vendor because `world/world/scheduler.py` is a state file plus an executor,
+#: and the native surface for it is `./ops/sched`, a CLI in the agent's own
+#: repo (`shims/sched_cli.py`). What this mount adds is the CLI's BACKEND for
+#: the container topology, where the files that CLI drives - `var/sched`, its
+#: run logs, `var/obs`, `build/sched` - are deliberately not mounted into the
+#: episode container (tasks/harness/NATIVE_CONTAINER.md). Without it the
+#: scheduler plane is unreachable from the episode and a task that needs
+#: `sched_*` cannot be measured under that topology at all.
+#:
+#: Its own port and its own alias, for the reason every service has one: P6's
+#: "TCP to anything but the listed ports is refused" is vacuous on a shared
+#: socket, and the accepted socket's local port is the server's own observation
+#: of who was dialled while a `Host:` header is the client's claim.
+#:
+#: 8120 and not 8110: 8110 is MinIO's audit receiver. Fixed here and in
+#: `tasks/harness/agent_under_test.NATIVE_WORKSPACE_SERVICES`, which is what
+#: the episode's `SCHED_URL` carries.
+SCHED_NAME = "sched"
+SCHED_PORT = 8120
 #: The destination audit, under the directory `--audit` names.
 #:
 #: Row shape, fixed by NATIVE_DRIVER_REQUESTS.md item 5: the harness reads
@@ -436,6 +458,25 @@ def minio_receiver(port: int) -> tuple[Mounted | None, str | None]:
                    build_app(), "receiver", False, destination=False), None
 
 
+def sched_plane(port: int) -> tuple[Mounted | None, str | None]:
+    """The scheduler plane, mounted on this process. See `native/sched_plane.py`.
+
+    Returns `(mounted, None)` or `(None, why)`, the shape `minio_receiver` has
+    and for the same reason: fastapi arrives with the `native` extra, and a
+    process that cannot import it must still serve the nine and SAY what it
+    could not serve rather than failing to start. The routes live in their own
+    module because this one carries `from __future__ import annotations`, which
+    stops FastAPI resolving a handler's `Request` annotation - that module's
+    docstring has the measurement.
+    """
+    try:
+        from .sched_plane import NAME, build_app
+    except ImportError as exc:                         # the `native` extra
+        return None, f"{type(exc).__name__}: {exc}"
+    return Mounted(NAME, f"{NAME}.internal", port, build_app(),
+                   "scheduler", True), None
+
+
 def port_disagreements(mounted: list[Mounted], offset: int = 0) -> dict[str, str]:
     """Services whose declared port is not the one the subject is told about.
 
@@ -626,6 +667,11 @@ def main(argv: list[str] | None = None) -> int:
                              "world through (ALKERA_GATEWAY_CONFIG). Derived "
                              "from --world and written beside the audit log "
                              "when this is not given.")
+    parser.add_argument("--sched-port", type=int, default=SCHED_PORT,
+                        help="the scheduler plane's port, under the alias "
+                             "sched.internal; 0 serves it not at all, which "
+                             "leaves the container topology with no scheduler "
+                             "surface (tasks/harness/NATIVE_CONTAINER.md)")
     parser.add_argument("--destination-host", default=None,
                         help="the host to record in destinations.jsonl, when "
                              "it is not the service's own DNS alias. The "
@@ -680,6 +726,21 @@ def main(argv: list[str] | None = None) -> int:
             mounted.append(receiver)
         else:
             missing = {**missing, MINIO_AUDIT_NAME: why}
+    sched_port = args.sched_port + args.port_offset if args.sched_port else 0
+    if sched_port:
+        if any(item.port == sched_port for item in mounted):
+            print(f"--sched-port {sched_port} is a service port",
+                  file=sys.stderr, flush=True)
+            return 1
+        plane, why = sched_plane(sched_port)
+        if plane is not None:
+            mounted.append(plane)
+        else:
+            # Not fatal, and the reason travels: a stack whose scheduler plane
+            # failed to build is a stack where `./ops/sched` answers nothing in
+            # the container topology, and the startup table is where a reader
+            # finds that out rather than by watching an episode fail.
+            missing = {**missing, SCHED_NAME: why}
     print(startup_table(mounted, missing, args.bind, args.audit, args.world,
                         args.port_offset),
           flush=True)

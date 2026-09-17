@@ -14,9 +14,9 @@ Owner: COMPOSE-DISCOVERY. **Measured 2026-09-16 unless a line says *designed*.**
   |  episode    |--------| resolves: <name>.internal                  |
   |  bash only  |        |           + the compose service names      |
   |  HOME=/root |        |             (measured deviation, below)    |
-  +------+------+        '-------------------------------------------'
-         |                    |               |                |
-         |  /world  /workspace|  /audit       |                |
+  | /workspace  |        '-------------------------------------------'
+  | the .duckdb |             |               |                |
+  | files, /audit  and nothing else - P7      |                |
          v                    v               v                v
   +----------------+  +----------------+  +--------+  +------------------+
   | native-services|  | postgres       |  | minio  |  | airflow snowflake|
@@ -49,6 +49,7 @@ property rather than an oversight.
 | `prometheus.internal` | 9090 | native-services | same (vendor default) |
 | `alertmanager.internal` | 9093 | native-services | same (vendor default) |
 | `loki.internal` | 3100 | native-services | same (vendor default) |
+| `sched.internal` | 8120 | native-services | ours: the backend of the workspace's own `./ops/sched` |
 | `native-services.internal` | 8099 | native-services | ours: the aggregate `/health` |
 | `postgres.internal` | 5432 | postgres | the warehouse, served |
 | `minio.internal` | 9000 | minio | object storage, bucket `alkera` |
@@ -79,7 +80,7 @@ and `warehouses:`. `world/world/native_workspace.py` then writes four files:
 
     <root>/workspace/.envrc                    a delimited block appended
     <root>/workspace/docs/onboarding.md        assembled from var/workflow/*
-    <root>/home/.dbt/profiles.yml              bound at /root by this overlay
+    <root>/home/.dbt/profiles.yml              COPIED to /root per rollout (P7)
     <root>/home/.config/alkera/services.toml   the same table, machine-readable
 
 Measured (`world/tests/test_native_workspace.py`, 21 tests): the unflagged build
@@ -172,13 +173,21 @@ directory, neither of which the network has anything to say about. So
 `tasks/harness/container_episode.py`, which writes a fourth compose file into the
 rollout directory; `<world>/home` is copied in rather than mounted.
 
+One plane had to MOVE for that mount set to be liveable. `./ops/sched` drives
+`var/sched/state.json`, its run logs, `var/obs` and `build/sched`, none of which
+is in the episode any more, so `alkera_gateway/native/sched_plane.py` serves the
+same three operations at `sched.internal:8120` from this process - which mounts
+the whole world - and the CLI switches onto it when `SCHED_URL` is set. Not a
+tenth vendor: the aggregate does not report it, P6's registry does not expect
+it, and `agent_under_test.NATIVE_SERVICES` is still nine.
+
 Measured by `gateway/docker/native_episode_probe.py` from inside that container,
 through `containment.py --native-episode`:
 `evidence/containment-native-episode.json`, **passed: true** — `/world` holds the
 mounted warehouses and nothing else, no grading, rollout, canary, marker or
 repository path exists, the ledger is present, empty and read-only, the episode
-can still work, every alias is reachable, egress is refused, and
-`published_host_ports` is `{}`. The recipe and the acceptance table are in
+can still work, every alias is reachable, the scheduler plane answers with
+jobs, egress is refused, and `published_host_ports` is `{}`. The recipe and the acceptance table are in
 `tasks/harness/NATIVE_CONTAINER.md`.
 
 Two changes this forced on the stanzas above. The `native-services` healthcheck

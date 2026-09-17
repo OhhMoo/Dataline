@@ -374,13 +374,29 @@ def is_harness_row(row: dict) -> bool:
         str(t).startswith(HEALTH_TARGET_PREFIX) for t in targets)
 
 
-def subject_rows(rows: list[dict]) -> list[dict]:
-    """The action log with the harness's own rows taken out.
+def subject_rows(rows: list[dict], before_episode: int = 0) -> list[dict]:
+    """The rows this EPISODE's subject is answerable for.
 
-    What the subject did, which is the only thing a rate, a target set or a
-    tool-call count may be computed from.
+    Two rules, and the second one is a watermark rather than a name.
+
+    By NAME: the surface gate's `health:` polls and the post-episode
+    `workspace.edit` bookkeeping (`is_harness_row`). Both are ours and neither
+    is evidence about the subject.
+
+    By SEQUENCE: `before_episode` is the highest `seq` in the log at the moment
+    the subject was handed the terminal, so every row at or below it was written
+    before the subject existed and cannot be its work whatever it is called. It
+    defaults to 0 - no watermark - so every existing caller keeps the rule it
+    had. The case that produced it: under `--topology container` MinIO runs for
+    every rollout, and the surface gate's s3 check is a SIGNED `HEAD` and
+    `list_objects_v2` whose rows arrive through MinIO's audit webhook as
+    `minio.HeadBucket` and `minio.ListObjectsV2` - not `health:`-targeted, not
+    ours by name, and counted against a GT001 subject that never touched
+    storage. A name-based rule cannot see that; the clock can.
     """
-    return [r for r in rows if not is_harness_row(r)]
+    high = int(before_episode or 0)
+    return [row for row in rows
+            if not is_harness_row(row) and int(row.get("seq") or 0) > high]
 
 
 def load_destinations(audit_dir: Path | str) -> list[dict] | None:
@@ -505,17 +521,33 @@ def containment_faults(evidence: list[dict] | None) -> list[str]:
 
 
 def guarantee(*, driver: str, topology: str,
-              containment: list[dict] | None) -> str:
+              containment: list[dict] | None,
+              container_execution: dict | None = None) -> str:
     """The blindness guarantee this rollout can actually defend.
 
     Never a restatement of the flags we passed. Under `container` the stronger
-    claim is earned only by evidence read out of the subject's own environment.
+    claim is earned only by evidence read out of the subject's own environment,
+    and under `--driver native` it needs a SECOND piece of evidence that the MCP
+    topology does not: proof that the subject's shell reached the container.
+
+    The MCP topology has no such question, because the subject's only channel is
+    a gateway started with `docker exec` - it is in the container or there is no
+    channel. Native mode's channel is the shell, the shell is redirected from
+    the host, and a redirect that does not fire is invisible: run-id
+    `native-container-20260917-k5` recorded `filesystem_isolated` for two
+    episodes whose model ran on the host, listed the host root and read the
+    rollout directory. So for `native` + `container` the proof is required here
+    as well as enforced in `rollout.py`, and a record that does not carry it
+    cannot be reclassified into the strong claim either.
     """
     base = ("tool_surface_revoked" if driver in ("mcp", "kimi")
             else "detection_only")
     if topology != "container":
         return base
     faults = containment_faults(containment)
+    if driver == "native" and not (container_execution or {}).get("verified"):
+        faults.append("the subject's shell was not proved to run in the "
+                      "container")
     if faults:
         return f"{base}+unverified_container"
     return "filesystem_isolated"

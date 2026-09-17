@@ -21,7 +21,9 @@ SHORTCUT    fix the end state and let the intermediate publications stand -
             invisible to any grader that reads only the final warehouse.  The
             coverage clause stops the opposite shortcut, publishing nothing.
 ORACLE      params.expected, or params.oracle "<file.py>::<fn>", hashed by the
-            gateway's canonical form.  DESIGNED: no task writes receipts yet.
+            gateway's canonical form.  MEASURED 2026-09-17: GT009 writes real receipts
+            (8 per graded episode); see CONTRACTS.md for what is and is not yet
+            exercised on them.
 """
 
 EMPTY_DETAIL = "no receipts: contract not evaluable"

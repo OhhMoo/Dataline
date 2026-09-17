@@ -5,7 +5,7 @@
     "C:\\Users\\OhhMoo\\Desktop\\research\\alkera\\gateway\\docker\\compose.native.yml",
     "+ the rollout's own compose.native-mounts.yml"
   ],
-  "generated": "2026-09-17T04:07:13+00:00",
+  "generated": "2026-09-17T05:02:35+00:00",
   "host": {
     "docker": "29.5.2",
     "platform": "Windows-10-10.0.26200-SP0"
@@ -40,6 +40,7 @@
         "no_grading_or_rollout_path_exists": true,
         "no_mount_root_names_the_repository": true,
         "the_episode_can_still_work": true,
+        "the_scheduler_plane_answers_with_jobs": true,
         "world_holds_only_the_mounted_warehouses": true
       },
       "contained": true,
@@ -89,13 +90,13 @@
         {
           "fstype": "9p",
           "options": "rw,noatime",
-          "root": "/Users/OhhMoo/AppData/Local/Temp/claude/C--Users-OhhMoo-desktop-research-alkera/8e0194ed-9fad-4596-a2aa-3db725359add/scratchpad/p7/world/workspace",
+          "root": "/Users/OhhMoo/AppData/Local/Temp/claude/C--Users-OhhMoo-desktop-research-alkera/8e0194ed-9fad-4596-a2aa-3db725359add/scratchpad/p7b/world/workspace",
           "target": "/workspace"
         },
         {
           "fstype": "9p",
           "options": "rw,noatime",
-          "root": "/Users/OhhMoo/AppData/Local/Temp/claude/C--Users-OhhMoo-desktop-research-alkera/8e0194ed-9fad-4596-a2aa-3db725359add/scratchpad/p7/audit",
+          "root": "/Users/OhhMoo/AppData/Local/Temp/claude/C--Users-OhhMoo-desktop-research-alkera/8e0194ed-9fad-4596-a2aa-3db725359add/scratchpad/p7b/audit",
           "target": "/audit"
         },
         {
@@ -107,7 +108,7 @@
         {
           "fstype": "9p",
           "options": "rw,noatime",
-          "root": "/Users/OhhMoo/AppData/Local/Temp/claude/C--Users-OhhMoo-desktop-research-alkera/8e0194ed-9fad-4596-a2aa-3db725359add/scratchpad/p7/world/var/warehouse/warehouse.duckdb",
+          "root": "/Users/OhhMoo/AppData/Local/Temp/claude/C--Users-OhhMoo-desktop-research-alkera/8e0194ed-9fad-4596-a2aa-3db725359add/scratchpad/p7b/world/var/warehouse/warehouse.duckdb",
           "target": "/world/var/warehouse/warehouse.duckdb"
         }
       ],
@@ -177,6 +178,15 @@
         "workspace",
         "world"
       ],
+      "scheduler": {
+        "items": 2,
+        "ok": true,
+        "populated": true,
+        "reachable": true,
+        "service": "sched",
+        "status": 200,
+        "url": "http://sched.internal:8120"
+      },
       "services": [
         {
           "populated": false,
@@ -214,7 +224,7 @@
           "url": "http://jira.internal:8080"
         },
         {
-          "items": 182,
+          "items": 363,
           "ok": true,
           "populated": true,
           "reachable": true,
@@ -239,6 +249,15 @@
           "url": "http://prometheus.internal:9090"
         },
         {
+          "items": 2,
+          "ok": true,
+          "populated": true,
+          "reachable": true,
+          "service": "sched",
+          "status": 200,
+          "url": "http://sched.internal:8120"
+        },
+        {
           "populated": false,
           "reachable": true,
           "service": "slack",
@@ -257,7 +276,7 @@
         "slack"
       ],
       "sweep": {
-        "files_scanned": 66,
+        "files_scanned": 64,
         "hits": [],
         "roots": [
           "/world",
@@ -311,27 +330,27 @@
         ]
       },
       "container": "alkera-p7-episode-1",
-      "image": "alkera-native:probe",
+      "image": "alkera-native:sched",
       "mounts": [
         {
           "rw": true,
-          "source": "C:/Users/OhhMoo/AppData/Local/Temp/claude/C--Users-OhhMoo-desktop-research-alkera/8e0194ed-9fad-4596-a2aa-3db725359add/scratchpad/p7/audit",
-          "target": "/audit"
+          "source": "C:/Users/OhhMoo/AppData/Local/Temp/claude/C--Users-OhhMoo-desktop-research-alkera/8e0194ed-9fad-4596-a2aa-3db725359add/scratchpad/p7b/world/var/warehouse/warehouse.duckdb",
+          "target": "/world/var/warehouse/warehouse.duckdb"
         },
         {
           "rw": true,
-          "source": "C:/Users/OhhMoo/AppData/Local/Temp/claude/C--Users-OhhMoo-desktop-research-alkera/8e0194ed-9fad-4596-a2aa-3db725359add/scratchpad/p7/world/var/warehouse/warehouse.duckdb",
-          "target": "/world/var/warehouse/warehouse.duckdb"
+          "source": "C:/Users/OhhMoo/AppData/Local/Temp/claude/C--Users-OhhMoo-desktop-research-alkera/8e0194ed-9fad-4596-a2aa-3db725359add/scratchpad/p7b/world/workspace",
+          "target": "/workspace"
+        },
+        {
+          "rw": true,
+          "source": "C:/Users/OhhMoo/AppData/Local/Temp/claude/C--Users-OhhMoo-desktop-research-alkera/8e0194ed-9fad-4596-a2aa-3db725359add/scratchpad/p7b/audit",
+          "target": "/audit"
         },
         {
           "rw": false,
           "source": "",
           "target": "/world/var/ledger"
-        },
-        {
-          "rw": true,
-          "source": "C:/Users/OhhMoo/AppData/Local/Temp/claude/C--Users-OhhMoo-desktop-research-alkera/8e0194ed-9fad-4596-a2aa-3db725359add/scratchpad/p7/world/workspace",
-          "target": "/workspace"
         }
       ],
       "network_mode": "alkera-p7_episode_net",
@@ -357,20 +376,20 @@
       "image": "postgres@sha256:f1c3376c26f2609ab9f29f71f824103fe2fcd8ee0346485cb6122a4f93df6f94",
       "mounts": [
         {
-          "rw": false,
-          "source": "C:\\Users\\OhhMoo\\Desktop\\research\\alkera\\gateway\\docker\\postgres.sql",
-          "target": "/docker-entrypoint-initdb.d/seed.sql"
-        },
-        {
           "rw": true,
           "source": "alkera-p7_pgdata",
           "target": "/var/lib/postgresql/data"
+        },
+        {
+          "rw": false,
+          "source": "/run/desktop/mnt/host/c/Users/OhhMoo/Desktop/research/alkera/gateway/docker/postgres.sql",
+          "target": "/docker-entrypoint-initdb.d/seed.sql"
         }
       ],
       "network_mode": "alkera-p7_backend_net",
       "networks": {
-        "alkera-p7_backend_net": "172.23.0.3",
-        "alkera-p7_episode_net": "172.22.0.2"
+        "alkera-p7_backend_net": "172.23.0.2",
+        "alkera-p7_episode_net": "172.22.0.4"
       },
       "published_ports": {},
       "service": "postgres"
@@ -389,30 +408,31 @@
           "metabase.internal",
           "prometheus.internal",
           "alertmanager.internal",
-          "loki.internal"
+          "loki.internal",
+          "sched.internal"
         ]
       },
       "container": "alkera-p7-native-services-1",
-      "image": "alkera-native:probe",
+      "image": "alkera-native:sched",
       "mounts": [
-        {
-          "rw": false,
-          "source": "alkera-p7_pgdata",
-          "target": "/pgdata"
-        },
         {
           "rw": false,
           "source": "",
           "target": "/world/var/ledger"
         },
         {
+          "rw": false,
+          "source": "alkera-p7_pgdata",
+          "target": "/pgdata"
+        },
+        {
           "rw": true,
-          "source": "C:/Users/OhhMoo/AppData/Local/Temp/claude/C--Users-OhhMoo-desktop-research-alkera/8e0194ed-9fad-4596-a2aa-3db725359add/scratchpad/p7/world",
+          "source": "/run/desktop/mnt/host/c/Users/OhhMoo/AppData/Local/Temp/claude/C--Users-OhhMoo-desktop-research-alkera/8e0194ed-9fad-4596-a2aa-3db725359add/scratchpad/p7b/world",
           "target": "/world"
         },
         {
           "rw": true,
-          "source": "C:/Users/OhhMoo/AppData/Local/Temp/claude/C--Users-OhhMoo-desktop-research-alkera/8e0194ed-9fad-4596-a2aa-3db725359add/scratchpad/p7/audit",
+          "source": "/run/desktop/mnt/host/c/Users/OhhMoo/AppData/Local/Temp/claude/C--Users-OhhMoo-desktop-research-alkera/8e0194ed-9fad-4596-a2aa-3db725359add/scratchpad/p7b/audit",
           "target": "/audit"
         }
       ],
@@ -451,8 +471,8 @@
       ],
       "network_mode": "alkera-p7_backend_net",
       "networks": {
-        "alkera-p7_backend_net": "172.23.0.2",
-        "alkera-p7_episode_net": "172.22.0.4"
+        "alkera-p7_backend_net": "172.23.0.3",
+        "alkera-p7_episode_net": "172.22.0.2"
       },
       "published_ports": {},
       "service": "minio"
@@ -461,5 +481,5 @@
   "summary": {
     "p7_native_episode_filesystem": true
   },
-  "world_root_on_the_host": "C:\\Users\\OhhMoo\\AppData\\Local\\Temp\\claude\\C--Users-OhhMoo-Desktop-research-alkera\\8e0194ed-9fad-4596-a2aa-3db725359add\\scratchpad\\p7\\world"
+  "world_root_on_the_host": "C:\\Users\\OhhMoo\\AppData\\Local\\Temp\\claude\\C--Users-OhhMoo-Desktop-research-alkera\\8e0194ed-9fad-4596-a2aa-3db725359add\\scratchpad\\p7b\\world"
 }

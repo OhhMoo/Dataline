@@ -841,10 +841,22 @@ def _git_repo(workspace: str) -> tuple[bool, str | None, str]:
 
 
 def _run_native_check(surface: str, endpoints: dict, world: dict,
-                      schemas: list[str], timeout: float
+                      schemas: list[str], timeout: float,
+                      served_planes: frozenset = frozenset()
                       ) -> tuple[bool, str | None, str]:
     workspace = str(world.get("workspace") or "")
     kind = native_check_kind(surface)
+    if surface in served_planes:
+        # THE GATE MUST ASK THE PLANE THE SUBJECT CAN REACH. Under the container
+        # topology the episode mounts the workspace and the warehouse files and
+        # nothing else, so `var/sched/state.json` - which the host check reads -
+        # is not on the subject's filesystem at all: a gate that read it would
+        # report a live scheduler the subject cannot touch, which is precisely
+        # the misattribution this module exists to prevent. There the plane is
+        # served (`sched.internal`) and its `/health` counts the same jobs.
+        # `served_planes` is empty on the host topology, where the CLI runs
+        # locally and the file IS the surface.
+        return _http_health(endpoints[surface], timeout)
     if kind == "http_health":
         return _http_health(endpoints[surface], timeout)
     if kind == "sql":
@@ -882,12 +894,19 @@ def warehouse_schemas(spec) -> list[str]:
 
 def probe_native(*, probes: list[dict], endpoints: dict, world: dict,
                  schemas: list[str] | None = None,
-                 timeout: float = 5.0) -> dict:
+                 timeout: float = 5.0,
+                 served_planes: frozenset = frozenset()) -> dict:
     """Health-check this episode's native surfaces, before the subject runs.
 
     Returns the same `{"probed": bool, "surfaces": {...}}` shape
     `episode.probe_surfaces` returns, so `audit()` and `classify()` need no
     native branch at all.
+
+    `served_planes` names the surfaces this TOPOLOGY serves over HTTP rather
+    than off the world's filesystem - `{"sched"}` under `--topology container`,
+    nothing on the host. It is the caller's to declare, because which planes the
+    subject can reach is a property of the container the caller built and a
+    harness that guessed at it would be reporting a surface nobody probed.
 
     Two sources, as under MCP. The task's DECLARED probes keep their labels, so
     `required_surfaces` resolves exactly as it does under the gateway. Every
@@ -922,12 +941,14 @@ def probe_native(*, probes: list[dict], endpoints: dict, world: dict,
         else:
             if surface not in cache:
                 cache[surface] = _run_native_check(surface, endpoints, world,
-                                                   list(schemas or ()), timeout)
+                                                   list(schemas or ()), timeout,
+                                                   served_planes)
             live, code, detail = cache[surface]
         surfaces[label] = {
             "tool": c["tool"], "covers": c["covers"], "declared": c["declared"],
             "native_surface": surface,
-            "check": native_check_kind(surface) if surface else "unmapped",
+            "check": ("http_health" if surface in served_planes
+                      else native_check_kind(surface) if surface else "unmapped"),
             "live": live,
             "error_code": code,
             "error": None if live else json.dumps({"code": code,

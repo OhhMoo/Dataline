@@ -103,6 +103,23 @@ NATIVE_SERVICES = {
     "deploy":       ("DEPLOY_URL",       8085),
 }
 
+# The planes the WORKSPACE reaches through a CLI of its own rather than through
+# a vendor client. `sched_*` is the only one: `./ops/sched` runs the three
+# `Operations` methods locally on the host topology, and under the container
+# topology - where the files it drives are deliberately not mounted into the
+# episode - it sends the same three to the scheduler plane
+# `alkera_gateway.native.serve.sched_plane` mounts at `sched.internal:8120`.
+#
+# Separate from NATIVE_SERVICES on purpose. That table is the nine VENDOR-shaped
+# services: it is what the aggregate health reports, what containment P6 probes
+# by registry, and what `surface_audit` sweeps as `~<name>` when a task does not
+# speak for one. The scheduler is none of those things - it is the team's own
+# CLI - but it IS an address the episode may dial, so it belongs in the endpoint
+# map and therefore in `allowed_destinations`.
+NATIVE_WORKSPACE_SERVICES = {
+    "sched": ("SCHED_URL", 8120),
+}
+
 # Obviously fake, per the repo rule: never a realistic key format. The same
 # string is the Postgres password, the MinIO access key and its secret, because
 # a credential the workspace carries is a prop and pretending otherwise invites
@@ -140,7 +157,8 @@ def resolve_endpoints(path: str | Path | None = None) -> dict:
     prevent.
     """
     ep: dict = {name: f"http://{name}.internal:{port}"
-                for name, (_, port) in NATIVE_SERVICES.items()}
+                for name, (_, port) in {**NATIVE_SERVICES,
+                                        **NATIVE_WORKSPACE_SERVICES}.items()}
     for key, value in NATIVE_DEFAULTS.items():
         ep[key] = dict(value) if isinstance(value, dict) else value
     if not path:
@@ -162,7 +180,8 @@ def resolve_endpoints(path: str | Path | None = None) -> dict:
 def native_env(*, endpoints: dict, audit_dir: Path,
                profiles_dir: str | Path,
                scheduler: str | Path = "",
-               gateway_config: str | Path = "") -> dict:
+               gateway_config: str | Path = "",
+               variant: str = "") -> dict:
     """The environment contract the native subject discovers its stack through.
 
     Everything here is an address or an obviously fake credential. There is no
@@ -171,6 +190,14 @@ def native_env(*, endpoints: dict, audit_dir: Path,
     """
     pg = endpoints["postgres"]
     env = {var: endpoints[name] for name, (var, _) in NATIVE_SERVICES.items()}
+    # `SCHED_URL` is deliberately NOT exported here. This function builds the
+    # environment for the HOST topology, where `./ops/sched` runs the three
+    # operations in its own process against the world's own files and writes
+    # its own row - the mode `tasks/harness/test_native_stack.py` proves row for
+    # row against `alkera_gateway.Gateway`. The container topology sets it from
+    # `gateway/docker/compose.native.yml`, inside the box, because there the
+    # plane is served. One variable, two topologies, and the difference is
+    # stated here rather than discovered by a rollout.
     if scheduler:
         # `var/sched/state.json`, and it is the VIRTUAL CLOCK as much as the
         # scheduler: `alkera_gateway.native.audit.virtual_time` reads `vnow` out
@@ -185,6 +212,15 @@ def native_env(*, endpoints: dict, audit_dir: Path,
         # so `./ops/sched` resolves this episode's planes exactly as they do
         # rather than re-deriving them from a convention.
         env["ALKERA_GATEWAY_CONFIG"] = str(gateway_config)
+    if variant:
+        # The context variant this episode's world was built from
+        # (VARIANTS_REQUESTS.md item 6). Anything in the subject's process tree
+        # that re-resolves the task - a generator the workspace ships, a
+        # `./ops/` CLI - reads it, and a subject environment that did not carry
+        # it would answer for `default` inside a world that is an arm. Only when
+        # there IS one: an empty value is still a request to
+        # `taskspec.requested_variant`.
+        env["ALKERA_TASK_VARIANT"] = variant
     env.update({
         # the 9.2.2 action log: every service and shim appends here, so the
         # budget watcher, the detectors and the grader all read one file
@@ -221,7 +257,9 @@ def allowed_destinations(endpoints: dict) -> set[tuple[str, int]]:
     are normalised together because the destinations log records what the
     connection saw and `localhost` and `127.0.0.1` are the same host.
     """
-    out = {_host_port(endpoints[name]) for name in NATIVE_SERVICES}
+    out = {_host_port(endpoints[name])
+           for name in (*NATIVE_SERVICES, *NATIVE_WORKSPACE_SERVICES)
+           if endpoints.get(name)}
     out.add(_host_port(endpoints["s3"]))
     pg = endpoints["postgres"]
     out.add((str(pg["host"]), int(pg["port"])))
@@ -790,7 +828,8 @@ def run(*, instruction: str, toolbelt: dict, artifact_in_world: str,
         profiles_dir: str | Path | None = None,
         scheduler: str | Path | None = None,
         native_gateway_config: str | Path | None = None,
-        container_shell: dict | None = None) -> AgentRun:
+        container_shell: dict | None = None,
+        variant: str = "") -> AgentRun:
     if CLAUDE is None and driver not in ("scripted", "kimi"):
         raise HarnessError("the `claude` CLI is not on PATH; no subject to run")
     if KIMI is None and driver == "kimi":
@@ -854,28 +893,26 @@ def run(*, instruction: str, toolbelt: dict, artifact_in_world: str,
                                        audit_dir=audit_dir,
                                        profiles_dir=profiles_dir or "",
                                        scheduler=scheduler or "",
-                                       gateway_config=native_gateway_config or "")
+                                       gateway_config=native_gateway_config or "",
+                                       variant=variant)
         if container_shell:
-            # THE SUBJECT'S SHELL IS NOT A SHELL. Under the container topology
-            # every command has to execute inside this rollout's episode
-            # container, so the `bash` the model finds is the wrapper
-            # `container_episode.write_bash_wrapper` materialised: one
-            # `docker exec`, same command text, no host fallback.
-            #
-            # Two hooks, because `claude` finds its shell two ways.
-            # CLAUDE_CODE_GIT_BASH_PATH is the one it reads on Windows; the
-            # PATH-front directory is what everything else resolves through,
-            # and it carries `bash` and `bash.cmd` for exactly the reason
-            # `alkera_gateway.native.shims.install` writes both.
+            # THE SUBJECT'S SHELL RUNS IN THE CONTAINER, and what arms that is
+            # `container_shell["subject_env"]` - the CLI pinned to a real
+            # `bash.exe`, `HOME` pointed at this rollout's own hook directory,
+            # and `BASH_ENV` at the hook itself. The measurement behind each of
+            # those is in `container_episode.write_bash_wrapper`; the short
+            # version is that the PATH-front wrapper this replaced was IGNORED
+            # and put a real model on the host filesystem.
             #
             # The endpoint variables are NOT the host's here: the addresses the
             # episode uses come from compose, inside the container. What stays
             # in this process's environment is only what starts `claude`.
-            subject_env_extra = {
-                "CLAUDE_CODE_GIT_BASH_PATH": container_shell["launcher"],
-                "PATH": os.pathsep.join(
-                    [container_shell["bin"], os.environ.get("PATH", "")]),
-            }
+            if not container_shell.get("proof", {}).get("verified"):
+                raise HarnessError(
+                    f"refusing to start a container-topology episode whose "
+                    f"shell was not proved to reach the container: "
+                    f"{container_shell.get('proof')}")
+            subject_env_extra = dict(container_shell["subject_env"])
         (rollout_dir / "native_env.json").write_text(
             json.dumps(subject_env_extra, indent=2, sort_keys=True),
             encoding="utf-8")

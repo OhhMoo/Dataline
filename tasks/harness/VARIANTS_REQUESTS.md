@@ -21,6 +21,14 @@ Nothing here blocked the fold-in. All four arms print TASK VALID.
 
 ## 1. Overlay chaining, or an `inherits` key
 
+> **DONE 2026-09-16 by VARIANTS, after this was written.** `overlay` now
+> takes a string OR a list of strings and applies them in the order
+> declared, base first, last write wins (`taskspec.Variant.overlays`;
+> `Variant.overlay` is kept as "the last one", so GT006's build_world.py
+> reads unchanged). `tasks/harness/test_variants.py` checks last-write-wins
+> across a chain. GT006 can collapse its two duplicated files into a shared
+> base overlay whenever it wants to; nothing forces it to.
+
 `stage_fixtures` copies `fixtures/` then ONE overlay: "overlay order is fixed
 and one-deep". GT006's two stacked arms differ from each other in exactly three
 files (`workflow/{issues,claims,kb}.yaml`) and are identical in the other three
@@ -87,6 +95,11 @@ Two possible fixes, either is fine:
 The second is more magic but needs no per-task declaration.
 
 ## 3. `_tree_stamp` invalidation is correct and surprising
+
+> **DONE 2026-09-16 by VARIANTS.** `_tree_stamp`'s docstring now says it: the
+> staged tree is a CACHE, and anything generated into it can vanish on the next
+> call. Items 2 and 4 are NOT done and are still open as written.
+
 
 Editing ANY file under `fixtures/` - including one no overlay touches, e.g. a
 docstring in `fixtures/workflow/check_claims.py` - changes `_tree_stamp` and

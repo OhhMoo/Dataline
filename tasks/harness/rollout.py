@@ -17,6 +17,13 @@ Sequence, and the order is the contract:
 The grader is not on disk anywhere the episode can address, and it is not
 invoked until the subject's process is dead. Ground rule 1.
 
+Two paths re-open a rollout that has already been run, and they are not the
+same. `--reclassify` re-derives the verdict and keeps the stored score verbatim,
+for applying a detector fix. `--regrade` re-runs every stage AFTER teardown, the
+grader included, for a run whose grader was broken or whose harness died before
+it wrote the record - see the regrade block below. Neither ever re-runs the
+subject, and neither rebuilds the world.
+
 `--driver native` (gateway/NATIVE_SURFACES.md) replaces the gateway with
 vendor-shaped services the subject reaches through its shell. The sequence above
 is unchanged; what changes is that "probe surfaces" becomes a set of service
@@ -30,6 +37,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import secrets
 import shutil
@@ -60,6 +68,28 @@ def _free_port() -> int:
     p = s.getsockname()[1]
     s.close()
     return p
+
+
+def _max_seq(actions: Path) -> int:
+    """The highest `seq` in an action log, or 0 for one that is not there yet.
+
+    Read rather than counted: `seq` is the log's own contiguous sequence
+    (contract 9.2.2) and a count would be wrong the moment a row failed to
+    parse.
+    """
+    high = 0
+    try:
+        text = actions.read_text(encoding="utf-8")
+    except OSError:
+        return 0
+    for line in text.splitlines():
+        if not line.strip():
+            continue
+        try:
+            high = max(high, int(json.loads(line).get("seq") or 0))
+        except (ValueError, TypeError, AttributeError):
+            continue
+    return high
 
 
 def _plant_canaries(rollout_dir: Path, grading: Path) -> list[str]:
@@ -283,14 +313,19 @@ def reclassify(rollout_dir: Path) -> dict:
     rec["blindness"] = blindness.summarise(violations)
     rec["blindness_guarantee"] = blindness.guarantee(
         driver=rec["driver"], topology=rec.get("topology", "host"),
-        containment=stored_containment)
+        containment=stored_containment,
+        # Stored by the run that took it. A reclassification cannot re-take a
+        # measurement of a container that is long gone, and it must not be able
+        # to promote a record into the strong claim by forgetting to ask.
+        container_execution=rec.get("container_execution_proof"))
     rec.update(classifier.classify(
         spec=spec, score=rec.get("score"), score_stable=rec.get("score_stable", True),
         grader_crashed=bool(rec.get("grader_crashed")),
         harness_failure=rec.get("harness_failure"),
         agent_exit_reason=(rec.get("agent") or {}).get("exit_reason", "not_started"),
         blindness=rec["blindness"],
-        action_rows=blindness.subject_rows(action_rows),
+        action_rows=blindness.subject_rows(
+            action_rows, rec.get("action_log_watermark", 0)),
         surfaces=(rec.get("surfaces") or {}).get("surfaces", {}),
         artifact_present=bool(rec.get("artifact_present")),
         wall_clock_s=rec["limits"]["wall_clock_seconds"],
@@ -305,9 +340,770 @@ def reclassify(rollout_dir: Path) -> dict:
     return rec
 
 
+# ------------------------------------------------------------------- regrade
+#
+# The episode is the expensive half. Everything after teardown is not, and all
+# of it is a function of files that are already on disk. The rollout that forced
+# this was GT009: five episodes ran to completion - transcript, action log,
+# world, grading zone, artefact, all written - and rollout.py then died at
+# record time on `c["id"]`, because that task's grader emitted `check` instead.
+# Re-running them would have spent ~55 minutes of model quota re-doing the one
+# part that had not failed.
+#
+# It is NOT `--reclassify`. Reclassify re-derives the verdict and keeps the
+# stored score verbatim, because a detector fix is all it exists to apply. This
+# re-runs the GRADER as well - which is the point when the grader is what was
+# broken - so it needs the world, the grading zone and the artefact as well as
+# the transcript and the action log, and it refuses a directory missing any of
+# them by name.
+#
+# THE RULE THAT MAKES IT HONEST. Every input describing the world BEFORE the
+# episode - the tree manifest the off-channel detector diffs against, the
+# fingerprint, the action-log watermark, the surface probe results, the toolbelt
+# the subject was handed - comes from what rollout.py wrote AT THE TIME. Nothing
+# here rebuilds the world, re-probes it or re-runs the subject: a "before"
+# picture taken now is a picture of the world the episode has already changed,
+# and grading against one would be inventing evidence. What was NOT saved is
+# named on the record under `regrade.missing`, the rollout is marked
+# `regrade_partial`, and the consequence of each absent piece is written out. It
+# is never quietly filled in with a plausible value.
+#
+# `before_episode.json` - written by run_rollout below, immediately before the
+# subject is handed the terminal - is what makes a regrade COMPLETE. Rollouts
+# recorded before that file existed are still regradable, and they say what it
+# cost them.
+REGRADE_SCHEMA = 1
+BEFORE_EPISODE_FILE = "before_episode.json"
+
+#: The prefix blindness.detect builds its mcp allowlist with (its `mcp_server`
+#: default). Restated rather than imported for the one place below that has to
+#: read a granted tool name back apart.
+MCP_TOOL_PREFIX = "mcp__alkera__"
+
+#: What a completed episode leaves behind. A directory missing any of these is
+#: refused rather than regraded around: each is an input to a stage below, and a
+#: stage that runs without its input produces a verdict about nothing.
+REGRADE_INPUTS = (
+    ("transcript.jsonl", "file", "the episode transcript - every detector reads it"),
+    ("audit/actions.jsonl", "file",
+     "the contract-9.2.2 action log - the tool-call count, the off-channel "
+     "detector and the classifier all read it"),
+    ("world", "dir", "the world the episode ended in - what the grader grades"),
+    ("grading", "dir",
+     "the grading zone - the rubric, the reference and the recoverable canaries"),
+)
+
+
+class RegradeRefused(Exception):
+    """This directory cannot be regraded, and the message names why.
+
+    A refusal rather than a partial: the pieces it fires on have no honest
+    substitute, and producing a record without them would be producing a number
+    for an episode the harness cannot describe.
+    """
+
+
+def _read_json(path: Path):
+    """The JSON at `path`, or None when it is absent or unreadable."""
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+
+
+def _first(*candidates):
+    """The first `(source, value)` whose value is not None, else `(None, None)`.
+
+    `None` means ABSENT and nothing else does: an action-log watermark of 0 and
+    a variant of "" are both real values a truthiness test would throw away.
+    """
+    for source, value in candidates:
+        if value is not None:
+            return source, value
+    return None, None
+
+
+def _driver_from_disk(rollout_dir: Path) -> tuple[str | None, str]:
+    """Which driver ran here, read off files the harness wrote at episode time.
+
+    Only ever reached for a rollout with no record at all. The driver decides
+    the tool ALLOWLIST, so a guess here is a libel - an mcp episode judged
+    against native's allowlist would have every gateway call it made flagged -
+    and this fails closed: unrecognised evidence returns None and the regrade
+    refuses.
+    """
+    argv = _read_json(rollout_dir / "agent_argv.json")
+    mcp = _read_json(rollout_dir / "mcp.json")
+    if not isinstance(mcp, dict):
+        return None, "no mcp.json in the rollout directory"
+    servers = mcp.get("mcpServers") or {}
+    exe = (Path(str(argv[0])).name.lower()
+           if isinstance(argv, list) and argv else "")
+    if servers:
+        if "kimi" in exe:
+            return "kimi", (f"mcp.json declares {sorted(servers)} and "
+                            f"agent_argv.json starts {exe}")
+        return "mcp", f"mcp.json declares the gateway server(s) {sorted(servers)}"
+    return "native", ("mcp.json declares NO mcp servers, which is native mode's "
+                      "empty config - a shell and nothing else")
+
+
+def _topology_from_disk(rollout_dir: Path) -> tuple[str, str]:
+    """`container` only on evidence of a container; `host` otherwise.
+
+    Both container topologies leave a directory behind - `container/` for the
+    in-container gateway config and probe set, `shell/` for the bash wrapper.
+    Absence of that evidence reads as `host`, which is the weaker of the two
+    claims (`blindness.guarantee` gives host no filesystem isolation), so the
+    fallback cannot launder a rollout into a stronger guarantee than it earned.
+    """
+    for name in ("container", "shell"):
+        if (rollout_dir / name).is_dir():
+            return "container", (f"{name}/ is present, and only the container "
+                                 f"topology writes it")
+    return "host", ("no container/ or shell/ directory: nothing on disk says a "
+                    "container ran, and host is the weaker of the two claims")
+
+
+def _model_from_disk(rollout_dir: Path) -> str | None:
+    """The model string out of the argv `agent_under_test` recorded."""
+    argv = _read_json(rollout_dir / "agent_argv.json")
+    if not isinstance(argv, list):
+        return None
+    for i, a in enumerate(argv[:-1]):
+        if a == "--model":
+            return str(argv[i + 1])
+    return None
+
+
+def _world_from_gateway_config(rollout_dir: Path) -> dict | None:
+    """The world manifest, rebuilt from the gateway config rollout.py wrote.
+
+    `write_gateway_config` copies the world manifest's paths into `gateway.json`
+    before the episode, so for a rollout whose record was never written this is
+    the surviving statement of where that world's parts are - and one the
+    harness wrote at the time, not one inferred now. The grading zone is not in
+    it by design (the gateway cannot address the grading zone at all); it is the
+    rollout directory's own `grading/` sibling, which is rollout.py's layout
+    rather than a guess.
+    """
+    cfg = _read_json(rollout_dir / "gateway.json")
+    if not isinstance(cfg, dict) or not cfg.get("world_root"):
+        return None
+    keys = ("workspace", "warehouse", "scheduler", "dashboards", "profiles_dir",
+            "world_root", "virtual_time", *episode.WORLD_PLANE_KEYS,
+            *episode.WORLD_WAREHOUSE_KEYS)
+    world = {k: cfg[k] for k in keys if cfg.get(k) is not None}
+    world["grading"] = str(rollout_dir / "grading")
+    return world
+
+
+def _reroot_world(world: dict, rollout_dir: Path) -> tuple[dict, str | None]:
+    """The saved world manifest, moved onto the directory actually being regraded.
+
+    A run that must be preserved is re-graded from a COPY, and a copy's world
+    root is not the one the record names. Without this the grader would be
+    pointed back at the original - reading a world the caller asked not to
+    touch, and staging this regrade's ledger into that run's grading zone. The
+    paths are relocated, never re-derived: same tree, new prefix.
+    """
+    old, new = Path(world["world_root"]), rollout_dir / "world"
+    if os.path.normcase(str(old)) == os.path.normcase(str(new)):
+        return world, None
+    prefix = os.path.normcase(str(old)) + os.sep
+    out: dict = {}
+    for key, value in world.items():
+        if isinstance(value, str) and os.path.normcase(value).startswith(prefix):
+            out[key] = str(new / value[len(str(old)) + 1:])
+        else:
+            out[key] = value
+    out["world_root"] = str(new)
+    out["grading"] = str(rollout_dir / "grading")
+    if world.get("warehouses"):
+        out["warehouses"] = episode.reroot_warehouses(
+            world["warehouses"], old, new.as_posix())
+    return out, (f"the rollout directory has moved since the run, so the saved "
+                 f"world manifest was re-rooted from {old} onto {new}. Nothing "
+                 f"in the original directory is read or written.")
+
+
+def _grade_argv_placeholders(spec) -> set[str]:
+    """The `{name}`s this task's grade_argv substitutes."""
+    return {m.group(1) for a in spec.grade_argv
+            for m in re.finditer(r"\{([A-Za-z_][A-Za-z0-9_]*)\}", a)}
+
+
+def _write_before_episode(rollout_dir: Path, record: dict,
+                          tree_manifest: dict) -> Path:
+    """Save the BEFORE-EPISODE state, immediately before the subject runs.
+
+    Written because `--regrade` has to be able to say what the world looked like
+    at t=0 without rebuilding it, and until this file existed the only copy of
+    that state was the record - which a harness crash between teardown and the
+    record write destroys, which is the exact case regrade exists for.
+
+    It holds nothing the grading zone holds: paths, hashes, the probe verdicts
+    and the toolbelt. No canary token goes in it - those are recovered from the
+    artefacts they were planted in, as `--reclassify` already does - and no
+    reference answer, because under the native and container topologies the
+    subject has a shell and this file sits in the rollout directory beside the
+    world.
+    """
+    payload = {
+        "schema_version": REGRADE_SCHEMA,
+        "written_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "why": ("the before-episode state `rollout.py --regrade` reads instead "
+                "of re-taking it; see the regrade block in rollout.py"),
+        "tree_manifest": tree_manifest,
+    }
+    for key in ("task", "tasks_dir", "variant", "run_id", "rollout_id", "model",
+                "driver", "topology", "seed", "limits", "prompt_sha256",
+                "prompt_variant", "episode_id", "episode_label", "world",
+                "world_fp_before", "action_log_watermark", "surfaces",
+                "toolbelt", "undeclared_tools", "unprobed_tools",
+                "native_endpoints", "container_paths", "containment"):
+        payload[key] = record.get(key)
+    path = rollout_dir / BEFORE_EPISODE_FILE
+    path.write_text(json.dumps(payload, indent=2, default=str), encoding="utf-8")
+    return path
+
+
+def _refuse_incomplete(rollout_dir: Path) -> None:
+    """Refuse a directory that is not a completed episode, naming what is absent."""
+    absent = []
+    for rel, kind, why in REGRADE_INPUTS:
+        path = rollout_dir / rel
+        present = path.is_file() if kind == "file" else path.is_dir()
+        if not present:
+            absent.append(f"{rel} - {why}")
+    if absent:
+        raise RegradeRefused(
+            f"{rollout_dir} is not a completed episode, so there is nothing to "
+            f"re-grade. Missing: " + "; ".join(absent) + ". --regrade re-runs "
+            f"the stages that come AFTER teardown; it cannot run an episode.")
+
+
+def _stored_world_diff(summary: dict | None) -> list | None:
+    """The world-diff violations a run's own record carries, or None.
+
+    None means "this record states no world-diff verdict", which is a different
+    thing from "it states there was none" - the first cannot be carried forward
+    and the second can. A violation the record spells in a shape this version of
+    `Violation` does not take is treated as the first: a verdict we cannot read
+    is not a verdict we may repeat.
+    """
+    if not isinstance(summary, dict) or "violations" not in summary:
+        return None
+    out = []
+    for row in summary.get("violations") or ():
+        if not isinstance(row, dict) or row.get("detector") != "world_diff":
+            continue
+        try:
+            out.append(blindness.Violation(
+                **{k: v for k, v in row.items()
+                   if k in ("kind", "hard", "detector", "evidence", "where")}))
+        except TypeError:
+            return None
+    return out
+
+
+def _read_action_rows(path: Path) -> list[dict]:
+    """The action log as rows, skipping lines that are not JSON objects."""
+    rows: list[dict] = []
+    if not path.exists():
+        return rows
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line.strip():
+            try:
+                rows.append(json.loads(line))
+            except ValueError:
+                pass
+    return rows
+
+
+def regrade(rollout_dir, task: str | None = None,
+            tasks_dir: str | Path | None = None) -> dict:
+    """Re-run one COMPLETED rollout's post-episode stages, from the files on disk.
+
+    The stages, in `run_rollout`'s own order and for its own reasons:
+
+        workspace-edit staging (native only) -> action log -> fingerprint ->
+        artefact -> blindness.detect -> episode.grade_twice -> classify -> record
+
+    The subject is never re-run and the world is never rebuilt. Returns the
+    record it wrote. Raises `RegradeRefused` when the directory is not a
+    completed episode, or when an input with no honest substitute is absent.
+    """
+    rollout_dir = Path(rollout_dir).resolve()
+    _refuse_incomplete(rollout_dir)
+
+    world_root = rollout_dir / "world"
+    grading = rollout_dir / "grading"
+    audit_dir = rollout_dir / "audit"
+
+    prior = _read_json(rollout_dir / "rollout.json")
+    prior = prior if isinstance(prior, dict) else None
+    before = _read_json(rollout_dir / BEFORE_EPISODE_FILE)
+    before = before if isinstance(before, dict) else None
+    P, B = prior or {}, before or {}
+
+    sources: dict[str, str] = {}
+    missing: list[dict] = []
+    carried: list[str] = []
+
+    def take(piece: str, *candidates, consequence: str):
+        """One before-episode input, or a record that it was never saved."""
+        source, value = _first(*candidates)
+        if source is None:
+            sources[piece] = "NOT SAVED"
+            missing.append({"piece": piece, "consequence": consequence})
+            return None
+        sources[piece] = source
+        return value
+
+    # --- identity. Refusals rather than degradations: a regrade that does not
+    # know which task this was cannot load a rubric, and one that does not know
+    # the driver cannot say what the subject was allowed to hold.
+    src, task_id = _first(("rollout.json", P.get("task")),
+                          (BEFORE_EPISODE_FILE, B.get("task")),
+                          ("--task", task),
+                          ("run directory layout",
+                           rollout_dir.parent.parent.name or None))
+    if not task_id:
+        raise RegradeRefused(
+            f"{rollout_dir} has no rollout.json and no {BEFORE_EPISODE_FILE}, "
+            f"and its path does not name a task. Pass --task.")
+    sources["task"] = src
+
+    src, tdir = _first(("rollout.json", P.get("tasks_dir")),
+                       (BEFORE_EPISODE_FILE, B.get("tasks_dir")),
+                       ("--tasks-dir", str(tasks_dir) if tasks_dir else None))
+    sources["tasks_dir"] = src or "the default tasks/ package directory"
+
+    variant = _first(("rollout.json", P.get("variant")),
+                     (BEFORE_EPISODE_FILE, B.get("variant")))[1]
+    if variant:
+        # every child process - the grader above all - resolves the arm from
+        # here, exactly as run_rollout exports it
+        os.environ[taskspec.VARIANT_ENV] = variant
+    try:
+        spec = taskspec.load(task_id, Path(tdir) if tdir else None,
+                             variant=variant or None)
+    except Exception as exc:                        # noqa: BLE001 - named
+        raise RegradeRefused(
+            f"the task package for {task_id!r} will not load, so this rollout "
+            f"cannot be graded against it: {type(exc).__name__}: {exc}") from exc
+
+    src, driver = _first(("rollout.json", P.get("driver")),
+                         (BEFORE_EPISODE_FILE, B.get("driver")))
+    if driver is None:
+        driver, evidence = _driver_from_disk(rollout_dir)
+        if driver is None:
+            raise RegradeRefused(
+                f"{rollout_dir} records no driver and nothing on disk names one "
+                f"({evidence}). The driver decides the tool allowlist every "
+                f"blindness detector is judged against, and the wrong one "
+                f"accuses the subject of holding tools the harness gave it.")
+        src = f"inferred: {evidence}"
+    sources["driver"] = src
+
+    src, topology = _first(("rollout.json", P.get("topology")),
+                           (BEFORE_EPISODE_FILE, B.get("topology")))
+    if topology is None:
+        topology, evidence = _topology_from_disk(rollout_dir)
+        src = f"inferred: {evidence}"
+    sources["topology"] = src
+
+    # --- the world manifest. No world, no grading: a refusal.
+    src, world = _first(("rollout.json", P.get("world")),
+                        (BEFORE_EPISODE_FILE, B.get("world")),
+                        ("gateway.json, written at episode time",
+                         _world_from_gateway_config(rollout_dir)))
+    if not world:
+        raise RegradeRefused(
+            f"{rollout_dir} has no saved world manifest and no gateway.json to "
+            f"rebuild one from, so the grader cannot be told where this world's "
+            f"warehouse, workspace and grading zone are.")
+    sources["world"] = src
+    world = dict(world)
+    world.setdefault("grading", str(grading))
+    world, moved = _reroot_world(world, rollout_dir)
+    if moved:
+        carried.append(moved)
+    absent = sorted(_grade_argv_placeholders(spec)
+                    - {"ledger", "artifact"} - set(world))
+    if absent:
+        raise RegradeRefused(
+            f"{task_id}'s grade_argv names {absent}, which the saved world "
+            f"manifest for this rollout does not carry ({sources['world']}). "
+            f"Substituting a path the harness never recorded would be grading "
+            f"against a world we invented.")
+
+    artifact_path = spec.artifact_host_path(world)
+    if not artifact_path.exists():
+        raise RegradeRefused(
+            f"{rollout_dir} has no final artefact at {artifact_path}. An episode "
+            f"that wrote none is a real outcome and run_rollout scores it as "
+            f"one, but it is not the completed episode --regrade reproduces: "
+            f"use --reclassify, or re-run it.")
+
+    # --- the toolbelt. It IS the allowlist under mcp and kimi, so a missing one
+    # cannot be defaulted to empty - that would flag every gateway call the
+    # subject made. When it was not saved it is re-read from the gateway venv
+    # and VERIFIED to cover every tool this episode's own init event says it was
+    # granted; a gateway that has since lost a tool this subject held fails the
+    # check and the regrade refuses rather than inventing a violation.
+    transcript = blindness.load_transcript(rollout_dir / "transcript.jsonl")
+    init = blindness.init_event(transcript)
+    granted = sorted((init or {}).get("tools") or [])
+    src, toolbelt = _first(("rollout.json", P.get("toolbelt")),
+                           (BEFORE_EPISODE_FILE, B.get("toolbelt")))
+    if toolbelt is None:
+        if driver in ("mcp", "kimi"):
+            try:
+                current = sorted(episode.gateway_tool_names())
+            except episode.HarnessError as exc:
+                raise RegradeRefused(
+                    f"the toolbelt this episode was handed was not saved and the "
+                    f"gateway's own toolbelt cannot be read either: {exc}") from exc
+            uncovered = [t for t in granted if t.startswith(MCP_TOOL_PREFIX)
+                         and t[len(MCP_TOOL_PREFIX):] not in set(current)]
+            if uncovered:
+                raise RegradeRefused(
+                    f"the toolbelt this episode was handed was not saved, and "
+                    f"the gateway's toolbelt today does not cover {uncovered} - "
+                    f"tools the transcript's own init event says the subject was "
+                    f"given. Judging it against today's allowlist would "
+                    f"quarantine it for holding a tool the harness has since "
+                    f"removed.")
+            toolbelt = current
+            src = ("re-read from the gateway venv, verified to cover every tool "
+                   "the transcript's init event records as granted")
+            missing.append({
+                "piece": "toolbelt",
+                "consequence": (
+                    "the tool allowlist was re-read from the gateway venv at "
+                    "regrade time rather than taken from what this episode was "
+                    "handed. It is verified to cover every granted tool, so "
+                    "neither the capability nor the tool-use detector can fire "
+                    "spuriously; a tool ADDED to the gateway since would widen "
+                    "the allowlist, and only the gateway can serve an "
+                    f"{MCP_TOOL_PREFIX} name.")})
+        else:
+            # cli, native and scripted are judged against {"Bash"} whatever the
+            # gateway holds (blindness.expected_tool_surface), so an unsaved
+            # toolbelt costs those rollouts nothing
+            toolbelt = []
+            src = "not needed: this driver's allowlist is Bash, not the toolbelt"
+    sources["toolbelt"] = src
+
+    # --- the rest of the before-episode state -----------------------------
+    tree_before = take(
+        "world_tree_before",
+        (BEFORE_EPISODE_FILE, B.get("tree_manifest")),
+        consequence=(
+            "the per-file world inventory taken before the episode was never "
+            "written to disk, so the off-channel-change detector has nothing to "
+            "diff against. It is NOT re-taken from the world as it stands now: "
+            "that world is the one the episode already changed, and a 'before' "
+            "picture taken after the fact would report every change as none. "
+            "blindness.detect's evidence gate therefore quarantines this "
+            "rollout as unobserved."))
+    watermark = take(
+        "action_log_watermark",
+        ("rollout.json", P.get("action_log_watermark")),
+        (BEFORE_EPISODE_FILE, B.get("action_log_watermark")),
+        consequence=(
+            "the action log's high-water mark at the moment the subject was "
+            "handed the terminal was not saved, so rows the harness cannot "
+            "identify by NAME are counted as the subject's. It can only "
+            "over-count the subject's tool calls, never under-count them."))
+    surfaces = take(
+        "surfaces",
+        ("rollout.json", P.get("surfaces")),
+        (BEFORE_EPISODE_FILE, B.get("surfaces")),
+        consequence=(
+            "the pre-episode surface probe results were not saved and cannot be "
+            "re-taken - the world has been worked in and graded against since. "
+            "The surface audit reports `unprobed`, report.py withholds Pass@1, "
+            "and a failure on a dead surface cannot be attributed."))
+    fp_before = take(
+        "world_fp_before",
+        ("rollout.json", P.get("world_fp_before")),
+        (BEFORE_EPISODE_FILE, B.get("world_fp_before")),
+        ("audit/session.json, written by the gateway at boot",
+         (_read_json(audit_dir / "session.json") or {}).get("initial_world_fp")),
+        consequence=("the world's semantic fingerprint before the episode was "
+                     "not saved, so `world_changed` cannot be stated"))
+    exit_reason = take(
+        "agent_exit_reason",
+        ("rollout.json", (P.get("agent") or {}).get("exit_reason")),
+        consequence=(
+            "how the subject's process ended was not saved, so `timeout` and "
+            "`budget` cannot be told apart from finishing normally. Recorded as "
+            "`unrecorded`, which matches no classifier branch, rather than as "
+            "`not_started` - which would be a claim, and a false one."))
+    limits = take(
+        "limits",
+        ("rollout.json", P.get("limits")),
+        (BEFORE_EPISODE_FILE, B.get("limits")),
+        consequence=("the ceilings this rollout actually ran under were not "
+                     "saved, so the task's declared defaults are used; a run "
+                     "made with --wall-clock or --max-tool-calls is then "
+                     "described by ceilings it did not have"))
+    limits = limits or {"wall_clock_seconds": spec.wall_clock_seconds,
+                        "max_tool_calls": spec.max_tool_calls}
+    native_endpoints = (
+        take("native_endpoints",
+             ("rollout.json", P.get("native_endpoints")),
+             (BEFORE_EPISODE_FILE, B.get("native_endpoints")),
+             consequence=("the endpoint map this native episode was given was "
+                          "not saved, so no destination in the connection log "
+                          "can be judged allowed; the network detector reports "
+                          "unobserved and the rollout quarantines"))
+        if driver == "native" else None)
+    container_paths = _first(("rollout.json", P.get("container_paths")),
+                             (BEFORE_EPISODE_FILE, B.get("container_paths")))[1]
+    containment = [c for c in (P.get("containment"), B.get("containment"),
+                               P.get("containment_after")) if c]
+    if topology == "container" and not containment:
+        missing.append({
+            "piece": "containment",
+            "consequence": ("no containment probe evidence was saved for this "
+                            "container, so the boundary cannot be asserted; "
+                            "blindness records it unverified and the rollout "
+                            "quarantines as unobserved")})
+
+    # --- STAGE 1: the workspace plane's rows (native only) ----------------
+    tree_after = episode.tree_manifest(world_root)
+    action_rows = _read_action_rows(audit_dir / "actions.jsonl")
+    workspace_edits = P.get("workspace_edits")
+    if driver == "native":
+        staged = [r for r in action_rows if r.get("tool") == "workspace.edit"]
+        if staged or workspace_edits:
+            carried.append(
+                f"workspace.edit staging: {len(staged)} row(s) are already in "
+                f"the action log from the run itself, so they are NOT staged "
+                f"again - a second staging would double every row and inflate "
+                f"the set of world files the detectors think was touched")
+            workspace_edits = workspace_edits or {
+                "rows": len(staged),
+                "paths": sorted({(r.get("args") or {}).get("path")
+                                 for r in staged} - {None})}
+        elif tree_before is not None:
+            workspace_edits = _stage_workspace_edits(
+                audit_dir, world, tree_before, tree_after)
+            action_rows = _read_action_rows(audit_dir / "actions.jsonl")
+        else:
+            missing.append({
+                "piece": "workspace_edits",
+                "consequence": ("this native rollout has no workspace.edit rows "
+                                "and no before-episode tree manifest to derive "
+                                "them from, so a working-tree change the subject "
+                                "made has no row in the log accounting for it")})
+
+    subject_rows = blindness.subject_rows(action_rows, watermark or 0)
+
+    # --- the world diff, which is the one stage whose INPUT can be lost while
+    # its OUTPUT survives. When the before-episode inventory was never written
+    # to disk but a record from the run WAS, that record already carries the
+    # verdict the detector reached with the real manifests in hand; it is
+    # carried forward verbatim - `--reclassify`'s precedent, and the same
+    # sentence it uses - and the detector is handed the same tree on both sides
+    # so it adds nothing on top. When there is NO record either, nothing was
+    # observed and nothing is invented: `world_before` stays None, detect's
+    # evidence gate fires, and the rollout quarantines as unobserved.
+    carried_world_diff: list = []
+    tree_for_detect = tree_before
+    entry = next((m for m in missing if m["piece"] == "world_tree_before"), None)
+    stored_diff = _stored_world_diff(P.get("blindness"))
+    if tree_before is None and stored_diff is not None:
+        carried_world_diff = stored_diff
+        tree_for_detect = tree_after
+        carried.append(
+            f"world-diff verdict ({len(carried_world_diff)} violation(s)) carried "
+            f"forward from the record this run wrote; the world cannot be "
+            f"re-inventoried after the fact")
+        if entry:
+            entry["consequence"] = (
+                "the per-file world inventory taken before the episode was never "
+                "written to disk, so the off-channel-change detector could not be "
+                "re-run. Its verdict is carried forward from the record the run "
+                "itself wrote - the detector DID run then, with the real "
+                "manifests - and the world is not re-inventoried now, because the "
+                "world as it stands is the one the episode already changed.")
+
+    # --- STAGE 2: the episode-level readings ------------------------------
+    rec: dict = dict(prior or {})
+    for key, value in (("schema_version", 1), ("task", task_id),
+                       ("rollout_id", rollout_dir.name),
+                       ("run_id", rollout_dir.parent.name),
+                       ("driver", driver), ("topology", topology),
+                       ("seed", spec.seed), ("limits", limits),
+                       ("tasks_dir", str(tdir) if tdir else None),
+                       ("redteam_detector_test", driver == "scripted"),
+                       ("model", _model_from_disk(rollout_dir)),
+                       ("episode_id", (_read_json(audit_dir / "session.json")
+                                       or {}).get("episode_id"))):
+        if rec.get(key) is None and value is not None:
+            rec[key] = value
+    if rec.get("variant") is None:
+        rec["variant"] = spec.variant
+    rec.setdefault("episode_label",
+                   f"{task_id}-{rollout_dir.parent.name}-{rollout_dir.name}")
+    # The episode id the gateway wrote is sha256(episode_label)[:24], so a task,
+    # run id and rollout id recovered from the directory layout can be CHECKED
+    # rather than trusted. A mismatch means this directory is not the episode its
+    # path says it is, and everything below would be filed under the wrong name.
+    expected_id = hashlib.sha256(
+        rec["episode_label"].encode("utf-8")).hexdigest()[:24]
+    recorded_id = rec.get("episode_id")
+    if recorded_id and recorded_id != expected_id:
+        raise RegradeRefused(
+            f"the episode id recorded at run time ({recorded_id}) is not "
+            f"sha256({rec['episode_label']!r})[:24] = {expected_id}. This "
+            f"directory is not the episode its path and record say it is.")
+
+    # Unconditional, unlike the identity fields above: these name the directory
+    # being regraded, and on a copy that is not the directory the record names.
+    rec["world"] = world
+    rec["rollout_dir"] = str(rollout_dir)
+    rec["world_fp_before"] = fp_before
+    rec["world_fp_after"] = episode.fingerprint(world_root)
+    rec["world_changed"] = (None if fp_before is None
+                            else rec["world_fp_after"] != fp_before)
+    rec["artifact_path"] = str(artifact_path)
+    artifact_text = artifact_path.read_text(encoding="utf-8", errors="replace")
+    rec["artifact_bytes"] = len(artifact_text)
+    rec["artifact_present"] = True
+    try:
+        rec["artifact"] = json.loads(artifact_text)
+        rec.pop("artifact_unparseable", None)
+    except ValueError:
+        rec["artifact"] = None
+        rec["artifact_unparseable"] = True
+    if workspace_edits is not None:
+        rec["workspace_edits"] = workspace_edits
+    rec["surfaces"] = surfaces or {"probed": False, "surfaces": {}}
+    rec["toolbelt"] = sorted(toolbelt or [])
+    rec["action_log_watermark"] = watermark or 0
+    rec["action_log"] = {
+        "path": str(audit_dir / "actions.jsonl"),
+        "rows": len(subject_rows),
+        "rows_including_harness_authored": len(action_rows),
+        "harness_authored_rows": len(action_rows) - len(subject_rows),
+        "watermark_before_episode": watermark or 0,
+        "gateway_started": (None if driver == "native"
+                            else (audit_dir / "session.json").exists()),
+    }
+    rec["granted_tools"] = granted
+    rec["mcp_servers"] = (init or {}).get("mcp_servers") or []
+    rec["tool_uses_in_transcript"] = len(blindness.tool_uses(transcript))
+
+    # --- STAGE 3: blindness ------------------------------------------------
+    destinations = None
+    network_allow = None
+    if driver == "native":
+        destinations = blindness.load_destinations(audit_dir)
+        network_allow = (aut.allowed_destinations(native_endpoints)
+                         if native_endpoints else None)
+        rec["destinations"] = {
+            "path": str(audit_dir / blindness.DESTINATIONS_FILE),
+            "present": destinations is not None,
+            "rows": len(destinations or []),
+            "allowed": sorted(f"{h}:{p}" for h, p in (network_allow or ())),
+        }
+    violations = blindness.detect(
+        transcript=transcript, driver=driver,
+        gateway_tools=sorted(toolbelt or []),
+        canaries=_recover_canaries(rollout_dir, grading),
+        repo_root=REPO, action_rows=action_rows,
+        # `tree_before` is None exactly when it was never saved, and detect's own
+        # evidence gate then quarantines the rollout as unobserved. That is the
+        # right answer and it is not softened here: an off-channel change to a
+        # world nobody photographed cannot be ruled out, and `regrade.missing`
+        # names the photograph that was never taken.
+        world_before=tree_for_detect, world_after=tree_after,
+        world_layout=world, artifact_text=artifact_text,
+        topology=topology, containment=containment,
+        destinations=destinations, network_allow=network_allow,
+        normalise_host=aut.normalise_host, container_paths=container_paths)
+    # appended, not merged: detect() emits the world diff last, so a carried
+    # verdict lands exactly where the run's own record has it
+    violations.extend(carried_world_diff)
+    rec["blindness"] = blindness.summarise(violations)
+    rec["blindness_guarantee"] = blindness.guarantee(
+        driver=driver, topology=topology, containment=containment,
+        container_execution=rec.get("container_execution_proof"))
+
+    # --- STAGE 4: grade, twice, exactly as run_rollout does ---------------
+    grade_sha = hashlib.sha256(spec.grade_entrypoint.read_bytes()).hexdigest()
+    score, score_stable, grader_crashed = None, True, False
+    try:
+        score, score_stable = episode.grade_twice(
+            spec, world, artifact_path, rollout_dir)
+        rec.pop("grader_error", None)
+    except episode.HarnessError as exc:
+        grader_crashed = True
+        rec["grader_error"] = str(exc)
+    rec["score"] = score
+    rec["score_stable"] = score_stable
+    rec["grader_crashed"] = grader_crashed
+    rec["checks"] = ({c["id"]: {"points": c["points"], "max": c["max"],
+                                "passed": c["passed"], "detail": c["detail"]}
+                      for c in score.get("checks", [])} if score else {})
+
+    # --- STAGE 5: classify -------------------------------------------------
+    rec["surface_audit"] = surface_audit.audit(
+        spec=spec, surfaces=rec["surfaces"], toolbelt=sorted(toolbelt or []))
+    rec["undeclared_tools"] = sorted(
+        set(toolbelt or []) - surface_audit.declared_tools(spec.surface_probes))
+    rec["unprobed_tools"] = sorted(
+        set(rec["surface_audit"]["unprobed_tools"])
+        | set(rec["surface_audit"]["unswept_tools"]))
+    was = P.get("classification") or "no_record"
+    rec.update(classifier.classify(
+        spec=spec, score=score, score_stable=score_stable,
+        grader_crashed=grader_crashed, harness_failure=rec.get("harness_failure"),
+        agent_exit_reason=exit_reason or "unrecorded",
+        blindness=rec["blindness"], action_rows=subject_rows,
+        surfaces=rec["surfaces"].get("surfaces", {}), artifact_present=True,
+        wall_clock_s=limits["wall_clock_seconds"],
+        max_tool_calls=limits["max_tool_calls"],
+        unprobed_tools=rec["unprobed_tools"],
+        surface_audit=rec["surface_audit"]))
+    rec["tool_calls"] = len(subject_rows)
+
+    # --- STAGE 6: the record -----------------------------------------------
+    rec["regraded_from"] = was
+    rec["regraded_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    rec["regrade_grader_sha256"] = grade_sha
+    rec["regrade_partial"] = bool(missing)
+    rec["regrade"] = {
+        "schema_version": REGRADE_SCHEMA,
+        "status": "partial" if missing else "complete",
+        "grade_entrypoint": str(spec.grade_entrypoint),
+        "grade_sha256": grade_sha,
+        "sources": sources,
+        "missing": missing,
+        "carried_forward": carried,
+        "identity_verified_against_episode_id": bool(recorded_id),
+    }
+    (rollout_dir / "rollout.json").write_text(
+        json.dumps(rec, indent=2, default=str), encoding="utf-8")
+    return rec
+
+
 def run_rollout(args) -> dict:
     tasks_dir = Path(args.tasks_dir).resolve() if args.tasks_dir else None
-    spec = taskspec.load(args.task, tasks_dir)
+    spec = taskspec.load(args.task, tasks_dir, variant=args.variant)
+    if spec.variant:
+        # Exported before anything forks, for the same reason `run_rollouts.py`
+        # exports it: the world builder, the fixture stager and the grader are
+        # all child processes and all of them resolve the arm from here. Set
+        # even when `--variant` was not given and the value came from the
+        # environment already, so a child cannot inherit a different one.
+        os.environ[taskspec.VARIANT_ENV] = spec.variant
     rollout_dir = Path(args.out).resolve()
     rollout_dir.mkdir(parents=True, exist_ok=True)
 
@@ -345,6 +1141,14 @@ def run_rollout(args) -> dict:
         "prompt_sha256": hashlib.sha256(
             spec.instruction_path.read_bytes()).hexdigest(),
         "prompt_variant": taskspec.prompt_variant_of(spec),
+        # The CONTEXT variant, recorded by the file that BUILDS the world
+        # (VARIANTS_REQUESTS.md item 5). `run_rollouts.py` also stamps it and
+        # refuses to overwrite a different value, so the two cannot disagree
+        # silently; what this line fixes is a bare `rollout.py` invocation of an
+        # arm, which used to produce a record with no `variant` at all and made
+        # `report.py` print "n/a (task declares one context)" for a run that had
+        # one. "" when the task declares no `[variants]`.
+        "variant": spec.variant,
         "limits": {"wall_clock_seconds": wall, "max_tool_calls": budget},
         "started_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "rollout_dir": str(rollout_dir),
@@ -377,6 +1181,7 @@ def run_rollout(args) -> dict:
     # topologies share no code path but teardown - see
     # tasks/harness/NATIVE_CONTAINER.md.
     native_container: container_episode.NativeContainerEpisode | None = None
+    container_shell: dict | None = None
     containment: dict | None = None
     container_paths: dict | None = None
 
@@ -430,7 +1235,8 @@ def run_rollout(args) -> dict:
                              f"alkera-nc-{args.run_id}-{args.rollout_id}".lower())
             native_container = container_episode.NativeContainerEpisode(
                 project=project, world=world, audit_dir=audit_dir,
-                rollout_dir=rollout_dir, image=args.image)
+                rollout_dir=rollout_dir, image=args.image,
+                variant=spec.variant)
             native_container.up()
             record["native_container"] = native_container.prepare()
             record["native_stack"] = {**native_container.record(),
@@ -448,22 +1254,34 @@ def run_rollout(args) -> dict:
             # host tree. One declared translation, never a guess.
             container_paths = blindness.container_path_map(world)
             record["container_paths"] = container_paths
-            # Stated on every rollout rather than left to the doc: the
-            # scheduler plane is a CLI over the world's own files and this
-            # topology does not mount them, so `sched_*` has no native surface
-            # in here. The surface gate still verifies the state file on the
-            # HOST, which is the right answer for "does this world have a
-            # scheduler" and the wrong one for "can the subject drive it".
-            record["native_container_unreachable_planes"] = ["sched"]
             containment = native_container.containment_probe(
                 when="before_episode", canaries=canaries, grading=grading,
                 rollout_dir=rollout_dir)
             record["containment"] = containment
+            # THE SHELL IS PROVED BEFORE IT IS HANDED OVER. Run-id
+            # `native-container-20260917-k5` recorded `filesystem_isolated` for
+            # two episodes whose model ran on the HOST: the redirect was
+            # ignored, nothing noticed, and a false guarantee is worse than
+            # none. So the harness now runs `hostname` through the subject's
+            # own shell path and compares it with the container's, and a
+            # rollout whose shell does not reach the container does not start.
+            container_shell = native_container.shell(rollout_dir / "shell")
+            record["container_execution_proof"] = container_shell["proof"]
+            if not container_shell["proof"]["verified"]:
+                raise episode.HarnessError(
+                    f"the subject's shell does not reach the episode "
+                    f"container, so this rollout would measure the host: "
+                    f"{container_shell['proof']}")
             toolbelt = {}
             surfaces = surface_audit.probe_native(
                 probes=spec.surface_probes,
                 endpoints=native_container.gate_endpoints(), world=world,
-                schemas=surface_audit.warehouse_schemas(spec))
+                schemas=surface_audit.warehouse_schemas(spec),
+                # The gate asks the plane the SUBJECT can reach. Here the
+                # scheduler is served at `sched.internal` and the world's state
+                # file is not on the episode's filesystem at all, so reading it
+                # would report a surface the subject cannot touch.
+                served_planes=container_episode.SERVED_PLANES)
             gateway_cfg = None
         elif args.topology == "container":
             # Containment FIRST. The terminal is handed over only after this
@@ -620,6 +1438,21 @@ def run_rollout(args) -> dict:
                         raise episode.HarnessError("gateway http server died")
             gateway_url = f"http://127.0.0.1:{port}"
 
+        # The action log's high-water mark BEFORE the subject is handed the
+        # terminal. Everything at or below it is the harness's - the surface
+        # gate's health polls, and under the container topology the s3 check's
+        # signed HEAD/LIST, whose rows arrive through MinIO's audit webhook
+        # named after the S3 call rather than after us. See
+        # `blindness.subject_rows`.
+        record["action_log_watermark"] = _max_seq(audit_dir / "actions.jsonl")
+
+        # The last thing written before the subject exists: everything that
+        # describes the world at t=0, on disk, so that `--regrade` never has to
+        # re-take a picture of a world the episode has since changed - and so
+        # that a harness crash between teardown and the record write (GT009)
+        # costs the episode nothing but the record. See the regrade block above.
+        _write_before_episode(rollout_dir, record, tree_before)
+
         instruction = spec.instruction
         if args.adversarial_suffix:
             instruction += "\n\n" + Path(args.adversarial_suffix).read_text(
@@ -637,7 +1470,7 @@ def run_rollout(args) -> dict:
             agent = native_stack.run_scripted_container(
                 rollout_dir=rollout_dir, world=world, audit_dir=audit_dir,
                 stack=native_container, wall_clock_s=wall,
-                instruction=instruction)
+                instruction=instruction, variant=spec.variant)
         elif args.driver == "native" and args.model == "scripted":
             # INTEGRATE-STACK: the Phase 3 acceptance subject. `aut.run` starts
             # `claude`, and the native driver had no way to be run end to end
@@ -648,7 +1481,7 @@ def run_rollout(args) -> dict:
             agent = native_stack.run_scripted(
                 rollout_dir=rollout_dir, world=world, audit_dir=audit_dir,
                 endpoints=native_endpoints or {}, wall_clock_s=wall,
-                instruction=instruction,
+                instruction=instruction, variant=spec.variant,
                 gateway_config=native.config_file if native is not None else "")
         else:
             agent = aut.run(
@@ -667,11 +1500,8 @@ def run_rollout(args) -> dict:
                 scheduler=world.get("scheduler"),
                 native_gateway_config=(native.config_file
                                        if native is not None else None),
-                container_shell=(container_episode.write_bash_wrapper(
-                    rollout_dir / "shell",
-                    container=native_container.container_id,
-                    interpreter=str(episode.PY))
-                    if native_container is not None else None))
+                variant=spec.variant,
+                container_shell=container_shell)
         record["agent"] = asdict(agent)
 
         if native_container is not None:
@@ -758,12 +1588,14 @@ def run_rollout(args) -> dict:
     # none of them is the subject's work. Every number that describes the
     # SUBJECT is computed from `subject_action_rows`; the full log stays on disk
     # and its length is recorded beside, so nothing is hidden, only attributed.
-    subject_action_rows = blindness.subject_rows(action_rows)
+    subject_action_rows = blindness.subject_rows(
+        action_rows, record.get("action_log_watermark", 0))
     record["action_log"] = {
         "path": str(actions_path),
         "rows": len(subject_action_rows),
         "rows_including_harness_authored": len(action_rows),
         "harness_authored_rows": len(action_rows) - len(subject_action_rows),
+        "watermark_before_episode": record.get("action_log_watermark", 0),
         # Native mode has no gateway process and therefore no session.json, so
         # the question this key answers ("did the subject have a toolbelt at
         # all?") is None rather than False - and it has already been answered
@@ -843,7 +1675,8 @@ def run_rollout(args) -> dict:
     record["blindness_guarantee"] = blindness.guarantee(
         driver=args.driver, topology=args.topology,
         containment=[c for c in (record.get("containment"),
-                                 record.get("containment_after")) if c])
+                                 record.get("containment_after")) if c],
+        container_execution=record.get("container_execution_proof"))
 
     # --- grading. AFTER teardown, never before. --------------------------
     if world and harness_failure is None:
@@ -893,10 +1726,24 @@ def main() -> int:
                          "log and artefact. Never re-runs the episode and never "
                          "re-grades - for applying a detector fix to rollouts "
                          "already spent.")
+    ap.add_argument("--regrade", default=None,
+                    help="re-run the POST-EPISODE stages for a COMPLETED rollout "
+                         "directory - workspace-edit staging, the action log, "
+                         "the fingerprint, the artefact, blindness, the GRADER "
+                         "(twice) and the classifier - from the files the "
+                         "episode left behind. Never re-runs the subject and "
+                         "never rebuilds the world. For a run whose grader was "
+                         "broken, or whose harness died after teardown.")
     ap.add_argument("--tasks-dir", default=None,
                     help="directory holding the task package, when it is not "
                          "tasks/. Used by surface_gate_check.py to stand up "
                          "fixture packages outside the repo.")
+    ap.add_argument("--variant", default=None,
+                    help="context variant from the task's [variants] table "
+                         "(VARIANTS_REQUESTS.md item 5). Defaults to "
+                         "ALKERA_TASK_VARIANT, which is what `run_rollouts.py` "
+                         "exports; a task declaring no [variants] refuses the "
+                         "flag rather than ignoring it.")
     ap.add_argument("--rollout-id", default="r0")
     ap.add_argument("--run-id", default="adhoc")
     ap.add_argument("--out")
@@ -927,6 +1774,25 @@ def main() -> int:
                     help="file appended to the ticket - for red-teaming the "
                          "harness's own detectors, never for a measured run")
     a = ap.parse_args()
+    if a.regrade:
+        try:
+            rec = regrade(Path(a.regrade), task=a.task, tasks_dir=a.tasks_dir)
+        except RegradeRefused as exc:
+            # A refusal is the result, not a crash: it names the input that is
+            # not there, and a caller regrading a whole run needs to be able to
+            # tell it apart from a rollout that regraded badly.
+            print(json.dumps({"regrade": "refused", "reason": str(exc)}, indent=2))
+            return 2
+        print(json.dumps({"rollout_id": rec["rollout_id"],
+                          "regraded_from": rec["regraded_from"],
+                          "regrade": rec["regrade"]["status"],
+                          "missing": [m["piece"] for m in rec["regrade"]["missing"]],
+                          "classification": rec["classification"],
+                          "passed": rec["passed"], "scored": rec["scored"],
+                          "total": (rec.get("score") or {}).get("total"),
+                          "grade_sha256": rec["regrade_grader_sha256"][:12],
+                          "why": rec["why"]}, indent=2))
+        return 0
     if a.reclassify:
         rec = reclassify(Path(a.reclassify))
         print(json.dumps({"rollout_id": rec["rollout_id"],
@@ -937,7 +1803,8 @@ def main() -> int:
                           "why": rec["why"]}, indent=2))
         return 0
     if not a.task or not a.out:
-        ap.error("--task and --out are required unless --reclassify is given")
+        ap.error("--task and --out are required unless --reclassify or "
+                 "--regrade is given")
     rec = run_rollout(a)
     print(json.dumps({"rollout_id": rec["rollout_id"],
                       "classification": rec["classification"],

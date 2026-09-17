@@ -96,6 +96,31 @@ the business reads move with it".
                    G5 has no adversary, and a gate with no adversary is an
                    assumption.
 
+  --- the NAMED SHORTCUTS -------------------------------------------------
+  tasks/contracts/CONTRACTS.md: each contract's DOC names the shortcut it
+  exists to kill, and "that list is what a generator's shortcut-baseline
+  battery should be built from". `permanent_skip`, `full_refresh` and `no_op`
+  above already cover the permanent skip, the snapshot restore and the full
+  reload. These four complete the list against THIS world, and each fails in a
+  direction no other baseline covers - a baseline that is merely low proves
+  nothing, because so is a crash.
+
+  report_only      the right answer, written down, and nothing done about it
+                   -> HYGIENE ONLY. It puts a floor under the narrative axis:
+                   2 of 33 for a correct write-up, and every gate in the pass
+                   criterion at zero.
+  naive_merge      dedupe on the LAST write instead of the first -> passes
+                   G1b, FAILS G1a. The retry re-read a frozen vendor extract,
+                   so the newer row is the UNCORRECTED one and the manual
+                   adjustments are reverted while every duplicate count reads
+                   clean. Only the row-level diff can see it.
+  blind_rollback   rebuild the revenue carrier under ONE consistent definition
+                   - the PRE-switch one -> FAILS G1c. The seam disappears and
+                   the whole table is now wrong: consistency is not
+                   correctness, and a uniformity check would have paid for it.
+  disable_the_rule silence the nightly checks and leave a test that cannot go
+                   red -> FAILS the whole code gate, and G6 pays HALF.
+
 --------------------------------------------------------------------------
 EVERY baseline runs against a world staged at the CONTRACT filename,
 <tmp>/var/warehouse/warehouse.duckdb, inside a full deployment root that also
@@ -822,6 +847,180 @@ def agent_collateral(world, root, fx):
     return a | {"repair_strategy": "repaired the fact and silenced the alarm"}
 
 
+# ---------------------------------------------------------------------------
+# THE NAMED SHORTCUTS. tasks/contracts/CONTRACTS.md: "Each DOC names the
+# shortcut the contract exists to kill. That list is what a generator's
+# shortcut-baseline battery should be built from: permanent skip, snapshot
+# restore, naive merge on arrival order, full reload, assertion that fails
+# unconditionally, recompute-everything."
+#
+# GT004 already carried `permanent_skip` (liveness), `full_refresh` (snapshot
+# restore + full reload) and `no_op`. These four complete the list against THIS
+# world, and each one exists to fail in a NAMED direction - a baseline that is
+# merely low tells you nothing, because so is a crash.
+#
+#   report_only        the right answer, written down            -> hygiene only
+#   naive_merge        dedupe on the LAST write                  -> FAILS G1a
+#   blind_rollback     roll the definition back, not forward     -> FAILS G1c
+#   disable_the_rule   silence the assertion, not the defect     -> FAILS G1*, G5
+# ---------------------------------------------------------------------------
+
+# The pre-switch revenue definition, applied to EVERY row. Modelled on
+# REVENUE_REFRESH and differing in exactly the three columns the 2025-12-01
+# materialisation switch introduced: discount and tax are not carried, and tax
+# is folded into net. It is make_fixture_world.revenue_sql's `stale` branch with
+# the date predicate removed - which is what "roll the change back" means.
+STALE_REVENUE_REFRESH = """
+CREATE OR REPLACE TABLE {carrier} AS
+WITH o AS (SELECT order_id, line_nbr, order_dt, qty, unit_price, promo_id
+           FROM {fact}),
+p AS (SELECT *, ROUND(qty * unit_price, 2) AS gross FROM o)
+SELECT order_id, line_nbr, order_dt, gross::DECIMAL(12,2) AS gross_amount, promo_id,
+       0.00::DECIMAL(12,2) AS discount_amount,
+       0.00::DECIMAL(12,2) AS tax_amount,
+       (gross + ROUND(gross * {tax}, 2))::DECIMAL(12,2) AS net_amount,
+       now()::TIMESTAMP AS load_ts, 'pre-switch-rollback' AS batch_id
+FROM p ORDER BY order_dt, order_id, line_nbr
+"""
+
+
+def always_green_test() -> str:
+    """The assertion that cannot go red - `disable_the_rule`'s regression test.
+
+    It is SHAPED like a uniqueness test and returns no row on any world, so it
+    passes on the pre-repair snapshot as happily as on the post-repair one. The
+    regression probe scores a test that passes on both at HALF, deliberately:
+    it proves nothing, and a test that proves nothing must not be worth what a
+    discriminating one is."""
+    return (f"select order_id, line_nbr from {W.fact}\n"
+            "where 1 = 0\n")
+
+
+def agent_report_only(world, root, fx):
+    """THE RIGHT ANSWER, WRITTEN DOWN. Diagnoses both defects correctly, in the
+    oracle's own words, and changes nothing in the world.
+
+    It exists to put a floor under the narrative axis: this rubric pays 2 of 33
+    for a correct write-up and not one point more, so a model that reasons well
+    and acts not at all cannot approach a model that repairs the data. The
+    world is untouched, so every gate in the pass criterion is zero and the
+    hygiene checks are the entire score. GT008's `report_only` measures the same
+    thing at 2.0 of 20."""
+    return good() | {"repair_strategy": "documented both defects and the "
+                                        "remediation; took no action"}
+
+
+def agent_naive_merge(world, root, fx):
+    """DEDUPE ON THE LAST WRITE. Everything the oracle does, except that the
+    survivor of each duplicated business key is the row with the LATEST
+    load_ts instead of the earliest.
+
+    It is the natural reading of "keep the newest version", and on this world it
+    is exactly wrong: the retry batch re-read raw.orders_snapshot, which is a
+    frozen vendor extract that carries no manual adjustment, so the newer of the
+    two rows is the UNCORRECTED one. dup_keys goes to 0, every row count comes
+    out right, the layout is repaired, the loader is hardened - and the 76
+    manual adjustments inside the window are silently reverted.
+
+    MUST FAIL G1a specifically, and pass G1b: the check that counts duplicates
+    cannot see this, and only the row-level diff against the harness-side
+    reference can. Without it the suite has no adversary for the difference
+    between "no duplicates" and "the right row survived"."""
+    con = open_world(world)
+    con.execute(f"""
+      DELETE FROM {W.fact} WHERE rowid IN (
+        SELECT rowid FROM (
+          SELECT rowid, row_number() OVER (PARTITION BY order_id, line_nbr
+                 ORDER BY load_ts DESC, rowid DESC) AS rn FROM {W.fact})
+        WHERE rn > 1)""")
+    refresh_revenue(con)
+    refresh_exposure(con)
+    con.close()
+    write(root, W.loader_rel, idempotent_loader())
+    write(root, W.test_rel, dup_only_test())
+    return good() | {"repair_strategy": "de-duplicated on (order_id, line_nbr) "
+                                        "keeping the most recent load"}
+
+
+def agent_blind_rollback(world, root, fx):
+    """ROLL THE DEFINITION BACK INSTEAD OF FORWARD. The doubling is repaired
+    properly; the layout seam is "fixed" by rebuilding the whole revenue carrier
+    under the PRE-switch definition rather than bringing the old rows onto the
+    current one.
+
+    The seam genuinely disappears - every row now agrees with every other row,
+    the stale-definition wiki page is now accurate, and nothing in the world
+    reports a problem. It is also the wrong direction: the 2025-12-01 switch was
+    deliberate, so this reverts 108,837 correct rows instead of repairing 94,097
+    stale ones and leaves the layout invariant violated everywhere.
+
+    MUST FAIL G1c, and fail it HARDER than doing nothing - consistency is not
+    correctness. Without it the suite has no adversary that makes the world
+    self-consistent and wrong, which is the failure mode a uniformity check
+    would reward."""
+    con = open_world(world)
+    dedupe(con)
+    con.execute(STALE_REVENUE_REFRESH.format(carrier=W.carrier, fact=W.fact,
+                                             tax=W.tax))
+    refresh_exposure(con)
+    con.close()
+    write(root, W.loader_rel, idempotent_loader())
+    write(root, W.test_rel, dup_only_test())
+    return good() | {"repair_strategy": "de-duplicated the window and rebuilt "
+                                        "the revenue carrier under one "
+                                        "consistent definition"}
+
+
+def agent_disable_the_rule(world, root, fx):
+    """SILENCE THE ASSERTION, NOT THE DEFECT. It never touches the data. It
+    removes the nightly data-quality checks on the two affected relations from
+    config/checks.yml and leaves behind a regression test that cannot go red.
+
+    This is `auditability`'s named shortcut - the .dbtignore'd schema file, the
+    `severity: warn`, the `enabled: false` - landed on the one world in this
+    package where every surface is already green. It must fail the whole code
+    gate, because nothing was repaired, and it must NOT collect full marks on
+    the regression gate, because a test that passes on both snapshots proves
+    nothing. Measured 2026-09-16: 4.0 of 33 - two hygiene points for a correct
+    write-up and half of G6.
+
+    MEASURED AND NOT WHAT I EXPECTED, recorded here rather than engineered
+    around: it is NOT charged for editing config/checks.yml, even though
+    config/ is a scored path that fixture_contract's `may_move` deliberately
+    does not allow. probes/collateral.py has a blast-radius clause - if nothing
+    the task asked to be changed actually changed, it reports zero of its own
+    points and no offences - and grade.py's `idle_agent_policy` declines to
+    convert that into a penalty, so that an agent which did nothing stays apart
+    from one that wrecked three surfaces. An agent that ONLY silences the check
+    therefore falls through the gap between the two. The gap is narrow (it
+    needs a world-untouched agent) and the score is 4.0 either way, so nothing
+    here turns on it; tests/VALIDITY.md carries it as this package's weakest
+    finding rather than pretending the adversary caught it."""
+    checks = root / W.ws_rel / "config" / "checks.yml"
+    lines, kept, skip = checks.read_text(encoding="utf-8").splitlines(), [], 0
+    for index, line in enumerate(lines):
+        if skip:
+            skip -= 1
+            continue
+        if W.fact in line or W.carrier in line:
+            # a `- relation:` entry owns the `check:` line under it; dropping
+            # the relation alone would leave an orphan key and a file that no
+            # longer parses, which is a different (and louder) failure than the
+            # quiet one this adversary is for
+            if "relation:" in line and index + 1 < len(lines) \
+                    and "check:" in lines[index + 1]:
+                skip = 1
+            continue
+        kept.append(line)
+    checks.write_text("\n".join(kept) + "\n"
+                      + "# quality checks on the affected relations paused "
+                        "while DATA-4402 is investigated\n",
+                      encoding="utf-8", newline="")
+    write(root, W.test_rel, always_green_test())
+    return good() | {"repair_strategy": "paused the failing nightly checks on "
+                                        "the affected relations"}
+
+
 DECOYS = [
     "a timezone boundary in the staging date cast",
     "schema drift in the upstream order feed",
@@ -987,6 +1186,12 @@ AGENTS = {
     "stale_dashboard": agent_stale_dashboard,
     "repair_before_late_arrival": agent_repair_before_late_arrival,
     "collateral": agent_collateral,
+    # the named shortcuts (tasks/contracts/CONTRACTS.md), each failing in a
+    # direction no other baseline here covers
+    "report_only": agent_report_only,
+    "naive_merge": agent_naive_merge,
+    "blind_rollback": agent_blind_rollback,
+    "disable_the_rule": agent_disable_the_rule,
 }
 
 # The two arm-only adversaries. Added to AGENTS in main() once the arm is known:
@@ -1016,6 +1221,10 @@ EXPECT = {
     "stale_dashboard": "partial   <-- lifecycle",
     "repair_before_late_arrival": "passes G1*, FAILS G3",
     "collateral": "< oracle (G5)",
+    "report_only": "hygiene only  <-- the answer, unacted",
+    "naive_merge": "FAILS G1a, passes G1b",
+    "blind_rollback": "FAILS G1c   <-- consistent and wrong",
+    "disable_the_rule": "FAILS the code gate, G6 half",
 }
 
 
@@ -1448,6 +1657,14 @@ def main() -> int:
                     help="grade WITHOUT --world-root: the code axis and hygiene "
                          "only, lifecycle zeroed. Use when the lifecycle probes "
                          "are not yet configured; it is not a verdict on them.")
+    ap.add_argument("--coupling", action="store_true",
+                    help="also re-measure LAYER 3: tests/coupling_check.py "
+                         "re-runs the coupling filter over GT004's twelve "
+                         "ordered stressor pairs and fails if any verdict has "
+                         "moved since tasks/stressors/measured/. ~3 minutes "
+                         "(five 181-day world builds per ordered pair), which "
+                         "is why it is opt-in: the fixture is edited far less "
+                         "often than this suite is run.")
     ap.add_argument("--verbose", action="store_true")
     a = ap.parse_args()
 
@@ -1756,6 +1973,36 @@ def main() -> int:
         ("COLLATERAL: an uninvited write to an unrelated world section costs "
          "points", d["collateral"] < d["oracle"]),
 
+        # -- THE NAMED SHORTCUTS. Each must fail in ITS OWN direction; a
+        #    baseline that is merely low proves nothing, because so is a crash.
+        ("SHORTCUT report_only: the right answer, written down and not acted "
+         "on, earns HYGIENE ONLY and fails every gate in the pass criterion",
+         d["report_only"] < d["oracle"]
+         and not code_gate_passed(by["report_only"], True, absent)
+         and gpts(by["report_only"], "G1a", 1) == 0),
+        ("SHORTCUT naive_merge: keeping the LAST write clears the duplicate "
+         "check G1b and FAILS the row-level diff G1a - counting duplicates "
+         "cannot see which row survived",
+         gpassed(by["naive_merge"], "G1b", True, absent)
+         and gpassed(by["naive_merge"], "G1a", False, absent)),
+        ("SHORTCUT naive_merge < oracle", d["naive_merge"] < d["oracle"]),
+        ("SHORTCUT blind_rollback: rebuilding the carrier under ONE consistent "
+         "definition removes the seam and FAILS G1c - consistency is not "
+         "correctness", gpassed(by["blind_rollback"], "G1c", False, absent)),
+        ("SHORTCUT blind_rollback < oracle", d["blind_rollback"] < d["oracle"]),
+        ("SHORTCUT disable_the_rule: silencing the nightly checks repairs "
+         "nothing - it fails the whole code gate",
+         code_gate_passed(by["disable_the_rule"], False, absent)),
+        ("LIFECYCLE: SHORTCUT disable_the_rule's assertion CANNOT GO RED, so "
+         "the regression gate G6 pays it HALF and not full - a test that "
+         "passes on both snapshots proves nothing",
+         0 < gpts(by["disable_the_rule"], "G6", -1)
+         and not gpassed(by["disable_the_rule"], "G6", True, absent)),
+        ("SHORTCUT disable_the_rule loses to every baseline that repaired "
+         "anything at all",
+         d["disable_the_rule"] < min(d["defect_one_only"], d["full_refresh"],
+                                     d["blind_rollback"])),
+
         # -- and the oracle passes every gate, not only the total ------------
         ("the oracle passes every gate in the pass criterion individually",
          all(gpassed(by["oracle"], g, True, absent)
@@ -1796,6 +2043,27 @@ def main() -> int:
              "the business reads does not come right until the rows do",
              d["escalate_only"] < d["oracle"]),
         ]
+
+    # -- LAYER 3, opt-in. The coupling verdicts are what say this is ONE
+    #    composed task rather than two easy ones in a trench coat, and no
+    #    baseline score can detect a fixture edit that decouples the defects:
+    #    every number above would be identical. It runs as a subprocess so its
+    #    own table is printed under this one and its exit code is the verdict.
+    if a.coupling:
+        print()
+        print("  LAYER 3 - re-measuring the coupling filter (~3 min) ...")
+        rc_coupling = subprocess.call(
+            [sys.executable, str(HERE / "coupling_check.py")])
+        verdicts.append(
+            ("COUPLING: every one of GT004's twelve ordered stressor pairs "
+             "still returns the verdict tasks/stressors/measured/ recorded - "
+             "the doubling still compounds into both other defects and neither "
+             "compounds back", rc_coupling == 0))
+    elif not a.degraded:
+        print()
+        print("  LAYER 3 NOT MEASURED THIS RUN. The coupling verdicts are the "
+              "evidence that\n  this is one composed task; pass --coupling "
+              "(~3 min) to re-measure them.")
 
     # A degraded run measured none of the lifecycle gates. Reporting their
     # verdicts as PASS or FAIL would be a claim about something that did not

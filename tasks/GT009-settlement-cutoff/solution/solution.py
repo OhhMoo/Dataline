@@ -58,7 +58,7 @@ LOADER = "pipelines/load_payments.py"
 PUBLISHER = "pipelines/publish_settlement.py"
 
 
-def write_pipelines(gw, world: dict) -> None:
+def write_pipelines(gw) -> None:
     for relpath, source in ((LOADER, (HERE / "load_payments.py").read_text(
                                 encoding="utf-8")),
                             (PUBLISHER, (HERE / "publish_settlement.py").read_text(
@@ -117,7 +117,7 @@ def main(argv=None) -> int:
         gw_probe.call(gw, "issues_get", {"issue": "PAY-3120"})
         gw_probe.call(gw, "docs_get", {"path": "docs/settlement_contract_v3.md"})
 
-        write_pipelines(gw, world)                                    # 2 and 3
+        write_pipelines(gw)                                           # 2 and 3
         register_approval(gw)                                         # 4
         run_job(gw, CONTRACT["jobs"]["load"])                         # 5
         run_job(gw, CONTRACT["jobs"]["publish"])
