@@ -92,7 +92,28 @@ def _run_conditions(records: list[dict]) -> dict:
                             if r.get("prompt_sha256")})
     gates = sorted({a.get("gate") for a in have if a.get("gate")})
 
+    # WAS THIS RUN RE-GRADED? A run whose records were produced by
+    # `rollout.py --regrade` is exactly as good as the episodes it re-read and
+    # no better, and a reader has to be told which it is: the grader that
+    # produced these numbers is not the grader that was on disk when the
+    # episodes ran. The pieces a partial regrade could not recover are named
+    # here rather than left in the per-rollout records, for the same reason the
+    # dead-surface set is: a condition nobody can see is not a condition.
+    regraded = [r for r in records if r.get("regraded_at")]
+    partial = sorted(r.get("rollout_id") for r in regraded
+                     if r.get("regrade_partial"))
+    missing_pieces = sorted({m.get("piece") for r in regraded
+                             for m in ((r.get("regrade") or {}).get("missing") or ())
+                             if m.get("piece")})
+
     conditions = {
+        "regraded": bool(regraded),
+        "regraded_rollouts": len(regraded),
+        "regraded_partial": partial,
+        "regraded_missing": missing_pieces,
+        "regraded_grader_sha256": sorted({r.get("regrade_grader_sha256")
+                                          for r in regraded
+                                          if r.get("regrade_grader_sha256")}),
         # "" when the task declares no [variants] at all, which is a different
         # statement from "this run used the default one".
         "variants": arms,
@@ -145,6 +166,14 @@ def _run_conditions(records: list[dict]) -> dict:
     if len(variants) > 1 or len(prompt_hashes) > 1:
         bad.append(f"the run mixes prompts ({variants or prompt_hashes}); one "
                    f"rate over two tickets is not a rate for either")
+    if regraded and len(regraded) != len(records):
+        bad.append(f"{len(regraded)} of {len(records)} rollouts were re-graded "
+                   f"and the rest were not, so this rate is taken over two "
+                   f"graders at once")
+    if len(conditions["regraded_grader_sha256"]) > 1:
+        bad.append(f"the re-graded rollouts were scored by DIFFERENT graders "
+                   f"({conditions['regraded_grader_sha256']}); one rate over two "
+                   f"rubrics is not a rate for either")
     if any(v.startswith("UNLOCKED") for v in variants):
         bad.append(f"the brief matches no locked prompt variant ({variants}), so "
                    f"this run cannot be attributed to a ticket")
@@ -153,6 +182,18 @@ def _run_conditions(records: list[dict]) -> dict:
     # required_surfaces cannot fail the gate, so "gate: pass" is unavailable to
     # it and the absence of a dead-required finding means nothing.
     caveats = []
+    if regraded:
+        caveats.append(
+            f"every number here was produced by `rollout.py --regrade` over "
+            f"episodes that had already run: the subject was not re-run and the "
+            f"world was not rebuilt, and the grader that scored them is "
+            f"{', '.join(s[:12] for s in conditions['regraded_grader_sha256']) or 'unrecorded'}")
+    if partial:
+        caveats.append(
+            f"{len(partial)} rollout(s) re-graded PARTIALLY ({partial}): "
+            f"{missing_pieces} were never written to disk by the run that "
+            f"produced them, so those stages could not be re-run from evidence. "
+            f"Each rollout's `regrade.missing` says what that cost it.")
     if "not_declared" in gates:
         caveats.append("this task declares no [harness].required_surfaces, so "
                        "the surface gate had nothing to enforce")
@@ -300,6 +341,15 @@ def render(task: str, run_id: str, agg: dict, records: list[dict]) -> str:
     L.append("")
     L.append("## Run conditions")
     L.append("")
+    # First line of the block, above even the context variant: everything below
+    # it describes episodes, and this says whether the numbers beside them were
+    # produced by the run or by a re-grade of it.
+    L.append(f"- regraded: {str(bool(c['regraded'])).lower()}"
+             + (f" ({c['regraded_rollouts']} of {agg['rollouts']} rollouts "
+                f"re-graded from stored files"
+                + (f"; {len(c['regraded_partial'])} partial: "
+                   f"{c['regraded_missing']}" if c["regraded_partial"] else "")
+                + ")" if c["regraded"] else ""))
     L.append(f"- context variant: {', '.join(c['variants']) or 'n/a (task declares one context)'}")
     L.append(f"- prompt variant: {', '.join(c['prompt_variants']) or 'not recorded'}")
     L.append(f"- surfaces live ({len(c['surfaces_live'])}): {c['surfaces_live']}")

@@ -77,11 +77,8 @@ from fixture_contract import CONTRACT, FixtureDrift, falsify, verify  # noqa: E4
 from probes import gateway as gw_probe                                # noqa: E402
 import make_fixture_world as mfw                                      # noqa: E402
 
-import yaml                                                        # noqa: E402
-
 BUILD_WORLD = HERE / "build_world.py"
 GRADER = HERE / "grade.py"
-SOLUTION = TASK / "solution" / "solution.sh"
 GOOD_LOADER = (TASK / "solution" / "load_payments.py").read_text(encoding="utf-8")
 GOOD_PUBLISHER = (TASK / "solution" / "publish_settlement.py").read_text(
     encoding="utf-8")
@@ -89,11 +86,6 @@ LOAD_JOB = CONTRACT["jobs"]["load"]
 PUBLISH_JOB = CONTRACT["jobs"]["publish"]
 LOADER_PATH = "pipelines/load_payments.py"
 PUBLISHER_PATH = "pipelines/publish_settlement.py"
-HANDOFF = CONTRACT["targets"]["handoff"]
-
-PASS_MIN_TOTAL = float(
-    (yaml.safe_load((HERE / "manifest.yaml").read_text(encoding="utf-8"))
-     .get("recommended_harness") or {}).get("pass_min_total", 0.0))
 
 GOOD_REPORT = {
     "gap_days_recovered": CONTRACT["gap_days"],
@@ -247,14 +239,6 @@ NEVER_RESTATE_PUBLISHER = GOOD_PUBLISHER.replace(
                 withheld.append(day)''')
 assert NEVER_RESTATE_PUBLISHER != GOOD_PUBLISHER
 
-# Delivery order taken as version order - the shipped loader's rule, with the
-# checkpoint defect repaired so the gap IS recovered and only the fold is wrong.
-REPLAY_WINS_LOADER = GOOD_LOADER.replace(
-    "ORDER BY version DESC, delivered_at DESC,\n"
-    "                                      event_id DESC) AS rn",
-    "ORDER BY delivered_at DESC, event_id DESC) AS rn")
-assert REPLAY_WINS_LOADER != GOOD_LOADER
-
 # No dedup on event_id: the retried delivery lands twice in the landing table.
 DUPLICATE_LOADER = GOOD_LOADER.replace(
     '''        con.execute("""
@@ -269,7 +253,23 @@ DUPLICATE_LOADER = GOOD_LOADER.replace(
                     "SELECT * FROM raw.payments_events_staging")''')
 assert DUPLICATE_LOADER != GOOD_LOADER
 
-# ... and a publisher that counts DELIVERIES of the current version rather than
+# Delivery order taken as version order, with the checkpoint defect repaired so
+# the gap IS recovered and only the fold is wrong.
+#
+# IT HAS TO DROP THE event_id DEDUP TOO, and finding that out is worth writing
+# down: the network re-sends the superseded events under their ORIGINAL
+# event_ids, so a loader that keeps one row per event_id never sees the replay
+# at all and the fold rule cannot matter. Collapsing a re-delivery on its event
+# id is a second, independent defence against an out-of-order replay - which is
+# why `older_replay_after_the_correction`'s coupling clause is
+# `replayed_events_land_once` and not only the fold.
+REPLAY_WINS_LOADER = DUPLICATE_LOADER.replace(
+    "ORDER BY version DESC, delivered_at DESC,\n"
+    "                                      event_id DESC) AS rn",
+    "ORDER BY delivered_at DESC, event_id DESC) AS rn")
+assert REPLAY_WINS_LOADER != DUPLICATE_LOADER
+
+# A publisher that counts DELIVERIES of the current version rather than
 # payments, so the second copy of the retried partition is a second payment.
 DUPLICATE_PUBLISHER = GOOD_PUBLISHER.replace(
     '''    SELECT payment_day AS settlement_day, merchant_id,
@@ -456,7 +456,7 @@ def grade(world: dict) -> dict:
 
 def check(score: dict, cid: str) -> dict:
     for row in score["checks"]:
-        if row["check"] == cid:
+        if row["id"] == cid:
             return row
     raise SystemExit(f"the grader emitted no check {cid}")
 

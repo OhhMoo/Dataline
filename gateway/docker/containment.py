@@ -1068,6 +1068,10 @@ def native_episode_main(args):
     this attaches to `--project` by name, measures, writes the artifact and
     leaves the stack exactly as it found it.
     """
+    import native_episode_probe
+
+    from alkera_gateway.native import serve
+
     stack = Stack(args.project, args.profile,
                   overlays=(EPISODE_OVERLAY, NATIVE_OVERLAY))
     warehouses = list(args.warehouse)
@@ -1077,6 +1081,13 @@ def native_episode_main(args):
             for path in (args.world / "var" / "warehouse").glob("*.duckdb"))
     services = {row["host"].split(".")[0]: f"http://{row['host']}:{row['port']}"
                 for row in native_probe.registry_expectation()}
+    # The scheduler plane, which the registry does not list because it is not
+    # one of the nine vendor-shaped services - it is the backend of the agent's
+    # own `./ops/sched`. P7 requires it to answer because the mount set puts
+    # `var/sched` out of the episode's reach on purpose.
+    services[native_episode_probe.SCHEDULER_SERVICE] = (
+        f"http://{native_episode_probe.SCHEDULER_SERVICE}.internal:"
+        f"{serve.SCHED_PORT}")
     evidence = {
         "generated": datetime.now(UTC).isoformat(timespec="seconds"),
         "project": args.project,

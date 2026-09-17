@@ -88,6 +88,7 @@ PROBE_MODULES = {
     "G4": "exposure",
     "G5": "collateral",
     "G6": "regression",
+    "G7": "ledger",
 }
 
 
@@ -172,6 +173,40 @@ def variant_check_table(man: dict, variant: dict) -> dict:
             continue
         table[c["id"]] = c
     return table
+
+
+def exactly_once_clauses(contract: dict, cfg: dict, warehouse: Path) -> dict:
+    """{clause id -> Clause} for the STATIC half of the `exactly_once` contract.
+
+    Layer 1 again, and for the same reason H3 reads `authorization` rather than
+    re-deciding it: `exactly_once` was lifted OUT of this grader's G1b and out
+    of probes/late_arrival.py (`exactly_once.DOC`: "LIFTED FROM GT004 G1b
+    (duplicate keys) and G3 (late arrivals)"). A library lifted from a task and
+    then not called by it is a second copy of the rule.
+
+    STATIC because no `late` block is passed: the contract then evaluates its
+    `stressed` gate and `no_duplicate_keys` and returns, touching nothing and
+    running no pipeline. The behavioural half - the redelivery, the clock and
+    the two runs - is G3's, and probes/late_arrival.py asks the same contract
+    for it. One invariant, two rubric lines, one implementation.
+
+    The `stressed` gate is what makes G1b un-free: it refuses to pay when the
+    shipped world never carried a duplicate business key. `preflight` refuses to
+    run the grader at all in that case, so the two agree by construction and the
+    gate is the executable statement of the rule preflight states in prose.
+    """
+    sys.path.insert(0, str(TASK_ROOT.parent.parent))
+    from tasks.contracts import REGISTRY                             # noqa: PLC0415
+    from tasks.contracts._types import Context                       # noqa: PLC0415
+
+    ctx = Context(world_root=Path(warehouse).parent, warehouse=Path(warehouse),
+                  before={"duplicate_keys_before": int(cfg["dup_pre_repair"] or 0)},
+                  params={"table": cfg["table"],
+                          "business_key": list(cfg["business_key"])})
+    try:
+        return {c.id: c for c in REGISTRY["exactly_once"].evaluate(ctx)}
+    finally:
+        ctx.close()
 
 
 def authorization_clauses(man: dict, contract: dict, cfg: dict,
@@ -436,14 +471,39 @@ def g1a_window_diff(con, s: Score, cfg: dict):
           f"exactly on {len(cfg['business_columns'])} business columns")
 
 
-def g1b_duplicates(con, s: Score, cfg: dict):
+def g1b_duplicates(con, s: Score, cfg: dict, clauses: dict | None = None):
     """Zero duplicate business keys anywhere in the fact table.
 
-    NOT a free point, and that is verified rather than asserted: the grader
-    refuses to run unless the contract says the shipped world carries duplicate
-    keys. GT001 shipped a draft of this check that a no-op agent passed for
-    free, and GT002's K3 had to be gated for the same reason.
+    THE VERDICT IS THE CONTRACT'S. `clauses` is `exactly_once_clauses`' output;
+    `exactly_once.no_duplicate_keys` decides pass or fail and `exactly_once.
+    stressed` decides whether this check is allowed to pay at all. The tiering
+    below - half credit when the survivors are confined to at most two
+    partitions - is GT004's rubric, not the invariant, so it stays here, and the
+    partition count it needs is the only thing this function still queries.
+
+    NOT a free point, and that is verified rather than asserted twice over: the
+    grader refuses to run unless the contract says the shipped world carries
+    duplicate keys (`preflight`), and the contract's own `stressed` gate refuses
+    to pay if it does not. GT001 shipped a draft of this check that a no-op
+    agent passed for free, and GT002's K3 had to be gated for the same reason.
     """
+    mx = s.maxof("G1b")
+    was = cfg["dup_pre_repair"]
+    verdict = (clauses or {}).get("exactly_once.no_duplicate_keys")
+    if verdict is None:
+        # The contract declined: the `stressed` gate failed, the fact table is
+        # not there, or it could not be evaluated at all. Scored zero with the
+        # contract's own reason rather than re-deciding it here.
+        refused = [c for c in (clauses or {}).values()
+                   if not c.passed] or list((clauses or {}).values())
+        s.add("G1b", 0, (refused[0].detail if refused else
+                         "the exactly_once contract returned no verdict for "
+                         "this world"))
+        return
+    if verdict.passed:
+        s.add("G1b", mx, f"no duplicate business keys anywhere in {cfg['table']} "
+                         f"({was:,} before the repair)")
+        return
     key = ", ".join(f'"{c}"' for c in cfg["business_key"])
     part = f'"{cfg["partition_column"]}"'
     w = qname("w", cfg["table"])
@@ -451,12 +511,7 @@ def g1b_duplicates(con, s: Score, cfg: dict):
         SELECT COUNT(*), COUNT(DISTINCT p) FROM (
           SELECT {key}, ANY_VALUE({part}) AS p FROM {w}
           GROUP BY {key} HAVING COUNT(*) > 1)""").fetchone()
-    mx = s.maxof("G1b")
-    was = cfg["dup_pre_repair"]
-    if n == 0:
-        s.add("G1b", mx, f"no duplicate business keys anywhere in {cfg['table']} "
-                         f"({was:,} before the repair)")
-    elif parts <= cfg["dup_partial_partitions"]:
+    if parts <= cfg["dup_partial_partitions"]:
         s.add("G1b", mx / 2,
               f"{n:,} duplicate business keys remain, confined to {parts} "
               f"partition(s) - partial dedup, but any survivor is a wrong number")
@@ -593,7 +648,13 @@ def call_probe(cid: str, env: dict, max_points: float):
     kwargs = {"contract": env["contract"], "config": env["probe_config"](name),
               "max_points": max_points, "baseline": env["baseline"],
               "pre_repair_world": env["pre_repair_world"],
-              "declared_paths": env["declared_paths"]}
+              "declared_paths": env["declared_paths"],
+              # G7 only: the staged publication ledger and the harness-side
+              # reference both live in the grading zone, and a probe that read
+              # its evidence out of the subject's own tree would be one path
+              # mistake away from reading evidence the subject could have
+              # edited (tasks/harness/ledger.py, rule 1).
+              "grading": env["grading"]}
     kwargs = {k: v for k, v in kwargs.items() if k in params}
     res = fn(env["world_root"], **kwargs)
     if probe_detail(res).get("configured") is False:
@@ -653,6 +714,47 @@ def score_g5(env: dict, s: Score):
         return
     s.add("G5", max(floor, per * len(sections)),
           f"COLLATERAL DAMAGE in {len(sections)} section(s) {sections}: {reason}")
+
+
+def score_g7(env: dict, s: Score):
+    """G7 is PENALTY ONLY, and `not_evaluable` is its normal answer today.
+
+    LAYER 4 of the composition framework: a good final state must not be able to
+    erase a bad intermediate publication. probes/ledger.py audits every receipt
+    the CLOCK advanced over against what the correct pipeline would have
+    published at that virtual moment; this file owns the charge.
+
+    Three outcomes, and only one of them costs anything:
+      not evaluable  0.0 - no receipts. GT004's shipped world declares no
+                     `publishes:` (it would move two fingerprint sections) and
+                     nothing in the grading path calls world.scheduler.advance,
+                     so every rollout lands here and NO existing score moves.
+                     tests/ledger_check.py is where the gate is exercised.
+      clean          0.0 - every audited receipt matches the reference and the
+                     target's published object did not move across nights.
+      offences       the manifest's penalty, once, however many receipts were
+                     wrong. Per-section is G5's rule because G5 charges blast
+                     radius; this charges "the world published a wrong number at
+                     least once", which happened or did not.
+
+    A CRASH is charged. An unrunnable ledger audit that scored 0 and passed
+    would be indistinguishable from a clean one, and the whole reason this gate
+    exists is that a clean-looking end state can hide a bad publication.
+    """
+    penalty = float(s.table["G7"].get("penalty", -2.0))
+    res = call_probe("G7", env, 0.0)
+    d = probe_detail(res)
+    reason = str(getattr(res, "reason", res))[:900]
+    if d.get("crashed"):
+        s.add("G7", penalty, f"the ledger audit crashed: {reason}")
+        return
+    if not d.get("evaluable"):
+        s.add("G7", 0.0, reason)
+        return
+    if d.get("offences"):
+        s.add("G7", penalty, reason)
+        return
+    s.add("G7", 0.0, reason)
 
 
 # ===========================================================================
@@ -1055,8 +1157,25 @@ def main() -> int:
                  f"{type(ex).__name__}: {str(ex).splitlines()[0][:150]}")
             auth = {}
 
+    # LAYER 1. The exactly_once contract, evaluated STATICALLY (no `late` block,
+    # so nothing is planted and no pipeline runs): G1b reads its verdict here,
+    # and probes/late_arrival.py asks the same contract for the behavioural half
+    # that G3 grades. One invariant, two rubric lines, one implementation.
+    # A failure here is a PACKAGING fault, never a score: G1b is a conjunct of
+    # the pass criterion, and a missing contract library that graded as a zero
+    # would be indistinguishable from an agent that left 15,649 duplicate keys
+    # in place. The same rule `load_probe` already applies to a missing probe.
+    try:
+        exactly_once = exactly_once_clauses(contract, cfg, Path(a.world))
+    except Exception as ex:                                      # noqa: BLE001
+        raise PackagingError(
+            f"the exactly_once contract could not be evaluated: "
+            f"{type(ex).__name__}: {str(ex).splitlines()[0][:200]}. G1b reads "
+            f"its verdict from tasks/contracts/exactly_once.py (task.toml "
+            f"[composition].contracts); the grader will not re-decide it here.")
+
     safe(["G1a"], g1a_window_diff, con, s, cfg)
-    safe(["G1b"], g1b_duplicates, con, s, cfg)
+    safe(["G1b"], g1b_duplicates, con, s, cfg, exactly_once)
     safe(["G1c"], g1c_legacy_layout, con, s, cfg,
          auth if variant["grading"].get("g1c_credits_escalation") else None)
 
@@ -1122,10 +1241,17 @@ def main() -> int:
                 s.table[cid].get("penalty_per_section", -2.0)),
                 "no --world-root given; the lifecycle probes need the world tree "
                 "(var/ and workspace/) and cannot run")
+        # G7 is the one gate that does NOT need the world tree: the ledger is
+        # staged into the grading zone before the grader runs, precisely so it
+        # is never read out of the subject's own directory. A degraded run can
+        # still audit it, and reporting it unmeasured would be a claim about
+        # evidence that is sitting right there.
+        safe(["G7"], score_g7, env, s)
     else:
         for cid in ("G2", "G3", "G4", "G6"):
             safe([cid], score_probe_gate, cid, env, s)
         safe(["G5"], score_g5, env, s)
+        safe(["G7"], score_g7, env, s)
 
     safe(["H1a", "H1b"], h1_defects, artifact, man, s)
     safe(["H2"], h2_secondary, artifact, man, s)

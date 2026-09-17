@@ -14,12 +14,60 @@ $PY reference_copy_check.py --task GT001-aov-halving   # the reference_copy base
 $PY run_rollouts.py --task GT001-aov-halving --k 5     # K rollouts + report
 $PY rollout.py --task GT001-aov-halving --out <dir>    # one rollout
 $PY rollout.py --reclassify <rollout-dir>              # re-derive the verdict only
+$PY rollout.py --regrade <rollout-dir>                 # re-run everything after teardown
+$PY run_rollouts.py --regrade-run <run-dir>            # ...for a whole run, + the report
+$PY test_regrade.py                                    # what the regrade may and may not do
 ```
 
 `--reclassify` re-runs the detectors and the classifier over a completed rollout's stored
 transcript, action log and artefact. It never re-runs the episode and never re-grades, so a
 detector fix can be applied to rollouts already spent. Use it after changing `blindness.py` or
 `classify.py`; a stale verdict is worse than no verdict.
+
+## `--regrade` — the episode already happened
+
+`--reclassify` keeps the stored score verbatim, which is no use when the GRADER is what was
+wrong. `--regrade` re-runs every stage that comes after teardown — workspace-edit staging
+(native), the action log, the fingerprint, the artefact, `blindness.detect`,
+`episode.grade_twice` and the classifier — over the files the episode left behind. The subject
+is never re-run and the world is never rebuilt.
+
+It was built for GT009: five episodes ran to completion, and `rollout.py` then died at record
+time because that task's `grade.py` emitted `check` where the record indexes `id`. Re-running
+them would have spent ~55 minutes of model quota re-doing the one part that had not failed.
+
+**What it refuses.** A directory missing the transcript, the action log, the world, the grading
+zone or the final artefact is refused by name — a stage that runs without its input produces a
+verdict about nothing. So is a rollout whose task, driver or world manifest can be neither read
+from a record nor evidenced on disk: the driver decides the tool allowlist, and the wrong one
+accuses the subject of holding a tool the harness handed it.
+
+**What it will not fake.** Everything that describes the world BEFORE the episode — the tree
+manifest the off-channel detector diffs against, the fingerprint, the action-log watermark, the
+probe results, the toolbelt — comes from what `rollout.py` wrote **at the time**. A "before"
+picture taken now is a picture of the world the episode already changed. `before_episode.json`
+is written immediately before the subject is handed the terminal and is what makes a regrade
+`complete`; without it the record is marked **`regrade_partial`**, the missing piece is named,
+and its consequence is written out:
+
+| not saved | what happens |
+|---|---|
+| `before_episode.json`, but a record exists | the world-diff verdict is carried forward from that record verbatim — the detector *did* run then — and the carry-forward is recorded |
+| `before_episode.json` and no record either | `world_before` stays `None`, `blindness.detect`'s evidence gate fires, and the rollout quarantines as **unobserved**. It is still graded, so the score is not lost with the verdict |
+| the surface probe results | the surface audit reports `unprobed` and `report.py` withholds Pass@1 — they cannot be re-taken, the world has been worked in since |
+| the toolbelt (mcp/kimi) | re-read from the gateway venv and **verified** to cover every tool the transcript's init event records as granted; a gateway that has since lost one of them refuses rather than inventing a violation |
+| the action-log watermark | rows the harness cannot name are counted as the subject's — it can only over-count |
+| the agent's exit reason | recorded as `unrecorded`, which matches no classifier branch. `not_started` would be a claim, and a false one |
+
+Every record carries `regraded_from` (the classification it replaced, or `no_record`),
+`regraded_at`, `regrade_grader_sha256` and a `regrade` block with the source of each input.
+`report.py` puts `- regraded: true` at the top of the run-conditions block, above the number,
+and a run that mixes re-graded and original records — or two grader hashes — is invalidated.
+
+A regrade writes **in place**, so copy a run that must be preserved; a copy's world manifest is
+re-rooted onto the copy, and the original is never read or written. `test_regrade.py` executes
+all of this against a real `--driver scripted` rollout (no model quota) and, when the machine
+has one, diffs a re-graded recorded rollout against its original field by field.
 
 Runs land in `%TEMP%/alkera-rollouts/<task>/<run-id>/` — outside the repo on
 purpose. A world built inside the source tree puts the subject one `..` from the

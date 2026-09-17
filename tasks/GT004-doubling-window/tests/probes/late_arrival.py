@@ -5,20 +5,37 @@ GT004 gate G3 - late arrivals land INSIDE the window the agent already repaired.
     from probes import late_arrival
     result = late_arrival.run(world_root, contract=CONTRACT,
                               config=manifest.get("late_arrival_probe"),
-                              max_points=5)
+                              max_points=7)
 
 This is the gate that makes GT004 long-horizon.  The agent cannot finish, because
 finishing changes what "finished" means: the repair has to still hold after the
 world moved.
 
-The `late_arrival` FAULT KIND is inert in this environment - `_kind_scan` globs
-the cumulative folder with `min: 1`, so after day one a poll cannot fail.  Late
-arrival is therefore modelled where it actually lives: in the ARRIVAL STREAM
-(WORLD's payload, dropped into the landing zone or the raw table) and in the
-CLOCK (var/sched/state.json's v-now).  No fault is injected and no job is
-triggered.
+WHO DECIDES WHAT, since 2026-09-16.  The three clauses are `tasks/contracts/
+exactly_once.py`, which was lifted out of this probe and G1b when the contract
+library was built (`exactly_once.DOC`: "LIFTED FROM GT004 G1b (duplicate keys)
+and G3 (late arrivals)").  This module CONFIGURES that contract from
+`CONTRACT["probes"]["late_arrival"]` and re-weights the clauses it returns onto
+G3's rubric line:
 
-Three clauses:
+    G3.incorporation   <- exactly_once.late_incorporated_once  0.45, FATAL
+    G3.no-re-doubling  <- exactly_once.no_re_doubling          0.30
+    G3.stability       <- exactly_once.stable_on_replay        0.25
+
+The weights are the manifest's, not the contract's, and they deliberately differ
+from it: `exactly_once` weights the same three 0.45 / 0.30 / 0.30 because it is
+describing an invariant, while this rubric line is 0.45 / 0.30 / 0.25 because
+G2 already pays for stability against a NEW partition and G3's own contribution
+is the re-doubling.  Reading the verdict from one place and the weight from the
+other is what lets the library be shared without moving a single score.
+
+The contract also emits `exactly_once.stressed` (the gate that refuses to pay
+for a world that never carried a duplicate key) and `exactly_once.
+no_duplicate_keys` (G1b's clause, scored in grade.py against the harness-side
+connection).  Neither is mapped here; a clause scored twice would be the error
+agent.md 8.10 records as G4 restating G1c.
+
+The three clauses, unchanged:
 
   * INCORPORATION (fatal).  The late events are in the fact table exactly once.
     A repair that hardcoded "delete the window, reinsert from the snapshot I saw"
@@ -31,118 +48,76 @@ Three clauses:
   * STABILITY.  Running again after the arrival still changes nothing.  G2 proves
     idempotency against a NEW partition; this proves it against a partition that
     already exists, which is the harder case and the one a merge key gets wrong.
+
+RESTATEMENTS.  A payload event may carry `adds` as well as `rows`: `rows` is what
+is DELIVERED and `adds` is what a correct merge puts INTO the fact table, which
+is zero for a redelivery of a key the table already holds.  The contract defaults
+`adds` to `rows` and GT004's payload publishes both, because counting the 70
+restatements as arrivals made the gate expect 196 rows where a correct merge
+produces 126 and zeroed G3 for every baseline including the oracle (measured
+2026-09-14).
+
+The `late_arrival` FAULT KIND is inert in this environment - `_kind_scan` globs
+the cumulative folder with `min: 1`, so after day one a poll cannot fail.  Late
+arrival is therefore modelled where it actually lives: in the ARRIVAL STREAM
+(WORLD's payload, inserted into the raw landing table) and in the CLOCK
+(var/sched/state.json's v-now).  No fault is injected and no job is triggered.
 """
 from __future__ import annotations
 
-import json
-import tempfile
-from collections import defaultdict
 from pathlib import Path
 
-from ._common import (Clause, ProbeNotConfigured, business_columns, copy_world,
-                      crashed, key_count, normalise_steps, not_configured,
-                      open_world, per_date, pipeline_failed, probe_config,
-                      read_json, require, run_pipeline, score_clauses,
-                      table_exists, warehouse_path, workspace_path, write_text,
-                      world_config)
+from ._common import (ProbeNotConfigured, crashed, normalise_steps,
+                      not_configured, probe_config, require, world_config)
+from ._contracts import evaluate_contract, params_for, remap
 
 PROBE_ID = "G3"
+CONTRACT_NAME = "exactly_once"
+
+# (local clause name, contract clause id, weight, fatal) - the manifest's
+# `checks[id=G3].probe_clauses` block, in the order it lists them.
+CLAUSES = [
+    ("incorporation", "exactly_once.late_incorporated_once", 0.45, True),
+    ("no-re-doubling", "exactly_once.no_re_doubling", 0.30, False),
+    ("stability", "exactly_once.stable_on_replay", 0.25, False),
+]
+
+# Where the contract reads "was this invariant ever stressed" from.
+STRESSED_BY = ("defect_1", "duplicated_business_keys")
 
 
-def _apply_payload(world_root: Path, payload: dict) -> str:
-    """Drop WORLD's late-arrival payload into the world's arrival surface."""
-    mode = payload.get("mode", "landing")
-    events = payload["events"]
-    notes = []
-    if mode == "landing":
-        require(payload, "dir", "filename", "header", "row_template",
-                where="late_arrival.payload (mode=landing)")
-        for ev in events:
-            date, rows = ev["date"], int(ev["rows"])
-            target = (workspace_path(world_root) / payload["dir"].format(date=date)
-                      / payload["filename"])
-            lines = [payload["header"]]
-            for i in range(rows):
-                lines.append(payload["row_template"].format(
-                    n=i + 1, date=date, id=int(ev.get("id_base", 991000001)) + i,
-                    amount=ev.get("amount", "10.00")))
-            write_text(target, "\n".join(lines) + "\n")
-            notes.append(f"{date}:{rows}")
-        return "landing " + ",".join(notes)
-    if mode == "sql":
-        require(payload, "sql", where="late_arrival.payload (mode=sql)")
-        con = open_world(warehouse_path(world_root))
-        try:
-            for ev in events:
-                for i in range(int(ev["rows"])):
-                    con.execute(payload["sql"].format(
-                        n=i + 1, date=ev["date"],
-                        id=int(ev.get("id_base", 991000001)) + i,
-                        amount=ev.get("amount", "10.00")))
-                notes.append(f"{ev['date']}:{ev['rows']}")
-        finally:
-            con.close()
-        return "sql " + ",".join(notes)
-    raise ProbeNotConfigured(f"unknown late_arrival.payload.mode {mode!r}")
+def _before(contract: dict | None) -> dict:
+    """`{"duplicate_keys_before": N}` - the fact `exactly_once.stressed` reads.
 
-
-def _event_adds(ev: dict) -> int:
-    """How many rows this event ADDS to the fact table.
-
-    Defaults to `rows`, which is right for every payload whose events are
-    genuinely new lines - that is every world probes/selftest.py builds, and it
-    is what this probe assumed exclusively until 2026-09-14.
-
-    A payload may also carry upstream RESTATEMENTS: a redelivery of a business
-    key the fact table already holds.  A restatement REPLACES a row rather than
-    adding one, so it moves no day's row count and it cannot be isolated by the
-    late-event predicate either - an id-range predicate that matched a restated
-    key would already match before the payload was applied, and the guard below
-    ("predicate already matches N rows") would correctly reject it.  Counting
-    such an event as an arrival made both the incorporation and the
-    no-re-doubling clauses expect rows that a CORRECT merge must not create:
-    MEASURED on GT004's shipped fixture, a genuine merge landed 126 of 126 new
-    lines and was scored `126 where 196 were delivered`, zeroing the gate for
-    every baseline including the oracle.
-
-    Restatements still carry the gate.  They are planted in full, so an agent
-    that APPENDS them instead of merging them moves the day count to
-    (pre-arrival + new + restated) and fails no-re-doubling, which is the
-    merge-versus-append distinction they exist to make.
+    Reported for the record, and 0 when the fixture does not publish it, because
+    G3 passes `allow_unstressed` (see `run`).  The gate that must NOT be allowed
+    to pass unstressed is G1b's, and grade.py enforces that one twice over: its
+    `preflight` refuses to run the whole grader unless the contract says the
+    shipped world carries duplicate keys, and it evaluates the same contract
+    with the gate armed.
     """
-    return int(ev.get("adds", ev["rows"]))
-
-
-def _advance_clock(world_root: Path, to: str | None) -> str:
-    """Move the world's v-clock forward.  Nothing is triggered.
-
-    The scheduler's v-now is the world's clock; advancing it is what makes the
-    arrival LATE rather than merely additional.  `sched_trigger` is deliberately
-    not used: it reports success without executing.
-    """
-    if not to:
-        return "clock not advanced (no advance_to given)"
-    p = Path(world_root) / "var" / "sched" / "state.json"
-    state = read_json(p)
-    if not isinstance(state, dict) or "vnow" not in state:
-        return f"clock not advanced: {p.name} carries no vnow"
-    was = state["vnow"]
-    state["vnow"] = to
-    write_text(p, json.dumps(state, sort_keys=True, separators=(",", ":")) + "\n")
-    return f"v-clock {was} -> {to}"
+    node = contract or {}
+    for part in STRESSED_BY:
+        if not isinstance(node, dict) or part not in node:
+            return {"duplicate_keys_before": 0}
+        node = node[part]
+    return {"duplicate_keys_before": int(node)}
 
 
 def run(world_root, *, contract: dict | None = None, config: dict | None = None,
-        max_points: float = 5.0, keep_dir: Path | None = None) -> "object":
+        max_points: float = 7.0, keep_dir: Path | None = None) -> "object":
     """Gate G3.  Same signature shape as every other probe in this package.
 
-    world_root  - post-episode world root; copied, never written to.
+    world_root  - post-episode world root; the contract copies it, never writes
+                  to it.
     contract    - CONTRACT from fixtures/fixture_contract.py.
     config      - manifest `late_arrival_probe` block, overlaying
                   CONTRACT['probes']['late_arrival'].
     max_points  - the gate's rubric weight.
-    keep_dir    - diagnostics only.
+    keep_dir    - accepted for signature compatibility and unused; the contract
+                  owns its own scratch directory.
     """
+    del keep_dir                       # the contract owns its scratch directory
     world_root = Path(world_root)
     try:
         w = world_config(contract, config)
@@ -157,129 +132,43 @@ def run(world_root, *, contract: dict | None = None, config: dict | None = None,
         if not steps:
             return not_configured(PROBE_ID, max_points,
                                   "no pipeline steps given (probes.pipeline.steps)")
-    except ProbeNotConfigured as exc:
-        return not_configured(PROBE_ID, max_points, str(exc))
-
-    tmp = Path(keep_dir) if keep_dir else Path(tempfile.mkdtemp(prefix="gt004-g3-"))
-    try:
-        root = copy_world(world_root, tmp / "world")
-        db = warehouse_path(root)
-        table, key, dcol = w["fact_table"], w["business_key"], w["date_column"]
-        win, audit = w["window"], w.get("audit_columns") or []
-
-        expect_by_date = defaultdict(int)
-        delivered = 0
-        for ev in payload["events"]:
-            expect_by_date[str(ev["date"])] += _event_adds(ev)
-            delivered += int(ev["rows"])
-        n_late = sum(expect_by_date.values())
-
-        outside = [d for d in expect_by_date
-                   if not (str(win["start"]) <= d <= str(win["end"]))]
+        # The one guard that stays HERE rather than moving into the contract:
+        # `exactly_once` is happy to incorporate an event anywhere in the table,
+        # and G3 only means something for events that land inside the window the
+        # agent has already repaired.  That is a property of THIS rubric line.
+        win = w["window"]
+        outside = sorted({str(ev["date"]) for ev in payload["events"]
+                          if not (str(win["start"]) <= str(ev["date"])
+                                  <= str(win["end"]))})
         if outside:
             return not_configured(
                 PROBE_ID, max_points,
-                f"late_arrival payload dates {sorted(outside)} fall OUTSIDE the "
+                f"late_arrival payload dates {outside} fall OUTSIDE the "
                 f"repaired window {win['start']}..{win['end']} - G3 only means "
                 "anything for events that land inside it")
+        params = params_for(w, cfg, steps, CONTRACT_NAME)
+        # THE STRESSOR THIS GATE GRADES IS THE DELIVERY, NOT THE DOUBLING.
+        # `exactly_once.stressed` is a fatal gate that refuses to pay for an
+        # invariant the shipped world never stressed, and the thing it measures
+        # - how many duplicate business keys the world carried before the
+        # episode - is G1b's stressor.  G3's stressor is the late payload, which
+        # the contract PLANTS itself, so it is stressed by construction and the
+        # gate would only ever be deciding G1b's question a second time.  G1b
+        # arms it (grade.py, `g1b_duplicates`), so the no-free-points rule is
+        # kept exactly once rather than dropped or double-counted.
+        params["allow_unstressed"] = True
+        before = _before(contract)
+    except ProbeNotConfigured as exc:
+        return not_configured(PROBE_ID, max_points, str(exc))
 
-        con = open_world(db, read_only=True)
-        try:
-            if not table_exists(con, table):
-                return score_clauses(PROBE_ID, [Clause(
-                    "incorporation", False, 1.0,
-                    f"{table} does not exist in the graded world", fatal=True)],
-                    max_points)
-            cols = business_columns(con, table, audit)
-            before_window = per_date(con, table, dcol, cols, win["start"], win["end"])
-            before_late = key_count(con, table, key, payload["predicate"])
-        finally:
-            con.close()
-
-        if before_late:
-            return not_configured(
-                PROBE_ID, max_points,
-                f"late_arrival.payload.predicate already matches {before_late} "
-                "row(s) before the payload was applied; it does not isolate the "
-                "late events")
-
-        note = _apply_payload(root, payload)
-        clock = _advance_clock(root, cfg.get("advance_to"))
-
-        log1 = run_pipeline(root, steps)
-        con = open_world(db, read_only=True)
-        try:
-            after_late = key_count(con, table, key, payload["predicate"])
-            after_window = per_date(con, table, dcol, cols, win["start"], win["end"])
-        finally:
-            con.close()
-
-        log2 = run_pipeline(root, steps)
-        con = open_world(db, read_only=True)
-        try:
-            after2_late = key_count(con, table, key, payload["predicate"])
-            after2_window = per_date(con, table, dcol, cols, win["start"], win["end"])
-        finally:
-            con.close()
-
-        err1 = pipeline_failed(log1)
-        err2 = pipeline_failed(log2)
-
-        inc_ok = after_late == n_late
-        if after_late == 0:
-            inc_detail = (f"{n_late} late event(s) landed inside the repaired window "
-                          "and the pipeline incorporated NONE of them - either the "
-                          "repair reinstates a snapshot captured before they arrived, "
-                          "or the load no longer ingests anything at all"
-                          + (f"; run failed [{err1}]" if err1 else ""))
-        elif after_late != n_late:
-            inc_detail = (f"{after_late} rows carry the late-event marker where "
-                          f"{n_late} were delivered - incorporated, but not once")
-        else:
-            inc_detail = (f"all {n_late} late event(s) incorporated exactly once"
-                          + (f" ({delivered} row(s) delivered, {delivered - n_late} "
-                             f"of them restatements of keys the fact already held)"
-                             if delivered != n_late else ""))
-
-        # expected = pre-arrival count + that day's late events, per day
-        bad, doubled = [], []
-        for d in sorted(set(before_window) | set(after_window)):
-            b = before_window.get(d, [0, None])[0]
-            a = after_window.get(d, [0, None])[0]
-            want = b + expect_by_date.get(d, 0)
-            if a != want:
-                bad.append(f"{d}: {b}->{a}, expected {want}")
-                if b and a >= 2 * b:
-                    doubled.append(d)
-        red_ok = not bad
-        red_detail = (f"every day of the repaired window ends at its pre-arrival "
-                      f"count plus its own late events ({len(before_window)} day(s))"
-                      if red_ok else
-                      ("the window RE-DOUBLED on " + str(doubled[:6]) + "; "
-                       if doubled else "") + f"{len(bad)} day(s) off: {bad[:6]}")
-
-        stab_ok = (after2_late == n_late
-                   and all(after_window.get(d) == after2_window.get(d)
-                           for d in set(after_window) | set(after2_window)))
-        stab_detail = ("running again after the arrival changes nothing"
-                       if stab_ok else
-                       f"a repeat run took the late events from {after_late} to "
-                       f"{after2_late} rows and/or moved the window again"
-                       + (f"; run 2 failed [{err2}]" if err2 else ""))
-
-        return score_clauses(PROBE_ID, [
-            Clause("incorporation", inc_ok, 0.45, inc_detail, fatal=True),
-            Clause("no-re-doubling", red_ok, 0.30, red_detail),
-            Clause("stability", stab_ok, 0.25, stab_detail),
-        ], max_points, {
-            "payload": note, "clock": clock, "late_rows_expected": n_late,
-            "late_rows_delivered": delivered,
-            "late_rows_after_run1": after_late, "late_rows_after_run2": after2_late,
-            "window_days": len(before_window), "run1": log1, "run2": log2,
-        })
+    try:
+        clauses = evaluate_contract(CONTRACT_NAME, world_root, params, before)
+        delivered = sum(int(ev["rows"]) for ev in payload["events"])
+        adds = sum(int(ev.get("adds", ev["rows"])) for ev in payload["events"])
+        return remap(PROBE_ID, CONTRACT_NAME, clauses, CLAUSES, max_points,
+                     {"late_rows_delivered": delivered,
+                      "late_rows_expected": adds,
+                      "advance_to": cfg.get("advance_to"),
+                      "steps": [s["path"] for s in steps]})
     except Exception as exc:                            # noqa: BLE001 - scored
         return crashed(PROBE_ID, max_points, exc)
-    finally:
-        if keep_dir is None:
-            import shutil
-            shutil.rmtree(tmp, ignore_errors=True)

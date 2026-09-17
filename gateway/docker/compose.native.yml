@@ -57,6 +57,9 @@
 #        The ports are NOT a free choice: tasks/harness/agent_under_test
 #        .NATIVE_SERVICES is what the subject env carries, and
 #        tasks/harness/NATIVE_DRIVER_REQUESTS.md item 3 fixes them.
+#   sched.internal:8120       the scheduler plane behind the workspace's own
+#        ./ops/sched. Served by the same process; not a vendor, and not one of
+#        the nine the aggregate reports.
 #   native-services.internal:8099  the aggregate /health over all nine
 #   native-services.internal:8110  MinIO's audit webhook receiver. Served by
 #        the same process; dialled by MinIO, never by the episode, and so not
@@ -70,17 +73,18 @@
 # gets one: `published_host_ports` for `episode` is a P6 and a P7 pass
 # condition, and the harness reaches the episode with `docker exec`.
 #
-# The per-rollout overlay the harness writes DOES publish `native-services` and
-# `minio` on 127.0.0.1, and the reason is worth the line. The surface gate
+# NOTHING ELSE PUBLISHES ONE EITHER, AND IT CANNOT. The surface gate
 # (`tasks/harness/surface_audit.probe_native`) asks each service for `/health`
 # from the HARNESS process, which is on the host and cannot resolve
-# `jira.internal`. The alternative is a probe file copied into the episode
-# container - and the episode container is the one place a file describing the
-# harness may not be, because the agent has a shell there. So the services are
-# published to loopback for the harness and the episode stays unpublished; the
-# direction that matters is out of the episode, and nothing about a loopback
-# port on `native-services` gives the episode a route it did not have. P7
-# records both facts rather than asserting either.
+# `jira.internal`, so the harness spent an afternoon publishing the nine
+# services to loopback - and Docker will not publish off an `internal: true`
+# network. The bindings appear in `HostConfig.PortBindings` and nothing ever
+# listens: GT004's first container rollout failed its surface gate with
+# `WinError 10061` on all nine while `docker inspect` reported all nine
+# mappings. The gate now reaches them through
+# `tasks/harness/container_episode.ServiceGate`, one `docker exec` byte relay
+# per connection, and `published_host_ports: {}` is true for every container in
+# the project - which P6 asserts and P7 now asserts too.
 
 services:
 
@@ -132,6 +136,7 @@ services:
       PGPORT: "5432"
       PGUSER: alkera
       PROMETHEUS_URL: http://prometheus.internal:9090
+      SCHED_URL: http://sched.internal:8120
       SLACK_BASE_URL: http://slack.internal:8081
       SLACK_BOT_TOKEN: alkera-local-dev
       SNOWFLAKE_ACCOUNT: acme
@@ -167,9 +172,9 @@ services:
     # the world the rollout built (`blindness.declared_warehouses`, which is
     # `world/world/fingerprint.py`'s own rule), so compose cannot spell them.
     # `tasks/harness/container_episode.NativeContainerEpisode` writes one more
-    # overlay per rollout with exactly those file binds, the published loopback
-    # ports the surface gate needs, and the shim PATH. That file is kept in the
-    # rollout directory as evidence.
+    # overlay per rollout with exactly those file binds and the shim PATH, and
+    # keeps it in the rollout directory as the record of what this container
+    # could see.
     #
     # `<world>/home:/root` is gone with the rest: home is COPIED in instead
     # (`docker cp`), so `~/.dbt/profiles.yml` is there for a bare `dbt` and an
@@ -231,6 +236,15 @@ services:
           - prometheus.internal
           - alertmanager.internal
           - loki.internal
+          # NOT a tenth vendor. `sched.internal` is the backend of the agent's
+          # own `./ops/sched`, and it exists because the episode container
+          # mounts the workspace and the warehouse files and nothing else - so
+          # `var/sched`, its run logs, `var/obs` and `build/sched`, which that
+          # CLI drives, are not on the episode's filesystem. This container
+          # mounts the whole world, so it can. See
+          # `alkera_gateway.native.serve.sched_plane` and
+          # tasks/harness/NATIVE_CONTAINER.md.
+          - sched.internal
     volumes:
       # The same world the episode mounts: NATIVE_SURFACES.md's rule is that a
       # fake service serves and mutates the fixture files the MCP tools serve,

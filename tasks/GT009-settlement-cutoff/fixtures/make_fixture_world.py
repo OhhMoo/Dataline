@@ -170,14 +170,12 @@ class Feed:
 
     def __init__(self) -> None:
         self.partitions: dict[str, list[dict]] = {}
-        self.order: list[dict] = []
         self._seq = 0
 
     def add(self, dt_day: dt.date, row: dict) -> dict:
         self._seq += 1
         row = {**row, "seq": self._seq}
         self.partitions.setdefault(dt_day.isoformat(), []).append(row)
-        self.order.append(row)
         return row
 
     def rows_for(self, dt_day: str) -> list[dict]:

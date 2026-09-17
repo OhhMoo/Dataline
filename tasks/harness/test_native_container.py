@@ -15,7 +15,10 @@ three questions the host topology could not:
   * a `duckdb ... DELETE` typed the way an engineer types it - after a `cd`,
     with a bare filename - explains the warehouse file it changed;
   * a filesystem-wide hunt for a canary and for the grading zone finds neither,
-    and the listing of what it DID find is recorded.
+    and the listing of what it DID find is recorded;
+  * the SCHEDULER plane answers from inside, `./ops/sched` drives it, and its
+    two modes - local on the host, HTTP in the container - render the same
+    thing and write the same row for the same operation.
 
 Every live assertion is made against the same classes `rollout.py` uses, so a
 pass here is a statement about the code path a rollout takes and not about a
@@ -25,6 +28,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -44,10 +48,13 @@ PASSED = 0
 FAILED = 0
 DEFAULT_TASK = "GT001-aov-halving"
 #: The image the container topology is measured against. `alkera-episode:head`
-#: predates the `native` extra and cannot import a single service module, so a
-#: default that named it would make every live test fail for a reason that has
-#: nothing to do with this topology.
-DEFAULT_IMAGE = "alkera-native:probe"
+#: predates the `native` extra and cannot import a single service module, and
+#: `alkera-native:probe` predates the scheduler plane - the image bakes
+#: `gateway/src`, so a change to `native/serve.py` is a change to the image, and
+#: a default naming an older tag would fail here for a reason that has nothing
+#: to do with this topology. Rebuild with
+#: `docker build -f gateway/docker/Dockerfile -t alkera-native:sched .`.
+DEFAULT_IMAGE = "alkera-native:sched"
 
 
 def check(name: str, condition: bool, detail: str = "") -> bool:
@@ -239,9 +246,72 @@ def test_prompt_and_cli(tmp: Path) -> None:
 
     installed = native_stack.install_workspace_cli(
         {"workspace": str(workspace)}, "container")
-    check("./ops/sched is NOT installed under the container topology",
-          installed["cli"] is None and not (workspace / "ops").exists(),
-          installed.get("why", "")[:90])
+    check("./ops/sched IS installed under the container topology",
+          installed["cli"] == "ops/sched" and (workspace / "ops" / "sched").is_file(),
+          json.dumps(installed)[:160])
+    body = (workspace / "ops" / "sched").read_text(encoding="utf-8")
+    check("...with the IMAGE's interpreter and Track A's path inside the image",
+          ce._native_probe().CONTAINER_PYTHON in body
+          and ce.WORLD_PYTHONPATH_IN_CONTAINER in body, body.strip())
+    host = native_stack.install_workspace_cli(
+        {"workspace": str(workspace)}, "host")
+    check("...and the host topology still bakes the host interpreter",
+          str(episode.PY) in (workspace / "ops" / "sched").read_text(
+              encoding="utf-8"), host["interpreter"])
+
+
+def test_variant_plumbing(tmp: Path) -> None:
+    section("the context variant reaches the world, the record and the box")
+    import agent_under_test as aut
+
+    stack = ce.NativeContainerEpisode(
+        project="t", world={"world_root": str(tmp), "workspace": str(tmp)},
+        audit_dir=tmp, rollout_dir=tmp, variant="no-ticket")
+    check("a variant is exported into the episode container",
+          stack.variant_env() == {"ALKERA_TASK_VARIANT": "no-ticket"},
+          stack.variant_env())
+    plain = ce.NativeContainerEpisode(
+        project="t", world={"world_root": str(tmp), "workspace": str(tmp)},
+        audit_dir=tmp, rollout_dir=tmp)
+    check("a one-context task exports nothing - an empty value is a value",
+          plain.variant_env() == {}, plain.variant_env())
+    env = aut.native_env(endpoints=aut.resolve_endpoints(None), audit_dir=tmp,
+                         profiles_dir=tmp, variant="no-ticket")
+    check("the host native subject carries it too",
+          env.get("ALKERA_TASK_VARIANT") == "no-ticket")
+    env = aut.native_env(endpoints=aut.resolve_endpoints(None), audit_dir=tmp,
+                         profiles_dir=tmp)
+    check("...and does not invent one", "ALKERA_TASK_VARIANT" not in env)
+    source = (Path(__file__).resolve().parent / "rollout.py").read_text(
+        encoding="utf-8")
+    check("rollout.py records the variant itself and takes the flag",
+          '"variant": spec.variant,' in source
+          and 'ap.add_argument("--variant"' in source
+          and "variant=args.variant)" in source)
+
+
+def test_sched_endpoint() -> None:
+    section("the scheduler plane is an address, not a tenth vendor")
+    import agent_under_test as aut
+    from alkera_gateway.native import serve
+
+    check("its port is one number, in the harness and in the server",
+          aut.NATIVE_WORKSPACE_SERVICES["sched"][1] == serve.SCHED_PORT,
+          f"{aut.NATIVE_WORKSPACE_SERVICES['sched']} vs {serve.SCHED_PORT}")
+    check("it is NOT one of the nine the aggregate reports",
+          "sched" not in aut.NATIVE_SERVICES
+          and "sched" not in serve.STUB_PORTS)
+    endpoints = aut.resolve_endpoints(None)
+    check("the episode addresses it by alias",
+          endpoints["sched"] == f"http://sched.internal:{serve.SCHED_PORT}",
+          endpoints["sched"])
+    check("...and `blindness` allows that destination",
+          ("sched.internal", serve.SCHED_PORT)
+          in aut.allowed_destinations(endpoints))
+    mounted, why = serve.sched_plane(serve.SCHED_PORT)
+    check("serve.py mounts it with its own health, as a destination",
+          mounted is not None and mounted.own_health and mounted.destination
+          and mounted.host == "sched.internal", why or "")
 
 
 def test_host_topology_warning() -> None:
@@ -283,6 +353,11 @@ def test_live(tmp: Path, task: str, tasks_dir: Path | None, image: str) -> None:
     if not check("docker answers", ok, version):
         return
     world = build_world(tmp, task, tasks_dir)
+    # `rollout.py` does this before the world is fingerprinted, for the reason
+    # its own comment gives: a file that appears in the working tree after the
+    # "before" picture is a world change with no row to explain it. The CLI has
+    # to be there before the container is, so the test does it here too.
+    native_stack.install_workspace_cli(world, "container")
     stack = ce.NativeContainerEpisode(
         project=f"alkera-tnc-{int(time.time())}", world=world,
         audit_dir=tmp / "audit", rollout_dir=tmp / "roll", image=image)
@@ -388,7 +463,11 @@ def test_live(tmp: Path, task: str, tasks_dir: Path | None, image: str) -> None:
                                {**evidence, "when": "after_episode"}])
               == "filesystem_isolated")
 
-        # 5. The surface gate's vantage: relayed, never published.
+        # 5. THE SCHEDULER PLANE. The one plane whose files this topology does
+        #    not mount, so the one that has to be served.
+        test_scheduler(stack, tmp, world)
+
+        # 6. The surface gate's vantage: relayed, never published.
         endpoints = stack.gate_endpoints()
         import agent_under_test as aut
         import urllib.error
@@ -413,6 +492,137 @@ def test_live(tmp: Path, task: str, tasks_dir: Path | None, image: str) -> None:
         stack.down()
 
 
+def sched_rows(audit: Path, tool: str) -> list[dict]:
+    """Every row in this episode's log for one scheduler operation."""
+    rows = [json.loads(line) for line in
+            (audit / "actions.jsonl").read_text(encoding="utf-8").splitlines()
+            if line.strip()]
+    return [r for r in rows if r.get("tool") == f"sched.{tool}"]
+
+
+def test_scheduler(stack: ce.NativeContainerEpisode, tmp: Path,
+                   world: dict) -> None:
+    """`./ops/sched` in the container, and the two modes rendering the same.
+
+    The remote half runs through the subject's own wrapper, so what is proved
+    is the path an agent takes. The local half runs in THIS process against the
+    same world files, which is what the host topology does - the two share
+    `shims/sched_cli`'s three operations and its renderer, and the point of
+    diffing them is that sharing cannot be asserted into existence.
+    """
+    import agent_under_test as aut
+    from alkera_gateway.native.shims import sched_cli
+
+    audit = Path(stack.audit_dir)
+    endpoints = stack.episode_endpoints()
+
+    listed = run_in(stack, "cd /workspace && ./ops/sched list",
+                    env={"SCHED_URL": endpoints["sched"]})
+    check("the agent's own ./ops/sched answers in the container",
+          listed.returncode == 0 and listed.stdout.strip(),
+          (listed.stderr or listed.stdout)[-300:])
+    remote_list = listed.stdout.strip()
+
+    # The same operation, in this process, against the same world files: the
+    # host topology's mode. `SCHED_URL` unset is what selects it.
+    local = subprocess.run(
+        [str(episode.PY), "-m", sched_cli.__name__, "list"],
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
+        env={**episode.venv_env(),
+             "ALKERA_SCHEDULER": str(world["scheduler"]),
+             "ALKERA_NATIVE_AUDIT": str(tmp / "local-actions.jsonl"),
+             "PYTHONPATH": os.pathsep.join(
+                 [str(episode.GATEWAY / "src"), str(episode.TRACK_A)])},
+        timeout=300)
+    check("`list` renders identically local and remote",
+          local.stdout.strip() == remote_list,
+          f"local={local.stdout.strip()!r} remote={remote_list!r} "
+          f"{local.stderr[-200:]}")
+
+    logs = run_in(stack, "cd /workspace && ./ops/sched logs",
+                  env={"SCHED_URL": endpoints["sched"]})
+    local_logs = subprocess.run(
+        [str(episode.PY), "-m", sched_cli.__name__, "logs"],
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
+        env={**episode.venv_env(),
+             "ALKERA_SCHEDULER": str(world["scheduler"]),
+             "ALKERA_NATIVE_AUDIT": str(tmp / "local-actions.jsonl"),
+             "PYTHONPATH": os.pathsep.join(
+                 [str(episode.GATEWAY / "src"), str(episode.TRACK_A)])},
+        timeout=300)
+    check("`logs` renders identically local and remote",
+          local_logs.stdout.strip() == logs.stdout.strip(),
+          f"local={local_logs.stdout.strip()[-120:]!r} "
+          f"remote={logs.stdout.strip()[-120:]!r}")
+
+    # TRIGGER. It moves the world, so the two modes cannot be diffed on one
+    # world without one of them running second; what is compared instead is the
+    # ROW, which is the thing the harness reads, and the shape of the render.
+    jobs = native_stack.scheduler_jobs(world)
+    if not check("this world declares a job to trigger", bool(jobs), jobs):
+        return
+    before = len(sched_rows(audit, "sched_trigger"))
+    tree_before = episode.tree_manifest(Path(world["world_root"]))
+    fired = run_in(stack, f"cd /workspace && ./ops/sched trigger {jobs[0]}",
+                   env={"SCHED_URL": endpoints["sched"]})
+    check("`trigger` runs through the plane",
+          fired.returncode == 0, (fired.stderr or fired.stdout)[-300:])
+    rows = sched_rows(audit, "sched_trigger")
+    check("...and the PLANE wrote the sched.sched_trigger row, not the CLI",
+          len(rows) == before + 1, f"{before} -> {len(rows)}")
+    if rows:
+        row = rows[-1]
+        check("the row is an exec that targets the job it ran",
+              row["op_class"] == "exec"
+              and f"scheduler:{jobs[0]}" in row["targets"],
+              json.dumps({k: row[k] for k in ("op_class", "targets")}))
+        check("...carried the 23 agent.md 9.2.2 keys", len(row) == 23,
+              sorted(row))
+    # The run really happened in the HOST world: the scheduler's own state file
+    # moved and a run log appeared beside it, neither of which is mounted into
+    # the episode.
+    state = json.loads(Path(world["scheduler"]).read_text(encoding="utf-8"))
+    runs = [r for r in (state.get("runs") or []) if r.get("job") == jobs[0]]
+    check("the run is in the HOST world's scheduler state",
+          bool(runs), f"{len(state.get('runs') or [])} run(s) in the file")
+    # ...and it moved parts of the world the EPISODE cannot write. Asked as a
+    # diff rather than by naming `build/sched/logs`, because what a triggered
+    # run writes is the world's business and differs by job kind: GT004's three
+    # are `exec.kind: sql` and leave no raw engine log, GT001's `dbt_build`
+    # does. What must be true for every kind is that the change landed on the
+    # host outside the two mounts, which is only possible through the plane.
+    tree_after = episode.tree_manifest(Path(world["world_root"]))
+    changed = sorted(k for k in set(tree_before) | set(tree_after)
+                     if tree_before.get(k) != tree_after.get(k))
+    unmounted = [k for k in changed
+                 if not k.startswith("workspace/")
+                 and k not in set(stack.warehouses)]
+    check("...and the run wrote parts of the world the episode cannot reach",
+          bool(unmounted), unmounted[:6] or changed[:6])
+    rendered = fired.stdout.strip()
+    check("what the agent saw is the json the local mode renders too",
+          rendered.startswith("{") and '"status"' in rendered,
+          rendered[:200])
+
+    # The gate's question, from the vantage that matters.
+    probe = stack.containment_probe(when="sched", canaries=[],
+                                    grading=tmp / "grading", rollout_dir=tmp)
+    check("P7: the scheduler plane answers with jobs",
+          probe["checks"]["the_scheduler_plane_answers_with_jobs"],
+          json.dumps(probe.get("scheduler")))
+    surfaces = __import__("surface_audit").probe_native(
+        probes=[{"label": "sched", "tool": "sched_state"}],
+        endpoints=stack.gate_endpoints(), world=world,
+        served_planes=ce.SERVED_PLANES)
+    sched = surfaces["surfaces"]["sched"]
+    check("the surface gate asks sched.internal, not the host state file",
+          sched["live"] and sched["check"] == "http_health",
+          json.dumps(sched)[:300])
+    check("and `sched` is an endpoint the episode is allowed to dial",
+          ("sched.internal", aut.NATIVE_WORKSPACE_SERVICES["sched"][1])
+          in aut.allowed_destinations(endpoints))
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="test_native_container")
     parser.add_argument("--no-docker", action="store_true",
@@ -429,6 +639,8 @@ def main(argv: list[str] | None = None) -> int:
         test_generated_overlay(tmp)
         test_container_paths()
         test_prompt_and_cli(tmp)
+        test_variant_plumbing(tmp)
+        test_sched_endpoint()
         test_host_topology_warning()
         if not args.no_docker:
             test_live(tmp, args.task,

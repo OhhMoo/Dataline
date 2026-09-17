@@ -14,6 +14,11 @@ cached generator fixture, which is built ONCE here before any rollout forks -
 K generator processes racing over the same output directory is exactly how a
 stale reference once got written under a validated run.
 
+`--regrade-run <run-dir>` does not run a model at all: it re-grades every rN in
+a run that has already happened, from the files those episodes left behind, and
+rewrites the report. For a run whose grader was broken, or whose harness died
+after teardown. See `rollout.py --regrade`.
+
 `--variant <name>` selects one of the task's declared context variants
 (task.toml `[variants]`). It is exported as ALKERA_TASK_VARIANT for every child
 process, because the world builder, the surface stager and the grader are
@@ -27,6 +32,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -40,6 +46,7 @@ import container_episode  # noqa: E402
 import episode      # noqa: E402
 import native_stack  # noqa: E402
 import report       # noqa: E402
+import rollout      # noqa: E402
 import taskspec     # noqa: E402
 
 HERE = Path(__file__).resolve().parent
@@ -130,9 +137,64 @@ def _one(args, run_dir: Path, idx: int) -> dict:
     }
 
 
+def regrade_run(run_dir: Path, task: str | None, tasks_dir: str | None) -> int:
+    """Re-grade every rollout in a run directory and rewrite its report.
+
+    The run-level half of `rollout.py --regrade`. It exists because a report is
+    not optional: five re-graded records beside a report.json aggregated from
+    the crashed run would be five right numbers under one wrong one, and the
+    report is the artefact anyone actually reads.
+
+    Nothing is re-run and nothing is rebuilt - see rollout.py's regrade block.
+    Each rollout is re-graded IN PLACE in the run directory it names, so a run
+    that must be preserved is copied first; that is the caller's call and the
+    harness does not make it for them.
+    """
+    rollout_dirs = sorted((p for p in run_dir.iterdir()
+                           if p.is_dir() and re.fullmatch(r"r\d+", p.name)),
+                          key=lambda p: int(p.name[1:]))
+    if not rollout_dirs:
+        print(f"  {run_dir} holds no rN rollout directories")
+        return 2
+    print(f"\n  regrading {len(rollout_dirs)} rollout(s) in {run_dir}")
+    records, refused = [], []
+    for path in rollout_dirs:
+        try:
+            rec = rollout.regrade(path, task=task, tasks_dir=tasks_dir)
+        except rollout.RegradeRefused as exc:
+            # A refusal is a result. It is printed, counted, and the rollout is
+            # left exactly as it was - the alternative, writing a record for a
+            # directory we could not describe, is the thing this refuses to do.
+            refused.append((path.name, str(exc)))
+            print(f"  [{path.name}] REFUSED  {exc}")
+            continue
+        records.append(rec)
+        print(f"  [{path.name}] {rec['classification']:<20} "
+              f"regrade={rec['regrade']['status']:<8} "
+              f"was={rec['regraded_from']} "
+              f"total={(rec.get('score') or {}).get('total')}")
+    if not records:
+        print("  nothing was re-graded, so the report is left alone")
+        return 2
+    task_id = task or records[0].get("task") or run_dir.parent.name
+    agg = report.write(run_dir, task_id, run_dir.name, records)
+    print(f"\n  {report.render(task_id, run_dir.name, agg, records)}")
+    if refused:
+        print(f"  {len(refused)} rollout(s) refused and are NOT in the report: "
+              f"{[r[0] for r in refused]}")
+    print(f"  report: {run_dir / 'report.md'}")
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--task", required=True)
+    ap.add_argument("--task", required=False)
+    ap.add_argument("--regrade-run", default=None,
+                    help="re-grade every rN in an EXISTING run directory from "
+                         "the files those episodes left behind, then rewrite "
+                         "report.json and report.md. No model is run and no "
+                         "world is rebuilt; see rollout.py --regrade. Re-grades "
+                         "IN PLACE - copy the run first if it must be kept.")
     ap.add_argument("--k", type=int, default=5)
     ap.add_argument("--tasks-dir", default=None,
                     help="directory holding the task package, when it is not tasks/")
@@ -164,6 +226,10 @@ def main() -> int:
                     help="red-teams the harness's own detectors; a run using it "
                          "is marked and must never be reported as a measurement")
     a = ap.parse_args()
+    if a.regrade_run:
+        return regrade_run(Path(a.regrade_run).resolve(), a.task, a.tasks_dir)
+    if not a.task:
+        ap.error("--task is required unless --regrade-run is given")
 
     spec = taskspec.load(a.task,
                          Path(a.tasks_dir).resolve() if a.tasks_dir else None,

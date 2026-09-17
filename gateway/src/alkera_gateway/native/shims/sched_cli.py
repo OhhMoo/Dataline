@@ -11,7 +11,11 @@ sixteen required surfaces were dead by construction and no task requiring them
 could be run under `--driver native` (gateway/NATIVE_INTEGRATION.md, runner-up
 finding 2). The world's scheduler is a state file plus an executor, not a
 server, so the native surface is a CLI in the repo - the shape `./ops/deploy`
-already has - and not a tenth fake service.
+already has. Under the container topology the FILES it drives are not on the
+episode's box, so the same CLI speaks to a scheduler plane `native/serve.py`
+serves at `sched.internal`; the CLI is still what the agent finds in its repo,
+and the plane behind it is an implementation detail of the topology. See TWO
+MODES below.
 
 EQUIVALENCE IS OBTAINED, NOT ASSERTED. Each subcommand runs the same
 `alkera_gateway.operations.Operations` method the MCP tool of that name runs,
@@ -43,6 +47,27 @@ logs <job>` spells it that way. A job name is resolved by filtering the same
 `sched_logs()` listing, so the row is still one `sched_logs` and the targets are
 still `scheduler:<what was asked for>`.
 
+TWO MODES, ONE OUTPUT
+---------------------
+`SCHED_URL` unset - the HOST topology - runs the three operations in THIS
+process against the world's own files, and writes the row itself. `SCHED_URL`
+set - the CONTAINER topology - sends the same three operations to the scheduler
+plane `native/serve.py` mounts at `sched.internal`, and writes NO row, because
+the server writes it there exactly as the nine services write theirs. The
+container topology needs the second mode because the episode container mounts
+the workspace and the warehouse files and nothing else: `var/sched`, its run
+logs, `var/obs` and `build/sched` are not on the episode's filesystem at all,
+so the plane has to be served like the other eight (tasks/harness/
+NATIVE_CONTAINER.md).
+
+The agent must not be able to tell which mode it is in, so the three operations
+(`list_jobs`, `read_logs`, `trigger_job`) and `render` are shared: both modes
+produce the same `result` object - the local one from `Operations`, the remote
+one from that same `Operations` call's JSON on the other side of one HTTP
+request - and both print it through the same function.
+`test_native_container.py` diffs the two for `list`, `logs` and `trigger` over
+one world.
+
 THE DEPENDENCY ARROW. Nothing here imports `world/`. The executing scheduler
 comes from `alkera_gateway.scheduling.episode_scheduler`, which owns the one
 local, conditional import into Track A (agent.md 10.2); without that injection
@@ -57,6 +82,9 @@ ALKERA_GATEWAY_CONFIG  the gateway config JSON this episode's services are
 ALKERA_SCHEDULER       `var/sched/state.json`. Used to derive the world when no
                        gateway config is set, and read by `native.audit` for
                        the row's `vts`.
+SCHED_URL              the scheduler plane's base address. Set - the container
+                       topology - every subcommand is one HTTP request and the
+                       row is written server-side; unset, everything runs here.
 plus the ALKERA_NATIVE_AUDIT / ALKERA_AUDIT_DIR that `audit.record` reads.
 
 EXIT CODES
@@ -170,11 +198,20 @@ def emit(tool: str, args: dict, observation: Observation, result: object,
     )
 
 
-def run_list(ops, observation: Observation, _arguments) -> object:
+def list_jobs(ops, observation: Observation) -> object:
+    """The jobs this world runs. `sched_list`, and nothing else."""
     return ops.sched_list(observation)
 
 
+def run_list(ops, observation: Observation, _arguments) -> object:
+    return list_jobs(ops, observation)
+
+
 def run_logs(ops, observation: Observation, arguments) -> object:
+    return read_logs(ops, observation, arguments.selector)
+
+
+def read_logs(ops, observation: Observation, selector: str | None) -> object:
     """`sched_logs`, by run id or - as the world's own CLI spells it - by job.
 
     A job name cannot be handed to `sched_logs(run_id=...)`: `WorldScheduler`
@@ -183,8 +220,12 @@ def run_logs(ops, observation: Observation, arguments) -> object:
     that call classified it and the target is then re-pointed at what the agent
     ASKED for, which is the same string `sched_logs(run_id=<job>)` would have
     recorded - the row must say what was requested, not what it fell back to.
+
+    Taken as a plain string rather than as the argparse namespace it used to
+    read, because `native/serve.py`'s scheduler plane runs THIS function for
+    `GET /runs`: one implementation, so the CLI's local mode and its remote mode
+    cannot answer differently.
     """
-    selector = arguments.selector
     if not selector:
         return ops.sched_logs(None, observation)
     state = ops.sched_state(None, observation.child())
@@ -203,15 +244,21 @@ def run_logs(ops, observation: Observation, arguments) -> object:
 
 
 def run_trigger(ops, observation: Observation, arguments) -> object:
+    return trigger_job(ops, observation, arguments.job, arguments.date,
+                       dict(parse_vars(arguments.var)))
+
+
+def trigger_job(ops, observation: Observation, job: str, date: str = "",
+                variables: dict | None = None) -> object:
     """`sched_trigger`, for an explicit logical date.
 
     The date defaults to the world's own `vnow` day rather than to today: a
     manual trigger scopes to a logical day (`world/world/scheduler.trigger`),
     and a wall-clock date would file the run under a day the world has never
-    reached.
+    reached. Shared with the served plane for the same reason `read_logs` is.
     """
-    return ops.sched_trigger(arguments.job, arguments.date or vnow_day(ops),
-                             dict(parse_vars(arguments.var)), observation)
+    return ops.sched_trigger(job, date or vnow_day(ops),
+                             dict(variables or {}), observation)
 
 
 def vnow_day(ops) -> str:
@@ -252,6 +299,62 @@ SUBCOMMANDS = {
     "trigger": ("sched_trigger", run_trigger),
 }
 
+#: The environment variable that decides the mode. Set by
+#: `gateway/docker/compose.native.yml` in the episode container and by nothing
+#: on the host topology.
+URL_ENV = "SCHED_URL"
+#: How long one request to the scheduler plane may take. A `trigger` RUNS the
+#: job - a dbt build on a seeded world - so this is a job timeout, not an HTTP
+#: one, and it is generous on purpose: a timeout here would look to the agent
+#: like a scheduler that ate its request.
+REMOTE_TIMEOUT_S = 600
+
+
+def remote_url() -> str:
+    """The scheduler plane's base address, or "" for the local mode."""
+    return (os.environ.get(URL_ENV) or "").rstrip("/")
+
+
+def remote(subcommand: str, arguments, base: str) -> object:
+    """Run one subcommand against the served scheduler plane.
+
+    Standard library only - the workspace CLI must run under whatever
+    interpreter the box has, and `urllib` is what `native_probe.py` uses inside
+    the same image for the same reason. No row is written here: the plane writes
+    it, through `native/context.py`, exactly as the nine services do, so the
+    episode's action log has one writer per action and not two.
+    """
+    import urllib.error
+    import urllib.parse
+    import urllib.request
+
+    if subcommand == "list":
+        request = urllib.request.Request(f"{base}/jobs")
+    elif subcommand == "logs":
+        query = (f"?selector={urllib.parse.quote(arguments.selector)}"
+                 if arguments.selector else "")
+        request = urllib.request.Request(f"{base}/runs{query}")
+    else:
+        payload = json.dumps({"job": arguments.job, "date": arguments.date or "",
+                              "vars": dict(parse_vars(arguments.var))})
+        request = urllib.request.Request(
+            f"{base}/runs", data=payload.encode("utf-8"), method="POST",
+            headers={"content-type": "application/json"})
+    try:
+        with urllib.request.urlopen(request, timeout=REMOTE_TIMEOUT_S) as response:
+            return json.loads(response.read())
+    except urllib.error.HTTPError as exc:
+        body = exc.read()
+        try:
+            detail = json.loads(body)
+        except ValueError:
+            detail = {"message": body.decode("utf-8", "replace")[:300]}
+        raise SchedulerError(
+            detail.get("message") or detail.get("error") or f"HTTP {exc.code}")
+    except OSError as exc:
+        raise SchedulerError(
+            f"the scheduler at {base} did not answer: {type(exc).__name__}: {exc}")
+
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -273,11 +376,28 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     """Run one subcommand, write its row, print what the agent asked for."""
-    arguments = build_parser().parse_args(
-        list(sys.argv[1:] if argv is None else argv))
+    raw = list(sys.argv[1:] if argv is None else argv)
+    arguments = build_parser().parse_args(raw)
     tool, run = SUBCOMMANDS[arguments.subcommand]
-    args = {"argv": ["ops/sched", *(sys.argv[1:] if argv is None else argv)],
-            "cwd": Path.cwd().as_posix()}
+    args = {"argv": ["ops/sched", *raw], "cwd": Path.cwd().as_posix()}
+    base = remote_url()
+    if base:
+        # The remote mode. Same rendering, same exit codes, no row: the plane
+        # writes it. The agent cannot tell the two apart, which is the property
+        # `test_native_container.py` diffs.
+        try:
+            result = remote(arguments.subcommand, arguments, base)
+        except SchedulerError as exc:
+            # Exit 1 and the same one-line message the local mode prints. A
+            # malformed `--var` still raises SystemExit out of `parse_vars`,
+            # which is exit 2 - a command line the CLI could not read, in
+            # either mode.
+            print(f"sched: {exc}", file=sys.stderr)
+            return 1
+        text = render(arguments.subcommand, result)
+        if text:
+            print(text)
+        return 0
     observation = Observation()
     started = time.monotonic()
     try:

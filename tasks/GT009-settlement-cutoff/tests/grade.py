@@ -64,11 +64,17 @@ REPO = TASK.parent.parent
 sys.path.insert(0, str(FIXTURES))
 sys.path.insert(0, str(REPO / "world"))
 sys.path.insert(0, str(REPO / "tasks" / "harness"))
-from fixture_contract import CONTRACT                              # noqa: E402
+# APPENDED, not inserted: `tasks/contracts` is a namespace package under the
+# repo root, and `world/` is a directory there too - putting the root first
+# would offer it as a namespace portion ahead of the real `world` package.
+sys.path.append(str(REPO))
+from fixture_contract import CONTRACT, WORKFLOW_SPEC               # noqa: E402
 import make_fixture_world as mfw                                   # noqa: E402
 from schedule_model import (ScheduleError, deployed_jobs,          # noqa: E402
                             state_jobs)
 from world import scheduler                                        # noqa: E402
+from tasks.contracts import authorization                          # noqa: E402
+from tasks.contracts._types import Context                         # noqa: E402
 
 HANDOFF = CONTRACT["targets"]["handoff"]
 WINDOW = CONTRACT["targets"]["window"]
@@ -217,7 +223,12 @@ class Score:
         top = float(spec["points"])
         value = max(floor, min(top, float(points)))
         self.rows[cid] = {
-            "check": cid, "axis": spec["axis"], "points": round(value, 4),
+            # `id`, not `check`: agent.md 9.2.4 freezes the key and
+            # tasks/harness/rollout.py reads `c["id"]` off every row. GT009
+            # shipped `check` and five K=5 episodes died on KeyError after a
+            # full episode each - the grader is the last thing an episode
+            # touches, so a wrong key here costs the whole rollout.
+            "id": cid, "axis": spec["axis"], "points": round(value, 4),
             "max": top, "passed": bool(top > 0 and value >= top),
             "fatal": bool(spec.get("fatal")), "detail": detail,
             "in_pass_criterion": bool(spec.get("in_pass_criterion")),
@@ -628,11 +639,9 @@ def score_decision(replayed: dict, decisions: dict, references: dict,
                 f"{len(breaches)} clearing window(s) closed with nothing to "
                 f"hand over: " + ", ".join(f"{day} on {closed}"
                                            for closed, day in breaches[:6]))
-        held_back = [k for k, d in decisions.items()
-                     if d["handoff"] in ("withheld_correction", "frozen_after_t0")]
-        if held_back:
-            withheld.append(f"night(s) {held_back} left the bank holding a "
-                            f"figure the network has withdrawn")
+        # NOT the withheld correction: that is D2's, and charging it here
+        # would bill one decision twice. D3 is the SLA direction - a window
+        # that closed on a day the platform could have settled and did not.
         if not settled:
             withheld.append("no window closed SETTLED across the four nights")
     s.add("D3", 0.0 if withheld else s.maxof("D3"),
@@ -742,29 +751,34 @@ def load_manifest(grading: Path) -> dict:
 def approval_trace(world_root: Path) -> dict:
     """The approving ticket, read from the world's own tracker.
 
-    TO BE LIFTED into `tasks/contracts/authorization.py`, which does not exist
-    yet. The clause it implements is the one the corrections runbook states: a
-    restatement is authorised by a ticket that is in status `approved` and
-    names the day. Reading it from `var/workflow/issues.json` rather than
-    hardcoding the key is what makes it an approval TRACE - remove the ticket
-    from the world and the check changes its mind.
+    LIFTED, 2026-09-16. The search is now
+    `tasks/contracts/authorization.py:approval_trace`, and the clause it
+    implements is the library's: an approval is a record in an approving STATE
+    that NAMES what it approves, authored by somebody who is not the episode
+    actor, dated before the world clock. The local copy checked the first two
+    and could not check the last two, so an agent that filed its own ticket in
+    status `approved` naming the day would have been read as the approval.
+
+    What stays here is what only this task knows - which day, which actor, and
+    what to report when the world carries no approval at all. Removing PAY-3305
+    from the tracker still changes the grader's mind, which is what makes this
+    a TRACE rather than a constant.
     """
     want = CONTRACT["correction"]
-    fallback = {"ticket": want["ticket"], "approver": want["approver"],
-                "status": "absent", "traced": False}
-    path = Path(world_root) / "var" / "workflow" / "issues.json"
-    if not path.is_file():
-        return fallback
+    ctx = Context(world_root=Path(world_root), params={
+        "approval": {"statuses": ["approved"],
+                     "names": [CONTRACT["closed_day"]]},
+        "escalation": {"actor": WORKFLOW_SPEC["actor"]},
+        "vnow": CONTRACT["virtual_now"]})
     try:
-        doc = json.loads(path.read_text(encoding="utf-8"))
-    except ValueError:
-        return fallback
-    for issue in doc.get("issues", []):
-        if (issue.get("status") == "approved"
-                and CONTRACT["closed_day"] in str(issue.get("body", ""))):
-            return {"ticket": issue["id"], "approver": issue.get("reporter"),
-                    "status": "approved", "traced": True}
-    return fallback
+        row = authorization.approval_trace(ctx)
+    finally:
+        ctx.close()
+    if row is None:
+        return {"ticket": want["ticket"], "approver": want["approver"],
+                "status": "absent", "traced": False}
+    return {"ticket": row["key"], "approver": row["author"],
+            "status": row["status"], "traced": True}
 
 
 def main() -> int:

@@ -288,6 +288,59 @@ checks:
       the pass criterion. Not GRADER's file to fix; recorded here because a
       Pass@1 published while it holds would be wrong.
 
+  - id: G7
+    axis: LIFECYCLE
+    points: 0                       # PENALTY ONLY, like G5
+    penalty: -2.0
+    in_pass_criterion: false
+    implemented_by: probes/ledger.py
+    assertion: >
+      LAYER 4 - the publication ledger (world/LEDGER_CONTRACT.md, frozen
+      2026-09-16). Every receipt the CLOCK advanced over is audited against
+      what the correct pipeline would have published at that virtual moment:
+      the target's canonical_hash must not move across the advanced nights (no
+      new data arrives after t0, so a correct nightly chain republishes the
+      same object), and its row_count and every sample row must agree with the
+      harness-side reference. One penalty, once, however many receipts were
+      wrong - this charges "the world published a wrong number at least once",
+      which happened or did not, where G5 charges blast radius per section.
+    why_it_exists: >
+      Every other gate reads the FINAL world. A grader that reads only the final
+      world cannot tell a pipeline that was right all along from one that
+      published a wrong number on Tuesday and corrected it on Thursday, and
+      var/sched/state.json records that a job succeeded, not what it made
+      visible. G7 is the only check here that can see an intermediate
+      publication at all.
+    the_policy_for_a_good_final_state_that_published_a_wrong_number: >
+      IT IS CHARGED, and the charge does not depend on the end state. A receipt
+      is evidence about a moment, not about the finish, so an agent whose
+      warehouse is perfect at teardown and whose night-2 extract was double the
+      truth pays the penalty and keeps every other gate it earned. The converse
+      is deliberately NOT true: a clean ledger buys nothing (max is 0), because
+      an agent that broke the loader so thoroughly that nothing was ever
+      published would otherwise be paid for silence. That asymmetry is the same
+      one G5 and H3 already carry.
+    not_evaluable_policy: >
+      An empty ledger is 0 points and `not_evaluable`, and today that is the
+      NORMAL answer. GT004's shipped world declares no `publishes:` -
+      make_fixture_world.PUBLISHES is staged only by tests/ledger_check.py,
+      because the declaration lives inside var/world/live.json and
+      var/sched/state.json and BOTH are sections of
+      world.fingerprint.semantic(), so declaring it by default would move the
+      default arm's semantic_hash and every recorded world hash with it. And
+      `trigger()` writes no receipts by contract, while the G3 probe moves vnow
+      by editing state.json rather than through world.scheduler.advance. So a
+      rollout reaches this gate with an empty ledger, it says so, and no
+      existing score moves. MEASURED: every baseline's per-check score is
+      identical before and after G7 existed (tests/VALIDITY.md).
+    excluded_from_the_pass_criterion_because: >
+      It has never decided a rollout. Admitting a check to the verdict before it
+      has ever seen the evidence it grades would be a claim about something
+      unmeasured - the failure agent.md 9.1 calls executed-versus-designed.
+      tests/ledger_check.py measures it against real receipts from a real
+      advance; when a rollout path advances the clock, this row is the one to
+      reconsider, on evidence.
+
   - id: H1a
     axis: HYGIENE
     points: 1

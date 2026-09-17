@@ -12,6 +12,13 @@ summary     = "A reported revenue figure was produced by a read that landed betw
 human_hours      = "8-20"
 rubric_points    = 20
 target_pass_at_1 = "0.05-0.20"     # empirical calibration target, not a derivation
+# MEASURED 2026-09-16, opus 5, K=5, MCP driver, host topology, run
+# `mcp-20260917-k5`: Pass@1 = 0.0, Pass^5 = 0.0, 5 scored / 0 quarantined,
+# measurement_valid. Below the target band. Scores 6-13/20; D5 and D7 fail 5/5.
+# tests/VALIDITY.md section 6 carries the per-episode table and the one finding
+# that moves the number - two of the five D5 failures are a single APPENDED
+# tick, which is what rev_snapshot's own append-only contract asks for.
+target_pass_at_1_measured = "0.0 (K=5, 2026-09-16); see tests/VALIDITY.md"
 
 [limits]
 wall_clock_seconds = 5400
@@ -24,6 +31,11 @@ seed_contract = "SEED_SPEC.md"
 seed          = 4211
 virtual_now   = "2026-03-05T09:00:00Z"
 network       = "none"
+# Author's declaration of the stack this world portrays. Nothing reads it; the
+# operational list is [harness].surface_probes, which is MEASURED. One of these
+# does not survive that measurement: `dbt` is SOURCE ONLY here - the staging
+# models are readable and are evidence for D4, but the tree carries no
+# dbt_project.yml, so every dbt_* tool is dead. See [harness].dead_by_design.
 surfaces      = ["duckdb", "dbt", "git", "scheduler", "bi", "docs"]
 
 [grading]
@@ -110,7 +122,7 @@ residual                       = "the excess can still be matched against a live
 [deviations]
 # Recorded departures from A043, with reasons. Full text in SEED_SPEC.md.
 mart_is_sql_not_dbt = "A043 puts the mart in dbt and grades 'compiled SQL plus git diff'. The ordering probe has to execute the agent's own publish script statement by statement, which is not reachable through `dbt run` in the grading zone. The mart's business logic lives in pipelines/mart_rebuild.sql; dbt keeps the staging layer."
-git_diff_deferred   = "The fixture world has no git history, so the static check reads the working-tree file. SEED_SPEC section 3 freezes the commit Track A must create; the git half of A043's check 1 is DEFERRED until it lands."
+git_diff_deferred   = "The static check reads the working-tree file. UPDATED 2026-09-16: the EPISODE world now carries the commit SEED_SPEC section 3 freezes - tests/build_world.py builds the repo, and git_log/git_diff are live and required surfaces - so the git half of A043's check 1 is newly POSSIBLE. It is still not taken: grade.py is unchanged, tests/manifest.yaml still records the check as deferred, and the FIXTURE tree run_baselines.py stages still has no repo. Making the grader read the diff would change what every recorded baseline means, which is a task change with its own validity run."
 dim_was_latently_wrong = "A043 says the torn figure was 'wrong in a way no single table was wrong'. Under an inner join, a mixed read can only UNDERSTATE unless the older dimension fans out - so the analyst's double-counting theory requires the previous build's dim to have carried duplicates. Those rows were latent and unobservable for a week (the accounts had no revenue), so no reported number was ever wrong from a single build, which is the operative property. Recorded rather than papered over."
 duplicated_set_is_a_subset = "The accounts the previous build's dimension carried twice are 883 of the 1,180 in the launch cohort, not all of them. Found by ablation: when the two sets were equal, the tick's excess equalled the launch cohort's launch-day revenue, so `source_batch`, `valid_from` and 'first order on 2026-03-02' each reproduced the excess from LIVE data and the leftover relation stopped being load-bearing. The vendor packaged one chunk of the onboarding file twice, which has no reason to cover the whole batch."
 two_accepted_restatements = "A043 says the torn rows are 'corrected in place' without saying to what. Two readings are equally defensible and the world does not disambiguate them, so grade.py accepts either."
@@ -127,14 +139,17 @@ two_accepted_restatements = "A043 says the torn rows are 'corrected in place' wi
 # files or marked as a choice that needs an owner's confirmation.
 # ---------------------------------------------------------------------------
 [harness]
-# NOT PRESENT YET. GT003 has tests/fixtures/make_fixture_world.py, which takes
-# --out/--seed and prints a human summary - it is a FIXTURE builder, not the
-# --root/--grading/--seed json-on-stdout world builder the harness calls. GT001
-# and GT002 each have a tests/build_world.py that wraps theirs; GT003 does not,
-# and writing it is not SPEC's to do. taskspec.load() does not check this path,
-# so the spec loads and `rollout.py` will fail on it at run time with a clear
-# error. That is the honest state: GT003's spec is now loadable, GT003 is not
-# yet runnable, and the remaining gap is one file with a named owner.
+# tests/build_world.py. Written 2026-09-16 by HARNESS, closing the gap the
+# paragraph that used to stand here described: GT003 had only
+# tests/fixtures/make_fixture_world.py, a --out/--seed FIXTURE builder, and no
+# --root/--grading/--seed json-on-stdout world builder, so taskspec.load()
+# succeeded and rollout.py failed at run time. It performs the SAME assembly
+# tests/run_baselines.py performs - the shared fixture staged at the contract
+# filename var/warehouse/warehouse.duckdb with fixtures/workspace beside it -
+# and adds the three things the episode needs and the baseline suite does not
+# read: the 777-run scheduler history, the DATA-5518 git commit, and the board
+# pack dashboard. tests/VALIDITY.md carries the executed proof that the two
+# worlds grade identically, check by check, over seven baselines.
 world_builder = "tests/build_world.py"
 
 # Read out of tests/grade.py's own argparse (--world, --grading, --artifact,
@@ -145,52 +160,127 @@ world_builder = "tests/build_world.py"
 grade_argv = ["--world", "{warehouse}", "--grading", "{grading}",
               "--artifact", "{artifact}", "--world-root", "{workspace}", "--json"]
 
-# Deliberately short, and deliberately not copied from GT001. A probe for a
-# surface the world does not seed fails against every world the harness can
-# build and reports a dead surface that was never alive (GT002 shipped exactly
-# that with a bi_render probe for a dashboard defined nowhere). Checked against
-# tests/fixtures/: the build has world.duckdb and sched_state.json, and the
-# workspace has docs/ and dbt_project/models/, so those are probed. No dashboard
-# is defined anywhere in GT003's fixtures, so bi is probed only with bi_list,
-# which takes no arguments and answers "is there a BI layer at all" honestly
-# instead of asserting a dashboard id. git_log is probed knowing it may report
-# dead: task.toml's own [deviations] records that the fixture world carries no
-# git history, and a probe that says so is the probe working.
+# The content-bearing half of the native gate (tasks/harness/NATIVE_DRIVER.md)
+# binds only where a task declares `warehouse_schemas`. GT003 ships a fully
+# populated warehouse at t0 - the task is not to build one - so the declaration
+# is real and the native gate should hold `sql_*` to content rather than to "the
+# file opens". DECLARED, NOT EXECUTED: no native episode has been run on this
+# world; see [handover].
+warehouse_schemas = ["raw", "staging", "warehouse"]
+
+# MEASURED against a real gateway over a real build_world world on 2026-09-16,
+# not asserted: every probe below was run and its verdict recorded, together
+# with the swept remainder of the 63-tool belt. The paragraph that used to stand
+# here reasoned from the FIXTURE tree, which has no scheduler, no git history
+# and no dashboard; it therefore expected git_log to report dead and left bi at
+# bi_list because "no dashboard is defined anywhere in GT003's fixtures". The
+# world builder seeds all three, so all three are probed for what they now are.
 surface_probes = [
   { label = "sql",       tool = "sql_query",   args = { sql = "SELECT 1" } },
   { label = "fs",        tool = "fs_list",     args = { path = "." } },
-  { label = "sched",     tool = "sched_state", args = {}, covers = ["sched_list"] },
+  { label = "git",       tool = "git_log",     args = { limit = 5 }, covers = ["git_diff", "git_commit"] },
+  { label = "sched",     tool = "sched_state", args = {}, covers = ["sched_list", "sched_trigger"] },
   { label = "sched_log", tool = "sched_logs",  args = {} },
   { label = "docs",      tool = "docs_list",   args = {}, covers = ["docs_search", "docs_get"] },
-  { label = "dbt",       tool = "dbt_compile", args = { selector = "*" }, covers = ["dbt_run", "dbt_test"] },
-  { label = "git",       tool = "git_log",     args = { limit = 5 }, covers = ["git_diff"] },
   { label = "bi_list",   tool = "bi_list",     args = {} },
+  { label = "bi_render", tool = "bi_render",   args = { dashboard = "board_pack" }, covers = ["bi_get", "bi_cached"] },
+  { label = "logs",      tool = "logs_list",   args = {}, covers = ["logs_get", "logs_search"] },
+  # Probed explicitly although it is dead, so the audit records it as
+  # DECLARED-dead rather than as a surprise in the unnamed-tool sweep.
+  { label = "dbt",       tool = "dbt_compile", args = { selector = "*" }, covers = ["dbt_run", "dbt_test"] },
+]
+
+# What must be live or the rollout never starts. Read off tests/grade.py and
+# solution/solution.sh, and then off what the DIAGNOSIS needs rather than only
+# off what the repair touches:
+#
+#   sql        every check. The repair is SQL and the evidence is SQL.
+#   fs         the agent reads and rewrites pipelines/*.sql and writes
+#              /workspace/final_report.json, which D3 and D6 grade directly.
+#   sched      D1. The 08:14:58-08:15:39 rebuild against the 08:15:00 extract is
+#              the ORDINAL evidence for the primary cause and the world carries
+#              it nowhere else. With the scheduler dead, D1 is not reachable by
+#              reasoning, only by guessing.
+#   sched_log  as sched: sched_logs is where the failing rename that froze the
+#              dimension is readable per run.
+#   docs       workspace/docs/runbook-revenue-mart.md documents the swap, the
+#              leftover-relation failure mode, and that rev_snapshot is a record
+#              and not a cache - which is the whole of D5's premise.
+#   git        the compensating change has an author, a date and a diff
+#              (SEED_SPEC section 3). The grader still reads the working-tree
+#              file only, so this is required for the INVESTIGATION, not for the
+#              check.
+#   bi_list
+#   bi_render  the board pack. instruction.md tells the agent the BI layer is
+#              there, and "revenue has looked low since" is what a reader of it
+#              sees. GT002 shipped a bi_render probe for a dashboard defined
+#              nowhere and its episode started on a surface that was not there.
+#
+# DECLARED AGAINST THE MCP PROBE TABLE. Under --driver native the gate maps bi_*
+# and logs_* onto the metabase and loki services (NATIVE_DRIVER.md), which this
+# world does not stand up, so a native run of GT003 would report both dead and
+# be refused at the gate. That is a fact about the native stack and this world,
+# recorded here rather than discovered by a native run six weeks from now.
+required_surfaces = [
+  "sql", "fs", "git", "sched", "sched_log", "docs", "bi_list", "bi_render",
+]
+
+# Dead on purpose, each with its reason, so a deliberately narrow world is not
+# flagged forever. Every entry below was MEASURED dead on 2026-09-16 by the
+# probe run recorded in tests/VALIDITY.md; `~name` is the sweep's label for a
+# tool the task does not declare.
+dead_by_design = [
+  { label = "dbt",             reason = "there is no runnable dbt project in this world. workspace/dbt_project/models/staging carries stg_revenue_lines.sql and stg_customer.sql as READABLE SOURCE - they are the evidence for how staging resolves the FX rate, which is what D4 turns on - but the tree has no dbt_project.yml and no sources.yml, so dbt_compile exits 2. Left that way deliberately rather than by omission: the models are written with round(...) and no DECIMAL cast and with config(schema='staging'), so a dbt run would publish a differently-typed table into a differently-named schema and would NOT be the repair the grader accepts. Every accepted repair family in tests/manifest.yaml is SQL and the oracle uses sql only. instruction.md's line that transformations are dbt overstates what this world hands the agent; recorded in [handover] as a finding rather than papered over." },
+  { label = "~issues_list",    reason = "no issue-tracker plane. DATA-5533 and DATA-5518 reach the agent as the brief and as a commit message; this world seeds no workflow directory." },
+  { label = "~chat_channels",  reason = "no chat plane. Ravi is on leave and the ticket says so - the human thread S608 supplies as texture is deliberately not a surface here, because a chat log naming the wrong theory would hand the agent the theory it is supposed to rule out." },
+  { label = "~kb_list",        reason = "no knowledge-base plane. The documentation this task ships is workspace/docs/runbook-revenue-mart.md, reached through docs_*, which is required above." },
+  { label = "~metrics_list",   reason = "no observability plane. The series this incident is argued from IS warehouse.rev_snapshot, a warehouse table and the record Finance quotes from, not a monitoring system." },
+  { label = "~alarms_list",    reason = "as ~metrics_list. Nothing alarmed: SEED_SPEC section 12 records the detection texture as a human report hours later, not a page." },
+  { label = "~alarms_history", reason = "as ~alarms_list." },
+  { label = "~deploy_list",    reason = "no release surface. What runs is pipelines/*.sql under the scheduler, and changing one is a working-tree edit, so no deploys are declared. GT007 and GT008 own the deploy axis. Note the split the MCP probe measured: deploy_history answers ok with an empty list and reads LIVE, while deploy_list answers no_observability and reads dead - declared here so the two cannot be mistaken for a world gap." },
+  { label = "~ingest_list",    reason = "no ingestion-connector plane. The vendor feed is a file drop the loader reads, and the one unmerged delivery this task turns on is staged in raw.fx_rates_inbox, inside the warehouse, which is where SEED_SPEC section 5 puts it." },
+  { label = "~ingest_runs",    reason = "as ~ingest_list." },
+  { label = "~ingest_alerts",  reason = "as ~ingest_list." },
 ]
 
 # Pass@1 criterion. A rollout passes iff every listed check passed AND the total
-# clears the floor. Check ids are GT003's own rubric, read from
-# tests/manifest.yaml: D1 primary cause (4), D2 the figure stated (1),
-# D3 compensating change reverted (4), D4 late APAC rate applied (3),
-# D5 reporting record restated not rewritten (4), D6 a read can no longer
-# observe a partial rebuild (3), D7 secondary findings minus the false-cause
-# penalty (1), D8 collateral guard (0, penalty only). Total 20.
+# clears the floor.
+#
+# CORRECTED 2026-09-16. This list used to read ["D1","D2","D3","D4","D5","D6",
+# "D8"] - the RUBRIC ids in tests/manifest.yaml. tests/grade.py does not emit
+# them: it emits D1a D1b D2 D3a D3b D4a D4b D5 D6 D7 D8, splitting four of the
+# rubric lines into two checks each. TaskSpec.scores_pass fails a check id it
+# cannot find, so EVERY rollout of GT003 would have been recorded as a failure
+# whatever it did, and a K=5 Pass@1 would have measured the criterion rather
+# than the model. The ids below are the ones grade.py actually returned on the
+# equivalence run recorded in tests/VALIDITY.md.
+#
+#   D1a/D1b  primary cause (3+1)        D2  the figure stated (1)
+#   D3a/D3b  compensating change reverted (2+2)
+#   D4a/D4b  the late APAC rate applied (1+2)
+#   D5       the record restated, not rewritten (4)
+#   D6       a read can no longer observe a partial rebuild (3)
+#   D7       secondary findings minus the false-cause penalty (1, floor -3)
+#   D8       collateral guard (0, penalty only)
 #
 # D7 is NOT required, on GT001's and GT002's precedent: an agent that diagnoses
 # and durably repairs the incident has solved the ticket whether or not its
 # prose also enumerated the decoys. D8 is penalty-only, so `passed` there means
 # "destroyed nothing".
 #
-# The floor is set from the baseline profile ALREADY RECORDED in this file's
-# [[validity]] blocks (measured 2026-09-13, not by SPEC):
+# The floor is set from the baseline profile in this file's [[validity]] blocks:
 #   oracle 20 - checklist 17 - checklist_joined 17 - reference_copy 15
 #   - rebuild_only 12 - full_refresh 6 - schema_vandal 4 - no_op 0
 # 17.0 puts the floor above reference_copy and rebuild_only.
 #
-# UNVERIFIED, and flagged rather than quietly assumed: whether `checklist` (17)
-# clears this criterion depends on it passing D1-D6 and D8, which the recorded
-# totals do not say either way. GT001 and GT002 both knowingly let their
-# checklist baseline pass, so this would not be new - but it has not been
-# measured here, and whoever owns GT003 should run run_baselines.py through
-# TaskSpec.scores_pass before quoting a Pass@1 from it.
-pass_requires_checks = ["D1", "D2", "D3", "D4", "D5", "D6", "D8"]
+# MEASURED 2026-09-16, replacing the UNVERIFIED note that stood here: run
+# through TaskSpec.scores_pass, `checklist` and `checklist_joined` DO clear this
+# criterion. Both pass every required check and land exactly on the floor; only
+# D7 goes negative, and D7 is not required. So the criterion measures "did it
+# diagnose and durably repair the incident", NOT "did it report honestly" - the
+# same knowing choice GT001 and GT002 made, now recorded as a measured fact
+# about GT003 instead of as a question left to its owner.
+pass_requires_checks = ["D1a", "D1b", "D2", "D3a", "D3b", "D4a", "D4b",
+                        "D5", "D6", "D8"]
 pass_min_total = 17.0
+pass_min_total_measured = true

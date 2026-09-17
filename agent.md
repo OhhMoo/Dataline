@@ -989,6 +989,7 @@ host topology, live-surface gate clean:
 | GT008 | vague, 2026-09-16 | **1.0** | 1.0 | ceiling; 20/20 x5, 65 calls, ~12.6 min (2x the guided wall-clock, same outcome) |
 | GT001 | **native mode**, host topology, 2026-09-16 | withheld (2 scored, 3 quarantined) | - | all 5 did the work natively (18-19/19 via duckdb/dbt/git/./ops/sched); quarantines are host-topology artifacts: `cp` backups of the warehouse file, one canary reachable through bash |
 | GT004 | **native mode**, host topology, default context, 2026-09-16 | **0.25** (4 scored, 1 canary quarantine) | 0.0 | **G1c repaired in 2 of 5** - the historical rewrite 0 of 21 MCP episodes performed on the same world; r0 32/33 pass; ~30 min, ~150 calls. Signal, not a number: n=5, host topology |
+| GT003 | first harness run of this task - `tests/build_world.py` written 2026-09-16, gate pass / clean, 5 scored 0 quarantined | **0.0** | 0.0 | wall; 6-13/20 x5, median 99 calls / ~16 min. Front half at ceiling (D3 5/5, D4 5/5, D2 5/5, D1a 4/5); **D5 0/5 and D7 0/5**. 2 of the 5 D5 failures are ONE APPENDED TICK that `rev_snapshot`'s own append-only contract asks for - credit them and r3 is 17.0 and Pass@1 is 0.2. Rubric boundary no baseline had tested; `tests/VALIDITY.md` §6 |
 
 **Arm directory -> variant name (folded in 2026-09-16).** The seven arm
 DIRECTORIES above no longer exist. They were byte-for-byte copies of their
@@ -1140,6 +1141,30 @@ declines (Correction 5). GT008 contains no such decision; the note's unbuilt
 "concrete extension" (a higher-version correction *and* an older replay *and* a retry
 across a publication cutoff) is precisely one. That, plus giving the coupling filter a
 clock, is the next design item - to be decided together, not by the builders.
+
+**GT004 as a four-layer task (retrofit, 2026-09-16).** GT008 was *written* against the
+framework; GT004 - the one task that discriminates - was retrofitted into it, and the
+test of a retrofit is that it changes nothing the task measures. **It changed nothing:
+0 per-check differences across all 8 `[variants]` arms x 12-14 baselines x 11-12 checks,
+every arm TASK VALID before and after, and the default arm's world `semantic_hash`
+identical (`8e7919ff…c474`).** Layer 1 is *wired*, not declared: G1b and G3 read
+`tasks/contracts/exactly_once`, G2 reads `liveness`, H3 already read `authorization` -
+the contract owns the verdict, the manifest owns the weight, which is why G3 keeps its
+own 0.45/0.30/0.25 over the contract's 0.45/0.30/0.30. Layer 3 is re-measurable:
+`tests/coupling_check.py` (3 min, opt-in via `run_baselines.py --coupling`) re-ran all
+12 ordered pairs and got **12 of 12 verdicts unchanged**, because no baseline score can
+detect a fixture edit that decouples the defects. Layer 4 landed as **G7** (0 points,
+penalty -2, outside the pass criterion): `tests/ledger_check.py` advances 4 nights
+through `world.scheduler.advance` and audits **8 real receipts per state** - oracle 0
+offences, un-repaired world 6, *separated by the ledger alone on the same receipts*.
+It is opt-in (`stage_world_root(..., ledger=True)`) because `publishes:` and the
+advance schedule both sit in fingerprinted sections; the shipped world stays
+byte-identical and G7 reports `not_evaluable` in every rollout. The battery grew from
+12 to 16 with the note's named shortcuts (`report_only` 2.0, `naive_merge` 30.5 failing
+G1a, `blind_rollback` 30.0 failing G1c, `disable_the_rule` 4.0). Weakest finding, in
+`tasks/GT004-doubling-window/tests/VALIDITY.md`: `disable_the_rule` is **not** charged
+for editing a scored config path, because the collateral probe's blast-radius clause
+and the idle-agent policy leave a gap for an agent that moves nothing in the warehouse.
 
 ## 9. v1 build — contracts, ground rules, and track status
 
@@ -1735,6 +1760,16 @@ working-tree change; `/health` item counts are self-reported; the world-diff all
 is hand-kept; the `dbt` surface proves the toolchain resolves, not that `dbt compile`
 succeeds; `advance`'s absence means a native agent cannot see the world move except by
 `trigger`, exactly like an MCP agent.
+
+**Container topology, first model run (2026-09-17): a false guarantee, caught.** GT001
+`native-container-20260917-k5` r0/r1 recorded `blindness_guarantee: filesystem_isolated`
+and were quarantined for a canary the subject read by listing the HOST rollout
+directory: `ls -la /` returned the Git Bash root, so the real `claude` process ran its
+Bash tool on the host and never entered the docker-exec wrapper the scripted subject had
+exercised. The stack was up and idle. Both container campaigns were stopped; the fix
+(measured with a one-turn model smoke, plus a rollout-time proof of container execution
+before `filesystem_isolated` may be recorded) is in progress. A scripted acceptance is not
+a model acceptance - the third time this project has paid for that.
 
 **Phase 4, first two runs (host topology, 2026-09-16):** GT001 withheld (3 of 5
 quarantined for host-only reasons - `cp` backups of the warehouse, a canary reachable via

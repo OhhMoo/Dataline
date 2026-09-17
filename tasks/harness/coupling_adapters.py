@@ -628,6 +628,45 @@ class GT004ClockedAdapter(GT004Adapter):
         scheduler = _world_scheduler()
         return scheduler.advance(Path(root), 24.0)
 
+    def _merge_sql(self) -> list:
+        """The hardened nightly: upsert the batch on the business key.
+
+        solution.sh step 5 calls the late-arrival repair "the hardened
+        loader's job", and under a clock that phrase becomes load-bearing: a
+        one-shot merge applied at t0 cannot incorporate a delivery that has not
+        happened, and the world's own append-mode nightly then duplicates it.
+        So the clocked repair changes the NIGHTLY as well as the rows, which is
+        what the task's own oracle says it is.
+        """
+        m = self.m
+        batch = "'" + m.LATE_BATCH + "'"
+        return [
+            """DELETE FROM warehouse.fct_orders
+                WHERE (order_id, line_nbr) IN (
+                      SELECT order_id, line_nbr FROM raw.orders_landing
+                       WHERE batch_id = """ + batch + ")",
+            """INSERT INTO warehouse.fct_orders
+               SELECT l.order_id, l.line_nbr, l.order_dt, l.order_ts,
+                      l.customer_id, l.sku, l.qty, l.unit_price, l.promo_id,
+                      FALSE, NULL, TIMESTAMP '""" + m.LATE_ARRIVAL_TS + """',
+                      """ + batch + """
+                 FROM raw.orders_landing l
+                WHERE l.batch_id = """ + batch,
+            self._KPI_REBUILD,
+            self._BI_REBUILD,
+        ]
+
+    def _repair_late_arrival(self, db: Path) -> None:
+        import json
+        db = Path(db)
+        root = db.parent.parent.parent
+        live_path = root / "var" / "world" / "live.json"
+        live = json.loads(live_path.read_text(encoding="utf-8"))
+        live["jobs"]["revenue_nightly"]["exec"]["statements"] = self._merge_sql()
+        with live_path.open("w", encoding="utf-8", newline="") as fh:
+            fh.write(json.dumps(live, indent=2, sort_keys=True) + "\n")
+        super()._repair_late_arrival(db)
+
 
 # ===========================================================================
 # GT009 -- the settlement cutoff. Clocked by construction.

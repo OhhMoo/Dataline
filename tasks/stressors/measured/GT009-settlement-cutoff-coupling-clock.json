@@ -1,0 +1,859 @@
+{
+  "clause_selfcheck": [
+    {
+      "clauses_failing_on_clean_world": [
+        "restatement_carries_an_approved_ref"
+      ],
+      "clauses_still_failing_after_repair": [],
+      "clauses_with_teeth": [
+        "closed_day_holds_the_contract_fold",
+        "restatement_carries_an_approved_ref"
+      ],
+      "clean_world_passes": null,
+      "clock": true,
+      "kind": "event",
+      "ok": true,
+      "planted_world_fails": true,
+      "repaired_world_passes": true,
+      "seconds": 10.07,
+      "staged_with": [],
+      "stressor": "higher_version_correction_after_cutoff"
+    },
+    {
+      "clauses_failing_on_clean_world": [],
+      "clauses_still_failing_after_repair": [],
+      "clauses_with_teeth": [
+        "superseded_version_is_not_current",
+        "replayed_events_land_once"
+      ],
+      "clean_world_passes": null,
+      "clock": true,
+      "kind": "event",
+      "ok": true,
+      "planted_world_fails": true,
+      "repaired_world_passes": true,
+      "seconds": 13.06,
+      "staged_with": [
+        "higher_version_correction_after_cutoff"
+      ],
+      "stressor": "older_replay_after_the_correction"
+    },
+    {
+      "clauses_failing_on_clean_world": [],
+      "clauses_still_failing_after_repair": [],
+      "clauses_with_teeth": [],
+      "clean_world_passes": null,
+      "clock": true,
+      "kind": "event",
+      "ok": false,
+      "planted_world_fails": false,
+      "repaired_world_passes": true,
+      "seconds": 11.87,
+      "staged_with": [],
+      "stressor": "retried_delivery_between_commit_and_checkpoint"
+    }
+  ],
+  "clock": true,
+  "pairs": [
+    {
+      "a": "higher_version_correction_after_cutoff",
+      "b": "older_replay_after_the_correction",
+      "clock": true,
+      "coupled": false,
+      "evidence": {
+        "a_footprint_size": 10,
+        "a_footprint_tables": [
+          "warehouse.fct_payments",
+          "warehouse.settlement_handoff"
+        ],
+        "a_repair_writes": [
+          "warehouse.settlement_handoff",
+          "warehouse.settlement_corrections"
+        ],
+        "b_clauses_after_repair_a_then_repair_b": null,
+        "b_clauses_failing_with_a_present": [],
+        "b_clauses_on_base_plus_a_plus_b": [
+          {
+            "clause": "superseded_version_is_not_current",
+            "contract": "version_precedence",
+            "detail": {
+              "payments_held_below_their_top_version": 0
+            },
+            "ok": true
+          },
+          {
+            "clause": "replayed_events_land_once",
+            "contract": "exactly_once",
+            "detail": {
+              "event_ids_delivered_more_than_once": 0
+            },
+            "ok": true
+          }
+        ],
+        "b_clauses_on_base_plus_b": [
+          {
+            "clause": "superseded_version_is_not_current",
+            "contract": "version_precedence",
+            "detail": {
+              "payments_held_below_their_top_version": 0
+            },
+            "ok": true
+          },
+          {
+            "clause": "replayed_events_land_once",
+            "contract": "exactly_once",
+            "detail": {
+              "event_ids_delivered_more_than_once": 0
+            },
+            "ok": true
+          }
+        ],
+        "b_repair_writes": [
+          "warehouse.fct_payments",
+          "warehouse.settlement_handoff"
+        ],
+        "criterion_i_repair_stops_working": false,
+        "criterion_ii_state_outside_a_footprint": false,
+        "post_repair_diff_keys": {
+          "warehouse.fct_payments": 6
+        },
+        "post_repair_diff_outside_a_footprint": {},
+        "repair_order_dependent": null,
+        "seconds_build": 15.82,
+        "strength": "none",
+        "table_notes": {}
+      },
+      "executed": true,
+      "predeclared_overlap": {
+        "a": "higher_version_correction_after_cutoff",
+        "b": "older_replay_after_the_correction",
+        "control_plane_stressors": [],
+        "kinds": [
+          "event",
+          "event"
+        ],
+        "overlap": true,
+        "same_task": true,
+        "shared": {
+          "checkpoints": [],
+          "metrics": [
+            "settled_net_cents"
+          ],
+          "tables": [
+            "warehouse.fct_payments",
+            "warehouse.settlement_handoff"
+          ],
+          "window": [
+            [
+              "2026-06-11",
+              "2026-06-11"
+            ]
+          ]
+        },
+        "shared_contracts": [
+          "cutoff_integrity"
+        ],
+        "verdict": "may couple -- measure it"
+      },
+      "seconds": 31.6,
+      "task": "GT009-settlement-cutoff"
+    },
+    {
+      "a": "higher_version_correction_after_cutoff",
+      "b": "retried_delivery_between_commit_and_checkpoint",
+      "clock": true,
+      "coupled": false,
+      "evidence": {
+        "a_footprint_size": 10,
+        "a_footprint_tables": [
+          "warehouse.fct_payments",
+          "warehouse.settlement_handoff"
+        ],
+        "a_repair_writes": [
+          "warehouse.settlement_handoff",
+          "warehouse.settlement_corrections"
+        ],
+        "b_clauses_after_repair_a_then_repair_b": null,
+        "b_clauses_failing_with_a_present": [],
+        "b_clauses_on_base_plus_a_plus_b": [
+          {
+            "clause": "retried_delivery_settled_once",
+            "contract": "version_precedence",
+            "detail": {
+              "payments_delivered": 38,
+              "payments_settled": 38
+            },
+            "ok": true
+          },
+          {
+            "clause": "one_row_per_payment",
+            "contract": "version_precedence",
+            "detail": {
+              "payments_at_multiplicity_above_one": 0
+            },
+            "ok": true
+          }
+        ],
+        "b_clauses_on_base_plus_b": [
+          {
+            "clause": "retried_delivery_settled_once",
+            "contract": "version_precedence",
+            "detail": {
+              "payments_delivered": 38,
+              "payments_settled": 38
+            },
+            "ok": true
+          },
+          {
+            "clause": "one_row_per_payment",
+            "contract": "version_precedence",
+            "detail": {
+              "payments_at_multiplicity_above_one": 0
+            },
+            "ok": true
+          }
+        ],
+        "b_repair_writes": [
+          "raw.payments_events",
+          "warehouse.fct_payments",
+          "warehouse.settlement_handoff"
+        ],
+        "criterion_i_repair_stops_working": false,
+        "criterion_ii_state_outside_a_footprint": false,
+        "post_repair_diff_keys": {
+          "warehouse.fct_payments": 6
+        },
+        "post_repair_diff_outside_a_footprint": {},
+        "repair_order_dependent": null,
+        "seconds_build": 16.09,
+        "strength": "none",
+        "table_notes": {}
+      },
+      "executed": true,
+      "predeclared_overlap": {
+        "a": "higher_version_correction_after_cutoff",
+        "b": "retried_delivery_between_commit_and_checkpoint",
+        "control_plane_stressors": [],
+        "kinds": [
+          "event",
+          "event"
+        ],
+        "overlap": true,
+        "same_task": true,
+        "shared": {
+          "checkpoints": [],
+          "metrics": [
+            "settled_net_cents"
+          ],
+          "tables": [
+            "warehouse.fct_payments",
+            "warehouse.settlement_handoff"
+          ],
+          "window": []
+        },
+        "shared_contracts": [
+          "consumer_consistency"
+        ],
+        "verdict": "may couple -- measure it"
+      },
+      "seconds": 31.91,
+      "task": "GT009-settlement-cutoff"
+    },
+    {
+      "a": "older_replay_after_the_correction",
+      "b": "higher_version_correction_after_cutoff",
+      "clock": true,
+      "coupled": true,
+      "evidence": {
+        "a_footprint_size": 117,
+        "a_footprint_tables": [
+          "warehouse.fct_payments"
+        ],
+        "a_repair_writes": [
+          "warehouse.fct_payments",
+          "warehouse.settlement_handoff"
+        ],
+        "b_clauses_after_repair_a_then_repair_b": [
+          {
+            "clause": "closed_day_holds_the_contract_fold",
+            "contract": "cutoff_integrity",
+            "detail": {
+              "contract_fold": [
+                [
+                  "2026-06-11",
+                  "MER-ARDEN",
+                  10,
+                  2590960
+                ],
+                [
+                  "2026-06-11",
+                  "MER-BRAY",
+                  7,
+                  1910150
+                ]
+              ],
+              "held": [
+                [
+                  "2026-06-11",
+                  "MER-ARDEN",
+                  10,
+                  2590960
+                ],
+                [
+                  "2026-06-11",
+                  "MER-BRAY",
+                  7,
+                  1910150
+                ]
+              ]
+            },
+            "ok": true
+          },
+          {
+            "clause": "restatement_carries_an_approved_ref",
+            "contract": "cutoff_integrity",
+            "detail": {
+              "matching_an_approval": 4,
+              "rows": 4,
+              "with_ref": 4
+            },
+            "ok": true
+          }
+        ],
+        "b_clauses_failing_with_a_present": [
+          "closed_day_holds_the_contract_fold"
+        ],
+        "b_clauses_on_base_plus_a_plus_b": [
+          {
+            "clause": "closed_day_holds_the_contract_fold",
+            "contract": "cutoff_integrity",
+            "detail": {
+              "contract_fold": [
+                [
+                  "2026-06-11",
+                  "MER-ARDEN",
+                  10,
+                  2590960
+                ],
+                [
+                  "2026-06-11",
+                  "MER-BRAY",
+                  7,
+                  1910150
+                ]
+              ],
+              "held": [
+                [
+                  "2026-06-11",
+                  "MER-ARDEN",
+                  10,
+                  2608500
+                ],
+                [
+                  "2026-06-11",
+                  "MER-BRAY",
+                  7,
+                  1910150
+                ]
+              ]
+            },
+            "ok": false
+          },
+          {
+            "clause": "restatement_carries_an_approved_ref",
+            "contract": "cutoff_integrity",
+            "detail": {
+              "matching_an_approval": 4,
+              "rows": 4,
+              "with_ref": 4
+            },
+            "ok": true
+          }
+        ],
+        "b_clauses_on_base_plus_b": [
+          {
+            "clause": "closed_day_holds_the_contract_fold",
+            "contract": "cutoff_integrity",
+            "detail": {
+              "contract_fold": [
+                [
+                  "2026-06-11",
+                  "MER-ARDEN",
+                  10,
+                  2590960
+                ],
+                [
+                  "2026-06-11",
+                  "MER-BRAY",
+                  7,
+                  1910150
+                ]
+              ],
+              "held": [
+                [
+                  "2026-06-11",
+                  "MER-ARDEN",
+                  10,
+                  2590960
+                ],
+                [
+                  "2026-06-11",
+                  "MER-BRAY",
+                  7,
+                  1910150
+                ]
+              ]
+            },
+            "ok": true
+          },
+          {
+            "clause": "restatement_carries_an_approved_ref",
+            "contract": "cutoff_integrity",
+            "detail": {
+              "matching_an_approval": 4,
+              "rows": 4,
+              "with_ref": 4
+            },
+            "ok": true
+          }
+        ],
+        "b_repair_writes": [
+          "warehouse.settlement_handoff",
+          "warehouse.settlement_corrections"
+        ],
+        "criterion_i_repair_stops_working": true,
+        "criterion_ii_state_outside_a_footprint": true,
+        "post_repair_diff_keys": {
+          "warehouse.fct_payments": 6,
+          "warehouse.settlement_handoff": 3
+        },
+        "post_repair_diff_outside_a_footprint": {
+          "warehouse.fct_payments": {
+            "keys": 6,
+            "sample": [
+              [
+                "PMT-001068"
+              ],
+              [
+                "PMT-001069"
+              ],
+              [
+                "PMT-001072"
+              ],
+              [
+                "PMT-001076"
+              ],
+              [
+                "PMT-001080"
+              ]
+            ]
+          },
+          "warehouse.settlement_handoff": {
+            "keys": 3,
+            "sample": [
+              [
+                "2026-06-11",
+                "MER-ARDEN"
+              ],
+              [
+                "2026-06-11",
+                "MER-COLE"
+              ],
+              [
+                "2026-06-11",
+                "MER-DRAKE"
+              ]
+            ]
+          }
+        },
+        "repair_order_dependent": true,
+        "seconds_build": 16.53,
+        "strength": "strong",
+        "table_notes": {}
+      },
+      "executed": true,
+      "predeclared_overlap": {
+        "a": "older_replay_after_the_correction",
+        "b": "higher_version_correction_after_cutoff",
+        "control_plane_stressors": [],
+        "kinds": [
+          "event",
+          "event"
+        ],
+        "overlap": true,
+        "same_task": true,
+        "shared": {
+          "checkpoints": [],
+          "metrics": [
+            "settled_net_cents"
+          ],
+          "tables": [
+            "warehouse.fct_payments",
+            "warehouse.settlement_handoff"
+          ],
+          "window": [
+            [
+              "2026-06-11",
+              "2026-06-11"
+            ]
+          ]
+        },
+        "shared_contracts": [
+          "cutoff_integrity"
+        ],
+        "verdict": "may couple -- measure it"
+      },
+      "seconds": 37.26,
+      "task": "GT009-settlement-cutoff"
+    },
+    {
+      "a": "older_replay_after_the_correction",
+      "b": "retried_delivery_between_commit_and_checkpoint",
+      "clock": true,
+      "coupled": false,
+      "evidence": {
+        "a_footprint_size": 117,
+        "a_footprint_tables": [
+          "warehouse.fct_payments"
+        ],
+        "a_repair_writes": [
+          "warehouse.fct_payments",
+          "warehouse.settlement_handoff"
+        ],
+        "b_clauses_after_repair_a_then_repair_b": null,
+        "b_clauses_failing_with_a_present": [],
+        "b_clauses_on_base_plus_a_plus_b": [
+          {
+            "clause": "retried_delivery_settled_once",
+            "contract": "version_precedence",
+            "detail": {
+              "payments_delivered": 38,
+              "payments_settled": 38
+            },
+            "ok": true
+          },
+          {
+            "clause": "one_row_per_payment",
+            "contract": "version_precedence",
+            "detail": {
+              "payments_at_multiplicity_above_one": 0
+            },
+            "ok": true
+          }
+        ],
+        "b_clauses_on_base_plus_b": [
+          {
+            "clause": "retried_delivery_settled_once",
+            "contract": "version_precedence",
+            "detail": {
+              "payments_delivered": 38,
+              "payments_settled": 38
+            },
+            "ok": true
+          },
+          {
+            "clause": "one_row_per_payment",
+            "contract": "version_precedence",
+            "detail": {
+              "payments_at_multiplicity_above_one": 0
+            },
+            "ok": true
+          }
+        ],
+        "b_repair_writes": [
+          "raw.payments_events",
+          "warehouse.fct_payments",
+          "warehouse.settlement_handoff"
+        ],
+        "criterion_i_repair_stops_working": false,
+        "criterion_ii_state_outside_a_footprint": false,
+        "post_repair_diff_keys": {},
+        "post_repair_diff_outside_a_footprint": {},
+        "repair_order_dependent": null,
+        "seconds_build": 15.88,
+        "strength": "none",
+        "table_notes": {}
+      },
+      "executed": true,
+      "predeclared_overlap": {
+        "a": "older_replay_after_the_correction",
+        "b": "retried_delivery_between_commit_and_checkpoint",
+        "control_plane_stressors": [],
+        "kinds": [
+          "event",
+          "event"
+        ],
+        "overlap": true,
+        "same_task": true,
+        "shared": {
+          "checkpoints": [],
+          "metrics": [
+            "settled_net_cents"
+          ],
+          "tables": [
+            "warehouse.fct_payments",
+            "warehouse.settlement_handoff"
+          ],
+          "window": []
+        },
+        "shared_contracts": [
+          "version_precedence"
+        ],
+        "verdict": "may couple -- measure it"
+      },
+      "seconds": 32.76,
+      "task": "GT009-settlement-cutoff"
+    },
+    {
+      "a": "retried_delivery_between_commit_and_checkpoint",
+      "b": "higher_version_correction_after_cutoff",
+      "clock": true,
+      "coupled": false,
+      "evidence": {
+        "a_footprint_size": 117,
+        "a_footprint_tables": [
+          "warehouse.fct_payments"
+        ],
+        "a_repair_writes": [
+          "raw.payments_events",
+          "warehouse.fct_payments",
+          "warehouse.settlement_handoff"
+        ],
+        "b_clauses_after_repair_a_then_repair_b": null,
+        "b_clauses_failing_with_a_present": [],
+        "b_clauses_on_base_plus_a_plus_b": [
+          {
+            "clause": "closed_day_holds_the_contract_fold",
+            "contract": "cutoff_integrity",
+            "detail": {
+              "contract_fold": [
+                [
+                  "2026-06-11",
+                  "MER-ARDEN",
+                  10,
+                  2590960
+                ],
+                [
+                  "2026-06-11",
+                  "MER-BRAY",
+                  7,
+                  1910150
+                ]
+              ],
+              "held": [
+                [
+                  "2026-06-11",
+                  "MER-ARDEN",
+                  10,
+                  2590960
+                ],
+                [
+                  "2026-06-11",
+                  "MER-BRAY",
+                  7,
+                  1910150
+                ]
+              ]
+            },
+            "ok": true
+          },
+          {
+            "clause": "restatement_carries_an_approved_ref",
+            "contract": "cutoff_integrity",
+            "detail": {
+              "matching_an_approval": 4,
+              "rows": 4,
+              "with_ref": 4
+            },
+            "ok": true
+          }
+        ],
+        "b_clauses_on_base_plus_b": [
+          {
+            "clause": "closed_day_holds_the_contract_fold",
+            "contract": "cutoff_integrity",
+            "detail": {
+              "contract_fold": [
+                [
+                  "2026-06-11",
+                  "MER-ARDEN",
+                  10,
+                  2590960
+                ],
+                [
+                  "2026-06-11",
+                  "MER-BRAY",
+                  7,
+                  1910150
+                ]
+              ],
+              "held": [
+                [
+                  "2026-06-11",
+                  "MER-ARDEN",
+                  10,
+                  2590960
+                ],
+                [
+                  "2026-06-11",
+                  "MER-BRAY",
+                  7,
+                  1910150
+                ]
+              ]
+            },
+            "ok": true
+          },
+          {
+            "clause": "restatement_carries_an_approved_ref",
+            "contract": "cutoff_integrity",
+            "detail": {
+              "matching_an_approval": 4,
+              "rows": 4,
+              "with_ref": 4
+            },
+            "ok": true
+          }
+        ],
+        "b_repair_writes": [
+          "warehouse.settlement_handoff",
+          "warehouse.settlement_corrections"
+        ],
+        "criterion_i_repair_stops_working": false,
+        "criterion_ii_state_outside_a_footprint": false,
+        "post_repair_diff_keys": {},
+        "post_repair_diff_outside_a_footprint": {},
+        "repair_order_dependent": null,
+        "seconds_build": 15.77,
+        "strength": "none",
+        "table_notes": {}
+      },
+      "executed": true,
+      "predeclared_overlap": {
+        "a": "retried_delivery_between_commit_and_checkpoint",
+        "b": "higher_version_correction_after_cutoff",
+        "control_plane_stressors": [],
+        "kinds": [
+          "event",
+          "event"
+        ],
+        "overlap": true,
+        "same_task": true,
+        "shared": {
+          "checkpoints": [],
+          "metrics": [
+            "settled_net_cents"
+          ],
+          "tables": [
+            "warehouse.fct_payments",
+            "warehouse.settlement_handoff"
+          ],
+          "window": []
+        },
+        "shared_contracts": [
+          "consumer_consistency"
+        ],
+        "verdict": "may couple -- measure it"
+      },
+      "seconds": 31.0,
+      "task": "GT009-settlement-cutoff"
+    },
+    {
+      "a": "retried_delivery_between_commit_and_checkpoint",
+      "b": "older_replay_after_the_correction",
+      "clock": true,
+      "coupled": false,
+      "evidence": {
+        "a_footprint_size": 117,
+        "a_footprint_tables": [
+          "warehouse.fct_payments"
+        ],
+        "a_repair_writes": [
+          "raw.payments_events",
+          "warehouse.fct_payments",
+          "warehouse.settlement_handoff"
+        ],
+        "b_clauses_after_repair_a_then_repair_b": null,
+        "b_clauses_failing_with_a_present": [],
+        "b_clauses_on_base_plus_a_plus_b": [
+          {
+            "clause": "superseded_version_is_not_current",
+            "contract": "version_precedence",
+            "detail": {
+              "payments_held_below_their_top_version": 0
+            },
+            "ok": true
+          },
+          {
+            "clause": "replayed_events_land_once",
+            "contract": "exactly_once",
+            "detail": {
+              "event_ids_delivered_more_than_once": 0
+            },
+            "ok": true
+          }
+        ],
+        "b_clauses_on_base_plus_b": [
+          {
+            "clause": "superseded_version_is_not_current",
+            "contract": "version_precedence",
+            "detail": {
+              "payments_held_below_their_top_version": 0
+            },
+            "ok": true
+          },
+          {
+            "clause": "replayed_events_land_once",
+            "contract": "exactly_once",
+            "detail": {
+              "event_ids_delivered_more_than_once": 0
+            },
+            "ok": true
+          }
+        ],
+        "b_repair_writes": [
+          "warehouse.fct_payments",
+          "warehouse.settlement_handoff"
+        ],
+        "criterion_i_repair_stops_working": false,
+        "criterion_ii_state_outside_a_footprint": false,
+        "post_repair_diff_keys": {},
+        "post_repair_diff_outside_a_footprint": {},
+        "repair_order_dependent": null,
+        "seconds_build": 19.67,
+        "strength": "none",
+        "table_notes": {}
+      },
+      "executed": true,
+      "predeclared_overlap": {
+        "a": "retried_delivery_between_commit_and_checkpoint",
+        "b": "older_replay_after_the_correction",
+        "control_plane_stressors": [],
+        "kinds": [
+          "event",
+          "event"
+        ],
+        "overlap": true,
+        "same_task": true,
+        "shared": {
+          "checkpoints": [],
+          "metrics": [
+            "settled_net_cents"
+          ],
+          "tables": [
+            "warehouse.fct_payments",
+            "warehouse.settlement_handoff"
+          ],
+          "window": []
+        },
+        "shared_contracts": [
+          "version_precedence"
+        ],
+        "verdict": "may couple -- measure it"
+      },
+      "seconds": 41.97,
+      "task": "GT009-settlement-cutoff"
+    }
+  ],
+  "task": "GT009-settlement-cutoff"
+}

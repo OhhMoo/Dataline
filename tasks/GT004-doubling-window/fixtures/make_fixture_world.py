@@ -2588,7 +2588,57 @@ def write_workspace(out: Path) -> dict:
 # functions it can call. Both are pure staging: they add no world content that
 # make_fixture_world did not already generate.
 
-def scheduler_state(vnow: str = VNOW) -> dict:
+# ---------------------------------------------------------------------------
+# LAYER 4 - the publication ledger (world/LEDGER_CONTRACT.md, frozen
+# 2026-09-16). A job may declare `publishes: [{target, kind, consumer}]`, and
+# `WorldScheduler._simulate_job` appends one receipt per entry at the three
+# sites where the job's command actually ran. GT004's consumer-facing jobs are
+# the last two of the nightly chain: `build_marts` writes the mart Commercial's
+# dashboard aggregates from, and `refresh_bi_extract` writes the MATERIALISED
+# extract the dashboard actually renders.
+#
+# OFF BY DEFAULT, and that is not timidity. `publishes:` lives inside
+# var/world/live.json and the schedule the clock needs to execute lives inside
+# var/sched/state.json, and BOTH are sections of `world.fingerprint.semantic()`
+# - the contract says so in as many words: "adding one would move
+# var/world/live.json, which IS fingerprinted, and every recorded world hash
+# with it". A world staged with `ledger=False` is byte-identical to the world
+# every recorded GT004 rollout ran in, so the default arm's semantic_hash does
+# not move and no baseline's score can. `ledger=True` is what tests/
+# ledger_check.py stages, because a ledger is only evidence if something
+# advanced the clock over it, and nothing in GT004's grading path does:
+# `trigger()` writes no receipts by contract, and the G3 probe moves `vnow` by
+# editing the file rather than by running `world.scheduler.advance`.
+PUBLISHES = {
+    "build_marts": [
+        {"target": "warehouse.kpi_daily", "kind": "table",
+         "consumer": "Commercial"},
+    ],
+    "refresh_bi_extract": [
+        {"target": BI_EXTRACT, "kind": "table", "consumer": "Commercial"},
+    ],
+}
+
+# What `world.scheduler.advance` needs beyond an `exec` block, and nothing more.
+# `_plan_jobs` reads live["vtime_start"] and `job_starts` reads each job's
+# `time` and `day_offset`; `_simulate_job` reads `duration_s` and `detail`.
+# Without them an advance raises KeyError before a single job runs, which is why
+# this is staged rather than asserted.
+#
+# `day_offset: 1` is the shipped schedule read back out of scheduler_state()'s
+# own run history: `load_orders_delta` ran at 2026-03-08T01:20 for dt=2026-03-07.
+# The nightly processes YESTERDAY, so a night's occurrence sits one day after
+# the day it is responsible for, and `advance` lands on exactly the slots the
+# history already used.
+ADVANCE_VTIME_START = VNOW[:10] + "T00:00:00Z"   # midnight of the episode day
+ADVANCE_PLANE = {
+    "load_orders_delta": {"time": "01:20", "day_offset": 1, "duration_s": 90},
+    "build_marts": {"time": "01:40", "day_offset": 1, "duration_s": 90},
+    "refresh_bi_extract": {"time": "02:00", "day_offset": 1, "duration_s": 40},
+}
+
+
+def scheduler_state(vnow: str = VNOW, ledger: bool = False) -> dict:
     """A minimal var/sched/state.json.
 
     G3 advances `vnow` in this file: that is what makes an arrival LATE rather
@@ -2605,8 +2655,13 @@ def scheduler_state(vnow: str = VNOW) -> dict:
     probes execute (`CONTRACT["probes"]["pipeline"]["steps"]`), so triggering a
     job and running the file by hand do the same work; if they diverged, the
     grader and the agent would be looking at two different pipelines.
+
+    `ledger=True` additionally declares each consumer-facing job's `publishes:`
+    block here as well as in live_state(), so a world with no live plane still
+    carries it (world/world/ledger.py `publishes` falls through live -> exec ->
+    state). It moves the `scheduler` fingerprint section; see PUBLISHES.
     """
-    return {
+    state = {
         "vnow": vnow,
         "jobs": {
             "load_orders_delta": {
@@ -2637,9 +2692,13 @@ def scheduler_state(vnow: str = VNOW) -> dict:
              "detail": f"backfill_orders_window --from {WIN_START} --to {WIN_END}"},
         ],
     }
+    if ledger:
+        for job, spec in PUBLISHES.items():
+            state["jobs"][job]["publishes"] = [dict(e) for e in spec]
+    return state
 
 
-def live_state() -> dict:
+def live_state(ledger: bool = False) -> dict:
     """var/world/live.json - where `exec` specs actually live.
 
     `scheduler._execute` reads a job's work from `live["jobs"][name]["exec"]`,
@@ -2652,8 +2711,14 @@ def live_state() -> dict:
     the fixture generator, not landed day by day, so there is no stream to
     generate. The scripts are the SAME files the probes execute, so triggering a
     job and running the file by hand cannot diverge.
+
+    `ledger=True` adds the two things `world.scheduler.advance` needs to execute
+    a night for real - `vtime_start`, and each job's `time`/`duration_s`/`detail`
+    - plus the `publishes:` blocks that turn a completed occurrence into a
+    receipt. It is off by default because this file IS a fingerprint section;
+    see PUBLISHES for the whole argument.
     """
-    return {
+    live = {
         "jobs": {
             "load_orders_delta": {
                 "exec": {"kind": "sql", "script": "pipelines/load_orders_delta.sql",
@@ -2666,9 +2731,17 @@ def live_state() -> dict:
                          "detail": "refresh_bi_extract"}},
         },
     }
+    if ledger:
+        live["vtime_start"] = ADVANCE_VTIME_START
+        for job, spec in live["jobs"].items():
+            spec.update(ADVANCE_PLANE[job])
+            spec["detail"] = job + " dt={day}"
+            if job in PUBLISHES:
+                spec["publishes"] = [dict(e) for e in PUBLISHES[job]]
+    return live
 
 
-def stage_world_root(build: Path, root: Path) -> dict:
+def stage_world_root(build: Path, root: Path, ledger: bool = False) -> dict:
     """Lay the built fixture out as a §9.2.1 world root.
 
     The warehouse lands at var/warehouse/warehouse.duckdb — the CONTRACT
@@ -2676,6 +2749,11 @@ def stage_world_root(build: Path, root: Path) -> dict:
     the agent's own two-part references run under exactly the condition the
     deployed world has. Staging it anywhere else is how GT001 once shipped
     TASK VALID with an oracle that aborted on step 1 of 4.
+
+    `ledger=False` is the shipped world, byte for byte: every recorded GT004
+    rollout ran in it and its `world.fingerprint.semantic_hash` must not move.
+    `ledger=True` stages the publication plane instead - see PUBLISHES - and is
+    used by tests/ledger_check.py alone.
     """
     build, root = Path(build), Path(root)
     (root / "var" / "warehouse").mkdir(parents=True, exist_ok=True)
@@ -2690,12 +2768,14 @@ def stage_world_root(build: Path, root: Path) -> dict:
             shutil.rmtree(dst)
         shutil.copytree(build / sub, dst)
     _write_text(root / "var" / "sched" / "state.json",
-                json.dumps(scheduler_state(), indent=2, sort_keys=True) + "\n")
+                json.dumps(scheduler_state(ledger=ledger), indent=2,
+                           sort_keys=True) + "\n")
     # var/world/live.json is where scheduler._execute reads a job's `exec`
     # spec. state.json carries the SCHEDULE; live.json carries the WORK.
     (root / "var" / "world").mkdir(parents=True, exist_ok=True)
     _write_text(root / "var" / "world" / "live.json",
-                json.dumps(live_state(), indent=2, sort_keys=True) + "\n")
+                json.dumps(live_state(ledger=ledger), indent=2,
+                           sort_keys=True) + "\n")
     return {"world_root": str(root), "warehouse": str(wh),
             "workspace": str(root / "workspace"),
             "dashboards": str(root / "var" / "bi" / "dashboards"),

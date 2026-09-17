@@ -26,10 +26,11 @@ GT004's to fix:
 from ._common import (Clause, ProbeNotConfigured, ProbeResult,  # noqa: F401
                       copy_world, open_world, probe_config, run_pipeline,
                       warehouse_path, workspace_path)
-from . import collateral, exposure, idempotency, late_arrival, regression  # noqa: F401
+from . import (collateral, exposure, idempotency, late_arrival,  # noqa: F401
+               ledger, regression)
 
 __all__ = ["idempotency", "late_arrival", "exposure", "collateral", "regression",
-           "ProbeResult", "Clause", "ProbeNotConfigured", "copy_world",
+           "ledger", "ProbeResult", "Clause", "ProbeNotConfigured", "copy_world",
            "open_world", "probe_config", "run_pipeline", "warehouse_path",
            "workspace_path"]
 
@@ -41,4 +42,10 @@ GATES = {
     "G4": ("exposure", "The downstream BI exposure resolves to the corrected number"),
     "G5": ("collateral", "Fingerprint section diff: nothing moved that was not asked to"),
     "G6": ("regression", "A test that fails pre-repair and passes post-repair"),
+    # LAYER 4, and penalty-only: what a CONSUMER could see, at the moment it
+    # could see it. Every other gate here reads the final world, which cannot
+    # tell a pipeline that was right all along from one that published a wrong
+    # number on Tuesday and corrected it on Thursday.
+    "G7": ("ledger", "Every receipt the clock advanced over is what the correct "
+                     "pipeline would have published at that vnow"),
 }
