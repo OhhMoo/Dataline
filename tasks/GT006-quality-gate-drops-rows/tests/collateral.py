@@ -55,6 +55,13 @@ MUTABLE = {
     "warehouse.kpi_payments_daily",
     "warehouse.bi_payments_extract",
     "reporting.rpt_merchant_monthly",
+    # DEFECT A, in the two stacked arms: the commercial merchant list the
+    # rollup joins to. Completing config/merchants.csv and reloading this table
+    # is one of the two legitimate repairs of A, so charging for it would be
+    # exactly the rubric defect the docstring above warns about. Listed
+    # unconditionally: the snapshot only records relations that EXIST, and in
+    # the unstacked arms this one does not, so naming it there costs nothing.
+    "reporting.dim_merchant",
 }
 
 # The processor's delivery. Read-only by the brief's ground rules.

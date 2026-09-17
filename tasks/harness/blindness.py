@@ -32,6 +32,77 @@ Five independent detectors, deliberately overlapping:
 A rollout with any HARD violation is quarantined: it is recorded in full, and it
 does not enter the Pass@1 number.
 
+## The rule table, and what `--driver native` changes
+
+Native mode (gateway/NATIVE_SURFACES.md) takes the gateway away: bash IS the
+interface, the stack is a set of vendor-shaped services, and there is no
+allowlist of 63 tool names to match anything against. Two rules therefore lose
+their subject and one rule arrives to replace them.
+
+| rule                     | mcp / kimi | cli      | native  |
+|--------------------------|------------|----------|---------|
+| unobserved_episode       | hard       | hard     | hard    |
+| unverified_tool_surface  | hard       | hard     | hard    |
+| capability_leak          | hard       | hard     | hard    |
+| web_access / host_filesystem / delegation | hard | hard | hard |
+| unknown_tool             | hard       | hard     | **soft** (`unlisted_tool`) |
+| shell_outside_gateway    | n/a        | hard     | **not evaluated** |
+| canary_leak              | hard       | hard     | hard    |
+| marker / repo path       | hard       | hard     | hard    |
+| out_of_band_world_change, served planes | soft | hard | hard |
+| out_of_band_world_change, working tree  | soft | hard | **soft with a shell command in the transcript, hard without one** |
+| network_destination      | n/a        | n/a      | **hard** (new) |
+| unobserved_network       | n/a        | n/a      | **hard**, unobserved |
+| unverified_containment   | container topology only, hard, unobserved |
+
+Why each native cell is what it is:
+
+- `shell_outside_gateway` splits every shell command and demands each segment be
+  the `gw.sh` shim. Native mode has no shim, so the rule would fire on every
+  legitimate command in every episode. It is not evaluated, and nothing is lost
+  by that: the rule was never about the shell, it was about the gateway being
+  the only channel, and in native mode it is not.
+- `unknown_tool` is the fail-closed residue of matching a tool name against the
+  gateway allowlist. Native mode's allowlist is `{Bash}`, so the residue is any
+  name we do not recognise at all - which is worth recording and is NOT worth
+  quarantining on its own, because the detector that actually protects this is
+  `capability_leak`: what the subject's own init event says it was GIVEN. That
+  one stays hard. The recorded kind is `unlisted_tool` rather than
+  `unknown_tool` so that a native soft signal can never be read as the mcp
+  driver's hard one.
+- `network_destination` is what replaces them. Every connection the episode made
+  is logged ON THE SERVICE SIDE, and a destination that is not one of this
+  episode's own surfaces is a hard violation. Same discipline as the capability
+  detector: the claim is read out of the episode's own traffic, never out of our
+  compose file.
+- `out_of_band_world_change` splits by PLANE in native mode, and the split is
+  the whole of the fix for what used to be this driver's weakest point. The
+  SERVED planes - everything under the world root that is not the working tree:
+  `var/`, warehouse files, the ledger, obs and workflow json - keep the strict
+  rule, because a server stands in front of each of them and a server that was
+  asked writes a row. The WORKING TREE does not have one: it is a real
+  filesystem, and `sed -i` on a model file is ordinary work. There the
+  TRANSCRIPT is the audit - every command the subject ran is in it - and
+  `rollout.py` closes the action log after the episode by appending one
+  `workspace.edit` row per changed file (`_stage_workspace_edits`, the same
+  pattern as the ledger's stage step), so the log still accounts for every byte
+  of the world. What stays HARD is a working-tree change with no shell command
+  anywhere in the transcript: nothing the subject was given could have made it.
+- `out_of_band_world_change` also has to be able to ATTRIBUTE a native
+  warehouse write, and could not until 2026-09-16. Under MCP the warehouse file
+  is explained by the log holding a row called `sql_execute`; under native the
+  agent runs `duckdb <file> -c "DELETE ..."` and the shim writes
+  `duckdb.statement` carrying TABLE names - the parity NATIVE_SURFACES.md's
+  amendment asks for, and exactly what cannot match a path, so a legitimate
+  DuckDB write quarantined HARD. Two rules close it. Every row's MCP name is
+  read off the SUFFIX of its tool (`sched.sched_trigger` IS `sched_trigger`,
+  `deploy.deploy_run` IS `deploy_run`), and a `duckdb.statement` / `shim.dbt` /
+  `shim.python` WRITE that names a declared warehouse file - through
+  `args.database`, which is the file the CLI was pointed at, or through a target
+  - explains that file and no other. Both are scoped to the files the world
+  declares (`declared_warehouses`), so an undeclared `.duckdb` that changed is
+  still reported.
+
 ## The two forms of the guarantee
 
 Under the host topology the guarantee is `tool_surface_revoked`: the subject
@@ -133,8 +204,31 @@ def tool_uses(transcript: list[dict]) -> list[dict]:
             continue
         for b in _blocks(ev):
             if b.get("type") == "tool_use":
-                uses.append({"name": b.get("name", "?"), "input": b.get("input", {})})
+                uses.append({"name": b.get("name", "?"), "input": b.get("input", {}),
+                             "id": b.get("id")})
     return uses
+
+
+RUNTIME_REFUSAL = "No such tool available"
+
+
+def refused_tool_use_ids(transcript: list[dict]) -> set[str]:
+    """tool_use ids the runtime refused outright. A call the CLI answered with
+    'No such tool available' never reached any tool - gateway or otherwise - so
+    it is a malformed name, not a capability. Only that exact refusal counts;
+    a tool that ran and errored is still a tool that ran."""
+    ids: set[str] = set()
+    for ev in transcript:
+        if ev.get("type") != "user":
+            continue
+        for b in _blocks(ev):
+            if b.get("type") != "tool_result" or not b.get("is_error"):
+                continue
+            c = b.get("content")
+            text = c if isinstance(c, str) else json.dumps(c)
+            if RUNTIME_REFUSAL in text and b.get("tool_use_id"):
+                ids.add(b["tool_use_id"])
+    return ids
 
 
 def agent_text(transcript: list[dict], skip_first_user: bool = True) -> list[tuple[str, str]]:
@@ -229,6 +323,129 @@ def _is_gateway_segment(seg: str) -> bool:
     return False
 
 
+# ------------------------------------------------ network destinations (native)
+# The file the compose stack writes, beside the action log, in the episode's own
+# audit directory. One JSON object per line:
+#
+#     {"host": "jira.internal", "port": 8080, "count": 14}
+#
+# `host` is the destination as the EPISODE addressed it - the DNS alias under the
+# container topology, the literal address under host topology - `port` is an int,
+# and `count` is how many connections were seen. The rows are aggregates, not a
+# packet log: one row per (host, port) is enough to answer the only question
+# asked of it, which is "did this episode talk to anything that is not its own
+# stack". The subject's own model API is NOT in here and must not be: the subject
+# process runs on the host, outside the episode network, precisely because the
+# episode has no egress.
+#
+# SERVICE-SIDE, like every other native audit row. A destinations log the
+# episode could write itself would be a log the episode could edit.
+DESTINATIONS_FILE = "destinations.jsonl"
+
+# --------------------------------------------- rows the HARNESS wrote, not the
+# subject. Two kinds, both native-only, both deliberately visible in the action
+# log rather than suppressed at the source - a row that exists and is labelled
+# can be audited; a row that was never written cannot.
+#
+#   health:<service>   every fake service audits the request the SURFACE GATE
+#                      makes of its /health endpoint (SERVICES-B). Its
+#                      read_targets are real, which is exactly the problem: gate
+#                      polling would otherwise inject the service's own targets
+#                      into the episode's target set and make a rollout look as
+#                      though it had read things it never asked for.
+#   workspace.edit     the post-episode bookkeeping rollout.py appends for the
+#                      working tree (actor=harness).
+#
+# Both are excluded from target-set comparison, from world-diff attribution and
+# from the tool-call count the report shows. Consequence, stated rather than
+# discovered: a subject that curls /health itself produces a `health:` row too,
+# and that call is not counted against it. A free `curl $JIRA_URL/health` is a
+# cheaper mistake than a gate poll landing in the measurement.
+HEALTH_TARGET_PREFIX = "health:"
+HARNESS_TOOLS = ("workspace.edit",)
+
+
+def is_harness_row(row: dict) -> bool:
+    """True for an action-log row this harness or its gate authored."""
+    if row.get("tool") in HARNESS_TOOLS:
+        return True
+    targets = row.get("targets") or []
+    return bool(targets) and all(
+        str(t).startswith(HEALTH_TARGET_PREFIX) for t in targets)
+
+
+def subject_rows(rows: list[dict]) -> list[dict]:
+    """The action log with the harness's own rows taken out.
+
+    What the subject did, which is the only thing a rate, a target set or a
+    tool-call count may be computed from.
+    """
+    return [r for r in rows if not is_harness_row(r)]
+
+
+def load_destinations(audit_dir: Path | str) -> list[dict] | None:
+    """Rows from `<audit_dir>/destinations.jsonl`, or None when it is absent.
+
+    None means UNOBSERVED and is handled as such by the detector below. An
+    absent destinations log is not an episode that made no connections - it is
+    an episode nobody watched, and the two must never render the same.
+    """
+    path = Path(audit_dir) / DESTINATIONS_FILE
+    if not path.exists():
+        return None
+    rows = []
+    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            row = json.loads(line)
+        except ValueError:
+            rows.append({"_unparsed": line[:200]})
+            continue
+        rows.append(row if isinstance(row, dict) else {"_unparsed": line[:200]})
+    return rows
+
+
+def network_violations(destinations: list[dict] | None,
+                       allowed: set[tuple[str, int]] | None,
+                       normalise=lambda h: h) -> list["Violation"]:
+    """Hard violations from the destinations log. Fails closed at every step."""
+    if destinations is None:
+        return [Violation("unobserved_network", True, "network",
+                          f"no {DESTINATIONS_FILE} in the episode's audit "
+                          f"directory: the connections this episode made were "
+                          f"not recorded, so 'it stayed inside its own stack' "
+                          f"cannot be asserted either way")]
+    if allowed is None:
+        return [Violation("unobserved_network", True, "network",
+                          "a destinations log was read but no allowed set was "
+                          "supplied, so no destination could be judged")]
+    out: list[Violation] = []
+    for row in destinations:
+        if "_unparsed" in row:
+            out.append(Violation("unobserved_network", True, "network",
+                                 f"unparseable destinations row: "
+                                 f"{row['_unparsed']!r}"))
+            continue
+        host, port, count = row.get("host"), row.get("port"), row.get("count")
+        if not isinstance(host, str) or not isinstance(port, int) or \
+                not isinstance(count, int):
+            out.append(Violation("unobserved_network", True, "network",
+                                 f"destinations row is not "
+                                 f"{{host: str, port: int, count: int}}: "
+                                 f"{json.dumps(row)[:200]}"))
+            continue
+        if count <= 0:
+            continue                    # recorded, never dialled
+        if (normalise(host), port) not in allowed:
+            out.append(Violation("network_destination", True, "network",
+                                 f"the episode connected to {host}:{port} "
+                                 f"{count} time(s), which is not one of its own "
+                                 f"native surfaces"))
+    return out
+
+
 # --------------------------------------------------- containment (topology)
 def containment_faults(evidence: list[dict] | None) -> list[str]:
     """What is wrong with this rollout's containment evidence, in plain words.
@@ -270,11 +487,20 @@ def containment_faults(evidence: list[dict] | None) -> list[str]:
             faults.append(f"a bind mount publishes the source repository's path in "
                           f"/proc/self/mountinfo ({when}): "
                           f"{probe['mount_roots_naming_repo']}")
-        names = [h["path"] for h in probe.get("marker_sweep", {}).get("hits", [])
-                 if h.get("kind") == "marker_filename"]
+        sweep = probe.get("marker_sweep") or probe.get("sweep") or {}
+        names = [h["path"] for h in sweep.get("hits", [])
+                 if h.get("kind") in ("marker_filename", "canary_filename",
+                                      "canary_in_file")]
         if names:
-            faults.append(f"marker-shaped files are readable inside the container "
-                          f"({when}): {names[:6]}")
+            faults.append(f"marker- or canary-shaped files are readable inside "
+                          f"the container ({when}): {names[:6]}")
+        # The native episode probe (containment P7) answers a named question at
+        # a time - see gateway/docker/native_episode_probe.py. Each false answer
+        # is its own fault so a quarantine says which property failed rather
+        # than only that `contained` was false.
+        for question, held in sorted((probe.get("checks") or {}).items()):
+            if not held:
+                faults.append(f"containment P7 ({when}): {question} is false")
     return faults
 
 
@@ -301,8 +527,10 @@ def expected_tool_surface(driver: str, gateway_tools: list[str],
         # both revoke everything but the gateway tools; kimi's surface is
         # verified from its wire log's llm.tools_snapshot (see kimi_subject.py)
         return {f"mcp__{mcp_server}__{t}" for t in gateway_tools}
-    # the cli and scripted drivers deliberately grant a shell; their blindness
-    # is detection-only
+    # the cli, scripted and native drivers deliberately grant a shell; their
+    # blindness is detection-only. Under `native` that shell is not a
+    # concession, it is the interface - but the allowlist is the same one tool,
+    # so a subject granted anything else still trips the capability detector.
     return {"Bash"}
 
 
@@ -312,9 +540,21 @@ def detect(*, transcript: list[dict], driver: str, gateway_tools: list[str],
            world_layout: dict | None,
            artifact_text: str = "", mcp_server: str = "alkera",
            topology: str = "host",
-           containment: list[dict] | None = None) -> list[Violation]:
+           containment: list[dict] | None = None,
+           destinations: list[dict] | None = None,
+           network_allow: set[tuple[str, int]] | None = None,
+           normalise_host=lambda h: h,
+           container_paths: dict | None = None) -> list[Violation]:
     allowed = expected_tool_surface(driver, gateway_tools, mcp_server)
     v: list[Violation] = []
+
+    # -1 -- native: where the episode's traffic actually went -----------------
+    # First, with the other evidence gates, and for the same reason: in native
+    # mode there is no gateway allowlist standing between the subject and the
+    # world, so "what did it reach" is the question, and a missing destinations
+    # log means we cannot answer it. Unobserved, never clean.
+    if driver == "native":
+        v.extend(network_violations(destinations, network_allow, normalise_host))
 
     # 6 -- containment, where it is the thing doing the work -----------------
     # Placed first with the other evidence gates, for the same reason: under the
@@ -373,9 +613,30 @@ def detect(*, transcript: list[dict], driver: str, gateway_tools: list[str],
                                f"unexpected mcp servers attached: {unexpected}"))
 
     # 2 -- tools actually invoked -------------------------------------------
+    refused = refused_tool_use_ids(transcript)
     for use in tool_uses(transcript):
         kind, hard = classify_tool(use["name"], allowed)
         if kind == "gateway":
+            continue
+        if kind == "unknown_tool" and use.get("id") in refused:
+            # e.g. `mcp__antml:alkera__sql_execute`: the model's call-format
+            # namespace leaked into the name and the runtime refused it. Kept
+            # visible as a soft signal; the same statement re-issued through the
+            # real tool is in the audit log, which is the ground truth.
+            v.append(Violation("refused_unknown_tool", False, "tool_use",
+                               f"{use['name']} refused by the runtime "
+                               f"({RUNTIME_REFUSAL!r}); nothing reached any tool: "
+                               f"{json.dumps(use['input'])[:200]}"))
+            continue
+        if kind == "unknown_tool" and driver == "native":
+            # see the rule table above: no gateway allowlist to be outside of.
+            # Renamed as well as downgraded, so a native soft signal can never
+            # be mistaken for the mcp driver's hard `unknown_tool`.
+            v.append(Violation("unlisted_tool", False, "tool_use",
+                               f"{use['name']} is not a name this harness "
+                               f"recognises; native mode grants only the shell, "
+                               f"so the capability detector is what decides: "
+                               f"{json.dumps(use['input'])[:200]}"))
             continue
         v.append(Violation(kind, hard, "tool_use",
                            f"{use['name']} {json.dumps(use['input'])[:300]}"))
@@ -460,7 +721,47 @@ def detect(*, transcript: list[dict], driver: str, gateway_tools: list[str],
 
     # 6 -- world changes nothing in the action log can account for ----------
     if world_before is not None and world_after is not None and world_layout:
-        for rel in _unattributed(world_before, world_after, action_rows, world_layout):
+        # Native mode's working tree has no server in front of it, so the
+        # transcript is its audit - see the rule table at the top. Read once,
+        # not per file: a subject that ran no shell command at all is the whole
+        # of the condition.
+        shell_ran = (driver == "native"
+                     and any(u["name"] == "Bash" for u in tool_uses(transcript)))
+        ws = workspace_rel(world_layout)
+
+        def in_tree(rel: str) -> bool:
+            return bool(ws) and (rel == ws or rel.startswith(ws + "/"))
+
+        # The working tree, judged against the TRANSCRIPT and not against the
+        # action log - deliberately independent of whether the bookkeeping rows
+        # were written, because those rows are ours and cannot be evidence about
+        # the subject. A tree that changed in an episode with no shell command
+        # in it changed by something that was never handed over.
+        if driver == "native" and ws and not shell_ran:
+            changed = sorted(k for k in set(world_before) | set(world_after)
+                             if world_before.get(k) != world_after.get(k)
+                             and in_tree(k))
+            if changed:
+                v.append(Violation(
+                    "out_of_band_world_change", True, "world_diff",
+                    f"{len(changed)} file(s) changed under the working tree "
+                    f"({changed[:5]}) and the transcript shows no shell command "
+                    f"at all, so nothing the subject was given could have made "
+                    f"them"))
+
+        for rel in _unattributed(world_before, world_after, action_rows,
+                                 world_layout, container_paths):
+            if driver == "native" and in_tree(rel):
+                # No `workspace.edit` row: rollout.py's post-episode bookkeeping
+                # did not run or could not. Recorded, not quarantined - the
+                # transcript audits this plane, and the case where the
+                # transcript audits nothing is the hard rule above.
+                v.append(Violation(
+                    "out_of_band_world_change", False, "world_diff",
+                    f"{rel} changed under the working tree with no "
+                    f"`workspace.edit` row; in native mode the transcript, not "
+                    f"the action log, is what audits this plane"))
+                continue
             v.append(Violation("out_of_band_world_change",
                                driver not in ("mcp", "kimi"),
                                "world_diff",
@@ -469,29 +770,194 @@ def detect(*, transcript: list[dict], driver: str, gateway_tools: list[str],
     return v
 
 
+def workspace_rel(layout: dict) -> str:
+    """The working tree's path relative to the world root, POSIX, or "".
+
+    The plane split in native mode is a path question and nothing else: the
+    served planes are everything under the world root that is not this.
+    """
+    try:
+        return (Path(layout["workspace"]).resolve()
+                .relative_to(Path(layout["world_root"]).resolve()).as_posix())
+    except (KeyError, ValueError, OSError):
+        return ""
+
+
+#: op_classes that can move a byte. Everything else is a read and can never
+#: explain a world change.
+WRITE_CLASSES = ("write", "ddl", "destructive", "exec")
+
+#: The MCP tools whose work lands in a warehouse file and in dbt's build dir.
+#: Matched against the row's tool name OR its suffix, because a native row is
+#: `<service>.<mcp_tool>` (`sched.sched_trigger`, `metabase.bi_render`,
+#: `deploy.deploy_run`) - NATIVE_DRIVER.md, "Row naming".
+WAREHOUSE_TOOLS = frozenset({
+    "sql_execute", "sql_query", "dbt_run", "dbt_test", "dbt_compile",
+    "sched_trigger", "bi_render",
+})
+#: The tool that moves the scheduler's own plane: its state file, the run logs
+#: beside it, and the observability records a run publishes. One name and not
+#: two: neither transport has a way for the AGENT to advance the world's clock -
+#: `Operations` has no such method and `./ops/sched` deliberately has no such
+#: subcommand - so a row that moved `var/world/live.json` was not the subject's.
+SCHEDULER_TOOLS = frozenset({"sched_trigger"})
+#: Native rows that open a warehouse FILE with no server in front of it. They
+#: are named here rather than suffix-matched because they have no MCP
+#: equivalent: the `duckdb` CLI shim writes `duckdb.statement` with the tables
+#: the statement named (NATIVE_SURFACES.md, amendment 2026-09-16), and the
+#: generic shim writes `shim.<binary>` with the files the binary changed.
+WAREHOUSE_SHIMS = frozenset({"duckdb.statement", "shim.dbt", "shim.python"})
+
+
+def row_tools(rows: list[dict]) -> set[str]:
+    """Every tool name in the log, plus the MCP name each native row suffixes.
+
+    `deploy.deploy_run` and `deploy_run` are one operation recorded over two
+    transports, and every rule that asks "did this episode trigger a job" has to
+    answer the same way under both or the native driver's world-diff rule fires
+    on work the MCP driver's does not.
+    """
+    names = {t for t in (r.get("tool") for r in rows) if t}
+    return names | {t.rsplit(".", 1)[-1] for t in names}
+
+
+def declared_warehouses(layout: dict) -> list[str]:
+    """Every DuckDB file this world declares, as absolute path strings.
+
+    Three sources, and all three are needed. The manifest's `warehouse` is the
+    primary; its `warehouses` specs (episode.WORLD_WAREHOUSE_KEYS) are the
+    second and third, which may sit anywhere; and `var/warehouse/*.duckdb` is
+    the rule `world/world/fingerprint.py` hashes by, so a world that BUILDS a
+    warehouse it did not publish in its manifest still has one the log is
+    allowed to explain. A file none of the three names is not a declared
+    warehouse and a change to it is still reported.
+    """
+    out: list[str] = []
+    if layout.get("warehouse"):
+        out.append(str(layout["warehouse"]))
+    for spec in layout.get("warehouses") or []:
+        path = spec.get("path") if isinstance(spec, dict) else None
+        if path:
+            out.append(str(path))
+    root = layout.get("world_root")
+    if root:
+        out.extend(str(p) for p in
+                   sorted((Path(root) / "var" / "warehouse").glob("*.duckdb")))
+    return out
+
+
+def _warehouses_named(row: dict, rel, warehouses: set[str],
+                      workspace: str) -> set[str]:
+    """The declared warehouse files one native shim row says it opened.
+
+    `duckdb.statement` carries the database in `args.database` - the CLI was
+    pointed at a file, and the shim records which - while its `targets` are the
+    TABLES the statement named, which is the parity the amendment asks for and
+    is exactly why they cannot be matched against a path. So the file comes from
+    the argument and the tables are what makes the row a warehouse write at all.
+    `shim.dbt` and `shim.python` have no such argument: they name the files they
+    changed, so a target that IS a declared warehouse is the only thing that can
+    speak for one.
+    """
+    args = row.get("args") if isinstance(row.get("args"), dict) else {}
+    candidates = [args.get("database"), *(row.get("targets") or [])]
+    out: set[str] = set()
+    for candidate in candidates:
+        if not candidate:
+            continue
+        text = str(candidate).replace("\\", "/")
+        forms = [rel(text), text]
+        if workspace:
+            forms.append(f"{workspace}/{text}")
+        out |= {form for form in forms if form in warehouses}
+    return out
+
+
+#: How a row written INSIDE the episode container spells a path that the world
+#: diff, which walks the HOST tree, spells relative to the world root. Under
+#: `--topology container` the shims run in the container, so `duckdb.statement`
+#: carries `args.database = "/world/var/warehouse/warehouse.duckdb"` and nothing
+#: resolves it against a Windows world root - measured: without this map the
+#: container topology quarantined its own attributed DELETE, which is the exact
+#: failure the topology was built to remove.
+#:
+#: It is a parameter and not a constant because it is a property of the
+#: TOPOLOGY, declared by the caller that built the container
+#: (`container_episode.NativeContainerEpisode`), and a harness that guessed at
+#: it would be inventing evidence about where a row came from.
+
+
+def container_path_map(layout: dict, world_in_container: str = "/world",
+                       workspace_in_container: str = "/workspace") -> dict:
+    """The `container_paths` map for a world mounted the native way.
+
+    The working tree is bound at BOTH `/world/<rel>` (it is part of the world)
+    and `/workspace` (contract 9.2.1), so both spellings have to resolve to the
+    one world-relative path the diff uses; `workspace_rel` is where that path
+    comes from, because a task whose builder puts its tree somewhere other than
+    `workspace/` is a task this map must still be right about.
+    """
+    workspace = workspace_rel(layout)
+    return {f"{world_in_container}/": "",
+            f"{workspace_in_container}/": f"{workspace}/" if workspace else ""}
+
+
 def _unattributed(before: dict, after: dict, rows: list[dict],
-                  layout: dict) -> list[str]:
+                  layout: dict, container_paths: dict | None = None) -> list[str]:
     changed = [k for k in set(before) | set(after) if before.get(k) != after.get(k)]
     if not changed:
         return []
     root = Path(layout["world_root"])
+    # `{container prefix: world-relative prefix}`, longest first so
+    # `/world/var/...` cannot be matched by a shorter entry that also fits.
+    mapping = sorted((container_paths or {}).items(), key=lambda kv: -len(kv[0]))
 
     def rel(p: str) -> str:
+        text = str(p).replace("\\", "/")
+        for prefix, replacement in mapping:
+            if text.startswith(prefix):
+                return f"{replacement}{text[len(prefix):]}".lstrip("/")
         try:
             return Path(p).resolve().relative_to(root.resolve()).as_posix()
         except (ValueError, OSError):
             return ""
 
-    warehouse, sched = rel(layout["warehouse"]), rel(layout["scheduler"])
+    sched = rel(layout["scheduler"])
     build = rel(layout["profiles_dir"])
     workspace = rel(layout["workspace"])
+    # Every declared warehouse, world-relative, with the two sidecars DuckDB
+    # writes beside a file it has open.
+    warehouses = {r for r in (rel(p) for p in declared_warehouses(layout)) if r}
+    warehouse_plane = {f"{w}{suffix}" for w in warehouses
+                       for suffix in ("", ".wal", ".tmp")}
 
-    tools = {r.get("tool") for r in rows}
+    named = row_tools(rows)
     ok_prefixes: set[str] = set()
-    if tools & {"sql_execute", "sql_query", "dbt_run", "dbt_test", "dbt_compile",
-                "sched_trigger", "bi_render"}:
-        ok_prefixes |= {warehouse, warehouse + ".wal", warehouse + ".tmp", build}
-    if tools & {"sched_trigger"}:
+    if named & WAREHOUSE_TOOLS:
+        # A second DuckDB warehouse the world declared is written through the
+        # same tools - `sql_execute(warehouse="legacy")`,
+        # `dbt_run(warehouse="legacy")` - and its file changes for the same
+        # reasons the primary's does. Scoped to declared files: an undeclared
+        # `.duckdb` that changed is still reported.
+        ok_prefixes |= warehouse_plane | {build}
+    # THE NATIVE WAREHOUSE WRITE. In native mode there is no `sql_execute`: the
+    # agent runs `duckdb <file> -c "DELETE ..."` and the shim writes
+    # `duckdb.statement` carrying TABLE names, which is precisely what cannot
+    # match a path - so before this branch existed a legitimate DuckDB write
+    # quarantined on `var/warehouse/warehouse.duckdb changed but no gateway call
+    # targets it`, HARD (gateway/NATIVE_INTEGRATION.md, weakest finding). The
+    # row must both be a write and say which declared file it opened; a row that
+    # says neither explains nothing, and an in-memory `duckdb -c "SELECT 1"`
+    # still explains nothing at all.
+    for row in rows:
+        if row.get("tool") not in WAREHOUSE_SHIMS:
+            continue
+        if row.get("op_class") not in WRITE_CLASSES or not (row.get("targets") or []):
+            continue
+        for warehouse in _warehouses_named(row, rel, warehouses, workspace):
+            ok_prefixes |= {f"{warehouse}{suffix}"
+                            for suffix in ("", ".wal", ".tmp")}
+    if named & SCHEDULER_TOOLS:
         # the scheduler's DIRECTORY, not just its state file. A triggered run
         # writes `var/sched/logs/run-000364.json` beside the state, and with only
         # the file listed that log showed up as an off-channel world change on a
@@ -500,22 +966,47 @@ def _unattributed(before: dict, after: dict, rows: list[dict],
         # into a directory the episode never touched.
         ok_prefixes.add(Path(sched).parent.as_posix() if "/" in sched else sched)
         ok_prefixes.add(sched)
+        # A triggered run PUBLISHES: `world/world/scheduler.trigger` calls
+        # `observe.record`, which appends to the world's observability store, so
+        # the samples file moves on every trigger and moved off-channel before
+        # this line existed. The live-world control plane is deliberately NOT
+        # here - only `world.scheduler.advance` writes it, neither transport
+        # gives the agent a way to call that, and a rollout whose
+        # `var/world/live.json` changed is therefore still reported.
+        ok_prefixes |= {"var/obs", rel(layout.get("observability", "")),
+                        rel(layout.get("obs_samples", ""))}
+        # ...and the engine's raw output, which `world/world/executor.py` keeps
+        # at `build/sched/logs/<run>.log` (its `RUN_DIR`) deliberately outside
+        # the fingerprint and outside the snapshot scope, so that nothing
+        # volatile is ever hashed. It is still a file under the world root, so
+        # the diff sees it: GT008's native acceptance quarantined on
+        # `build/sched/logs/run-000034.log changed but no gateway call targets
+        # it` - the log of the run the subject had just asked for. Under the
+        # mcp driver the same change was always there and always SOFT, which is
+        # why it was never read.
+        ok_prefixes.add("build/sched")
     # Track B's newer surfaces write into the world too. Without these a single
     # bi_update would show up as an off-channel change and quarantine an
     # otherwise clean cli rollout - a detector that fires on legitimate work
     # stops being read.
-    if any(t and t.startswith("bi_") for t in tools):
+    if any(t.startswith("bi_") for t in named):
         ok_prefixes.add(rel(layout.get("dashboards", "")))
         ok_prefixes.add("var/bi")
-    if any(t and t.startswith(("s3_", "docs_")) for t in tools):
+    if any(t.startswith(("s3_", "docs_")) for t in named):
         ok_prefixes |= {"var/s3", "var/objects", f"{workspace}/docs"}
-    if tools & {"dbt_run", "dbt_test", "dbt_compile"}:
+    if named & {"dbt_run", "dbt_test", "dbt_compile"}:
         ok_prefixes |= {f"{workspace}/target", f"{workspace}/logs",
                         f"{workspace}/dbt_project/target",
                         f"{workspace}/dbt_project/logs"}
     written = set()
     for r in rows:
-        if r.get("op_class") not in ("write", "ddl", "destructive", "exec"):
+        if r.get("op_class") not in WRITE_CLASSES:
+            continue
+        if r.get("tool") == "duckdb.statement":
+            # Its targets are RELATION names, not paths - `warehouse.fct_orders`
+            # is a table, and reading it as a workspace path would let a table
+            # called like a file launder a change to that file. The file this
+            # row is allowed to explain was resolved from `args.database`, above.
             continue
         # A shell row's targets are WORLD-relative, because a shell can write
         # anywhere in the world and not only under the workspace; every other
@@ -524,6 +1015,18 @@ def _unattributed(before: dict, after: dict, rows: list[dict],
         # and quarantine exactly the rollouts that used the terminal well.
         prefix = "" if r.get("tool") == "bash" else f"{workspace}/"
         for t in (r.get("targets") or []):
+            if str(t).startswith(HEALTH_TARGET_PREFIX):
+                # a surface-gate poll, not a write. It can never explain a world
+                # change and must never be allowed to look as though it did.
+                continue
+            if r.get("tool") == "workspace.edit" and t.startswith("workspace:"):
+                # Native mode's post-episode bookkeeping row (rollout.py
+                # _stage_workspace_edits). It names the plane explicitly because
+                # the harness, not a tool, is the one writing it - and it is
+                # matched on the TOOL as well as the prefix so that no existing
+                # gateway target shape can be re-read by this branch.
+                written.add(f"{workspace}/{t[len('workspace:'):]}")
+                continue
             written.add(f"{prefix}{t}")
     ok_prefixes |= written
     ok_prefixes.discard("")
@@ -537,7 +1040,7 @@ def _unattributed(before: dict, after: dict, rows: list[dict],
 
 
 UNOBSERVED_KINDS = ("unobserved_episode", "unverified_tool_surface",
-                    "unverified_containment")
+                    "unverified_containment", "unobserved_network")
 
 
 def summarise(violations: list[Violation]) -> dict:

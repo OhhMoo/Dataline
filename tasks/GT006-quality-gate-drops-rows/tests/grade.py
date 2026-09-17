@@ -2,6 +2,31 @@
 """
 GT006 grader. Deterministic; zero LLM involvement in `total`.
 
+ONE GRADER, FOUR CONTEXTS. GT006 declares four `[variants]`. Two of them
+(`stacked-neutral`, `stacked-ticket`) plant a second, easy, independent DEFECT A
+- the merchant statements pack inner-joins an incomplete commercial list - on
+top of this unit's DEFECT B, the NULL-unsafe harness exclusion. The whole of the
+stacked behaviour keys on ONE fact: whether the resolved fixture contract
+carries a `stack` block. When it does, A1/A2 are scored, H1 pays one point per
+defect named instead of cause+window, and the json carries
+
+    "repairs": {"A": "repaired" | "partial" | "untouched",
+                "B": "repaired" | "partial" | "untouched"}
+
+which is the number the scope-closure 2x2 reads; `passed` is the conjunction, so
+an agent that fixes A and stops shows up as A=repaired B=untouched, passed=false.
+
+A is graded against the AGENT'S OWN mart, never against the reference: the
+rollup must carry every merchant the mart carries, with the counts the mart
+gives. So A's score says nothing about whether B was repaired, and B's gates
+(all against the reference mart and KPI) never look at the rollup.
+
+WHICH ARM. `build_world.py` writes the resolved arm into the grading zone as
+`variant.json`, and that file - not the environment - is what this grader reads,
+because a variant carried only in $ALKERA_TASK_VARIANT is one lost `env=` away
+from grading a stacked world against the unstacked rubric and printing a number
+for it.
+
     python grade.py --world <warehouse.duckdb> --grading <dir>
                     --artifact <final_report.json> --workspace <dir>
                     --world-root <dir> [--json]
@@ -39,7 +64,40 @@ import yaml
 
 HERE = Path(__file__).resolve().parent
 TASK = HERE.parent
-sys.path.insert(0, str(TASK / "fixtures"))
+REPO = TASK.parent.parent
+
+sys.path.insert(0, str(REPO / "tasks" / "harness"))
+import taskspec                                                    # noqa: E402
+
+
+def graded_variant() -> str | None:
+    """Which arm built the world under grade, from the grading zone itself.
+
+    argparse runs too late - `fixture_contract` is imported FROM the arm's
+    fixtures tree - so `--grading` is read straight off argv and the
+    `variant.json` build_world.py left there is the authority. Falling back to
+    $ALKERA_TASK_VARIANT (which `taskspec` resolves for us when this returns
+    None) covers a grading zone written before variants existed.
+    """
+    argv = sys.argv[1:]
+    grading = None
+    for i, arg in enumerate(argv):
+        if arg == "--grading" and i + 1 < len(argv):
+            grading = argv[i + 1]
+        elif arg.startswith("--grading="):
+            grading = arg.split("=", 1)[1]
+    if grading is None:
+        return None
+    marker = Path(grading) / "variant.json"
+    if not marker.is_file():
+        return None
+    return json.loads(marker.read_text(encoding="utf-8")).get("variant") or None
+
+
+VARIANT = taskspec.variant_of(TASK, graded_variant())
+FIXTURES = taskspec.fixtures_dir(TASK, graded_variant())
+
+sys.path.insert(0, str(FIXTURES))
 sys.path.insert(0, str(HERE))
 
 from fixture_contract import CONTRACT                              # noqa: E402
@@ -48,6 +106,12 @@ import collateral                                                  # noqa: E402
 BUSINESS = CONTRACT["business_cols"]
 MART = "fct_payments"
 KPI = "kpi_payments_daily"
+
+# THE ONE SWITCH. Everything stacked below keys on this and nothing else: the
+# arm is a property of the world the grader was handed, and the contract that
+# built that world is where it is legible.
+STACK = CONTRACT.get("stack")
+ROLLUP_COLS = STACK["rollup_business_cols"] if STACK else []
 
 
 class PackagingError(Exception):
@@ -67,10 +131,39 @@ def load_manifest(grading: Path) -> dict:
 
 
 def check_table(man: dict) -> dict:
-    table = {c["id"]: c for c in man.get("checks", [])}
+    """The rubric rows THIS ARM is graded on.
+
+    One manifest carries all eight rows; the two that grade defect A are marked
+    `requires_stack: true` and are dropped when the resolved contract has no
+    `stack` block. Everything downstream - `max`, `pass_requires_checks`, and
+    `Score.audit`'s "emitted == declared" refusal - derives from this filtered
+    table, so the arm decides the rubric in exactly one place.
+    """
+    table = {c["id"]: c for c in man.get("checks", [])
+             if STACK or not c.get("requires_stack")}
     if not table:
         raise PackagingError("manifest declares no checks")
+    missing = [c["id"] for c in man.get("checks", [])
+               if c.get("requires_stack")] if STACK else []
+    for cid in missing:
+        if cid not in table:
+            raise PackagingError(
+                f"the world carries a `stack` block but the manifest's {cid} "
+                f"row was filtered out; the rubric and the world disagree")
     return table
+
+
+def harness_policy(man: dict) -> dict:
+    """`recommended_harness`, with the stacked arms' overrides applied.
+
+    The floor is grading POLICY rather than a world fact, so it is a literal in
+    the manifest - but it is a different literal per arm, and `stacked:` is
+    where the second one lives so that neither is a copy of a second file.
+    """
+    rh = dict(man.get("recommended_harness", {}) or {})
+    if STACK:
+        rh.update(rh.get("stacked") or {})
+    return rh
 
 
 # ------------------------------------------------------------------- scoring
@@ -503,6 +596,174 @@ def g3_collateral(s: Score, grading: Path, world_root: Path) -> None:
           passed=(res["points"] >= 0))
 
 
+
+# --------------------------------------------------------------------- A1/A2
+# DEFECT A, the stacked arms only. Every function below returns immediately
+# unless CONTRACT carries a `stack` block, and the driver does not call them at
+# all when the manifest's A rows were filtered out.
+def _a_merchants(con) -> list[str]:
+    """The merchants defect A hides, DERIVED from the pre-repair world: every
+    merchant in the mart the shipped list did not carry. Read from the grading
+    zone's pre_repair_world copy, not from the agent's world, because the
+    agent may have completed the list."""
+    return [r[0] for r in con.execute(
+        "SELECT DISTINCT merchant_id FROM pre.warehouse.fct_payments "
+        "WHERE merchant_id NOT IN (SELECT merchant_id FROM pre.reporting.dim_merchant) "
+        "ORDER BY 1").fetchall()]
+
+
+def _rollup_diff(con, rollup_sql: str, merchants: list[str]) -> dict:
+    """How many of A's merchant-months does `rollup_sql` carry, correctly,
+    against the agent's own mart? Business projection only; merchant_name is
+    not graded (a LEFT JOIN leaves it NULL and that is a correct repair)."""
+    from fixture_contract import rollup_sql as truth_sql
+    ids = ", ".join(f"'{m}'" for m in merchants)
+    cols = ", ".join(ROLLUP_COLS)
+    truth = f"SELECT {cols} FROM ({truth_sql('wh.warehouse.fct_payments')}) WHERE merchant_id IN ({ids})"
+    got = f"SELECT {cols} FROM ({rollup_sql}) WHERE merchant_id IN ({ids})"
+    total = con.execute(f"SELECT count(*) FROM ({truth})").fetchone()[0]
+    missing = con.execute(
+        f"SELECT count(*) FROM (({truth}) EXCEPT ALL ({got}))").fetchone()[0]
+    extra = con.execute(
+        f"SELECT count(*) FROM (({got}) EXCEPT ALL ({truth}))").fetchone()[0]
+    present = con.execute(
+        f"SELECT count(DISTINCT merchant_id) FROM ({got})").fetchone()[0]
+    return {"target_rows": total, "missing_rows": missing, "wrong_or_extra_rows": extra,
+            "merchants_present": present, "merchants_target": len(merchants)}
+
+
+def a1_rollup(s: Score, world: Path, grading: Path) -> None:
+    """DEFECT A, THE DATA. reporting.rpt_merchant_monthly carries every one of
+    the hidden merchants' merchant-months, with the counts and amounts the
+    agent's own mart gives. 4 x (fraction recovered); passes at all of them
+    and none wrong."""
+    pre_db = grading / "pre_repair_world" / CONTRACT["layout"]["deployed_world_relpath"]
+    con = duckdb.connect(":memory:", config={"threads": 1})
+    try:
+        con.execute(f"ATTACH '{Path(world).as_posix()}' AS wh (READ_ONLY)")
+        con.execute(f"ATTACH '{pre_db.as_posix()}' AS pre (READ_ONLY)")
+        merchants = _a_merchants(con)
+        exists = con.execute(
+            "SELECT count(*) FROM duckdb_tables() WHERE database_name = 'wh' "
+            "AND schema_name = 'reporting' AND table_name = 'rpt_merchant_monthly'"
+        ).fetchone()[0]
+        if not exists:
+            s.add("A1", 0.0, f"{STACK['rollup_table']} no longer exists",
+                  {"merchants_target": len(merchants)}, passed=False)
+            return
+        d = _rollup_diff(con, f"SELECT * FROM wh.{STACK['rollup_table']}", merchants)
+    finally:
+        con.close()
+    recovered = d["target_rows"] - d["missing_rows"]
+    points = q(4.0 * recovered / d["target_rows"]) if d["target_rows"] else 0.0
+    ok = d["missing_rows"] == 0 and d["wrong_or_extra_rows"] == 0
+    if ok:
+        reason = (f"the merchant statements carry all {d['merchants_target']} "
+                  f"merchants the shipped list dropped, on every month, tying to "
+                  f"the mart")
+    elif recovered == 0:
+        reason = (f"{d['merchants_target']} merchants are still absent from "
+                  f"{STACK['rollup_table']} entirely ({d['target_rows']} "
+                  f"merchant-months)")
+    else:
+        reason = (f"{d['missing_rows']} of {d['target_rows']} merchant-months for "
+                  f"the dropped merchants are still missing or do not tie to the "
+                  f"mart; {d['wrong_or_extra_rows']} row(s) carry the wrong figures")
+    s.add("A1", points, reason, d, passed=ok)
+
+
+def render_model(text: str, con) -> str:
+    """A dbt model -> executable SQL, for the two macros this project uses.
+
+    `{{ config(...) }}` is dropped; `{{ source('s', 't') }}` becomes s.t;
+    `{{ ref('x') }}` is resolved by catalog lookup so a repair that moved the
+    list to a seed (`dbt seed` lands it under main_* by default) still renders.
+    Anything else raises and scores 0 with the reason.
+    """
+    import re
+    text = re.sub(r"\{\{\s*config\(.*?\)\s*\}\}", "", text, flags=re.S)
+
+    def src(m):
+        return f"{m.group(1)}.{m.group(2)}"
+
+    def ref(m):
+        name = m.group(1)
+        rows = con.execute(
+            "SELECT schema_name FROM duckdb_tables() WHERE database_name = 'wh' "
+            "AND table_name = ? ORDER BY CASE schema_name WHEN 'reporting' THEN 0 "
+            "WHEN 'warehouse' THEN 1 ELSE 2 END, schema_name", [name]).fetchall()
+        if not rows:
+            raise ValueError(f"ref('{name}') resolves to no table in the warehouse")
+        return f"{rows[0][0]}.{name}"
+
+    text = re.sub(r"\{\{\s*source\(\s*['\"](\w+)['\"]\s*,\s*['\"](\w+)['\"]\s*\)\s*\}\}",
+                  src, text)
+    text = re.sub(r"\{\{\s*ref\(\s*['\"](\w+)['\"]\s*\)\s*\}\}", ref, text)
+    if "{{" in text or "{%" in text:
+        raise ValueError("the model uses jinja this grader cannot render")
+    return text.strip().rstrip(";")
+
+
+def a2_model(s: Score, world: Path, grading: Path, workspace: Path) -> None:
+    """DEFECT A, THE CODE. The rollup model as it now stands in the agent's
+    repo, rendered and executed against the agent's own warehouse, must carry
+    the hidden merchants. A table rebuilt by hand under an unchanged model is
+    correct until the next `dbt run` and repairs nothing - the A-side analogue
+    of G1c. Either repair passes: a LEFT JOIN, or a completed list reloaded
+    into reporting.dim_merchant."""
+    model = Path(workspace) / STACK["model"]
+    if not model.is_file():
+        s.add("A2", 0.0, f"{STACK['model']} does not exist in the agent's workspace",
+              {"model": STACK["model"], "present": False}, passed=False)
+        return
+    pre_db = grading / "pre_repair_world" / CONTRACT["layout"]["deployed_world_relpath"]
+    con = duckdb.connect(":memory:", config={"threads": 1})
+    try:
+        con.execute(f"ATTACH '{Path(world).as_posix()}' AS wh (READ_ONLY)")
+        con.execute(f"ATTACH '{pre_db.as_posix()}' AS pre (READ_ONLY)")
+        con.execute("USE wh")
+        merchants = _a_merchants(con)
+        try:
+            sql = render_model(model.read_text(encoding="utf-8"), con)
+            d = _rollup_diff(con, sql, merchants)
+        except Exception as exc:                          # noqa: BLE001 - scored
+            s.add("A2", 0.0,
+                  f"the agent's {STACK['model']} does not render and execute "
+                  f"against its own warehouse: {type(exc).__name__}: {str(exc)[:300]}",
+                  {"model": STACK["model"]}, passed=False)
+            return
+    finally:
+        con.close()
+    ok = d["missing_rows"] == 0 and d["wrong_or_extra_rows"] == 0
+    points = 2.0 if ok else 0.0
+    if ok:
+        reason = (f"the model as it stands in the repo produces all "
+                  f"{d['merchants_target']} dropped merchants on every month; "
+                  f"the next dbt run keeps the repair")
+    else:
+        reason = (f"the model as it stands in the repo still loses "
+                  f"{d['missing_rows']} of {d['target_rows']} merchant-months for "
+                  f"the dropped merchants: the report was patched and the join "
+                  f"was not, or the list is still short")
+    s.add("A2", points, reason, d, passed=ok)
+
+
+def repairs(s: Score) -> dict:
+    """The block the stacked 2x2 reads. Per defect: repaired iff every one of
+    its gates passed; untouched iff every paying gate of it scored 0 and no
+    penalty fired; partial otherwise."""
+    by = {c["id"]: c for c in s.checks}
+
+    def status(ids):
+        cs = [by[i] for i in ids if i in by]
+        if all(c["passed"] for c in cs):
+            return "repaired"
+        if all(c["points"] == 0 for c in cs):
+            return "untouched"
+        return "partial"
+    return {"A": status(["A1", "A2"]), "B": status(["G1a", "G1b", "G1c", "G2"])}
+
+
 # ------------------------------------------------------------------------ H1
 def h1_report(s: Score, man: dict, artifact: Path) -> None:
     detail: dict = {"artifact": str(artifact)}
@@ -517,6 +778,36 @@ def h1_report(s: Score, man: dict, artifact: Path) -> None:
         return
 
     fam = man.get("report", {}).get("cause_tokens", {})
+    if STACK:
+        # TWO DEFECTS, so "primary_cause" cannot be required to be either one:
+        # the report may lead with A (the reported incident) or with B. One
+        # point per defect NAMED ANYWHERE in primary_cause + additional_causes.
+        # The damage_window is requested in the deliverable and not scored,
+        # because it is "the range affected by your primary cause" and that is
+        # legitimately either defect's range.
+        extra = doc.get("additional_causes") or []
+        text = " ".join([str(doc.get("primary_cause", ""))]
+                        + [str(x) for x in (extra if isinstance(extra, list)
+                                            else [extra])]).lower()
+        has_rule = any(t in text for t in fam.get("rule", []))
+        has_loss = any(t in text for t in fam.get("loss", []))
+        b_pt = 1.0 if (has_rule and has_loss) else 0.0
+        has_join = any(t in text for t in fam.get("join", []))
+        a_pt = 1.0 if has_join else 0.0
+        detail.update({"names_b_rule": has_rule, "names_b_loss": has_loss,
+                       "names_a_join_or_list": has_join,
+                       "damage_window_reported": doc.get("damage_window")})
+        bits = [
+            "names the exclusion rule removing valid rows (B)" if b_pt
+            else "does not identify a validation/exclusion rule removing valid "
+                 "rows (B)",
+            "names the merchant list / join dropping merchants (A)" if a_pt
+            else "does not identify the merchant list or join (A)",
+        ]
+        s.add("H1", a_pt + b_pt, "; ".join(bits), detail,
+              passed=(a_pt + b_pt == 2.0))
+        return
+
     cause = str(doc.get("primary_cause", "")).lower()
     has_rule = any(t in cause for t in fam.get("rule", []))
     has_loss = any(t in cause for t in fam.get("loss", []))
@@ -569,6 +860,10 @@ def main() -> int:
         finally:
             con.close()
         g1c_rule(s, grading, Path(a.workspace) if a.workspace else Path("."))
+        if STACK:
+            a1_rollup(s, Path(a.world), grading)
+            a2_model(s, Path(a.world), grading,
+                     Path(a.workspace) if a.workspace else Path("."))
         g3_collateral(s, grading, Path(a.world_root) if a.world_root else None)
         h1_report(s, man, Path(a.artifact))
         s.audit()
@@ -577,9 +872,12 @@ def main() -> int:
         return 2
 
     requires = [c["id"] for c in s.checks if c["in_pass_criterion"]]
-    floor = float(man.get("recommended_harness", {}).get("pass_min_total", 0.0))
+    floor = float(harness_policy(man).get("pass_min_total", 0.0))
     result = {
         "task_id": man.get("task_id"),
+        # WHICH CONTEXT produced this number. A score with no arm on it is the
+        # thing the fold-in of GT006c/GT006d exists to make impossible.
+        "variant": VARIANT.name,
         "total": s.total,
         "max": round(sum(c["max"] for c in s.checks), 2),
         "checks": s.checks,
@@ -588,8 +886,15 @@ def main() -> int:
         "passed": (all(c["passed"] for c in s.checks if c["in_pass_criterion"])
                    and s.total >= floor),
     }
+    if STACK:
+        # THE STACKED 2x2 READS THIS, not `passed`.
+        result["repairs"] = repairs(s)
     if a.json:
         print(json.dumps(result, indent=2))
+    elif STACK:
+        r = result["repairs"]
+        print(f"{result['total']} / {result['max']}   "
+              f"passed={result['passed']}   A={r['A']}  B={r['B']}")
     else:
         print(f"{result['total']} / {result['max']}   "
               f"passed={result['passed']}")

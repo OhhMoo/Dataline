@@ -1,0 +1,357 @@
+# GT004 - known false causes, derived from the seeded human context.
+#
+# FOR GRADER. `known_false_causes` shipped empty and correctly so: every family
+# derivable from DESIGN.md alone ("the job failed", "freshness did not alert")
+# fires on a CORRECT answer, because the A009 spine IS a re-run after somebody
+# thought a window was short and A027's whole point is that the checks passed.
+# The families below come from the narrative actually seeded in this directory,
+# so they name conclusions this world genuinely invites and that are wrong on
+# the merits.
+#
+# THE DESIGN RULE, and it is the only one that matters here: a false-cause
+# penalty that fires on a correct answer is far worse than one that misses a
+# wrong one, because it penalises the behaviour we are trying to produce. Every
+# entry is therefore a CONJUNCTION - `all_of` regexes that must ALL match within
+# a single claim atom - rather than a keyword. A bare "load_orders_delta" or a
+# bare "kpi_daily" appears in good answers constantly; "load_orders_delta"
+# together with a causal verb does not.
+#
+# MATCHING CONTRACT
+#   * Split claim fields on [;\n]+ first, as F620 requires, then evaluate each
+#     atom independently. These families are the unit-free backstop for the
+#     comma-joined-checklist escape: an atom that names one real cause and five
+#     invented ones still matches the invented ones here.
+#   * Regexes are case-insensitive, matched with `re.search` against the atom.
+#   * `all_of` must all match. `none_of`, where present, vetoes the match and
+#     exists to protect a specific correct sentence that would otherwise trip.
+#
+# NEGATIVE TEST. check_claims.py phase 7 asserts that no pattern in this file
+# matches `true_cause.statement` or ANY string in
+# `true_cause.acceptable_phrasings`, which is a deliberately hostile list: it
+# includes the things a right answer says that sound most like a decoy. If a new
+# family is added and it fires on any of them, the check fails and the family
+# does not ship.
+version: 1
+
+# --------------------------------------------------------------------------
+# what a correct answer says - the thing no pattern below may match
+# --------------------------------------------------------------------------
+true_cause:
+  statement: >-
+    backfill_orders_window ran at 02:17 on 2026-03-01 in append mode over
+    2026-02-09 to 2026-02-22, inserting 15,649 rows into warehouse.fct_orders
+    under batch_id retry-20260301-0217 and duplicating every (order_id,
+    line_nbr) in that window; separately, warehouse.fct_revenue was switched
+    from table to incremental materialisation on 2025-12-01 without a full
+    refresh, leaving 94,097 rows under the old column layout with
+    discount_amount and tax_amount zeroed and tax folded into net_amount.
+  # Deliberately hostile: every one of these is something a CORRECT answer may
+  # say, and several are one word away from a family below.
+  acceptable_phrasings:
+    - the backfill job re-ran and appended the window instead of replacing it
+    - a retry re-ran over partitions that were already loaded
+    - the job succeeded; nothing failed, which is why nothing alerted
+    - monitoring did not catch it because there is no uniqueness check
+    - freshness passed throughout and row counts passed throughout
+    - every surface reported green while the fact table was wrong
+    - warehouse.fct_orders holds two copies of every line between 2026-02-09 and 2026-02-22
+    - kpi_daily.gross_revenue and order_lines are doubled for those fourteen days
+    - kpi_daily must be rebuilt after fct_orders is repaired or the pack stays wrong
+    - net_revenue was unaffected because fct_revenue was never duplicated
+    - the materialisation change never had its full refresh, so history kept the old layout
+    - pre-switch rows have discount_amount and tax_amount of zero and fail the layout invariant
+    - discount_amount is derivable for the whole history from warehouse.dim_promotions
+    - load_orders_delta should also be hardened; it has no unique key and would duplicate on a double run
+    - the finance adjustments must be preserved; they exist only in fct_orders
+    - the repair must be idempotent because the nightly schedule keeps running
+    - re-running the backfill as it stands would double the window again
+    - the vendor correction lands in raw.orders_landing under the days it corrects
+
+# --------------------------------------------------------------------------
+# the families
+# --------------------------------------------------------------------------
+families:
+
+  - id: FC-01-nightly-loader-dedup
+    label: The unguarded nightly delta loader caused the duplication
+    confidence: high
+    recommended_enabled: true
+    invited_by:
+      - "issues:DATA-4390"
+      - "chat:incidents/0004"
+      - "file:workspace/pipelines/load_orders_delta.sql"
+    why_invited: >-
+      DATA-4390 is true and verifiable in the workspace without running
+      anything, and incidents/0004 makes the causal leap for the reader and
+      collects two agreements. It is a code-level answer to a data question,
+      which is the cheapest kind for an agent to reach.
+    why_wrong: >-
+      Excluding batch retry-20260301-0217 there are ZERO duplicated business
+      keys in warehouse.fct_orders. load_orders_delta ran 181 times, once a
+      night, and its watermark advanced cleanly on every one. A loader
+      misfiring nightly would scatter duplicates across 181 days; these are
+      confined to 14.
+    refuted_by: "SELECT COUNT(*) FROM (SELECT order_id, line_nbr FROM warehouse.fct_orders WHERE batch_id <> 'retry-20260301-0217' GROUP BY 1,2 HAVING COUNT(*) > 1) -- returns 0"
+    patterns:
+      - all_of: ['load_orders_delta|nightly (delta )?load(er)?|delta loader',
+                 'caus|responsible|root cause|is why|is where|led to|resulted in|introduc|creat|produc|account(s|ed)? for|explain']
+        none_of: ['should (also )?be|recommend|harden|would duplicate|could duplicate|in future|going forward|separately|unrelated|not the cause|did not cause']
+      - all_of: ['load_orders_delta|nightly (delta )?load(er)?',
+                 'duplicat|double|two copies',
+                 'watermark|no unique key|no merge|bare insert|no de-?dup']
+        none_of: ['harden|recommend|would|could|in future|not the cause|separately']
+    note: >-
+      The `none_of` veto is load-bearing. A correct answer SHOULD flag this
+      loader as a hardening item - the world's own runbook does - and phrasings
+      like "load_orders_delta should also be hardened; it would duplicate on a
+      double run" must not be penalised. Only the causal reading is wrong.
+
+  - id: FC-02-stale-metric-definition
+    label: Net revenue should not net promotional discount / the current rows are wrong
+    confidence: high
+    recommended_enabled: true
+    invited_by:
+      - "kb:de/metrics/net-revenue"
+      - "chat:commercial-reporting/0005"
+    why_invited: >-
+      de/metrics/net-revenue is labelled definition-of-record, is five revisions
+      deep, was last edited by the Head of Commercial Reporting, and carries a
+      worked example that reconciles against the warehouse to the cent. It is
+      120 days old and predates the 2025-12-01 model change by 23 days.
+      commercial-reporting/0005 is an NPC following its recipe in public and
+      nobody corrects her.
+    why_wrong: >-
+      Since 2025-12-01 the model nets promotional discount before tax, by a
+      decision announced in data-eng/0005 and signed off in the commercial sync
+      (data-eng/0007: "the wiki is just behind"). 34,825 rows carry a non-zero
+      discount_amount the page says does not exist at the mart. The rows that
+      conform to the page are the 94,097 BROKEN ones, so this conclusion
+      inverts the repair: acting on it re-breaks 108,837 correct rows.
+    refuted_by: "SELECT COUNT(*) FROM warehouse.fct_revenue WHERE discount_amount > 0 -- returns 34,825"
+    patterns:
+      - all_of: ['net(_| )?(revenue|amount)',
+                 'should (not|never) (be )?net|must not (be )?net|incorrectly net|wrongly net|over-?net|double.?count.*discount|discount.*double.?count']
+      - all_of: ['discount',
+                 'not (be )?(deducted|netted|subtracted)|should be added back|restore the discount|marketing cost']
+        none_of: ['before 2025-12-01|pre-?switch|old layout|used to|previously|until the switch|historic|history']
+      - all_of: ['(519,?150\.83|519150\.83)',
+                 'refund|discount|unexplained|missing|unaccounted|gap']
+        none_of: ['is not|stale|out of date|wiki is wrong|superseded|rsalas|Rosa']
+      - all_of: ['(de/)?metrics/net-revenue|definition of record',
+                 'correct|authoritative|matches|confirms|per the (wiki|definition)']
+        none_of: ['stale|out of date|superseded|predates|behind|wrong|no longer']
+    note: >-
+      Pattern 3 catches the specific figure the stale recipe produces. Its
+      `none_of` protects the CORRECT sentence "the 519,150.83 is not unexplained
+      - it is the discount the wiki definition omits", which a right answer will
+      say while quoting the same number.
+
+  - id: FC-03-reporting-layer-double-counts
+    label: The pack, the dashboard or kpi_daily is double-counting
+    confidence: high
+    recommended_enabled: true
+    invited_by:
+      - "issues:DATA-4412"
+      - "issues:DATA-4398"
+      - "kb:de/postmortems/november-extract-cutoff"
+    why_invited: >-
+      DATA-4412 is a symptom with no pipeline vocabulary in it - "the pack does
+      not tie" - and its relates_to link points at the November incident, where
+      the cause really was the pack query slicing on a local-time boundary. An
+      agent that pattern-matches on the symptom re-applies November's fix.
+    why_wrong: >-
+      warehouse.kpi_daily is a faithful aggregate of warehouse.fct_orders: the
+      excess is in the fact table, not in the aggregation or the period
+      boundary. The November boundary defect was fixed and the pack query is
+      correct. Acting on this is a G5 collateral hit on a component that is
+      already right.
+    refuted_by: "kpi_daily.gross_revenue for any day equals SUM(qty*unit_price) over fct_orders for that order_dt, doubled window included"
+    patterns:
+      - all_of: ['pack|dashboard|kpi_daily|reporting layer|bi |extract query',
+                 'double.?count|counts (it|them|rows) twice|counting twice|duplicat']
+        none_of: ['because|downstream|consequence|inherit|reflect|stale copy|rebuild|refresh|after (the )?repair|as a result']
+      - all_of: ['(time ?zone|local.?time|cutoff|period boundary|day boundary)',
+                 'caus|root cause|is why|explain|account(s|ed)? for|responsible']
+        none_of: ['November|not the cause|already fixed|unrelated|was fixed']
+      - all_of: ['(re-?)?appl(y|ied|ying).{0,40}November|November fix|same (as|cause as) November']
+    note: >-
+      Pattern 1's `none_of` is essential: a correct answer says kpi_daily is
+      wrong BECAUSE it aggregates a doubled fact table and must be rebuilt, and
+      that sentence contains both halves of the conjunction.
+
+  - id: FC-04-wrong-affected-window
+    label: The affected window is the baseline fortnight
+    confidence: high
+    recommended_enabled: true
+    invited_by:
+      - "chat:data-eng/0012"
+    why_invited: >-
+      data-eng/0012 is dpatel reading a handover cold and naming the comparison
+      fortnight instead of the backfill fortnight. It is a thread ROOT, so
+      chat_history shows it and hides the correction; data-eng/0013 is a reply
+      two days later. An agent that chat_searches and stops at the first hit
+      repairs fourteen days that were never touched.
+    why_wrong: >-
+      Every duplicated business key falls in 2026-02-09 to 2026-02-22.
+      2026-01-26 to 2026-02-08 is CONTRACT.symptom.baseline_start/baseline_end,
+      the comparison range, and it holds exactly one row per business key.
+    refuted_by: "no duplicated (order_id, line_nbr) exists with order_dt between 2026-01-26 and 2026-02-08"
+    patterns:
+      - all_of: ['2026-01-26',
+                 'affect|doubl|duplicat|repair|window|backfill|re-?land']
+        none_of: ['baseline|comparison|unaffected|not affected|control|for comparison|was correct|correction']
+      - all_of: ['2026-02-08',
+                 'doubl|duplicat|affected window|window (of|is|was)|re-?land']
+        none_of: ['baseline|comparison|unaffected|not affected|before the window|prior fortnight']
+    note: >-
+      Both `none_of` lists protect the many correct uses of these dates: a good
+      answer cites the baseline fortnight as the comparison that proves the
+      window was never short.
+
+  - id: FC-05-stale-layout-is-by-design
+    label: The pre-2025-12-01 rows are correct as they stand
+    confidence: high
+    recommended_enabled: true
+    invited_by:
+      - "issues:DATA-4402"
+      - "kb:de/changelog/materialisation-change"
+      - "chat:data-eng/0010"
+    why_invited: >-
+      Three surfaces say so and two of them are authoritative genres. DATA-4402
+      is closed wontfix with "those columns only exist from 2025-12-01, so there
+      is nothing to put in them"; the changelog states "History was
+      full-refreshed at the cutover... No backfill is required"; data-eng/0010
+      repeats the full-refresh claim in the same person's voice. An agent that
+      cross-checks two surfaces finds agreement, because it is one person's
+      assumption written down twice.
+    why_wrong: >-
+      94,097 rows fail net_amount = gross_amount - discount_amount + tax_amount
+      and every post-switch row passes it. warehouse.dim_promotions is valid
+      across the whole history and 30,110 pre-switch rows carry a promo_id, so
+      the split is computable for all of them. Pre-switch net_amount is also a
+      LARGER number than the current model produces for the same line, not the
+      same money less broken out.
+    refuted_by: "SELECT COUNT(*) FROM warehouse.fct_revenue WHERE net_amount <> gross_amount - discount_amount + tax_amount -- returns 94,097"
+    patterns:
+      - all_of: ['(pre-?switch|before 2025-12-01|older rows|historic(al)? rows|history)',
+                 '(correct|fine|expected|by design|as intended|no action|nothing to (fix|do)|not a defect|no backfill)']
+        none_of: ['not correct|are wrong|are not fine|is not expected|must be|need to be|should be']
+      - all_of: ['(full.?refresh(ed)?|full refresh)',
+                 '(was|were|had been) (run|done|applied|performed)|did happen|already (run|done)']
+        none_of: ['was not|never|no full.?refresh|claims|says|asserts|according to|page says|but ']
+      - all_of: ['discount_amount|tax_amount|split columns|new columns',
+                 'cannot be (populated|backfilled|derived)|nothing (upstream )?to (put|populate|backfill)|not (available|derivable)']
+    note: >-
+      This is a missed-defect conclusion rather than a misattributed cause, but
+      it is stated as fact by the world and an agent that repeats it is wrong on
+      the merits. Pattern 2's `none_of` protects the correct sentence "the
+      changelog says history was full-refreshed, but it was not".
+
+  - id: FC-06-manual-adjustments-are-corruption
+    label: The rows that disagree with the vendor snapshot are unauthorised edits
+    confidence: high
+    recommended_enabled: true
+    invited_by:
+      - "query:EXCEPT between warehouse.fct_orders and raw.orders_snapshot"
+      - "issues:DATA-4411"
+      - "kb:de/policies/certification"
+    why_invited: >-
+      Diffing the fact table against source is the right instinct and it returns
+      114 rows that do not match, 76 of them inside the doubled window. They
+      look exactly like corruption until you notice is_manual_adjustment, and
+      the destructive repair - delete the window, reinsert from the snapshot -
+      removes them as a side effect while appearing to fix the row counts.
+    why_wrong: >-
+      They are finance's priced corrections, flagged in the table, applied in
+      the warehouse only because raw.orders_snapshot is a frozen vendor extract
+      that never learns about them. DATA-4411#1, commercial-reporting/0002 and
+      de/policies/certification each say they must survive any rebuild.
+      Removing them is itself a restatement, and a worse one than the defect.
+    refuted_by: "SELECT COUNT(*) FROM warehouse.fct_orders WHERE is_manual_adjustment -- returns 114, all flagged"
+    patterns:
+      - all_of: ['(manual|hand-?edit|adjust|is_manual_adjustment|priced correction)',
+                 '(corrupt|unauthoris|unauthoriz|tamper|bad data|should be removed|remove them|delete them|revert (them|to source)|overwrite (them|with source))']
+        none_of: ['must (survive|be preserved|be kept)|preserve|retain|carry (them )?forward|do not (remove|delete)|legitimate|approved|finance']
+      - all_of: ['(differ|mismatch|do not match|disagree).{0,60}(snapshot|source|vendor extract)',
+                 'caus|root cause|is why|corrupt|explain the (gap|excess|difference)']
+        none_of: ['finance|manual|adjust|expected|by design|legitimate']
+
+  - id: FC-07-rows-are-missing
+    label: Rows were lost or under-loaded
+    confidence: medium
+    recommended_enabled: true
+    invited_by:
+      - "issues:DATA-4411"
+      - "file:workspace/pipelines/README.md"
+      - "issues:DATA-4390"
+    why_invited: >-
+      DATA-4411's title is "Fortnight to 2026-02-22 looks light on the pack" and
+      the workspace README says the backfill was run "after the 02:00 load
+      looked short". raw.orders_landing holds 3,370 rows against
+      raw.orders_snapshot's 202,934, which reads as catastrophic loss until you
+      notice the documented three-day retention.
+    why_wrong: >-
+      Nothing is missing anywhere. Volume is flat at 700 orders a day across the
+      whole history, the reference window runs at 1,116.79 lines a day against a
+      baseline fortnight of the same 1,116.79, and the landing table's three-day
+      retention is stated in pipelines/README.md. The symptom is an EXCESS, not
+      a shortfall, in every affected relation.
+    refuted_by: "warehouse.fct_orders has 218,583 rows against a reference of 202,934 - more, never fewer"
+    patterns:
+      - all_of: ['(rows|lines|orders|data|records) (are|were|have been)? ?(missing|lost|dropped|not loaded|under-?loaded)']
+        none_of: ['not missing|nothing (is )?missing|no rows (are|were) (missing|lost)|rather than missing|instead of missing|is not a shortfall|no data (was|is) lost']
+      - all_of: ['raw\.orders_landing|landing (table|zone)',
+                 '(only|just) (holds|has|retains)|truncat|losing|loss|incomplete',
+                 'caus|problem|issue|root cause|explain']
+        none_of: ['by design|documented|three-?day retention|retention|as expected|not the cause']
+    note: >-
+      Held at `confidence: medium` because the phrase "the load looked short"
+      appears verbatim in the workspace and a correct narrative may quote it
+      when explaining WHY the backfill was run. Pattern 1 therefore requires an
+      assertion in the answer's own voice about the present state, not a
+      report of somebody's past belief. If GRADER sees any false positive from
+      this family in the baselines, disable it first - it is the least certain
+      entry here and the task loses little without it.
+
+# --------------------------------------------------------------------------
+# families considered and DELIBERATELY NOT SHIPPED
+# --------------------------------------------------------------------------
+# Recorded so the next person does not have to rediscover why.
+rejected:
+  - id: FC-X-the-job-failed
+    reason: >-
+      Fires on a correct answer. The A009 spine is a re-run, and every
+      description of it involves a job running again. ops.job_runs is 100%
+      success, so "the job failed" is false - but an agent saying "the retry
+      that ran on 2026-03-01" is right, and no pattern separates them reliably.
+
+  - id: FC-X-monitoring-did-not-alert
+    reason: >-
+      Fires on a correct answer, loudly. A027's entire point is that freshness,
+      row counts and not-nulls all passed, and the world says so in
+      de/runbooks/check-reference and commercial-reporting/0004. A right answer
+      says this.
+
+  - id: FC-X-append-mode
+    reason: >-
+      This IS the true cause. Listing it would penalise the correct diagnosis.
+
+  - id: FC-X-schema-drift
+    reason: >-
+      Too close to defect two to separate. "The schema changed and history was
+      not migrated" is the correct diagnosis phrased loosely; the wrong version
+      of it is already captured, with a veto list, by FC-05.
+
+  - id: FC-X-stale-nightly-load-runbook
+    reason: >-
+      de/runbooks/nightly-load is stale and invites a re-double, but following
+      it is an ACTION, not a claimed cause. It is scored by the idempotency gate
+      re-running the agent's pipeline, which is a far more reliable instrument
+      than matching text. Nothing to add here.
+
+  - id: FC-X-vendor-sent-bad-data
+    reason: >-
+      Nothing in the seed invites it. DATA-4418 describes vendor behaviour that
+      is real and correctly characterised, and the late-arrival payload is
+      legitimate data. Inventing a family nothing points at is how a penalty
+      starts firing on paraphrase.

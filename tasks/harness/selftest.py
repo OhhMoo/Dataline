@@ -613,7 +613,7 @@ class SurfaceSpec(FakeSpec):
     def __init__(self, probes=(), required=(), by_design=()):
         self.surface_probes = list(probes)
         self.required_surfaces = list(required)
-        self.dead_by_design = [{"label": l, "reason": "declared"} for l in by_design]
+        self.dead_by_design = [{"label": line, "reason": "declared"} for line in by_design]
 
 
 def sa(surfaces, *, probes=(), required=(), by_design=(), toolbelt=None):
@@ -841,8 +841,8 @@ def test_report_conditions():
     check("a clean run PUBLISHES Pass@1", agg["measurement_valid"]
           and "**Pass@1 = 0.5**" in md, str(agg["invalidated_because"]))
     check("...and states the live-surface set beside every rate it prints",
-          all("surfaces: " in l for l in md.splitlines()
-              if "Pass@1 = " in l or "Pass^k = " in l))
+          all("surfaces: " in line for line in md.splitlines()
+              if "Pass@1 = " in line or "Pass^k = " in line))
     check("...and names the prompt variant that produced it",
           "prompt variant: vague" in md)
     check("...with the conditions ABOVE the number, not under it",
@@ -940,11 +940,112 @@ def test_pass_hat_k():
           "| claude | 1.0 |" in report.render("T", "run", agg, two))
 
 
+# ------------------------------------------------------- a second warehouse
+def test_warehouse_keys():
+    """A world that declares a second warehouse gets it into the gateway config
+    on both topologies, with its file re-rooted wherever the world is; a world
+    that declares none gets the config it always got."""
+    print("\n  second warehouse: builder publishes, harness passes through")
+    import json
+    import tempfile
+
+    import container_episode
+    import episode
+
+    root = Path(tempfile.mkdtemp(prefix="alkera-selftest-wh-"))
+    world = {"world_root": str(root), "workspace": str(root / "workspace"),
+             "warehouse": str(root / "var/warehouse/warehouse.duckdb"),
+             "scheduler": str(root / "var/sched/state.json"),
+             "dashboards": str(root / "var/bi/dashboards"),
+             "profiles_dir": str(root / "build"), "grading": str(root.parent / "g")}
+    plain = json.loads(episode.write_gateway_config(
+        root / "plain.json", world, root / "audit", "x", "2026-03-08T09:00:00Z"
+    ).read_text(encoding="utf-8"))
+    check("a world that publishes no warehouse keys writes none of them",
+          not ({"warehouses", "warehouse_name"} & set(plain))
+          and plain["initial_world_fp"] is None, str(sorted(plain)))
+
+    legacy = {"name": "legacy", "backend": "duckdb",
+              "path": str(root / "var/warehouse/legacy.duckdb"), "read_only": True}
+    remote = {"name": "pg", "backend": "postgres", "attach": False}
+    dual = {**world, "warehouses": [legacy, remote], "initial_world_fp": "fp-from-builder"}
+    cfg = json.loads(episode.write_gateway_config(
+        root / "dual.json", dual, root / "audit", "x", "2026-03-08T09:00:00Z"
+    ).read_text(encoding="utf-8"))
+    check("...and a world that publishes them gets them into the host config, "
+          "the builder's fingerprint overriding the null",
+          cfg["warehouses"] == [legacy, remote]
+          and cfg["initial_world_fp"] == "fp-from-builder")
+
+    inside = container_episode.container_world(dual)
+    check("container_world re-roots the NESTED duckdb path onto /world",
+          inside["warehouses"][0]["path"] == "/world/var/warehouse/legacy.duckdb",
+          json.dumps(inside["warehouses"]))
+    check("...and leaves the remote spec, which has no path, alone",
+          inside["warehouses"][1] == remote)
+    ccfg = container_episode.container_gateway_config(dual, "ep", "2026-03-08T09:00:00Z")
+    check("the container config carries the re-rooted warehouses and the fingerprint",
+          ccfg["warehouses"] == inside["warehouses"]
+          and ccfg["initial_world_fp"] == "fp-from-builder")
+    ccfg_plain = container_episode.container_gateway_config(world, "ep", "2026-03-08T09:00:00Z")
+    check("...and a world without them gets the container config it always got",
+          "warehouses" not in ccfg_plain and ccfg_plain["initial_world_fp"] is None)
+
+    rerooted = episode.reroot_warehouses([legacy], root, "/elsewhere")
+    check("reroot_warehouses is posix under the new root",
+          rerooted[0]["path"] == "/elsewhere/var/warehouse/legacy.duckdb", rerooted[0]["path"])
+    check("...and passes a path outside the world root through unchanged",
+          episode.reroot_warehouses([{"name": "x", "backend": "duckdb", "path": "/other/x.duckdb"}],
+                                    root, "/elsewhere")[0]["path"] == "/other/x.duckdb")
+
+    # the dbt profiles a host builder writes carry host paths; the container
+    # needs /world ones, for the primary and for every extra output alike
+    text = ("world_dbt:\n  target: dev\n  outputs:\n"
+            f"    dev: {{type: duckdb, path: '{root / 'var/warehouse/warehouse.duckdb'}', threads: 1}}\n"
+            f"    target: {{type: duckdb, path: '{root / 'var/warehouse/target.duckdb'}', threads: 1}}\n"
+            "    ci: {type: duckdb, path: /tmp/ci.duckdb, threads: 1}\n"
+            "    prod: {type: postgres, host: db, threads: 4}\n")
+    rewritten, moved = container_episode.reroot_profiles(text, root)
+    import yaml
+    outputs = yaml.safe_load(rewritten)["world_dbt"]["outputs"]
+    check("reroot_profiles moves every output under the world root onto /world",
+          outputs["dev"]["path"] == "/world/var/warehouse/warehouse.duckdb"
+          and outputs["target"]["path"] == "/world/var/warehouse/target.duckdb"
+          and moved == ["world_dbt.dev", "world_dbt.target"], json.dumps(outputs))
+    check("...and leaves outputs outside the root, and outputs with no path, alone",
+          outputs["ci"]["path"] == "/tmp/ci.duckdb" and outputs["prod"] == {
+              "type": "postgres", "host": "db", "threads": 4})
+    already, moved2 = container_episode.reroot_profiles(rewritten, root)
+    check("...and a profiles file that already carries container paths moves nothing",
+          moved2 == [] and yaml.safe_load(already) == yaml.safe_load(rewritten))
+
+    # the off-channel detector must not file a write to the second warehouse
+    # as a change no gateway call explains
+    layout = {**LAYOUT, "warehouses": [{"name": "legacy", "backend": "duckdb",
+                                        "path": "/w/var/warehouse/legacy.duckdb"}]}
+    rows = [{"seq": 1, "tool": "sql_execute", "op_class": "destructive", "exit": "ok",
+             "targets": ["legacy:warehouse.items"]}]
+    before = {"var/warehouse/legacy.duckdb": [1, "a"], "var/warehouse/legacy.duckdb.wal": [1, "a"]}
+    after = {"var/warehouse/legacy.duckdb": [2, "b"], "var/warehouse/legacy.duckdb.wal": [2, "b"]}
+    check("a declared second warehouse written through sql_execute is attributed",
+          blindness._unattributed(before, after, rows, layout) == [],
+          str(blindness._unattributed(before, after, rows, layout)))
+    check("...while an UNDECLARED .duckdb that changed is still reported",
+          blindness._unattributed(
+              {"var/warehouse/sneaky.duckdb": [1, "a"]},
+              {"var/warehouse/sneaky.duckdb": [2, "b"]}, rows, layout)
+          == ["var/warehouse/sneaky.duckdb"])
+    check("...and with no warehouses declared the legacy write IS reported (as before)",
+          blindness._unattributed(before, after, rows, LAYOUT)
+          == ["var/warehouse/legacy.duckdb", "var/warehouse/legacy.duckdb.wal"])
+
+
 def main() -> int:
     print("\n  harness self-test")
     test_blindness()
     test_missing_evidence()
     test_container_topology()
+    test_warehouse_keys()
     test_kimi_driver()
     test_classifier()
     test_surface_audit()

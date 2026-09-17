@@ -1,0 +1,706 @@
+# Stressor registry -- layer 2 of the contract-maintenance generator.
+#
+# One entry per stressor that EXISTS AS FIXTURE CODE TODAY. A stressor is not a
+# task: it is a way to stress a contract, and one stressor serves many contracts
+# (implementation_structure/TASK_DESIGN_2026-09-15.md, "Framework proposal").
+#
+# Every `implemented_in` below was read out of the generator, not out of a
+# DESIGN.md or a prompt. Anything not read out of code carries `verified: false`
+# and says what would have to be read to confirm it. Nothing here was inferred
+# from a row count in a .duckdb file; no .duckdb file was opened.
+#
+# FIELDS
+#   name           snake_case identifier, unique across the corpus
+#   task           owning task directory
+#   implemented_in file:symbol -- the function or module-level constant that
+#                  actually plants it
+#   kind           defect | event | context
+#   stresses       contract names, from exactly this closed set:
+#                    exactly_once        each business event lands once
+#                    liveness            it keeps running / lands in time
+#                    version_precedence  the newest version of a key wins
+#                    cutoff_integrity    a published boundary is respected
+#                    consumer_consistency what consumers read agrees with source
+#                    auditability        the record of what happened survives
+#   state          the shared-state declaration the coupling pre-filter reads:
+#                    tables       fully qualified relations it writes/corrupts
+#                    checkpoints  watermarks, scheduler state, deploy manifests
+#                    window       [[start, end], ...] ISO dates it affects
+#                    metrics      the named numbers it moves
+#   repair         the step of the task's own solution/ that repairs THIS
+#                  stressor alone, or null when the oracle has no isolable step
+#   stageable_subset  true when a coupling adapter can build a world with this
+#                  stressor present or absent without editing the task
+#   notes          anything load-bearing a reader would otherwise have to
+#                  re-derive
+#
+# `state.tables` is DIRECT writes only. Tables the stressor reaches by
+# derivation (kpi_daily built from fct_orders, say) are listed under
+# `derived_tables` and are deliberately NOT part of the pre-filter: the point of
+# the measured test is to find propagation the declaration missed.
+
+contracts:
+  - exactly_once
+  - liveness
+  - version_precedence
+  - cutoff_integrity
+  - consumer_consistency
+  - auditability
+
+stressors:
+
+# ===========================================================================
+# GT004 -- doubling window
+# ===========================================================================
+  - name: retry_backfill_doubling
+    task: GT004-doubling-window
+    implemented_in: tasks/GT004-doubling-window/fixtures/make_fixture_world.py:FCT_ORDERS_SQL
+    kind: defect
+    verified: true
+    stresses: [exactly_once, auditability]
+    state:
+      tables: [warehouse.fct_orders]
+      checkpoints: []
+      window: [["2026-02-09", "2026-02-22"]]
+      metrics: [order_lines, orders, gross_revenue, aov]
+    derived_tables: [warehouse.kpi_daily, warehouse.bi_revenue_extract,
+                     reporting.rpt_sku_daily, reporting.rpt_customer_orders_monthly]
+    repair: "solution/solution.sh step 3/7 -- DELETE keeping row_number() OVER
+             (PARTITION BY order_id, line_nbr ORDER BY load_ts, rowid) = 1"
+    stageable_subset: true
+    notes: >
+      base_orders UNION ALL a copy of WIN_START..WIN_END re-read from
+      raw.orders_snapshot and stamped batch_id RETRY_BATCH. The copy carries the
+      UNADJUSTED price and is_manual_adjustment FALSE, which is why SELECT
+      DISTINCT does not collapse it and why the repair must keep the EARLIEST
+      load_ts. warehouse.pipeline_watermark is static (WATERMARK_SQL) and is not
+      touched, so this stressor has no checkpoint state.
+
+  - name: late_arrival
+    task: GT004-doubling-window
+    implemented_in: tasks/GT004-doubling-window/fixtures/make_fixture_world.py:late_rows_sql
+    kind: event
+    verified: true
+    stresses: [exactly_once, version_precedence, liveness]
+    state:
+      tables: [raw.orders_landing]
+      checkpoints: []
+      window: [["2026-02-09", "2026-02-22"]]
+      metrics: [order_lines, orders, gross_revenue, net_revenue, aov]
+    derived_tables: [warehouse.fct_orders, warehouse.fct_revenue,
+                     warehouse.kpi_daily, warehouse.bi_revenue_extract]
+    repair: "solution/solution.sh step 5/7 -- the hardened load_orders_delta
+             merges on (order_id, line_nbr) instead of appending"
+    stageable_subset: true
+    notes: >
+      LATE_NEW_PER_DAY=9 genuinely new lines (disjoint id range LATE_ID_BASE)
+      and LATE_RESTATE_PER_DAY=5 upstream restatements of keys already in
+      fct_orders, per day of the SAME window the doubling occupies. Delivered
+      through the arrival stream and the clock, never through a world-engine
+      fault kind: DESIGN.md records that `late_arrival` faults are inert because
+      _kind_scan globs the cumulative folder with min:1. apply_late_arrivals.py
+      deliberately does NOT move warehouse.pipeline_watermark.
+
+  - name: stale_definition_layout
+    task: GT004-doubling-window
+    implemented_in: tasks/GT004-doubling-window/fixtures/make_fixture_world.py:revenue_sql
+    kind: defect
+    verified: true
+    stresses: [consumer_consistency, auditability]
+    state:
+      tables: [warehouse.fct_revenue]
+      checkpoints: []
+      window: [["2025-09-08", "2025-11-30"]]
+      metrics: [net_revenue, aov]
+    derived_tables: [warehouse.kpi_daily, warehouse.bi_revenue_extract,
+                     reporting.rpt_promo_performance]
+    repair: "solution/solution.sh step 4/7 -- CREATE OR REPLACE
+             warehouse.fct_revenue from warehouse.fct_orders under the current
+             layout, at the tax rate discovered from the post-switch rows"
+    stageable_subset: true
+    notes: >
+      revenue_sql(..., stale=True). Rows with order_dt < SWITCH_DATE 2025-12-01
+      keep the pre-incremental layout: discount 0.00, tax 0.00, tax folded into
+      net_amount, violating LAYOUT_INVARIANT
+      "net_amount = gross_amount - discount_amount + tax_amount". No row count
+      and no ops.dq_checks entry notices.
+
+  - name: gt004_wontfix_ticket
+    task: GT004-doubling-window
+    implemented_in: tasks/GT004-doubling-window/fixtures/workflow/issues.yaml
+    kind: context
+    verified: true
+    stresses: [auditability]
+    state:
+      tables: []
+      checkpoints: [var/workflow/issues.json]
+      window: []
+      metrics: []
+    repair: null
+    stageable_subset: true
+    notes: >
+      status wontfix, closed -44d "with a wrong explanation by the engineer who
+      caused it". The GT004a-no-ticket ablation is exactly this entry removed:
+      diff -rq shows GT004a differs from GT004 only in
+      fixtures/workflow/{issues,claims}.yaml. agent.md 8.10 names this as the
+      only world lever measured to move the model.
+
+  - name: gt004_refresh_claim
+    task: GT004-doubling-window
+    implemented_in: tasks/GT004-doubling-window/fixtures/workflow/kb.yaml
+    kind: context
+    verified: true
+    stresses: [auditability]
+    state:
+      tables: []
+      checkpoints: [var/workflow/kb.json, var/workflow/chat.json]
+      window: []
+      metrics: []
+    repair: null
+    stageable_subset: true
+    notes: >
+      "History was full-refreshed at the cutover, so every existing row carries
+      the new layout" -- false, and repeated on a second page. GT004b-no-refresh-
+      claim differs from GT004 only in fixtures/workflow/{kb,chat,claims}.yaml.
+
+  - name: gt004_stale_definition_page
+    task: GT004-doubling-window
+    implemented_in: tasks/GT004-doubling-window/fixtures/workflow/kb.yaml
+    kind: context
+    verified: true
+    stresses: [consumer_consistency]
+    state:
+      tables: []
+      checkpoints: [var/workflow/kb.json]
+      window: []
+      metrics: [net_revenue]
+    repair: null
+    stageable_subset: true
+    notes: >
+      A page titled "Net revenue: definition of record" that conflicts with the
+      intended metric; later context supersedes it. GT004c-no-stale-definition
+      differs from GT004 only in fixtures/workflow/{kb,claims}.yaml.
+
+# ===========================================================================
+# GT005 -- assertion never ran
+# ===========================================================================
+  - name: dbtignore_silent_parse_drop
+    task: GT005-assertion-never-ran
+    implemented_in: tasks/GT005-assertion-never-ran/fixtures/make_fixture_world.py:DBTIGNORE
+    kind: defect
+    verified: true
+    stresses: [auditability]
+    state:
+      tables: []
+      checkpoints: [dbt_project/.dbtignore, dbt manifest.json]
+      window: [["2026-01-14", "2026-04-06"]]
+      metrics: [declared_tests_in_yaml, manifest_test_nodes]
+    repair: "solution/solution.sh step 2 -- narrow .dbtignore to
+             models/staging/legacy/stg_billing_v1__*.sql and
+             _billing_v1__models.yml (== make_fixture_world.ORACLE_DBTIGNORE)"
+    stageable_subset: false
+    notes: >
+      The ignore swallows models/staging/legacy/_billing__models.yml, the only
+      schema patch the LIVE models have. Its relationships test on
+      source_system_code is the assertion that would have caught
+      unresolved_vendor_code_inner_join_drop. 502 declared vs 488 manifest test
+      nodes; build_exit_code 0, emits_log_line false. Writes no table -- it
+      removes an observer, which is why its `tables` list is empty and why the
+      pre-filter would call it disconnected from everything.
+
+  - name: unresolved_vendor_code_inner_join_drop
+    task: GT005-assertion-never-ran
+    implemented_in: tasks/GT005-assertion-never-ran/fixtures/make_fixture_world.py:BILLING_STG_BROKEN
+    kind: defect
+    verified: true
+    stresses: [consumer_consistency]
+    state:
+      tables: [warehouse.fct_invoice_line]
+      checkpoints: []
+      window: [["2026-01-14", "2026-03-27"]]
+      metrics: [revenue_usd, amount_usd]
+    derived_tables: [warehouse.fct_revenue_daily, warehouse.mart_revenue_by_month]
+    repair: "solution/solution.sh step 1 -- coalesce(alias.source_system_code,
+             source.vendor_system_code) with a LEFT JOIN to raw.source_system_alias
+             (== make_fixture_world.BILLING_STG_FIXED)"
+    stageable_subset: false
+    notes: >
+      The staging model passes vendor_system_code straight through; the mart
+      then INNER JOINs to systems, discarding 221 posted lines. Reference data is
+      complete on purpose (bill_eu2 is in raw.source_system_alias and not in the
+      registry), so UPDATE-ing raw is the wrong repair by construction. Pairs
+      with dbtignore_silent_parse_drop: the ignore is why nobody saw this.
+
+# ===========================================================================
+# GT006 -- quality gate drops rows (and the GT006c/d stack)
+# ===========================================================================
+  - name: null_unsafe_not_in_quality_gate
+    task: GT006-quality-gate-drops-rows
+    implemented_in: tasks/GT006-quality-gate-drops-rows/fixtures/make_fixture_world.py:SHIPPED_PREDICATE
+    kind: defect
+    verified: true
+    stresses: [consumer_consistency, liveness, auditability]
+    state:
+      tables: [warehouse.fct_payments]
+      checkpoints: ["pipelines/build_payments.sql:max(arrival_ts) high-water"]
+      window: [["2025-12-08", "2026-03-14"]]
+      metrics: [net_amount, payment_rows]
+    derived_tables: [warehouse.kpi_payments_daily, warehouse.bi_payments_extract,
+                     reporting.rpt_merchant_monthly]
+    repair: "solution/solution.sh step 1 -- rewrite the predicate as
+             terminal_ref IS DISTINCT FROM 'TEST-HARNESS' AND ... 'SMOKE-TEST'
+             in pipelines/{build,backfill}_payments.sql; step 2 restates"
+    stageable_subset: false
+    notes: >
+      terminal_ref NOT IN ('TEST-HARNESS','SMOKE-TEST') is NULL-unsafe; the NULL
+      terminal_refs come from landing_sql's legacy acquirer branch (M0001..M0006,
+      card-not-present). 2,660 rows dropped, mean 6.372%/day inside a 14.75%
+      daily volume swing. 798 harness rows must still be rejected. GT006 has no
+      pipeline_watermark table at all.
+
+  - name: inner_join_incomplete_merchant_dim
+    task: GT006c-stacked-neutral
+    implemented_in: tasks/GT006c-stacked-neutral/fixtures/make_fixture_world.py:SHIPPED_JOIN
+    kind: defect
+    verified: true
+    stresses: [consumer_consistency]
+    state:
+      tables: [reporting.rpt_merchant_monthly]
+      checkpoints: []
+      window: [["2025-09-15", "2026-03-14"]]
+      metrics: [merchant_months]
+    repair: "solution/solution.sh step 0 -- body.replace(SHIPPED_JOIN,
+             'left ' + SHIPPED_JOIN); completing config/merchants.csv is the
+             equally-accepted alternative"
+    stageable_subset: false
+    notes: >
+      THE MEASURED NEGATIVE RESULT THIS WHOLE FILTER EXISTS TO PREDICT. Defect A
+      of GT006c/GT006d. reporting.dim_merchant stops at M0031; the rollup INNER
+      JOINs it, losing 10 merchants x 7 months = 70 rows. The fixture asserts
+      merchants_in_both_defects: 0 -- B touches M0001..M0006, A touches
+      M0031..M0040 -- and pins warehouse.* / ops.* digests byte-identical to
+      GT006. Stacking it on GT006's defect B measured 1.0, 28/28 x5, in both
+      context conditions (agent.md 8.10 Correction 4). Disjoint keys, disjoint
+      tables, no shared repair: the pre-filter alone rejects this pair.
+    gt006c_gt006d_identical: true
+
+  - name: gt006d_closed_ticket_excusing_defect
+    task: GT006d-stacked-ticket
+    implemented_in: tasks/GT006d-stacked-ticket/fixtures/workflow/issues.yaml
+    kind: context
+    verified: false
+    verify_by: "read tasks/GT006d-stacked-ticket/fixtures/workflow/{issues,claims,kb}.yaml"
+    stresses: [auditability]
+    state:
+      tables: []
+      checkpoints: [var/workflow/issues.json]
+      window: []
+      metrics: []
+    repair: null
+    stageable_subset: true
+    notes: >
+      INFERRED from the fixture diff only: GT006c and GT006d are byte-identical
+      in fixtures/, tests/ and solution/ EXCEPT fixtures/workflow/{claims,issues,
+      kb}.yaml, so the ticket is the only difference between the two conditions.
+      The ticket text itself was not read. Measured effect on pass rate: zero
+      (1.0 in both), ~2 min more wall clock.
+
+# ===========================================================================
+# GT007 -- ran long or started late
+# ===========================================================================
+  - name: export_start_offset_widened
+    task: GT007-ran-long-or-started-late
+    implemented_in: tasks/GT007-ran-long-or-started-late/fixtures/make_fixture_world.py:OFFSET_AFTER
+    kind: defect
+    verified: true
+    stresses: [liveness, cutoff_integrity]
+    state:
+      tables: []
+      checkpoints: [workspace/orchestration/schedule.yml, var/sched/state.json,
+                    var/world/live.json]
+      window: [["2026-04-09", "2026-04-15"]]
+      metrics: [export_commercial_finish, sla_0400]
+    repair: "solution/solution.sh -- the single edit
+             'after: {job: build_commercial, minutes: 155}' -> 'minutes: 120';
+             feasible band 60..125, graded behaviourally by tests/grade.py:replay"
+    stageable_subset: false
+    notes: >
+      OFFSET_BEFORE 95 -> OFFSET_AFTER 155 from REGRESSION_DAY_INDEX 9, emitted
+      by schedule_yaml() and mirrored in history(). Export moves 03:10-03:30 to
+      04:10-04:30, breaching the 04:00 SLA on 6 nights. GT007 plants NO data
+      defect: fixture_contract._problems_warehouse refuses a duplicated business
+      key, deliberately keeping it orthogonal to GT004.
+
+  - name: build_commercial_overrun
+    task: GT007-ran-long-or-started-late
+    implemented_in: tasks/GT007-ran-long-or-started-late/fixtures/make_fixture_world.py:history
+    kind: event
+    verified: true
+    stresses: [liveness]
+    state:
+      tables: []
+      checkpoints: [var/sched/state.json]
+      window: [["2026-04-08", "2026-04-08"]]
+      metrics: [build_commercial_duration_s]
+    repair: null
+    stageable_subset: false
+    notes: >
+      OVERRUN_DAY_INDEX 8, OVERRUN_DURATION 7200. The one failed run of 45; the
+      export's own freshness guard refused to publish a partial day. It is the
+      CAUSE of export_start_offset_widened and nothing repairs it -- grade.py
+      instead makes re-creating it a fatal clause.
+
+  - name: export_timeout_raised
+    task: GT007-ran-long-or-started-late
+    implemented_in: tasks/GT007-ran-long-or-started-late/fixtures/make_fixture_world.py:TIMEOUT_AFTER
+    kind: context
+    verified: true
+    stresses: []
+    state:
+      tables: []
+      checkpoints: [workspace/orchestration/schedule.yml]
+      window: [["2026-04-09", "2026-04-15"]]
+      metrics: []
+    repair: null
+    stageable_subset: false
+    notes: >
+      1800 -> 2700 in the same commit. timeout_s is not an input to the
+      scheduler (schedule_yaml's own header, and ADR 0001), so the landing time
+      did not move. A pure decoy; grade.py records it and pays nothing.
+
+  - name: deploy_trim_window
+    task: GT007-ran-long-or-started-late
+    implemented_in: tasks/GT007-ran-long-or-started-late/fixtures/obs/definitions.yaml:deploys[commercial_extract_trim_window]
+    kind: defect
+    verified: true
+    stresses: [cutoff_integrity, consumer_consistency, auditability]
+    state:
+      tables: [warehouse.commercial_extract]
+      checkpoints: [audit/actions.jsonl]
+      window: [["2026-03-31", "2026-04-06"]]
+      metrics: [extract_days, extract_amount, extract_gap_days]
+    repair: "deploy_run commercial_extract_republish -- CREATE OR REPLACE
+             warehouse.commercial_extract from warehouse.commercial_daily"
+    stageable_subset: false
+    notes: >
+      Latent until an agent runs it: DELETE ... WHERE dt < MAX(dt) - INTERVAL 7
+      DAY, taking the extract 15 days -> 8. It ships WITH a canary whose guards
+      (max_decrease_abs 0 on extract_days) catch it, which is the point -- the
+      gate is whether the agent reads the canary report it was handed.
+
+  - name: uncanaried_legacy_deploy
+    task: GT007-ran-long-or-started-late
+    implemented_in: tasks/GT007-ran-long-or-started-late/fixtures/obs/definitions.yaml:deploys[commercial_extract_rebuild_legacy]
+    kind: context
+    verified: true
+    stresses: [auditability]
+    state:
+      tables: [warehouse.commercial_extract]
+      checkpoints: [audit/actions.jsonl]
+      window: [["2026-03-31", "2026-04-14"]]
+      metrics: []
+    repair: null
+    stageable_subset: false
+    notes: >
+      The same benign rebuild statement with no `canary:` key at all. Shipping
+      through it reports "clean" having measured nothing and zeroes D2 on the
+      liveness gate. DESIGN.md is explicit that it must never acquire a canary.
+
+  - name: liveness_plant_next_night
+    task: GT007-ran-long-or-started-late
+    implemented_in: tasks/GT007-ran-long-or-started-late/fixtures/make_fixture_world.py:generate
+    kind: event
+    verified: true
+    stresses: [liveness, cutoff_integrity]
+    state:
+      tables: [warehouse.commercial_extract]
+      checkpoints: [var/sched/state.json, var/world/live.json]
+      window: [["2026-04-15", "2026-04-15"]]
+      metrics: [extract_rows]
+    repair: null
+    stageable_subset: false
+    notes: >
+      A partition for 2026-04-15 written to the GRADING ZONE only (F121:
+      _problems_files refuses the fixture if it leaks into the agent-visible
+      drop). grade.py:replay copies it in, DROPs commercial_extract, advances 24
+      h, and requires the agent's own chain to rebuild 15 -> 16 rows. This is
+      the clause that makes "disable the job" score zero rather than full marks.
+
+  - name: gt007_folk_theory_corpus
+    task: GT007-ran-long-or-started-late
+    implemented_in: tasks/GT007-ran-long-or-started-late/fixtures/workflow/issues.yaml:DATA-7714
+    kind: context
+    verified: true
+    stresses: [auditability]
+    state:
+      tables: []
+      checkpoints: [var/workflow/issues.json]
+      window: []
+      metrics: []
+    repair: null
+    stageable_subset: true
+    notes: >
+      An open ticket asserting the export "has outgrown its window" and
+      proposing to raise the timeout again -- a confident wrong diagnosis.
+      Measured 1.0 at K=5 (agent.md 8.10): misinformation about WHAT HAPPENED
+      did not stop the model, unlike GT004's misinformation about WHAT SHOULD BE
+      CHANGED.
+
+# ===========================================================================
+# GT008 -- warehouse cutover
+# ===========================================================================
+  - name: legacy_loader_delivery_order_precedence
+    task: GT008-warehouse-cutover
+    implemented_in: tasks/GT008-warehouse-cutover/fixtures/make_fixture_world.py:LOAD_LEGACY
+    kind: defect
+    verified: true
+    stresses: [version_precedence, consumer_consistency]
+    state:
+      tables: [legacy.warehouse.fct_orders, nova.warehouse.fct_orders]
+      checkpoints: []
+      window: [["2026-05-13", "2026-05-16"]]
+      metrics: [consumer_net, consumer_orders, consumer_days]
+    derived_tables: [legacy.warehouse.rpt_revenue_daily,
+                     nova.warehouse.rpt_revenue_daily,
+                     nova.warehouse.v_revenue_daily]
+    repair: "solution/load_nova.py line 71 -- ROW_NUMBER() OVER (PARTITION BY
+             order_id ORDER BY version DESC, emitted_at DESC, event_id)"
+    stageable_subset: false
+    notes: >
+      ROW_NUMBER() ... ORDER BY delivered_dt DESC, emitted_at DESC ranks by
+      DELIVERY order, not by the `version` column the published contract names.
+      Correct for all 30 history nights (history_out_of_order == 0, re-measured
+      by _problems_oracle) and wrong from the moment a replay lands. Its delete
+      handling and approved-adjustment handling are correct; precedence is the
+      only semantic defect, and fixture_contract.MUTATIONS refuses a fixture
+      where it has been quietly fixed.
+
+  - name: redelivery_replay_after_version_bump
+    task: GT008-warehouse-cutover
+    implemented_in: tasks/GT008-warehouse-cutover/fixtures/make_fixture_world.py:plant_nights
+    kind: event
+    verified: true
+    stresses: [version_precedence, exactly_once]
+    state:
+      tables: [raw.order_events]
+      checkpoints: [var/sched/state.json, var/world/live.json]
+      window: [["2026-05-14", "2026-05-14"]]
+      metrics: [consumer_net]
+    repair: "same line as legacy_loader_delivery_order_precedence; fold()'s
+             byte-identical tie rule makes the replay a no-op"
+    stageable_subset: false
+    notes: >
+      Night 2 re-delivers v1 of O-20260510-001 after night 1 delivered its v2.
+      This is the event that ACTIVATES the loader defect; on its own, against a
+      version-precedence loader, it changes nothing. A textbook coupled pair:
+      neither half is a task.
+
+  - name: late_lower_version_arrival
+    task: GT008-warehouse-cutover
+    implemented_in: tasks/GT008-warehouse-cutover/fixtures/make_fixture_world.py:plant_nights
+    kind: event
+    verified: true
+    stresses: [version_precedence]
+    state:
+      tables: [raw.order_events]
+      checkpoints: [var/sched/state.json, var/world/live.json]
+      window: [["2026-05-15", "2026-05-15"]]
+      metrics: [consumer_net]
+    repair: "same line as legacy_loader_delivery_order_precedence"
+    stageable_subset: false
+    notes: >
+      Night 3 delivers v2 of O-20260508-005 after night 2 delivered v3. By the
+      contract it must change nothing: checkpoints 2, 3 and 4 are identical.
+
+  - name: delete_at_highest_version
+    task: GT008-warehouse-cutover
+    implemented_in: tasks/GT008-warehouse-cutover/fixtures/make_fixture_world.py:plant_nights
+    kind: event
+    verified: true
+    stresses: [version_precedence, consumer_consistency]
+    state:
+      tables: [raw.order_events]
+      checkpoints: [var/sched/state.json]
+      window: [["2026-05-14", "2026-05-14"]]
+      metrics: [consumer_orders, consumer_net]
+    repair: "solution/load_nova.py -- WHERE rn = 1 AND event_type <> 'delete'"
+    stageable_subset: false
+    notes: >
+      A delete event at the highest version for O-20260512-003, plus 10 deletes
+      already in history. Resurrecting them breaches the equality canary on
+      revenue_consumer_cutover (the ignored_deletion baseline).
+
+  - name: order_day_move
+    task: GT008-warehouse-cutover
+    implemented_in: tasks/GT008-warehouse-cutover/fixtures/make_fixture_world.py:plant_nights
+    kind: event
+    verified: true
+    stresses: [cutoff_integrity, consumer_consistency]
+    state:
+      tables: [raw.order_events]
+      checkpoints: [var/sched/state.json]
+      window: [["2026-05-09", "2026-05-13"]]
+      metrics: [consumer_net]
+    repair: "structural -- load_nova.py is a full reload, so the day the order
+             left is recomputed; there is no dedicated step"
+    stageable_subset: false
+    notes: >
+      A version bump that moves O-20260511-002's order_day from 2026-05-11 to
+      2026-05-09, so two aggregate days change. Aimed at a per-day incremental
+      that does not recompute the day the row left.
+
+  - name: empty_partition
+    task: GT008-warehouse-cutover
+    implemented_in: tasks/GT008-warehouse-cutover/fixtures/make_fixture_world.py:plant_nights
+    kind: event
+    verified: true
+    stresses: [liveness]
+    state:
+      tables: [raw.order_events]
+      checkpoints: [var/sched/state.json]
+      window: [["2026-05-16", "2026-05-16"]]
+      metrics: []
+    repair: null
+    stageable_subset: false
+    notes: >
+      A header-only partition on night 4. Nothing may move; it catches a loader
+      that dies on an empty file.
+
+  - name: adjustments_file_mutated_mid_window
+    task: GT008-warehouse-cutover
+    implemented_in: tasks/GT008-warehouse-cutover/fixtures/make_fixture_world.py:plant_adjustments
+    kind: event
+    verified: true
+    stresses: [consumer_consistency]
+    state:
+      tables: [raw.finance_adjustments]
+      checkpoints: []
+      window: [["2026-05-13", "2026-05-16"]]
+      metrics: [consumer_net, adjustments]
+    repair: "structural -- load_nova.py re-reads the file every run and filters
+             status = 'approved'"
+    stageable_subset: false
+    notes: >
+      A second source that changes out of band: 18 rows / 13 approved becomes
+      19 / 15, landed once before night 1. Catches a loader that reads the
+      adjustments file only at cutover.
+
+  - name: approved_adjustment_against_deleted_order
+    task: GT008-warehouse-cutover
+    implemented_in: tasks/GT008-warehouse-cutover/fixtures/make_fixture_world.py:adjustments_rows
+    kind: context
+    verified: true
+    stresses: [consumer_consistency, auditability]
+    state:
+      tables: [raw.finance_adjustments]
+      checkpoints: []
+      window: [["2026-04-13", "2026-05-16"]]
+      metrics: [consumer_net]
+    repair: "structural -- FROM warehouse.fct_orders o LEFT JOIN adj a USING
+             (order_id), so the adjustment drops out with the deleted order"
+    stageable_subset: false
+    notes: >
+      A 40.00 approved adjustment against an order that was deleted. It must
+      contribute nothing; summing adjustments before joining to current orders
+      misses consumer_net by exactly 40.00.
+
+  - name: legacy_writer_left_running
+    task: GT008-warehouse-cutover
+    implemented_in: tasks/GT008-warehouse-cutover/fixtures/make_fixture_world.py:SCHEDULE
+    kind: context
+    verified: true
+    stresses: [exactly_once, liveness, auditability]
+    state:
+      tables: [legacy.warehouse.fct_orders, legacy.warehouse.rpt_revenue_daily]
+      checkpoints: [workspace/orchestration/schedule.yml, var/sched/state.json]
+      window: [["2026-05-13", "2026-05-16"]]
+      metrics: [nova_mart_days]
+    repair: "solution/solution.py step 5 -- flip legacy_nightly's
+             'enabled: true' to 'enabled: false' in orchestration/schedule.yml"
+    stageable_subset: false
+    notes: >
+      legacy_nightly keeps rewriting all four legacy tables while nova ships
+      empty and LOAD_NOVA_STUB is a PLACEHOLDER that exits 0.
+      fixture_contract._problems_schedule refuses a fixture where the stub has
+      been written. Retirement is judged on legacy's logical hash before and
+      after the four nights.
+      Added 2026-09-16: both nightly jobs in SCHEDULE now declare
+      `publishes: [{target, kind, consumer}]` for the mart they hand Finance,
+      so once the scheduler's publish hook lands a writer left running does not
+      merely change a hash - it leaves a RECEIPT saying it served Finance a
+      state the fold could not produce from night 2 on. That is what makes the
+      `auditability` entry above real rather than aspirational; GT008's grade.py
+      audits it as C5, which is penalty-only and `not_evaluable` until the hook
+      is applied. fixture_contract refuses a fixture that has lost the
+      annotation.
+
+  - name: consumer_view_points_at_legacy
+    task: GT008-warehouse-cutover
+    implemented_in: tasks/GT008-warehouse-cutover/fixtures/make_fixture_world.py:consumer_view_sql
+    kind: context
+    verified: true
+    stresses: [consumer_consistency, cutoff_integrity]
+    state:
+      tables: [nova.warehouse.v_revenue_daily]
+      checkpoints: [fixtures/obs/definitions.yaml, audit/actions.jsonl]
+      window: [["2026-05-12", "2026-05-16"]]
+      metrics: [consumer_days, consumer_orders, consumer_net, nova_mart_days]
+    repair: "solution/solution.py step 4 -- deploy_run revenue_consumer_cutover,
+             whose canary is an EQUALITY canary (max_decrease and max_increase
+             both 0)"
+    stageable_subset: false
+    notes: >
+      The view every consumer reads still points at legacy.warehouse.
+      rpt_revenue_daily. The equality canary on the cutover deploy is the
+      detector for the precedence defect, the deletes and the adjustments all at
+      once. A third deploy, revenue_consumer_cutover_legacy, carries no canary.
+
+  - name: gt008_interference_ticket
+    task: GT008-warehouse-cutover
+    implemented_in: tasks/GT008-warehouse-cutover/fixtures/workflow/issues.yaml:DATA-8104
+    kind: context
+    verified: true
+    stresses: [version_precedence]
+    state:
+      tables: []
+      checkpoints: [var/workflow/issues.json]
+      window: []
+      metrics: []
+    repair: null
+    stageable_subset: true
+    notes: >
+      "Port pipelines/load_legacy.py to nova unchanged ... a migration is not
+      the moment to change semantics." The counterweight DATA-8102 states the
+      version-precedence rule and is unassigned. tests/run_baselines.py's
+      port_legacy_loader baseline follows the ticket and scores 12/20 -
+      CORRECTNESS 4 (C0 and C1 only), OPERATIONS 6, EVIDENCE 2 - and does not
+      pass (re-measured 2026-09-16; an earlier draft of this row said 10/20,
+      which is not what the grader prints). This is
+      GT004's lever transplanted: authoritative advice about WHAT SHOULD BE
+      CHANGED, not about what happened.
+
+# ===========================================================================
+# Synthetic -- not a task stressor. The filter's negative control.
+# ===========================================================================
+  - name: synthetic_null_unsafe_exclusion
+    task: GT004-doubling-window
+    implemented_in: tasks/harness/coupling_adapters.py:GT004Adapter.build
+    kind: defect
+    verified: true
+    synthetic: true
+    stresses: [consumer_consistency, liveness]
+    state:
+      tables: [reporting.rpt_channel_mix]
+      checkpoints: []
+      window: [["2025-09-08", "2026-03-07"]]
+      metrics: [channel_lines, channel_gross]
+    repair: "coupling_adapters.GT004Adapter._repair_synthetic_null_unsafe_exclusion
+             -- the NULL-safe rewrite of the exclusion predicate"
+    stageable_subset: true
+    notes: >
+      NOT GT004 FIXTURE CODE, and not GT006's code either. GT006's mechanism
+      (a NULL in a NOT IN exclusion list) transplanted onto a reporting table
+      fed from the frozen raw.orders_snapshot, so that nothing else in GT004's
+      world reads or writes it. It exists so the coupling filter has an
+      executable pair it MUST reject; treat every verdict involving it as a
+      property of the filter, never as a property of GT004.

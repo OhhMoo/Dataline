@@ -1,0 +1,548 @@
+# GT004: the wiki that is right in some places and out of date in the one place
+# that matters most.
+#
+# RESOLVED against fixtures/fixture_contract.py (seed 4004) and the built world.
+# Every figure is declared in claims.yaml with the key or the SQL behind it.
+# Page ids carry no derived values: world/workflow.py restricts them to
+# [a-z0-9_-./], and an id is something other surfaces link to by hand.
+#
+# THE TRAP. de/metrics/net-revenue is labelled definition-of-record, is five
+# revisions deep, was last edited by the Head of Commercial Reporting, and
+# carries a worked example that still reconciles against the warehouse to the
+# cent. It is also out of date: on 2025-12-01 the model started netting
+# promotional discount before tax, and this page still says the discount is not
+# netted at the mart. Nothing on it is marked wrong.
+#
+# Four reachable signals establish the staleness and none of them is an
+# announcement:
+#   1. kb_list serves age_days. This page is 120 days old; the change it misses
+#      is 97 days old and de/changelog/materialisation-change is dated.
+#   2. data-eng/0005 is the superseding statement; data-eng/0007 says "the wiki
+#      is just behind" in as many words. Different channel, 98 days ago.
+#   3. DATA-4372's closing line asks for this page to be rewritten.
+#   4. One query: 34,825 rows in warehouse.fct_revenue carry a non-zero
+#      discount_amount that this page says does not exist at the mart.
+#
+# Every one of those requires having looked somewhere other than this page,
+# which is the whole measurement.
+#
+# THE SECOND WRONG PAGE - REMOVED (ABLATION: R). de/changelog/materialisation-change
+# no longer claims history was full-refreshed; its third paragraph is a neutral
+# sentence of the same length. data-eng/0010 is neutralised the same way.
+#
+# `authoring` is author-side and is stripped from every tool response.
+pages:
+  - id: de/metrics
+    title: Metrics
+    parent: null
+    labels: [index]
+    body: |-
+      # Metrics
+
+      - [Net revenue](de/metrics/net-revenue)
+    version: 1
+    author: tokafor
+    last_edited_at: "-205d 12:00"
+    last_edited_by: tokafor
+    edit_comment: null
+    history: []
+    authoring:
+      kind: accurate
+      note: GT4-K1. A container page. Old, and correctly so - an index does not rot.
+
+  - id: de/metrics/net-revenue
+    title: "Net revenue: definition of record"
+    parent: de/metrics
+    labels: [metric, definition-of-record, commercial]
+    body: |-
+      # Net revenue: definition of record
+
+      This is the definition Commercial and Data have agreed. Where a number is
+      called net revenue - pack, dashboard, mart, ad-hoc query - it means this
+      and nothing else.
+
+      ## Definition
+
+          net revenue = gross revenue + sales tax
+
+      Sales tax is 7.25 per cent. Gross revenue is quantity times unit price,
+      before tax, at `order_dt`.
+
+      **Promotional discount is not netted here.** A discounted line still
+      contributes its full gross to net revenue. Promotions are a marketing
+      cost, Marketing report them against their own budget, and taking them off
+      the commercial line as well would count the same money twice. If you need
+      the discounted figure, ask Marketing for their promotion report; do not
+      derive it from the mart.
+
+      `warehouse.fct_revenue.net_amount` implements this definition, so any
+      figure can be checked by recomputing gross plus tax and comparing.
+
+      ## Worked example
+
+      October 2025:
+
+      | component | amount |
+      |---|---:|
+      | gross revenue | 11,078,704.03 |
+      | sales tax at 7.25% | 803,206.06 |
+      | **net revenue** | **11,881,910.09** |
+
+      ## Out of scope
+
+      Shipping, inter-company transfers and anything the vendor bills us for are
+      not revenue and are not in this table.
+    version: 5
+    author: tokafor
+    last_edited_at: "-120d 11:24"
+    last_edited_by: nbrennan
+    edit_comment: add the October worked example
+    history:
+      - {version: 4, at: "-155d 15:02", by: tokafor, comment: "spell out that promo discount is not netted"}
+      - {version: 3, at: "-175d 09:40", by: tokafor, comment: "scope out shipping"}
+      - {version: 2, at: "-195d 14:15", by: tokafor, comment: null}
+      - {version: 1, at: "-205d 12:10", by: tokafor, comment: null}
+    authoring:
+      kind: stale
+      contradicts: [de/changelog/materialisation-change]
+      note: >-
+        GT4-K2. THE PLANTED STALENESS, and it is deliberately the most
+        authoritative-looking artefact in the world: labelled
+        definition-of-record, five revisions, last edited by the Head of
+        Commercial Reporting herself, written in the register of a standard
+        rather than a note, and carrying a worked example that VERIFIES. October
+        2025 is entirely before the switch, so 11,078,704.03 + 803,206.06 =
+        11,881,910.09 is exactly what warehouse.fct_revenue returns today. An
+        agent that spot-checks the page is rewarded with agreement, which is the
+        strongest possible endorsement the world can give a document that is
+        wrong about the present.
+        WHAT IS WRONG. Since 2025-12-01 the model nets promotional discount
+        before tax (data-eng/0005, and the model file). The bolded paragraph is
+        the false one. Everything else on the page, including the tax rate
+        (CONTRACT.defect_2.tax_rate) and the example, is true.
+        WHY IT BITES TWICE. First, quantification: an agent that sizes the
+        problem with this recipe gets 10,649,255.91 for February against a mart
+        that says 10,130,105.08 and has to explain 519,150.83 it cannot explain.
+        commercial-reporting/0005 is an NPC doing exactly that, in public,
+        uncorrected. Second, and far worse, DIRECTION: the page says the current
+        rows are the deviant ones. An agent repairing defect two by conforming
+        fct_revenue to the documented definition re-breaks the 108,837 rows that
+        are already correct and leaves the 94,097 broken ones alone, which
+        inverts the repair while feeling like compliance.
+        claims.yaml asserts the page's definition and the model's disagree. If
+        that difference ever became zero the page would stop being a trap and
+        the task would have quietly lost a gate.
+
+  - id: de/runbooks
+    title: Runbooks
+    parent: null
+    labels: [index]
+    body: |-
+      # Runbooks
+
+      - [The nightly load](de/runbooks/nightly-load)
+      - [Rebuilding the revenue mart](de/runbooks/revenue-mart-rebuild)
+      - [What the nightly checks actually check](de/runbooks/check-reference)
+    version: 3
+    author: tokafor
+    last_edited_at: "-60d 08:34"
+    last_edited_by: kliu
+    edit_comment: link the rebuild page
+    history:
+      - {version: 2, at: "-150d 10:00", by: tokafor, comment: null}
+      - {version: 1, at: "-205d 12:15", by: tokafor, comment: null}
+    authoring:
+      kind: accurate
+      note: >-
+        GT4-K3. The index lists the stale runbook and the page that supersedes
+        it side by side, in that order, with nothing to say which wins. kb_list's
+        children index does the same. That is what makes the contradiction
+        findable and unresolved rather than signposted.
+
+  - id: de/runbooks/nightly-load
+    title: "Runbook: the nightly load"
+    parent: de/runbooks
+    labels: [runbook, load]
+    body: |-
+      # Runbook: the nightly load
+
+      Three jobs, every night:
+
+      | time | job | reads | writes |
+      |---|---|---|---|
+      | 01:20 | `load_orders_delta` | `raw.orders_landing` | `warehouse.fct_orders` |
+      | 01:40 | `load_revenue` | `warehouse.fct_orders` | `warehouse.fct_revenue` |
+      | 02:00 | `dbt_build` | both marts | `warehouse.kpi_daily` |
+
+      `backfill_orders_window` is the manual one and it reads
+      `raw.orders_snapshot` instead of the landing table.
+
+      ## If a window looks short
+
+      Run `backfill_orders_window --from <date> --to <date>`. **This is safe to
+      re-run.** Both marts are table models, so every build drops and rebuilds
+      them from source: a window that gets re-landed twice, or a build that gets
+      run twice, lands in the same place as running it once.
+
+      ## Checking afterwards
+
+      `ops.job_runs` should be green and `ops.freshness_checks` should be PASS
+      for all three datasets. Investigate the first non-success run, never the
+      last one.
+    version: 7
+    author: tokafor
+    last_edited_at: "-130d 09:50"
+    last_edited_by: tokafor
+    edit_comment: clarify which run to investigate first
+    history:
+      - {version: 6, at: "-150d 09:55", by: kliu, comment: "the backfill section"}
+      - {version: 5, at: "-166d 11:30", by: kliu, comment: null}
+      - {version: 4, at: "-178d 10:05", by: dpatel, comment: null}
+      - {version: 3, at: "-190d 16:20", by: tokafor, comment: null}
+      - {version: 2, at: "-198d 11:00", by: tokafor, comment: null}
+      - {version: 1, at: "-205d 12:20", by: tokafor, comment: null}
+    authoring:
+      kind: stale
+      contradicts: [de/runbooks/revenue-mart-rebuild]
+      note: >-
+        GT4-K4. Published, seven revisions, 130 days untouched, and its central
+        claim - "this is safe to re-run", "both marts are table models" -
+        stopped being true on 2025-12-01 for fct_revenue and was never true of
+        fct_orders, which backfill_orders_window has always written by INSERT.
+        The job table and the times on it are correct, which is what keeps the
+        page credible. DATA-4372 asks for its rewrite and has been open 54 days.
+        THE RE-DOUBLING TRAP. An agent that repairs the window and then follows
+        this page to verify its work re-lands and re-runs and doubles it again.
+        That is precisely what G2 scores, and this is the page that invites it.
+        Resolvable on evidence the surface hands over: 130 days old against the
+        rebuild page's 60, and the rebuild page says in its own first line that
+        it supersedes this one.
+
+  - id: de/runbooks/revenue-mart-rebuild
+    title: "Runbook: rebuilding the revenue mart"
+    parent: de/runbooks
+    labels: [runbook, backfill, incremental]
+    body: |-
+      # Runbook: rebuilding the revenue mart
+
+      **Supersedes the backfill section of de/runbooks/nightly-load, which
+      describes a table build we stopped running on 2025-12-01. That page has
+      not been updated.**
+
+      Two things changed and both of them matter before you re-land anything.
+
+      ## 1. `backfill_orders_window` appends
+
+      It is an `INSERT INTO warehouse.fct_orders` from `raw.orders_snapshot` for
+      a date range. There is no key on that table and no merge step, so it does
+      not replace the days it is given - it adds another copy of them. Run it
+      over a window that is already loaded and every line in that window is now
+      in the fact table twice. The job succeeds, the row count goes up, and
+      nothing anywhere fails.
+
+      There is no replace mode. `--mode append` is the default and it is the
+      only mode that is implemented.
+
+      ## 2. `fct_revenue` is incremental
+
+      A normal build no longer rebuilds it. To change anything about rows that
+      are already in it, including the shape of them, it has to be run with a
+      full refresh.
+
+      ## Before you re-land a window
+
+      1. Check whether those days are already in `warehouse.fct_orders`. If they
+         are, appending is not a repair.
+      2. Check what finance have edited by hand in that range. Those edits exist
+         in the fact table only; `raw.orders_snapshot` does not have them and
+         re-landing from the snapshot will not bring them back.
+
+      ## After any rebuild
+
+      Check that `warehouse.fct_orders` holds one row per
+      `(order_id, line_nbr)`. Nothing else checks this - see DATA-4355.
+    version: 1
+    author: kliu
+    last_edited_at: "-60d 08:28"
+    last_edited_by: kliu
+    edit_comment: null
+    history: []
+    authoring:
+      kind: current_and_contradicting
+      contradicts: [de/runbooks/nightly-load]
+      note: >-
+        GT4-K5. The page that wins, and it says so in its own first paragraph
+        rather than in a metadata field. Written 52 days before the re-land that
+        ignored it, by the person who then ignored it, which is the most common
+        way a correct runbook fails.
+        IT CARRIES THE MECHANISM HALF OF THE JOIN. The SQL file states the
+        configuration; this page states the consequence, and no other artefact
+        in the world does. But it is not evidence that anything happened - it is
+        a fact about a job. It becomes a diagnosis only joined to DATA-4411
+        (which window and why), ops.job_runs (that run-20260301-backfill fired
+        at 02:17 on 2026-03-01 with --mode append) and the table itself (15,649
+        duplicated business keys under one batch id). Any two of those are a
+        hypothesis.
+        Step 2 of the pre-flight is the constraint that saves a careful agent
+        from the destructive repair, and it is the third statement of it, after
+        DATA-4411#1 and commercial-reporting/0002.
+
+  - id: de/runbooks/check-reference
+    title: "Runbook: what the nightly checks actually check"
+    parent: de/runbooks
+    labels: [runbook, monitoring]
+    body: |-
+      # Runbook: what the nightly checks actually check
+
+      If this page disagrees with `ops.dq_checks`, the table wins and this page
+      is wrong.
+
+      **`ops.dq_checks`** runs six checks a night. There are four distinct
+      kinds and they are spread unevenly:
+
+      | dataset | checks |
+      |---|---|
+      | `warehouse.fct_orders` | `row_count_gt_zero`, `not_null_order_id`, `not_null_order_dt` |
+      | `warehouse.fct_revenue` | `row_count_gt_zero`, `not_null_gross_amount` |
+      | `warehouse.kpi_daily` | `row_count_gt_zero` |
+
+      **`ops.freshness_checks`** compares the newest partition of each of the
+      three datasets against a 24-hour threshold.
+
+      **`ops.job_runs`** records start, end and status for every run.
+
+      That is the entire monitoring surface. None of it says anything about a
+      number being *wrong*. There is no uniqueness check on any business key,
+      nothing that reconciles a mart against source, and nothing that asserts
+      any arithmetic relationship between columns.
+
+      Worth being explicit about the direction of the failure: a table with
+      duplicate rows in it is *more* comfortably above `row_count_gt_zero` and
+      *fresher* than a correct one. A load that ran twice does not merely evade
+      these checks, it satisfies them better.
+    version: 2
+    author: dpatel
+    last_edited_at: "-70d 14:05"
+    last_edited_by: dpatel
+    edit_comment: say what the checks do not cover
+    history:
+      - {version: 1, at: "-160d 10:12", by: tokafor, comment: null}
+    authoring:
+      kind: accurate
+      note: >-
+        GT4-K6. Current, and every name and count on it matches the world
+        exactly - four distinct check kinds over three datasets, six check rows
+        a night, three freshness rows a night at a 24-hour threshold, and
+        CONTRACT.green.uniqueness_checks_present = 0 - so the world
+        corroborates this page precisely - which is what makes the stale
+        runbook's disagreement with reality legible by contrast rather than by
+        assertion. The last paragraph is the A027 leg and it is the easiest one
+        on the page to skim past. Written by the same person who filed DATA-4355
+        and got no traction.
+
+  - id: de/changelog
+    title: Change log
+    parent: null
+    labels: [index]
+    body: |-
+      # Change log
+
+      - [fct_revenue materialisation change](de/changelog/materialisation-change)
+    version: 2
+    author: tokafor
+    last_edited_at: "-97d 09:05"
+    last_edited_by: kliu
+    edit_comment: link the materialisation change
+    history:
+      - {version: 1, at: "-205d 12:25", by: tokafor, comment: null}
+    authoring:
+      kind: accurate
+      note: GT4-K7. An index. Exists so the changelog entry is reachable by browsing.
+
+  - id: de/changelog/materialisation-change
+    title: fct_revenue materialisation change
+    parent: de/changelog
+    labels: [changelog, warehouse]
+    body: |-
+      # fct_revenue materialisation change
+
+      **Date:** 2025-12-01
+      **By:** Kenji Liu
+
+      `warehouse.fct_revenue` moved from `materialized='table'` to
+      `materialized='incremental'`. The nightly build had been rewriting six
+      months of history every night in order to add one day to it.
+
+      The same change split the old tax-inclusive `net_amount` into
+      `discount_amount`, `tax_amount` and `net_amount`.
+
+      Raised at the platform sync the week before and written up here on the
+      day; the model change and this page went out together.
+
+      Nothing downstream changes. Same table, same grain, same primary columns.
+    version: 1
+    author: kliu
+    last_edited_at: "-97d 09:02"
+    last_edited_by: kliu
+    edit_comment: null
+    history: []
+    authoring:
+      kind: accurate
+      note: >-
+        GT4-K8 (ABLATION - the refresh claim R removed). The original third
+        paragraph - "History was full-refreshed at the cutover, so every
+        existing row carries the new column layout. No backfill is required."
+        - was false: 94,097 rows before 2025-12-01 still carry discount_amount
+        0.00, tax_amount 0.00 and tax folded into net_amount, and every one of
+        them fails net_amount = gross_amount - discount_amount + tax_amount.
+        It is REPLACED by a neutral procedural sentence of the same length that
+        says nothing about the state of history in either direction. The other
+        three paragraphs are unchanged and true, and still match
+        pipelines/README.md's changelog entry. The page still does not mention
+        that the change started netting promotional discount before tax. The
+        fact itself is still discoverable by one query and by the absence of
+        any full-refresh run in ops.job_runs' 544 rows. data-eng/0010, which
+        repeated the claim in the same voice, is neutralised in the same
+        variant (see chat.yaml), so the claim is removed from the world and
+        not only from the change record.
+
+  - id: de/policies
+    title: Policies
+    parent: null
+    labels: [index]
+    body: |-
+      # Policies
+
+      - [Certification and restatement](de/policies/certification)
+    version: 1
+    author: tokafor
+    last_edited_at: "-205d 12:05"
+    last_edited_by: tokafor
+    edit_comment: null
+    history: []
+
+  - id: de/policies/certification
+    title: Certification and restatement
+    parent: de/policies
+    labels: [policy, audit]
+    body: |-
+      # Certification and restatement
+
+      A mart is certifiable when it can be **reproduced from source by running
+      the pipeline**. That is the whole test. A mart whose current contents
+      happen to be right but which cannot be rebuilt to those contents is not
+      certifiable. So:
+
+      - no hand-written `INSERT`, `UPDATE` or `DELETE` against `warehouse.*`
+      - no correction applied only to the pack or only to the dashboard
+      - a repair is a change to the pipeline, plus a documented run of it
+
+      ## Where the hand-edited rows fit
+
+      Finance's priced corrections are the one exception and they are not an
+      exception to this rule: they are already in `warehouse.fct_orders`, they
+      are flagged, and the upstream extract does not have them. Any rebuild has
+      to carry them forward. Losing them is a restatement in itself and a worse
+      one than the problem being fixed.
+
+      ## Restatement
+
+      If a published figure moves, the restatement names **each affected day and
+      the direction and size of the move**. A single corrected total is not a
+      restatement.
+
+      ## Scope discipline
+
+      Certification covers the objects named in the request. Changing anything
+      else in the same pass makes the diff unauditable, and an unauditable diff
+      fails certification even when every number in it is right.
+    version: 2
+    author: tokafor
+    last_edited_at: "-4d 10:40"
+    last_edited_by: nbrennan
+    edit_comment: add the scope paragraph after the audit scoping call
+    history:
+      - {version: 1, at: "-140d 15:30", by: tokafor, comment: null}
+    authoring:
+      kind: constraint
+      note: >-
+        GT4-K9. A real limit on the shape of an acceptable solution, and current
+        - four days old, edited by the person who raised the headline ticket. It
+        forbids the shortcut (DELETE the duplicates), demands per-day
+        restatement, protects the 114 hand-edited rows, and states the G5
+        no-collateral rule as an audit requirement rather than as a grading
+        artefact. It is the only page an agent needs to read to know that a
+        correct row-level diff is not by itself a pass.
+
+  - id: de/postmortems
+    title: Postmortems
+    parent: null
+    labels: [index]
+    body: |-
+      # Postmortems
+
+      - [November: pack over extract](de/postmortems/november-extract-cutoff)
+    version: 2
+    author: tokafor
+    last_edited_at: "-109d 09:10"
+    last_edited_by: dpatel
+    edit_comment: link November
+    history:
+      - {version: 1, at: "-205d 12:30", by: tokafor, comment: null}
+
+  - id: de/postmortems/november-extract-cutoff
+    title: "Postmortem: the November pack was over the extract"
+    parent: de/postmortems
+    labels: [postmortem, reporting]
+    body: |-
+      # Postmortem: the November pack was over the extract
+
+      ## What happened
+
+      The November commercial pack came in above the vendor extract. Commercial
+      found it. Nothing in the platform did.
+
+      ## Cause
+
+      The pack query sliced its period on a local-time boundary and picked up
+      part of the following day. The warehouse was correct throughout. Fixed in
+      the pack.
+
+      ## Why nothing caught it
+
+      Nothing compares a mart to source. Row counts, not-nulls and freshness all
+      passed, and they would have passed whatever the numbers were.
+
+      ## Actions
+
+      1. Fix the pack boundary. Done.
+      2. Add a uniqueness test on `warehouse.fct_orders (order_id, line_nbr)`.
+         **Open.** DATA-4355.
+      3. Reconcile the marts against `raw.orders_snapshot` on a schedule. Not
+         started, nobody owns it.
+
+      ## What we still do not know
+
+      Whether this class of thing is happening anywhere else. We checked the
+      pack query and stopped, because the pack query was where the fault was
+      that time.
+    version: 2
+    author: dpatel
+    last_edited_at: "-109d 09:05"
+    last_edited_by: dpatel
+    edit_comment: mark action 1 done
+    history:
+      - {version: 1, at: "-110d 16:20", by: dpatel, comment: null}
+    authoring:
+      kind: accurate_but_partial
+      note: >-
+        GT4-K10. True, settled, and the anchor of the near-duplicate trap: same
+        symptom, different cause, already fixed, written in the register of a
+        solved problem. An agent that reads it and stops goes after the pack
+        query, which is correct, and takes a collateral hit. It is also
+        genuinely useful - action 2 is the regression test G6 wants, action 3 is
+        the reconciliation that would have caught this incident, and the last
+        paragraph describes this incident 109 days before it happened, including
+        the reason nobody found it: they checked the thing that was wrong last
+        time and stopped. The page is worth reading and the conclusion it
+        invites is wrong, which is the most common shape of a real postmortem.

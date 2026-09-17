@@ -1,0 +1,140 @@
+# GT006c/d (STACKED): the channels the context is scattered across.
+# IDENTICAL in GT006c and GT006d. Two messages differ from GT006's chat, both
+# about the reported incident (defect A): data-eng/0009 and payments-ops/0004.
+# Marguerite's earlier reconciliation thread (payments-ops/0001..0003) is kept
+# as it was: it is defect B's symptom, a month old, and it is in both cells of
+# the row.
+#
+# Quotes NO figure. Dates are CONTRACT tokens resolved by
+# tests/stage_surfaces.py, which refuses an unresolved one.
+#
+# WHAT THE CHAT KNOWS AND WHAT IT DOES NOT. It knows the harness filter went in,
+# which column it filters on, and that terminal_ref is not always populated. It
+# does NOT know those two facts have anything to do with each other. The one
+# person who could join them up is on secondment from data-eng/0007 onward, and
+# the question that would have closed the incident is data-eng/0006, addressed to
+# her, with no replies under it.
+#
+# Message ids are positional (`<channel>/<index:04d>`) because that is how
+# chat_post derives the next one; world/workflow.py refuses a corpus numbered any
+# other way. A message with thread_id null is a thread root, and a reply to a
+# reply is refused, so every thread here is one level deep.
+channels:
+  - id: data-eng
+    topic: Pipelines, loads and the warehouse
+    purpose: Where the data team works.
+    members: [jvance, rkhoury, pnadeau, alertbot, agent]
+    messages:
+      - id: data-eng/0001
+        author: rkhoury
+        at: "-100d 08:55"
+        thread_id: null
+        text: |-
+          Processor cut over to the new platform overnight. Columns are the same,
+          delivery landed on time.
+
+      - id: data-eng/0002
+        author: rkhoury
+        at: "-99d 17:48"
+        thread_id: null
+        text: |-
+          Their test harness is writing into the production feed now. Synthetic
+          amounts, no merchant, reserved value in terminal_ref. It is already in
+          the mart. Raising a ticket.
+
+      - id: data-eng/0003
+        author: pnadeau
+        at: "-99d 18:02"
+        thread_id: data-eng/0002
+        text: |-
+          Filter it in the loader rather than alerting on it, otherwise we get a
+          red check every night for something we have decided is fine.
+
+      - id: data-eng/0004
+        author: rkhoury
+        at: "-97d 09:18"
+        thread_id: null
+        text: |-
+          Harness exclusion is live in both loaders as of this morning, and I
+          have backfilled the days that already had the rows. terminal_ref is the
+          only column that tells them apart so that is what it keys on.
+
+      - id: data-eng/0005
+        author: jvance
+        at: "-97d 09:40"
+        thread_id: data-eng/0004
+        text: |-
+          Nice. Counts look normal this morning.
+
+      - id: data-eng/0006
+        author: pnadeau
+        at: "-97d 11:26"
+        thread_id: data-eng/0004
+        text: |-
+          Out of interest - is terminal_ref populated on everything? I have a
+          memory of it being optional for the card-not-present side and I do not
+          want us keying anything important off a column that is sometimes empty.
+
+      - id: data-eng/0007
+        author: rkhoury
+        at: "-88d 16:30"
+        thread_id: null
+        text: |-
+          Off on secondment from Monday. DATA-1712 is still mine on paper, I have
+          not started it. Anything urgent goes to Pascale.
+
+      - id: data-eng/0008
+        author: alertbot
+        at: "-3d 02:49"
+        thread_id: null
+        text: |-
+          build_payments succeeded. refresh_bi_extract succeeded. No alarms
+          firing.
+
+      - id: data-eng/0009
+        author: jvance
+        at: "-1d 09:31"
+        thread_id: null
+        text: |-
+          Payments Ops say a whole block of merchants is missing from the
+          statements pack - not short, missing. I have gone through every check
+          on this pipeline and every one of them is green, which means we are
+          not checking the thing that is wrong. Handing to on-call.
+
+  - id: payments-ops
+    topic: Settlement, reconciliation and the board pack
+    purpose: Payments Operations, plus whoever is on call for data.
+    members: [mbissett, jvance, pnadeau, agent]
+    messages:
+      - id: payments-ops/0001
+        author: mbissett
+        at: "-31d 10:12"
+        thread_id: null
+        text: |-
+          Reconciliation against the processor's settlement file is off again
+          this month. Short, not over. It was fine when I did this in the autumn.
+
+      - id: payments-ops/0002
+        author: jvance
+        at: "-31d 10:40"
+        thread_id: payments-ops/0001
+        text: |-
+          Nothing has failed. If it were a load problem I would expect a gap on
+          particular days and there is no gap - every day is there.
+
+      - id: payments-ops/0003
+        author: mbissett
+        at: "-31d 10:52"
+        thread_id: payments-ops/0001
+        text: |-
+          It is not a missing day. Every day is a bit light, and not by the same
+          amount. That is why it took me three months to be sure it was real.
+
+      - id: payments-ops/0004
+        author: mbissett
+        at: "-2d 14:25"
+        thread_id: null
+        text: |-
+          Raised DATA-1755. The February statements went out with merchants
+          missing from the pack entirely. I need it fixed and re-issued, and I
+          want it tying to the processor before it goes back out.

@@ -1,0 +1,350 @@
+# GT004 - Harbor task package metadata.
+#
+# SPEC owns this file. GT004 is being built by six agents at once, so every
+# value here that another agent MEASURES rather than declares is marked
+# PLACEHOLDER and listed again in [handover] at the bottom. Nothing in this file
+# is a measurement unless it says it was measured and says when.
+
+[task]
+id          = "GT004d-none"
+version     = "0.1.0"
+discipline  = "data_engineering"
+archetype   = "A009"
+composed_of = ["A009", "A044", "A027"]
+title       = "Warehouse revenue is higher than the source system"
+summary     = "An append-mode re-run doubled a window of a revenue fact, and a table-to-incremental switch left the rows before the cutover under the old column layout. Late events land inside the window the agent has already repaired, and every operational surface is green throughout."
+
+[difficulty]
+human_hours          = "20-40"       # A009's own estimate; the spine archetype
+target_pass_at_1     = "0.30-0.45"   # DESIGN.md's target: Fable 5 ~40%, Kimi K3 below
+axis                 = "lifecycle"   # first task built for it; D1-D5b code checks are saturated
+# Read out of GRADER's tests/manifest.yaml, not chosen here: CODE 9 (G1a/G1b/G1c)
+# + LIFECYCLE 22 (G2 G3 G4 G6, G5 penalty-only) + HYGIENE 2 (H1a H1b, H2
+# penalty-only). Lifecycle is 22 of 33 - two-thirds - against 9 of 63 across
+# GT001/2/3 combined, which is the whole point of the axis. The rubric FLOOR is
+# -9 (G5 -6, H2 -3), below the 0 an idle agent scores: penalties must be able to
+# score below doing nothing or "touch everything, name every cause" dominates.
+rubric_points        = 33
+rubric_points_source = "GRADER (tests/manifest.yaml check table)"
+
+[limits]
+# PLACEHOLDER (SPEC's estimate, not calibrated). Five phases and a clock advance
+# against A009's 20-40 human-hours, scaled off GT002's 7200s/800 calls for its
+# 10-18. Raise or lower on the first K>=5 run that shows budget exhaustion in
+# the classifier; a task whose failures classify as `budget` is measuring the
+# limit, not the model.
+wall_clock_seconds = 10800
+memory_mb          = 2048
+disk_mb            = 4096
+max_tool_calls     = 1200
+
+[environment]
+# DESIGN.md: fixtures/fixture_contract.py's CONTRACT is the single source of
+# truth for every row count, date and hash. Nothing downstream may hardcode one.
+seed_contract = "fixtures/fixture_contract.py"
+seed          = 4004                  # WORLD's generator default (fixtures/make_fixture_world.py)
+virtual_now   = "2026-03-08T09:00:00Z"  # WORLD's VNOW; episode start, before the G3 advance
+network       = "none"
+# Declared surfaces must match what WORLD actually seeds. A declared-but-unseeded
+# surface is not cosmetic: GT002 shipped a bi_render probe for a dashboard that
+# existed nowhere, so the probe failed against every world the harness could
+# build and the episode's opening surface was simply absent. surface_probes in
+# [harness] is the operational check on this list.
+surfaces      = ["duckdb", "dbt", "git", "scheduler", "bi", "ingest",
+                 "obs", "workflow", "docs"]
+# The world advances during grading (A044). The advance is a CONTRACT value, not
+# a literal here, for the same reason as every other number.
+clock_advance = "fixtures/fixture_contract.py::CONTRACT (owned by WORLD; G3 reads it)"
+
+[grading]
+mode            = "deterministic"   # official score has zero LLM involvement
+judge           = "shadow"          # advisory only, never affects `total`
+process_signals = "report_only"
+entrypoint      = "tests/grade.py"
+manifest        = "tests/manifest.yaml"
+artifact        = "/workspace/final_report.json"
+# G2/G3/G6 execute the agent's OWN pipeline files against a copied world, and G5
+# diffs the world tree, so the grader cannot be run without the workspace.
+world_root_required = true
+
+# ---------------------------------------------------------------------------
+# The agent sees exactly one file: the prompt variant [agent_visible].brief
+# points at. No description/why_hard author prose ships - it enumerates the
+# planted defects (F202), and F125 is the same finding landed on A027, one of
+# this task's three components.
+#
+# There is deliberately NO instruction.md. A fourth copy of the ticket that no
+# variant lock covers is how the shipped prompt drifts away from the graded one.
+# ---------------------------------------------------------------------------
+[agent_visible]
+brief = "prompts/vague.md"
+
+# ---------------------------------------------------------------------------
+# The difficulty dial. Three descriptions of the SAME task, identical world,
+# identical rubric, identical pass criterion. Only the ticket changes.
+#
+#   vague    - a stakeholder who is not sure anything is wrong. No location, no
+#              count, no confirmation that a defect exists at all.
+#   guided   - names the symptom and the affected surface. Not the cause, not
+#              the count, not the window.
+#   specific - states what must be true at the end. The floor, not a walkthrough.
+#
+# None of the three names the cause, the number of defects, the damage window,
+# or anything that removes the need to query the data. See BRIEF.md for the
+# selection procedure and for how a finished rollout is attributed to a variant.
+#
+# sha256 is over the file's exact bytes (LF, no BOM). `prompts/variant.py list`
+# reports drift; `variant.py lock` reprints this block. A prompt that changes
+# under a frozen lock invalidates every rollout already attributed to it.
+# ---------------------------------------------------------------------------
+[prompt_variants]
+default = "vague"
+select  = "prompts/variant.py select <name>  (rewrites [agent_visible].brief)"
+attribute = "prompts/variant.py identify <run-dir>  (reads each rollout's own prompt.txt)"
+guided   = { file = "prompts/guided.md",   sha256 = "26e5f9231f768eb0cea16763916e4a6830b4a9f835c27a13dfe224f1f21732a1" }
+specific = { file = "prompts/specific.md", sha256 = "c636a14b457a11027d1b4b2f0159b4d903499e640bbcf8522c4d68a09f748e67" }
+vague    = { file = "prompts/vague.md",    sha256 = "406a669db45a222b64dad43d43f9a5b8c5ecb57e6db122661b54dcefb3bac0de" }
+
+# ---------------------------------------------------------------------------
+# Task-validity gate. All must hold or the task does not enter the corpus.
+#
+# EVERY `actual` BELOW IS UNMEASURED. VALIDITY owns tests/run_baselines.py and
+# solution/**; these are the expectations their suite asserts against, written
+# from DESIGN.md's gate table and its anti-exploit rules, not from a run. Each
+# one carries actual = "PENDING VALIDITY" until it has been measured, at a named
+# seed, at the CONTRACT warehouse filename (F622), and dated.
+#
+# The AGENT NAMES below are SPEC's proposed adversary set, derived from
+# DESIGN.md's anti-exploit rules. VALIDITY owns tests/run_baselines.py and may
+# rename or add to them; what must survive renaming is the property each one
+# attacks, written in its `expect` and `note`.
+# ---------------------------------------------------------------------------
+[[validity]]
+agent  = "oracle"
+expect = "== max"
+actual = "PENDING VALIDITY"
+
+[[validity]]
+agent  = "no_op"
+expect = "<= 1"
+actual = "PENDING VALIDITY"
+
+[[validity]]
+agent  = "reference_copy"
+expect = "unreachable at ATTACH (build gate, not a test)"
+actual = "PENDING VALIDITY"
+note   = "F121: the reference lives in a separate DuckDB attached read-only at scoring time and is never in the agent-visible catalog. G2/G3/G6 execute the agent's own pipeline, so holding the reference cannot reach max - copying a table does not change a file."
+
+[[validity]]
+agent  = "single_defect_only"
+expect = "< oracle; MUST fail G1"
+actual = "PENDING VALIDITY"
+note   = "THE key baseline for the A009 spine. Two stacked defects; finding one is a partial score and must not clear the pass criterion."
+
+[[validity]]
+agent  = "full_refresh"
+expect = "partial, > 0 and < oracle; something real destroyed"
+actual = "PENDING VALIDITY"
+
+[[validity]]
+agent  = "skip_forever"
+expect = "0 on G2, NOT full marks"
+actual = "PENDING VALIDITY"
+note   = "The mandatory liveness clause. A load that permanently skips is idempotent by construction and repairs nothing. GT002's K5 is the pattern to copy: every idempotency-shaped check needs a paired liveness assertion or 'never run anything' satisfies it."
+
+[[validity]]
+agent  = "stale_repair"
+expect = "< oracle; passes G1 at the moment it finishes and MUST fail G3"
+actual = "PENDING VALIDITY"
+note   = "The A044 baseline: a repair that is correct when written and goes stale when the clock advances. If this one passes, the long-horizon property the task exists for has not been built."
+
+[[validity]]
+agent  = "checklist"
+expect = "< oracle (false-cause penalty bites)"
+actual = "PENDING VALIDITY"
+
+[[validity]]
+agent  = "checklist_joined"
+expect = "== checklist (F620 regression: joining causes must not defeat the penalty)"
+actual = "PENDING VALIDITY"
+note   = "F620: every list-valued claim field must be split on [;\\n]+ before scoring. The concatenated-checklist adversary must EXIST, not merely be described, or the split is unproven."
+
+[[validity]]
+agent  = "collateral_vandal"
+expect = "scored, not crashed on, and below no_op"
+actual = "PENDING VALIDITY"
+note   = "Penalties must be able to score below doing nothing, or 'touch everything, name every cause' dominates. G5 diffs all eight fingerprint sections."
+
+[[validity]]
+agent  = "deployed_path"
+expect = "oracle scores max against a world at the CONTRACT warehouse filename, reached by ATTACH ... AS wh + USE wh.warehouse"
+actual = "PENDING VALIDITY"
+note   = "F622. GT001 printed TASK VALID while its oracle aborted on statement one, because its baselines ran against a file stem that does not collide with the schema name. Opening warehouse.duckdb directly makes catalog == schema == warehouse and every 2-part reference ambiguous."
+
+[[validity]]
+agent  = "green_surface_audit"
+expect = "every operational surface reports healthy on the shipped world: no failed scheduler run, no firing alarm, no ingestion alert, freshness green"
+actual = "PENDING VALIDITY"
+note   = "A027's contribution, and the property that makes the defect invisible except in the data. If a surface goes red on its own, the task has collapsed into an ordinary triage."
+
+# ---------------------------------------------------------------------------
+# Rollout-harness contract (tasks/harness/). The harness is task-agnostic: it
+# knows only the key names below and refuses to run a task that has not declared
+# them, because each of them decides the measured number.
+# ---------------------------------------------------------------------------
+[harness]
+# python <world_builder> --root <dir> --grading <dir> --seed <n>
+#   -> one json object on stdout with the SS9.2.1 layout it produced:
+#      {"world_root","workspace","warehouse","scheduler","dashboards",
+#       "profiles_dir","grading","virtual_time","seed"}
+world_builder = "tests/build_world.py"
+
+# argv appended to `python <grading.entrypoint>`. {placeholders} are filled from
+# the world-builder's json plus {artifact}.
+# NOTE THE SPLIT - it differs from GT001/GT002, which pass the WORKSPACE as
+# --world-root. G5 diffs fingerprint sections that live OUTSIDE the workspace
+# (var/sched, var/bi, var/obs, var/workflow, var/world), so this grader needs
+# the real world root as well as the agent's tree. Copied from GRADER's
+# recommended_harness block in tests/manifest.yaml and checked against
+# tests/grade.py's own argparse (--world --grading --artifact --workspace
+# --world-root --json).
+grade_argv = ["--world", "{warehouse}", "--grading", "{grading}",
+              "--artifact", "{artifact}", "--workspace", "{workspace}",
+              "--world-root", "{world_root}", "--json"]
+
+# Read-only probes against a THROWAWAY copy of the world, before the episode,
+# with their own audit dir. They answer "which surfaces are actually live in the
+# world this task ships", so a failure can be attributed to a dead surface
+# instead of silently counted as reasoning. `covers` lets one probe speak for
+# siblings that cannot be probed read-only; anything unprobed is recorded per
+# rollout as `unprobed_tools` and named in the report.
+surface_probes = [
+  { label = "sql",       tool = "sql_query",      args = { sql = "SELECT 1" } },
+  { label = "fs",        tool = "fs_list",        args = { path = "." } },
+  { label = "git",       tool = "git_log",        args = { limit = 5 }, covers = ["git_diff"] },
+  { label = "dbt",       tool = "dbt_compile",    args = { selector = "*" }, covers = ["dbt_run", "dbt_test"] },
+  { label = "sched",     tool = "sched_state",    args = {}, covers = ["sched_list"] },
+  { label = "sched_log", tool = "sched_logs",     args = {} },
+  { label = "logs",      tool = "logs_list",      args = {}, covers = ["logs_get", "logs_search"] },
+  # bi_render/bi_get/bi_cached take a dashboard ID and are therefore NOT probed
+  # yet: the dashboard id is a CONTRACT value (probes/exposure.py reads
+  # var/bi/dashboards/<id>.yml) and fixtures/fixture_contract.py does not exist
+  # at the time of writing. A probe naming a dashboard that is defined nowhere
+  # fails against every world the harness can build and reports a surface that
+  # was never alive - GT002 shipped exactly that. Add the probe, with the
+  # CONTRACT's id, as soon as WORLD lands the dashboard.
+  { label = "bi_list",   tool = "bi_list",        args = {} },
+  { label = "docs",      tool = "docs_list",      args = {}, covers = ["docs_search", "docs_get"] },
+  { label = "ingest",    tool = "ingest_list",    args = {}, covers = ["ingest_get", "ingest_runs", "ingest_run", "ingest_schema", "ingest_alerts"] },
+  { label = "metrics",   tool = "metrics_list",   args = {}, covers = ["metrics_get", "metrics_series"] },
+  { label = "alarms",    tool = "alarms_list",    args = {}, covers = ["alarms_get", "alarms_history"] },
+  { label = "issues",    tool = "issues_list",    args = {}, covers = ["issues_get", "issues_search"] },
+  { label = "chat",      tool = "chat_channels",  args = {}, covers = ["chat_history", "chat_thread", "chat_search"] },
+  { label = "kb",        tool = "kb_list",        args = {}, covers = ["kb_get", "kb_search"] },
+  { label = "deploy",    tool = "deploy_list",    args = {}, covers = ["deploy_history"] },
+]
+
+# Pass@1 criterion. A rollout passes iff every listed check passed AND the total
+# clears the floor.
+#
+# All six gates are required, and that is the whole design rather than an
+# oversight: DESIGN.md's target comes from composing six roughly-independent
+# gates at ~0.85 into 0.377. Dropping one from the conjunction does not make the
+# task slightly easier, it removes the composition that is the reason this task
+# discriminates where saturated code checks do not.
+#
+#   G1a/G1b/G1c both defects found and repaired (CODE)
+#   G2 idempotency, with liveness   G4 downstream resolves   G6 regression
+#   G3 late arrivals                G5 no collateral (penalty-only)
+#
+# Ids and the floor are GRADER's, copied from the `recommended_harness` block of
+# tests/manifest.yaml rather than guessed here; grade.py also prints
+# pass_requires_checks in its json, derived from the same table, so the two
+# cannot drift silently. G1 is three conjuncts, not one, because its parts fail
+# independently.
+#
+# Hygiene (H1a/H1b/H2) is scored and EXCLUDED from pass/fail, per DESIGN.md.
+# That exclusion is only real while the floor cannot readmit it: the required
+# checks all passing are worth G1a 5 + G1b 2 + G1c 2 + G2 8 + G3 7 + G4 3 +
+# G5 0 + G6 4 = 31, and hygiene can subtract at most 3, so a floor of 28.0 can
+# never bind on its own. RAISING IT ABOVE 28 SILENTLY PUTS HYGIENE BACK INTO
+# THE PASS CRITERION.
+# ---------------------------------------------------------------------------
+# REQUIRED SURFACES. Every one of these is verified live before the subject is
+# handed the terminal; if any is dead the rollout is a harness_error and is
+# never scored, because the agent would not have been given the world this task
+# describes.
+#
+# This list exists because of a measured failure. GT004's first five Opus
+# rollouts were scored and reported with EIGHT surfaces dead - alarms, chat,
+# dbt, deploy, ingest, issues, kb, metrics - and the harness printed that fact
+# under the number instead of refusing to produce one. The cause was not the
+# world: the seeded backlog was present and correct the whole time, and the
+# harness simply never told the gateway where to look. A number measured in a
+# half-absent world is indistinguishable from a real one unless something
+# refuses to publish it.
+#
+# All sixteen are required rather than a design-critical subset, and that is
+# deliberate: every one is seeded and was verified live on 2026-09-15, so
+# requiring them costs nothing today and turns any future regression into a
+# quarantine instead of a quiet mismeasurement. issues/chat/kb in particular are
+# not decoration - the scattered human context is half the task design, and the
+# only artefact in the world that states the consequence of the primary defect
+# lives in the knowledge base.
+required_surfaces = [
+  "sql", "fs", "git", "dbt", "sched", "sched_log", "logs", "bi_list",
+  "docs", "ingest", "metrics", "alarms", "issues", "chat", "kb", "deploy",
+]
+
+pass_requires_checks = ["G1a", "G1b", "G1c", "G2", "G3", "G4", "G5", "G6"]
+
+# GRADER's derivation (31 required - 3 hygiene floor), NOT a measurement: no
+# baseline has been run, so unlike GT001's 17.0 and GT002's 21.0 this floor has
+# not been checked against a baseline profile. The conjunction above is what
+# carries the verdict either way. VALIDITY must confirm that no non-oracle
+# baseline clears it, and must NOT raise it above 28 to achieve that - see the
+# hygiene note above; tighten the checks instead.
+pass_min_total = 28.0
+pass_min_total_measured = false
+
+[provenance]
+derived_from = ["S001", "S003", "S008", "S009", "S023", "S509", "S510",
+                "S513", "S603", "S604", "S610", "S611", "S754", "S755"]
+composed_of  = ["A009", "A044", "A027"]
+derived_from_note = "the union of the three component archetypes' derived_from lists, read from implementation_structure/state/archetypes/{A009,A027,A044}.yaml on 2026-09-14. SPEC did not re-derive any source's licence; whoever cites this task must."
+red_team     = ["F121", "F125", "F202", "F306", "F620", "F622", "F624"]
+open_rulings = ["F554", "S001/F451"]
+open_reason  = "F554 (target A027, recommended_action re-source, executed_by: null as of 2026-09-14) rules that no source in the corpus is licensed to assert the green-DAG-over-unobserved-surface mechanism. GT004 uses A027 for exactly that mechanism, in the same narrowed form GT002 used - the greenness is a readable property of the seeded world, not a claim resting on a source's authority - and this task does NOT close F554. Do not cite GT004 as evidence that the pattern is common. F125 (also A027, answer leakage) was executed by C2-GT002 and its lesson is applied here: no variant names the cause or the gap length. S001 carries F451's open downgrade_confidence recommendation (GT001's provenance block records it as unexecuted); it reaches this task only through A009's derived_from and nothing here rests on it alone."
+note = "mechanisms must be verified against the installed engine by fixtures/fixture_contract.py, not asserted. No frequency claim is made or licensed by this task."
+
+# ---------------------------------------------------------------------------
+# [handover] - every value in this file that is a placeholder, and who measures
+# it. A reviewer should be able to read this block alone and know what is not
+# yet real. SPEC wrote all of it; SPEC measured none of it.
+# ---------------------------------------------------------------------------
+[handover]
+spec_written_utc = "2026-09-14"
+placeholders = [
+  "limits.* - SPEC's estimate scaled off GT002; not calibrated against any run",
+  "harness.pass_min_total = 0.0 - inert until GRADER freezes the rubric and VALIDITY measures the baselines",
+  "every [[validity]].actual - PENDING VALIDITY, none measured",
+  "difficulty.target_pass_at_1 - DESIGN.md's target, not an observation",
+]
+spec_set_contract_values = [
+  "environment.seed = 4409 - WORLD must generate at this seed or tell SPEC to change it",
+  "environment.virtual_now = 2026-03-19T09:00:00Z - WORLD and CONTEXT must seed to this clock",
+  "harness.surface_probes bi_render dashboard = 'exec_revenue' - WORLD must seed a dashboard with this id; GT002's probe failed because nobody did",
+  "grading.artifact keys - the three prompts all specify the same final_report.json schema; GRADER must read these keys",
+  "harness.pass_requires_checks = G1..G6 - the check ids GRADER's grade.py must emit, named after DESIGN.md's gate table",
+]
+reconciled_2026_09_14 = [
+  "seed and virtual_now now come from WORLD's fixtures/make_fixture_world.py (SEED 4004, VNOW 2026-03-08T09:00:00Z), replacing SPEC's provisional 4409 / 2026-03-19",
+  "pass_requires_checks, pass_min_total, rubric_points and grade_argv now come from GRADER's tests/manifest.yaml recommended_harness block and grade.py's argparse, replacing SPEC's provisional G1..G6 / 0.0",
+  "the prompts now use CONTEXT's roster and ticket: DATA-4412, Nadia Brennan (nbrennan), Divya Patel (dpatel), Tolu Okafor (tokafor), and the audit-certification deadline, replacing SPEC's invented cast. guided.md quotes DATA-4412's body as CONTEXT wrote it so the ticket the agent reads in the tracker and the ticket in the prompt cannot disagree.",
+]
+depends_on_others = [
+  "tests/build_world.py (world_builder) DOES NOT EXIST YET - taskspec.load does not check for it, so the spec loads and the harness will fail at run time. It must emit world_root AND workspace in its json: grade_argv now uses both.",
+  "fixtures/fixture_contract.py (seed_contract) DOES NOT EXIST YET - WORLD. Every number in the prompts, the workflow corpus and the probes resolves through it.",
+  "the BI dashboard id is still unknown, so bi_render/bi_get/bi_cached are unprobed; add the probe once the CONTRACT names the dashboard that probes/exposure.py renders for G4.",
+  "CONTEXT's fixtures/workflow/*.yaml still carry unresolved {{CONTRACT}} placeholders and a check_claims.py gate. The prompts deliberately quote NO figure, so they need no placeholder resolution - but if anyone adds one to a prompt, it has to go through the same gate.",
+]

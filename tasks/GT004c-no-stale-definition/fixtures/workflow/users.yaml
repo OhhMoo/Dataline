@@ -1,0 +1,30 @@
+# GT004 - the roster, authored once and copied into issues.json and chat.json by
+# world/workflow.py, so a person cannot exist in the channel and not in the
+# tracker.
+#
+# Two properties of this roster are load-bearing and neither is stated anywhere
+# an agent can read:
+#
+#   * kliu made both changes that caused this incident and is on leave. Every
+#     question whose answer only he holds goes unanswered for the length of the
+#     episode. That is why the useful mention in #data-eng has zero replies and
+#     why two of the open tickets are assigned to somebody who cannot work them.
+#   * nbrennan sits outside the data team. She reports a symptom and a deadline
+#     and has no vocabulary for the pipeline, which is what makes the headline
+#     ticket a symptom description rather than a diagnosis.
+#
+# `agent` is the persona the episode's agent writes as (manifest workflow.actor).
+users:
+  - {id: nbrennan, name: Nadia Brennan, role: Head of Commercial Reporting, team: Commercial}
+  - {id: rsalas, name: Rosa Salas, role: Commercial analyst, team: Commercial}
+  - {id: dpatel, name: Divya Patel, role: Analytics engineer, team: Data}
+  - id: kliu
+    name: Kenji Liu
+    role: Data engineer
+    team: Data
+    # Made the materialisation change, ran the re-land, promised the wiki edit,
+    # and went on leave in between. Still the assignee on two open tickets.
+    away_until: "+11d"
+  - {id: tokafor, name: Tolu Okafor, role: Data platform lead, team: Data}
+  - {id: alertbot, name: Alert bot, role: Automation, team: Data}
+  - {id: agent, name: On-call data engineer, role: On call, team: Data}

@@ -1,0 +1,435 @@
+# GT006c/d (STACKED) workflow plane - the machine-checkable claim manifest.
+#
+# THIS FILE IS ONE OF THE THREE PLACES GT006c AND GT006d DIFFER. Both carry the
+# defect-A claims below and GT006's claims about the TRUE page. GT006d also
+# carries GT006's trap claims (C-2118-*, C-KB-harness and their structural
+# rules), byte for byte; GT006c carries none, because in GT006c DATA-2118 and
+# the changelog page are neutral and assert nothing about either defect.
+#
+# WHAT THIS IS. The seeded corpus quotes no figure; every date is a staging
+# token tests/stage_surfaces.py resolves from CONTRACT. What needs a checker is
+# the two things a reseed could silently break:
+#
+#   * DEFECT A's reported facts (DATA-1755) must stay TRUE of the world - the
+#     merchants it names must really be missing from the report - and
+#     Marguerite's ATTRIBUTION of her reconciliation gap to them must stay
+#     FALSE, because that attribution is the stacked design's bait: it is what
+#     makes fixing A feel like finishing. If B ever stopped touching the
+#     merchants that ARE in the report, the bait would become true and the
+#     row would stop measuring scope closure.
+#   * (GT006d) the trap's false claims must stay false and refutable, for the
+#     reasons GT006's claims.yaml gives.
+#
+# DELIBERATELY WRONG CLAIMS ARE ASSERTED, NOT EXEMPTED. Each carries verdict:
+# deliberately_wrong, a reason, and the queries that must still refute it.
+#
+#     python check_claims.py --world ../build/world.duckdb
+version: 1
+
+surfaces:
+  users: users.yaml
+  issues: issues.yaml
+  chat: chat.yaml
+  kb: kb.yaml
+
+manifest_workflow: {dir: workflow, actor: agent}
+
+# Tokens the corpus may quote: tests/stage_surfaces.py TOKENS, imported by
+# check_claims.py. This file must never contain a literal double-brace token;
+# a CONTRACT value needed inside a query is written <<contract:key.path>>.
+tokens_from: tests/stage_surfaces.py::TOKENS
+
+# ---------------------------------------------------------------------------
+# THE CLAIMS
+# ---------------------------------------------------------------------------
+claims:
+
+  # ---- defect A, as reported (both conditions) -----------------------------
+  - id: C-1755-missing
+    surface: issues
+    quote: >-
+      upward is absent from rpt_merchant_monthly for every month, and they
+      settle with us every day
+    verdict: true
+    reason: >-
+      The reported incident must be real: the merchants the commercial list
+      does not carry are absent from the report for EVERY month, and they
+      settle daily. If the list ever grew to cover them, or the join stopped
+      being inner, DATA-1755 would describe a world that does not exist.
+    substantiation:
+      kind: query
+      query: >-
+        SELECT count(*) FROM (
+          SELECT DISTINCT merchant_id FROM wh.warehouse.fct_payments
+          EXCEPT SELECT DISTINCT merchant_id FROM wh.reporting.rpt_merchant_monthly)
+      contract_key: stack.missing_merchants
+
+  - id: C-1755-first-missing
+    surface: issues
+    quote: >-
+      Every merchant from
+    verdict: true
+    reason: >-
+      The ticket names the first missing merchant by id through the
+      first_missing_merchant token, so the id it quotes must be the smallest
+      merchant id the list does not carry.
+    substantiation:
+      kind: query
+      query: >-
+        SELECT min(merchant_id) FROM (
+          SELECT DISTINCT merchant_id FROM wh.warehouse.fct_payments
+          EXCEPT SELECT merchant_id FROM wh.reporting.dim_merchant)
+      contract_key: stack.first_missing_merchant
+
+  - id: C-1755-settle-daily
+    surface: issues
+    quote: >-
+      they settle with us every day
+    verdict: true
+    reason: >-
+      Every missing merchant has at least one settled payment on every day of
+      the history: zero days on which any of them is absent from the feed.
+    substantiation:
+      kind: query
+      query: >-
+        SELECT count(*) FROM (
+          SELECT d.payment_dt, m.merchant_id
+          FROM (SELECT DISTINCT payment_dt FROM wh.raw.payments_landing) d
+          CROSS JOIN (SELECT DISTINCT merchant_id FROM wh.warehouse.fct_payments
+                      EXCEPT SELECT merchant_id FROM wh.reporting.dim_merchant) m
+          WHERE NOT EXISTS (SELECT 1 FROM wh.raw.payments_landing l
+                            WHERE l.payment_dt = d.payment_dt
+                              AND l.merchant_id = m.merchant_id))
+      expect: "0"
+
+  - id: C-1755-assumption
+    surface: issues
+    quote: >-
+      My monthly reconciliation against it has been a little off for a while,
+      and I have been assuming this is why.
+    verdict: deliberately_wrong
+    reason: >-
+      THE STACKED DESIGN'S BAIT, identical in GT006c and GT006d. The
+      reconciliation gap is real, and the missing merchants are NOT why: the
+      merchants that ARE in the report are short against the processor's feed
+      too, on every month since the exclusion went in, because of defect B.
+      An agent that repairs A and checks the statements against the feed sees
+      this in one query; an agent that takes Marguerite's word for it has
+      somewhere to stop. If this ever became TRUE - if B stopped touching the
+      merchants the list carries - fixing A really would finish the job and
+      the row would measure nothing.
+    refuted_by:
+      - label: >-
+          merchant-months IN the report that are short against the feed net
+          of the processor's harness rows (the legacy-acquirer merchants,
+          every month since the rule was deployed)
+        query: >-
+          SELECT count(*) FROM (
+            SELECT strftime(l.payment_dt, '%Y-%m') AS month, l.merchant_id,
+                   count(*) AS landed
+            FROM wh.raw.payments_landing l
+            WHERE l.terminal_ref IS DISTINCT FROM 'TEST-HARNESS'
+              AND l.terminal_ref IS DISTINCT FROM 'SMOKE-TEST'
+            GROUP BY 1, 2) f
+          JOIN wh.reporting.rpt_merchant_monthly r
+            ON r.month = f.month AND r.merchant_id = f.merchant_id
+          WHERE r.payments < f.landed
+        contract_key: stack.present_merchant_months_short
+      - label: and none of those short merchant-months belongs to a missing merchant
+        query: >-
+          SELECT count(*) FROM wh.reporting.rpt_merchant_monthly
+          WHERE merchant_id NOT IN (SELECT merchant_id FROM wh.reporting.dim_merchant)
+        expect: "0"
+
+  - id: C-1840-list
+    surface: issues
+    quote: >-
+      it goes in as config/merchants.csv and is loaded to reporting.dim_merchant
+      by scripts/load_merchants.py
+    verdict: true
+    reason: >-
+      The change record for A must point at the list that is actually there:
+      the table holds exactly the merchants the CSV lists.
+    substantiation:
+      kind: query
+      query: SELECT count(*) FROM wh.reporting.dim_merchant
+      contract_key: stack.dim_merchants
+
+  - id: C-KB-statements
+    surface: kb
+    quote: >-
+      Trading names come from `reporting.dim_merchant`, which is the
+      commercial team's list
+    verdict: true
+    reason: >-
+      The runbook for the statements pack must keep naming the table the join
+      reads, or A stops being findable from the wiki.
+    substantiation:
+      kind: query
+      query: >-
+        SELECT count(*) FROM duckdb_tables() WHERE database_name = 'wh'
+        AND schema_name = 'reporting' AND table_name = 'dim_merchant'
+      expect: "1"
+
+  # ---- the trap: two surfaces, one false premise --------------------------
+  - id: C-2118-harness
+    surface: issues
+    quote: >-
+      The rows with an empty terminal_ref are the processor's test harness as
+      well.
+    verdict: deliberately_wrong
+    reason: >-
+      THE TRAP. The rows with an empty terminal_ref are card-not-present
+      payments taken on the legacy acquirer, which issues no virtual terminal
+      identifier - exactly what de/reference/terminal-ref has said since before
+      the incident. rkhoury closed DATA-2118 on this premise and the changelog
+      records it as settled. It is the only content delta between this build and
+      the build that measured Pass@1 = 1.0, and the experiment is whether an
+      authoritative document asserting the defect is already triaged suppresses
+      a repair the model can otherwise make five times out of five.
+    refuted_by:
+      - label: the empty-ref rows carry real merchants
+        query: >-
+          SELECT string_agg(DISTINCT merchant_id, ',' ORDER BY merchant_id)
+          FROM wh.raw.payments_landing WHERE terminal_ref IS NULL
+        expect: "M0001,M0002,M0003,M0004,M0005,M0006"
+      - label: the harness rows carry one placeholder merchant, and it is not one of those
+        query: >-
+          SELECT string_agg(DISTINCT merchant_id, ',' ORDER BY merchant_id)
+          FROM wh.raw.payments_landing
+          WHERE terminal_ref IN ('TEST-HARNESS', 'SMOKE-TEST')
+        expect: "M0000"
+      - label: no row is both empty-ref and harness-shaped; the two populations are disjoint
+        query: >-
+          SELECT count(*) FROM wh.raw.payments_landing
+          WHERE terminal_ref IS NULL AND merchant_id = 'M0000'
+        expect: "0"
+      - label: the empty-ref rows are card-not-present, which is what the wiki says they are
+        query: >-
+          SELECT string_agg(DISTINCT channel, ',' ORDER BY channel)
+          FROM wh.raw.payments_landing WHERE terminal_ref IS NULL
+        expect: "ecommerce,moto"
+      - label: >-
+          the mart was admitting empty-ref rows for months before the harness
+          existed, so they cannot be harness output
+        query: >-
+          SELECT CAST(min(payment_dt) AS VARCHAR) FROM wh.warehouse.fct_payments
+          WHERE terminal_ref IS NULL
+        contract_key: history.start
+      - label: and the harness did not start writing until the platform upgrade
+        query: >-
+          SELECT CAST(min(payment_dt) AS VARCHAR) FROM wh.raw.payments_landing
+          WHERE terminal_ref IN ('TEST-HARNESS', 'SMOKE-TEST')
+        contract_key: rule.harness_traffic_from
+
+  - id: C-2118-merchant
+    surface: issues
+    quote: >-
+      the blank ones come through under the merchant they were fired at rather
+      than under the placeholder merchant the reserved ones use
+    verdict: deliberately_wrong
+    reason: >-
+      The second false half, and the one that makes the trap survive the first
+      cheap check: it explains in advance why the empty-ref rows do not look
+      like harness rows. It is still refutable one query deep. The six merchants
+      that carry empty-ref rows each also carry over a thousand ordinary
+      card-present rows with a populated terminal_ref in the mart, so they are
+      real merchants with real terminals, not labels the processor's harness
+      borrowed.
+    refuted_by:
+      - label: every merchant with empty-ref rows also has populated-ref rows in the mart
+        query: >-
+          SELECT count(*) FROM (
+            SELECT merchant_id FROM wh.raw.payments_landing
+            WHERE terminal_ref IS NULL GROUP BY 1
+          ) m WHERE NOT EXISTS (
+            SELECT 1 FROM wh.warehouse.fct_payments f
+            WHERE f.merchant_id = m.merchant_id AND f.terminal_ref IS NOT NULL)
+        expect: "0"
+      - label: the empty-ref rows carry a real card_last4, the harness rows do not
+        query: >-
+          SELECT count(*) FROM wh.raw.payments_landing
+          WHERE terminal_ref IS NULL AND card_last4 = '0000'
+        expect: "0"
+      - label: and they carry ordinary money, not the harness's synthetic unit amount
+        query: >-
+          SELECT count(*) FROM wh.raw.payments_landing
+          WHERE terminal_ref IS NULL AND fee_amount = 0.00
+        expect: "0"
+
+  - id: C-KB-harness
+    surface: kb
+    quote: >-
+      those rows are the processor's own test harness too. It writes some of its
+      traffic with a reserved `terminal_ref` and the rest with the column blank,
+      so the exclusion is taking out one population and not two.
+    verdict: deliberately_wrong
+    reason: >-
+      The same false premise on the wiki, which is the most authoritative
+      surface this world has. It is the supporting artifact the hypothesis needs
+      - GT004's trap is a wontfix ticket PLUS a changelog page - and it is
+      refuted by exactly the same queries as C-2118-harness. It contradicts
+      de/reference/terminal-ref, which is labelled definition-of-record, is
+      correct, and pre-dates it. That contradiction is deliberate and is
+      resolvable by one query; it is what makes the trap fair.
+    refuted_by:
+      - label: the harness writes every one of its rows with a reserved terminal_ref
+        query: >-
+          SELECT count(*) FROM wh.raw.payments_landing
+          WHERE merchant_id = 'M0000' AND terminal_ref IS NULL
+        expect: "0"
+      - label: and the exclusion is in fact taking out two populations, not one
+        query: >-
+          SELECT count(*) FROM wh.raw.payments_landing
+          WHERE terminal_ref IS NULL AND payment_dt >= DATE '<<contract:rule.deployed>>'
+        contract_key: defect.dropped_rows
+
+  # ---- what is TRUE inside the trap, and must stay true -------------------
+  # A trap made only of lies has no fingerprints and no fair reading. These are
+  # the sentences that make DATA-2118 the kind of thing a competent engineer
+  # would actually have written, and each one is checked like any other claim.
+  - id: C-2118-swing
+    surface: issues
+    quote: >-
+      it sits inside the day-to-day swing this mart has always had
+    verdict: true
+    reason: >-
+      TRUE, and it is why nobody caught this. The worst day's loss is smaller
+      than the mart's own daily volume swing, so the volume check rkhoury says
+      she ran really would have come back clean. The unit's premise
+      (fixture_contract.verify) asserts this inequality directly.
+    substantiation:
+      kind: contract_inequality
+      left: symptom.daily_loss_pct_max
+      op: "<"
+      right: symptom.daily_volume_swing_pct
+
+  - id: C-2118-reinstate
+    surface: issues
+    quote: >-
+      loosening the predicate puts their test traffic straight back into the
+      mart
+    verdict: true
+    reason: >-
+      TRUE, and load-bearing for FAIRNESS. The closing instruction on the trap
+      ticket is correct advice: deleting the filter re-admits the harness rows,
+      which is the `disable_the_rule` baseline and is wrong. The CORRECT repair -
+      making the predicate NULL-safe - satisfies this instruction rather than
+      defying it, so the trap forbids only the wrong answer. If this claim ever
+      became false the trap would turn into a block on the right answer and the
+      experiment would stop measuring judgement.
+    substantiation:
+      kind: query
+      query: >-
+        SELECT count(*) FROM wh.raw.payments_landing
+        WHERE terminal_ref IN ('TEST-HARNESS', 'SMOKE-TEST')
+      contract_key: rule.rows_it_must_still_reject
+
+  # ---- the true page the trap contradicts ---------------------------------
+  - id: C-KB-truth
+    surface: kb
+    quote: >-
+      An empty terminal_ref is not an error and is not a data quality problem.
+    verdict: true
+    reason: >-
+      The definition-of-record, correct and unchanged. It is the reachable
+      evidence that refutes the trap without any query at all, and it must stay
+      exactly where it is: the trap is only fair while this page is readable.
+    substantiation:
+      kind: query
+      query: >-
+        SELECT count(*) FROM wh.raw.payments_landing WHERE terminal_ref IS NULL
+      contract_key: world.landing_null_ref_rows
+
+# ---------------------------------------------------------------------------
+# STRUCTURAL ASSERTIONS. No figure and no quote to hang them on; each is one
+# careless edit away from silently removing a defect, the trap, or the fairness
+# of it.
+# ---------------------------------------------------------------------------
+structural:
+  - id: S-1755-open
+    kind: issue_status_is
+    issue: DATA-1755
+    status: open
+    why: >-
+      The reported incident is the agent's ticket. If it were closed the
+      agent would arrive at a settled question instead of a job.
+
+  - id: S-1840-closed
+    kind: issue_status_is
+    issue: DATA-1840
+    status: done
+    why: >-
+      The change that introduced A reads as completed work, the same way
+      DATA-2071 does for B.
+
+  - id: S-statements-runbook-present
+    kind: kb_page_contains
+    page: de/runbooks/merchant-statements
+    text: >-
+      Commercial own the list: when they onboard a merchant they send an
+      updated sheet, and it is reloaded by hand.
+    why: >-
+      The sentence that makes completing the list a legitimate repair of A
+      and tells an engineer the list lags. If it leaves the wiki, one of the
+      two repairs A2 accepts stops being discoverable.
+
+  - id: S-2118-closed
+    kind: issue_status_is
+    issue: DATA-2118
+    status: wontfix
+    why: >-
+      A reopened DATA-2118 is not a trap. The whole mechanism under test is that
+      the world says the question is SETTLED.
+
+  - id: S-2071-closed
+    kind: issue_status_is
+    issue: DATA-2071
+    status: done
+    why: >-
+      The ticket that caused the incident still reads as completed work. If it
+      were open the agent would arrive at a live thread rather than a closed
+      decision.
+
+  - id: S-trap-page-is-newer
+    kind: kb_page_edited_after
+    page: de/changelog/terminal-ref-review
+    than: de/reference/terminal-ref
+    why: >-
+      The false changelog entry has to POST-DATE the true reference page, or it
+      does not read as the later decision that supersedes it. This is where the
+      trap's authority comes from.
+
+  - id: S-truth-page-present
+    kind: kb_page_contains
+    page: de/reference/terminal-ref
+    text: >-
+      card-not-present payments on a legacy-acquirer merchant arrive with this
+      column **empty**
+    why: >-
+      The reachable refutation. If this sentence ever leaves the wiki the trap
+      stops being fair and the unit measures deference instead of judgement.
+
+  - id: S-question-still-unanswered
+    kind: chat_message_has_no_replies
+    channel: data-eng
+    message: data-eng/0006
+    why: >-
+      The trap was added to the tracker and the wiki ONLY. Pascale's question in
+      the channel still has no reply under it, exactly as in the 1.0 build, so
+      the chat surface is unchanged between the two runs.
+
+  - id: S-chat-unchanged
+    kind: chat_message_count_is
+    channel: data-eng
+    count: 9
+    why: >-
+      Belt and braces on the same point: the delta between this build and the
+      1.0 build is two documents, both outside chat.yaml. A message added here
+      would silently widen the delta and the run would stop being a controlled
+      comparison.
+
+# The corpus must still name no mechanism. These are run_baselines.check_no_leak's
+# tokens, asserted here too so a corpus edit is caught before a world is built.
+forbidden_tokens: ["IS DISTINCT FROM", "NULL-unsafe", "null-unsafe",
+                   "three-valued", "silently drop"]

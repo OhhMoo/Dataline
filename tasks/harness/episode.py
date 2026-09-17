@@ -14,8 +14,9 @@ import json
 import os
 import shutil
 import subprocess
-import sys
 from pathlib import Path
+
+import ledger as ledgerlib
 
 REPO = Path(__file__).resolve().parents[2]
 GATEWAY = REPO / "gateway"
@@ -115,9 +116,49 @@ def tree_manifest(root: Path) -> dict:
 # absent rather than being handed a path to nothing.
 WORLD_PLANE_KEYS = ("workflow_dir", "observability", "obs_samples", "ingest")
 
+# The same pattern for a SECOND warehouse (gateway/DUAL_WAREHOUSE_CONTRACT.md).
+# A world builder that runs one publishes `warehouses` - the list GatewayConfig
+# takes, each entry a WarehouseSpec with an ABSOLUTE `path` for a DuckDB file
+# (world.build.gateway_warehouses produces exactly this) - and may publish
+# `warehouse_name` for the primary. `initial_world_fp` is published only when a
+# declared warehouse is remote: the gateway refuses a remote warehouse without
+# one, because a hash of the local tree cannot vouch for a server, and the
+# builder is the one party that seeded it and can hash it. A builder that
+# publishes none of these changes nothing: the config it gets is the one it
+# always got, `initial_world_fp: null` included, which the gateway resolves to
+# the tree's semantic hash at boot exactly as before.
+WORLD_WAREHOUSE_KEYS = ("warehouse_name", "warehouses", "initial_world_fp")
+
 
 def _plane_paths(world: dict) -> dict:
     return {k: world[k] for k in WORLD_PLANE_KEYS if world.get(k)}
+
+
+def _warehouse_keys(world: dict) -> dict:
+    return {k: world[k] for k in WORLD_WAREHOUSE_KEYS if world.get(k)}
+
+
+def reroot_warehouses(specs, old_root, new_root) -> list:
+    """The `warehouses` list with every DuckDB `path` under `old_root` moved
+    under `new_root`, POSIX-joined. Nested inside a list, so the top-level
+    string re-rooting the probe copy and the container mount already do
+    cannot see it; a spec whose path is not under the world root (or a remote
+    spec, which has none) is passed through unchanged. Used for the probe's
+    throwaway copy on the host and for the /world mount in the container."""
+    old = Path(old_root).resolve()
+    out = []
+    for spec in specs or []:
+        spec = dict(spec)
+        path = spec.get("path")
+        if path:
+            try:
+                rel = Path(path).resolve().relative_to(old)
+            except (ValueError, OSError):
+                rel = None
+            if rel is not None:
+                spec["path"] = f"{str(new_root).rstrip('/')}/{rel.as_posix()}"
+        out.append(spec)
+    return out
 
 
 def write_gateway_config(path: Path, world: dict, audit_dir: Path,
@@ -137,6 +178,9 @@ def write_gateway_config(path: Path, world: dict, audit_dir: Path,
         "initial_world_fp": None,
         "virtual_time": virtual_time or world.get("virtual_time")
                         or "1970-01-01T00:00:00Z",
+        # after the literal null above on purpose: a world that publishes a
+        # fingerprint overrides it, a world that does not keeps it
+        **_warehouse_keys(world),
     }, indent=2), encoding="utf-8")
     return path
 
@@ -191,6 +235,12 @@ def probe_surfaces(spec, world: dict, scratch: Path,
                        else v)
                    for k, v in world.items() if isinstance(v, str)}
     probe_world["world_root"] = str(copy_root)
+    # A second DuckDB warehouse lives in the tree that was just copied, so the
+    # probe must open the copy's file and not the episode's. A remote one has
+    # no path and is probed where it is - it is the same server either way.
+    if world.get("warehouses"):
+        probe_world["warehouses"] = reroot_warehouses(
+            world["warehouses"], world["world_root"], copy_root.as_posix())
 
     audit = scratch / "probe_audit"
     cfg = write_gateway_config(scratch / "probe_gateway.json", probe_world, audit,
@@ -263,7 +313,15 @@ def probe_surfaces(spec, world: dict, scratch: Path,
 # ----------------------------------------------------------------- grading
 def grade(spec, world: dict, artifact_path: Path, out_dir: Path) -> dict:
     """Run the task's hidden grader. AFTER teardown. Never during the episode."""
+    # The publication ledger moves into the grading zone first
+    # (world/LEDGER_CONTRACT.md). The grader reads that copy and not
+    # <world_root>/var/ledger, for the same reason it reads no other evidence
+    # out of the tree the subject just worked in. A world that published
+    # nothing stages nothing and `{ledger}` substitutes to the empty string;
+    # a grader must handle a world with no publications anyway.
+    staged = ledgerlib.stage(world["world_root"], world["grading"])
     subs = {**{k: v for k, v in world.items() if isinstance(v, str)},
+            "ledger": str(staged) if staged else "",
             "artifact": str(artifact_path)}
     argv = [a.format(**subs) for a in spec.grade_argv]
     r = subprocess.run([str(PY), str(spec.grade_entrypoint), *argv],

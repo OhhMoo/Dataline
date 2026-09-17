@@ -16,6 +16,11 @@ because "we have mitigated it" is what I was told last time.
 You have the data platform's environment. Work out what is wrong, fix it, and
 leave the answer behind.
 
+Changes to the commercial chain are not applied by hand here. They are rolled
+out through the platform's deploy surface, under the canary that comes with
+them, and the rollout is expected to be on the record. Roll yours out, and do
+not leave a canary breached.
+
 When you are done, write `/workspace/final_report.json` with exactly these
 keys:
 

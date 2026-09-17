@@ -19,14 +19,17 @@ Contract with the harness (stdout, one json object):
     {"world_root", "workspace", "warehouse", "scheduler", "dashboards",
      "profiles_dir", "grading", "virtual_time", "seed", "workflow_dir"}
 
-`workflow_dir` is not optional decoration. episode.py:WORLD_PLANE_KEYS passes it
-into the gateway config, and GatewayConfig's default is the ABSOLUTE
-`/var/workflow`, which resolves outside any world tree: a config that does not
-name it makes issues_*/chat_*/kb_* answer `no_issue_tracker` no matter what is
+`workflow_dir`, `observability` and `obs_samples` are not optional decoration.
+episode.py:WORLD_PLANE_KEYS passes them into the gateway config, and
+GatewayConfig's defaults are the ABSOLUTE `/var/workflow` and
+`/var/obs/observability.yml`, which resolve outside any world tree: a config
+that does not name them makes issues_*/chat_*/kb_* answer `no_issue_tracker`
+and metrics_*/alarms_*/deploy_* answer `no_observability` no matter what is
 seeded. That is exactly how GT004's first five Opus rollouts were scored in a
-half-absent world. `observability` and `ingest` are deliberately NOT published:
-this world seeds neither, they are declared `dead_by_design` in task.toml with
-reasons, and handing the gateway a path to nothing is worse than saying so.
+half-absent world, and here it would not degrade the DEPLOY axis, it would
+delete it. `ingest` is still deliberately NOT published: this world seeds no
+connector plane, it is declared `dead_by_design` in task.toml with a reason,
+and handing the gateway a path to nothing is worse than saying so.
 """
 from __future__ import annotations
 
@@ -69,7 +72,14 @@ def prepare(seed: int) -> None:
     K rollouts racing to generate the same fixture is how a stale generator
     overwrites a validated reference while every verdict still prints PASS.
     """
-    if not (BUILD / "world.duckdb").is_file():
+    # Regenerate when ANY part of the built fixture is absent, not just the
+    # warehouse. A build made before the observability plane existed has a
+    # world.duckdb and no obs/, and the "skip if the warehouse is there" test
+    # alone would hand verify() a fixture it must refuse - a confusing failure
+    # for a condition the generator can simply fix.
+    needed = (BUILD / "world.duckdb", BUILD / "obs" / "definitions.yaml",
+              BUILD / "workflow" / "issues.yaml")
+    if not all(path.is_file() for path in needed):
         mfw.main(["--out", str(BUILD), "--seed", str(seed)])
     verify(BUILD, quiet=True)
 
@@ -152,6 +162,14 @@ def build(root: Path, grading: Path, seed: int) -> dict:
         "grading": str(grading),
         "virtual_time": VIRTUAL_TIME,
         "seed": seed,
+        # The observability plane. Same reason as workflow_dir: GatewayConfig's
+        # default is the ABSOLUTE /var/obs/observability.yml, so a manifest that
+        # does not name it makes metrics_*/alarms_*/deploy_* answer
+        # `no_observability` no matter what var/obs holds. The DEPLOY axis is
+        # graded off this surface, so an unnamed path would not degrade the
+        # measurement, it would delete it.
+        "observability": staged["observability"],
+        "obs_samples": staged["obs_samples"],
         # The one plane GatewayConfig would otherwise resolve to an absolute
         # path outside this world. See the module docstring.
         "workflow_dir": str(root / "var" / "workflow"),

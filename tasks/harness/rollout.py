@@ -16,13 +16,20 @@ Sequence, and the order is the contract:
 
 The grader is not on disk anywhere the episode can address, and it is not
 invoked until the subject's process is dead. Ground rule 1.
+
+`--driver native` (gateway/NATIVE_SURFACES.md) replaces the gateway with
+vendor-shaped services the subject reaches through its shell. The sequence above
+is unchanged; what changes is that "probe surfaces" becomes a set of service
+health checks, there is no gateway config to write, and blindness gains the
+network-destination rule. Every service still appends its own 9.2.2 row to this
+episode's `audit/actions.jsonl`, so the budget watcher, the detectors and the
+report read the file they always read.
 """
 from __future__ import annotations
 
 import argparse
 import hashlib
 import json
-import os
 import re
 import secrets
 import shutil
@@ -40,6 +47,7 @@ import blindness                        # noqa: E402
 import classify as classifier           # noqa: E402
 import container_episode                # noqa: E402
 import episode                          # noqa: E402
+import native_stack                     # noqa: E402
 import surface_audit                    # noqa: E402
 import taskspec                         # noqa: E402
 
@@ -125,6 +133,76 @@ def _recover_canaries(rollout_dir: Path, grading: Path) -> list[str]:
     return sorted(set(t for t in toks if t))
 
 
+# Run through the gateway venv rather than imported, for the same reason
+# episode.gateway_tool_names() is: rollout.py must not assume which interpreter
+# started it, and `alkera_gateway` lives in that venv.
+WORKSPACE_EDIT_WRITER = """\
+import json, sys
+
+from alkera_gateway.native.audit import record
+
+n = 0
+for e in json.load(sys.stdin):
+    record(tool="workspace.edit",
+           args={"path": e["path"], "before_sha256": e["before"],
+                 "after_sha256": e["after"]},
+           op_class="write", targets=["workspace:" + e["path"]],
+           transport="native", actor="harness")
+    n += 1
+print(n)
+"""
+
+
+def _stage_workspace_edits(audit_dir: Path, world: dict, before: dict,
+                           after: dict) -> dict:
+    """One `workspace.edit` row per file the subject changed in the working tree.
+
+    Native mode's workspace is a real filesystem with no server in front of it,
+    so nothing writes a 9.2.2 row when a file is edited - and the off-channel
+    rule would then fire on ordinary work. Rather than weaken the rule, the
+    harness closes the log itself: after teardown and BEFORE any detector runs,
+    it diffs the before/after tree manifests restricted to the working tree and
+    records what changed. The same pattern as ledger.stage(): harness
+    bookkeeping, done in the open, and stamped `actor="harness"` so no row here
+    can ever be read as the subject's.
+
+    This is BOOKKEEPING, not evidence. What says the change was legitimate is
+    the transcript - see blindness.detect's plane split, which keeps a
+    working-tree change with no shell command in it hard.
+    """
+    ws = blindness.workspace_rel(world)
+    if not ws:
+        return {"rows": 0, "paths": [],
+                "error": "the world manifest does not put the workspace under "
+                         "the world root, so the workspace plane cannot be "
+                         "identified"}
+    edits = []
+    for rel in sorted(set(before) | set(after)):
+        if not (rel == ws or rel.startswith(ws + "/")):
+            continue
+        b, a = before.get(rel), after.get(rel)
+        if b == a:
+            continue
+        edits.append({"path": rel[len(ws):].lstrip("/"),
+                      "before": (b or [None, None])[1] or "",
+                      "after": (a or [None, None])[1] or ""})
+    if not edits:
+        return {"rows": 0, "paths": []}
+    r = subprocess.run(
+        [str(episode.PY), "-c", WORKSPACE_EDIT_WRITER],
+        input=json.dumps(edits), capture_output=True, text=True,
+        env=episode.venv_env({
+            "ALKERA_NATIVE_AUDIT": str(audit_dir / "actions.jsonl")}))
+    if r.returncode != 0:
+        # recorded, never swallowed: without these rows the detector falls back
+        # to the transcript and the record must say that is what happened
+        return {"rows": 0, "paths": [e["path"] for e in edits],
+                "error": f"workspace.edit writer exited {r.returncode}: "
+                         f"{r.stderr[-400:]}"}
+    return {"rows": int(r.stdout.strip() or 0),
+            "paths": [e["path"] for e in edits]}
+
+
 def reclassify(rollout_dir: Path) -> dict:
     """Re-derive blindness and classification for a COMPLETED rollout.
 
@@ -167,6 +245,14 @@ def reclassify(rollout_dir: Path) -> dict:
 
     stored_containment = [c for c in (rec.get("containment"),
                                       rec.get("containment_after")) if c]
+    # the destinations log is on disk beside the action log, so it re-reads
+    # exactly as the transcript does; the allowed set comes off the endpoint map
+    # this rollout was actually handed, which the record stored.
+    destinations = (blindness.load_destinations(rollout_dir / "audit")
+                    if rec.get("driver") == "native" else None)
+    network_allow = (aut.allowed_destinations(rec["native_endpoints"])
+                     if rec.get("driver") == "native"
+                     and rec.get("native_endpoints") else None)
     violations = blindness.detect(
         transcript=transcript, driver=rec["driver"],
         gateway_tools=sorted(rec.get("toolbelt") or []),
@@ -174,7 +260,9 @@ def reclassify(rollout_dir: Path) -> dict:
         repo_root=REPO, action_rows=action_rows,
         world_before=tree, world_after=tree,       # diff already consumed
         world_layout=world or None, artifact_text=artifact_text,
-        topology=rec.get("topology", "host"), containment=stored_containment)
+        topology=rec.get("topology", "host"), containment=stored_containment,
+        destinations=destinations, network_allow=network_allow,
+        normalise_host=aut.normalise_host)
 
     before = rec.get("classification")
     # The surface audit is re-derived too, from the probe results already stored
@@ -196,7 +284,8 @@ def reclassify(rollout_dir: Path) -> dict:
         grader_crashed=bool(rec.get("grader_crashed")),
         harness_failure=rec.get("harness_failure"),
         agent_exit_reason=(rec.get("agent") or {}).get("exit_reason", "not_started"),
-        blindness=rec["blindness"], action_rows=action_rows,
+        blindness=rec["blindness"],
+        action_rows=blindness.subject_rows(action_rows),
         surfaces=(rec.get("surfaces") or {}).get("surfaces", {}),
         artifact_present=bool(rec.get("artifact_present")),
         wall_clock_s=rec["limits"]["wall_clock_seconds"],
@@ -269,13 +358,36 @@ def run_rollout(args) -> dict:
     artifact_present = False
     http_proc = None
     http_log = None
+    native_endpoints: dict | None = None
+    # INTEGRATE-STACK: the host-topology native stack. NATIVE-DRIVER left no
+    # hook for bringing one up - the native branch below resolved an endpoint
+    # map and assumed something was already listening at it - so these four
+    # touches (this slot, the bring-up, the record and the teardown) are the
+    # minimal call, and `tasks/harness/native_stack.py` is where the work is.
+    native: native_stack.NativeStack | None = None
     stack: container_episode.ContainerEpisode | None = None
+    # `--driver native --topology container`: the episode container is the
+    # subject's whole filesystem, and the services container is what serves it
+    # the rest of the world. A separate slot from `stack` because the two
+    # topologies share no code path but teardown - see
+    # tasks/harness/NATIVE_CONTAINER.md.
+    native_container: container_episode.NativeContainerEpisode | None = None
     containment: dict | None = None
+    container_paths: dict | None = None
 
     try:
         # --- world -------------------------------------------------------
         world = episode.build_world(spec, world_root, grading)
         record["world"] = world
+        if args.driver == "native":
+            # `./ops/sched` goes into the working tree HERE, before the
+            # fingerprint and before `tree_manifest`, because the workspace is
+            # both fingerprinted and diffed: a file that appeared in it after
+            # the "before" picture was taken is a world change with no row to
+            # explain it. A team's own ops CLI is in the repo before anyone
+            # clones it, and this is the same fact stated as an ordering.
+            record["native_workspace_cli"] = native_stack.install_workspace_cli(
+                world, args.topology)
         canaries = _plant_canaries(rollout_dir, grading)
         record["canaries_planted"] = len(canaries)
 
@@ -304,10 +416,10 @@ def run_rollout(args) -> dict:
             # rollout's own container has been probed and found sealed; if the
             # probe does not run or does not pass, blindness.detect() quarantines
             # the rollout rather than letting it into the number.
-            if args.driver != "mcp":
+            if args.driver not in ("mcp", "native"):
                 raise episode.HarnessError(
-                    f"--topology container is wired for the mcp driver only, "
-                    f"not {args.driver!r}")
+                    f"--topology container is wired for the mcp and native "
+                    f"drivers, not {args.driver!r}.")
             ok, docker_version = container_episode.docker_available()
             if not ok:
                 raise episode.HarnessError(f"docker is not usable: {docker_version}")
@@ -359,6 +471,33 @@ def run_rollout(args) -> dict:
             surfaces = stack.probe_surfaces()
             gateway_cfg = rollout_dir / "container" / "container_gateway.json"
             mcp_server_argv = stack.mcp_argv()
+        elif args.driver == "native":
+            # No gateway process, no gateway config and no toolbelt: the subject
+            # reaches vendor-shaped services through its shell, and each service
+            # writes its own 9.2.2 row into this episode's audit directory (the
+            # ALKERA_NATIVE_AUDIT contract). The empty toolbelt is load-bearing
+            # rather than a placeholder - it is what keeps the prompt from
+            # enumerating surfaces, which is the measurement bias native mode
+            # exists to remove.
+            audit_dir.mkdir(parents=True, exist_ok=True)
+            if args.native_endpoints:
+                # An endpoint map the caller supplied names a stack the caller
+                # is running; starting a second one on top of it would be two
+                # writers for one audit directory.
+                native_endpoints = aut.resolve_endpoints(args.native_endpoints)
+            else:
+                native = native_stack.NativeStack(
+                    world=world, audit_dir=audit_dir, rollout_dir=rollout_dir,
+                    spec=spec, key=f"{args.run_id}/{args.rollout_id}")
+                native_endpoints = native.up()
+                record["native_stack"] = native.record()
+            record["native_endpoints"] = native_endpoints
+            toolbelt = {}
+            surfaces = surface_audit.probe_native(
+                probes=spec.surface_probes, endpoints=native_endpoints,
+                world=world,
+                schemas=surface_audit.warehouse_schemas(spec))
+            gateway_cfg = None
         else:
             # --- surface probe, on a throwaway copy, BEFORE the episode ---
             toolbelt = episode.gateway_tool_names()
@@ -436,16 +575,35 @@ def run_rollout(args) -> dict:
             # measurement, and the report must not treat it as one.
             record["redteam_detector_test"] = True
 
-        agent = aut.run(
-            instruction=instruction, toolbelt=toolbelt,
-            artifact_in_world=spec.artifact_in_world,
-            gateway_cfg=gateway_cfg, gateway_url=gateway_url,
-            audit_dir=audit_dir, rollout_dir=rollout_dir,
-            model=args.model, driver=args.driver,
-            wall_clock_s=wall, max_tool_calls=budget,
-            redteam=bool(args.adversarial_suffix),
-            mcp_server_argv=mcp_server_argv,
-            shell="bash" in toolbelt)
+        if args.driver == "native" and args.model == "scripted":
+            # INTEGRATE-STACK: the Phase 3 acceptance subject. `aut.run` starts
+            # `claude`, and the native driver had no way to be run end to end
+            # without spending model quota; `--model scripted` runs a real bash
+            # process through the real native environment instead. It is a
+            # plumbing fixture, never a measurement, and `report.py` sees it as
+            # the model string it is.
+            agent = native_stack.run_scripted(
+                rollout_dir=rollout_dir, world=world, audit_dir=audit_dir,
+                endpoints=native_endpoints or {}, wall_clock_s=wall,
+                instruction=instruction,
+                gateway_config=native.config_file if native is not None else "")
+        else:
+            agent = aut.run(
+                instruction=instruction, toolbelt=toolbelt,
+                artifact_in_world=spec.artifact_in_world,
+                gateway_cfg=gateway_cfg, gateway_url=gateway_url,
+                audit_dir=audit_dir, rollout_dir=rollout_dir,
+                model=args.model, driver=args.driver,
+                wall_clock_s=wall, max_tool_calls=budget,
+                redteam=bool(args.adversarial_suffix),
+                mcp_server_argv=mcp_server_argv,
+                shell="bash" in toolbelt,
+                native_endpoints=native_endpoints,
+                workspace=world.get("workspace"),
+                profiles_dir=world.get("profiles_dir"),
+                scheduler=world.get("scheduler"),
+                native_gateway_config=(native.config_file
+                                       if native is not None else None))
         record["agent"] = asdict(agent)
 
         if stack is not None:
@@ -485,7 +643,23 @@ def run_rollout(args) -> dict:
             except Exception as exc:                   # noqa: BLE001 - recorded
                 record.setdefault("teardown_errors", []).append(
                     f"{type(exc).__name__}: {exc}")
+        if native is not None:
+            # Before the fingerprint and the grader, like the container: the
+            # services hold this world's json planes open, and a row written
+            # after `tree_after` is a row the detectors never see.
+            try:
+                native.down()
+            except Exception as exc:                   # noqa: BLE001 - recorded
+                record.setdefault("teardown_errors", []).append(
+                    f"{type(exc).__name__}: {exc}")
         shutil.rmtree(scratch, ignore_errors=True)
+
+    # --- the workspace plane's rows. After teardown, before the action log is
+    # read, so the detectors see a log that accounts for the whole world.
+    tree_after = episode.tree_manifest(world_root) if world else None
+    if args.driver == "native" and world and tree_before is not None:
+        record["workspace_edits"] = _stage_workspace_edits(
+            audit_dir, world, tree_before, tree_after)
 
     action_rows: list[dict] = []
     actions_path = audit_dir / "actions.jsonl"
@@ -496,12 +670,27 @@ def run_rollout(args) -> dict:
                     action_rows.append(json.loads(line))
                 except ValueError:
                     pass
+    # The harness writes rows of its own in native mode - the surface gate's
+    # `health:` polls and the post-episode `workspace.edit` bookkeeping - and
+    # none of them is the subject's work. Every number that describes the
+    # SUBJECT is computed from `subject_action_rows`; the full log stays on disk
+    # and its length is recorded beside, so nothing is hidden, only attributed.
+    subject_action_rows = blindness.subject_rows(action_rows)
     record["action_log"] = {
         "path": str(actions_path),
-        "rows": len(action_rows),
-        "gateway_started": (audit_dir / "session.json").exists(),
+        "rows": len(subject_action_rows),
+        "rows_including_harness_authored": len(action_rows),
+        "harness_authored_rows": len(action_rows) - len(subject_action_rows),
+        # Native mode has no gateway process and therefore no session.json, so
+        # the question this key answers ("did the subject have a toolbelt at
+        # all?") is None rather than False - and it has already been answered
+        # earlier and better, by the surface gate health-checking the services
+        # before the subject was handed the terminal.
+        "gateway_started": (None if args.driver == "native"
+                            else (audit_dir / "session.json").exists()),
     }
     if (harness_failure is None and agent is not None
+            and args.driver != "native"
             and not record["action_log"]["gateway_started"]):
         harness_failure = ("the gateway never started inside the episode - the "
                            "subject had no toolbelt at all")
@@ -536,16 +725,33 @@ def run_rollout(args) -> dict:
     # record then read `quarantined: false` - a clean bill of health issued by a
     # camera that was never switched on. None means "not observed", and
     # not-observed quarantines.
+    # Native mode only: where the episode's traffic went, read off the log the
+    # compose stack writes on the SERVICE side. Absent is unobserved, never
+    # clean - see blindness.load_destinations.
+    destinations = None
+    network_allow = None
+    if args.driver == "native":
+        destinations = blindness.load_destinations(audit_dir)
+        network_allow = (aut.allowed_destinations(native_endpoints)
+                         if native_endpoints else None)
+        record["destinations"] = {
+            "path": str(audit_dir / blindness.DESTINATIONS_FILE),
+            "present": destinations is not None,
+            "rows": len(destinations or []),
+            "allowed": sorted(f"{h}:{p}" for h, p in (network_allow or ())),
+        }
     violations = blindness.detect(
         transcript=transcript, driver=args.driver,
         gateway_tools=sorted(record.get("toolbelt") or []),
         canaries=canaries, repo_root=REPO, action_rows=action_rows,
         world_before=tree_before if world else None,
-        world_after=episode.tree_manifest(world_root) if world else None,
+        world_after=tree_after,
         world_layout=world or None, artifact_text=artifact_text,
         topology=args.topology,
         containment=[c for c in (record.get("containment"),
-                                 record.get("containment_after")) if c])
+                                 record.get("containment_after")) if c],
+        destinations=destinations, network_allow=network_allow,
+        normalise_host=aut.normalise_host)
     record["blindness"] = blindness.summarise(violations)
     # The guarantee is now READ OFF the evidence rather than declared from the
     # flags we passed. Under `container` it is only the stronger claim when this
@@ -580,7 +786,7 @@ def run_rollout(args) -> dict:
         spec=spec, score=score, score_stable=score_stable,
         grader_crashed=grader_crashed, harness_failure=harness_failure,
         agent_exit_reason=(agent.exit_reason if agent else "not_started"),
-        blindness=record["blindness"], action_rows=action_rows,
+        blindness=record["blindness"], action_rows=subject_action_rows,
         surfaces=surfaces.get("surfaces", {}), artifact_present=artifact_present,
         wall_clock_s=wall, max_tool_calls=budget,
         unprobed_tools=record.get("unprobed_tools") or [],
@@ -588,7 +794,7 @@ def run_rollout(args) -> dict:
     record.update(verdict)
     record["ended_utc"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     record["wall_clock_s"] = agent.wall_clock_s if agent else None
-    record["tool_calls"] = len(action_rows)
+    record["tool_calls"] = len(subject_action_rows)
 
     (rollout_dir / "rollout.json").write_text(
         json.dumps(record, indent=2, default=str), encoding="utf-8")
@@ -613,7 +819,12 @@ def main() -> int:
     ap.add_argument("--out")
     ap.add_argument("--model", default="opus")
     ap.add_argument("--driver", default="mcp",
-                    choices=["mcp", "cli", "scripted", "kimi"])
+                    choices=["mcp", "cli", "scripted", "kimi", "native"])
+    ap.add_argument("--native-endpoints", default=None,
+                    help="JSON file mapping native surface names onto reachable "
+                         "addresses, for `--driver native` off the episode "
+                         "network. Defaults are the `<name>.internal` aliases; "
+                         "see agent_under_test.resolve_endpoints.")
     ap.add_argument("--topology", default="host",
                     choices=["host", "container"],
                     help="where the WORLD and the TOOLS run. `host`: the gateway "

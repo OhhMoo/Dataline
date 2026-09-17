@@ -73,8 +73,17 @@ import yaml
 
 HERE = Path(__file__).resolve().parent
 TASK = HERE.parent
-FIXTURES = TASK / "fixtures"
 REPO = TASK.parent.parent
+
+sys.path.insert(0, str(TASK.parent / "harness"))
+import taskspec                                                    # noqa: E402
+
+# The seeded human context IS the thing GT004's variants ablate, so the corpus
+# this module stages has to come from the arm's fixtures tree, not from the
+# package's. Resolved the same way build_world.py resolves it - one env var,
+# read independently in each process - so the two cannot be handed different
+# trees by a caller that set one and forgot the other.
+FIXTURES = taskspec.fixtures_dir(TASK)
 
 # var/obs/definitions.yaml, not observability.yml: OBS_STORE_CONTRACT.md names
 # it, every theme ships it under that name, and the gateway falls back to it
