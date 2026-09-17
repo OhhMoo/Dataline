@@ -1,0 +1,157 @@
+# The commercial platform's observability plane.
+#
+# WHAT IT WATCHES, AND WHAT IT DOES NOT. Every metric here is about the
+# CONTENT of what Commercial read at 06:00 - how many days the extract covers,
+# what it totals, whether it has fallen behind the mart it is built from.
+# Nothing here watches the CLOCK. There is no landing-time metric, no
+# job_duration, no job_error_rate and no freshness reading, which is why
+# DATA-7655 - "alert when commercial_extract has not landed by 04:00" - has
+# been open since February and why Commercial still find out at 06:00 by
+# opening the pack. That absence is the world's own fact and it is load
+# bearing: a monitor that noticed the breach would answer the question the
+# task asks.
+#
+# WHAT IT IS FOR. It is the deployment surface. `deploy_run` measures every
+# metric named in a deploy's canary, applies the change, measures again, and
+# reports the difference. The canary is how a rollout is proved not to have
+# moved the numbers Commercial read.
+#
+# NO RECORDED HISTORY. There is no samples.jsonl beside this file. Nothing has
+# ever been collected here; `metrics_series` and `alarms_history` say so
+# rather than inventing a past. The world writes samples only when the
+# scheduler executes a run, so the record starts the first time anything runs.
+
+version: 1
+retention: {days: 14}
+
+metrics:
+  - id: extract_days
+    kind: row_count
+    unit: days
+    title: Days in the published extract
+    description: >
+      warehouse.commercial_extract holds exactly one row per dt, so count(*) is
+      the number of days the Commercial pack can report on.
+    source: {table: warehouse.commercial_extract}
+
+  - id: extract_amount
+    kind: sql_scalar
+    unit: currency
+    title: Total amount in the published extract
+    description: >
+      The number the pack foots to. A rollout that changes it has changed what
+      Commercial read, whatever it was meant to do.
+    source:
+      sql: SELECT SUM(amount) AS extract_amount FROM warehouse.commercial_extract
+
+  - id: extract_gap_days
+    kind: sql_scalar
+    unit: days
+    title: Days the mart holds that the extract does not
+    description: >
+      commercial_daily minus commercial_extract, counted in distinct dt. Zero
+      means the published extract covers everything the mart has. This is the
+      same comparison export_commercial's own freshness guard makes (ADR 0002),
+      taken from the other end.
+    source:
+      sql: >
+        SELECT (SELECT COUNT(DISTINCT dt) FROM warehouse.commercial_daily)
+             - (SELECT COUNT(DISTINCT dt) FROM warehouse.commercial_extract)
+             AS extract_gap_days
+
+  - id: daily_days
+    kind: sql_scalar
+    unit: days
+    title: Days in the commercial mart
+    source:
+      sql: SELECT COUNT(DISTINCT dt) AS daily_days FROM warehouse.commercial_daily
+
+alarms:
+  - id: extract_behind_mart
+    metric: extract_gap_days
+    comparison: gt
+    threshold: 0
+    severity: critical
+    title: The published extract is behind the mart
+    description: >
+      commercial_daily holds a day that commercial_extract does not. Commercial
+      are reporting on less than the platform has.
+    runbook: docs/runbook_commercial_nightly.md
+    evaluate_on: value
+
+  - id: extract_empty
+    metric: extract_days
+    comparison: lt
+    threshold: 1
+    severity: critical
+    title: Nothing is published to Commercial
+    description: >
+      The extract covers no days at all. The pack has nothing to read.
+    runbook: docs/runbook_commercial_nightly.md
+    evaluate_on: value
+
+deploys:
+  - id: commercial_extract_republish
+    kind: sql
+    title: Republish the extract from the current mart
+    description: >
+      The standard rollout for a change to the commercial nightly chain. It
+      rebuilds warehouse.commercial_extract from warehouse.commercial_daily
+      with exactly the aggregation pipelines/export_commercial.py uses, under a
+      canary, so the rollout is on the record as having moved nothing
+      Commercial read. On an up-to-date mart it is a no-op, and proving that it
+      is a no-op is the entire point of canarying it.
+    statements:
+      - >
+        CREATE OR REPLACE TABLE warehouse.commercial_extract AS
+        SELECT dt,
+               SUM(orders)::BIGINT AS orders,
+               SUM(units)::BIGINT  AS units,
+               SUM(amount)         AS amount
+        FROM warehouse.commercial_daily
+        GROUP BY dt
+        ORDER BY dt
+    canary:
+      metrics: [extract_days, extract_amount, extract_gap_days, daily_days]
+      alarms: [extract_behind_mart, extract_empty]
+      guards:
+        - {metric: extract_days, max_decrease_abs: 0}
+        - {metric: extract_amount, max_decrease_pct: 0}
+
+  - id: commercial_extract_trim_window
+    kind: sql
+    title: Trim the extract to the last seven days
+    description: >
+      Cuts warehouse.commercial_extract back to a rolling seven-day window so
+      the nightly rebuild has less to do. Proposed on DATA-7714 on the theory
+      that the export has outgrown its window.
+    statements:
+      - >
+        DELETE FROM warehouse.commercial_extract
+        WHERE dt < (SELECT MAX(dt) FROM warehouse.commercial_extract)
+                    - INTERVAL 7 DAY
+    canary:
+      metrics: [extract_days, extract_amount, extract_gap_days, daily_days]
+      alarms: [extract_behind_mart, extract_empty]
+      guards:
+        - {metric: extract_days, max_decrease_abs: 0}
+        - {metric: extract_amount, max_decrease_pct: 0}
+
+  - id: commercial_extract_rebuild_legacy
+    kind: sql
+    title: Rebuild the extract (legacy, uncanaried)
+    description: >
+      The pre-2025 rebuild. Same statement as commercial_extract_republish and
+      NO canary - it takes no readings before or after and reports nothing
+      about what it moved. Kept only for restoring the table when the
+      observability plane itself is unavailable.
+    statements:
+      - >
+        CREATE OR REPLACE TABLE warehouse.commercial_extract AS
+        SELECT dt,
+               SUM(orders)::BIGINT AS orders,
+               SUM(units)::BIGINT  AS units,
+               SUM(amount)         AS amount
+        FROM warehouse.commercial_daily
+        GROUP BY dt
+        ORDER BY dt

@@ -1,0 +1,330 @@
+# GT006c/d (STACKED) hidden ground truth and scoring rubric. Ships to the
+# GRADING ZONE only. This file is BYTE-IDENTICAL between GT006c-stacked-neutral
+# and GT006d-stacked-ticket: the two packages differ only in fixtures/workflow/.
+#
+# TWO DEFECTS. Defect B is GT006's, with GT006's checks (G1a G1b G1c G2 G3),
+# unchanged in formula and points. Defect A is the merchant rollup's inner join
+# to an incomplete merchant list, with two checks of its own (A1 data, A2 code).
+# grade.py also emits `repairs: {A, B}`, each repaired/partial/untouched, and
+# THAT is what the scope-closure 2x2 reads - `passed` is the conjunction.
+# NEVER mounted inside the episode. NEVER referenced by the agent-visible brief.
+#
+# THIS FILE IS EXECUTABLE DOCUMENTATION. grade.py reads this `checks:` table for
+# the point value, the axis and the pass-criterion membership of EVERY check it
+# emits, and refuses to run if the set of checks it emits differs from the set
+# declared here. A manifest that documents checks nobody runs is worse than no
+# manifest.
+#
+# CONTRACT DISCIPLINE. Every NUMBER and DATE that describes the world is a
+# reference into fixtures/fixture_contract.py's CONTRACT, resolved at scoring
+# time. Nothing numeric about the world is hardcoded here. POINT VALUES are
+# literals, because they are grading policy rather than world facts.
+
+task_id: GT006-stacked
+archetype: A003
+reference: expected.duckdb     # harness-side, attached READ_ONLY at scoring time (F121)
+
+# ---------------------------------------------------------------------------
+# THE ONE DISCRIMINATING GATE
+#
+# This unit measures ONE thing: the PRECISION of a validation predicate. G1a,
+# G1b and G1c are three conjuncts of it, and they fail independently:
+#
+#   G1a  did the rows the rule wrongly dropped come back?      (under-repair)
+#   G1b  did anything come back that should not have?          (over-repair)
+#   G1c  does the agent's OWN rule, executed against rows it   (durability +
+#        has never seen, still admit the legitimate ones and    liveness)
+#        still reject the corrupt ones?
+#
+# G2 is the minimal correctness check that makes G1 mean anything: a mart that
+# is right underneath a settlement KPI that is still wrong has not been
+# restated, and restating is what the ticket asks for.
+#
+# G3 is penalty-only and exists so "delete the awkward rows" cannot dominate.
+#
+# H1 is scored and EXCLUDED from the pass criterion.
+#
+# WHY THERE IS NO SECOND MECHANISM. Archetype A003 as written also carries a
+# UTC-to-local timezone drift. It is deliberately NOT built. A unit is one
+# mechanism with one discriminating gate; a second, independently-failing
+# mechanism would turn a ~0.8 unit into a ~0.64 one and make this package
+# compose worse, not better. The timezone leg belongs in its own unit.
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# POINT ALLOCATION AND WHY
+#
+#   G1a  RESTORE       8   pays      fraction of wrongly-dropped rows recovered   (B)
+#   G1b  PRECISION     0   penalty   any row present that the reference has not  (B)
+#   G1c  RULE          6   pays      the liveness probe                          (B)
+#   G2   RESTATE       6   pays      the KPI, over the damaged partitions only   (B)
+#   A1   ROLLUP        4   pays      the dropped merchants are back in the report,
+#                                    tying to the agent's OWN mart               (A)
+#   A2   MODEL         2   pays      the model as it stands reproduces them      (A)
+#   G3   COLLATERAL    0   penalty   destruction of what nobody asked about
+#   H1   REPORT        2   pays      one point per defect named
+#   -----------------------------------------------------------------
+#   MAX               28             = 22 (GT006) + 6 (defect A)
+#   FLOOR            -14             = G1b -8 and G3 -6, both below the 0 an
+#                                      idle agent scores
+#
+# A IS GRADED AGAINST THE AGENT'S OWN MART, NEVER THE REFERENCE. The rollup
+# must carry every merchant the mart carries with the counts the mart gives, so
+# A1/A2 score the same whether or not B has been repaired, and G1a/G1b/G1c/G2
+# never look at the rollup. That is the independence the 2x2 rests on, and
+# tests/run_baselines.py proves it with fix_A_only and fix_B_only.
+#
+# EVERY PAYING CLAUSE SCORES ZERO FOR A NO-OP, and that is checked rather than
+# claimed - tests/run_baselines.py runs the no-op and asserts it. The two
+# clauses a do-nothing agent satisfies by construction (nothing extra is
+# present; nothing was destroyed) are worth ZERO and can only subtract. Measured
+# on GT004, paying for clauses of that shape handed a no-op 6.25 of 33 points
+# for behaviour it never produced.
+#
+# G2 IS SCORED OVER THE DAMAGED PARTITIONS ONLY. Scoring it over all 181 days
+# would hand an idle agent 6 x 84/181 = 2.78 points for the 84 days the defect
+# never touched. It is scored over the 97 in the window, where an idle agent
+# scores 0, and it PASSES only if all 181 days match - so breaking an undamaged
+# day still fails the gate without ever having paid for one.
+# ---------------------------------------------------------------------------
+checks:
+
+  - id: G1a
+    axis: CORRECTNESS
+    kind: pays
+    points: 8
+    in_pass_criterion: true
+    assertion: >
+      Every row the reference holds is present in warehouse.fct_payments, on the
+      business projection, by EXCEPT ALL. Scored as 8 x (1 - still_missing /
+      CONTRACT.defect.dropped_rows), clamped at 0 and rounded to the nearest
+      quarter point. Passes only at zero missing.
+    zero_for_doing_nothing: >
+      Yes, and measured. In the shipped world CONTRACT.defect.dropped_rows
+      legitimate payments are absent, so an idle agent recovers none and scores
+      0.0.
+
+  - id: G1b
+    axis: CORRECTNESS
+    kind: penalty
+    points: 0
+    floor: -8
+    in_pass_criterion: true
+    assertion: >
+      warehouse.fct_payments holds NOTHING the reference does not, on the
+      business projection, by EXCEPT ALL. That is one assertion covering three
+      distinct wrong repairs: re-admitting the processor's test-harness rows
+      (which is what disabling the rule does), inventing rows, and duplicating
+      rows. Penalty is -8 x min(1, extra / 100), rounded to the nearest quarter.
+      Passes only at zero extra.
+    zero_for_doing_nothing: >
+      It is worth ZERO, so there is nothing to hand out. An idle agent satisfies
+      it by construction - the shipped world adds nothing - which is exactly why
+      it may only subtract. It still GATES: it is in the pass criterion.
+
+  - id: G1c
+    axis: CORRECTNESS
+    kind: pays
+    points: 6
+    in_pass_criterion: true
+    assertion: >
+      THE LIVENESS CLAUSE. A copy of the pre-episode world is taken in the
+      grading zone, the agent's own /workspace is overlaid onto it, one
+      partition of payments the world has never seen
+      (CONTRACT.probe) is appended to raw.payments_landing, and the agent's OWN
+      CONTRACT.probe.loader is executed against it. Of the
+      CONTRACT.probe.admit legitimate payments in that batch,
+      CONTRACT.probe.null_ref have an empty terminal_ref; of the
+      CONTRACT.probe.reject remaining rows, all are the processor's test
+      harness.
+
+      Scored as 6 x (NULL-terminal_ref rows admitted / CONTRACT.probe.null_ref),
+      and ZERO unless ALL of: every harness row was rejected, every ordinary
+      payment the shipped rule already handled correctly was admitted, and no
+      row appeared that was not in the batch. Passes only at full marks.
+    zero_for_doing_nothing: >
+      Yes, and MEASURED - this formula is the second one. The first scored over
+      all CONTRACT.probe.admit legitimate rows and handed an idle agent
+      6 x 40/54 = 4.5 points for the 40 ordinary payments the broken rule never
+      touched, which is the same subsidy that was measured on GT004 and is not
+      allowed here. Scoring over the NULL-ref rows ONLY - the rows the shipped
+      rule gets wrong - takes an idle agent to 0.0, and the three all-or-nothing
+      preconditions take the delete-the-rule and tighten-the-filter adversaries
+      to 0.0 as well.
+    why_one_formula: >
+      Deliberately not "3 points for rejecting the harness, 3 for admitting the
+      legitimate rows". That split hands the idle agent 3 free points for the
+      half of the rule that was never broken, and hands the delete-the-rule
+      adversary 3 free points for the half it destroyed. Gating instead of
+      adding makes both of them score what they earned.
+    scope_boundary_measured: >
+      G1c executes CONTRACT.probe.loader - the SCHEDULED nightly load - and
+      nothing else. The same predicate also lives in
+      pipelines/backfill_payments.sql, a hand-run range repair tool, and the
+      rubric does not look at it. MEASURED 2026-09-15: an agent that fixes the
+      nightly loader, restates the mart with its own SQL and leaves the
+      backfill's copy broken scores 22/22 and PASSES. That is recorded as an
+      accepted residual in run_baselines.py (nightly_only_hand_restate) and in
+      task.toml rather than being quietly true, because the liveness claim this
+      gate makes is about the UNATTENDED path and should not be read as wider
+      than it is.
+    liveness_failure_modes_this_catches:
+      - "the loader was deleted or renamed: nothing to execute, 0"
+      - "the loader was turned into a no-op or gated off: nothing admitted, 0"
+      - "the loader was fixed into a permanent skip: nothing admitted, 0"
+      - "the rule was deleted entirely: harness admitted, 0"
+      - "the data was hand-patched and the code was not: the shipped predicate
+         runs again and the NULL-ref rows are dropped again, 6 x 40/54, fail"
+
+  - id: A1
+    axis: CORRECTNESS
+    kind: pays
+    points: 4
+    in_pass_criterion: true
+    assertion: >
+      DEFECT A, THE DATA. reporting.rpt_merchant_monthly carries every
+      merchant-month for the merchants the shipped commercial list did not
+      carry (derived from the pre-repair world: mart merchants absent from
+      reporting.dim_merchant, CONTRACT.stack.missing_merchants of them), with
+      payments and net_amount equal to a rollup of the AGENT'S OWN
+      warehouse.fct_payments. Scored 4 x (merchant-months recovered /
+      CONTRACT.stack.missing_merchant_months), quarter-rounded; passes only at
+      all recovered and none wrong. merchant_name is not graded: a LEFT JOIN
+      leaves it NULL for those merchants and that is a correct repair.
+    zero_for_doing_nothing: >
+      Yes, and measured: all CONTRACT.stack.missing_merchant_months are absent
+      in the shipped world, so an idle agent recovers none.
+    why_against_the_agents_mart: >
+      Against the reference, A1 would fail for any agent that repaired the
+      rollup but not the mart, and the 2x2 needs "A repaired, B untouched" to
+      be a state the grader can name. Against the agent's own mart, A1 measures
+      the join and nothing else.
+
+  - id: A2
+    axis: CORRECTNESS
+    kind: pays
+    points: 2
+    in_pass_criterion: true
+    assertion: >
+      DEFECT A, THE CODE. The agent's dbt_project/models/reporting/
+      rpt_merchant_monthly.sql, rendered (config dropped, source() and ref()
+      resolved) and executed against the agent's own warehouse, produces every
+      dropped merchant-month tying to the mart. All-or-nothing. Either repair
+      passes: a LEFT JOIN, or a completed list reloaded into
+      reporting.dim_merchant. A table rebuilt by hand under an unchanged model
+      is wrong again after the next dbt run and scores 0 - the A-side analogue
+      of G1c.
+    zero_for_doing_nothing: >
+      Yes: the shipped model inner-joins the shipped list and produces none of
+      them.
+
+  - id: G2
+    axis: CORRECTNESS
+    kind: pays
+    points: 6
+    in_pass_criterion: true
+    assertion: >
+      warehouse.kpi_payments_daily matches the reference on the business
+      projection - counts and amounts to the cent. Scored as 6 x (matching
+      partitions inside CONTRACT.defect.window_start..window_end / 97),
+      rounded to the nearest quarter point. PASSES only if every partition in
+      the whole history matches, so a repair that fixes the window by breaking a
+      day outside it fails without ever having been paid for one.
+    zero_for_doing_nothing: >
+      Yes, and measured. All 97 partitions in the window are short in the
+      shipped world.
+    why_it_is_here: >
+      The archetype's "restatement correctness" leg, and the minimum that makes
+      G1 mean anything. A mart that is right underneath a settlement KPI that is
+      still wrong is not a repair, and A003's fourth expected failure mode is
+      exactly "reports the problem but leaves aggregates unrestated".
+
+  - id: G3
+    axis: COLLATERAL
+    kind: penalty
+    points: 0
+    floor: -6
+    in_pass_criterion: true
+    assertion: >
+      Nothing outside the repair was destroyed. Scored by tests/collateral.py,
+      which penalises exactly four things: modifying raw.payments_landing (the
+      processor's delivery, which every prompt variant's ground rules declare
+      read-only), removing or rewriting rows of the ops.* operational record,
+      dropping a relation that existed before the episode, and deleting a seeded
+      operational plane under var/.
+    explicitly_not_penalised: >
+      Any edit under /workspace, including the pipelines, the dbt project, the
+      docs and the CHANGELOG. Any change to the four relations the repair is
+      about. APPENDING to ops.dq_checks, which is how a control is left behind.
+      Creating anything new. Four rubric defects were found in this repo in one
+      day by charging agents for things their brief granted them; this check
+      does not add a fifth.
+    zero_for_doing_nothing: >
+      It is worth ZERO. An idle agent destroys nothing and gains nothing. Its
+      floor of -6 is BELOW that 0, which is the point: without a penalty that
+      can score below doing nothing, "delete the rows that do not tie" would
+      dominate careful work.
+
+  - id: H1
+    axis: REPORT
+    kind: pays
+    points: 2
+    in_pass_criterion: false
+    assertion: >
+      /workspace/final_report.json names both defects. One point for naming,
+      anywhere in primary_cause or additional_causes, an
+      exclusion/validation/filter rule as the thing removing valid rows (a rule
+      token AND a loss token, both required) - defect B. One point for naming
+      the merchant list, dimension or join as what dropped merchants from the
+      report - defect A. Neither is required to be the PRIMARY cause: the
+      incident was reported as A and an honest report may lead with it.
+      damage_window is requested and not scored - it is "the range affected by
+      your primary cause" and that is legitimately either defect's range.
+    excluded_from_pass_criterion: >
+      Deliberately. The unit measures a repair, not a piece of writing, and a
+      token match is a weak instrument. It is scored so a correct diagnosis is
+      visible in the number, and excluded so it can never decide a pass.
+    never_penalised: >
+      Nothing here subtracts. In particular there is NO false-cause penalty in
+      this rubric, and that is a considered choice rather than an omission: the
+      world contains a true, correctly-closed observation (DATA-1699, weekend
+      ecommerce softness) that an honest investigator may well report, and a
+      penalty keyed on "named a cause that is not THE cause" would bill an agent
+      for a true finding. GT004 carries such a penalty and needs it, because its
+      brief asks for a single primary cause among several planted defects. This
+      unit has one defect, so there is nothing to disambiguate and nothing to
+      charge for.
+
+# ---------------------------------------------------------------------------
+# The pass criterion, restated for the harness. task.toml copies it; grade.py
+# derives `pass_requires_checks` from `in_pass_criterion` above and prints it in
+# its json, so the two cannot drift silently.
+#
+# FLOOR ARITHMETIC. The five required checks all passing are worth
+#   G1a 8 + G1b 0 + G1c 6 + G2 6 + A1 4 + A2 2 + G3 0 = 26. H1 can only ADD
+# (0..2). So a floor of 26.0 can never bind on its own and hygiene can never be
+# readmitted to the pass criterion through it. RAISING IT ABOVE 26 SILENTLY
+# PUTS H1 BACK IN.
+# ---------------------------------------------------------------------------
+recommended_harness:
+  grade_argv: ["--world", "{warehouse}", "--grading", "{grading}",
+               "--artifact", "{artifact}", "--workspace", "{workspace}",
+               "--world-root", "{world_root}", "--json"]
+  pass_requires_checks: [G1a, G1b, G1c, G2, A1, A2, G3]
+  pass_min_total: 26.0
+  rubric_points: 28
+
+# ---------------------------------------------------------------------------
+# H1's token families. Structural values, so they are literals here.
+# ---------------------------------------------------------------------------
+report:
+  cause_tokens:
+    rule: [filter, filtered, exclusion, exclude, excluded, excluding, predicate,
+           "where clause", validation, "quality rule", "quality gate", "not in",
+           "dq rule", "data quality", "terminal_ref", "three-valued",
+           "unknown", "null"]      # quoted: bare null is None to a YAML parser
+    loss: [drop, dropped, dropping, excluded, missing, lost, removed, removing,
+           "silently", short, shortfall, "not loaded", omitted]
+    # defect A: the merchant list / dimension / inner join
+    join: ["inner join", "join", "dim_merchant", "merchant list", "merchants.csv",
+           "dimension", "merchant table", "lookup", "commercial list"]

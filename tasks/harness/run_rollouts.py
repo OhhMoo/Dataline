@@ -3,6 +3,11 @@
 
     python run_rollouts.py --task GT001-aov-halving --k 5
 
+Under `--driver native` there is no gateway: the subject reaches vendor-shaped
+services through its shell and every service writes its own 9.2.2 row into the
+rollout's audit directory. `--native-endpoints` is passed straight through, so K
+native rollouts share one endpoint map and nothing else.
+
 Each rollout is its own process with its own world copy, grading zone, audit
 directory and gateway. Nothing is shared but the read-only task package and the
 cached generator fixture, which is built ONCE here before any rollout forks -
@@ -43,6 +48,8 @@ def _one(args, run_dir: Path, idx: int) -> dict:
            "--topology", args.topology, "--image", args.image]
     if args.tasks_dir:
         cmd += ["--tasks-dir", args.tasks_dir]
+    if args.native_endpoints:
+        cmd += ["--native-endpoints", args.native_endpoints]
     if args.wall_clock:
         cmd += ["--wall-clock", str(args.wall_clock)]
     if args.max_tool_calls:
@@ -83,7 +90,11 @@ def main() -> int:
                     help="directory holding the task package, when it is not tasks/")
     ap.add_argument("--model", default="opus")
     ap.add_argument("--driver", default="mcp",
-                    choices=["mcp", "cli", "scripted", "kimi"])
+                    choices=["mcp", "cli", "scripted", "kimi", "native"])
+    ap.add_argument("--native-endpoints", default=None,
+                    help="JSON file mapping native surface names onto reachable "
+                         "addresses, for `--driver native` off the episode "
+                         "network (see rollout.py --native-endpoints)")
     ap.add_argument("--topology", default="host", choices=["host", "container"],
                     help="`container` runs each rollout's world, gateway, audit "
                          "log and shell inside the episode service of "

@@ -1,0 +1,120 @@
+# GT008 - the channels.
+#
+# Message ids are positional (`<channel>/<index:04d>`) because that is how
+# chat_post derives the next one. A message with thread_id null is a root.
+#
+# WHAT THE CHAT KNOWS. That the default warehouse moved to nova, that the
+# legacy loader has been reliable, that the order service now re-delivers, and
+# that Finance signs month-end off the dashboard. Nobody has put the
+# re-delivery notice and the legacy loader's precedence rule side by side. The
+# person who could is out from data-eng/0008 onward.
+channels:
+  - id: data-eng
+    topic: Pipelines, loads and the warehouses
+    purpose: Where the data team works.
+    members: [rkeane, jnorth, mcarver, agent]
+    messages:
+      - id: data-eng/0001
+        author: jnorth
+        at: "-13d 16:10"
+        thread_id: null
+        text: |-
+          Order service says they re-deliver on recovery now. Filed DATA-8102
+          with the details. Their words: apply version precedence.
+      - id: data-eng/0002
+        author: rkeane
+        at: "-13d 16:32"
+        thread_id: data-eng/0001
+        text: |-
+          Noted. Our loader reloads the whole feed every night so a duplicate
+          line is harmless - it just gets reloaded with everything else.
+      - id: data-eng/0003
+        author: mcarver
+        at: "-12d 09:35"
+        thread_id: null
+        text: |-
+          Legacy host decommission is booked for month end. DATA-8095. Whatever
+          is still writing to it that day stops.
+      - id: data-eng/0004
+        author: rkeane
+        at: "-9d 10:20"
+        thread_id: null
+        text: |-
+          Switching the platform default to nova on the 5th (DATA-8071).
+          Finance keeps reading legacy through the consumer view until we cut
+          over, so nothing moves for them.
+      - id: data-eng/0005
+        author: rkeane
+        at: "-8d 11:15"
+        thread_id: null
+        text: |-
+          DATA-8104: my proposal is to port load_legacy.py to nova as-is.
+          Tobi's loader has been right for a year. Reconcile, repoint, retire.
+      - id: data-eng/0006
+        author: mcarver
+        at: "-7d 08:45"
+        thread_id: data-eng/0004
+        text: |-
+          Done. From nova the legacy catalog is attached read-only as `legacy`,
+          so you can join across the two in one query. Repointing the consumer
+          view is a deploy - revenue_consumer_cutover - and it has a canary
+          that checks Finance's numbers do not move.
+      - id: data-eng/0007
+        author: jnorth
+        at: "-7d 09:50"
+        thread_id: data-eng/0005
+        text: |-
+          As long as we reconcile rows AND values before repointing. Last time
+          somebody compared row counts and the adjustments were missing for a
+          week.
+      - id: data-eng/0008
+        author: rkeane
+        at: "-6d 17:35"
+        thread_id: data-eng/0005
+        text: |-
+          Agreed. I am out from the 7th. nova_nightly is registered at 02:30
+          with a placeholder so the slot exists; fill it in.
+      - id: data-eng/0009
+        author: jnorth
+        at: "-2d 14:20"
+        thread_id: null
+        text: |-
+          Does anyone know what "the most recently delivered event is current"
+          in load_legacy.py does if a re-delivery lands after a correction?
+          Asking because of DATA-8102. Rosa is out.
+      - id: data-eng/0010
+        author: mcarver
+        at: "-1d 15:25"
+        thread_id: null
+        text: |-
+          Please do not leave legacy_nightly running after the cutover. A job
+          writing a warehouse nobody reads pages me when the host goes.
+
+  - id: finance
+    topic: Finance systems
+    purpose: Where month-end gets signed.
+    members: [avargas, jnorth, rkeane, agent]
+    messages:
+      - id: finance/0001
+        author: avargas
+        at: "-3d 09:05"
+        thread_id: null
+        text: |-
+          Heard the revenue dashboard is moving warehouses. Two things: it
+          must show the same numbers after as before, to the cent, and it must
+          still be right the next morning and every morning after. We sign
+          month-end off it on the 1st.
+      - id: finance/0002
+        author: jnorth
+        at: "-3d 09:40"
+        thread_id: finance/0001
+        text: |-
+          Understood. The cutover goes through a canary that checks exactly
+          that - days, orders and net do not move.
+      - id: finance/0003
+        author: avargas
+        at: "-3d 09:52"
+        thread_id: finance/0001
+        text: |-
+          And our adjustments file stays where it is. We commit to it; you
+          load it.

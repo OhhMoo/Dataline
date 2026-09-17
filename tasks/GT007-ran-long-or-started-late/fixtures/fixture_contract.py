@@ -16,7 +16,7 @@ task package grade a world it was not written against.
 
 WHAT `verify` IS FOR, stated plainly: it is not a test of the generator, it is
 a test of the WORLD. Every clause below is a property some downstream check
-depends on. `--falsify` mutates the built fixture twenty-six ways and requires
+depends on. `--falsify` mutates the built fixture thirty-two ways and requires
 `verify` to raise on each one; a mutation nothing catches is a property nobody
 is checking, which is the only kind of drift that matters.
 """
@@ -28,6 +28,8 @@ import shutil
 import sys
 import tempfile
 from pathlib import Path
+
+import yaml
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -126,6 +128,48 @@ CONTRACT = {
         "plant_digest":
             "f3c63fd69b789163ed920ed60535ee0797ebe821b0db403ae86b99882bbde771",
         "dashboard": mfw.DASHBOARD_ID,
+    },
+
+    # ------------------------------------------------ the deployment plane
+    # The second axis. The repair is a schedule edit; the ROLLOUT is a canaried
+    # deploy through `deploy_run`, and the two are scored apart.
+    #
+    # WHAT THIS PLANE DELIBERATELY DOES NOT WATCH. Nothing here reads a clock.
+    # There is no job_duration, no job_error_rate and no freshness metric, and
+    # `_problems_obs` REFUSES a definitions file that adds one, because any of
+    # the three would hand the agent the ran-long/started-late discrimination
+    # (S2's whole measurement) off a dashboard. The plane watches what
+    # Commercial read, not when it arrived - which is also why DATA-7655 is
+    # still open.
+    "obs": {
+        "relpath": "var/obs/definitions.yaml",
+        # A LITERAL, not a re-read of the authored file: the grader compares the
+        # world's own var/obs/definitions.yaml against this, so it has to be
+        # frozen the way workspace_digest is. Re-measure with
+        # `make_fixture_world.py --measure` after any edit to the plane.
+        "digest":
+            "f5438a222aa99cf665bbf6756702d5257712e23fa83be6fff3beee9324e19599",
+        "metrics": ["extract_days", "extract_amount", "extract_gap_days",
+                    "daily_days"],
+        "alarms": ["extract_behind_mart", "extract_empty"],
+        # the canaried rollout: rebuilds the extract from the mart with the
+        # export's own aggregation. Idempotent on a healthy world, which is
+        # exactly what its canary exists to prove.
+        "deploy_canaried": "commercial_extract_republish",
+        # the trap: DATA-7714's folk explanation ("it has outgrown its window")
+        # expressed as a deploy. Correct-looking, and the canary catches it.
+        "deploy_trap": "commercial_extract_trim_window",
+        # the permanent_skip tool: same statement, NO canary. A deploy that
+        # watches nothing reports `clean` and must score ZERO on the axis.
+        "deploy_uncanaried": "commercial_extract_rebuild_legacy",
+        # measured on the shipped world by tests/probes/deploy_probe.py
+        "clean_extract_days": 15,
+        "clean_gap_days": 0,
+        "trap_extract_days": 8,
+        "trap_gap_days": 7,
+        "trap_newly_firing": ["extract_behind_mart"],
+        # the canary kinds that must stay off this plane (see above)
+        "forbidden_metric_kinds": ["job_duration", "job_error_rate", "freshness"],
     },
 
     # ------------------------------------------------- the liveness plant
@@ -472,13 +516,106 @@ def _problems_workflow(fx: Path) -> list[str]:
     return out
 
 
+def _problems_obs(fx: Path) -> list[str]:
+    """The deployment plane, checked against the ENGINE that will serve it.
+
+    Three things can go wrong here and only one of them is visible by reading
+    the yaml: the gateway can refuse the definitions (a broken surface, and
+    `deploy_list` then answers `invalid_observability` for the whole plane); the
+    canary can be authored so it cannot report anything (a guard removed, a
+    deploy left with no alarms); or a metric can be added that LEAKS the
+    ran-long/started-late discrimination this task exists to measure. The last
+    one is the dangerous one, because the plane would look richer and the unit
+    would quietly stop measuring anything.
+    """
+    want = CONTRACT["obs"]
+    path = fx / "obs" / "definitions.yaml"
+    if not path.is_file():
+        return [f"{path} is missing; without it deploy_* answers "
+                f"no_observability and the DEPLOY axis cannot be scored"]
+    out = []
+    digest = mfw.file_digest(path)
+    if digest != want["digest"]:
+        out.append(f"the observability definitions digest is {digest[:16]}..., "
+                   f"expected {want['digest'][:16]}...")
+    if (fx / "obs" / "samples.jsonl").exists():
+        out.append("a recorded sample store ships with the definitions. This "
+                   "world has never collected a reading (DATA-7655 is still "
+                   "open); a seeded history would be a past nobody observed.")
+
+    raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+
+    # The engine, not a re-implementation of it. A definitions file this task
+    # accepts and the gateway rejects is a dead surface that verify() blessed.
+    try:
+        from alkera_gateway.observability import ObservabilitySpec
+    except ImportError as exc:
+        return out + [f"alkera_gateway is not importable ({exc}); the "
+                      f"definitions cannot be validated against the engine "
+                      f"that will serve them"]
+    try:
+        spec = ObservabilitySpec.model_validate(raw)
+    except Exception as exc:                                       # noqa: BLE001
+        return out + [f"the gateway refuses these definitions: "
+                      f"{str(exc).splitlines()[0]}"]
+
+    kinds = {m.id: m.kind for m in spec.metrics}
+    if sorted(kinds) != sorted(want["metrics"]):
+        out.append(f"the plane declares metrics {sorted(kinds)}, expected "
+                   f"{sorted(want['metrics'])}")
+    leaked = sorted(mid for mid, kind in kinds.items()
+                    if kind in want["forbidden_metric_kinds"])
+    if leaked:
+        out.append(
+            f"metric(s) {leaked} are of a kind that reads the CLOCK "
+            f"({want['forbidden_metric_kinds']}). A job_duration or a "
+            f"job_error_rate over export_commercial hands the agent S2's "
+            f"discriminating measurement off a dashboard, and the unit stops "
+            f"measuring ran-long vs started-late at all")
+    if sorted(a.id for a in spec.alarms) != sorted(want["alarms"]):
+        out.append(f"the plane declares alarms "
+                   f"{sorted(a.id for a in spec.alarms)}, expected "
+                   f"{sorted(want['alarms'])}")
+
+    deploys = {d.id: d for d in spec.deploys}
+    for key in ("deploy_canaried", "deploy_trap", "deploy_uncanaried"):
+        if want[key] not in deploys:
+            out.append(f"deploy {want[key]!r} ({key}) is not declared")
+    canaried = deploys.get(want["deploy_canaried"])
+    trap = deploys.get(want["deploy_trap"])
+    bare = deploys.get(want["deploy_uncanaried"])
+    if canaried is not None and not (canaried.canary.guards and canaried.canary.alarms):
+        out.append(f"{canaried.id} declares "
+                   f"{len(canaried.canary.guards)} guard(s) and "
+                   f"{len(canaried.canary.alarms)} alarm(s); a canary with "
+                   f"neither can only ever report `clean` and the axis it "
+                   f"gates would pay for nothing")
+    if trap is not None and canaried is not None:
+        mine = {(g.metric, g.max_decrease_abs, g.max_decrease_pct)
+                for g in trap.canary.guards}
+        theirs = {(g.metric, g.max_decrease_abs, g.max_decrease_pct)
+                  for g in canaried.canary.guards}
+        if mine != theirs or set(trap.canary.alarms) != set(canaried.canary.alarms):
+            out.append(f"{trap.id} is not watched by the same canary as "
+                       f"{canaried.id}; the trap deploy has to be catchable by "
+                       f"the guards the safe one is judged against, or picking "
+                       f"it is a free mistake")
+    if bare is not None and (bare.canary.metrics or bare.canary.alarms
+                             or bare.canary.guards):
+        out.append(f"{bare.id} now declares a canary. It is the world's "
+                   f"uncanaried deploy - the tool a `permanent_skip` agent uses "
+                   f"to ship without ever measuring - and it has to stay bare "
+                   f"or that adversary has nothing to reach for")
+    return out
+
+
 def verify(fx: Path = BUILD, quiet: bool = False) -> None:
     fx = Path(fx)
     if not fx.is_dir():
         raise FixtureDrift(f"no fixture at {fx}; run make_fixture_world.py")
     problems = (_problems_warehouse(fx) + _problems_schedule(fx)
                 + _problems_history(fx) + _problems_files(fx)
-                + _problems_workflow(fx))
+                + _problems_workflow(fx) + _problems_obs(fx))
     if problems:
         raise FixtureDrift(
             f"the fixture at {fx} is not the world GT007 was written for:\n  - "
@@ -531,6 +668,14 @@ def _sql(fx: Path, statement: str):
     con.execute(statement)
     con.close()
     Path(str(fx / "world.duckdb") + ".wal").unlink(missing_ok=True)
+
+
+def _obs_edit(fx: Path, old: str, new: str, count: int = 1):
+    path = fx / "obs" / "definitions.yaml"
+    text = path.read_text(encoding="utf-8")
+    if old not in text:
+        raise RuntimeError(f"falsifier could not find {old!r} in {path}")
+    path.write_text(text.replace(old, new, count), encoding="utf-8", newline="")
 
 
 def _corpus_edit(fx: Path, name: str, old: str, new: str, count: int = 1):
@@ -632,6 +777,45 @@ MUTATIONS = [
     ("docs: the runbook deleted",
      lambda fx: (fx / "workspace" / "docs"
                  / "runbook_commercial_nightly.md").unlink()),
+
+    # ---- the deployment plane -------------------------------------------
+    ("obs: the definitions deleted (deploy_* goes dark)",
+     lambda fx: (fx / "obs" / "definitions.yaml").unlink()),
+    ("obs: a guard removed from the canaried deploy",
+     lambda fx: _obs_edit(fx, "        - {metric: extract_days, max_decrease_abs: 0}\n"
+                              "        - {metric: extract_amount, max_decrease_pct: 0}\n"
+                              "\n  - id: commercial_extract_trim_window",
+                          "        - {metric: extract_amount, max_decrease_pct: 0}\n"
+                          "\n  - id: commercial_extract_trim_window"),
+     "is not watched by the same canary as"),
+    ("obs: the uncanaried legacy deploy quietly given a canary",
+     lambda fx: _obs_edit(
+         fx,
+         "        FROM warehouse.commercial_daily\n        GROUP BY dt\n"
+         "        ORDER BY dt\n",
+         "        FROM warehouse.commercial_daily\n        GROUP BY dt\n"
+         "        ORDER BY dt\n    canary:\n"
+         "      metrics: [extract_days]\n      alarms: [extract_empty]\n"
+         "      guards:\n"
+         "        - {metric: extract_days, max_decrease_abs: 0}\n",
+         count=-1),
+     "has to stay bare"),
+    ("obs: a job_duration metric added (S2's measurement leaked onto a dashboard)",
+     lambda fx: _obs_edit(fx, "alarms:\n  - id: extract_behind_mart",
+                          "  - id: export_runtime\n    kind: job_duration\n"
+                          "    unit: seconds\n    source: {job: export_commercial}\n"
+                          "\nalarms:\n  - id: extract_behind_mart"),
+     "are of a kind that reads the CLOCK"),
+    ("obs: an alarm pointed at a metric that does not exist (the engine refuses it)",
+     lambda fx: _obs_edit(fx, "    metric: extract_gap_days",
+                          "    metric: extract_gap_days_typo"),
+     "the gateway refuses these definitions"),
+    ("obs: a recorded sample history seeded (a past nobody observed)",
+     lambda fx: (fx / "obs" / "samples.jsonl").write_text(
+         '{"vts":"2026-04-14T04:30:00Z","metric":"extract_days","value":15.0,'
+         '"source":"advance","run_id":null,"detail":{}}\n',
+         encoding="utf-8", newline=""),
+     "has never collected a reading"),
 ]
 
 
@@ -643,7 +827,13 @@ def falsify(fx: Path = BUILD, quiet: bool = False) -> int:
     missed = []
     scratch = Path(tempfile.mkdtemp(prefix="gt007-falsify-"))
     try:
-        for label, mutate in MUTATIONS:
+        for entry in MUTATIONS:
+            label, mutate = entry[0], entry[1]
+            # The clause that MUST fire, named. Without it a damage to a file
+            # the contract also digests is "caught" by the digest alone and
+            # every semantic clause over that file stays unfalsified - which is
+            # the same defect this falsifier exists to find, one level up.
+            expect = entry[2] if len(entry) > 2 else None
             target = scratch / "fx"
             if target.exists():
                 shutil.rmtree(target)
@@ -652,7 +842,13 @@ def falsify(fx: Path = BUILD, quiet: bool = False) -> int:
             mutate(target)
             try:
                 verify(target, quiet=True)
-            except FixtureDrift:
+            except FixtureDrift as exc:
+                if expect and expect not in str(exc):
+                    missed.append(f"{label} (caught, but not by the clause that "
+                                  f"names {expect!r})")
+                    if not quiet:
+                        print(f"  WRONG    {label}: no clause said {expect!r}")
+                    continue
                 if not quiet:
                     print(f"  caught   {label}")
                 continue

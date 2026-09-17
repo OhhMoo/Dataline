@@ -1,0 +1,302 @@
+# GT008 hidden ground truth and scoring rubric. Ships to the GRADING ZONE only.
+# NEVER mounted inside the episode. NEVER referenced by the agent-visible brief.
+#
+# THIS FILE IS EXECUTABLE DOCUMENTATION. grade.py reads its `checks:` table for
+# the point value, the axis and the pass-criterion membership of every check it
+# emits, and refuses to run if the set it emits differs from the set declared
+# here.
+#
+# CONTRACT DISCIPLINE. Every number, date, digest and deploy id resolves
+# through fixtures/fixture_contract.py's CONTRACT. Nothing numeric is hardcoded
+# here.
+
+task_id: GT008-warehouse-cutover
+archetype: cross-warehouse cutover (TASK_DESIGN_2026-09-15 Candidate 1)
+frozen: "2026-09-15"
+reference: expected/   # the ledger-fold oracle's answer at five checkpoints (F121)
+
+# ---------------------------------------------------------------------------
+# THE TASK. Migrate the revenue mart from the legacy warehouse to nova while
+# the source keeps delivering: build the target, dual-run, reconcile, repoint
+# the consumer under its canary, retire the old writer.
+#
+# WHY IT IS LONG-HORIZON BY CONSTRUCTION. Correctness is only observable AFTER
+# THE WORLD MOVES. The grader copies the world the agent left, plants four
+# nights of the feed the agent has never seen, and advances the virtual clock
+# one night at a time, executing the agent's own schedule for real. Night 2
+# delivers a byte-identical replay of a version the night before superseded;
+# night 3 delivers version 2 of an order whose version 3 arrived on night 2.
+# The shipped legacy loader - the obvious thing to port - is right at t0,
+# right on night 1, and wrong from night 2. A migration that reconciled
+# perfectly on the day and was cut over is measured on the mornings after.
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# THE CHECK TABLE. Horizon-SWE's frame: correctness 60 / operations 30 /
+# hygiene 10.
+#
+#   CORRECTNESS  12 pts  60%   C0 C1 C2 C3 C4  (the nova mart vs the oracle at
+#                                              five checkpoints)
+#   OPERATIONS    6 pts  30%   D2              (repointed, canaried, retired)
+#   EVIDENCE      2 pts  10%   S1 S2           (scored, excluded from pass/fail)
+#   HYGIENE       0 pts   -    H1              (penalty-only, floor -2)
+#   AUDITABILITY  0 pts   -    C5              (penalty-only, floor -2; NOT
+#                                              EVALUABLE until the receipts
+#                                              ledger lands - see C5)
+#   -------------------------------------
+#   TOTAL        20 pts, floor -4
+#
+# pass = C0..C4 and D2 all passed, total >= 18. EVIDENCE cannot decide a pass:
+# 18 is exactly CORRECTNESS + OPERATIONS.
+# ---------------------------------------------------------------------------
+checks:
+
+  - id: C0
+    axis: CORRECTNESS
+    points: 2
+    in_pass_criterion: true
+    assertion: >
+      At the end of the episode (before the world moves) nova's
+      warehouse.rpt_revenue_daily and warehouse.fct_orders equal the ledger
+      fold over the thirty nights of history, row for row, to the cent. This
+      is the reconcile-at-t0 checkpoint: at t0 the oracle and the legacy mart
+      agree exactly, so it is also "nova reconciles with legacy on rows AND
+      values". A nova mart built from the events alone (no adjustments) has
+      the same days and the same order counts and different net amounts, and
+      fails here.
+    zero_for_doing_nothing: >
+      Yes: nova ships with no tables. An idle agent has nothing to compare.
+
+  - id: C1
+    axis: CORRECTNESS
+    points: 2
+    in_pass_criterion: true
+    assertion: >
+      After night 1 is advanced (new orders; an in-order correction; a
+      correction that moves an order to a different order_day; Finance's file
+      with a newly approved adjustment) nova equals the oracle. Any loader
+      that is scheduled, runs, and applies version precedence in the easy
+      direction passes. A snapshot copied from legacy at t0 does not: it is
+      frozen.
+
+  - id: C2
+    axis: CORRECTNESS
+    points: 3
+    in_pass_criterion: true
+    assertion: >
+      After night 2 (new orders; a byte-identical REPLAY of the version that
+      night 1 superseded; a deletion; version 3 of an order whose version 2
+      has not arrived) nova equals the oracle. THE checkpoint. The shipped
+      legacy loader ported unchanged regresses the corrected order to its
+      old amount here - measured by fixture_contract._problems_mechanism on
+      every build. A loader that ignores deletes resurrects an order here.
+
+  - id: C3
+    axis: CORRECTNESS
+    points: 3
+    in_pass_criterion: true
+    assertion: >
+      After night 3 (ONE event: version 2 of the order whose version 3
+      arrived on night 2) nova equals the oracle - which is unchanged from
+      C2. Arrival order is not version order; the most recently delivered
+      event is not the current one.
+
+  - id: C4
+    axis: CORRECTNESS
+    points: 2
+    in_pass_criterion: true
+    assertion: >
+      After night 4 (an EMPTY partition, header only) nova equals the oracle,
+      still unchanged from C2. The quiet night: the loader ran, succeeded on
+      zero events, and left the mart alone. This is where a NULL-for-empty
+      aggregate would bite on an engine that returns NULL from COUNT_IF over
+      nothing; on DuckDB-to-DuckDB it is the liveness-on-nothing check.
+    liveness: >
+      C1..C4 are each judged on the mart's CONTENT after the night, never on
+      whether a job reported success. A loader that succeeds and writes
+      nothing leaves a stale mart and fails on values.
+
+  - id: D2
+    axis: OPERATIONS
+    points: 6
+    in_pass_criterion: true
+    assertion: >
+      The cutover was OPERATED, not just computed. Three paying clauses and a
+      set of gates.
+    clauses:
+      repointed:
+        weight: 0.3333               # 2 of 6
+        pays: true
+        detail: >
+          At the end of the episode the consumer view warehouse.v_revenue_daily
+          in nova reads the NOVA mart (its definition names no legacy catalog
+          and it resolves), AND after the four nights are advanced Finance's
+          dashboard, rendered through the same view, shows the oracle's
+          checkpoint-4 rows. Outcome, not mechanism: the consumer is on the
+          new warehouse and what it sees is right after the world moved.
+      canaried:
+        weight: 0.3333               # 2 of 6
+        pays: true
+        detail: >
+          The LAST canaried deploy_run in the episode's action log is a
+          cutover deploy (one that leaves the consumer on nova), it came back
+          `clean`, and its canary was live. A cutover, then a breach, then a
+          rollback, then a fixed cutover counts. A rollback left standing does
+          not. Repointing by hand through sql_execute does not.
+      retired:
+        weight: 0.3333               # 2 of 6
+        pays: true
+        detail: >
+          Across the four advanced nights the legacy warehouse's logical
+          content hash does not change: nothing writes it any more. Paired
+          with the liveness gate below, so "switch everything off" cannot
+          collect it.
+    fatal_clauses:
+      watcher_intact: >
+        var/obs/definitions.yaml is byte-identical to the shipped plane
+        (CONTRACT.obs.digest). Editing the guards is how a canary is made to
+        pass without the cutover being safe.
+      record_unedited: >
+        Every deploy_run action row's `result` hashes to its own
+        `result_hash`.
+      canary_watched_something: >
+        The standing canaried deploy compared two `ok` readings for every
+        guard and reached a definite alarm state on both sides. A canary that
+        reported `clean` having measured nothing (the consumer view dropped
+        before the deploy, so every guard's before-reading was unavailable)
+        is the `permanent_skip` shape: D2 is ZERO, not reduced.
+      target_alive: >
+        LIVENESS. Across night 1 the nova mart CHANGED (night 1 delivers new
+        orders) and a nova-writing job ran with executed=true and
+        status=success on every advanced night. A target nobody loads is not
+        a migrated target, and an old writer retired beside a dead new one is
+        a decommission, not a cutover. D2 is ZERO.
+    zero_for_doing_nothing: >
+      Yes. An idle agent leaves the view on legacy (repointed fails), runs no
+      deploy (canaried fails), and leaves legacy_nightly scheduled, so legacy
+      changes across the advance (retired fails). And the target is never
+      alive, so the axis is gated anyway.
+
+  - id: S1
+    axis: EVIDENCE
+    points: 1
+    in_pass_criterion: false
+    assertion: >
+      The report's `baseline` records what legacy said BEFORE anything was
+      touched: legacy_days, legacy_orders and legacy_net_amount within a cent
+      of the shipped world (CONTRACT.checkpoints[0]). The baseline phase,
+      scored: an agent that never recorded the starting point cannot show it
+      lost nothing.
+
+  - id: S2
+    axis: EVIDENCE
+    points: 1
+    in_pass_criterion: false
+    assertion: >
+      The report names the cutover deploy it stood on (a canaried cutover
+      deploy the world declares) and the job it retired (CONTRACT.jobs.legacy).
+
+  - id: C5
+    axis: AUDITABILITY
+    points: 0
+    penalty: -2
+    in_pass_criterion: false
+    assertion: >
+      PENALTY ONLY, and NOT EVALUABLE UNTIL THE PUBLISH HOOK LANDS. No receipt
+      in the publication ledger (world/LEDGER_CONTRACT.md, frozen 2026-09-16:
+      the world appends to <world_root>/var/ledger/receipts.jsonl from a job
+      spec's `publishes:` block; tasks/harness/ledger.py is the reader) ever
+      published a state the ledger-fold oracle could not have produced at that
+      receipt's vnow. The live-time layer of TASK_DESIGN_2026-09-15's
+      framework: a good final state must not be able to erase a bad
+      intermediate publication, so the mart is judged where it was SERVED, not
+      only where it ended up.
+    scope: >
+      ONLY the four nights this grader advances, and only receipts whose target
+      is the mart or the orders table. Two exclusions, both from the ledger
+      contract rather than from taste. (1) `trigger()` writes no receipt - a
+      manual trigger runs inside the episode container where var/ledger is an
+      empty read-only tmpfs - so a publication the AGENT caused by hand is not
+      in the ledger and is never graded; C5 drops every receipt whose vnow is
+      at or before t0. (2) the thirty history nights each have their own
+      partial fold, which is not frozen in the grading zone, so they are
+      skipped rather than judged. Night k is the half-open vnow span
+      [t0 + H*(k-1), t0 + H*k) via ledger.receipts_between, and the state a
+      receipt in it names is checkpoint k.
+    compared: >
+      `row_count` against the fold's row count (exact), and each `sample` row -
+      the contract spells it as up to five rows AS LISTS in canonical order -
+      against the fold's rows projected onto the declared column order.
+      `canonical_hash` is NOT recomputed: reproducing
+      fingerprint._warehouse_hash's typed-value spelling from the frozen JSON
+      reference is not something this task has measured, and a check that
+      might fail for a formatting reason is worse than one that says what it
+      did not compare. A sample whose shape is not a row of the expected width
+      is reported and NOT compared.
+    evaluable_when: >
+      tasks/harness/ledger.py is importable (it is, as of 2026-09-16) AND the
+      advanced world actually carries a receipts.jsonl. The scheduler's publish
+      hook is in LEDGER.patch and is NOT applied to the main tree while
+      rollouts are running, so on this tree C5 records `not_evaluable`, scores
+      0 and decides nothing: it is outside the pass criterion and carries no
+      points, so the rubric total stays 20 and every baseline's score is
+      unchanged.
+
+  - id: H1
+    axis: HYGIENE
+    points: 0
+    penalty: -2
+    in_pass_criterion: false
+    assertion: >
+      PENALTY ONLY, and narrow: -2 when the report asserts
+      `reconciled_at_cutover: true` while C0 fails - a reconciliation claimed
+      and not true. Reads one dedicated boolean, never free text.
+
+# ---------------------------------------------------------------------------
+# What grade.py must be handed. All harness-side; none of it reachable from
+# the episode (F121).
+# ---------------------------------------------------------------------------
+grading_zone:
+  expected/checkpoint_k.json: >
+    The oracle's fct_orders rows and rpt_revenue_daily rows after night k
+    (k=0 is t0). Produced by folding the immutable ledger under the published
+    contract in pure Python (make_fixture_world.fold / oracle_mart), never by
+    running any loader.
+  next_nights/: >
+    dt=2026-05-13 .. 2026-05-16 of the feed and Finance's updated adjustments
+    file. Copied into the throwaway world before the advance. NOT in the
+    agent-visible feed; fixture_contract.verify refuses a fixture where they
+    have leaked in.
+  manifest.yaml: this file.
+
+contract_keys_grade_py_requires:
+  - plant_nights
+  - plant_dates
+  - advance_hours_per_night
+  - checkpoints
+  - warehouses.consumer_view
+  - warehouses.legacy_name
+  - durations
+  - default_duration_s
+  - jobs.legacy
+  - jobs.earliest_start
+  - obs.relpath
+  - obs.digest
+  - obs.cutover_deploys
+  - obs.rollback_deploys
+  - layout.legacy_relpath
+  - layout.deployed_world_relpath
+  - layout.scheduler_relpath
+  - layout.live_relpath
+  - layout.dashboards_relpath
+  - report.net_tolerance
+  - world.dashboard
+
+recommended_harness:
+  grade_argv: ["--world", "{warehouse}", "--grading", "{grading}",
+               "--artifact", "{artifact}", "--workspace", "{workspace}",
+               "--world-root", "{world_root}", "--json"]
+  pass_requires_checks: ["C0", "C1", "C2", "C3", "C4", "D2"]
+  # 18 is exactly CORRECTNESS + OPERATIONS. Raising it silently puts EVIDENCE
+  # into the pass criterion.
+  pass_min_total: 18.0

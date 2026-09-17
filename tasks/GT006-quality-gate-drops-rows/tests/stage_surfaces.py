@@ -2,6 +2,11 @@
 """
 GT006 surface staging - the half of the world the warehouse tools cannot hold.
 
+WHICH CORPUS. The tracker, the wiki and the channel ARE the context, so they are
+what a `[variants]` arm changes: `FIXTURES` below is resolved through
+`taskspec.fixtures_dir()` rather than hardcoded, and the two stacked arms add
+two corpus tokens of their own. Nothing here knows which arm it is in.
+
     python stage_surfaces.py --root <world_root> [--vnow ...]
 
 WHY THIS FILE EXISTS. `GatewayConfig`'s defaults for the workflow, observability
@@ -56,8 +61,17 @@ import yaml
 
 HERE = Path(__file__).resolve().parent
 TASK = HERE.parent
-FIXTURES = TASK / "fixtures"
 REPO = TASK.parent.parent
+
+sys.path.insert(0, str(REPO / "tasks" / "harness"))
+import taskspec                                                  # noqa: E402
+
+# The CORPUS this stager reads is the thing a context variant changes, so the
+# tree is resolved rather than assumed: `default`/`trap-ticket` read the
+# package's own fixtures/, the stacked arms read a cached copy with
+# fixtures/variants/<arm>/ laid over it. build_world.py pins the arm into
+# $ALKERA_TASK_VARIANT before importing this module, so the two agree.
+FIXTURES = taskspec.fixtures_dir(TASK)
 
 sys.path.insert(0, str(FIXTURES))
 from fixture_contract import CONTRACT                            # noqa: E402
@@ -96,6 +110,17 @@ TOKENS = {
     "cleanup_from": CONTRACT["rule"]["cleanup_from"],
     "cleanup_to": CONTRACT["rule"]["cleanup_to"],
 }
+
+if "stack" in CONTRACT:
+    # DEFECT A, in the two stacked arms only: the day the rollup moved into dbt
+    # and picked up the commercial list, and the first merchant id that list
+    # does not carry. The corpus quotes the id rather than a count, and the
+    # contract measures both. Defined only where the contract defines them, so
+    # an unstacked corpus that quoted one would be refused rather than rendered.
+    TOKENS.update({
+        "dim_loaded": CONTRACT["stack"]["dim_loaded"],
+        "first_missing_merchant": CONTRACT["stack"]["first_missing_merchant"],
+    })
 
 
 class StagingError(RuntimeError):

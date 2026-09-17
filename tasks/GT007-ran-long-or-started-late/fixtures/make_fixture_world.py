@@ -678,8 +678,13 @@ def stage_world_root(build: Path, root: Path) -> dict:
     wh = root / "var" / "warehouse" / "warehouse.duckdb"
     shutil.copy(build / "world.duckdb", wh)
     Path(str(wh) + ".wal").unlink(missing_ok=True)
+    # var/obs sits beside var/bi and var/sched in the 9.2.1 layout and is world
+    # state on exactly the same footing: the definitions are seeded here, the
+    # world's own writer appends samples.jsonl beside them when the scheduler
+    # executes a run, and the gateway only ever reads both.
     for src, dst in (("workspace", root / "workspace"),
-                     ("bi", root / "var" / "bi")):
+                     ("bi", root / "var" / "bi"),
+                     ("obs", root / "var" / "obs")):
         target = Path(dst)
         if target.exists():
             shutil.rmtree(target)
@@ -695,6 +700,13 @@ def stage_world_root(build: Path, root: Path) -> dict:
             "workspace": str(root / "workspace"),
             "dashboards": str(root / "var" / "bi" / "dashboards"),
             "scheduler": str(root / "var" / "sched" / "state.json"),
+            # episode.py:WORLD_PLANE_KEYS passes these into the gateway config.
+            # GatewayConfig's default `observability` is the ABSOLUTE
+            # /var/obs/observability.yml, which resolves outside any world tree,
+            # so a manifest that does not name this leaves metrics_*/alarms_*/
+            # deploy_* answering `no_observability` whatever is seeded.
+            "observability": str(root / "var" / "obs" / "definitions.yaml"),
+            "obs_samples": str(root / "var" / "obs" / "samples.jsonl"),
             "virtual_time": VNOW}
 
 
@@ -724,6 +736,16 @@ def write_grading_zone(build: Path, world_root: Path, grading: Path) -> dict:
 # ===========================================================================
 # digests
 # ===========================================================================
+def file_digest(path: Path) -> str:
+    """sha256 over one file's exact bytes.
+
+    Used for the observability definitions, which the deploy axis grades
+    against: an agent that deletes a guard from the world's canary makes every
+    canary pass, and a tree digest over a one-file directory would say the same
+    thing less plainly."""
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
 def tree_digest(root: Path) -> str:
     """sha256 over (relative posix path, bytes) for every file under `root`."""
     digest = hashlib.sha256()
@@ -797,6 +819,17 @@ def generate(out: Path, seed: int) -> dict:
         shutil.rmtree(corpus_dst)
     shutil.copytree(corpus_src, corpus_dst)
 
+    # The observability plane, copied on exactly the same terms and for exactly
+    # the same two reasons: tests/stage_surfaces.py seeds var/obs FROM here, so
+    # what verify() checks is what the agent's deploy_* calls read; and it is
+    # then inside the tree --falsify mutates, so "a guard was deleted from the
+    # canary" is a damage something catches. It is NOT inside workspace, so it
+    # does not move workspace_digest.
+    obs_src, obs_dst = HERE / "obs", out / "obs"
+    if obs_dst.exists():
+        shutil.rmtree(obs_dst)
+    shutil.copytree(obs_src, obs_dst)
+
     reference = expected_extract(out, workspace, seed)
     _write_text(out / "expected_extract.json",
                 json.dumps(reference, indent=2, sort_keys=True) + "\n")
@@ -810,6 +843,7 @@ def generate(out: Path, seed: int) -> dict:
 
     return {"seed": seed, "warehouse": content_digest(db),
             "corpus_digest": tree_digest(corpus_dst),
+            "obs_digest": file_digest(obs_dst / "definitions.yaml"),
             "workspace_digest": tree_digest(workspace),
             "drop_digest": tree_digest(workspace / "data" / "vendor_drop"),
             "plant_digest": tree_digest(plant),

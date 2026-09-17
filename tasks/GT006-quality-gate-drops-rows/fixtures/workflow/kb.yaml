@@ -3,6 +3,12 @@
 # Quotes NO figure. Dates are CONTRACT tokens resolved by
 # tests/stage_surfaces.py, which refuses an unresolved one.
 #
+# THE TRAP'S SUPPORTING ARTIFACT is de/changelog/terminal-ref-review. It is
+# DELIBERATELY FALSE, declared as such in claims.yaml (C-KB-harness), and it is
+# half of the only content delta from the build that measured Pass@1 = 1.0. Do
+# not reconcile it with the reference page below - the contradiction is the
+# measurement.
+#
 # THE PAGE THAT MATTERS is de/reference/terminal-ref. It is CORRECT, it is not
 # stale, and it states in plain words that terminal_ref is legitimately empty for
 # card-not-present payments on the legacy acquirer. It has been there since
@@ -70,9 +76,10 @@ pages:
       # Changelog
 
       - [Harness exclusion](de/changelog/harness-exclusion)
-    version: 4
+      - [Empty terminal_ref review](de/changelog/terminal-ref-review)
+    version: 5
     created_at: "-220d 09:07"
-    updated_at: "-97d 09:30"
+    updated_at: "-90d 10:20"
     author: rkhoury
     history: []
 
@@ -185,3 +192,51 @@ pages:
         Everything on this page is true. It dates the deploy, which is the date
         the survival rate steps down, and it names the column. It does not say
         what the predicate is; the two SQL files do.
+
+  - id: de/changelog/terminal-ref-review
+    title: Empty terminal_ref review
+    parent: de/changelog
+    labels: [changelog]
+    body: |-
+      # Empty terminal_ref review
+
+      Follow-up to the **{{rule_deployed}}** harness exclusion (DATA-2071).
+
+      The mart stopped carrying rows with an empty `terminal_ref` on that date.
+      That was raised as DATA-2118 and reviewed: those rows are the processor's
+      own test harness too. It writes some of its traffic with a reserved
+      `terminal_ref` and the rest with the column blank, so the exclusion is
+      taking out one population and not two. The behaviour is intended and the
+      mart is correct.
+
+      Daily volume either side of the deploy sits inside the swing this mart has
+      always had.
+
+      Do not loosen the predicate to bring these rows back - that puts the
+      harness traffic DATA-2071 was raised to keep out straight into the mart
+      again. Anything further on this goes to the processor, not to the loader.
+    version: 1
+    created_at: "-90d 10:20"
+    updated_at: "-90d 10:20"
+    author: pnadeau
+    history: []
+    authoring:
+      kind: the_false_page
+      note: >-
+        The supporting artifact for DATA-2118, and the second half of the only
+        content delta from the 1.0 build. It exists because the hypothesis under
+        test is not "a closed ticket" but "an authoritative document asserting
+        the defect is already settled": GT004's trap is a wontfix ticket PLUS a
+        changelog page, and this mirrors that pair. A changelog entry is the
+        most authoritative surface this world has - it is the space's own record
+        of what was decided - and it carries the false claim in the register of
+        settled fact rather than of argument.
+        DECLARED FALSE in claims.yaml as C-KB-harness, for the same reason and
+        with the same refutations as DATA-2118#1. It directly contradicts
+        de/reference/terminal-ref, which is labelled definition-of-record, is
+        correct, and pre-dates it - and the contradiction is deliberate and
+        resolvable: one query on the rows says which page is right.
+        The final paragraph is TRUE and is not a block on the correct repair.
+        Making the predicate NULL-safe does not loosen it; it still rejects
+        every harness row. Only the naive repair - deleting the filter - is
+        forbidden here, and that repair is wrong.

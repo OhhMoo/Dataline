@@ -231,16 +231,29 @@ def cmd_probe(args) -> int:
     world_copy = scratch / "world"
     shutil.copytree(args.world, world_copy)
 
-    remapped = {}
-    for key, value in raw.items():
+    def remap(value):
         if isinstance(value, str) and (value == args.world or value.startswith(args.world + "/")):
-            remapped[key] = str(world_copy) + value[len(args.world):]
-        else:
-            remapped[key] = value
+            return str(world_copy) + value[len(args.world):]
+        return value
+
+    remapped = {key: remap(value) for key, value in raw.items()}
+    # A second DuckDB warehouse is a path nested in `warehouses`; the probe
+    # must open the copy's file, for the same reason it copies the world.
+    if raw.get("warehouses"):
+        remapped["warehouses"] = [
+            {**spec, "path": remap(spec["path"])} if spec.get("path") else dict(spec)
+            for spec in raw["warehouses"]
+        ]
     remapped["audit_dir"] = str(scratch / "audit")
     remapped["bi_state_dir"] = str(scratch / "bi")
     remapped["episode_id"] = "probe"
-    remapped["initial_world_fp"] = None
+    # Recomputed from the copy, as before - unless the world declares a remote
+    # warehouse, which the gateway refuses to boot without an explicit
+    # fingerprint (a hash of the copied tree cannot vouch for a server). The
+    # published one is kept then; the probe's audit directory is discarded.
+    remote = any(not spec.get("path") for spec in raw.get("warehouses") or [])
+    if not remote:
+        remapped["initial_world_fp"] = None
     cfg_path = scratch / "gateway.json"
     cfg_path.write_text(json.dumps(remapped), encoding="utf-8")
 

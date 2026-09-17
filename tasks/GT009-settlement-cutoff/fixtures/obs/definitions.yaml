@@ -1,0 +1,113 @@
+# The settlement platform's observability plane.
+#
+# WHAT IT WATCHES. Only things the CLEARING BANK can see: how many settlement
+# days it has been handed, how much it has been handed in total, and how many
+# days the platform's clearing-window daemon has recorded as breached. Nothing
+# here reads the feed or the loader - a metric over an internal table would
+# tell an operator the pipeline was fine on the three nights it silently was
+# not, which is exactly the failure this world is built around.
+#
+# NO DEPLOY SURFACE. This platform has no release mechanism: what runs is
+# `orchestration/schedule.yml`, and a change to it is a commit, not a rollout.
+# `deploy_*` is therefore declared dead_by_design in task.toml rather than
+# given a decorative entry here.
+#
+# NO RECORDED HISTORY. There is no samples.jsonl beside this file. The world
+# writes samples only when the scheduler executes a run; nothing has run inside
+# the episode yet, so `metrics_series` and `alarms_history` say so.
+
+version: 1
+retention: {days: 21}
+
+metrics:
+  - id: settled_days
+    kind: sql_scalar
+    unit: days
+    title: Settlement days the bank has been handed
+    description: >
+      Distinct settlement_day in warehouse.settlement_handoff. The number of
+      days the clearing bank can reconcile against.
+    source:
+      sql: SELECT COUNT(DISTINCT settlement_day) AS settled_days
+           FROM warehouse.settlement_handoff
+
+  - id: settled_net_cents
+    kind: sql_scalar
+    unit: cents
+    title: Net settled, all days
+    description: >
+      The total the bank has been handed across every settlement day. The
+      figure interchange is reconciled on.
+    source:
+      sql: SELECT COALESCE(SUM(net_cents), 0) AS settled_net_cents
+           FROM warehouse.settlement_handoff
+
+  - id: sla_breaches
+    kind: sql_scalar
+    unit: days
+    title: Clearing windows closed with nothing to hand over
+    description: >
+      Rows in warehouse.clearing_window with status SLA_BREACH. Append-only:
+      a breach that has since been settled is still counted, because the bank
+      was still told.
+    source:
+      sql: SELECT COUNT(*) AS sla_breaches FROM warehouse.clearing_window
+           WHERE status = 'SLA_BREACH'
+
+  - id: unsettled_days
+    kind: sql_scalar
+    unit: days
+    title: Days the bank has never been handed
+    description: >
+      Settlement days the clearing-window daemon has recorded and the handoff
+      still does not cover. This is the live exposure, as opposed to the
+      historical breach count.
+    source:
+      sql: SELECT COUNT(*) AS unsettled_days FROM (
+             SELECT DISTINCT settlement_day FROM warehouse.clearing_window
+             EXCEPT SELECT DISTINCT settlement_day
+             FROM warehouse.settlement_handoff)
+
+  - id: payments_held
+    kind: row_count
+    unit: payments
+    title: Payments currently held
+    description: >
+      warehouse.fct_payments. One row per payment the platform believes is
+      current.
+    source: {table: warehouse.fct_payments}
+
+alarms:
+  - id: settlement_missing
+    metric: unsettled_days
+    comparison: gt
+    threshold: 0
+    severity: critical
+    title: A settlement day has never been handed over
+    description: >
+      The clearing-window daemon has closed a window the handoff does not
+      cover. Every further close of that day is another breach.
+    runbook: docs/runbook_settlement_nightly.md
+    evaluate_on: value
+
+  - id: breach_recorded
+    metric: sla_breaches
+    comparison: gt
+    threshold: 0
+    severity: warning
+    title: The bank has been told a window closed empty
+    description: >
+      At least one SLA_BREACH row exists. Historical: it does not clear when
+      the day is later settled.
+    runbook: docs/runbook_settlement_nightly.md
+    evaluate_on: value
+
+  - id: handoff_empty
+    metric: settled_days
+    comparison: lt
+    threshold: 1
+    severity: critical
+    title: The bank has been handed nothing at all
+    description: The settlement handoff covers no days.
+    runbook: docs/runbook_settlement_nightly.md
+    evaluate_on: value

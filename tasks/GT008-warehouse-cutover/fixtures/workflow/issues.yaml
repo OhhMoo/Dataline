@@ -1,0 +1,166 @@
+# GT008 - the backlog.
+#
+# THE SHAPE. The migration ticket states the acceptance criteria; the loudest
+# advice in the tracker is to port the legacy loader unchanged; the one ticket
+# that says why that is wrong is a low-priority notice nobody picked up.
+#
+#   DATA-8110  the headline: migrate the revenue mart to nova. Names the
+#              phases, the deploy surface and the decommission date. It says
+#              nova must implement the published contract. It does not say
+#              the legacy loader does not.
+#   DATA-8104  THE INTERFERENCE. "Lift and shift: port load_legacy.py as-is,
+#              it has been right for a year, change one thing at a time."
+#              Every sentence in it is true. The conclusion is wrong by the
+#              contract, and only the planted nights show it.
+#   DATA-8102  the order service's re-delivery notice, forwarded. Open,
+#              unassigned, low priority. It is the whole answer.
+#   DATA-8095  the legacy host is decommissioned at month end. Anything still
+#              writing to it after cutover is writing into the bin.
+#   DATA-8088  Finance's adjustments live in a CSV in the repo. Closed.
+#   DATA-8071  the platform default warehouse moved to nova. Closed.
+issues:
+  - id: DATA-8071
+    title: Switch the platform default warehouse to nova
+    body: |-
+      From the 5th the gateway's default warehouse is nova. Legacy stays
+      reachable by name (`warehouse: legacy` for writes; attached read-only as
+      `legacy` from the default connection for cross-warehouse queries).
+      Nothing has been migrated yet - the default moved so that new work lands
+      in nova by default.
+    status: done
+    reporter: rkeane
+    assignee: mcarver
+    labels: [platform, nova]
+    created_at: "-9d 10:15"
+    updated_at: "-7d 08:40"
+    comments:
+      - id: DATA-8071#1
+        author: mcarver
+        at: "-7d 08:40"
+        body: |-
+          Done. Finance's dashboard still reads legacy through the consumer
+          view in nova (warehouse.v_revenue_daily), so nothing changed for
+          them. Repointing that view is a deploy, not a hand edit.
+
+  - id: DATA-8088
+    title: Finance adjustments as a file in the repo
+    body: |-
+      Finance's approved adjustments are not in the orders feed and never will
+      be. Agreed with Ana: Finance commits data/finance/adjustments.csv in the
+      revenue-mart repo, the nightly loads it, approved rows count against the
+      order's day. Nobody on our side edits that file.
+    status: done
+    reporter: jnorth
+    assignee: jnorth
+    labels: [finance]
+    created_at: "-70d 14:00"
+    updated_at: "-66d 11:20"
+
+  - id: DATA-8095
+    title: Decommission the legacy warehouse host
+    body: |-
+      The legacy DuckDB host goes at month end. Whatever is still running
+      against it on the last day stops running. Migration of the revenue mart
+      (DATA-8110) has to land before then, and once the consumer is on nova the
+      legacy nightly must be switched off - a job that keeps writing a
+      warehouse nobody reads is a job that pages me for nothing when the host
+      goes.
+    status: open
+    reporter: mcarver
+    assignee: rkeane
+    labels: [platform, decommission]
+    created_at: "-12d 09:30"
+    updated_at: "-12d 09:30"
+
+  - id: DATA-8102
+    title: "Order service: re-delivery on recovery from 1 May"
+    body: |-
+      Forwarding the order service's notice. From 1 May their producer
+      re-delivers events when it recovers from an outage. Re-delivered events
+      are byte-identical to the original and can land in a later partition
+      than events that supersede them; events for one order can also land out
+      of version order across partitions. Their contract (v2, section 3) says
+      consumers must apply version precedence.
+
+      I have not checked what our loader does with that. Parking it here.
+    status: open
+    reporter: jnorth
+    assignee: null
+    labels: [upstream, contract]
+    created_at: "-13d 16:05"
+    updated_at: "-13d 16:05"
+
+  - id: DATA-8104
+    title: "Nova migration: lift and shift the legacy loader"
+    body: |-
+      Proposal for how we build the nova mart: port pipelines/load_legacy.py
+      to nova unchanged. It has produced the number Finance signs off every
+      night for a year, it reloads the whole feed so it is trivially
+      idempotent, and a migration is not the moment to change semantics.
+      Change one thing at a time - move it first, improve it later.
+    status: open
+    reporter: rkeane
+    assignee: rkeane
+    labels: [nova, migration]
+    created_at: "-8d 11:10"
+    updated_at: "-6d 17:30"
+    comments:
+      - id: DATA-8104#1
+        author: jnorth
+        at: "-7d 09:45"
+        body: |-
+          Fine by me as long as the two marts reconcile before we repoint
+          anything. Did anyone look at DATA-8102?
+      - id: DATA-8104#2
+        author: rkeane
+        at: "-6d 17:30"
+        body: |-
+          Reconcile first, yes. Port it as-is. I am out from the 7th; do not
+          wait for me.
+    links:
+      - {issue: DATA-8110, type: relates}
+
+  - id: DATA-8110
+    title: Migrate the revenue mart from legacy to nova
+    body: |-
+      Move warehouse.fct_orders and warehouse.rpt_revenue_daily from the legacy
+      warehouse to nova and cut Finance over. Spec in docs/migration_nova.md.
+
+      Acceptance:
+      - nova serves both tables with the columns in the data dictionary, built
+        to the published source contract (docs/source_contract_orders_v2.md);
+      - nova's nightly load runs on the schedule and keeps the mart current;
+      - the consumer view warehouse.v_revenue_daily is repointed to nova
+        through the deploy surface, under its canary, with no breach left
+        standing;
+      - legacy_nightly is retired; nothing writes the legacy warehouse after
+        the cutover (DATA-8095);
+      - Finance's dashboard is right the morning after, and every morning
+        after that.
+
+      nova_nightly is registered in orchestration/schedule.yml at 02:30 with a
+      placeholder script.
+    status: open
+    reporter: rkeane
+    assignee: agent
+    labels: [nova, migration]
+    created_at: "-8d 10:30"
+    updated_at: "-1d 15:20"
+    comments:
+      - id: DATA-8110#1
+        author: avargas
+        at: "-3d 09:10"
+        body: |-
+          From Finance's side: the dashboard has to keep matching what it
+          shows today, to the cent, and it has to keep being right afterwards.
+          We sign month-end off it on the 1st.
+      - id: DATA-8110#2
+        author: mcarver
+        at: "-1d 15:20"
+        body: |-
+          Reminder that the legacy host goes at month end. Please switch the
+          legacy nightly off once Finance is on nova, not the day before the
+          host disappears.
+    links:
+      - {issue: DATA-8095, type: relates}
+      - {issue: DATA-8104, type: relates}

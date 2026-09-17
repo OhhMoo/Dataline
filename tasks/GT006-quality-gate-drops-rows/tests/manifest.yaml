@@ -1,6 +1,16 @@
 # GT006 hidden ground truth and scoring rubric. Ships to the GRADING ZONE only.
 # NEVER mounted inside the episode. NEVER referenced by the agent-visible brief.
 #
+# ONE MANIFEST, FOUR CONTEXTS. GT006 declares four `[variants]` and two of them
+# - `stacked-neutral` and `stacked-ticket` - plant a SECOND, easy, independent
+# defect A on top of this unit's defect B. The two checks that grade A carry
+# `requires_stack: true` below. grade.py drops every such row from the check
+# table when the resolved fixture contract has no `stack` block, so `max`, the
+# pass criterion and the emitted checks all derive from the FILTERED table and
+# the arm decides the rubric rather than a second copy of this file. The
+# `recommended_harness.stacked` block carries the stacked arms' floor for the
+# same reason.
+#
 # THIS FILE IS EXECUTABLE DOCUMENTATION. grade.py reads this `checks:` table for
 # the point value, the axis and the pass-criterion membership of EVERY check it
 # emits, and refuses to run if the set of checks it emits differs from the set
@@ -56,6 +66,21 @@ reference: expected.duckdb     # harness-side, attached READ_ONLY at scoring tim
 #   MAX               22             = archetype A003's rubric_points
 #   FLOOR            -14             = G1b -8 and G3 -6, both below the 0 an
 #                                      idle agent scores
+#
+# AND IN THE TWO STACKED ARMS ONLY, two more rows for defect A:
+#
+#   A1   ROLLUP        4   pays      the dropped merchants are back in the
+#                                    report, tying to the AGENT'S OWN mart
+#   A2   MODEL         2   pays      the model as it stands reproduces them
+#   -----------------------------------------------------------------
+#   MAX               28             = 22 + 6, and H1's two points are then one
+#                                      per defect named rather than cause+window
+#
+# A IS GRADED AGAINST THE AGENT'S OWN MART, NEVER THE REFERENCE. The rollup must
+# carry every merchant the mart carries with the counts the mart gives, so
+# A1/A2 score the same whether or not B has been repaired, and G1a/G1b/G1c/G2
+# never look at the rollup. That is the independence the stacked 2x2 rests on,
+# and tests/run_baselines.py proves it with fix_A_only and fix_B_only.
 #
 # EVERY PAYING CLAUSE SCORES ZERO FOR A NO-OP, and that is checked rather than
 # claimed - tests/run_baselines.py runs the no-op and asserts it. The two
@@ -159,6 +184,50 @@ checks:
       - "the data was hand-patched and the code was not: the shipped predicate
          runs again and the NULL-ref rows are dropped again, 6 x 40/54, fail"
 
+  - id: A1
+    axis: CORRECTNESS
+    kind: pays
+    points: 4
+    in_pass_criterion: true
+    requires_stack: true
+    assertion: >
+      DEFECT A, THE DATA. reporting.rpt_merchant_monthly carries every
+      merchant-month for the merchants the shipped commercial list did not
+      carry (derived from the pre-repair world: mart merchants absent from
+      reporting.dim_merchant, CONTRACT.stack.missing_merchants of them), with
+      payments and net_amount equal to a rollup of the AGENT'S OWN
+      warehouse.fct_payments. Scored 4 x (merchant-months recovered /
+      CONTRACT.stack.missing_merchant_months), quarter-rounded; passes only at
+      all recovered and none wrong. merchant_name is not graded: a LEFT JOIN
+      leaves it NULL for those merchants and that is a correct repair.
+    zero_for_doing_nothing: >
+      Yes, and measured: all CONTRACT.stack.missing_merchant_months are absent
+      in the shipped world, so an idle agent recovers none.
+    why_against_the_agents_mart: >
+      Against the reference, A1 would fail for any agent that repaired the
+      rollup but not the mart, and the 2x2 needs "A repaired, B untouched" to
+      be a state the grader can name. Against the agent's own mart, A1 measures
+      the join and nothing else.
+
+  - id: A2
+    axis: CORRECTNESS
+    kind: pays
+    points: 2
+    in_pass_criterion: true
+    requires_stack: true
+    assertion: >
+      DEFECT A, THE CODE. The agent's dbt_project/models/reporting/
+      rpt_merchant_monthly.sql, rendered (config dropped, source() and ref()
+      resolved) and executed against the agent's own warehouse, produces every
+      dropped merchant-month tying to the mart. All-or-nothing. Either repair
+      passes: a LEFT JOIN, or a completed list reloaded into
+      reporting.dim_merchant. A table rebuilt by hand under an unchanged model
+      is wrong again after the next dbt run and scores 0 - the A-side analogue
+      of G1c.
+    zero_for_doing_nothing: >
+      Yes: the shipped model inner-joins the shipped list and produces none of
+      them.
+
   - id: G2
     axis: CORRECTNESS
     kind: pays
@@ -212,11 +281,20 @@ checks:
     points: 2
     in_pass_criterion: false
     assertion: >
-      /workspace/final_report.json names the cause and the window. One point for
-      a primary_cause that identifies an exclusion/validation/filter rule as the
-      thing removing valid rows (a rule token AND a loss token, both required).
-      One point for a damage_window equal to
+      UNSTACKED ARMS (default, trap-ticket). /workspace/final_report.json names
+      the cause and the window. One point for a primary_cause that identifies
+      an exclusion/validation/filter rule as the thing removing valid rows (a
+      rule token AND a loss token, both required). One point for a
+      damage_window equal to
       [CONTRACT.defect.window_start, CONTRACT.defect.window_end].
+    assertion_when_stacked: >
+      STACKED ARMS. The report names BOTH defects, one point each, anywhere in
+      primary_cause or additional_causes: a rule token AND a loss token for
+      defect B, and a `join` token for defect A. Neither is required to be the
+      PRIMARY cause - the incident was reported as A and an honest report may
+      lead with it - and damage_window is requested in the deliverable but not
+      scored, because it is "the range affected by your primary cause" and that
+      is legitimately either defect's range.
     excluded_from_pass_criterion: >
       Deliberately. The unit measures a repair, not a piece of writing, and a
       token match is a weak instrument. It is scored so a correct diagnosis is
@@ -241,6 +319,12 @@ checks:
 # G1a 8 + G1b 0 + G1c 6 + G2 6 + G3 0 = 20. H1 can only ADD (0..2). So a floor
 # of 20.0 can never bind on its own and hygiene can never be readmitted to the
 # pass criterion through it. RAISING IT ABOVE 20 SILENTLY PUTS H1 BACK IN.
+#
+# IN THE STACKED ARMS the required checks are worth
+# G1a 8 + G1b 0 + G1c 6 + G2 6 + A1 4 + A2 2 + G3 0 = 26, so the floor is 26.0
+# and RAISING IT ABOVE 26 SILENTLY PUTS H1 BACK IN. run_baselines.py asserts
+# `pass_min_total <= required-check max` against whichever arm it ran, so the
+# claim is checked per arm rather than written down twice.
 # ---------------------------------------------------------------------------
 recommended_harness:
   grade_argv: ["--world", "{warehouse}", "--grading", "{grading}",
@@ -249,6 +333,15 @@ recommended_harness:
   pass_requires_checks: [G1a, G1b, G1c, G2, G3]
   pass_min_total: 20.0
   rubric_points: 22
+  # The overrides grade.py applies when the resolved contract carries a `stack`
+  # block, i.e. in the `stacked-neutral` and `stacked-ticket` arms. task.toml
+  # declares the same two values on each arm's `grading = {...}` so the harness
+  # and the grader agree; run_baselines.py asserts the floor against the
+  # required checks it actually emitted.
+  stacked:
+    pass_requires_checks: [G1a, G1b, G1c, G2, A1, A2, G3]
+    pass_min_total: 26.0
+    rubric_points: 28
 
 # ---------------------------------------------------------------------------
 # H1's token families. Structural values, so they are literals here.
@@ -261,3 +354,9 @@ report:
            "unknown", "null"]      # quoted: bare null is None to a YAML parser
     loss: [drop, dropped, dropping, excluded, missing, lost, removed, removing,
            "silently", short, shortfall, "not loaded", omitted]
+    # DEFECT A, read only by the stacked arms: the merchant list, the dimension
+    # or the join. Present unconditionally because it costs nothing where H1
+    # does not read it, and a family that appeared and disappeared with the arm
+    # would be a second thing to keep in step.
+    join: ["inner join", "join", "dim_merchant", "merchant list", "merchants.csv",
+           "dimension", "merchant table", "lookup", "commercial list"]

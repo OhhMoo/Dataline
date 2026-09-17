@@ -1,0 +1,131 @@
+# GT009 - the wiki.
+#
+# THE DECIDING PAGE. `pay/runbooks/settlement-corrections`, version 4, written
+# by the Head of Data Platform fifteen days ago. It states the correction
+# protocol and supersedes PAY-3120 by name.
+#
+# THE PRECEDENCE PAGE. `pay/how-we-decide` says which source wins when two
+# disagree: the later one, and a runbook owned by the platform lead over a
+# closed ticket. It is the reason the grader can say the runbook wins.
+#
+# The pages state RULES. None of them names a defect, a table this world got
+# wrong, or a figure from it.
+pages:
+  - id: pay
+    title: Payments platform
+    parent: null
+    version: 3
+    body: |-
+      Runbooks, policies and notices for the settlement platform.
+    last_edited_by: rkeane
+    last_edited_at: "-140d 10:00"
+
+  - id: pay/how-we-decide
+    title: When two sources disagree
+    parent: pay
+    version: 2
+    body: |-
+      This platform keeps its rules in three places and they do not always
+      agree. The order, and it is not negotiable:
+
+      1. **Date.** The later statement wins. A ticket closed in April does not
+         override a policy written in May.
+      2. **Role.** A runbook or policy page owned by the platform lead is the
+         platform's position. A ticket filed by someone outside the owning
+         team is a request, whatever status it was closed at.
+      3. **Chat is not a source.** A thread in `#payments` records that people
+         disagreed. It never settles anything, including when nobody replies.
+
+      If after all three the record is still ambiguous, the work stops and the
+      question goes to the platform lead. If it is not ambiguous, it does not.
+    last_edited_by: rkeane
+    last_edited_at: "-62d 09:30"
+
+  - id: pay/runbooks/settlement-corrections
+    title: Correcting a settlement day
+    parent: pay
+    version: 4
+    body: |-
+      A settlement day is **closed** once the platform's clearing-window daemon
+      has recorded a `SETTLED` row for it in `warehouse.clearing_window`.
+      Before that it is open and may be republished freely.
+
+      **This page supersedes PAY-3120.** Corrections are not rolled forward
+      into the next open day; the network will not accept that for interchange.
+
+      ## The protocol
+
+      A closed day may be republished when, and only when:
+
+      1. an approving ticket exists and is in status `approved`, naming the
+         settlement day;
+      2. a row for that day exists in `warehouse.settlement_corrections`
+         carrying the ticket key, the approver and the approval date, written
+         **before** the republished handoff goes over;
+      3. every republished row for that day carries the ticket key in
+         `correction_ref`.
+
+      A republication that meets all three is a correction. One that does not
+      is an unauthorised restatement, and the bank treats it as a reconciliation
+      break.
+
+      ## What is not a correction
+
+      A day the platform has **never** handed over is not being restated. It
+      has a `SLA_BREACH` row and no `SETTLED` row. Publish it, late, with no
+      approval and no `correction_ref` - the breach is already recorded and
+      leaving the day unpublished does not undo it, it only adds another
+      breach every night the window closes without it.
+
+      ## What an approval covers
+
+      A settlement day, not a version. When you republish an approved day, you
+      publish whatever the source contract says is current for it at that
+      moment. An approval is not a licence to keep restating the day every time
+      something else about it arrives.
+    last_edited_by: rkeane
+    last_edited_at: "-15d 11:00"
+    history:
+      - version: 3
+        last_edited_by: rkeane
+        last_edited_at: "-20d 08:45"
+        body: |-
+          Draft: corrections to closed days go through an approval register.
+          Details to follow.
+
+  - id: pay/runbooks/feed-recovery
+    title: Recovering a partition the vendor did not deliver
+    parent: pay
+    version: 5
+    body: |-
+      The vendor re-delivers a missed partition under the `dt=` folder of the
+      day it belongs to, which is in the past relative to the night you are
+      standing in.
+
+      The nightly is checkpoint-driven. Before you decide the feed is short,
+      read `warehouse.load_checkpoint` and compare it against what is actually
+      in the landing zone. A partition behind the checkpoint is not going to be
+      read, however long you wait for it.
+
+      Recovering is a reload, not a repair: the feed is immutable, so the
+      correct state of any day is whatever the source contract folds the
+      delivered events for it into.
+    last_edited_by: dpatel
+    last_edited_at: "-52d 15:20"
+
+  - id: pay/notices/network-restatement
+    title: Notice - interchange restatement, June
+    parent: pay
+    version: 1
+    body: |-
+      Forwarded from the network.
+
+      "An interchange reclassification affects a small number of transactions
+      settled on 11 June. Corrected records will be issued at the next
+      available version through the normal feed. Our recovery process may also
+      re-issue the superseded records; per the integration contract these are
+      historical and should not displace the corrected values."
+
+      Raised as PAY-3305.
+    last_edited_by: rkeane
+    last_edited_at: "-1d 16:20"

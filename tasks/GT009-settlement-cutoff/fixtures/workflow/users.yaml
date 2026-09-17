@@ -1,0 +1,18 @@
+# GT009 - the roster. Authored once and copied into issues.json and chat.json
+# by world/workflow.py.
+#
+#   rkeane   Head of Data Platform. Owns the correction protocol, approved the
+#            restatement, and went on leave the evening before the episode -
+#            which is why the disagreement in #payments has no adjudication in
+#            it and has to be settled from the written record.
+#   jnorth   analytics engineer. Filed the April ticket that forbids restating
+#            a closed day, and still believes it.
+#   dpatel   payments engineer. Wrote the loaders. On the feed-recovery ticket.
+#   mcarver  on-call SRE. Handled the SFTP outage.
+#   agent    the persona the episode's agent writes as.
+users:
+  - {id: rkeane, name: Rosa Keane, role: Head of Data Platform, team: Data, away_until: "+5d"}
+  - {id: dpatel, name: Dev Patel, role: Payments engineer, team: Data}
+  - {id: jnorth, name: Jamie North, role: Analytics engineer, team: Data}
+  - {id: mcarver, name: Mel Carver, role: On-call SRE, team: Platform}
+  - {id: agent, name: Automation, role: Platform automation, team: Data}

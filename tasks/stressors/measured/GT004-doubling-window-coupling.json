@@ -1,0 +1,1752 @@
+{
+  "clause_selfcheck": [
+    {
+      "clauses_failing_on_clean_world": [],
+      "clauses_still_failing_after_repair": [],
+      "clauses_with_teeth": [
+        "no_duplicate_business_keys_in_window"
+      ],
+      "clean_world_passes": true,
+      "kind": "defect",
+      "ok": true,
+      "planted_world_fails": true,
+      "repaired_world_passes": true,
+      "seconds": 1.68,
+      "stressor": "retry_backfill_doubling"
+    },
+    {
+      "clauses_failing_on_clean_world": [],
+      "clauses_still_failing_after_repair": [],
+      "clauses_with_teeth": [
+        "layout_invariant_holds_everywhere",
+        "no_seam_at_materialisation_switch"
+      ],
+      "clean_world_passes": true,
+      "kind": "defect",
+      "ok": true,
+      "planted_world_fails": true,
+      "repaired_world_passes": true,
+      "seconds": 1.89,
+      "stressor": "stale_definition_layout"
+    },
+    {
+      "clauses_failing_on_clean_world": [
+        "new_late_lines_present_exactly_once",
+        "restated_lines_carry_the_new_values",
+        "late_batch_actually_ingested"
+      ],
+      "clauses_still_failing_after_repair": [],
+      "clauses_with_teeth": [
+        "new_late_lines_present_exactly_once",
+        "restated_lines_carry_the_new_values",
+        "late_batch_actually_ingested"
+      ],
+      "clean_world_passes": null,
+      "kind": "event",
+      "ok": true,
+      "planted_world_fails": true,
+      "repaired_world_passes": true,
+      "seconds": 1.68,
+      "stressor": "late_arrival"
+    },
+    {
+      "clauses_failing_on_clean_world": [],
+      "clauses_still_failing_after_repair": [],
+      "clauses_with_teeth": [
+        "report_not_empty",
+        "only_the_named_promo_excluded"
+      ],
+      "clean_world_passes": true,
+      "kind": "defect",
+      "ok": true,
+      "planted_world_fails": true,
+      "repaired_world_passes": true,
+      "seconds": 1.52,
+      "stressor": "synthetic_null_unsafe_exclusion"
+    }
+  ],
+  "pairs": [
+    {
+      "a": "retry_backfill_doubling",
+      "b": "stale_definition_layout",
+      "coupled": true,
+      "evidence": {
+        "a_footprint_size": 15671,
+        "a_footprint_tables": [
+          "warehouse.bi_revenue_extract",
+          "warehouse.fct_orders",
+          "warehouse.kpi_daily"
+        ],
+        "a_repair_writes": [
+          "warehouse.fct_orders",
+          "warehouse.kpi_daily",
+          "warehouse.bi_revenue_extract"
+        ],
+        "b_clauses_after_repair_a_then_repair_b": [
+          {
+            "clause": "layout_invariant_holds_everywhere",
+            "contract": "consumer_consistency",
+            "detail": {
+              "invariant": "net_amount = gross_amount - discount_amount + tax_amount",
+              "violating_rows": 0
+            },
+            "ok": true
+          },
+          {
+            "clause": "one_revenue_row_per_business_key",
+            "contract": "exactly_once",
+            "detail": {
+              "keys": 202700,
+              "rows": 202700
+            },
+            "ok": true
+          },
+          {
+            "clause": "no_seam_at_materialisation_switch",
+            "contract": "consumer_consistency",
+            "detail": {
+              "post_switch_rate": "0.0725",
+              "pre_switch_rate": "0.0725"
+            },
+            "ok": true
+          },
+          {
+            "clause": "revenue_covers_full_history",
+            "contract": "liveness",
+            "detail": {
+              "days": 181,
+              "expected": 181
+            },
+            "ok": true
+          }
+        ],
+        "b_clauses_failing_with_a_present": [
+          "one_revenue_row_per_business_key"
+        ],
+        "b_clauses_on_base_plus_a_plus_b": [
+          {
+            "clause": "layout_invariant_holds_everywhere",
+            "contract": "consumer_consistency",
+            "detail": {
+              "invariant": "net_amount = gross_amount - discount_amount + tax_amount",
+              "violating_rows": 0
+            },
+            "ok": true
+          },
+          {
+            "clause": "one_revenue_row_per_business_key",
+            "contract": "exactly_once",
+            "detail": {
+              "keys": 202700,
+              "rows": 218343
+            },
+            "ok": false
+          },
+          {
+            "clause": "no_seam_at_materialisation_switch",
+            "contract": "consumer_consistency",
+            "detail": {
+              "post_switch_rate": "0.0725",
+              "pre_switch_rate": "0.0725"
+            },
+            "ok": true
+          },
+          {
+            "clause": "revenue_covers_full_history",
+            "contract": "liveness",
+            "detail": {
+              "days": 181,
+              "expected": 181
+            },
+            "ok": true
+          }
+        ],
+        "b_clauses_on_base_plus_b": [
+          {
+            "clause": "layout_invariant_holds_everywhere",
+            "contract": "consumer_consistency",
+            "detail": {
+              "invariant": "net_amount = gross_amount - discount_amount + tax_amount",
+              "violating_rows": 0
+            },
+            "ok": true
+          },
+          {
+            "clause": "one_revenue_row_per_business_key",
+            "contract": "exactly_once",
+            "detail": {
+              "keys": 202700,
+              "rows": 202700
+            },
+            "ok": true
+          },
+          {
+            "clause": "no_seam_at_materialisation_switch",
+            "contract": "consumer_consistency",
+            "detail": {
+              "post_switch_rate": "0.0725",
+              "pre_switch_rate": "0.0725"
+            },
+            "ok": true
+          },
+          {
+            "clause": "revenue_covers_full_history",
+            "contract": "liveness",
+            "detail": {
+              "days": 181,
+              "expected": 181
+            },
+            "ok": true
+          }
+        ],
+        "b_repair_writes": [
+          "warehouse.fct_revenue",
+          "warehouse.kpi_daily",
+          "warehouse.bi_revenue_extract"
+        ],
+        "criterion_i_repair_stops_working": true,
+        "criterion_ii_state_outside_a_footprint": true,
+        "post_repair_diff_keys": {
+          "warehouse.bi_revenue_extract": 14,
+          "warehouse.fct_orders": 15643,
+          "warehouse.fct_revenue": 15643,
+          "warehouse.kpi_daily": 14
+        },
+        "post_repair_diff_outside_a_footprint": {
+          "warehouse.fct_revenue": {
+            "keys": 15643,
+            "sample": [
+              [
+                "901540001",
+                "1"
+              ],
+              [
+                "901540002",
+                "1"
+              ],
+              [
+                "901540003",
+                "1"
+              ],
+              [
+                "901540003",
+                "2"
+              ],
+              [
+                "901540003",
+                "3"
+              ]
+            ]
+          }
+        },
+        "repair_order_dependent": true,
+        "seconds_build": 6.32,
+        "strength": "strong",
+        "table_notes": {}
+      },
+      "executed": true,
+      "predeclared_overlap": {
+        "a": "retry_backfill_doubling",
+        "b": "stale_definition_layout",
+        "control_plane_stressors": [],
+        "kinds": [
+          "defect",
+          "defect"
+        ],
+        "overlap": true,
+        "same_task": true,
+        "shared": {
+          "checkpoints": [],
+          "metrics": [
+            "aov"
+          ],
+          "tables": [
+            "warehouse.bi_revenue_extract",
+            "warehouse.kpi_daily"
+          ],
+          "window": []
+        },
+        "shared_contracts": [
+          "auditability"
+        ],
+        "verdict": "may couple -- measure it"
+      },
+      "seconds": 16.18,
+      "task": "GT004-doubling-window"
+    },
+    {
+      "a": "retry_backfill_doubling",
+      "b": "late_arrival",
+      "coupled": true,
+      "evidence": {
+        "a_footprint_size": 15671,
+        "a_footprint_tables": [
+          "warehouse.bi_revenue_extract",
+          "warehouse.fct_orders",
+          "warehouse.kpi_daily"
+        ],
+        "a_repair_writes": [
+          "warehouse.fct_orders",
+          "warehouse.kpi_daily",
+          "warehouse.bi_revenue_extract"
+        ],
+        "b_clauses_after_repair_a_then_repair_b": [
+          {
+            "clause": "new_late_lines_present_exactly_once",
+            "contract": "exactly_once",
+            "detail": {
+              "keys_not_at_multiplicity_1": 0,
+              "new_keys": 126
+            },
+            "ok": true
+          },
+          {
+            "clause": "restated_lines_present_exactly_once",
+            "contract": "exactly_once",
+            "detail": {
+              "keys_not_at_multiplicity_1": 0,
+              "restated_keys": 70
+            },
+            "ok": true
+          },
+          {
+            "clause": "restated_lines_carry_the_new_values",
+            "contract": "version_precedence",
+            "detail": {
+              "rows_holding_superseded_values": 0
+            },
+            "ok": true
+          },
+          {
+            "clause": "late_batch_actually_ingested",
+            "contract": "liveness",
+            "detail": {
+              "expected": 126,
+              "ingested": 126
+            },
+            "ok": true
+          }
+        ],
+        "b_clauses_failing_with_a_present": [
+          "restated_lines_present_exactly_once"
+        ],
+        "b_clauses_on_base_plus_a_plus_b": [
+          {
+            "clause": "new_late_lines_present_exactly_once",
+            "contract": "exactly_once",
+            "detail": {
+              "keys_not_at_multiplicity_1": 0,
+              "new_keys": 126
+            },
+            "ok": true
+          },
+          {
+            "clause": "restated_lines_present_exactly_once",
+            "contract": "exactly_once",
+            "detail": {
+              "keys_not_at_multiplicity_1": 70,
+              "restated_keys": 70
+            },
+            "ok": false
+          },
+          {
+            "clause": "restated_lines_carry_the_new_values",
+            "contract": "version_precedence",
+            "detail": {
+              "rows_holding_superseded_values": 0
+            },
+            "ok": true
+          },
+          {
+            "clause": "late_batch_actually_ingested",
+            "contract": "liveness",
+            "detail": {
+              "expected": 126,
+              "ingested": 126
+            },
+            "ok": true
+          }
+        ],
+        "b_clauses_on_base_plus_b": [
+          {
+            "clause": "new_late_lines_present_exactly_once",
+            "contract": "exactly_once",
+            "detail": {
+              "keys_not_at_multiplicity_1": 0,
+              "new_keys": 126
+            },
+            "ok": true
+          },
+          {
+            "clause": "restated_lines_present_exactly_once",
+            "contract": "exactly_once",
+            "detail": {
+              "keys_not_at_multiplicity_1": 0,
+              "restated_keys": 70
+            },
+            "ok": true
+          },
+          {
+            "clause": "restated_lines_carry_the_new_values",
+            "contract": "version_precedence",
+            "detail": {
+              "rows_holding_superseded_values": 0
+            },
+            "ok": true
+          },
+          {
+            "clause": "late_batch_actually_ingested",
+            "contract": "liveness",
+            "detail": {
+              "expected": 126,
+              "ingested": 126
+            },
+            "ok": true
+          }
+        ],
+        "b_repair_writes": [
+          "warehouse.fct_orders",
+          "warehouse.fct_revenue",
+          "warehouse.kpi_daily",
+          "warehouse.bi_revenue_extract"
+        ],
+        "criterion_i_repair_stops_working": true,
+        "criterion_ii_state_outside_a_footprint": true,
+        "post_repair_diff_keys": {
+          "warehouse.bi_revenue_extract": 14,
+          "warehouse.fct_orders": 15643,
+          "warehouse.fct_revenue": 70,
+          "warehouse.kpi_daily": 14
+        },
+        "post_repair_diff_outside_a_footprint": {
+          "warehouse.fct_revenue": {
+            "keys": 70,
+            "sample": [
+              [
+                "901540200",
+                "1"
+              ],
+              [
+                "901540201",
+                "1"
+              ],
+              [
+                "901540202",
+                "1"
+              ],
+              [
+                "901540203",
+                "1"
+              ],
+              [
+                "901540204",
+                "1"
+              ]
+            ]
+          }
+        },
+        "repair_order_dependent": true,
+        "seconds_build": 5.52,
+        "strength": "strong",
+        "table_notes": {}
+      },
+      "executed": true,
+      "predeclared_overlap": {
+        "a": "retry_backfill_doubling",
+        "b": "late_arrival",
+        "control_plane_stressors": [],
+        "kinds": [
+          "defect",
+          "event"
+        ],
+        "overlap": true,
+        "same_task": true,
+        "shared": {
+          "checkpoints": [],
+          "metrics": [
+            "aov",
+            "gross_revenue",
+            "order_lines",
+            "orders"
+          ],
+          "tables": [
+            "warehouse.bi_revenue_extract",
+            "warehouse.fct_orders",
+            "warehouse.kpi_daily"
+          ],
+          "window": [
+            [
+              "2026-02-09",
+              "2026-02-22"
+            ]
+          ]
+        },
+        "shared_contracts": [
+          "exactly_once"
+        ],
+        "verdict": "may couple -- measure it"
+      },
+      "seconds": 15.29,
+      "task": "GT004-doubling-window"
+    },
+    {
+      "a": "retry_backfill_doubling",
+      "b": "synthetic_null_unsafe_exclusion",
+      "coupled": false,
+      "evidence": {
+        "a_footprint_size": 15671,
+        "a_footprint_tables": [
+          "warehouse.bi_revenue_extract",
+          "warehouse.fct_orders",
+          "warehouse.kpi_daily"
+        ],
+        "a_repair_writes": [
+          "warehouse.fct_orders",
+          "warehouse.kpi_daily",
+          "warehouse.bi_revenue_extract"
+        ],
+        "b_clauses_after_repair_a_then_repair_b": null,
+        "b_clauses_failing_with_a_present": [],
+        "b_clauses_on_base_plus_a_plus_b": [
+          {
+            "clause": "report_not_empty",
+            "contract": "liveness",
+            "detail": {
+              "days": 181,
+              "rows": 7239
+            },
+            "ok": true
+          },
+          {
+            "clause": "only_the_named_promo_excluded",
+            "contract": "consumer_consistency",
+            "detail": {
+              "distinct_promos_kept": 40,
+              "excluded_promo_rows": 0
+            },
+            "ok": true
+          }
+        ],
+        "b_clauses_on_base_plus_b": [
+          {
+            "clause": "report_not_empty",
+            "contract": "liveness",
+            "detail": {
+              "days": 181,
+              "rows": 7239
+            },
+            "ok": true
+          },
+          {
+            "clause": "only_the_named_promo_excluded",
+            "contract": "consumer_consistency",
+            "detail": {
+              "distinct_promos_kept": 40,
+              "excluded_promo_rows": 0
+            },
+            "ok": true
+          }
+        ],
+        "b_repair_writes": [
+          "reporting.rpt_channel_mix"
+        ],
+        "criterion_i_repair_stops_working": false,
+        "criterion_ii_state_outside_a_footprint": false,
+        "post_repair_diff_keys": {
+          "warehouse.bi_revenue_extract": 14,
+          "warehouse.fct_orders": 15643,
+          "warehouse.kpi_daily": 14
+        },
+        "post_repair_diff_outside_a_footprint": {},
+        "repair_order_dependent": null,
+        "seconds_build": 5.89,
+        "strength": "none",
+        "table_notes": {}
+      },
+      "executed": true,
+      "predeclared_overlap": {
+        "a": "retry_backfill_doubling",
+        "b": "synthetic_null_unsafe_exclusion",
+        "control_plane_stressors": [],
+        "kinds": [
+          "defect",
+          "defect"
+        ],
+        "overlap": false,
+        "same_task": true,
+        "shared": {
+          "checkpoints": [],
+          "metrics": [],
+          "tables": [],
+          "window": []
+        },
+        "shared_contracts": [],
+        "verdict": "disconnected -- reject without measuring"
+      },
+      "seconds": 15.69,
+      "task": "GT004-doubling-window"
+    },
+    {
+      "a": "stale_definition_layout",
+      "b": "retry_backfill_doubling",
+      "coupled": false,
+      "evidence": {
+        "a_footprint_size": 94460,
+        "a_footprint_tables": [
+          "warehouse.bi_revenue_extract",
+          "warehouse.fct_revenue",
+          "warehouse.kpi_daily"
+        ],
+        "a_repair_writes": [
+          "warehouse.fct_revenue",
+          "warehouse.kpi_daily",
+          "warehouse.bi_revenue_extract"
+        ],
+        "b_clauses_after_repair_a_then_repair_b": null,
+        "b_clauses_failing_with_a_present": [],
+        "b_clauses_on_base_plus_a_plus_b": [
+          {
+            "clause": "no_duplicate_business_keys_in_window",
+            "contract": "exactly_once",
+            "detail": {
+              "duplicated_keys": 0
+            },
+            "ok": true
+          },
+          {
+            "clause": "manual_adjustments_preserved",
+            "contract": "auditability",
+            "detail": {
+              "expected": 76,
+              "in_window": 76
+            },
+            "ok": true
+          },
+          {
+            "clause": "no_key_destroyed_in_window",
+            "contract": "liveness",
+            "detail": {
+              "distinct_keys": 15643,
+              "snapshot_keys": 15643
+            },
+            "ok": true
+          },
+          {
+            "clause": "window_still_populated",
+            "contract": "liveness",
+            "detail": {
+              "days_present": 14,
+              "expected": 14
+            },
+            "ok": true
+          }
+        ],
+        "b_clauses_on_base_plus_b": [
+          {
+            "clause": "no_duplicate_business_keys_in_window",
+            "contract": "exactly_once",
+            "detail": {
+              "duplicated_keys": 0
+            },
+            "ok": true
+          },
+          {
+            "clause": "manual_adjustments_preserved",
+            "contract": "auditability",
+            "detail": {
+              "expected": 76,
+              "in_window": 76
+            },
+            "ok": true
+          },
+          {
+            "clause": "no_key_destroyed_in_window",
+            "contract": "liveness",
+            "detail": {
+              "distinct_keys": 15643,
+              "snapshot_keys": 15643
+            },
+            "ok": true
+          },
+          {
+            "clause": "window_still_populated",
+            "contract": "liveness",
+            "detail": {
+              "days_present": 14,
+              "expected": 14
+            },
+            "ok": true
+          }
+        ],
+        "b_repair_writes": [
+          "warehouse.fct_orders",
+          "warehouse.kpi_daily",
+          "warehouse.bi_revenue_extract"
+        ],
+        "criterion_i_repair_stops_working": false,
+        "criterion_ii_state_outside_a_footprint": false,
+        "post_repair_diff_keys": {
+          "warehouse.bi_revenue_extract": 84,
+          "warehouse.fct_revenue": 94292,
+          "warehouse.kpi_daily": 84
+        },
+        "post_repair_diff_outside_a_footprint": {},
+        "repair_order_dependent": null,
+        "seconds_build": 6.44,
+        "strength": "none",
+        "table_notes": {}
+      },
+      "executed": true,
+      "predeclared_overlap": {
+        "a": "stale_definition_layout",
+        "b": "retry_backfill_doubling",
+        "control_plane_stressors": [],
+        "kinds": [
+          "defect",
+          "defect"
+        ],
+        "overlap": true,
+        "same_task": true,
+        "shared": {
+          "checkpoints": [],
+          "metrics": [
+            "aov"
+          ],
+          "tables": [
+            "warehouse.bi_revenue_extract",
+            "warehouse.kpi_daily"
+          ],
+          "window": []
+        },
+        "shared_contracts": [
+          "auditability"
+        ],
+        "verdict": "may couple -- measure it"
+      },
+      "seconds": 15.75,
+      "task": "GT004-doubling-window"
+    },
+    {
+      "a": "stale_definition_layout",
+      "b": "late_arrival",
+      "coupled": false,
+      "evidence": {
+        "a_footprint_size": 94460,
+        "a_footprint_tables": [
+          "warehouse.bi_revenue_extract",
+          "warehouse.fct_revenue",
+          "warehouse.kpi_daily"
+        ],
+        "a_repair_writes": [
+          "warehouse.fct_revenue",
+          "warehouse.kpi_daily",
+          "warehouse.bi_revenue_extract"
+        ],
+        "b_clauses_after_repair_a_then_repair_b": null,
+        "b_clauses_failing_with_a_present": [],
+        "b_clauses_on_base_plus_a_plus_b": [
+          {
+            "clause": "new_late_lines_present_exactly_once",
+            "contract": "exactly_once",
+            "detail": {
+              "keys_not_at_multiplicity_1": 0,
+              "new_keys": 126
+            },
+            "ok": true
+          },
+          {
+            "clause": "restated_lines_present_exactly_once",
+            "contract": "exactly_once",
+            "detail": {
+              "keys_not_at_multiplicity_1": 0,
+              "restated_keys": 70
+            },
+            "ok": true
+          },
+          {
+            "clause": "restated_lines_carry_the_new_values",
+            "contract": "version_precedence",
+            "detail": {
+              "rows_holding_superseded_values": 0
+            },
+            "ok": true
+          },
+          {
+            "clause": "late_batch_actually_ingested",
+            "contract": "liveness",
+            "detail": {
+              "expected": 126,
+              "ingested": 126
+            },
+            "ok": true
+          }
+        ],
+        "b_clauses_on_base_plus_b": [
+          {
+            "clause": "new_late_lines_present_exactly_once",
+            "contract": "exactly_once",
+            "detail": {
+              "keys_not_at_multiplicity_1": 0,
+              "new_keys": 126
+            },
+            "ok": true
+          },
+          {
+            "clause": "restated_lines_present_exactly_once",
+            "contract": "exactly_once",
+            "detail": {
+              "keys_not_at_multiplicity_1": 0,
+              "restated_keys": 70
+            },
+            "ok": true
+          },
+          {
+            "clause": "restated_lines_carry_the_new_values",
+            "contract": "version_precedence",
+            "detail": {
+              "rows_holding_superseded_values": 0
+            },
+            "ok": true
+          },
+          {
+            "clause": "late_batch_actually_ingested",
+            "contract": "liveness",
+            "detail": {
+              "expected": 126,
+              "ingested": 126
+            },
+            "ok": true
+          }
+        ],
+        "b_repair_writes": [
+          "warehouse.fct_orders",
+          "warehouse.fct_revenue",
+          "warehouse.kpi_daily",
+          "warehouse.bi_revenue_extract"
+        ],
+        "criterion_i_repair_stops_working": false,
+        "criterion_ii_state_outside_a_footprint": false,
+        "post_repair_diff_keys": {
+          "warehouse.bi_revenue_extract": 84,
+          "warehouse.fct_revenue": 94292,
+          "warehouse.kpi_daily": 84
+        },
+        "post_repair_diff_outside_a_footprint": {},
+        "repair_order_dependent": null,
+        "seconds_build": 5.64,
+        "strength": "none",
+        "table_notes": {}
+      },
+      "executed": true,
+      "predeclared_overlap": {
+        "a": "stale_definition_layout",
+        "b": "late_arrival",
+        "control_plane_stressors": [],
+        "kinds": [
+          "defect",
+          "event"
+        ],
+        "overlap": true,
+        "same_task": true,
+        "shared": {
+          "checkpoints": [],
+          "metrics": [
+            "aov",
+            "net_revenue"
+          ],
+          "tables": [
+            "warehouse.bi_revenue_extract",
+            "warehouse.fct_revenue",
+            "warehouse.kpi_daily"
+          ],
+          "window": []
+        },
+        "shared_contracts": [],
+        "verdict": "may couple -- measure it"
+      },
+      "seconds": 14.07,
+      "task": "GT004-doubling-window"
+    },
+    {
+      "a": "stale_definition_layout",
+      "b": "synthetic_null_unsafe_exclusion",
+      "coupled": false,
+      "evidence": {
+        "a_footprint_size": 94460,
+        "a_footprint_tables": [
+          "warehouse.bi_revenue_extract",
+          "warehouse.fct_revenue",
+          "warehouse.kpi_daily"
+        ],
+        "a_repair_writes": [
+          "warehouse.fct_revenue",
+          "warehouse.kpi_daily",
+          "warehouse.bi_revenue_extract"
+        ],
+        "b_clauses_after_repair_a_then_repair_b": null,
+        "b_clauses_failing_with_a_present": [],
+        "b_clauses_on_base_plus_a_plus_b": [
+          {
+            "clause": "report_not_empty",
+            "contract": "liveness",
+            "detail": {
+              "days": 181,
+              "rows": 7239
+            },
+            "ok": true
+          },
+          {
+            "clause": "only_the_named_promo_excluded",
+            "contract": "consumer_consistency",
+            "detail": {
+              "distinct_promos_kept": 40,
+              "excluded_promo_rows": 0
+            },
+            "ok": true
+          }
+        ],
+        "b_clauses_on_base_plus_b": [
+          {
+            "clause": "report_not_empty",
+            "contract": "liveness",
+            "detail": {
+              "days": 181,
+              "rows": 7239
+            },
+            "ok": true
+          },
+          {
+            "clause": "only_the_named_promo_excluded",
+            "contract": "consumer_consistency",
+            "detail": {
+              "distinct_promos_kept": 40,
+              "excluded_promo_rows": 0
+            },
+            "ok": true
+          }
+        ],
+        "b_repair_writes": [
+          "reporting.rpt_channel_mix"
+        ],
+        "criterion_i_repair_stops_working": false,
+        "criterion_ii_state_outside_a_footprint": false,
+        "post_repair_diff_keys": {
+          "warehouse.bi_revenue_extract": 84,
+          "warehouse.fct_revenue": 94292,
+          "warehouse.kpi_daily": 84
+        },
+        "post_repair_diff_outside_a_footprint": {},
+        "repair_order_dependent": null,
+        "seconds_build": 5.48,
+        "strength": "none",
+        "table_notes": {}
+      },
+      "executed": true,
+      "predeclared_overlap": {
+        "a": "stale_definition_layout",
+        "b": "synthetic_null_unsafe_exclusion",
+        "control_plane_stressors": [],
+        "kinds": [
+          "defect",
+          "defect"
+        ],
+        "overlap": false,
+        "same_task": true,
+        "shared": {
+          "checkpoints": [],
+          "metrics": [],
+          "tables": [],
+          "window": []
+        },
+        "shared_contracts": [
+          "consumer_consistency"
+        ],
+        "verdict": "disconnected -- reject without measuring"
+      },
+      "seconds": 13.49,
+      "task": "GT004-doubling-window"
+    },
+    {
+      "a": "late_arrival",
+      "b": "retry_backfill_doubling",
+      "coupled": false,
+      "evidence": {
+        "a_footprint_size": 616,
+        "a_footprint_tables": [
+          "raw.orders_landing",
+          "warehouse.bi_revenue_extract",
+          "warehouse.fct_orders",
+          "warehouse.fct_revenue",
+          "warehouse.kpi_daily"
+        ],
+        "a_repair_writes": [
+          "warehouse.fct_orders",
+          "warehouse.fct_revenue",
+          "warehouse.kpi_daily",
+          "warehouse.bi_revenue_extract"
+        ],
+        "b_clauses_after_repair_a_then_repair_b": null,
+        "b_clauses_failing_with_a_present": [],
+        "b_clauses_on_base_plus_a_plus_b": [
+          {
+            "clause": "no_duplicate_business_keys_in_window",
+            "contract": "exactly_once",
+            "detail": {
+              "duplicated_keys": 0
+            },
+            "ok": true
+          },
+          {
+            "clause": "manual_adjustments_preserved",
+            "contract": "auditability",
+            "detail": {
+              "expected": 76,
+              "in_window": 76
+            },
+            "ok": true
+          },
+          {
+            "clause": "no_key_destroyed_in_window",
+            "contract": "liveness",
+            "detail": {
+              "distinct_keys": 15643,
+              "snapshot_keys": 15643
+            },
+            "ok": true
+          },
+          {
+            "clause": "window_still_populated",
+            "contract": "liveness",
+            "detail": {
+              "days_present": 14,
+              "expected": 14
+            },
+            "ok": true
+          }
+        ],
+        "b_clauses_on_base_plus_b": [
+          {
+            "clause": "no_duplicate_business_keys_in_window",
+            "contract": "exactly_once",
+            "detail": {
+              "duplicated_keys": 0
+            },
+            "ok": true
+          },
+          {
+            "clause": "manual_adjustments_preserved",
+            "contract": "auditability",
+            "detail": {
+              "expected": 76,
+              "in_window": 76
+            },
+            "ok": true
+          },
+          {
+            "clause": "no_key_destroyed_in_window",
+            "contract": "liveness",
+            "detail": {
+              "distinct_keys": 15643,
+              "snapshot_keys": 15643
+            },
+            "ok": true
+          },
+          {
+            "clause": "window_still_populated",
+            "contract": "liveness",
+            "detail": {
+              "days_present": 14,
+              "expected": 14
+            },
+            "ok": true
+          }
+        ],
+        "b_repair_writes": [
+          "warehouse.fct_orders",
+          "warehouse.kpi_daily",
+          "warehouse.bi_revenue_extract"
+        ],
+        "criterion_i_repair_stops_working": false,
+        "criterion_ii_state_outside_a_footprint": false,
+        "post_repair_diff_keys": {
+          "raw.orders_landing": 196
+        },
+        "post_repair_diff_outside_a_footprint": {},
+        "repair_order_dependent": null,
+        "seconds_build": 5.56,
+        "strength": "none",
+        "table_notes": {}
+      },
+      "executed": true,
+      "predeclared_overlap": {
+        "a": "late_arrival",
+        "b": "retry_backfill_doubling",
+        "control_plane_stressors": [],
+        "kinds": [
+          "event",
+          "defect"
+        ],
+        "overlap": true,
+        "same_task": true,
+        "shared": {
+          "checkpoints": [],
+          "metrics": [
+            "aov",
+            "gross_revenue",
+            "order_lines",
+            "orders"
+          ],
+          "tables": [
+            "warehouse.bi_revenue_extract",
+            "warehouse.fct_orders",
+            "warehouse.kpi_daily"
+          ],
+          "window": [
+            [
+              "2026-02-09",
+              "2026-02-22"
+            ]
+          ]
+        },
+        "shared_contracts": [
+          "exactly_once"
+        ],
+        "verdict": "may couple -- measure it"
+      },
+      "seconds": 13.23,
+      "task": "GT004-doubling-window"
+    },
+    {
+      "a": "late_arrival",
+      "b": "stale_definition_layout",
+      "coupled": false,
+      "evidence": {
+        "a_footprint_size": 616,
+        "a_footprint_tables": [
+          "raw.orders_landing",
+          "warehouse.bi_revenue_extract",
+          "warehouse.fct_orders",
+          "warehouse.fct_revenue",
+          "warehouse.kpi_daily"
+        ],
+        "a_repair_writes": [
+          "warehouse.fct_orders",
+          "warehouse.fct_revenue",
+          "warehouse.kpi_daily",
+          "warehouse.bi_revenue_extract"
+        ],
+        "b_clauses_after_repair_a_then_repair_b": null,
+        "b_clauses_failing_with_a_present": [],
+        "b_clauses_on_base_plus_a_plus_b": [
+          {
+            "clause": "layout_invariant_holds_everywhere",
+            "contract": "consumer_consistency",
+            "detail": {
+              "invariant": "net_amount = gross_amount - discount_amount + tax_amount",
+              "violating_rows": 0
+            },
+            "ok": true
+          },
+          {
+            "clause": "one_revenue_row_per_business_key",
+            "contract": "exactly_once",
+            "detail": {
+              "keys": 202700,
+              "rows": 202700
+            },
+            "ok": true
+          },
+          {
+            "clause": "no_seam_at_materialisation_switch",
+            "contract": "consumer_consistency",
+            "detail": {
+              "post_switch_rate": "0.0725",
+              "pre_switch_rate": "0.0725"
+            },
+            "ok": true
+          },
+          {
+            "clause": "revenue_covers_full_history",
+            "contract": "liveness",
+            "detail": {
+              "days": 181,
+              "expected": 181
+            },
+            "ok": true
+          }
+        ],
+        "b_clauses_on_base_plus_b": [
+          {
+            "clause": "layout_invariant_holds_everywhere",
+            "contract": "consumer_consistency",
+            "detail": {
+              "invariant": "net_amount = gross_amount - discount_amount + tax_amount",
+              "violating_rows": 0
+            },
+            "ok": true
+          },
+          {
+            "clause": "one_revenue_row_per_business_key",
+            "contract": "exactly_once",
+            "detail": {
+              "keys": 202700,
+              "rows": 202700
+            },
+            "ok": true
+          },
+          {
+            "clause": "no_seam_at_materialisation_switch",
+            "contract": "consumer_consistency",
+            "detail": {
+              "post_switch_rate": "0.0725",
+              "pre_switch_rate": "0.0725"
+            },
+            "ok": true
+          },
+          {
+            "clause": "revenue_covers_full_history",
+            "contract": "liveness",
+            "detail": {
+              "days": 181,
+              "expected": 181
+            },
+            "ok": true
+          }
+        ],
+        "b_repair_writes": [
+          "warehouse.fct_revenue",
+          "warehouse.kpi_daily",
+          "warehouse.bi_revenue_extract"
+        ],
+        "criterion_i_repair_stops_working": false,
+        "criterion_ii_state_outside_a_footprint": false,
+        "post_repair_diff_keys": {
+          "raw.orders_landing": 196
+        },
+        "post_repair_diff_outside_a_footprint": {},
+        "repair_order_dependent": null,
+        "seconds_build": 5.47,
+        "strength": "none",
+        "table_notes": {}
+      },
+      "executed": true,
+      "predeclared_overlap": {
+        "a": "late_arrival",
+        "b": "stale_definition_layout",
+        "control_plane_stressors": [],
+        "kinds": [
+          "event",
+          "defect"
+        ],
+        "overlap": true,
+        "same_task": true,
+        "shared": {
+          "checkpoints": [],
+          "metrics": [
+            "aov",
+            "net_revenue"
+          ],
+          "tables": [
+            "warehouse.bi_revenue_extract",
+            "warehouse.fct_revenue",
+            "warehouse.kpi_daily"
+          ],
+          "window": []
+        },
+        "shared_contracts": [],
+        "verdict": "may couple -- measure it"
+      },
+      "seconds": 13.59,
+      "task": "GT004-doubling-window"
+    },
+    {
+      "a": "late_arrival",
+      "b": "synthetic_null_unsafe_exclusion",
+      "coupled": false,
+      "evidence": {
+        "a_footprint_size": 616,
+        "a_footprint_tables": [
+          "raw.orders_landing",
+          "warehouse.bi_revenue_extract",
+          "warehouse.fct_orders",
+          "warehouse.fct_revenue",
+          "warehouse.kpi_daily"
+        ],
+        "a_repair_writes": [
+          "warehouse.fct_orders",
+          "warehouse.fct_revenue",
+          "warehouse.kpi_daily",
+          "warehouse.bi_revenue_extract"
+        ],
+        "b_clauses_after_repair_a_then_repair_b": null,
+        "b_clauses_failing_with_a_present": [],
+        "b_clauses_on_base_plus_a_plus_b": [
+          {
+            "clause": "report_not_empty",
+            "contract": "liveness",
+            "detail": {
+              "days": 181,
+              "rows": 7239
+            },
+            "ok": true
+          },
+          {
+            "clause": "only_the_named_promo_excluded",
+            "contract": "consumer_consistency",
+            "detail": {
+              "distinct_promos_kept": 40,
+              "excluded_promo_rows": 0
+            },
+            "ok": true
+          }
+        ],
+        "b_clauses_on_base_plus_b": [
+          {
+            "clause": "report_not_empty",
+            "contract": "liveness",
+            "detail": {
+              "days": 181,
+              "rows": 7239
+            },
+            "ok": true
+          },
+          {
+            "clause": "only_the_named_promo_excluded",
+            "contract": "consumer_consistency",
+            "detail": {
+              "distinct_promos_kept": 40,
+              "excluded_promo_rows": 0
+            },
+            "ok": true
+          }
+        ],
+        "b_repair_writes": [
+          "reporting.rpt_channel_mix"
+        ],
+        "criterion_i_repair_stops_working": false,
+        "criterion_ii_state_outside_a_footprint": false,
+        "post_repair_diff_keys": {
+          "raw.orders_landing": 196
+        },
+        "post_repair_diff_outside_a_footprint": {},
+        "repair_order_dependent": null,
+        "seconds_build": 5.8,
+        "strength": "none",
+        "table_notes": {}
+      },
+      "executed": true,
+      "predeclared_overlap": {
+        "a": "late_arrival",
+        "b": "synthetic_null_unsafe_exclusion",
+        "control_plane_stressors": [],
+        "kinds": [
+          "event",
+          "defect"
+        ],
+        "overlap": false,
+        "same_task": true,
+        "shared": {
+          "checkpoints": [],
+          "metrics": [],
+          "tables": [],
+          "window": []
+        },
+        "shared_contracts": [
+          "liveness"
+        ],
+        "verdict": "disconnected -- reject without measuring"
+      },
+      "seconds": 13.23,
+      "task": "GT004-doubling-window"
+    },
+    {
+      "a": "synthetic_null_unsafe_exclusion",
+      "b": "retry_backfill_doubling",
+      "coupled": false,
+      "evidence": {
+        "a_footprint_size": 7239,
+        "a_footprint_tables": [
+          "reporting.rpt_channel_mix"
+        ],
+        "a_repair_writes": [
+          "reporting.rpt_channel_mix"
+        ],
+        "b_clauses_after_repair_a_then_repair_b": null,
+        "b_clauses_failing_with_a_present": [],
+        "b_clauses_on_base_plus_a_plus_b": [
+          {
+            "clause": "no_duplicate_business_keys_in_window",
+            "contract": "exactly_once",
+            "detail": {
+              "duplicated_keys": 0
+            },
+            "ok": true
+          },
+          {
+            "clause": "manual_adjustments_preserved",
+            "contract": "auditability",
+            "detail": {
+              "expected": 76,
+              "in_window": 76
+            },
+            "ok": true
+          },
+          {
+            "clause": "no_key_destroyed_in_window",
+            "contract": "liveness",
+            "detail": {
+              "distinct_keys": 15643,
+              "snapshot_keys": 15643
+            },
+            "ok": true
+          },
+          {
+            "clause": "window_still_populated",
+            "contract": "liveness",
+            "detail": {
+              "days_present": 14,
+              "expected": 14
+            },
+            "ok": true
+          }
+        ],
+        "b_clauses_on_base_plus_b": [
+          {
+            "clause": "no_duplicate_business_keys_in_window",
+            "contract": "exactly_once",
+            "detail": {
+              "duplicated_keys": 0
+            },
+            "ok": true
+          },
+          {
+            "clause": "manual_adjustments_preserved",
+            "contract": "auditability",
+            "detail": {
+              "expected": 76,
+              "in_window": 76
+            },
+            "ok": true
+          },
+          {
+            "clause": "no_key_destroyed_in_window",
+            "contract": "liveness",
+            "detail": {
+              "distinct_keys": 15643,
+              "snapshot_keys": 15643
+            },
+            "ok": true
+          },
+          {
+            "clause": "window_still_populated",
+            "contract": "liveness",
+            "detail": {
+              "days_present": 14,
+              "expected": 14
+            },
+            "ok": true
+          }
+        ],
+        "b_repair_writes": [
+          "warehouse.fct_orders",
+          "warehouse.kpi_daily",
+          "warehouse.bi_revenue_extract"
+        ],
+        "criterion_i_repair_stops_working": false,
+        "criterion_ii_state_outside_a_footprint": false,
+        "post_repair_diff_keys": {
+          "reporting.rpt_channel_mix": 7239
+        },
+        "post_repair_diff_outside_a_footprint": {},
+        "repair_order_dependent": null,
+        "seconds_build": 5.35,
+        "strength": "none",
+        "table_notes": {}
+      },
+      "executed": true,
+      "predeclared_overlap": {
+        "a": "synthetic_null_unsafe_exclusion",
+        "b": "retry_backfill_doubling",
+        "control_plane_stressors": [],
+        "kinds": [
+          "defect",
+          "defect"
+        ],
+        "overlap": false,
+        "same_task": true,
+        "shared": {
+          "checkpoints": [],
+          "metrics": [],
+          "tables": [],
+          "window": []
+        },
+        "shared_contracts": [],
+        "verdict": "disconnected -- reject without measuring"
+      },
+      "seconds": 12.83,
+      "task": "GT004-doubling-window"
+    },
+    {
+      "a": "synthetic_null_unsafe_exclusion",
+      "b": "stale_definition_layout",
+      "coupled": false,
+      "evidence": {
+        "a_footprint_size": 7239,
+        "a_footprint_tables": [
+          "reporting.rpt_channel_mix"
+        ],
+        "a_repair_writes": [
+          "reporting.rpt_channel_mix"
+        ],
+        "b_clauses_after_repair_a_then_repair_b": null,
+        "b_clauses_failing_with_a_present": [],
+        "b_clauses_on_base_plus_a_plus_b": [
+          {
+            "clause": "layout_invariant_holds_everywhere",
+            "contract": "consumer_consistency",
+            "detail": {
+              "invariant": "net_amount = gross_amount - discount_amount + tax_amount",
+              "violating_rows": 0
+            },
+            "ok": true
+          },
+          {
+            "clause": "one_revenue_row_per_business_key",
+            "contract": "exactly_once",
+            "detail": {
+              "keys": 202700,
+              "rows": 202700
+            },
+            "ok": true
+          },
+          {
+            "clause": "no_seam_at_materialisation_switch",
+            "contract": "consumer_consistency",
+            "detail": {
+              "post_switch_rate": "0.0725",
+              "pre_switch_rate": "0.0725"
+            },
+            "ok": true
+          },
+          {
+            "clause": "revenue_covers_full_history",
+            "contract": "liveness",
+            "detail": {
+              "days": 181,
+              "expected": 181
+            },
+            "ok": true
+          }
+        ],
+        "b_clauses_on_base_plus_b": [
+          {
+            "clause": "layout_invariant_holds_everywhere",
+            "contract": "consumer_consistency",
+            "detail": {
+              "invariant": "net_amount = gross_amount - discount_amount + tax_amount",
+              "violating_rows": 0
+            },
+            "ok": true
+          },
+          {
+            "clause": "one_revenue_row_per_business_key",
+            "contract": "exactly_once",
+            "detail": {
+              "keys": 202700,
+              "rows": 202700
+            },
+            "ok": true
+          },
+          {
+            "clause": "no_seam_at_materialisation_switch",
+            "contract": "consumer_consistency",
+            "detail": {
+              "post_switch_rate": "0.0725",
+              "pre_switch_rate": "0.0725"
+            },
+            "ok": true
+          },
+          {
+            "clause": "revenue_covers_full_history",
+            "contract": "liveness",
+            "detail": {
+              "days": 181,
+              "expected": 181
+            },
+            "ok": true
+          }
+        ],
+        "b_repair_writes": [
+          "warehouse.fct_revenue",
+          "warehouse.kpi_daily",
+          "warehouse.bi_revenue_extract"
+        ],
+        "criterion_i_repair_stops_working": false,
+        "criterion_ii_state_outside_a_footprint": false,
+        "post_repair_diff_keys": {
+          "reporting.rpt_channel_mix": 7239
+        },
+        "post_repair_diff_outside_a_footprint": {},
+        "repair_order_dependent": null,
+        "seconds_build": 5.64,
+        "strength": "none",
+        "table_notes": {}
+      },
+      "executed": true,
+      "predeclared_overlap": {
+        "a": "synthetic_null_unsafe_exclusion",
+        "b": "stale_definition_layout",
+        "control_plane_stressors": [],
+        "kinds": [
+          "defect",
+          "defect"
+        ],
+        "overlap": false,
+        "same_task": true,
+        "shared": {
+          "checkpoints": [],
+          "metrics": [],
+          "tables": [],
+          "window": []
+        },
+        "shared_contracts": [
+          "consumer_consistency"
+        ],
+        "verdict": "disconnected -- reject without measuring"
+      },
+      "seconds": 13.67,
+      "task": "GT004-doubling-window"
+    },
+    {
+      "a": "synthetic_null_unsafe_exclusion",
+      "b": "late_arrival",
+      "coupled": false,
+      "evidence": {
+        "a_footprint_size": 7239,
+        "a_footprint_tables": [
+          "reporting.rpt_channel_mix"
+        ],
+        "a_repair_writes": [
+          "reporting.rpt_channel_mix"
+        ],
+        "b_clauses_after_repair_a_then_repair_b": null,
+        "b_clauses_failing_with_a_present": [],
+        "b_clauses_on_base_plus_a_plus_b": [
+          {
+            "clause": "new_late_lines_present_exactly_once",
+            "contract": "exactly_once",
+            "detail": {
+              "keys_not_at_multiplicity_1": 0,
+              "new_keys": 126
+            },
+            "ok": true
+          },
+          {
+            "clause": "restated_lines_present_exactly_once",
+            "contract": "exactly_once",
+            "detail": {
+              "keys_not_at_multiplicity_1": 0,
+              "restated_keys": 70
+            },
+            "ok": true
+          },
+          {
+            "clause": "restated_lines_carry_the_new_values",
+            "contract": "version_precedence",
+            "detail": {
+              "rows_holding_superseded_values": 0
+            },
+            "ok": true
+          },
+          {
+            "clause": "late_batch_actually_ingested",
+            "contract": "liveness",
+            "detail": {
+              "expected": 126,
+              "ingested": 126
+            },
+            "ok": true
+          }
+        ],
+        "b_clauses_on_base_plus_b": [
+          {
+            "clause": "new_late_lines_present_exactly_once",
+            "contract": "exactly_once",
+            "detail": {
+              "keys_not_at_multiplicity_1": 0,
+              "new_keys": 126
+            },
+            "ok": true
+          },
+          {
+            "clause": "restated_lines_present_exactly_once",
+            "contract": "exactly_once",
+            "detail": {
+              "keys_not_at_multiplicity_1": 0,
+              "restated_keys": 70
+            },
+            "ok": true
+          },
+          {
+            "clause": "restated_lines_carry_the_new_values",
+            "contract": "version_precedence",
+            "detail": {
+              "rows_holding_superseded_values": 0
+            },
+            "ok": true
+          },
+          {
+            "clause": "late_batch_actually_ingested",
+            "contract": "liveness",
+            "detail": {
+              "expected": 126,
+              "ingested": 126
+            },
+            "ok": true
+          }
+        ],
+        "b_repair_writes": [
+          "warehouse.fct_orders",
+          "warehouse.fct_revenue",
+          "warehouse.kpi_daily",
+          "warehouse.bi_revenue_extract"
+        ],
+        "criterion_i_repair_stops_working": false,
+        "criterion_ii_state_outside_a_footprint": false,
+        "post_repair_diff_keys": {
+          "reporting.rpt_channel_mix": 7239
+        },
+        "post_repair_diff_outside_a_footprint": {},
+        "repair_order_dependent": null,
+        "seconds_build": 6.07,
+        "strength": "none",
+        "table_notes": {}
+      },
+      "executed": true,
+      "predeclared_overlap": {
+        "a": "synthetic_null_unsafe_exclusion",
+        "b": "late_arrival",
+        "control_plane_stressors": [],
+        "kinds": [
+          "defect",
+          "event"
+        ],
+        "overlap": false,
+        "same_task": true,
+        "shared": {
+          "checkpoints": [],
+          "metrics": [],
+          "tables": [],
+          "window": []
+        },
+        "shared_contracts": [
+          "liveness"
+        ],
+        "verdict": "disconnected -- reject without measuring"
+      },
+      "seconds": 14.33,
+      "task": "GT004-doubling-window"
+    }
+  ],
+  "task": "GT004-doubling-window"
+}

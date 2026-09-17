@@ -1,0 +1,1384 @@
+{
+  "action_log": {
+    "dbt_rows": [
+      {
+        "args_summary": "{\"full_refresh\":false,\"selector\":\"*\",\"variables\":{},\"warehouse\":\"primary\"}",
+        "exit": "ok",
+        "seq": 15,
+        "targets": [
+          "dbt_project"
+        ],
+        "tool": "dbt_run"
+      },
+      {
+        "args_summary": "{\"full_refresh\":false,\"selector\":\"*\",\"variables\":{},\"warehouse\":\"target\"}",
+        "exit": "ok",
+        "seq": 16,
+        "targets": [
+          "target:dbt_project"
+        ],
+        "tool": "dbt_run"
+      },
+      {
+        "args_summary": "{\"full_refresh\":false,\"selector\":\"*\",\"variables\":{},\"warehouse\":\"legacy\"}",
+        "exit": "error",
+        "seq": 19,
+        "targets": [],
+        "tool": "dbt_run"
+      }
+    ],
+    "gateway_trace_error": null,
+    "gateway_trace_validates": true,
+    "qualified_targets_sample": [
+      "legacy:raw.daily_revenue",
+      "pg:raw.daily_revenue",
+      "pg:warehouse.fct_revenue",
+      "primary:legacy.warehouse.fct_revenue",
+      "primary:legacy.warehouse.fct_revenue AS l",
+      "primary:pg.warehouse.fct_revenue AS r",
+      "primary:raw.daily_revenue",
+      "primary:target.raw.daily_revenue AS t",
+      "primary:target.warehouse.fct_revenue AS t",
+      "primary:wh.warehouse.fct_revenue AS p",
+      "target:dbt_project",
+      "target:raw.daily_revenue"
+    ],
+    "rows": 22,
+    "sequence_contiguous": true,
+    "sql_rows": 16,
+    "sql_rows_naming_a_warehouse": 16
+  },
+  "builder": "C:\\Users\\OhhMoo\\AppData\\Local\\Temp\\claude\\C--Users-OhhMoo-desktop-research-alkera\\8e0194ed-9fad-4596-a2aa-3db725359add\\scratchpad\\proof\\world\\scripts\\dual_world_builder.py",
+  "containment": {
+    "audit_writable": true,
+    "contained": true,
+    "container_id": "b6375b4def9d",
+    "dbt_profiles_rerooted": [
+      "world_dbt.dev",
+      "world_dbt.legacy",
+      "world_dbt.target"
+    ],
+    "egress_blocked": true,
+    "env_keys": [
+      "ALKERA_BACKEND",
+      "ALKERA_POSTGRES_DSN",
+      "ALKERA_SOURCE_REV",
+      "ALKERA_WAREHOUSES",
+      "GPG_KEY",
+      "HOME",
+      "HOSTNAME",
+      "LANG",
+      "PATH",
+      "PYTHONDONTWRITEBYTECODE",
+      "PYTHONPATH",
+      "PYTHONUNBUFFERED",
+      "PYTHONUTF8",
+      "PYTHON_SHA256",
+      "PYTHON_VERSION",
+      "REQUESTS_CA_BUNDLE",
+      "TZ"
+    ],
+    "forbidden_dirs": [
+      {
+        "exists": false,
+        "listing_error": "FileNotFoundError: [Errno 2] No such file or directory: '/grading'",
+        "path": "/grading"
+      },
+      {
+        "exists": false,
+        "listing_error": "FileNotFoundError: [Errno 2] No such file or directory: '/world/../grading'",
+        "path": "/world/../grading"
+      },
+      {
+        "exists": false,
+        "listing_error": "FileNotFoundError: [Errno 2] No such file or directory: '/grading-zone'",
+        "path": "/grading-zone"
+      },
+      {
+        "exists": false,
+        "listing_error": "FileNotFoundError: [Errno 2] No such file or directory: '/tests'",
+        "path": "/tests"
+      }
+    ],
+    "forbidden_reads": [
+      {
+        "path": "/grading/manifest.yaml",
+        "result": "FileNotFoundError: [Errno 2] No such file or directory: '/grading/manifest.yaml'"
+      },
+      {
+        "path": "/world/../grading/manifest.yaml",
+        "result": "FileNotFoundError: [Errno 2] No such file or directory: '/world/../grading/manifest.yaml'"
+      },
+      {
+        "path": "/grading-zone/manifest.yaml",
+        "result": "FileNotFoundError: [Errno 2] No such file or directory: '/grading-zone/manifest.yaml'"
+      },
+      {
+        "path": "/tests/manifest.yaml",
+        "result": "FileNotFoundError: [Errno 2] No such file or directory: '/tests/manifest.yaml'"
+      },
+      {
+        "path": "C:/Users/OhhMoo/AppData/Local/Temp/alkera-dual-check/1789530913/grading/manifest.yaml",
+        "result": "FileNotFoundError: [Errno 2] No such file or directory: 'C:/Users/OhhMoo/AppData/Local/Temp/alkera-dual-check/1789530913/grading/manifest.yaml'"
+      }
+    ],
+    "host_paths_present": [],
+    "identity": {
+      "cwd": "/opt/world",
+      "gid": 0,
+      "uid": 0
+    },
+    "image": "alkera-episode:substrate",
+    "image_digest": "sha256:1fadc539b47326749e042b1402d4f3b614ee38492a02dbfedcb6da94dcae1d44",
+    "marker_sweep": {
+      "files_scanned": 354,
+      "hits": [
+        {
+          "kind": "marker_in_file",
+          "name": "3_track.md",
+          "path": "/opt/gateway/src/alkera_gateway/config.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/gateway/src/alkera_gateway/surfaces.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/gateway/src/alkera_gateway/scheduling.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/world/seed.yaml"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/world/world/executor.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/world/world/snapshot.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/world/world/build.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/world/world/__init__.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/world/world/bi.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/world/world/scheduler.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/world/world/gateway_scheduler.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/world/world/airflow_bridge.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/world/world/themes/mainframe_batch/workspace/dbt_project/macros/relations.sql"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/world/world/themes/excel_close/workspace/dbt_project/macros/relations.sql"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/world/world/themes/revenue_daily/seed.example.yaml"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/world/world/themes/revenue_daily/workspace/dbt_project/macros/relations.sql"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/world/world/themes/sftp_vendor/workspace/dbt_project/macros/relations.sql"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "3_track.md",
+          "path": "/usr/local/lib/python3.11/site-packages/alkera_gateway/config.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/usr/local/lib/python3.11/site-packages/alkera_gateway/surfaces.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/usr/local/lib/python3.11/site-packages/alkera_gateway/scheduling.py"
+        }
+      ],
+      "truncated": false
+    },
+    "mount_roots": [
+      "/",
+      "/Users/OhhMoo/AppData/Local/Temp/alkera-dual-check/1789530913/audit",
+      "/Users/OhhMoo/AppData/Local/Temp/alkera-dual-check/1789530913/world",
+      "/Users/OhhMoo/AppData/Local/Temp/alkera-dual-check/1789530913/world/workspace",
+      "/data/docker/containers/b6375b4def9dd56d3bbb101e6d7e178bad8ae1ee89c8ff2d811a3be29993bf3c/hostname",
+      "/data/docker/containers/b6375b4def9dd56d3bbb101e6d7e178bad8ae1ee89c8ff2d811a3be29993bf3c/hosts",
+      "/data/docker/containers/b6375b4def9dd56d3bbb101e6d7e178bad8ae1ee89c8ff2d811a3be29993bf3c/resolv.conf",
+      "/data/docker/volumes/alkera-dualcheck_bistate/_data",
+      "/data/docker/volumes/alkera-dualcheck_snowflaketrust/_data"
+    ],
+    "mount_roots_naming_repo": [],
+    "mounts": [
+      {
+        "fstype": "overlay",
+        "options": "rw,relatime",
+        "root": "/",
+        "source": "overlay",
+        "target": "/"
+      },
+      {
+        "fstype": "9p",
+        "options": "rw,noatime",
+        "root": "/Users/OhhMoo/AppData/Local/Temp/alkera-dual-check/1789530913/audit",
+        "source": "C:\\134",
+        "target": "/audit"
+      },
+      {
+        "fstype": "9p",
+        "options": "rw,noatime",
+        "root": "/Users/OhhMoo/AppData/Local/Temp/alkera-dual-check/1789530913/world",
+        "source": "C:\\134",
+        "target": "/world"
+      },
+      {
+        "fstype": "9p",
+        "options": "rw,noatime",
+        "root": "/Users/OhhMoo/AppData/Local/Temp/alkera-dual-check/1789530913/world/workspace",
+        "source": "C:\\134",
+        "target": "/workspace"
+      },
+      {
+        "fstype": "ext4",
+        "options": "rw,relatime",
+        "root": "/data/docker/volumes/alkera-dualcheck_bistate/_data",
+        "source": "/dev/sdd",
+        "target": "/service-state/bi"
+      },
+      {
+        "fstype": "ext4",
+        "options": "rw,relatime",
+        "root": "/data/docker/containers/b6375b4def9dd56d3bbb101e6d7e178bad8ae1ee89c8ff2d811a3be29993bf3c/resolv.conf",
+        "source": "/dev/sdd",
+        "target": "/etc/resolv.conf"
+      },
+      {
+        "fstype": "ext4",
+        "options": "rw,relatime",
+        "root": "/data/docker/containers/b6375b4def9dd56d3bbb101e6d7e178bad8ae1ee89c8ff2d811a3be29993bf3c/hostname",
+        "source": "/dev/sdd",
+        "target": "/etc/hostname"
+      },
+      {
+        "fstype": "ext4",
+        "options": "rw,relatime",
+        "root": "/data/docker/containers/b6375b4def9dd56d3bbb101e6d7e178bad8ae1ee89c8ff2d811a3be29993bf3c/hosts",
+        "source": "/dev/sdd",
+        "target": "/etc/hosts"
+      },
+      {
+        "fstype": "ext4",
+        "options": "rw,relatime",
+        "root": "/data/docker/volumes/alkera-dualcheck_snowflaketrust/_data",
+        "source": "/dev/sdd",
+        "target": "/etc/alkera/snowflake-tls"
+      }
+    ],
+    "network": {
+      "default_route": false,
+      "egress_dns": [
+        {
+          "name": "example.com",
+          "result": "gaierror"
+        },
+        {
+          "name": "pypi.org",
+          "result": "gaierror"
+        },
+        {
+          "name": "api.anthropic.com",
+          "result": "gaierror"
+        }
+      ],
+      "egress_tcp": [
+        {
+          "result": "OSError",
+          "target": "8.8.8.8:53"
+        },
+        {
+          "result": "OSError",
+          "target": "1.1.1.1:443"
+        },
+        {
+          "result": "OSError",
+          "target": "93.184.215.14:80"
+        }
+      ],
+      "interfaces": [
+        "lo",
+        "eth0",
+        "eth1"
+      ],
+      "routes": [
+        {
+          "dest": "172.22.0.0",
+          "iface": "eth0"
+        },
+        {
+          "dest": "172.23.0.0",
+          "iface": "eth1"
+        }
+      ]
+    },
+    "probe_source": "stdin to `python -`; never written to the container disk",
+    "root_listing": [
+      ".dockerenv",
+      "audit",
+      "bin",
+      "boot",
+      "dev",
+      "etc",
+      "home",
+      "lib",
+      "lib64",
+      "media",
+      "mnt",
+      "opt",
+      "proc",
+      "root",
+      "run",
+      "sbin",
+      "service-state",
+      "srv",
+      "sys",
+      "tmp",
+      "usr",
+      "var",
+      "workspace",
+      "world"
+    ],
+    "services_live": [
+      "episode",
+      "postgres",
+      "s3"
+    ],
+    "stripped_paths": [
+      "/opt/stack",
+      "/opt/gateway/tests"
+    ],
+    "world_parent_listing": [
+      ".dockerenv",
+      "audit",
+      "bin",
+      "boot",
+      "dev",
+      "etc",
+      "home",
+      "lib",
+      "lib64",
+      "media",
+      "mnt",
+      "opt",
+      "proc",
+      "root",
+      "run",
+      "sbin",
+      "service-state",
+      "srv",
+      "sys",
+      "tmp",
+      "usr",
+      "var",
+      "workspace",
+      "world"
+    ],
+    "world_writable": true
+  },
+  "containment_after": {
+    "audit_writable": true,
+    "contained": true,
+    "container_id": "b6375b4def9d",
+    "dbt_profiles_rerooted": [
+      "world_dbt.dev",
+      "world_dbt.legacy",
+      "world_dbt.target"
+    ],
+    "egress_blocked": true,
+    "env_keys": [
+      "ALKERA_BACKEND",
+      "ALKERA_POSTGRES_DSN",
+      "ALKERA_SOURCE_REV",
+      "ALKERA_WAREHOUSES",
+      "GPG_KEY",
+      "HOME",
+      "HOSTNAME",
+      "LANG",
+      "PATH",
+      "PYTHONDONTWRITEBYTECODE",
+      "PYTHONPATH",
+      "PYTHONUNBUFFERED",
+      "PYTHONUTF8",
+      "PYTHON_SHA256",
+      "PYTHON_VERSION",
+      "REQUESTS_CA_BUNDLE",
+      "TZ"
+    ],
+    "forbidden_dirs": [
+      {
+        "exists": false,
+        "listing_error": "FileNotFoundError: [Errno 2] No such file or directory: '/grading'",
+        "path": "/grading"
+      },
+      {
+        "exists": false,
+        "listing_error": "FileNotFoundError: [Errno 2] No such file or directory: '/world/../grading'",
+        "path": "/world/../grading"
+      },
+      {
+        "exists": false,
+        "listing_error": "FileNotFoundError: [Errno 2] No such file or directory: '/grading-zone'",
+        "path": "/grading-zone"
+      },
+      {
+        "exists": false,
+        "listing_error": "FileNotFoundError: [Errno 2] No such file or directory: '/tests'",
+        "path": "/tests"
+      }
+    ],
+    "forbidden_reads": [
+      {
+        "path": "/grading/manifest.yaml",
+        "result": "FileNotFoundError: [Errno 2] No such file or directory: '/grading/manifest.yaml'"
+      },
+      {
+        "path": "/world/../grading/manifest.yaml",
+        "result": "FileNotFoundError: [Errno 2] No such file or directory: '/world/../grading/manifest.yaml'"
+      },
+      {
+        "path": "/grading-zone/manifest.yaml",
+        "result": "FileNotFoundError: [Errno 2] No such file or directory: '/grading-zone/manifest.yaml'"
+      },
+      {
+        "path": "/tests/manifest.yaml",
+        "result": "FileNotFoundError: [Errno 2] No such file or directory: '/tests/manifest.yaml'"
+      }
+    ],
+    "host_paths_present": [],
+    "identity": {
+      "cwd": "/opt/world",
+      "gid": 0,
+      "uid": 0
+    },
+    "image": "alkera-episode:substrate",
+    "image_digest": "sha256:1fadc539b47326749e042b1402d4f3b614ee38492a02dbfedcb6da94dcae1d44",
+    "marker_sweep": {
+      "files_scanned": 354,
+      "hits": [
+        {
+          "kind": "marker_in_file",
+          "name": "3_track.md",
+          "path": "/opt/gateway/src/alkera_gateway/config.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/gateway/src/alkera_gateway/surfaces.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/gateway/src/alkera_gateway/scheduling.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/world/seed.yaml"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/world/world/executor.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/world/world/snapshot.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/world/world/build.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/world/world/__init__.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/world/world/bi.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/world/world/scheduler.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/world/world/gateway_scheduler.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/world/world/airflow_bridge.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/world/world/themes/mainframe_batch/workspace/dbt_project/macros/relations.sql"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/world/world/themes/excel_close/workspace/dbt_project/macros/relations.sql"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/world/world/themes/revenue_daily/seed.example.yaml"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/world/world/themes/revenue_daily/workspace/dbt_project/macros/relations.sql"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/world/world/themes/sftp_vendor/workspace/dbt_project/macros/relations.sql"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "3_track.md",
+          "path": "/usr/local/lib/python3.11/site-packages/alkera_gateway/config.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/usr/local/lib/python3.11/site-packages/alkera_gateway/surfaces.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/usr/local/lib/python3.11/site-packages/alkera_gateway/scheduling.py"
+        }
+      ],
+      "truncated": false
+    },
+    "mount_roots": [
+      "/",
+      "/Users/OhhMoo/AppData/Local/Temp/alkera-dual-check/1789530913/audit",
+      "/Users/OhhMoo/AppData/Local/Temp/alkera-dual-check/1789530913/world",
+      "/Users/OhhMoo/AppData/Local/Temp/alkera-dual-check/1789530913/world/workspace",
+      "/data/docker/containers/b6375b4def9dd56d3bbb101e6d7e178bad8ae1ee89c8ff2d811a3be29993bf3c/hostname",
+      "/data/docker/containers/b6375b4def9dd56d3bbb101e6d7e178bad8ae1ee89c8ff2d811a3be29993bf3c/hosts",
+      "/data/docker/containers/b6375b4def9dd56d3bbb101e6d7e178bad8ae1ee89c8ff2d811a3be29993bf3c/resolv.conf",
+      "/data/docker/volumes/alkera-dualcheck_bistate/_data",
+      "/data/docker/volumes/alkera-dualcheck_snowflaketrust/_data"
+    ],
+    "mount_roots_naming_repo": [],
+    "mounts": [
+      {
+        "fstype": "overlay",
+        "options": "rw,relatime",
+        "root": "/",
+        "source": "overlay",
+        "target": "/"
+      },
+      {
+        "fstype": "9p",
+        "options": "rw,noatime",
+        "root": "/Users/OhhMoo/AppData/Local/Temp/alkera-dual-check/1789530913/audit",
+        "source": "C:\\134",
+        "target": "/audit"
+      },
+      {
+        "fstype": "9p",
+        "options": "rw,noatime",
+        "root": "/Users/OhhMoo/AppData/Local/Temp/alkera-dual-check/1789530913/world",
+        "source": "C:\\134",
+        "target": "/world"
+      },
+      {
+        "fstype": "9p",
+        "options": "rw,noatime",
+        "root": "/Users/OhhMoo/AppData/Local/Temp/alkera-dual-check/1789530913/world/workspace",
+        "source": "C:\\134",
+        "target": "/workspace"
+      },
+      {
+        "fstype": "ext4",
+        "options": "rw,relatime",
+        "root": "/data/docker/volumes/alkera-dualcheck_bistate/_data",
+        "source": "/dev/sdd",
+        "target": "/service-state/bi"
+      },
+      {
+        "fstype": "ext4",
+        "options": "rw,relatime",
+        "root": "/data/docker/containers/b6375b4def9dd56d3bbb101e6d7e178bad8ae1ee89c8ff2d811a3be29993bf3c/resolv.conf",
+        "source": "/dev/sdd",
+        "target": "/etc/resolv.conf"
+      },
+      {
+        "fstype": "ext4",
+        "options": "rw,relatime",
+        "root": "/data/docker/containers/b6375b4def9dd56d3bbb101e6d7e178bad8ae1ee89c8ff2d811a3be29993bf3c/hostname",
+        "source": "/dev/sdd",
+        "target": "/etc/hostname"
+      },
+      {
+        "fstype": "ext4",
+        "options": "rw,relatime",
+        "root": "/data/docker/containers/b6375b4def9dd56d3bbb101e6d7e178bad8ae1ee89c8ff2d811a3be29993bf3c/hosts",
+        "source": "/dev/sdd",
+        "target": "/etc/hosts"
+      },
+      {
+        "fstype": "ext4",
+        "options": "rw,relatime",
+        "root": "/data/docker/volumes/alkera-dualcheck_snowflaketrust/_data",
+        "source": "/dev/sdd",
+        "target": "/etc/alkera/snowflake-tls"
+      }
+    ],
+    "network": {
+      "default_route": false,
+      "egress_dns": [
+        {
+          "name": "example.com",
+          "result": "gaierror"
+        },
+        {
+          "name": "pypi.org",
+          "result": "gaierror"
+        },
+        {
+          "name": "api.anthropic.com",
+          "result": "gaierror"
+        }
+      ],
+      "egress_tcp": [
+        {
+          "result": "OSError",
+          "target": "8.8.8.8:53"
+        },
+        {
+          "result": "OSError",
+          "target": "1.1.1.1:443"
+        },
+        {
+          "result": "OSError",
+          "target": "93.184.215.14:80"
+        }
+      ],
+      "interfaces": [
+        "lo",
+        "eth0",
+        "eth1"
+      ],
+      "routes": [
+        {
+          "dest": "172.22.0.0",
+          "iface": "eth0"
+        },
+        {
+          "dest": "172.23.0.0",
+          "iface": "eth1"
+        }
+      ]
+    },
+    "probe_source": "stdin to `python -`; never written to the container disk",
+    "root_listing": [
+      ".dockerenv",
+      "audit",
+      "bin",
+      "boot",
+      "dev",
+      "etc",
+      "home",
+      "lib",
+      "lib64",
+      "media",
+      "mnt",
+      "opt",
+      "proc",
+      "root",
+      "run",
+      "sbin",
+      "service-state",
+      "srv",
+      "sys",
+      "tmp",
+      "usr",
+      "var",
+      "workspace",
+      "world"
+    ],
+    "services_live": [
+      "episode",
+      "postgres",
+      "s3"
+    ],
+    "stripped_paths": [
+      "/opt/stack",
+      "/opt/gateway/tests"
+    ],
+    "world_parent_listing": [
+      ".dockerenv",
+      "audit",
+      "bin",
+      "boot",
+      "dev",
+      "etc",
+      "home",
+      "lib",
+      "lib64",
+      "media",
+      "mnt",
+      "opt",
+      "proc",
+      "root",
+      "run",
+      "sbin",
+      "service-state",
+      "srv",
+      "sys",
+      "tmp",
+      "usr",
+      "var",
+      "workspace",
+      "world"
+    ],
+    "world_writable": true
+  },
+  "dbt_profiles_rerooted": [
+    "world_dbt.dev",
+    "world_dbt.legacy",
+    "world_dbt.target"
+  ],
+  "docker_server": "29.5.2",
+  "gateway_config_in_container": {
+    "audit_dir": "/audit",
+    "dashboards": "/world/var/bi/dashboards",
+    "episode_id": "dual-check",
+    "initial_world_fp": "5a96610ef33e7fc4b6e77e06c344127724f0dbee1ac90f00a3437e548b2daa1b",
+    "obs_samples": "/world/var/obs/samples.jsonl",
+    "observability": "/world/var/obs/observability.yml",
+    "profiles_dir": "/opt/episode/dbt",
+    "scheduler": "/world/var/sched/state.json",
+    "virtual_time": "2026-03-03T00:00:00Z",
+    "warehouse": "/world/var/warehouse/warehouse.duckdb",
+    "warehouses": [
+      {
+        "attach": true,
+        "backend": "duckdb",
+        "name": "legacy",
+        "path": "/world/var/warehouse/legacy.duckdb",
+        "read_only": true
+      },
+      {
+        "attach": true,
+        "backend": "duckdb",
+        "dbt_target": "target",
+        "name": "target",
+        "path": "/world/var/warehouse/target.duckdb",
+        "read_only": false
+      },
+      {
+        "attach": true,
+        "backend": "postgres",
+        "name": "pg",
+        "read_only": false
+      }
+    ],
+    "workflow_dir": "/world/var/workflow",
+    "workspace": "/workspace",
+    "world_root": "/world"
+  },
+  "generated_utc": "2026-09-16T03:55:13Z",
+  "host_fingerprint_after": "006181100e1f46495f92586ca5b0e1176d00e98e6f755a9fc6bf316459dd87cf",
+  "host_fingerprint_before": "fb7a242acc87b11dc11ba99e497743c84746b3581eb3e4fcd76764767fe5fb99",
+  "image": "alkera-episode:substrate",
+  "image_digest": "sha256:1fadc539b47326749e042b1402d4f3b614ee38492a02dbfedcb6da94dcae1d44",
+  "mcp": {
+    "argv": [
+      "docker",
+      "exec",
+      "-i",
+      "-e",
+      "PYTHONUTF8=1",
+      "-e",
+      "PYTHONUNBUFFERED=1",
+      "-w",
+      "/workspace",
+      "b6375b4def9dd56d3bbb101e6d7e178bad8ae1ee89c8ff2d811a3be29993bf3c",
+      "python",
+      "/opt/episode/shim.py",
+      "serve",
+      "--config",
+      "/opt/episode/gateway.json"
+    ],
+    "bash_present": true,
+    "calls": [
+      {
+        "args": {
+          "sql": "SELECT count(*) AS n FROM raw.daily_revenue",
+          "warehouse": "primary"
+        },
+        "error": null,
+        "label": "count by name: primary",
+        "message": "",
+        "ok": true,
+        "rows": [
+          [
+            1504
+          ]
+        ],
+        "tool": "sql_query"
+      },
+      {
+        "args": {
+          "sql": "SELECT count(*) AS n FROM raw.daily_revenue",
+          "warehouse": "legacy"
+        },
+        "error": null,
+        "label": "count by name: legacy",
+        "message": "",
+        "ok": true,
+        "rows": [
+          [
+            1504
+          ]
+        ],
+        "tool": "sql_query"
+      },
+      {
+        "args": {
+          "sql": "SELECT count(*) AS n FROM raw.daily_revenue",
+          "warehouse": "target"
+        },
+        "error": null,
+        "label": "count by name: target",
+        "message": "",
+        "ok": true,
+        "rows": [
+          [
+            1504
+          ]
+        ],
+        "tool": "sql_query"
+      },
+      {
+        "args": {
+          "sql": "SELECT count(*) AS n FROM raw.daily_revenue",
+          "warehouse": "pg"
+        },
+        "error": null,
+        "label": "count by name: pg",
+        "message": "",
+        "ok": true,
+        "rows": [
+          [
+            1504
+          ]
+        ],
+        "tool": "sql_query"
+      },
+      {
+        "args": {
+          "sql": "SELECT count(*) AS agreeing FROM wh.warehouse.fct_revenue p JOIN legacy.warehouse.fct_revenue l USING (order_date) WHERE p.revenue = l.revenue AND p.orders = l.orders"
+        },
+        "error": null,
+        "label": "legacy fact agrees with primary, one statement (duckdb<->duckdb)",
+        "message": "",
+        "ok": true,
+        "rows": [
+          [
+            30
+          ]
+        ],
+        "tool": "sql_query"
+      },
+      {
+        "args": {
+          "sql": "SELECT count(*) AS n FROM wh.warehouse.fct_revenue p FULL OUTER JOIN target.raw.daily_revenue t ON p.order_date = t.order_date WHERE p.order_date IS NULL"
+        },
+        "error": null,
+        "label": "rows only one side has (FULL OUTER JOIN across the attachment)",
+        "message": "",
+        "ok": true,
+        "rows": [
+          [
+            0
+          ]
+        ],
+        "tool": "sql_query"
+      },
+      {
+        "args": {
+          "sql": "SELECT count(*) AS agreeing FROM wh.warehouse.fct_revenue p JOIN pg.warehouse.fct_revenue r USING (order_date) WHERE p.revenue = r.revenue"
+        },
+        "error": null,
+        "label": "postgres fact agrees with primary, one statement (duckdb<->postgres)",
+        "message": "",
+        "ok": true,
+        "rows": [
+          [
+            30
+          ]
+        ],
+        "tool": "sql_query"
+      },
+      {
+        "args": {
+          "sql": "SELECT count(*) AS n FROM legacy.warehouse.fct_revenue l JOIN pg.warehouse.fct_revenue r USING (order_date) JOIN wh.warehouse.fct_revenue p USING (order_date)"
+        },
+        "error": null,
+        "label": "three catalogs in one statement",
+        "message": "",
+        "ok": true,
+        "rows": [
+          [
+            30
+          ]
+        ],
+        "tool": "sql_query"
+      },
+      {
+        "args": {
+          "sql": "DELETE FROM warehouse.fct_revenue",
+          "warehouse": "legacy"
+        },
+        "error": "warehouse_read_only",
+        "label": "write to legacy BY NAME is refused (read-only)",
+        "message": "Warehouse 'legacy' is read-only in this world; it accepts queries only",
+        "ok": false,
+        "tool": "sql_execute"
+      },
+      {
+        "args": {
+          "sql": "DELETE FROM legacy.warehouse.fct_revenue"
+        },
+        "error": "InvalidInputException",
+        "label": "write to legacy THROUGH THE ATTACHMENT is refused (engine)",
+        "message": "Invalid Input Error: Cannot execute statement of type \"DELETE\" on database \"legacy\" which is attached in read-only mode!",
+        "ok": false,
+        "tool": "sql_execute"
+      },
+      {
+        "args": {
+          "sql": "CREATE TABLE warehouse.cutover_log(note VARCHAR); INSERT INTO warehouse.cutover_log VALUES ('dual check')",
+          "warehouse": "target"
+        },
+        "error": null,
+        "label": "write to target by name succeeds",
+        "message": "",
+        "ok": true,
+        "tool": "sql_execute"
+      },
+      {
+        "args": {
+          "sql": "UPDATE warehouse.fct_revenue SET orders = orders WHERE FALSE",
+          "warehouse": "pg"
+        },
+        "error": null,
+        "label": "write to pg by name succeeds",
+        "message": "",
+        "ok": true,
+        "rows": [
+          [
+            0
+          ]
+        ],
+        "tool": "sql_execute"
+      },
+      {
+        "args": {
+          "sql": "ATTACH '/world/var/warehouse/target.duckdb' AS sneaky"
+        },
+        "error": "unsupported_sql",
+        "label": "ATTACH an undeclared file: refused at the tool layer",
+        "message": "This statement is outside the warehouse tool surface",
+        "ok": false,
+        "tool": "sql_execute"
+      },
+      {
+        "args": {
+          "sql": "SELECT 1",
+          "warehouse": "sneaky"
+        },
+        "error": "invalid_arguments",
+        "label": "an undeclared warehouse name: refused",
+        "message": "1 validation error for DualQuery\nwarehouse\n  Input should be 'primary', 'legacy', 'target' or 'pg' [type=literal_error, input_value='sneaky', input_type=str]\n    For further information visit https://",
+        "ok": false,
+        "tool": "sql_query"
+      },
+      {
+        "args": {
+          "full_refresh": false,
+          "selector": "*",
+          "variables": {}
+        },
+        "error": null,
+        "label": "dbt builds the PRIMARY (no warehouse argument)",
+        "message": "",
+        "ok": true,
+        "output_tail": " warehouse.fct_revenue ........................ [OK in 0.11s]\n03:56:40  \n03:56:40  Finished running 1 table model, 1 view model in 0 hours 0 minutes and 0.52 seconds (0.52s).\n03:56:40  \n03:56:40  Completed successfully\n03:56:40  \n03:56:40  Done. PASS=2 WARN=0 ERROR=0 SKIP=0 NO-OP=0 REUSED=0 TOTAL=2\n",
+        "returncode": 0,
+        "tool": "dbt_run"
+      },
+      {
+        "args": {
+          "full_refresh": false,
+          "selector": "*",
+          "variables": {},
+          "warehouse": "target"
+        },
+        "error": null,
+        "label": "dbt builds the TARGET by name",
+        "message": "",
+        "ok": true,
+        "output_tail": " warehouse.fct_revenue ........................ [OK in 0.10s]\n03:56:48  \n03:56:48  Finished running 1 table model, 1 view model in 0 hours 0 minutes and 0.47 seconds (0.47s).\n03:56:48  \n03:56:48  Completed successfully\n03:56:48  \n03:56:48  Done. PASS=2 WARN=0 ERROR=0 SKIP=0 NO-OP=0 REUSED=0 TOTAL=2\n",
+        "returncode": 0,
+        "tool": "dbt_run"
+      },
+      {
+        "args": {
+          "sql": "SELECT count(*) AS n FROM warehouse.fct_revenue",
+          "warehouse": "target"
+        },
+        "error": null,
+        "label": "...and the target now has the fact",
+        "message": "",
+        "ok": true,
+        "rows": [
+          [
+            30
+          ]
+        ],
+        "tool": "sql_query"
+      },
+      {
+        "args": {
+          "sql": "SELECT count(*) AS agreeing FROM target.warehouse.fct_revenue t JOIN legacy.warehouse.fct_revenue l USING (order_date) WHERE t.revenue = l.revenue"
+        },
+        "error": null,
+        "label": "...built from the target's own raw layer, agreeing with legacy",
+        "message": "",
+        "ok": true,
+        "rows": [
+          [
+            30
+          ]
+        ],
+        "tool": "sql_query"
+      },
+      {
+        "args": {
+          "full_refresh": false,
+          "selector": "*",
+          "variables": {},
+          "warehouse": "legacy"
+        },
+        "error": "invalid_arguments",
+        "label": "dbt aimed at legacy (not a dbt target): refused",
+        "message": "1 validation error for DualDbtRun\nwarehouse\n  Input should be 'primary' or 'target' [type=literal_error, input_value='legacy', input_type=str]\n    For further information visit https://errors.pydantic",
+        "ok": false,
+        "tool": "dbt_run"
+      },
+      {
+        "args": {
+          "command": "python -c \"import duckdb; c = duckdb.connect(':memory:', config={'autoinstall_known_extensions': False, 'autoload_known_extensions': False}); c.execute(\\\"ATTACH '/world/var/warehouse/warehouse.duckdb' AS wh (READ_ONLY)\\\"); c.execute('SET enable_external_access = false'); c.execute('SET lock_configuration = true');\nexec('try:\\n    c.execute(\\\"ATTACH \\\\'/world/var/warehouse/target.duckdb\\\\' AS sneaky\\\"); print(\\\"ATTACH-OK\\\")\\nexcept Exception as e:\\n    print(\\\"REFUSED:\\\", str(e).splitlines()[0])')\""
+        },
+        "error": null,
+        "exit_code": 0,
+        "label": "engine refusal with the tool layer bypassed (bash + python)",
+        "message": "",
+        "ok": true,
+        "output": "REFUSED: Permission Error: Cannot access file \"/world/var/warehouse/target.duckdb\" - file system operations are disabled by configuration\n",
+        "tool": "bash"
+      },
+      {
+        "args": {
+          "command": "getent hosts extensions.duckdb.org && echo DNS-OK; curl -sS --max-time 5 https://extensions.duckdb.org/ 2>&1 | tail -1"
+        },
+        "error": null,
+        "exit_code": 0,
+        "label": "egress from the shell",
+        "message": "",
+        "ok": true,
+        "output": "curl: (6) Could not resolve host: extensions.duckdb.org\n",
+        "tool": "bash"
+      },
+      {
+        "args": {
+          "command": "python -c \"import duckdb; duckdb.connect().execute('INSTALL spatial')\" 2>&1 | tail -1"
+        },
+        "error": null,
+        "exit_code": 0,
+        "label": "INSTALL from the shell (no egress)",
+        "message": "",
+        "ok": true,
+        "output": "For more info, visit https://duckdb.org/docs/stable/extensions/troubleshooting?version=v1.5.5&platform=linux_amd64&extension=spatial (ERROR Could not establish connection)\n",
+        "tool": "bash"
+      }
+    ],
+    "dbt_run_warehouse_enum": [
+      "primary",
+      "target"
+    ],
+    "fs_read_has_no_warehouse": true,
+    "server_name": "alkera-gateway",
+    "sql_query_warehouse_enum": [
+      "primary",
+      "legacy",
+      "target",
+      "pg"
+    ],
+    "tool_count": 64
+  },
+  "passed": true,
+  "postgres_seed": {
+    "initial_world_fp": "5a96610ef33e7fc4b6e77e06c344127724f0dbee1ac90f00a3437e548b2daa1b",
+    "legacy_hash": "6069de45b227903d0c29c04d0ab91dc2adfe05a030330f6d5c2e03964a0e606f",
+    "legacy_tables": {
+      "raw.daily_revenue": "07201d4e3f93cb9b5f7c0445c0258f7a6aa8fe4536d7b1f52f1d8fc9d27d7d05",
+      "warehouse.fct_revenue": "2b2dbbb5ae696b2da2ac8df7bcdbe2f6eb8d157c6f1edc2f8a2fe10d97b128c8"
+    },
+    "pg_extra_tables": [
+      "warehouse.items"
+    ],
+    "pg_hash": "ddc760442abca264387da1be93cfe040805e9cc59351472cb29fd2af990cbcd8",
+    "pg_tables": {
+      "raw.daily_revenue": "07201d4e3f93cb9b5f7c0445c0258f7a6aa8fe4536d7b1f52f1d8fc9d27d7d05",
+      "warehouse.fct_revenue": "2b2dbbb5ae696b2da2ac8df7bcdbe2f6eb8d157c6f1edc2f8a2fe10d97b128c8",
+      "warehouse.items": "5458a4a899d72ec4d0eb269f1e80efae0107ed0832a7fcf4abd7a2dfa026a02c"
+    },
+    "same_data_same_hash": true,
+    "tree_hash": "fb7a242acc87b11dc11ba99e497743c84746b3581eb3e4fcd76764767fe5fb99"
+  },
+  "services": [
+    "episode",
+    "postgres",
+    "s3"
+  ],
+  "summary": {
+    "action_log_validates": true,
+    "attached_catalog_refuses_writes_at_engine": true,
+    "contained_before_and_after": true,
+    "dbt_builds_the_primary_in_the_container": true,
+    "dbt_builds_the_target_by_name": true,
+    "dbt_refuses_a_non_target_warehouse": true,
+    "dbt_run_schema_enumerates_targets": true,
+    "declared_names": 4,
+    "duckdb_duckdb_join_in_one_statement": true,
+    "duckdb_postgres_join_in_one_statement": true,
+    "every_declared_name_answers": true,
+    "every_sql_row_names_its_warehouse": true,
+    "read_only_peer_refuses_writes_by_name": true,
+    "same_data_same_hash_across_engines": true,
+    "shell_has_no_egress": true,
+    "sql_query_schema_enumerates_names": true,
+    "undeclared_attach_refused_at_engine": true,
+    "undeclared_attach_refused_at_tool_layer": true,
+    "writable_peer_accepts_writes_by_name": true
+  },
+  "surfaces": {
+    "probed": true,
+    "surfaces": {
+      "dbt_compile(target)": {
+        "covers": [],
+        "declared": true,
+        "error": null,
+        "error_code": null,
+        "live": true,
+        "result_summary": "{\"returncode\": 0, \"output\": \"03:55:53  Running with dbt=1.12.4\\n03:55:53  Registered adapter: duckdb=1.11.0\\n03:55:53  Unable to do partial parsing because saved manifest not found. Starting full parse.\\n03:55:55  Found 2 models, 8 data tests, 1 source, 504 macros\\n03:55:55  \\n03:55:55  Concurrency:",
+        "tool": "dbt_compile"
+      },
+      "legacy": {
+        "covers": [],
+        "declared": true,
+        "error": null,
+        "error_code": null,
+        "live": true,
+        "result_summary": "{\"columns\": [{\"name\": \"n\", \"type\": \"BIGINT\"}], \"rows\": [[30]], \"truncated\": false}",
+        "tool": "sql_query"
+      },
+      "pg": {
+        "covers": [],
+        "declared": true,
+        "error": null,
+        "error_code": null,
+        "live": true,
+        "result_summary": "{\"columns\": [{\"name\": \"n\", \"type\": \"BIGINT\"}], \"rows\": [[30]], \"truncated\": false}",
+        "tool": "sql_query"
+      },
+      "primary": {
+        "covers": [],
+        "declared": true,
+        "error": null,
+        "error_code": null,
+        "live": true,
+        "result_summary": "{\"columns\": [{\"name\": \"n\", \"type\": \"BIGINT\"}], \"rows\": [[30]], \"truncated\": false}",
+        "tool": "sql_query"
+      },
+      "target": {
+        "covers": [],
+        "declared": true,
+        "error": null,
+        "error_code": null,
+        "live": true,
+        "result_summary": "{\"columns\": [{\"name\": \"n\", \"type\": \"BIGINT\"}], \"rows\": [[1504]], \"truncated\": false}",
+        "tool": "sql_query"
+      }
+    }
+  },
+  "toolbelt": [
+    "alarms_get",
+    "alarms_history",
+    "alarms_list",
+    "bash",
+    "bi_cached",
+    "bi_get",
+    "bi_list",
+    "bi_refresh",
+    "bi_render",
+    "bi_update",
+    "chat_channels",
+    "chat_history",
+    "chat_post",
+    "chat_search",
+    "chat_thread",
+    "dbt_compile",
+    "dbt_run",
+    "dbt_test",
+    "deploy_history",
+    "deploy_list",
+    "deploy_run",
+    "docs_get",
+    "docs_list",
+    "docs_search",
+    "fs_list",
+    "fs_read",
+    "fs_write",
+    "git_commit",
+    "git_diff",
+    "git_log",
+    "ingest_alerts",
+    "ingest_get",
+    "ingest_list",
+    "ingest_run",
+    "ingest_runs",
+    "ingest_schema",
+    "ingest_schema_update",
+    "ingest_trigger",
+    "issues_comment",
+    "issues_get",
+    "issues_list",
+    "issues_search",
+    "issues_update",
+    "kb_create",
+    "kb_edit",
+    "kb_get",
+    "kb_list",
+    "kb_search",
+    "logs_get",
+    "logs_list",
+    "logs_search",
+    "metrics_get",
+    "metrics_list",
+    "metrics_series",
+    "s3_delete",
+    "s3_get",
+    "s3_list",
+    "s3_put",
+    "sched_list",
+    "sched_logs",
+    "sched_state",
+    "sched_trigger",
+    "sql_execute",
+    "sql_query"
+  ],
+  "with_postgres": true,
+  "world_manifest": {
+    "dashboards": "C:\\Users\\OhhMoo\\AppData\\Local\\Temp\\alkera-dual-check\\1789530913\\world\\var\\bi\\dashboards",
+    "obs_samples": "C:\\Users\\OhhMoo\\AppData\\Local\\Temp\\alkera-dual-check\\1789530913\\world\\var\\obs\\samples.jsonl",
+    "observability": "C:\\Users\\OhhMoo\\AppData\\Local\\Temp\\alkera-dual-check\\1789530913\\world\\var\\obs\\observability.yml",
+    "profiles_dir": "C:\\Users\\OhhMoo\\AppData\\Local\\Temp\\alkera-dual-check\\1789530913\\world\\build",
+    "remote_unseeded": [
+      "pg"
+    ],
+    "scheduler": "C:\\Users\\OhhMoo\\AppData\\Local\\Temp\\alkera-dual-check\\1789530913\\world\\var\\sched\\state.json",
+    "seed": 1,
+    "virtual_time": "2026-03-03T00:00:00Z",
+    "warehouse": "C:\\Users\\OhhMoo\\AppData\\Local\\Temp\\alkera-dual-check\\1789530913\\world\\var\\warehouse\\warehouse.duckdb",
+    "warehouses": [
+      {
+        "attach": true,
+        "backend": "duckdb",
+        "name": "legacy",
+        "path": "C:\\Users\\OhhMoo\\AppData\\Local\\Temp\\alkera-dual-check\\1789530913\\world\\var\\warehouse\\legacy.duckdb",
+        "read_only": true
+      },
+      {
+        "attach": true,
+        "backend": "duckdb",
+        "dbt_target": "target",
+        "name": "target",
+        "path": "C:\\Users\\OhhMoo\\AppData\\Local\\Temp\\alkera-dual-check\\1789530913\\world\\var\\warehouse\\target.duckdb",
+        "read_only": false
+      },
+      {
+        "attach": true,
+        "backend": "postgres",
+        "name": "pg",
+        "read_only": false
+      }
+    ],
+    "workflow_dir": "C:\\Users\\OhhMoo\\AppData\\Local\\Temp\\alkera-dual-check\\1789530913\\world\\var\\workflow",
+    "workspace": "C:\\Users\\OhhMoo\\AppData\\Local\\Temp\\alkera-dual-check\\1789530913\\world\\workspace",
+    "world_root": "C:\\Users\\OhhMoo\\AppData\\Local\\Temp\\alkera-dual-check\\1789530913\\world"
+  }
+}

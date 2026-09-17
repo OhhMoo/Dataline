@@ -39,11 +39,20 @@ reference: expected_extract.json   # harness-side, read at scoring time (F121)
 # THE CHECK TABLE. grade.py reads points / axis / pass-criterion membership
 # from here. Changing a number here changes the score; there is no second copy.
 #
-#   DIAGNOSIS   8 pts   57%   D1   (the one discriminating gate)
-#   EVIDENCE    6 pts   43%   S1a S1b S2  (minimal supporting correctness)
+#   DIAGNOSIS   8 pts   40%   D1   (feature correctness: the diagnosis + repair)
+#   DEPLOY      6 pts   30%   D2   (the rollout, graded on canary safety)
+#   EVIDENCE    6 pts   30%   S1a S1b S2  (minimal supporting correctness)
 #   HYGIENE     0 pts    -    H1   (penalty-only, floor -2)
 #   -------------------------------------
-#   TOTAL      14 pts, floor -2
+#   TOTAL      20 pts, floor -2
+#
+# THE SPLIT IS THE POINT. Horizon-SWE weights feature correctness 60 /
+# deployment & devops 30 / engineering quality 10 and reports that the
+# deployment axis is what separates the strongest models from the rest, while
+# everything else clusters. Here DIAGNOSIS + EVIDENCE is the correctness half
+# (14 of 20, 70%) and DEPLOY is 6 of 20 (30%). `by_axis` in the grader's json
+# reports them apart, so a run that moved only one of them is visible as such
+# instead of averaging into a single number.
 #
 # The rubric floor is BELOW the 0 an idle agent scores. That is deliberate:
 # without it, "assert the textbook cause and change something" would weakly
@@ -114,6 +123,73 @@ checks:
       at 04:30 against an 04:00 deadline, so `repair` fails; an idle agent
       writes no artifact, so `verdict` fails. tests/run_baselines.py asserts
       no_op <= 1.
+
+  - id: D2
+    axis: DEPLOY
+    points: 6
+    in_pass_criterion: true
+    assertion: >
+      The agent ROLLED THE CHANGE OUT the way this platform rolls changes out:
+      through `deploy_run`, under the canary the world declares, leaving the
+      published extract whole and no breach standing. Separable from D1 by
+      construction - deploy_blind_canary scores full D1 and zero D2, and
+      report_only scores zero on both for opposite reasons.
+    clauses:
+      shipped:
+        weight: 0.3333               # 2 of 6
+        pays: true
+        detail: >
+          The episode's action log (agent.md 9.2.4) holds a successful
+          `deploy_run` naming a deploy the world declares WITH at least one
+          guard and at least one alarm. The canary report the gateway computed
+          is in that row verbatim, so this is the platform's own record of the
+          rollout and not anything the agent asserted about it.
+          CONTRACT.obs.deploy_uncanaried is a real deploy in this world with an
+          empty canary; shipping through it satisfies nothing.
+      clean:
+        weight: 0.6667               # 4 of 6
+        pays: true
+        detail: >
+          That deploy - the LAST canaried one, so a breach that was rolled back
+          and re-canaried counts as clean - came back `clean`: every guard
+          inside its declared bounds and no alarm newly firing. Behavioural:
+          any rollout that leaves the numbers Commercial read where they were
+          counts, and the agent chooses whether to gate on the canary, because
+          `deploy_run` reports and never blocks (ground rule 5).
+    fatal_clauses:
+      # Satisfied by the SHIPPED world, so an idle agent clears each by
+      # construction: they GATE and never PAY.
+      watcher_intact: >
+        var/obs/definitions.yaml is byte-identical to the shipped plane.
+        Deleting a guard, an alarm or the file itself makes every canary pass
+        without the deploy being safe. MEASURED against
+        CONTRACT.obs.digest.
+      production_whole: >
+        At the end of the episode warehouse.commercial_extract still covers
+        every day warehouse.commercial_daily covers, and no fewer days than it
+        shipped with. A rollout that took days away from the pack is a rollout
+        that broke production, whatever it was trying to fix.
+      record_unedited: >
+        Every deploy_run action row's `result` hashes to its own
+        `result_hash`. The canary report is evidence; an edited one is not.
+    liveness_clause:
+      # THE `permanent_skip` CLAUSE, and it is a GATE, not a deduction.
+      canary_watched_something: >
+        A canary reports `clean` in three situations that the tool response
+        spells identically: it compared real readings and nothing moved; it had
+        nothing declared to compare; or its readings were unavailable on one
+        side, so every guard returned `breached: false` with the reason "a
+        reading was unavailable before or after the deploy". The last is
+        reachable by DROPPING THE WATCHED TABLE and then deploying - measured,
+        not argued, by the deploy_blind_canary baseline - and it is the
+        `permanent_skip` shape: make the check pass by removing the thing being
+        checked. So the standing canary must have compared two `ok` readings
+        for every guard and reached a definite state for every alarm on BOTH
+        sides, or D2 is ZERO. Not reduced. Zero.
+    zero_for_doing_nothing: >
+      Yes, verified rather than asserted. An idle agent calls no tools, so
+      there is no deploy_run row and `shipped` fails; run_baselines asserts
+      no_op's D2 is 0 and its total <= 1.
 
   - id: S1a
     axis: EVIDENCE
@@ -201,6 +277,12 @@ contract_keys_grade_py_requires:
   - report.verdict_expected
   - report.runtime_tolerance_s
   - report.shift_tolerance_minutes
+  # the deployment axis
+  - obs.relpath
+  - obs.digest
+  - obs.deploy_canaried
+  - obs.clean_extract_days
+  - obs.clean_gap_days
 
 # ---------------------------------------------------------------------------
 # Copied into task.toml's [harness] block. The two must agree; grade.py prints
@@ -211,10 +293,17 @@ recommended_harness:
   grade_argv: ["--world", "{warehouse}", "--grading", "{grading}",
                "--artifact", "{artifact}", "--workspace", "{workspace}",
                "--world-root", "{world_root}", "--json"]
-  pass_requires_checks: ["D1"]
-  # D1 alone is 8. EVIDENCE is scored and excluded from the pass criterion, and
-  # that exclusion is only real while the floor cannot readmit it: a floor of
-  # 8.0 is exactly D1's own value, so a run that passes D1 and writes nothing
-  # else still clears it. RAISING IT ABOVE 8 SILENTLY PUTS EVIDENCE BACK INTO
-  # THE PASS CRITERION.
-  pass_min_total: 8.0
+  pass_requires_checks: ["D1", "D2"]
+  # D1 is 8 and D2 is 6. EVIDENCE is scored and excluded from the pass
+  # criterion, and that exclusion is only real while the floor cannot readmit
+  # it: a floor of 14.0 is exactly D1 + D2, so a run that passes both gates and
+  # writes nothing else still clears it. RAISING IT ABOVE 14 SILENTLY PUTS
+  # EVIDENCE BACK INTO THE PASS CRITERION.
+  pass_min_total: 14.0
+  # `--actions` is NOT in grade_argv: episode.py substitutes only the world
+  # manifest's own string keys plus {artifact}, and the audit directory is the
+  # harness's, not the world's. grade.py therefore resolves it from
+  # <grading>/../audit/actions.jsonl - the layout tasks/harness/rollout.py
+  # builds - and raises a PACKAGING ERROR rather than a score when no audit
+  # directory is reachable at all. See the patch note in DESIGN.md for the
+  # one-line episode.py change that would let a task name it explicitly.

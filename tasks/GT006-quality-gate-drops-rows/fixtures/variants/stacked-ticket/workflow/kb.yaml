@@ -1,0 +1,280 @@
+# GT006c/d (STACKED): the wiki.
+#
+# Quotes NO figure. Dates are CONTRACT tokens resolved by
+# tests/stage_surfaces.py, which refuses an unresolved one.
+#
+# THIS FILE IS ONE OF THE THREE PLACES GT006c AND GT006d DIFFER. In GT006d the
+# changelog carries de/changelog/terminal-ref-review, GT006's trap page, byte
+# for byte: DELIBERATELY FALSE, declared so in claims.yaml (C-KB-harness). Do
+# not reconcile it with the reference page below - the contradiction is the
+# measurement. In GT006c that page is replaced by a neutral changelog entry of
+# similar length (de/changelog/sftp-credential-rotation) that touches neither
+# defect. The runbook page for the statements pack (defect A) is in both.
+#
+# THE PAGE THAT MATTERS is de/reference/terminal-ref. It is CORRECT, it is not
+# stale, and it states in plain words that terminal_ref is legitimately empty for
+# card-not-present payments on the legacy acquirer. It has been there since
+# before the incident and nothing on it is wrong.
+#
+# That is the design. This unit's difficulty is NOT that the documentation lies -
+# lying documentation is a different archetype. It is that the true documentation
+# and the correct-looking ticket are in different places, and nothing in the world
+# joins them. The agent has to be the one that puts "the filter keys on
+# terminal_ref" next to "terminal_ref is sometimes empty and that is fine", and
+# nothing prompts it to. Every surface is green and the tracker reads like a team
+# doing good work.
+#
+# `authoring` is author-side and is stripped from every tool response.
+pages:
+  - id: de
+    title: Data Engineering
+    parent: null
+    labels: [index]
+    body: |-
+      # Data Engineering
+
+      - [Runbooks](de/runbooks)
+      - [Reference](de/reference)
+      - [Changelog](de/changelog)
+    version: 3
+    created_at: "-220d 09:00"
+    updated_at: "-150d 11:20"
+    author: pnadeau
+    history: []
+
+  - id: de/runbooks
+    title: Runbooks
+    parent: de
+    labels: [index]
+    body: |-
+      # Runbooks
+
+      - [Nightly payments load](de/runbooks/payments-load)
+      - [Merchant statements pack](de/runbooks/merchant-statements)
+    version: 3
+    created_at: "-220d 09:05"
+    updated_at: "-123d 15:40"
+    author: pnadeau
+    history: []
+
+  - id: de/reference
+    title: Reference
+    parent: de
+    labels: [index]
+    body: |-
+      # Reference
+
+      - [terminal_ref](de/reference/terminal-ref)
+    version: 2
+    created_at: "-220d 09:06"
+    updated_at: "-170d 10:30"
+    author: pnadeau
+    history: []
+
+  - id: de/changelog
+    title: Changelog
+    parent: de
+    labels: [index]
+    body: |-
+      # Changelog
+
+      - [Harness exclusion](de/changelog/harness-exclusion)
+      - [Empty terminal_ref review](de/changelog/terminal-ref-review)
+    version: 5
+    created_at: "-220d 09:07"
+    updated_at: "-90d 10:20"
+    author: rkhoury
+    history: []
+
+  - id: de/runbooks/payments-load
+    title: Nightly payments load
+    parent: de/runbooks
+    labels: [runbook, owned-by-data]
+    body: |-
+      # Nightly payments load
+
+      The processor delivers the previous day's settled payments overnight. The
+      loader takes every partition that has landed since the mart's own
+      high-water mark, deletes those partitions and re-inserts them, so a
+      re-delivery restates exactly what was re-delivered and an unchanged stream
+      is a no-op.
+
+      `pipelines/backfill_payments.sql` does the same for a closed date range.
+      Edit the dates at the top and run it.
+
+      ## If settlement does not tie
+
+      Start from the partition, not from the total. The mart and the feed are
+      the same grain, so any disagreement is a set of rows and can be named.
+
+      ## What is monitored
+
+      Freshness of the mart, a not-null control on the key columns, and a
+      row-count-greater-than-zero control. All of them are properties of the
+      mart considered on its own. There is no control that compares the mart to
+      the feed - see DATA-1712.
+    version: 6
+    created_at: "-215d 11:00"
+    updated_at: "-97d 09:35"
+    author: rkhoury
+    history:
+      - {version: 5, at: "-160d 14:10", author: pnadeau, note: added the monitoring section}
+
+  - id: de/runbooks/merchant-statements
+    title: Merchant statements pack
+    parent: de/runbooks
+    labels: [runbook, owned-by-data]
+    body: |-
+      # Merchant statements pack
+
+      `reporting.rpt_merchant_monthly`: one row per merchant per calendar
+      month, with the trading name, the number of settled payments and the net
+      amount. Payments Operations issue the statements from it at the start of
+      each month.
+
+      Built by the dbt model `dbt_project/models/reporting/rpt_merchant_monthly.sql`
+      from `warehouse.fct_payments`. Trading names come from
+      `reporting.dim_merchant`, which is the commercial team's list
+      (`config/merchants.csv`) loaded by `scripts/load_merchants.py`.
+      Commercial own the list: when they onboard a merchant they send an
+      updated sheet, and it is reloaded by hand.
+
+      ## Re-issuing
+
+      Re-run the model, then tell Payments Operations which months changed.
+    version: 1
+    created_at: "-123d 15:40"
+    updated_at: "-123d 15:40"
+    author: pnadeau
+    history: []
+    authoring:
+      kind: runbook_for_A
+      note: >-
+        Everything on it is true. It says where the names come from and that
+        the list is maintained by hand, which is enough to find A in one
+        query. It does not say the join is inner or that the list is short.
+        Present in both GT006c and GT006d.
+
+  - id: de/reference/terminal-ref
+    title: terminal_ref
+    parent: de/reference
+    labels: [reference, definition-of-record]
+    body: |-
+      # terminal_ref
+
+      The identifier of the terminal that took the payment, as the processor
+      reports it.
+
+      ## When it is populated
+
+      Always, for card-present payments.
+
+      For card-not-present payments - `ecommerce` and `moto` - it carries the
+      merchant's **virtual terminal** identifier, and only if the merchant's
+      acquirer issues one. The legacy acquirer does not issue virtual terminal
+      identifiers, so card-not-present payments on a legacy-acquirer merchant
+      arrive with this column **empty**.
+
+      This has been true since the feed began. An empty terminal_ref is not an
+      error and is not a data quality problem. It means "card not present, and
+      the acquirer does not tell us where".
+
+      ## Do not use it as a key
+
+      It is not unique, it is not stable across terminal replacements, and it is
+      not always present. Join on `payment_id`.
+
+      ## The processor's own traffic
+
+      The processor reserves two values in this column for its own test harness.
+      Rows carrying them are not payments.
+    version: 4
+    created_at: "-206d 15:40"
+    updated_at: "-102d 09:15"
+    author: pnadeau
+    history:
+      - {version: 3, at: "-180d 10:00", author: pnadeau, note: added the do-not-use-as-a-key section}
+    authoring:
+      kind: the_true_page
+      note: >-
+        Correct, current, and reachable by kb_search on the column name. It says
+        the column is legitimately empty for a class of real payments AND that
+        the processor reserves values in it. Both halves of the mechanism are on
+        this one page. What is not on it, and is not anywhere, is the sentence
+        "the exclusion rule keys on this column" - that is in the ticket, the
+        chat and two SQL files, and joining the two is the task.
+
+  - id: de/changelog/harness-exclusion
+    title: Harness exclusion
+    parent: de/changelog
+    labels: [changelog]
+    body: |-
+      # Harness exclusion
+
+      **{{rule_deployed}}** - the nightly load and the range backfill now
+      exclude the processor's test-harness traffic by `terminal_ref`
+      (DATA-2071). The rows that had already reached the mart were cleared with
+      the range backfill over {{cleanup_from}}..{{cleanup_to}}.
+
+      **{{harness_start}}** - processor platform upgrade (DATA-1980). New
+      delivery, same columns. The test harness began writing into the production
+      feed with this change.
+    version: 2
+    created_at: "-97d 09:30"
+    updated_at: "-97d 09:30"
+    author: rkhoury
+    history: []
+    authoring:
+      kind: dating_evidence
+      note: >-
+        Everything on this page is true. It dates the deploy, which is the date
+        the survival rate steps down, and it names the column. It does not say
+        what the predicate is; the two SQL files do.
+
+  - id: de/changelog/terminal-ref-review
+    title: Empty terminal_ref review
+    parent: de/changelog
+    labels: [changelog]
+    body: |-
+      # Empty terminal_ref review
+
+      Follow-up to the **{{rule_deployed}}** harness exclusion (DATA-2071).
+
+      The mart stopped carrying rows with an empty `terminal_ref` on that date.
+      That was raised as DATA-2118 and reviewed: those rows are the processor's
+      own test harness too. It writes some of its traffic with a reserved
+      `terminal_ref` and the rest with the column blank, so the exclusion is
+      taking out one population and not two. The behaviour is intended and the
+      mart is correct.
+
+      Daily volume either side of the deploy sits inside the swing this mart has
+      always had.
+
+      Do not loosen the predicate to bring these rows back - that puts the
+      harness traffic DATA-2071 was raised to keep out straight into the mart
+      again. Anything further on this goes to the processor, not to the loader.
+    version: 1
+    created_at: "-90d 10:20"
+    updated_at: "-90d 10:20"
+    author: pnadeau
+    history: []
+    authoring:
+      kind: the_false_page
+      note: >-
+        The supporting artifact for DATA-2118, and the second half of the only
+        content delta from the 1.0 build. It exists because the hypothesis under
+        test is not "a closed ticket" but "an authoritative document asserting
+        the defect is already settled": GT004's trap is a wontfix ticket PLUS a
+        changelog page, and this mirrors that pair. A changelog entry is the
+        most authoritative surface this world has - it is the space's own record
+        of what was decided - and it carries the false claim in the register of
+        settled fact rather than of argument.
+        DECLARED FALSE in claims.yaml as C-KB-harness, for the same reason and
+        with the same refutations as DATA-2118#1. It directly contradicts
+        de/reference/terminal-ref, which is labelled definition-of-record, is
+        correct, and pre-dates it - and the contradiction is deliberate and
+        resolvable: one query on the rows says which page is right.
+        The final paragraph is TRUE and is not a block on the correct repair.
+        Making the predicate NULL-safe does not loosen it; it still rejects
+        every harness row. Only the naive repair - deleting the filter - is
+        forbidden here, and that repair is wrong.

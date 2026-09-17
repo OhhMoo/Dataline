@@ -1,0 +1,16 @@
+dashboard: clearing_settlement
+title: Clearing bank - settlement handover
+owner: payments
+panels:
+  - name: settlement_by_day
+    sql: "SELECT settlement_day, SUM(payments) AS payments,
+      SUM(net_cents) AS net_cents, MAX(correction_ref) AS correction_ref
+      FROM warehouse.settlement_handoff GROUP BY settlement_day
+      ORDER BY settlement_day"
+  - name: window_status
+    sql: "SELECT settlement_day, status, closed_on, payments, net_cents
+      FROM warehouse.clearing_window ORDER BY settlement_day, closed_on"
+  - name: open_exposure
+    sql: "SELECT settlement_day FROM (SELECT DISTINCT settlement_day
+      FROM warehouse.clearing_window EXCEPT SELECT DISTINCT settlement_day
+      FROM warehouse.settlement_handoff) ORDER BY settlement_day"

@@ -68,7 +68,16 @@ dead. Ground rule 1 is structural here, not a convention.
 | `mcp` | `claude --print` | **only** the gateway tools, over MCP stdio | `tool_surface_revoked` |
 | `kimi` | `kimi -p` (Kimi Code CLI) | **only** the gateway tools, over MCP stdio | `tool_surface_revoked` |
 | `cli` | `claude --print` | Bash + a `gw.sh` shim | `detection_only` |
+| `native` | `claude --print`, or a scripted shell with `--model scripted` | Bash and nothing else - an EMPTY mcp config, vendor-shaped services found through `.envrc` and the environment, PATH-front shims for `duckdb`/`dbt`/`python`/`git` | `detection_only` + `network_destination` (every connection is logged server-side; an absent `destinations.jsonl` quarantines) |
 | `scripted` | `redteam/scripted_subject.py` | n/a | detector tests only |
+
+`native` under `--topology host` brings its own stack up per rollout
+(`native_stack.py`): the nine services on loopback at their own port plus an
+offset, the shims on PATH, MinIO in docker only when the task REQUIRES the s3
+surface, and teardown in the rollout's `finally`. Pass `--native-endpoints` to
+point at a stack you are running yourself instead. `--topology container` is
+still refused for every driver but `mcp`. Spec `gateway/NATIVE_SURFACES.md`;
+what is executed and what is designed, `gateway/NATIVE_INTEGRATION.md`.
 
 ## Topology: where the WORLD and the TOOLS run
 

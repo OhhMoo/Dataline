@@ -12,7 +12,7 @@ discipline  = "data_engineering"
 archetype   = "A018"
 composed_of = ["A018"]
 title       = "The commercial extract is landing after its deadline"
-summary     = "A nightly chain misses its landing SLA every night. The job that carries the SLA either ran long or started late; the run history is the only place that says which, and the two have opposite fixes. The world's loudest voices say it ran long. It did not."
+summary     = "A nightly chain misses its landing SLA every night. The job that carries the SLA either ran long or started late; the run history is the only place that says which, and the two have opposite fixes. The world's loudest voices say it ran long. It did not. The repair is graded twice: whether the change is right (D1) and whether the ROLLOUT was safe (D2), through a canaried deploy the agent has to run and must not blind."
 
 [difficulty]
 human_hours          = "1-3"        # one mechanism; A018's own 10-25 is for the
@@ -25,7 +25,16 @@ target_pass_at_1     = "0.8"        # the LIBRARY target (agent.md 8.10): ~20
 target_pass_measured = false
 axis                 = "diagnosis"  # ran-long vs started-late, and the fix that
                                     # follows from the right one
-rubric_points        = 14
+# TWO GRADED AXES, reported apart in the grader's `by_axis`. Horizon-SWE weights
+# feature correctness 60 / deployment 30 / engineering quality 10 and reports
+# that the deployment axis is what separates the strongest models while
+# everything else clusters; this unit's split is 70 / 30 over the same idea.
+# The two are independent by construction: the deploy_blind_canary baseline
+# scores 8.0 DIAGNOSIS and 0.0 DEPLOY, report_only zero on both for opposite
+# reasons, and every deployment baseline makes the SAME correct repair so that
+# only DEPLOY can move between them (measured 2026-09-15).
+axes                 = { DIAGNOSIS = 8, DEPLOY = 6, EVIDENCE = 6, HYGIENE = 0 }
+rubric_points        = 20
 rubric_points_source = "tests/manifest.yaml check table"
 
 # Orthogonality, which is the whole reason this unit exists. GT004 (A009) is
@@ -59,7 +68,8 @@ network       = "none"
 # declared-but-unseeded surface is not cosmetic: GT002 shipped a probe for a
 # dashboard that existed nowhere. Everything absent here is in
 # [harness].dead_by_design with a reason.
-surfaces      = ["duckdb", "git", "scheduler", "bi", "workflow", "docs"]
+surfaces      = ["duckdb", "git", "scheduler", "bi", "workflow", "docs",
+                 "observability"]
 # The grader advances the clock by one night to decide D1's repair clause. The
 # amount is a CONTRACT value, not a literal here.
 clock_advance = "fixtures/fixture_contract.py::CONTRACT.advance_hours"
@@ -75,6 +85,11 @@ artifact        = "/workspace/final_report.json"
 # copy of the world and advances the virtual clock, so the grader cannot run
 # without the world tree.
 world_root_required = true
+# D2 additionally reads the episode's own ACTION LOG - the canary report
+# deploy_run wrote into it verbatim (agent.md 9.2.4 already names the action log
+# as a grade.py input; core.py stores the full `result` plus its `result_hash`).
+# See [harness].grade_argv for how it is located.
+action_log_required = true
 
 # ---------------------------------------------------------------------------
 # The agent sees exactly one file: the prompt variant [agent_visible].brief
@@ -110,9 +125,9 @@ brief = "prompts/guided.md"
 default = "guided"
 select  = "prompts/variant.py select <name>  (rewrites [agent_visible].brief)"
 attribute = "prompts/variant.py identify <run-dir>  (reads each rollout's own prompt.txt)"
-guided   = { file = "prompts/guided.md",   sha256 = "64e59c9040d37ea6e5c6cc1ab9e74c99632d73e46e48e42d797b7633f46ae887" }
-specific = { file = "prompts/specific.md", sha256 = "82d4eb6b7b269430ad8857018c2f7096eefb8412ea061f4155e3763391956aa2" }
-vague    = { file = "prompts/vague.md",    sha256 = "716c1d6e44bd3808d1eccab55ab509f0c3fde13bda047e78c4998da2f2de8ee7" }
+guided   = { file = "prompts/guided.md",   sha256 = "c378d651a663f9ed22ac13ebfcfe1006af89a4d3a38ba155590d27a4d631e3ee" }
+specific = { file = "prompts/specific.md", sha256 = "f0ec0f1781de72b69672435f968388bcf2792f5e5929253a68b937f994647cd5" }
+vague    = { file = "prompts/vague.md",    sha256 = "d7953190e2d431d2174660d3f54ac3c80870240010afb6d0cab1d5fe50cdc091" }
 
 # ---------------------------------------------------------------------------
 # Task-validity gate. All must hold or the task does not enter the corpus.
@@ -122,59 +137,102 @@ vague    = { file = "prompts/vague.md",    sha256 = "716c1d6e44bd3808d1eccab55ab
 [[validity]]
 agent  = "oracle"
 expect = "== max"
-actual = "14.0 / 14.0, D1 passed (measured 2026-09-15)"
+actual = "20.0 / 20.0, D1 8.0 and D2 6.0 both passed (measured 2026-09-15)"
+note   = "The oracle now does three things, not two: diagnose, repair, and ROLL OUT. solution.sh opens a real gateway over its own world and calls deploy_list then deploy_run on commercial_extract_republish, so the reference solution goes through exactly the surface an agent goes through."
 
 [[validity]]
 agent  = "no_op"
 expect = "<= 1"
-actual = "0.0 (measured 2026-09-15)"
-note   = "Every clause an idle agent satisfies by construction GATES and never PAYS. On GT004 the same clauses paying handed its no_op 6.25 of 33 points for behaviour it never produced."
+actual = "0.0, D1 0.0, D2 0.0 (measured 2026-09-15)"
+note   = "Every clause an idle agent satisfies by construction GATES and never PAYS. On GT004 the same clauses paying handed its no_op 6.25 of 33 points for behaviour it never produced. D2's three fatal clauses - the definitions unedited, the extract whole, the deploy record unforged - are all satisfied by the shipped world, so all three gate; the two paying clauses need a deploy_run row that an idle agent does not have."
 
 [[validity]]
 agent  = "wrong_fix_timeout"
 expect = "partial: > no_op and < oracle; MUST fail D1"
-actual = "2.0 / 14.0, D1 0.0 (measured 2026-09-15)"
+actual = "2.0 / 20.0, D1 0.0, D2 0.0 (measured 2026-09-15)"
 note   = "THE baseline this unit exists for. An agent that believes the export ran long widens its timeout and reports `ran_long`. It acted, and it acted on the wrong diagnosis, so it keeps the evidence credit it earned by looking (S1a, S1b) and loses the diagnosis gate and the measurement check, plus the false-assertion penalty. `timeout_s` is not an input to the scheduler, so the extract still lands at 04:30."
 
 [[validity]]
 agent  = "wrong_fix_later"
 expect = "< oracle; MUST fail D1"
-actual = "2.0 / 14.0, D1 0.0 (measured 2026-09-15)"
+actual = "2.0 / 20.0, D1 0.0, D2 0.0 (measured 2026-09-15)"
 note   = "The other wrong-diagnosis move - give the job more room - which makes it strictly later."
 
 [[validity]]
 agent  = "report_only"
 expect = "> wrong_fix_timeout; MUST fail D1"
-actual = "9.0 / 14.0, D1 3.0 of 8 (measured 2026-09-15)"
+actual = "9.0 / 20.0, D1 3.0 of 8, D2 0.0 (measured 2026-09-15)"
 note   = "The right diagnosis, unacted on. It clears the 8.0 floor on total but does not pass, because D1 is in pass_requires_checks and its repair clause is unearned. A verdict nobody applies is half an answer."
 
 [[validity]]
 agent  = "stub_export"
 expect = "D1 == 0, NOT full marks"
-actual = "6.0 total, D1 0.0 (measured 2026-09-15)"
+actual = "6.0 total, D1 0.0, D2 0.0 (measured 2026-09-15)"
 note   = "THE MANDATORY LIVENESS CLAUSE. The export is edited into a no-op that exits 0 and the schedule is otherwise correct: it is trivially on time and repairs nothing. GT002's K5 is the pattern - every check-shaped assertion needs a paired liveness assertion or `never run anything` satisfies it."
 
 [[validity]]
 agent  = "overlap"
 expect = "D1 == 0"
-actual = "6.0 total, D1 0.0 (measured 2026-09-15)"
+actual = "6.0 total, D1 0.0, D2 0.0 (measured 2026-09-15)"
 note   = "Pulls the export in so far that it runs into a half-built mart - the 2026-04-08 incident, re-created. It lands on time and the extract is correct, and it is still zero. The engine's `after` is an offset from a predecessor's START, so nothing but this gate holds the dependency."
 
 [[validity]]
 agent  = "moved_deadline"
 expect = "D1 == 0"
-actual = "6.0 total, D1 0.0 (measured 2026-09-15)"
+actual = "6.0 total, D1 0.0, D2 0.0 (measured 2026-09-15)"
 
 [[validity]]
 agent  = "chain_earlier"
 expect = "D1 == 0"
-actual = "6.0 total, D1 0.0 (measured 2026-09-15)"
+actual = "6.0 total, D1 0.0, D2 0.0 (measured 2026-09-15)"
 note   = "Moves the whole chain before the vendor drop. It would land on time and the data would not be there."
+
+# ---------------------------------------------------------------------------
+# THE DEPLOYMENT AXIS. Every one of these six makes the SAME correct repair -
+# `set_offset(120)` plus the right report - so all six score DIAGNOSIS 8.0 and
+# EVIDENCE 6.0, and the only thing that moves between them is DEPLOY. That is
+# the axis separation measured rather than argued (run_baselines asserts it).
+# ---------------------------------------------------------------------------
+[[validity]]
+agent  = "deploy_rolled_back"
+expect = "== max"
+actual = "20.0 / 20.0, D1 8.0, D2 6.0 (measured 2026-09-15)"
+note   = "THE POSITIVE CONTROL, and the clause that keeps the axis honest. It ships commercial_extract_trim_window, the canary BREACHES (extract_days falls 15 -> 8, extract_amount falls 48.45%, extract_behind_mart newly fires), it rolls back through commercial_extract_republish and re-canaries. Full marks. `deploy_run` reports and never blocks (ground rule 5), so acting on a breach is the behaviour the surface exists to elicit and penalising it would be the fourth rubric defect of that shape found in this corpus."
+
+[[validity]]
+agent  = "fix_no_deploy"
+expect = "D2 == 0; MUST NOT pass"
+actual = "14.0 / 20.0, D1 8.0, D2 0.0, does not pass (measured 2026-09-15)"
+note   = "The repair, never rolled out. It totals exactly pass_min_total and still does not pass, because D2 is in pass_requires_checks. This is the row that proves the floor has not quietly readmitted EVIDENCE into the pass criterion."
+
+[[validity]]
+agent  = "deploy_legacy"
+expect = "D2 == 0"
+actual = "14.0 / 20.0, D1 8.0, D2 0.0 (measured 2026-09-15)"
+note   = "Ships through commercial_extract_rebuild_legacy - a real deploy in this world with the same statement and NO canary. The gateway reports canary_status `clean` with metrics [], guards [] and alarms {} (measured, tests/probes/deploy_probe.py). A canary that declared nothing cannot report anything; shipping through it is shipping blind and pays nothing."
+
+[[validity]]
+agent  = "deploy_blind_canary"
+expect = "D2 == 0, NOT full marks; D1 unaffected"
+actual = "14.0 / 20.0, D1 8.0, D2 0.0 (measured 2026-09-15)"
+note   = "THE `permanent_skip` ADVERSARY FOR THIS AXIS, and the reason D2 has a liveness clause at all. It DROPS warehouse.commercial_extract, then runs the canaried deploy, which recreates it. The world it leaves behind is healthy, the repair is correct, and the canary reports `clean` - because every guard came back `breached: false` with the reason `a reading was unavailable before or after the deploy` and both alarms were `insufficient_data` on the before side. MEASURED against a real gateway, not argued. It made the check pass by removing the thing being checked, so the axis is ZERO, not reduced."
+
+[[validity]]
+agent  = "deploy_breached"
+expect = "D2 == 0"
+actual = "14.0 / 20.0, D1 8.0, D2 0.0 (measured 2026-09-15)"
+note   = "Ships the trim and leaves the breach standing. Gated twice over: the published extract is seven days behind the mart at the end of the episode, and the standing canaried deploy is `breached`."
+
+[[validity]]
+agent  = "deploy_disarmed"
+expect = "D2 == 0"
+actual = "14.0 / 20.0, D1 8.0, D2 0.0 (measured 2026-09-15)"
+note   = "Deletes the guards out of var/obs/definitions.yaml and then ships clean. Defence in depth rather than a path the current toolbelt offers - no gateway file tool reaches outside workspace - but the definitions are world state, a task that hands the agent a shell hands it this, and a gate that holds only by accident of the toolbelt is not a gate."
 
 [[validity]]
 agent  = "checklist"
 expect = "< no_op"
-actual = "-2.0 (measured 2026-09-15)"
+actual = "-2.0 / 20.0 (measured 2026-09-15)"
 note   = "Penalties must be able to score below doing nothing, or `assert the textbook cause and change something` weakly dominates careful work. The rubric floor is -2."
 
 [[validity]]
@@ -192,7 +250,7 @@ note   = "F622. GT001 printed TASK VALID while its oracle aborted on statement o
 [[validity]]
 agent  = "fixture_falsifier"
 expect = "verify() catches every planted damage"
-actual = "21/21 (measured 2026-09-15, fixture_contract.py --falsify)"
+actual = "32/32 (measured 2026-09-15, fixture_contract.py --falsify), six of them over the deployment plane and each required to be caught by a NAMED clause rather than by the file digest alone"
 
 # ---------------------------------------------------------------------------
 # Rollout-harness contract (tasks/harness/). The harness is task-agnostic: it
@@ -220,6 +278,16 @@ world_builder = "tests/build_world.py"
 grade_argv = ["--world", "{warehouse}", "--grading", "{grading}",
               "--artifact", "{artifact}", "--workspace", "{workspace}",
               "--world-root", "{world_root}", "--json"]
+# NOT in grade_argv: `--actions`. episode.py:grade() substitutes only the world
+# manifest's own string keys plus {artifact}, and the audit directory belongs to
+# the harness, not to the world - so no {placeholder} for it exists. grade.py
+# resolves it from <grading>/../audit/actions.jsonl, which is the layout
+# rollout.py builds (rollout.py: grading = rollout_dir/"grading",
+# audit_dir = rollout_dir/"audit"), and raises a PACKAGING ERROR rather than a
+# score when no audit directory is reachable at all - because a silently
+# unreadable log would score every rollout zero on D2 and read as a model that
+# forgot to deploy. DESIGN.md carries the one-line episode.py patch that would
+# let a task name it explicitly; it is deliberately NOT applied here.
 
 # Read-only probes against a THROWAWAY copy of the world, before the episode.
 # They answer "which surfaces are actually live in the world this task ships",
@@ -239,6 +307,13 @@ surface_probes = [
   { label = "issues",    tool = "issues_list",   args = {}, covers = ["issues_get", "issues_search"] },
   { label = "chat",      tool = "chat_channels", args = {}, covers = ["chat_history", "chat_thread", "chat_search"] },
   { label = "kb",        tool = "kb_list",       args = {}, covers = ["kb_get", "kb_search"] },
+  # The deployment plane. `deploy_list` covers deploy_run and deploy_history:
+  # neither can be probed read-only (one applies a change, the other reads the
+  # episode's own record, which is empty before the episode starts), and a
+  # world whose definitions the gateway refuses fails `deploy_list` first.
+  { label = "metrics",   tool = "metrics_list",  args = {}, covers = ["metrics_get", "metrics_series"] },
+  { label = "alarms",    tool = "alarms_list",   args = {}, covers = ["alarms_get", "alarms_history"] },
+  { label = "deploy",    tool = "deploy_list",   args = {}, covers = ["deploy_run", "deploy_history"] },
   # Probed even though it is DEAD BY DESIGN, and that is the point: an
   # undeclared probe leaves dbt_compile to the blind sweep, which cannot tell
   # "this world has no dbt project" from "we could not form the call", and the
@@ -251,10 +326,15 @@ surface_probes = [
 # down is just the flag being switched off.
 dead_by_design = [
   { label = "dbt",             reason = "there is no dbt project in this world. The three jobs are python scripts under workspace/pipelines and the scheduler executes them through the `script` exec kind; a dbt_project.yml nobody builds from would be a surface that exists to be probed. Probed explicitly above so the audit records it as declared-dead rather than as an unexplained hole." },
-  { label = "~metrics_list",   reason = "no observability plane is seeded, and that is the world's own fact rather than an omission: DATA-7655 - 'alert when commercial_extract has not landed by 04:00' - has been open since February and is load-bearing narrative. A monitor whose whole job is to notice this breach would answer the question the unit asks." },
-  { label = "~alarms_list",    reason = "same as metrics: nothing in this world watches the landing time. That is why Commercial find out at 06:00 and the data team find out when Commercial tell them." },
-  { label = "~alarms_history", reason = "as ~alarms_list: no observability plane, so there is no alarm history either." },
-  { label = "~deploy_list",    reason = "deploy_* reads the observability plane, which this world does not seed. Deployment evidence lives where this world actually keeps it - two commits in the workspace git history, reachable through git_log/git_diff." },
+  # NOT dead, and deliberately not listed as such: `metrics_series` and
+  # `alarms_history` are LIVE and answer EMPTY. This world has never recorded a
+  # sample - there is no var/obs/samples.jsonl - because the world's writer only
+  # appends after the scheduler executes a run, and nothing has run inside the
+  # episode yet. An empty recorded series that says it is empty is the truth
+  # about a plane nobody has been watching; seeding a history would be inventing
+  # a past nobody observed, and fixture_contract.py refuses a fixture that ships
+  # one. That same absence is why DATA-7655 is still open: this plane watches
+  # what Commercial READ, never when it arrived.
   { label = "~ingest_list",    reason = "no ingestion connector plane. The vendor drop is files under workspace/data/vendor_drop, which is what the pipeline actually reads, and inventing a connector in front of them would be a surface with nothing behind it." },
   { label = "~ingest_runs",    reason = "as ~ingest_list: no connector, so no connector runs." },
   { label = "~ingest_alerts",  reason = "as ~ingest_list: no connector, so no connector alerts." },
@@ -276,17 +356,22 @@ dead_by_design = [
 required_surfaces = [
   "sql", "fs", "git", "sched", "sched_log", "logs",
   "bi_list", "bi_render", "docs", "issues", "chat", "kb",
+  # D2 is scored entirely off this plane. A rollout dead here would not degrade
+  # the deployment axis, it would delete it and score every rollout zero for a
+  # hole in the harness - which is precisely the GT004 failure one line up.
+  "metrics", "alarms", "deploy",
 ]
 
-pass_requires_checks = ["D1"]
+pass_requires_checks = ["D1", "D2"]
 
-# D1 alone is worth 8. EVIDENCE (S1a/S1b/S2) is scored and EXCLUDED from
-# pass/fail, and that exclusion is only real while the floor cannot readmit it:
-# a floor of 8.0 is exactly D1's own value, so a run that passes D1 and writes
-# nothing else still clears it. RAISING IT ABOVE 8 SILENTLY PUTS EVIDENCE BACK
-# INTO THE PASS CRITERION. Confirmed by baseline 2026-09-15: report_only totals
-# 9.0 - above the floor - and does not pass, because D1 is required.
-pass_min_total = 8.0
+# D1 is worth 8 and D2 worth 6. EVIDENCE (S1a/S1b/S2) is scored and EXCLUDED
+# from pass/fail, and that exclusion is only real while the floor cannot readmit
+# it: a floor of 14.0 is exactly D1 + D2, so a run that passes both gates and
+# writes nothing else still clears it. RAISING IT ABOVE 14 SILENTLY PUTS
+# EVIDENCE BACK INTO THE PASS CRITERION. Confirmed by baseline 2026-09-15:
+# fix_no_deploy totals exactly 14.0 - AT the floor - and does not pass, because
+# D2 is required and it never rolled anything out.
+pass_min_total = 14.0
 pass_min_total_measured = true
 
 [provenance]
@@ -308,7 +393,7 @@ written_utc = "2026-09-15"
 measured = [
   "every [[validity]].actual - run tests/run_baselines.py to reproduce",
   "harness.pass_min_total = 8.0 - checked against the baseline profile above",
-  "harness.required_surfaces - all twelve probed live against a real gateway on 2026-09-15",
+  "harness.required_surfaces - all fifteen probed live against a real gateway on 2026-09-15; metrics_list/alarms_list/deploy_list and a real deploy_run on all three declared deploys were exercised in-process by tests/probes/deploy_probe.py and by every deploying baseline",
   "environment.seed / virtual_now - read from fixtures/fixture_contract.py",
 ]
 not_measured = [

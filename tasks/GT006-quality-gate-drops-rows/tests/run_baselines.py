@@ -5,6 +5,17 @@ GT006 task-validity suite. Prints TASK VALID or says why not.
     python run_baselines.py
     python run_baselines.py --verbose
     python run_baselines.py --only oracle,no_op
+    python run_baselines.py --variant stacked-ticket
+
+ONE SUITE, FOUR CONTEXTS. `--variant` (or $ALKERA_TASK_VARIANT) picks the arm;
+`default` and `trap-ticket` are this unit's one defect, and `stacked-neutral`
+and `stacked-ticket` add an easy, independent DEFECT A on top of it. Every
+stacked baseline and every stacked claim below is guarded on the resolved
+contract carrying a `stack` block, so the suite asserts what the arm it ran
+actually ships and nothing else.
+
+WHAT A BASELINE SUITE IS FOR is unchanged by that, and so is every claim it
+made before variants existed.
 
 WHAT A BASELINE SUITE IS FOR. Not "does the grader run". A rubric is a claim
 about what behaviour earns what score, and every one of those claims is
@@ -26,6 +37,12 @@ trivially consistent and repair nothing. Each must score ZERO on G1c.
 THE SUBSIDY BASELINE is `no_op`. Every clause of this rubric that PAYS must
 score zero for it. That is asserted here per check, not once on the total,
 because a total of 0 can hide a +2 and a -2.
+
+THE INDEPENDENCE PROOF, in the stacked arms only, is `fix_A_only` and
+`fix_B_only`. Each must score its own defect's checks at full marks and the
+other's at zero, and each must FAIL, and the grader's `repairs` block must name
+which state it is in. Without that, "the agent repaired A and stopped" is not a
+thing the number can say, and the stacked arms measure nothing.
 """
 from __future__ import annotations
 
@@ -42,11 +59,27 @@ import duckdb
 HERE = Path(__file__).resolve().parent
 TASK = HERE.parent
 REPO = TASK.parent.parent
-sys.path.insert(0, str(TASK / "fixtures"))
+
+sys.path.insert(0, str(REPO / "tasks" / "harness"))
+import taskspec                                                   # noqa: E402
 sys.path.insert(0, str(HERE))
+from build_world import argv_variant                              # noqa: E402
+
+VARIANT = taskspec.variant_of(TASK, argv_variant())
+# Pin the arm so build_world.py and grade.py, both run below as subprocesses,
+# resolve the same context this process did without being handed a second flag.
+import os                                                         # noqa: E402
+os.environ[taskspec.VARIANT_ENV] = VARIANT.name
+FIXTURES = taskspec.fixtures_dir(TASK)
+
+sys.path.insert(0, str(FIXTURES))
 
 from fixture_contract import CONTRACT, verify, FixtureDrift       # noqa: E402
 from fixture_contract import assert_reference_unreachable         # noqa: E402
+
+# THE ONE SWITCH, as in grade.py: the stacked arms are exactly the arms whose
+# contract carries a `stack` block.
+STACK = CONTRACT.get("stack")
 
 PY = sys.executable
 MART = "warehouse.fct_payments"
@@ -131,6 +164,46 @@ GOOD_CAUSE = ("The DATA-2071 exclusion predicate is NULL-unsafe: terminal_ref "
               "NOT IN (...) is UNKNOWN rather than TRUE when terminal_ref is "
               "NULL, so the load has been silently dropping legitimate "
               "card-not-present payments.")
+
+# ------------------------------------------------------------ defect A moves
+# The stacked arms only. Every name below is read from CONTRACT["stack"], so an
+# unstacked arm never evaluates any of it.
+GOOD_CAUSE_A = ("rpt_merchant_monthly inner-joins reporting.dim_merchant, the "
+                "commercial team's merchant list, which stops at M0030, so every "
+                "merchant above it is missing from the statements pack.")
+
+SHIPPED_JOIN = STACK["shipped_join"] if STACK else ""
+MODEL = STACK["model"] if STACK else ""
+
+
+def fix_model_left_join(ws: Path) -> None:
+    p = ws / MODEL
+    body = p.read_text(encoding="utf-8")
+    if SHIPPED_JOIN not in body:
+        raise RuntimeError(f"{MODEL}: the shipped join is not there")
+    write(p, body.replace(SHIPPED_JOIN, "left " + SHIPPED_JOIN))
+
+
+def rebuild_rollup_through_model(con, ws: Path) -> None:
+    """What `dbt run` does with the model AS IT STANDS in the workspace -
+    broken or repaired - materialised where the business reads it."""
+    import re
+    model = (ws / MODEL).read_text(encoding="utf-8")
+    model = re.sub(r"\{\{\s*config\(.*?\)\s*\}\}", "", model, flags=re.S)
+    model = re.sub(r"\{\{\s*source\(\s*'(\w+)'\s*,\s*'(\w+)'\s*\)\s*\}\}",
+                   r"\1.\2", model)
+    assert "{{" not in model
+    con.execute(f"CREATE OR REPLACE TABLE {STACK['rollup_table']} AS " + model)
+
+
+def rebuild_rollup_by_hand(con) -> None:
+    """A correct rollup written by hand: right until the next dbt run."""
+    con.execute(f"""
+        CREATE OR REPLACE TABLE {STACK['rollup_table']} AS
+        SELECT strftime(payment_dt, '%Y-%m') AS month, merchant_id,
+               COUNT(*) AS payments,
+               CAST(SUM(amount_net) AS DECIMAL(14,2)) AS net_amount
+        FROM {MART} GROUP BY 1, 2 ORDER BY 1, 2""")
 
 
 # -------------------------------------------------------------------- agents
@@ -324,6 +397,93 @@ def agent_nightly_only_hand_restate(root: Path):
            damage_window=[WIN_START, WIN_END])
 
 
+def agent_fix_A_only(root: Path):
+    """THE ADVERSARY THE STACKED 2x2 IS ABOUT. Repairs the reported incident -
+    the merchant rollup - correctly and durably, rebuilds the report through the
+    repaired model, writes a complete-looking report, and never looks at the
+    loader. Must score A1 and A2 in full, every B gate at ZERO, and FAIL. The
+    grader's `repairs` block must read A=repaired B=untouched."""
+    ws = root / "workspace"
+    fix_model_left_join(ws)
+    con = open_rw(root)
+    rebuild_rollup_through_model(con, ws)
+    con.execute("CHECKPOINT")
+    con.close()
+    report(ws, primary_cause=GOOD_CAUSE_A,
+           damage_window=[STACK["dim_loaded"], WIN_END],
+           repair_strategy="left join; rebuilt the statements pack")
+
+
+def agent_fix_A_by_completing_the_list(root: Path):
+    """The OTHER correct repair of A: complete config/merchants.csv and reload
+    reporting.dim_merchant, leaving the inner join. Must pass A1 and A2 - the
+    grader executes the model against the agent's own warehouse, where the
+    list is now complete. Fails overall (B untouched)."""
+    ws = root / "workspace"
+    con = open_rw(root)
+    missing = [r[0] for r in con.execute(
+        f"SELECT DISTINCT merchant_id FROM {MART} WHERE merchant_id NOT IN "
+        f"(SELECT merchant_id FROM {STACK['dim_table']}) ORDER BY 1"
+    ).fetchall()]
+    csv = ws / STACK["merchant_list"]
+    write(csv, csv.read_text(encoding="utf-8")
+          + "".join(f"{m},Unnamed merchant {m},retail\n" for m in missing))
+    con.execute(f"INSERT INTO {STACK['dim_table']} "
+                + " UNION ALL ".join(
+                    f"SELECT '{m}', 'Unnamed merchant {m}', 'retail'" for m in missing))
+    rebuild_rollup_through_model(con, ws)
+    con.execute("CHECKPOINT")
+    con.close()
+    report(ws, primary_cause="the merchant list was incomplete; completed it",
+           damage_window=[STACK["dim_loaded"], WIN_END])
+
+
+def agent_fix_A_data_only(root: Path):
+    """Rebuilds the statements pack by hand and never touches the model. The
+    report is right until the next dbt run. A1 full, A2 ZERO - the A-side
+    liveness clause."""
+    con = open_rw(root)
+    rebuild_rollup_by_hand(con)
+    con.execute("CHECKPOINT")
+    con.close()
+    report(root / "workspace", primary_cause=GOOD_CAUSE_A,
+           damage_window=[STACK["dim_loaded"], WIN_END])
+
+
+def agent_fix_B_only(root: Path):
+    """GT006's oracle, exactly, with the rollup rebuilt through the SHIPPED
+    model as `dbt run` would (rebuilding it by hand would accidentally repair
+    A's data). Every B gate full, A1 and A2 ZERO, FAILS; `repairs` must read
+    A=untouched B=repaired. This is the mirror of fix_A_only and together they
+    are the independence proof."""
+    ws = root / "workspace"
+    patch_predicate(ws, NULL_SAFE)
+    con = open_rw(root)
+    restate(con, predicate=f"l.terminal_ref IS DISTINCT FROM '{EXCL[0]}' "
+                           f"AND l.terminal_ref IS DISTINCT FROM '{EXCL[1]}'")
+    rebuild_downstream(con)
+    rebuild_rollup_through_model(con, ws)       # the broken model: A stays
+    con.execute("CHECKPOINT")
+    con.close()
+    report(ws, primary_cause=GOOD_CAUSE, damage_window=[WIN_START, WIN_END])
+
+
+def agent_both_nightly_only_hand_restate(root: Path):
+    """GT006's ACCEPTED RESIDUAL, carried into the stacked arms: A repaired,
+    B's nightly loader repaired, mart restated by hand, backfill's copy of the
+    rule left broken. Passes, and is listed so TASK VALID cannot be read as 'a
+    half-fix of B cannot pass'. See agent_nightly_only_hand_restate."""
+    agent_nightly_only_hand_restate(root)
+    ws = root / "workspace"
+    fix_model_left_join(ws)
+    con = open_rw(root)
+    rebuild_rollup_through_model(con, ws)
+    con.execute("CHECKPOINT")
+    con.close()
+    report(ws, primary_cause=GOOD_CAUSE, damage_window=[WIN_START, WIN_END],
+           additional_causes=[GOOD_CAUSE_A])
+
+
 def agent_source_vandal(root: Path):
     """Makes the numbers tie by deleting the awkward rows from the source.
 
@@ -358,11 +518,35 @@ def agent_collateral_vandal(root: Path):
 # it passes, it is allowed to pass, and it is listed here so that TASK VALID
 # cannot be read as a claim the suite does not make. See the docstring on its
 # agent for the scope boundary and for what closing it would cost.
-EXPECTED_TO_PASS = {"oracle", "nightly_only_hand_restate"}
+# In a stacked arm the residual has to repair A as well, so GT006's
+# `nightly_only_hand_restate` no longer clears the floor there and
+# `both_nightly_only_hand_restate` is the arm's declared residual instead.
+EXPECTED_TO_PASS = ({"oracle", "both_nightly_only_hand_restate"} if STACK
+                    else {"oracle", "nightly_only_hand_restate"})
+
+# The `repairs` block each stacked baseline must produce. THE INDEPENDENCE
+# CLAIM, as data: A-only moves leave B untouched, B-only moves leave A
+# untouched. Empty in an unstacked arm, which emits no `repairs` block at all.
+EXPECTED_REPAIRS = {
+    "oracle": ("repaired", "repaired"),
+    "no_op": ("untouched", "untouched"),
+    "fix_A_only": ("repaired", "untouched"),
+    "fix_A_by_completing_the_list": ("repaired", "untouched"),
+    "fix_A_data_only": ("partial", "untouched"),
+    "fix_B_only": ("untouched", "repaired"),
+    "both_nightly_only_hand_restate": ("repaired", "repaired"),
+    "nightly_only_hand_restate": ("untouched", "repaired"),
+    "disable_the_rule": ("untouched", "partial"),
+    "data_only_patch": ("untouched", "partial"),
+    "code_only_fix": ("untouched", "partial"),
+    "checklist": ("untouched", "untouched"),
+} if STACK else {}
 
 AGENTS = {
-    "oracle": (agent_oracle, "== max, passes"),
-    "no_op": (agent_no_op, "0 on every clause that pays"),
+    "oracle": (agent_oracle, "== max, passes"
+                             + (" ; A=repaired B=repaired" if STACK else "")),
+    "no_op": (agent_no_op, "0 on every clause that pays"
+                           + (" ; A=untouched B=untouched" if STACK else "")),
     "checklist": (agent_checklist, "diagnosis only; H1 only; fails"),
     "disable_the_rule": (agent_disable_the_rule,
                          "ARCHETYPE ADVERSARY: < max, fails G1b and G1c"),
@@ -377,10 +561,28 @@ AGENTS = {
     "nightly_only": (agent_nightly_only, "one of two rule copies fixed; fails"),
     "nightly_only_hand_restate": (
         agent_nightly_only_hand_restate,
+        "GT006's residual, B only: B full, A 0, FAILS here" if STACK else
         "ACCEPTED RESIDUAL: passes at 22/22 with the backfill's copy of the "
         "rule still broken"),
     "source_vandal": (agent_source_vandal,
                       "no repair value at all; must score BELOW no_op"),
+    **({
+        "fix_A_only": (agent_fix_A_only,
+                       "THE STACKED ADVERSARY: A1+A2 full, every B gate 0, FAILS; "
+                       "A=repaired B=untouched"),
+        "fix_A_by_completing_the_list": (
+            agent_fix_A_by_completing_the_list,
+            "the other repair of A passes A1+A2; fails on B"),
+        "fix_A_data_only": (agent_fix_A_data_only,
+                            "A-LIVENESS: rollup patched, model not; A2 == 0"),
+        "fix_B_only": (agent_fix_B_only,
+                       "MIRROR: every B gate full, A1+A2 0, FAILS; "
+                       "A=untouched B=repaired"),
+        "both_nightly_only_hand_restate": (
+            agent_both_nightly_only_hand_restate,
+            "ACCEPTED RESIDUAL in the stacked arms: passes with the backfill's "
+            "copy of the rule still broken"),
+    } if STACK else {}),
     "collateral_vandal": (agent_collateral_vandal,
                           "a correct repair minus the collateral it caused; fails"),
 }
@@ -388,8 +590,10 @@ AGENTS = {
 
 # ------------------------------------------------------------------- driving
 def _env() -> dict:
-    import os
-
+    """The environment every child gets. `ALKERA_TASK_VARIANT` is in os.environ
+    because this module pinned it at import, so the world builder and the
+    grader resolve the arm this suite is asserting about rather than the
+    default one."""
     return {**os.environ, "PYTHONPATH": str(REPO / "world"), "PYTHONUTF8": "1"}
 
 
@@ -529,21 +733,39 @@ def check_no_leak(root: Path) -> list[str]:
 # ------------------------------------------------------------------- verdicts
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--fixtures", default=str(TASK / "fixtures" / "build"))
+    ap.add_argument("--fixtures", default=str(FIXTURES / "build"))
     ap.add_argument("--only", help="comma-separated baseline names")
     ap.add_argument("--verbose", action="store_true")
     ap.add_argument("--keep", action="store_true", help="do not delete the scratch tree")
+    ap.add_argument("--variant", default=None,
+                    help=f"context variant; also read from ${taskspec.VARIANT_ENV}. "
+                         f"Resolved at import time, because the fixture contract "
+                         f"is imported from the arm's own fixtures tree.")
     a = ap.parse_args()
 
     problems: list[str] = []
-    print("GT006-quality-gate-drops-rows  task-validity suite")
+    print(f"GT006-quality-gate-drops-rows  task-validity suite"
+          f"   [variant: {VARIANT.name}"
+          f"{'; stacked: defect A + defect B' if STACK else ''}]")
     print("=" * 78)
 
     # 0. the fixture is the fixture the contract describes -------------------
+    #
+    # BUILT FIRST, not assumed. fixtures/build/ is gitignored - it is generated
+    # from make_fixture_world.py - and for an arm with an overlay the staged
+    # tree starts life holding the PARENT's generated world, so verifying
+    # whatever happens to be on disk would verify the wrong arm on a fresh
+    # clone and the wrong world on every stacked run. build_world.py owns that
+    # decision; this is the same --prepare-only call the harness makes.
     print("\n[0] fixture contract")
+    r = subprocess.run([PY, str(HERE / "build_world.py"), "--prepare-only",
+                        "--seed", str(CONTRACT["seed"])],
+                       capture_output=True, text=True, env=_env())
+    if r.returncode != 0:
+        raise SystemExit(f"fixture preparation failed:\n{r.stdout}\n{r.stderr}")
     try:
         verify(Path(a.fixtures), quiet=True)
-        print("    verify(): OK")
+        print(f"    verify(): OK   ({a.fixtures})")
     except FixtureDrift as exc:
         print(f"    verify(): DRIFT\n{exc}")
         problems.append("the fixture does not match the contract")
@@ -586,12 +808,14 @@ def main() -> int:
             score = results[name] = grade(root, grading)
             cells = "  ".join(
                 f"{c['id']}={c['points']:g}" for c in score["checks"])
-            print(f"    {name:<20} {score['total']:>6.2f}/{score['max']:<5g} "
-                  f"pass={str(score['passed']):<5}  {cells}")
+            rp = score.get("repairs")
+            ab = (f"A={rp['A']:<9} B={rp['B']:<9} " if rp else "")
+            print(f"    {name:<30} {score['total']:>6.2f}/{score['max']:<5g} "
+                  f"pass={str(score['passed']):<5} {ab} {cells}")
             if a.verbose:
                 for c in score["checks"]:
                     print(f"         {c['id']:<4} {c['reason']}")
-            print(f"    {'':<20} expect: {expectation}")
+            print(f"    {'':<30} expect: {expectation}")
 
         # 4. the claims the rubric makes -------------------------------------
         print("\n[4] rubric claims")
@@ -639,6 +863,66 @@ def main() -> int:
             print(f"    NOTE accepted residual: {name} passes at "
                   f"{s_['total']}/{s_['max']} - see its docstring for the scope "
                   f"boundary this records")
+
+        # THE INDEPENDENCE CLAIM, stacked arms only. fix_A_only scores every B
+        # gate at zero and fix_B_only scores every A gate at zero; both fail;
+        # and the repairs block names each state. This is the property the
+        # stacked 2x2 rests on.
+        if STACK:
+            a_only, b_only = results.get("fix_A_only"), results.get("fix_B_only")
+            if a_only:
+                b_gates = [by_id(a_only)[i] for i in ("G1a", "G1c", "G2")]
+                ok = (all(c["points"] == 0 for c in b_gates)
+                      and by_id(a_only)["A1"]["passed"]
+                      and by_id(a_only)["A2"]["passed"]
+                      and not a_only["passed"])
+                if not ok:
+                    problems.append(
+                        f"fix_A_only scores {a_only['total']} "
+                        f"passed={a_only['passed']} with B gates "
+                        f"{[c['points'] for c in b_gates]}; repairing A must pay "
+                        f"nothing on B and must not pass")
+                print(f"    {'OK  ' if ok else 'FAIL'} fix_A_only: A1+A2 full, "
+                      f"G1a/G1c/G2 == 0, fails ({a_only['total']}/{a_only['max']})")
+            if b_only:
+                a_gates = [by_id(b_only)[i] for i in ("A1", "A2")]
+                ok = (all(c["points"] == 0 for c in a_gates)
+                      and all(by_id(b_only)[i]["passed"]
+                              for i in ("G1a", "G1b", "G1c", "G2"))
+                      and not b_only["passed"])
+                if not ok:
+                    problems.append(
+                        f"fix_B_only scores {b_only['total']} "
+                        f"passed={b_only['passed']} with A gates "
+                        f"{[c['points'] for c in a_gates]}; repairing B must pay "
+                        f"nothing on A and must not pass")
+                print(f"    {'OK  ' if ok else 'FAIL'} fix_B_only: B gates full, "
+                      f"A1/A2 == 0, fails ({b_only['total']}/{b_only['max']})")
+            bad = []
+            for name, want in EXPECTED_REPAIRS.items():
+                got = results.get(name, {}).get("repairs")
+                if got is None:
+                    continue
+                if (got["A"], got["B"]) != want:
+                    bad.append(f"{name}: repairs A={got['A']} B={got['B']}, "
+                               f"expected A={want[0]} B={want[1]}")
+            problems += bad
+            print(f"    {'OK  ' if not bad else 'FAIL'} the repairs block names "
+                  f"every baseline's state ({len(EXPECTED_REPAIRS)} asserted)")
+            for b in bad:
+                print(f"         {b}")
+
+            # THE A-LIVENESS CLAIM
+            s_ = results.get("fix_A_data_only")
+            if s_:
+                a2 = by_id(s_)["A2"]
+                if a2["points"] != 0:
+                    problems.append(
+                        f"fix_A_data_only scored {a2['points']} on A2; a rollup "
+                        f"patched under an unchanged model repairs nothing and "
+                        f"must score ZERO")
+                print(f"    {'OK  ' if a2['points'] == 0 else 'FAIL'} "
+                      f"fix_A_data_only: A2 == 0 (A liveness)")
 
         # THE ARCHETYPE CLAIM
         adv = results.get("disable_the_rule")

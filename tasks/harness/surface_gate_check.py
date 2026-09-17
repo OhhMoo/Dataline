@@ -92,9 +92,9 @@ def _live_and_dead(tasks_dir: Path,
         spec, world, scratch / "probe",
         surface_audit.all_probes(toolbelt, spec.surface_probes))
     audit = surface_audit.audit(spec=spec, surfaces=result, toolbelt=toolbelt)
-    declared_live = [l for l in audit["live"] if not l.startswith("~")]
-    declared_dead = [l for l in audit["dead"] if not l.startswith("~")]
-    swept_dead = [l for l in audit["dead"] if l.startswith("~")]
+    declared_live = [line for line in audit["live"] if not line.startswith("~")]
+    declared_dead = [line for line in audit["dead"] if not line.startswith("~")]
+    swept_dead = [line for line in audit["dead"] if line.startswith("~")]
     print(f"\n  the base world, measured: {len(declared_live)} declared surfaces "
           f"live, {len(declared_dead)} declared dead {declared_dead}")
     print(f"  ... and {len(swept_dead)} DEAD surfaces the task never probed, "
@@ -327,12 +327,12 @@ def main() -> int:
           any("required surfaces were DEAD" in x
               for x in report.aggregate([fired])["invalidated_because"]))
     check("both reports state the live-surface set beside every rate they print",
-          all("surfaces: " in l for r in (withheld, clean)
-              for l in r.splitlines()
-              if "Pass@1 = " in l or "Pass^k = " in l))
+          all("surfaces: " in line for r in (withheld, clean)
+              for line in r.splitlines()
+              if "Pass@1 = " in line or "Pass^k = " in line))
     check("both reports carry Pass^k",
           "Pass^k = " in withheld and "Pass^k = " in clean)
-    print("\n" + "\n".join("    " + l for l in clean.splitlines()[:22]))
+    print("\n" + "\n".join("    " + line for line in clean.splitlines()[:22]))
 
     if not a.keep:
         shutil.rmtree(root, ignore_errors=True)

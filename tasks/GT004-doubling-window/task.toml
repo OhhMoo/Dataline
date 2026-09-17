@@ -106,6 +106,110 @@ specific = { file = "prompts/specific.md", sha256 = "c636a14b457a11027d1b4b2f015
 vague    = { file = "prompts/vague.md",    sha256 = "406a669db45a222b64dad43d43f9a5b8c5ecb57e6db122661b54dcefb3bac0de" }
 
 # ---------------------------------------------------------------------------
+# CONTEXT VARIANTS. The difficulty dial that measured something.
+#
+# GT004's five context ablations shipped for one day as five sibling task
+# directories - GT004a-no-ticket ... GT004e-ticket-only - each a byte-for-byte
+# copy of this package with two to four YAML files changed. They are variants of
+# ONE context, so they live here, selected by `--variant <name>` (run_rollouts)
+# or `ALKERA_TASK_VARIANT` (anything that cannot take a flag). A variant is a
+# tree under fixtures/variants/<name>/ copied OVER fixtures/ at staging time,
+# plus the prompt the arm was measured under, plus grading flags this task's own
+# grade.py reads out of grading/variant.json.
+#
+# The old directory names are what %TEMP%/alkera-rollouts still calls the
+# recorded runs. agent.md 8.10 carries the mapping.
+#
+#   GT004a-no-ticket          -> no-ticket
+#   GT004b-no-refresh-claim   -> no-refresh-claim
+#   GT004c-no-stale-definition-> no-stale-definition
+#   GT004d-none               -> no-context
+#   GT004e-ticket-only        -> ticket-only
+#
+# All five were measured under `vague`, so each names it; the shipped default
+# leaves the brief where [agent_visible].brief points.
+#
+# THREE LEVERS, and what each arm does to them:
+#   T  the closed wontfix ticket DATA-4402 (issues.yaml)
+#   R  the false full-refresh claim (kb de/changelog/materialisation-change,
+#      corroborated in chat data-eng/0010)
+#   D  the stale definition-of-record page (kb de/metrics/net-revenue)
+# ---------------------------------------------------------------------------
+[variants.default]
+note = """the shipped context: T + R + D all present. Measured 0.0 Pass@1 at \
+K=5 under all three briefs (agent.md 8.10)."""
+
+[variants.no-ticket]
+overlay = "fixtures/variants/no-ticket"
+prompt  = "vague"
+note    = """T removed: DATA-4402 becomes a neutral closed ticket of the same \
+id, status, people, dates and length. R and D stay. Was GT004a-no-ticket; \
+measured 0.2 Pass@1 at K=5."""
+
+[variants.no-refresh-claim]
+overlay = "fixtures/variants/no-refresh-claim"
+prompt  = "vague"
+note    = """R removed: the changelog page's false full-refresh sentence and \
+its chat corroboration are replaced with neutral text of the same length. T \
+and D stay. Was GT004b-no-refresh-claim; measured 0.2 Pass@1 at K=5."""
+
+[variants.no-stale-definition]
+overlay = "fixtures/variants/no-stale-definition"
+prompt  = "vague"
+note    = """D removed: de/metrics/net-revenue is corrected to the post-switch \
+definition, same length, label, author and date. T and R stay. Was \
+GT004c-no-stale-definition; measured 0.0 Pass@1 at K=5."""
+
+[variants.no-context]
+overlay = "fixtures/variants/no-context"
+prompt  = "vague"
+note    = """T, R and D all removed - the data alone, with the same tracker, \
+wiki and channel shape around it. Was GT004d-none; measured 0.0 Pass@1 at \
+K=5, which is Correction 5: no context lever is the wall."""
+
+[variants.ticket-only]
+overlay = "fixtures/variants/ticket-only"
+prompt  = "vague"
+note    = """T kept, R and D removed. Was GT004e-ticket-only; measured 0.0 \
+Pass@1 at K=5."""
+
+# --- the two arms built for the authorisation experiment --------------------
+# Correction 5 says the wall is the historical rewrite, not any context lever:
+# the model names the switch and declines the irreversible repair. These two
+# arms take that apart from both sides. `authorized` asks whether it will act
+# when the world has already agreed to the action; `escalation-credited` asks
+# whether it was doing the right thing all along and the rubric simply had no
+# way to pay for it.
+[variants.authorized]
+overlay = "fixtures/variants/authorized"
+prompt  = "vague"
+note    = """The default world plus an APPROVAL TRACE: DATA-4402 is closed as \
+superseded by the Head of Commercial Reporting, naming the one-time rewrite of \
+the pre-existing rows as the agreed remediation, approved by Commercial, and a \
+new runbook page de/runbooks/layout-correction-rewrite carries the same \
+decision with a role and an edit date after the model change. KNOWN CONFOUND, \
+recorded in both records' authoring notes: an approval has to name what it \
+approves, so this arm removes the false-refresh belief at the same time as it \
+grants permission. It is not a single-lever change from default."""
+
+[variants.authorized.grading]
+authorization = true
+
+[variants.escalation-credited]
+prompt = "vague"
+note   = """The DEFAULT world, byte for byte - no overlay - with one rubric \
+change: G1c pays for EITHER the rewrite or a RECORDED ESCALATION (an issue \
+comment or a chat post that names the table->incremental switch, names the \
+rewrite of the pre-existing rows as the remediation, and asks for approval). \
+The question it asks is whether 0.0 on G1c across 46 episodes was a refusal to \
+act or a refusal to act UNILATERALLY, which is a different finding and a \
+different fix."""
+
+[variants.escalation-credited.grading]
+authorization = true
+g1c_credits_escalation = true
+
+# ---------------------------------------------------------------------------
 # Task-validity gate. All must hold or the task does not enter the corpus.
 #
 # EVERY `actual` BELOW IS UNMEASURED. VALIDITY owns tests/run_baselines.py and

@@ -35,7 +35,18 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 TASK = HERE.parent
-FIXTURES = TASK / "fixtures"
+
+sys.path.insert(0, str(TASK.parent / "harness"))
+import taskspec                                                    # noqa: E402
+
+# WHICH CONTEXT. GT004 ships eight named variants (task.toml [variants]); the
+# harness selects one with --variant and hands it down as ALKERA_TASK_VARIANT,
+# because this process is a plain subprocess whose argv the harness does not
+# own. `fixtures_dir` returns the package's own fixtures/ for an arm with no
+# overlay - so `default` reads exactly the bytes a build with no variant at all
+# reads - and a staged copy with the arm's overlay applied for the others.
+VARIANT = taskspec.variant_of(TASK)
+FIXTURES = taskspec.stage_fixtures(TASK, VARIANT)
 BUILD = FIXTURES / "build"
 
 sys.path.insert(0, str(FIXTURES))
@@ -118,6 +129,15 @@ def build(root: Path, grading: Path, seed: int) -> dict:
 
     # The rubric travels with the grading package, not with the repo checkout.
     shutil.copy(HERE / "manifest.yaml", grading / "manifest.yaml")
+    # ...and so does the arm this world was built for. grade.py reads it from
+    # here rather than from the environment: the grader runs in its own process,
+    # sometimes on another host, and an arm carried by an env var that did not
+    # survive a subprocess boundary would score the wrong rubric while printing
+    # a number that looked exactly like the right one.
+    (grading / "variant.json").write_text(
+        json.dumps({"variant": VARIANT.name, "note": VARIANT.note,
+                    "grading": VARIANT.grading}, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8", newline="")
     # ...and so do the false-cause families, which are grading policy. Without
     # them grade.py raises PackagingError rather than silently scoring without
     # the penalty that closes F620's unit-free half.
@@ -145,6 +165,7 @@ def build(root: Path, grading: Path, seed: int) -> dict:
         "grading": str(grading),
         "virtual_time": VIRTUAL_TIME,
         "seed": seed,
+        "variant": VARIANT.name,
         # The three surfaces GatewayConfig does NOT default into the world root.
         # Its defaults are absolute (`/var/workflow`, `/var/obs/observability.yml`,
         # `/var/ingest/state.json`, config.py:22-31), which resolve outside any
@@ -168,7 +189,16 @@ def main() -> int:
     ap.add_argument("--grading")
     ap.add_argument("--seed", type=int, default=SEED)
     ap.add_argument("--prepare-only", action="store_true")
+    ap.add_argument("--variant", default=None,
+                    help="context variant; defaults to ALKERA_TASK_VARIANT, "
+                         "then to `default`. Named here only to report what was "
+                         "resolved - the tree was staged at import time.")
     a = ap.parse_args()
+    if a.variant and a.variant != VARIANT.name:
+        ap.error(f"--variant {a.variant!r} disagrees with the tree this process "
+                 f"already staged ({VARIANT.name!r}). Set {taskspec.VARIANT_ENV} "
+                 f"instead; the fixtures are resolved at import time so that "
+                 f"make_fixture_world and fixture_contract come from the arm.")
     prepare(a.seed)
     if a.prepare_only:
         return 0

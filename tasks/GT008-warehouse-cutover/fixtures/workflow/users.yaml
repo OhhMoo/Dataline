@@ -1,0 +1,20 @@
+# GT008 - the roster. Authored once and copied into issues.json and chat.json
+# by world/workflow.py.
+#
+#   rkeane   platform lead; owns the migration and wrote the "port it as-is"
+#            comment. Away for the episode, which is why the question that
+#            would settle the precedence rule has no reply.
+#   tobi     the engineer who wrote load_legacy.py a year ago. Left in March;
+#            appears only in history.
+#   avargas  Finance. Signs month-end off the dashboard. Reports what she
+#            sees and has no vocabulary for the loaders.
+#   mcarver  on-call SRE; owns the legacy host's decommission date.
+#   jnorth   analytics engineer; forwarded the order service's re-delivery
+#            notice and filed the ticket nobody picked up.
+#   agent    the persona the episode's agent writes as.
+users:
+  - {id: rkeane, name: Rosa Keane, role: Data platform lead, team: Data, away_until: "+6d"}
+  - {id: jnorth, name: Jamie North, role: Analytics engineer, team: Data}
+  - {id: mcarver, name: Mel Carver, role: On-call SRE, team: Platform}
+  - {id: avargas, name: Ana Vargas, role: Finance systems, team: Finance}
+  - {id: agent, name: Automation, role: Platform automation, team: Data}

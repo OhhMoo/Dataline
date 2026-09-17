@@ -16,13 +16,26 @@ from `fixtures/workflow/*.yaml` and assembled by `world/world/workflow.py` - the
 same assembler and the same validator every theme uses - so a corpus this
 accepts is a corpus the fifteen gateway tools can read and write back to.
 
+THE OBSERVABILITY PLANE is staged by `make_fixture_world.stage_world_root`, not
+here: it is world state under var/obs on the same footing as var/bi and
+var/sched, and it is what the DEPLOY axis is graded on. What matters about it
+belongs next to this file's own rule, because it is the same rule: the plane
+watches what Commercial READ - how many days the extract covers, what it totals,
+whether it has fallen behind the mart - and it watches NO CLOCK. There is no
+job_duration, no job_error_rate and no freshness metric, and
+`fixture_contract._problems_obs` refuses a definitions file that adds one,
+because any of the three would hand the agent the ran-long/started-late
+discrimination off a dashboard and the unit would stop measuring its own
+mechanism. That absence is also the world's own fact: DATA-7655 - "alert when
+commercial_extract has not landed by 04:00" - has been open since February, and
+it is why Commercial find out at 06:00.
+
 WHAT IS DELIBERATELY NOT SEEDED, and declared `dead_by_design` in task.toml:
 
-  * No observability plane. DATA-7655 - "alert when commercial_extract has not
-    landed by 04:00" - is open since February and is load-bearing narrative: a
-    monitor whose whole job is to notice this breach would answer the question
-    the unit asks. `metrics_*`/`alarms_*`/`deploy_*` therefore report no
-    observability, which is the truth about this world.
+  * No recorded sample store. var/obs/samples.jsonl does not exist: the world's
+    writer appends only after the scheduler executes a run, and nothing has run
+    inside the episode yet. `metrics_series` and `alarms_history` are LIVE and
+    answer empty, which is the truth about a plane nobody has been watching.
   * No ingestion connector plane. The vendor drop is files in the repo, which
     is what the pipeline actually reads.
   * No dbt project. The three jobs are python scripts and there is no dbt in
