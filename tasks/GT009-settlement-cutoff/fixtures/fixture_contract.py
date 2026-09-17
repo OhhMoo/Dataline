@@ -351,8 +351,9 @@ def _problems_mechanism(fx: Path) -> list[str]:
                                f"world: {(done.stdout + done.stderr).strip()[:200]}")
                     return out
             tables = _tables(db)
-            for table in (HANDOFF, WINDOW):
-                have, expect = tables.get(table), _as_strings(want[night - 1][table])
+            for table in (CONTRACT["targets"]["facts"], HANDOFF, WINDOW):
+                key = "fct" if table == CONTRACT["targets"]["facts"] else table
+                have, expect = tables.get(table), _as_strings(want[night - 1][key])
                 if have != expect:
                     out.append(
                         f"night {night}: the shipped code left {len(have or [])} "
@@ -438,17 +439,16 @@ CHECKS = (("layout", _problems_layout), ("state", _problems_state),
 
 def verify(build: Path, *, quiet: bool = False, skip=()) -> dict:
     build = Path(build)
-    problems: list[str] = []
-    fired: list[str] = []
+    # Checks run in dependency order and the FIRST group to fire stops the
+    # gate. A later group reads what an earlier one has just declared missing,
+    # so carrying on would turn a named drift into a traceback.
     for name, check in CHECKS:
         if name in skip:
             continue
         found = check(build)
         if found:
-            fired.append(name)
-            problems.extend(f"[{name}] {p}" for p in found)
-    if problems:
-        raise FixtureDrift("fixture drift:\n  - " + "\n  - ".join(problems))
+            raise FixtureDrift("fixture drift:\n  - "
+                               + "\n  - ".join(f"[{name}] {p}" for p in found))
     refs = _expected(build, "t0.json")
     CONTRACT["world"].update({
         "corpus_digest": mfw.tree_digest(build / "workflow"),
@@ -483,14 +483,14 @@ def _mutations() -> list[tuple[str, str, callable]]:
             (fx / rel).unlink()
         return apply
 
-    def edit(rel, old, new):
+    def edit(rel, old, new, count=1):
         def apply(fx):
             path = fx / rel
             text = path.read_text(encoding="utf-8")
             if old not in text:
                 raise FixtureDrift(f"falsifier: {old!r} not in {rel}")
             with path.open("w", encoding="utf-8", newline="") as fh:
-                fh.write(text.replace(old, new, 1))
+                fh.write(text.replace(old, new, count))
         return apply
 
     def sql(statement):
@@ -544,9 +544,10 @@ def _mutations() -> list[tuple[str, str, callable]]:
               "jobs:\n  clearing_window_close:\n    time: \"23:30\"\n"
               "    script: .platform/clearing_window_close.py\n"
               "    enabled: true\n\n")),
-        ("publish_job_deleted", "schedule",
+        ("publish_job_disabled", "schedule",
          edit(f"{workspace}/{lay['schedule_relpath']}",
-              "  settlement_publish:\n", "  settlement_publish:\n    enabled: false\n")),
+              "    enabled: true\n    owner: data-platform\n    publishes:",
+              "    enabled: false\n    owner: data-platform\n    publishes:")),
         ("approval_ticket_reopened", "workflow",
          edit("workflow/issues.yaml",
               "    status: approved\n    reporter: rkeane\n    assignee: dpatel\n"
@@ -559,7 +560,7 @@ def _mutations() -> list[tuple[str, str, callable]]:
          edit("workflow/kb.yaml", "**This page supersedes PAY-3120.**",
               "**This page is the current policy.**")),
         ("protocol_clause_removed", "workflow",
-         edit("workflow/kb.yaml", "in `correction_ref`", "in the commit message")),
+         edit("workflow/kb.yaml", "`correction_ref`", "the commit message", -1)),
         ("late_publication_rule_removed", "workflow",
          edit("workflow/kb.yaml",
               "A day the platform has **never** handed over is not being restated.",
@@ -568,7 +569,7 @@ def _mutations() -> list[tuple[str, str, callable]]:
          edit("workflow/kb.yaml", "1. **Date.** The later statement wins.",
               "1. **Judgement.** Use your best judgement.")),
         ("approval_day_renamed", "workflow",
-         edit("workflow/issues.yaml", "settled on 2026-06-11", "settled recently")),
+         edit("workflow/issues.yaml", CONTRACT["closed_day"], "2026-06-04", -1)),
         ("metric_removed", "obs",
          edit("obs/definitions.yaml", "  - id: sla_breaches", "  - id: sla_breached")),
         ("dashboard_removed", "obs",
@@ -577,10 +578,10 @@ def _mutations() -> list[tuple[str, str, callable]]:
          edit(f"{workspace}/pipelines/load_payments.py",
               "ORDER BY delivered_at DESC, event_id DESC",
               "ORDER BY version DESC, delivered_at DESC, event_id DESC")),
-        ("loader_checkpoint_fixed", "mechanism",
+        ("loader_reads_the_whole_feed", "mechanism",
          edit(f"{workspace}/pipelines/load_payments.py",
-              'today = max([day for day, _ in found] + [after])',
-              'today = max([day for day, _ in found] + [after]) if found else after')),
+              'if day > after and any(folder.glob("*.csv")):',
+              'if any(folder.glob("*.csv")):')),
         ("publisher_already_restates", "mechanism",
          edit(f"{workspace}/pipelines/publish_settlement.py",
               "WHERE payment_day > (SELECT COALESCE(MAX(settlement_day),\n"
@@ -591,22 +592,19 @@ def _mutations() -> list[tuple[str, str, callable]]:
          edit(f"{workspace}/{lay['platform_script']}",
               'row = (closed_on, day, "SLA_BREACH", 0, 0)',
               'continue')),
-        ("daemon_publishes_nothing", "schedule",
+        ("daemon_records_nothing", "mechanism",
          edit(f"{workspace}/{lay['platform_script']}",
-              'DDL = ("CREATE TABLE IF NOT EXISTS warehouse.clearing_window (',
-              'DDL = ("CREATE TABLE IF NOT EXISTS warehouse.clearing_window_x (')),
-        ("events_table_renamed", "state",
+              "if day > closed_on or day in settled:", "if True:")),
+        ("events_table_renamed", "mechanism",
          sql(f"ALTER TABLE {tgt['events']} RENAME TO payments_events_old")),
     ]
 
 
-def _move_cutoff(fx: Path) -> None:
-    import schedule_model as sm
-    path = HERE / "schedule_model.py"
-    # The cutoff is a module constant, so the mutation has to reach the module
-    # the fixture reads it through. Restored by the falsifier's finally block.
-    sm.PLATFORM_TIME = "21:00"
-    _ = path
+def _move_cutoff(_fx: Path) -> None:
+    """The cutoff is a module constant, not a line in the fixture, so the
+    mutation has to reach the module the fixture reads it through. Restored by
+    the falsifier's finally block."""
+    schedule_model.PLATFORM_TIME = "21:00"
 
 
 def falsify(build: Path, *, verbose: bool = True) -> tuple[int, int]:

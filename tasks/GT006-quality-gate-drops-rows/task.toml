@@ -25,6 +25,8 @@ target_pass_at_1  = "0.80"      # the unit library's target; see [handover]
 axis              = "correctness"
 rubric_points     = 22
 rubric_points_source = "tests/manifest.yaml check table; equals A003's rubric_points"
+rubric_points_stacked = 28
+rubric_points_stacked_source = "the `stacked-neutral`/`stacked-ticket` arms add A1 (4) and A2 (2) for defect A; tests/manifest.yaml marks both rows `requires_stack: true` and grade.py filters them out for the other two arms, so `max` derives from the arm"
 
 # ---------------------------------------------------------------------------
 # WHY THIS UNIT IS ORTHOGONAL TO GT004 (A009), and why that matters more than
@@ -101,6 +103,9 @@ world_root_required = true
 # ---------------------------------------------------------------------------
 [agent_visible]
 brief = "prompts/vague.md"
+# Each stacked arm names its OWN brief through `[variants].<arm>.prompt`, which
+# taskspec.load() resolves in place of this line. `default` and `trap-ticket`
+# read this one.
 
 # ---------------------------------------------------------------------------
 # THE DIFFICULTY DIAL. Three descriptions of the SAME task: identical world,
@@ -130,6 +135,94 @@ default  = "guided"
 guided   = { file = "prompts/guided.md",   sha256 = "7453b8e38fc3eceaf5acdf790730ffed22702629d280e2ad77f722cd14c400dd" }
 specific = { file = "prompts/specific.md", sha256 = "31daf919ad1d35108669c79c4411a5bb42d72e77f8a083988bd632e214759f15" }
 vague    = { file = "prompts/vague.md",    sha256 = "e86edf1980f61768de85515ad40dbb2f6f2946ddf6f64282ad2a38cb9e660952" }
+# The stacked arms' three briefs. They are ABOUT DEFECT A - the reported
+# incident there is the missing merchants, not the shortfall - so they are three
+# more declared prompts of this task rather than edits to the three above: a
+# stacked rollout and a B-alone rollout must stay separately attributable.
+# Byte-identical between `stacked-neutral` and `stacked-ticket` (they were
+# byte-identical between GT006c and GT006d), so a rollout in either arm is
+# attributable to the same brief. sha256 over the exact bytes, LF, no BOM;
+# carried over unchanged from the packages, and the 2026-09-16 K=5 runs in both
+# arms recorded prompt_sha256 = 44084924... = `stacked-vague`.
+stacked-guided   = { file = "prompts/stacked-guided.md",   sha256 = "9160b9928ed7a5ef55d1857e866570a6728cdb7c36e9df333cd4eef46917bbbb" }
+stacked-specific = { file = "prompts/stacked-specific.md", sha256 = "ed44e2c65a1e5e8d13292cf56c5aed4c491b2721eb2135fd11ee4f6e0a946707" }
+stacked-vague    = { file = "prompts/stacked-vague.md",    sha256 = "44084924ea5712540e648b3c891d3e537b17510ef435364bb3ce822334f8720e" }
+
+# ---------------------------------------------------------------------------
+# THE FOUR CONTEXTS. A task directory is ONE context; an ablation or a stack of
+# it is a `[variants]` arm, not a second GT task. Selected with
+# `--variant <name>` or $ALKERA_TASK_VARIANT; tests/variant.py is the one place
+# that resolves it and every script here reads the answer from there.
+#
+# FOLDED IN 2026-09-16 from tasks/GT006c-stacked-neutral/ and
+# tasks/GT006d-stacked-ticket/, which were full copies of this package. The
+# equivalence was proved before they were deleted: the world staged from this
+# package under each arm was diffed against the world staged from the arm's own
+# directory.
+#
+#                          neutral context            ticket excuses B
+#     B alone              (no such arm - see the     `default` == `trap-ticket`
+#                           note on `trap-ticket`)     measured 0.8 (2026-09-15)
+#     A + B                `stacked-neutral` 1.0      `stacked-ticket` 1.0
+#                                                      (both 2026-09-16, K=5)
+#
+# THE ROW THAT IS NOT HERE. There is no arm with the trap ticket REMOVED. The
+# shipped fixtures/workflow/ already carries DATA-2118 and
+# de/changelog/terminal-ref-review; see [variants.trap-ticket]. Restoring the
+# pre-interference corpus would be a real fifth arm and it is not built.
+# ---------------------------------------------------------------------------
+[variants.default]
+note = """the shipped context, and it INCLUDES THE TRAP: the closed wontfix \
+ticket DATA-2118 and its supporting wiki page were added to fixtures/workflow/ \
+by the interference build as a permanent edit, not by a fixture switch \
+(fixtures/workflow/issues.yaml says so at the top, and claims.yaml declares \
+both documents false with the reason). So `default` is the trap context and \
+`trap-ticket` below is an alias of it. The 1.0 Pass@1 rows in agent.md 8.10 \
+were measured on the build BEFORE that edit and cannot be reproduced from this \
+directory under any variant."""
+
+[variants.trap-ticket]
+note = """AN ALIAS OF `default`, declared so the `GT006 + closed ticket \
+excusing the defect` row in agent.md 8.10 (0.8 Pass@1, K=5, 2026-09-15, brief \
+`vague`) stays resolvable BY NAME. It carries no overlay on purpose: the trap \
+is already in the shipped corpus, so an overlay here would be a second copy of \
+four YAML files that says nothing. If the trap is ever lifted back out of \
+fixtures/, this arm is where the overlay that puts it back belongs."""
+prompt = "vague"
+
+[variants.stacked-neutral]
+overlay = "fixtures/variants/stacked-neutral"
+prompt  = "stacked-vague"
+note = """GT006's defect B with a SECOND, easy, independent defect A stacked on \
+top and reported as the incident: the merchant statements pack inner-joins a \
+commercial merchant list that stops at M0030, so M0031..M0040 are absent from \
+the report entirely. The tracker and wiki carry a NEUTRAL credential-rotation \
+ticket and page in place of the trap, of the same length. Was \
+GT006c-stacked-neutral; measured 1.0 Pass@1 at K=5 on 2026-09-16, 28/28 x5. \
+The number the experiment reads is grade.py's `repairs.B`, not `passed`."""
+
+[variants.stacked-neutral.grading]
+pass_requires_checks = ["G1a", "G1b", "G1c", "G2", "A1", "A2", "G3"]
+pass_min_total = 26.0
+rubric_points = 28
+stacked = true
+
+[variants.stacked-ticket]
+overlay = "fixtures/variants/stacked-ticket"
+prompt  = "stacked-vague"
+note = """`stacked-neutral` with the trap restored: DATA-2118 and \
+de/changelog/terminal-ref-review are the same documents `default` ships, so \
+the tracker and the wiki say defect B's residual is intended while defect A \
+gives the agent somewhere to stop. The scope-closure cell. Was \
+GT006d-stacked-ticket; measured 1.0 Pass@1 at K=5 on 2026-09-16, 28/28 x5, \
+which is Correction 4: scope closure is falsified on this mechanism. This arm \
+differs from `stacked-neutral` ONLY in workflow/{issues,kb,claims}.yaml."""
+
+[variants.stacked-ticket.grading]
+pass_requires_checks = ["G1a", "G1b", "G1c", "G2", "A1", "A2", "G3"]
+pass_min_total = 26.0
+rubric_points = 28
+stacked = true
 
 # ---------------------------------------------------------------------------
 # Task-validity gate. All must hold or the task does not enter the corpus.
@@ -139,6 +232,13 @@ vague    = { file = "prompts/vague.md",    sha256 = "e86edf1980f61768de85515ad40
 # the CONTRACT warehouse filename var/warehouse/warehouse.duckdb and reached by
 # ATTACH ... AS wh + USE wh (F622). The suite printed TASK VALID.
 # ---------------------------------------------------------------------------
+# THE [[validity]] ROWS BELOW ARE THE `default` / `trap-ticket` ARMS. The two
+# stacked arms have their own baseline set (five more agents, A1/A2, a `repairs`
+# block) and their own numbers; `python tests/run_baselines.py --variant
+# stacked-neutral` prints them and both arms printed TASK VALID on 2026-09-16
+# after the fold-in. They are recorded in [validity_stacked] below rather than
+# interleaved here, because a reader of one table must not have to work out
+# which arm each row is about.
 [[validity]]
 agent  = "oracle"
 expect = "== max, passes"
@@ -243,6 +343,153 @@ actual = "22/22 mutations caught by `python fixtures/fixture_contract.py --falsi
 agent  = "determinism"
 expect = "byte-identical across builds at a fixed seed"
 actual = "22 text files byte-identical; world.duckdb (8 tables) and expected.duckdb (2 tables) content-identical by order-insensitive multiset digest; the .duckdb CONTAINERS differ, which is a duckdb storage property and is printed rather than hidden  (`--verify-twice`, measured 2026-09-15)"
+
+# ---------------------------------------------------------------------------
+# THE STACKED ARMS' TASK-VALIDITY TABLE. `[[validity_stacked]]` rather than more
+# `[[validity]]` rows, because the two tables are about different rubrics (22
+# points and 28) and interleaving them would make every row ask which arm it
+# belongs to. Nothing in tasks/harness/ reads this key; it is the record.
+#
+# EVERY `actual` BELOW WAS RE-MEASURED ON 2026-09-16, after GT006c/GT006d were
+# folded into this package, by
+#
+#     python tests/run_baselines.py --variant stacked-neutral
+#     python tests/run_baselines.py --variant stacked-ticket
+#
+# Both printed TASK VALID and both printed IDENTICAL scores - the grader does
+# not read the corpus, and the two arms differ only in it. Every number equals
+# the one the separate packages recorded on 2026-09-15, which is the fold-in's
+# equivalence claim in its most load-bearing form.
+# ---------------------------------------------------------------------------
+[[validity_stacked]]
+agent  = "oracle"
+expect = "== max, passes; A=repaired B=repaired"
+actual = "28.0 / 28.0, passed=true, A=repaired B=repaired  (measured 2026-09-16)"
+
+[[validity_stacked]]
+agent  = "no_op"
+expect = "0 on EVERY clause that pays; does not pass; A=untouched B=untouched"
+actual = "0.0 / 28.0, every paying clause 0, passed=false, A=untouched B=untouched  (measured 2026-09-16)"
+
+[[validity_stacked]]
+agent  = "fix_A_only"
+expect = "THE STACKED ADVERSARY: A1+A2 full, EVERY B gate 0, partial, FAILS; A=repaired B=untouched"
+actual = "7.0 / 28.0, A1=4 A2=2 G1a=0 G1c=0 G2=0 H1=1, passed=false, A=repaired B=untouched  (measured 2026-09-16)"
+note   = "Repairs the reported incident correctly and durably (left join, pack rebuilt through the repaired model), writes a complete-looking report, never looks at the loader. This is the shape the scope-closure hypothesis predicted more often in `stacked-ticket` than in `stacked-neutral`; the 2026-09-16 K=5 rollouts found no such difference (agent.md 8.10, Correction 4). It scores a quarter of the rubric and does not pass, and the repairs block says exactly what it did."
+
+[[validity_stacked]]
+agent  = "fix_A_by_completing_the_list"
+expect = "the OTHER correct repair of A (complete the CSV, reload the dim, keep the inner join) passes A1+A2; fails on B"
+actual = "7.0 / 28.0, A1=4 A2=2, B gates 0, passed=false, A=repaired B=untouched  (measured 2026-09-16)"
+
+[[validity_stacked]]
+agent  = "fix_A_data_only"
+expect = "A-LIVENESS: pack rebuilt by hand under an unchanged model; A1 full, A2 == 0"
+actual = "5.0 / 28.0, A1=4 A2=0, passed=false, A=partial B=untouched  (measured 2026-09-16)"
+
+[[validity_stacked]]
+agent  = "fix_B_only"
+expect = "MIRROR: GT006's oracle with the pack rebuilt through the SHIPPED model; every B gate full, A1+A2 0, FAILS; A=untouched B=repaired"
+actual = "21.0 / 28.0, G1a=8 G1b=0 G1c=6 G2=6 A1=0 A2=0 H1=1, passed=false, A=untouched B=repaired  (measured 2026-09-16)"
+note   = "With fix_A_only this is the independence proof: repairing either defect pays nothing on the other's gates."
+
+[[validity_stacked]]
+agent  = "disable_the_rule"
+expect = "THE ARCHETYPE ADVERSARY: < oracle, MUST fail G1b and G1c"
+actual = "1.0 / 28.0, G1a=8 G1b=-8 G1c=0 G2=0 A1=0 A2=0 H1=1, passed=false, A=untouched B=partial  (measured 2026-09-16)"
+note   = "The `default` arm measures 2.0/22 for the same agent; the difference is H1, which in a stacked arm pays one point per defect NAMED instead of one for the cause and one for the damage window. Every gate scores exactly as in `default`."
+
+[[validity_stacked]]
+agent  = "tighten_the_filter"
+expect = "A003's first expected failure mode: adding validation makes it worse"
+actual = "0.0 / 28.0, passed=false  (measured 2026-09-16)"
+
+[[validity_stacked]]
+agent  = "data_only_patch"
+expect = "LIVENESS: data right, code untouched; MUST fail G1c"
+actual = "15.0 / 28.0, G1a=8 G2=6 G1c=0, passed=false, A=untouched B=partial  (measured 2026-09-16)"
+
+[[validity_stacked]]
+agent  = "permanent_skip"
+expect = "LIVENESS: 0 on G1c, NOT full marks"
+actual = "15.0 / 28.0, G1c=0, passed=false  (measured 2026-09-16)"
+
+[[validity_stacked]]
+agent  = "delete_the_loader"
+expect = "LIVENESS: 0 on G1c"
+actual = "15.0 / 28.0, G1c=0, passed=false  (measured 2026-09-16)"
+
+[[validity_stacked]]
+agent  = "code_only_fix"
+expect = "< oracle; the restatement gate bites"
+actual = "7.0 / 28.0, G1c=6 G1a=0 G2=0, passed=false  (measured 2026-09-16)"
+
+[[validity_stacked]]
+agent  = "nightly_only"
+expect = "fixed one of the two files carrying the rule; < oracle"
+actual = "7.0 / 28.0, G1c=6 G1a=0 G2=0, passed=false  (measured 2026-09-16)"
+
+[[validity_stacked]]
+agent  = "checklist"
+expect = "diagnosis without repair scores the report clause and nothing else"
+actual = "1.0 / 28.0, H1=1 (names B), everything else 0, passed=false  (measured 2026-09-16)"
+
+[[validity_stacked]]
+agent  = "nightly_only_hand_restate"
+expect = "the `default` arm's accepted residual, B ONLY: B full, A 0, FAILS here"
+actual = "21.0 / 28.0, B gates full, A1=0 A2=0, passed=false, A=untouched B=repaired  (measured 2026-09-16)"
+
+[[validity_stacked]]
+agent  = "both_nightly_only_hand_restate"
+expect = "ACCEPTED RESIDUAL carried from the `default` arm - it PASSES, and it is listed so that TASK VALID cannot be read as a claim the suite does not make"
+actual = "28.0 / 28.0, passed=true, A=repaired B=repaired  (measured 2026-09-16)"
+note   = "A repaired; B's nightly loader repaired and the mart restated by hand; the backfill's copy of the broken predicate left in place. The `default` arm's scope boundary, unchanged: G1c's liveness claim is about the UNATTENDED path."
+
+[[validity_stacked]]
+agent  = "source_vandal"
+expect = "no repair value at all; MUST score BELOW no_op"
+actual = "-6.0 / 28.0, G3=-6, passed=false  (measured 2026-09-16)"
+
+[[validity_stacked]]
+agent  = "collateral_vandal"
+expect = "a correct repair minus the collateral it caused; scored, not crashed on"
+actual = "9.0 / 28.0 against the same repair's 15.0, G3=-6, passed=false  (measured 2026-09-16)"
+
+[[validity_stacked]]
+agent  = "green_surface_audit"
+expect = "every operational surface reports healthy on the shipped world"
+actual = "the suite's [2] block printed OK for all four world properties in both arms  (measured 2026-09-16)"
+note   = "Unchanged from the `default` arm: A is obvious from the incident and one row-count query, not from a red check. No control is added for A either."
+
+[[validity_stacked]]
+agent  = "answer_leakage"
+expect = "no agent-visible file names B's mechanism"
+actual = "check_no_leak() OK in both arms: no file under /workspace and no seeded workflow document contains 'IS DISTINCT FROM', 'NULL-unsafe', 'three-valued' or 'silently drop'; every `authoring` block is stripped  (measured 2026-09-16)"
+
+[[validity_stacked]]
+agent  = "grader_stability"
+expect = "grading the same world twice gives the same score"
+actual = "15.0 then 15.0, in both arms  (measured 2026-09-16)"
+
+[[validity_stacked]]
+agent  = "fixture_falsifiability"
+expect = "verify() refuses every mutation that makes the world stop being this world"
+actual = "30 mutations - the `default` arm's 22 plus 8 for defect A - all caught by the overlay's fixtures/variants/<arm>/fixture_contract.py --falsify  (measured 2026-09-15, carried over unchanged with the file)"
+
+[[validity_stacked]]
+agent  = "gt006_byte_identity"
+expect = "every table and file defect B touches carries the `default` arm's original digest"
+actual = "asserted by the overlay contract's _stacking_checks on every verify(), which the suite ran at step [0] in both arms  (measured 2026-09-16)"
+
+[[validity_stacked]]
+agent  = "arm_delta"
+expect = "`stacked-neutral` and `stacked-ticket` stage worlds that differ only in the workflow plane"
+actual = "`diff -rq` over the two staged world roots lists exactly var/workflow/issues.json and var/workflow/kb.json (claims.yaml is author-side and never reaches the world); nothing about defect A differs  (measured 2026-09-16)"
+
+[[validity_stacked]]
+agent  = "fold_in_equivalence"
+expect = "the arm built from this package == the arm built from its old directory"
+actual = "for BOTH arms, every file in the staged world root and the grading zone is byte-identical except: var/dbt/profiles.yml and the three *.duckdb (which embed or are the absolute world path and duckdb's non-byte-stable storage container - content digests equal), workspace/.git/index (stat cache; HEAD commit AND tree hash identical, both trees clean), grading/variant.json (new, by design) and grading/manifest.yaml (one manifest now; the scoring-relevant check table, the harness policy with the stacked overrides applied, and H1's token families are all EQUAL, and the only semantic delta is task_id GT006-stacked -> GT006-quality-gate-drops-rows, which is the fold-in)  (measured 2026-09-16)"
 
 # ---------------------------------------------------------------------------
 # Rollout-harness contract (tasks/harness/). The harness is task-agnostic: it

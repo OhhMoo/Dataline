@@ -60,8 +60,10 @@ from __future__ import annotations
 
 import json
 import os
+import socket
 import subprocess
 import sys
+import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -846,6 +848,153 @@ def write_bash_wrapper(bin_dir: Path, *, container: str, interpreter: str,
             "files": [str(p) for p in written]}
 
 
+# ----------------------------------------------------- the surface gate's relay
+#: One TCP connection, shuttled between the harness and a service, by a process
+#: inside the stack. Fed to `python -c`, so it is never a file anywhere.
+#:
+#: It runs in the `native-services` container and dials the service by the same
+#: `<name>.internal` alias the EPISODE uses - by alias and not by loopback,
+#: because `minio.internal` is a different container, and because a relay that
+#: reached the nine a second way would be a second way into them.
+GATE_RELAY = """
+import socket, sys, threading
+
+sock = socket.create_connection((HOST, PORT), timeout=10)
+
+
+def upstream():
+    try:
+        while True:
+            chunk = sys.stdin.buffer.read1(65536)
+            if not chunk:
+                break
+            sock.sendall(chunk)
+    except Exception:
+        pass
+    finally:
+        try:
+            sock.shutdown(socket.SHUT_WR)
+        except OSError:
+            pass
+
+
+threading.Thread(target=upstream, daemon=True).start()
+try:
+    while True:
+        chunk = sock.recv(65536)
+        if not chunk:
+            break
+        sys.stdout.buffer.write(chunk)
+        sys.stdout.buffer.flush()
+finally:
+    sock.close()
+"""
+
+
+class ServiceGate:
+    """Loopback listeners that relay into the stack over `docker exec`.
+
+    The surface gate (`surface_audit.probe_native`) runs in the HARNESS
+    process, on the host, and asks each service for `/health` over HTTP. It
+    cannot resolve `jira.internal`, the compose networks are `internal: true`
+    so nothing can be published off them, and a probe file copied into the
+    episode container is the one thing this topology may not have - the agent
+    has a shell in there.
+
+    So each service gets a loopback socket here and every byte is carried into
+    the stack by one `docker exec` per connection. The relay is faithful at the
+    byte level rather than at the HTTP level on purpose: the `s3` surface check
+    is a SIGNED request, and a proxy that rewrote a header or a Host would
+    break the signature and report a dead bucket that is not dead.
+
+    One `docker exec` per connection is ~0.3s. The gate opens about one
+    connection per surface, once, before the subject starts.
+    """
+
+    def __init__(self, container: str, targets: dict, interpreter: str) -> None:
+        self.container = container
+        #: {name: (alias, port)} as the EPISODE addresses each service
+        self.targets = dict(targets)
+        self.interpreter = interpreter
+        self._servers: list = []
+        self._threads: list = []
+        self.endpoints: dict = {}
+
+    def start(self) -> dict:
+        """Bind one listener per service; return {name: http://127.0.0.1:port}."""
+        for name, (host, port) in sorted(self.targets.items()):
+            server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            server.bind(("127.0.0.1", 0))
+            server.listen(8)
+            bound = server.getsockname()[1]
+            self._servers.append(server)
+            thread = threading.Thread(target=self._serve,
+                                      args=(server, host, port), daemon=True)
+            thread.start()
+            self._threads.append(thread)
+            self.endpoints[name] = f"http://127.0.0.1:{bound}"
+        return dict(self.endpoints)
+
+    def _serve(self, server: socket.socket, host: str, port: int) -> None:
+        while True:
+            try:
+                conn, _ = server.accept()
+            except OSError:
+                return                      # stop() closed the listener
+            threading.Thread(target=self._relay, args=(conn, host, port),
+                             daemon=True).start()
+
+    def _relay(self, conn: socket.socket, host: str, port: int) -> None:
+        program = (GATE_RELAY.replace("HOST", json.dumps(host))
+                   .replace("PORT", str(port)))
+        proc = subprocess.Popen(
+            ["docker", "exec", "-i", self.container, self.interpreter,
+             "-c", program],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL)
+
+        def to_stack() -> None:
+            try:
+                while True:
+                    chunk = conn.recv(65536)
+                    if not chunk:
+                        break
+                    proc.stdin.write(chunk)
+                    proc.stdin.flush()
+            except OSError:
+                pass
+            finally:
+                try:
+                    proc.stdin.close()
+                except OSError:
+                    pass
+
+        pump = threading.Thread(target=to_stack, daemon=True)
+        pump.start()
+        try:
+            while True:
+                chunk = proc.stdout.read1(65536)
+                if not chunk:
+                    break
+                conn.sendall(chunk)
+        except OSError:
+            pass
+        finally:
+            for closer in (conn.close, proc.stdout.close):
+                try:
+                    closer()
+                except OSError:
+                    pass
+            proc.wait(timeout=30)
+
+    def stop(self) -> None:
+        for server in self._servers:
+            try:
+                server.close()
+            except OSError:
+                pass
+        self._servers = []
+
 @dataclass
 class NativeContainerEpisode:
     """One native episode's compose project: `up`, `prepare`, `down`.
@@ -853,10 +1002,9 @@ class NativeContainerEpisode:
     The stack is `compose.yml + compose.episode.yml + compose.native.yml` plus
     ONE generated overlay per rollout, written into the rollout directory. The
     generated file exists because three of the things this topology needs
-    cannot be spelled statically: the warehouse FILES (their names and number
-    come from the world the rollout built), the shim PATH (read off the image),
-    and the loopback ports the surface gate reaches the services on (K rollouts
-    share one host).
+    cannot be spelled statically: the warehouse FILES, whose names and number
+    come from the world the rollout built, and the shim PATH, which is the
+    image's own PATH with the shim directory in front of it.
     """
 
     project: str
@@ -864,11 +1012,12 @@ class NativeContainerEpisode:
     audit_dir: Path
     rollout_dir: Path
     image: str = DEFAULT_IMAGE
-    offset: int = 0
     container_id: str = ""
     image_digest: str = ""
     services: list = field(default_factory=list)
     warehouses: list = field(default_factory=list)
+    services_container: str = ""
+    gate: object = None
     _up: bool = False
 
     # ---------------------------------------------------------------- paths
@@ -895,8 +1044,6 @@ class NativeContainerEpisode:
         reviewer reads in the rollout directory is what compose read, comments
         and all.
         """
-        import agent_under_test as aut
-
         self.warehouses = warehouse_mounts(self.world)
         if not self.warehouses:
             raise ContainerError(
@@ -908,14 +1055,11 @@ class NativeContainerEpisode:
             f'      - "{(self.world_root / rel).as_posix()}:'
             f'{WORLD_IN_CONTAINER}/{rel}"'
             for rel in self.warehouses)
-        ports = "\n".join(
-            f'      - "127.0.0.1:{port + self.offset}:{port}"'
-            for _, (_, port) in sorted(aut.NATIVE_SERVICES.items()))
         body = f"""# Generated per rollout by tasks/harness/container_episode.py. Do not edit:
 # it is rewritten on every `up()` and is kept here as the record of which host
 # files this episode's container could see.
 #
-# Three things compose.native.yml cannot say statically:
+# Two things compose.native.yml cannot say statically:
 #
 #   1. THE WAREHOUSE FILES. Their names and their number come from the world
 #      this rollout built ({len(self.warehouses)} here), read by the same rule
@@ -926,12 +1070,16 @@ class NativeContainerEpisode:
 #      of in the world.
 #   2. THE SHIM PATH. `{SHIMS_IN_CONTAINER}` goes in front of the image's own
 #      PATH, which is read off the image so that /opt/toolbelt/bin survives.
-#   3. THE PUBLISHED PORTS. The surface gate runs in the harness process, on
-#      the host, and cannot resolve `jira.internal`. Publishing the nine
-#      services on loopback is how it asks each for /health without a file
-#      describing the harness being copied into the container the agent has a
-#      shell in. The offset is this rollout's ({self.offset}), so K rollouts do
-#      not race for one port. The EPISODE container publishes nothing.
+#
+# NOT here, and it was here for one afternoon: published host ports. Both
+# compose networks are `internal: true`, and Docker cannot publish a host port
+# off an internal network - the bindings appear in `HostConfig.PortBindings`
+# and nothing ever listens. Measured: GT004's first container rollout failed
+# its surface gate with `WinError 10061` on all nine services while
+# `docker inspect` reported all nine mappings. The harness reaches the services
+# through `container_episode.ServiceGate` instead, one `docker exec` per
+# connection, and `published_host_ports: {{}}` stays true for every container
+# in the project.
 services:
   episode:
     environment:
@@ -941,12 +1089,6 @@ services:
       ALKERA_WORKSPACE: "{WORKSPACE_IN_CONTAINER}"
     volumes:
 {binds}
-  native-services:
-    ports:
-{ports}
-  minio:
-    ports:
-      - "127.0.0.1:{MINIO_PORT + self.offset}:{MINIO_PORT}"
 """
         self.container_dir.mkdir(parents=True, exist_ok=True)
         with open(self.overlay, "w", encoding="utf-8", newline="") as stream:
@@ -991,9 +1133,23 @@ services:
             raise ContainerError(f"no `episode` container in {self.services}")
         self.container_id = episode[0]["Id"]
         self.image_digest = episode[0]["Image"]
+        # The relay runs in `native-services`, which is on episode_net and can
+        # therefore reach every alias the episode can - including minio, which
+        # it dials by name rather than on loopback.
+        services = [s for s in specs
+                    if s["Config"]["Labels"]["com.docker.compose.service"]
+                    == "native-services"]
+        if not services:
+            raise ContainerError(
+                f"no `native-services` container in {self.services}; the surface "
+                f"gate has no vantage into the episode network")
+        self.services_container = services[0]["Id"]
         return self.container_id
 
     def down(self) -> None:
+        if self.gate is not None:
+            self.gate.stop()
+            self.gate = None
         if not self._up:
             return
         self._compose("down", "-v", "-t", "2", "--remove-orphans",
@@ -1032,7 +1188,8 @@ services:
         # The audited binaries, on the box that runs them. Installed with the
         # container's own interpreter (the default), which is what makes the
         # row-writing import work at all.
-        shims = self.exec_(["python", "-m", "alkera_gateway.native.shims.install",
+        shims = self.exec_([_native_probe().CONTAINER_PYTHON, "-m",
+                            "alkera_gateway.native.shims.install",
                             "--bin", SHIMS_IN_CONTAINER])
         record["shims"] = sorted(Path(p).name for p in shims.stdout.split()
                                  if p.strip())
@@ -1099,18 +1256,27 @@ services:
         return aut.resolve_endpoints(None)
 
     def gate_endpoints(self) -> dict:
-        """The addresses the HARNESS uses: this rollout's published loopback ports.
+        """The addresses the HARNESS uses: one relayed loopback socket each.
 
         A second map, and the split is deliberate. The surface gate runs in the
         harness process and cannot resolve `jira.internal`; the episode must
         never be handed a 127.0.0.1 address, because then the destination log
         and the endpoint map would agree about a host the episode never used.
+
+        The sockets are this process's own and each connection is carried into
+        the stack by `ServiceGate` - see its docstring for why they are not
+        published ports. `minio` is relayed on the same terms: the s3 surface
+        check signs its bucket listing, and a byte relay is the only kind of
+        forwarding that does not invalidate a signature.
         """
         import agent_under_test as aut
 
-        overrides = {name: f"http://127.0.0.1:{port + self.offset}"
-                     for name, (_, port) in aut.NATIVE_SERVICES.items()}
-        overrides["s3"] = f"http://127.0.0.1:{MINIO_PORT + self.offset}"
+        targets = {name: (f"{name}.internal", port)
+                   for name, (_, port) in aut.NATIVE_SERVICES.items()}
+        targets["s3"] = ("minio.internal", MINIO_PORT)
+        self.gate = ServiceGate(self.services_container, targets,
+                                _native_probe().CONTAINER_PYTHON)
+        overrides = self.gate.start()
         self.container_dir.mkdir(parents=True, exist_ok=True)
         path = self.container_dir / "gate_endpoints.json"
         with open(path, "w", encoding="utf-8", newline="") as stream:
@@ -1162,7 +1328,6 @@ services:
             "container_id": self.container_id[:12],
             "services": self.services,
             "compose_files": [str(p) for p in self.compose_files()],
-            "port_offset": self.offset,
             "warehouse_mounts": list(self.warehouses),
             "shims_in_container": SHIMS_IN_CONTAINER,
         }

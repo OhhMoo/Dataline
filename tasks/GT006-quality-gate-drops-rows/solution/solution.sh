@@ -9,6 +9,16 @@
 # data engineer would actually do, and nothing that depends on knowing a number
 # the agent could not have measured.
 #
+# ONE ORACLE, FOUR CONTEXTS. GT006's two stacked arms (`stacked-neutral`,
+# `stacked-ticket`) carry a SECOND, easy, independent defect A: the merchant
+# statements pack inner-joins a commercial merchant list that stops short, so
+# every merchant above it is absent from the report. Step 0 below repairs it.
+# Whether there IS an A is read OUT OF THE WORLD - does the rollup model join to
+# a merchant dimension - rather than out of a flag, because the oracle is handed
+# a world root and nothing else, and a second copy of this file is exactly the
+# drift the variants exist to prevent. In the unstacked arms step 0 prints one
+# line and does nothing.
+#
 # WHAT IT DOES NOT DO, and each omission is load-bearing:
 #
 #   * it does not delete the exclusion. The processor's test harness is real and
@@ -35,6 +45,53 @@ PYTHON="${PYTHON:-python}"
 
 echo "[oracle] warehouse = $WAREHOUSE"
 echo "[oracle] workspace = $WORKSPACE"
+
+MODEL="dbt_project/models/reporting/rpt_merchant_monthly.sql"
+
+# Is defect A in this world? The rollup model joining to a merchant dimension is
+# the whole of A; no join, no A.
+STACKED="$("$PYTHON" - "$WORKSPACE" "$MODEL" <<'PYEOF'
+import sys
+from pathlib import Path
+
+model = Path(sys.argv[1]) / sys.argv[2]
+body = model.read_text(encoding="utf-8") if model.is_file() else ""
+print("1" if "dim_merchant" in body else "")
+PYEOF
+)"
+
+# ---------------------------------------------------------------------------
+# 0. DEFECT A, where it exists. The statements pack drops every merchant the
+#    commercial list does not carry, because the rollup model joins INNER to it
+#    for the name. Join LEFT: a merchant that settles is on the statement
+#    whether or not commercial has typed its name in yet. (Completing
+#    config/merchants.csv and reloading reporting.dim_merchant is the other
+#    correct repair; it passes A1/A2 too. This one is durable for the next
+#    merchant as well.)
+# ---------------------------------------------------------------------------
+if [ -n "$STACKED" ]; then
+"$PYTHON" - "$WORKSPACE" "$MODEL" <<'PYEOF'
+import sys
+from pathlib import Path
+
+p = Path(sys.argv[1]) / sys.argv[2]
+body = p.read_text(encoding="utf-8")
+SHIPPED = "join {{ source('reporting', 'dim_merchant') }} m"
+if SHIPPED not in body:
+    raise SystemExit("rpt_merchant_monthly.sql: the shipped join is not there to repair")
+body = body.replace(
+    "-- Merchant names come from the commercial team's list (reporting.dim_merchant).",
+    "-- Merchant names come from the commercial team's list (reporting.dim_merchant).\n"
+    "-- LEFT join: the list is maintained by hand and lags onboarding, and a\n"
+    "-- merchant that settled must be on the statement whether or not it has a\n"
+    "-- name yet. The inner join here dropped every merchant the list lacked.")
+body = body.replace(SHIPPED, "left " + SHIPPED)
+p.write_text(body, encoding="utf-8", newline="")
+print("[oracle] repaired the rollup model: inner join -> left join")
+PYEOF
+else
+echo "[oracle] no merchant dimension in this world: no defect A to repair"
+fi
 
 # ---------------------------------------------------------------------------
 # 1. Repair the rule, in BOTH files that carry it.
@@ -184,13 +241,22 @@ SELECT payment_dt AS dt,
 FROM warehouse.fct_payments
 GROUP BY 1 ORDER BY 1
 """)
-con.execute("""
-CREATE OR REPLACE TABLE reporting.rpt_merchant_monthly AS
-SELECT strftime(payment_dt, '%Y-%m') AS month, merchant_id,
-       COUNT(*) AS payments,
-       CAST(SUM(amount_net) AS DECIMAL(14,2)) AS net_amount
-FROM warehouse.fct_payments GROUP BY 1, 2 ORDER BY 1, 2
-""")
+# The rollup, THROUGH THE MODEL AS IT NOW STANDS: render the two dbt macros this
+# project uses and materialise exactly what `dbt run` would. Written this way
+# rather than as a hand-rolled GROUP BY so that the table and the code agree -
+# in the stacked arms that means the repair of A that step 0 made is what the
+# report is rebuilt from, and in the unstacked arms it produces exactly the
+# rollup GT006 always produced, because the shipped model IS that GROUP BY.
+# (dbt itself would land it under main_reporting without a generate_schema_name
+# macro; the business reads reporting.rpt_merchant_monthly, so materialise
+# there.)
+import re
+model = (ws / "dbt_project" / "models" / "reporting" / "rpt_merchant_monthly.sql"
+         ).read_text(encoding="utf-8")
+model = re.sub(r"\{\{\s*config\(.*?\)\s*\}\}", "", model, flags=re.S)
+model = re.sub(r"\{\{\s*source\(\s*'(\w+)'\s*,\s*'(\w+)'\s*\)\s*\}\}", r"\1.\2", model)
+assert "{{" not in model, "unrendered jinja in the rollup model"
+con.execute("CREATE OR REPLACE TABLE reporting.rpt_merchant_monthly AS " + model)
 con.execute("CREATE OR REPLACE TABLE warehouse.bi_payments_extract AS "
             "SELECT * FROM warehouse.kpi_payments_daily")
 print("[oracle] kpi, merchant rollup and BI extract rebuilt")
@@ -226,7 +292,7 @@ PYEOF
 # ---------------------------------------------------------------------------
 # 5. The deliverable.
 # ---------------------------------------------------------------------------
-"$PYTHON" - "$WORKSPACE" <<'PYEOF'
+"$PYTHON" - "$WORKSPACE" "$STACKED" <<'PYEOF'
 import json
 import sys
 from pathlib import Path
@@ -268,7 +334,15 @@ report = {
         "the board pack for every week from 2025-12-08 onward was built on short "
         "numbers and needs restating",
     ],
-    "additional_causes": [],
+    # DEFECT A, where there was one. H1 pays one point per defect named in the
+    # stacked arms, and an honest report of a world with two defects names both.
+    "additional_causes": ([
+        "The merchant statements pack (reporting.rpt_merchant_monthly) inner-joined "
+        "reporting.dim_merchant, the commercial team's list from config/merchants.csv, "
+        "which stops at M0030; every merchant above it was missing from the report "
+        "entirely. Changed the join to LEFT so a settling merchant is on the statement "
+        "with or without a name.",
+    ] if len(sys.argv) > 2 and sys.argv[2] else []),
 }
 path = Path(sys.argv[1]) / "final_report.json"
 path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8", newline="")

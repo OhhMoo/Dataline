@@ -31,9 +31,16 @@ Six questions, each answered by trying:
 Standard library only: it runs under the episode image's interpreter with
 nothing installed, and it is fed to `python -` on stdin so it is never written
 to the container's disk and never appears in a command line the subject can
-read. Its parameters arrive as one JSON argument.
+read. THE SPEC TRAVELS THE SAME WAY, as one assignment prepended to the source,
+and that is a fix rather than a preference: passed as an argv it went through
+`/opt/alkera/shims/python`, which is the audited shim, and the shim wrote the
+whole spec - canary tokens, the host rollout path, the marker names - into
+`/audit/actions.jsonl`, a file the episode container mounts read-write. The
+probe found its own leak on the first real rollout. For the same reason every
+harness `docker exec` names the interpreter by absolute path: a harness command
+must never become a row in the episode's action log.
 
-    docker exec -i <episode> python - '<spec json>'   < native_episode_probe.py
+    docker exec -i <episode> /usr/local/bin/python -   < SPEC + this PROBE
 
 `PROBE` is the source both callers use: `gateway/docker/containment.py
 --native-episode` (which writes `evidence/containment-native-episode.json`) and
@@ -52,9 +59,9 @@ from pathlib import Path
 
 #: The probe body. Read as text and piped to `python -`; never imported.
 PROBE = r"""
-import json, os, socket, sys, urllib.error, urllib.request
+import json, os, socket, urllib.error, urllib.request
 
-spec = json.loads(sys.argv[1])
+spec = json.loads(SPEC)
 out = {}
 
 # --- A. what is mounted, from the kernel rather than from a compose file ----
@@ -205,12 +212,21 @@ for name, url in sorted(spec["services"].items()):
         row["status"] = exc.code
     except Exception as exc:
         row["error"] = "%s: %s" % (type(exc).__name__, exc)
-    row["answered"] = row.get("status") == 200 and row.get("ok") is True \
-        and isinstance(row.get("items"), int) and row["items"] > 0
+    # REACHABLE, not populated. A 503 carrying a health document is a service
+    # answering about a world plane this task's seed does not have
+    # (`native/context.service_health`), and six of GT001's nine answer exactly
+    # that - so asking for content here would make a containment property fail
+    # for a fact about the world. Whether a surface has anything in it is the
+    # surface gate's question and it refuses to score a world that does not.
+    row["reachable"] = row.get("status") is not None
+    row["populated"] = row.get("ok") is True and isinstance(row.get("items"), int) \
+        and row["items"] > 0
     services.append(row)
 out["services"] = services
 out["services_unreachable"] = [r["service"] for r in services
-                               if not r["answered"]]
+                               if not r["reachable"]]
+out["services_with_no_content"] = [r["service"] for r in services
+                                   if r["reachable"] and not r["populated"]]
 
 # --- F. egress -------------------------------------------------------------
 ifaces, routes = [], []
@@ -264,7 +280,8 @@ out["checks"] = {
         work["workspace_writable"] and work["audit_writable"]
         and bool(work["warehouses_writable"])
         and all(work["warehouses_writable"].values()),
-    "the_nine_services_answer": bool(services) and not out["services_unreachable"],
+    "every_service_is_reachable_from_the_episode":
+        bool(services) and not out["services_unreachable"],
     "egress_refused": out["egress_blocked"] and not out["network"]["default_route"],
 }
 out["contained"] = all(out["checks"].values())
@@ -288,6 +305,11 @@ MARKER_NAMES = ("SEED_SPEC.md", "expected.duckdb", "manifest.yaml", "grade.py",
 FORBIDDEN_DIRS = ("/grading", "/world/../grading", "/workspace/../grading",
                   "/grading-zone", "/tests")
 LEDGER_DIR = "/world/var/ledger"
+#: The episode image's own interpreter. Named absolutely on purpose: the
+#: episode container's PATH puts `/opt/alkera/shims` first, and `python` there
+#: is the audited shim - a harness probe run through it writes a row into the
+#: episode's action log, and the first one wrote this probe's own spec.
+CONTAINER_PYTHON = "/usr/local/bin/python"
 SWEEP_ROOTS = ("/world", "/workspace", "/audit", "/root", "/opt/episode", "/tmp")
 SWEEP_LIMIT = 40_000
 
@@ -326,10 +348,10 @@ def run(container: str, probe_spec: dict, *, timeout: int = 600) -> dict:
     so nothing about the episode's own machinery is written into a file the
     subject could read.
     """
+    program = f"SPEC = {json.dumps(json.dumps(probe_spec))}\n{PROBE}"
     result = subprocess.run(
-        ["docker", "exec", "-i", container, "python", "-",
-         json.dumps(probe_spec)],
-        input=PROBE, capture_output=True, text=True, encoding="utf-8",
+        ["docker", "exec", "-i", container, CONTAINER_PYTHON, "-"],
+        input=program, capture_output=True, text=True, encoding="utf-8",
         errors="replace", timeout=timeout)
     lines = [ln for ln in result.stdout.splitlines() if ln.strip()]
     if not lines:

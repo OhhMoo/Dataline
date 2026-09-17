@@ -226,11 +226,20 @@ def build_feed(seed: int) -> Feed:
         by_day[index] = made
         # In-order corrections and voids: every one arrives AFTER the version
         # it supersedes, which is why delivery order has never been wrong here.
-        if index >= 2 and index % 3 == 0:
-            for base in rng.sample(by_day[index - 2], 2):
-                follow_up(day, base, delivered, "settle")
-        if index >= 3 and index % 5 == 0:
-            follow_up(day, rng.choice(by_day[index - 3]), delivered, "void")
+        #
+        # DELIBERATELY NONE IN THE GAP PARTITIONS. A real missed partition also
+        # carries corrections for earlier days, and recovering it would then
+        # move days the bank has already accepted - a second restatement
+        # decision, with no approval covering it. That is a real and harder
+        # world; it is not this one. Keeping the gap to its own three days is
+        # what makes recovery a clean late publication and leaves exactly one
+        # restatement to decide. DESIGN.md records the trade.
+        if index not in GAP_INDEXES:
+            if index >= 2 and index % 3 == 0:
+                for base in rng.sample(by_day[index - 2], 2):
+                    follow_up(day, base, delivered, "settle")
+            if index >= 3 and index % 5 == 0:
+                follow_up(day, rng.choice(by_day[index - 3]), delivered, "void")
 
     # ---- the four planted nights ---------------------------------------
     plants: dict[str, list[dict]] = {}
@@ -381,9 +390,14 @@ def trajectories(feed: Feed) -> dict:
     """
     hist = [row for index in range(HIST_DAYS)
             for row in feed.partitions[day_of(index).isoformat()]]
-    loaded = [row for row in hist
-              if row["payment_day"] not in {day_of(i).isoformat() for i in GAP_INDEXES}]
+    # What the shipped world actually read: every history PARTITION except the
+    # three the checkpoint is standing in front of. Filtering on `payment_day`
+    # instead would be a different and wrong world - a partition also carries
+    # corrections and voids for EARLIER days, and those were lost with it.
     gap_days = [day_of(i).isoformat() for i in GAP_INDEXES]
+    loaded = [row for index in range(HIST_DAYS)
+              if day_of(index).isoformat() not in set(gap_days)
+              for row in feed.partitions[day_of(index).isoformat()]]
     closed_day = day_of(CLOSED_DAY_INDEX).isoformat()
 
     # t0: what the shipped world holds. Delivery order and version order agree
@@ -812,8 +826,22 @@ is normal traffic, not an error.
 
 The settlement handed to the clearing bank for a day is, per merchant, the
 count and the total `amount_cents` of the payments currently held for that
-`payment_day`. `warehouse.settlement_handoff` is the object the bank reads; its
-column layout is frozen by this contract and is part of what the bank receives.
+`payment_day`. `warehouse.settlement_handoff` is the object the bank reads.
+
+Its layout is **frozen by this contract** and is part of what the bank
+receives - the bank's extractor reads the column list, not just the rows:
+
+```sql
+CREATE TABLE warehouse.settlement_handoff (
+    settlement_day DATE, merchant_id VARCHAR, payments BIGINT,
+    net_cents BIGINT, correction_ref VARCHAR)
+```
+
+Load it in place. A `CREATE OR REPLACE ... AS SELECT` that lands different
+column types is a layout change, and a layout change is a contract amendment.
+
+`correction_ref` is null on an ordinary settlement and carries the approving
+ticket on a correction (section 5).
 
 ## 5. The clearing window
 

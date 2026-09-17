@@ -262,7 +262,12 @@ def reclassify(rollout_dir: Path) -> dict:
         world_layout=world or None, artifact_text=artifact_text,
         topology=rec.get("topology", "host"), containment=stored_containment,
         destinations=destinations, network_allow=network_allow,
-        normalise_host=aut.normalise_host)
+        normalise_host=aut.normalise_host,
+        # Stored on the record by the run that made it, never re-derived: the
+        # translation is a property of the container that rollout ran in, and
+        # inventing one here would be reclassifying against a topology the
+        # rollout may not have had.
+        container_paths=rec.get("container_paths"))
 
     before = rec.get("classification")
     # The surface audit is re-derived too, from the probe results already stored
@@ -411,15 +416,64 @@ def run_rollout(args) -> dict:
         record["episode_id"] = episode_id
         mcp_server_argv: list[str] | None = None
 
-        if args.topology == "container":
+        if args.topology == "container" and args.driver == "native":
+            # NATIVE MODE IN THE CONTAINER. The same ordering as the mcp branch
+            # below - containment first, the terminal second - with one
+            # difference that is the whole reason this branch exists: here
+            # containment IS the mount set, because native mode has no gateway
+            # to be the boundary. gateway/docker/native_episode_probe.py is
+            # containment P7 and it runs before the subject and again after.
+            ok, docker_version = container_episode.docker_available()
+            if not ok:
+                raise episode.HarnessError(f"docker is not usable: {docker_version}")
+            project = re.sub(r"[^a-z0-9_-]+", "-",
+                             f"alkera-nc-{args.run_id}-{args.rollout_id}".lower())
+            native_container = container_episode.NativeContainerEpisode(
+                project=project, world=world, audit_dir=audit_dir,
+                rollout_dir=rollout_dir, image=args.image)
+            native_container.up()
+            record["native_container"] = native_container.prepare()
+            record["native_stack"] = {**native_container.record(),
+                                      "docker_server": docker_version}
+            # Two endpoint maps, and they are not interchangeable. The EPISODE
+            # dials `<name>.internal`, which is what the service side records
+            # and therefore what `blindness` must be judged against; the
+            # HARNESS's surface gate runs in this process and dials the
+            # published loopback ports, because it cannot resolve a name that
+            # only exists inside the episode network.
+            native_endpoints = native_container.episode_endpoints()
+            record["native_endpoints"] = native_endpoints
+            # A row written inside the container spells the warehouse
+            # `/world/var/warehouse/warehouse.duckdb`; the world diff walks the
+            # host tree. One declared translation, never a guess.
+            container_paths = blindness.container_path_map(world)
+            record["container_paths"] = container_paths
+            # Stated on every rollout rather than left to the doc: the
+            # scheduler plane is a CLI over the world's own files and this
+            # topology does not mount them, so `sched_*` has no native surface
+            # in here. The surface gate still verifies the state file on the
+            # HOST, which is the right answer for "does this world have a
+            # scheduler" and the wrong one for "can the subject drive it".
+            record["native_container_unreachable_planes"] = ["sched"]
+            containment = native_container.containment_probe(
+                when="before_episode", canaries=canaries, grading=grading,
+                rollout_dir=rollout_dir)
+            record["containment"] = containment
+            toolbelt = {}
+            surfaces = surface_audit.probe_native(
+                probes=spec.surface_probes,
+                endpoints=native_container.gate_endpoints(), world=world,
+                schemas=surface_audit.warehouse_schemas(spec))
+            gateway_cfg = None
+        elif args.topology == "container":
             # Containment FIRST. The terminal is handed over only after this
             # rollout's own container has been probed and found sealed; if the
             # probe does not run or does not pass, blindness.detect() quarantines
             # the rollout rather than letting it into the number.
-            if args.driver not in ("mcp", "native"):
+            if args.driver != "mcp":
                 raise episode.HarnessError(
                     f"--topology container is wired for the mcp and native "
-                    f"drivers, not {args.driver!r}.")
+                    f"drivers only, not {args.driver!r}.")
             ok, docker_version = container_episode.docker_available()
             if not ok:
                 raise episode.HarnessError(f"docker is not usable: {docker_version}")
@@ -575,7 +629,16 @@ def run_rollout(args) -> dict:
             # measurement, and the report must not treat it as one.
             record["redteam_detector_test"] = True
 
-        if args.driver == "native" and args.model == "scripted":
+        if (args.driver == "native" and args.topology == "container"
+                and args.model == "scripted"):
+            # The acceptance subject for the container topology. It runs THROUGH
+            # the bash wrapper - the same launcher a model would be handed - so
+            # the only untested link on the model path is `claude` itself.
+            agent = native_stack.run_scripted_container(
+                rollout_dir=rollout_dir, world=world, audit_dir=audit_dir,
+                stack=native_container, wall_clock_s=wall,
+                instruction=instruction)
+        elif args.driver == "native" and args.model == "scripted":
             # INTEGRATE-STACK: the Phase 3 acceptance subject. `aut.run` starts
             # `claude`, and the native driver had no way to be run end to end
             # without spending model quota; `--model scripted` runs a real bash
@@ -603,8 +666,22 @@ def run_rollout(args) -> dict:
                 profiles_dir=world.get("profiles_dir"),
                 scheduler=world.get("scheduler"),
                 native_gateway_config=(native.config_file
-                                       if native is not None else None))
+                                       if native is not None else None),
+                container_shell=(container_episode.write_bash_wrapper(
+                    rollout_dir / "shell",
+                    container=native_container.container_id,
+                    interpreter=str(episode.PY))
+                    if native_container is not None else None))
         record["agent"] = asdict(agent)
+
+        if native_container is not None:
+            # The same container, after the subject has had a root shell in it.
+            # Containment that held at t=0 and not at t=end is not containment,
+            # and under this topology containment is the only boundary there is.
+            after = native_container.containment_probe(
+                when="after_episode", canaries=canaries, grading=grading,
+                rollout_dir=rollout_dir)
+            record["containment_after"] = after
 
         if stack is not None:
             # Probe the SAME container again, after the subject has had its way
@@ -640,6 +717,12 @@ def run_rollout(args) -> dict:
         if stack is not None:
             try:
                 stack.down()
+            except Exception as exc:                   # noqa: BLE001 - recorded
+                record.setdefault("teardown_errors", []).append(
+                    f"{type(exc).__name__}: {exc}")
+        if native_container is not None:
+            try:
+                native_container.down()
             except Exception as exc:                   # noqa: BLE001 - recorded
                 record.setdefault("teardown_errors", []).append(
                     f"{type(exc).__name__}: {exc}")
@@ -751,7 +834,7 @@ def run_rollout(args) -> dict:
         containment=[c for c in (record.get("containment"),
                                  record.get("containment_after")) if c],
         destinations=destinations, network_allow=network_allow,
-        normalise_host=aut.normalise_host)
+        normalise_host=aut.normalise_host, container_paths=container_paths)
     record["blindness"] = blindness.summarise(violations)
     # The guarantee is now READ OFF the evidence rather than declared from the
     # flags we passed. Under `container` it is only the stronger claim when this

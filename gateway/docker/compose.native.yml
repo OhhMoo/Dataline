@@ -182,6 +182,23 @@ services:
         read_only: true
         tmpfs:
           size: 4096
+    # THE INTERPRETER IS NAMED ABSOLUTELY, and that is a fix rather than a
+    # style. compose.episode.yml's healthcheck runs `python`, and in THIS
+    # container the first entry on PATH is `/opt/alkera/shims`, where `python`
+    # is the audited shim - so every healthcheck wrote a `shim.python` row into
+    # /audit/actions.jsonl and the first native container rollout counted TEN of
+    # them as the subject's own tool calls. Nothing the harness or the runtime
+    # does may become a row in the episode's action log.
+    #
+    # The condition changes with the mount set: /world is no longer a mount, so
+    # the thing to assert is the working tree and the audit directory.
+    healthcheck: !override
+      test: ["CMD", "/usr/local/bin/python", "-c",
+             "import pathlib,sys; sys.exit(0 if pathlib.Path('/workspace').is_dir() and pathlib.Path('/audit').is_dir() else 1)"]
+      interval: 1s
+      timeout: 5s
+      retries: 60
+      start_period: 1s
 
   # The nine fake vendor services, one port each, one process.
   #
@@ -234,10 +251,20 @@ services:
       # tailer, and a tailer that could edit its own source is not evidence.
       - pgdata:/pgdata:ro
     healthcheck:
-      # Probe the process over HTTP. destinations.jsonl exists before any
-      # listener starts and survives a crash, so it cannot prove readiness.
+      # NOT an HTTP probe, and the reason is measured. `serve.py` counts every
+      # ACCEPTED connection into destinations.jsonl, and `blindness` reads that
+      # file as the episode's own traffic - so a healthcheck that dialled
+      # 127.0.0.1:8099 every two seconds put 23 connections to
+      # `native-services.internal:8099` in the log of a rollout whose subject
+      # never touched it, and the rollout quarantined on `network_destination`.
+      # `tasks/harness/native_stack._await_listening` hit the same wall on the
+      # host topology and answered it the same way.
+      #
+      # So readiness is read, never dialled: destinations.jsonl exists (serve.py
+      # writes it before it opens a socket) and every port it names is in LISTEN
+      # according to /proc/net/tcp, which is state 0A and the local port in hex.
       test: ["CMD", "python", "-c",
-             "import json,urllib.request; r=json.load(urllib.request.urlopen('http://127.0.0.1:8099/health',timeout=3)); assert r['ok']"]
+             "import json,pathlib;rows=[json.loads(l) for l in pathlib.Path('/audit/destinations.jsonl').read_text().splitlines() if l.strip()];listening={int(f[1].split(':')[1],16) for f in (ln.split() for ln in pathlib.Path('/proc/net/tcp').read_text().splitlines()[1:]) if f[3]=='0A'};assert rows and not {r['port'] for r in rows} - listening"]
       interval: 2s
       timeout: 5s
       retries: 30

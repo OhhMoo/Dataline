@@ -49,6 +49,80 @@ the report names that as a run condition rather than letting it read as "all
 surfaces fine". What is not optional is the consequence of not declaring - see
 **The surface gate** below.
 
+## Context variants — one task directory, several worlds
+
+**A task directory is ONE context.** An ablation of that context — remove the
+ticket, remove the stale definition, stack a second defect — is not a new task.
+It is a `[variants]` entry inside the same `task.toml`, selected by
+`run_rollouts.py --variant <name>`:
+
+```toml
+[variants.default]
+note = "the shipped context"                 # mandatory; `default` has NO overlay
+
+[variants.no-ticket]
+overlay = "fixtures/variants/no-ticket"      # tree copied OVER fixtures/ at staging
+prompt  = "vague"                            # a declared, sha-locked [prompt_variants] name
+note    = "T removed: DATA-4402 becomes a neutral closed ticket. R and D stay."
+
+[variants.escalation-credited]
+note    = "the default world; G1c pays for the rewrite OR a recorded escalation"
+grading = { authorization = true, g1c_credits_escalation = true }
+```
+
+Five of these used to be five sibling directories (`GT004a-no-ticket` …
+`GT004e-ticket-only`), each a byte-for-byte copy of a 25 MB package with two to
+four YAML files changed, and GT006's 2x2 was two more. A copy drifts: the day
+the parent's grader is fixed, seven graders disagree and nobody notices, because
+`diff -rq` over a 25 MB fixture tree is not something anyone runs twice. One
+directory and an overlay of four files cannot drift.
+
+**What each piece does.**
+
+| piece | where | what it decides |
+|---|---|---|
+| `overlay` | a directory under the task | files copied over `fixtures/` at staging time; base first, overlay second, last write wins |
+| `prompt` | a `[prompt_variants]` NAME | the brief, so replaying a recorded arm takes one flag instead of a flag plus a `variant.py select` |
+| `grading` | free-form table | flags the TASK's own `grade.py` reads. The harness carries them and knows what none of them mean. `pass_requires_checks` and `pass_min_total` are the two it does read, as per-arm overrides |
+| `note` | mandatory | why the arm exists. An unexplained arm is an unexplained number six weeks later |
+
+**How it reaches the parts of the run the harness does not own.** The world
+builder, the surface stager and the grader are subprocesses whose argv the
+harness does not write, so `run_rollouts.py` exports **`ALKERA_TASK_VARIANT`**
+and `taskspec.load(..., variant=None)` falls back to it. A task-side script
+calls `taskspec.fixtures_dir(TASK)` for the overlaid fixtures tree and
+`taskspec.variant_of(TASK)` for the arm itself. The arm is then written into the
+grading zone as `grading/variant.json` by the task's `build_world.py`, and
+`grade.py` reads it **from there** rather than from the environment: the grader
+is its own process, and an arm carried by a variable that did not survive a
+subprocess boundary would score the wrong rubric while printing a number that
+looked exactly like the right one. A grading zone with no `variant.json` is the
+shipped context, so zones built before variants existed still grade.
+
+**What carries the arm out of the run.** `variant: <name>` in every rollout
+record, `run_conditions.variants` in `report.json`, a `- context variant:` line
+at the top of `report.md`'s run-conditions block, and `--variant` appended to
+the **default** run id (an explicit `--run-id` is left exactly as given). A run
+whose records name two arms is **invalidated** by `report.py` rather than
+averaged — the arms are different worlds, and one rate over two of them is not a
+rate for either.
+
+**Refusals.** `--variant` on a task that declares no `[variants]` is an error
+naming the task; an unknown name is an error listing the ones that exist; a
+`[variants]` table with no `default`, an arm with no `note`, and a `default`
+that declares an overlay are all refused at load. `tasks/harness/test_variants.py`
+executes all of that, plus: every overlay file wins over the base, every file the
+overlay does not name is byte-identical to the package, and a world built with
+`--variant default` is byte-identical to one built with no variant at all except
+`var/dbt/profiles.yml` (which embeds the build's absolute path) and
+`workspace/.git/**` (which records inodes).
+
+**Each arm is separately task-valid.** `tests/run_baselines.py --variant <name>`
+stages that arm's fixtures, writes its `variant.json` and applies its rubric —
+including the baselines that only exist in that arm. An arm whose oracle cannot
+reach max is not an ablation of the task, it is a broken copy of it, so the
+suite is run for every declared arm and the table recorded.
+
 ## The order of operations, which is the contract
 
 ```

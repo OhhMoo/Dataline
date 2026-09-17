@@ -18,6 +18,12 @@ number is the same as not describing it. So the conditions block comes first and
 the rate carries its live-surface set inline, and when the conditions are bad
 enough the rate is WITHHELD rather than printed with a caveat.
 
+The CONTEXT VARIANT is the first line of that block. A task directory is one
+context; its `[variants]` are ablations of it, and GT004's five context arms
+span Pass@1 0.0 to 0.2 on one world with four YAML files changed. A rate whose
+arm is not stated is the same defect as a rate whose dead surfaces are not
+stated, so a run that mixes two arms is INVALIDATED here rather than averaged.
+
 The prompt variant belongs in the same block for the same reason
 (`GT004/prompts/variant.py identify` already establishes that a run must name
 which ticket produced it): world and ticket are the two halves of "what was this
@@ -81,11 +87,15 @@ def _run_conditions(records: list[dict]) -> dict:
     live_sets = {tuple(a.get("live") or ()) for a in have}
     variants = sorted({r.get("prompt_variant") for r in records
                        if r.get("prompt_variant")})
+    arms = sorted({r.get("variant") for r in records if r.get("variant")})
     prompt_hashes = sorted({r.get("prompt_sha256") for r in records
                             if r.get("prompt_sha256")})
     gates = sorted({a.get("gate") for a in have if a.get("gate")})
 
     conditions = {
+        # "" when the task declares no [variants] at all, which is a different
+        # statement from "this run used the default one".
+        "variants": arms,
         "prompt_variants": variants,
         "prompt_sha256": prompt_hashes,
         "surface_gate": gates,
@@ -128,6 +138,10 @@ def _run_conditions(records: list[dict]) -> dict:
     if not conditions["live_set_identical_across_k"]:
         bad.append("the live-surface set DIFFERS between rollouts of a run whose "
                    "world is supposed to be byte-identical across K")
+    if len(arms) > 1:
+        bad.append(f"the run mixes CONTEXT VARIANTS ({arms}); the arms are "
+                   f"different worlds and one rate over two of them is not a "
+                   f"rate for either")
     if len(variants) > 1 or len(prompt_hashes) > 1:
         bad.append(f"the run mixes prompts ({variants or prompt_hashes}); one "
                    f"rate over two tickets is not a rate for either")
@@ -286,6 +300,7 @@ def render(task: str, run_id: str, agg: dict, records: list[dict]) -> str:
     L.append("")
     L.append("## Run conditions")
     L.append("")
+    L.append(f"- context variant: {', '.join(c['variants']) or 'n/a (task declares one context)'}")
     L.append(f"- prompt variant: {', '.join(c['prompt_variants']) or 'not recorded'}")
     L.append(f"- surfaces live ({len(c['surfaces_live'])}): {c['surfaces_live']}")
     if c["surfaces_dead"]:

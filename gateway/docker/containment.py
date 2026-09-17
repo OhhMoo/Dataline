@@ -24,6 +24,13 @@ P6  native mode only (gateway/NATIVE_SURFACES.md): only the fake services are
     reachable. Every `<name>.internal` resolves and answers, a control name does
     not, and a port that is not a service port is refused - measured from inside
     the episode container by gateway/docker/native_probe.py.
+P7  native mode only: the episode container's FILESYSTEM holds the working
+    tree, the warehouse FILES and the audit directory, and no other plane of
+    the world, no rollout directory, no canary and no grading zone - measured
+    from inside by gateway/docker/native_episode_probe.py. P6 is about the
+    network and P7 is about the mounts, and the two came apart in practice: a
+    native episode on the HOST topology passes nothing like P7, which is why
+    three of five GT001 rollouts quarantined on a backup and an `ls`.
 
 Usage::
 
@@ -31,6 +38,9 @@ Usage::
     python containment.py --profile snowflake   # + the fakesnow socket
     python containment.py --native \\
         --out evidence/containment-native.json  # the native stack, P6 alone
+    python containment.py --native-episode --project <live project> \\
+        --world <the rollout's world root> \\
+        --out evidence/containment-native-episode.json          # P7 alone
 """
 
 from __future__ import annotations
@@ -43,6 +53,8 @@ import subprocess
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
+
+import native_probe                       # the nine services' own port table
 
 HERE = Path(__file__).resolve().parent
 COMPOSE_FILE = HERE / "compose.yml"
@@ -1039,6 +1051,65 @@ def property_7_native_episode(stack, evidence, warehouses, services):
     return section
 
 
+def native_episode_main(args):
+    """P7 against a live native episode project. No `up`, no `down`.
+
+    The vantage has to be a container a rollout built: its mounts ARE the
+    property, and they come from the world that rollout's builder produced. So
+    this attaches to `--project` by name, measures, writes the artifact and
+    leaves the stack exactly as it found it.
+    """
+    stack = Stack(args.project, args.profile,
+                  overlays=(EPISODE_OVERLAY, NATIVE_OVERLAY))
+    warehouses = list(args.warehouse)
+    if args.world:
+        warehouses += sorted(
+            path.relative_to(args.world).as_posix()
+            for path in (args.world / "var" / "warehouse").glob("*.duckdb"))
+    services = {row["host"].split(".")[0]: f"http://{row['host']}:{row['port']}"
+                for row in native_probe.registry_expectation()}
+    evidence = {
+        "generated": datetime.now(UTC).isoformat(timespec="seconds"),
+        "project": args.project,
+        "mode": "native-episode",
+        "compose_file": str(COMPOSE_FILE),
+        "compose_overlays": [str(EPISODE_OVERLAY), str(NATIVE_OVERLAY),
+                             "+ the rollout's own compose.native-mounts.yml"],
+        "world_root_on_the_host": str(args.world) if args.world else None,
+        "host": {
+            "platform": platform.platform(),
+            "docker": out(["docker", "version", "--format", "{{.Server.Version}}"]),
+        },
+        "_specs": stack.containers(),
+    }
+    if not evidence["_specs"]:
+        raise SystemExit(
+            f"no running containers in compose project {args.project!r}; P7 "
+            f"measures a stack that is up, and this one is not")
+    p7 = property_7_native_episode(stack, evidence, sorted(set(warehouses)),
+                                   services)
+    for key in [k for k in evidence if k.startswith("_")]:
+        evidence.pop(key)
+    evidence["summary"] = {"p7_native_episode_filesystem": p7["passed"]}
+    evidence["not_measured_here"] = (
+        "P0-P5 describe the MCP-transport stack (evidence/containment.json) and "
+        "P6 the native network (evidence/containment-native.json); this run "
+        "measures P7 only.")
+    evidence["passed"] = p7["passed"]
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    args.out.write_text(json.dumps(evidence, indent=2, sort_keys=True),
+                        encoding="utf-8")
+    print(json.dumps({
+        "artifact": str(args.out),
+        "checks": p7["probe"]["checks"],
+        "world_binds_on_the_episode": p7["world_binds_on_the_episode"],
+        "episode_publishes_no_host_port": p7["episode_publishes_no_host_port"],
+        "published_host_ports": p7["published_host_ports"],
+        "passed": evidence["passed"],
+    }, indent=2))
+    return 0 if evidence["passed"] else 1
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--project", default="alkera-b2b4")
@@ -1066,6 +1137,28 @@ def main():
              "backend_net, so running them would record five properties about a stack "
              "nobody runs that way. Use `python containment.py` for those.",
     )
+    parser.add_argument(
+        "--native-episode", action="store_true",
+        help="measure P7 alone against a native episode stack that is ALREADY "
+             "UP (`--project` names it). Lifecycle is deliberately not this "
+             "script's: the stack P7 describes is one a ROLLOUT built, with "
+             "that rollout's world and that rollout's warehouse mounts, and a "
+             "stack stood up here would be a stack nobody measured a number "
+             "in. tasks/harness/NATIVE_CONTAINER.md has the two commands.",
+    )
+    parser.add_argument(
+        "--world", type=Path, default=None,
+        help="with --native-episode: the rollout's world root on the HOST. The "
+             "warehouses P7 requires to be mounted are globbed from it by "
+             "world/world/fingerprint.py's own rule (var/warehouse/*.duckdb), "
+             "so the expectation is read off the world rather than typed.",
+    )
+    parser.add_argument(
+        "--warehouse", action="append", default=[], metavar="REL",
+        help="with --native-episode: a world-relative warehouse path that must "
+             "be mounted; repeatable. Use instead of --world when the world is "
+             "not readable from here.",
+    )
     args = parser.parse_args()
     # Into the environment rather than onto the command line: every compose
     # invocation below - up, exec, run, down - must see the same declaration,
@@ -1075,6 +1168,9 @@ def main():
     if args.warehouses:
         json.loads(args.warehouses)  # fail here, not inside the container
         os.environ["ALKERA_WAREHOUSES"] = args.warehouses
+
+    if args.native_episode:
+        return native_episode_main(args)
 
     overlays = (EPISODE_OVERLAY, NATIVE_OVERLAY) if args.native else ()
     stack = Stack(args.project, args.profile, overlays=overlays)
