@@ -460,3 +460,45 @@ not_measured = [
   "the Snowflake / Postgres version - designed in DESIGN.md, not built",
   "the container topology - host only; not required for this task",
 ]
+
+# ---------------------------------------------------------------------------
+# THE SCORING MATRIX (new_matrix.md, Layer A: score-only - no new model
+# tokens, no grader point-total changes). Pass@1 is a single AND over the
+# final world state; the matrix replaces that bit with a projection over the
+# four library axes of tasks/harness/axes.py: pass reads `pass_axis` alone,
+# `gate` admits an episode to the other denominators or sends it out of them
+# (a cold gate is exclusion, never a 0), and the unmapped axes stay on the row
+# as diagnostics and never aggregate.
+#
+# pass_axis = consumer, gate = found (new_matrix.md 3.2, GT008 row: "loader
+# order; FOUND = contract vs ORDER BY; CONSUMER = C5").
+#
+#   found    C2, C3 - the checkpoints that prove the contract-vs-ORDER-BY
+#            diagnosis, per [composition.contracts_why].version_precedence:
+#            "Graded by C2 (a byte-identical replay of a superseded version)
+#            and C3 (v2 arriving after v3)." The ported legacy loader -
+#            DATA-8104's advice, most-recently-DELIVERED wins - is right at t0
+#            and on night 1 and fails exactly here. An episode that never
+#            found the defect leaves the other denominators instead of
+#            scoring 0 on them: the same honesty rule as quarantine.
+#   consumer C5 - the receipts-ledger audit: across the four advanced nights
+#            no publication may name a state the ledger fold could not have
+#            produced (new_matrix.md 2.1: "nights match the oracle
+#            trajectory"). C5 is the only receipt-matching check the grader
+#            emits. It is not_evaluable (0 points, outside the pass
+#            criterion) until the publish hook lands, and a not_evaluable C5
+#            emits passed=true rather than vanishing - so this declaration
+#            changes no existing score, and Layer B (which grades t0
+#            publications too) is a re-weighting then, on evidence, not now.
+#   warranted, scoped - unmapped, so n/a for this task, never 0.
+# ---------------------------------------------------------------------------
+[matrix]
+pass_axis = "consumer"
+gate      = "found"
+# The oracle trajectory names, from tests/run_baselines.py's AGENTS table:
+# the reference solution, run self-hosted.
+accepted  = ["oracle"]
+
+[matrix.map]
+found    = ["C2", "C3"]
+consumer = ["C5"]

@@ -611,3 +611,32 @@ open = [
   "the timezone-drift leg of A003 is unbuilt and A003 is therefore not fully covered by this package",
   "no rollout has been attributed to a prompt variant yet, so the difficulty dial is untuned",
 ]
+
+# ---------------------------------------------------------------------------
+# THE SCORING MATRIX (new_matrix.md, Layer A: score-only - no new model
+# tokens, no grader point-total changes). GT006 is a FOUND control (§2.1, and
+# §3.2: "NULL-unsafe rule; FOUND = the predicate"): the projected pass reads
+# the `found` axis alone, and `found` is also the cold gate - an episode that
+# never identified the predicate leaves the other denominators instead of
+# scoring 0 on them (tasks/harness/axes.py: admitted / projected_pass).
+#
+# `found` maps to H1, the report clause, because H1 is the ONLY check that
+# pays for NAMING the exclusion rule as the cause (grade.py:h1_report); every
+# G check measures the repair, not the identification. Two whole-check
+# granularities a reader must know, because the matrix reads
+# checks["H1"]["passed"], never the clause internals: in the
+# `default`/`trap-ticket` arms H1.passed also requires the damage window, and
+# in the stacked arms it also requires naming defect A - so a cold `found`
+# can there mean "named the predicate but not the window / not defect A", not
+# only "never found it".
+#
+# Nothing in tasks/harness reads [matrix] yet: taskspec.load() carries the
+# section in TaskSpec.raw but does not build a MatrixSpec from it. Until it
+# does, this declaration is validated by constructing axes.MatrixSpec from it.
+# ---------------------------------------------------------------------------
+[matrix]
+pass_axis = "found"
+gate      = "found"
+
+[matrix.map]
+found = ["H1"]

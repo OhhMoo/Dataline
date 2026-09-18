@@ -31,10 +31,27 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 TASK = HERE.parent
-FIXTURES = TASK / "fixtures"
+REPO = TASK.parent.parent
+
+sys.path.insert(0, str(TASK.parent / "harness"))
+import taskspec                                                    # noqa: E402
+
+# WHICH CONTEXT. GT009 ships two arms (task.toml [variants]): `default`, the
+# shipped world, and `live-consumer`, which adds the clearing bank's own
+# nightly pull as a second platform job. The harness selects the arm with
+# --variant and hands it down as ALKERA_TASK_VARIANT, because this process is
+# a plain subprocess whose argv the harness does not own. `stage_fixtures`
+# returns the package's own fixtures/ for `default` - byte for byte the world
+# every recorded rollout ran in - and a staged copy with the arm's overlay
+# applied for `live-consumer`.
+VARIANT = taskspec.variant_of(TASK)
+FIXTURES = taskspec.stage_fixtures(TASK, VARIANT)
 BUILD = FIXTURES / "build"
 
 sys.path.insert(0, str(FIXTURES))
+# So that a STAGED fixture_contract (which cannot find the repo by ascending
+# from %TEMP%) resolves its `from world import ...` through this process.
+sys.path.append(str(REPO / "world"))
 import make_fixture_world as mfw                                   # noqa: E402
 from fixture_contract import CONTRACT, verify                      # noqa: E402
 
@@ -65,6 +82,18 @@ COMMITS = [
 
 
 def prepare(seed: int) -> None:
+    # An arm with an overlay generates its OWN fixture into the staged tree:
+    # what staging copies there is the BASE build, which is the arm's world
+    # only by coincidence, so rebuild it from the overlaid generator once per
+    # staged tree. `default` has no overlay and reads the shipped build as-is.
+    if VARIANT.overlays:
+        marker = BUILD / ".arm"
+        if not marker.is_file() \
+                or marker.read_text(encoding="utf-8").strip() != VARIANT.name:
+            shutil.rmtree(BUILD, ignore_errors=True)
+            mfw.main(["--out", str(BUILD), "--seed", str(seed)])
+            marker.write_text(VARIANT.name + "\n", encoding="utf-8",
+                              newline="")
     needed = (BUILD / "world.duckdb", BUILD / "obs" / "definitions.yaml",
               BUILD / "workflow" / "issues.yaml", BUILD / "expected" / "t0.json")
     if not all(path.is_file() for path in needed):
@@ -96,7 +125,7 @@ def build(root: Path, grading: Path, seed: int) -> dict:
     root.mkdir(parents=True, exist_ok=True)
     grading.mkdir(parents=True, exist_ok=True)
     staged = mfw.stage_world_root(BUILD, root)
-    surfaces = stage_surfaces.stage(root, VIRTUAL_TIME)
+    surfaces = stage_surfaces.stage(root, VIRTUAL_TIME, fixtures=FIXTURES)
     mfw.write_grading_zone(BUILD, root, grading)
     shutil.copy(HERE / "manifest.yaml", grading / "manifest.yaml")
     # The platform's clearing-window daemon, kept where the grader can restore
@@ -107,6 +136,13 @@ def build(root: Path, grading: Path, seed: int) -> dict:
         shutil.rmtree(platform)
     shutil.copytree(BUILD / "workspace" / CONTRACT["layout"]["platform_relpath"],
                     platform)
+    # ...and the arm this world was built for travels with the grading package,
+    # not with an env var that may not survive a subprocess boundary. grade.py
+    # reads it to resolve which fixture tree (and which check rows) govern.
+    (grading / "variant.json").write_text(
+        json.dumps({"variant": VARIANT.name, "note": VARIANT.note,
+                    "grading": VARIANT.grading}, indent=2, sort_keys=True)
+        + "\n", encoding="utf-8", newline="")
 
     workspace = root / "workspace"
     profiles_dir = root / "var" / "dbt"
@@ -130,6 +166,7 @@ def build(root: Path, grading: Path, seed: int) -> dict:
         "observability": staged["observability"],
         "obs_samples": staged["obs_samples"],
         "workflow_dir": str(root / "var" / "workflow"),
+        "variant": VARIANT.name,
         "surfaces_staged": surfaces,
     }
 
@@ -140,7 +177,17 @@ def main() -> int:
     ap.add_argument("--grading")
     ap.add_argument("--seed", type=int, default=SEED)
     ap.add_argument("--prepare-only", action="store_true")
+    ap.add_argument("--variant", default=None,
+                    help="context arm; defaults to ALKERA_TASK_VARIANT, then to "
+                         "`default`. Named here only to confirm what was "
+                         "resolved - the fixtures tree was staged at import "
+                         "time, before any sibling module was read from it.")
     a = ap.parse_args()
+    if a.variant and a.variant != VARIANT.name:
+        ap.error(f"--variant {a.variant!r} disagrees with the tree this "
+                 f"process already staged ({VARIANT.name!r}). Set "
+                 f"{taskspec.VARIANT_ENV} instead; the fixtures are resolved "
+                 f"at import time.")
     prepare(a.seed)
     if a.prepare_only:
         return 0

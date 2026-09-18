@@ -459,6 +459,39 @@ def _write(path: Path, text: str, authored: str | None = None) -> Path:
     return path
 
 
+def write_for_built_world(root: Path, world_in_container: str = "/world") -> list[Path]:
+    """Write discovery files for a world that did not go through theme seed native:true.
+
+    Writes:
+      workspace/.envrc          (merge envrc_block() via merge_envrc)
+      workspace/docs/onboarding.md  (onboarding_markdown(root, {"jobs": jobs}))
+      home/.config/alkera/services.toml  (services_toml)
+
+    Does NOT write home/.dbt/profiles.yml (Postgres). Tasks already have DuckDB profiles.
+
+    jobs come from var/sched/state.json key "jobs" if that file exists, else {}.
+    Reuse envrc_block, merge_envrc, onboarding_markdown, services_toml, _write, HOME.
+    """
+    root = Path(root)
+    workspace = root / "workspace"
+    home = root / HOME
+    envrc = workspace / ".envrc"
+    existing = envrc.read_text(encoding="utf-8") if envrc.is_file() else ""
+    block = envrc_block()
+    state = root / "var" / "sched" / "state.json"
+    payload = _load_json(state) or {}
+    jobs = payload.get("jobs") if isinstance(payload, dict) else {}
+    if not isinstance(jobs, dict):
+        jobs = {}
+    return [
+        _write(envrc, merge_envrc(existing, block), authored=block),
+        _write(workspace / "docs" / "onboarding.md",
+               onboarding_markdown(root, {"jobs": jobs})),
+        _write(home / ".config" / "alkera" / "services.toml",
+               services_toml(world_in_container)),
+    ]
+
+
 def write(root: Path, theme, world_in_container: str = "/world") -> list[Path]:
     """Write the four discovery files. Returns them, in the order written.
 

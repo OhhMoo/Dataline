@@ -159,6 +159,21 @@ def test_bash_wrapper_contract(tmp: Path) -> None:
           r.stdout.strip() == "host", r.stdout.strip()[-200:])
 
 
+def test_bash_wrapper_quotes_env_values(tmp: Path) -> None:
+    """GT009 died with `No such container: from`: ALKERA_DELETE_SQL has spaces
+    and write_bash_wrapper baked it as a bare `-e NAME=delete from ...`."""
+    section("the bash redirect: a space-containing -e value stays one word")
+    wrapper = ce.write_bash_wrapper(
+        tmp / "quoted-env", container="episode", interpreter="python",
+        env={"ALKERA_DELETE_SQL": "delete from warehouse.t"})
+    hook = Path(wrapper["hook"]).read_text(encoding="utf-8")
+    check("does not bake an unquoted space-containing -e value",
+          " -e ALKERA_DELETE_SQL=delete from" not in hook, hook[-400:])
+    check("the value is _sh_quote'd so `from` is not a docker-exec positional",
+          f" -e ALKERA_DELETE_SQL={ce._sh_quote('delete from warehouse.t')}"
+          in hook, hook[-400:])
+
+
 def test_warehouse_mounts(tmp: Path) -> None:
     section("which files are mounted: the fingerprint's own rule")
     root = tmp / "w"
@@ -821,6 +836,7 @@ def main(argv: list[str] | None = None) -> int:
     tmp = Path(tempfile.mkdtemp(prefix="alkera-tnc-"))
     try:
         test_bash_wrapper_contract(tmp)
+        test_bash_wrapper_quotes_env_values(tmp)
         test_warehouse_mounts(tmp)
         test_generated_overlay(tmp)
         test_container_paths()

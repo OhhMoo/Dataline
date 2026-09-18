@@ -19,6 +19,13 @@ a run that has already happened, from the files those episodes left behind, and
 rewrites the report. For a run whose grader was broken, or whose harness died
 after teardown. See `rollout.py --regrade`.
 
+`--re-report <run-dir>` does even less: it re-reads the records a run already
+wrote and rewrites report.json/report.md under the task's CURRENT task.toml.
+Nothing is re-graded, no world is rebuilt, no model is called - it exists for
+the case where the REPORTING rule changed (a task gains a [matrix], say) and
+the episodes are already honestly recorded. Re-grade re-runs graders against
+worlds; re-report only re-reads rollout.json files plus the task spec.
+
 `--variant <name>` selects one of the task's declared context variants
 (task.toml `[variants]`). It is exported as ALKERA_TASK_VARIANT for every child
 process, because the world builder, the surface stager and the grader are
@@ -42,6 +49,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import agent_under_test as aut  # noqa: E402
 import container_episode  # noqa: E402
 import episode      # noqa: E402
 import native_stack  # noqa: E402
@@ -137,6 +145,60 @@ def _one(args, run_dir: Path, idx: int) -> dict:
     }
 
 
+def _spec_for_report(task_id: str, tasks_dir: str | None,
+                     records: list[dict]):
+    """The resolved TaskSpec a report is written under, or None.
+
+    The report needs the spec for one thing: the [matrix] projection. A run
+    whose task package no longer loads must not lose its report over that, so
+    a load failure is a printed note and a spec-free (pre-matrix) report, not
+    a refusal. The arm is the one the records unanimously name; a mixed run
+    resolves the default and the report itself names the mixture invalid.
+    """
+    arms = sorted({r.get("variant") for r in records if r.get("variant")})
+    try:
+        return taskspec.load(task_id,
+                             Path(tasks_dir).resolve() if tasks_dir else None,
+                             variant=arms[0] if len(arms) == 1 else None)
+    except (taskspec.TaskSpecError, ValueError, OSError) as exc:
+        print(f"  note: {task_id}'s package will not load ({exc}); the report "
+              f"is written without a [matrix] projection")
+        return None
+
+
+def re_report(run_dir: Path, task: str | None, tasks_dir: str | None) -> int:
+    """Rewrite a run's report from its stored records. Nothing is re-run.
+
+    The records are read back from the rN/rollout.json files (falling back to
+    the rollouts the previous report.json stored, for a run whose per-rollout
+    directories are gone), and the only other input is the task's CURRENT
+    task.toml - which is the point: an old run re-projects under a [matrix]
+    it predates without re-grading a single episode.
+    """
+    rollout_dirs = sorted((p for p in run_dir.iterdir()
+                           if p.is_dir() and re.fullmatch(r"r\d+", p.name)),
+                          key=lambda p: int(p.name[1:]))
+    records = []
+    for path in rollout_dirs:
+        rec_path = path / "rollout.json"
+        if rec_path.exists():
+            records.append(json.loads(rec_path.read_text(encoding="utf-8")))
+    if not records and (run_dir / "report.json").exists():
+        records = json.loads((run_dir / "report.json").read_text(
+            encoding="utf-8")).get("rollouts") or []
+    if not records:
+        print(f"  {run_dir} holds no rollout records to re-report")
+        return 2
+    task_id = task or records[0].get("task") or run_dir.parent.name
+    spec = _spec_for_report(task_id, tasks_dir, records)
+    print(f"\n  re-reporting {len(records)} rollout(s) in {run_dir} "
+          f"(records re-read, nothing re-graded)")
+    agg = report.write(run_dir, task_id, run_dir.name, records, spec=spec)
+    print(f"\n  {report.render(task_id, run_dir.name, agg, records, spec=spec)}")
+    print(f"  report: {run_dir / 'report.md'}")
+    return 0
+
+
 def regrade_run(run_dir: Path, task: str | None, tasks_dir: str | None) -> int:
     """Re-grade every rollout in a run directory and rewrite its report.
 
@@ -177,8 +239,9 @@ def regrade_run(run_dir: Path, task: str | None, tasks_dir: str | None) -> int:
         print("  nothing was re-graded, so the report is left alone")
         return 2
     task_id = task or records[0].get("task") or run_dir.parent.name
-    agg = report.write(run_dir, task_id, run_dir.name, records)
-    print(f"\n  {report.render(task_id, run_dir.name, agg, records)}")
+    spec = _spec_for_report(task_id, tasks_dir, records)
+    agg = report.write(run_dir, task_id, run_dir.name, records, spec=spec)
+    print(f"\n  {report.render(task_id, run_dir.name, agg, records, spec=spec)}")
     if refused:
         print(f"  {len(refused)} rollout(s) refused and are NOT in the report: "
               f"{[r[0] for r in refused]}")
@@ -195,21 +258,38 @@ def main() -> int:
                          "report.json and report.md. No model is run and no "
                          "world is rebuilt; see rollout.py --regrade. Re-grades "
                          "IN PLACE - copy the run first if it must be kept.")
+    ap.add_argument("--re-report", default=None,
+                    help="rewrite report.json and report.md for an EXISTING run "
+                         "directory from the records it already holds and the "
+                         "task's CURRENT task.toml. Unlike --regrade-run, no "
+                         "grader is re-run and no world is touched - this is "
+                         "how an old run is re-projected under a [matrix] it "
+                         "predates.")
     ap.add_argument("--k", type=int, default=5)
     ap.add_argument("--tasks-dir", default=None,
                     help="directory holding the task package, when it is not tasks/")
-    ap.add_argument("--model", default="opus")
-    ap.add_argument("--driver", default="mcp",
-                    choices=["mcp", "cli", "scripted", "kimi", "native"])
+    ap.add_argument("--model", default="opus",
+                    help="the subject's model id in the DRIVER's vocabulary: a "
+                         "claude alias for mcp/cli/native, a Kimi model for kimi")
+    ap.add_argument("--driver", default="native",
+                    choices=["mcp", "cli", "scripted", "kimi", "native"],
+                    help="measurement substrate is native; mcp is the "
+                         "comparison arm (default: native)")
+    ap.add_argument("--no-quota-probe", action="store_true",
+                    help="skip the one text-only turn that checks the model "
+                         "answers before K episodes are spent on it. On by "
+                         "default since authorized-20260917-k5 spent five "
+                         "episodes discovering a monthly spend limit.")
     ap.add_argument("--native-endpoints", default=None,
                     help="JSON file mapping native surface names onto reachable "
                          "addresses, for `--driver native` off the episode "
                          "network (see rollout.py --native-endpoints)")
-    ap.add_argument("--topology", default="host", choices=["host", "container"],
+    ap.add_argument("--topology", default="container", choices=["host", "container"],
                     help="`container` runs each rollout's world, gateway, audit "
                          "log and shell inside the episode service of "
                          "gateway/docker/compose.yml. One compose project per "
-                         "rollout, so K rollouts stay genuinely independent.")
+                         "rollout, so K rollouts stay genuinely independent. "
+                         "(default: container)")
     ap.add_argument("--image", default=container_episode.DEFAULT_IMAGE)
     ap.add_argument("--out", default=str(DEFAULT_OUT))
     ap.add_argument("--run-id", default=None)
@@ -226,6 +306,8 @@ def main() -> int:
                     help="red-teams the harness's own detectors; a run using it "
                          "is marked and must never be reported as a measurement")
     a = ap.parse_args()
+    if a.re_report:
+        return re_report(Path(a.re_report).resolve(), a.task, a.tasks_dir)
     if a.regrade_run:
         return regrade_run(Path(a.regrade_run).resolve(), a.task, a.tasks_dir)
     if not a.task:
@@ -259,6 +341,25 @@ def main() -> int:
     print(f"  pass criterion: all of {spec.pass_requires_checks} "
           f"and total >= {spec.pass_min_total}\n")
 
+    if not a.no_quota_probe:
+        # Before the fixture, before the first episode: one refused turn is
+        # the cheapest possible way to learn the account is out. Recorded in
+        # the run directory either way, so a run's report can say the model
+        # WAS answering when it started.
+        print(f"  quota probe: one text-only turn against {a.model} ...")
+        probe = aut.quota_probe(driver=a.driver, model=a.model,
+                                cwd=run_dir / "quota_probe")
+        (run_dir / "quota_probe.json").write_text(
+            json.dumps(probe, indent=2, default=str) + "\n", encoding="utf-8")
+        print(f"  quota probe: {probe['status']}"
+              + (f" ({probe.get('wall_clock_s')}s)" if probe.get("wall_clock_s") else "")
+              + (f" - {probe['why']}" if probe.get("why") else ""))
+        if probe["status"] not in ("ok", "skipped"):
+            print(f"\n  REFUSING to start K={a.k}: the probe did not get an answer, "
+                  f"so the episodes would not either. Record: "
+                  f"{run_dir / 'quota_probe.json'}")
+            return 3
+
     print("  preparing the task's cached world fixture ...")
     episode.prepare_task(spec)
 
@@ -267,8 +368,8 @@ def main() -> int:
     with ThreadPoolExecutor(max_workers=workers) as pool:
         records = list(pool.map(lambda i: _one(a, run_dir, i), range(a.k)))
 
-    agg = report.write(run_dir, a.task, run_id, records)
-    print(f"\n  {report.render(a.task, run_id, agg, records)}")
+    agg = report.write(run_dir, a.task, run_id, records, spec=spec)
+    print(f"\n  {report.render(a.task, run_id, agg, records, spec=spec)}")
     print(f"  wall clock for the whole run: {round(time.time() - started, 1)}s")
     print(f"  report: {run_dir / 'report.md'}")
     return 0

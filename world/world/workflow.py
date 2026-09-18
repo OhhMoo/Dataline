@@ -294,3 +294,28 @@ def authoring_notes(documents_by_name: dict) -> list[str]:
 
     walk(documents_by_name)
     return notes
+
+
+def strip_authoring(node) -> int:
+    """Remove every `authoring` block from a built corpus document, in place.
+    Returns the number of blocks removed.
+
+    The fake services strip these blocks from their RESPONSES (gateway
+    workflow.py's AUTHOR_SIDE); a native-mode subject has a shell, and the
+    file on disk is the thing that shell reads instead (STATUS 3.3: a GT004
+    native episode read DATA-4402's authoring note - which names the second
+    defect - before its first identity query). The graders read the same
+    fields the services serve, never `authoring`, so stripping the staged
+    copy moves no score.
+    """
+    removed = 0
+    if isinstance(node, dict):
+        if "authoring" in node:
+            del node["authoring"]
+            removed += 1
+        for value in node.values():
+            removed += strip_authoring(value)
+    elif isinstance(node, list):
+        for item in node:
+            removed += strip_authoring(item)
+    return removed

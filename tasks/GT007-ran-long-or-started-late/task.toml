@@ -374,6 +374,48 @@ pass_requires_checks = ["D1", "D2"]
 pass_min_total = 14.0
 pass_min_total_measured = true
 
+# ---------------------------------------------------------------------------
+# THE SCORING MATRIX (new_matrix.md, Layer A). SCORE-ONLY: the grader's checks,
+# points and pass criterion above are UNCHANGED; this declares how the grader's
+# existing check ids project onto the four library axes (tasks/harness/axes.py).
+# The [difficulty].axes table above is the grader's OWN point grouping
+# (DIAGNOSIS/DEPLOY/EVIDENCE/HYGIENE) and stays; [matrix.map] is a separate
+# mapping from LIBRARY axes onto individual check ids and never renames grader
+# output.
+#
+#   pass  (pi)  warranted - on the STORED runs this reads S1a/S1b/S2
+#               (remapped 2026-09-17, MATRIX_RERUN_EDITS 0.3): grade.py gained
+#               the D2 deploy axis only on 2026-09-16, after the valid
+#               2026-09-15 K=5 was graded, so those records carry D1, S1a,
+#               S1b, S2, H1 and NO D2 - warranted = ["D2"] read n/a on every
+#               stored episode and the projected pass was withheld on a task
+#               at 5/5. The map reads the evidence the records actually carry;
+#               D2 stays in the manifest's pass_requires_checks, so a
+#               PROSPECTIVE run is still gated on the licensed deploy.
+#               The pass this task presents is the rate on this axis alone,
+#               after the gate; it is not an aggregate of the other axes.
+#   gate  (|>)  found     - D1: the ran-long/started-late diagnosis and the
+#               repair that follows from it. A cold gate admits nothing: the
+#               episode leaves the warranted denominator instead of scoring 0
+#               on it, the same honesty rule as quarantine.
+#
+# scoped and consumer are deliberately UNMAPPED: no check in this rubric
+# measures them, and an axis with no mapped checks is n/a for this task, never
+# 0. HYGIENE (H1) stays on the row as a grader diagnostic exactly as by_axis
+# reports it; the matrix no more decides pass from it than the old criterion
+# did.
+# ---------------------------------------------------------------------------
+[matrix]
+pass_axis = "warranted"
+gate      = "found"
+# `accepted` stays empty: the outcome match is encoded by the checks
+# themselves (D1's verdict clause IS the two-value answer), and this task names
+# no baseline set that oracle validity must admit.
+
+[matrix.map]
+found     = ["D1"]              # DIAGNOSIS: verdict + repair, one decision (8 pts)
+warranted = ["S1a", "S1b", "S2"] # see the D2 note above
+
 [provenance]
 derived_from = ["S009", "S008", "S018", "S011", "S012"]
 composed_of  = ["A018"]

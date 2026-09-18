@@ -1,10 +1,10 @@
 {
-  "generated": "2026-09-17T09:05:12+00:00",
-  "head_revision": "6ee7db951cf6a3bbca1b19670e38ba4d43782ff2",
-  "image_id": "sha256:23713afdead347a277a014b761684153315728ec258ba10e8a6f55031debd4c4",
+  "generated": "2026-09-18T04:06:50+00:00",
+  "head_revision": "291b5fbd801a1f5beb7802ff52a59c7f0e924b20",
+  "image_id": "sha256:affad12425fee92d0535a7c646ea64fb9b066db7e474a0502cb1d2a157c9ca01",
   "labels": {
-    "org.alkera.source.overlay": "91e0801be43fa79e23e64702ed0cf7f9f3108b54b4c992cc678fd1c9f5c3b48a",
-    "org.alkera.source.revision": "6ee7db951cf6a3bbca1b19670e38ba4d43782ff2"
+    "org.alkera.source.overlay": "a90c59ea161f67e51ce9fbe0abf9961e8fcee545b9dce190a645b295d82f14c1",
+    "org.alkera.source.revision": "291b5fbd801a1f5beb7802ff52a59c7f0e924b20"
   },
   "measured_inside_container": {
     "binaries": [
@@ -681,7 +681,7 @@
     "platform": "Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.41",
     "python_not_shadowed": true,
     "python_on_path": "/usr/local/bin/python",
-    "source_revision": "6ee7db951cf6a3bbca1b19670e38ba4d43782ff2",
+    "source_revision": "291b5fbd801a1f5beb7802ff52a59c7f0e924b20",
     "tool_count": 63,
     "tools": [
       "alarms_get",
@@ -782,12 +782,12 @@
       "gateway/docker/toolbelt_acceptance.py",
       "gateway/docker/toolbelt_check.py"
     ],
-    "hash": "91e0801be43fa79e23e64702ed0cf7f9f3108b54b4c992cc678fd1c9f5c3b48a"
+    "hash": "a90c59ea161f67e51ce9fbe0abf9961e8fcee545b9dce190a645b295d82f14c1"
   },
   "repo_digests": [
-    "alkera-episode@sha256:23713afdead347a277a014b761684153315728ec258ba10e8a6f55031debd4c4"
+    "alkera-episode@sha256:affad12425fee92d0535a7c646ea64fb9b066db7e474a0502cb1d2a157c9ca01"
   ],
-  "size_bytes": 319198417,
-  "source_revision": "6ee7db951cf6a3bbca1b19670e38ba4d43782ff2",
+  "size_bytes": 319197626,
+  "source_revision": "291b5fbd801a1f5beb7802ff52a59c7f0e924b20",
   "tag": "alkera-episode:head"
 }

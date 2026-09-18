@@ -169,6 +169,68 @@ def venv_env() -> dict:
     return env
 
 
+def stage_discovery(world: dict) -> dict:
+    """Import write_for_built_world via episode.TRACK_A. Call it on the world root.
+
+    World root = world["world_root"] if present else Path(world["workspace"]).parent.
+    Return {"files": [str, ...], "root": str(root)}.
+    """
+    sys.path.insert(0, str(episode.TRACK_A))
+    from world.native_workspace import write_for_built_world  # noqa: E402
+
+    root = (Path(world["world_root"]) if world.get("world_root")
+            else Path(world["workspace"]).parent)
+    written = write_for_built_world(root)
+    return {"files": [str(path) for path in written], "root": str(root)}
+
+
+def sanitize_world_files(world: dict) -> dict:
+    """Strip the author-side material out of the files a native subject can read.
+
+    MCP responses strip `authoring` blocks on the way out (gateway
+    workflow.py's AUTHOR_SIDE); a native subject has a shell, and the staged
+    file on disk is the thing that shell reads instead. Measured 2026-09-16
+    (STATUS 3.3): a GT004 native episode read DATA-4402's `authoring` note -
+    which names the second defect verbatim - before its first identity query,
+    and var/obs/definitions.yaml carries the designer's commentary ("a panel
+    whose whole job is to notice it would delete the task"). The container
+    topology mounts the workspace and the warehouse files and nothing else, so
+    these files never reach the episode's filesystem there; this strip is what
+    keeps the same guarantee on any topology that mounts or serves the staged
+    tree, and on host smoke runs.
+
+    Graders read the same fields the services serve, never `authoring`, so the
+    staged copy strips clean without moving a score. Runs BEFORE the world is
+    fingerprinted (called from rollout.py beside stage_discovery) so the record
+    hashes the world the subject actually saw. Returns what it removed; a
+    world with nothing to strip returns empty maps, not an error.
+    """
+    sys.path.insert(0, str(episode.TRACK_A))
+    from world.hashing import json_canon                       # noqa: E402
+    from world.workflow import strip_authoring                 # noqa: E402
+
+    root = (Path(world["world_root"]) if world.get("world_root")
+            else Path(world["workspace"]).parent)
+    out: dict = {"workflow": {}, "obs_comment_lines_removed": 0}
+    workflow_dir = root / "var" / "workflow"
+    if workflow_dir.is_dir():
+        for path in sorted(workflow_dir.glob("*.json")):
+            document = json.loads(path.read_text(encoding="utf-8"))
+            removed = strip_authoring(document)
+            if removed:
+                path.write_bytes(json_canon(document) + b"\n")
+                out["workflow"][path.name] = removed
+    definitions = root / "var" / "obs" / "definitions.yaml"
+    if definitions.is_file():
+        lines = definitions.read_text(encoding="utf-8").splitlines(keepends=True)
+        kept = [ln for ln in lines if not ln.lstrip().startswith("#")]
+        removed = len(lines) - len(kept)
+        if removed:
+            definitions.write_text("".join(kept), encoding="utf-8", newline="")
+            out["obs_comment_lines_removed"] = removed
+    return out
+
+
 def install_workspace_cli(world: dict, topology: str = "host") -> dict:
     """Write `./ops/sched` into the working tree. Returns what it wrote.
 

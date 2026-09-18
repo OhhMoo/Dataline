@@ -734,6 +734,92 @@ def image_path(image: str) -> str:
     raise ContainerError(f"image {image!r} declares no PATH")
 
 
+#: Same label `gateway/docker/build_episode.py` stamps and
+#: `test_image_was_built_from_current_head` reads. One key, one scope.
+SOURCE_REVISION_LABEL = "org.alkera.source.revision"
+
+
+def _inspect_image_labels(image: str) -> dict | None:
+    """`docker image inspect` → `{"Labels": {...}}`, or None if the image is gone."""
+    try:
+        result = _run(
+            ["docker", "image", "inspect", image, "--format",
+             "{{json .Config.Labels}}"],
+            check=False, timeout=60)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if result.returncode != 0:
+        return None
+    labels = json.loads(result.stdout.strip() or "null") or {}
+    return {"Labels": labels}
+
+
+def _git_head() -> str:
+    result = subprocess.run(
+        ["git", "-C", str(REPO), "rev-parse", "HEAD"],
+        capture_output=True, text=True, encoding="utf-8", errors="replace")
+    if result.returncode != 0:
+        raise episode.HarnessError(
+            f"stale_episode_image: cannot read HEAD: {result.stderr.strip()}")
+    return result.stdout.strip()
+
+
+def _image_scope_changed_paths(old: str, new: str) -> list[str]:
+    """Paths under gateway/ or world/ that differ, same scope as image parity."""
+    result = subprocess.run(
+        ["git", "-C", str(REPO), "diff", "--name-only", old, new,
+         "--", "gateway", "world"],
+        capture_output=True, text=True, encoding="utf-8", errors="replace")
+    if result.returncode != 0:
+        raise episode.HarnessError(
+            f"stale_episode_image: cannot diff {old}..{new} under gateway/ world/")
+    return [line for line in result.stdout.splitlines() if line.strip()]
+
+
+def assert_image_current(image: str, *, inspect=None, head=None,
+                         changed_paths=None) -> dict:
+    """Return {image, revision, head} when the image is current enough to measure.
+
+    inspect(image) -> {"Labels": {"org.alkera.source.revision": sha}} or None
+        if the image does not exist. Default inspect uses `docker image inspect`.
+    head() -> current git HEAD hex. Default: git rev-parse HEAD in the repo.
+    changed_paths(old, new) -> list of paths under gateway/ or world/ that
+        differ. Default: git diff --name-only old new -- gateway world
+        (same scope as test_image_was_built_from_current_head).
+
+    Raise episode.HarnessError whose message contains the token
+    stale_episode_image when:
+      - inspect returns None (image missing)
+      - labels lack org.alkera.source.revision
+      - revision != head AND changed_paths(revision, head) is non-empty
+    """
+    inspect_fn = _inspect_image_labels if inspect is None else inspect
+    head_fn = _git_head if head is None else head
+    changed_fn = (_image_scope_changed_paths if changed_paths is None
+                  else changed_paths)
+
+    spec = inspect_fn(image)
+    if spec is None:
+        raise episode.HarnessError(
+            f"stale_episode_image: image {image!r} is missing")
+    labels = spec.get("Labels") or {}
+    revision = (labels.get(SOURCE_REVISION_LABEL)
+                if isinstance(labels, dict) else None)
+    if not revision:
+        raise episode.HarnessError(
+            f"stale_episode_image: image {image!r} has no "
+            f"{SOURCE_REVISION_LABEL} label")
+    current = head_fn()
+    if revision != current:
+        drift = changed_fn(revision, current)
+        if drift:
+            raise episode.HarnessError(
+                f"stale_episode_image: {image!r} was built from {revision} "
+                f"but HEAD is {current}; image-bearing paths changed: "
+                f"{list(drift)[:10]}")
+    return {"image": image, "revision": revision, "head": current}
+
+
 # ------------------------------------------------------------ the bash wrapper
 #: How the subject's shell is moved into the episode container, and why it is
 #: this and not a wrapper on PATH.
@@ -879,7 +965,7 @@ def write_bash_wrapper(bin_dir: Path, *, container: str, interpreter: str,
     """
     bin_dir.mkdir(parents=True, exist_ok=True)
     docker = docker or shutil.which("docker") or "docker"
-    env_args = "".join(f' -e {name}={value}'
+    env_args = "".join(f' -e {name}={_sh_quote(value)}'
                        for name, value in sorted((env or {}).items()))
     hook = bin_dir / "alkera_bash_env.sh"
     with open(hook, "w", encoding="utf-8", newline="") as stream:

@@ -35,6 +35,19 @@ has already discriminated here: on GT001 Claude scored Pass@1 1.0 and Pass^5
 1.0, while Kimi scored Pass@1 0.5-0.75 and Pass^k 0. It costs nothing - the
 world is byte-identical across K by construction - so the only reason it was
 missing is that nobody computed it.
+
+THE SCORING MATRIX (new_matrix.md, Layer A). When the task declares a [matrix]
+and the spec carries one, the report gains a projected pass: the mean of the
+per-episode pass bit on the task's ONE pass axis, taken only over episodes the
+gate axis admitted. A gate-cold episode leaves every denominator instead of
+scoring 0 on axes it never reached - the same honesty rule as quarantine - and
+an axis an episode has no evidence for is n/a, never 0. The projected pass is
+the headline; the old Pass@1 stays on the report, relabelled pass_all_required,
+BELOW it, because it remains the strict all-checks criterion the matrix
+replaces as the headline and not as a fact. A run whose variants resolve to
+matrices with DIFFERENT pass axes has no single projection, so its projected
+pass is invalidated the way any mixed-variant rate is. A task without a
+[matrix] renders byte-identical to before: no spec, no row.
 """
 from __future__ import annotations
 
@@ -42,8 +55,11 @@ import json
 import statistics
 from pathlib import Path
 
+import axes as axes_lib
+
 CLASSES = ("pass", "reasoning", "tool_gap", "timeout", "budget",
-           "grader_defect", "harness_error", "blindness_violation", "unobserved")
+           "grader_defect", "harness_error", "quota_exhausted",
+           "blindness_violation", "unobserved")
 
 
 def _median(xs):
@@ -177,6 +193,13 @@ def _run_conditions(records: list[dict]) -> dict:
     if any(v.startswith("UNLOCKED") for v in variants):
         bad.append(f"the brief matches no locked prompt variant ({variants}), so "
                    f"this run cannot be attributed to a ticket")
+    if any(r.get("driver") == "native"
+           and r.get("topology", "host") == "host"
+           for r in records):
+        bad.append(
+            "host_native_not_contained: --driver native --topology host is not "
+            "measurement_valid; the subject's bash is a host process"
+        )
 
     # NOT an invalidation, but it must be said: a task that declares no
     # required_surfaces cannot fail the gate, so "gate: pass" is unavailable to
@@ -223,7 +246,97 @@ def _surface_tag(c: dict) -> str:
     return f"surfaces: {n_live} live / {n_dead} dead{tail}"
 
 
-def aggregate(records: list[dict]) -> dict:
+def _pass_axis_conflict(spec, matrix, records: list[dict]) -> str | None:
+    """None, or the reason this run has no single projected pass.
+
+    One run must project onto ONE axis. The records name the arm each episode
+    ran under (rec["variant"], stamped by run_rollouts); when they span more
+    than one, the projection is only valid if every arm's resolved matrix
+    names the SAME pass_axis. An arm that will not resolve cannot prove it
+    agrees, so it counts as a disagreement - the same rule as every other run
+    condition here: what cannot be described invalidates the rate.
+    """
+    arms = sorted({r.get("variant") for r in records if r.get("variant")})
+    if len(arms) <= 1:
+        return None
+    own = getattr(spec, "variant", "") or ""
+    axes_by_arm: dict[str, str] = {}
+    for arm in arms:
+        if arm == own:
+            axes_by_arm[arm] = matrix.pass_axis
+            continue
+        try:
+            import taskspec
+            other = taskspec.load(getattr(spec, "task_id", ""),
+                                  Path(getattr(spec, "root", ".")).parent,
+                                  variant=arm)
+            other_matrix = getattr(other, "matrix", None)
+            axes_by_arm[arm] = (other_matrix.pass_axis
+                                if other_matrix is not None else "no matrix")
+        except Exception as exc:  # noqa: BLE001 - the reason is recorded, not hidden
+            axes_by_arm[arm] = f"unresolved ({exc})"
+    if len(set(axes_by_arm.values())) <= 1:
+        return None
+    detail = ", ".join(f"{a}: {v}" for a, v in sorted(axes_by_arm.items()))
+    return (f"the run mixes context variants whose matrices project pass onto "
+            f"DIFFERENT axes ({detail}); a projected pass over both is a "
+            f"projection of neither")
+
+
+def _matrix_block(spec, records: list[dict]) -> dict | None:
+    """The [matrix] projection over this run's SCORED rollouts, or None.
+
+    None means "not a matrix task" (no spec, or a spec without a matrix) and
+    the report is byte-identical to the pre-matrix one. Otherwise: every
+    scored record - the same inclusion rule Pass@1 uses - gets its
+    axes.axis_report kept under per_rollout; each axis's run rate is the MEAN
+    of per-episode rates over ADMITTED episodes only (gate-cold and
+    gate-unmeasured episodes leave the denominator, exactly like quarantine);
+    and the headline is the mean of the per-episode projected pass over the
+    episodes that have one. An axis with no evidence in any admitted episode
+    is n/a, never 0.
+    """
+    matrix = getattr(spec, "matrix", None) if spec is not None else None
+    if matrix is None:
+        return None
+    scored = [r for r in records if r.get("scored")]
+    per_rollout = {r.get("rollout_id"): axes_lib.axis_report(
+                       matrix, r.get("checks") or {},
+                       artifact=r.get("artifact"))
+                   for r in scored}
+    admitted_rows = [row for row in per_rollout.values()
+                     if row["admitted"] is True]
+    axis_means = {}
+    for axis in axes_lib.AXES:
+        rates = [row["axes"][axis] for row in admitted_rows
+                 if row["axes"][axis] is not None]
+        axis_means[axis] = round(sum(rates) / len(rates), 3) if rates else None
+    passes = [row["pass"] for row in per_rollout.values()
+              if row["pass"] is not None]
+    return {
+        "pass_axis": matrix.pass_axis,
+        "gate": matrix.gate,
+        "scored": len(scored),
+        "admitted": len(admitted_rows),
+        "gate_cold": sum(1 for row in per_rollout.values()
+                         if row["admitted"] is False),
+        "gate_unmeasured": sum(1 for row in per_rollout.values()
+                               if row["admitted"] is None),
+        # admitted, but the record carries none of the pass axis's checks (an
+        # old record that predates a check, say): out of the denominator for a
+        # reason that is neither gate-cold nor gate-unmeasured, and named as such
+        "pass_axis_unmeasured": sum(1 for row in admitted_rows
+                                    if row["pass"] is None),
+        "axis_means": axis_means,
+        "projected_pass": (round(sum(1 for p in passes if p) / len(passes), 3)
+                           if passes else None),
+        "projected_pass_denominator": len(passes),
+        "per_rollout": per_rollout,
+        "pass_axis_conflict": _pass_axis_conflict(spec, matrix, records),
+    }
+
+
+def aggregate(records: list[dict], spec=None) -> dict:
     by_class = {c: 0 for c in CLASSES}
     for r in records:
         by_class[r.get("classification", "harness_error")] = \
@@ -261,6 +374,14 @@ def aggregate(records: list[dict]) -> dict:
     conditions = _run_conditions(records)
     surfaces_dead = conditions["surfaces_dead"]
 
+    # The matrix row. A mixed-axis run has no single projection, which is a
+    # run condition like any other: it joins the invalidations, so both the
+    # projected pass and the old rate are withheld rather than averaged.
+    matrix = _matrix_block(spec, records)
+    if matrix and matrix["pass_axis_conflict"]:
+        conditions["invalidated_because"].append(matrix["pass_axis_conflict"])
+        conditions["measurement_valid"] = False
+
     # Pass^k per model as well as overall: one Pass^k over a run that mixed two
     # models says nothing about either, and the GT001 comparison this metric
     # exists for (Claude 1.0 vs Kimi 0) is exactly that comparison.
@@ -268,7 +389,7 @@ def aggregate(records: list[dict]) -> dict:
     for m in sorted({r.get("model") for r in records if r.get("model")}):
         by_model[m] = _pass_hat_k([r for r in records if r.get("model") == m])
 
-    return {
+    out = {
         "rollouts": len(records),
         "scored": len(scored),
         "quarantined": len(quarantined),
@@ -316,9 +437,15 @@ def aggregate(records: list[dict]) -> dict:
         "blindness_guarantees": sorted({r.get("blindness_guarantee")
                                         for r in records if r.get("blindness_guarantee")}),
     }
+    # Absent - not null - for a non-matrix task, so report.json for one is
+    # byte-identical to before the matrix existed.
+    if matrix is not None:
+        out["matrix"] = matrix
+    return out
 
 
-def render(task: str, run_id: str, agg: dict, records: list[dict]) -> str:
+def render(task: str, run_id: str, agg: dict, records: list[dict],
+           spec=None) -> str:
     L = [f"# {task} - rollout report ({run_id})", ""]
     L.append(f"subject: {', '.join(agg['models']) or 'unknown'} "
              f"via driver {', '.join(agg['drivers'])} "
@@ -375,8 +502,52 @@ def render(task: str, run_id: str, agg: dict, records: list[dict]) -> str:
     L.append("")
     p = agg["pass_at_1"]
     tag = _surface_tag(c)
+
+    # --- the matrix row. ABOVE the old criterion, deliberately: when the task
+    # declares a [matrix], the projected pass is the number the run presents.
+    m = agg.get("matrix")
+    if m is None and spec is not None and getattr(spec, "matrix", None) is not None:
+        # an agg that predates the matrix block, rendered under a matrix task
+        m = _matrix_block(spec, records)
+    if m is not None:
+        pi = m["pass_axis"]
+        if m["pass_axis_conflict"]:
+            L.append(f"**Projected pass (π={pi}) = WITHHELD - the run has no "
+                     f"single projection.** · {tag}")
+            L.append(f"  - {m['pass_axis_conflict']}")
+        elif not agg["measurement_valid"]:
+            L.append(f"**Projected pass (π={pi}) = WITHHELD - this run is not "
+                     f"a clean measurement.** · {tag}")
+        elif not m["projected_pass_denominator"] and m["admitted"]:
+            L.append(f"**Projected pass (π={pi}) = WITHHELD - the {m['admitted']} "
+                     f"admitted rollout(s) carry no evidence on the pass axis** "
+                     f"(none of the checks [matrix.map].{pi} names is in their "
+                     f"records; {m.get('pass_axis_unmeasured', m['admitted'])} "
+                     f"pass-axis-unmeasured, of {m['scored']} scored) · {tag}")
+        elif not m["projected_pass_denominator"]:
+            L.append(f"**Projected pass (π={pi}) = WITHHELD - no scored rollout "
+                     f"was admitted to the denominator** ({m['gate_cold']} "
+                     f"gate-cold, {m['gate_unmeasured']} gate-unmeasured, of "
+                     f"{m['scored']} scored) · {tag}")
+        else:
+            L.append(f"**Projected pass (π={pi}) = {m['projected_pass']}** "
+                     f"over {m['projected_pass_denominator']} admitted rollouts "
+                     f"· {tag}")
+        L.append("axes over "
+                 f"{m['admitted']} admitted rollouts: "
+                 + " · ".join(
+                     f"{a} {m['axis_means'][a] if m['axis_means'][a] is not None else 'n/a'}"
+                     for a in axes_lib.AXES)
+                 + f" ({m['gate_cold']} gate-cold and {m['gate_unmeasured']} "
+                 "gate-unmeasured episodes left the denominators)")
+        L.append("")
+
+    # The pre-matrix criterion stays, relabelled for what it is: EVERY required
+    # check passed and the point total met. On a matrix task it is no longer
+    # the headline, so it prints below the projection.
+    label = "pass_all_required" if m is not None else "Pass@1"
     if not agg["measurement_valid"]:
-        L.append(f"**Pass@1 = WITHHELD - this run is not a clean measurement.** "
+        L.append(f"**{label} = WITHHELD - this run is not a clean measurement.** "
                  f"· {tag}")
         for why in agg["invalidated_because"]:
             L.append(f"  - {why}")
@@ -384,7 +555,7 @@ def render(task: str, run_id: str, agg: dict, records: list[dict]) -> str:
         L.append(f"  (provisional, do not publish: {p if p is not None else 'n/a'} "
                  f"over {agg['scored']} scored rollouts · {tag})")
     else:
-        L.append(f"**Pass@1 = {p if p is not None else 'n/a'}** "
+        L.append(f"**{label} = {p if p is not None else 'n/a'}** "
                  f"over {agg['scored']} scored rollouts · {tag}")
     if agg["pass_at_1_reasoning_only"] is not None:
         L.append(f"Pass@1 (reasoning-attributable only) = "
@@ -468,11 +639,12 @@ def render(task: str, run_id: str, agg: dict, records: list[dict]) -> str:
     return "\n".join(L) + "\n"
 
 
-def write(out_dir: Path, task: str, run_id: str, records: list[dict]) -> dict:
-    agg = aggregate(records)
+def write(out_dir: Path, task: str, run_id: str, records: list[dict],
+          spec=None) -> dict:
+    agg = aggregate(records, spec=spec)
     (out_dir / "report.json").write_text(
         json.dumps({"task": task, "run_id": run_id, "summary": agg,
                     "rollouts": records}, indent=2, default=str), encoding="utf-8")
-    (out_dir / "report.md").write_text(render(task, run_id, agg, records),
+    (out_dir / "report.md").write_text(render(task, run_id, agg, records, spec=spec),
                                        encoding="utf-8")
     return agg

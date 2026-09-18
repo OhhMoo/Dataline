@@ -11,7 +11,8 @@ $PY selftest.py                                        # 133 detector/classifier
 $PY surface_gate_check.py                              # live proof the surface gate fires, no model
 $PY container_check.py --task GT001-aov-halving        # live containment proof, no model
 $PY reference_copy_check.py --task GT001-aov-halving   # the reference_copy baseline, contained
-$PY run_rollouts.py --task GT001-aov-halving --k 5     # K rollouts + report
+$PY run_rollouts.py --task GT001-aov-halving --k 5     # K rollouts + report (native + container)
+$PY run_rollouts.py --task GT001-aov-halving --k 5 --driver mcp --topology host
 $PY rollout.py --task GT001-aov-halving --out <dir>    # one rollout
 $PY rollout.py --reclassify <rollout-dir>              # re-derive the verdict only
 $PY rollout.py --regrade <rollout-dir>                 # re-run everything after teardown
@@ -206,13 +207,16 @@ dead. Ground rule 1 is structural here, not a convention.
 | `native` | `claude --print`, or a scripted shell with `--model scripted` | Bash and nothing else - an EMPTY mcp config, vendor-shaped services found through `.envrc` and the environment, PATH-front shims for `duckdb`/`dbt`/`python`/`git` | `detection_only` + `network_destination` (every connection is logged server-side; an absent `destinations.jsonl` quarantines) |
 | `scripted` | `redteam/scripted_subject.py` | n/a | detector tests only |
 
-`native` under `--topology host` brings its own stack up per rollout
-(`native_stack.py`): the nine services on loopback at their own port plus an
-offset, the shims on PATH, MinIO in docker only when the task REQUIRES the s3
-surface, and teardown in the rollout's `finally`. Pass `--native-endpoints` to
-point at a stack you are running yourself instead. `--topology container` is
-still refused for every driver but `mcp`. Spec, and what is executed versus
-designed: `gateway/NATIVE.md`.
+Measurement substrate is `--driver native --topology container` (the default).
+`--driver mcp` is the comparison arm: the 63-tool list is a map of intended
+moves, which is the leak native removes. Host native is not
+`measurement_valid`. Spec: `gateway/NATIVE.md`. Root `README.md` has the
+operator table.
+
+The report headline on a `[matrix]` task is **projected pass (π)** on that
+task's `pass_axis` (`found` / `warranted` / `scoped` / `consumer`). The old
+all-checks rate is printed under it as `pass_all_required`. Axes are never
+multiplied. See `new_matrix.md` and `axes.py`.
 
 ## Topology: where the WORLD and the TOOLS run
 
@@ -221,8 +225,8 @@ touches runs, and that is the axis that decides whether a terminal is safe.
 
 | topology | world + gateway + audit | terminal | blindness guarantee |
 |---|---|---|---|
-| `host` (default) | a host subprocess, beside the grading zone | none | `tool_surface_revoked` |
-| `container` | the `episode` service of `gateway/docker/compose.yml` | **yes**, `mcp__alkera__bash` | `filesystem_isolated` |
+| `host` | a host subprocess, beside the grading zone | none | `tool_surface_revoked` |
+| `container` (default) | the `episode` service; native services on `*.internal` | **yes** — subject's bash is `docker exec` into the episode (native) or `mcp__alkera__bash` (mcp) | `filesystem_isolated` |
 
 ```bash
 $PY run_rollouts.py --task GT001-aov-halving --k 5 --topology container
@@ -299,6 +303,23 @@ event, so the capability evidence comes from the session wire log's
 model API — translated into the claude-shaped transcript the detectors parse.
 The translation fails closed: any unrecognised wire event becomes an
 unparsed transcript line, which quarantines the rollout as unobserved.
+
+**Quota.** Every driver's subject can be refused for a usage or spend limit,
+and until 2026-09-17 that read as `agent_error` → `harness_error` → "needs
+human review", with the cause one `final_text` away. Now `exit_reason_for`
+files it as `quota_exhausted` (the result event's subtype, or a failed
+process whose final text/stderr reads like a limit message —
+`agent_under_test.QUOTA_PATTERN`; a clean exit is never relabelled on prose)
+and `classify.py` gives it its own class: unscored, excluded, not
+`needs_review`. `--reclassify` relabels records made before the class
+existed from their stored `final_text` (`authorized-20260917-k5`: 5 ×
+`harness_error` → 5 × `quota_exhausted`). `run_rollouts.py` also runs a
+**quota probe** — one text-only turn against the model, recorded as
+`quota_probe.json` — before it spends K episodes, and refuses to start (exit
+3) if the probe is refused. `--no-quota-probe` skips it. `run_queue.py`
+chains several `run_rollouts.py` invocations sequentially and stops at the
+first refused probe or `quota_exhausted` episode (`queue-*.json` under
+`runs/`). Tests: `test_quota_class.py`.
 
 A tool the task does not probe is a tool whose failures cannot be attributed, so
 every rollout records `unprobed_tools` and the report names them. The toolbelt

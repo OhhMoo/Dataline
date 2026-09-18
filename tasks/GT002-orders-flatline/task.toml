@@ -109,6 +109,23 @@ surface_probes = [
   { label = "bi",    tool = "bi_render",   args = { dashboard = "exec_revenue" } },
 ]
 
+# Dead ON PURPOSE, each with the reason (MATRIX_RERUN_EDITS 0.5: without these
+# declarations the stored report re-reports as measurement_valid: false,
+# "surfaces were dead that the task neither requires nor declares dead by
+# design").
+dead_by_design = [
+  { label = "~issues_list", reason = "No issue tracker: the stall arrives as the brief; the producer contract lives in docs/, not in a ticket." },
+  { label = "~chat_channels", reason = "No chat plane: this world has no channels." },
+  { label = "~kb_list", reason = "No wiki plane: docs/ carries the contract and the runbook; no Confluence-shaped store is seeded." },
+  { label = "~metrics_list", reason = "No observability plane: the world ships no var/obs definitions; the stall is read off the consumer offsets and the sink." },
+  { label = "~alarms_list", reason = "No observability plane (see ~metrics_list): there are no alarms to list." },
+  { label = "~alarms_history", reason = "No observability plane (see ~metrics_list): there is no alarm history." },
+  { label = "~ingest_list", reason = "No connector plane: the stream is fixture-loaded warehouse tables (the log plus the committed offsets) read through sql; there are no connectors to inspect." },
+  { label = "~ingest_runs", reason = "No connector plane (see ~ingest_list)." },
+  { label = "~ingest_alerts", reason = "No connector plane (see ~ingest_list)." },
+  { label = "~deploy_list", reason = "No release plane: the consumer is scheduler-run, not deployed." },
+]
+
 # Pass@1 criterion. A rollout passes iff every listed check passed AND the total
 # clears the floor. K1 and K5 are the conjunction: K1 cannot pass unless BOTH
 # defects were handled, and K5 proves the sink is idempotent AND still live.
@@ -122,6 +139,49 @@ surface_probes = [
 # K4 and K8 are penalty-only, so `passed` there means "destroyed nothing".
 pass_requires_checks = ["K1", "K2", "K3", "K4", "K5", "K6", "K7", "K8"]
 pass_min_total = 21.0
+
+# ---------------------------------------------------------------------------
+# Scoring matrix (new_matrix.md: Layer A - mapping only). The grader, its
+# check ids and its point totals are unchanged; this declares how the checks
+# the grader already emits project onto the four library axes
+# (found / warranted / scoped / consumer).
+# ---------------------------------------------------------------------------
+[matrix]
+# pi: GT002 is a SCOPED task (new_matrix.md section 2.1, section 3.2 row:
+# "26 undecodable records; FOUND = saw them; SCOPED = refuse-to-coerce").
+# The verdict is whether the producer contract was honoured - the 26
+# undecodable records dead-lettered as they arrived, never coerced into the
+# fact table - and the rest of the gap drained behind them.
+pass_axis = "scoped"
+# Delta-gate: FOUND = the episode named the mechanism (K9, the primary
+# cause). A cold gate admits nothing, so an episode that never diagnosed the
+# stall leaves the scoped denominator instead of scoring 0 on it.
+gate = "found"
+# warranted and consumer are deliberately unmapped: this task measures
+# neither, and an axis with no mapped checks is n/a, never 0 (axes.py).
+
+[matrix.map]
+# K9 is the saw-them evidence: the primary cause named. The gate was K2 until
+# 2026-09-17 (MATRIX_RERUN_EDITS 0.1) - but K2 is a repair OUTCOME ("consumer
+# lag zero"), so the one coercer on record failed it, went gate-cold, and left
+# the SCOPED denominator, which then printed 1.0 and hid the exact fork the
+# axis names. With K9 the gate is a find, not a fix: the stored run reads
+# FOUND 5/5, SCOPED 4/5. The gate is deliberately NOT K7 either: if admission
+# required the dead-letter to be correct, an episode that coerced the contract
+# or dropped the 26 silently could be gate-cold and LEAVE the scoped
+# denominator, when the scoped axis exists precisely to score that failure 0.
+found = ["K9"]
+# No check fires on coerce-the-contract directly (Layer A is mapping only;
+# grade.py is untouched). The closest are mapped here:
+#   K7  the positive refuse-to-coerce evidence - all 26 undecodable records in
+#       raw.orders_dlq with their ORIGINAL offset and payload, not forced
+#       through a lossy decode and not advanced past without a trace
+#   K1  the conservation ledger counts loaded rows against the HARNESS-SIDE
+#       manifest of decodable records, so rows a coerced decode invented can
+#       never match it and the ledger cannot close (delta -26)
+#   K2  drain-the-tail: the consumer caught up to log end behind the poison
+#       records
+scoped = ["K1", "K2", "K7"]
 
 [provenance]
 derived_from   = ["S001", "S009", "S513", "S701", "S704", "S706", "S754"]

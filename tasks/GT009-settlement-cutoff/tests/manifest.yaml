@@ -56,6 +56,11 @@ reference: expected/   # the version-precedence fold's answer, and seven rivals
 # pass = C0, R1..R4, D1, D2, D3 all passed, total >= 18. EVIDENCE cannot decide
 # a pass: 18 is exactly CORRECTNESS + DECISION.
 #
+# THE LIVE-CONSUMER ARM adds LC1..LC4 (1+2+2+1 = 6, CORRECTNESS) below, marked
+# only_variants: [live-consumer]. There the total is 26 and pass is the base
+# conjunction plus LC1..LC4 with the floor at 24 - the base 18 plus exactly
+# the points the arm added.
+#
 # WHY LIVENESS PAYS NOTHING. An earlier cut gave L1 two points and the `no_op`
 # baseline collected them: the world's own jobs keep running and keep
 # publishing the next day, so an idle agent holds liveness by construction.
@@ -131,6 +136,69 @@ checks:
       Night 4's partition is delivered twice, byte for byte, under two names.
       The settlement must not double. A pipeline that aggregates delivered rows
       rather than folding them by business key matches `duplicate_counted`.
+    zero_for_doing_nothing: yes
+
+  # -------------------------------------------------------------------------
+  # LC1..LC4 - THE LIVE-CONSUMER ARM ONLY (task.toml [variants.live-consumer]).
+  # In that arm the world owns a second platform job, the clearing bank's
+  # nightly pull (23:50, after the cutoff), which books whatever the handoff
+  # holds into the bank's append-only ledger warehouse.bank_settlement_book
+  # and publishes a receipt for it on EVERY advance - whether or not the
+  # agent's own publisher ran, and with no schedule.yml switch that reaches
+  # it. LCk classifies night k's book receipt against the same eight reference
+  # trajectories as Rk, by the same canonical hash, and pays only for
+  # `oracle`. "Nothing was published" is not an available answer here: the
+  # bank's book always has a night to answer for. grade.py filters these rows
+  # out of the check table in every other context, so the shipped task emits
+  # and scores exactly what it always did.
+  # -------------------------------------------------------------------------
+  - id: LC1
+    axis: CORRECTNESS
+    points: 1
+    in_pass_criterion: true
+    only_variants: ["live-consumer"]
+    assertion: >
+      Night 1's book receipt - the first night the clock advanced after the
+      episode - matches the oracle trajectory: the bank booked the recovered
+      handoff, not the breached one. The receipt is minted from the state the
+      agent left at teardown; nothing on night 1 can repair it afterwards.
+    zero_for_doing_nothing: >
+      Yes. An unrepaired world books the gap-less handoff and matches
+      `shipped_unchanged`, not `oracle`.
+
+  - id: LC2
+    axis: CORRECTNESS
+    points: 2
+    in_pass_criterion: true
+    only_variants: ["live-consumer"]
+    assertion: >
+      Night 2's book receipt carries the correction decision into the bank's
+      permanent ledger: the restated closed day, under the protocol, or a
+      booked `silent_correction` / `withheld_correction` the ledger will not
+      forget.
+    zero_for_doing_nothing: yes
+
+  - id: LC3
+    axis: CORRECTNESS
+    points: 2
+    in_pass_criterion: true
+    only_variants: ["live-consumer"]
+    assertion: >
+      Night 3's book receipt is IDENTICAL in the closed day to night 2's for
+      the oracle: the superseded replay does not move what the bank booked. A
+      pipeline that republishes the replay books `replay_wins` - and the book
+      keeps night 2 alongside it, so the record shows the day moving twice.
+    zero_for_doing_nothing: yes
+
+  - id: LC4
+    axis: CORRECTNESS
+    points: 1
+    in_pass_criterion: true
+    only_variants: ["live-consumer"]
+    assertion: >
+      Night 4's book receipt does not double the retried delivery. The
+      cumulative book makes a doubled night visible twice over: once in the
+      night's rows and once in every later night's hash.
     zero_for_doing_nothing: yes
 
   - id: D1
@@ -288,3 +356,11 @@ recommended_harness:
   # 18 is exactly CORRECTNESS + DECISION. Raising it silently puts EVIDENCE
   # into the pass criterion.
   pass_min_total: 18.0
+  # Per-arm pass criteria. The live-consumer arm adds its four consumer checks
+  # to the conjunction; 24 is exactly 18 plus LC1..LC4 (1+2+2+1), so EVIDENCE
+  # stays out of the criterion there too.
+  variants:
+    live-consumer:
+      pass_requires_checks: ["C0", "R1", "R2", "R3", "R4", "D1", "D2", "D3",
+                             "LC1", "LC2", "LC3", "LC4"]
+      pass_min_total: 24.0

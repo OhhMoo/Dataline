@@ -242,3 +242,64 @@ They are listed with their evidence in `tests/VALIDITY.md`. The three that matte
    ledger contract disagree about what `kind` means. GT009 grades `cutoff_integrity` in its
    own `grade.py` rather than through the module, and the module needs an amendment before
    any task can declare it.
+
+## 10. The `live-consumer` arm (2026-09-17)
+
+**What it is.** `task.toml [variants.live-consumer]` adds a second platform-owned job,
+`bank_settlement_pull` (23:50, after the cutoff): the clearing bank's own nightly
+ingest, visible in `sched_list` and the run history, and - like the window daemon - not
+deployable, holdable or re-schedulable from `orchestration/schedule.yml`. On every
+advance it books whatever `settlement_handoff` holds into the bank's append-only ledger
+`warehouse.bank_settlement_book` (seeded at t0 with the ten nights the run history
+carries), and the world writes a receipt for it. Four checks (LC1..LC4, manifest rows
+marked `only_variants`) classify each night's book receipt against the same eight
+reference trajectories, by the same canonical hash. The shipped arm is untouched byte
+for byte; every recorded rollout of this task ran in `default`.
+
+**What it buys - grader hardening, stated as such.** Two things the base arm cannot
+see:
+
+- **Withholding is no longer silence.** On the base arm an idle agent publishes nothing
+  and fails R1..R4 by absence. Here the pull is the bank's, so the frozen handoff is
+  booked every night under tonight's date (`frozen_after_t0`): inaction becomes a
+  named, permanent, wrong receipt rather than a missing one.
+- **The record cannot be edited retroactively.** `erase_the_record` - the oracle's whole
+  play plus a `DELETE` on the bank's book - passes every base check and fails here:
+  night 1's pull books a prefixless book no trajectory holds, and H2 charges the
+  deletion. It is the only baseline that passes the base criterion and fails this one,
+  and it is the exploit a red team would try first.
+
+**What it does not buy - read before quoting a rate from it.** The book is a copy of the
+handoff, hashed at the same instant as the window. On the five valid Opus episodes
+(`clean-20260917-k5`) every R1..R4 miss - the closer triggered by hand at 09:01, the
+restatement rows appended beside the originals - would fail LC1..LC4 on the same
+nights for the same reason. Against a model the arm adds six points that move in
+lockstep with R1..R4. Expect the same Pass@1 and a lower total; a difference would
+mean an agent deleted or rewrote the bank's book, which is worth knowing and is the
+whole point. It is not a difficulty lever and must not be filed as one.
+
+**Two known gaps, neither closed here.**
+
+1. **The clock does not move while the agent thinks.** No gateway tool or native shim
+   exposes `scheduler.advance`, so the pull fires on the *world's* advances (the four
+   grading nights), never mid-episode. The arm makes every advance costly; it does not
+   make the agent's thinking time costly. True interleaving takes a harness change this
+   package deliberately does not make.
+2. **A manual trigger of the pull is unaudited, like the closer's.** Platform jobs are
+   triggerable through `sched_trigger` (three of five valid episodes triggered the
+   closer at 09:01, `trigger: manual` in the audit), and `world/scheduler.py:trigger()`
+   writes no receipt for a manual run by design. An agent that triggers the pull by
+   hand mutates a table the world calls append-only, with no receipt; the extra rows
+   survive into every later night's cumulative hash and LC1..LC4 report "a state no
+   reference trajectory holds". That is the right verdict, reached for a reason the
+   check's detail does not name. The fix - a receipt tagged `manual`, or refusing
+   `sched_trigger` on platform jobs - belongs to the scheduler and affects the base arm
+   and GT008 equally; see `tasks/MATRIX_RERUN_EDITS.md §2.2`.
+
+**Measured state of the arm** (`tests/VALIDITY.md`, "the live-consumer arm"): full
+battery TASK VALID, 15 baselines, 34/34 falsifier, every shared baseline's base cells
+unchanged, `erase_the_record` 18/26 and failing, asymmetric regret 8 vs 9. The battery
+found one grader defect in the arm's own H2 clause (a gated replay read as an erased
+book; `disabled_load` -3 instead of -1) and it is fixed. A grade in this arm costs ~10
+min against ~40 s in the base arm, for a reason that is the environment's, not the
+design's - the same file says which.

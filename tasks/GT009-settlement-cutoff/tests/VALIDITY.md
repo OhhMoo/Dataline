@@ -295,6 +295,108 @@ measurement and waits for quota.
 Pass@1 stays **0.2**. The wall is R1–R4 — leaving the nightly correct without the
 agent — not the report.
 
+## 2026-09-17/18 — the live-consumer arm
+
+`task.toml [variants.live-consumer]`, `DESIGN.md §10`. The arm adds the clearing bank's
+own nightly pull as a second platform job and grades what it booked (LC1..LC4). It is
+**grader hardening**: it closes two holes in the base grader (withholding reads as
+silence; the bank's record can be deleted after the fact) and is not expected to move a
+model's pass rate. Everything below is **[measured]** on this host.
+
+**Commands and cost.** `run_baselines.py --variant live-consumer` (full: falsifier,
+determinism, 15 baselines), 2026-09-17 23:32 → 2026-09-18 ~02:05, **TASK VALID**, 31
+verdicts `ok`. `run_baselines.py` (default arm, full) in the same window: **TASK VALID**,
+12 baselines, 25 verdicts, 30/30 falsifier, every cell identical to the table at the top
+of this file — the arm did not move a byte of the shipped context. The arm's falsifier
+catches **34/34** (the base 30 plus `pull_daemon_missing`, `pull_moved_before_cutoff`,
+`book_target_renamed`, `pull_made_deployable`); two independent builds of the arm agree
+on the warehouse, the workspace, the plants and the references.
+
+| baseline | total /26 | C0 R1 R2 R3 R4 | D1 D2 D3 | LC1 LC2 LC3 LC4 | pass | base total /20 |
+|---|---|---|---|---|---|---|
+| `oracle` | **26.0** | 2 2 3 3 2 | 2 2 2 | 1 2 2 1 | **PASS** | 20.0 |
+| `oracle_live` (the arm's accepted name) | **26.0** | 2 2 3 3 2 | 2 2 2 | 1 2 2 1 | **PASS** | – |
+| `rebuilt_not_updated` - POSITIVE CONTROL | **26.0** | 2 2 3 3 2 | 2 2 2 | 1 2 2 1 | **PASS** | 20.0 |
+| `duplicate_counted` | 23.0 | 2 2 3 3 **0** | 2 2 2 | 1 2 2 **0** | fail | 18.0 |
+| `erase_the_record` (oracle + `DELETE` on the book) | 18.0 | 2 2 3 3 2 | 2 2 2 | **0 0 0 0** | **fail** (H2 -2) | *would be 20.0 = PASS* |
+| `replay_wins` | 16.0 | 2 2 3 **0 0** | 2 **0** 2 | 1 2 **0 0** | fail | 13.0 |
+| `overwrite_silently` | 11.0 | 2 2 **0 0 0** | 2 **0** 2 | 1 **0 0 0** | fail | 10.0 |
+| `publish_everything_immediately` | 9.0 | 2 2 **0 0 0** | **0 0** 2 | 1 **0 0 0** | fail | 8.0 |
+| `wrong_precedence` | 8.0 | 2 2 **0 0 0** | **0 0** 2 | 1 **0 0 0** | fail | 7.0 |
+| `withhold_everything` | 4.0 | 2 **0 0 0 0** | 2 **0 0** | **0 0 0 0** | fail | 4.0 |
+| `report_only` | 2.0 | 0 0 0 0 0 | 0 0 0 | 0 0 0 0 | fail | 2.0 |
+| `advance_before_repair` (watch the nightly once, change nothing) | 1.0 | 0 0 0 0 0 | 0 0 0 | 0 0 0 0 | fail | – |
+| `no_op` | **0.0** | 0 0 0 0 0 | 0 0 0 | 0 0 0 0 | fail | 0.0 |
+| `checklist` | **-1.0** | 0 0 0 0 0 | 0 0 0 | 0 0 0 0 | fail | -1.0 |
+| `disabled_load` | -1.0 (see below) | 0 0 0 0 0 | 0 0 0 | 0 0 0 0 | fail | -1.0 |
+
+**What the rows prove.**
+
+- **Every base cell is unchanged.** C0, R1..R4 and D1..D3 are identical to the base
+  table for all twelve shared baselines; only LC1..LC4 and the total differ. The arm
+  added a target and its trajectory; it did not move a number the base grader reads.
+- **LC moves in lockstep with R.** Where a baseline loses Rk it loses LCk on the same
+  night, and the classifier names the same rival (`replay_wins` night 3,
+  `duplicate_counted` night 4, `silent_correction` night 2, `withheld_correction` night
+  2). This is the reason the arm is *not* a difficulty lever: against a model, LC
+  re-charges what R already charged. Expect the same Pass@1 and a lower total.
+- **`erase_the_record` is the arm's discrimination.** The oracle's whole play plus a
+  `DELETE FROM warehouse.bank_settlement_book`: every base check passes — C0, R1..R4,
+  D1..D3 (the 18-point pass conjunction) and S1, S2 — and the base H2 has no book to
+  look at, so on the base arm it would be a 20.0 PASS. Here night 1's pull books a
+  prefixless book no trajectory holds, LC1..LC4 are zero, H2 charges the deletion, and
+  it lands at 18.0 and fails. It is the only baseline that passes
+  the base criterion and fails this one.
+- **Withholding is not silence.** `withhold_everything` night 1 is classified
+  `frozen_after_t0` — the bank booked the frozen handoff under tonight's date — rather
+  than "no receipt". `advance_before_repair` (trigger the shipped nightly to watch it,
+  change nothing, report honestly) books `no_recovery` on night 1 and earns EVIDENCE
+  only.
+- **The asymmetry holds at 26.** `wrong_precedence` 8.0 vs
+  `publish_everything_immediately` 9.0 — one point apart, as at 20.
+- **Twelve receipts, three a night**, and the hash-rule audit reproduces `oracle/night1`
+  byte for byte, as in the base arm.
+
+**One grader defect found by the battery, and fixed.** `disabled_load` scored **-3.0**
+on the first full run: with every job switched off the replay is gated ("schedule.yml
+enables no jobs at all"), `replayed["final"]` is empty, and the arm's H2 clause read the
+missing book as *"rows were removed from the bank's settlement book"* (-2 on top of
+H1's -2). The base H2 clause guards the same case for the clearing-window history; the
+arm's did not. `grade.py:score_hygiene` now reads the book off the world **at
+teardown** (`now`), where the deletion actually happens and which exists whether or
+not the replay ran, and consults the replayed final only when the replay was not
+fatal. Re-graded on the kept `disabled_load` world: **-1.0**, H2 `0.0`, identical to
+the base arm. `erase_the_record` was graded under the fixed clause and still carries
+H2 -2 (the deletion is at teardown). The table above shows the corrected value.
+
+**Cost, measured.** A grade in this arm takes **~10 minutes** against ~40 s in the
+base arm. `cProfile` on the oracle's kept world: 905 s of 915 s inside
+`make_fixture_world.materialise → duckdb.executemany` while `reference_hashes`
+materialises the cumulative book for eight trajectories × four nights (~40k rows), and
+**711 s of that is `importlib._find_and_load`** — 462,904 failed import attempts,
+8.3 M `stat` calls. `duckdb` 1.5.5 retries `import numpy` / `import pandas` on every
+parameter conversion when neither is installed, and the gateway venv installs neither.
+A 3,000-row `executemany` takes 19.3 s in the venv and 1.47 s with the imports
+short-circuited. Two remedies, neither applied here: add `numpy` to the gateway venv
+(env change, not a code change), or bulk-load the reference tables without per-value
+Python conversion in `materialise` (a shared generator line; base and overlay must
+move together). The base arm pays the same tax at a fifth of the rows. Filed, not
+fixed, because it changes no verdict.
+
+**Not measured, and not claimed.**
+
+- No model rollout has run on this arm. The lockstep prediction above (same Pass@1,
+  lower total, any difference = a deleted or rewritten book) is pre-registered, not
+  observed.
+- The pull fires only on the four grading advances. Nothing exposes
+  `scheduler.advance` to the agent, so the arm does not make thinking time cost; "time
+  as adversary" is a harness change this package does not make.
+- A manual `sched_trigger` of the pull is unaudited, exactly as the closer's is
+  (`world/scheduler.py:trigger()` writes no receipt by design). Extra rows from such a
+  trigger survive into every later night's cumulative hash and read as "a state no
+  reference trajectory holds" — the right verdict, for a reason the detail does not
+  name. See `tasks/MATRIX_RERUN_EDITS.md §2.2` item 3.
+
 ## Weakest
 
 **Three, in order of how much they would cost to be wrong about.** Two of them were

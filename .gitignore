@@ -88,3 +88,8 @@ nohup.out
 
 # local working status, not committed
 STATUS.md
+
+# agent tooling state (superpowers plugin: sdd working dirs, generated plans)
+# .superpowers/sdd/.gitignore already self-ignores; this pins intent at root.
+.superpowers/
+docs/superpowers/

@@ -1,7 +1,7 @@
 {
   "schema": "acceptance/1",
-  "generated_at": "2026-09-16T18:27:35+00:00",
-  "git_head": "a97e23cae8eb0a8a881cd9a5e6a0fca37a9a7c0e",
+  "generated_at": "2026-09-18T08:39:01+00:00",
+  "git_head": "291b5fbd801a1f5beb7802ff52a59c7f0e924b20",
   "world_tree_dirty": true,
   "python": "3.11.15",
   "gates_passed": [
@@ -18,8 +18,8 @@
     "6",
     "7"
   ],
-  "gate1_host_semantic_hash": "85ce4cbbb86d66679c0b28be79af0b43e9773a5a559e6dbeb595aee3e669ba7d",
-  "gate3_container_semantic_hash": "85ce4cbbb86d66679c0b28be79af0b43e9773a5a559e6dbeb595aee3e669ba7d",
+  "gate1_host_semantic_hash": "27fb32eec8599e4557403f423095d0f944edf38950c790e6d43940ece07116b5",
+  "gate3_container_semantic_hash": "27fb32eec8599e4557403f423095d0f944edf38950c790e6d43940ece07116b5",
   "cross_host": true,
   "gate7_grading_unreachable": {
     "ran": true,

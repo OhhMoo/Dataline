@@ -264,6 +264,10 @@ required_surfaces = [
 # unexplained hole is a bug wearing a choice's clothes.
 dead_by_design = [
   { label = "ingest", reason = "This world has no ingestion plane. The extract is a landed table with no connector story, and the defect is a transformation bug downstream of landing: a seeded ingest surface would be decoration an agent could spend its budget reading. build_world.py deliberately does not publish the `ingest` key, so the gateway serves no_ingest_state rather than a fabricated one." },
+  # The sweep names the same absent plane per tool; the reason is the one above.
+  { label = "~ingest_list",  reason = "No ingestion plane (see `ingest`)." },
+  { label = "~ingest_runs",  reason = "No ingestion plane (see `ingest`)." },
+  { label = "~ingest_alerts", reason = "No ingestion plane (see `ingest`)." },
 ]
 
 # Pass@1 criterion. A rollout passes iff every listed check passed AND the total
@@ -301,3 +305,30 @@ placeholders = [
   "limits.* - scaled from GT004, not calibrated against any rollout",
   "difficulty.target_pass_at_1 = 0.80 - the LIBRARY TARGET, not an observation. No model has been run against this task. The variant dial exists to move the measured rate toward it and nothing here claims it is already there.",
 ]
+
+# ---------------------------------------------------------------------------
+# THE SCORING MATRIX (new_matrix.md, Layer A). Pass@1 as a single AND over the
+# final world state prints three different stories as the same 0.0. GT005 is a
+# FOUND control: the one mechanism is an assertion that sits in source control
+# and never runs, so the projected pass reads the axis that proves the model
+# SAW that. The gate is the same axis - a cold found leaves the other
+# denominators instead of scoring the episode 0 on them, the same honesty rule
+# as quarantine.
+#
+# The map names check ids grade.py ALREADY emits; it renames nothing. The axes
+# it does not name (warranted, scoped, consumer) are n/a for this task, never 0
+# - C1/C2/P1 stay on the row as diagnostics under their manifest axes, not as
+# library-axis scores.
+# ---------------------------------------------------------------------------
+[matrix]
+pass_axis = "found"
+gate      = "found"
+
+[matrix.map]
+# L1 is the only check whose pass REQUIRES the find: on the world as shipped
+# all four live-fire phases exit 0, so an episode in which the assertion still
+# never runs scores L1 = 0 on novel and novel_sibling. C1 (the number is
+# right) and C2 (the dates are named) can both pass over a diagnosis that
+# missed the swallowed assertion - data_only and hand_patch are measured
+# doing exactly that - so neither can carry the found axis.
+found = ["L1"]

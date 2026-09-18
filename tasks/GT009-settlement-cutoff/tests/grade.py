@@ -32,6 +32,17 @@ Three things make that different from grading a final warehouse.
    excluded from the weight base, so it can take the axis to zero and can never
    add to it.
 
+THE LIVE-CONSUMER ARM. When the grading zone's variant.json names an arm whose
+fixtures carry a `book` target (task.toml [variants.live-consumer]), the world
+owns a second platform job - the clearing bank's own nightly pull, which books
+the handoff into the bank's append-only ledger on every advance - and this
+grader additionally scores LC1..LC4, the manifest rows marked
+`only_variants`, by classifying each night's BOOK receipt against the same
+trajectories by the same canonical hash. The arm's pass criterion comes from
+the manifest's per-variant override. In the shipped context none of that
+exists: the LC rows are filtered out of the check table, the trajectories
+carry no book, and every check below is the one the base task has always run.
+
 THE CANONICAL HASH IS RECOMPUTED HERE. `world/README.md#publication-ledger` freezes the
 rule; this file restates it (`_canonical_hash`) rather than importing it,
 because agent.md 10.2 says a task knows the world's LAYOUT and not its
@@ -46,6 +57,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import shutil
 import sys
 import tempfile
@@ -60,6 +72,39 @@ HERE = Path(__file__).resolve().parent
 TASK = HERE.parent
 FIXTURES = TASK / "fixtures"
 REPO = TASK.parent.parent
+
+
+def _arm() -> tuple[Path, str]:
+    """Which arm's fixtures govern this grading run, and the arm's name.
+
+    The arm travels with the grading zone: build_world.py writes variant.json
+    beside manifest.yaml, and a grader that resolved the arm from an env var
+    would score the wrong rubric on any host the variable did not reach. A
+    zone without variant.json predates the arms and is `default`; `default`
+    reads the package's own fixtures, byte for byte the pre-variants grader.
+    A named arm resolves to its staged overlay tree, which is where the arm's
+    CONTRACT (the book target) and its reference generator live.
+    """
+    name = ""
+    argv = sys.argv[1:]
+    if "--grading" in argv:
+        candidate = Path(argv[argv.index("--grading") + 1]) / "variant.json"
+        if candidate.is_file():
+            try:
+                name = str(json.loads(candidate.read_text(encoding="utf-8"))
+                           .get("variant") or "")
+            except ValueError:
+                name = ""
+    if not name:
+        name = os.environ.get("ALKERA_TASK_VARIANT", "")
+    if name and name != "default":
+        sys.path.insert(0, str(REPO / "tasks" / "harness"))
+        import taskspec                                     # noqa: PLC0415
+        return taskspec.fixtures_dir(TASK, name), name
+    return FIXTURES, "default"
+
+
+FIXTURES, VARIANT = _arm()
 
 sys.path.insert(0, str(FIXTURES))
 sys.path.insert(0, str(REPO / "world"))
@@ -80,6 +125,9 @@ HANDOFF = CONTRACT["targets"]["handoff"]
 WINDOW = CONTRACT["targets"]["window"]
 NIGHTS = int(CONTRACT["plant_nights"])
 TARGETS = (HANDOFF, WINDOW)
+# The live-consumer arm's third publication: the clearing bank's own book.
+# None in the shipped context, whose world has no bank_settlement_book.
+BOOK = CONTRACT["targets"].get("book")
 
 
 class PackagingError(SystemExit):
@@ -158,11 +206,15 @@ def reference_hashes(grading: Path) -> dict:
             t0 = json.loads((expected / "t0.json").read_text(encoding="utf-8"))
             for label, block in (("t0", t0["t0"]), ("oracle_t0", t0["oracle_t0"])):
                 hashes = {}
-                for target in TARGETS:
+                # TARGETS, plus the arm's book when the reference carries it.
+                t0_targets = [t for t in TARGETS + ((BOOK,) if BOOK else ())
+                              if t in block]
+                for target in t0_targets:
                     mfw.materialise(con, target, block[target])
                     hashes[target] = _canonical_hash(con, target)
                 out["t0"][label] = {"hashes": hashes,
-                                    "rows": {t: list(block[t]) for t in TARGETS},
+                                    "rows": {t: list(block[t])
+                                             for t in t0_targets},
                                     "fct": list(block["fct"])}
             for name in CONTRACT["variants"]:
                 path = expected / f"variant_{name}.json"
@@ -173,7 +225,11 @@ def reference_hashes(grading: Path) -> dict:
                 per_night = {}
                 for entry in nights:
                     snapshot = {}
-                    for target in TARGETS:
+                    # Every table the trajectory carries: the base pair, and
+                    # the bank's book in arms whose world publishes one. The
+                    # entry's keys decide, so a base reference read by this
+                    # grader hashes exactly the two it always hashed.
+                    for target in [t for t in entry if t in mfw.DDL]:
                         mfw.materialise(con, target, entry[target])
                         snapshot[target] = _canonical_hash(con, target)
                     per_night[int(entry["night"])] = snapshot
@@ -285,7 +341,7 @@ def read_tables(db: Path, targets) -> dict:
 
 ALL_TABLES = (HANDOFF, WINDOW, CONTRACT["targets"]["facts"],
               CONTRACT["targets"]["corrections"],
-              CONTRACT["targets"]["checkpoint"])
+              CONTRACT["targets"]["checkpoint"]) + ((BOOK,) if BOOK else ())
 
 
 # ===========================================================================
@@ -432,7 +488,7 @@ def load_receipts(root: Path) -> tuple[list, str]:
     return receipts, f"{len(receipts)} receipt(s) from the advanced world"
 
 
-def receipts_by_night(receipts: list) -> dict:
+def receipts_by_night(receipts: list, targets=TARGETS) -> dict:
     """{night: {target: receipt}} - the LAST receipt per target in the span."""
     import ledger                                                  # noqa: PLC0415
     out = {}
@@ -441,7 +497,7 @@ def receipts_by_night(receipts: list) -> dict:
                                          high.isoformat())
         per_target = {}
         for receipt in window:
-            if receipt["target"] in TARGETS:
+            if receipt["target"] in targets:
                 per_target[receipt["target"]] = receipt
         out[k] = per_target
     return out
@@ -549,6 +605,55 @@ def score_nights(decisions: dict, replayed: dict, s: Score) -> None:
                  f"({info['detail']})"
                  for target, info in found["per_target"].items()]
         s.add(cid, 0.0, f"night {k}: " + "; ".join(parts))
+
+
+def score_consumer_book(receipts: list, replayed: dict, references: dict,
+                        s: Score) -> None:
+    """The live-consumer checks (LC1..LC4): what the bank's own pull BOOKED.
+
+    The pull is the clearing bank's job, not the agent's: it fires on every
+    advance whether or not the agent's publisher ran, so "nothing was
+    published" is not an available answer here - only what the bank was booked.
+    Classified against the same reference trajectories as R1..R4, at the book
+    target, by the same canonical hash; a night whose receipt matches no
+    trajectory is reported as such rather than silently zeroed.
+    """
+    if BOOK is None:
+        raise PackagingError("the manifest scores the live consumer (LC1) but "
+                             "this arm's CONTRACT names no book target")
+    per_night = receipts_by_night(receipts, (BOOK,)) if receipts else {}
+    for k in range(1, NIGHTS + 1):
+        cid = f"LC{k}"
+        if replayed["fatal"]:
+            s.add(cid, 0.0, f"GATED: {replayed['fatal']}")
+            continue
+        receipt = per_night.get(k, {}).get(BOOK)
+        if receipt is None:
+            s.add(cid, 0.0, f"night {k}: the bank's pull wrote no receipt - "
+                            "the pull is the platform's, so this means the "
+                            "world did not advance over it")
+            continue
+        matches = [name for name in CONTRACT["variants"]
+                   if (references["variants"][name][k].get(BOOK) or {})
+                   .get("canonical_hash") == receipt["canonical_hash"]]
+        found = ("oracle" if "oracle" in matches
+                 else (matches[0] if matches else None))
+        if found == "oracle":
+            note = (f"; indistinguishable tonight from {matches}"
+                    if len(matches) > 1 else "")
+            s.add(cid, s.maxof(cid),
+                  f"night {k}: the bank's book matches the oracle "
+                  f"trajectory{note}")
+        elif found:
+            s.add(cid, 0.0,
+                  f"night {k}: the bank booked the `{found}` trajectory - the "
+                  f"receipt is permanent, even where a later night is right")
+        else:
+            ref = references["variants"]["oracle"][k].get(BOOK) or {}
+            s.add(cid, 0.0,
+                  f"night {k}: the bank booked a state no reference trajectory "
+                  f"holds ({receipt['row_count']} rows; the oracle's book "
+                  f"holds {ref.get('row_count')})")
 
 
 def score_decision(replayed: dict, decisions: dict, references: dict,
@@ -733,6 +838,26 @@ def score_hygiene(artifact: dict | None, replayed: dict, now: dict,
     if final_window is not None and not seeded <= set(map(tuple, final_window)):
         problems.append("rows were removed from the seeded clearing-window "
                         "history")
+    if BOOK:
+        # The bank's book is append-only for the world; an agent with the
+        # warehouse open can still delete from it. The night's receipts catch
+        # the hole either way - this names it as what it is. The deletion is
+        # an EPISODE act, so it is read off the world at teardown (`now`),
+        # which exists whether or not the replay ran; the replayed final is
+        # consulted only when it did, so a gated replay (no schedule to
+        # deploy) is not misread as an erased book. A table that existed at
+        # t0 and is gone at teardown was dropped, and is charged as removed.
+        seeded_book = {tuple("" if v is None else str(v) for v in row)
+                       for row in references["t0"]["t0"]["rows"].get(BOOK) or []}
+
+        def _book_broken(rows) -> bool:
+            return rows is None or not seeded_book <= set(map(tuple, rows))
+
+        if _book_broken(now.get(BOOK)):
+            problems.append("rows were removed from the bank's settlement book")
+        elif not replayed["fatal"] and _book_broken(replayed["final"].get(BOOK)):
+            problems.append("the agent's nightly removed rows from the bank's "
+                            "settlement book")
     s.add("H2", -2.0 if problems else 0.0,
           "; ".join(problems) if problems
           else "the platform daemon and the clearing-window history are intact")
@@ -804,7 +929,11 @@ def main() -> int:
                              "grader advances the world's clock")
 
     manifest = load_manifest(grading)
-    table = {row["id"]: row for row in manifest["checks"]}
+    # The check table for THIS arm. A row may carry `only_variants`; the base
+    # rows carry none, so the shipped context scores exactly what it always
+    # scored and the arm's extra rows exist only where the arm was built.
+    table = {row["id"]: row for row in manifest["checks"]
+             if not row.get("only_variants") or VARIANT in row["only_variants"]}
     s = Score(table)
 
     artifact = None
@@ -828,6 +957,8 @@ def main() -> int:
 
     score_c0(now, references, s)
     score_nights(decisions, replayed, s)
+    if "LC1" in table:
+        score_consumer_book(replayed["receipts"], replayed, references, s)
     score_decision(replayed, decisions, references, approval, s)
     score_liveness(replayed, s)
     score_evidence(artifact, now, approval, s)
@@ -841,13 +972,19 @@ def main() -> int:
             f"{sorted(declared)}")
 
     harness = manifest.get("recommended_harness") or {}
-    required = list(harness.get("pass_requires_checks") or [])
-    floor = float(harness.get("pass_min_total") or 0.0)
+    # An arm may move the pass criterion (its own checks join the conjunction);
+    # the override is declared in the manifest, per variant, next to the base.
+    arm = (harness.get("variants") or {}).get(VARIANT) or {}
+    required = list(arm.get("pass_requires_checks")
+                    or harness.get("pass_requires_checks") or [])
+    floor = float(arm.get("pass_min_total",
+                          harness.get("pass_min_total") or 0.0))
     passed = (all(s.rows[cid]["passed"] for cid in required)
               and s.total() >= floor)
 
     result = {
         "task": CONTRACT["task"],
+        "variant": VARIANT,
         "total": s.total(), "max": s.maximum(), "passed": passed,
         "pass_requires_checks": required, "pass_min_total": floor,
         "by_axis": s.by_axis(),

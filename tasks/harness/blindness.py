@@ -126,6 +126,13 @@ import re
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+#: The drivers whose subject holds the gateway's MCP tools and nothing else -
+#: the `tool_surface_revoked` guarantee. Every rule that says "mcp or kimi"
+#: means this set; a third MCP-speaking client is one entry here, not a hunt
+#: through the harness - provided its init event reports the tools its own
+#: client offered, which is what detector 1 verifies against.
+MCP_DRIVERS = ("mcp", "kimi")
+
 # tool families the subject must not have. Fail closed: unknown -> hard.
 WEB_TOOLS = {"websearch", "webfetch"}
 FS_TOOLS = {"read", "write", "edit", "multiedit", "notebookedit", "glob", "grep", "ls"}
@@ -540,7 +547,7 @@ def guarantee(*, driver: str, topology: str,
     as well as enforced in `rollout.py`, and a record that does not carry it
     cannot be reclassified into the strong claim either.
     """
-    base = ("tool_surface_revoked" if driver in ("mcp", "kimi")
+    base = ("tool_surface_revoked" if driver in MCP_DRIVERS
             else "detection_only")
     if topology != "container":
         return base
@@ -555,7 +562,7 @@ def guarantee(*, driver: str, topology: str,
 
 def expected_tool_surface(driver: str, gateway_tools: list[str],
                           mcp_server: str = "alkera") -> set[str]:
-    if driver in ("mcp", "kimi"):
+    if driver in MCP_DRIVERS:
         # both revoke everything but the gateway tools; kimi's surface is
         # verified from its wire log's llm.tools_snapshot (see kimi_subject.py)
         return {f"mcp__{mcp_server}__{t}" for t in gateway_tools}
@@ -795,7 +802,7 @@ def detect(*, transcript: list[dict], driver: str, gateway_tools: list[str],
                     f"the action log, is what audits this plane"))
                 continue
             v.append(Violation("out_of_band_world_change",
-                               driver not in ("mcp", "kimi"),
+                               driver not in MCP_DRIVERS,
                                "world_diff",
                                f"{rel} changed but no gateway call targets it"))
 

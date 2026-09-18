@@ -305,3 +305,62 @@ pass_requires_checks = ["D1a", "D1b", "D2", "D3a", "D3b", "D4a", "D4b",
                         "D5", "D6", "D8"]
 pass_min_total = 17.0
 pass_min_total_measured = true
+
+# ---------------------------------------------------------------------------
+# Scoring matrix (new_matrix.md, 2026-09-17; Layer A: score-only - no new
+# model tokens, no grader point-total changes). Consumed by
+# tasks/harness/axes.py via taskspec.load; the legacy criterion above still
+# decides pass_all_required.
+#
+# GT003's row (new_matrix.md section 3.2): "rev_snapshot as a record; FOUND =
+# torn 08:15; SCOPED = one tick; finish D6 later - no new defect". Section 2.1:
+# "GT002, GT003: SCOPED - one torn tick, not the whole record". The pass bit
+# this task presents is therefore the SCOPED rate alone, behind a FOUND gate:
+#
+#   found   D1a alone (remapped 2026-09-17, MATRIX_RERUN_EDITS 0.2): the
+#           primary cause named as a read landing inside the publish window.
+#           D1b moved OUT of the gate - the damage window is the WIDTH of the
+#           restatement, which is scope, not discovery. Under the old map the
+#           three bulk restaters failed D1b, went gate-cold, and SCOPED printed
+#           1.0 from the two admitted. On the stored run this map reads FOUND
+#           4/5 (r2 is gate-cold on D1a vocabulary - a rubric weakness,
+#           MATRIX_RERUN_EDITS 2.3), SCOPED 2/4.
+#   scoped  D5 and D1b. D5 IS "one torn tick, not the whole record": it pays
+#           only when the torn tick is restated to a single whole build AND
+#           every other row of the record up to its last tick is untouched
+#           (a tick appended after the record's last tick is the extract's
+#           own contract - counted and named, never charged). D1b is the
+#           damage window the episode committed to - an episode that read the
+#           window as wider than one tick is declaring a wider permission.
+#           The 640-3,133-row bulk restatement a full refresh produces lands
+#           in D5's history diff and scores 0 there, which is exactly the
+#           discrimination this axis exists to keep.
+#
+# RETIRED CONCERN, measured 2026-09-17 (was: "KNOWN-BROKEN, encoded not
+# fixed", new_matrix.md section 4 item 8 / MATRIX_RERUN_EDITS 0.7): D6 was
+# believed to reward ONLY a BEGIN TRANSACTION publish, which the sql_execute
+# surface refuses (gateway/sql.py inspect_statement). The stored run says
+# otherwise: two episodes passed D6 with multi-statement scripts carrying no
+# transaction (12 and 14 statements; the probe checks every interleave point,
+# not the mechanism), and the one episode that failed on CREATE OR REPLACE
+# (r4, 17/20) genuinely left a torn interleave - per-relation replace keeps a
+# one-statement window between fact and dim, which is the defect, documented
+# or not. The transaction family is also deployable: the scheduler runs the
+# script with `duckdb -f`, no gateway in front; only ad-hoc sql_execute
+# refuses BEGIN. So D6 stays as it is, points unchanged, still mapped onto NO
+# axis (it measures publish atomicity, not scope), and manifest.yaml's fix
+# families now record all of this. If a prospective run shows D6 failing a
+# fix that IS atomic in-world, reopen it then with that episode in hand.
+#
+# warranted and consumer are deliberately unmapped: no check this grader emits
+# isolates them yet, and an axis with no mapped checks is n/a for the episode
+# - never 0 (axes.py axis_rate). D7 (decoy reporting, not required for pass)
+# and D8 (penalty-only collateral guard) are likewise mapped nowhere.
+# ---------------------------------------------------------------------------
+[matrix]
+pass_axis = "scoped"
+gate      = "found"
+
+[matrix.map]
+found  = ["D1a"]
+scoped = ["D5", "D1b"]

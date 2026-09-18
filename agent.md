@@ -26,6 +26,7 @@ The core bets of the project:
    not a file.
 2. **A generator, not a hand-authored world list.** A parameterized engine synthesizes
    thousands of coherent world variants — schemas, lineage depth, org conventions, data
+   
    distributions, seeded faults — so the asset compounds instead of leaking and
    saturating like a static benchmark.
 3. **Native surfaces, not a tool list** (revised 2026-09-16; was "MCP everywhere").

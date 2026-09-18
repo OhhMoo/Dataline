@@ -398,5 +398,39 @@ class OnboardingTest(unittest.TestCase):
             self.assertIn(f"`{service.alias}:{service.port}`", self.page)
 
 
+class WriteForBuiltWorldTest(unittest.TestCase):
+    """Discovery files for a fixture world that never set native: true."""
+
+    def test_workspace_only_writes_envrc_and_onboarding_not_postgres_profiles(self):
+        tmp = Path(tempfile.mkdtemp(prefix="native-built-"))
+        self.addCleanup(shutil.rmtree, tmp, True)
+        root = tmp / "w"
+        (root / "workspace").mkdir(parents=True)
+        native_workspace.write_for_built_world(root)
+        envrc = (root / "workspace" / ".envrc").read_text(encoding="utf-8")
+        self.assertIn("JIRA_URL", envrc)
+        self.assertTrue((root / "workspace" / "docs" / "onboarding.md").is_file())
+        self.assertFalse((root / native_workspace.HOME / ".dbt" / "profiles.yml").exists())
+
+    def test_onboarding_jobs_come_only_from_sched_state(self):
+        tmp = Path(tempfile.mkdtemp(prefix="native-built-jobs-"))
+        self.addCleanup(shutil.rmtree, tmp, True)
+        root = tmp / "w"
+        (root / "workspace").mkdir(parents=True)
+        state = root / "var" / "sched" / "state.json"
+        state.parent.mkdir(parents=True)
+        state.write_text(json.dumps({
+            "vnow": "2026-01-01T00:00:00Z",
+            "jobs": {"nightly_load": {"command": "script"}},
+            "runs": [],
+        }), encoding="utf-8")
+        native_workspace.write_for_built_world(root)
+        page = (root / "workspace" / "docs" / "onboarding.md").read_text(
+            encoding="utf-8")
+        self.assertIn("`nightly_load`", page)
+        named = set(re.findall(r"^\| `([a-z0-9_]+)` \| `", page, re.M))
+        self.assertEqual(named, {"nightly_load"})
+
+
 if __name__ == "__main__":
     unittest.main()

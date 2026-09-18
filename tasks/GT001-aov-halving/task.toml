@@ -104,6 +104,27 @@ surface_probes = [
   { label = "dbt",        tool = "dbt_compile", args = { selector = "fct_orders" }, covers = ["dbt_run", "dbt_test"] },
 ]
 
+# Dead ON PURPOSE, each with the reason. A minimal world is a choice; an
+# unexplained hole is a bug wearing a choice's clothes (MATRIX_RERUN_EDITS
+# 0.5: without these declarations the stored reports re-report as
+# measurement_valid: false, "surfaces were dead that the task neither
+# requires nor declares dead by design").
+dead_by_design = [
+  { label = "dbt", reason = "The workspace ships the fct_orders model SQL as EVIDENCE, not a runnable project: there is no dbt_project.yml and no profiles.yml. The defect is a scheduler retry that re-ran that SQL against the warehouse; the repair is data-side and no episode needs dbt to execute." },
+  { label = "bi_cached", reason = "Dashboards render live (bi_render is live); no cached snapshot is seeded because the task never asks the agent to compare against a stale render." },
+  { label = "s3", reason = "No object-storage plane: the retry re-ran warehouse SQL, and there are no landing buckets to inspect." },
+  { label = "~issues_list", reason = "No issue tracker: the incident arrives as the brief, not as a ticket." },
+  { label = "~chat_channels", reason = "No chat plane: this world has no channels; what the team knows lives in docs/." },
+  { label = "~kb_list", reason = "No wiki plane: docs/ carries the runbook; no Confluence-shaped store is seeded." },
+  { label = "~metrics_list", reason = "No observability plane: the world ships no var/obs definitions; the symptom is the dashboard-versus-warehouse divergence, read off the data." },
+  { label = "~alarms_list", reason = "No observability plane (see ~metrics_list): there are no alarms to list." },
+  { label = "~alarms_history", reason = "No observability plane (see ~metrics_list): there is no alarm history." },
+  { label = "~ingest_list", reason = "No ingestion plane: the extract is a landed table with no connector story." },
+  { label = "~ingest_runs", reason = "No ingestion plane (see ~ingest_list)." },
+  { label = "~ingest_alerts", reason = "No ingestion plane (see ~ingest_list)." },
+  { label = "~deploy_list", reason = "No release plane: nothing in this world is deployed; the scheduler runs the jobs." },
+]
+
 # Pass@1 criterion. A rollout passes iff every listed check passed AND the total
 # clears the floor. Chosen against the measured baseline profile:
 #   oracle 19 · dedupe_only 17 · checklist 17 · full_refresh 9 · no_op 0
@@ -123,3 +144,23 @@ surface_probes = [
 # reports what it was told to count.
 pass_requires_checks = ["D1", "D2", "D3", "D4", "D5a", "D5b", "D7"]
 pass_min_total = 17.0
+
+# ---------------------------------------------------------------------------
+# Scoring matrix (new_matrix.md §2.1 projection table: GT001 is a FOUND
+# control; §3.2: FOUND = the agent named the non-idempotent retry).
+#
+# This task is a control: the repair being named and holding IS the question,
+# so `found` is both the pass axis (pi) and the admission gate (>). D5a is
+# the check that proves the retry was named - grade.py accepts only a primary
+# cause that says the retry/append duplicated fct_orders, and rejects the
+# decoys. DURABLE ("a second run does not re-halve") stays per-task in the
+# idempotency probe and D7; it is deliberately not a library axis (axes.py).
+# Axes with no mapped checks report n/a, never 0.
+# ---------------------------------------------------------------------------
+[matrix]
+pass_axis = "found"
+gate      = "found"
+
+[matrix.map]
+# check ids emitted by tests/grade.py
+found = ["D5a"]

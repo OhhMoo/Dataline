@@ -193,7 +193,14 @@ ordering_probe:
        reflects the probe delta - a disabled or frozen extract scores zero"
   accepted_fix_families:
     - "wrap the publish in one transaction (measured: a reader on another
-       connection sees the pre-swap state until COMMIT, DuckDB 1.5.5)"
+       connection sees the pre-swap state until COMMIT, DuckDB 1.5.5).
+       Deployable and testable in-world: the scheduler runs the script with
+       `duckdb -f pipelines/mart_rebuild.sql`, which has no gateway in front
+       of it - the refusal of BEGIN is the ad-hoc sql_execute surface
+       (gateway/sql.py inspect_statement), not the job path. Write the file,
+       trigger mart_hourly_rebuild, read the log. Verified 2026-09-17 against
+       the stored run: two episodes passed D6 with multi-statement scripts
+       (12 and 14 statements), so the probe does not require a transaction."
     - "publish one pre-joined relation so there is no window between two renames"
     - "stamp both relations with a build id and have the extract refuse a
        mismatched pair"
@@ -203,6 +210,10 @@ ordering_probe:
     - "disable the extract, or make it write nothing (fails liveness)"
     - "make the extract a single statement (measured: it still observes the
        half-swapped catalog)"
+    - "per-relation CREATE OR REPLACE with the residual window documented
+       (measured 2026-09-17, mcp-20260917-k5 r4: six statements, a read after
+       statement 5 still observed new fact against old dim). A narrower window
+       is still the defect; documenting it does not close it"
 
 # ---------------------------------------------------------------------------
 # Secondary findings and the false-cause penalty. Without the penalty an agent

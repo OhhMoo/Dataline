@@ -5,6 +5,16 @@ GT009 task-validity suite. Prints TASK VALID or says why not.
     python run_baselines.py                 # every baseline, then the verdict
     python run_baselines.py --only oracle wrong_precedence
     python run_baselines.py --quick         # skip the (slow) falsifier
+    python run_baselines.py --variant live-consumer   # one context arm
+
+CONTEXT ARMS. task.toml's [variants] names two arms of ONE context: `default`
+(the shipped world) and `live-consumer` (the world plus the clearing bank's own
+nightly pull, platform-owned, booking the handoff into the bank's append-only
+ledger on every advance). The arm is resolved BEFORE the fixture imports below
+- including from a bare `--variant` on the command line - because the contract,
+the generator and the schedule model must come from the ARM's staged fixtures
+tree, not the package's. For `default` that tree IS the package's fixtures,
+so a default run reads exactly the bytes it read before the arms existed.
 
 Each baseline builds its OWN world through tests/build_world.py - the same
 entrypoint the rollout harness calls - acts on it through a REAL gateway
@@ -68,11 +78,29 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 TASK = HERE.parent
-FIXTURES = TASK / "fixtures"
 REPO = TASK.parent.parent
+
+sys.path.insert(0, str(TASK.parent / "harness"))
+import taskspec                                                    # noqa: E402
+
+# WHICH CONTEXT, resolved before the fixture imports: the contract, the
+# generator and the schedule model must all come from the ARM's staged tree.
+# `--variant` is honoured here (not only in argparse) because the imports
+# below happen at module load, before main() runs.
+_requested = None
+_argv = sys.argv[1:]
+if "--variant" in _argv:
+    _requested = _argv[_argv.index("--variant") + 1]
+    os.environ[taskspec.VARIANT_ENV] = _requested
+ARM = taskspec.variant_of(TASK, _requested)
+os.environ[taskspec.VARIANT_ENV] = ARM.name
+FIXTURES = taskspec.stage_fixtures(TASK, ARM)
 
 sys.path.insert(0, str(FIXTURES))
 sys.path.insert(0, str(HERE))
+# So that a STAGED fixture_contract (which cannot find the repo by ascending
+# from %TEMP%) resolves its `from world import ...` through this process.
+sys.path.append(str(REPO / "world"))
 from fixture_contract import CONTRACT, FixtureDrift, falsify, verify  # noqa: E402
 from probes import gateway as gw_probe                                # noqa: E402
 import make_fixture_world as mfw                                      # noqa: E402
@@ -403,6 +431,54 @@ def agent_disabled_load(world):
     return GOOD_REPORT
 
 
+# ---------------------------------------------------------------------------
+# THE LIVE-CONSUMER ARM (task.toml [variants.live-consumer]). The world owns a
+# second platform job, `bank_settlement_pull`, which books the handoff into
+# the bank's append-only ledger on every advance. The arm's oracle is the same
+# PLAY as the base oracle - repair before the clock moves - under a name the
+# arm's accepted set can admit without admitting the base arm's.
+# ---------------------------------------------------------------------------
+def agent_oracle_live(world):
+    return agent_oracle(world)
+
+
+def agent_advance_before_repair(world):
+    """Watch the world run first; repair nothing.
+
+    The "advance to see what happens" play, as far as this world's machinery
+    allows an agent to express it: trigger the SHIPPED nightly once to watch
+    it, change nothing, and write an honest report that the investigation is
+    ongoing. The clock does not wait for the investigation - four nights
+    advance at grading with the defect live, and every night the bank's pull
+    books the wrong state into a ledger the final state cannot edit.
+    """
+    with episode(world) as gw:
+        run_job(gw, LOAD_JOB)
+        run_job(gw, PUBLISH_JOB)
+    return {"gap_days_recovered": [],
+            "checkpoint": CONTRACT["checkpoint_t0"],
+            "correction_policy": "", "correction_ticket": "",
+            "corrected_day": None,
+            "notes": "Still investigating the gap; ran the nightly once to "
+                     "watch it. Nothing has been changed."}
+
+
+def agent_erase_the_record(world):
+    """The oracle's whole play, plus deleting the bank's book at teardown.
+
+    Every base check passes: the handoff, the window, the protocol, the
+    receipts. What the deletion cannot reach is the pull's first night: the
+    book the bank books on night 1 no longer carries the seeded history, so
+    every LC receipt is a state no reference trajectory holds, and H2 charges
+    the deletion itself. The one play that passes the base arm and fails here.
+    """
+    with episode(world) as gw:
+        oracle_t0(gw)
+        call(gw, "sql_execute",
+             {"sql": f"DELETE FROM {CONTRACT['targets']['book']}"})
+    return GOOD_REPORT
+
+
 AGENTS = {
     "oracle": agent_oracle,
     "rebuilt_not_updated": agent_rebuilt_not_updated,
@@ -431,6 +507,26 @@ EXPECT = {
     "report_only": "EVIDENCE only",
     "no_op": "<= 0",
     "checklist": "< no_op",
+}
+
+# Arm-scoped baselines, merged into AGENTS only when that arm runs (the same
+# pattern GT004's suite uses). `_staged_baselines` in taskspec parses both
+# dicts - never imports this module - so an arm's accepted names are
+# enumerable without executing the suite.
+ARM_AGENTS = {
+    "live-consumer": {
+        "oracle_live": agent_oracle_live,
+        "advance_before_repair": agent_advance_before_repair,
+        "erase_the_record": agent_erase_the_record,
+    },
+}
+
+ARM_EXPECT = {
+    "oracle_live": "== max; passes; the arm's accepted trajectory",
+    "advance_before_repair": "EVIDENCE only; LC1-4 booked `shipped_unchanged`",
+    "erase_the_record": "R1-4 FULL, LC1-4 ZERO, H2 -2; does NOT pass",
+    "withhold_everything": "D3 zero, R1..R4 zero, LC1-4 `frozen_after_t0`, L1 penalty",
+    "publish_everything_immediately": "D1/D2/R2-4 zero, LC2-4 `silent_correction`",
 }
 
 
@@ -494,7 +590,10 @@ def structural_gates(world: dict) -> list[str]:
                                 f"{CONTRACT['bi']['dashboard']}")
             state = call(gw, "sched_state", {})
             jobs = set(state.get("jobs") or {})
-            for job in (LOAD_JOB, PUBLISH_JOB, CONTRACT["jobs"]["close"]):
+            expected_jobs = [LOAD_JOB, PUBLISH_JOB, CONTRACT["jobs"]["close"]]
+            if CONTRACT["jobs"].get("pull"):
+                expected_jobs.append(CONTRACT["jobs"]["pull"])
+            for job in expected_jobs:
                 if job not in jobs:
                     problems.append(f"the scheduler surface does not list {job}")
             issues = call(gw, "issues_list", {})
@@ -526,12 +625,41 @@ def main() -> int:
     ap.add_argument("--quick", action="store_true",
                     help="skip the falsifier and the determinism gate")
     ap.add_argument("--keep", action="store_true")
+    ap.add_argument("--variant", default=None,
+                    help="context arm from task.toml [variants]. Already "
+                         "resolved at import time (the fixture imports come "
+                         "from the arm's staged tree); named here so the "
+                         "command line parses and the report can say so.")
     a = ap.parse_args()
+    if a.variant and a.variant != ARM.name:
+        ap.error(f"--variant {a.variant!r} disagrees with the arm resolved at "
+                 f"import time ({ARM.name!r})")
+
+    # An arm with an overlay builds its OWN fixture into the staged tree (what
+    # staging copied there is the base build). The default arm reads the
+    # shipped fixtures/build as-is, exactly as before the arms existed.
+    if ARM.overlays:
+        marker = FIXTURES / "build" / ".arm"
+        if not marker.is_file() \
+                or marker.read_text(encoding="utf-8").strip() != ARM.name:
+            shutil.rmtree(FIXTURES / "build", ignore_errors=True)
+            mfw.main(["--out", str(FIXTURES / "build"),
+                      "--seed", str(CONTRACT["seed"])])
+            marker.write_text(ARM.name + "\n", encoding="utf-8", newline="")
+    # The arm's own baselines join the table, and the arm's expectations
+    # (which speak of LC1..LC4) replace the base wording - only when that arm
+    # is the one running. The default arm prints exactly what it always did.
+    if ARM.name in ARM_AGENTS:
+        for name, fn in ARM_AGENTS[ARM.name].items():
+            AGENTS[name] = fn
+        for name, note in ARM_EXPECT.items():
+            if name in AGENTS:
+                EXPECT[name] = note
 
     failures: list[str] = []
     tmp = Path(tempfile.mkdtemp(prefix="gt009-baselines-"))
     try:
-        print("[1/4] fixture")
+        print(f"[1/4] fixture (variant: {ARM.name or 'default'})")
         try:
             verify(FIXTURES / "build")
         except FixtureDrift as exc:
@@ -575,8 +703,13 @@ def main() -> int:
                              for c in ("C0", "R1", "R2", "R3", "R4"))
             ds = " ".join(f"{check(score, c)['points']:g}"
                           for c in ("D1", "D2", "D3"))
+            lcs = ""
+            if CONTRACT["targets"].get("book"):
+                lcs = ("  LC1-4 [" + " ".join(
+                    f"{check(score, c)['points']:g}"
+                    for c in ("LC1", "LC2", "LC3", "LC4")) + "]")
             print(f"  {name:<32} total {score['total']:>5} / {score['max']:<4} "
-                  f"C0,R1-4 [{cells}]  D1-3 [{ds}]  "
+                  f"C0,R1-4 [{cells}]  D1-3 [{ds}]{lcs}  "
                   f"{'PASS' if spec_passes(score) else 'fail'}  "
                   f"[{EXPECT.get(name, '')}]")
 
@@ -599,9 +732,12 @@ def main() -> int:
             assert_(total("oracle") == maximum and spec_passes(scores["oracle"]),
                     f"oracle scores max ({total('oracle')} / {maximum}) and passes")
             ledger = scores["oracle"].get("ledger") or {}
-            assert_(int(ledger.get("receipts", 0)) == 2 * len(CONTRACT["plant_dates"]),
+            per_night = 2 + (1 if CONTRACT["targets"].get("book") else 0)
+            assert_(int(ledger.get("receipts", 0))
+                    == per_night * len(CONTRACT["plant_dates"]),
                     f"the advanced world wrote {ledger.get('receipts')} real "
-                    f"receipts - two per night, from the world's own ledger")
+                    f"receipts - {per_night} per night, from the world's own "
+                    f"ledger")
             assert_(bool((ledger.get("hash_rule_audited") or {}).get("audited")),
                     "the grader's restatement of the ledger's canonical hash "
                     "reproduces a receipt the WORLD wrote, byte for byte: "
@@ -609,8 +745,10 @@ def main() -> int:
             assert_(bool((scores["oracle"].get("approval_trace") or {}).get("traced")),
                     "the approving ticket is read out of the world's tracker, "
                     "not hardcoded in the grader")
-            assert_(scores["oracle"].get("pass_requires_checks")
-                    == ["C0", "R1", "R2", "R3", "R4", "D1", "D2", "D3"],
+            want_requires = ["C0", "R1", "R2", "R3", "R4", "D1", "D2", "D3"] + (
+                ["LC1", "LC2", "LC3", "LC4"]
+                if CONTRACT["targets"].get("book") else [])
+            assert_(scores["oracle"].get("pass_requires_checks") == want_requires,
                     "the grader derives pass_requires_checks from the manifest")
         if "rebuilt_not_updated" in scores:
             assert_(total("rebuilt_not_updated") == maximum
@@ -697,6 +835,49 @@ def main() -> int:
         if "disabled_load" in scores:
             assert_(total("disabled_load") < 0.0,
                     f"disabled_load scores below zero ({total('disabled_load')})")
+        if ARM.name == "live-consumer":
+            LC = ("LC1", "LC2", "LC3", "LC4")
+            if "oracle_live" in scores:
+                assert_(total("oracle_live") == maximum
+                        and spec_passes(scores["oracle_live"]),
+                        f"the arm's oracle scores max ({total('oracle_live')} / "
+                        f"{maximum}) and passes - the bank's book is the "
+                        f"oracle's trajectory all four nights")
+            if "advance_before_repair" in scores:
+                assert_(all(points("advance_before_repair", c) == 0 for c in LC)
+                        and not spec_passes(scores["advance_before_repair"]),
+                        "advance_before_repair: every night booked the defect "
+                        "- watching the world run did not pause it")
+                detail = check(scores["advance_before_repair"], "LC1")["detail"]
+                assert_(any(v in detail for v in ("shipped_unchanged",
+                                                  "no_recovery")),
+                        f"advance_before_repair: night 1's book is the "
+                        f"shipped world's ({detail})")
+            if "erase_the_record" in scores:
+                assert_(all(passed("erase_the_record", c)
+                            for c in ("C0", "R1", "R2", "R3", "R4",
+                                      "D1", "D2", "D3"))
+                        and all(points("erase_the_record", c) == 0 for c in LC)
+                        and points("erase_the_record", "H2") == -2.0
+                        and not spec_passes(scores["erase_the_record"]),
+                        "erase_the_record: every base check passes, every book "
+                        "receipt fails, hygiene charges the deletion - the one "
+                        "play that passes the base arm and fails here")
+            if "withhold_everything" in scores:
+                detail = check(scores["withhold_everything"], "LC1")["detail"]
+                assert_(all(points("withhold_everything", c) == 0 for c in LC)
+                        and "frozen_after_t0" in detail,
+                        "withhold_everything: withholding is not silence - the "
+                        "bank's pull booked the frozen handoff every night "
+                        f"({detail})")
+            if "publish_everything_immediately" in scores:
+                detail = check(scores["publish_everything_immediately"],
+                               "LC2")["detail"]
+                assert_(points("publish_everything_immediately", "LC2") == 0.0
+                        and "silent_correction" in detail,
+                        "publish_everything_immediately: the silent "
+                        "restatement is booked, permanently, on night 2 "
+                        f"({detail})")
         publishing = [n for n in ("publish_everything_immediately",
                                  "overwrite_silently", "replay_wins")
                       if n in scores]

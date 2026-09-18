@@ -19,9 +19,37 @@ top-level directories, each a full copy of its parent. A copy drifts: the day
 the parent's grader is fixed, seven graders disagree and nobody notices,
 because `diff -rq` over a 25 MB fixture tree is not something anyone runs
 twice. One directory, seven overlays of four YAML files each, cannot drift.
+
+SCORING MATRIX. A task may also declare `[matrix]` (new_matrix.md, Layer A):
+the projection of its grader's EXISTING check ids onto the four library axes
+of axes.py - `pass_axis` (the axis the projected pass reads), `gate` (the axis
+that admits an episode to the other denominators), `accepted` (the baselines
+oracle validity must admit) and `[matrix.map]` (axis -> check ids). Layer A is
+score-only: nothing here moves a point, a check id or the pass criterion. Two
+rules the frozen dataclass does not enforce and this loader therefore does:
+
+  * a `[matrix]` table must state `gate` explicitly. MatrixSpec defaults gate
+    to 'found' so that CODE can construct one, but a declaration that decides
+    which episodes enter a denominator has to say so, not inherit it. The one
+    gateless case - a control task with nothing to find - spells it
+    `gate = false`.
+  * `accepted` names are checked against the baselines the package STAGES,
+    where that set is enumerable. The roster lives in Python, not in
+    task.toml: tests/run_baselines.py keeps an AGENTS dict (GT004/GT008/GT009;
+    GT004 adds arm-specific entries in ARM_AGENTS), GT005 a BASELINES dict,
+    and GT001's suite declares neither - so where no roster parses out of the
+    file (read with ast, NEVER imported: the suite imports the world stack at
+    module level), `accepted` is validated as a list of strings and no
+    further. An accepted name no baseline answers to is a typo that would
+    otherwise surface as a silently empty oracle-validity set.
+
+A variant may override the matrix per key: `[variants.<name>.matrix]` and
+`[variants.<name>.matrix.map]` replace exactly the keys they declare, the same
+pattern `[variants.<name>.grading]` uses for the pass criterion.
 """
 from __future__ import annotations
 
+import ast
 import hashlib
 import os
 import shutil
@@ -29,6 +57,8 @@ import tempfile
 import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
+
+from axes import ArtifactTokens, MatrixError, MatrixSpec
 
 TASKS_DIR = Path(__file__).resolve().parent.parent
 
@@ -74,12 +104,17 @@ class Variant:
               build_world.py writes them into the grading zone so the grader
               reads the arm it was actually run under rather than an env var
               that may have been lost across a subprocess boundary.
+    matrix    the arm's [variants.<name>.matrix] block, raw. Per-key override
+              of the task's [matrix], the same pattern as `grading`: a key the
+              arm declares replaces the task-level one, a key it does not is
+              inherited. Empty when the arm overrides nothing.
     """
     name: str
     note: str
     overlays: tuple = ()
     prompt: str = ""
     grading: dict = field(default_factory=dict)
+    matrix: dict = field(default_factory=dict)
 
     @property
     def overlay(self) -> Path | None:
@@ -143,6 +178,14 @@ class TaskSpec:
 
     pass_requires_checks: list[str] = field(default_factory=list)
     pass_min_total: float = 0.0
+
+    # The task's scoring matrix (new_matrix.md, Layer A), resolved through the
+    # variant's [variants.<name>.matrix] override if it declares one. None when
+    # the task has no [matrix] table - most tasks - and for them nothing about
+    # loading, running or the pass criterion changes: Layer A is score-only, so
+    # pass_requires_checks / pass_min_total above still decide the Pass@1 bit
+    # and the matrix projects the SAME checks onto the library axes.
+    matrix: MatrixSpec | None = None
 
     def scores_pass(self, score: dict) -> bool:
         """Did this rollout solve the task? Criterion comes from the task."""
@@ -252,13 +295,184 @@ def _declared_variants(task_id: str, root: Path, raw: dict) -> dict[str, Variant
         out[name] = Variant(
             name=name, note=note, overlays=tuple(overlays),
             prompt=str(block.get("prompt", "")),
-            grading=dict(block.get("grading") or {}))
+            grading=dict(block.get("grading") or {}),
+            matrix=_variant_matrix(task_id, name, block))
     if out["default"].overlays:
         raise TaskSpecError(
             f"{task_id} [variants].default declares an overlay. `default` IS "
             f"the shipped fixtures; an overlay on it means the directory and "
             f"the default arm have already diverged.")
     return out
+
+
+def _variant_matrix(task_id: str, name: str, block: dict) -> dict:
+    """The arm's raw [variants.<name>.matrix] block, or {}. Resolution against
+    the task's [matrix] happens in `_matrix_spec`, once the arm is known."""
+    matrix = block.get("matrix")
+    if matrix is None:
+        return {}
+    if not isinstance(matrix, dict):
+        raise TaskSpecError(
+            f"{task_id} [variants].{name}.matrix must be a table, "
+            f"got {matrix!r}")
+    return dict(matrix)
+
+
+def _staged_baselines(root: Path) -> set[str] | None:
+    """The baseline names a package's tests/run_baselines.py stages, or None.
+
+    The roster lives in Python, not in task.toml, and each package's suite
+    keeps its own shape: GT004/GT008/GT009 an `AGENTS` dict (GT004 adds
+    arm-specific entries in `ARM_AGENTS`), GT005 a `BASELINES` dict, GT001's
+    suite neither. The names are read by PARSING, never by importing - the
+    suite imports the world stack at module level. None means "not enumerable
+    here", and `accepted` is then validated for type only.
+    """
+    path = root / "tests" / "run_baselines.py"
+    if not path.is_file():
+        return None
+    try:
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+    except (OSError, SyntaxError, ValueError):
+        return None
+
+    def keys_of(node) -> set[str]:
+        if not isinstance(node, ast.Dict):
+            return set()
+        return {k.value for k in node.keys
+                if isinstance(k, ast.Constant) and isinstance(k.value, str)}
+
+    names: set[str] = set()
+    for node in tree.body:
+        if isinstance(node, ast.Assign):
+            targets = {t.id for t in node.targets if isinstance(t, ast.Name)}
+        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+            targets = {node.target.id}
+        else:
+            continue
+        if targets & {"AGENTS", "BASELINES"}:
+            names |= keys_of(node.value)
+        if "ARM_AGENTS" in targets and isinstance(node.value, ast.Dict):
+            for arm_table in node.value.values:
+                names |= keys_of(arm_table)
+    return names or None
+
+
+def _matrix_spec(task_id: str, root: Path, base: dict | None,
+                 arm: dict | None) -> MatrixSpec | None:
+    """`[matrix]` plus the resolved arm's `[variants.<name>.matrix]` -> MatrixSpec.
+
+    Per-key override, the same pattern as the arm's grading flags: a key the
+    arm declares replaces the task-level one (so an arm's [matrix.map] replaces
+    the whole map, not one axis of it), a key it does not is inherited. Two
+    TOML-level refusals the frozen dataclass does not make: a declaration must
+    state `pass_axis`, and it must state `gate` EXPLICITLY somewhere - the
+    'found' default in MatrixSpec is for code, not for a declaration that
+    decides which episodes enter a denominator. `gate = false` is the explicit
+    spelling of the gateless control task (TOML has no null).
+    """
+    if base is not None and not isinstance(base, dict):
+        raise TaskSpecError(
+            f"{task_id} [matrix] must be a table, got {base!r}")
+    if base is None and not arm:
+        return None
+    base, arm = base or {}, arm or {}
+
+    def pick(key: str, default=None):
+        return arm[key] if key in arm else base.get(key, default)
+
+    if "pass_axis" not in base and "pass_axis" not in arm:
+        raise TaskSpecError(
+            f"{task_id} [matrix] sets no `pass_axis`. The pass the matrix "
+            f"presents is the rate on that axis alone; without it there is no "
+            f"projection, only the four diagnostic rates.")
+    if "gate" not in base and "gate" not in arm:
+        raise TaskSpecError(
+            f"{task_id} [matrix] sets no `gate`. MatrixSpec defaults gate to "
+            f"'found' so that CODE can construct one, but a declaration that "
+            f"decides which episodes enter the other denominators has to say "
+            f"so. State the axis, or `gate = false` for a control task with "
+            f"nothing to find.")
+    gate = pick("gate")
+    if gate is False:
+        gate = None
+    elif not isinstance(gate, str):
+        raise TaskSpecError(
+            f"{task_id} [matrix].gate must be one of the library axes or "
+            f"`false`, got {gate!r}")
+
+    accepted = pick("accepted", [])
+    if not isinstance(accepted, list) \
+            or not all(isinstance(a, str) for a in accepted):
+        raise TaskSpecError(
+            f"{task_id} [matrix].accepted must be a list of baseline names, "
+            f"got {accepted!r}")
+    known = _staged_baselines(root)
+    if accepted and known is not None:
+        unknown = sorted(set(accepted) - known)
+        if unknown:
+            raise TaskSpecError(
+                f"{task_id} [matrix].accepted names {unknown}, which "
+                f"tests/run_baselines.py does not stage. Staged baselines: "
+                f"{sorted(known)}. An accepted name no baseline answers to is "
+                f"a typo that would otherwise read as an empty oracle-validity "
+                f"set.")
+
+    raw_map = pick("map", {})
+    if not isinstance(raw_map, dict):
+        raise TaskSpecError(
+            f"{task_id} [matrix.map] must be a table of axis -> check ids, "
+            f"got {raw_map!r}")
+    axis_map = {}
+    for axis, ids in raw_map.items():
+        if not isinstance(ids, list) \
+                or not all(isinstance(i, str) for i in ids):
+            raise TaskSpecError(
+                f"{task_id} [matrix.map].{axis} must be a list of check id "
+                f"strings, got {ids!r}")
+        axis_map[str(axis)] = tuple(ids)
+
+    raw_proxy = pick("proxy", {})
+    if not isinstance(raw_proxy, dict):
+        raise TaskSpecError(
+            f"{task_id} [matrix.proxy] must be a table of axis -> "
+            f"{{field, tokens}}, got {raw_proxy!r}")
+    proxy = {}
+    for axis, entry in raw_proxy.items():
+        if not isinstance(entry, dict) \
+                or not isinstance(entry.get("field"), str) \
+                or not isinstance(entry.get("tokens"), list) \
+                or not all(isinstance(t, str) for t in entry["tokens"]):
+            raise TaskSpecError(
+                f"{task_id} [matrix.proxy].{axis} must be a table with a "
+                f"`field` string and a `tokens` list of strings, got "
+                f"{entry!r}. The proxy is a documented stand-in for a failed "
+                f"check (new_matrix.md 3.1 item 5), so the field and the "
+                f"tokens have to be stated, not implied.")
+        proxy[str(axis)] = ArtifactTokens(field=entry["field"],
+                                          tokens=tuple(entry["tokens"]))
+
+    pass_axis = str(pick("pass_axis"))
+    try:
+        spec = MatrixSpec(pass_axis=pass_axis, gate=gate,
+                          accepted=tuple(accepted), map=axis_map, proxy=proxy)
+    except MatrixError as exc:
+        raise TaskSpecError(f"{task_id} [matrix]: {exc}") from exc
+
+    if not axis_map.get(pass_axis):
+        raise TaskSpecError(
+            f"{task_id} [matrix] pass_axis = {pass_axis!r} but [matrix.map] "
+            f"names no {pass_axis} checks. Every episode would withhold the "
+            f"projected pass as n/a forever, with no signal but an empty "
+            f"denominator. A pass axis the grader cannot score is a "
+            f"declaration error, not a measurement.")
+    if gate is not None and not axis_map.get(gate):
+        raise TaskSpecError(
+            f"{task_id} [matrix] gate = {gate!r} but [matrix.map] names no "
+            f"{gate} checks. The gate would admit-or-withhold on zero "
+            f"evidence for every episode. State the checks, or `gate = "
+            f"false` for a control task with nothing to find.")
+    return spec
 
 
 def _requested_variant(explicit: str | None) -> str | None:
@@ -491,4 +705,5 @@ def load(task_id: str, tasks_dir: Path | None = None,
             arm.grading.get("pass_min_total",
                             _require(harness, "pass_min_total",
                                      f"{task_id} [harness]"))),
+        matrix=_matrix_spec(task_id, root, raw.get("matrix"), arm.matrix),
     )

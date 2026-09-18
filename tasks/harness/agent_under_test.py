@@ -61,6 +61,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -72,11 +73,30 @@ from pathlib import Path
 
 from episode import PY, HarnessError, TRACK_A
 import kimi_subject
+from blindness import MCP_DRIVERS
 
 CLAUDE = shutil.which("claude")
 KIMI = (shutil.which("kimi")
         or (kimi_subject.KIMI_BIN if Path(kimi_subject.KIMI_BIN).exists()
             else None))
+
+# What a usage limit looks like in prose, from every family this harness has
+# run: the claude CLI's "You've hit your monthly spend limit ... weekly limit
+# resets", Kimi's 403 "quota". Deliberately NOT matching a bare "limit" -
+# "tool-call limit" and "wall clock limit" are the harness's own words.
+QUOTA_PATTERN = re.compile(
+    r"(spend(ing)? limit|usage limits? (exceeded|reached)|monthly (spend|usage) "
+    r"limit|weekly limit|rate.?limit(ed|exceeded)?|quota( exceeded| exhausted|"
+    r" reached)?|out of credits|insufficient(_| )credits?|"
+    r"exceeded your (current )?(quota|usage)|billing hard limit|"
+    r"resets (at|on|in) |too many requests|\b429\b)",
+    re.I)
+
+
+def looks_like_quota_exhaustion(text: str | None) -> bool:
+    """True when `text` says the model was refused for a usage/spend limit."""
+    return bool(text) and QUOTA_PATTERN.search(str(text)) is not None
+
 
 MCP_SERVER_NAME = "alkera"
 
@@ -276,6 +296,7 @@ class AgentRun:
     driver: str
     model: str
     exit_reason: str                  # completed | timeout | budget | agent_error
+                                      # | quota_exhausted (see exit_reason_for)
     returncode: int | None
     wall_clock_s: float
     started_wts: int
@@ -518,7 +539,7 @@ def build_prompt(instruction: str, toolbelt: dict, artifact_in_world: str,
             minutes=round(wall_clock_s / 60),
             bounds=BOUNDS_REDTEAM if redteam else BOUNDS_MEASURED_NATIVE,
         ) + instruction
-    if driver in ("mcp", "kimi"):
+    if driver in MCP_DRIVERS:
         names = {n: f"mcp__{MCP_SERVER_NAME}__{n}" for n in toolbelt}
         write_tool = names.get("fs_write", "fs_write")
         lines = [f"- `{names[n]}` - {d}" for n, d in toolbelt.items()]
@@ -799,6 +820,88 @@ def _run_kimi(*, prompt: str, gateway_cfg: Path, audit_dir: Path,
         notes=" ".join(notes))
 
 
+# ------------------------------------------------------------ quota probe
+PROBE_PROMPT = ("Reply with exactly the single word OK and nothing else. "
+                "Do not use any tool.")
+PROBE_TIMEOUT_S = 240
+
+
+def quota_probe(*, driver: str, model: str, cwd: Path) -> dict:
+    """One text-only turn against the model, BEFORE a run spends K episodes.
+
+    `authorized-20260917-k5` (2026-09-17 00:41) started five GT004 episodes
+    against an account whose monthly limit had just been reached: three ran
+    ~19 minutes of tool calls before the refusal surfaced, two died in 12 s,
+    and the run produced five `harness_error`s and no rate. One refused turn
+    here costs a few hundred tokens and answers the same question first.
+
+    Returns {"status": ok | quota_exhausted | auth | error | skipped, ...}.
+    The probe is NOT a measurement and shares nothing with an episode: no
+    tools, no MCP server, no world, its own scratch cwd. A driver with no
+    model behind it (`scripted`) is skipped rather than failed.
+    """
+    cwd = Path(cwd)
+    cwd.mkdir(parents=True, exist_ok=True)
+    started = time.time()
+    rec: dict = {"driver": driver, "model": model, "prompt": PROBE_PROMPT,
+                 "started_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ",
+                                              time.gmtime(started))}
+    if driver == "scripted":
+        return {**rec, "status": "skipped", "why": "no model behind this driver"}
+
+    if driver == "kimi":
+        if KIMI is None:
+            return {**rec, "status": "error", "why": "kimi CLI not found"}
+        argv = [str(KIMI), "-p", PROBE_PROMPT, "--output-format", "text"]
+    else:
+        if CLAUDE is None:
+            return {**rec, "status": "error", "why": "claude CLI not on PATH"}
+        argv = [CLAUDE, "--print", "--output-format", "json", "--model", model,
+                "--setting-sources", "", "--disable-slash-commands",
+                "--no-session-persistence",
+                "--permission-mode", "bypassPermissions",
+                "--permission-prompts", "none",
+                "--strict-mcp-config",
+                "--mcp-config", json.dumps({"mcpServers": {}}), "--tools", ""]
+    rec["argv"] = argv
+    env = {**os.environ, "PYTHONUTF8": "1"}
+    env.pop("CLAUDE_PROJECT_DIR", None)
+    try:
+        r = subprocess.run(argv, cwd=str(cwd), env=env,
+                           input=(PROBE_PROMPT if driver != "kimi" else None),
+                           capture_output=True, text=True, encoding="utf-8",
+                           errors="replace", timeout=PROBE_TIMEOUT_S)
+    except subprocess.TimeoutExpired:
+        return {**rec, "status": "error", "why": f"no answer in {PROBE_TIMEOUT_S}s",
+                "wall_clock_s": round(time.time() - started, 1)}
+    rec["returncode"] = r.returncode
+    rec["wall_clock_s"] = round(time.time() - started, 1)
+    rec["stderr_tail"] = (r.stderr or "")[-1500:]
+
+    text, is_error, subtype = r.stdout.strip(), None, None
+    for line in reversed(r.stdout.splitlines()):
+        try:
+            ev = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(ev, dict) and ev.get("type") == "result":
+            text = str(ev.get("result") or "")
+            is_error, subtype = ev.get("is_error"), ev.get("subtype")
+            break
+    rec["answer"] = text[-600:]
+    reason = exit_reason_for(r.returncode, {"is_error": is_error, "subtype": subtype},
+                             text, rec["stderr_tail"])
+    if reason == "quota_exhausted":
+        return {**rec, "status": "quota_exhausted",
+                "why": "the model's provider refused the probe turn for a usage "
+                       "or spend limit; nothing that calls this model will "
+                       "produce a measurement until it resets"}
+    if reason != "completed":
+        return {**rec, "status": "error",
+                "why": f"probe exited {r.returncode}: {(text or rec['stderr_tail'])[-400:]}"}
+    return {**rec, "status": "ok"}
+
+
 # --------------------------------------------------------------- the runner
 def _kill_tree(proc: subprocess.Popen) -> None:
     if proc.poll() is not None:
@@ -863,6 +966,7 @@ def run(*, instruction: str, toolbelt: dict, artifact_in_world: str,
                          cwd=cwd, model=model, wall_clock_s=wall_clock_s,
                          max_tool_calls=max_tool_calls, session_id=session_id)
 
+    subject_env_extra: dict = {}
     argv = [CLAUDE, "--print",
             "--output-format", "stream-json", "--verbose",
             "--model", model,
@@ -874,7 +978,6 @@ def run(*, instruction: str, toolbelt: dict, artifact_in_world: str,
             "--session-id", session_id,
             "--strict-mcp-config"]
 
-    subject_env_extra: dict = {}
     if driver == "mcp":
         mcp_cfg = write_mcp_config(rollout_dir / "mcp.json", gateway_cfg,
                                    mcp_server_argv)
@@ -966,6 +1069,12 @@ def run(*, instruction: str, toolbelt: dict, artifact_in_world: str,
                         "is_error": ev.get("is_error"),
                         "subtype": ev.get("subtype"),
                     }
+                    # token counts, when the subject reports them (the SDK
+                    # does; the claude CLI puts a dollar figure here instead)
+                    if isinstance(ev.get("usage"), dict):
+                        state["usage"]["tokens"] = ev["usage"]
+                    if ev.get("model"):
+                        state["usage"]["model_reported"] = ev["model"]
         except Exception as exc:                       # noqa: BLE001 - recorded
             state["reason"] = state["reason"] or "agent_error"
             tf.write(json.dumps({"type": "harness_pump_error",
@@ -1013,9 +1122,10 @@ def run(*, instruction: str, toolbelt: dict, artifact_in_world: str,
     ended = time.time()
 
     rc = proc.returncode
+    stderr_tail = err_path.read_text(encoding="utf-8", errors="replace")[-4000:]
     reason = state["reason"]
     if reason is None:
-        reason = "completed" if rc == 0 else "agent_error"
+        reason = exit_reason_for(rc, state["usage"], state["final"], stderr_tail)
 
     return AgentRun(
         driver=driver, model=model, exit_reason=reason, returncode=rc,
@@ -1024,6 +1134,35 @@ def run(*, instruction: str, toolbelt: dict, artifact_in_world: str,
         transcript_path=str(transcript), events=state["events"],
         final_text=state["final"] or "", session_id=session_id,
         usage=state["usage"],
-        stderr_tail=err_path.read_text(encoding="utf-8", errors="replace")[-4000:],
+        stderr_tail=stderr_tail,
         argv=argv,
     )
+
+
+def exit_reason_for(rc: int | None, usage: dict, final_text: str,
+                    stderr_tail: str = "") -> str:
+    """completed | quota_exhausted | agent_error, from what the subject left.
+
+    `quota_exhausted` is its own reason because it is its own cause. Before
+    2026-09-17 a spend-limit refusal was `agent_error` -> `harness_error`
+    -> "needs human review", and the human had to open `rollout.json`'s
+    `agent.final_text` to learn that five episodes were lost to a monthly
+    limit, not a crash (`GT004 authorized-20260917-k5`). Two signals, either
+    of which decides it:
+
+      * the result event's subtype says so (`error_quota_exhausted`);
+      * the process failed (non-zero, or `is_error` on the result) AND the
+        final text or stderr reads like a limit message
+        (`QUOTA_PATTERN`, the words every family has used).
+
+    A rollout that finished cleanly is never relabelled on prose alone: a
+    subject that WROTE about rate limits in its report and exited 0 completed.
+    """
+    if rc == 0 and not (usage or {}).get("is_error"):
+        return "completed"
+    if str((usage or {}).get("subtype") or "").endswith("quota_exhausted"):
+        return "quota_exhausted"
+    if looks_like_quota_exhaustion(final_text) or \
+            looks_like_quota_exhaustion(stderr_tail[-1500:]):
+        return "quota_exhausted"
+    return "completed" if rc == 0 else "agent_error"

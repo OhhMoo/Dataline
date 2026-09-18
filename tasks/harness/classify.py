@@ -13,6 +13,15 @@ Classes (one primary per rollout, plus non-exclusive flags):
                        episode to assert blindness either way. Also never
                        scored, but it is a statement about the harness, not
                        about the subject, and the report keeps the two apart.
+  quota_exhausted      the model's provider refused for a usage or spend limit.
+                       Not scored, not the subject's reasoning, not our bug
+                       either - and no longer `harness_error` + "needs human
+                       review", because the review always found the same
+                       thing (`GT004 authorized-20260917-k5`: five episodes,
+                       every one "You've hit your monthly spend limit").
+                       Decided by `agent_under_test.exit_reason_for`, and
+                       re-derivable by `--reclassify` from `agent.final_text`
+                       for rollouts recorded before the class existed.
   harness_error        our bug, or the subject process failed to run at all
   grader_defect        the grader crashed, or scored the same world differently
                        twice. The score is untrustworthy, so nothing else can
@@ -83,6 +92,31 @@ def _tool_gap_evidence(stats: dict, surfaces: dict) -> list[str]:
     return ev
 
 
+def quota_exhaustion_evidence(agent_exit_reason: str, agent_final_text: str,
+                              agent_stderr_tail: str = "") -> str | None:
+    """Why this rollout is a quota refusal, or None.
+
+    The recorded exit reason is the primary evidence - `agent_under_test`
+    decided it with the subject's exit code and result event in hand. The
+    prose fallback exists for records made before `quota_exhausted` was a
+    reason: they carry `agent_error` and the limit message in `final_text`,
+    and `--reclassify` must be able to relabel them without a re-run. Prose is
+    only consulted for a subject that FAILED; a clean exit is never relabelled
+    on the strength of a sentence in its report.
+    """
+    if agent_exit_reason == "quota_exhausted":
+        return "the subject's provider refused for a usage or spend limit"
+    if agent_exit_reason == "agent_error":
+        from agent_under_test import looks_like_quota_exhaustion
+        for where, text in (("final_text", agent_final_text),
+                            ("stderr", (agent_stderr_tail or "")[-1500:])):
+            if looks_like_quota_exhaustion(text):
+                snippet = " ".join(str(text).split())[:160]
+                return (f"the subject process failed and its {where} reads as "
+                        f"a usage-limit refusal: \"{snippet}\"")
+    return None
+
+
 def classify(*, spec, score: dict | None, score_stable: bool,
              grader_crashed: bool, harness_failure: str | None,
              agent_exit_reason: str, blindness: dict, action_rows: list[dict],
@@ -90,7 +124,9 @@ def classify(*, spec, score: dict | None, score_stable: bool,
              wall_clock_s: int | None = None,
              max_tool_calls: int | None = None,
              unprobed_tools: list[str] | None = None,
-             surface_audit: dict | None = None) -> dict:
+             surface_audit: dict | None = None,
+             agent_final_text: str = "",
+             agent_stderr_tail: str = "") -> dict:
     # the EFFECTIVE ceilings this rollout actually ran under, which are not the
     # task's defaults whenever the caller overrode them
     wall_clock_s = wall_clock_s or spec.wall_clock_seconds
@@ -132,7 +168,7 @@ def classify(*, spec, score: dict | None, score_stable: bool,
         return {"classification": cls, "why": why, "needs_review": needs_review,
                 "passed": passed, "scored": cls not in (
                     "blindness_violation", "unobserved", "harness_error",
-                    "grader_defect"),
+                    "grader_defect", "quota_exhausted"),
                 "flags": flags, "action_stats": stats}
 
     # "we caught it reaching outside" and "we could not watch it" are both
@@ -150,6 +186,16 @@ def classify(*, spec, score: dict | None, score_stable: bool,
     # away the diagnosis we already have.
     if harness_failure:
         return out("harness_error", harness_failure, needs_review=True)
+    # A provider refusal sits where `agent_error` used to catch it and above
+    # everything scored: the episode the grader saw is however far the model
+    # got before the limit, which is a fact about the account, not the model.
+    # Named, not `needs_review` - the diagnosis is the whole point.
+    quota = quota_exhaustion_evidence(agent_exit_reason, agent_final_text,
+                                      agent_stderr_tail)
+    if quota:
+        return out("quota_exhausted",
+                   f"{quota}; excluded from Pass@1 and from the harness-error "
+                   f"count, re-run when the limit resets")
     if agent_exit_reason == "agent_error":
         return out("harness_error",
                    "the subject process exited non-zero without finishing; this is "

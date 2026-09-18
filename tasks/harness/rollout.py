@@ -365,6 +365,10 @@ def reclassify(rollout_dir: Path) -> dict:
         grader_crashed=bool(rec.get("grader_crashed")),
         harness_failure=rec.get("harness_failure"),
         agent_exit_reason=(rec.get("agent") or {}).get("exit_reason", "not_started"),
+        # so a record made before `quota_exhausted` existed can be relabelled
+        # from the limit message its subject left in final_text
+        agent_final_text=(rec.get("agent") or {}).get("final_text") or "",
+        agent_stderr_tail=(rec.get("agent") or {}).get("stderr_tail") or "",
         blindness=rec["blindness"],
         action_rows=blindness.subject_rows(
             action_rows, rec.get("action_log_watermark", 0)),
@@ -801,7 +805,7 @@ def regrade(rollout_dir, task: str | None = None,
     src, toolbelt = _first(("rollout.json", P.get("toolbelt")),
                            (BEFORE_EPISODE_FILE, B.get("toolbelt")))
     if toolbelt is None:
-        if driver in ("mcp", "kimi"):
+        if driver in blindness.MCP_DRIVERS:
             try:
                 current = sorted(episode.gateway_tool_names())
             except episode.HarnessError as exc:
@@ -1123,6 +1127,8 @@ def regrade(rollout_dir, task: str | None = None,
         spec=spec, score=score, score_stable=score_stable,
         grader_crashed=grader_crashed, harness_failure=rec.get("harness_failure"),
         agent_exit_reason=exit_reason or "unrecorded",
+        agent_final_text=(P.get("agent") or {}).get("final_text") or "",
+        agent_stderr_tail=(P.get("agent") or {}).get("stderr_tail") or "",
         blindness=rec["blindness"], action_rows=subject_rows,
         surfaces=rec["surfaces"].get("surfaces", {}), artifact_present=True,
         wall_clock_s=limits["wall_clock_seconds"],
@@ -1188,7 +1194,8 @@ def run_rollout(args) -> dict:
         # the assignment below and blindness.detect()'s containment gate. Writing
         # the stronger claim here and hoping is exactly the failure mode the
         # blindness detector exists to prevent.
-        "blindness_guarantee": ("tool_surface_revoked" if args.driver in ("mcp", "kimi")
+        "blindness_guarantee": ("tool_surface_revoked"
+                                if args.driver in blindness.MCP_DRIVERS
                                 else "detection_only"),
         "redteam_detector_test": args.driver == "scripted",
         "seed": spec.seed,
@@ -1256,6 +1263,16 @@ def run_rollout(args) -> dict:
             # clones it, and this is the same fact stated as an ordering.
             record["native_workspace_cli"] = native_stack.install_workspace_cli(
                 world, args.topology)
+            record["native_discovery"] = native_stack.stage_discovery(world)
+            # The author-side material comes OUT of the staged world here, for
+            # the same ordering reason: a native subject reads files, not tool
+            # responses, and the strip must be part of the "before" picture or
+            # the fingerprint hashes a world the subject never saw (STATUS
+            # 4.3). No-op in the container topology, where these files are
+            # never mounted - but the strip is what keeps that guarantee if the
+            # mount set ever grows.
+            record["native_world_sanitised"] = native_stack.sanitize_world_files(
+                world)
         canaries = _plant_canaries(rollout_dir, grading)
         record["canaries_planted"] = len(canaries)
 
@@ -1295,6 +1312,7 @@ def run_rollout(args) -> dict:
                 project=project, world=world, audit_dir=audit_dir,
                 rollout_dir=rollout_dir, image=args.image,
                 variant=spec.variant)
+            record["image_gate"] = container_episode.assert_image_current(args.image)
             native_container.up()
             record["native_container"] = native_container.prepare()
             record["native_stack"] = {**native_container.record(),
@@ -1760,6 +1778,8 @@ def run_rollout(args) -> dict:
         spec=spec, score=score, score_stable=score_stable,
         grader_crashed=grader_crashed, harness_failure=harness_failure,
         agent_exit_reason=(agent.exit_reason if agent else "not_started"),
+        agent_final_text=(agent.final_text if agent else ""),
+        agent_stderr_tail=(agent.stderr_tail if agent else ""),
         blindness=record["blindness"], action_rows=subject_action_rows,
         surfaces=surfaces.get("surfaces", {}), artifact_present=artifact_present,
         wall_clock_s=wall, max_tool_calls=budget,
@@ -1806,14 +1826,16 @@ def main() -> int:
     ap.add_argument("--run-id", default="adhoc")
     ap.add_argument("--out")
     ap.add_argument("--model", default="opus")
-    ap.add_argument("--driver", default="mcp",
-                    choices=["mcp", "cli", "scripted", "kimi", "native"])
+    ap.add_argument("--driver", default="native",
+                    choices=["mcp", "cli", "scripted", "kimi", "native"],
+                    help="measurement substrate is native; mcp is the "
+                         "comparison arm (default: native)")
     ap.add_argument("--native-endpoints", default=None,
                     help="JSON file mapping native surface names onto reachable "
                          "addresses, for `--driver native` off the episode "
                          "network. Defaults are the `<name>.internal` aliases; "
                          "see agent_under_test.resolve_endpoints.")
-    ap.add_argument("--topology", default="host",
+    ap.add_argument("--topology", default="container",
                     choices=["host", "container"],
                     help="where the WORLD and the TOOLS run. `host`: the gateway "
                          "is a host subprocess beside the grading zone, and "
@@ -1821,7 +1843,8 @@ def main() -> int:
                          "`container`: the world, the gateway, the audit log and "
                          "a real shell live inside the episode service of "
                          "gateway/docker/compose.yml, and blindness rests on the "
-                         "container - measured per rollout, never assumed.")
+                         "container - measured per rollout, never assumed. "
+                         "(default: container)")
     ap.add_argument("--image", default=container_episode.DEFAULT_IMAGE,
                     help="image for the episode service under --topology container")
     ap.add_argument("--wall-clock", type=int, default=None,
