@@ -15,11 +15,19 @@ things pinned here are the four ways a matrix report can lie:
 Plus the two run-level wirings: a run whose arms resolve to DIFFERENT pass
 axes has no single projection, and `--re-report` rewrites a report from stored
 records without re-grading anything.
+
+The learning-signal additions (interval, estimator table, `## Learning
+signal`, outcome class, declared scalar) are pinned against DETERMINISTIC
+FAKES of learning_signal / reward / outcome, installed with monkeypatch: the
+report's job is to place and label those numbers honestly, and the fakes make
+"what did the module return" a constant so only the placement is under test.
 """
 from __future__ import annotations
 
 import json
 import sys
+import types
+from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
@@ -29,6 +37,104 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import report          # noqa: E402
 import run_rollouts    # noqa: E402
 from axes import MatrixSpec  # noqa: E402
+
+
+# -- deterministic fakes for the three interface modules -----------------------
+
+FAKE_CI = [0.38, 0.96]
+FAKE_THRESHOLDS = {"core_low": 0.05, "core_high": 0.7, "control_high": 0.9}
+
+
+def fake_learning_signal(summarise_raises: bool = False):
+    def wilson_interval(passed, n, z=1.96):
+        return None if n == 0 else tuple(FAKE_CI)
+
+    def pass_at_1(records):
+        scored = [r for r in records if r.get("scored")]
+        passed = [r for r in scored if r.get("passed")]
+        rate = round(len(passed) / len(scored), 3) if scored else None
+        return {"rate": rate, "n": len(scored), "passed": len(passed),
+                "se": 0.18 if scored else None,
+                "ci95": list(FAKE_CI) if scored else None}
+
+    def pass_at_k_table(n, c, ks=(1, 2, 3, 5, 8, 10)):
+        # k > n comes back None from the real module too; the report must
+        # drop those rows rather than print "n/a" for an undefined k
+        return {"pass_at_k": {k: (0.5 if k <= n else None) for k in ks},
+                "pass_hat_k": {k: (0.25 if k <= n else None) for k in ks}}
+
+    def summarise(records, matrix_block):
+        if summarise_raises:
+            raise NotImplementedError
+        return {
+            "pass_at_1": pass_at_1(records),
+            "pass_at_k": pass_at_k_table(5, 4),
+            "group": {"n": 5, "mean": 0.8, "variance": 0.16,
+                      "p_one_minus_p": 0.16, "collapsed": False},
+            "band": "core",
+            "axis_separation": (
+                {"found_rate": 1.0, "pass_axis_rate": 0.2, "gap": 0.8,
+                 "gap_ci95": [0.3, 1.0], "separated": True}
+                if matrix_block is not None else None),
+            "thresholds": dict(FAKE_THRESHOLDS),
+        }
+
+    return types.SimpleNamespace(
+        wilson_interval=wilson_interval, pass_at_1=pass_at_1,
+        pass_at_k_table=pass_at_k_table, summarise=summarise)
+
+
+def fake_reward():
+    def episode_reward(axis_row, pass_axis, hygiene=None, w=0.1):
+        if axis_row["admitted"] is None:
+            return {"reward": None, "excluded": "gate_unmeasured",
+                    "components": {"pass": None, "shaping": None,
+                                   "penalties": 0.0, "w": w}}
+        pen = sum((hygiene or {}).values())
+        base = 0.0 if axis_row["admitted"] is False else \
+            (1.0 if axis_row["pass"] else 0.0)
+        return {"reward": base + pen, "excluded": None,
+                "components": {"pass": base, "shaping": 0.0,
+                               "penalties": pen, "w": w}}
+    return types.SimpleNamespace(DEFAULT_W=0.1, episode_reward=episode_reward)
+
+
+OUTCOMES = ("false_claim", "boundary_violated", "resolved",
+            "withheld_with_evidence", "silent", "unmeasured")
+
+
+def fake_outcome():
+    def classify_outcome(spec, checks, artifact=None):
+        if spec is None:
+            return {"outcome": "unmeasured", "evidence": [], "declared": False}
+        if "H1" in checks and not checks["H1"]["passed"]:
+            return {"outcome": "false_claim", "evidence": ["!H1"],
+                    "declared": True}
+        if all(checks.get(c, {}).get("passed") for c in ("H3", "G1c")):
+            return {"outcome": "resolved", "evidence": ["H3", "G1c"],
+                    "declared": True}
+        return {"outcome": "silent", "evidence": [], "declared": True}
+    return types.SimpleNamespace(OUTCOMES=OUTCOMES,
+                                 classify_outcome=classify_outcome)
+
+
+def install_fakes(monkeypatch, **ls_kwargs):
+    monkeypatch.setattr(report, "learning_signal",
+                        fake_learning_signal(**ls_kwargs))
+    monkeypatch.setattr(report, "reward", fake_reward())
+    monkeypatch.setattr(report, "outcome", fake_outcome())
+
+
+@pytest.fixture
+def fakes(monkeypatch):
+    install_fakes(monkeypatch)
+
+
+@dataclass(frozen=True)
+class MatrixWithOutcome(MatrixSpec):
+    """MatrixSpec plus the optional `outcome` declaration report.py reads
+    with getattr; the real field is another agent's, this is its shape."""
+    outcome: object = None
 
 
 class StubSpec:
@@ -258,6 +364,226 @@ def test_re_report_refuses_a_run_with_no_records(tmp_path):
     empty.mkdir(parents=True)
     assert run_rollouts.re_report(empty, None, None) == 2
     assert not (empty / "report.json").exists()
+
+
+# -- the interval prints on the same line as the rate, every time ---------------
+
+def five(passing: int = 4):
+    return ([rec(f"r{i}", {"D1": True, "D2": True}) for i in range(passing)]
+            + [rec(f"r{i}", {"D1": True, "D2": False},
+                   classification="reasoning", passed=False)
+               for i in range(passing, 5)])
+
+
+def test_pass_at_1_carries_its_interval_and_n(fakes):
+    records = five(4)
+    agg = report.aggregate(records)
+    assert agg["pass_at_1"] == 0.8
+    assert agg["pass_at_1_ci95"] == FAKE_CI
+    assert agg["pass_at_1_se"] == 0.18
+    assert agg["pass_at_1_n"] == 5
+    md = report.render("T", "run", agg, records)
+    # rate, interval and n on ONE line: K=5 cannot separate 0.8 from 1.0
+    assert "**Pass@1 = 0.8** [0.38, 0.96] (n=5 scored rollouts)" in md
+
+
+def test_non_matrix_json_gains_only_the_new_keys(fakes):
+    before = {
+        "rollouts", "scored", "quarantined", "quarantined_caught_violating",
+        "quarantined_unobserved", "redteam_detector_tests",
+        "excluded_from_pass_at_1", "pass_at_1", "pass_at_1_denominator",
+        "pass_at_1_reasoning_only", "pass_at_1_reasoning_only_denominator",
+        "pass_hat_k", "pass_hat_k_k", "pass_hat_k_attempted",
+        "pass_hat_k_complete", "pass_hat_k_passed", "pass_hat_k_denominator",
+        "pass_hat_k_by_model", "run_conditions", "measurement_valid",
+        "invalidated_because", "classification_counts", "score_distribution",
+        "per_check", "tool_calls_median", "wall_clock_s_median",
+        "dead_surfaces", "unprobed_tools", "needs_review", "models",
+        "drivers", "topologies", "blindness_guarantees",
+    }
+    new = {"pass_at_1_ci95", "pass_at_1_se", "pass_at_1_n", "pass_at_k",
+           "learning_signal"}
+    agg = report.aggregate(five(4))
+    assert set(agg) == before | new
+    assert "matrix" not in agg
+    # and the run-level Pass^k bit is untouched by the estimator's arrival
+    assert agg["pass_hat_k"] == 0.0 and agg["pass_hat_k_k"] == 5
+
+
+# -- the estimator table: k <= n only, kept apart from the Pass^k bit -----------
+
+def test_pass_at_k_table_is_restricted_to_k_le_n(fakes):
+    records = five(4)
+    agg = report.aggregate(records)
+    pk = agg["pass_at_k"]
+    assert pk["n"] == 5 and pk["c"] == 4
+    assert list(pk["pass_at_k"]) == ["1", "2", "3", "5"]   # 8 and 10 are undefined
+    assert pk["pass_hat_k"]["5"] == 0.25
+    assert "projected" not in pk                            # not a matrix task
+    md = report.render("T", "run", agg, records)
+    assert "| k | pass@k | pass^k (unbiased est.) |" in md
+    assert "| 5 | 0.50 | 0.25 |" in md
+    assert "| 8 |" not in md
+    # the run-level bit stays exactly as published, with its own k
+    assert "Pass^k = 0.0 (k = 5 scored of 5 attempted; 4 passed)" in md
+    # the estimators explain themselves as estimators, and state n and c
+    assert "n=5, c=4 passed" in md
+
+
+def test_matrix_task_also_tabulates_the_projected_pass(fakes):
+    spec = StubSpec(MATRIX)
+    records = [
+        rec("r0", {"H1b": True, "H3": True, "G1c": True}),
+        rec("r1", {"H1b": True, "H3": False, "G1c": False},
+            classification="reasoning", passed=False),
+        rec("r2", {"H1b": False, "H3": True, "G1c": True},
+            classification="reasoning", passed=False),
+    ]
+    agg = report.aggregate(records, spec=spec)
+    proj = agg["pass_at_k"]["projected"]
+    assert proj["n"] == 2 and proj["c"] == 1            # the gate-cold one left
+    assert list(proj["pass_at_k"]) == ["1", "2"]
+    assert agg["matrix"]["projected_pass_ci95"] == FAKE_CI
+    md = run_md(records, spec)
+    assert ("**Projected pass (π=warranted) = 0.5** over 2 admitted rollouts "
+            "· 95% CI [0.38, 0.96]") in md
+    assert "for the projected pass (π=warranted)" in md
+
+
+# -- ## Learning signal: placed after the pass block, before the failures -------
+
+def test_learning_signal_section_renders_in_place(fakes):
+    spec = StubSpec(MATRIX)
+    records = [rec("r0", {"H1b": True, "H3": True, "G1c": True}),
+               rec("r1", {"H1b": True, "H3": False, "G1c": False},
+                   classification="reasoning", passed=False)]
+    agg = report.aggregate(records, spec=spec)
+    ls = agg["learning_signal"]
+    assert ls["band"] == "core" and ls["group"]["p_one_minus_p"] == 0.16
+    md = run_md(records, spec)
+    assert md.index("Pass^k =") < md.index("## Learning signal") \
+        < md.index("## Failure classification")
+    assert "- group: n=5 · mean 0.80 · variance 0.16 · p(1−p) 0.16 · collapsed: false" in md
+    assert "- band: core · rule: core 0.05 ≤ pass@1 ≤ 0.7" in md
+    assert ("- axis separation: FOUND 1.00 vs π=warranted 0.20, gap 0.80 "
+            "[0.30, 1.00] → separated") in md
+    assert "(provisional)" not in md
+
+
+def _section(md: str, start: str, end: str) -> list[str]:
+    body = md[md.index(start) + len(start):md.index(end)]
+    return [ln for ln in body.splitlines() if ln.strip()]
+
+
+def test_invalid_run_marks_every_learning_signal_line_provisional(fakes):
+    spec = StubSpec(MATRIX)
+    records = [rec("r0", {"H1b": True, "H3": True, "G1c": True}),
+               # a detector test in the run: not a measurement of anything
+               rec("r1", {"H1b": True, "H3": True, "G1c": True},
+                   redteam_detector_test=True)]
+    agg = report.aggregate(records, spec=spec)
+    assert agg["measurement_valid"] is False
+    md = run_md(records, spec)
+    lines = _section(md, "## Learning signal", "## Failure classification")
+    assert lines and all(ln.startswith("(provisional) ") for ln in lines)
+    # the numbers are still there, marked, not dropped
+    assert any("band: core" in ln for ln in lines)
+    # the estimator table takes the same mark
+    assert "(provisional) pass@k / pass^k (unbiased est.)" in md
+    # and the rate itself is withheld, as before
+    assert "**pass_all_required = WITHHELD" in md
+    assert "(provisional, do not publish: 1.0 [0.38, 0.96] (n=2 scored rollouts)" in md
+
+
+# -- outcome class and declared scalar, per episode -----------------------------
+
+def test_outcome_class_and_reward_per_rollout(fakes):
+    matrix = MatrixWithOutcome(pass_axis="warranted", gate="found",
+                               map=dict(MATRIX.map), outcome=object())
+    spec = StubSpec(matrix)
+    records = [
+        rec("r0", {"H1b": True, "H3": True, "G1c": True, "H1": True}),
+        rec("r1", {"H1b": True, "H3": False, "G1c": False, "H1": True},
+            classification="reasoning", passed=False),
+        rec("r2", {"H1b": True, "H3": True, "G1c": True, "H1": False},
+            classification="reasoning", passed=False),
+    ]
+    # H1 is a penalty check: it fired on r2 and charged two points
+    records[2]["checks"]["H1"]["points"] = -2.0
+    agg = report.aggregate(records, spec=spec)
+    m = agg["matrix"]
+    pr = m["per_rollout"]
+    assert pr["r0"]["outcome"]["outcome"] == "resolved"
+    assert pr["r1"]["outcome"]["outcome"] == "silent"
+    assert pr["r2"]["outcome"]["outcome"] == "false_claim"
+    # precedence order, not alphabetical
+    assert list(m["outcome_counts"]) == ["false_claim", "resolved", "silent"]
+    assert m["outcome_counts"] == {"false_claim": 1, "resolved": 1, "silent": 1}
+    # the hygiene heuristic reached the reward: r2 passed the axis (1.0) and
+    # was charged H1 (-2.0); r0 1.0; r1 0.0 -> mean 0.0 over 3
+    assert pr["r2"]["reward"]["reward"] == -1.0
+    assert pr["r2"]["reward"]["components"]["penalties"] == -2.0
+    assert m["reward_mean"] == 0.0 and m["reward_denominator"] == 3
+    assert m["hygiene_source"] == "H-prefixed non-positive checks (heuristic)"
+    md = run_md(records, spec)
+    assert ("outcomes: false_claim 1 · resolved 1 · silent 1 (over 3 scored "
+            "rollouts with an outcome class)") in md
+    assert "declared training scalar (mean) = 0.0 over 3 (w=0.1)" in md
+    assert "NOT the measurement" in md
+    # the scalar never becomes the headline
+    assert md.index("**Projected pass") < md.index("declared training scalar")
+    # per-rollout table grows an outcome column
+    assert "| id | class | outcome | total | tool calls | wall s | why |" in md
+    assert "| r2 | reasoning | false_claim | " in md
+
+
+def test_no_outcome_declaration_means_no_outcome_column(fakes):
+    spec = StubSpec(MATRIX)      # MatrixSpec has no `outcome` here
+    records = [rec("r0", {"H1b": True, "H3": True, "G1c": True})]
+    agg = report.aggregate(records, spec=spec)
+    m = agg["matrix"]
+    assert m["outcome_declared"] is False and m["outcome_counts"] == {}
+    assert m["per_rollout"]["r0"]["outcome"] is None
+    assert m["per_rollout"]["r0"]["reward"]["reward"] == 1.0
+    md = run_md(records, spec)
+    assert "| id | class | total | tool calls | wall s | why |" in md
+    assert "outcomes:" not in md
+
+
+# -- an unfilled stub costs the block, not the report ---------------------------
+
+def test_unimplemented_summarise_degrades_to_a_caveat(monkeypatch):
+    install_fakes(monkeypatch, summarise_raises=True)
+    spec = StubSpec(MATRIX)
+    records = [rec("r0", {"H1b": True, "H3": True, "G1c": True})]
+    agg = report.aggregate(records, spec=spec)
+    assert agg["learning_signal"] is None
+    assert any("learning_signal.summarise is not implemented yet" in x
+               for x in agg["run_conditions"]["caveats"])
+    # the interval still came through - only the one stub was refused
+    assert agg["pass_at_1_ci95"] == FAKE_CI
+    md = run_md(records, spec)
+    assert "## Learning signal" in md
+    assert "learning signal: unavailable" in md
+    assert "- caveat: learning_signal.summarise is not implemented yet" in md
+    assert "**Projected pass (π=warranted) = 1.0**" in md
+
+
+def test_module_that_did_not_import_degrades_to_a_caveat(monkeypatch):
+    install_fakes(monkeypatch)
+    monkeypatch.setattr(report, "outcome", None)
+    monkeypatch.setitem(report._IMPORT_FAILURES, "outcome", "SyntaxError: x")
+    matrix = MatrixWithOutcome(pass_axis="warranted", gate="found",
+                               map=dict(MATRIX.map), outcome=object())
+    records = [rec("r0", {"H1b": True, "H3": True, "G1c": True})]
+    agg = report.aggregate(records, spec=StubSpec(matrix))
+    m = agg["matrix"]
+    assert m["outcome_declared"] is True and m["outcome_counts"] == {}
+    assert m["per_rollout"]["r0"]["outcome"] is None
+    assert any("outcome.classify_outcome unavailable" in x
+               for x in agg["run_conditions"]["caveats"])
+    md = run_md(records, StubSpec(matrix))
+    assert "outcomes: unavailable" in md
 
 
 if __name__ == "__main__":

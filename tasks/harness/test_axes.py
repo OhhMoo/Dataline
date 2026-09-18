@@ -141,3 +141,23 @@ def test_proxy_must_stand_in_for_a_mapped_axis():
     with pytest.raises(MatrixError, match="proxy"):
         MatrixSpec(pass_axis="found", map={"found": ["H1b"]},
                    proxy={"scoped": ArtifactTokens(field="x", tokens=("y",))})
+
+
+# -- the outcome table rides on the spec but is not an axis ------------------------
+
+def test_outcome_defaults_to_none_and_touches_no_axis():
+    from outcome import OutcomeSpec                               # noqa: PLC0415
+    s = spec()
+    assert s.outcome is None
+    table = OutcomeSpec(map={"resolved": ("H3", "G1c")})
+    with_outcome = MatrixSpec(pass_axis="warranted",
+                              map={"found": ["H1b"], "warranted": ["H3", "G1c"]},
+                              outcome=table)
+    assert with_outcome.outcome is table
+    # not an axis: the projection, the gate and every rate are unchanged
+    record = checks(H1b=True, H3=True, G1c=False)
+    assert projected_pass(with_outcome, record) == projected_pass(s, record)
+    assert admitted(with_outcome, record) == admitted(s, record)
+    assert set(with_outcome.map) <= set(AXES)
+    # and equality is the projection alone
+    assert with_outcome == s

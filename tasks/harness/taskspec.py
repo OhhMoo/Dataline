@@ -46,6 +46,18 @@ rules the frozen dataclass does not enforce and this loader therefore does:
 A variant may override the matrix per key: `[variants.<name>.matrix]` and
 `[variants.<name>.matrix.map]` replace exactly the keys they declare, the same
 pattern `[variants.<name>.grading]` uses for the pass criterion.
+
+OUTCOME CLASS (outcome.py, Layer 1). `[matrix.outcome]` is one more key of the
+matrix table and is resolved by the same rule: an arm that declares
+`[variants.<name>.matrix.outcome]` replaces the WHOLE outcome table, an arm
+that does not inherits the task's. The table's shape is refused here (through
+outcome.parse_outcome_spec) with the same TaskSpecError-from-MatrixError
+pattern as the rest of [matrix]. Its check ids are checked against the ids the
+loader can vouch for: the union of `[matrix.map]` and the check table of the
+task's `[grading].manifest` (read with PyYAML where that is importable - the
+hygiene penalties an outcome table leans on, GT009's H1/H2, are mapped to no
+axis, so the map alone would refuse them). Where neither is enumerable, ids
+are checked for shape only and validity.py owns the check against the grader.
 """
 from __future__ import annotations
 
@@ -59,6 +71,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from axes import ArtifactTokens, MatrixError, MatrixSpec
+from outcome import parse_outcome_spec
 
 TASKS_DIR = Path(__file__).resolve().parent.parent
 
@@ -358,8 +371,36 @@ def _staged_baselines(root: Path) -> set[str] | None:
     return names or None
 
 
+def _manifest_check_ids(root: Path, raw: dict) -> set[str] | None:
+    """The check ids the task's `[grading].manifest` declares, or None.
+
+    None means "not enumerable here": no manifest declared, no PyYAML in this
+    interpreter, or a manifest that does not parse into a `checks` table of
+    rows with an `id`. Read by parsing only; nothing here imports the grader.
+    """
+    rel = (raw.get("grading") or {}).get("manifest")
+    if not rel:
+        return None
+    path = root / str(rel)
+    if not path.is_file():
+        return None
+    try:
+        import yaml  # optional here: test_matrix_gt008 already leans on it
+    except ImportError:
+        return None
+    try:
+        doc = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError, yaml.YAMLError):
+        return None
+    rows = (doc or {}).get("checks") if isinstance(doc, dict) else None
+    if not isinstance(rows, list):
+        return None
+    ids = {str(r["id"]) for r in rows if isinstance(r, dict) and r.get("id")}
+    return ids or None
+
+
 def _matrix_spec(task_id: str, root: Path, base: dict | None,
-                 arm: dict | None) -> MatrixSpec | None:
+                 arm: dict | None, raw: dict | None = None) -> MatrixSpec | None:
     """`[matrix]` plus the resolved arm's `[variants.<name>.matrix]` -> MatrixSpec.
 
     Per-key override, the same pattern as the arm's grading flags: a key the
@@ -452,10 +493,27 @@ def _matrix_spec(task_id: str, root: Path, base: dict | None,
         proxy[str(axis)] = ArtifactTokens(field=entry["field"],
                                           tokens=tuple(entry["tokens"]))
 
+    # [matrix.outcome] (outcome.py). ONE key, like `map`: the arm's table
+    # replaces the base's wholesale. Ids are vouched for by the map's union
+    # plus the grader manifest's check table where that can be read.
+    raw_outcome = pick("outcome")
+    outcome_spec = None
+    if raw_outcome is not None:
+        known = {cid for ids in axis_map.values() for cid in ids}
+        manifest_ids = _manifest_check_ids(root, raw or {})
+        try:
+            outcome_spec = parse_outcome_spec(
+                raw_outcome,
+                known_ids=(known | manifest_ids) if manifest_ids else None,
+                where=f"{task_id} [matrix.outcome]")
+        except MatrixError as exc:
+            raise TaskSpecError(str(exc)) from exc
+
     pass_axis = str(pick("pass_axis"))
     try:
         spec = MatrixSpec(pass_axis=pass_axis, gate=gate,
-                          accepted=tuple(accepted), map=axis_map, proxy=proxy)
+                          accepted=tuple(accepted), map=axis_map, proxy=proxy,
+                          outcome=outcome_spec)
     except MatrixError as exc:
         raise TaskSpecError(f"{task_id} [matrix]: {exc}") from exc
 
@@ -705,5 +763,6 @@ def load(task_id: str, tasks_dir: Path | None = None,
             arm.grading.get("pass_min_total",
                             _require(harness, "pass_min_total",
                                      f"{task_id} [harness]"))),
-        matrix=_matrix_spec(task_id, root, raw.get("matrix"), arm.matrix),
+        matrix=_matrix_spec(task_id, root, raw.get("matrix"), arm.matrix,
+                            raw=raw),
     )

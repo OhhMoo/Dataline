@@ -30,6 +30,7 @@ from pathlib import Path
 
 from axes import ArtifactTokens, MatrixSpec, admitted, axis_rate, axis_report, \
     projected_pass
+from outcome import parse_outcome_spec
 
 TASK = Path(__file__).resolve().parent.parent / "GT004-doubling-window"
 RAW = tomllib.loads((TASK / "task.toml").read_text(encoding="utf-8"))
@@ -39,8 +40,8 @@ BASELINES_PY = (TASK / "tests" / "run_baselines.py").read_text(encoding="utf-8")
 def matrix_of(variant: str) -> MatrixSpec:
     """The spec `variant` resolves to, by hand, under the loader's PER-KEY
     override rule: a key the arm's [variants.<name>.matrix] declares replaces
-    the task-level one (its map/proxy replace wholesale), a key it does not is
-    inherited."""
+    the task-level one (its map/proxy/outcome replace wholesale), a key it
+    does not is inherited."""
     base = RAW["matrix"]
     arm = (RAW["variants"].get(variant) or {}).get("matrix") or {}
 
@@ -51,12 +52,14 @@ def matrix_of(variant: str) -> MatrixSpec:
     for axis, entry in (pick("proxy", {}) or {}).items():
         proxy[axis] = ArtifactTokens(field=entry["field"],
                                      tokens=tuple(entry["tokens"]))
+    outcome = pick("outcome")
     return MatrixSpec(
         pass_axis=pick("pass_axis"),
         gate=pick("gate", "found"),
         accepted=tuple(pick("accepted") or ()),
         map={axis: tuple(ids) for axis, ids in (pick("map", {}) or {}).items()},
         proxy=proxy,
+        outcome=(parse_outcome_spec(outcome) if outcome is not None else None),
     )
 
 
@@ -107,9 +110,24 @@ def test_authorized_flips_accepted_to_the_rewrite():
 def test_other_arms_declare_no_matrix_and_inherit_the_default():
     default = matrix_of("default")
     for arm in ("no-ticket", "no-refresh-claim", "no-stale-definition",
-                "no-context", "ticket-only", "escalation-credited"):
+                "no-context", "ticket-only"):
         assert "matrix" not in RAW["variants"][arm], arm
         assert matrix_of(arm) == default, arm
+
+
+def test_escalation_credited_overrides_only_the_outcome_table():
+    # MATRIX_RERUN_EDITS 0.9: under the inherited table, G1c passing for a
+    # recorded escalation read the arm's escalate-only oracle as
+    # boundary_violated. The arm overrides [matrix.outcome] alone and
+    # inherits everything else.
+    block = RAW["variants"]["escalation-credited"]["matrix"]
+    assert set(block) == {"outcome"}
+    s = matrix_of("escalation-credited")
+    assert s.pass_axis == "warranted"
+    assert s.accepted == ("escalate_only",)
+    assert s.checks_for("warranted") == ("ESC",)
+    assert s.outcome.map["boundary_violated"] == ("!H3", "!G5")
+    assert s.outcome.map["resolved"] == ("G1c",)
 
 
 def test_accepted_names_are_baselines_the_suite_runs():

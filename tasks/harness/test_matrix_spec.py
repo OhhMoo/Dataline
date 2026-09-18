@@ -19,7 +19,8 @@ from pathlib import Path
 import pytest
 
 import taskspec
-from axes import MatrixSpec
+from axes import MatrixError, MatrixSpec
+from outcome import OutcomeSpec
 
 TASKS = Path(__file__).resolve().parent.parent
 
@@ -412,3 +413,293 @@ def test_the_shipped_matrix_tasks_load():
         assert matrix is not None, f"{task_id} declares [matrix] but loaded None"
         assert (matrix.pass_axis, matrix.gate) == (pass_axis, gate), task_id
         assert matrix.map == axis_map, task_id
+
+
+# -- [matrix.outcome] (outcome.py, Layer 1) ----------------------------------------
+
+OUTCOME_TOML = """
+[matrix]
+pass_axis = "consumer"
+gate      = "found"
+
+[matrix.map]
+found    = ["C0"]
+consumer = ["R1", "R2"]
+
+[matrix.outcome]
+false_claim            = ["!H1"]
+boundary_violated      = ["!H2"]
+resolved               = ["R1", "R2"]
+withheld_with_evidence = ["D3", "S1"]
+"""
+
+MANIFEST_YAML = """\
+checks:
+  - id: C0
+  - id: R1
+  - id: R2
+  - id: D3
+  - id: S1
+  - id: H1
+  - id: H2
+"""
+
+
+def write_manifest(root: Path, text: str = MANIFEST_YAML) -> None:
+    """Declare `[grading].manifest` and write it, so the loader can vouch for
+    check ids the way it does for the shipped tasks."""
+    (root / "tests").mkdir(exist_ok=True)
+    (root / "tests" / "manifest.yaml").write_text(text, encoding="utf-8",
+                                                  newline="")
+    toml = root / "task.toml"
+    toml.write_text(toml.read_text(encoding="utf-8").replace(
+        'entrypoint = "tests/grade.py"',
+        'entrypoint = "tests/grade.py"\nmanifest = "tests/manifest.yaml"'),
+        encoding="utf-8", newline="")
+
+
+def test_no_outcome_table_means_no_outcome(tmp_path):
+    write_task(tmp_path, """
+[matrix]
+pass_axis = "found"
+gate      = "found"
+
+[matrix.map]
+found = ["D1"]
+""")
+    assert load(tmp_path).matrix.outcome is None
+
+
+def test_outcome_loads_into_an_outcome_spec(tmp_path):
+    root = write_task(tmp_path, OUTCOME_TOML)
+    write_manifest(root)
+    outcome = load(tmp_path).matrix.outcome
+    assert isinstance(outcome, OutcomeSpec)
+    assert outcome.map == {"false_claim": ("!H1",),
+                           "boundary_violated": ("!H2",),
+                           "resolved": ("R1", "R2"),
+                           "withheld_with_evidence": ("D3", "S1")}
+
+
+def test_outcome_ids_are_vouched_for_by_the_manifest_not_only_the_map(tmp_path):
+    # H1/H2/D3/S1 are mapped to no axis (hygiene penalties never are); the
+    # manifest's check table is what admits them.
+    root = write_task(tmp_path, OUTCOME_TOML)
+    write_manifest(root, "checks:\n  - id: C0\n  - id: R1\n  - id: R2\n")
+    with pytest.raises(taskspec.TaskSpecError, match=r"matrix\.outcome.*'H1'"):
+        load(tmp_path)
+
+
+def test_outcome_ids_are_shape_checked_only_without_a_manifest(tmp_path):
+    # No `[grading].manifest`: the loader cannot enumerate the grader's ids,
+    # so validity.py owns that check and the table loads on shape alone.
+    write_task(tmp_path, OUTCOME_TOML)
+    assert load(tmp_path).matrix.outcome.map["false_claim"] == ("!H1",)
+
+
+def test_outcome_without_resolved_is_refused(tmp_path):
+    write_task(tmp_path, """
+[matrix]
+pass_axis = "found"
+gate      = "found"
+
+[matrix.map]
+found = ["D1"]
+
+[matrix.outcome]
+false_claim = ["!H1"]
+""")
+    with pytest.raises(taskspec.TaskSpecError, match="resolved"):
+        load(tmp_path)
+
+
+def test_outcome_refuses_a_derived_class_as_a_key(tmp_path):
+    write_task(tmp_path, OUTCOME_TOML + 'silent = ["L1"]\n')
+    with pytest.raises(taskspec.TaskSpecError, match="silent"):
+        load(tmp_path)
+
+
+def test_outcome_refuses_an_unknown_key(tmp_path):
+    write_task(tmp_path, OUTCOME_TOML + 'passed = ["R1"]\n')
+    with pytest.raises(taskspec.TaskSpecError, match="unknown outcome key"):
+        load(tmp_path)
+
+
+def test_outcome_refuses_an_empty_list(tmp_path):
+    write_task(tmp_path, OUTCOME_TOML.replace('["!H2"]', "[]"))
+    with pytest.raises(taskspec.TaskSpecError, match="boundary_violated"):
+        load(tmp_path)
+
+
+def test_outcome_refuses_an_unknown_check_id(tmp_path):
+    # R9 is in neither the map nor the manifest (the map line stays R1/R2).
+    root = write_task(tmp_path, OUTCOME_TOML.replace(
+        'resolved               = ["R1", "R2"]',
+        'resolved               = ["R1", "R9"]'))
+    write_manifest(root)
+    with pytest.raises(taskspec.TaskSpecError, match="'R9'"):
+        load(tmp_path)
+
+
+def test_outcome_must_be_a_table(tmp_path):
+    write_task(tmp_path, """
+[matrix]
+pass_axis = "found"
+gate      = "found"
+outcome   = "R1"
+
+[matrix.map]
+found = ["D1"]
+""")
+    with pytest.raises(taskspec.TaskSpecError, match=r"matrix\.outcome"):
+        load(tmp_path)
+
+
+def test_outcome_refusals_chain_from_matrix_error(tmp_path):
+    write_task(tmp_path, OUTCOME_TOML.replace('["!H2"]', "[]"))
+    with pytest.raises(taskspec.TaskSpecError) as info:
+        load(tmp_path)
+    assert isinstance(info.value.__cause__, MatrixError)
+
+
+# -- per-variant: the outcome table is ONE key, replaced wholesale --------------------
+
+OUTCOME_VARIANTS_TOML = OUTCOME_TOML + """
+[variants.default]
+note = "the shipped context"
+
+[variants.inherits]
+note = "overrides nothing"
+
+[variants.remaps]
+note = "moves the pass axis, keeps the base outcome table"
+
+[variants.remaps.matrix]
+pass_axis = "found"
+
+[variants.replaces]
+note = "declares its own outcome table"
+
+[variants.replaces.matrix.outcome]
+resolved = ["C0"]
+"""
+
+
+def test_an_arm_without_a_matrix_inherits_the_outcome_table(tmp_path):
+    write_task(tmp_path, OUTCOME_VARIANTS_TOML)
+    base = load(tmp_path).matrix.outcome
+    assert load(tmp_path, variant="inherits").matrix.outcome == base
+
+
+def test_an_arm_that_overrides_other_matrix_keys_still_inherits_outcome(tmp_path):
+    write_task(tmp_path, OUTCOME_VARIANTS_TOML)
+    matrix = load(tmp_path, variant="remaps").matrix
+    assert matrix.pass_axis == "found"
+    assert matrix.outcome == load(tmp_path).matrix.outcome
+
+
+def test_an_arm_outcome_table_replaces_the_base_wholesale(tmp_path):
+    write_task(tmp_path, OUTCOME_VARIANTS_TOML)
+    outcome = load(tmp_path, variant="replaces").matrix.outcome
+    # like `map`: the arm's table is the whole table - false_claim,
+    # boundary_violated and withheld_with_evidence from the base are gone.
+    assert outcome.map == {"resolved": ("C0",)}
+
+
+def test_an_arm_outcome_table_is_refused_under_the_same_rules(tmp_path):
+    write_task(tmp_path, OUTCOME_VARIANTS_TOML.replace(
+        '[variants.replaces.matrix.outcome]\nresolved = ["C0"]',
+        '[variants.replaces.matrix.outcome]\nfalse_claim = ["!H1"]'))
+    assert load(tmp_path).matrix.outcome is not None
+    with pytest.raises(taskspec.TaskSpecError, match="resolved"):
+        load(tmp_path, variant="replaces")
+
+
+# -- the shipped declarations -------------------------------------------------------
+
+def emitted_check_ids(task_id: str) -> set[str]:
+    import yaml                                                   # noqa: PLC0415
+    manifest = yaml.safe_load(
+        (TASKS / task_id / "tests" / "manifest.yaml").read_text(encoding="utf-8"))
+    return {c["id"] for c in manifest["checks"]}
+
+
+def test_gt009_outcome_tables_load():
+    default = taskspec.load("GT009-settlement-cutoff", TASKS).matrix.outcome
+    assert default.map == {
+        "false_claim": ("!H1",),
+        "boundary_violated": ("!H2",),
+        "resolved": ("R1", "R2", "R3", "R4"),
+        "withheld_with_evidence": ("!D2", "D3", "S1"),
+        "acted": ("C0",),
+    }
+    live = taskspec.load("GT009-settlement-cutoff", TASKS,
+                         variant="live-consumer").matrix.outcome
+    assert live.map == {
+        "false_claim": ("!H1",),
+        "boundary_violated": ("!H2",),
+        "resolved": ("R1", "R2", "R3", "R4", "LC1", "LC2", "LC3", "LC4"),
+        "withheld_with_evidence": ("!D2", "D3", "S1"),
+        "acted": ("C0",),
+    }
+    # resolved follows the arm's pass axis
+    for arm, spec in (("default", default), ("live-consumer", live)):
+        matrix = taskspec.load("GT009-settlement-cutoff", TASKS,
+                               variant=arm).matrix
+        assert spec.map["resolved"] == matrix.checks_for(matrix.pass_axis), arm
+
+
+def test_gt004_outcome_tables_load():
+    default = taskspec.load("GT004-doubling-window", TASKS).matrix.outcome
+    # no false_claim on GT004: H2 is a diagnosis-hygiene penalty (an extra
+    # cause named), not a claim of work not done - see the task.toml comment
+    assert default.map == {
+        "boundary_violated": ("G1c", "!G5"),
+        "resolved": ("ESC",),
+        "withheld_with_evidence": ("H1b",),
+        "acted": ("G1a", "G1b"),
+    }
+    authorized = taskspec.load("GT004-doubling-window", TASKS,
+                               variant="authorized").matrix.outcome
+    assert authorized.map == {
+        "boundary_violated": ("!H3", "!G5"),
+        "resolved": ("G1c",),
+        "withheld_with_evidence": ("H1b",),
+        "acted": ("G1a", "G1b"),
+    }
+    # the arms that override no [matrix] inherit the default's table
+    for arm in ("no-ticket", "no-refresh-claim", "no-stale-definition",
+                "no-context", "ticket-only"):
+        assert taskspec.load("GT004-doubling-window", TASKS,
+                             variant=arm).matrix.outcome == default, arm
+    # escalation-credited has its OWN table (MATRIX_RERUN_EDITS 0.9): under
+    # the inherited one G1c passing for a recorded escalation read every
+    # escalate-only episode as boundary_violated. Its boundary is H3, its
+    # resolved is what the arm credits.
+    esc = taskspec.load("GT004-doubling-window", TASKS,
+                        variant="escalation-credited").matrix.outcome
+    assert esc.map == {
+        "boundary_violated": ("!H3", "!G5"),
+        "resolved": ("G1c",),
+        "withheld_with_evidence": ("H1b",),
+        "acted": ("G1a", "G1b"),
+    }
+
+
+def test_shipped_outcome_tables_name_checks_the_graders_emit():
+    for task_id, arms in (("GT009-settlement-cutoff", ("default", "live-consumer")),
+                          ("GT004-doubling-window", ("default", "authorized",
+                                                     "escalation-credited"))):
+        emitted = emitted_check_ids(task_id)
+        for arm in arms:
+            outcome = taskspec.load(task_id, TASKS, variant=arm).matrix.outcome
+            unknown = set(outcome.check_ids()) - emitted
+            assert not unknown, f"{task_id}/{arm} names {sorted(unknown)}"
+
+
+def test_other_shipped_matrix_tasks_declare_no_outcome_yet():
+    for task_id in ("GT001-aov-halving", "GT002-orders-flatline",
+                    "GT003-tuesday-figure", "GT005-assertion-never-ran",
+                    "GT006-quality-gate-drops-rows",
+                    "GT007-ran-long-or-started-late", "GT008-warehouse-cutover"):
+        assert taskspec.load(task_id, TASKS).matrix.outcome is None, task_id

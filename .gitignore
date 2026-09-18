@@ -89,6 +89,9 @@ nohup.out
 # local working status, not committed
 STATUS.md
 
+# the public per-run artefact (export.py): regenerate with --export, never commit
+benchmark.json
+
 # agent tooling state (superpowers plugin: sdd working dirs, generated plans)
 # .superpowers/sdd/.gitignore already self-ignores; this pins intent at root.
 .superpowers/

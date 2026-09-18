@@ -23,6 +23,10 @@ stay on the row as diagnostics and never decide pass.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:  # outcome.py imports MatrixError from here; no cycle at runtime
+    from outcome import OutcomeSpec
 
 AXES = ("found", "warranted", "scoped", "consumer")
 
@@ -75,6 +79,14 @@ class MatrixSpec:
                 validated against the package's staged baselines at load
     map:        axis -> check ids the grader already emits. An axis with
                 no mapped checks is `n/a` for this task, never 0.
+    outcome:    the task's `[matrix.outcome]` table (outcome.py, Layer 1),
+                or None when it declares none. It rides on the spec so the
+                arm that resolved the matrix is the arm that resolved the
+                outcome classes; it is NOT an axis, is never aggregated with
+                one, and nothing in this module reads it. Excluded from
+                equality: two MatrixSpecs are equal when they PROJECT the
+                same way (test_gt004_matrix.py resolves the axes by hand and
+                compares against the loader), whatever Layer 1 says on top.
     """
 
     pass_axis: str
@@ -82,6 +94,7 @@ class MatrixSpec:
     accepted: tuple[str, ...] = ()
     map: dict[str, tuple[str, ...]] = field(default_factory=dict)
     proxy: dict[str, ArtifactTokens] = field(default_factory=dict)
+    outcome: "OutcomeSpec | None" = field(default=None, compare=False)
 
     def __post_init__(self):
         if self.pass_axis not in AXES:

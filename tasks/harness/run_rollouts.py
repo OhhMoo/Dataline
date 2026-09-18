@@ -52,6 +52,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import agent_under_test as aut  # noqa: E402
 import container_episode  # noqa: E402
 import episode      # noqa: E402
+import export       # noqa: E402
 import native_stack  # noqa: E402
 import report       # noqa: E402
 import rollout      # noqa: E402
@@ -166,7 +167,22 @@ def _spec_for_report(task_id: str, tasks_dir: str | None,
         return None
 
 
-def re_report(run_dir: Path, task: str | None, tasks_dir: str | None) -> int:
+def _export(export_dir: str | None, task_id: str, run_id: str, agg: dict,
+            records: list[dict], spec) -> None:
+    """The public benchmark.json, under <export_dir>/<task>/<run_id>/.
+
+    One directory per run so a site can hold every task and every arm side
+    by side; export.py decides what goes in it and what never does.
+    """
+    if not export_dir:
+        return
+    out = Path(export_dir).resolve() / task_id / run_id
+    export.write(out, task_id, run_id, agg, records, spec=spec)
+    print(f"  benchmark: {out / 'benchmark.json'}")
+
+
+def re_report(run_dir: Path, task: str | None, tasks_dir: str | None,
+              export_dir: str | None = None) -> int:
     """Rewrite a run's report from its stored records. Nothing is re-run.
 
     The records are read back from the rN/rollout.json files (falling back to
@@ -196,6 +212,7 @@ def re_report(run_dir: Path, task: str | None, tasks_dir: str | None) -> int:
     agg = report.write(run_dir, task_id, run_dir.name, records, spec=spec)
     print(f"\n  {report.render(task_id, run_dir.name, agg, records, spec=spec)}")
     print(f"  report: {run_dir / 'report.md'}")
+    _export(export_dir, task_id, run_dir.name, agg, records, spec)
     return 0
 
 
@@ -265,6 +282,11 @@ def main() -> int:
                          "grader is re-run and no world is touched - this is "
                          "how an old run is re-projected under a [matrix] it "
                          "predates.")
+    ap.add_argument("--export", default=None, metavar="DIR",
+                    help="also write the public benchmark.json (export.py's "
+                         "stable schema: rates with their intervals and "
+                         "denominators, no grader internals) under "
+                         "DIR/<task>/<run-id>/. Works with --re-report.")
     ap.add_argument("--k", type=int, default=5)
     ap.add_argument("--tasks-dir", default=None,
                     help="directory holding the task package, when it is not tasks/")
@@ -307,7 +329,8 @@ def main() -> int:
                          "is marked and must never be reported as a measurement")
     a = ap.parse_args()
     if a.re_report:
-        return re_report(Path(a.re_report).resolve(), a.task, a.tasks_dir)
+        return re_report(Path(a.re_report).resolve(), a.task, a.tasks_dir,
+                         export_dir=a.export)
     if a.regrade_run:
         return regrade_run(Path(a.regrade_run).resolve(), a.task, a.tasks_dir)
     if not a.task:
@@ -372,6 +395,7 @@ def main() -> int:
     print(f"\n  {report.render(a.task, run_id, agg, records, spec=spec)}")
     print(f"  wall clock for the whole run: {round(time.time() - started, 1)}s")
     print(f"  report: {run_dir / 'report.md'}")
+    _export(a.export, a.task, run_id, agg, records, spec)
     return 0
 
 

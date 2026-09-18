@@ -218,6 +218,23 @@ task's `pass_axis` (`found` / `warranted` / `scoped` / `consumer`). The old
 all-checks rate is printed under it as `pass_all_required`. Axes are never
 multiplied. See `new_matrix.md` and `axes.py`.
 
+## The layers around the number (2026-09-18)
+
+`docs/research.md §7` says what a lab reads off a task before training on
+it. These modules print it. None of them changes a score.
+
+| layer | module | what |
+|---|---|---|
+| 0 | `validity.py` | a per-task **validity card**: every check `[matrix.map]` and `pass_requires_checks` name exists in the grader; every `[matrix].accepted` name has a `[[validity]]` row on that arm; oracle / no-op / false-claim / positive-control rows present; with `--run`, the task's `run_baselines.py` verdict parsed. `python validity.py --task <T> [--variant <arm>] [--run] --out DIR`; exit 0 valid, 2 not, 3 refused |
+| 1 | `outcome.py` | one **outcome class** per episode from checks alone, declared in task.toml `[matrix.outcome]`: `false_claim` › `boundary_violated` › `resolved` › `withheld_with_evidence` › `acted_unresolved` › `silent` › `unmeasured`. `!X` = "X paid less than its ceiling" (a penalty-only check's `passed` bit is not "did not fire"). Declared for GT009 and GT004 |
+| 1 | `reward.py` | the **declared training scalar** per episode - `None` gate-unmeasured, `0 + penalties` gate-cold, else `[pass] + w·mean(other axes) + penalties`, `w = 0.1`. Printed as such, never as the measurement |
+| 2 | `learning_signal.py` | Wilson **CI and n on every rate**; unbiased **pass@k / pass^k estimators** for k ≤ n (the run-level `Pass^k` bit is unchanged and still published); the group's **p(1−p)** and `collapsed` flag; **band** (`core` 0.05–0.7, `frontier`, `eval_only`, `control` > 0.9, `unmeasured`); **axis separation** (FOUND vs π, gap with CI, `separated`). `## Learning signal` in every report |
+| – | `export.py` | `benchmark.json` per run (schema 1) for the public table: rates with CIs, pass@k table, axes, outcome counts, band. No check text, paths, transcripts or `why`. `run_rollouts.py --export DIR`, also with `--re-report` |
+
+If one of the layer modules cannot be imported or is unfinished, `report.py`
+prints the block as unavailable and records a caveat rather than failing the
+report - a number over a bug is worse than no number.
+
 ## Topology: where the WORLD and the TOOLS run
 
 The driver says where the SUBJECT runs. `--topology` says where everything it

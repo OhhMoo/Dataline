@@ -52,8 +52,46 @@ the other denominators (unmeasured, not 0.0) — the same honesty rule as
 quarantine. “Didn’t look” and “looked and said no” must not share a zero.
 
 The old all-checks rate is still printed, labelled `pass_all_required`, under
-the projection. It is not the headline. Design: `new_matrix.md`; loader and
+the projection. It is not the headline. Design: `docs/new_matrix.md`; loader and
 report: `tasks/harness/axes.py`, `tasks/harness/report.py`.
+
+## The measurement and the training scalar are two objects
+
+The harness produces both and refuses to confuse them (`docs/research.md` §7 is
+the argument: a lab's trainer discards all-pass and all-fail groups, so a task
+has to say what its learning signal is, not just its rate).
+
+- **The measurement** — what we publish. The projected pass with its Wilson
+  interval and denominator, the four-axis row, and the per-episode outcome
+  classes. Never aggregated across axes or arms.
+- **The declared training scalar** — what a lab would feed a trainer. One
+  number per episode from `reward.py` (`None` gate-unmeasured, `0 + penalties`
+  gate-cold, else `[pass] + 0.1·mean(other axes) + penalties`), printed on the
+  report labelled as such, never as the headline.
+
+Four harness layers, each one module in `tasks/harness/`:
+
+| layer | module | what it emits |
+|---|---|---|
+| 0 validity | `validity.py` | a per-task card: every check the matrix and `pass_requires_checks` name exists in the grader; every `accepted` trajectory has a staged validity baseline on that arm; oracle / no-op / false-claim rows present. `--run` executes and parses the task's baseline suite. |
+| 1 episode | `outcome.py` | one outcome class per episode, from checks only: `false_claim` › `boundary_violated` › `resolved` › `withheld_with_evidence` › `acted_unresolved` › `silent` › `unmeasured`. Declared per task/arm in `[matrix.outcome]`. |
+| 1 reward | `reward.py` | the training scalar above. |
+| 2 signal | `learning_signal.py` | the within-group spread p(1−p) and the `collapsed` flag (identical rewards → zero GRPO gradient), the difficulty band (`core` 0.05–0.7 / `frontier` / `eval_only` / `control`), the FOUND-vs-π axis separation with its CI, and the unbiased pass@k / pass^k estimator table for k ≤ n. |
+
+`export.py` writes `benchmark.json` per run (`run_rollouts.py --export DIR`):
+the public artefact — rates with intervals and denominators, axes, outcome
+counts, band — with no check text, paths, transcripts or `why`. A run that is
+not `measurement_valid` exports null rates and prints `WITHHELD`.
+
+Three pass numbers, three meanings: **Pass@1 [Wilson 95% CI] (n)** is the
+benchmark rate over scored episodes; **Pass^k** is the run-level consistency
+bit (did every scored episode pass); the **pass@k / pass^k estimator table**
+is the RL-literature quantity (probability that k samples without replacement
+contain a pass / are all passes), defined only for k ≤ n. On a `[matrix]` task
+each is computed twice: over `pass_all_required` and over the projected pass.
+K guidance: **K ≥ 8 for the decision tasks** (GT002, GT003, GT004 both arms,
+GT009); K=5 suffices for the controls, whose value is being at 1.0. pass@k at
+k ≥ 64 waits for the procedural task family, not more K on nine worlds.
 
 ## Tasks
 

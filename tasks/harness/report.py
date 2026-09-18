@@ -48,14 +48,114 @@ replaces as the headline and not as a fact. A run whose variants resolve to
 matrices with DIFFERENT pass axes has no single projection, so its projected
 pass is invalidated the way any mixed-variant rate is. A task without a
 [matrix] renders byte-identical to before: no spec, no row.
+
+THE INTERVAL, THE ESTIMATOR TABLE AND THE LEARNING SIGNAL (docs/research.md
+§2 and §7.2 items 4 and 6). K=5 cannot separate 0.8 from 1.0, and a Pass@1
+printed without its interval invites the reader to do exactly that, so the
+Wilson interval and n print on the SAME LINE as the rate, every time. Beside
+the run-level Pass^k bit (did every scored rollout pass) the report now
+carries the unbiased pass@k / pass^k estimators for k <= n; they answer a
+different question and are labelled `(unbiased est.)` so nobody reads one as
+the other. The `## Learning signal` section prints what a trainer's filter
+reads - group spread p(1-p), whether the group collapsed, the difficulty band
+with the rule that placed it, and the FOUND-vs-pass-axis separation - and
+obeys the same rule as the rate: when the run is not a clean measurement,
+every line is marked provisional rather than dropped. The matrix block also
+carries each episode's outcome class and the DECLARED training scalar, and
+the scalar is labelled as the thing a trainer is handed, never as the
+measurement; the headline stays the projection. All three come from modules
+that are being filled in against frozen interfaces, so a stub that still
+raises NotImplementedError costs the report that block and a caveat, not the
+report.
 """
 from __future__ import annotations
 
+import importlib
 import json
 import statistics
 from pathlib import Path
 
 import axes as axes_lib
+
+# The three learning-signal modules are contracts first and code second: a
+# stub that raises NotImplementedError, or one that will not even import yet,
+# must cost the report its new block and nothing else. So each is loaded as
+# "the module, or the reason it is not one", and every call goes through
+# _call(), which turns a refusal into a run-conditions caveat. Tests replace
+# the module attributes below with deterministic fakes.
+_IMPORT_FAILURES: dict[str, str] = {}
+
+
+def _optional_import(name: str):
+    try:
+        return importlib.import_module(name)
+    except Exception as exc:  # noqa: BLE001 - the reason is the caveat
+        _IMPORT_FAILURES[name] = f"{type(exc).__name__}: {exc}"
+        return None
+
+
+learning_signal = _optional_import("learning_signal")
+reward = _optional_import("reward")
+outcome = _optional_import("outcome")
+
+
+def _call(module, module_name: str, fn: str, caveats: list[str] | None,
+          *args, **kw):
+    """module.fn(*args, **kw), or None plus a caveat saying why not.
+
+    Only an unfilled interface degrades: a module that did not import, a
+    function the interface does not have, or a body that raises
+    NotImplementedError. Anything else is a real defect and is allowed to
+    crash the report, because a number computed over a bug is worse than no
+    number.
+    """
+    if module is None:
+        note = (f"{module_name}.{fn} unavailable: the module did not import "
+                f"({_IMPORT_FAILURES.get(module_name, 'unknown')}); its block "
+                f"reads unavailable")
+    elif getattr(module, fn, None) is None:
+        note = (f"{module_name}.{fn} unavailable: the module has no such "
+                f"function; its block reads unavailable")
+    else:
+        try:
+            return getattr(module, fn)(*args, **kw)
+        except NotImplementedError:
+            note = (f"{module_name}.{fn} is not implemented yet; its block "
+                    f"reads unavailable")
+    if caveats is not None and note not in caveats:
+        caveats.append(note)
+    return None
+
+
+def _ci_list(ci) -> list[float] | None:
+    """A [lo, hi] pair rounded for the report, or None."""
+    if ci is None:
+        return None
+    lo, hi = ci
+    return [round(float(lo), 3), round(float(hi), 3)]
+
+
+def _fmt_ci(ci) -> str:
+    return "[95% CI unavailable]" if ci is None else f"[{ci[0]:.2f}, {ci[1]:.2f}]"
+
+
+def _k_table(table: dict | None, n: int) -> dict | None:
+    """pass_at_k_table's output restricted to k <= n, keys as strings.
+
+    Strings because report.json round-trips through JSON and a table whose
+    keys change type on the way back would render differently from the one
+    that was written. k > n is not "0", it is undefined, so those ks leave.
+    """
+    if table is None:
+        return None
+    out = {}
+    for name in ("pass_at_k", "pass_hat_k"):
+        rows = table.get(name) or {}
+        out[name] = {str(k): (None if v is None else round(float(v), 3))
+                     for k, v in sorted(rows.items(), key=lambda kv: int(kv[0]))
+                     if int(k) <= n}
+    return out
+
 
 CLASSES = ("pass", "reasoning", "tool_gap", "timeout", "budget",
            "grader_defect", "harness_error", "quota_exhausted",
@@ -274,7 +374,11 @@ def _pass_axis_conflict(spec, matrix, records: list[dict]) -> str | None:
             axes_by_arm[arm] = (other_matrix.pass_axis
                                 if other_matrix is not None else "no matrix")
         except Exception as exc:  # noqa: BLE001 - the reason is recorded, not hidden
-            axes_by_arm[arm] = f"unresolved ({exc})"
+            # The exception TYPE, not its text: taskspec's messages name
+            # filesystem paths, and this string is exported verbatim into
+            # benchmark.json for a public page. The full text is one
+            # `taskspec.load` away for whoever is debugging the arm.
+            axes_by_arm[arm] = f"unresolved ({type(exc).__name__})"
     if len(set(axes_by_arm.values())) <= 1:
         return None
     detail = ", ".join(f"{a}: {v}" for a, v in sorted(axes_by_arm.items()))
@@ -283,7 +387,28 @@ def _pass_axis_conflict(spec, matrix, records: list[dict]) -> str | None:
             f"projection of neither")
 
 
-def _matrix_block(spec, records: list[dict]) -> dict | None:
+HYGIENE_SOURCE = "H-prefixed non-positive checks (heuristic)"
+
+
+def _hygiene(checks: dict) -> dict[str, float]:
+    """The penalty checks that fired, for reward.episode_reward.
+
+    A HEURISTIC, and named as one in the block: the graders that charge
+    collateral damage (GT009's H1 false claim, H2 restated day) all use
+    H-prefixed ids, and a penalty that fired is a check with non-positive
+    points. Until task.toml declares its penalty checks, this is the best
+    reading available, so it is recorded beside the number it produced.
+    """
+    out = {}
+    for cid, c in (checks or {}).items():
+        pts = (c or {}).get("points")
+        if cid.startswith("H") and isinstance(pts, (int, float)) and pts <= 0:
+            out[cid] = float(pts)
+    return out
+
+
+def _matrix_block(spec, records: list[dict],
+                  caveats: list[str] | None = None) -> dict | None:
     """The [matrix] projection over this run's SCORED rollouts, or None.
 
     None means "not a matrix task" (no spec, or a spec without a matrix) and
@@ -295,6 +420,12 @@ def _matrix_block(spec, records: list[dict]) -> dict | None:
     and the headline is the mean of the per-episode projected pass over the
     episodes that have one. An axis with no evidence in any admitted episode
     is n/a, never 0.
+
+    Each per_rollout row also carries the episode's OUTCOME CLASS (when the
+    task declares `[matrix.outcome]`) and its DECLARED TRAINING SCALAR. The
+    scalar is what a trainer is handed; it is kept out of the headline and
+    labelled for what it is, because the table never aggregates axes and the
+    scalar does.
     """
     matrix = getattr(spec, "matrix", None) if spec is not None else None
     if matrix is None:
@@ -313,6 +444,39 @@ def _matrix_block(spec, records: list[dict]) -> dict | None:
         axis_means[axis] = round(sum(rates) / len(rates), 3) if rates else None
     passes = [row["pass"] for row in per_rollout.values()
               if row["pass"] is not None]
+    n_pass = sum(1 for p in passes if p)
+
+    # Outcome class and reward per episode. The outcome needs a declaration
+    # the task may not carry yet (MatrixSpec.outcome is optional); the reward
+    # is always attempted. Either module still being a stub leaves None here
+    # and a caveat above the number.
+    outcome_spec = getattr(matrix, "outcome", None)
+    rewards: list[float] = []
+    outcome_counts: dict[str, int] = {}
+    for r in scored:
+        row = per_rollout[r.get("rollout_id")]
+        checks = r.get("checks") or {}
+        cls = None
+        if outcome_spec is not None:
+            cls = _call(outcome, "outcome", "classify_outcome", caveats,
+                        outcome_spec, checks, r.get("artifact"))
+            if cls is not None:
+                outcome_counts[cls["outcome"]] = \
+                    outcome_counts.get(cls["outcome"], 0) + 1
+        rw = _call(reward, "reward", "episode_reward", caveats,
+                   dict(row), matrix.pass_axis, hygiene=_hygiene(checks))
+        if rw is not None and rw.get("reward") is not None:
+            rewards.append(float(rw["reward"]))
+        row["outcome"] = cls
+        row["reward"] = rw
+    # precedence order first (outcome.OUTCOMES), so the counts line reads the
+    # same way the classifier decided; anything unknown sorts after
+    order = list(getattr(outcome, "OUTCOMES", ()) or ())
+    outcome_counts = {k: outcome_counts[k]
+                      for k in sorted(outcome_counts,
+                                      key=lambda k: (k not in order,
+                                                     order.index(k) if k in order else 0,
+                                                     k))}
     return {
         "pass_axis": matrix.pass_axis,
         "gate": matrix.gate,
@@ -328,9 +492,24 @@ def _matrix_block(spec, records: list[dict]) -> dict | None:
         "pass_axis_unmeasured": sum(1 for row in admitted_rows
                                     if row["pass"] is None),
         "axis_means": axis_means,
-        "projected_pass": (round(sum(1 for p in passes if p) / len(passes), 3)
-                           if passes else None),
+        "projected_pass": (round(n_pass / len(passes), 3) if passes else None),
         "projected_pass_denominator": len(passes),
+        # the same interval the headline Pass@1 carries, over the same
+        # denominator the projection states: episodes with a pass bit
+        "projected_pass_ci95": _ci_list(
+            _call(learning_signal, "learning_signal", "wilson_interval",
+                  caveats, n_pass, len(passes)) if passes else None),
+        "outcome_declared": outcome_spec is not None,
+        "outcome_counts": outcome_counts,
+        "outcome_counts_denominator": "scored rollouts with an outcome class",
+        "hygiene_source": HYGIENE_SOURCE,
+        "reward_w": getattr(reward, "DEFAULT_W", None),
+        "reward_mean": (round(sum(rewards) / len(rewards), 3)
+                        if rewards else None),
+        "reward_denominator": len(rewards),
+        "reward_note": "the DECLARED training scalar (reward.py), what a "
+                       "trainer is handed per episode; not the measurement, "
+                       "which is the projected pass above it",
         "per_rollout": per_rollout,
         "pass_axis_conflict": _pass_axis_conflict(spec, matrix, records),
     }
@@ -377,10 +556,50 @@ def aggregate(records: list[dict], spec=None) -> dict:
     # The matrix row. A mixed-axis run has no single projection, which is a
     # run condition like any other: it joins the invalidations, so both the
     # projected pass and the old rate are withheld rather than averaged.
-    matrix = _matrix_block(spec, records)
+    matrix = _matrix_block(spec, records, caveats=conditions["caveats"])
     if matrix and matrix["pass_axis_conflict"]:
         conditions["invalidated_because"].append(matrix["pass_axis_conflict"])
         conditions["measurement_valid"] = False
+
+    # The interval and the estimators, over the SAME scored set as Pass@1.
+    # The rate itself is still computed here, not read back from
+    # learning_signal, so a stub cannot move the number - only withhold the
+    # interval beside it.
+    caveats = conditions["caveats"]
+    p1 = _call(learning_signal, "learning_signal", "pass_at_1", caveats,
+               scored) or {}
+    k_table = _k_table(_call(learning_signal, "learning_signal",
+                             "pass_at_k_table", caveats,
+                             n=len(scored), c=len(passed)),
+                       len(scored))
+    pass_at_k = None
+    if k_table is not None:
+        pass_at_k = {
+            "denominator": "unbiased estimators over the n scored rollouts "
+                           "(c of them passed), sampling k WITHOUT "
+                           "replacement; k > n is undefined and is not "
+                           "listed. Distinct from pass_hat_k, the run-level "
+                           "bit: that says whether every scored rollout "
+                           "passed, this estimates the probability that k "
+                           "fresh samples all would.",
+            "n": len(scored),
+            "c": len(passed),
+            **k_table,
+        }
+        if matrix is not None:
+            n_proj = matrix["projected_pass_denominator"]
+            c_proj = sum(1 for row in matrix["per_rollout"].values()
+                         if row["pass"] is True)
+            proj = _k_table(_call(learning_signal, "learning_signal",
+                                  "pass_at_k_table", caveats,
+                                  n=n_proj, c=c_proj), n_proj)
+            pass_at_k["projected"] = (
+                None if proj is None else {
+                    "denominator": "the same estimators over the episodes "
+                                   "that carry a projected pass bit",
+                    "n": n_proj, "c": c_proj, **proj})
+    signal = _call(learning_signal, "learning_signal", "summarise", caveats,
+                   records, matrix)
 
     # Pass^k per model as well as overall: one Pass^k over a run that mixed two
     # models says nothing about either, and the GT001 comparison this metric
@@ -407,6 +626,13 @@ def aggregate(records: list[dict], spec=None) -> dict:
         "pass_at_1_reasoning_only_denominator":
             "passes + reasoning failures only; excludes timeout, budget and "
             "tool_gap. Upper bound on what the task measures about reasoning.",
+        # the interval prints on the same line as the rate, every time: K=5
+        # cannot tell 0.8 from 1.0 and the reader has to be shown that
+        "pass_at_1_ci95": _ci_list(p1.get("ci95")),
+        "pass_at_1_se": (None if p1.get("se") is None
+                         else round(float(p1["se"]), 4)),
+        "pass_at_1_n": p1.get("n", len(scored)),
+        "pass_at_k": pass_at_k,
         **_pass_hat_k(records),
         "pass_hat_k_denominator":
             "1.0 iff EVERY one of the k scored rollouts passed, else 0.0. k is "
@@ -436,12 +662,101 @@ def aggregate(records: list[dict], spec=None) -> dict:
         "topologies": sorted({r.get("topology", "host") for r in records}),
         "blindness_guarantees": sorted({r.get("blindness_guarantee")
                                         for r in records if r.get("blindness_guarantee")}),
+        # what a trainer's filter reads (docs/research.md §2): None while
+        # learning_signal is a stub, and the caveat above says so
+        "learning_signal": signal,
     }
     # Absent - not null - for a non-matrix task, so report.json for one is
     # byte-identical to before the matrix existed.
     if matrix is not None:
         out["matrix"] = matrix
     return out
+
+
+def _fmt_rate(v) -> str:
+    return "n/a" if v is None else f"{v:.2f}"
+
+
+def _render_k_table(pk: dict | None, m: dict | None, provisional: str) -> list[str]:
+    """The pass@k / pass^k estimator table(s), or one line saying why not."""
+    L = [""]
+    if pk is None:
+        L.append(f"{provisional}pass@k / pass^k (unbiased est.): unavailable "
+                 f"- see caveats under Run conditions")
+        return L
+
+    def table(block: dict, what: str) -> list[str]:
+        ks = sorted(block["pass_at_k"], key=int)
+        rows = [(f"{provisional}pass@k / pass^k (unbiased est.) {what}: "
+                 f"n={block['n']}, c={block['c']} passed; sampled without "
+                 f"replacement, so only k ≤ n is defined")]
+        if not ks:
+            rows.append("  - no k ≤ n: nothing was scored")
+            return rows
+        rows.append("")
+        rows.append("| k | pass@k | pass^k (unbiased est.) |")
+        rows.append("|---|---|---|")
+        for k in ks:
+            rows.append(f"| {k} | {_fmt_rate(block['pass_at_k'][k])} | "
+                        f"{_fmt_rate(block['pass_hat_k'].get(k))} |")
+        return rows
+
+    L.extend(table(pk, "over scored rollouts"
+                       + (" (pass_all_required)" if m is not None else "")))
+    if m is not None:
+        proj = pk.get("projected")
+        L.append("")
+        if proj is None:
+            L.append(f"{provisional}pass@k / pass^k (unbiased est.) for the "
+                     f"projected pass (π={m['pass_axis']}): unavailable")
+        else:
+            L.extend(table(proj, f"for the projected pass (π={m['pass_axis']}) "
+                                 f"over episodes with a pass bit"))
+    return L
+
+
+def _render_learning_signal(agg: dict, m: dict | None, provisional: str) -> list[str]:
+    """The `## Learning signal` body. Every line takes the provisional prefix
+    when the run is not a clean measurement - the same rule as the rate: the
+    numbers stay on the page, marked, never dropped."""
+    ls = agg.get("learning_signal")
+    if ls is None:
+        return [(f"{provisional}learning signal: unavailable - see caveats "
+                 f"under Run conditions")]
+    n_scored = agg["scored"]
+    what = (f"the projected pass bit (π={m['pass_axis']})" if m is not None
+            else "the Pass@1 bit (every required check passed)")
+    L = [(f"{provisional}what a trainer's filter reads (docs/research.md §2): "
+          f"the within-group spread of the per-episode reward - {what} - and "
+          f"the band that spread puts this task in. Each line states its own "
+          f"n; the run scored {n_scored} rollouts, and an episode without "
+          f"that bit leaves the group rather than scoring 0 in it")]
+    g = ls.get("group") or {}
+    L.append(f"{provisional}- group: n={g.get('n')} · mean "
+             f"{_fmt_rate(g.get('mean'))} · variance "
+             f"{_fmt_rate(g.get('variance'))} · p(1−p) "
+             f"{_fmt_rate(g.get('p_one_minus_p'))} · collapsed: "
+             f"{str(g.get('collapsed')).lower()}"
+             + (" (a group whose rewards are all identical gives a "
+                "group-relative trainer zero gradient)"
+                if g.get("collapsed") else ""))
+    t = ls.get("thresholds") or {}
+    L.append(f"{provisional}- band: {ls.get('band')} · rule: core "
+             f"{t.get('core_low')} ≤ pass@1 ≤ {t.get('core_high')}; frontier "
+             f"pass@1 < {t.get('core_low')} and pass@k > 0; control pass@1 > "
+             f"{t.get('control_high')}; eval_only pass@k = 0; unmeasured when "
+             f"pass@1 is n/a")
+    sep = ls.get("axis_separation")
+    if sep is not None:
+        pi = m["pass_axis"] if m is not None else "pass"
+        verdict = {True: "→ separated", False: "→ not separated",
+                   None: "→ undecidable at this n"}[sep.get("separated")]
+        L.append(f"{provisional}- axis separation: FOUND "
+                 f"{_fmt_rate(sep.get('found_rate'))} vs π={pi} "
+                 f"{_fmt_rate(sep.get('pass_axis_rate'))}, gap "
+                 f"{_fmt_rate(sep.get('gap'))} "
+                 f"{_fmt_ci(sep.get('gap_ci95'))} {verdict}")
+    return L
 
 
 def render(task: str, run_id: str, agg: dict, records: list[dict],
@@ -532,7 +847,7 @@ def render(task: str, run_id: str, agg: dict, records: list[dict],
         else:
             L.append(f"**Projected pass (π={pi}) = {m['projected_pass']}** "
                      f"over {m['projected_pass_denominator']} admitted rollouts "
-                     f"· {tag}")
+                     f"· 95% CI {_fmt_ci(m.get('projected_pass_ci95'))} · {tag}")
         L.append("axes over "
                  f"{m['admitted']} admitted rollouts: "
                  + " · ".join(
@@ -540,12 +855,36 @@ def render(task: str, run_id: str, agg: dict, records: list[dict],
                      for a in axes_lib.AXES)
                  + f" ({m['gate_cold']} gate-cold and {m['gate_unmeasured']} "
                  "gate-unmeasured episodes left the denominators)")
+        # Outcome classes and the declared scalar sit UNDER the axes, in
+        # smaller type as it were: the classes explain the misses, and the
+        # scalar is what a trainer is handed, which is not what was measured.
+        counts = m.get("outcome_counts") or {}
+        if counts:
+            L.append("outcomes: "
+                     + " · ".join(f"{k} {n}" for k, n in counts.items())
+                     + f" (over {sum(counts.values())} scored rollouts with an "
+                     "outcome class)")
+        elif m.get("outcome_declared"):
+            L.append("outcomes: unavailable (the task declares "
+                     "[matrix.outcome] but no episode could be classified; see "
+                     "caveats)")
+        if m.get("reward_mean") is not None:
+            L.append(f"declared training scalar (mean) = {m['reward_mean']} "
+                     f"over {m['reward_denominator']} (w={m.get('reward_w')}) "
+                     f"- reward.py's DECLARED scalar, what a trainer is handed "
+                     f"per episode; NOT the measurement, which is the "
+                     f"projection above. hygiene penalties: "
+                     f"{m.get('hygiene_source', HYGIENE_SOURCE)}")
         L.append("")
 
     # The pre-matrix criterion stays, relabelled for what it is: EVERY required
     # check passed and the point total met. On a matrix task it is no longer
     # the headline, so it prints below the projection.
     label = "pass_all_required" if m is not None else "Pass@1"
+    # The interval and n on the SAME line as the rate: a reader who takes
+    # 0.8 away from a K=5 run without [0.38, 0.96] beside it has been misled.
+    ci = (f"{_fmt_ci(agg.get('pass_at_1_ci95'))} "
+          f"(n={agg.get('pass_at_1_n', agg['scored'])} scored rollouts)")
     if not agg["measurement_valid"]:
         L.append(f"**{label} = WITHHELD - this run is not a clean measurement.** "
                  f"· {tag}")
@@ -553,10 +892,9 @@ def render(task: str, run_id: str, agg: dict, records: list[dict],
             L.append(f"  - {why}")
         L.append("")
         L.append(f"  (provisional, do not publish: {p if p is not None else 'n/a'} "
-                 f"over {agg['scored']} scored rollouts · {tag})")
+                 f"{ci} · {tag})")
     else:
-        L.append(f"**{label} = {p if p is not None else 'n/a'}** "
-                 f"over {agg['scored']} scored rollouts · {tag}")
+        L.append(f"**{label} = {p if p is not None else 'n/a'}** {ci} · {tag}")
     if agg["pass_at_1_reasoning_only"] is not None:
         L.append(f"Pass@1 (reasoning-attributable only) = "
                  f"{agg['pass_at_1_reasoning_only']} · {tag}")
@@ -572,8 +910,20 @@ def render(task: str, run_id: str, agg: dict, records: list[dict],
         L.append("")
         L.append("| model | Pass^k | k |")
         L.append("|---|---|---|")
-        for m, e in agg["pass_hat_k_by_model"].items():
-            L.append(f"| {m} | {e['pass_hat_k']} | {e['pass_hat_k_k']} |")
+        for mdl, e in agg["pass_hat_k_by_model"].items():
+            L.append(f"| {mdl} | {e['pass_hat_k']} | {e['pass_hat_k_k']} |")
+
+    # The estimators, kept visibly apart from the bit above them. Pass^k on
+    # the line above answers "did every scored rollout pass"; pass^k here
+    # estimates how often k fresh samples all would, and the two have already
+    # been confused once in a review.
+    provisional = "" if agg["measurement_valid"] else "(provisional) "
+    L.extend(_render_k_table(agg.get("pass_at_k"), m, provisional))
+
+    L.append("")
+    L.append("## Learning signal")
+    L.append("")
+    L.extend(_render_learning_signal(agg, m, provisional))
     L.append("")
     L.append("## Failure classification")
     L.append("")
@@ -618,10 +968,22 @@ def render(task: str, run_id: str, agg: dict, records: list[dict],
     L.append("")
     L.append("## Per rollout")
     L.append("")
-    L.append("| id | class | total | tool calls | wall s | why |")
-    L.append("|---|---|---|---|---|---|")
+    # the outcome column appears only once some episode has a class: a
+    # column of n/a on a task that declares no [matrix.outcome] says nothing
+    per_rollout = (m or {}).get("per_rollout") or {}
+    outcomes = {rid: (row.get("outcome") or {}).get("outcome")
+                for rid, row in per_rollout.items()}
+    with_outcome = any(v for v in outcomes.values())
+    if with_outcome:
+        L.append("| id | class | outcome | total | tool calls | wall s | why |")
+        L.append("|---|---|---|---|---|---|---|")
+    else:
+        L.append("| id | class | total | tool calls | wall s | why |")
+        L.append("|---|---|---|---|---|---|")
     for r in records:
-        L.append(f"| {r.get('rollout_id')} | {r.get('classification')} | "
+        cls = (f"{outcomes.get(r.get('rollout_id')) or 'n/a'} | "
+               if with_outcome else "")
+        L.append(f"| {r.get('rollout_id')} | {r.get('classification')} | {cls}"
                  f"{(r.get('score') or {}).get('total')} | {r.get('tool_calls')} | "
                  f"{r.get('wall_clock_s')} | {str(r.get('why'))[:110]} |")
     q = [r for r in records
