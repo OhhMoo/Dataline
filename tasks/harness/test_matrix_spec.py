@@ -632,8 +632,12 @@ def emitted_check_ids(task_id: str) -> set[str]:
 
 #: The tasks reformed to DECISION_TEMPLATE.md (2026-09-18) and their two
 #: template arms: (control arm, decision arm). GT004 and GT009 are the two
-#: exceptions on record (§1). Wave 2b adds GT001, GT002, GT003, GT007.
+#: exceptions on record (§1).
 REFORMED_ARMS = {
+    "GT001-aov-halving": ("default", "decision"),
+    "GT002-orders-flatline": ("default", "decision"),
+    "GT003-tuesday-figure": ("default", "decision"),
+    "GT007-ran-long-or-started-late": ("default", "decision"),
     "GT004-doubling-window": ("authorized", "default"),
     "GT005-assertion-never-ran": ("default", "decision"),
     "GT006-quality-gate-drops-rows": ("default", "decision"),

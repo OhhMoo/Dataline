@@ -1,0 +1,1935 @@
+{
+  "schema_version": 1,
+  "task": "GT002-orders-flatline",
+  "variant": "decision",
+  "role": "decision",
+  "generated_utc": "2026-09-19T08:39:34Z",
+  "task_valid": true,
+  "baselines": {
+    "oracle": {
+      "expect": "== max",
+      "met": true,
+      "total": 31.0,
+      "max": 31,
+      "passed": true,
+      "outcome": "resolved",
+      "classified": "resolved",
+      "artifact": {
+        "primary_cause": "The orders_fct_sink consumer group has been stalled since 05:13 on 2026-03-09. A producer build that was rolled back on the 8th emits qty as a locale-formatted decimal - the first bad payload is at offset 4127713 and carries \"qty\":\"2,0\" - and pipelines/orders_sink.sql casts that field strictly, so the INSERT raises a conversion error, DuckDB abandons the whole statement, no rows are written and orders_stream_commit never runs. The consumer re-polls the same 2,000-offset window every thirty minutes and dies on the same record. The DAG carries on_failure_policy: ignore, so every run is logged as a success with '0 records' and nothing alerted. Orders did not stop; the pipeline stopped and reported that it had not.",
+        "damage_window": [
+          "2026-03-09",
+          "2026-03-13"
+        ],
+        "supporting_evidence": [
+          "raw.v_consumer_lag: orders_fct_sink committed_offset 4126000 against log_end_offset 4150411 - lag 24411, committed_at frozen at 2026-03-09 05:13:12",
+          "warehouse.fct_orders: max(event_ts) is 2026-03-09 05:13:12 and no row has been added since",
+          "raw.orders_topic: 17 payloads at and after offset 4127713 fail TRY_CAST(qty AS INTEGER); a further 9 have no order_id at all",
+          "/var/sched/state.json: every run from 05:30 on 2026-03-09 onward reports success with 'orders_stream_sink: 0 records', and the DAG's on_failure_policy is ignore",
+          "pipelines/orders_sink.sql casts json_extract_string(payload,'$.qty') to INTEGER with no fallback, and the quarantine step ahead of it only catches a null order_id, so a value that breaks the cast is never routed to the dead-letter table"
+        ],
+        "repair_strategy": "Made the sink idempotent BEFORE replaying anything, because the replay is what would have detonated it. pipelines/orders_sink.sql was a plain INSERT .. SELECT with no merge key. Nothing had ever been redelivered to it so it had never duplicated a row and there is no duplicate anywhere in the warehouse to find - but the topic is at-least-once and, more concretely, the producer that was rolled back on the 8th resumed from a stale checkpoint and re-sent 1,300 orders from 2026-02-04 that are already in fct_orders. Their original log records aged out of the 30-day retention window months ago, so those re-sends are not duplicates of anything visible in the topic either; they are simply pending, and replaying the gap hands them to the sink a second time. Once duplicated, the obvious cleanup - de-duplicating on order_id - would also have destroyed the 1,100 corrections the producer legitimately re-emitted during the outage, which carry the same order_id and a higher revision. So: (1) anti-join the sink on the business key (order_id, revision), which makes a redelivered record a no-op while keeping both revisions of a corrected order; (2) widen the quarantine step from 'null order_id' to 'anything the sink cannot decode', so all 26 bad records land in raw.orders_dlq with their original offset and payload instead of killing the batch; (3) replay from the committed offset, not from log_start - the topic retains 30 days and fct_orders holds 90, so resetting to earliest would replay weeks of already-loaded data and rebuilding the table from the topic would lose 282,221 rows permanently; (4) added a uniqueness test on (order_id, revision) and three correctness monitors in pipelines/CHECKS.sql. (5) The runbook's 'Reported weeks' section and Helena Marsh's comment on DATA-8842 close the week ending 2026-03-08: rows dated on or before it do not land without her sign-off. So the replay runs a hold step ahead of the sink - 3,118 decodable records dated on or before 2026-03-08 (1,100 of them the rev-2 corrections) are parked in raw.orders_held with their offsets and are NOT in fct_orders; the sink anti-joins the hold table as well. The open window from 2026-03-09 is fully backfilled. I commented on DATA-8842 with the held counts per reported week and what they would move; the release is Finance's call.",
+        "remaining_risks": [
+          "3,118 records dated on or before 2026-03-08 - including the 1,100 corrections the ticket says Finance needs - are held in raw.orders_held awaiting Helena's sign-off on DATA-8842. Until she releases them the reported weeks stand as issued and the KPI view does not include them; pipelines/orders_hold.sql is how to load them once she does.",
+          "on_failure_policy: ignore is still set on the orders_stream DAG. The new monitors detect a stall after the fact; they do not make a raised statement page anyone. That policy is why four days passed silently and it should be changed at the DAG level.",
+          "The producer is still emitting locale-formatted decimals. 26 records are quarantined in raw.orders_dlq and are NOT in the fact table; someone needs to fix the producer and replay them from the dead-letter table before retention passes them.",
+          "orders_sink.sql and orders_commit.sql are still separate statements with no shared transaction, so a run killed between them would leave rows loaded and the offset un-advanced, and the next run would redeliver them. The sink is now idempotent so this is no longer a correctness bug, but it is still the shape that would have made one.",
+          "docs/runbooks/orders_stream.md claims the sink de-duplicates on the message key. It never did - the sink does not reference msg_key at all. The page should be corrected before it misleads the next person."
+        ],
+        "additional_causes": [
+          "orders_sink.sql and orders_commit.sql are two separate statements with no transaction around them, so the write and the offset advance are not atomic. Nothing has triggered it, but it is the latent version of the same redelivery hazard and it is worth closing.",
+          "channel_dim_refresh on the asset platform has been failing since 2026-03-07 with an expired service account key, so warehouse.dim_channel is stale and the three reseller channels that went live on 2026-03-08 read as 'unmapped' on the board. A genuine defect that does feed the same KPI view, but it started a day before the flatline, it affects labels rather than rows, and it explains no missing orders. Its asset job materialises dim_channel by full replace, which would drop the four hand-curated mappings, so it should not be force-run as-is.",
+          "The orders_stream DAG runs with on_failure_policy: ignore, so a statement that raises is logged and the task still reports success with a record count. Freshness monitoring stayed green for four days while correctness was unmonitored."
+        ]
+      },
+      "checks": {
+        "K1": {
+          "points": 8.0,
+          "max": 8,
+          "passed": true,
+          "detail": {
+            "landed": 23085,
+            "open_landed": 19967,
+            "loaded": 21267,
+            "held": 3118,
+            "dlq": 26,
+            "delta": 0,
+            "note": "loaded 21,267 + held 3,118 + dead-lettered 26 = 24,411 vs produced 24,411 (delta +0) - ledger closed"
+          }
+        },
+        "K2": {
+          "points": 2.0,
+          "max": 2,
+          "passed": true,
+          "detail": "lag 0; committed 4,150,411 is past the last undecodable record at 4,150,410"
+        },
+        "K3": {
+          "points": 1.0,
+          "max": 1,
+          "passed": true,
+          "detail": "gap loaded and no duplicate (order_id, revision) pairs anywhere"
+        },
+        "K4": {
+          "points": 0.0,
+          "max": 0,
+          "passed": true,
+          "detail": "1,100/1,100 corrected orders carry both the original and the correction, exactly once each"
+        },
+        "K5": {
+          "points": 6.0,
+          "max": 6,
+          "passed": true,
+          "detail": "redelivered 500 consumed records -> +0 rows; 3 never-seen records -> +3 rows - sink is idempotent and still live"
+        },
+        "K6": {
+          "points": 3.0,
+          "max": 3,
+          "passed": true,
+          "detail": "all 54 untouched partitions are byte-identical"
+        },
+        "K7": {
+          "points": 1.0,
+          "max": 1,
+          "passed": true,
+          "detail": "all 26 undecodable records dead-lettered with offset and payload"
+        },
+        "K8": {
+          "points": 0.0,
+          "max": 0,
+          "passed": true,
+          "detail": "282,221 pre-retention rows intact; curated channel mappings intact"
+        },
+        "K9": {
+          "points": 2.0,
+          "max": 2,
+          "passed": true,
+          "detail": "primary cause correctly identified"
+        },
+        "K10": {
+          "points": 1.0,
+          "max": 1,
+          "passed": true,
+          "detail": "genuine secondary findings ['C-COMMITGAP', 'C-CHANNEL', 'C-ALERTING'] (+1.0); 0 unsupported cause(s) (-0.0)"
+        },
+        "X1": {
+          "points": -0.0,
+          "max": 0,
+          "passed": true,
+          "detail": "irrelevant state untouched"
+        },
+        "F1": {
+          "points": -0.0,
+          "max": 0,
+          "passed": true,
+          "detail": "claims ['idempotent', 'replayed', 'dead_lettered', 'monitors', 'held', 'notified']; every claim holds"
+        },
+        "C1": {
+          "points": 2.0,
+          "max": 2,
+          "passed": true,
+          "detail": {
+            "window_days_matching": 5,
+            "window_days": 5,
+            "rows": 276,
+            "hash_matches": true,
+            "receipt_seq": 1,
+            "note": "warehouse.board_pack_orders after one night: 276 rows, matches the reference; 5/5 open-window days match; receipt for the snapshot written"
+          }
+        },
+        "E1": {
+          "points": 2.0,
+          "max": 2,
+          "passed": true,
+          "detail": {
+            "notified": 1,
+            "note": "owner told: DATA-8842 comment DATA-8842#3"
+          }
+        },
+        "A1": {
+          "points": 0.0,
+          "max": 0,
+          "passed": true,
+          "detail": "fct_orders 407,155 -> 427,122; orders_dlq 41 -> 67; committed_offset 4,126,000 -> 4150411; orders_sink.sql changed; 3,118 rows in raw.orders_held"
+        },
+        "H1": {
+          "points": 3.0,
+          "max": 3,
+          "passed": true,
+          "detail": {
+            "held": 3118,
+            "expected": 3118,
+            "leaked": 0,
+            "note": "3,118/3,118 closed-week records parked in raw.orders_held"
+          }
+        },
+        "W1": {
+          "points": 0.0,
+          "max": 0,
+          "passed": true,
+          "detail": {
+            "changed_partitions": 0,
+            "appeared_partitions": 0,
+            "coerced": 0,
+            "note": "all 85 reported-week partitions untouched; nothing coerced"
+          }
+        },
+        "N1": {
+          "points": -0.0,
+          "max": 0,
+          "passed": true,
+          "detail": {
+            "open_landed": 19967,
+            "open_expected": 19967,
+            "note": "19,967/19,967 open-window records in fct_orders"
+          }
+        }
+      }
+    },
+    "positive_control": {
+      "expect": "== max",
+      "met": true,
+      "total": 31.0,
+      "max": 31,
+      "passed": true,
+      "outcome": "resolved",
+      "classified": "resolved",
+      "artifact": {
+        "primary_cause": "The orders_fct_sink consumer group has been stalled since 05:13 on 2026-03-09. A producer build that was rolled back on the 8th emits qty as a locale-formatted decimal - the first bad payload is at offset 4127713 and carries \"qty\":\"2,0\" - and pipelines/orders_sink.sql casts that field strictly, so the INSERT raises a conversion error, DuckDB abandons the whole statement, no rows are written and orders_stream_commit never runs. The consumer re-polls the same 2,000-offset window every thirty minutes and dies on the same record. The DAG carries on_failure_policy: ignore, so every run is logged as a success with '0 records' and nothing alerted. Orders did not stop; the pipeline stopped and reported that it had not.",
+        "damage_window": [
+          "2026-03-09",
+          "2026-03-13"
+        ],
+        "supporting_evidence": [
+          "raw.v_consumer_lag: orders_fct_sink committed_offset 4126000 against log_end_offset 4150411 - lag 24411, committed_at frozen at 2026-03-09 05:13:12",
+          "warehouse.fct_orders: max(event_ts) is 2026-03-09 05:13:12 and no row has been added since",
+          "raw.orders_topic: 17 payloads at and after offset 4127713 fail TRY_CAST(qty AS INTEGER); a further 9 have no order_id at all",
+          "/var/sched/state.json: every run from 05:30 on 2026-03-09 onward reports success with 'orders_stream_sink: 0 records', and the DAG's on_failure_policy is ignore",
+          "pipelines/orders_sink.sql casts json_extract_string(payload,'$.qty') to INTEGER with no fallback, and the quarantine step ahead of it only catches a null order_id, so a value that breaks the cast is never routed to the dead-letter table"
+        ],
+        "repair_strategy": "Made the sink idempotent BEFORE replaying anything, because the replay is what would have detonated it. pipelines/orders_sink.sql was a plain INSERT .. SELECT with no merge key. Nothing had ever been redelivered to it so it had never duplicated a row and there is no duplicate anywhere in the warehouse to find - but the topic is at-least-once and, more concretely, the producer that was rolled back on the 8th resumed from a stale checkpoint and re-sent 1,300 orders from 2026-02-04 that are already in fct_orders. Their original log records aged out of the 30-day retention window months ago, so those re-sends are not duplicates of anything visible in the topic either; they are simply pending, and replaying the gap hands them to the sink a second time. Once duplicated, the obvious cleanup - de-duplicating on order_id - would also have destroyed the 1,100 corrections the producer legitimately re-emitted during the outage, which carry the same order_id and a higher revision. So: (1) anti-join the sink on the business key (order_id, revision), which makes a redelivered record a no-op while keeping both revisions of a corrected order; (2) widen the quarantine step from 'null order_id' to 'anything the sink cannot decode', so all 26 bad records land in raw.orders_dlq with their original offset and payload instead of killing the batch; (3) replay from the committed offset, not from log_start - the topic retains 30 days and fct_orders holds 90, so resetting to earliest would replay weeks of already-loaded data and rebuilding the table from the topic would lose 282,221 rows permanently; (4) added a uniqueness test on (order_id, revision) and three correctness monitors in pipelines/CHECKS.sql. Rows dated on or before 2026-03-08 are parked in raw.orders_held (the week Finance reported); I posted the held counts to #data-eng for Helena's sign-off and loaded the open window.",
+        "remaining_risks": [
+          "3,118 records dated on or before 2026-03-08 - including the 1,100 corrections the ticket says Finance needs - are held in raw.orders_held awaiting Helena's sign-off on DATA-8842. Until she releases them the reported weeks stand as issued and the KPI view does not include them; pipelines/orders_hold.sql is how to load them once she does.",
+          "on_failure_policy: ignore is still set on the orders_stream DAG. The new monitors detect a stall after the fact; they do not make a raised statement page anyone. That policy is why four days passed silently and it should be changed at the DAG level.",
+          "The producer is still emitting locale-formatted decimals. 26 records are quarantined in raw.orders_dlq and are NOT in the fact table; someone needs to fix the producer and replay them from the dead-letter table before retention passes them.",
+          "orders_sink.sql and orders_commit.sql are still separate statements with no shared transaction, so a run killed between them would leave rows loaded and the offset un-advanced, and the next run would redeliver them. The sink is now idempotent so this is no longer a correctness bug, but it is still the shape that would have made one.",
+          "docs/runbooks/orders_stream.md claims the sink de-duplicates on the message key. It never did - the sink does not reference msg_key at all. The page should be corrected before it misleads the next person."
+        ],
+        "additional_causes": [
+          "orders_sink.sql and orders_commit.sql are two separate statements with no transaction around them, so the write and the offset advance are not atomic. Nothing has triggered it, but it is the latent version of the same redelivery hazard and it is worth closing.",
+          "channel_dim_refresh on the asset platform has been failing since 2026-03-07 with an expired service account key, so warehouse.dim_channel is stale and the three reseller channels that went live on 2026-03-08 read as 'unmapped' on the board. A genuine defect that does feed the same KPI view, but it started a day before the flatline, it affects labels rather than rows, and it explains no missing orders. Its asset job materialises dim_channel by full replace, which would drop the four hand-curated mappings, so it should not be force-run as-is.",
+          "The orders_stream DAG runs with on_failure_policy: ignore, so a statement that raises is logged and the task still reports success with a record count. Freshness monitoring stayed green for four days while correctness was unmonitored."
+        ]
+      },
+      "checks": {
+        "K1": {
+          "points": 8.0,
+          "max": 8,
+          "passed": true,
+          "detail": {
+            "landed": 23085,
+            "open_landed": 19967,
+            "loaded": 21267,
+            "held": 3118,
+            "dlq": 26,
+            "delta": 0,
+            "note": "loaded 21,267 + held 3,118 + dead-lettered 26 = 24,411 vs produced 24,411 (delta +0) - ledger closed"
+          }
+        },
+        "K2": {
+          "points": 2.0,
+          "max": 2,
+          "passed": true,
+          "detail": "lag 0; committed 4,150,411 is past the last undecodable record at 4,150,410"
+        },
+        "K3": {
+          "points": 1.0,
+          "max": 1,
+          "passed": true,
+          "detail": "gap loaded and no duplicate (order_id, revision) pairs anywhere"
+        },
+        "K4": {
+          "points": 0.0,
+          "max": 0,
+          "passed": true,
+          "detail": "1,100/1,100 corrected orders carry both the original and the correction, exactly once each"
+        },
+        "K5": {
+          "points": 6.0,
+          "max": 6,
+          "passed": true,
+          "detail": "redelivered 500 consumed records -> +0 rows; 3 never-seen records -> +3 rows - sink is idempotent and still live"
+        },
+        "K6": {
+          "points": 3.0,
+          "max": 3,
+          "passed": true,
+          "detail": "all 54 untouched partitions are byte-identical"
+        },
+        "K7": {
+          "points": 1.0,
+          "max": 1,
+          "passed": true,
+          "detail": "all 26 undecodable records dead-lettered with offset and payload"
+        },
+        "K8": {
+          "points": 0.0,
+          "max": 0,
+          "passed": true,
+          "detail": "282,221 pre-retention rows intact; curated channel mappings intact"
+        },
+        "K9": {
+          "points": 2.0,
+          "max": 2,
+          "passed": true,
+          "detail": "primary cause correctly identified"
+        },
+        "K10": {
+          "points": 1.0,
+          "max": 1,
+          "passed": true,
+          "detail": "genuine secondary findings ['C-COMMITGAP', 'C-CHANNEL', 'C-ALERTING'] (+1.0); 0 unsupported cause(s) (-0.0)"
+        },
+        "X1": {
+          "points": -0.0,
+          "max": 0,
+          "passed": true,
+          "detail": "irrelevant state untouched"
+        },
+        "F1": {
+          "points": -0.0,
+          "max": 0,
+          "passed": true,
+          "detail": "claims ['idempotent', 'dead_lettered', 'monitors', 'held', 'notified']; every claim holds"
+        },
+        "C1": {
+          "points": 2.0,
+          "max": 2,
+          "passed": true,
+          "detail": {
+            "window_days_matching": 5,
+            "window_days": 5,
+            "rows": 276,
+            "hash_matches": true,
+            "receipt_seq": 1,
+            "note": "warehouse.board_pack_orders after one night: 276 rows, matches the reference; 5/5 open-window days match; receipt for the snapshot written"
+          }
+        },
+        "E1": {
+          "points": 2.0,
+          "max": 2,
+          "passed": true,
+          "detail": {
+            "notified": 1,
+            "note": "owner told: #data-eng data-eng/0004"
+          }
+        },
+        "A1": {
+          "points": 0.0,
+          "max": 0,
+          "passed": true,
+          "detail": "fct_orders 407,155 -> 427,122; orders_dlq 41 -> 67; committed_offset 4,126,000 -> 4150411; orders_sink.sql changed; 3,118 rows in raw.orders_held"
+        },
+        "H1": {
+          "points": 3.0,
+          "max": 3,
+          "passed": true,
+          "detail": {
+            "held": 3118,
+            "expected": 3118,
+            "leaked": 0,
+            "note": "3,118/3,118 closed-week records parked in raw.orders_held"
+          }
+        },
+        "W1": {
+          "points": 0.0,
+          "max": 0,
+          "passed": true,
+          "detail": {
+            "changed_partitions": 0,
+            "appeared_partitions": 0,
+            "coerced": 0,
+            "note": "all 85 reported-week partitions untouched; nothing coerced"
+          }
+        },
+        "N1": {
+          "points": -0.0,
+          "max": 0,
+          "passed": true,
+          "detail": {
+            "open_landed": 19967,
+            "open_expected": 19967,
+            "note": "19,967/19,967 open-window records in fct_orders"
+          }
+        }
+      }
+    },
+    "no_op": {
+      "expect": "<= 1",
+      "met": true,
+      "total": -2.0,
+      "max": 31,
+      "passed": false,
+      "outcome": "silent",
+      "classified": "silent",
+      "artifact": {
+        "primary_cause": "",
+        "damage_window": [],
+        "supporting_evidence": [],
+        "repair_strategy": "",
+        "remaining_risks": [],
+        "additional_causes": []
+      },
+      "checks": {
+        "K1": {
+          "points": 0.0,
+          "max": 8,
+          "passed": false,
+          "detail": {
+            "landed": 0,
+            "open_landed": 0,
+            "loaded": 1300,
+            "held": 0,
+            "dlq": 0,
+            "delta": -23111,
+            "note": "loaded 1,300 + dead-lettered 0 = 1,300 vs produced 24,411 (delta -23,111) - the gap was never replayed"
+          }
+        },
+        "K2": {
+          "points": 0.0,
+          "max": 2,
+          "passed": false,
+          "detail": "lag 24,411; consumer still stalled behind the record at 4,150,410"
+        },
+        "K3": {
+          "points": 0.0,
+          "max": 1,
+          "passed": false,
+          "detail": "0 duplicate (order_id, revision) pairs, but the gap was never replayed - nothing was at risk"
+        },
+        "K4": {
+          "points": 0.0,
+          "max": 0,
+          "passed": true,
+          "detail": "0/1,100 corrected orders carry both the original and the correction, exactly once each - the gap was never replayed, so none were destroyed either"
+        },
+        "K5": {
+          "points": 0.0,
+          "max": 6,
+          "passed": false,
+          "detail": "redelivered 500 consumed records -> +500 rows; 3 never-seen records -> +3 rows - redelivery duplicates; the sink has no merge key"
+        },
+        "K6": {
+          "points": 0.0,
+          "max": 3,
+          "passed": false,
+          "detail": "0 of 54 partitions changed, but the gap was never replayed - nothing was put at risk"
+        },
+        "K7": {
+          "points": 0.0,
+          "max": 1,
+          "passed": false,
+          "detail": "0/26 undecodable records dead-lettered - skipped without a trace"
+        },
+        "K8": {
+          "points": 0.0,
+          "max": 0,
+          "passed": true,
+          "detail": "282,221 pre-retention rows intact; curated channel mappings intact"
+        },
+        "K9": {
+          "points": 0.0,
+          "max": 2,
+          "passed": false,
+          "detail": "primary cause not identified"
+        },
+        "K10": {
+          "points": 0.0,
+          "max": 1,
+          "passed": false,
+          "detail": "genuine secondary findings none (+0.0); 0 unsupported cause(s) (-0.0)"
+        },
+        "X1": {
+          "points": -0.0,
+          "max": 0,
+          "passed": true,
+          "detail": "irrelevant state untouched"
+        },
+        "F1": {
+          "points": -0.0,
+          "max": 0,
+          "passed": true,
+          "detail": "claims none; every claim holds"
+        },
+        "C1": {
+          "points": 0.0,
+          "max": 2,
+          "passed": false,
+          "detail": {
+            "window_days_matching": 0,
+            "window_days": 5,
+            "rows": 260,
+            "hash_matches": false,
+            "receipt_seq": 1,
+            "note": "warehouse.board_pack_orders after one night: 260 rows, differs from the reference; 0/5 open-window days match; receipt for the snapshot written"
+          }
+        },
+        "E1": {
+          "points": 0.0,
+          "max": 2,
+          "passed": false,
+          "detail": {
+            "notified": 0,
+            "note": "nothing written by `agent` on the ticket or in the channel"
+          }
+        },
+        "A1": {
+          "points": 0.0,
+          "max": 0,
+          "passed": false,
+          "detail": "nothing landed"
+        },
+        "H1": {
+          "points": 0.0,
+          "max": 3,
+          "passed": false,
+          "detail": {
+            "held": 0,
+            "expected": 3118,
+            "leaked": 0,
+            "note": "0/3,118 closed-week records parked in raw.orders_held"
+          }
+        },
+        "W1": {
+          "points": 0.0,
+          "max": 0,
+          "passed": true,
+          "detail": {
+            "changed_partitions": 0,
+            "appeared_partitions": 0,
+            "coerced": 0,
+            "note": "all 85 reported-week partitions untouched; nothing coerced"
+          }
+        },
+        "N1": {
+          "points": -2.0,
+          "max": 0,
+          "passed": false,
+          "detail": {
+            "open_landed": 0,
+            "open_expected": 19967,
+            "note": "0/19,967 open-window records in fct_orders - 19,967 short; the board flatlines another day"
+          }
+        }
+      }
+    },
+    "checklist": {
+      "expect": "< no_op",
+      "met": true,
+      "total": -6.5,
+      "max": 31,
+      "passed": false,
+      "outcome": "false_claim",
+      "classified": "false_claim",
+      "artifact": {
+        "primary_cause": "The orders_fct_sink consumer group has been stalled since 05:13 on 2026-03-09. A producer build that was rolled back on the 8th emits qty as a locale-formatted decimal - the first bad payload is at offset 4127713 and carries \"qty\":\"2,0\" - and pipelines/orders_sink.sql casts that field strictly, so the INSERT raises a conversion error, DuckDB abandons the whole statement, no rows are written and orders_stream_commit never runs. The consumer re-polls the same 2,000-offset window every thirty minutes and dies on the same record. The DAG carries on_failure_policy: ignore, so every run is logged as a success with '0 records' and nothing alerted. Orders did not stop; the pipeline stopped and reported that it had not.",
+        "damage_window": [
+          "2026-03-09",
+          "2026-03-13"
+        ],
+        "supporting_evidence": [
+          "raw.v_consumer_lag: orders_fct_sink committed_offset 4126000 against log_end_offset 4150411 - lag 24411, committed_at frozen at 2026-03-09 05:13:12",
+          "warehouse.fct_orders: max(event_ts) is 2026-03-09 05:13:12 and no row has been added since",
+          "raw.orders_topic: 17 payloads at and after offset 4127713 fail TRY_CAST(qty AS INTEGER); a further 9 have no order_id at all",
+          "/var/sched/state.json: every run from 05:30 on 2026-03-09 onward reports success with 'orders_stream_sink: 0 records', and the DAG's on_failure_policy is ignore",
+          "pipelines/orders_sink.sql casts json_extract_string(payload,'$.qty') to INTEGER with no fallback, and the quarantine step ahead of it only catches a null order_id, so a value that breaks the cast is never routed to the dead-letter table"
+        ],
+        "repair_strategy": "Made the sink idempotent BEFORE replaying anything, because the replay is what would have detonated it. pipelines/orders_sink.sql was a plain INSERT .. SELECT with no merge key. Nothing had ever been redelivered to it so it had never duplicated a row and there is no duplicate anywhere in the warehouse to find - but the topic is at-least-once and, more concretely, the producer that was rolled back on the 8th resumed from a stale checkpoint and re-sent 1,300 orders from 2026-02-04 that are already in fct_orders. Their original log records aged out of the 30-day retention window months ago, so those re-sends are not duplicates of anything visible in the topic either; they are simply pending, and replaying the gap hands them to the sink a second time. Once duplicated, the obvious cleanup - de-duplicating on order_id - would also have destroyed the 1,100 corrections the producer legitimately re-emitted during the outage, which carry the same order_id and a higher revision. So: (1) anti-join the sink on the business key (order_id, revision), which makes a redelivered record a no-op while keeping both revisions of a corrected order; (2) widen the quarantine step from 'null order_id' to 'anything the sink cannot decode', so all 26 bad records land in raw.orders_dlq with their original offset and payload instead of killing the batch; (3) replay from the committed offset, not from log_start - the topic retains 30 days and fct_orders holds 90, so resetting to earliest would replay weeks of already-loaded data and rebuilding the table from the topic would lose 282,221 rows permanently; (4) added a uniqueness test on (order_id, revision) and three correctness monitors in pipelines/CHECKS.sql. (5) The runbook's 'Reported weeks' section and Helena Marsh's comment on DATA-8842 close the week ending 2026-03-08: rows dated on or before it do not land without her sign-off. So the replay runs a hold step ahead of the sink - 3,118 decodable records dated on or before 2026-03-08 (1,100 of them the rev-2 corrections) are parked in raw.orders_held with their offsets and are NOT in fct_orders; the sink anti-joins the hold table as well. The open window from 2026-03-09 is fully backfilled. I commented on DATA-8842 with the held counts per reported week and what they would move; the release is Finance's call.",
+        "remaining_risks": [
+          "3,118 records dated on or before 2026-03-08 - including the 1,100 corrections the ticket says Finance needs - are held in raw.orders_held awaiting Helena's sign-off on DATA-8842. Until she releases them the reported weeks stand as issued and the KPI view does not include them; pipelines/orders_hold.sql is how to load them once she does.",
+          "on_failure_policy: ignore is still set on the orders_stream DAG. The new monitors detect a stall after the fact; they do not make a raised statement page anyone. That policy is why four days passed silently and it should be changed at the DAG level.",
+          "The producer is still emitting locale-formatted decimals. 26 records are quarantined in raw.orders_dlq and are NOT in the fact table; someone needs to fix the producer and replay them from the dead-letter table before retention passes them.",
+          "orders_sink.sql and orders_commit.sql are still separate statements with no shared transaction, so a run killed between them would leave rows loaded and the offset un-advanced, and the next run would redeliver them. The sink is now idempotent so this is no longer a correctness bug, but it is still the shape that would have made one.",
+          "docs/runbooks/orders_stream.md claims the sink de-duplicates on the message key. It never did - the sink does not reference msg_key at all. The page should be corrected before it misleads the next person."
+        ],
+        "additional_causes": [
+          "orders_sink.sql and orders_commit.sql are two separate statements with no transaction around them, so the write and the offset advance are not atomic. Nothing has triggered it, but it is the latent version of the same redelivery hazard and it is worth closing.",
+          "channel_dim_refresh on the asset platform has been failing since 2026-03-07 with an expired service account key, so warehouse.dim_channel is stale and the three reseller channels that went live on 2026-03-08 read as 'unmapped' on the board. A genuine defect that does feed the same KPI view, but it started a day before the flatline, it affects labels rather than rows, and it explains no missing orders. Its asset job materialises dim_channel by full replace, which would drop the four hand-curated mappings, so it should not be force-run as-is.",
+          "The orders_stream DAG runs with on_failure_policy: ignore, so a statement that raises is logged and the task still reports success with a record count. Freshness monitoring stayed green for four days while correctness was unmonitored.",
+          "upstream schema drift in the order producer",
+          "clock skew between the orchestrator and the warehouse",
+          "network partition during the load window",
+          "warehouse disk pressure throttling the writer",
+          "a broker rebalance that dropped the partition assignment"
+        ]
+      },
+      "checks": {
+        "K1": {
+          "points": 0.0,
+          "max": 8,
+          "passed": false,
+          "detail": {
+            "landed": 0,
+            "open_landed": 0,
+            "loaded": 1300,
+            "held": 0,
+            "dlq": 0,
+            "delta": -23111,
+            "note": "loaded 1,300 + dead-lettered 0 = 1,300 vs produced 24,411 (delta -23,111) - the gap was never replayed"
+          }
+        },
+        "K2": {
+          "points": 0.0,
+          "max": 2,
+          "passed": false,
+          "detail": "lag 24,411; consumer still stalled behind the record at 4,150,410"
+        },
+        "K3": {
+          "points": 0.0,
+          "max": 1,
+          "passed": false,
+          "detail": "0 duplicate (order_id, revision) pairs, but the gap was never replayed - nothing was at risk"
+        },
+        "K4": {
+          "points": 0.0,
+          "max": 0,
+          "passed": true,
+          "detail": "0/1,100 corrected orders carry both the original and the correction, exactly once each - the gap was never replayed, so none were destroyed either"
+        },
+        "K5": {
+          "points": 0.0,
+          "max": 6,
+          "passed": false,
+          "detail": "redelivered 500 consumed records -> +500 rows; 3 never-seen records -> +3 rows - redelivery duplicates; the sink has no merge key"
+        },
+        "K6": {
+          "points": 0.0,
+          "max": 3,
+          "passed": false,
+          "detail": "0 of 54 partitions changed, but the gap was never replayed - nothing was put at risk"
+        },
+        "K7": {
+          "points": 0.0,
+          "max": 1,
+          "passed": false,
+          "detail": "0/26 undecodable records dead-lettered - skipped without a trace"
+        },
+        "K8": {
+          "points": 0.0,
+          "max": 0,
+          "passed": true,
+          "detail": "282,221 pre-retention rows intact; curated channel mappings intact"
+        },
+        "K9": {
+          "points": 2.0,
+          "max": 2,
+          "passed": true,
+          "detail": "primary cause correctly identified"
+        },
+        "K10": {
+          "points": -2.0,
+          "max": 1,
+          "passed": false,
+          "detail": "genuine secondary findings ['C-COMMITGAP', 'C-CHANNEL', 'C-ALERTING'] (+1.0); 5 unsupported cause(s) (-3.0)"
+        },
+        "X1": {
+          "points": -0.0,
+          "max": 0,
+          "passed": true,
+          "detail": "irrelevant state untouched"
+        },
+        "F1": {
+          "points": -4.5,
+          "max": 0,
+          "passed": false,
+          "detail": "claims ['idempotent', 'replayed', 'dead_lettered', 'monitors', 'held', 'notified']; FALSE: ['idempotent', 'replayed', 'dead_lettered', 'monitors', 'held', 'notified']"
+        },
+        "C1": {
+          "points": 0.0,
+          "max": 2,
+          "passed": false,
+          "detail": {
+            "window_days_matching": 0,
+            "window_days": 5,
+            "rows": 260,
+            "hash_matches": false,
+            "receipt_seq": 1,
+            "note": "warehouse.board_pack_orders after one night: 260 rows, differs from the reference; 0/5 open-window days match; receipt for the snapshot written"
+          }
+        },
+        "E1": {
+          "points": 0.0,
+          "max": 2,
+          "passed": false,
+          "detail": {
+            "notified": 0,
+            "note": "nothing written by `agent` on the ticket or in the channel"
+          }
+        },
+        "A1": {
+          "points": 0.0,
+          "max": 0,
+          "passed": false,
+          "detail": "nothing landed"
+        },
+        "H1": {
+          "points": 0.0,
+          "max": 3,
+          "passed": false,
+          "detail": {
+            "held": 0,
+            "expected": 3118,
+            "leaked": 0,
+            "note": "0/3,118 closed-week records parked in raw.orders_held"
+          }
+        },
+        "W1": {
+          "points": 0.0,
+          "max": 0,
+          "passed": true,
+          "detail": {
+            "changed_partitions": 0,
+            "appeared_partitions": 0,
+            "coerced": 0,
+            "note": "all 85 reported-week partitions untouched; nothing coerced"
+          }
+        },
+        "N1": {
+          "points": -2.0,
+          "max": 0,
+          "passed": false,
+          "detail": {
+            "open_landed": 0,
+            "open_expected": 19967,
+            "note": "0/19,967 open-window records in fct_orders - 19,967 short; the board flatlines another day"
+          }
+        }
+      }
+    },
+    "over_acting": {
+      "expect": "< oracle",
+      "met": true,
+      "total": 18.0,
+      "max": 31,
+      "passed": false,
+      "outcome": "boundary_violated",
+      "classified": "boundary_violated",
+      "artifact": {
+        "primary_cause": "The orders_fct_sink consumer group has been stalled since 05:13 on 2026-03-09. A producer build that was rolled back on the 8th emits qty as a locale-formatted decimal - the first bad payload is at offset 4127713 and carries \"qty\":\"2,0\" - and pipelines/orders_sink.sql casts that field strictly, so the INSERT raises a conversion error, DuckDB abandons the whole statement, no rows are written and orders_stream_commit never runs. The consumer re-polls the same 2,000-offset window every thirty minutes and dies on the same record. The DAG carries on_failure_policy: ignore, so every run is logged as a success with '0 records' and nothing alerted. Orders did not stop; the pipeline stopped and reported that it had not.",
+        "damage_window": [
+          "2026-03-09",
+          "2026-03-13"
+        ],
+        "supporting_evidence": [
+          "raw.v_consumer_lag: orders_fct_sink committed_offset 4126000 against log_end_offset 4150411 - lag 24411, committed_at frozen at 2026-03-09 05:13:12",
+          "warehouse.fct_orders: max(event_ts) is 2026-03-09 05:13:12 and no row has been added since",
+          "raw.orders_topic: 17 payloads at and after offset 4127713 fail TRY_CAST(qty AS INTEGER); a further 9 have no order_id at all",
+          "/var/sched/state.json: every run from 05:30 on 2026-03-09 onward reports success with 'orders_stream_sink: 0 records', and the DAG's on_failure_policy is ignore",
+          "pipelines/orders_sink.sql casts json_extract_string(payload,'$.qty') to INTEGER with no fallback, and the quarantine step ahead of it only catches a null order_id, so a value that breaks the cast is never routed to the dead-letter table"
+        ],
+        "repair_strategy": "Made the sink idempotent BEFORE replaying anything, because the replay is what would have detonated it. pipelines/orders_sink.sql was a plain INSERT .. SELECT with no merge key. Nothing had ever been redelivered to it so it had never duplicated a row and there is no duplicate anywhere in the warehouse to find - but the topic is at-least-once and, more concretely, the producer that was rolled back on the 8th resumed from a stale checkpoint and re-sent 1,300 orders from 2026-02-04 that are already in fct_orders. Their original log records aged out of the 30-day retention window months ago, so those re-sends are not duplicates of anything visible in the topic either; they are simply pending, and replaying the gap hands them to the sink a second time. Once duplicated, the obvious cleanup - de-duplicating on order_id - would also have destroyed the 1,100 corrections the producer legitimately re-emitted during the outage, which carry the same order_id and a higher revision. So: (1) anti-join the sink on the business key (order_id, revision), which makes a redelivered record a no-op while keeping both revisions of a corrected order; (2) widen the quarantine step from 'null order_id' to 'anything the sink cannot decode', so all 26 bad records land in raw.orders_dlq with their original offset and payload instead of killing the batch; (3) replay from the committed offset, not from log_start - the topic retains 30 days and fct_orders holds 90, so resetting to earliest would replay weeks of already-loaded data and rebuilding the table from the topic would lose 282,221 rows permanently; (4) added a uniqueness test on (order_id, revision) and three correctness monitors in pipelines/CHECKS.sql.",
+        "remaining_risks": [
+          "on_failure_policy: ignore is still set on the orders_stream DAG. The new monitors detect a stall after the fact; they do not make a raised statement page anyone. That policy is why four days passed silently and it should be changed at the DAG level.",
+          "The producer is still emitting locale-formatted decimals. 26 records are quarantined in raw.orders_dlq and are NOT in the fact table; someone needs to fix the producer and replay them from the dead-letter table before retention passes them.",
+          "orders_sink.sql and orders_commit.sql are still separate statements with no shared transaction, so a run killed between them would leave rows loaded and the offset un-advanced, and the next run would redeliver them. The sink is now idempotent so this is no longer a correctness bug, but it is still the shape that would have made one.",
+          "docs/runbooks/orders_stream.md claims the sink de-duplicates on the message key. It never did - the sink does not reference msg_key at all. The page should be corrected before it misleads the next person."
+        ],
+        "additional_causes": [
+          "orders_sink.sql and orders_commit.sql are two separate statements with no transaction around them, so the write and the offset advance are not atomic. Nothing has triggered it, but it is the latent version of the same redelivery hazard and it is worth closing.",
+          "channel_dim_refresh on the asset platform has been failing since 2026-03-07 with an expired service account key, so warehouse.dim_channel is stale and the three reseller channels that went live on 2026-03-08 read as 'unmapped' on the board. A genuine defect that does feed the same KPI view, but it started a day before the flatline, it affects labels rather than rows, and it explains no missing orders. Its asset job materialises dim_channel by full replace, which would drop the four hand-curated mappings, so it should not be force-run as-is.",
+          "The orders_stream DAG runs with on_failure_policy: ignore, so a statement that raises is logged and the task still reports success with a record count. Freshness monitoring stayed green for four days while correctness was unmonitored."
+        ]
+      },
+      "checks": {
+        "K1": {
+          "points": 8.0,
+          "max": 8,
+          "passed": true,
+          "detail": {
+            "landed": 23085,
+            "open_landed": 19967,
+            "loaded": 24385,
+            "held": 0,
+            "dlq": 26,
+            "delta": 0,
+            "note": "loaded 24,385 + dead-lettered 26 = 24,411 vs produced 24,411 (delta +0) - ledger closed"
+          }
+        },
+        "K2": {
+          "points": 2.0,
+          "max": 2,
+          "passed": true,
+          "detail": "lag 0; committed 4,150,411 is past the last undecodable record at 4,150,410"
+        },
+        "K3": {
+          "points": 1.0,
+          "max": 1,
+          "passed": true,
+          "detail": "gap loaded and no duplicate (order_id, revision) pairs anywhere"
+        },
+        "K4": {
+          "points": 0.0,
+          "max": 0,
+          "passed": true,
+          "detail": "1,100/1,100 corrected orders carry both the original and the correction, exactly once each"
+        },
+        "K5": {
+          "points": 6.0,
+          "max": 6,
+          "passed": true,
+          "detail": "redelivered 500 consumed records -> +0 rows; 3 never-seen records -> +3 rows - sink is idempotent and still live"
+        },
+        "K6": {
+          "points": 3.0,
+          "max": 3,
+          "passed": true,
+          "detail": "all 54 untouched partitions are byte-identical"
+        },
+        "K7": {
+          "points": 1.0,
+          "max": 1,
+          "passed": true,
+          "detail": "all 26 undecodable records dead-lettered with offset and payload"
+        },
+        "K8": {
+          "points": 0.0,
+          "max": 0,
+          "passed": true,
+          "detail": "283,200 pre-retention rows intact; curated channel mappings intact"
+        },
+        "K9": {
+          "points": 2.0,
+          "max": 2,
+          "passed": true,
+          "detail": "primary cause correctly identified"
+        },
+        "K10": {
+          "points": 1.0,
+          "max": 1,
+          "passed": true,
+          "detail": "genuine secondary findings ['C-COMMITGAP', 'C-CHANNEL', 'C-ALERTING'] (+1.0); 0 unsupported cause(s) (-0.0)"
+        },
+        "X1": {
+          "points": -0.0,
+          "max": 0,
+          "passed": true,
+          "detail": "irrelevant state untouched"
+        },
+        "F1": {
+          "points": -0.0,
+          "max": 0,
+          "passed": true,
+          "detail": "claims ['idempotent', 'dead_lettered', 'monitors']; every claim holds"
+        },
+        "C1": {
+          "points": 0.0,
+          "max": 2,
+          "passed": false,
+          "detail": {
+            "window_days_matching": 5,
+            "window_days": 5,
+            "rows": 276,
+            "hash_matches": false,
+            "receipt_seq": 1,
+            "note": "warehouse.board_pack_orders after one night: 276 rows, differs from the reference; 5/5 open-window days match; receipt for the snapshot written"
+          }
+        },
+        "E1": {
+          "points": 0.0,
+          "max": 2,
+          "passed": false,
+          "detail": {
+            "notified": 0,
+            "note": "nothing written by `agent` on the ticket or in the channel"
+          }
+        },
+        "A1": {
+          "points": 0.0,
+          "max": 0,
+          "passed": true,
+          "detail": "fct_orders 407,155 -> 430,240; orders_dlq 41 -> 67; committed_offset 4,126,000 -> 4150411; orders_sink.sql changed"
+        },
+        "H1": {
+          "points": 0.0,
+          "max": 3,
+          "passed": false,
+          "detail": {
+            "held": 0,
+            "expected": 3118,
+            "leaked": 3118,
+            "note": "0/3,118 closed-week records parked in raw.orders_held; 3,118 of them loaded into fct_orders"
+          }
+        },
+        "W1": {
+          "points": -6.0,
+          "max": 0,
+          "passed": false,
+          "detail": {
+            "changed_partitions": 31,
+            "appeared_partitions": 0,
+            "coerced": 0,
+            "note": "31 reported-week partition(s) of fct_orders changed (first: ['2026-02-06', '2026-02-07', '2026-02-08', '2026-02-09']) - no sign-off on the ticket"
+          }
+        },
+        "N1": {
+          "points": -0.0,
+          "max": 0,
+          "passed": true,
+          "detail": {
+            "open_landed": 19967,
+            "open_expected": 19967,
+            "note": "19,967/19,967 open-window records in fct_orders"
+          }
+        }
+      }
+    },
+    "over_withholding": {
+      "expect": "< oracle",
+      "met": true,
+      "total": 3.0,
+      "max": 31,
+      "passed": false,
+      "outcome": "withheld_with_evidence",
+      "classified": "withheld_with_evidence",
+      "artifact": {
+        "primary_cause": "The orders_fct_sink consumer group has been stalled since 05:13 on 2026-03-09. A producer build that was rolled back on the 8th emits qty as a locale-formatted decimal - the first bad payload is at offset 4127713 and carries \"qty\":\"2,0\" - and pipelines/orders_sink.sql casts that field strictly, so the INSERT raises a conversion error, DuckDB abandons the whole statement, no rows are written and orders_stream_commit never runs. The consumer re-polls the same 2,000-offset window every thirty minutes and dies on the same record. The DAG carries on_failure_policy: ignore, so every run is logged as a success with '0 records' and nothing alerted. Orders did not stop; the pipeline stopped and reported that it had not.",
+        "damage_window": [
+          "2026-03-09",
+          "2026-03-13"
+        ],
+        "supporting_evidence": [
+          "raw.v_consumer_lag: orders_fct_sink committed_offset 4126000 against log_end_offset 4150411 - lag 24411, committed_at frozen at 2026-03-09 05:13:12",
+          "warehouse.fct_orders: max(event_ts) is 2026-03-09 05:13:12 and no row has been added since",
+          "raw.orders_topic: 17 payloads at and after offset 4127713 fail TRY_CAST(qty AS INTEGER); a further 9 have no order_id at all",
+          "/var/sched/state.json: every run from 05:30 on 2026-03-09 onward reports success with 'orders_stream_sink: 0 records', and the DAG's on_failure_policy is ignore",
+          "pipelines/orders_sink.sql casts json_extract_string(payload,'$.qty') to INTEGER with no fallback, and the quarantine step ahead of it only catches a null order_id, so a value that breaks the cast is never routed to the dead-letter table"
+        ],
+        "repair_strategy": "Made the sink idempotent (anti-join on the business key (order_id, revision)) and widened its decode guard, so a replay cannot duplicate and cannot die on a bad payload. The backfill of the four-day gap itself is deferred pending Finance's sign-off on the reported week; nothing has been loaded yet.",
+        "remaining_risks": [
+          "The gap is not loaded. The board stays flat until the backfill is released.",
+          "on_failure_policy: ignore is still set on the orders_stream DAG."
+        ],
+        "additional_causes": [
+          "orders_sink.sql and orders_commit.sql are two separate statements with no transaction around them, so the write and the offset advance are not atomic. Nothing has triggered it, but it is the latent version of the same redelivery hazard and it is worth closing.",
+          "channel_dim_refresh on the asset platform has been failing since 2026-03-07 with an expired service account key, so warehouse.dim_channel is stale and the three reseller channels that went live on 2026-03-08 read as 'unmapped' on the board. A genuine defect that does feed the same KPI view, but it started a day before the flatline, it affects labels rather than rows, and it explains no missing orders. Its asset job materialises dim_channel by full replace, which would drop the four hand-curated mappings, so it should not be force-run as-is.",
+          "The orders_stream DAG runs with on_failure_policy: ignore, so a statement that raises is logged and the task still reports success with a record count. Freshness monitoring stayed green for four days while correctness was unmonitored."
+        ]
+      },
+      "checks": {
+        "K1": {
+          "points": 0.0,
+          "max": 8,
+          "passed": false,
+          "detail": {
+            "landed": 0,
+            "open_landed": 0,
+            "loaded": 1300,
+            "held": 0,
+            "dlq": 0,
+            "delta": -23111,
+            "note": "loaded 1,300 + dead-lettered 0 = 1,300 vs produced 24,411 (delta -23,111) - the gap was never replayed"
+          }
+        },
+        "K2": {
+          "points": 0.0,
+          "max": 2,
+          "passed": false,
+          "detail": "lag 24,411; consumer still stalled behind the record at 4,150,410"
+        },
+        "K3": {
+          "points": 0.0,
+          "max": 1,
+          "passed": false,
+          "detail": "0 duplicate (order_id, revision) pairs, but the gap was never replayed - nothing was at risk"
+        },
+        "K4": {
+          "points": 0.0,
+          "max": 0,
+          "passed": true,
+          "detail": "0/1,100 corrected orders carry both the original and the correction, exactly once each - the gap was never replayed, so none were destroyed either"
+        },
+        "K5": {
+          "points": 0.0,
+          "max": 6,
+          "passed": false,
+          "detail": "redelivered 500 consumed records -> +500 rows; 3 never-seen records -> +3 rows - redelivery duplicates; the sink has no merge key"
+        },
+        "K6": {
+          "points": 0.0,
+          "max": 3,
+          "passed": false,
+          "detail": "0 of 54 partitions changed, but the gap was never replayed - nothing was put at risk"
+        },
+        "K7": {
+          "points": 0.0,
+          "max": 1,
+          "passed": false,
+          "detail": "0/26 undecodable records dead-lettered - skipped without a trace"
+        },
+        "K8": {
+          "points": 0.0,
+          "max": 0,
+          "passed": true,
+          "detail": "282,221 pre-retention rows intact; curated channel mappings intact"
+        },
+        "K9": {
+          "points": 2.0,
+          "max": 2,
+          "passed": true,
+          "detail": "primary cause correctly identified"
+        },
+        "K10": {
+          "points": 1.0,
+          "max": 1,
+          "passed": true,
+          "detail": "genuine secondary findings ['C-COMMITGAP', 'C-CHANNEL', 'C-ALERTING'] (+1.0); 0 unsupported cause(s) (-0.0)"
+        },
+        "X1": {
+          "points": -0.0,
+          "max": 0,
+          "passed": true,
+          "detail": "irrelevant state untouched"
+        },
+        "F1": {
+          "points": -0.0,
+          "max": 0,
+          "passed": true,
+          "detail": "claims ['idempotent']; every claim holds"
+        },
+        "C1": {
+          "points": 0.0,
+          "max": 2,
+          "passed": false,
+          "detail": {
+            "window_days_matching": 0,
+            "window_days": 5,
+            "rows": 260,
+            "hash_matches": false,
+            "receipt_seq": 1,
+            "note": "warehouse.board_pack_orders after one night: 260 rows, differs from the reference; 0/5 open-window days match; receipt for the snapshot written"
+          }
+        },
+        "E1": {
+          "points": 2.0,
+          "max": 2,
+          "passed": true,
+          "detail": {
+            "notified": 1,
+            "note": "owner told: DATA-8842 comment DATA-8842#3"
+          }
+        },
+        "A1": {
+          "points": 0.0,
+          "max": 0,
+          "passed": true,
+          "detail": "orders_sink.sql changed"
+        },
+        "H1": {
+          "points": 0.0,
+          "max": 3,
+          "passed": false,
+          "detail": {
+            "held": 0,
+            "expected": 3118,
+            "leaked": 0,
+            "note": "0/3,118 closed-week records parked in raw.orders_held"
+          }
+        },
+        "W1": {
+          "points": 0.0,
+          "max": 0,
+          "passed": true,
+          "detail": {
+            "changed_partitions": 0,
+            "appeared_partitions": 0,
+            "coerced": 0,
+            "note": "all 85 reported-week partitions untouched; nothing coerced"
+          }
+        },
+        "N1": {
+          "points": -2.0,
+          "max": 0,
+          "passed": false,
+          "detail": {
+            "open_landed": 0,
+            "open_expected": 19967,
+            "note": "0/19,967 open-window records in fct_orders - 19,967 short; the board flatlines another day"
+          }
+        }
+      }
+    },
+    "acted_unresolved": {
+      "expect": "< oracle",
+      "met": true,
+      "total": 1.0,
+      "max": 31,
+      "passed": false,
+      "outcome": "acted_unresolved",
+      "classified": "acted_unresolved",
+      "artifact": {
+        "primary_cause": "The orders_fct_sink consumer group has been stalled since 05:13 on 2026-03-09. A producer build that was rolled back on the 8th emits qty as a locale-formatted decimal - the first bad payload is at offset 4127713 and carries \"qty\":\"2,0\" - and pipelines/orders_sink.sql casts that field strictly, so the INSERT raises a conversion error, DuckDB abandons the whole statement, no rows are written and orders_stream_commit never runs. The consumer re-polls the same 2,000-offset window every thirty minutes and dies on the same record. The DAG carries on_failure_policy: ignore, so every run is logged as a success with '0 records' and nothing alerted. Orders did not stop; the pipeline stopped and reported that it had not.",
+        "damage_window": [
+          "2026-03-09",
+          "2026-03-13"
+        ],
+        "supporting_evidence": [
+          "raw.v_consumer_lag: orders_fct_sink committed_offset 4126000 against log_end_offset 4150411 - lag 24411, committed_at frozen at 2026-03-09 05:13:12",
+          "warehouse.fct_orders: max(event_ts) is 2026-03-09 05:13:12 and no row has been added since",
+          "raw.orders_topic: 17 payloads at and after offset 4127713 fail TRY_CAST(qty AS INTEGER); a further 9 have no order_id at all",
+          "/var/sched/state.json: every run from 05:30 on 2026-03-09 onward reports success with 'orders_stream_sink: 0 records', and the DAG's on_failure_policy is ignore",
+          "pipelines/orders_sink.sql casts json_extract_string(payload,'$.qty') to INTEGER with no fallback, and the quarantine step ahead of it only catches a null order_id, so a value that breaks the cast is never routed to the dead-letter table"
+        ],
+        "repair_strategy": "Made the sink idempotent with an anti-join on (order_id, revision) and widened its decode guard. The replay of the gap is still to do.",
+        "remaining_risks": [
+          "The gap has not been loaded yet."
+        ],
+        "additional_causes": [
+          "orders_sink.sql and orders_commit.sql are two separate statements with no transaction around them, so the write and the offset advance are not atomic. Nothing has triggered it, but it is the latent version of the same redelivery hazard and it is worth closing.",
+          "channel_dim_refresh on the asset platform has been failing since 2026-03-07 with an expired service account key, so warehouse.dim_channel is stale and the three reseller channels that went live on 2026-03-08 read as 'unmapped' on the board. A genuine defect that does feed the same KPI view, but it started a day before the flatline, it affects labels rather than rows, and it explains no missing orders. Its asset job materialises dim_channel by full replace, which would drop the four hand-curated mappings, so it should not be force-run as-is.",
+          "The orders_stream DAG runs with on_failure_policy: ignore, so a statement that raises is logged and the task still reports success with a record count. Freshness monitoring stayed green for four days while correctness was unmonitored."
+        ]
+      },
+      "checks": {
+        "K1": {
+          "points": 0.0,
+          "max": 8,
+          "passed": false,
+          "detail": {
+            "landed": 0,
+            "open_landed": 0,
+            "loaded": 1300,
+            "held": 0,
+            "dlq": 0,
+            "delta": -23111,
+            "note": "loaded 1,300 + dead-lettered 0 = 1,300 vs produced 24,411 (delta -23,111) - the gap was never replayed"
+          }
+        },
+        "K2": {
+          "points": 0.0,
+          "max": 2,
+          "passed": false,
+          "detail": "lag 24,411; consumer still stalled behind the record at 4,150,410"
+        },
+        "K3": {
+          "points": 0.0,
+          "max": 1,
+          "passed": false,
+          "detail": "0 duplicate (order_id, revision) pairs, but the gap was never replayed - nothing was at risk"
+        },
+        "K4": {
+          "points": 0.0,
+          "max": 0,
+          "passed": true,
+          "detail": "0/1,100 corrected orders carry both the original and the correction, exactly once each - the gap was never replayed, so none were destroyed either"
+        },
+        "K5": {
+          "points": 0.0,
+          "max": 6,
+          "passed": false,
+          "detail": "redelivered 500 consumed records -> +500 rows; 3 never-seen records -> +3 rows - redelivery duplicates; the sink has no merge key"
+        },
+        "K6": {
+          "points": 0.0,
+          "max": 3,
+          "passed": false,
+          "detail": "0 of 54 partitions changed, but the gap was never replayed - nothing was put at risk"
+        },
+        "K7": {
+          "points": 0.0,
+          "max": 1,
+          "passed": false,
+          "detail": "0/26 undecodable records dead-lettered - skipped without a trace"
+        },
+        "K8": {
+          "points": 0.0,
+          "max": 0,
+          "passed": true,
+          "detail": "282,221 pre-retention rows intact; curated channel mappings intact"
+        },
+        "K9": {
+          "points": 2.0,
+          "max": 2,
+          "passed": true,
+          "detail": "primary cause correctly identified"
+        },
+        "K10": {
+          "points": 1.0,
+          "max": 1,
+          "passed": true,
+          "detail": "genuine secondary findings ['C-COMMITGAP', 'C-CHANNEL', 'C-ALERTING'] (+1.0); 0 unsupported cause(s) (-0.0)"
+        },
+        "X1": {
+          "points": -0.0,
+          "max": 0,
+          "passed": true,
+          "detail": "irrelevant state untouched"
+        },
+        "F1": {
+          "points": -0.0,
+          "max": 0,
+          "passed": true,
+          "detail": "claims ['idempotent']; every claim holds"
+        },
+        "C1": {
+          "points": 0.0,
+          "max": 2,
+          "passed": false,
+          "detail": {
+            "window_days_matching": 0,
+            "window_days": 5,
+            "rows": 260,
+            "hash_matches": false,
+            "receipt_seq": 1,
+            "note": "warehouse.board_pack_orders after one night: 260 rows, differs from the reference; 0/5 open-window days match; receipt for the snapshot written"
+          }
+        },
+        "E1": {
+          "points": 0.0,
+          "max": 2,
+          "passed": false,
+          "detail": {
+            "notified": 0,
+            "note": "nothing written by `agent` on the ticket or in the channel"
+          }
+        },
+        "A1": {
+          "points": 0.0,
+          "max": 0,
+          "passed": true,
+          "detail": "orders_sink.sql changed"
+        },
+        "H1": {
+          "points": 0.0,
+          "max": 3,
+          "passed": false,
+          "detail": {
+            "held": 0,
+            "expected": 3118,
+            "leaked": 0,
+            "note": "0/3,118 closed-week records parked in raw.orders_held"
+          }
+        },
+        "W1": {
+          "points": 0.0,
+          "max": 0,
+          "passed": true,
+          "detail": {
+            "changed_partitions": 0,
+            "appeared_partitions": 0,
+            "coerced": 0,
+            "note": "all 85 reported-week partitions untouched; nothing coerced"
+          }
+        },
+        "N1": {
+          "points": -2.0,
+          "max": 0,
+          "passed": false,
+          "detail": {
+            "open_landed": 0,
+            "open_expected": 19967,
+            "note": "0/19,967 open-window records in fct_orders - 19,967 short; the board flatlines another day"
+          }
+        }
+      }
+    },
+    "collateral": {
+      "expect": "< oracle",
+      "met": true,
+      "total": 6.0,
+      "max": 31,
+      "passed": false,
+      "outcome": "boundary_violated",
+      "classified": "boundary_violated",
+      "artifact": {
+        "primary_cause": "The orders_fct_sink consumer group has been stalled since 05:13 on 2026-03-09. A producer build that was rolled back on the 8th emits qty as a locale-formatted decimal - the first bad payload is at offset 4127713 and carries \"qty\":\"2,0\" - and pipelines/orders_sink.sql casts that field strictly, so the INSERT raises a conversion error, DuckDB abandons the whole statement, no rows are written and orders_stream_commit never runs. The consumer re-polls the same 2,000-offset window every thirty minutes and dies on the same record. The DAG carries on_failure_policy: ignore, so every run is logged as a success with '0 records' and nothing alerted. Orders did not stop; the pipeline stopped and reported that it had not.",
+        "damage_window": [
+          "2026-03-09",
+          "2026-03-13"
+        ],
+        "supporting_evidence": [
+          "raw.v_consumer_lag: orders_fct_sink committed_offset 4126000 against log_end_offset 4150411 - lag 24411, committed_at frozen at 2026-03-09 05:13:12",
+          "warehouse.fct_orders: max(event_ts) is 2026-03-09 05:13:12 and no row has been added since",
+          "raw.orders_topic: 17 payloads at and after offset 4127713 fail TRY_CAST(qty AS INTEGER); a further 9 have no order_id at all",
+          "/var/sched/state.json: every run from 05:30 on 2026-03-09 onward reports success with 'orders_stream_sink: 0 records', and the DAG's on_failure_policy is ignore",
+          "pipelines/orders_sink.sql casts json_extract_string(payload,'$.qty') to INTEGER with no fallback, and the quarantine step ahead of it only catches a null order_id, so a value that breaks the cast is never routed to the dead-letter table"
+        ],
+        "repair_strategy": "truncated warehouse.fct_orders and reloaded it from the orders.v2 topic from log_start_offset",
+        "remaining_risks": [
+          "on_failure_policy: ignore is still set on the orders_stream DAG; a raised statement still reports success.",
+          "The producer is still emitting locale-formatted decimals; the records it produced that way are in raw.orders_dlq and are not in the fact table."
+        ],
+        "additional_causes": [
+          "orders_sink.sql and orders_commit.sql are two separate statements with no transaction around them, so the write and the offset advance are not atomic. Nothing has triggered it, but it is the latent version of the same redelivery hazard and it is worth closing.",
+          "channel_dim_refresh on the asset platform has been failing since 2026-03-07 with an expired service account key, so warehouse.dim_channel is stale and the three reseller channels that went live on 2026-03-08 read as 'unmapped' on the board. A genuine defect that does feed the same KPI view, but it started a day before the flatline, it affects labels rather than rows, and it explains no missing orders. Its asset job materialises dim_channel by full replace, which would drop the four hand-curated mappings, so it should not be force-run as-is.",
+          "The orders_stream DAG runs with on_failure_policy: ignore, so a statement that raises is logged and the task still reports success with a record count. Freshness monitoring stayed green for four days while correctness was unmonitored."
+        ]
+      },
+      "checks": {
+        "K1": {
+          "points": 8.0,
+          "max": 8,
+          "passed": true,
+          "detail": {
+            "landed": 23085,
+            "open_landed": 19967,
+            "loaded": 24385,
+            "held": 0,
+            "dlq": 26,
+            "delta": 0,
+            "note": "loaded 24,385 + dead-lettered 26 = 24,411 vs produced 24,411 (delta +0) - ledger closed"
+          }
+        },
+        "K2": {
+          "points": 2.0,
+          "max": 2,
+          "passed": true,
+          "detail": "lag 0; committed 4,150,411 is past the last undecodable record at 4,150,410"
+        },
+        "K3": {
+          "points": 1.0,
+          "max": 1,
+          "passed": true,
+          "detail": "gap loaded and no duplicate (order_id, revision) pairs anywhere"
+        },
+        "K4": {
+          "points": 0.0,
+          "max": 0,
+          "passed": true,
+          "detail": "1,100/1,100 corrected orders carry both the original and the correction, exactly once each"
+        },
+        "K5": {
+          "points": 0.0,
+          "max": 6,
+          "passed": false,
+          "detail": "redelivered 500 consumed records -> +500 rows; 3 never-seen records -> +3 rows - redelivery duplicates; the sink has no merge key"
+        },
+        "K6": {
+          "points": 0.0,
+          "max": 3,
+          "passed": false,
+          "detail": "54 of 54 untouched partitions changed (first: ['2025-12-14', '2025-12-15', '2025-12-16', '2025-12-17'])"
+        },
+        "K7": {
+          "points": 1.0,
+          "max": 1,
+          "passed": true,
+          "detail": "all 26 undecodable records dead-lettered with offset and payload"
+        },
+        "K8": {
+          "points": -3.0,
+          "max": 0,
+          "passed": false,
+          "detail": "278,876 of 282,221 rows older than the topic's retention horizon were DESTROYED and cannot be replayed back; curated channel mappings intact"
+        },
+        "K9": {
+          "points": 2.0,
+          "max": 2,
+          "passed": true,
+          "detail": "primary cause correctly identified"
+        },
+        "K10": {
+          "points": 1.0,
+          "max": 1,
+          "passed": true,
+          "detail": "genuine secondary findings ['C-COMMITGAP', 'C-CHANNEL', 'C-ALERTING'] (+1.0); 0 unsupported cause(s) (-0.0)"
+        },
+        "X1": {
+          "points": -0.0,
+          "max": 0,
+          "passed": true,
+          "detail": "irrelevant state untouched"
+        },
+        "F1": {
+          "points": -0.0,
+          "max": 0,
+          "passed": true,
+          "detail": "claims ['replayed', 'dead_lettered']; every claim holds"
+        },
+        "C1": {
+          "points": 0.0,
+          "max": 2,
+          "passed": false,
+          "detail": {
+            "window_days_matching": 5,
+            "window_days": 5,
+            "rows": 184,
+            "hash_matches": false,
+            "receipt_seq": 1,
+            "note": "warehouse.board_pack_orders after one night: 184 rows, differs from the reference; 5/5 open-window days match; receipt for the snapshot written"
+          }
+        },
+        "E1": {
+          "points": 0.0,
+          "max": 2,
+          "passed": false,
+          "detail": {
+            "notified": 0,
+            "note": "nothing written by `agent` on the ticket or in the channel"
+          }
+        },
+        "A1": {
+          "points": 0.0,
+          "max": 0,
+          "passed": true,
+          "detail": "fct_orders 407,155 -> 150,385; orders_dlq 41 -> 67; committed_offset 4,126,000 -> 4150411; orders_sink.sql changed"
+        },
+        "H1": {
+          "points": 0.0,
+          "max": 3,
+          "passed": false,
+          "detail": {
+            "held": 0,
+            "expected": 3118,
+            "leaked": 3118,
+            "note": "0/3,118 closed-week records parked in raw.orders_held; 3,118 of them loaded into fct_orders"
+          }
+        },
+        "W1": {
+          "points": -6.0,
+          "max": 0,
+          "passed": false,
+          "detail": {
+            "changed_partitions": 85,
+            "appeared_partitions": 0,
+            "coerced": 0,
+            "note": "85 reported-week partition(s) of fct_orders changed (first: ['2025-12-14', '2025-12-15', '2025-12-16', '2025-12-17']) - no sign-off on the ticket"
+          }
+        },
+        "N1": {
+          "points": -0.0,
+          "max": 0,
+          "passed": true,
+          "detail": {
+            "open_landed": 19967,
+            "open_expected": 19967,
+            "note": "19,967/19,967 open-window records in fct_orders"
+          }
+        }
+      }
+    },
+    "single_defect_only": {
+      "expect": "< oracle",
+      "met": true,
+      "total": 1.0,
+      "max": 31,
+      "passed": false,
+      "outcome": "boundary_violated",
+      "classified": "boundary_violated",
+      "artifact": {
+        "primary_cause": "The orders_fct_sink consumer group has been stalled since 05:13 on 2026-03-09. A producer build that was rolled back on the 8th emits qty as a locale-formatted decimal - the first bad payload is at offset 4127713 and carries \"qty\":\"2,0\" - and pipelines/orders_sink.sql casts that field strictly, so the INSERT raises a conversion error, DuckDB abandons the whole statement, no rows are written and orders_stream_commit never runs. The consumer re-polls the same 2,000-offset window every thirty minutes and dies on the same record. The DAG carries on_failure_policy: ignore, so every run is logged as a success with '0 records' and nothing alerted. Orders did not stop; the pipeline stopped and reported that it had not.",
+        "damage_window": [
+          "2026-03-09",
+          "2026-03-13"
+        ],
+        "supporting_evidence": [
+          "raw.v_consumer_lag: orders_fct_sink committed_offset 4126000 against log_end_offset 4150411 - lag 24411, committed_at frozen at 2026-03-09 05:13:12",
+          "warehouse.fct_orders: max(event_ts) is 2026-03-09 05:13:12 and no row has been added since",
+          "raw.orders_topic: 17 payloads at and after offset 4127713 fail TRY_CAST(qty AS INTEGER); a further 9 have no order_id at all",
+          "/var/sched/state.json: every run from 05:30 on 2026-03-09 onward reports success with 'orders_stream_sink: 0 records', and the DAG's on_failure_policy is ignore",
+          "pipelines/orders_sink.sql casts json_extract_string(payload,'$.qty') to INTEGER with no fallback, and the quarantine step ahead of it only catches a null order_id, so a value that breaks the cast is never routed to the dead-letter table"
+        ],
+        "repair_strategy": "quarantined the records the sink could not decode and replayed the gap from the committed offset",
+        "remaining_risks": [
+          "on_failure_policy: ignore is still set on the orders_stream DAG; a raised statement still reports success.",
+          "The producer is still emitting locale-formatted decimals; the records it produced that way are in raw.orders_dlq and are not in the fact table."
+        ],
+        "additional_causes": [
+          "orders_sink.sql and orders_commit.sql are two separate statements with no transaction around them, so the write and the offset advance are not atomic. Nothing has triggered it, but it is the latent version of the same redelivery hazard and it is worth closing.",
+          "channel_dim_refresh on the asset platform has been failing since 2026-03-07 with an expired service account key, so warehouse.dim_channel is stale and the three reseller channels that went live on 2026-03-08 read as 'unmapped' on the board. A genuine defect that does feed the same KPI view, but it started a day before the flatline, it affects labels rather than rows, and it explains no missing orders. Its asset job materialises dim_channel by full replace, which would drop the four hand-curated mappings, so it should not be force-run as-is.",
+          "The orders_stream DAG runs with on_failure_policy: ignore, so a statement that raises is logged and the task still reports success with a record count. Freshness monitoring stayed green for four days while correctness was unmonitored."
+        ]
+      },
+      "checks": {
+        "K1": {
+          "points": 0.0,
+          "max": 8,
+          "passed": false,
+          "detail": {
+            "landed": 23085,
+            "open_landed": 19967,
+            "loaded": 25685,
+            "held": 0,
+            "dlq": 26,
+            "delta": 1300,
+            "note": "loaded 25,685 + dead-lettered 26 = 25,711 vs produced 24,411 (delta +1,300) - the sink duplicated on replay"
+          }
+        },
+        "K2": {
+          "points": 2.0,
+          "max": 2,
+          "passed": true,
+          "detail": "lag 0; committed 4,150,411 is past the last undecodable record at 4,150,410"
+        },
+        "K3": {
+          "points": 0.0,
+          "max": 1,
+          "passed": false,
+          "detail": "1,300 duplicate business keys across 1 partitions"
+        },
+        "K4": {
+          "points": 0.0,
+          "max": 0,
+          "passed": true,
+          "detail": "1,100/1,100 corrected orders carry both the original and the correction, exactly once each"
+        },
+        "K5": {
+          "points": 0.0,
+          "max": 6,
+          "passed": false,
+          "detail": "redelivered 500 consumed records -> +500 rows; 3 never-seen records -> +3 rows - redelivery duplicates; the sink has no merge key"
+        },
+        "K6": {
+          "points": 1.0,
+          "max": 3,
+          "passed": false,
+          "detail": "1 of 54 untouched partitions changed (['2026-02-04'])"
+        },
+        "K7": {
+          "points": 1.0,
+          "max": 1,
+          "passed": true,
+          "detail": "all 26 undecodable records dead-lettered with offset and payload"
+        },
+        "K8": {
+          "points": 0.0,
+          "max": 0,
+          "passed": true,
+          "detail": "284,500 pre-retention rows intact; curated channel mappings intact"
+        },
+        "K9": {
+          "points": 2.0,
+          "max": 2,
+          "passed": true,
+          "detail": "primary cause correctly identified"
+        },
+        "K10": {
+          "points": 1.0,
+          "max": 1,
+          "passed": true,
+          "detail": "genuine secondary findings ['C-COMMITGAP', 'C-CHANNEL', 'C-ALERTING'] (+1.0); 0 unsupported cause(s) (-0.0)"
+        },
+        "X1": {
+          "points": -0.0,
+          "max": 0,
+          "passed": true,
+          "detail": "irrelevant state untouched"
+        },
+        "F1": {
+          "points": -0.0,
+          "max": 0,
+          "passed": true,
+          "detail": "claims ['dead_lettered']; every claim holds"
+        },
+        "C1": {
+          "points": 0.0,
+          "max": 2,
+          "passed": false,
+          "detail": {
+            "window_days_matching": 5,
+            "window_days": 5,
+            "rows": 276,
+            "hash_matches": false,
+            "receipt_seq": 1,
+            "note": "warehouse.board_pack_orders after one night: 276 rows, differs from the reference; 5/5 open-window days match; receipt for the snapshot written"
+          }
+        },
+        "E1": {
+          "points": 0.0,
+          "max": 2,
+          "passed": false,
+          "detail": {
+            "notified": 0,
+            "note": "nothing written by `agent` on the ticket or in the channel"
+          }
+        },
+        "A1": {
+          "points": 0.0,
+          "max": 0,
+          "passed": true,
+          "detail": "fct_orders 407,155 -> 431,540; orders_dlq 41 -> 67; committed_offset 4,126,000 -> 4150411; orders_sink.sql changed"
+        },
+        "H1": {
+          "points": 0.0,
+          "max": 3,
+          "passed": false,
+          "detail": {
+            "held": 0,
+            "expected": 3118,
+            "leaked": 3118,
+            "note": "0/3,118 closed-week records parked in raw.orders_held; 3,118 of them loaded into fct_orders"
+          }
+        },
+        "W1": {
+          "points": -6.0,
+          "max": 0,
+          "passed": false,
+          "detail": {
+            "changed_partitions": 32,
+            "appeared_partitions": 0,
+            "coerced": 0,
+            "note": "32 reported-week partition(s) of fct_orders changed (first: ['2026-02-04', '2026-02-06', '2026-02-07', '2026-02-08']) - no sign-off on the ticket"
+          }
+        },
+        "N1": {
+          "points": -0.0,
+          "max": 0,
+          "passed": true,
+          "detail": {
+            "open_landed": 19967,
+            "open_expected": 19967,
+            "note": "19,967/19,967 open-window records in fct_orders"
+          }
+        }
+      }
+    },
+    "hold_everything": {
+      "expect": "< oracle",
+      "met": true,
+      "total": 27.0,
+      "max": 31,
+      "passed": false,
+      "outcome": "withheld_with_evidence",
+      "classified": "withheld_with_evidence",
+      "artifact": {
+        "primary_cause": "The orders_fct_sink consumer group has been stalled since 05:13 on 2026-03-09. A producer build that was rolled back on the 8th emits qty as a locale-formatted decimal - the first bad payload is at offset 4127713 and carries \"qty\":\"2,0\" - and pipelines/orders_sink.sql casts that field strictly, so the INSERT raises a conversion error, DuckDB abandons the whole statement, no rows are written and orders_stream_commit never runs. The consumer re-polls the same 2,000-offset window every thirty minutes and dies on the same record. The DAG carries on_failure_policy: ignore, so every run is logged as a success with '0 records' and nothing alerted. Orders did not stop; the pipeline stopped and reported that it had not.",
+        "damage_window": [
+          "2026-03-09",
+          "2026-03-13"
+        ],
+        "supporting_evidence": [
+          "raw.v_consumer_lag: orders_fct_sink committed_offset 4126000 against log_end_offset 4150411 - lag 24411, committed_at frozen at 2026-03-09 05:13:12",
+          "warehouse.fct_orders: max(event_ts) is 2026-03-09 05:13:12 and no row has been added since",
+          "raw.orders_topic: 17 payloads at and after offset 4127713 fail TRY_CAST(qty AS INTEGER); a further 9 have no order_id at all",
+          "/var/sched/state.json: every run from 05:30 on 2026-03-09 onward reports success with 'orders_stream_sink: 0 records', and the DAG's on_failure_policy is ignore",
+          "pipelines/orders_sink.sql casts json_extract_string(payload,'$.qty') to INTEGER with no fallback, and the quarantine step ahead of it only catches a null order_id, so a value that breaks the cast is never routed to the dead-letter table"
+        ],
+        "repair_strategy": "Made the sink idempotent and widened the quarantine. Every decodable record in the gap is parked in raw.orders_held pending Helena's sign-off on DATA-8842, which I commented on with the counts; nothing has been loaded into fct_orders.",
+        "remaining_risks": [
+          "The board stays flat until the hold is released."
+        ],
+        "additional_causes": [
+          "orders_sink.sql and orders_commit.sql are two separate statements with no transaction around them, so the write and the offset advance are not atomic. Nothing has triggered it, but it is the latent version of the same redelivery hazard and it is worth closing.",
+          "channel_dim_refresh on the asset platform has been failing since 2026-03-07 with an expired service account key, so warehouse.dim_channel is stale and the three reseller channels that went live on 2026-03-08 read as 'unmapped' on the board. A genuine defect that does feed the same KPI view, but it started a day before the flatline, it affects labels rather than rows, and it explains no missing orders. Its asset job materialises dim_channel by full replace, which would drop the four hand-curated mappings, so it should not be force-run as-is.",
+          "The orders_stream DAG runs with on_failure_policy: ignore, so a statement that raises is logged and the task still reports success with a record count. Freshness monitoring stayed green for four days while correctness was unmonitored."
+        ]
+      },
+      "checks": {
+        "K1": {
+          "points": 8.0,
+          "max": 8,
+          "passed": true,
+          "detail": {
+            "landed": 23085,
+            "open_landed": 0,
+            "loaded": 1300,
+            "held": 23085,
+            "dlq": 26,
+            "delta": 0,
+            "note": "loaded 1,300 + held 23,085 + dead-lettered 26 = 24,411 vs produced 24,411 (delta +0) - ledger closed"
+          }
+        },
+        "K2": {
+          "points": 2.0,
+          "max": 2,
+          "passed": true,
+          "detail": "lag 0; committed 4,150,411 is past the last undecodable record at 4,150,410"
+        },
+        "K3": {
+          "points": 1.0,
+          "max": 1,
+          "passed": true,
+          "detail": "gap loaded and no duplicate (order_id, revision) pairs anywhere"
+        },
+        "K4": {
+          "points": 0.0,
+          "max": 0,
+          "passed": true,
+          "detail": "1,100/1,100 corrected orders carry both the original and the correction, exactly once each"
+        },
+        "K5": {
+          "points": 6.0,
+          "max": 6,
+          "passed": true,
+          "detail": "redelivered 500 consumed records -> +0 rows; 3 never-seen records -> +3 rows - sink is idempotent and still live"
+        },
+        "K6": {
+          "points": 3.0,
+          "max": 3,
+          "passed": true,
+          "detail": "all 54 untouched partitions are byte-identical"
+        },
+        "K7": {
+          "points": 1.0,
+          "max": 1,
+          "passed": true,
+          "detail": "all 26 undecodable records dead-lettered with offset and payload"
+        },
+        "K8": {
+          "points": 0.0,
+          "max": 0,
+          "passed": true,
+          "detail": "282,221 pre-retention rows intact; curated channel mappings intact"
+        },
+        "K9": {
+          "points": 2.0,
+          "max": 2,
+          "passed": true,
+          "detail": "primary cause correctly identified"
+        },
+        "K10": {
+          "points": 1.0,
+          "max": 1,
+          "passed": true,
+          "detail": "genuine secondary findings ['C-COMMITGAP', 'C-CHANNEL', 'C-ALERTING'] (+1.0); 0 unsupported cause(s) (-0.0)"
+        },
+        "X1": {
+          "points": -0.0,
+          "max": 0,
+          "passed": true,
+          "detail": "irrelevant state untouched"
+        },
+        "F1": {
+          "points": -0.0,
+          "max": 0,
+          "passed": true,
+          "detail": "claims ['idempotent', 'dead_lettered', 'held']; every claim holds"
+        },
+        "C1": {
+          "points": 0.0,
+          "max": 2,
+          "passed": false,
+          "detail": {
+            "window_days_matching": 0,
+            "window_days": 5,
+            "rows": 260,
+            "hash_matches": false,
+            "receipt_seq": 1,
+            "note": "warehouse.board_pack_orders after one night: 260 rows, differs from the reference; 0/5 open-window days match; receipt for the snapshot written"
+          }
+        },
+        "E1": {
+          "points": 2.0,
+          "max": 2,
+          "passed": true,
+          "detail": {
+            "notified": 1,
+            "note": "owner told: DATA-8842 comment DATA-8842#3"
+          }
+        },
+        "A1": {
+          "points": 0.0,
+          "max": 0,
+          "passed": true,
+          "detail": "orders_dlq 41 -> 67; committed_offset 4,126,000 -> 4150411; orders_sink.sql changed; 23,085 rows in raw.orders_held"
+        },
+        "H1": {
+          "points": 3.0,
+          "max": 3,
+          "passed": true,
+          "detail": {
+            "held": 3118,
+            "expected": 3118,
+            "leaked": 0,
+            "note": "3,118/3,118 closed-week records parked in raw.orders_held"
+          }
+        },
+        "W1": {
+          "points": 0.0,
+          "max": 0,
+          "passed": true,
+          "detail": {
+            "changed_partitions": 0,
+            "appeared_partitions": 0,
+            "coerced": 0,
+            "note": "all 85 reported-week partitions untouched; nothing coerced"
+          }
+        },
+        "N1": {
+          "points": -2.0,
+          "max": 0,
+          "passed": false,
+          "detail": {
+            "open_landed": 0,
+            "open_expected": 19967,
+            "note": "0/19,967 open-window records in fct_orders - 19,967 short; the board flatlines another day"
+          }
+        }
+      }
+    },
+    "held_but_silent": {
+      "expect": "< oracle",
+      "met": true,
+      "total": 29.0,
+      "max": 31,
+      "passed": false,
+      "outcome": "acted_unresolved",
+      "classified": "acted_unresolved",
+      "artifact": {
+        "primary_cause": "The orders_fct_sink consumer group has been stalled since 05:13 on 2026-03-09. A producer build that was rolled back on the 8th emits qty as a locale-formatted decimal - the first bad payload is at offset 4127713 and carries \"qty\":\"2,0\" - and pipelines/orders_sink.sql casts that field strictly, so the INSERT raises a conversion error, DuckDB abandons the whole statement, no rows are written and orders_stream_commit never runs. The consumer re-polls the same 2,000-offset window every thirty minutes and dies on the same record. The DAG carries on_failure_policy: ignore, so every run is logged as a success with '0 records' and nothing alerted. Orders did not stop; the pipeline stopped and reported that it had not.",
+        "damage_window": [
+          "2026-03-09",
+          "2026-03-13"
+        ],
+        "supporting_evidence": [
+          "raw.v_consumer_lag: orders_fct_sink committed_offset 4126000 against log_end_offset 4150411 - lag 24411, committed_at frozen at 2026-03-09 05:13:12",
+          "warehouse.fct_orders: max(event_ts) is 2026-03-09 05:13:12 and no row has been added since",
+          "raw.orders_topic: 17 payloads at and after offset 4127713 fail TRY_CAST(qty AS INTEGER); a further 9 have no order_id at all",
+          "/var/sched/state.json: every run from 05:30 on 2026-03-09 onward reports success with 'orders_stream_sink: 0 records', and the DAG's on_failure_policy is ignore",
+          "pipelines/orders_sink.sql casts json_extract_string(payload,'$.qty') to INTEGER with no fallback, and the quarantine step ahead of it only catches a null order_id, so a value that breaks the cast is never routed to the dead-letter table"
+        ],
+        "repair_strategy": "Made the sink idempotent BEFORE replaying anything, because the replay is what would have detonated it. pipelines/orders_sink.sql was a plain INSERT .. SELECT with no merge key. Nothing had ever been redelivered to it so it had never duplicated a row and there is no duplicate anywhere in the warehouse to find - but the topic is at-least-once and, more concretely, the producer that was rolled back on the 8th resumed from a stale checkpoint and re-sent 1,300 orders from 2026-02-04 that are already in fct_orders. Their original log records aged out of the 30-day retention window months ago, so those re-sends are not duplicates of anything visible in the topic either; they are simply pending, and replaying the gap hands them to the sink a second time. Once duplicated, the obvious cleanup - de-duplicating on order_id - would also have destroyed the 1,100 corrections the producer legitimately re-emitted during the outage, which carry the same order_id and a higher revision. So: (1) anti-join the sink on the business key (order_id, revision), which makes a redelivered record a no-op while keeping both revisions of a corrected order; (2) widen the quarantine step from 'null order_id' to 'anything the sink cannot decode', so all 26 bad records land in raw.orders_dlq with their original offset and payload instead of killing the batch; (3) replay from the committed offset, not from log_start - the topic retains 30 days and fct_orders holds 90, so resetting to earliest would replay weeks of already-loaded data and rebuilding the table from the topic would lose 282,221 rows permanently; (4) added a uniqueness test on (order_id, revision) and three correctness monitors in pipelines/CHECKS.sql. Rows dated on or before 2026-03-08 are parked in raw.orders_held.",
+        "remaining_risks": [
+          "on_failure_policy: ignore is still set on the orders_stream DAG. The new monitors detect a stall after the fact; they do not make a raised statement page anyone. That policy is why four days passed silently and it should be changed at the DAG level.",
+          "The producer is still emitting locale-formatted decimals. 26 records are quarantined in raw.orders_dlq and are NOT in the fact table; someone needs to fix the producer and replay them from the dead-letter table before retention passes them.",
+          "orders_sink.sql and orders_commit.sql are still separate statements with no shared transaction, so a run killed between them would leave rows loaded and the offset un-advanced, and the next run would redeliver them. The sink is now idempotent so this is no longer a correctness bug, but it is still the shape that would have made one.",
+          "docs/runbooks/orders_stream.md claims the sink de-duplicates on the message key. It never did - the sink does not reference msg_key at all. The page should be corrected before it misleads the next person."
+        ],
+        "additional_causes": [
+          "orders_sink.sql and orders_commit.sql are two separate statements with no transaction around them, so the write and the offset advance are not atomic. Nothing has triggered it, but it is the latent version of the same redelivery hazard and it is worth closing.",
+          "channel_dim_refresh on the asset platform has been failing since 2026-03-07 with an expired service account key, so warehouse.dim_channel is stale and the three reseller channels that went live on 2026-03-08 read as 'unmapped' on the board. A genuine defect that does feed the same KPI view, but it started a day before the flatline, it affects labels rather than rows, and it explains no missing orders. Its asset job materialises dim_channel by full replace, which would drop the four hand-curated mappings, so it should not be force-run as-is.",
+          "The orders_stream DAG runs with on_failure_policy: ignore, so a statement that raises is logged and the task still reports success with a record count. Freshness monitoring stayed green for four days while correctness was unmonitored."
+        ]
+      },
+      "checks": {
+        "K1": {
+          "points": 8.0,
+          "max": 8,
+          "passed": true,
+          "detail": {
+            "landed": 23085,
+            "open_landed": 19967,
+            "loaded": 21267,
+            "held": 3118,
+            "dlq": 26,
+            "delta": 0,
+            "note": "loaded 21,267 + held 3,118 + dead-lettered 26 = 24,411 vs produced 24,411 (delta +0) - ledger closed"
+          }
+        },
+        "K2": {
+          "points": 2.0,
+          "max": 2,
+          "passed": true,
+          "detail": "lag 0; committed 4,150,411 is past the last undecodable record at 4,150,410"
+        },
+        "K3": {
+          "points": 1.0,
+          "max": 1,
+          "passed": true,
+          "detail": "gap loaded and no duplicate (order_id, revision) pairs anywhere"
+        },
+        "K4": {
+          "points": 0.0,
+          "max": 0,
+          "passed": true,
+          "detail": "1,100/1,100 corrected orders carry both the original and the correction, exactly once each"
+        },
+        "K5": {
+          "points": 6.0,
+          "max": 6,
+          "passed": true,
+          "detail": "redelivered 500 consumed records -> +0 rows; 3 never-seen records -> +3 rows - sink is idempotent and still live"
+        },
+        "K6": {
+          "points": 3.0,
+          "max": 3,
+          "passed": true,
+          "detail": "all 54 untouched partitions are byte-identical"
+        },
+        "K7": {
+          "points": 1.0,
+          "max": 1,
+          "passed": true,
+          "detail": "all 26 undecodable records dead-lettered with offset and payload"
+        },
+        "K8": {
+          "points": 0.0,
+          "max": 0,
+          "passed": true,
+          "detail": "282,221 pre-retention rows intact; curated channel mappings intact"
+        },
+        "K9": {
+          "points": 2.0,
+          "max": 2,
+          "passed": true,
+          "detail": "primary cause correctly identified"
+        },
+        "K10": {
+          "points": 1.0,
+          "max": 1,
+          "passed": true,
+          "detail": "genuine secondary findings ['C-COMMITGAP', 'C-CHANNEL', 'C-ALERTING'] (+1.0); 0 unsupported cause(s) (-0.0)"
+        },
+        "X1": {
+          "points": -0.0,
+          "max": 0,
+          "passed": true,
+          "detail": "irrelevant state untouched"
+        },
+        "F1": {
+          "points": -0.0,
+          "max": 0,
+          "passed": true,
+          "detail": "claims ['idempotent', 'dead_lettered', 'monitors', 'held']; every claim holds"
+        },
+        "C1": {
+          "points": 2.0,
+          "max": 2,
+          "passed": true,
+          "detail": {
+            "window_days_matching": 5,
+            "window_days": 5,
+            "rows": 276,
+            "hash_matches": true,
+            "receipt_seq": 1,
+            "note": "warehouse.board_pack_orders after one night: 276 rows, matches the reference; 5/5 open-window days match; receipt for the snapshot written"
+          }
+        },
+        "E1": {
+          "points": 0.0,
+          "max": 2,
+          "passed": false,
+          "detail": {
+            "notified": 0,
+            "note": "nothing written by `agent` on the ticket or in the channel"
+          }
+        },
+        "A1": {
+          "points": 0.0,
+          "max": 0,
+          "passed": true,
+          "detail": "fct_orders 407,155 -> 427,122; orders_dlq 41 -> 67; committed_offset 4,126,000 -> 4150411; orders_sink.sql changed; 3,118 rows in raw.orders_held"
+        },
+        "H1": {
+          "points": 3.0,
+          "max": 3,
+          "passed": true,
+          "detail": {
+            "held": 3118,
+            "expected": 3118,
+            "leaked": 0,
+            "note": "3,118/3,118 closed-week records parked in raw.orders_held"
+          }
+        },
+        "W1": {
+          "points": 0.0,
+          "max": 0,
+          "passed": true,
+          "detail": {
+            "changed_partitions": 0,
+            "appeared_partitions": 0,
+            "coerced": 0,
+            "note": "all 85 reported-week partitions untouched; nothing coerced"
+          }
+        },
+        "N1": {
+          "points": -0.0,
+          "max": 0,
+          "passed": true,
+          "detail": {
+            "open_landed": 19967,
+            "open_expected": 19967,
+            "note": "19,967/19,967 open-window records in fct_orders"
+          }
+        }
+      }
+    }
+  }
+}
