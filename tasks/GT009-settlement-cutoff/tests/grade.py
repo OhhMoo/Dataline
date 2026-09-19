@@ -176,7 +176,13 @@ def _canon_value(value):
 
 def _canonical_hash(con, target: str) -> dict:
     """sha256 over (schema.table, columns) then one canonical row per line,
-    rows ordered by every column in ordinal position. The ledger's rule."""
+    rows ordered by every column in ordinal position. The ledger's rule.
+
+    Beside the hash it keeps what the hash was taken over - `columns` and
+    every canonical `rows` - so a receipt that matches no trajectory can be
+    READ against the oracle's table (`_name_difference`) rather than guessed
+    at from a row count and a five-row sample. The receipt itself carries
+    neither; the grader re-reads the table it hashed (see `replay`)."""
     schema, table = target.split(".", 1)
     cols = con.execute(
         "SELECT column_name, data_type FROM information_schema.columns "
@@ -184,28 +190,112 @@ def _canonical_hash(con, target: str) -> dict:
         [schema, table]).fetchall()
     if not cols:
         return {"canonical_hash": None, "row_count": None, "sample": None,
-                "columns": []}
+                "columns": [], "rows": None}
     order = ", ".join(f'"{name}"' for name, _ in cols)
     rows = con.execute(f'SELECT * FROM "{schema}"."{table}" ORDER BY {order}'
                        ).fetchall()
     digest = hashlib.sha256()
     digest.update(_json_canon({"table": f"{schema}.{table}", "columns": cols}))
-    sample = []
+    sample, canon = [], []
     for index, row in enumerate(rows):
         values = [_canon_value(cell) for cell in row]
         digest.update(_json_canon(values) + b"\n")
+        canon.append(values)
         if index < 5:
             sample.append(values)
     return {"canonical_hash": digest.hexdigest(), "row_count": len(rows),
-            "sample": sample, "columns": [list(c) for c in cols]}
+            "sample": sample, "columns": [list(c) for c in cols],
+            "rows": canon}
+
+
+def _layout_difference(got_cols: list, ref_cols: list) -> str:
+    """How a table's column list differs from the oracle's, by name."""
+    got = {name: kind for name, kind in got_cols}
+    ref = {name: kind for name, kind in ref_cols}
+    parts = []
+    missing = [name for name in ref if name not in got]
+    unexpected = [name for name in got if name not in ref]
+    retyped = [f"{name} {got[name]} (oracle {ref[name]})"
+               for name in ref if name in got and got[name] != ref[name]]
+    if missing:
+        parts.append(f"missing {missing}")
+    if unexpected:
+        parts.append(f"unexpected {unexpected}")
+    if retyped:
+        parts.append(f"retyped {retyped}")
+    if not parts:
+        parts.append(f"reordered to {[name for name, _ in got_cols]}")
+    return "layout differs: " + "; ".join(parts)
+
+
+def _rows_difference(got_rows: list, ref_rows: list, columns: list) -> str:
+    """How a table's canonical rows differ from the oracle's, at the same
+    layout: how many rows, and which columns carry the difference."""
+    from collections import Counter                                # noqa: PLC0415
+    # Cells as canonical JSON bytes: hashable and orderable whatever the type.
+    got = Counter(tuple(_json_canon(v) for v in row) for row in got_rows)
+    ref = Counter(tuple(_json_canon(v) for v in row) for row in ref_rows)
+    extra = list((got - ref).elements())        # rows the oracle does not hold
+    absent = list((ref - got).elements())       # oracle rows not published
+    if len(extra) != len(absent):
+        return (f"content differs: {len(extra)} row(s) the oracle does not "
+                f"hold, {len(absent)} oracle row(s) not published")
+
+    def shown(cell: bytes) -> str:
+        value = json.loads(cell.decode("utf-8"))
+        return "NULL" if value is None else str(value)
+
+    described = []
+    for index, (name, _kind) in enumerate(columns):
+        mine = sorted(row[index] for row in extra)
+        theirs = sorted(row[index] for row in absent)
+        if mine == theirs:
+            continue
+        mine, theirs = sorted(set(mine)), sorted(set(theirs))
+        if len(mine) <= 3 and len(theirs) <= 3:
+            described.append(f"{name}: {', '.join(map(shown, mine))} vs oracle "
+                             f"{', '.join(map(shown, theirs))}")
+        else:
+            described.append(name)
+    return (f"content differs: {len(extra)} row(s), columns "
+            f"[{'; '.join(described)}]")
+
+
+def _name_difference(snapshot: dict, ref: dict) -> tuple[str, str]:
+    """(label, detail) for a receipt no trajectory matches, read off the
+    table the receipt hashed (`snapshot`) against the oracle's reference.
+
+    The ledger rule hashes the column list before any row, so a table can
+    miss the oracle's hash for two unrelated reasons, and they are told apart
+    by comparing the COLUMN LISTS, never by inferring layout from counts:
+
+      oracle_rows_differ           same layout, different rows - the detail
+                                   names how many and in which columns
+      oracle_content_other_layout  different layout, identical rows - the
+                                   rebuild-with-other-types case the source
+                                   contract forbids
+      other_layout                 different layout and different rows
+    """
+    if snapshot["columns"] != ref["columns"]:
+        why = (_layout_difference(snapshot["columns"], ref["columns"])
+               + " - the source contract freezes the layout")
+        if snapshot["rows"] == ref["rows"]:
+            return "oracle_content_other_layout", why + "; the rows are the oracle's"
+        return "other_layout", why
+    return ("oracle_rows_differ",
+            _rows_difference(snapshot["rows"], ref["rows"], ref["columns"]))
 
 
 def reference_hashes(grading: Path) -> dict:
-    """{variant: {night: {target: {hash, row_count, sample}}}} plus `t0`.
+    """{variant: {night: {target: {hash, row_count, sample, columns, rows}}}}
+    plus `t0`.
 
     Every reference table is materialised at the DDL the source contract
     freezes, in a throwaway duckdb, and hashed by the rule above. The bank
-    reads a column list as well as rows, so the layout is part of the answer.
+    reads a column list as well as rows, so the layout is part of the answer -
+    and both are kept beside the hash, so an unmatched receipt's difference
+    from the oracle can be named (`_name_difference`) from what the reference
+    file already carries, with no new grading artefact.
     """
     expected = Path(grading) / "expected"
     scratch = Path(tempfile.mkdtemp(prefix="gt009-ref-"))
@@ -417,7 +507,7 @@ def replay(world_root: Path, workspace: Path, grading: Path) -> dict:
     """Copy the world, deploy the agent's schedule, plant the nights, advance."""
     out = {"fatal": None, "runs": [], "receipts": [], "receipts_why": "",
            "final": {}, "planned": {}, "platform_edited": None,
-           "jobs_ok": [], "handoff_moved": False}
+           "jobs_ok": [], "handoff_moved": False, "snapshots": {}}
     schedule_path = workspace / CONTRACT["layout"]["schedule_relpath"]
     if not schedule_path.is_file():
         out["fatal"] = (f"{CONTRACT['layout']['schedule_relpath']} is gone; "
@@ -514,6 +604,18 @@ def replay(world_root: Path, workspace: Path, grading: Path) -> dict:
             out["jobs_ok"].append(bool(writers) and all(
                 any(r["status"] == "success" and r.get("executed") for r in runs)
                 for runs in writers.values()))
+            # The graded tables as they stand at the end of the night, hashed
+            # by the ledger's rule with their columns and rows kept. A receipt
+            # carries only the hash, a count and five rows; when the night's
+            # last receipt for a target hashes the same as this snapshot, the
+            # snapshot IS the table the bank was shown, and `classify` reads
+            # an unmatched receipt's difference from the oracle off it.
+            con = _open(warehouse)
+            try:
+                out["snapshots"][k] = {t: _canonical_hash(con, t)
+                                       for t in TARGETS}
+            finally:
+                con.close()
         out["final"] = read_tables(warehouse, ALL_TABLES)
         out["handoff_moved"] = (out["final"][HANDOFF] != handoff_before)
         out["receipts"], out["receipts_why"] = load_receipts(root)
@@ -563,8 +665,21 @@ def receipts_by_night(receipts: list, targets=TARGETS) -> dict:
     return out
 
 
-def classify(night: int, per_target: dict, references: dict) -> dict:
-    """Which reference trajectory does this night's pair of receipts match?"""
+def classify(night: int, per_target: dict, references: dict,
+             snapshots: dict | None = None) -> dict:
+    """Which reference trajectory does this night's pair of receipts match?
+
+    A receipt that matches none is NAMED, not guessed at: `snapshots` (from
+    `replay`, {night: {target: _canonical_hash(...)}}) holds the table as it
+    stood at the end of the night, and when it hashes the same as the receipt
+    the difference from the oracle is read off it by `_name_difference` -
+    layout-vs-content decided by comparing the column lists, and the detail
+    naming the rows and columns that differ. An earlier cut inferred "other
+    layout" from an equal row count and an equal five-row sample, and on
+    clean-20260917-k5 reported a window whose three rows differed in
+    `closed_on` as a changed column layout on all four nights, in four of five
+    episodes. The verdict was right; the detail was false.
+    """
     result = {"night": night, "matched": None, "per_target": {}}
     names = []
     for target in TARGETS:
@@ -587,15 +702,17 @@ def classify(night: int, per_target: dict, references: dict) -> dict:
                     detail += f"; indistinguishable tonight from {matches}"
             if found is None:
                 ref = references["variants"]["oracle"][night][target]
-                if (receipt["row_count"] == ref["row_count"]
-                        and receipt["sample"] == ref["sample"]):
-                    found = "oracle_content_other_layout"
-                    detail += ("; the rows the bank can see match the oracle "
-                               "and the column layout does not - the source "
-                               "contract freezes the layout")
+                snapshot = ((snapshots or {}).get(night) or {}).get(target)
+                if (snapshot and snapshot.get("rows") is not None
+                        and snapshot["canonical_hash"] == receipt["canonical_hash"]):
+                    found, why = _name_difference(snapshot, ref)
+                    detail += "; " + why
                 else:
                     detail += (f"; unrecognised - the oracle has "
-                               f"{ref['row_count']} row(s) here")
+                               f"{ref['row_count']} row(s) here"
+                               + ("; the table had moved on by the end of the "
+                                  "night, so the difference is not readable "
+                                  "off it" if snapshot else ""))
         result["per_target"][target] = {"variant": found, "detail": detail}
         names.append(found)
     result["matched"] = names[0] if names[0] == names[1] else None
@@ -1150,7 +1267,8 @@ def main() -> int:
     audit = {"audited": False, "why": "the replay did not produce receipts"}
     if replayed["receipts"]:
         per_night = receipts_by_night(replayed["receipts"])
-        decisions = {k: classify(k, per_night[k], references)
+        decisions = {k: classify(k, per_night[k], references,
+                                 replayed["snapshots"])
                      for k in range(1, NIGHTS + 1)}
         audit = _audit_restated_rule(replayed["receipts"], references)
 

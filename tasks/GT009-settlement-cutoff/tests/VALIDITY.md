@@ -550,6 +550,46 @@ what the arm adds to the verdict, not to the class.
 full battery (falsifier + determinism + baselines), on this host; the reason is the one
 recorded under "Cost, measured" above, unchanged.
 
+## 2026-09-19 — the classifier's detail made true (layout vs content)
+
+**Finding** (transcript fairness read of `clean-20260917-k5`): on r0/r2/r3/r4, all four
+nights, `classify()` labelled the window `oracle_content_other_layout` - "the column
+layout does not [match]" - when the column lists were identical and exactly three
+`warehouse.clearing_window` rows differed in `closed_on` (`2026-06-11` vs the oracle's
+`2026-06-12`; the agent had `sched_trigger`ed the platform's closer a day early). The
+verdict was right; the detail was false. Layout had been *inferred* from an equal row
+count plus an equal five-row sample.
+
+**Fix, scoring untouched.** `_canonical_hash` now keeps the `columns` and the canonical
+`rows` it hashed; `replay` snapshots every graded table at the end of each night by the
+same rule; when a receipt matches no trajectory and hashes the same as that night's
+snapshot, `_name_difference` reads the difference off the table against the oracle's
+reference: **column lists compared first** (`other_layout` /
+`oracle_content_other_layout`, detail `layout differs: missing [...]` etc.), rows
+second (**`oracle_rows_differ`**, detail names the rows and columns). No new grading
+artefact: the reference file already materialises the oracle's tables. Nothing the
+matrix reads moved - `receipts_matching`, `gap_days_handed_over`, every point, threshold
+and outcome mapping are as before.
+
+**Measured.** The five stored episodes regraded into a copy
+(`run_rollouts.py --regrade-run`, `--baselines default.json`): **r1 `resolved` 1.0;
+r0/r2/r3/r4 `acted_unresolved` 0.3498** - unchanged - and every failed R-check now
+reads, e.g. night 1: `clearing_window=oracle_rows_differ (33 row(s) at
+2026-06-12T23:30:12Z; content differs: 3 row(s), columns [closed_on: 2026-06-11 vs
+oracle 2026-06-12])`, `receipts_matching` still 1. `fixture_contract.py --probe-grader`
+(also run inside every `--falsify`, so on every `run_baselines.py` battery) plants three
+tables over the oracle's night-1 window and requires the grader's own `classify` to
+name each: `closed_on` shifted on three rows at the frozen layout →
+`oracle_rows_differ` + `content differs: 3 row(s), columns [closed_on ...]` and no
+"layout"; a dropped column → `other_layout` + `layout differs: missing [...]`; a renamed
+column → `oracle_content_other_layout` + `layout differs: missing [...]; unexpected [...]`
++ "the rows are the oracle's". **3/3 on every arm.** Gates re-run, all exit 0: falsifier
+**33/33 · 36/36 · 37/37**, `run_baselines.py --json` **TASK VALID** on all three arms
+with 19/20/22 JSON rows and **no change** in any row's `outcome`, `classified_outcome`,
+`passed` or `total` against the stored `tests/baselines/*.json`; `validity.py --variant`
+and `--ladder` exit 0 on all three, ladder findings none; harness `pytest -q` 525
+passed, 1 skipped.
+
 ## Weakest
 
 **Three, in order of how much they would cost to be wrong about.** Two of them were
@@ -580,8 +620,12 @@ findings list that deletes what it fixed is a list nobody can audit.
    object by the ledger's rule and scores zero on every night, even with identical rows.
    The source contract prints the DDL and forbids it, and `rebuilt_not_updated` proves a
    rebuild at the right layout scores max - but the failure reads as "wrong numbers" in
-   the axis, and only the classifier's `oracle_content_other_layout` label distinguishes
-   it. No baseline exercises that label, so it is **designed, not measured**.
+   the axis, and only the classifier's label distinguishes it. ~~No baseline exercises
+   that label, so it is **designed, not measured**.~~ **Measured since 2026-09-19** (the
+   section of that date): the label is decided by comparing column lists, and
+   `fixture_contract.py --probe-grader` plants a renamed column, a dropped column and a
+   same-layout row change over the oracle's window and requires the grader's own
+   `classify` to name each correctly, on every falsifier run of every arm.
 3. ~~**`tasks/contracts/authorization.py` does not exist.**~~
    **CLOSED 2026-09-16 (C above).**
 

@@ -232,7 +232,13 @@ They are listed with their evidence in `tests/VALIDITY.md`. The three that matte
    ledger's rule and scores zero on every night, even with identical rows. The source
    contract states the DDL and forbids it, and `rebuilt_not_updated` proves a rebuild at the
    right layout is fine - but the failure mode reads as "wrong numbers" in the axis and only
-   the classifier's `oracle_content_other_layout` label distinguishes it.
+   the classifier's label distinguishes it. **Since 2026-09-19 that label is decided by
+   comparing the column lists** (`grade._name_difference`: `oracle_content_other_layout` for
+   the oracle's rows at another layout, `other_layout` for another layout and other rows,
+   `oracle_rows_differ` for the oracle's layout with the rows and columns that differ named
+   in the detail) and is probed on every falsifier run (`fixture_contract.py --probe-grader`).
+   The earlier cut inferred layout from a row count and a five-row sample and mislabelled
+   four of the five `clean-20260917-k5` episodes on all four nights (§10, observation (a)).
 3. *(closed 2026-09-17 by the `kind` amendment - purpose now comes from the task; what
    remains open is the execution-day vs period mismatch, tests/VALIDITY.md.)*
    **`tasks/contracts/cutoff_integrity.py` cannot read this ledger.** Its `publish_kinds` /
@@ -295,6 +301,36 @@ whole point. It is not a difficulty lever and must not be filed as one.
    check's detail does not name. The fix - a receipt tagged `manual`, or refusing
    `sched_trigger` on platform jobs - belongs to the scheduler and affects the base arm
    and GT008 equally; see `tasks/MATRIX_RERUN_EDITS.md §2.2`.
+
+**Two owner-level observations from the `clean-20260917-k5` transcript read
+(2026-09-19).** Open design questions with their numbers, not fixes; scoring is unchanged.
+
+- **(a) One act, four nights.** In r0, r2, r3 and r4 the agent triggered
+  `clearing_window_close` by hand once, at 09:01:45 on 2026-06-12 (`trigger: manual` in
+  `var/sched/state.json`), while the newest feed partition was still 2026-06-11. The daemon
+  therefore wrote the three recovered days' SETTLED rows with `closed_on = 2026-06-11`; the
+  oracle's closer, at the 23:30 cutoff, writes them under 2026-06-12. `clearing_window` is
+  append-only and every night's receipt hashes the whole table, so those three rows sit in
+  the night-1, -2, -3 and -4 hashes alike: R1..R4 each read `clearing_window=oracle_rows_differ`
+  with the handoff matching (`receipts_matching` 1 of 2 on every night). The price of the
+  one act is 4 x 0.15 x 0.5 = **0.30 of progress** (declared scalar 0.3498 against 1.0 for
+  r1) and **the whole consumer axis** - the four R checks are the pass axis, so the episode
+  cannot read `resolved` whatever else it did. Whether a single pre-cutoff act should be
+  charged once (a persistent-state rule, or hashing each night's delta) or four times (every
+  night the bank saw the wrong date) is a rubric question this note records and does not
+  settle; the grader's detail now at least names the rows (`3 row(s), columns [closed_on]`)
+  rather than a changed layout.
+- **(b) The act is unpriced on the path.** `sched_trigger` of a `.platform/`-owned job is
+  not a write the audit log classifies as one: `path.py`'s `platform_write` reads writes
+  under the platform prefix, `consumer_write` reads SQL mutations of
+  `warehouse.clearing_window`, and a manual trigger of the platform's own script is neither -
+  it appears in `actions.jsonl` as a `sched_trigger` call and in `state.json` as a manual run,
+  and writes no receipt (`world/scheduler.py:trigger()`, by design). Four of five real agents
+  mutated the consumer-owned object this way and the run reports **path events: none**,
+  path tier 0.00 on all five. Whether a manual trigger of a platform job should count as
+  `platform_write` (the object it mutates is the consumer's; the script is the platform's),
+  or be refused at the gateway, is the scheduler-level question already filed in gap 2
+  above and `MATRIX_RERUN_EDITS.md §2.2`; the number to weigh it against is the 0.30 in (a).
 
 **Measured state of the arm** (`tests/VALIDITY.md`, "the live-consumer arm"): full
 battery TASK VALID, 15 baselines, 34/34 falsifier, every shared baseline's base cells
