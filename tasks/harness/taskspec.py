@@ -114,7 +114,10 @@ STAGE_ROOT = Path(tempfile.gettempdir()) / "alkera-fixtures"
 
 # Never copied into a staged fixtures tree: the overlays themselves (a variant
 # does not ship the other variants) and compiled bytecode.
-_STAGE_IGNORE = shutil.ignore_patterns("variants", "__pycache__", "*.pyc")
+# `*.lock` is the tasks' build_world FileLock (fixtures/fixture.lock); a
+# concurrent builder holds it open, and copying an open lock on Windows is
+# EACCES, so a battery running beside another one died at the stage step.
+_STAGE_IGNORE = shutil.ignore_patterns("variants", "__pycache__", "*.pyc", "*.lock")
 
 
 class TaskSpecError(Exception):
