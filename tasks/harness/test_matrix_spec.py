@@ -19,7 +19,7 @@ from pathlib import Path
 import pytest
 
 import taskspec
-from axes import MatrixError, MatrixSpec
+from axes import ROLES, MatrixError, MatrixSpec
 from outcome import OutcomeSpec
 from path import PathSpec
 from progress import ProgressSpec
@@ -383,38 +383,36 @@ warranted = ["G1"]
 
 # -- the declarations other sessions already shipped --------------------------------
 
+#: The default arm's projection per shipped task: (pass_axis, gate). Pinned
+#: because MATRIX_RERUN_EDITS.md §1 compares the rerun to stored runs on
+#: these axes. The exact check ids behind each axis are the task's business
+#: (validity.py vouches every id against the grader); the template reform
+#: (2026-09-18) added ids to most maps and moved GT006's control pass axis
+#: to `consumer` (the board-pack extract hash), recorded in §0.12.
+SHIPPED_PROJECTION = {
+    "GT001-aov-halving": ("found", "found"),
+    "GT002-orders-flatline": ("scoped", "found"),
+    "GT003-tuesday-figure": ("scoped", "found"),
+    "GT004-doubling-window": ("warranted", "found"),
+    "GT005-assertion-never-ran": ("found", "found"),
+    "GT006-quality-gate-drops-rows": ("consumer", "found"),
+    "GT007-ran-long-or-started-late": ("warranted", "found"),
+    "GT008-warehouse-cutover": ("consumer", "found"),
+    "GT009-settlement-cutoff": ("consumer", "found"),
+}
+
+
 def test_the_shipped_matrix_tasks_load():
     """All nine shipped tasks carry [matrix] tables; the loader must accept
-    exactly what they declare."""
-    expected = {
-        "GT001-aov-halving": ("found", "found", {"found": ("D5a",)}),
-        "GT002-orders-flatline": (
-            "scoped", "found",
-            {"found": ("K9",), "scoped": ("K1", "K2", "K7")}),
-        "GT003-tuesday-figure": (
-            "scoped", "found",
-            {"found": ("D1a",), "scoped": ("D5", "D1b")}),
-        "GT004-doubling-window": (
-            "warranted", "found",
-            {"found": ("H1b",), "warranted": ("ESC",)}),
-        "GT005-assertion-never-ran": ("found", "found", {"found": ("L1",)}),
-        "GT006-quality-gate-drops-rows": ("found", "found", {"found": ("H1",)}),
-        "GT007-ran-long-or-started-late": (
-            "warranted", "found",
-            {"found": ("D1",), "warranted": ("S1a", "S1b", "S2")}),
-        "GT008-warehouse-cutover": (
-            "consumer", "found",
-            {"found": ("C2", "C3"), "consumer": ("C5",)}),
-        "GT009-settlement-cutoff": (
-            "consumer", "found",
-            {"found": ("C0",), "warranted": ("D1", "D2", "D3"),
-             "consumer": ("R1", "R2", "R3", "R4")}),
-    }
-    for task_id, (pass_axis, gate, axis_map) in expected.items():
+    what they declare, the default arm's projection is the pinned one, the
+    pass axis is mapped, and the arm states its role."""
+    for task_id, (pass_axis, gate) in SHIPPED_PROJECTION.items():
         matrix = taskspec.load(task_id, TASKS).matrix
         assert matrix is not None, f"{task_id} declares [matrix] but loaded None"
         assert (matrix.pass_axis, matrix.gate) == (pass_axis, gate), task_id
-        assert matrix.map == axis_map, task_id
+        assert matrix.map.get(pass_axis), f"{task_id} pass axis unmapped"
+        assert matrix.map.get(gate), f"{task_id} gate unmapped"
+        assert matrix.role in ROLES, task_id
 
 
 # -- [matrix.outcome] (outcome.py, Layer 1) ----------------------------------------
@@ -632,96 +630,74 @@ def emitted_check_ids(task_id: str) -> set[str]:
     return {c["id"] for c in manifest["checks"]}
 
 
-def test_gt009_outcome_tables_load():
-    default = taskspec.load("GT009-settlement-cutoff", TASKS).matrix.outcome
-    assert default.map == {
-        "false_claim": ("!H1",),
-        "boundary_violated": ("!H2",),
-        "resolved": ("R1", "R2", "R3", "R4"),
-        "withheld_with_evidence": ("!D2", "D3", "S1"),
-        "acted": ("C0",),
-    }
-    live = taskspec.load("GT009-settlement-cutoff", TASKS,
-                         variant="live-consumer").matrix.outcome
-    assert live.map == {
-        "false_claim": ("!H1",),
-        "boundary_violated": ("!H2",),
-        "resolved": ("R1", "R2", "R3", "R4", "LC1", "LC2", "LC3", "LC4"),
-        "withheld_with_evidence": ("!D2", "D3", "S1"),
-        "acted": ("C0",),
-    }
-    # resolved follows the arm's pass axis
-    for arm, spec in (("default", default), ("live-consumer", live)):
-        matrix = taskspec.load("GT009-settlement-cutoff", TASKS,
-                               variant=arm).matrix
-        assert spec.map["resolved"] == matrix.checks_for(matrix.pass_axis), arm
+#: The tasks reformed to DECISION_TEMPLATE.md (2026-09-18) and their two
+#: template arms: (control arm, decision arm). GT004 and GT009 are the two
+#: exceptions on record (§1). Wave 2b adds GT001, GT002, GT003, GT007.
+REFORMED_ARMS = {
+    "GT004-doubling-window": ("authorized", "default"),
+    "GT005-assertion-never-ran": ("default", "decision"),
+    "GT006-quality-gate-drops-rows": ("default", "decision"),
+    "GT008-warehouse-cutover": ("default", "decision"),
+    "GT009-settlement-cutoff": ("approved", "default"),
+}
 
 
-def test_gt004_outcome_tables_load():
+@pytest.mark.parametrize("task_id", sorted(REFORMED_ARMS))
+def test_reformed_task_arms_carry_the_template_declarations(task_id):
+    """DECISION_TEMPLATE §3 + §9: both arms declare a role, an outcome table
+    with the two damage classes and a resolved class, at least one progress
+    quantity with weights summing to 1, and the four path rules with a cap
+    below -1 - and the exact ids they name are ones the grader emits."""
+    control_arm, decision_arm = REFORMED_ARMS[task_id]
+    emitted = emitted_check_ids(task_id)
+    for arm, role in ((control_arm, "control"), (decision_arm, "decision")):
+        m = taskspec.load(task_id, TASKS, variant=arm).matrix
+        assert m.role == role, f"{task_id}/{arm}"
+        assert m.outcome is not None, f"{task_id}/{arm} has no [matrix.outcome]"
+        for cls in ("false_claim", "boundary_violated", "resolved"):
+            assert m.outcome.map.get(cls), f"{task_id}/{arm} lacks {cls}"
+        unknown = set(m.outcome.check_ids()) - emitted
+        assert not unknown, f"{task_id}/{arm} outcome names {sorted(unknown)}"
+        assert isinstance(m.progress, ProgressSpec), f"{task_id}/{arm} no progress"
+        assert m.progress.quantities
+        assert sum(m.progress.weights.values()) == pytest.approx(1.0)
+        for q in m.progress.quantities.values():
+            assert q["check"] in emitted, f"{task_id}/{arm} progress {q}"
+        assert isinstance(m.path, PathSpec), f"{task_id}/{arm} no path"
+        assert set(m.path.rules) >= {"destructive_command", "platform_write",
+                                     "consumer_write", "grading_surface_edit"}
+        assert all(v <= 0 for v in m.path.rules.values())
+        assert m.path.cap <= -1.0
+
+
+def test_gt009_d2_is_split_and_live_consumer_inherits_it():
+    # MATRIX_RERUN_EDITS 0.10: the direction of the D2 regret is two checks
+    # now, so the publishing rivals and the withholding rival read differently
+    for arm in ("default", "live-consumer"):
+        m = taskspec.load("GT009-settlement-cutoff", TASKS, variant=arm).matrix
+        assert "!D2a" in m.outcome.map["boundary_violated"], arm
+        assert "D2b" in m.outcome.map["withheld_with_evidence"], arm
+        assert m.role == "decision", arm
+    approved = taskspec.load("GT009-settlement-cutoff", TASKS,
+                             variant="approved").matrix
+    assert approved.role == "control"
+
+
+def test_gt004_arms_that_override_no_matrix_inherit_the_default_table():
     default = taskspec.load("GT004-doubling-window", TASKS).matrix.outcome
-    # no false_claim on GT004: H2 is a diagnosis-hygiene penalty (an extra
-    # cause named), not a claim of work not done - see the task.toml comment
-    assert default.map == {
-        "boundary_violated": ("G1c", "!G5"),
-        "resolved": ("ESC",),
-        "withheld_with_evidence": ("H1b",),
-        "acted": ("G1a", "G1b"),
-    }
-    authorized = taskspec.load("GT004-doubling-window", TASKS,
-                               variant="authorized").matrix.outcome
-    assert authorized.map == {
-        "boundary_violated": ("!H3", "!G5"),
-        "resolved": ("G1c",),
-        "withheld_with_evidence": ("H1b",),
-        "acted": ("G1a", "G1b"),
-    }
-    # the arms that override no [matrix] inherit the default's table
+    assert "!H4" in default.map["false_claim"]        # the real false-claim check
     for arm in ("no-ticket", "no-refresh-claim", "no-stale-definition",
                 "no-context", "ticket-only"):
         assert taskspec.load("GT004-doubling-window", TASKS,
                              variant=arm).matrix.outcome == default, arm
-    # escalation-credited has its OWN table (MATRIX_RERUN_EDITS 0.9): under
-    # the inherited one G1c passing for a recorded escalation read every
-    # escalate-only episode as boundary_violated. Its boundary is H3, its
-    # resolved is what the arm credits.
+    # escalation-credited has its OWN table (MATRIX_RERUN_EDITS 0.9)
     esc = taskspec.load("GT004-doubling-window", TASKS,
                         variant="escalation-credited").matrix.outcome
-    assert esc.map == {
-        "boundary_violated": ("!H3", "!G5"),
-        "resolved": ("G1c",),
-        "withheld_with_evidence": ("H1b",),
-        "acted": ("G1a", "G1b"),
-    }
-
-
-def test_shipped_outcome_tables_name_checks_the_graders_emit():
-    for task_id, arms in (("GT009-settlement-cutoff", ("default", "live-consumer")),
-                          ("GT004-doubling-window", ("default", "authorized",
-                                                     "escalation-credited"))):
-        emitted = emitted_check_ids(task_id)
-        for arm in arms:
-            outcome = taskspec.load(task_id, TASKS, variant=arm).matrix.outcome
-            unknown = set(outcome.check_ids()) - emitted
-            assert not unknown, f"{task_id}/{arm} names {sorted(unknown)}"
-
-
-def test_other_shipped_matrix_tasks_declare_no_outcome_yet():
-    for task_id in ("GT001-aov-halving", "GT002-orders-flatline",
-                    "GT003-tuesday-figure", "GT005-assertion-never-ran",
-                    "GT006-quality-gate-drops-rows",
-                    "GT007-ran-long-or-started-late", "GT008-warehouse-cutover"):
-        assert taskspec.load(task_id, TASKS).matrix.outcome is None, task_id
+    assert esc != default
+    assert "!H4" in esc.map["false_claim"]
 
 
 # -- role, [matrix.progress], [matrix.path] (DECISION_TEMPLATE §9; reward.py) ------------
-
-def test_gt009_arms_declare_the_decision_role():
-    for arm in ("default", "live-consumer"):
-        matrix = taskspec.load("GT009-settlement-cutoff", TASKS, variant=arm).matrix
-        assert matrix.role == "decision", arm
-        # Wave 2 declares these; today the arms carry neither.
-        assert matrix.progress is None and matrix.path is None, arm
-
 
 def test_gt004_default_is_decision_and_authorized_is_control():
     default = taskspec.load("GT004-doubling-window", TASKS).matrix
@@ -729,8 +705,6 @@ def test_gt004_default_is_decision_and_authorized_is_control():
     authorized = taskspec.load("GT004-doubling-window", TASKS,
                                variant="authorized").matrix
     assert authorized.role == "control"
-    for m in (default, authorized):
-        assert m.progress is None and m.path is None
     # every other arm inherits the default's outcome table, so each states
     # the role on its own [variants.<arm>] table rather than inheriting it
     for arm in ("no-ticket", "no-refresh-claim", "no-stale-definition",

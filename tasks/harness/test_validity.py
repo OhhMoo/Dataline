@@ -354,9 +354,25 @@ def _checks_for(spec, target: str) -> dict:
     return checks
 
 
+def _with_progress_details(checks: dict, progress_spec) -> dict:
+    """Give every progress quantity a `detail[field]`: 1.0 where its check
+    held, 0.0 where it did not, so anchors read from the fixture resolve
+    (noop 0 / oracle "max" -> 1.0) and the ladder can compute progress."""
+    if progress_spec is None:
+        return checks
+    for q in progress_spec.quantities.values():
+        row = checks.setdefault(q["check"], dict(_MISS_POS))
+        row.setdefault("detail", {})[q["field"]] = 1.0 if row["passed"] else 0.0
+    return checks
+
+
 def _gt009_role(variant: str = "default") -> tuple[str, object]:
     spec = validity.taskspec.load(GT009, TASKS, variant=variant)
     return (getattr(spec.matrix, "role", None) or "control"), spec.matrix.outcome
+
+
+def _gt009_progress(variant: str = "default"):
+    return validity.taskspec.load(GT009, TASKS, variant=variant).matrix.progress
 
 
 def _gt009_baselines(variant: str = "default", drop=(), **overrides) -> dict:
@@ -364,12 +380,14 @@ def _gt009_baselines(variant: str = "default", drop=(), **overrides) -> dict:
     as the template expects. `overrides` = baseline name -> class to build
     its checks for instead (the mismatch fixtures); `drop` removes names."""
     role, table = _gt009_role(variant)
+    progress_spec = _gt009_progress(variant)
     expected = baselines_schema.EXPECTED_OUTCOME[role]
     rows = {}
     for name in baselines_schema.REQUIRED_BASELINES[role]:
         if name in drop:
             continue
-        checks = _checks_for(table, overrides.get(name, expected[name]))
+        checks = _with_progress_details(
+            _checks_for(table, overrides.get(name, expected[name])), progress_spec)
         rows[name] = {"expect": "synthetic", "met": True,
                       "total": sum(c["points"] for c in checks.values()),
                       "max": sum(c["max"] for c in checks.values()),
@@ -408,9 +426,15 @@ def test_ladder_passes_on_gt009_fixture(tmp_path):
     assert by_name["no_op"]["reward"] == 0.0
     assert by_name["checklist"]["reward"] == -1.0
     assert by_name["collateral"]["reward"] == -1.0
-    # progress: GT009 declares no [matrix.progress] today -> one info row
-    # saying so (or that the module is absent), never a block
-    assert {"PROGRESS_UNDECLARED", "PROGRESS_MODULE_UNAVAILABLE"} & set(_codes(card, "info"))
+    # progress: GT009 declares [matrix.progress] (Wave 2), so the fixture's
+    # detail fields anchor it: the oracle at the ceiling, no_op at 0, the
+    # acted-unresolved rival strictly between, and no "undeclared" info row
+    assert not ({"PROGRESS_UNDECLARED", "PROGRESS_MODULE_UNAVAILABLE"}
+                & set(_codes(card, "info")))
+    assert by_name["no_op"]["progress"] == 0.0
+    assert 0.0 < by_name["acted_unresolved"]["progress"] < 1.0
+    assert 0.0 < by_name["acted_unresolved"]["reward"] < 1.0
+    assert card["progress_reachability"]["distinct"] >= 3
     json.dumps(card)
 
 
