@@ -182,7 +182,8 @@ def _export(export_dir: str | None, task_id: str, run_id: str, agg: dict,
 
 
 def re_report(run_dir: Path, task: str | None, tasks_dir: str | None,
-              export_dir: str | None = None) -> int:
+              export_dir: str | None = None,
+              baselines_json: str | None = None) -> int:
     """Rewrite a run's report from its stored records. Nothing is re-run.
 
     The records are read back from the rN/rollout.json files (falling back to
@@ -209,14 +210,16 @@ def re_report(run_dir: Path, task: str | None, tasks_dir: str | None,
     spec = _spec_for_report(task_id, tasks_dir, records)
     print(f"\n  re-reporting {len(records)} rollout(s) in {run_dir} "
           f"(records re-read, nothing re-graded)")
-    agg = report.write(run_dir, task_id, run_dir.name, records, spec=spec)
+    agg = report.write(run_dir, task_id, run_dir.name, records, spec=spec,
+                       baselines_json=baselines_json)
     print(f"\n  {report.render(task_id, run_dir.name, agg, records, spec=spec)}")
     print(f"  report: {run_dir / 'report.md'}")
     _export(export_dir, task_id, run_dir.name, agg, records, spec)
     return 0
 
 
-def regrade_run(run_dir: Path, task: str | None, tasks_dir: str | None) -> int:
+def regrade_run(run_dir: Path, task: str | None, tasks_dir: str | None,
+                baselines_json: str | None = None) -> int:
     """Re-grade every rollout in a run directory and rewrite its report.
 
     The run-level half of `rollout.py --regrade`. It exists because a report is
@@ -257,7 +260,8 @@ def regrade_run(run_dir: Path, task: str | None, tasks_dir: str | None) -> int:
         return 2
     task_id = task or records[0].get("task") or run_dir.parent.name
     spec = _spec_for_report(task_id, tasks_dir, records)
-    agg = report.write(run_dir, task_id, run_dir.name, records, spec=spec)
+    agg = report.write(run_dir, task_id, run_dir.name, records, spec=spec,
+                       baselines_json=baselines_json)
     print(f"\n  {report.render(task_id, run_dir.name, agg, records, spec=spec)}")
     if refused:
         print(f"  {len(refused)} rollout(s) refused and are NOT in the report: "
@@ -287,6 +291,13 @@ def main() -> int:
                          "stable schema: rates with their intervals and "
                          "denominators, no grader internals) under "
                          "DIR/<task>/<run-id>/. Works with --re-report.")
+    ap.add_argument("--baselines", default=None, metavar="PATH",
+                    help="the arm's baselines JSON (`tests/run_baselines.py "
+                         "--json PATH`), which anchors the PROGRESS tier of "
+                         "the declared scalar at the no-op and oracle values "
+                         "of each [matrix.progress] quantity. Without it "
+                         "progress is n/a and the report says so. Works with "
+                         "--re-report and --regrade-run.")
     ap.add_argument("--k", type=int, default=5)
     ap.add_argument("--tasks-dir", default=None,
                     help="directory holding the task package, when it is not tasks/")
@@ -330,9 +341,10 @@ def main() -> int:
     a = ap.parse_args()
     if a.re_report:
         return re_report(Path(a.re_report).resolve(), a.task, a.tasks_dir,
-                         export_dir=a.export)
+                         export_dir=a.export, baselines_json=a.baselines)
     if a.regrade_run:
-        return regrade_run(Path(a.regrade_run).resolve(), a.task, a.tasks_dir)
+        return regrade_run(Path(a.regrade_run).resolve(), a.task, a.tasks_dir,
+                           baselines_json=a.baselines)
     if not a.task:
         ap.error("--task is required unless --regrade-run is given")
 
@@ -391,7 +403,8 @@ def main() -> int:
     with ThreadPoolExecutor(max_workers=workers) as pool:
         records = list(pool.map(lambda i: _one(a, run_dir, i), range(a.k)))
 
-    agg = report.write(run_dir, a.task, run_id, records, spec=spec)
+    agg = report.write(run_dir, a.task, run_id, records, spec=spec,
+                       baselines_json=a.baselines)
     print(f"\n  {report.render(a.task, run_id, agg, records, spec=spec)}")
     print(f"  wall clock for the whole run: {round(time.time() - started, 1)}s")
     print(f"  report: {run_dir / 'report.md'}")

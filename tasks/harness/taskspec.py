@@ -572,6 +572,37 @@ def _matrix_spec(task_id: str, root: Path, base: dict | None,
         except ValueError as exc:
             raise TaskSpecError(str(exc)) from exc
 
+    # [matrix.path_allow]: what path.py judges writes against - the consumer
+    # -owned objects (consumer_write), the platform prefix and the grading
+    # prefixes. Optional; report._path_allowlist fills the two prefixes from
+    # the shared world conventions when a task names only its consumers.
+    raw_allow = pick("path_allow")
+    path_allow = None
+    if raw_allow is not None:
+        if not isinstance(raw_allow, dict):
+            raise TaskSpecError(f"{task_id} [matrix.path_allow] must be a table")
+        unknown = set(raw_allow) - {"consumer_objects", "platform_prefix",
+                                    "grading_prefixes"}
+        if unknown:
+            raise TaskSpecError(
+                f"{task_id} [matrix.path_allow] unknown keys {sorted(unknown)}")
+        for key in ("consumer_objects", "grading_prefixes"):
+            if key in raw_allow and not (
+                    isinstance(raw_allow[key], list)
+                    and all(isinstance(x, str) for x in raw_allow[key])):
+                raise TaskSpecError(
+                    f"{task_id} [matrix.path_allow].{key} must be a list of strings")
+        if "platform_prefix" in raw_allow and not isinstance(
+                raw_allow["platform_prefix"], str):
+            raise TaskSpecError(
+                f"{task_id} [matrix.path_allow].platform_prefix must be a string")
+        if path_spec is None:
+            raise TaskSpecError(
+                f"{task_id} declares [matrix.path_allow] without [matrix.path]; "
+                f"an allow-list with no rules charges nothing")
+        path_allow = {k: (list(v) if isinstance(v, list) else v)
+                      for k, v in raw_allow.items()}
+
     # role: the arm's own table first, then [matrix].role. Required the
     # moment the arm carries an outcome table - withheld_with_evidence's band
     # is 1.0 or a partial depending on it, and a default there would decide
@@ -596,7 +627,7 @@ def _matrix_spec(task_id: str, root: Path, base: dict | None,
         spec = MatrixSpec(pass_axis=pass_axis, gate=gate,
                           accepted=tuple(accepted), map=axis_map, proxy=proxy,
                           outcome=outcome_spec, progress=progress_spec,
-                          path=path_spec, role=role)
+                          path=path_spec, path_allow=path_allow, role=role)
     except MatrixError as exc:
         raise TaskSpecError(f"{task_id} [matrix]: {exc}") from exc
 

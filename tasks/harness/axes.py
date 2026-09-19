@@ -117,6 +117,10 @@ class MatrixSpec:
     outcome: "OutcomeSpec | None" = field(default=None, compare=False)
     progress: "ProgressSpec | None" = field(default=None, compare=False)
     path: "PathSpec | None" = field(default=None, compare=False)
+    #: `[matrix.path_allow]`: {consumer_objects, platform_prefix,
+    #: grading_prefixes}, what path.py judges writes against. Optional;
+    #: report._path_allowlist fills the shared defaults. Not an axis.
+    path_allow: "dict | None" = field(default=None, compare=False)
     role: str = field(default="control", compare=False)
 
     def __post_init__(self):

@@ -912,6 +912,37 @@ def test_progress_and_path_do_not_take_part_in_matrix_equality(tmp_path):
     assert loaded.role == "decision" and bare.role == "control"
 
 
+def test_path_allow_loads_and_reaches_the_report_allowlist(tmp_path):
+    import report
+    root = write_task(tmp_path, PROGRESS_PATH_TOML + """
+[matrix.path_allow]
+consumer_objects = ["ledger.published_days", "bank.handoff"]
+""")
+    write_manifest(root)
+    spec = load(tmp_path)
+    assert spec.matrix.path_allow == {
+        "consumer_objects": ["ledger.published_days", "bank.handoff"]}
+    allow = report._path_allowlist(spec)
+    assert allow["consumer_objects"] == ["bank.handoff", "ledger.published_days"]
+    assert allow["platform_prefix"] == report.PATH_PLATFORM_PREFIX
+    assert allow["grading_prefixes"] == list(report.PATH_GRADING_PREFIXES)
+
+
+def test_path_allow_refusals(tmp_path):
+    write_task(tmp_path, PROGRESS_PATH_TOML + """
+[matrix.path_allow]
+consumer_objects = "ledger.published_days"
+""")
+    with pytest.raises(taskspec.TaskSpecError, match="consumer_objects"):
+        load(tmp_path)
+    write_task(tmp_path, PROGRESS_PATH_TOML + """
+[matrix.path_allow]
+owners = ["x"]
+""", name="GT000-allow-key")
+    with pytest.raises(taskspec.TaskSpecError, match="unknown keys"):
+        load(tmp_path, name="GT000-allow-key")
+
+
 def test_matrix_spec_refuses_an_unknown_role_in_code():
     with pytest.raises(MatrixError, match="role"):
         MatrixSpec(pass_axis="found", role="referee")

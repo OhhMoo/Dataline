@@ -67,6 +67,22 @@ measurement; the headline stays the projection. All three come from modules
 that are being filled in against frozen interfaces, so a stub that still
 raises NotImplementedError costs the report that block and a caveat, not the
 report.
+
+THE THREE TIERS (DECISION_TEMPLATE.md §9, scoring_granularity.md §4.3). The
+declared scalar is band + progress-in-band + path penalty, and each tier is
+another module's: the band is reward.py's table over outcome.py's class;
+progress is progress.py's normalisation of the grader's product quantities
+against the anchors a baselines JSON carries (`aggregate(...,
+baselines_json=)`; without one, progress is None and the caveat says so);
+the path penalty is path.py's four rules over the episode's own audit rows
+(`rec["actions"]`, or the actions.jsonl the record names; none on record
+means 0.0 and an info caveat). The matrix block carries every per-episode
+tier, the tier means with their denominators, the CLASS BALANCE of the arm
+(the share of episodes in the arm's correct class, and whether that share
+is saturated - an arm at >= 0.9 or <= 0.1 gives a group-relative trainer no
+signal), progress reachability (§4.4: a quantity every episode maxes or
+zeroes is a bit in disguise) and the path-event counts by rule. Beside the
+scalar, never in it, each row carries tracked_metrics.py's counts.
 """
 from __future__ import annotations
 
@@ -76,6 +92,7 @@ import statistics
 from pathlib import Path
 
 import axes as axes_lib
+import tracked_metrics
 
 # The three learning-signal modules are contracts first and code second: a
 # stub that raises NotImplementedError, or one that will not even import yet,
@@ -97,6 +114,8 @@ def _optional_import(name: str):
 learning_signal = _optional_import("learning_signal")
 reward = _optional_import("reward")
 outcome = _optional_import("outcome")
+progress = _optional_import("progress")
+path = _optional_import("path")
 
 
 def _call(module, module_name: str, fn: str, caveats: list[str] | None,
@@ -387,28 +406,126 @@ def _pass_axis_conflict(spec, matrix, records: list[dict]) -> str | None:
             f"projection of neither")
 
 
-HYGIENE_SOURCE = "H-prefixed non-positive checks (heuristic)"
+#: The conventions `_path_allowlist` falls back on when the task declares no
+#: `path_allow` of its own (DECISION_TEMPLATE.md §9, path.py's tests): the
+#: platform tree no subject may write, and the grading surface no subject may
+#: edit. Consumer-owned objects are the task's to name.
+PATH_PLATFORM_PREFIX = ".platform/"
+PATH_GRADING_PREFIXES = ("tests/", "grading/", "var/ledger/receipts.jsonl")
 
 
-def _hygiene(checks: dict) -> dict[str, float]:
-    """The penalty checks that fired, for reward.episode_reward.
+def _path_allowlist(spec) -> dict:
+    """The `allow` dict path.episode_path_penalty judges an episode against.
 
-    A HEURISTIC, and named as one in the block: the graders that charge
-    collateral damage (GT009's H1 false claim, H2 restated day) all use
-    H-prefixed ids, and a penalty that fired is a check with non-positive
-    points. Until task.toml declares its penalty checks, this is the best
-    reading available, so it is recorded beside the number it produced.
+    Read off the task first: a TaskSpec that carries `path_allow` has said
+    exactly which writes are in-mandate, and nothing here second-guesses it.
+    Otherwise it is built from the conventions every GT world shares -
+    `.platform/` is the platform tree, `tests/` / `grading/` / the receipts
+    ledger are the grading surface - plus whatever consumer-owned objects the
+    arm's `[matrix.path]` lists (`consumer_objects`), or none. One helper so
+    the integrator can move the construction into taskspec later without
+    touching the call site.
     """
-    out = {}
-    for cid, c in (checks or {}).items():
-        pts = (c or {}).get("points")
-        if cid.startswith("H") and isinstance(pts, (int, float)) and pts <= 0:
-            out[cid] = float(pts)
-    return out
+    declared = getattr(spec, "path_allow", None) if spec is not None else None
+    if isinstance(declared, dict):
+        return dict(declared)
+    matrix = getattr(spec, "matrix", None) if spec is not None else None
+    # the arm's own [matrix.path_allow] (taskspec) overrides key by key; the
+    # two prefixes default to the shared world conventions
+    arm_allow = getattr(matrix, "path_allow", None) if matrix is not None else None
+    arm_allow = dict(arm_allow) if isinstance(arm_allow, dict) else {}
+    path_spec = getattr(matrix, "path", None) if matrix is not None else None
+    consumers = arm_allow.get("consumer_objects")
+    if consumers is None:
+        consumers = getattr(path_spec, "consumer_objects", None)
+    if consumers is None and isinstance(path_spec, dict):
+        consumers = path_spec.get("consumer_objects")
+    return {
+        "platform_prefix": arm_allow.get("platform_prefix", PATH_PLATFORM_PREFIX),
+        "grading_prefixes": list(arm_allow.get("grading_prefixes",
+                                               PATH_GRADING_PREFIXES)),
+        "consumer_objects": sorted(str(c) for c in (consumers or ())),
+    }
+
+
+def _read_jsonl(path_like) -> list[dict] | None:
+    """Rows of a .jsonl file, or None when there is no such file."""
+    if not path_like:
+        return None
+    p = Path(path_like)
+    if not p.is_file():
+        return None
+    rows = []
+    for line in p.read_text(encoding="utf-8", errors="replace").splitlines():
+        line = line.strip()
+        if line:
+            try:
+                rows.append(json.loads(line))
+            except ValueError:
+                continue
+    return rows
+
+
+def _actions_for(rec: dict) -> list[dict] | None:
+    """The SUBJECT's audit rows for one record, or None when none is on record.
+
+    `rec["actions"]` when the record carries its rows; else the actions.jsonl
+    the record names (`audit_path`, `action_log.path`,
+    `<rollout_dir>/audit/actions.jsonl`), read back off disk. Rows at or
+    below the record's `action_log_watermark` were written before the
+    subject was handed the terminal (rollout.py) and are dropped; the
+    harness's post-episode `workspace.edit` bookkeeping rows are KEPT,
+    because they are the only row a native subject's file write leaves, and
+    a write under `.platform/` is the subject's whatever wrote the row.
+    """
+    rows = rec.get("actions")
+    if rows is None:
+        rollout_dir = rec.get("rollout_dir")
+        log = rec.get("action_log") if isinstance(rec.get("action_log"), dict) else {}
+        for cand in (rec.get("audit_path"), log.get("path"),
+                     Path(rollout_dir) / "audit" / "actions.jsonl" if rollout_dir else None):
+            rows = _read_jsonl(cand)
+            if rows is not None:
+                break
+    if rows is None:
+        return None
+    high = int(rec.get("action_log_watermark") or 0)
+    return [r for r in rows if isinstance(r, dict)
+            and int(r.get("seq") or 0) > high]
+
+
+def _load_baselines(baselines_json, caveats: list[str] | None) -> dict | None:
+    """The baselines JSON (`run_baselines.py --json`) as a dict, or None
+    plus the caveat that says why progress has no anchors."""
+    if baselines_json is None:
+        note = "progress anchors unavailable: no baselines JSON given"
+    else:
+        try:
+            data = json.loads(Path(baselines_json).read_text(encoding="utf-8"))
+            if isinstance(data, dict):
+                return data
+            note = (f"progress anchors unavailable: baselines JSON "
+                    f"{Path(baselines_json).name} is not an object")
+        except (OSError, ValueError) as exc:
+            note = (f"progress anchors unavailable: baselines JSON "
+                    f"{Path(baselines_json).name} could not be read "
+                    f"({type(exc).__name__})")
+    if caveats is not None and note not in caveats:
+        caveats.append(note)
+    return None
+
+
+def _mean(xs: list[float], nd: int = 3) -> float | None:
+    return round(sum(xs) / len(xs), nd) if xs else None
+
+
+def _pvariance(xs: list[float], nd: int = 4) -> float | None:
+    return round(statistics.pvariance(xs), nd) if xs else None
 
 
 def _matrix_block(spec, records: list[dict],
-                  caveats: list[str] | None = None) -> dict | None:
+                  caveats: list[str] | None = None,
+                  baselines_json=None) -> dict | None:
     """The [matrix] projection over this run's SCORED rollouts, or None.
 
     None means "not a matrix task" (no spec, or a spec without a matrix) and
@@ -422,10 +539,18 @@ def _matrix_block(spec, records: list[dict],
     is n/a, never 0.
 
     Each per_rollout row also carries the episode's OUTCOME CLASS (when the
-    task declares `[matrix.outcome]`) and its DECLARED TRAINING SCALAR. The
-    scalar is what a trainer is handed; it is kept out of the headline and
-    labelled for what it is, because the table never aggregates axes and the
-    scalar does.
+    task declares `[matrix.outcome]`), its three scalar tiers - `band`,
+    `progress`, `path_penalty` with `path_events` - the DECLARED TRAINING
+    SCALAR that combines them (`reward`, the full reward.episode_reward
+    dict) and its `tracked_metrics`. The scalar is what a trainer is handed;
+    it is kept out of the headline and labelled for what it is, because the
+    table never aggregates axes and the scalar does.
+
+    Progress needs anchors, and anchors come from `baselines_json`
+    (progress.anchors_from_baselines); path needs the episode's audit rows
+    and the task's allowlist (_path_allowlist). Either tier the arm does not
+    declare (`matrix.progress` / `matrix.path` is None) is not attempted:
+    progress stays None and the path penalty 0.0 with no events.
     """
     matrix = getattr(spec, "matrix", None) if spec is not None else None
     if matrix is None:
@@ -451,10 +576,42 @@ def _matrix_block(spec, records: list[dict],
     # is always attempted. Either module still being a stub leaves None here
     # and a caveat above the number.
     outcome_spec = getattr(matrix, "outcome", None)
+    progress_spec = getattr(matrix, "progress", None)
+    path_spec = getattr(matrix, "path", None)
+    role = getattr(matrix, "role", None) or "control"
+
+    # The anchors progress is normalised against, once per run: the no-op
+    # and oracle values of each declared quantity, read off the baselines
+    # JSON the task's own battery wrote. No JSON, no anchors, no progress -
+    # and the caveat says which of the three is missing.
+    anchors = None
+    if progress_spec is not None:
+        baselines = _load_baselines(baselines_json, caveats)
+        if baselines is not None:
+            try:
+                anchors = _call(progress, "progress", "anchors_from_baselines",
+                                caveats, progress_spec, baselines)
+            except ValueError as exc:
+                # progress.py refuses a baselines file that lacks a quantity
+                # it needs (an anchor nobody measured). That is a fact about
+                # the run's inputs, not a defect: progress is n/a and the
+                # caveat names the missing anchor.
+                note = f"progress anchors unavailable: {exc}"
+                if caveats is not None and note not in caveats:
+                    caveats.append(note)
+                anchors = None
+    allow = _path_allowlist(spec) if path_spec is not None else None
+
     rewards: list[float] = []
+    bands: list[float] = []
+    progresses: list[float] = []
+    penalties: list[float] = []
     outcome_counts: dict[str, int] = {}
+    event_counts: dict[str, int] = {}
+    no_audit: list[str] = []
     for r in scored:
-        row = per_rollout[r.get("rollout_id")]
+        rid = r.get("rollout_id")
+        row = per_rollout[rid]
         checks = r.get("checks") or {}
         cls = None
         if outcome_spec is not None:
@@ -463,18 +620,58 @@ def _matrix_block(spec, records: list[dict],
             if cls is not None:
                 outcome_counts[cls["outcome"]] = \
                     outcome_counts.get(cls["outcome"], 0) + 1
+
+        # Tier 2: progress-in-band, only when the arm declares quantities
+        # and the run has anchors for them.
+        prog = None
+        if progress_spec is not None and anchors is not None:
+            prog = _call(progress, "progress", "episode_progress", caveats,
+                         progress_spec, checks, anchors)
+            if prog is not None:
+                prog = float(prog)
+
+        # Tier 3: path penalty over the subject's own audit rows.
+        penalty, events = 0.0, []
+        if path_spec is not None:
+            actions = _actions_for(r)
+            if actions is None:
+                no_audit.append(str(rid))
+            else:
+                pp = _call(path, "path", "episode_path_penalty", caveats,
+                           path_spec, actions, allow)
+                if pp is not None:
+                    penalty = float(pp.get("penalty") or 0.0)
+                    events = list(pp.get("events") or [])
+        for ev in events:
+            rule = (ev or {}).get("rule") or "unknown"
+            event_counts[rule] = event_counts.get(rule, 0) + 1
+
         # reward.py's three-tier scalar (DECISION_TEMPLATE §9): outcome class,
-        # arm role, progress-in-band, path penalty. Progress and path are
-        # wired by report's tier block; until then they are None / 0.0 and the
-        # scalar is the band alone.
+        # arm role, progress-in-band, path penalty.
         rw = _call(reward, "reward", "episode_reward", caveats,
                    cls["outcome"] if cls is not None else None,
-                   getattr(matrix, "role", None) or "control",
-                   None, 0.0)
+                   role, prog, penalty)
+        comps = (rw or {}).get("components") or {}
         if rw is not None and rw.get("reward") is not None:
             rewards.append(float(rw["reward"]))
+            if comps.get("band") is not None:
+                bands.append(float(comps["band"]))
+            penalties.append(penalty)
+        if prog is not None:
+            progresses.append(prog)
         row["outcome"] = cls
+        row["band"] = comps.get("band")
+        row["progress"] = prog
+        row["path_penalty"] = penalty
+        row["path_events"] = events
         row["reward"] = rw
+        row["tracked_metrics"] = tracked_metrics.from_record(r)
+    if no_audit and caveats is not None:
+        note = (f"info: no audit log on record for {no_audit}; their path "
+                f"penalty is taken as 0.0")
+        if note not in caveats:
+            caveats.append(note)
+
     # precedence order first (outcome.OUTCOMES), so the counts line reads the
     # same way the classifier decided; anything unknown sorts after
     order = list(getattr(outcome, "OUTCOMES", ()) or ())
@@ -483,6 +680,32 @@ def _matrix_block(spec, records: list[dict],
                                       key=lambda k: (k not in order,
                                                      order.index(k) if k in order else 0,
                                                      k))}
+
+    # CLASS BALANCE. The arm's correct class - withheld_with_evidence on a
+    # decision arm, resolved on a control arm - and its share of the
+    # episodes that were measured at all (`unmeasured` has no class and no
+    # reward, so it leaves this denominator too). An arm whose share is
+    # >= 0.9 or <= 0.1 is SATURATED: nearly every episode lands in one
+    # class, and a group-relative trainer reads that as no gradient.
+    correct_class = ("withheld_with_evidence" if role == "decision"
+                     else "resolved")
+    measured = sum(n for k, n in outcome_counts.items() if k != "unmeasured")
+    share = (round(outcome_counts.get(correct_class, 0) / measured, 3)
+             if measured else None)
+    balance = {
+        "role": role,
+        "correct_class": correct_class,
+        "share_correct": share,
+        "denominator": measured,
+        "denominator_note": "scored rollouts with a measured outcome class "
+                            "(unmeasured episodes leave the denominator)",
+    }
+    saturated = share is not None and (share >= 0.9 or share <= 0.1)
+
+    reachability = None
+    if progresses:
+        reachability = _call(progress, "progress", "reachability", caveats,
+                             list(progresses))
     return {
         "pass_axis": matrix.pass_axis,
         "gate": matrix.gate,
@@ -508,20 +731,39 @@ def _matrix_block(spec, records: list[dict],
         "outcome_declared": outcome_spec is not None,
         "outcome_counts": outcome_counts,
         "outcome_counts_denominator": "scored rollouts with an outcome class",
-        "hygiene_source": HYGIENE_SOURCE,
+        "role": role,
+        "balance": balance,
+        "saturated": saturated,
         "reward_progress_span": getattr(reward, "PROGRESS_SPAN", None),
-        "reward_mean": (round(sum(rewards) / len(rewards), 3)
-                        if rewards else None),
+        "reward_mean": _mean(rewards),
+        "reward_var": _pvariance(rewards),
         "reward_denominator": len(rewards),
         "reward_note": "the DECLARED training scalar (reward.py), what a "
                        "trainer is handed per episode; not the measurement, "
                        "which is the projected pass above it",
+        # the tiers, each over its own denominator: band and path over the
+        # episodes that have a scalar, progress over the episodes that have
+        # a progress value (an arm without quantities has none)
+        "band_mean": _mean(bands),
+        "progress_mean": _mean(progresses),
+        "progress_denominator": len(progresses),
+        "progress_declared": progress_spec is not None,
+        "progress_anchored": anchors is not None,
+        "progress_reachability": reachability,
+        "path_mean": _mean(penalties),
+        "path_declared": path_spec is not None,
+        "path_event_counts": dict(sorted(event_counts.items())),
+        "path_allow": allow,
+        "rollouts_without_audit_log": no_audit,
         "per_rollout": per_rollout,
         "pass_axis_conflict": _pass_axis_conflict(spec, matrix, records),
     }
 
 
-def aggregate(records: list[dict], spec=None) -> dict:
+def aggregate(records: list[dict], spec=None, baselines_json=None) -> dict:
+    """The run summary. `baselines_json` (a `run_baselines.py --json` file,
+    str or Path) anchors the progress tier; without it progress is None and
+    the run-conditions caveats say so."""
     by_class = {c: 0 for c in CLASSES}
     for r in records:
         by_class[r.get("classification", "harness_error")] = \
@@ -562,7 +804,8 @@ def aggregate(records: list[dict], spec=None) -> dict:
     # The matrix row. A mixed-axis run has no single projection, which is a
     # run condition like any other: it joins the invalidations, so both the
     # projected pass and the old rate are withheld rather than averaged.
-    matrix = _matrix_block(spec, records, caveats=conditions["caveats"])
+    matrix = _matrix_block(spec, records, caveats=conditions["caveats"],
+                           baselines_json=baselines_json)
     if matrix and matrix["pass_axis_conflict"]:
         conditions["invalidated_because"].append(matrix["pass_axis_conflict"])
         conditions["measurement_valid"] = False
@@ -765,6 +1008,59 @@ def _render_learning_signal(agg: dict, m: dict | None, provisional: str) -> list
     return L
 
 
+def _render_tiers(m: dict) -> list[str]:
+    """The three tiers under the scalar, each with its denominator, plus the
+    arm's class balance and the path events. Only on a task that declares
+    outcome classes: without a class there is no band, and without a band
+    the other two tiers have nothing to sit inside."""
+    if not m.get("outcome_declared"):
+        return []
+    L = []
+    n_rw = m.get("reward_denominator") or 0
+    n_pg = m.get("progress_denominator") or 0
+    if m.get("progress_declared") is False:
+        prog = "progress n/a (arm declares no quantities)"
+    elif m.get("progress_mean") is None:
+        prog = "progress n/a (no anchored value; see caveats)"
+    else:
+        prog = f"progress {_fmt_rate(m['progress_mean'])} over {n_pg} with a value"
+    if m.get("path_declared") is False:
+        pth = "path n/a (arm declares no [matrix.path])"
+    else:
+        pth = f"path {_fmt_rate(m.get('path_mean'))} over {n_rw}"
+    L.append(f"tiers: band {_fmt_rate(m.get('band_mean'))} over {n_rw} with a "
+             f"scalar · {prog} · {pth} · scalar variance "
+             f"{_fmt_rate(m.get('reward_var'))} (population, over {n_rw})")
+    b = m.get("balance") or {}
+    share = b.get("share_correct")
+    L.append(f"class balance ({b.get('role')} arm, correct class "
+             f"{b.get('correct_class')}): "
+             + ("n/a - no episode carries a measured class"
+                if share is None else
+                f"{share} of {b.get('denominator')} scored rollouts with a "
+                f"measured outcome class")
+             + f" · saturated: {'yes' if m.get('saturated') else 'no'}"
+             + (" (>= 0.9 or <= 0.1 of one class: this arm gives a "
+                "group-relative trainer no signal)" if m.get("saturated") else ""))
+    reach = m.get("progress_reachability")
+    if reach:
+        L.append(f"progress reachability: n={reach.get('n')} · var "
+                 f"{_fmt_rate(reach.get('var'))} · range "
+                 f"[{_fmt_rate(reach.get('min'))}, {_fmt_rate(reach.get('max'))}]"
+                 f" · {reach.get('distinct')} distinct value(s) - a quantity "
+                 f"every episode maxes or zeroes is a bit in disguise")
+    if m.get("path_declared"):
+        counts = m.get("path_event_counts") or {}
+        n_scored = m.get("scored") or 0
+        n_no_audit = len(m.get("rollouts_without_audit_log") or [])
+        L.append("path events: "
+                 + (" · ".join(f"{k} {n}" for k, n in counts.items())
+                    if counts else "none")
+                 + f" (over {n_scored - n_no_audit} of {n_scored} scored "
+                 f"rollouts with an audit log on record)")
+    return L
+
+
 def render(task: str, run_id: str, agg: dict, records: list[dict],
            spec=None) -> str:
     L = [f"# {task} - rollout report ({run_id})", ""]
@@ -881,6 +1177,7 @@ def render(task: str, run_id: str, agg: dict, records: list[dict],
                      f"- reward.py's DECLARED scalar, what a trainer is handed "
                      f"per episode; NOT the measurement, which is the "
                      f"projection above")
+        L.extend(_render_tiers(m))
         L.append("")
 
     # The pre-matrix criterion stays, relabelled for what it is: EVERY required
@@ -981,13 +1278,21 @@ def render(task: str, run_id: str, agg: dict, records: list[dict],
                 for rid, row in per_rollout.items()}
     with_outcome = any(v for v in outcomes.values())
     if with_outcome:
-        L.append("| id | class | outcome | total | tool calls | wall s | why |")
-        L.append("|---|---|---|---|---|---|---|")
+        L.append("| id | class | outcome | band | prog | path | total | "
+                 "tool calls | wall s | why |")
+        L.append("|---|---|---|---|---|---|---|---|---|---|")
     else:
         L.append("| id | class | total | tool calls | wall s | why |")
         L.append("|---|---|---|---|---|---|")
+
+    def tier(rid, key):
+        v = (per_rollout.get(rid) or {}).get(key)
+        return "n/a" if v is None else f"{v:.2f}"
+
     for r in records:
-        cls = (f"{outcomes.get(r.get('rollout_id')) or 'n/a'} | "
+        rid = r.get("rollout_id")
+        cls = (f"{outcomes.get(rid) or 'n/a'} | {tier(rid, 'band')} | "
+               f"{tier(rid, 'progress')} | {tier(rid, 'path_penalty')} | "
                if with_outcome else "")
         L.append(f"| {r.get('rollout_id')} | {r.get('classification')} | {cls}"
                  f"{(r.get('score') or {}).get('total')} | {r.get('tool_calls')} | "
@@ -1008,8 +1313,8 @@ def render(task: str, run_id: str, agg: dict, records: list[dict],
 
 
 def write(out_dir: Path, task: str, run_id: str, records: list[dict],
-          spec=None) -> dict:
-    agg = aggregate(records, spec=spec)
+          spec=None, baselines_json=None) -> dict:
+    agg = aggregate(records, spec=spec, baselines_json=baselines_json)
     (out_dir / "report.json").write_text(
         json.dumps({"task": task, "run_id": run_id, "summary": agg,
                     "rollouts": records}, indent=2, default=str), encoding="utf-8")
