@@ -1,0 +1,16 @@
+# GT001 decision arm - the roster. Authored once and copied into both documents
+# that carry one (issues.json, chat.json), so a person cannot exist in chat and
+# not in the tracker. `agent` is the id the gateway writes as.
+users:
+  - id: agent
+    name: Platform Agent
+    role: Data platform (on shift)
+  - id: praghavan
+    name: Priya Raghavan
+    role: Commercial Analytics
+  - id: hokafor
+    name: Helen Okafor
+    role: FP&A lead, Finance - owns the monthly commercial pack
+  - id: dkalita
+    name: Dev Kalita
+    role: Data platform lead
