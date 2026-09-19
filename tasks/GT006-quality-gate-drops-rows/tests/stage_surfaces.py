@@ -72,6 +72,7 @@ from variant import FIXTURES                                     # noqa: E402
 
 sys.path.insert(0, str(FIXTURES))
 from fixture_contract import CONTRACT                            # noqa: E402
+import decision_arm                                              # noqa: E402
 
 WAREHOUSE = Path(CONTRACT["layout"]["deployed_world_relpath"])
 WORKFLOW_DIR = Path(CONTRACT["layout"]["workflow_relpath"])
@@ -119,6 +120,11 @@ if "stack" in CONTRACT:
         "first_missing_merchant": CONTRACT["stack"]["first_missing_merchant"],
     })
 
+# THE DECISION ARM's dates: the closed reporting period and the pack date the
+# runbook section quotes. Defined only where fixtures/decision.yaml is present,
+# for the same reason as the stacked tokens above.
+TOKENS.update(decision_arm.tokens())
+
 
 class StagingError(RuntimeError):
     pass
@@ -155,17 +161,28 @@ def _connect(db: Path):
 
 
 # ------------------------------------------------------------- 1. workflow
-def _resolve_tokens(corpus_dir: Path) -> Path:
+def _resolve_tokens(corpus_dir: Path, vnow: str | None = None) -> Path:
     """Render `{{token}}` from CONTRACT into a scratch copy of the corpus.
 
     The corpus on disk stays tokenised so a date can never be typed twice and
     drift; the copy the assembler reads carries the resolved values.
+
+    ON THE DECISION ARM the overlay's additions (a ticket comment, a chat
+    message, a runbook section - fixtures/variants/decision/decision.yaml) are
+    spliced into the parsed document FIRST, so they may quote tokens too and
+    are validated by the same assembler as everything seeded. The shipped
+    yaml files are never edited; the decision arm is one file of additions.
     """
     scratch = Path(tempfile.mkdtemp(prefix="gt006-workflow-")) / "workflow"
     scratch.mkdir(parents=True)
     unknown: set[str] = set()
     for src in sorted(corpus_dir.glob("*.yaml")):
         body = src.read_text(encoding="utf-8")
+        if decision_arm.IS_DECISION and src.stem in ("issues", "chat", "kb"):
+            doc = decision_arm.splice(src.stem, yaml.safe_load(body),
+                                      vnow or str(CONTRACT["virtual_now"]))
+            body = yaml.safe_dump(doc, sort_keys=False, allow_unicode=False,
+                                  width=1000)
         for name in set(re.findall(r"\{\{\s*([a-z_]+)\s*\}\}", body)):
             if name not in TOKENS:
                 unknown.add(f"{src.name}: {{{{{name}}}}}")
@@ -221,7 +238,7 @@ def stage_workflow(root: Path, vnow: str) -> dict:
         from world import workflow as world_workflow
     finally:
         sys.path.pop(0)
-    scratch = _resolve_tokens(FIXTURES / "workflow")
+    scratch = _resolve_tokens(FIXTURES / "workflow", vnow)
     try:
         directory = world_workflow.seed(root, scratch.parent, WORKFLOW_SPEC, vnow)
     finally:

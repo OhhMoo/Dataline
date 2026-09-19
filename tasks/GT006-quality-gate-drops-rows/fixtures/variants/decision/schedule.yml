@@ -1,0 +1,21 @@
+# GT006 `decision` arm - the consumer's receipt.
+#
+# The shipped `live.json` is minimal (no `vtime_start`, no per-job timing), so
+# `scheduler.advance` cannot run a night on it. This overlay makes the live
+# plan advance-capable and declares that `refresh_bi_extract` PUBLISHES the
+# extract the board pack is read from, so a night writes a ledger receipt with
+# the canonical hash of the table the consumer received.
+#
+# tests/build_world.py applies this to var/sched/live.json and var/sched/state.json
+# after the world is built. Nothing here changes what any job does.
+
+live:
+  vtime_start: "2025-09-15T00:00:00Z"   # HIST_START at midnight; days align with the payments calendar
+  days_landed: 181                       # HIST_START .. HIST_END inclusive
+
+jobs:
+  refresh_bi_extract:
+    publishes:
+      - target: warehouse.bi_payments_extract
+        kind: table
+        consumer: payments-ops-board-pack

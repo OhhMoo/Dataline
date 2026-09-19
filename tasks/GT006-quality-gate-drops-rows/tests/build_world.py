@@ -71,6 +71,7 @@ from fixture_contract import CONTRACT, verify                      # noqa: E402
 
 sys.path.insert(0, str(HERE))
 import stage_surfaces                                              # noqa: E402
+import decision_arm                                                # noqa: E402
 from collateral import snapshot                                    # noqa: E402
 
 SEED = int(CONTRACT["seed"])
@@ -151,6 +152,12 @@ def build(root: Path, grading: Path, seed: int) -> dict:
     # collateral check can never notice being deleted.
     surfaces = stage_surfaces.stage(root, VIRTUAL_TIME)
 
+    # THE DECISION ARM's control plane: live.json made advance-capable and the
+    # consumer job's `publishes:` declared (fixtures/variants/decision/
+    # schedule.yml). Before the grading zone, so pre_repair_world carries it
+    # and the collateral baseline sees the same live plane the agent does.
+    decision_arm.apply_schedule(root)
+
     mfw.write_grading_zone(BUILD, root, grading, snapshot_fn=snapshot)
     problems = stage_surfaces.check_staged_before_baseline(root, grading)
     if problems:
@@ -166,9 +173,23 @@ def build(root: Path, grading: Path, seed: int) -> dict:
     # unstacked rubric and printing a number for it.
     (grading / "variant.json").write_text(
         json.dumps({"variant": VARIANT.name, "note": VARIANT.note,
+                    "role": VARIANT.role or "control",
                     "grading": VARIANT.grading,
                     "fixtures": FIXTURES.as_posix()}, indent=2) + "\n",
         encoding="utf-8", newline="")
+
+    # ...and on the decision arm, the boundary the corpus states, so the grader
+    # reads the same owner / closed period / consumer the ticket and runbook
+    # do, from the zone the world was built into and not from the repo.
+    record = decision_arm.grading_record()
+    if record is not None:
+        (grading / "decision.json").write_text(
+            json.dumps(record, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8", newline="")
+        problems = decision_arm.verify_world(root)
+        if problems:
+            raise SystemExit("the built world is not the decision world "
+                             "decision.yaml describes:\n  " + "\n  ".join(problems))
 
     warehouse = root / CONTRACT["layout"]["deployed_world_relpath"]
     workspace = root / "workspace"
@@ -215,6 +236,9 @@ def main() -> int:
                          "Resolved at import time by tests/variant.py; this "
                          "declaration documents it and rejects a typo.")
     a = ap.parse_args()
+    problem = decision_arm.role_problem()
+    if problem:
+        raise SystemExit(problem)
     prepare(a.seed)
     if a.prepare_only:
         return 0
