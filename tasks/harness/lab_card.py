@@ -49,7 +49,11 @@ STATUSES = (MET, UNMET, NEEDS_RUN)
 
 _IMPORT_LINE = re.compile(r"^\s*(?:from\s+(\S+)\s+import|import\s+(.+))$", re.MULTILINE)
 _JUDGE_MODULES = re.compile(r"\b(judge|llm|openai|anthropic)\b", re.IGNORECASE)
-_H2_7 = re.compile(r"^##\s*7\b.*$", re.MULTILINE)
+#: the template's "§7" - either literally numbered 7, or any level-2 heading
+#: that names pre-registration (a task whose DESIGN.md already has a §7 adds
+#: the section under its own number)
+_H2_7 = re.compile(r"^##\s*(7\b.*|.*pre-?registration.*)$",
+                   re.MULTILINE | re.IGNORECASE)
 _PREREG = re.compile(r"pre-?regist|predicted band|failure hypothesis", re.IGNORECASE)
 _STAGING_WORDS = ("owner", "boundary", "consumer", "cost")
 _JSON_FLAG = re.compile(r"""add_argument\(\s*["']--json["']""")
