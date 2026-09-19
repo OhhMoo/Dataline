@@ -278,7 +278,8 @@ def verify(fx: Path, quiet: bool = False) -> None:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--fixtures",
-                    default=str(Path(__file__).parent / "fixtures" / "build"))
+                    default=str(Path(__file__).resolve().parent.parent
+                                / "fixtures" / "build"))
     a = ap.parse_args()
     try:
         verify(Path(a.fixtures))

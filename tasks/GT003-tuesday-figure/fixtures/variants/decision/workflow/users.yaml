@@ -1,0 +1,16 @@
+# The roster, authored once and copied into both documents that carry one, so a
+# person cannot exist in chat and not in the tracker. Decision arm only: the
+# control arm seeds no workflow plane (task.toml [harness].dead_by_design).
+users:
+  - id: agent
+    name: Platform Agent
+    role: Data platform (on shift)
+  - id: hvogt
+    name: Hannah Vogt
+    role: Finance Systems lead; owns the board pack
+  - id: rkulkarni
+    name: Ravi Kulkarni
+    role: Analytics engineer, revenue mart (on leave)
+  - id: jmoreno
+    name: Julia Moreno
+    role: Data platform lead
