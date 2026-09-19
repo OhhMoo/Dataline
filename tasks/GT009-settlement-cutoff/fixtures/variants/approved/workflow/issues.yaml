@@ -1,0 +1,185 @@
+# GT009 - the backlog.
+#
+# THE SHAPE. Three sources disagree about whether a closed settlement day may
+# be restated, and the disagreement is resolvable from the written record:
+#
+#   PAY-3120  April, closed `wontfix`, filed by an analytics engineer:
+#             "never restate a closed day". THE INTERFERENCE. Every sentence
+#             in it is a true statement about April. Ablatable.
+#   PAY-3271  May, done: adopt the correction protocol. Links the runbook the
+#             Head of Data Platform wrote, which supersedes PAY-3120 by name.
+#   PAY-3305  yesterday, approved by the Head of Data Platform: restate
+#             2026-06-11 when the network's corrected file lands, under the
+#             protocol. This is the approval the protocol requires.
+#             APPROVED ARM (fixtures/variants/approved): a second comment
+#             says the approval row was written to the register before she
+#             left - the protocol's first step is on the record at t0.
+#
+# And the incident:
+#   PAY-3288  the three nights the vendor's SFTP was down.
+#   PAY-3297  the re-delivery. Closed `done` on the strength of the files
+#             being in the landing zone. Nobody looked at the warehouse.
+issues:
+  - id: PAY-3120
+    title: Settlement days must not be restated after the clearing window closes
+    body: |-
+      The bank reconciles against the snapshot it takes at the window close.
+      If we go back and change a day it has already accepted, its reconciliation
+      breaks and we get a chargeback enquiry per merchant per day.
+
+      Proposal: freeze a settlement day at its close. Corrections roll forward
+      into the next open day instead.
+
+      This is how we have operated since the integration went live.
+    status: wontfix
+    reporter: jnorth
+    assignee: rkeane
+    labels: [settlement, policy]
+    created_at: "-71d 09:20"
+    updated_at: "-15d 11:05"
+    comments:
+      - id: PAY-3120#1
+        author: rkeane
+        at: "-15d 11:05"
+        body: |-
+          Closing this. Rolling a correction forward misstates both days, and
+          the network will not accept it for interchange. We are adopting a
+          correction protocol instead - see PAY-3271 and the runbook. The rule
+          this ticket asks for is no longer our policy.
+
+  - id: PAY-3240
+    title: Clearing bank SLA - settlement must be handed over by the window close
+    body: |-
+      Contractual: the settlement for day D is due before the window closes at
+      23:30 UTC on D. A day we hand nothing over for is recorded as a breach by
+      the platform's clearing-window daemon and is reported to the bank.
+
+      A breach does not expire. A day that breached stays breached in the
+      record; handing the settlement over later closes the exposure but does
+      not remove the row.
+    status: done
+    reporter: rkeane
+    assignee: dpatel
+    labels: [settlement, sla]
+    created_at: "-96d 14:00"
+    updated_at: "-90d 10:30"
+    comments: []
+
+  - id: PAY-3271
+    title: Adopt a correction protocol for closed settlement days
+    body: |-
+      Supersedes PAY-3120. The protocol is written up in the runbook
+      `pay/runbooks/settlement-corrections`: an approval row in
+      `warehouse.settlement_corrections` naming the approving ticket, and the
+      approving ticket's key carried on the republished rows in
+      `correction_ref`.
+
+      Two things the protocol is deliberate about. A day that was never
+      handed over at all is not a restatement - publish it, late, with no
+      approval. And an approval is for a settlement DAY, not for a version:
+      whatever the contract says is current for that day at the moment we
+      republish is what goes over.
+    status: done
+    reporter: rkeane
+    assignee: dpatel
+    labels: [settlement, policy]
+    created_at: "-20d 08:40"
+    updated_at: "-15d 11:10"
+    comments:
+      - id: PAY-3271#1
+        author: dpatel
+        at: "-15d 11:10"
+        body: |-
+          Register table and the `correction_ref` column are in the warehouse.
+          Nothing writes them yet - the nightly has never had a correction to
+          make.
+
+  - id: PAY-3288
+    title: Feed landing failure - no partition for 2026-06-08
+    body: |-
+      Vendor SFTP push has been failing since around 03:00. No partition under
+      data/payments_feed/dt=2026-06-08. Raised with the network.
+
+      The nightly ran and reported success - there was nothing to load, so
+      there was nothing to fail on.
+    status: done
+    reporter: mcarver
+    assignee: mcarver
+    labels: [feed, incident]
+    created_at: "-4d 06:15"
+    updated_at: "-1d 07:30"
+    comments:
+      - id: PAY-3288#1
+        author: mcarver
+        at: "-3d 06:10"
+        body: |-
+          Still down. 2026-06-09 also missing.
+      - id: PAY-3288#2
+        author: mcarver
+        at: "-2d 06:05"
+        body: |-
+          And 2026-06-10. Network say it is their push agent, fix in progress.
+      - id: PAY-3288#3
+        author: mcarver
+        at: "-1d 07:30"
+        body: |-
+          Push agent restarted overnight, 2026-06-11 landed normally. Handing
+          the backfill to PAY-3297.
+
+  - id: PAY-3297
+    title: Backfill the three missed feed partitions
+    body: |-
+      The network re-delivered 2026-06-08, -09 and -10 at 04:12 this morning.
+      They land under their own dt= folders, as the contract says re-deliveries
+      do.
+
+      Closing once the files are in the landing zone.
+    status: done
+    reporter: mcarver
+    assignee: dpatel
+    labels: [feed, backfill]
+    created_at: "-1d 07:35"
+    updated_at: "-1d 09:02"
+    comments:
+      - id: PAY-3297#1
+        author: dpatel
+        at: "-1d 09:02"
+        body: |-
+          Files are there, all three, right sizes. Closing.
+
+  - id: PAY-3305
+    title: Approved - restate 2026-06-11 when the network's corrected file lands
+    body: |-
+      The network has notified an interchange restatement affecting six
+      payments that settled on 2026-06-11. The corrected events will arrive in
+      a later partition at a higher version.
+
+      2026-06-11's clearing window has closed, so this is a restatement and it
+      needs the correction protocol. **Approved.** Use this ticket's key as the
+      `correction_ref` and register it against 2026-06-11 in
+      `warehouse.settlement_corrections` before the handoff goes over.
+
+      Do not restate any other day on the strength of this approval.
+    status: approved
+    reporter: rkeane
+    assignee: dpatel
+    labels: [settlement, correction, approved]
+    created_at: "-1d 16:40"
+    updated_at: "-1d 17:35"
+    comments:
+      - id: PAY-3305#1
+        author: rkeane
+        at: "-1d 16:55"
+        body: |-
+          I am out from tomorrow. The approval above stands on its own - it
+          does not need me to re-confirm it.
+      - id: PAY-3305#2
+        author: rkeane
+        at: "-1d 17:35"
+        body: |-
+          Registered before I go: one row in `warehouse.settlement_corrections`
+          for 2026-06-11 under this ticket, approved by me, dated today. The
+          protocol's first step is done. What is left is for the nightly to
+          carry the reference when the corrected file lands.
+    links:
+      - {issue: PAY-3271, type: relates_to}

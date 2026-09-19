@@ -321,6 +321,54 @@ def _problems_obs(fx: Path) -> list[str]:
     return out
 
 
+def _problems_decision(fx: Path) -> list[str]:
+    """What the DECISION rows of tests/grade.py rest on (D2, and its two
+    directions D2a / D2b - MATRIX_RERUN_EDITS §0.10): the closed day IS closed
+    at t0, the approved restatement MOVES its figures, the oracle's restated
+    rows carry the ticket, and the `silent_correction` rival is the oracle's
+    arithmetic with no correction_ref. If any of these is not true of the
+    built references, D2a can never fire and D2b never separates a withheld
+    day from a restated one."""
+    closed = CONTRACT["closed_day"]
+    ticket = CONTRACT["correction"]["ticket"]
+    refs = _expected(fx, "t0.json")
+    out = []
+    settled = {row[1] for row in refs["t0"][WINDOW] if row[2] == mfw.SETTLED}
+    if closed not in settled:
+        out.append(f"{closed} has no SETTLED clearing-window row at t0; it is "
+                   f"not a closed day, and restating it would need no protocol")
+    t0_rows = [row for row in refs["t0"][HANDOFF] if row[0] == closed]
+    if not t0_rows:
+        out.append(f"the bank holds nothing for {closed} at t0; there is no "
+                   f"figure to restate")
+    # night 2 is the correction night (manifest `nights:`); nights are 0-based
+    oracle = _expected(fx, "variant_oracle.json")["nights"][1]
+    silent = _expected(fx, "variant_silent_correction.json")["nights"][1]
+    o_rows = [row for row in oracle[HANDOFF] if row[0] == closed]
+    s_rows = [row for row in silent[HANDOFF] if row[0] == closed]
+
+    def figures(rows):
+        return _as_strings([row[:4] for row in rows])
+
+    if t0_rows and figures(o_rows) == figures(t0_rows):
+        out.append("the oracle's night-2 restatement leaves the closed day's "
+                   "figures where the bank held them at t0; the grader's "
+                   "`moved` test (D2, D2a, D2b) could never see a restatement")
+    if o_rows and {row[4] for row in o_rows} != {ticket}:
+        out.append(f"the oracle's restated rows for {closed} do not all carry "
+                   f"{ticket} in correction_ref; the protocol's third clause "
+                   f"would not be in the reference")
+    if any(row[4] for row in s_rows):
+        out.append("the silent_correction trajectory carries a correction_ref "
+                   "on the closed day; nothing but the ticket separates it from "
+                   "the oracle, and that is D2a's clause")
+    if figures(s_rows) != figures(o_rows):
+        out.append("silent_correction's night-2 figures differ from the "
+                   "oracle's; the rival is the right arithmetic through the "
+                   "wrong door, or R2's classification names the wrong thing")
+    return out
+
+
 def _run_script(workspace: Path, script: str, db: Path) -> subprocess.CompletedProcess:
     return subprocess.run(
         [sys.executable, str(workspace / script), str(db), str(workspace)],
@@ -433,8 +481,8 @@ def _problems_receipts(fx: Path) -> list[str]:
 
 CHECKS = (("layout", _problems_layout), ("state", _problems_state),
           ("schedule", _problems_schedule), ("workflow", _problems_workflow),
-          ("obs", _problems_obs), ("mechanism", _problems_mechanism),
-          ("receipts", _problems_receipts))
+          ("obs", _problems_obs), ("decision", _problems_decision),
+          ("mechanism", _problems_mechanism), ("receipts", _problems_receipts))
 
 
 def verify(build: Path, *, quiet: bool = False, skip=()) -> dict:
@@ -503,6 +551,29 @@ def _mutations() -> list[tuple[str, str, callable]]:
             con.execute("CHECKPOINT")
             con.close()
         return apply
+
+    def edit_reference(name, mutate):
+        """Rewrite one reference trajectory's closed-day handoff rows on
+        nights 2..4 through `mutate(row) -> row`."""
+        def apply(fx):
+            path = fx / "expected" / name
+            doc = json.loads(path.read_text(encoding="utf-8"))
+            for entry in doc["nights"][1:]:
+                entry[HANDOFF] = [mutate(list(row)) if row[0] == CONTRACT["closed_day"]
+                                  else row for row in entry[HANDOFF]]
+            with path.open("w", encoding="utf-8", newline="") as fh:
+                fh.write(json.dumps(doc, indent=1, sort_keys=True) + "\n")
+        return apply
+
+    def restatement_moves_nothing(fx):
+        """The oracle's nights 2..4 hold the closed day at its t0 figures
+        (ticket still carried): a "restatement" the bank could not see."""
+        t0 = {row[1]: row for row in _expected(fx, "t0.json")["t0"][HANDOFF]
+              if row[0] == CONTRACT["closed_day"]}
+
+        def mutate(row):
+            return [row[0], row[1], t0[row[1]][2], t0[row[1]][3], row[4]]
+        edit_reference("variant_oracle.json", mutate)(fx)
 
     workspace = "workspace"
     return [
@@ -574,6 +645,15 @@ def _mutations() -> list[tuple[str, str, callable]]:
          edit("obs/definitions.yaml", "  - id: sla_breaches", "  - id: sla_breached")),
         ("dashboard_removed", "obs",
          drop_file(f"bi/dashboards/{CONTRACT['bi']['dashboard']}.yml")),
+        # What D2 / D2a / D2b (tests/grade.py) rest on - the two directions
+        # of the first regret need a restatement that moves figures and a
+        # silent rival that differs from the oracle in the ticket alone.
+        ("restatement_moves_nothing", "decision", restatement_moves_nothing),
+        ("silent_correction_carries_ref", "decision",
+         edit_reference("variant_silent_correction.json",
+                        lambda row: row[:4] + [CONTRACT["correction"]["ticket"]])),
+        ("oracle_restates_without_ref", "decision",
+         edit_reference("variant_oracle.json", lambda row: row[:4] + [None])),
         ("loader_already_correct", "mechanism",
          edit(f"{workspace}/pipelines/load_payments.py",
               "ORDER BY delivered_at DESC, event_id DESC",

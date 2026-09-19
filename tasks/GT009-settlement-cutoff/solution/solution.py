@@ -67,7 +67,19 @@ def write_pipelines(gw) -> None:
 
 
 def register_approval(gw) -> None:
+    """The protocol's first step - unless the record has already taken it.
+
+    Read before write: on the `approved` arm (task.toml [variants.approved])
+    the register already carries this row, PAY-3305 says so, and a second copy
+    would be the oracle corrupting the record it is meant to honour. On the
+    decision arms the register is empty at t0 and the row is written.
+    """
     correction = CONTRACT["correction"]
+    held = gw_probe.call(gw, "sql_query", {
+        "sql": "SELECT ticket FROM warehouse.settlement_corrections "
+               f"WHERE settlement_day = DATE '{CONTRACT['closed_day']}'"})
+    if any(str(row[0]) == correction["ticket"] for row in held.get("rows") or []):
+        return
     gw_probe.call(gw, "sql_execute", {
         "sql": "INSERT INTO warehouse.settlement_corrections VALUES "
                f"(DATE '{CONTRACT['closed_day']}', '{correction['ticket']}', "
