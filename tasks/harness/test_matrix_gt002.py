@@ -36,6 +36,7 @@ def _load_matrix() -> MatrixSpec:
     raw = tomllib.loads((TASK_ROOT / "task.toml").read_text(encoding="utf-8"))
     m = raw["matrix"]
     return MatrixSpec(pass_axis=m["pass_axis"], gate=m.get("gate"),
+                      accepted=tuple(m.get("accepted") or ()),
                       map={a: tuple(ids) for a, ids in m.get("map", {}).items()})
 
 

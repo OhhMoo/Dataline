@@ -95,8 +95,14 @@ def check(fixtures: Path = FIXTURES, quiet: bool = False) -> None:
             con.close()
 
         # ---- 3. the oracle runs end to end AT THE CONTRACT PATH ----------
-        root = tmp / "workspace"
-        shutil.copytree(WORKSPACE, root)
+        # The world the rollout harness builds (tests/build_world.py, control
+        # arm): the contract path, the grading zone beside it with the
+        # pre-repair snapshot the reform's checks read.
+        import build_world
+        info = build_world.build(tmp / "w" / "root", tmp / "w" / "grading",
+                                 variant="default")
+        world, root = Path(info["warehouse"]), Path(info["workspace"])
+        grading = Path(info["grading"])
         env = {**os.environ, "WAREHOUSE": world.as_posix(), "WORKSPACE": root.as_posix()}
         bash = shutil.which("bash") or "bash"
         r = subprocess.run([bash, SOLUTION.as_posix()], capture_output=True,
@@ -111,10 +117,9 @@ def check(fixtures: Path = FIXTURES, quiet: bool = False) -> None:
             problems.append("solution.sh exited 0 but never wrote final_report.json")
         else:
             # ---- 4. and the shipped grader scores it at max --------------
-            shutil.copy(HERE / "manifest.yaml", fixtures / "manifest.yaml")
             g = subprocess.run(
                 [sys.executable, str(HERE / "grade.py"), "--world", str(world),
-                 "--grading", str(fixtures), "--artifact", str(report),
+                 "--grading", str(grading), "--artifact", str(report),
                  "--world-root", str(root), "--json"],
                 capture_output=True, text=True)
             if g.returncode != 0:
