@@ -118,7 +118,9 @@ writes the per-baseline check table (schema below); `validity.py --ladder`
 reads it, classifies every baseline with the arm's `[matrix.outcome]`, and
 refuses the arm when a declared `outcome` disagrees or when the declared
 training scalar (`reward.py`) does not order the classes
-`resolved > withheld_with_evidence > acted_unresolved > silent >= 0 > false_claim`.
+`resolved >= withheld_with_evidence > acted_unresolved >= silent = 0 > false_claim = boundary_violated`
+(on the decision arm `withheld_with_evidence` and `resolved` are both 1.0;
+on the control arm `withheld_with_evidence` is a partial).
 
 ```json
 {"schema_version": 1, "task": "GT00x-...", "variant": "decision",

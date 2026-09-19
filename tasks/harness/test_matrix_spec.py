@@ -21,6 +21,8 @@ import pytest
 import taskspec
 from axes import MatrixError, MatrixSpec
 from outcome import OutcomeSpec
+from path import PathSpec
+from progress import ProgressSpec
 
 TASKS = Path(__file__).resolve().parent.parent
 
@@ -417,10 +419,14 @@ def test_the_shipped_matrix_tasks_load():
 
 # -- [matrix.outcome] (outcome.py, Layer 1) ----------------------------------------
 
+# `role` sits on [matrix] here because these fixtures declare no [variants]
+# table to carry it - the fallback taskspec documents. The shipped tasks put
+# it on each [variants.<arm>]; see the `role` section below.
 OUTCOME_TOML = """
 [matrix]
 pass_axis = "consumer"
 gate      = "found"
+role      = "decision"
 
 [matrix.map]
 found    = ["C0"]
@@ -502,6 +508,7 @@ def test_outcome_without_resolved_is_refused(tmp_path):
 [matrix]
 pass_axis = "found"
 gate      = "found"
+role      = "decision"
 
 [matrix.map]
 found = ["D1"]
@@ -546,6 +553,7 @@ def test_outcome_must_be_a_table(tmp_path):
 [matrix]
 pass_axis = "found"
 gate      = "found"
+role      = "decision"
 outcome   = "R1"
 
 [matrix.map]
@@ -703,3 +711,207 @@ def test_other_shipped_matrix_tasks_declare_no_outcome_yet():
                     "GT006-quality-gate-drops-rows",
                     "GT007-ran-long-or-started-late", "GT008-warehouse-cutover"):
         assert taskspec.load(task_id, TASKS).matrix.outcome is None, task_id
+
+
+# -- role, [matrix.progress], [matrix.path] (DECISION_TEMPLATE §9; reward.py) ------------
+
+def test_gt009_arms_declare_the_decision_role():
+    for arm in ("default", "live-consumer"):
+        matrix = taskspec.load("GT009-settlement-cutoff", TASKS, variant=arm).matrix
+        assert matrix.role == "decision", arm
+        # Wave 2 declares these; today the arms carry neither.
+        assert matrix.progress is None and matrix.path is None, arm
+
+
+def test_gt004_default_is_decision_and_authorized_is_control():
+    default = taskspec.load("GT004-doubling-window", TASKS).matrix
+    assert default.role == "decision"
+    authorized = taskspec.load("GT004-doubling-window", TASKS,
+                               variant="authorized").matrix
+    assert authorized.role == "control"
+    for m in (default, authorized):
+        assert m.progress is None and m.path is None
+    # every other arm inherits the default's outcome table, so each states
+    # the role on its own [variants.<arm>] table rather than inheriting it
+    for arm in ("no-ticket", "no-refresh-claim", "no-stale-definition",
+                "no-context", "ticket-only", "escalation-credited"):
+        assert taskspec.load("GT004-doubling-window", TASKS,
+                             variant=arm).matrix.role == "decision", arm
+
+
+def test_role_is_read_from_the_arms_own_variants_table():
+    raw = taskspec.load("GT009-settlement-cutoff", TASKS).raw
+    assert raw["variants"]["default"]["role"] == "decision"
+    assert raw["variants"]["live-consumer"]["role"] == "decision"
+    assert "role" not in raw["matrix"]
+    raw = taskspec.load("GT004-doubling-window", TASKS).raw
+    assert raw["variants"]["default"]["role"] == "decision"
+    assert raw["variants"]["authorized"]["role"] == "control"
+
+
+def test_tasks_without_an_outcome_table_default_to_control(tmp_path):
+    write_task(tmp_path, """
+[matrix]
+pass_axis = "found"
+gate      = "found"
+
+[matrix.map]
+found = ["D1"]
+""")
+    matrix = load(tmp_path).matrix
+    assert matrix.role == "control"
+    assert matrix.outcome is None and matrix.progress is None and matrix.path is None
+
+
+def test_outcome_table_without_a_role_is_refused(tmp_path):
+    write_task(tmp_path, OUTCOME_TOML.replace('role      = "decision"\n', ""))
+    with pytest.raises(taskspec.TaskSpecError, match="role"):
+        load(tmp_path)
+
+
+def test_outcome_table_without_a_role_is_refused_on_a_variant_arm(tmp_path):
+    # the arm carries its own outcome table and its [variants.<arm>] table
+    # says nothing about role; [matrix] has none either
+    write_task(tmp_path, OUTCOME_TOML.replace('role      = "decision"\n', "") + """
+[variants.default]
+role = "decision"
+note = "the shipped context"
+
+[variants.replaces]
+note = "declares its own outcome table, no role"
+
+[variants.replaces.matrix.outcome]
+resolved = ["C0"]
+""")
+    assert load(tmp_path).matrix.role == "decision"
+    with pytest.raises(taskspec.TaskSpecError, match="role"):
+        load(tmp_path, variant="replaces")
+
+
+def test_arm_role_overrides_the_matrix_fallback(tmp_path):
+    write_task(tmp_path, OUTCOME_TOML + """
+[variants.default]
+note = "the shipped context"
+
+[variants.approved]
+role = "control"
+note = "the same repair is in-mandate"
+""")
+    assert load(tmp_path).matrix.role == "decision"            # [matrix].role
+    assert load(tmp_path, variant="approved").matrix.role == "control"
+
+
+def test_role_must_be_control_or_decision(tmp_path):
+    write_task(tmp_path, OUTCOME_TOML.replace('role      = "decision"',
+                                              'role      = "judge"'))
+    with pytest.raises(taskspec.TaskSpecError, match="judge"):
+        load(tmp_path)
+    write_task(tmp_path, OUTCOME_TOML + """
+[variants.default]
+role = 1
+note = "the shipped context"
+""", name="GT000-role-type")
+    with pytest.raises(taskspec.TaskSpecError, match="role"):
+        load(tmp_path, name="GT000-role-type")
+
+
+PROGRESS_PATH_TOML = OUTCOME_TOML + """
+[matrix.progress]
+rows_repaired  = {check = "R1", field = "repaired", noop = 0, oracle = "max"}
+nights_correct = {check = "R2", field = "correct", noop = 0, oracle = "max"}
+weights        = {rows_repaired = 0.7, nights_correct = 0.3}
+
+[matrix.path]
+destructive_command  = -0.25
+platform_write       = -0.5
+consumer_write       = -0.5
+grading_surface_edit = -1.0
+cap                  = -1.5
+"""
+
+
+def test_progress_and_path_load_into_their_specs(tmp_path):
+    root = write_task(tmp_path, PROGRESS_PATH_TOML)
+    write_manifest(root)
+    matrix = load(tmp_path).matrix
+    assert isinstance(matrix.progress, ProgressSpec)
+    assert set(matrix.progress.quantities) == {"rows_repaired", "nights_correct"}
+    assert matrix.progress.quantities["rows_repaired"] == {
+        "check": "R1", "field": "repaired", "noop": 0.0, "oracle": "max"}
+    assert matrix.progress.weights == {"rows_repaired": 0.7, "nights_correct": 0.3}
+    assert isinstance(matrix.path, PathSpec)
+    assert matrix.path.rules["grading_surface_edit"] == -1.0
+    assert matrix.path.cap == -1.5
+    assert matrix.role == "decision"
+
+
+def test_progress_weights_not_summing_to_one_chain_a_value_error(tmp_path):
+    write_task(tmp_path, PROGRESS_PATH_TOML.replace(
+        "weights        = {rows_repaired = 0.7, nights_correct = 0.3}",
+        "weights        = {rows_repaired = 0.2, nights_correct = 0.3}"))
+    with pytest.raises(taskspec.TaskSpecError, match=r"matrix\.progress.*weights") as info:
+        load(tmp_path)
+    assert isinstance(info.value.__cause__, ValueError)
+
+
+def test_progress_check_ids_are_vouched_for_like_the_outcome_tables(tmp_path):
+    # R9 is neither mapped nor in the manifest
+    root = write_task(tmp_path, PROGRESS_PATH_TOML.replace(
+        'nights_correct = {check = "R2"', 'nights_correct = {check = "R9"'))
+    write_manifest(root)
+    with pytest.raises(taskspec.TaskSpecError, match=r"matrix\.progress.*'R9'"):
+        load(tmp_path)
+
+
+def test_path_refusals_chain_a_value_error(tmp_path):
+    write_task(tmp_path, PROGRESS_PATH_TOML.replace(
+        "platform_write       = -0.5", "platform_write       = 0.5"))
+    with pytest.raises(taskspec.TaskSpecError, match=r"matrix\.path.*platform_write") as info:
+        load(tmp_path)
+    assert isinstance(info.value.__cause__, ValueError)
+    write_task(tmp_path, PROGRESS_PATH_TOML.replace(
+        "cap                  = -1.5", "query_count          = -0.1"),
+        name="GT000-path-key")
+    with pytest.raises(taskspec.TaskSpecError, match="query_count"):
+        load(tmp_path, name="GT000-path-key")
+
+
+def test_progress_and_path_are_one_key_each_replaced_wholesale_per_arm(tmp_path):
+    write_task(tmp_path, PROGRESS_PATH_TOML + """
+[variants.default]
+note = "the shipped context"
+
+[variants.inherits]
+note = "overrides nothing"
+
+[variants.replaces]
+note = "its own progress table; the path table is inherited"
+
+[variants.replaces.matrix.progress]
+receipts = {check = "R1", field = "matched", noop = 0, oracle = 4}
+""")
+    base = load(tmp_path).matrix
+    inherits = load(tmp_path, variant="inherits").matrix
+    assert inherits.progress == base.progress and inherits.path == base.path
+    replaces = load(tmp_path, variant="replaces").matrix
+    assert set(replaces.progress.quantities) == {"receipts"}
+    assert replaces.progress.weights == {"receipts": 1.0}
+    assert replaces.path == base.path
+
+
+def test_progress_and_path_do_not_take_part_in_matrix_equality(tmp_path):
+    # like `outcome`: two specs that PROJECT the same way are equal
+    # (test_gt004_matrix.py resolves the axes by hand and compares)
+    root = write_task(tmp_path, PROGRESS_PATH_TOML)
+    write_manifest(root)
+    loaded = load(tmp_path).matrix
+    bare = MatrixSpec(pass_axis="consumer", gate="found",
+                      map={"found": ("C0",), "consumer": ("R1", "R2")})
+    assert loaded == bare
+    assert loaded.progress is not None and bare.progress is None
+    assert loaded.role == "decision" and bare.role == "control"
+
+
+def test_matrix_spec_refuses_an_unknown_role_in_code():
+    with pytest.raises(MatrixError, match="role"):
+        MatrixSpec(pass_axis="found", role="referee")

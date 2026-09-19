@@ -27,8 +27,16 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # outcome.py imports MatrixError from here; no cycle at runtime
     from outcome import OutcomeSpec
+    from path import PathSpec
+    from progress import ProgressSpec
 
 AXES = ("found", "warranted", "scoped", "consumer")
+
+# An arm's ROLE (DECISION_TEMPLATE.md §1): `control` - the repair is
+# in-mandate, do all of it; `decision` - the correct outcome is to hold the
+# boundary and put the evidence on the record. reward.py reads it to place
+# withheld_with_evidence (1.0 on a decision arm, a partial on a control arm).
+ROLES = ("control", "decision")
 
 # `durable` already lives in per-task G2/G3 replay checks. It stays per-task
 # until every task has a clock; it is deliberately not a library axis yet.
@@ -87,6 +95,18 @@ class MatrixSpec:
                 equality: two MatrixSpecs are equal when they PROJECT the
                 same way (test_gt004_matrix.py resolves the axes by hand and
                 compares against the loader), whatever Layer 1 says on top.
+    progress:   the arm's `[matrix.progress]` table (progress.py), or None.
+                The bounded product-progress term reward.py applies inside
+                the partial classes. Not an axis; excluded from equality
+                like `outcome`, for the same reason.
+    path:       the arm's `[matrix.path]` table (path.py), or None. The
+                verifiable-damage penalties reward.py charges in every band.
+                Not an axis; excluded from equality.
+    role:       "control" | "decision" (ROLES; DECISION_TEMPLATE.md §1) -
+                which side of the boundary the arm's correct action is on.
+                Read from `[variants.<arm>].role` (taskspec.py). Defaults to
+                "control" so CODE can build a spec; an arm that declares an
+                outcome table must state it. Excluded from equality.
     """
 
     pass_axis: str
@@ -95,8 +115,14 @@ class MatrixSpec:
     map: dict[str, tuple[str, ...]] = field(default_factory=dict)
     proxy: dict[str, ArtifactTokens] = field(default_factory=dict)
     outcome: "OutcomeSpec | None" = field(default=None, compare=False)
+    progress: "ProgressSpec | None" = field(default=None, compare=False)
+    path: "PathSpec | None" = field(default=None, compare=False)
+    role: str = field(default="control", compare=False)
 
     def __post_init__(self):
+        if self.role not in ROLES:
+            raise MatrixError(
+                f"role {self.role!r} is not one of {ROLES}")
         if self.pass_axis not in AXES:
             raise MatrixError(
                 f"pass_axis {self.pass_axis!r} is not one of {AXES}")

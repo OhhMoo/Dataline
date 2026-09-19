@@ -58,6 +58,30 @@ task's `[grading].manifest` (read with PyYAML where that is importable - the
 hygiene penalties an outcome table leans on, GT009's H1/H2, are mapped to no
 axis, so the map alone would refuse them). Where neither is enumerable, ids
 are checked for shape only and validity.py owns the check against the grader.
+
+THE SCALAR'S DECLARATIONS (DECISION_TEMPLATE.md §9; reward.py combines them).
+Three more things ride on the MatrixSpec, resolved per arm by the same
+one-key rule as `outcome` (an arm's table replaces the base's wholesale):
+
+  * `[matrix.progress]` -> progress.parse_progress_spec, with the same
+    known-ids set the outcome table is vouched against;
+  * `[matrix.path]`     -> path.parse_path_spec;
+  * `role`              -> "control" | "decision". READ FROM THE ARM'S OWN
+    TABLE, `[variants.<arm>].role` - for the default arm too, since both
+    shipped decision tasks express `default` as a `[variants.default]` table
+    (GT009, GT004) and the template (§1) puts the role beside the arm's
+    overlay and note "so nothing has to be inferred from the name". A task
+    that declares an outcome table but no `[variants]` at all (the loader's
+    own fixtures) states it as `[matrix] role = ...`, and that key is also
+    the fallback an arm inherits when its own table is silent.
+
+    RULE: an arm whose RESOLVED matrix carries an outcome table must state a
+    role, else TaskSpecError - the band `withheld_with_evidence` lands in
+    depends on it, and a default there would decide the training scalar
+    silently. An arm with no outcome table defaults to "control".
+
+Every ValueError the two parsers raise is re-raised as TaskSpecError chained
+from it, the same pattern as MatrixError above.
 """
 from __future__ import annotations
 
@@ -70,8 +94,10 @@ import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from axes import ArtifactTokens, MatrixError, MatrixSpec
+from axes import ROLES, ArtifactTokens, MatrixError, MatrixSpec
 from outcome import parse_outcome_spec
+from path import parse_path_spec
+from progress import parse_progress_spec
 
 TASKS_DIR = Path(__file__).resolve().parent.parent
 
@@ -121,6 +147,9 @@ class Variant:
               of the task's [matrix], the same pattern as `grading`: a key the
               arm declares replaces the task-level one, a key it does not is
               inherited. Empty when the arm overrides nothing.
+    role      the arm's declared `role` ("control" | "decision"), or None
+              when the arm's table does not state one. Resolved onto the
+              MatrixSpec in `_matrix_spec`; see the module docstring.
     """
     name: str
     note: str
@@ -128,6 +157,7 @@ class Variant:
     prompt: str = ""
     grading: dict = field(default_factory=dict)
     matrix: dict = field(default_factory=dict)
+    role: str | None = None
 
     @property
     def overlay(self) -> Path | None:
@@ -305,11 +335,17 @@ def _declared_variants(task_id: str, root: Path, raw: dict) -> dict[str, Variant
                     f"{task_id} [variants].{name}.overlay names {path}, which "
                     f"is not a directory.")
             overlays.append(path)
+        role = block.get("role")
+        if role is not None and not isinstance(role, str):
+            raise TaskSpecError(
+                f"{task_id} [variants].{name}.role must be one of {ROLES}, "
+                f"got {role!r}")
         out[name] = Variant(
             name=name, note=note, overlays=tuple(overlays),
             prompt=str(block.get("prompt", "")),
             grading=dict(block.get("grading") or {}),
-            matrix=_variant_matrix(task_id, name, block))
+            matrix=_variant_matrix(task_id, name, block),
+            role=role)
     if out["default"].overlays:
         raise TaskSpecError(
             f"{task_id} [variants].default declares an overlay. `default` IS "
@@ -400,7 +436,8 @@ def _manifest_check_ids(root: Path, raw: dict) -> set[str] | None:
 
 
 def _matrix_spec(task_id: str, root: Path, base: dict | None,
-                 arm: dict | None, raw: dict | None = None) -> MatrixSpec | None:
+                 arm: dict | None, raw: dict | None = None,
+                 arm_role: str | None = None) -> MatrixSpec | None:
     """`[matrix]` plus the resolved arm's `[variants.<name>.matrix]` -> MatrixSpec.
 
     Per-key override, the same pattern as the arm's grading flags: a key the
@@ -411,6 +448,9 @@ def _matrix_spec(task_id: str, root: Path, base: dict | None,
     'found' default in MatrixSpec is for code, not for a declaration that
     decides which episodes enter a denominator. `gate = false` is the explicit
     spelling of the gateless control task (TOML has no null).
+
+    `arm_role` is the resolved arm's own `[variants.<name>].role`, or None;
+    `[matrix].role` is the fallback. See the module docstring.
     """
     if base is not None and not isinstance(base, dict):
         raise TaskSpecError(
@@ -498,22 +538,65 @@ def _matrix_spec(task_id: str, root: Path, base: dict | None,
     # plus the grader manifest's check table where that can be read.
     raw_outcome = pick("outcome")
     outcome_spec = None
+    known = {cid for ids in axis_map.values() for cid in ids}
+    manifest_ids = _manifest_check_ids(root, raw or {})
+    vouched = (known | manifest_ids) if manifest_ids else None
     if raw_outcome is not None:
-        known = {cid for ids in axis_map.values() for cid in ids}
-        manifest_ids = _manifest_check_ids(root, raw or {})
         try:
             outcome_spec = parse_outcome_spec(
-                raw_outcome,
-                known_ids=(known | manifest_ids) if manifest_ids else None,
+                raw_outcome, known_ids=vouched,
                 where=f"{task_id} [matrix.outcome]")
         except MatrixError as exc:
             raise TaskSpecError(str(exc)) from exc
+
+    # [matrix.progress] and [matrix.path] (progress.py, path.py): the two
+    # declared inputs to reward.py beside the outcome class. ONE key each,
+    # replaced wholesale on override like `outcome`. Their parsers raise
+    # ValueError; it is chained into TaskSpecError the way MatrixError is.
+    raw_progress = pick("progress")
+    progress_spec = None
+    if raw_progress is not None:
+        try:
+            progress_spec = parse_progress_spec(
+                raw_progress, known_ids=vouched,
+                where=f"{task_id} [matrix.progress]")
+        except ValueError as exc:
+            raise TaskSpecError(str(exc)) from exc
+
+    raw_path = pick("path")
+    path_spec = None
+    if raw_path is not None:
+        try:
+            path_spec = parse_path_spec(raw_path,
+                                        where=f"{task_id} [matrix.path]")
+        except ValueError as exc:
+            raise TaskSpecError(str(exc)) from exc
+
+    # role: the arm's own table first, then [matrix].role. Required the
+    # moment the arm carries an outcome table - withheld_with_evidence's band
+    # is 1.0 or a partial depending on it, and a default there would decide
+    # the training scalar without anyone having written it down.
+    role = arm_role if arm_role is not None else base.get("role")
+    if role is None:
+        if outcome_spec is not None:
+            raise TaskSpecError(
+                f"{task_id} declares [matrix.outcome] but no `role`. State "
+                f"`role = \"control\"` (the repair is in-mandate: do all of "
+                f"it) or `role = \"decision\"` (hold the boundary and put the "
+                f"evidence on the record) in the arm's [variants.<arm>] "
+                f"table, so the band withheld_with_evidence lands in is "
+                f"declared rather than inferred from the arm's name.")
+        role = "control"
+    if not isinstance(role, str) or role not in ROLES:
+        raise TaskSpecError(
+            f"{task_id} role must be one of {ROLES}, got {role!r}")
 
     pass_axis = str(pick("pass_axis"))
     try:
         spec = MatrixSpec(pass_axis=pass_axis, gate=gate,
                           accepted=tuple(accepted), map=axis_map, proxy=proxy,
-                          outcome=outcome_spec)
+                          outcome=outcome_spec, progress=progress_spec,
+                          path=path_spec, role=role)
     except MatrixError as exc:
         raise TaskSpecError(f"{task_id} [matrix]: {exc}") from exc
 
@@ -764,5 +847,5 @@ def load(task_id: str, tasks_dir: Path | None = None,
                             _require(harness, "pass_min_total",
                                      f"{task_id} [harness]"))),
         matrix=_matrix_spec(task_id, root, raw.get("matrix"), arm.matrix,
-                            raw=raw),
+                            raw=raw, arm_role=arm.role),
     )
