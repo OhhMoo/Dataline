@@ -167,6 +167,24 @@ def _spec_for_report(task_id: str, tasks_dir: str | None,
         return None
 
 
+def _stored_arms(run_dir: Path) -> list[str]:
+    """The arms the rN/rollout.json records of a stored run name ("default"
+    for a record that predates variants)."""
+    arms: set[str] = set()
+    if not run_dir.is_dir():
+        return []
+    for path in run_dir.iterdir():
+        if path.is_dir() and re.fullmatch(r"r\d+", path.name):
+            rec_path = path / "rollout.json"
+            if rec_path.exists():
+                try:
+                    rec = json.loads(rec_path.read_text(encoding="utf-8"))
+                except (OSError, ValueError):
+                    continue
+                arms.add(str(rec.get("variant") or "default"))
+    return sorted(arms)
+
+
 def _export(export_dir: str | None, task_id: str, run_id: str, agg: dict,
             records: list[dict], spec) -> None:
     """The public benchmark.json, under <export_dir>/<task>/<run_id>/.
@@ -339,6 +357,17 @@ def main() -> int:
                     help="red-teams the harness's own detectors; a run using it "
                          "is marked and must never be reported as a measurement")
     a = ap.parse_args()
+    if a.re_report or a.regrade_run:
+        # The arm of a stored run is what its records say; --variant cannot
+        # move it. It is accepted only as an assertion, and refused when it
+        # disagrees (R4 2026-09-19: silently ignored before).
+        stored = Path(a.re_report or a.regrade_run).resolve()
+        if a.variant is not None:
+            arms = _stored_arms(stored)
+            if arms and set(arms) != {a.variant}:
+                ap.error(f"--variant {a.variant!r} but the stored records name "
+                         f"{arms}; a stored run's arm is read from its "
+                         f"rollout.json, not from the flag")
     if a.re_report:
         return re_report(Path(a.re_report).resolve(), a.task, a.tasks_dir,
                          export_dir=a.export, baselines_json=a.baselines)

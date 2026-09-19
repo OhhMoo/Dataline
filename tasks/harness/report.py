@@ -609,6 +609,7 @@ def _matrix_block(spec, records: list[dict],
     rewards: list[float] = []
     bands: list[float] = []
     progresses: list[float] = []
+    paid_progresses: list[float] = []
     penalties: list[float] = []
     outcome_counts: dict[str, int] = {}
     event_counts: dict[str, int] = {}
@@ -663,6 +664,12 @@ def _matrix_block(spec, records: list[dict],
             penalties.append(penalty)
         if prog is not None:
             progresses.append(prog)
+            # the PAID set: progress only reaches the scalar in a partial
+            # class (reward.py). R4 2026-09-19: GT009 read "2 distinct" over
+            # all episodes while the paid set was 1 distinct - the RLVP
+            # question is about the paid set.
+            if comps.get("progress") is not None:
+                paid_progresses.append(prog)
         row["outcome"] = cls
         row["band"] = comps.get("band")
         row["progress"] = prog
@@ -722,6 +729,10 @@ def _matrix_block(spec, records: list[dict],
     if progresses:
         reachability = _call(progress, "progress", "reachability", caveats,
                              list(progresses))
+    paid_reachability = None
+    if paid_progresses:
+        paid_reachability = _call(progress, "progress", "reachability", caveats,
+                                  list(paid_progresses))
     return {
         "pass_axis": matrix.pass_axis,
         "gate": matrix.gate,
@@ -766,6 +777,10 @@ def _matrix_block(spec, records: list[dict],
         "progress_declared": progress_spec is not None,
         "progress_anchored": anchors is not None,
         "progress_reachability": reachability,
+        # over the episodes whose progress REACHED the scalar (partial
+        # classes only); the trainer's gradient question is about this set
+        "progress_reachability_paid": paid_reachability,
+        "progress_paid_denominator": len(paid_progresses),
         "path_mean": _mean(penalties),
         "path_declared": path_spec is not None,
         "path_event_counts": dict(sorted(event_counts.items())),
@@ -1066,6 +1081,15 @@ def _render_tiers(m: dict) -> list[str]:
                  f"[{_fmt_rate(reach.get('min'))}, {_fmt_rate(reach.get('max'))}]"
                  f" · {reach.get('distinct')} distinct value(s) - a quantity "
                  f"every episode maxes or zeroes is a bit in disguise")
+        paid = m.get("progress_reachability_paid")
+        if paid:
+            L.append(f"  over the {paid.get('n')} episode(s) whose progress "
+                     f"reached the scalar (partial classes only): var "
+                     f"{_fmt_rate(paid.get('var'))} · {paid.get('distinct')} "
+                     f"distinct - this is the set a trainer's gradient sees")
+        elif m.get("progress_paid_denominator") == 0:
+            L.append("  no episode's progress reached the scalar (none in a "
+                     "partial class): the tier is inert on this run")
     if m.get("path_declared"):
         counts = m.get("path_event_counts") or {}
         n_scored = m.get("scored") or 0

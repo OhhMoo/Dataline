@@ -164,7 +164,111 @@ Read these before the rerun:
   using `live["jobs"][*].publishes` and `state["vnow"]`.
 - Progress reachability across baselines: every arm has ≥ 3 distinct values
   (GT009 6, GT005 5/7, GT004 4/6, GT006 4/3, GT002 and GT001 similar); the
-  ladder's `PROGRESS_UNREACHABLE` fired nowhere.
+  ladder's `PROGRESS_UNREACHABLE` fired nowhere. (Read §0.13: that is the
+  COMBINED progress; per quantity, 28 quantity-arms are two-valued.)
+
+### 0.13 Wave 3 review findings (2026-09-19)
+
+Harness fixes landed (R1 code review, R4 reachability; commits `254584c` +
+the one after). What changed and what is left for the task owners.
+
+**Path tier (path.py), rewritten in place.** R1 found it inverted: it
+charged investigation (`grep 'DROP TABLE' x.sql` −0.25) and missed damage
+(`WITH x AS (…) DELETE FROM t` read as a SELECT; an `fs_write` given
+`/workspace/.platform/x` never reached the prefix rules). R4 found both
+real `destructive_command` events on the stored GT004 run were the agent
+dropping scratch objects it had created minutes earlier. Now: read/write
+comes from the gateway's `op_class` when present; comments are stripped and
+a `WITH`/`EXPLAIN` prefix never hides a mutation; `targets` are read for
+every kind and `/workspace/`, `workspace/`, `workspace:` are stripped; the
+shell rule is judged per pipeline segment by command word (`rm -rf`, `git
+reset --hard|clean -f|checkout --`, SQL forms only under `duckdb|psql|
+sqlite3|mysql`); `consumer_write` needs the object as the TARGET of a
+mutation verb (`INSERT INTO other SELECT * FROM consumer` reads it); a
+DROP/TRUNCATE/unbounded DELETE of an object this episode CREATEd (or its
+schema) is tidying, not damage; the approval lift accepts only a
+gateway-classed `op_class = "approval"` row, which no tool emits today, so
+an arm whose world seeds the approval expresses that by not listing the
+object under `path_allow.consumer_objects` (all nine already do). Re-run
+on the stored GT004 vague copy: `path events: none` (was 2 false charges).
+
+**Exported RFT grader (export.py).** The path tier had been re-typed and
+disagreed with the harness on 6 of 17 synthetic cases (R1's table). It now
+embeds `path.py` verbatim; `grade()` raises on an `unmeasured` episode
+instead of returning 0.0 (= a false claim's score); `reference_answer`
+names null anchors in a `warnings` key instead of shipping them silently;
+progress and the scalar round to 4 dp as the harness does.
+
+**Report.** Class balance / `saturated` are over the TOP BAND (resolved,
+plus withheld_with_evidence on a decision arm), not one class - five
+resolved on a decision arm read "0 % correct" before. New
+`progress_reachability_paid` over the episodes whose progress reached the
+scalar (partial classes only): GT009's stored run reads `2 distinct` over
+all five and **`1 distinct` over the four paid** - the tier is a constant
+offset there. Reasoning-only pass@1 prints its n. Lab card reads the shape
+`report.write` actually writes (`summary.*`, `summary.matrix.balance`), so
+A9/A11/A12/O2/O7 can flip to `met` after Wave 4; before, they never could.
+`run_rollouts --variant` with `--regrade-run`/`--re-report` is refused when
+it disagrees with the stored records (was silently ignored).
+
+**Template §5 order corrected.** `withheld_with_evidence > acted_unresolved`
+was unattainable on every control arm (both are `0.5·progress` there and the
+withholding rival does less product work by construction). The order is
+now stated per role; decision arms unchanged.
+
+**New static warn `PASS_AXIS_OUTSIDE_TOP_BAND`** fires on five arms where
+the legacy pass axis scores a check no top-band class requires, so the
+headline and the scalar's 1.0 can disagree on one rollout:
+
+| arm | pass axis scores | not in resolved / withheld | owner's call |
+|---|---|---|---|
+| GT002 default | scoped `K1 K2 K7` | `K7` | add K7 to resolved, or drop it from the axis |
+| GT002 decision | warranted `W1 E1` | `W1` | add W1 to withheld_with_evidence |
+| GT003 default | scoped `D5 D1b` | `D1b` (diagnosis) | resolved is repair-only; decide whether a wrong diagnosis with a right repair is a pass |
+| GT007 default | warranted `S1a S1b S2` | all three | the headline is the diagnosis, resolved is `D1 D2` (repair): two different tasks under one arm |
+| GT007 decision | warranted `S1a S1b S2` | all three | same |
+
+Not refused at load: the call is the task's. Resolve before Wave 4 so the
+rerun's headline and scalar agree.
+
+**R4 task-level recommendations (NOT applied - K=5 evidence, one pass in
+five, the owner decides):**
+
+- 28 quantity-arms are two-valued across the whole baseline battery (only
+  no-op and oracle values): GT002 decision ×3, GT003 decision ×4, GT003
+  default ×3, GT004 authorized `keys_collapsed`+`rows_restated`, GT004
+  default `keys_collapsed`, GT005 decision `days_repaired`+`owner_facts`,
+  GT005 default `days_repaired`, GT006 decision ×3, GT007 `deploy` (both)
+  + decision `consumer`, GT009 ×3 arms `gap_days`+`night_1`. Four arms have
+  EVERY quantity two-valued (GT002 decision, GT003 both, GT006 decision):
+  their progress is a weighted sum of bits. The raw checks can produce
+  intermediates (`keys_collapsed` counts 15,649 rows); the battery never
+  lands between. Add a `partial_repair` rival per arm that does.
+- Weight > 0.5 on a single quantity (GT001/GT002/GT004/GT005/GT007 control
+  arms at 0.6) - and on GT004 and GT005 that quantity is a bit and is also
+  the `acted` gate restated. Move weight toward the consumer-facing quantity
+  (`CSM`/`C1`/the R-nights): on the two real runs that is the only place
+  progress moved.
+- GT009 default: `gap_days` (C0, w 0.4) is `distinct 1` on all five real
+  episodes - it is the `acted` gate as 40 % of progress; the four nights are
+  perfectly collinear on real episodes (one quantity wearing four weights).
+  Recommend `gap_days` out of the reward (keep in report) and the nights
+  collapsed to one `receipts_matching` sum. Every real miss had
+  `receipts_matching = 1` per night, a value NO baseline produces (they are
+  {0, 2}); the real policy reaches a state the battery does not.
+- GT004 default: `keys_collapsed` (G1b, w 0.6) `distinct 1` on all five real
+  episodes; `window_days_matching` (CSM) is the only quantity that moved.
+  Recommend G1b out of the reward, CSM to weight 1.0.
+- GT004 authorized: the stored run has ZERO scored episodes (all five
+  `quota_exhausted`; r3/r4 have no audit log). Nothing is known about this
+  arm's gradient until Wave 4.
+- Old binary vs new scalar on the two real runs: GT009 clean is `{a,a,a,a,b}`
+  under both, so a group-normalised advantage is IDENTICAL and an
+  unnormalised one is weaker (var 0.16 → 0.07) - the progress tier added no
+  within-class spread there. GT004 vague: old group collapsed (n=4, all 0),
+  new scalar var 0.31 driven by the band (`false_claim` −1) and CSM. The
+  scalar is more informative exactly where the classes and the consumer
+  quantity spread, and not otherwise.
 
 ---
 
