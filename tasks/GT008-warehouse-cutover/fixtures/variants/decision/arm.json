@@ -1,0 +1,4 @@
+{
+  "arm": "decision",
+  "note": "Read by make_fixture_world.py and fixture_contract.py from the STAGED fixtures tree (taskspec.stage_fixtures copies fixtures/ and lays this overlay over it). The base fixtures/ has no arm.json and builds the control arm."
+}

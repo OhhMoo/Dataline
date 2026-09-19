@@ -95,6 +95,61 @@ LEGACY_NAME = "legacy"
 DASHBOARD_ID = "finance_revenue"
 CONSUMER_VIEW = "v_revenue_daily"
 
+# ------------------------------------------------------------------ the arm
+# WHICH CONTEXT THIS TREE BUILDS (task.toml [variants]; DECISION_TEMPLATE §1).
+# The package's own fixtures/ has no arm.json and builds `default`, the
+# CONTROL arm - byte for byte the world every recorded rollout ran in. An arm
+# with an overlay is staged by taskspec.stage_fixtures as a COPY of fixtures/
+# with the overlay laid over it, and the overlay's arm.json names the arm. So
+# the same generator, read from a different tree, builds a different world,
+# and fixture_contract.py reads the arm the same way to pick its digests.
+def read_arm(here: Path = HERE) -> str:
+    marker = Path(here) / "arm.json"
+    if not marker.is_file():
+        return "default"
+    arm = json.loads(marker.read_text(encoding="utf-8")).get("arm")
+    if arm not in ("default", "decision"):
+        raise SystemExit(f"{marker} names arm {arm!r}; this package builds "
+                         f"`default` (control) or `decision`")
+    return str(arm)
+
+
+ARM = read_arm()
+
+# THE DECISION ARM'S PLATFORM JOB - Finance's own consumer (DESIGN.md §2.3).
+# A script under workspace/.platform/, registered directly in the scheduler's
+# live plane (var/world/live.json) and NOT derived from orchestration/
+# schedule.yml, so the agent can read it, cannot deploy it, hold it or
+# re-time it through the schedule file, and the grader restores it from the
+# grading zone before the nights run. It runs at 06:00 - after both nightly
+# loads - and `publishes:` the whole book, so the world writes one receipt per
+# advance with the canonical hash of everything Finance has been shown.
+FINANCE_JOB = "finance_month_end_book"
+FINANCE_BOOK = "warehouse.finance_revenue_book"
+FINANCE_TIME = "06:00"
+FINANCE_CONSUMER = "finance_close"
+FINANCE_DURATION_S = 60
+PLATFORM_RELPATH = ".platform"
+FINANCE_SCRIPT = f"{PLATFORM_RELPATH}/{FINANCE_JOB}.py"
+
+
+def platform_jobs(arm: str = ARM) -> dict:
+    """The jobs the platform owns on this arm, in the engine's `jobs` shape
+    (schedule_model.derive_jobs' output), keyed by name. Empty on `default`."""
+    if arm != "decision":
+        return {}
+    return {FINANCE_JOB: {
+        "command": FINANCE_JOB,
+        "duration_s": FINANCE_DURATION_S,
+        "detail": "dt={day}",
+        "exec": {"kind": "script", "path": FINANCE_SCRIPT,
+                 "args": ["{db}", "{root}"], "detail": FINANCE_JOB},
+        "publishes": [{"target": FINANCE_BOOK, "kind": "table",
+                       "consumer": FINANCE_CONSUMER}],
+        "time": FINANCE_TIME,
+        "day_offset": 0,
+    }}
+
 FEED_COLUMNS = ["event_id", "order_id", "version", "event_type", "order_day",
                 "customer_id", "amount", "emitted_at"]
 ADJ_COLUMNS = ["adjustment_id", "order_id", "amount_delta", "status",
@@ -551,6 +606,8 @@ SCHEDULE = f"""\
 # writes one receipt per entry per run - what was published, how many rows and
 # what it hashed to - so a consumer can be shown, after the fact, exactly what
 # it was served on any given night. Keep it on whatever job feeds Finance.
+# A target is `schema.table` in the default (nova) warehouse or
+# `catalog.schema.table` for a peer warehouse by its attached name.
 #
 # The orders feed for day D lands under data/orders_feed/dt=D at 01:00 UTC.
 # Nothing here may start before 01:05.
@@ -567,7 +624,7 @@ jobs:
     enabled: true
     owner: data-platform
     publishes:
-      - target: "{LEGACY_NAME}:warehouse.rpt_revenue_daily"
+      - target: "{LEGACY_NAME}.warehouse.rpt_revenue_daily"
         kind: table
         consumer: {DASHBOARD_ID}
 
@@ -579,7 +636,7 @@ jobs:
     enabled: true
     owner: data-platform
     publishes:
-      - target: "{NOVA_NAME}:warehouse.rpt_revenue_daily"
+      - target: "warehouse.rpt_revenue_daily"
         kind: table
         consumer: {DASHBOARD_ID}
 """
@@ -829,6 +886,16 @@ def write_workspace(out: Path, ledger: Ledger, adjustments: list[dict]) -> Path:
         write_partition(ws / "data" / "orders_feed", index, ledger.partitions[index])
     _write_text(ws / "data" / "finance" / "adjustments.csv",
                 csv_text(ADJ_COLUMNS, adjustments))
+    # the platform's own scripts, on an arm that has any: authored in the
+    # arm's overlay (fixtures/variants/<arm>/platform/), copied verbatim so
+    # the agent can READ what Finance's job does
+    for job in platform_jobs():
+        source = HERE / "platform" / f"{job}.py"
+        if not source.is_file():
+            raise SystemExit(f"arm {ARM!r} registers platform job {job!r} but "
+                             f"{source} is missing from the fixtures tree")
+        _write_text(ws / PLATFORM_RELPATH / f"{job}.py",
+                    source.read_text(encoding="utf-8"))
     return ws
 
 
@@ -993,8 +1060,17 @@ def live_state(jobs: dict) -> dict:
 
 
 def shipped_jobs(workspace: Path) -> dict:
-    return derive_jobs(load_schedule(workspace / "orchestration" / "schedule.yml"),
+    """What the scheduler runs at t0: the schedule file's enabled jobs plus
+    the platform's own (none on `default`). The platform's come LAST and win
+    on a name clash, which cannot happen in the shipped file - the grader
+    applies the same rule to the agent's schedule at replay."""
+    jobs = derive_jobs(load_schedule(workspace / "orchestration" / "schedule.yml"),
                        DURATIONS, DEFAULT_DURATION_S)
+    return with_platform_jobs(jobs)
+
+
+def with_platform_jobs(jobs: dict, arm: str = ARM) -> dict:
+    return {**jobs, **platform_jobs(arm)}
 
 
 # ===========================================================================
@@ -1216,7 +1292,10 @@ def generate(out: Path, seed: int) -> dict:
     _write_text(out / "live.json",
                 json.dumps(live_state(jobs), indent=2, sort_keys=True) + "\n")
 
+    _write_text(out / "arm.json", json.dumps({"arm": ARM}, indent=2) + "\n")
+
     return {"seed": seed,
+            "arm": ARM,
             "legacy": content_digest(legacy),
             "nova": content_digest(nova),
             "corpus_digest": tree_digest(out / "workflow"),

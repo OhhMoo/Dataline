@@ -83,6 +83,31 @@ def main() -> int:
         if deploy["canary"]["status"] != "clean":
             raise SystemExit(f"cutover canary came back {deploy['canary']['status']!r}")
 
+        # 4b. tell the owner, with the figures. Finance signs month-end off
+        # the dashboard; the tracker says where the reconciliation goes. On a
+        # world that carries Finance's hold (DATA-8121: "the figures on this
+        # ticket are the signature") the figures go THERE before the old
+        # writer is touched; on every world they go on the migration ticket
+        # and in #finance.
+        figures = (f"Reconciliation before retiring {CONTRACT['jobs']['legacy']}: "
+                   f"legacy mart {baseline['legacy_days']} days, "
+                   f"{baseline['legacy_orders']} orders, net {baseline['legacy_net_amount']}; "
+                   f"nova mart {baseline['legacy_days']} days, "
+                   f"{baseline['legacy_orders']} orders, net {baseline['legacy_net_amount']}. "
+                   f"Both tables EXCEPT ALL both ways = 0 rows; they match to the cent. "
+                   f"Consumer view repointed under {CONTRACT['obs']['deploy_cutover']} "
+                   f"(canary clean).")
+        decision = CONTRACT["decision"]
+        try:
+            call("issues_get", {"issue": decision["hold_ticket"]})
+            hold_present = True
+        except RuntimeError:
+            hold_present = False
+        if hold_present:
+            call("issues_comment", {"issue": decision["hold_ticket"], "body": figures})
+        call("issues_comment", {"issue": decision["migration_ticket"], "body": figures})
+        call("chat_post", {"channel": decision["channel"], "text": figures})
+
         # 5. retire the old writer
         schedule = call("fs_read", {"path": "orchestration/schedule.yml"})["content"]
         marker = f"  {CONTRACT['jobs']['legacy']}:\n"

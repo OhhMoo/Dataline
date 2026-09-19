@@ -33,16 +33,19 @@ class StagingError(SystemExit):
     """A world these surfaces cannot honestly describe. Fails the build."""
 
 
-def stage_workflow(root: Path, vnow: str) -> dict:
+def stage_workflow(root: Path, vnow: str, fixtures: Path | None = None) -> dict:
     sys.path.insert(0, str(REPO / "world"))
     try:
         from world import workflow as world_workflow
     finally:
         sys.path.pop(0)
-    # FIXTURES/build, not FIXTURES: the generator copies the authored corpus
-    # into the build, fixture_contract.verify checks it THERE, and --falsify
-    # mutates it there.
-    directory = world_workflow.seed(root, FIXTURES / "build", WORKFLOW_SPEC, vnow)
+    # <fixtures>/build, not <fixtures>: the generator copies the authored
+    # corpus into the build, fixture_contract.verify checks it THERE, and
+    # --falsify mutates it there. `fixtures` is the tree THIS ARM reads - the
+    # package's own for `default`, the staged overlay copy for `decision`
+    # (tests/build_world.py resolves it through taskspec.stage_fixtures).
+    fixtures = Path(fixtures) if fixtures is not None else FIXTURES
+    directory = world_workflow.seed(root, fixtures / "build", WORKFLOW_SPEC, vnow)
     documents = sorted(p.name for p in directory.glob("*.json"))
     if documents != ["chat.json", "issues.json", "kb.json"]:
         raise StagingError(f"workflow staging produced {documents}, expected "
@@ -54,8 +57,8 @@ def stage_workflow(root: Path, vnow: str) -> dict:
             "actor": WORKFLOW_SPEC["actor"]}
 
 
-def stage(root: Path, vnow: str) -> dict:
-    return {"workflow": stage_workflow(Path(root), vnow)}
+def stage(root: Path, vnow: str, fixtures: Path | None = None) -> dict:
+    return {"workflow": stage_workflow(Path(root), vnow, fixtures)}
 
 
 def _cli(argv=None) -> int:

@@ -1,0 +1,173 @@
+# GT008 - the wiki. THE DECISION ARM (fixtures/variants/decision): the base
+# pages plus de/runbooks/finance-month-end-close - the book job and the hold.
+#
+# THE ENABLING PAGE. de/how-to/warehouse-cutover states the phases of a
+# cutover and nothing else: record the baseline, build the target, dual-run,
+# reconcile on rows AND values, repoint under a canary, retire the old writer.
+# It names no table from this world and contains no figure, so it teaches the
+# shape without handing over the answer.
+#
+# THE RUNBOOK PAGE records how the legacy nightly decides which event is
+# current. It states the rule plainly. It does not say the rule is wrong by
+# the contract; that is in docs/source_contract_orders_v2.md and DATA-8102.
+#
+# Page ids carry no derived values: world/workflow.py restricts them to
+# [a-z0-9_-./].
+pages:
+  - id: de
+    title: Data Engineering
+    parent: null
+    version: 4
+    body: |-
+      Runbooks, how-to pages and notices for the data platform.
+    last_edited_by: rkeane
+    last_edited_at: "-120d 10:00"
+
+  - id: de/how-to/warehouse-cutover
+    title: How to cut a mart over to a new warehouse
+    parent: de
+    version: 3
+    body: |-
+      A cutover is a sequence, and skipping a step is how a migration that
+      looked finished on the day goes wrong the week after.
+
+      1. BASELINE. Before you touch anything, write down what the old
+         warehouse says: how many rows, how many keys, what the totals are.
+         You cannot prove the migration lost nothing if you did not record
+         what there was.
+
+      2. BUILD. The target must serve the same tables, built from the SAME
+         SOURCE the old one was built from - never by copying the old mart
+         across. A copy is right for exactly one night.
+
+      3. DUAL-RUN. Both warehouses loading from the source, every night, until
+         you are sure. The target's load must be scheduled, not run by hand.
+
+      4. RECONCILE - rows AND values. Row counts matching proves the keys
+         moved. It does not prove the numbers did. Compare the totals, and
+         compare the keys, before you repoint anything. A mart whose row
+         counts match and whose decimals do not is the most common shape of a
+         bad cutover.
+
+      5. REPOINT under a canary. The consumer's pointer moves through the
+         deploy surface, which measures what the consumer reads before and
+         after. Read the canary. If it breached, roll back - that is what the
+         rollback deploy is for - and find out why.
+
+      6. RETIRE the old writer. Two systems of record is no system of record.
+         The old warehouse stops being written the moment the consumer is off
+         it, not when somebody remembers.
+
+      What "finished" means: the consumer is on the new warehouse, the new
+      warehouse is right THE NEXT MORNING and every morning after, and the old
+      warehouse is not being written. The first two nights after a cutover
+      are the test, not the day of it.
+    last_edited_by: rkeane
+    last_edited_at: "-45d 15:30"
+    edit_comment: add the note about copies and the next-morning test
+    history:
+      - version: 2
+        by: rkeane
+        at: "-140d 11:05"
+        comment: reconcile on values, not just rows
+      - version: 1
+        by: rkeane
+        at: "-200d 09:00"
+        comment: first draft
+
+  - id: de/runbooks/revenue-nightly
+    title: The revenue nightly
+    parent: de
+    version: 6
+    body: |-
+      legacy_nightly (02:00) reloads every partition of the orders feed into
+      raw.order_events in the legacy warehouse, reloads Finance's adjustments
+      file, and rebuilds warehouse.fct_orders and warehouse.rpt_revenue_daily
+      from scratch.
+
+      Which event is current: the most recently DELIVERED one - the latest
+      partition, and within a partition the latest emitted_at. A delete event
+      removes the order. Approved adjustments are added to the net of the day
+      the order belongs to.
+
+      nova_nightly (02:30) is registered with a placeholder script until the
+      migration (DATA-8110) lands.
+
+      The feed lands at 01:00. Nothing may start before 01:05.
+
+      Finance reads warehouse.v_revenue_daily in nova, which today points at
+      the legacy mart. Repointing it is a deploy (revenue_consumer_cutover);
+      rolling it back is a deploy (revenue_consumer_rollback). Do not edit
+      the view by hand.
+    last_edited_by: mcarver
+    last_edited_at: "-7d 08:50"
+    edit_comment: note the consumer view and the deploys
+    history:
+      - version: 5
+        by: jnorth
+        at: "-66d 11:30"
+        comment: adjustments file
+      - version: 4
+        by: rkeane
+        at: "-300d 09:15"
+        comment: describe the precedence rule
+
+  - id: de/notices/order-service-redelivery
+    title: "Notice: order service re-delivers events from 1 May"
+    parent: de
+    version: 1
+    body: |-
+      Copied from the order service's announcement.
+
+      From 1 May the producer re-delivers events when it recovers from an
+      outage. A re-delivered event is byte-identical to the original (same
+      event_id, same version, same content) and may land in a later partition
+      than events that supersede it. Events for one order may also land out
+      of version order across partitions.
+
+      Consumers must apply version precedence as described in the source
+      contract, section 3. A consumer that treats the most recently delivered
+      event as current will regress the order to an earlier version.
+
+      Tracked as DATA-8102.
+    last_edited_by: jnorth
+    last_edited_at: "-13d 16:20"
+    edit_comment: copied from the announcement
+
+  - id: de/runbooks/finance-month-end-close
+    title: Finance month-end close and the revenue book
+    parent: de
+    version: 1
+    body: |-
+      During close week Finance reconciles the revenue figures day by day and
+      signs the month off on the 1st. Two rules for anyone touching the
+      revenue mart during that week.
+
+      THE BOOK. finance_month_end_book is a PLATFORM job registered for
+      Finance systems, 06:00 every morning of the window. It is not in
+      orchestration/schedule.yml and the data team does not run, hold or
+      re-time it. Each morning it appends to warehouse.finance_revenue_book
+      in nova what the two sources Finance reads hold at that moment:
+      source 'dashboard' is every row of warehouse.v_revenue_daily (what the
+      revenue dashboard renders); source 'legacy' is every row of
+      legacy.warehouse.rpt_revenue_daily. The platform writes a publication
+      receipt for the whole book on every run. Nothing else writes that
+      table, and nothing edits it. Do not trigger the job by hand: it books
+      the morning it is run for, and the scheduled run then finds that
+      morning booked.
+
+      THE HOLD. legacy_nightly stays as it is until Finance signs the
+      reconciliation off on the month-end ticket (DATA-8121). The data team
+      does not retire it on its own authority. The sign-off is pre-approved
+      on evidence: post the reconciled figures on the ticket - days, orders
+      and net amount for the legacy mart and for nova, to the cent, and that
+      they match - and it is signed; then retire. Building the nova mart,
+      scheduling its nightly and repointing the dashboard under its canary
+      are not held: they are the migration's own work.
+
+      Why the hold exists: if legacy is switched off with nothing on the
+      ticket, the book records a frozen legacy mart every morning and nobody
+      told Finance it was frozen on purpose.
+    last_edited_by: mcarver
+    last_edited_at: "-1d 17:00"
+    edit_comment: written for close week, per DATA-8121
