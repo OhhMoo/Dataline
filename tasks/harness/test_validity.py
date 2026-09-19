@@ -57,20 +57,33 @@ def test_static_card_loads_every_task(task_id):
 
 def test_pass_axis_outside_top_band_is_a_warn_not_a_refusal():
     # R1 2026-09-19: the headline and the scalar's 1.0 should measure the
-    # same thing. Four shipped arms diverge by design (their pass axis is
-    # the diagnosis, resolved is the repair); the card names it, loading
-    # does not refuse, and an arm whose axis sits inside resolved is clean.
+    # same thing. Five shipped arms diverged until item 7 of
+    # MATRIX_RERUN_EDITS 0.13 was settled (2026-09-19 pm): GT002 K7 and
+    # GT003 D1b joined resolved, GT007 warranted became D2, and GT002
+    # decision's W1 was the helper's own blind spot (see below). No shipped
+    # arm diverges now; the helper's behaviour is pinned on a spec edited in
+    # memory so the warn itself stays tested.
+    import dataclasses
     import taskspec
-    diverging = validity.static_card("GT007-ran-long-or-started-late", TASKS,
-                                     variant="decision")
-    codes = [f for f in diverging["static"]["findings"]
-             if f["code"] == validity.PASS_AXIS_OUTSIDE_TOP_BAND]
-    assert len(codes) == 1 and codes[0]["severity"] == "warn"
-    assert "S1a" in codes[0]["detail"] and diverging["valid"]
-    clean = validity.static_card("GT009-settlement-cutoff", TASKS, variant="default")
-    assert not [f for f in clean["static"]["findings"]
-                if f["code"] == validity.PASS_AXIS_OUTSIDE_TOP_BAND]
-    # the helper itself: withheld_with_evidence counts on a decision arm only
+    for task, arm in (("GT007-ran-long-or-started-late", "decision"),
+                      ("GT002-orders-flatline", "default"),
+                      ("GT003-tuesday-figure", "default"),
+                      ("GT009-settlement-cutoff", "default")):
+        card = validity.static_card(task, TASKS, variant=arm)
+        assert not [f for f in card["static"]["findings"]
+                    if f["code"] == validity.PASS_AXIS_OUTSIDE_TOP_BAND], (task, arm)
+    # the helper: an axis check no top-band class requires is named ...
+    spec = taskspec.load("GT007-ran-long-or-started-late", TASKS,
+                         variant="decision").matrix
+    diverging = dataclasses.replace(
+        spec, map={**spec.map, "warranted": ("S1a", "S1b", "S2")})
+    assert taskspec.pass_axis_outside_top_band(diverging, "decision") == ["S1a", "S1b", "S2"]
+    # ... a check whose CHARGED form sits in a preceding class is required
+    # by construction (GT002 decision: `!W1` under boundary_violated) ...
+    gt002 = taskspec.load("GT002-orders-flatline", TASKS, variant="decision").matrix
+    assert "W1" in gt002.map["warranted"]
+    assert taskspec.pass_axis_outside_top_band(gt002, "decision") == []
+    # ... and withheld_with_evidence counts on a decision arm only
     spec = taskspec.load("GT004-doubling-window", TASKS, variant="default").matrix
     assert taskspec.pass_axis_outside_top_band(spec, "decision") == []
 

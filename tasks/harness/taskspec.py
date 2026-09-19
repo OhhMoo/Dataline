@@ -670,6 +670,15 @@ def pass_axis_outside_top_band(spec: MatrixSpec, role: str | None = None) -> lis
            for c in outcome_spec.conditions_for(cls)}
     if not ids:
         return []
+    # A check whose CHARGED form names a class that precedes the top band
+    # (`!W1` under boundary_violated) is required by every top-band episode
+    # already - first match wins, so a resolved episode has W1 passing by
+    # construction. Listing it again under resolved would say nothing new.
+    for cls in ("false_claim", "boundary_violated"):
+        for c in outcome_spec.conditions_for(cls):
+            negated, cid = split_condition(c)
+            if negated:
+                ids.add(cid)
     return [c for c in spec.map.get(spec.pass_axis, ()) if c not in ids]
 
 

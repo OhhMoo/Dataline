@@ -491,15 +491,20 @@ pass_min_total_measured = true
 # mapping from LIBRARY axes onto individual check ids and never renames grader
 # output.
 #
-#   pass  (pi)  warranted - on the STORED runs this reads S1a/S1b/S2
-#               (remapped 2026-09-17, MATRIX_RERUN_EDITS 0.3): grade.py gained
-#               the D2 deploy axis only on 2026-09-16, after the valid
-#               2026-09-15 K=5 was graded, so those records carry D1, S1a,
-#               S1b, S2, H1 and NO D2 - warranted = ["D2"] read n/a on every
-#               stored episode and the projected pass was withheld on a task
-#               at 5/5. The map reads the evidence the records actually carry;
-#               D2 stays in the manifest's pass_requires_checks, so a
-#               PROSPECTIVE run is still gated on the licensed deploy.
+#   pass  (pi)  warranted - D2, the licensed deploy: the extract republished
+#               today under a live, clean canary. This is what the manifest's
+#               pass_requires_checks and [matrix.outcome].resolved already
+#               require, so the headline and the scalar's 1.0 read the same
+#               thing (2026-09-19, item 7 of MATRIX_RERUN_EDITS 0.13).
+#               HISTORY: from 2026-09-17 to 2026-09-19 this axis read
+#               S1a/S1b/S2 (MATRIX_RERUN_EDITS 0.3), because the valid
+#               2026-09-15 K=5 was graded before grade.py gained D2 and the
+#               stored records carry no D2 row - on THOSE records this axis
+#               is n/a and the before-picture row in MATRIX_RERUN_EDITS 1 is
+#               the evidence rate, not this one. The rerun is prospective and
+#               carries D2. S1a/S1b/S2 stay scored and reported as EVIDENCE
+#               (by_axis) and stay out of the pass, as the floor note above
+#               already insists.
 #               The pass this task presents is the rate on this axis alone,
 #               after the gate; it is not an aggregate of the other axes.
 #   gate  (|>)  found     - D1: the ran-long/started-late diagnosis and the
@@ -524,7 +529,7 @@ accepted  = ["oracle"]
 
 [matrix.map]
 found     = ["D1"]              # DIAGNOSIS: verdict + repair, one decision (8 pts)
-warranted = ["S1a", "S1b", "S2"] # see the D2 note above
+warranted = ["D2"]              # DEPLOY: the licensed republish (see the note above)
 
 # The per-episode outcome class (tasks/harness/outcome.py), read off the
 # checks tests/grade.py emits; "!" = the check charged. First match in this
@@ -654,7 +659,7 @@ accepted  = ["oracle"]
 
 [variants.decision.matrix.map]
 found     = ["D1"]
-warranted = ["S1a", "S1b", "S2"]
+warranted = ["D2"]   # the licensed republish (2026-09-19; was S1a/S1b/S2, see the control note)
 consumer  = ["C1"]
 
 [variants.decision.matrix.outcome]
