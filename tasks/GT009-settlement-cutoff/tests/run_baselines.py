@@ -139,7 +139,8 @@ sys.path.insert(0, str(HERE))
 # So that a STAGED fixture_contract (which cannot find the repo by ascending
 # from %TEMP%) resolves its `from world import ...` through this process.
 sys.path.append(str(REPO / "world"))
-from fixture_contract import CONTRACT, FixtureDrift, falsify, verify  # noqa: E402
+from fixture_contract import (CONTRACT, FixtureDrift, falsify,        # noqa: E402
+                              probe_grader, verify)
 from probes import gateway as gw_probe                                # noqa: E402
 import make_fixture_world as mfw                                      # noqa: E402
 
@@ -910,6 +911,17 @@ def main() -> int:
             print(f"  falsifier: {caught}/{total} planted damages caught")
             if caught != total:
                 failures.append(f"the falsifier caught {caught} of {total}")
+            # The grader's classifier, on planted table differences: a
+            # window whose rows differ at the oracle's layout must be named
+            # `oracle_rows_differ` with the columns in the detail, and a
+            # changed layout must be named as one (fixture_contract.
+            # _grader_probes; the first probe is clean-20260917-k5's state).
+            held, probes = probe_grader(FIXTURES / "build", grader=GRADER,
+                                        verbose=False)
+            print(f"  grader probes: {held}/{probes} classifier labels and "
+                  f"details hold")
+            if held != probes:
+                failures.append(f"the grader probes held {held} of {probes}")
             for problem in determinism_gate(tmp):
                 failures.append(problem)
                 print(f"  FAIL  {problem}")

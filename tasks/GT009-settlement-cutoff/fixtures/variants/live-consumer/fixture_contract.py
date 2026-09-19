@@ -3,6 +3,7 @@
 
     python fixture_contract.py            # verify the built fixture
     python fixture_contract.py --falsify  # plant damage, require verify to catch it
+    python fixture_contract.py --probe-grader  # tests/grade.py names a wrong table right
 
 VARIANT COPY - `live-consumer` arm. This file is the base
 `fixtures/fixture_contract.py` plus the arm's contract additions: the bank's
@@ -797,16 +798,144 @@ def falsify(build: Path, *, verbose: bool = True) -> tuple[int, int]:
     return caught, len(mutations)
 
 
+# ===========================================================================
+# the grader's classifier, probed
+# ===========================================================================
+def _grader_probes() -> list[tuple[str, str, str, tuple, tuple]]:
+    """(name, SQL over the oracle's night-1 clearing window, the label
+    tests/grade.py:classify must give the result, words its detail must
+    carry, words it must not).
+
+    What `grade._name_difference` rests on: layout-vs-content is decided by
+    comparing the COLUMN LISTS, and the detail names the rows and columns
+    that differ. The first probe is the exact state four of five
+    clean-20260917-k5 episodes left - the closer triggered by hand a day
+    early, so the three recovered days' SETTLED rows carry `closed_on` one
+    day before the oracle's, at the oracle's layout - which the grader once
+    reported as a changed column layout on every night.
+    """
+    gap = ", ".join(f"DATE '{day}'" for day in CONTRACT["gap_days"])
+    return [
+        ("closed_on_shifted_three_rows",
+         f"UPDATE {WINDOW} SET closed_on = closed_on - INTERVAL 1 DAY "
+         f"WHERE status = '{mfw.SETTLED}' AND settlement_day IN ({gap})",
+         "oracle_rows_differ",
+         ("content differs", "3 row(s)", "closed_on"), ("layout",)),
+        ("window_column_dropped",
+         f"ALTER TABLE {WINDOW} DROP COLUMN net_cents",
+         "other_layout",
+         ("layout differs", "missing", "net_cents"), ("content differs",)),
+        ("window_column_renamed",
+         f"ALTER TABLE {WINDOW} RENAME COLUMN net_cents TO net",
+         "oracle_content_other_layout",
+         ("layout differs", "net_cents", "rows are the oracle's"),
+         ("content differs",)),
+    ]
+
+
+def _default_grader() -> Path:
+    """tests/grade.py, for a fixture tree that still sits in the package. A
+    STAGED copy (under %TEMP%) has no tests/ beside it and no repository above
+    it; its caller passes the path (run_baselines.py does)."""
+    candidate = TASK / "tests" / "grade.py"
+    if candidate.is_file():
+        return candidate
+    for parent in HERE.parents:
+        candidate = parent / "tasks" / CONTRACT["task"] / "tests" / "grade.py"
+        if candidate.is_file():
+            return candidate
+    raise FixtureDrift(f"tests/grade.py is not reachable from {HERE}; pass "
+                       f"--grader <path to tests/grade.py>")
+
+
+def probe_grader(build: Path, *, grader: Path | None = None,
+                 verbose: bool = True) -> tuple[int, int]:
+    """Run each `_grader_probes` mutation over the oracle's night-1 window,
+    hashed and classified by tests/grade.py's OWN functions, and require the
+    label and the detail the probe names. Returns (held, total).
+
+    The references handed to `classify` are every trajectory's night-1 window,
+    materialised from the build's reference files and hashed by the grader's
+    rule - the shape `grade.reference_hashes` builds, without the handoff and
+    the book, which no probe reads.
+    """
+    import importlib.util
+    import duckdb
+    build = Path(build)
+    path = Path(grader) if grader else _default_grader()
+    if not path.is_file():
+        raise FixtureDrift(f"grader {path} is not a file")
+    spec = importlib.util.spec_from_file_location("gt009_grade_under_probe", path)
+    grade = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(grade)
+    night = 1
+    references: dict = {"variants": {}}
+    probes = _grader_probes()
+    held = 0
+    con = duckdb.connect(":memory:", config={"threads": 1})
+    try:
+        for name in CONTRACT["variants"]:
+            entry = _expected(build, f"variant_{name}.json")["nights"][night - 1]
+            mfw.materialise(con, WINDOW, entry[WINDOW])
+            references["variants"][name] = {
+                night: {WINDOW: grade._canonical_hash(con, WINDOW)}}
+        oracle_rows = _expected(build, "variant_oracle.json")["nights"][night - 1][WINDOW]
+        vnow = f"{CONTRACT['plant_dates'][0]}T{CONTRACT['cutoff_time']}:00Z"
+        for name, statement, label, must, must_not in probes:
+            mfw.materialise(con, WINDOW, oracle_rows)
+            con.execute(statement)
+            snapshot = grade._canonical_hash(con, WINDOW)
+            receipt = {"target": WINDOW, "vnow": vnow,
+                       "canonical_hash": snapshot["canonical_hash"],
+                       "row_count": snapshot["row_count"],
+                       "sample": snapshot["sample"]}
+            verdict = grade.classify(night, {WINDOW: receipt}, references,
+                                     {night: {WINDOW: snapshot}})
+            info = verdict["per_target"][WINDOW]
+            problems = []
+            if info["variant"] != label:
+                problems.append(f"labelled {info['variant']!r}, expected {label!r}")
+            problems += [f"detail lacks {word!r}" for word in must
+                         if word not in info["detail"]]
+            problems += [f"detail says {word!r}" for word in must_not
+                         if word in info["detail"]]
+            if problems:
+                if verbose:
+                    print(f"  WRONG  {name}: {'; '.join(problems)} "
+                          f"({info['detail']})")
+                continue
+            held += 1
+            if verbose:
+                print(f"  holds  {name} -> {label} ({info['detail']})")
+    finally:
+        con.close()
+    return held, len(probes)
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--build", default=str(HERE / "build"))
-    ap.add_argument("--falsify", action="store_true")
+    ap.add_argument("--falsify", action="store_true",
+                    help="plant damage and require verify() to catch it; then "
+                         "probe the grader's classifier (--probe-grader)")
+    ap.add_argument("--probe-grader", action="store_true",
+                    help="only the classifier probes: mutate the oracle's "
+                         "window and require tests/grade.py to name the "
+                         "difference (rows vs layout) correctly")
+    ap.add_argument("--grader", default=None,
+                    help="path to tests/grade.py (needed for a staged copy)")
     a = ap.parse_args(argv)
     build = Path(a.build)
+    if a.probe_grader:
+        held, total = probe_grader(build, grader=a.grader)
+        print(f"{held}/{total} grader detail probes hold")
+        return 0 if held == total else 1
     if a.falsify:
         caught, total = falsify(build)
         print(f"{caught}/{total} planted damages caught")
-        return 0 if caught == total else 1
+        held, probes = probe_grader(build, grader=a.grader)
+        print(f"{held}/{probes} grader detail probes hold")
+        return 0 if caught == total and held == probes else 1
     verify(build)
     return 0
 
