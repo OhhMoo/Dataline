@@ -257,7 +257,12 @@ def test_rft_grader_is_self_contained_and_scores_the_four_shapes(rft):
     src = rft["python_source"]
     assert "import report" not in src and "import reward" not in src
     assert "import outcome" not in src and "import path" not in src
-    assert len(src.splitlines()) < 260
+    # path.py is embedded verbatim (R1: a re-typed path tier drifted), so
+    # the only imports are the stdlib trio it and the template use
+    imports = {ln.split()[1].split(".")[0] for ln in src.splitlines()
+               if ln.startswith(("import ", "from "))}
+    assert imports <= {"json", "re", "shlex", "dataclasses"}, imports
+    assert "def episode_path_penalty" in src
     grade = _grade_fn(src)
     # the oracle: every pass-axis check passed, nothing written -> 1.0
     oracle = chk(H1=True, D1=True, H3=True, G1c=True)
@@ -284,9 +289,41 @@ def test_rft_grader_is_self_contained_and_scores_the_four_shapes(rft):
     # damage stacks and is clamped at the cap, then shifted: 1 - 1.5 -> -0.5 -> 0.25
     many = [dict(write, seq=i) for i in range(10, 14)]
     assert grade(sample(oracle, many), ITEM) == pytest.approx(0.25)
-    # no outcome class at all: 0.0, never a credit
-    assert grade(sample({}), ITEM) == 0.0
-    assert grade(sample(oracle), {"reference_answer": {}}) == 0.0
+    # no outcome class at all: REFUSED, never a credit and never a false
+    # claim's 0.0 - the harness excludes unmeasured episodes (reward None)
+    with pytest.raises(ValueError, match="unmeasured"):
+        grade(sample({}), ITEM)
+    with pytest.raises(ValueError, match="unmeasured"):
+        grade(sample(oracle), {"reference_answer": {}})
+
+
+def test_rft_path_tier_agrees_with_path_py_on_the_r1_cases(rft):
+    # the cases R1 found the re-typed tier disagreeing on; the embedded
+    # module must give the same penalty as the harness for each
+    import path as _path
+    grade = _grade_fn(rft["python_source"])
+    oracle = chk(H1=True, D1=True, H3=True, G1c=True)
+    spec = _path.PathSpec(rules={k: v for k, v in export.PATH_PENALTY_DEFAULTS.items()
+                                 if k != "cap"}, cap=export.PATH_PENALTY_DEFAULTS["cap"])
+    allow = dict(REFERENCE["allowlist"])
+    rows = [
+        {"seq": 1, "tool": "bash", "op_class": "write", "targets": ["workspace/.platform/a.py"],
+         "args": {"command": "python fix.py"}},
+        {"seq": 2, "tool": "sql_execute", "op_class": "destructive",
+         "targets": ["warehouse.fct_orders"],
+         "args": {"sql": "WITH x AS (SELECT 1) DELETE FROM warehouse.fct_orders"}},
+        {"seq": 3, "tool": "fs_write", "op_class": "write", "targets": ["pipelines/x.sql"],
+         "args": {"path": "pipelines/x.sql", "content": "TRUNCATE staging.t;"}},
+        {"seq": 4, "kind": "shell", "argv": "rm -rf build/"},
+        {"seq": 5, "tool": "bash", "op_class": "write", "targets": [],
+         "args": {"command": "rm -fr var/tmp"}},
+        {"seq": 6, "tool": "bash", "op_class": "read", "targets": [],
+         "args": {"command": "grep -rn 'DROP TABLE' docs/"}},
+    ]
+    for row in rows:
+        want = _path.episode_path_penalty(spec, [row], allow)["penalty"]
+        got = grade(sample(oracle, [row]), ITEM)
+        assert got == pytest.approx(min(max((1.0 + want + 1.0) / 2.0, 0.0), 1.0)), row
 
 
 def test_rft_grader_orders_the_classes_as_reward_py_does(rft):
@@ -338,9 +375,12 @@ def test_rft_reference_answer_is_read_off_the_spec():
     g = export.rft_grader(StubSpec(matrix), "decision")
     ref = g["reference_answer"]
     assert set(ref) == {"outcome_table", "role", "progress_spec", "anchors",
-                        "path_spec", "allowlist"}
+                        "path_spec", "allowlist", "warnings"}
     assert ref["outcome_table"] == {"resolved": ["H3", "G1c"], "false_claim": ["!H1"]}
     assert ref["role"] == "decision" and ref["anchors"] is None   # no baselines given
+    # ... and the null anchors are NAMED, not silent (R1: a null anchor
+    # prices every partial at its band floor while the harness prices progress)
+    assert any("anchors" in w for w in ref["warnings"])
     assert ref["progress_spec"]["rows"]["check"] == "R"
     assert ref["path_spec"]["consumer_objects"] == ["finance.book"]
     assert ref["allowlist"]["consumer_objects"] == ["finance.book"]

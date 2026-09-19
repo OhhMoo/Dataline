@@ -239,6 +239,20 @@ def static_card(task_id: str, tasks_dir: Path, variant: str | None = None) -> di
             f"[harness].pass_requires_checks names {prc_missing}, which the "
             f"grader ({source}) never emits; no episode could ever pass"))
 
+    # the headline (projected pass) and the scalar's 1.0 should measure the
+    # same thing (R1 2026-09-19); a pass-axis check no top-band class
+    # requires is a divergence the task owner has to defend or close
+    if m is not None:
+        outside = taskspec.pass_axis_outside_top_band(m, getattr(m, "role", None))
+        if outside:
+            findings.append(_finding(
+                WARN, PASS_AXIS_OUTSIDE_TOP_BAND,
+                f"pass_axis {m.pass_axis!r} scores {outside}, which neither "
+                f"[matrix.outcome].resolved nor (on a decision arm) "
+                f"withheld_with_evidence requires; a rollout can read the "
+                f"scalar's 1.0 while the projected pass says fail, or the "
+                f"reverse. Add them to the top-band class or move the axis."))
+
     return {
         "schema_version": SCHEMA_VERSION,
         "task": task_id,
@@ -452,6 +466,7 @@ def card(task_id: str, tasks_dir: Path, variant: str | None = None,
 # scalar (reward.py); the arm is refused when a class disagrees with what the
 # template (or the suite's own `outcome`) says it must be, or when the scalar
 # does not order the classes resolved > partial >= silent > damage.
+PASS_AXIS_OUTSIDE_TOP_BAND = "PASS_AXIS_OUTSIDE_TOP_BAND"
 LADDER_NO_OUTCOME_TABLE = "LADDER_NO_OUTCOME_TABLE"
 BASELINES_SCHEMA = "BASELINES_SCHEMA"
 LADDER_MISSING_BASELINE = "LADDER_MISSING_BASELINE"
@@ -555,6 +570,11 @@ def ladder_card(task_id: str, tasks_dir: Path, variant: str | None,
         findings.append(_finding(BLOCK, BASELINES_SCHEMA,
                                  f"$.variant is {bj.get('variant')!r}, card is "
                                  f"for arm {arm!r}"))
+    if isinstance(bj, dict) and bj.get("role") not in (None, role):
+        findings.append(_finding(BLOCK, BASELINES_SCHEMA,
+                                 f"$.role is {bj.get('role')!r}, the arm declares "
+                                 f"role {role!r}; the runner and task.toml "
+                                 f"disagree on which band withholding lands in"))
 
     expected_table = baselines_schema.EXPECTED_OUTCOME[role]
     for name in baselines_schema.missing_required(baselines, role):

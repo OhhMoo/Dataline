@@ -117,8 +117,33 @@ def _newest_report(stored_runs: Path | None, task_id: str) -> tuple[dict | None,
         except (OSError, ValueError):
             continue
         if isinstance(doc, dict):
-            return doc, path
+            return _flatten_report(doc), path
     return None, None
+
+
+def _flatten_report(doc: dict) -> dict:
+    """report.write nests the aggregate under `summary` and the matrix
+    block under `summary.matrix` (balance, saturated, per_rollout[*].
+    tracked_metrics). The probes read one flat view, so an aggregate
+    passed directly (tests, older writers) and a written report.json read
+    the same. Nothing is invented: a key is lifted only if it is there."""
+    agg = doc.get("summary") if isinstance(doc.get("summary"), dict) else doc
+    flat = dict(agg)
+    for k in ("task", "run_id"):
+        if k in doc and k not in flat:
+            flat[k] = doc[k]
+    matrix = agg.get("matrix") if isinstance(agg.get("matrix"), dict) else {}
+    for k in ("balance", "saturated"):
+        if k not in flat and k in matrix:
+            flat[k] = matrix[k]
+    if "tracked_metrics" not in flat:
+        per = matrix.get("per_rollout")
+        if isinstance(per, dict):
+            rows = [r.get("tracked_metrics") for r in per.values()
+                    if isinstance(r, dict) and isinstance(r.get("tracked_metrics"), dict)]
+            if rows:
+                flat["tracked_metrics"] = rows
+    return flat
 
 
 def load_context(task_id: str, tasks_dir: Path, stored_runs=None) -> TaskContext:
@@ -372,7 +397,7 @@ def _probe_pass_at_k(ctx: TaskContext):
     if {"pass_at_k", "pass_at_1_ci95"} <= set(have):
         return MET, (f"{ctx.report_path.name}: {have}; n = {r.get('pass_at_1_n')}, "
                      f"pass@1 = {r.get('pass_at_1')} CI {r.get('pass_at_1_ci95')}")
-    return UNMET, f"{ctx.report_path}: carries {have}, needs pass_at_k and pass_at_1_ci95"
+    return UNMET, f"{ctx.report_path.name}: carries {have}, needs pass_at_k and pass_at_1_ci95"
 
 
 def _probe_transcripts_read(ctx: TaskContext):

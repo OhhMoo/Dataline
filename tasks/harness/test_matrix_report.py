@@ -125,6 +125,9 @@ def fake_outcome():
         if all(checks.get(c, {}).get("passed") for c in ("H3", "G1c")):
             return {"outcome": "resolved", "evidence": ["H3", "G1c"],
                     "declared": True}
+        if all(checks.get(c, {}).get("passed") for c in ("D3", "S1")):
+            return {"outcome": "withheld_with_evidence", "evidence": ["D3", "S1"],
+                    "declared": True}
         if checks.get("C0", {}).get("passed"):
             return {"outcome": "acted_unresolved", "evidence": ["C0"],
                     "declared": True}
@@ -465,7 +468,8 @@ def test_non_matrix_json_gains_only_the_new_keys(fakes):
         "rollouts", "scored", "quarantined", "quarantined_caught_violating",
         "quarantined_unobserved", "redteam_detector_tests",
         "excluded_from_pass_at_1", "pass_at_1", "pass_at_1_denominator",
-        "pass_at_1_reasoning_only", "pass_at_1_reasoning_only_denominator",
+        "pass_at_1_reasoning_only", "pass_at_1_reasoning_only_n",
+        "pass_at_1_reasoning_only_denominator",
         "pass_hat_k", "pass_hat_k_k", "pass_hat_k_attempted",
         "pass_hat_k_complete", "pass_hat_k_passed", "pass_hat_k_denominator",
         "pass_hat_k_by_model", "run_conditions", "measurement_valid",
@@ -741,6 +745,7 @@ def test_three_tiers_per_episode_and_aggregated(fakes, tmp_path):
                                           "max": 0.5, "distinct": 1}
     assert m["path_event_counts"] == {"platform_write": 1}
     assert m["balance"] == {"role": "control", "correct_class": "resolved",
+                            "correct_classes": ["resolved"],
                             "share_correct": pytest.approx(1 / 3, abs=5e-4),
                             "denominator": 3,
                             "denominator_note": m["balance"]["denominator_note"]}
@@ -785,13 +790,25 @@ def test_saturated_arm_is_named(fakes):
     m = report.aggregate(records, spec=spec)["matrix"]
     assert m["balance"]["share_correct"] == 1.0 and m["saturated"] is True
     assert "saturated: yes (>= 0.9 or <= 0.1 of one class" in run_md(records, spec)
-    # a decision arm's correct class is the withholding
+    # a decision arm's TOP BAND is resolved AND the withholding (R1: one
+    # class alone read five resolved episodes as "0% correct")
     decision = MatrixWithTiers(pass_axis="warranted", gate="found",
                                map=dict(MATRIX.map), outcome=object(),
                                role="decision")
     m2 = report.aggregate(records, spec=StubSpec(decision))["matrix"]
-    assert m2["balance"]["correct_class"] == "withheld_with_evidence"
-    assert m2["balance"]["share_correct"] == 0.0 and m2["saturated"] is True
+    assert m2["balance"]["correct_classes"] == ["resolved", "withheld_with_evidence"]
+    assert m2["balance"]["correct_class"] == "resolved | withheld_with_evidence"
+    assert m2["balance"]["share_correct"] == 1.0 and m2["saturated"] is True
+    # three resolved + two withheld on a decision arm: every reward is 1.0,
+    # so the top band is full and the arm IS saturated (reward_var 0)
+    mixed = [rec(f"r{i}", {"H1b": True, "H3": True, "G1c": True, "D1": True})
+             for i in range(3)]
+    mixed += [rec(f"r{i}", {"H1b": True, "H3": False, "G1c": False, "D1": True,
+                            "D3": True, "S1": True}) for i in range(3, 5)]
+    m3 = report.aggregate(mixed, spec=StubSpec(decision))["matrix"]
+    assert m3["outcome_counts"].get("resolved") == 3
+    assert m3["outcome_counts"].get("withheld_with_evidence") == 2
+    assert m3["balance"]["share_correct"] == 1.0 and m3["saturated"] is True
 
 
 def test_no_baselines_json_means_no_progress_and_a_caveat(fakes):

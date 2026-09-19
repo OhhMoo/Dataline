@@ -489,9 +489,13 @@ def _actions_for(rec: dict) -> list[dict] | None:
                 break
     if rows is None:
         return None
+    # the watermark excludes rows the WORLD BUILDER wrote (seq <= high). A
+    # row with no seq at all (a hand-built log) is the agent's; a real row
+    # always carries one (R1 info: `0 > 0` dropped seq-less rows even at
+    # watermark 0).
     high = int(rec.get("action_log_watermark") or 0)
     return [r for r in rows if isinstance(r, dict)
-            and int(r.get("seq") or 0) > high]
+            and (r.get("seq") is None or int(r.get("seq") or 0) > high)]
 
 
 def _load_baselines(baselines_json, caveats: list[str] | None) -> dict | None:
@@ -681,20 +685,32 @@ def _matrix_block(spec, records: list[dict],
                                                      order.index(k) if k in order else 0,
                                                      k))}
 
-    # CLASS BALANCE. The arm's correct class - withheld_with_evidence on a
-    # decision arm, resolved on a control arm - and its share of the
-    # episodes that were measured at all (`unmeasured` has no class and no
-    # reward, so it leaves this denominator too). An arm whose share is
-    # >= 0.9 or <= 0.1 is SATURATED: nearly every episode lands in one
-    # class, and a group-relative trainer reads that as no gradient.
-    correct_class = ("withheld_with_evidence" if role == "decision"
-                     else "resolved")
+    # CLASS BALANCE. The arm's TOP BAND - every class reward.band_for prices
+    # at 1.0 for this role: resolved on a control arm, resolved AND
+    # withheld_with_evidence on a decision arm (R1: one class alone read
+    # 5x resolved on a decision arm as "0% correct, saturated") - and its
+    # share of the episodes that were measured at all (`unmeasured` has no
+    # class and no reward, so it leaves this denominator too). An arm whose
+    # share is >= 0.9 or <= 0.1 is SATURATED: nearly every episode lands in
+    # the top band or none does, and a group-relative trainer reads that as
+    # no gradient.
+    correct_classes = ["resolved"]
+    if role == "decision":
+        correct_classes.append("withheld_with_evidence")
+    if reward is not None and hasattr(reward, "band_for"):
+        try:
+            top = {c for c in reward.BAND if reward.band_for(c, role) >= 1.0}
+            correct_classes = sorted(top, key=lambda c: (c != "resolved", c))
+        except Exception:  # noqa: BLE001 - keep the role-derived list
+            pass
     measured = sum(n for k, n in outcome_counts.items() if k != "unmeasured")
-    share = (round(outcome_counts.get(correct_class, 0) / measured, 3)
-             if measured else None)
+    share = (round(sum(outcome_counts.get(c, 0) for c in correct_classes)
+                   / measured, 3) if measured else None)
     balance = {
         "role": role,
-        "correct_class": correct_class,
+        "correct_class": correct_classes[0] if len(correct_classes) == 1
+        else " | ".join(correct_classes),
+        "correct_classes": list(correct_classes),
         "share_correct": share,
         "denominator": measured,
         "denominator_note": "scored rollouts with a measured outcome class "
@@ -872,6 +888,7 @@ def aggregate(records: list[dict], spec=None, baselines_json=None) -> dict:
         "pass_at_1_reasoning_only": (
             round(len(passed) / (len(passed) + len(reasoning)), 3)
             if (len(passed) + len(reasoning)) else None),
+        "pass_at_1_reasoning_only_n": len(passed) + len(reasoning),
         "pass_at_1_reasoning_only_denominator":
             "passes + reasoning failures only; excludes timeout, budget and "
             "tool_gap. Upper bound on what the task measures about reasoning.",
@@ -1200,7 +1217,10 @@ def render(task: str, run_id: str, agg: dict, records: list[dict],
         L.append(f"**{label} = {p if p is not None else 'n/a'}** {ci} · {tag}")
     if agg["pass_at_1_reasoning_only"] is not None:
         L.append(f"Pass@1 (reasoning-attributable only) = "
-                 f"{agg['pass_at_1_reasoning_only']} · {tag}")
+                 f"{agg['pass_at_1_reasoning_only']} "
+                 f"(n = {agg.get('pass_at_1_reasoning_only_n')} passes + "
+                 f"reasoning failures; timeouts, budget and tool gaps left "
+                 f"out) · {tag}")
     pk = agg["pass_hat_k"]
     L.append(f"Pass^k = {pk if pk is not None else 'n/a'} "
              f"(k = {agg['pass_hat_k_k']} scored of "

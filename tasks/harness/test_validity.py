@@ -55,6 +55,26 @@ def test_static_card_loads_every_task(task_id):
     json.dumps(c)                                   # embeddable in report.json
 
 
+def test_pass_axis_outside_top_band_is_a_warn_not_a_refusal():
+    # R1 2026-09-19: the headline and the scalar's 1.0 should measure the
+    # same thing. Four shipped arms diverge by design (their pass axis is
+    # the diagnosis, resolved is the repair); the card names it, loading
+    # does not refuse, and an arm whose axis sits inside resolved is clean.
+    import taskspec
+    diverging = validity.static_card("GT007-ran-long-or-started-late", TASKS,
+                                     variant="decision")
+    codes = [f for f in diverging["static"]["findings"]
+             if f["code"] == validity.PASS_AXIS_OUTSIDE_TOP_BAND]
+    assert len(codes) == 1 and codes[0]["severity"] == "warn"
+    assert "S1a" in codes[0]["detail"] and diverging["valid"]
+    clean = validity.static_card("GT009-settlement-cutoff", TASKS, variant="default")
+    assert not [f for f in clean["static"]["findings"]
+                if f["code"] == validity.PASS_AXIS_OUTSIDE_TOP_BAND]
+    # the helper itself: withheld_with_evidence counts on a decision arm only
+    spec = taskspec.load("GT004-doubling-window", TASKS, variant="default").matrix
+    assert taskspec.pass_axis_outside_top_band(spec, "decision") == []
+
+
 def test_gt007_d2_defect_is_flagged_iff_still_on_disk():
     # MATRIX_RERUN_EDITS.md 0.3: warranted = ["D2"] named a check the grader
     # never emitted. The manifest lists D2 today (and grade.py adds it), so
@@ -464,6 +484,16 @@ def test_ladder_refuses_declared_outcome_that_disagrees(tmp_path):
     doc["baselines"]["oracle"]["outcome"] = "resolved"
     card = validity.ladder_card(GT009, TASKS, "default", _write(tmp_path, doc))
     assert "LADDER_OUTCOME_MISMATCH" not in _codes(card)
+
+
+def test_ladder_refuses_a_role_that_disagrees_with_the_arm(tmp_path):
+    # R1 info: $.task and $.variant were checked, $.role was not
+    doc = _gt009_baselines()
+    doc["role"] = "control"                       # the default arm is decision
+    card = validity.ladder_card(GT009, TASKS, "default", _write(tmp_path, doc))
+    hits = [f for f in card["findings"]
+            if f["code"] == validity.BASELINES_SCHEMA and "$.role" in f["detail"]]
+    assert len(hits) == 1 and hits[0]["severity"] == "block" and not card["valid"]
 
 
 def test_ladder_refuses_missing_baseline(tmp_path):

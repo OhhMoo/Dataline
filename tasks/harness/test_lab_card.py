@@ -234,6 +234,36 @@ def test_run_dependent_rows_read_the_newest_report(tmp_path):
         assert "run-new" in rows[rid]["detail"] or "report.json" in rows[rid]["detail"]
 
 
+def test_run_dependent_rows_read_the_shape_report_write_produces(tmp_path):
+    # R1: report.write nests the aggregate under `summary` and balance /
+    # saturated / per_rollout[*].tracked_metrics under summary.matrix; the
+    # probes read the flat fixture above and said `unmet` on every real
+    # report.json. The written shape must read the same as the flat one.
+    root = _package(tmp_path)
+    runs = tmp_path / "runs"
+    (runs / root.name).mkdir(parents=True)
+    written = {"task": root.name, "run_id": "k5", "summary": {
+        "pass_at_1": 0.4, "pass_at_1_n": 5, "pass_at_1_ci95": [0.1, 0.8],
+        "pass_at_k": {"1": 0.4}, "pass_hat_k": 0.0,
+        "learning_signal": {"band": "core",
+                            "group": {"collapsed": False, "p_one_minus_p": 0.24}},
+        "fairness_read": {"reviewed": 5},
+        "matrix": {"balance": {"role": "control", "share_correct": 0.4},
+                   "saturated": False,
+                   "outcome_counts": {"resolved": 2, "silent": 3},
+                   "per_rollout": {"r0": {"tracked_metrics": {"n_toolcalls": 12}},
+                                   "r1": {"tracked_metrics": None}}}}}
+    (runs / root.name / "report.json").write_text(json.dumps(written), encoding="utf-8")
+    rows = evaluate(root.name, tmp_path, stored_runs=runs)
+    for rid in RUN_DEPENDENT:
+        assert rows[rid]["status"] == "met", (rid, rows[rid]["detail"])
+    # and nothing is invented: a written report with no balance stays unmet
+    del written["summary"]["matrix"]["balance"]
+    (runs / root.name / "report.json").write_text(json.dumps(written), encoding="utf-8")
+    rows = evaluate(root.name, tmp_path, stored_runs=runs)
+    assert rows["O7"]["status"] == "unmet"
+
+
 def test_run_dependent_rows_unmet_when_the_report_lacks_them(tmp_path):
     root = _package(tmp_path)
     runs = tmp_path / "runs"

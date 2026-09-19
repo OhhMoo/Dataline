@@ -95,7 +95,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from axes import ROLES, ArtifactTokens, MatrixError, MatrixSpec
-from outcome import parse_outcome_spec
+from outcome import parse_outcome_spec, split_condition
 from path import parse_path_spec
 from progress import parse_progress_spec
 
@@ -645,6 +645,29 @@ def _matrix_spec(task_id: str, root: Path, base: dict | None,
             f"evidence for every episode. State the checks, or `gate = "
             f"false` for a control task with nothing to find.")
     return spec
+
+
+def pass_axis_outside_top_band(spec: MatrixSpec, role: str | None = None) -> list[str]:
+    """Pass-axis checks that no top-band outcome class requires.
+
+    The projected pass (the headline) and the scalar's 1.0 (resolved, plus
+    withheld_with_evidence on a decision arm) should measure the same
+    thing; a check the pass axis scores but no top-band class requires
+    means a rollout can read 1.0 while the headline says fail, or the
+    reverse (R1 2026-09-19). validity.static_card reports these as a warn
+    - four shipped arms diverge by design and the call is the task's, so
+    loading does not refuse. Empty when there is no outcome table.
+    """
+    outcome_spec = getattr(spec, "outcome", None)
+    if outcome_spec is None or not hasattr(outcome_spec, "conditions_for"):
+        return []
+    role = role or getattr(spec, "role", None) or "control"
+    top = ["resolved"] + (["withheld_with_evidence"] if role == "decision" else [])
+    ids = {split_condition(c)[1] for cls in top
+           for c in outcome_spec.conditions_for(cls)}
+    if not ids:
+        return []
+    return [c for c in spec.map.get(spec.pass_axis, ()) if c not in ids]
 
 
 def _requested_variant(explicit: str | None) -> str | None:
