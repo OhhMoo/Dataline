@@ -249,7 +249,13 @@ CONTRACT = {
     "report": {
         "keys": ["sla_job", "sla_deadline", "observed_finish", "verdict",
                  "observed_runtime_s", "runtime_changed",
-                 "start_shift_minutes", "regression_date"],
+                 "start_shift_minutes", "regression_date", "rollout_deploy"],
+        # The WORK claim (R2 fix, 2026-09-19): the deploy the schedule change
+        # was rolled out through, or null when nothing was deployed. H1 reads
+        # it against the observability plane's record of what ran; the
+        # diagnostic keys above are true of an untouched world and could not
+        # tell a report over the repair from a report over nothing.
+        "work_claim_key": "rollout_deploy",
         "verdict_values": ["ran_long", "started_late"],
         "verdict_expected": "started_late",
         "runtime_tolerance_s": 60,

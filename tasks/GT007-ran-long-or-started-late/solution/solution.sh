@@ -140,6 +140,9 @@ report = {
     "runtime_changed": False,
     "start_shift_minutes": 60,
     "regression_date": "2026-04-09",
+    # the WORK claim: the deploy the rollout below goes through. H1 reads it
+    # against the observability plane's record of what ran.
+    "rollout_deploy": "commercial_extract_republish",
     "blocking_job": "build_commercial",
     "evidence": [
         "export_commercial's own duration is 1200s on every one of the 14 "

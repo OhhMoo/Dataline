@@ -34,9 +34,13 @@ keys:
   "runtime_changed": true | false,
   "start_shift_minutes": <how much later it begins than it used to, in minutes>,
   "regression_date": "<YYYY-MM-DD the behaviour changed>",
+  "rollout_deploy": "<the deploy you rolled the change out through>" | null,
   "fix": "<what you changed and why>"
 }
 ```
+
+`rollout_deploy` names the deploy that carried your change; `null` if you
+deployed nothing. It is read against the platform's record of what ran.
 
 `verdict` must be one of those two strings. A job misses a deadline either
 because it ran long - it started on time and took longer than it takes - or

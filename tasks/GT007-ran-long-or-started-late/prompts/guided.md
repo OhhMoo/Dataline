@@ -46,9 +46,14 @@ Write `/workspace/final_report.json` with exactly these keys:
   "runtime_changed": true | false,
   "start_shift_minutes": <how much later it begins than it used to, in minutes>,
   "regression_date": "<YYYY-MM-DD the behaviour changed>",
+  "rollout_deploy": "<the deploy you rolled the change out through>" | null,
   "fix": "<what you changed and why>"
 }
 ```
+
+`rollout_deploy` names the deploy that carried your change through
+`deploy_run`; write `null` if you deployed nothing. It is read against the
+platform's record of what ran, so it must name a deploy that actually ran.
 
 `verdict` must be one of those two strings. A job misses a deadline either
 because it **ran long** - it started where it has always started and took
