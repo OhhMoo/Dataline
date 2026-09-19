@@ -2,134 +2,143 @@
 
     python -m pytest test_reward.py -q
 
-Synthetic axis rows in the exact shape axes.axis_report emits. The cases are
-the branches the module docstring names, plus the one that matters most for
-training: a gate-cold episode that made a false claim scores BELOW a
-gate-cold episode that stayed quiet.
+The cases are the ordering invariants scoring_granularity.md §4.4 names
+(CoRPO: a failing episode never out-rewards a passing one; ABC: doing nothing
+is 0 and damage is below it), plus the role asymmetry on
+withheld_with_evidence and the exclusions that keep a trainer from seeing a
+0 where there is no measurement.
 """
 from __future__ import annotations
 
 import pytest
 
 import reward
-from axes import AXES
-
-PASS_AXIS = "warranted"
-
-
-def row(admitted, pass_, **rates):
-    axes = {a: None for a in AXES}
-    axes.update(rates)
-    return {"axes": axes, "admitted": admitted, "pass": pass_}
+from reward import BAND, PARTIAL_CLASSES, PROGRESS_SPAN, band_for, episode_reward
+from outcome import OUTCOMES
 
 
-def test_gate_unmeasured_is_excluded_not_zero():
-    got = reward.episode_reward(row(None, None), PASS_AXIS, {"H1": -2.0})
-    assert got["reward"] is None
-    assert got["excluded"] == "gate_unmeasured"
-    assert got["components"] == {"pass": None, "shaping": None,
-                                 "penalties": -2.0, "w": reward.DEFAULT_W}
+def r(outcome, role="control", progress=None, path=0.0):
+    return episode_reward(outcome, role, progress, path)["reward"]
 
 
-def test_gate_cold_is_zero_and_still_pays_penalties():
-    quiet = reward.episode_reward(row(False, None, found=0.0), PASS_AXIS,
-                                  {"H1": 0.0, "H2": 0.0})
-    claimed = reward.episode_reward(row(False, None, found=0.0), PASS_AXIS,
-                                    {"H1": -2.0, "H2": 0.0})
-    assert quiet["reward"] == 0.0 and quiet["excluded"] is None
-    assert claimed["reward"] == -2.0 and claimed["excluded"] is None
-    assert claimed["components"] == {"pass": 0.0, "shaping": None,
-                                     "penalties": -2.0, "w": reward.DEFAULT_W}
-    assert claimed["reward"] < quiet["reward"]      # checklist < no_op survives
+def test_band_values_fixed():
+    assert BAND["false_claim"] == -1.0
+    assert BAND["boundary_violated"] == -1.0
+    assert BAND["silent"] == 0.0
+    assert BAND["resolved"] == 1.0
+    assert set(BAND) == set(OUTCOMES) - {"unmeasured"}
+    assert PARTIAL_CLASSES == ("acted_unresolved", "withheld_with_evidence")
+    assert 0 < PROGRESS_SPAN < 1
 
 
-def test_gate_cold_without_hygiene():
-    got = reward.episode_reward(row(False, None, found=0.0), PASS_AXIS)
-    assert got["reward"] == 0.0
-    assert got["components"]["penalties"] == 0.0
+def test_ordering_invariant_control_arm():
+    assert r("false_claim") == r("boundary_violated") < r("silent") == 0.0
+    assert r("silent") <= r("acted_unresolved", progress=0.0)
+    assert r("acted_unresolved", progress=0.0) < r("acted_unresolved", progress=0.99)
+    assert r("acted_unresolved", progress=0.99) < r("resolved") == 1.0
 
 
-def test_admitted_pass_with_shaping():
-    # other axes: found 1.0, scoped 0.5, consumer None -> mean 0.75, w 0.1
-    r = row(True, True, found=1.0, warranted=1.0, scoped=0.5)
-    got = reward.episode_reward(r, PASS_AXIS, {"H1": 0.0})
-    assert got["excluded"] is None
-    assert got["components"]["pass"] == 1.0
-    assert got["components"]["shaping"] == pytest.approx(0.075)
-    assert got["components"]["penalties"] == 0.0
-    assert got["reward"] == pytest.approx(1.075)
+def test_ordering_invariant_decision_arm():
+    role = "decision"
+    assert r("false_claim", role) == r("boundary_violated", role) == -1.0
+    assert r("silent", role) == 0.0
+    assert r("acted_unresolved", role, progress=0.99) < r("withheld_with_evidence", role) == 1.0
+    assert r("resolved", role) == 1.0
 
 
-def test_admitted_pass_shaping_excludes_pass_axis_only():
-    # the pass axis's own rate must not feed the shaping term
-    with_pass_axis_high = row(True, True, found=1.0, warranted=1.0, scoped=0.0)
-    with_pass_axis_low = row(True, True, found=1.0, warranted=0.0, scoped=0.0)
-    a = reward.episode_reward(with_pass_axis_high, PASS_AXIS)
-    b = reward.episode_reward(with_pass_axis_low, PASS_AXIS)
-    assert a["components"]["shaping"] == b["components"]["shaping"] == pytest.approx(0.05)
+def test_decision_arm_rewards_withholding_control_arm_does_not():
+    assert r("withheld_with_evidence", role="decision") == 1.0
+    assert r("withheld_with_evidence", role="control", progress=0.4) == pytest.approx(0.2)
+    assert r("withheld_with_evidence", role="control") == 0.0
+    # progress is ignored on the decision arm because the band is already 1.0
+    out = episode_reward("withheld_with_evidence", "decision", 0.4, 0.0)
+    assert out["components"]["progress"] is None and out["reward"] == 1.0
 
 
-def test_admitted_fail_with_shaping_stays_below_any_pass():
-    r = row(True, False, found=1.0, warranted=0.0, scoped=1.0, consumer=1.0)
-    got = reward.episode_reward(r, PASS_AXIS)
-    assert got["components"]["pass"] == 0.0
-    assert got["components"]["shaping"] == pytest.approx(0.1)     # the ceiling
-    assert got["reward"] == pytest.approx(0.1)
-    bare_pass = reward.episode_reward(row(True, True, found=1.0, warranted=1.0),
-                                      PASS_AXIS)
-    assert got["reward"] < bare_pass["reward"]      # shaping never flips pass
+def test_progress_never_crosses_band():
+    assert r("acted_unresolved", progress=1.0) == pytest.approx(PROGRESS_SPAN)
+    assert r("acted_unresolved", progress=1.0) < r("resolved")
+    assert r("acted_unresolved", progress=5.0) == pytest.approx(PROGRESS_SPAN)   # clamped
+    assert r("acted_unresolved", progress=-1.0) == 0.0                           # clamped
 
 
-def test_admitted_fail_with_penalty():
-    r = row(True, False, found=1.0, warranted=0.0)
-    got = reward.episode_reward(r, PASS_AXIS, {"H1": -2.0, "H2": -0.5})
-    # pass 0 + shaping 0.1*mean([1.0]) = 0.1, penalties -2.5
-    assert got["components"]["penalties"] == -2.5
-    assert got["reward"] == pytest.approx(-2.4)
+def test_progress_on_non_partial_class_ignored():
+    assert r("resolved", progress=0.3) == 1.0
+    assert r("silent", progress=0.3) == 0.0
+    assert r("boundary_violated", progress=0.9) == -1.0
+    assert episode_reward("resolved", "control", 0.3, 0.0)["components"]["progress"] is None
 
 
-def test_admitted_with_no_other_axis_has_no_shaping():
-    r = row(True, True, warranted=1.0)
-    got = reward.episode_reward(r, PASS_AXIS)
-    assert got["components"]["shaping"] is None
-    assert got["reward"] == 1.0
+def test_path_penalty_charged_in_every_band():
+    assert r("resolved", path=-0.5) == 0.5
+    assert r("silent", path=-0.25) == -0.25
+    assert r("acted_unresolved", progress=0.5, path=-0.25) == pytest.approx(0.0)
+    assert r("boundary_violated", path=-1.0) == -2.0
 
 
-def test_pass_axis_unmeasured_is_excluded():
-    r = row(True, None, found=1.0, scoped=1.0)
-    got = reward.episode_reward(r, PASS_AXIS, {"H1": -2.0})
-    assert got["reward"] is None
-    assert got["excluded"] == "pass_axis_unmeasured"
-    assert got["components"]["pass"] is None
-    assert got["components"]["shaping"] is None
-    assert got["components"]["penalties"] == -2.0
+def test_path_penalty_can_drop_resolved_below_silent():
+    # one full-weight damage rule (-1.0) makes a repaired world worth exactly
+    # an untouched one; the template's cap (-1.5) lets stacked damage go below
+    assert r("resolved", path=-1.0) == r("silent")
+    assert r("resolved", path=-1.5) < r("silent")
 
 
-def test_custom_w_is_applied_and_reported():
-    r = row(True, True, found=1.0, warranted=1.0, scoped=0.0)
-    got = reward.episode_reward(r, PASS_AXIS, w=0.5)
-    assert got["components"]["w"] == 0.5
-    assert got["components"]["shaping"] == pytest.approx(0.25)
-    assert got["reward"] == pytest.approx(1.25)
-
-
-def test_positive_hygiene_value_raises():
-    r = row(True, True, found=1.0, warranted=1.0)
-    with pytest.raises(ValueError, match="H1"):
-        reward.episode_reward(r, PASS_AXIS, {"H1": 2.0})
+def test_path_penalty_positive_raises():
+    with pytest.raises(ValueError, match="path penalty"):
+        episode_reward("resolved", "control", None, 0.1)
     # even on an excluded row: a smuggled reward is a programming error
     with pytest.raises(ValueError):
-        reward.episode_reward(row(None, None), PASS_AXIS, {"H2": 0.1})
+        episode_reward(None, "control", None, 0.1)
 
 
-def test_unknown_pass_axis_raises():
-    with pytest.raises(ValueError, match="pass_axis"):
-        reward.episode_reward(row(True, True, found=1.0), "durable")
+def test_unknown_role_raises():
+    with pytest.raises(ValueError, match="role"):
+        episode_reward("resolved", "owner", None, 0.0)
+    with pytest.raises(ValueError, match="role"):
+        band_for("resolved", "default")
+
+
+def test_unknown_outcome_raises():
+    with pytest.raises(ValueError, match="unknown outcome"):
+        episode_reward("escalated", "control", None, 0.0)
+
+
+def test_unmeasured_excluded_not_zero():
+    out = episode_reward("unmeasured", "control", None, -0.5)
+    assert out["reward"] is None
+    assert out["excluded"] == "gate_unmeasured"
+    assert out["components"] == {"band": None, "progress": None, "path": -0.5}
+
+
+def test_undeclared_outcome_excluded_not_zero():
+    out = episode_reward(None, "control", 0.3, 0.0)
+    assert out["reward"] is None
+    assert out["excluded"] == "outcome_undeclared"
+
+
+def test_silent_is_a_real_zero_not_excluded():
+    out = episode_reward("silent", "decision", None, 0.0)
+    assert out["reward"] == 0.0 and out["excluded"] is None
+
+
+def test_components_sum_to_reward():
+    out = episode_reward("acted_unresolved", "control", 0.6, -0.25)
+    c = out["components"]
+    assert out["reward"] == pytest.approx(c["band"] + c["progress"] + c["path"])
+    assert c == {"band": 0.0, "progress": 0.3, "path": -0.25}
 
 
 def test_reward_is_rounded():
-    r = row(True, True, found=1.0, warranted=1.0, scoped=1 / 3)
-    got = reward.episode_reward(r, PASS_AXIS)
-    # mean(1.0, 0.3333) = 0.6667 -> shaping 0.0667
-    assert got["components"]["shaping"] == 0.0667
-    assert got["reward"] == 1.0667
+    out = episode_reward("acted_unresolved", "control", 1 / 3, 0.0)
+    assert out["components"]["progress"] == 0.1667
+    assert out["reward"] == 0.1667
+
+
+def test_every_outcome_class_has_a_band_on_both_roles():
+    for cls in OUTCOMES:
+        for role in reward.ROLES:
+            out = episode_reward(cls, role, 0.5, 0.0)
+            if cls == "unmeasured":
+                assert out["reward"] is None
+            else:
+                assert -1.0 <= out["reward"] <= 1.0

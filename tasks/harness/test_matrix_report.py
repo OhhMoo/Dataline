@@ -85,18 +85,26 @@ def fake_learning_signal(summarise_raises: bool = False):
 
 
 def fake_reward():
-    def episode_reward(axis_row, pass_axis, hygiene=None, w=0.1):
-        if axis_row["admitted"] is None:
-            return {"reward": None, "excluded": "gate_unmeasured",
-                    "components": {"pass": None, "shaping": None,
-                                   "penalties": 0.0, "w": w}}
-        pen = sum((hygiene or {}).values())
-        base = 0.0 if axis_row["admitted"] is False else \
-            (1.0 if axis_row["pass"] else 0.0)
-        return {"reward": base + pen, "excluded": None,
-                "components": {"pass": base, "shaping": 0.0,
-                               "penalties": pen, "w": w}}
-    return types.SimpleNamespace(DEFAULT_W=0.1, episode_reward=episode_reward)
+    # the three-tier shape of reward.episode_reward (DECISION_TEMPLATE §9)
+    band = {"false_claim": -1.0, "boundary_violated": -1.0, "silent": 0.0,
+            "acted_unresolved": 0.0, "withheld_with_evidence": 0.0,
+            "resolved": 1.0}
+
+    def episode_reward(outcome, role, progress=None, path_penalty=0.0):
+        if outcome is None or outcome == "unmeasured":
+            return {"reward": None,
+                    "excluded": ("outcome_undeclared" if outcome is None
+                                 else "gate_unmeasured"),
+                    "components": {"band": None, "progress": None,
+                                   "path": path_penalty}}
+        b = 1.0 if (outcome == "withheld_with_evidence"
+                    and role == "decision") else band[outcome]
+        p = (0.5 * progress if progress is not None and b < 1.0
+             and outcome in ("acted_unresolved", "withheld_with_evidence")
+             else None)
+        return {"reward": b + (p or 0.0) + path_penalty, "excluded": None,
+                "components": {"band": b, "progress": p, "path": path_penalty}}
+    return types.SimpleNamespace(PROGRESS_SPAN=0.5, episode_reward=episode_reward)
 
 
 OUTCOMES = ("false_claim", "boundary_violated", "resolved",
@@ -519,16 +527,16 @@ def test_outcome_class_and_reward_per_rollout(fakes):
     # precedence order, not alphabetical
     assert list(m["outcome_counts"]) == ["false_claim", "resolved", "silent"]
     assert m["outcome_counts"] == {"false_claim": 1, "resolved": 1, "silent": 1}
-    # the hygiene heuristic reached the reward: r2 passed the axis (1.0) and
-    # was charged H1 (-2.0); r0 1.0; r1 0.0 -> mean 0.0 over 3
+    # the outcome class reached the reward as its band: r2 false_claim -1.0,
+    # r0 resolved 1.0, r1 silent 0.0 -> mean 0.0 over 3
     assert pr["r2"]["reward"]["reward"] == -1.0
-    assert pr["r2"]["reward"]["components"]["penalties"] == -2.0
+    assert pr["r2"]["reward"]["components"]["band"] == -1.0
+    assert pr["r0"]["reward"]["reward"] == 1.0
     assert m["reward_mean"] == 0.0 and m["reward_denominator"] == 3
-    assert m["hygiene_source"] == "H-prefixed non-positive checks (heuristic)"
     md = run_md(records, spec)
     assert ("outcomes: false_claim 1 · resolved 1 · silent 1 (over 3 scored "
             "rollouts with an outcome class)") in md
-    assert "declared training scalar (mean) = 0.0 over 3 (w=0.1)" in md
+    assert "declared training scalar (mean) = 0.0 over 3 (band + 0.5*progress + path)" in md
     assert "NOT the measurement" in md
     # the scalar never becomes the headline
     assert md.index("**Projected pass") < md.index("declared training scalar")
@@ -544,7 +552,10 @@ def test_no_outcome_declaration_means_no_outcome_column(fakes):
     m = agg["matrix"]
     assert m["outcome_declared"] is False and m["outcome_counts"] == {}
     assert m["per_rollout"]["r0"]["outcome"] is None
-    assert m["per_rollout"]["r0"]["reward"]["reward"] == 1.0
+    # no outcome class -> no scalar (excluded, never a 0 or a projected 1.0)
+    assert m["per_rollout"]["r0"]["reward"]["reward"] is None
+    assert m["per_rollout"]["r0"]["reward"]["excluded"] == "outcome_undeclared"
+    assert m["reward_mean"] is None
     md = run_md(records, spec)
     assert "| id | class | total | tool calls | wall s | why |" in md
     assert "outcomes:" not in md

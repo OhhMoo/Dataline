@@ -463,8 +463,14 @@ def _matrix_block(spec, records: list[dict],
             if cls is not None:
                 outcome_counts[cls["outcome"]] = \
                     outcome_counts.get(cls["outcome"], 0) + 1
+        # reward.py's three-tier scalar (DECISION_TEMPLATE §9): outcome class,
+        # arm role, progress-in-band, path penalty. Progress and path are
+        # wired by report's tier block; until then they are None / 0.0 and the
+        # scalar is the band alone.
         rw = _call(reward, "reward", "episode_reward", caveats,
-                   dict(row), matrix.pass_axis, hygiene=_hygiene(checks))
+                   cls["outcome"] if cls is not None else None,
+                   getattr(matrix, "role", None) or "control",
+                   None, 0.0)
         if rw is not None and rw.get("reward") is not None:
             rewards.append(float(rw["reward"]))
         row["outcome"] = cls
@@ -503,7 +509,7 @@ def _matrix_block(spec, records: list[dict],
         "outcome_counts": outcome_counts,
         "outcome_counts_denominator": "scored rollouts with an outcome class",
         "hygiene_source": HYGIENE_SOURCE,
-        "reward_w": getattr(reward, "DEFAULT_W", None),
+        "reward_progress_span": getattr(reward, "PROGRESS_SPAN", None),
         "reward_mean": (round(sum(rewards) / len(rewards), 3)
                         if rewards else None),
         "reward_denominator": len(rewards),
@@ -870,11 +876,11 @@ def render(task: str, run_id: str, agg: dict, records: list[dict],
                      "caveats)")
         if m.get("reward_mean") is not None:
             L.append(f"declared training scalar (mean) = {m['reward_mean']} "
-                     f"over {m['reward_denominator']} (w={m.get('reward_w')}) "
+                     f"over {m['reward_denominator']} "
+                     f"(band + {m.get('reward_progress_span')}*progress + path) "
                      f"- reward.py's DECLARED scalar, what a trainer is handed "
                      f"per episode; NOT the measurement, which is the "
-                     f"projection above. hygiene penalties: "
-                     f"{m.get('hygiene_source', HYGIENE_SOURCE)}")
+                     f"projection above")
         L.append("")
 
     # The pre-matrix criterion stays, relabelled for what it is: EVERY required
