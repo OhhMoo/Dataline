@@ -1605,11 +1605,38 @@ def stage_world_root(build: Path, root: Path) -> dict:
     (root / "var" / "world").mkdir(parents=True, exist_ok=True)
     _write_text(root / "var" / "world" / "live.json",
                 json.dumps(live_state(), indent=2, sort_keys=True) + "\n")
-    return {"world_root": str(root), "warehouse": str(wh),
-            "workspace": str(root / "workspace"),
-            "dashboards": str(root / "var" / "bi" / "dashboards"),
-            "scheduler": str(root / "var" / "sched" / "state.json"),
-            "virtual_time": VNOW}
+    out = {"world_root": str(root), "warehouse": str(wh),
+           "workspace": str(root / "workspace"),
+           "dashboards": str(root / "var" / "bi" / "dashboards"),
+           "scheduler": str(root / "var" / "sched" / "state.json"),
+           "virtual_time": VNOW}
+    arm = arm_module()
+    if arm is not None:
+        # The context arm's own staging (task.toml [variants.<arm>]), applied
+        # AFTER the base root and BEFORE surfaces and the grading zone, so the
+        # collateral baseline and the pre-repair copy carry the arm's state.
+        out["arm"] = arm.stage(root)
+    return out
+
+
+def arm_module():
+    """The overlay's arm module, or None on the shipped (control) arm.
+
+    `taskspec.stage_fixtures` copies an arm's overlay over a copy of this
+    directory, so an overlay that ships `decision_arm.py` puts it BESIDE this
+    file - and only there. In the package's own fixtures/ the file lives under
+    variants/<arm>/ and is not importable from here, which is exactly the
+    property that keeps `default` byte-identical to the shipped world.
+    """
+    import importlib.util
+
+    path = HERE / "decision_arm.py"
+    if not path.is_file():
+        return None
+    spec = importlib.util.spec_from_file_location("gt005_decision_arm", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def write_grading_zone(build: Path, world_root: Path, grading: Path) -> dict:

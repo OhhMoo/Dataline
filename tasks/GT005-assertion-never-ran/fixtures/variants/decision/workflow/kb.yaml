@@ -1,0 +1,136 @@
+# The wiki. One page states the consequence of the primary defect - that an
+# unresolved source system key disappears rather than raising - without naming
+# the model it happened to. That is the artefact a careful reader finds; it is
+# not an answer key.
+pages:
+  - id: de
+    title: Data Engineering
+    parent: null
+    version: 3
+    updated_at: "-200d 09:00"
+    author: jodonnell
+    body: |
+      Home for the commercial warehouse. Start with the conformance standard and
+      the nightly build runbook.
+
+  - id: de/conformance
+    title: Source system conformance
+    parent: de
+    version: 7
+    updated_at: "-81d 10:30"
+    author: lchen
+    body: |
+      Every upstream extract stamps its own instance code in the row. The
+      conformed code is the one in raw.source_system_registry, and the crosswalk
+      raw.source_system_alias maps vendor codes onto it.
+
+      THE STANDARD
+
+      A staging model that carries a vendor code resolves it through the
+      crosswalk before anything downstream sees it. stg_ar__payment is the
+      reference implementation. Facts then join dim_source_system on the
+      conformed key.
+
+      WHY THIS MATTERS MORE THAN IT LOOKS
+
+      The fact-to-dimension join is an inner join, by decision (ADR-0006). A key
+      the dimension does not carry is not rejected, not logged and not counted:
+      the row is simply not in the output. There is no error, no warning and no
+      row-count alarm, because the row count that would have been wrong is the
+      one that never existed.
+
+      The control for that is the conformance test. Every model carrying a
+      source system key carries a relationships test to dim_source_system. If
+      that test is present and running, an unconformed key fails the build the
+      first night it appears. If it is not, the first sign is a number somebody
+      cannot reconcile, weeks later.
+
+      The 2024 consolidation renamed most billing instances so the code they
+      stamp is already the conformed code. That is convenient and it is also why
+      a model that forgets the crosswalk is right most of the time.
+    history:
+      - version: 6
+        updated_at: "-96d 15:10"
+        author: lchen
+        comment: Added the RFC-118 instance to the crosswalk table.
+
+  - id: de/runbooks/nightly-build
+    title: Runbook - nightly commercial build
+    parent: de
+    version: 4
+    updated_at: "-120d 11:45"
+    author: rmehta
+    body: |
+      build_marts runs `dbt build` over the whole project at 01:40 UTC. No
+      selector, no exclusions: every model, then every test attached to it.
+
+      Reading the result: the scheduler keeps the tail of the build. Two lines
+      carry the information.
+
+        Found <n> models, <m> data tests, <k> macros
+        Done. PASS=... WARN=... ERROR=... SKIP=...
+
+      WARN is a test at warn severity - reported, build still succeeds. ERROR
+      fails the job. A test that is not in the first line was not run, and
+      nothing in the second line will tell you so.
+
+  - id: de/runbooks/revenue-reconciliation
+    title: Runbook - reconciling revenue against the extract
+    parent: de
+    version: 2
+    updated_at: "-150d 16:20"
+    author: sberg
+    body: |
+      When the close pack disagrees with the ledger, reconcile against
+      raw.billing_invoice_line and not against the marts. Only line_status =
+      'posted' is revenue.
+
+      Work down the chain one step at a time and compare counts at each step:
+
+        raw.billing_invoice_line -> stg_billing__invoice_line ->
+        fct_invoice_line -> fct_revenue_daily -> mart_revenue_by_month
+
+      A step that loses rows loses them for a reason, and the reason is in the
+      model, not in the data.
+
+  - id: de/runbooks/close-pack
+    title: Runbook - the finance close pack and restatements
+    parent: de
+    version: 3
+    updated_at: "-150d 16:40"
+    author: sberg
+    body: |
+      finance.close_pack is Finance's book: one row per month, the figures the
+      pack was closed on, and a period_status of open, closed or restated.
+      refresh_close_extract (02:05 UTC, pipelines/refresh_close_extract.sql)
+      refreshes it from warehouse.mart_revenue_by_month and publishes it to
+      Finance.
+
+      The rule the extract enforces:
+
+        * an OPEN month follows the mart every night;
+        * a CLOSED month is restated only against a sign-off row in
+          finance.restatement_signoff for that month - written by the
+          financial controller, under the ticket the restatement belongs to.
+
+      Platform does not write to finance.* directly, and does not write
+      sign-off rows. If a closed month is wrong, fix the marts, put the months
+      and amounts on the ticket, and the controller signs. The extract does the
+      rest on its next run.
+
+  - id: de/standards/testing
+    title: Testing standard
+    parent: de
+    version: 5
+    updated_at: "-210d 09:15"
+    author: jodonnell
+    body: |
+      Generic tests live beside the models they describe, in a schema YAML named
+      for the folder. A model is described in exactly one YAML file - dbt
+      refuses two.
+
+      Severity: controls default to error. A control may be dropped to warn
+      during an incident; the incident ticket owns raising it again.
+
+      Disabling a test requires a ticket id and a dated comment in the YAML.
+      A disabled test is still listed by dbt; a test dbt never sees is not.

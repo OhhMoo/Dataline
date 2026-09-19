@@ -38,10 +38,26 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 TASK = HERE.parent
-FIXTURES = TASK / "fixtures"
+REPO = TASK.parent.parent
+
+sys.path.insert(0, str(TASK.parent / "harness"))
+import taskspec                                                    # noqa: E402
+
+# WHICH CONTEXT. GT005 ships two arms (task.toml [variants]): `default`, the
+# shipped world and the CONTROL arm, and `decision`, which stages Finance's
+# close pack behind the controller's sign-off (DESIGN.md §12). The harness
+# selects the arm with --variant and hands it down as ALKERA_TASK_VARIANT.
+# `stage_fixtures` returns the package's own fixtures/ for `default` - byte for
+# byte the world every recorded rollout ran in - and a staged copy with the
+# arm's overlay applied otherwise; the overlay puts `decision_arm.py` beside
+# make_fixture_world.py, which is how the generator knows which arm it is.
+VARIANT = taskspec.variant_of(TASK)
+FIXTURES = taskspec.stage_fixtures(TASK, VARIANT)
 BUILD = FIXTURES / "build"
 
 sys.path.insert(0, str(FIXTURES))
+# The decision arm hashes the consumer's book by the world's own ledger rule.
+sys.path.append(str(REPO / "world"))
 import make_fixture_world as mfw                                   # noqa: E402
 from fixture_contract import CONTRACT, verify                      # noqa: E402
 
@@ -143,7 +159,7 @@ def build(root: Path, grading: Path, seed: int) -> dict:
     # and for that reason: the collateral baseline has to contain them, or a
     # section that was always there reads as "the agent stood up monitoring
     # nobody asked for" and costs every agent, the oracle included.
-    surfaces = stage_surfaces.stage(root, VIRTUAL_TIME)
+    surfaces = stage_surfaces.stage(root, VIRTUAL_TIME, fixtures=FIXTURES)
 
     mfw.write_grading_zone(BUILD, root, grading)
     problems = stage_surfaces.check_staged_before_baseline(root, grading)
@@ -153,6 +169,13 @@ def build(root: Path, grading: Path, seed: int) -> dict:
 
     # The rubric travels with the grading package, not with the repo checkout.
     shutil.copy(HERE / "manifest.yaml", grading / "manifest.yaml")
+    # ...and so does the arm this world was built for - not an env var that may
+    # not survive a subprocess boundary. grade.py reads it to decide which
+    # check rows exist (D2 is emitted on the decision arm only).
+    with open(grading / "variant.json", "w", encoding="utf-8", newline="") as handle:
+        handle.write(json.dumps({"variant": VARIANT.name, "note": VARIANT.note,
+                                 "role": VARIANT.role, "grading": VARIANT.grading},
+                                indent=2, sort_keys=True) + "\n")
 
     warehouse = root / CONTRACT["layout"]["deployed_world_relpath"]
     workspace = root / CONTRACT["layout"]["workspace_relpath"]
@@ -177,6 +200,7 @@ def build(root: Path, grading: Path, seed: int) -> dict:
         # observability planes are dead however well they are seeded.
         "workflow_dir": str(root / "var" / "workflow"),
         "observability": str(root / "var" / "obs" / "observability.yml"),
+        "variant": VARIANT.name,
         "surfaces_staged": surfaces,
     }
 
@@ -187,7 +211,15 @@ def main(argv=None) -> int:
     ap.add_argument("--grading")
     ap.add_argument("--seed", type=int, default=SEED)
     ap.add_argument("--prepare-only", action="store_true")
+    ap.add_argument("--variant", default=None,
+                    help="context arm; defaults to ALKERA_TASK_VARIANT, then to "
+                         "`default`. Named here only to confirm what was "
+                         "resolved - the fixtures tree was staged at import time.")
     a = ap.parse_args(argv)
+    if a.variant and a.variant != VARIANT.name:
+        ap.error(f"--variant {a.variant!r} disagrees with the tree this process "
+                 f"already staged ({VARIANT.name!r}). Set {taskspec.VARIANT_ENV} "
+                 f"instead; the fixtures are resolved at import time.")
     prepare(a.seed)
     if a.prepare_only:
         return 0

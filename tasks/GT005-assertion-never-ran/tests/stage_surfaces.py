@@ -103,13 +103,18 @@ def _connect(db: Path):
 
 
 # ------------------------------------------------------------- 1. workflow
-def stage_workflow(root: Path, vnow: str) -> dict:
+def stage_workflow(root: Path, vnow: str, fixtures: Path | None = None) -> dict:
+    """`fixtures` is the tree this run reads - the package's own fixtures/ on
+    the default arm, the staged copy with the arm's overlay applied otherwise
+    (taskspec.stage_fixtures). The decision arm's overlay edits issues.yaml,
+    chat.yaml and kb.yaml, and this is where those edits enter the world."""
     sys.path.insert(0, str(REPO / "world"))
     try:
         from world import workflow as world_workflow
     finally:
         sys.path.pop(0)
-    directory = world_workflow.seed(root, FIXTURES, WORKFLOW_SPEC, vnow)
+    directory = world_workflow.seed(root, Path(fixtures or FIXTURES),
+                                    WORKFLOW_SPEC, vnow)
     return {"dir": str(directory),
             "documents": sorted(p.name for p in directory.glob("*.json")),
             "project": WORKFLOW_SPEC["project"]["key"],
@@ -304,11 +309,11 @@ def stage_observability(root: Path, vnow: str) -> dict:
 
 
 # ----------------------------------------------------------------- the seam
-def stage(root: Path, vnow: str) -> dict:
+def stage(root: Path, vnow: str, fixtures: Path | None = None) -> dict:
     root = Path(root)
     if not (root / WAREHOUSE).is_file():
         raise StagingError(f"{root / WAREHOUSE} is not there; stage_world_root must run first")
-    return {"workflow": stage_workflow(root, vnow),
+    return {"workflow": stage_workflow(root, vnow, fixtures),
             "obs": stage_observability(root, vnow)}
 
 
@@ -342,13 +347,15 @@ def _cli(argv=None) -> int:
     parser.add_argument("--root", required=True, type=Path)
     parser.add_argument("--vnow")
     parser.add_argument("--grading", type=Path)
+    parser.add_argument("--fixtures", type=Path, default=None,
+                        help="the fixtures tree to read (default: the package's own)")
     args = parser.parse_args(argv)
     vnow = args.vnow
     if vnow is None:
         state = json.loads((args.root / "var" / "sched" / "state.json")
                            .read_text(encoding="utf-8"))
         vnow = state["vnow"]
-    report = stage(args.root, vnow)
+    report = stage(args.root, vnow, args.fixtures)
     if args.grading:
         report["baseline_check"] = check_staged_before_baseline(args.root, args.grading)
     print(json.dumps(report, indent=2, sort_keys=True))
