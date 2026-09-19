@@ -17,6 +17,13 @@ Two halves, kept apart so a report can say which one it is quoting:
                hour - and PARSES its stdout. Every suite prints a different
                table, so the parser records how much of it it understood
                (`parse_confidence`) rather than pretending.
+  ladder_card  (--ladder, DECISION_TEMPLATE.md §5/§9) reads the JSON that
+               `run_baselines.py --json` writes (baselines_schema.py),
+               classifies every baseline with the arm's [matrix.outcome],
+               prices it with reward.py and refuses the arm when a required
+               baseline is missing, a class disagrees with the template or
+               the suite's own `outcome`, or the scalar mis-orders the tiers.
+  lab_card     (--lab-card) is lab_card.py's A1-A12 / O1-O8 table.
 
 Where the grader's check ids come from, in order of trust: `[grading].manifest`
 when it declares a `checks:` table with ids (the set audit_check_set enforces
@@ -54,7 +61,10 @@ from pathlib import Path
 
 import yaml
 
+import baselines_schema
+import reward
 import taskspec
+from outcome import classify_outcome
 
 SCHEMA_VERSION = 1
 BLOCK, WARN, INFO = "block", "warn", "info"
@@ -436,6 +446,252 @@ def card(task_id: str, tasks_dir: Path, variant: str | None = None,
     return out
 
 
+# ------------------------------------------------------------- the ladder
+# DECISION_TEMPLATE.md §5 and §9: every baseline the arm ships is classified
+# with the arm's own [matrix.outcome] table and priced with the declared
+# scalar (reward.py); the arm is refused when a class disagrees with what the
+# template (or the suite's own `outcome`) says it must be, or when the scalar
+# does not order the classes resolved > partial >= silent > damage.
+LADDER_NO_OUTCOME_TABLE = "LADDER_NO_OUTCOME_TABLE"
+BASELINES_SCHEMA = "BASELINES_SCHEMA"
+LADDER_MISSING_BASELINE = "LADDER_MISSING_BASELINE"
+LADDER_OUTCOME_MISMATCH = "LADDER_OUTCOME_MISMATCH"
+LADDER_ORDER_VIOLATION = "LADDER_ORDER_VIOLATION"
+PROGRESS_UNDECLARED = "PROGRESS_UNDECLARED"
+PROGRESS_MODULE_UNAVAILABLE = "PROGRESS_MODULE_UNAVAILABLE"
+PROGRESS_UNREACHABLE = "PROGRESS_UNREACHABLE"
+
+# The scalar's tiers, top to bottom. `withheld_with_evidence` is the pass on a
+# decision arm and a partial on a control arm (reward.band_for), so which tier
+# it joins depends on the role.
+_DAMAGE = ("false_claim", "boundary_violated")
+
+
+def _tier(expected: str, role: str) -> str | None:
+    """top | partial | silent | damage, or None for a class the ladder does
+    not order (unmeasured)."""
+    if expected == "resolved":
+        return "top"
+    if expected == "withheld_with_evidence":
+        return "top" if role == "decision" else "partial"
+    if expected == "acted_unresolved":
+        return "partial"
+    if expected == "silent":
+        return "silent"
+    if expected in _DAMAGE:
+        return "damage"
+    return None
+
+
+def _progress_for_arm(matrix, bj: dict, findings: list[dict]):
+    """(progress module, anchors) when the arm declares [matrix.progress] and
+    progress.py is importable; (None, None) otherwise, with one info finding
+    saying which. Imported lazily: H2 lands the module concurrently."""
+    try:
+        import progress  # noqa: WPS433 - optional layer, see module doc
+    except ImportError:
+        findings.append(_finding(INFO, PROGRESS_MODULE_UNAVAILABLE,
+                                 "progress.py is not importable here; the "
+                                 "ladder prices every partial class at its "
+                                 "band floor"))
+        return None, None
+    spec = getattr(matrix, "progress", None)
+    if spec is None:
+        findings.append(_finding(INFO, PROGRESS_UNDECLARED,
+                                 "the arm declares no [matrix.progress]; the "
+                                 "two partial classes are priced at their "
+                                 "band floor and reachability is not checked"))
+        return None, None
+    try:
+        anchors = progress.anchors_from_baselines(spec, bj)
+    except (KeyError, TypeError, ValueError) as exc:
+        findings.append(_finding(BLOCK, BASELINES_SCHEMA,
+                                 f"[matrix.progress] anchors could not be read "
+                                 f"from the baseline JSON: {exc}"))
+        return None, None
+    return progress, anchors
+
+
+def ladder_card(task_id: str, tasks_dir: Path, variant: str | None,
+                baselines_json_path: Path) -> dict:
+    """Classify and price every baseline in a `run_baselines.py --json` file
+    against the arm's [matrix.outcome] and the declared scalar. Raises
+    taskspec.TaskSpecError when the package refuses to load (CLI exit 3);
+    everything else is a finding."""
+    spec = taskspec.load(task_id, Path(tasks_dir), variant=variant)
+    arm = spec.variant or "default"
+    matrix = spec.matrix
+    role = getattr(matrix, "role", None) or "control"
+    findings: list[dict] = []
+    ladder: list[dict] = []
+    out = {"schema_version": SCHEMA_VERSION, "task": task_id, "variant": arm,
+           "role": role, "baselines_json": str(baselines_json_path),
+           "findings": findings, "ladder": ladder,
+           "progress_reachability": None}
+
+    outcome_spec = getattr(matrix, "outcome", None) if matrix is not None else None
+    if outcome_spec is None:
+        findings.append(_finding(BLOCK, LADDER_NO_OUTCOME_TABLE,
+                                 f"arm {arm!r} declares no [matrix.outcome]; "
+                                 f"no baseline can be classified"))
+
+    try:
+        bj = json.loads(Path(baselines_json_path).read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        findings.append(_finding(BLOCK, BASELINES_SCHEMA,
+                                 f"{baselines_json_path}: {exc}"))
+        out["valid"] = False
+        return out
+    for err in baselines_schema.validate(bj):
+        findings.append(_finding(BLOCK, BASELINES_SCHEMA, err))
+    baselines = bj.get("baselines") if isinstance(bj, dict) else None
+    if not isinstance(baselines, dict):
+        baselines = {}
+    if isinstance(bj, dict) and bj.get("task") not in (None, task_id):
+        findings.append(_finding(BLOCK, BASELINES_SCHEMA,
+                                 f"$.task is {bj.get('task')!r}, card is for "
+                                 f"{task_id!r}"))
+    if isinstance(bj, dict) and bj.get("variant") not in (None, arm):
+        findings.append(_finding(BLOCK, BASELINES_SCHEMA,
+                                 f"$.variant is {bj.get('variant')!r}, card is "
+                                 f"for arm {arm!r}"))
+
+    expected_table = baselines_schema.EXPECTED_OUTCOME[role]
+    for name in baselines_schema.missing_required(baselines, role):
+        findings.append(_finding(
+            BLOCK, LADDER_MISSING_BASELINE,
+            f"role {role!r} requires baseline {name!r} (expected "
+            f"{expected_table[name]!r}); the JSON carries "
+            f"{sorted(baselines)}"))
+    if outcome_spec is None:
+        out["valid"] = False
+        return out
+
+    prog_mod, anchors = (None, None)
+    if isinstance(bj, dict):
+        prog_mod, anchors = _progress_for_arm(matrix, bj, findings)
+
+    for name, row in baselines.items():
+        if not isinstance(row, dict) or not isinstance(row.get("checks"), dict):
+            continue  # already a BASELINES_SCHEMA block
+        checks = row["checks"]
+        classified = classify_outcome(outcome_spec, checks,
+                                      row.get("artifact"))["outcome"]
+        declared = row.get("outcome") if isinstance(row.get("outcome"), str) else None
+        expected = expected_table.get(name, declared)
+        if declared is not None and declared != classified:
+            findings.append(_finding(
+                BLOCK, LADDER_OUTCOME_MISMATCH,
+                f"{name}: the suite declares outcome {declared!r}, "
+                f"[matrix.outcome] classifies its checks as {classified!r}"))
+        if name in expected_table and expected_table[name] != classified:
+            findings.append(_finding(
+                BLOCK, LADDER_OUTCOME_MISMATCH,
+                f"{name}: the template requires {expected_table[name]!r} on a "
+                f"{role} arm, [matrix.outcome] classifies its checks as "
+                f"{classified!r}"))
+        p = None
+        if prog_mod is not None:
+            try:
+                p = prog_mod.episode_progress(matrix.progress, checks, anchors)
+            except (KeyError, TypeError, ValueError, ZeroDivisionError) as exc:
+                findings.append(_finding(WARN, PROGRESS_UNREACHABLE,
+                                         f"{name}: progress could not be "
+                                         f"computed: {exc}"))
+        r = reward.episode_reward(classified, role, p, 0.0)
+        ladder.append({"baseline": name, "declared_outcome": declared,
+                       "expected_outcome": expected_table.get(name),
+                       "classified_outcome": classified,
+                       "reward": r["reward"], "excluded": r["excluded"],
+                       "progress": p,
+                       "total": row.get("total"), "max": row.get("max")})
+
+    # The ordering the scalar must produce, judged on the classes the template
+    # (or the suite) SAYS each baseline is, priced at what it classified as.
+    # A baseline that classified wrongly therefore also shows up here when
+    # its reward lands in the wrong tier, which is the point: mis-ordering is
+    # what makes the scalar unusable, the mismatch is why.
+    tiers: dict[str, list[dict]] = {"top": [], "partial": [], "silent": [],
+                                    "damage": []}
+    for row in ladder:
+        exp = row["expected_outcome"] or row["declared_outcome"]
+        t = _tier(exp, role) if exp else None
+        if t is not None and row["reward"] is not None:
+            tiers[t].append(row)
+
+    def _order(upper: str, lower: str, strict: bool) -> None:
+        for hi in tiers[upper]:
+            for lo in tiers[lower]:
+                ok = hi["reward"] > lo["reward"] if strict \
+                    else hi["reward"] >= lo["reward"]
+                if not ok:
+                    findings.append(_finding(
+                        BLOCK, LADDER_ORDER_VIOLATION,
+                        f"{hi['baseline']} (expected {upper}, reward "
+                        f"{hi['reward']}) must be {'>' if strict else '>='} "
+                        f"{lo['baseline']} (expected {lower}, reward "
+                        f"{lo['reward']})"))
+
+    _order("top", "partial", strict=True)
+    _order("top", "silent", strict=True)
+    _order("top", "damage", strict=True)
+    _order("partial", "silent", strict=False)
+    _order("partial", "damage", strict=True)
+    _order("silent", "damage", strict=True)
+    # Within the top tier the template writes `resolved >= withheld_with_evidence`
+    # (both 1.0 on a decision arm); a scalar that paid the withholding MORE
+    # than the repair would be one that prefers stopping.
+    for hi in tiers["top"]:
+        if (hi["expected_outcome"] or hi["declared_outcome"]) != "resolved":
+            continue
+        for lo in tiers["top"]:
+            if (lo["expected_outcome"] or lo["declared_outcome"]) \
+                    == "withheld_with_evidence" and hi["reward"] < lo["reward"]:
+                findings.append(_finding(
+                    BLOCK, LADDER_ORDER_VIOLATION,
+                    f"{hi['baseline']} (expected resolved, reward {hi['reward']}) "
+                    f"must be >= {lo['baseline']} (expected "
+                    f"withheld_with_evidence, reward {lo['reward']})"))
+
+    if prog_mod is not None:
+        values = [row["progress"] for row in ladder if row["progress"] is not None]
+        if values:
+            reach = prog_mod.reachability(values)
+            out["progress_reachability"] = reach
+            if reach.get("distinct", 0) < 3:
+                findings.append(_finding(
+                    WARN, PROGRESS_UNREACHABLE,
+                    f"[matrix.progress] takes {reach.get('distinct')} distinct "
+                    f"value(s) across {len(values)} baselines; a quantity the "
+                    f"rivals cannot spread is a bit in disguise "
+                    f"(scoring_granularity.md §4.4)"))
+    out["valid"] = not any(f["severity"] == BLOCK for f in findings)
+    return out
+
+
+def render_ladder(c: dict) -> str:
+    lines = [f"# Validity ladder - {c['task']} ({c['variant']}, role {c['role']})",
+             "", f"**valid: {c['valid']}**", "",
+             "| baseline | expected | declared | classified | reward | progress | total |",
+             "|---|---|---|---|---|---|---|"]
+    for row in sorted(c["ladder"], key=lambda r: (-(r["reward"] if r["reward"]
+                                                  is not None else -9), r["baseline"])):
+        total = "" if row["total"] is None else f"{row['total']} / {row['max']}"
+        lines.append(f"| {row['baseline']} | {row['expected_outcome'] or ''} "
+                     f"| {row['declared_outcome'] or ''} | {row['classified_outcome']} "
+                     f"| {'excluded' if row['reward'] is None else row['reward']} "
+                     f"| {'' if row['progress'] is None else row['progress']} "
+                     f"| {total} |")
+    lines += ["", "## Findings", ""]
+    if not c["findings"]:
+        lines.append("none")
+    for f in c["findings"]:
+        lines.append(f"- **{f['severity']}** `{f['code']}`: {f['detail']}")
+    if c.get("progress_reachability"):
+        lines += ["", f"progress reachability: `{c['progress_reachability']!r}`"]
+    return "\n".join(lines) + "\n"
+
+
 # ----------------------------------------------------------------- render
 def render(c: dict) -> str:
     s = c["static"]
@@ -491,7 +747,51 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--out", default=None,
                     help="directory for validity.json + validity.md; "
                          "default prints the markdown")
+    ap.add_argument("--ladder", default=None, metavar="BASELINES.json",
+                    help="classify and price the baselines in a "
+                         "`run_baselines.py --json` file for --variant; "
+                         "exit 1 on any block finding (needs --variant)")
+    ap.add_argument("--lab-card", action="store_true",
+                    help="print the A1-A12 / O1-O8 requirement table for "
+                         "--task; always exits 0")
+    ap.add_argument("--stored-runs", default=None, metavar="DIR",
+                    help="with --lab-card: directory holding "
+                         "<task>/**/report.json for the run-dependent rows")
     a = ap.parse_args(argv)
+    if a.lab_card:
+        import lab_card
+        try:
+            md = lab_card.render(a.task, Path(a.tasks_dir),
+                                 stored_runs=a.stored_runs)
+        except (taskspec.TaskSpecError, OSError, ValueError) as exc:
+            print(f"REFUSED: {exc}", file=sys.stderr)
+            return 3
+        try:
+            print(md)
+        except UnicodeEncodeError:  # the requirement texts carry em dashes
+            enc = sys.stdout.encoding or "ascii"
+            print(md.encode(enc, "replace").decode(enc))
+        return 0
+    if a.ladder is not None:
+        if not a.variant:
+            ap.error("--ladder needs --variant (the arm whose [matrix.outcome] "
+                     "classifies the baselines)")
+        try:
+            lc = ladder_card(a.task, Path(a.tasks_dir), a.variant, Path(a.ladder))
+        except (taskspec.TaskSpecError, OSError, ValueError) as exc:
+            print(f"REFUSED: {exc}", file=sys.stderr)
+            return 3
+        md = render_ladder(lc)
+        if a.out:
+            out = Path(a.out)
+            out.mkdir(parents=True, exist_ok=True)
+            (out / "ladder.json").write_text(json.dumps(lc, indent=2),
+                                             encoding="utf-8")
+            (out / "ladder.md").write_text(md, encoding="utf-8")
+            print(f"wrote {out / 'ladder.json'} and {out / 'ladder.md'}")
+        else:
+            print(md)
+        return 0 if lc["valid"] else 1
     try:
         c = card(a.task, Path(a.tasks_dir), a.variant, run=a.run,
                  quick=a.quick, timeout_s=a.timeout)

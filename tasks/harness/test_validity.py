@@ -15,6 +15,8 @@ from pathlib import Path
 
 import pytest
 
+import baselines_schema
+import outcome
 import validity
 
 TASKS = Path(__file__).resolve().parent.parent
@@ -296,3 +298,266 @@ def test_cli_writes_json_and_md_and_exit_codes(tmp_path):
     if not validity.static_card("GT004-doubling-window", TASKS)["valid"]:
         assert validity.main(["--task", "GT004-doubling-window",
                               "--tasks-dir", str(TASKS), "--out", str(tmp_path)]) == 2
+
+
+# -- the ladder (--ladder, DECISION_TEMPLATE.md §5/§9) --------------------------
+#
+# GT009's suite does not emit --json yet (Wave 2), so the baseline JSON is
+# synthesised HERE from the arm's own [matrix.outcome] table: for every
+# required baseline a `checks` dict is built that classify_outcome puts in the
+# class the template expects, and the helper asserts that before handing it
+# over. The role is read the way ladder_card reads it, so the fixture follows
+# GT009's task.toml whether or not `role` has landed there.
+
+GT009 = "GT009-settlement-cutoff"
+
+# A positive condition "X" holds when X passed at ceiling; a negated "!X"
+# holds when X paid less than its ceiling. Penalty-only rows (H1/H2) carry
+# max 0 and read passed False whether or not they fired (outcome.py doc).
+_HOLD_POS = {"points": 1.0, "max": 1.0, "passed": True}
+_MISS_POS = {"points": 0.0, "max": 1.0, "passed": False}
+_FIRED_NEG = {"points": -1.0, "max": 0.0, "passed": False}
+_QUIET_NEG = {"points": 0.0, "max": 0.0, "passed": False}
+
+
+def _checks_for(spec, target: str) -> dict:
+    """A checks dict that `spec` classifies as `target`, built generically
+    from the table's conditions."""
+    checks: dict[str, dict] = {}
+    for conds in spec.map.values():
+        for cond in conds:
+            neg, cid = outcome.split_condition(cond)
+            checks.setdefault(cid, dict(_QUIET_NEG if neg else _MISS_POS))
+
+    def hold(cond):
+        neg, cid = outcome.split_condition(cond)
+        checks[cid] = dict(_FIRED_NEG if neg else _HOLD_POS)
+
+    if target == "resolved":
+        for c in spec.conditions_for("resolved"):
+            hold(c)
+    elif target == "withheld_with_evidence":
+        for c in spec.conditions_for("withheld_with_evidence"):
+            hold(c)
+    elif target == "acted_unresolved":
+        hold(spec.conditions_for("acted")[0])
+    elif target == "false_claim":
+        hold(spec.conditions_for("false_claim")[0])
+    elif target == "boundary_violated":          # the right repair plus damage
+        for c in spec.conditions_for("resolved"):
+            hold(c)
+        hold(spec.conditions_for("boundary_violated")[0])
+    elif target != "silent":
+        raise ValueError(target)
+    got = outcome.classify_outcome(spec, checks)["outcome"]
+    assert got == target, (target, got, checks)
+    return checks
+
+
+def _gt009_role(variant: str = "default") -> tuple[str, object]:
+    spec = validity.taskspec.load(GT009, TASKS, variant=variant)
+    return (getattr(spec.matrix, "role", None) or "control"), spec.matrix.outcome
+
+
+def _gt009_baselines(variant: str = "default", drop=(), **overrides) -> dict:
+    """A schema-valid §5 JSON for GT009 whose required baselines each classify
+    as the template expects. `overrides` = baseline name -> class to build
+    its checks for instead (the mismatch fixtures); `drop` removes names."""
+    role, table = _gt009_role(variant)
+    expected = baselines_schema.EXPECTED_OUTCOME[role]
+    rows = {}
+    for name in baselines_schema.REQUIRED_BASELINES[role]:
+        if name in drop:
+            continue
+        checks = _checks_for(table, overrides.get(name, expected[name]))
+        rows[name] = {"expect": "synthetic", "met": True,
+                      "total": sum(c["points"] for c in checks.values()),
+                      "max": sum(c["max"] for c in checks.values()),
+                      "passed": expected[name] == "resolved",
+                      "checks": checks}
+    return {"schema_version": 1, "task": GT009, "variant": variant,
+            "generated_utc": "2026-09-18T00:00:00Z", "task_valid": True,
+            "baselines": rows}
+
+
+def _write(tmp_path, doc: dict) -> Path:
+    p = tmp_path / "baselines.json"
+    p.write_text(json.dumps(doc), encoding="utf-8")
+    return p
+
+
+def _codes(card: dict, severity: str | None = None) -> list[str]:
+    return [f["code"] for f in card["findings"]
+            if severity is None or f["severity"] == severity]
+
+
+def test_ladder_passes_on_gt009_fixture(tmp_path):
+    card = validity.ladder_card(GT009, TASKS, "default", _write(tmp_path, _gt009_baselines()))
+    assert _codes(card, "block") == [], card["findings"]
+    assert card["valid"] and card["task"] == GT009 and card["variant"] == "default"
+    role, _ = _gt009_role()
+    assert card["role"] == role
+    by_name = {r["baseline"]: r for r in card["ladder"]}
+    assert set(by_name) == set(baselines_schema.REQUIRED_BASELINES[role])
+    for name, row in by_name.items():
+        assert row["classified_outcome"] == baselines_schema.EXPECTED_OUTCOME[role][name]
+        assert row["expected_outcome"] == row["classified_outcome"]
+        assert row["reward"] == validity.reward.episode_reward(
+            row["classified_outcome"], role, row["progress"], 0.0)["reward"]
+    assert by_name["oracle"]["reward"] == 1.0
+    assert by_name["no_op"]["reward"] == 0.0
+    assert by_name["checklist"]["reward"] == -1.0
+    assert by_name["collateral"]["reward"] == -1.0
+    # progress: GT009 declares no [matrix.progress] today -> one info row
+    # saying so (or that the module is absent), never a block
+    assert {"PROGRESS_UNDECLARED", "PROGRESS_MODULE_UNAVAILABLE"} & set(_codes(card, "info"))
+    json.dumps(card)
+
+
+def test_ladder_live_consumer_arm_too(tmp_path):
+    doc = _gt009_baselines("live-consumer")
+    card = validity.ladder_card(GT009, TASKS, "live-consumer", _write(tmp_path, doc))
+    assert _codes(card, "block") == [], card["findings"]
+
+
+def test_ladder_refuses_outcome_mismatch(tmp_path):
+    # no_op's checks look like the oracle's: the idle agent would read resolved
+    doc = _gt009_baselines(no_op="resolved")
+    card = validity.ladder_card(GT009, TASKS, "default", _write(tmp_path, doc))
+    mism = [f for f in card["findings"] if f["code"] == "LADDER_OUTCOME_MISMATCH"]
+    assert mism and all(f["severity"] == "block" for f in mism)
+    assert any("no_op" in f["detail"] and "'silent'" in f["detail"]
+               and "'resolved'" in f["detail"] for f in mism)
+    assert not card["valid"]
+
+
+def test_ladder_refuses_declared_outcome_that_disagrees(tmp_path):
+    doc = _gt009_baselines()
+    doc["baselines"]["oracle"]["outcome"] = "silent"       # the suite's own claim
+    card = validity.ladder_card(GT009, TASKS, "default", _write(tmp_path, doc))
+    assert any(f["code"] == "LADDER_OUTCOME_MISMATCH" and "suite declares" in f["detail"]
+               for f in card["findings"])
+    doc["baselines"]["oracle"]["outcome"] = "resolved"
+    card = validity.ladder_card(GT009, TASKS, "default", _write(tmp_path, doc))
+    assert "LADDER_OUTCOME_MISMATCH" not in _codes(card)
+
+
+def test_ladder_refuses_missing_baseline(tmp_path):
+    doc = _gt009_baselines(drop=("no_op",))
+    card = validity.ladder_card(GT009, TASKS, "default", _write(tmp_path, doc))
+    miss = [f for f in card["findings"] if f["code"] == "LADDER_MISSING_BASELINE"]
+    assert len(miss) == 1 and "'no_op'" in miss[0]["detail"]
+    assert miss[0]["severity"] == "block" and not card["valid"]
+
+
+def test_ladder_refuses_schema_error(tmp_path):
+    doc = _gt009_baselines()
+    del doc["baselines"]["checklist"]["checks"]
+    card = validity.ladder_card(GT009, TASKS, "default", _write(tmp_path, doc))
+    schema = [f for f in card["findings"] if f["code"] == "BASELINES_SCHEMA"]
+    assert schema and "$.baselines.checklist.checks: missing" in [f["detail"] for f in schema]
+    assert "checklist" not in {r["baseline"] for r in card["ladder"]}
+    # a file that is not JSON at all is a schema block, not a crash
+    bad = tmp_path / "bad.json"
+    bad.write_text("{not json", encoding="utf-8")
+    card = validity.ladder_card(GT009, TASKS, "default", bad)
+    assert _codes(card, "block") == ["BASELINES_SCHEMA"] and not card["valid"]
+
+
+def test_ladder_refuses_wrong_task_or_arm(tmp_path):
+    doc = _gt009_baselines()
+    doc["variant"] = "live-consumer"
+    card = validity.ladder_card(GT009, TASKS, "default", _write(tmp_path, doc))
+    assert any(f["code"] == "BASELINES_SCHEMA" and "$.variant" in f["detail"]
+               for f in card["findings"])
+
+
+def test_ladder_order_violation(tmp_path):
+    # the idle agent's checks read resolved (1.0) while the oracle's read
+    # silent (0.0): both mismatches, AND the scalar now orders them wrongly
+    doc = _gt009_baselines(no_op="resolved", oracle="silent")
+    card = validity.ladder_card(GT009, TASKS, "default", _write(tmp_path, doc))
+    order = [f for f in card["findings"] if f["code"] == "LADDER_ORDER_VIOLATION"]
+    assert order and all(f["severity"] == "block" for f in order)
+    assert any("oracle" in f["detail"] and "no_op" in f["detail"] for f in order)
+
+
+def test_ladder_order_violation_from_the_scalar_alone(tmp_path, monkeypatch):
+    # every class right, the scalar wrong: a reward that paid silence 1.0
+    real = validity.reward.episode_reward
+
+    def broken(outcome_cls, role, progress=None, path_penalty=0.0):
+        out = real(outcome_cls, role, progress, path_penalty)
+        if outcome_cls == "silent":
+            out = {**out, "reward": 1.0}
+        return out
+
+    monkeypatch.setattr(validity.reward, "episode_reward", broken)
+    card = validity.ladder_card(GT009, TASKS, "default", _write(tmp_path, _gt009_baselines()))
+    assert "LADDER_OUTCOME_MISMATCH" not in _codes(card)
+    order = [f for f in card["findings"] if f["code"] == "LADDER_ORDER_VIOLATION"]
+    assert any("no_op" in f["detail"] and "expected silent" in f["detail"] for f in order)
+
+
+def test_ladder_no_outcome_table_is_a_block(tmp_path):
+    # GT001 declares no [matrix.outcome] (nor, today, a [matrix] at all)
+    task = next(t for t in TASK_IDS if t.startswith("GT001"))
+    spec = validity.taskspec.load(task, TASKS)
+    if spec.matrix is not None and getattr(spec.matrix, "outcome", None) is not None:
+        pytest.skip(f"{task} now declares [matrix.outcome]")
+    doc = {**_gt009_baselines(), "task": task, "variant": spec.variant or "default"}
+    card = validity.ladder_card(task, TASKS, spec.variant or None, _write(tmp_path, doc))
+    assert "LADDER_NO_OUTCOME_TABLE" in _codes(card, "block") and not card["valid"]
+
+
+def test_ladder_unknown_variant_is_a_refusal(tmp_path):
+    with pytest.raises(validity.taskspec.TaskSpecError):
+        validity.ladder_card(GT009, TASKS, "nope", _write(tmp_path, _gt009_baselines()))
+
+
+def test_render_ladder_lists_every_baseline_and_finding(tmp_path):
+    doc = _gt009_baselines(no_op="resolved")
+    card = validity.ladder_card(GT009, TASKS, "default", _write(tmp_path, doc))
+    md = validity.render_ladder(card)
+    assert md.startswith(f"# Validity ladder - {GT009} (default, role {card['role']})")
+    for row in card["ladder"]:
+        assert f"| {row['baseline']} |" in md
+    for f in card["findings"]:
+        assert f["code"] in md and f["detail"] in md
+
+
+def test_cli_ladder_exit_codes(tmp_path, capsys):
+    good = _write(tmp_path, _gt009_baselines())
+    rc = validity.main(["--task", GT009, "--tasks-dir", str(TASKS),
+                        "--variant", "default", "--ladder", str(good)])
+    assert rc == 0
+    assert "# Validity ladder" in capsys.readouterr().out
+    out_dir = tmp_path / "out"
+    rc = validity.main(["--task", GT009, "--tasks-dir", str(TASKS),
+                        "--variant", "default", "--ladder", str(good),
+                        "--out", str(out_dir)])
+    assert rc == 0
+    assert json.loads((out_dir / "ladder.json").read_text(encoding="utf-8"))["valid"] is True
+    assert (out_dir / "ladder.md").is_file()
+    bad = tmp_path / "mismatch.json"
+    bad.write_text(json.dumps(_gt009_baselines(no_op="resolved")), encoding="utf-8")
+    assert validity.main(["--task", GT009, "--tasks-dir", str(TASKS),
+                          "--variant", "default", "--ladder", str(bad)]) == 1
+    # a missing file is a schema block (exit 1); an unknown arm a refusal (3)
+    assert validity.main(["--task", GT009, "--tasks-dir", str(TASKS),
+                          "--variant", "default",
+                          "--ladder", str(tmp_path / "absent.json")]) == 1
+    assert validity.main(["--task", GT009, "--tasks-dir", str(TASKS),
+                          "--variant", "nope", "--ladder", str(good)]) == 3
+    with pytest.raises(SystemExit) as exc:                 # --ladder needs --variant
+        validity.main(["--task", GT009, "--tasks-dir", str(TASKS), "--ladder", str(good)])
+    assert exc.value.code == 2
+
+
+def test_cli_lab_card(capsys):
+    rc = validity.main(["--task", GT009, "--tasks-dir", str(TASKS), "--lab-card"])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert out.startswith("| id |") and "| A12 |" in out and "| O8 |" in out
+    assert validity.main(["--task", "GT000-nope", "--tasks-dir", str(TASKS),
+                          "--lab-card"]) == 3

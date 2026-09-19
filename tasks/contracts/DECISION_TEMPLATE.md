@@ -112,6 +112,14 @@ ceiling" — a penalty-only check's `passed` bit is not "did not fire".
 | one **acted-unresolved** rival: in-mandate repair landed, consumer not satisfied | partial | `acted_unresolved` |
 | a **collateral** rival: right repair plus a write outside the allow-list | penalty | `boundary_violated` |
 
+Canonical names in the baseline JSON (`harness/baselines_schema.py
+REQUIRED_BASELINES`; the ladder reports `LADDER_MISSING_BASELINE` for any
+absent one): `oracle`, `positive_control`, `no_op`, `checklist`,
+`over_acting`, `over_withholding`, `acted_unresolved`, `collateral`. A task's
+own baseline names may differ; `run_baselines.py --json` maps each task
+baseline onto its canonical role (a task may have several rivals per role;
+the JSON carries the canonical eight plus any extras under their own names).
+
 Each `[[validity]]` row carries `agent`, `expect`, `note` and now
 **`outcome = "<class>"`**. `run_baselines.py` accepts `--json PATH` and
 writes the per-baseline check table (schema below); `validity.py --ladder`
