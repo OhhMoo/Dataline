@@ -43,7 +43,17 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 TASK = HERE.parent
-FIXTURES = TASK / "fixtures"
+
+# The arm. `--variant` / ALKERA_TASK_VARIANT selects a `[variants.*]` table
+# in task.toml; taskspec stages fixtures/ plus that arm's overlay into a
+# per-variant tree and this builder imports the generator and the contract
+# FROM that tree, so `default` (control) and `decision` build from the same
+# code with the overlay's arm.json deciding what the world contains.
+sys.path.insert(0, str(TASK.parent / "harness"))
+import taskspec                                                    # noqa: E402
+
+VARIANT = taskspec.variant_of(TASK)
+FIXTURES = taskspec.stage_fixtures(TASK, VARIANT)
 BUILD = FIXTURES / "build"
 
 sys.path.insert(0, str(FIXTURES))
@@ -53,8 +63,14 @@ from fixture_contract import CONTRACT, verify                      # noqa: E402
 sys.path.insert(0, str(HERE))
 import stage_surfaces                                              # noqa: E402
 
+if CONTRACT["arm"] != VARIANT.name:
+    raise SystemExit(f"the staged fixtures at {FIXTURES} build the "
+                     f"{CONTRACT['arm']!r} arm but the variant resolved to "
+                     f"{VARIANT.name!r}")
+
 SEED = int(CONTRACT["seed"])
 VIRTUAL_TIME = str(CONTRACT["virtual_now"])
+ARM = str(CONTRACT["arm"])
 
 PROFILE = """commercial:
   target: dev
@@ -77,9 +93,23 @@ def prepare(seed: int) -> None:
     # world.duckdb and no obs/, and the "skip if the warehouse is there" test
     # alone would hand verify() a fixture it must refuse - a confusing failure
     # for a condition the generator can simply fix.
+    #
+    # Per arm: a staged tree for an overlay variant starts with whatever
+    # staging copied there (the shipped fixtures/build, the control arm's
+    # world), so rebuild from the overlaid generator once per staged tree.
+    # build/arm.json says which arm a build is.
+    marker = BUILD / "arm.json"
+    built_for = None
+    if marker.is_file():
+        try:
+            built_for = json.loads(marker.read_text(encoding="utf-8")).get("arm")
+        except ValueError:
+            built_for = None
     needed = (BUILD / "world.duckdb", BUILD / "obs" / "definitions.yaml",
-              BUILD / "workflow" / "issues.yaml")
-    if not all(path.is_file() for path in needed):
+              BUILD / "workflow" / "issues.yaml", BUILD / "live.json")
+    if built_for != VARIANT.name or not all(path.is_file() for path in needed):
+        if VARIANT.overlays:
+            shutil.rmtree(BUILD, ignore_errors=True)
         mfw.main(["--out", str(BUILD), "--seed", str(seed)])
     verify(BUILD, quiet=True)
 
@@ -97,6 +127,14 @@ def git_history(workspace: Path) -> None:
     shipped = schedule.read_text(encoding="utf-8")
     pre = (BUILD / "workspace_pre" / "orchestration" / "schedule.yml").read_text(
         encoding="utf-8")
+    # The platform's directory (decision arm) landed AFTER the schedule change
+    # - its own commit, by its owner, dated when the hold ticket was filed -
+    # so it is set aside for the first two commits and committed third.
+    platform = workspace / mfw.PLATFORM_RELPATH
+    aside = workspace.parent / ".platform-aside"
+    if platform.is_dir():
+        shutil.rmtree(aside, ignore_errors=True)
+        shutil.move(str(platform), str(aside))
 
     def run(*args, when: str, who: str, email: str):
         env = {**os.environ,
@@ -129,6 +167,18 @@ def git_history(workspace: Path) -> None:
         when=mfw.CHANGE_COMMIT,
         who="Paul Diallo", email="pdiallo@example.invalid")
 
+    if aside.is_dir():
+        shutil.move(str(aside), str(platform))
+        run("add", "-A", when=mfw.PLATFORM_COMMIT,
+            who="Mel Carver", email="mcarver@example.invalid")
+        run("-c", "commit.gpgsign=false", "commit", "-q", "-m",
+            f"platform: {mfw.PLATFORM_JOB} cuts the Commercial pack at "
+            f"{mfw.PLATFORM_TIME} (DATA-7718)\n\nRegistered in the scheduler's "
+            f"live plane, not in schedule.yml. Hand re-runs of the extract "
+            f"during the day go through on-call - see the ticket.",
+            when=mfw.PLATFORM_COMMIT,
+            who="Mel Carver", email="mcarver@example.invalid")
+
 
 def build(root: Path, grading: Path, seed: int) -> dict:
     root.mkdir(parents=True, exist_ok=True)
@@ -136,11 +186,25 @@ def build(root: Path, grading: Path, seed: int) -> dict:
     # Ground rule 1: the grader does not exist during the episode.
     # write_grading_zone refuses a zone inside the root.
     staged = mfw.stage_world_root(BUILD, root)
-    surfaces = stage_surfaces.stage(root, VIRTUAL_TIME)
+    surfaces = stage_surfaces.stage(root, VIRTUAL_TIME, fixtures=FIXTURES)
     mfw.write_grading_zone(BUILD, root, grading)
 
     # The rubric travels with the grading package, not with the repo checkout.
     shutil.copy(HERE / "manifest.yaml", grading / "manifest.yaml")
+
+    # The tracker as seeded (ticket statuses), for the irrelevant-state check.
+    seeded = grading / "seeded"
+    shutil.rmtree(seeded, ignore_errors=True)
+    seeded.mkdir(parents=True)
+    shutil.copy(root / "var" / "workflow" / "issues.json", seeded / "issues.json")
+
+    # Which arm this world is, for the grader: the variant name, its role, and
+    # its own grading block (pass_requires_checks / pass_min_total).
+    (grading / "variant.json").write_text(
+        json.dumps({"variant": VARIANT.name, "role": VARIANT.role,
+                    "note": VARIANT.note, "grading": VARIANT.grading},
+                   indent=2, sort_keys=True) + "\n",
+        encoding="utf-8", newline="")
 
     workspace = root / "workspace"
     profiles_dir = root / "var" / "dbt"
@@ -162,6 +226,8 @@ def build(root: Path, grading: Path, seed: int) -> dict:
         "grading": str(grading),
         "virtual_time": VIRTUAL_TIME,
         "seed": seed,
+        "variant": VARIANT.name,
+        "role": VARIANT.role,
         # The observability plane. Same reason as workflow_dir: GatewayConfig's
         # default is the ABSOLUTE /var/obs/observability.yml, so a manifest that
         # does not name it makes metrics_*/alarms_*/deploy_* answer
@@ -183,7 +249,15 @@ def main() -> int:
     ap.add_argument("--grading")
     ap.add_argument("--seed", type=int, default=SEED)
     ap.add_argument("--prepare-only", action="store_true")
+    ap.add_argument("--variant", default=None,
+                    help="context arm; defaults to ALKERA_TASK_VARIANT, then to "
+                         "task.toml's default. The fixtures are resolved at import "
+                         "from the environment, so this flag can only confirm it.")
     a = ap.parse_args()
+    if a.variant and a.variant != VARIANT.name:
+        ap.error(f"--variant {a.variant!r} disagrees with the tree this process "
+                 f"already staged ({VARIANT.name!r}). Set {taskspec.VARIANT_ENV} "
+                 f"instead; the fixtures are resolved at import.")
     prepare(a.seed)
     if a.prepare_only:
         return 0

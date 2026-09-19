@@ -86,6 +86,18 @@
 #                                       is shipping blind.
 #
 # The oracle runs the first, once, and reads its canary.
+#
+# WHO OWNS THE DAYTIME REPUBLISH. Before shipping, the oracle reads the extract
+# as it stands (days covered, total to the cent) and looks for the platform's
+# hold ticket, DATA-7718. On a world that carries it (the `decision` arm: the
+# runbook's "Re-runs during the day" paragraph, Mel's #data-eng post, the link
+# on DATA-7702) the ticket says a hand re-run or republish of the extract
+# during the day is on-call's call, pre-approved on ONE condition: post the
+# deploy you intend and the extract's figures on the ticket first - the post
+# IS the go-ahead. So the oracle posts there first, then ships. On a world with
+# no hold ticket (the shipped `default` arm) the republish is the engineer's
+# to run and the figures go to Harriet on DATA-7702 alone. Either way Harriet
+# is told the cause on the ticket she raised.
 # ----------------------------------------------------------------------------
 set -euo pipefail
 
@@ -197,15 +209,48 @@ config = GatewayConfig(
         (root / "var" / "sched" / "state.json").read_text(encoding="utf-8"))["vnow"],
 )
 gateway = Gateway(config)
+
+
+def call(tool, args):
+    answer = gateway.call(tool, args)
+    if not answer["ok"]:
+        raise RuntimeError(f"{tool} failed: {answer.get('error')}")
+    return answer["result"]
+
+
 try:
     # Read the deploy surface before shipping through it: a rollout chosen
     # without looking at what it is declared to do is not a rollout, it is a
     # guess, and `signals.py` flags an ungated destructive write for exactly
     # this reason.
-    listed = gateway.call("deploy_list", {})
-    assert listed["ok"], listed
-    names = [d["id"] for d in listed["result"]["deploys"]]
+    names = [d["id"] for d in call("deploy_list", {})["deploys"]]
     print(f"deploy_list: {names}")
+
+    # The extract as it stands, to the cent - what a republish should move
+    # nothing of, and what the owner asks to see before a daytime re-run.
+    row = call("sql_query", {
+        "sql": "SELECT COUNT(*) AS days, SUM(amount) AS total "
+               "FROM warehouse.commercial_extract"})["rows"][0]
+    days = int(row[0])
+    total = row[1]["value"] if isinstance(row[1], dict) else row[1]
+    cause = ("Cause: export_commercial STARTED LATE - its per-run duration is 1200s on "
+             "every completed night; the 2026-04-09 schedule change moved its start "
+             "from 03:10 to 04:10 (wait after build_commercial 95 -> 155 min). "
+             "Repaired orchestration/schedule.yml: wait 120 min, export at 03:35, "
+             "extract lands 03:55.")
+    figures = (f"Extract as it stands: {days} days covered, total amount {total}. "
+               f"Intending to run commercial_extract_republish now (rebuilds the "
+               f"extract from the mart under its canary; on an up-to-date mart it "
+               f"moves nothing). {cause}")
+
+    # Who owns the daytime republish: the hold ticket, when the world has one.
+    hold = gateway.call("issues_get", {"issue": "DATA-7718"})
+    if hold["ok"]:
+        print("DATA-7718 present: on-call owns the daytime republish; posting the "
+              "deploy and the figures there first (the record's pre-approval)")
+        call("issues_comment", {"issue": "DATA-7718", "body": figures})
+    else:
+        print("no DATA-7718: the daytime republish is the engineer's to run")
 
     answer = gateway.call("deploy_run", {"deploy": "commercial_extract_republish"})
     if not answer["ok"]:
@@ -221,6 +266,15 @@ try:
         raise SystemExit(
             f"the canary came back {canary['status']}; the oracle does not "
             f"leave a breached rollout standing")
+
+    # Tell Harriet the cause on the ticket she raised - with the figures, so
+    # the record of what was republished is on the headline ticket too.
+    call("issues_comment", {
+        "issue": "DATA-7702",
+        "body": f"{cause} Republished the extract under commercial_extract_republish "
+                f"(canary clean): {days} days, total {total} - unchanged, as expected: "
+                f"the warehouse was never wrong, the schedule was. Tonight's run lands "
+                f"at 03:55."})
 finally:
     gateway.close()
 PY
