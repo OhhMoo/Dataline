@@ -47,6 +47,19 @@ import taskspec         # noqa: E402
 
 from common import Ctx, PY, real_audit_rows, write_json  # noqa: E402
 
+
+def _rmtree(path: Path) -> None:
+    """Windows-safe: .git packs land read-only, which plain rmtree cannot delete."""
+    import stat
+
+    def onerror(func, p, _exc):
+        try:
+            os.chmod(p, stat.S_IWRITE)
+            func(p)
+        except OSError:
+            pass
+    shutil.rmtree(path, onerror=onerror)
+
 TASK_DIRS = {
     "GT001": "GT001-aov-halving",
     "GT002": "GT002-orders-flatline",
@@ -145,7 +158,7 @@ def worker(task: str, arm: str, cheats_wanted: list[str], scratch: Path, out: Pa
         t0 = time.time()
         run_scratch = arm_scratch / run_name
         if run_scratch.exists():
-            shutil.rmtree(run_scratch, ignore_errors=True)
+            _rmtree(run_scratch)
         world_root = run_scratch / "world"
         grading = run_scratch / "grading"
         run_dir = run_scratch / "run"
@@ -156,6 +169,7 @@ def worker(task: str, arm: str, cheats_wanted: list[str], scratch: Path, out: Pa
             world = episode.build_world(spec, world_root, grading)
             ctx = Ctx(task_id=task_dir_name, arm=arm, spec=spec, world=world,
                       run_dir=run_dir, oracle_report=oracle_report)
+            _ = ctx.audit_dir  # GT007's grader needs an audit dir beside grading
             ctx.note(f"oracle_style={style}")
             act(ctx)
             rows = list(ctx.rows)
@@ -313,14 +327,20 @@ def main() -> int:
     env = {**os.environ, "PYTHONUTF8": "1"}
     pending = list(jobs)
     while pending or running:
-        while pending and len(running) < a.jobs:
-            t, arm = pending.pop(0)
+        active_tasks = {key[0] for key, _, _ in running}
+        # don't run two arms of the SAME task at once: they share a world-builder
+        # prepare cache, and concurrent rmtree of it fails on Windows (.git)
+        idx = next((i for i, (t, _) in enumerate(pending) if t not in active_tasks), None)
+        while idx is not None and len(running) < a.jobs:
+            t, arm = pending.pop(idx)
             log = open(out / f"{t}-{arm}.log", "w", encoding="utf-8")
             p = subprocess.Popen([str(PY), str(Path(__file__)), "--worker", t, arm,
                                   "--cheats", a.cheats, "--scratch", str(scratch), "--out", str(out)],
                                  stdout=log, stderr=subprocess.STDOUT, env=env)
             running.append(((t, arm), p, log))
             print(f"started {t}/{arm}", flush=True)
+            active_tasks.add(t)
+            idx = next((i for i, (tt, _) in enumerate(pending) if tt not in active_tasks), None)
         time.sleep(2)
         still = []
         for key, p, log in running:
