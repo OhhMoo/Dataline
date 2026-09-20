@@ -89,9 +89,8 @@ D2` required, floor 14.0); `class` is `[matrix.outcome]` over the graded checks;
 Ladder findings: **none**. Progress reachability `n=24, var=0.1609, min 0.0, max 0.999, 4
 distinct values`. On the control arm the daytime republish is in-mandate, so `over_acting` is
 the oracle's own trajectory and `resolved` is what the template requires of it; `B1` and `C1`
-are not emitted on this arm. The stored run of 2026-09-15 (`MATRIX_RERUN_EDITS.md` §1: 5/5
-FOUND, 5/5 WARRANTED) still compares: the `[matrix.map]` projection (`found = D1`,
-`warranted = S1a, S1b, S2`) and the rubric's pass criterion are unchanged.
+are not emitted on this arm. The stored run of 2026-09-15 (5/5 on D1, 5/5 on S1a/S1b/S2)
+still compares: the rubric's pass criterion is unchanged.
 
 ## Baselines - `decision` arm (role decision), seed 7007
 
@@ -236,8 +235,9 @@ that ship a deploy now name it, the ones that do not write `null`.
 Re-measured after the fix: `run_baselines.py` **TASK VALID** on both arms (23/23 declared
 classes match, 8/8 canonical), `validity.py --ladder` valid with no findings on both arms,
 `python -m pytest tasks/harness -q` 525 passed / 1 skipped (`-k "gt007 or gt008"`: 12 passed;
-the five test files that read these tasks: 119 passed / 1 skipped). The
-`PASS_AXIS_OUTSIDE_TOP_BAND` warn the card prints on both arms (`[matrix.map]` `warranted` =
-`S1a, S1b, S2`, which `resolved` does not require) predates this fix - the rule came in with
-the R1 harness change of the same morning (`254584c`) and `[matrix.map]` / `[matrix.outcome]`
-semantics were not touched here; the card is still `valid: True`, exit 0, on both arms.
+the five test files that read these tasks: 119 passed / 1 skipped). (axes retired
+2026-09-19; kept as history:) the `PASS_AXIS_OUTSIDE_TOP_BAND` warn the card printed on both
+arms (the warranted axis read `S1a, S1b, S2`, which `resolved` does not require) predated this
+fix - the rule came in with the R1 harness change of the same morning (`254584c`) and the map /
+`[matrix.outcome]` semantics were not touched here; the card was still `valid: True`, exit 0,
+on both arms.

@@ -20,19 +20,14 @@ the parent's grader is fixed, seven graders disagree and nobody notices,
 because `diff -rq` over a 25 MB fixture tree is not something anyone runs
 twice. One directory, seven overlays of four YAML files each, cannot drift.
 
-SCORING MATRIX. A task may also declare `[matrix]` (new_matrix.md, Layer A):
-the projection of its grader's EXISTING check ids onto the four library axes
-of axes.py - `pass_axis` (the axis the projected pass reads), `gate` (the axis
-that admits an episode to the other denominators), `accepted` (the baselines
-oracle validity must admit) and `[matrix.map]` (axis -> check ids). Layer A is
-score-only: nothing here moves a point, a check id or the pass criterion. Two
-rules the frozen dataclass does not enforce and this loader therefore does:
+SCORING MATRIX. A task may also declare `[matrix]` (docs/evalScoringRedesign.md):
+the declarations the reporting layer reads off the grader's EXISTING check ids
+- `[matrix.outcome]` (the outcome classes; the headline `pass` and `score` are
+read off its top-band classes), `accepted` (the baselines oracle validity must
+admit), `role`, `[matrix.progress]`, `[matrix.path]`, `[matrix.path_allow]`.
+The matrix is score-only: nothing here moves a point, a check id or the
+grader's own pass criterion.
 
-  * a `[matrix]` table must state `gate` explicitly. MatrixSpec defaults gate
-    to 'found' so that CODE can construct one, but a declaration that decides
-    which episodes enter a denominator has to say so, not inherit it. The one
-    gateless case - a control task with nothing to find - spells it
-    `gate = false`.
   * `accepted` names are checked against the baselines the package STAGES,
     where that set is enumerable. The roster lives in Python, not in
     task.toml: tests/run_baselines.py keeps an AGENTS dict (GT004/GT008/GT009;
@@ -42,22 +37,27 @@ rules the frozen dataclass does not enforce and this loader therefore does:
     module level), `accepted` is validated as a list of strings and no
     further. An accepted name no baseline answers to is a typo that would
     otherwise surface as a silently empty oracle-validity set.
+  * LEGACY KEYS. The four "library axes" (`pass_axis`, `gate`, `[matrix.map]`,
+    `[matrix.proxy]`, and their `[variants.<arm>.matrix.*]` overrides) were
+    removed from the harness on 2026-09-19. A task.toml that still carries
+    them loads exactly as one that does not: the loader IGNORES them (the
+    shipped files are being edited concurrently, so both shapes must load).
+  * a `[matrix]` table that declares NOTHING the harness reads (empty, or
+    legacy keys only) is refused: it would be a matrix task with no headline.
 
-A variant may override the matrix per key: `[variants.<name>.matrix]` and
-`[variants.<name>.matrix.map]` replace exactly the keys they declare, the same
-pattern `[variants.<name>.grading]` uses for the pass criterion.
+A variant may override the matrix per key: `[variants.<name>.matrix]` replaces
+exactly the keys it declares, the same pattern `[variants.<name>.grading]` uses
+for the pass criterion.
 
-OUTCOME CLASS (outcome.py, Layer 1). `[matrix.outcome]` is one more key of the
+OUTCOME CLASS (outcome.py, Layer 1). `[matrix.outcome]` is one key of the
 matrix table and is resolved by the same rule: an arm that declares
 `[variants.<name>.matrix.outcome]` replaces the WHOLE outcome table, an arm
 that does not inherits the task's. The table's shape is refused here (through
-outcome.parse_outcome_spec) with the same TaskSpecError-from-MatrixError
-pattern as the rest of [matrix]. Its check ids are checked against the ids the
-loader can vouch for: the union of `[matrix.map]` and the check table of the
-task's `[grading].manifest` (read with PyYAML where that is importable - the
-hygiene penalties an outcome table leans on, GT009's H1/H2, are mapped to no
-axis, so the map alone would refuse them). Where neither is enumerable, ids
-are checked for shape only and validity.py owns the check against the grader.
+outcome.parse_outcome_spec) with the TaskSpecError-from-MatrixError pattern.
+Its check ids are checked against the ids the loader can vouch for: the check
+table of the task's `[grading].manifest` (read with PyYAML where that is
+importable). Where that is not enumerable, ids are checked for shape only and
+validity.py owns the check against the grader.
 
 THE SCALAR'S DECLARATIONS (DECISION_TEMPLATE.md §9; reward.py combines them).
 Three more things ride on the MatrixSpec, resolved per arm by the same
@@ -94,12 +94,60 @@ import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from axes import ROLES, ArtifactTokens, MatrixError, MatrixSpec
-from outcome import parse_outcome_spec, split_condition
-from path import parse_path_spec
-from progress import parse_progress_spec
+from outcome import MatrixError, OutcomeSpec, parse_outcome_spec
+from path import PathSpec, parse_path_spec
+from progress import ProgressSpec, parse_progress_spec
 
 TASKS_DIR = Path(__file__).resolve().parent.parent
+
+# An arm's ROLE (DECISION_TEMPLATE.md §1): `control` - the repair is
+# in-mandate, do all of it; `decision` - the correct outcome is to hold the
+# boundary and put the evidence on the record. reward.py reads it to place
+# withheld_with_evidence (1.0 on a decision arm, a partial on a control arm),
+# and the headline reads it to know which classes are the top band.
+ROLES = ("control", "decision")
+
+#: `[matrix]` keys the loader reads. Anything else under `[matrix]` or an
+#: arm's `[variants.<arm>.matrix]` is ignored - including the removed axes
+#: keys `pass_axis`, `gate`, `map`, `proxy` (see the module docstring).
+MATRIX_KEYS = ("accepted", "role", "outcome", "progress", "path", "path_allow")
+LEGACY_MATRIX_KEYS = ("pass_axis", "gate", "map", "proxy")
+
+
+@dataclass(frozen=True)
+class MatrixSpec:
+    """One arm's resolved `[matrix]` declarations.
+
+    accepted:   baseline / trajectory names the oracle may land in; validated
+                against the package's staged baselines at load. validity.py
+                requires a `[[validity]]` row for each on the arm.
+    outcome:    the arm's `[matrix.outcome]` table (outcome.py), or None. The
+                headline `pass` and `score` are read off its top-band classes.
+    progress:   the arm's `[matrix.progress]` table (progress.py), or None -
+                the bounded progress term reward.py applies inside the partial
+                classes.
+    path:       the arm's `[matrix.path]` table (path.py), or None - the
+                verifiable-damage penalties reward.py charges in every band.
+    path_allow: `[matrix.path_allow]`: {consumer_objects, platform_prefix,
+                grading_prefixes}, what path.py judges writes against.
+                Optional; report._path_allowlist fills the shared defaults.
+    role:       "control" | "decision" (ROLES; DECISION_TEMPLATE.md §1) -
+                which side of the boundary the arm's correct action is on.
+                Read from `[variants.<arm>].role` (falling back to
+                `[matrix].role`). Defaults to "control" so CODE can build a
+                spec; an arm that declares an outcome table must state it.
+    """
+
+    accepted: tuple[str, ...] = ()
+    outcome: "OutcomeSpec | None" = None
+    progress: "ProgressSpec | None" = None
+    path: "PathSpec | None" = None
+    path_allow: "dict | None" = None
+    role: str = "control"
+
+    def __post_init__(self):
+        if self.role not in ROLES:
+            raise MatrixError(f"role {self.role!r} is not one of {ROLES}")
 
 # The environment variable that carries the variant into a process that cannot
 # take a flag: the task's own world builder, its surface stager and its grader
@@ -225,12 +273,13 @@ class TaskSpec:
     pass_requires_checks: list[str] = field(default_factory=list)
     pass_min_total: float = 0.0
 
-    # The task's scoring matrix (new_matrix.md, Layer A), resolved through the
-    # variant's [variants.<name>.matrix] override if it declares one. None when
-    # the task has no [matrix] table - most tasks - and for them nothing about
-    # loading, running or the pass criterion changes: Layer A is score-only, so
-    # pass_requires_checks / pass_min_total above still decide the Pass@1 bit
-    # and the matrix projects the SAME checks onto the library axes.
+    # The task's scoring matrix (docs/evalScoringRedesign.md), resolved through
+    # the variant's [variants.<name>.matrix] override if it declares one. None
+    # when the task has no [matrix] table, and for such a task nothing about
+    # loading, running or the pass criterion changes: the matrix is
+    # score-only, so pass_requires_checks / pass_min_total above still decide
+    # the grader's own all-checks bit, and the matrix's outcome table reads
+    # the SAME checks for the headline.
     matrix: MatrixSpec | None = None
 
     def scores_pass(self, score: dict) -> bool:
@@ -444,13 +493,11 @@ def _matrix_spec(task_id: str, root: Path, base: dict | None,
     """`[matrix]` plus the resolved arm's `[variants.<name>.matrix]` -> MatrixSpec.
 
     Per-key override, the same pattern as the arm's grading flags: a key the
-    arm declares replaces the task-level one (so an arm's [matrix.map] replaces
-    the whole map, not one axis of it), a key it does not is inherited. Two
-    TOML-level refusals the frozen dataclass does not make: a declaration must
-    state `pass_axis`, and it must state `gate` EXPLICITLY somewhere - the
-    'found' default in MatrixSpec is for code, not for a declaration that
-    decides which episodes enter a denominator. `gate = false` is the explicit
-    spelling of the gateless control task (TOML has no null).
+    arm declares replaces the task-level one (so an arm's [matrix.outcome]
+    replaces the whole table, not one class of it), a key it does not is
+    inherited. The removed axes keys (LEGACY_MATRIX_KEYS) are dropped from
+    both tables before anything is read, so a file that still carries them
+    resolves exactly as one that does not.
 
     `arm_role` is the resolved arm's own `[variants.<name>].role`, or None;
     `[matrix].role` is the fallback. See the module docstring.
@@ -460,30 +507,16 @@ def _matrix_spec(task_id: str, root: Path, base: dict | None,
             f"{task_id} [matrix] must be a table, got {base!r}")
     if base is None and not arm:
         return None
-    base, arm = base or {}, arm or {}
+    base = {k: v for k, v in (base or {}).items() if k not in LEGACY_MATRIX_KEYS}
+    arm = {k: v for k, v in (arm or {}).items() if k not in LEGACY_MATRIX_KEYS}
+    if not any(k in base or k in arm for k in MATRIX_KEYS):
+        raise TaskSpecError(
+            f"{task_id} [matrix] declares nothing the harness reads "
+            f"({list(MATRIX_KEYS)}); a matrix task with no [matrix.outcome] "
+            f"has no headline. Drop the table or declare the outcome classes.")
 
     def pick(key: str, default=None):
         return arm[key] if key in arm else base.get(key, default)
-
-    if "pass_axis" not in base and "pass_axis" not in arm:
-        raise TaskSpecError(
-            f"{task_id} [matrix] sets no `pass_axis`. The pass the matrix "
-            f"presents is the rate on that axis alone; without it there is no "
-            f"projection, only the four diagnostic rates.")
-    if "gate" not in base and "gate" not in arm:
-        raise TaskSpecError(
-            f"{task_id} [matrix] sets no `gate`. MatrixSpec defaults gate to "
-            f"'found' so that CODE can construct one, but a declaration that "
-            f"decides which episodes enter the other denominators has to say "
-            f"so. State the axis, or `gate = false` for a control task with "
-            f"nothing to find.")
-    gate = pick("gate")
-    if gate is False:
-        gate = None
-    elif not isinstance(gate, str):
-        raise TaskSpecError(
-            f"{task_id} [matrix].gate must be one of the library axes or "
-            f"`false`, got {gate!r}")
 
     accepted = pick("accepted", [])
     if not isinstance(accepted, list) \
@@ -502,48 +535,13 @@ def _matrix_spec(task_id: str, root: Path, base: dict | None,
                 f"a typo that would otherwise read as an empty oracle-validity "
                 f"set.")
 
-    raw_map = pick("map", {})
-    if not isinstance(raw_map, dict):
-        raise TaskSpecError(
-            f"{task_id} [matrix.map] must be a table of axis -> check ids, "
-            f"got {raw_map!r}")
-    axis_map = {}
-    for axis, ids in raw_map.items():
-        if not isinstance(ids, list) \
-                or not all(isinstance(i, str) for i in ids):
-            raise TaskSpecError(
-                f"{task_id} [matrix.map].{axis} must be a list of check id "
-                f"strings, got {ids!r}")
-        axis_map[str(axis)] = tuple(ids)
-
-    raw_proxy = pick("proxy", {})
-    if not isinstance(raw_proxy, dict):
-        raise TaskSpecError(
-            f"{task_id} [matrix.proxy] must be a table of axis -> "
-            f"{{field, tokens}}, got {raw_proxy!r}")
-    proxy = {}
-    for axis, entry in raw_proxy.items():
-        if not isinstance(entry, dict) \
-                or not isinstance(entry.get("field"), str) \
-                or not isinstance(entry.get("tokens"), list) \
-                or not all(isinstance(t, str) for t in entry["tokens"]):
-            raise TaskSpecError(
-                f"{task_id} [matrix.proxy].{axis} must be a table with a "
-                f"`field` string and a `tokens` list of strings, got "
-                f"{entry!r}. The proxy is a documented stand-in for a failed "
-                f"check (new_matrix.md 3.1 item 5), so the field and the "
-                f"tokens have to be stated, not implied.")
-        proxy[str(axis)] = ArtifactTokens(field=entry["field"],
-                                          tokens=tuple(entry["tokens"]))
-
-    # [matrix.outcome] (outcome.py). ONE key, like `map`: the arm's table
-    # replaces the base's wholesale. Ids are vouched for by the map's union
-    # plus the grader manifest's check table where that can be read.
+    # [matrix.outcome] (outcome.py). ONE key: the arm's table replaces the
+    # base's wholesale. Ids are vouched for by the grader manifest's check
+    # table where that can be read.
     raw_outcome = pick("outcome")
     outcome_spec = None
-    known = {cid for ids in axis_map.values() for cid in ids}
     manifest_ids = _manifest_check_ids(root, raw or {})
-    vouched = (known | manifest_ids) if manifest_ids else None
+    vouched = set(manifest_ids) if manifest_ids else None
     if raw_outcome is not None:
         try:
             outcome_spec = parse_outcome_spec(
@@ -625,61 +623,12 @@ def _matrix_spec(task_id: str, root: Path, base: dict | None,
         raise TaskSpecError(
             f"{task_id} role must be one of {ROLES}, got {role!r}")
 
-    pass_axis = str(pick("pass_axis"))
     try:
-        spec = MatrixSpec(pass_axis=pass_axis, gate=gate,
-                          accepted=tuple(accepted), map=axis_map, proxy=proxy,
-                          outcome=outcome_spec, progress=progress_spec,
-                          path=path_spec, path_allow=path_allow, role=role)
+        return MatrixSpec(accepted=tuple(accepted), outcome=outcome_spec,
+                          progress=progress_spec, path=path_spec,
+                          path_allow=path_allow, role=role)
     except MatrixError as exc:
         raise TaskSpecError(f"{task_id} [matrix]: {exc}") from exc
-
-    if not axis_map.get(pass_axis):
-        raise TaskSpecError(
-            f"{task_id} [matrix] pass_axis = {pass_axis!r} but [matrix.map] "
-            f"names no {pass_axis} checks. Every episode would withhold the "
-            f"projected pass as n/a forever, with no signal but an empty "
-            f"denominator. A pass axis the grader cannot score is a "
-            f"declaration error, not a measurement.")
-    if gate is not None and not axis_map.get(gate):
-        raise TaskSpecError(
-            f"{task_id} [matrix] gate = {gate!r} but [matrix.map] names no "
-            f"{gate} checks. The gate would admit-or-withhold on zero "
-            f"evidence for every episode. State the checks, or `gate = "
-            f"false` for a control task with nothing to find.")
-    return spec
-
-
-def pass_axis_outside_top_band(spec: MatrixSpec, role: str | None = None) -> list[str]:
-    """Pass-axis checks that no top-band outcome class requires.
-
-    The projected pass (the headline) and the scalar's 1.0 (resolved, plus
-    withheld_with_evidence on a decision arm) should measure the same
-    thing; a check the pass axis scores but no top-band class requires
-    means a rollout can read 1.0 while the headline says fail, or the
-    reverse (R1 2026-09-19). validity.static_card reports these as a warn
-    - four shipped arms diverge by design and the call is the task's, so
-    loading does not refuse. Empty when there is no outcome table.
-    """
-    outcome_spec = getattr(spec, "outcome", None)
-    if outcome_spec is None or not hasattr(outcome_spec, "conditions_for"):
-        return []
-    role = role or getattr(spec, "role", None) or "control"
-    top = ["resolved"] + (["withheld_with_evidence"] if role == "decision" else [])
-    ids = {split_condition(c)[1] for cls in top
-           for c in outcome_spec.conditions_for(cls)}
-    if not ids:
-        return []
-    # A check whose CHARGED form names a class that precedes the top band
-    # (`!W1` under boundary_violated) is required by every top-band episode
-    # already - first match wins, so a resolved episode has W1 passing by
-    # construction. Listing it again under resolved would say nothing new.
-    for cls in ("false_claim", "boundary_violated"):
-        for c in outcome_spec.conditions_for(cls):
-            negated, cid = split_condition(c)
-            if negated:
-                ids.add(cid)
-    return [c for c in spec.map.get(spec.pass_axis, ()) if c not in ids]
 
 
 def _requested_variant(explicit: str | None) -> str | None:

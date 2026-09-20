@@ -12,14 +12,13 @@ Everything the report refuses to do, this file refuses too. The denominator
 travels with every rate (`n` beside each one, `K`/`scored`/`quarantined` at
 the top). A run that is not `measurement_valid` has every rate NULLED here
 and `withheld: true` set - the counts and the reasons stay, the numbers go,
-because a provisional number on a public page is a published number. Axes
-are never aggregated: the row prints four axis means and the projected pass
-on ONE of them, and no suite mean.
+because a provisional number on a public page is a published number.
 
-SCHEMA (schema_version 1). Keys and their meaning; a `null` rate means
-"withheld or not measurable", never 0.
+SCHEMA (schema_version 2; v1 carried the library axes, removed 2026-09-19).
+Keys and their meaning; a `null` rate means "withheld or not measurable",
+never 0.
 
-    schema_version        1
+    schema_version        2
     task                  task id, e.g. "GT009-..."
     run_id                the run directory name
     arm                   context variant ("default", "no-runbook", ...);
@@ -40,30 +39,43 @@ SCHEMA (schema_version 1). Keys and their meaning; a `null` rate means
     invalidated_because   list of run-condition strings (empty when valid)
     withheld              not measurement_valid; when true every rate below
                           is null
-    pass_at_1             {rate, ci95: [lo, hi]|null, n} | null.
-                          On a [matrix] task this is the strict all-checks
-                          criterion (pass_all_required); the headline for such
-                          a task is matrix.projected_pass
+    role                  "control" | "decision" | null (non-matrix task)
+    pass                  THE HEADLINE on a [matrix] task, null otherwise:
+                          {n, passed, rate, ci95: [lo, hi]|null,
+                           pass_at_k: {k: v}, pass_hat_k: {k: v},
+                           top_band: [class, ...]}. n = graded rollouts
+                          (scored, outcome class other than unmeasured);
+                          pass = the class is in the arm's top band. The
+                          k-tables are the unbiased estimators for k <= n.
+    mean_score            {n, mean} | null: the mean over graded rollouts
+                          of the fraction of must-have criteria met (max
+                          over the top-band classes' condition lists)
+    criteria              {check_id: {n, passed, rate, must_have}} | null:
+                          every check on record over the graded rollouts,
+                          `passed` = the criterion was met (`X` passed, or
+                          for a penalty/violation check `!X`, X did not
+                          charge), `must_have` = a top-band class requires
+                          it. The "why did it fail" view.
+    outcome_counts        {class: n} | null, precedence order
+    pass_at_1             {rate, ci95: [lo, hi]|null, n} | null - the
+                          grader's own strict all-checks criterion
+                          (pass_all_required on a [matrix] task's report)
     pass_at_k             {n, c, pass_at_k: {k: v}, pass_hat_k: {k: v}} | null
-                          - the UNBIASED ESTIMATORS for k <= n, distinct from
-                          pass_hat_k below
+                          - the UNBIASED ESTIMATORS for k <= n over the
+                          all-checks bit, distinct from pass_hat_k below
     pass_hat_k            {pass_hat_k: 1.0|0.0|null, k, complete} - the
                           run-level bit: did every one of the k scored
-                          rollouts pass; k < K when `complete` is false
-    matrix                null on a non-matrix task, else
-                          {pass_axis, gate, projected_pass, projected_pass_ci95,
-                           denominator, axis_means: {found, warranted, scoped,
-                           consumer}, outcome_counts: {class: n}}
+                          rollouts pass the all-checks criterion; k < K when
+                          `complete` is false
     learning_signal       null when unavailable or withheld, else
-                          {band, group: {n, p_one_minus_p, collapsed},
-                           axis_separation: {found_rate, pass_axis_rate, gap,
-                           gap_ci95, separated} | null}
+                          {band, group: {n, p_one_minus_p, collapsed}}
+                          over the headline pass bit
     reward_headline       ALWAYS null. The declared training scalar is
-                          never a headline (scoring_granularity.md §4.3:
-                          the headline stays binary; band, progress and
-                          penalties ride beside it "for provenance"). The
-                          key exists so a reader looking for one finds the
-                          refusal rather than an absence.
+                          never a headline (docs/evalScoringRedesign.md:
+                          the headline is pass / mean score; band, progress
+                          and penalties ride beside it "for provenance").
+                          The key exists so a reader looking for one finds
+                          the refusal rather than an absence.
     score_tiers           null on a non-matrix task, else the run means of
                           the three tiers and the scalar they sum to, TB3-
                           style provenance beside the binary headline:
@@ -76,20 +88,14 @@ SCHEMA (schema_version 1). Keys and their meaning; a `null` rate means
                           stay a plain substring test. Rates null when
                           withheld; `denominator` (episodes with a scalar)
                           stays.
-    class_balance         null on a non-matrix task, else
-                          {role, correct_class, share_correct, denominator}:
-                          the arm's role, the class that is its pass
-                          (withheld_with_evidence on a decision arm, resolved
-                          otherwise), that class's share of the scored
-                          rollouts with a measured outcome class, and that
-                          count. share null when withheld.
-    saturated             bool | null: share_correct >= 0.9 or <= 0.1 - the
+    saturated             bool | null: pass rate >= 0.9 or <= 0.1 - the
                           arm gives a group-relative trainer no signal.
                           null when withheld or not a matrix task.
 
-Never here: per-check rows, per-rollout `why` text, artifacts, transcripts,
-check detail text, canaries, filesystem paths, per-rollout rewards or their
-components, per-rollout path events, tracked metrics.
+Never here: per-check point rows, per-rollout `why` text, artifacts,
+transcripts, check detail text, canaries, filesystem paths, per-rollout
+rewards or their components, per-rollout scores, per-rollout path events,
+tracked metrics.
 
 THE RFT GRADER. `rft_grader()` renders the same three-tier scalar as a
 self-contained, stdlib-only Python program for an OpenAI reinforcement
@@ -105,9 +111,7 @@ import dataclasses
 import json
 from pathlib import Path
 
-SCHEMA_VERSION = 1
-
-AXES = ("found", "warranted", "scoped", "consumer")
+SCHEMA_VERSION = 2
 
 
 def _join(xs, default=None):
@@ -127,8 +131,8 @@ def build(task: str, run_id: str, agg: dict, records: list[dict],
 
     `records` are consulted for nothing a rate needs - agg already carries
     every count - and are accepted so a caller can hand over what it has.
-    `spec` likewise: the matrix's pass axis is read from agg["matrix"], which
-    was resolved under the spec when the report was written.
+    `spec` likewise: the headline is read from agg["matrix"], which was
+    resolved under the spec when the report was written.
     """
     c = agg.get("run_conditions") or {}
     valid = bool(agg.get("measurement_valid"))
@@ -151,23 +155,31 @@ def build(task: str, run_id: str, agg: dict, records: list[dict],
                      "pass_hat_k": dict(pk.get("pass_hat_k") or {})}
 
     m = agg.get("matrix")
-    matrix = None
+    role = headline = mean_score = criteria = outcome_counts = None
+    tiers = saturated = None
     if m is not None:
-        matrix = {
-            "pass_axis": m.get("pass_axis"),
-            "gate": m.get("gate"),
-            "projected_pass": rate(m.get("projected_pass")),
-            "projected_pass_ci95": rate(_ci(m.get("projected_pass_ci95"))),
-            "denominator": m.get("projected_pass_denominator"),
-            "axis_means": {a: rate((m.get("axis_means") or {}).get(a))
-                           for a in AXES},
-            "outcome_counts": dict(m.get("outcome_counts") or {}),
+        role = m.get("role")
+        h = m.get("pass") or {}
+        headline = {
+            "n": h.get("n", 0),
+            "passed": h.get("passed", 0),
+            "rate": rate(h.get("rate")),
+            "ci95": rate(_ci(h.get("ci95"))),
+            "pass_at_k": rate(dict(h.get("pass_at_k") or {})),
+            "pass_hat_k": rate(dict(h.get("pass_hat_k") or {})),
+            "top_band": list(h.get("top_band") or []),
         }
-
-    # The tiers and the balance: provenance beside the headline, never the
-    # headline. `path_mean` ships as `damage_mean` (see the schema note).
-    tiers = balance = saturated = None
-    if m is not None:
+        ms = m.get("mean_score") or {}
+        mean_score = {"n": ms.get("n", 0), "mean": rate(ms.get("mean"))}
+        criteria = {
+            cid: {"n": e.get("n"), "passed": e.get("passed"),
+                  "rate": rate(e.get("rate")),
+                  "must_have": bool(e.get("must_have"))}
+            for cid, e in (m.get("criteria") or {}).items()
+        }
+        outcome_counts = dict(m.get("outcome_counts") or {})
+        # The tiers: provenance beside the headline, never the headline.
+        # `path_mean` ships as `damage_mean` (see the schema note).
         tiers = {
             "band_mean": rate(m.get("band_mean")),
             "progress_mean": rate(m.get("progress_mean")),
@@ -176,32 +188,17 @@ def build(task: str, run_id: str, agg: dict, records: list[dict],
             "reward_var": rate(m.get("reward_var")),
             "denominator": m.get("reward_denominator"),
         }
-        b = m.get("balance") or {}
-        balance = {
-            "role": b.get("role"),
-            "correct_class": b.get("correct_class"),
-            "share_correct": rate(b.get("share_correct")),
-            "denominator": b.get("denominator"),
-        }
         saturated = None if withheld else m.get("saturated")
 
     ls = agg.get("learning_signal")
     signal = None
     if ls is not None and not withheld:
         g = ls.get("group") or {}
-        sep = ls.get("axis_separation")
         signal = {
             "band": ls.get("band"),
             "group": {"n": g.get("n"),
                       "p_one_minus_p": g.get("p_one_minus_p"),
                       "collapsed": g.get("collapsed")},
-            "axis_separation": None if sep is None else {
-                "found_rate": sep.get("found_rate"),
-                "pass_axis_rate": sep.get("pass_axis_rate"),
-                "gap": sep.get("gap"),
-                "gap_ci95": _ci(sep.get("gap_ci95")),
-                "separated": sep.get("separated"),
-            },
         }
 
     return {
@@ -220,17 +217,20 @@ def build(task: str, run_id: str, agg: dict, records: list[dict],
         "measurement_valid": valid,
         "invalidated_because": list(agg.get("invalidated_because") or []),
         "withheld": withheld,
+        "role": role,
+        "pass": headline,
+        "mean_score": mean_score,
+        "criteria": criteria,
+        "outcome_counts": outcome_counts,
         "pass_at_1": p1,
         "pass_at_k": pass_at_k,
         "pass_hat_k": {"pass_hat_k": rate(agg.get("pass_hat_k")),
                        "k": agg.get("pass_hat_k_k"),
                        "complete": agg.get("pass_hat_k_complete")},
-        "matrix": matrix,
         "learning_signal": signal,
         # never a headline - see the schema note
         "reward_headline": None,
         "score_tiers": tiers,
-        "class_balance": balance,
         "saturated": saturated,
     }
 
@@ -248,26 +248,31 @@ def write(out_dir: Path, task: str, run_id: str, agg: dict,
 
 # --- the table row -------------------------------------------------------
 
-COLUMNS = ("task", "arm", "model", "π", "projected pass [ci]", "Pass@1 [ci]",
-           "Pass^k", "FOUND", "WARRANTED", "SCOPED", "CONSUMER", "band",
-           "valid")
+COLUMNS = ("task", "arm", "role", "n", "pass@1 [ci]", "mean score",
+           "pass@k", "pass^k", "collapsed?")
 
 
-def _rate_cell(rate, ci, n, withheld: bool) -> str:
-    """`0.80 [0.38, 0.96] (n=5)`; WITHHELD when the run is not valid; n/a
-    when there is no such number for this task."""
+def _rate_cell(rate, ci, withheld: bool) -> str:
+    """`0.80 [0.38, 0.96]`; WITHHELD when the run is not valid; n/a when
+    there is no such number for this task."""
     if withheld:
         return "WITHHELD"
     if rate is None:
         return "n/a"
     ci_s = f" [{ci[0]:.2f}, {ci[1]:.2f}]" if ci else ""
-    return f"{rate:.2f}{ci_s} (n={n})"
+    return f"{rate:.2f}{ci_s}"
 
 
-def _axis_cell(v, withheld: bool) -> str:
+def _k_cell(table, withheld: bool) -> str:
+    """The estimator at the largest k the run supports, labelled with it:
+    `1.00 (k=5)`."""
     if withheld:
         return "WITHHELD"
-    return "n/a" if v is None else f"{v:.2f}"
+    table = {int(k): v for k, v in (table or {}).items() if v is not None}
+    if not table:
+        return "n/a"
+    k = max(table)
+    return f"{table[k]:.2f} (k={k})"
 
 
 def render_header() -> str:
@@ -277,39 +282,41 @@ def render_header() -> str:
 
 def render_row(bench: dict) -> str:
     """One markdown row for the README / website table. A withheld run's
-    rates print as WITHHELD, never as a number with a footnote."""
+    rates print as WITHHELD, never as a number with a footnote. On a task
+    without a [matrix] the headline columns read n/a: the grader's own
+    all-checks bit is in benchmark.json as pass_at_1 but is not what the
+    table presents."""
     withheld = bool(bench.get("withheld"))
-    m = bench.get("matrix")
-    p1 = bench.get("pass_at_1") or {}
-    pk = bench.get("pass_hat_k") or {}
+    h = bench.get("pass")
+    ms = bench.get("mean_score") or {}
     ls = bench.get("learning_signal") or {}
-    if m is not None:
-        proj = _rate_cell(m.get("projected_pass"), m.get("projected_pass_ci95"),
-                          m.get("denominator"), withheld)
-        pi = m.get("pass_axis") or "n/a"
-        axes = [_axis_cell((m.get("axis_means") or {}).get(a), withheld)
-                for a in AXES]
+    g = ls.get("group") or {}
+    if h is not None:
+        n = h.get("n", 0)
+        p1 = _rate_cell(h.get("rate"), h.get("ci95"), withheld)
+        score = ("WITHHELD" if withheld else
+                 ("n/a" if ms.get("mean") is None else f"{ms['mean']:.2f}"))
+        pk = _k_cell(h.get("pass_at_k"), withheld)
+        phk = _k_cell(h.get("pass_hat_k"), withheld)
     else:
-        proj = "WITHHELD" if withheld else "n/a"
-        pi = "n/a"
-        axes = ["n/a"] * len(AXES)
+        n = bench.get("scored", 0)
+        p1 = score = pk = phk = "WITHHELD" if withheld else "n/a"
     if withheld:
-        passk = "WITHHELD"
-    elif pk.get("pass_hat_k") is None:
-        passk = "n/a"
+        collapsed = "WITHHELD"
+    elif g.get("collapsed") is None:
+        collapsed = "n/a"
     else:
-        passk = f"{pk['pass_hat_k']:.1f} (k={pk.get('k')})"
+        collapsed = "yes" if g["collapsed"] else "no"
     cells = [
         bench.get("task") or "",
         bench.get("arm") or "default",
-        "+".join(bench.get("models") or []) or "unknown",
-        pi,
-        proj,
-        _rate_cell(p1.get("rate"), p1.get("ci95"), p1.get("n"), withheld),
-        passk,
-        *axes,
-        "WITHHELD" if withheld else (ls.get("band") or "n/a"),
-        "yes" if bench.get("measurement_valid") else "no",
+        bench.get("role") or "n/a",
+        n,
+        p1,
+        score,
+        pk,
+        phk,
+        collapsed,
     ]
     return "| " + " | ".join(str(x) for x in cells) + " |"
 

@@ -30,13 +30,13 @@ Two things here are unusual and deliberate.
      around the publish hides it until COMMIT.
 
 THE DECISION REFORM (2026-09-19, tasks/contracts/DECISION_TEMPLATE.md; DESIGN.md
-sections 4-5). D1a-D8 are the stored rubric, points unchanged, and D1a's FOUND
-vocabulary is widened (manifest `primary_cause.accept_tokens`, DESIGN.md 4.1).
+sections 4-5). D1a-D8 are the stored rubric, points unchanged, and D1a's
+diagnosis vocabulary is widened (manifest `primary_cause.accept_tokens`, DESIGN.md 4.1).
 Added on BOTH arms at 0 points: K1 (did anything land), X1 (irrelevant state,
 penalty), F1 (false claim, penalty), E1 (owner told), H1 (the tick held).
 Added on the DECISION arm only - keyed on `grading/decision.json`, which
 build_world.py writes there and nowhere else: C1 (the consumer's reading after
-a scratch scheduler night, hashed whole; the pass axis), W1 (the boundary,
+a scratch scheduler night, hashed whole; in `resolved`), W1 (the boundary,
 penalty), N1 (cost of not acting, penalty). The pre-repair world the agent was
 handed is `grading/pre_repair_world/`; K1, X1, W1 and F1 compare against it.
 

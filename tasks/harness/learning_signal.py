@@ -5,22 +5,20 @@ The signatures and return shapes below are the contract `report.py` and
 without changing the callers; adding a key is fine, renaming one is not.
 
 Everything here is a pure function over already-scored episode records or
-over plain numbers. Nothing here re-reads a world, re-grades, or aggregates
-across axes (axes.py forbids that and this module inherits the ban).
+over plain numbers. Nothing here re-reads a world or re-grades.
 
 Record shape (one scored episode, as `report.py` sees it):
     {"scored": bool, "passed": bool, "classification": str, ...}
-Matrix per-episode row (axes.axis_report):
-    {"axes": {axis: float|None}, "admitted": bool|None, "pass": bool|None}
+Matrix per-episode row (report._matrix_block's per_rollout):
+    {"outcome": {...}|None, "pass": bool|None, "score": {...}|None, ...}
 
-Why these statistics and not others (docs/research.md §2): a GRPO/DAPO
-trainer drops every prompt group whose rewards are all identical, so the
-number a buyer needs is not "how hard is this task" but "at the current
-policy, do K episodes of it disagree with each other". pass@k / pass^k say
-whether disagreement is possible at all; `group_signal` says whether it
-happened in this run; `band` names the regime; `clustered_mean` gives the
-error bar a run-of-runs claim needs; `axis_separation` is the one
-pre-registered comparison the matrix exists to make.
+Why these statistics and not others (docs/evalScoringRedesign.md): a
+GRPO/DAPO trainer drops every prompt group whose rewards are all identical,
+so the number a buyer needs is not "how hard is this task" but "at the
+current policy, do K episodes of it disagree with each other". pass@k /
+pass^k say whether disagreement is possible at all; `group_signal` says
+whether it happened in this run; `band` names the regime; `clustered_mean`
+gives the error bar a run-of-runs claim needs.
 
 Rounding: the raw estimators (`pass_at_k_unbiased`, `pass_hat_k_unbiased`,
 `wilson_interval`, `trials_to_separate`) return exact values so a caller can
@@ -32,7 +30,7 @@ from __future__ import annotations
 import math
 import statistics
 
-# Band thresholds (docs/research.md §2, §7.2 item 6). Module constants so a
+# Band thresholds (docs/evalScoringRedesign.md). Module constants so a
 # report can print the rule it applied.
 CORE_LOW = 0.05
 CORE_HIGH = 0.70
@@ -40,8 +38,8 @@ CONTROL_HIGH = 0.90
 BANDS = ("core", "frontier", "eval_only", "control", "unmeasured")
 
 # The k values a pass@k table reports by default. Group sizes trainers
-# actually use (research.md §2: 5, 8, 10, 16) plus the small ones that let a
-# K=3 run still print something.
+# actually use (5, 8, 10, 16) plus the small ones that let a K=3 run still
+# print something.
 DEFAULT_KS = (1, 2, 3, 5, 8, 10)
 
 _DP = 4
@@ -172,8 +170,7 @@ def group_signal(rewards: list[float]) -> dict:
 def advantage_collapse_rate(groups: list[list[float]]) -> float | None:
     """Fraction of groups whose rewards are all identical. None for no groups.
 
-    The per-task diagnostic "Advantage Collapse in GRPO" (research.md §2)
-    proposes. An empty group is not a group and leaves the denominator.
+    The per-task diagnostic "Advantage Collapse in GRPO" proposes. An empty group is not a group and leaves the denominator.
     """
     flags = [group_signal(g)["collapsed"] for g in groups]
     flags = [f for f in flags if f is not None]
@@ -196,7 +193,7 @@ def band(pass1: float | None, passk: float | None, k: int | None) -> str:
     `k` is the k `passk` was computed at; it is carried so the report can say
     "frontier at pass@8" and so a passk with no k is treated as no evidence.
     The band is a statement about THIS run's policy, not about the task: the
-    same task moves bands as the model improves (research.md §2).
+    same task moves bands as the model improves.
     """
     if pass1 is None:
         return "unmeasured"
@@ -282,79 +279,26 @@ def trials_to_separate(p1: float, p2: float, z: float = 1.96,
     return math.ceil(n)
 
 
-def axis_separation(found: tuple[int, int] | None,
-                    pass_axis: tuple[int, int] | None) -> dict:
-    """The statistic MATRIX_RERUN_EDITS.md §1 pre-registers: FOUND at ceiling,
-    pass axis below it. Each input is (passed, n) or None.
-
-    Returns {"found_rate", "pass_axis_rate", "gap", "gap_ci95", "separated": bool|None}.
-
-    gap = found_rate - pass_axis_rate. The interval is the two-proportion
-    Wald one, gap ± 1.96 · sqrt(p_f(1-p_f)/n_f + p_p(1-p_p)/n_p); Wald
-    rather than Wilson here because the quantity is a difference and a
-    difference of two Wilson intervals has no clean coverage story. Note
-    a FOUND at exactly n/n contributes zero variance, so the interval's
-    width comes entirely from the pass axis - that is what "at ceiling"
-    means in practice.
-
-    `separated` is True only when the whole interval sits above zero:
-    the model found the thing and still did not pass, and the run is large
-    enough to say so. False when the interval touches or crosses zero
-    (including the degenerate n/n vs n/n case, gap 0 with zero width).
-    None when either side is None or has no episodes - unmeasured, not
-    "not separated".
-    """
-    empty = {"found_rate": None, "pass_axis_rate": None, "gap": None,
-             "gap_ci95": None, "separated": None}
-    if found is None or pass_axis is None:
-        return empty
-    pf, nf = found
-    pp, np_ = pass_axis
-    if nf <= 0 or np_ <= 0:
-        return empty
-    rf = pf / nf
-    rp = pp / np_
-    gap = rf - rp
-    se = math.sqrt(rf * (1 - rf) / nf + rp * (1 - rp) / np_)
-    # A difference of two proportions lives in [-1, 1]; Wald does not know
-    # that and printed [0.45, 1.15] on a real K=5 run. Clamp the bounds, not
-    # the verdict: `separated` still reads the unclamped lower bound.
-    lo, hi = gap - 1.96 * se, gap + 1.96 * se
-    lo_c, hi_c = max(-1.0, lo), min(1.0, hi)
-    return {
-        "found_rate": _r(rf),
-        "pass_axis_rate": _r(rp),
-        "gap": _r(gap),
-        "gap_ci95": [_r(lo_c), _r(hi_c)],
-        "separated": lo > 0,
-    }
-
-
 def _reward_group(records: list[dict], matrix_block: dict | None) -> dict:
     """The per-episode binary reward this run hands a trainer.
 
-    Projected pass on the declared pass axis when the task has a matrix;
-    the plain `passed` bit otherwise. An episode whose projected pass is
-    None (gate cold, gate or pass axis unmeasured) is EXCLUDED - it leaves
-    the group, it is not a 0. Counting it as 0 would be the quarantine
-    mistake report._pass_hat_k refuses to make, moved one layer up.
+    The headline `pass` bit (outcome class in the arm's top band) when the
+    task has a matrix; the plain `passed` bit otherwise. An episode whose
+    pass is None (unmeasured: none of the declared checks on record) is
+    EXCLUDED - it leaves the group, it is not a 0. Counting it as 0 would be
+    the quarantine mistake report._pass_hat_k refuses to make, moved one
+    layer up.
     """
     if matrix_block is None:
         scored = [r for r in records if r.get("scored")]
         rewards = [1.0 if r.get("passed") else 0.0 for r in scored]
-        return {"rewards": rewards, "excluded": 0,
-                "found": None, "pass_axis": None, "source": "passed"}
+        return {"rewards": rewards, "excluded": 0, "source": "passed"}
     rows = list((matrix_block.get("per_rollout") or {}).values())
     passes = [row.get("pass") for row in rows]
     rewards = [1.0 if p else 0.0 for p in passes if p is not None]
-    found_rates = [(row.get("axes") or {}).get("found") for row in rows]
-    found_seen = [f for f in found_rates if f is not None]
-    found = (sum(1 for f in found_seen if f == 1.0), len(found_seen))
-    pass_seen = [p for p in passes if p is not None]
-    pass_axis = (sum(1 for p in pass_seen if p), len(pass_seen))
-    return {"rewards": rewards, "excluded": len(passes) - len(pass_seen),
-            "found": found, "pass_axis": pass_axis,
-            "source": "projected_pass"}
+    return {"rewards": rewards,
+            "excluded": sum(1 for p in passes if p is None),
+            "source": "pass"}
 
 
 def summarise(records: list[dict], matrix_block: dict | None) -> dict:
@@ -362,21 +306,21 @@ def summarise(records: list[dict], matrix_block: dict | None) -> dict:
 
     Must contain: pass_at_1 (dict from pass_at_1), pass_at_k (dict from
     pass_at_k_table over scored/passed), group (dict from group_signal over
-    the per-episode binary reward: projected pass when matrix_block is not
-    None, else `passed`), band (str), axis_separation (dict|None),
-    thresholds ({"core_low", "core_high", "control_high"}).
+    the per-episode binary reward: the headline `pass` bit when
+    matrix_block is not None, else `passed`), band (str), thresholds
+    ({"core_low", "core_high", "control_high"}).
 
     Also carries: "k_available" (the largest k in the pass@k table the
-    group's n supports, 0 when empty), "excluded" (episodes whose projected
-    pass was None and so left the reward group), "reward_source"
-    ("projected_pass" | "passed").
+    group's n supports, 0 when empty), "excluded" (episodes whose pass was
+    None and so left the reward group), "reward_source" ("pass" | "passed").
 
     Every number here is over the SAME reward group, so pass_at_1, pass_at_k,
     group and band agree with each other and with what a trainer would see.
-    For a matrix task that means pass_at_1 here is the projected-pass rate
-    over admitted-and-measured episodes; the record-level Pass@1 the report
-    prints in its headline is a different denominator and stays where it is.
-    When matrix_block is None the two coincide.
+    For a matrix task that means pass_at_1 here is the headline pass rate
+    over graded episodes - the same n and c as summary["matrix"]["pass"] -
+    while the record-level pass_all_required the report prints below it is
+    a different denominator and stays where it is. When matrix_block is None
+    the two coincide.
     """
     grp = _reward_group(records, matrix_block)
     rewards = grp["rewards"]
@@ -397,8 +341,6 @@ def summarise(records: list[dict], matrix_block: dict | None) -> dict:
         "k_available": k_available,
         "excluded": grp["excluded"],
         "reward_source": grp["source"],
-        "axis_separation": (None if matrix_block is None
-                            else axis_separation(grp["found"], grp["pass_axis"])),
         "thresholds": {"core_low": CORE_LOW, "core_high": CORE_HIGH,
                        "control_high": CONTROL_HIGH},
     }

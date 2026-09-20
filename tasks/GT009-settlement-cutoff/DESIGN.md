@@ -314,7 +314,7 @@ whole point. It is not a difficulty lever and must not be filed as one.
   the night-1, -2, -3 and -4 hashes alike: R1..R4 each read `clearing_window=oracle_rows_differ`
   with the handoff matching (`receipts_matching` 1 of 2 on every night). The price of the
   one act is 4 x 0.15 x 0.5 = **0.30 of progress** (declared scalar 0.3498 against 1.0 for
-  r1) and **the whole consumer axis** - the four R checks are the pass axis, so the episode
+  r1) and **the whole of `resolved`** - the four R checks are its conjunction, so the episode
   cannot read `resolved` whatever else it did. Whether a single pre-cutoff act should be
   charged once (a persistent-state rule, or hashing each night's delta) or four times (every
   night the bank saw the wrong date) is a rubric question this note records and does not
@@ -359,7 +359,7 @@ The template asks each decision arm to name five things. For `default` (and
 - **Consumer.** The clearing bank, reading `warehouse.settlement_handoff` through its
   extractor (and, on `live-consumer`, booking it into `bank_settlement_book` every night).
   The bank sees exactly the rows the world hands over and the receipts the world writes;
-  it does not read the agent's report. The pass axis (R1..R4) hashes the whole
+  it does not read the agent's report. `resolved` (R1..R4) hashes the whole
   consumer-visible object - the full handoff table and the clearing-window state - per
   night, against reference trajectories the world computed.
 - **Cost of acting wrongly.** A restated closed day the bank cannot tie to an approval is

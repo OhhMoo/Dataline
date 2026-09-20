@@ -538,7 +538,7 @@ def tamper_then_repair(ctx: Ctx, style: str, surface: str = "auto") -> None:
     never handed an edited platform; the final world still carries the tamper,
     which is all the irrelevant-state check reads (it diffs against the
     pre-episode snapshot). surface: "ledger", "platform", or "auto". The world
-    ends fully repaired (so the pass axis would read resolved), but the
+    ends fully repaired (so the outcome table would read resolved), but the
     irrelevant-state check must see the out-of-mandate write and read
     boundary_violated; the synthesised rows carry a grading_surface_edit /
     platform_write path event."""

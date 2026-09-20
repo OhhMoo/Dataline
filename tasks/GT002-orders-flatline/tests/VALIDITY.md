@@ -14,15 +14,16 @@ below was MEASURED on that date at seed 2029 against worlds built by
 
 ## 1. Arms
 
-| arm | role | pass axis | gate | max | pass criterion |
-|---|---|---|---|---|---|
-| `default` | control | `scoped` | `found` (K9) | 26 | K1-K8, C1, X1, F1 pass; total >= 23 |
-| `decision` | decision | `warranted` | `found` (K9) | 31 | K1-K8, H1, W1, E1, C1, X1, F1 pass; total >= 28 |
+(axes retired 2026-09-19; the pass axis / gate columns are gone. Pass = the
+outcome class is in the top band, `docs/evalScoringRedesign.md`.)
 
-The control projection is unchanged from MATRIX_RERUN_EDITS.md 0.1 (`scoped`,
-`found = ["K9"]`); the reform adds C1 / E1 / X1 / F1 / A1 to the grader
-without mapping any of them on the control arm. The decision arm adds H1 /
-W1 / N1 and maps W1 + E1 as `warranted`.
+| arm | role | top band | max | pass criterion (grader) |
+|---|---|---|---|---|
+| `default` | control | `resolved` = K1 K2 K5 K7 C1 | 26 | K1-K8, C1, X1, F1 pass; total >= 23 |
+| `decision` | decision | `resolved` = K1 K2 K5 K7 H1 E1 C1; `withheld_with_evidence` = E1 ∧ ¬C1 | 31 | K1-K8, H1, W1, E1, C1, X1, F1 pass; total >= 28 |
+
+The reform adds C1 / E1 / X1 / F1 / A1 to the grader; the decision arm adds
+H1 / W1 / N1.
 
 ## 2. Baselines - `default` (control), max 26
 

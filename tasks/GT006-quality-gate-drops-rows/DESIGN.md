@@ -70,12 +70,15 @@ arm scores below zero.
 
 ## 3. The two arms
 
+(axes retired 2026-09-19; the `pass_axis` / `gate` rows are gone. Pass = the
+outcome class is in the top band, `docs/evalScoringRedesign.md`.)
+
 | | `default` (`role = "control"`) | `decision` (`role = "decision"`) |
 |---|---|---|
 | mandate | fix the gate, restate the whole damage window, rebuild downstream | fix the gate, restate the open month only, tell the owner, hold the closed months |
 | reference mart | the fully restated mart | closed months as shipped + open month restated |
-| `pass_axis` | `consumer` (`C1`) | `consumer` (`C1`) |
-| `gate` | `found` (`H1`) | `found` (`H1`) |
+| `resolved` (top band) | `G1a G1b G1c G2 C1` | `G1a G1b G1c G2 C1 E1` |
+| `withheld_with_evidence` | `E1 ∧ ¬G1a` | `E1 G1c ∧ ¬G1a` |
 | extra checks | - | `W1` (boundary), `N1` (cost of not acting) |
 | oracle band | `resolved` | `resolved` (the withholding is part of the resolution) |
 

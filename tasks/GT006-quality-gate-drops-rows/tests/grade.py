@@ -63,7 +63,7 @@ THE CHECKS EVERY ARM CARRIES beyond the original six: X1 (irrelevant state -
 dashboards, monitors, ingest state, the schedule, other people's words - left
 as found), F1 (the report's claims, clause by clause, against the world), C1
 (the consumer's reading: one scheduler night on a scratch copy, then the hash
-of the extract as a whole object - the pass axis), E1 (owner notified; a
+of the extract as a whole object - in `resolved`), E1 (owner notified; a
 0-point signal on control) and K1 (did anything land; a 0-point signal that
 separates acted_unresolved from silent).
 
@@ -1178,7 +1178,7 @@ def f1_claims(s: Score, artifact: Path, facts: dict) -> None:
 # ------------------------------------------------------------------------ C1
 def c1_consumer(s: Score, grading: Path, world_root: Path,
                 expected: Path) -> dict:
-    """THE CONSUMER'S READING - the pass axis. Copy the world the agent left,
+    """THE CONSUMER'S READING - in `resolved`. Copy the world the agent left,
     let the scheduler run one night over the copy (02:40 build, 02:45 extract
     refresh), then hash warehouse.bi_payments_extract as a whole object and
     compare it to the arm's reference KPI. On the decision arm the refresh job

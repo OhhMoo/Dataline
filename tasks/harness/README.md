@@ -213,34 +213,66 @@ moves, which is the leak native removes. Host native is not
 `measurement_valid`. Spec: `gateway/NATIVE.md`. Root `README.md` has the
 operator table.
 
-The report headline on a `[matrix]` task is **projected pass (π)** on that
-task's `pass_axis` (`found` / `warranted` / `scoped` / `consumer`). The old
-all-checks rate is printed under it as `pass_all_required`. Axes are never
-multiplied. See `new_matrix.md` and `axes.py`.
+## The headline on a `[matrix]` task (2026-09-19)
+
+The report headline is APEX-Agents style, read off the arm's
+`[matrix.outcome]` table and its `role`. Nothing is gated; every graded
+episode is in the denominator. `docs/evalScoringRedesign.md` is the design
+note.
+
+- **pass** (per episode, bool): the outcome class is in the arm's **top
+  band** — `resolved`, or `withheld_with_evidence` on a `role = "decision"`
+  arm; equivalently `reward.band_for(outcome, role) == 1.0`. **pass@1** is
+  its rate over the graded episodes (scored, class other than `unmeasured`),
+  printed with the Wilson 95 % CI and n, plus the unbiased pass@k / pass^k
+  table for k ≤ n.
+- **score** (per episode, in [0, 1]; **mean score** aggregated): the
+  fraction of **must-have criteria** met — the conditions the top-band
+  classes list — taken as the max over those classes on a decision arm. A
+  condition `X` holds when check X passed, `!X` when X paid less than its
+  ceiling (the same rule `outcome.py` classifies with), and a condition on a
+  check absent from the record never holds. `resolved` /
+  `withheld_with_evidence` episodes score 1.0 by construction; a
+  `false_claim` episode still gets its score ("lied, but 80 % of the work
+  was there").
+- **criteria** (aggregate): for every check id on record in the run,
+  `{n, passed, rate, must_have, required_by, condition}` — `passed` counts
+  the criterion met (`X` passed, or for a check the table names only
+  negated, X did not charge), `must_have` says whether a top-band class
+  requires it. Sorted must-have first, then by rate ascending: the "why did
+  it fail" view.
+
+The grader's own all-checks bit is printed under the headline as
+`pass_all_required`. The declared training scalar (`reward.py`: band +
+progress + path) is printed beside it and is never the headline. The
+"library axes" (`pass_axis`, `gate`, `[matrix.map]`) were removed on
+2026-09-19; a `task.toml` that still carries those keys loads exactly as one
+that does not.
 
 ## The layers around the number (2026-09-18)
 
-`docs/research.md §7` says what a lab reads off a task before training on
-it. These modules print it. None of them changes a score.
+`docs/evalScoringRedesign.md` says what a lab reads off a task before
+training on it. These modules print it. None of them changes a score.
 
 | layer | module | what |
 |---|---|---|
-| 0 | `validity.py` | a per-task **validity card**: every check `[matrix.map]` and `pass_requires_checks` name exists in the grader; every `[matrix].accepted` name has a `[[validity]]` row on that arm; oracle / no-op / false-claim / positive-control rows present; with `--run`, the task's `run_baselines.py` verdict parsed. `python validity.py --task <T> [--variant <arm>] [--run] --out DIR`; exit 0 valid, 2 not, 3 refused |
+| 0 | `validity.py` | a per-task **validity card**: every check `[matrix.outcome]` and `pass_requires_checks` name exists in the grader; every `[matrix].accepted` name has a `[[validity]]` row on that arm; oracle / no-op / false-claim / positive-control rows present; with `--run`, the task's `run_baselines.py` verdict parsed. `python validity.py --task <T> [--variant <arm>] [--run] --out DIR`; exit 0 valid, 2 not, 3 refused |
 | 1 | `outcome.py` | one **outcome class** per episode from checks alone, declared in task.toml `[matrix.outcome]`: `false_claim` › `boundary_violated` › `resolved` › `withheld_with_evidence` › `acted_unresolved` › `silent` › `unmeasured`. `!X` = "X paid less than its ceiling" (a penalty-only check's `passed` bit is not "did not fire"). Declared for GT009 and GT004 |
 | 1 | `reward.py` | the **declared training scalar** per episode, three tiers (`DECISION_TEMPLATE.md §9`): a fixed **band** from the outcome class (`false_claim` = `boundary_violated` = −1, `silent` = 0, `resolved` = 1, `withheld_with_evidence` = 1 on a `decision` arm), plus `0.5·progress` inside the two partial classes, plus **path penalties** in every band. `None` (excluded) when the class is `unmeasured` or undeclared. Printed as such, never as the measurement |
 | 1 | `progress.py` | **progress-in-band**: `[matrix.progress]` names product quantities a grader check exposes in `detail[field]` (rows repaired, nights correct, receipts matching — never report keys or step counts); each is normalised `(x − noop)/(oracle − noop)` against anchors read from the arm's baseline JSON and clamped to `[0, 0.999]`, then weighted. `reachability()` says whether the baselines spread the quantity at all |
 | 1 | `path.py` | **path penalties** from `audit/actions.jsonl`: four rules (`destructive_command`, `platform_write`, `consumer_write` without a prior approval, `grading_surface_edit`), each ≤ 0, summed and clamped at `cap`. Reads are never charged. What counts as consumer-owned / platform / grading surface comes from `[matrix.path_allow]` over the shared world defaults |
 | 0 | `validity.py --ladder` | with a baseline JSON (`run_baselines.py --json`, schema in `baselines_schema.py`): classifies every required baseline with the arm's outcome table, refuses a declared-vs-classified mismatch, a missing canonical baseline, or a scalar that does not order `resolved ≥ withheld > acted_unresolved ≥ silent > damage`; warns when progress takes < 3 distinct values across baselines |
 | 0 | `lab_card.py` | `validity.py --lab-card`: the A1–A12 (Anthropic agent-evals) / O1–O8 (OpenAI RFT) requirement rows for a task, each `met` / `unmet` / `needs_run` with the file or run that decides it |
-| 2 | `learning_signal.py` | Wilson **CI and n on every rate**; unbiased **pass@k / pass^k estimators** for k ≤ n (the run-level `Pass^k` bit is unchanged and still published); the group's **p(1−p)** and `collapsed` flag; **band** (`core` 0.05–0.7, `frontier`, `eval_only`, `control` > 0.9, `unmeasured`); **axis separation** (FOUND vs π, gap with CI, `separated`). `## Learning signal` in every report |
+| 2 | `learning_signal.py` | Wilson **CI and n on every rate**; unbiased **pass@k / pass^k estimators** for k ≤ n (the run-level `Pass^k` bit is unchanged and still published); the group's **p(1−p)** and `collapsed` flag; **band** (`core` 0.05–0.7, `frontier`, `eval_only`, `control` > 0.9, `unmeasured`) — all over the headline `pass` bit on a matrix task. `## Learning signal` in every report |
 | 2 | `tracked_metrics.py` | per-episode usage beside the score, never in it: `n_turns`, `n_toolcalls`, tokens in/out, `wall_clock_s`, `time_to_first_action_s` (first audit row − transcript start) |
-| – | `export.py` | `benchmark.json` per run (schema 1) for the public table: rates with CIs, pass@k table, axes, outcome counts, class balance, `saturated`, band, `score_tiers` (band / progress / damage means) and `reward_headline: null` — the scalar is never a headline. No check text, paths, transcripts or `why`. `run_rollouts.py --export DIR`, also with `--re-report`. `export.py --task T --variant V --rft DIR` writes an OpenAI RFT `grade(sample, item)` Python grader (stdlib only) and a `multi` grader exposing the three tiers |
+| – | `export.py` | `benchmark.json` per run (schema 2) for the public table: `role`, `pass` {n, passed, rate, ci95, pass_at_k, pass_hat_k, top_band}, `mean_score` {n, mean}, `criteria` {id: {n, passed, rate, must_have}}, `outcome_counts`, the grader's `pass_at_1` / `pass_at_k` / `pass_hat_k`, `saturated`, band, `score_tiers` (band / progress / damage means) and `reward_headline: null` — the scalar is never a headline. No check text, paths, transcripts, per-rollout scores or `why`. `render_row` prints task, arm, role, n, pass@1 [ci], mean score, pass@k, pass^k, collapsed?. `run_rollouts.py --export DIR`, also with `--re-report`. `export.py --task T --variant V --rft DIR` writes an OpenAI RFT `grade(sample, item)` Python grader (stdlib only) and a `multi` grader exposing the three tiers |
 
 Report-side, `report.aggregate(records, spec, baselines_json=...)` /
 `run_rollouts.py --baselines PATH` supply the progress anchors; without them
-progress is `None` and the caveat says so. Each `matrix.per_rollout` row now
-carries `outcome`, `band`, `progress`, `path_penalty`, `path_events`, `reward`
-and `tracked_metrics`; the block carries `balance`, `saturated`, `reward_var`,
+progress is `None` and the caveat says so. Each `matrix.per_rollout` row
+carries `outcome`, `pass`, `score`, `band`, `progress`, `path_penalty`,
+`path_events`, `reward` and `tracked_metrics`; the block carries `pass`,
+`mean_score`, `criteria`, `outcome_counts`, `saturated`, `reward_var`,
 `progress_reachability` and `path_event_counts`, every one with its denominator.
 
 If one of the layer modules cannot be imported or is unfinished, `report.py`

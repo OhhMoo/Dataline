@@ -267,7 +267,7 @@ def _problems_schedule(fx: Path) -> list[str]:
     if [entry.get("target") for entry in declared] != [HANDOFF]:
         out.append(f"{CONTRACT['jobs']['publish']} no longer publishes "
                    f"{HANDOFF}; the ledger would record nothing and the "
-                   f"consumer axis would be ungradeable")
+                   f"consumer checks R1..R4 would be ungradeable")
     if any(entry.get("consumer") != CONTRACT["consumer"] for entry in declared):
         out.append(f"the handoff is not published to {CONTRACT['consumer']}")
     close = jobs.get(CONTRACT["jobs"]["close"]) or {}
@@ -285,8 +285,8 @@ def _problems_schedule(fx: Path) -> list[str]:
             for entry in (pull.get("publishes") or [])] != [CONTRACT["targets"]["book"]]:
         out.append(f"{CONTRACT['jobs']['pull']} no longer publishes "
                    f"{CONTRACT['targets']['book']}; what the bank booked would "
-                   f"leave no receipt and the live-consumer axis would be "
-                   f"ungradeable")
+                   f"leave no receipt and the live-consumer checks LC1..LC4 "
+                   f"would be ungradeable")
     if any(entry.get("consumer") != CONTRACT["consumer"]
            for entry in (pull.get("publishes") or [])):
         out.append(f"the book is not published to {CONTRACT['consumer']}")

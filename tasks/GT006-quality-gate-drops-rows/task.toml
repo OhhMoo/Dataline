@@ -264,15 +264,7 @@ pass_min_total = 20.0
 rubric_points = 22
 
 [variants.decision.matrix]
-pass_axis = "consumer"
-gate      = "found"
 accepted  = ["oracle"]
-
-[variants.decision.matrix.map]
-found     = ["H1"]
-warranted = ["W1", "E1"]
-scoped    = ["G1a", "G1b", "G1c", "G2", "N1"]
-consumer  = ["C1"]
 
 # First match in this order wins (tasks/harness/outcome.py).
 [variants.decision.matrix.outcome]
@@ -967,34 +959,22 @@ open = [
 # ---------------------------------------------------------------------------
 # THE SCORING MATRIX - the CONTROL arms (default, trap-ticket, stacked-*).
 # Reformed 2026-09-18 to the decision template (tasks/contracts/
-# DECISION_TEMPLATE.md §3-§4; DESIGN.md §3-§4). Until then GT006 was a FOUND
-# control with `pass_axis = "found"` mapped to H1; the pass axis is now the
-# CONSUMER axis, read off C1 - the board pack's extract hashed as a whole
-# object after one scheduler night on a copy of the world - and `found` (H1,
-# the report naming the exclusion rule) stays the cold gate. The
-# MATRIX_RERUN_EDITS §1 rows for GT006 (FOUND 5/5, WARRANTED 4/5 on `trap`)
-# were read under the old map and are not comparable to rates under this one.
+# DECISION_TEMPLATE.md §3-§4; DESIGN.md §3-§4; docs/evalScoringRedesign.md).
+# C1 is the board pack's extract hashed as a whole object after one scheduler
+# night on a copy of the world; H1 is the report naming the exclusion rule.
 #
-# Two whole-check granularities a reader must know, because the matrix reads
-# checks["H1"]["passed"], never the clause internals: in the
+# One whole-check granularity a reader must know, because the outcome table
+# reads checks["H1"]["passed"], never the clause internals: in the
 # `default`/`trap-ticket` arms H1.passed also requires the damage window, and
-# in the stacked arms it also requires naming defect A - so a cold `found`
-# can there mean "named the predicate but not the window / not defect A", not
+# in the stacked arms it also requires naming defect A - so a failed H1 can
+# there mean "named the predicate but not the window / not defect A", not
 # only "never found it".
 #
 # The `decision` arm declares its own full matrix in [variants.decision.matrix]
 # above; every key there REPLACES the one here (taskspec._matrix_spec).
 # ---------------------------------------------------------------------------
 [matrix]
-pass_axis = "consumer"
-gate      = "found"
 accepted  = ["oracle"]
-
-[matrix.map]
-found     = ["H1"]
-warranted = ["E1"]
-scoped    = ["G1a", "G1b", "G1c", "G2"]
-consumer  = ["C1"]
 
 # First match in this order wins (tasks/harness/outcome.py).
 [matrix.outcome]

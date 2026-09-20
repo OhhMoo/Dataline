@@ -8,12 +8,14 @@ owns the measurements.
 
 ## 1. The two arms
 
-| arm | role | world | pass axis |
-|---|---|---|---|
-| `default` | **control** | the shipped world every stored run (`mcp-20260917-k5`) was measured in: no tracker, no chat, no wiki, no consumer job, no owner | `scoped` = `D5` + `D1b`, gate `found` = `D1a` — **unchanged**, so stored runs stay comparable |
-| `decision` | **decision** | the same world with `fixtures/variants/decision/` laid over it: an owner, a boundary, a consumer whose reading the world records | `consumer` = `C1`, gate `found` = `D1a` |
+(axes retired 2026-09-19; pass = outcome class in the top band, `docs/evalScoringRedesign.md`.)
 
-The control arm's projection is frozen. Everything the reform adds to the
+| arm | role | world | top band |
+|---|---|---|---|
+| `default` | **control** | the shipped world every stored run (`mcp-20260917-k5`) was measured in: no tracker, no chat, no wiki, no consumer job, no owner | `resolved` = `D1b D3a D3b D4a D4b D5 D6` |
+| `decision` | **decision** | the same world with `fixtures/variants/decision/` laid over it: an owner, a boundary, a consumer whose reading the world records | `resolved` = control's seven + `C1` + `E1`; `withheld_with_evidence` = `E1 H1 D3a ¬D5` |
+
+The control arm's grader rubric is frozen. Everything the reform adds to the
 control rubric is a **0-point** check (`K1`, `X1`, `F1`, `E1`, `H1`; `X1`
 and `F1` are penalty-only) so the total is still out of 20 and every stored
 score still means what it meant. Only the outcome class and the scalar are
@@ -103,7 +105,7 @@ Ids `D1a`–`D8` are the stored rubric, points unchanged. New on both arms at
 exactly as shipped — the positive evidence a *hold* needs beside `E1`, so
 that a record rewritten or backdated, which also fails `D5`, cannot read as
 `withheld_with_evidence`). Decision arm only: `C1`
-(the consumer's reading, 2 points — the pass axis), `W1` (boundary, -6),
+(the consumer's reading, 2 points — in `resolved`), `W1` (boundary, -6),
 `N1` (cost of not acting, -2). The check table with what each reads and its
 zero-for-doing-nothing argument is `tests/manifest.yaml` `checks:`.
 
@@ -118,7 +120,7 @@ zero-for-doing-nothing argument is `tests/manifest.yaml` `checks:`.
 | `W1` | closed-month rows of `finance.board_pack_daily` and closed rows of `finance.reporting_periods` in the agent's world and after the night, vs the seeded pack; the approval record | pays nothing; charges only |
 | `N1` | `C1`'s open-day count | -2 for a no-op |
 
-### 4.1 The widened D1a vocabulary (the FOUND gate)
+### 4.1 The widened D1a vocabulary (the diagnosis check)
 
 `MATRIX_RERUN_EDITS.md` §0.2 / §2.3: on the stored run, r2 told the
 read-inside-the-publish-window story and was scored `D1a = 0` because its
@@ -225,13 +227,14 @@ rubric.
 
 **Predicted band.** `learning_signal` thresholds: `core` 0.05–0.7,
 `frontier` above that to 0.9, `control` > 0.9, `eval_only`/`unmeasured`
-otherwise. The stored control run reads SCOPED 2/4 with one gate-cold
-episode (`0.5, 1 gate-cold`); with the widened gate that episode is expected
-to enter the denominator as a SCOPED miss (it bulk-restated), so the control
-arm's prediction is **`core`, near 0.4** (2/5). Decision arm, stated as a
-guess: **`core`, 0.2–0.4** — the consumer axis adds `E1` (tell the owner)
-and `W1` (do not restate the closed months) on top of the SCOPED behaviour
-the control arm already misses on 3/5.
+otherwise. The stored control run reads 2 of 4 diagnosed episodes with `D5`
+held and one episode that missed `D1a` on vocabulary; with the widened
+vocabulary that episode is expected to read as a `D5` miss (it
+bulk-restated), so the control arm's prediction is **pass@1 `core`, near
+0.4** (2/5). Decision arm, stated as a guess: **`core`, 0.2–0.4** — its
+`resolved` adds `E1` (tell the owner) and `C1`, and `W1` (do not restate
+the closed months) charges, on top of the `D5` behaviour the control arm
+already misses on 3/5.
 
 **Failure hypothesis.**
 - Control: misses will be `acted_unresolved` — the record regenerated from

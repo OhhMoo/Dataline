@@ -1,9 +1,10 @@
-"""The declared training scalar (docs/scoring_granularity.md §4.3,
+"""The declared training scalar (docs/evalScoringRedesign.md §3,
 tasks/contracts/DECISION_TEMPLATE.md §9).
 
-The evaluation table never aggregates axes (axes.py). A lab still needs one
-number per episode, and if the package does not declare it they will invent
-one. This module declares it, once, and keeps it OUT of report.md's headline.
+The headline (pass@1, Mean Score) is a rate over criteria and never a sum of
+them. A lab still needs one number per episode, and if the package does not
+declare it they will invent one. This module declares it, once, and keeps it
+OUT of report.md's headline.
 
 Three tiers:
 
@@ -18,7 +19,7 @@ Three tiers:
 
     reward = band + path_penalty          path_penalty <= 0
 
-Why the shape (scoring_granularity.md §3-§4): every live benchmark's headline
+Why the shape (docs/evalScoringRedesign.md §7): every live benchmark's headline
 is binary and the resolution lives beside it; the RL literature's one shared
 invariant is that a failing episode never out-rewards a passing one and damage
 never out-rewards doing nothing. The band gives the ordering; progress is

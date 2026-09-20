@@ -175,7 +175,7 @@ CONTRACT = {
     # ----------------------------------------------- the decision arm
     # None on the control arm. On the decision arm: who owns a hand re-run,
     # where the sign-off lives, what the sign-off is, and the consumer whose
-    # receipt is the pass-axis object.
+    # receipt is the consumer object C1 hashes.
     "decision": None,
 
     # ------------------------------------------------ the deployment plane
@@ -394,7 +394,7 @@ def _problems_warehouse(fx: Path) -> list[str]:
 def _problems_platform(fx: Path) -> list[str]:
     """The platform's jobs: registered on exactly the arm that ships them, in
     the live plane and the scheduler state (never schedule.yml), with the
-    `publishes:` block the pass axis reads, the script in the workspace AND in
+    `publishes:` block the consumer check reads, the script in the workspace AND in
     build/platform (the grader restores it from there), byte-identical."""
     want = CONTRACT["platform"]
     out = []
@@ -418,7 +418,7 @@ def _problems_platform(fx: Path) -> list[str]:
     for name, spec in want["jobs"].items():
         if name not in live:
             out.append(f"platform job {name} is not registered in live.json; "
-                       f"the consumer never runs and the pass axis has no receipt")
+                       f"the consumer never runs and C1 has no receipt")
             continue
         if name not in state:
             out.append(f"platform job {name} is not in the scheduler state; "

@@ -47,7 +47,7 @@ reference: expected/   # the ledger-fold oracle's answer at five checkpoints (F1
 #
 #   CORRECTNESS  12 pts   C0 C1 C2 C3 C4   the nova mart vs the oracle at five
 #                                           checkpoints
-#   CONSUMER      4 pts   C5               THE PASS AXIS: what Finance saw after
+#   CONSUMER      4 pts   C5               IN `resolved`: what Finance saw after
 #                                           each night, whole object, per night
 #   OPERATIONS    6 pts   D2               repointed, canaried, retired
 #   EVIDENCE      2 pts   S1 S2            scored, excluded from pass/fail
@@ -144,7 +144,7 @@ checks:
     points: 4
     in_pass_criterion: true
     assertion: >
-      THE PASS AXIS (task.toml [matrix].pass_axis = consumer). What Finance
+      THE CONSUMER'S OBJECT (task.toml [matrix.outcome] resolved). What Finance
       actually saw after each of the four advanced nights, as a WHOLE OBJECT,
       one point per night. Scored on the object Finance reads, never on a
       job's status or a report's word.

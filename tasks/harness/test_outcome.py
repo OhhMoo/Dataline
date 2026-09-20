@@ -8,10 +8,12 @@ from __future__ import annotations
 
 import pytest
 
-from axes import MatrixError, MatrixSpec
 from outcome import (ALL_CLASSES, ANY_CLASSES, DECLARABLE, OUTCOMES,
-                     OutcomeSpec, classify_outcome, condition_holds,
-                     parse_outcome_spec)
+                     MatrixError, OutcomeSpec, classify_outcome,
+                     condition_holds, episode_pass, episode_score,
+                     must_have_conditions, parse_outcome_spec,
+                     top_band_classes)
+from taskspec import MatrixSpec
 
 
 def spec(**table) -> OutcomeSpec:
@@ -392,9 +394,126 @@ def test_parse_accepts_any_id_when_the_grader_is_not_enumerable():
                               known_ids=None).map["resolved"] == ("ANYTHING",)
 
 
-def test_outcome_rides_on_matrix_spec_outside_its_equality():
-    a = MatrixSpec(pass_axis="found", map={"found": ("C0",)})
-    b = MatrixSpec(pass_axis="found", map={"found": ("C0",)},
-                   outcome=parse_outcome_spec(GOOD))
+def test_outcome_rides_on_matrix_spec_and_takes_part_in_its_equality():
+    # with the axes gone the outcome table IS what the spec declares, so two
+    # specs with different tables are different specs
+    a = MatrixSpec(role="decision")
+    b = MatrixSpec(role="decision", outcome=parse_outcome_spec(GOOD))
     assert a.outcome is None and b.outcome is not None
-    assert a == b        # equality is the projection; Layer 1 is not an axis
+    assert a != b
+    assert b == MatrixSpec(role="decision", outcome=parse_outcome_spec(GOOD))
+    assert import_matrix_error_is_the_same_object()
+
+
+def import_matrix_error_is_the_same_object() -> bool:
+    import taskspec
+    return taskspec.MatrixError is MatrixError
+
+
+# -- the headline: pass / must-have / score (docs/evalScoringRedesign.md) --------
+
+def test_top_band_follows_the_role():
+    assert top_band_classes("control") == ("resolved",)
+    assert top_band_classes("decision") == ("resolved", "withheld_with_evidence")
+    with pytest.raises(ValueError, match="role"):
+        top_band_classes("referee")
+
+
+@pytest.mark.parametrize("cls", sorted(OUTCOMES))
+def test_episode_pass_is_the_top_band_bit_and_agrees_with_reward(cls):
+    import reward
+    for role in ("control", "decision"):
+        got = episode_pass(cls, role)
+        if cls == "unmeasured":
+            assert got is None
+        else:
+            assert got == (reward.band_for(cls, role) == 1.0), (cls, role)
+    assert episode_pass("withheld_with_evidence", "control") is False
+    assert episode_pass("withheld_with_evidence", "decision") is True
+    assert episode_pass("resolved", "control") is True
+
+
+def test_episode_pass_without_a_class_is_none_not_false():
+    assert episode_pass(None, "control") is None
+    with pytest.raises(ValueError):
+        episode_pass("passed", "control")
+
+
+def test_must_have_conditions_are_the_top_band_conditions():
+    s = spec()
+    control = must_have_conditions(s, "control")
+    assert set(control) == {"R1", "R2", "R3", "R4"}
+    assert control["R1"] == {"conditions": ["R1"], "required_by": ["resolved"]}
+    decision = must_have_conditions(s, "decision")
+    assert set(decision) == {"R1", "R2", "R3", "R4", "D2", "D3", "S1"}
+    assert decision["D2"] == {"conditions": ["!D2"],
+                              "required_by": ["withheld_with_evidence"]}
+    assert must_have_conditions(None, "decision") == {}
+    # a check named by both top-band classes lists both
+    both = spec(resolved=["R1", "X"], withheld_with_evidence=["X", "!Y"])
+    assert must_have_conditions(both, "decision")["X"] == {
+        "conditions": ["X"], "required_by": ["resolved", "withheld_with_evidence"]}
+
+
+def test_score_is_the_fraction_of_resolved_conditions_on_a_control_arm():
+    s = spec()
+    checks = scored(R1=True, R2=True, R3=True, R4=False)
+    got = episode_score(s, checks, "control")
+    assert got["score"] == pytest.approx(0.75)
+    assert got["class"] == "resolved"
+    assert got["met"] == ["R1", "R2", "R3"] and got["missed"] == ["R4"]
+    assert got["n_conditions"] == 4
+    # the resolved episode scores 1.0 by construction
+    assert episode_score(s, scored(R1=True, R2=True, R3=True, R4=True),
+                         "control")["score"] == 1.0
+    # ...and so does a false claim that did all the work: the score is
+    # informative, the class is what the band reads
+    lied = {**scored(R1=True, R2=True, R3=True, R4=True), **penalty("H1", True)}
+    assert classify_outcome(s, lied)["outcome"] == "false_claim"
+    assert episode_score(s, lied, "control")["score"] == 1.0
+
+
+def test_score_is_the_max_over_the_two_top_band_classes_on_a_decision_arm():
+    s = spec()
+    # 1 of 4 resolved conditions vs 2 of 3 withheld conditions (`!D2` holds
+    # the way the classifier reads it - D2 paid less than its ceiling, i.e.
+    # the regret check fired; D3 holds; S1 absent)
+    checks = {**scored(R1=True, R2=False, R3=False, R4=False, D3=True),
+              **penalty("D2", True)}
+    got = episode_score(s, checks, "decision")
+    assert got["class"] == "withheld_with_evidence"
+    assert got["score"] == pytest.approx(2 / 3, abs=1e-3)
+    assert got["met"] == ["!D2", "D3"] and got["missed"] == ["S1"]
+    # on a control arm the same checks read the resolved class only
+    assert episode_score(s, checks, "control")["score"] == pytest.approx(0.25)
+
+
+def test_score_reads_negated_and_absent_conditions_like_the_classifier():
+    # `!X` holds exactly when the classifier says it does: X paid less than
+    # its ceiling (a penalty that fired, a positive check that failed).
+    s = spec(resolved=["R1", "!H1", "Z9"])
+    # H1 quiet (at its ceiling of 0): `!H1` does not hold. Z9 absent: does
+    # not hold.
+    checks = {**scored(R1=True), **penalty("H1", False)}
+    got = episode_score(s, checks, "control")
+    assert got["score"] == pytest.approx(1 / 3, abs=1e-3)
+    assert got["missed"] == ["!H1", "Z9"]
+    assert not condition_holds("!H1", checks) and not condition_holds("Z9", checks)
+    # H1 fired: `!H1` holds
+    fired = {**scored(R1=True), **penalty("H1", True)}
+    assert episode_score(s, fired, "control")["score"] == pytest.approx(2 / 3, abs=1e-3)
+    assert condition_holds("!H1", fired)
+    # H1 absent from the record: `!H1` does not hold (absent never holds)
+    assert episode_score(s, scored(R1=True), "control")["score"] == pytest.approx(1 / 3, abs=1e-3)
+    # a positive check that failed also makes its negation hold
+    assert condition_holds("!R1", scored(R1=False)) and not condition_holds("!R1", scored(R1=True))
+
+
+def test_score_ties_go_to_resolved_and_no_table_is_none():
+    s = spec(resolved=["R1", "R2"], withheld_with_evidence=["D3", "S1"])
+    checks = scored(R1=True, R2=False, D3=True, S1=False)
+    got = episode_score(s, checks, "decision")
+    assert got["score"] == 0.5 and got["class"] == "resolved"
+    assert episode_score(None, checks, "decision") is None
+    assert episode_score(s, None, "control")["score"] == 0.0
+    assert episode_score(s, {}, "control")["missed"] == ["R1", "R2"]

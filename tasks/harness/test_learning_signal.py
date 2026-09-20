@@ -251,84 +251,43 @@ def test_trials_to_separate_edges():
         ls.trials_to_separate(1.2, 0.5)
 
 
-# -- axis_separation -----------------------------------------------------------
-
-def test_axis_separation_found_at_ceiling_pass_below():
-    got = ls.axis_separation((5, 5), (1, 5))
-    assert got["found_rate"] == 1.0 and got["pass_axis_rate"] == 0.2
-    assert got["gap"] == pytest.approx(0.8)
-    # se = sqrt(0 + 0.2*0.8/5) = 0.17889; lower = 0.8 - 1.96*0.17889 = 0.4494;
-    # the Wald upper bound is 1.1506, which a difference of proportions cannot
-    # reach, so it is clamped to 1.0 for printing. The verdict reads the
-    # unclamped lower bound.
-    lo, hi = got["gap_ci95"]
-    assert lo == pytest.approx(0.4494, abs=1e-3)
-    assert hi == 1.0
-    assert got["separated"] is True
-
-
-def test_axis_separation_no_gap():
-    got = ls.axis_separation((5, 5), (5, 5))
-    assert got["gap"] == 0.0
-    assert got["gap_ci95"] == [0.0, 0.0]
-    assert got["separated"] is False
-
-
-def test_axis_separation_small_gap_not_separated():
-    # 4/5 vs 3/5: gap 0.2, se = sqrt(0.16/5 + 0.24/5) = 0.283, CI crosses 0
-    got = ls.axis_separation((4, 5), (3, 5))
-    assert got["gap"] == pytest.approx(0.2)
-    assert got["gap_ci95"][0] < 0
-    assert got["separated"] is False
-
-
-def test_axis_separation_negative_gap_not_separated():
-    got = ls.axis_separation((1, 5), (5, 5))
-    assert got["gap"] == pytest.approx(-0.8)
-    assert got["separated"] is False
-
-
-@pytest.mark.parametrize("found, pass_axis", [
-    (None, (1, 5)), ((5, 5), None), (None, None), ((0, 0), (1, 5)), ((5, 5), (0, 0)),
-])
-def test_axis_separation_unmeasured(found, pass_axis):
-    got = ls.axis_separation(found, pass_axis)
-    assert got == {"found_rate": None, "pass_axis_rate": None, "gap": None,
-                   "gap_ci95": None, "separated": None}
+def test_axis_separation_is_gone_with_the_axes():
+    assert not hasattr(ls, "axis_separation")
 
 
 # -- summarise -----------------------------------------------------------------
 
-def row(found, pass_, admitted=True, **others):
-    axes = {"found": found, "warranted": None, "scoped": None, "consumer": None}
-    axes.update(others)
-    return {"axes": axes, "admitted": admitted, "pass": pass_}
+def row(pass_, outcome="resolved"):
+    """One report._matrix_block per_rollout row, as summarise reads it: the
+    headline `pass` bit (None for an unmeasured episode)."""
+    return {"outcome": {"outcome": outcome if pass_ is not None else "unmeasured"},
+            "pass": pass_, "score": None}
 
 
-def matrix_block(per_rollout, pass_axis="warranted"):
-    return {"pass_axis": pass_axis, "gate": "found", "per_rollout": per_rollout}
+def matrix_block(per_rollout):
+    return {"role": "control", "per_rollout": per_rollout}
 
 
-REQUIRED = {"pass_at_1", "pass_at_k", "group", "band", "axis_separation",
-            "thresholds"}
+REQUIRED = {"pass_at_1", "pass_at_k", "group", "band", "thresholds"}
 
 
 def test_summarise_with_matrix_block_excludes_unmeasured_episode():
-    # five scored records; the matrix says: r1, r2 pass; r3, r4 admitted fail;
-    # r5 gate-cold (pass None) -> reward group is 4 episodes, 2 passes
+    # five scored records; the headline says: r1, r2 pass; r3, r4 fail;
+    # r5 unmeasured (pass None) -> reward group is 4 episodes, 2 passes
     records = [rec(True, rollout_id="r1"), rec(True, rollout_id="r2"),
                rec(False, rollout_id="r3"), rec(False, rollout_id="r4"),
                rec(False, rollout_id="r5"), rec(False, rollout_id="r6", scored=False)]
     block = matrix_block({
-        "r1": row(1.0, True, warranted=1.0),
-        "r2": row(1.0, True, warranted=1.0),
-        "r3": row(1.0, False, warranted=0.0),
-        "r4": row(1.0, False, warranted=0.5),
-        "r5": row(0.0, None, admitted=False),
+        "r1": row(True),
+        "r2": row(True),
+        "r3": row(False, "silent"),
+        "r4": row(False, "acted_unresolved"),
+        "r5": row(None),
     })
     got = ls.summarise(records, block)
     assert REQUIRED <= set(got)
-    assert got["reward_source"] == "projected_pass"
+    assert "axis_separation" not in got
+    assert got["reward_source"] == "pass"
     assert got["excluded"] == 1
     assert got["pass_at_1"]["n"] == 4 and got["pass_at_1"]["passed"] == 2
     assert got["pass_at_1"]["rate"] == pytest.approx(0.5)
@@ -341,27 +300,21 @@ def test_summarise_with_matrix_block_excludes_unmeasured_episode():
     assert got["pass_at_k"]["pass_at_k"][5] is None
     assert got["k_available"] == 3
     assert got["band"] == "core"
-    # FOUND: 4 of the 5 episodes with a found rate are at 1.0; pass axis 2/4
-    sep = got["axis_separation"]
-    assert sep["found_rate"] == pytest.approx(0.8)
-    assert sep["pass_axis_rate"] == pytest.approx(0.5)
-    assert sep["gap"] == pytest.approx(0.3)
-    assert sep["separated"] is False
     assert got["thresholds"] == {"core_low": 0.05, "core_high": 0.70,
                                  "control_high": 0.90}
 
 
 def test_summarise_matrix_reward_differs_from_record_passed():
-    # the record says passed; the projection says otherwise. The learning
-    # signal follows the projection - that is the point of having one.
+    # the record says the grader's all-checks bit passed; the outcome class
+    # is not in the top band. The learning signal follows the headline -
+    # that is the point of having one.
     records = [rec(True, rollout_id="r1"), rec(True, rollout_id="r2")]
-    block = matrix_block({"r1": row(1.0, False, warranted=0.0),
-                          "r2": row(1.0, False, warranted=0.0)})
+    block = matrix_block({"r1": row(False, "withheld_with_evidence"),
+                          "r2": row(False, "withheld_with_evidence")})
     got = ls.summarise(records, block)
     assert got["pass_at_1"]["rate"] == 0.0
     assert got["group"]["collapsed"] is True
     assert got["band"] == "eval_only"
-    assert got["axis_separation"]["separated"] is True     # 2/2 found, 0/2 pass
 
 
 def test_summarise_without_matrix_block_uses_passed():
@@ -370,7 +323,6 @@ def test_summarise_without_matrix_block_uses_passed():
     assert REQUIRED <= set(got)
     assert got["reward_source"] == "passed"
     assert got["excluded"] == 0
-    assert got["axis_separation"] is None
     assert got["pass_at_1"] == ls.pass_at_1(records)
     assert got["group"]["n"] == 3
     assert got["group"]["mean"] == pytest.approx(2 / 3, abs=1e-4)
@@ -380,14 +332,13 @@ def test_summarise_without_matrix_block_uses_passed():
 
 def test_summarise_all_excluded_is_unmeasured():
     records = [rec(False, rollout_id="r1")]
-    block = matrix_block({"r1": row(None, None, admitted=None)})
+    block = matrix_block({"r1": row(None)})
     got = ls.summarise(records, block)
     assert got["excluded"] == 1
     assert got["pass_at_1"]["rate"] is None
     assert got["band"] == "unmeasured"
     assert got["k_available"] == 0
     assert got["group"]["collapsed"] is None
-    assert got["axis_separation"]["separated"] is None
 
 
 def test_summarise_empty():

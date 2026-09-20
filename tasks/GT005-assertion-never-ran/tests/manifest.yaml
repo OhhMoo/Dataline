@@ -167,9 +167,9 @@ checks:
       control arm the check pays 0 by construction and exists as the evidence
       signal `withheld_with_evidence` reads (task.toml [matrix.outcome]).
     why_zero_on_control: >
-      The control arm's projection is frozen (MATRIX_RERUN_EDITS §1: 5/5 FOUND
-      at pass axis `found`) and every recorded rollout of it was scored on
-      C1/L1/C2/P1. Paying for a comment there would move a stored number.
+      The control arm's rubric is frozen (the stored run read 5/5 on L1) and
+      every recorded rollout of it was scored on C1/L1/C2/P1. Paying for a
+      comment there would move a stored number.
 
   - id: D2
     axis: DECISION

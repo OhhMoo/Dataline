@@ -319,10 +319,10 @@ def test_run_level(tmp: Path, fixture: Path) -> None:
     check("...and counts the rollouts it re-graded",
           conditions["regraded_rollouts"] == 1)
     text = (run_dir / "report.md").read_text(encoding="utf-8")
-    # The headline is `Pass@1` on a plain task and `Projected pass` (with the
-    # old criterion relabelled `pass_all_required` under it) on a [matrix]
-    # task; GT001 declares one. Whichever prints first is "the number".
-    headline = min((text.index(h) for h in ("**Projected pass", "**Pass@1 =",
+    # The headline is `Pass@1` on a plain task and `pass@1` (with the
+    # grader's criterion relabelled `pass_all_required` under it) on a
+    # [matrix] task; GT001 declares one. Whichever prints first is "the number".
+    headline = min((text.index(h) for h in ("**pass@1 =", "**Pass@1 =",
                                              "**pass_all_required =")
                     if h in text), default=-1)
     check("report.md states it in the run-conditions block, above the number",

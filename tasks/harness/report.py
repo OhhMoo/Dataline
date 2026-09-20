@@ -36,39 +36,49 @@ has already discriminated here: on GT001 Claude scored Pass@1 1.0 and Pass^5
 world is byte-identical across K by construction - so the only reason it was
 missing is that nobody computed it.
 
-THE SCORING MATRIX (new_matrix.md, Layer A). When the task declares a [matrix]
-and the spec carries one, the report gains a projected pass: the mean of the
-per-episode pass bit on the task's ONE pass axis, taken only over episodes the
-gate axis admitted. A gate-cold episode leaves every denominator instead of
-scoring 0 on axes it never reached - the same honesty rule as quarantine - and
-an axis an episode has no evidence for is n/a, never 0. The projected pass is
-the headline; the old Pass@1 stays on the report, relabelled pass_all_required,
-BELOW it, because it remains the strict all-checks criterion the matrix
-replaces as the headline and not as a fact. A run whose variants resolve to
-matrices with DIFFERENT pass axes has no single projection, so its projected
-pass is invalidated the way any mixed-variant rate is. A task without a
-[matrix] renders byte-identical to before: no spec, no row.
+THE HEADLINE (docs/evalScoringRedesign.md). When the task declares a [matrix]
+with an outcome table, the report's headline is APEX-Agents style and nothing
+is gated - every graded episode is in the denominator:
 
-THE INTERVAL, THE ESTIMATOR TABLE AND THE LEARNING SIGNAL (docs/research.md
-§2 and §7.2 items 4 and 6). K=5 cannot separate 0.8 from 1.0, and a Pass@1
-printed without its interval invites the reader to do exactly that, so the
-Wilson interval and n print on the SAME LINE as the rate, every time. Beside
-the run-level Pass^k bit (did every scored rollout pass) the report now
-carries the unbiased pass@k / pass^k estimators for k <= n; they answer a
-different question and are labelled `(unbiased est.)` so nobody reads one as
-the other. The `## Learning signal` section prints what a trainer's filter
-reads - group spread p(1-p), whether the group collapsed, the difficulty band
-with the rule that placed it, and the FOUND-vs-pass-axis separation - and
+  * `pass` per episode: the outcome class is in the arm's TOP BAND
+    (`resolved`, plus `withheld_with_evidence` on a decision arm), i.e.
+    reward.band_for(outcome, role) == 1.0. `pass@1` is its rate over the
+    graded episodes, with the Wilson interval and the unbiased pass@k /
+    pass^k table beside it. An `unmeasured` episode (none of the declared
+    checks on record) has no class and leaves the denominator, exactly as
+    quarantine does - the only exclusion left.
+  * `score` per episode, "Mean Score" aggregated: the fraction of MUST-HAVE
+    criteria met - the conditions the top-band classes list - taken as the
+    max over those classes (outcome.episode_score). A resolved episode
+    scores 1.0 by construction; a false_claim episode still gets its score,
+    because "lied, but 80 % of the work was there" is informative.
+  * `criteria`: for every check id on record in the run, {n, passed, rate}
+    plus `must_have` (is it a top-band condition on this arm). This is the
+    "why did it fail" view.
+
+The grader's own all-checks bit stays on the report as `pass_all_required`,
+BELOW the headline: it remains the strict criterion and a fact about the run,
+not the number the run presents. A task without a [matrix] renders as it
+always did: no spec, no block.
+
+THE INTERVAL, THE ESTIMATOR TABLE AND THE LEARNING SIGNAL (docs/evalScoringRedesign.md).
+K=5 cannot separate 0.8 from 1.0, and a rate printed without its interval
+invites the reader to do exactly that, so the Wilson interval and n print on
+the SAME LINE as the rate, every time. Beside the run-level Pass^k bit (did
+every scored rollout pass) the report carries the unbiased pass@k / pass^k
+estimators for k <= n; they answer a different question and are labelled
+`(unbiased est.)` so nobody reads one as the other. The `## Learning signal`
+section prints what a trainer's filter reads - group spread p(1-p), whether
+the group collapsed, the difficulty band with the rule that placed it - and
 obeys the same rule as the rate: when the run is not a clean measurement,
 every line is marked provisional rather than dropped. The matrix block also
 carries each episode's outcome class and the DECLARED training scalar, and
 the scalar is labelled as the thing a trainer is handed, never as the
-measurement; the headline stays the projection. All three come from modules
-that are being filled in against frozen interfaces, so a stub that still
-raises NotImplementedError costs the report that block and a caveat, not the
-report.
+measurement. The layer modules are loaded optionally, so one that will not
+import or still raises NotImplementedError costs the report that block and a
+caveat, not the report.
 
-THE THREE TIERS (DECISION_TEMPLATE.md §9, scoring_granularity.md §4.3). The
+THE THREE TIERS (DECISION_TEMPLATE.md §9, docs/evalScoringRedesign.md). The
 declared scalar is band + progress-in-band + path penalty, and each tier is
 another module's: the band is reward.py's table over outcome.py's class;
 progress is progress.py's normalisation of the grader's product quantities
@@ -77,12 +87,12 @@ baselines_json=)`; without one, progress is None and the caveat says so);
 the path penalty is path.py's four rules over the episode's own audit rows
 (`rec["actions"]`, or the actions.jsonl the record names; none on record
 means 0.0 and an info caveat). The matrix block carries every per-episode
-tier, the tier means with their denominators, the CLASS BALANCE of the arm
-(the share of episodes in the arm's correct class, and whether that share
-is saturated - an arm at >= 0.9 or <= 0.1 gives a group-relative trainer no
-signal), progress reachability (§4.4: a quantity every episode maxes or
-zeroes is a bit in disguise) and the path-event counts by rule. Beside the
-scalar, never in it, each row carries tracked_metrics.py's counts.
+tier, the tier means with their denominators, whether the arm is SATURATED
+(pass@1 >= 0.9 or <= 0.1 gives a group-relative trainer no signal), the
+group signal over the declared scalar, progress reachability (a quantity
+every episode maxes or zeroes is a bit in disguise) and the path-event counts
+by rule. Beside the scalar, never in it, each row carries tracked_metrics.py's
+counts.
 """
 from __future__ import annotations
 
@@ -91,7 +101,6 @@ import json
 import statistics
 from pathlib import Path
 
-import axes as axes_lib
 import tracked_metrics
 
 # The three learning-signal modules are contracts first and code second: a
@@ -365,47 +374,6 @@ def _surface_tag(c: dict) -> str:
     return f"surfaces: {n_live} live / {n_dead} dead{tail}"
 
 
-def _pass_axis_conflict(spec, matrix, records: list[dict]) -> str | None:
-    """None, or the reason this run has no single projected pass.
-
-    One run must project onto ONE axis. The records name the arm each episode
-    ran under (rec["variant"], stamped by run_rollouts); when they span more
-    than one, the projection is only valid if every arm's resolved matrix
-    names the SAME pass_axis. An arm that will not resolve cannot prove it
-    agrees, so it counts as a disagreement - the same rule as every other run
-    condition here: what cannot be described invalidates the rate.
-    """
-    arms = sorted({r.get("variant") for r in records if r.get("variant")})
-    if len(arms) <= 1:
-        return None
-    own = getattr(spec, "variant", "") or ""
-    axes_by_arm: dict[str, str] = {}
-    for arm in arms:
-        if arm == own:
-            axes_by_arm[arm] = matrix.pass_axis
-            continue
-        try:
-            import taskspec
-            other = taskspec.load(getattr(spec, "task_id", ""),
-                                  Path(getattr(spec, "root", ".")).parent,
-                                  variant=arm)
-            other_matrix = getattr(other, "matrix", None)
-            axes_by_arm[arm] = (other_matrix.pass_axis
-                                if other_matrix is not None else "no matrix")
-        except Exception as exc:  # noqa: BLE001 - the reason is recorded, not hidden
-            # The exception TYPE, not its text: taskspec's messages name
-            # filesystem paths, and this string is exported verbatim into
-            # benchmark.json for a public page. The full text is one
-            # `taskspec.load` away for whoever is debugging the arm.
-            axes_by_arm[arm] = f"unresolved ({type(exc).__name__})"
-    if len(set(axes_by_arm.values())) <= 1:
-        return None
-    detail = ", ".join(f"{a}: {v}" for a, v in sorted(axes_by_arm.items()))
-    return (f"the run mixes context variants whose matrices project pass onto "
-            f"DIFFERENT axes ({detail}); a projected pass over both is a "
-            f"projection of neither")
-
-
 #: The conventions `_path_allowlist` falls back on when the task declares no
 #: `path_allow` of its own (DECISION_TEMPLATE.md §9, path.py's tests): the
 #: platform tree no subject may write, and the grading surface no subject may
@@ -530,25 +498,33 @@ def _pvariance(xs: list[float], nd: int = 4) -> float | None:
 def _matrix_block(spec, records: list[dict],
                   caveats: list[str] | None = None,
                   baselines_json=None) -> dict | None:
-    """The [matrix] projection over this run's SCORED rollouts, or None.
+    """The headline block over this run's SCORED rollouts, or None.
 
     None means "not a matrix task" (no spec, or a spec without a matrix) and
-    the report is byte-identical to the pre-matrix one. Otherwise: every
-    scored record - the same inclusion rule Pass@1 uses - gets its
-    axes.axis_report kept under per_rollout; each axis's run rate is the MEAN
-    of per-episode rates over ADMITTED episodes only (gate-cold and
-    gate-unmeasured episodes leave the denominator, exactly like quarantine);
-    and the headline is the mean of the per-episode projected pass over the
-    episodes that have one. An axis with no evidence in any admitted episode
-    is n/a, never 0.
+    the report is byte-identical to the pre-matrix one. Otherwise every
+    scored record - the same inclusion rule the grader's own pass uses -
+    gets a per_rollout row with:
 
-    Each per_rollout row also carries the episode's OUTCOME CLASS (when the
-    task declares `[matrix.outcome]`), its three scalar tiers - `band`,
-    `progress`, `path_penalty` with `path_events` - the DECLARED TRAINING
-    SCALAR that combines them (`reward`, the full reward.episode_reward
-    dict) and its `tracked_metrics`. The scalar is what a trainer is handed;
-    it is kept out of the headline and labelled for what it is, because the
-    table never aggregates axes and the scalar does.
+      * `outcome`  - outcome.classify_outcome's dict (class + evidence);
+      * `pass`     - outcome.episode_pass: is the class in the arm's top
+                     band. None for an unmeasured episode;
+      * `score`    - outcome.episode_score: the fraction of must-have
+                     criteria met, max over the top-band classes, with the
+                     conditions met and missed. None when no table;
+      * the three scalar tiers `band`, `progress`, `path_penalty` (with
+        `path_events`), the DECLARED TRAINING SCALAR that combines them
+        (`reward`, the full reward.episode_reward dict) and its
+        `tracked_metrics`. The scalar is what a trainer is handed; it is
+        kept out of the headline and labelled for what it is.
+
+    Aggregated: `pass` {n, passed, rate, ci95, pass_at_k, pass_hat_k} over
+    the GRADED episodes (scored, with a class other than unmeasured);
+    `mean_score` {n, mean, per_episode}; `criteria` {check id -> {n, passed,
+    rate, must_have, required_by, condition}} for every check id any graded
+    episode carries, where `passed` counts the criterion MET (`condition`
+    `!X`, a check the table names only negated: X did not charge; `X`: X
+    passed) and `must_have` says whether a top-band class requires it;
+    `outcome_counts` in precedence order.
 
     Progress needs anchors, and anchors come from `baselines_json`
     (progress.anchors_from_baselines); path needs the episode's audit rows
@@ -560,29 +536,22 @@ def _matrix_block(spec, records: list[dict],
     if matrix is None:
         return None
     scored = [r for r in records if r.get("scored")]
-    per_rollout = {r.get("rollout_id"): axes_lib.axis_report(
-                       matrix, r.get("checks") or {},
-                       artifact=r.get("artifact"))
-                   for r in scored}
-    admitted_rows = [row for row in per_rollout.values()
-                     if row["admitted"] is True]
-    axis_means = {}
-    for axis in axes_lib.AXES:
-        rates = [row["axes"][axis] for row in admitted_rows
-                 if row["axes"][axis] is not None]
-        axis_means[axis] = round(sum(rates) / len(rates), 3) if rates else None
-    passes = [row["pass"] for row in per_rollout.values()
-              if row["pass"] is not None]
-    n_pass = sum(1 for p in passes if p)
+    per_rollout: dict = {r.get("rollout_id"): {} for r in scored}
 
     # Outcome class and reward per episode. The outcome needs a declaration
-    # the task may not carry yet (MatrixSpec.outcome is optional); the reward
-    # is always attempted. Either module still being a stub leaves None here
+    # the task may not carry (MatrixSpec.outcome is optional); the reward is
+    # always attempted. Either module still being a stub leaves None here
     # and a caveat above the number.
     outcome_spec = getattr(matrix, "outcome", None)
     progress_spec = getattr(matrix, "progress", None)
     path_spec = getattr(matrix, "path", None)
     role = getattr(matrix, "role", None) or "control"
+    must_have = _call(outcome, "outcome", "must_have_conditions", caveats,
+                      outcome_spec, role) or {}
+    top_band = list(_call(outcome, "outcome", "top_band_classes", caveats,
+                          role) or (["resolved"] + (["withheld_with_evidence"]
+                                                    if role == "decision"
+                                                    else [])))
 
     # The anchors progress is normalised against, once per run: the no-op
     # and oracle values of each declared quantity, read off the baselines
@@ -614,17 +583,50 @@ def _matrix_block(spec, records: list[dict],
     outcome_counts: dict[str, int] = {}
     event_counts: dict[str, int] = {}
     no_audit: list[str] = []
+    passes: list[bool] = []
+    scores: dict = {}
+    criteria: dict[str, dict] = {}
     for r in scored:
         rid = r.get("rollout_id")
         row = per_rollout[rid]
         checks = r.get("checks") or {}
         cls = None
+        ep_pass = ep_score = None
         if outcome_spec is not None:
             cls = _call(outcome, "outcome", "classify_outcome", caveats,
                         outcome_spec, checks, r.get("artifact"))
             if cls is not None:
                 outcome_counts[cls["outcome"]] = \
                     outcome_counts.get(cls["outcome"], 0) + 1
+                ep_pass = _call(outcome, "outcome", "episode_pass", caveats,
+                                cls["outcome"], role)
+            ep_score = _call(outcome, "outcome", "episode_score", caveats,
+                             outcome_spec, checks, role)
+        graded = cls is not None and cls["outcome"] != "unmeasured"
+        if not graded:
+            # an unmeasured episode has no class and therefore no score:
+            # it leaves every headline denominator, it is not a 0
+            ep_pass = ep_score = None
+        if graded and ep_pass is not None:
+            passes.append(bool(ep_pass))
+        if graded and ep_score is not None:
+            scores[rid] = ep_score["score"]
+        if graded:
+            # every check on record, counted as a CRITERION MET: a check
+            # the outcome table names only negated (`!H1`, a penalty or
+            # violation) is met when it did not charge; any other check is
+            # met when it passed
+            for cid, c in checks.items():
+                if not isinstance(c, dict) or "passed" not in c:
+                    continue
+                cond = _criterion_form(outcome_spec, cid)
+                e = criteria.setdefault(cid, {"n": 0, "passed": 0,
+                                              "condition": cond})
+                e["n"] += 1
+                held = _call(outcome, "outcome", "condition_holds", caveats,
+                             cond, checks)
+                met = (not held) if cond.startswith("!") else bool(held)
+                e["passed"] += 1 if met else 0
 
         # Tier 2: progress-in-band, only when the arm declares quantities
         # and the run has anchors for them.
@@ -671,6 +673,8 @@ def _matrix_block(spec, records: list[dict],
             if comps.get("progress") is not None:
                 paid_progresses.append(prog)
         row["outcome"] = cls
+        row["pass"] = ep_pass
+        row["score"] = ep_score
         row["band"] = comps.get("band")
         row["progress"] = prog
         row["path_penalty"] = penalty
@@ -692,38 +696,46 @@ def _matrix_block(spec, records: list[dict],
                                                      order.index(k) if k in order else 0,
                                                      k))}
 
-    # CLASS BALANCE. The arm's TOP BAND - every class reward.band_for prices
-    # at 1.0 for this role: resolved on a control arm, resolved AND
-    # withheld_with_evidence on a decision arm (R1: one class alone read
-    # 5x resolved on a decision arm as "0% correct, saturated") - and its
-    # share of the episodes that were measured at all (`unmeasured` has no
-    # class and no reward, so it leaves this denominator too). An arm whose
-    # share is >= 0.9 or <= 0.1 is SATURATED: nearly every episode lands in
-    # the top band or none does, and a group-relative trainer reads that as
-    # no gradient.
-    correct_classes = ["resolved"]
-    if role == "decision":
-        correct_classes.append("withheld_with_evidence")
-    if reward is not None and hasattr(reward, "band_for"):
-        try:
-            top = {c for c in reward.BAND if reward.band_for(c, role) >= 1.0}
-            correct_classes = sorted(top, key=lambda c: (c != "resolved", c))
-        except Exception:  # noqa: BLE001 - keep the role-derived list
-            pass
-    measured = sum(n for k, n in outcome_counts.items() if k != "unmeasured")
-    share = (round(sum(outcome_counts.get(c, 0) for c in correct_classes)
-                   / measured, 3) if measured else None)
-    balance = {
-        "role": role,
-        "correct_class": correct_classes[0] if len(correct_classes) == 1
-        else " | ".join(correct_classes),
-        "correct_classes": list(correct_classes),
-        "share_correct": share,
-        "denominator": measured,
-        "denominator_note": "scored rollouts with a measured outcome class "
-                            "(unmeasured episodes leave the denominator)",
+    # THE HEADLINE. pass@1 over the graded episodes, with its interval and
+    # the unbiased k-table beside it. SATURATED when the rate is >= 0.9 or
+    # <= 0.1: nearly every episode lands in the top band or none does, and a
+    # group-relative trainer reads that as no gradient.
+    n_graded, n_pass = len(passes), sum(1 for p in passes if p)
+    rate = round(n_pass / n_graded, 3) if n_graded else None
+    k_table = _k_table(_call(learning_signal, "learning_signal",
+                             "pass_at_k_table", caveats,
+                             n=n_graded, c=n_pass),
+                       n_graded) if n_graded else None
+    headline = {
+        "n": n_graded,
+        "passed": n_pass,
+        "rate": rate,
+        "ci95": _ci_list(
+            _call(learning_signal, "learning_signal", "wilson_interval",
+                  caveats, n_pass, n_graded) if n_graded else None),
+        "pass_at_k": (k_table or {}).get("pass_at_k"),
+        "pass_hat_k": (k_table or {}).get("pass_hat_k"),
+        "top_band": top_band,
+        "denominator": "graded rollouts: scored, with an outcome class other "
+                       "than unmeasured. pass = the class is in the arm's "
+                       "top band (reward band 1.0). pass_at_k / pass_hat_k "
+                       "are the unbiased estimators over these n, sampling "
+                       "k without replacement; k > n is not listed.",
     }
-    saturated = share is not None and (share >= 0.9 or share <= 0.1)
+    saturated = rate is not None and (rate >= 0.9 or rate <= 0.1)
+    mean_score = {
+        "n": len(scores),
+        "mean": _mean(list(scores.values())),
+        "per_episode": {str(k): v for k, v in scores.items()},
+        "denominator": "graded rollouts with a score: the fraction of "
+                       "must-have criteria met, max over the top-band "
+                       "classes' condition lists",
+    }
+    for cid, e in criteria.items():
+        e["rate"] = round(e["passed"] / e["n"], 3) if e["n"] else None
+        e["must_have"] = cid in must_have
+        e["required_by"] = list(must_have.get(cid, {}).get("required_by", []))
+    criteria = dict(sorted(criteria.items(), key=_criteria_order))
 
     reachability = None
     if progresses:
@@ -734,32 +746,22 @@ def _matrix_block(spec, records: list[dict],
         paid_reachability = _call(progress, "progress", "reachability", caveats,
                                   list(paid_progresses))
     return {
-        "pass_axis": matrix.pass_axis,
-        "gate": matrix.gate,
+        "role": role,
         "scored": len(scored),
-        "admitted": len(admitted_rows),
-        "gate_cold": sum(1 for row in per_rollout.values()
-                         if row["admitted"] is False),
-        "gate_unmeasured": sum(1 for row in per_rollout.values()
-                               if row["admitted"] is None),
-        # admitted, but the record carries none of the pass axis's checks (an
-        # old record that predates a check, say): out of the denominator for a
-        # reason that is neither gate-cold nor gate-unmeasured, and named as such
-        "pass_axis_unmeasured": sum(1 for row in admitted_rows
-                                    if row["pass"] is None),
-        "axis_means": axis_means,
-        "projected_pass": (round(n_pass / len(passes), 3) if passes else None),
-        "projected_pass_denominator": len(passes),
-        # the same interval the headline Pass@1 carries, over the same
-        # denominator the projection states: episodes with a pass bit
-        "projected_pass_ci95": _ci_list(
-            _call(learning_signal, "learning_signal", "wilson_interval",
-                  caveats, n_pass, len(passes)) if passes else None),
+        "graded": n_graded,
+        "unmeasured": outcome_counts.get("unmeasured", 0),
+        "pass": headline,
+        "mean_score": mean_score,
+        "criteria": criteria,
+        "criteria_denominator": "graded rollouts that carry the check; "
+                                "`passed` counts the criterion MET: for a "
+                                "check the outcome table names only negated "
+                                "(`condition` = `!X`, a penalty/violation) "
+                                "that is X did not charge, otherwise X passed",
+        "must_have": {cid: dict(v) for cid, v in must_have.items()},
         "outcome_declared": outcome_spec is not None,
         "outcome_counts": outcome_counts,
         "outcome_counts_denominator": "scored rollouts with an outcome class",
-        "role": role,
-        "balance": balance,
         "saturated": saturated,
         "reward_progress_span": getattr(reward, "PROGRESS_SPAN", None),
         "reward_mean": _mean(rewards),
@@ -767,7 +769,7 @@ def _matrix_block(spec, records: list[dict],
         "reward_denominator": len(rewards),
         "reward_note": "the DECLARED training scalar (reward.py), what a "
                        "trainer is handed per episode; not the measurement, "
-                       "which is the projected pass above it",
+                       "which is pass@1 / mean score above it",
         # the tiers, each over its own denominator: band and path over the
         # episodes that have a scalar, progress over the episodes that have
         # a progress value (an arm without quantities has none)
@@ -787,8 +789,31 @@ def _matrix_block(spec, records: list[dict],
         "path_allow": allow,
         "rollouts_without_audit_log": no_audit,
         "per_rollout": per_rollout,
-        "pass_axis_conflict": _pass_axis_conflict(spec, matrix, records),
     }
+
+
+def _criterion_form(outcome_spec, cid: str) -> str:
+    """How the criteria table reads check `cid`: `!cid` when the outcome
+    table names it ONLY negated (a penalty or violation check: the criterion
+    is "did not charge"), else `cid` (the criterion is "passed"). A check the
+    table names both ways, or not at all, reads positively."""
+    negated = positive = False
+    if outcome_spec is not None and hasattr(outcome_spec, "map"):
+        for conds in outcome_spec.map.values():
+            for cond in conds:
+                if cond == f"!{cid}":
+                    negated = True
+                elif cond == cid:
+                    positive = True
+    return f"!{cid}" if negated and not positive else cid
+
+
+def _criteria_order(item) -> tuple:
+    """must-have first, then by rate ascending (the failing criteria float to
+    the top of the 'why did it fail' view), then by id."""
+    cid, e = item
+    rate = e.get("rate")
+    return (not e.get("must_have"), rate is None, rate if rate is not None else 0.0, cid)
 
 
 def aggregate(records: list[dict], spec=None, baselines_json=None) -> dict:
@@ -802,7 +827,6 @@ def aggregate(records: list[dict], spec=None, baselines_json=None) -> dict:
 
     scored = [r for r in records if r.get("scored")]
     passed = [r for r in scored if r.get("passed")]
-    reasoning = [r for r in scored if r.get("classification") == "reasoning"]
     quarantined = [r for r in records
                    if r.get("classification") in ("blindness_violation", "unobserved")]
     caught = [r for r in records if r.get("classification") == "blindness_violation"]
@@ -832,14 +856,10 @@ def aggregate(records: list[dict], spec=None, baselines_json=None) -> dict:
     conditions = _run_conditions(records)
     surfaces_dead = conditions["surfaces_dead"]
 
-    # The matrix row. A mixed-axis run has no single projection, which is a
-    # run condition like any other: it joins the invalidations, so both the
-    # projected pass and the old rate are withheld rather than averaged.
+    # The headline block (pass / mean score / criteria), when the task
+    # declares a matrix.
     matrix = _matrix_block(spec, records, caveats=conditions["caveats"],
                            baselines_json=baselines_json)
-    if matrix and matrix["pass_axis_conflict"]:
-        conditions["invalidated_because"].append(matrix["pass_axis_conflict"])
-        conditions["measurement_valid"] = False
 
     # The interval and the estimators, over the SAME scored set as Pass@1.
     # The rate itself is still computed here, not read back from
@@ -866,18 +886,6 @@ def aggregate(records: list[dict], spec=None, baselines_json=None) -> dict:
             "c": len(passed),
             **k_table,
         }
-        if matrix is not None:
-            n_proj = matrix["projected_pass_denominator"]
-            c_proj = sum(1 for row in matrix["per_rollout"].values()
-                         if row["pass"] is True)
-            proj = _k_table(_call(learning_signal, "learning_signal",
-                                  "pass_at_k_table", caveats,
-                                  n=n_proj, c=c_proj), n_proj)
-            pass_at_k["projected"] = (
-                None if proj is None else {
-                    "denominator": "the same estimators over the episodes "
-                                   "that carry a projected pass bit",
-                    "n": n_proj, "c": c_proj, **proj})
     signal = _call(learning_signal, "learning_signal", "summarise", caveats,
                    records, matrix)
 
@@ -900,13 +908,6 @@ def aggregate(records: list[dict], spec=None, baselines_json=None) -> dict:
         "pass_at_1": round(len(passed) / len(scored), 3) if scored else None,
         "pass_at_1_denominator": "scored rollouts (attempted, not quarantined, "
                                  "no harness or grader defect)",
-        "pass_at_1_reasoning_only": (
-            round(len(passed) / (len(passed) + len(reasoning)), 3)
-            if (len(passed) + len(reasoning)) else None),
-        "pass_at_1_reasoning_only_n": len(passed) + len(reasoning),
-        "pass_at_1_reasoning_only_denominator":
-            "passes + reasoning failures only; excludes timeout, budget and "
-            "tool_gap. Upper bound on what the task measures about reasoning.",
         # the interval prints on the same line as the rate, every time: K=5
         # cannot tell 0.8 from 1.0 and the reader has to be shown that
         "pass_at_1_ci95": _ci_list(p1.get("ci95")),
@@ -943,8 +944,8 @@ def aggregate(records: list[dict], spec=None, baselines_json=None) -> dict:
         "topologies": sorted({r.get("topology", "host") for r in records}),
         "blindness_guarantees": sorted({r.get("blindness_guarantee")
                                         for r in records if r.get("blindness_guarantee")}),
-        # what a trainer's filter reads (docs/research.md §2): None while
-        # learning_signal is a stub, and the caveat above says so
+        # what a trainer's filter reads (docs/evalScoringRedesign.md): None
+        # while learning_signal is a stub, and the caveat above says so
         "learning_signal": signal,
     }
     # Absent - not null - for a non-matrix task, so report.json for one is
@@ -984,15 +985,51 @@ def _render_k_table(pk: dict | None, m: dict | None, provisional: str) -> list[s
 
     L.extend(table(pk, "over scored rollouts"
                        + (" (pass_all_required)" if m is not None else "")))
-    if m is not None:
-        proj = pk.get("projected")
-        L.append("")
-        if proj is None:
-            L.append(f"{provisional}pass@k / pass^k (unbiased est.) for the "
-                     f"projected pass (π={m['pass_axis']}): unavailable")
-        else:
-            L.extend(table(proj, f"for the projected pass (π={m['pass_axis']}) "
-                                 f"over episodes with a pass bit"))
+    return L
+
+
+def _render_headline_k_table(h: dict, provisional: str) -> list[str]:
+    """The unbiased pass@k / pass^k table for the headline `pass` bit."""
+    L = []
+    if not h.get("n"):
+        return L
+    ks = sorted((h.get("pass_at_k") or {}), key=int)
+    if not ks:
+        L.append(f"{provisional}pass@k / pass^k (unbiased est.) for the "
+                 f"headline pass: unavailable - see caveats under Run conditions")
+        return L
+    L.append(f"{provisional}pass@k / pass^k (unbiased est.) for the headline "
+             f"pass: n={h['n']} graded, c={h['passed']} passed; sampled "
+             f"without replacement, so only k ≤ n is defined")
+    L.append("")
+    L.append("| k | pass@k | pass^k (unbiased est.) |")
+    L.append("|---|---|---|")
+    for k in ks:
+        L.append(f"| {k} | {_fmt_rate(h['pass_at_k'][k])} | "
+                 f"{_fmt_rate((h.get('pass_hat_k') or {}).get(k))} |")
+    return L
+
+
+def _render_criteria(m: dict) -> list[str]:
+    """The criteria table: every check on record over the graded episodes,
+    must-have first, then by rate ascending. This is the 'why did it fail'
+    view."""
+    crit = m.get("criteria") or {}
+    if not crit:
+        if m.get("outcome_declared"):
+            return ["criteria: none on record (no graded episode carries a "
+                    "check)"]
+        return []
+    L = [f"criteria over {m.get('graded', 0)} graded rollouts (must-have = a "
+         f"top-band class requires it; `met` counts `X` passed, or for a "
+         f"`!X` penalty/violation check, X did not charge):", ""]
+    L.append("| criterion | read as | must-have | required by | met | n | rate |")
+    L.append("|---|---|---|---|---|---|---|")
+    for cid, e in crit.items():
+        L.append(f"| {cid} | `{e.get('condition', cid)}` | "
+                 f"{'yes' if e.get('must_have') else 'no'} | "
+                 f"{', '.join(e.get('required_by') or []) or '-'} | "
+                 f"{e['passed']} | {e['n']} | {_fmt_rate(e.get('rate'))} |")
     return L
 
 
@@ -1005,9 +1042,10 @@ def _render_learning_signal(agg: dict, m: dict | None, provisional: str) -> list
         return [(f"{provisional}learning signal: unavailable - see caveats "
                  f"under Run conditions")]
     n_scored = agg["scored"]
-    what = (f"the projected pass bit (π={m['pass_axis']})" if m is not None
+    what = ("the headline pass bit (outcome class in the arm's top band)"
+            if m is not None
             else "the Pass@1 bit (every required check passed)")
-    L = [(f"{provisional}what a trainer's filter reads (docs/research.md §2): "
+    L = [(f"{provisional}what a trainer's filter reads (docs/evalScoringRedesign.md): "
           f"the within-group spread of the per-episode reward - {what} - and "
           f"the band that spread puts this task in. Each line states its own "
           f"n; the run scored {n_scored} rollouts, and an episode without "
@@ -1027,22 +1065,12 @@ def _render_learning_signal(agg: dict, m: dict | None, provisional: str) -> list
              f"pass@1 < {t.get('core_low')} and pass@k > 0; control pass@1 > "
              f"{t.get('control_high')}; eval_only pass@k = 0; unmeasured when "
              f"pass@1 is n/a")
-    sep = ls.get("axis_separation")
-    if sep is not None:
-        pi = m["pass_axis"] if m is not None else "pass"
-        verdict = {True: "→ separated", False: "→ not separated",
-                   None: "→ undecidable at this n"}[sep.get("separated")]
-        L.append(f"{provisional}- axis separation: FOUND "
-                 f"{_fmt_rate(sep.get('found_rate'))} vs π={pi} "
-                 f"{_fmt_rate(sep.get('pass_axis_rate'))}, gap "
-                 f"{_fmt_rate(sep.get('gap'))} "
-                 f"{_fmt_ci(sep.get('gap_ci95'))} {verdict}")
     return L
 
 
 def _render_tiers(m: dict) -> list[str]:
     """The three tiers under the scalar, each with its denominator, plus the
-    arm's class balance and the path events. Only on a task that declares
+    saturation flag and the path events. Only on a task that declares
     outcome classes: without a class there is no band, and without a band
     the other two tiers have nothing to sit inside."""
     if not m.get("outcome_declared"):
@@ -1063,17 +1091,13 @@ def _render_tiers(m: dict) -> list[str]:
     L.append(f"tiers: band {_fmt_rate(m.get('band_mean'))} over {n_rw} with a "
              f"scalar · {prog} · {pth} · scalar variance "
              f"{_fmt_rate(m.get('reward_var'))} (population, over {n_rw})")
-    b = m.get("balance") or {}
-    share = b.get("share_correct")
-    L.append(f"class balance ({b.get('role')} arm, correct class "
-             f"{b.get('correct_class')}): "
-             + ("n/a - no episode carries a measured class"
-                if share is None else
-                f"{share} of {b.get('denominator')} scored rollouts with a "
-                f"measured outcome class")
-             + f" · saturated: {'yes' if m.get('saturated') else 'no'}"
-             + (" (>= 0.9 or <= 0.1 of one class: this arm gives a "
-                "group-relative trainer no signal)" if m.get("saturated") else ""))
+    h = m.get("pass") or {}
+    L.append(f"saturated: {'yes' if m.get('saturated') else 'no'} "
+             f"({m.get('role')} arm, top band "
+             f"{' | '.join(h.get('top_band') or [])}; pass@1 "
+             f"{_fmt_rate(h.get('rate'))} over {h.get('n', 0)} graded)"
+             + (" - >= 0.9 or <= 0.1: this arm gives a group-relative "
+                "trainer no signal" if m.get("saturated") else ""))
     reach = m.get("progress_reachability")
     if reach:
         L.append(f"progress reachability: n={reach.get('n')} · var "
@@ -1161,46 +1185,39 @@ def render(task: str, run_id: str, agg: dict, records: list[dict],
     p = agg["pass_at_1"]
     tag = _surface_tag(c)
 
-    # --- the matrix row. ABOVE the old criterion, deliberately: when the task
-    # declares a [matrix], the projected pass is the number the run presents.
+    # --- the headline. ABOVE the grader's own criterion, deliberately: when
+    # the task declares a [matrix], pass@1 / mean score is the number the run
+    # presents.
     m = agg.get("matrix")
     if m is None and spec is not None and getattr(spec, "matrix", None) is not None:
         # an agg that predates the matrix block, rendered under a matrix task
         m = _matrix_block(spec, records)
     if m is not None:
-        pi = m["pass_axis"]
-        if m["pass_axis_conflict"]:
-            L.append(f"**Projected pass (π={pi}) = WITHHELD - the run has no "
-                     f"single projection.** · {tag}")
-            L.append(f"  - {m['pass_axis_conflict']}")
+        h = m.get("pass") or {}
+        ms = m.get("mean_score") or {}
+        score_txt = (f"mean score = {_fmt_rate(ms.get('mean'))} "
+                     f"(n={ms.get('n', 0)})")
+        if not m.get("outcome_declared"):
+            L.append(f"**pass@1 = WITHHELD - the task declares no "
+                     f"[matrix.outcome], so no episode has a class.** · {tag}")
         elif not agg["measurement_valid"]:
-            L.append(f"**Projected pass (π={pi}) = WITHHELD - this run is not "
-                     f"a clean measurement.** · {tag}")
-        elif not m["projected_pass_denominator"] and m["admitted"]:
-            L.append(f"**Projected pass (π={pi}) = WITHHELD - the {m['admitted']} "
-                     f"admitted rollout(s) carry no evidence on the pass axis** "
-                     f"(none of the checks [matrix.map].{pi} names is in their "
-                     f"records; {m.get('pass_axis_unmeasured', m['admitted'])} "
-                     f"pass-axis-unmeasured, of {m['scored']} scored) · {tag}")
-        elif not m["projected_pass_denominator"]:
-            L.append(f"**Projected pass (π={pi}) = WITHHELD - no scored rollout "
-                     f"was admitted to the denominator** ({m['gate_cold']} "
-                     f"gate-cold, {m['gate_unmeasured']} gate-unmeasured, of "
+            L.append(f"**pass@1 = WITHHELD - this run is not a clean "
+                     f"measurement.** · {tag}")
+            L.append(f"  (provisional, do not publish: pass@1 = "
+                     f"{h.get('passed', 0)}/{h.get('n', 0)} "
+                     f"{_fmt_ci(h.get('ci95'))} · {score_txt})")
+        elif not h.get("n"):
+            L.append(f"**pass@1 = WITHHELD - no scored rollout has an outcome "
+                     f"class** ({m.get('unmeasured', 0)} unmeasured of "
                      f"{m['scored']} scored) · {tag}")
         else:
-            L.append(f"**Projected pass (π={pi}) = {m['projected_pass']}** "
-                     f"over {m['projected_pass_denominator']} admitted rollouts "
-                     f"· 95% CI {_fmt_ci(m.get('projected_pass_ci95'))} · {tag}")
-        L.append("axes over "
-                 f"{m['admitted']} admitted rollouts: "
-                 + " · ".join(
-                     f"{a} {m['axis_means'][a] if m['axis_means'][a] is not None else 'n/a'}"
-                     for a in axes_lib.AXES)
-                 + f" ({m['gate_cold']} gate-cold and {m['gate_unmeasured']} "
-                 "gate-unmeasured episodes left the denominators)")
-        # Outcome classes and the declared scalar sit UNDER the axes, in
-        # smaller type as it were: the classes explain the misses, and the
-        # scalar is what a trainer is handed, which is not what was measured.
+            L.append(f"**pass@1 = {h['passed']}/{h['n']} = "
+                     f"{_fmt_rate(h['rate'])}** {_fmt_ci(h.get('ci95'))} "
+                     f"(n={h['n']} graded rollouts; top band "
+                     f"{' | '.join(h.get('top_band') or [])}) · "
+                     f"**{score_txt}** · {tag}")
+        # The outcome mix explains the misses; the criteria table says which
+        # checks carried them.
         counts = m.get("outcome_counts") or {}
         if counts:
             L.append("outcomes: "
@@ -1211,13 +1228,25 @@ def render(task: str, run_id: str, agg: dict, records: list[dict],
             L.append("outcomes: unavailable (the task declares "
                      "[matrix.outcome] but no episode could be classified; see "
                      "caveats)")
+        crit = _render_criteria(m)
+        if crit:
+            L.append("")
+            L.extend(crit)
+        hk = _render_headline_k_table(h, "" if agg["measurement_valid"]
+                                      else "(provisional) ")
+        if hk:
+            L.append("")
+            L.extend(hk)
+        L.append("")
+        # The declared scalar sits UNDER the headline: it is what a trainer
+        # is handed, which is not what was measured.
         if m.get("reward_mean") is not None:
             L.append(f"declared training scalar (mean) = {m['reward_mean']} "
                      f"over {m['reward_denominator']} "
                      f"(band + {m.get('reward_progress_span')}*progress + path) "
                      f"- reward.py's DECLARED scalar, what a trainer is handed "
-                     f"per episode; NOT the measurement, which is the "
-                     f"projection above")
+                     f"per episode; NOT the measurement, which is pass@1 / "
+                     f"mean score above")
         L.extend(_render_tiers(m))
         L.append("")
 
@@ -1239,12 +1268,6 @@ def render(task: str, run_id: str, agg: dict, records: list[dict],
                  f"{ci} · {tag})")
     else:
         L.append(f"**{label} = {p if p is not None else 'n/a'}** {ci} · {tag}")
-    if agg["pass_at_1_reasoning_only"] is not None:
-        L.append(f"Pass@1 (reasoning-attributable only) = "
-                 f"{agg['pass_at_1_reasoning_only']} "
-                 f"(n = {agg.get('pass_at_1_reasoning_only_n')} passes + "
-                 f"reasoning failures; timeouts, budget and tool gaps left "
-                 f"out) · {tag}")
     pk = agg["pass_hat_k"]
     L.append(f"Pass^k = {pk if pk is not None else 'n/a'} "
              f"(k = {agg['pass_hat_k_k']} scored of "
@@ -1322,9 +1345,9 @@ def render(task: str, run_id: str, agg: dict, records: list[dict],
                 for rid, row in per_rollout.items()}
     with_outcome = any(v for v in outcomes.values())
     if with_outcome:
-        L.append("| id | class | outcome | band | prog | path | total | "
-                 "tool calls | wall s | why |")
-        L.append("|---|---|---|---|---|---|---|---|---|---|")
+        L.append("| id | class | outcome | pass | score | band | prog | path | "
+                 "total | tool calls | wall s | why |")
+        L.append("|---|---|---|---|---|---|---|---|---|---|---|---|")
     else:
         L.append("| id | class | total | tool calls | wall s | why |")
         L.append("|---|---|---|---|---|---|")
@@ -1333,9 +1356,18 @@ def render(task: str, run_id: str, agg: dict, records: list[dict],
         v = (per_rollout.get(rid) or {}).get(key)
         return "n/a" if v is None else f"{v:.2f}"
 
+    def bit(rid):
+        v = (per_rollout.get(rid) or {}).get("pass")
+        return "n/a" if v is None else ("yes" if v else "no")
+
+    def score(rid):
+        v = (per_rollout.get(rid) or {}).get("score")
+        return "n/a" if not v else f"{v['score']:.2f}"
+
     for r in records:
         rid = r.get("rollout_id")
-        cls = (f"{outcomes.get(rid) or 'n/a'} | {tier(rid, 'band')} | "
+        cls = (f"{outcomes.get(rid) or 'n/a'} | {bit(rid)} | {score(rid)} | "
+               f"{tier(rid, 'band')} | "
                f"{tier(rid, 'progress')} | {tier(rid, 'path_penalty')} | "
                if with_outcome else "")
         L.append(f"| {r.get('rollout_id')} | {r.get('classification')} | {cls}"

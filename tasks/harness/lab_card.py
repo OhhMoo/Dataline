@@ -123,17 +123,19 @@ def _newest_report(stored_runs: Path | None, task_id: str) -> tuple[dict | None,
 
 def _flatten_report(doc: dict) -> dict:
     """report.write nests the aggregate under `summary` and the matrix
-    block under `summary.matrix` (balance, saturated, per_rollout[*].
-    tracked_metrics). The probes read one flat view, so an aggregate
-    passed directly (tests, older writers) and a written report.json read
-    the same. Nothing is invented: a key is lifted only if it is there."""
+    block under `summary.matrix` (pass, mean_score, criteria,
+    outcome_counts, saturated, per_rollout[*].tracked_metrics). The probes
+    read one flat view, so an aggregate passed directly (tests, older
+    writers) and a written report.json read the same. Nothing is invented:
+    a key is lifted only if it is there."""
     agg = doc.get("summary") if isinstance(doc.get("summary"), dict) else doc
     flat = dict(agg)
     for k in ("task", "run_id"):
         if k in doc and k not in flat:
             flat[k] = doc[k]
     matrix = agg.get("matrix") if isinstance(agg.get("matrix"), dict) else {}
-    for k in ("balance", "saturated"):
+    for k in ("pass", "mean_score", "criteria", "outcome_counts", "saturated",
+              "role"):
         if k not in flat and k in matrix:
             flat[k] = matrix[k]
     if "tracked_metrics" not in flat:
@@ -356,22 +358,32 @@ def _probe_accepted_and_staging(ctx: TaskContext):
 
 
 def _probe_no_lucky_guess(ctx: TaskContext):
+    """The headline pass is the outcome class landing in the top band, and
+    a top-band class is an ALL class over its conditions: a guess has to
+    satisfy every must-have criterion at once. So the probe asks that every
+    arm's `resolved` names at least two conditions (one check is a coin), and
+    that `withheld_with_evidence` names positive evidence, so withholding
+    cannot be told from silence."""
     why = []
     for arm in ctx.arms:
-        m = ctx.matrix(arm)
-        axis = m.get("pass_axis")
-        mapped = (m.get("map") or {}).get(axis) if isinstance(m.get("map"), dict) else None
-        if not axis or not mapped:
-            why.append(f"arm {_arm_label(arm)!r}: pass_axis {axis!r} maps to no checks")
-        table = m.get("outcome")
-        if not isinstance(table, dict) or not table.get("withheld_with_evidence"):
+        table = ctx.matrix(arm).get("outcome")
+        if not isinstance(table, dict):
+            why.append(f"arm {_arm_label(arm)!r}: no [matrix.outcome] table, "
+                       f"so there is no must-have criteria set to guess against")
+            continue
+        resolved = table.get("resolved") or []
+        if len(resolved) < 2:
+            why.append(f"arm {_arm_label(arm)!r}: resolved requires "
+                       f"{len(resolved)} condition(s); one check is a coin")
+        if not table.get("withheld_with_evidence"):
             why.append(f"arm {_arm_label(arm)!r}: no withheld_with_evidence "
                        f"conditions, so withholding cannot be told from silence")
     if why:
         return UNMET, "; ".join(why)
-    return MET, ("pass axis maps to grader checks on every arm (whole-object "
-                 "receipts, never row presence); withheld_with_evidence needs "
-                 "positive evidence; silent is derived and pays 0")
+    return MET, ("every arm's resolved is an ALL over >= 2 grader checks "
+                 "(whole-object receipts, never row presence); "
+                 "withheld_with_evidence needs positive evidence; silent is "
+                 "derived and pays 0")
 
 
 def _probe_rft_grader_export(ctx: TaskContext):
@@ -449,17 +461,21 @@ def _probe_group_signal(ctx: TaskContext):
 
 
 def _probe_class_balance(ctx: TaskContext):
+    """The label distribution is the outcome mix: `outcome_counts` says how
+    the graded episodes spread over the classes, and `pass` {n, passed} the
+    share in the top band. A run that carries both has measured its skew;
+    one that carries counts and no headline has not said what the label is."""
     if ctx.report is None:
         return _needs_run(ctx, "class balance across arms")
-    bal = ctx.report.get("balance")
-    counts = (ctx.report.get("matrix") or {}).get("outcome_counts") \
-        if isinstance(ctx.report.get("matrix"), dict) else None
-    if isinstance(bal, dict):
-        return MET, f"{ctx.report_path.name}: balance = {bal}"
-    if counts:
+    counts = ctx.report.get("outcome_counts")
+    head = ctx.report.get("pass")
+    if isinstance(counts, dict) and counts and isinstance(head, dict):
+        return MET, (f"{ctx.report_path.name}: outcome_counts = {counts}; "
+                     f"pass = {head.get('passed')}/{head.get('n')}")
+    if isinstance(counts, dict) and counts:
         return UNMET, (f"{ctx.report_path.name}: outcome_counts = {counts} but no "
-                       f"balance block (share of the correct class per arm)")
-    return UNMET, f"{ctx.report_path.name}: no balance block and no outcome_counts"
+                       f"pass block (share of the top band per arm)")
+    return UNMET, f"{ctx.report_path.name}: no outcome_counts and no pass block"
 
 
 # ------------------------------------------------------------ the table

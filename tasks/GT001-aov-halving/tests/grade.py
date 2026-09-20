@@ -641,7 +641,7 @@ def _advanced(world_root: Path, dec: dict, scratch: Path) -> dict:
 
 
 def w2_consumer(world_root: Path | None, dec: dict, adv: dict | None, s: Score):
-    """The pass axis, over the whole object: the receipt's hash must be the
+    """The consumer's object, hashed whole: the receipt's hash must be the
     HELD trajectory - closed rows as issued, March from the repaired data."""
     weight = float(dec.get("consumer_points", 4.0))
     if adv is None:

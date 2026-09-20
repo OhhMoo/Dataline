@@ -483,53 +483,30 @@ pass_min_total = 14.0
 pass_min_total_measured = true
 
 # ---------------------------------------------------------------------------
-# THE SCORING MATRIX (new_matrix.md, Layer A). SCORE-ONLY: the grader's checks,
-# points and pass criterion above are UNCHANGED; this declares how the grader's
-# existing check ids project onto the four library axes (tasks/harness/axes.py).
-# The [difficulty].axes table above is the grader's OWN point grouping
-# (DIAGNOSIS/DEPLOY/EVIDENCE/HYGIENE) and stays; [matrix.map] is a separate
-# mapping from LIBRARY axes onto individual check ids and never renames grader
-# output.
+# THE SCORING MATRIX (docs/evalScoringRedesign.md). SCORE-ONLY: the grader's
+# checks, points and pass criterion above are UNCHANGED; this declares the
+# outcome classes, progress quantities and path rules the harness reads off
+# the grader's existing check ids. The [difficulty].axes table above is the
+# grader's OWN point grouping (DIAGNOSIS/DEPLOY/EVIDENCE/HYGIENE) and stays.
 #
-#   pass  (pi)  warranted - D2, the licensed deploy: the extract republished
-#               today under a live, clean canary. This is what the manifest's
-#               pass_requires_checks and [matrix.outcome].resolved already
-#               require, so the headline and the scalar's 1.0 read the same
-#               thing (2026-09-19, item 7 of MATRIX_RERUN_EDITS 0.13).
-#               HISTORY: from 2026-09-17 to 2026-09-19 this axis read
-#               S1a/S1b/S2 (MATRIX_RERUN_EDITS 0.3), because the valid
-#               2026-09-15 K=5 was graded before grade.py gained D2 and the
-#               stored records carry no D2 row - on THOSE records this axis
-#               is n/a and the before-picture row in MATRIX_RERUN_EDITS 1 is
-#               the evidence rate, not this one. The rerun is prospective and
-#               carries D2. S1a/S1b/S2 stay scored and reported as EVIDENCE
-#               (by_axis) and stay out of the pass, as the floor note above
-#               already insists.
-#               The pass this task presents is the rate on this axis alone,
-#               after the gate; it is not an aggregate of the other axes.
-#   gate  (|>)  found     - D1: the ran-long/started-late diagnosis and the
-#               repair that follows from it. A cold gate admits nothing: the
-#               episode leaves the warranted denominator instead of scoring 0
-#               on it, the same honesty rule as quarantine.
+#   D1  DIAGNOSIS: the ran-long/started-late verdict and the repair that
+#       follows from it, one decision (8 pts).
+#   D2  DEPLOY: the licensed republish - the extract republished today under
+#       a live, clean canary (6 pts). The valid 2026-09-15 K=5 was graded
+#       before grade.py gained D2 and the stored records carry no D2 row; the
+#       rerun is prospective and carries D2. S1a/S1b/S2 stay scored and
+#       reported as EVIDENCE (by_axis) and stay out of the pass, as the floor
+#       note above already insists.
 #
-# scoped and consumer are deliberately UNMAPPED: no check in this rubric
-# measures them, and an axis with no mapped checks is n/a for this task, never
-# 0. HYGIENE (H1) stays on the row as a grader diagnostic exactly as by_axis
-# reports it; the matrix no more decides pass from it than the old criterion
-# did.
+# HYGIENE (H1) stays on the row as a grader diagnostic exactly as by_axis
+# reports it; the outcome table reads it as false_claim.
 # ---------------------------------------------------------------------------
 [matrix]
-pass_axis = "warranted"
-gate      = "found"
 # The oracle trajectory names, from tests/run_baselines.py's AGENTS table: the
 # reference solution, run self-hosted. `deploy_rolled_back` reaches the same
 # world by a different route and is the positive control, not a second oracle;
 # `hold_republish_with_evidence` is priced by its class, never admitted here.
 accepted  = ["oracle"]
-
-[matrix.map]
-found     = ["D1"]              # DIAGNOSIS: verdict + repair, one decision (8 pts)
-warranted = ["D2"]              # DEPLOY: the licensed republish (see the note above)
 
 # The per-episode outcome class (tasks/harness/outcome.py), read off the
 # checks tests/grade.py emits; "!" = the check charged. First match in this
@@ -548,7 +525,7 @@ withheld_with_evidence = ["D1", "W1", "W2", "A0"]
 acted                  = ["A1"]
 
 # PROGRESS inside the partial classes (progress.py; template §9;
-# docs/scoring_granularity.md §4). PRODUCT quantities only, each read off one
+# docs/evalScoringRedesign.md). PRODUCT quantities only, each read off one
 # grader check's detail[field]:
 #   diagnosis  D1.detail.clauses_paid - of verdict / repaired-on-time (the
 #              replayed night lands by 04:00 without overlap, plant
@@ -653,14 +630,7 @@ pass_min_total = 16.0
 # Declared IN FULL rather than as a diff against [matrix], so the block reads
 # the same whether a future loader merges or replaces on override.
 [variants.decision.matrix]
-pass_axis = "warranted"
-gate      = "found"
 accepted  = ["oracle"]
-
-[variants.decision.matrix.map]
-found     = ["D1"]
-warranted = ["D2"]   # the licensed republish (2026-09-19; was S1a/S1b/S2, see the control note)
-consumer  = ["C1"]
 
 [variants.decision.matrix.outcome]
 # H1 charges -2 when a structured claim in the report is false of the world (verdict, runtime_changed, rollout_deploy).

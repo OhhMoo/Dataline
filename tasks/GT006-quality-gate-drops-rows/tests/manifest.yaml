@@ -334,7 +334,7 @@ checks:
     points: 0
     in_pass_criterion: true
     assertion: >
-      THE CONSUMER'S READING - the pass axis of the matrix. The world the agent
+      THE CONSUMER'S READING - in `resolved` on both arms. The world the agent
       left is COPIED, var/world/live.json is made advance-capable on the copy
       (tests/consumer.py), and world.scheduler.advance runs one night over it
       (02:40 build_payments, 02:45 refresh_bi_extract). The extract the board

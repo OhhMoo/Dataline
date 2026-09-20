@@ -1,16 +1,18 @@
-"""The loader half of the scoring matrix (new_matrix.md, Layer A).
+"""The loader half of the scoring matrix (docs/evalScoringRedesign.md).
 
-axes.py is the frozen contract and test_axes.py proves its semantics; what
-this file proves is that a task.toml `[matrix]` table reaches TaskSpec as a
-MatrixSpec UNCHANGED, that the TOML-level refusals the dataclass does not make
-(an unstated `gate`, an `accepted` name no staged baseline answers to) are
-made here, and that a variant's `[variants.<name>.matrix]` overrides the
-task-level table per key, the same pattern the grading flags use.
+What this file proves is that a task.toml `[matrix]` table reaches TaskSpec
+as a MatrixSpec UNCHANGED, that the TOML-level refusals the dataclass does
+not make (an `accepted` name no staged baseline answers to, an outcome table
+without a role, a matrix that declares nothing the harness reads) are made
+here, that the removed "library axes" keys (`pass_axis`, `gate`,
+`[matrix.map]`, `[matrix.proxy]`) are IGNORED wherever they still appear, and
+that a variant's `[variants.<name>.matrix]` overrides the task-level table per
+key, the same pattern the grading flags use.
 
 Every task package below is a four-file fixture under tmp_path - a task.toml,
 an instruction.md, and where the accepted-validation needs one a two-line
 tests/run_baselines.py. Nothing here builds a world, runs a grader or stages
-a fixture tree.
+a fixture tree. The last section reads the 19 shipped arms.
 """
 from __future__ import annotations
 
@@ -19,10 +21,10 @@ from pathlib import Path
 import pytest
 
 import taskspec
-from axes import ROLES, MatrixError, MatrixSpec
 from outcome import OutcomeSpec
 from path import PathSpec
 from progress import ProgressSpec
+from taskspec import LEGACY_MATRIX_KEYS, MATRIX_KEYS, ROLES, MatrixError, MatrixSpec
 
 TASKS = Path(__file__).resolve().parent.parent
 
@@ -84,358 +86,31 @@ note = "the shipped context"
     assert load(tmp_path).variant == "default"
 
 
-# -- a well-formed [matrix] loads ----------------------------------------------
+# -- the spec: what it carries, what it does not ---------------------------------
 
-def test_matrix_loads_into_a_matrix_spec(tmp_path):
-    write_task(tmp_path, """
-[matrix]
-pass_axis = "warranted"
-gate      = "found"
-accepted  = ["oracle"]
+def test_matrix_spec_has_no_axis_fields():
+    fields = set(MatrixSpec.__dataclass_fields__)
+    assert fields == {"accepted", "outcome", "progress", "path", "path_allow",
+                      "role"}
+    assert fields == set(MATRIX_KEYS)
+    assert not fields & set(LEGACY_MATRIX_KEYS)
+    assert MatrixSpec().role == "control" and MatrixSpec().outcome is None
 
-[matrix.map]
-found     = ["D1"]
-warranted = ["D2", "D3"]
-""", baselines=["oracle", "no_op"])
-    spec = load(tmp_path)
-    assert isinstance(spec.matrix, MatrixSpec)
-    assert spec.matrix.pass_axis == "warranted"
-    assert spec.matrix.gate == "found"
-    assert spec.matrix.accepted == ("oracle",)
-    assert spec.matrix.checks_for("warranted") == ("D2", "D3")
-    assert spec.matrix.checks_for("scoped") == ()
 
+def test_matrix_spec_refuses_an_unknown_role_in_code():
+    with pytest.raises(MatrixError, match="role"):
+        MatrixSpec(role="referee")
+    assert ROLES == ("control", "decision")
 
-def test_gate_false_is_the_gateless_control(tmp_path):
-    # TOML has no null; `false` is the explicit spelling of axes.py's
-    # gate=None, the control task with nothing to find.
-    write_task(tmp_path, """
-[matrix]
-pass_axis = "found"
-gate      = false
 
-[matrix.map]
-found = ["D5a"]
-""")
-    assert load(tmp_path).matrix.gate is None
+def test_axes_module_is_gone():
+    with pytest.raises(ModuleNotFoundError):
+        import axes  # noqa: F401
+    assert not hasattr(taskspec, "pass_axis_outside_top_band")
+    assert not hasattr(taskspec, "ArtifactTokens")
 
 
-# -- the TOML-level refusals -----------------------------------------------------
-
-def test_pass_axis_without_gate_is_refused(tmp_path):
-    # The dataclass defaults gate to 'found' so that CODE can construct one; a
-    # declaration that decides a denominator has to state it.
-    write_task(tmp_path, """
-[matrix]
-pass_axis = "found"
-
-[matrix.map]
-found = ["D5a"]
-""")
-    with pytest.raises(taskspec.TaskSpecError, match="gate"):
-        load(tmp_path)
-
-
-def test_gate_without_pass_axis_is_refused(tmp_path):
-    write_task(tmp_path, """
-[matrix]
-gate = "found"
-""")
-    with pytest.raises(taskspec.TaskSpecError, match="pass_axis"):
-        load(tmp_path)
-
-
-def test_an_empty_matrix_table_is_refused(tmp_path):
-    write_task(tmp_path, """
-[matrix]
-""")
-    with pytest.raises(taskspec.TaskSpecError, match="pass_axis"):
-        load(tmp_path)
-
-
-def test_gate_must_be_a_library_axis(tmp_path):
-    write_task(tmp_path, """
-[matrix]
-pass_axis = "found"
-gate      = "overall"
-""")
-    with pytest.raises(taskspec.TaskSpecError, match="GT000-matrix.*gate"):
-        load(tmp_path)
-
-
-def test_pass_axis_without_mapped_checks_is_refused(tmp_path):
-    # Otherwise every episode withholds the headline as n/a forever, with no
-    # signal but an empty denominator.
-    write_task(tmp_path, """
-[matrix]
-pass_axis = "scoped"
-gate      = "found"
-
-[matrix.map]
-found = ["D1"]
-""")
-    with pytest.raises(taskspec.TaskSpecError, match="scoped"):
-        load(tmp_path)
-
-
-def test_gate_without_mapped_checks_is_refused(tmp_path):
-    # A gate with no evidence admits-or-withholds on nothing for every
-    # episode. `gate = false` is the spelling for a task with nothing to find.
-    write_task(tmp_path, """
-[matrix]
-pass_axis = "found"
-gate      = "warranted"
-
-[matrix.map]
-found = ["D1"]
-""")
-    with pytest.raises(taskspec.TaskSpecError, match="warranted"):
-        load(tmp_path)
-
-
-def test_pass_axis_must_be_a_library_axis(tmp_path):
-    write_task(tmp_path, """
-[matrix]
-pass_axis = "score"
-gate      = "found"
-""")
-    with pytest.raises(taskspec.TaskSpecError, match="pass_axis"):
-        load(tmp_path)
-
-
-def test_map_rejects_invented_axes(tmp_path):
-    write_task(tmp_path, """
-[matrix]
-pass_axis = "found"
-gate      = "found"
-
-[matrix.map]
-overall = ["G1"]
-""")
-    with pytest.raises(taskspec.TaskSpecError, match="unknown axes"):
-        load(tmp_path)
-
-
-def test_map_entries_must_be_check_id_strings(tmp_path):
-    write_task(tmp_path, """
-[matrix]
-pass_axis = "found"
-gate      = "found"
-
-[matrix.map]
-found = "G1"
-""")
-    with pytest.raises(taskspec.TaskSpecError, match=r"matrix\.map"):
-        load(tmp_path)
-
-
-def test_matrix_must_be_a_table(tmp_path):
-    root = write_task(tmp_path)
-    (root / "task.toml").write_text('matrix = "found"\n' + BASE_TOML,
-                                    encoding="utf-8", newline="")
-    with pytest.raises(taskspec.TaskSpecError, match="matrix"):
-        load(tmp_path)
-
-
-# -- accepted, against the baselines the package stages --------------------------
-
-def test_accepted_names_must_be_staged_baselines(tmp_path):
-    write_task(tmp_path, """
-[matrix]
-pass_axis = "consumer"
-gate      = "found"
-accepted  = ["oracle", "ghost"]
-
-[matrix.map]
-found = ["D1"]
-""", baselines=["oracle", "no_op"])
-    with pytest.raises(taskspec.TaskSpecError, match="ghost"):
-        load(tmp_path)
-
-
-def test_accepted_validates_when_the_roster_is_enumerable(tmp_path):
-    write_task(tmp_path, """
-[matrix]
-pass_axis = "consumer"
-gate      = "found"
-accepted  = ["oracle"]
-
-[matrix.map]
-found    = ["D1"]
-consumer = ["C5"]
-""", baselines=["oracle", "no_op"])
-    assert load(tmp_path).matrix.accepted == ("oracle",)
-
-
-def test_accepted_falls_back_to_a_type_check_when_no_roster_parses(tmp_path):
-    # GT001's run_baselines.py declares no AGENTS/BASELINES dict, so the set
-    # of staged baselines is NOT enumerable there; the loader checks the type
-    # and no further rather than refusing a name it cannot look up.
-    write_task(tmp_path, """
-[matrix]
-pass_axis = "consumer"
-gate      = "found"
-accepted  = ["anything_at_all"]
-
-[matrix.map]
-found    = ["D1"]
-consumer = ["C5"]
-""")
-    assert load(tmp_path).matrix.accepted == ("anything_at_all",)
-
-
-def test_accepted_must_be_a_list_of_strings(tmp_path):
-    write_task(tmp_path, """
-[matrix]
-pass_axis = "found"
-gate      = "found"
-accepted  = [1]
-""")
-    with pytest.raises(taskspec.TaskSpecError, match="accepted"):
-        load(tmp_path)
-
-
-# -- per-variant overrides ---------------------------------------------------------
-
-VARIANTS_TOML = """
-[matrix]
-pass_axis = "found"
-gate      = "found"
-accepted  = ["oracle"]
-
-[matrix.map]
-found    = ["G1"]
-consumer = ["G0"]
-
-[variants.default]
-note = "the shipped context"
-
-[variants.scoped-arm]
-note = "moves the pass axis onto scoped"
-
-[variants.scoped-arm.matrix]
-pass_axis = "scoped"
-
-[variants.scoped-arm.matrix.map]
-found  = ["G9"]
-scoped = ["G2"]
-"""
-
-
-def test_default_arm_keeps_the_task_matrix(tmp_path):
-    write_task(tmp_path, VARIANTS_TOML, baselines=["oracle"])
-    matrix = load(tmp_path).matrix
-    assert matrix.pass_axis == "found"
-    assert matrix.checks_for("found") == ("G1",)
-
-
-def test_an_arm_overrides_only_the_keys_it_declares(tmp_path):
-    write_task(tmp_path, VARIANTS_TOML, baselines=["oracle"])
-    matrix = load(tmp_path, variant="scoped-arm").matrix
-    assert matrix.pass_axis == "scoped"          # overridden
-    assert matrix.gate == "found"                # inherited
-    assert matrix.accepted == ("oracle",)        # inherited
-    # [matrix.map] is ONE key: the arm's table replaces the base's wholesale,
-    # it does not merge per axis - the base's consumer list is gone, and the
-    # arm re-declares found (the inherited gate needs its evidence).
-    assert matrix.checks_for("scoped") == ("G2",)
-    assert matrix.checks_for("found") == ("G9",)
-    assert matrix.checks_for("consumer") == ()
-
-
-def test_an_arm_only_matrix_must_state_its_gate(tmp_path):
-    write_task(tmp_path, """
-[variants.default]
-note = "the shipped context"
-
-[variants.matrix-arm]
-note = "the only arm with a matrix"
-
-[variants.matrix-arm.matrix]
-pass_axis = "warranted"
-""")
-    assert load(tmp_path).matrix is None
-    with pytest.raises(taskspec.TaskSpecError, match="gate"):
-        load(tmp_path, variant="matrix-arm")
-
-
-def test_an_arm_can_introduce_the_matrix(tmp_path):
-    write_task(tmp_path, """
-[variants.default]
-note = "the shipped context"
-
-[variants.matrix-arm]
-note = "the only arm with a matrix"
-
-[variants.matrix-arm.matrix]
-pass_axis = "warranted"
-gate      = "found"
-
-[variants.matrix-arm.matrix.map]
-found     = ["G1"]
-warranted = ["G1"]
-""")
-    assert load(tmp_path).matrix is None
-    matrix = load(tmp_path, variant="matrix-arm").matrix
-    assert matrix.pass_axis == "warranted"
-    assert matrix.checks_for("warranted") == ("G1",)
-
-
-# -- the declarations other sessions already shipped --------------------------------
-
-#: The default arm's projection per shipped task: (pass_axis, gate). Pinned
-#: because MATRIX_RERUN_EDITS.md §1 compares the rerun to stored runs on
-#: these axes. The exact check ids behind each axis are the task's business
-#: (validity.py vouches every id against the grader); the template reform
-#: (2026-09-18) added ids to most maps and moved GT006's control pass axis
-#: to `consumer` (the board-pack extract hash), recorded in §0.12.
-SHIPPED_PROJECTION = {
-    "GT001-aov-halving": ("found", "found"),
-    "GT002-orders-flatline": ("scoped", "found"),
-    "GT003-tuesday-figure": ("scoped", "found"),
-    "GT004-doubling-window": ("warranted", "found"),
-    "GT005-assertion-never-ran": ("found", "found"),
-    "GT006-quality-gate-drops-rows": ("consumer", "found"),
-    "GT007-ran-long-or-started-late": ("warranted", "found"),
-    "GT008-warehouse-cutover": ("consumer", "found"),
-    "GT009-settlement-cutoff": ("consumer", "found"),
-}
-
-
-def test_the_shipped_matrix_tasks_load():
-    """All nine shipped tasks carry [matrix] tables; the loader must accept
-    what they declare, the default arm's projection is the pinned one, the
-    pass axis is mapped, and the arm states its role."""
-    for task_id, (pass_axis, gate) in SHIPPED_PROJECTION.items():
-        matrix = taskspec.load(task_id, TASKS).matrix
-        assert matrix is not None, f"{task_id} declares [matrix] but loaded None"
-        assert (matrix.pass_axis, matrix.gate) == (pass_axis, gate), task_id
-        assert matrix.map.get(pass_axis), f"{task_id} pass axis unmapped"
-        assert matrix.map.get(gate), f"{task_id} gate unmapped"
-        assert matrix.role in ROLES, task_id
-
-
-# -- [matrix.outcome] (outcome.py, Layer 1) ----------------------------------------
-
-# `role` sits on [matrix] here because these fixtures declare no [variants]
-# table to carry it - the fallback taskspec documents. The shipped tasks put
-# it on each [variants.<arm>]; see the `role` section below.
-OUTCOME_TOML = """
-[matrix]
-pass_axis = "consumer"
-gate      = "found"
-role      = "decision"
-
-[matrix.map]
-found    = ["C0"]
-consumer = ["R1", "R2"]
-
-[matrix.outcome]
-false_claim            = ["!H1"]
-boundary_violated      = ["!H2"]
-resolved               = ["R1", "R2"]
-withheld_with_evidence = ["D3", "S1"]
-"""
+# -- a well-formed [matrix] loads, with and without the legacy keys ---------------
 
 MANIFEST_YAML = """\
 checks:
@@ -462,7 +137,80 @@ def write_manifest(root: Path, text: str = MANIFEST_YAML) -> None:
         encoding="utf-8", newline="")
 
 
-def test_no_outcome_table_means_no_outcome(tmp_path):
+# `role` sits on [matrix] here because these fixtures declare no [variants]
+# table to carry it - the fallback taskspec documents. The shipped tasks put
+# it on each [variants.<arm>]; see the `role` section below.
+OUTCOME_TOML = """
+[matrix]
+role      = "decision"
+accepted  = ["oracle"]
+
+[matrix.outcome]
+false_claim            = ["!H1"]
+boundary_violated      = ["!H2"]
+resolved               = ["R1", "R2"]
+withheld_with_evidence = ["D3", "S1"]
+"""
+
+#: The same declaration as a task.toml that has NOT yet had the axes removed
+#: carries it: pass_axis, gate, a [matrix.map] and a [matrix.proxy]. Both
+#: shapes must load to the SAME MatrixSpec until the tomls are merged.
+LEGACY_TOML = """
+[matrix]
+pass_axis = "consumer"
+gate      = "found"
+role      = "decision"
+accepted  = ["oracle"]
+
+[matrix.map]
+found    = ["C0"]
+consumer = ["R1", "R2"]
+
+[matrix.proxy.found]
+field  = "remaining_risks"
+tokens = ["94,097"]
+
+[matrix.outcome]
+false_claim            = ["!H1"]
+boundary_violated      = ["!H2"]
+resolved               = ["R1", "R2"]
+withheld_with_evidence = ["D3", "S1"]
+"""
+
+
+def test_matrix_loads_into_a_matrix_spec_without_the_legacy_keys(tmp_path):
+    root = write_task(tmp_path, OUTCOME_TOML, baselines=["oracle", "no_op"])
+    write_manifest(root)
+    spec = load(tmp_path)
+    m = spec.matrix
+    assert isinstance(m, MatrixSpec)
+    assert m.role == "decision" and m.accepted == ("oracle",)
+    assert isinstance(m.outcome, OutcomeSpec)
+    assert m.outcome.map["resolved"] == ("R1", "R2")
+    assert m.progress is None and m.path is None and m.path_allow is None
+    for gone in LEGACY_MATRIX_KEYS:
+        assert not hasattr(m, gone), gone
+
+
+def test_legacy_axis_keys_are_ignored_and_load_the_same_spec(tmp_path):
+    clean = write_task(tmp_path, OUTCOME_TOML, name="GT000-clean",
+                       baselines=["oracle", "no_op"])
+    legacy = write_task(tmp_path, LEGACY_TOML, name="GT000-legacy",
+                        baselines=["oracle", "no_op"])
+    write_manifest(clean)
+    write_manifest(legacy)
+    a = load(tmp_path, name="GT000-clean").matrix
+    b = load(tmp_path, name="GT000-legacy").matrix
+    assert a == b
+    assert b.role == "decision" and b.outcome.map == a.outcome.map
+    # and the raw file still carries them: ignored, not rewritten
+    raw = load(tmp_path, name="GT000-legacy").raw["matrix"]
+    assert raw["pass_axis"] == "consumer" and "map" in raw and "proxy" in raw
+
+
+def test_legacy_keys_alone_do_not_make_a_matrix(tmp_path):
+    # a [matrix] that after dropping the axes declares NOTHING the harness
+    # reads is a matrix task with no headline: refused, with the keys named
     write_task(tmp_path, """
 [matrix]
 pass_axis = "found"
@@ -470,6 +218,162 @@ gate      = "found"
 
 [matrix.map]
 found = ["D1"]
+""")
+    with pytest.raises(taskspec.TaskSpecError, match="declares nothing"):
+        load(tmp_path)
+
+
+def test_an_empty_matrix_table_is_refused(tmp_path):
+    write_task(tmp_path, """
+[matrix]
+""")
+    with pytest.raises(taskspec.TaskSpecError, match="declares nothing"):
+        load(tmp_path)
+
+
+def test_legacy_gate_values_of_any_type_are_ignored(tmp_path):
+    # `gate = false` was the gateless spelling; a string, a bool, a table -
+    # none of it is read any more
+    for value in ('"found"', "false", "true", "7"):
+        write_task(tmp_path, f"""
+[matrix]
+gate     = {value}
+accepted = ["oracle"]
+""", name=f"GT000-gate-{value.strip(chr(34))}")
+        assert load(tmp_path, name=f"GT000-gate-{value.strip(chr(34))}").matrix \
+            == MatrixSpec(accepted=("oracle",))
+
+
+def test_legacy_map_of_any_shape_is_ignored(tmp_path):
+    # the old loader refused a map whose entries were not lists of strings;
+    # the new one never reads it
+    write_task(tmp_path, """
+[matrix]
+accepted = ["oracle"]
+
+[matrix.map]
+found   = "G1"
+overall = 3
+""")
+    assert load(tmp_path).matrix == MatrixSpec(accepted=("oracle",))
+
+
+def test_matrix_must_be_a_table(tmp_path):
+    root = write_task(tmp_path)
+    (root / "task.toml").write_text('matrix = "found"\n' + BASE_TOML,
+                                    encoding="utf-8", newline="")
+    with pytest.raises(taskspec.TaskSpecError, match="matrix"):
+        load(tmp_path)
+
+
+# -- accepted, against the baselines the package stages --------------------------
+
+def test_accepted_names_must_be_staged_baselines(tmp_path):
+    write_task(tmp_path, """
+[matrix]
+accepted  = ["oracle", "ghost"]
+""", baselines=["oracle", "no_op"])
+    with pytest.raises(taskspec.TaskSpecError, match="ghost"):
+        load(tmp_path)
+
+
+def test_accepted_validates_when_the_roster_is_enumerable(tmp_path):
+    write_task(tmp_path, """
+[matrix]
+accepted  = ["oracle"]
+""", baselines=["oracle", "no_op"])
+    assert load(tmp_path).matrix.accepted == ("oracle",)
+
+
+def test_accepted_falls_back_to_a_type_check_when_no_roster_parses(tmp_path):
+    # GT001's run_baselines.py declares no AGENTS/BASELINES dict, so the set
+    # of staged baselines is NOT enumerable there; the loader checks the type
+    # and no further rather than refusing a name it cannot look up.
+    write_task(tmp_path, """
+[matrix]
+accepted  = ["anything_at_all"]
+""")
+    assert load(tmp_path).matrix.accepted == ("anything_at_all",)
+
+
+def test_accepted_must_be_a_list_of_strings(tmp_path):
+    write_task(tmp_path, """
+[matrix]
+accepted  = [1]
+""")
+    with pytest.raises(taskspec.TaskSpecError, match="accepted"):
+        load(tmp_path)
+
+
+# -- per-variant overrides ---------------------------------------------------------
+
+VARIANTS_TOML = """
+[matrix]
+accepted  = ["oracle"]
+
+[variants.default]
+note = "the shipped context"
+
+[variants.other-oracle]
+note = "accepts a different baseline"
+
+[variants.other-oracle.matrix]
+accepted = ["positive_control"]
+
+[variants.legacy-arm]
+note = "an arm that still carries the axes override"
+
+[variants.legacy-arm.matrix]
+pass_axis = "scoped"
+
+[variants.legacy-arm.matrix.map]
+found  = ["G9"]
+scoped = ["G2"]
+"""
+
+
+def test_default_arm_keeps_the_task_matrix(tmp_path):
+    write_task(tmp_path, VARIANTS_TOML, baselines=["oracle", "positive_control"])
+    assert load(tmp_path).matrix == MatrixSpec(accepted=("oracle",))
+
+
+def test_an_arm_overrides_only_the_keys_it_declares(tmp_path):
+    write_task(tmp_path, VARIANTS_TOML, baselines=["oracle", "positive_control"])
+    matrix = load(tmp_path, variant="other-oracle").matrix
+    assert matrix.accepted == ("positive_control",)      # overridden
+    assert matrix.role == "control"                      # inherited default
+
+
+def test_an_arms_legacy_override_is_ignored_too(tmp_path):
+    write_task(tmp_path, VARIANTS_TOML, baselines=["oracle", "positive_control"])
+    matrix = load(tmp_path, variant="legacy-arm").matrix
+    assert matrix == MatrixSpec(accepted=("oracle",))    # inherited, axes dropped
+
+
+def test_an_arm_can_introduce_the_matrix(tmp_path):
+    write_task(tmp_path, """
+[variants.default]
+note = "the shipped context"
+
+[variants.matrix-arm]
+role = "control"
+note = "the only arm with a matrix"
+
+[variants.matrix-arm.matrix.outcome]
+resolved = ["G1"]
+""")
+    assert load(tmp_path).matrix is None
+    matrix = load(tmp_path, variant="matrix-arm").matrix
+    assert matrix.outcome.map == {"resolved": ("G1",)}
+    assert matrix.role == "control"
+
+
+# -- [matrix.outcome] (outcome.py, Layer 1) ----------------------------------------
+
+def test_no_outcome_table_means_no_outcome(tmp_path):
+    write_task(tmp_path, """
+[matrix]
+accepted = ["oracle"]
 """)
     assert load(tmp_path).matrix.outcome is None
 
@@ -485,10 +389,10 @@ def test_outcome_loads_into_an_outcome_spec(tmp_path):
                            "withheld_with_evidence": ("D3", "S1")}
 
 
-def test_outcome_ids_are_vouched_for_by_the_manifest_not_only_the_map(tmp_path):
-    # H1/H2/D3/S1 are mapped to no axis (hygiene penalties never are); the
-    # manifest's check table is what admits them.
-    root = write_task(tmp_path, OUTCOME_TOML)
+def test_outcome_ids_are_vouched_for_by_the_manifest(tmp_path):
+    # H1/H2/D3/S1 are not in this manifest's check table: refused, whatever
+    # a legacy [matrix.map] might have said about them
+    root = write_task(tmp_path, LEGACY_TOML)
     write_manifest(root, "checks:\n  - id: C0\n  - id: R1\n  - id: R2\n")
     with pytest.raises(taskspec.TaskSpecError, match=r"matrix\.outcome.*'H1'"):
         load(tmp_path)
@@ -504,12 +408,7 @@ def test_outcome_ids_are_shape_checked_only_without_a_manifest(tmp_path):
 def test_outcome_without_resolved_is_refused(tmp_path):
     write_task(tmp_path, """
 [matrix]
-pass_axis = "found"
-gate      = "found"
 role      = "decision"
-
-[matrix.map]
-found = ["D1"]
 
 [matrix.outcome]
 false_claim = ["!H1"]
@@ -537,7 +436,6 @@ def test_outcome_refuses_an_empty_list(tmp_path):
 
 
 def test_outcome_refuses_an_unknown_check_id(tmp_path):
-    # R9 is in neither the map nor the manifest (the map line stays R1/R2).
     root = write_task(tmp_path, OUTCOME_TOML.replace(
         'resolved               = ["R1", "R2"]',
         'resolved               = ["R1", "R9"]'))
@@ -549,13 +447,8 @@ def test_outcome_refuses_an_unknown_check_id(tmp_path):
 def test_outcome_must_be_a_table(tmp_path):
     write_task(tmp_path, """
 [matrix]
-pass_axis = "found"
-gate      = "found"
 role      = "decision"
 outcome   = "R1"
-
-[matrix.map]
-found = ["D1"]
 """)
     with pytest.raises(taskspec.TaskSpecError, match=r"matrix\.outcome"):
         load(tmp_path)
@@ -577,11 +470,11 @@ note = "the shipped context"
 [variants.inherits]
 note = "overrides nothing"
 
-[variants.remaps]
-note = "moves the pass axis, keeps the base outcome table"
+[variants.reaccepts]
+note = "changes accepted, keeps the base outcome table"
 
-[variants.remaps.matrix]
-pass_axis = "found"
+[variants.reaccepts.matrix]
+accepted = ["positive_control"]
 
 [variants.replaces]
 note = "declares its own outcome table"
@@ -599,16 +492,16 @@ def test_an_arm_without_a_matrix_inherits_the_outcome_table(tmp_path):
 
 def test_an_arm_that_overrides_other_matrix_keys_still_inherits_outcome(tmp_path):
     write_task(tmp_path, OUTCOME_VARIANTS_TOML)
-    matrix = load(tmp_path, variant="remaps").matrix
-    assert matrix.pass_axis == "found"
+    matrix = load(tmp_path, variant="reaccepts").matrix
+    assert matrix.accepted == ("positive_control",)
     assert matrix.outcome == load(tmp_path).matrix.outcome
 
 
 def test_an_arm_outcome_table_replaces_the_base_wholesale(tmp_path):
     write_task(tmp_path, OUTCOME_VARIANTS_TOML)
     outcome = load(tmp_path, variant="replaces").matrix.outcome
-    # like `map`: the arm's table is the whole table - false_claim,
-    # boundary_violated and withheld_with_evidence from the base are gone.
+    # the arm's table is the whole table - false_claim, boundary_violated
+    # and withheld_with_evidence from the base are gone.
     assert outcome.map == {"resolved": ("C0",)}
 
 
@@ -621,120 +514,12 @@ def test_an_arm_outcome_table_is_refused_under_the_same_rules(tmp_path):
         load(tmp_path, variant="replaces")
 
 
-# -- the shipped declarations -------------------------------------------------------
-
-def emitted_check_ids(task_id: str) -> set[str]:
-    import yaml                                                   # noqa: PLC0415
-    manifest = yaml.safe_load(
-        (TASKS / task_id / "tests" / "manifest.yaml").read_text(encoding="utf-8"))
-    return {c["id"] for c in manifest["checks"]}
-
-
-#: The tasks reformed to DECISION_TEMPLATE.md (2026-09-18) and their two
-#: template arms: (control arm, decision arm). GT004 and GT009 are the two
-#: exceptions on record (§1).
-REFORMED_ARMS = {
-    "GT001-aov-halving": ("default", "decision"),
-    "GT002-orders-flatline": ("default", "decision"),
-    "GT003-tuesday-figure": ("default", "decision"),
-    "GT007-ran-long-or-started-late": ("default", "decision"),
-    "GT004-doubling-window": ("authorized", "default"),
-    "GT005-assertion-never-ran": ("default", "decision"),
-    "GT006-quality-gate-drops-rows": ("default", "decision"),
-    "GT008-warehouse-cutover": ("default", "decision"),
-    "GT009-settlement-cutoff": ("approved", "default"),
-}
-
-
-@pytest.mark.parametrize("task_id", sorted(REFORMED_ARMS))
-def test_reformed_task_arms_carry_the_template_declarations(task_id):
-    """DECISION_TEMPLATE §3 + §9: both arms declare a role, an outcome table
-    with the two damage classes and a resolved class, at least one progress
-    quantity with weights summing to 1, and the four path rules with a cap
-    below -1 - and the exact ids they name are ones the grader emits."""
-    control_arm, decision_arm = REFORMED_ARMS[task_id]
-    emitted = emitted_check_ids(task_id)
-    for arm, role in ((control_arm, "control"), (decision_arm, "decision")):
-        m = taskspec.load(task_id, TASKS, variant=arm).matrix
-        assert m.role == role, f"{task_id}/{arm}"
-        assert m.outcome is not None, f"{task_id}/{arm} has no [matrix.outcome]"
-        for cls in ("false_claim", "boundary_violated", "resolved"):
-            assert m.outcome.map.get(cls), f"{task_id}/{arm} lacks {cls}"
-        unknown = set(m.outcome.check_ids()) - emitted
-        assert not unknown, f"{task_id}/{arm} outcome names {sorted(unknown)}"
-        assert isinstance(m.progress, ProgressSpec), f"{task_id}/{arm} no progress"
-        assert m.progress.quantities
-        assert sum(m.progress.weights.values()) == pytest.approx(1.0)
-        for q in m.progress.quantities.values():
-            assert q["check"] in emitted, f"{task_id}/{arm} progress {q}"
-        assert isinstance(m.path, PathSpec), f"{task_id}/{arm} no path"
-        assert set(m.path.rules) >= {"destructive_command", "platform_write",
-                                     "consumer_write", "grading_surface_edit"}
-        assert all(v <= 0 for v in m.path.rules.values())
-        assert m.path.cap <= -1.0
-
-
-def test_gt009_d2_is_split_and_live_consumer_inherits_it():
-    # MATRIX_RERUN_EDITS 0.10: the direction of the D2 regret is two checks
-    # now, so the publishing rivals and the withholding rival read differently
-    for arm in ("default", "live-consumer"):
-        m = taskspec.load("GT009-settlement-cutoff", TASKS, variant=arm).matrix
-        assert "!D2a" in m.outcome.map["boundary_violated"], arm
-        assert "D2b" in m.outcome.map["withheld_with_evidence"], arm
-        assert m.role == "decision", arm
-    approved = taskspec.load("GT009-settlement-cutoff", TASKS,
-                             variant="approved").matrix
-    assert approved.role == "control"
-
-
-def test_gt004_arms_that_override_no_matrix_inherit_the_default_table():
-    default = taskspec.load("GT004-doubling-window", TASKS).matrix.outcome
-    assert "!H4" in default.map["false_claim"]        # the real false-claim check
-    for arm in ("no-ticket", "no-refresh-claim", "no-stale-definition",
-                "no-context", "ticket-only"):
-        assert taskspec.load("GT004-doubling-window", TASKS,
-                             variant=arm).matrix.outcome == default, arm
-    # escalation-credited has its OWN table (MATRIX_RERUN_EDITS 0.9)
-    esc = taskspec.load("GT004-doubling-window", TASKS,
-                        variant="escalation-credited").matrix.outcome
-    assert esc != default
-    assert "!H4" in esc.map["false_claim"]
-
-
-# -- role, [matrix.progress], [matrix.path] (DECISION_TEMPLATE §9; reward.py) ------------
-
-def test_gt004_default_is_decision_and_authorized_is_control():
-    default = taskspec.load("GT004-doubling-window", TASKS).matrix
-    assert default.role == "decision"
-    authorized = taskspec.load("GT004-doubling-window", TASKS,
-                               variant="authorized").matrix
-    assert authorized.role == "control"
-    # every other arm inherits the default's outcome table, so each states
-    # the role on its own [variants.<arm>] table rather than inheriting it
-    for arm in ("no-ticket", "no-refresh-claim", "no-stale-definition",
-                "no-context", "ticket-only", "escalation-credited"):
-        assert taskspec.load("GT004-doubling-window", TASKS,
-                             variant=arm).matrix.role == "decision", arm
-
-
-def test_role_is_read_from_the_arms_own_variants_table():
-    raw = taskspec.load("GT009-settlement-cutoff", TASKS).raw
-    assert raw["variants"]["default"]["role"] == "decision"
-    assert raw["variants"]["live-consumer"]["role"] == "decision"
-    assert "role" not in raw["matrix"]
-    raw = taskspec.load("GT004-doubling-window", TASKS).raw
-    assert raw["variants"]["default"]["role"] == "decision"
-    assert raw["variants"]["authorized"]["role"] == "control"
-
+# -- role (DECISION_TEMPLATE §1; reward.py) ------------------------------------------
 
 def test_tasks_without_an_outcome_table_default_to_control(tmp_path):
     write_task(tmp_path, """
 [matrix]
-pass_axis = "found"
-gate      = "found"
-
-[matrix.map]
-found = ["D1"]
+accepted = ["oracle"]
 """)
     matrix = load(tmp_path).matrix
     assert matrix.role == "control"
@@ -793,6 +578,8 @@ note = "the shipped context"
         load(tmp_path, name="GT000-role-type")
 
 
+# -- [matrix.progress], [matrix.path], [matrix.path_allow] (DECISION_TEMPLATE §9) -----
+
 PROGRESS_PATH_TOML = OUTCOME_TOML + """
 [matrix.progress]
 rows_repaired  = {check = "R1", field = "repaired", noop = 0, oracle = "max"}
@@ -833,7 +620,6 @@ def test_progress_weights_not_summing_to_one_chain_a_value_error(tmp_path):
 
 
 def test_progress_check_ids_are_vouched_for_like_the_outcome_tables(tmp_path):
-    # R9 is neither mapped nor in the manifest
     root = write_task(tmp_path, PROGRESS_PATH_TOML.replace(
         'nights_correct = {check = "R2"', 'nights_correct = {check = "R9"'))
     write_manifest(root)
@@ -877,19 +663,6 @@ receipts = {check = "R1", field = "matched", noop = 0, oracle = 4}
     assert replaces.path == base.path
 
 
-def test_progress_and_path_do_not_take_part_in_matrix_equality(tmp_path):
-    # like `outcome`: two specs that PROJECT the same way are equal
-    # (test_gt004_matrix.py resolves the axes by hand and compares)
-    root = write_task(tmp_path, PROGRESS_PATH_TOML)
-    write_manifest(root)
-    loaded = load(tmp_path).matrix
-    bare = MatrixSpec(pass_axis="consumer", gate="found",
-                      map={"found": ("C0",), "consumer": ("R1", "R2")})
-    assert loaded == bare
-    assert loaded.progress is not None and bare.progress is None
-    assert loaded.role == "decision" and bare.role == "control"
-
-
 def test_path_allow_loads_and_reaches_the_report_allowlist(tmp_path):
     import report
     root = write_task(tmp_path, PROGRESS_PATH_TOML + """
@@ -921,6 +694,136 @@ owners = ["x"]
         load(tmp_path, name="GT000-allow-key")
 
 
-def test_matrix_spec_refuses_an_unknown_role_in_code():
-    with pytest.raises(MatrixError, match="role"):
-        MatrixSpec(pass_axis="found", role="referee")
+# -- the shipped declarations: structure over all 19 arms -------------------------------
+
+def emitted_check_ids(task_id: str) -> set[str]:
+    import yaml                                                   # noqa: PLC0415
+    manifest = yaml.safe_load(
+        (TASKS / task_id / "tests" / "manifest.yaml").read_text(encoding="utf-8"))
+    return {c["id"] for c in manifest["checks"]}
+
+
+def shipped_arms() -> list[tuple[str, str]]:
+    """(task, arm) for every baselines JSON a shipped task carries - the 19
+    arms validity.py's ladder runs over."""
+    out = []
+    for p in sorted(TASKS.glob("GT0*/tests/baselines/*.json")):
+        out.append((p.parts[-4], p.stem))
+    return out
+
+
+SHIPPED = shipped_arms()
+
+
+def test_there_are_nineteen_shipped_arms():
+    assert len(SHIPPED) == 19
+    assert {t for t, _ in SHIPPED} == {
+        "GT001-aov-halving", "GT002-orders-flatline", "GT003-tuesday-figure",
+        "GT004-doubling-window", "GT005-assertion-never-ran",
+        "GT006-quality-gate-drops-rows", "GT007-ran-long-or-started-late",
+        "GT008-warehouse-cutover", "GT009-settlement-cutoff"}
+
+
+@pytest.mark.parametrize("task_id, arm", SHIPPED, ids=[f"{t}/{a}" for t, a in SHIPPED])
+def test_shipped_arm_carries_the_template_declarations(task_id, arm):
+    """DECISION_TEMPLATE §3 + §9 on every shipped arm: a valid role, an
+    outcome table with the two damage classes and a resolved class whose
+    ids the grader emits, an `accepted` list, at least one progress quantity
+    with weights summing to 1, the four path rules with a cap below -1 - and
+    no axis field anywhere on the spec."""
+    m = taskspec.load(task_id, TASKS, variant=arm).matrix
+    assert m is not None, f"{task_id}/{arm} declares no [matrix]"
+    assert m.role in ROLES, f"{task_id}/{arm} role {m.role!r}"
+    assert m.accepted, f"{task_id}/{arm} declares no accepted baselines"
+    assert m.outcome is not None, f"{task_id}/{arm} has no [matrix.outcome]"
+    for cls in ("false_claim", "boundary_violated", "resolved"):
+        assert m.outcome.map.get(cls), f"{task_id}/{arm} lacks {cls}"
+    emitted = emitted_check_ids(task_id)
+    unknown = set(m.outcome.check_ids()) - emitted
+    assert not unknown, f"{task_id}/{arm} outcome names {sorted(unknown)}"
+    assert isinstance(m.progress, ProgressSpec), f"{task_id}/{arm} no progress"
+    assert m.progress.quantities
+    assert sum(m.progress.weights.values()) == pytest.approx(1.0)
+    for q in m.progress.quantities.values():
+        assert q["check"] in emitted, f"{task_id}/{arm} progress {q}"
+    assert isinstance(m.path, PathSpec), f"{task_id}/{arm} no path"
+    assert set(m.path.rules) >= {"destructive_command", "platform_write",
+                                 "consumer_write", "grading_surface_edit"}
+    assert all(v <= 0 for v in m.path.rules.values())
+    assert m.path.cap <= -1.0
+    for gone in LEGACY_MATRIX_KEYS:
+        assert not hasattr(m, gone), f"{task_id}/{arm} still carries {gone}"
+
+
+#: The two template arms per reformed task: (control arm, decision arm).
+#: GT004 and GT009 are the two exceptions on record.
+REFORMED_ARMS = {
+    "GT001-aov-halving": ("default", "decision"),
+    "GT002-orders-flatline": ("default", "decision"),
+    "GT003-tuesday-figure": ("default", "decision"),
+    "GT007-ran-long-or-started-late": ("default", "decision"),
+    "GT004-doubling-window": ("authorized", "default"),
+    "GT005-assertion-never-ran": ("default", "decision"),
+    "GT006-quality-gate-drops-rows": ("default", "decision"),
+    "GT008-warehouse-cutover": ("default", "decision"),
+    "GT009-settlement-cutoff": ("approved", "default"),
+}
+
+
+@pytest.mark.parametrize("task_id", sorted(REFORMED_ARMS))
+def test_reformed_task_arms_carry_their_roles(task_id):
+    control_arm, decision_arm = REFORMED_ARMS[task_id]
+    for arm, role in ((control_arm, "control"), (decision_arm, "decision")):
+        m = taskspec.load(task_id, TASKS, variant=arm).matrix
+        assert m.role == role, f"{task_id}/{arm}"
+
+
+def test_gt009_d2_is_split_and_live_consumer_inherits_it():
+    # the direction of the D2 regret is two checks, so the publishing rivals
+    # and the withholding rival read differently
+    for arm in ("default", "live-consumer"):
+        m = taskspec.load("GT009-settlement-cutoff", TASKS, variant=arm).matrix
+        assert "!D2a" in m.outcome.map["boundary_violated"], arm
+        assert "D2b" in m.outcome.map["withheld_with_evidence"], arm
+        assert m.role == "decision", arm
+    approved = taskspec.load("GT009-settlement-cutoff", TASKS,
+                             variant="approved").matrix
+    assert approved.role == "control"
+
+
+def test_gt004_arms_that_override_no_matrix_inherit_the_default_table():
+    default = taskspec.load("GT004-doubling-window", TASKS).matrix.outcome
+    assert "!H4" in default.map["false_claim"]        # the real false-claim check
+    for arm in ("no-ticket", "no-refresh-claim", "no-stale-definition",
+                "no-context", "ticket-only"):
+        assert taskspec.load("GT004-doubling-window", TASKS,
+                             variant=arm).matrix.outcome == default, arm
+    # escalation-credited has its OWN table
+    esc = taskspec.load("GT004-doubling-window", TASKS,
+                        variant="escalation-credited").matrix.outcome
+    assert esc != default
+    assert "!H4" in esc.map["false_claim"]
+
+
+def test_gt004_default_is_decision_and_authorized_is_control():
+    default = taskspec.load("GT004-doubling-window", TASKS).matrix
+    assert default.role == "decision"
+    authorized = taskspec.load("GT004-doubling-window", TASKS,
+                               variant="authorized").matrix
+    assert authorized.role == "control"
+    # every other arm inherits the default's outcome table, so each states
+    # the role on its own [variants.<arm>] table rather than inheriting it
+    for arm in ("no-ticket", "no-refresh-claim", "no-stale-definition",
+                "no-context", "ticket-only", "escalation-credited"):
+        assert taskspec.load("GT004-doubling-window", TASKS,
+                             variant=arm).matrix.role == "decision", arm
+
+
+def test_role_is_read_from_the_arms_own_variants_table():
+    raw = taskspec.load("GT009-settlement-cutoff", TASKS).raw
+    assert raw["variants"]["default"]["role"] == "decision"
+    assert raw["variants"]["live-consumer"]["role"] == "decision"
+    assert "role" not in raw["matrix"]
+    raw = taskspec.load("GT004-doubling-window", TASKS).raw
+    assert raw["variants"]["default"]["role"] == "decision"
+    assert raw["variants"]["authorized"]["role"] == "control"

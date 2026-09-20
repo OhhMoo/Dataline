@@ -1023,7 +1023,7 @@ R2_PRIMARY_CAUSE = (
 
 
 def _mut_r2_vocabulary(root: Path) -> None:
-    """The widened FOUND vocabulary (DESIGN.md 4.1): the read-inside-the-
+    """The widened D1a vocabulary (DESIGN.md 4.1): the read-inside-the-
     publish story told without any of group 0's original eleven words."""
     a = read_report(root)
     a["primary_cause"] = R2_PRIMARY_CAUSE

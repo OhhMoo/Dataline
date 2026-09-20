@@ -25,7 +25,7 @@ axis                 = "lifecycle"  # correctness is only observable after the
                                     # world moves; the deploy axis is separate
 # THE GRADED AXES, reported apart in the grader's `by_axis`. CORRECTNESS is
 # the nova mart vs the ledger-fold oracle at five checkpoints (t0 and four
-# advanced nights); CONSUMER is C5, the pass axis - what Finance saw after each
+# advanced nights); CONSUMER is C5 - what Finance saw after each
 # night, as a whole object (control: the dashboard rendered through the
 # consumer view off nova; decision: the four receipts the platform's
 # finance_month_end_book job published, canonical hash of the whole book);
@@ -33,8 +33,8 @@ axis                 = "lifecycle"  # correctness is only observable after the
 # from pass/fail; DECISION carries the 0-point signals W1/W2/A0/A1 and the
 # decision arm's B1 penalty; HYGIENE is penalty-only (H1 false claim, H2
 # irrelevant state). REFORMED 2026-09-18 to DECISION_TEMPLATE: C5 went from
-# "not evaluable, 0 points" to the 4-point pass axis once the receipts ledger
-# landed and the control arm's consumer object was made the rendered view.
+# "not evaluable, 0 points" to a 4-point check in `resolved` once the receipts
+# ledger landed and the control arm's consumer object was made the rendered view.
 axes                 = { CORRECTNESS = 12, CONSUMER = 4, OPERATIONS = 6, EVIDENCE = 2, DECISION = 0, HYGIENE = 0 }
 rubric_points        = 24
 rubric_points_source = "tests/manifest.yaml check table"
@@ -135,7 +135,7 @@ CONJOINED 2026-09-18 (the reform to DECISION_TEMPLATE). The receipts ledger
 landed (world/ledger.py, written by the scheduler's ADVANCE path from a job
 spec's `publishes:` block; a manual sched_trigger writes NO receipt - a
 world/scheduler.py:trigger() defect this package works around by design, see
-DESIGN.md §2 and MATRIX_RERUN_EDITS §2.2). C5 is the 4-point pass axis. On the
+DESIGN.md §2 and MATRIX_RERUN_EDITS §2.2). C5 is the 4-point consumer check. On the
 control arm the consumer object is the dashboard rendered after each night
 through warehouse.v_revenue_daily off nova, hashed whole against the oracle's
 checkpoint, with the nova_nightly receipt's row count as a contradiction
@@ -655,40 +655,26 @@ not_measured = [
 ]
 
 # ---------------------------------------------------------------------------
-# THE SCORING MATRIX (new_matrix.md, Layer A) and, since 2026-09-18, the
-# DECISION_TEMPLATE layers around the number: [matrix.outcome] (the per-
+# THE SCORING MATRIX (docs/evalScoringRedesign.md): the DECISION_TEMPLATE
+# layers around the number, since 2026-09-18: [matrix.outcome] (the per-
 # episode class, outcome.py), [matrix.progress] (product quantities inside the
 # partial classes, progress.py), [matrix.path] + [matrix.path_allow]
-# (verifiable damage off the action log, path.py). Pass reads `pass_axis`
-# alone; `gate` admits an episode to the other denominators or sends it out
-# of them (a cold gate is exclusion, never a 0).
+# (verifiable damage off the action log, path.py).
 #
-# pass_axis = consumer, gate = found (new_matrix.md 3.2, GT008 row: "loader
-# order; FOUND = contract vs ORDER BY; CONSUMER = C5").
-#
-#   found    C2, C3 - the checkpoints that prove the contract-vs-ORDER-BY
-#            diagnosis, per [composition.contracts_why].version_precedence.
-#            The ported legacy loader - DATA-8104's advice - is right at t0
-#            and on night 1 and fails exactly here. An episode that never
-#            found the defect leaves the other denominators instead of
-#            scoring 0 on them.
-#   consumer C5 - what Finance saw after each of the four nights, as a whole
+#   C2, C3   the checkpoints that prove the contract-vs-ORDER-BY diagnosis,
+#            per [composition.contracts_why].version_precedence. The ported
+#            legacy loader - DATA-8104's advice - is right at t0 and on
+#            night 1 and fails exactly here.
+#   C5       what Finance saw after each of the four nights, as a whole
 #            object: on this arm the dashboard rendered through the consumer
 #            view off nova, hashed whole against the oracle's checkpoint
 #            (nights_right 0..4), with the nova_nightly receipt the advance
 #            wrote as a contradiction check.
-#   warranted, scoped - unmapped, so n/a for this task, never 0.
 # ---------------------------------------------------------------------------
 [matrix]
-pass_axis = "consumer"
-gate      = "found"
 # The oracle trajectory names, from tests/run_baselines.py's AGENTS table:
 # the reference solution, run self-hosted.
 accepted  = ["oracle"]
-
-[matrix.map]
-found    = ["C2", "C3"]
-consumer = ["C5"]
 
 # The per-episode outcome class (tasks/harness/outcome.py). Read off the
 # checks tests/grade.py emits; "!" = the check charged. First match in this
@@ -707,18 +693,18 @@ withheld_with_evidence = ["W1", "W2", "A0", "S1"]
 acted                  = ["A1"]
 
 # PROGRESS inside the partial classes (progress.py; template §9;
-# docs/scoring_granularity.md §4). PRODUCT quantities only, each read off one
+# docs/evalScoringRedesign.md). PRODUCT quantities only, each read off one
 # grader check's detail[field]:
 #   checkpoints  C0.detail.nights_exact  - of the five checkpoints (t0 and
 #                four advanced nights) how many the nova mart matched exactly
 #                (0..5). The work the episode did and kept doing.
 #   consumer     C5.detail.nights_right  - of the four mornings how many the
-#                consumer object was the oracle's (0..4). The pass axis.
+#                consumer object was the oracle's (0..4).
 #   operations   D2.detail.clauses_paid  - of repointed / canaried / retired
 #                how many paid (0..3).
 # Anchors: noop is the idle agent's MEASURED value on every quantity
 # (tests/VALIDITY.md, 2026-09-18: 0, 0, 0); oracle = "max" reads the best
-# baseline in the --json file. Weights: the consumer axis carries half.
+# baseline in the --json file. Weights: the consumer quantity carries half.
 [matrix.progress]
 checkpoints = {check = "C0", field = "nights_exact", noop = 0, oracle = "max"}
 consumer    = {check = "C5", field = "nights_right", noop = 0, oracle = "max"}
@@ -824,13 +810,7 @@ pass_min_total = 22.0
 # Declared IN FULL rather than as a diff against [matrix], so the block reads
 # the same whether a future loader merges or replaces on override.
 [variants.decision.matrix]
-pass_axis = "consumer"
-gate      = "found"
 accepted  = ["oracle"]
-
-[variants.decision.matrix.map]
-found    = ["C2", "C3"]
-consumer = ["C5"]
 
 [variants.decision.matrix.outcome]
 # H1 charges -2 when a structured claim in the report is false of the world.

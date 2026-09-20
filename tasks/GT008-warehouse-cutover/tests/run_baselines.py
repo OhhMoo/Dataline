@@ -1153,7 +1153,7 @@ def main() -> int:
             c5 = check(scores["oracle"], "C5")
             assert_(c5 is not None and c5["max"] == 4.0 and c5["in_pass_criterion"]
                     and detail("oracle", "C5", "nights_right") == 4,
-                    f"C5 (CONSUMER, the pass axis) pays 4 for four right mornings: "
+                    f"C5 (CONSUMER, in resolved) pays 4 for four right mornings: "
                     f"{(c5 or {}).get('detail', {}).get('why')}")
             if ARM.name == "decision":
                 ledger = scores["oracle"].get("ledger") or {}

@@ -245,7 +245,7 @@ checks:
     assertion: >
       The report's primary_cause names the duplication of fct_orders by an
       append-mode retry/re-run (accept_tokens above); a positive match wins over
-      the reject list. This is the control arm's `found` axis.
+      the reject list. This is the diagnosis check every outcome class reads.
     zero_for_doing_nothing: "Yes: no report, or an empty primary_cause, scores 0."
 
   - id: D5b
@@ -356,7 +356,7 @@ checks:
     in_pass_criterion: true
     arms: [decision]
     assertion: >
-      THE PASS AXIS, over the whole object. A copy of the final world is
+      THE CONSUMER'S OBJECT, hashed whole. A copy of the final world is
       advanced 24 h by world.scheduler.advance; refresh_finance_pack runs once
       (06:45) and the ledger receipts finance.aov_monthly_pack. The receipt's
       canonical hash must equal pack_held_hash (grading/decision.json): the six

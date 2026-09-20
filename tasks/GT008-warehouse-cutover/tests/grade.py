@@ -24,7 +24,7 @@ which the agent cannot deploy, hold or re-time), and advancing the virtual
 clock one night at a time through `world.scheduler.advance`, which executes
 the agent's own scripts for real.
 
-CONSUMER (C5) - THE PASS AXIS. What Finance actually saw, per night, as a
+CONSUMER (C5) - IN `resolved` ON BOTH ARMS. What Finance actually saw, per night, as a
 whole object. On the control arm: the revenue dashboard, rendered after each
 night through the consumer view, hashed whole against the oracle's
 checkpoint. On the decision arm: the four receipts the platform's own job
@@ -727,7 +727,7 @@ def score_correctness(nova_now: dict, replayed: dict, references: dict, s: Score
 # ============================================================ CONSUMER (C5)
 def score_c5(replayed: dict, references: dict, grading: Path, world_root: Path,
              warehouse: Path, s: Score) -> None:
-    """The pass axis: what Finance saw after each night, as a whole object."""
+    """The consumer check: what Finance saw after each night, as a whole object."""
     nights = int(cget("plant_nights"))
     if replayed["fatal"]:
         s.add("C5", 0.0, {"why": f"GATED: {replayed['fatal']}", "nights_right": 0,

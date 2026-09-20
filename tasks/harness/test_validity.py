@@ -1,9 +1,8 @@
 """validity.py - the Layer-0 task validity card.
 
-Static half against the real GT001-GT009 packages as they are on disk (the
-known section-0 defects of tasks/MATRIX_RERUN_EDITS.md are asserted
-CONDITIONALLY: flagged if the map still names the bad id, absent if fixed -
-other agents edit those task.toml files concurrently). Run half against
+Static half against the real GT001-GT009 packages as they are on disk (other
+agents edit those task.toml files concurrently, so what is asserted is the
+shape the loader guarantees, not the exact ids). Run half against
 captured fixture stdout only: the baseline suites take minutes to an hour and
 touch DuckDB, so nothing here starts one.
 """
@@ -22,8 +21,8 @@ import validity
 TASKS = Path(__file__).resolve().parent.parent
 TASK_IDS = sorted(p.name for p in TASKS.glob("GT00*") if (p / "task.toml").is_file())
 STATIC_KEYS = {
-    "matrix_present", "pass_axis", "gate", "grader_check_ids",
-    "grader_check_source", "map_checks_missing_from_grader", "proxy_declared",
+    "matrix_present", "role", "outcome_declared", "must_have", "grader_check_ids",
+    "grader_check_source", "outcome_checks_missing_from_grader",
     "accepted", "accepted_not_in_validity", "validity_rows", "has_oracle_row",
     "has_no_op_row", "has_false_claim_row", "has_positive_control_row",
     "pass_requires_checks_missing_from_grader", "required_surfaces_declared",
@@ -55,65 +54,117 @@ def test_static_card_loads_every_task(task_id):
     json.dumps(c)                                   # embeddable in report.json
 
 
-def test_pass_axis_outside_top_band_is_a_warn_not_a_refusal():
-    # R1 2026-09-19: the headline and the scalar's 1.0 should measure the
-    # same thing. Five shipped arms diverged until item 7 of
-    # MATRIX_RERUN_EDITS 0.13 was settled (2026-09-19 pm): GT002 K7 and
-    # GT003 D1b joined resolved, GT007 warranted became D2, and GT002
-    # decision's W1 was the helper's own blind spot (see below). No shipped
-    # arm diverges now; the helper's behaviour is pinned on a spec edited in
-    # memory so the warn itself stays tested.
-    import dataclasses
+def test_the_axis_findings_are_gone():
+    assert not hasattr(validity, "PASS_AXIS_OUTSIDE_TOP_BAND")
+    for task_id in TASK_IDS:
+        c = validity.static_card(task_id, TASKS)
+        for gone in ("pass_axis", "gate", "map_checks_missing_from_grader",
+                     "proxy_declared"):
+            assert gone not in c["static"], (task_id, gone)
+        assert not any("axis" in f["code"] or "map" in f["code"]
+                       for f in c["static"]["findings"]), task_id
+
+
+ARMS = sorted((p.parts[-4], p.stem)
+              for p in TASKS.glob("GT0*/tests/baselines/*.json"))
+
+
+@pytest.mark.parametrize("task_id, arm", ARMS, ids=[f"{t}/{a}" for t, a in ARMS])
+def test_static_card_reads_the_outcome_table_on_every_arm(task_id, arm):
+    """The static card's matrix half: role, an outcome table whose ids the
+    grader emits, and the arm's must-have conditions (the top-band
+    conditions the headline score counts) read off that table."""
     import taskspec
-    for task, arm in (("GT007-ran-long-or-started-late", "decision"),
-                      ("GT002-orders-flatline", "default"),
-                      ("GT003-tuesday-figure", "default"),
-                      ("GT009-settlement-cutoff", "default")):
-        card = validity.static_card(task, TASKS, variant=arm)
-        assert not [f for f in card["static"]["findings"]
-                    if f["code"] == validity.PASS_AXIS_OUTSIDE_TOP_BAND], (task, arm)
-    # the helper: an axis check no top-band class requires is named ...
-    spec = taskspec.load("GT007-ran-long-or-started-late", TASKS,
-                         variant="decision").matrix
-    diverging = dataclasses.replace(
-        spec, map={**spec.map, "warranted": ("S1a", "S1b", "S2")})
-    assert taskspec.pass_axis_outside_top_band(diverging, "decision") == ["S1a", "S1b", "S2"]
-    # ... a check whose CHARGED form sits in a preceding class is required
-    # by construction (GT002 decision: `!W1` under boundary_violated) ...
-    gt002 = taskspec.load("GT002-orders-flatline", TASKS, variant="decision").matrix
-    assert "W1" in gt002.map["warranted"]
-    assert taskspec.pass_axis_outside_top_band(gt002, "decision") == []
-    # ... and withheld_with_evidence counts on a decision arm only
-    spec = taskspec.load("GT004-doubling-window", TASKS, variant="default").matrix
-    assert taskspec.pass_axis_outside_top_band(spec, "decision") == []
+    c = validity.static_card(task_id, TASKS, variant=arm)
+    s = c["static"]
+    assert s["matrix_present"] and s["outcome_declared"]
+    assert s["role"] in ("control", "decision")
+    assert s["outcome_checks_missing_from_grader"] == {}, (task_id, arm)
+    m = taskspec.load(task_id, TASKS, variant=arm).matrix
+    expected = sorted(outcome.must_have_conditions(m.outcome, m.role))
+    assert s["must_have"] == expected and expected
+    resolved_ids = {outcome.split_condition(c)[1]
+                    for c in m.outcome.conditions_for("resolved")}
+    assert resolved_ids <= set(expected)
+    if m.role == "control":
+        assert set(expected) == resolved_ids
+    assert c["valid"], c["invalid_because"]
 
 
-def test_gt007_d2_defect_is_flagged_iff_still_on_disk():
-    # MATRIX_RERUN_EDITS.md 0.3: warranted = ["D2"] named a check the grader
-    # never emitted. The manifest lists D2 today (and grade.py adds it), so
-    # the assertion reads the map and the grader together.
-    raw = raw_toml("GT007-ran-long-or-started-late")
-    c = validity.static_card("GT007-ran-long-or-started-late", TASKS)
-    warranted = raw["matrix"]["map"].get("warranted", [])
-    missing = c["static"]["map_checks_missing_from_grader"]
-    bad = [x for x in warranted if x not in c["static"]["grader_check_ids"]]
-    if bad:
-        assert missing.get("warranted") == bad
-        assert not c["valid"]
-    else:
-        assert "warranted" not in missing
+SYNTHETIC_TOML = """
+[environment]
+seed = 1
+virtual_now = "2026-01-01T00:00:00Z"
+
+[limits]
+wall_clock_seconds = 60
+max_tool_calls = 10
+
+[grading]
+artifact = "/workspace/final_report.json"
+entrypoint = "tests/grade.py"
+
+[harness]
+world_builder = "tests/build_world.py"
+grade_argv = ["--json"]
+pass_requires_checks = ["R1"]
+pass_min_total = 1.0
+
+[matrix]
+role     = "control"
+accepted = ["oracle"]
+
+[matrix.outcome]
+false_claim       = ["!H1"]
+boundary_violated = ["!H2"]
+resolved          = ["R1", "{extra}"]
+
+[[validity]]
+agent = "oracle"
+expect = "== max"
+
+[[validity]]
+agent = "no_op"
+expect = "<= 0"
+
+[[validity]]
+agent = "checklist"
+expect = "< no_op"
+"""
 
 
-def test_gt004_h3_defect_is_flagged_iff_still_on_disk():
-    # 0.4: default arm warranted = ["G1c", "H3"] with H3 never emitted.
-    raw = raw_toml("GT004-doubling-window")
-    c = validity.static_card("GT004-doubling-window", TASKS)
-    warranted = raw["matrix"]["map"].get("warranted", [])
-    missing = c["static"]["map_checks_missing_from_grader"]
-    if "H3" in warranted and "H3" not in c["static"]["grader_check_ids"]:
-        assert "H3" in missing.get("warranted", [])
-    else:
-        assert "H3" not in missing.get("warranted", [])
+def _synthetic(tmp_path: Path, extra: str) -> str:
+    root = tmp_path / "GT0XX-synthetic"
+    (root / "tests").mkdir(parents=True)
+    (root / "instruction.md").write_text("do\n", encoding="utf-8")
+    # no manifest: taskspec loads the table on shape alone and the card
+    # reads the grader's ids off grade.py's .add("ID") literals
+    (root / "tests" / "grade.py").write_text(
+        'r.add("R1")\nr.add("R2")\nr.add("H1")\nr.add("H2")\n', encoding="utf-8")
+    (root / "task.toml").write_text(SYNTHETIC_TOML.format(extra=extra),
+                                    encoding="utf-8")
+    return root.name
+
+
+def test_outcome_check_the_grader_never_emits_is_a_block(tmp_path):
+    # the finding that replaced map_checks_missing_from_grader: the outcome
+    # table is what the headline reads, so a hole in it is a block
+    c = validity.static_card(_synthetic(tmp_path, "ZZ9"), tmp_path)
+    s = c["static"]
+    assert s["grader_check_source"] == "grade.py scan (heuristic)"
+    assert s["outcome_checks_missing_from_grader"] == {"resolved": ["ZZ9"]}
+    assert s["must_have"] == ["R1", "ZZ9"]
+    assert not c["valid"]
+    assert "outcome_check_missing_from_grader" in [f["code"] for f in s["findings"]]
+    md = validity.render(c)
+    assert "outcome_checks_missing_from_grader" in md and "must_have" in md
+
+
+def test_outcome_table_over_emitted_checks_is_clean(tmp_path):
+    c = validity.static_card(_synthetic(tmp_path, "R2"), tmp_path)
+    assert c["static"]["outcome_checks_missing_from_grader"] == {}
+    assert c["static"]["must_have"] == ["R1", "R2"]
+    assert c["valid"], c["invalid_because"]
 
 
 def test_gt004_accepted_name_needs_a_row_in_the_default_arm():
@@ -143,7 +194,8 @@ def test_gt009_default_and_live_consumer_arms():
     assert base["static"]["has_positive_control_row"]       # rebuilt_not_updated
     assert base["static"]["has_false_claim_row"]            # checklist "< no_op"
     assert base["static"]["grader_check_source"] == "manifest"
-    assert base["static"]["map_checks_missing_from_grader"] == {}
+    assert base["static"]["outcome_checks_missing_from_grader"] == {}
+    assert base["static"]["role"] == "decision" and live["static"]["role"] == "decision"
     assert base["valid"] and live["valid"]
 
 

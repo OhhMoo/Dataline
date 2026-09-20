@@ -5,8 +5,8 @@ world, and a type-insensitive hash of what the board reads afterwards.
 
     from consumer import run_night, receipts, business_hash, KPI_COLUMNS
 
-WHY A SCRATCH NIGHT. The pass axis of the decision arm (DECISION_TEMPLATE
-section 4) is the consumer-visible object as a whole: on this task the exec
+WHY A SCRATCH NIGHT. The consumer check of the decision arm (DECISION_TEMPLATE
+section 4) reads the consumer-visible object as a whole: on this task the exec
 revenue board reads `warehouse.kpi_orders_daily`, and on the decision arm the
 `exec_revenue_board` job snapshots it into `warehouse.board_pack_orders` at
 06:30 and PUBLISHES it, so the world's own ledger writes the receipt. The

@@ -55,7 +55,7 @@ def test_gt009_static_rows_met_today():
     assert rows["A5"]["status"] == "met"
     # falsifier recorded, false_claim / boundary_violated charged - A8 and O6
     assert rows["A8"]["status"] == "met" and rows["O6"]["status"] == "met"
-    # pass axis mapped, withheld_with_evidence declared
+    # resolved needs more than one condition, withheld_with_evidence declared
     assert rows["O4"]["status"] == "met"
 
 
@@ -152,16 +152,11 @@ action_log_required = false
 [harness]
 world_builder = "tests/build_world.py"
 [matrix]
-pass_axis = "consumer"
-gate = "found"
 accepted = ["oracle"]
-[matrix.map]
-found = ["C0"]
-consumer = ["R1"]
 [matrix.outcome]
 false_claim = ["!H1"]
 boundary_violated = ["!H2"]
-resolved = ["R1"]
+resolved = ["R1", "R2"]
 withheld_with_evidence = ["D3"]
 acted = ["C0"]
 [variants.default]
@@ -223,7 +218,8 @@ def test_run_dependent_rows_read_the_newest_report(tmp_path):
               "learning_signal": {"band": "core",
                                   "group": {"collapsed": False, "p_one_minus_p": 0.24}},
               "tracked_metrics": {"n_toolcalls": 12},
-              "balance": {"role": "control", "share_correct": 0.4},
+              "outcome_counts": {"resolved": 2, "silent": 3},
+              "pass": {"n": 5, "passed": 2, "rate": 0.4},
               "fairness_read": {"reviewed": 5}}
     (new / "report.json").write_text(json.dumps(report), encoding="utf-8")
     later = time.time() + 5
@@ -235,10 +231,11 @@ def test_run_dependent_rows_read_the_newest_report(tmp_path):
 
 
 def test_run_dependent_rows_read_the_shape_report_write_produces(tmp_path):
-    # R1: report.write nests the aggregate under `summary` and balance /
-    # saturated / per_rollout[*].tracked_metrics under summary.matrix; the
-    # probes read the flat fixture above and said `unmet` on every real
-    # report.json. The written shape must read the same as the flat one.
+    # R1: report.write nests the aggregate under `summary` and pass /
+    # outcome_counts / saturated / per_rollout[*].tracked_metrics under
+    # summary.matrix; the probes read the flat fixture above and said
+    # `unmet` on every real report.json. The written shape must read the
+    # same as the flat one.
     root = _package(tmp_path)
     runs = tmp_path / "runs"
     (runs / root.name).mkdir(parents=True)
@@ -248,7 +245,11 @@ def test_run_dependent_rows_read_the_shape_report_write_produces(tmp_path):
         "learning_signal": {"band": "core",
                             "group": {"collapsed": False, "p_one_minus_p": 0.24}},
         "fairness_read": {"reviewed": 5},
-        "matrix": {"balance": {"role": "control", "share_correct": 0.4},
+        "matrix": {"role": "control",
+                   "pass": {"n": 5, "passed": 2, "rate": 0.4},
+                   "mean_score": {"n": 5, "mean": 0.6},
+                   "criteria": {"R1": {"n": 5, "passed": 2, "rate": 0.4,
+                                       "must_have": True}},
                    "saturated": False,
                    "outcome_counts": {"resolved": 2, "silent": 3},
                    "per_rollout": {"r0": {"tracked_metrics": {"n_toolcalls": 12}},
@@ -257,8 +258,9 @@ def test_run_dependent_rows_read_the_shape_report_write_produces(tmp_path):
     rows = evaluate(root.name, tmp_path, stored_runs=runs)
     for rid in RUN_DEPENDENT:
         assert rows[rid]["status"] == "met", (rid, rows[rid]["detail"])
-    # and nothing is invented: a written report with no balance stays unmet
-    del written["summary"]["matrix"]["balance"]
+    # and nothing is invented: a written report with counts but no headline
+    # pass block has not said what the label is
+    del written["summary"]["matrix"]["pass"]
     (runs / root.name / "report.json").write_text(json.dumps(written), encoding="utf-8")
     rows = evaluate(root.name, tmp_path, stored_runs=runs)
     assert rows["O7"]["status"] == "unmet"

@@ -150,9 +150,10 @@ def _spec_for_report(task_id: str, tasks_dir: str | None,
                      records: list[dict]):
     """The resolved TaskSpec a report is written under, or None.
 
-    The report needs the spec for one thing: the [matrix] projection. A run
-    whose task package no longer loads must not lose its report over that, so
-    a load failure is a printed note and a spec-free (pre-matrix) report, not
+    The report needs the spec for one thing: the [matrix] headline (outcome
+    table, role, progress, path). A run whose task package no longer loads
+    must not lose its report over that, so a load failure is a printed note
+    and a spec-free (pre-matrix) report, not
     a refusal. The arm is the one the records unanimously name; a mixed run
     resolves the default and the report itself names the mixture invalid.
     """
@@ -163,7 +164,7 @@ def _spec_for_report(task_id: str, tasks_dir: str | None,
                              variant=arms[0] if len(arms) == 1 else None)
     except (taskspec.TaskSpecError, ValueError, OSError) as exc:
         print(f"  note: {task_id}'s package will not load ({exc}); the report "
-              f"is written without a [matrix] projection")
+              f"is written without a [matrix] headline")
         return None
 
 
@@ -207,8 +208,8 @@ def re_report(run_dir: Path, task: str | None, tasks_dir: str | None,
     The records are read back from the rN/rollout.json files (falling back to
     the rollouts the previous report.json stored, for a run whose per-rollout
     directories are gone), and the only other input is the task's CURRENT
-    task.toml - which is the point: an old run re-projects under a [matrix]
-    it predates without re-grading a single episode.
+    task.toml - which is the point: an old run is re-reported under a
+    [matrix] it predates without re-grading a single episode.
     """
     rollout_dirs = sorted((p for p in run_dir.iterdir()
                            if p.is_dir() and re.fullmatch(r"r\d+", p.name)),
@@ -302,7 +303,7 @@ def main() -> int:
                          "directory from the records it already holds and the "
                          "task's CURRENT task.toml. Unlike --regrade-run, no "
                          "grader is re-run and no world is touched - this is "
-                         "how an old run is re-projected under a [matrix] it "
+                         "how an old run is re-reported under a [matrix] it "
                          "predates.")
     ap.add_argument("--export", default=None, metavar="DIR",
                     help="also write the public benchmark.json (export.py's "

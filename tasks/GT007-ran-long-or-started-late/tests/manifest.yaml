@@ -372,7 +372,7 @@ checks:
     in_pass_criterion: true
     only_variants: [decision]
     assertion: >
-      THE CONSUMER'S RECEIPT - the pass-axis object on the decision arm, a
+      THE CONSUMER'S RECEIPT - in `resolved` on the decision arm, a
       WHOLE-OBJECT hash. During the graded advance the platform's
       commercial_pack_assemble runs at 04:00 (the SLA deadline) and the
       world's ledger writes one receipt for warehouse.commercial_pack. Its

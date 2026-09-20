@@ -11,9 +11,9 @@ rows; this file carries the commands and the tables.
 The task was reformed to `tasks/contracts/DECISION_TEMPLATE.md`. The shipped
 world became the CONTROL arm (`[variants.default] role = "control"`); a
 `decision` arm was staged over it by overlay (DESIGN.md §12-13, written before
-the code). The control arm's projection - `pass_axis = "found"`, `found =
-["L1"]` - is byte-for-byte the one MATRIX_RERUN_EDITS §1's 5/5 FOUND was
-measured with, and every stored control-arm baseline re-measures to the same
+the code). The control arm's grader rubric is byte-for-byte the one the
+stored 5/5 runs were measured with (the axis projection beside it was retired
+2026-09-19), and every stored control-arm baseline re-measures to the same
 C1/L1/C2/P1 numbers under the reformed grader.
 
 ### Commands

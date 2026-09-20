@@ -4,9 +4,9 @@ Before any rollout of a task counts, the TASK has to be shown valid: the
 oracle scores max, the no-op scores nothing, a false claim scores below the
 no-op, every check the scoring matrix names is one the grader emits, and every
 baseline `[matrix].accepted` names is a declared validity baseline. Today that
-is done by hand per task, and GT007 shipped a `[matrix.map]` naming a check
-(`D2`) its grader never emitted, so its projected pass was withheld as n/a on
-a task at 5/5 - silently (tasks/MATRIX_RERUN_EDITS.md section 0.3, 0.4).
+is done by hand per task, and GT007 once shipped a matrix naming a check
+(`D2`) its grader never emitted, so its headline was withheld as n/a on a task
+at 5/5 - silently. The same hole in `[matrix.outcome]` is a BLOCK here.
 
 Two halves, kept apart so a report can say which one it is quoting:
 
@@ -62,6 +62,7 @@ from pathlib import Path
 import yaml
 
 import baselines_schema
+import outcome
 import reward
 import taskspec
 from outcome import classify_outcome
@@ -186,22 +187,36 @@ def static_card(task_id: str, tasks_dir: Path, variant: str | None = None) -> di
                                      f"fine, one that never emits them is 0.4"))
 
     m = spec.matrix
-    missing_map: dict[str, list[str]] = {}
+    missing_outcome: dict[str, list[str]] = {}
     accepted: list[str] = []
+    must_have: list[str] = []
     if m is None:
         findings.append(_finding(INFO, "no_matrix",
                                  "task declares no [matrix]; Pass@1 is the "
                                  "pass_requires_checks AND"))
     else:
         accepted = list(m.accepted)
-        for axis, cids in m.map.items():
-            gone = [c for c in cids if known and c not in known]
-            if gone:
-                missing_map[axis] = gone
-                findings.append(_finding(
-                    BLOCK, "map_check_missing_from_grader",
-                    f"[matrix.map].{axis} names {gone}, which the grader "
-                    f"({source}) never emits; the axis would read n/a forever"))
+        table = getattr(m, "outcome", None)
+        if table is not None and hasattr(table, "conditions_for"):
+            # every check the outcome table names must be one the grader
+            # emits: a class that reads a check the grader never emits can
+            # never fire (an ALL class) or never charge (an ANY class), and
+            # the headline pass / score would be read off a table with a
+            # hole in it. taskspec refuses this where the manifest is
+            # readable; this is the check against the wider id set.
+            for cls, conds in table.map.items():
+                gone = sorted({outcome.split_condition(c)[1] for c in conds
+                               if known
+                               and outcome.split_condition(c)[1] not in known})
+                if gone:
+                    missing_outcome[cls] = gone
+                    findings.append(_finding(
+                        BLOCK, "outcome_check_missing_from_grader",
+                        f"[matrix.outcome].{cls} names {gone}, which the "
+                        f"grader ({source}) never emits; the class would "
+                        f"read off a hole forever"))
+            must_have = sorted(outcome.must_have_conditions(
+                table, getattr(m, "role", None) or "control"))
 
     rows = validity_rows(spec.raw, arm)
     names = {r["agent"] for r in rows}
@@ -239,32 +254,18 @@ def static_card(task_id: str, tasks_dir: Path, variant: str | None = None) -> di
             f"[harness].pass_requires_checks names {prc_missing}, which the "
             f"grader ({source}) never emits; no episode could ever pass"))
 
-    # the headline (projected pass) and the scalar's 1.0 should measure the
-    # same thing (R1 2026-09-19); a pass-axis check no top-band class
-    # requires is a divergence the task owner has to defend or close
-    if m is not None:
-        outside = taskspec.pass_axis_outside_top_band(m, getattr(m, "role", None))
-        if outside:
-            findings.append(_finding(
-                WARN, PASS_AXIS_OUTSIDE_TOP_BAND,
-                f"pass_axis {m.pass_axis!r} scores {outside}, which neither "
-                f"[matrix.outcome].resolved nor (on a decision arm) "
-                f"withheld_with_evidence requires; a rollout can read the "
-                f"scalar's 1.0 while the projected pass says fail, or the "
-                f"reverse. Add them to the top-band class or move the axis."))
-
     return {
         "schema_version": SCHEMA_VERSION,
         "task": task_id,
         "variant": arm or None,
         "static": {
             "matrix_present": m is not None,
-            "pass_axis": m.pass_axis if m else None,
-            "gate": m.gate if m else None,
+            "role": getattr(m, "role", None) if m else None,
+            "outcome_declared": bool(m is not None and m.outcome is not None),
+            "must_have": must_have,
             "grader_check_ids": ids,
             "grader_check_source": source,
-            "map_checks_missing_from_grader": missing_map,
-            "proxy_declared": sorted(m.proxy) if m else [],
+            "outcome_checks_missing_from_grader": missing_outcome,
             "accepted": accepted,
             "accepted_not_in_validity": accepted_missing,
             "validity_rows": len(rows),
@@ -466,7 +467,6 @@ def card(task_id: str, tasks_dir: Path, variant: str | None = None,
 # scalar (reward.py); the arm is refused when a class disagrees with what the
 # template (or the suite's own `outcome`) says it must be, or when the scalar
 # does not order the classes resolved > partial >= silent > damage.
-PASS_AXIS_OUTSIDE_TOP_BAND = "PASS_AXIS_OUTSIDE_TOP_BAND"
 LADDER_NO_OUTCOME_TABLE = "LADDER_NO_OUTCOME_TABLE"
 BASELINES_SCHEMA = "BASELINES_SCHEMA"
 LADDER_MISSING_BASELINE = "LADDER_MISSING_BASELINE"
@@ -684,7 +684,7 @@ def ladder_card(task_id: str, tasks_dir: Path, variant: str | None,
                     f"[matrix.progress] takes {reach.get('distinct')} distinct "
                     f"value(s) across {len(values)} baselines; a quantity the "
                     f"rivals cannot spread is a bit in disguise "
-                    f"(scoring_granularity.md §4.4)"))
+                    f"(docs/evalScoringRedesign.md §3)"))
     out["valid"] = not any(f["severity"] == BLOCK for f in findings)
     return out
 
@@ -720,11 +720,12 @@ def render(c: dict) -> str:
              f"**valid: {c['valid']}**" + (
                  "" if c["valid"] else " - " + "; ".join(c["invalid_because"])),
              "", "## Static", "", "| field | value |", "|---|---|"]
-    for key in ("matrix_present", "pass_axis", "gate", "grader_check_source",
+    for key in ("matrix_present", "role", "outcome_declared", "must_have",
+                "grader_check_source",
                 "accepted", "accepted_not_in_validity", "validity_rows",
                 "has_oracle_row", "has_no_op_row", "has_false_claim_row",
-                "has_positive_control_row", "map_checks_missing_from_grader",
-                "pass_requires_checks_missing_from_grader", "proxy_declared",
+                "has_positive_control_row", "outcome_checks_missing_from_grader",
+                "pass_requires_checks_missing_from_grader",
                 "required_surfaces_declared", "dead_by_design_declared"):
         lines.append(f"| {key} | `{s[key]!r}` |")
     lines.append(f"| grader_check_ids | {', '.join(s['grader_check_ids'])} |")

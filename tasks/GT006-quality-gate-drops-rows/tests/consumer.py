@@ -5,8 +5,8 @@ what the board pack would read the next morning.
 
     from consumer import make_advanceable, run_night, business_hash, receipts
 
-WHY A SCRATCH NIGHT. The pass axis of this task (DECISION_TEMPLATE §4) is the
-consumer-visible table as a whole object: `warehouse.bi_payments_extract`, which
+WHY A SCRATCH NIGHT. The consumer check of this task (DECISION_TEMPLATE §4) reads
+the consumer-visible table as a whole object: `warehouse.bi_payments_extract`, which
 `refresh_bi_extract` rebuilds from the KPI at 02:45. An agent that patches the
 KPI and leaves the extract is right until 02:45 and wrong after; an agent that
 patches the extract by hand and leaves the KPI is the other way round. Neither is
