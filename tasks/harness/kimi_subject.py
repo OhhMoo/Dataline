@@ -73,6 +73,17 @@ _NEUTRAL_TOP = {
     # provider-retry noise: the step is still observed in full, so these are
     # recorded as neutral system events rather than quarantining the episode
     "turn.step.retrying", "turn.step.interrupted",
+    # kimi 2.0.1 (measured 2026-09-20, GT001 r0, 79 tool calls): a
+    # message-level mirror of the loop events. `agent.message.appended`
+    # carries message.message.{role, content, toolCalls}; over the whole
+    # episode its 79 tool-call names, in order, and its 20 assistant texts
+    # were byte-equal to the `tool.call` / `content.part` loop events the
+    # translator already emits, its 79 `tool` rows to the `tool.result`
+    # events, and its one `user` row was the harness prompt (turn.prompt).
+    # `agent.turn.started` / `agent.turn.ended` carry turnId, outcome, time
+    # and no content. Nothing here is read that the loop events do not carry,
+    # so they are neutral rather than unparsed.
+    "agent.message.appended", "agent.turn.started", "agent.turn.ended",
 }
 _NEUTRAL_LOOP = {"step.begin", "step.end"}
 

@@ -483,7 +483,7 @@ pass_min_total = 14.0
 pass_min_total_measured = true
 
 # ---------------------------------------------------------------------------
-# THE SCORING MATRIX (docs/evalScoringRedesign.md). SCORE-ONLY: the grader's
+# THE SCORING MATRIX (docs/Scoring_Redesign.md). SCORE-ONLY: the grader's
 # checks, points and pass criterion above are UNCHANGED; this declares the
 # outcome classes, progress quantities and path rules the harness reads off
 # the grader's existing check ids. The [difficulty].axes table above is the
@@ -525,7 +525,7 @@ withheld_with_evidence = ["D1", "W1", "W2", "A0"]
 acted                  = ["A1"]
 
 # PROGRESS inside the partial classes (progress.py; template §9;
-# docs/evalScoringRedesign.md). PRODUCT quantities only, each read off one
+# docs/Scoring_Redesign.md). PRODUCT quantities only, each read off one
 # grader check's detail[field]:
 #   diagnosis  D1.detail.clauses_paid - of verdict / repaired-on-time (the
 #              replayed night lands by 04:00 without overlap, plant

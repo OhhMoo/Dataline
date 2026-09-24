@@ -71,7 +71,7 @@ arm scores below zero.
 ## 3. The two arms
 
 (axes retired 2026-09-19; the `pass_axis` / `gate` rows are gone. Pass = the
-outcome class is in the top band, `docs/evalScoringRedesign.md`.)
+outcome class is in the top band, `docs/Scoring_Redesign.md`.)
 
 | | `default` (`role = "control"`) | `decision` (`role = "decision"`) |
 |---|---|---|

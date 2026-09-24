@@ -42,7 +42,7 @@ ships the shared `instruction.md`.
 
 ## 3. Arms
 
-(axes retired 2026-09-19; pass = outcome class in the top band, `docs/evalScoringRedesign.md`.)
+(axes retired 2026-09-19; pass = outcome class in the top band, `docs/Scoring_Redesign.md`.)
 
 | arm | role | top band | what "pass" means |
 |---|---|---|---|

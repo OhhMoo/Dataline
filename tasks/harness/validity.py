@@ -684,7 +684,7 @@ def ladder_card(task_id: str, tasks_dir: Path, variant: str | None,
                     f"[matrix.progress] takes {reach.get('distinct')} distinct "
                     f"value(s) across {len(values)} baselines; a quantity the "
                     f"rivals cannot spread is a bit in disguise "
-                    f"(docs/evalScoringRedesign.md §3)"))
+                    f"(docs/Scoring_Redesign.md §3)"))
     out["valid"] = not any(f["severity"] == BLOCK for f in findings)
     return out
 

@@ -959,7 +959,7 @@ open = [
 # ---------------------------------------------------------------------------
 # THE SCORING MATRIX - the CONTROL arms (default, trap-ticket, stacked-*).
 # Reformed 2026-09-18 to the decision template (tasks/contracts/
-# DECISION_TEMPLATE.md §3-§4; DESIGN.md §3-§4; docs/evalScoringRedesign.md).
+# DECISION_TEMPLATE.md §3-§4; DESIGN.md §3-§4; docs/Scoring_Redesign.md).
 # C1 is the board pack's extract hashed as a whole object after one scheduler
 # night on a copy of the world; H1 is the report naming the exclusion rule.
 #

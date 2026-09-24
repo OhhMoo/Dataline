@@ -324,7 +324,7 @@ def main() -> int:
                     help="the subject's model id in the DRIVER's vocabulary: a "
                          "claude alias for mcp/cli/native, a Kimi model for kimi")
     ap.add_argument("--driver", default="native",
-                    choices=["mcp", "cli", "scripted", "kimi", "native"],
+                    choices=["mcp", "cli", "scripted", "kimi", "cursor", "native"],
                     help="measurement substrate is native; mcp is the "
                          "comparison arm (default: native)")
     ap.add_argument("--no-quota-probe", action="store_true",

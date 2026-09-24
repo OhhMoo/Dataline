@@ -655,7 +655,7 @@ not_measured = [
 ]
 
 # ---------------------------------------------------------------------------
-# THE SCORING MATRIX (docs/evalScoringRedesign.md): the DECISION_TEMPLATE
+# THE SCORING MATRIX (docs/Scoring_Redesign.md): the DECISION_TEMPLATE
 # layers around the number, since 2026-09-18: [matrix.outcome] (the per-
 # episode class, outcome.py), [matrix.progress] (product quantities inside the
 # partial classes, progress.py), [matrix.path] + [matrix.path_allow]
@@ -693,7 +693,7 @@ withheld_with_evidence = ["W1", "W2", "A0", "S1"]
 acted                  = ["A1"]
 
 # PROGRESS inside the partial classes (progress.py; template §9;
-# docs/evalScoringRedesign.md). PRODUCT quantities only, each read off one
+# docs/Scoring_Redesign.md). PRODUCT quantities only, each read off one
 # grader check's detail[field]:
 #   checkpoints  C0.detail.nights_exact  - of the five checkpoints (t0 and
 #                four advanced nights) how many the nova mart matched exactly

@@ -12,7 +12,7 @@ Record shape (one scored episode, as `report.py` sees it):
 Matrix per-episode row (report._matrix_block's per_rollout):
     {"outcome": {...}|None, "pass": bool|None, "score": {...}|None, ...}
 
-Why these statistics and not others (docs/evalScoringRedesign.md): a
+Why these statistics and not others (docs/Scoring_Redesign.md): a
 GRPO/DAPO trainer drops every prompt group whose rewards are all identical,
 so the number a buyer needs is not "how hard is this task" but "at the
 current policy, do K episodes of it disagree with each other". pass@k /
@@ -30,7 +30,7 @@ from __future__ import annotations
 import math
 import statistics
 
-# Band thresholds (docs/evalScoringRedesign.md). Module constants so a
+# Band thresholds (docs/Scoring_Redesign.md). Module constants so a
 # report can print the rule it applied.
 CORE_LOW = 0.05
 CORE_HIGH = 0.70

@@ -760,7 +760,7 @@ def score_c0(now: dict, references: dict, s: Score) -> None:
     # PROGRESS quantity (task.toml [matrix.progress].gap_days): the missed
     # days whose handoff rows, as the bank reads them at teardown, are exactly
     # the oracle's. A product count over the consumer-visible object - never
-    # a count of checks or report keys (docs/evalScoringRedesign.md).
+    # a count of checks or report keys (docs/Scoring_Redesign.md).
     handed = 0
     for day in CONTRACT["gap_days"]:
         want_day = [row for row in want_handoff if row[0] == day]

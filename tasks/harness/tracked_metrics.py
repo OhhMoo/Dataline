@@ -1,6 +1,6 @@
 """Per-episode TRACKED metrics: counted, reported, never scored.
 
-docs/evalScoringRedesign.md §3 refuses a brevity or step-count reward, and
+docs/Scoring_Redesign.md §3 refuses a brevity or step-count reward, and
 §4.2 keeps efficiency as a raw count beside the number. This module is that
 count. Nothing here feeds reward.py; report.py attaches the dict to each
 per-rollout row so a reader can see what an episode cost, and a trainer's

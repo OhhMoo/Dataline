@@ -583,7 +583,7 @@ not_measured = [
 ]
 
 # ---------------------------------------------------------------------------
-# Scoring matrix (docs/evalScoringRedesign.md). `resolved` is R1..R4: every
+# Scoring matrix (docs/Scoring_Redesign.md). `resolved` is R1..R4: every
 # published receipt at the cutoff matches the oracle trajectory. S1/S2 stay
 # OUT of the pass criterion: those keys are disclosed and re-locked.
 # accepted = the oracle trajectory only: withhold and silent-restate both
@@ -620,7 +620,7 @@ acted                  = ["C0"]
 
 # ---------------------------------------------------------------------------
 # PROGRESS inside the partial classes (tasks/harness/progress.py; template
-# §9; docs/evalScoringRedesign.md). PRODUCT quantities only, each read off
+# §9; docs/Scoring_Redesign.md). PRODUCT quantities only, each read off
 # one grader check's `detail[field]`, weighted by quantity. Never a count of
 # checks passed or of report keys.
 #   gap_days   C0.detail.gap_days_handed_over - the missed feed days whose

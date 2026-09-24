@@ -410,7 +410,7 @@ def import_matrix_error_is_the_same_object() -> bool:
     return taskspec.MatrixError is MatrixError
 
 
-# -- the headline: pass / must-have / score (docs/evalScoringRedesign.md) --------
+# -- the headline: pass / must-have / score (docs/Scoring_Redesign.md) --------
 
 def test_top_band_follows_the_role():
     assert top_band_classes("control") == ("resolved",)

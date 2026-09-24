@@ -528,7 +528,7 @@ pass_min_total = 17.0
 pass_min_total_measured = true
 
 # ---------------------------------------------------------------------------
-# Scoring matrix (control arm; docs/evalScoringRedesign.md). Score-only: no
+# Scoring matrix (control arm; docs/Scoring_Redesign.md). Score-only: no
 # new model tokens, no grader point-total changes; the legacy criterion above
 # still decides pass_all_required.
 #

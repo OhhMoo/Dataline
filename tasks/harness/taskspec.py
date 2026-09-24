@@ -20,7 +20,7 @@ the parent's grader is fixed, seven graders disagree and nobody notices,
 because `diff -rq` over a 25 MB fixture tree is not something anyone runs
 twice. One directory, seven overlays of four YAML files each, cannot drift.
 
-SCORING MATRIX. A task may also declare `[matrix]` (docs/evalScoringRedesign.md):
+SCORING MATRIX. A task may also declare `[matrix]` (docs/Scoring_Redesign.md):
 the declarations the reporting layer reads off the grader's EXISTING check ids
 - `[matrix.outcome]` (the outcome classes; the headline `pass` and `score` are
 read off its top-band classes), `accepted` (the baselines oracle validity must
@@ -273,7 +273,7 @@ class TaskSpec:
     pass_requires_checks: list[str] = field(default_factory=list)
     pass_min_total: float = 0.0
 
-    # The task's scoring matrix (docs/evalScoringRedesign.md), resolved through
+    # The task's scoring matrix (docs/Scoring_Redesign.md), resolved through
     # the variant's [variants.<name>.matrix] override if it declares one. None
     # when the task has no [matrix] table, and for such a task nothing about
     # loading, running or the pass criterion changes: the matrix is

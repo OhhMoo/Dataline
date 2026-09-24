@@ -1,5 +1,5 @@
 """PATH PENALTIES - verifiable damage read off the episode's action log
-(docs/evalScoringRedesign.md §3, tasks/contracts/DECISION_TEMPLATE.md §9).
+(docs/Scoring_Redesign.md §3, tasks/contracts/DECISION_TEMPLATE.md §9).
 
 RLVP's finding (arXiv 2607.07435): the dense signal an agentic environment
 can supply reliably is a per-action penalty for a move the world can DETECT

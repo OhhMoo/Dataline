@@ -133,6 +133,20 @@ from pathlib import Path
 #: client offered, which is what detector 1 verifies against.
 MCP_DRIVERS = ("mcp", "kimi")
 
+#: Drivers whose ALLOWED surface is the gateway's MCP tools but whose client
+#: cannot prove the surface it granted. `cursor`'s init event carries no tool
+#: list; the built-ins are refused by the harness's permission policy rather
+#: than removed, and each refusal is in the transcript (see POLICY_REFUSAL).
+#: The tool-use detectors judge it against the MCP set; the guarantee it can
+#: claim is `detection_only`, never `tool_surface_revoked`.
+POLICY_DENIED_DRIVERS = ("cursor",)
+MCP_SURFACE_DRIVERS = MCP_DRIVERS + POLICY_DENIED_DRIVERS
+
+#: A tool_result whose content starts with this is the CLI's own refusal of a
+#: call under the permission policy the harness wrote: the subject asked, the
+#: client declined, nothing ran. Written by cursor_subject.translate.
+POLICY_REFUSAL = "Permission denied by harness policy"
+
 # tool families the subject must not have. Fail closed: unknown -> hard.
 WEB_TOOLS = {"websearch", "webfetch"}
 FS_TOOLS = {"read", "write", "edit", "multiedit", "notebookedit", "glob", "grep", "ls"}
@@ -234,6 +248,27 @@ def refused_tool_use_ids(transcript: list[dict]) -> set[str]:
             c = b.get("content")
             text = c if isinstance(c, str) else json.dumps(c)
             if RUNTIME_REFUSAL in text and b.get("tool_use_id"):
+                ids.add(b["tool_use_id"])
+    return ids
+
+
+def policy_refused_tool_use_ids(transcript: list[dict]) -> set[str]:
+    """tool_use ids the client refused under the harness's permission policy.
+
+    Distinct from `refused_tool_use_ids`: that is a malformed NAME the runtime
+    never had; this is a real built-in the subject reached for and the client
+    declined to run. Only a result whose content STARTS with POLICY_REFUSAL
+    counts, and the CLI's own denial payload follows it verbatim."""
+    ids: set[str] = set()
+    for ev in transcript:
+        if ev.get("type") != "user":
+            continue
+        for b in _blocks(ev):
+            if b.get("type") != "tool_result" or not b.get("is_error"):
+                continue
+            c = b.get("content")
+            text = c if isinstance(c, str) else json.dumps(c)
+            if text.startswith(POLICY_REFUSAL) and b.get("tool_use_id"):
                 ids.add(b["tool_use_id"])
     return ids
 
@@ -562,9 +597,11 @@ def guarantee(*, driver: str, topology: str,
 
 def expected_tool_surface(driver: str, gateway_tools: list[str],
                           mcp_server: str = "alkera") -> set[str]:
-    if driver in MCP_DRIVERS:
-        # both revoke everything but the gateway tools; kimi's surface is
-        # verified from its wire log's llm.tools_snapshot (see kimi_subject.py)
+    if driver in MCP_SURFACE_DRIVERS:
+        # mcp and kimi revoke everything but the gateway tools; kimi's surface
+        # is verified from its wire log's llm.tools_snapshot (see
+        # kimi_subject.py). cursor is judged against the same set but cannot
+        # prove what it was granted - see POLICY_DENIED_DRIVERS.
         return {f"mcp__{mcp_server}__{t}" for t in gateway_tools}
     # the cli, scripted and native drivers deliberately grant a shell; their
     # blindness is detection-only. Under `native` that shell is not a
@@ -636,6 +673,15 @@ def detect(*, transcript: list[dict], driver: str, gateway_tools: list[str],
                            "no init event in the transcript; the tool surface the "
                            "subject was given could not be verified"))
     else:
+        if init.get("tools_reported") is False:
+            # the client (cursor) emits an init event with no tool list. The
+            # surface it granted is unknown, and this record says so - soft,
+            # because every call it DID make is judged below, and the driver
+            # already carries the weaker `detection_only` guarantee.
+            v.append(Violation("tool_surface_unreported", False, "capability",
+                               "the client's init event carries no tool list; "
+                               "the surface granted could not be verified, only "
+                               "the calls made"))
         granted = [t for t in (init.get("tools") or [])]
         extra = [t for t in granted if t not in allowed]
         # bookkeeping tools are noise, not sight
@@ -653,9 +699,22 @@ def detect(*, transcript: list[dict], driver: str, gateway_tools: list[str],
 
     # 2 -- tools actually invoked -------------------------------------------
     refused = refused_tool_use_ids(transcript)
+    policy_refused = (policy_refused_tool_use_ids(transcript)
+                      if driver in POLICY_DENIED_DRIVERS else set())
     for use in tool_uses(transcript):
         kind, hard = classify_tool(use["name"], allowed)
         if kind == "gateway":
+            continue
+        if kind != "bookkeeping_tool" and use.get("id") in policy_refused:
+            # the subject reached for a built-in and the client refused it
+            # under the policy the harness wrote; the denial payload is in the
+            # transcript and nothing ran. Soft: an attempt to see, not a
+            # sight. Counted in the report so a subject that keeps trying
+            # is visible.
+            v.append(Violation("refused_by_policy", False, "tool_use",
+                               f"{use['name']} refused by the client's permission "
+                               f"policy; nothing ran: "
+                               f"{json.dumps(use['input'])[:200]}"))
             continue
         if kind == "unknown_tool" and use.get("id") in refused:
             # e.g. `mcp__antml:alkera__sql_execute`: the model's call-format
@@ -801,8 +860,16 @@ def detect(*, transcript: list[dict], driver: str, gateway_tools: list[str],
                     f"`workspace.edit` row; in native mode the transcript, not "
                     f"the action log, is what audits this plane"))
                 continue
+            # Soft where the gateway is the subject's only channel: mcp, kimi,
+            # and cursor. For cursor every call the client made is in the
+            # transcript (fail-closed translation) and judged by detector 2,
+            # so an off-channel write would already be a hard tool_use
+            # violation there; an unattributed change with a clean detector 2
+            # is a bookkeeping gap - GT009 r1 (2026-09-20): `chat_post` and
+            # `issues_comment` rows target `chat:payments` / `issue:PAY-3297`,
+            # not the `var/workflow/*.json` files they write.
             v.append(Violation("out_of_band_world_change",
-                               driver not in MCP_DRIVERS,
+                               driver not in MCP_SURFACE_DRIVERS,
                                "world_diff",
                                f"{rel} changed but no gateway call targets it"))
 
@@ -1043,6 +1110,21 @@ def _unattributed(before: dict, after: dict, rows: list[dict],
         ok_prefixes.add("var/bi")
     if any(t.startswith(("s3_", "docs_")) for t in named):
         ok_prefixes |= {"var/s3", "var/objects", f"{workspace}/docs"}
+    # The human plane. `chat_post`, `issues_comment` / `issues_update`,
+    # `kb_create` / `kb_edit` write `var/workflow/{chat,issues,kb}.json`, and
+    # their rows target the OBJECT (`chat:payments`, `issue:PAY-3297`), not the
+    # file - so a GT009 episode that followed the protocol to the letter read
+    # as two off-channel changes (r1, 2026-09-20). Scoped to a WRITE row from
+    # one of these tools, and to the file that tool owns.
+    workflow = rel(layout.get("workflow_dir", "")) or "var/workflow"
+    for r in rows:
+        tool = str(r.get("tool") or "").rsplit(".", 1)[-1]
+        if r.get("op_class") not in WRITE_CLASSES:
+            continue
+        for prefix, fname in (("chat_", "chat.json"), ("issues_", "issues.json"),
+                              ("kb_", "kb.json")):
+            if tool.startswith(prefix):
+                ok_prefixes.add(f"{workflow}/{fname}")
     if named & {"dbt_run", "dbt_test", "dbt_compile"}:
         ok_prefixes |= {f"{workspace}/target", f"{workspace}/logs",
                         f"{workspace}/dbt_project/target",

@@ -203,6 +203,7 @@ dead. Ground rule 1 is structural here, not a convention.
 |---|---|---|---|
 | `mcp` | `claude --print` | **only** the gateway tools, over MCP stdio | `tool_surface_revoked` |
 | `kimi` | `kimi -p` (Kimi Code CLI) | **only** the gateway tools, over MCP stdio | `tool_surface_revoked` |
+| `cursor` | `cursor-agent -p` (Cursor CLI) | the gateway tools over MCP stdio; the client's built-ins are **refused by permission policy** (Shell, Read, Write, WebFetch), not removed, and its search tools cannot be refused at all - a built-in that runs is a hard violation | `detection_only` (the init event carries no tool list; see `cursor_subject.py`) |
 | `cli` | `claude --print` | Bash + a `gw.sh` shim | `detection_only` |
 | `native` | `claude --print`, or a scripted shell with `--model scripted` | Bash and nothing else - an EMPTY mcp config, vendor-shaped services found through `.envrc` and the environment, PATH-front shims for `duckdb`/`dbt`/`python`/`git` | `detection_only` + `network_destination` (every connection is logged server-side; an absent `destinations.jsonl` quarantines) |
 | `scripted` | `redteam/scripted_subject.py` | n/a | detector tests only |
@@ -217,7 +218,7 @@ operator table.
 
 The report headline is APEX-Agents style, read off the arm's
 `[matrix.outcome]` table and its `role`. Nothing is gated; every graded
-episode is in the denominator. `docs/evalScoringRedesign.md` is the design
+episode is in the denominator. `docs/Scoring_Redesign.md` is the design
 note.
 
 - **pass** (per episode, bool): the outcome class is in the arm's **top
@@ -251,7 +252,7 @@ that does not.
 
 ## The layers around the number (2026-09-18)
 
-`docs/evalScoringRedesign.md` says what a lab reads off a task before
+`docs/Scoring_Redesign.md` says what a lab reads off a task before
 training on it. These modules print it. None of them changes a score.
 
 | layer | module | what |

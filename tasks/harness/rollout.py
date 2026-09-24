@@ -489,6 +489,9 @@ def _driver_from_disk(rollout_dir: Path) -> tuple[str | None, str]:
         if "kimi" in exe:
             return "kimi", (f"mcp.json declares {sorted(servers)} and "
                             f"agent_argv.json starts {exe}")
+        if "cursor" in exe:
+            return "cursor", (f"mcp.json declares {sorted(servers)} and "
+                              f"agent_argv.json starts {exe}")
         return "mcp", f"mcp.json declares the gateway server(s) {sorted(servers)}"
     return "native", ("mcp.json declares NO mcp servers, which is native mode's "
                       "empty config - a shell and nothing else")
@@ -805,7 +808,7 @@ def regrade(rollout_dir, task: str | None = None,
     src, toolbelt = _first(("rollout.json", P.get("toolbelt")),
                            (BEFORE_EPISODE_FILE, B.get("toolbelt")))
     if toolbelt is None:
-        if driver in blindness.MCP_DRIVERS:
+        if driver in blindness.MCP_SURFACE_DRIVERS:
             try:
                 current = sorted(episode.gateway_tool_names())
             except episode.HarnessError as exc:
@@ -1827,7 +1830,7 @@ def main() -> int:
     ap.add_argument("--out")
     ap.add_argument("--model", default="opus")
     ap.add_argument("--driver", default="native",
-                    choices=["mcp", "cli", "scripted", "kimi", "native"],
+                    choices=["mcp", "cli", "scripted", "kimi", "cursor", "native"],
                     help="measurement substrate is native; mcp is the "
                          "comparison arm (default: native)")
     ap.add_argument("--native-endpoints", default=None,

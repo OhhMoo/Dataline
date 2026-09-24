@@ -172,7 +172,7 @@ Before any arm may report a number, `validity.py` has to exit 0 on it:
 
 Full account with provenance — what is taken from APEX-Agents, Terminal-Bench,
 SWE-bench Verified, RE-Bench, and what the lab-side sources ask for —
-in `docs/evalScoringRedesign.md`.
+in `docs/Scoring_Redesign.md`.
 
 ## Tasks
 
@@ -205,7 +205,7 @@ this design is the K ≥ 8 rerun on all 19 arms.
 world/        world factory: themes, seeds, scheduler, faults, fingerprint, ledger
 gateway/      63 MCP tools, native surfaces, containment, docker
 tasks/        GT001-GT009, contracts/, stressors/, harness/
-docs/         evalScoringRedesign.md — the design and its sources
+docs/         Scoring_Redesign.md — the design and its sources
 scripts/      track_status.py
 ```
 
