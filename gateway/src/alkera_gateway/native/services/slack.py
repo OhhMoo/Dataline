@@ -43,6 +43,10 @@ PORT = 8081
 # Repo rule: obviously fake. It carries the `xoxb-` prefix because slack_sdk and
 # every runbook an agent has read expect a bot token to look like one.
 TOKEN = f"xoxb-{DEV_TOKEN}"
+#: What the workspace exports as SLACK_BOT_TOKEN (the bare shared credential).
+#: Accepted beside the `xoxb-` form: an agent that uses the token it was handed
+#: must get in, and one that shapes it the way a real bot token looks must too.
+ACCEPTED_TOKENS = frozenset({TOKEN, DEV_TOKEN})
 
 # `chat_history` and `chat_search` take a limit; Slack's own paging is applied
 # after the module call, so that call has to see the whole channel.
@@ -116,7 +120,7 @@ def principal(request: Request, values: dict) -> str:
     token = supplied if scheme.lower() == "bearer" else values.get("token", "")
     if not token:
         raise Refused("not_authed")
-    if token != TOKEN:
+    if token not in ACCEPTED_TOKENS:
         raise Refused("invalid_auth")
     return token
 

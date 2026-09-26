@@ -1,0 +1,220 @@
+{
+  "egress": [
+    {
+      "allow": [
+        "api.anthropic.com:443"
+      ],
+      "event": "listening",
+      "port": 3128,
+      "ts": "2026-09-26T03:14:43Z"
+    },
+    {
+      "event": "refused",
+      "method": "CONNECT",
+      "peer": "('10.89.0.3', 34188)",
+      "target": "example.com:443",
+      "ts": "2026-09-26T03:14:54Z"
+    },
+    {
+      "bytes_down": 0,
+      "bytes_up": 0,
+      "event": "allowed",
+      "peer": "('10.89.0.3', 34190)",
+      "seconds": 0.04,
+      "target": "api.anthropic.com:443",
+      "ts": "2026-09-26T03:14:54Z"
+    },
+    {
+      "event": "refused",
+      "method": "CONNECT",
+      "peer": "('10.89.0.3', 34206)",
+      "target": "example.com:443",
+      "ts": "2026-09-26T03:14:55Z"
+    },
+    {
+      "bytes_down": 5224,
+      "bytes_up": 2010,
+      "event": "allowed",
+      "peer": "('10.89.0.3', 34226)",
+      "seconds": 0.23,
+      "target": "api.anthropic.com:443",
+      "ts": "2026-09-26T03:14:58Z"
+    },
+    {
+      "bytes_down": 5246,
+      "bytes_up": 2005,
+      "event": "allowed",
+      "peer": "('10.89.0.3', 34212)",
+      "seconds": 0.24,
+      "target": "api.anthropic.com:443",
+      "ts": "2026-09-26T03:14:58Z"
+    },
+    {
+      "bytes_down": 12704,
+      "bytes_up": 40364,
+      "event": "allowed",
+      "peer": "('10.89.0.3', 34238)",
+      "seconds": 6.15,
+      "target": "api.anthropic.com:443",
+      "ts": "2026-09-26T03:15:04Z"
+    }
+  ],
+  "image": "alkera-episode:head",
+  "measured_utc": "2026-09-26T03:15:10Z",
+  "model_smoke": {
+    "argv": [
+      "docker",
+      "exec",
+      "-i",
+      "-w",
+      "/alkera-subject-cwd",
+      "-e",
+      "CLAUDE_CODE_OAUTH_TOKEN",
+      "6a9af22773cf2e127a167cbf0199fbdba53ea30a4cc0ff0f738ce2a7efc63c32",
+      "claude",
+      "--print",
+      "--output-format",
+      "stream-json",
+      "--verbose",
+      "--model",
+      "opus",
+      "--setting-sources",
+      "",
+      "--disable-slash-commands",
+      "--no-session-persistence",
+      "--permission-mode",
+      "bypassPermissions",
+      "--permission-prompts",
+      "none",
+      "--strict-mcp-config",
+      "--mcp-config",
+      "{\"mcpServers\": {}}",
+      "--tools",
+      "Bash"
+    ],
+    "bash_tool_used": true,
+    "claude": "/home/OhhMoo/.local/bin/claude",
+    "commands": [
+      "hostname; ls /"
+    ],
+    "container_root_markers_seen": [
+      "audit",
+      "etc",
+      "usr",
+      "workspace",
+      "world"
+    ],
+    "expected_hostname": "61a2f319f6f6",
+    "final": "```\n61a2f319f6f6\naudit\nbin\nboot\ndev\netc\nhome\nlib\nlib64\nmedia\nmnt\nopt\nproc\nroot\nrun\nsbin\nsrv\nsys\ntmp\nusr\nvar\nworkspace\nworld\n```",
+    "host_hostname_seen": false,
+    "host_root_markers_seen": [],
+    "hostname_is_the_container": true,
+    "launcher": "docker",
+    "measured_utc": "2026-09-26T03:15:04Z",
+    "model": "opus",
+    "prompt": "Run these two commands and reply with their raw output only: hostname; ls /",
+    "returncode": 0,
+    "stderr": "",
+    "subject_env": {},
+    "tool_results": [
+      "61a2f319f6f6\naudit\nbin\nboot\ndev\netc\nhome\nlib\nlib64\nmedia\nmnt\nopt\nproc\nroot\nrun\nsbin\nsrv\nsys\ntmp\nusr\nvar\nworkspace\nworld"
+    ],
+    "verified": true,
+    "wall_s": 6.69
+  },
+  "proof": {
+    "expected": "61a2f319f6f6",
+    "how": "bash -c / bash -lc hostname inside the subject container, forwarded by rexec",
+    "observed": {
+      "-c": "61a2f319f6f6",
+      "-lc": "61a2f319f6f6"
+    },
+    "sandbox": {
+      "checks": {
+        "bridge_reachable": true,
+        "episode_services_unreachable": true,
+        "no_capabilities": true,
+        "no_default_route": true,
+        "no_direct_egress": true,
+        "no_engine_socket": true,
+        "no_host_paths": true,
+        "no_new_privileges": true,
+        "no_public_dns": true,
+        "not_root": true,
+        "proxy_passes_api": true,
+        "proxy_refuses_off_allowlist": true,
+        "root_read_only": true
+      },
+      "measured_utc": "2026-09-26T03:14:54Z",
+      "observed": {
+        "cap_eff": "0000000000000000",
+        "default_route": false,
+        "direct_egress": {
+          "1.1.1.1:443": false,
+          "8.8.8.8:53": false
+        },
+        "engine_sockets": [],
+        "episode_bridge": true,
+        "episode_services_reachable": false,
+        "host_paths_visible": [],
+        "mounts": [
+          "/run/secrets",
+          "/etc/hostname",
+          "/etc/resolv.conf",
+          "/etc/hosts",
+          "/dev/shm",
+          "/run/.containerenv",
+          "/",
+          "/tmp",
+          "/alkera-subject-cwd",
+          "/run",
+          "/proc",
+          "/dev",
+          "/sys",
+          "/home/agent",
+          "/var/tmp",
+          "/dev/pts",
+          "/dev/mqueue",
+          "/sys/fs/cgroup",
+          "/dev/null",
+          "/dev/zero",
+          "/dev/full",
+          "/dev/tty",
+          "/dev/random",
+          "/dev/urandom",
+          "/proc/acpi",
+          "/proc/kcore",
+          "/proc/keys",
+          "/proc/latency_stats",
+          "/proc/scsi",
+          "/proc/timer_list",
+          "/sys/devices/virtual/powercap",
+          "/sys/firmware",
+          "/sys/fs/selinux",
+          "/proc/interrupts",
+          "/sys/devices/virtual/powercap",
+          "/proc/asound",
+          "/proc/bus",
+          "/proc/fs",
+          "/proc/irq",
+          "/proc/sys",
+          "/proc/sysrq-trigger"
+        ],
+        "no_new_privs": "1",
+        "proxy_allows_api": "200",
+        "proxy_refuses_other": "403",
+        "public_dns": false,
+        "root_read_only": true,
+        "uid": 1000
+      },
+      "verified": true
+    },
+    "verified": true
+  },
+  "subject_image": {
+    "claude_version": "2.1.283",
+    "id": "71430a461150194befcb600265a7ca0436aded74951bd698a5c00bc7d703bd54",
+    "image": "alkera-subject:head"
+  },
+  "task": "GT001-aov-halving"
+}

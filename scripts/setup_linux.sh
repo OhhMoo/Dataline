@@ -159,16 +159,25 @@ echo "   $(claude --version)"
 
 # ---------------------------------------------------------------- 4. images
 say "4. images"
-# Every service the native stack starts, pulled now so the first rollout does not
-# spend its wall clock on a download. Dummy paths: `pull` reads no mount.
-dummy="$(mktemp -d)"; mkdir -p "$dummy/world/workspace" "$dummy/audit"
-ALKERA_EPISODE_WORLD="$dummy/world" ALKERA_EPISODE_AUDIT="$dummy/audit" \
-  docker compose -p alkera-setup \
-    -f "$REPO/gateway/docker/compose.yml" \
-    -f "$REPO/gateway/docker/compose.episode.yml" \
-    -f "$REPO/gateway/docker/compose.native.yml" \
-    pull --ignore-buildable --quiet
-rm -rf "$dummy"
+# Every third-party image the stack and the two Dockerfiles use, pulled now so the
+# first rollout does not spend its wall clock on a download. Read from the files
+# rather than listed here, so a re-pin cannot drift from this script. Only
+# digest-pinned references are pulled: everything named alkera-* is built below,
+# and asking a registry for it fails (`docker compose pull` does exactly that).
+# Fully qualified with docker.io, because rootless podman will not guess a
+# registry for a short name without a TTY.
+images="$(grep -hoE '^[[:space:]]*(image:|FROM)[[:space:]]+[a-z0-9./_-]+@sha256:[0-9a-f]{64}' \
+    "$REPO"/gateway/docker/compose*.yml "$REPO"/gateway/docker/Dockerfile* \
+  | awk '{print $2}' | sort -u)"
+for ref in $images; do
+  case "$ref" in
+    */*/*) full="$ref" ;;                      # already has a registry
+    */*)   full="docker.io/$ref" ;;            # org/name
+    *)     full="docker.io/library/$ref" ;;    # official image
+  esac
+  echo "   pull ${full%%@*}"
+  docker pull -q "$full" >/dev/null
+done
 if [ "$SKIP_IMAGE" = 0 ]; then
   if [ -n "$(git -C "$REPO" status --porcelain -- gateway world)" ]; then
     echo "   NOTE: gateway/ or world/ has uncommitted changes. The image is built from"

@@ -58,6 +58,16 @@ import sys
 import textwrap
 from pathlib import Path
 
+
+def _contract_order(path):
+    """Sort key for every walk that feeds a recorded digest: case-insensitive,
+    component by component. The contracts were recorded on Windows, where
+    `sorted()` over paths compares that way; plain `sorted()` on Linux puts
+    `README.md` before `data/` and every tree digest drifted (measured
+    2026-09-26: GT005, GT007 and GT008 refused to build on a Linux host).
+    Explicit so the digest is the same on every OS."""
+    return [part.lower() for part in path.parts]
+
 HERE = Path(__file__).resolve().parent
 
 SEED = 5005
@@ -1686,7 +1696,7 @@ def snapshot_sections(world_root: Path) -> dict:
             sections[name] = hashlib.md5(path.read_bytes()).hexdigest()
         else:
             digest = hashlib.md5()
-            for child in sorted(p for p in path.rglob("*") if p.is_file()):
+            for child in sorted((p for p in path.rglob("*") if p.is_file()), key=_contract_order):
                 digest.update(child.relative_to(path).as_posix().encode("utf-8"))
                 digest.update(child.read_bytes())
             sections[name] = digest.hexdigest()

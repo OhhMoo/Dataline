@@ -44,9 +44,9 @@ def test_parent_session_stripped() -> None:
 
 
 def test_auth() -> None:
-    check("token accepted", ce.require_subject_auth({"CLAUDE_CODE_OAUTH_TOKEN": "x"})
+    check("token accepted", ce.require_subject_auth({"CLAUDE_CODE_OAUTH_TOKEN": "sk-ant-oat01-x"})
           == "CLAUDE_CODE_OAUTH_TOKEN")
-    check("api key accepted", ce.require_subject_auth({"ANTHROPIC_API_KEY": "x"})
+    check("api key accepted", ce.require_subject_auth({"ANTHROPIC_API_KEY": "sk-ant-api03-x"})
           == "ANTHROPIC_API_KEY")
     with mock.patch.object(ce.sys, "platform", "linux"):
         try:
@@ -56,6 +56,13 @@ def test_auth() -> None:
             check("linux without a credential refused", "setup-token" in str(exc))
     with mock.patch.object(ce.sys, "platform", "win32"):
         check("windows falls back to its home", ce.require_subject_auth({}) == "home")
+    for bad in ("PASTE_TOKEN_HERE", "sk-ant-oat01-abc def"):
+        try:
+            ce.require_subject_auth({"CLAUDE_CODE_OAUTH_TOKEN": bad})
+            check(f"placeholder / broken paste refused ({bad[:12]})", False)
+        except ce.ContainerError as exc:
+            check(f"placeholder / broken paste refused ({bad[:12]})",
+                  "does not look like" in str(exc) and bad not in str(exc))
 
 
 def test_selinux_overlay(tmp: Path) -> None:

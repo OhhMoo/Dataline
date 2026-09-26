@@ -406,7 +406,7 @@ def test_the_clock_is_the_worlds_and_never_the_wall(probe):
 
 def test_the_shared_credential_is_obviously_fake():
     """Repo rule: a workspace credential must never look like a real key."""
-    assert DEV_TOKEN == "alkera-local-dev-token"
+    assert DEV_TOKEN == "alkera-local-dev"
     assert len(DEV_TOKEN) >= 8 and "alkera-local-dev" in DEV_TOKEN
 
 

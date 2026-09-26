@@ -77,6 +77,16 @@ from pathlib import Path
 
 import duckdb
 
+
+def _contract_order(path):
+    """Sort key for every walk that feeds a recorded digest: case-insensitive,
+    component by component. The contracts were recorded on Windows, where
+    `sorted()` over paths compares that way; plain `sorted()` on Linux puts
+    `README.md` before `data/` and every tree digest drifted (measured
+    2026-09-26: GT005, GT007 and GT008 refused to build on a Linux host).
+    Explicit so the digest is the same on every OS."""
+    return [part.lower() for part in path.parts]
+
 HERE = Path(__file__).resolve().parent
 
 # ===========================================================================
@@ -1111,7 +1121,7 @@ def file_digest(path: Path) -> str:
 
 def tree_digest(root: Path) -> str:
     digest = hashlib.sha256()
-    for path in sorted(Path(root).rglob("*")):
+    for path in sorted(Path(root).rglob("*"), key=_contract_order):
         if path.is_file():
             digest.update(path.relative_to(root).as_posix().encode())
             digest.update(b"\0")

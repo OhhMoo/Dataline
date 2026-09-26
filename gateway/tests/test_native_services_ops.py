@@ -172,7 +172,7 @@ def test_every_service_satisfies_the_registry_contract():
 
 def test_no_service_carries_a_realistic_credential():
     """Repo rule: a credential in the workspace is obviously fake."""
-    assert native_context.DEV_TOKEN == "alkera-local-dev-token"
+    assert native_context.DEV_TOKEN == "alkera-local-dev"
     assert metabase.SESSION_ID.startswith("alkera-local-dev")
 
 

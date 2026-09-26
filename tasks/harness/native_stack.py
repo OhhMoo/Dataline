@@ -68,8 +68,8 @@ REPO = Path(__file__).resolve().parents[2]
 GATEWAY_SRC = REPO / "gateway" / "src"
 #: The image `gateway/docker/compose.native.yml` pins, by the same digest, so
 #: the host topology and the container topology audit the same MinIO.
-MINIO_IMAGE = ("minio/minio@sha256:"
-               "14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e")
+MINIO_IMAGE = ("docker.io/pgsty/minio@sha256:"
+               "b6bfe7239bfc83fb90d31612d9704d86039dd714f7904b3f1ad68f211e602372")
 #: Offsets are multiples of this, so a published port reads as
 #: `<offset><service port>` and the service port is recoverable by eye.
 OFFSET_STEP = 10_000

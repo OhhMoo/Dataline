@@ -66,9 +66,17 @@ CONFIG_ENV = "ALKERA_GATEWAY_CONFIG"
 DEFAULT_CONFIG = "/tmp/gateway.json"
 
 # Obviously fake, by repo rule: a credential in a workspace must never be
-# mistakable for a real key. Every service in this package accepts this one;
-# slack.py prefixes it with `xoxb-` because slack_sdk requires that shape.
-DEV_TOKEN = "alkera-local-dev-token"
+# mistakable for a real key. Every service in this package accepts this one.
+#
+# It MUST equal what the workspace hands the agent - world/world/native_workspace
+# .FAKE_TOKEN, the compose environment (JIRA_API_TOKEN, CONFLUENCE_API_TOKEN,
+# SLACK_BOT_TOKEN) and agent_under_test.NATIVE_FAKE_CREDENTIAL, all
+# `alkera-local-dev`. It was `alkera-local-dev-token` from 2026-09-16 until
+# 2026-09-26, so Jira, Slack and Confluence refused the workspace's own
+# credentials; the first native Opus run (opus-decision-k1-20260926T033648Z)
+# could not read a ticket or tell an owner, on every decision arm.
+# world/tests/test_native_workspace.py now fails when the two differ.
+DEV_TOKEN = "alkera-local-dev"
 
 # ToolError code -> HTTP status. Everything a module can raise is one of these
 # situations; anything unlisted is a bug in the service and says 500.

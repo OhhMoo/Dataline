@@ -74,6 +74,16 @@ import duckdb
 
 import make_fixture_world as mfw
 
+
+def _contract_order(path):
+    """Sort key for every walk that feeds a recorded digest: case-insensitive,
+    component by component. The contracts were recorded on Windows, where
+    `sorted()` over paths compares that way; plain `sorted()` on Linux puts
+    `README.md` before `data/` and every tree digest drifted (measured
+    2026-09-26: GT005, GT007 and GT008 refused to build on a Linux host).
+    Explicit so the digest is the same on every OS."""
+    return [part.lower() for part in path.parts]
+
 BUSINESS_COLS = mfw.BUSINESS_COLS
 
 # ---------------------------------------------------------------------------
@@ -654,7 +664,7 @@ def open_readonly(**dbs):
 def payload_digest(payload_dir: Path) -> str:
     """sha256 over (relpath, bytes) of every partition file, in path order."""
     h = hashlib.sha256()
-    for p in sorted(Path(payload_dir).rglob("*")):
+    for p in sorted(Path(payload_dir).rglob("*"), key=_contract_order):
         if p.is_file():
             h.update(p.relative_to(payload_dir).as_posix().encode("utf-8"))
             h.update(b"\0")

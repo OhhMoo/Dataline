@@ -59,6 +59,16 @@ from pathlib import Path
 import duckdb
 
 # --------------------------------------------------------------- contract ---
+
+def _contract_order(path):
+    """Sort key for every walk that feeds a recorded digest: case-insensitive,
+    component by component. The contracts were recorded on Windows, where
+    `sorted()` over paths compares that way; plain `sorted()` on Linux puts
+    `README.md` before `data/` and every tree digest drifted (measured
+    2026-09-26: GT005, GT007 and GT008 refused to build on a Linux host).
+    Explicit so the digest is the same on every OS."""
+    return [part.lower() for part in path.parts]
+
 SEED = 6006
 
 HIST_START, HIST_END = "2025-09-15", "2026-03-14"      # 181 days
@@ -1342,7 +1352,7 @@ def main_build(out: Path, seed: int) -> dict:
 
 def tree_hashes(root: Path, text_only: bool = True) -> dict:
     h = {}
-    for p in sorted(root.rglob("*")):
+    for p in sorted(root.rglob("*"), key=_contract_order):
         if p.is_file() and not (text_only and p.suffix == ".duckdb"):
             h[p.relative_to(root).as_posix()] = hashlib.sha256(
                 p.read_bytes()).hexdigest()

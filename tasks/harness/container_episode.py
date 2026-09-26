@@ -199,8 +199,22 @@ def require_subject_auth(env: dict | None = None) -> str:
     """
     env = os.environ if env is None else env
     for name in SUBJECT_AUTH_VARS:
-        if env.get(name, "").strip():
-            return name
+        value = env.get(name, "").strip()
+        if not value:
+            continue
+        # Anthropic keys and `claude setup-token` tokens both start `sk-ant-`.
+        # Anything else is a placeholder or a paste gone wrong, and it would
+        # otherwise surface as `401 Invalid bearer token` one model turn later
+        # (measured 2026-09-25: a literal PASTE_TOKEN_HERE reached the API).
+        # ANTHROPIC_AUTH_TOKEN is exempt: it may be a gateway's own bearer.
+        if name != "ANTHROPIC_AUTH_TOKEN" and (
+                not value.startswith("sk-ant-") or any(c.isspace() for c in value)):
+            raise ContainerError(
+                f"${name} does not look like an Anthropic credential (expected "
+                f"'sk-ant-...' with no spaces; got {len(value)} characters "
+                f"starting {value[:6]!r}). Re-run `claude setup-token` and "
+                f"export the token it prints.")
+        return name
     if not sys.platform.startswith("linux"):
         return "home"
     raise ContainerError(
@@ -1918,8 +1932,18 @@ services:
         topology passed with `-e`. The interpreter is named absolutely because
         `python` on the episode's PATH is the audited shim.
         """
+        env = dict(env or {})
         if getattr(self, "_rexec_started", False):
-            return
+            if env == self._rexec_env:
+                return
+            # A second caller with its own variables (the scripted subject, after
+            # rollout.py's proof) gets a bridge that carries them, as the host
+            # topology's per-shell `-e` did. Reusing the first bridge dropped
+            # them silently: measured, `ALKERA_WAREHOUSE: parameter not set`.
+            self.exec_(["pkill", "-f", f"{REXEC_IN_CONTAINER} serve"], check=False)
+            time.sleep(0.5)
+            self._rexec_started = False
+        self._rexec_env = env
         self.exec_(["mkdir", "-p", str(Path(REXEC_IN_CONTAINER).parent)])
         self.copy_in(REXEC_SOURCE, REXEC_IN_CONTAINER)
         flags = ["-d", "-w", WORKSPACE_IN_CONTAINER,

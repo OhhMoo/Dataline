@@ -149,6 +149,20 @@ class EndpointTableTest(unittest.TestCase):
         (sched,) = native_workspace.WORKSPACE_PLANES
         self.assertEqual(native_serve.SCHED_PORT, sched.port)
 
+    @unittest.skipIf(native_serve is None, "alkera_gateway not importable")
+    def test_services_accept_the_workspace_credential(self):
+        """The credential the workspace hands the agent is the one the services
+        check. They drifted for ten days (`alkera-local-dev` handed out,
+        `alkera-local-dev-token` checked) and every native episode was refused
+        by Jira, Slack and Confluence; nothing here compared the two sides."""
+        from alkera_gateway.native import context as native_context
+        from alkera_gateway.native.services import slack as native_slack
+        self.assertEqual(native_context.DEV_TOKEN, native_workspace.FAKE_TOKEN)
+        env = self.compose["services"]["episode"]["environment"]
+        for var in ("JIRA_API_TOKEN", "CONFLUENCE_API_TOKEN"):
+            self.assertEqual(env[var], native_context.DEV_TOKEN, var)
+        self.assertIn(env["SLACK_BOT_TOKEN"], native_slack.ACCEPTED_TOKENS)
+
     def test_backend_aliases_are_declared(self):
         """Every `<name>.internal` the table points a client at is an alias some
         container actually carries. An endpoint variable naming a host nothing

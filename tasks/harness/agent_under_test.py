@@ -1001,8 +1001,11 @@ def quota_probe(*, driver: str, model: str, cwd: Path) -> dict:
     rec: dict = {"driver": driver, "model": model, "prompt": PROBE_PROMPT,
                  "started_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ",
                                               time.gmtime(started))}
-    if driver == "scripted":
-        return {**rec, "status": "skipped", "why": "no model behind this driver"}
+    # `--model scripted` under a real driver (native, container) is the same
+    # thing: rollout.py runs native_stack's scripted subject and no CLI starts.
+    # Probing it sent "scripted" to the CLI as a model name and refused the run.
+    if driver == "scripted" or model == "scripted":
+        return {**rec, "status": "skipped", "why": "no model behind this subject"}
 
     probe_env: dict = {}
     if driver == "kimi":

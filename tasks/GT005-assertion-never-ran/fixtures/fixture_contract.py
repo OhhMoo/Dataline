@@ -38,6 +38,16 @@ import sys
 import tempfile
 from pathlib import Path
 
+
+def _contract_order(path):
+    """Sort key for every walk that feeds a recorded digest: case-insensitive,
+    component by component. The contracts were recorded on Windows, where
+    `sorted()` over paths compares that way; plain `sorted()` on Linux puts
+    `README.md` before `data/` and every tree digest drifted (measured
+    2026-09-26: GT005, GT007 and GT008 refused to build on a Linux host).
+    Explicit so the digest is the same on every OS."""
+    return [part.lower() for part in path.parts]
+
 HERE = Path(__file__).resolve().parent
 if str(HERE) not in sys.path:
     sys.path.insert(0, str(HERE))
@@ -307,7 +317,7 @@ class ContractError(SystemExit):
 def _tree_md5(root: Path, *, skip=(".git", "target", "logs", "dbt_packages")) -> str:
     digest = hashlib.md5()
     root = Path(root)
-    for path in sorted(p for p in root.rglob("*") if p.is_file()):
+    for path in sorted((p for p in root.rglob("*") if p.is_file()), key=_contract_order):
         rel = path.relative_to(root).as_posix()
         if any(part in skip for part in path.relative_to(root).parts):
             continue
@@ -330,7 +340,7 @@ def declared_tests_in_yaml(project: Path) -> int:
     import yaml
 
     total = 0
-    for path in sorted(Path(project).rglob("*.yml")):
+    for path in sorted(Path(project).rglob("*.yml"), key=_contract_order):
         if "target" in path.parts or "dbt_packages" in path.parts:
             continue
         try:

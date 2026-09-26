@@ -375,7 +375,17 @@ services:
   # answers, so a slow import in a service module cannot silently cost the
   # episode its storage rows.
   minio:
-    image: minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
+    # Re-pinned 2026-09-25. The original pin, minio/minio@sha256:14cea493...,
+    # can no longer be pulled: MinIO withdrew its community images from Docker
+    # Hub and quay.io (both answer "access denied" for the repository, not just
+    # the digest). pgsty/minio is a maintained community build of the same
+    # server (RELEASE.2026-08-04), runs as root like the original, and ships
+    # `sh` and `mc`, which the entrypoint and the healthcheck below need.
+    # Measured on it: the MINIO_AUDIT_WEBHOOK_* config below is accepted, the
+    # `alkera` bucket is served, and `mc ready local` passes. A run that needs
+    # byte-identical storage with the Windows-era rollouts should `docker save`
+    # the old digest on a machine that still has it and `docker load` it here.
+    image: docker.io/pgsty/minio@sha256:b6bfe7239bfc83fb90d31612d9704d86039dd714f7904b3f1ad68f211e602372
     # MinIO serves each top-level directory under /data as a bucket, so the
     # bucket the harness ships (`alkera`, NATIVE_DRIVER_REQUESTS.md item 7) is
     # created by making the directory rather than by a second container running

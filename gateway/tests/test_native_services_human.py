@@ -658,7 +658,7 @@ def test_the_registry_contract_holds_for_all_three(plane):
         "jira.internal", "slack.internal", "confluence.internal"]
     assert [module.PORT for module in modules] == [8080, 8081, 8090]
     for module in modules:
-        assert "alkera-local-dev-token" in module.TOKEN
+        assert "alkera-local-dev" in module.TOKEN
 
 
 @pytest.mark.parametrize("module,items,target", [(jira_service, 8, "issues"),

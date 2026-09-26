@@ -147,6 +147,16 @@ import duckdb
 
 # --------------------------------------------------------------- contract ---
 HIST_START, HIST_END = "2025-09-08", "2026-03-07"      # 181 days
+
+def _contract_order(path):
+    """Sort key for every walk that feeds a recorded digest: case-insensitive,
+    component by component. The contracts were recorded on Windows, where
+    `sorted()` over paths compares that way; plain `sorted()` on Linux puts
+    `README.md` before `data/` and every tree digest drifted (measured
+    2026-09-26: GT005, GT007 and GT008 refused to build on a Linux host).
+    Explicit so the digest is the same on every OS."""
+    return [part.lower() for part in path.parts]
+
 VNOW = "2026-03-08T09:00:00Z"                          # world "now" at t0
 
 WIN_START, WIN_END = "2026-02-09", "2026-02-22"        # the doubled window, 14d
@@ -2991,7 +3001,7 @@ def tree_hashes(root: Path, text_only: bool = True) -> dict:
     which are not byte-reproducible — see the DETERMINISM note in the module
     docstring for the measurement."""
     h = {}
-    for p in sorted(root.rglob("*")):
+    for p in sorted(root.rglob("*"), key=_contract_order):
         if p.is_file() and not (text_only and p.suffix == ".duckdb"):
             h[p.relative_to(root).as_posix()] = hashlib.sha256(
                 p.read_bytes()).hexdigest()

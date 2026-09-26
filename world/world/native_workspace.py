@@ -337,6 +337,22 @@ def _load_json(path: Path):
     return json.loads(path.read_text(encoding="utf-8")) if path.is_file() else None
 
 
+def _named(value) -> dict:
+    """`{key, name}` from a workflow vocabulary field - the tracker's `project`,
+    the wiki's `space` - which a theme may declare as a mapping or as the bare
+    key (GT002's manifest says `project: DATA`). A bare key is used as its own
+    name: the ids the agent will read are built from the key, so the key is the
+    one name this page cannot get wrong."""
+    if isinstance(value, dict):
+        key = str(value.get("key") or value.get("name") or "")
+        return {"key": key, "name": str(value.get("name") or key)}
+    return {"key": str(value or ""), "name": str(value or "")}
+
+
+def _project(issues: dict) -> dict:
+    return _named(issues.get("project"))
+
+
 def onboarding_markdown(root: Path, manifest: dict) -> str:
     """`docs/onboarding.md`: which systems exist, and where the runbooks are.
 
@@ -354,8 +370,8 @@ def onboarding_markdown(root: Path, manifest: dict) -> str:
     if issues:
         team = sorted({u["team"] for u in issues["users"] if u.get("team")})
         lines += [
-            f"You are on call for {issues['project']['name']} "
-            f"(`{issues['project']['key']}`). "
+            f"You are on call for {_project(issues)['name']} "
+            f"(`{_project(issues)['key']}`). "
             f"Teams you will hear from: {', '.join(team)}.",
             "",
         ]
@@ -393,7 +409,7 @@ def onboarding_markdown(root: Path, manifest: dict) -> str:
             lines.append(f"| `{name}` | `{spec.get('command', '-')}` | {when} |")
         lines.append("")
     if kb:
-        space = kb["space"]
+        space = _named(kb["space"])
         lines += ["## Where the runbooks are", "",
                   f"The wiki is the `{space['key']}` space ({space['name']}). "
                   f"Pages, by id:", ""]
@@ -411,7 +427,7 @@ def onboarding_markdown(root: Path, manifest: dict) -> str:
         channels = sorted(c["id"] for c in chat["channels"])
         lines += [
             "## Where the people are", "",
-            f"Workspace `{chat['workspace']}`. Channels: "
+            f"Workspace `{_named(chat['workspace'])['key']}`. Channels: "
             + ", ".join(f"`#{name}`" for name in channels) + ".",
             "",
         ]
@@ -421,7 +437,7 @@ def onboarding_markdown(root: Path, manifest: dict) -> str:
             counts[issue["status"]] = counts.get(issue["status"], 0) + 1
         lines += [
             "## The queue", "",
-            f"`{issues['project']['key']}`, statuses "
+            f"`{_project(issues)['key']}`, statuses "
             + ", ".join(f"`{s}`" for s in issues["statuses"]) + ".",
             "",
         ]
