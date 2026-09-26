@@ -11,6 +11,7 @@ users:
   - id: hokafor
     name: Helen Okafor
     role: FP&A lead, Finance - owns the monthly commercial pack
+    away_until: "+1d"
   - id: dkalita
     name: Dev Kalita
     role: Data platform lead

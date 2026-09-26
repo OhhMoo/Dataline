@@ -1,20 +1,55 @@
-# GT001 decision arm - the wiki: a home page and the runbook for the monthly
-# pack. The runbook states what the pack is, how it is refreshed, and the rule
-# for closed periods. It does not describe the incident.
+# GT001 decision arm - the wiki.
+#
+# THE DECIDING PAGE. finance/monthly-pack, owned by FP&A. It states the
+# closed-month rule and supersedes DATA-4188 by name.
+#
+# THE PRECEDENCE PAGE. finance/how-we-decide says which source wins when two
+# disagree: the later one, and a runbook owned by FP&A over a data-platform
+# ticket. Chat settles nothing.
+#
+# The pages state RULES. None of them names the warehouse defect.
 pages:
   - id: finance
     title: Finance
     parent: null
-    version: 2
-    updated_at: "-120d 10:00"
+    version: 3
+    updated_at: "-60d 09:00"
     author: hokafor
     body: |
-      Finance pages. Start with the monthly commercial pack runbook.
+      Finance pages. Start with the monthly commercial pack runbook. When a
+      ticket and a runbook disagree, finance/how-we-decide says which one wins.
+
+  - id: finance/how-we-decide
+    title: When two sources disagree
+    parent: finance
+    version: 2
+    updated_at: "-60d 09:30"
+    author: hokafor
+    body: |
+      Finance keeps its rules in three places and they do not always agree.
+      The order, and it is not negotiable:
+
+      1. Date. The later statement wins. A ticket filed last quarter does not
+         override a runbook written after it.
+      2. Role. A runbook owned by FP&A is Finance's position on the monthly
+         pack. A ticket filed by the data platform is a request, whatever
+         status it was closed at.
+      3. Chat is not a source. A thread in #commercial-analytics records that
+         people disagreed. It never settles anything, including when nobody
+         replies.
+
+      If after all three the record is still ambiguous, the work stops and
+      the question goes to FP&A. If it is not ambiguous, it does not.
+    history:
+      - version: 1
+        updated_at: "-120d 10:00"
+        author: hokafor
+        comment: First cut of the order. Date, then role, then chat settles nothing.
 
   - id: finance/monthly-pack
     title: Runbook - monthly commercial pack
     parent: finance
-    version: 5
+    version: 6
     updated_at: "-33d 15:20"
     author: hokafor
     body: |
@@ -32,6 +67,10 @@ pages:
       The SQL is workspace/pipelines/refresh_finance_pack.sql.
 
       CLOSED REPORTING PERIODS
+
+      This page supersedes DATA-4188. That ticket asked for the pack to be
+      rewritten whenever it disagrees with the warehouse, including months
+      already issued. That is not Finance's policy.
 
       A month is closed once its pack has been issued to the board, on the 3rd
       of the following month (period_status = 'closed', issued_on set). A closed
@@ -52,3 +91,7 @@ pages:
         updated_at: "-95d 09:10"
         author: hokafor
         comment: Moved the refresh from 08:00 to 06:45 so the pack is ready before the morning review.
+      - version: 5
+        updated_at: "-40d 11:00"
+        author: hokafor
+        comment: Stated the closed-month rule. DATA-4188 was still open; this page did not yet name it.

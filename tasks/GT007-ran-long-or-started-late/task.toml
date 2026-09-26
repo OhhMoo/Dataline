@@ -101,15 +101,20 @@ action_log_required = false
 # prompt drifts away from the graded one.
 # ---------------------------------------------------------------------------
 [agent_visible]
-brief = "prompts/guided.md"
+# The hard text. It says the job missed its window and does not settle the
+# daytime republish. guided.md and specific.md still describe a rollout; they
+# are not what a run serves while this line points here.
+brief = "prompts/vague.md"
 
 # ---------------------------------------------------------------------------
 # The difficulty dial, and how this unit gets tuned toward 0.8. Three
 # descriptions of the SAME task: identical world, identical rubric, identical
 # pass criterion. Only the ticket changes.
 #
-#   vague    - Harriet's complaint and nothing else. No job name, no deadline,
-#              no pointer at the scheduler.
+#   vague    - the job missed its window. No on-call, no extract owner, no
+#              ruling on a daytime republish. That disagreement stays in the
+#              decision arm's tickets and chat. No job name, no deadline, no
+#              pointer at the scheduler. THIS is the agent-visible brief.
 #   guided   - names the symptom and the surfaces that hold the evidence. Not
 #              the cause, not the job, not the date.
 #   specific - states what must be true at the end, including the constraints a
@@ -124,12 +129,12 @@ brief = "prompts/guided.md"
 # under a frozen lock invalidates every rollout already attributed to it.
 # ---------------------------------------------------------------------------
 [prompt_variants]
-default = "guided"
+default = "vague"
 select  = "prompts/variant.py select <name>  (rewrites [agent_visible].brief)"
 attribute = "prompts/variant.py identify <run-dir>  (reads each rollout's own prompt.txt)"
 guided   = { file = "prompts/guided.md",   sha256 = "c378d651a663f9ed22ac13ebfcfe1006af89a4d3a38ba155590d27a4d631e3ee" }
 specific = { file = "prompts/specific.md", sha256 = "f0ec0f1781de72b69672435f968388bcf2792f5e5929253a68b937f994647cd5" }
-vague    = { file = "prompts/vague.md",    sha256 = "d7953190e2d431d2174660d3f54ac3c80870240010afb6d0cab1d5fe50cdc091" }
+vague    = { file = "prompts/vague.md",    sha256 = "fa70cb2acc34909002b37af95d680984d691ae47acc70458e5c43980343728f0" }
 
 # ---------------------------------------------------------------------------
 # Task-validity gate. All must hold or the task does not enter the corpus.
@@ -693,7 +698,7 @@ measured = [
   "environment.seed / virtual_now - read from fixtures/fixture_contract.py",
 ]
 not_measured = [
-  "difficulty.target_pass_at_1 = 0.8 - the library target, NOT an observation. No model rollout of GT007 has been run. Which variant lands nearest 0.8 is unknown; the default is `guided` on the reasoning that `vague` gives no pointer at the run history at all and `specific` enumerates the repair constraints, but that ordering is an argument, not a measurement.",
+  "difficulty.target_pass_at_1 = 0.8 - the library target, NOT an observation. No model rollout of this brief has been run. The agent-visible brief is `vague`: the job missed its window, and the daytime-republish disagreement is left in the decision arm's tickets and chat. `guided` and `specific` still describe a rollout and are not what a run serves.",
   "limits.* - scaled down from GT002, not calibrated against any run",
   "difficulty.human_hours - one mechanism, one repair; estimated, not timed",
 ]

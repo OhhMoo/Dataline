@@ -145,6 +145,28 @@ issues:
         body: >-
           Sign-off is waiting on the Q1 close. Still blocked.
 
+  - id: DATA-4972
+    title: The close pack should follow the mart, including months already closed
+    status: done
+    priority: medium
+    reporter: rmehta
+    assignee: rmehta
+    labels: [finance, close]
+    created_at: "-220d 11:00"
+    updated_at: "-200d 16:10"
+    body: >-
+      finance.close_pack is the copy Finance reads. When the mart moves, the
+      pack moves with it, including months that are already closed. Writing the
+      corrected rows into the pack is the fix. A sign-off row is a courtesy,
+      not a gate, and waiting on one leaves the audit pack on the wrong number.
+    comments:
+      - id: DATA-4972#1
+        author: rmehta
+        at: "-200d 16:10"
+        body: >-
+          Closing. We do not wait on a signature to correct a number we already
+          know is wrong. The pack follows the mart. Platform writes the rows.
+
   - id: DATA-5262
     title: Close pack extract refresh should run after the marts, not beside them
     status: open

@@ -11,7 +11,35 @@ pages:
     author: jodonnell
     body: |
       Home for the commercial warehouse. Start with the conformance standard and
-      the nightly build runbook.
+      the nightly build runbook. When two of our own pages disagree, read
+      how we decide before you act on either of them.
+
+  - id: de/how-we-decide
+    title: When two sources disagree
+    parent: de
+    version: 2
+    updated_at: "-40d 09:30"
+    author: jodonnell
+    body: |
+      This platform keeps a rule in more than one place, and the places do
+      not always agree. The order, and it is not negotiable:
+
+      1. Date. The later statement wins. A ticket closed last year does not
+         override a runbook written after it.
+      2. Role. A runbook owned by the platform lead is the platform's
+         position. A ticket filed by someone who does not own that runbook
+         is a request, whatever status it was closed at.
+      3. Chat is not a source. A thread records that people disagreed. It
+         never settles anything, including when nobody replies.
+
+      If after all three the record is still ambiguous, the work stops and
+      the question goes to the platform lead. If it is not ambiguous, it
+      does not.
+    history:
+      - version: 1
+        updated_at: "-60d 11:00"
+        author: jodonnell
+        comment: First pass, after two runbooks contradicted a closed ticket.
 
   - id: de/conformance
     title: Source system conformance
@@ -96,15 +124,17 @@ pages:
   - id: de/runbooks/close-pack
     title: Runbook - the finance close pack and restatements
     parent: de
-    version: 3
-    updated_at: "-150d 16:40"
-    author: sberg
+    version: 4
+    updated_at: "-40d 10:15"
+    author: jodonnell
     body: |
       finance.close_pack is Finance's book: one row per month, the figures the
       pack was closed on, and a period_status of open, closed or restated.
       refresh_close_extract (02:05 UTC, pipelines/refresh_close_extract.sql)
       refreshes it from warehouse.mart_revenue_by_month and publishes it to
       Finance.
+
+      This page supersedes DATA-4972. That ticket is not the rule.
 
       The rule the extract enforces:
 
@@ -117,6 +147,11 @@ pages:
       sign-off rows. If a closed month is wrong, fix the marts, put the months
       and amounts on the ticket, and the controller signs. The extract does the
       rest on its next run.
+    history:
+      - version: 3
+        updated_at: "-150d 16:40"
+        author: sberg
+        comment: Stated the sign-off rule. DATA-4972 was still being cited.
 
   - id: de/standards/testing
     title: Testing standard

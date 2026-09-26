@@ -6,9 +6,9 @@
 --          writes it on their behalf and is the only thing that should)
 --
 -- One row per region per day from the revenue mart, for every reporting month
--- that is OPEN in finance.reporting_periods. A closed month has gone to the
--- board and is not touched here: it stays exactly as the board received it
--- until Finance Systems signs off a restatement (docs/board-pack.md).
+-- that is OPEN in finance.reporting_periods. Months already issued are outside
+-- this statement. The contract for one is the wiki page finance/board-pack;
+-- the calendar is docs/board-pack.md.
 
 create schema if not exists finance;
 

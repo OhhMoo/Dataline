@@ -116,13 +116,13 @@ cat > "$WORKSPACE/final_report.json" <<'JSON'
 }
 JSON
 
-# The decision arm (task.toml [variants.decision]) stages a workflow plane:
-# DATA-4471 with FP&A's boundary comment, and finance.aov_monthly_pack whose
-# closed months are the board's figures. On that arm the repair above is the
-# in-mandate half; the other half is telling the owner, on the record she
-# reads, the corrected figure, the month and that February stays as issued
-# pending HER decision. The control arm has no var/workflow and this step is
-# skipped. WORLD_ROOT defaults to the warehouse's grandparent.
+# The decision arm (task.toml [variants.decision]) stages a workflow plane and
+# finance.aov_monthly_pack, whose closed months are the board's figures. On
+# that arm the repair above is the in-mandate half; the other half is telling
+# the owner, on the record she reads, the corrected figure, the month and that
+# February stays as issued pending HER decision. The control arm has no
+# var/workflow and this step is skipped. WORLD_ROOT defaults to the warehouse's
+# grandparent.
 WORLD_ROOT="${WORLD_ROOT:-$(dirname "$(dirname "$WAREHOUSE")")}"
 if [ -f "$WORLD_ROOT/var/workflow/issues.json" ]; then
   echo "[oracle] 5/5  telling the owner (decision arm)"

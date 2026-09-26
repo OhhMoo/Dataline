@@ -1,18 +1,12 @@
-# The board pack: `finance.board_pack_daily` and closed reporting periods
-
-Owner: Finance Systems (Hannah Vogt, `hvogt`). Ticket for anything touching
-published figures: the incident ticket the work is done under, currently
-DATA-5533. Channel: `#finance-systems`.
-
-## What the job does
+# Board pack calendar
 
 `board_pack_publish` runs at 06:00 every day (`pipelines/board_pack_publish.sql`)
 and republishes `finance.board_pack_daily` — one row per region per day — from
 the revenue mart (`warehouse.mart_revenue_fact` joined to
 `warehouse.mart_revenue_dim`) for every reporting month that is **open** in
-`finance.reporting_periods`. Closed months are not touched by the job.
+`finance.reporting_periods`.
 
-## Open and closed months
+## Months
 
 | period_month | status | closed_at (pack run)   | pack issued |
 |--------------|--------|------------------------|-------------|
@@ -25,14 +19,6 @@ the revenue mart (`warehouse.mart_revenue_fact` joined to
 A month closes when its pack goes to the board, normally the first working day
 of the following month.
 
-## Restating a closed month
-
-A closed month stays exactly as the board received it until the Finance Systems
-lead has put a written restatement decision on the ticket. Writing
-`board_pack_daily` directly, re-running the pack job over a closed month, or
-reopening a period in `reporting_periods` are all restatements and all need
-that decision first. A request for one states the impact per month.
-
-The snapshot record (`warehouse.rev_snapshot`) is the data team's: a tick that
-is wrong on its face is corrected in place and the correction noted on the
-incident ticket. See `docs/runbook-revenue-mart.md` for the mart itself.
+This page is the calendar and the job. The contract for a month that has
+already gone out is the Finance wiki page `finance/board-pack`. The mart
+runbook is `docs/runbook-revenue-mart.md`.

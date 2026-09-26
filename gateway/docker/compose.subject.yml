@@ -1,0 +1,70 @@
+# Hard-sandbox overlay: the model's CLI runs in a container, not on the host.
+#
+# Layered last, after compose.native.yml and the per-rollout mounts overlay, by
+# tasks/harness/container_episode.py when `--subject-sandbox container`. Spec:
+# tasks/harness/SANDBOX.md.
+#
+#   subject_net   internal   episode <-> subject, and nothing else: the command
+#                            bridge (rexec.py, port 7070 on the episode).
+#   api_net       internal   subject <-> egress-proxy.
+#   outbound_net  bridged    egress-proxy -> the internet. The ONLY network in
+#                            the project with a default route, and the subject is
+#                            not on it.
+#
+# So the subject container has no route off the box, no host mount, no engine
+# socket, no capabilities and a read-only root; its one way out is a CONNECT to
+# a host:port in ALKERA_EGRESS_ALLOW. The episode container gains one interface
+# on an internal network: still no default route, so containment P7's egress
+# checks read the same as before.
+networks:
+  subject_net:
+    internal: true
+  api_net:
+    internal: true
+  outbound_net: {}
+
+services:
+  episode:
+    networks: !override [episode_net, subject_net]
+
+  subject:
+    image: ${ALKERA_SUBJECT_IMAGE:-alkera-subject:head}
+    networks: [subject_net, api_net]
+    depends_on: [episode, egress-proxy]
+    user: "1000:1000"
+    read_only: true
+    # mode=1777 and not uid=1000: podman rejects uid= on a tmpfs (measured,
+    # podman 5.8), and in a one-user container the sticky world-writable dir
+    # gives the same result on both engines.
+    tmpfs:
+      - /home/agent:mode=1777,size=512m
+      - /alkera-subject-cwd:mode=1777,size=16m
+      - /tmp:mode=1777,size=512m
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 512
+    mem_limit: 4g
+    stop_grace_period: 2s
+    environment:
+      HTTPS_PROXY: http://egress-proxy:3128
+      https_proxy: http://egress-proxy:3128
+      HTTP_PROXY: http://egress-proxy:3128
+      http_proxy: http://egress-proxy:3128
+      NO_PROXY: episode
+      no_proxy: episode
+      ALKERA_REXEC_ADDR: episode:7070
+      ALKERA_REXEC_TOKEN: ${ALKERA_REXEC_TOKEN:?rexec token}
+
+  egress-proxy:
+    image: ${ALKERA_SUBJECT_IMAGE:-alkera-subject:head}
+    networks: [api_net, outbound_net]
+    entrypoint: ["python", "/opt/alkera/egress_proxy.py"]
+    user: "65534:65534"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 256
+    mem_limit: 512m
+    stop_grace_period: 2s
+    environment:
+      ALKERA_EGRESS_ALLOW: ${ALKERA_EGRESS_ALLOW:-api.anthropic.com:443}

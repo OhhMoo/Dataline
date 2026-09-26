@@ -61,6 +61,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import secrets
 import shutil
 import socket
 import subprocess
@@ -136,6 +137,134 @@ def docker_available() -> tuple[bool, str]:
     except (OSError, subprocess.TimeoutExpired) as exc:
         return False, f"{type(exc).__name__}: {exc}"
     return (r.returncode == 0), (r.stdout.strip() or r.stderr.strip())
+
+
+# ------------------------------------------------------------- Linux hosts
+#: Three things Docker Desktop on Windows did for this harness without being
+#: asked, and which a Linux host does not. Each is handled here, once, for both
+#: topologies; `tasks/harness/LINUX.md` is the operator's account.
+#:
+#:   1. SELINUX. Fedora/RHEL enforce it, and a container engine that labels
+#:      (rootless podman, Fedora's moby-engine) refuses a bind of an unlabelled
+#:      host directory - the world, the audit log, postgres.sql - with EACCES
+#:      inside the box. `selinux_overlay` turns labelling off for this project's
+#:      containers only (`security_opt: label=disable`) rather than relabelling
+#:      host files with `:z`: nothing on the host changes, and the containment
+#:      boundary is the mount set and the internal networks, which that option
+#:      does not touch.
+#:   2. FILE OWNERSHIP. A rootful engine writes the agent's files into the bind
+#:      mounts as host root, and the grader, the fingerprint and `rmtree` then
+#:      run on the host as the operator. `release_ownership` hands every file
+#:      under the binds back before teardown.
+#:   3. THE SUBJECT'S LOGIN. See `require_subject_auth`.
+#:
+#: Parent-session variables. A harness started from inside a Claude Code
+#: session (an operator's terminal agent, a CI job driven by one) exports these,
+#: and a subject that inherits them is not a fresh process: it can find the
+#: parent's IPC socket and session id. Removed from every subject environment.
+PARENT_SESSION_VARS = (
+    "CLAUDECODE", "CLAUDE_PID", "CLAUDE_EFFORT", "AI_AGENT",
+    "CLAUDE_CODE_SESSION_ID", "CLAUDE_CODE_CHILD_SESSION",
+    "CLAUDE_CODE_SESSION_ATTENDED", "CLAUDE_CODE_ENTRYPOINT",
+    "CLAUDE_CODE_EXECPATH", "CLAUDE_CODE_SSE_PORT",
+    "CLAUDE_CODE_MESSAGING_SOCKET", "CLAUDE_CODE_MESSAGING_TOKEN",
+    "CLAUDE_PROJECT_DIR",
+)
+#: Any one of these lets the CLI authenticate without reading a credentials
+#: file out of `$HOME`.
+SUBJECT_AUTH_VARS = ("CLAUDE_CODE_OAUTH_TOKEN", "ANTHROPIC_API_KEY",
+                     "ANTHROPIC_AUTH_TOKEN")
+
+
+def subject_base_env(extra: dict | None = None) -> dict:
+    """`os.environ` minus the parent session, plus `extra`. The one place a
+    subject's environment starts from."""
+    env = {k: v for k, v in os.environ.items() if k not in PARENT_SESSION_VARS}
+    env["PYTHONUTF8"] = "1"
+    env.update(extra or {})
+    return env
+
+
+def require_subject_auth(env: dict | None = None) -> str:
+    """Name the credential a container-topology subject will log in with.
+
+    The shell redirect points the subject's `HOME` at the rollout's own
+    directory so the hook is found and the operator's home is untouched. On
+    Windows the CLI reads its login from `USERPROFILE`, which stays put; on
+    Linux it reads `$HOME/.claude/.credentials.json`, which is now absent, and
+    the subject would die at its first turn with every episode scored as a
+    harness error. Copying that file in is refused: it holds a refresh token,
+    and a subject that rotates it logs the operator out. So a Linux run needs
+    the login in the environment - `claude setup-token` prints one.
+    """
+    env = os.environ if env is None else env
+    for name in SUBJECT_AUTH_VARS:
+        if env.get(name, "").strip():
+            return name
+    if not sys.platform.startswith("linux"):
+        return "home"
+    raise ContainerError(
+        "no subject credential in the environment. On Linux the container "
+        "topology gives the subject its own HOME, so the CLI cannot read "
+        "~/.claude/.credentials.json. Run `claude setup-token` once and export "
+        "CLAUDE_CODE_OAUTH_TOKEN=<token> (or ANTHROPIC_API_KEY) before starting "
+        "the harness. See tasks/harness/LINUX.md.")
+
+
+def selinux_enforcing() -> bool:
+    try:
+        return Path("/sys/fs/selinux/enforce").read_text().strip() == "1"
+    except OSError:
+        return False
+
+
+def selinux_overlay(compose_argv: list[str], env: dict, dest: Path) -> Path | None:
+    """`dest`, written with `label=disable` for every service the project
+    declares, or None when the host does not enforce SELinux.
+
+    The service list is read from compose itself (`config --services`), so an
+    overlay that adds a service is covered without an edit here.
+    ALKERA_SELINUX_LABEL=keep leaves labelling on, for an operator who has
+    relabelled the rollout directory themselves.
+    """
+    if not selinux_enforcing() or os.environ.get("ALKERA_SELINUX_LABEL") == "keep":
+        return None
+    result = subprocess.run([*compose_argv, "config", "--services"],
+                            capture_output=True, text=True, encoding="utf-8",
+                            errors="replace", env=env, timeout=120)
+    if result.returncode != 0:
+        raise ContainerError(f"docker compose config --services failed:\n"
+                             f"{result.stderr[-2000:]}")
+    services = sorted(s for s in result.stdout.split() if s)
+    body = ["# Generated by tasks/harness/container_episode.selinux_overlay: this",
+            "# host enforces SELinux, so container labelling is off for this project",
+            "# only. The mounts and the internal networks are unchanged.",
+            "services:"]
+    for name in services:
+        body += [f"  {name}:", '    security_opt: ["label=disable"]']
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_text("\n".join(body) + "\n", encoding="utf-8")
+    return dest
+
+
+#: Run inside the episode container as its root. `/audit` is always a bind of
+#: the host's audit directory, so its owner AS SEEN INSIDE is the id that maps
+#: back to the operator: their uid under a rootful engine, 0 under a rootless
+#: one. Every file under the binds is given to that id. Errors are expected and
+#: ignored: `/world/var/ledger` is a read-only tmpfs.
+RELEASE_OWNERSHIP = ("for d in /workspace /world /audit; do "
+                     "[ -e \"$d\" ] && chown -R --reference=/audit \"$d\" 2>/dev/null; "
+                     "done; stat -c %u:%g /audit")
+
+
+def release_ownership(container_id: str) -> dict:
+    """Give the operator back every file the containers wrote into the binds.
+    A no-op off Linux, where the engine's file sharing already maps owners."""
+    if not container_id or not sys.platform.startswith("linux"):
+        return {"skipped": True}
+    result = _run(["docker", "exec", "-u", "0", container_id, "sh", "-c",
+                   RELEASE_OWNERSHIP], check=False, timeout=900)
+    return {"owner_inside": result.stdout.strip(), "returncode": result.returncode}
 
 
 def container_world(world: dict) -> dict:
@@ -430,7 +559,15 @@ class ContainerEpisode:
             "ALKERA_EPISODE_IMAGE": self.image,
         }
         argv = ["docker", "compose", "-p", self.project,
-                "-f", str(COMPOSE_BASE), "-f", str(COMPOSE_OVERLAY), *args]
+                "-f", str(COMPOSE_BASE), "-f", str(COMPOSE_OVERLAY)]
+        if not hasattr(self, "_selinux"):
+            # Beside the world root, never inside it: the world is mounted.
+            self._selinux = selinux_overlay(
+                argv, env, Path(self.world_root).resolve().parent
+                / f"{self.project}.selinux.yml")
+        if self._selinux is not None:
+            argv += ["-f", str(self._selinux)]
+        argv += list(args)
         result = subprocess.run(argv, capture_output=True, text=True,
                                 encoding="utf-8", errors="replace", env=env,
                                 timeout=timeout)
@@ -462,6 +599,7 @@ class ContainerEpisode:
     def down(self) -> None:
         if not self._up:
             return
+        self.ownership = release_ownership(self.container_id)
         self._compose("down", "-v", "-t", "2", "--remove-orphans",
                       check=False, timeout=300)
         self._up = False
@@ -683,6 +821,68 @@ MOUNTS_OVERLAY_NAME = "compose.native-mounts.yml"
 #: MinIO's port, published on loopback beside the nine so the surface gate's
 #: signed bucket listing has somewhere to go.
 MINIO_PORT = 9000
+
+# ------------------------------------------------------------ the hard sandbox
+#: `--subject-sandbox container` (SANDBOX.md): the model's CLI runs in the
+#: `subject` service of this overlay, not on the host, and its Bash tool
+#: reaches the episode through rexec.py on `subject_net`.
+SUBJECT_OVERLAY = DOCKER_DIR / "compose.subject.yml"
+SUBJECT_IMAGE = "alkera-subject:head"
+SUBJECT_DOCKERFILE = DOCKER_DIR / "Dockerfile.subject"
+SUBJECT_CONTEXT = DOCKER_DIR / "subject"
+REXEC_SOURCE = SUBJECT_CONTEXT / "rexec.py"
+REXEC_IN_CONTAINER = "/opt/alkera/rexec.py"
+REXEC_PORT = 7070
+#: The CLI's working directory inside the subject; bash_env.sh rewrites it to
+#: /workspace on the way across. Named so it occurs in no real command.
+SUBJECT_CWD = "/alkera-subject-cwd"
+#: Where the engine socket would be if someone mounted it. Any one of them
+#: inside the subject is root on the host.
+ENGINE_SOCKETS = ("/var/run/docker.sock", "/run/docker.sock",
+                  "/run/podman/podman.sock", "/run/user/1000/podman/podman.sock")
+
+#: Run inside the subject container by `subject_sandbox_probe`, as `python -`,
+#: never through bash (bash there is the redirect). SPEC is prepended as JSON.
+SUBJECT_PROBE = r"""
+import json, os, socket, time
+out = {}
+status = dict(l.split(":	", 1) for l in open("/proc/self/status").read().splitlines() if ":	" in l)
+out["uid"] = os.getuid()
+out["cap_eff"] = status.get("CapEff", "").strip()
+out["no_new_privs"] = status.get("NoNewPrivs", "").strip()
+try:
+    open("/usr/.alkera-rw-test", "w").close(); out["root_read_only"] = False
+except OSError:
+    out["root_read_only"] = True
+routes = open("/proc/net/route").read().splitlines()[1:]
+out["default_route"] = any(r.split()[1] == "00000000" for r in routes if len(r.split()) > 1)
+out["engine_sockets"] = [p for p in SPEC["sockets"] if os.path.exists(p)]
+out["host_paths_visible"] = [p for p in SPEC["host_paths"] if p and os.path.exists(p)]
+out["mounts"] = [l.split()[1] for l in open("/proc/mounts").read().splitlines()]
+def tcp(host, port):
+    try:
+        socket.create_connection((host, port), timeout=4).close(); return True
+    except OSError:
+        return False
+out["direct_egress"] = {f"{h}:{p}": tcp(h, p) for h, p in (("1.1.1.1", 443), ("8.8.8.8", 53))}
+try:
+    socket.getaddrinfo("example.com", 443); out["public_dns"] = True
+except OSError:
+    out["public_dns"] = False
+def connect(target):
+    try:
+        s = socket.create_connection(("egress-proxy", 3128), timeout=10)
+        s.sendall(f"CONNECT {target} HTTP/1.1\r\nHost: {target}\r\n\r\n".encode())
+        line = s.recv(200).split(b"\r\n", 1)[0].decode("latin-1"); s.close()
+        return line.split()[1] if len(line.split()) > 1 else line
+    except OSError as exc:
+        return f"error: {exc}"
+out["proxy_refuses_other"] = connect("example.com:443")
+out["proxy_allows_api"] = connect(SPEC["api"])
+out["episode_bridge"] = tcp("episode", SPEC["rexec_port"])
+out["episode_services_reachable"] = tcp("postgres.internal", 5432) or tcp("jira.internal", 8080)
+print(json.dumps(out))
+"""
 
 
 def warehouse_mounts(world: dict) -> list[str]:
@@ -997,14 +1197,56 @@ def write_bash_wrapper(bin_dir: Path, *, container: str, interpreter: str,
         # this rollout's own so the hook is found and the operator's home is
         # untouched, and MSYS is told to stop rewriting `/workspace` into a
         # Windows path on its way to `docker exec`.
+        # `SHELL` is the Linux/macOS half of the pin: off Windows the CLI
+        # ignores CLAUDE_CODE_GIT_BASH_PATH and spawns `$SHELL`, and an
+        # operator whose login shell is zsh or fish would get a shell that never
+        # reads BASH_ENV - the redirect would silently not fire.
         "subject_env": {
             "CLAUDE_CODE_GIT_BASH_PATH": _real_bash(),
+            "SHELL": _real_bash(),
             "HOME": str(bin_dir),
             "BASH_ENV": hook.as_posix(),
             "MSYS_NO_PATHCONV": "1",
             "MSYS2_ARG_CONV_EXCL": "*",
         },
     }
+
+
+def subject_image_state(image: str = SUBJECT_IMAGE) -> dict:
+    """The subject image's id and the CLI version baked into it, or a refusal.
+
+    The CLI is part of the measured system - its tool loop, its prompts - so a
+    rollout records which build of it ran, read off the image rather than the
+    operator's PATH.
+    """
+    labels = _inspect_image_labels(image)
+    if labels is None:
+        raise episode.HarnessError(
+            f"subject image {image!r} is not built; `scripts/setup_linux.sh "
+            f"--skip-packages` builds it (or pass --subject-sandbox host)")
+    ident = _run(["docker", "image", "inspect", image, "--format", "{{.Id}}"],
+                 check=False).stdout.strip()
+    return {"image": image, "id": ident,
+            "claude_version": labels["Labels"].get("org.alkera.claude.version")}
+
+
+def subject_exec_argv(wrapper: dict, env: dict) -> list[str]:
+    """`docker exec` into the sandboxed subject, carrying the credential by
+    NAME: `-e VAR` takes the value from this process's environment, so the
+    token is never in an argv that is written to the rollout record."""
+    argv = ["docker", "exec", "-i", "-w", wrapper.get("cwd", SUBJECT_CWD)]
+    for name in SUBJECT_AUTH_VARS:
+        if env.get(name, "").strip():
+            argv += ["-e", name]
+    return argv + [wrapper["container"]]
+
+
+def kill_subject(wrapper: dict) -> None:
+    """Killing the host's `docker exec` does not reach the CLI inside the
+    subject; this does. Best effort: teardown removes the container anyway."""
+    if wrapper.get("mode") == "subject_container":
+        _run(["docker", "exec", wrapper["container"], "pkill", "-KILL", "-x",
+              "claude"], check=False, timeout=60)
 
 
 def _sh_quote(text: str) -> str:
@@ -1025,7 +1267,7 @@ def verify_container_execution(wrapper: dict, container: str,
     container guarantee without it.
     """
     expected = _run(["docker", "exec", container, "hostname"]).stdout.strip()
-    env = {**os.environ, **wrapper["subject_env"]}
+    env = subject_base_env(wrapper["subject_env"])
     result = subprocess.run([wrapper["launcher"], "-lc", "hostname"],
                             capture_output=True, text=True, encoding="utf-8",
                             errors="replace", env=env, timeout=timeout)
@@ -1077,6 +1319,7 @@ def model_shell_smoke(wrapper: dict, container: str, out_dir: Path, *,
     claude = claude or shutil.which("claude")
     if not claude:
         raise ContainerError("no `claude` on PATH; the model smoke needs the CLI")
+    require_subject_auth()
     expected = _run(["docker", "exec", container, "hostname"]).stdout.strip()
     out_dir.mkdir(parents=True, exist_ok=True)
     argv = [claude, "--print", "--output-format", "stream-json", "--verbose",
@@ -1084,8 +1327,9 @@ def model_shell_smoke(wrapper: dict, container: str, out_dir: Path, *,
             "--no-session-persistence", "--permission-mode", "bypassPermissions",
             "--permission-prompts", "none", "--strict-mcp-config",
             "--mcp-config", json.dumps({"mcpServers": {}}), "--tools", "Bash"]
-    env = {**os.environ, "PYTHONUTF8": "1", **wrapper["subject_env"]}
-    env.pop("CLAUDE_PROJECT_DIR", None)
+    env = subject_base_env(wrapper["subject_env"])
+    if wrapper.get("mode") == "subject_container":
+        argv = subject_exec_argv(wrapper, env) + ["claude"] + argv[1:]
     started = time.time()
     proc = subprocess.run(argv, input=SMOKE_PROMPT, cwd=str(out_dir),
                           capture_output=True, text=True, encoding="utf-8",
@@ -1129,6 +1373,10 @@ def model_shell_smoke(wrapper: dict, container: str, out_dir: Path, *,
         "tool_results": [r[-600:] for r in results],
         "final": final[-1200:],
         "hostname_is_the_container": bool(expected) and expected in tokens,
+        # A Linux host's `ls /` shares most entries with the container's, so
+        # the Git Bash markers say nothing there; the host's own hostname does.
+        "host_hostname_seen": (socket.gethostname() != expected
+                               and socket.gethostname() in tokens),
         "host_root_markers_seen": host_markers,
         "container_root_markers_seen": container_markers,
         "returncode": proc.returncode,
@@ -1139,6 +1387,7 @@ def model_shell_smoke(wrapper: dict, container: str, out_dir: Path, *,
     verdict["verified"] = (verdict["bash_tool_used"]
                            and verdict["hostname_is_the_container"]
                            and not host_markers
+                           and not verdict["host_hostname_seen"]
                            and set(container_markers) >= {"workspace", "world", "audit"})
     with open(out_dir / "smoke.json", "w", encoding="utf-8", newline="") as stream:
         json.dump(verdict, stream, indent=2, sort_keys=True)
@@ -1324,6 +1573,12 @@ class NativeContainerEpisode:
     warehouses: list = field(default_factory=list)
     services_container: str = ""
     gate: object = None
+    #: The hard sandbox (SANDBOX.md). False keeps the host-subject topology.
+    subject_sandbox: bool = False
+    subject_image: str = SUBJECT_IMAGE
+    subject_container: str = ""
+    proxy_container: str = ""
+    rexec_token: str = field(default_factory=lambda: secrets.token_hex(16))
     _up: bool = False
 
     # ---------------------------------------------------------------- paths
@@ -1340,7 +1595,8 @@ class NativeContainerEpisode:
         return self.container_dir / MOUNTS_OVERLAY_NAME
 
     def compose_files(self) -> list[Path]:
-        return [COMPOSE_BASE, COMPOSE_OVERLAY, NATIVE_OVERLAY, self.overlay]
+        files = [COMPOSE_BASE, COMPOSE_OVERLAY, NATIVE_OVERLAY, self.overlay]
+        return files + [SUBJECT_OVERLAY] if self.subject_sandbox else files
 
     # -------------------------------------------------------------- overlay
     def variant_env(self) -> dict:
@@ -1423,10 +1679,17 @@ services:
             "ALKERA_EPISODE_WORLD": self.world_root.as_posix(),
             "ALKERA_EPISODE_AUDIT": Path(self.audit_dir).resolve().as_posix(),
             "ALKERA_EPISODE_IMAGE": self.image,
+            "ALKERA_SUBJECT_IMAGE": self.subject_image,
+            "ALKERA_REXEC_TOKEN": self.rexec_token,
         }
         argv = ["docker", "compose", "-p", self.project]
         for path in self.compose_files():
             argv += ["-f", str(path)]
+        if not hasattr(self, "_selinux"):
+            self._selinux = selinux_overlay(
+                argv, env, self.container_dir / "compose.selinux.yml")
+        if self._selinux is not None:
+            argv += ["-f", str(self._selinux)]
         result = subprocess.run([*argv, *args], capture_output=True, text=True,
                                 encoding="utf-8", errors="replace", env=env,
                                 timeout=timeout)
@@ -1465,6 +1728,15 @@ services:
                 f"no `native-services` container in {self.services}; the surface "
                 f"gate has no vantage into the episode network")
         self.services_container = services[0]["Id"]
+        if self.subject_sandbox:
+            by_name = {s["Config"]["Labels"]["com.docker.compose.service"]: s
+                       for s in specs}
+            missing = {"subject", "egress-proxy"} - set(by_name)
+            if missing:
+                raise ContainerError(f"--subject-sandbox container: no "
+                                     f"{sorted(missing)} in {self.services}")
+            self.subject_container = by_name["subject"]["Id"]
+            self.proxy_container = by_name["egress-proxy"]["Id"]
         return self.container_id
 
     def down(self) -> None:
@@ -1473,6 +1745,14 @@ services:
             self.gate = None
         if not self._up:
             return
+        if self.proxy_container:
+            # Every connection the subject tried to make off the box, kept
+            # beside the mounts overlay as part of the rollout's record.
+            logs = _run(["docker", "logs", self.proxy_container], check=False)
+            self.container_dir.mkdir(parents=True, exist_ok=True)
+            (self.container_dir / "egress.jsonl").write_text(
+                logs.stdout, encoding="utf-8")
+        self.ownership = release_ownership(self.container_id)
         self._compose("down", "-v", "-t", "2", "--remove-orphans",
                       check=False, timeout=300)
         self._up = False
@@ -1619,12 +1899,121 @@ services:
         is the thing the subject then uses, rather than something that resembles
         it.
         """
+        if self.subject_sandbox:
+            return self.subject_shell(env)
         wrapper = write_bash_wrapper(bin_dir, container=self.container_id,
                                      interpreter=str(_interpreter()),
                                      env=env or {})
         wrapper["proof"] = verify_container_execution(wrapper,
                                                       self.container_id)
         return wrapper
+
+    # ------------------------------------------------------------ hard sandbox
+    def start_rexec(self, env: dict | None = None) -> None:
+        """Start the command bridge in the episode container and wait for it.
+
+        Started with `docker exec -d`, so it inherits the container's own
+        environment (the shim PATH, the endpoint variables) exactly as the
+        host topology's per-command `docker exec` did; `env` adds what that
+        topology passed with `-e`. The interpreter is named absolutely because
+        `python` on the episode's PATH is the audited shim.
+        """
+        if getattr(self, "_rexec_started", False):
+            return
+        self.exec_(["mkdir", "-p", str(Path(REXEC_IN_CONTAINER).parent)])
+        self.copy_in(REXEC_SOURCE, REXEC_IN_CONTAINER)
+        flags = ["-d", "-w", WORKSPACE_IN_CONTAINER,
+                 "-e", f"ALKERA_REXEC_TOKEN={self.rexec_token}"]
+        for name, value in sorted((env or {}).items()):
+            flags += ["-e", f"{name}={value}"]
+        _run(["docker", "exec", *flags, self.container_id,
+              "/usr/local/bin/python", REXEC_IN_CONTAINER, "serve",
+              "--port", str(REXEC_PORT), "--workdir", WORKSPACE_IN_CONTAINER])
+        wait = ("import socket,sys,time\n"
+                "for _ in range(60):\n"
+                "    try:\n"
+                f"        socket.create_connection(('episode',{REXEC_PORT}),2).close(); sys.exit(0)\n"
+                "    except OSError: time.sleep(0.5)\n"
+                "sys.exit(1)")
+        r = _run(["docker", "exec", self.subject_container, "python", "-c", wait],
+                 check=False, timeout=120)
+        if r.returncode != 0:
+            raise ContainerError("the rexec bridge did not come up on "
+                                 f"episode:{REXEC_PORT}: {r.stderr[-800:]}")
+        self._rexec_started = True
+
+    def subject_sandbox_probe(self, host_paths: list[str] | None = None) -> dict:
+        """What the subject container can reach, read from inside it.
+
+        Every property the sandbox claims, measured rather than read off the
+        compose file: no capabilities, not root, read-only root, no default
+        route, no engine socket, no host path, no direct egress or public
+        DNS, the proxy refusing a host off the allowlist and passing the API,
+        the bridge reachable and the episode's services NOT (they are the
+        episode's; the subject reaches them only through its commands).
+        """
+        allow = os.environ.get("ALKERA_EGRESS_ALLOW", "api.anthropic.com:443")
+        spec = {"sockets": list(ENGINE_SOCKETS), "rexec_port": REXEC_PORT,
+                "api": allow.split(",")[0].strip(),
+                "host_paths": [p for p in (host_paths or []) if p]}
+        script = f"SPEC = {json.dumps(spec)}\n" + SUBJECT_PROBE
+        r = _run(["docker", "exec", "-i", self.subject_container, "python", "-"],
+                 stdin_text=script, check=False, timeout=180)
+        try:
+            seen = json.loads(r.stdout.strip().splitlines()[-1])
+        except (ValueError, IndexError):
+            return {"verified": False, "error": (r.stderr or r.stdout)[-800:]}
+        checks = {
+            "not_root": seen["uid"] != 0,
+            "no_capabilities": int(seen["cap_eff"] or "0", 16) == 0,
+            "no_new_privileges": seen["no_new_privs"] == "1",
+            "root_read_only": seen["root_read_only"],
+            "no_default_route": not seen["default_route"],
+            "no_engine_socket": not seen["engine_sockets"],
+            "no_host_paths": not seen["host_paths_visible"],
+            "no_direct_egress": not any(seen["direct_egress"].values()),
+            "no_public_dns": not seen["public_dns"],
+            "proxy_refuses_off_allowlist": seen["proxy_refuses_other"] == "403",
+            "proxy_passes_api": seen["proxy_allows_api"] == "200",
+            "bridge_reachable": seen["episode_bridge"],
+            "episode_services_unreachable": not seen["episode_services_reachable"],
+        }
+        return {"checks": checks, "observed": seen,
+                "verified": all(checks.values()),
+                "measured_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
+
+    def subject_shell(self, env: dict | None = None,
+                      host_paths: list[str] | None = None) -> dict:
+        """The sandboxed counterpart of `write_bash_wrapper` + its proof.
+
+        `launcher_argv` is how a caller starts the subject's bash: the scripted
+        subject appends `-lc <command>`, `agent_under_test` swaps `bash` for
+        `claude`. Proof is `hostname` through both bash forms the CLI uses,
+        landing in the episode, AND the sandbox probe; `verified` needs both.
+        """
+        self.start_rexec(env)
+        expected = self.exec_(["hostname"]).stdout.strip()
+        observed = {}
+        for form in ("-c", "-lc"):
+            r = _run(["docker", "exec", "-w", SUBJECT_CWD, self.subject_container,
+                      "bash", form, "hostname"], check=False, timeout=120)
+            observed[form] = (r.stdout.strip().splitlines() or [""])[-1]
+        sandbox = self.subject_sandbox_probe(host_paths)
+        verified = (bool(expected) and all(v == expected for v in observed.values())
+                    and sandbox["verified"])
+        return {
+            "mode": "subject_container",
+            "container": self.subject_container,
+            "launcher": "docker",
+            "launcher_argv": ["docker", "exec", "-i", "-w", SUBJECT_CWD,
+                              self.subject_container, "bash"],
+            "cwd": SUBJECT_CWD,
+            "subject_env": {},
+            "proof": {"how": "bash -c / bash -lc hostname inside the subject "
+                             "container, forwarded by rexec",
+                      "expected": expected, "observed": observed,
+                      "sandbox": sandbox, "verified": verified},
+        }
 
     # -------------------------------------------------------------- evidence
     def containment_probe(self, *, when: str, canaries: list[str],
@@ -1679,6 +2068,12 @@ services:
             "warehouse_mounts": list(self.warehouses),
             "variant": self.variant,
             "shims_in_container": SHIMS_IN_CONTAINER,
+            "subject_sandbox": ({"image": self.subject_image,
+                                 "subject_container": self.subject_container[:12],
+                                 "proxy_container": self.proxy_container[:12],
+                                 "egress_allow": os.environ.get(
+                                     "ALKERA_EGRESS_ALLOW", "api.anthropic.com:443")}
+                                if self.subject_sandbox else None),
         }
 
 

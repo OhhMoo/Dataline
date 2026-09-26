@@ -1028,8 +1028,8 @@ def quota_probe(*, driver: str, model: str, cwd: Path) -> dict:
                 "--strict-mcp-config",
                 "--mcp-config", json.dumps({"mcpServers": {}}), "--tools", ""]
     rec["argv"] = argv
-    env = {**os.environ, "PYTHONUTF8": "1", **probe_env}
-    env.pop("CLAUDE_PROJECT_DIR", None)
+    import container_episode
+    env = container_episode.subject_base_env(probe_env)
     try:
         r = subprocess.run(argv, cwd=str(cwd), env=env,
                            input=(PROBE_PROMPT if driver != "kimi" else None),
@@ -1191,10 +1191,27 @@ def run(*, instruction: str, toolbelt: dict, artifact_in_world: str,
                     f"shell was not proved to reach the container: "
                     f"{container_shell.get('proof')}")
             subject_env_extra = dict(container_shell["subject_env"])
+            # That HOME is not the operator's, so on Linux the CLI cannot read
+            # its login from it; refused here, before quota and a world are
+            # spent on an episode that could never start.
+            try:
+                import container_episode
+                container_episode.require_subject_auth()
+            except container_episode.ContainerError as exc:
+                raise HarnessError(str(exc)) from exc
         (rollout_dir / "native_env.json").write_text(
             json.dumps(subject_env_extra, indent=2, sort_keys=True),
             encoding="utf-8")
         argv += tool_surface_argv("native")
+        if container_shell and container_shell.get("mode") == "subject_container":
+            # THE HARD SANDBOX (SANDBOX.md): the CLI itself runs in the subject
+            # container. Same flags, same stream-json on stdout; only the
+            # process that owns them moved off the host.
+            import container_episode
+            argv = (container_episode.subject_exec_argv(
+                        container_shell,
+                        container_episode.subject_base_env())
+                    + ["claude"] + argv[1:])
     else:
         raise HarnessError(f"unknown driver {driver!r}")
 
@@ -1206,9 +1223,10 @@ def run(*, instruction: str, toolbelt: dict, artifact_in_world: str,
     err_path = rollout_dir / "agent.stderr.txt"
     ef = err_path.open("w", encoding="utf-8")
 
-    env = {**os.environ, "PYTHONUTF8": "1", **subject_env_extra}
-    # the subject must not inherit a working directory inside the repo
-    env.pop("CLAUDE_PROJECT_DIR", None)
+    # the subject must not inherit a working directory inside the repo, nor the
+    # session of whatever started the harness (container_episode.PARENT_SESSION_VARS)
+    import container_episode
+    env = container_episode.subject_base_env(subject_env_extra)
 
     kwargs = {}
     if os.name == "nt":
@@ -1290,6 +1308,9 @@ def run(*, instruction: str, toolbelt: dict, artifact_in_world: str,
         state["reason"] = state["reason"] or "timeout"
         _kill_tree(proc)
 
+    if container_shell and container_shell.get("mode") == "subject_container":
+        import container_episode
+        container_episode.kill_subject(container_shell)
     reader.join(timeout=30)
     watcher.join(timeout=5)
     tf.close()

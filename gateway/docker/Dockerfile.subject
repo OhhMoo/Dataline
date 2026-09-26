@@ -1,0 +1,45 @@
+# The hard-sandbox subject: the model's CLI in its own container.
+#
+#   docker build -f gateway/docker/Dockerfile.subject \
+#     --build-arg CLAUDE_VERSION=<x.y.z> -t alkera-subject:head gateway/docker/subject
+#
+# One image, two services in compose.subject.yml: `subject` (the CLI, as uid 1000,
+# read-only root, no capabilities) and `egress-proxy` (egress_proxy.py, as nobody).
+# Same pinned base as the episode image, so rexec.py runs on the same Python at
+# both ends. See tasks/harness/SANDBOX.md.
+FROM python@sha256:9534e5a8e315485d4061ed659af0fd78a284c015f9b73661b41d6bab25604534
+
+# Pinned to the CLI the operator measured with; `stable` only when unset.
+ARG CLAUDE_VERSION=stable
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends curl ca-certificates bash procps \
+ && rm -rf /var/lib/apt/lists/* \
+ && useradd -m -u 1000 -s /bin/bash agent
+
+# The native installer puts a symlink under $HOME; the binary is copied out so a
+# tmpfs over /home/agent at run time cannot hide it.
+RUN curl -fsSL https://claude.ai/install.sh -o /tmp/install.sh \
+ && mkdir -p /tmp/ci && HOME=/tmp/ci bash /tmp/install.sh "${CLAUDE_VERSION}" \
+ && cp -L /tmp/ci/.local/bin/claude /usr/local/bin/claude \
+ && rm -rf /tmp/ci /tmp/install.sh \
+ && /usr/local/bin/claude --version
+
+COPY rexec.py egress_proxy.py bash_env.sh /opt/alkera/
+RUN chmod 0644 /opt/alkera/* \
+ && ln -s /opt/alkera/bash_env.sh /etc/profile.d/zz-alkera-rexec.sh \
+ && mkdir -p /alkera-subject-cwd
+
+ENV HOME=/home/agent \
+    SHELL=/bin/bash \
+    BASH_ENV=/opt/alkera/bash_env.sh \
+    ALKERA_SUBJECT_CWD=/alkera-subject-cwd \
+    DISABLE_AUTOUPDATER=1 \
+    DISABLE_TELEMETRY=1 \
+    DISABLE_ERROR_REPORTING=1 \
+    CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
+
+LABEL org.alkera.claude.version="${CLAUDE_VERSION}"
+USER agent
+WORKDIR /alkera-subject-cwd
+ENTRYPOINT ["sleep", "infinity"]

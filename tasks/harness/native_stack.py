@@ -1035,7 +1035,7 @@ def run_scripted_container(*, rollout_dir: Path, world: dict, audit_dir: Path,
             f"{wrapper['proof']}")
 
     command = f"sh {SUBJECT_IN_CONTAINER}"
-    argv = [wrapper["launcher"], "-lc", command]
+    argv = [*wrapper.get("launcher_argv", [wrapper["launcher"]]), "-lc", command]
     started = time.time()
     proc = subprocess.run(argv, cwd=str(rollout_dir),
                           env={**os.environ, **wrapper["subject_env"]},

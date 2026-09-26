@@ -29,6 +29,14 @@ gateway/.venv/Scripts/python.exe tasks/harness/run_rollouts.py --task GT009-sett
 
 `--model scripted` is a harness subject, not a measurement. Spec: `gateway/NATIVE.md`.
 
+**Linux** (Docker CE or rootless podman; Fedora/RHEL/Ubuntu/Debian): `scripts/setup_linux.sh`,
+then `tasks/harness/linux_preflight.py --live --model-smoke opus`, then
+`scripts/run_decision_pass1.sh`. The interpreter is `gateway/.venv/bin/python`. What differs
+from Windows (SELinux, file ownership, the subject's login) is in `tasks/harness/LINUX.md`.
+The model's CLI runs in its own locked-down container, whose only way out is an
+allowlisting proxy to the API (`--subject-sandbox container`, the default):
+`tasks/harness/SANDBOX.md`.
+
 ## Architecture
 
 Four layers, each with one job. Nothing above a layer can change what the

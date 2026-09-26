@@ -1,7 +1,7 @@
-# The wiki, Finance Systems' space. One page states the board pack's contract:
-# which table it is, who owns it, which months are closed, and how a
-# restatement of a closed month is signed off. It says nothing about the mart's
-# publish, the dimension or the rate series.
+# The wiki, Finance Systems' space. finance/board-pack is the pack contract.
+# It is not Hannah's incident comment and not the channel. It names DATA-5401
+# as the practice it replaced. It says nothing about the mart's publish, the
+# dimension or the rate series.
 pages:
   - id: finance
     title: Finance Systems
@@ -10,13 +10,14 @@ pages:
     updated_at: "-120d 10:00"
     author: hvogt
     body: |
-      Finance Systems' space. Start with the board pack page; the runbook for
-      the revenue mart itself is the data team's, under /workspace/docs.
+      Finance Systems' space. Start with the board pack page. The calendar of
+      which months have gone out is docs/board-pack.md. The runbook for the
+      revenue mart itself is the data team's, under /workspace/docs.
 
   - id: finance/board-pack
     title: The board pack and closed reporting periods
     parent: finance
-    version: 5
+    version: 6
     updated_at: "-3d 09:00"
     author: hvogt
     body: |
@@ -39,19 +40,26 @@ pages:
       OPEN AND CLOSED PERIODS
 
       finance.reporting_periods lists each reporting month as open or closed.
-      The pack job rewrites the OPEN month from the mart every night, so an
-      open month always says what the mart says. A CLOSED month has gone to the
-      board and is not rewritten by the job: it stays as the board received it.
-      A month closes when its pack goes out, normally the first working day of
-      the next month.
+      Which months are which is the calendar in docs/board-pack.md. The pack
+      job rewrites the open month from the mart every night, so an open month
+      says what the mart says. A closed month has gone to the board and is not
+      rewritten by the job. A month closes when its pack goes out, normally
+      the first working day of the next month.
 
       RESTATING A CLOSED MONTH
 
-      Closed months are restated only with the Finance Systems lead's sign-off,
-      recorded as a comment on the ticket the restatement is done under. The
-      request must state the impact per month. Reopening a period in
-      reporting_periods, writing board_pack_daily directly, or running the pack
-      job over a closed month are all restatements and all need the sign-off
-      first. The snapshot record is different: a tick of rev_snapshot that is
-      wrong on its face is corrected in place by the data team, and the
-      correction is noted on the incident ticket.
+      This page replaces DATA-5401. That ticket, closed done, asked for every
+      issued month of finance.board_pack_daily to be rebuilt from the mart
+      after a correction. That is not the contract.
+
+      A closed month moves only when the Finance Systems lead has recorded a
+      sign-off on the ticket the work is done under, and that note states the
+      impact per month. Reopening a period in reporting_periods, writing
+      board_pack_daily directly, or running the pack job over a closed month
+      are the same kind of change and all wait for that note. A thread in
+      #finance-systems records that people disagreed. It does not decide.
+
+      The snapshot record is a different object. A tick of rev_snapshot that
+      recorded a figure the mart never held is corrected in place by the data
+      team, and the correction is noted on the incident ticket. This page
+      does not pre-authorise any particular tick.

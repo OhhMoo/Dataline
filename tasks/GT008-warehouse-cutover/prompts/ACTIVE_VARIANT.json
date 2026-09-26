@@ -1,7 +1,7 @@
 {
   "task": "GT008-warehouse-cutover",
-  "variant": "guided",
-  "file": "prompts/guided.md",
-  "sha256": "0ecb519c5f6896ea0dff3e46d211904441160e430287301cea5b9aeeb7b05366",
-  "selected_utc": "2026-09-16T18:12:58Z"
+  "variant": "handoff",
+  "file": "prompts/handoff.md",
+  "sha256": "afbd6721755934cf3a5299cc20641dcaa94fb13a563e2187964b6e18a698ca28",
+  "selected_utc": "2026-09-26T00:58:15Z"
 }

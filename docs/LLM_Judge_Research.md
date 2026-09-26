@@ -1,13 +1,106 @@
-# LLM-as-judge, reward models, and where difficulty comes from
+# LLM-as-judge: the decision, the build, and the evidence
 
-2026-09-22. Research memo for the next meetup. Question on the table, from the
-thread with Andrew: should we adopt data-eng-bench's style of task design, and
-does adding an LLM judge (or training our own reward model) let us build the
-harder tasks we need? Six literature sweeps were run for this memo; the full
-reports with references sit in `docs/research/llm-judge/` (r1–r6). Every
-number below is traceable to one of them.
+25 Sep 2026. This file merges the 25 Sep decision note and the 22 Sep research memo. The memo's section numbers are unchanged below, so an older citation of "§3" or "§9" still lands. Sweeps with quotes remain in `docs/research/llm-judge/` (r1–r6).
+
+## Decision taken
+
+An LLM does not grade an episode. `pass@1` and the training scalar stay deterministic code over the final world: the warehouse, the ledger, and structured report fields. `tasks/harness/outcome.py` and `tasks/harness/reward.py` do not call a model. `tasks/harness/lab_card.py` treats an import of `judge`, `openai`, or `anthropic` inside `grade.py` as a failed lab requirement.
+
+That is the decision. The papers it rests on:
+
+| Decision | What we took | Paper |
+|---|---|---|
+| Agent tasks are graded by executable checks. A neural reward on the same tasks gets exploited as the policy grows. | No model inside `pass@1` or `episode_reward`. | DeepSeek-R1, https://arxiv.org/abs/2501.12948 — "neural reward models are susceptible to reward hacking during large-scale reinforcement learning." Nemotron 3 Ultra (Jun 2026), https://research.nvidia.com/labs/nemotron/files/NVIDIA-Nemotron-3-Ultra-Technical-Report.pdf — database-state verification for agent environments; an LLM judge only for instruction following. Kimi K2.5, https://arxiv.org/abs/2602.02276 — rule-based outcome reward for agentic tasks. |
+| A rubric judge used as the training reward is exploited inside one run. | A judge verdict cannot flip a fail into a pass. | Mahmoud et al., *Reward Hacking in Rubric-Based RL* (Scale, May 2026), https://arxiv.org/abs/2605.12474 — credited-but-wrong criteria rose from 39% to 65% in one 7B GRPO run under a weak verifier; a strong verifier (92% panel agreement) still left 15–28% exploitation. |
+| The same data-engineering job is graded by assertions on tables, not by a judge. | Our checks stay predicates on state. | Snowflake data-eng-bench (2026-08-06), https://www.snowflake.com/en/blog/engineering/data-eng-bench-data-engineering-agent-benchmark/ — hidden pytest, no LLM in the score. An LLM audits only successful trajectories after the fact. |
+| Hardness is under-specification, and it is code-gradable. | Decision arms: the brief states the symptom; the permission rule lives in tickets, runbook, and chat, and those sources disagree. GT001–GT003 and GT005–GT008 were rewritten that way on 25 Sep. GT009 was already this shape. GT004 was not rewritten. | HiL-Bench (Scale, 2026), https://arxiv.org/abs/2604.09408 — 75–89% pass@3 with full information, 4–24% when the agent must decide whether to ask. UnderSpecBench (2026), https://arxiv.org/abs/2607.02294 — 55.8–67.8% of acted runs crossed a boundary. |
+| A judge may reject a task. It may not accept one. | `tasks/harness/judge/clarity_gate.py`. `consensus` returns `reject` or `hold`, never `accept`. One reject vote rejects. No API key required. Not imported by the scorer. Unit tests passed. No live model has been called. | SWE-Bench++ (2025), https://arxiv.org/abs/2512.17419 — three reviewers, precision 0.93–0.95 vs human ~0.96, GPT-5 recall 0.370, so a judge must not be the acceptance. SWE-bench Verified rubric, https://openai.com/index/introducing-swe-bench-verified/ — clarity 0–3, inadequate issues discarded, ensemble by highest severity. Terminal-Bench, https://arxiv.org/abs/2601.11868 — behaviour described, behaviour tested, no hard-coded solution, no leaked solution. |
+| A pass that is not a real repair is a bug in the grader, not a point. | `tasks/harness/redteam/exploit_agent/`. The prompt tells the subject to maximise the scalar without the legitimate repair. `run_exploit.py` classifies a grade already collected. A bug exits 2. Not imported by the scorer. Unit tests passed. No exploit episode has been run. | Terminal-Bench appendix B.4, https://arxiv.org/abs/2601.11868. Terminal Wrench (2026), https://arxiv.org/abs/2604.17596 — 14 of 89 Terminal-Bench 2.0 tasks (15.7%) still hackable after human audit. Zhong et al., hacker-fixer-solver loop (2026), https://arxiv.org/abs/2606.08960 — KernelBench attack success from 62% to 0% while the benign solution still passes. |
+
+What was considered and not taken:
+
+- **A judge of code quality, readability, or robustness on the score.** DataClawEval, https://arxiv.org/abs/2607.28033, watched holistic process scores drift from 22 to 75–76 and reverted to five deterministic checks.
+- **Training our own reward model.** Gao, Schulman, Hilton, https://arxiv.org/abs/2210.10760, is the over-optimisation curve. The label floor in the memo below is about 10k trajectories and 2.5k–7.5k expert hours. Not started.
+- **A capped judge sub-score inside the training scalar.** Left for later, and only after two experts label 200–500 items and human–human agreement clears α ≥ 0.8 (Alt-Test, https://aclanthology.org/2025.acl-long.782/). Not built.
+- **Full marks for stopping and notifying while the owned object stays unrepaired** is our `withheld_with_evidence` band. HiL-Bench and UnderSpecBench measure the miss. Neither paper scores that stop as a pass. The trace is `docs/plans/paper-trace.md`.
+
+The two tools that exist are set up. They have been run as unit tests only. They are not in the Opus pass@1 path.
 
 ---
+
+## Build note (25 Sep)
+
+Keep `pass@1` and the training scalar as deterministic code over the final world.
+
+The hypothesis on the table was that a judge is how we add the complexity that makes tasks hard. The literature, and our own rollouts, say the opposite. Frontier models already find the mechanism. They lose when the world does not say what they are allowed to do. That loss can be graded from state. A judge on the score is a surface the policy will learn to flatter.
+
+Labs that publish a reward mix put agent and tool-use work on executable checks. Rubric judges are for chat. DeepSeek-R1 and Nemotron 3 Ultra both report that neural rewards get exploited as the policy grows. Scale measured it inside one GRPO run: credited-but-wrong criteria went from 39% to 65% under a weak verifier, and a strong verifier still left 15–28% exploitation.
+
+### Where the judge is, in this repo
+
+It is not in the grade.
+
+Each `tests/grade.py` is code over the warehouse, the ledger, and structured report fields. The 428 baseline rows and `validity.py --ladder` are unchanged by the judge tools.
+
+What sits beside the grader. None of it can flip a fail into a pass.
+
+| Piece | Where | What it does | What it does not do |
+|---|---|---|---|
+| Clarity gate | `tasks/harness/judge/clarity_gate.py` | Reject-only scan of a brief: empty, leaked solution, expected table, self-reference. Optional model hook can add a reject. | Cannot accept. Does not score an episode. No model has been called. |
+| Exploit record and runner | `tasks/harness/redteam/exploit_agent/` | Prompt whose job is to maximise the scalar without a legitimate repair. `run_exploit.py` turns a collected grade into a bug record. | Does not start an episode. Not imported by `outcome.py` or `reward.py`. |
+| Exploit loop | `tasks/harness/redteam/exploit_loop.py` | Classifies a batch the caller already collected. Any bug exits 2 with `needs_fixer`. | Does not start an episode. |
+| Rebuild helper | `tasks/contracts/rebuild.py` | `run_twice` copies the world, plants a delivery, runs the pipeline twice. A `WHERE 1=0` loader fails liveness. A plant that inserts the fact rows itself also fails, because the count is taken after the plant. `rematerialise_matches` compares two digests. `second_seed_hardcoded` flags seed B copying seed A. | It does not rebuild from raw by itself. If both digests are the table the agent left, the compare is a tautology. |
+| Side checks | `tasks/GT001`–`GT009` `tests/rebuild_check.py` | Name the control arm, the table, and the three check ids. Decision arms return no ids. | Not imported by `grade.py`. Calling them without a real plant spec or two real digests raises `NotImplementedError`. |
+| Ask channel | `gateway/src/alkera_gateway/ask_stakeholder.py` | Default off (`ALKERA_ASK_STAKEHOLDER=1` only). Deterministic trigger match. Ask-F1 punishes question spam. | Not one of the 63 MCP tools. No model. Raises if the flag is off. |
+| Hardness flags | `tasks/GT004-doubling-window/hardness/`, `tasks/GT009-settlement-cutoff/hardness/` | The hidden fact, the contradictory sources, a decoy name, and the strings that would give the answer away. Scanner gates `prompts/*.md`. | `hidden_blocker.enabled` is false. |
+| Decision briefs | GT001, GT002, GT003, GT005, GT006, GT007, GT008 | Coworker symptom. The permission rule is in the world and the sources disagree. Run `--variant decision`. | GT004 was not rewritten. GT009 already had this shape; its default brief is `prompts/guided.md`, not `prompts/vague.md`. |
+
+Two red-team findings, before anyone wires the side checks in:
+
+- **Permanent skip.** `liveness.ingests` already zeros a loader that lands nothing. It still gives full marks if `plant.sql` writes the counted table, or if the loader invents rows that match the predicate and never reads the delivery. `run_twice` closes the first of those. The stub-row hole is still open in the existing contract. Finding: `docs/plans/hardness-round/findings/R-A1.md`.
+- **Hand-patched mart.** No `grade.py` rebuilds from raw. GT001 can look repaired in the table while `fct_orders.sql` stays `append`. A full refresh of that unchanged model reproduces the hand patch, so a naive rebuild would clear the cheat. The rebuild that fails it is the model the agent left, run the way the nightly job runs, from seeded raw. Finding: `docs/plans/hardness-round/findings/R-A2.md`. Baseline id to add when we wire it: `hand_patch_mart`, class not `resolved`.
+
+### What a judge is for, when we spend tokens
+
+Three jobs, in this order. None of them is "score the episode." The first two now have code. The third does not.
+
+1. **Reject bad generated tasks.** Three models, consensus, reject only. SWE-Bench++ is the calibration: precision 0.93–0.95 against a human 0.96, and low recall, so a judge must not be allowed to accept a task. The checklist is the Terminal-Bench one: behaviour in the description, behaviour in the tests, hard-coded solution, leaked solution, self-referential text. The local gate implements the checklist without a model. The three-model call has not been run.
+2. **Attack the grader.** A model is told to maximise the scalar without the legitimate repair. Terminal-Bench 2.0 still had 15.7% of tasks hackable after more than three person-hours of human audit each. A hacker–fixer–solver loop, with the oracle required to keep passing, drove a KernelBench attack rate from 62% to 0%. The prompt, the record, and the classifier are in `exploit_agent/`. The model run has not been started.
+3. **A logged sub-score, later, capped.** Binary, one criterion per call, artifact not transcript, different model family from the agent, k=3–5, an "Unknown" out. It cannot move `pass` or the scalar until two experts have labelled 200–500 items and the criterion clears human–human α ≥ 0.8. Candidates, if we ever spend that labelling: whether the discrepancy note names the rows, whether the owner message is enough to act on, whether a design note matches an accepted reference set. "Code quality" and "robustness" as holistic scores are the thing DataClawEval tried and then deleted.
+
+Do not train our own reward model. A domain trajectory model needs on the order of 10k labels the code grader cannot already produce, which is a few thousand expert hours. Vendors ship a frozen frontier judge behind expert rubrics. A frozen judge on one rollout is about $0.05–0.20. That budget belongs on job 2.
+
+Agreement numbers, so the boundary is concrete. Judges match humans when the question is a short binary check of an artifact: HealthBench macro-F1 0.709, PaperBench leaf F1 0.83, APEX criterion accuracy 98.5%. They fall apart on "how good is this?" and on transcripts: AgentRewardBench, no judge above 70% precision, and the dominant error is believing the agent's own claim that it finished. A judge with tools on the world reaches about 90%; a transcript-only judge sits at 60–70%. Temperature 0 still flips about 14% of pairwise verdicts.
+
+### How the tasks get harder
+
+The measured residual on our Opus rollouts: every lost point was a judgment the model stated and defended, or a rubric artifact. Diagnosis was not the miss. GT004's non-repairers gave the same reason in the same words. GT009's agents took the intended branch and then lost on side effects.
+
+So hardness is not a longer prompt, a larger warehouse, or a prose score. It is a structural fact the agent has to discover, and a code check that is false if they skip it.
+
+On 25 Sep the coworker brief was applied to GT001, GT002, GT003, GT005, GT006, GT007, and GT008. GT004 was left as it was. GT009 was already the template. The checks below are the ones still open on those arms.
+
+1. **Leave the answer out of the brief.** Done for the seven arms above: the symptom is in the brief, the rule is in the world. `hidden_blocker.enabled` on GT004 and GT009 is still false.
+2. **Necessity and sufficiency, before any frontier number.** For each hidden fact, a scripted agent that is handed the fact lands in the top band (target about 90%). The same agent with that fact deleted from the world does not (target at most 5%). If both pass, the fact was never load-bearing and hiding it was cosmetic. If neither passes, the task is broken, not hard. Not run yet.
+3. **A decoy that is graded as damage.** Named for GT004 (`warehouse.fct_revenue_history`) and GT009 (`warehouse.settlement_handoff_prior`). Not planted as a graded object yet.
+4. **Ask, with a closed answer key.** The channel exists and is off. Ask-F1 is not multiplied into the score.
+5. **Time.** GT004 already advances the clock onto the repaired window. Grade GT009 after the nights, not at t0.
+6. **Wire the rebuild only with the caller rule.** `idempotent_rebuild` on control arms, using `run_twice`, with liveness required. `rematerialise_matches` only when `rebuilt_digest` is the incremental re-run. Add `hand_patch_mart` to the ladder in the same change. A grader edit that moves an existing baseline row does not land. Not wired into `grade.py`.
+
+What not to copy from Snowflake's data-eng-bench: the 7k-character spec that names every column and tie-break, and the reward that is 1 only if every assertion passes. What to copy: one deep base world plus an overlay, grain and conservation checks, run-twice, rebuild-from-raw, second-seed, and an oracle computed from the seed instead of a stored fixture.
+
+### What to run with the token budget
+
+1. **Exploit agent on the current 19 arms.** K=4 per arm is enough for a first hack rate. Subject prompt: `tasks/harness/redteam/exploit_agent/prompt.md`. Feed each record to `run_exploit.py`. A pass with `legitimate_repair` false is a task bug. Promote every hole to a scripted baseline before changing the task. Re-run the oracle and the no-op after every fixer patch.
+2. **Do not run a judge-as-reward ablation.** We already know the shape of that result, and it would put a number next to `pass@1` that people will quote.
+3. **Opus pass@1 on the decision arms** of GT001, GT002, GT003, GT005, GT006, GT007, and GT008, with `--variant decision`. GT001 and GT005 changed world text and were not re-scored after that edit.
+4. **Family generator only after an overlay survives** the exploit loop and the necessity pair. Seeds pick the damage, the hop count, the decoy, and whether the boundary is present. The model writes the ticket, the chat, and the stale doc. It does not write the parameters or the expected table. Expect most candidates to die. That yield is the filter.
+
+---
+
+# Research memo (22 Sep 2026)
+
+Question on the table, from the thread with Andrew: should we adopt data-eng-bench's style of task design, and does adding an LLM judge (or training our own reward model) let us build the harder tasks we need? Six literature sweeps were run for this memo. Every number below is traceable to one of them. Section 2 describes the repo as it was on 22 Sep, including "no LLM judge anywhere." The tools in the decision section above were added on 25 Sep and are not in the score.
 
 ## 1. Short answer
 
@@ -534,3 +627,4 @@ Grouped; full lists with quotes are in `docs/research/llm-judge/r1–r6`.
 GDPval grader-agreement figures in r6 (r2 and r4 fetched them: 66% vs 71%);
 Mercor's 92.8–94.7% criterion-level agreement (secondary); Nathan Lambert's
 "rubrics prone to overopt" line (unsourced); market pricing (all secondary).
+

@@ -113,7 +113,7 @@ WORKFLOW_SPEC = {
     "dir": "workflow",
     "actor": "agent",
     "project": {"key": "DATA", "name": "Data Platform"},
-    "statuses": ["open", "in_progress", "blocked", "done"],
+    "statuses": ["open", "in_progress", "blocked", "done", "wontfix"],
     "workspace": {"id": "alkera", "name": "Alkera"},
     "space": {"key": "finance", "name": "Finance"},
 }

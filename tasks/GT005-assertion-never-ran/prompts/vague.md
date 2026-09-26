@@ -1,34 +1,15 @@
-# DATA-5301
+Joe is on a call all morning and asked me to hand this to you.
 
-From: Tamas Varga (Financial Controller)
-To: Data Platform
+Finance says our warehouse number does not match theirs. It is not far off, a few percent, and it has looked like that for a while rather than like we lost a day. I checked the nightly before I left. The builds are green, the recent runs all succeeded, and nobody has shipped a change on that side since December. Have a look and sort it out.
 
-We closed Q1 on the ledger last week and our warehouse number does not agree
-with it. It is not far off - a few per cent - but it has not agreed for a while
-now and I am told nothing has changed on your side, so I do not know whether
-this is our problem or yours.
+While you are in there: there is an argument about whether we are even allowed to change a figure that has already gone out. Whatever you decide, what they read has to be something they can live with, and the pipeline has to catch a quiet miss like this on its own the next time. I am not going to be here to run it by hand.
 
-I need to know whether the warehouse number is wrong before the audit pack goes
-out. If it is wrong I need to know exactly which invoice dates are affected,
-because a restatement is quoted in dates, not in quarters, and I would rather
-not restate a month that was fine.
+Write up what you changed and why in `/workspace/final_report.json`. It gets read by a script, so keep to these keys:
 
-If something is broken please fix it, and please make sure we find out sooner
-next time rather than at close.
-
----
-
-When you are done, write `/workspace/final_report.json`:
-
-```json
-{
-  "summary": "<what was wrong, in a few sentences>",
-  "root_cause": "<the mechanism, not the symptom>",
-  "first_affected_date": "YYYY-MM-DD",
-  "last_affected_date": "YYYY-MM-DD",
-  "changes": ["<each file or object you changed, and why>"]
-}
-```
-
-`first_affected_date` and `last_affected_date` are the earliest and latest
-invoice dates that are affected, as exact dates.
+| key | value |
+|---|---|
+| `summary` | a few sentences on what was wrong. |
+| `root_cause` | the mechanism, not the symptom. |
+| `first_affected_date` | `YYYY-MM-DD`. The earliest affected invoice date, measured, not rounded. |
+| `last_affected_date` | `YYYY-MM-DD`. The latest affected invoice date, the same way. |
+| `changes` | a list of strings: each file or object you changed, and why. |

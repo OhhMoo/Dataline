@@ -107,7 +107,9 @@ def _one(args, run_dir: Path, idx: int) -> dict:
     cmd = [sys.executable, str(HERE / "rollout.py"),
            "--task", args.task, "--rollout-id", rid, "--run-id", run_dir.name,
            "--out", str(out), "--model", args.model, "--driver", args.driver,
-           "--topology", args.topology, "--image", args.image]
+           "--topology", args.topology, "--image", args.image,
+           "--subject-sandbox", args.subject_sandbox,
+           "--subject-image", args.subject_image]
     if args.tasks_dir:
         cmd += ["--tasks-dir", args.tasks_dir]
     if args.native_endpoints:
@@ -343,6 +345,15 @@ def main() -> int:
                          "rollout, so K rollouts stay genuinely independent. "
                          "(default: container)")
     ap.add_argument("--image", default=container_episode.DEFAULT_IMAGE)
+    ap.add_argument("--subject-image", default=container_episode.SUBJECT_IMAGE)
+    ap.add_argument("--subject-sandbox", default="container",
+                    choices=["container", "host"],
+                    help="where the MODEL's CLI runs under --driver native "
+                         "--topology container. `container` (default): in its "
+                         "own locked-down container whose only way out is an "
+                         "allowlisting proxy to the inference API "
+                         "(tasks/harness/SANDBOX.md). `host`: on the host, with "
+                         "its bash redirected into the episode - detection only.")
     ap.add_argument("--out", default=str(DEFAULT_OUT))
     ap.add_argument("--run-id", default=None)
     ap.add_argument("--variant", default=None,

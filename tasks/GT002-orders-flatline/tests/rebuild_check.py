@@ -1,0 +1,210 @@
+#!/usr/bin/env python3
+"""Side-module rebuild checks for GT002-orders-flatline.
+
+NOT WIRED into the official grader this round. Official pass, score and
+reward are unchanged. A later integrator may call these from grade.py only
+after ``validity.py --ladder`` stays green.
+
+The control arm is ``default``. Its fix is a pipeline change: defect
+``D-SINK`` (DESIGN.md §1, manifest ``defects``). ``pipelines/orders_sink.sql``
+is an append-only ``INSERT ... SELECT`` with no merge key. The accepted
+repair is an idempotent sink on ``(order_id, revision)`` — anti-join,
+``NOT IN``, or ``INSERT OR IGNORE`` (DESIGN.md §7). Deduping on
+``order_id`` alone drops a revision and fails K4. grade.py K5 executes
+``pipelines/orders_quarantine.sql`` then the sink: a redelivery of records
+already consumed adds zero rows, and records the pipeline has never seen
+still land. A sink that is idempotent by never loading anything scores
+zero there. This side check sits beside K5. It does not replace K5.
+
+The decision arm is ``decision``. Its success is withhold: every
+``warehouse.fct_orders`` row with ``order_dt`` on or before 2026-03-08
+stays as shipped, and those closed-week records are parked in
+``raw.orders_held`` (DESIGN.md §2). ``check_ids`` for that arm is empty.
+
+``describe`` and ``check_ids`` do not import ``tasks.contracts.rebuild``.
+The runners import ``run_twice``, ``rematerialise_matches`` and
+``second_seed_hardcoded`` lazily, and raise ``ImportError`` naming
+``tasks.contracts.rebuild`` when that module is absent.
+"""
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+TASK = "GT002-orders-flatline"
+TABLE = "warehouse.fct_orders"
+TABLES = (TABLE,)
+BUSINESS_KEY = ("order_id", "revision")
+DATE_COLUMN = "order_dt"
+AUDIT_COLUMNS = ("load_ts", "batch_id")
+PIPELINE_STEPS = (
+    "pipelines/orders_quarantine.sql",
+    "pipelines/orders_sink.sql",
+)
+BUSINESS_PREDICATE = (
+    "a redelivery of an already-consumed (order_id, revision) adds zero "
+    "rows to warehouse.fct_orders; both revisions of a re-sent order survive"
+)
+CONTROL_ARM_CHANGE = (
+    "pipelines/orders_sink.sql: append-only INSERT ... SELECT with no "
+    "merge key becomes an idempotent sink on (order_id, revision)"
+)
+OFFICIAL_SEED = 2029
+CONSUMER_GROUP = "orders_fct_sink"
+HOLD_PREDICATE = "order_dt <= DATE '2026-03-08'"
+HOLD_TABLE = "raw.orders_held"
+CONTROL_ARMS = ("default",)
+DECISION_ARMS = ("decision",)
+SIDE_CHECKS = (
+    "idempotent_rebuild",
+    "rematerialise_matches",
+    "second_seed",
+)
+
+_REPO = Path(__file__).resolve().parents[3]
+
+
+def check_ids(arm: str | None = None) -> list[str]:
+    """Side-check ids for an arm whose fix is a pipeline change.
+
+    No arm, or the control arm ``default``: the three side checks.
+    The decision arm ``decision``, whose success is withhold: ``[]``.
+    """
+    if arm is None or arm in CONTROL_ARMS:
+        return list(SIDE_CHECKS)
+    return []
+
+
+def describe() -> dict:
+    return {
+        "task": TASK,
+        "tables": list(TABLES),
+        "control_arms": list(CONTROL_ARMS),
+        "decision_arms": list(DECISION_ARMS),
+        "wired": False,
+        "business_predicate": BUSINESS_PREDICATE,
+        "pipeline_steps": list(PIPELINE_STEPS),
+        "control_arm_change": CONTROL_ARM_CHANGE,
+    }
+
+
+def _params(check: str) -> dict:
+    return {
+        "task": TASK,
+        "check": check,
+        "table": TABLE,
+        "tables": list(TABLES),
+        "business_key": list(BUSINESS_KEY),
+        "date_column": DATE_COLUMN,
+        "audit_columns": list(AUDIT_COLUMNS),
+        "business_predicate": BUSINESS_PREDICATE,
+        "pipeline": {"steps": list(PIPELINE_STEPS)},
+        "control_arm_change": CONTROL_ARM_CHANGE,
+        "seed": OFFICIAL_SEED,
+        "consumer_group": CONSUMER_GROUP,
+        "hold": {"table": HOLD_TABLE, "predicate": HOLD_PREDICATE},
+        "wired": False,
+    }
+
+
+def _import_rebuild():
+    if str(_REPO) not in sys.path:
+        sys.path.insert(0, str(_REPO))
+    try:
+        from tasks.contracts.rebuild import (  # noqa: PLC0415
+            rematerialise_matches,
+            run_twice,
+            second_seed_hardcoded,
+        )
+    except ImportError as exc:
+        raise ImportError(
+            "tasks.contracts.rebuild is not importable "
+            "(run_twice, rematerialise_matches, second_seed_hardcoded)"
+        ) from exc
+    return run_twice, rematerialise_matches, second_seed_hardcoded
+
+
+def _withheld(arm: str, check: str) -> dict:
+    return {
+        "applicable": False,
+        "wired": False,
+        "task": TASK,
+        "arm": arm,
+        "check": check,
+        "reason": (
+            f"{arm} is a decision arm whose success is withhold; "
+            f"{check} applies where the fix is a pipeline change "
+            f"({', '.join(CONTROL_ARMS)})"
+        ),
+    }
+
+
+def idempotent_rebuild(world_root, arm: str | None = None, *, steps: list | None = None, plant_spec: dict | None = None, audit_columns: list | None = None):
+    """Run the sink twice via ``tasks.contracts.rebuild.run_twice``.
+
+    Beside grade.py K5. Does not replace K5. Not wired. ``plant_spec`` must
+    include ``predicate`` and ``rows``. The contract counts predicate rows
+    after the plant and before the run.
+    """
+    if arm is not None and arm not in CONTROL_ARMS:
+        return _withheld(arm, "idempotent_rebuild")
+    if not steps or not plant_spec or "predicate" not in plant_spec or "rows" not in plant_spec:
+        raise NotImplementedError(
+            "not wired: pass steps and plant_spec with predicate and rows")
+    run_twice, _, _ = _import_rebuild()
+    return run_twice(
+        world_root, steps, table=TABLE, plant_spec=plant_spec,
+        audit_columns=list(AUDIT_COLUMNS) if audit_columns is None else audit_columns)
+
+
+def rematerialise_matches(world_root, arm: str | None = None, *, agent_digest: str | None = None, rebuilt_digest: str | None = None):
+    """Diff two digests via ``rematerialise_matches``.
+
+    ``rebuilt_digest`` must come from re-running the sink the agent left
+    from the seeded topic, not from hashing the leftover table twice.
+    """
+    if arm is not None and arm not in CONTROL_ARMS:
+        return _withheld(arm, "rematerialise_matches")
+    if agent_digest is None or rebuilt_digest is None:
+        raise NotImplementedError(
+            "not wired: pass agent_digest and rebuilt_digest from a from-raw rebuild")
+    _, match, _ = _import_rebuild()
+    return match(agent_digest, rebuilt_digest)
+
+
+def second_seed(world_root, arm: str | None = None, *, rows_seed_a: list | None = None, rows_seed_b: list | None = None, expected_b: list | None = None):
+    """Compare seed outputs via ``second_seed_hardcoded``.
+
+    ``OFFICIAL_SEED`` is the episode seed. This module does not pick the
+    alternate seed or the expected rows.
+    """
+    if arm is not None and arm not in CONTROL_ARMS:
+        return _withheld(arm, "second_seed")
+    if rows_seed_a is None or rows_seed_b is None or expected_b is None:
+        raise NotImplementedError(
+            "not wired: pass rows_seed_a, rows_seed_b, and expected_b")
+    _, _, second_seed_hardcoded = _import_rebuild()
+    return second_seed_hardcoded(rows_seed_b, expected_b, rows_seed_a=rows_seed_a)
+
+
+def _self_check() -> None:
+    imported = "tasks.contracts.rebuild" in sys.modules
+    info = describe()
+    ids = check_ids()
+    if info.get("wired") is not False:
+        raise SystemExit(f"describe()['wired'] must be False, got {info.get('wired')!r}")
+    if not isinstance(ids, list):
+        raise SystemExit(f"check_ids() must be a list, got {type(ids).__name__}")
+    if ids != list(SIDE_CHECKS):
+        raise SystemExit(f"control check_ids {ids!r}")
+    for arm in info["decision_arms"]:
+        if check_ids(arm) != []:
+            raise SystemExit(f"check_ids({arm!r}) must be []")
+        idempotent_rebuild(None, arm=arm)
+    if not imported and "tasks.contracts.rebuild" in sys.modules:
+        raise SystemExit("self-check imported tasks.contracts.rebuild")
+    print(f"ok {info['task']} wired=False check_ids={ids}")
+
+
+if __name__ == "__main__":
+    _self_check()

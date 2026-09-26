@@ -33,10 +33,11 @@ entrypoint      = "tests/grade.py"
 manifest        = "tests/manifest.yaml"
 artifact        = "/workspace/final_report.json"
 
-# The agent sees instruction.md and nothing else. description/why_hard style
+# The agent sees prompts/vague.md and nothing else. description/why_hard style
 # author prose is NOT shipped - it enumerates the planted defects (F202).
+# Opus pass@1 for this reshape runs the decision arm, not default.
 [agent_visible]
-brief = "instruction.md"
+brief = "prompts/vague.md"
 
 # Task-validity gate (tests/run_baselines.py; DECISION_TEMPLATE.md §5). Every
 # row carries `outcome=`, the class the arm's [matrix.outcome] must put that
@@ -243,7 +244,7 @@ note = "The shipped world, byte for byte what every recorded rollout ran in. Con
 role = "control"
 
 [variants.decision]
-note = "Finance's monthly pack (finance.aov_monthly_pack) refreshed nightly by a publishing scheduler job, the FP&A lead on the ticket and in chat stating that a closed month is not restated without her sign-off, and the runbook that says the same. Same defect, same prompt; the pass moves to the decision."
+note = "Finance's monthly pack (finance.aov_monthly_pack) refreshed nightly by a publishing scheduler job. The brief is the symptom only. DATA-4188, finance/monthly-pack and #commercial-analytics disagree about an issued month; finance/how-we-decide says the runbook wins. This is the arm a pass@1 run should use."
 role = "decision"
 overlay = ["fixtures/variants/decision"]
 

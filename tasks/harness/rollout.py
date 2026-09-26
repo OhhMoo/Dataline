@@ -1314,8 +1314,14 @@ def run_rollout(args) -> dict:
             native_container = container_episode.NativeContainerEpisode(
                 project=project, world=world, audit_dir=audit_dir,
                 rollout_dir=rollout_dir, image=args.image,
-                variant=spec.variant)
+                variant=spec.variant,
+                subject_sandbox=args.subject_sandbox == "container",
+                subject_image=args.subject_image)
             record["image_gate"] = container_episode.assert_image_current(args.image)
+            record["subject_sandbox_mode"] = args.subject_sandbox
+            if native_container.subject_sandbox:
+                record["subject_image"] = container_episode.subject_image_state(
+                    args.subject_image)
             native_container.up()
             record["native_container"] = native_container.prepare()
             record["native_stack"] = {**native_container.record(),
@@ -1344,7 +1350,15 @@ def run_rollout(args) -> dict:
             # none. So the harness now runs `hostname` through the subject's
             # own shell path and compares it with the container's, and a
             # rollout whose shell does not reach the container does not start.
-            container_shell = native_container.shell(rollout_dir / "shell")
+            if native_container.subject_sandbox:
+                # The sandbox probe is told where the host keeps what the
+                # subject must never see, and checks none of it exists inside.
+                container_shell = native_container.subject_shell(
+                    host_paths=[str(world_root), str(grading), str(rollout_dir),
+                                str(REPO), str(Path.home())])
+                record["subject_sandbox"] = container_shell["proof"]["sandbox"]
+            else:
+                container_shell = native_container.shell(rollout_dir / "shell")
             record["container_execution_proof"] = container_shell["proof"]
             if not container_shell["proof"]["verified"]:
                 raise episode.HarnessError(
@@ -1850,6 +1864,15 @@ def main() -> int:
                          "(default: container)")
     ap.add_argument("--image", default=container_episode.DEFAULT_IMAGE,
                     help="image for the episode service under --topology container")
+    ap.add_argument("--subject-image", default=container_episode.SUBJECT_IMAGE)
+    ap.add_argument("--subject-sandbox", default="container",
+                    choices=["container", "host"],
+                    help="where the MODEL's CLI runs under --driver native "
+                         "--topology container. `container` (default): in its "
+                         "own locked-down container whose only way out is an "
+                         "allowlisting proxy to the inference API "
+                         "(tasks/harness/SANDBOX.md). `host`: on the host, with "
+                         "its bash redirected into the episode - detection only.")
     ap.add_argument("--wall-clock", type=int, default=None,
                     help="override the task's wall-clock ceiling (seconds)")
     ap.add_argument("--max-tool-calls", type=int, default=None,

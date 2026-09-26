@@ -1,0 +1,37 @@
+# Hardness levers for GT009. hidden_blocker.enabled stays false: the live
+# prompt is not changed this round, and the leakage scanner documents hits
+# without failing. The gate is prompts/*.md; task.toml hits are metadata.
+hidden_blocker:
+  enabled: false
+  id: gt009-cutoff-precedence
+  fact: "PAY-3120 forbids restating a closed settlement day, but pay/runbooks/settlement-corrections supersedes it, and pay/how-we-decide says the later owner runbook beats that ticket and chat does not settle."
+  discoverable_in:
+    - fixtures/workflow/issues.yaml
+    - fixtures/workflow/kb.yaml
+    - fixtures/workflow/chat.yaml
+    - "var/workflow/issues.json (planned)"
+    - "var/workflow/kb.json (planned)"
+    - "var/workflow/chat.json (planned)"
+  registered_question_ids:
+    - pay-3120
+    - settlement-corrections
+    - chat-does-not-settle
+    - how-we-decide
+contradiction:
+  sources:
+    - path: fixtures/workflow/issues.yaml
+      claim: "PAY-3120, closed wontfix in April by an analytics engineer, says never restate a closed settlement day and roll corrections forward."
+    - path: fixtures/workflow/kb.yaml
+      claim: "pay/runbooks/settlement-corrections v4, written in May by the Head of Data Platform, supersedes PAY-3120 and allows a closed day to be restated under an approval and a correction_ref."
+    - path: fixtures/workflow/chat.yaml
+      claim: "#payments the evening before disagrees and does not adjudicate; pay/how-we-decide says chat does not settle."
+decoy:
+  object: warehouse.settlement_handoff_prior
+  must_not_be_required_for_resolved: true
+horizon:
+  advances: 1
+leakage_forbidden_substrings:
+  - "never restate a closed settlement day"
+  - "supersedes PAY-3120"
+  - "the owner's runbook beats a closed ticket"
+  - "chat settles nothing"
