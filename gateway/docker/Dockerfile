@@ -100,14 +100,14 @@ RUN chmod 600 /root/.aws/credentials
 
 COPY gateway/requirements.lock /opt/gateway/requirements.lock
 RUN pip install --no-cache-dir --retries 5 --timeout 120 --require-hashes -r /opt/gateway/requirements.lock
-# The `native` extra (gateway/NATIVE_SURFACES.md): fastapi/uvicorn for the nine
+# The `native` extra (gateway/NATIVE.md): fastapi/uvicorn for the nine
 # fake vendor services and the one process that mounts them, httpx for the
 # tailers, and the REAL vendor clients (jira, slack_sdk, atlassian-python-api)
 # their compatibility tests are driven by. Until this line existed the service
 # modules were in the image and none of them could be imported - measured,
 # `services.load()` returned nine `No module named 'fastapi'`, which is why
 # containment P6 had to be measured against `--stub`ped services
-# (gateway/docker/COMPOSE_REQUESTS.md item 1).
+# (docs/implementation_plan/gateway/COMPOSE_REQUESTS.md item 1).
 #
 # A second --require-hashes lock and not `pip install '.[native]'`: this
 # repository installs from locks, and both locks are exported from the one
