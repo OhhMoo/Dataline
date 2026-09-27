@@ -218,7 +218,7 @@ operator table.
 
 The report headline is APEX-Agents style, read off the arm's
 `[matrix.outcome]` table and its `role`. Nothing is gated; every graded
-episode is in the denominator. `docs/Scoring_Redesign.md` is the design
+episode is in the denominator. `docs/research/Scoring_Redesign.md` is the design
 note.
 
 - **pass** (per episode, bool): the outcome class is in the arm's **top
@@ -252,7 +252,7 @@ that does not.
 
 ## The layers around the number (2026-09-18)
 
-`docs/Scoring_Redesign.md` says what a lab reads off a task before
+`docs/research/Scoring_Redesign.md` says what a lab reads off a task before
 training on it. These modules print it. None of them changes a score.
 
 | layer | module | what |

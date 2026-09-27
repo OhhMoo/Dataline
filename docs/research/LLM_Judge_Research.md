@@ -22,7 +22,7 @@ What was considered and not taken:
 - **A judge of code quality, readability, or robustness on the score.** DataClawEval, https://arxiv.org/abs/2607.28033, watched holistic process scores drift from 22 to 75–76 and reverted to five deterministic checks.
 - **Training our own reward model.** Gao, Schulman, Hilton, https://arxiv.org/abs/2210.10760, is the over-optimisation curve. The label floor in the memo below is about 10k trajectories and 2.5k–7.5k expert hours. Not started.
 - **A capped judge sub-score inside the training scalar.** Left for later, and only after two experts label 200–500 items and human–human agreement clears α ≥ 0.8 (Alt-Test, https://aclanthology.org/2025.acl-long.782/). Not built.
-- **Full marks for stopping and notifying while the owned object stays unrepaired** is our `withheld_with_evidence` band. HiL-Bench and UnderSpecBench measure the miss. Neither paper scores that stop as a pass. The trace is `docs/plans/paper-trace.md`.
+- **Full marks for stopping and notifying while the owned object stays unrepaired** is our `withheld_with_evidence` band. HiL-Bench and UnderSpecBench measure the miss. Neither paper scores that stop as a pass. The trace is `docs/implementation_plan/paper-trace.md`.
 
 The two tools that exist are set up. They have been run as unit tests only. They are not in the Opus pass@1 path.
 
@@ -60,8 +60,8 @@ What sits beside the grader. None of it can flip a fail into a pass.
 
 Two red-team findings, before anyone wires the side checks in:
 
-- **Permanent skip.** `liveness.ingests` already zeros a loader that lands nothing. It still gives full marks if `plant.sql` writes the counted table, or if the loader invents rows that match the predicate and never reads the delivery. `run_twice` closes the first of those. The stub-row hole is still open in the existing contract. Finding: `docs/plans/hardness-round/findings/R-A1.md`.
-- **Hand-patched mart.** No `grade.py` rebuilds from raw. GT001 can look repaired in the table while `fct_orders.sql` stays `append`. A full refresh of that unchanged model reproduces the hand patch, so a naive rebuild would clear the cheat. The rebuild that fails it is the model the agent left, run the way the nightly job runs, from seeded raw. Finding: `docs/plans/hardness-round/findings/R-A2.md`. Baseline id to add when we wire it: `hand_patch_mart`, class not `resolved`.
+- **Permanent skip.** `liveness.ingests` already zeros a loader that lands nothing. It still gives full marks if `plant.sql` writes the counted table, or if the loader invents rows that match the predicate and never reads the delivery. `run_twice` closes the first of those. The stub-row hole is still open in the existing contract. Finding: `docs/implementation_plan/hardness-round/findings/R-A1.md`.
+- **Hand-patched mart.** No `grade.py` rebuilds from raw. GT001 can look repaired in the table while `fct_orders.sql` stays `append`. A full refresh of that unchanged model reproduces the hand patch, so a naive rebuild would clear the cheat. The rebuild that fails it is the model the agent left, run the way the nightly job runs, from seeded raw. Finding: `docs/implementation_plan/hardness-round/findings/R-A2.md`. Baseline id to add when we wire it: `hand_patch_mart`, class not `resolved`.
 
 ### What a judge is for, when we spend tokens
 
@@ -160,7 +160,7 @@ hard-negative decoys, cross-system hops, simulated time.
 
 ## 2. Where we stand
 
-From `docs/Scoring_Redesign.md` and `docs/STATUS.md`:
+From `docs/research/Scoring_Redesign.md` and `docs/STATUS.md`:
 
 - Nine scenarios, 19 arms, one deterministic grader per arm over final world
   state plus structured report fields. Outcome class → band → progress → path

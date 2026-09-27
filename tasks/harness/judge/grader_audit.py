@@ -5,7 +5,7 @@
     python tasks/harness/judge/grader_audit.py --run <run-dir> --k 3 --dedupe --include-passes
     python tasks/harness/judge/grader_audit.py --run <run-dir> --dry-run     # prompts only
 
-This is job 2 of docs/LLM_Judge_Research.md ("attack the grader"), in its audit
+This is job 2 of docs/research/LLM_Judge_Research.md ("attack the grader"), in its audit
 form. The exploit loop asks "can a pass be had without the repair?"; this asks
 "was each verdict the grader actually gave true of the world?". Both treat what
 they find the same way: a grader bug is a defect to fix and a baseline to add,

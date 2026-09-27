@@ -236,7 +236,7 @@ published would otherwise be paid for silence. Same asymmetry as G5 and H3.
 """
 
 # ---------------------------------------------------------------------------
-# SCORING MATRIX (docs/Scoring_Redesign.md; tasks/contracts/
+# SCORING MATRIX (docs/research/Scoring_Redesign.md; tasks/contracts/
 # DECISION_TEMPLATE.md §3-§4). The grader's checks, points and pass criterion
 # are unchanged; this block declares the outcome classes, the progress
 # quantities and the path rules the harness reads off the checks grade.py

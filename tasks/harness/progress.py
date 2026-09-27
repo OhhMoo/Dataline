@@ -1,5 +1,5 @@
 """Bounded, product-only PROGRESS inside the two partial outcome classes
-(docs/Scoring_Redesign.md §3, tasks/contracts/DECISION_TEMPLATE.md §9).
+(docs/research/Scoring_Redesign.md §3, tasks/contracts/DECISION_TEMPLATE.md §9).
 
 reward.py lands an `acted_unresolved` episode (and a control-arm
 `withheld_with_evidence`) at `0 + PROGRESS_SPAN * progress`. This module is
@@ -39,7 +39,7 @@ quantity that does not exist or omitting one that does; weights that do not
 sum to 1 (± 1e-6); a weight <= 0; a table with no quantities. `weights` may
 be omitted only when there is exactly one quantity (it is then 1.0).
 
-`reachability` is the RLVP check (docs/Scoring_Redesign.md §3): a quantity
+`reachability` is the RLVP check (docs/research/Scoring_Redesign.md §3): a quantity
 that takes a single value across every baseline is a bit in disguise and
 validity.py --ladder refuses to pay for it.
 """

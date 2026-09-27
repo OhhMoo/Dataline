@@ -1,4 +1,4 @@
-"""The loader half of the scoring matrix (docs/Scoring_Redesign.md).
+"""The loader half of the scoring matrix (docs/research/Scoring_Redesign.md).
 
 What this file proves is that a task.toml `[matrix]` table reaches TaskSpec
 as a MatrixSpec UNCHANGED, that the TOML-level refusals the dataclass does

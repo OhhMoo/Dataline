@@ -94,7 +94,7 @@ WHAT THE LOADER (`parse_outcome_spec`) REFUSES, with MatrixError:
     no YAML reader), any non-empty id is accepted here and validation of ids
     against the grader is validity.py's job.
 
-THE HEADLINE (docs/Scoring_Redesign.md). The outcome class is also what
+THE HEADLINE (docs/research/Scoring_Redesign.md). The outcome class is also what
 the benchmark headline reads, APEX-Agents style - nothing is gated, every
 graded episode is in the denominator:
 

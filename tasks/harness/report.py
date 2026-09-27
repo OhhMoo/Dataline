@@ -36,7 +36,7 @@ has already discriminated here: on GT001 Claude scored Pass@1 1.0 and Pass^5
 world is byte-identical across K by construction - so the only reason it was
 missing is that nobody computed it.
 
-THE HEADLINE (docs/Scoring_Redesign.md). When the task declares a [matrix]
+THE HEADLINE (docs/research/Scoring_Redesign.md). When the task declares a [matrix]
 with an outcome table, the report's headline is APEX-Agents style and nothing
 is gated - every graded episode is in the denominator:
 
@@ -61,7 +61,7 @@ BELOW the headline: it remains the strict criterion and a fact about the run,
 not the number the run presents. A task without a [matrix] renders as it
 always did: no spec, no block.
 
-THE INTERVAL, THE ESTIMATOR TABLE AND THE LEARNING SIGNAL (docs/Scoring_Redesign.md).
+THE INTERVAL, THE ESTIMATOR TABLE AND THE LEARNING SIGNAL (docs/research/Scoring_Redesign.md).
 K=5 cannot separate 0.8 from 1.0, and a rate printed without its interval
 invites the reader to do exactly that, so the Wilson interval and n print on
 the SAME LINE as the rate, every time. Beside the run-level Pass^k bit (did
@@ -78,7 +78,7 @@ measurement. The layer modules are loaded optionally, so one that will not
 import or still raises NotImplementedError costs the report that block and a
 caveat, not the report.
 
-THE THREE TIERS (DECISION_TEMPLATE.md §9, docs/Scoring_Redesign.md). The
+THE THREE TIERS (DECISION_TEMPLATE.md §9, docs/research/Scoring_Redesign.md). The
 declared scalar is band + progress-in-band + path penalty, and each tier is
 another module's: the band is reward.py's table over outcome.py's class;
 progress is progress.py's normalisation of the grader's product quantities
@@ -944,7 +944,7 @@ def aggregate(records: list[dict], spec=None, baselines_json=None) -> dict:
         "topologies": sorted({r.get("topology", "host") for r in records}),
         "blindness_guarantees": sorted({r.get("blindness_guarantee")
                                         for r in records if r.get("blindness_guarantee")}),
-        # what a trainer's filter reads (docs/Scoring_Redesign.md): None
+        # what a trainer's filter reads (docs/research/Scoring_Redesign.md): None
         # while learning_signal is a stub, and the caveat above says so
         "learning_signal": signal,
     }
@@ -1045,7 +1045,7 @@ def _render_learning_signal(agg: dict, m: dict | None, provisional: str) -> list
     what = ("the headline pass bit (outcome class in the arm's top band)"
             if m is not None
             else "the Pass@1 bit (every required check passed)")
-    L = [(f"{provisional}what a trainer's filter reads (docs/Scoring_Redesign.md): "
+    L = [(f"{provisional}what a trainer's filter reads (docs/research/Scoring_Redesign.md): "
           f"the within-group spread of the per-episode reward - {what} - and "
           f"the band that spread puts this task in. Each line states its own "
           f"n; the run scored {n_scored} rollouts, and an episode without "

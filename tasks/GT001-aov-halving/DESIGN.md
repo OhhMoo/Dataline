@@ -49,7 +49,7 @@ decision arm; the same trajectory on the control arm is simply the repair.
 
 (axes retired 2026-09-19; the pass axis / gate / `[matrix.map]` columns that
 stood here are gone. The headline per arm is the outcome class:
-`docs/Scoring_Redesign.md`, `DECISION_TEMPLATE.md §3`.)
+`docs/research/Scoring_Redesign.md`, `DECISION_TEMPLATE.md §3`.)
 
 | arm | role | top band | pass criterion (grader) |
 |---|---|---|---|

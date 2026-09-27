@@ -96,3 +96,12 @@ benchmark.json
 # .superpowers/sdd/.gitignore already self-ignores; this pins intent at root.
 .superpowers/
 docs/superpowers/
+
+# Private notes: prep for conversations, answers being drafted for a
+# collaborator, anything not meant to live in the shared repo. Keep them in
+# docs/private/, or name them *.private.md / *for_andrew*.md / FOR_*.md
+# anywhere and they stay local.
+docs/private/
+*.private.md
+*[Ff]or_[Aa]ndrew*.md
+**/FOR_*.md

@@ -11,7 +11,7 @@ credential a machine running this harness is guaranteed to have: the subject
 itself needs it. No SDK import, so `lab_card.py`'s rule (no `anthropic` import
 near a grader) cannot be tripped by accident.
 
-Rules from docs/LLM_Judge_Research.md, enforced here rather than trusted to
+Rules from docs/research/LLM_Judge_Research.md, enforced here rather than trusted to
 callers:
 
   * k samples and a majority, with `unknown` when there is none. Temperature 0

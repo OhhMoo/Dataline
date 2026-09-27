@@ -1,4 +1,4 @@
-"""The headline block in the run report (docs/Scoring_Redesign.md).
+"""The headline block in the run report (docs/research/Scoring_Redesign.md).
 
     python -m pytest test_matrix_report.py -q
 

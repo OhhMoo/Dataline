@@ -71,7 +71,7 @@ never 0.
                           {band, group: {n, p_one_minus_p, collapsed}}
                           over the headline pass bit
     reward_headline       ALWAYS null. The declared training scalar is
-                          never a headline (docs/Scoring_Redesign.md:
+                          never a headline (docs/research/Scoring_Redesign.md:
                           the headline is pass / mean score; band, progress
                           and penalties ride beside it "for provenance").
                           The key exists so a reader looking for one finds

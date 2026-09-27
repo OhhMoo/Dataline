@@ -17,7 +17,7 @@ Nearest neighbours, and why they are not that check:
 - `tasks/GT004-doubling-window/tests/probes/idempotency.py` is that contract, wired as G2. It is a re-run on the patched copy, not a from-raw rebuild.
 - `tasks/GT003-tuesday-figure/tests/grade.py` D6 executes the agent's rebuild script on a copy to test a half-published mart. It does not digest a from-raw rebuild against the leftover table.
 
-`docs/LLM_Judge_Research.md` (memo, §3 Borrow and §9 step 2) names clean-state re-materialisation and second-seed grading as borrowings. No `grade.py` implements either.
+`docs/research/LLM_Judge_Research.md` (memo, §3 Borrow and §9 step 2) names clean-state re-materialisation and second-seed grading as borrowings. No `grade.py` implements either.
 
 ## 1. Does any official grader rebuild from raw and diff?
 

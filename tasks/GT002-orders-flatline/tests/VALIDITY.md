@@ -15,7 +15,7 @@ below was MEASURED on that date at seed 2029 against worlds built by
 ## 1. Arms
 
 (axes retired 2026-09-19; the pass axis / gate columns are gone. Pass = the
-outcome class is in the top band, `docs/Scoring_Redesign.md`.)
+outcome class is in the top band, `docs/research/Scoring_Redesign.md`.)
 
 | arm | role | top band | max | pass criterion (grader) |
 |---|---|---|---|---|

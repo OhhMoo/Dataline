@@ -283,7 +283,7 @@ platform_prefix  = ".platform/"
 grading_prefixes = ["tests/", "grading/", "var/ledger/"]
 
 # ---------------------------------------------------------------------------
-# Scoring matrix (control arm; docs/Scoring_Redesign.md). The checks added
+# Scoring matrix (control arm; docs/research/Scoring_Redesign.md). The checks added
 # by the reform (H1, P1, E1) are penalty-only or zero-point and are not in
 # this arm's pass criterion. DURABLE stays per-task in D7.
 # ---------------------------------------------------------------------------

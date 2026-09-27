@@ -8,7 +8,7 @@ owns the measurements.
 
 ## 1. The two arms
 
-(axes retired 2026-09-19; pass = outcome class in the top band, `docs/Scoring_Redesign.md`.)
+(axes retired 2026-09-19; pass = outcome class in the top band, `docs/research/Scoring_Redesign.md`.)
 
 | arm | role | world | top band |
 |---|---|---|---|

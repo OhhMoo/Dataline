@@ -2,7 +2,7 @@
 
     python -m pytest test_reward.py -q
 
-The cases are the ordering invariants docs/Scoring_Redesign.md §3 names
+The cases are the ordering invariants docs/research/Scoring_Redesign.md §3 names
 (CoRPO: a failing episode never out-rewards a passing one; ABC: doing nothing
 is 0 and damage is below it), plus the role asymmetry on
 withheld_with_evidence and the exclusions that keep a trainer from seeing a

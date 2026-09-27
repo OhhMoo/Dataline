@@ -180,7 +180,7 @@ Before any arm may report a number, `validity.py` has to exit 0 on it:
 
 Full account with provenance — what is taken from APEX-Agents, Terminal-Bench,
 SWE-bench Verified, RE-Bench, and what the lab-side sources ask for —
-in `docs/Scoring_Redesign.md`.
+in `docs/research/Scoring_Redesign.md`.
 
 ## Tasks
 

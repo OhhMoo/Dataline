@@ -468,7 +468,7 @@ placeholders = [
 ]
 
 # ---------------------------------------------------------------------------
-# THE SCORING MATRIX (docs/Scoring_Redesign.md). Pass@1 as a single AND
+# THE SCORING MATRIX (docs/research/Scoring_Redesign.md). Pass@1 as a single AND
 # over the final world state prints three different stories as the same 0.0;
 # the outcome class below says which story. The one mechanism is an assertion
 # that sits in source control and never runs. The new checks (D1, H1) are on
@@ -502,7 +502,7 @@ withheld_with_evidence = ["L1", "D1"]
 acted                  = ["C1", "L1"]
 
 # PROGRESS inside the partial classes (tasks/harness/progress.py; template §9;
-# docs/Scoring_Redesign.md). PRODUCT quantities only, each one grader
+# docs/research/Scoring_Redesign.md). PRODUCT quantities only, each one grader
 # check's `detail[field]`. Never a count of checks passed.
 #   days_repaired   C1.detail.scored_days_correct - damaged-window days whose
 #                   rows are exactly the reference's (0..73: the reference
