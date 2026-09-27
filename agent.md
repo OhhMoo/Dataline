@@ -1480,7 +1480,7 @@ alkera/
 │   │   ├── executor.py  faults.py                what a job run actually does, and how it breaks
 │   │   ├── ledger.py                             LAYER 4: protected receipts of what the world published (P5)
 │   │   ├── native_workspace.py                   .envrc / profiles.yml / onboarding.md for native mode
-│   │   └── warehouse_seed.py  vclock.py  airflow_bridge.py  airflow_logs.py
+│   │   └── warehouse_seed.py   (vclock.py, airflow_bridge.py, airflow_logs.py archived under _archive/world/world/)
 │   ├── README.md               the guide, incl. the publication-ledger contract (#publication-ledger)
 │   ├── docker/  scripts/acceptance.sh  evidence/acceptance.json
 │   └── tests/                  166 + 81 subtests
@@ -1516,7 +1516,7 @@ alkera/
 │   └── GT004a-e, GT006c-d      the ablation and 2x2 arms (context-only variants)
 │
 ├── implementation_structure/   the research record: archetypes, sources, failure rulings, TASK_DESIGN_2026-09-15.md
-├── verifier/                   append-only acceptance history
+├── _archive/verifier/          archived: the 2026-09-08 assessment acceptance checklist (nothing reads it)
 └── var/                        gitignored scratch (reconcile logs, campaign output)
 ```
 
@@ -1574,9 +1574,9 @@ Ordered by what a second task would force us to confront, not by effort.
    caught the only defect no other suite could see.
 4. **CI that runs the four suites plus `acceptance.sh`.** The baselines are declared CI in
    §9.1 rule 7 and are not actually wired to anything. A rule nothing enforces is a comment.
-5. **Fold `verifier/` into `implementation_structure/`.** It is an append-only verification
-   record — the same species as `rounds/` — and sits at the root only for historical reasons.
-   Low value, do it when touching that tree anyway.
+5. **Done: `verifier/` archived to `_archive/verifier/`.** It was an append-only verification
+   record — the same species as `rounds/` — and sat at the root only for historical reasons.
+   Nothing in the repo read it.
 
 ### 10.5 Structural gaps
 
@@ -1786,4 +1786,4 @@ numbers carry that caveat until then. Reviewer's reading order:
 
 *Sources: `de-agent-benchmark-assessment.md`, `copy-list-from-existing-sources.md`
 (neither currently present in this repo — see §6.6), team meeting 2026-09-09.
-Verification history: `verifier/`.*
+Verification history: `_archive/verifier/`.*

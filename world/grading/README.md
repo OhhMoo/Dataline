@@ -1,17 +1,16 @@
-# /grading — post-episode grading zone (owned by Track C)
+# world/grading — the grading zone's mount point
 
-This directory is mounted read-only into the `grading` container, which has
-no network and never runs during the episode (agent.md §9.1 rule 1, §9.2.1).
+`world/docker/docker-compose.yml` bind-mounts this directory read-only at `/grading` in
+the `grading` service (profile `grading`, `network_mode: none`, post-episode only). This
+README is the only tracked file; it keeps the directory in git so the bind mount has a
+source. No code reads it.
 
-Track C fills it per §2.3/§2.4:
+The zone exists so `scripts/acceptance.sh` gate 7 can prove `/grading` is unreachable:
+absent from the episode and harness containers while the episode runs, and, once the
+grading container is up, still absent from the episode and its hostname unresolvable.
 
-- `grade.py`       — in: final world (ro), this dir, action-log path, agent's
-                     final artifact; out: `score.json`
-- `expected/`      — expected.duckdb and friends (reference state)
-- `manifest.yaml`  — planted defects, for per-cause credit
-- `solution.sh`    — oracle (sage baseline must score 100%)
-
-Track A's only obligations to this zone: the world volume restores
-byte-identically from a snapshot, and `world.fingerprint` gives the grader a
-stable semantic identity for the world it is scoring. (This directory ships
-with the world-factory repo — see `world/`.)
+Real grading does not happen here. Each task's grader, reference state and manifest live
+in `tasks/<task>/tests/` (`grade.py`, `manifest.yaml`, expected warehouses); the harness
+stages a per-rollout grading directory outside the world root
+(`tasks/harness/episode.py:build_world`, `tasks/harness/ledger.py:stage`) and never mounts
+it into the episode container.

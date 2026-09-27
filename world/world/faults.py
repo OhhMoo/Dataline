@@ -146,7 +146,7 @@ decision about which nights were late, read by every plane the builder seeds.
 - **Measured timeouts.** A timeout derived from real elapsed time is the single
   most host-dependent number available; `timeout_s` is declared.
 - **A historical gap that never healed.** See "Not carried" above: it needs
-  `build.py` to fault the landing zone. Named in R003/FAULTS.md, not pretended
+  `build.py` to fault the landing zone. Named in structure/rounds/R003/FAULTS.md, not pretended
   away.
 """
 import random

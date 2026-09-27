@@ -43,7 +43,7 @@ class WorldTest(unittest.TestCase):
 
         revenue_daily has no connector control plane, so there is no `ingest`
         section; it does seed a live-world control plane (R003) and an
-        observability store (R003 FAULTS, per OBS_STORE_CONTRACT.md), so there
+        observability store (R003 FAULTS; contract in gateway/SURFACES.md), so there
         are `live` and `obs` ones. R004 WORKFLOW seeds the human-context
         surface (issues/chat/kb), so there is a `workflow` one. A theme that
         seeds none keeps the original four.

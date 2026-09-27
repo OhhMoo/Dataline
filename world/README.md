@@ -9,7 +9,7 @@ reached during an episode.
 
 ```
 world/            the package (python -m world.build --seed S --root R)
-  build.py gen.py themes/     seed -> world; four themes; opt-in seed flags `warehouses:`, `native:`, `faults:`
+  build.py themes/<name>/     seed -> world; four themes (each with its gen.py); opt-in seed flags `warehouses:`, `native:`, `faults:`
   fingerprint.py hashing.py   the semantic hash every determinism claim rests on; the canonicalisation spec
   scheduler.py executor.py    virtual clock + the job runner (what a scheduled run really does)
   gateway_scheduler.py        the executing scheduler, shaped to the gateway's Scheduler protocol (injection only)
@@ -18,9 +18,10 @@ world/            the package (python -m world.build --seed S --root R)
   ledger.py                   protected receipts of what the world published (grading layer 4; below)
   workflow.py                 the seeded ticket / chat / wiki documents
   native_workspace.py         .envrc / profiles.yml / onboarding.md for native mode
-  warehouse_seed.py vclock.py airflow_bridge.py   set-based Postgres/DuckDB seeding; Airflow under the clock
+  warehouse_seed.py           set-based Postgres/DuckDB seeding for the `warehouses:` flag
   bi.py snapshot.py           dashboards = YAML of SQL panels; deterministic tar save/restore
 docker/           episode image, 3-zone compose, egress gate
+grading/          bind-mount source for the compose `grading` zone (see its README)
 scripts/acceptance.sh   the 7-gate determinism battery -> evidence/acceptance.json
 tests/            unittest + pytest (run with gateway/.venv's interpreter)
 ```
@@ -119,7 +120,7 @@ fingerprinted, unreachable.
 **The fault layer stages contention; it never races.** Two overlapping runs are two
 overlapping *recorded windows* over strictly sequential execution — on DuckDB appends
 never conflict, so we build the evidence of a race, never the race
-(`implementation_structure/rounds/R003/FAULTS.md`). Arrival faults do not reach the seeded
+(`structure/rounds/R003/FAULTS.md`). Arrival faults do not reach the seeded
 backstory. Worlds built outside `world.build` (GT001–GT003 fixtures) have no `live.json`:
 `trigger` reports `unsupported`, `advance` moves the clock only — loudly, in the record.
 
@@ -128,7 +129,7 @@ backstory. Worlds built outside `world.build` (GT001–GT003 fixtures) have no `
 `var/obs/definitions.yaml` (seeded verbatim from `themes/<name>/obs/`) declares metrics
 and alarms; `build`, `advance` and `trigger` append one sample per metric to
 `var/obs/samples.jsonl` — written here, read by the gateway
-(`gateway/SURFACES.md#observability`; row shape frozen in `OBS_STORE_CONTRACT.md`). `null`
+(`gateway/SURFACES.md#observability`; row shape frozen in its "The sample store" section). `null`
 means insufficient data and is never `0.0`. No fault-specific metric exists: a late
 partition is freshness climbing, a timeout an error rate stepping off zero. Samples are
 appended in measurement order (job start), not strictly by `vts`; sort if you need clock
@@ -197,9 +198,9 @@ only). Boot restores `/snapshot/world.tar` if mounted, else builds from `$WORLD_
    post-episode with `NetworkMode: none`, hostname unresolvable from the episode.
 
 ```bash
-python -m venv .venv && .venv/Scripts/pip install -r requirements.lock
+python -m venv .venv && .venv/bin/pip install -r requirements.lock   # .venv/Scripts/ on Windows
 bash scripts/acceptance.sh
-.venv/Scripts/python -m unittest discover -s tests
+(cd .. && gateway/.venv/bin/python -m pytest -q world/tests)       # from the repo root, as the baseline sweep runs it
 ```
 
 ## Publication ledger
@@ -284,5 +285,7 @@ never writes records `ABSENT` every time, loudly.
 
 ## Deliberate limits
 
-No Airflow fidelity, no vendor BI, no Snowflake fidelity beyond the connector route.
+No Airflow fidelity, no vendor BI, no Snowflake fidelity beyond the connector route. An
+unwired headless-Airflow prototype (`vclock.py`, `airflow_bridge.py`, `airflow_logs.py`;
+nothing imported it and Airflow is not installed) is archived under `_archive/world/world/`.
 Cross-host equality is proven per run by gate 3; a second host adds a second data point.
