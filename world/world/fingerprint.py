@@ -82,7 +82,7 @@ def semantic(root: Path) -> dict:
                        ("live", root / "var" / "world" / "live.json")):
         if path.is_file():
             sections[name] = json_hash(json.loads(path.read_text(encoding="utf-8")))
-    #   obs — the observability store (OBS_STORE_CONTRACT.md): the metric and
+    #   obs — the observability store (gateway/SURFACES.md): the metric and
     #         alarm definitions a theme seeds, AND samples.jsonl, the record of
     #         what those metrics read as the world moved. Both are world state.
     #         OPS-SURFACE's patch shape hashed the parsed definitions YAML; this
@@ -137,7 +137,7 @@ def semantic(root: Path) -> dict:
     #         covered by world/warehouse_seed.logical_hash, which produces this
     #         same canonical shape from a live server, and the gateway already
     #         refuses to boot such a world without an explicit initial_world_fp
-    #         (gateway/src/alkera_gateway/config.py:75-76).
+    #         (GatewayConfig in gateway/src/alkera_gateway/config.py).
     extra = sorted(
         path for path in (root / "var" / "warehouse").glob("*.duckdb")
         if path.name != DB.name

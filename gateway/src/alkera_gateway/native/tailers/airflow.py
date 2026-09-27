@@ -2,7 +2,7 @@
 
 WHY THE ACCESS LOG AND NOT THE AIRFLOW DB
 -----------------------------------------
-`world/world/airflow_bridge.py` is explicit that the Airflow metadata DB is a
+`_archive/world/world/airflow_bridge.py` (archived, never wired) is explicit that the Airflow metadata DB is a
 derived catalogue: it can be rebuilt from the ledger and is not hashed by the
 fingerprint. Reading rows out of it would therefore audit the world's own state,
 not the agent's actions, and it would miss every call that read something or

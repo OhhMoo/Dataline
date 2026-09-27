@@ -1,4 +1,4 @@
-"""The observability *writer*: /var/obs/samples.jsonl (OBS_STORE_CONTRACT.md).
+"""The observability *writer*: /var/obs/samples.jsonl (gateway/SURFACES.md, "The sample store").
 
 OPS-SURFACE shipped a metrics surface that computes what *is*. The moment
 `advance` runs, the state that produced yesterday's reading is gone and the
@@ -42,8 +42,8 @@ import yaml
 
 OBS = Path("var") / "obs"
 SAMPLES = OBS / "samples.jsonl"
-# OBS_STORE_CONTRACT.md names definitions.yaml; gateway/SURFACES.md#observability
-# named observability.yml first. Read either, prefer the frozen seam's name.
+# The frozen store contract (now in gateway/SURFACES.md#observability) names
+# definitions.yaml; that doc named observability.yml first. Read either, prefer the frozen seam's name.
 DEFINITION_NAMES = ("definitions.yaml", "observability.yml", "observability.yaml")
 
 KINDS = ("freshness", "row_count", "null_rate", "job_duration",

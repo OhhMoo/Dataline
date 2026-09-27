@@ -324,7 +324,7 @@ def build(seed_path: Path, root: Path, lock_path: Path | None = None) -> Path:
         write_workflow(root, seed, theme.manifest)
     for f in sorted((theme.dir / "bi").glob("*.yml")):
         shutil.copyfile(f, root / "var" / "bi" / "dashboards" / f.name)
-    # The observability store (OBS_STORE_CONTRACT.md). Definitions are world
+    # The observability store (gateway/SURFACES.md). Definitions are world
     # state a theme seeds; the first sample is the reading the world held at
     # build time, which nothing can re-derive once advance has moved it on.
     _seed_observability(root, theme)
