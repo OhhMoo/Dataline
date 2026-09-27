@@ -54,6 +54,14 @@ def _public(record: dict, *drop: str) -> dict:
     return {key: value for key, value in record.items() if key != AUTHOR_SIDE and key not in drop}
 
 
+def _message_text(record: dict) -> str:
+    """A chat message's text. The corpus says `text`; GT005's chat was authored
+    with `body` (the issue-comment spelling), which the world build does not
+    check, and reading only `text` failed every history and search over it."""
+    text = record.get("text")
+    return record.get("body", "") if text is None else text
+
+
 def _mentions(text: str) -> list[str]:
     seen = []
     for name in MENTION.findall(text):
@@ -315,11 +323,12 @@ class Chat(_JsonStore):
     def render(record: dict) -> dict:
         return {
             **_public(record),
+            "text": _message_text(record),
             "reactions": dict(record.get("reactions", {})),
             "thread_id": record.get("thread_id"),
             # Derived, not stored: the same rule applies to a message the agent
             # posts a moment ago and one seeded three weeks back.
-            "mentions": _mentions(record["text"]),
+            "mentions": _mentions(_message_text(record)),
         }
 
     def roots(self, channel: dict) -> list[dict]:
@@ -395,7 +404,7 @@ class Chat(_JsonStore):
         matches = []
         for channel in channels:
             for record in channel.get("messages", []):
-                if query.casefold() in record["text"].casefold():
+                if query.casefold() in _message_text(record).casefold():
                     matches.append({"channel": channel["id"], **self.render(record)})
                     if len(matches) == limit:
                         return {"matches": matches, "limit_reached": True}

@@ -1639,6 +1639,10 @@ class NativeContainerEpisode:
         path_value = f"{SHIMS_IN_CONTAINER}:{image_path(self.image)}"
         variant = "".join(f'\n      {name}: "{value}"'
                           for name, value in sorted(self.variant_env().items()))
+        # The shim watches the same files it cannot see through the workspace
+        # snapshot, so a `dbt build` that rewrites a warehouse names it
+        # (shims/run.py ALKERA_SHIM_WATCH; blindness.UNSCOPED_WAREHOUSE_SHIMS).
+        watch = ":".join(f"{WORLD_IN_CONTAINER}/{rel}" for rel in self.warehouses)
         binds = "\n".join(
             f'      - "{(self.world_root / rel).as_posix()}:'
             f'{WORLD_IN_CONTAINER}/{rel}"'
@@ -1676,6 +1680,7 @@ services:
     environment:
       PATH: "{path_value}"
       ALKERA_SHIM_BIN: "{SHIMS_IN_CONTAINER}"
+      ALKERA_SHIM_WATCH: "{watch}"
       ALKERA_SHIM_WORKSPACE: "{WORKSPACE_IN_CONTAINER}"
       ALKERA_WORKSPACE: "{WORKSPACE_IN_CONTAINER}"{variant}
     volumes:

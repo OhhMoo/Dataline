@@ -11,6 +11,23 @@ from .warehouses import create_registry
 from .workflow import Chat, IssueTracker, KnowledgeBase
 
 
+def named(value, fallback: dict) -> dict:
+    """`{key, name}` from a workflow vocabulary header - the tracker's `project`,
+    the wiki's `space`, the chat `workspace` - which a theme may declare as a
+    mapping or as the bare key (GT002 says `project: DATA` and `space: de`;
+    GT001 says `workspace: {id, name}`). The same rule as `_named` in
+    world/world/native_workspace.py, plus `id`, so the page the agent reads
+    first and the services it then calls name the same thing. `fallback` only
+    when the world declares nothing."""
+    if isinstance(value, dict):
+        key = str(value.get("key") or value.get("id") or value.get("name") or "")
+        if key:
+            return {"key": key, "name": str(value.get("name") or key)}
+    elif value:
+        return {"key": str(value), "name": str(value)}
+    return dict(fallback)
+
+
 class Operations:
     def __init__(self, config, clock, scheduler=None):
         self.config = config
@@ -270,8 +287,7 @@ class Operations:
     def issues_list(self, status, assignee, label, limit, observation):
         observation.read_targets = observation.targets = ["issues"]
         listing = self.issues.list_issues(status, assignee, label, limit)
-        project = self.issues.load().get("project") or {}
-        return {**listing, "project": project if "key" in project else dict(self.PROJECT)}
+        return {**listing, "project": named(self.issues.load().get("project"), self.PROJECT)}
 
     def issues_get(self, issue, observation):
         observation.read_targets = observation.targets = [f"issue:{issue}"]
@@ -301,7 +317,10 @@ class Operations:
     def chat_channels(self, observation):
         observation.read_targets = observation.targets = ["chat"]
         listing = self.chat.list_channels()
-        return {**listing, "workspace": self.chat.load().get("workspace") or self.WORKSPACE}
+        # Served as one string (Slack's `team`), the name a person would read.
+        workspace = named(self.chat.load().get("workspace"),
+                          {"key": self.WORKSPACE, "name": self.WORKSPACE})
+        return {**listing, "workspace": workspace["name"]}
 
     def chat_history(self, channel, limit, before, observation):
         observation.read_targets = observation.targets = [f"chat:{channel}"]

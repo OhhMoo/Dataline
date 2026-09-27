@@ -847,8 +847,16 @@ def detect(*, transcript: list[dict], driver: str, gateway_tools: list[str],
                     f"at all, so nothing the subject was given could have made "
                     f"them"))
 
-        for rel in _unattributed(world_before, world_after, action_rows,
-                                 world_layout, container_paths):
+        via_unscoped: list[str] = []
+        unexplained = _unattributed(world_before, world_after, action_rows,
+                                    world_layout, container_paths, via_unscoped)
+        if via_unscoped:
+            v.append(Violation(
+                "warehouse_via_unscoped_shim", False, "world_diff",
+                f"{via_unscoped} changed; attributed to audited dbt/python shim "
+                f"rows recorded before the shim watched the warehouse, which "
+                f"could not name the file they wrote"))
+        for rel in unexplained:
             if driver == "native" and in_tree(rel):
                 # No `workspace.edit` row: rollout.py's post-episode bookkeeping
                 # did not run or could not. Recorded, not quarantined - the
@@ -913,6 +921,26 @@ SCHEDULER_TOOLS = frozenset({"sched_trigger"})
 #: the statement named (NATIVE.md, amendment 2026-09-16), and the
 #: generic shim writes `shim.<binary>` with the files the binary changed.
 WAREHOUSE_SHIMS = frozenset({"duckdb.statement", "shim.dbt", "shim.python"})
+#: The generic shims that can write a warehouse without naming it. Until
+#: 2026-09-27 `shims/run.py` snapshotted only the WORKSPACE, so a `dbt build`
+#: or a `python` script that rewrote `/world/var/warehouse/*.duckdb` wrote a row
+#: with no target that could speak for the file, and the episode quarantined
+#: HARD on `warehouse.duckdb changed but no gateway call targets it`. Measured
+#: on run opus-decision-k8-20260926T080818Z: 5 of 16 GT005/GT006 episodes,
+#: every one of them a `dbt run`/`dbt build` or an audited `python` - the
+#: episodes that did the repair the intended way, removed from pass@1.
+#: A row from the fixed shim carries `result.watched` (the files it could see);
+#: only a row WITHOUT it is "unscoped", and only such a row may explain a
+#: DECLARED warehouse file it could not have named. The explanation is recorded
+#: as a soft `warehouse_via_unscoped_shim`, never silently.
+UNSCOPED_WAREHOUSE_SHIMS = frozenset({"shim.dbt", "shim.python"})
+
+
+def unscoped_shim_rows(rows: list[dict]) -> list[dict]:
+    """Audited dbt/python rows whose shim could not see the warehouse."""
+    return [r for r in rows
+            if r.get("tool") in UNSCOPED_WAREHOUSE_SHIMS
+            and "watched" not in (r.get("result") if isinstance(r.get("result"), dict) else {})]
 
 
 def row_tools(rows: list[dict]) -> set[str]:
@@ -1019,7 +1047,12 @@ def container_path_map(layout: dict, world_in_container: str = "/world",
 
 
 def _unattributed(before: dict, after: dict, rows: list[dict],
-                  layout: dict, container_paths: dict | None = None) -> list[str]:
+                  layout: dict, container_paths: dict | None = None,
+                  via_unscoped: list | None = None) -> list[str]:
+    """Changed world files no row explains. `via_unscoped`, when given, is
+    filled with the declared warehouse files that ONLY an unscoped dbt/python
+    shim row explained (see UNSCOPED_WAREHOUSE_SHIMS), so the caller can record
+    them as a soft signal instead of losing them."""
     changed = [k for k in set(before) | set(after) if before.get(k) != after.get(k)]
     if not changed:
         return []
@@ -1073,6 +1106,7 @@ def _unattributed(before: dict, after: dict, rows: list[dict],
         for warehouse in _warehouses_named(row, rel, warehouses, workspace):
             ok_prefixes |= {f"{warehouse}{suffix}"
                             for suffix in ("", ".wal", ".tmp")}
+    unscoped_plane = warehouse_plane if unscoped_shim_rows(rows) else set()
     if named & SCHEDULER_TOOLS:
         # the scheduler's DIRECTORY, not just its state file. A triggered run
         # writes `var/sched/logs/run-000364.json` beside the state, and with only
@@ -1165,6 +1199,10 @@ def _unattributed(before: dict, after: dict, rows: list[dict],
     out = []
     for c in sorted(changed):
         if any(c == p or c.startswith(p.rstrip("/") + "/") for p in ok_prefixes):
+            continue
+        if c in unscoped_plane:
+            if via_unscoped is not None:
+                via_unscoped.append(c)
             continue
         out.append(c)
     return out

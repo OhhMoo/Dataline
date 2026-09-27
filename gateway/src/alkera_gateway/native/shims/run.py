@@ -25,6 +25,18 @@ ALKERA_SHIM_WORKSPACE  the tree to diff; else ALKERA_WORKSPACE; else the cwd.
 ALKERA_SHIM_BIN        the shim bin directory, removed from PATH when looking
                        for the real binary - without it the shim finds itself.
 ALKERA_SHIM_MAX_FILES  snapshot ceiling, above which the scan is refused.
+ALKERA_SHIM_WATCH      extra FILES outside the workspace to watch, os.pathsep-
+                       separated: the warehouse files. A `dbt build` or a python
+                       script that rewrote `/world/var/warehouse/warehouse.duckdb`
+                       used to leave a row naming nothing, because only the
+                       workspace was snapshotted, and blindness quarantined the
+                       episode (2026-09-26, 5 of 16 GT005/GT006 rollouts). Each
+                       watched path is compared by (size, mtime_ns) plus its
+                       `.wal` sidecar - no hashing of a large database per call -
+                       and a changed one is added to `targets` verbatim (an
+                       absolute container path; blindness maps it). The row's
+                       `result.watched` lists what was watched, which is how
+                       blindness tells a scoped row from one written before this.
 plus the ALKERA_NATIVE_AUDIT / ALKERA_AUDIT_DIR / ALKERA_VTS that `audit.record`
 reads.
 """
@@ -104,6 +116,32 @@ def real_binary(name: str) -> str | None:
     return shutil.which(name, path=os.pathsep.join(entries))
 
 
+def watched_paths() -> list[str]:
+    raw = os.environ.get("ALKERA_SHIM_WATCH") or ""
+    return [p for p in raw.split(os.pathsep) if p]
+
+
+def watch_signature(paths: list[str]) -> dict[str, tuple]:
+    """(size, mtime_ns) for each watched file and its `.wal`; absent -> None."""
+    out: dict[str, tuple] = {}
+    for path in paths:
+        for candidate in (path, f"{path}.wal"):
+            try:
+                st = os.stat(candidate)
+                out[candidate] = (st.st_size, st.st_mtime_ns)
+            except OSError:
+                out[candidate] = None
+    return out
+
+
+def watched_changes(before: dict, after: dict) -> list[str]:
+    """Watched files whose signature moved, reported by the file itself (a
+    changed `.wal` is reported as its database: that is the file written)."""
+    moved = {k[:-4] if k.endswith(".wal") else k
+             for k in set(before) | set(after) if before.get(k) != after.get(k)}
+    return sorted(moved)
+
+
 def main(argv: list[str] | None = None) -> int:
     arguments = list(sys.argv[1:] if argv is None else argv)
     if not arguments:
@@ -139,11 +177,14 @@ def main(argv: list[str] | None = None) -> int:
         print(f"{name}: not found", file=sys.stderr)
         return 127
 
+    watch = watched_paths()
     before = snapshot(root, max_files)
+    watch_before = watch_signature(watch)
     started = time.monotonic()
     completed = subprocess.run([executable, *rest])
     latency_ms = (time.monotonic() - started) * 1000
     after = snapshot(root, max_files) if before is not None else None
+    watched_moved = watched_changes(watch_before, watch_signature(watch))
 
     flags: list[str] = []
     if before is None or after is None:
@@ -151,6 +192,7 @@ def main(argv: list[str] | None = None) -> int:
         flags.append("workspace_unscanned")
     else:
         targets = changed(before, after)
+    targets = targets + [p for p in watched_moved if p not in targets]
     failed = completed.returncode != 0
     record(
         tool=f"shim.{name}",
@@ -161,7 +203,8 @@ def main(argv: list[str] | None = None) -> int:
         error={"code": "command_failed",
                "message": f"{name} exited {completed.returncode}"} if failed else None,
         latency_ms=latency_ms,
-        result={"returncode": completed.returncode, "changed": targets},
+        result={"returncode": completed.returncode, "changed": targets,
+                "watched": watch},
         flags=flags,
         actor=ACTOR,
     )

@@ -37,6 +37,7 @@ from datetime import UTC, datetime
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
+from ...operations import named
 from ...records import ToolError
 from ..context import DEV_TOKEN, Ledger, Span, service_health
 
@@ -154,9 +155,14 @@ def wants_body(want: set[str]) -> bool:
 
 
 def unpack(listing: dict) -> tuple[dict, dict]:
-    """One `kb_list` result -> the pages by id and the space header."""
+    """One `kb_list` result -> the pages by id and the space header.
+
+    The header goes through `operations.named` because a theme may declare the
+    space as the bare key (GT002: `space: de`), and indexing a string by `key`
+    took down every page read in that world.
+    """
     return ({page["id"]: page for page in listing["pages"]},
-            listing.get("space") or {"key": "KB", "name": "Knowledge base"})
+            named(listing.get("space"), {"key": "KB", "name": "Knowledge base"}))
 
 
 def index(row: Span) -> tuple[dict, dict]:

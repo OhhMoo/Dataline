@@ -361,7 +361,8 @@ def test_confluence_client_reads_the_wiki_the_kb_tools_serve(confluence_client):
     assert {page["title"] for page in pages} >= {"Runbook: nightly orders load"}
 
     by_title = confluence_client.get_page_by_title("DE", "Runbook: nightly orders load")
-    assert by_title["results"][0]["id"] == RUNBOOK_ID
+    # atlassian-python-api returns the first match, not the `results` envelope.
+    assert by_title["id"] == RUNBOOK_ID
 
     page = confluence_client.get_page_by_id(RUNBOOK_ID, expand="body.storage")
     assert page["version"]["number"] >= 1
@@ -370,7 +371,9 @@ def test_confluence_client_reads_the_wiki_the_kb_tools_serve(confluence_client):
     # so it has to survive the translation.
     assert page["version"]["when"].startswith("2025-11-04")
 
-    found = confluence_client.search_content('text ~ "backfill"')
+    # atlassian-python-api 4.x dropped `search_content`; ask the endpoint it used.
+    found = confluence_client.get("rest/api/content/search",
+                                  params={"cql": 'text ~ "backfill"'})
     assert found["totalSize"] >= 1
     assert all(result["type"] == "page" for result in found["results"])
 

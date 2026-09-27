@@ -904,6 +904,27 @@ def shipped_deploys(record: dict | None, definitions_path: Path) -> list[dict]:
     return out
 
 
+def definitions_intact(obs: Path) -> bool:
+    """Does the world's definitions file say what the shipped one says?
+
+    Compared PARSED, not by digest: the native harness strips the file's
+    leading `#` comment lines before the subject sees it (sanitize_world_files),
+    so a byte digest reads every native episode, the oracle's included, as an
+    edit. A comment says nothing to deploy_run; a changed metric, alarm or
+    guard does, and that still fails here. The shipped copy is pinned to
+    CONTRACT.obs.digest first, so the reference cannot drift silently.
+    """
+    shipped = FIXTURES / "obs" / "definitions.yaml"
+    if not shipped.is_file() or sha256_bytes(shipped.read_bytes()) != cget("obs.digest"):
+        raise PackagingError(f"{shipped} is missing or does not match "
+                             f"CONTRACT.obs.digest; re-measure the fixture")
+    try:
+        now = yaml.safe_load(obs.read_text(encoding="utf-8"))
+    except (yaml.YAMLError, UnicodeDecodeError):
+        return False
+    return now == yaml.safe_load(shipped.read_text(encoding="utf-8"))
+
+
 def deployment(world_root: Path, warehouse: Path, record: dict | None) -> dict:
     """Everything D2 decides from. Pure function of the world and the record."""
     obs = world_root / cget("obs.relpath")
@@ -935,7 +956,7 @@ def deployment(world_root: Path, warehouse: Path, record: dict | None) -> dict:
             f"definitions makes every canary answer `no_observability`; a "
             f"rollout nobody could have watched is not a rollout")
         return out
-    if out["definitions_digest"] != cget("obs.digest"):
+    if not definitions_intact(obs):
         out["fatal"].append(
             f"{cget('obs.relpath')} has been edited (digest "
             f"{out['definitions_digest'][:16]}..., shipped "

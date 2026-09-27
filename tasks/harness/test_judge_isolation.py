@@ -13,7 +13,8 @@ from pathlib import Path
 import pytest
 
 _HARNESS = Path(__file__).resolve().parent
-_FORBIDDEN = ("harness.judge", "clarity_gate", "exploit_agent", "exploit_loop")
+_FORBIDDEN = ("harness.judge", "clarity_gate", "exploit_agent", "exploit_loop",
+              "grader_audit", "model_client", "shadow_judge")
 
 
 def _ensure_harness_on_path() -> None:
@@ -56,6 +57,20 @@ def test_clarity_gate_consensus_never_accepts():
     assert consensus(["hold", "reject"]) == "reject"
     assert consensus(["hold"]) != "accept"
 
+
+
+def test_no_grader_imports_a_judge_tool():
+    """No tests/grade.py may import the judge package, the model client or the
+    shadow judge: a verdict from any of them must never reach a score."""
+    tasks = _HARNESS.parent
+    offenders = []
+    for grade in sorted(tasks.glob("*/tests/grade.py")):
+        text = grade.read_text(encoding="utf-8")
+        for needle in ("model_client", "grader_audit", "shadow_judge",
+                       "clarity_gate", "import anthropic", "from anthropic"):
+            if needle in text:
+                offenders.append(f"{grade.relative_to(tasks)}: {needle}")
+    assert not offenders, offenders
 
 if __name__ == "__main__":
     own = (

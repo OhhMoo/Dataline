@@ -266,16 +266,24 @@ def issue_resource(base: str, full: dict, project: dict, users: dict) -> dict:
             "updated": stamp(full.get("updated_at")),
             "comment": {"comments": comments, "maxResults": len(comments),
                         "total": len(comments), "startAt": 0},
-            "issuelinks": [
-                {"id": numeric_id(f"{key}:{link['type']}:{link['issue']}"),
-                 "type": {"name": link["type"], "inward": link["type"],
-                          "outward": link["type"]},
-                 "outwardIssue": {"key": link["issue"],
-                                  "self": f"{base}/rest/api/3/issue/{link['issue']}"}}
-                for link in full.get("links", [])
-            ],
+            "issuelinks": [issue_link(base, key, link) for link in full.get("links", [])],
         },
     }
+
+
+def issue_link(base: str, key: str, link: dict) -> dict:
+    """One world link as a v3 `issuelinks` entry.
+
+    The corpus spells the relation both `type` (the themes, GT001, GT004,
+    GT007-GT009) and `kind` (GT002, GT003, GT005, GT006), and `world/workflow.py`
+    validates only `issue`. Reading one spelling made every issue carrying a
+    link of the other a 500, and with it every search that listed one.
+    """
+    relation = link.get("type") or link.get("kind") or "relates_to"
+    return {"id": numeric_id(f"{key}:{relation}:{link['issue']}"),
+            "type": {"name": relation, "inward": relation, "outward": relation},
+            "outwardIssue": {"key": link["issue"],
+                             "self": f"{base}/rest/api/3/issue/{link['issue']}"}}
 
 
 def unpack(listing: dict) -> tuple[dict, list[str], dict]:

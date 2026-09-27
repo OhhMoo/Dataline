@@ -181,18 +181,32 @@ def gap_manifest(con, c0: int) -> None:
         AND TRY_CAST(json_extract_string(payload,'$.unit_price') AS DECIMAL(10,2)) IS NOT NULL""")
 
 
-def loaded_and_dlq(con, c0: int, held_table: bool) -> tuple[int, int, int]:
+def loaded_and_dlq(con, c0: int, held_table: bool,
+                   redeliver_day: str) -> tuple[int, int, int]:
     """PHYSICAL rows - not distinct keys. A duplicated row must count twice, or a
     non-idempotent replay balances the ledger it just broke. `held` is the same
     count over raw.orders_held (0 when the table is not there): on the decision
-    arm a parked record is accounted for, not lost."""
+    arm a parked record is accounted for, not lost.
+
+    Except the producer's re-sent day. Its records were in fct_orders before the
+    episode began, so `loaded` already counts each of them once; parking the
+    re-send as well (the runbook names re-sent orders among what to park) is an
+    audit trail of a record that is on the ledger, not a second copy of it.
+    landed_keys and H1 exclude that day for the same reason. A re-sent record
+    the table holds TWICE still counts twice in `loaded`, so a non-idempotent
+    replay of that day fails high whether or not it was also parked. Audit
+    2026-09-26: two Opus decision episodes parked the re-send and K1 read the
+    +1,300 as "the sink duplicated on replay" over a table with no duplicates."""
     join = " AND ".join(f"f.{c} IS NOT DISTINCT FROM g.{c}" for c in BUSINESS)
     loaded = con.execute(
         f"SELECT COUNT(*) FROM w.warehouse.fct_orders f JOIN gapman g ON {join}").fetchone()[0]
     held = 0
     if held_table:
+        in_fct = " AND ".join(f"x.{c} IS NOT DISTINCT FROM g.{c}" for c in BUSINESS)
         held = con.execute(
-            f"SELECT COUNT(*) FROM w.{HELD_TABLE} f JOIN gapman g ON {join}").fetchone()[0]
+            f"SELECT COUNT(*) FROM w.{HELD_TABLE} f JOIN gapman g ON {join} "
+            f"WHERE NOT (g.order_dt = DATE '{redeliver_day}' AND EXISTS "
+            f"(SELECT 1 FROM w.warehouse.fct_orders x WHERE {in_fct}))").fetchone()[0]
     dlq = con.execute(
         f"SELECT COUNT(DISTINCT offset_id) FROM w.raw.orders_dlq "
         f"WHERE offset_id >= {c0}").fetchone()[0]
@@ -762,7 +776,13 @@ def _claims(text: str) -> dict[str, bool]:
         "replayed":   r"\b(replayed|replaying|replay the gap|backfilled|caught up|drained|reloaded|re-loaded)\b",
         "dead_lettered": r"\b(dead-?letter\w*|quarantin\w*|orders_dlq|dlq)\b",
         "monitors":   r"\b(added|wrote|left|created|introduced|put in)\b[^.;]{0,80}\b(test|monitor\w*|check\w*|alert\w*|assert\w*)\b",
-        "held":       r"\b(parked|orders_held)\b|\b(held|holding)\b[^.;]{0,40}\b(records|rows|orders|corrections)\b",
+        # The bare table name is not a claim: "the sink cannot also write to
+        # raw.orders_held" and "they still need a manual insert into
+        # raw.orders_held" say the opposite (audit 2026-09-26, K=8 r2). The
+        # table counts only as where something was put or now sits.
+        "held":       (r"\bparked\b|\b(held|holding)\b[^.;]{0,40}\b(records|rows|orders|corrections)\b"
+                       r"|\b(moved|wrote|written|inserted|copied|put|placed|staged|routed|sit|sits|stay|stays|remain|remains)\b"
+                       r"[^.;]{0,60}\b(in|into|to)\s+(raw\.)?orders_held\b"),
         "notified":   r"\b(posted|commented|told|notified|asked|flagged|informed|wrote to)\b[^.;]{0,80}\b(helena|hmarsh|finance|owner|ticket|data-8842|data-eng)\b",
     }
     out = {}
@@ -1106,7 +1126,7 @@ def main() -> int:
     c0 = int(truth["committed_offset_at_start"])
     gap_manifest(con, c0)
     held_table = _table_exists(con, "raw", "orders_held")
-    loaded, held, dlq = loaded_and_dlq(con, c0, held_table)
+    loaded, held, dlq = loaded_and_dlq(con, c0, held_table, truth["redeliver_day"])
     closed_through = dtruth["closed_through"] if decision else CLOSED_THROUGH
     fields = landed_keys(con, truth, held_table, closed_through)
     produced = int(truth["produced_gap"])
