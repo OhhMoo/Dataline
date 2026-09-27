@@ -4,7 +4,7 @@
 `research.md` and `scoring_granularity.md` (all removed the same day). The
 normative spec is `tasks/contracts/DECISION_TEMPLATE.md` §9 and
 `tasks/harness/reward.py`; where this page and the code disagree, the code
-wins. The running log of decisions is `tasks/MATRIX_RERUN_EDITS.md`.
+wins. The running log of decisions is `docs/implementation_plan/harness/MATRIX_RERUN_EDITS.md`.
 
 ---
 
@@ -88,7 +88,7 @@ telling anyone is also a mistake. Both directions cost.
 | GT008 warehouse-cutover | `default` | `decision` | avargas · retiring `legacy_nightly` before reconciliation is posted · `finance_month_end_book` platform job |
 | GT009 settlement-cutoff | `approved` | `default` · `live-consumer` | rkeane · restating a `SETTLED` day without approval + `correction_ref` · bank handoff receipts |
 
-(Source: `tasks/MATRIX_RERUN_EDITS.md` §0.12. GT009 carries two decision
+(Source: `docs/implementation_plan/harness/MATRIX_RERUN_EDITS.md` §0.12. GT009 carries two decision
 arms, which is why nine scenarios make nineteen arms.)
 
 ### 2.3 Criteria
@@ -230,7 +230,7 @@ baselines or whose progress quantities take a single value across them.
 ### 3.4 Worked examples
 
 Real episodes from the stored runs and the cheating pass
-(`tasks/MATRIX_RERUN_EDITS.md` §0.13):
+(`docs/implementation_plan/harness/MATRIX_RERUN_EDITS.md` §0.13):
 
 | episode | class | band | progress | path | reward |
 |---|---|---|---|---|---|
@@ -674,5 +674,5 @@ Repository
 - `tasks/harness/reward.py`, `outcome.py`, `progress.py`, `path.py`, `learning_signal.py`, `validity.py`, `export.py`, `report.py`
 - `tasks/harness/redteam/scripted_cheats/` — the cheating suite
 - `tasks/<GT>/tests/run_baselines.py`, `tests/baselines/<arm>.json`, `tests/VALIDITY.md`
-- `tasks/MATRIX_RERUN_EDITS.md` — the running log (§0.11–§0.13 for the harness layers, the template rollout and the Wave 3 review)
+- `docs/implementation_plan/harness/MATRIX_RERUN_EDITS.md` — the running log (§0.11–§0.13 for the harness layers, the template rollout and the Wave 3 review)
 - `docs/superpowers/plans/2026-09-18-lab-grade-eval-structure.md` — the wave plan

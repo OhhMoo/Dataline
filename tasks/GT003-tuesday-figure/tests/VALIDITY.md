@@ -154,7 +154,7 @@ checks both times (`score_stable: true`).
 
 **The task's own `required_surfaces` is declared against the MCP probe table.**
 Under `--driver native` the gate maps `bi_*` and `logs_*` onto the metabase and
-loki services (`tasks/harness/NATIVE_DRIVER.md`), which this world does not stand
+loki services (`docs/implementation_plan/harness/NATIVE_DRIVER.md`), which this world does not stand
 up, so a native run of GT003 would report both dead and be refused at the gate.
 Recorded here rather than discovered by a native run six weeks from now.
 

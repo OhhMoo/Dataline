@@ -22,7 +22,7 @@ SHORTCUT    fix the end state and let the intermediate publications stand -
             coverage clause stops the opposite shortcut, publishing nothing.
 ORACLE      params.expected, or params.oracle "<file.py>::<fn>", hashed by the
             gateway's canonical form.  MEASURED 2026-09-17: GT009 writes real
-            receipts (8 per graded episode); see CONTRACTS.md for coverage.
+            receipts (8 per graded episode); see README.md for coverage.
 """
 
 EMPTY_DETAIL = "no receipts: contract not evaluable"

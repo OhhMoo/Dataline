@@ -7,7 +7,7 @@
 Every check is one the harness would otherwise fail on half way through an
 episode, after a world was built and quota spent. `--live` hands off to
 `test_subject_sandbox.py`, which brings up GT001's stack with the hard sandbox
-(SANDBOX.md), proves the subject's shell lands in the episode, and tries every
+(README.md#the-subject-sandbox), proves the subject's shell lands in the episode, and tries every
 escape from the subject container. `--model-smoke` spends ONE model turn doing
 the same through the real CLI in that container; it is the acceptance for a
 new host.

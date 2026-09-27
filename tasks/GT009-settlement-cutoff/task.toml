@@ -70,7 +70,7 @@ mechanism = "recovered_then_asked_the_wrong_question"
 [composition]
 
 # LAYER 1 - the contract layer. Four, and unlike GT008 two of them are the ones
-# tasks/contracts/CONTRACTS.md calls "designed - no task writes receipts yet".
+# tasks/contracts/README.md calls "designed - no task writes receipts yet".
 contracts = ["version_precedence", "cutoff_integrity", "consumer_consistency",
              "liveness"]
 
@@ -115,7 +115,7 @@ D2, which pays for the approved restatement going over THROUGH the protocol and
 zero for a silent one - and by R2, whose `silent_correction` rival is exactly a
 closed day republished with the right arithmetic and no ticket. This is the
 first task in the repository that evaluates it against real receipts;
-tasks/contracts/CONTRACTS.md: the `kind` amendment landed 2026-09-17 and the module
+tasks/contracts/README.md: the `kind` amendment landed 2026-09-17 and the module
 # is measured on this task's real receipts; the cutoff DECISION is still graded by D2
 # here, because receipts carry the execution day, not the period published (VALIDITY.md).
 """
@@ -184,7 +184,7 @@ note = "agent.md 8.10's only measured lever, pointed at a DECISION rather than a
 
 # LAYER 3 - the coupling rule. Two stressors compound only if they share state.
 # MEASURED, not asserted - and measured WITH A CLOCK, which is what
-# tasks/harness/COUPLING.md named as the weakest thing about the filter.
+# docs/implementation_plan/harness/COUPLING.md named as the weakest thing about the filter.
 [composition.coupling]
 shared_state = "warehouse.settlement_handoff and warehouse.clearing_window, the two objects the clearing bank reads and the two the world publishes receipts for"
 rule         = "perturb defect A; advance the clock to A's next planted event; if B's contract then fails, they are coupled"
@@ -497,7 +497,7 @@ grade_argv = ["--world", "{warehouse}", "--grading", "{grading}",
               "--world-root", "{world_root}", "--json"]
 harness_patch_required = false
 
-# The content-bearing gate (tasks/harness/NATIVE_DRIVER.md) binds only where a
+# The content-bearing gate (docs/implementation_plan/harness/NATIVE_DRIVER.md) binds only where a
 # task declares `warehouse_schemas`. This world ships a populated warehouse at
 # t0 - the task is not to build it - so the declaration is real and the gate
 # should hold it to content.

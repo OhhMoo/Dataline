@@ -2,7 +2,7 @@
 #
 # Layered last, after compose.native.yml and the per-rollout mounts overlay, by
 # tasks/harness/container_episode.py when `--subject-sandbox container`. Spec:
-# tasks/harness/SANDBOX.md.
+# tasks/harness/README.md#the-subject-sandbox.
 #
 #   subject_net   internal   episode <-> subject, and nothing else: the command
 #                            bridge (rexec.py, port 7070 on the episode).

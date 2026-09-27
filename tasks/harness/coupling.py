@@ -57,7 +57,7 @@ separate measurement and routinely comes out differently. A composition is worth
 building if either direction couples; reporting only the unordered verdict hides
 which defect is the gate.
 
-THE CLOCK (`clock=True`), and why this module needed one. COUPLING.md's
+THE CLOCK (`clock=True`), and why this module needed one. docs/implementation_plan/harness/COUPLING.md's
 limitation 2 said it plainly: "No clock -- the weakest thing here. Worlds are
 compared at t0; `late_arrival` is staged as rows already in the landing stream,
 a static stand-in for an event defined by arriving AFTER a repair." A stressor

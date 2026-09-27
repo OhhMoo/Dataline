@@ -904,7 +904,7 @@ WRITE_CLASSES = ("write", "ddl", "destructive", "exec")
 #: The MCP tools whose work lands in a warehouse file and in dbt's build dir.
 #: Matched against the row's tool name OR its suffix, because a native row is
 #: `<service>.<mcp_tool>` (`sched.sched_trigger`, `metabase.bi_render`,
-#: `deploy.deploy_run`) - NATIVE_DRIVER.md, "Row naming".
+#: `deploy.deploy_run`) - docs/implementation_plan/harness/NATIVE_DRIVER.md, "Row naming".
 WAREHOUSE_TOOLS = frozenset({
     "sql_execute", "sql_query", "dbt_run", "dbt_test", "dbt_compile",
     "sched_trigger", "bi_render",

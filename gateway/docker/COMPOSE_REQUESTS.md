@@ -1,6 +1,6 @@
 # What the native stack needs from files COMPOSE-DISCOVERY does not own
 
-Counterpart to `tasks/harness/NATIVE_DRIVER_REQUESTS.md`. Each item says what
+Counterpart to `docs/implementation_plan/harness/NATIVE_DRIVER_REQUESTS.md`. Each item says what
 is broken today and what breaks if it is not supplied, so none of them can be
 dropped quietly. Owner of this file: COMPOSE-DISCOVERY.
 

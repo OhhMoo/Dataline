@@ -1,7 +1,7 @@
 # Task status: what each task is, how Opus does on it, and whether to use it
 
 Status as of **2026-09-27 03:50 UTC**. Subject: Claude Opus (`claude-opus-5-5`), native driver,
-container topology, hard subject sandbox (`tasks/harness/SANDBOX.md`), decision arm
+container topology, hard subject sandbox (`tasks/harness/README.md#the-subject-sandbox`), decision arm
 (`--variant decision`), **K=8** episodes per task. Grader fixes are at commit `c978106`.
 
 This file will be updated when the re-run of GT002, GT003, GT005 and GT006 finishes (run

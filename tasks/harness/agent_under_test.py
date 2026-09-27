@@ -115,7 +115,7 @@ MCP_SERVER_NAME = "alkera"
 # Alertmanager 9093, Loki 3100, Airbyte 8001), so the address is self-describing;
 # Slack and the deploy service have no self-hosted default and take 8081/8085.
 # COMPOSE-DISCOVERY owns the compose file that must agree with this table - see
-# NATIVE_DRIVER_REQUESTS.md.
+# docs/implementation_plan/harness/NATIVE_DRIVER_REQUESTS.md.
 NATIVE_SERVICES = {
     "jira":         ("JIRA_URL",         8080),
     "slack":        ("SLACK_BASE_URL",   8081),
@@ -239,7 +239,7 @@ def native_env(*, endpoints: dict, audit_dir: Path,
         env["ALKERA_GATEWAY_CONFIG"] = str(gateway_config)
     if variant:
         # The context variant this episode's world was built from
-        # (VARIANTS_REQUESTS.md item 6). Anything in the subject's process tree
+        # (docs/implementation_plan/harness/VARIANTS_REQUESTS.md item 6). Anything in the subject's process tree
         # that re-resolves the task - a generator the workspace ships, a
         # `./ops/` CLI - reads it, and a subject environment that did not carry
         # it would answer for `default` inside a world that is an arm. Only when
@@ -1207,7 +1207,7 @@ def run(*, instruction: str, toolbelt: dict, artifact_in_world: str,
             encoding="utf-8")
         argv += tool_surface_argv("native")
         if container_shell and container_shell.get("mode") == "subject_container":
-            # THE HARD SANDBOX (SANDBOX.md): the CLI itself runs in the subject
+            # THE HARD SANDBOX (README.md#the-subject-sandbox): the CLI itself runs in the subject
             # container. Same flags, same stream-json on stdout; only the
             # process that owns them moved off the host.
             import container_episode

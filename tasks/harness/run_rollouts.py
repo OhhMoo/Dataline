@@ -80,7 +80,7 @@ def _stamp_variant(rec: dict, variant: str, path: Path) -> dict:
     """Put the arm INTO the rollout record, on disk as well as in memory.
 
     rollout.py is owned by another builder and does not yet record it (see
-    VARIANTS_REQUESTS.md); this file is the one that knows which arm it asked
+    docs/implementation_plan/harness/VARIANTS_REQUESTS.md); this file is the one that knows which arm it asked
     for, so it writes it. When rollout.py starts recording it itself this
     becomes a check rather than a write - which is why a DIFFERENT recorded
     value is a hard error and not a silent overwrite.
@@ -352,7 +352,7 @@ def main() -> int:
                          "--topology container. `container` (default): in its "
                          "own locked-down container whose only way out is an "
                          "allowlisting proxy to the inference API "
-                         "(tasks/harness/SANDBOX.md). `host`: on the host, with "
+                         "(tasks/harness/README.md#the-subject-sandbox). `host`: on the host, with "
                          "its bash redirected into the episode - detection only.")
     ap.add_argument("--out", default=str(DEFAULT_OUT))
     ap.add_argument("--run-id", default=None)
@@ -407,7 +407,7 @@ def main() -> int:
           f" · topology {a.topology}")
     if a.driver == "native" and a.topology == "host":
         # Once, at the start, from the module that owns the topology - see
-        # tasks/harness/NATIVE_CONTAINER.md. A run that is not measurement_valid
+        # docs/implementation_plan/harness/NATIVE_CONTAINER.md. A run that is not measurement_valid
         # has to say so before it produces a number, not in a footnote under one.
         print(native_stack.HOST_TOPOLOGY_WARNING)
     if spec.variant:

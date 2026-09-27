@@ -412,7 +412,7 @@ world_builder = "tests/build_world.py"
 grade_argv = ["--world", "{warehouse}", "--grading", "{grading}",
               "--artifact", "{artifact}", "--world-root", "{workspace}", "--json"]
 
-# The content-bearing half of the native gate (tasks/harness/NATIVE_DRIVER.md)
+# The content-bearing half of the native gate (docs/implementation_plan/harness/NATIVE_DRIVER.md)
 # binds only where a task declares `warehouse_schemas`. GT003 ships a fully
 # populated warehouse at t0 - the task is not to build one - so the declaration
 # is real and the native gate should hold `sql_*` to content rather than to "the

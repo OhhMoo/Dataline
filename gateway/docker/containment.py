@@ -986,7 +986,7 @@ def property_6_native(stack, evidence):
 
 # --------------------------------------------------------------------------
 # P7 - the native EPISODE container's filesystem. gateway/docker/
-# native_episode_probe.py, tasks/harness/NATIVE_CONTAINER.md.
+# native_episode_probe.py, docs/implementation_plan/harness/NATIVE_CONTAINER.md.
 # --------------------------------------------------------------------------
 
 
@@ -1172,7 +1172,7 @@ def main():
              "script's: the stack P7 describes is one a ROLLOUT built, with "
              "that rollout's world and that rollout's warehouse mounts, and a "
              "stack stood up here would be a stack nobody measured a number "
-             "in. tasks/harness/NATIVE_CONTAINER.md has the two commands.",
+             "in. docs/implementation_plan/harness/NATIVE_CONTAINER.md has the two commands.",
     )
     parser.add_argument(
         "--world", type=Path, default=None,

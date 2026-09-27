@@ -43,7 +43,7 @@ closes the bank's window and appends to `warehouse.clearing_window` what it was 
 
 Both consumer-facing tables carry `publishes:`, so every night the world writes **two real
 receipts** into `var/ledger/receipts.jsonl` **[measured]**. GT009 is the first task in this
-repository whose ledger exists; `tasks/contracts/CONTRACTS.md` still records
+repository whose ledger exists; `tasks/contracts/README.md` still records
 `cutoff_integrity` and `consumer_consistency` as *"designed - no task writes receipts yet"*.
 
 ### The incident
@@ -190,7 +190,7 @@ is what the bank can see, not the statements that produced it.
 
 ## 7. The clocked coupling filter
 
-`tasks/harness/COUPLING.md` limitation 2 read: *"No clock - the weakest thing here."*
+`docs/implementation_plan/harness/COUPLING.md` limitation 2 read: *"No clock - the weakest thing here."*
 GT009's stressors are the reason it had to be fixed: **every one of them is an event**, and
 no repair applied at t0 can satisfy a clause about a publication that has not happened.
 
@@ -300,7 +300,7 @@ whole point. It is not a difficulty lever and must not be filed as one.
    reference trajectory holds". That is the right verdict, reached for a reason the
    check's detail does not name. The fix - a receipt tagged `manual`, or refusing
    `sched_trigger` on platform jobs - belongs to the scheduler and affects the base arm
-   and GT008 equally; see `tasks/MATRIX_RERUN_EDITS.md §2.2`.
+   and GT008 equally; see `docs/implementation_plan/harness/MATRIX_RERUN_EDITS.md §2.2`.
 
 **Two owner-level observations from the `clean-20260917-k5` transcript read
 (2026-09-19).** Open design questions with their numbers, not fixes; scoring is unchanged.

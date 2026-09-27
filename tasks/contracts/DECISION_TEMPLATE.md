@@ -192,7 +192,7 @@ In `DESIGN.md`, stated in the four quantities the rerun is read on
 Also, as before: the intended decision and the accepted alternative outcomes.
 The rerun is read against these four, not against a single rate, and not
 against any per-axis rate — the axis layer and its before/after comparison
-were retired on 2026-09-19 (`tasks/MATRIX_RERUN_EDITS.md §1`).
+were retired on 2026-09-19 (`docs/implementation_plan/harness/MATRIX_RERUN_EDITS.md §1`).
 
 ## 8. Done means
 

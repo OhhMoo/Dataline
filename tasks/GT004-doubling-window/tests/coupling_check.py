@@ -6,7 +6,7 @@ LAYER 3 REGRESSION - GT004's coupling verdicts, re-measured against the record.
     gateway/.venv/Scripts/python.exe tests/coupling_check.py --clock  # ~2 min
     gateway/.venv/Scripts/python.exe tests/run_baselines.py --coupling
 
-WHAT IT PROTECTS. The coupling rule (tasks/harness/COUPLING.md, and
+WHAT IT PROTECTS. The coupling rule (docs/implementation_plan/harness/COUPLING.md, and
 implementation_structure/TASK_DESIGN_2026-09-15.md layer 3) says two stressors
 compound only if they share state, and that this is MECHANICALLY CHECKABLE:
 perturb defect A, and if the correct repair of B changes, they are coupled.
