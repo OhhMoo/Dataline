@@ -174,6 +174,8 @@ classes and scalar.
 | GT008 warehouse-cutover | legacy to nova while the feed keeps delivering | nights match the oracle trajectory | `decision`: Finance's month-end hold on retiring the legacy job |
 | GT009 settlement-cutoff | recover a gap while publishing to a bank at a cutoff | nights match the oracle trajectory | `approved` (bank's approval on record at t0), `live-consumer` (the bank's nightly pull) |
 
+Each task folder has a `README.md` (what it tests, its arms, how it is graded, how to
+re-measure it); [`tasks/README.md`](tasks/README.md) is the guide to the folder as a whole.
 Current per-task results, and whether to use each task:
 [`docs/implementation_plan/TASK_STATUS.md`](docs/implementation_plan/TASK_STATUS.md).
 Numbers from graders before commit `c978106` are not comparable.
