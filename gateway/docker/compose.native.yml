@@ -56,7 +56,7 @@
 #        (alkera_gateway/native/serve.py, one uvicorn Server per port).
 #        The ports are NOT a free choice: tasks/harness/agent_under_test
 #        .NATIVE_SERVICES is what the subject env carries, and
-#        tasks/harness/NATIVE_DRIVER_REQUESTS.md item 3 fixes them.
+#        docs/implementation_plan/harness/NATIVE_DRIVER_REQUESTS.md item 3 fixes them.
 #   sched.internal:8120       the scheduler plane behind the workspace's own
 #        ./ops/sched. Served by the same process; not a vendor, and not one of
 #        the nine the aggregate reports.
@@ -243,7 +243,7 @@ services:
           # CLI drives, are not on the episode's filesystem. This container
           # mounts the whole world, so it can. See
           # `alkera_gateway.native.serve.sched_plane` and
-          # tasks/harness/NATIVE_CONTAINER.md.
+          # docs/implementation_plan/harness/NATIVE_CONTAINER.md.
           - sched.internal
     volumes:
       # The same world the episode mounts: NATIVE.md's rule is that a

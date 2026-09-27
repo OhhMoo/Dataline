@@ -4,7 +4,7 @@ Status: frozen for this round. A later round changes these only by editing this 
 
 Alkera-DE grades data-agent episodes with deterministic code over final world state. Nine scenarios, `GT001`–`GT009`, 19 arms (two per scenario; GT009 has three: `default`, `approved`, `live-consumer`). Headline pass and the training scalar live in `tasks/harness/outcome.py` and `tasks/harness/reward.py`. There is no LLM judge in scoring. `tasks/contracts/` holds seven contracts: `exactly_once`, `liveness`, `version_precedence`, `cutoff_integrity`, `consumer_consistency`, `auditability`, `authorization`. Dependency rule in `tasks/contracts/__init__.py`: nothing under `tasks/contracts/` imports a task directory, `world/`, or `gateway/`. `duckdb` is the only third-party import. World copy and pipeline helpers already exist in `tasks/contracts/_world.py`: `copy_world`, `open_world`, `warehouse_path`, `business_columns`, `business_fingerprint`, `key_count`, `run_pipeline`, `plant`, `normalise_steps`.
 
-428 committed baseline rows sit across the 19 arms (`docs/Scoring_Redesign.md`). `validity.py --ladder` classifies them with each arm's `[matrix.outcome]`. That ladder is the baseline. This round does not move it.
+428 committed baseline rows sit across the 19 arms (`docs/research/Scoring_Redesign.md`). `validity.py --ladder` classifies them with each arm's `[matrix.outcome]`. That ladder is the baseline. This round does not move it.
 
 ## Invariants
 
@@ -26,7 +26,7 @@ Alkera-DE grades data-agent episodes with deterministic code over final world st
 
 ## Out of scope
 
-Editing `grade.py`, `reward.py`, `outcome.py`, `task.toml`, fixtures, or gateway code other than the ask-stakeholder pair named in `OWNERSHIP.md`. Git commits. Anything under `docs/plans/hardness-round/findings/` (blind red-teamers own that directory).
+Editing `grade.py`, `reward.py`, `outcome.py`, `task.toml`, fixtures, or gateway code other than the ask-stakeholder pair named in `OWNERSHIP.md`. Git commits. Anything under `docs/implementation_plan/hardness-round/findings/` (blind red-teamers own that directory).
 
 ## Machine-test checklist
 

@@ -13,7 +13,7 @@ Three properties, and the third is the one a cutover task actually rests on.
    agree" would mean "the agent said so". With it, a Postgres warehouse can
    carry a real `initial_world_fp` instead of the gateway being told to take a
    hash of the local world tree on faith
-   (`gateway/src/alkera_gateway/config.py:75-76`).
+   (`GatewayConfig` in `gateway/src/alkera_gateway/config.py`).
 
 Postgres comes from a real server, on the pattern `gateway/tests/
 test_warehouse_backends.py` established: `ALKERA_TEST_POSTGRES_DSN` when set,

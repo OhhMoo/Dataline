@@ -112,7 +112,7 @@ and `expected/`.
 
 ## The clocked coupling filter
 
-Full tables and the algorithm are in `tasks/harness/COUPLING.md`. The two results:
+Full tables and the algorithm are in `docs/implementation_plan/harness/COUPLING.md`. The two results:
 
 ### GT009 - unmeasurable without a clock
 
@@ -395,7 +395,7 @@ fixed, because it changes no verdict.
   (`world/scheduler.py:trigger()` writes no receipt by design). Extra rows from such a
   trigger survive into every later night's cumulative hash and read as "a state no
   reference trajectory holds" — the right verdict, for a reason the detail does not
-  name. See `tasks/MATRIX_RERUN_EDITS.md §2.2` item 3.
+  name. See `docs/implementation_plan/harness/MATRIX_RERUN_EDITS.md §2.2` item 3.
 
 ## The reformed arms (DECISION_TEMPLATE, 2026-09-18)
 

@@ -15,7 +15,7 @@ from .records import ToolError
 # the MCP leg's object in adobe/s3mock and the native leg's in MinIO - the one
 # place the two legs talked to different servers (native/AUDIT_REQUESTS.md
 # item 1). Eight characters and obviously fake, by repo rule: `alkera-local-dev`
-# is the same string tasks/harness/NATIVE_DRIVER_REQUESTS.md item 8 says the
+# is the same string docs/implementation_plan/harness/NATIVE_DRIVER_REQUESTS.md item 8 says the
 # harness ships for Postgres and MinIO, so one stack serves both transports.
 #
 # Read from the environment rather than from GatewayConfig because the value has

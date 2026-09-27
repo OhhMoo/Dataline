@@ -16,7 +16,7 @@ var/sched/state.json, which is inside the semantic fingerprint:
   exactly four host-varying things - ANSI colour, a wall-clock HH:MM:SS stamp
   per line, an elapsed `in 0.16s`, and host-shaped paths (`models\\warehouse\\x`
   on Windows, `models/warehouse/x` elsewhere) - and `normalize_output` removes
-  all four. Measured, not assumed: see R003/LIVE-WORLD.md for the verbatim
+  all four. Measured, not assumed: see docs/implementation_plan/structure/rounds/R003/LIVE-WORLD.md for the verbatim
   captured output this was written against.
 - The raw, un-normalized engine output is kept at build/sched/logs/, which is
   outside both the fingerprint (fingerprint.py hashes var/ + workspace/) and

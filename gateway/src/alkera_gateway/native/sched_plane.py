@@ -12,7 +12,7 @@ Under the CONTAINER topology none of those files is in the episode. The episode
 container mounts the working tree, the warehouse FILES and the audit directory
 and nothing else, because that is what makes a `cp` beside the warehouse land in
 the container instead of in the world and the rollout directory have no path at
-all (`tasks/harness/NATIVE_CONTAINER.md`, containment P7). So the plane has to
+all (`docs/implementation_plan/harness/NATIVE_CONTAINER.md`, containment P7). So the plane has to
 be reached the way the other eight are reached: over HTTP, from the
 `native-services` container, which does mount the whole world. `SCHED_URL` in
 the episode's environment is what switches the same CLI onto this app; the agent

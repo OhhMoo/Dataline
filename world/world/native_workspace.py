@@ -36,7 +36,7 @@ Determinism, on the same three rules as the rest of the builder:
 
 The endpoint table is not this module's to choose. `tasks/harness/
 agent_under_test.NATIVE_SERVICES` is what `--driver native` puts in the
-subject's environment, and `tasks/harness/NATIVE_DRIVER_REQUESTS.md` fixes the
+subject's environment, and `docs/implementation_plan/harness/NATIVE_DRIVER_REQUESTS.md` fixes the
 names, the ports and the credentials; `.envrc` has to export the same names and
 the same values or a human shell and the driver disagree about one endpoint.
 The table is duplicated rather than imported because `world/` imports neither

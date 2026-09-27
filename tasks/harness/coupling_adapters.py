@@ -39,7 +39,7 @@ CLOCKED ADAPTERS add four more, and `coupling.py --clock` needs all four:
 The split matters. `build` stages a stressor as STATE - rows already in a
 landing table, a file already in a feed - which is all a t0 comparison can
 express. `world` + `advance` stages it as an EVENT: the repair lands first, and
-then the thing happens. COUPLING.md's limitation 2 is exactly the gap between
+then the thing happens. docs/implementation_plan/harness/COUPLING.md's limitation 2 is exactly the gap between
 those two stagings, and the two GT004 verdicts below are what it costs.
 
 NEW FILE. Edits nothing under tasks/GT*/, world/, gateway/ or the rest of
@@ -533,7 +533,7 @@ FROM warehouse.kpi_daily ORDER BY dt
 # as rows that are already in `raw.orders_landing` when the comparison starts,
 # which is a world in which the repair and the arrival are simultaneous - and
 # in that world the dedupe never reads the landing table, so the pair reads
-# uncoupled. COUPLING.md calls that its weakest limitation and predicts the
+# uncoupled. docs/implementation_plan/harness/COUPLING.md calls that its weakest limitation and predicts the
 # verdict would move. This is the measurement of that prediction.
 #
 # The clocked world is the same warehouse under a two-job nightly:

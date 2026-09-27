@@ -97,7 +97,7 @@ the business reads move with it".
                    assumption.
 
   --- the NAMED SHORTCUTS -------------------------------------------------
-  tasks/contracts/CONTRACTS.md: each contract's DOC names the shortcut it
+  tasks/contracts/README.md: each contract's DOC names the shortcut it
   exists to kill, and "that list is what a generator's shortcut-baseline
   battery should be built from". `permanent_skip`, `full_refresh` and `no_op`
   above already cover the permanent skip, the snapshot restore and the full
@@ -875,7 +875,7 @@ def agent_collateral(world, root, fx):
 
 
 # ---------------------------------------------------------------------------
-# THE NAMED SHORTCUTS. tasks/contracts/CONTRACTS.md: "Each DOC names the
+# THE NAMED SHORTCUTS. tasks/contracts/README.md: "Each DOC names the
 # shortcut the contract exists to kill. That list is what a generator's
 # shortcut-baseline battery should be built from: permanent skip, snapshot
 # restore, naive merge on arrival order, full reload, assertion that fails
@@ -1516,7 +1516,7 @@ AGENTS = {
     "stale_dashboard": agent_stale_dashboard,
     "repair_before_late_arrival": agent_repair_before_late_arrival,
     "collateral": agent_collateral,
-    # the named shortcuts (tasks/contracts/CONTRACTS.md), each failing in a
+    # the named shortcuts (tasks/contracts/README.md), each failing in a
     # direction no other baseline here covers
     "report_only": agent_report_only,
     "naive_merge": agent_naive_merge,

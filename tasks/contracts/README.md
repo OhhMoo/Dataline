@@ -1,9 +1,38 @@
 # tasks/contracts — layer 1 of the composition framework
 
-**Written 2026-09-16. Amended 2026-09-16** by GT009, the first task in the
-repository to write real receipts: `cutoff_integrity` no longer reads a
-publication's purpose out of a receipt's `kind`, and `authorization` carries
-GT009's approval trace and a supersession clause. Both changes are below.
+This folder holds two things:
+
+- the **seven contracts**, reusable invariant checks a grader can call instead of re-writing
+  them (the package `tasks.contracts`);
+- [`DECISION_TEMPLATE.md`](DECISION_TEMPLATE.md), the authoring contract every GT task declares
+  against (summarised [below](#the-decision-template-decision_templatemd)).
+
+**Contents.** [What is in this folder](#what-is-in-this-folder) ·
+[How a task uses a contract](#how-a-task-uses-a-contract) · [The seven](#the-seven) · [Parameters that matter](#parameters-that-matter) ·
+[Executed vs designed](#executed-vs-designed) · [Known weaknesses](#known-weaknesses) ·
+[The decision template](#the-decision-template-decision_templatemd)
+
+## What is in this folder
+
+| path | what |
+|---|---|
+| `__init__.py` | `REGISTRY` (name → module), `evaluate(name, ctx)`, `evaluate_all(ctx)`, `docs()` |
+| `_types.py` | `Context` (the world, the before-facts, the receipts, the params; read-only aliased ATTACH) and `Clause` |
+| `_score.py` | `score_clauses` and `ContractResult`: the clause fold, copied from `tasks/*/tests/probes/_common.py::score_clauses` (see the rule below) |
+| `_world.py` | execution machinery the behavioural contracts need (copy the world, run pipeline steps on the copy, fingerprint tables), copied from GT004's `probes/_common.py` rather than imported so the dependency rule holds |
+| `exactly_once.py` `liveness.py` `version_precedence.py` `cutoff_integrity.py` `consumer_consistency.py` `auditability.py` `authorization.py` | the seven contracts, one module each ([table](#the-seven)) |
+| `rebuild.py` | `run_twice` and friends: deterministic "the repair must keep loading" checks. **Not** in `REGISTRY`; called only by the per-task `tests/rebuild_check.py` side modules, never by a `grade.py` |
+| `equivalence_gt004.py` | CLI that re-runs the GT004 equivalence table ([below](#executed-vs-designed)) |
+| `tests/` | one test file per contract, plus `test_registry.py` (dependency rule), `test_score_equivalence.py` (fold equality) and `test_rebuild.py` |
+| `DECISION_TEMPLATE.md` | the task-authoring contract; cited by section number, so it stays a separate file |
+
+```bash
+PY=gateway/.venv/bin/python
+$PY -m pytest tasks/contracts -q             # ~50 s, most of it building GT009's fixture
+$PY tasks/contracts/equivalence_gt004.py     # the GT004 equivalence table
+```
+
+## How a task uses a contract
 
 A CONTRACT is an invariant a data platform must keep while the world moves.
 Seven of them, fixed, lifted out of the checks GT004–GT009 each implement
@@ -162,18 +191,9 @@ is visible, not silent, and does not zero the rest of a composition.
 
 ## Executed vs designed
 
-**Executed.** `gateway/.venv/Scripts/python.exe -m pytest tasks/contracts -q`
-→ **98 passed, 0 failed** (54 s, 2026-09-16), of which **20 are
-`authorization`'s** and **14 `cutoff_integrity`'s**. That is 82 + 16: six added
-to `test_cutoff_integrity.py` for the `kind` amendment and the real ledger, ten
-added to `test_authorization.py` for the GT009 lift (`statuses`, `names`, the
-public `approval_trace`, and the `supersession` clause). The 82 it replaces did
-not itself reconcile with the 75 recorded before
-`authorization` landed: 75 + 12 is 87, and 87 is what a run immediately after
-landing it printed. Five tests in the other suites disappeared between that run
-and this one, in a working tree several agents were editing at once. Recorded
-as measured rather than reconciled, because a count nobody can reproduce is
-worse than a count that admits it moved. Every contract has holding / canonical-violation /
+**Executed.** `gateway/.venv/bin/python -m pytest tasks/contracts -q` runs the
+suite: `authorization` and `cutoff_integrity` carry the most cases (the GT009
+lift and the `kind` amendment below). Every contract has holding / canonical-violation /
 named-shortcut cases against a real duckdb world in `tmp_path`; the scoring
 fold is proved equal to all six shipped `_common.py` copies.
 
@@ -258,3 +278,25 @@ own tests wrote, not against dbt.
 4. **`runner: "advance"` is refused, not implemented.** A contract that needs
    the scheduler to execute a real night (GT008's shape) cannot yet be
    evaluated by this package.
+
+## The decision template (`DECISION_TEMPLATE.md`)
+
+[`DECISION_TEMPLATE.md`](DECISION_TEMPLATE.md) (frozen 2026-09-18, GT009 is the reference) is
+what every GT task declares: its structure with the task's world taken out. It is a **separate
+file on purpose**: about twenty task files, graders, fixture contracts and `task.toml` comments
+cite it by section number (`DECISION_TEMPLATE.md §5`), so its name and its numbering must not
+change. Edit it only by appending; never renumber.
+
+| § | what it fixes |
+|---|---|
+| [1](DECISION_TEMPLATE.md#1-two-arms-one-directory) | two context arms in one `task.toml`: **control** (the repair is in mandate) and **decision** (an owner, a boundary and a consumer are added by a fixtures overlay). Each arm declares `role` |
+| [2](DECISION_TEMPLATE.md#2-the-five-things-the-decision-arm-stages) | the five things the decision arm stages, written in `DESIGN.md` first: owner, boundary, consumer, cost of acting, cost of not acting. Silence is never a pass |
+| [3](DECISION_TEMPLATE.md#3-what-tasktoml-declares-per-arm) | the `[variants]`, `[matrix]` and `[matrix.outcome]` keys each arm declares |
+| [4](DECISION_TEMPLATE.md#4-the-checks-a-grader-must-have) | the checks every grader must have: an irrelevant-state check, a false-claim check, a whole-object consumer check, `zero_for_doing_nothing` on every check, and agreement when graded twice |
+| [5](DECISION_TEMPLATE.md#5-the-baselines-each-arm-ships-testsrun_baselinespy) | the canonical baselines each arm ships in `tests/run_baselines.py` (oracle, positive control, no-op, false claim, over-acting rival, …) and the outcome class each must classify as |
+| [6](DECISION_TEMPLATE.md#6-what-the-brief-may-and-may-not-say) | what the brief may and may not say |
+| [7](DECISION_TEMPLATE.md#7-pre-registration-per-arm-before-any-model-runs) | pre-registration per arm, before any model runs |
+| [8](DECISION_TEMPLATE.md#8-done-means) | the definition of done |
+| [9](DECISION_TEMPLATE.md#9-what-each-arm-declares-for-the-scalar-added-2026-09-18) | the three-tier training scalar (band, progress, path penalties) each arm declares; implemented by `tasks/harness/reward.py`, `progress.py`, `path.py` |
+
+The argument for each item is `docs/research/Scoring_Redesign.md`.

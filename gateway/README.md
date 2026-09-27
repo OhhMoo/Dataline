@@ -18,15 +18,22 @@ src/alkera_gateway/
     audit.py context.py             the one row writer; the shared run-and-record span
     services/                       jira slack confluence metabase prometheus alertmanager loki airbyte deploy
     tailers/ shims/ serve.py        server logs -> rows; PATH wrappers (duckdb, ./ops/sched); one process, nine ports
-docker/         compose.yml (+ .episode, .native), Dockerfile, build_episode.py, containment.py P0-P6, evidence/
+docker/         compose.yml (+ .episode, .native, .subject), Dockerfiles, build_episode.py, containment.py P0-P7, evidence/
 tests/          pytest
 ```
 
-**Documents.** `SURFACES.md` — the five surface contracts (warehouse connector, dual
-warehouse, ingest, workflow, observability). `NATIVE.md` — native mode: spec, mapping, what
-is measured. Deeper: `docker/NATIVE_STACK.md`, `native/PARITY.md`,
-`native/services/{HUMAN,OPS}_PLANE.md`, and the harness side in
-`tasks/harness/{NATIVE_DRIVER,NATIVE_CONTAINER}.md`.
+**Documents.** This README is the guide; the others are contracts and operator references:
+
+| file | what it is |
+|---|---|
+| `SURFACES.md` | the five surface contracts (warehouse connector, dual warehouse, ingest, workflow, observability); code cites its anchors |
+| `NATIVE.md` | native mode: spec, 63-tool → native mapping, rules for fake services, open items |
+| `docker/NATIVE_STACK.md` | the native compose stack: topology, ports and aliases, DNS restriction, P6/P7 evidence |
+| `docker/TOOLBELT.md` | the episode image's toolbelt ledger: every binary shipped or rejected, and why |
+| `src/alkera_gateway/native/PARITY.md`, `native/services/{HUMAN,OPS}_PLANE.md` | row parity and the fake services' row classification |
+
+The harness side is `tasks/harness/{NATIVE_DRIVER,NATIVE_CONTAINER}.md`. Request logs and
+dated measurement records are in `docs/implementation_plan/gateway/`.
 
 ## Run
 
@@ -97,8 +104,27 @@ docker compose -f gateway/docker/compose.yml build episode
 python gateway/docker/acceptance.py --project alkera-check --skip-containment
 python gateway/docker/containment.py --project alkera-check --profile snowflake   # P0-P5
 python gateway/docker/containment.py --native --project alkera-p6                 # P6
+python gateway/docker/containment.py --native-episode --project <rollout> --world <world>  # P7, on a rollout's live stack
 python gateway/docker/snowflake_acceptance.py --project alkera-socket-check
 ```
+
+What each script in `docker/` is, and who runs it. The whole directory is copied into the
+image at `/opt/stack` and removed from the episode container before the agent starts.
+
+| script | role | run by |
+|---|---|---|
+| `start.py` | the `episode` service's entrypoint: provisions the small integration world, then execs `alkera-gateway serve` | `compose.yml` |
+| `build_episode.py` | builds the episode image from a clean worktree, stamps the revision, writes `evidence/image.json` | operator, `scripts/setup_linux.sh` |
+| `toolbelt_check.py` | executes every toolbelt binary inside the image | `build_episode.py`, `tests/test_image_parity.py` |
+| `toolbelt_acceptance.py` | drives the toolbelt against a live stack → `evidence/toolbelt.json` | operator |
+| `containment.py` | the containment battery → `evidence/containment*.json` (`--native` P6, `--native-episode` P7) | operator, `acceptance.py`, `ledger_probe.py` |
+| `native_probe.py` | the P6 network probe, run inside the episode container | `containment.py --native` |
+| `native_episode_probe.py` | the P7 filesystem probe | `containment.py --native-episode`; `tasks/harness/container_episode.py` on every native container rollout |
+| `ledger_probe.py` | P5 alone → `evidence/containment-ledger.json` | operator |
+| `acceptance.py` + `acceptance_inside.py` | transport parity and live surfaces, then containment | operator |
+| `snowflake_start.py`, `snowflake_fidelity.py` | the optional fakesnow backend (`Dockerfile.snowflake`) | `compose.yml` profile `snowflake`; no task or rollout starts it |
+| `snowflake_acceptance.py` | TLS/DNS/wire checks on that backend → `evidence/snowflake_socket.json` | operator |
+| `subject/`, `Dockerfile.subject`, `compose.subject.yml` | the subject sandbox image and overlay | `tasks/harness/container_episode.py` |
 
 Use a dedicated project name: containment and socket checks tear down their stacks and
 remove generated volumes. They run no model rollouts. `test_image_parity` fails when

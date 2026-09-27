@@ -23,7 +23,9 @@ def _state_items(root: Path):
         items += [(f"{sub}/{rel}", data)
                   for rel, data in tree_items(Path(root) / sub)]
     # .git/index is a local stat cache (inode/device/mtime): never portable
-    # across hosts or builds, and git rebuilds it on first use.
+    # across hosts or builds. NOTE: git does NOT rebuild a missing index on
+    # its own - until `git reset` runs, a restored workspace reports every
+    # tracked file as deleted-and-untracked in `git status`.
     items = [it for it in items if it[0] != "workspace/.git/index"]
     return sorted(items, key=lambda t: t[0])
 

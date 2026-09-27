@@ -12,7 +12,7 @@
 #
 # Unlike the host topology's hook, unsetting BASH_ENV is not an escape that
 # matters: the shell it leaves you in is this container, which holds the CLI,
-# an empty home, and no route anywhere but the API proxy (tasks/harness/SANDBOX.md).
+# an empty home, and no route anywhere but the API proxy (tasks/harness/README.md#the-subject-sandbox).
 if [ -n "${BASH_EXECUTION_STRING:-}" ]; then
   __alkera_cmd=${BASH_EXECUTION_STRING//"$ALKERA_SUBJECT_CWD"//workspace}
   exec /usr/local/bin/python /opt/alkera/rexec.py client "$__alkera_cmd"

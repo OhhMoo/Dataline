@@ -32,7 +32,7 @@ The second half of this module is `logical_hash`, which answers the question
 does not live in the world tree? It produces the same canonical shape for a
 DuckDB file and for a Postgres database, so a Postgres warehouse can carry a
 real `initial_world_fp` instead of the gateway pretending a hash of the local
-directory covered it (`gateway/src/alkera_gateway/config.py:75-76`).
+directory covered it (`GatewayConfig` in `gateway/src/alkera_gateway/config.py`).
 """
 
 import csv
@@ -101,7 +101,7 @@ def seed_postgres(dsn: str, tables: dict) -> None:
     with psycopg.connect(dsn, autocommit=True) as conn:
         # Not `CREATE SCHEMA IF NOT EXISTS`: Postgres checks the CREATE-on-
         # database privilege before it looks at IF NOT EXISTS, and the episode
-        # stack's `episode` role OWNS raw/staging/warehouse (docker/postgres.sql)
+        # stack's `episode` role OWNS raw/staging/warehouse (gateway/docker/postgres.sql)
         # without holding CREATE on the database. Measured on the compose
         # stack: "permission denied for database episode". So a schema that
         # exists is left alone, and only a missing one is created.

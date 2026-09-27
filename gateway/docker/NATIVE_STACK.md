@@ -1,6 +1,6 @@
 # The native-mode stack
 
-Spec: `gateway/NATIVE.md`. Harness side: `tasks/harness/NATIVE_DRIVER.md`.
+Spec: `gateway/NATIVE.md`. Harness side: `docs/implementation_plan/harness/NATIVE_DRIVER.md`.
 Owner: COMPOSE-DISCOVERY. **Measured 2026-09-16 unless a line says *designed*.**
 
     docker compose -p <project> \
@@ -188,7 +188,7 @@ mounted warehouses and nothing else, no grading, rollout, canary, marker or
 repository path exists, the ledger is present, empty and read-only, the episode
 can still work, every alias is reachable, the scheduler plane answers with
 jobs, egress is refused, and `published_host_ports` is `{}`. The recipe and the acceptance table are in
-`tasks/harness/NATIVE_CONTAINER.md`.
+`docs/implementation_plan/harness/NATIVE_CONTAINER.md`.
 
 Two changes this forced on the stanzas above. The `native-services` healthcheck
 no longer dials its own aggregate over HTTP — `serve.py` counts every accepted
@@ -215,7 +215,7 @@ resolver of our own (a dnsmasq answering only the alias table, with
 more container to go wrong for a property nothing else depends on.
 
 Runner-up, **closed 2026-09-16**: `<root>/home` is now a conditional
-`fingerprint.py` section (COMPOSE_REQUESTS.md item 2), so a home directory
+`fingerprint.py` section (`docs/implementation_plan/gateway/COMPOSE_REQUESTS.md` item 2), so a home directory
 edited after the build no longer passes `semantic_hash`. Measured three ways:
 the default seed rebuilds to `85ce4cbbb86d6667…`, byte-for-byte the
 `gate1_host_semantic_hash` in `world/evidence/acceptance.json` (no `home/`, no

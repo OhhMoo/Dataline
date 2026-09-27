@@ -62,19 +62,19 @@ var/
 
 # -----------------------------------------------------------------------------
 # DELIBERATELY NOT IGNORED - these ARE the research record:
-#   implementation_structure/state/**   the blackboard, including failures/
-#   implementation_structure/rounds/**  per-round reports and gate output
-#   verifier/runs/**                    append-only verification history
+#   docs/implementation_plan/structure/state/**    the blackboard, including failures/
+#   docs/implementation_plan/structure/rounds/**   per-round reports and gate output
+#   _archive/verifier/runs/**               append-only verification history
 #   gateway/docker/evidence/**          containment / toolbelt / image proofs
 #   tasks/harness/evidence/**           rollout and container-check evidence
 #   world/evidence/**               acceptance.sh's all-pass record (host == container hash, gate 7)
 #   gateway/requirements*.lock, gateway/uv.lock   pinned deps; determinism and the image depend on them
-#   */README.md                      the per-folder guide (gateway/, world/ and implementation_structure/
-#                                    fold their former OVERVIEW.md and contract docs into it)
+#   */README.md                      the per-folder guide (each folder folds its former OVERVIEW.md
+#                                    and contract docs into it)
 #
-# state/failures/ in particular must be committed. It exists so round N+1 does
-# not rediscover what round N already killed. Ignoring it would silently delete
-# the most expensive thing the swarm produces.
+# state/failures/ in particular must be committed. It exists so a later round does
+# not rediscover what an earlier one already killed. Ignoring it would silently
+# delete the most expensive thing the swarm produced.
 # -----------------------------------------------------------------------------
 
 # Vendored upstream repos (clone, don't commit)
@@ -96,3 +96,12 @@ benchmark.json
 # .superpowers/sdd/.gitignore already self-ignores; this pins intent at root.
 .superpowers/
 docs/superpowers/
+
+# Private notes: prep for conversations, answers being drafted for a
+# collaborator, anything not meant to live in the shared repo. Keep them in
+# docs/private/, or name them *.private.md / *for_andrew*.md / FOR_*.md
+# anywhere and they stay local.
+docs/private/
+*.private.md
+*[Ff]or_[Aa]ndrew*.md
+**/FOR_*.md

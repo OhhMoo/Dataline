@@ -1480,7 +1480,7 @@ alkera/
 │   │   ├── executor.py  faults.py                what a job run actually does, and how it breaks
 │   │   ├── ledger.py                             LAYER 4: protected receipts of what the world published (P5)
 │   │   ├── native_workspace.py                   .envrc / profiles.yml / onboarding.md for native mode
-│   │   └── warehouse_seed.py  vclock.py  airflow_bridge.py  airflow_logs.py
+│   │   └── warehouse_seed.py   (vclock.py, airflow_bridge.py, airflow_logs.py archived under _archive/world/world/)
 │   ├── README.md               the guide, incl. the publication-ledger contract (#publication-ledger)
 │   ├── docker/  scripts/acceptance.sh  evidence/acceptance.json
 │   └── tests/                  166 + 81 subtests
@@ -1506,17 +1506,17 @@ alkera/
 │   └── tests/                  321
 │
 ├── tasks/                      TRACK C · the graded content
-│   ├── contracts/              LAYER 1: six invariants as clause functions; 75 tests; CONTRACTS.md
+│   ├── contracts/              LAYER 1: six invariants as clause functions; 75 tests; README.md
 │   ├── stressors/registry.yaml LAYER 2: 30 stressors -> contracts + shared state
 │   ├── harness/                rollouts, grading, blindness, surface gate, report; ledger.py; coupling.py (LAYER 3)
 │   │   ├── native_stack.py     host-topology bring-up for --driver native
 │   │   ├── selftest.py  test_native_driver.py  test_native_stack.py  test_ledger_harness.py
-│   │   └── README.md  NATIVE_DRIVER.md  COUPLING.md
+│   │   └── README.md  judge/README.md  (history: docs/implementation_plan/harness/)
 │   ├── GT001 … GT008/          each: task.toml, prompts/, fixtures/, solution/, tests/ (grade.py, manifest, probes/, run_baselines.py)
 │   └── GT004a-e, GT006c-d      the ablation and 2x2 arms (context-only variants)
 │
 ├── implementation_structure/   the research record: archetypes, sources, failure rulings, TASK_DESIGN_2026-09-15.md
-├── verifier/                   append-only acceptance history
+├── _archive/verifier/          archived: the 2026-09-08 assessment acceptance checklist (nothing reads it)
 └── var/                        gitignored scratch (reconcile logs, campaign output)
 ```
 
@@ -1574,9 +1574,9 @@ Ordered by what a second task would force us to confront, not by effort.
    caught the only defect no other suite could see.
 4. **CI that runs the four suites plus `acceptance.sh`.** The baselines are declared CI in
    §9.1 rule 7 and are not actually wired to anything. A rule nothing enforces is a comment.
-5. **Fold `verifier/` into `implementation_structure/`.** It is an append-only verification
-   record — the same species as `rounds/` — and sits at the root only for historical reasons.
-   Low value, do it when touching that tree anyway.
+5. **Done: `verifier/` archived to `_archive/verifier/`.** It was an append-only verification
+   record — the same species as `rounds/` — and sat at the root only for historical reasons.
+   Nothing in the repo read it.
 
 ### 10.5 Structural gaps
 
@@ -1780,10 +1780,10 @@ construction only in the container topology, which is being built; host-topology
 numbers carry that caveat until then. Reviewer's reading order:
 `gateway/NATIVE.md` (spec, mapping, then the two dated "Measured" sections) ->
 `native/PARITY.md` -> `native/services/{HUMAN,OPS}_PLANE.md` ->
-`tasks/harness/NATIVE_DRIVER.md` -> `gateway/docker/NATIVE_STACK.md`.
+`docs/implementation_plan/harness/NATIVE_DRIVER.md` -> `gateway/docker/NATIVE_STACK.md`.
 
 ---
 
 *Sources: `de-agent-benchmark-assessment.md`, `copy-list-from-existing-sources.md`
 (neither currently present in this repo — see §6.6), team meeting 2026-09-09.
-Verification history: `verifier/`.*
+Verification history: `_archive/verifier/`.*

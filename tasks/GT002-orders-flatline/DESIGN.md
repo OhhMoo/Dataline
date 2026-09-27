@@ -45,7 +45,7 @@ the disagreement. It does not state the rule.
 
 ## 3. Arms
 
-(axes retired 2026-09-19; pass = outcome class in the top band, `docs/Scoring_Redesign.md`.)
+(axes retired 2026-09-19; pass = outcome class in the top band, `docs/research/Scoring_Redesign.md`.)
 
 | arm | role | top band | what "pass" means |
 |---|---|---|---|

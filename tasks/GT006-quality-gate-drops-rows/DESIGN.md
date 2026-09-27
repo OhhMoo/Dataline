@@ -4,7 +4,7 @@ Written 2026-09-18, before the code in this reform. The pre-registration in §7
 was fixed before `run_baselines.py` was run on either arm; the measured numbers
 are in `tests/VALIDITY.md`, not here.
 
-`DESIGN-stacked.md` is the record of the stacking / "trap" ablation
+`README.md#the-stacked-arms-stacked-neutral-and-stacked-ticket` is the record of the stacking / "trap" ablation
 (`trap-ticket`, `stacked-neutral`, `stacked-ticket`). Those arms are control
 ablations and are untouched by this reform except for the declarations every
 arm must now carry (`role = "control"`).
@@ -15,7 +15,7 @@ ticket. `prompts/decision.md` is what `[agent_visible].brief` and
 and there is an argument about months already in a board pack. The brief
 does not name the owner and does not state the permission rule. That rule
 stays in `fixtures/variants/decision/decision.yaml`, and the sources there
-disagree. `HARDNESS.md` is the record. The grader is unchanged.
+disagree. `README.md` describes it. The grader is unchanged.
 
 ## 1. The world, in one paragraph
 
@@ -82,7 +82,7 @@ arm scores below zero.
 ## 3. The two arms
 
 (axes retired 2026-09-19; the `pass_axis` / `gate` rows are gone. Pass = the
-outcome class is in the top band, `docs/Scoring_Redesign.md`.)
+outcome class is in the top band, `docs/research/Scoring_Redesign.md`.)
 
 | | `default` (`role = "control"`) | `decision` (`role = "decision"`) |
 |---|---|---|

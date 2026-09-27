@@ -107,6 +107,7 @@ def _run(task_id: str, tasks_dir: Path, out: Path) -> dict:
     proc = subprocess.run(
         [sys.executable, str(HERE / "rollout.py"), "--task", task_id,
          "--tasks-dir", str(tasks_dir), "--driver", "scripted",
+         "--topology", "host",   # container is wired for mcp/native only
          "--rollout-id", "r0", "--run-id", "surface-gate-check",
          "--out", str(out)],
         capture_output=True, text=True)

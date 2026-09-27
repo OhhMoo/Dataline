@@ -151,7 +151,7 @@ on control and 1 / 0 / 0 (0.2) on decision; `fix_no_deploy` reads 2 / 0 (0.5994)
 
 ## What the `sched_trigger` receipt defect did and did not block
 
-`world/scheduler.py:trigger()` writes no receipt (`tasks/MATRIX_RERUN_EDITS.md` §2.2). It
+`world/scheduler.py:trigger()` writes no receipt (`docs/implementation_plan/harness/MATRIX_RERUN_EDITS.md` §2.2). It
 blocked nothing here: the decision arm's `C1` reads the receipt the ADVANCE path writes for the
 platform job at 04:00 inside the grader's replay, never a triggered publication. A manual
 `sched_trigger commercial_pack_assemble` at t0 leaves the ledger silent - and cuts tonight's

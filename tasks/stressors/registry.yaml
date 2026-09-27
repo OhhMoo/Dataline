@@ -2,7 +2,7 @@
 #
 # One entry per stressor that EXISTS AS FIXTURE CODE TODAY. A stressor is not a
 # task: it is a way to stress a contract, and one stressor serves many contracts
-# (implementation_structure/TASK_DESIGN_2026-09-15.md, "Framework proposal").
+# (docs/implementation_plan/structure/TASK_DESIGN_2026-09-15.md, "Framework proposal").
 #
 # Every `implemented_in` below was read out of the generator, not out of a
 # DESIGN.md or a prompt. Anything not read out of code carries `verified: false`

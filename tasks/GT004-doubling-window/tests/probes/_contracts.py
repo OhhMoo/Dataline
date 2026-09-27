@@ -4,7 +4,7 @@ LAYER 1 WIRING - GT004's lifecycle gates, decided by `tasks/contracts`.
 
     from ._contracts import evaluate_contract, remap, params_for
 
-`tasks/contracts` (CONTRACTS.md) holds seven invariants that were LIFTED OUT of
+`tasks/contracts` (README.md) holds seven invariants that were LIFTED OUT of
 the checks GT004-GT008 each wrote one-off.  Two of them came out of this task:
 `liveness` out of G2, and `exactly_once` out of G1b and G3.  A library lifted
 from a task and then never called BY that task is a second copy of the rule, and

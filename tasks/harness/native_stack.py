@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Host-topology bring-up for `--driver native`: the stack, not the subject.
 
-`tasks/harness/NATIVE_DRIVER.md` describes a native episode as a subject with
+`docs/implementation_plan/harness/NATIVE_DRIVER.md` describes a native episode as a subject with
 bash, an environment full of addresses, and nine vendor-shaped services behind
 `<name>.internal`. Those aliases exist inside the episode network and nowhere
 else, which is what makes a native episode pointed at the defaults fail to
@@ -33,7 +33,7 @@ PORTS
 -----
 Every port is the service's own plus one offset
 (`alkera_gateway.native.serve --port-offset`), so `jira` on 8080 becomes 18080
-and a reader can still check a number against NATIVE_DRIVER_REQUESTS.md item 3
+and a reader can still check a number against docs/implementation_plan/harness/NATIVE_DRIVER_REQUESTS.md item 3
 by subtracting. The offset is DERIVED FROM THE ROLLOUT'S IDENTITY, not
 allocated: `choose_offset` hashes the key into the candidate list and takes the
 first candidate whose whole block is free, so the same rollout re-run on a quiet
@@ -85,7 +85,7 @@ SHIM_DIR_NAME = "shims"
 #: would: a tool the team wrote, invoked by path from the working tree, not a
 #: PATH-front wrapper in front of a binary. `world/world/native_workspace.py`
 #: owns the onboarding page and does not yet name it - recorded in
-#: `tasks/harness/NATIVE_DRIVER.md` rather than written into a file that is not
+#: `docs/implementation_plan/harness/NATIVE_DRIVER.md` rather than written into a file that is not
 #: this builder's.
 SCHED_CLI_PATH = "ops/sched"
 SCHED_CLI_MODULE = "alkera_gateway.native.shims.sched_cli"
@@ -831,7 +831,7 @@ HOST_TOPOLOGY_WARNING = "\n".join((
     "           quarantined 3 of 5 for exactly those two behaviours, both of",
     "           them good practice. Use --topology container to measure; the",
     "           design, the mount table and what it costs are in",
-    "           tasks/harness/NATIVE_CONTAINER.md.",
+    "           docs/implementation_plan/harness/NATIVE_CONTAINER.md.",
     "",
 ))
 
@@ -1014,7 +1014,7 @@ def run_scripted_container(*, rollout_dir: Path, world: dict, audit_dir: Path,
         # HARNESS's environment is what turns the first into all of them.
         "ALKERA_TRIGGER_JOBS": " ".join(trigger_plan(world)),
         # The arm this world was built from, forwarded into the container with
-        # the rest (VARIANTS_REQUESTS.md item 6). The compose overlay carries it
+        # the rest (docs/implementation_plan/harness/VARIANTS_REQUESTS.md item 6). The compose overlay carries it
         # too; this is the path a MODEL's command would take, and both have to
         # agree or a variant rollout would answer for `default` inside an arm.
         **({"ALKERA_TASK_VARIANT": variant} if variant else {}),

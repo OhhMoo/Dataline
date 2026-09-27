@@ -386,7 +386,7 @@ class ObservabilityStoreTest(unittest.TestCase):
         self.assertGreater(len(self.after), len(self.at_build))
 
     def test_a_past_sample_is_not_derivable_from_the_present_world(self):
-        """The invariant the whole store exists for (OBS_STORE_CONTRACT). If a
+        """The invariant the whole store exists for (gateway/SURFACES.md, "The sample store"). If a
         reader can recompute yesterday's reading from today's world, the record
         is decoration."""
         first = [s for s in self.at_build

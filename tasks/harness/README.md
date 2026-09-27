@@ -5,12 +5,14 @@ it after teardown, and classifies why it failed. Task-agnostic: everything
 specific to a task is declared in that task's own `task.toml` under `[harness]`.
 
 ```bash
-PY=../../gateway/.venv/Scripts/python.exe
+PY=../../gateway/.venv/bin/python                      # run from tasks/harness
 
-$PY selftest.py                                        # 133 detector/classifier/gate checks
+$PY selftest.py                                        # 147 detector/classifier/gate checks
+$PY linux_preflight.py [--live [--model-smoke opus]]   # host checks before a Linux run (see Linux hosts)
 $PY surface_gate_check.py                              # live proof the surface gate fires, no model
 $PY container_check.py --task GT001-aov-halving        # live containment proof, no model
 $PY reference_copy_check.py --task GT001-aov-halving   # the reference_copy baseline, contained
+$PY dual_container_check.py                            # live dual-warehouse episode in the container, no model
 $PY run_rollouts.py --task GT001-aov-halving --k 5     # K rollouts + report (native + container)
 $PY run_rollouts.py --task GT001-aov-halving --k 5 --driver mcp --topology host
 $PY rollout.py --task GT001-aov-halving --out <dir>    # one rollout
@@ -18,7 +20,68 @@ $PY rollout.py --reclassify <rollout-dir>              # re-derive the verdict o
 $PY rollout.py --regrade <rollout-dir>                 # re-run everything after teardown
 $PY run_rollouts.py --regrade-run <run-dir>            # ...for a whole run, + the report
 $PY test_regrade.py                                    # what the regrade may and may not do
+$PY run_queue.py --model opus GT004-doubling-window:authorized GT009-settlement-cutoff
+$PY coupling.py --task GT004-doubling-window --pairs all --out ../stressors/measured
 ```
+
+The four `*_check.py` scripts are operator CLIs, not imported by the pipeline; each
+writes its evidence to `evidence/`. Request logs, round history and the measured
+findings behind this page are in `docs/implementation_plan/harness/`.
+
+## Contents
+
+- [What is in this folder](#what-is-in-this-folder)
+- [`--reclassify` — re-derive the verdict only](#--reclassify--re-derive-the-verdict-only)
+- [`--regrade` — the episode already happened](#--regrade--the-episode-already-happened)
+- [What a task must declare](#what-a-task-must-declare)
+- [Context variants — one task directory, several worlds](#context-variants--one-task-directory-several-worlds)
+- [The order of operations, which is the contract](#the-order-of-operations-which-is-the-contract)
+- [Drivers, and how much they are worth](#drivers-and-how-much-they-are-worth)
+  - [The native driver](#the-native-driver)
+- [The headline on a `[matrix]` task](#the-headline-on-a-matrix-task-2026-09-19)
+- [The layers around the number](#the-layers-around-the-number-2026-09-18)
+- [The coupling filter — layer 3](#the-coupling-filter--layer-3-couplingpy)
+- [Topology: where the WORLD and the TOOLS run](#topology-where-the-world-and-the-tools-run)
+  - [Native under `--topology container`: the mounts](#native-under---topology-container-the-mounts)
+  - [The subject sandbox](#the-subject-sandbox)
+  - [Linux hosts](#linux-hosts)
+  - [Rebuilding the episode image](#rebuilding-the-episode-image)
+  - [What the shell costs, tool revocation, quota](#what-the-shell-costs-tool-revocation-quota)
+- [The surface gate](#the-surface-gate)
+  - [The plane paths, and what a "dead surface" usually means](#the-plane-paths-and-what-a-dead-surface-usually-means)
+- [Blindness is detected, never assumed](#blindness-is-detected-never-assumed)
+- [Failure classification](#failure-classification)
+- [Reports](#reports)
+- [`judge/` and `redteam/`](#judge-and-redteam)
+- [Read every quarantine before you believe the number](#read-every-quarantine-before-you-believe-the-number)
+
+## What is in this folder
+
+Subfolders, each with its own README:
+
+| folder | what |
+|---|---|
+| [`judge/`](judge/README.md) | judge tools that never touch the score: the reject-only clarity gate and the grader audit |
+| [`redteam/`](redteam/README.md) | attacks on our own detectors and graders: `scripted_subject.py`, the adversarial-suffix texts, `scripted_cheats/`, the exploit loop and [`exploit_agent/`](redteam/exploit_agent/README.md) |
+| `evidence/` | JSON evidence the operator checks write (`container-check.json`, `dual-container-check.json`, `reference-copy-contained.json`); regenerate by re-running the check, never by hand |
+
+Modules, by role (tests are `test_<module>.py` beside each):
+
+| role | files |
+|---|---|
+| entry points | `run_rollouts.py` (K rollouts + report, `--variant`, `--regrade-run`, `--re-report`, `--export`), `rollout.py` (one rollout, `--reclassify`, `--regrade`), `run_queue.py` (several runs back to back, stops on quota) |
+| the pipeline | `taskspec.py` (task.toml → spec; refuses what a task does not declare), `episode.py` (build world, stand the gateway up, tear down, grade twice), `agent_under_test.py` (the subject process and its prompt), `surface_audit.py` (surface probes and the gate), `blindness.py` (the detectors), `classify.py` (failure classes), `report.py` (report.md / report.json) |
+| drivers and topology | `native_stack.py` (host-topology native bring-up), `container_episode.py` (the episode, services and subject-sandbox containers), `container_shim.py` (the server copied into the episode container; no harness imports, read it before adding a string), `kimi_subject.py`, `cursor_subject.py` (other CLIs' isolation and transcript translation) |
+| scoring layers | `outcome.py`, `reward.py`, `progress.py`, `path.py`, `learning_signal.py`, `tracked_metrics.py`, `export.py`, `validity.py`, `lab_card.py`, `baselines_schema.py` ([table](#the-layers-around-the-number-2026-09-18)) |
+| composition | `coupling.py`, `coupling_adapters.py` (layer 3, [below](#the-coupling-filter--layer-3-couplingpy)), `ledger.py` (the grading-side reader of `var/ledger/receipts.jsonl`) |
+| operator checks (not imported by the pipeline) | `container_check.py`, `dual_container_check.py`, `reference_copy_check.py`, `surface_gate_check.py`, `linux_preflight.py`, `selftest.py` |
+| test policy | `conftest.py`: five `test_*.py` files are executed scripts, not pytest modules (`test_regrade.py`, `test_variants.py`, `test_blindness_refused.py`, `test_ledger_harness.py`, `test_native_container.py`); pytest skips them, run them directly with `$PY <file>` |
+
+**Markdown this harness reads as data.** `lab_card.py` reads each task's `DESIGN.md` and
+`tests/VALIDITY.md`; `rollout.py --adversarial-suffix` appends a `redteam/*.md` text to the brief
+verbatim; `redteam/exploit_agent/harness.py` reads `prompt.md`. Do not move or rename them.
+
+## `--reclassify` — re-derive the verdict only
 
 `--reclassify` re-runs the detectors and the classifier over a completed rollout's stored
 transcript, action log and artefact. It never re-runs the episode and never re-grades, so a
@@ -78,8 +141,8 @@ re-rooted onto the copy, and the original is never read or written. `test_regrad
 all of this against a real `--driver scripted` rollout (no model quota) and, when the machine
 has one, diffs a re-graded recorded rollout against its original field by field.
 
-Runs land in `%TEMP%/alkera-rollouts/<task>/<run-id>/` — outside the repo on
-purpose. A world built inside the source tree puts the subject one `..` from the
+Runs land in `$TMPDIR/alkera-rollouts/<task>/<run-id>/` (`tempfile.gettempdir()`)
+— outside the repo on purpose. A world built inside the source tree puts the subject one `..` from the
 grader, and "it cannot get there anyway" is the assumption this harness exists
 to refuse.
 
@@ -214,11 +277,96 @@ moves, which is the leak native removes. Host native is not
 `measurement_valid`. Spec: `gateway/NATIVE.md`. Root `README.md` has the
 operator table.
 
+### The native driver
+
+The subject gets `claude --print` with the built-in shell and no MCP server
+(`--mcp-config '{"mcpServers": {}}' --tools Bash --strict-mcp-config`,
+`agent_under_test.tool_surface_argv`). Everything else is the sequence
+`rollout.py` runs for every driver.
+
+**What the subject is told** (`native_env`): addresses and obviously fake
+credentials, no tool list and no service inventory.
+
+| variable | value |
+|---|---|
+| `ALKERA_NATIVE_AUDIT` | `<audit_dir>/actions.jsonl`, the same 9.2.2 log the MCP gateway writes, so the budget watcher, detectors and report need no native branch |
+| `JIRA_URL` `SLACK_BASE_URL` `CONFLUENCE_URL` `METABASE_URL` `PROMETHEUS_URL` `ALERTMANAGER_URL` `LOKI_URL` `AIRBYTE_URL` `DEPLOY_URL` | `http://<name>.internal:<port>`: jira 8080, slack 8081, confluence 8090, metabase 3000, prometheus 9090, alertmanager 9093, loki 3100, airbyte 8001, deploy 8085 |
+| `AWS_ENDPOINT_URL` `AWS_ACCESS_KEY_ID` `AWS_SECRET_ACCESS_KEY` `AWS_DEFAULT_REGION` | `http://minio.internal:9000`, `alkera-local-dev`, `us-east-1` (boto3 and the aws CLI refuse to sign without credentials) |
+| `PGHOST` `PGPORT` `PGUSER` `PGDATABASE` `PGPASSWORD` | `postgres.internal` `5432` `alkera` `alkera` `alkera-local-dev` |
+| `DBT_PROFILES_DIR` | the world's `profiles_dir` |
+| `ALKERA_SCHEDULER` | the world's `var/sched/state.json`, which is also the virtual clock the shims stamp rows with |
+| `ALKERA_GATEWAY_CONFIG` | the config the nine services are served from, so `./ops/sched` resolves the same planes |
+
+`*.internal` resolves only on the episode network. Off it, `--native-endpoints
+<file.json>` maps names onto published ports (`{"jira": "http://127.0.0.1:18080",
+"postgres": {"port": 15432}}`); an unknown key is refused.
+
+**The prompt** (`build_prompt(driver="native")`) names no surface. It points at
+the set-up files the workspace actually has (`.envrc`, `docs/onboarding.md`,
+`<DBT_PROFILES_DIR>/profiles.yml`) and only those that exist. Out-of-bounds text
+is `BOUNDS_MEASURED_NATIVE`.
+
+**Detector rules that differ from mcp/cli:**
+
+| rule | mcp / kimi | cli | native |
+|---|---|---|---|
+| `unknown_tool` | hard | hard | soft, renamed `unlisted_tool` |
+| `shell_outside_gateway` | n/a | hard | not evaluated |
+| `out_of_band_world_change`, served planes (`var/`, warehouses, ledger, obs, workflow) | soft | hard | hard |
+| `out_of_band_world_change`, working tree | soft | hard | hard only when the transcript holds no shell command at all; otherwise soft |
+| `network_destination` | n/a | n/a | hard |
+| `unobserved_network` | n/a | n/a | hard, quarantines as *unobserved* |
+
+Everything else (`capability_leak`, `canary_leak`, markers, web/host/delegation)
+is hard for every driver. After teardown `rollout._stage_workspace_edits` closes
+the log with one `workspace.edit` row per changed working-tree file (actor
+`harness`); the hard rule is evaluated independently of those rows.
+`network_destination` reads `<audit_dir>/destinations.jsonl`, written on the
+service side: a destination that is not one of this episode's endpoints is hard,
+and a malformed or absent file is `unobserved_network`. Rows the harness wrote
+(`workspace.edit`, `health:<service>` targets) are excluded by
+`blindness.is_harness_row` / `subject_rows`. A native row is named
+`<service>.<mcp_tool>` (`deploy.deploy_run`), so a grader must suffix-match tool
+names.
+
+**The native surface gate is content-bearing** (`surface_audit.probe_native`):
+each declared probe maps to a surface by tool prefix, every unnamed service is
+swept as `~<name>`, and each check asks for a count.
+
+| tools | surface | live when |
+|---|---|---|
+| `issues_*` `chat_*` `kb_*` `bi_*` `metrics_*` `alarms_*` `logs_*` `ingest_*` `deploy_*` | the nine services | `/health` answers `{"ok": true, "items": n>0}` |
+| `sql_*` | the warehouse file (a `warehouse = "legacy"` probe asks about that file) | it opens read-only; with `[harness].warehouse_schemas` declared, a table in them holds a row |
+| `dbt_*` | the dbt toolchain | `dbt` resolves on PATH and a profile output names this world's warehouse |
+| `sched_*` | the scheduler: the host state file, or `sched.internal` under `--topology container` | ≥1 declared job |
+| `docs_*` / `fs_*` / `git_*` | `workspace/docs` / the working tree / the repository | ≥1 file; `git rev-parse HEAD` resolves |
+| `s3_*` | the bucket | exists and holds ≥1 object |
+
+An unreadable health body is *suspect*, never live or dead; a 503 carrying a
+health document is dead.
+
+**The scheduler surface is `./ops/sched`**, materialised into the working tree
+by `native_stack.install_workspace_cli` before the world is fingerprinted. Its
+`list`, `logs` and `trigger` run the same `Operations` methods the MCP tools of
+those names run and write `sched.sched_*` rows. With `SCHED_URL` unset (host
+topology) they run in-process; set (container topology) they go to
+`sched.internal:8120` and the plane writes the row. There is deliberately no
+`advance`: an MCP agent cannot move the world clock, so neither can a native one.
+`ALKERA_TRIGGER_ALL=1` in the harness's environment makes the scripted subject
+trigger every declared job, a smoke for the world-diff allowlist.
+
+**`--topology host` is not `measurement_valid` for native.** The subject's bash
+is a host process there: it can write anywhere in the world tree and read the
+rollout directory, and nothing audits either (a warehouse backup reads as
+`out_of_band_world_change`, an `ls` of the rollout directory as `canary_leak`).
+`run_rollouts.py` prints `native_stack.HOST_TOPOLOGY_WARNING`. The host topology
+stays for developing the shims and services.
+
 ## The headline on a `[matrix]` task (2026-09-19)
 
 The report headline is APEX-Agents style, read off the arm's
 `[matrix.outcome]` table and its `role`. Nothing is gated; every graded
-episode is in the denominator. `docs/Scoring_Redesign.md` is the design
+episode is in the denominator. `docs/research/Scoring_Redesign.md` is the design
 note.
 
 - **pass** (per episode, bool): the outcome class is in the arm's **top
@@ -252,7 +400,7 @@ that does not.
 
 ## The layers around the number (2026-09-18)
 
-`docs/Scoring_Redesign.md` says what a lab reads off a task before
+`docs/research/Scoring_Redesign.md` says what a lab reads off a task before
 training on it. These modules print it. None of them changes a score.
 
 | layer | module | what |
@@ -279,6 +427,47 @@ carries `outcome`, `pass`, `score`, `band`, `progress`, `path_penalty`,
 If one of the layer modules cannot be imported or is unfinished, `report.py`
 prints the block as unavailable and records a caveat rather than failing the
 report - a number over a bug is worse than no number.
+
+## The coupling filter — layer 3 (`coupling.py`)
+
+Two stressors compound only if they share state: perturb defect A, and if the
+correct repair of B changes, they are coupled. The filter rejects disconnected
+compositions before any model token is spent. Inputs: `tasks/stressors/registry.yaml`
+(every stressor that exists as fixture code) and a per-task adapter in
+`coupling_adapters.py` (`GT004Adapter`, `GT004ClockedAdapter`, `GT009Adapter`).
+Records land in `tasks/stressors/measured/`.
+
+1. **Pre-filter**, `predeclared_overlap(a, b, registry)`: set intersection over
+   declared `tables` (direct ∪ `derived_tables`), `checkpoints` and `metrics`.
+   It may only reject; `overlap: true` means "measure it". A calendar window
+   counts only as a refinement of a shared table. A stressor that writes no
+   relation returns `overlap: null`, undecidable.
+2. **Measured test**, `measured_coupling(task_dir, a, b, workdir)`: build `base`,
+   `base+{a}`, `base+{b}`, `base+{a,b}`; take A's footprint as measured (every
+   `(table, key)` A or A's repair moves); apply B's oracle repair to `base+{b}`
+   and `base+{a,b}` and evaluate B's clauses. **Coupled** iff (i) every B clause
+   passes alone and one fails with A present, or (ii) the post-repair state
+   differs outside A's footprint. Strength: `strong` (ii) / `ordered` (only i,
+   rescued by repairing A first) / `weak` (only i) / `none`. Coupling is directed.
+3. **`--selfcheck`** gates everything: per stressor, the clean world passes, the
+   planted world fails, the repaired world passes (the clean leg is skipped for
+   `kind: event`). An adapter may declare `conditional_on = {stressor: [partner]}`
+   for a stressor harmful only beside another; `staged_with` records it.
+4. **`--clock`** stages world roots instead of bare warehouses: B's repair lands
+   at t0, then `world.scheduler.advance` runs the planted events through the
+   world's own jobs before B's clauses are evaluated. Event stressors
+   (`late_arrival`, every GT009 stressor) are only measurable this way. It
+   executes one planted schedule, not interleavings, and costs about 2.5× an
+   unclocked pair.
+
+```bash
+$PY coupling.py --task GT004-doubling-window --selfcheck --clock
+$PY coupling.py --task GT009-settlement-cutoff --pairs all --clock --out ../stressors/measured
+```
+
+Never accept a composition on the pre-filter alone: a shared table is necessary,
+not sufficient. The measured matrices and the filter's known limitations are in
+`docs/implementation_plan/harness/COUPLING.md`.
 
 ## Topology: where the WORLD and the TOOLS run
 
@@ -309,8 +498,9 @@ and the subject reaches it as `docker exec -i <container> ... serve` over MCP
 stdio: no published port (a port would be a second channel), and exactly one
 gateway process (the audit log holds an exclusive writer lock).
 
-The subject process itself stays on the host, because it is a model CLI and
-needs an inference API that the episode zone deliberately cannot reach. The
+Under `--driver mcp` the subject process itself stays on the host, because it is a model CLI and
+needs an inference API that the episode zone deliberately cannot reach (under
+`--driver native` it runs in the subject sandbox, below). The
 agent loop is outside; the workspace is inside. Its tool surface is unchanged in
 shape - still exactly `mcp__alkera__*`, verified per rollout from its own init
 event - and now includes `bash`.
@@ -324,6 +514,126 @@ the log asserts a contiguous sequence and holds an exclusive lock. A bash row's
 `targets` are the world files the command changed, from a before/after walk of
 the world tree; without them the off-channel-change detector would fire on every
 legitimate shell write. Nothing under `gateway/src/` is edited to do any of it.
+
+### Native under `--topology container`: the mounts
+
+The native episode container sees the working tree and the warehouse files and
+nothing else of the world:
+
+| what | in the episode | mode |
+|---|---|---|
+| `<world>/workspace` | `/workspace` | rw |
+| each `var/warehouse/*.duckdb` | `/world/<same rel>` | rw, bound as a file, so a `cp` beside it stays in the container |
+| the rollout's `audit/` | `/audit` | rw; the shims append their rows here |
+| tmpfs | `/world/var/ledger` | ro, empty (world evidence, shadowed) |
+| the rest of the world (`var/{sched,obs,workflow,bi,world,dbt}`, `build`, `home`) | absent | reached through a service |
+| `<world>/home` + the re-rooted `profiles.yml` | `/root`, `/root/.dbt/profiles.yml` | copied |
+
+`native-services` mounts the whole world and serves every plane the episode
+cannot see, including the scheduler at `sched.internal:8120`
+(`alkera_gateway/native/sched_plane.py`). `NativeContainerEpisode.write_overlay`
+writes the per-rollout mounts overlay into `<rollout>/container/`, the record of
+what that container could see. Docker will not publish ports off an `internal:
+true` network, so the harness reaches the services through
+`container_episode.ServiceGate`, a byte relay per connection over `docker exec`.
+Containment P7 (`gateway/docker/native_episode_probe.py`) runs inside the episode
+before and after every rollout; `gateway/docker/containment.py --native-episode`
+runs it by hand. The image bakes `gateway/src`, so a stale image and a dead plane
+look alike: rebuild the image after changing gateway code (below).
+
+### The subject sandbox
+
+`--subject-sandbox container`, the default for `--driver native --topology container`,
+runs the model's CLI in its own
+`subject` container, not on the host. A redirect of the host CLI's bash into the
+episode (`BASH_ENV`) was not a boundary: `env -u BASH_ENV bash -c …` put the
+model back on the host. Now an escaped shell lands in an empty jail.
+
+```
+ host (harness only)
+   │ docker exec -i subject claude --print …          stream-json on stdout
+   ▼
+ subject: claude CLI, uid 1000, read-only root,  ──api_net──▶ egress-proxy ──outbound_net──▶ api.anthropic.com:443
+          cap_drop ALL, no-new-privileges,                   (CONNECT allowlist, logs every connection)
+          tmpfs home and /tmp, no host mounts
+          bash → BASH_ENV → rexec.py client
+   │ subject_net (internal, two members)
+   ▼ rexec.py serve :7070, token-gated
+ episode: unchanged (/workspace, /world, /audit, shims)  ──episode_net──▶ postgres.internal, jira.internal, …
+```
+
+Only the proxy is on a network with a default route. `subject_sandbox_probe`
+runs every rollout and must hold before the terminal is handed over
+(`container_execution_proof.verified` requires `sandbox.verified`); the result is
+saved on the record as `subject_sandbox`, and the proxy log as
+`<rollout>/container/egress.jsonl`.
+
+| property | enforced by | measured by |
+|---|---|---|
+| no host filesystem | no bind mounts on `subject`; tmpfs only | host paths (world, grading, rollout dir, repo, `$HOME`) do not exist |
+| no engine | no socket mounted | none of `ENGINE_SOCKETS` exists |
+| no privilege | `user: 1000`, `cap_drop: [ALL]`, `no-new-privileges`, `read_only` | uid ≠ 0, `CapEff` 0, `NoNewPrivs` 1, root not writable |
+| no egress but the API | internal networks; `HTTPS_PROXY` → allowlist | no default route; direct TCP and public DNS fail; proxy 403 for example.com, 200 for the API |
+| commands land in the episode | `BASH_ENV` + `/etc/profile.d` hook → rexec | `bash -c hostname` and `bash -lc hostname` return the episode's hostname |
+| no side door into the services | `subject` is not on `episode_net` | `postgres.internal`, `jira.internal` unreachable |
+
+What it does not claim: the credential is inside the jail (never on disk or in a
+recorded argv; use a scoped `claude setup-token` token), the agent is still root
+in the episode container, the kernel is shared (run the engine under gVisor or a
+VM for more), and only the native driver is covered (`--driver mcp` has no shell
+and its CLI stays on the host). Fidelity: each command runs in the episode at
+`/workspace` with no state between commands, and the prompt, transcript and
+audit rows are unchanged. `--subject-sandbox host` keeps the old host-subject
+topology (detection only).
+
+Files: `gateway/docker/Dockerfile.subject`,
+`gateway/docker/subject/{rexec.py,egress_proxy.py,bash_env.sh}`,
+`gateway/docker/compose.subject.yml`, the "hard sandbox" section of
+`container_episode.py`. Tests: `test_subject_sandbox_pure.py` (no engine) and
+`test_subject_sandbox.py` (live). Knobs: `ALKERA_EGRESS_ALLOW` (comma list of
+`host:port`, default `api.anthropic.com:443`), `--subject-image`,
+`--subject-sandbox host|container`.
+
+### Linux hosts
+
+```bash
+scripts/setup_linux.sh                  # packages, gateway/.venv, claude CLI, images, preflight
+claude setup-token                      # once; prints a long-lived token
+export CLAUDE_CODE_OAUTH_TOKEN=<token>  # or ANTHROPIC_API_KEY=...
+gateway/.venv/bin/python tasks/harness/linux_preflight.py --live --model-smoke opus
+scripts/run_decision_pass1.sh --k 1     # one rollout per decision arm
+```
+
+Fedora/RHEL (dnf) and Ubuntu/Debian (apt), with `--engine docker` (rootful
+Docker CE) or `--engine podman` (rootless podman behind `podman-docker` and the
+compose v2 plugin). Compose ≥ 2.24 is required (`!override`); `podman-compose`
+does not work.
+
+- **SELinux.** When `/sys/fs/selinux/enforce` is 1,
+  `container_episode.selinux_overlay` adds a compose file with
+  `security_opt: [label=disable]` on every service (written into
+  `<rollout>/container/compose.selinux.yml`). Host files are not relabelled and
+  the containment boundary is unchanged. `ALKERA_SELINUX_LABEL=keep` turns it off.
+- **File ownership.** Before `compose down`, `container_episode.release_ownership`
+  runs `chown -R --reference=/audit` over `/workspace /world /audit` inside the
+  episode, so a rootful engine's root-owned writes come back to you.
+- **The subject's login** travels in the environment (`CLAUDE_CODE_OAUTH_TOKEN`,
+  `ANTHROPIC_API_KEY` or `ANTHROPIC_AUTH_TOKEN`); copying
+  `~/.claude/.credentials.json` in is refused because a subject could rotate its
+  refresh token. Without one, `require_subject_auth` refuses before a world is built.
+- **The shell.** The CLI spawns `$SHELL` on Linux, so the wrapper sets `SHELL` to
+  the bash it verified (zsh or fish would never read `BASH_ENV`).
+- **Parent sessions.** `container_episode.PARENT_SESSION_VARS` is stripped from
+  every subject environment, so a harness started inside a Claude Code session
+  does not leak it.
+
+| check | needs | proves |
+|---|---|---|
+| `linux_preflight.py` | nothing running | engine, compose ≥ 2.24, SELinux handling, image current, venv, CLI, credential, disk |
+| `test_subject_sandbox_pure.py` | nothing | the command bridge and the egress allowlist, on loopback |
+| `linux_preflight.py --live` | engine, both images | GT001 stack with the sandbox, its proof, every escape attempted |
+| `linux_preflight.py --live --model-smoke opus` | + credential | the real CLI, inside the subject container, reaches the episode (one turn) |
+| `run_rollouts.py --model scripted --k 1 …` | engine, both images | a full rollout and grade through the sandbox, no quota |
 
 ### Rebuilding the episode image
 
@@ -340,6 +650,8 @@ Every rollout records the image tag and digest. Rebuild when the toolbelt change
 and say so in the report, because the toolbelt decides the prompt and therefore the
 measurement.
 
+### What the shell costs, tool revocation, quota
+
 **What the shell costs, stated plainly.** An agent with a shell can open the
 warehouse file directly and mutate it without any `sql_execute` row naming the
 statement. The action log still has a row per tool call and still names the
@@ -351,6 +663,9 @@ paid knowingly, not discovered later.
 Under `mcp` the revocation is real and verified per rollout from the subject's
 own session-init event, not from our flags: `--tools ""` plus
 `--strict-mcp-config` leaves it with `mcp__alkera__*` and nothing else.
+Not `--safe-mode`: it disables MCP servers along with every other
+customisation, which leaves the subject with no toolbelt at all and an episode
+that looks like a very fast failure.
 
 Under `kimi` the same revocation is assembled from different parts (see
 `kimi_subject.py` for the full reasoning): a per-rollout isolated
@@ -456,10 +771,6 @@ hardcoded, so the check cannot decay into "require something that happens to be
 live".
 
 
-Not `--safe-mode`. It disables MCP servers along with every other
-customisation, which leaves the subject with no toolbelt at all and an episode
-that looks like a very fast failure. Measured, not assumed.
-
 ## Blindness is detected, never assumed
 
 Six detectors, deliberately overlapping, in `blindness.py`. Any **hard**
@@ -516,7 +827,7 @@ worth fixing. Every heuristic class carries `needs_review`.
 scored the same unchanged world differently on two consecutive runs (every
 rollout is graded twice for exactly this). "It did the right thing and the
 grader said no" is **not** detected automatically and cannot be — see the
-weakness section of `rounds/R003/C1-harness.md`.
+weakness section of `docs/implementation_plan/structure/rounds/R003/C1-harness.md`.
 
 ## Reports
 
@@ -558,10 +869,13 @@ Plus per-check pass rates, the classification counts, the quarantine count split
 into *caught violating* vs *unobservable*, and median tool calls and wall clock.
 
 
-## `redteam/`
+## `judge/` and `redteam/`
 
-Detector tests, never measurements. Any rollout using one is stamped
-`redteam_detector_test: true` and the report says so at the top.
+Neither is part of the measurement. [`judge/`](judge/README.md) holds model-backed tools that
+may reject a brief or flag a grader verdict but never award a point (`test_judge_isolation.py`
+keeps `outcome.py`, `reward.py` and every `grade.py` from importing it).
+[`redteam/`](redteam/README.md) holds detector tests and grader attacks; any rollout that uses one
+is stamped `redteam_detector_test: true` and the report says so at the top.
 
 ## Read every quarantine before you believe the number
 

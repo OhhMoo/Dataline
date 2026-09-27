@@ -188,7 +188,7 @@ class EndpointTableTest(unittest.TestCase):
         """`agent_under_test.NATIVE_SERVICES` is the authority.
 
         It is what `--driver native` puts in the subject's own environment
-        (`tasks/harness/NATIVE_DRIVER_REQUESTS.md` item 3). If this table
+        (`docs/implementation_plan/harness/NATIVE_DRIVER_REQUESTS.md` item 3). If this table
         disagrees, the subject's `JIRA_URL` points at a closed socket and the
         native surface gate reports a dead world - a failure that reads as the
         agent's, which is the worst kind."""
@@ -213,7 +213,7 @@ class EndpointTableTest(unittest.TestCase):
         self.assertEqual(
             wrong, {},
             "service modules listen on a port the subject is not told about "
-            "(module, subject): see gateway/docker/COMPOSE_REQUESTS.md")
+            "(module, subject): see docs/implementation_plan/gateway/COMPOSE_REQUESTS.md")
         hosts = {name: module.HOST for name, module in loaded.items()}
         self.assertEqual(
             hosts,

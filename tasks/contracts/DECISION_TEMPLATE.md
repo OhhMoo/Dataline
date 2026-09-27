@@ -3,7 +3,7 @@
 GT009 is the reference. This page is its structure with the settlement world
 taken out, so GT001–GT008 can carry the same structure with a *different*
 decision each, and so the human rewrite of any brief (wording only, never the
-task) has a fixed thing to be checked against. `docs/Scoring_Redesign.md`
+task) has a fixed thing to be checked against. `docs/research/Scoring_Redesign.md`
 is the argument for each item and the scoring it feeds (pass@1 on the top
 band, Mean Score, the per-criterion pass table).
 
@@ -84,7 +84,7 @@ in the top band (`resolved`, or `withheld_with_evidence` on a decision arm);
 **Mean Score** is the fraction of the top-band classes' conditions the
 episode met; the per-criterion pass table (one row per check id named in the
 outcome table) is the "why did it fail" view. There is no separate axis or
-gate layer over the checks (retired 2026-09-19; `docs/Scoring_Redesign.md`).
+gate layer over the checks (retired 2026-09-19; `docs/research/Scoring_Redesign.md`).
 
 ## 4. The checks a grader must have
 
@@ -165,7 +165,7 @@ edit of an existing one, so a stored run stays attributable.
 ## 7. Pre-registration, per arm, before any model runs
 
 In `DESIGN.md`, stated in the four quantities the rerun is read on
-(`docs/Scoring_Redesign.md`):
+(`docs/research/Scoring_Redesign.md`):
 
 1. **pass@1** — the predicted rate of episodes whose outcome class is in the
    top band (`resolved`; on a decision arm also `withheld_with_evidence`),
@@ -192,7 +192,7 @@ In `DESIGN.md`, stated in the four quantities the rerun is read on
 Also, as before: the intended decision and the accepted alternative outcomes.
 The rerun is read against these four, not against a single rate, and not
 against any per-axis rate — the axis layer and its before/after comparison
-were retired on 2026-09-19 (`tasks/MATRIX_RERUN_EDITS.md §1`).
+were retired on 2026-09-19 (`docs/implementation_plan/harness/MATRIX_RERUN_EDITS.md §1`).
 
 ## 8. Done means
 
@@ -205,7 +205,7 @@ suite (`pytest -q` in `tasks/harness`) is green. No model token is spent.
 
 ## 9. What each arm declares for the scalar (added 2026-09-18)
 
-The training scalar is three tiers (`docs/Scoring_Redesign.md`; formerly `scoring_granularity.md §4.3`):
+The training scalar is three tiers (`docs/research/Scoring_Redesign.md`; formerly `scoring_granularity.md §4.3`):
 a fixed **band** from the outcome class, a bounded **progress** term inside
 the two partial classes, and **path penalties** from the episode audit log.
 

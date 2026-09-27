@@ -65,7 +65,7 @@ Definitions, all on the fact `table`, not on the landing table the plant writes:
 
 A wrong increase (`n1 != n0` but not by `rows`) is `liveness_failed` False and `planted_once` False. A dead loader is `liveness_failed` True. It can also be `business_identical` True, because both runs leave the business columns alone. A-T2 does not assert `business_identical`.
 
-`n0` is after `plant`, not before. `docs/plans/hardness-round/findings/R-A1.md` shows why: `liveness.ingests` snapshots the count before `plant`, so a `WHERE 1=0` loader plus `plant.sql` that inserts into the counted table scores a full liveness pass. Sampling `n0` after that insert makes `n1 == n0` and `liveness_failed` True. Do not treat `fp1 == fp2` as a pass by itself.
+`n0` is after `plant`, not before. `docs/implementation_plan/hardness-round/findings/R-A1.md` shows why: `liveness.ingests` snapshots the count before `plant`, so a `WHERE 1=0` loader plus `plant.sql` that inserts into the counted table scores a full liveness pass. Sampling `n0` after that insert makes `n1 == n0` and `liveness_failed` True. Do not treat `fp1 == fp2` as a pass by itself.
 
 A loader that ignores the landing table and inserts its own rows under the same predicate still moves `n1` by `rows`. The count does not close that hole. A1 does not add a value check this round; the finding records it.
 

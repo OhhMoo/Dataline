@@ -1,6 +1,6 @@
 # What the native stack needs from files COMPOSE-DISCOVERY does not own
 
-Counterpart to `tasks/harness/NATIVE_DRIVER_REQUESTS.md`. Each item says what
+Counterpart to `docs/implementation_plan/harness/NATIVE_DRIVER_REQUESTS.md`. Each item says what
 is broken today and what breaks if it is not supplied, so none of them can be
 dropped quietly. Owner of this file: COMPOSE-DISCOVERY.
 
@@ -66,7 +66,7 @@ the commit missed shows up as a dirty tree on the agent's first `git status`.
 `compose.native.yml` carries an `airflow` service behind `--profile airflow`
 (`airflow standalone`, DAGs from `/world/workspace/dags`). Nothing in this
 repository drives it: there is no DAG bundle and no bridge from
-`world/world/airflow_bridge.py` to this container. It is declared so the alias
+`_archive/world/world/airflow_bridge.py` (archived) to this container. It is declared so the alias
 table is complete and the next builder edits a stanza instead of inventing one.
 `evidence/containment-native.json` records it under
 `backends_declared_but_not_running` and claims nothing about it.

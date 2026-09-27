@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Stand up one episode container and attack it. No model, no quota, no rollout.
 
-    python container_check.py --task ../GT001-aov-halving
+    python container_check.py --task GT001-aov-halving
 
 Everything here is executed against a live container and written to
 `evidence/container-check.json`. It answers the four questions a skeptic asks
@@ -152,7 +152,7 @@ async def mcp_probe(argv: list[str], calls: list[tuple[str, str]],
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--task", default="../GT001-aov-halving")
+    ap.add_argument("--task", default="GT001-aov-halving")
     ap.add_argument("--project", default=f"alkera-check-{int(time.time())}")
     ap.add_argument("--image", default=ce.DEFAULT_IMAGE)
     ap.add_argument("--keep-up", action="store_true")
