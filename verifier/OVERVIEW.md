@@ -1,7 +1,7 @@
 # verifier/ — append-only verification history
 
 **Purpose.** The record of what was checked, when, against which deliverable — never
-edited, only appended. Live status is derived elsewhere (`scripts/track_status.py`);
+edited, only appended. Live status was derived elsewhere (`_archive/scripts/track_status.py`, archived);
 this folder is the trail.
 
 ```

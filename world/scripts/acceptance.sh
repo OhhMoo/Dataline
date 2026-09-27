@@ -321,7 +321,7 @@ else
 fi
 
 
-# Evidence of THIS run, for scripts/track_status.py (A3 and A4a read it). Written
+# Evidence of THIS run, for _archive/scripts/track_status.py (archived; its A3 and A4a read it). Written
 # only on the all-pass path (set -e aborts earlier otherwise), so its presence
 # means every listed gate passed on the commit it names.
 mkdir -p evidence
