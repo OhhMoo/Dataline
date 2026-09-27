@@ -95,7 +95,7 @@ class WorldScheduler:
                 # for dbt_run). It makes a failed pipeline run visible in the
                 # action log's `exit` column instead of only inside the result
                 # blob - which is what a grader asking "did the fix work?"
-                # has to read. See structure/rounds/R003/LIVE-WORLD.md: this is the one
+                # has to read. See docs/implementation_plan/structure/rounds/R003/LIVE-WORLD.md: this is the one
                 # envelope-level difference from FileScheduler.
                 "returncode": 0 if run["status"] == "success" else 1,
                 **run}

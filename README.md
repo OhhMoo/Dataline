@@ -31,7 +31,7 @@ Nothing above a layer can change what the layer below it reads: `tasks/` depends
 `gateway/`, which depends on `world/`; a task knows the world's layout, not its internals.
 Each folder's `README.md` is its guide: [`world/`](world/README.md),
 [`gateway/`](gateway/README.md), [`tasks/harness/`](tasks/harness/README.md),
-[`verifier/`](verifier/README.md).
+[`verifier/`](_archive/verifier/README.md).
 
 ## Set up (Linux)
 
@@ -47,10 +47,10 @@ gateway/.venv/bin/python tasks/harness/linux_preflight.py --live --model-smoke o
 
 `scripts/setup_linux.sh --help` lists its options (`--engine docker|podman`,
 `--skip-packages`, `--skip-image`). What differs from Windows (SELinux, file ownership,
-the subject's login) is in [`tasks/harness/LINUX.md`](tasks/harness/LINUX.md). The
+the subject's login) is in [`tasks/harness/README.md#linux-hosts`](tasks/harness/README.md#linux-hosts). The
 model's CLI runs in its own locked-down container whose only way out is an allowlisting
 proxy to the API (`--subject-sandbox container`, the default):
-[`tasks/harness/SANDBOX.md`](tasks/harness/SANDBOX.md).
+[`tasks/harness/README.md#the-subject-sandbox`](tasks/harness/README.md#the-subject-sandbox).
 
 ## Run a measurement
 

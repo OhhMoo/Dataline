@@ -772,7 +772,7 @@ worth fixing. Every heuristic class carries `needs_review`.
 scored the same unchanged world differently on two consecutive runs (every
 rollout is graded twice for exactly this). "It did the right thing and the
 grader said no" is **not** detected automatically and cannot be — see the
-weakness section of `structure/rounds/R003/C1-harness.md`.
+weakness section of `docs/implementation_plan/structure/rounds/R003/C1-harness.md`.
 
 ## Reports
 

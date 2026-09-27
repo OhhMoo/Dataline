@@ -19,7 +19,7 @@ run_decision_pass1.sh   pass@1 on the decision arms of GT001-GT003 and GT005-GT0
 ```
 
 Neither creates a subject credential: run `claude setup-token` and export
-`CLAUDE_CODE_OAUTH_TOKEN` (or `ANTHROPIC_API_KEY`). See `tasks/harness/LINUX.md`.
+`CLAUDE_CODE_OAUTH_TOKEN` (or `ANTHROPIC_API_KEY`). See `tasks/harness/README.md#linux-hosts`.
 
 The former status scanner `track_status.py` (and its baseline and OVERVIEW) measured the
 tree against the old three-track plan in `docs/implementation_plan/agent.md` §11; it is

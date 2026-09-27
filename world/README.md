@@ -120,7 +120,7 @@ fingerprinted, unreachable.
 **The fault layer stages contention; it never races.** Two overlapping runs are two
 overlapping *recorded windows* over strictly sequential execution — on DuckDB appends
 never conflict, so we build the evidence of a race, never the race
-(`structure/rounds/R003/FAULTS.md`). Arrival faults do not reach the seeded
+(`docs/implementation_plan/structure/rounds/R003/FAULTS.md`). Arrival faults do not reach the seeded
 backstory. Worlds built outside `world.build` (GT001–GT003 fixtures) have no `live.json`:
 `trigger` reports `unsupported`, `advance` moves the clock only — loudly, in the record.
 

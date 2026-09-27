@@ -64,7 +64,7 @@ var/
 # DELIBERATELY NOT IGNORED - these ARE the research record:
 #   docs/implementation_plan/structure/state/**    the blackboard, including failures/
 #   docs/implementation_plan/structure/rounds/**   per-round reports and gate output
-#   verifier/runs/**                    append-only verification history
+#   _archive/verifier/runs/**               append-only verification history
 #   gateway/docker/evidence/**          containment / toolbelt / image proofs
 #   tasks/harness/evidence/**           rollout and container-check evidence
 #   world/evidence/**               acceptance.sh's all-pass record (host == container hash, gate 7)

@@ -81,7 +81,7 @@ from . import services
 #: The port each registry service listens on when its own module does not say.
 #:
 #: NOT a free choice. `tasks/harness/agent_under_test.NATIVE_SERVICES` is what
-#: the subject env carries and `tasks/harness/NATIVE_DRIVER_REQUESTS.md` item 3
+#: the subject env carries and `docs/implementation_plan/harness/NATIVE_DRIVER_REQUESTS.md` item 3
 #: fixes these nine numbers; vendor defaults wherever the vendor has one, Slack
 #: and deploy have none. A module PORT still wins at mount time - it is the
 #: thing that listens - but a module that disagrees means the subject JIRA_URL
@@ -114,7 +114,7 @@ AGGREGATE_PORT = 8099
 #:
 #: `compose.native.yml` points `MINIO_AUDIT_WEBHOOK_ENDPOINT_alkera` at
 #: `http://native-services.internal:8110/minio/audit`
-#: (gateway/docker/COMPOSE_REQUESTS.md item 3). The receiver is AUDIT's
+#: (docs/implementation_plan/gateway/COMPOSE_REQUESTS.md item 3). The receiver is AUDIT's
 #: `tailers.minio.build_app()`; it is hosted here rather than in a container of
 #: its own because it writes into the same `actions.jsonl` this process's
 #: services write, and `native.audit` allocates `seq` under one lock per audit
@@ -133,7 +133,7 @@ MINIO_AUDIT_NAME = "minio-audit"
 #: repo (`shims/sched_cli.py`). What this mount adds is the CLI's BACKEND for
 #: the container topology, where the files that CLI drives - `var/sched`, its
 #: run logs, `var/obs`, `build/sched` - are deliberately not mounted into the
-#: episode container (tasks/harness/NATIVE_CONTAINER.md). Without it the
+#: episode container (docs/implementation_plan/harness/NATIVE_CONTAINER.md). Without it the
 #: scheduler plane is unreachable from the episode and a task that needs
 #: `sched_*` cannot be measured under that topology at all.
 #:
@@ -671,7 +671,7 @@ def main(argv: list[str] | None = None) -> int:
                         help="the scheduler plane's port, under the alias "
                              "sched.internal; 0 serves it not at all, which "
                              "leaves the container topology with no scheduler "
-                             "surface (tasks/harness/NATIVE_CONTAINER.md)")
+                             "surface (docs/implementation_plan/harness/NATIVE_CONTAINER.md)")
     parser.add_argument("--destination-host", default=None,
                         help="the host to record in destinations.jsonl, when "
                              "it is not the service's own DNS alias. The "

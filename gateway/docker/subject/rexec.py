@@ -1,6 +1,6 @@
 """The subject's shell, carried from the subject container into the episode.
 
-Under the hard sandbox (tasks/harness/SANDBOX.md) the model's CLI runs in the
+Under the hard sandbox (tasks/harness/README.md#the-subject-sandbox) the model's CLI runs in the
 `subject` container and its Bash tool must still act on the episode container,
 where the world, the shims and the *.internal services are. `docker exec` from
 inside the subject would need the engine socket, which is root on the host, so
