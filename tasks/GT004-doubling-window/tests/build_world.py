@@ -82,7 +82,9 @@ def prepare(seed: int) -> None:
     overwrote a validated reference while every verdict still printed PASS.
     """
     if BUILD.is_file() or not (BUILD / "world.duckdb").is_file():
-        mfw.main(["--out", str(BUILD), "--seed", str(seed)])
+        # GT004's make_fixture_world.main() takes no argv (it parses sys.argv
+        # and then only prints stats around this call), so call what it wraps.
+        mfw.generate(BUILD.resolve(), seed)
     verify(BUILD, quiet=True)
 
 
