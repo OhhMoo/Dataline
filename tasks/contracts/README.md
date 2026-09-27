@@ -1,10 +1,5 @@
 # tasks/contracts — layer 1 of the composition framework
 
-**Written 2026-09-16. Amended 2026-09-16** by GT009, the first task in the
-repository to write real receipts: `cutoff_integrity` no longer reads a
-publication's purpose out of a receipt's `kind`, and `authorization` carries
-GT009's approval trace and a supersession clause. Both changes are below.
-
 A CONTRACT is an invariant a data platform must keep while the world moves.
 Seven of them, fixed, lifted out of the checks GT004–GT009 each implement
 one-off. A composed task **declares** which contracts hold instead of
@@ -162,18 +157,9 @@ is visible, not silent, and does not zero the rest of a composition.
 
 ## Executed vs designed
 
-**Executed.** `gateway/.venv/Scripts/python.exe -m pytest tasks/contracts -q`
-→ **98 passed, 0 failed** (54 s, 2026-09-16), of which **20 are
-`authorization`'s** and **14 `cutoff_integrity`'s**. That is 82 + 16: six added
-to `test_cutoff_integrity.py` for the `kind` amendment and the real ledger, ten
-added to `test_authorization.py` for the GT009 lift (`statuses`, `names`, the
-public `approval_trace`, and the `supersession` clause). The 82 it replaces did
-not itself reconcile with the 75 recorded before
-`authorization` landed: 75 + 12 is 87, and 87 is what a run immediately after
-landing it printed. Five tests in the other suites disappeared between that run
-and this one, in a working tree several agents were editing at once. Recorded
-as measured rather than reconciled, because a count nobody can reproduce is
-worse than a count that admits it moved. Every contract has holding / canonical-violation /
+**Executed.** `gateway/.venv/bin/python -m pytest tasks/contracts -q` runs the
+suite: `authorization` and `cutoff_integrity` carry the most cases (the GT009
+lift and the `kind` amendment below). Every contract has holding / canonical-violation /
 named-shortcut cases against a real duckdb world in `tmp_path`; the scoring
 fold is proved equal to all six shipped `_common.py` copies.
 
@@ -258,3 +244,12 @@ own tests wrote, not against dbt.
 4. **`runner: "advance"` is refused, not implemented.** A contract that needs
    the scheduler to execute a real night (GT008's shape) cannot yet be
    evaluated by this package.
+
+## Also in this folder
+
+`DECISION_TEMPLATE.md` is the task-authoring contract every GT task declares
+against: the control and decision arms, the outcome table, the canonical
+baselines and the three-tier scalar. It stays a separate file because task
+files, graders and fixtures cite it by section number (`DECISION_TEMPLATE.md
+§5`). `equivalence_gt004.py` is the CLI that re-runs the equivalence table
+above.

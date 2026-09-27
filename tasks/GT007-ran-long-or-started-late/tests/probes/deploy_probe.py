@@ -200,7 +200,7 @@ def shipped_deploys(actions_path: Path, definitions_path: Path) -> list[dict]:
         # SUFFIX-match, not equality. A native-mode row is named
         # `<service>.<mcp_tool>` - the deploy service writes `deploy.deploy_run`
         # (gateway/src/alkera_gateway/native/services/SERVICES_B_REQUESTS.md
-        # item 1, tasks/harness/NATIVE_DRIVER_REQUESTS.md item 14) - so an
+        # item 1, docs/implementation_plan/harness/NATIVE_DRIVER_REQUESTS.md item 14) - so an
         # equality test made every native deploy invisible here and
         # `shipped_deploys` returned nothing for an episode that had deployed.
         # The MCP row is `deploy_run` with no dot and matches the same rule.

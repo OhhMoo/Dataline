@@ -1210,7 +1210,7 @@ def run_rollout(args) -> dict:
             spec.instruction_path.read_bytes()).hexdigest(),
         "prompt_variant": taskspec.prompt_variant_of(spec),
         # The CONTEXT variant, recorded by the file that BUILDS the world
-        # (VARIANTS_REQUESTS.md item 5). `run_rollouts.py` also stamps it and
+        # (docs/implementation_plan/harness/VARIANTS_REQUESTS.md item 5). `run_rollouts.py` also stamps it and
         # refuses to overwrite a different value, so the two cannot disagree
         # silently; what this line fixes is a bare `rollout.py` invocation of an
         # arm, which used to produce a record with no `variant` at all and made
@@ -1247,7 +1247,7 @@ def run_rollout(args) -> dict:
     # subject's whole filesystem, and the services container is what serves it
     # the rest of the world. A separate slot from `stack` because the two
     # topologies share no code path but teardown - see
-    # tasks/harness/NATIVE_CONTAINER.md.
+    # docs/implementation_plan/harness/NATIVE_CONTAINER.md.
     native_container: container_episode.NativeContainerEpisode | None = None
     container_shell: dict | None = None
     containment: dict | None = None
@@ -1835,7 +1835,7 @@ def main() -> int:
                          "fixture packages outside the repo.")
     ap.add_argument("--variant", default=None,
                     help="context variant from the task's [variants] table "
-                         "(VARIANTS_REQUESTS.md item 5). Defaults to "
+                         "(docs/implementation_plan/harness/VARIANTS_REQUESTS.md item 5). Defaults to "
                          "ALKERA_TASK_VARIANT, which is what `run_rollouts.py` "
                          "exports; a task declaring no [variants] refuses the "
                          "flag rather than ignoring it.")
@@ -1871,7 +1871,7 @@ def main() -> int:
                          "--topology container. `container` (default): in its "
                          "own locked-down container whose only way out is an "
                          "allowlisting proxy to the inference API "
-                         "(tasks/harness/SANDBOX.md). `host`: on the host, with "
+                         "(tasks/harness/README.md#the-subject-sandbox). `host`: on the host, with "
                          "its bash redirected into the episode - detection only.")
     ap.add_argument("--wall-clock", type=int, default=None,
                     help="override the task's wall-clock ceiling (seconds)")

@@ -139,7 +139,7 @@ OPERATIONS clauses paid). `port_legacy_loader` reads 2 / 1 / 3 → 0.4448 on bot
 
 ## What the `sched_trigger` receipt defect did and did not block
 
-`world/scheduler.py:trigger()` writes no receipt (`tasks/MATRIX_RERUN_EDITS.md` §2.2). It
+`world/scheduler.py:trigger()` writes no receipt (`docs/implementation_plan/harness/MATRIX_RERUN_EDITS.md` §2.2). It
 blocked nothing here because neither arm's C5 reads a triggered publication: the control arm's
 C5 hashes the dashboard's rendered rows at each of the four advanced mornings (whole-object,
 through the shipped gateway surface), and the decision arm's C5 reads receipts the ADVANCE path

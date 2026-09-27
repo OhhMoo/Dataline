@@ -59,7 +59,7 @@ READY_TIMEOUT_S = 90
 
 # Same digest as the `minio` service in gateway/docker/compose.native.yml, and
 # the same credentials it sets for MINIO_ROOT_USER / MINIO_ROOT_PASSWORD - which
-# are the ones tasks/harness/NATIVE_DRIVER_REQUESTS.md item 8 says the harness
+# are the ones docs/implementation_plan/harness/NATIVE_DRIVER_REQUESTS.md item 8 says the harness
 # ships. A test that invented its own would prove the client works and not that
 # the episode's two transports can reach one server.
 MINIO_IMAGE = (

@@ -23,8 +23,13 @@ REPO = Path(__file__).resolve().parents[4]
 TASKS = REPO / "tasks"
 HARNESS = TASKS / "harness"
 PY = REPO / "gateway" / ".venv" / "Scripts" / "python.exe"
+if not PY.exists():
+    PY = REPO / "gateway" / ".venv" / "bin" / "python"
 GIT_BIN = Path(r"C:\Program Files\Git\bin")
 BASH = GIT_BIN / "bash.exe"
+if not BASH.exists():  # Linux/macOS: the system bash
+    BASH = Path(shutil.which("bash") or "/bin/bash")
+    GIT_BIN = BASH.parent
 
 
 @dataclass

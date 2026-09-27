@@ -12,7 +12,7 @@ Three questions, each answered by trying, never by reading compose.native.yml:
      `{"ok": true, "service": NAME, "items": >0}` (an HTTP service) or accepts
      a TCP connection (postgres, and anything else that does not speak HTTP);
      `items > 0` and not merely a 200, because a health check over an empty
-     world is the runner-up finding in tasks/harness/NATIVE_DRIVER.md;
+     world is the runner-up finding in docs/implementation_plan/harness/NATIVE_DRIVER.md;
   B. a control name does not resolve - `example.internal`, which looks exactly
      like a service and is not one; the backends the overlay detaches the
      episode from; and a public host, which is the egress control P2 already
@@ -119,7 +119,7 @@ def connect(host: str, port: int) -> str:
 def health(host: str, port: int) -> dict:
     """`GET /health`, and whether the world behind it has anything in it.
 
-    `tasks/harness/NATIVE_DRIVER_REQUESTS.md` items 1-2 fix the body as
+    `docs/implementation_plan/harness/NATIVE_DRIVER_REQUESTS.md` items 1-2 fix the body as
     `{"ok": true, "service": NAME, "items": int}`. `items` is checked here and
     not only `status == 200`, because a 200 from a service with an empty world
     is exactly the failure NATIVE_DRIVER.md names as its runner-up: the surface

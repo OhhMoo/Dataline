@@ -142,7 +142,7 @@ def docker_available() -> tuple[bool, str]:
 # ------------------------------------------------------------- Linux hosts
 #: Three things Docker Desktop on Windows did for this harness without being
 #: asked, and which a Linux host does not. Each is handled here, once, for both
-#: topologies; `tasks/harness/LINUX.md` is the operator's account.
+#: topologies; `tasks/harness/README.md#linux-hosts` is the operator's account.
 #:
 #:   1. SELINUX. Fedora/RHEL enforce it, and a container engine that labels
 #:      (rootless podman, Fedora's moby-engine) refuses a bind of an unlabelled
@@ -222,7 +222,7 @@ def require_subject_auth(env: dict | None = None) -> str:
         "topology gives the subject its own HOME, so the CLI cannot read "
         "~/.claude/.credentials.json. Run `claude setup-token` once and export "
         "CLAUDE_CODE_OAUTH_TOKEN=<token> (or ANTHROPIC_API_KEY) before starting "
-        "the harness. See tasks/harness/LINUX.md.")
+        "the harness. See tasks/harness/README.md#linux-hosts.")
 
 
 def selinux_enforcing() -> bool:
@@ -837,7 +837,7 @@ MOUNTS_OVERLAY_NAME = "compose.native-mounts.yml"
 MINIO_PORT = 9000
 
 # ------------------------------------------------------------ the hard sandbox
-#: `--subject-sandbox container` (SANDBOX.md): the model's CLI runs in the
+#: `--subject-sandbox container` (README.md#the-subject-sandbox): the model's CLI runs in the
 #: `subject` service of this overlay, not on the host, and its Bash tool
 #: reaches the episode through rexec.py on `subject_net`.
 SUBJECT_OVERLAY = DOCKER_DIR / "compose.subject.yml"
@@ -1082,7 +1082,7 @@ def assert_image_current(image: str, *, inspect=None, head=None,
 #: refuses the `filesystem_isolated` guarantee when the proof is missing -
 #: `container_execution_proof`. The alternative, running the model process
 #: itself inside the episode container, is written up in
-#: `tasks/harness/NATIVE_CONTAINER.md`: it would be a real boundary and it would
+#: `docs/implementation_plan/harness/NATIVE_CONTAINER.md`: it would be a real boundary and it would
 #: cost the episode container its "no egress" property, because the CLI needs
 #: the inference API.
 BASH_HOOK = """# Generated per rollout by tasks/harness/container_episode.py.
@@ -1573,7 +1573,7 @@ class NativeContainerEpisode:
     rollout_dir: Path
     image: str = DEFAULT_IMAGE
     #: The context variant this rollout's world was built from, "" for a task
-    #: with one context. It is carried INTO the container (VARIANTS_REQUESTS.md
+    #: with one context. It is carried INTO the container (docs/implementation_plan/harness/VARIANTS_REQUESTS.md
     #: item 6) because everything the subject runs in there that re-resolves the
     #: task - `./ops/sched`, a `dbt` invocation, a generator the workspace
     #: ships - reads `ALKERA_TASK_VARIANT`, and a container that did not carry
@@ -1587,7 +1587,7 @@ class NativeContainerEpisode:
     warehouses: list = field(default_factory=list)
     services_container: str = ""
     gate: object = None
-    #: The hard sandbox (SANDBOX.md). False keeps the host-subject topology.
+    #: The hard sandbox (README.md#the-subject-sandbox). False keeps the host-subject topology.
     subject_sandbox: bool = False
     subject_image: str = SUBJECT_IMAGE
     subject_container: str = ""
@@ -2156,7 +2156,7 @@ def _native_cli(argv: list[str] | None = None) -> int:
     describes has to be one built from a real task's world, with that world's
     warehouse mounts, and a stack stood up inside the containment script would
     be a stack no rollout ever ran in. So the recipe is three commands and they
-    are in `tasks/harness/NATIVE_CONTAINER.md`:
+    are in `docs/implementation_plan/harness/NATIVE_CONTAINER.md`:
 
         python container_episode.py native-up --task GT001-aov-halving \
             --dir <scratch> --project alkera-p7

@@ -4,8 +4,8 @@ The specification native mode was built against (2026-09-16, with its same-day
 amendment) and what has been executed since, with the numbers. Companion documents:
 `docker/NATIVE_STACK.md` (the compose stack), `native/PARITY.md` (row parity
 measurements), `native/services/{HUMAN,OPS}_PLANE.md` (the fake services),
-`tasks/harness/NATIVE_DRIVER.md` (the host-topology driver) and
-`tasks/harness/NATIVE_CONTAINER.md` (the container topology). Every claim below is
+`docs/implementation_plan/harness/NATIVE_DRIVER.md` (the host-topology driver) and
+`docs/implementation_plan/harness/NATIVE_CONTAINER.md` (the container topology). Every claim below is
 **executed** unless marked *designed*.
 
 ## Why
@@ -208,7 +208,7 @@ Host: Windows 11, docker 29.5.2, `gateway/.venv` 3.11.15.
   refused without proof) is in `tasks/harness/container_episode.py`; the harness-side proof
   is `docker/evidence/shell-redirect-harness-proof.json`; the one-turn model smoke
   (`test_native_container.py --model-smoke`) writes `shell-redirect-bash-env.json` once
-  taken. See `tasks/harness/NATIVE_CONTAINER.md`.
+  taken. See `docs/implementation_plan/harness/NATIVE_CONTAINER.md`.
 - **Postgres-served tasks**: `native_stack.py` starts no Postgres; nothing calls
   `warehouse_seed.seed_postgres` for native.
 - **The fakesnow tailer**: no statement log to tail.

@@ -1506,12 +1506,12 @@ alkera/
 │   └── tests/                  321
 │
 ├── tasks/                      TRACK C · the graded content
-│   ├── contracts/              LAYER 1: six invariants as clause functions; 75 tests; CONTRACTS.md
+│   ├── contracts/              LAYER 1: six invariants as clause functions; 75 tests; README.md
 │   ├── stressors/registry.yaml LAYER 2: 30 stressors -> contracts + shared state
 │   ├── harness/                rollouts, grading, blindness, surface gate, report; ledger.py; coupling.py (LAYER 3)
 │   │   ├── native_stack.py     host-topology bring-up for --driver native
 │   │   ├── selftest.py  test_native_driver.py  test_native_stack.py  test_ledger_harness.py
-│   │   └── README.md  NATIVE_DRIVER.md  COUPLING.md
+│   │   └── README.md  judge/README.md  (history: docs/implementation_plan/harness/)
 │   ├── GT001 … GT008/          each: task.toml, prompts/, fixtures/, solution/, tests/ (grade.py, manifest, probes/, run_baselines.py)
 │   └── GT004a-e, GT006c-d      the ablation and 2x2 arms (context-only variants)
 │
@@ -1780,7 +1780,7 @@ construction only in the container topology, which is being built; host-topology
 numbers carry that caveat until then. Reviewer's reading order:
 `gateway/NATIVE.md` (spec, mapping, then the two dated "Measured" sections) ->
 `native/PARITY.md` -> `native/services/{HUMAN,OPS}_PLANE.md` ->
-`tasks/harness/NATIVE_DRIVER.md` -> `gateway/docker/NATIVE_STACK.md`.
+`docs/implementation_plan/harness/NATIVE_DRIVER.md` -> `gateway/docker/NATIVE_STACK.md`.
 
 ---
 

@@ -221,7 +221,7 @@ def _staging_checks(pristine: str) -> None:
             # Staged into a FRESH directory, not into the shared cache. The
             # cache is a working tree: a task whose `fixtures/build/` is
             # generated and gitignored regenerates it in place for the arm (see
-            # VARIANTS_REQUESTS.md item 2), so the cached tree legitimately
+            # docs/implementation_plan/harness/VARIANTS_REQUESTS.md item 2), so the cached tree legitimately
             # stops being base+overlay the first time its world is built. What
             # `stage_fixtures` PRODUCES is what this checks.
             staged = taskspec.stage_fixtures(root, _variant(arm),

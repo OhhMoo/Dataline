@@ -14,13 +14,13 @@
 #   2. uv, and gateway/.venv from gateway/uv.lock (Python 3.11, matching the image)
 #   3. the claude CLI, if missing
 #   4. pulls every pinned third-party image the stack uses, builds alkera-episode:head
-#      and alkera-subject:head (the hard sandbox, tasks/harness/SANDBOX.md)
+#      and alkera-subject:head (the hard sandbox, tasks/harness/README.md#the-subject-sandbox)
 #   5. tasks/harness/linux_preflight.py
 #
 # It does NOT create a subject credential. After it finishes:
 #   claude setup-token                          # prints a long-lived token
 #   export CLAUDE_CODE_OAUTH_TOKEN=<token>      # or ANTHROPIC_API_KEY=...
-# Why: tasks/harness/LINUX.md, "The subject's login".
+# Why: tasks/harness/README.md#linux-hosts, "The subject's login".
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -185,7 +185,7 @@ if [ "$SKIP_IMAGE" = 0 ]; then
     echo "   commit, then re-run with --skip-packages."
   fi
   "$REPO/gateway/.venv/bin/python" "$REPO/gateway/docker/build_episode.py"
-  # The hard-sandbox subject (tasks/harness/SANDBOX.md): the model's CLI in its
+  # The hard-sandbox subject (tasks/harness/README.md#the-subject-sandbox): the model's CLI in its
   # own container, pinned to the CLI version on this host.
   claude_version="$(claude --version | awk '{print $1}')"
   docker build -f "$REPO/gateway/docker/Dockerfile.subject" \

@@ -1,6 +1,6 @@
 # The native-mode stack
 
-Spec: `gateway/NATIVE.md`. Harness side: `tasks/harness/NATIVE_DRIVER.md`.
+Spec: `gateway/NATIVE.md`. Harness side: `docs/implementation_plan/harness/NATIVE_DRIVER.md`.
 Owner: COMPOSE-DISCOVERY. **Measured 2026-09-16 unless a line says *designed*.**
 
     docker compose -p <project> \
@@ -188,7 +188,7 @@ mounted warehouses and nothing else, no grading, rollout, canary, marker or
 repository path exists, the ledger is present, empty and read-only, the episode
 can still work, every alias is reachable, the scheduler plane answers with
 jobs, egress is refused, and `published_host_ports` is `{}`. The recipe and the acceptance table are in
-`tasks/harness/NATIVE_CONTAINER.md`.
+`docs/implementation_plan/harness/NATIVE_CONTAINER.md`.
 
 Two changes this forced on the stanzas above. The `native-services` healthcheck
 no longer dials its own aggregate over HTTP — `serve.py` counts every accepted

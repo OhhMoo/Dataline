@@ -24,7 +24,7 @@ probe label, or where a declared probe is dead without being declared
 `dead_by_design`.
 
 GT009 declares `[harness].warehouse_schemas`, so the content-bearing gate
-(tasks/harness/NATIVE_DRIVER.md) holds `sql_*` to a table with a row in it
+(docs/implementation_plan/harness/NATIVE_DRIVER.md) holds `sql_*` to a table with a row in it
 rather than to `SELECT 1`. That is honest here and was not for GT008: this
 world SHIPS a populated warehouse, because building it is not the task.
 

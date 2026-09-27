@@ -6,7 +6,7 @@
 # One image, two services in compose.subject.yml: `subject` (the CLI, as uid 1000,
 # read-only root, no capabilities) and `egress-proxy` (egress_proxy.py, as nobody).
 # Same pinned base as the episode image, so rexec.py runs on the same Python at
-# both ends. See tasks/harness/SANDBOX.md.
+# both ends. See tasks/harness/README.md#the-subject-sandbox.
 FROM python@sha256:9534e5a8e315485d4061ed659af0fd78a284c015f9b73661b41d6bab25604534
 
 # Pinned to the CLI the operator measured with; `stable` only when unset.

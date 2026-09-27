@@ -9,10 +9,13 @@ defaults. mcp and host stay as choices.
 from __future__ import annotations
 
 import subprocess
+import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-PY = Path(__file__).resolve().parents[2] / "gateway" / ".venv" / "Scripts" / "python.exe"
+_VENV = Path(__file__).resolve().parents[2] / "gateway" / ".venv"
+PY = next((p for p in (_VENV / "bin" / "python", _VENV / "Scripts" / "python.exe")
+           if p.exists()), Path(sys.executable))
 SCRIPTS = ("run_rollouts.py", "rollout.py", "run_queue.py")
 
 
