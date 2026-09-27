@@ -105,3 +105,6 @@ docs/private/
 *.private.md
 *[Ff]or_[Aa]ndrew*.md
 **/FOR_*.md
+
+# Claude Code agent worktrees
+.claude/worktrees/
