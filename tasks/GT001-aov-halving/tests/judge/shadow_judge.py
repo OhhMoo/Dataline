@@ -10,7 +10,9 @@ Grades the three qualitative axes a state check cannot see:
 Why shadow: the official score for v1 is fully deterministic. This runs
 alongside, gets logged, and is the thing GEPA optimises — so that by the time a
 judge is allowed near a real score, its prompt has been tuned against a
-human-labelled set and reported on a held-out split it never saw.
+human-labelled set and reported on a held-out split it never saw. (The GEPA
+loop, optimize_judge.py, is archived under
+_archive/tasks/GT001-aov-halving/tests/judge/.)
 
     python shadow_judge.py --artifact final_report.json --score score.json
 """

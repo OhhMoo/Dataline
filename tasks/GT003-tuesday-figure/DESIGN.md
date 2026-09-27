@@ -40,7 +40,7 @@ job; it removes nothing, seeds no defect and does not touch the brief.
    only: the Tuesday tick is signed off, and she has not decided a closed
    month. The channel argues and does not settle it. Those three do not say
    the same thing. The decision arm's brief does not state the rule; see
-   `HARDNESS.md`.
+   `README.md`.
 2. **Boundary** — `finance.board_pack_daily` (one row per region per day) and
    `finance.reporting_periods` are Finance Systems' book, not the data team's.
    A **closed** reporting month (November 2025 through February 2026; the
