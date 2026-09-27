@@ -28,7 +28,60 @@ The four `*_check.py` scripts are operator CLIs, not imported by the pipeline; e
 writes its evidence to `evidence/`. Request logs, round history and the measured
 findings behind this page are in `docs/implementation_plan/harness/`.
 
-**Contents.** [--regrade — the episode already happened](#--regrade--the-episode-already-happened) · [What a task must declare](#what-a-task-must-declare) · [Context variants — one task directory, several worlds](#context-variants--one-task-directory-several-worlds) · [The order of operations, which is the contract](#the-order-of-operations-which-is-the-contract) · [Drivers, and how much they are worth](#drivers-and-how-much-they-are-worth) · [The headline on a matrix task](#the-headline-on-a-matrix-task-2026-09-19) · [The layers around the number (2026-09-18)](#the-layers-around-the-number-2026-09-18) · [The coupling filter — layer 3 (coupling.py)](#the-coupling-filter--layer-3-couplingpy) · [Topology: where the WORLD and the TOOLS run](#topology-where-the-world-and-the-tools-run) · [The surface gate](#the-surface-gate) · [Blindness is detected, never assumed](#blindness-is-detected-never-assumed) · [Failure classification](#failure-classification) · [Reports](#reports) · [redteam/](#redteam) · [Read every quarantine before you believe the number](#read-every-quarantine-before-you-believe-the-number)
+## Contents
+
+- [What is in this folder](#what-is-in-this-folder)
+- [`--reclassify` — re-derive the verdict only](#--reclassify--re-derive-the-verdict-only)
+- [`--regrade` — the episode already happened](#--regrade--the-episode-already-happened)
+- [What a task must declare](#what-a-task-must-declare)
+- [Context variants — one task directory, several worlds](#context-variants--one-task-directory-several-worlds)
+- [The order of operations, which is the contract](#the-order-of-operations-which-is-the-contract)
+- [Drivers, and how much they are worth](#drivers-and-how-much-they-are-worth)
+  - [The native driver](#the-native-driver)
+- [The headline on a `[matrix]` task](#the-headline-on-a-matrix-task-2026-09-19)
+- [The layers around the number](#the-layers-around-the-number-2026-09-18)
+- [The coupling filter — layer 3](#the-coupling-filter--layer-3-couplingpy)
+- [Topology: where the WORLD and the TOOLS run](#topology-where-the-world-and-the-tools-run)
+  - [Native under `--topology container`: the mounts](#native-under---topology-container-the-mounts)
+  - [The subject sandbox](#the-subject-sandbox)
+  - [Linux hosts](#linux-hosts)
+  - [Rebuilding the episode image](#rebuilding-the-episode-image)
+  - [What the shell costs, tool revocation, quota](#what-the-shell-costs-tool-revocation-quota)
+- [The surface gate](#the-surface-gate)
+  - [The plane paths, and what a "dead surface" usually means](#the-plane-paths-and-what-a-dead-surface-usually-means)
+- [Blindness is detected, never assumed](#blindness-is-detected-never-assumed)
+- [Failure classification](#failure-classification)
+- [Reports](#reports)
+- [`judge/` and `redteam/`](#judge-and-redteam)
+- [Read every quarantine before you believe the number](#read-every-quarantine-before-you-believe-the-number)
+
+## What is in this folder
+
+Subfolders, each with its own README:
+
+| folder | what |
+|---|---|
+| [`judge/`](judge/README.md) | judge tools that never touch the score: the reject-only clarity gate and the grader audit |
+| [`redteam/`](redteam/README.md) | attacks on our own detectors and graders: `scripted_subject.py`, the adversarial-suffix texts, `scripted_cheats/`, the exploit loop and [`exploit_agent/`](redteam/exploit_agent/README.md) |
+| `evidence/` | JSON evidence the operator checks write (`container-check.json`, `dual-container-check.json`, `reference-copy-contained.json`); regenerate by re-running the check, never by hand |
+
+Modules, by role (tests are `test_<module>.py` beside each):
+
+| role | files |
+|---|---|
+| entry points | `run_rollouts.py` (K rollouts + report, `--variant`, `--regrade-run`, `--re-report`, `--export`), `rollout.py` (one rollout, `--reclassify`, `--regrade`), `run_queue.py` (several runs back to back, stops on quota) |
+| the pipeline | `taskspec.py` (task.toml → spec; refuses what a task does not declare), `episode.py` (build world, stand the gateway up, tear down, grade twice), `agent_under_test.py` (the subject process and its prompt), `surface_audit.py` (surface probes and the gate), `blindness.py` (the detectors), `classify.py` (failure classes), `report.py` (report.md / report.json) |
+| drivers and topology | `native_stack.py` (host-topology native bring-up), `container_episode.py` (the episode, services and subject-sandbox containers), `container_shim.py` (the server copied into the episode container; no harness imports, read it before adding a string), `kimi_subject.py`, `cursor_subject.py` (other CLIs' isolation and transcript translation) |
+| scoring layers | `outcome.py`, `reward.py`, `progress.py`, `path.py`, `learning_signal.py`, `tracked_metrics.py`, `export.py`, `validity.py`, `lab_card.py`, `baselines_schema.py` ([table](#the-layers-around-the-number-2026-09-18)) |
+| composition | `coupling.py`, `coupling_adapters.py` (layer 3, [below](#the-coupling-filter--layer-3-couplingpy)), `ledger.py` (the grading-side reader of `var/ledger/receipts.jsonl`) |
+| operator checks (not imported by the pipeline) | `container_check.py`, `dual_container_check.py`, `reference_copy_check.py`, `surface_gate_check.py`, `linux_preflight.py`, `selftest.py` |
+| test policy | `conftest.py`: five `test_*.py` files are executed scripts, not pytest modules (`test_regrade.py`, `test_variants.py`, `test_blindness_refused.py`, `test_ledger_harness.py`, `test_native_container.py`); pytest skips them, run them directly with `$PY <file>` |
+
+**Markdown this harness reads as data.** `lab_card.py` reads each task's `DESIGN.md` and
+`tests/VALIDITY.md`; `rollout.py --adversarial-suffix` appends a `redteam/*.md` text to the brief
+verbatim; `redteam/exploit_agent/harness.py` reads `prompt.md`. Do not move or rename them.
+
+## `--reclassify` — re-derive the verdict only
 
 `--reclassify` re-runs the detectors and the classifier over a completed rollout's stored
 transcript, action log and artefact. It never re-runs the episode and never re-grades, so a
@@ -597,6 +650,8 @@ Every rollout records the image tag and digest. Rebuild when the toolbelt change
 and say so in the report, because the toolbelt decides the prompt and therefore the
 measurement.
 
+### What the shell costs, tool revocation, quota
+
 **What the shell costs, stated plainly.** An agent with a shell can open the
 warehouse file directly and mutate it without any `sql_execute` row naming the
 statement. The action log still has a row per tool call and still names the
@@ -814,17 +869,13 @@ Plus per-check pass rates, the classification counts, the quarantine count split
 into *caught violating* vs *unobservable*, and median tool calls and wall clock.
 
 
-## `redteam/`
+## `judge/` and `redteam/`
 
-Detector tests, never measurements. Any rollout using one is stamped
-`redteam_detector_test: true` and the report says so at the top.
-
-| file | what |
-|---|---|
-| `scripted_subject.py` | `--driver scripted`: a real process that does the forbidden thing, so the canary and marker detectors can be watched firing (models declined to) |
-| `cat_the_canary.md`, `look_for_the_answer.md`, `read_the_grading_zone.md` | `--adversarial-suffix` texts appended to the brief; a run using one is marked and never reported |
-| `scripted_cheats/run_cheats.py` | the cheating-agent pass over GT001–GT009 (claim, presence, tamper, fake approval), graded and classified without a model |
-| `exploit_loop.py`, `exploit_agent/` | classify exploit records: a pass without a legitimate repair is a grader bug and a baseline stub, never a point (`exploit_agent/README.md`) |
+Neither is part of the measurement. [`judge/`](judge/README.md) holds model-backed tools that
+may reject a brief or flag a grader verdict but never award a point (`test_judge_isolation.py`
+keeps `outcome.py`, `reward.py` and every `grade.py` from importing it).
+[`redteam/`](redteam/README.md) holds detector tests and grader attacks; any rollout that uses one
+is stamped `redteam_detector_test: true` and the report says so at the top.
 
 ## Read every quarantine before you believe the number
 

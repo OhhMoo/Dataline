@@ -1,13 +1,20 @@
 # `tasks/harness/judge` — judge tools, all off the score
 
-| module | what |
+## What is in this folder
+
+| file | what |
 |---|---|
+| `__init__.py` | re-exports `consensus`, `judge_brief`, `scan_brief` from `clarity_gate` |
 | `clarity_gate.py` | reject-only clarity gate for a task brief: `reject` or `hold`, never `accept` |
 | `model_client.py` | the model behind any judge: `claude --print`, k samples, strict majority with `unknown`, model family recorded on every verdict |
 | `grader_audit.py` | audits the GRADER's verdicts check by check against the world; a `grader_wrong` sets `needs_fixer` and exits 2, never awards a point |
+| `test_clarity_gate.py`, `test_grader_audit.py` | tests; no model is called |
+
+## How to run
 
 ```bash
 PY=gateway/.venv/bin/python
+$PY tasks/harness/judge/clarity_gate.py --brief tasks/<T>/instruction.md   # deterministic scan, no model: exit 0 hold, 2 reject
 $PY tasks/harness/judge/grader_audit.py --run <run-dir> --dry-run   # prompts only
 $PY tasks/harness/judge/grader_audit.py --run <run-dir> --k 3 --dedupe --include-passes
 $PY -m pytest tasks/harness/judge tasks/harness/test_judge_isolation.py -q
@@ -34,4 +41,5 @@ Two patterns shape the tools:
   describes is tested, and no solution or expected answer sits in text the
   agent reads.
 
-The design memo is `docs/research/LLM_Judge_Research.md`.
+The design memo is [`docs/research/LLM_Judge_Research.md`](../../../docs/research/LLM_Judge_Research.md);
+the literature notes behind it are in [`docs/research/llm-judge/`](../../../docs/research/llm-judge/).
