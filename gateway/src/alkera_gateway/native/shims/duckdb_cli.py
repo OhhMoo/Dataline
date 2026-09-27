@@ -35,8 +35,12 @@ WHAT IS PARSED, AND WHAT IS NOT
 -------------------------------
 Parsed: `-c/--command/-cmd SQL` (repeatable), `-f/-file/-init FILE`, a `.read
 FILE` dot-command anywhere in a command's text, a trailing positional SQL
-argument after the database file, and stdin when the invocation carries no
-command of its own. Not parsed: an interactive session's own typing (there is
+argument after the database file, and stdin when it is not a terminal and the
+invocation carries nothing the CLI runs and then exits on (`-c`, `-s`, `-f`, a
+positional SQL argument): a pipe or heredoc is read to EOF, audited as one
+`source: "stdin"` command, and forwarded byte for byte to the real binary.
+`-cmd` and `-init` do not stop the CLI reading stdin, so their commands come
+first and stdin's after. Not parsed: an interactive session's own typing (there is
 no pipe to read), and `.shell`/`.system` escapes, which run a second binary this
 shim never sees - the same hole `\\!` leaves in the postgres tailer, recorded in
 native/PARITY.md. An invocation that yields no command at all still writes one
@@ -78,6 +82,11 @@ DIALECT = "duckdb"
 COMMAND_FLAGS = ("-c", "--command", "-cmd", "-s")
 #: Options that take the next argument as a file of SQL to run.
 FILE_FLAGS = ("-f", "-file", "--file", "-init")
+#: Of those, the ones that make the CLI exit afterwards ("run COMMAND and
+#: exit", "read/process named file and exit") and so never read stdin. `-cmd`
+#: and `-init` run first and the CLI then goes on to read stdin, exactly as
+#: sqlite3's shell, which duckdb's is built from, does.
+EXITING_FLAGS = ("-c", "--command", "-s", "-f", "-file", "--file")
 #: Options that take a value this shim does not read, so the value is never
 #: mistaken for the database file or for a trailing SQL argument.
 VALUE_FLAGS = ("-separator", "-nullvalue", "-newline", "-cmd-timeout", "-p",
@@ -104,6 +113,7 @@ class Invocation:
     read_only: bool = False
     commands: list[Command] = field(default_factory=list)
     interactive: bool = True       # no command of its own; stdin decides
+    reads_stdin: bool = True       # no -c/-s/-f/positional SQL: the CLI reads stdin
 
 
 def read_sql_file(name: str, cwd: Path) -> str:
@@ -165,6 +175,8 @@ def parse_argv(argv: list[str], cwd: Path) -> Invocation:
     index = 0
     while index < len(argv):
         token = argv[index]
+        if token in EXITING_FLAGS and index + 1 < len(argv):
+            invocation.reads_stdin = False
         if token in COMMAND_FLAGS and index + 1 < len(argv):
             invocation.commands.append(Command(argv[index + 1], "-c"))
             index += 2
@@ -190,16 +202,47 @@ def parse_argv(argv: list[str], cwd: Path) -> Invocation:
     if positionals:
         if looks_like_sql(positionals[0]):
             invocation.commands.append(Command(positionals[0], "argv"))
+            invocation.reads_stdin = False
         else:
             invocation.database = positionals[0]
             for extra in positionals[1:]:
                 invocation.commands.append(Command(extra, "argv"))
+                invocation.reads_stdin = False
     invocation.interactive = not invocation.commands
     expanded: list[Command] = []
     for command in invocation.commands:
         expanded.extend(expand_dot_read(command, cwd))
     invocation.commands = expanded
     return invocation
+
+
+def read_piped_stdin() -> bytes | None:
+    """Stdin's bytes when it is a pipe, a file or a heredoc; None for a tty.
+
+    This is what the CLI itself does when it was given nothing to run and exit
+    on: a terminal gets the interactive prompt (left alone here, stdin is
+    inherited), anything else is read to EOF as a script. The bytes are handed
+    on to the real binary verbatim, because once read here they are gone from
+    the descriptor it inherits.
+    """
+    stream = sys.stdin
+    if stream is None:
+        return None
+    try:
+        if stream.isatty():
+            return None
+        return stream.buffer.read()
+    except (OSError, ValueError, AttributeError):
+        # A closed or unusable stdin is one the CLI could not read either.
+        return None
+
+
+def add_stdin(invocation: Invocation, data: bytes, cwd: Path) -> None:
+    """Append stdin's script to the invocation as one `stdin` command."""
+    text = data.decode("utf-8", errors="replace")
+    if text.strip():
+        invocation.commands.extend(expand_dot_read(Command(text, "stdin"), cwd))
+        invocation.interactive = False
 
 
 def classify(sql: str) -> Observation:
@@ -243,11 +286,15 @@ def execute_with_library(invocation: Invocation) -> tuple[int, str | None]:
         return 1, f"{type(exc).__name__}: {exc}"
     try:
         for command in invocation.commands:
-            cursor = connection.execute(command.sql)
-            if cursor.description:
-                for row in cursor.fetchall():
-                    print("\t".join("" if value is None else str(value)
-                                    for value in row))
+            # Statement by statement, so `SELECT 1; SELECT 2` prints both
+            # results as the CLI does; `execute` on the whole text would
+            # return only the last one.
+            for statement in duckdb.extract_statements(command.sql):
+                cursor = connection.execute(statement)
+                if cursor.description:
+                    for row in cursor.fetchall():
+                        print("\t".join("" if value is None else str(value)
+                                        for value in row))
     except Exception as exc:                            # noqa: BLE001 - reported
         print(f"duckdb: {exc}", file=sys.stderr)
         return 1, f"{type(exc).__name__}: {exc}"
@@ -321,6 +368,9 @@ def main(argv: list[str]) -> int:
 
     cwd = Path.cwd()
     invocation = parse_argv(argv, cwd)
+    piped = read_piped_stdin() if invocation.reads_stdin else None
+    if piped is not None:
+        add_stdin(invocation, piped, cwd)
     executable = real_binary()
     root = workspace_root()
     max_files = int(os.environ.get("ALKERA_SHIM_MAX_FILES") or DEFAULT_MAX_FILES)
@@ -329,7 +379,8 @@ def main(argv: list[str]) -> int:
     started = time.monotonic()
     if executable is not None:
         engine = "binary"
-        completed = subprocess.run([executable, *argv])
+        # Stdin that was read for the audit is forwarded; otherwise inherited.
+        completed = subprocess.run([executable, *argv], input=piped)
         returncode, error = completed.returncode, None
     else:
         engine = "library"
