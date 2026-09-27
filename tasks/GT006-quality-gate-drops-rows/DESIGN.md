@@ -4,7 +4,7 @@ Written 2026-09-18, before the code in this reform. The pre-registration in §7
 was fixed before `run_baselines.py` was run on either arm; the measured numbers
 are in `tests/VALIDITY.md`, not here.
 
-`DESIGN-stacked.md` is the record of the stacking / "trap" ablation
+`README.md#the-stacked-arms-stacked-neutral-and-stacked-ticket` is the record of the stacking / "trap" ablation
 (`trap-ticket`, `stacked-neutral`, `stacked-ticket`). Those arms are control
 ablations and are untouched by this reform except for the declarations every
 arm must now carry (`role = "control"`).

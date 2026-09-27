@@ -116,9 +116,31 @@ two warehouses.
 
 ## Documents
 
-- `DESIGN.md` - the design contract. `tasks/harness/lab_card.py` reads it.
-- `tests/VALIDITY.md` - the measured record. `lab_card.py` reads it.
-- History and round notes: `docs/implementation_plan/tasks/GT008-warehouse-cutover/`.
+Every Markdown file in this package is either this guide, a document code reads by name,
+or content the agent sees. The ones below are read by code: keep them here, under
+these names.
+
+| file | what | read by |
+|---|---|---|
+| [`DESIGN.md`](DESIGN.md) | the design: staging elements, checks, baselines, pre-registration | `tasks/harness/lab_card.py` (section 2 staging words, section 7 pre-registration) |
+| [`tests/VALIDITY.md`](tests/VALIDITY.md) | the measured record and the commands that produced it | `tasks/harness/lab_card.py` |
+
+History and round notes: [`docs/implementation_plan/tasks/GT008-warehouse-cutover/`](../../docs/implementation_plan/tasks/GT008-warehouse-cutover/).
+
+## Before you edit
+
+- **Agent-visible: `prompts/*.md` (sha256-locked in `[prompt_variants]`; `vague`, `guided` and `specific` stay so stored runs still attribute).** Editing a brief changes the measurement.
+  Re-lock it in `task.toml` and re-run the task-validity gate below.
+- **World content: `fixtures/**`.** Anything a builder copies into the world is
+  what the agent sees; a change moves fixture digests and the contract checks.
+- **Measurement code:** `tests/grade.py`, `tests/manifest.yaml`, the modules the
+  grader imports and `task.toml` decide the score. A change there is a new
+  measurement: re-run `run_baselines.py` and `validity.py --ladder` and compare
+  with `tests/baselines/`.
+- **Code-read docs** (table above) keep their names and places.
+- `python tasks/harness/validity.py --task GT008-warehouse-cutover --lab-card` prints the
+  task's lab card from `task.toml`, `DESIGN.md` and `tests/VALIDITY.md`; it
+  should not change when you edit only this README.
 
 ## Re-measure
 

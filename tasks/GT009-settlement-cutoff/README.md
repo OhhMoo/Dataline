@@ -104,9 +104,30 @@ are declared in `tests/manifest.yaml`.
 
 ## Documents
 
-- `DESIGN.md` - the design. `tasks/harness/lab_card.py` reads it.
-- `tests/VALIDITY.md` - the measured record and its commands. `lab_card.py`
-  reads it.
+Every Markdown file in this package is either this guide, a document code reads by name,
+or content the agent sees. The ones below are read by code: keep them here, under
+these names.
+
+| file | what | read by |
+|---|---|---|
+| [`DESIGN.md`](DESIGN.md) | the design: staging elements, checks, baselines, pre-registration | `tasks/harness/lab_card.py` (section 2 staging words, section 7 pre-registration) |
+| [`tests/VALIDITY.md`](tests/VALIDITY.md) | the measured record and the commands that produced it | `tasks/harness/lab_card.py` |
+
+## Before you edit
+
+- **Agent-visible: `prompts/*.md` (sha256-locked in `[prompt_variants]`).** Editing a brief changes the measurement.
+  Re-lock it in `task.toml` and re-run the task-validity gate below.
+- **World content: `fixtures/**`, including each arm overlay's own generator and contract.** Anything a builder copies into the world is
+  what the agent sees; a change moves fixture digests and the contract checks.
+- **Measurement code:** `tests/grade.py`, `tests/manifest.yaml`, the modules the
+  grader imports and `task.toml` decide the score. A change there is a new
+  measurement: re-run `run_baselines.py` and `validity.py --ladder` and compare
+  with `tests/baselines/`.
+- **Code-read docs** (table above) keep their names and places.
+- `python tasks/harness/validity.py --task GT009-settlement-cutoff --lab-card` prints the
+  task's lab card from `task.toml`, `DESIGN.md` and `tests/VALIDITY.md`; it
+  should not change when you edit only this README.
+- `hardness/flags.yaml` records the decision's hidden-blocker, contradiction and decoy strings; `hardness/leakage_check.py` reports them if they appear in a brief (`enabled: false`: documenting, not enforcing); `hardness/test_leakage_check.py` is its test.
 
 ## Re-measure
 

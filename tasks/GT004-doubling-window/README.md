@@ -101,13 +101,36 @@ contracts in `tasks/contracts` (`tests/probes/_contracts.py`).
 
 ## Documents
 
-- `DESIGN.md` - the design contract. `tasks/harness/lab_card.py` reads it.
-- `tests/VALIDITY.md` - the measured record. `lab_card.py` reads it.
-- History: `docs/implementation_plan/tasks/GT004-doubling-window/BRIEF.md`,
-  the former `BRIEF.md`: the prompt-variant framework as first written (the
-  leak rules each brief was written against, the `prompts/variant.py`
-  procedure, and a run-id convention that predates `prompt_variant` in the
-  rollout record). Its "What is not real yet" section is out of date.
+Every Markdown file in this package is either this guide, a document code reads by name,
+or content the agent sees. The ones below are read by code: keep them here, under
+these names.
+
+| file | what | read by |
+|---|---|---|
+| [`DESIGN.md`](DESIGN.md) | the design: staging elements, checks, baselines, pre-registration | `tasks/harness/lab_card.py` (section 2 staging words, section 7 pre-registration) |
+| [`tests/VALIDITY.md`](tests/VALIDITY.md) | the measured record and the commands that produced it | `tasks/harness/lab_card.py` |
+
+History: [`docs/implementation_plan/tasks/GT004-doubling-window/BRIEF.md`](../../docs/implementation_plan/tasks/GT004-doubling-window/BRIEF.md),
+the prompt-variant framework as first written (the leak rules each brief was
+written against, the `prompts/variant.py` procedure, and a run-id convention
+that predates `prompt_variant` in the rollout record). Its "What is not real
+yet" section is out of date.
+
+## Before you edit
+
+- **Agent-visible: `prompts/*.md` (sha256-locked in `[prompt_variants]`; `prompts/variant.py lock` re-derives the hashes).** Editing a brief changes the measurement.
+  Re-lock it in `task.toml` and re-run the task-validity gate below.
+- **World content: `fixtures/**`.** Anything a builder copies into the world is
+  what the agent sees; a change moves fixture digests and the contract checks.
+- **Measurement code:** `tests/grade.py`, `tests/manifest.yaml`, the modules the
+  grader imports and `task.toml` decide the score. A change there is a new
+  measurement: re-run `run_baselines.py` and `validity.py --ladder` and compare
+  with `tests/baselines/`.
+- **Code-read docs** (table above) keep their names and places.
+- `python tasks/harness/validity.py --task GT004-doubling-window --lab-card` prints the
+  task's lab card from `task.toml`, `DESIGN.md` and `tests/VALIDITY.md`; it
+  should not change when you edit only this README.
+- `hardness/flags.yaml` lists the hidden-blocker strings `hardness/leakage_check.py` scans each brief for; `hardness/test_leakage_check.py` is its test. Run it after any brief edit.
 
 ## Re-measure
 

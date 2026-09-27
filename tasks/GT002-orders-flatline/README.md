@@ -98,12 +98,33 @@ decision). Outcome classes come from `[matrix.outcome]` in `task.toml`.
 
 ## Documents
 
-- `DESIGN.md` - the design under `tasks/contracts/DECISION_TEMPLATE.md`.
-  `tasks/harness/lab_card.py` reads it.
-- `SEED_SPEC.md` - the frozen world contract (`task.toml` `seed_contract`).
-- `tests/VALIDITY.md` - the measured record and its commands. `lab_card.py`
-  reads it.
-- History and round notes: `docs/implementation_plan/tasks/GT002-orders-flatline/`.
+Every Markdown file in this package is either this guide, a document code reads by name,
+or content the agent sees. The ones below are read by code: keep them here, under
+these names.
+
+| file | what | read by |
+|---|---|---|
+| [`DESIGN.md`](DESIGN.md) | the design: staging elements, checks, baselines, pre-registration | `tasks/harness/lab_card.py` (section 2 staging words, section 7 pre-registration) |
+| [`SEED_SPEC.md`](SEED_SPEC.md) | the frozen world contract | `task.toml` and `tests/manifest.yaml` (`seed_contract`); a blindness marker (`tasks/harness/blindness.py`) the agent must never see |
+| [`tests/VALIDITY.md`](tests/VALIDITY.md) | the measured record and the commands that produced it | `tasks/harness/lab_card.py` |
+
+History and round notes: [`docs/implementation_plan/tasks/GT002-orders-flatline/`](../../docs/implementation_plan/tasks/GT002-orders-flatline/).
+
+## Before you edit
+
+- **Agent-visible: `instruction.md`.** Editing a brief changes the measurement.
+  `[agent_visible].brief` names `instruction.md`; re-run the task-validity gate below after any edit.
+- **World content: `fixtures/**` (including `fixtures/README.md`, which explains why the overlay base is empty) and `tests/fixtures/**`.** Anything a builder copies into the world is
+  what the agent sees; a change moves fixture digests and the contract checks.
+  `tests/fixtures/workspace/README.md`, `tests/fixtures/workspace/pipelines/README.md`, `tests/fixtures/workspace/docs/data_dictionary.md` and `tests/fixtures/workspace/docs/runbooks/orders_stream.md` are workspace files the agent reads (emitted by `tests/fixtures/workspace_files.py`; `tests/manifest.yaml` and the grader name some of their headings), not documentation of this folder.
+- **Measurement code:** `tests/grade.py`, `tests/manifest.yaml`, the modules the
+  grader imports and `task.toml` decide the score. A change there is a new
+  measurement: re-run `run_baselines.py` and `validity.py --ladder` and compare
+  with `tests/baselines/`.
+- **Code-read docs** (table above) keep their names and places.
+- `python tasks/harness/validity.py --task GT002-orders-flatline --lab-card` prints the
+  task's lab card from `task.toml`, `DESIGN.md` and `tests/VALIDITY.md`; it
+  should not change when you edit only this README.
 
 ## Re-measure
 
