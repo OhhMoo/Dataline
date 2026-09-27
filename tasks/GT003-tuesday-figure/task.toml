@@ -102,7 +102,7 @@ this arm ships is prompts/hard.md: the Tuesday figure looks wrong. It does \
 not name the owner, the closed months, or a ban on restating the pack. The \
 rule stays in the world, and the ticket, the wiki and the channel do not say \
 the same thing. Pre-registered 2026-09-19 in DESIGN.md section 7; the brief \
-was reshaped 2026-09-25 (HARDNESS.md)."""
+was reshaped 2026-09-25 (README.md)."""
 
 [variants.decision.grading]
 pass_requires_checks = ["D1a", "D1b", "D2", "D3a", "D3b", "D4a", "D4b",

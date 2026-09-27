@@ -467,8 +467,10 @@ brief = "prompts/specific.md"
 #   specific - states what must be true at the end. The floor, not a walkthrough.
 #
 # None of the three names the cause, the number of defects, the damage window,
-# or anything that removes the need to query the data. See BRIEF.md for the
-# selection procedure and for how a finished rollout is attributed to a variant.
+# or anything that removes the need to query the data. See
+# docs/implementation_plan/tasks/GT004-doubling-window/BRIEF.md (the former
+# BRIEF.md) for the selection procedure and for how a finished rollout is
+# attributed to a variant; README.md summarises the dial.
 #
 # sha256 is over the file's exact bytes (LF, no BOM). `prompts/variant.py list`
 # reports drift; `variant.py lock` reprints this block. A prompt that changes

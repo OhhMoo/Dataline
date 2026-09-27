@@ -122,7 +122,7 @@ generator silently overwrote a reference once and every verdict still printed PA
 | **GRADER** | `tests/grade.py`, `tests/manifest.yaml` | `tests/probes/**`, `fixtures/**` |
 | **PROBES** | `tests/probes/**` | `tests/grade.py`, `fixtures/**` |
 | **VALIDITY** | `tests/run_baselines.py`, `solution/**` | `tests/grade.py`, `tests/probes/**` |
-| **SPEC** | `task.toml`, `BRIEF.md`, `prompts/**`, and GT003's missing `[harness]` section | everything else in GT004 |
+| **SPEC** | `task.toml`, `BRIEF.md` (now `docs/implementation_plan/tasks/GT004-doubling-window/BRIEF.md`), `prompts/**`, and GT003's missing `[harness]` section | everything else in GT004 |
 
 ## Four layers — the retrofit (2026-09-16)
 

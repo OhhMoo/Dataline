@@ -15,7 +15,7 @@ ticket. `prompts/decision.md` is what `[agent_visible].brief` and
 and there is an argument about months already in a board pack. The brief
 does not name the owner and does not state the permission rule. That rule
 stays in `fixtures/variants/decision/decision.yaml`, and the sources there
-disagree. `HARDNESS.md` is the record. The grader is unchanged.
+disagree. `README.md` describes it. The grader is unchanged.
 
 ## 1. The world, in one paragraph
 
