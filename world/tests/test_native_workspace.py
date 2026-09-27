@@ -213,7 +213,7 @@ class EndpointTableTest(unittest.TestCase):
         self.assertEqual(
             wrong, {},
             "service modules listen on a port the subject is not told about "
-            "(module, subject): see gateway/docker/COMPOSE_REQUESTS.md")
+            "(module, subject): see docs/implementation_plan/gateway/COMPOSE_REQUESTS.md")
         hosts = {name: module.HOST for name, module in loaded.items()}
         self.assertEqual(
             hosts,

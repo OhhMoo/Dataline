@@ -215,7 +215,7 @@ resolver of our own (a dnsmasq answering only the alias table, with
 more container to go wrong for a property nothing else depends on.
 
 Runner-up, **closed 2026-09-16**: `<root>/home` is now a conditional
-`fingerprint.py` section (COMPOSE_REQUESTS.md item 2), so a home directory
+`fingerprint.py` section (`docs/implementation_plan/gateway/COMPOSE_REQUESTS.md` item 2), so a home directory
 edited after the build no longer passes `semantic_hash`. Measured three ways:
 the default seed rebuilds to `85ce4cbbb86d6667…`, byte-for-byte the
 `gate1_host_semantic_hash` in `world/evidence/acceptance.json` (no `home/`, no
