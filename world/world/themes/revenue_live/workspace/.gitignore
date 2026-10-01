@@ -1,0 +1,19 @@
+# dbt
+dbt_project/target/
+dbt_project/dbt_packages/
+dbt_project/logs/
+logs/
+
+# Personal overrides. `.envrc` is committed and holds no secrets; `.env` is
+# yours, is sourced on top of it, and never goes in here.
+.env
+.env.local
+
+# local scratch warehouses. The real one lives outside the repo (see README).
+*.duckdb
+*.duckdb.wal
+
+# python
+__pycache__/
+*.pyc
+.venv/

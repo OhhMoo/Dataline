@@ -1,0 +1,36 @@
+version: 2
+
+models:
+  - name: fct_revenue_lines
+    description: >
+      Order-line fact: one row per order line, after the staging quality gate.
+      `landed_dt` is the landing partition the line was loaded from.
+    columns:
+      - name: order_id
+        description: Order identifier. Unique across the whole landing zone.
+        tests: [not_null]
+      - name: order_date
+        description: Business date of the order.
+        tests: [not_null]
+      - name: amount
+        description: Order amount, decimal(12,2).
+        tests: [not_null]
+      - name: terminal_ref
+        description: >
+          Card terminal the order was taken on. Empty for card-not-present
+          orders from the legacy acquirer.
+
+  - name: fct_revenue
+    description: >
+      Daily revenue fact: one row per order date, aggregated from
+      `fct_revenue_lines`. This is what the `revenue_daily` dashboard reads.
+    columns:
+      - name: order_date
+        description: Business date. The grain of this table.
+        tests: [not_null, unique]
+      - name: orders
+        description: Count of order lines on that date.
+        tests: [not_null]
+      - name: revenue
+        description: Sum of `amount` over the date.
+        tests: [not_null]

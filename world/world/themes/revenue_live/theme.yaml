@@ -1,0 +1,77 @@
+name: revenue_live
+dbt_profile: world_dbt
+
+# DW-1, the pilot dynamic world (tasks/DW001-live-revenue,
+# docs/implementation_plan/experimental_ideas/2026-09-30-dynamic-world-design.md
+# section 4.4). Derived from revenue_daily: same arrival stream, same
+# schedule. No second warehouse and no workflow plane - the dynamic world's
+# signal is the damage curve, and the human-context corpus of revenue_daily
+# quotes numbers this world does not have.
+#
+# THREE LATENT DEFECTS, AUTHOR-SIDE (this file is not copied into the world;
+# gen.py's docstring carries the full account). Each turns a shock into damage:
+#
+#   registry id                          contract              shock
+#   retry_backfill_doubling              exactly_once          duplicate_arrival
+#     workspace/dbt_project/models/warehouse/fct_revenue_lines.sql: no dedup on order_id
+#   checkpoint_past_an_unread_partition  liveness              late_arrival (> 1 day)
+#     workspace/loader/load_daily_revenue.py: checkpoint = newest partition seen
+#   null_unsafe_not_in_quality_gate      consumer_consistency  none (continuous)
+#     workspace/dbt_project/models/staging/stg_revenue.sql: terminal_ref NOT IN (...)
+
+jobs:
+  daily_load:
+    command: load_daily_revenue
+    duration_s: 45
+    time: "01:00"
+    day_offset: 1
+    after: null
+    detail: "dt={day}"
+    # The workspace's own loader, as a subprocess: whatever is in
+    # workspace/loader/load_daily_revenue.py at 01:00 is what runs, so an
+    # agent's fix (or breakage) of the loader is what the schedule executes.
+    exec:
+      kind: script
+      path: loader/load_daily_revenue.py
+      args: ["--landing", "{workspace}/data/landing/daily_revenue", "--db", "{db}"]
+      tables: [raw.daily_revenue]
+  dbt_build:
+    command: dbt_build
+    duration_s: 90
+    after: {job: daily_load, minutes: 5}
+    detail: null
+    exec:
+      kind: dbt
+      command: build
+      tables: [warehouse.fct_revenue_lines, warehouse.fct_revenue]
+
+live:
+  params: [seed, orders_per_day, customers, amount_cents]
+  # day D lands at D+1 00:00, an hour before the 01:00 load that consumes it
+  arrival:
+    name: daily_revenue
+    op: write_day
+    at: {day_offset: 1, time: "00:00"}
+
+  # The catalogue is declared, ALL OFF, so the built live.json carries the
+  # fault bookkeeping (days_scheduled, deferred_*, fault_log). The episode's
+  # shocks are not drawn from these rates: world.hawkes installs one `only:`
+  # entry per sampled shock (tasks/DW001-live-revenue/shock_spec.yaml), with
+  # the same params as below.
+  faults:
+    # 26 hours late: day D lands at D+2 02:00, AFTER the D+2 01:00 load has
+    # already loaded day D+1. A delay shorter than a day is harmless to an
+    # incremental loader keyed on the newest partition (the late day is newer
+    # than the checkpoint when the next load runs); this one is not.
+    - id: late_partition
+      kind: late_arrival
+      enabled: false
+      rate: 0.0
+      params: {delay_minutes: 1560, missed_by: []}
+    # The same partition delivered twice, as revenue.dup.csv beside
+    # revenue.csv; the loader's dt=<day>/*.csv glob reads both.
+    - id: duplicate_partition
+      kind: duplicate_arrival
+      enabled: false
+      rate: 0.0
+      params: {match: "*.csv", suffix: ".dup"}

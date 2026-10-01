@@ -323,7 +323,10 @@ def grade(spec, world: dict, artifact_path: Path, out_dir: Path) -> dict:
     subs = {**{k: v for k, v in world.items() if isinstance(v, str)},
             "ledger": str(staged) if staged else "",
             "artifact": str(artifact_path)}
-    argv = [a.format(**subs) for a in spec.grade_argv]
+    # A dynamic task's ledgers (tasks/harness/dynamic.py), host-side in the
+    # rollout directory. Only a grade_argv that names `{dynamic}` reads it.
+    subs.setdefault("dynamic", str(Path(out_dir) / "dynamic"))
+    argv =[a.format(**subs) for a in spec.grade_argv]
     r = subprocess.run([str(PY), str(spec.grade_entrypoint), *argv],
                        capture_output=True, text=True, env=venv_env())
     (out_dir / "grader.stderr.txt").write_text(r.stderr or "", encoding="utf-8")

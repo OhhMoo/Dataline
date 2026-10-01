@@ -980,7 +980,8 @@ def in_container(world: dict, host_path: str | Path,
 
 def run_scripted_container(*, rollout_dir: Path, world: dict, audit_dir: Path,
                            stack, wall_clock_s: int, instruction: str = "",
-                           issue_key: str = "", variant: str = "") -> aut.AgentRun:
+                           issue_key: str = "", variant: str = "",
+                           extra_commands: list[str] | None = None) -> aut.AgentRun:
     """Run the scripted subject INSIDE the episode container, through the
     wrapper the model would use.
 
@@ -1041,6 +1042,34 @@ def run_scripted_container(*, rollout_dir: Path, world: dict, audit_dir: Path,
                           env={**os.environ, **wrapper["subject_env"]},
                           capture_output=True, text=True, encoding="utf-8",
                           errors="replace", timeout=wall_clock_s)
+    if extra_commands:
+        # A dynamic task's world clock counts MODEL commands, so its scripted
+        # subject issues several, each one its own trip through the launcher
+        # exactly as one Bash tool call of a model would be.
+        calls = [(command, proc.stdout)]
+        for extra in extra_commands:
+            r = subprocess.run([*wrapper.get("launcher_argv", [wrapper["launcher"]]),
+                                "-lc", extra], cwd=str(rollout_dir),
+                               env={**os.environ, **wrapper["subject_env"]},
+                               capture_output=True, text=True, encoding="utf-8",
+                               errors="replace",
+                               timeout=max(1, wall_clock_s - int(time.time() - started)))
+            calls.append((extra, r.stdout))
+        ended = time.time()
+        transcript = _transcript_commands(rollout_dir / "transcript.jsonl", calls)
+        return aut.AgentRun(
+            driver="native", model="scripted-native-subject",
+            exit_reason="completed" if proc.returncode == 0 else "agent_error",
+            returncode=proc.returncode, wall_clock_s=round(ended - started, 2),
+            started_wts=int(started * 1000), ended_wts=int(ended * 1000),
+            transcript_path=str(transcript), events=3 + 2 * len(calls),
+            final_text=calls[-1][1].strip()[-2000:], session_id="scripted-native",
+            usage={"scripted": True, "commands": len(calls)},
+            stderr_tail=(proc.stderr or "")[-4000:], argv=argv,
+            notes=(f"scripted native subject {name!r} plus {len(extra_commands)} "
+                   f"further commands (a dynamic task's clock counts commands), "
+                   f"run inside the episode container through the bash wrapper: "
+                   f"not a model and not a measurement"))
     ended = time.time()
     transcript = _transcript_command(rollout_dir / "transcript.jsonl", command,
                                      proc.stdout)
@@ -1058,6 +1087,31 @@ def run_scripted_container(*, rollout_dir: Path, world: dict, audit_dir: Path,
                f"measurement; triggered {trigger_plan(world) or '(no jobs)'}"
                + (f" ({TRIGGER_ALL_ENV} set: every job this world declares)"
                   if os.environ.get(TRIGGER_ALL_ENV) else "")))
+
+
+def _transcript_commands(path: Path, calls: list[tuple[str, str]]) -> Path:
+    """`_transcript_command` for several commands: one tool_use + tool_result
+    pair per command, in order, so `blindness` reads every command's text."""
+    events = [
+        {"type": "system", "subtype": "init", "tools": ["Bash"],
+         "mcp_servers": [], "model": "scripted-native-subject",
+         "session_id": "scripted-native"},
+        {"type": "user", "message": {"role": "user", "content": "<the ticket>"}},
+    ]
+    for n, (command, stdout) in enumerate(calls, 1):
+        events += [
+            {"type": "assistant", "message": {"content": [
+                {"type": "tool_use", "id": f"t{n}", "name": "Bash",
+                 "input": {"command": command}}]}},
+            {"type": "user", "message": {"content": [
+                {"type": "tool_result", "tool_use_id": f"t{n}", "content": stdout}]}},
+        ]
+    events.append({"type": "result", "subtype": "success", "num_turns": len(calls),
+                   "result": (calls[-1][1] if calls else "").strip()[-2000:]})
+    with open(path, "w", encoding="utf-8", newline="") as stream:
+        for event in events:
+            stream.write(json.dumps(event) + "\n")
+    return path
 
 
 def _transcript_command(path: Path, command: str, stdout: str) -> Path:

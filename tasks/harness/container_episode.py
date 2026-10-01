@@ -1593,6 +1593,11 @@ class NativeContainerEpisode:
     subject_container: str = ""
     proxy_container: str = ""
     rexec_token: str = field(default_factory=lambda: secrets.token_hex(16))
+    #: A dynamic task's world clock (`tasks/harness/dynamic.Driver`), or None.
+    #: None - every static task - leaves the bridge, its argv and the probe
+    #: exactly as they were. Set, the bridge is started ATTACHED with `--clock
+    #: stdio` and asks this driver before every model command.
+    clock: object = None
     _up: bool = False
 
     # ---------------------------------------------------------------- paths
@@ -1764,6 +1769,9 @@ services:
             self.gate = None
         if not self._up:
             return
+        proc = getattr(self, "_rexec_proc", None)
+        if proc is not None and proc.poll() is None:
+            proc.kill()
         if self.proxy_container:
             # Every connection the subject tried to make off the box, kept
             # beside the mounts overlay as part of the rollout's record.
@@ -1951,13 +1959,16 @@ services:
         self._rexec_env = env
         self.exec_(["mkdir", "-p", str(Path(REXEC_IN_CONTAINER).parent)])
         self.copy_in(REXEC_SOURCE, REXEC_IN_CONTAINER)
-        flags = ["-d", "-w", WORKSPACE_IN_CONTAINER,
-                 "-e", f"ALKERA_REXEC_TOKEN={self.rexec_token}"]
-        for name, value in sorted((env or {}).items()):
-            flags += ["-e", f"{name}={value}"]
-        _run(["docker", "exec", *flags, self.container_id,
-              "/usr/local/bin/python", REXEC_IN_CONTAINER, "serve",
-              "--port", str(REXEC_PORT), "--workdir", WORKSPACE_IN_CONTAINER])
+        if self.clock is not None:
+            self._start_clocked_rexec(env)
+        else:
+            flags = ["-d", "-w", WORKSPACE_IN_CONTAINER,
+                     "-e", f"ALKERA_REXEC_TOKEN={self.rexec_token}"]
+            for name, value in sorted((env or {}).items()):
+                flags += ["-e", f"{name}={value}"]
+            _run(["docker", "exec", *flags, self.container_id,
+                  "/usr/local/bin/python", REXEC_IN_CONTAINER, "serve",
+                  "--port", str(REXEC_PORT), "--workdir", WORKSPACE_IN_CONTAINER])
         wait = ("import socket,sys,time\n"
                 "for _ in range(60):\n"
                 "    try:\n"
@@ -1970,6 +1981,34 @@ services:
             raise ContainerError("the rexec bridge did not come up on "
                                  f"episode:{REXEC_PORT}: {r.stderr[-800:]}")
         self._rexec_started = True
+
+    def _start_clocked_rexec(self, env: dict) -> None:
+        """The bridge for a dynamic task: ATTACHED, so its stdin/stdout are this
+        process's pipes and the clock's control channel lives in no file and on
+        no network the agent can reach. `tasks/harness/dynamic.control_loop`
+        answers it on a daemon thread; the world advances in this process, on
+        the host, where the world tree is."""
+        import dynamic
+
+        old = getattr(self, "_rexec_proc", None)
+        if old is not None and old.poll() is None:
+            old.kill()
+        flags = ["-i", "-w", WORKSPACE_IN_CONTAINER,
+                 "-e", f"ALKERA_REXEC_TOKEN={self.rexec_token}"]
+        for name, value in sorted((env or {}).items()):
+            flags += ["-e", f"{name}={value}"]
+        self.container_dir.mkdir(parents=True, exist_ok=True)
+        log = open(self.container_dir / "rexec_clock.stderr.txt", "ab")
+        proc = subprocess.Popen(
+            ["docker", "exec", *flags, self.container_id,
+             "/usr/local/bin/python", REXEC_IN_CONTAINER, "serve",
+             "--port", str(REXEC_PORT), "--workdir", WORKSPACE_IN_CONTAINER,
+             "--clock", "stdio"],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=log)
+        self._rexec_proc = proc
+        threading.Thread(target=dynamic.control_loop,
+                         args=(proc.stdout, proc.stdin, self.clock),
+                         daemon=True).start()
 
     def subject_sandbox_probe(self, host_paths: list[str] | None = None) -> dict:
         """What the subject container can reach, read from inside it.
@@ -2023,10 +2062,18 @@ services:
         self.start_rexec(env)
         expected = self.exec_(["hostname"]).stdout.strip()
         observed = {}
-        for form in ("-c", "-lc"):
-            r = _run(["docker", "exec", "-w", SUBJECT_CWD, self.subject_container,
-                      "bash", form, "hostname"], check=False, timeout=120)
-            observed[form] = (r.stdout.strip().splitlines() or [""])[-1]
+        # The proof's two commands cross the bridge too; they are the HARNESS's,
+        # so a dynamic task's clock does not count them.
+        if self.clock is not None:
+            self.clock.paused = True
+        try:
+            for form in ("-c", "-lc"):
+                r = _run(["docker", "exec", "-w", SUBJECT_CWD, self.subject_container,
+                          "bash", form, "hostname"], check=False, timeout=120)
+                observed[form] = (r.stdout.strip().splitlines() or [""])[-1]
+        finally:
+            if self.clock is not None:
+                self.clock.paused = False
         sandbox = self.subject_sandbox_probe(host_paths)
         verified = (bool(expected) and all(v == expected for v in observed.values())
                     and sandbox["verified"])
@@ -2074,6 +2121,19 @@ services:
                         REPO.as_posix(), "/c", "/host_mnt", "/mnt/c"],
             canaries=canaries,
             repo_root=REPO)
+        if self.clock is not None:
+            # A dynamic episode proves its author-side ledgers are out of reach
+            # by name: the live-world plane and the shock schedule inside, and
+            # the host ledger directory spelled every way a leak could spell it.
+            import dynamic
+
+            ledger = Path(self.clock.ledger_dir).resolve().as_posix()
+            spec["dynamic_paths"] = sorted(
+                {*dynamic.PROBE_PATHS, ledger,
+                 f"{ledger}/damage.jsonl", f"{ledger}/tick_schedule.json",
+                 f"{ledger}/shock_schedule.json",
+                 (self.world_root / "var" / "world" / "shock_schedule.json")
+                 .as_posix()})
         evidence = _native_probe().run(self.container_id, spec)
         evidence["when"] = when
         evidence["probe_source"] = ("stdin to `python -`; never written to the "

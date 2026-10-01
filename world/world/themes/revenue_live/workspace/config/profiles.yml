@@ -1,0 +1,32 @@
+# dbt profiles for this project.
+#
+# run.sh exports DBT_PROFILES_DIR=config, so anything you run through run.sh
+# uses this file. A bare `dbt` picks up ~/.dbt/profiles.yml instead — that is
+# the usual reason two people get two different answers from the same model.
+#
+# The nightly runs use neither: the scheduler renders its own profiles.yml
+# with an absolute warehouse path. See dags/README.md.
+world_dbt:
+  target: "{{ env_var('DBT_TARGET', 'dev') }}"
+  outputs:
+
+    # Developer checkout. The warehouse file lives outside the repo, one level
+    # up from it, so a `git clean -xfd` cannot delete it.
+    dev:
+      type: duckdb
+      path: "{{ env_var('DBT_WAREHOUSE_PATH', '../var/warehouse/warehouse.duckdb') }}"
+      threads: 1
+
+    # CI builds against a throwaway file so a red build cannot corrupt a real one.
+    ci:
+      type: duckdb
+      path: "{{ env_var('DBT_WAREHOUSE_PATH', '/tmp/ci_warehouse.duckdb') }}"
+      threads: 1
+
+    # Production. Not reachable from a developer checkout — the path is on a
+    # mount only the scheduler host has. Kept here so `dbt debug --target prod`
+    # fails with a path you can read rather than falling back to dev.
+    prod:
+      type: duckdb
+      path: "{{ env_var('DBT_PROD_WAREHOUSE_PATH', '/mnt/warehouse/prod/warehouse.duckdb') }}"
+      threads: 4

@@ -235,6 +235,16 @@ def classify(*, spec, score: dict | None, score_stable: bool,
     if score is None:
         return out("harness_error", "no score and no grader failure recorded")
 
+    if getattr(spec, "dynamic", None) is not None:
+        # A dynamic world is scored by its damage ledger (J, and S once the
+        # twins exist), and its pass criterion is not decided: `passed` is
+        # None, never False, and the rollout is not in a Pass@1 denominator.
+        result = out("dynamic", f"damage-scored episode; J={score.get('J')} "
+                                f"over {score.get('ticks')} ticks; pass undecided")
+        result["passed"] = None
+        result["scored"] = False
+        return result
+
     if spec.scores_pass(score):
         return out("pass", f"total {score['total']}/{score['max']}, "
                            f"all of {spec.pass_requires_checks} passed", passed=True)

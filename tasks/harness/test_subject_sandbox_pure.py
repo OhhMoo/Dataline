@@ -98,6 +98,69 @@ def test_rexec(tmp: Path) -> None:
         server.kill()
 
 
+def test_rexec_clock(tmp: Path) -> None:
+    """`serve --clock stdio` (dynamic tasks): one `tick? <seq> <inflight>` line
+    per authenticated command BEFORE it runs, the command held until `go <seq>`,
+    and a harness that answers wrongly or not at all fails the command closed."""
+    port, token = free_port(), "t0k"
+    workdir = tmp / "workspace-clock"
+    workdir.mkdir()
+    server = subprocess.Popen(
+        [sys.executable, str(REXEC), "serve", "--port", str(port),
+         "--workdir", str(workdir), "--clock", "stdio"],
+        env={**os.environ, "ALKERA_REXEC_TOKEN": token},
+        stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+    seen: list[str] = []
+    marker = workdir / "ran"
+    try:
+        wait_listening(port)
+        env = {**os.environ, "ALKERA_REXEC_ADDR": f"127.0.0.1:{port}",
+               "ALKERA_REXEC_TOKEN": token}
+        r = client("echo hi", {**env, "ALKERA_REXEC_TOKEN": "wrong"})
+        ok = r.returncode == 126
+        check("a bad token asks the clock nothing", ok, r.returncode)
+        assert ok
+
+        def harness(answer):
+            line = server.stdout.readline().decode().strip()
+            seen.append(line)
+            # The command must not have started while the harness holds it.
+            seen.append("held" if not marker.exists() else "ran-early")
+            server.stdin.write((answer(line) + "\n").encode())
+            server.stdin.flush()
+
+        import threading
+        for n in (1, 2):
+            t = threading.Thread(target=harness,
+                                 args=(lambda line: "go " + line.split()[1],))
+            t.start()
+            r = client(f"touch {marker}; echo n{n}", env)
+            t.join(10)
+            ok = r.stdout.strip() == f"n{n}" and r.returncode == 0
+            check(f"command {n} runs after `go {n}`", ok, (r.stdout, r.returncode))
+            assert ok
+            marker.unlink()
+        ok = seen == ["tick? 1 0", "held", "tick? 2 0", "held"]
+        check("one control line per command, before it runs", ok, seen)
+        assert ok
+        t = threading.Thread(target=harness, args=(lambda line: "go 99",))
+        t.start()
+        r = client(f"touch {marker}", env)
+        t.join(10)
+        ok = r.returncode == 125 and not marker.exists() \
+            and "world clock" in r.stderr
+        check("an out-of-turn answer fails the command closed", ok,
+              (r.returncode, r.stderr))
+        assert ok
+        server.stdin.close()                         # the harness is gone
+        r = client(f"touch {marker}", env)
+        ok = r.returncode == 125 and not marker.exists()
+        check("no harness, no command", ok, (r.returncode, r.stderr))
+        assert ok
+    finally:
+        server.kill()
+
+
 def test_hook(tmp: Path) -> None:
     """bash_env.sh, as the subject's bash reads it: the CLI's cwd is rewritten
     and the command goes to rexec. rexec is replaced here by a stand-in python
@@ -167,6 +230,8 @@ def main() -> int:
         tmp = Path(t)
         print("rexec.py")
         test_rexec(tmp)
+        print("rexec.py --clock stdio")
+        test_rexec_clock(tmp)
         print("bash_env.sh")
         test_hook(tmp)
     print("egress_proxy.py")

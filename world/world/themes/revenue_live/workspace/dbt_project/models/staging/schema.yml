@@ -1,0 +1,31 @@
+version: 2
+
+models:
+  - name: stg_revenue
+    description: >
+      One row per order line as landed, typed, with payments test-harness
+      traffic removed (`terminal_ref` TEST-HARNESS / SMOKE-TEST orders are
+      synthetic and are not revenue). `amount` arrives as a string in
+      `raw.daily_revenue` because the landing CSVs are read with every column
+      as VARCHAR, which is what keeps a malformed value a visible bad row
+      instead of a silent null.
+    columns:
+      - name: order_id
+        description: Order identifier. Unique across the whole landing zone.
+        tests: [not_null]
+      - name: order_date
+        description: Business date of the order.
+        tests: [not_null]
+      - name: customer_id
+        description: Customer identifier, `C` + four digits.
+        tests: [not_null]
+      - name: amount
+        description: Order amount in currency units, decimal(12,2).
+        tests: [not_null]
+      - name: terminal_ref
+        description: >
+          Card terminal id (`T` + four digits). Empty for card-not-present
+          orders from the legacy acquirer; TEST-HARNESS / SMOKE-TEST for
+          synthetic payments-harness traffic.
+      - name: dt
+        description: Landing partition the row was loaded from.

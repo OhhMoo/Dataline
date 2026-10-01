@@ -303,6 +303,31 @@ out["checks"] = {
         bool(out["scheduler"]) and out["scheduler"].get("populated") is True,
     "egress_refused": out["egress_blocked"] and not out["network"]["default_route"],
 }
+# --- G. a dynamic world's author-side ledgers (only when asked) ------------
+# The world clock's ledgers (damage.jsonl, tick_schedule.json) and the shock
+# schedule are author-side (tasks/harness/dynamic.py). The agent is root in
+# this container, so "unreadable" can only mean ABSENT: every path is tried as
+# a read and as a listing, and must be neither.
+if spec.get("dynamic_paths"):
+    rows = []
+    for path in spec["dynamic_paths"]:
+        row = {"path": path, "exists": os.path.exists(path)}
+        try:
+            with open(path, "rb") as fh:
+                row["read_bytes"] = len(fh.read(64))
+            row["read"] = "READ"
+        except OSError as exc:
+            row["read"] = type(exc).__name__
+        try:
+            row["listing"] = sorted(os.listdir(path))[:20]
+        except OSError as exc:
+            row["listing"] = None
+        rows.append(row)
+    out["dynamic_ledgers"] = rows
+    out["checks"]["dynamic_ledgers_unreachable"] = all(
+        not r["exists"] and r["read"] != "READ" and r["listing"] is None
+        for r in rows)
+
 out["contained"] = all(out["checks"].values())
 print(json.dumps(out, sort_keys=True))
 """

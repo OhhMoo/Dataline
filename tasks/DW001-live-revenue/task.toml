@@ -1,0 +1,100 @@
+# DW001 - the pilot dynamic world (DW-1).
+#
+# Design: docs/implementation_plan/experimental_ideas/2026-09-30-dynamic-world-design.md
+# section 4.4; plan: ...-dynamic-world-plan.md Task 4. Unlike GT001-GT009 this
+# task is not graded on a final state. The world keeps running during and after
+# the episode, shocks arrive from a seeded Hawkes process (shock_spec.yaml),
+# damage is sampled per contract at every tick (damage.yaml) and the agent is
+# scored against no-op and oracle twins replayed on the same shocks:
+#   S = (J_noop - J_agent) / (J_noop - J_oracle).
+# Nothing that scores this task exists yet beyond tests/test_dw001.py (twin
+# runner and episode integration are Phase 2, Tasks 5-6).
+
+[task]
+id          = "DW001-live-revenue"
+version     = "0.1.0"
+discipline  = "data_engineering"
+archetype   = "dynamic_world_controller"
+title       = "Keep the revenue pipeline healthy for a week while it keeps running"
+status      = "pilot"                # no model run; ladder validation is Task 7
+
+[world]
+theme       = "revenue_live"          # world/world/themes/revenue_live/
+seed        = "world/world/themes/revenue_live/seed.example.yaml"
+vnow_t0     = "2026-03-03T00:00:00Z"  # vnow after build; first arrival day_index 30
+shock_spec  = "shock_spec.yaml"       # -> world.hawkes (Task 1)
+damage_spec = "damage.yaml"           # -> world.damage (Task 2)
+policies    = "policies.py"           # noop oracle root_late symptom partial overreach vandal
+oracle      = "solution/apply.py"     # fix all three, then restate
+
+[agent_visible]
+brief = "instruction.md"
+# Author-side and NEVER agent-readable: shock_spec.yaml, damage.yaml,
+# policies.py, solution/, var/world/live.json (fault_log), and the ledgers
+# shock_schedule.json / damage.jsonl / tick_schedule.json.
+
+# The three latent defects, one per contract family, each ported from the
+# stressor registry (tasks/stressors/registry.yaml) by re-implementing it in
+# this world's own code. Recorded here (and in the theme's author-side
+# theme.yaml / gen.py) rather than in any workspace file, which would name the
+# defect to the agent.
+[[latent_defects]]
+registry_id = "retry_backfill_doubling"
+contract    = "exactly_once"
+file        = "workspace/dbt_project/models/warehouse/fct_revenue_lines.sql"
+mechanism   = "the line-level fact does not deduplicate order_id"
+shock       = "duplicate_arrival"
+fix         = "solution/workspace/dbt_project/models/warehouse/fct_revenue_lines.sql (qualify row_number() over (partition by order_id) = 1)"
+
+[[latent_defects]]
+registry_id = "checkpoint_past_an_unread_partition"
+contract    = "liveness"
+file        = "workspace/loader/load_daily_revenue.py"
+mechanism   = "incremental loader advances raw.load_checkpoint to the newest partition seen; a partition landing after a newer one was loaded is never read"
+shock       = "late_arrival (delay_minutes 1560: lands after the next day's load)"
+fix         = "solution/workspace/loader/load_daily_revenue.py (full reload over every partition)"
+
+[[latent_defects]]
+registry_id = "null_unsafe_not_in_quality_gate"
+contract    = "consumer_consistency"
+file        = "workspace/dbt_project/models/staging/stg_revenue.sql"
+mechanism   = "terminal_ref NOT IN ('TEST-HARNESS','SMOKE-TEST') also drops every NULL terminal_ref line"
+shock       = "none - continuous from t0 (the control: damage without dynamics)"
+fix         = "solution/workspace/dbt_project/models/staging/stg_revenue.sql (IS DISTINCT FROM)"
+
+# ---------------------------------------------------------------------------
+# The world clock in an episode (plan Task 6; tasks/harness/dynamic.py).
+# Ticks run on the HOST world before every m-th MODEL command (the rexec
+# request boundary), damage is sampled after every tick, and after the agent
+# exits the harness advances to T. Ledgers land in <rollout>/dynamic/.
+# Runs only under --driver native --topology container --subject-sandbox
+# container (rexec is the choke point).
+# ---------------------------------------------------------------------------
+[dynamic]
+m       = 10
+h_hours = 6.0
+T_hours = 168.0
+damage  = "damage.yaml"
+shocks  = "shock_spec.yaml"
+# fault_seed: omitted, so shock_spec.yaml's own (7) is the episode's
+
+[environment]
+seed        = 1                       # the world seed (seed.example.yaml `seed`)
+virtual_now = "2026-03-03T00:00:00Z"
+
+[limits]
+wall_clock_seconds = 5400
+max_tool_calls     = 600
+
+[grading]
+mode       = "dynamic"                # J from the damage ledger; pass undecided
+entrypoint = "tests/grade.py"
+artifact   = "/workspace/handover.md" # optional; nothing reads it yet
+
+# Minimal rollout-harness wiring (tasks/harness/taskspec.py). No pass
+# criterion on purpose: a dynamic world's pass is not decided (S needs the
+# twins), so pass_requires_checks / pass_min_total are absent and the record
+# carries `passed: null`.
+[harness]
+world_builder = "tests/build_world.py"
+grade_argv    = ["--dynamic", "{dynamic}", "--json"]

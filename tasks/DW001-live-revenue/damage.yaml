@@ -1,0 +1,47 @@
+# DW-1 damage spec: input to world.damage (plan "Shared interfaces").
+# AUTHOR-SIDE. Every name below is a real relation/column of a built
+# revenue_live world; tests/test_dw001.py measures the same three contracts
+# with direct SQL against these exact entries.
+#
+# One contract per latent defect (world/world/themes/revenue_live/gen.py):
+#   exactly_once          <- retry_backfill_doubling            x duplicate_arrival
+#   liveness              <- checkpoint_past_an_unread_partition x late_arrival
+#   consumer_consistency  <- null_unsafe_not_in_quality_gate     (continuous)
+db: var/warehouse/warehouse.duckdb          # relative to world root
+weights: {exactly_once: 1.0, liveness: 1.0, consumer_consistency: 1.0}
+contracts:
+  # duplicated business keys / keys in the governed line-level fact
+  exactly_once:
+    table: warehouse.fct_revenue_lines
+    key: [order_id]
+
+  # partitions due and not in raw / partitions due. Due = the arrival's
+  # NOMINAL time (live.json arrival `at`, day_offset 1 00:00) + grace_hours.
+  # 50h is what a correct loader needs to absorb the declared late_arrival
+  # (1560 min late -> lands D+2 02:00 -> loaded by the D+3 01:00 run, 49h after
+  # nominal), so the oracle's liveness is exactly 0 on every tick and the
+  # defective loader's skipped partition is counted from 50h on, forever.
+  liveness:
+    table: raw.daily_revenue
+    partition_col: dt
+    arrival: daily_revenue
+    grace_hours: 50
+
+  # consumer-facing rows that differ from the reference derivation of the
+  # loaded source / rows (full outer join on the key: a row on one side only
+  # counts as differing). The reference reads raw, so a partition the loader
+  # never read is a liveness loss, not a consistency one - each defect owns
+  # exactly one contract, except that a duplicated day also moves that day's
+  # orders/revenue (exactly_once's damage seen by the consumer).
+  consumer_consistency:
+    table: warehouse.fct_revenue
+    key: [order_date]
+    compare: [orders, revenue]
+    reference_sql: >-
+      select order_date, count(*) as orders, sum(amount) as revenue
+      from (select distinct order_id, cast(order_date as date) as order_date,
+                   cast(amount as decimal(12,2)) as amount
+            from raw.daily_revenue
+            where terminal_ref is distinct from 'TEST-HARNESS'
+              and terminal_ref is distinct from 'SMOKE-TEST')
+      group by order_date

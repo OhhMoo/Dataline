@@ -1,0 +1,160 @@
+# Observability definitions for revenue_live (OBS_STORE_CONTRACT.md); copied
+# verbatim from revenue_daily, whose tables this world keeps.
+#
+# ONE definitions file per theme. Both halves of the seam read this file:
+# `world/world/observe.py` (FAULTS) takes one reading per metric after every
+# executed run and appends it to var/obs/samples.jsonl, and the gateway's
+# metrics/alarms/deploy tools (OBS-HISTORY, gateway/SURFACES.md#observability)
+# read it to know what to evaluate. A second file would let the writer and the
+# reader describe different metric sets, which is the one way this surface can
+# be wrong without anything looking wrong - the gateway refuses to load a world
+# that has two.
+#
+# The metric set is chosen so that the fault layer is VISIBLE here without any
+# fault-specific metric existing. A late or missing partition shows up as
+# freshness climbing past a day; a timeout or a retry storm shows up as the
+# load's error rate stepping off zero; an overrun shows up as its duration
+# jumping. That is how a real incident presents itself on a real dashboard.
+#
+# The pathology this theme carries: one partition per day lands at D+1 00:00 and
+# daily_load consumes it at 01:00. When the partition is late, short or
+# malformed, the load fails or loads less than a day and warehouse.fct_revenue
+# goes quietly stale.
+#
+# Only raw.* and warehouse.* are referenced. The staging.* models are dbt views
+# whose stored bodies name the `warehouse` catalog, which does not exist under
+# the gateway's ATTACH ... AS wh connection - they are unreadable through every
+# gateway tool, sql_query included.
+version: 1
+
+# One fortnight of recorded samples. Long enough that last week's incident is
+# still evidence, short enough that a month-old question has to be answered
+# another way. What falls outside is reported as aged_out, never as absent.
+retention:
+  days: 14
+
+metrics:
+  - id: revenue_freshness
+    kind: freshness
+    unit: seconds
+    title: Revenue freshness
+    description: Seconds between the newest order_date in the fact table and the reading.
+    source: {table: warehouse.fct_revenue, timestamp_column: order_date}
+  - id: revenue_rows
+    kind: row_count
+    unit: rows
+    title: Revenue fact rows
+    source: {table: warehouse.fct_revenue}
+    series: {bucket_column: order_date}
+  - id: raw_revenue_rows
+    kind: row_count
+    unit: rows
+    title: Raw landing rows loaded
+    source: {table: raw.daily_revenue}
+    series: {bucket_column: dt}
+  - id: revenue_amount_null_rate
+    kind: null_rate
+    unit: ratio
+    title: Landed rows with no amount
+    description: >-
+      A partial write leaves the amount column blank rather than absent, so this
+      is the reading that sees it.
+    source: {table: raw.daily_revenue, column: amount}
+    series: {bucket_column: dt}
+  - id: revenue_daily_orders
+    kind: sql_scalar
+    unit: orders
+    title: Orders on the most recent day
+    source:
+      sql: select orders from warehouse.fct_revenue order by order_date desc limit 1
+    series:
+      sql: >-
+        select cast(order_date as varchar) as bucket, orders as value
+        from warehouse.fct_revenue order by order_date
+  - id: daily_load_duration
+    kind: job_duration
+    unit: seconds
+    title: Daily load duration
+    job: daily_load
+  - id: daily_load_error_rate
+    kind: job_error_rate
+    unit: ratio
+    title: Daily load error rate
+    job: daily_load
+    window_runs: 10
+  - id: dbt_build_duration
+    kind: job_duration
+    unit: seconds
+    title: dbt build duration
+    job: dbt_build
+
+alarms:
+  - id: revenue_stale
+    metric: revenue_freshness
+    comparison: gt
+    threshold: 180000
+    severity: critical
+    title: Revenue is more than two days old
+    description: >-
+      Freshness peaks at about 176 400 s in the hour before each daily_load, so
+      a two-day threshold flat would flicker every night on a healthy world.
+      Fifty hours means a partition was genuinely missed.
+    runbook: docs/runbook_daily_load.md
+  - id: daily_load_failing
+    metric: daily_load_error_rate
+    comparison: gte
+    threshold: 0.2
+    severity: warning
+    title: The daily load is failing more than one run in five
+    runbook: docs/runbook_daily_load.md
+  - id: daily_load_slow
+    metric: daily_load_duration
+    comparison: gt
+    threshold: 180
+    severity: warning
+    title: The daily load ran long
+    description: The load takes about 45 seconds; three minutes means it processed more than one day.
+    known_imprecision:
+      kind: false_positive
+      note: >-
+        AUTHOR-SIDE. A backfill run is slow *because* the previous run failed,
+        so this alarm fires on the recovery rather than on the incident, and the
+        run it points at reads status success. The failure it should have named
+        is one logs_get away.
+  - id: revenue_volume_floor
+    metric: revenue_daily_orders
+    comparison: lt
+    threshold: 30
+    severity: warning
+    title: Two consecutive readings show a short day
+    description: Daily volume runs 40-60 orders; thirty is a short delivery.
+    evaluate_on: series
+    datapoints_to_alarm: 2
+    known_imprecision:
+      kind: blind_spot
+      note: >-
+        AUTHOR-SIDE. Cadence. With a recorded sample store, datapoints_to_alarm
+        counts *readings*, not days, and the world records one reading per
+        executed run - so two consecutive datapoints can be six minutes apart on
+        a night the pipeline ran twice, and a whole quiet day can pass without
+        producing the two it wants. Without a store the same alarm compares two
+        per-day buckets and means what it says. The two readings are both
+        defensible and they are not the same question.
+  - id: revenue_amount_missing
+    metric: revenue_amount_null_rate
+    comparison: gt
+    threshold: 0.0
+    severity: warning
+    title: Some landed rows carry no amount
+
+deploys:
+  - id: rebuild_revenue
+    kind: dbt
+    title: Rebuild the revenue fact table
+    selector: fct_revenue
+    canary:
+      metrics: [raw_revenue_rows, revenue_rows, revenue_daily_orders, revenue_freshness]
+      alarms: [revenue_stale, revenue_volume_floor]
+      guards:
+        - {metric: raw_revenue_rows, max_decrease_pct: 5}
+        - {metric: revenue_daily_orders, max_decrease_pct: 20}

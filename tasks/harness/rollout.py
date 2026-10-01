@@ -54,6 +54,7 @@ import agent_under_test as aut          # noqa: E402
 import blindness                        # noqa: E402
 import classify as classifier           # noqa: E402
 import container_episode                # noqa: E402
+import dynamic                          # noqa: E402
 import episode                          # noqa: E402
 import native_stack                     # noqa: E402
 import surface_audit                    # noqa: E402
@@ -1252,11 +1253,27 @@ def run_rollout(args) -> dict:
     container_shell: dict | None = None
     containment: dict | None = None
     container_paths: dict | None = None
+    # A `[dynamic]` task's world clock (tasks/harness/dynamic.py). None for
+    # every static task, and every use below is guarded on it.
+    dyn = None
+    clock_driver: dynamic.Driver | None = None
 
     try:
         # --- world -------------------------------------------------------
         world = episode.build_world(spec, world_root, grading)
         record["world"] = world
+        try:
+            dyn = dynamic.load(spec)
+            if dyn is not None:
+                dynamic.require_supported(driver=args.driver,
+                                          topology=args.topology,
+                                          subject_sandbox=args.subject_sandbox)
+                # The shock schedule is sampled and installed HERE, before the
+                # world's "before" picture: the faults are part of t=0.
+                record["dynamic"] = dynamic.stage(
+                    dyn, world_root, rollout_dir / dynamic.LEDGER_DIRNAME)
+        except dynamic.DynamicError as exc:
+            raise episode.HarnessError(str(exc)) from exc
         if args.driver == "native":
             # `./ops/sched` goes into the working tree HERE, before the
             # fingerprint and before `tree_manifest`, because the workspace is
@@ -1281,6 +1298,10 @@ def run_rollout(args) -> dict:
 
         record["world_fp_before"] = episode.fingerprint(world_root)
         tree_before = episode.tree_manifest(world_root)
+        if dyn is not None:
+            clock_driver = dynamic.Driver(
+                dyn, world_root, rollout_dir / dynamic.LEDGER_DIRNAME,
+                tree_before=tree_before, tree_manifest=episode.tree_manifest)
 
         # BLINDNESS: the audit manifest is bind-mounted at /audit inside the
         # episode container (container_episode.AUDIT_IN_CONTAINER) and the subject
@@ -1316,7 +1337,8 @@ def run_rollout(args) -> dict:
                 rollout_dir=rollout_dir, image=args.image,
                 variant=spec.variant,
                 subject_sandbox=args.subject_sandbox == "container",
-                subject_image=args.subject_image)
+                subject_image=args.subject_image,
+                clock=clock_driver)
             record["image_gate"] = container_episode.assert_image_current(args.image)
             record["subject_sandbox_mode"] = args.subject_sandbox
             if native_container.subject_sandbox:
@@ -1555,6 +1577,9 @@ def run_rollout(args) -> dict:
             # measurement, and the report must not treat it as one.
             record["redteam_detector_test"] = True
 
+        if clock_driver is not None:
+            # From here every rexec request is a model command and counts.
+            clock_driver.arm()
         if (args.driver == "native" and args.topology == "container"
                 and args.model == "scripted"):
             # The acceptance subject for the container topology. It runs THROUGH
@@ -1563,7 +1588,9 @@ def run_rollout(args) -> dict:
             agent = native_stack.run_scripted_container(
                 rollout_dir=rollout_dir, world=world, audit_dir=audit_dir,
                 stack=native_container, wall_clock_s=wall,
-                instruction=instruction, variant=spec.variant)
+                instruction=instruction, variant=spec.variant,
+                **({"extra_commands": dynamic.scripted_commands(dyn.m)}
+                   if clock_driver is not None else {}))
         elif args.driver == "native" and args.model == "scripted":
             # INTEGRATE-STACK: the Phase 3 acceptance subject. `aut.run` starts
             # `claude`, and the native driver had no way to be run end to end
@@ -1596,6 +1623,8 @@ def run_rollout(args) -> dict:
                 variant=spec.variant,
                 container_shell=container_shell)
         record["agent"] = asdict(agent)
+        if clock_driver is not None:
+            clock_driver.disarm()
 
         if native_container is not None:
             # The same container, after the subject has had a root shell in it.
@@ -1663,9 +1692,15 @@ def run_rollout(args) -> dict:
     # --- the workspace plane's rows. After teardown, before the action log is
     # read, so the detectors see a log that accounts for the whole world.
     tree_after = episode.tree_manifest(world_root) if world else None
+    # What the subject is judged against. For a dynamic task the world moved
+    # on its own between commands; `Driver.baseline` folds those tick-made
+    # changes into "before" (and never one the agent made first). A static
+    # task judges against t=0, exactly as before.
+    tree_judged = (clock_driver.baseline(tree_before)
+                   if clock_driver is not None and world else tree_before)
     if args.driver == "native" and world and tree_before is not None:
         record["workspace_edits"] = _stage_workspace_edits(
-            audit_dir, world, tree_before, tree_after)
+            audit_dir, world, tree_judged, tree_after)
 
     action_rows: list[dict] = []
     actions_path = audit_dir / "actions.jsonl"
@@ -1752,7 +1787,7 @@ def run_rollout(args) -> dict:
         transcript=transcript, driver=args.driver,
         gateway_tools=sorted(record.get("toolbelt") or []),
         canaries=canaries, repo_root=REPO, action_rows=action_rows,
-        world_before=tree_before if world else None,
+        world_before=tree_judged if world else None,
         world_after=tree_after,
         world_layout=world or None, artifact_text=artifact_text,
         topology=args.topology,
@@ -1770,6 +1805,15 @@ def run_rollout(args) -> dict:
         containment=[c for c in (record.get("containment"),
                                  record.get("containment_after")) if c],
         container_execution=record.get("container_execution_proof"))
+
+    # --- the world keeps running: to the horizon T, then the ledgers. -----
+    # After teardown and after the world diff, so nothing here is read as the
+    # subject's; before grading, because the grader reads the damage ledger.
+    if clock_driver is not None and world and harness_failure is None:
+        record["dynamic"] = {**record.get("dynamic", {}), **clock_driver.finish()}
+        if record["dynamic"]["errors"]:
+            harness_failure = ("the dynamic world clock failed: "
+                               + "; ".join(record["dynamic"]["errors"])[:2000])
 
     # --- grading. AFTER teardown, never before. --------------------------
     if world and harness_failure is None:

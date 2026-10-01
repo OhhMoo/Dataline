@@ -1,0 +1,30 @@
+# DW-1 shock spec: input to world.hawkes (plan "Shared interfaces").
+# AUTHOR-SIDE. Two shock kinds, one per shock-driven defect; the third defect
+# (the NULL-unsafe gate) needs no shock. Both kinds fire on the arrival
+# lattice of `daily_revenue` (keys `day:<index>`; day 30 = dt=2026-03-03, the
+# first arrival after the build's vnow), so they compete for the same
+# occurrence and spec order is precedence: a day that draws both is a
+# duplicate, and the late draw is recorded suppressed.
+#
+# params are the theme's own catalogue params (world/world/themes/
+# revenue_live/theme.yaml `live.faults`), so a sampled shock behaves exactly
+# like the declared fault it compiles to.
+fault_seed: 7
+rho: 0.6
+beta_per_hour: 0.05
+horizon_hours: 168
+excitation: registry
+kinds:
+  - kind: duplicate_arrival
+    target: {arrival: daily_revenue}
+    mu: 0.10
+    params: {match: "*.csv", suffix: ".dup"}
+  # Longer than a day on purpose: a partition only falls behind the
+  # incremental loader's checkpoint if the NEXT day's partition is loaded
+  # before it lands. At the plan's illustrative 240 minutes the late day lands
+  # at 04:00, is still newer than the checkpoint at the next 01:00 load, and is
+  # loaded a day late - the defect stays inert.
+  - kind: late_arrival
+    target: {arrival: daily_revenue}
+    mu: 0.10
+    params: {delay_minutes: 1560, missed_by: []}

@@ -282,8 +282,17 @@ class TaskSpec:
     # the SAME checks for the headline.
     matrix: MatrixSpec | None = None
 
+    # The task's `[dynamic]` table, raw (tasks/harness/dynamic.py parses it).
+    # None for every static task, and then nothing changes. A dynamic task is
+    # scored by its damage ledger, not by a check list: its pass criterion is
+    # NOT decided yet, so it may omit pass_requires_checks / pass_min_total and
+    # `scores_pass` never calls it a pass (classify.py reads `passed: None`).
+    dynamic: dict | None = None
+
     def scores_pass(self, score: dict) -> bool:
         """Did this rollout solve the task? Criterion comes from the task."""
+        if self.dynamic is not None:
+            return False                # undecided; see `dynamic` above
         by_id = {c["id"]: c for c in score.get("checks", [])}
         for cid in self.pass_requires_checks:
             if cid not in by_id or not by_id[cid].get("passed"):
@@ -811,9 +820,15 @@ def load(task_id: str, tasks_dir: Path | None = None,
     if not instruction_path.exists():
         raise TaskSpecError(f"agent_visible brief not found: {instruction_path}")
 
-    requires = _require(harness, "pass_requires_checks", f"{task_id} [harness]")
-    if not requires:
-        raise TaskSpecError(f"{task_id} [harness].pass_requires_checks is empty")
+    dynamic = raw.get("dynamic")
+    if dynamic is not None and not isinstance(dynamic, dict):
+        raise TaskSpecError(f"{task_id} [dynamic] must be a table")
+    if dynamic is not None:
+        requires = list(harness.get("pass_requires_checks") or [])
+    else:
+        requires = _require(harness, "pass_requires_checks", f"{task_id} [harness]")
+        if not requires:
+            raise TaskSpecError(f"{task_id} [harness].pass_requires_checks is empty")
 
     probes = list(harness.get("surface_probes", []))
     required_surfaces = list(harness.get("required_surfaces", []))
@@ -857,10 +872,12 @@ def load(task_id: str, tasks_dir: Path | None = None,
         # print the criterion it actually applied.
         pass_requires_checks=list(
             arm.grading.get("pass_requires_checks") or requires),
-        pass_min_total=float(
+        pass_min_total=(None if dynamic is not None
+                        and "pass_min_total" not in harness else float(
             arm.grading.get("pass_min_total",
                             _require(harness, "pass_min_total",
-                                     f"{task_id} [harness]"))),
+                                     f"{task_id} [harness]")))),
         matrix=_matrix_spec(task_id, root, raw.get("matrix"), arm.matrix,
                             raw=raw, arm_role=arm.role),
+        dynamic=dict(dynamic) if dynamic is not None else None,
     )

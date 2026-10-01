@@ -23,6 +23,17 @@ had).
 
 The token keeps a stray connection on the network from running commands. It is
 not a secret from the agent: the agent already runs commands here.
+
+The world clock (dynamic tasks only; tasks/harness/dynamic.py). `serve --clock
+stdio` is started by the harness over an ATTACHED `docker exec -i`, and before
+every authenticated request it writes `tick? <seq> <inflight>` on its own
+stdout - the harness's pipe - and waits for `go <seq>` on stdin, under one lock,
+before the command starts. The harness advances the host-side world in between,
+so the count is the model's commands and no command starts while the world
+moves. Without `--clock` nothing here writes to stdout or reads stdin, and a
+static task's bridge is the bridge it always was. A harness that is gone (EOF)
+or answers out of turn fails the request closed (status 125) rather than
+running a command the world clock never saw.
 """
 from __future__ import annotations
 
@@ -49,8 +60,40 @@ def _frame(kind: bytes, payload: bytes) -> bytes:
 
 
 # ------------------------------------------------------------------ server
-def _handle(conn: socket.socket, token: str, workdir: str) -> None:
+class ClockGate:
+    """The harness's say-so before each command (`--clock stdio`)."""
+
+    def __init__(self, rfile, wfile) -> None:
+        self.rfile, self.wfile = rfile, wfile
+        self.lock = threading.Lock()
+        self.seq = 0
+        self.inflight = 0
+        self.count_lock = threading.Lock()
+
+    def admit(self) -> bool:
+        with self.lock:
+            self.seq += 1
+            try:
+                self.wfile.write(f"tick? {self.seq} {self.inflight}\n".encode())
+                self.wfile.flush()
+                answer = self.rfile.readline().decode("utf-8", "replace").strip()
+            except (OSError, ValueError):
+                return False
+            if answer != f"go {self.seq}":
+                return False
+            with self.count_lock:
+                self.inflight += 1
+            return True
+
+    def done(self) -> None:
+        with self.count_lock:
+            self.inflight -= 1
+
+
+def _handle(conn: socket.socket, token: str, workdir: str,
+            gate: ClockGate | None = None) -> None:
     lock = threading.Lock()
+    admitted: ClockGate | None = None
 
     def send(kind: bytes, payload: bytes) -> None:
         with lock:
@@ -73,6 +116,12 @@ def _handle(conn: socket.socket, token: str, workdir: str) -> None:
         # in for the episode). The episode's bash reads no hook.
         env = {k: v for k, v in os.environ.items()
                if k not in ("BASH_ENV", "ALKERA_REXEC_TOKEN")}
+        if gate is not None:
+            if not gate.admit():
+                send(b"e", b"rexec: the world clock did not answer\n")
+                send(b"x", struct.pack(">i", 125))
+                return
+            admitted = gate
         proc = subprocess.Popen(["bash", "-c", request["cmd"]], cwd=workdir, env=env,
                                 stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE, start_new_session=True)
@@ -110,20 +159,22 @@ def _handle(conn: socket.socket, token: str, workdir: str) -> None:
     except (OSError, ValueError, KeyError):
         pass
     finally:
+        if admitted is not None:
+            admitted.done()
         try:
             conn.close()
         except OSError:
             pass
 
 
-def serve(port: int, token: str, workdir: str) -> None:
+def serve(port: int, token: str, workdir: str, gate: ClockGate | None = None) -> None:
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server.bind(("0.0.0.0", port))
     server.listen(64)
     while True:
         conn, _ = server.accept()
-        threading.Thread(target=_handle, args=(conn, token, workdir),
+        threading.Thread(target=_handle, args=(conn, token, workdir, gate),
                          daemon=True).start()
 
 
@@ -176,13 +227,18 @@ def main(argv: list[str] | None = None) -> int:
     s = sub.add_parser("serve")
     s.add_argument("--port", type=int, required=True)
     s.add_argument("--workdir", default="/workspace")
+    s.add_argument("--clock", choices=["stdio"], default=None,
+                   help="dynamic tasks: ask the harness on stdout/stdin before "
+                        "every command (see the module docstring)")
     c = sub.add_parser("client")
     c.add_argument("cmd")
     args = parser.parse_args(argv)
     if args.mode == "serve":
         # The token comes from the environment, not argv, so `ps` in the
         # episode does not print it next to the command line.
-        serve(args.port, os.environ["ALKERA_REXEC_TOKEN"], args.workdir)
+        gate = (ClockGate(sys.stdin.buffer, sys.stdout.buffer)
+                if args.clock == "stdio" else None)
+        serve(args.port, os.environ["ALKERA_REXEC_TOKEN"], args.workdir, gate)
         return 0
     return client(args.cmd)
 
