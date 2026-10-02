@@ -15,26 +15,37 @@ reward hacking by construction.
 
 ---
 
-## 1. Decisions needed Friday
+## 1. Decisions (final, 2026-10-02)
 
-1. **Spark is in or out.** R004 says "Do not run Spark. Ever."
-   (`structure/rounds/R004/RESEARCH-streaming.md:22`). Andrew's list has Databricks and
-   ML compute nodes. §5 recommends a two-tier Databricks plug: SQL-only over DuckDB/Delta
-   first, and real local PySpark only for the DS profile.
-2. **MinIO has to go.** It was rejected on licence (AGPL, archived;
+The 9/30 meeting list is the final tool scope: filesystem, Python/Jupyter, ML compute
+nodes, Redshift, Postgres, Databricks, Snowflake, Airflow, dbt, BigQuery, Power BI, Sigma,
+Tableau, on Linux arm64/x86_64, for DE, DS and DA tasks. Where an earlier R004 verdict
+conflicts with it, the R004 verdict is overruled (§7).
+
+**Scope:**
+
+1. **Spark/Databricks: in.** R004's "Do not run Spark. Ever."
+   (`structure/rounds/R004/RESEARCH-streaming.md:22`) is overruled. Both tiers from §3.2
+   ship: tier 1, a SQL plane over DuckDB + delta-rs; tier 2, real local PySpark for the DS
+   profile. Spark determinism must be measured before any task depends on it.
+2. **BigQuery: in, cost fenced.** R004's "works; don't use" is overruled. The emulator now
+   ships multi-arch builds. No task grades on `totalBytesBilled` or cost.
+3. **Airflow: in, as an orchestrator plug.** A task selects it with
+   `orchestrator = airflow` (headless, R004 recipe). `./ops/sched` (`ops_sched`) stays the
+   default, because GT001–GT009 were measured on it and it has an exact MCP twin
+   (`gateway/NATIVE.md:72-76`).
+
+**Engineering (not scope):**
+
+4. **MinIO → s3mock.** MinIO was rejected on licence (AGPL, archived;
    `structure/state/failures/B1-license-rejections.yaml:3-6`) and has shipped no community
    images since 2025-10. `gateway/docker/compose.native.yml:388` still pulls
    `pgsty/minio`. Swap it for `adobe/s3mock`, which `compose.yml:76` already uses.
-3. **Airflow becomes a native-only plug.** It was kept out so the MCP and native arms
-   would match (`gateway/NATIVE.md:72-76`). The recommendation is to keep `./ops/sched`
-   as the default orchestrator and offer headless Airflow (R004 recipe) only in native
-   profiles, where no MCP twin exists to stay comparable with.
-4. **BigQuery goes back in, fenced.** R004 said "works; don't use" because
-   `totalBytesBilled` is inverted. The emulator now ships multi-arch builds. Adopt it for
-   SQL and API, and never author a task on cost or bytes billed.
-5. **`[environment].surfaces` in `task.toml` becomes the profile.** Today it is
-   descriptive only (`tasks/harness/taskspec.py:832-833` reads just `seed` and
-   `virtual_now`), and no tool include/exclude exists anywhere (§4).
+5. **`[environment].surfaces` in `task.toml` becomes the profile.** Today the harness
+   treats it as descriptive only (`tasks/harness/taskspec.py:832-833` reads just `seed` and
+   `virtual_now`). The slot/plug catalog and profile resolver are now implemented in
+   `gateway/src/alkera_gateway/plugs.py` (`alkera-gateway plugs matrix`); §5
+   lists the enforcement points still to wire.
 
 ---
 
@@ -85,7 +96,7 @@ uses it or a piece is missing. **designed** means docs only. **none** means noth
 | Postgres | **partial**: real backend with role-scoped statement-log audit (`NATIVE_STACK.md:124-132`), but no task uses it and `native_stack.py` starts no Postgres on the host topology (`NATIVE.md:130-131`) | real Postgres 16 in compose | `psql` 17, `psycopg` | PostgreSQL | yes (verify digest) | S | Needs **`dbt-postgres`**, which is absent from every lock. Doubles as the **OLTP source** plug for ingest tasks. |
 | Snowflake | **partial**: fakesnow 0.11.16 behind a TLS proxy, 12/12 socket checks (`evidence/snowflake_socket.json`), fidelity patches (`snowflake_fidelity.py`), but no task selects it | fakesnow server mode (upstream is at 0.11.18 as of 2026-09-22) | `snowflake-connector-python`, `snowsql`-style CLI, `dbt-snowflake` | Apache-2.0 | yes (pure python plus duckdb) | M: R004 sized fakesnow hardening at 8–12 days | Gaps to close first: the connector is **not in the episode image locks** (only the optional `snowflake.lock`); **no `dbt-snowflake`**; multi-statement refused; no attach or join with other warehouses; `NUMBER` arithmetic returns float; metadata lost on restart (`snowflake_fidelity.py:84-141`). The rule stands: "loud unsupported is fine, silent wrong is disqualifying" (T2). |
 | Redshift | **none** (`oss_equivalent`; `R001/B1-summary.md:37`) | **Postgres persona**: PG 16 on `:5439`, `SET query_group` no-op, a shim schema for Redshift functions (`GETDATE`, `DATEADD`, `LISTAGG`, `NVL`, ...), sqlglot redshift→postgres at the proxy, and the Redshift Data API via a moto-shaped fake | `redshift_connector`, `psql`, `dbt-redshift`, `aws redshift-data` | PostgreSQL / Apache-2.0 | yes | M | Fence what PG cannot imitate: `SUPER`/PartiQL, `DISTKEY`/`SORTKEY` (accept and record, no effect), `UNLOAD`/`COPY FROM s3` (route to the object_store slot). A loud refusal must name the feature. |
-| BigQuery | **none**; R004 tested it and ranked it "do not fund" | `goccy/bigquery-emulator` (v0.8.1, multi-arch) | `bq` CLI, `google-cloud-bigquery`, `dbt-bigquery` | MIT | **yes** (multi-arch image since 2026) | M | **Fence `totalBytesBilled` and dry-run cost** (inverted vs real BQ, `R004/RESEARCH-warehouse.md:280-300`). No task may grade on cost. GCS needs `fake-gcs-server` in the object_store slot. |
+| BigQuery | **none**; R004 ranked it "do not fund" (overruled, in scope: Decision 2) | `goccy/bigquery-emulator` (v0.8.1, multi-arch) | `bq` CLI, `google-cloud-bigquery`, `dbt-bigquery` | MIT | **yes** (multi-arch image since 2026) | M | **Fence `totalBytesBilled` and dry-run cost** (inverted vs real BQ, `R004/RESEARCH-warehouse.md:280-300`). No task may grade on cost. GCS needs `fake-gcs-server` in the object_store slot. |
 | Databricks | **none** (workspace `none_found`; `B1-summary.md:30`) | **Tier 1, SQL:** a fake Databricks REST plane (SQL Statement Execution, Unity Catalog read APIs, Jobs 2.1 routed to the world scheduler, DBFS/Volumes onto object_store), backed by DuckDB with **delta-rs** tables. UC is seeded as data, three-level namespace. **Tier 2, DS profile only:** real local **PySpark** (`local[1]`) with Delta and UC OSS. | `databricks` CLI, `databricks-sdk`, `databricks-sql-connector`, `dbt-databricks`; tier 2 adds `pyspark` and notebooks | Apache-2.0 (delta-rs, Spark, UC OSS) | yes (JVM and wheels) | **L**: the biggest item on the list | `databricks-connect` is proprietary, so do not ship it. `calvinchengx/databricks-emulator` (Apache-2.0, clean-room, tested against the official SDK, CLI and Terraform) is a **reference to copy routes from, not a dependency** (one maintainer). delta-rs has a determinism problem in `_delta_log` (R004:402-415): normalise commit timestamps the way `world/` already does for dbt. UC OSS APIs "should not be assumed stable". |
 
 ### 3.3 Transform and orchestration
@@ -94,13 +105,13 @@ uses it or a piece is missing. **designed** means docs only. **none** means noth
 |---|---|---|---|---|---|---|---|
 | dbt | **shipped** (dbt-core 1.12.4, dbt-duckdb 1.11.0) | dbt-core plus **one adapter per warehouse plug**: duckdb (have), postgres, snowflake, redshift, bigquery, databricks | `dbt` CLI, `profiles.yml` | Apache-2.0 | yes | S per adapter | `DBT_ADAPTERS` (`warehouses.py:68`) is the registry. Adapters go in the per-profile lock, not the gateway's own lock (same reasoning as awscli, `TOOLBELT.md:50-55`). |
 | scheduler (`./ops/sched`) | **shipped** | world `WorldScheduler` over `sched.internal:8120` | `./ops/sched list\|logs\|trigger` | ours | yes | – | Default orchestrator. It has an exact MCP twin, which matters for comparisons across drivers. |
-| Airflow | **designed** (compose profile `airflow`, `compose.native.yml:441`); the headless prototype is archived (`_archive/world/`) | headless Airflow behind the 12-line clock shim (R004: byte-identical `dag_run` rows) | `airflow dags/tasks` CLI, REST API, DAG files in the repo | Apache-2.0 | yes (verify digest) | M (R004 8-step ship list) | Native-only plug (Decision 3). **Never** expose `airflow dags backfill` with real time: the clock is the world's. A trigger must go through the executor so the ledger and observability stay true. |
+| Airflow | **designed** (compose profile `airflow`, `compose.native.yml:441`); the headless prototype is archived (`_archive/world/`) | headless Airflow behind the 12-line clock shim (R004: byte-identical `dag_run` rows) | `airflow dags/tasks` CLI, REST API, DAG files in the repo | Apache-2.0 | yes (verify digest) | M (R004 8-step ship list) | Orchestrator plug, selected per task with `orchestrator = airflow`; `ops_sched` stays the default (Decision 3). **Never** expose `airflow dags backfill` with real time: the clock is the world's. A trigger must go through the executor so the ledger and observability stay true. |
 
 ### 3.4 Storage and ingestion
 
 | tool | status today | plug | agent interface | licence | arm64 | effort | notes |
 |---|---|---|---|---|---|---|---|
-| S3 | **shipped** (s3mock in MCP compose, MinIO in native) | **adobe/s3mock everywhere** (Decision 2) | `aws s3`, boto3 | Apache-2.0 | verify digest | S | The MinIO audit path is the webhook receiver (`NATIVE_STACK.md:133`); s3mock has none, so add a request-log tailer or a thin proxy that writes the audit rows. |
+| S3 | **shipped** (s3mock in MCP compose, MinIO in native) | **adobe/s3mock everywhere** (Decision 4) | `aws s3`, boto3 | Apache-2.0 | verify digest | S | The MinIO audit path is the webhook receiver (`NATIVE_STACK.md:133`); s3mock has none, so add a request-log tailer or a thin proxy that writes the audit rows. |
 | GCS / ADLS | **none** | `fake-gcs-server` (BigQuery profile), Azurite (Databricks-on-Azure or Power BI profile) | `gsutil`/`gcloud storage`, `az storage` | MIT / MIT | yes | S each | Only add with a task that needs it. |
 | Ingest connectors | **shipped** (Airbyte-shaped fake; only `sftp_vendor` seeds it) | the fake stays, since it is API-shape only and runs no Elastic-2.0 code. Add **dlt** as the real-code loader plug. | Airbyte REST, `dlt` | n/a / Apache-2.0 | yes | S | `revenue_daily` seeds no ingest, so the service answers 503 (`NATIVE_STACK.md:111-117`). A profile that plugs `ingest` must use a theme that seeds it. |
 | Kafka / streaming | **none** (GT002 is a simulated stalled consumer) | Apache Kafka (KRaft) if a task needs a live broker | `kafka-console-*`, python client | Apache-2.0 | yes | M | Redpanda is BSL, so excluded (`A5:122`). R004's streaming recommendation names Redpanda; that conflicts with the licence rule. |
@@ -187,51 +198,86 @@ under two stacks should produce the same logical data. data-eng-bench runs the s
 tasks on DuckDB or Snowflake to isolate dialect failures, and we can get that for free if
 `warehouse_seed.py` seeds every warehouse plug from one set-based source.
 
-### 4.3 Profile file, sketch
+### 4.3 Declaring a profile
 
-```yaml
-# tasks/<task>/task.toml [environment] would name one of these; world/profiles/<name>.yaml
-name: de/snowflake
-slots:
-  warehouse:   [{name: primary, plug: snowflake, dbt_target: true},
-                {name: legacy,  plug: duckdb, read_only: true}]
-  transform:   dbt
-  orchestrator: ops_sched
-  object_store: s3mock
-  ingest:      airbyte_fake
-  bi:          sigma_fake
-  observability: [prometheus, alertmanager, loki]
-  human:       [jira, slack, confluence]
-  notebook:    null          # null = absent from the box, not just unlisted
-  compute:     null
-toolbelt: de                 # which pinned lock the episode image installs
+The catalog, roles and stacks live in `gateway/src/alkera_gateway/plugs.py`. A task names
+a profile in `task.toml`, and may adjust any slot: name other plugs, add a slot the role
+lacks, or remove one with an empty list.
+
+```toml
+[environment]
+profile  = "de/snowflake"
+surfaces = ["snowflake", "dbt", "git", "scheduler", "bi"]   # each must be provided
+
+[environment.plugs]
+warehouse    = ["snowflake", "duckdb"]   # primary first; duckdb as a legacy peer
+orchestrator = "airflow"                 # a plug instead of the stack default
+notebook     = []                        # absent from the box, not just unlisted
+```
+
+The gateway config takes the same pair (`"profile"`, `"plugs"`), and native mode takes
+`serve --profile de/snowflake --plug orchestrator=airflow --plug notebook=`.
+`alkera-gateway plugs show <profile> [--plug SLOT=PLUG]` prints what a profile
+plugs in.
+
+### 4.4 Readiness, generated
+
+Output of `alkera-gateway plugs matrix`. A profile is `runnable` when none of
+its plugs is `planned`; `partial` plugs (Postgres, Snowflake) run with the gaps §3.2
+lists. Regenerate this block whenever a plug's status changes.
+
+```
+de/laptop        runnable
+de/postgres      runnable
+de/snowflake     planned: sigma
+de/databricks    planned: databricks, powerbi
+de/aws           planned: redshift, tableau
+de/gcp           planned: bigquery
+ds/laptop        planned: jupyter, ml_workers, mlflow
+ds/postgres      planned: jupyter, ml_workers, mlflow
+ds/snowflake     planned: jupyter, ml_workers, mlflow
+ds/databricks    planned: jupyter, ml_workers, mlflow, databricks
+ds/aws           planned: jupyter, ml_workers, mlflow, redshift
+ds/gcp           planned: jupyter, ml_workers, mlflow, bigquery
+da/laptop        planned: jupyter
+da/postgres      planned: jupyter
+da/snowflake     planned: jupyter, sigma
+da/databricks    planned: jupyter, databricks, powerbi
+da/aws           planned: jupyter, redshift, tableau
+da/gcp           planned: jupyter, bigquery
 ```
 
 ---
 
 ## 5. Making include/exclude real
 
-There is no tool include/exclude today. `build_tools` returns the global `TOOLS` table by
-identity (`warehouses.py:464-482`), `native-services` always mounts all nine services, and
-a plane is "absent" only because the world did not seed it, so its tools return errors.
+Before 2026-10-02 there was no tool include/exclude: `build_tools` returned the global
+`TOOLS` table by identity, `native-services` always mounted all nine services, and a plane
+was "absent" only because the world did not seed it. Points 2, 3 and 5 below are now
+implemented (`plugs.py`); 1 and 4, and wiring a task's profile through the harness's
+gateway-config writers, are not.
+
 Five enforcement points, each needed:
 
 1. **World build.** `profile:` in the seed decides which planes `world.build` seeds. An
    unplugged slot leaves no state behind.
-2. **Gateway (MCP).** `GatewayConfig.profile` filters `build_tools` by slot, but only when
+2. **Gateway (MCP), done.** `GatewayConfig.profile` filters `build_tools` by slot, but only when
    a profile is declared, so today's "returns `TOOLS` by identity" invariant, which
    `test_image_parity`, `containment.py` and `register_bash` depend on, still holds for
    unprofiled runs.
-3. **Native services.** Filter `services.NAMES` in `native/serve.py` and emit only the
-   matching `*.internal` aliases. An excluded service must not resolve, so P6 checks it,
+3. **Native services, done in-process; compose aliases not yet.** `serve --profile`
+   loads only the profile's services, and drops the scheduler plane and the object store's
+   audit receiver when their slots are unplugged. Still to do: emit only the matching
+   `*.internal` aliases. An excluded service must not resolve, so P6 checks it,
    instead of resolving and answering 404.
 4. **Episode image.** One image per toolbelt (`de`, `ds`, `da`), built by
    `build_episode.py`, with each warehouse plug's client and dbt adapter as a layer. An
    excluded binary is **not installed**, never removed by PATH masking: a masked binary is
    one `find /` away.
-5. **Harness.** `[environment].surfaces` becomes authoritative. `taskspec.py` checks it
-   against `[harness].required_surfaces` and `dead_by_design`, and refuses a task whose
-   required surface is in an unplugged slot.
+5. **Harness, done for loading.** `taskspec.py` reads `[environment].profile` and
+   `.plugs`, and refuses a task whose `surfaces` names anything the profile does not
+   provide. All nine GT tasks fit `de/laptop` unchanged. Not yet: passing the profile into
+   the gateway config the harness writes.
 
 **Anti-reward-hack rules that come with plugging:**
 
@@ -270,12 +316,12 @@ has been built on arm64 yet. Known blockers:
 
 ## 7. Where Andrew's list conflicts with earlier research
 
-| item | earlier verdict | now | recommendation |
+| item | earlier verdict | now | decision |
 |---|---|---|---|
-| Spark | "Do not run Spark. Ever." (R004 streaming:22) | Databricks and ML compute are on the list | Tier 1 Databricks with no Spark; Spark only in the DS profile, `local[1]`, with determinism measured before any task depends on it |
-| BigQuery | "works; don't use" (R004 warehouse:152) | on the list | adopt with the cost fence (Decision 4) |
-| Airflow | full deployment "Reject" (R004 orchestration:549); prototype archived | on the list | headless, native-only plug (Decision 3) |
-| MinIO | licence-rejected (B1) | still in `compose.native.yml` | replace with s3mock (Decision 2) |
+| Spark | "Do not run Spark. Ever." (R004 streaming:22) | Databricks and ML compute are on the list | in: Databricks tier 1 + tier 2 (DS); Spark `local[1]`, determinism measured before any task depends on it (Decision 1) |
+| BigQuery | "works; don't use" (R004 warehouse:152) | on the list | in, cost fenced (Decision 2) |
+| Airflow | full deployment "Reject" (R004 orchestration:549); prototype archived | on the list | in, orchestrator plug; ops_sched default (Decision 3) |
+| MinIO | licence-rejected (B1) | still in `compose.native.yml` | replace with s3mock (Decision 4) |
 | Redpanda | BSL landmine (A5:122), yet recommended in R004 streaming:21 | n/a | Apache Kafka if a live broker is ever needed |
 | Harbor | "ADOPT" as harness and format (S300) | tasks run on our own harness, `score.json` instead of `reward.json`, no per-task `environment/` | add a Harbor export: per-profile `environment/Dockerfile` + `docker-compose.yaml`, `tests/test.sh` wrapping `grade.py`, `reward.json` from `reward.py`'s scalar |
 
