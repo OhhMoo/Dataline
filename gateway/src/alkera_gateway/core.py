@@ -30,6 +30,7 @@ class Gateway:
         # The tool table this episode serves. With one warehouse this IS
         # `tools.TOOLS`, the same object, so a later runtime registration
         # (container_shim.register_bash) still reaches the served table.
+        # A `config.profile` serves a filtered copy (warehouses.build_tools).
         self.tools = build_tools(config)
         self.clock = clock or self._virtual_time
         self.audit = AuditLog(config)
