@@ -196,6 +196,10 @@ def create_warehouse(config: GatewayConfig) -> WarehouseConnector:
         return DuckDBWarehouse(config)
     if config.warehouse_backend == "postgres":
         return PostgresWarehouse(config)
+    if config.warehouse_backend == "bigquery":
+        from .bigquery import BigQueryWarehouse
+
+        return BigQueryWarehouse(config)
     from .snowflake import SnowflakeWarehouse
 
     return SnowflakeWarehouse(config)

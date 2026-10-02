@@ -20,7 +20,9 @@ Five items, each keyed to the research that sized it:
          straight to DuckDB. Where DuckDB accepts it, the client is told the
          statement succeeded.
 4. §3.2  Fences for the named silent-wrongs: ``CREATE DYNAMIC TABLE``,
-         ``ALTER TABLE ... CLUSTER BY``, division and modulo by zero.
+         ``ALTER TABLE ... CLUSTER BY``, division and modulo by zero - in reads
+         and, since the Snowflake plug's tests ran writes, in UPDATE / DELETE /
+         INSERT / MERGE too.
 5. §3.2  Session identity - the "where am I" reflex.
 
 Environment (all optional; defaults are the ones the world image should ship):
@@ -126,6 +128,18 @@ DIVERGENCES = [
         "THE MOST DANGEROUS ONE LEFT. An agent learns that a transaction is lost as soon "
         "as any statement in it fails, so it writes defensive retry-the-whole-thing logic "
         "it would not need. Loud, so not silently wrong - but the lesson is false.",
+    ),
+    (
+        "ddl_inside_a_transaction_is_refused",
+        "A permanent CREATE / DROP / ALTER / TRUNCATE inside BEGIN..COMMIT is refused with "
+        "a Snowflake-shaped unsupported-feature error. Temporary relations are exempt.",
+        "Snowflake commits the open transaction before every DDL statement, and the DDL "
+        "itself cannot be rolled back.",
+        "Nothing false - a loud absence. Unfenced, DuckDB made the DDL transactional: "
+        "measured, BEGIN; INSERT; DROP TABLE; ROLLBACK undid the DROP *and* the INSERT, "
+        "where Snowflake keeps both. An agent would have learned ROLLBACK protects schema "
+        "changes. The gateway's sql_execute refuses DDL inside a multi-statement batch "
+        "for the same reason, before any of it reaches here.",
     ),
     (
         "metadata_is_not_persisted",
@@ -368,8 +382,19 @@ def _wrapped_div(node: exp.Expression) -> exp.Expression:
     return case
 
 
+# Every statement context that evaluates an expression against rows. A SELECT alone
+# was not enough: `UPDATE t SET f = f / 0` on a FLOAT column stored inf and reported
+# one row updated, `DELETE ... WHERE x % 0 = 1` compared NULL and deleted nothing,
+# `INSERT ... VALUES (1 / 0)` stored inf - measured, the stock fence covered none of
+# them. Column DEFAULTs and CHECKs in DDL stay out: there is no row to evaluate yet.
+_EVALUATING = (exp.Select, exp.Update, exp.Delete, exp.Insert, exp.Merge, exp.Values)
+
+
 def guard_division(expression: exp.Expression) -> exp.Expression:
-    if isinstance(expression, (exp.Div, exp.Mod)) and not expression.parent_select is None:
+    if (
+        isinstance(expression, (exp.Div, exp.Mod))
+        and expression.find_ancestor(*_EVALUATING) is not None
+    ):
         if expression.find_ancestor(exp.Case) is not None and _in_guard(expression):
             return expression
         return _wrapped_div(expression)
@@ -456,7 +481,7 @@ def session_identity(expression: exp.Expression, conn) -> exp.Expression:
 # ---------------------------------------------------------------------------
 
 
-_ROUTABLE_KEYWORDS = ("USE", "CREATE", "ALTER")
+_ROUTABLE_KEYWORDS = ("USE", "CREATE", "ALTER", "DROP", "TRUNCATE")
 
 
 def _strip_leading_comments(sql: str) -> str:
@@ -472,7 +497,7 @@ def _strip_leading_comments(sql: str) -> str:
 
 
 def _routable(command: str) -> bool:
-    """Only USE / CREATE / ALTER can be routed or fenced.
+    """Only USE / CREATE / ALTER / DROP / TRUNCATE can be routed or fenced.
 
     Without this guard route() parses every statement a second time, which on a
     multi-thousand-row INSERT ... VALUES is the dominant cost of this whole module.
@@ -488,16 +513,21 @@ def route(command: str, conn) -> str | None:
     connector retries for the whole network_timeout - measured at 36 s (R004 §2.3).
     """
     if not _routable(command):
-        # Only USE / CREATE / ALTER can be routed or fenced. Without this guard every
-        # statement is parsed twice, which on a multi-thousand-row INSERT ... VALUES is
-        # the dominant cost of this whole module.
+        # Only USE / CREATE / ALTER / DROP / TRUNCATE can be routed or fenced. Without
+        # this guard every statement is parsed twice, which on a multi-thousand-row
+        # INSERT ... VALUES is the dominant cost of this whole module.
         return None
     try:
         expression = sqlglot.parse_one(command, read="snowflake")
     except Exception:  # noqa: BLE001 - let fakesnow produce the parse error
         return None
 
-    if isinstance(expression, exp.Use) and (expression.args.get("kind") or exp.Var()).name.upper() == "WAREHOUSE":
+    use_kind = (
+        (expression.args.get("kind") or exp.Var()).name.upper()
+        if isinstance(expression, exp.Use)
+        else None
+    )
+    if use_kind == "WAREHOUSE":
         target = expression.this
         name = (target.name if isinstance(target, exp.Table) else str(target)).upper()
         if name not in WAREHOUSES:
@@ -507,7 +537,26 @@ def route(command: str, conn) -> str | None:
 
     if _flag("ALKERA_SNOWFLAKE_FENCES"):
         fence(expression)
+        if getattr(conn, "_alkera_in_tx", False) and _commits_implicitly(expression, conn):
+            # DIVERGENCES `ddl_inside_a_transaction_is_refused`.
+            raise unsupported("DDL inside an explicit transaction")
     return None
+
+
+def _commits_implicitly(expression: exp.Expression, conn) -> bool:
+    """A DDL statement Snowflake would commit the open transaction for.
+
+    Temporary relations are left alone: dbt's own incremental path and fakesnow's
+    MERGE transform create and drop them, and they are session-scoped either way.
+    """
+    if isinstance(expression, exp.Create):
+        return not _is_temporary(expression)
+    if isinstance(expression, exp.Drop):
+        table = expression.this
+        if expression.args.get("temporary"):
+            return False
+        return not (isinstance(table, exp.Table) and _key(table, conn) in _temp_names(conn))
+    return isinstance(expression, (exp.Alter, exp.TruncateTable))
 
 
 # ---------------------------------------------------------------------------

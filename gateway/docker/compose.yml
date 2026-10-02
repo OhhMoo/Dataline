@@ -110,6 +110,21 @@ services:
       - snowflaketls:/tls
       - snowflaketrust:/etc/alkera/snowflake-tls
 
+  # The BigQuery plug (gateway/docker/bigquery/README.md): goccy/bigquery-emulator,
+  # multi-arch, pinned by index digest. Profile-gated like `snowflake`; a task
+  # that selects warehouse_backend "bigquery" supplies ALKERA_BIGQUERY_OPTIONS.
+  # Cost is NOT modelled (alkera_gateway/bigquery.py fences it).
+  bigquery:
+    profiles: [bigquery]
+    image: ghcr.io/goccy/bigquery-emulator:0.8.1@sha256:f4e428d265a93dc5ce36c294e1c584c7c9b384117d47ab8ddbb63d8d50b7f393
+    command: ["--project=episode", "--port=9050", "--grpc-port=9060",
+              "--database=/bigquery-data/emulator.db"]
+    networks:
+      backend_net:
+        aliases: [bigquery.internal]
+    volumes:
+      - bigquerydata:/bigquery-data
+
 volumes:
   worlddata:
   auditdata:
@@ -118,3 +133,4 @@ volumes:
   snowflakedata:
   snowflaketls:
   snowflaketrust:
+  bigquerydata:

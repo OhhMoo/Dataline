@@ -61,15 +61,19 @@ from .warehouse_spec import WarehouseSpec
 PRIMARY_ALIAS = "wh"
 
 # The dbt adapter each backend needs before `dbt --target <output>` can run
-# against it. dbt-duckdb is in gateway/requirements.lock; dbt-postgres is not,
-# and dbt-snowflake is not, so a world that declares a dbt target on either is
-# refused at construction with the package named, instead of the first
-# `dbt_run(warehouse=...)` failing with "Could not find adapter type" after the
-# task instruction has promised the agent it can build the target with dbt.
+# against it. All three are gateway extras (`dbt` carries dbt-duckdb and
+# dbt-postgres, `snowflake` carries dbt-snowflake); an image built without one
+# refuses a world that declares a dbt target on that backend at construction,
+# with the package named, instead of the first `dbt_run(warehouse=...)` failing
+# with "Could not find adapter type" after the task instruction has promised
+# the agent it can build the target with dbt.
 DBT_ADAPTERS = {
     "duckdb": ("dbt.adapters.duckdb", "dbt-duckdb"),
     "postgres": ("dbt.adapters.postgres", "dbt-postgres"),
     "snowflake": ("dbt.adapters.snowflake", "dbt-snowflake"),
+    # Not installed in any image yet: a bigquery `dbt_target` is refused at
+    # construction (dbt_adapter_missing) rather than failing inside dbt.
+    "bigquery": ("dbt.adapters.bigquery", "dbt-bigquery"),
 }
 
 
@@ -77,6 +81,88 @@ def dbt_adapter_missing(backend: str) -> str | None:
     """The distribution name of the adapter `backend` needs, if it is absent."""
     module, distribution = DBT_ADAPTERS[backend]
     return None if importlib.util.find_spec(module) else distribution
+
+
+# A postgres URL DSN, read inside dbt's profile renderer (whose Jinja context
+# offers `modules.re` and nothing like urllib). key=value DSNs do not match and
+# fail the render loudly; percent-encoded parts are not decoded, so a DSN that
+# needs them must not be used for dbt.
+PG_DSN_PATTERN = (
+    r"^postgres(?:ql)?://(?P<user>[^:@/]+):(?P<password>[^@/]*)@"
+    r"(?P<host>[^:/?]+)(?::(?P<port>[0-9]+))?/(?P<dbname>[^/?]+)$"
+)
+
+
+def dbt_output(
+    backend: str,
+    *,
+    schema: str,
+    path=None,
+    dsn_env: str = "ALKERA_POSTGRES_DSN",
+    options_env: str = "ALKERA_SNOWFLAKE_OPTIONS",
+) -> dict:
+    """One profiles.yml output for `backend`, reading the secret the connector reads.
+
+    The remote outputs name the environment variable, never its value: every
+    connection field is a Jinja expression over `env_var(...)`, rendered by dbt
+    at invocation time from the same `warehouse_dsn_env` / `snowflake_options_env`
+    secret `PostgresWarehouse` / `SnowflakeWarehouse` connect with. So the
+    profile carries no secret, cannot drift from the connector, and is the
+    declared backend - `Commands.dbt` checks `type` against it.
+
+    Snowflake reads the options JSON: `account`, `user`, `password`, `database`
+    are required; `host` / `port` / `protocol` default to the TLS front door
+    (443, https), exactly as the Python connector defaults them; `warehouse` and
+    `role` are passed through when present. `schema` is the dbt build schema.
+    """
+    if backend == "duckdb":
+        if path is None:
+            raise ValueError("a duckdb dbt output needs the warehouse file path")
+        return {"type": "duckdb", "path": str(path), "schema": schema, "threads": 1}
+    if backend == "postgres":
+        def part(name: str) -> str:
+            return (
+                f"{{{{ modules.re.match('{PG_DSN_PATTERN}', env_var('{dsn_env}'))"
+                f".group('{name}') }}}}"
+            )
+
+        return {
+            "type": "postgres",
+            "host": part("host"),
+            "port": (
+                f"{{{{ (modules.re.match('{PG_DSN_PATTERN}', env_var('{dsn_env}'))"
+                ".group('port') or 5432) | int }}"
+            ),
+            "user": part("user"),
+            "password": part("password"),
+            "dbname": part("dbname"),
+            "schema": schema,
+            "threads": 1,
+        }
+    if backend == "snowflake":
+        options = f"fromjson(env_var('{options_env}'))"
+
+        def required(name: str) -> str:
+            return f"{{{{ {options}['{name}'] }}}}"
+
+        def optional(name: str, default: str) -> str:
+            return f"{{{{ {options}.get('{name}', {default}) }}}}"
+
+        return {
+            "type": "snowflake",
+            "account": required("account"),
+            "user": required("user"),
+            "password": required("password"),
+            "database": required("database"),
+            "schema": schema,
+            "host": optional("host", "none"),
+            "port": optional("port", "443"),
+            "protocol": optional("protocol", "'https'"),
+            "warehouse": optional("warehouse", "none"),
+            "role": optional("role", "none"),
+            "threads": 1,
+        }
+    raise ValueError(f"no dbt output for backend {backend!r}")
 
 
 def warehouse_specs(config: GatewayConfig) -> dict[str, WarehouseSpec]:
@@ -91,7 +177,9 @@ def warehouse_specs(config: GatewayConfig) -> dict[str, WarehouseSpec]:
         backend=config.warehouse_backend,
         path=config.warehouse if config.warehouse_backend == "duckdb" else None,
         dsn_env=config.warehouse_dsn_env,
-        options_env=config.snowflake_options_env,
+        options_env=(config.bigquery_options_env
+                     if config.warehouse_backend == "bigquery"
+                     else config.snowflake_options_env),
         read_only=False,
         attach=False,
     )
@@ -119,6 +207,7 @@ def derive_config(config: GatewayConfig, spec: WarehouseSpec) -> GatewayConfig:
             "warehouse_backend": spec.backend,
             "warehouse_dsn_env": spec.dsn_env,
             "snowflake_options_env": spec.options_env,
+            "bigquery_options_env": spec.options_env,
             "warehouses": [],
         }
     )
@@ -322,14 +411,15 @@ def _peer_plan(config: GatewayConfig, specs: dict[str, WarehouseSpec]):
                 raise ValueError(
                     f"warehouse {name!r} declares dbt target {spec.dbt_target!r} on a "
                     f"{spec.backend} backend, but the {missing} adapter is not installed "
-                    "(it is not in gateway/requirements.lock). dbt cannot be pointed at "
-                    "this warehouse in this image; add the adapter to the lock and rebuild, "
+                    "in this image. dbt cannot be pointed at this warehouse here; install "
+                    "the gateway extra that carries it (dbt / snowflake) and rebuild, "
                     "or drop `dbt_target` and let the agent build it another way."
                 )
-        if spec.backend == "snowflake" and spec.attach:
+        if spec.backend in ("snowflake", "bigquery") and spec.attach:
             raise ValueError(
-                f"warehouse {name!r} is snowflake and cannot be attached to any catalog: the "
-                "connector runs one statement per session and cannot see another database. "
+                f"warehouse {name!r} is {spec.backend} and cannot be attached to any catalog: "
+                "its connector runs one statement per session and DuckDB has no scanner for "
+                "it in this image. "
                 "Declare `attach: false` and reconcile against it in the agent's own code "
                 "(read both sides, diff in Python)."
             )

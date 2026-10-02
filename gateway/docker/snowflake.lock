@@ -394,8 +394,8 @@ duckdb==1.5.5 \
     --hash=sha256:fbf0f2d48b43c6c304d00463b463c27ead6c4b01c3c1816b750f728decf71afe \
     --hash=sha256:feead93c56679b79592d437c62975d39cb67adedffa7592c763baf8160ac7366
     # via fakesnow
-fakesnow==0.11.16 \
-    --hash=sha256:ed7017fc68b98eb21e827fd55caf2d9a6ccb0e7d8fba1fb6fa9a6dbea97858dc
+fakesnow==0.11.18 \
+    --hash=sha256:b104ddbd571ec8bc9712173602d0664b28fb328aa08eedc4706f40e5bb6e9c3f
     # via -r docker/snowflake.in
 filelock==3.32.6 \
     --hash=sha256:3f16ecd0117feae0dfc147e8c62eb5daeccd8bd800378c3ddf416de9b4feb6b1 \
@@ -540,9 +540,9 @@ sortedcontainers==2.4.0 \
     --hash=sha256:25caa5a06cc30b6b83d11423433f65d1f9d76c4c6a0c90e3379eaa43b9bfdb88 \
     --hash=sha256:a163dcaede0f1c021485e957a39245190e74249897e2ae4b2aa38595db237ee0
     # via snowflake-connector-python
-sqlglot==30.15.0 \
-    --hash=sha256:594da0bc9d020edfb9982fd56b61dc93483cb24edca5ed1b3bb17937ba9b59bc \
-    --hash=sha256:fe5412f4da61075f532d3de2482144bf7139028980a37bbd79fb016c49dc2dbe
+sqlglot==30.17.0 \
+    --hash=sha256:2d6b8def93304fa300f4d20f48e3909e7f436fda56ca1fafd8975f6c561ef62c \
+    --hash=sha256:84435ac283a60173da31b5fd7d11a725037a1c3fd6ed1e21fb065de74ddb579f
     # via fakesnow
 starlette==1.6.0 \
     --hash=sha256:a86dd39d14bb45f85a3d18525215a9ef0cfd1f192ac793220e72598c90335f0c \

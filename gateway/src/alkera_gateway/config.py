@@ -12,10 +12,13 @@ class GatewayConfig(BaseModel):
 
     workspace: Path = Path("/workspace")
     warehouse: Path = Path("/var/warehouse/warehouse.duckdb")
-    warehouse_backend: Literal["duckdb", "postgres", "snowflake"] = "duckdb"
+    warehouse_backend: Literal["duckdb", "postgres", "snowflake", "bigquery"] = "duckdb"
     warehouse_dsn_env: str = "ALKERA_POSTGRES_DSN"
     snowflake_options_env: str = "ALKERA_SNOWFLAKE_OPTIONS"
-    # The four fields above spell the PRIMARY warehouse and keep their exact
+    # A JSON object for the BigQuery emulator client (bigquery.py): project,
+    # dataset, api_endpoint, location. Additive: unset, the config is unchanged.
+    bigquery_options_env: str = "ALKERA_BIGQUERY_OPTIONS"
+    # The fields above spell the PRIMARY warehouse and keep their exact
     # meaning. `warehouses` lists the ADDITIONAL warehouses an episode runs, so
     # a world that declares one warehouse sets neither of the two fields below
     # and is byte-identical to today by construction (see warehouses.py).
@@ -114,7 +117,7 @@ class GatewayConfig(BaseModel):
             profile = plug_catalog.resolve(self.profile, self.plugs)
             plug = next(iter(profile.slots.get("warehouse", ())), None)
             backend = self.warehouse_backend
-            if plug in ("duckdb", "postgres", "snowflake") and plug != backend:
+            if plug in ("duckdb", "postgres", "snowflake", "bigquery") and plug != backend:
                 raise ValueError(
                     f"profile warehouse plug {plug!r} disagrees with "
                     f"warehouse_backend {backend!r}"
