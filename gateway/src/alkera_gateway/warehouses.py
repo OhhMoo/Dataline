@@ -51,6 +51,7 @@ from typing import Literal
 
 import duckdb
 
+from . import plugs as plug_catalog
 from .config import GatewayConfig
 from .records import Observation, ToolError
 from .tools import SQL, TOOLS, Dbt, DbtRun, Query
@@ -476,7 +477,18 @@ def build_tools(config: GatewayConfig) -> dict:
     peer (a Snowflake target the agent diffs in Python, a read-only legacy
     source with no `dbt_target`) keeps today's dbt schema, because there is
     nothing for the argument to choose between.
+
+    A `config.profile` serves a filtered copy: the tools its unplugged slots own
+    are dropped, and anything no slot owns (the runtime `bash`) is kept.
     """
+    tools = _warehouse_tools(config)
+    if config.profile is None:
+        return tools
+    excluded = plug_catalog.resolve(config.profile, config.plugs).excluded_tools
+    return {name: tool for name, tool in tools.items() if name not in excluded}
+
+
+def _warehouse_tools(config: GatewayConfig) -> dict:
     names = tuple(warehouse_specs(config))
     if len(names) == 1:
         return TOOLS
