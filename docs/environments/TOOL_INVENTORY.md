@@ -83,9 +83,9 @@ uses it or a piece is missing. **designed** means docs only. **none** means noth
 
 | tool | status today | plug (local backing) | agent interface | licence | arm64 | effort | fences and notes |
 |---|---|---|---|---|---|---|---|
-| user filesystem | **shipped** for csv, xlsx and EBCDIC (`themes/{revenue_daily,excel_close,mainframe_batch}`) | theme generators, plus new generators for **parquet, json/jsonl, avro** | bash, python | n/a | yes | S | No pandas or pyarrow in any lock today, so a parquet file is unreadable in the box; ship `pyarrow` and `duckdb` reading in the DS/DA toolbelt. Each format needs a seeded pathology (schema drift, nested json, type coercion) or it fails `TOOLBELT.md`'s "bar 2". |
-| Python env | **partial**: `/usr/local/bin/python` plus `/opt/toolbelt` (awscli, sqlfluff, csvkit) | per-profile toolbelt lock: DS adds pandas, polars, pyarrow, scikit-learn, statsmodels, matplotlib | python, pip (offline) | BSD/MIT | yes | S | Locks are compiled `--python-platform x86_64` (`toolbelt.lock:2`); re-compile per arch (§6). The `python` shim records only argv, exit and changed files (`NATIVE.md:48-50`), a known loss of audit resolution. |
-| Jupyter | **none** (rated `native_oss`, probed; `R002/T1-mock-priority.md:33`) | real `jupyter-server` with an `ipykernel` on the DS toolbelt; `nbclient`/`papermill` for headless runs | JupyterLab REST/WS, `jupyter nbconvert --execute`, `.ipynb` in the repo | BSD-3 | yes | M | Needs an **IPython `post_run_cell` hook that writes a 9.2.2 row per cell**, or notebook work escapes the audit log, which `NATIVE.md` treats as a hard violation. Seeded stale kernel state is the known risk (T1). Grade the `.ipynb` outputs and the world, never the kernel's memory. |
+| user filesystem | **shipped**: csv, xlsx, EBCDIC (themes) and, opt-in per seed, **parquet, json, jsonl** for any theme (`files: {formats: [...]}`, `world/world/files.py`) | theme generators + `world/world/files.py` | bash, python | n/a | yes | – | Each format plants one pathology (parquet: a money column that is decimal in one part and double in the other; json: JSON:API dump with `relationships` missing from ~2% of records; jsonl: a duplicated, out-of-order event and a swapped pair). Byte-identical across builds (DuckDB 1.5.5 parquet footer is pinned). Avro not done. |
+| Python env | **shipped as roles, not built**: `ALKERA_TOOLBELT=de\|ds\|da`. ds/da install `requirements-{ds,da}.lock` into the system interpreter (what `python` and the kernel import); `/opt/toolbelt` keeps the CLIs | `build_episode.py --toolbelt` | python, pip (offline) | BSD/MIT | yes (aarch64 wheel hashes checked) | – | Per-arch toolbelt locks `toolbelt{,.arm64}.lock`; `toolbelt_check.py` asserts each role's packages present and other roles' absent. No image built (no Docker on the dev host). The `python` shim records only argv, exit and changed files (`NATIVE.md:48-50`). statsmodels not yet in the `ds` extra. |
+| Jupyter | **partial**: audited kernel `alkera-python` (`native/notebook.py`, one 9.2.2 row per cell incl. silent and `user_expressions`; debugger refused; only kernel the server will start), launcher `gateway/docker/jupyter/launch.py`, compose service `jupyter` behind compose profile `notebook` | jupyter-server 2.21 + ipykernel 7 in ds/da images | Jupyter REST/WS (`jupyter.internal:8888`, `JUPYTER_URL`), nbclient | BSD-3 | yes | – | Verified off-container with real kernels; not yet run in a container. A `!duckdb` in a cell writes two rows by design (cell + shim). Not audited: writes by background threads a cell leaves running, and notebook saves via the contents API (same as bash edits). |
 | ML compute nodes | **none** | CPU-only worker containers behind a job-submit API in the shape of the Databricks Jobs API (§3.2); **MLflow OSS** tracking and model registry | `mlflow` client, `databricks jobs submit` | Apache-2.0 | yes | M | No GPU. Size tasks for CPU, single-threaded, with seeded randomness (OpenMP thread-pool issue, `agent.md:680`). The resource cap is a cgroup limit per worker. Andrew's open item to watch host CPU applies here first. |
 
 ### 3.2 Warehouses and lakehouses
@@ -93,17 +93,17 @@ uses it or a piece is missing. **designed** means docs only. **none** means noth
 | tool | status today | plug | agent interface | licence | arm64 | effort | fences and notes |
 |---|---|---|---|---|---|---|---|
 | DuckDB | **shipped** (default, every GT task) | DuckDB file plus `duckdb` CLI shim | `duckdb`, python `duckdb` | MIT | yes | – | Baseline. The "laptop warehouse" persona. |
-| Postgres | **partial**: real backend with role-scoped statement-log audit (`NATIVE_STACK.md:124-132`), but no task uses it and `native_stack.py` starts no Postgres on the host topology (`NATIVE.md:130-131`) | real Postgres 16 in compose | `psql` 17, `psycopg` | PostgreSQL | yes (verify digest) | S | Needs **`dbt-postgres`**, which is absent from every lock. Doubles as the **OLTP source** plug for ingest tasks. |
-| Snowflake | **partial**: fakesnow 0.11.16 behind a TLS proxy, 12/12 socket checks (`evidence/snowflake_socket.json`), fidelity patches (`snowflake_fidelity.py`), but no task selects it | fakesnow server mode (upstream is at 0.11.18 as of 2026-09-22) | `snowflake-connector-python`, `snowsql`-style CLI, `dbt-snowflake` | Apache-2.0 | yes (pure python plus duckdb) | M: R004 sized fakesnow hardening at 8–12 days | Gaps to close first: the connector is **not in the episode image locks** (only the optional `snowflake.lock`); **no `dbt-snowflake`**; multi-statement refused; no attach or join with other warehouses; `NUMBER` arithmetic returns float; metadata lost on restart (`snowflake_fidelity.py:84-141`). The rule stands: "loud unsupported is fine, silent wrong is disqualifying" (T2). |
+| Postgres | **partial**: real backend with role-scoped statement-log audit (`NATIVE_STACK.md:124-132`); `dbt-postgres` now in `requirements.lock` and `warehouses.dbt_output` renders its profile; no task uses it and `native_stack.py` starts no Postgres on the host topology (`NATIVE.md:130-131`) | real Postgres 16 in compose | `psql` 17, `psycopg`, `dbt-postgres` | PostgreSQL | yes (multi-arch digest) | S | dbt against a live server is untested (no Postgres on the dev host). Doubles as the **OLTP source** plug for ingest tasks. |
+| Snowflake | **partial**: fakesnow 0.11.18 behind a TLS proxy; `sql_*` incl. **atomic multi-statement** and **dbt-snowflake** (view + incremental, twice) verified in-process; clients in images built with `--warehouse-clients snowflake` | fakesnow server mode | `snowflake-connector-python`, `dbt-snowflake` | Apache-2.0 | yes | S left | Still fenced/open: DDL inside a batch refused (Snowflake auto-commits DDL); `NUMBER` arithmetic is float (typed `FLOAT`, not approximated); metadata lost on restart; no attach/join with other warehouses; TLS route not exercised by the new tests; no task selects it. New fences: division by zero inside writes, DDL inside an open transaction. Tests: `uv run --with-requirements docker/snowflake-dev.in pytest tests/test_snowflake_plug.py`. |
 | Redshift | **none** (`oss_equivalent`; `R001/B1-summary.md:37`) | **Postgres persona**: PG 16 on `:5439`, `SET query_group` no-op, a shim schema for Redshift functions (`GETDATE`, `DATEADD`, `LISTAGG`, `NVL`, ...), sqlglot redshift→postgres at the proxy, and the Redshift Data API via a moto-shaped fake | `redshift_connector`, `psql`, `dbt-redshift`, `aws redshift-data` | PostgreSQL / Apache-2.0 | yes | M | Fence what PG cannot imitate: `SUPER`/PartiQL, `DISTKEY`/`SORTKEY` (accept and record, no effect), `UNLOAD`/`COPY FROM s3` (route to the object_store slot). A loud refusal must name the feature. |
-| BigQuery | **none**; R004 ranked it "do not fund" (overruled, in scope: Decision 2) | `goccy/bigquery-emulator` (v0.8.1, multi-arch) | `bq` CLI, `google-cloud-bigquery`, `dbt-bigquery` | MIT | **yes** (multi-arch image since 2026) | M | **Fence `totalBytesBilled` and dry-run cost** (inverted vs real BQ, `R004/RESEARCH-warehouse.md:280-300`). No task may grade on cost. GCS needs `fake-gcs-server` in the object_store slot. |
+| BigQuery | **partial**: `alkera_gateway/bigquery.py` against goccy/bigquery-emulator **v0.8.1** (sha256-pinned both arches; compose service `bigquery`, profile-gated) | emulator binary / multi-arch image | `google-cloud-bigquery` | MIT | yes (arm64 binary hash-checked, not run) | – | Fenced: no cost fields ever, dry runs refused ("bigquery cost estimation is not modelled"); no transactions (a failed batch says how many statements were applied); `rows_affected` counted by the connector since the emulator never reports it; client retries off (emulator 500s). No dbt-bigquery (a bigquery `dbt_target` is refused by name). No task selects it. |
 | Databricks | **none** (workspace `none_found`; `B1-summary.md:30`) | **Tier 1, SQL:** a fake Databricks REST plane (SQL Statement Execution, Unity Catalog read APIs, Jobs 2.1 routed to the world scheduler, DBFS/Volumes onto object_store), backed by DuckDB with **delta-rs** tables. UC is seeded as data, three-level namespace. **Tier 2, DS profile only:** real local **PySpark** (`local[1]`) with Delta and UC OSS. | `databricks` CLI, `databricks-sdk`, `databricks-sql-connector`, `dbt-databricks`; tier 2 adds `pyspark` and notebooks | Apache-2.0 (delta-rs, Spark, UC OSS) | yes (JVM and wheels) | **L**: the biggest item on the list | `databricks-connect` is proprietary, so do not ship it. `calvinchengx/databricks-emulator` (Apache-2.0, clean-room, tested against the official SDK, CLI and Terraform) is a **reference to copy routes from, not a dependency** (one maintainer). delta-rs has a determinism problem in `_delta_log` (R004:402-415): normalise commit timestamps the way `world/` already does for dbt. UC OSS APIs "should not be assumed stable". |
 
 ### 3.3 Transform and orchestration
 
 | tool | status today | plug | agent interface | licence | arm64 | effort | fences and notes |
 |---|---|---|---|---|---|---|---|
-| dbt | **shipped** (dbt-core 1.12.4, dbt-duckdb 1.11.0) | dbt-core plus **one adapter per warehouse plug**: duckdb (have), postgres, snowflake, redshift, bigquery, databricks | `dbt` CLI, `profiles.yml` | Apache-2.0 | yes | S per adapter | `DBT_ADAPTERS` (`warehouses.py:68`) is the registry. Adapters go in the per-profile lock, not the gateway's own lock (same reasoning as awscli, `TOOLBELT.md:50-55`). |
+| dbt | **shipped** (dbt-core 1.12.4): duckdb, postgres (base image), snowflake (`--warehouse-clients snowflake` images) | dbt-core plus one adapter per warehouse plug | `dbt` CLI, `profiles.yml` | Apache-2.0 | yes | S per adapter | `DBT_ADAPTERS` (`warehouses.py`) is the registry; `warehouses.dbt_output` renders remote outputs with `env_var(...)` so no secret lands in a file. bigquery is declared and refused (no dbt-bigquery); redshift/databricks not yet. |
 | scheduler (`./ops/sched`) | **shipped** | world `WorldScheduler` over `sched.internal:8120` | `./ops/sched list\|logs\|trigger` | ours | yes | – | Default orchestrator. It has an exact MCP twin, which matters for comparisons across drivers. |
 | Airflow | **designed** (compose profile `airflow`, `compose.native.yml:441`); the headless prototype is archived (`_archive/world/`) | headless Airflow behind the 12-line clock shim (R004: byte-identical `dag_run` rows) | `airflow dags/tasks` CLI, REST API, DAG files in the repo | Apache-2.0 | yes (verify digest) | M (R004 8-step ship list) | Orchestrator plug, selected per task with `orchestrator = airflow`; `ops_sched` stays the default (Decision 3). **Never** expose `airflow dags backfill` with real time: the clock is the world's. A trigger must go through the executor so the ledger and observability stay true. |
 
@@ -223,7 +223,7 @@ plugs in.
 ### 4.4 Readiness, generated
 
 Output of `alkera-gateway plugs matrix`. A profile is `runnable` when none of
-its plugs is `planned`; `partial` plugs (Postgres, Snowflake) run with the gaps §3.2
+its plugs is `planned`; `partial` plugs (Postgres, Snowflake, BigQuery, Jupyter) run with the gaps §3
 lists. Regenerate this block whenever a plug's status changes.
 
 ```
@@ -232,19 +232,19 @@ de/postgres      runnable
 de/snowflake     planned: sigma
 de/databricks    planned: databricks, powerbi
 de/aws           planned: redshift, tableau
-de/gcp           planned: bigquery
-ds/laptop        planned: jupyter, ml_workers, mlflow
-ds/postgres      planned: jupyter, ml_workers, mlflow
-ds/snowflake     planned: jupyter, ml_workers, mlflow
-ds/databricks    planned: jupyter, ml_workers, mlflow, databricks
-ds/aws           planned: jupyter, ml_workers, mlflow, redshift
-ds/gcp           planned: jupyter, ml_workers, mlflow, bigquery
-da/laptop        planned: jupyter
-da/postgres      planned: jupyter
-da/snowflake     planned: jupyter, sigma
-da/databricks    planned: jupyter, databricks, powerbi
-da/aws           planned: jupyter, redshift, tableau
-da/gcp           planned: jupyter, bigquery
+de/gcp           runnable
+ds/laptop        planned: ml_workers, mlflow
+ds/postgres      planned: ml_workers, mlflow
+ds/snowflake     planned: ml_workers, mlflow
+ds/databricks    planned: ml_workers, mlflow, databricks
+ds/aws           planned: ml_workers, mlflow, redshift
+ds/gcp           planned: ml_workers, mlflow
+da/laptop        runnable
+da/postgres      runnable
+da/snowflake     planned: sigma
+da/databricks    planned: databricks, powerbi
+da/aws           planned: redshift, tableau
+da/gcp           runnable
 ```
 
 ---
@@ -253,31 +253,37 @@ da/gcp           planned: jupyter, bigquery
 
 Before 2026-10-02 there was no tool include/exclude: `build_tools` returned the global
 `TOOLS` table by identity, `native-services` always mounted all nine services, and a plane
-was "absent" only because the world did not seed it. Points 2, 3 and 5 below are now
-implemented (`plugs.py`); 1 and 4, and wiring a task's profile through the harness's
-gateway-config writers, are not.
+was "absent" only because the world did not seed it. All five points are now implemented
+in code and unit-tested; nothing container-side (compose, images) has been run, because
+the dev host has no Docker.
 
 Five enforcement points, each needed:
 
-1. **World build.** `profile:` in the seed decides which planes `world.build` seeds. An
-   unplugged slot leaves no state behind.
+1. **World build, done.** `profile: {name, slots}` in the seed: an unplugged slot leaves
+   no state (no `var/workflow`, `var/ingest`, `var/obs`, dashboards), `.envrc` /
+   onboarding / `services.toml` name nothing from it, and the profile is a conditional
+   fingerprint section (`var/world/profile.json`), so two profiles over one seed hash
+   differently. Unflagged seeds reproduce every recorded hash.
 2. **Gateway (MCP), done.** `GatewayConfig.profile` filters `build_tools` by slot, but only when
    a profile is declared, so today's "returns `TOOLS` by identity" invariant, which
    `test_image_parity`, `containment.py` and `register_bash` depend on, still holds for
    unprofiled runs.
-3. **Native services, done in-process; compose aliases not yet.** `serve --profile`
-   loads only the profile's services, and drops the scheduler plane and the object store's
-   audit receiver when their slots are unplugged. Still to do: emit only the matching
-   `*.internal` aliases. An excluded service must not resolve, so P6 checks it,
-   instead of resolving and answering 404.
-4. **Episode image.** One image per toolbelt (`de`, `ds`, `da`), built by
-   `build_episode.py`, with each warehouse plug's client and dbt adapter as a layer. An
-   excluded binary is **not installed**, never removed by PATH masking: a masked binary is
-   one `find /` away.
-5. **Harness, done for loading.** `taskspec.py` reads `[environment].profile` and
-   `.plugs`, and refuses a task whose `surfaces` names anything the profile does not
-   provide. All nine GT tasks fit `de/laptop` unchanged. Not yet: passing the profile into
-   the gateway config the harness writes.
+3. **Native services, done.** `serve --profile` loads only the profile's services and
+   drops the scheduler plane and the object store's audit receiver when their slots are
+   unplugged; the per-rollout compose overlay replaces the `*.internal` alias list
+   (`!override`), drops `minio.internal` without an object store, `!reset`s the excluded
+   services' endpoint variables, and narrows the endpoint map the destination audit and
+   the surface gate read. Not run: compose `!override`/`!reset` need Compose >= 2.24.4; the
+   bare service name `minio` still resolves (known, `NATIVE_STACK.md` weakest finding).
+4. **Episode image, done (not built).** `build_episode.py --toolbelt {de,ds,da}
+   --warehouse-clients snowflake` -> build args and tags (`alkera-episode:head-ds`). An
+   excluded package is **not installed**, never PATH-masked; `toolbelt_check.py` fails an
+   image where another role's package imports.
+5. **Harness, done.** `taskspec.py` refuses a task whose `surfaces` the profile does not
+   provide (all nine GT tasks fit `de/laptop` unchanged); `rollout.py` refuses a planned
+   plug before any world or container exists, then refuses a world whose recorded profile
+   disagrees with `task.toml` in either direction; every gateway config the harness writes
+   carries `profile`/`plugs`, and native-services gets `--profile`/`--plug`.
 
 **Anti-reward-hack rules that come with plugging:**
 
@@ -286,7 +292,8 @@ Five enforcement points, each needed:
   talked into lying cannot move the score. This already holds, and every new plug must
   keep it.
 - **Every plug writes the 9.2.2 row server-side.** A plug without an audit path (s3mock
-  today, a Jupyter kernel, Spark) does not ship. Otherwise the world-diff rule turns every
+  today, Spark) does not ship. The Jupyter kernel now writes one row per cell, and its
+  container strips the same paths the episode's does (`launch.py --strip`). Otherwise the world-diff rule turns every
   rollout that uses it into a hard violation, or worse, the rule gets relaxed.
 - **Fidelity fences are loud.** An unsupported feature returns an error naming the
   feature, never a plausible wrong answer (T2's rule, extended to every fake).
@@ -298,15 +305,19 @@ Five enforcement points, each needed:
 
 ## 6. Linux arm64 and x86_64
 
-The host this was written on is x86_64, and every evidence file records x86_64. Nothing
-has been built on arm64 yet. Known blockers:
+The dev host is x86_64 and every evidence file records x86_64. Nothing has been built or
+run on arm64 yet, but every input has been checked (2026-10-02, registry API and PyPI):
 
-- **Digest-pinned images** (`python@sha256:9534e5a8…`, `postgres@sha256:…`, `s3mock`,
-  `airflow`): a digest can name a single-arch manifest. Run
-  `docker buildx imagetools inspect` on each and re-pin to the **index digest**.
-- **`toolbelt.lock`** was compiled `--python-platform x86_64-unknown-linux-gnu`. Compile
-  one lock per arch, or compile with `--universal`.
-- **The DuckDB `postgres` extension** is fetched at build time per arch. Pin both.
+- **Digest-pinned images are all multi-arch indexes** (python, postgres, s3mock,
+  pgsty/minio, airflow, and the new bigquery-emulator 0.8.1): nothing needed re-pinning.
+- **Locks:** `toolbelt.arm64.lock` beside `toolbelt.lock`; `requirements-{ds,da}.lock` and
+  the gateway locks carry aarch64 wheel hashes (`tests/test_toolbelt_roles.py` checks an
+  installable wheel per arch against PyPI). All 18 apt pins exist for arm64 in the pinned
+  Debian snapshot. A stale `toolbelt.lock` had only SQLAlchemy's sdist hash (every build
+  compiled it from source); re-locked at the same version.
+- **The DuckDB `postgres` extension** for 1.5.5 is published for linux_arm64.
+- **dbt-core-experimental-parser 2.0.0rc2** is sdist-only and downloads a hash-checked
+  wheel from github.com at build time, on both arches.
 - **Tableau Hyper API**: x86_64 only on Linux, which is why §3.5 avoids it.
 - **Re-measure containment P0–P7 and the fingerprint gate on arm64.** Cross-arch
   `semantic_hash` equality is the claim to prove, since float formatting and sort
@@ -319,7 +330,7 @@ has been built on arm64 yet. Known blockers:
 | item | earlier verdict | now | decision |
 |---|---|---|---|
 | Spark | "Do not run Spark. Ever." (R004 streaming:22) | Databricks and ML compute are on the list | in: Databricks tier 1 + tier 2 (DS); Spark `local[1]`, determinism measured before any task depends on it (Decision 1) |
-| BigQuery | "works; don't use" (R004 warehouse:152) | on the list | in, cost fenced (Decision 2) |
+| BigQuery | **partial**: `alkera_gateway/bigquery.py` against goccy/bigquery-emulator **v0.8.1** (sha256-pinned both arches; compose service `bigquery`, profile-gated) | emulator binary / multi-arch image | `google-cloud-bigquery` | MIT | yes (arm64 binary hash-checked, not run) | – | Fenced: no cost fields ever, dry runs refused ("bigquery cost estimation is not modelled"); no transactions (a failed batch says how many statements were applied); `rows_affected` counted by the connector since the emulator never reports it; client retries off (emulator 500s). No dbt-bigquery (a bigquery `dbt_target` is refused by name). No task selects it. |
 | Airflow | full deployment "Reject" (R004 orchestration:549); prototype archived | on the list | in, orchestrator plug; ops_sched default (Decision 3) |
 | MinIO | licence-rejected (B1) | still in `compose.native.yml` | replace with s3mock (Decision 4) |
 | Redpanda | BSL landmine (A5:122), yet recommended in R004 streaming:21 | n/a | Apache Kafka if a live broker is ever needed |
@@ -330,6 +341,9 @@ has been built on arm64 yet. Known blockers:
 ## 8. Build order for the remaining sprint (proposal)
 
 Ordered by "proves the plug mechanism" first, then by how many profiles each unlocks.
+Status 2026-10-02: items 1 and 4 are built and unit-tested, 2 is task-ready except the TLS
+route and a task, 5 is half done (BigQuery partial, Redshift not started); nothing has been
+run in a container.
 
 1. **The plug mechanism itself** (§5 points 1–5) with the existing plugs: DuckDB and
    Postgres as two warehouse plugs, plus include/exclude on the nine native services.
