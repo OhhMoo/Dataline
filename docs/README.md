@@ -4,6 +4,11 @@ Current operating docs live next to the code, in each folder's `README.md` (star
 root `README.md`). This folder holds what explains *why* and *how we got here*.
 
 ```
+environments/                   what the composable environments need
+  TOOL_INVENTORY.md             every tool (Snowflake, Databricks, Redshift, BigQuery, Airflow,
+                                dbt, Jupyter, Power BI, Tableau, Sigma, ...): status, local plug,
+                                licence, arm64; the slot model; DE/DS/DA x vendor-stack profiles
+
 research/                       design research with sources
   Scoring_Redesign.md           the eval and scoring design and its provenance
                                 (normative spec: tasks/contracts/DECISION_TEMPLATE.md §9)
