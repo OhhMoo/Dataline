@@ -63,7 +63,14 @@ def main(argv=None):
     signals = commands.add_parser("signals")
     signals.add_argument("audit_dir", type=Path)
     signals.add_argument("--experimental", action="store_true", required=True)
+    plugs_parser = commands.add_parser(
+        "plugs", help="environment profiles: matrix | show PROFILE [--plug SLOT=PLUG]")
+    plugs_parser.add_argument("plugs_args", nargs=argparse.REMAINDER)
     args = parser.parse_args(argv)
+    if args.command == "plugs":
+        from .plugs import main as plugs_main
+
+        return plugs_main(args.plugs_args)
     logging.basicConfig(level=logging.INFO)
     if args.command == "serve":
         from .scheduling import episode_scheduler
