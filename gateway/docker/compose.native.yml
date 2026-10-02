@@ -99,7 +99,9 @@ services:
         condition: service_healthy
       native-services:
         condition: service_started
-    environment:
+    # Anchored: the `jupyter` service below is the same box for the agent's
+    # notebook code and gets the same endpoint table, verbatim.
+    environment: &native-endpoints
       # The endpoint variables, in the process environment. The workspace's
       # own .envrc exports the same names with the same values, on purpose: the
       # .envrc is what an engineer reads and what `run.sh` sources, and these
@@ -205,6 +207,45 @@ services:
       retries: 60
       start_period: 1s
 
+  # The Jupyter plug (gateway/docker/jupyter/README.md): jupyter-server with the
+  # audited `alkera-python` kernel as the only kernelspec, so every executed
+  # cell writes one 9.2.2 row (alkera_gateway.native.notebook). Gated behind the
+  # compose profile `notebook`, which `container_episode.NativeContainerEpisode`
+  # enables only for an environment profile that plugs the notebook slot: an
+  # unprofiled stack never starts it and `jupyter.internal` never resolves.
+  # The per-rollout overlay adds the same shim PATH, shim watch list and
+  # warehouse FILE binds the episode gets, so a cell sees the box the shell sees.
+  jupyter:
+    profiles: [notebook]
+    image: ${ALKERA_EPISODE_IMAGE:-alkera-stack:track-b}
+    # --strip: the paths tasks/harness/container_episode.STRIP_PATHS removes from
+    # the episode container, removed here by the launcher before any cell runs.
+    entrypoint: ["/usr/local/bin/python", "/opt/stack/jupyter/launch.py",
+                 "--strip", "/opt/stack", "--strip", "/opt/gateway/tests"]
+    stop_grace_period: 2s
+    networks:
+      episode_net:
+        aliases:
+          - jupyter.internal
+    environment: *native-endpoints
+    volumes:
+      - "${ALKERA_EPISODE_WORLD:?episode world directory}/workspace:/workspace"
+      - "${ALKERA_EPISODE_AUDIT:?episode audit directory}:/audit"
+      - type: tmpfs
+        target: /world/var/ledger
+        read_only: true
+        tmpfs:
+          size: 4096
+    # Port 8888 listening (0x22B8, state 0A), read from /proc rather than
+    # dialled: an HTTP probe would be a connection the episode never made.
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/python", "-c",
+             "import pathlib,sys;sys.exit(0 if any(f[1].endswith(':22B8') and f[3]=='0A' for f in (l.split() for l in pathlib.Path('/proc/net/tcp').read_text().splitlines()[1:])) else 1)"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+      start_period: 2s
+
   # The nine fake vendor services, one port each, one process.
   #
   # `sh -c` rather than a plain argument list because ALKERA_NATIVE_STUBS is a
@@ -212,6 +253,11 @@ services:
   # one string; the shell is what splits it. Empty in a complete stack - it
   # exists so containment P6 can be measured against serve.py before every
   # service module has landed, and the evidence records the value it ran with.
+  # ALKERA_NATIVE_PROFILE_ARGS is the same kind of word list: `--profile
+  # ROLE/STACK --plug SLOT=PLUG...` for a task that declares an environment
+  # profile (tasks/harness/container_episode.NativeContainerEpisode sets it,
+  # empty otherwise), and the per-rollout overlay narrows the aliases below to
+  # match.
   native-services:
     image: ${ALKERA_EPISODE_IMAGE:-alkera-stack:track-b}
     entrypoint: ["sh", "-c"]
@@ -219,7 +265,7 @@ services:
       - >-
         exec python -m alkera_gateway.native.serve
         --audit /audit --world /world --bind 0.0.0.0
-        ${ALKERA_NATIVE_STUBS:-}
+        ${ALKERA_NATIVE_STUBS:-} ${ALKERA_NATIVE_PROFILE_ARGS:-}
     stop_grace_period: 2s
     networks:
       episode_net:

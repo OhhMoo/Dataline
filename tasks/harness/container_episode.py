@@ -62,6 +62,7 @@ import json
 import os
 import re
 import secrets
+import shlex
 import shutil
 import socket
 import subprocess
@@ -351,7 +352,8 @@ def reroot_profiles(text: str, host_root, container_root: str = WORLD_IN_CONTAIN
     return yaml.safe_dump(profiles, sort_keys=False), moved
 
 
-def container_gateway_config(world: dict, episode_id: str, virtual_time: str) -> dict:
+def container_gateway_config(world: dict, episode_id: str, virtual_time: str, *,
+                             profile: str = "", plugs: dict | None = None) -> dict:
     """The gateway config as the container sees it.
 
     Note what is not here, exactly as on the host: any path under the grading
@@ -385,6 +387,8 @@ def container_gateway_config(world: dict, episode_id: str, virtual_time: str) ->
         # the builder computed for it. Same pass-through as the plane keys
         # (episode.WORLD_WAREHOUSE_KEYS); paths are the re-rooted ones.
         **episode._warehouse_keys(inside),
+        # The task's environment profile, last and only when it names one.
+        **episode.profile_keys(profile, plugs),
     }
 
 
@@ -835,6 +839,22 @@ MOUNTS_OVERLAY_NAME = "compose.native-mounts.yml"
 #: MinIO's port, published on loopback beside the nine so the surface gate's
 #: signed bucket listing has somewhere to go.
 MINIO_PORT = 9000
+#: Each vendor service's variables in compose.native.yml's `episode`
+#: environment: the URL `agent_under_test.NATIVE_SERVICES` names, and the fake
+#: credentials beside it. A profile that excludes the service drops all of
+#: them (`profile_overlay`); test_profile_wiring.py fails when one is not in
+#: the static file.
+EPISODE_SERVICE_ENV = {
+    "jira":         ("JIRA_URL", "JIRA_USER", "JIRA_API_TOKEN"),
+    "slack":        ("SLACK_BASE_URL", "SLACK_BOT_TOKEN"),
+    "confluence":   ("CONFLUENCE_URL", "CONFLUENCE_USER", "CONFLUENCE_API_TOKEN"),
+    "metabase":     ("METABASE_URL", "METABASE_API_KEY"),
+    "prometheus":   ("PROMETHEUS_URL",),
+    "alertmanager": ("ALERTMANAGER_URL",),
+    "loki":         ("LOKI_URL", "LOKI_ADDR"),
+    "airbyte":      ("AIRBYTE_URL", "AIRBYTE_API_KEY"),
+    "deploy":       ("DEPLOY_URL", "DEPLOY_API_TOKEN"),
+}
 
 # ------------------------------------------------------------ the hard sandbox
 #: `--subject-sandbox container` (README.md#the-subject-sandbox): the model's CLI runs in the
@@ -1581,6 +1601,11 @@ class NativeContainerEpisode:
     #: arm. The world itself is built on the HOST, before the container exists,
     #: so this is about agreement and not about which world got built.
     variant: str = ""
+    #: The task's environment profile (`alkera_gateway.plugs`), "" for none.
+    #: With one, native-services serves only its services and the episode
+    #: network carries only their aliases - see `profile_overlay`.
+    profile: str = ""
+    plugs: dict = field(default_factory=dict)
     container_id: str = ""
     image_digest: str = ""
     services: list = field(default_factory=list)
@@ -1623,6 +1648,71 @@ class NativeContainerEpisode:
         """
         return {"ALKERA_TASK_VARIANT": self.variant} if self.variant else {}
 
+    def environment_profile(self):
+        """The resolved profile, or None. Raises `episode.HarnessError`."""
+        return episode.environment_profile(self.profile, self.plugs)
+
+    def notebook_plugged(self) -> bool:
+        """The profile plugs the notebook slot: compose.native.yml's `jupyter`
+        service (profile `notebook`) runs, and the episode is told where."""
+        profile = self.environment_profile()
+        return profile is not None and "notebook" in profile.slots
+
+    def profile_overlay(self) -> tuple[str, str]:
+        """The overlay's profile sections, `("", "")` for an unprofiled task:
+        lines for the `episode` service's environment, and the services after it.
+
+        An excluded service must not RESOLVE on episode_net, not merely answer
+        404 from a native-services process that did not mount it, so the alias
+        list is replaced (`!override`) with the profile's own. `sched.internal`
+        stays only when the orchestrator plugs `ops_sched`, `minio.internal`
+        only when the object store is plugged (MinIO keeps running: the episode
+        `depends_on` it, and dropping the alias is what takes it off the
+        network the episode sees). The episode's endpoint variables for the
+        same services are dropped (`!reset`), so nothing in its environment
+        names an address that does not exist.
+        """
+        profile = self.environment_profile()
+        if profile is None:
+            return "", ""
+        import agent_under_test as aut
+
+        with_sched = "ops_sched" in profile.slots.get("orchestrator", ())
+        with_store = "object_store" in profile.slots
+        aliases = ["native-services.internal",
+                   *(f"{name}.internal" for name in profile.services
+                     if name in aut.NATIVE_SERVICES)]
+        if with_sched:
+            aliases.append("sched.internal")
+        dropped = [var for name in aut.NATIVE_SERVICES
+                   if name not in profile.services
+                   for var in EPISODE_SERVICE_ENV[name]]
+        if not with_sched:
+            dropped.append("SCHED_URL")
+        if not with_store:
+            dropped += ["AWS_ENDPOINT_URL", "AWS_ACCESS_KEY_ID",
+                        "AWS_SECRET_ACCESS_KEY", "AWS_DEFAULT_REGION"]
+        alias_lines = "\n".join(f"          - {a}" for a in aliases)
+        resets = "".join(f"\n      {var}: !reset null" for var in dropped)
+        body = f"""
+# ENVIRONMENT PROFILE {profile.name} (plugs: {json.dumps(self.plugs, sort_keys=True)}).
+# native-services runs with --profile (ALKERA_NATIVE_PROFILE_ARGS), and the
+# aliases below REPLACE compose.native.yml's: an excluded service has no name
+# on episode_net at all.
+  native-services:
+    networks:
+      episode_net:
+        aliases: !override
+{alias_lines}
+"""
+        if not with_store:
+            body += """  minio:
+    networks:
+      episode_net:
+        aliases: !reset []
+"""
+        return resets, body
+
     def write_overlay(self) -> Path:
         """The per-rollout overlay: warehouse binds, shim PATH, published ports.
 
@@ -1639,6 +1729,10 @@ class NativeContainerEpisode:
         path_value = f"{SHIMS_IN_CONTAINER}:{image_path(self.image)}"
         variant = "".join(f'\n      {name}: "{value}"'
                           for name, value in sorted(self.variant_env().items()))
+        resets, profiled = self.profile_overlay()
+        notebook = self.notebook_plugged()
+        jupyter_url = ('\n      JUPYTER_URL: "http://jupyter.internal:8888"'
+                       if notebook else "")
         # The shim watches the same files it cannot see through the workspace
         # snapshot, so a `dbt build` that rewrites a warehouse names it
         # (shims/run.py ALKERA_SHIM_WATCH; blindness.UNSCOPED_WAREHOUSE_SHIMS).
@@ -1682,7 +1776,26 @@ services:
       ALKERA_SHIM_BIN: "{SHIMS_IN_CONTAINER}"
       ALKERA_SHIM_WATCH: "{watch}"
       ALKERA_SHIM_WORKSPACE: "{WORKSPACE_IN_CONTAINER}"
-      ALKERA_WORKSPACE: "{WORKSPACE_IN_CONTAINER}"{variant}
+      ALKERA_WORKSPACE: "{WORKSPACE_IN_CONTAINER}"{variant}{jupyter_url}{resets}
+    volumes:
+{binds}
+""" + profiled
+        if notebook:
+            # The kernel is the agent's own interpreter in a second container,
+            # so it gets the box the shell gets: the shim PATH (a `!duckdb` in a
+            # cell is audited by the same shim), the watch list (a cell that
+            # rewrites a warehouse through the `duckdb` library names it), the
+            # warehouse FILE binds and the same endpoint resets.
+            body += f"""
+# NOTEBOOK PLUG: the `jupyter` service (compose profile `notebook`, enabled by
+# compose_env) sees exactly what the episode sees.
+  jupyter:
+    environment:
+      PATH: "{path_value}"
+      ALKERA_SHIM_BIN: "{SHIMS_IN_CONTAINER}"
+      ALKERA_SHIM_WATCH: "{watch}"
+      ALKERA_SHIM_WORKSPACE: "{WORKSPACE_IN_CONTAINER}"
+      ALKERA_WORKSPACE: "{WORKSPACE_IN_CONTAINER}"{variant}{resets}
     volumes:
 {binds}
 """
@@ -1692,15 +1805,30 @@ services:
         return self.overlay
 
     # ------------------------------------------------------------- lifecycle
-    def _compose(self, *args, check: bool = True, timeout: int = 900):
-        env = {
+    def compose_env(self) -> dict:
+        return {
             **os.environ,
             "ALKERA_EPISODE_WORLD": self.world_root.as_posix(),
             "ALKERA_EPISODE_AUDIT": Path(self.audit_dir).resolve().as_posix(),
             "ALKERA_EPISODE_IMAGE": self.image,
             "ALKERA_SUBJECT_IMAGE": self.subject_image,
             "ALKERA_REXEC_TOKEN": self.rexec_token,
+            # `--profile ... --plug ...` on the native-services command line
+            # (compose.native.yml). Always set, so an empty value from this
+            # process and not one inherited from the caller's shell is what an
+            # unprofiled stack runs with.
+            "ALKERA_NATIVE_PROFILE_ARGS": shlex.join(
+                episode.profile_argv(self.profile, self.plugs)),
+            # compose profile `notebook` starts the `jupyter` service; set only
+            # when the environment profile plugs it, appended to whatever the
+            # caller's shell already enables.
+            **({"COMPOSE_PROFILES": ",".join(
+                [p for p in os.environ.get("COMPOSE_PROFILES", "").split(",") if p]
+                + ["notebook"])} if self.notebook_plugged() else {}),
         }
+
+    def _compose(self, *args, check: bool = True, timeout: int = 900):
+        env = self.compose_env()
         argv = ["docker", "compose", "-p", self.project]
         for path in self.compose_files():
             argv += ["-f", str(path)]
@@ -1873,7 +2001,8 @@ services:
         """
         import agent_under_test as aut
 
-        return aut.resolve_endpoints(None)
+        return aut.profile_endpoints(aut.resolve_endpoints(None),
+                                     self.environment_profile())
 
     def gate_endpoints(self) -> dict:
         """The addresses the HARNESS uses: one relayed loopback socket each.
@@ -1891,6 +2020,7 @@ services:
         """
         import agent_under_test as aut
 
+        profile = self.environment_profile()
         targets = {name: (f"{name}.internal", port)
                    for name, (_, port) in {
                        **aut.NATIVE_SERVICES,
@@ -1900,6 +2030,11 @@ services:
                        # reach that file, so neither may the gate.
                        **aut.NATIVE_WORKSPACE_SERVICES}.items()}
         targets["s3"] = ("minio.internal", MINIO_PORT)
+        # Only what the profile serves: a relay to an alias that does not
+        # resolve would be a socket that answers nothing.
+        served = aut.profile_endpoints(dict.fromkeys(targets, ""), profile)
+        targets = {name: target for name, target in targets.items()
+                   if name in served}
         self.gate = ServiceGate(self.services_container, targets,
                                 _native_probe().CONTAINER_PYTHON)
         overrides = self.gate.start()
@@ -1907,7 +2042,7 @@ services:
         path = self.container_dir / "gate_endpoints.json"
         with open(path, "w", encoding="utf-8", newline="") as stream:
             json.dump(overrides, stream, indent=2, sort_keys=True)
-        return aut.resolve_endpoints(path)
+        return aut.profile_endpoints(aut.resolve_endpoints(path), profile)
 
     # ----------------------------------------------------------------- shell
     def shell(self, bin_dir: Path, env: dict | None = None) -> dict:
@@ -2064,7 +2199,8 @@ services:
             # scheduler is the one whose files this topology does not mount.
             services={name: endpoints[name]
                       for name in sorted({**aut.NATIVE_SERVICES,
-                                          **aut.NATIVE_WORKSPACE_SERVICES})},
+                                          **aut.NATIVE_WORKSPACE_SERVICES})
+                      if name in endpoints},
             forbidden_files=[
                 Path(grading, "manifest.yaml").as_posix(),
                 Path(grading, "expected.duckdb").as_posix()],
@@ -2096,6 +2232,9 @@ services:
             "compose_files": [str(p) for p in self.compose_files()],
             "warehouse_mounts": list(self.warehouses),
             "variant": self.variant,
+            **({"environment_profile": {"profile": self.profile,
+                                        "plugs": self.plugs}}
+               if self.profile else {}),
             "shims_in_container": SHIMS_IN_CONTAINER,
             "subject_sandbox": ({"image": self.subject_image,
                                  "subject_container": self.subject_container[:12],

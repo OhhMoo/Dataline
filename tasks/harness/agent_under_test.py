@@ -202,6 +202,27 @@ def resolve_endpoints(path: str | Path | None = None) -> dict:
     return ep
 
 
+def profile_endpoints(endpoints: dict, profile=None) -> dict:
+    """`endpoints` narrowed to what an environment profile serves.
+
+    `profile` is an `alkera_gateway.plugs.Profile` (`episode.environment_profile`),
+    or None for an unprofiled task, whose map comes back unchanged. Narrowed the
+    way `native/serve.py --profile` serves: the vendor services the profile's
+    plugs mount, the scheduler plane only with `ops_sched`, the object store
+    only when the slot is plugged. Every consumer of the map - the subject's
+    environment, `allowed_destinations`, the containment probe - then neither
+    offers nor expects an address nothing is listening at.
+    """
+    if profile is None:
+        return endpoints
+    drop = {name for name in NATIVE_SERVICES if name not in profile.services}
+    if "ops_sched" not in profile.slots.get("orchestrator", ()):
+        drop |= set(NATIVE_WORKSPACE_SERVICES)
+    if "object_store" not in profile.slots:
+        drop |= {key for key in endpoints if key.startswith("s3")}
+    return {key: value for key, value in endpoints.items() if key not in drop}
+
+
 def native_env(*, endpoints: dict, audit_dir: Path,
                profiles_dir: str | Path,
                scheduler: str | Path = "",
@@ -214,7 +235,8 @@ def native_env(*, endpoints: dict, audit_dir: Path,
     which is the whole point of native mode.
     """
     pg = endpoints["postgres"]
-    env = {var: endpoints[name] for name, (var, _) in NATIVE_SERVICES.items()}
+    env = {var: endpoints[name] for name, (var, _) in NATIVE_SERVICES.items()
+           if name in endpoints}
     # `SCHED_URL` is deliberately NOT exported here. This function builds the
     # environment for the HOST topology, where `./ops/sched` runs the three
     # operations in its own process against the world's own files and writes
@@ -246,10 +268,8 @@ def native_env(*, endpoints: dict, audit_dir: Path,
         # there IS one: an empty value is still a request to
         # `taskspec.requested_variant`.
         env["ALKERA_TASK_VARIANT"] = variant
-    env.update({
-        # the 9.2.2 action log: every service and shim appends here, so the
-        # budget watcher, the detectors and the grader all read one file
-        "ALKERA_NATIVE_AUDIT": str(Path(audit_dir) / "actions.jsonl"),
+    # No object store in the map (a profile that plugs none): no AWS_* at all.
+    aws = {
         "AWS_ENDPOINT_URL": endpoints["s3"],
         # boto3 and the aws CLI refuse to sign a request without these, so a
         # bucket the episode is meant to reach would be unreachable for a reason
@@ -258,6 +278,12 @@ def native_env(*, endpoints: dict, audit_dir: Path,
         "AWS_ACCESS_KEY_ID": str(endpoints["s3_access_key"]),
         "AWS_SECRET_ACCESS_KEY": str(endpoints["s3_secret_key"]),
         "AWS_DEFAULT_REGION": str(endpoints["s3_region"]),
+    } if "s3" in endpoints else {}
+    env.update({
+        # the 9.2.2 action log: every service and shim appends here, so the
+        # budget watcher, the detectors and the grader all read one file
+        "ALKERA_NATIVE_AUDIT": str(Path(audit_dir) / "actions.jsonl"),
+        **aws,
         "DBT_PROFILES_DIR": str(profiles_dir),
         "PGHOST": str(pg["host"]),
         "PGPORT": str(pg["port"]),
@@ -285,7 +311,8 @@ def allowed_destinations(endpoints: dict) -> set[tuple[str, int]]:
     out = {_host_port(endpoints[name])
            for name in (*NATIVE_SERVICES, *NATIVE_WORKSPACE_SERVICES)
            if endpoints.get(name)}
-    out.add(_host_port(endpoints["s3"]))
+    if "s3" in endpoints:
+        out.add(_host_port(endpoints["s3"]))
     pg = endpoints["postgres"]
     out.add((str(pg["host"]), int(pg["port"])))
     return {(normalise_host(h), p) for h, p in out}

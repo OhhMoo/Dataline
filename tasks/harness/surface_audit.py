@@ -846,6 +846,13 @@ def _run_native_check(surface: str, endpoints: dict, world: dict,
                       ) -> tuple[bool, str | None, str]:
     workspace = str(world.get("workspace") or "")
     kind = native_check_kind(surface)
+    address = "s3" if kind == "s3" else surface
+    if (surface in served_planes or kind in ("http_health", "s3")) \
+            and address not in endpoints:
+        # agent_under_test.profile_endpoints dropped it: the task's environment
+        # profile does not serve this surface, so there is nothing to dial.
+        return (False, "excluded_by_profile",
+                f"the environment profile serves no {surface!r}")
     if surface in served_planes:
         # THE GATE MUST ASK THE PLANE THE SUBJECT CAN REACH. Under the container
         # topology the episode mounts the workspace and the warehouse files and
@@ -923,7 +930,8 @@ def probe_native(*, probes: list[dict], endpoints: dict, world: dict,
                          "declared": True}
     spoken_for = {c["surface"] for c in checks.values()}
     for name in NATIVE_SERVICE_NAMES:
-        if name not in spoken_for:
+        # a profiled endpoint map names only what the profile serves
+        if name not in spoken_for and name in endpoints:
             checks[f"~{name}"] = {"surface": name, "tool": f"{name}.health",
                                   "covers": [], "declared": False}
     if not checks:

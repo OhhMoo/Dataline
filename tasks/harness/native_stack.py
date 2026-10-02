@@ -91,12 +91,24 @@ SCHED_CLI_PATH = "ops/sched"
 SCHED_CLI_MODULE = "alkera_gateway.native.shims.sched_cli"
 
 
-def service_ports() -> list[int]:
-    """Every port one `serve.py` process binds, before the offset is added."""
+def service_ports(profile=None) -> list[int]:
+    """Every port one `serve.py` process binds, before the offset is added.
+
+    With an environment profile (`episode.environment_profile`), only the ports
+    `serve.py --profile` binds: the profile's services, the aggregate, and the
+    MinIO audit receiver only when the object store is plugged.
+    """
     from alkera_gateway.native import serve
 
-    return sorted({*serve.STUB_PORTS.values(), serve.AGGREGATE_PORT,
-                   serve.MINIO_AUDIT_PORT})
+    if profile is None:
+        return sorted({*serve.STUB_PORTS.values(), serve.AGGREGATE_PORT,
+                       serve.MINIO_AUDIT_PORT})
+    ports = {serve.STUB_PORTS[name] for name in profile.services
+             if name in serve.STUB_PORTS}
+    ports.add(serve.AGGREGATE_PORT)
+    if "object_store" in profile.slots:
+        ports.add(serve.MINIO_AUDIT_PORT)
+    return sorted(ports)
 
 
 def port_free(port: int) -> bool:
@@ -287,6 +299,11 @@ class NativeStack:
         self.audit_dir = Path(audit_dir)
         self.rollout_dir = Path(rollout_dir)
         self.spec = spec
+        # The task's environment profile: "" and {} for an unprofiled task,
+        # which then runs exactly as it did before profiles existed.
+        self.profile_name = getattr(spec, "profile", "") or ""
+        self.plugs = dict(getattr(spec, "plugs", None) or {})
+        self.profile = episode.environment_profile(self.profile_name, self.plugs)
         self.key = key or self.rollout_dir.as_posix()
         self._offset = offset
         self.endpoints: dict | None = None
@@ -337,16 +354,21 @@ class NativeStack:
         return episode.write_gateway_config(
             self.config_file, self.world,
             self.audit_dir, "native-host",
-            self.world.get("virtual_time") or "")
+            self.world.get("virtual_time") or "",
+            profile=self.profile_name, plugs=self.plugs)
 
-    def _start_services(self) -> None:
-        argv = [str(episode.PY), "-m", "alkera_gateway.native.serve",
+    def _serve_argv(self) -> list[str]:
+        return [str(episode.PY), "-m", "alkera_gateway.native.serve",
                 "--audit", str(self.audit_dir),
                 "--world", str(self.world["world_root"]),
                 "--bind", "127.0.0.1",
                 "--port-offset", str(self.offset),
                 "--destination-host", "127.0.0.1",
-                "--gateway-config", str(self._config_path())]
+                "--gateway-config", str(self._config_path()),
+                *episode.profile_argv(self.profile_name, self.plugs)]
+
+    def _start_services(self) -> None:
+        argv = self._serve_argv()
         self._log = open(self.log_path, "w", encoding="utf-8", newline="")
         self._proc = subprocess.Popen(argv, stdout=self._log,
                                       stderr=subprocess.STDOUT,
@@ -374,7 +396,7 @@ class NativeStack:
         from alkera_gateway.native import serve
 
         destinations = self.audit_dir / serve.DESTINATIONS
-        ports = [port + self.offset for port in service_ports()]
+        ports = [port + self.offset for port in service_ports(self.profile)]
         deadline = time.monotonic() + STARTUP_TIMEOUT_S
         while time.monotonic() < deadline:
             if self._proc is not None and self._proc.poll() is not None:
@@ -435,12 +457,14 @@ class NativeStack:
         overrides = {
             name: f"http://127.0.0.1:{port + self.offset}"
             for name, (_, port) in aut.NATIVE_SERVICES.items()
+            if self.profile is None or name in self.profile.services
         }
         if s3_url:
             overrides["s3"] = s3_url
         self.endpoints_file.write_text(
             json.dumps(overrides, indent=2, sort_keys=True), encoding="utf-8")
-        return aut.resolve_endpoints(self.endpoints_file)
+        return aut.profile_endpoints(aut.resolve_endpoints(self.endpoints_file),
+                                     self.profile)
 
     # --------------------------------------------------------------- minio
     def _minio_name(self) -> str:
@@ -1022,9 +1046,11 @@ def run_scripted_container(*, rollout_dir: Path, world: dict, audit_dir: Path,
     # The same call `rollout.py` verified with, with this subject's own
     # variables added: one mechanism, and the thing proved is the thing used.
     wrapper = stack.shell(rollout_dir / "shell", env)
+    served = stack.episode_endpoints()
     (rollout_dir / "native_env.json").write_text(
         json.dumps({"in_container": env,
-                    "from_compose": sorted(aut.NATIVE_SERVICES),
+                    "from_compose": sorted(n for n in aut.NATIVE_SERVICES
+                                           if n in served),
                     "shell": wrapper["launcher"],
                     "subject_env": wrapper["subject_env"],
                     "container_execution_proof": wrapper["proof"]},

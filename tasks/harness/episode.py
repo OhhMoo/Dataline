@@ -161,8 +161,100 @@ def reroot_warehouses(specs, old_root, new_root) -> list:
     return out
 
 
+# ------------------------------------------------------ environment profile
+def environment_profile(profile: str = "", plugs: dict | None = None):
+    """The task's `alkera_gateway.plugs.Profile`, or None when it declares none.
+
+    Resolved WITHOUT `allow_planned`: the task loader accepts a profile authored
+    ahead of its tools, and this is where the harness refuses to run one -
+    before a world is built or a container started, with the catalog's own text.
+    """
+    if not profile:
+        if plugs:
+            raise HarnessError("[environment.plugs] adjusts a profile, but no "
+                               "profile is set")
+        return None
+    from alkera_gateway.plugs import ProfileError, resolve
+
+    try:
+        return resolve(profile, plugs or {})
+    except ProfileError as exc:
+        raise HarnessError(str(exc)) from exc
+
+
+#: Where `world.build` records the seed's `profile: {name, slots}` (world/README.md).
+WORLD_PROFILE_RECORD = Path("var") / "world" / "profile.json"
+
+
+def check_world_profile(world_root: Path, profile) -> None:
+    """The world the task built must be the box its profile describes.
+
+    A task's world comes from its own `build_world.py` and seed, written by the
+    task author; the tools the agent is served come from `task.toml`. If the two
+    disagree the agent is handed tools over planes that were never seeded (or
+    the reverse), so the rollout stops here, in either direction. A world with
+    no record and a task with no profile is today's case and passes untouched.
+    """
+    path = Path(world_root) / WORLD_PROFILE_RECORD
+    record = json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
+    if profile is None:
+        if record is not None:
+            raise HarnessError(
+                f"the world was built for profile {record.get('name')!r} "
+                f"(slots {record.get('slots')}), but the task declares no profile")
+        return
+    if record is None:
+        raise HarnessError(
+            f"the task declares profile {profile.name!r}, but its world was built "
+            f"without one: the seed needs `profile: {{name: {profile.name!r}, "
+            f"slots: {sorted(profile.slots)}}}`")
+    if record.get("name") != profile.name:
+        raise HarnessError(
+            f"the world was built for profile {record.get('name')!r}, the task "
+            f"declares {profile.name!r}")
+    if sorted(record.get("slots") or []) != sorted(profile.slots):
+        raise HarnessError(
+            f"the world's slots {sorted(record.get('slots') or [])} are not the "
+            f"slots profile {profile.name!r} plugs with its [environment.plugs]: "
+            f"{sorted(profile.slots)}")
+
+
+def profile_keys(profile: str = "", plugs: dict | None = None) -> dict:
+    """`{"profile", "plugs"}` for a gateway config, or `{}` with no profile, so
+    an unprofiled config is byte for byte what it was before profiles."""
+    if not profile:
+        return {}
+    return {"profile": profile,
+            "plugs": {slot: list(names) for slot, names in (plugs or {}).items()}}
+
+
+def spec_profile_keys(spec) -> dict:
+    return profile_keys(getattr(spec, "profile", ""), getattr(spec, "plugs", None))
+
+
+def profile_argv(profile: str = "", plugs: dict | None = None) -> list[str]:
+    """`--profile ROLE/STACK --plug SLOT=PLUG[,PLUG]...` for `native.serve`."""
+    if not profile:
+        return []
+    argv = ["--profile", profile]
+    for slot, names in (plugs or {}).items():
+        argv += ["--plug", f"{slot}={','.join(names)}"]
+    return argv
+
+
+def profile_toolbelt(toolbelt: dict, profile=None) -> dict:
+    """The toolbelt a profiled gateway serves: `gateway_tool_names()` and the
+    container shim's `tools` read the whole `TOOLS` table, and `build_tools`
+    drops the unplugged slots' tools from what the config actually serves."""
+    if profile is None:
+        return toolbelt
+    return {name: d for name, d in toolbelt.items()
+            if name not in profile.excluded_tools}
+
+
 def write_gateway_config(path: Path, world: dict, audit_dir: Path,
-                         episode_id: str, virtual_time: str) -> Path:
+                         episode_id: str, virtual_time: str, *,
+                         profile: str = "", plugs: dict | None = None) -> Path:
     """The gateway config. Note what is NOT here: any path under the grading
     zone. The gateway physically cannot address it."""
     path.write_text(json.dumps({
@@ -181,6 +273,8 @@ def write_gateway_config(path: Path, world: dict, audit_dir: Path,
         # after the literal null above on purpose: a world that publishes a
         # fingerprint overrides it, a world that does not keeps it
         **_warehouse_keys(world),
+        # last, and only when the task names one (see `profile_keys`)
+        **profile_keys(profile, plugs),
     }, indent=2), encoding="utf-8")
     return path
 
@@ -244,7 +338,8 @@ def probe_surfaces(spec, world: dict, scratch: Path,
 
     audit = scratch / "probe_audit"
     cfg = write_gateway_config(scratch / "probe_gateway.json", probe_world, audit,
-                               "probe", spec.virtual_time)
+                               "probe", spec.virtual_time,
+                               **spec_profile_keys(spec))
 
     s = socket.socket()
     s.bind(("127.0.0.1", 0))
