@@ -98,6 +98,9 @@ from outcome import MatrixError, OutcomeSpec, parse_outcome_spec
 from path import PathSpec, parse_path_spec
 from progress import ProgressSpec, parse_progress_spec
 
+from alkera_gateway.plugs import ProfileError
+from alkera_gateway.plugs import resolve as resolve_profile
+
 TASKS_DIR = Path(__file__).resolve().parent.parent
 
 # An arm's ROLE (DECISION_TEMPLATE.md §1): `control` - the repair is
@@ -281,6 +284,16 @@ class TaskSpec:
     # the grader's own all-checks bit, and the matrix's outcome table reads
     # the SAME checks for the headline.
     matrix: MatrixSpec | None = None
+
+    # The environment profile the task was authored for
+    # (gateway/src/alkera_gateway/plugs.py), "" when it names none - and then
+    # nothing about loading changes. `plugs` is the [environment.plugs]
+    # adjustment, slot -> plug names (an empty list removes the slot);
+    # `profile_planned` names the plugs the profile needs that are not built
+    # yet, which the gateway refuses to run.
+    profile: str = ""
+    plugs: dict = field(default_factory=dict)
+    profile_planned: list[str] = field(default_factory=list)
 
     def scores_pass(self, score: dict) -> bool:
         """Did this rollout solve the task? Criterion comes from the task."""
@@ -773,6 +786,50 @@ def prompt_variant_of(spec: "TaskSpec") -> str:
             f"{sorted(spec.prompt_variants)})")
 
 
+def _environment_profile(task_id: str, env: dict
+                         ) -> tuple[str, dict[str, list[str]], list[str]]:
+    """[environment].profile and .plugs, checked against .surfaces.
+
+    No profile -> ("", {}, []) and nothing is checked. Planned plugs resolve:
+    a task may be authored ahead of its tools; the gateway is what refuses
+    to run them.
+    """
+    name = env.get("profile")
+    raw_plugs = env.get("plugs")
+    if not name:
+        if raw_plugs:
+            raise TaskSpecError(
+                f"{task_id} [environment.plugs] adjusts a profile, but "
+                "[environment].profile is not set")
+        return "", {}, []
+    if not isinstance(name, str):
+        raise TaskSpecError(f"{task_id} [environment].profile must be a string")
+    if raw_plugs is None:
+        raw_plugs = {}
+    if not isinstance(raw_plugs, dict):
+        raise TaskSpecError(f"{task_id} [environment.plugs] must be a table")
+    plugs: dict[str, list[str]] = {}
+    for slot, value in raw_plugs.items():
+        if isinstance(value, str):
+            plugs[slot] = [value]
+        elif isinstance(value, list) and all(isinstance(v, str) for v in value):
+            plugs[slot] = list(value)
+        else:
+            raise TaskSpecError(
+                f"{task_id} [environment.plugs].{slot} must be a plug name or "
+                "a list of plug names")
+    try:
+        profile = resolve_profile(name, plugs, allow_planned=True)
+    except ProfileError as exc:
+        raise TaskSpecError(f"{task_id} [environment].profile: {exc}") from exc
+    missing = [s for s in env.get("surfaces", []) if s not in profile.surfaces]
+    if missing:
+        raise TaskSpecError(
+            f"{task_id} [environment].surfaces names {', '.join(missing)}, which "
+            f"profile {name!r} (with its plugs) does not provide")
+    return name, plugs, list(profile.planned)
+
+
 def load(task_id: str, tasks_dir: Path | None = None,
          variant: str | None = None) -> TaskSpec:
     root = (tasks_dir or TASKS_DIR) / task_id
@@ -820,6 +877,8 @@ def load(task_id: str, tasks_dir: Path | None = None,
     dead_by_design = _dead_by_design(task_id, harness)
     _check_surface_declarations(task_id, probes, required_surfaces, dead_by_design)
 
+    profile, plugs, profile_planned = _environment_profile(task_id, env)
+
     prompt_variants = {name: str(v["sha256"])
                        for name, v in declared_prompts.items()
                        if isinstance(v, dict) and v.get("sha256")}
@@ -863,4 +922,7 @@ def load(task_id: str, tasks_dir: Path | None = None,
                                      f"{task_id} [harness]"))),
         matrix=_matrix_spec(task_id, root, raw.get("matrix"), arm.matrix,
                             raw=raw, arm_role=arm.role),
+        profile=profile,
+        plugs=plugs,
+        profile_planned=profile_planned,
     )
