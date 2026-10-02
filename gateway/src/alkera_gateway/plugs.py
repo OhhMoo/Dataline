@@ -213,7 +213,7 @@ def readiness() -> list[dict]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="python -m alkera_gateway.plugs")
+    parser = argparse.ArgumentParser(prog="alkera-gateway plugs")
     sub = parser.add_subparsers(dest="cmd", required=True)
     sub.add_parser("matrix", help="every role/stack profile and whether it can run today")
     show = sub.add_parser("show", help="what one profile plugs in")

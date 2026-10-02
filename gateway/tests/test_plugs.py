@@ -128,3 +128,10 @@ def test_main_matrix_and_show(capsys):
     assert "metabase" in capsys.readouterr().out
     assert main(["show", "ds/laptop"]) == 2
     assert "jupyter" in capsys.readouterr().err
+
+
+def test_gateway_cli_delegates_plugs(capsys):
+    from alkera_gateway.cli import main as cli_main
+
+    assert cli_main(["plugs", "matrix"]) == 0
+    assert "de/laptop" in capsys.readouterr().out
