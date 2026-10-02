@@ -7,7 +7,8 @@ single asyncio loop - prints which services loaded and which did not, and keeps
 the network-destination audit the harness reads in native mode. One extra
 socket, `native-services.internal:8099`, answers an aggregate `/health` that
 lists the whole set, so "what is this process serving" is one request rather
-than nine.
+than nine. `--profile` (with `--plug`) narrows the set to one environment
+profile's services and drops the scheduler plane when it plugs no `ops_sched`.
 
 Ports, not host-header routing
 ------------------------------
@@ -67,7 +68,7 @@ import socket
 import sys
 import threading
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -76,6 +77,7 @@ from typing import Any
 import uvicorn
 from uvicorn.protocols.http.h11_impl import H11Protocol
 
+from ..plugs import ProfileError, parse_plug_args, resolve
 from . import services
 
 #: The port each registry service listens on when its own module does not say.
@@ -646,6 +648,34 @@ def parse_stub(value: str) -> tuple[str, int]:
     return name, STUB_PORTS[name]
 
 
+def _profile(profile: str | None, plug_args: Sequence[str]):
+    if profile is None:
+        if plug_args:
+            raise ProfileError("--plug requires --profile")
+        return None
+    return resolve(profile, parse_plug_args(plug_args))
+
+
+def selected_services(profile: str | None,
+                      plug_args: Sequence[str]) -> tuple[str, ...] | None:
+    """The profile's native services, or None (every service) with no profile."""
+    resolved = _profile(profile, plug_args)
+    return None if resolved is None else resolved.services
+
+
+def sched_enabled(profile: str | None, plug_args: Sequence[str]) -> bool:
+    """True with no profile, or when the profile's orchestrator plugs ops_sched."""
+    resolved = _profile(profile, plug_args)
+    return resolved is None or "ops_sched" in resolved.slots.get("orchestrator", ())
+
+
+def object_store_enabled(profile: str | None, plug_args: Sequence[str]) -> bool:
+    """True with no profile, or when the profile plugs the object_store slot.
+    Gates the object store's audit receiver: no store, nothing to receive."""
+    resolved = _profile(profile, plug_args)
+    return resolved is None or "object_store" in resolved.slots
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="alkera_gateway.native.serve")
     parser.add_argument("--audit", type=Path, required=True,
@@ -695,7 +725,25 @@ def main(argv: list[str] | None = None) -> int:
                              "serve none")
     parser.add_argument("--print-only", action="store_true",
                         help="print the startup table and exit; no socket is opened")
+    parser.add_argument("--profile", default=None, metavar="ROLE/STACK",
+                        help="serve only this environment profile's services "
+                             "(alkera_gateway.plugs); the scheduler plane is "
+                             "off unless it plugs ops_sched. Default: everything.")
+    parser.add_argument("--plug", action="append", default=[],
+                        metavar="SLOT=PLUG[,PLUG]",
+                        help="override one slot of --profile; SLOT= removes it. "
+                             "Repeatable; needs --profile.")
     args = parser.parse_args(argv)
+
+    # Resolve before touching the world or the audit directory: a profile
+    # that cannot be served stops here with nothing written.
+    try:
+        names = selected_services(args.profile, args.plug)
+        with_sched = sched_enabled(args.profile, args.plug)
+        with_store = object_store_enabled(args.profile, args.plug)
+    except ProfileError as exc:
+        print(exc, file=sys.stderr, flush=True)
+        return 2
 
     # The services read the world and write the action log through
     # `native.audit.record`, which takes both from the environment. Set here
@@ -711,11 +759,11 @@ def main(argv: list[str] | None = None) -> int:
                                encoding="utf-8", newline="")
     environment = service_environment(args.audit, args.world, config_path)
 
-    loaded, missing = services.load()
+    loaded, missing = services.load(names)
     mounted = mount(loaded, dict(args.stub), args.port_offset)
     aggregate_port = args.aggregate_port + args.port_offset
     audit_port = (args.minio_audit_port + args.port_offset
-                  if args.minio_audit_port else 0)
+                  if args.minio_audit_port and with_store else 0)
     if audit_port:
         if any(item.port == audit_port for item in mounted):
             print(f"--minio-audit-port {audit_port} is a service port",
@@ -726,7 +774,8 @@ def main(argv: list[str] | None = None) -> int:
             mounted.append(receiver)
         else:
             missing = {**missing, MINIO_AUDIT_NAME: why}
-    sched_port = args.sched_port + args.port_offset if args.sched_port else 0
+    sched_port = (args.sched_port + args.port_offset
+                  if args.sched_port and with_sched else 0)
     if sched_port:
         if any(item.port == sched_port for item in mounted):
             print(f"--sched-port {sched_port} is a service port",
