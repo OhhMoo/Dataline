@@ -13,6 +13,16 @@ S3 half of the acceptance script reported green for weeks without ever passing.
 `ok` for a binary means all three of: it resolved on PATH, it ran, and it said
 something. A binary that resolves but cannot execute (a broken venv shim, a missing
 shared library) is a defect this would otherwise miss.
+
+Role-aware. The image's toolbelt role (de/ds/da) is read from `ALKERA_TOOLBELT`, then
+`/opt/toolbelt/ROLE`; an image built before roles has neither and is a de image.
+ds and da install their libraries into the SYSTEM interpreter (/usr/local/bin/python:
+the agent's `python` and the Jupyter kernel's), so that is where they are imported -
+together with `alkera_gateway.native.notebook`, the kernel's audit extension. Every
+package another role has and this one does not is checked ABSENT - not off PATH,
+absent: not importable in either interpreter, no script in /opt/toolbelt/bin or
+/usr/local/bin. A PATH mask would pass a `which` check and fail this one, which is
+the point.
 """
 
 from __future__ import annotations
@@ -82,6 +92,95 @@ PROBES: tuple[tuple[str, tuple[str, ...], tuple[int, ...]], ...] = (
     ("dbt", ("dbt", "--version"), (0,)),
     ("alkera-gateway", ("alkera-gateway", "--help"), (0,)),
 )
+
+# Per role, on top of PROBES. ds/da libraries are in the system interpreter (the
+# Dockerfile's ALKERA_TOOLBELT step), which is also the kernelspec's argv[0].
+ROLE_PYTHON = "/usr/local/bin/python"
+TOOLBELT_PYTHON = "/opt/toolbelt/bin/python"
+KERNEL_NAME = "alkera-python"
+_NOTEBOOK = ("pandas", "pyarrow", "matplotlib", "ipykernel", "jupyter_client",
+             "jupyter_server", "nbclient", "nbformat", "alkera_gateway.native.notebook")
+ROLE_IMPORTS: dict[str, tuple[str, ...]] = {
+    "de": (),
+    "da": _NOTEBOOK,
+    "ds": (*_NOTEBOOK, "polars", "sklearn"),
+}
+# Console scripts each role's lock installs into /usr/local/bin. `jupyter` is
+# jupyter_core's dispatcher: `jupyter server` and `jupyter kernelspec` resolve to the
+# jupyter-server / jupyter-kernelspec scripts beside it.
+ROLE_BINARIES: dict[str, tuple[str, ...]] = {
+    "de": (),
+    "da": ("jupyter", "jupyter-server", "jupyter-kernelspec", "jupyter-execute", "ipython"),
+    "ds": ("jupyter", "jupyter-server", "jupyter-kernelspec", "jupyter-execute", "ipython"),
+}
+
+
+def _role_probes(imports: tuple[str, ...]):
+    return (
+        (ROLE_PYTHON, (ROLE_PYTHON, "-c",
+                       f"import {', '.join(imports)}; print(pandas.__version__)"), (0,)),
+        ("jupyter", ("jupyter", "kernelspec", "list"), (0,)),
+        ("jupyter", ("jupyter", "server", "--version"), (0,)),
+        ("jupyter-execute", ("jupyter-execute", "--version"), (0,)),
+        ("ipython", ("ipython", "--version"), (0,)),
+    )
+
+
+ROLE_PROBES: dict[str, tuple[tuple[str, tuple[str, ...], tuple[int, ...]], ...]] = {
+    "de": (),
+    "da": _role_probes(ROLE_IMPORTS["da"]),
+    "ds": _role_probes(ROLE_IMPORTS["ds"]),
+}
+ROLES = tuple(ROLE_IMPORTS)
+
+
+def role_imports(role: str) -> tuple[str, ...]:
+    return ROLE_IMPORTS[role]
+
+
+def forbidden_imports(role: str) -> tuple[str, ...]:
+    """Everything any other role imports that this one must not have installed."""
+    every = {m for mods in ROLE_IMPORTS.values() for m in mods}
+    return tuple(sorted(every - set(ROLE_IMPORTS[role])))
+
+
+def role_probes(role: str):
+    return ROLE_PROBES[role]
+
+
+def forbidden_binaries(role: str) -> tuple[str, ...]:
+    every = {b for bins in ROLE_BINARIES.values() for b in bins}
+    return tuple(sorted(every - set(ROLE_BINARIES[role])))
+
+
+def kernelspecs() -> dict:
+    """`jupyter kernelspec list --json`, or the reason it could not be read."""
+    try:
+        done = subprocess.run(["jupyter", "kernelspec", "list", "--json"],
+                              capture_output=True, text=True, timeout=120, errors="replace")
+        return {"names": sorted(json.loads(done.stdout)["kernelspecs"]), "reason": None}
+    except Exception as exc:  # noqa: BLE001 - the reason is the finding
+        return {"names": [], "reason": f"{type(exc).__name__}: {exc}"[:200]}
+
+
+def toolbelt_role() -> str:
+    role = os.environ.get("ALKERA_TOOLBELT", "").strip()
+    if not role and os.path.isfile("/opt/toolbelt/ROLE"):
+        role = open("/opt/toolbelt/ROLE").read().strip()
+    return role or "de"
+
+
+def importable(interpreter: str, module: str) -> dict:
+    """Import, not find_spec: a module that is present and broken is still present
+    for the absence check, and still a failure for the presence check."""
+    if not os.path.exists(interpreter):
+        return {"interpreter": interpreter, "ok": False, "reason": "no such interpreter"}
+    done = subprocess.run([interpreter, "-c", f"import {module}"],
+                          capture_output=True, text=True, timeout=120, errors="replace")
+    err = (done.stderr or "").strip().splitlines()
+    return {"interpreter": interpreter, "ok": done.returncode == 0,
+            "reason": None if done.returncode == 0 else (err[-1] if err else "")[:200]}
+
 
 # The gateway's interpreter must stay the first `python` on PATH. /opt/toolbelt has
 # its own, and a venv that shadowed this would break every tool in the image.
@@ -153,8 +252,28 @@ def duckdb_extensions(names) -> dict:
 
 
 def main() -> int:
-    binaries = [probe(*spec) for spec in PROBES]
+    role = toolbelt_role()
+    if role not in ROLES:
+        print(json.dumps({"passed": False, "toolbelt_role": role,
+                          "reason": f"unknown toolbelt role {role!r}"}))
+        return 1
+    binaries = [probe(*spec) for spec in (*PROBES, *role_probes(role))]
+    imports = {m: importable(ROLE_PYTHON, m) for m in role_imports(role)}
+    # Absent from BOTH interpreters, and no script left behind on disk.
+    forbidden_present = sorted(
+        {f"import {m} ({py})" for m in forbidden_imports(role)
+         for py in (ROLE_PYTHON, TOOLBELT_PYTHON) if importable(py, m)["ok"]}
+        | {f"binary {path}" for b in forbidden_binaries(role)
+           for path in (shutil.which(b), f"/opt/toolbelt/bin/{b}", f"/usr/local/bin/{b}")
+           if path and os.path.exists(path)}
+    )
     report = {
+        "toolbelt_role": role,
+        "role_imports": imports,
+        "role_imports_failed": sorted(m for m, r in imports.items() if not r["ok"]),
+        "role_forbidden_present": forbidden_present,
+        # ds/da: the Jupyter plug's audited kernel must be the one installed.
+        "kernelspecs": kernelspecs() if role_imports(role) else None,
         "source_revision": os.environ.get("ALKERA_SOURCE_REV") or None,
         "platform": platform.platform(),
         "os_release": {
@@ -191,6 +310,9 @@ def main() -> int:
     report["duckdb_extensions"] = duckdb_extensions(("postgres",))
     report["passed"] = (
         not report["binaries_failed"]
+        and not report["role_imports_failed"]
+        and not report["role_forbidden_present"]
+        and (not role_imports(role) or KERNEL_NAME in report["kernelspecs"]["names"])
         and report["python_not_shadowed"]
         and report["tool_count"] > 0
         and all(row["loaded"] for row in report["duckdb_extensions"].values())

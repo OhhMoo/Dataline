@@ -4,6 +4,9 @@
 # Base pinned by digest, not by tag. `python:3.11-slim` moves; a rollout whose image
 # was built from a different `3.11-slim` is a different measurement wearing the same
 # name. Resolve a new digest with `docker buildx imagetools inspect python:3.11-slim`.
+# The digest is a multi-arch OCI index (linux/amd64 and linux/arm64/v8 among eight),
+# checked against registry-1.docker.io on 2026-10-02, so `--platform linux/arm64`
+# resolves the same pin to its arm64 manifest. See TOOLBELT.md, Determinism.
 FROM python@sha256:9534e5a8e315485d4061ed659af0fd78a284c015f9b73661b41d6bab25604534
 
 # The revision this image was built from, stamped so the running container can be
@@ -79,10 +82,25 @@ RUN set -eux; \
 # boto3, and one resolver deciding that argument for both is how a toolbelt addition
 # silently changes what `s3_put` does. /opt/toolbelt/bin is APPENDED to PATH so the
 # venv's `python` can never shadow /usr/local/bin/python.
-COPY gateway/docker/toolbelt.lock /opt/toolbelt.lock
-RUN python -m venv /opt/toolbelt \
-    && /opt/toolbelt/bin/pip install --no-cache-dir --retries 5 --timeout 120 --require-hashes -r /opt/toolbelt.lock \
-    && find /opt/toolbelt -name '__pycache__' -prune -exec rm -rf {} +
+#
+# Same venv for every role, one lock per arch (toolbelt.lock / toolbelt.arm64.lock;
+# the two pin identical versions and differ only in their header). The arch is read
+# from dpkg inside the image, not from TARGETARCH: the legacy builder never sets
+# TARGETARCH, and the image's own architecture is the fact the wheels must match.
+# Role LIBRARIES (pandas, ...) are not here - see ALKERA_TOOLBELT below.
+COPY gateway/docker/toolbelt.lock gateway/docker/toolbelt.arm64.lock /opt/toolbelt-locks/
+RUN set -eu; \
+    arch="$(dpkg --print-architecture)"; \
+    case "$arch" in \
+      amd64) lock=toolbelt.lock ;; \
+      arm64) lock=toolbelt.arm64.lock ;; \
+      *) echo "no toolbelt lock for architecture $arch" >&2; exit 1 ;; \
+    esac; \
+    mv "/opt/toolbelt-locks/$lock" /opt/toolbelt.lock; \
+    rm -rf /opt/toolbelt-locks; \
+    python -m venv /opt/toolbelt; \
+    /opt/toolbelt/bin/pip install --no-cache-dir --retries 5 --timeout 120 --require-hashes -r /opt/toolbelt.lock; \
+    find /opt/toolbelt -name '__pycache__' -prune -exec rm -rf {} +
 ENV PATH=$PATH:/opt/toolbelt/bin
 
 # A data engineer's box has ~/.aws filled in; an `aws` that answers NoCredentialsError
@@ -117,6 +135,63 @@ RUN pip install --no-cache-dir --retries 5 --timeout 120 --require-hashes -r /op
 #     --format requirements-txt --output-file requirements-native.lock
 COPY gateway/requirements-native.lock /opt/gateway/requirements-native.lock
 RUN pip install --no-cache-dir --retries 5 --timeout 120 --require-hashes -r /opt/gateway/requirements-native.lock
+# --- the role ---------------------------------------------------------------------
+# Environment profiles are <role>/<stack>, roles de/ds/da (alkera_gateway.plugs).
+# A tool a role does not get is NOT INSTALLED - never installed and masked off PATH,
+# which `pip list` sees through in one command. de (the default) adds nothing, so
+# the default image is the pre-roles image.
+#
+# ds and da install their libraries into THIS interpreter, not /opt/toolbelt: they
+# are what the agent's own `python` imports, and what the Jupyter plug's kernel
+# (docker/jupyter/kernels/alkera-python, argv /usr/local/bin/python) imports next to
+# alkera_gateway.native.notebook. The reason awscli lives in a venv - one resolver
+# arguing botocore for two masters - does not apply: both locks are exports of the
+# one gateway/uv.lock, which resolved the notebook and ds extras together with the
+# gateway's own pins, so every package they share with the locks above has the same
+# version and pip reports it already satisfied.
+#   ds  requirements-ds.lock  notebook + ds extras: pandas, pyarrow, polars,
+#                             scikit-learn, matplotlib, ipykernel, jupyter-server, ...
+#   da  requirements-da.lock  the same export with polars and scikit-learn pruned
+#                             (and scipy, joblib, ... that only they needed)
+# Refresh (gateway/):
+#   uv export --locked --extra notebook --extra ds --no-dev --no-emit-project \
+#     --format requirements-txt --output-file requirements-ds.lock
+#   uv export --locked --extra notebook --extra ds --prune polars --prune scikit-learn \
+#     --no-dev --no-emit-project --format requirements-txt --output-file requirements-da.lock
+ARG ALKERA_TOOLBELT=de
+COPY gateway/requirements-ds.lock /opt/gateway/requirements-ds.lock
+COPY gateway/requirements-da.lock /opt/gateway/requirements-da.lock
+RUN set -eu; \
+    case "$ALKERA_TOOLBELT" in \
+      de) echo "toolbelt role de: no libraries beyond the gateway's" ;; \
+      ds|da) pip install --no-cache-dir --retries 5 --timeout 120 --require-hashes \
+               -r "/opt/gateway/requirements-$ALKERA_TOOLBELT.lock" ;; \
+      *) echo "ALKERA_TOOLBELT must be de, ds or da, not '$ALKERA_TOOLBELT'" >&2; exit 1 ;; \
+    esac; \
+    for r in ds da; do [ "$r" = "$ALKERA_TOOLBELT" ] || rm -f "/opt/gateway/requirements-$r.lock"; done; \
+    printf '%s\n' "$ALKERA_TOOLBELT" > /opt/toolbelt/ROLE
+LABEL org.alkera.toolbelt=$ALKERA_TOOLBELT
+ENV ALKERA_TOOLBELT=$ALKERA_TOOLBELT
+# Warehouse clients beyond DuckDB/Postgres, opt-in per image, installed AFTER the
+# role so nothing later can undo their one divergence. Empty (the default)
+# installs nothing, so the default image's gateway environment is exactly the
+# locks above. Containing "snowflake" adds requirements-snowflake.lock
+# (snowflake-connector-python and dbt-snowflake). That lock is compiled by
+# docker/lock_snowflake_clients.py, NOT exported from uv.lock: dbt-snowflake caps
+# certifi below 2025.4.26, and resolving it with the gateway would hold back every
+# image's CA bundle. It is constrained to requirements.lock, -native and -ds, so
+# every package it shares with them is the same version and pip reports it
+# satisfied - except certifi, which a snowflake-client image (and only that image)
+# takes at the capped version (docker/snowflake-clients.overrides).
+#   gateway/.venv/bin/python gateway/docker/lock_snowflake_clients.py
+ARG ALKERA_WAREHOUSE_CLIENTS=""
+COPY gateway/requirements-snowflake.lock /opt/gateway/requirements-snowflake.lock
+RUN case ",$ALKERA_WAREHOUSE_CLIENTS," in \
+      *snowflake*) pip install --no-cache-dir --retries 5 --timeout 120 --require-hashes -r /opt/gateway/requirements-snowflake.lock ;; \
+      *) echo "warehouse clients: none beyond requirements.lock" ;; \
+    esac
+LABEL org.alkera.warehouse_clients=$ALKERA_WAREHOUSE_CLIENTS
+ENV ALKERA_WAREHOUSE_CLIENTS=$ALKERA_WAREHOUSE_CLIENTS
 COPY gateway/pyproject.toml /opt/gateway/
 COPY gateway/src /opt/gateway/src
 RUN pip install --no-cache-dir --retries 5 --timeout 120 --no-deps /opt/gateway
@@ -137,6 +212,16 @@ COPY world/seed.example.yaml /opt/world/seed.yaml
 COPY world/requirements.lock /opt/world/requirements.lock
 COPY world/docker/egress_test.py /opt/stack/egress_test.py
 COPY gateway/docker /opt/stack
+# ds/da: the Jupyter plug's audited kernelspec, installed system-wide so
+# `jupyter kernelspec list` names it in the image as built, and checked byte-equal
+# to the checked-in copy that docker/jupyter/launch.py (run from /opt/stack/jupyter
+# by the plug's own container) serves. /opt/stack is stripped from the EPISODE
+# container only (tasks/harness/container_episode.py STRIP_PATHS, exec'd into that
+# one container), so the jupyter container keeps its launcher.
+RUN case "$ALKERA_TOOLBELT" in \
+      ds|da) python -c "from alkera_gateway.native.notebook import install_kernelspec; install_kernelspec('/usr/local/share/jupyter', interpreter='/usr/local/bin/python')" \
+             && cmp /usr/local/share/jupyter/kernels/alkera-python/kernel.json /opt/stack/jupyter/kernels/alkera-python/kernel.json ;; \
+    esac
 COPY gateway/tests /opt/gateway/tests
 # Local Snowflake trust store. Seeded with certifi so REQUESTS_CA_BUNDLE always names a
 # valid bundle even when the snowflake profile is off; when it is on, that service

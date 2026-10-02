@@ -8,6 +8,16 @@ the revision it was built from is stamped into the image instead of remembered.
     python gateway/docker/build_episode.py                 # HEAD, + pending docker/ files
     python gateway/docker/build_episode.py --no-overlay    # HEAD exactly
     python gateway/docker/build_episode.py --rev <sha> --tag alkera-episode:<sha>
+    python gateway/docker/build_episode.py --toolbelt ds   # -> alkera-episode:head-ds
+    python gateway/docker/build_episode.py --toolbelt da --warehouse-clients snowflake
+                                                            # -> alkera-episode:head-da-snowflake
+
+`--toolbelt` picks the role's lock (TOOLBELT.md, "Roles"): a tool a role does not get
+is not installed in its image. `--warehouse-clients snowflake` adds
+requirements-snowflake.lock to the gateway environment. Both become build-args, both
+suffix the tag (de with no clients keeps the bare tag, so `alkera-episode:head` is
+still the image every existing test and compose file means), and both are recorded
+in evidence/image.json next to what the probe found installed.
 
 `--overlay` (the default) copies the working tree's `gateway/docker/**` over the
 checked-out revision, because the Dockerfile is the one file this build cannot take
@@ -38,6 +48,8 @@ HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 CHECK = HERE / "toolbelt_check.py"
 DEFAULT_TAG = "alkera-episode:head"
+TOOLBELTS = ("de", "ds", "da")
+WAREHOUSE_CLIENTS = ("snowflake",)
 OVERLAY_DIR = "gateway/docker"
 
 
@@ -55,6 +67,29 @@ def run(argv, **kw):
 
 def git(*args):
     return run(["git", "-C", str(REPO), *args]).strip()
+
+
+def clients(value: str) -> list[str]:
+    """`"snowflake"` / `"snowflake,"` / `""` -> a sorted, validated list."""
+    names = sorted({c.strip() for c in value.split(",") if c.strip()})
+    unknown = [c for c in names if c not in WAREHOUSE_CLIENTS]
+    if unknown:
+        raise SystemExit(f"unknown warehouse client(s) {unknown}; known: {WAREHOUSE_CLIENTS}")
+    return names
+
+
+def image_tag(base: str, toolbelt: str, warehouse_clients: str) -> str:
+    """The bare tag is the de image with no extra clients; anything else says so."""
+    suffix = [] if toolbelt == "de" else [toolbelt]
+    suffix += clients(warehouse_clients)
+    return "-".join([base, *suffix])
+
+
+def build_args(toolbelt: str, warehouse_clients: str) -> list[str]:
+    return [
+        "--build-arg", f"ALKERA_TOOLBELT={toolbelt}",
+        "--build-arg", f"ALKERA_WAREHOUSE_CLIENTS={','.join(clients(warehouse_clients))}",
+    ]
 
 
 def overlay_files() -> list[Path]:
@@ -94,7 +129,14 @@ def measure(tag: str) -> dict:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--tag", default=DEFAULT_TAG)
+    parser.add_argument(
+        "--tag", default=None,
+        help=f"default: {DEFAULT_TAG}, suffixed with the role (unless de) and any clients",
+    )
+    parser.add_argument("--toolbelt", choices=TOOLBELTS, default="de",
+                        help="the role whose toolbelt lock the image installs")
+    parser.add_argument("--warehouse-clients", default="",
+                        help=f"comma-separated, from {WAREHOUSE_CLIENTS}; default none")
     parser.add_argument("--rev", default="HEAD")
     parser.add_argument(
         "--no-overlay",
@@ -105,6 +147,8 @@ def main() -> int:
     parser.add_argument("--out", type=Path, default=HERE / "evidence" / "image.json")
     parser.add_argument("--skip-build", action="store_true", help="measure an existing tag")
     args = parser.parse_args()
+    if args.tag is None:
+        args.tag = image_tag(DEFAULT_TAG, args.toolbelt, args.warehouse_clients)
 
     rev = git("rev-parse", args.rev)
     files = overlay_files() if args.overlay else []
@@ -126,6 +170,7 @@ def main() -> int:
                         "docker", "build",
                         "--build-arg", f"ALKERA_SOURCE_REV={rev}",
                         "--build-arg", f"ALKERA_SOURCE_OVERLAY={stamp}",
+                        *build_args(args.toolbelt, args.warehouse_clients),
                         "-t", args.tag,
                         "-f", str(tree / "gateway" / "docker" / "Dockerfile"),
                         str(tree),
@@ -137,13 +182,26 @@ def main() -> int:
 
     spec = json.loads(run(["docker", "image", "inspect", args.tag]))[0]
     probe = measure(args.tag)
+    labels = spec["Config"].get("Labels") or {}
     evidence = {
         "generated": datetime.now(UTC).isoformat(timespec="seconds"),
         "tag": args.tag,
         "image_id": spec["Id"],
         "repo_digests": spec.get("RepoDigests") or [],
         "size_bytes": spec.get("Size"),
-        "labels": spec["Config"].get("Labels") or {},
+        "labels": labels,
+        "architecture": spec.get("Architecture"),
+        # What was asked for, and what the image says it is. The probe's own
+        # role_* fields are the third witness: what is actually importable.
+        "toolbelt": {
+            "requested": args.toolbelt,
+            "label": labels.get("org.alkera.toolbelt"),
+            "probe": probe.get("toolbelt_role"),
+        },
+        "warehouse_clients": {
+            "requested": clients(args.warehouse_clients),
+            "label": labels.get("org.alkera.warehouse_clients"),
+        },
         "source_revision": rev,
         "head_revision": git("rev-parse", "HEAD"),
         "overlay": {
@@ -152,6 +210,12 @@ def main() -> int:
         },
         "measured_inside_container": probe,
     }
+    # An image labelled for another role (or for none: built before roles) is not
+    # the image that was asked for, however green its probe is.
+    evidence["toolbelt"]["matches"] = (
+        evidence["toolbelt"]["label"] == args.toolbelt == evidence["toolbelt"]["probe"]
+    )
+    passed = probe["passed"] and evidence["toolbelt"]["matches"]
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(evidence, indent=2, sort_keys=True), encoding="utf-8")
     print(
@@ -167,12 +231,17 @@ def main() -> int:
                 "binaries_ok": len(probe["binaries_ok"]),
                 "binaries_failed": [r["binary"] for r in probe["binaries_failed"]],
                 "python_not_shadowed": probe["python_not_shadowed"],
-                "passed": probe["passed"],
+                "toolbelt": args.toolbelt,
+                "warehouse_clients": clients(args.warehouse_clients),
+                "architecture": spec.get("Architecture"),
+                "role_forbidden_present": probe.get("role_forbidden_present"),
+                "toolbelt_matches": evidence["toolbelt"]["matches"],
+                "passed": passed,
             },
             indent=2,
         )
     )
-    return 0 if probe["passed"] else 1
+    return 0 if passed else 1
 
 
 if __name__ == "__main__":
