@@ -13,6 +13,7 @@ src/alkera_gateway/
   records.py audit.py               the 9.2.2 row (sealable Observation), the log writer
   sql.py files.py storage.py workflow.py observability.py bi.py ingest.py scheduling.py
   warehouse_spec.py warehouses.py   DuckDB / Postgres / fakesnow registry (dual warehouse)
+  plugs.py                          environment profiles: slots, plugs, role/stack, include/exclude
   server.py cli.py replay.py signals.py
   native/                           NATIVE MODE
     audit.py context.py             the one row writer; the shared run-and-record span
@@ -64,7 +65,9 @@ alkera-gateway signals /audit --experimental
 alkera-gateway replay /previous-audit --config /etc/alkera/replay.json
 ```
 
-`warehouse_backend` selects DuckDB (default), Postgres, or the experimental Snowflake
+`profile` (with optional `plugs`) serves one environment profile's tools only
+(`docs/environments/TOOL_INVENTORY.md` §4; `alkera-gateway plugs matrix`); unset,
+every tool is served. `warehouse_backend` selects DuckDB (default), Postgres, or the experimental Snowflake
 route; `sql_*` names do not change. Additional warehouses are declared under `warehouses`
 (`SURFACES.md#dual-warehouse`).
 
