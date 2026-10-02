@@ -1,0 +1,5 @@
+# What the Snowflake plug's tests layer over the project venv, without entering
+# uv.lock (see pyproject's `snowflake` extra):
+#   uv run --with-requirements docker/snowflake-dev.in pytest tests/test_snowflake_plug.py
+-r snowflake-clients.in
+fakesnow[server]==0.11.18

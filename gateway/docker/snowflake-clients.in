@@ -1,0 +1,10 @@
+# The Snowflake plug's client side, for episode images built with
+# `--warehouse-clients snowflake` (Dockerfile ALKERA_WAREHOUSE_CLIENTS).
+# Compiled here, NOT in pyproject/uv.lock: dbt-snowflake caps certifi below
+# 2025.4.26, and resolving it with the gateway would hold back every image's
+# CA bundle. Constrained to the base, native and ds locks, so every package it
+# shares with them is the same version; certifi is the one deliberate
+# exception (snowflake-clients.overrides). Regenerate with the command in
+# requirements-snowflake.lock's header.
+snowflake-connector-python>=3,<5
+dbt-snowflake>=1.9,<2
