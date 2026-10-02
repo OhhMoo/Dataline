@@ -41,7 +41,7 @@ def test_excluded_tool_is_unknown_to_the_gateway(world, tmp_path):
 
 
 def test_planned_plug_is_rejected(world, tmp_path):
-    with pytest.raises(ValidationError, match="jupyter"):
+    with pytest.raises(ValidationError, match="ml_workers"):
         config(world, tmp_path / "a", profile="ds/laptop")
 
 

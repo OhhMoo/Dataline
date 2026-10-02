@@ -55,9 +55,8 @@ def test_de_laptop_is_todays_surface():
     assert p.planned == ()
 
 
-def test_da_laptop_refuses_planned_notebook_until_excluded():
-    with pytest.raises(ProfileError, match="jupyter"):
-        resolve("da/laptop")
+def test_da_laptop_with_and_without_its_notebook():
+    assert resolve("da/laptop").slots["notebook"] == ("jupyter",)
     p = resolve("da/laptop", {"notebook": []})
     assert "notebook" not in p.slots
     assert {"sched_list", "deploy_run", "ingest_list", "metrics_list",
@@ -69,7 +68,7 @@ def test_da_laptop_refuses_planned_notebook_until_excluded():
 def test_planned_refusal_names_every_planned_plug():
     with pytest.raises(ProfileError) as e:
         resolve("ds/databricks")
-    for name in ("jupyter", "ml_workers", "mlflow", "databricks"):
+    for name in ("ml_workers", "mlflow", "databricks"):
         assert name in str(e.value)
 
 
@@ -118,6 +117,7 @@ def test_readiness_matrix_covers_every_role_and_stack():
     assert rows["de/postgres"]["status"] == "runnable"
     assert rows["de/snowflake"]["status"] == "planned"
     assert rows["de/snowflake"]["planned"] == ["sigma"]
+    assert rows["da/laptop"]["status"] == "runnable"     # jupyter is partial, not planned
 
 
 def test_main_matrix_and_show(capsys):
@@ -127,7 +127,7 @@ def test_main_matrix_and_show(capsys):
     assert main(["show", "da/laptop", "--plug", "notebook="]) == 0
     assert "metabase" in capsys.readouterr().out
     assert main(["show", "ds/laptop"]) == 2
-    assert "jupyter" in capsys.readouterr().err
+    assert "ml_workers" in capsys.readouterr().err
 
 
 def test_gateway_cli_delegates_plugs(capsys):

@@ -67,18 +67,26 @@ class Plug:
 _CATALOG = (
     Plug("workspace", "files", "shipped", surfaces=("git", "docs"),
          note="the world's git repo, landing files and docs"),
-    Plug("jupyter", "notebook", "planned", surfaces=("notebook",)),
+    Plug("jupyter", "notebook", "partial", surfaces=("notebook",),
+         note="audited kernel (native/notebook.py) + jupyter-server launcher; "
+              "compose service gated behind the `notebook` profile; not yet run "
+              "in a container"),
     Plug("ml_workers", "compute", "planned", surfaces=("compute",)),
     Plug("mlflow", "compute", "planned", surfaces=("mlflow",)),
     Plug("duckdb", "warehouse", "shipped",
          surfaces=("duckdb", "duckdb_legacy", "streaming"),
          note="GT002's `streaming` surface is tables in the DuckDB file"),
     Plug("postgres", "warehouse", "partial", surfaces=("postgres",),
-         note="real backend; no dbt-postgres in the locks, no task uses it"),
+         note="real backend; dbt-postgres in requirements.lock; no task uses it "
+              "and no Postgres server on the dev host to test dbt against"),
     Plug("snowflake", "warehouse", "partial", surfaces=("snowflake",),
-         note="fakesnow behind a TLS proxy; no connector or dbt-snowflake in the image"),
+         note="fakesnow 0.11.18 behind a TLS proxy; sql_* and dbt-snowflake verified "
+              "against it in-process; clients only in images built with "
+              "--warehouse-clients snowflake; TLS route untested; no task uses it"),
     Plug("redshift", "warehouse", "planned", surfaces=("redshift",)),
-    Plug("bigquery", "warehouse", "planned", surfaces=("bigquery",)),
+    Plug("bigquery", "warehouse", "partial", surfaces=("bigquery",),
+         note="goccy emulator v0.8.1 (bigquery.py); cost not modelled, no "
+              "transactions, no dbt-bigquery; not yet run in a container"),
     Plug("databricks", "warehouse", "planned", surfaces=("databricks",)),
     Plug("dbt", "transform", "shipped", surfaces=("dbt",)),
     Plug("ops_sched", "orchestrator", "shipped",
