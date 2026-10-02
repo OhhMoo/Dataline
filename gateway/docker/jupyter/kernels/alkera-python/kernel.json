@@ -1,0 +1,17 @@
+{
+ "argv": [
+  "/usr/local/bin/python",
+  "-m",
+  "ipykernel_launcher",
+  "-f",
+  "{connection_file}",
+  "--IPKernelApp.extra_extensions=alkera_gateway.native.notebook",
+  "--IPKernelApp.reraise_ipython_extension_failures=True"
+ ],
+ "display_name": "Python 3 (alkera)",
+ "interrupt_mode": "signal",
+ "language": "python",
+ "metadata": {
+  "debugger": false
+ }
+}
