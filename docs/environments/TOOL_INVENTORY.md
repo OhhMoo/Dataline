@@ -323,7 +323,7 @@ has been built on arm64 yet. Known blockers:
 | Airflow | full deployment "Reject" (R004 orchestration:549); prototype archived | on the list | in, orchestrator plug; ops_sched default (Decision 3) |
 | MinIO | licence-rejected (B1) | still in `compose.native.yml` | replace with s3mock (Decision 4) |
 | Redpanda | BSL landmine (A5:122), yet recommended in R004 streaming:21 | n/a | Apache Kafka if a live broker is ever needed |
-| Harbor | "ADOPT" as harness and format (S300) | tasks run on our own harness, `score.json` instead of `reward.json`, no per-task `environment/` | add a Harbor export: per-profile `environment/Dockerfile` + `docker-compose.yaml`, `tests/test.sh` wrapping `grade.py`, `reward.json` from `reward.py`'s scalar |
+| Harbor | "ADOPT" as harness and format (S300) | built 2026-10-03 (`harbor/`): every arm (28) exports as a Harbor task + `dataset.toml`; accepted by harbor 0.23.0 and by its gate (oracle 1, nop 0 on all 28) | single-container `environment/Dockerfile` (not compose: portable to Dockerfile-only providers, and Harbor's egress sidecar shares one netns), separate verifier `tests/Dockerfile` whose `verify.py` wraps `grade.py`; `reward.json` = the pass bit (pass@k) or `reward.py`'s scalar with `--reward training`. Grader hardening in progress (`harbor/README.md`) |
 
 ---
 
