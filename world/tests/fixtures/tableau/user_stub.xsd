@@ -1,0 +1,12 @@
+<!-- Written for this repository: twb_2026.2.0.xsd imports the
+     http://www.tableausoftware.com/xml/user namespace without a schemaLocation
+     and references user:UserAttributes-AG from it; this declares that group as
+     "any attribute in the user namespace" so a standard validator can load the
+     official schema. -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           targetNamespace="http://www.tableausoftware.com/xml/user"
+           xmlns:user="http://www.tableausoftware.com/xml/user">
+  <xs:attributeGroup name="UserAttributes-AG">
+    <xs:anyAttribute namespace="##targetNamespace" processContents="skip"/>
+  </xs:attributeGroup>
+</xs:schema>

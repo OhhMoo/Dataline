@@ -1,0 +1,445 @@
+<?xml version='1.0' encoding='utf-8' ?>
+
+<!-- build 20251.25.0313.2002                               -->
+<workbook original-version='18.1' source-build='2025.1.0 (20251.25.0313.2002)' source-platform='win' version='18.1' xmlns:user='http://www.tableausoftware.com/xml/user'>
+  <document-format-change-manifest>
+    <AnimationOnByDefault />
+    <MarkAnimation />
+    <ObjectModelEncapsulateLegacy />
+    <ObjectModelTableType />
+    <SchemaViewerObjectModel />
+    <SheetIdentifierTracking />
+    <WindowsPersistSimpleIdentifiers />
+  </document-format-change-manifest>
+  <preferences>
+    <preference name='ui.encoding.shelf.height' value='24' />
+    <preference name='ui.shelf.height' value='26' />
+  </preferences>
+  <datasources>
+    <datasource caption='Sheet1 (Sales_Data)' inline='true' name='federated.0ae4c5f0jcx42n15w218a0oxvqli' version='18.1'>
+      <connection class='federated'>
+        <named-connections>
+          <named-connection caption='Sales_Data' name='excel-direct.1mj790w1tbdon10zv2gzj1i0vwe6'>
+            <connection class='excel-direct' cleaning='no' compat='no' dataRefreshTime='' filename='../datasets/Sales_Data.xlsx' interpretationMode='0' password='' server='' validate='no' />
+          </named-connection>
+          <named-connection caption='Customer_Data' name='textscan.0e81pwz1hhszfb1gitc6a03r2kfl'>
+            <connection class='textscan' directory='../datasets' filename='Customer_Data.csv' password='' server='' />
+          </named-connection>
+        </named-connections>
+        <relation join='inner' type='join'>
+          <clause type='join'>
+            <expression op='='>
+              <expression op='[Sheet1].[Region]' />
+              <expression op='[Customer_Data.csv].[Region]' />
+            </expression>
+          </clause>
+          <relation connection='excel-direct.1mj790w1tbdon10zv2gzj1i0vwe6' name='Sheet1' table='[Sheet1$]' type='table'>
+            <columns gridOrigin='A1:D5:no:A1:D5:0' header='yes' outcome='6'>
+              <column datatype='integer' name='Sales_ID' ordinal='0' />
+              <column datatype='string' name='Region' ordinal='1' />
+              <column datatype='string' name='Product' ordinal='2' />
+              <column datatype='integer' name='Sales_Amount' ordinal='3' />
+            </columns>
+          </relation>
+          <relation connection='textscan.0e81pwz1hhszfb1gitc6a03r2kfl' name='Customer_Data.csv' table='[Customer_Data#csv]' type='table'>
+            <columns character-set='UTF-8' header='yes' locale='en_CA' separator=','>
+              <column datatype='integer' name='Customer_ID' ordinal='0' />
+              <column datatype='string' name='Region' ordinal='1' />
+              <column datatype='string' name='Customer_Name' ordinal='2' />
+            </columns>
+          </relation>
+        </relation>
+        <cols>
+          <map key='[Customer_ID]' value='[Customer_Data.csv].[Customer_ID]' />
+          <map key='[Customer_Name]' value='[Customer_Data.csv].[Customer_Name]' />
+          <map key='[Product]' value='[Sheet1].[Product]' />
+          <map key='[Region (Customer_Data.csv)]' value='[Customer_Data.csv].[Region]' />
+          <map key='[Region]' value='[Sheet1].[Region]' />
+          <map key='[Sales_Amount]' value='[Sheet1].[Sales_Amount]' />
+          <map key='[Sales_ID]' value='[Sheet1].[Sales_ID]' />
+        </cols>
+        <metadata-records>
+          <metadata-record class='capability'>
+            <remote-name />
+            <remote-type>0</remote-type>
+            <parent-name>[Sheet1]</parent-name>
+            <remote-alias />
+            <aggregation>Count</aggregation>
+            <contains-null>true</contains-null>
+            <attributes>
+              <attribute datatype='integer' name='context'>0</attribute>
+              <attribute datatype='string' name='gridOrigin'>&quot;A1:D5:no:A1:D5:0&quot;</attribute>
+              <attribute datatype='boolean' name='header'>true</attribute>
+              <attribute datatype='integer' name='outcome'>6</attribute>
+            </attributes>
+          </metadata-record>
+          <metadata-record class='capability'>
+            <remote-name />
+            <remote-type>0</remote-type>
+            <parent-name>[Customer_Data.csv]</parent-name>
+            <remote-alias />
+            <aggregation>Count</aggregation>
+            <contains-null>true</contains-null>
+            <attributes>
+              <attribute datatype='string' name='character-set'>&quot;UTF-8&quot;</attribute>
+              <attribute datatype='string' name='collation'>&quot;en_GB&quot;</attribute>
+              <attribute datatype='string' name='field-delimiter'>&quot;,&quot;</attribute>
+              <attribute datatype='string' name='header-row'>&quot;true&quot;</attribute>
+              <attribute datatype='string' name='locale'>&quot;en_CA&quot;</attribute>
+              <attribute datatype='string' name='single-char'>&quot;&quot;</attribute>
+            </attributes>
+          </metadata-record>
+          <metadata-record class='column'>
+            <remote-name>Sales_ID</remote-name>
+            <remote-type>20</remote-type>
+            <local-name>[Sales_ID]</local-name>
+            <parent-name>[Sheet1]</parent-name>
+            <remote-alias>Sales_ID</remote-alias>
+            <ordinal>0</ordinal>
+            <local-type>integer</local-type>
+            <aggregation>Sum</aggregation>
+            <contains-null>true</contains-null>
+            <attributes>
+              <attribute datatype='string' name='DebugRemoteType'>&quot;I8&quot;</attribute>
+            </attributes>
+            <object-id>[Sheet1_A4DEE2A76A2747C892A93779F51DE6A2]</object-id>
+          </metadata-record>
+          <metadata-record class='column'>
+            <remote-name>Region</remote-name>
+            <remote-type>130</remote-type>
+            <local-name>[Region]</local-name>
+            <parent-name>[Sheet1]</parent-name>
+            <remote-alias>Region</remote-alias>
+            <ordinal>1</ordinal>
+            <local-type>string</local-type>
+            <aggregation>Count</aggregation>
+            <contains-null>true</contains-null>
+            <collation flag='1' name='LEN_RCA_S2' />
+            <attributes>
+              <attribute datatype='string' name='DebugRemoteType'>&quot;WSTR&quot;</attribute>
+            </attributes>
+            <object-id>[Sheet1_A4DEE2A76A2747C892A93779F51DE6A2]</object-id>
+          </metadata-record>
+          <metadata-record class='column'>
+            <remote-name>Product</remote-name>
+            <remote-type>130</remote-type>
+            <local-name>[Product]</local-name>
+            <parent-name>[Sheet1]</parent-name>
+            <remote-alias>Product</remote-alias>
+            <ordinal>2</ordinal>
+            <local-type>string</local-type>
+            <aggregation>Count</aggregation>
+            <contains-null>true</contains-null>
+            <collation flag='1' name='LEN_RCA_S2' />
+            <attributes>
+              <attribute datatype='string' name='DebugRemoteType'>&quot;WSTR&quot;</attribute>
+            </attributes>
+            <object-id>[Sheet1_A4DEE2A76A2747C892A93779F51DE6A2]</object-id>
+          </metadata-record>
+          <metadata-record class='column'>
+            <remote-name>Sales_Amount</remote-name>
+            <remote-type>20</remote-type>
+            <local-name>[Sales_Amount]</local-name>
+            <parent-name>[Sheet1]</parent-name>
+            <remote-alias>Sales_Amount</remote-alias>
+            <ordinal>3</ordinal>
+            <local-type>integer</local-type>
+            <aggregation>Sum</aggregation>
+            <contains-null>true</contains-null>
+            <attributes>
+              <attribute datatype='string' name='DebugRemoteType'>&quot;I8&quot;</attribute>
+            </attributes>
+            <object-id>[Sheet1_A4DEE2A76A2747C892A93779F51DE6A2]</object-id>
+          </metadata-record>
+          <metadata-record class='column'>
+            <remote-name>Customer_ID</remote-name>
+            <remote-type>20</remote-type>
+            <local-name>[Customer_ID]</local-name>
+            <parent-name>[Customer_Data.csv]</parent-name>
+            <remote-alias>Customer_ID</remote-alias>
+            <ordinal>4</ordinal>
+            <local-type>integer</local-type>
+            <aggregation>Sum</aggregation>
+            <contains-null>true</contains-null>
+            <object-id>[Sheet1_A4DEE2A76A2747C892A93779F51DE6A2]</object-id>
+          </metadata-record>
+          <metadata-record class='column'>
+            <remote-name>Region</remote-name>
+            <remote-type>129</remote-type>
+            <local-name>[Region (Customer_Data.csv)]</local-name>
+            <parent-name>[Customer_Data.csv]</parent-name>
+            <remote-alias>Region</remote-alias>
+            <ordinal>5</ordinal>
+            <local-type>string</local-type>
+            <aggregation>Count</aggregation>
+            <scale>1</scale>
+            <width>1073741823</width>
+            <contains-null>true</contains-null>
+            <collation flag='0' name='LEN_RGB' />
+            <object-id>[Sheet1_A4DEE2A76A2747C892A93779F51DE6A2]</object-id>
+          </metadata-record>
+          <metadata-record class='column'>
+            <remote-name>Customer_Name</remote-name>
+            <remote-type>129</remote-type>
+            <local-name>[Customer_Name]</local-name>
+            <parent-name>[Customer_Data.csv]</parent-name>
+            <remote-alias>Customer_Name</remote-alias>
+            <ordinal>6</ordinal>
+            <local-type>string</local-type>
+            <aggregation>Count</aggregation>
+            <scale>1</scale>
+            <width>1073741823</width>
+            <contains-null>true</contains-null>
+            <collation flag='0' name='LEN_RGB' />
+            <object-id>[Sheet1_A4DEE2A76A2747C892A93779F51DE6A2]</object-id>
+          </metadata-record>
+        </metadata-records>
+      </connection>
+      <aliases enabled='yes' />
+      <column caption='Customer ID' datatype='integer' name='[Customer_ID]' role='dimension' type='ordinal' />
+      <column caption='Customer Name' datatype='string' name='[Customer_Name]' role='dimension' type='nominal' />
+      <column caption='Region (Customer Data.csv)' datatype='string' name='[Region (Customer_Data.csv)]' role='dimension' type='nominal' />
+      <column caption='Sales Amount' datatype='integer' name='[Sales_Amount]' role='measure' type='quantitative' />
+      <column caption='Sales ID' datatype='integer' name='[Sales_ID]' role='dimension' type='ordinal' />
+      <column caption='Sheet1' datatype='table' name='[__tableau_internal_object_id__].[Sheet1_A4DEE2A76A2747C892A93779F51DE6A2]' role='measure' type='quantitative' />
+      <column-instance column='[Customer_Name]' derivation='None' name='[none:Customer_Name:nk]' pivot='key' type='nominal' />
+      <layout dim-ordering='alphabetic' measure-ordering='alphabetic' show-structure='true' />
+      <style>
+        <style-rule element='mark'>
+          <encoding attr='color' field='[none:Customer_Name:nk]' type='palette'>
+            <map to='#4e79a7'>
+              <bucket>&quot;Alice Johnson&quot;</bucket>
+            </map>
+            <map to='#76b7b2'>
+              <bucket>&quot;John Doe&quot;</bucket>
+            </map>
+            <map to='#e15759'>
+              <bucket>&quot;Jane Smith&quot;</bucket>
+            </map>
+            <map to='#f28e2b'>
+              <bucket>&quot;Bob Brown&quot;</bucket>
+            </map>
+          </encoding>
+        </style-rule>
+      </style>
+      <semantic-values>
+        <semantic-value key='[Country].[Name]' value='&quot;Canada&quot;' />
+      </semantic-values>
+      <object-graph>
+        <objects>
+          <object caption='Sheet1' id='Sheet1_A4DEE2A76A2747C892A93779F51DE6A2'>
+            <properties context=''>
+              <relation join='inner' type='join'>
+                <clause type='join'>
+                  <expression op='='>
+                    <expression op='[Sheet1].[Region]' />
+                    <expression op='[Customer_Data.csv].[Region]' />
+                  </expression>
+                </clause>
+                <relation connection='excel-direct.1mj790w1tbdon10zv2gzj1i0vwe6' name='Sheet1' table='[Sheet1$]' type='table'>
+                  <columns gridOrigin='A1:D5:no:A1:D5:0' header='yes' outcome='6'>
+                    <column datatype='integer' name='Sales_ID' ordinal='0' />
+                    <column datatype='string' name='Region' ordinal='1' />
+                    <column datatype='string' name='Product' ordinal='2' />
+                    <column datatype='integer' name='Sales_Amount' ordinal='3' />
+                  </columns>
+                </relation>
+                <relation connection='textscan.0e81pwz1hhszfb1gitc6a03r2kfl' name='Customer_Data.csv' table='[Customer_Data#csv]' type='table'>
+                  <columns character-set='UTF-8' header='yes' locale='en_CA' separator=','>
+                    <column datatype='integer' name='Customer_ID' ordinal='0' />
+                    <column datatype='string' name='Region' ordinal='1' />
+                    <column datatype='string' name='Customer_Name' ordinal='2' />
+                  </columns>
+                </relation>
+              </relation>
+            </properties>
+          </object>
+        </objects>
+      </object-graph>
+    </datasource>
+  </datasources>
+  <worksheets>
+    <worksheet name='Sheet 1'>
+      <table>
+        <view>
+          <datasources>
+            <datasource caption='Sheet1 (Sales_Data)' name='federated.0ae4c5f0jcx42n15w218a0oxvqli' />
+          </datasources>
+          <datasource-dependencies datasource='federated.0ae4c5f0jcx42n15w218a0oxvqli'>
+            <column caption='Customer Name' datatype='string' name='[Customer_Name]' role='dimension' type='nominal' />
+            <column caption='Sales Amount' datatype='integer' name='[Sales_Amount]' role='measure' type='quantitative' />
+            <column-instance column='[Customer_Name]' derivation='None' name='[none:Customer_Name:nk]' pivot='key' type='nominal' />
+            <column-instance column='[Sales_Amount]' derivation='Sum' name='[sum:Sales_Amount:qk]' pivot='key' type='quantitative' />
+          </datasource-dependencies>
+          <aggregation value='true' />
+        </view>
+        <style />
+        <panes>
+          <pane selection-relaxation-option='selection-relaxation-allow'>
+            <view>
+              <breakdown value='auto' />
+            </view>
+            <mark class='Automatic' />
+            <encodings>
+              <color column='[federated.0ae4c5f0jcx42n15w218a0oxvqli].[none:Customer_Name:nk]' />
+            </encodings>
+          </pane>
+        </panes>
+        <rows>[federated.0ae4c5f0jcx42n15w218a0oxvqli].[sum:Sales_Amount:qk]</rows>
+        <cols>[federated.0ae4c5f0jcx42n15w218a0oxvqli].[none:Customer_Name:nk]</cols>
+      </table>
+      <simple-id uuid='{3572DD2F-6BF3-4B7A-9482-228903A68930}' />
+    </worksheet>
+  </worksheets>
+  <windows saved-dpi-scale-factor='1.25' source-height='37'>
+    <window class='worksheet' maximized='true' name='Sheet 1'>
+      <cards>
+        <edge name='left'>
+          <strip size='160'>
+            <card type='pages' />
+            <card type='filters' />
+            <card type='marks' />
+          </strip>
+        </edge>
+        <edge name='top'>
+          <strip size='2147483647'>
+            <card type='columns' />
+          </strip>
+          <strip size='2147483647'>
+            <card type='rows' />
+          </strip>
+          <strip size='2147483647'>
+            <card type='title' />
+          </strip>
+        </edge>
+        <edge name='right'>
+          <strip size='160'>
+            <card pane-specification-id='0' param='[federated.0ae4c5f0jcx42n15w218a0oxvqli].[none:Customer_Name:nk]' type='color' />
+          </strip>
+        </edge>
+      </cards>
+      <viewpoint>
+        <highlight>
+          <color-one-way>
+            <field>[federated.0ae4c5f0jcx42n15w218a0oxvqli].[none:Customer_ID:ok]</field>
+            <field>[federated.0ae4c5f0jcx42n15w218a0oxvqli].[none:Customer_Name:nk]</field>
+          </color-one-way>
+        </highlight>
+      </viewpoint>
+      <simple-id uuid='{38E21BED-5679-4D17-8467-BEF6F75EAB50}' />
+    </window>
+  </windows>
+  <thumbnails>
+    <thumbnail height='192' name='Sheet 1' width='192'>
+      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
+      QmCC
+    </thumbnail>
+  </thumbnails>
+</workbook>

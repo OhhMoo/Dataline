@@ -1,0 +1,60 @@
+Third-party files in this folder, unmodified, with their sources and licences.
+They are real Tableau files used as test fixtures by world/tests/test_tableau_format.py.
+
+cast_calcs.postgres.tds
+  Source:  https://github.com/tableau/connector-plugin-sdk
+           tdvt/test/tool_test/tds/cast_calcs.postgres.tds
+           commit 1f9571b2503c19e685b957da9b489d923c5fbb8a
+  Licence: MIT License, Copyright (c) 2018 Tableau
+
+credit_rating_visualizations.twb   (renamed from visualizations.twb)
+  Source:  https://github.com/VIVEK-MARRI/data-mart-credit-rating-reporting
+           visualizations.twb, commit 8af743f3b4c23188311b732a20a97b033c40b853
+           Saved by Tableau Desktop 2025.2.4 (20252.25.1003.1601).
+  Licence: MIT License, Copyright (c) 2025 VIVEK_MARRI
+
+Example_JOIN.twb
+  Source:  https://github.com/Calm-Engineer/tableau-portfolio
+           class-examples/Example_JOIN.twb, commit b0819734855d256b76c0d376aed2f07c98c8ae30
+           Saved by Tableau Desktop 2025.1.0 (20251.25.0313.2002).
+  Licence: MIT License, Copyright (c) 2025 Calm-Engineer
+
+  The MIT License text, which applies to each of the three files above with
+  its own copyright line:
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.
+
+twb_2026.2.0.xsd
+  Source:  https://github.com/tableau/tableau-document-schemas
+           schemas/2026_2/twb_2026.2.0.xsd, commit f4bce1eb55f0c1c010c0ef826cf531528d5910eb
+           Tableau's official TWB schema, version 2026.2.
+  Licence: Apache License, Version 2.0, Copyright (c) 2024 Salesforce, Inc.
+           https://www.apache.org/licenses/LICENSE-2.0
+           Licensed under the Apache License, Version 2.0 (the "License"); you may
+           not use this file except in compliance with the License. Unless required
+           by applicable law or agreed to in writing, software distributed under the
+           License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+           CONDITIONS OF ANY KIND, either express or implied.
+
+user_stub.xsd
+  Written for this repository (see its comment).
+
+joined_orders.tds
+  Written for this repository: a physical-join logical table over the Commerce
+  fixture, in the shape of the Desktop 2025.1 join in Example_JOIN.twb.
