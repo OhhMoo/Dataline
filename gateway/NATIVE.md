@@ -64,6 +64,7 @@ tailer; parity in `native/PARITY.md`) remains the warehouse for tasks that decla
 | human | `chat_*` | Slack Web API subset; `slack_sdk` (`base_url`) | fake service `slack` |
 | human | `kb_*` | Confluence REST subset; `atlassian-python-api` | fake service `confluence` |
 | ops | `bi_*` | Metabase API | fake service `metabase` |
+| ops | — (BI as code) | Power BI REST + Fabric item definitions + Entra token; `tabcmd` / Tableau Server Client; Sigma REST API v2 | fake services `powerbi`, `tableau`, `sigma` — **explicit-only**, see below |
 | ops | `metrics_*`, `alarms_*` | Prometheus `/api/v1/query*`, Alertmanager `/api/v2/alerts` | fake services `prometheus`, `alertmanager` |
 | ops | `logs_*` | Loki `/loki/api/v1/query_range`; `logcli` | fake service `loki` |
 | ops | `ingest_*` | Airbyte REST subset | fake service `airbyte` |
@@ -95,6 +96,27 @@ change. It calls `native.audit.record` for every request. It is one module
 `native/services/<name>.py` exposing `NAME`, `HOST` (`jira.internal`), `PORT`, `app`;
 `services/__init__.py` holds the fixed `NAMES`, `native/serve.py` mounts them in one
 process. Credentials the workspace carries are obviously fake (`alkera-local-dev-token`).
+
+**The BI vendors are explicit-only plugs.** `powerbi` (8095), `tableau` (8096) and `sigma`
+(8097) are `services.PLUG_NAMES`, not `NAMES`: an unprofiled stack, world, endpoint map
+and compose overlay are byte for byte what they were before them. They are served only
+when an environment profile plugs one (`plugs.py`: `[environment.plugs] bi = "powerbi"`,
+or a stack whose default is one — `snowflake` → `sigma`, `aws` → `tableau`,
+`databricks` → `powerbi`), exactly like the Jupyter notebook plug. Then: `serve.py
+--profile` mounts it (`serve.PLUG_PORTS`); the episode's endpoint map, allowed
+destinations and environment gain it (`agent_under_test.PLUG_SERVICES`,
+`plug_service_env`); the container overlay adds `<vendor>.internal` to native-services'
+aliases and the vendor's variables to the episode (and jupyter) environment; the surface
+gate sweeps it as `~<vendor>`. The world names it in `.envrc`, `services.toml` and
+`docs/onboarding.md` only when its seed records the vendor — `profile: {name, slots,
+plugs: {bi: [powerbi]}}` — and the harness refuses a rollout whose world was built for a
+different BI than the task's profile serves (`episode.check_world_profile`). Variables:
+
+| vendor | variables (values: the `.internal` URL, or `alkera-local-dev`) |
+|---|---|
+| powerbi | `POWERBI_API_URL`, `FABRIC_API_URL`, `AZURE_AUTHORITY_HOST` (one URL: one service answers all three hosts), `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_TENANT_ID` |
+| tableau | `TABLEAU_SERVER_URL`, `TABLEAU_SITE` (`""`, the Default site), `TABLEAU_PAT_NAME`, `TABLEAU_PAT_SECRET` |
+| sigma | `SIGMA_BASE_URL`, `SIGMA_CLIENT_ID`, `SIGMA_CLIENT_SECRET` |
 
 ## The harness
 

@@ -839,11 +839,17 @@ MOUNTS_OVERLAY_NAME = "compose.native-mounts.yml"
 #: MinIO's port, published on loopback beside the nine so the surface gate's
 #: signed bucket listing has somewhere to go.
 MINIO_PORT = 9000
-#: Each vendor service's variables in compose.native.yml's `episode`
-#: environment: the URL `agent_under_test.NATIVE_SERVICES` names, and the fake
-#: credentials beside it. A profile that excludes the service drops all of
-#: them (`profile_overlay`); test_profile_wiring.py fails when one is not in
-#: the static file.
+#: Each vendor service's variables in the `episode` environment: the URL
+#: `agent_under_test.NATIVE_SERVICES` names, and the fake credentials beside it.
+#:
+#: Two directions. The nine are in compose.native.yml's static environment, and
+#: a profile that excludes one drops all of its variables (`!reset`). The BI
+#: vendors (`agent_under_test.PLUG_SERVICES`) are in NO static file - an
+#: unprofiled stack must not name them - so a profile that plugs one ADDS its
+#: variables, with the values `agent_under_test.plug_service_env` gives for the
+#: `.internal` alias. test_profile_wiring.py fails when a nine-row name is
+#: missing from the static file, when a vendor's name appears in it, or when a
+#: vendor row here is not exactly `plug_service_env`'s keys.
 EPISODE_SERVICE_ENV = {
     "jira":         ("JIRA_URL", "JIRA_USER", "JIRA_API_TOKEN"),
     "slack":        ("SLACK_BASE_URL", "SLACK_BOT_TOKEN"),
@@ -854,6 +860,12 @@ EPISODE_SERVICE_ENV = {
     "loki":         ("LOKI_URL", "LOKI_ADDR"),
     "airbyte":      ("AIRBYTE_URL", "AIRBYTE_API_KEY"),
     "deploy":       ("DEPLOY_URL", "DEPLOY_API_TOKEN"),
+    # explicit-only: added by `profile_overlay`, never in the static file
+    "powerbi":      ("POWERBI_API_URL", "FABRIC_API_URL", "AZURE_AUTHORITY_HOST",
+                     "AZURE_CLIENT_ID", "AZURE_CLIENT_SECRET", "AZURE_TENANT_ID"),
+    "tableau":      ("TABLEAU_SERVER_URL", "TABLEAU_PAT_NAME", "TABLEAU_PAT_SECRET",
+                     "TABLEAU_SITE"),
+    "sigma":        ("SIGMA_BASE_URL", "SIGMA_CLIENT_ID", "SIGMA_CLIENT_SECRET"),
 }
 
 # ------------------------------------------------------------ the hard sandbox
@@ -1671,6 +1683,12 @@ class NativeContainerEpisode:
         network the episode sees). The episode's endpoint variables for the
         same services are dropped (`!reset`), so nothing in its environment
         names an address that does not exist.
+
+        A plugged BI vendor (`agent_under_test.PLUG_SERVICES`) goes the other
+        way: its alias is ADDED to the replaced list and its variables are
+        ADDED to the environment lines, because compose.native.yml names no
+        vendor at all - the static file is the unprofiled box. The same lines go
+        to `jupyter` when the notebook is plugged (`write_overlay`).
         """
         profile = self.environment_profile()
         if profile is None:
@@ -1679,9 +1697,10 @@ class NativeContainerEpisode:
 
         with_sched = "ops_sched" in profile.slots.get("orchestrator", ())
         with_store = "object_store" in profile.slots
+        vendors = [name for name in profile.services if name in aut.PLUG_SERVICES]
         aliases = ["native-services.internal",
                    *(f"{name}.internal" for name in profile.services
-                     if name in aut.NATIVE_SERVICES)]
+                     if name in aut.NATIVE_SERVICES or name in vendors)]
         if with_sched:
             aliases.append("sched.internal")
         dropped = [var for name in aut.NATIVE_SERVICES
@@ -1692,8 +1711,16 @@ class NativeContainerEpisode:
         if not with_store:
             dropped += ["AWS_ENDPOINT_URL", "AWS_ACCESS_KEY_ID",
                         "AWS_SECRET_ACCESS_KEY", "AWS_DEFAULT_REGION"]
+        added = {}
+        for name in vendors:
+            port = aut.PLUG_SERVICES[name][1]
+            added.update(aut.plug_service_env(name, f"http://{name}.internal:{port}"))
         alias_lines = "\n".join(f"          - {a}" for a in aliases)
         resets = "".join(f"\n      {var}: !reset null" for var in dropped)
+        # JSON-quoted: a YAML double-quoted scalar, and `TABLEAU_SITE: ""` is
+        # an empty string rather than a null.
+        resets += "".join(f"\n      {var}: {json.dumps(value)}"
+                          for var, value in added.items())
         body = f"""
 # ENVIRONMENT PROFILE {profile.name} (plugs: {json.dumps(self.plugs, sort_keys=True)}).
 # native-services runs with --profile (ALKERA_NATIVE_PROFILE_ARGS), and the
@@ -2030,6 +2057,11 @@ services:
                        # reach that file, so neither may the gate.
                        **aut.NATIVE_WORKSPACE_SERVICES}.items()}
         targets["s3"] = ("minio.internal", MINIO_PORT)
+        # A plugged BI vendor is relayed like the nine - only when plugged, so
+        # an unprofiled gate binds exactly the sockets it always did.
+        for name, (_, port) in aut.PLUG_SERVICES.items():
+            if profile is not None and name in profile.services:
+                targets[name] = (f"{name}.internal", port)
         # Only what the profile serves: a relay to an alias that does not
         # resolve would be a socket that answers nothing.
         served = aut.profile_endpoints(dict.fromkeys(targets, ""), profile)

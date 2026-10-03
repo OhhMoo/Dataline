@@ -182,8 +182,18 @@ def environment_profile(profile: str = "", plugs: dict | None = None):
         raise HarnessError(str(exc)) from exc
 
 
-#: Where `world.build` records the seed's `profile: {name, slots}` (world/README.md).
+#: Where `world.build` records the seed's `profile: {name, slots, plugs?}`
+#: (world/README.md).
 WORLD_PROFILE_RECORD = Path("var") / "world" / "profile.json"
+
+
+def _bi_vendor(plugs) -> bool:
+    """Does this `bi` plug list name an explicit-only BI vendor (a plug that
+    mounts one of `alkera_gateway.native.services.PLUG_NAMES`)?"""
+    from alkera_gateway.native.services import PLUG_NAMES
+    from alkera_gateway.plugs import PLUGS
+
+    return any(set(PLUGS[name].services) & set(PLUG_NAMES) for name in plugs)
 
 
 def check_world_profile(world_root: Path, profile) -> None:
@@ -194,9 +204,19 @@ def check_world_profile(world_root: Path, profile) -> None:
     disagree the agent is handed tools over planes that were never seeded (or
     the reverse), so the rollout stops here, in either direction. A world with
     no record and a task with no profile is today's case and passes untouched.
+
+    Slots are not enough for BI: `bi` is Metabase on one box and Power BI on
+    another, and a world's BI project (`<workspace>/bi/powerbi/`) and its
+    discovery files are built for one vendor. So when the task plugs a BI
+    vendor (Power BI, Tableau, Sigma), or the world's record says which BI it
+    was built for (`plugs.bi`), the two lists must be the same plugs. A task
+    on Metabase over a record with no `plugs` - every world built before the
+    key existed - is not compared, and passes as it always did.
     """
     path = Path(world_root) / WORLD_PROFILE_RECORD
     record = json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
+    task_bi = sorted(profile.slots.get("bi", ())) if profile is not None else []
+    vendor = _bi_vendor(task_bi)
     if profile is None:
         if record is not None:
             raise HarnessError(
@@ -204,10 +224,11 @@ def check_world_profile(world_root: Path, profile) -> None:
                 f"(slots {record.get('slots')}), but the task declares no profile")
         return
     if record is None:
+        needs = f", plugs: {{bi: {task_bi}}}" if vendor else ""
         raise HarnessError(
             f"the task declares profile {profile.name!r}, but its world was built "
             f"without one: the seed needs `profile: {{name: {profile.name!r}, "
-            f"slots: {sorted(profile.slots)}}}`")
+            f"slots: {sorted(profile.slots)}{needs}}}`")
     if record.get("name") != profile.name:
         raise HarnessError(
             f"the world was built for profile {record.get('name')!r}, the task "
@@ -217,6 +238,13 @@ def check_world_profile(world_root: Path, profile) -> None:
             f"the world's slots {sorted(record.get('slots') or [])} are not the "
             f"slots profile {profile.name!r} plugs with its [environment.plugs]: "
             f"{sorted(profile.slots)}")
+    world_bi = (record.get("plugs") or {}).get("bi")
+    if (vendor or world_bi is not None) and sorted(world_bi or []) != task_bi:
+        built = (f"for BI {sorted(world_bi)}" if world_bi is not None
+                 else "without saying which BI vendor")
+        raise HarnessError(
+            f"the world was built {built}, but profile {profile.name!r} serves "
+            f"BI {task_bi}: the seed needs `profile: {{..., plugs: {{bi: {task_bi}}}}}`")
 
 
 def profile_keys(profile: str = "", plugs: dict | None = None) -> dict:

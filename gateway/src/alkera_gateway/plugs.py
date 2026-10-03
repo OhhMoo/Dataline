@@ -96,9 +96,25 @@ _CATALOG = (
     Plug("s3mock", "object_store", "shipped", surfaces=("s3",)),
     Plug("airbyte_fake", "ingest", "shipped", services=("airbyte",), surfaces=("ingest",)),
     Plug("metabase_fake", "bi", "shipped", services=("metabase",), surfaces=("bi",)),
-    Plug("powerbi", "bi", "planned", surfaces=("powerbi",)),
-    Plug("tableau", "bi", "planned", surfaces=("tableau",)),
-    Plug("sigma", "bi", "planned", surfaces=("sigma",)),
+    # The three BI vendors are EXPLICIT-ONLY (native/services PLUG_NAMES): an
+    # unprofiled stack never serves them, a profile that plugs one serves it in
+    # place of metabase. Each is the vendor's files-in-git format lowered onto
+    # world.semantic, so the service and the graders evaluate one definition.
+    Plug("powerbi", "bi", "partial", services=("powerbi",), surfaces=("powerbi",),
+         note="PBIP/TMDL/PBIR project + DAX subset over world.semantic; Power BI "
+              "REST, Fabric item definitions and Entra client credentials at "
+              "powerbi.internal:8095; no golden calibration against the real "
+              "product yet; not yet run in a container"),
+    Plug("tableau", "bi", "partial", services=("tableau",), surfaces=("tableau",),
+         note=".twb/.tds + calculated-field subset over world.semantic; REST API "
+              "3.25 with PAT sign-in, extracts as DuckDB copies, at "
+              "tableau.internal:8096; no golden calibration against the real "
+              "product yet; not yet run in a container"),
+    Plug("sigma", "bi", "partial", services=("sigma",), surfaces=("sigma",),
+         note="workbooks- and data-models-as-code JSON + formula subset over "
+              "world.semantic; REST API v2 with client credentials at "
+              "sigma.internal:8097; no golden calibration against the real "
+              "product yet; not yet run in a container"),
     Plug("prom_stack", "observability", "shipped",
          services=("prometheus", "alertmanager", "loki"), surfaces=("obs", "observability")),
     Plug("deploy_fake", "release", "shipped", services=("deploy",), surfaces=("release",)),
@@ -129,6 +145,18 @@ STACKS: dict[str, dict[str, tuple[str, ...]]] = {
     "aws": {**_LAPTOP, "warehouse": ("redshift",), "bi": ("tableau",)},
     "gcp": {**_LAPTOP, "warehouse": ("bigquery",)},
 }
+
+
+#: Slots whose MCP tools speak to ONE plug rather than to the slot: bi_* render
+#: the YAML-of-SQL dashboards through the Metabase-shaped fake, so a box whose BI
+#: is Power BI, Tableau or Sigma (their own REST APIs and project files) does not
+#: offer them - serving them there would be a map to a system the box lacks.
+TOOLS_NEED_PLUG = {"bi": "metabase_fake"}
+
+
+def _serves_slot_tools(slot: str, plugged: tuple[str, ...]) -> bool:
+    need = TOOLS_NEED_PLUG.get(slot)
+    return need is None or need in plugged
 
 
 class ProfileError(ValueError):
@@ -190,8 +218,11 @@ def resolve(name: str, plugs: Mapping[str, Sequence[str] | str] | None = None,
     return Profile(
         name=name,
         slots={s: slots[s] for s in SLOTS if s in slots},
-        tools=frozenset(t for s in slots for t in SLOT_TOOLS[s]),
-        excluded_tools=frozenset(t for s in SLOTS if s not in slots for t in SLOT_TOOLS[s]),
+        tools=frozenset(t for s in slots if _serves_slot_tools(s, slots[s])
+                        for t in SLOT_TOOLS[s]),
+        excluded_tools=frozenset(t for s in SLOTS
+                                 if s not in slots or not _serves_slot_tools(s, slots[s])
+                                 for t in SLOT_TOOLS[s]),
         services=tuple(svc for p in in_order for svc in p.services),
         surfaces=frozenset(x for p in plugged for x in p.surfaces),
         planned=planned,

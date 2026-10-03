@@ -60,6 +60,11 @@
 #   sched.internal:8120       the scheduler plane behind the workspace's own
 #        ./ops/sched. Served by the same process; not a vendor, and not one of
 #        the nine the aggregate reports.
+#   powerbi.internal:8095  tableau.internal:8096  sigma.internal:8097
+#        the BI vendors, EXPLICIT-ONLY: named nowhere in this file. Served by
+#        the same process only under a profile that plugs one; the per-rollout
+#        overlay (container_episode.profile_overlay) then adds the alias below
+#        and the vendor's variables to the episode environment.
 #   native-services.internal:8099  the aggregate /health over all nine
 #   native-services.internal:8110  MinIO's audit webhook receiver. Served by
 #        the same process; dialled by MinIO, never by the episode, and so not

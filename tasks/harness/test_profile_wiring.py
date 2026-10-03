@@ -72,7 +72,7 @@ def test_profile_resolves_and_spells_its_flags():
 
 
 def test_planned_plug_is_a_harness_error_with_the_profile_text():
-    # de/aws plugs redshift and tableau, both planned
+    # de/aws plugs redshift (planned) and tableau (partial since the BI build)
     with pytest.raises(episode.HarnessError, match="planned, not built: redshift"):
         episode.environment_profile("de/aws")
     with pytest.raises(episode.HarnessError, match="--plug|profile"):
@@ -304,12 +304,18 @@ def test_overlay_keeps_sched_and_minio_when_plugged(world, tmp_path, no_docker):
 
 def test_reset_env_names_exist_in_the_static_overlay():
     static = ce.NATIVE_OVERLAY.read_text(encoding="utf-8")
-    for names in ce.EPISODE_SERVICE_ENV.values():
+    for name, names in ce.EPISODE_SERVICE_ENV.items():
         for var in names:
-            assert re.search(rf"^      {var}: ", static, re.M), var
+            # the nine are in the static file (and reset away); a BI vendor's
+            # are NOT - the per-rollout overlay adds them when it is plugged
+            present = re.search(rf"^      {var}: ", static, re.M) is not None
+            assert present == (name in aut.NATIVE_SERVICES), (name, var)
     for name in aut.NATIVE_SERVICES:
         assert name in ce.EPISODE_SERVICE_ENV
         assert f"- {name}.internal" in static
+    for name in aut.PLUG_SERVICES:
+        assert ce.EPISODE_SERVICE_ENV[name] == tuple(aut.plug_service_env(name, "u"))
+        assert f"- {name}.internal" not in static   # no alias (a comment may name it)
 
 
 def test_compose_env_carries_the_serve_flags(world, tmp_path):
@@ -429,3 +435,228 @@ def test_jupyter_strips_what_the_episode_strips():
     entry = yaml.safe_load(plain)["services"]["jupyter"]["entrypoint"]
     stripped = [entry[i + 1] for i, arg in enumerate(entry) if arg == "--strip"]
     assert stripped == list(ce.STRIP_PATHS)
+
+
+# ------------------------------------------------ the explicit-only BI vendors
+# powerbi, tableau and sigma are served only when a profile plugs them by name.
+# Everything above that is unprofiled stays byte-identical (the tests above);
+# these are the profiled cases.
+BI_PLUGS = {"notebook": [], "bi": ["powerbi"]}
+BI_SERVICES = ("powerbi", "jira", "slack", "confluence")
+POWERBI_ENV = ("POWERBI_API_URL", "FABRIC_API_URL", "AZURE_AUTHORITY_HOST",
+               "AZURE_CLIENT_ID", "AZURE_CLIENT_SECRET", "AZURE_TENANT_ID")
+
+
+def test_no_bi_vendor_in_any_unprofiled_map():
+    ep = aut.resolve_endpoints(None)
+    assert not set(aut.PLUG_SERVICES) & set(ep)
+    assert not set(aut.PLUG_SERVICES) & set(aut.NATIVE_SERVICES)
+    for profile in (None, episode.environment_profile("de/laptop")):
+        assert not set(aut.PLUG_SERVICES) & set(aut.profile_endpoints(ep, profile))
+
+
+def test_profile_endpoints_add_a_plugged_vendor():
+    ep = aut.profile_endpoints(aut.resolve_endpoints(None),
+                               episode.environment_profile(PROFILE, BI_PLUGS))
+    assert ep["powerbi"] == "http://powerbi.internal:8095"
+    assert "metabase" not in ep and "tableau" not in ep and "sigma" not in ep
+    sigma = aut.profile_endpoints(aut.resolve_endpoints(None),
+                                  episode.environment_profile("de/snowflake"))
+    assert sigma["sigma"] == "http://sigma.internal:8097"
+
+
+def test_endpoint_file_may_relay_a_vendor_but_only_a_plugged_one(tmp_path):
+    path = tmp_path / "ep.json"
+    path.write_text(json.dumps({"powerbi": "http://127.0.0.1:18095",
+                                "sigma": "http://127.0.0.1:18097"}))
+    ep = aut.resolve_endpoints(path)
+    narrowed = aut.profile_endpoints(ep, episode.environment_profile(PROFILE, BI_PLUGS))
+    assert narrowed["powerbi"] == "http://127.0.0.1:18095"   # the relay, kept
+    assert "sigma" not in narrowed
+    path.write_text(json.dumps({"lookr": "http://x"}))
+    with pytest.raises(episode.HarnessError, match="lookr"):
+        aut.resolve_endpoints(path)
+
+
+def test_allowed_destinations_and_native_env_with_a_vendor(tmp_path):
+    ep = aut.profile_endpoints(aut.resolve_endpoints(None),
+                               episode.environment_profile(PROFILE, BI_PLUGS))
+    allowed = aut.allowed_destinations(ep)
+    assert ("powerbi.internal", 8095) in allowed
+    assert ("metabase.internal", 3000) not in allowed
+    assert ("sigma.internal", 8097) not in allowed
+    env = aut.native_env(endpoints=ep, audit_dir=tmp_path, profiles_dir=tmp_path)
+    assert {k: env[k] for k in POWERBI_ENV} == aut.plug_service_env(
+        "powerbi", "http://powerbi.internal:8095")
+    assert env["AZURE_CLIENT_SECRET"] == aut.NATIVE_FAKE_CREDENTIAL
+    assert "METABASE_URL" not in env and "SIGMA_BASE_URL" not in env
+    plain = aut.native_env(endpoints=aut.resolve_endpoints(None), audit_dir=tmp_path,
+                           profiles_dir=tmp_path)
+    assert not set(POWERBI_ENV) & set(plain)
+
+
+def test_plug_service_env_per_vendor():
+    assert aut.plug_service_env("tableau", "U") == {
+        "TABLEAU_SERVER_URL": "U", "TABLEAU_PAT_NAME": aut.NATIVE_FAKE_CREDENTIAL,
+        "TABLEAU_PAT_SECRET": aut.NATIVE_FAKE_CREDENTIAL, "TABLEAU_SITE": ""}
+    assert aut.plug_service_env("sigma", "U") == {
+        "SIGMA_BASE_URL": "U", "SIGMA_CLIENT_ID": aut.NATIVE_FAKE_CREDENTIAL,
+        "SIGMA_CLIENT_SECRET": aut.NATIVE_FAKE_CREDENTIAL}
+    with pytest.raises(KeyError):
+        aut.plug_service_env("metabase", "U")
+
+
+def test_overlay_with_a_vendor_adds_its_alias_and_variables(world, tmp_path, no_docker):
+    stack = _stack(world, tmp_path, "r", profile=PROFILE, plugs=BI_PLUGS)
+    text = stack.write_overlay().read_text()
+    services = _block(text, "native-services")
+    aliases = re.findall(r"^          - (\S+)$", services, re.M)
+    assert aliases == ["native-services.internal",
+                       *(f"{s}.internal" for s in BI_SERVICES)]
+    episode_env = _block(text, "episode")
+    for var, value in aut.plug_service_env(
+            "powerbi", "http://powerbi.internal:8095").items():
+        assert f"      {var}: {json.dumps(value)}" in episode_env, var
+    # metabase is reset away like any excluded service; no other vendor appears
+    assert "      METABASE_URL: !reset null" in episode_env
+    assert "TABLEAU" not in text and "SIGMA" not in text
+    assert "jupyter" not in text.split("services:\n", 1)[1]
+    assert stack.episode_endpoints()["powerbi"] == "http://powerbi.internal:8095"
+
+
+def test_overlay_with_a_vendor_and_the_notebook(world, tmp_path, no_docker):
+    stack = _stack(world, tmp_path, "r", profile="da/laptop", plugs={"bi": ["sigma"]})
+    text = stack.write_overlay().read_text()
+    jupyter = _block(text, "jupyter")
+    for var, value in aut.plug_service_env(
+            "sigma", "http://sigma.internal:8097").items():
+        assert f"      {var}: {json.dumps(value)}" in jupyter, var
+    assert "      METABASE_URL: !reset null" in jupyter
+    assert "- sigma.internal" in _block(text, "native-services")
+
+
+def test_compose_env_carries_the_vendor_plug(world, tmp_path):
+    env = _stack(world, tmp_path, "r", profile=PROFILE, plugs=BI_PLUGS).compose_env()
+    assert env["ALKERA_NATIVE_PROFILE_ARGS"] == (
+        "--profile da/laptop --plug notebook= --plug bi=powerbi")
+
+
+def test_world_profile_check_bi_vendor_matching(tmp_path):
+    profile = episode.environment_profile(PROFILE, BI_PLUGS)
+    root = _world_with_profile(tmp_path, {"name": PROFILE,
+                                          "slots": sorted(profile.slots),
+                                          "plugs": {"bi": ["powerbi"]}})
+    episode.check_world_profile(root, profile)
+
+
+def test_world_profile_check_without_a_vendor_ignores_absent_plugs(tmp_path):
+    # metabase_fake is not an explicit-only vendor: a record without `plugs`
+    # (every world built before the key existed) still matches
+    profile = episode.environment_profile(PROFILE, PLUGS)
+    root = _world_with_profile(tmp_path, {"name": PROFILE,
+                                          "slots": sorted(profile.slots)})
+    episode.check_world_profile(root, profile)
+    root2 = _world_with_profile(tmp_path / "2", {
+        "name": PROFILE, "slots": sorted(profile.slots),
+        "plugs": {"bi": ["metabase_fake"]}})
+    episode.check_world_profile(root2, profile)
+
+
+@pytest.mark.parametrize("world_bi,task_plugs,match", [
+    # the task plugs Power BI, the world never said which BI it was built for
+    (None, BI_PLUGS, r"plugs: \{bi: \['powerbi'\]\}"),
+    # built for another vendor
+    (["tableau"], BI_PLUGS, "tableau"),
+    # built for Power BI, but the task serves Metabase
+    (["powerbi"], PLUGS, "metabase_fake"),
+])
+def test_world_profile_check_refuses_a_bi_disagreement(tmp_path, world_bi,
+                                                       task_plugs, match):
+    profile = episode.environment_profile(PROFILE, task_plugs)
+    record = {"name": PROFILE, "slots": sorted(profile.slots)}
+    if world_bi is not None:
+        record["plugs"] = {"bi": world_bi}
+    with pytest.raises(episode.HarnessError, match=match):
+        episode.check_world_profile(_world_with_profile(tmp_path, record), profile)
+
+
+def test_world_built_without_a_profile_names_the_bi_plugs_it_needs(tmp_path):
+    profile = episode.environment_profile(PROFILE, BI_PLUGS)
+    with pytest.raises(episode.HarnessError, match="plugs: {bi: \\['powerbi'\\]}"):
+        episode.check_world_profile(_world_with_profile(tmp_path, None), profile)
+
+
+def test_gate_relays_a_plugged_vendor_and_nothing_new_unprofiled(world, tmp_path):
+    # ServiceGate binds loopback listeners only; docker is dialled per
+    # connection, and none is made here.
+    def gate(name, **kw):
+        stack = _stack(world, tmp_path, name, **kw)
+        stack.services_container = "never-dialled"
+        try:
+            return stack.gate_endpoints()
+        finally:
+            stack.gate.stop()
+
+    plain = gate("r1")
+    assert not set(aut.PLUG_SERVICES) & set(plain)
+    assert set(aut.NATIVE_SERVICES) <= set(plain)
+    ep = gate("r2", profile=PROFILE, plugs=BI_PLUGS)
+    assert ep["powerbi"].startswith("http://127.0.0.1:")
+    assert {n for n in (*aut.NATIVE_SERVICES, *aut.PLUG_SERVICES) if n in ep} \
+        == set(BI_SERVICES)
+
+
+def test_surface_gate_sweeps_a_plugged_vendor_only(tmp_path):
+    import http.server
+    import threading
+
+    import surface_audit
+
+    class Health(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):  # noqa: N802 - the stdlib's spelling
+            body = json.dumps({"ok": True, "service": "powerbi", "items": 2}).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *a):
+            pass
+
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Health)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        url = f"http://127.0.0.1:{server.server_address[1]}"
+        assert surface_audit.native_check_kind("powerbi") == "http_health"
+        swept = surface_audit.probe_native(probes=[], endpoints={"powerbi": url},
+                                           world={}, timeout=2)
+        row = swept["surfaces"]["~powerbi"]
+        assert (row["live"], row["check"], row["declared"]) == (True, "http_health", False)
+        # an unprofiled map never carries a vendor, so the sweep is the nine's
+        plain = surface_audit.probe_native(probes=[], endpoints={"jira": url},
+                                           world={}, timeout=2)
+        assert set(plain["surfaces"]) == {"~jira"}
+    finally:
+        server.shutdown()
+    assert set(surface_audit.NATIVE_SERVICE_NAMES) == set(aut.NATIVE_SERVICES)
+    assert set(surface_audit.NATIVE_PLUG_SERVICE_NAMES) == set(aut.PLUG_SERVICES)
+
+
+# ------------------------------------------- BI vendors on the host topology
+def test_host_stack_awaits_and_addresses_a_plugged_bi_vendor(world, tmp_path):
+    from alkera_gateway.native import serve
+
+    profile = episode.environment_profile("da/laptop", {"bi": ["powerbi"]})
+    ports = native_stack.service_ports(profile)
+    assert serve.PLUG_PORTS["powerbi"] in ports
+    assert serve.PLUG_PORTS["tableau"] not in ports
+    assert serve.PLUG_PORTS["powerbi"] not in native_stack.service_ports(None)
+
+    spec = SimpleNamespace(profile="da/laptop", plugs={"bi": ["powerbi"]})
+    (tmp_path / "r").mkdir()
+    stack = native_stack.NativeStack(world=world, audit_dir=tmp_path / "a",
+                                     rollout_dir=tmp_path / "r", spec=spec, offset=7)
+    endpoints = stack._write_endpoints(None)
+    assert endpoints["powerbi"] == f"http://127.0.0.1:{serve.PLUG_PORTS['powerbi'] + 7}"
+    assert "tableau" not in endpoints and "metabase" not in endpoints

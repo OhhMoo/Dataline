@@ -20,6 +20,11 @@ Four claims, one class each:
   asked of a profile with no `files` slot is refused before anything is built.
 - `NativeProfileTest`: `native: true` under a narrow profile names no service
   the profile unplugged, in any of the three files the agent discovers from.
+- `BIVendorDiscoveryTest` / `BIVendorBuildTest`: the explicit-only BI vendors
+  (powerbi, tableau, sigma) are discoverable only in a world whose profile
+  record names them under `plugs: {bi: [...]}` - never unprofiled, never on a
+  profile that plugs `bi` without saying which vendor - and the optional
+  `plugs` key leaves every existing profile record as it was.
 """
 import json
 import shutil
@@ -78,8 +83,15 @@ class SlotCatalogueTest(unittest.TestCase):
         theirs = {svc: plug.slot for plug in gateway_plugs.PLUGS.values()
                   for svc in plug.services}
         ours = {s.name: native_workspace.SERVICE_SLOTS[s.name]
-                for s in native_workspace.SERVICES}
+                for s in (*native_workspace.SERVICES, *native_workspace.PLUG_SERVICES)}
         self.assertEqual(ours, theirs)
+
+    @unittest.skipIf(gateway_plugs is None, "alkera_gateway not importable")
+    def test_native_service_plugs_match_the_gateway_plugs(self):
+        """Which PLUG mounts each service: what a record's `plugs` is read by."""
+        theirs = {svc: plug.name for plug in gateway_plugs.PLUGS.values()
+                  for svc in plug.services}
+        self.assertEqual(native_workspace.SERVICE_PLUGS, theirs)
 
 
 class UnflaggedTest(unittest.TestCase):
@@ -287,6 +299,175 @@ class NativeProfileTest(unittest.TestCase):
         page = (self.full / "workspace" / "docs" / "onboarding.md").read_text()
         for service in native_workspace.SERVICES:
             self.assertIn(service.alias, page)
+
+
+class ProfilePlugsRecordTest(unittest.TestCase):
+    """`profile: {name, slots, plugs?}` - the optional plug record."""
+
+    def test_plugs_recorded_only_when_given(self):
+        self.assertNotIn("plugs", build.resolve_profile({"profile": DA}))
+        # an empty mapping says nothing, so it is the same world as no key
+        self.assertEqual(build.resolve_profile({"profile": {**DA, "plugs": {}}}), DA)
+
+    def test_plugs_are_canonicalised(self):
+        got = build.resolve_profile({"profile": {
+            **DA, "plugs": {"bi": ["tableau", "powerbi"], "warehouse": ["duckdb"]}}})
+        self.assertEqual(got, {**DA, "plugs": {"warehouse": ["duckdb"],
+                                               "bi": ["powerbi", "tableau"]}})
+        self.assertEqual(list(got["plugs"]), ["warehouse", "bi"])  # SLOTS order
+
+    def test_malformed_plugs_are_refused(self):
+        for plugs, needle in (
+                ("powerbi", "mapping"),
+                ({"lakehouse": ["x"]}, "lakehouse"),
+                ({"orchestrator": ["ops_sched"]}, "orchestrator"),  # not in DA's slots
+                ({"bi": "powerbi"}, "list"),
+                ({"bi": []}, "list"),
+                ({"bi": [3]}, "string"),
+                ({"bi": [""]}, "string"),
+                ({"bi": ["powerbi", "powerbi"]}, "twice")):
+            with self.assertRaises(SystemExit, msg=plugs) as ctx:
+                build.resolve_profile({"profile": {**DA, "plugs": plugs}})
+            self.assertIn(needle, str(ctx.exception), plugs)
+
+    def test_unknown_profile_key_is_still_refused(self):
+        with self.assertRaises(SystemExit):
+            build.resolve_profile({"profile": {**DA, "plug": {"bi": ["sigma"]}}})
+
+
+#: The three vendors, the variables their clients read, and the port.
+VENDORS = {
+    "powerbi": (8095, ("POWERBI_API_URL", "FABRIC_API_URL", "AZURE_AUTHORITY_HOST",
+                       "AZURE_CLIENT_ID", "AZURE_CLIENT_SECRET", "AZURE_TENANT_ID")),
+    "tableau": (8096, ("TABLEAU_SERVER_URL", "TABLEAU_SITE", "TABLEAU_PAT_NAME",
+                       "TABLEAU_PAT_SECRET")),
+    "sigma": (8097, ("SIGMA_BASE_URL", "SIGMA_CLIENT_ID", "SIGMA_CLIENT_SECRET")),
+}
+
+
+def _every_vendor_word():
+    for name, (_, names) in VENDORS.items():
+        yield f"{name}.internal"
+        yield from names
+
+
+class BIVendorDiscoveryTest(unittest.TestCase):
+    """The discovery functions, called directly: no world is built."""
+
+    def _texts(self, slots=None, plugs=None):
+        nw = native_workspace
+        root = Path(tempfile.mkdtemp(prefix="bi-onboarding-"))
+        self.addCleanup(shutil.rmtree, root, True)
+        kw = {} if plugs is None else {"plugs": plugs}
+        return {"env": "\n".join(f"{k}={v}" for k, v in nw.environment(slots, **kw).items()),
+                ".envrc": nw.envrc_block(slots, **kw),
+                "services.toml": nw.services_toml("/world", slots, **kw),
+                "onboarding.md": nw.onboarding_markdown(root, {}, slots, **kw)}
+
+    def test_never_named_unprofiled_or_without_plugs(self):
+        for label, texts in (("unprofiled", self._texts()),
+                             ("da, no plugs", self._texts(DA["slots"])),
+                             ("da, bi=metabase", self._texts(
+                                 DA["slots"], {"bi": ["metabase_fake"]}))):
+            for where, text in texts.items():
+                for word in _every_vendor_word():
+                    self.assertNotIn(word, text, f"{label}: {word} in {where}")
+
+    def test_unprofiled_output_is_unchanged_by_an_absent_plugs(self):
+        nw = native_workspace
+        for slots in (None, DA["slots"]):
+            self.assertEqual(nw.environment(slots), nw.environment(slots, plugs=None))
+            self.assertEqual(nw.envrc_block(slots), nw.envrc_block(slots, plugs=None))
+            self.assertEqual(nw.services_toml("/w", slots),
+                             nw.services_toml("/w", slots, plugs=None))
+        # bi=metabase_fake is what `bi` meant before vendors existed
+        self.assertEqual(nw.envrc_block(DA["slots"]),
+                         nw.envrc_block(DA["slots"], plugs={"bi": ["metabase_fake"]}))
+
+    def test_each_vendor_is_named_only_when_plugged(self):
+        for name, (port, names) in VENDORS.items():
+            texts = self._texts(DA["slots"], {"bi": [name]})
+            env = native_workspace.environment(DA["slots"], plugs={"bi": [name]})
+            self.assertEqual(env[names[0]], f"http://{name}.internal:{port}")
+            for var in names:
+                self.assertIn(f"export {var}=", texts[".envrc"], var)
+            self.assertIn(f"`{name}.internal:{port}`", texts["onboarding.md"])
+            parsed = tomllib.loads(texts["services.toml"])
+            self.assertEqual(parsed["service"][name]["port"], port)
+            self.assertEqual(parsed["service"][name]["env"], names[0])
+            # metabase is not what this box's BI is any more
+            for where, text in texts.items():
+                self.assertNotIn("metabase.internal", text, (name, where))
+                self.assertNotIn("METABASE_URL", text, (name, where))
+                for other in set(VENDORS) - {name}:
+                    self.assertNotIn(f"{other}.internal", text, (name, other, where))
+
+    def test_reached_with_is_the_vendors_own_tooling(self):
+        page = self._texts(DA["slots"], {"bi": ["powerbi", "tableau", "sigma"]})[
+            "onboarding.md"]
+        rows = {line.split("|")[1].strip(): line for line in page.splitlines()
+                if line.startswith("| ") and ".internal:" in line}
+        self.assertIn("Fabric REST", rows["powerbi"])
+        self.assertIn("Entra", rows["powerbi"])
+        self.assertIn("tabcmd", rows["tableau"])
+        self.assertIn("Tableau Server Client", rows["tableau"])
+        self.assertIn("REST API v2", rows["sigma"])
+        self.assertIn("`SIGMA_BASE_URL`", rows["sigma"])
+
+    def test_the_credentials_are_the_fake_ones(self):
+        env = native_workspace.environment(DA["slots"],
+                                           plugs={"bi": list(VENDORS)})
+        for var in ("AZURE_CLIENT_SECRET", "TABLEAU_PAT_SECRET", "SIGMA_CLIENT_SECRET"):
+            self.assertEqual(env[var], native_workspace.FAKE_TOKEN)
+        self.assertEqual(env["TABLEAU_SITE"], "")   # the Default site's contentUrl
+
+    def test_ports_and_variables_match_the_gateway_and_harness(self):
+        try:
+            from alkera_gateway.native import serve
+            sys.path.insert(0, str(REPO / "tasks" / "harness"))
+            import agent_under_test as aut
+        except Exception as exc:  # pragma: no cover
+            self.skipTest(f"gateway/harness not importable: {exc}")
+        ours = {s.name: s.port for s in native_workspace.PLUG_SERVICES}
+        self.assertEqual(ours, serve.PLUG_PORTS)
+        self.assertEqual({s.name: (s.url_var, s.port)
+                          for s in native_workspace.PLUG_SERVICES},
+                         dict(aut.PLUG_SERVICES))
+        env = native_workspace.environment(DA["slots"], plugs={"bi": list(VENDORS)})
+        for name, (_, port) in aut.PLUG_SERVICES.items():
+            theirs = aut.plug_service_env(name, f"http://{name}.internal:{port}")
+            self.assertEqual({k: env[k] for k in theirs}, theirs, name)
+
+
+class BIVendorBuildTest(unittest.TestCase):
+    """One world, built for a Power BI shop: the record carries the plug, and
+    the discovery files name Power BI and not Metabase."""
+
+    PROFILE = {**DA, "plugs": {"bi": ["powerbi"]}}
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = Path(tempfile.mkdtemp(prefix="profile-bi-"))
+        cls.root = build.build(
+            _seed_with(cls.tmp, "powerbi", profile=cls.PROFILE, native=True),
+            cls.tmp / "powerbi", LOCK)
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def test_the_record_carries_the_plugs(self):
+        self.assertEqual(json.loads((self.root / build.PROFILE_RECORD).read_text()),
+                         self.PROFILE)
+        prov = json.loads((self.root / "build" / "provenance.json").read_text())
+        self.assertEqual(prov["profile"], self.PROFILE)
+
+    def test_the_box_names_power_bi(self):
+        envrc = (self.root / "workspace" / ".envrc").read_text(encoding="utf-8")
+        self.assertIn('export POWERBI_API_URL="http://powerbi.internal:8095"', envrc)
+        self.assertNotIn("METABASE_URL", envrc)
+        page = (self.root / "workspace" / "docs" / "onboarding.md").read_text()
+        self.assertIn("powerbi.internal:8095", page)
 
 
 if __name__ == "__main__":

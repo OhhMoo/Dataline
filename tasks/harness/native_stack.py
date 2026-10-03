@@ -103,8 +103,10 @@ def service_ports(profile=None) -> list[int]:
     if profile is None:
         return sorted({*serve.STUB_PORTS.values(), serve.AGGREGATE_PORT,
                        serve.MINIO_AUDIT_PORT})
-    ports = {serve.STUB_PORTS[name] for name in profile.services
-             if name in serve.STUB_PORTS}
+    # A plugged BI vendor binds its own port (serve.PLUG_PORTS), outside the
+    # nine an unprofiled stack waits for.
+    ports = {({**serve.STUB_PORTS, **serve.PLUG_PORTS})[name] for name in profile.services
+             if name in serve.STUB_PORTS or name in serve.PLUG_PORTS}
     ports.add(serve.AGGREGATE_PORT)
     if "object_store" in profile.slots:
         ports.add(serve.MINIO_AUDIT_PORT)
@@ -459,6 +461,12 @@ class NativeStack:
             for name, (_, port) in aut.NATIVE_SERVICES.items()
             if self.profile is None or name in self.profile.services
         }
+        # BI vendors are explicit-only: addressed only when the profile plugs them.
+        if self.profile is not None:
+            overrides.update({
+                name: f"http://127.0.0.1:{port + self.offset}"
+                for name, (_, port) in aut.PLUG_SERVICES.items()
+                if name in self.profile.services})
         if s3_url:
             overrides["s3"] = s3_url
         self.endpoints_file.write_text(

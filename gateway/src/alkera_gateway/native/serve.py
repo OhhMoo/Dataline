@@ -8,7 +8,9 @@ the network-destination audit the harness reads in native mode. One extra
 socket, `native-services.internal:8099`, answers an aggregate `/health` that
 lists the whole set, so "what is this process serving" is one request rather
 than nine. `--profile` (with `--plug`) narrows the set to one environment
-profile's services and drops the scheduler plane when it plugs no `ops_sched`.
+profile's services and drops the scheduler plane when it plugs no `ops_sched`;
+it is also the only way a BI vendor (`services.PLUG_NAMES`: powerbi, tableau,
+sigma; ports in PLUG_PORTS) is served at all.
 
 Ports, not host-header routing
 ------------------------------
@@ -100,6 +102,27 @@ STUB_PORTS = {
     "alertmanager": 9093,
     "loki": 3100,
 }
+#: The explicit-only BI vendors (`services.PLUG_NAMES`): served only when an
+#: environment profile plugs them (`--profile ... --plug bi=powerbi`, or a
+#: stack whose default is one, `snowflake` -> `sigma`).
+#:
+#: A SEPARATE TABLE, NOT THREE MORE ROWS OF STUB_PORTS, because STUB_PORTS is
+#: the unprofiled stack's contract and two readers take it as "every port an
+#: unprofiled serve.py binds": `tasks/harness/native_stack.service_ports(None)`
+#: waits for all of them to be bound before the host-topology rollout starts
+#: (three ports nobody serves would be a start-up timeout), and world/tests/
+#: test_native_workspace.py pins it row for row to the nine-service discovery
+#: table. Vendor ports have no self-hosted default here (Power BI, Tableau Cloud
+#: and Sigma are SaaS), so these are the next free numbers after deploy's 8085
+#: block: 8095, 8096, 8097. `tasks/harness/agent_under_test.PLUG_SERVICES` and
+#: `world/world/native_workspace.PLUG_SERVICES` carry the same numbers.
+PLUG_PORTS = {
+    "powerbi": 8095,
+    "tableau": 8096,
+    "sigma": 8097,
+}
+#: Every port a named service is known to listen on, either table.
+SERVICE_PORTS = {**STUB_PORTS, **PLUG_PORTS}
 #: Every service answers this path. A service that defines its own route for it
 #: keeps it; otherwise `HealthWrapper` answers.
 #:
@@ -490,10 +513,10 @@ def port_disagreements(mounted: list[Mounted], offset: int = 0) -> dict[str, str
     """
     return {
         item.name: f"serving {item.port}, the subject is told "
-                   f"{STUB_PORTS[item.name] + offset}"
+                   f"{SERVICE_PORTS[item.name] + offset}"
         for item in mounted
-        if item.origin == "module" and item.name in STUB_PORTS
-        and item.port != STUB_PORTS[item.name] + offset
+        if item.origin == "module" and item.name in SERVICE_PORTS
+        and item.port != SERVICE_PORTS[item.name] + offset
     }
 
 
@@ -641,11 +664,11 @@ def parse_stub(value: str) -> tuple[str, int]:
         raise argparse.ArgumentTypeError(f"--stub {value!r} has no name")
     if port:
         return name, int(port)
-    if name not in STUB_PORTS:
+    if name not in SERVICE_PORTS:
         raise argparse.ArgumentTypeError(
-            f"--stub {name!r} is not one of {sorted(STUB_PORTS)}; give it a "
+            f"--stub {name!r} is not one of {sorted(SERVICE_PORTS)}; give it a "
             f"port as {name}:PORT")
-    return name, STUB_PORTS[name]
+    return name, SERVICE_PORTS[name]
 
 
 def _profile(profile: str | None, plug_args: Sequence[str]):
@@ -658,7 +681,11 @@ def _profile(profile: str | None, plug_args: Sequence[str]):
 
 def selected_services(profile: str | None,
                       plug_args: Sequence[str]) -> tuple[str, ...] | None:
-    """The profile's native services, or None (every service) with no profile."""
+    """The profile's native services, or None (the nine) with no profile.
+
+    A profile's list may name an explicit-only BI vendor (`services.PLUG_NAMES`)
+    - `bi=powerbi` mounts powerbi at 8095 in place of metabase - and `load`
+    accepts it because it is named; None never does."""
     resolved = _profile(profile, plug_args)
     return None if resolved is None else resolved.services
 

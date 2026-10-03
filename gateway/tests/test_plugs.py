@@ -24,9 +24,30 @@ def test_slot_tools_partition_the_mcp_table():
 
 
 def test_plug_services_partition_native_names():
+    # The nine legacy services and the explicit-only BI vendors, each mounted
+    # by exactly one plug.
     owned = [s for p in PLUGS.values() for s in p.services]
     assert len(owned) == len(set(owned))
-    assert set(owned) == set(services.NAMES)
+    assert set(owned) == set(services.NAMES) | set(services.PLUG_NAMES)
+    assert not set(services.NAMES) & set(services.PLUG_NAMES)
+
+
+@pytest.mark.parametrize("name", ["powerbi", "tableau", "sigma"])
+def test_bi_vendor_plugs_are_partial_and_mount_their_service(name):
+    plug = PLUGS[name]
+    assert (plug.slot, plug.status) == ("bi", "partial")
+    assert plug.services == (name,) and plug.surfaces == (name,)
+    # honest about what it is and what it has not been checked against
+    for words in ("world.semantic", "golden", "container"):
+        assert words in plug.note, (name, words)
+
+
+def test_a_bi_vendor_replaces_metabase_in_the_profile():
+    p = resolve("da/laptop", {"notebook": [], "bi": ["powerbi"]})
+    assert p.services == ("powerbi", "jira", "slack", "confluence")
+    assert "powerbi" in p.surfaces and "bi" not in p.surfaces
+    assert "sigma" in resolve("de/snowflake").services
+    assert "metabase" not in resolve("de/snowflake").services
 
 
 def test_every_plug_names_a_known_slot():
@@ -73,7 +94,8 @@ def test_planned_refusal_names_every_planned_plug():
 
 
 def test_allow_planned_resolves_and_lists_them():
-    assert set(resolve("de/aws", allow_planned=True).planned) == {"redshift", "tableau"}
+    # tableau is partial now; redshift is still only a name in the catalog
+    assert set(resolve("de/aws", allow_planned=True).planned) == {"redshift"}
 
 
 def test_override_adds_a_slot_and_checks_plug_slot():
@@ -115,8 +137,12 @@ def test_readiness_matrix_covers_every_role_and_stack():
     assert len(rows) == len(ROLES) * len(STACKS)
     assert rows["de/laptop"]["status"] == "runnable"
     assert rows["de/postgres"]["status"] == "runnable"
-    assert rows["de/snowflake"]["status"] == "planned"
-    assert rows["de/snowflake"]["planned"] == ["sigma"]
+    # snowflake and sigma are both partial: the stack runs, with its caveats
+    assert rows["de/snowflake"] == {"profile": "de/snowflake", "status": "runnable",
+                                    "planned": []}
+    assert rows["da/snowflake"]["status"] == "runnable"
+    assert rows["de/aws"]["planned"] == ["redshift"]
+    assert rows["de/databricks"]["planned"] == ["databricks"]
     assert rows["da/laptop"]["status"] == "runnable"     # jupyter is partial, not planned
 
 
@@ -135,3 +161,15 @@ def test_gateway_cli_delegates_plugs(capsys):
 
     assert cli_main(["plugs", "matrix"]) == 0
     assert "de/laptop" in capsys.readouterr().out
+
+
+def test_bi_tools_belong_to_the_metabase_plug_not_the_slot():
+    # bi_* render the YAML-of-SQL dashboards through the Metabase-shaped fake;
+    # a box whose BI is Power BI / Tableau / Sigma does not offer them.
+    bi_tools = set(SLOT_TOOLS["bi"])
+    assert bi_tools <= resolve("da/laptop").tools                  # metabase_fake
+    vendor = resolve("da/laptop", {"bi": ["powerbi"]})
+    assert "bi" in vendor.slots
+    assert bi_tools <= vendor.excluded_tools and not bi_tools & vendor.tools
+    both = resolve("da/laptop", {"bi": ["metabase_fake", "sigma"]})
+    assert bi_tools <= both.tools

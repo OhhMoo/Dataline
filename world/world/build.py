@@ -10,7 +10,8 @@ Produces the contract layout (agent.md §9.2.1) under <root>:
   home/                            (only when seed `native: true`: the box's
                                     HOME, carrying ~/.dbt/profiles.yml and
                                     ~/.config/alkera/services.toml)
-  var/world/profile.json           (only when seed `profile:` names one)
+  var/world/profile.json           (only when seed `profile:` names one;
+                                    `plugs` in it only when the seed gives them)
   workspace/data/{exports,api,events}/  (only when seed `files:` asks; files.py)
   build/provenance.json
 
@@ -69,7 +70,7 @@ PROFILE_RECORD = Path("var") / "world" / "profile.json"
 
 
 def resolve_profile(seed: dict) -> dict | None:
-    """The seed's `profile: {name, slots}`, validated and canonicalised.
+    """The seed's `profile: {name, slots, plugs?}`, validated and canonicalised.
 
     The harness resolves which slots an environment profile plugs (that is
     `alkera_gateway.plugs`' job, and world/ never imports it) and writes the
@@ -79,14 +80,28 @@ def resolve_profile(seed: dict) -> dict | None:
     always a typo, and a typo'd `obsevability` that silently unplugged the
     real one would build a world without metrics and say nothing.
 
+    `plugs: {slot: [plug, ...]}` is optional and says WHICH plug fills a
+    slot, where the slot list alone cannot: `bi` is Metabase on the laptop
+    stack and Power BI, Tableau or Sigma on another, and the discovery layer
+    (native_workspace) names an explicit-only vendor only when this says so.
+    Plug NAMES are the gateway's to know (world/ never imports it), so they are
+    checked for shape only - non-empty strings, no repeats - and each slot must
+    be one the profile plugs: a plug for a slot the box does not have is a
+    contradiction, not a no-op. Recorded only when given and non-empty, plug
+    lists sorted, so every profile record written before the key existed is
+    byte for byte unchanged and `[tableau, powerbi]` hashes as `[powerbi,
+    tableau]`.
+
     None when the seed has no `profile:` - the build every recorded hash
     was taken from.
     """
     if "profile" not in seed:
         return None
     spec = seed["profile"]
-    if not isinstance(spec, dict) or set(spec) != {"name", "slots"}:
-        raise SystemExit("seed `profile:` must be a mapping with exactly `name` and `slots`")
+    if not isinstance(spec, dict) or not ({"name", "slots"} <= set(spec)
+                                          <= {"name", "slots", "plugs"}):
+        raise SystemExit("seed `profile:` must be a mapping with exactly `name` and "
+                         "`slots`, and optionally `plugs`")
     name, slots = spec["name"], spec["slots"]
     if not isinstance(name, str) or not name:
         raise SystemExit("seed `profile: {name:}` must be a non-empty string")
@@ -98,7 +113,36 @@ def resolve_profile(seed: dict) -> dict | None:
                          f"(known: {', '.join(SLOTS)})")
     if len(set(slots)) != len(slots):
         raise SystemExit(f"seed profile {name!r} names a slot twice")
-    return {"name": name, "slots": [s for s in SLOTS if s in slots]}
+    out = {"name": name, "slots": [s for s in SLOTS if s in slots]}
+    plugs = _resolve_plugs(name, slots, spec.get("plugs"))
+    if plugs:
+        out["plugs"] = plugs
+    return out
+
+
+def _resolve_plugs(name: str, slots: list, plugs) -> dict:
+    """`profile: {plugs:}` -> {slot: sorted plug names}, in SLOTS order."""
+    if plugs is None:
+        return {}
+    if not isinstance(plugs, dict):
+        raise SystemExit(f"seed profile {name!r}: `plugs:` must be a mapping of "
+                         "slot -> list of plug names")
+    for slot, names in plugs.items():
+        if slot not in SLOTS:
+            raise SystemExit(f"seed profile {name!r} plugs unknown slot {slot!r} "
+                             f"(known: {', '.join(SLOTS)})")
+        if slot not in slots:
+            raise SystemExit(f"seed profile {name!r} plugs slot {slot!r}, which "
+                             f"its `slots:` does not have")
+        if not isinstance(names, list) or not names:
+            raise SystemExit(f"seed profile {name!r}: `plugs: {{{slot}:}}` must be a "
+                             "non-empty list of plug names")
+        if not all(isinstance(n, str) and n for n in names):
+            raise SystemExit(f"seed profile {name!r}: `plugs: {{{slot}:}}` must name "
+                             f"each plug as a non-empty string, not {names!r}")
+        if len(set(names)) != len(names):
+            raise SystemExit(f"seed profile {name!r} names a {slot!r} plug twice")
+    return {slot: sorted(plugs[slot]) for slot in SLOTS if slot in plugs}
 
 
 def _seed_observability(root: Path, theme) -> None:
@@ -417,7 +461,8 @@ def build(seed_path: Path, root: Path, lock_path: Path | None = None) -> Path:
     # git commit below: on a real box they are checked in.
     if seed.get("native"):
         native_workspace.write(root, theme,
-                               slots=profile["slots"] if profile is not None else None)
+                               slots=profile["slots"] if profile is not None else None,
+                               plugs=profile.get("plugs") if profile is not None else None)
     # The profile record: the conditional `profile` fingerprint section, so
     # two profiles over one seed are two worlds. Written only under a profile,
     # so an unprofiled world has no file and keeps its recorded hash.

@@ -50,6 +50,9 @@ property rather than an oversight.
 | `alertmanager.internal` | 9093 | native-services | same (vendor default) |
 | `loki.internal` | 3100 | native-services | same (vendor default) |
 | `sched.internal` | 8120 | native-services | ours: the backend of the workspace's own `./ops/sched` |
+| `powerbi.internal` | 8095 | native-services | `agent_under_test.PLUG_SERVICES`; **only** under a profile that plugs it (*designed*) |
+| `tableau.internal` | 8096 | native-services | same |
+| `sigma.internal` | 8097 | native-services | same |
 | `native-services.internal` | 8099 | native-services | ours: the aggregate `/health` |
 | `postgres.internal` | 5432 | postgres | the warehouse, served |
 | `minio.internal` | 9000 | minio | object storage, bucket `alkera` |
@@ -63,6 +66,12 @@ claim while the accepted socket's local port is the server's observation. The
 full argument is in `native/serve.py`'s docstring.
 
 Nothing publishes a host port (`published_host_ports: {}` — measured).
+
+The three BI vendors are in no static file. An unprofiled stack serves the nine
+and resolves none of them; `container_episode.profile_overlay` adds a vendor's
+alias to native-services' `aliases: !override` list and its variables to the
+episode's (and jupyter's) environment only when the task's profile plugs it —
+the notebook plug's rule (`gateway/NATIVE.md`, "explicit-only plugs").
 
 ## The DNS restriction
 
