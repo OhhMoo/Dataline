@@ -100,6 +100,17 @@ class Visual:
     #: carried for round-trips and display. Does not change the values.
     kind: str = "table"
     sql: str | None = None
+    #: Which groups a visual shows. "measures" (Power BI): a group appears only
+    #: when at least one value is not blank. "rows" (Tableau, Sigma): a group
+    #: appears when the visual's base table has rows for it after the filters,
+    #: even if every value is blank. Under "measures" the candidates are the
+    #: combinations in the table holding the grouping columns (plus its blank
+    #: row), and all-blank groups are dropped. Under "rows" the BASE TABLE is the
+    #: table the visual's values aggregate over (a Sigma element's source, a
+    #: Tableau sheet's data source); values aggregating over more than one table
+    #: under "rows" are Unsupported. A group exists only if that table's expanded
+    #: rows, after the filters, contain it - not merely the dimension table.
+    groups: Literal["measures", "rows"] = "measures"
 
 
 @dataclass(frozen=True)

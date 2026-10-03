@@ -91,11 +91,6 @@ def commerce_model(null_semantics: str = "sql") -> Model:
                 Calculate(MeasureRef("Order Count"), (COMPLETED,))),
         Measure("AOV", "Orders", Divide(net, MeasureRef("Completed Orders")),
                 format_string="$#,0.00", description="Average order value, completed orders."),
-        Measure("Units", "Order Lines", Agg("sum", Col("Order Lines", "quantity"))),
-        Measure("List Price Revenue", "Order Lines",
-                IterAgg("sum", "Order Lines",
-                        BinOp("*", Col("Order Lines", "quantity"),
-                              Related("Product", "unit_price")))),
         Measure("Segment Share", "Orders",
                 Divide(net, Calculate(
                     net, (RemoveFilters(columns=(Col("Customer", "segment"),)),))),
@@ -104,6 +99,11 @@ def commerce_model(null_semantics: str = "sql") -> Model:
         Measure("Revenue LY", "Orders",
                 TimeShift(net, Col("Date", "date_day"), "same_period_last_year")),
         Measure("YoY Growth", "Orders", Divide(BinOp("-", net, ly), ly), format_string="0.0%"),
+        Measure("Units", "Order Lines", Agg("sum", Col("Order Lines", "quantity"))),
+        Measure("List Price Revenue", "Order Lines",
+                IterAgg("sum", "Order Lines",
+                        BinOp("*", Col("Order Lines", "quantity"),
+                              Related("Product", "unit_price")))),
     )
     return Model("Commerce", tables, relationships, measures, null_semantics=null_semantics)
 

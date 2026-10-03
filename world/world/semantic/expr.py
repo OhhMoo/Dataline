@@ -33,10 +33,15 @@ In a Visual, only FilterValues and FilterCompare are allowed as filters.
 
 Blank. An aggregate over no rows is None (BLANK), including count and count_rows.
 Arithmetic follows Model.null_semantics:
-  "sql"  any None operand -> None (Tableau, Sigma, SQL).
+  "sql"  any None operand -> None (Tableau, Sigma, SQL); `and` / `or` follow SQL
+         three-valued logic (FALSE and None = FALSE, TRUE or None = TRUE).
   "dax"  + and -: None counts as 0 if the other operand is not None, else None;
-         * : None if either is None; / : refused when the denominator is None or 0
-         (DAX returns infinity/NaN - use Divide); comparisons with None: refused.
+         * : None if either is None; / : None / None = None, None / x = None (x not
+         0), otherwise refused when the denominator is None or 0 (DAX returns
+         infinity/NaN - use Divide); comparisons with None, None in and/or/not,
+         in `&` or in a scalar function: refused.
+In both modes, `/` by a non-None 0 is refused (use Divide). count and
+count_distinct never count None, and are None (BLANK) over no rows.
 Divide(num, den, alternate) returns `alternate` (default None) when den is None or 0.
 If with a None condition takes the else branch.
 
@@ -48,7 +53,9 @@ transition: refused, Unsupported("context transition").
 Time intelligence. TimeShift evaluates `expr` with the filter on the date table
 replaced: the dates currently in context are mapped (ytd: Jan 1 of the latest
 year in context through the latest date; mtd/qtd likewise; same_period_last_year:
-each date minus one year; previous_month / previous_year: the whole calendar month
+each date minus one year (Feb 29 -> Feb 28), and when the dates in context include
+a month's last day, the whole shifted month (DAX DATEADD: Feb 1-28 2025 -> Feb 1-29
+2024); previous_month / previous_year: the whole calendar month
 or year before the earliest date in context). `date_column` must be the date
 column of a Table with is_date_table=True.
 
@@ -64,7 +71,9 @@ IterFunc = Literal["sum", "avg", "min", "max", "count"]
 BinaryOp = Literal["+", "-", "*", "/", "=", "<>", "<", ">", "<=", ">=", "and", "or", "&"]
 CompareOp = Literal["=", "<>", "<", ">", "<=", ">="]
 #: The closed set of scalar functions. Anything else is Unsupported at parse time.
-#: date_trunc_* return the first day of the period as a date; len counts characters.
+#: date_trunc_* return the first day of the period as a date; date_trunc_week
+#: starts weeks on Monday (ISO 8601). weekday is 1 = Sunday .. 7 = Saturday (DAX
+#: WEEKDAY's default and Tableau's US-locale DATEPART). len counts characters.
 ScalarFunc = Literal[
     "abs", "round", "floor", "ceiling",
     "year", "quarter", "month", "day", "weekday",

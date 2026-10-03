@@ -22,10 +22,15 @@ some dimensions. This package is that thing, once:
 
 Every front-end module exposes the same four functions:
 
-    read_project(path: Path) -> tuple[Model, tuple[Report, ...]]
+    read_project(path: Path, *, warehouse: Path | None = None) -> tuple[Model, tuple[Report, ...]]
     write_project(model: Model, reports: tuple[Report, ...], dest: Path) -> list[Path]
-    parse_expression(text: str, model: Model) -> Expr
-    format_expression(expr: Expr, model: Model) -> str
+    parse_expression(text: str, model: Model, *, table: str | None = None) -> Expr
+    format_expression(expr: Expr, model: Model, *, table: str | None = None) -> str
+
+`warehouse` lets a front-end whose files carry no column types (Sigma) read them
+from the warehouse; `table` is the table a row-level expression is written in
+(a calculated column's home), for languages whose references are relative to it.
+Front-ends that need neither accept and ignore them.
 
 `write_project` is deterministic (same inputs, same bytes: sorted keys, ids derived
 from names, no timestamps), because its output is fingerprinted workspace content.
