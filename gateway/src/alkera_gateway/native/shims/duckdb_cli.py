@@ -59,6 +59,12 @@ every row says which of the two ran (`flags: ["duckdb_library"]`, and
 formatting and its dot-commands other than `.read`; what is not lost is the
 statement, the file it ran against, the error and the exit code, which is all
 the action log is about.
+
+WHO IS AUDITED
+--------------
+`ALKERA_SHIM_AUDIT_UID` (see `run.py`): when set and not this process's
+effective uid, the invocation runs exactly as above - same engine, same stdin
+forwarding, same exit code - and writes no row.
 """
 from __future__ import annotations
 
@@ -364,8 +370,10 @@ def emit_unparsed(invocation: Invocation, *, engine: str, returncode: int,
 
 def main(argv: list[str]) -> int:
     """Run `duckdb argv`, audit every command it was given, return its code."""
-    from .run import DEFAULT_MAX_FILES, changed, snapshot, workspace_root
+    from .run import (DEFAULT_MAX_FILES, audit_enabled, changed, snapshot,
+                      workspace_root)
 
+    audited = audit_enabled()
     cwd = Path.cwd()
     invocation = parse_argv(argv, cwd)
     piped = read_piped_stdin() if invocation.reads_stdin else None
@@ -374,7 +382,8 @@ def main(argv: list[str]) -> int:
     executable = real_binary()
     root = workspace_root()
     max_files = int(os.environ.get("ALKERA_SHIM_MAX_FILES") or DEFAULT_MAX_FILES)
-    before = snapshot(root, max_files) if invocation.interactive else None
+    before = (snapshot(root, max_files)
+              if audited and invocation.interactive else None)
 
     started = time.monotonic()
     if executable is not None:
@@ -386,6 +395,8 @@ def main(argv: list[str]) -> int:
         engine = "library"
         returncode, error = execute_with_library(invocation)
     latency_ms = (time.monotonic() - started) * 1000
+    if not audited:
+        return returncode
 
     record_argv = [BINARY, *argv]
     if invocation.commands:
