@@ -49,6 +49,44 @@ conflicts with it, the R004 verdict is overruled (§7).
 
 ---
 
+## 1a. Owners and status (2026-10-03)
+
+**done** = built and unit-tested, not yet run in a container (no Docker on the dev host);
+**partial** = usable with stated gaps; **open** = not started.
+
+| item | owner | status | what is still open |
+|---|---|---|---|
+| Snowflake | Michael | partial, close to done | TLS route untested by the new tests; no task selects it; container run |
+| Databricks (lakehouse) | Andrew | open | everything (§3.2 tier 1 / tier 2) |
+| dbt | Andrew | done for duckdb, postgres, snowflake | dbt-bigquery, dbt-redshift, dbt-databricks; dbt-postgres never run against a live server |
+| Airflow | Andrew | open | compose profile designed only; headless prototype archived |
+| Python / Jupyter | Andrew | done | container run; MLflow / compute nodes are separate and open |
+| Postgres | Andrew | done | no task uses it; host topology has no Postgres bring-up |
+| BigQuery | Andrew | done (emulator) | dbt-bigquery; GCS fake; no task |
+| Semantic layer / BI-as-code | Michael | open | today's BI is YAML-of-SQL dashboards (`world/bi.py`, `bi_*`, Metabase fake); no semantic layer |
+| Redshift | Andrew | open | Postgres persona (§3.2) |
+| Spreadsheets (Excel) | Andrew | partial | `excel_close` writes real `.xlsx`, readable via `in2csv`/`unzip`; **openpyxl is only in `/opt/toolbelt`, so `pandas.read_excel` fails in ds/da images**; no formula recalculation; no task writes a workbook |
+| Tableau / Sigma (UI clones) | Michael | open | §3.5 planned file formats + REST fakes; a UI an agent drives is a larger, separate build |
+| Power BI | Michael | open | see below |
+| Better sandboxing | Andrew | partial | strong base (subject sandbox, egress allowlist, containment P0–P7 on x86, authoring strip); re-measure P6/P7 with profile overlays and the `jupyter` container; bare compose name `minio` still resolves; arm64 |
+
+**Power BI difficulty.** File formats are tractable, the engine is the hard part.
+
+- **Project files: moderate.** PBIP (TMDL semantic model + PBIR report JSON) is GA and the
+  default since September 2026, text-based and diffable: the agent edits measures,
+  relationships and visuals in the repo, and graders read them structurally.
+- **The engine: hard.** No production open-source DAX evaluator exists (parsers do; one
+  teaching-subset evaluator). Real DAX semantics (filter context, context transition,
+  `CALCULATE`, relationship direction, time intelligence) cannot be approximated without
+  being silently wrong, so: a narrow DAX subset compiled to SQL on the warehouse slot,
+  everything else refused by name. Power Query M: refuse beyond trivial source steps.
+- **Calibration: the hidden cost.** Golden values must come from real Power BI (Windows +
+  a licence) by differential testing, or tasks teach our engine's semantics, not Power BI's.
+- **REST fake** (groups, datasets, refreshes, reports, `executeQueries` over the subset):
+  moderate. **A Desktop UI clone:** out of scope for this sprint.
+- **Overlap:** TMDL *is* a semantic layer. One measure/relationship -> SQL core can serve
+  both Power BI and the semantic-layer item (and later LookML / dbt semantic models).
+
 ## 2. The slots
 
 A slot is one kind of system a data worker touches. A profile picks one plug per slot, or
