@@ -500,16 +500,21 @@ def native_discovery(workspace: str | Path | None,
 #: working tree. `container_episode` copies the world's `home/` to /root and
 #: stages the re-rooted dbt profile at /root/.dbt/profiles.yml, which is the
 #: path `compose.native.yml`'s own `DBT_PROFILES_DIR` already names.
-CONTAINER_DBT_DIR = "/root/.dbt"
+#: `CONTAINER_HOME` is the default; a box whose engineer has another HOME (the
+#: Harbor export's `/home/engineer`) passes `home=` and the profile follows it.
+CONTAINER_HOME = "/root"
+CONTAINER_DBT_DIR = f"{CONTAINER_HOME}/.dbt"
 CONTAINER_WORKSPACE = "/workspace"
 
 
-def container_discovery_path(host_path: str, workspace: str | Path | None) -> str:
+def container_discovery_path(host_path: str, workspace: str | Path | None,
+                             home: str = CONTAINER_HOME) -> str:
     """One discovery file, spelled the way the episode container spells it.
 
     A prompt that named the host path would send the subject after a directory
     that does not exist on the box it is actually on, which is the same class of
-    mistake as promising it a `docs/onboarding.md` no world ever wrote.
+    mistake as promising it a `docs/onboarding.md` no world ever wrote. A file
+    outside the working tree is the dbt profile, staged at `<home>/.dbt/`.
     """
     path = Path(host_path)
     if workspace:
@@ -518,7 +523,7 @@ def container_discovery_path(host_path: str, workspace: str | Path | None) -> st
                     f"{path.resolve().relative_to(Path(workspace).resolve()).as_posix()}")
         except (ValueError, OSError):
             pass
-    return f"{CONTAINER_DBT_DIR}/{path.name}"
+    return f"{str(home).rstrip('/')}/.dbt/{path.name}"
 
 
 def build_prompt(instruction: str, toolbelt: dict, artifact_in_world: str,
@@ -526,7 +531,8 @@ def build_prompt(instruction: str, toolbelt: dict, artifact_in_world: str,
                  redteam: bool = False, shell: bool = False,
                  workspace: str | Path | None = None,
                  profiles_dir: str | Path | None = None,
-                 container_shell: bool = False) -> str:
+                 container_shell: bool = False,
+                 home: str = CONTAINER_HOME) -> str:
     if driver == "native":
         # no `names` table and no tool lines, on purpose: see CHANNEL_NATIVE
         rel = artifact_in_world
@@ -542,7 +548,7 @@ def build_prompt(instruction: str, toolbelt: dict, artifact_in_world: str,
                 else (Path(workspace).as_posix() if workspace else "/workspace"))
         files = native_discovery(workspace, profiles_dir)
         if container_shell:
-            files = [container_discovery_path(f, workspace) for f in files]
+            files = [container_discovery_path(f, workspace, home) for f in files]
         discovery = (NATIVE_DISCOVERY_PRESENT.format(
                          files="\n".join(f"- `{f}`" for f in files))
                      if files else NATIVE_DISCOVERY_ABSENT)
