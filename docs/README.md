@@ -8,6 +8,7 @@ environments/                   what the composable environments need
   TOOL_INVENTORY.md             every tool (Snowflake, Databricks, Redshift, BigQuery, Airflow,
                                 dbt, Jupyter, Power BI, Tableau, Sigma, ...): status, local plug,
                                 licence, arm64; the slot model; DE/DS/DA x vendor-stack profiles
+  BI_BUILD_PLAN.md              semantic core + Power BI / Tableau / Sigma skins, phased
 
 research/                       design research with sources
   Scoring_Redesign.md           the eval and scoring design and its provenance
