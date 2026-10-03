@@ -108,3 +108,7 @@ docs/private/
 
 # Claude Code agent worktrees
 .claude/worktrees/
+
+# Harbor export (harbor/export.py): generated datasets are build artifacts,
+# regenerated from the generator + templates. Never commit them.
+harbor/dist/

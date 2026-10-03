@@ -1,0 +1,34 @@
+[
+  {
+    "adapter_name": "alkera-de",
+    "adapter_builders": [
+      "Alkera"
+    ],
+    "original_benchmark": [
+      {
+        "split": "full",
+        "size": 28,
+        "harness": "agent",
+        "supported_agents": [
+          "claude-code"
+        ],
+        "adaptable": true,
+        "notes": "Nine source tasks (tasks/GT001-GT009), each with 2-8 context arms declared in its task.toml [variants]; 28 (task, arm) units in total. The original harness (tasks/harness/rollout.py, --driver native --topology container) runs the agent at a shell in an episode container with the world's services in a sibling container, and grades with each task's deterministic grade.py plus the outcome/progress/path/reward composition of report.py."
+      }
+    ],
+    "harbor_adapter": [
+      {
+        "split": "full",
+        "adapted_benchmark_size": 28,
+        "parity_benchmark_size": null,
+        "parity_sampling_rate": null,
+        "registry_benchmark_size": 28,
+        "added_agents": [],
+        "parity_matching_agents": [],
+        "parity_unmatching_agents": null,
+        "parity_costs": null,
+        "notes": "One Harbor task per (task, arm), named alkera/<task-id-lowercase>__<arm>. The world is built once at export time with the source builder and re-rooted into the image; a separate no-network verifier regrades from the /world, /workspace and /audit artifacts. instruction.md is byte-identical to the harness prompt except the dbt profile path (/home/engineer/.dbt). Deviations from the measured topology: one container instead of compose, agent user engineer instead of root, Postgres/MinIO not started (no task uses them), services bound to 127.0.0.1. Parity experiments against the source harness have not been run yet."
+      }
+    ]
+  }
+]

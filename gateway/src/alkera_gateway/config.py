@@ -3,6 +3,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from . import plugs as plug_catalog
 from .warehouse_spec import NAME_PATTERN, WarehouseSpec
 
 
@@ -20,6 +21,10 @@ class GatewayConfig(BaseModel):
     # and is byte-identical to today by construction (see warehouses.py).
     warehouse_name: str = Field(default="primary", pattern=NAME_PATTERN)
     warehouses: list[WarehouseSpec] = Field(default_factory=list)
+    # An environment profile (plugs.py): `<role>/<stack>` plus per-slot plug
+    # overrides. Unset, the gateway serves every tool, exactly as before.
+    profile: str | None = None
+    plugs: dict[str, list[str]] = Field(default_factory=dict)
     bi_state_dir: Path | None = None
     s3_endpoint: str | None = None
     s3_buckets: list[str] = Field(default_factory=list)
@@ -102,6 +107,17 @@ class GatewayConfig(BaseModel):
                 # pretend a hash of the local world tree covers a remote server.
                 raise ValueError(
                     "Remote warehouses require an explicit initial_world_fp"
+                )
+        if self.plugs and self.profile is None:
+            raise ValueError("plugs require a profile")
+        if self.profile is not None:
+            profile = plug_catalog.resolve(self.profile, self.plugs)
+            plug = next(iter(profile.slots.get("warehouse", ())), None)
+            backend = self.warehouse_backend
+            if plug in ("duckdb", "postgres", "snowflake") and plug != backend:
+                raise ValueError(
+                    f"profile warehouse plug {plug!r} disagrees with "
+                    f"warehouse_backend {backend!r}"
                 )
         if self.audit_dir.is_relative_to(self.workspace):
             raise ValueError("audit_dir must be outside workspace")

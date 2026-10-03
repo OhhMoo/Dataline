@@ -37,6 +37,14 @@ ALKERA_SHIM_WATCH      extra FILES outside the workspace to watch, os.pathsep-
                        absolute container path; blindness maps it). The row's
                        `result.watched` lists what was watched, which is how
                        blindness tells a scoped row from one written before this.
+ALKERA_SHIM_AUDIT_UID  when set, only a process whose EFFECTIVE uid is this
+                       number writes a row; any other user runs the real binary
+                       exactly as before and leaves no row. Unset (or not an
+                       integer, or a platform without uids): every call writes
+                       its row, as before this variable existed. The Harbor
+                       image sets it to the agent's uid, because Harbor installs
+                       the agent as root through the same PATH, and an installer's
+                       `python -m pip ...` is not something the agent did.
 plus the ALKERA_NATIVE_AUDIT / ALKERA_AUDIT_DIR / ALKERA_VTS that `audit.record`
 reads.
 """
@@ -58,6 +66,26 @@ DEFAULT_MAX_FILES = 20_000
 # environments, bytecode caches and dbt's own scratch output.
 SKIP_DIRECTORIES = {".git", ".venv", "venv", "__pycache__", ".pytest_cache", "target", "logs"}
 READ_CHUNK = 1 << 20
+
+
+AUDIT_UID_ENV = "ALKERA_SHIM_AUDIT_UID"
+
+
+def audit_enabled() -> bool:
+    """Does this process write the 9.2.2 row? See ALKERA_SHIM_AUDIT_UID.
+
+    Fails toward auditing: a malformed value, or a platform with no effective
+    uid, records exactly as an unset variable does.
+    """
+    raw = (os.environ.get(AUDIT_UID_ENV) or "").strip()
+    if not raw:
+        return True
+    try:
+        wanted = int(raw)
+    except ValueError:
+        return True
+    geteuid = getattr(os, "geteuid", None)
+    return geteuid is None or geteuid() == wanted
 
 
 def workspace_root() -> Path:
@@ -157,6 +185,14 @@ def main(argv: list[str] | None = None) -> int:
         from . import duckdb_cli
 
         return duckdb_cli.main(rest)
+    if not audit_enabled():
+        # Not the audited user: the same binary, the same exit code, no row
+        # and no workspace scan (ALKERA_SHIM_AUDIT_UID).
+        executable = real_binary(name)
+        if executable is None:
+            print(f"{name}: not found", file=sys.stderr)
+            return 127
+        return subprocess.run([executable, *rest]).returncode
     executable = real_binary(name)
     root = workspace_root()
     max_files = int(os.environ.get("ALKERA_SHIM_MAX_FILES") or DEFAULT_MAX_FILES)
