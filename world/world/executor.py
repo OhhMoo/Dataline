@@ -444,7 +444,10 @@ def execute(root: Path, job: str, spec: dict | None, *, gen=None,
     poll at a specific logical date.
     """
     root = Path(root)
-    ctx = {"root": root, "workspace": root / "workspace", "db": root / DB,
+    # Resolved, because the containment checks compare it against resolved
+    # script paths: a workspace reached through a symlink (the Harbor image
+    # links /world/workspace -> /workspace) must still contain its own files.
+    ctx = {"root": root, "workspace": (root / "workspace").resolve(), "db": root / DB,
            "seed": seed, "gen": gen, "theme": theme,
            "variables": variables or {},
            "day": day if day is not None else (variables or {}).get("day"),
