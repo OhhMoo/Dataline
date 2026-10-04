@@ -1,3 +1,7 @@
 awscli==1.46.1
 csvkit==2.2.0
 sqlfluff==4.3.0
+# Tableau: the CLI and the Python client a Tableau shop deploys with (the
+# tableau plug, gateway/docker/TOOLBELT.md); both MIT.
+tabcmd==2.0.21
+tableauserverclient==0.41

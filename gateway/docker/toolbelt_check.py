@@ -86,6 +86,7 @@ PROBES: tuple[tuple[str, tuple[str, ...], tuple[int, ...]], ...] = (
     ("csvstat", ("csvstat", "--version"), (0,)),
     ("in2csv", ("in2csv", "--version"), (0,)),
     ("csvsql", ("csvsql", "--version"), (0,)),
+    ("tabcmd", ("tabcmd", "--version"), (0,)),
     # the gateway's own environment
     ("python", ("python", "--version"), (0,)),
     ("pip", ("pip", "--version"), (0,)),
