@@ -36,11 +36,20 @@ step), because a Table.SelectRows or a Table.TransformColumnTypes changes the
 rows or the types the engine would read, and the engine reads the relation.
 
 Connectors read: Databricks.Catalogs / DatabricksMultiCloud.Catalogs,
-Snowflake.Databases, Sql.Database (also with [Query="..."]) and Fabric Direct
-Lake entity partitions (TMDL `partition x = entity` with entityName/schemaName,
-handled in tmdl.py). Snowflake stores unquoted identifiers upper-case and
-Power BI navigates by the stored name, so the writer upper-cases them and the
-reader lower-cases them back.
+Snowflake.Databases, Sql.Database (also with [Query="..."]), Odbc.DataSource
+with [HierarchicalNavigation=true] and Fabric Direct Lake entity partitions
+(TMDL `partition x = entity` with entityName/schemaName, handled in tmdl.py).
+Snowflake stores unquoted identifiers upper-case and Power BI navigates by the
+stored name, so the writer upper-cases them and the reader lower-cases them
+back.
+
+DUCKDB. Power BI has no DuckDB connector; a workstation reaches a DuckDB file
+through the DuckDB ODBC driver, and Desktop's ODBC dialog writes
+`Odbc.DataSource(<connection string>, [HierarchicalNavigation=true])` followed
+by the same Database / Schema / Table navigation the warehouse connectors use
+(DuckDB's catalog is the file stem). That is the `duckdb` connector, the laptop
+stack's. Without HierarchicalNavigation an ODBC source is a flat list of
+tables whose names carry no schema, so that form stays refused by name.
 
 Sources: Power Query M language specification (learn.microsoft.com/powerquery-m,
 "Lexical structure", "let expression", "Item access", "Field access"); connector
@@ -87,6 +96,13 @@ CONNECTORS = {
     "sql": Connector("sql", (
         ("SqlServer", "analytics-sql.database.windows.net"),
         ("SqlDatabase", "analytics"),
+    )),
+    # The DuckDB ODBC driver's documented connection string; the path is where
+    # the world's warehouse file is on the box. DuckDBCatalog is the file stem.
+    "duckdb": Connector("duckdb", (
+        ("DuckDBConnectionString",
+         "Driver={DuckDB Driver};Database=/world/var/warehouse/warehouse.duckdb"),
+        ("DuckDBCatalog", "warehouse"),
     )),
 }
 DEFAULT_CONNECTOR = "databricks"
@@ -140,6 +156,11 @@ def partition_source(table: Table, connector: str) -> str:
     elif connector == "sql":
         steps.append(("Source", "Sql.Database(SqlServer, SqlDatabase)"))
         database = "Source"
+    elif connector == "duckdb":
+        steps.append(("Source", "Odbc.DataSource(DuckDBConnectionString, "
+                                "[HierarchicalNavigation=true])"))
+        steps.append(("Database", 'Source{[Name=DuckDBCatalog,Kind="Database"]}[Data]'))
+        database = "Database"
     else:
         raise ModelError(f"unknown Power BI connector {connector!r}; "
                          f"known: {', '.join(sorted(CONNECTORS))}")
@@ -484,7 +505,8 @@ CONNECTOR_FUNCTIONS = {
 }
 
 
-KNOWN_FUNCTIONS = frozenset({*CONNECTOR_FUNCTIONS, "Sql.Database", "Value.NativeQuery"})
+KNOWN_FUNCTIONS = frozenset({*CONNECTOR_FUNCTIONS, "Sql.Database", "Odbc.DataSource",
+                             "Value.NativeQuery"})
 
 
 class Evaluator:
@@ -572,6 +594,15 @@ class Evaluator:
         args = [self.evaluate(a, env, step) for a in node.args[1:]]
         if function in CONNECTOR_FUNCTIONS:
             return Nav("connector", CONNECTOR_FUNCTIONS[function])
+        if function == "Odbc.DataSource":
+            options = args[1] if len(args) > 1 and isinstance(args[1], dict) else {}
+            if options.get("HierarchicalNavigation") is not True:
+                # The flat navigation (module docstring, DUCKDB): refused by
+                # the function's name, as any step this reader cannot follow.
+                raise unsupported("Power Query step Odbc.DataSource",
+                                  f"step {step}: only [HierarchicalNavigation=true] "
+                                  f"navigates by schema")
+            return Nav("connector", "odbc")
         if function == "Sql.Database":
             options = args[2] if len(args) > 2 and isinstance(args[2], dict) else {}
             if options.get("Query"):

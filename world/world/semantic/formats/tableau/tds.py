@@ -86,9 +86,11 @@ def _conn(cls: str, caption: str, **attrs: str) -> Connection:
 #: Hosts are the episode network's names; credentials are never written (Tableau
 #: does not store passwords in a .tds).
 CONNECTIONS: dict[str, Connection] = {
-    # genericodbc as Desktop 2025.1 writes it, with the DuckDB ODBC driver.
+    # genericodbc as Desktop 2025.1 writes it, with the DuckDB ODBC driver. The
+    # database path is where the world's warehouse file is on the box (the
+    # world root is /world; Power BI's duckdb connector names the same file).
     "duckdb": _conn("genericodbc", "DuckDB", dbname="warehouse",
-                    odbc_connect_string_extras="database=/var/warehouse/warehouse.duckdb",
+                    odbc_connect_string_extras="database=/world/var/warehouse/warehouse.duckdb",
                     odbc_dbms_name="DuckDB", odbc_driver="DuckDB Driver", odbc_dsn="",
                     odbc_suppress_connection_pooling="", odbc_use_connection_pooling="",
                     port="", schema="warehouse", server="", username=""),

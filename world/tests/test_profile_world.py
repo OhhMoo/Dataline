@@ -448,8 +448,11 @@ class BIVendorBuildTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.tmp = Path(tempfile.mkdtemp(prefix="profile-bi-"))
+        # A BI vendor needs a theme with a `bi_projects` hook (world/bi_projects.py
+        # refuses one without): commerce_analytics is the BI-heavy theme.
+        commerce = WORLD_DIR / "world" / "themes" / "commerce_analytics" / "seed.example.yaml"
         cls.root = build.build(
-            _seed_with(cls.tmp, "powerbi", profile=cls.PROFILE, native=True),
+            _seed_with(cls.tmp, "powerbi", base=commerce, profile=cls.PROFILE, native=True),
             cls.tmp / "powerbi", LOCK)
 
     @classmethod

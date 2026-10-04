@@ -4,14 +4,19 @@ Every dashboard is a project in this directory, changed by pull request and
 promoted by tooling (wiki: ae/runbooks/bi-release-process). Nobody publishes to
 production from a desktop client.
 
-| path | tool | what is in it | dashboards |
-|---|---|---|---|
-| `bi/powerbi/` | Power BI | a PBIP project: the semantic model as TMDL (`*.SemanticModel/definition/`), the report as PBIR (`*.Report/definition/`) | Executive Overview |
-| `bi/tableau/` | Tableau | the published data source (`.tds`) and workbook (`.twb`), as XML | Sales Overview |
-| `bi/sigma/` | Sigma | workbooks exported as JSON through the Sigma API | Customer Health, Finance close pack |
+| path | tool | what is in it |
+|---|---|---|
+| `bi/powerbi/` | Power BI | a PBIP project: `Executive Overview.pbip`, the `Commerce` semantic model as TMDL (`Commerce.SemanticModel/definition/`) and the report as PBIR (`Executive Overview.Report/definition/`) |
+| `bi/tableau/` | Tableau | the published data source `datasources/Commerce.tds` and the workbook `workbooks/Executive Overview.twb`, as XML |
+| `bi/sigma/` | Sigma | what the Sigma API returns for each document, as JSON: the data model `data-models/commerce.json`, the workbook `workbooks/executive-overview.json`, and the connection with its synced tables `connections/snowflake.json` |
 
 Not every deployment runs all three tools. A directory that is not here is a
 tool this environment does not use.
+
+Each project is that tool's build of the Executive Overview over the same
+`Commerce` model. Where a tool has no exact way to say a measure, its project
+leaves the measure out rather than approximating it: Revenue LY and YoY Growth
+(time intelligence) are Power BI only, and Sigma has no Segment Share.
 
 ## The semantic layer
 
@@ -23,8 +28,8 @@ MetricFlow spec. `./run.sh sl` lists them.
 A BI measure called "Net Revenue" - a DAX measure in the TMDL, a Tableau
 calculated field, a Sigma metric - must agree with the dbt metric of the same
 label. When they disagree, the BI tool is the one that is wrong. Two measures
-exist only in the Power BI model because MetricFlow cannot express them:
-Segment Share and List Price Revenue (`docs/metrics.md`).
+exist only in the BI tools because MetricFlow cannot express them: Segment
+Share and List Price Revenue (`docs/metrics.md`).
 
 ## What the tools read
 

@@ -13,6 +13,8 @@ Produces the contract layout (agent.md §9.2.1) under <root>:
   var/world/profile.json           (only when seed `profile:` names one;
                                     `plugs` in it only when the seed gives them)
   workspace/data/{exports,api,events}/  (only when seed `files:` asks; files.py)
+  workspace/bi/{powerbi,tableau,sigma}/ (only when the profile plugs that BI
+                                    vendor under `plugs: {bi:}`; bi_projects.py)
   build/provenance.json
 
 The world *shape* lives in world/themes/<name>/ (manifest + gen hooks + static
@@ -36,6 +38,7 @@ import yaml
 
 from . import (
     __version__,
+    bi_projects,
     executor,
     faults,
     files,
@@ -371,6 +374,10 @@ def build(seed_path: Path, root: Path, lock_path: Path | None = None) -> Path:
         return profile is None or slot in profile["slots"]
 
     theme = load_theme(seed.get("theme", "revenue_daily"))
+    # A profile that plugs a BI vendor needs a theme that can write its
+    # project; refused here, with the other opt-in checks, before anything is
+    # written. [] for every seed that does not plug a vendor.
+    bi_vendors = bi_projects.require(theme, profile)
     root = Path(root)
     workspace, build_dir = root / "workspace", root / "build"
     db_path = root / "var" / "warehouse" / "warehouse.duckdb"
@@ -451,6 +458,14 @@ def build(seed_path: Path, root: Path, lock_path: Path | None = None) -> Path:
     # somebody was handed is a file somebody checked in.
     if formats:
         files.write(root, seed, formats, scheduler.load(root)["vnow"])
+    # The BI vendors' projects (bi_projects.py): the dashboards as code, in the
+    # repository next to the dbt project. After the warehouse (each model's
+    # sources are checked against it), BEFORE native discovery (the onboarding
+    # page points at the project directories, which must exist to be named)
+    # and BEFORE the git commit, because the vendor services publish what was
+    # first committed. A seed whose profile plugs no vendor writes nothing.
+    if bi_vendors:
+        bi_projects.write(root, theme, seed, profile, db_path)
     # Native mode's discovery layer (gateway/NATIVE.md): .envrc, the
     # onboarding page, ~/.dbt/profiles.yml, ~/.config/alkera/services.toml.
     # Opt-in on the same terms as `faults:` and `warehouses:` - a seed without

@@ -544,6 +544,23 @@ def onboarding_markdown(root: Path, manifest: dict, slots=None, plugs=None) -> s
         "repository's `config/profiles.yml` is a different target.",
         "",
     ]
+    # Where each plugged BI vendor's project is in the repository
+    # (world/world/bi_projects.py). Only a vendor the profile names AND whose
+    # directory the build wrote - rule 3: the page points at what is there, so
+    # an unprofiled box, or a vendor box whose theme ships no project, gets no
+    # such section and keeps its bytes.
+    workspace = Path(root) / "workspace"
+    projects = [s for s in _services(slots, plugs) if s in PLUG_SERVICES
+                and (workspace / "bi" / s.name).is_dir()]
+    if projects:
+        lines += ["## The BI projects", "",
+                  "| tool | project in this repository | service |", "|---|---|---|"]
+        for service in projects:
+            lines.append(f"| {service.name} | `bi/{service.name}/` | "
+                         f"`{service.alias}:{service.port}` |")
+        lines.append("")
+        if (workspace / "bi" / "README.md").is_file():
+            lines += ["`bi/README.md` describes how they are laid out.", ""]
     jobs = (manifest.get("jobs") or {}) if _plugged("orchestrator", slots) else {}
     if jobs:
         lines += ["## The pipeline", "",

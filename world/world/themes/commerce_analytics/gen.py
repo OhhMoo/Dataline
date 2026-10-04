@@ -692,3 +692,38 @@ def write_workflow(root: Path, seed: dict, manifest: dict) -> None:
     """
     workflow.seed(root, Path(__file__).resolve().parent, manifest["workflow"],
                   scheduler.load(root)["vnow"])
+
+
+# --------------------------------------------------------------------------
+# the BI projects (world/world/bi_projects.py)
+# --------------------------------------------------------------------------
+
+def bi_projects(seed: dict) -> dict:
+    """What each BI vendor's project in workspace/bi/ is, when the seed's
+    profile plugs that vendor: {vendor: (Model, (Report, ...))}.
+
+    One model and one report, the way each tool's team built them: the
+    `Commerce` semantic model over the five `warehouse` marts (the star schema
+    world/world/semantic/examples.py fixes and this theme's dbt project
+    builds) and the `Executive Overview` report - the dashboard exposures.yml
+    and var/bi/dashboards/executive_overview.yml describe. Power BI gets the
+    model as written in DAX terms; Tableau and Sigma get their editions
+    (formats/tableau/examples.py, formats/sigma/examples.py), because the DAX
+    model's CALCULATE overwrite, ALL(segment) and time intelligence have no
+    exact Tableau calculation or Sigma formula, and a front-end refuses rather
+    than approximates. On every visual the three share they compute the same
+    numbers on this warehouse (world/tests/test_bi_projects.py proves it).
+
+    Pure: the star schema's names do not depend on the seed's scale knobs, so
+    `seed` is unused - and taken, so a theme whose BI does can say so.
+    """
+    from world.semantic import examples
+    from world.semantic.formats.sigma import examples as sigma_edition
+    from world.semantic.formats.tableau import examples as tableau_edition
+
+    return {
+        "powerbi": (examples.commerce_model("dax"), (examples.executive_report(),)),
+        "tableau": (tableau_edition.tableau_commerce_model(),
+                    (tableau_edition.tableau_executive_report(),)),
+        "sigma": (sigma_edition.commerce_model(), (sigma_edition.executive_report(),)),
+    }

@@ -123,7 +123,10 @@ def pbip_report(pbip: Path) -> Path:
     raise ModelError(f"{pbip.name} references no report")
 
 
-def read_project(path: Path) -> tuple[Model, tuple[Report, ...]]:
+def read_project(path: Path, *, warehouse: Path | None = None
+                 ) -> tuple[Model, tuple[Report, ...]]:
+    """`warehouse` is accepted for the common front-end signature
+    (world.semantic) and unused: TMDL carries every column's data type."""
     path = Path(path)
     if path.is_file() and path.suffix.lower() == ".pbip":
         report_folders = [pbip_report(path)]

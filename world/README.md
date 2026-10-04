@@ -19,6 +19,7 @@ world/            the package (python -m world.build --seed S --root R)
   workflow.py                 the seeded ticket / chat / wiki documents
   native_workspace.py         .envrc / profiles.yml / onboarding.md for native mode
   files.py                    the `files:` flag: parquet / JSON / JSONL user files
+  bi_projects.py              `profile.plugs.bi`: each BI vendor's project, checked into the repo
   warehouse_seed.py           set-based Postgres/DuckDB seeding for the `warehouses:` flag
   bi.py snapshot.py           dashboards = YAML of SQL panels; deterministic tar save/restore
 docker/           episode image, 3-zone compose, egress gate
@@ -175,6 +176,32 @@ profile without the `files` slot is refused. Same seed → byte-identical files:
 `COPY` under `PRAGMA threads=1` with an `ORDER BY` over every column (the footer's
 `created_by` is the locked DuckDB version, not a run property); fixed-key-order ASCII
 JSON. The files move only the `workspace` section.
+
+## BI projects (`profile: {plugs: {bi: [...]}}`)
+
+```yaml
+profile: {name: "da/laptop", slots: [files, notebook, warehouse, transform, bi, human],
+          plugs: {bi: [powerbi, tableau, sigma]}}
+```
+
+A profile that plugs a BI vendor gets that vendor's dashboards-as-code in the
+repository, beside the dbt project: `workspace/bi/powerbi/` (PBIP: TMDL + PBIR),
+`workspace/bi/tableau/` (`datasources/*.tds`, `workbooks/*.twb`),
+`workspace/bi/sigma/` (`data-models/`, `workbooks/`, `connections/` API JSON) -
+the layout each fake vendor service publishes from. The theme says what they are
+through an optional `gen.py` hook, `bi_projects(seed) -> {vendor: (Model,
+(Report, ...))}` over `world.semantic`; each front-end's `write_project` writes
+them (bi_projects.py). Plugging a vendor into a theme without the hook is refused
+before anything is built; a model whose sources the built warehouse lacks is
+refused at build. Connections name the world's DuckDB file (ODBC for Power BI and
+Tableau; Sigma, which has no DuckDB connector, keeps its Snowflake connection,
+read warehouse-relative). Written after the warehouse and BEFORE the git commit -
+the services publish what was first committed - deterministic to the byte (ids
+from names, no timestamps), moving only the `workspace` section. Other `bi`
+plugs (`metabase_fake`), no `plugs`, or no profile write nothing.
+`commerce_analytics` is the theme with the hook: Power BI's Commerce model and
+Executive Overview, and the Tableau and Sigma editions of both, which agree on
+every shared visual on the built warehouse (`world/tests/test_bi_projects.py`).
 
 ## Themes
 
