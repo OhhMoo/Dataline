@@ -61,3 +61,13 @@ def test_revision_behind_with_empty_changed_paths_is_current_enough():
         changed_paths=lambda old, new: [],
     )
     assert result == {"image": IMAGE, "revision": OLD, "head": HEAD}
+
+
+def test_build_evidence_is_not_an_image_bearing_path():
+    # Regression (2026-10-04): committing gateway/docker/evidence/image.json -
+    # the RECORD of a build - made that very build stale, so every evidence
+    # commit forced another rebuild, whose record forced another. Evidence
+    # describes images; it is not an input to them.
+    head = "6dbfb0b6f1bccbfdc710b121acf1656569fb6885"     # an evidence-only commit
+    parent = "674a3a305380706733cc507655fe66a7273979e5"
+    assert container_episode._image_scope_changed_paths(parent, head) == []

@@ -1153,11 +1153,18 @@ def _git_head() -> str:
     return result.stdout.strip()
 
 
+#: Build evidence (`gateway/docker/evidence/`) is a record ABOUT images, not an
+#: input to them: counting it made every committed build record stale its own
+#: build, so each evidence commit demanded another rebuild (2026-10-04).
+IMAGE_SCOPE = ("gateway", "world", ":(exclude)gateway/docker/evidence")
+
+
 def _image_scope_changed_paths(old: str, new: str) -> list[str]:
-    """Paths under gateway/ or world/ that differ, same scope as image parity."""
+    """Paths under gateway/ or world/ that differ, same scope as image parity
+    (build evidence excluded: IMAGE_SCOPE)."""
     result = subprocess.run(
         ["git", "-C", str(REPO), "diff", "--name-only", old, new,
-         "--", "gateway", "world"],
+         "--", *IMAGE_SCOPE],
         capture_output=True, text=True, encoding="utf-8", errors="replace")
     if result.returncode != 0:
         raise episode.HarnessError(
