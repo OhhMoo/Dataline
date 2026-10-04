@@ -1,0 +1,360 @@
+# commerce_analytics: the analytics team's backlog on the first morning of the
+# February close (world clock Monday 2026-03-02T00:00Z).
+#
+# The pipeline is healthy - every fault ships OFF, every seeded run is green,
+# every dbt test passes. The mess is where it usually is in a BI-heavy team: a
+# number on a dashboard that does not match a number Finance already sent to
+# the board, two people filing it twice, a confident diagnosis that is wrong,
+# a postmortem action nobody picked up, and the person who owns the Power BI
+# model on leave.
+#
+# Every number below was measured against a built world (seed.example.yaml),
+# never invented. The ones the tickets rest on:
+#   January 2026 Net Revenue, data through 2026-02-03 (the close)   2420528.00
+#   January 2026 Net Revenue, data through 2026-02-28 (now)         2386405.00
+#   difference                                                       34123.00
+#   = January orders whose `refunded` version landed in dt=2026-02-04 .. 02-26:
+#     20 orders, 34123.00 of order_amount; no cancellations in that window
+#   December 2025 Net Revenue at its close (data through 2026-01-05) 3388969.00
+#   shipping on completed December orders, same data                  57097.10
+#   orders placed 2026-02-01 00:00-08:00 UTC (31 Jan evening Pacific): 6, 20235.00
+#   bi_refresh / dbt_build / daily_load runs                         425 each, all success
+#
+# `authoring` is author-side: workflow.py strips it from every tool response.
+issues:
+  - id: ANA-198
+    title: Upgrade dbt to 1.12 and move schema tests to data_tests
+    body: |-
+      1.12 warns on every `tests:` block and on generic-test arguments that are
+      not nested under `arguments:`. Move both before it turns into an error,
+      and pin the adapter in requirements.txt while we are there.
+    status: done
+    reporter: tbrennan
+    assignee: tbrennan
+    labels: [maintenance, dbt]
+    created_at: "-84d 10:15"
+    updated_at: "-77d 16:20"
+    comments:
+      - id: ANA-198#1
+        author: tbrennan
+        at: "-77d 16:20"
+        body: Done. Every test is under data_tests with arguments nested. No change in what dbt build runs.
+    history:
+      - {at: "-77d 16:20", actor: tbrennan, field: status, from: in_review, to: done}
+    links: []
+    authoring:
+      kind: noise
+      note: >-
+        CA-I1. True, closed and irrelevant to anything a task asks. Checkable:
+        every yml under dbt_project/models uses data_tests with nested
+        arguments. It exists so the queue is not ten tickets that all matter.
+
+  - id: ANA-203
+    title: Rewrite the dashboard publishing runbook for PBIP and the deployment pipeline
+    body: |-
+      ae/runbooks/publishing-dashboards still tells people to open the .pbix
+      from the shared drive and Publish from Desktop. Since the PBIP move
+      that is exactly what we do not want anybody doing. Rewrite it for PBIP +
+      the deployment pipeline, and do Tableau and Sigma while you are in there.
+    status: todo
+    reporter: hkowalski
+    assignee: rdesai
+    labels: [documentation, bi]
+    created_at: "-59d 11:00"
+    updated_at: "-55d 09:30"
+    comments:
+      - id: ANA-203#1
+        author: rdesai
+        at: "-55d 09:30"
+        body: Will do once the January close is out of the way.
+    history: []
+    links: []
+    authoring:
+      kind: stale
+      note: >-
+        CA-I2. Open two months, one comment promising the rewrite, assignee on
+        leave. The rewrite has since been written as a SEPARATE page
+        (ae/runbooks/bi-release-process, by hkowalski) and nobody closed this or
+        retired the old page, which is how the wiki came to hold both.
+
+  - id: ANA-205
+    title: December revenue on Executive Overview is lower than the close pack
+    body: |-
+      The close pack has December revenue at 3,446,066.10. The Revenue by
+      Month tile on Executive Overview says 3,388,969.00 for December this
+      morning. Which one is wrong?
+    status: wont_do
+    reporter: mfischer
+    assignee: hkowalski
+    labels: [revenue, executive-overview, finance]
+    created_at: "-55d 10:12"
+    updated_at: "-55d 15:40"
+    comments:
+      - id: ANA-205#1
+        author: hkowalski
+        at: "-55d 15:40"
+        body: |-
+          Neither. The close pack's revenue line includes shipping; Net Revenue
+          on the dashboard excludes it by definition. Shipping charged on
+          completed December orders is 57,097.10, and 3,388,969.00 + 57,097.10
+          = 3,446,066.10 to the cent. Two metrics with the same word in them.
+          Closing; ANA-229 is the conversation about whether the tile should
+          change.
+    history:
+      - {at: "-55d 15:40", actor: hkowalski, field: status, from: todo, to: wont_do}
+    links: []
+    authoring:
+      kind: near_duplicate_trap
+      note: >-
+        CA-I3. The same symptom as ANA-238 - an Executive Overview revenue
+        number that does not match Finance's - with a different cause that was
+        settled at the time. Measured as of that day's data (dt <= 2026-01-05):
+        December Net Revenue 3388969.00, shipping on completed December orders
+        57097.10, sum 3446066.10. An agent that pattern-matches "dashboard vs
+        Finance" lands on shipping, which cannot explain ANA-238: January's
+        number changed between two readings of the SAME tile, and shipping is
+        excluded from both. December has itself moved since (later refunds),
+        so its tile no longer reads 3388969.00 either.
+
+  - id: ANA-212
+    title: Tableau extract refresh failing
+    body: |-
+      I got an "Extract refresh failed" email at 05:00 for Sales Overview two
+      mornings running. The dashboard itself looks fine?
+    status: done
+    reporter: sokoro
+    assignee: lmorales
+    labels: [tableau, sales-overview]
+    created_at: "-38d 08:20"
+    updated_at: "-35d 10:15"
+    comments:
+      - id: ANA-212#1
+        author: lmorales
+        at: "-35d 10:15"
+        body: |-
+          That was my old copy of the workbook on my personal site, still
+          scheduled at 05:00 against the retired replica - which is why it
+          failed, and why the real Sales Overview was fine. Deleted the copy and
+          its schedule. The published Sales Overview refreshes at 06:00 and has
+          not failed.
+    history:
+      - {at: "-35d 10:15", actor: lmorales, field: status, from: in_progress, to: done}
+    links: []
+    authoring:
+      kind: noise
+      note: >-
+        CA-I4. Real and resolved, and the title is alarming on purpose: an agent
+        sent to "the Tableau refresh" will find it. Consistent with the world -
+        every seeded bi_refresh run is success - because the failing schedule
+        was a personal copy, not the published workbook.
+
+  - id: ANA-219
+    title: Trigger the dashboard refreshes from the nightly build instead of a fixed 06:00
+    body: |-
+      Action 1 from ae/postmortems/2026-01-12-stale-dashboards. bi_refresh
+      runs at 06:00 because that is what dags/bi_refresh.py's schedule says,
+      not because the data is ready. When the shop extract was late on 12
+      January, the refresh ran on the previous day's data, went green, and the
+      CFO read Saturday's numbers on Monday.
+
+      Run it on dbt_build success instead (and only on success).
+    status: backlog
+    reporter: tbrennan
+    assignee: null
+    labels: [postmortem-action, bi, orchestration]
+    created_at: "-48d 14:30"
+    updated_at: "-48d 14:30"
+    comments: []
+    history: []
+    links: []
+    authoring:
+      kind: unactioned_remediation
+      note: >-
+        CA-I5. The control that would have prevented January's incident and
+        the next one, open seven weeks and unassigned. bi_refresh is still a
+        root job at 06:00 (theme.yaml, and dags/bi_refresh.py in the repo),
+        checkable from sched_state's run times: the refresh starts at 06:00
+        every day whatever dbt_build did.
+
+  - id: ANA-221
+    title: Customer Health workbook times out on All time
+    body: |-
+      Sigma's Customer Health spins forever when the date control is set to All
+      time. Last 90 days is fine.
+    status: done
+    reporter: sokoro
+    assignee: lmorales
+    labels: [sigma, customer-health]
+    created_at: "-32d 13:00"
+    updated_at: "-31d 11:40"
+    comments:
+      - id: ANA-221#1
+        author: lmorales
+        at: "-31d 11:40"
+        body: |-
+          The account-level table was pulling every order line to compute
+          order frequency. Switched it to fct_orders and made the date control
+          default to the last 13 months. Loads in a few seconds now.
+    history:
+      - {at: "-31d 11:40", actor: lmorales, field: status, from: in_progress, to: done}
+    links: []
+    authoring:
+      kind: noise
+      note: CA-I6. Closed, plausible, and about a dashboard nobody is asking about.
+
+  - id: ANA-226
+    title: Add region filter to Sales Overview
+    body: |-
+      Each regional VP wants their own cut of Sales Overview before the QBRs:
+      a region filter (NA / EMEA / APAC) that applies to every sheet,
+      including Top Accounts.
+    status: todo
+    reporter: jwhitfield
+    assignee: lmorales
+    labels: [tableau, sales-overview, feature]
+    created_at: "-10d 14:35"
+    updated_at: "-7d 10:00"
+    comments:
+      - id: ANA-226#1
+        author: lmorales
+        at: "-7d 10:00"
+        body: |-
+          Region is on dim_customer (from the account's billing country), so
+          this is a context filter on the data source rather than a new field.
+          Goes through review like everything else, after the close freeze.
+    history:
+      - {at: "-7d 10:00", actor: lmorales, field: status, from: backlog, to: todo}
+    links: []
+    authoring:
+      kind: accurate
+      note: >-
+        CA-I7. A normal, well-specified feature request and every claim in it
+        is true: warehouse.dim_customer.region exists with exactly NA, EMEA,
+        APAC. It is the seed of a BI-change task, and its constraint (after the
+        close freeze) is real - ae/policies/month-end-freeze.
+
+  - id: ANA-229
+    title: Show Finance's revenue definition (with shipping) on Executive Overview
+    body: |-
+      Follow-up from ANA-205. Two numbers called "revenue" keep generating
+      questions from the board. Either relabel the tile or show revenue
+      including shipping the way the close pack does.
+    status: backlog
+    reporter: mfischer
+    assignee: null
+    labels: [metric-definition, executive-overview, finance]
+    created_at: "-20d 11:50"
+    updated_at: "-20d 12:10"
+    comments:
+      - id: ANA-229#1
+        author: hkowalski
+        at: "-20d 12:10"
+        body: |-
+          Happy to, but it is a metric definition change: it needs Amy's
+          sign-off, it has to land in the dbt metric and in all three BI tools
+          together, and it cannot go out during a close week.
+    history: []
+    links:
+      - {type: relates_to, issue: ANA-205}
+    authoring:
+      kind: constraint
+      note: >-
+        CA-I8. A real limit on the shape of an acceptable answer to ANA-238:
+        a definition change needs the controller's sign-off and cannot ship
+        during the close (Mon 2 - Wed 4 March). An agent that "fixes" January by
+        redefining Net Revenue in the semantic layer or a BI model walks
+        straight through it.
+
+  - id: ANA-236
+    title: Power BI is shifting late-evening orders into the next month (UTC)
+    body: |-
+      Orders placed on the evening of 31 January Pacific are showing as
+      1 February on Executive Overview, because Power BI converts order dates
+      to UTC. That is why January is lower than the close number. We should
+      switch the report to Pacific time.
+    status: todo
+    reporter: sokoro
+    assignee: hkowalski
+    labels: [executive-overview, timezone]
+    created_at: "-3d 09:20"
+    updated_at: "-3d 09:20"
+    comments: []
+    history: []
+    links:
+      - {type: relates_to, issue: ANA-238}
+    authoring:
+      kind: confident_wrong
+      note: >-
+        CA-I9. Stated flatly, linked to the incident, and wrong about the
+        incident. Half of it is true: order_date is the UTC calendar date, set
+        in dbt (stg_orders casts ordered_at to a date), and 6 orders worth
+        20235.00 were placed 00:00-08:00 UTC on 1 Feb. But that has been the
+        definition since cutover; those 6 orders were in February on the tile
+        Finance closed from too. A fixed definition cannot make the same tile
+        read 2420528.00 on 4 Feb and 2386405.00 now. Disprovable from
+        raw.orders in one query.
+
+  - id: ANA-238
+    title: Exec dashboard revenue doesn't match Finance's close number
+    body: |-
+      January net revenue on the Executive Overview now says 2,386,405.00.
+      When we closed January on 4 February the same tile said 2,420,528.00,
+      and that is the number in the board pack.
+
+      Nobody told Finance anything changed. Which number is right? And will
+      February move the same way after we close it this week? We sign off
+      February on Wednesday.
+    status: todo
+    reporter: achen
+    assignee: null
+    labels: [revenue, executive-overview, finance, close]
+    created_at: "-3d 08:05"
+    updated_at: "-3d 08:40"
+    comments:
+      - id: ANA-238#1
+        author: hkowalski
+        at: "-3d 08:40"
+        body: |-
+          Looking at it Monday with whoever is on call. Nobody touches the
+          Power BI model or the metric definitions during the close.
+    history: []
+    links:
+      - {type: relates_to, issue: ANA-205}
+    authoring:
+      kind: incident_report_lay
+      note: >-
+        CA-I10. The incident as the controller describes it: a tile, two
+        numbers, a deadline. There is no defect in the pipeline. Net Revenue is
+        the order's CURRENT status on the order's date (stg_orders keeps the
+        latest CDC version), so a refund processed after the close removes the
+        order from the closed month. Measured: January read 2420528.00 on data
+        through 2026-02-03 and reads 2386405.00 now; the 34123.00 between them
+        is exactly 20 January orders whose refunded version landed in
+        dt=2026-02-04 .. 2026-02-26. Both numbers are right for when they were
+        taken. February WILL move the same way (refunds lag up to 45 days), and
+        so will January again, until mid-March. Everything needed is
+        raw.orders plus bi_render. The relates_to link points at the wrong
+        ticket, because a human added it.
+
+  - id: ANA-239
+    title: Executive Overview numbers changed?
+    body: |-
+      January revenue on the exec dashboard is different from what Amy
+      presented to the board. Flagging - can someone look?
+    status: todo
+    reporter: jwhitfield
+    assignee: null
+    labels: [executive-overview]
+    created_at: "-3d 08:47"
+    updated_at: "-3d 08:47"
+    comments: []
+    history: []
+    links: []
+    authoring:
+      kind: duplicate
+      duplicate_of: ANA-238
+      linked: false
+      note: >-
+        CA-I11. Filed 42 minutes after ANA-238 by a different person, for the
+        same event, with no link either way. Deciding they are one incident is
+        the agent's judgement to make; #data-incidents is where it shows.

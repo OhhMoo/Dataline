@@ -1,0 +1,113 @@
+version: 2
+
+# Published metrics. Labels are the names the dashboards show; a tile called
+# "Net Revenue" anywhere in the company is this metric or it is a bug.
+#
+# Two Executive Overview measures are NOT here, because MetricFlow cannot say
+# them and a near-miss would be worse than nothing:
+#   - Segment Share: Net Revenue over Net Revenue with the segment filter
+#     removed. MetricFlow has no "ignore this dimension" for one metric in a
+#     query; it lives in the Power BI model as a DAX measure.
+#   - List Price Revenue: quantity x the product's CURRENT list price, a
+#     cross-model row expression. Lives in the Power BI model too.
+
+metrics:
+  - name: gross_revenue
+    label: Gross Revenue
+    description: Merchandise subtotal of every order, whatever its status. Excludes shipping.
+    type: simple
+    type_params:
+      measure: gross_revenue
+
+  - name: net_revenue
+    label: Net Revenue
+    description: >
+      Revenue from completed orders: merchandise subtotal of orders whose
+      status is completed, on the date the order was placed. Excludes refunded
+      and cancelled orders, and excludes shipping.
+    type: simple
+    type_params:
+      measure: gross_revenue
+    filter: |
+      {{ Dimension('order__order_status') }} = 'completed'
+
+  - name: order_count
+    label: Order Count
+    description: Orders placed, whatever their status.
+    type: simple
+    type_params:
+      measure: order_count
+
+  - name: completed_orders
+    label: Completed Orders
+    description: Orders whose current status is completed.
+    type: simple
+    type_params:
+      measure: order_count
+    filter: |
+      {{ Dimension('order__order_status') }} = 'completed'
+
+  - name: aov
+    label: AOV
+    description: Average order value of completed orders - Net Revenue / Completed Orders.
+    type: ratio
+    type_params:
+      numerator: net_revenue
+      denominator: completed_orders
+
+  - name: units
+    label: Units
+    description: Quantity sold, whatever the order's status.
+    type: simple
+    type_params:
+      measure: units
+
+  - name: shipping_revenue
+    label: Shipping Revenue
+    description: >
+      Shipping charged on completed orders. Finance's revenue line includes
+      it; Net Revenue does not.
+    type: simple
+    type_params:
+      measure: shipping_charged
+    filter: |
+      {{ Dimension('order__order_status') }} = 'completed'
+
+  - name: revenue_ytd
+    label: Revenue YTD
+    description: >
+      Net Revenue from 1 January of the year to the date in context. By month,
+      the value at the month's last day (period_agg: last) - what TOTALYTD
+      shows in the Power BI model; MetricFlow's default would show the first.
+    type: cumulative
+    type_params:
+      measure:
+        name: gross_revenue
+        filter: |
+          {{ Dimension('order__order_status') }} = 'completed'
+      cumulative_type_params:
+        grain_to_date: year
+        period_agg: last
+
+  - name: revenue_ly
+    label: Revenue LY
+    description: Net Revenue for the same period one year earlier.
+    type: derived
+    type_params:
+      expr: net_revenue_ly
+      metrics:
+        - name: net_revenue
+          offset_window: 1 year
+          alias: net_revenue_ly
+
+  - name: yoy_growth
+    label: YoY Growth
+    description: (Net Revenue - Revenue LY) / Revenue LY. Empty where there is no prior year.
+    type: derived
+    type_params:
+      expr: (net_revenue - net_revenue_ly) / nullif(net_revenue_ly, 0)
+      metrics:
+        - name: net_revenue
+        - name: net_revenue
+          offset_window: 1 year
+          alias: net_revenue_ly

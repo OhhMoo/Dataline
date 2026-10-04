@@ -1,0 +1,137 @@
+version: 2
+
+# The dbt Semantic Layer (MetricFlow spec) over the star schema in
+# models/marts. Entities are the join keys, dimensions are what a visual
+# groups or filters by, measures are the aggregations metrics are built from.
+#
+# This is the definition the BI front-ends are reconciled against: a Power BI
+# measure, a Tableau calculated field or a Sigma metric that disagrees with a
+# metric here is the one that is wrong (docs/metrics.md). `metric_time` is
+# each semantic model's agg_time_dimension - order_date for both facts - so
+# "by month" means "by the month the order was placed" everywhere.
+
+semantic_models:
+  - name: orders
+    description: One row per order at its latest status (fct_orders).
+    model: ref('fct_orders')
+    defaults:
+      agg_time_dimension: order_date
+    entities:
+      - name: order
+        type: primary
+        expr: order_id
+      - name: customer
+        type: foreign
+        expr: customer_id
+    dimensions:
+      - name: order_date
+        type: time
+        type_params:
+          time_granularity: day
+      - name: order_status
+        description: completed | refunded | cancelled, as of the last extract.
+        type: categorical
+    measures:
+      - name: gross_revenue
+        description: Merchandise subtotal of every order, whatever its status. Excludes shipping.
+        agg: sum
+        expr: order_amount
+      - name: order_count
+        description: Orders, whatever their status.
+        agg: count
+        expr: order_id
+      - name: shipping_charged
+        description: Shipping charged on the order. Not revenue in any published metric.
+        agg: sum
+        expr: shipping_amount
+
+  - name: order_lines
+    description: One row per order line (fct_order_lines).
+    model: ref('fct_order_lines')
+    defaults:
+      agg_time_dimension: order_date
+    entities:
+      - name: order_line
+        type: primary
+        expr: order_line_id
+      - name: order
+        type: foreign
+        expr: order_id
+      - name: product
+        type: foreign
+        expr: product_id
+      - name: customer
+        type: foreign
+        expr: customer_id
+    dimensions:
+      - name: order_date
+        type: time
+        type_params:
+          time_granularity: day
+    measures:
+      - name: units
+        description: Quantity sold, whatever the order's status.
+        agg: sum
+        expr: quantity
+      - name: line_revenue
+        description: Sum of line amounts at the price paid. Equals gross_revenue order for order.
+        agg: sum
+        expr: line_amount
+
+  # Dimension-only on purpose: a measure here would need its own
+  # agg_time_dimension (signup_date), and a semantic model with its own
+  # metric_time gives every fact that joins to it a second path to the
+  # calendar. Account counts live in the Sigma workbook.
+  - name: customers
+    description: Accounts, latest attributes (dim_customer).
+    model: ref('dim_customer')
+    entities:
+      - name: customer
+        type: primary
+        expr: customer_id
+    dimensions:
+      - name: customer_name
+        type: categorical
+      - name: segment
+        description: Current segment. An upgrade restates the account's history.
+        type: categorical
+      - name: region
+        type: categorical
+      - name: signup_date
+        type: time
+        type_params:
+          time_granularity: day
+
+  - name: products
+    description: Catalogue (dim_product).
+    model: ref('dim_product')
+    entities:
+      - name: product
+        type: primary
+        expr: product_id
+    dimensions:
+      - name: product_name
+        type: categorical
+      - name: category
+        type: categorical
+
+saved_queries:
+  - name: executive_overview_by_month
+    description: The Executive Overview's "Revenue by Month" visual.
+    query_params:
+      metrics: [net_revenue, revenue_ly, yoy_growth]
+      group_by:
+        - "TimeDimension('metric_time', 'month')"
+  - name: executive_overview_by_segment
+    description: The Executive Overview's "Revenue by Segment" visual (without Segment Share).
+    query_params:
+      metrics: [net_revenue]
+      group_by:
+        - "Dimension('customer__segment')"
+  - name: sales_overview_by_region
+    description: The Sales Overview's revenue by region and month.
+    query_params:
+      metrics: [net_revenue, completed_orders]
+      group_by:
+        - "Dimension('customer__region')"
+        - "TimeDimension('metric_time', 'month')"

@@ -1,0 +1,18 @@
+# run.sh sets DBT_PROFILES_DIR=config. A bare `dbt` reads ~/.dbt/profiles.yml
+# instead, which on the shared boxes points somewhere else - use run.sh.
+world_dbt:
+  target: "{{ env_var('DBT_TARGET', 'dev') }}"
+  outputs:
+
+    dev:
+      type: duckdb
+      path: "{{ env_var('DBT_WAREHOUSE_PATH', '../var/warehouse/warehouse.duckdb') }}"
+      threads: 1
+
+    # CI builds against an empty file to check the project parses, compiles
+    # and validates the semantic layer. It has no data, so data tests pass
+    # vacuously there; they mean something only on dev.
+    ci:
+      type: duckdb
+      path: "/tmp/ci_warehouse.duckdb"
+      threads: 1

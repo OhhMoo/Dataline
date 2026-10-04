@@ -1,0 +1,297 @@
+# commerce_analytics: the channels the context is scattered across.
+#
+# Message ids are positional (`<channel>/<index:04d>`) because that is how
+# chat_post derives the next one; workflow.py refuses a corpus that numbers
+# them any other way. A message with thread_id null is a thread root.
+#
+# The useful sentence - that January moved by exactly the refunds that landed
+# after the close - is in one root message addressed to somebody on leave,
+# with nothing under it. The loudest message in #data-incidents says something
+# else, collects two agreements, and is wrong.
+channels:
+  - id: analytics-eng
+    topic: Models, semantic layer, dashboards
+    purpose: Where the analytics team works. Live incidents go to #data-incidents.
+    members: [hkowalski, rdesai, lmorales, tbrennan, alertbot, agent]
+    messages:
+      - id: analytics-eng/0001
+        author: tbrennan
+        at: "-49d 09:55"
+        thread_id: null
+        text: |-
+          Postmortem for this morning is up:
+          ae/postmortems/2026-01-12-stale-dashboards. Short version: the shop
+          extract landed at 07:40, bi_refresh ran at 06:00 on Saturday's data
+          and went green, and leadership read Saturday's numbers on Monday.
+        reactions: {}
+        authoring:
+          kind: accurate
+          note: >-
+            CA-C1. True, and the root of the thread that holds the rule nobody
+            wrote down. Consistent with the world: bi_refresh is a root job at
+            a fixed 06:00 and nothing chains it to dbt_build.
+      - id: analytics-eng/0002
+        author: hkowalski
+        at: "-49d 10:20"
+        thread_id: analytics-eng/0001
+        text: |-
+          Until ANA-219 lands, the rule for on call: if the extract is late,
+          rerun daily_load, then dbt_build, THEN trigger bi_refresh by hand.
+          Do not leave the dashboards for the next 06:00 - that is a whole
+          business day on yesterday's numbers.
+        reactions: {"+1": 3}
+        authoring:
+          kind: undocumented_decision
+          note: >-
+            CA-C2. The rule that governs a late-extract morning, agreed in a
+            reply and written down nowhere else: the on-call wiki page and the
+            repo's docs/runbook_nightly.md both stop at "rerun the load and
+            dbt" and say the dashboards pick it up at the next refresh. It is
+            exactly the step a stale-publish task turns on, and it is
+            reachable only from here.
+      - id: analytics-eng/0003
+        author: rdesai
+        at: "-49d 10:31"
+        thread_id: analytics-eng/0001
+        text: +1. I will add it to the on-call page.
+        reactions: {}
+      - id: analytics-eng/0004
+        author: rdesai
+        at: "-40d 16:02"
+        thread_id: null
+        text: |-
+          Executive Overview is a PBIP project now: bi/powerbi in the repo,
+          CI checks it on every PR, and the deployment pipeline promotes it dev
+          -> test -> prod. Please stop publishing from Desktop - anything
+          published by hand gets overwritten by the next promotion.
+        reactions: {"+1": 2}
+        authoring:
+          kind: accurate
+          note: >-
+            CA-C3. True, and written up properly in
+            ae/runbooks/bi-release-process. The stale page
+            ae/runbooks/publishing-dashboards still says the opposite.
+      - id: analytics-eng/0005
+        author: hkowalski
+        at: "-8d 09:05"
+        thread_id: null
+        text: "@rdesai is out until 14 March. Power BI model questions to me."
+        reactions: {}
+        authoring:
+          kind: true_and_irrelevant
+          note: >-
+            CA-C4. Verifiable against the roster (rdesai carries an
+            away_until) and irrelevant to the incident - except that it is why
+            the message below never got an answer.
+      - id: analytics-eng/0006
+        author: lmorales
+        at: "-3d 11:30"
+        thread_id: null
+        text: |-
+          @rdesai January on Executive Overview is now 34,123.00 below the
+          close number. I diffed raw.orders: 20 January orders have a
+          `refunded` version in partitions dated 4 to 26 Feb, after Amy took
+          the number, and nothing else changed. Net Revenue keeps the order's
+          latest status on the order's date, so every refund after a close
+          restates the closed month. Do we snapshot the month at close, or
+          change the definition?
+        reactions: {}
+        authoring:
+          kind: unanswered_mention
+          note: >-
+            CA-C5. The whole answer, addressed to the one person on leave, with
+            zero replies. Every number is measured: 2420528.00 - 2386405.00 =
+            34123.00 = the order_amount of 20 January orders refunded in
+            dt=2026-02-04..02-26. The question it ends on is the decision
+            nobody has made - and the answer cannot be a definition change
+            this week (ANA-229, ae/policies/month-end-freeze).
+      - id: analytics-eng/0007
+        author: tbrennan
+        at: "-3d 18:20"
+        thread_id: null
+        text: |-
+          Merged postmortem action 2: every dashboard refresh now logs a row to
+          raw.bi_refresh_history with the business date it showed. Ships with
+          Sunday's release, so the first logged refresh is Monday 06:00, and
+          the dashboard-freshness metrics read empty until then.
+        reactions: {}
+        authoring:
+          kind: accurate
+          note: >-
+            CA-C6. True in the world: raw.bi_refresh_history does not exist at
+            the world clock and is created by the first bi_refresh that runs
+            (Monday 2026-03-02 06:00 on an unmodified world), and the
+            bi_data_freshness / bi_refresh_lag_days samples taken before it
+            are null.
+      - id: analytics-eng/0008
+        author: tbrennan
+        at: "-1d 18:41"
+        thread_id: analytics-eng/0007
+        text: Release is out. Refresh logging included.
+        reactions: {}
+
+  - id: data-incidents
+    topic: Live incidents only
+    purpose: Alarms land here. Keep discussion in the thread.
+    members: [tbrennan, hkowalski, lmorales, rdesai, jwhitfield, sokoro, alertbot, agent]
+    messages:
+      - id: data-incidents/0001
+        author: alertbot
+        at: "-49d 06:07"
+        thread_id: null
+        text: |-
+          ALARM orders_stale (critical): The orders mart is missing a business
+          day. fct_orders_freshness = 194820 > 190000
+        reactions: {}
+        authoring:
+          kind: noise
+          note: >-
+            CA-C7. January's alarm, long recovered and outside the 14-day
+            retention, so metrics_series reports it aged_out rather than
+            absent. 194820 s is what the 06:07 reading is on a morning the
+            mart is a day short (data through the 10th at 06:07 on the 12th).
+      - id: data-incidents/0002
+        author: tbrennan
+        at: "-49d 08:12"
+        thread_id: data-incidents/0001
+        text: Shop extract for the 11th landed at 07:40. Rerunning the load and dbt now.
+        reactions: {}
+      - id: data-incidents/0003
+        author: tbrennan
+        at: "-49d 09:31"
+        thread_id: data-incidents/0001
+        text: Marts have the 11th. The dashboards are still on the 10th until somebody refreshes them.
+        reactions: {}
+      - id: data-incidents/0004
+        author: sokoro
+        at: "-3d 09:31"
+        thread_id: null
+        text: |-
+          Exec Overview January has dropped since the close. It is the timezone:
+          Power BI converts order dates to UTC, so everything after 4pm
+          Pacific on 31 Jan landed in February. Filed ANA-236.
+        reactions: {"+1": 2}
+        authoring:
+          kind: confident_wrong
+          note: >-
+            CA-C8. Flat, agreed with twice, wrong, and the version an agent
+            that reads #data-incidents first meets before #analytics-eng. The
+            UTC order date is real and has never changed; it cannot move a
+            number between two readings. 6 orders / 20235.00 sit in
+            2026-02-01 00:00-08:00 UTC and were in February on 4 Feb as well.
+      - id: data-incidents/0005
+        author: jwhitfield
+        at: "-3d 09:50"
+        thread_id: data-incidents/0004
+        text: That would also explain why my QBR deck does not match. Can we just switch the report to Pacific?
+        reactions: {}
+        authoring:
+          kind: partial_conclusion
+          note: >-
+            CA-C9. "That would explain" is true as a conditional and is being
+            used as a diagnosis - and it is the duplicate ticket's author
+            admitting he is looking at the same event as ANA-238.
+      - id: data-incidents/0006
+        author: hkowalski
+        at: "-3d 10:02"
+        thread_id: data-incidents/0004
+        text: |-
+          Not during close. No changes to the Power BI model or to metric
+          definitions until Amy signs off February on Wednesday.
+        reactions: {}
+        authoring:
+          kind: constraint
+          note: >-
+            CA-C10. The freeze, stated by the person who owns it; matches
+            ae/policies/month-end-freeze. Investigating is fine, changing the
+            definition is not.
+
+  - id: bi-requests
+    topic: Dashboard requests and questions
+    purpose: Ask here before you build your own spreadsheet.
+    members: [hkowalski, lmorales, mfischer, jwhitfield, sokoro, agent]
+    messages:
+      - id: bi-requests/0001
+        author: mfischer
+        at: "-20d 11:10"
+        thread_id: null
+        text: |-
+          Could Executive Overview show revenue the way the close pack does,
+          with shipping in? Two different numbers both called revenue keeps
+          causing questions.
+        reactions: {}
+      - id: bi-requests/0002
+        author: hkowalski
+        at: "-20d 11:45"
+        thread_id: bi-requests/0001
+        text: Raised ANA-229. It is a definition change, so it needs Amy's sign-off and it cannot happen during a close.
+        reactions: {}
+      - id: bi-requests/0003
+        author: jwhitfield
+        at: "-10d 14:02"
+        thread_id: null
+        text: Can Sales Overview get a region filter? Each RVP wants their own cut before the QBRs.
+        reactions: {"+1": 1}
+      - id: bi-requests/0004
+        author: lmorales
+        at: "-10d 14:30"
+        thread_id: bi-requests/0003
+        text: |-
+          Yes - ANA-226. Region is on the account (dim_customer, from the
+          billing country), so it can filter every sheet including Top
+          Accounts.
+        reactions: {}
+        authoring:
+          kind: accurate
+          note: CA-C11. True; checkable through sql_tables / the data dictionary.
+
+  - id: finance-analytics
+    topic: Finance and the analytics team
+    purpose: Close, board pack, revenue questions.
+    members: [achen, mfischer, hkowalski, agent]
+    messages:
+      - id: finance-analytics/0001
+        author: achen
+        at: "-26d 09:40"
+        thread_id: null
+        text: |-
+          Closing January today. Taking January Net Revenue off the Executive
+          Overview, Revenue by Month tile: 2,420,528.00.
+        reactions: {}
+        authoring:
+          kind: accurate
+          note: >-
+            CA-C12. True when written: on 4 Feb the tile's data ran through
+            2026-02-03, and January Net Revenue on that data is 2420528.00.
+      - id: finance-analytics/0002
+        author: hkowalski
+        at: "-26d 10:05"
+        thread_id: finance-analytics/0001
+        text: |-
+          Good - take it from the tile rather than your own SQL, so the pack
+          matches what people can see on the screen.
+        reactions: {}
+        authoring:
+          kind: accurate_but_partial
+          note: >-
+            CA-C13. Sound reconciliation advice, silent about the half that
+            matters: the tile is live and restates the month whenever a
+            refund for one of its orders lands, so "what the screen says" is a
+            number with a date on it. Following it correctly is how the
+            board pack and the dashboard came to disagree.
+      - id: finance-analytics/0003
+        author: achen
+        at: "-3d 16:30"
+        thread_id: null
+        text: |-
+          February close starts Monday; sign-off is Wednesday 17:00. If January
+          has moved I need to know why before then - the board pack went out
+          with 2,420,528.00 - and whether the February number I take on
+          Wednesday will move too.
+        reactions: {}
+        authoring:
+          kind: constraint
+          note: >-
+            CA-C14. A real limit on an acceptable answer: an explanation of
+            January before Wednesday 17:00 that also says what will happen to
+            the February number Finance takes at sign-off.

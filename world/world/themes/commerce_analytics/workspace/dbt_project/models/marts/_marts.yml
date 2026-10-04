@@ -1,0 +1,107 @@
+version: 2
+
+# The star schema. Every BI front-end binds to these five tables by name and
+# by type (bi/README.md); the column lists below are the contract.
+
+models:
+  - name: dim_customer
+    description: One row per account, latest attributes (SCD1).
+    columns:
+      - name: customer_id
+        data_tests: [unique, not_null]
+      - name: customer_name
+      - name: segment
+        description: Enterprise | SMB | Consumer. Current segment - an upgrade restates history.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [Enterprise, SMB, Consumer]}
+      - name: region
+        description: NA | EMEA | APAC, from the account's billing country.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [NA, EMEA, APAC]}
+      - name: signup_date
+        data_tests: [not_null]
+
+  - name: dim_product
+    description: One row per catalogue item ever sold or listed, retired ones included.
+    columns:
+      - name: product_id
+        data_tests: [unique, not_null]
+      - name: product_name
+        data_tests: [not_null]
+      - name: category
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [Desks, Seating, Accessories, Lighting, Services]}
+      - name: unit_price
+        description: Current list price. Not the price any historical order paid.
+        data_tests: [not_null]
+
+  - name: dim_date
+    description: Calendar from the first order to the last. The MetricFlow time spine.
+    time_spine:
+      standard_granularity_column: date_day
+    columns:
+      - name: date_day
+        granularity: day
+        data_tests: [unique, not_null]
+      - name: year
+      - name: quarter
+      - name: month
+      - name: month_name
+      - name: week_start
+      - name: is_weekend
+
+  - name: fct_orders
+    description: One row per order at its latest status.
+    columns:
+      - name: order_id
+        data_tests: [unique, not_null]
+      - name: order_date
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('dim_date'), field: date_day}
+      - name: customer_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('dim_customer'), field: customer_id}
+      - name: order_status
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [completed, refunded, cancelled]}
+      - name: order_amount
+        description: Merchandise subtotal; sum of the order's line_amount. Excludes shipping.
+        data_tests: [not_null]
+      - name: shipping_amount
+        data_tests: [not_null]
+
+  - name: fct_order_lines
+    description: One row per order line, with the order's date and customer carried down.
+    columns:
+      - name: order_line_id
+        data_tests: [unique, not_null]
+      - name: order_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('fct_orders'), field: order_id}
+      - name: product_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('dim_product'), field: product_id}
+      - name: quantity
+        data_tests: [not_null]
+      - name: line_amount
+        data_tests: [not_null]
+      - name: order_date
+        data_tests: [not_null]
+      - name: customer_id
+        data_tests: [not_null]

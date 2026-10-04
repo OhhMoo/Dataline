@@ -1,0 +1,202 @@
+name: commerce_analytics
+dbt_profile: world_dbt
+
+# An analytics-engineering shop: a nightly change-data-capture extract from the
+# shop platform, a dbt star schema (schema `warehouse`: dim_customer,
+# dim_product, dim_date, fct_orders, fct_order_lines - the shape
+# world/world/semantic/examples.py fixes), a MetricFlow semantic layer over it,
+# and executive / sales / customer dashboards in Power BI, Tableau and Sigma.
+#
+# The data team's day here is mostly the BI layer's day: a number on a
+# dashboard that disagrees with somebody else's number, a refresh that ran
+# before the data did, a filter a VP wants. The pipeline under it is ordinary
+# and, by default, healthy - every fault below ships OFF.
+
+# The human-context plane (gateway/SURFACES.md#workflow). Content is data, in
+# workflow/{users,issues,chat,kb}.yaml; timestamps are offsets from the world
+# clock ("-12d 09:15"), resolved at build time.
+#
+# A Jira board with a review column: BI changes are reviewed in the PBIP / CI
+# pull request before they are promoted, so `in_review` is where a dashboard
+# change waits - and where a change parked during the month-end freeze sits.
+workflow:
+  dir: workflow
+  actor: agent                  # the id the agent writes as (workflow_actor)
+  project: {key: ANA, name: Analytics}
+  statuses: [backlog, todo, in_progress, in_review, done, wont_do]
+  workspace: harrow-finch
+  space: {key: AE, name: Analytics Engineering}
+
+# The nightly cycle for business date D, all UTC, all on calendar day D+1:
+#
+#   02:00  shop extract lands      (live.arrival: data/landing/*/dt=D/)
+#   02:30  daily_load              raw.* rebuilt from every partition on disk
+#   02:40  dbt_build               staging + marts + tests + semantic validation
+#   06:00  bi_refresh              dashboards re-read the marts
+#
+# The refresh is its own DAG on its own clock (workspace dags/bi_refresh.py)
+# and does NOT wait for dbt: nothing chains it to the build, so it is a second
+# root job with no `after:`. On a normal night there are three hours of slack. On a night the extract is late, the dashboards refresh
+# on yesterday's data and say nothing - which is the incident this world is
+# shaped to stage (live.faults.extract_late).
+#
+# `day_offset: 0` with the arrival at 02:00 of the same calendar day: the run
+# on 2026-03-02 processes business date 2026-03-01. Every seeded run therefore
+# sits before the world clock, and advance(24) from a fresh build executes one
+# whole cycle. `detail` is null rather than "dt={day}" because {day} would be
+# the run's calendar day, one off from the partition it loads.
+jobs:
+  daily_load:
+    command: load_shop_extracts
+    duration_s: 75
+    time: "02:30"
+    day_offset: 0
+    after: null
+    detail: null
+    # Real work: the workspace's own loader/load_extracts.py, the code the
+    # initial build ran. Full reload of every partition on disk, so a late
+    # partition is picked up by the next night without anybody doing anything,
+    # and a malformed one fails the load for real.
+    exec:
+      kind: theme
+      op: load_raw
+      args: [workspace, db]
+      tables: [raw.orders, raw.order_lines, raw.customers, raw.products]
+  dbt_build:
+    command: dbt_build
+    duration_s: 240
+    after: {job: daily_load, minutes: 10}
+    detail: null
+    # `dbt build`: models, the data tests (incl. the order/line reconciliation
+    # in tests/) and the semantic-layer validation. A failed test fails the
+    # job and skips everything downstream of it, so the marts keep yesterday's
+    # rows - stale, not wrong.
+    exec:
+      kind: dbt
+      command: build
+      tables: [warehouse.fct_orders, warehouse.fct_order_lines, warehouse.dim_customer]
+  bi_refresh:
+    command: refresh_dashboards
+    duration_s: 420
+    time: "06:00"
+    day_offset: 0
+    after: null
+    detail: null
+    # gen.refresh_bi runs the workspace's scripts/refresh_dashboards.py:
+    # renders every deployed dashboard against the marts as they are at 06:00,
+    # writes the values to build/bi/refresh/ (the BI cache - outside the
+    # fingerprint) and appends the refresh to raw.bi_refresh_history with the
+    # data watermark it saw. Fails on a panel that no longer binds, and on a
+    # world with no dashboards deployed.
+    exec:
+      kind: theme
+      op: refresh_bi
+      args: [root]
+      tables: [raw.bi_refresh_history]
+
+live:
+  # The ONLY seed keys carried into the built world (var/world/live.json).
+  # Every scale knob has a default in gen.DEFAULTS, so a seed that omits one is
+  # carried without it and the generator still agrees with the build.
+  params: [seed, customers, signup_pct, update_pct, orders_per_day, lines_per_order,
+           cancel_pct, refund_pct, growth_pct]
+  # day_index N lands at vtime_start + N days, 02:00, covering business date
+  # vtime_start + N - 1. The last seeded extract (dt=2026-02-28 in the shipped
+  # seed) landed at 2026-03-01T02:00Z, a day before the world clock.
+  arrival:
+    name: shop_extract
+    op: write_day
+    at: {day_offset: 0, time: "02:00"}
+
+  # ------------------------------------------------------------------
+  # Seeded fault layer (world/world/faults.py). ALL OFF. This is the world
+  # the BI tasks are planted in, and a task author plants ONE incident on a
+  # clean pipeline (`only:` names the exact occurrence) far more often than
+  # they want a distribution of them. Declared anyway, so "faults off => the
+  # world is clean" is a checkable property of a world that knows its faults.
+  #
+  #   faults:
+  #     extract_late: {enabled: true, only: ["day:425"]}   # the 2026-03-02 02:00 extract
+  #
+  # No `faults_in_history`: the backstory is clean.
+  # ------------------------------------------------------------------
+  faults:
+    # The extract lands at 07:30 instead of 02:00: after the load (which
+    # succeeds, one day short), after dbt (green, one day short) and after
+    # the 06:00 dashboard refresh. Every job is green and every dashboard is a
+    # day stale. The next night's full reload picks the day up. `missed_by` is
+    # empty and that is measured, not assumed: no job in this theme polls for
+    # the delivery, so nothing fails when it is not there.
+    - id: extract_late
+      kind: late_arrival
+      enabled: false
+      rate: 0.08
+      params:
+        delay_minutes: 330
+        missed_by: []
+    # The extract never arrives. A gap in every entity for that business date,
+    # which nothing backfills on its own.
+    - id: extract_missing
+      kind: missing_arrival
+      enabled: false
+      rate: 0.02
+    # The order_lines file delivered twice. The loader's dt=*/*.csv glob loads
+    # both; stg_order_lines' unique test on order_line_id and the order/line
+    # reconciliation fail; dbt_build fails; the marts keep yesterday.
+    - id: order_lines_resent
+      kind: duplicate_arrival
+      enabled: false
+      rate: 0.04
+      params: {match: "order_lines.csv", suffix: ".resend"}
+    # The orders file delivered twice. Absorbed: stg_orders keeps the latest
+    # version of each order, and two identical versions are one. raw.orders
+    # jumps; nothing downstream moves. A fault whose correct response is to
+    # notice and not panic.
+    - id: orders_resent
+      kind: duplicate_arrival
+      enabled: false
+      rate: 0.04
+      params: {match: "orders.csv", suffix: ".resend"}
+    # The order_lines file cut mid-line. No sentinel in this feed to withhold,
+    # so the loader reads it and fails on the short final record - every night
+    # until somebody re-lands the file, because it never heals on its own.
+    - id: order_lines_torn
+      kind: torn_write
+      enabled: false
+      rate: 0.03
+      params: {match: "order_lines.csv", keep_fraction: 0.6}
+    # The load dies after committing 60% of the newest order_lines partition.
+    # The run is failed; dbt_build still runs ten minutes later and its
+    # reconciliation test fails on every order short of lines. Heals on the
+    # next night's full reload.
+    - id: load_partial
+      kind: partial_write
+      enabled: false
+      rate: 0.05
+      jobs: [daily_load]
+      params: {table: raw.order_lines, partition_column: dt,
+               order_column: order_line_id, keep_fraction: 0.6}
+    # dbt killed at its timeout: nothing rebuilt, the marts keep yesterday.
+    - id: dbt_build_timeout
+      kind: job_timeout
+      enabled: false
+      rate: 0.03
+      jobs: [dbt_build]
+      params: {timeout_s: 240}
+    # The BI refresh fails on the warehouse connection and retries 20 minutes
+    # later.
+    - id: bi_refresh_retry
+      kind: job_retry
+      enabled: false
+      rate: 0.05
+      jobs: [bi_refresh]
+      params: {attempts: 2, retry_delay_minutes: 20, fail_after_s: 300,
+               error: "refresh failed: timed out after 300s waiting for a warehouse connection"}
+    # The refresh runs and takes all morning: the recorded window stretches
+    # past the start of the business day.
+    - id: bi_refresh_overrun
+      kind: job_overrun
+      enabled: false
+      rate: 0.03
+      jobs: [bi_refresh]
+      params: {extra_minutes: 180}

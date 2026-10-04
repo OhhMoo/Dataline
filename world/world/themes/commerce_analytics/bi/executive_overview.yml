@@ -1,0 +1,95 @@
+# Executive Overview - the certified SQL behind each tile of the Power BI
+# report of the same name (bi/powerbi in the repo). These panels are what
+# `bi_render` computes and what the 06:00 bi_refresh re-reads; when the Power
+# BI visual and its panel here disagree, one of them is wrong.
+version: 1
+dashboard: executive_overview
+title: Executive Overview
+owner: Analytics Engineering
+metrics:
+  - name: net_revenue
+    expression: "sum(order_amount) filter (where order_status = 'completed')"
+    owner: Analytics Engineering
+    doc: >-
+      Revenue from completed orders, on the date the order was placed. Excludes
+      refunded and cancelled orders and shipping. dbt metric `net_revenue`.
+  - name: completed_orders
+    expression: "count(*) filter (where order_status = 'completed')"
+    owner: Analytics Engineering
+  - name: aov
+    expression: net_revenue / completed_orders
+    owner: Analytics Engineering
+    doc: Average order value of completed orders.
+panels:
+  - name: kpis
+    title: KPIs
+    metric: net_revenue
+    sql: >-
+      select
+        sum(order_amount) filter (where order_status = 'completed') as net_revenue,
+        count(*) filter (where order_status = 'completed') as completed_orders,
+        round(sum(order_amount) filter (where order_status = 'completed')
+              / count(*) filter (where order_status = 'completed'), 2) as aov
+      from warehouse.fct_orders
+    watermark_sql: select max(order_date) as data_through from warehouse.fct_orders
+  - name: net_revenue_mtd
+    title: Net Revenue, month to date
+    metric: net_revenue
+    sql: >-
+      select
+        cast(date_trunc('month', max(order_date)) as date) as month_start,
+        max(order_date) as data_through,
+        sum(order_amount) filter (where order_status = 'completed'
+          and date_trunc('month', order_date) = (
+            select date_trunc('month', max(order_date)) from warehouse.fct_orders))
+          as net_revenue_mtd
+      from warehouse.fct_orders
+    watermark_sql: select max(order_date) as data_through from warehouse.fct_orders
+  - name: revenue_by_month
+    title: Revenue by Month
+    metric: net_revenue
+    sql: >-
+      with monthly as (
+        select d.year, d.month,
+               sum(o.order_amount) filter (where o.order_status = 'completed') as net_revenue
+        from warehouse.dim_date as d
+        left join warehouse.fct_orders as o on o.order_date = d.date_day
+        group by d.year, d.month
+      )
+      select m.year, m.month, m.net_revenue, ly.net_revenue as revenue_ly,
+             round((m.net_revenue - ly.net_revenue) / ly.net_revenue, 4) as yoy_growth
+      from monthly as m
+      left join monthly as ly on ly.year = m.year - 1 and ly.month = m.month
+      order by m.year, m.month
+    watermark_sql: select max(order_date) as data_through from warehouse.fct_orders
+  - name: revenue_by_segment
+    title: Revenue by Segment
+    metric: net_revenue
+    sql: >-
+      select c.segment,
+             sum(o.order_amount) as net_revenue,
+             round(sum(o.order_amount) / sum(sum(o.order_amount)) over (), 4) as segment_share
+      from warehouse.fct_orders as o
+      join warehouse.dim_customer as c on c.customer_id = o.customer_id
+      where o.order_status = 'completed'
+      group by c.segment
+      order by net_revenue desc, c.segment
+  - name: top_products
+    title: Top Products
+    sql: >-
+      select p.product_name, sum(l.quantity) as units
+      from warehouse.fct_order_lines as l
+      join warehouse.dim_product as p on p.product_id = l.product_id
+      group by p.product_name
+      order by units desc, p.product_name
+      limit 3
+  - name: revenue_by_region_2026
+    title: Revenue by Region 2026
+    metric: net_revenue
+    sql: >-
+      select c.region, sum(o.order_amount) as net_revenue
+      from warehouse.fct_orders as o
+      join warehouse.dim_customer as c on c.customer_id = o.customer_id
+      where o.order_status = 'completed' and year(o.order_date) = 2026
+      group by c.region
+      order by net_revenue desc, c.region

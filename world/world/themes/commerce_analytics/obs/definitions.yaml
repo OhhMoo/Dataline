@@ -1,0 +1,226 @@
+# Observability for the commerce pipeline: the nightly load, the dbt build,
+# the marts the dashboards read, and the dashboards' own refreshes.
+#
+# A late extract shows up as fct_orders freshness climbing and, after the 06:00
+# refresh, as the dashboards' data freshness climbing with it. A short or
+# doubled order_lines file shows up as the dbt build failing and the
+# reconciliation count. A rerun after the morning refresh shows up as the
+# dashboards a day behind the warehouse.
+#
+# The dashboard-refresh readings read raw.bi_refresh_history, which the refresh
+# job writes from the 1 March release on (postmortem 2026-01-12, action 2).
+# Until a refresh has run with it they are null - insufficient data, never
+# zero.
+#
+# Only raw.* and warehouse.* are referenced: staging.* are dbt views.
+version: 1
+
+retention:
+  days: 14
+
+metrics:
+  - id: fct_orders_freshness
+    kind: freshness
+    unit: seconds
+    title: Orders mart freshness
+    description: >-
+      Seconds between the newest order_date in warehouse.fct_orders and the
+      reading. A DATE reads as midnight, so a healthy world peaks around
+      182600 s (50.7 h) in the readings just before the 02:40 build lands the
+      next day.
+    source: {table: warehouse.fct_orders, timestamp_column: order_date}
+  - id: fct_orders_rows
+    kind: row_count
+    unit: rows
+    title: Orders mart rows
+    source: {table: warehouse.fct_orders}
+    series: {bucket_column: order_date}
+  - id: raw_orders_rows
+    kind: row_count
+    unit: rows
+    title: Raw order versions loaded
+    description: Every version of every order, as landed. Grows faster than the mart - status changes are rows here.
+    source: {table: raw.orders}
+    series: {bucket_column: dt}
+  - id: raw_order_lines_rows
+    kind: row_count
+    unit: rows
+    title: Raw order lines loaded
+    source: {table: raw.order_lines}
+    series: {bucket_column: dt}
+  - id: unreconciled_orders
+    kind: sql_scalar
+    unit: orders
+    title: Orders whose amount does not equal the sum of their lines
+    source:
+      sql: >-
+        select count(*) from warehouse.fct_orders as o
+        left join (select order_id, sum(line_amount) as line_total
+                   from warehouse.fct_order_lines group by order_id) as l
+          on l.order_id = o.order_id
+        where o.order_amount <> coalesce(l.line_total, 0)
+  - id: daily_net_revenue
+    kind: sql_scalar
+    unit: usd
+    title: Net revenue on the newest business date
+    source:
+      sql: >-
+        select sum(order_amount) filter (where order_status = 'completed')
+        from warehouse.fct_orders
+        where order_date = (select max(order_date) from warehouse.fct_orders)
+    series:
+      sql: >-
+        select cast(order_date as varchar) as bucket,
+               sum(order_amount) filter (where order_status = 'completed') as value
+        from warehouse.fct_orders group by order_date order by order_date
+  - id: daily_load_duration
+    kind: job_duration
+    unit: seconds
+    title: Nightly load duration
+    job: daily_load
+  - id: daily_load_error_rate
+    kind: job_error_rate
+    unit: ratio
+    title: Nightly load error rate
+    job: daily_load
+    window_runs: 10
+  - id: dbt_build_error_rate
+    kind: job_error_rate
+    unit: ratio
+    title: dbt build failure rate
+    description: A failed model or a failed data test fails the build; the marts keep the previous night's rows.
+    job: dbt_build
+    window_runs: 10
+  - id: dbt_build_duration
+    kind: job_duration
+    unit: seconds
+    title: dbt build duration
+    job: dbt_build
+  - id: bi_refresh_error_rate
+    kind: job_error_rate
+    unit: ratio
+    title: Dashboard refresh failure rate
+    job: bi_refresh
+    window_runs: 10
+  - id: bi_refresh_duration
+    kind: job_duration
+    unit: seconds
+    title: Dashboard refresh duration
+    job: bi_refresh
+  - id: bi_data_freshness
+    kind: freshness
+    unit: seconds
+    title: Dashboard data freshness
+    description: >-
+      Seconds between the newest business date ANY dashboard refresh has
+      shown and the reading. This is what the CFO is looking at, not what the
+      warehouse holds.
+    source: {table: raw.bi_refresh_history, timestamp_column: data_through}
+  - id: bi_refresh_lag_days
+    kind: sql_scalar
+    unit: days
+    title: Days the dashboards are behind the warehouse
+    description: >-
+      Newest order_date in the mart minus the data watermark of the most recent
+      dashboard refresh. 1 every night between the 02:40 build and the 06:00
+      refresh; 0 after it.
+    source:
+      sql: >-
+        select date_diff('day',
+          (select data_through from raw.bi_refresh_history
+           order by refresh_id desc, dashboard limit 1),
+          (select max(order_date) from warehouse.fct_orders))
+  - id: bi_refreshes_logged
+    kind: row_count
+    unit: rows
+    title: Dashboard refreshes logged
+    source: {table: raw.bi_refresh_history}
+
+alarms:
+  - id: orders_stale
+    metric: fct_orders_freshness
+    comparison: gt
+    threshold: 190000
+    severity: critical
+    title: The orders mart is missing a business day
+    description: >-
+      Freshness peaks at about 182600 s on a healthy night (the newest date
+      reads as midnight, and the next one lands with the 02:40 build the day
+      after it ended). Above 190000 s a day did not arrive or did not build;
+      the first reading to cross it is the one the 06:00 refresh takes.
+    runbook: docs/runbook_nightly.md
+  - id: dashboards_stale
+    metric: bi_data_freshness
+    comparison: gt
+    threshold: 190000
+    severity: critical
+    title: The morning refresh did not get yesterday
+    description: >-
+      Readings are taken after every run. On a healthy night the highest is
+      about 182600 s, just before the 06:00 refresh; the refresh itself reads
+      about 108400 s (yesterday, 30 h old). A refresh that ran without
+      yesterday reads about 194800 s.
+    runbook: docs/runbook_nightly.md
+    known_imprecision:
+      kind: blind_spot
+      note: >-
+        AUTHOR-SIDE. The mart and the dashboards usually go stale together, so
+        this fires on the same mornings as orders_stale. The case only this
+        alarm could catch - the load and dbt rerun by hand after a late
+        extract, the refresh forgotten - is a dashboard ONE day behind a
+        mart that is current, which reads ~108400 s plus the hours since the
+        refresh and stays under the threshold until the next night. That
+        state is what bi_refresh_lag_days measures, not this.
+  - id: dbt_build_failing
+    metric: dbt_build_error_rate
+    comparison: gte
+    threshold: 0.1
+    severity: warning
+    title: dbt build failed at least once in the last ten nights
+    runbook: docs/runbook_nightly.md
+  - id: order_lines_unreconciled
+    metric: unreconciled_orders
+    comparison: gt
+    threshold: 0
+    severity: critical
+    title: Order amounts and order lines disagree in the marts
+    description: >-
+      The dbt test assert_order_amount_matches_lines fails the build before
+      this can happen through dbt; a non-zero reading means the marts were
+      written some other way.
+  - id: bi_refresh_failing
+    metric: bi_refresh_error_rate
+    comparison: gte
+    threshold: 0.1
+    severity: warning
+    title: A dashboard refresh failed in the last ten mornings
+    runbook: docs/runbook_nightly.md
+  - id: dashboards_behind_warehouse
+    metric: bi_refresh_lag_days
+    comparison: gte
+    threshold: 1
+    severity: info
+    title: The warehouse has a day the dashboards have not shown
+    description: >-
+      Normal between the 02:40 build and the 06:00 refresh. Outside that
+      window it means the warehouse was rebuilt after the morning refresh -
+      a rerun after a late extract - and nobody refreshed the dashboards.
+    known_imprecision:
+      kind: false_positive
+      note: >-
+        AUTHOR-SIDE. Fires every night for three hours on a healthy world. The
+        signal is a reading of 1 taken by a run OTHER than the nightly
+        dbt_build - a manual dbt_build trigger after 06:00 - and the alarm
+        cannot say which run took the reading.
+
+deploys:
+  - id: rebuild_marts
+    kind: dbt
+    title: Rebuild the commerce marts
+    selector: marts
+    canary:
+      metrics: [fct_orders_rows, unreconciled_orders, daily_net_revenue, fct_orders_freshness]
+      alarms: [orders_stale, order_lines_unreconciled]
+      guards:
+        - {metric: fct_orders_rows, max_decrease_pct: 1}
+        - {metric: daily_net_revenue, max_decrease_pct: 50}

@@ -1,0 +1,514 @@
+# commerce_analytics: the Analytics Engineering wiki - right in some places,
+# out of date in others.
+#
+# Two dashboard-publishing runbooks disagree and neither is marked wrong in a
+# field. The evidence that settles it is the edit date (kb_list serves
+# age_days) and the newer page's own first line. The repo's docs/ agree with
+# the wiki's on-call page, which is accurate and incomplete in the same place.
+pages:
+  - id: ae/architecture
+    title: Architecture
+    parent: null
+    labels: [index]
+    body: |-
+      # Architecture
+
+      - [The analytics stack](ae/architecture/analytics-stack)
+      - [Data dictionary](ae/architecture/data-dictionary)
+    version: 2
+    author: hkowalski
+    last_edited_by: hkowalski
+    last_edited_at: "-140d 10:00"
+    edit_comment: link the data dictionary
+    history:
+      - {version: 1, at: "-420d 09:00", by: hkowalski, comment: null}
+    authoring:
+      kind: accurate
+      note: CA-K1. A container page. Old, and correctly so.
+
+  - id: ae/architecture/analytics-stack
+    title: The analytics stack
+    parent: ae/architecture
+    labels: [architecture, bi]
+    body: |-
+      # The analytics stack
+
+      ## Nightly, all UTC
+
+      | time | what | where |
+      |---|---|---|
+      | 02:00 | shop platform drops the day's CDC extract | `data/landing/<entity>/dt=<day>/` |
+      | 02:30 | `daily_load` rebuilds `raw.*` from every partition | `loader/load_extracts.py` |
+      | 02:40 | `dbt_build` - staging, marts, tests, semantic layer | `dbt_project/` |
+      | 06:00 | `bi_refresh` - every dashboard re-reads the marts | `dags/bi_refresh.py` |
+
+      The refresh is its own DAG, on a clock, not downstream of the build. On
+      a normal night there are three hours of slack.
+
+      ## Layers
+
+      - `raw` - every version of every record, as landed. VARCHAR.
+      - `staging` - views; latest version of each record, typed.
+      - `warehouse` - the star schema the dashboards read: `fct_orders`,
+        `fct_order_lines`, `dim_customer`, `dim_product`, `dim_date`.
+      - Semantic layer - dbt semantic models and metrics in
+        `dbt_project/models/semantic/`. The definition of record for every
+        metric a dashboard shows.
+
+      ## Dashboards
+
+      | dashboard | tool | owner | project in the repo |
+      |---|---|---|---|
+      | Executive Overview | Power BI | Hanna | `bi/powerbi` |
+      | Sales Overview | Tableau | Lucia | `bi/tableau` |
+      | Customer Health | Sigma | Sade | `bi/sigma` |
+
+      `dbt_project/models/exposures.yml` lists what each one reads.
+    version: 5
+    author: hkowalski
+    last_edited_by: hkowalski
+    last_edited_at: "-36d 15:10"
+    edit_comment: dashboards table after the PBIP move
+    history:
+      - {version: 4, at: "-130d 11:20", by: lmorales, comment: "Sales Overview moved to Tableau"}
+      - {version: 3, at: "-260d 10:00", by: hkowalski, comment: "semantic layer"}
+      - {version: 2, at: "-400d 14:30", by: tbrennan, comment: "schedule"}
+      - {version: 1, at: "-420d 09:10", by: hkowalski, comment: null}
+    authoring:
+      kind: accurate
+      note: >-
+        CA-K2. Current and correct; every object and time is checkable through
+        sql_tables and sched_state. It states that refreshes are "on a clock,
+        not on the build" without saying what that costs, which is the
+        postmortem's job.
+
+  - id: ae/architecture/data-dictionary
+    title: Data dictionary
+    parent: ae/architecture
+    labels: [reference, warehouse]
+    body: |-
+      # Data dictionary
+
+      All money is USD, DECIMAL(12,2). All dates are UTC calendar dates.
+
+      ## warehouse.fct_orders - one row per order
+
+      | column | type | |
+      |---|---|---|
+      | order_id | INTEGER | |
+      | order_date | DATE | the UTC date the order was placed |
+      | customer_id | INTEGER | -> dim_customer |
+      | order_status | VARCHAR | completed, refunded, cancelled - the order's status as of the latest extract |
+      | order_amount | DECIMAL(12,2) | merchandise subtotal = sum of the order's lines; excludes shipping |
+      | shipping_amount | DECIMAL(12,2) | shipping charged |
+
+      ## warehouse.fct_order_lines - one row per order line
+
+      order_line_id, order_id, product_id, quantity, line_amount (at the price
+      paid), and the order's order_date and customer_id carried down.
+
+      ## warehouse.dim_customer
+
+      customer_id, customer_name, segment (Enterprise, SMB, Consumer -
+      current), region (NA, EMEA, APAC), signup_date.
+
+      ## warehouse.dim_product
+
+      product_id, product_name, category (Desks, Seating, Accessories,
+      Lighting, Services), unit_price - today's list price, not what any
+      historical order paid.
+
+      ## warehouse.dim_date
+
+      date_day, year, quarter, month, month_name, week_start (Monday),
+      is_weekend. First order to last order, no gaps.
+    version: 3
+    author: hkowalski
+    last_edited_by: lmorales
+    last_edited_at: "-70d 10:45"
+    edit_comment: unit_price is the current list price
+    history:
+      - {version: 2, at: "-300d 16:00", by: hkowalski, comment: "dim_date"}
+      - {version: 1, at: "-415d 11:00", by: hkowalski, comment: null}
+    authoring:
+      kind: accurate
+      note: >-
+        CA-K3. Matches examples.DDL column for column. "Status as of the latest
+        extract" is the whole mechanism behind ANA-238, stated as a column
+        description, which is where a real team states it.
+
+  - id: ae/metrics
+    title: Metrics
+    parent: null
+    labels: [index]
+    body: |-
+      # Metrics
+
+      - [Net Revenue and friends](ae/metrics/net-revenue)
+    version: 1
+    author: hkowalski
+    last_edited_by: hkowalski
+    last_edited_at: "-260d 10:05"
+    edit_comment: null
+    history: []
+
+  - id: ae/metrics/net-revenue
+    title: Net Revenue and friends
+    parent: ae/metrics
+    labels: [metrics, definitions]
+    body: |-
+      # Net Revenue and friends
+
+      The definitions of record are the dbt metrics in
+      `dbt_project/models/semantic/metrics.yml`. This page is the plain-English
+      version. Every BI tool must agree with the dbt metric; when one does
+      not, the BI tool is wrong.
+
+      - **Net Revenue** - merchandise subtotal of orders whose status is
+        `completed`, on the order date. Excludes refunded and cancelled
+        orders. Excludes shipping.
+      - **Gross Revenue** - the same, whatever the status.
+      - **Completed Orders** - count of completed orders.
+      - **AOV** - Net Revenue / Completed Orders.
+      - **Units** - quantity sold, whatever the status.
+      - **Revenue LY** - Net Revenue for the same period a year earlier.
+      - **YoY Growth** - (Net Revenue - Revenue LY) / Revenue LY.
+      - **Revenue YTD** - Net Revenue from 1 January to the date in context.
+      - **Shipping Revenue** - shipping charged on completed orders. Finance's
+        revenue line is Net Revenue + Shipping Revenue; ours is not.
+
+      Two Executive Overview measures live only in the Power BI model because
+      the semantic layer cannot express them: **Segment Share** (Net Revenue
+      over Net Revenue across all segments) and **List Price Revenue**
+      (quantity x the product's current list price).
+
+      Segments are the account's CURRENT segment: an account upgraded from SMB
+      to Enterprise counts as Enterprise for all of its history.
+    version: 4
+    author: hkowalski
+    last_edited_by: hkowalski
+    last_edited_at: "-54d 11:30"
+    edit_comment: Finance's revenue line, after ANA-205
+    history:
+      - {version: 3, at: "-200d 09:40", by: rdesai, comment: "Segment Share, List Price Revenue"}
+      - {version: 2, at: "-250d 15:00", by: hkowalski, comment: "YTD, LY"}
+      - {version: 1, at: "-260d 10:10", by: hkowalski, comment: null}
+    authoring:
+      kind: accurate_but_partial
+      note: >-
+        CA-K4. Every definition matches metrics.yml exactly. "Status is
+        completed" is true and silent on WHEN: the status is the latest one,
+        so a closed month loses an order whenever it is refunded. The page
+        handles the shipping difference (ANA-205) explicitly and the
+        restatement not at all - the gap ANA-238 falls into.
+
+  - id: ae/runbooks
+    title: Runbooks
+    parent: null
+    labels: [index]
+    body: |-
+      # Runbooks
+
+      - [Nightly on-call](ae/runbooks/nightly-on-call)
+      - [Publishing dashboards](ae/runbooks/publishing-dashboards)
+      - [BI release process](ae/runbooks/bi-release-process)
+    version: 3
+    author: hkowalski
+    last_edited_by: hkowalski
+    last_edited_at: "-38d 14:05"
+    edit_comment: link the release process
+    history:
+      - {version: 2, at: "-210d 10:00", by: rdesai, comment: null}
+      - {version: 1, at: "-420d 09:20", by: hkowalski, comment: null}
+    authoring:
+      kind: accurate
+      note: >-
+        CA-K5. Lists both publishing pages side by side with nothing to say one
+        supersedes the other - which is what makes the contradiction findable
+        and unresolved.
+
+  - id: ae/runbooks/nightly-on-call
+    title: "Runbook: nightly on-call"
+    parent: ae/runbooks
+    labels: [runbook, on-call]
+    body: |-
+      # Runbook: nightly on-call
+
+      `sched_state` should show `daily_load`, `dbt_build` and `bi_refresh`
+      green for the night. Investigate the first failure, not the last.
+
+      ## The extract is late or missing
+
+      The load is a full reload of every partition on disk, so a late
+      partition needs no backfill:
+
+      1. Wait for `data/landing/*/dt=<day>/` to appear.
+      2. Trigger `daily_load`, then `dbt_build`.
+      3. Check `warehouse.fct_orders` has the day.
+
+      The dashboards pick it up at their next scheduled refresh.
+
+      ## dbt build failed
+
+      Read the first failing node in the run's error. A failed test on
+      `stg_order_lines` or `assert_order_amount_matches_lines` almost always
+      means the order_lines file for the night is short or was delivered
+      twice: look at the partition before touching a model. The marts keep
+      the previous night's rows until the build passes.
+
+      ## Never
+
+      - hand-edit `raw.*` or `warehouse.*`
+      - delete a landed partition without saying so in #data-incidents
+    version: 6
+    author: tbrennan
+    last_edited_by: tbrennan
+    last_edited_at: "-75d 09:50"
+    edit_comment: dbt test failures
+    history:
+      - {version: 5, at: "-150d 17:00", by: hkowalski, comment: null}
+      - {version: 4, at: "-220d 10:30", by: tbrennan, comment: "full reload"}
+      - {version: 3, at: "-300d 11:15", by: tbrennan, comment: null}
+      - {version: 2, at: "-380d 09:00", by: hkowalski, comment: null}
+      - {version: 1, at: "-420d 09:30", by: tbrennan, comment: null}
+    authoring:
+      kind: accurate_but_partial
+      note: >-
+        CA-K6. Correct about the load and dbt, and last edited before the
+        January incident: "the dashboards pick it up at their next scheduled
+        refresh" is the sentence the team agreed to replace in
+        analytics-eng/0002 (trigger bi_refresh by hand after the rerun) and
+        never did. The repo's docs/runbook_nightly.md says the same as this
+        page, so a cross-check confirms the incomplete version.
+
+  - id: ae/runbooks/publishing-dashboards
+    title: "Runbook: publishing dashboards"
+    parent: ae/runbooks
+    labels: [runbook, bi, deploy]
+    body: |-
+      # Runbook: publishing dashboards
+
+      ## Power BI (Executive Overview)
+
+      1. Open `Executive Overview.pbix` from the Analytics shared drive.
+      2. Refresh in Desktop and check the KPI cards against last week.
+      3. File > Publish > the `Commerce` workspace. Overwrite.
+
+      ## Tableau (Sales Overview)
+
+      Publish from Desktop to the `commerce` site with "Embed password" ticked
+      for the warehouse connection, or the extract refresh fails at 06:00.
+
+      ## Sigma (Customer Health)
+
+      Edit the workbook in place and Publish.
+
+      Tell #bi-requests when you publish anything.
+    version: 7
+    author: rdesai
+    last_edited_by: rdesai
+    last_edited_at: "-170d 16:25"
+    edit_comment: embed password note
+    history:
+      - {version: 6, at: "-210d 11:00", by: lmorales, comment: "Tableau section"}
+      - {version: 5, at: "-260d 14:00", by: rdesai, comment: null}
+      - {version: 4, at: "-300d 10:20", by: rdesai, comment: null}
+      - {version: 3, at: "-340d 09:45", by: hkowalski, comment: null}
+      - {version: 2, at: "-380d 15:30", by: rdesai, comment: null}
+      - {version: 1, at: "-410d 11:00", by: rdesai, comment: null}
+    authoring:
+      kind: stale
+      contradicts: [ae/runbooks/bi-release-process]
+      note: >-
+        CA-K7. Published, five and a half months untouched, and wrong in the
+        ways that matter now: Executive Overview is a PBIP project promoted by
+        the deployment pipeline (analytics-eng/0004), a hand publish is
+        overwritten by the next promotion, and Tableau and Sigma content is
+        published from CI. ANA-203 asks for this rewrite and is assigned to
+        somebody on leave.
+
+  - id: ae/runbooks/bi-release-process
+    title: "Runbook: BI release process"
+    parent: ae/runbooks
+    labels: [runbook, bi, deploy]
+    body: |-
+      # Runbook: BI release process
+
+      **Supersedes ae/runbooks/publishing-dashboards, which describes how we
+      published before the dashboards moved into the repo.** That page has
+      not been retired; follow this one.
+
+      Every dashboard is a project in the repo under `bi/`, changed by pull
+      request, checked by CI, and promoted by tooling. Nobody publishes from a
+      desktop client to production.
+
+      ## Power BI - `bi/powerbi`
+
+      A PBIP project: the semantic model as TMDL, the report as PBIR. Open the
+      `.pbip` in Desktop to edit, commit the text files. Merging to main
+      deploys to the dev workspace; the deployment pipeline promotes
+      dev -> test -> prod. Production is whatever the pipeline last promoted.
+
+      ## Tableau - `bi/tableau`
+
+      The workbook and its published data source as XML (`.twb`, `.tds`). CI
+      publishes with `tabcmd publish --overwrite` to the `commerce` site,
+      using the service account's credentials from the vault - never
+      embedded in the file.
+
+      ## Refreshes are not releases
+
+      Publishing does not refresh anything. Every dashboard is refreshed by
+      the 06:00 `bi_refresh` job (`dags/bi_refresh.py`); trigger it if a
+      change has to show before then.
+
+      ## Sigma - `bi/sigma`
+
+      Workbooks are exported as JSON through the Sigma API and committed.
+      Promotion is a version tag applied through the API; viewers see the
+      tagged version, not the draft.
+
+      ## Checks before you merge
+
+      - Measures agree with the dbt metric of the same name
+        (`dbt_project/models/semantic/metrics.yml`).
+      - The PR names the exposure it changes (`models/exposures.yml`).
+      - Not during a close: see ae/policies/month-end-freeze.
+    version: 2
+    author: hkowalski
+    last_edited_by: hkowalski
+    last_edited_at: "-38d 14:00"
+    edit_comment: written up after the third hand publish got overwritten
+    history:
+      - {version: 1, at: "-38d 11:20", by: hkowalski, comment: null}
+    authoring:
+      kind: current_and_contradicting
+      contradicts: [ae/runbooks/publishing-dashboards]
+      note: >-
+        CA-K8. The page that wins, and it says so in its own first paragraph
+        rather than in a field. 38 days old against the other page's 170, and
+        kb_list serves both ages. It is the written form of analytics-eng/0004
+        and is still not linked from the stale page. The bi/ layout it
+        describes is the one workspace/bi/README.md describes.
+
+  - id: ae/postmortems
+    title: Postmortems
+    parent: null
+    labels: [index]
+    body: |-
+      # Postmortems
+
+      - [Stale dashboards, 2026-01-12](ae/postmortems/2026-01-12-stale-dashboards)
+    version: 2
+    author: tbrennan
+    last_edited_by: tbrennan
+    last_edited_at: "-48d 11:00"
+    edit_comment: link January
+    history:
+      - {version: 1, at: "-420d 09:40", by: hkowalski, comment: null}
+
+  - id: ae/postmortems/2026-01-12-stale-dashboards
+    title: "Postmortem: stale dashboards, 2026-01-12"
+    parent: ae/postmortems
+    labels: [postmortem, bi, freshness]
+    body: |-
+      # Postmortem: stale dashboards, 2026-01-12
+
+      ## What happened
+
+      The shop extract for Sunday 11 January landed at 07:40 instead of 02:00.
+      `daily_load` and `dbt_build` ran on time on the 10th's data and
+      succeeded. `bi_refresh` ran at 06:00 on the same data and succeeded, so
+      every dashboard - Power BI, Tableau and Sigma - showed Saturday.
+      Leadership read Saturday's numbers on Monday morning; the
+      `orders_stale` alarm fired at 06:07 and nobody looked at the dashboards
+      until 09:00.
+
+      ## Why nothing stopped it
+
+      The refresh runs on a clock. Nothing tells it the warehouse is a day
+      short, and a refresh of yesterday's data is a successful refresh.
+
+      ## Actions
+
+      1. Run `bi_refresh` on `dbt_build` success instead of at 06:00.
+         **Open.** ANA-219.
+      2. Log every refresh with the business date it showed, and alarm on how
+         old the dashboards' data is. **Merged 27 Feb, ships with the 1 March
+         release.**
+      3. Add "refresh the dashboards by hand after a rerun" to the on-call
+         runbook. **Not done.**
+
+      ## What we still do not know
+
+      How many people read a stale dashboard on a morning nobody noticed.
+    version: 3
+    author: tbrennan
+    last_edited_by: tbrennan
+    last_edited_at: "-3d 18:25"
+    edit_comment: action 2 merged
+    history:
+      - {version: 2, at: "-47d 10:00", by: hkowalski, comment: "actions"}
+      - {version: 1, at: "-48d 11:00", by: tbrennan, comment: null}
+    authoring:
+      kind: accurate
+      note: >-
+        CA-K9. True and current. Action 1 is the unactioned remediation
+        (ANA-219); action 3 is the undocumented decision (analytics-eng/0002)
+        that the on-call page still lacks; action 2 is why
+        raw.bi_refresh_history appears with the first refresh after the world
+        clock and not before.
+
+  - id: ae/policies
+    title: Policies
+    parent: null
+    labels: [index]
+    body: |-
+      # Policies
+
+      - [Month-end freeze](ae/policies/month-end-freeze)
+    version: 1
+    author: hkowalski
+    last_edited_by: hkowalski
+    last_edited_at: "-400d 10:00"
+    edit_comment: null
+    history: []
+
+  - id: ae/policies/month-end-freeze
+    title: Month-end freeze
+    parent: ae/policies
+    labels: [policy, freeze, finance]
+    body: |-
+      # Month-end freeze
+
+      From business day 1 to business day 3 of each month Finance closes the
+      previous month off the Executive Overview. During those three days:
+
+      - no changes to metric definitions (`models/semantic/`), the Power BI
+        model, or any published Tableau or Sigma content
+      - no re-landing or backfilling partitions of the month being closed
+        without the controller's sign-off on the ticket
+      - investigating, querying and refreshing dashboards are fine; a refresh
+        is not a change
+
+      Definition changes need the controller's sign-off at any time of the
+      month, not only during the freeze.
+
+      February 2026: Monday 2 March to Wednesday 4 March, sign-off Wednesday
+      17:00 UTC.
+    version: 5
+    author: hkowalski
+    last_edited_by: hkowalski
+    last_edited_at: "-6d 09:15"
+    edit_comment: February dates
+    history:
+      - {version: 4, at: "-34d 09:10", by: hkowalski, comment: "January dates"}
+      - {version: 3, at: "-120d 10:00", by: achen, comment: "definition changes need sign-off"}
+      - {version: 2, at: "-250d 14:20", by: hkowalski, comment: null}
+      - {version: 1, at: "-400d 10:05", by: hkowalski, comment: null}
+    authoring:
+      kind: constraint
+      note: >-
+        CA-K10. A real limit on the shape of an acceptable answer, and the one
+        ANA-229 and hkowalski in #data-incidents both cite. Note it permits a
+        refresh during the freeze, which matters to a stale-publish task.
