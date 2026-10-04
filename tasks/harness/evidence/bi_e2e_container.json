@@ -8,9 +8,7 @@
    "destinations_expected": [],
    "destinations_ok": true,
    "doc": "",
-   "failures": [
-    "schema: {1: [\"vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z\"]}"
-   ],
+   "failures": [],
    "family": "warehouse",
    "finding": "",
    "id": "W1",
@@ -37,13 +35,9 @@
    ],
    "rows_expected": 1,
    "rows_got": 1,
-   "schema_ok": false,
-   "schema_problems": {
-    "1": [
-     "vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z"
-    ]
-   },
-   "seconds": 0.86,
+   "schema_ok": true,
+   "schema_problems": {},
+   "seconds": 0.99,
    "stderr_tail": "",
    "stdout_tail": "33733790.00\t15183\n",
    "tools": [
@@ -51,7 +45,7 @@
    ],
    "value": "cli '33733790.00\\t15183' vs sql 33733790.00\t15183",
    "value_ok": true,
-   "verdict": "FAIL",
+   "verdict": "PASS",
    "world": {
     "changed": [],
     "named_by_a_row_but_unattributed_by_blindness": [],
@@ -70,9 +64,7 @@
    "destinations_expected": [],
    "destinations_ok": true,
    "doc": "",
-   "failures": [
-    "schema: {2: [\"vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z\"], 3: [\"vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z\"]}"
-   ],
+   "failures": [],
    "family": "warehouse",
    "finding": "",
    "id": "W2",
@@ -112,16 +104,9 @@
    ],
    "rows_expected": 2,
    "rows_got": 2,
-   "schema_ok": false,
-   "schema_problems": {
-    "2": [
-     "vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z"
-    ],
-    "3": [
-     "vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z"
-    ]
-   },
-   "seconds": 0.89,
+   "schema_ok": true,
+   "schema_problems": {},
+   "seconds": 1.01,
    "stderr_tail": "",
    "stdout_tail": "3\n",
    "tools": [
@@ -130,7 +115,7 @@
    ],
    "value": "main.e2e_scratch has 3 rows, expected 3",
    "value_ok": true,
-   "verdict": "FAIL",
+   "verdict": "PASS",
    "world": {
     "changed": [
      "var/warehouse/warehouse.duckdb"
@@ -151,9 +136,7 @@
    "destinations_expected": [],
    "destinations_ok": true,
    "doc": "python shim row: argv, exit and changed files - no table targets for a read (gateway/NATIVE.md, a stated loss of resolution)",
-   "failures": [
-    "schema: {4: [\"vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z\"]}"
-   ],
+   "failures": [],
    "family": "warehouse",
    "finding": "",
    "id": "W3",
@@ -175,13 +158,9 @@
    ],
    "rows_expected": 1,
    "rows_got": 1,
-   "schema_ok": false,
-   "schema_problems": {
-    "4": [
-     "vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z"
-    ]
-   },
-   "seconds": 1.22,
+   "schema_ok": true,
+   "schema_problems": {},
+   "seconds": 1.29,
    "stderr_tail": "",
    "stdout_tail": "E2E-RESULT {\"completed\": 15183, \"net\": \"33733790.00\"}\n",
    "tools": [
@@ -189,7 +168,7 @@
    ],
    "value": "python {'completed': 15183, 'net': '33733790.00'} vs sql net=33733790.00 n=15183",
    "value_ok": true,
-   "verdict": "FAIL",
+   "verdict": "DOC",
    "world": {
     "changed": [],
     "named_by_a_row_but_unattributed_by_blindness": [],
@@ -208,9 +187,7 @@
    "destinations_expected": [],
    "destinations_ok": true,
    "doc": "the python shim names the warehouse FILE it changed, not the table",
-   "failures": [
-    "schema: {5: [\"vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z\"]}"
-   ],
+   "failures": [],
    "family": "warehouse",
    "finding": "",
    "id": "W4",
@@ -234,13 +211,9 @@
    ],
    "rows_expected": 1,
    "rows_got": 1,
-   "schema_ok": false,
-   "schema_problems": {
-    "5": [
-     "vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z"
-    ]
-   },
-   "seconds": 1.22,
+   "schema_ok": true,
+   "schema_problems": {},
+   "seconds": 1.31,
    "stderr_tail": "",
    "stdout_tail": "E2E-RESULT {\"count\": 4}\n",
    "tools": [
@@ -248,7 +221,7 @@
    ],
    "value": "main.e2e_scratch has 4 rows, expected 4",
    "value_ok": true,
-   "verdict": "FAIL",
+   "verdict": "DOC",
    "world": {
     "changed": [
      "var/warehouse/warehouse.duckdb"
@@ -262,47 +235,57 @@
    }
   },
   {
-   "classification_ok": false,
-   "classification_problems": [
-    "rows [] != expected ['shim.python']"
-   ],
+   "classification_ok": true,
+   "classification_problems": [],
    "command": "python3 /tmp/e2e/clients.py py_insert /world/var/warehouse/warehouse.duckdb main.e2e_scratch 5",
    "destinations": {},
    "destinations_expected": [],
    "destinations_ok": true,
    "doc": "filed as shim.python; argv[0] keeps python3",
-   "failures": [
-    "rows [] != expected ['shim.python']",
-    "world: {'changed': ['var/warehouse/warehouse.duckdb'], 'unexplained_outside_workspace': ['var/warehouse/warehouse.duckdb'], 'unnamed_in_workspace': [], 'skip_dir_churn': [], 'transcript_audited': [], 'named_by_a_row_but_unattributed_by_blindness': [], 'ok': False}"
-   ],
+   "failures": [],
    "family": "warehouse",
    "finding": "",
    "id": "W5",
    "label": "python3 + duckdb INSERT (python3)",
    "returncode": 0,
-   "rows": [],
+   "rows": [
+    {
+     "error": null,
+     "exit": "ok",
+     "flags": [
+      "actor:shim"
+     ],
+     "op_class": "exec",
+     "read_targets": [],
+     "seq": 6,
+     "targets": [
+      "/world/var/warehouse/warehouse.duckdb"
+     ],
+     "tool": "shim.python"
+    }
+   ],
    "rows_expected": 1,
-   "rows_got": 0,
+   "rows_got": 1,
    "schema_ok": true,
    "schema_problems": {},
-   "seconds": 0.33,
+   "seconds": 1.27,
    "stderr_tail": "",
    "stdout_tail": "E2E-RESULT {\"count\": 5}\n",
-   "tools": [],
+   "tools": [
+    "shim.python"
+   ],
    "value": "main.e2e_scratch has 5 rows, expected 5",
    "value_ok": true,
-   "verdict": "FAIL",
+   "verdict": "DOC",
    "world": {
     "changed": [
      "var/warehouse/warehouse.duckdb"
     ],
     "named_by_a_row_but_unattributed_by_blindness": [],
-    "ok": false,
+    "ok": true,
     "skip_dir_churn": [],
     "transcript_audited": [],
-    "unexplained_outside_workspace": [
-     "var/warehouse/warehouse.duckdb"
-    ],
+    "unexplained_outside_workspace": [],
     "unnamed_in_workspace": []
    }
   },
@@ -314,9 +297,7 @@
    "destinations_expected": [],
    "destinations_ok": true,
    "doc": "",
-   "failures": [
-    "schema: {6: [\"vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z\"]}"
-   ],
+   "failures": [],
    "family": "warehouse",
    "finding": "",
    "id": "W6",
@@ -333,7 +314,7 @@
      ],
      "op_class": "destructive",
      "read_targets": [],
-     "seq": 6,
+     "seq": 7,
      "targets": [
       "main.e2e_scratch"
      ],
@@ -342,13 +323,9 @@
    ],
    "rows_expected": 1,
    "rows_got": 1,
-   "schema_ok": false,
-   "schema_problems": {
-    "6": [
-     "vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z"
-    ]
-   },
-   "seconds": 0.89,
+   "schema_ok": true,
+   "schema_problems": {},
+   "seconds": 0.93,
    "stderr_tail": "",
    "stdout_tail": "",
    "tools": [
@@ -356,7 +333,7 @@
    ],
    "value": "scratch table dropped",
    "value_ok": true,
-   "verdict": "FAIL",
+   "verdict": "PASS",
    "world": {
     "changed": [
      "var/warehouse/warehouse.duckdb"
@@ -377,9 +354,7 @@
    "destinations_expected": [],
    "destinations_ok": true,
    "doc": "shim row names workspace files changed (dbt's anonymous-id file); target/ and logs/ are skipped by design",
-   "failures": [
-    "schema: {7: [\"vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z\"]}"
-   ],
+   "failures": [],
    "family": "dbt",
    "finding": "",
    "id": "D1",
@@ -394,7 +369,7 @@
      ],
      "op_class": "exec",
      "read_targets": [],
-     "seq": 7,
+     "seq": 8,
      "targets": [
       "config/.user.yml"
      ],
@@ -403,13 +378,9 @@
    ],
    "rows_expected": 1,
    "rows_got": 1,
-   "schema_ok": false,
-   "schema_problems": {
-    "7": [
-     "vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z"
-    ]
-   },
-   "seconds": 6.35,
+   "schema_ok": true,
+   "schema_problems": {},
+   "seconds": 6.72,
    "stderr_tail": "",
    "stdout_tail": "commerce_analytics.marts.dim_customer\ncommerce_analytics.marts.dim_date\ncommerce_analytics.marts.dim_product\ncommerce_analytics.marts.fct_order_lines\ncommerce_analytics.marts.fct_orders\ncommerce_analytics.staging.stg_customers\ncommerce_analytics.staging.stg_order_lines\ncommerce_analytics.staging.stg_orders\ncommerce_analytics.staging.stg_products\n",
    "tools": [
@@ -417,7 +388,7 @@
    ],
    "value": "ls ['dim_customer', 'dim_date', 'dim_product', 'fct_order_lines', 'fct_orders', 'stg_customers', 'stg_order_lines', 'stg_orders', 'stg_products'] vs model files ['dim_customer', 'dim_date', 'dim_product', 'fct_order_lines', 'fct_orders', 'stg_customers', 'stg_order_lines', 'stg_orders', 'stg_products']; every mart in the warehouse: True",
    "value_ok": true,
-   "verdict": "FAIL",
+   "verdict": "DOC",
    "world": {
     "changed": [
      "workspace/config/.user.yml",
@@ -453,9 +424,7 @@
    "destinations_expected": [],
    "destinations_ok": true,
    "doc": "",
-   "failures": [
-    "schema: {8: [\"vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z\"]}"
-   ],
+   "failures": [],
    "family": "dbt",
    "finding": "",
    "id": "D2",
@@ -470,28 +439,24 @@
      ],
      "op_class": "exec",
      "read_targets": [],
-     "seq": 8,
+     "seq": 9,
      "targets": [],
      "tool": "shim.dbt"
     }
    ],
    "rows_expected": 1,
    "rows_got": 1,
-   "schema_ok": false,
-   "schema_problems": {
-    "8": [
-     "vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z"
-    ]
-   },
-   "seconds": 5.11,
+   "schema_ok": true,
+   "schema_problems": {},
+   "seconds": 5.69,
    "stderr_tail": "",
-   "stdout_tail": "e_ ..... [PASS in 0.02s]\n06:48:14  12 of 12 START test unique_fct_orders_order_id ................................. [RUN]\n06:48:14  12 of 12 PASS unique_fct_orders_order_id ....................................... [PASS in 0.02s]\n06:48:14  \n06:48:14  Finished running 12 data tests in 0 hours 0 minutes and 0.30 seconds (0.30s).\n06:48:14  [WARNING]: Metric 'revenue_ytd' was included in the OSI document, but its cumulative window and grain semantics cannot be represented.\n06:48:14  \n06:48:14  Completed successfully\n06:48:14  \n06:48:14  Done. PASS=12 WARN=0 ERROR=0 SKIP=0 NO-OP=0 REUSED=0 TOTAL=12\n",
+   "stdout_tail": "e_ ..... [PASS in 0.04s]\n08:02:36  12 of 12 START test unique_fct_orders_order_id ................................. [RUN]\n08:02:36  12 of 12 PASS unique_fct_orders_order_id ....................................... [PASS in 0.03s]\n08:02:36  \n08:02:36  Finished running 12 data tests in 0 hours 0 minutes and 0.41 seconds (0.41s).\n08:02:36  [WARNING]: Metric 'revenue_ytd' was included in the OSI document, but its cumulative window and grain semantics cannot be represented.\n08:02:36  \n08:02:36  Completed successfully\n08:02:36  \n08:02:36  Done. PASS=12 WARN=0 ERROR=0 SKIP=0 NO-OP=0 REUSED=0 TOTAL=12\n",
    "tools": [
     "shim.dbt"
    ],
    "value": "dbt PASS=12 WARN=0 ERROR=0; sql: duplicate order_id=0, null order_id=0",
    "value_ok": true,
-   "verdict": "FAIL",
+   "verdict": "PASS",
    "world": {
     "changed": [
      "workspace/dbt_project/logs/dbt.log",
@@ -570,9 +535,7 @@
    "destinations_expected": [],
    "destinations_ok": true,
    "doc": "the shim names the warehouse FILE dbt rewrote, not the model",
-   "failures": [
-    "schema: {9: [\"vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z\"]}"
-   ],
+   "failures": [],
    "family": "dbt",
    "finding": "",
    "id": "D3",
@@ -587,7 +550,7 @@
      ],
      "op_class": "exec",
      "read_targets": [],
-     "seq": 9,
+     "seq": 10,
      "targets": [
       "/world/var/warehouse/warehouse.duckdb"
      ],
@@ -596,21 +559,17 @@
    ],
    "rows_expected": 1,
    "rows_got": 1,
-   "schema_ok": false,
-   "schema_problems": {
-    "9": [
-     "vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z"
-    ]
-   },
-   "seconds": 5.34,
+   "schema_ok": true,
+   "schema_problems": {},
+   "seconds": 5.91,
    "stderr_tail": "",
-   "stdout_tail": "in 0.02s]\n06:48:20  13 of 13 START test unique_fct_orders_order_id ................................. [RUN]\n06:48:20  13 of 13 PASS unique_fct_orders_order_id ....................................... [PASS in 0.02s]\n06:48:20  \n06:48:20  Finished running 1 table model, 12 data tests in 0 hours 0 minutes and 0.44 seconds (0.44s).\n06:48:20  [WARNING]: Metric 'revenue_ytd' was included in the OSI document, but its cumulative window and grain semantics cannot be represented.\n06:48:20  \n06:48:20  Completed successfully\n06:48:20  \n06:48:20  Done. PASS=13 WARN=0 ERROR=0 SKIP=0 NO-OP=0 REUSED=0 TOTAL=13\n",
+   "stdout_tail": "in 0.02s]\n08:02:42  13 of 13 START test unique_fct_orders_order_id ................................. [RUN]\n08:02:42  13 of 13 PASS unique_fct_orders_order_id ....................................... [PASS in 0.02s]\n08:02:42  \n08:02:42  Finished running 1 table model, 12 data tests in 0 hours 0 minutes and 0.52 seconds (0.52s).\n08:02:42  [WARNING]: Metric 'revenue_ytd' was included in the OSI document, but its cumulative window and grain semantics cannot be represented.\n08:02:42  \n08:02:42  Completed successfully\n08:02:42  \n08:02:42  Done. PASS=13 WARN=0 ERROR=0 SKIP=0 NO-OP=0 REUSED=0 TOTAL=13\n",
    "tools": [
     "shim.dbt"
    ],
    "value": "after build: net=33733790.00 n=15183 (before: net=33733790.00 n=15183)",
    "value_ok": true,
-   "verdict": "FAIL",
+   "verdict": "DOC",
    "world": {
     "changed": [
      "var/warehouse/warehouse.duckdb",
@@ -648,22 +607,22 @@
    "doc": "",
    "failures": [],
    "family": "scheduler",
-   "finding": "./ops/sched is in the repo (install_workspace_cli ignores the profile) but fails closed: no scheduler plane is served",
+   "finding": "",
    "id": "S1",
-   "label": "./ops/sched list",
-   "returncode": 1,
+   "label": "./ops/sched list (no orchestrator)",
+   "returncode": 127,
    "rows": [],
    "rows_expected": 0,
    "rows_got": 0,
    "schema_ok": true,
    "schema_problems": {},
-   "seconds": 0.92,
-   "stderr_tail": "sched: the scheduler at http://sched.internal:8120 did not answer: URLError: <urlopen error [Errno -3] Temporary failure in name resolution>\n",
+   "seconds": 0.05,
+   "stderr_tail": "bash: line 1: ./ops/sched: No such file or directory\n",
    "stdout_tail": "",
    "tools": [],
-   "value": "n/a",
-   "value_ok": null,
-   "verdict": "FINDING",
+   "value": "ops/sched in the working tree: False; var/sched/state.json unchanged: True",
+   "value_ok": true,
+   "verdict": "PASS",
    "world": {
     "changed": [],
     "named_by_a_row_but_unattributed_by_blindness": [],
@@ -684,22 +643,22 @@
    "doc": "",
    "failures": [],
    "family": "scheduler",
-   "finding": "./ops/sched is in the repo (install_workspace_cli ignores the profile) but fails closed: no scheduler plane is served",
+   "finding": "",
    "id": "S2",
-   "label": "./ops/sched logs",
-   "returncode": 1,
+   "label": "./ops/sched logs (no orchestrator)",
+   "returncode": 127,
    "rows": [],
    "rows_expected": 0,
    "rows_got": 0,
    "schema_ok": true,
    "schema_problems": {},
-   "seconds": 0.9,
-   "stderr_tail": "sched: the scheduler at http://sched.internal:8120 did not answer: URLError: <urlopen error [Errno -3] Temporary failure in name resolution>\n",
+   "seconds": 0.06,
+   "stderr_tail": "bash: line 1: ./ops/sched: No such file or directory\n",
    "stdout_tail": "",
    "tools": [],
-   "value": "n/a",
-   "value_ok": null,
-   "verdict": "FINDING",
+   "value": "ops/sched in the working tree: False; var/sched/state.json unchanged: True",
+   "value_ok": true,
+   "verdict": "PASS",
    "world": {
     "changed": [],
     "named_by_a_row_but_unattributed_by_blindness": [],
@@ -720,22 +679,22 @@
    "doc": "",
    "failures": [],
    "family": "scheduler",
-   "finding": "./ops/sched is in the repo (install_workspace_cli ignores the profile) but fails closed: no scheduler plane is served",
+   "finding": "",
    "id": "S3",
-   "label": "./ops/sched trigger bi_refresh",
-   "returncode": 1,
+   "label": "./ops/sched trigger bi_refresh (no orchestrator)",
+   "returncode": 127,
    "rows": [],
    "rows_expected": 0,
    "rows_got": 0,
    "schema_ok": true,
    "schema_problems": {},
-   "seconds": 1.05,
-   "stderr_tail": "sched: the scheduler at http://sched.internal:8120 did not answer: URLError: <urlopen error [Errno -3] Temporary failure in name resolution>\n",
+   "seconds": 0.05,
+   "stderr_tail": "bash: line 1: ./ops/sched: No such file or directory\n",
    "stdout_tail": "",
    "tools": [],
-   "value": "n/a",
-   "value_ok": null,
-   "verdict": "FINDING",
+   "value": "ops/sched in the working tree: False; var/sched/state.json unchanged: True",
+   "value_ok": true,
+   "verdict": "PASS",
    "world": {
     "changed": [],
     "named_by_a_row_but_unattributed_by_blindness": [],
@@ -758,9 +717,7 @@
    ],
    "destinations_ok": true,
    "doc": "",
-   "failures": [
-    "schema: {12: [\"vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z\"]}"
-   ],
+   "failures": [],
    "family": "jira",
    "finding": "",
    "id": "H1",
@@ -777,7 +734,7 @@
      "read_targets": [
       "issues"
      ],
-     "seq": 10,
+     "seq": 11,
      "targets": [
       "issues"
      ],
@@ -793,7 +750,7 @@
      "read_targets": [
       "issue:ANA-239"
      ],
-     "seq": 11,
+     "seq": 12,
      "targets": [
       "issue:ANA-239"
      ],
@@ -807,20 +764,16 @@
      ],
      "op_class": "exec",
      "read_targets": [],
-     "seq": 12,
+     "seq": 13,
      "targets": [],
      "tool": "shim.python"
     }
    ],
    "rows_expected": 3,
    "rows_got": 3,
-   "schema_ok": false,
-   "schema_problems": {
-    "12": [
-     "vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z"
-    ]
-   },
-   "seconds": 1.47,
+   "schema_ok": true,
+   "schema_problems": {},
+   "seconds": 1.6,
    "stderr_tail": "",
    "stdout_tail": "E2E-RESULT {\"key\": \"ANA-239\", \"status\": \"todo\", \"summary\": \"Executive Overview numbers changed?\"}\n",
    "tools": [
@@ -830,7 +783,7 @@
    ],
    "value": "client todo/'Executive Overview numbers changed?' vs issues.json todo/'Executive Overview numbers changed?'",
    "value_ok": true,
-   "verdict": "FAIL",
+   "verdict": "PASS",
    "world": {
     "changed": [],
     "named_by_a_row_but_unattributed_by_blindness": [],
@@ -853,9 +806,7 @@
    ],
    "destinations_ok": true,
    "doc": "",
-   "failures": [
-    "schema: {15: [\"vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z\"]}"
-   ],
+   "failures": [],
    "family": "jira",
    "finding": "",
    "id": "H2",
@@ -872,7 +823,7 @@
      "read_targets": [
       "issues"
      ],
-     "seq": 13,
+     "seq": 14,
      "targets": [
       "issues"
      ],
@@ -886,7 +837,7 @@
      ],
      "op_class": "write",
      "read_targets": [],
-     "seq": 14,
+     "seq": 15,
      "targets": [
       "issue:ANA-239"
      ],
@@ -900,20 +851,16 @@
      ],
      "op_class": "exec",
      "read_targets": [],
-     "seq": 15,
+     "seq": 16,
      "targets": [],
      "tool": "shim.python"
     }
    ],
    "rows_expected": 3,
    "rows_got": 3,
-   "schema_ok": false,
-   "schema_problems": {
-    "15": [
-     "vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z"
-    ]
-   },
-   "seconds": 1.41,
+   "schema_ok": true,
+   "schema_problems": {},
+   "seconds": 1.45,
    "stderr_tail": "",
    "stdout_tail": "E2E-RESULT {\"id\": \"41093476806\"}\n",
    "tools": [
@@ -923,7 +870,7 @@
    ],
    "value": "issues.json last comment 'e2e accuracy check: looking at the January number' by agent",
    "value_ok": true,
-   "verdict": "FAIL",
+   "verdict": "PASS",
    "world": {
     "changed": [
      "var/workflow/issues.json"
@@ -948,9 +895,7 @@
    ],
    "destinations_ok": true,
    "doc": "",
-   "failures": [
-    "schema: {17: [\"vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z\"]}"
-   ],
+   "failures": [],
    "family": "slack",
    "finding": "",
    "id": "H3",
@@ -967,7 +912,7 @@
      "read_targets": [
       "chat:analytics-eng"
      ],
-     "seq": 16,
+     "seq": 17,
      "targets": [
       "chat:analytics-eng"
      ],
@@ -981,19 +926,15 @@
      ],
      "op_class": "exec",
      "read_targets": [],
-     "seq": 17,
+     "seq": 18,
      "targets": [],
      "tool": "shim.python"
     }
    ],
    "rows_expected": 2,
    "rows_got": 2,
-   "schema_ok": false,
-   "schema_problems": {
-    "17": [
-     "vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z"
-    ]
-   },
+   "schema_ok": true,
+   "schema_problems": {},
    "seconds": 1.37,
    "stderr_tail": "",
    "stdout_tail": "se, so the first logged refresh is Monday 06:00, and\\nthe dashboard-freshness metrics read empty until then.\", \"@rdesai January on Executive Overview is now 34,123.00 below the\\nclose number. I diffed raw.orders: 20 January orders have a\\n`refunded` version in partitions dated 4 to 26 Feb, after Amy took\\nthe number, and nothing else changed. Net Revenue keeps the order's\\nlatest status on the order's date, so every refund after a close\\nrestates the closed month. Do we snapshot the month at close, or\\nchange the definition?\", \"@rdesai is out until 14 March. Power BI model questions to me.\"]}\n",
@@ -1003,7 +944,7 @@
    ],
    "value": "3 messages; equal to chat.json's newest 3: True",
    "value_ok": true,
-   "verdict": "FAIL",
+   "verdict": "PASS",
    "world": {
     "changed": [],
     "named_by_a_row_but_unattributed_by_blindness": [],
@@ -1026,9 +967,7 @@
    ],
    "destinations_ok": true,
    "doc": "",
-   "failures": [
-    "schema: {19: [\"vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z\"]}"
-   ],
+   "failures": [],
    "family": "slack",
    "finding": "",
    "id": "H4",
@@ -1043,7 +982,7 @@
      ],
      "op_class": "write",
      "read_targets": [],
-     "seq": 18,
+     "seq": 19,
      "targets": [
       "chat:analytics-eng"
      ],
@@ -1057,20 +996,16 @@
      ],
      "op_class": "exec",
      "read_targets": [],
-     "seq": 19,
+     "seq": 20,
      "targets": [],
      "tool": "shim.python"
     }
    ],
    "rows_expected": 2,
    "rows_got": 2,
-   "schema_ok": false,
-   "schema_problems": {
-    "19": [
-     "vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z"
-    ]
-   },
-   "seconds": 1.4,
+   "schema_ok": true,
+   "schema_problems": {},
+   "seconds": 1.51,
    "stderr_tail": "",
    "stdout_tail": "E2E-RESULT {\"channel\": \"C8C7215500\", \"ts\": \"1772409600.000009\"}\n",
    "tools": [
@@ -1079,7 +1014,7 @@
    ],
    "value": "chat.json has the posted text: True",
    "value_ok": true,
-   "verdict": "FAIL",
+   "verdict": "PASS",
    "world": {
     "changed": [
      "var/workflow/chat.json"
@@ -1104,9 +1039,7 @@
    ],
    "destinations_ok": true,
    "doc": "",
-   "failures": [
-    "schema: {22: [\"vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z\"]}"
-   ],
+   "failures": [],
    "family": "confluence",
    "finding": "",
    "id": "H5",
@@ -1123,7 +1056,7 @@
      "read_targets": [
       "kb"
      ],
-     "seq": 20,
+     "seq": 21,
      "targets": [
       "kb"
      ],
@@ -1139,7 +1072,7 @@
      "read_targets": [
       "kb:ae/metrics/net-revenue"
      ],
-     "seq": 21,
+     "seq": 22,
      "targets": [
       "kb:ae/metrics/net-revenue"
      ],
@@ -1153,20 +1086,16 @@
      ],
      "op_class": "exec",
      "read_targets": [],
-     "seq": 22,
+     "seq": 23,
      "targets": [],
      "tool": "shim.python"
     }
    ],
    "rows_expected": 3,
    "rows_got": 3,
-   "schema_ok": false,
-   "schema_problems": {
-    "22": [
-     "vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z"
-    ]
-   },
-   "seconds": 1.5,
+   "schema_ok": true,
+   "schema_problems": {},
+   "seconds": 1.54,
    "stderr_tail": "",
    "stdout_tail": "s not.\\n\\nTwo Executive Overview measures are not in the semantic layer, because\\nMetricFlow cannot express them, so each BI model defines its own:\\n**Segment Share** (Net Revenue over Net Revenue across all segments;\\nPower BI and Tableau - Sigma has no way to say it, so Finance's build\\nleaves it out) and **List Price Revenue** (quantity x the product's\\ncurrent list price; all three).\\n\\nSegments are the account's CURRENT segment: an account upgraded from SMB\\nto Enterprise counts as Enterprise for all of its history.\", \"id\": \"59304629305\", \"title\": \"Net Revenue and friends\", \"version\": 5}\n",
    "tools": [
@@ -1176,7 +1105,7 @@
    ],
    "value": "page 59304629305 v5 body==kb.json: True (kb.json v5)",
    "value_ok": true,
-   "verdict": "FAIL",
+   "verdict": "PASS",
    "world": {
     "changed": [],
     "named_by_a_row_but_unattributed_by_blindness": [],
@@ -1199,31 +1128,13 @@
    ],
    "destinations_ok": true,
    "doc": "",
-   "failures": [
-    "schema: {27: [\"vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z\"]}"
-   ],
+   "failures": [],
    "family": "confluence",
    "finding": "",
    "id": "H6",
    "label": "atlassian: update_page",
    "returncode": 0,
    "rows": [
-    {
-     "error": null,
-     "exit": "ok",
-     "flags": [
-      "actor:alkera-local-dev"
-     ],
-     "op_class": "read",
-     "read_targets": [
-      "kb:ae/metrics/net-revenue"
-     ],
-     "seq": 23,
-     "targets": [
-      "kb:ae/metrics/net-revenue"
-     ],
-     "tool": "confluence.kb_get"
-    },
     {
      "error": null,
      "exit": "ok",
@@ -1260,12 +1171,28 @@
      "error": null,
      "exit": "ok",
      "flags": [
+      "actor:alkera-local-dev"
+     ],
+     "op_class": "read",
+     "read_targets": [
+      "kb:ae/metrics/net-revenue"
+     ],
+     "seq": 26,
+     "targets": [
+      "kb:ae/metrics/net-revenue"
+     ],
+     "tool": "confluence.kb_get"
+    },
+    {
+     "error": null,
+     "exit": "ok",
+     "flags": [
       "overwrite",
       "actor:alkera-local-dev"
      ],
      "op_class": "write",
      "read_targets": [],
-     "seq": 26,
+     "seq": 27,
      "targets": [
       "kb:ae/metrics/net-revenue"
      ],
@@ -1279,20 +1206,16 @@
      ],
      "op_class": "exec",
      "read_targets": [],
-     "seq": 27,
+     "seq": 28,
      "targets": [],
      "tool": "shim.python"
     }
    ],
    "rows_expected": 5,
    "rows_got": 5,
-   "schema_ok": false,
-   "schema_problems": {
-    "27": [
-     "vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z"
-    ]
-   },
-   "seconds": 1.59,
+   "schema_ok": true,
+   "schema_problems": {},
+   "seconds": 1.66,
    "stderr_tail": "",
    "stdout_tail": "E2E-RESULT {\"version\": 6}\n",
    "tools": [
@@ -1304,7 +1227,7 @@
    ],
    "value": "kb.json v6 (client saw v6) body == the edit: True",
    "value_ok": true,
-   "verdict": "FAIL",
+   "verdict": "PASS",
    "world": {
     "changed": [
      "var/workflow/kb.json"
@@ -1318,11 +1241,9 @@
    }
   },
   {
-   "classification_ok": false,
-   "classification_problems": [
-    "rows ['shim.python'] != expected ['confluence.request', 'shim.python']"
-   ],
-   "command": "python /tmp/e2e/clients.py conf_by_world_id ae/metrics/net-revenue",
+   "classification_ok": true,
+   "classification_problems": [],
+   "command": "python /tmp/e2e/clients.py conf_by_world_id 59304629305",
    "destinations": {
     "confluence.internal:8090": 1
    },
@@ -1331,78 +1252,11 @@
    ],
    "destinations_ok": true,
    "doc": "",
-   "failures": [
-    "rows ['shim.python'] != expected ['confluence.request', 'shim.python']",
-    "schema: {28: [\"vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z\"]}"
-   ],
+   "failures": [],
    "family": "confluence",
-   "finding": "docs/onboarding.md lists wiki pages 'by id' as `ae/metrics/net-revenue`; the Confluence API addresses numeric ids, and a slash id is not routable (404)",
-   "id": "H7",
-   "label": "atlassian: page by the WORLD id (onboarding)",
-   "returncode": 0,
-   "rows": [
-    {
-     "error": null,
-     "exit": "ok",
-     "flags": [
-      "actor:shim"
-     ],
-     "op_class": "exec",
-     "read_targets": [],
-     "seq": 28,
-     "targets": [],
-     "tool": "shim.python"
-    }
-   ],
-   "rows_expected": 2,
-   "rows_got": 1,
-   "schema_ok": false,
-   "schema_problems": {
-    "28": [
-     "vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z"
-    ]
-   },
-   "seconds": 1.48,
-   "stderr_tail": "'message'\n",
-   "stdout_tail": "E2E-RESULT {\"error\": \"ApiError\", \"found\": false}\n",
-   "tools": [
-    "shim.python"
-   ],
-   "value": "{'error': 'ApiError', 'found': False}",
-   "value_ok": true,
-   "verdict": "FAIL",
-   "world": {
-    "changed": [],
-    "named_by_a_row_but_unattributed_by_blindness": [],
-    "ok": true,
-    "skip_dir_churn": [],
-    "transcript_audited": [],
-    "unexplained_outside_workspace": [],
-    "unnamed_in_workspace": []
-   }
-  },
-  {
-   "classification_ok": false,
-   "classification_problems": [
-    "powerbi.token: read_targets []"
-   ],
-   "command": "python /tmp/e2e/clients.py pbi_token",
-   "destinations": {
-    "powerbi.internal:8095": 1
-   },
-   "destinations_expected": [
-    "powerbi.internal:8095"
-   ],
-   "destinations_ok": true,
-   "doc": "",
-   "failures": [
-    "powerbi.token: read_targets []",
-    "schema: {30: [\"vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z\"]}"
-   ],
-   "family": "powerbi",
    "finding": "",
-   "id": "P1",
-   "label": "Entra token (client credentials)",
+   "id": "H7",
+   "label": "atlassian: page by the id onboarding.md lists",
    "returncode": 0,
    "rows": [
     {
@@ -1412,12 +1266,14 @@
       "actor:alkera-local-dev"
      ],
      "op_class": "read",
-     "read_targets": [],
+     "read_targets": [
+      "kb:ae/metrics/net-revenue"
+     ],
      "seq": 29,
      "targets": [
-      "powerbi:token"
+      "kb:ae/metrics/net-revenue"
      ],
-     "tool": "powerbi.token"
+     "tool": "confluence.kb_get"
     },
     {
      "error": null,
@@ -1434,22 +1290,18 @@
    ],
    "rows_expected": 2,
    "rows_got": 2,
-   "schema_ok": false,
-   "schema_problems": {
-    "30": [
-     "vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z"
-    ]
-   },
-   "seconds": 1.28,
+   "schema_ok": true,
+   "schema_problems": {},
+   "seconds": 1.54,
    "stderr_tail": "",
-   "stdout_tail": "E2E-RESULT {\"length\": 467, \"token_type\": \"Bearer\"}\n",
+   "stdout_tail": "E2E-RESULT {\"body\": \"# Net Revenue and friends\\n\\nEdited by the e2e accuracy check.\", \"found\": true, \"title\": \"Net Revenue and friends\", \"version\": 6}\n",
    "tools": [
-    "powerbi.token",
+    "confluence.kb_get",
     "shim.python"
    ],
-   "value": "a bearer token was issued",
+   "value": "onboarding.md lists `59304629305`: found=True  v6 body==kb.json: True",
    "value_ok": true,
-   "verdict": "FAIL",
+   "verdict": "PASS",
    "world": {
     "changed": [],
     "named_by_a_row_but_unattributed_by_blindness": [],
@@ -1461,12 +1313,80 @@
    }
   },
   {
-   "classification_ok": false,
-   "classification_problems": [
-    "powerbi.token: read_targets []",
-    "powerbi.groups_list: read_targets []",
-    "powerbi.datasets_list: read_targets []"
+   "classification_ok": true,
+   "classification_problems": [],
+   "command": "python /tmp/e2e/clients.py pbi_token",
+   "destinations": {
+    "powerbi.internal:8095": 1
+   },
+   "destinations_expected": [
+    "powerbi.internal:8095"
    ],
+   "destinations_ok": true,
+   "doc": "",
+   "failures": [],
+   "family": "powerbi",
+   "finding": "",
+   "id": "P1",
+   "label": "Entra token (client credentials)",
+   "returncode": 0,
+   "rows": [
+    {
+     "error": null,
+     "exit": "ok",
+     "flags": [
+      "actor:alkera-local-dev"
+     ],
+     "op_class": "read",
+     "read_targets": [
+      "powerbi:token"
+     ],
+     "seq": 31,
+     "targets": [
+      "powerbi:token"
+     ],
+     "tool": "powerbi.token"
+    },
+    {
+     "error": null,
+     "exit": "ok",
+     "flags": [
+      "actor:shim"
+     ],
+     "op_class": "exec",
+     "read_targets": [],
+     "seq": 32,
+     "targets": [],
+     "tool": "shim.python"
+    }
+   ],
+   "rows_expected": 2,
+   "rows_got": 2,
+   "schema_ok": true,
+   "schema_problems": {},
+   "seconds": 1.36,
+   "stderr_tail": "",
+   "stdout_tail": "E2E-RESULT {\"length\": 467, \"token_type\": \"Bearer\"}\n",
+   "tools": [
+    "powerbi.token",
+    "shim.python"
+   ],
+   "value": "a bearer token was issued",
+   "value_ok": true,
+   "verdict": "PASS",
+   "world": {
+    "changed": [],
+    "named_by_a_row_but_unattributed_by_blindness": [],
+    "ok": true,
+    "skip_dir_churn": [],
+    "transcript_audited": [],
+    "unexplained_outside_workspace": [],
+    "unnamed_in_workspace": []
+   }
+  },
+  {
+   "classification_ok": true,
+   "classification_problems": [],
    "command": "python /tmp/e2e/clients.py pbi_list",
    "destinations": {
     "powerbi.internal:8095": 2
@@ -1476,12 +1396,7 @@
    ],
    "destinations_ok": true,
    "doc": "",
-   "failures": [
-    "powerbi.token: read_targets []",
-    "powerbi.groups_list: read_targets []",
-    "powerbi.datasets_list: read_targets []",
-    "schema: {34: [\"vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z\"]}"
-   ],
+   "failures": [],
    "family": "powerbi",
    "finding": "",
    "id": "P2",
@@ -1495,8 +1410,10 @@
       "actor:alkera-local-dev"
      ],
      "op_class": "read",
-     "read_targets": [],
-     "seq": 31,
+     "read_targets": [
+      "powerbi:token"
+     ],
+     "seq": 33,
      "targets": [
       "powerbi:token"
      ],
@@ -1509,8 +1426,10 @@
       "actor:alkera-local-dev"
      ],
      "op_class": "read",
-     "read_targets": [],
-     "seq": 32,
+     "read_targets": [
+      "powerbi:workspace:Analytics"
+     ],
+     "seq": 34,
      "targets": [
       "powerbi:workspace:Analytics"
      ],
@@ -1523,8 +1442,10 @@
       "actor:alkera-local-dev"
      ],
      "op_class": "read",
-     "read_targets": [],
-     "seq": 33,
+     "read_targets": [
+      "powerbi:semantic_model:Commerce"
+     ],
+     "seq": 35,
      "targets": [
       "powerbi:semantic_model:Commerce"
      ],
@@ -1538,20 +1459,16 @@
      ],
      "op_class": "exec",
      "read_targets": [],
-     "seq": 34,
+     "seq": 36,
      "targets": [],
      "tool": "shim.python"
     }
    ],
    "rows_expected": 4,
    "rows_got": 4,
-   "schema_ok": false,
-   "schema_problems": {
-    "34": [
-     "vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z"
-    ]
-   },
-   "seconds": 1.56,
+   "schema_ok": true,
+   "schema_problems": {},
+   "seconds": 1.63,
    "stderr_tail": "",
    "stdout_tail": "E2E-RESULT {\"dataset\": \"Commerce\", \"group\": \"Analytics\"}\n",
    "tools": [
@@ -1562,7 +1479,7 @@
    ],
    "value": "{'dataset': 'Commerce', 'group': 'Analytics'}",
    "value_ok": true,
-   "verdict": "FAIL",
+   "verdict": "PASS",
    "world": {
     "changed": [],
     "named_by_a_row_but_unattributed_by_blindness": [],
@@ -1574,12 +1491,8 @@
    }
   },
   {
-   "classification_ok": false,
-   "classification_problems": [
-    "powerbi.token: read_targets []",
-    "powerbi.groups_list: read_targets []",
-    "powerbi.datasets_list: read_targets []"
-   ],
+   "classification_ok": true,
+   "classification_problems": [],
    "command": "python /tmp/e2e/clients.py pbi_dax",
    "destinations": {
     "powerbi.internal:8095": 2
@@ -1589,12 +1502,7 @@
    ],
    "destinations_ok": true,
    "doc": "",
-   "failures": [
-    "powerbi.token: read_targets []",
-    "powerbi.groups_list: read_targets []",
-    "powerbi.datasets_list: read_targets []",
-    "schema: {39: [\"vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z\"]}"
-   ],
+   "failures": [],
    "family": "powerbi",
    "finding": "",
    "id": "P3",
@@ -1608,8 +1516,10 @@
       "actor:alkera-local-dev"
      ],
      "op_class": "read",
-     "read_targets": [],
-     "seq": 35,
+     "read_targets": [
+      "powerbi:token"
+     ],
+     "seq": 37,
      "targets": [
       "powerbi:token"
      ],
@@ -1622,8 +1532,10 @@
       "actor:alkera-local-dev"
      ],
      "op_class": "read",
-     "read_targets": [],
-     "seq": 36,
+     "read_targets": [
+      "powerbi:workspace:Analytics"
+     ],
+     "seq": 38,
      "targets": [
       "powerbi:workspace:Analytics"
      ],
@@ -1636,8 +1548,10 @@
       "actor:alkera-local-dev"
      ],
      "op_class": "read",
-     "read_targets": [],
-     "seq": 37,
+     "read_targets": [
+      "powerbi:semantic_model:Commerce"
+     ],
+     "seq": 39,
      "targets": [
       "powerbi:semantic_model:Commerce"
      ],
@@ -1653,7 +1567,7 @@
      "read_targets": [
       "powerbi:semantic_model:Commerce"
      ],
-     "seq": 38,
+     "seq": 40,
      "targets": [
       "powerbi:semantic_model:Commerce"
      ],
@@ -1667,20 +1581,16 @@
      ],
      "op_class": "exec",
      "read_targets": [],
-     "seq": 39,
+     "seq": 41,
      "targets": [],
      "tool": "shim.python"
     }
    ],
    "rows_expected": 5,
    "rows_got": 5,
-   "schema_ok": false,
-   "schema_problems": {
-    "39": [
-     "vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z"
-    ]
-   },
-   "seconds": 1.45,
+   "schema_ok": true,
+   "schema_problems": {},
+   "seconds": 1.51,
    "stderr_tail": "",
    "stdout_tail": "E2E-RESULT {\"row\": {\"[AOV]\": 2221.813212145162, \"[Completed Orders]\": 15183, \"[Net Revenue]\": 33733790}}\n",
    "tools": [
@@ -1692,7 +1602,7 @@
    ],
    "value": "DAX {'[AOV]': 2221.813212145162, '[Completed Orders]': 15183, '[Net Revenue]': 33733790} vs sql net=33733790.00 n=15183",
    "value_ok": true,
-   "verdict": "FAIL",
+   "verdict": "PASS",
    "world": {
     "changed": [],
     "named_by_a_row_but_unattributed_by_blindness": [],
@@ -1704,13 +1614,8 @@
    }
   },
   {
-   "classification_ok": false,
-   "classification_problems": [
-    "powerbi.token: read_targets []",
-    "powerbi.groups_list: read_targets []",
-    "powerbi.datasets_list: read_targets []",
-    "powerbi.get_definition: read_targets []"
-   ],
+   "classification_ok": true,
+   "classification_problems": [],
    "command": "python /tmp/e2e/clients.py pbi_getdef",
    "destinations": {
     "powerbi.internal:8095": 2
@@ -1720,13 +1625,7 @@
    ],
    "destinations_ok": true,
    "doc": "",
-   "failures": [
-    "powerbi.token: read_targets []",
-    "powerbi.groups_list: read_targets []",
-    "powerbi.datasets_list: read_targets []",
-    "powerbi.get_definition: read_targets []",
-    "schema: {44: [\"vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z\"]}"
-   ],
+   "failures": [],
    "family": "powerbi",
    "finding": "",
    "id": "P4",
@@ -1740,8 +1639,10 @@
       "actor:alkera-local-dev"
      ],
      "op_class": "read",
-     "read_targets": [],
-     "seq": 40,
+     "read_targets": [
+      "powerbi:token"
+     ],
+     "seq": 42,
      "targets": [
       "powerbi:token"
      ],
@@ -1754,8 +1655,10 @@
       "actor:alkera-local-dev"
      ],
      "op_class": "read",
-     "read_targets": [],
-     "seq": 41,
+     "read_targets": [
+      "powerbi:workspace:Analytics"
+     ],
+     "seq": 43,
      "targets": [
       "powerbi:workspace:Analytics"
      ],
@@ -1768,8 +1671,10 @@
       "actor:alkera-local-dev"
      ],
      "op_class": "read",
-     "read_targets": [],
-     "seq": 42,
+     "read_targets": [
+      "powerbi:semantic_model:Commerce"
+     ],
+     "seq": 44,
      "targets": [
       "powerbi:semantic_model:Commerce"
      ],
@@ -1782,8 +1687,10 @@
       "actor:alkera-local-dev"
      ],
      "op_class": "read",
-     "read_targets": [],
-     "seq": 43,
+     "read_targets": [
+      "powerbi:semantic_model:Commerce"
+     ],
+     "seq": 45,
      "targets": [
       "powerbi:semantic_model:Commerce"
      ],
@@ -1797,20 +1704,16 @@
      ],
      "op_class": "exec",
      "read_targets": [],
-     "seq": 44,
+     "seq": 46,
      "targets": [],
      "tool": "shim.python"
     }
    ],
    "rows_expected": 5,
    "rows_got": 5,
-   "schema_ok": false,
-   "schema_problems": {
-    "44": [
-     "vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z"
-    ]
-   },
-   "seconds": 1.37,
+   "schema_ok": true,
+   "schema_problems": {},
+   "seconds": 1.41,
    "stderr_tail": "",
    "stdout_tail": "dGl0aW9uIFByb2R1Y3QgPSBtCgkJbW9kZTogaW1wb3J0CgkJc291cmNlID0KCQkJCWxldAoJCQkJICAgIFNvdXJjZSA9IE9kYmMuRGF0YVNvdXJjZShEdWNrREJDb25uZWN0aW9uU3RyaW5nLCBbSGllcmFyY2hpY2FsTmF2aWdhdGlvbj10cnVlXSksCgkJCQkgICAgRGF0YWJhc2UgPSBTb3VyY2V7W05hbWU9RHVja0RCQ2F0YWxvZyxLaW5kPSJEYXRhYmFzZSJdfVtEYXRhXSwKCQkJCSAgICB3YXJlaG91c2VfU2NoZW1hID0gRGF0YWJhc2V7W05hbWU9IndhcmVob3VzZSIsS2luZD0iU2NoZW1hIl19W0RhdGFdLAoJCQkJICAgIGRpbV9wcm9kdWN0X1RhYmxlID0gd2FyZWhvdXNlX1NjaGVtYXtbTmFtZT0iZGltX3Byb2R1Y3QiLEtpbmQ9IlRhYmxlIl19W0RhdGFdCgkJCQlpbgoJCQkJICAgIGRpbV9wcm9kdWN0X1RhYmxlCgoJYW5ub3RhdGlvbiBQQklfUmVzdWx0VHlwZSA9IFRhYmxlCgo=\"}}\n",
    "tools": [
@@ -1822,7 +1725,7 @@
    ],
    "value": "11 parts == bi/powerbi/Commerce.SemanticModel: True",
    "value_ok": true,
-   "verdict": "FAIL",
+   "verdict": "PASS",
    "world": {
     "changed": [],
     "named_by_a_row_but_unattributed_by_blindness": [],
@@ -1834,12 +1737,8 @@
    }
   },
   {
-   "classification_ok": false,
-   "classification_problems": [
-    "powerbi.token: read_targets []",
-    "powerbi.groups_list: read_targets []",
-    "powerbi.datasets_list: read_targets []"
-   ],
+   "classification_ok": true,
+   "classification_problems": [],
    "command": "python /tmp/e2e/clients.py pbi_update",
    "destinations": {
     "powerbi.internal:8095": 2
@@ -1849,12 +1748,7 @@
    ],
    "destinations_ok": true,
    "doc": "",
-   "failures": [
-    "powerbi.token: read_targets []",
-    "powerbi.groups_list: read_targets []",
-    "powerbi.datasets_list: read_targets []",
-    "schema: {51: [\"vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z\"]}"
-   ],
+   "failures": [],
    "family": "powerbi",
    "finding": "",
    "id": "P5",
@@ -1868,8 +1762,10 @@
       "actor:alkera-local-dev"
      ],
      "op_class": "read",
-     "read_targets": [],
-     "seq": 45,
+     "read_targets": [
+      "powerbi:token"
+     ],
+     "seq": 47,
      "targets": [
       "powerbi:token"
      ],
@@ -1882,8 +1778,10 @@
       "actor:alkera-local-dev"
      ],
      "op_class": "read",
-     "read_targets": [],
-     "seq": 46,
+     "read_targets": [
+      "powerbi:workspace:Analytics"
+     ],
+     "seq": 48,
      "targets": [
       "powerbi:workspace:Analytics"
      ],
@@ -1896,40 +1794,14 @@
       "actor:alkera-local-dev"
      ],
      "op_class": "read",
-     "read_targets": [],
-     "seq": 47,
-     "targets": [
+     "read_targets": [
       "powerbi:semantic_model:Commerce"
      ],
-     "tool": "powerbi.datasets_list"
-    },
-    {
-     "error": null,
-     "exit": "ok",
-     "flags": [
-      "actor:alkera-local-dev"
-     ],
-     "op_class": "read",
-     "read_targets": [],
-     "seq": 48,
-     "targets": [
-      "powerbi:semantic_model:Commerce"
-     ],
-     "tool": "powerbi.get_definition"
-    },
-    {
-     "error": null,
-     "exit": "ok",
-     "flags": [
-      "actor:alkera-local-dev"
-     ],
-     "op_class": "write",
-     "read_targets": [],
      "seq": 49,
      "targets": [
       "powerbi:semantic_model:Commerce"
      ],
-     "tool": "powerbi.update_definition"
+     "tool": "powerbi.datasets_list"
     },
     {
      "error": null,
@@ -1945,6 +1817,36 @@
      "targets": [
       "powerbi:semantic_model:Commerce"
      ],
+     "tool": "powerbi.get_definition"
+    },
+    {
+     "error": null,
+     "exit": "ok",
+     "flags": [
+      "actor:alkera-local-dev"
+     ],
+     "op_class": "write",
+     "read_targets": [],
+     "seq": 51,
+     "targets": [
+      "powerbi:semantic_model:Commerce"
+     ],
+     "tool": "powerbi.update_definition"
+    },
+    {
+     "error": null,
+     "exit": "ok",
+     "flags": [
+      "actor:alkera-local-dev"
+     ],
+     "op_class": "read",
+     "read_targets": [
+      "powerbi:semantic_model:Commerce"
+     ],
+     "seq": 52,
+     "targets": [
+      "powerbi:semantic_model:Commerce"
+     ],
      "tool": "powerbi.execute_queries"
     },
     {
@@ -1955,20 +1857,16 @@
      ],
      "op_class": "exec",
      "read_targets": [],
-     "seq": 51,
+     "seq": 53,
      "targets": [],
      "tool": "shim.python"
     }
    ],
    "rows_expected": 7,
    "rows_got": 7,
-   "schema_ok": false,
-   "schema_problems": {
-    "51": [
-     "vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z"
-    ]
-   },
-   "seconds": 1.56,
+   "schema_ok": true,
+   "schema_problems": {},
+   "seconds": 1.54,
    "stderr_tail": "",
    "stdout_tail": "E2E-RESULT {\"edited\": 1, \"row\": {\"[AOV]\": 2262.210047421458, \"[Completed Orders]\": 15183, \"[Net Revenue]\": 34347135.15}}\n",
    "tools": [
@@ -1982,7 +1880,7 @@
    ],
    "value": "DAX {'[AOV]': 2262.210047421458, '[Completed Orders]': 15183, '[Net Revenue]': 34347135.15} vs sql net incl. shipping=34347135.15 n=15183",
    "value_ok": true,
-   "verdict": "FAIL",
+   "verdict": "PASS",
    "world": {
     "changed": [],
     "named_by_a_row_but_unattributed_by_blindness": [],
@@ -1994,13 +1892,8 @@
    }
   },
   {
-   "classification_ok": false,
-   "classification_problems": [
-    "powerbi.token: read_targets []",
-    "powerbi.groups_list: read_targets []",
-    "powerbi.datasets_list: read_targets []",
-    "powerbi.refreshes_list: read_targets []"
-   ],
+   "classification_ok": true,
+   "classification_problems": [],
    "command": "python /tmp/e2e/clients.py pbi_deploy_refresh /workspace/bi/powerbi/Commerce.SemanticModel",
    "destinations": {
     "powerbi.internal:8095": 2
@@ -2010,13 +1903,7 @@
    ],
    "destinations_ok": true,
    "doc": "",
-   "failures": [
-    "powerbi.token: read_targets []",
-    "powerbi.groups_list: read_targets []",
-    "powerbi.datasets_list: read_targets []",
-    "powerbi.refreshes_list: read_targets []",
-    "schema: {58: [\"vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z\"]}"
-   ],
+   "failures": [],
    "family": "powerbi",
    "finding": "",
    "id": "P6",
@@ -2030,8 +1917,10 @@
       "actor:alkera-local-dev"
      ],
      "op_class": "read",
-     "read_targets": [],
-     "seq": 52,
+     "read_targets": [
+      "powerbi:token"
+     ],
+     "seq": 54,
      "targets": [
       "powerbi:token"
      ],
@@ -2044,8 +1933,10 @@
       "actor:alkera-local-dev"
      ],
      "op_class": "read",
-     "read_targets": [],
-     "seq": 53,
+     "read_targets": [
+      "powerbi:workspace:Analytics"
+     ],
+     "seq": 55,
      "targets": [
       "powerbi:workspace:Analytics"
      ],
@@ -2058,8 +1949,10 @@
       "actor:alkera-local-dev"
      ],
      "op_class": "read",
-     "read_targets": [],
-     "seq": 54,
+     "read_targets": [
+      "powerbi:semantic_model:Commerce"
+     ],
+     "seq": 56,
      "targets": [
       "powerbi:semantic_model:Commerce"
      ],
@@ -2073,7 +1966,7 @@
      ],
      "op_class": "write",
      "read_targets": [],
-     "seq": 55,
+     "seq": 57,
      "targets": [
       "powerbi:semantic_model:Commerce"
      ],
@@ -2093,7 +1986,7 @@
       "warehouse.fct_order_lines",
       "warehouse.fct_orders"
      ],
-     "seq": 56,
+     "seq": 58,
      "targets": [
       "powerbi:semantic_model:Commerce"
      ],
@@ -2106,8 +1999,10 @@
       "actor:alkera-local-dev"
      ],
      "op_class": "read",
-     "read_targets": [],
-     "seq": 57,
+     "read_targets": [
+      "powerbi:semantic_model:Commerce"
+     ],
+     "seq": 59,
      "targets": [
       "powerbi:semantic_model:Commerce"
      ],
@@ -2121,20 +2016,16 @@
      ],
      "op_class": "exec",
      "read_targets": [],
-     "seq": 58,
+     "seq": 60,
      "targets": [],
      "tool": "shim.python"
     }
    ],
    "rows_expected": 7,
    "rows_got": 7,
-   "schema_ok": false,
-   "schema_problems": {
-    "58": [
-     "vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z"
-    ]
-   },
-   "seconds": 1.64,
+   "schema_ok": true,
+   "schema_problems": {},
+   "seconds": 1.63,
    "stderr_tail": "",
    "stdout_tail": "026-03-02T00:00:00Z\", \"id\": 1, \"refreshAttempts\": [{\"attemptId\": 1, \"endTime\": \"2026-03-02T00:00:00Z\", \"startTime\": \"2026-03-02T00:00:00Z\", \"type\": \"Data\"}, {\"attemptId\": 1, \"endTime\": \"2026-03-02T00:00:00Z\", \"startTime\": \"2026-03-02T00:00:00Z\", \"type\": \"Query\"}], \"refreshType\": \"Scheduled\", \"requestId\": \"adbf009f-25d0-581a-8a3f-ba0e6921894b\", \"startTime\": \"2026-03-02T00:00:00Z\", \"status\": \"Completed\"}], \"location\": \"http://powerbi.internal:8095/v1.0/myorg/groups/2953dfcf-19d7-5cfb-89c9-93f1ab47d291/datasets/8d67992a-93cc-5157-8053-5d5ba20dd29a/refreshes/923009b2-63c3-5f60-a85a-2f8044db52b0\"}\n",
    "tools": [
@@ -2148,7 +2039,7 @@
    ],
    "value": "history[0]=Completed; published KPIs ['33733790.00', 15183, '2221.813212145162'] vs sql 33733790.00, 15183",
    "value_ok": true,
-   "verdict": "FAIL",
+   "verdict": "PASS",
    "world": {
     "changed": [],
     "named_by_a_row_but_unattributed_by_blindness": [],
@@ -2173,7 +2064,7 @@
    "doc": "",
    "failures": [],
    "family": "tableau",
-   "finding": "['workspace/tabcmd.log'] changed and NO row names it: the binary is not shimmed, so in native mode only the transcript (and rollout.py's post-episode `workspace.edit` row) accounts for it",
+   "finding": "",
    "id": "T1",
    "label": "tabcmd login (PAT)",
    "returncode": 0,
@@ -2186,7 +2077,7 @@
      "read_targets": [
       "tableau:server"
      ],
-     "seq": 59,
+     "seq": 61,
      "targets": [
       "tableau:server"
      ],
@@ -2200,7 +2091,7 @@
      "read_targets": [
       "tableau:session"
      ],
-     "seq": 60,
+     "seq": 62,
      "targets": [
       "tableau:session"
      ],
@@ -2214,28 +2105,43 @@
      "read_targets": [
       "tableau:user:1b80d29e-c570-5d6b-ae43-daf29cec2609"
      ],
-     "seq": 61,
+     "seq": 63,
      "targets": [
       "tableau:user:1b80d29e-c570-5d6b-ae43-daf29cec2609"
      ],
      "tool": "tableau.users_get"
+    },
+    {
+     "error": null,
+     "exit": "ok",
+     "flags": [
+      "actor:shim"
+     ],
+     "op_class": "exec",
+     "read_targets": [],
+     "seq": 64,
+     "targets": [
+      "tabcmd.log"
+     ],
+     "tool": "shim.tabcmd"
     }
    ],
-   "rows_expected": 3,
-   "rows_got": 3,
+   "rows_expected": 4,
+   "rows_got": 4,
    "schema_ok": true,
    "schema_problems": {},
-   "seconds": 0.86,
+   "seconds": 1.79,
    "stderr_tail": "Tabcmd 2.0.21                 \n=====   Server: http://tableau.internal:8096\n=====   Token Name: alkera-local-dev\nTableau Server Site: Default Site\nConnecting to the server...   \nFetched user details from server\nSucceeded                     \n",
    "stdout_tail": "logging: INFO\n",
    "tools": [
     "tableau.server_info",
     "tableau.auth_signin",
-    "tableau.users_get"
+    "tableau.users_get",
+    "shim.tabcmd"
    ],
    "value": "n/a",
    "value_ok": null,
-   "verdict": "FINDING",
+   "verdict": "PASS",
    "world": {
     "changed": [
      "workspace/tabcmd.log"
@@ -2243,9 +2149,7 @@
     "named_by_a_row_but_unattributed_by_blindness": [],
     "ok": true,
     "skip_dir_churn": [],
-    "transcript_audited": [
-     "workspace/tabcmd.log"
-    ],
+    "transcript_audited": [],
     "unexplained_outside_workspace": [],
     "unnamed_in_workspace": []
    }
@@ -2264,7 +2168,7 @@
    "doc": "",
    "failures": [],
    "family": "tableau",
-   "finding": "['workspace/tabcmd.log'] changed and NO row names it: the binary is not shimmed, so in native mode only the transcript (and rollout.py's post-episode `workspace.edit` row) accounts for it",
+   "finding": "",
    "id": "T2",
    "label": "tabcmd publish Commerce.tds -o",
    "returncode": 0,
@@ -2277,7 +2181,7 @@
      "read_targets": [
       "tableau:server"
      ],
-     "seq": 62,
+     "seq": 65,
      "targets": [
       "tableau:server"
      ],
@@ -2291,7 +2195,7 @@
      "read_targets": [
       "tableau:session"
      ],
-     "seq": 63,
+     "seq": 66,
      "targets": [
       "tableau:session"
      ],
@@ -2305,7 +2209,7 @@
      "read_targets": [
       "tableau:user:1b80d29e-c570-5d6b-ae43-daf29cec2609"
      ],
-     "seq": 64,
+     "seq": 67,
      "targets": [
       "tableau:user:1b80d29e-c570-5d6b-ae43-daf29cec2609"
      ],
@@ -2319,7 +2223,7 @@
      "read_targets": [
       "tableau:project:Default"
      ],
-     "seq": 65,
+     "seq": 68,
      "targets": [
       "tableau:project:Default"
      ],
@@ -2333,18 +2237,32 @@
      ],
      "op_class": "write",
      "read_targets": [],
-     "seq": 66,
+     "seq": 69,
      "targets": [
       "tableau:datasource:Commerce"
      ],
      "tool": "tableau.datasources_publish"
+    },
+    {
+     "error": null,
+     "exit": "ok",
+     "flags": [
+      "actor:shim"
+     ],
+     "op_class": "exec",
+     "read_targets": [],
+     "seq": 70,
+     "targets": [
+      "tabcmd.log"
+     ],
+     "tool": "shim.tabcmd"
     }
    ],
-   "rows_expected": 5,
-   "rows_got": 5,
+   "rows_expected": 6,
+   "rows_got": 6,
    "schema_ok": true,
    "schema_problems": {},
-   "seconds": 1.02,
+   "seconds": 1.87,
    "stderr_tail": "Tabcmd 2.0.21                 \n=====   Server: http://tableau.internal:8096\n=====   Username: alkera      \n=====   Token Name: alkera-local-dev\nTableau Server Site: Default Site\nConnecting to the server...   \nSucceeded                     \nPublishing 'bi/tableau/datasources/Commerce.tds' to the server. This could take several minutes...\nFile successfully published to the server at the following location:\nhttp://tableau.internal:8096/#/datasources/aca63666-6633-5961-ab9a-53a082f24f77\n",
    "stdout_tail": "logging: INFO\n",
    "tools": [
@@ -2352,11 +2270,12 @@
     "tableau.auth_signin",
     "tableau.users_get",
     "tableau.projects_list",
-    "tableau.datasources_publish"
+    "tableau.datasources_publish",
+    "shim.tabcmd"
    ],
    "value": "server stored sha256 8687123815f3 vs bi/tableau/datasources/Commerce.tds 8687123815f3",
    "value_ok": true,
-   "verdict": "FINDING",
+   "verdict": "PASS",
    "world": {
     "changed": [
      "workspace/tabcmd.log"
@@ -2364,9 +2283,7 @@
     "named_by_a_row_but_unattributed_by_blindness": [],
     "ok": true,
     "skip_dir_churn": [],
-    "transcript_audited": [
-     "workspace/tabcmd.log"
-    ],
+    "transcript_audited": [],
     "unexplained_outside_workspace": [],
     "unnamed_in_workspace": []
    }
@@ -2385,7 +2302,7 @@
    "doc": "",
    "failures": [],
    "family": "tableau",
-   "finding": "['workspace/tabcmd.log'] changed and NO row names it: the binary is not shimmed, so in native mode only the transcript (and rollout.py's post-episode `workspace.edit` row) accounts for it",
+   "finding": "",
    "id": "T3",
    "label": "tabcmd publish 'Executive Overview.twb' -o",
    "returncode": 0,
@@ -2398,7 +2315,7 @@
      "read_targets": [
       "tableau:server"
      ],
-     "seq": 67,
+     "seq": 71,
      "targets": [
       "tableau:server"
      ],
@@ -2412,7 +2329,7 @@
      "read_targets": [
       "tableau:session"
      ],
-     "seq": 68,
+     "seq": 72,
      "targets": [
       "tableau:session"
      ],
@@ -2426,7 +2343,7 @@
      "read_targets": [
       "tableau:user:1b80d29e-c570-5d6b-ae43-daf29cec2609"
      ],
-     "seq": 69,
+     "seq": 73,
      "targets": [
       "tableau:user:1b80d29e-c570-5d6b-ae43-daf29cec2609"
      ],
@@ -2440,7 +2357,7 @@
      "read_targets": [
       "tableau:project:Default"
      ],
-     "seq": 70,
+     "seq": 74,
      "targets": [
       "tableau:project:Default"
      ],
@@ -2454,18 +2371,32 @@
      ],
      "op_class": "write",
      "read_targets": [],
-     "seq": 71,
+     "seq": 75,
      "targets": [
       "tableau:workbook:ExecutiveOverview"
      ],
      "tool": "tableau.workbooks_publish"
+    },
+    {
+     "error": null,
+     "exit": "ok",
+     "flags": [
+      "actor:shim"
+     ],
+     "op_class": "exec",
+     "read_targets": [],
+     "seq": 76,
+     "targets": [
+      "tabcmd.log"
+     ],
+     "tool": "shim.tabcmd"
     }
    ],
-   "rows_expected": 5,
-   "rows_got": 5,
+   "rows_expected": 6,
+   "rows_got": 6,
    "schema_ok": true,
    "schema_problems": {},
-   "seconds": 0.96,
+   "seconds": 1.84,
    "stderr_tail": "Tabcmd 2.0.21                 \n=====   Server: http://tableau.internal:8096\n=====   Username: alkera      \n=====   Token Name: alkera-local-dev\nTableau Server Site: Default Site\nConnecting to the server...   \nSucceeded                     \nPublishing 'bi/tableau/workbooks/Executive Overview.twb' to the server. This could take several minutes...\nFile successfully published to the server at the following location:\nhttp://tableau.internal:8096/#/workbooks/6375df0f-316a-5a2b-bbea-affe7b9b48d0\n",
    "stdout_tail": "logging: INFO\n",
    "tools": [
@@ -2473,11 +2404,12 @@
     "tableau.auth_signin",
     "tableau.users_get",
     "tableau.projects_list",
-    "tableau.workbooks_publish"
+    "tableau.workbooks_publish",
+    "shim.tabcmd"
    ],
    "value": "server stored sha256 44c7526ba7f4 vs bi/tableau/workbooks/Executive Overview.twb 44c7526ba7f4",
    "value_ok": true,
-   "verdict": "FINDING",
+   "verdict": "PASS",
    "world": {
     "changed": [
      "workspace/tabcmd.log"
@@ -2485,9 +2417,7 @@
     "named_by_a_row_but_unattributed_by_blindness": [],
     "ok": true,
     "skip_dir_churn": [],
-    "transcript_audited": [
-     "workspace/tabcmd.log"
-    ],
+    "transcript_audited": [],
     "unexplained_outside_workspace": [],
     "unnamed_in_workspace": []
    }
@@ -2506,7 +2436,7 @@
    "doc": "",
    "failures": [],
    "family": "tableau",
-   "finding": "['workspace/tabcmd.log'] changed and NO row names it: the binary is not shimmed, so in native mode only the transcript (and rollout.py's post-episode `workspace.edit` row) accounts for it",
+   "finding": "",
    "id": "T4",
    "label": "tabcmd refreshextracts --datasource Commerce",
    "returncode": 1,
@@ -2519,7 +2449,7 @@
      "read_targets": [
       "tableau:server"
      ],
-     "seq": 72,
+     "seq": 77,
      "targets": [
       "tableau:server"
      ],
@@ -2533,7 +2463,7 @@
      "read_targets": [
       "tableau:session"
      ],
-     "seq": 73,
+     "seq": 78,
      "targets": [
       "tableau:session"
      ],
@@ -2547,7 +2477,7 @@
      "read_targets": [
       "tableau:user:1b80d29e-c570-5d6b-ae43-daf29cec2609"
      ],
-     "seq": 74,
+     "seq": 79,
      "targets": [
       "tableau:user:1b80d29e-c570-5d6b-ae43-daf29cec2609"
      ],
@@ -2561,7 +2491,7 @@
      "read_targets": [
       "tableau:project:Default"
      ],
-     "seq": 75,
+     "seq": 80,
      "targets": [
       "tableau:project:Default"
      ],
@@ -2575,7 +2505,7 @@
      "read_targets": [
       "tableau:datasource:Commerce"
      ],
-     "seq": 76,
+     "seq": 81,
      "targets": [
       "tableau:datasource:Commerce"
      ],
@@ -2590,18 +2520,35 @@
      "flags": [],
      "op_class": "write",
      "read_targets": [],
-     "seq": 77,
+     "seq": 82,
      "targets": [
       "tableau:datasource:Commerce"
      ],
      "tool": "tableau.datasources_refresh"
+    },
+    {
+     "error": {
+      "code": "command_failed",
+      "message": "tabcmd exited 1"
+     },
+     "exit": "error",
+     "flags": [
+      "actor:shim"
+     ],
+     "op_class": "exec",
+     "read_targets": [],
+     "seq": 83,
+     "targets": [
+      "tabcmd.log"
+     ],
+     "tool": "shim.tabcmd"
     }
    ],
-   "rows_expected": 6,
-   "rows_got": 6,
+   "rows_expected": 7,
+   "rows_got": 7,
    "schema_ok": true,
    "schema_problems": {},
-   "seconds": 1.03,
+   "seconds": 1.93,
    "stderr_tail": "Tabcmd 2.0.21                 \n=====   Server: http://tableau.internal:8096\n=====   Username: alkera      \n=====   Token Name: alkera-local-dev\nTableau Server Site: Default Site\nConnecting to the server...   \nSucceeded                     \nScheduling extracts for Data Source 'Commerce' to be refreshed now...\nError message: Error refreshing extract\n\n\n\t403104: Forbidden\n\t\tThe datasource 'Commerce' uses a live connection; there is no extract to refresh.\nExiting...                    \n",
    "stdout_tail": "logging: INFO\n",
    "tools": [
@@ -2610,11 +2557,12 @@
     "tableau.users_get",
     "tableau.projects_list",
     "tableau.datasources_list",
-    "tableau.datasources_refresh"
+    "tableau.datasources_refresh",
+    "shim.tabcmd"
    ],
    "value": "refused 403104: the published source is a LIVE connection (bi_projects writes extract=False)",
    "value_ok": true,
-   "verdict": "FINDING",
+   "verdict": "PASS",
    "world": {
     "changed": [
      "workspace/tabcmd.log"
@@ -2622,18 +2570,14 @@
     "named_by_a_row_but_unattributed_by_blindness": [],
     "ok": true,
     "skip_dir_churn": [],
-    "transcript_audited": [
-     "workspace/tabcmd.log"
-    ],
+    "transcript_audited": [],
     "unexplained_outside_workspace": [],
     "unnamed_in_workspace": []
    }
   },
   {
-   "classification_ok": false,
-   "classification_problems": [
-    "tableau.views_data: read_targets ['warehouse.dim_customer', 'warehouse.dim_date', 'warehouse.dim_product', 'warehouse.fct_order_lines', 'warehouse.fct_orders']"
-   ],
+   "classification_ok": true,
+   "classification_problems": [],
    "command": "tabcmd export /ExecutiveOverview/KPIs --csv -f /tmp/e2e/kpis.csv",
    "destinations": {
     "tableau.internal:8096": 1
@@ -2643,11 +2587,9 @@
    ],
    "destinations_ok": true,
    "doc": "",
-   "failures": [
-    "tableau.views_data: read_targets ['warehouse.dim_customer', 'warehouse.dim_date', 'warehouse.dim_product', 'warehouse.fct_order_lines', 'warehouse.fct_orders']"
-   ],
+   "failures": [],
    "family": "tableau",
-   "finding": "['workspace/tabcmd.log'] changed and NO row names it: the binary is not shimmed, so in native mode only the transcript (and rollout.py's post-episode `workspace.edit` row) accounts for it",
+   "finding": "",
    "id": "T5",
    "label": "tabcmd export /ExecutiveOverview/KPIs --csv",
    "returncode": 0,
@@ -2660,7 +2602,7 @@
      "read_targets": [
       "tableau:server"
      ],
-     "seq": 78,
+     "seq": 84,
      "targets": [
       "tableau:server"
      ],
@@ -2674,7 +2616,7 @@
      "read_targets": [
       "tableau:session"
      ],
-     "seq": 79,
+     "seq": 85,
      "targets": [
       "tableau:session"
      ],
@@ -2688,7 +2630,7 @@
      "read_targets": [
       "tableau:user:1b80d29e-c570-5d6b-ae43-daf29cec2609"
      ],
-     "seq": 80,
+     "seq": 86,
      "targets": [
       "tableau:user:1b80d29e-c570-5d6b-ae43-daf29cec2609"
      ],
@@ -2702,7 +2644,7 @@
      "read_targets": [
       "tableau:view:ExecutiveOverview/sheets/KPIs"
      ],
-     "seq": 81,
+     "seq": 87,
      "targets": [
       "tableau:view:ExecutiveOverview/sheets/KPIs"
      ],
@@ -2714,24 +2656,34 @@
      "flags": [],
      "op_class": "read",
      "read_targets": [
-      "warehouse.dim_customer",
-      "warehouse.dim_date",
-      "warehouse.dim_product",
-      "warehouse.fct_order_lines",
       "warehouse.fct_orders"
      ],
-     "seq": 82,
+     "seq": 88,
      "targets": [
       "tableau:view:ExecutiveOverview/sheets/KPIs"
      ],
      "tool": "tableau.views_data"
+    },
+    {
+     "error": null,
+     "exit": "ok",
+     "flags": [
+      "actor:shim"
+     ],
+     "op_class": "exec",
+     "read_targets": [],
+     "seq": 89,
+     "targets": [
+      "tabcmd.log"
+     ],
+     "tool": "shim.tabcmd"
     }
    ],
-   "rows_expected": 5,
-   "rows_got": 5,
+   "rows_expected": 6,
+   "rows_got": 6,
    "schema_ok": true,
    "schema_problems": {},
-   "seconds": 1.01,
+   "seconds": 1.99,
    "stderr_tail": "Tabcmd 2.0.21                 \n=====   Server: http://tableau.internal:8096\n=====   Username: alkera      \n=====   Token Name: alkera-local-dev\nTableau Server Site: Default Site\nConnecting to the server...   \nSucceeded                     \nRequesting '/ExecutiveOverview/KPIs' from the server...\nFound attachment: /tmp/e2e/kpis.csv\nSaved  to '/tmp/e2e/kpis.csv' \n",
    "stdout_tail": "logging: INFO\n",
    "tools": [
@@ -2739,11 +2691,12 @@
     "tableau.auth_signin",
     "tableau.users_get",
     "tableau.views_list",
-    "tableau.views_data"
+    "tableau.views_data",
+    "shim.tabcmd"
    ],
    "value": "tabcmd [['Net Revenue', 'Completed Orders', 'AOV'], ['$33,733,790.00', '15,183', '$2,221.81']] vs sql [['Net Revenue', 'Completed Orders', 'AOV'], ['$33,733,790.00', '15,183', '$2,221.81']]",
    "value_ok": true,
-   "verdict": "FAIL",
+   "verdict": "PASS",
    "world": {
     "changed": [
      "workspace/tabcmd.log"
@@ -2751,9 +2704,7 @@
     "named_by_a_row_but_unattributed_by_blindness": [],
     "ok": true,
     "skip_dir_churn": [],
-    "transcript_audited": [
-     "workspace/tabcmd.log"
-    ],
+    "transcript_audited": [],
     "unexplained_outside_workspace": [],
     "unnamed_in_workspace": []
    }
@@ -2788,21 +2739,17 @@
      ],
      "op_class": "exec",
      "read_targets": [],
-     "seq": 83,
+     "seq": 90,
      "targets": [],
      "tool": "shim.python"
     }
    ],
    "rows_expected": 7,
    "rows_got": 1,
-   "schema_ok": false,
-   "schema_problems": {
-    "83": [
-     "vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z"
-    ]
-   },
-   "seconds": 1.07,
-   "stderr_tail": "Traceback (most recent call last):\n  File \"/tmp/e2e/clients.py\", line 304, in <module>\n    globals()[step](*args)\n  File \"/tmp/e2e/clients.py\", line 229, in tsc_view\n    import tableauserverclient as TSC\nModuleNotFoundError: No module named 'tableauserverclient'\n",
+   "schema_ok": true,
+   "schema_problems": {},
+   "seconds": 1.09,
+   "stderr_tail": "Traceback (most recent call last):\n  File \"/tmp/e2e/clients.py\", line 312, in <module>\n    globals()[step](*args)\n  File \"/tmp/e2e/clients.py\", line 230, in tsc_view\n    import tableauserverclient as TSC\nModuleNotFoundError: No module named 'tableauserverclient'\n",
    "stdout_tail": "",
    "tools": [
     "shim.python"
@@ -2821,10 +2768,8 @@
    }
   },
   {
-   "classification_ok": false,
-   "classification_problems": [
-    "tableau.views_data: read_targets ['warehouse.dim_customer', 'warehouse.dim_date', 'warehouse.dim_product', 'warehouse.fct_order_lines', 'warehouse.fct_orders']"
-   ],
+   "classification_ok": true,
+   "classification_problems": [],
    "command": "/opt/toolbelt/bin/python /tmp/e2e/clients.py tsc_view 'Revenue by Segment'",
    "destinations": {
     "tableau.internal:8096": 1
@@ -2834,9 +2779,7 @@
    ],
    "destinations_ok": true,
    "doc": "an absolute interpreter is not shimmed: the service rows are the record",
-   "failures": [
-    "tableau.views_data: read_targets ['warehouse.dim_customer', 'warehouse.dim_date', 'warehouse.dim_product', 'warehouse.fct_order_lines', 'warehouse.fct_orders']"
-   ],
+   "failures": [],
    "family": "tableau",
    "finding": "",
    "id": "T6b",
@@ -2851,7 +2794,7 @@
      "read_targets": [
       "tableau:session"
      ],
-     "seq": 84,
+     "seq": 91,
      "targets": [
       "tableau:session"
      ],
@@ -2865,7 +2808,7 @@
      "read_targets": [
       "tableau:server"
      ],
-     "seq": 85,
+     "seq": 92,
      "targets": [
       "tableau:server"
      ],
@@ -2879,7 +2822,7 @@
      "read_targets": [
       "tableau:workbook:ExecutiveOverview"
      ],
-     "seq": 86,
+     "seq": 93,
      "targets": [
       "tableau:workbook:ExecutiveOverview"
      ],
@@ -2893,7 +2836,7 @@
      "read_targets": [
       "tableau:workbook:ExecutiveOverview"
      ],
-     "seq": 87,
+     "seq": 94,
      "targets": [
       "tableau:workbook:ExecutiveOverview"
      ],
@@ -2906,12 +2849,9 @@
      "op_class": "read",
      "read_targets": [
       "warehouse.dim_customer",
-      "warehouse.dim_date",
-      "warehouse.dim_product",
-      "warehouse.fct_order_lines",
       "warehouse.fct_orders"
      ],
-     "seq": 88,
+     "seq": 95,
      "targets": [
       "tableau:view:ExecutiveOverview/sheets/RevenuebySegment"
      ],
@@ -2925,7 +2865,7 @@
      "read_targets": [
       "tableau:session"
      ],
-     "seq": 89,
+     "seq": 96,
      "targets": [
       "tableau:session"
      ],
@@ -2936,7 +2876,7 @@
    "rows_got": 6,
    "schema_ok": true,
    "schema_problems": {},
-   "seconds": 0.92,
+   "seconds": 0.97,
    "stderr_tail": "",
    "stdout_tail": "E2E-RESULT {\"rows\": [[\"segment\", \"Net Revenue\", \"Segment Share\"], [\"Enterprise\", \"$26,794,825.00\", \"79.4%\"], [\"SMB\", \"$6,198,837.00\", \"18.4%\"], [\"Consumer\", \"$740,128.00\", \"2.2%\"]]}\n",
    "tools": [
@@ -2949,7 +2889,7 @@
    ],
    "value": "TSC [['segment', 'Net Revenue', 'Segment Share'], ['Enterprise', '$26,794,825.00', '79.4%'], ['SMB', '$6,198,837.00', '18.4%'], ['Consumer', '$740,128.00', '2.2%']] vs sql [['segment', 'Net Revenue', 'Segment Share'], ['Enterprise', '$26,794,825.00', '79.4%'], ['SMB', '$6,198,837.00', '18.4%'], ['Consumer', '$740,128.00', '2.2%']]",
    "value_ok": true,
-   "verdict": "FAIL",
+   "verdict": "DOC",
    "world": {
     "changed": [],
     "named_by_a_row_but_unattributed_by_blindness": [],
@@ -2972,9 +2912,7 @@
    ],
    "destinations_ok": true,
    "doc": "",
-   "failures": [
-    "schema: {91: [\"vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z\"]}"
-   ],
+   "failures": [],
    "family": "sigma",
    "finding": "",
    "id": "G1",
@@ -2989,7 +2927,7 @@
      "read_targets": [
       "sigma:session"
      ],
-     "seq": 90,
+     "seq": 97,
      "targets": [
       "sigma:session"
      ],
@@ -3003,20 +2941,16 @@
      ],
      "op_class": "exec",
      "read_targets": [],
-     "seq": 91,
+     "seq": 98,
      "targets": [],
      "tool": "shim.python"
     }
    ],
    "rows_expected": 2,
    "rows_got": 2,
-   "schema_ok": false,
-   "schema_problems": {
-    "91": [
-     "vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z"
-    ]
-   },
-   "seconds": 1.37,
+   "schema_ok": true,
+   "schema_problems": {},
+   "seconds": 1.58,
    "stderr_tail": "",
    "stdout_tail": "E2E-RESULT {\"ok\": true}\n",
    "tools": [
@@ -3025,7 +2959,7 @@
    ],
    "value": "issued",
    "value_ok": true,
-   "verdict": "FAIL",
+   "verdict": "PASS",
    "world": {
     "changed": [],
     "named_by_a_row_but_unattributed_by_blindness": [],
@@ -3048,216 +2982,11 @@
    ],
    "destinations_ok": true,
    "doc": "",
-   "failures": [
-    "schema: {94: [\"vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z\"]}"
-   ],
+   "failures": [],
    "family": "sigma",
    "finding": "",
    "id": "G2",
    "label": "GET /v2/workbooks",
-   "returncode": 0,
-   "rows": [
-    {
-     "error": null,
-     "exit": "ok",
-     "flags": [],
-     "op_class": "read",
-     "read_targets": [
-      "sigma:session"
-     ],
-     "seq": 92,
-     "targets": [
-      "sigma:session"
-     ],
-     "tool": "sigma.auth_token"
-    },
-    {
-     "error": null,
-     "exit": "ok",
-     "flags": [
-      "actor:alkera-local-dev"
-     ],
-     "op_class": "read",
-     "read_targets": [
-      "sigma:workbook:a07e3c92-fc5b-454d-9101-0b5262abc167"
-     ],
-     "seq": 93,
-     "targets": [
-      "sigma:workbook:a07e3c92-fc5b-454d-9101-0b5262abc167"
-     ],
-     "tool": "sigma.workbooks_list"
-    },
-    {
-     "error": null,
-     "exit": "ok",
-     "flags": [
-      "actor:shim"
-     ],
-     "op_class": "exec",
-     "read_targets": [],
-     "seq": 94,
-     "targets": [],
-     "tool": "shim.python"
-    }
-   ],
-   "rows_expected": 3,
-   "rows_got": 3,
-   "schema_ok": false,
-   "schema_problems": {
-    "94": [
-     "vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z"
-    ]
-   },
-   "seconds": 1.37,
-   "stderr_tail": "",
-   "stdout_tail": "E2E-RESULT {\"workbooks\": [[\"a07e3c92-fc5b-454d-9101-0b5262abc167\", \"Executive Overview\"]]}\n",
-   "tools": [
-    "sigma.auth_token",
-    "sigma.workbooks_list",
-    "shim.python"
-   ],
-   "value": "{'workbooks': [['a07e3c92-fc5b-454d-9101-0b5262abc167', 'Executive Overview']]}",
-   "value_ok": true,
-   "verdict": "FAIL",
-   "world": {
-    "changed": [],
-    "named_by_a_row_but_unattributed_by_blindness": [],
-    "ok": true,
-    "skip_dir_churn": [],
-    "transcript_audited": [],
-    "unexplained_outside_workspace": [],
-    "unnamed_in_workspace": []
-   }
-  },
-  {
-   "classification_ok": true,
-   "classification_problems": [],
-   "command": "python /tmp/e2e/clients.py sigma_get",
-   "destinations": {
-    "sigma.internal:8097": 2
-   },
-   "destinations_expected": [
-    "sigma.internal:8097"
-   ],
-   "destinations_ok": true,
-   "doc": "",
-   "failures": [
-    "schema: {98: [\"vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z\"]}"
-   ],
-   "family": "sigma",
-   "finding": "",
-   "id": "G3",
-   "label": "GET /v2/workbooks/{id}?includeContents=true",
-   "returncode": 0,
-   "rows": [
-    {
-     "error": null,
-     "exit": "ok",
-     "flags": [],
-     "op_class": "read",
-     "read_targets": [
-      "sigma:session"
-     ],
-     "seq": 95,
-     "targets": [
-      "sigma:session"
-     ],
-     "tool": "sigma.auth_token"
-    },
-    {
-     "error": null,
-     "exit": "ok",
-     "flags": [
-      "actor:alkera-local-dev"
-     ],
-     "op_class": "read",
-     "read_targets": [
-      "sigma:workbook:a07e3c92-fc5b-454d-9101-0b5262abc167"
-     ],
-     "seq": 96,
-     "targets": [
-      "sigma:workbook:a07e3c92-fc5b-454d-9101-0b5262abc167"
-     ],
-     "tool": "sigma.workbooks_list"
-    },
-    {
-     "error": null,
-     "exit": "ok",
-     "flags": [
-      "actor:alkera-local-dev"
-     ],
-     "op_class": "read",
-     "read_targets": [
-      "sigma:workbook:a07e3c92-fc5b-454d-9101-0b5262abc167"
-     ],
-     "seq": 97,
-     "targets": [
-      "sigma:workbook:a07e3c92-fc5b-454d-9101-0b5262abc167"
-     ],
-     "tool": "sigma.workbook_get"
-    },
-    {
-     "error": null,
-     "exit": "ok",
-     "flags": [
-      "actor:shim"
-     ],
-     "op_class": "exec",
-     "read_targets": [],
-     "seq": 98,
-     "targets": [],
-     "tool": "shim.python"
-    }
-   ],
-   "rows_expected": 4,
-   "rows_got": 4,
-   "schema_ok": false,
-   "schema_problems": {
-    "98": [
-     "vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z"
-    ]
-   },
-   "seconds": 1.43,
-   "stderr_tail": "",
-   "stdout_tail": "d=\\\"xmQSDewMBX\\\" gridColumn=\\\"1 / 25\\\" gridRow=\\\"21 / 41\\\"/>\\n  <Element elementId=\\\"RrTb6JtELv\\\" gridColumn=\\\"1 / 25\\\" gridRow=\\\"41 / 61\\\"/>\\n  <Element elementId=\\\"3x28UywILC\\\" gridColumn=\\\"1 / 25\\\" gridRow=\\\"61 / 81\\\"/>\\n</Page>\\n<Page type=\\\"grid\\\" gridTemplateColumns=\\\"repeat(24, 1fr)\\\" gridTemplateRows=\\\"auto\\\" id=\\\"RJmbPmvEOV\\\">\\n  <Element elementId=\\\"EbzDZYB2yL\\\" gridColumn=\\\"1 / 25\\\" gridRow=\\\"1 / 21\\\"/>\\n</Page>\\n\", \"pages\": [{\"id\": \"YjioesuIbN\", \"name\": \"Overview\"}, {\"id\": \"RJmbPmvEOV\", \"name\": \"Regions\"}], \"schemaVersion\": 1}, \"workbookId\": \"a07e3c92-fc5b-454d-9101-0b5262abc167\"}\n",
-   "tools": [
-    "sigma.auth_token",
-    "sigma.workbooks_list",
-    "sigma.workbook_get",
-    "shim.python"
-   ],
-   "value": "contents == bi/sigma/workbooks/executive-overview.json",
-   "value_ok": true,
-   "verdict": "FAIL",
-   "world": {
-    "changed": [],
-    "named_by_a_row_but_unattributed_by_blindness": [],
-    "ok": true,
-    "skip_dir_churn": [],
-    "transcript_audited": [],
-    "unexplained_outside_workspace": [],
-    "unnamed_in_workspace": []
-   }
-  },
-  {
-   "classification_ok": true,
-   "classification_problems": [],
-   "command": "python /tmp/e2e/clients.py sigma_export",
-   "destinations": {
-    "sigma.internal:8097": 2
-   },
-   "destinations_expected": [
-    "sigma.internal:8097"
-   ],
-   "destinations_ok": true,
-   "doc": "",
-   "failures": [
-    "schema: {112: [\"vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z\"]}"
-   ],
-   "family": "sigma",
-   "finding": "",
-   "id": "G4",
-   "label": "export + download every element (csv)",
    "returncode": 0,
    "rows": [
     {
@@ -3294,13 +3023,204 @@
      "error": null,
      "exit": "ok",
      "flags": [
+      "actor:shim"
+     ],
+     "op_class": "exec",
+     "read_targets": [],
+     "seq": 101,
+     "targets": [],
+     "tool": "shim.python"
+    }
+   ],
+   "rows_expected": 3,
+   "rows_got": 3,
+   "schema_ok": true,
+   "schema_problems": {},
+   "seconds": 1.33,
+   "stderr_tail": "",
+   "stdout_tail": "E2E-RESULT {\"workbooks\": [[\"a07e3c92-fc5b-454d-9101-0b5262abc167\", \"Executive Overview\"]]}\n",
+   "tools": [
+    "sigma.auth_token",
+    "sigma.workbooks_list",
+    "shim.python"
+   ],
+   "value": "{'workbooks': [['a07e3c92-fc5b-454d-9101-0b5262abc167', 'Executive Overview']]}",
+   "value_ok": true,
+   "verdict": "PASS",
+   "world": {
+    "changed": [],
+    "named_by_a_row_but_unattributed_by_blindness": [],
+    "ok": true,
+    "skip_dir_churn": [],
+    "transcript_audited": [],
+    "unexplained_outside_workspace": [],
+    "unnamed_in_workspace": []
+   }
+  },
+  {
+   "classification_ok": true,
+   "classification_problems": [],
+   "command": "python /tmp/e2e/clients.py sigma_get",
+   "destinations": {
+    "sigma.internal:8097": 2
+   },
+   "destinations_expected": [
+    "sigma.internal:8097"
+   ],
+   "destinations_ok": true,
+   "doc": "",
+   "failures": [],
+   "family": "sigma",
+   "finding": "",
+   "id": "G3",
+   "label": "GET /v2/workbooks/{id}?includeContents=true",
+   "returncode": 0,
+   "rows": [
+    {
+     "error": null,
+     "exit": "ok",
+     "flags": [],
+     "op_class": "read",
+     "read_targets": [
+      "sigma:session"
+     ],
+     "seq": 102,
+     "targets": [
+      "sigma:session"
+     ],
+     "tool": "sigma.auth_token"
+    },
+    {
+     "error": null,
+     "exit": "ok",
+     "flags": [
       "actor:alkera-local-dev"
      ],
      "op_class": "read",
      "read_targets": [
       "sigma:workbook:a07e3c92-fc5b-454d-9101-0b5262abc167"
      ],
-     "seq": 101,
+     "seq": 103,
+     "targets": [
+      "sigma:workbook:a07e3c92-fc5b-454d-9101-0b5262abc167"
+     ],
+     "tool": "sigma.workbooks_list"
+    },
+    {
+     "error": null,
+     "exit": "ok",
+     "flags": [
+      "actor:alkera-local-dev"
+     ],
+     "op_class": "read",
+     "read_targets": [
+      "sigma:workbook:a07e3c92-fc5b-454d-9101-0b5262abc167"
+     ],
+     "seq": 104,
+     "targets": [
+      "sigma:workbook:a07e3c92-fc5b-454d-9101-0b5262abc167"
+     ],
+     "tool": "sigma.workbook_get"
+    },
+    {
+     "error": null,
+     "exit": "ok",
+     "flags": [
+      "actor:shim"
+     ],
+     "op_class": "exec",
+     "read_targets": [],
+     "seq": 105,
+     "targets": [],
+     "tool": "shim.python"
+    }
+   ],
+   "rows_expected": 4,
+   "rows_got": 4,
+   "schema_ok": true,
+   "schema_problems": {},
+   "seconds": 1.38,
+   "stderr_tail": "",
+   "stdout_tail": "d=\\\"xmQSDewMBX\\\" gridColumn=\\\"1 / 25\\\" gridRow=\\\"21 / 41\\\"/>\\n  <Element elementId=\\\"RrTb6JtELv\\\" gridColumn=\\\"1 / 25\\\" gridRow=\\\"41 / 61\\\"/>\\n  <Element elementId=\\\"3x28UywILC\\\" gridColumn=\\\"1 / 25\\\" gridRow=\\\"61 / 81\\\"/>\\n</Page>\\n<Page type=\\\"grid\\\" gridTemplateColumns=\\\"repeat(24, 1fr)\\\" gridTemplateRows=\\\"auto\\\" id=\\\"RJmbPmvEOV\\\">\\n  <Element elementId=\\\"EbzDZYB2yL\\\" gridColumn=\\\"1 / 25\\\" gridRow=\\\"1 / 21\\\"/>\\n</Page>\\n\", \"pages\": [{\"id\": \"YjioesuIbN\", \"name\": \"Overview\"}, {\"id\": \"RJmbPmvEOV\", \"name\": \"Regions\"}], \"schemaVersion\": 1}, \"workbookId\": \"a07e3c92-fc5b-454d-9101-0b5262abc167\"}\n",
+   "tools": [
+    "sigma.auth_token",
+    "sigma.workbooks_list",
+    "sigma.workbook_get",
+    "shim.python"
+   ],
+   "value": "contents == bi/sigma/workbooks/executive-overview.json",
+   "value_ok": true,
+   "verdict": "PASS",
+   "world": {
+    "changed": [],
+    "named_by_a_row_but_unattributed_by_blindness": [],
+    "ok": true,
+    "skip_dir_churn": [],
+    "transcript_audited": [],
+    "unexplained_outside_workspace": [],
+    "unnamed_in_workspace": []
+   }
+  },
+  {
+   "classification_ok": true,
+   "classification_problems": [],
+   "command": "python /tmp/e2e/clients.py sigma_export",
+   "destinations": {
+    "sigma.internal:8097": 2
+   },
+   "destinations_expected": [
+    "sigma.internal:8097"
+   ],
+   "destinations_ok": true,
+   "doc": "",
+   "failures": [],
+   "family": "sigma",
+   "finding": "",
+   "id": "G4",
+   "label": "export + download every element (csv)",
+   "returncode": 0,
+   "rows": [
+    {
+     "error": null,
+     "exit": "ok",
+     "flags": [],
+     "op_class": "read",
+     "read_targets": [
+      "sigma:session"
+     ],
+     "seq": 106,
+     "targets": [
+      "sigma:session"
+     ],
+     "tool": "sigma.auth_token"
+    },
+    {
+     "error": null,
+     "exit": "ok",
+     "flags": [
+      "actor:alkera-local-dev"
+     ],
+     "op_class": "read",
+     "read_targets": [
+      "sigma:workbook:a07e3c92-fc5b-454d-9101-0b5262abc167"
+     ],
+     "seq": 107,
+     "targets": [
+      "sigma:workbook:a07e3c92-fc5b-454d-9101-0b5262abc167"
+     ],
+     "tool": "sigma.workbooks_list"
+    },
+    {
+     "error": null,
+     "exit": "ok",
+     "flags": [
+      "actor:alkera-local-dev"
+     ],
+     "op_class": "read",
+     "read_targets": [
+      "sigma:workbook:a07e3c92-fc5b-454d-9101-0b5262abc167"
+     ],
+     "seq": 108,
      "targets": [
       "sigma:workbook:a07e3c92-fc5b-454d-9101-0b5262abc167"
      ],
@@ -3317,7 +3237,7 @@
       "warehouse.fct_orders",
       "sigma:workbook:a07e3c92-fc5b-454d-9101-0b5262abc167"
      ],
-     "seq": 102,
+     "seq": 109,
      "targets": [
       "sigma:workbook:a07e3c92-fc5b-454d-9101-0b5262abc167"
      ],
@@ -3333,7 +3253,7 @@
      "read_targets": [
       "sigma:query:dae849d8-845a-4ba8-b09b-867860298b3a"
      ],
-     "seq": 103,
+     "seq": 110,
      "targets": [
       "sigma:query:dae849d8-845a-4ba8-b09b-867860298b3a"
      ],
@@ -3351,7 +3271,7 @@
       "warehouse.fct_orders",
       "sigma:workbook:a07e3c92-fc5b-454d-9101-0b5262abc167"
      ],
-     "seq": 104,
+     "seq": 111,
      "targets": [
       "sigma:workbook:a07e3c92-fc5b-454d-9101-0b5262abc167"
      ],
@@ -3367,7 +3287,7 @@
      "read_targets": [
       "sigma:query:56ec4112-8d03-4781-a923-5ce7f017e09f"
      ],
-     "seq": 105,
+     "seq": 112,
      "targets": [
       "sigma:query:56ec4112-8d03-4781-a923-5ce7f017e09f"
      ],
@@ -3385,7 +3305,7 @@
       "warehouse.fct_orders",
       "sigma:workbook:a07e3c92-fc5b-454d-9101-0b5262abc167"
      ],
-     "seq": 106,
+     "seq": 113,
      "targets": [
       "sigma:workbook:a07e3c92-fc5b-454d-9101-0b5262abc167"
      ],
@@ -3401,7 +3321,7 @@
      "read_targets": [
       "sigma:query:f5722b7d-d43b-4a72-8cc3-067050031e4a"
      ],
-     "seq": 107,
+     "seq": 114,
      "targets": [
       "sigma:query:f5722b7d-d43b-4a72-8cc3-067050031e4a"
      ],
@@ -3419,7 +3339,7 @@
       "warehouse.fct_order_lines",
       "sigma:workbook:a07e3c92-fc5b-454d-9101-0b5262abc167"
      ],
-     "seq": 108,
+     "seq": 115,
      "targets": [
       "sigma:workbook:a07e3c92-fc5b-454d-9101-0b5262abc167"
      ],
@@ -3435,7 +3355,7 @@
      "read_targets": [
       "sigma:query:4f78f0c8-c558-4f05-93cb-959e3c6e7180"
      ],
-     "seq": 109,
+     "seq": 116,
      "targets": [
       "sigma:query:4f78f0c8-c558-4f05-93cb-959e3c6e7180"
      ],
@@ -3454,7 +3374,7 @@
       "warehouse.fct_orders",
       "sigma:workbook:a07e3c92-fc5b-454d-9101-0b5262abc167"
      ],
-     "seq": 110,
+     "seq": 117,
      "targets": [
       "sigma:workbook:a07e3c92-fc5b-454d-9101-0b5262abc167"
      ],
@@ -3470,7 +3390,7 @@
      "read_targets": [
       "sigma:query:ce5bf32a-a098-499b-ace8-2c6637c44921"
      ],
-     "seq": 111,
+     "seq": 118,
      "targets": [
       "sigma:query:ce5bf32a-a098-499b-ace8-2c6637c44921"
      ],
@@ -3484,20 +3404,16 @@
      ],
      "op_class": "exec",
      "read_targets": [],
-     "seq": 112,
+     "seq": 119,
      "targets": [],
      "tool": "shim.python"
     }
    ],
    "rows_expected": 14,
    "rows_got": 14,
-   "schema_ok": false,
-   "schema_problems": {
-    "112": [
-     "vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z"
-    ]
-   },
-   "seconds": 2.0,
+   "schema_ok": true,
+   "schema_problems": {},
+   "seconds": 2.02,
    "stderr_tail": "",
    "stdout_tail": "enue\\n2025,1,2040854.00\\n2025,2,1838791.00\\n2025,3,2124879.00\\n2025,4,2034523.00\\n2025,5,2233303.00\\n2025,6,2212381.00\\n2025,7,2396526.00\\n2025,8,2343331.00\\n2025,9,2687505.00\\n2025,10,2422604.00\\n2025,11,3290862.00\\n2025,12,3360602.00\\n2026,1,2386405.00\\n2026,2,2361224.00\\n\", \"Revenue by Region 2026\": \"region,Net Revenue\\nAPAC,750362.00\\nEMEA,1802774.00\\nNA,2194493.00\\n\", \"Revenue by Segment\": \"segment,Net Revenue\\nEnterprise,26794825.00\\nSMB,6198837.00\\nConsumer,740128.00\\n\", \"Top Products\": \"product_name,Units\\nContour Task Chair,12227\\nRidge Standing Desk 48in,11014\\nCable Tray,10260\\n\"}}\n",
    "tools": [
@@ -3518,7 +3434,7 @@
    ],
    "value": "5 elements == sql",
    "value_ok": true,
-   "verdict": "FAIL",
+   "verdict": "PASS",
    "world": {
     "changed": [],
     "named_by_a_row_but_unattributed_by_blindness": [],
@@ -3541,9 +3457,7 @@
    ],
    "destinations_ok": true,
    "doc": "",
-   "failures": [
-    "schema: {119: [\"vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z\"]}"
-   ],
+   "failures": [],
    "family": "sigma",
    "finding": "",
    "id": "G5",
@@ -3558,7 +3472,7 @@
      "read_targets": [
       "sigma:session"
      ],
-     "seq": 113,
+     "seq": 120,
      "targets": [
       "sigma:session"
      ],
@@ -3574,7 +3488,7 @@
      "read_targets": [
       "sigma:workbook:a07e3c92-fc5b-454d-9101-0b5262abc167"
      ],
-     "seq": 114,
+     "seq": 121,
      "targets": [
       "sigma:workbook:a07e3c92-fc5b-454d-9101-0b5262abc167"
      ],
@@ -3590,7 +3504,7 @@
      "read_targets": [
       "sigma:workbook:a07e3c92-fc5b-454d-9101-0b5262abc167"
      ],
-     "seq": 115,
+     "seq": 122,
      "targets": [
       "sigma:workbook:a07e3c92-fc5b-454d-9101-0b5262abc167"
      ],
@@ -3604,7 +3518,7 @@
      ],
      "op_class": "write",
      "read_targets": [],
-     "seq": 116,
+     "seq": 123,
      "targets": [
       "sigma:workbook:a07e3c92-fc5b-454d-9101-0b5262abc167"
      ],
@@ -3621,7 +3535,7 @@
       "warehouse.fct_orders",
       "sigma:workbook:a07e3c92-fc5b-454d-9101-0b5262abc167"
      ],
-     "seq": 117,
+     "seq": 124,
      "targets": [
       "sigma:workbook:a07e3c92-fc5b-454d-9101-0b5262abc167"
      ],
@@ -3637,7 +3551,7 @@
      "read_targets": [
       "sigma:query:be5ec753-8a2f-403c-bdb4-46ddadf9a5a5"
      ],
-     "seq": 118,
+     "seq": 125,
      "targets": [
       "sigma:query:be5ec753-8a2f-403c-bdb4-46ddadf9a5a5"
      ],
@@ -3651,20 +3565,16 @@
      ],
      "op_class": "exec",
      "read_targets": [],
-     "seq": 119,
+     "seq": 126,
      "targets": [],
      "tool": "shim.python"
     }
    ],
    "rows_expected": 7,
    "rows_got": 7,
-   "schema_ok": false,
-   "schema_problems": {
-    "119": [
-     "vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z"
-    ]
-   },
-   "seconds": 1.54,
+   "schema_ok": true,
+   "schema_problems": {},
+   "seconds": 1.62,
    "stderr_tail": "",
    "stdout_tail": "E2E-RESULT {\"kpis\": \"Net Revenue,Completed Orders,AOV\\n37427578.00,15183,2221.813212145162\\n\", \"version\": 2}\n",
    "tools": [
@@ -3678,7 +3588,111 @@
    ],
    "value": "published v2; KPIs[Net Revenue column] 37427578.00 vs sql gross 37427578.00",
    "value_ok": true,
-   "verdict": "FAIL",
+   "verdict": "PASS",
+   "world": {
+    "changed": [],
+    "named_by_a_row_but_unattributed_by_blindness": [],
+    "ok": true,
+    "skip_dir_churn": [],
+    "transcript_audited": [],
+    "unexplained_outside_workspace": [],
+    "unnamed_in_workspace": []
+   }
+  },
+  {
+   "classification_ok": true,
+   "classification_problems": [],
+   "command": "python /tmp/e2e/clients.py sigma_sync",
+   "destinations": {
+    "sigma.internal:8097": 2
+   },
+   "destinations_expected": [
+    "sigma.internal:8097"
+   ],
+   "destinations_ok": true,
+   "doc": "",
+   "failures": [],
+   "family": "sigma",
+   "finding": "",
+   "id": "G6",
+   "label": "POST /v2/connections/{id}/sync (one table)",
+   "returncode": 0,
+   "rows": [
+    {
+     "error": null,
+     "exit": "ok",
+     "flags": [],
+     "op_class": "read",
+     "read_targets": [
+      "sigma:session"
+     ],
+     "seq": 127,
+     "targets": [
+      "sigma:session"
+     ],
+     "tool": "sigma.auth_token"
+    },
+    {
+     "error": null,
+     "exit": "ok",
+     "flags": [
+      "actor:alkera-local-dev"
+     ],
+     "op_class": "read",
+     "read_targets": [
+      "sigma:connection:09c70ec3-99c3-45eb-9280-a3d4fc18a61a"
+     ],
+     "seq": 128,
+     "targets": [
+      "sigma:connection:09c70ec3-99c3-45eb-9280-a3d4fc18a61a"
+     ],
+     "tool": "sigma.connections_list"
+    },
+    {
+     "error": null,
+     "exit": "ok",
+     "flags": [
+      "actor:alkera-local-dev"
+     ],
+     "op_class": "write",
+     "read_targets": [
+      "warehouse.fct_orders"
+     ],
+     "seq": 129,
+     "targets": [
+      "sigma:connection:09c70ec3-99c3-45eb-9280-a3d4fc18a61a"
+     ],
+     "tool": "sigma.connection_sync"
+    },
+    {
+     "error": null,
+     "exit": "ok",
+     "flags": [
+      "actor:shim"
+     ],
+     "op_class": "exec",
+     "read_targets": [],
+     "seq": 130,
+     "targets": [],
+     "tool": "shim.python"
+    }
+   ],
+   "rows_expected": 4,
+   "rows_got": 4,
+   "schema_ok": true,
+   "schema_problems": {},
+   "seconds": 1.43,
+   "stderr_tail": "",
+   "stdout_tail": "E2E-RESULT {\"body\": {}, \"connectionId\": \"09c70ec3-99c3-45eb-9280-a3d4fc18a61a\", \"status\": 200}\n",
+   "tools": [
+    "sigma.auth_token",
+    "sigma.connections_list",
+    "sigma.connection_sync",
+    "shim.python"
+   ],
+   "value": "{'body': {}, 'connectionId': '09c70ec3-99c3-45eb-9280-a3d4fc18a61a', 'status': 200}",
+   "value_ok": true,
+   "verdict": "PASS",
    "world": {
     "changed": [],
     "named_by_a_row_but_unattributed_by_blindness": [],
@@ -3697,9 +3711,7 @@
    "destinations_expected": [],
    "destinations_ok": true,
    "doc": "a cell row is exec + the files it changed (the python shim's diff): what a cell READ (the parquet, the warehouse) is not in the row",
-   "failures": [
-    "schema: {120: [\"vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z\"], 121: [\"vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z\"], 122: [\"vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z\"]}"
-   ],
+   "failures": [],
    "family": "jupyter",
    "finding": "",
    "id": "N1",
@@ -3714,7 +3726,7 @@
      ],
      "op_class": "exec",
      "read_targets": [],
-     "seq": 120,
+     "seq": 131,
      "targets": [],
      "tool": "jupyter.cell"
     },
@@ -3726,7 +3738,7 @@
      ],
      "op_class": "exec",
      "read_targets": [],
-     "seq": 121,
+     "seq": 132,
      "targets": [],
      "tool": "jupyter.cell"
     },
@@ -3738,7 +3750,7 @@
      ],
      "op_class": "exec",
      "read_targets": [],
-     "seq": 122,
+     "seq": 133,
      "targets": [
       "data/e2e_notebook_out.json"
      ],
@@ -3747,19 +3759,9 @@
    ],
    "rows_expected": 3,
    "rows_got": 3,
-   "schema_ok": false,
-   "schema_problems": {
-    "120": [
-     "vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z"
-    ],
-    "121": [
-     "vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z"
-    ],
-    "122": [
-     "vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z"
-    ]
-   },
-   "seconds": 4.17,
+   "schema_ok": true,
+   "schema_problems": {},
+   "seconds": 4.24,
    "stderr_tail": "[NbClientApp] Executing /tmp/e2e/e2e.ipynb\n[IPKernelApp] WARNING | Kernel is running over TCP without encryption. All communication (including code and outputs) is sent in plain text and is susceptible to eavesdropping. Use IPC transport or launch with kernel manager-provisioned CurveZMQ keys to enable transport encryption.\n[NbClientApp] Executing notebook with kernel: alkera-python\n",
    "stdout_tail": "",
    "tools": [
@@ -3769,7 +3771,7 @@
    ],
    "value": "notebook {'n_parquet': 8884, 'net': '33733790.00', 'completed': 15183} vs duckdb parquet=8884 net=33733790.00 n=15183",
    "value_ok": true,
-   "verdict": "FAIL",
+   "verdict": "DOC",
    "world": {
     "changed": [
      "workspace/data/e2e_notebook_out.json"
@@ -3790,11 +3792,9 @@
    "destinations_expected": [],
    "destinations_ok": true,
    "doc": "the cell row names the warehouse FILE (the shim's watch), not the table",
-   "failures": [
-    "schema: {123: [\"vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z\"]}"
-   ],
+   "failures": [],
    "family": "jupyter",
-   "finding": "['var/warehouse/warehouse.duckdb'] is named by this action's own row, but blindness._unattributed does not accept that writer as an explanation: the harness would quarantine this HARD",
+   "finding": "",
    "id": "N3",
    "label": "a cell that writes the warehouse (scratch table)",
    "returncode": 0,
@@ -3807,7 +3807,7 @@
      ],
      "op_class": "exec",
      "read_targets": [],
-     "seq": 123,
+     "seq": 134,
      "targets": [
       "/world/var/warehouse/warehouse.duckdb"
      ],
@@ -3816,13 +3816,9 @@
    ],
    "rows_expected": 1,
    "rows_got": 1,
-   "schema_ok": false,
-   "schema_problems": {
-    "123": [
-     "vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z"
-    ]
-   },
-   "seconds": 3.68,
+   "schema_ok": true,
+   "schema_problems": {},
+   "seconds": 3.46,
    "stderr_tail": "[NbClientApp] Executing /tmp/e2e/write.ipynb\n[IPKernelApp] WARNING | Kernel is running over TCP without encryption. All communication (including code and outputs) is sent in plain text and is susceptible to eavesdropping. Use IPC transport or launch with kernel manager-provisioned CurveZMQ keys to enable transport encryption.\n[NbClientApp] Executing notebook with kernel: alkera-python\n",
    "stdout_tail": "",
    "tools": [
@@ -3830,14 +3826,12 @@
    ],
    "value": "the cell created and dropped its scratch table",
    "value_ok": true,
-   "verdict": "FAIL",
+   "verdict": "DOC",
    "world": {
     "changed": [
      "var/warehouse/warehouse.duckdb"
     ],
-    "named_by_a_row_but_unattributed_by_blindness": [
-     "var/warehouse/warehouse.duckdb"
-    ],
+    "named_by_a_row_but_unattributed_by_blindness": [],
     "ok": true,
     "skip_dir_churn": [],
     "transcript_audited": [],
@@ -3853,9 +3847,7 @@
    "destinations_expected": [],
    "destinations_ok": true,
    "doc": "",
-   "failures": [
-    "schema: {124: [\"vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z\"], 125: [\"vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z\"]}"
-   ],
+   "failures": [],
    "family": "jupyter",
    "finding": "the connection to jupyter.internal:8888 is in NO destinations.jsonl row: serve.py does not front jupyter-server (gateway/docker/jupyter/README.md, 'Not executed')",
    "id": "N2",
@@ -3870,7 +3862,7 @@
      ],
      "op_class": "exec",
      "read_targets": [],
-     "seq": 124,
+     "seq": 135,
      "targets": [],
      "tool": "jupyter.cell"
     },
@@ -3882,23 +3874,16 @@
      ],
      "op_class": "exec",
      "read_targets": [],
-     "seq": 125,
+     "seq": 136,
      "targets": [],
      "tool": "shim.python"
     }
    ],
    "rows_expected": 2,
    "rows_got": 2,
-   "schema_ok": false,
-   "schema_problems": {
-    "124": [
-     "vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z"
-    ],
-    "125": [
-     "vts 2026-03-05T09:00:00Z is not the world's vnow 2026-03-02T00:00:00Z"
-    ]
-   },
-   "seconds": 2.7,
+   "schema_ok": true,
+   "schema_problems": {},
+   "seconds": 2.78,
    "stderr_tail": "",
    "stdout_tail": "E2E-RESULT {\"status\": \"ok\", \"stdout\": \"{\\\"net\\\": \\\"33733790.00\\\", \\\"completed\\\": 15183}\\n\"}\n",
    "tools": [
@@ -3907,7 +3892,7 @@
    ],
    "value": "kernel {'net': '33733790.00', 'completed': 15183} vs sql net=33733790.00 n=15183",
    "value_ok": true,
-   "verdict": "FAIL",
+   "verdict": "FINDING",
    "world": {
     "changed": [],
     "named_by_a_row_but_unattributed_by_blindness": [],
@@ -3919,10 +3904,8 @@
    }
   },
   {
-   "classification_ok": false,
-   "classification_problems": [
-    "rows ['tableau.request', 'sigma.unknown_route'] != expected ['jira.request', 'slack.request', 'confluence.request', 'powerbi.request', 'tableau.request', 'sigma.unknown_route']"
-   ],
+   "classification_ok": true,
+   "classification_problems": [],
    "command": "curl -s -o /dev/null -w \"%{http_code}\\n\" \"$JIRA_URL/rest/api/3/no-such-endpoint\"; curl -s -o /dev/null -w \"%{http_code}\\n\" \"$SLACK_BASE_URL/api/no.such_method\"; curl -s -o /dev/null -w \"%{http_code}\\n\" \"$CONFLUENCE_URL/wiki/rest/api/content/ae/metrics/net-revenue/no-such\"; curl -s -o /dev/null -w \"%{http_code}\\n\" \"$POWERBI_API_URL/v1.0/myorg/no-such\"; curl -s -o /dev/null -w \"%{http_code}\\n\" \"$TABLEAU_SERVER_URL/api/3.25/no-such\"; curl -s -o /dev/null -w \"%{http_code}\\n\" \"$SIGMA_BASE_URL/v2/no-such\"",
    "destinations": {
     "confluence.internal:8090": 1,
@@ -3942,15 +3925,65 @@
    ],
    "destinations_ok": true,
    "doc": "",
-   "failures": [
-    "rows ['tableau.request', 'sigma.unknown_route'] != expected ['jira.request', 'slack.request', 'confluence.request', 'powerbi.request', 'tableau.request', 'sigma.unknown_route']"
-   ],
+   "failures": [],
    "family": "unrouted",
    "finding": "",
    "id": "U1",
    "label": "one unknown path per HTTP service (curl)",
    "returncode": 0,
    "rows": [
+    {
+     "error": {
+      "code": "http_404",
+      "message": "Not Found"
+     },
+     "exit": "error",
+     "flags": [],
+     "op_class": "read",
+     "read_targets": [],
+     "seq": 137,
+     "targets": [],
+     "tool": "jira.request"
+    },
+    {
+     "error": {
+      "code": "http_404",
+      "message": "Not Found"
+     },
+     "exit": "error",
+     "flags": [],
+     "op_class": "read",
+     "read_targets": [],
+     "seq": 138,
+     "targets": [],
+     "tool": "slack.request"
+    },
+    {
+     "error": {
+      "code": "http_404",
+      "message": "Not Found"
+     },
+     "exit": "error",
+     "flags": [],
+     "op_class": "read",
+     "read_targets": [],
+     "seq": 139,
+     "targets": [],
+     "tool": "confluence.request"
+    },
+    {
+     "error": {
+      "code": "http_404",
+      "message": "Not Found"
+     },
+     "exit": "error",
+     "flags": [],
+     "op_class": "read",
+     "read_targets": [],
+     "seq": 140,
+     "targets": [],
+     "tool": "powerbi.request"
+    },
     {
      "error": {
       "code": "404003",
@@ -3962,7 +3995,7 @@
      "read_targets": [
       "tableau:server"
      ],
-     "seq": 126,
+     "seq": 141,
      "targets": [
       "tableau:server"
      ],
@@ -3977,25 +4010,29 @@
      "flags": [],
      "op_class": "read",
      "read_targets": [],
-     "seq": 127,
+     "seq": 142,
      "targets": [],
      "tool": "sigma.unknown_route"
     }
    ],
    "rows_expected": 6,
-   "rows_got": 2,
+   "rows_got": 6,
    "schema_ok": true,
    "schema_problems": {},
-   "seconds": 0.11,
+   "seconds": 0.13,
    "stderr_tail": "",
    "stdout_tail": "404\n404\n404\n404\n404\n404\n",
    "tools": [
+    "jira.request",
+    "slack.request",
+    "confluence.request",
+    "powerbi.request",
     "tableau.request",
     "sigma.unknown_route"
    ],
    "value": "statuses ['404', '404', '404', '404', '404', '404']",
    "value_ok": true,
-   "verdict": "FAIL",
+   "verdict": "PASS",
    "world": {
     "changed": [],
     "named_by_a_row_but_unattributed_by_blindness": [],
@@ -4015,9 +4052,12 @@
     "every_service_is_reachable_from_the_episode": true,
     "ledger_is_present_empty_and_read_only": true,
     "no_canary_and_no_marker_is_readable": true,
+    "no_excluded_service_resolves": true,
     "no_grading_or_rollout_path_exists": true,
     "no_mount_root_names_the_repository": true,
+    "services_state_is_mounted_only_in_native_services": true,
     "the_episode_can_still_work": true,
+    "the_services_state_is_out_of_reach": true,
     "world_holds_only_the_mounted_warehouses": true
    },
    "contained": true,
@@ -4026,60 +4066,63 @@
    "services_probed": [
     "confluence",
     "jira",
-    "slack"
+    "powerbi",
+    "sigma",
+    "slack",
+    "tableau"
    ]
   },
   "containment_py": {
-   "command": "/home/ubuntu/.cache/uv/builds-v0/.tmpKlAhx8/bin/python /home/ubuntu/env_project-main-2/gateway/docker/containment.py --native-episode --project alkera-bi-e2e-1791096468 --world /home/ubuntu/alkera-e2e/container/world --out /home/ubuntu/alkera-e2e/container/containment-native-episode.json",
+   "command": "/home/ubuntu/.cache/uv/builds-v0/.tmpkwYKIp/bin/python /home/ubuntu/env_project-main-2/gateway/docker/containment.py --native-episode --project alkera-bi-e2e-1791100926 --world /home/ubuntu/alkera-e2e/container/world --out /home/ubuntu/alkera-e2e/container/containment-native-episode.json",
    "failed_checks": [],
-   "passed": false,
-   "returncode": 1,
+   "passed": true,
+   "returncode": 0,
    "stderr_tail": "",
-   "stdout_tail": "{\n  \"artifact\": \"/home/ubuntu/alkera-e2e/container/containment-native-episode.json\",\n  \"checks\": {\n    \"egress_refused\": true,\n    \"every_declared_warehouse_is_mounted\": true,\n    \"every_service_is_reachable_from_the_episode\": false,\n    \"ledger_is_present_empty_and_read_only\": true,\n    \"no_canary_and_no_marker_is_readable\": true,\n    \"no_grading_or_rollout_path_exists\": true,\n    \"no_mount_root_names_the_repository\": true,\n    \"the_episode_can_still_work\": true,\n    \"the_scheduler_plane_answers_with_jobs\": false,\n    \"world_holds_only_the_mounted_warehouses\": true\n  },\n  \"world_binds_on_the_episode\": [\n    \"/world/var/warehouse/warehouse.duckdb\"\n  ],\n  \"episode_publishes_no_host_port\": true,\n  \"published_host_ports\": {},\n  \"passed\": false\n}\n"
+   "stdout_tail": "{\n  \"artifact\": \"/home/ubuntu/alkera-e2e/container/containment-native-episode.json\",\n  \"environment_profile\": {\n    \"profile\": \"da/laptop\",\n    \"plugs\": [\n      \"bi=powerbi,tableau,sigma\"\n    ],\n    \"source\": \"native-services argv\"\n  },\n  \"checks\": {\n    \"egress_refused\": true,\n    \"every_declared_warehouse_is_mounted\": true,\n    \"every_service_is_reachable_from_the_episode\": true,\n    \"ledger_is_present_empty_and_read_only\": true,\n    \"no_canary_and_no_marker_is_readable\": true,\n    \"no_excluded_service_resolves\": true,\n    \"no_grading_or_rollout_path_exists\": true,\n    \"no_mount_root_names_the_repository\": true,\n    \"the_episode_can_still_work\": true,\n    \"the_services_state_is_out_of_reach\": true,\n    \"world_holds_only_the_mounted_warehouses\": true\n  },\n  \"checks_not_applicable\": {\n    \"the_scheduler_plane_answers_with_jobs\": \"profile 'da/laptop' plugs no ops_sched orchestrator: serve.py --profile serves no scheduler plane by design, so there is none to answer; `sched.internal` must instead NOT resolve (no_excluded_service_resolves)\"\n  },\n  \"services_state_is_mounted_only_in_native_services\": true,\n  \"world_binds_on_the_episode\": [\n    \"/world/var/warehouse/warehouse.duckdb\"\n  ],\n  \"episode_publishes_no_host_port\": true,\n  \"published_host_ports\": {},\n  \"passed\": true\n}\n"
   }
  },
  "episode": {
   "destinations": [
    {
     "count": 3,
-    "first_ts": "2026-10-04T06:48:25Z",
+    "first_ts": "2026-10-04T08:02:46Z",
     "host": "jira.internal",
-    "last_ts": "2026-10-04T06:49:17Z",
+    "last_ts": "2026-10-04T08:03:44Z",
     "port": 8080
    },
    {
     "count": 3,
-    "first_ts": "2026-10-04T06:48:29Z",
+    "first_ts": "2026-10-04T08:02:49Z",
     "host": "slack.internal",
-    "last_ts": "2026-10-04T06:49:17Z",
+    "last_ts": "2026-10-04T08:03:44Z",
     "port": 8081
    },
    {
     "count": 4,
-    "first_ts": "2026-10-04T06:48:32Z",
+    "first_ts": "2026-10-04T08:02:53Z",
     "host": "confluence.internal",
-    "last_ts": "2026-10-04T06:49:17Z",
+    "last_ts": "2026-10-04T08:03:44Z",
     "port": 8090
    },
    {
     "count": 12,
-    "first_ts": "2026-10-04T06:48:38Z",
+    "first_ts": "2026-10-04T08:02:58Z",
     "host": "powerbi.internal",
-    "last_ts": "2026-10-04T06:49:17Z",
+    "last_ts": "2026-10-04T08:03:44Z",
     "port": 8095
    },
    {
     "count": 7,
-    "first_ts": "2026-10-04T06:48:48Z",
+    "first_ts": "2026-10-04T08:03:10Z",
     "host": "tableau.internal",
-    "last_ts": "2026-10-04T06:49:17Z",
+    "last_ts": "2026-10-04T08:03:44Z",
     "port": 8096
    },
    {
-    "count": 10,
-    "first_ts": "2026-10-04T06:48:57Z",
+    "count": 12,
+    "first_ts": "2026-10-04T08:03:23Z",
     "host": "sigma.internal",
-    "last_ts": "2026-10-04T06:49:17Z",
+    "last_ts": "2026-10-04T08:03:44Z",
     "port": 8097
    },
    {
@@ -4137,29 +4180,25 @@
   "network_violations": [],
   "no_stray_rows": true,
   "ok": true,
-  "rows_attributed_to_actions": 127,
-  "rows_total": 127,
+  "rows_attributed_to_actions": 142,
+  "rows_total": 142,
   "trace_valid": true,
   "vts_by_writer": {
    "duckdb": [
-    "2026-03-05T09:00:00Z"
+    "2026-03-02T00:00:00Z"
    ],
    "jupyter": [
-    "2026-03-05T09:00:00Z"
+    "2026-03-02T00:00:00Z"
    ],
    "service": [
     "2026-03-02T00:00:00Z"
    ],
    "shim": [
-    "2026-03-05T09:00:00Z"
+    "2026-03-02T00:00:00Z"
    ]
   }
  },
  "observations": [
-  "rows written by `duckdb` carry vts ['2026-03-05T09:00:00Z']; the services' rows carry the world's ['2026-03-02T00:00:00Z']",
-  "rows written by `jupyter` carry vts ['2026-03-05T09:00:00Z']; the services' rows carry the world's ['2026-03-02T00:00:00Z']",
-  "rows written by `shim` carry vts ['2026-03-05T09:00:00Z']; the services' rows carry the world's ['2026-03-02T00:00:00Z']",
-  "the episode environment still names excluded services ['AIRBYTE_URL', 'ALERTMANAGER_URL', 'AWS_ENDPOINT_URL', 'DEPLOY_URL', 'LOKI_URL', 'METABASE_URL', 'PROMETHEUS_URL', 'SCHED_URL'] (profile_overlay's `!reset null` does not remove them)",
   "postgres.internal (named by .envrc/onboarding) RESOLVES on this profile",
   "snowflake.internal (named by .envrc/onboarding) does not resolve on this profile",
   "python shim row: argv, exit and changed files - no table targets for a read (gateway/NATIVE.md, a stated loss of resolution)",
@@ -4167,13 +4206,9 @@
   "filed as shim.python; argv[0] keeps python3",
   "shim row names workspace files changed (dbt's anonymous-id file); target/ and logs/ are skipped by design",
   "the shim names the warehouse FILE dbt rewrote, not the model",
-  "./ops/sched is in the repo (install_workspace_cli ignores the profile) but fails closed: no scheduler plane is served",
-  "docs/onboarding.md lists wiki pages 'by id' as `ae/metrics/net-revenue`; the Confluence API addresses numeric ids, and a slash id is not routable (404)",
-  "['workspace/tabcmd.log'] changed and NO row names it: the binary is not shimmed, so in native mode only the transcript (and rollout.py's post-episode `workspace.edit` row) accounts for it",
   "`python` cannot import tableauserverclient: the toolbelt installs it in /opt/toolbelt's own venv, beside tabcmd",
   "an absolute interpreter is not shimmed: the service rows are the record",
   "a cell row is exec + the files it changed (the python shim's diff): what a cell READ (the parquet, the warehouse) is not in the row",
-  "['var/warehouse/warehouse.duckdb'] is named by this action's own row, but blindness._unattributed does not accept that writer as an explanation: the harness would quarantine this HARD",
   "the cell row names the warehouse FILE (the shim's watch), not the table",
   "the connection to jupyter.internal:8888 is in NO destinations.jsonl row: serve.py does not front jupyter-server (gateway/docker/jupyter/README.md, 'Not executed')"
  ],
@@ -4196,16 +4231,7 @@
    "prometheus": true,
    "sched": true
   },
-  "excluded_env_present": {
-   "AIRBYTE_URL": "http://airbyte.internal:8001",
-   "ALERTMANAGER_URL": "http://alertmanager.internal:9093",
-   "AWS_ENDPOINT_URL": "http://minio.internal:9000",
-   "DEPLOY_URL": "http://deploy.internal:8085",
-   "LOKI_URL": "http://loki.internal:3100",
-   "METABASE_URL": "http://metabase.internal:3000",
-   "PROMETHEUS_URL": "http://prometheus.internal:9090",
-   "SCHED_URL": "http://sched.internal:8120"
-  },
+  "excluded_env_present": {},
   "named_by_envrc_but_unplugged": {
    "postgres": true,
    "snowflake": false
@@ -4224,43 +4250,43 @@
    "airbyte": null,
    "alertmanager": null,
    "confluence": [
-    "172.19.0.4"
+    "172.20.0.3"
    ],
    "deploy": null,
    "jira": [
-    "172.19.0.4"
+    "172.20.0.3"
    ],
    "jupyter": [
-    "172.19.0.2"
+    "172.20.0.4"
    ],
    "loki": null,
    "metabase": null,
    "minio": null,
    "postgres": [
-    "172.19.0.5"
+    "172.20.0.5"
    ],
    "powerbi": [
-    "172.19.0.4"
+    "172.20.0.3"
    ],
    "prometheus": null,
    "sched": null,
    "sigma": [
-    "172.19.0.4"
+    "172.20.0.3"
    ],
    "slack": [
-    "172.19.0.4"
+    "172.20.0.3"
    ],
    "snowflake": null,
    "tableau": [
-    "172.19.0.4"
+    "172.20.0.3"
    ]
   }
  },
- "revision": "ce8ea30bff4736cb952bf9ffb4f7d4a9521d3b21",
- "seconds": 102.5,
+ "revision": "6b88b39175472a8277e0c625ff1f81765767a9de",
+ "seconds": 112.0,
  "seed": "# commerce_analytics world seed: a shop's nightly CDC extracts -> raw -> dbt\n# star schema + semantic layer -> Power BI / Tableau / Sigma dashboards.\ntheme: commerce_analytics    # world/world/themes/<name>/\nseed: 11\nvtime_start: \"2025-01-01T00:00:00Z\"\n# 425 nightly extracts: dt=2024-12-31 (the cutover snapshot: accounts and\n# catalogue, no orders) then dt=2025-01-01 .. dt=2026-02-28. Fourteen months of\n# orders, so last-year measures exist for January and February 2026. The world\n# clock opens at 2026-03-02T00:00Z, a Monday - business day 1 of the February\n# close.\ndays: 425\n\n# Scale. Every key is optional (gen.DEFAULTS); these are the defaults, spelled\n# out. Build time is dominated by dbt, not by volume - a 2x seed builds in about\n# the same time.\ncustomers: 220               # accounts on the platform at cutover\nsignup_pct: 18               # chance per day of a new account (a second at a quarter of it)\nupdate_pct: 9                # chance per day that one account is upgraded a segment\norders_per_day: [20, 60]     # base range, scaled by weekday, month, peak days and growth\nlines_per_order: [1, 4]\ncancel_pct: 6                # 70% the same day, the rest the next day\nrefund_pct: 4                # 3 to 45 days after the order\ngrowth_pct: 20               # year-over-year order volume growth\n\ngit_author: \"Analytics Engineering <analytics@example.com>\"\nnative: true\nfiles: {formats: [parquet]}\nprofile:\n  name: da/laptop\n  slots: [files, notebook, warehouse, transform, bi, human]\n  plugs: {bi: [powerbi, tableau, sigma]}\n",
  "stack": {
-  "container_id": "4d12f91c9bcd",
+  "container_id": "e2403ceb74ce",
   "discovery": {
    "files": [],
    "kept": "the world's own profiled discovery files (world.build native: true under a profile)",
@@ -4282,10 +4308,10 @@
    "tableau": "http://tableau.internal:8096"
   },
   "image": "alkera-episode:head-da",
-  "image_digest": "sha256:b1871b6c69610b396fa790c6976116f4f67a73dd9aefc3af3c8f83873c5b0a3e",
+  "image_digest": "sha256:947aa93d4a386177749f433f9a073bec6d88eab4bc1d4707fe027a6307c57d62",
   "image_labels": {
-   "org.alkera.source.overlay": "5935d61b142ae02af3a9103bdb2be27944d3ed00bcd81145842e0016962b34e5",
-   "org.alkera.source.revision": "ce8ea30bff4736cb952bf9ffb4f7d4a9521d3b21",
+   "org.alkera.source.overlay": "304094179dfebac388fedecf9c321df71026cc0f34fa2ff2737ef6143b3112b1",
+   "org.alkera.source.revision": "6b88b39175472a8277e0c625ff1f81765767a9de",
    "org.alkera.toolbelt": "da",
    "org.alkera.warehouse_clients": ""
   },
@@ -4301,7 +4327,9 @@
     "dbt",
     "duckdb",
     "git",
-    "python"
+    "python",
+    "python3",
+    "tabcmd"
    ],
    "stripped": [
     "/opt/stack",
@@ -4324,24 +4352,18 @@
    "postgres"
   ],
   "subject_env": {
-   "AIRBYTE_API_KEY": "alkera-local-dev",
-   "AIRBYTE_URL": "http://airbyte.internal:8001",
-   "ALERTMANAGER_URL": "http://alertmanager.internal:9093",
    "ALKERA_BACKEND": "postgres",
    "ALKERA_NATIVE_AUDIT": "/audit/actions.jsonl",
    "ALKERA_POSTGRES_DSN": "postgresql://episode:episode-local@postgres/episode",
    "ALKERA_SHIM_BIN": "/opt/alkera/shims",
    "ALKERA_SHIM_WATCH": "/world/var/warehouse/warehouse.duckdb",
    "ALKERA_SHIM_WORKSPACE": "/workspace",
-   "ALKERA_SOURCE_REV": "ce8ea30bff4736cb952bf9ffb4f7d4a9521d3b21",
+   "ALKERA_SOURCE_REV": "6b88b39175472a8277e0c625ff1f81765767a9de",
    "ALKERA_TOOLBELT": "da",
+   "ALKERA_VIRTUAL_TIME": "2026-03-02T00:00:00Z",
    "ALKERA_WAREHOUSES": "",
    "ALKERA_WAREHOUSE_CLIENTS": "",
    "ALKERA_WORKSPACE": "/workspace",
-   "AWS_ACCESS_KEY_ID": "alkera-local-dev",
-   "AWS_DEFAULT_REGION": "us-east-1",
-   "AWS_ENDPOINT_URL": "http://minio.internal:9000",
-   "AWS_SECRET_ACCESS_KEY": "alkera-local-dev",
    "AZURE_AUTHORITY_HOST": "http://powerbi.internal:8095",
    "AZURE_CLIENT_ID": "alkera-local-dev",
    "AZURE_CLIENT_SECRET": "alkera-local-dev",
@@ -4350,18 +4372,12 @@
    "CONFLUENCE_URL": "http://confluence.internal:8090",
    "CONFLUENCE_USER": "alkera-local-dev",
    "DBT_PROFILES_DIR": "/root/.dbt",
-   "DEPLOY_API_TOKEN": "alkera-local-dev",
-   "DEPLOY_URL": "http://deploy.internal:8085",
    "FABRIC_API_URL": "http://powerbi.internal:8095",
    "HOME": "/root",
    "JIRA_API_TOKEN": "alkera-local-dev",
    "JIRA_URL": "http://jira.internal:8080",
    "JIRA_USER": "alkera-local-dev",
    "JUPYTER_URL": "http://jupyter.internal:8888",
-   "LOKI_ADDR": "http://loki.internal:3100",
-   "LOKI_URL": "http://loki.internal:3100",
-   "METABASE_API_KEY": "alkera-local-dev",
-   "METABASE_URL": "http://metabase.internal:3000",
    "PATH": "/opt/alkera/shims:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/toolbelt/bin",
    "PGDATABASE": "alkera",
    "PGHOST": "postgres.internal",
@@ -4369,8 +4385,6 @@
    "PGPORT": "5432",
    "PGUSER": "alkera",
    "POWERBI_API_URL": "http://powerbi.internal:8095",
-   "PROMETHEUS_URL": "http://prometheus.internal:9090",
-   "SCHED_URL": "http://sched.internal:8120",
    "SIGMA_BASE_URL": "http://sigma.internal:8097",
    "SIGMA_CLIENT_ID": "alkera-local-dev",
    "SIGMA_CLIENT_SECRET": "alkera-local-dev",
@@ -4386,25 +4400,24 @@
    "TABLEAU_SITE": ""
   },
   "workspace_cli": {
-   "cli": "ops/sched",
-   "files": [
-    "/home/ubuntu/alkera-e2e/container/world/workspace/ops/sched"
-   ],
-   "interpreter": "/usr/local/bin/python",
-   "pythonpath": "/opt/world",
+   "cli": null,
+   "files": [],
+   "interpreter": null,
+   "pythonpath": null,
+   "skipped": "profile 'da/laptop' plugs no orchestrator",
    "topology": "container"
   }
  },
- "started": 1791096459.9741738,
+ "started": 1791100917.716587,
  "summary": {
-  "DOC": 0,
-  "FAIL": 33,
-  "FINDING": 8,
-  "PASS": 0,
+  "DOC": 8,
+  "FAIL": 0,
+  "FINDING": 2,
+  "PASS": 32,
   "episode_ok": true,
   "resolution_ok": true
  },
- "table": "id   tool / action                                        rows  op_class            schema class dest value world verdict\n-------------------------------------------------------------------------------------------------------------------------\nW1   warehouse: duckdb CLI SELECT (shim)                   1/1  read                BAD    ok    ok   ok    ok    FAIL\nW2   warehouse: duckdb CLI CREATE + INSERT (shim)          2/2  ddl,write           BAD    ok    ok   ok    ok    FAIL\nW3   warehouse: python + duckdb SELECT (python shim)       1/1  exec                BAD    ok    ok   ok    ok    FAIL\nW4   warehouse: python + duckdb INSERT (python shim)       1/1  exec                BAD    ok    ok   ok    ok    FAIL\nW5   warehouse: python3 + duckdb INSERT (python3)          1/0  -                   ok     BAD   ok   ok    BAD   FAIL\nW6   warehouse: duckdb CLI DROP (shim)                     1/1  destructive         BAD    ok    ok   ok    ok    FAIL\nD1   dbt: dbt ls --resource-type model (shim)              1/1  exec                BAD    ok    ok   ok    ok    FAIL\nD2   dbt: dbt test -s fct_orders (shim)                    1/1  exec                BAD    ok    ok   ok    ok    FAIL\nD3   dbt: dbt build -s fct_orders (shim)                   1/1  exec                BAD    ok    ok   ok    ok    FAIL\nS1   scheduler: ./ops/sched list                           0/0  -                   ok     ok    ok   n/a   ok    FINDING\nS2   scheduler: ./ops/sched logs                           0/0  -                   ok     ok    ok   n/a   ok    FINDING\nS3   scheduler: ./ops/sched trigger bi_refresh             0/0  -                   ok     ok    ok   n/a   ok    FINDING\nH1   jira: python jira: JIRA() + issue()                   3/3  exec,read           BAD    ok    ok   ok    ok    FAIL\nH2   jira: python jira: add_comment()                      3/3  exec,read,write     BAD    ok    ok   ok    ok    FAIL\nH3   slack: slack_sdk: conversations_history               2/2  exec,read           BAD    ok    ok   ok    ok    FAIL\nH4   slack: slack_sdk: chat_postMessage                    2/2  exec,write          BAD    ok    ok   ok    ok    FAIL\nH5   confluence: atlassian: get_page_id + get_page_by_     3/3  exec,read           BAD    ok    ok   ok    ok    FAIL\nH6   confluence: atlassian: update_page                    5/5  exec,read,write     BAD    ok    ok   ok    ok    FAIL\nH7   confluence: atlassian: page by the WORLD id (onbo     2/1  exec                BAD    BAD   ok   ok    ok    FAIL\nP1   powerbi: Entra token (client credentials)             2/2  exec,read           BAD    BAD   ok   ok    ok    FAIL\nP2   powerbi: groups + datasets                            4/4  exec,read           BAD    BAD   ok   ok    ok    FAIL\nP3   powerbi: executeQueries (KPIs DAX)                    5/5  exec,read           BAD    BAD   ok   ok    ok    FAIL\nP4   powerbi: Fabric getDefinition                         5/5  exec,read           BAD    BAD   ok   ok    ok    FAIL\nP5   powerbi: updateDefinition (edited measure) + DAX      7/7  exec,read,write     BAD    BAD   ok   ok    ok    FAIL\nP6   powerbi: deploy repo TMDL + refresh + history         7/7  exec,read,write     BAD    BAD   ok   ok    ok    FAIL\nT1   tableau: tabcmd login (PAT)                           3/3  read                ok     ok    ok   n/a   ok    FINDING\nT2   tableau: tabcmd publish Commerce.tds -o               5/5  read,write          ok     ok    ok   ok    ok    FINDING\nT3   tableau: tabcmd publish 'Executive Overview.twb'      5/5  read,write          ok     ok    ok   ok    ok    FINDING\nT4   tableau: tabcmd refreshextracts --datasource Comm     6/6  read,write          ok     ok    ok   ok    ok    FINDING\nT5   tableau: tabcmd export /ExecutiveOverview/KPIs --     5/5  read                ok     BAD   ok   ok    ok    FAIL\nT6   tableau: tableauserverclient: populate_csv (pytho     7/1  exec                BAD    BAD   BAD  BAD   ok    FINDING\nT6b  tableau: tableauserverclient via /opt/toolbelt/bi     6/6  read                ok     BAD   ok   ok    ok    FAIL\nG1   sigma: client-credentials token                       2/2  exec,read           BAD    ok    ok   ok    ok    FAIL\nG2   sigma: GET /v2/workbooks                              3/3  exec,read           BAD    ok    ok   ok    ok    FAIL\nG3   sigma: GET /v2/workbooks/{id}?includeContents=tru     4/4  exec,read           BAD    ok    ok   ok    ok    FAIL\nG4   sigma: export + download every element (csv)        14/14  exec,read           BAD    ok    ok   ok    ok    FAIL\nG5   sigma: PUT /contents (KPIs -> Gross Revenue) + ex     7/7  exec,read,write     BAD    ok    ok   ok    ok    FAIL\nN1   jupyter: jupyter execute (nbclient, alkera-python     3/3  exec                BAD    ok    ok   ok    ok    FAIL\nN3   jupyter: a cell that writes the warehouse (scratc     1/1  exec                BAD    ok    ok   ok    ok    FAIL\nN2   jupyter: a cell through jupyter.internal (REST +      2/2  exec                BAD    ok    ok   ok    ok    FAIL\nU1   unrouted: one unknown path per HTTP service (curl     6/2  read                ok     BAD   ok   ok    ok    FAIL",
+ "table": "id   tool / action                                        rows  op_class            schema class dest value world verdict\n-------------------------------------------------------------------------------------------------------------------------\nW1   warehouse: duckdb CLI SELECT (shim)                   1/1  read                ok     ok    ok   ok    ok    PASS\nW2   warehouse: duckdb CLI CREATE + INSERT (shim)          2/2  ddl,write           ok     ok    ok   ok    ok    PASS\nW3   warehouse: python + duckdb SELECT (python shim)       1/1  exec                ok     ok    ok   ok    ok    DOC\nW4   warehouse: python + duckdb INSERT (python shim)       1/1  exec                ok     ok    ok   ok    ok    DOC\nW5   warehouse: python3 + duckdb INSERT (python3)          1/1  exec                ok     ok    ok   ok    ok    DOC\nW6   warehouse: duckdb CLI DROP (shim)                     1/1  destructive         ok     ok    ok   ok    ok    PASS\nD1   dbt: dbt ls --resource-type model (shim)              1/1  exec                ok     ok    ok   ok    ok    DOC\nD2   dbt: dbt test -s fct_orders (shim)                    1/1  exec                ok     ok    ok   ok    ok    PASS\nD3   dbt: dbt build -s fct_orders (shim)                   1/1  exec                ok     ok    ok   ok    ok    DOC\nS1   scheduler: ./ops/sched list (no orchestrator)         0/0  -                   ok     ok    ok   ok    ok    PASS\nS2   scheduler: ./ops/sched logs (no orchestrator)         0/0  -                   ok     ok    ok   ok    ok    PASS\nS3   scheduler: ./ops/sched trigger bi_refresh (no orc     0/0  -                   ok     ok    ok   ok    ok    PASS\nH1   jira: python jira: JIRA() + issue()                   3/3  exec,read           ok     ok    ok   ok    ok    PASS\nH2   jira: python jira: add_comment()                      3/3  exec,read,write     ok     ok    ok   ok    ok    PASS\nH3   slack: slack_sdk: conversations_history               2/2  exec,read           ok     ok    ok   ok    ok    PASS\nH4   slack: slack_sdk: chat_postMessage                    2/2  exec,write          ok     ok    ok   ok    ok    PASS\nH5   confluence: atlassian: get_page_id + get_page_by_     3/3  exec,read           ok     ok    ok   ok    ok    PASS\nH6   confluence: atlassian: update_page                    5/5  exec,read,write     ok     ok    ok   ok    ok    PASS\nH7   confluence: atlassian: page by the id onboarding.     2/2  exec,read           ok     ok    ok   ok    ok    PASS\nP1   powerbi: Entra token (client credentials)             2/2  exec,read           ok     ok    ok   ok    ok    PASS\nP2   powerbi: groups + datasets                            4/4  exec,read           ok     ok    ok   ok    ok    PASS\nP3   powerbi: executeQueries (KPIs DAX)                    5/5  exec,read           ok     ok    ok   ok    ok    PASS\nP4   powerbi: Fabric getDefinition                         5/5  exec,read           ok     ok    ok   ok    ok    PASS\nP5   powerbi: updateDefinition (edited measure) + DAX      7/7  exec,read,write     ok     ok    ok   ok    ok    PASS\nP6   powerbi: deploy repo TMDL + refresh + history         7/7  exec,read,write     ok     ok    ok   ok    ok    PASS\nT1   tableau: tabcmd login (PAT)                           4/4  exec,read           ok     ok    ok   n/a   ok    PASS\nT2   tableau: tabcmd publish Commerce.tds -o               6/6  exec,read,write     ok     ok    ok   ok    ok    PASS\nT3   tableau: tabcmd publish 'Executive Overview.twb'      6/6  exec,read,write     ok     ok    ok   ok    ok    PASS\nT4   tableau: tabcmd refreshextracts --datasource Comm     7/7  exec,read,write     ok     ok    ok   ok    ok    PASS\nT5   tableau: tabcmd export /ExecutiveOverview/KPIs --     6/6  exec,read           ok     ok    ok   ok    ok    PASS\nT6   tableau: tableauserverclient: populate_csv (pytho     7/1  exec                ok     BAD   BAD  BAD   ok    FINDING\nT6b  tableau: tableauserverclient via /opt/toolbelt/bi     6/6  read                ok     ok    ok   ok    ok    DOC\nG1   sigma: client-credentials token                       2/2  exec,read           ok     ok    ok   ok    ok    PASS\nG2   sigma: GET /v2/workbooks                              3/3  exec,read           ok     ok    ok   ok    ok    PASS\nG3   sigma: GET /v2/workbooks/{id}?includeContents=tru     4/4  exec,read           ok     ok    ok   ok    ok    PASS\nG4   sigma: export + download every element (csv)        14/14  exec,read           ok     ok    ok   ok    ok    PASS\nG5   sigma: PUT /contents (KPIs -> Gross Revenue) + ex     7/7  exec,read,write     ok     ok    ok   ok    ok    PASS\nG6   sigma: POST /v2/connections/{id}/sync (one table)     4/4  exec,read,write     ok     ok    ok   ok    ok    PASS\nN1   jupyter: jupyter execute (nbclient, alkera-python     3/3  exec                ok     ok    ok   ok    ok    DOC\nN3   jupyter: a cell that writes the warehouse (scratc     1/1  exec                ok     ok    ok   ok    ok    DOC\nN2   jupyter: a cell through jupyter.internal (REST +      2/2  exec                ok     ok    ok   ok    ok    FINDING\nU1   unrouted: one unknown path per HTTP service (curl     6/6  read                ok     ok    ok   ok    ok    PASS",
  "topology": "container",
  "world": {
   "dashboards": "/home/ubuntu/alkera-e2e/container/world/var/bi/dashboards",

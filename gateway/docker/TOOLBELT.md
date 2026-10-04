@@ -23,7 +23,7 @@ exception is tools whose *absence* is itself a tell (see `vim`, `ssh`).
 
 | package | binaries | why it earns its place |
 |---|---|---|
-| `git` | `git` | the workspace is a real git repo; pre-existing |
+| `git` | `git` | the workspace is a real git repo; pre-existing. `/workspace` is a bind mount owned by the operator's uid and the agent is root, so the image marks exactly that path safe (`git config --system --add safe.directory /workspace`, as a dev container with a mounted checkout does); without it every `git status` died with `detected dubious ownership` (measured, 2026-10-04) |
 | `openssl` | `openssl` | pre-existing; hashes, certs, the Snowflake trust store |
 | `ca-certificates` | — | a trust store `curl`, `aws` and the TLS route all need |
 | `curl` | `curl` | the gateway speaks HTTP on 127.0.0.1:8080; the S3 mock speaks HTTP. A DE curls an endpoint before believing anything about it |

@@ -41,6 +41,8 @@ Usage::
     python containment.py --native-episode --project <live project> \\
         --world <the rollout's world root> \\
         --out evidence/containment-native-episode.json          # P7 alone
+        # the environment profile is read off the running native-services;
+        # --env-profile ROLE/STACK --env-plug SLOT=PLUG pin it (and must agree)
 """
 
 from __future__ import annotations
@@ -990,7 +992,8 @@ def property_6_native(stack, evidence):
 # --------------------------------------------------------------------------
 
 
-def property_7_native_episode(stack, evidence, warehouses, services):
+def property_7_native_episode(stack, evidence, warehouses, expected,
+                              service_state_dir=None):
     """The episode container holds the workspace and the warehouses, and no
     other part of the world.
 
@@ -1003,11 +1006,18 @@ def property_7_native_episode(stack, evidence, warehouses, services):
     stdin - so nothing describing the harness is ever written to the disk the
     subject can read.
 
-    Two facts are checked here rather than in the probe, because they are
+    Three facts are checked here rather than in the probe, because they are
     properties of the stack rather than of the vantage: the episode container
-    publishes no host port (the services may, and which ones is recorded), and
-    the bind mounts docker actually created are the ones the mount table
-    promises.
+    publishes no host port (the services may, and which ones is recorded), the
+    bind mounts docker actually created are the ones the mount table promises,
+    and the native services' own state (`/service-state`: the BI vendors'
+    published content and the config the services read) is mounted read-write
+    in native-services and in NO other container of the project.
+
+    `expected` is `native_episode_probe.expectations(profile, plugs)`: which
+    services must answer, which must not even resolve, and whether the
+    scheduler plane is asked at all - the box P7 describes is the box the
+    environment profile serves.
     """
     import native_episode_probe
 
@@ -1018,9 +1028,17 @@ def property_7_native_episode(stack, evidence, warehouses, services):
         raise RuntimeError("no `episode` container in this project; P7 has no vantage")
     container = next(spec["Id"] for spec in evidence["_specs"]
                      if spec["Config"]["Labels"]["com.docker.compose.service"] == "episode")
+    isolation = native_episode_probe.service_state_isolation(
+        evidence["_specs"], service_state_dir)
     probe = native_episode_probe.run(
         container,
-        native_episode_probe.spec(warehouses=warehouses, services=services))
+        native_episode_probe.spec(
+            warehouses=warehouses, services=expected["services"],
+            excluded=expected["excluded"], scheduler=expected["scheduler"],
+            not_applicable=expected["not_applicable"],
+            service_state={"targets": [native_episode_probe.SERVICE_STATE_TARGET],
+                           "roots": [isolation["host_dir"]] if isolation["host_dir"]
+                           else []}))
     # Every bind the episode carries, by target, read off the running container
     # rather than off the compose file. `/world/...` binds must all be files
     # the caller named; a `/world` bind itself is the failure this property
@@ -1049,15 +1067,62 @@ def property_7_native_episode(stack, evidence, warehouses, services):
         "published_host_ports": {
             row["service"]: row["published_ports"] for row in rows
             if row["published_ports"]},
+        "environment_profile": {"profile": expected["profile"],
+                                "plugs": expected["plugs"],
+                                "source": expected.get("source")},
+        "services_expected": expected["services"],
+        "services_excluded": expected["excluded"],
+        "checks_not_applicable": probe.get("checks_not_applicable", {}),
+        "service_state_mounts": isolation,
         "probe": probe,
     }
     section["episode_publishes_no_host_port"] = not episode["published_ports"]
+    section["services_state_is_mounted_only_in_native_services"] = isolation["isolated"]
     section["passed"] = bool(
         probe["contained"]
         and not unexpected_world_binds
-        and section["episode_publishes_no_host_port"])
+        and section["episode_publishes_no_host_port"]
+        and isolation["isolated"])
     evidence["p7_native_episode_filesystem"] = section
     return section
+
+
+def served_profile(specs) -> tuple[str | None, list[str]]:
+    """(`--profile`, [`--plug` values]) off the running native-services'
+    command line; (None, []) for an unprofiled stack. compose runs it as
+    `sh -c "<one string>"`, so the string is split the way that shell split it."""
+    import shlex
+
+    for spec in specs:
+        labels = spec["Config"]["Labels"]
+        if labels.get("com.docker.compose.service") != "native-services":
+            continue
+        words = []
+        for part in spec["Config"].get("Cmd") or []:
+            words += shlex.split(part)
+        profile, plugs = None, []
+        for flag, value in zip(words, words[1:], strict=False):
+            if flag == "--profile":
+                profile = value
+            elif flag == "--plug":
+                plugs.append(value)
+        return profile, plugs
+    raise SystemExit("no native-services container in this project; P7 cannot "
+                     "say which box it is measuring")
+
+
+def served_state_dir(specs) -> str | None:
+    """The host directory native-services mounts at /service-state, or None."""
+    import native_episode_probe
+
+    for spec in specs:
+        if spec["Config"]["Labels"].get("com.docker.compose.service") != \
+                native_episode_probe.SERVICE_STATE_OWNER:
+            continue
+        for mount in spec.get("Mounts") or []:
+            if mount.get("Destination") == native_episode_probe.SERVICE_STATE_TARGET:
+                return mount.get("Source") or None
+    return None
 
 
 def native_episode_main(args):
@@ -1079,15 +1144,42 @@ def native_episode_main(args):
         warehouses += sorted(
             path.relative_to(args.world).as_posix()
             for path in (args.world / "var" / "warehouse").glob("*.duckdb"))
-    services = {row["host"].split(".")[0]: f"http://{row['host']}:{row['port']}"
-                for row in native_probe.registry_expectation()}
-    # The scheduler plane, which the registry does not list because it is not
-    # one of the nine vendor-shaped services - it is the backend of the agent's
-    # own `./ops/sched`. P7 requires it to answer because the mount set puts
-    # `var/sched` out of the episode's reach on purpose.
-    services[native_episode_probe.SCHEDULER_SERVICE] = (
-        f"http://{native_episode_probe.SCHEDULER_SERVICE}.internal:"
-        f"{serve.SCHED_PORT}")
+    specs = [json.loads(out(["docker", "inspect", cid]))[0]
+             for cid in out(["docker", "ps", "-q", "--filter",
+                             f"label=com.docker.compose.project={args.project}"]
+                            ).split()]
+    if not specs:
+        raise SystemExit(
+            f"no running containers in compose project {args.project!r}; P7 "
+            f"measures a stack that is up, and this one is not")
+    # WHICH box. An environment profile decides what the episode must reach
+    # and what must not even resolve (`native_episode_probe.expectations`, by
+    # serve.py's own rules). Read off the RUNNING native-services' command
+    # line - what was actually served - unless named here, and a name that
+    # disagrees with what is served is a refusal, not a choice.
+    served = served_profile(specs)
+    if args.env_profile or args.env_plug:
+        named = (args.env_profile or None, sorted(args.env_plug))
+        if named != (served[0], sorted(served[1])):
+            raise SystemExit(
+                f"--env-profile/--env-plug {named} is not what native-services "
+                f"is serving {served}; P7 describes the running box")
+    expected = native_episode_probe.expectations(served[0], served[1])
+    expected["source"] = ("native-services argv" if served[0]
+                          else "native-services argv (no --profile: the "
+                               "unprofiled box)")
+    # The registry's own table for the unprofiled nine, as a cross-check
+    # that `expectations` and P6's expectation agree on it.
+    if served[0] is None:
+        registry = {row["host"].split(".")[0]: f"http://{row['host']}:{row['port']}"
+                    for row in native_probe.registry_expectation()}
+        registry[native_episode_probe.SCHEDULER_SERVICE] = (
+            f"http://{native_episode_probe.SCHEDULER_SERVICE}.internal:"
+            f"{serve.SCHED_PORT}")
+        if registry != expected["services"]:
+            raise SystemExit(f"P6's registry {registry} and P7's expectations "
+                             f"{expected['services']} disagree on the unprofiled box")
+    state_dir = args.service_state or served_state_dir(specs)
     evidence = {
         "generated": datetime.now(UTC).isoformat(timespec="seconds"),
         "project": args.project,
@@ -1104,18 +1196,11 @@ def native_episode_main(args):
         # someone else's project, and `compose ps` would have to interpolate
         # that project's own ALKERA_EPISODE_* variables, which belong to the
         # rollout and not to us. The label is what compose itself stamps.
-        "_specs": [
-            json.loads(out(["docker", "inspect", cid]))[0]
-            for cid in out(["docker", "ps", "-q", "--filter",
-                            f"label=com.docker.compose.project={args.project}"]
-                           ).split()],
+        "_specs": specs,
+        "service_state_dir_on_the_host": str(state_dir) if state_dir else None,
     }
-    if not evidence["_specs"]:
-        raise SystemExit(
-            f"no running containers in compose project {args.project!r}; P7 "
-            f"measures a stack that is up, and this one is not")
     p7 = property_7_native_episode(stack, evidence, sorted(set(warehouses)),
-                                   services)
+                                   expected, state_dir)
     for key in [k for k in evidence if k.startswith("_")]:
         evidence.pop(key)
     evidence["summary"] = {"p7_native_episode_filesystem": p7["passed"]}
@@ -1129,7 +1214,11 @@ def native_episode_main(args):
                         encoding="utf-8")
     print(json.dumps({
         "artifact": str(args.out),
+        "environment_profile": p7["environment_profile"],
         "checks": p7["probe"]["checks"],
+        "checks_not_applicable": p7["checks_not_applicable"],
+        "services_state_is_mounted_only_in_native_services":
+            p7["services_state_is_mounted_only_in_native_services"],
         "world_binds_on_the_episode": p7["world_binds_on_the_episode"],
         "episode_publishes_no_host_port": p7["episode_publishes_no_host_port"],
         "published_host_ports": p7["published_host_ports"],
@@ -1182,6 +1271,23 @@ def main():
              "so the expectation is read off the world rather than typed.",
     )
     parser.add_argument(
+        "--env-profile", default=None, metavar="ROLE/STACK",
+        help="with --native-episode: the environment profile the stack serves "
+             "(alkera_gateway.plugs). Read off the running native-services' "
+             "--profile when omitted; a value that disagrees is refused. Not "
+             "--profile, which names compose profiles here.",
+    )
+    parser.add_argument(
+        "--env-plug", action="append", default=[], metavar="SLOT=PLUG[,PLUG]",
+        help="with --native-episode: one --plug of that profile; repeatable",
+    )
+    parser.add_argument(
+        "--service-state", default=None, metavar="HOST_DIR",
+        help="with --native-episode: the host directory native-services keeps "
+             "its own state in (bistate.service_state_dir); read off the "
+             "running container when omitted",
+    )
+    parser.add_argument(
         "--warehouse", action="append", default=[], metavar="REL",
         help="with --native-episode: a world-relative warehouse path that must "
              "be mounted; repeatable. Use instead of --world when the world is "
@@ -1201,6 +1307,18 @@ def main():
         return native_episode_main(args)
 
     overlays = (EPISODE_OVERLAY, NATIVE_OVERLAY) if args.native else ()
+    if args.native and not os.environ.get("ALKERA_EPISODE_SERVICE_STATE"):
+        # compose.native.yml requires the native services' own state
+        # directory. P6 grades nothing; the rollout layout's place for it is a
+        # sibling of the audit directory, so that is where it goes.
+        audit = os.environ.get("ALKERA_EPISODE_AUDIT")
+        state = (Path(audit).resolve().parent / "service-state") if audit else None
+        if state is None:
+            import tempfile
+
+            state = Path(tempfile.mkdtemp(prefix="alkera-p6-service-state-"))
+        state.mkdir(parents=True, exist_ok=True)
+        os.environ["ALKERA_EPISODE_SERVICE_STATE"] = str(state)
     stack = Stack(args.project, args.profile, overlays=overlays)
     evidence = {
         "generated": datetime.now(UTC).isoformat(timespec="seconds"),

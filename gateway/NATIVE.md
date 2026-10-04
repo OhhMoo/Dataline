@@ -110,7 +110,18 @@ aliases and the vendor's variables to the episode (and jupyter) environment; the
 gate sweeps it as `~<vendor>`. The world names it in `.envrc`, `services.toml` and
 `docs/onboarding.md` only when its seed records the vendor — `profile: {name, slots,
 plugs: {bi: [powerbi]}}` — and the harness refuses a rollout whose world was built for a
-different BI than the task's profile serves (`episode.check_world_profile`). Variables:
+different BI than the task's profile serves (`episode.check_world_profile`).
+**Their published state is the services', not the episode's**: under the
+container topology native-services keeps it in `/service-state/bi`
+(`<rollout>/service-state`, a mount no other container has; its entrypoint
+`docker/native_services.py` writes the services' config there too), never in
+`/audit`, which the episode mounts read-write and from which a subject could
+forge a "published" workbook until 2026-10-04. The grader stages it from there
+(`tasks/harness/bistate.py`, `{bi_state}`); P7 asserts the episode cannot see
+it. On the host topology the harness's rollout config points `bi_state_dir` at
+the same `<rollout>/service-state/bi` - outside every directory the subject is
+pointed at, but a host subject can write anywhere, which is one more reason host
+native is not `measurement_valid`. Variables:
 
 | vendor | variables (values: the `.internal` URL, or `alkera-local-dev`) |
 |---|---|
@@ -125,6 +136,13 @@ The workspace carries `.envrc`, `~/.dbt/profiles.yml`, `~/.config/alkera/*.toml`
 `docs/onboarding.md` (world seed flag `native: true`, OFF by default so every recorded
 fingerprint is unchanged; `<root>/home` is a conditional fingerprint section). DNS in the
 episode network resolves `*.internal` to the fake services and nothing else.
+
+In the container the workspace is a bind mount owned by the operator's uid and
+the agent is root, so the episode image marks exactly `/workspace` as a git
+`safe.directory` (system config, as a dev container with a mounted checkout
+does); without it every `git status` died on "dubious ownership". The shims'
+rows carry the world's clock through `ALKERA_VIRTUAL_TIME` (the per-rollout
+overlay), because `var/sched` is not mounted there.
 
 Blindness in native mode: `unknown_tool` and `shell_outside_gateway` do not apply (bash
 IS the interface). What replaces them: a **network-destination audit** (every connection

@@ -1,11 +1,13 @@
 {
-  "generated": "2026-09-27T20:10:14+00:00",
-  "head_revision": "65a280a6be3cc8dfb146547cede56fa5bf217dda",
-  "image_id": "e693634c2b88e5adebd884d920c81f39c9d722d65d58b4ed85898a4dd76d1d85",
+  "architecture": "amd64",
+  "generated": "2026-10-04T08:00:26+00:00",
+  "head_revision": "6b88b39175472a8277e0c625ff1f81765767a9de",
+  "image_id": "sha256:054ec735d8b62eee18d2ce818b7cf1585bd84a050955abdc3a4215a3f7092215",
   "labels": {
-    "io.buildah.version": "1.43.4",
-    "org.alkera.source.overlay": "d82ed261db9db72284ca6ccd8878a7a9a0e934f71777a6d3932cdb7a947ec447",
-    "org.alkera.source.revision": "65a280a6be3cc8dfb146547cede56fa5bf217dda"
+    "org.alkera.source.overlay": "304094179dfebac388fedecf9c321df71026cc0f34fa2ff2737ef6143b3112b1",
+    "org.alkera.source.revision": "6b88b39175472a8277e0c625ff1f81765767a9de",
+    "org.alkera.toolbelt": "de",
+    "org.alkera.warehouse_clients": ""
   },
   "measured_inside_container": {
     "binaries": [
@@ -497,7 +499,7 @@
         ],
         "binary": "aws",
         "exit": 0,
-        "first_line": "aws-cli/1.46.1 Python/3.11.16 Linux/7.2.7-200.fc44.x86_64 botocore/1.43.62",
+        "first_line": "aws-cli/1.46.1 Python/3.11.16 Linux/7.0.0-1006-aws botocore/1.43.62",
         "ok": true,
         "path": "/opt/toolbelt/bin/aws",
         "reason": null
@@ -564,6 +566,18 @@
       },
       {
         "argv": [
+          "tabcmd",
+          "--version"
+        ],
+        "binary": "tabcmd",
+        "exit": 0,
+        "first_line": "Tableau Server Command Line Utility v2.0.21",
+        "ok": true,
+        "path": "/opt/toolbelt/bin/tabcmd",
+        "reason": null
+      },
+      {
+        "argv": [
           "python",
           "--version"
         ],
@@ -605,7 +619,7 @@
         ],
         "binary": "alkera-gateway",
         "exit": 0,
-        "first_line": "usage: alkera-gateway [-h] {serve,call,trace,replay,signals} ...",
+        "first_line": "usage: alkera-gateway [-h] {serve,call,trace,replay,signals,plugs} ...",
         "ok": true,
         "path": "/usr/local/bin/alkera-gateway",
         "reason": null
@@ -656,6 +670,7 @@
       "sqlfluff",
       "ssh",
       "ssh-keygen",
+      "tabcmd",
       "tar",
       "top",
       "tree",
@@ -676,14 +691,19 @@
       }
     },
     "interpreter": "/usr/local/bin/python",
+    "kernelspecs": null,
     "os_release": "Debian GNU/Linux 13 (trixie)",
     "passed": true,
     "path": "/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/toolbelt/bin",
-    "platform": "Linux-7.2.7-200.fc44.x86_64-x86_64-with-glibc2.41",
+    "platform": "Linux-7.0.0-1006-aws-x86_64-with-glibc2.41",
     "python_not_shadowed": true,
     "python_on_path": "/usr/local/bin/python",
-    "source_revision": "65a280a6be3cc8dfb146547cede56fa5bf217dda",
+    "role_forbidden_present": [],
+    "role_imports": {},
+    "role_imports_failed": [],
+    "source_revision": "6b88b39175472a8277e0c625ff1f81765767a9de",
     "tool_count": 63,
+    "toolbelt_role": "de",
     "tools": [
       "alarms_get",
       "alarms_history",
@@ -762,16 +782,26 @@
       "gateway/docker/acceptance_inside.py",
       "gateway/docker/aws-config",
       "gateway/docker/aws-keys",
+      "gateway/docker/bigquery/README.md",
+      "gateway/docker/bigquery/fetch.py",
       "gateway/docker/build_episode.py",
       "gateway/docker/compose.episode.yml",
       "gateway/docker/compose.native.yml",
       "gateway/docker/compose.subject.yml",
       "gateway/docker/compose.yml",
       "gateway/docker/containment.py",
+      "gateway/docker/jupyter/README.md",
+      "gateway/docker/jupyter/kernels/alkera-python/kernel.json",
+      "gateway/docker/jupyter/launch.py",
       "gateway/docker/ledger_probe.py",
+      "gateway/docker/lock_snowflake_clients.py",
       "gateway/docker/native_episode_probe.py",
       "gateway/docker/native_probe.py",
+      "gateway/docker/native_services.py",
       "gateway/docker/postgres.sql",
+      "gateway/docker/snowflake-clients.in",
+      "gateway/docker/snowflake-clients.overrides",
+      "gateway/docker/snowflake-dev.in",
       "gateway/docker/snowflake.in",
       "gateway/docker/snowflake.lock",
       "gateway/docker/snowflake_acceptance.py",
@@ -781,17 +811,28 @@
       "gateway/docker/subject/bash_env.sh",
       "gateway/docker/subject/egress_proxy.py",
       "gateway/docker/subject/rexec.py",
+      "gateway/docker/toolbelt.arm64.lock",
       "gateway/docker/toolbelt.in",
       "gateway/docker/toolbelt.lock",
       "gateway/docker/toolbelt_acceptance.py",
       "gateway/docker/toolbelt_check.py"
     ],
-    "hash": "d82ed261db9db72284ca6ccd8878a7a9a0e934f71777a6d3932cdb7a947ec447"
+    "hash": "304094179dfebac388fedecf9c321df71026cc0f34fa2ff2737ef6143b3112b1"
   },
   "repo_digests": [
-    "localhost/alkera-episode@sha256:afcf5093487ead0f133ecdcc873011db40575d3873c92edc9031f018ad381b5a"
+    "alkera-episode@sha256:054ec735d8b62eee18d2ce818b7cf1585bd84a050955abdc3a4215a3f7092215"
   ],
-  "size_bytes": 1039944181,
-  "source_revision": "65a280a6be3cc8dfb146547cede56fa5bf217dda",
-  "tag": "alkera-episode:head"
+  "size_bytes": 1465470646,
+  "source_revision": "6b88b39175472a8277e0c625ff1f81765767a9de",
+  "tag": "alkera-episode:head",
+  "toolbelt": {
+    "label": "de",
+    "matches": true,
+    "probe": "de",
+    "requested": "de"
+  },
+  "warehouse_clients": {
+    "label": "",
+    "requested": []
+  }
 }
