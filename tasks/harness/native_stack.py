@@ -638,17 +638,20 @@ SCRIPTED_SUBJECT = r"""#!/bin/sh
 set -eu
 cd "$ALKERA_WORKSPACE"
 echo "== scheduler =="
-./ops/sched list
+# a profile that plugs no orchestrator has no ./ops/sched (install_workspace_cli)
+if [ -x ./ops/sched ]; then ./ops/sched list; else echo "(no ./ops/sched on this box)"; fi
 echo "== warehouse =="
 duckdb "$ALKERA_WAREHOUSE" \
   -c "CREATE TABLE main.$ALKERA_SCRATCH_TABLE AS SELECT 1 AS n" \
   -c "DELETE FROM main.$ALKERA_SCRATCH_TABLE WHERE n = 1" \
   -c "DROP TABLE main.$ALKERA_SCRATCH_TABLE"
 echo "== scheduler runs =="
-for job in $ALKERA_TRIGGER_JOBS; do
-  echo "-- trigger $job"
-  ./ops/sched trigger "$job"
-done
+if [ -x ./ops/sched ]; then
+  for job in $ALKERA_TRIGGER_JOBS; do
+    echo "-- trigger $job"
+    ./ops/sched trigger "$job"
+  done
+fi
 echo "== jira =="
 if [ -n "$ALKERA_ISSUE_KEY" ]; then
   curl -sS "$JIRA_URL/rest/api/3/issue/$ALKERA_ISSUE_KEY" | head -c 400
@@ -952,18 +955,21 @@ CONTAINER_SUBJECTS = {
 set -eu
 cd "$ALKERA_WORKSPACE"
 echo "== scheduler =="
-./ops/sched list
+# a profile that plugs no orchestrator has no ./ops/sched (install_workspace_cli)
+if [ -x ./ops/sched ]; then ./ops/sched list; else echo "(no ./ops/sched on this box)"; fi
 echo "== warehouse =="
 duckdb "$ALKERA_WAREHOUSE" \
   -c "CREATE TABLE main.$ALKERA_SCRATCH_TABLE AS SELECT 1 AS n" \
   -c "DELETE FROM main.$ALKERA_SCRATCH_TABLE WHERE n = 1" \
   -c "DROP TABLE main.$ALKERA_SCRATCH_TABLE"
 echo "== scheduler runs =="
-for job in $ALKERA_TRIGGER_JOBS; do
-  echo "-- trigger $job"
-  ./ops/sched trigger "$job"
-done
-./ops/sched logs | tail -5
+if [ -x ./ops/sched ]; then
+  for job in $ALKERA_TRIGGER_JOBS; do
+    echo "-- trigger $job"
+    ./ops/sched trigger "$job"
+  done
+  ./ops/sched logs | tail -5
+fi
 echo "== jira =="
 if [ -n "$ALKERA_ISSUE_KEY" ]; then
   curl -sS "$JIRA_URL/rest/api/3/issue/$ALKERA_ISSUE_KEY" | head -c 400
