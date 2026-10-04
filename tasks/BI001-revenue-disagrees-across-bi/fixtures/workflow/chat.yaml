@@ -1,0 +1,21 @@
+# BI001 - messages appended to the theme's channels (tests/build_world.py).
+# Ids are positional per channel and continue the theme's numbering; a
+# message may only thread under an earlier root of the same channel.
+channels:
+  - id: finance-analytics
+    messages:
+      - id: finance-analytics/0004
+        author: mfischer
+        at: "-3d 16:52"
+        thread_id: null
+        text: |-
+          Filed ANA-241: the Power BI, Tableau and Sigma Executive Overviews
+          disagree on Net Revenue - Tableau by a lot. Amy, the January pack
+          came off Power BI, right?
+        reactions: {}
+      - id: finance-analytics/0005
+        author: achen
+        at: "-3d 17:10"
+        thread_id: finance-analytics/0004
+        text: Power BI, always. The other two are for working the numbers, not for the pack.
+        reactions: {}
