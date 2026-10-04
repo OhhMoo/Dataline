@@ -123,7 +123,7 @@ from fastapi.responses import JSONResponse
 from sqlglot import exp
 
 from ...records import Observation, ToolError, canonical, digest, json_value
-from ..context import DEV_TOKEN, Context, Ledger, context_of, service_health
+from ..context import DEV_TOKEN, Context, Ledger, audit_unrouted, context_of, service_health
 from ..http import JSONBody, RawBody
 
 NAME = "powerbi"
@@ -144,6 +144,8 @@ REFRESH_HISTORY_DEFAULT = 60
 
 app = FastAPI(title="Power BI REST (alkera native surface)", docs_url=None, redoc_url=None,
               openapi_url=None)
+# One row per request, including the ones no handler ran for (context.py).
+audit_unrouted(app, NAME)
 
 _STATE_LOCK = threading.RLock()
 
@@ -658,6 +660,26 @@ def store_of(request: Request) -> PowerBIStore:
     return PowerBIStore(context_of(request.app))
 
 
+def reads_what_it_targets(run, store: PowerBIStore, observation: Observation) -> Any:
+    """Run one store call; a READ row then names what it read.
+
+    The handlers below say what a request touched in `targets` and leave
+    `read_targets` to the few calls that read something else (a refresh reads
+    warehouse relations, a DAX query reads the semantic model). The Ledger
+    writes `read_targets` verbatim, exactly as the MCP gateway does, so before
+    this every Power BI read - the token, groups, datasets, reports, refresh
+    history, getDefinition - wrote `read_targets: []` while Jira, Slack,
+    Sigma and Tableau name the object they read (measured 2026-10-04,
+    tasks/harness/bi_e2e_check.py). Filled in before the observation is
+    sealed, on success and on refusal alike, and only for `read` rows whose
+    call left `read_targets` empty."""
+    try:
+        return run(store, observation)
+    finally:
+        if observation.op_class == "read" and not observation.read_targets:
+            observation.read_targets = list(observation.targets)
+
+
 def handled(request: Request, tool: str, args: dict, family: str, run) -> Any:
     """One request, one row: authenticate inside the span (so a refused
     credential is a row too), then run the store call that classifies it."""
@@ -665,7 +687,7 @@ def handled(request: Request, tool: str, args: dict, family: str, run) -> Any:
     with ledger.span(tool, **args) as row:
         claims = authenticate(request, family)
         ledger.actor = claims.get("appid", "")
-        return row.run(lambda ops, obs: run(store_of(request), obs))
+        return row.run(lambda ops, obs: reads_what_it_targets(run, store_of(request), obs))
 
 
 def base_url(request: Request) -> str:
@@ -729,7 +751,7 @@ def token_response(request: Request, tenant: str, raw: bytes, version: int) -> d
                     "expires_on": str(now + TOKEN_LIFETIME_S), "not_before": str(now),
                     "resource": audience, "access_token": token}
 
-        return row.run(lambda ops, obs: issue(store_of(request), obs))
+        return row.run(lambda ops, obs: reads_what_it_targets(issue, store_of(request), obs))
 
 
 @app.post("/{tenant}/oauth2/v2.0/token")

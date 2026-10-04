@@ -48,7 +48,7 @@ import json
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from .context import ServiceError, served, service_health
+from .context import ServiceError, audit_unrouted, served, service_health
 from .shims import sched_cli
 
 #: The name every row this plane writes is prefixed with, and the alias it is
@@ -62,6 +62,7 @@ NAME = "sched"
 def build_app() -> FastAPI:
     """The three operations `./ops/sched` runs, plus `/health`."""
     app = FastAPI(title="alkera scheduler plane")
+    audit_unrouted(app, NAME)
 
     @app.exception_handler(ServiceError)
     async def refused(_request: Request, exc: ServiceError) -> JSONResponse:

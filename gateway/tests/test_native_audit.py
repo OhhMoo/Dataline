@@ -535,6 +535,83 @@ def test_shim_names_the_files_the_binary_changed(world, native_log, tmp_path, mo
     assert row["latency_ms"] > 0
 
 
+def _shimmed(bin_dir, workspace, monkeypatch):
+    monkeypatch.setenv("ALKERA_SHIM_BIN", str(bin_dir))
+    monkeypatch.setenv("ALKERA_SHIM_WORKSPACE", str(workspace))
+    monkeypatch.setenv(
+        "PATH", os.pathsep.join([str(bin_dir), str(Path(sys.executable).parent),
+                                 os.environ["PATH"]])
+    )
+
+
+def test_shim_watches_the_warehouse_the_gateway_config_names(native_log, tmp_path,
+                                                            monkeypatch):
+    """Regression, measured 2026-10-04 by tasks/harness/bi_e2e_check.py: the
+    host topology exports ALKERA_GATEWAY_CONFIG and no ALKERA_SHIM_WATCH, so a
+    `python` (or `dbt build`) that rewrote the warehouse wrote `targets: []`,
+    `watched: []` - a scoped row naming nothing. Unset, the watch list is now
+    the DuckDB files the config names; set (even empty), it is what it says."""
+    import duckdb
+
+    bin_dir, workspace = tmp_path / "bin", tmp_path / "workspace"
+    workspace.mkdir()
+    warehouse = tmp_path / "world" / "var" / "warehouse" / "warehouse.duckdb"
+    legacy = tmp_path / "world" / "var" / "warehouse" / "legacy.duckdb"
+    warehouse.parent.mkdir(parents=True)
+    for path in (warehouse, legacy):
+        duckdb.connect(str(path)).close()
+    config_file = tmp_path / "native_gateway.json"
+    config_file.write_text(json.dumps({
+        "warehouse": str(warehouse), "world_root": str(tmp_path / "world"),
+        "warehouses": [{"name": "legacy", "backend": "duckdb",
+                        "path": "var/warehouse/legacy.duckdb"},
+                       {"name": "snow", "backend": "snowflake"}]}), encoding="utf-8")
+    shim_install.install(bin_dir, ("python",))
+    _shimmed(bin_dir, workspace, monkeypatch)
+    monkeypatch.setenv("ALKERA_GATEWAY_CONFIG", str(config_file))
+    monkeypatch.delenv("ALKERA_SHIM_WATCH", raising=False)
+    assert shim_run.watched_paths() == [str(warehouse), str(legacy)]
+    write = (f"import duckdb; c = duckdb.connect({str(warehouse)!r}); "
+             f"c.execute('CREATE TABLE t AS SELECT 1 AS n'); c.close()")
+    completed = subprocess.run([str(bin_dir / "python"), "-c", write], cwd=workspace,
+                               capture_output=True, text=True, timeout=120)
+    assert completed.returncode == 0, completed.stderr
+    row = read_rows(native_log)[-1]
+    assert row["tool"] == "shim.python"
+    assert row["targets"] == [str(warehouse)]
+    assert row["result"]["watched"] == [str(warehouse), str(legacy)]
+    # An explicit empty list is an explicit "watch nothing".
+    monkeypatch.setenv("ALKERA_SHIM_WATCH", "")
+    assert shim_run.watched_paths() == []
+    # No config, no variable: nothing to watch, as before.
+    monkeypatch.delenv("ALKERA_SHIM_WATCH")
+    monkeypatch.delenv("ALKERA_GATEWAY_CONFIG")
+    assert shim_run.watched_paths() == []
+
+
+def test_python3_is_shimmed_and_filed_as_the_python_shim(native_log, tmp_path, monkeypatch):
+    """Regression, measured 2026-10-04 by tasks/harness/bi_e2e_check.py:
+    `python3` - what the episode image, Debian and the worlds' own run.sh
+    invoke - was a second, unshimmed interpreter on PATH, and a `python3 -c`
+    that rewrote the warehouse wrote no row at all."""
+    bin_dir, workspace = tmp_path / "bin", tmp_path / "workspace"
+    workspace.mkdir()
+    written = shim_install.install(bin_dir)
+    assert bin_dir / "python3" in written and bin_dir / "python" in written
+    assert not (bin_dir / "psql").exists()
+    _shimmed(bin_dir, workspace, monkeypatch)
+    monkeypatch.setenv("ALKERA_SHIM_WATCH", "")
+    completed = subprocess.run(
+        [str(bin_dir / "python3"), "-c",
+         "import pathlib; pathlib.Path('made-by-python3.txt').write_text('x')"],
+        cwd=workspace, capture_output=True, text=True, timeout=120)
+    assert completed.returncode == 0, completed.stderr
+    row = read_rows(native_log)[-1]
+    assert row["tool"] == "shim.python"
+    assert row["args"]["argv"][0] == "python3"
+    assert row["targets"] == ["made-by-python3.txt"]
+
+
 def test_shim_records_a_binary_it_cannot_find(native_log, tmp_path, monkeypatch):
     """A missing binary is an audited failure, not a silent 127."""
     monkeypatch.setenv("ALKERA_SHIM_BIN", str(tmp_path))

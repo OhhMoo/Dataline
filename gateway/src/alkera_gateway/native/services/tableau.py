@@ -477,6 +477,41 @@ def _relations(model) -> set[str]:
     return out
 
 
+def _visual_relations(model, visual) -> list[str]:
+    """The warehouse relations ONE view's query reads, as `schema.table`.
+
+    `_relations(model)` is every relation the data source declares, which is
+    right for an extract (the copy takes them all) and wrong for a view: before
+    this a `views/{id}/data` row for the KPIs card named all five marts in
+    `read_targets` while the query the engine ran reads `warehouse.fct_orders`
+    alone (measured 2026-10-04, tasks/harness/bi_e2e_check.py; Sigma's export
+    row already names only the element's relations). So the view is compiled
+    the way `world.semantic.render` compiles it, and the tables named in that
+    SQL and in its pre-flight checks are the answer - including a table a join
+    passes through, which a walk over the visual's expressions would miss.
+    Called after the render succeeded, so the visual is known to compile."""
+    import sqlglot
+    from sqlglot import exp
+    from world.semantic import compile as semantic_compile
+
+    if visual.sql is not None:
+        statements = [visual.sql]
+    else:
+        graph = semantic_compile.check_model(model)
+        semantic_compile.check_visual(graph, visual)
+        compiled = semantic_compile.compile_visual(graph, visual)
+        statements = [compiled.sql, *(check.sql for check in compiled.checks)]
+    out: set[str] = set()
+    for sql in statements:
+        tree = sqlglot.parse_one(sql, read="duckdb")
+        ctes = {cte.alias_or_name for cte in tree.find_all(exp.CTE)}
+        for table in tree.find_all(exp.Table):
+            if not table.name or (not table.db and table.name in ctes):
+                continue
+            out.add(f"{table.db}.{table.name}" if table.db else table.name)
+    return sorted(out)
+
+
 def _copy_relations(warehouse: Path, target: Path, relations: list[str]) -> None:
     import duckdb
 
@@ -1218,6 +1253,9 @@ def views_data(version: str, site: str, view_id: str, request: Request) -> Respo
             if refreshed is not None:
                 row.flags.append(f"extract:{refreshed}")
             result = render.render_visual(ds.model, visual, warehouse)
+            # What the view's query read, not every relation its data source
+            # declares: the KPIs card reads warehouse.fct_orders and nothing else.
+            row.read_targets = _visual_relations(ds.model, visual)
         except Unsupported as exc:
             raise TableauError(400, "400000", "Bad Request", str(exc)) from None
         except (ModelError, SemanticError) as exc:

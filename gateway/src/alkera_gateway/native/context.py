@@ -54,7 +54,13 @@ from threading import RLock
 from typing import Any
 
 from fastapi import FastAPI, Request
+from fastapi.exception_handlers import (
+    http_exception_handler,
+    request_validation_exception_handler,
+)
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from ..config import GatewayConfig
 from ..operations import Operations
@@ -281,6 +287,7 @@ class Ledger:
         self._write(row, started)
 
     def _write(self, row: Span, started: float, error: dict | None = None) -> dict:
+        mark_audited(self.request)
         observation = row.observation
         if error is None and not observation.classified:
             raise UnclassifiedObservation(
@@ -350,6 +357,7 @@ def service_health(request: Request, service: str,
     `no_ingest_state`) answers 503 with `ok: false` and the module's code, not a
     zero that reads as "wired, and empty".
     """
+    mark_audited(request)
     operations = context_of(request.app).operations
     observation = Observation()
     started = time.monotonic()
@@ -392,6 +400,7 @@ def note(request: Request, service: str, operation: str, *, op_class: str,
     exists for the same reason a span writes its row on the way out of an
     exception: a refused request is still a request served.
     """
+    mark_audited(request)
     return record(
         tool=f"{service}.{operation}",
         args={"method": request.method, "path": request.url.path, **(args or {})},
@@ -402,3 +411,74 @@ def note(request: Request, service: str, operation: str, *, op_class: str,
         result=json_value(result),
         transport="native",
     )
+
+
+#: The request-state flag every row-writing path above sets, so the fallback
+#: below can tell "this request already has its row" from "no handler ran".
+AUDITED_FLAG = "alkera_audited"
+
+
+def mark_audited(request: Request) -> None:
+    """Record, on the request, that its 9.2.2 row has been (or is being) written."""
+    try:
+        setattr(request.state, AUDITED_FLAG, True)
+    except AttributeError:  # pragma: no cover - a request double with no state
+        pass
+
+
+def was_audited(request: Request) -> bool:
+    return bool(getattr(request.state, AUDITED_FLAG, False))
+
+
+def audit_unrouted(app: FastAPI, service: str) -> FastAPI:
+    """Give `app` a row for every request no handler wrote one for.
+
+    Measured 2026-10-04 (tasks/harness/bi_e2e_check.py): a request for a path
+    the service does not route - `GET /wiki/rest/api/content/ae/metrics/net-
+    revenue`, which is the page id the onboarding page prints, or any `GET
+    /rest/api/3/<typo>` - answered FastAPI's default 404 and wrote NOTHING,
+    on jira, slack, confluence and powerbi alike; so did a 405, a 422 from
+    request validation and the 400/413 `native/http.py` raises while reading a
+    body, because all of them are decided before a handler opens its span.
+    Every module's docstring promises "one row per request, failures
+    included", and the world-diff rule can only call a change unaudited if
+    every ATTEMPT left a row (`Ledger`'s docstring) - so a request the service
+    refused without running anything still gets one: `<service>.request`,
+    `op_class: read`, no targets (nothing was touched), `exit: error` with the
+    HTTP status as the code. The response is FastAPI's own default, byte for
+    byte, so a client sees exactly what it saw before.
+
+    Rows already written are never doubled: `Ledger`, `service_health` and
+    `note` mark the request, and only an unmarked request is recorded here.
+    Tableau keeps its own handler (vendor-shaped XML errors, the same rule);
+    Sigma routes every unknown path to a handler of its own and gets this for
+    the validation and body errors that still bypass it.
+    """
+
+    def unrouted_row(request: Request, status: int, message: str) -> None:
+        if was_audited(request):
+            return
+        mark_audited(request)
+        record(
+            tool=f"{service}.request",
+            args={"method": request.method, "path": request.url.path,
+                  "query": str(request.url.query or "")},
+            op_class="read",
+            targets=[],
+            exit="error",
+            error={"code": f"http_{status}", "message": message},
+            result={"status": status},
+            transport="native",
+        )
+
+    @app.exception_handler(StarletteHTTPException)
+    async def _unrouted_http(request: Request, exc: StarletteHTTPException):
+        unrouted_row(request, exc.status_code, str(exc.detail))
+        return await http_exception_handler(request, exc)
+
+    @app.exception_handler(RequestValidationError)
+    async def _unrouted_validation(request: Request, exc: RequestValidationError):
+        unrouted_row(request, 422, "request validation failed")
+        return await request_validation_exception_handler(request, exc)
+
+    return app

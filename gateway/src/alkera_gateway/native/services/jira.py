@@ -35,7 +35,7 @@ from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 
 from ...records import ToolError
-from ..context import DEV_TOKEN, Ledger, context_of, note, service_health
+from ..context import DEV_TOKEN, Ledger, audit_unrouted, context_of, note, service_health
 
 NAME = "jira"
 HOST = "jira.internal"
@@ -86,6 +86,8 @@ FIELDS = (
 )
 
 app = FastAPI(title="Jira Cloud (alkera native surface)", docs_url=None, redoc_url=None)
+# One row per request, including the ones no handler ran for (context.py).
+audit_unrouted(app, NAME)
 
 
 # --------------------------------------------------------------------------

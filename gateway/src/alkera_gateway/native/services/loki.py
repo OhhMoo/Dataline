@@ -32,7 +32,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from ...observability import moment
-from ..context import ServiceError, served, service_health
+from ..context import ServiceError, audit_unrouted, served, service_health
 
 NAME = "loki"
 HOST = "loki.internal"
@@ -54,6 +54,8 @@ _QUERY = re.compile(r'^\s*\{(?P<matchers>[^}]*)\}\s*(?:\|=\s*"(?P<filter>[^"]*)"
 _MATCHER = re.compile(r'^\s*(?P<label>[a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*"(?P<value>[^"]*)"\s*$')
 
 app = FastAPI(title="Alkera Loki (fake)", version="0.1.0")
+# One row per request, including the ones no handler ran for (context.py).
+audit_unrouted(app, NAME)
 
 
 @app.exception_handler(ServiceError)

@@ -40,7 +40,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from ...observability import moment, parse_vts
-from ..context import ServiceError, context_of, served, service_health
+from ..context import ServiceError, audit_unrouted, context_of, served, service_health
 
 NAME = "prometheus"
 HOST = "prometheus.internal"
@@ -65,6 +65,8 @@ _MATCHER = re.compile(r'^\s*(?P<label>[a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*"(?P<value>[
 _CALL = re.compile(r"^(?P<func>[a-zA-Z_][a-zA-Z0-9_]*)\((?P<arg>.*)\)$", re.DOTALL)
 
 app = FastAPI(title="Alkera Prometheus (fake)", version="0.1.0")
+# One row per request, including the ones no handler ran for (context.py).
+audit_unrouted(app, NAME)
 
 
 @app.exception_handler(ServiceError)

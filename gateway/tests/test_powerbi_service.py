@@ -558,6 +558,37 @@ def test_every_request_writes_exactly_one_row(plane):
     assert rows[2]["args"]["path"] == "/v1.0/myorg/groups"
 
 
+def test_a_read_row_names_what_it_read(plane):
+    """Regression, measured 2026-10-04 by tasks/harness/bi_e2e_check.py: every
+    Power BI read but executeQueries wrote `read_targets: []` (the Ledger writes
+    the observation verbatim, and these handlers only set `targets`), while the
+    other services' reads name the object they read. A read row's
+    `read_targets` is now what it targeted; a write's are left to the call."""
+    group = plane.group()
+    dataset = plane.dataset()
+    plane.get(f"/v1.0/myorg/groups/{group}/reports")
+    plane.get(f"/v1.0/myorg/groups/{group}/datasets/{dataset}/refreshes")
+    plane.post(f"/v1/workspaces/{group}/semanticModels/{dataset}/getDefinition")
+    plane.get("/v1.0/myorg/groups/00000000-0000-0000-0000-000000000000/datasets")  # 404
+    rows = [r for r in plane.rows() if r["tool"] != "powerbi.health"]
+    assert [r["tool"].split(".", 1)[1] for r in rows] == [
+        "token", "groups_list", "groups_list", "datasets_list", "reports_list",
+        "refreshes_list", "get_definition", "datasets_list"]
+    for row in rows:
+        assert row["op_class"] == "read"
+        assert row["targets"], row["tool"]
+        assert row["read_targets"] == row["targets"], row["tool"]
+    assert rows[0]["read_targets"] == ["powerbi:token"]
+    assert rows[-1]["exit"] == "error"
+    # A write still reports what IT read (a refresh: the warehouse relations).
+    plane.post(f"/v1.0/myorg/groups/{group}/datasets/{dataset}/refreshes", json={})
+    refresh = plane.rows("refresh")[-1]
+    assert refresh["op_class"] == "write"
+    assert refresh["targets"] == ["powerbi:semantic_model:Commerce"]
+    assert refresh["read_targets"] and all(t.startswith("warehouse.")
+                                           for t in refresh["read_targets"])
+
+
 # --------------------------------------------------------------------------
 # A real client over a real socket
 # --------------------------------------------------------------------------

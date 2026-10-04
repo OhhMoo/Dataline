@@ -443,3 +443,89 @@ def test_the_services_get_the_same_scheduler_the_mcp_gateway_gets(
     episode = Context(config(world, tmp_path / "audit", world_root=world))
     assert isinstance(episode.operations.scheduler, WorldScheduler)
     assert Path(episode.operations.scheduler.root) == Path(world)
+
+
+# --------------------------------------------------------------------------
+# Requests no handler ran for still leave a row (context.audit_unrouted)
+# --------------------------------------------------------------------------
+
+#: Every module that serves an app through `audit_unrouted`. Tableau is not here:
+#: it answers unrouted requests with its own vendor-shaped handler and row.
+UNROUTED_SERVICES = ("airbyte", "alertmanager", "confluence", "deploy", "jira", "loki",
+                     "metabase", "powerbi", "prometheus", "sigma", "slack")
+
+
+def _ask(target_app, method: str, path: str, **kwargs) -> httpx.Response:
+    async def call():
+        transport = httpx.ASGITransport(app=target_app)
+        async with httpx.AsyncClient(transport=transport,
+                                     base_url="http://svc.internal") as client:
+            return await client.request(method, path, **kwargs)
+
+    return asyncio.run(call())
+
+
+def test_an_unrouted_request_writes_exactly_one_row_and_the_default_response(
+        probe, tmp_path):
+    """Regression, measured 2026-10-04 by tasks/harness/bi_e2e_check.py: the
+    page id the onboarding page prints (`ae/metrics/net-revenue`) is not a
+    routable Confluence content id, and `GET /wiki/rest/api/content/ae/metrics/
+    net-revenue` answered 404 with NO row - as did any unknown path on jira,
+    slack, confluence and powerbi. One row per request, failures included."""
+    bare = FastAPI()
+    native_context.audit_unrouted(bare, "bare")
+
+    @bare.get("/known")
+    def known(request: Request):
+        return served(request, "bare", "issues_get",
+                      lambda ops, obs: ops.issues_get("DATA-141", obs), {})
+
+    @bare.get("/typed/{n}")
+    def typed(n: int, request: Request):
+        return served(request, "bare", "issues_get",
+                      lambda ops, obs: ops.issues_get("DATA-141", obs), {"n": n})
+
+    bare.state.alkera_context = None
+    missing = _ask(bare, "GET", "/wiki/rest/api/content/ae/metrics/net-revenue")
+    assert missing.status_code == 404
+    assert missing.json() == {"detail": "Not Found"}          # FastAPI's own body
+    wrong_method = _ask(bare, "POST", "/known")
+    assert wrong_method.status_code == 405
+    invalid = _ask(bare, "GET", "/typed/not-a-number")
+    assert invalid.status_code == 422
+    assert _ask(bare, "GET", "/known").status_code == 200   # routed: its own row only
+    rows = probe.written()
+    assert [r["tool"] for r in rows] == ["bare.request", "bare.request", "bare.request",
+                                         "bare.issues_get"]
+    assert [r["error"]["code"] for r in rows[:3]] == ["http_404", "http_405", "http_422"]
+    for row in rows[:3]:
+        assert row["exit"] == "error" and row["op_class"] == "read"
+        assert row["targets"] == [] and row["read_targets"] == []
+        assert set(row) == set(native_audit.ROW_KEYS)
+    assert rows[0]["args"]["path"] == "/wiki/rest/api/content/ae/metrics/net-revenue"
+    assert [r["seq"] for r in rows] == list(range(1, 5))
+
+
+@pytest.mark.parametrize("name", UNROUTED_SERVICES)
+def test_every_native_service_audits_a_path_it_does_not_route(name, probe):
+    import importlib
+
+    module = importlib.import_module(f"alkera_gateway.native.services.{name}")
+    before = len(probe.written())
+    response = _ask(module.app, "GET", "/no/such/route/for/this/vendor")
+    assert response.status_code == 404
+    rows = probe.written()[before:]
+    assert len(rows) == 1, [r["tool"] for r in rows]
+    assert rows[0]["exit"] == "error"
+    # Sigma routes every unknown path to a handler of its own; the rest fall
+    # through to audit_unrouted. One row either way.
+    assert rows[0]["tool"] == ("sigma.unknown_route" if name == "sigma" else f"{name}.request")
+
+
+def test_the_scheduler_plane_audits_a_path_it_does_not_route(probe):
+    from alkera_gateway.native import sched_plane
+
+    plane = sched_plane.build_app()
+    assert _ask(plane, "GET", "/no/such/route").status_code == 404
+    rows = probe.written()
+    assert [r["tool"] for r in rows] == ["sched.request"]

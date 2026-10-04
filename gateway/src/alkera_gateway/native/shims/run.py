@@ -37,6 +37,9 @@ ALKERA_SHIM_WATCH      extra FILES outside the workspace to watch, os.pathsep-
                        absolute container path; blindness maps it). The row's
                        `result.watched` lists what was watched, which is how
                        blindness tells a scoped row from one written before this.
+                       UNSET (not empty): the DuckDB files ALKERA_GATEWAY_CONFIG
+                       names are watched instead (`config_warehouses`), which is
+                       what the host topology relies on.
 ALKERA_SHIM_AUDIT_UID  when set, only a process whose EFFECTIVE uid is this
                        number writes a row; any other user runs the real binary
                        exactly as before and leaves no row. Unset (or not an
@@ -51,6 +54,7 @@ reads.
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import shutil
 import subprocess
@@ -69,6 +73,17 @@ READ_CHUNK = 1 << 20
 
 
 AUDIT_UID_ENV = "ALKERA_SHIM_AUDIT_UID"
+#: Spellings of one binary that share one row name. `python3` is the same
+#: interpreter as `python` (it is what Debian, the episode image and this
+#: world's own `run.sh` invoke), so its rows are `shim.python` and every rule
+#: that reads the python shim's rows - blindness.WAREHOUSE_SHIMS, the graders'
+#: suffix match - reads them too. `args.argv[0]` keeps what was typed.
+TOOL_NAMES = {"python3": "python"}
+
+
+def tool_name(binary: str) -> str:
+    """The `shim.<name>` a binary's row is filed under."""
+    return TOOL_NAMES.get(binary, binary)
 
 
 def audit_enabled() -> bool:
@@ -145,8 +160,51 @@ def real_binary(name: str) -> str | None:
 
 
 def watched_paths() -> list[str]:
-    raw = os.environ.get("ALKERA_SHIM_WATCH") or ""
-    return [p for p in raw.split(os.pathsep) if p]
+    """ALKERA_SHIM_WATCH when the box exported it (an empty value watches
+    nothing); otherwise the DuckDB files the episode's gateway config names."""
+    raw = os.environ.get("ALKERA_SHIM_WATCH")
+    if raw is not None:
+        return [p for p in raw.split(os.pathsep) if p]
+    return config_warehouses()
+
+
+def config_warehouses() -> list[str]:
+    """The DuckDB warehouse files `$ALKERA_GATEWAY_CONFIG` names, or [].
+
+    WHY A FALLBACK. The container topology exports ALKERA_SHIM_WATCH; the host
+    topology (`tasks/harness/native_stack.py`) exported only the gateway
+    config, so on the host a `dbt build` or a `python` script that rewrote the
+    warehouse wrote a row with `targets: []` and `watched: []` - a scoped row
+    that names nothing - and the world-diff rule had no row to explain the
+    file (measured 2026-10-04, tasks/harness/bi_e2e_check.py: `dbt build -s
+    fct_orders` and a python `CREATE TABLE` both). The config is the file the
+    services serve this world from (`agent_under_test.native_env` hands it to
+    the subject for exactly that reason), so its `warehouse` - and every
+    additional DuckDB `warehouses[].path`, relative ones against `world_root` -
+    is the episode's own list of warehouse files. Unreadable or absent: [].
+    """
+    name = os.environ.get("ALKERA_GATEWAY_CONFIG")
+    if not name:
+        return []
+    try:
+        data = json.loads(Path(name).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    if not isinstance(data, dict):
+        return []
+    out: list[str] = []
+    if (data.get("warehouse_backend") or "duckdb") == "duckdb" and data.get("warehouse"):
+        out.append(str(data["warehouse"]))
+    root = data.get("world_root")
+    for spec in data.get("warehouses") or []:
+        if not isinstance(spec, dict) or (spec.get("backend") or "duckdb") != "duckdb":
+            continue
+        if spec.get("path"):
+            path = Path(spec["path"])
+            if not path.is_absolute() and root:
+                path = Path(root) / path
+            out.append(str(path))
+    return list(dict.fromkeys(out))
 
 
 def watch_signature(paths: list[str]) -> dict[str, tuple]:
@@ -200,7 +258,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if executable is None:
         record(
-            tool=f"shim.{name}",
+            tool=f"shim.{tool_name(name)}",
             args=args,
             op_class="exec",
             targets=[],
@@ -231,7 +289,7 @@ def main(argv: list[str] | None = None) -> int:
     targets = targets + [p for p in watched_moved if p not in targets]
     failed = completed.returncode != 0
     record(
-        tool=f"shim.{name}",
+        tool=f"shim.{tool_name(name)}",
         args=args,
         op_class="exec",
         targets=targets,

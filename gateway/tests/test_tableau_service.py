@@ -512,6 +512,23 @@ def test_every_request_writes_exactly_one_row(server):
     assert [r["seq"] for r in rows] == list(range(1, len(rows) + 1))
 
 
+def test_a_view_row_reads_only_the_relations_its_query_reads(server):
+    """Regression, measured 2026-10-04 by tasks/harness/bi_e2e_check.py: a
+    `views/{id}/data` row named EVERY relation of the data source in
+    `read_targets` - all five marts for the KPIs card, whose query reads
+    `warehouse.fct_orders` alone. It now names the tables of the SQL the engine
+    compiled for that view (joins included), as Sigma's export row does."""
+    server.signin()
+    expected = {"KPIs": ["warehouse.fct_orders"],
+                "Revenue by Segment": ["warehouse.dim_customer", "warehouse.fct_orders"],
+                "Top Products": ["warehouse.dim_product", "warehouse.fct_order_lines"]}
+    for sheet, relations in expected.items():
+        server.view_csv(sheet)
+        row = server.rows("tableau.views_data")[-1]
+        assert row["exit"] == "ok", row["error"]
+        assert row["read_targets"] == relations, sheet
+
+
 def test_state_lives_outside_the_world_tree(server):
     server.signin()
     state = Path(server.context.config.bi_state_dir) / "tableau"

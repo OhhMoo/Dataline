@@ -78,7 +78,7 @@ from fastapi.responses import JSONResponse, Response
 
 from ...records import Observation, ToolError
 from ...sql import inspect_sql
-from ..context import DEV_TOKEN, Ledger, ServiceError, context_of, service_health
+from ..context import DEV_TOKEN, Ledger, ServiceError, audit_unrouted, context_of, service_health
 from ..http import RawBody
 
 NAME = "sigma"
@@ -92,6 +92,8 @@ EXPORT_TYPES = {"csv": "text/csv", "json": "application/json", "jsonl": "applica
 
 app = FastAPI(title="Sigma Computing REST API (alkera native surface)", docs_url=None,
               redoc_url=None, openapi_url=None)
+# One row per request, including the ones no handler ran for (context.py).
+audit_unrouted(app, NAME)
 
 
 def _semantic():
