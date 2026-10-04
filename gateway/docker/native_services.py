@@ -45,6 +45,11 @@ CONFIG_NAME = "native_gateway.json"
 #: The BI vendors' published state, inside `--state-dir`
 #: (`tasks/harness/bistate.BI_SUBDIR`).
 BI_SUBDIR = "bi"
+#: The observability plane's own records (observed samples, alarm transitions,
+#: deploy records: GatewayConfig.obs_state_dir), which default to `<audit>/obs`
+#: and so were as writable from the episode as the BI state was. No grader
+#: reads them today; they move so that nothing the services keep is forgeable.
+OBS_SUBDIR = "obs"
 SERVE_MODULE = "alkera_gateway.native.serve"
 
 
@@ -57,6 +62,7 @@ def services_config(world: Path, audit: Path, state_dir: Path) -> dict:
 
     config = json.loads(world_gateway_config(world, audit))
     config["bi_state_dir"] = str(state_dir / BI_SUBDIR)
+    config["obs_state_dir"] = str(state_dir / OBS_SUBDIR)
     GatewayConfig.model_validate(config)
     return config
 

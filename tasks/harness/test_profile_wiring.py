@@ -299,9 +299,10 @@ def test_overlay_profiled_aliases(world, tmp_path, no_docker):
     episode_env = _env(episode_block)
     for var in ("LOKI_URL", "LOKI_ADDR", "DEPLOY_URL", "DEPLOY_API_TOKEN",
                 "AIRBYTE_URL", "PROMETHEUS_URL", "ALERTMANAGER_URL",
-                "SCHED_URL", "AWS_ENDPOINT_URL"):
+                "SCHED_URL", "AWS_ENDPOINT_URL",
+                "PGHOST"):                      # a DuckDB box: no Postgres warehouse
         assert var not in episode_env, var
-    for var in ("JIRA_URL", "METABASE_URL", "SLACK_BASE_URL", "PGHOST", "HOME",
+    for var in ("JIRA_URL", "METABASE_URL", "SLACK_BASE_URL", "HOME",
                 "ALKERA_NATIVE_AUDIT", "DBT_PROFILES_DIR"):
         assert var in episode_env, var
 
@@ -899,3 +900,29 @@ def test_unprofiled_workspace_cli_is_unchanged(world, tmp_path):
     _record_profile(world, {"name": "de/laptop", "slots": DE_SLOTS})
     again = native_stack.install_workspace_cli(world, "host")
     assert again == result and target.read_bytes() == unprofiled
+
+
+# ------------------------- backend variables follow the profile's plugs
+PG = {"PGHOST", "PGPORT", "PGDATABASE", "PGUSER", "PGPASSWORD"}
+SNOW = {"SNOWFLAKE_HOST", "SNOWFLAKE_ACCOUNT", "SNOWFLAKE_USER", "SNOWFLAKE_PASSWORD"}
+AIRFLOW = {"AIRFLOW_API_URL", "AIRFLOW_USER", "AIRFLOW_PASSWORD"}
+
+
+def test_a_duckdb_box_has_no_postgres_snowflake_or_airflow_variables(world, tmp_path,
+                                                                     no_docker):
+    # The discovery files of a profiled world already name only the warehouse
+    # the profile plugs (world/native_workspace.py); the process environment
+    # said otherwise - PGHOST=postgres.internal on a DuckDB analyst box.
+    stack = _stack(world, tmp_path, "r", profile=PROFILE, plugs=BI_PLUGS)
+    dropped, _ = stack.profile_variables()
+    assert PG | SNOW | AIRFLOW <= set(dropped)
+    episode_env = _env(_block(stack.write_overlay().read_text(), "episode"))
+    assert not (PG | SNOW | AIRFLOW) & set(episode_env)
+
+
+def test_a_postgres_or_snowflake_box_keeps_its_warehouse_variables(world, tmp_path,
+                                                                   no_docker):
+    pg, _ = _stack(world, tmp_path, "p", profile="de/postgres").profile_variables()
+    assert not PG & set(pg) and SNOW <= set(pg)
+    sf, _ = _stack(world, tmp_path, "s", profile="de/snowflake").profile_variables()
+    assert not SNOW & set(sf) and PG <= set(sf)

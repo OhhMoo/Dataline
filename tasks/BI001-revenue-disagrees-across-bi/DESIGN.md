@@ -143,7 +143,7 @@ copies; the oracle is the dbt metric written as SQL by hand
 | the oracle, the perturbation, the pristine copies | grading zone, a sibling of the world root | no: never mounted, never in a gateway config |
 | the faults' description | `world/world/themes/commerce_analytics/gen.py`, theme.yaml | no: not copied into the world |
 | ANA-241's `authoring` note | var/workflow | stripped by the services; the native harness strips the staged copy; not mounted in the container topology |
-| the services' published state | `<rollout>/audit/bi` | **yes in the container topology**: /audit is a read-write bind (the shims append the audit log there). A subject could write a service's state file instead of publishing. See §10. |
+| the services' published state | `<rollout>/service-state/bi` | no: mounted into native-services only; P7 asserts nothing else mounts it, and a file forged into `/audit/bi` changes nothing served or staged (fixed 2026-10-04, commit e76f287; it was `<rollout>/audit/bi` and writable before) |
 
 ## 7. Pre-registration (2026-10-04, before any model runs)
 
@@ -190,16 +190,11 @@ the scripted subject of a real harness rollout on either topology.
 
 ## 10. Known limitations
 
-- **/audit is writable from the episode** (container topology), and the BI
-  services keep their state under it (`bi_state_dir` defaults to
-  `<audit_dir>/bi`). A subject that wrote a state file directly would be
-  graded as if it had published. Moving the services' state to a directory the
-  episode does not mount is a gateway / compose change (`--bi-state` on
-  native-services, mounted only there) outside this task.
-- **git refuses `/workspace` in the container** ("dubious ownership": the
-  agent is root, the bind is owned by the host user) until told it is safe.
-  Realistic and self-explaining, but every BI001 episode pays one round trip
-  for it; `safe.directory` in the episode image would remove it.
+- **Fixed 2026-10-04 (e76f287): the services' state was under the writable
+  /audit.** It now lives in `<rollout>/service-state`, mounted into
+  native-services only, and `bistate.py` stages only from there.
+- **Fixed 2026-10-04 (e76f287): git refused `/workspace` in the container**
+  ("dubious ownership"); the image now sets `safe.directory /workspace`.
 - **Fixed 2026-10-04: the discovery files named a Postgres and a Snowflake
   warehouse** on this box, whose warehouse is the DuckDB file. On a profiled
   world they now follow the profile's warehouse plug

@@ -62,7 +62,8 @@ entrypoint      = "tests/grade.py"
 manifest        = "tests/manifest.yaml"
 artifact        = "/workspace/final_report.json"
 # The published state of each vendor lives with its service, outside the
-# world tree (<bi_state_dir>, by default <audit_dir>/bi); the harness stages
+# world tree and out of the episode's reach (<rollout>/service-state/bi,
+# mounted into native-services only); the harness stages
 # it into the grading zone after teardown (tasks/harness/bistate.py) and hands
 # its path to the grader as {bi_state}. Every number is re-rendered from the
 # staged files by world.semantic: no cache, no service response, is an outcome.

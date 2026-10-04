@@ -210,8 +210,12 @@ def test_the_launcher_moves_only_the_state(tmp_path):
     config = native_services.services_config(world, audit, state)
     derived = json.loads(world_gateway_config(world, audit))
     assert config["bi_state_dir"] == str(state / "bi")
-    assert {k: v for k, v in config.items() if k != "bi_state_dir"} == \
-        {k: v for k, v in derived.items() if k != "bi_state_dir"}
+    # the observability plane's records (samples, alarm transitions, deploys)
+    # move with it: under /audit they were writable from the episode too
+    assert config["obs_state_dir"] == str(state / "obs")
+    moved = {"bi_state_dir", "obs_state_dir"}
+    assert {k: v for k, v in config.items() if k not in moved} == \
+        {k: v for k, v in derived.items() if k not in moved}
     assert derived["bi_state_dir"] == str((audit / "bi").resolve())   # the old place
     rc = native_services.main(["--state-dir", str(state), "--print-only", "--",
                                "--audit", str(audit), "--world", str(world),

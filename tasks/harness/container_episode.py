@@ -849,6 +849,16 @@ MOUNTS_OVERLAY_NAME = "compose.native-mounts.yml"
 #: MinIO's port, published on loopback beside the nine so the surface gate's
 #: signed bucket listing has somewhere to go.
 MINIO_PORT = 9000
+#: The static table's backend variables, by the plug that serves them: a
+#: profiled box keeps a group only when its profile plugs that backend
+#: (`profile_variables`). Unprofiled boxes keep all of them, as before.
+BACKEND_ENV = {
+    "postgres": ("PGHOST", "PGPORT", "PGDATABASE", "PGUSER", "PGPASSWORD"),
+    "snowflake": ("SNOWFLAKE_HOST", "SNOWFLAKE_ACCOUNT", "SNOWFLAKE_USER",
+                  "SNOWFLAKE_PASSWORD"),
+    "airflow": ("AIRFLOW_API_URL", "AIRFLOW_USER", "AIRFLOW_PASSWORD"),
+}
+
 #: Each vendor service's variables in the `episode` environment: the URL
 #: `agent_under_test.NATIVE_SERVICES` names, and the fake credentials beside it.
 #:
@@ -1818,6 +1828,15 @@ class NativeContainerEpisode:
         if not with_store:
             dropped += ["AWS_ENDPOINT_URL", "AWS_ACCESS_KEY_ID",
                         "AWS_SECRET_ACCESS_KEY", "AWS_DEFAULT_REGION"]
+        # The backends follow the profile's PLUGS, as the world's own discovery
+        # files do (world/native_workspace.py): a DuckDB box gets no PG*, no
+        # SNOWFLAKE_*, and no AIRFLOW_* unless Airflow is its orchestrator.
+        warehouses = set(profile.slots.get("warehouse", ()))
+        for plug, names in BACKEND_ENV.items():
+            slot = "orchestrator" if plug == "airflow" else "warehouse"
+            plugged = profile.slots.get(slot, ()) if slot != "warehouse" else warehouses
+            if plug not in plugged:
+                dropped += list(names)
         added: dict[str, str] = {}
         for name in profile.services:
             if name in aut.PLUG_SERVICES:
