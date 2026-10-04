@@ -57,19 +57,28 @@ pages:
 
       ## Dashboards
 
+      The Executive Overview exists three times, one build per BI tool, all
+      over the same `Commerce` model: leadership reads it in Power BI, Sales
+      rebuilt it in Tableau when they moved there, and Finance rebuilt it in
+      Sigma for the close. Each build is a project in the repo, and every one
+      of them must agree with the dbt metrics.
+
       | dashboard | tool | owner | project in the repo |
       |---|---|---|---|
       | Executive Overview | Power BI | Hanna | `bi/powerbi` |
-      | Sales Overview | Tableau | Lucia | `bi/tableau` |
-      | Customer Health | Sigma | Sade | `bi/sigma` |
+      | Executive Overview (Sales' build) | Tableau | Lucia | `bi/tableau` |
+      | Executive Overview (Finance's build) | Sigma | Mia | `bi/sigma` |
+      | Sales Overview | Tableau | Lucia | none - edited on the server |
+      | Customer Health | Sigma | Sade | none - edited on the server |
 
       `dbt_project/models/exposures.yml` lists what each one reads.
-    version: 5
+    version: 6
     author: hkowalski
     last_edited_by: hkowalski
-    last_edited_at: "-36d 15:10"
-    edit_comment: dashboards table after the PBIP move
+    last_edited_at: "-30d 10:20"
+    edit_comment: the three Executive Overview builds
     history:
+      - {version: 5, at: "-36d 15:10", by: hkowalski, comment: "dashboards table after the PBIP move"}
       - {version: 4, at: "-130d 11:20", by: lmorales, comment: "Sales Overview moved to Tableau"}
       - {version: 3, at: "-260d 10:00", by: hkowalski, comment: "semantic layer"}
       - {version: 2, at: "-400d 14:30", by: tbrennan, comment: "schedule"}
@@ -177,19 +186,22 @@ pages:
       - **Shipping Revenue** - shipping charged on completed orders. Finance's
         revenue line is Net Revenue + Shipping Revenue; ours is not.
 
-      Two Executive Overview measures live only in the Power BI model because
-      the semantic layer cannot express them: **Segment Share** (Net Revenue
-      over Net Revenue across all segments) and **List Price Revenue**
-      (quantity x the product's current list price).
+      Two Executive Overview measures are not in the semantic layer, because
+      MetricFlow cannot express them, so each BI model defines its own:
+      **Segment Share** (Net Revenue over Net Revenue across all segments;
+      Power BI and Tableau - Sigma has no way to say it, so Finance's build
+      leaves it out) and **List Price Revenue** (quantity x the product's
+      current list price; all three).
 
       Segments are the account's CURRENT segment: an account upgraded from SMB
       to Enterprise counts as Enterprise for all of its history.
-    version: 4
+    version: 5
     author: hkowalski
     last_edited_by: hkowalski
-    last_edited_at: "-54d 11:30"
-    edit_comment: Finance's revenue line, after ANA-205
+    last_edited_at: "-30d 10:40"
+    edit_comment: the Tableau and Sigma builds carry their own measures too
     history:
+      - {version: 4, at: "-54d 11:30", by: hkowalski, comment: "Finance's revenue line, after ANA-205"}
       - {version: 3, at: "-200d 09:40", by: rdesai, comment: "Segment Share, List Price Revenue"}
       - {version: 2, at: "-250d 15:00", by: hkowalski, comment: "YTD, LY"}
       - {version: 1, at: "-260d 10:10", by: hkowalski, comment: null}
@@ -339,34 +351,53 @@ pages:
       not been retired; follow this one.
 
       Every dashboard is a project in the repo under `bi/`, changed by pull
-      request, checked by CI, and promoted by tooling. Nobody publishes from a
-      desktop client to production.
+      request, checked by CI, and published by tooling. Nobody publishes from
+      a desktop client to production. The repo is the source of truth: CI
+      republishes main, so anything published that is not committed is
+      overwritten by the next merge.
 
       ## Power BI - `bi/powerbi`
 
       A PBIP project: the semantic model as TMDL, the report as PBIR. Open the
       `.pbip` in Desktop to edit, commit the text files. Merging to main
-      deploys to the dev workspace; the deployment pipeline promotes
-      dev -> test -> prod. Production is whatever the pipeline last promoted.
+      deploys the semantic model to the `Commerce Analytics` workspace through
+      the Fabric API (`updateDefinition`) and refreshes it through the Power
+      BI REST API. It is an import model: what the report shows is the last
+      refresh.
 
       ## Tableau - `bi/tableau`
 
-      The workbook and its published data source as XML (`.twb`, `.tds`). CI
-      publishes with `tabcmd publish --overwrite` to the `commerce` site,
-      using the service account's credentials from the vault - never
-      embedded in the file.
+      The published data source and the workbook as XML
+      (`datasources/*.tds`, `workbooks/*.twb`). CI signs in to the default
+      site with the service account's personal access token and publishes
+      with tabcmd:
 
-      ## Refreshes are not releases
+          tabcmd login --server "$TABLEAU_SERVER_URL" --token-name "$TABLEAU_PAT_NAME" --token-value "$TABLEAU_PAT_SECRET"
+          tabcmd publish bi/tableau/datasources/Commerce.tds --name Commerce --overwrite
 
-      Publishing does not refresh anything. Every dashboard is refreshed by
-      the 06:00 `bi_refresh` job (`dags/bi_refresh.py`); trigger it if a
-      change has to show before then.
+      The workbooks read the published data source, so a data source change
+      needs no workbook publish. The connection is live; there is no extract
+      to refresh.
 
       ## Sigma - `bi/sigma`
 
-      Workbooks are exported as JSON through the Sigma API and committed.
-      Promotion is a version tag applied through the API; viewers see the
-      tagged version, not the draft.
+      Each file is what the Sigma API returns for the document, and CI
+      publishes it back the same way: a workbook with
+      `PUT /v2/workbooks/{workbookId}/contents`, the data model with
+      `PUT /v2/dataModels/{dataModelId}/spec`, after `POST /v2/auth/token`
+      with the API client's credentials. Live connection, nothing to refresh.
+
+      ## By hand, in an incident
+
+      On call can run the same steps from a checkout of main with the
+      variables in `.envrc`. Commit first, publish what you committed, and
+      check the published numbers afterwards - not your local files.
+
+      ## Refreshes are not releases
+
+      Publishing a Tableau or Sigma change shows at once. The legacy SQL
+      dashboards are refreshed by the 06:00 `bi_refresh` job
+      (`dags/bi_refresh.py`); trigger it if a change has to show before then.
 
       ## Checks before you merge
 
@@ -374,19 +405,20 @@ pages:
         (`dbt_project/models/semantic/metrics.yml`).
       - The PR names the exposure it changes (`models/exposures.yml`).
       - Not during a close: see ae/policies/month-end-freeze.
-    version: 2
+    version: 3
     author: hkowalski
     last_edited_by: hkowalski
-    last_edited_at: "-38d 14:00"
-    edit_comment: written up after the third hand publish got overwritten
+    last_edited_at: "-30d 11:05"
+    edit_comment: how each tool is published, and the by-hand path
     history:
+      - {version: 2, at: "-38d 14:00", by: hkowalski, comment: "written up after the third hand publish got overwritten"}
       - {version: 1, at: "-38d 11:20", by: hkowalski, comment: null}
     authoring:
       kind: current_and_contradicting
       contradicts: [ae/runbooks/publishing-dashboards]
       note: >-
         CA-K8. The page that wins, and it says so in its own first paragraph
-        rather than in a field. 38 days old against the other page's 170, and
+        rather than in a field. 30 days old against the other page's 170, and
         kb_list serves both ages. It is the written form of analytics-eng/0004
         and is still not linked from the stale page. The bi/ layout it
         describes is the one workspace/bi/README.md describes.

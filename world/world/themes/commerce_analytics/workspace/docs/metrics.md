@@ -32,17 +32,22 @@ Shipping Revenue. Ours is not, and that is on purpose (ANA-205, ANA-229).
 | AOV | Net Revenue / Completed Orders |
 | Units | quantity on order lines, whatever the order's status |
 
-## Only in the Power BI model
+## Not in the semantic layer
 
-MetricFlow cannot express these, so they live as DAX measures in
-`bi/powerbi` and nowhere else:
+MetricFlow cannot express these, so each BI model defines its own (a DAX
+measure in `bi/powerbi`, a calculated field in `bi/tableau`, a metric in
+`bi/sigma`) and there is no dbt metric to reconcile them against:
 
 - **Segment Share** - Net Revenue / Net Revenue with the segment filter
-  removed.
+  removed. Power BI and Tableau; Sigma has no formula that drops one filter,
+  so Finance's build leaves it out.
 - **List Price Revenue** - quantity x the product's CURRENT list price
-  (`dim_product.unit_price`). It differs from Net Revenue's basis for every
-  product whose price has changed (the July 2025 and January 2026 price
-  lists) and for refunded and cancelled orders.
+  (`dim_product.unit_price`). All three. It differs from Net Revenue's basis
+  for every product whose price has changed (the July 2025 and January 2026
+  price lists) and for refunded and cancelled orders.
+
+Every other measure on the Executive Overview - in all three builds - is a
+dbt metric under the same label, and the dbt metric is the definition.
 
 ## Dimensions
 

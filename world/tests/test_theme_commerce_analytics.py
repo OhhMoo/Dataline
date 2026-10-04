@@ -357,7 +357,12 @@ class CommerceAnalyticsThemeTest(unittest.TestCase):
     def test_exposures_reference_existing_models(self):
         manifest = self.manifest()
         exposures = {e["name"]: e for e in manifest["exposures"].values()}
-        self.assertEqual(set(exposures), {"executive_overview", "sales_overview",
+        # The Executive Overview three times - leadership's (Power BI), Sales'
+        # (Tableau) and Finance's (Sigma) builds, which is what the vendor
+        # projects in bi/ are (gen.bi_projects) - and the dashboards that are
+        # not in the repo.
+        self.assertEqual(set(exposures), {"executive_overview", "executive_overview_tableau",
+                                          "executive_overview_sigma", "sales_overview",
                                           "customer_health", "finance_close_pack"})
         for name, exposure in exposures.items():
             self.assertTrue(exposure["owner"]["email"], name)

@@ -13,10 +13,15 @@ production from a desktop client.
 Not every deployment runs all three tools. A directory that is not here is a
 tool this environment does not use.
 
-Each project is that tool's build of the Executive Overview over the same
-`Commerce` model. Where a tool has no exact way to say a measure, its project
-leaves the measure out rather than approximating it: Revenue LY and YoY Growth
-(time intelligence) are Power BI only, and Sigma has no Segment Share.
+Each project is one team's build of the Executive Overview over the same
+`Commerce` model: leadership's in Power BI, the one Sales rebuilt in Tableau,
+and the one Finance rebuilt in Sigma (`dbt_project/models/exposures.yml`).
+Where a tool has no exact way to say a measure, its project leaves the measure
+out rather than approximating it: Revenue LY and YoY Growth (time
+intelligence) are Power BI only, and Sigma has no Segment Share.
+
+How each one is published - and why a change that is not committed does not
+survive - is the wiki's ae/runbooks/bi-release-process.
 
 ## The semantic layer
 
@@ -45,9 +50,12 @@ change.
 
 ## Refreshes
 
-One job refreshes every dashboard: `bi_refresh`, 06:00 UTC
-(`dags/bi_refresh.py` -> `./run.sh refresh` ->
-`scripts/refresh_dashboards.py`). It recomputes each dashboard's tiles from
-the marts, stores them as the dashboards' cache, and logs the refresh, with the
-newest business date the tiles could see, to `raw.bi_refresh_history`. It does
-not wait for the nightly dbt build.
+Tableau and Sigma read the warehouse live. The Power BI model is an import
+model: it shows what its last refresh loaded, and a deploy refreshes it.
+
+The certified SQL behind the tiles (the panel definitions the BI plane serves)
+is refreshed by one job: `bi_refresh`, 06:00 UTC (`dags/bi_refresh.py` ->
+`./run.sh refresh` -> `scripts/refresh_dashboards.py`). It recomputes each
+dashboard's tiles from the marts, stores them as the dashboards' cache, and
+logs the refresh, with the newest business date the tiles could see, to
+`raw.bi_refresh_history`. It does not wait for the nightly dbt build.

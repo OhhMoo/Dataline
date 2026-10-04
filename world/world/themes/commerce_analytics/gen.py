@@ -702,28 +702,173 @@ def bi_projects(seed: dict) -> dict:
     """What each BI vendor's project in workspace/bi/ is, when the seed's
     profile plugs that vendor: {vendor: (Model, (Report, ...))}.
 
-    One model and one report, the way each tool's team built them: the
-    `Commerce` semantic model over the five `warehouse` marts (the star schema
+    One model and one report per tool, because the Executive Overview exists
+    three times: leadership's in Power BI, the copy Sales rebuilt in Tableau
+    when they moved there, and the copy Finance rebuilt in Sigma for the close
+    (exposures.yml, kb ae/architecture/analytics-stack). Each is the `Commerce`
+    semantic model over the five `warehouse` marts (the star schema
     world/world/semantic/examples.py fixes and this theme's dbt project
-    builds) and the `Executive Overview` report - the dashboard exposures.yml
-    and var/bi/dashboards/executive_overview.yml describe. Power BI gets the
-    model as written in DAX terms; Tableau and Sigma get their editions
+    builds) and the `Executive Overview` report. Power BI gets the model as
+    written in DAX terms; Tableau and Sigma get their editions
     (formats/tableau/examples.py, formats/sigma/examples.py), because the DAX
     model's CALCULATE overwrite, ALL(segment) and time intelligence have no
     exact Tableau calculation or Sigma formula, and a front-end refuses rather
     than approximates. On every visual the three share they compute the same
     numbers on this warehouse (world/tests/test_bi_projects.py proves it).
 
-    Pure: the star schema's names do not depend on the seed's scale knobs, so
-    `seed` is unused - and taken, so a theme whose BI does can say so.
+    `bi_faults` (seed key, OFF by default, BI_FAULTS below): defects planted in
+    a vendor's project as FIRST COMMITTED, so the vendor's fake service
+    publishes them - a dashboard that is wrong in production and wrong in git.
+    With no `bi_faults` the projects are exactly the editions above, byte for
+    byte, and every recorded hash stands.
+
+    Otherwise pure: the star schema's names do not depend on the seed's scale
+    knobs.
     """
     from world.semantic import examples
     from world.semantic.formats.sigma import examples as sigma_edition
     from world.semantic.formats.tableau import examples as tableau_edition
 
-    return {
+    projects = {
         "powerbi": (examples.commerce_model("dax"), (examples.executive_report(),)),
         "tableau": (tableau_edition.tableau_commerce_model(),
                     (tableau_edition.tableau_executive_report(),)),
         "sigma": (sigma_edition.commerce_model(), (sigma_edition.executive_report(),)),
     }
+    for fault in bi_faults(seed):
+        vendor, plant = BI_FAULTS[fault]
+        model, reports = projects[vendor]
+        projects[vendor] = plant(model, reports)
+    return projects
+
+
+# --------------------------------------------------------------------------
+# BI faults: defects a seed can switch on in a vendor's committed project
+# --------------------------------------------------------------------------
+#
+# Each is a mistake the team that owns that build made in its own tool, and
+# each leaves the tool computing a number that disagrees with the dbt metric of
+# the same name (dbt_project/models/semantic/metrics.yml) while every
+# calculation still reads as plausible. Nothing in the warehouse, the dbt
+# project or the pipeline changes: the marts are right, and so is Power BI.
+#
+#   tableau_orders_line_join   Sales' Tableau data source builds its `Orders`
+#                              logical table from Custom SQL that joins
+#                              fct_orders to fct_order_lines (so the order
+#                              sheets could show product and quantity), with no
+#                              separate Order Lines table. Every order-grain
+#                              measure is summed once per LINE: Net Revenue,
+#                              Gross Revenue and Completed Orders are fanned
+#                              out; Units and Top Products are right. The
+#                              calculated fields are the correct formulas.
+#   sigma_net_revenue_refunds  Finance's Sigma workbook does not use the data
+#                              model's Net Revenue metric: every element
+#                              computes it inline as order_amount where the
+#                              status is not `cancelled` - net of cancellations
+#                              only, so refunded orders count. AOV on the KPI
+#                              card divides that by Completed Orders. The data
+#                              model's own metrics are correct.
+#
+# Seed: `bi_faults: [tableau_orders_line_join, sigma_net_revenue_refunds]`
+# (a list; one id or both). Refused: an unknown id, and a fault in a vendor the
+# seed's profile does not plug (bi_projects.write would drop the project and
+# the fault with it, silently).
+
+#: The Custom SQL Sales' Orders logical table is built from. One row per LINE.
+TABLEAU_ORDERS_LINE_SQL = """SELECT
+  o.order_id, o.order_date, o.customer_id, o.order_status,
+  o.order_amount, o.shipping_amount,
+  l.order_line_id, l.product_id, l.quantity, l.line_amount
+FROM warehouse.fct_orders AS o
+INNER JOIN warehouse.fct_order_lines AS l ON l.order_id = o.order_id"""
+
+
+def _tableau_orders_line_join(model, reports):
+    """Sales' data source: Orders = fct_orders joined to its lines, as Custom
+    SQL; no Order Lines table; Product related to Orders through the line's
+    product_id. The measures keep their formulas; the two line measures (Units,
+    List Price Revenue) now live on Orders, which is where the joined
+    quantity column is."""
+    from dataclasses import replace
+
+    from world.semantic.expr import Agg, BinOp, Col, IterAgg, Related
+    from world.semantic.model import Column, Relationship, Table
+
+    def column(name, dtype, **kw):
+        return Column(name=name, source=name, data_type=dtype, **kw)
+
+    orders = Table("Orders", None, (
+        column("order_id", "int"), column("order_date", "date"),
+        column("customer_id", "int", hidden=True), column("order_status", "string"),
+        column("order_amount", "decimal"), column("shipping_amount", "decimal"),
+        column("order_line_id", "int"), column("product_id", "int", hidden=True),
+        column("quantity", "int"), column("line_amount", "decimal")),
+        source_sql=TABLEAU_ORDERS_LINE_SQL)
+    tables = tuple(orders if t.name == "Orders" else t for t in model.tables
+                   if t.name != "Order Lines")
+    relationships = (
+        Relationship("Orders", "customer_id", "Customer", "customer_id"),
+        Relationship("Orders", "order_date", "Date", "date_day"),
+        Relationship("Orders", "product_id", "Product", "product_id"),
+    )
+    line_measures = {
+        "Units": Agg("sum", Col("Orders", "quantity")),
+        "List Price Revenue": IterAgg("sum", "Orders",
+                                      BinOp("*", Col("Orders", "quantity"),
+                                            Related("Product", "unit_price"))),
+    }
+    measures = tuple(replace(m, table="Orders", expr=line_measures[m.name])
+                     if m.name in line_measures else m for m in model.measures)
+    return replace(model, tables=tables, relationships=relationships,
+                   measures=measures), reports
+
+
+def _sigma_net_revenue_refunds(model, reports):
+    """Finance's workbook: Net Revenue inline as SumIf(order_amount, status !=
+    "cancelled") on every element, and AOV as that over Completed Orders. The
+    data model is untouched."""
+    from dataclasses import replace
+
+    from world.semantic.expr import BinOp, Col, Divide, If, IterAgg, Lit, MeasureRef
+
+    net = IterAgg("sum", "Orders",
+                  If(BinOp("<>", Col("Orders", "order_status"), Lit("cancelled")),
+                     Col("Orders", "order_amount")))
+    inline = {"Net Revenue": net, "AOV": Divide(net, MeasureRef("Completed Orders"))}
+
+    def visual(v):
+        return replace(v, values=tuple((label, inline.get(label, expr))
+                                       for label, expr in v.values))
+
+    return model, tuple(
+        replace(r, pages=tuple(replace(p, visuals=tuple(visual(v) for v in p.visuals))
+                               for p in r.pages))
+        for r in reports)
+
+
+#: fault id -> (the vendor whose project it is planted in, the planter).
+BI_FAULTS = {
+    "tableau_orders_line_join": ("tableau", _tableau_orders_line_join),
+    "sigma_net_revenue_refunds": ("sigma", _sigma_net_revenue_refunds),
+}
+
+
+def bi_faults(seed: dict) -> tuple[str, ...]:
+    """The seed's `bi_faults`, validated, in catalogue order; () when absent."""
+    named = seed.get("bi_faults") or ()
+    if isinstance(named, str):
+        named = (named,)
+    if not isinstance(named, (list, tuple)) or not all(isinstance(f, str) for f in named):
+        raise SystemExit(f"seed `bi_faults` must be a list of fault ids, got {named!r}")
+    unknown = sorted(set(named) - set(BI_FAULTS))
+    if unknown:
+        raise SystemExit(f"seed `bi_faults` names unknown fault(s) {unknown}; "
+                         f"commerce_analytics declares {sorted(BI_FAULTS)}")
+    plugged = set(((seed.get("profile") or {}).get("plugs") or {}).get("bi") or ())
+    for fault in named:
+        vendor = BI_FAULTS[fault][0]
+        if vendor not in plugged:
+            raise SystemExit(f"seed `bi_faults` plants {fault!r} in {vendor}, but the "
+                             f"seed's profile does not plug {vendor} "
+                             f"(profile.plugs.bi: {sorted(plugged)})")
+    return tuple(f for f in BI_FAULTS if f in set(named))

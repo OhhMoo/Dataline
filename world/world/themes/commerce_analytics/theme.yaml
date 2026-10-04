@@ -11,6 +11,18 @@ dbt_profile: world_dbt
 # dashboard that disagrees with somebody else's number, a refresh that ran
 # before the data did, a filter a VP wants. The pipeline under it is ordinary
 # and, by default, healthy - every fault below ships OFF.
+#
+# BI faults (gen.py BI_FAULTS) are the other kind: not something the clock
+# does to the pipeline, but a mistake a team made in its own BI project, in
+# the repo's first commit and therefore in what that vendor's service
+# publishes. A seed whose profile plugs the vendor switches one on with
+# `bi_faults: [<id>, ...]`; without the key nothing is planted and every
+# recorded hash stands. Declared there, with what each plants:
+#   tableau_orders_line_join   Sales' Tableau data source: Orders built from
+#                              Custom SQL joining fct_orders to its lines -
+#                              every order-grain measure summed once per line
+#   sigma_net_revenue_refunds  Finance's Sigma workbook: Net Revenue inline as
+#                              "status is not cancelled" - refunds included
 
 # The human-context plane (gateway/SURFACES.md#workflow). Content is data, in
 # workflow/{users,issues,chat,kb}.yaml; timestamps are offsets from the world

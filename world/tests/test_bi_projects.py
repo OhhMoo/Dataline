@@ -396,3 +396,105 @@ def test_segment_share_agrees_where_both_vendors_have_it(rendered, commerce_vend
     assert shares["powerbi"] == shares["tableau"]
     total = sum(float(v) for _, v in shares["powerbi"])
     assert abs(total - 1.0) < 1e-12
+
+
+# ======================================================================
+# 5. BI faults (`bi_faults:`): a team's mistake in its own committed project
+# ======================================================================
+FAULTS = ["tableau_orders_line_join", "sigma_net_revenue_refunds"]
+
+
+@pytest.fixture(scope="module")
+def commerce_faulted(tmp) -> Path:
+    """commerce_analytics plugging all three vendors with both BI faults on."""
+    seed = _seed(tmp, "c_faults", COMMERCE_SEED, profile=ALL_VENDORS, native=True,
+                 bi_faults=FAULTS)
+    return build.build(seed, tmp / "c_faults")
+
+
+@pytest.mark.parametrize("bad, words", [
+    (["tableau_orders_line_joins"], ("unknown fault", "tableau_orders_line_join")),
+    ("nope", ("unknown fault",)),
+    ({"tableau_orders_line_join": True}, ("must be a list",)),
+])
+def test_an_unknown_or_malformed_bi_fault_is_refused(bad, words):
+    gen = load_theme("commerce_analytics").gen
+    with pytest.raises(SystemExit) as info:
+        gen.bi_faults({"bi_faults": bad, "profile": ALL_VENDORS})
+    for word in words:
+        assert word in str(info.value)
+
+
+def test_a_bi_fault_in_an_unplugged_vendor_is_refused_before_anything_is_built(tmp):
+    profile = {**DA, "plugs": {"bi": ["powerbi", "sigma"]}}
+    seed = _seed(tmp, "c_unplugged_fault", COMMERCE_SEED, profile=profile,
+                 bi_faults=["tableau_orders_line_join"])
+    with pytest.raises(SystemExit) as info:
+        build.build(seed, tmp / "c_unplugged_fault")
+    assert "tableau" in str(info.value) and "does not plug" in str(info.value)
+
+
+def test_no_bi_faults_is_the_unfaulted_hook(projects):
+    gen = load_theme("commerce_analytics").gen
+    seed = yaml.safe_load(COMMERCE_SEED.read_text(encoding="utf-8"))
+    assert gen.bi_faults(seed) == ()
+    for empty in (None, []):
+        assert gen.bi_projects({**seed, "bi_faults": empty}) == projects
+
+
+def test_faults_move_only_the_planted_files_and_are_in_the_first_commit(commerce_faulted,
+                                                                         commerce_vendors):
+    clean, faulted = commerce_vendors[0] / "workspace", commerce_faulted / "workspace"
+    moved = set()
+    for rel in VENDOR_DIRS:
+        a, b = _tree(clean / rel), _tree(faulted / rel)
+        assert set(a) == set(b), rel
+        moved |= {f"{rel}/{p}" for p in a if a[p] != b[p]}
+    # Sales' data source (and the workbook's cached copy of its fields) and
+    # Finance's workbook. Power BI, the Sigma data model and everything outside
+    # bi/ are byte for byte the clean build's.
+    assert moved == {"bi/tableau/datasources/Commerce.tds",
+                     "bi/tableau/workbooks/Executive Overview.twb",
+                     "bi/sigma/workbooks/executive-overview.json"}
+    a, b = fingerprint.semantic(commerce_vendors[0]), fingerprint.semantic(commerce_faulted)
+    assert {k for k in set(a) | set(b) if a.get(k) != b.get(k)} == {"workspace"}
+    committed = _committed(faulted)
+    assert {"bi/tableau/datasources/Commerce.tds",
+            "bi/sigma/workbooks/executive-overview.json"} <= committed
+    status = subprocess.run(["git", "-C", str(faulted), "status", "--porcelain"],
+                            capture_output=True, text=True, check=True).stdout
+    assert status == ""
+
+
+def test_faulted_projects_read_back_as_the_hook_planted_them(commerce_faulted):
+    gen = load_theme("commerce_analytics").gen
+    seed = {**yaml.safe_load(COMMERCE_SEED.read_text(encoding="utf-8")),
+            "profile": ALL_VENDORS, "bi_faults": FAULTS}
+    planted = gen.bi_projects(seed)
+    for vendor, front_end in (("powerbi", powerbi), ("tableau", tableau), ("sigma", sigma)):
+        got = front_end.read_project(commerce_faulted / "workspace" / "bi" / vendor,
+                                     warehouse=commerce_faulted / DB)
+        assert got == planted[vendor], vendor
+
+
+def test_each_fault_computes_the_wrong_number_it_is_declared_for(commerce_faulted):
+    """The three KPI cards disagree, each for its declared reason, measured
+    against hand-written SQL on the built warehouse. Power BI stays right."""
+    root = commerce_faulted
+    kpis = {}
+    for vendor, front_end in (("powerbi", powerbi), ("tableau", tableau), ("sigma", sigma)):
+        model, (report,) = front_end.read_project(root / "workspace" / "bi" / vendor,
+                                                  warehouse=root / DB)
+        kpis[vendor] = render.render_report(model, report, root / DB)["Overview"]["KPIs"]
+    right = hand(root, HAND_SQL[("Overview", "KPIs")])[0]
+    assert kpis["powerbi"]["rows"][0] == right
+    fanned = hand(root, "SELECT sum(o.order_amount) FILTER (WHERE o.order_status = "
+                        "'completed'), count(*) FILTER (WHERE o.order_status = 'completed') "
+                        "FROM warehouse.fct_orders o JOIN warehouse.fct_order_lines l "
+                        "USING (order_id)")[0]
+    assert kpis["tableau"]["rows"][0][:2] == fanned
+    with_refunds = hand(root, "SELECT sum(order_amount) FROM warehouse.fct_orders "
+                              "WHERE order_status <> 'cancelled'")[0][0]
+    sigma_net, sigma_completed, _aov = kpis["sigma"]["rows"][0]
+    assert (sigma_net, sigma_completed) == (with_refunds, right[1])
+    assert len({kpis[v]["rows"][0][0] for v in kpis}) == 3, kpis
