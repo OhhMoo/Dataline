@@ -223,6 +223,16 @@ CONTROL = {"AIRFLOW_API_URL": "http://airflow.internal:8080/api/v2",
 #: the episode container sees it, which is `$HOME/.dbt` with `home/` bound at
 #: /root by compose.native.yml.
 DBT = {"DBT_PROFILES_DIR": "/root/.dbt"}
+#: `CONTAINER_HOME` is that default HOME. A box whose engineer has a different
+#: HOME (the Harbor export runs the agent as `engineer`, HOME /home/engineer)
+#: passes `home=` to `environment`, `envrc_block` and `write_for_built_world`,
+#: and `DBT_PROFILES_DIR` follows it; the default writes the same bytes as before.
+CONTAINER_HOME = "/root"
+
+
+def dbt_env(home: str = CONTAINER_HOME) -> dict[str, str]:
+    """`DBT` for a box whose HOME is `home`: `$HOME/.dbt` (`DBT` at the default)."""
+    return {"DBT_PROFILES_DIR": f"{str(home).rstrip('/')}/.dbt"}
 SNOWFLAKE = {"SNOWFLAKE_HOST": "snowflake.internal",
              "SNOWFLAKE_ACCOUNT": "acme", "SNOWFLAKE_USER": FAKE_USER,
              "SNOWFLAKE_PASSWORD": FAKE_TOKEN}
@@ -296,7 +306,7 @@ def _services(slots, plugs=None):
     return [s for s in SERVICES if _chosen(s.name, slots, plugs)] + vendors
 
 
-def environment(slots=None, plugs=None) -> dict[str, str]:
+def environment(slots=None, plugs=None, home: str = CONTAINER_HOME) -> dict[str, str]:
     """Every variable the native box exports, as one ordered mapping.
 
     The single definition. `.envrc`, `services.toml` and the test that compares
@@ -306,7 +316,7 @@ def environment(slots=None, plugs=None) -> dict[str, str]:
     env: dict[str, str] = {}
     for _, mapping in _backends(slots):
         env.update(mapping)
-    env.update(DBT)
+    env.update(dbt_env(home))
     for service in _services(slots, plugs):
         env[service.url_var] = service.url
         for name in service.alias_vars:
@@ -320,7 +330,7 @@ def environment(slots=None, plugs=None) -> dict[str, str]:
     return env
 
 
-def envrc_block(slots=None, plugs=None) -> str:
+def envrc_block(slots=None, plugs=None, home: str = CONTAINER_HOME) -> str:
     """The delimited block appended to (or replaced inside) `workspace/.envrc`."""
     lines = [
         ENVRC_BEGIN,
@@ -337,7 +347,7 @@ def envrc_block(slots=None, plugs=None) -> str:
         lines += ["", comment]
         emit(mapping)
     lines += ["", "# Where a bare `dbt` finds its profile."]
-    emit(DBT)
+    emit(dbt_env(home))
     for service in _services(slots, plugs):
         lines += ["", f"# {service.name} - {service.note}"]
         lines.append(f'export {service.url_var}="{service.url}"')
@@ -612,11 +622,12 @@ def _write(path: Path, text: str, authored: str | None = None) -> Path:
     return path
 
 
-def write_for_built_world(root: Path, world_in_container: str = "/world") -> list[Path]:
+def write_for_built_world(root: Path, world_in_container: str = "/world",
+                          home: str = CONTAINER_HOME) -> list[Path]:
     """Write discovery files for a world that did not go through theme seed native:true.
 
     Writes:
-      workspace/.envrc          (merge envrc_block() via merge_envrc)
+      workspace/.envrc          (merge envrc_block(home) via merge_envrc)
       workspace/docs/onboarding.md  (onboarding_markdown(root, {"jobs": jobs}))
       home/.config/alkera/services.toml  (services_toml)
 
@@ -624,13 +635,17 @@ def write_for_built_world(root: Path, world_in_container: str = "/world") -> lis
 
     jobs come from var/sched/state.json key "jobs" if that file exists, else {}.
     Reuse envrc_block, merge_envrc, onboarding_markdown, services_toml, _write, HOME.
+
+    `home` is the HOME of the box the world is served on (`CONTAINER_HOME` by
+    default); the exported `DBT_PROFILES_DIR` follows it. The files are still
+    written under `<root>/home`, whatever the box calls it.
     """
     root = Path(root)
     workspace = root / "workspace"
-    home = root / HOME
+    home_dir = root / HOME
     envrc = workspace / ".envrc"
     existing = envrc.read_text(encoding="utf-8") if envrc.is_file() else ""
-    block = envrc_block()
+    block = envrc_block(home=home)
     state = root / "var" / "sched" / "state.json"
     payload = _load_json(state) or {}
     jobs = payload.get("jobs") if isinstance(payload, dict) else {}
@@ -640,7 +655,7 @@ def write_for_built_world(root: Path, world_in_container: str = "/world") -> lis
         _write(envrc, merge_envrc(existing, block), authored=block),
         _write(workspace / "docs" / "onboarding.md",
                onboarding_markdown(root, {"jobs": jobs})),
-        _write(home / ".config" / "alkera" / "services.toml",
+        _write(home_dir / ".config" / "alkera" / "services.toml",
                services_toml(world_in_container)),
     ]
 

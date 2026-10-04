@@ -183,18 +183,23 @@ def venv_env() -> dict:
     return env
 
 
-def stage_discovery(world: dict) -> dict:
+def stage_discovery(world: dict, home: str | None = None) -> dict:
     """Import write_for_built_world via episode.TRACK_A. Call it on the world root.
 
     World root = world["world_root"] if present else Path(world["workspace"]).parent.
     Return {"files": [str, ...], "root": str(root)}.
+
+    `home` is the HOME of the box the world is served on; None keeps
+    `write_for_built_world`'s default (/root). The Harbor export passes
+    /home/engineer so the `.envrc`'s DBT_PROFILES_DIR names the agent's HOME.
     """
     sys.path.insert(0, str(episode.TRACK_A))
     from world.native_workspace import write_for_built_world  # noqa: E402
 
     root = (Path(world["world_root"]) if world.get("world_root")
             else Path(world["workspace"]).parent)
-    written = write_for_built_world(root)
+    written = (write_for_built_world(root) if home is None
+               else write_for_built_world(root, home=home))
     return {"files": [str(path) for path in written], "root": str(root)}
 
 

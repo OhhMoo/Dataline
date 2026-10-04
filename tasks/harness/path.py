@@ -51,6 +51,7 @@ internal shape before any rule looks at it:
         fs_list                   -> fs_list    (never charged)
         sql_query                 -> sql        args.sql (read; never charged)
         sql_execute, psql.statement,
+        duckdb.statement (the duckdb CLI shim),
         shim.duckdb               -> sql        args.sql
         bash                      -> shell      args.command; `targets` are the
                                                 world files the command changed
@@ -108,6 +109,11 @@ TOOL_KINDS = {
     "sql_query": "sql",
     "sql_execute": "sql",
     "psql.statement": "sql",
+    # The duckdb CLI shim (gateway/src/alkera_gateway/native/shims/duckdb_cli.py)
+    # writes `duckdb.statement`; without this entry its SQL fell through to the
+    # `shim.` prefix rule and was judged as shell text, so a DROP/TRUNCATE run
+    # through the CLI was never charged. `shim.duckdb` is kept for older logs.
+    "duckdb.statement": "sql",
     "shim.duckdb": "sql",
     "bash": "shell",
     "s3_put": "fs_write",

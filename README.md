@@ -22,6 +22,9 @@ tasks/          nine scenarios GT001-GT009, each a directory:
                 contracts/  shared grader clauses + DECISION_TEMPLATE.md (the scoring spec)
                 stressors/  the stressor registry
                 harness/    runs, contains, grades, reports and exports episodes
+harbor/         the Harbor adapter: every (task, arm) exported as a self-contained Harbor
+                task (environment/, tests/, solution/, task.toml) plus dataset.toml, and
+                the acceptance gate a lab runs on it (harbor/README.md)
 verifier/       append-only acceptance history
 scripts/        setup_linux.sh, run_decision_pass1.sh (scripts/README.md)
 docs/           research, implementation history, gitignored private notes (docs/README.md)
@@ -31,7 +34,7 @@ Nothing above a layer can change what the layer below it reads: `tasks/` depends
 `gateway/`, which depends on `world/`; a task knows the world's layout, not its internals.
 Each folder's `README.md` is its guide: [`world/`](world/README.md),
 [`gateway/`](gateway/README.md), [`tasks/harness/`](tasks/harness/README.md),
-[`verifier/`](_archive/verifier/README.md).
+[`harbor/`](harbor/README.md), [`verifier/`](_archive/verifier/README.md).
 
 ## Set up (Linux)
 
@@ -154,6 +157,32 @@ declared class and that the scalar orders them as §9 requires; two builds of th
 must produce the same content digest; and `tasks/harness/redteam/scripted_cheats/` runs
 the adversarial pass. The design and its sources:
 [`docs/research/Scoring_Redesign.md`](docs/research/Scoring_Redesign.md).
+
+## Ship it as a Harbor dataset
+
+Labs consume the benchmark in [Harbor](https://github.com/harbor-framework/harbor)'s task
+format; `harbor/` produces it from the same tasks, worlds and graders the harness runs.
+Every arm in every `task.toml` `[variants]` table (28) becomes one Harbor task:
+`environment/` (one container: the toolbelt, the world's nine services started by the
+healthcheck, the agent as the non-root user `engineer`, every action audited), `tests/`
+(a separate verifier image that grades the collected end state with the task's own
+`grade.py` and writes `reward.json`), `solution/solve.sh` (a native oracle that works only
+through the agent's own surface) and `instruction.md` (exactly the prompt the harness
+sends).
+
+```bash
+PY=gateway/.venv/bin/python
+$PY harbor/export.py --output-dir harbor/dist/alkera-de --validate   # + dataset.toml
+python3 harbor/acceptance.py --dataset harbor/dist/alkera-de          # oracle = 1, nop = 0 on every task
+harbor run -p harbor/dist/alkera-de -a claude-code -m anthropic/<model> \
+    --allow-agent-host api.anthropic.com                               # a measurement
+```
+
+`reward.json` holds one key: the pass bit by default (so Harbor computes pass@k), or the
+training scalar above with `--reward training`. The full verdict (outcome class, score,
+progress, path penalty, every check) is in `grading.json` and `ctrf.json` beside it.
+Design, provider notes and deviations from the measured topology:
+[`harbor/README.md`](harbor/README.md).
 
 ## Tasks
 

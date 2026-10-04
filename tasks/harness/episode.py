@@ -130,8 +130,24 @@ WORLD_PLANE_KEYS = ("workflow_dir", "observability", "obs_samples", "ingest")
 WORLD_WAREHOUSE_KEYS = ("warehouse_name", "warehouses", "initial_world_fp")
 
 
+# Where each plane lives on the 9.2.1 layout, for a builder that seeds a plane
+# without publishing its key (GT002's builder seeds `var/workflow` on its
+# decision arm and publishes no `workflow_dir`). Only a plane that EXISTS on
+# disk is filled in, so a world that genuinely has none still reports it
+# absent, exactly as above. The same paths `serve.world_gateway_config` uses,
+# which is what the container topology always ran on.
+WORLD_PLANE_LAYOUT = {"workflow_dir": "var/workflow",
+                      "observability": "var/obs/observability.yml",
+                      "ingest": "var/ingest/state.json"}
+
+
 def _plane_paths(world: dict) -> dict:
-    return {k: world[k] for k in WORLD_PLANE_KEYS if world.get(k)}
+    out = {k: world[k] for k in WORLD_PLANE_KEYS if world.get(k)}
+    root = world.get("world_root")
+    for key, rel in WORLD_PLANE_LAYOUT.items():
+        if key not in out and root and (Path(root) / rel).exists():
+            out[key] = str(Path(root) / rel)
+    return out
 
 
 def _warehouse_keys(world: dict) -> dict:
