@@ -723,3 +723,28 @@ SAMPLE_AIRFLOW_LOG = (
     'INFO:     127.0.0.1:40758 - "POST /api/v2/dags/vendor_feeds/dagRuns HTTP/1.1" '
     "422 Unprocessable Entity",
 )
+
+
+def test_tabcmd_is_shimmed_so_its_log_file_is_audited(native_log, tmp_path, monkeypatch):
+    """Regression, measured 2026-10-04 by tasks/harness/bi_e2e_check.py: the
+    real tabcmd 2 hard-codes a RotatingFileHandler("tabcmd.log") in the current
+    directory, so every `tabcmd` run from the repo wrote a file into the
+    workspace that no row named - an unaudited world change. Shimmed, the row
+    names it (the Tableau service's own rows record what tabcmd asked for)."""
+    bin_dir, workspace, real = tmp_path / "bin", tmp_path / "workspace", tmp_path / "real"
+    workspace.mkdir()
+    real.mkdir()
+    fake = real / "tabcmd"                      # stands in for /opt/toolbelt/bin/tabcmd
+    fake.write_text("#!/bin/sh\necho login >> tabcmd.log\n", encoding="utf-8")
+    fake.chmod(0o755)
+    written = shim_install.install(bin_dir)
+    assert bin_dir / "tabcmd" in written
+    _shimmed(bin_dir, workspace, monkeypatch)
+    monkeypatch.setenv("PATH", os.pathsep.join([os.environ["PATH"], str(real)]))
+    monkeypatch.setenv("ALKERA_SHIM_WATCH", "")
+    completed = subprocess.run([str(bin_dir / "tabcmd"), "login"], cwd=workspace,
+                               capture_output=True, text=True, timeout=120)
+    assert completed.returncode == 0, completed.stderr
+    row = read_rows(native_log)[-1]
+    assert row["tool"] == "shim.tabcmd" and row["op_class"] == "exec"
+    assert row["targets"] == ["tabcmd.log"]

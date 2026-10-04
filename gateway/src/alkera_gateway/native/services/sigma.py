@@ -920,6 +920,9 @@ def sync_connection(connection_id: str, request: Request, raw: RawBody) -> dict:
         store.state["catalog"].update(selected)
         store.state["connections"][connection_id]["lastActiveAt"] = _stamp(store.clock())
         store.save()
+        # A write: the sync replaces what Sigma's catalog says about these
+        # tables (measured 2026-10-04, bi_e2e_check.py, it was filed as a read).
+        observation.op_class = "write"
         observation.targets = [f"sigma:connection:{connection_id}"]
         observation.read_targets = sorted(selected)
         return {}

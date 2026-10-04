@@ -79,3 +79,19 @@ def test_a_scoped_row_must_actually_name_the_warehouse(tmp_path):
     named = {**dbt_row(returncode=0, watched=watched), "targets": watched}
     out, notes = unattributed(tmp_path, [named], after)
     assert out == [] and notes == []                 # explained by its own target
+
+
+def test_a_notebook_cell_that_names_the_warehouse_explains_it(tmp_path):
+    # Regression, measured 2026-10-04 by bi_e2e_check.py (N3): a Jupyter cell
+    # that rewrote the warehouse through the duckdb library wrote a row naming
+    # the file (native/notebook.py snapshots like the python shim), but
+    # `jupyter.cell` was not a warehouse-writing row, so the change quarantined
+    # HARD. It is the same kind of row as shim.python: it must name the file.
+    after = {**BEFORE, "var/warehouse/warehouse.duckdb": "b"}
+    cell = {"tool": "jupyter.cell", "op_class": "exec",
+            "targets": ["/world/var/warehouse/warehouse.duckdb"],
+            "args": {"source_sha256": "x", "execution_count": 3}}
+    assert unattributed(tmp_path, [cell], after) == ([], [])
+    silent = {**cell, "targets": []}                 # a cell that names nothing
+    out, _ = unattributed(tmp_path, [silent], after)
+    assert out == ["var/warehouse/warehouse.duckdb"]

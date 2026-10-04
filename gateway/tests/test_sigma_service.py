@@ -385,6 +385,9 @@ def test_a_new_warehouse_column_is_unknown_until_the_connection_syncs(served):
     assert r.status_code == 400 and "sync the connection" in r.json()["message"]
     assert served.ok("POST", f"/v2/connections/{conn['connectionId']}/sync",
                      json={"path": ["ANALYTICS", "WAREHOUSE", "FCT_ORDERS"]}) == {}
+    sync_row = served.rows()[-1]                     # the sync rewrites Sigma's catalog
+    assert sync_row["op_class"] == "write"
+    assert sync_row["targets"] == [f"sigma:connection:{conn['connectionId']}"]
     served.ok("PUT", f"/v2/dataModels/{dm['dataModelId']}/spec", json=dm)
     assert served.call("POST", f"/v2/connections/{conn['connectionId']}/sync",
                        json={"path": ["ANALYTICS", "WAREHOUSE", "NOPE"]}).status_code == 404
