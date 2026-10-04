@@ -49,25 +49,26 @@ conflicts with it, the R004 verdict is overruled (§7).
 
 ---
 
-## 1a. Owners and status (2026-10-03)
+## 1a. Owners and status (2026-10-04)
 
 **done** = built and unit-tested, not yet run in a container (no Docker on the dev host);
 **partial** = usable with stated gaps; **open** = not started.
 
 | item | owner | status | what is still open |
 |---|---|---|---|
-| Snowflake | Michael | partial, close to done | TLS route untested by the new tests; no task selects it; container run |
+| Snowflake | Michael | task-ready (`partial` plug) | TLS route untested by the new tests; no task selects it; container run |
 | Databricks (lakehouse) | Andrew | open | everything (§3.2 tier 1 / tier 2) |
 | dbt | Andrew | done for duckdb, postgres, snowflake | dbt-bigquery, dbt-redshift, dbt-databricks; dbt-postgres never run against a live server |
 | Airflow | Andrew | open | compose profile designed only; headless prototype archived |
-| Python / Jupyter | Andrew | done | container run; MLflow / compute nodes are separate and open |
+| Python / Jupyter | Andrew | done | container run; MLflow / compute nodes are separate and open. Notebook cells measured end to end on the host topology (`tasks/harness/evidence/bi_e2e_host.json` N1, N3) |
 | Postgres | Andrew | done | no task uses it; host topology has no Postgres bring-up |
 | BigQuery | Andrew | done (emulator) | dbt-bigquery; GCS fake; no task |
-| Semantic layer / BI-as-code | Michael | open | today's BI is YAML-of-SQL dashboards (`world/bi.py`, `bi_*`, Metabase fake); no semantic layer |
+| Semantic layer / BI-as-code | Michael | done | `world/world/semantic/` (model, expression tree, SQL compiler, render) and the dbt semantic-layer YAML front-end; `world/bi.py`'s SQL panels render through it byte-identically on every theme. Open: a `semantic_yaml` plug in the `bi` slot |
 | Redshift | Andrew | open | Postgres persona (§3.2) |
 | Spreadsheets (Excel) | Andrew | partial | `excel_close` writes real `.xlsx`, readable via `in2csv`/`unzip`; **openpyxl is only in `/opt/toolbelt`, so `pandas.read_excel` fails in ds/da images**; no formula recalculation; no task writes a workbook |
-| Tableau / Sigma (UI clones) | Michael | open | §3.5 planned file formats + REST fakes; a UI an agent drives is a larger, separate build |
-| Power BI | Michael | open | see below |
+| Tableau, Sigma | Michael | partial | `.tds`/`.twb` and workbook/data-model JSON skins over the semantic core, fake Tableau Server REST (tabcmd, tableauserverclient) and Sigma API v2. No golden values from the real products; UI clones (a UI an agent drives) not started |
+| Power BI | Michael | partial | PBIP (TMDL + PBIR) and a DAX subset over the semantic core, fake Power BI / Fabric REST with Entra client credentials. No golden values from Power BI Desktop; see below |
+| BI tasks (`commerce_analytics`, BI001) | Michael | partial | the `commerce_analytics` theme (`bi_projects` hook, `bi_faults:`) and BI001 on `da/laptop` with all three vendors: `TASK VALID` on both arms, native oracle resolved through the harness on host and container. No model run; archetypes 2 (filter context) and 3 (stale publish) and the single-vendor `da/snowflake`/`da/aws`/`da/databricks` skins not built |
 | Better sandboxing | Andrew | partial | strong base (subject sandbox, egress allowlist, containment P0–P7 on x86, authoring strip); re-measure P6/P7 with profile overlays and the `jupyter` container; bare compose name `minio` still resolves; arm64 |
 
 **Power BI difficulty.** File formats are tractable, the engine is the hard part.
@@ -105,7 +106,7 @@ server side.
 | `orchestrator` | scheduler CLI or UI/API | `./ops/sched` over `sched.internal` | `native/sched_plane.py`, `world/world/scheduler.py` |
 | `object_store` | `aws s3`, boto3 | s3mock (MCP), MinIO (native, to replace) | `storage.py`, `compose*.yml` |
 | `ingest` | connector API | Airbyte-shaped fake | `native/services/airbyte.py` |
-| `bi` | BI REST API and/or project files | Metabase-shaped fake, YAML dashboards | `native/services/metabase.py`, `world/world/bi.py` |
+| `bi` | BI REST API and/or project files | Metabase-shaped fake, YAML dashboards; Power BI, Tableau, Sigma fakes over `world.semantic` (partial) | `native/services/{metabase,powerbi,tableau,sigma}.py`, `world/world/bi.py`, `world/world/semantic/`, `world/world/bi_projects.py` |
 | `observability` | metrics, alerts, logs | Prometheus, Alertmanager, Loki fakes | `native/services/{prometheus,alertmanager,loki}.py` |
 | `release` | deploy CLI | GitHub-Deployments-shaped fake | `native/services/deploy.py` |
 | `human` | tickets, chat, wiki | Jira, Slack, Confluence fakes | `native/services/{jira,slack,confluence}.py` |
@@ -165,9 +166,9 @@ refresh, publish and query.
 |---|---|---|---|---|---|
 | Metabase | **shipped** as a fake (`/api/card/{id}/query`) | keep | Metabase API | – | Licence NOASSERTION, so never ship the real binary. |
 | Superset | none | real Superset as the OSS BI "escape hatch" (T1) | Superset UI/API | M | Apache-2.0. Only if a DA task needs a real BI server. |
-| Power BI | none | **PBIP project** in the repo (TMDL semantic model plus report definition files), plus a fake Power BI REST plane (`groups`, `datasets`, `refreshes`, `reports`, export) | files, `pbi`-style REST via python | M | `executeQueries` (DAX) refuses loudly, or accepts a narrow DAX subset compiled to SQL against the warehouse slot. Never silently approximate DAX. |
-| Tableau | none | `.twb`/`.tds` XML in the repo, plus a fake Tableau REST plane (sites, workbooks, datasources, refresh) | `tableauserverclient` (real client per NATIVE rule) | M | **Do not depend on the Hyper API**: no Linux arm64 wheel and no plans for one. Point extracts at a live connection to the warehouse slot. |
-| Sigma | none | fake Sigma REST v2 (workbooks, datasets, connections, export); workbook elements compile to SQL over the warehouse slot | REST via python | M | Cloud-only product, so a fake is the only option. Sigma's model *is* "SQL on the warehouse", which makes the fake cheap to keep honest: its numbers come from the warehouse, never from a fixture. |
+| Power BI | **partial** (`world/world/semantic/formats/powerbi/`, `native/services/powerbi.py`; uncalibrated; BI001) | **PBIP project** in the repo (TMDL semantic model plus report definition files), plus a fake Power BI REST plane (`groups`, `datasets`, `refreshes`, `reports`, export) | files, `pbi`-style REST via python | M | `executeQueries` (DAX) refuses loudly, or accepts a narrow DAX subset compiled to SQL against the warehouse slot. Never silently approximate DAX. |
+| Tableau | **partial** (`formats/tableau/`, `native/services/tableau.py`; uncalibrated; BI001) | `.twb`/`.tds` XML in the repo, plus a fake Tableau REST plane (sites, workbooks, datasources, refresh) | `tableauserverclient` (real client per NATIVE rule) | M | **Do not depend on the Hyper API**: no Linux arm64 wheel and no plans for one. Point extracts at a live connection to the warehouse slot. |
+| Sigma | **partial** (`formats/sigma/`, `native/services/sigma.py`; uncalibrated; BI001) | fake Sigma REST v2 (workbooks, datasets, connections, export); workbook elements compile to SQL over the warehouse slot | REST via python | M | Cloud-only product, so a fake is the only option. Sigma's model *is* "SQL on the warehouse", which makes the fake cheap to keep honest: its numbers come from the warehouse, never from a fixture. |
 
 ### 3.6 Ops and human planes (shipped, listed for completeness)
 
@@ -261,15 +262,17 @@ plugs in.
 ### 4.4 Readiness, generated
 
 Output of `alkera-gateway plugs matrix`. A profile is `runnable` when none of
-its plugs is `planned`; `partial` plugs (Postgres, Snowflake, BigQuery, Jupyter) run with the gaps §3
-lists. Regenerate this block whenever a plug's status changes.
+its plugs is `planned`; `partial` plugs (Postgres, Snowflake, BigQuery, Jupyter, Power BI, Tableau,
+Sigma) run with the gaps §3 lists. Regenerate this block whenever a plug's status changes
+(regenerated 2026-10-04: Sigma, Tableau and Power BI are `partial`, so `*/snowflake` is
+runnable and `*/aws`, `*/databricks` wait only on their warehouses).
 
 ```
 de/laptop        runnable
 de/postgres      runnable
-de/snowflake     planned: sigma
-de/databricks    planned: databricks, powerbi
-de/aws           planned: redshift, tableau
+de/snowflake     runnable
+de/databricks    planned: databricks
+de/aws           planned: redshift
 de/gcp           runnable
 ds/laptop        planned: ml_workers, mlflow
 ds/postgres      planned: ml_workers, mlflow
@@ -279,9 +282,9 @@ ds/aws           planned: ml_workers, mlflow, redshift
 ds/gcp           planned: ml_workers, mlflow
 da/laptop        runnable
 da/postgres      runnable
-da/snowflake     planned: sigma
-da/databricks    planned: databricks, powerbi
-da/aws           planned: redshift, tableau
+da/snowflake     runnable
+da/databricks    planned: databricks
+da/aws           planned: redshift
 da/gcp           runnable
 ```
 
@@ -379,21 +382,27 @@ run on arm64 yet, but every input has been checked (2026-10-02, registry API and
 ## 8. Build order for the remaining sprint (proposal)
 
 Ordered by "proves the plug mechanism" first, then by how many profiles each unlocks.
-Status 2026-10-02: items 1 and 4 are built and unit-tested, 2 is task-ready except the TLS
-route and a task, 5 is half done (BigQuery partial, Redshift not started); nothing has been
-run in a container.
+Status 2026-10-04: items 1, 2, 4 and 6 are built; 5 is half done (BigQuery partial,
+Redshift not started); 3, 7 and 8 are open. 2 is task-ready except the TLS route and a
+task. 6 went further than one plug: the semantic core with Power BI, Tableau and Sigma
+skins (all `partial`: no golden values from the real products), the `commerce_analytics`
+theme and BI001 on `da/laptop`. The first container runs are BI001's native oracle (episode
+image `alkera-episode:head-da`).
 
 1. **The plug mechanism itself** (§5 points 1–5) with the existing plugs: DuckDB and
    Postgres as two warehouse plugs, plus include/exclude on the nine native services.
    Proof: GT001 under `de/laptop` and `de/postgres`, the same grader passing the oracle.
 2. **Snowflake to task-ready:** connector and `dbt-snowflake` in the image, the
-   multi-statement fix, an audit tailer.
+   multi-statement fix, an audit tailer. *Built (task-ready); no task selects it.*
 3. **s3mock in native** (MinIO out) and the authoring-metadata leak fixed.
 4. **DS toolbelt + Jupyter with the per-cell audit hook.** This unlocks the first
-   non-DE profile.
+   non-DE profile. *Built.*
 5. **Redshift persona and BigQuery emulator** (each M, independent, can run in parallel).
+   *BigQuery built (emulator, `partial`); Redshift not started.*
 6. **One BI file-format plug end to end** (Power BI PBIP or Tableau `.twb`). This unlocks
-   the DA profile.
+   the DA profile. *Built: the semantic core, all three skins (`partial`, uncalibrated),
+   `commerce_analytics`, BI001 (`docs/environments/BI_BUILD_PLAN.md`, "Status
+   2026-10-04").*
 7. **Databricks tier 1**, then MLflow and compute workers, then Databricks tier 2.
 8. **arm64 build and re-measure** (§6). Do it as soon as the new Linux machine is up, not
    last.

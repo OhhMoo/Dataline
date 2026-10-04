@@ -200,10 +200,13 @@ the scripted subject of a real harness rollout on either topology.
   agent is root, the bind is owned by the host user) until told it is safe.
   Realistic and self-explaining, but every BI001 episode pays one round trip
   for it; `safe.directory` in the episode image would remove it.
-- **The onboarding page names a Postgres and a Snowflake warehouse** on a
-  `da/laptop` box whose warehouse is the DuckDB file
-  (`world/world/native_workspace.py` SERVICE_SLOTS keys rows by slot, not by
-  plug). Misleading for any da/laptop task; not BI001's to change.
+- **Fixed 2026-10-04: the discovery files named a Postgres and a Snowflake
+  warehouse** on this box, whose warehouse is the DuckDB file. On a profiled
+  world they now follow the profile's warehouse plug
+  (`world/world/native_workspace.py` STACK_WAREHOUSE), the onboarding page
+  lists wiki pages by the content id the Confluence API routes, and
+  `./ops/sched` is not installed on a profile with no orchestrator. The
+  world's workspace bytes moved; re-measured in `tests/VALIDITY.md`.
 - **Tableau site.** The fake serves the Default site only; the theme's
   `.envrc` defaults `TABLEAU_SITE` to `commerce`, overridden to "" by the
   platform block (the runbook now says "the default site").

@@ -4,6 +4,60 @@ Written 2026-10-03. Owner: Michael (Power BI, Tableau / Sigma, semantic layer / 
 Companion to `TOOL_INVENTORY.md` (§3.5, §1a). Sizes are rough: S ≈ days, M ≈ a week,
 L ≈ multi-week.
 
+## Status 2026-10-04
+
+Phases 1-4 are built; phase 0's calibration access is not, so every skin is `partial`
+(`alkera-gateway plugs matrix`: `da/snowflake` and `de/snowflake` are runnable;
+`*/aws` and `*/databricks` wait only on Redshift and Databricks).
+
+- **Phase 1:** `world/world/semantic/` (`model.py`, `expr.py`, `compile.py`,
+  `render.py`, refusals in `errors.py`) and the dbt semantic-layer front-end
+  (`formats/yaml_model.py`). `world/bi.py`'s SQL panels render through the core,
+  byte-identical to the pre-engine output on the four themes that had panels. Not
+  built: a `semantic_yaml` plug in the `bi` slot.
+- **Phases 2-3:** Power BI (PBIP: TMDL + PBIR, a DAX subset, M source steps; fake
+  Power BI REST, Fabric item definitions, Entra client credentials), Tableau
+  (`.tds`/`.twb`, a calculated-field subset; fake REST 3.25 driven by tabcmd and
+  tableauserverclient), Sigma (workbook and data-model JSON, a formula subset; fake
+  API v2). Explicit-only plugs: served only under a profile that names them. Not
+  built: refresh as a publication-ledger receipt (BI001 grades the services'
+  published state, staged after teardown, instead).
+- **Phase 4:** the `commerce_analytics` theme (the only `bi_projects` hook; `bi_faults:`
+  plants a defect in a vendor's first commit) and BI001 on `da/laptop` with all three
+  vendors: archetype 1 (a Tableau Custom SQL fan-out) plus a Sigma Net Revenue that
+  keeps refunds. `TASK VALID` on both arms; the native oracle resolves through the
+  harness. Archetypes 2 and 3 and the single-vendor stacks are not built.
+- **Calibration: open.** No golden values from Power BI Desktop, Tableau or Sigma.
+
+What the two differential checks showed:
+
+- **MetricFlow.** A throwaway run of the real MetricFlow (metricflow 0.213.0,
+  dbt-metricflow 0.15.0, dbt-core 1.12.5, dbt-duckdb 1.11.0) on the semantic fixture
+  matched the engine on all 24 rows, both for a project written in MetricFlow's own
+  idioms and for `yaml_model.write_project`'s output (whose semantic manifest
+  MetricFlow validates); the numbers are pinned in `world/tests/test_semantic_yaml.py`.
+  It also showed the Commerce model is not expressible in MetricFlow: CALCULATE's
+  overwrite filter, REMOVEFILTERS, RELATED in a measure, metric_time reached through
+  another table and an offset metric grouped by year/month are refused by name, while a
+  dbt-native variant of the model reads and writes. It is the only comparison against an
+  independent engine,
+  and it covers the YAML front-end, not DAX, Tableau or Sigma semantics.
+- **Cross-vendor agreement.** On the full `commerce_analytics` warehouse every visual
+  the three editions share (KPIs, Revenue by Month, Revenue by Segment, Top Products,
+  Revenue by Region 2026) renders identical rows in Power BI, Tableau and Sigma, equal
+  to hand-written SQL; Segment Share agrees between Power BI and Tableau (Sigma has no
+  per-column filter removal); Revenue LY and YoY Growth are Power BI only (time
+  intelligence has no exact Tableau calculation or Sigma formula, so those front-ends
+  refuse it). With `bi_faults` on, the three KPI cards disagree each for its declared
+  reason (Power BI 33,733,790.00, Tableau 76,338,069.00, Sigma 35,084,324.00 at seed 11)
+  (`world/tests/test_bi_projects.py`). The three front-ends share one compiler, so
+  agreement shows the front-ends lower to the same model; it cannot catch a semantic
+  error common to all three. That is what calibration is for.
+
+The native tool calls on a BI world are checked by `tasks/harness/bi_e2e_check.py`
+(40 actions, every tool an analyst uses): host topology 0 FAIL, 0 FINDING
+(`tasks/harness/evidence/bi_e2e_host.json`).
+
 ## The one decision that shapes everything
 
 **One semantic core, three vendor skins.** Power BI's TMDL, Tableau's data sources and

@@ -198,7 +198,7 @@ actual  = "gate ok: Power BI 33733790.00, Tableau 76338069.00, Sigma 35084324.00
 agent   = "determinism"
 expect  = "two builds: identical workspace bytes, git HEAD, corpus and grading-zone digests"
 outcome = "unmeasured"
-actual  = "gate ok: two builds agree on workspace b05e4b7ce08d, git HEAD a3cdbcca87cd, corpus, oracle and baseline digests; repo clean (measured 2026-10-04, seed 11, tests/baselines/default.json)"
+actual  = "gate ok: two builds agree on workspace 47b032c86f1c, git HEAD ffed9795bd7c, corpus, oracle and baseline digests; repo clean (measured 2026-10-04, seed 11, tests/baselines/default.json)"
 
 [[validity]]
 agent   = "fixture_falsifier"
@@ -210,7 +210,7 @@ actual  = "14/14 caught: both faults on both of published and HEAD, unpublished,
 agent   = "native_oracle_rollout"
 expect  = "solution/solve.sh as the scripted subject of a real rollout grades resolved on both topologies"
 outcome = "unmeasured"
-actual  = "default arm - host: pass 22.0/22, resolved, reward 1.0, path 0; container (alkera-episode:head-da at 16ede38): pass 22.0/22, resolved, reward 1.0, path 0, filesystem_isolated. decision arm - host: pass 18.0/18, resolved; container: pass 18.0/18, resolved, filesystem_isolated (tests/oracle_rollout.py, 2026-10-04)"
+actual  = "default arm - host (current world): pass 22.0/22, resolved, reward 1.0, path 0; container (alkera-episode:head-da at 16ede38, world before the discovery-file change): pass 22.0/22, resolved, reward 1.0, path 0, filesystem_isolated. decision arm - host (current world): pass 18.0/18, resolved, reward 1.0, path 0; container (16ede38): pass 18.0/18, resolved, filesystem_isolated (tests/oracle_rollout.py, 2026-10-04)"
 
 # ---------------------------------------------------------------------------
 # THE DECISION ARM'S OWN GATE (run with ALKERA_TASK_VARIANT=decision). Max 18.

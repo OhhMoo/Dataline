@@ -9,7 +9,7 @@ reached during an episode.
 
 ```
 world/            the package (python -m world.build --seed S --root R)
-  build.py themes/<name>/     seed -> world; four themes (each with its gen.py); opt-in seed flags `warehouses:`, `native:`, `faults:`, `profile:`, `files:`
+  build.py themes/<name>/     seed -> world; five themes (each with its gen.py); opt-in seed flags `warehouses:`, `native:`, `faults:`, `profile:`, `files:`, and commerce_analytics' `bi_faults:`
   fingerprint.py hashing.py   the semantic hash every determinism claim rests on; the canonicalisation spec
   scheduler.py executor.py    virtual clock + the job runner (what a scheduled run really does)
   gateway_scheduler.py        the executing scheduler, shaped to the gateway's Scheduler protocol (injection only)
@@ -20,8 +20,11 @@ world/            the package (python -m world.build --seed S --root R)
   native_workspace.py         .envrc / profiles.yml / onboarding.md for native mode
   files.py                    the `files:` flag: parquet / JSON / JSONL user files
   bi_projects.py              `profile.plugs.bi`: each BI vendor's project, checked into the repo
+  semantic/                   the BI semantic core: model, expression tree, SQL compiler, render;
+                              formats/ = dbt semantic-layer YAML, Power BI (TMDL/PBIR/DAX),
+                              Tableau (.tds/.twb/calcs), Sigma (workbook/data-model JSON)
   warehouse_seed.py           set-based Postgres/DuckDB seeding for the `warehouses:` flag
-  bi.py snapshot.py           dashboards = YAML of SQL panels; deterministic tar save/restore
+  bi.py snapshot.py           dashboards = YAML of SQL panels (rendered through semantic/); deterministic tar save/restore
 docker/           episode image, 3-zone compose, egress gate
 grading/          bind-mount source for the compose `grading` zone (see its README)
 scripts/acceptance.sh   the 7-gate determinism battery -> evidence/acceptance.json
@@ -152,7 +155,16 @@ refused before anything is built. **An unplugged slot leaves no state behind**: 
 `var/obs` (and `observe.record` stays a no-op on every later advance); no `bi` → no
 dashboards. Workspace, warehouse, dbt build and scheduler state are always built. Under
 `native: true` the discovery files name no service from an unplugged slot (services →
-slots in `native_workspace.SERVICE_SLOTS`, checked against the gateway's plugs).
+slots in `native_workspace.SERVICE_SLOTS`, checked against the gateway's plugs), and the
+warehouse backends follow the profile's warehouse plug(s): the record's `plugs.warehouse`,
+else the stack's default (`native_workspace.STACK_WAREHOUSE`, checked against the
+gateway's `STACKS`). `duckdb` names no Postgres and no Snowflake, `postgres` names
+Postgres, `snowflake` names Snowflake as the warehouse; a stack the table does not know
+lists what it always listed. The onboarding page of a profiled box lists wiki pages by
+Confluence content id (the number `GET /wiki/rest/api/content/<id>` routes), with the
+path beside it. No profile: the four files are byte for byte what they were
+(`test_native_workspace.py` pins them), including the wiki listed by path, which the
+Confluence API does not route.
 
 `{name, slots}` (slots in canonical order) is recorded in `build/provenance.json` and in
 `var/world/profile.json`, which is the conditional fingerprint section `profile`: two
@@ -203,6 +215,29 @@ plugs (`metabase_fake`), no `plugs`, or no profile write nothing.
 Executive Overview, and the Tableau and Sigma editions of both, which agree on
 every shared visual on the built warehouse (`world/tests/test_bi_projects.py`).
 
+The step's place in `build.build`: after the warehouse, the dbt build, the
+scheduler state, the plugged planes and the `files:` exports; before the native
+discovery layer (its onboarding page lists the project directories, so they must
+exist), the profile record and the git commit. A vendor plugged into a theme with
+no hook is refused before anything is built (`bi_projects.require`); a model whose
+sources the built warehouse lacks, at the step.
+
+### `bi_faults:` (commerce_analytics)
+
+```yaml
+bi_faults: [tableau_orders_line_join, sigma_net_revenue_refunds]
+```
+
+A theme seed key, read by commerce_analytics' `bi_projects` hook
+(`gen.BI_FAULTS`): each id plants a defect in one vendor's project as first
+committed, so that vendor's service publishes it.
+`tableau_orders_line_join` builds Sales' Tableau `Orders` logical table from Custom
+SQL joining `fct_orders` to its lines (every order-grain measure summed once per
+line); `sigma_net_revenue_refunds` computes Finance's Sigma Net Revenue inline as
+"status is not cancelled" (refunds counted). The warehouse, the dbt project and
+Power BI are untouched. Refused: an unknown id, and a fault in a vendor the
+profile does not plug. Absent, the projects are the clean editions byte for byte.
+BI001 builds with both on.
 ## Themes
 
 `seed["theme"]` (default `revenue_daily`) selects `world/world/themes/<name>/`; the
@@ -215,6 +250,15 @@ blocks, `live:` traffic and arrival stream, `warehouses:`), `gen.py` hooks
 `warehouse` — `fingerprint.py` hashes exactly those three. The human-context plane
 (`var/workflow/*.json`, `gateway/SURFACES.md#workflow`) is seeded by each theme's
 `gen.py` from content that is data, not code.
+
+The five: `revenue_daily` (the default; the acceptance battery's seed), `sftp_vendor`
+(the only one that seeds an ingest plane), `mainframe_batch`, `excel_close`, and
+`commerce_analytics`: an e-commerce analytics-engineering shop - nightly CDC extracts
+(orders, order lines, customers, products) into a dbt star schema (`dim_customer`,
+`dim_product`, `dim_date`, `fct_orders`, `fct_order_lines`) with a MetricFlow
+semantic layer, the Jira/Slack/Confluence corpus of an analytics team, and the only
+`bi_projects` hook (Power BI, Tableau, Sigma). Its live faults all ship off; its BI
+faults are `bi_faults:`. A build is about 9 s.
 
 ## The two gates (and the diagnostic)
 
@@ -353,7 +397,9 @@ never writes records `ABSENT` every time, loudly.
 
 ## Deliberate limits
 
-No Airflow fidelity, no vendor BI, no Snowflake fidelity beyond the connector route. An
+No Airflow fidelity, no Snowflake fidelity beyond the connector route. Vendor BI is
+the semantic core's subset of each product, refused by name outside it and not yet
+calibrated against the real Power BI, Tableau or Sigma. An
 unwired headless-Airflow prototype (`vclock.py`, `airflow_bridge.py`, `airflow_logs.py`;
 nothing imported it and Airflow is not installed) is archived under `_archive/world/world/`.
 Cross-host equality is proven per run by gate 3; a second host adds a second data point.

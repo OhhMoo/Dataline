@@ -477,7 +477,8 @@ def build(seed_path: Path, root: Path, lock_path: Path | None = None) -> Path:
     if seed.get("native"):
         native_workspace.write(root, theme,
                                slots=profile["slots"] if profile is not None else None,
-                               plugs=profile.get("plugs") if profile is not None else None)
+                               plugs=profile.get("plugs") if profile is not None else None,
+                               name=profile["name"] if profile is not None else None)
     # The profile record: the conditional `profile` fingerprint section, so
     # two profiles over one seed are two worlds. Written only under a profile,
     # so an unprofiled world has no file and keeps its recorded hash.

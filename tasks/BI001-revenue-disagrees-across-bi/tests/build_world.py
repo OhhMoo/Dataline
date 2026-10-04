@@ -140,7 +140,7 @@ def stage_incident(root: Path, seed: dict) -> None:
                       scheduler.load(root)["vnow"])
     profile = wbuild.resolve_profile(seed)
     native_workspace.write(root, theme, slots=profile["slots"],
-                           plugs=profile.get("plugs"))
+                           plugs=profile.get("plugs"), name=profile["name"])
     env = {**os.environ, "GIT_AUTHOR_DATE": seed["vtime_start"],
            "GIT_COMMITTER_DATE": seed["vtime_start"]}
     workspace = root / "workspace"
