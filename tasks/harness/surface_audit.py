@@ -357,6 +357,14 @@ NATIVE_SURFACE_OF = {
     # need, which is whether it is a repository with a commit in it.
     "fs_": "workspace",
     "git_": "git",
+    # The explicit-only BI vendors have no MCP tools at all (the gateway's bi_*
+    # speak to the Metabase-shaped fake); a native task that requires one names
+    # a `<vendor>_health` probe, which is checked as the vendor's /health -
+    # what the `~<vendor>` sweep already asks, under a label the task can
+    # require. Only ever reached through a profiled endpoint map.
+    "powerbi_": "powerbi",
+    "tableau_": "tableau",
+    "sigma_": "sigma",
 }
 
 #: The surface a `sql_*`/`dbt_*` probe names when it addresses a SECOND

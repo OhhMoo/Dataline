@@ -2243,6 +2243,7 @@ services:
             canaries=canaries,
             repo_root=REPO)
         evidence = _native_probe().run(self.container_id, spec)
+        _scheduler_not_served(evidence, endpoints, self.profile)
         evidence["when"] = when
         evidence["probe_source"] = ("stdin to `python -`; never written to the "
                                     "container disk")
@@ -2285,6 +2286,38 @@ def _interpreter() -> Path:
     knows the venv layout in one file.
     """
     return episode.PY
+
+
+#: P7's scheduler check, and why it can be not-applicable (see below).
+SCHEDULER_CHECK = "the_scheduler_plane_answers_with_jobs"
+
+
+def _scheduler_not_served(evidence: dict, endpoints: dict, profile: str) -> dict:
+    """Mark P7's scheduler check not-applicable when this episode serves no
+    scheduler plane, and recompute `contained` without it. Returns evidence.
+
+    P7 asks `sched.internal` for its jobs because the container does not mount
+    `var/sched`, so without the plane "a task needing sched_* could not be
+    measured here". An environment profile that plugs no `orchestrator` slot
+    (every `da/*` box) is served WITHOUT that plane on purpose - `serve.py
+    --profile` drops it and `agent_under_test.profile_endpoints` leaves `sched`
+    out of the episode's map - so the check reads False on a container that is
+    perfectly contained, and every such rollout quarantined as `unobserved`
+    (measured 2026-10-04, BI001 on da/laptop, every other P7 check true).
+    Only that case is changed: the plane absent from the episode's endpoint
+    map AND the check False. Every other check, and every unprofiled or
+    orchestrator-plugging stack, is exactly as the probe reported it.
+    """
+    checks = evidence.get("checks")
+    if (not isinstance(checks, dict) or "sched" in endpoints
+            or checks.get(SCHEDULER_CHECK) is not False):
+        return evidence
+    checks.pop(SCHEDULER_CHECK)
+    evidence.setdefault("checks_not_applicable", {})[SCHEDULER_CHECK] = (
+        f"profile {profile or '(none)'!r} plugs no orchestrator slot: the episode "
+        f"is served no scheduler plane, so there is none to answer")
+    evidence["contained"] = all(checks.values())
+    return evidence
 
 
 def _native_probe():

@@ -16,6 +16,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
+import bistate
 import ledger as ledgerlib
 
 REPO = Path(__file__).resolve().parents[2]
@@ -450,8 +451,13 @@ def probe_surfaces(spec, world: dict, scratch: Path,
 
 
 # ----------------------------------------------------------------- grading
-def grade(spec, world: dict, artifact_path: Path, out_dir: Path) -> dict:
-    """Run the task's hidden grader. AFTER teardown. Never during the episode."""
+def grade(spec, world: dict, artifact_path: Path, out_dir: Path,
+          bi_state_dir: Path | None = None) -> dict:
+    """Run the task's hidden grader. AFTER teardown. Never during the episode.
+
+    `bi_state_dir` is where this episode's BI vendor services kept their
+    published state; None means the harness default, `<out_dir>/audit/bi`
+    (bistate.py says why that is the same path on every topology)."""
     # The publication ledger moves into the grading zone first
     # (world/README.md#publication-ledger). The grader reads that copy and not
     # <world_root>/var/ledger, for the same reason it reads no other evidence
@@ -459,8 +465,14 @@ def grade(spec, world: dict, artifact_path: Path, out_dir: Path) -> dict:
     # nothing stages nothing and `{ledger}` substitutes to the empty string;
     # a grader must handle a world with no publications anyway.
     staged = ledgerlib.stage(world["world_root"], world["grading"])
+    # The BI vendors' published state, on the same terms (bistate.py): staged
+    # out of the services' state directory, which lives outside the world
+    # tree, into the grading zone; `{bi_state}` is that copy or "".
+    staged_bi = bistate.stage(bi_state_dir if bi_state_dir is not None
+                              else bistate.source_for(out_dir), world["grading"])
     subs = {**{k: v for k, v in world.items() if isinstance(v, str)},
             "ledger": str(staged) if staged else "",
+            "bi_state": str(staged_bi) if staged_bi else "",
             "artifact": str(artifact_path)}
     argv = [a.format(**subs) for a in spec.grade_argv]
     r = subprocess.run([str(PY), str(spec.grade_entrypoint), *argv],
@@ -476,11 +488,12 @@ def grade(spec, world: dict, artifact_path: Path, out_dir: Path) -> dict:
     return score
 
 
-def grade_twice(spec, world: dict, artifact_path: Path, out_dir: Path) -> tuple[dict, bool]:
+def grade_twice(spec, world: dict, artifact_path: Path, out_dir: Path,
+                bi_state_dir: Path | None = None) -> tuple[dict, bool]:
     """Grade, then grade again. A grader whose score moves on an unchanged world
     is a grader defect, and it is the one grader defect detectable mechanically."""
-    first = grade(spec, world, artifact_path, out_dir)
-    second = grade(spec, world, artifact_path, out_dir)
+    first = grade(spec, world, artifact_path, out_dir, bi_state_dir)
+    second = grade(spec, world, artifact_path, out_dir, bi_state_dir)
     stable = (first.get("total") == second.get("total")
               and [c.get("points") for c in first.get("checks", [])]
               == [c.get("points") for c in second.get("checks", [])])

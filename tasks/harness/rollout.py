@@ -780,7 +780,7 @@ def regrade(rollout_dir, task: str | None = None,
     if moved:
         carried.append(moved)
     absent = sorted(_grade_argv_placeholders(spec)
-                    - {"ledger", "artifact"} - set(world))
+                    - {"ledger", "bi_state", "artifact"} - set(world))
     if absent:
         raise RegradeRefused(
             f"{task_id}'s grade_argv names {absent}, which the saved world "

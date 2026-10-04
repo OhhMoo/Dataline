@@ -198,6 +198,17 @@ def stage_discovery(world: dict, home: str | None = None) -> dict:
 
     root = (Path(world["world_root"]) if world.get("world_root")
             else Path(world["workspace"]).parent)
+    # A world the world factory built with `native: true` under a profile
+    # already carries ITS discovery files - written by world.build from the
+    # profile's own slots and plugs (native_workspace.write) and committed in
+    # the repository. write_for_built_world knows no profile: it would replace
+    # them with the unprofiled box's (nine services, no BI vendor projects on
+    # the onboarding page) and leave the agent's repo dirty. Keep them.
+    if home is None and (root / "var" / "world" / "profile.json").is_file() \
+            and (root / "home" / ".config" / "alkera" / "services.toml").is_file():
+        return {"files": [], "root": str(root),
+                "kept": "the world's own profiled discovery files (world.build "
+                        "native: true under a profile)"}
     written = (write_for_built_world(root) if home is None
                else write_for_built_world(root, home=home))
     return {"files": [str(path) for path in written], "root": str(root)}
