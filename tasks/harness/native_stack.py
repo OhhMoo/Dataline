@@ -411,7 +411,7 @@ class NativeStack:
             self.config_file, self.world,
             self.audit_dir, "native-host",
             self.world.get("virtual_time") or "",
-            profile=self.profile_name, plugs=self.plugs)
+            profile=self.profile_name, plugs=self.plugs, service_state=True)
 
     def _serve_argv(self) -> list[str]:
         return [str(episode.PY), "-m", "alkera_gateway.native.serve",

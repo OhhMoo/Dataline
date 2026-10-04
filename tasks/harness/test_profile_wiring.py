@@ -926,3 +926,31 @@ def test_a_postgres_or_snowflake_box_keeps_its_warehouse_variables(world, tmp_pa
     assert not PG & set(pg) and SNOW <= set(pg)
     sf, _ = _stack(world, tmp_path, "s", profile="de/snowflake").profile_variables()
     assert not SNOW & set(sf) and PG <= set(sf)
+
+
+# ------------------------------------- the episode image follows the profile
+def _build_episode():
+    import importlib.util
+
+    path = HERE.parent.parent / "gateway" / "docker" / "build_episode.py"
+    spec = importlib.util.spec_from_file_location("build_episode_for_test", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_the_default_image_becomes_the_profiles_role_image():
+    # BI001 (da/laptop) needs the analyst image: the jupyter service runs the
+    # kernel from it and the de image has no jupyter-server. Left at the
+    # default, --image used to start every profiled task on the de image.
+    build = _build_episode()
+    default = ce.DEFAULT_IMAGE
+    cases = [("da/laptop", None, "da", ""), ("ds/laptop", {"compute": []}, "ds", ""),
+             ("de/laptop", None, "de", ""), ("de/snowflake", None, "de", "snowflake"),
+             ("da/snowflake", None, "da", "snowflake")]
+    for name, plugs, role, clients in cases:
+        profile = episode.environment_profile(name, plugs)
+        assert ce.profile_image(default, profile) == build.image_tag(default, role, clients), name
+    assert ce.profile_image(default, None) == default                 # unprofiled: unchanged
+    explicit = "alkera-episode:mine"
+    assert ce.profile_image(explicit, episode.environment_profile("da/laptop")) == explicit

@@ -320,9 +320,16 @@ def service_state_keys(path: Path, audit_dir: Path) -> dict:
 
 def write_gateway_config(path: Path, world: dict, audit_dir: Path,
                          episode_id: str, virtual_time: str, *,
-                         profile: str = "", plugs: dict | None = None) -> Path:
+                         profile: str = "", plugs: dict | None = None,
+                         service_state: bool = False) -> Path:
     """The gateway config. Note what is NOT here: any path under the grading
-    zone. The gateway physically cannot address it."""
+    zone. The gateway physically cannot address it.
+
+    `service_state=True` (the harness's own rollout configs: rollout.py's and
+    native_stack.NativeStack's) moves the services' state beside the audit dir
+    (service_state_keys). ASKED FOR, never inferred from the layout: Harbor's
+    exporter writes gateway.json with an `audit` dir beside it too, and
+    sniffing put a host temp path into the exported config."""
     path.write_text(json.dumps({
         "workspace": world["workspace"],
         "warehouse": world["warehouse"],
@@ -330,9 +337,9 @@ def write_gateway_config(path: Path, world: dict, audit_dir: Path,
         "dashboards": world["dashboards"],
         **_plane_paths(world),
         "audit_dir": str(audit_dir),
-        # the BI vendors' state beside the audit dir, never in it - only for a
-        # config written into a rollout directory (service_state_keys)
-        **service_state_keys(path, audit_dir),
+        # the BI vendors' state beside the audit dir, never in it - only when
+        # the caller asks (a rollout directory's config; service_state_keys)
+        **(service_state_keys(path, audit_dir) if service_state else {}),
         "profiles_dir": world["profiles_dir"],
         "world_root": world["world_root"],
         "episode_id": episode_id,

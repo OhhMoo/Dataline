@@ -11,7 +11,7 @@ action it takes against the world must leave exactly one agent.md 9.2.2 row,
 written by the fake service it talked to or by the PATH shim in front of the
 binary it ran (gateway/NATIVE.md, "The one thing that must survive"). This check
 builds a real `commerce_analytics` world for the `da/laptop` profile with Power
-BI, Tableau and Sigma plugged (`world.build`, under /home/ubuntu/alkera-e2e/),
+BI, Tableau and Sigma plugged (`world.build`, under ~/alkera-e2e/),
 brings the native stack up the way the harness does - `native_stack.NativeStack`
 on the host, `container_episode.NativeContainerEpisode` in docker - and drives
 every tool an analyst or analytics engineer would reach for, with the real
@@ -91,7 +91,7 @@ PROFILE_NAME = "da/laptop"
 PROFILE_SLOTS = ("files", "notebook", "warehouse", "transform", "bi", "human")
 PLUGS = {"bi": ["powerbi", "tableau", "sigma"]}
 SEED_EXAMPLE = REPO / "world" / "world" / "themes" / "commerce_analytics" / "seed.example.yaml"
-WORK_ROOT = Path("/home/ubuntu/alkera-e2e")
+WORK_ROOT = Path.home() / "alkera-e2e"
 DEFAULT_IMAGE = "alkera-episode:head-da"
 EVIDENCE = HERE / "evidence"
 #: Services this profile serves over HTTP, and the ones it must not.
@@ -2024,7 +2024,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--topology", choices=("host", "container"), default="host")
     parser.add_argument("--out", type=Path, default=None)
     parser.add_argument("--work", type=Path, default=None,
-                        help="scratch root (default /home/ubuntu/alkera-e2e/<topology>)")
+                        help="scratch root (default ~/alkera-e2e/<topology>)")
     parser.add_argument("--image", default=DEFAULT_IMAGE)
     parser.add_argument("--keep", action="store_true", help="leave the stack up")
     args = parser.parse_args(argv)

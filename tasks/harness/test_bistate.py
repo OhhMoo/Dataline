@@ -124,7 +124,7 @@ def test_the_host_config_written_into_a_rollout_names_it(tmp_path):
     world = _world(tmp_path)
     for name in ("native_gateway.json", "gateway.json"):
         path = episode.write_gateway_config(rollout / name, world, rollout / "audit",
-                                            "native-host", "")
+                                            "native-host", "", service_state=True)
         cfg = GatewayConfig.load(path)
         assert cfg.bi_state_dir == bistate.source_for(rollout).resolve()
         assert not cfg.bi_state_dir.is_relative_to(cfg.audit_dir)
@@ -158,6 +158,15 @@ def test_other_configs_are_written_as_before(tmp_path):
     assert "bi_state_dir" not in json.loads(harbor.read_text(encoding="utf-8"))
     inside = container_episode.container_gateway_config(world, "e", "")
     assert "bi_state_dir" not in inside
+    # Harbor's REAL call (harbor/alkera_harbor/worldbuild.py): gateway.json with
+    # an `audit` directory beside it - the rollout layout, by shape. Sniffing
+    # the layout put a host temp path into the exported config (the export's
+    # leak gate refused it); placement is now asked for, never inferred.
+    staged = tmp_path / "harbor-stage"
+    staged.mkdir()
+    exported = episode.write_gateway_config(staged / "gateway.json", world,
+                                            staged / "audit", "e", "")
+    assert "bi_state_dir" not in json.loads(exported.read_text(encoding="utf-8"))
     assert inside["audit_dir"] == container_episode.AUDIT_IN_CONTAINER == "/audit"
 
 

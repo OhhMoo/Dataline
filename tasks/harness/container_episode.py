@@ -83,6 +83,23 @@ COMPOSE_OVERLAY = DOCKER_DIR / "compose.episode.yml"
 SHIM = Path(__file__).resolve().parent / "container_shim.py"
 
 DEFAULT_IMAGE = "alkera-episode:head"
+
+
+def profile_image(image: str, profile) -> str:
+    """The episode image a profiled task runs on, when `--image` was left at
+    DEFAULT_IMAGE: the profile's role image (`-da`, `-ds`) and `-snowflake` when
+    the warehouse plug needs the Snowflake clients - exactly
+    gateway/docker/build_episode.py's `image_tag` (test_profile_wiring pins the
+    two together). An explicit `--image`, or an unprofiled task, is unchanged.
+    Without this a da task started on the de image, whose jupyter service has
+    no jupyter-server to run."""
+    if profile is None or image != DEFAULT_IMAGE:
+        return image
+    role = profile.name.split("/", 1)[0]
+    suffix = [] if role == "de" else [role]
+    if "snowflake" in profile.slots.get("warehouse", ()):
+        suffix.append("snowflake")
+    return "-".join([image, *suffix])
 SHIM_IN_CONTAINER = "/opt/episode/shim.py"
 CONFIG_IN_CONTAINER = "/opt/episode/gateway.json"
 PROBES_IN_CONTAINER = "/opt/episode/probes.json"
