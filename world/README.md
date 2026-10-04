@@ -9,7 +9,7 @@ reached during an episode.
 
 ```
 world/            the package (python -m world.build --seed S --root R)
-  build.py themes/<name>/     seed -> world; four themes (each with its gen.py); opt-in seed flags `warehouses:`, `native:`, `faults:`
+  build.py themes/<name>/     seed -> world; four themes (each with its gen.py); opt-in seed flags `warehouses:`, `native:`, `faults:`, `profile:`, `files:`
   fingerprint.py hashing.py   the semantic hash every determinism claim rests on; the canonicalisation spec
   scheduler.py executor.py    virtual clock + the job runner (what a scheduled run really does)
   gateway_scheduler.py        the executing scheduler, shaped to the gateway's Scheduler protocol (injection only)
@@ -18,6 +18,8 @@ world/            the package (python -m world.build --seed S --root R)
   ledger.py                   protected receipts of what the world published (grading layer 4; below)
   workflow.py                 the seeded ticket / chat / wiki documents
   native_workspace.py         .envrc / profiles.yml / onboarding.md for native mode
+  files.py                    the `files:` flag: parquet / JSON / JSONL user files
+  bi_projects.py              `profile.plugs.bi`: each BI vendor's project, checked into the repo
   warehouse_seed.py           set-based Postgres/DuckDB seeding for the `warehouses:` flag
   bi.py snapshot.py           dashboards = YAML of SQL panels; deterministic tar save/restore
 docker/           episode image, 3-zone compose, egress gate
@@ -134,6 +136,72 @@ means insufficient data and is never `0.0`. No fault-specific metric exists: a l
 partition is freshness climbing, a timeout an error rate stepping off zero. Samples are
 appended in measurement order (job start), not strictly by `vts`; sort if you need clock
 order.
+
+## Environment profiles (`profile:`)
+
+```yaml
+profile: {name: "da/laptop", slots: [files, notebook, warehouse, transform, bi, human]}
+```
+
+The harness resolves which slots an environment plugs (`alkera_gateway.plugs`) and writes
+the list into the seed; the world only honours it (`world/` never imports the gateway).
+Slot names: `files notebook compute warehouse transform orchestrator object_store ingest
+bi observability release human`; anything else, a duplicate, or a missing `name` is
+refused before anything is built. **An unplugged slot leaves no state behind**: no
+`human` → no `var/workflow`; no `ingest` → no `var/ingest`; no `observability` → no
+`var/obs` (and `observe.record` stays a no-op on every later advance); no `bi` → no
+dashboards. Workspace, warehouse, dbt build and scheduler state are always built. Under
+`native: true` the discovery files name no service from an unplugged slot (services →
+slots in `native_workspace.SERVICE_SLOTS`, checked against the gateway's plugs).
+
+`{name, slots}` (slots in canonical order) is recorded in `build/provenance.json` and in
+`var/world/profile.json`, which is the conditional fingerprint section `profile`: two
+profiles over one seed hash differently, and a profile that plugs every slot is the
+unflagged world plus exactly that section. No `profile:` → no file, no key, every recorded
+hash unchanged.
+
+## User files (`files:`)
+
+```yaml
+files: {formats: [parquet, json, jsonl]}
+```
+
+Writes, into the workspace before the git commit, files derived from the theme's `raw`
+tables: `data/exports/<raw table>/part-0000{0,1}.parquet` (every raw table, two halves),
+`data/api/<subject>.json` (a JSON:API-shaped dump) and `data/events/<subject>.jsonl` (an
+event log), where the subject is the first raw table with a money column. Each format
+carries one planted pathology, documented in `world/world/files.py` and nowhere the agent
+reads. Only listed formats are written; an unknown one is refused; `files:` under a
+profile without the `files` slot is refused. Same seed → byte-identical files: DuckDB
+`COPY` under `PRAGMA threads=1` with an `ORDER BY` over every column (the footer's
+`created_by` is the locked DuckDB version, not a run property); fixed-key-order ASCII
+JSON. The files move only the `workspace` section.
+
+## BI projects (`profile: {plugs: {bi: [...]}}`)
+
+```yaml
+profile: {name: "da/laptop", slots: [files, notebook, warehouse, transform, bi, human],
+          plugs: {bi: [powerbi, tableau, sigma]}}
+```
+
+A profile that plugs a BI vendor gets that vendor's dashboards-as-code in the
+repository, beside the dbt project: `workspace/bi/powerbi/` (PBIP: TMDL + PBIR),
+`workspace/bi/tableau/` (`datasources/*.tds`, `workbooks/*.twb`),
+`workspace/bi/sigma/` (`data-models/`, `workbooks/`, `connections/` API JSON) -
+the layout each fake vendor service publishes from. The theme says what they are
+through an optional `gen.py` hook, `bi_projects(seed) -> {vendor: (Model,
+(Report, ...))}` over `world.semantic`; each front-end's `write_project` writes
+them (bi_projects.py). Plugging a vendor into a theme without the hook is refused
+before anything is built; a model whose sources the built warehouse lacks is
+refused at build. Connections name the world's DuckDB file (ODBC for Power BI and
+Tableau; Sigma, which has no DuckDB connector, keeps its Snowflake connection,
+read warehouse-relative). Written after the warehouse and BEFORE the git commit -
+the services publish what was first committed - deterministic to the byte (ids
+from names, no timestamps), moving only the `workspace` section. Other `bi`
+plugs (`metabase_fake`), no `plugs`, or no profile write nothing.
+`commerce_analytics` is the theme with the hook: Power BI's Commerce model and
+Executive Overview, and the Tableau and Sigma editions of both, which agree on
+every shared visual on the built warehouse (`world/tests/test_bi_projects.py`).
 
 ## Themes
 

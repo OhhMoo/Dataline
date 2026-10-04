@@ -1,0 +1,196 @@
+{
+  "dataModelId": "5f0d3c8e-2b7a-4c1e-9a52-7d4e1f0b6a21",
+  "name": "Commerce (Sigma-authored)",
+  "url": "https://app.sigmacomputing.com/alkera/data-model/commerce-sigma-authored-3pQvXc7LmN2aRt8uYw1zKe",
+  "documentVersion": 7,
+  "latestDocumentVersion": 7,
+  "ownerId": "Hq3TfVz8LmP2xR7kN4wY9bD1cJs6e",
+  "folderId": "0b9f6d2a-4e1c-4f7b-8a3d-5c2e9f1a7b40",
+  "createdBy": "Hq3TfVz8LmP2xR7kN4wY9bD1cJs6e",
+  "updatedBy": "Hq3TfVz8LmP2xR7kN4wY9bD1cJs6e",
+  "createdAt": "2026-02-11T16:02:44.318Z",
+  "updatedAt": "2026-08-27T10:41:09.902Z",
+  "schemaVersion": 1,
+  "pages": [
+    {
+      "id": "Tb7wQ2mXpL",
+      "name": "Tables",
+      "elements": [
+        {
+          "id": "Ord8kQ2vZp",
+          "kind": "table",
+          "source": {
+            "connectionId": "9ad28df9-5f5f-4bae-8985-bb12d25829de",
+            "kind": "warehouse-table",
+            "path": ["ANALYTICS", "WAREHOUSE", "FCT_ORDERS"]
+          },
+          "columns": [
+            {"id": "inode-Kd93nQw7Xb2LpT5vRz8MsY/ORDER_ID", "formula": "[FCT_ORDERS/Order Id]"},
+            {"id": "inode-Kd93nQw7Xb2LpT5vRz8MsY/ORDER_DATE", "formula": "[FCT_ORDERS/Order Date]"},
+            {"id": "inode-Kd93nQw7Xb2LpT5vRz8MsY/CUSTOMER_ID", "formula": "[FCT_ORDERS/Customer Id]"},
+            {"id": "inode-Kd93nQw7Xb2LpT5vRz8MsY/ORDER_STATUS", "formula": "[FCT_ORDERS/Order Status]"},
+            {"id": "inode-Kd93nQw7Xb2LpT5vRz8MsY/ORDER_AMOUNT", "formula": "[FCT_ORDERS/Order Amount]"},
+            {
+              "id": "kQ3vX9TmPa",
+              "formula": "[FCT_ORDERS/Shipping Amount]",
+              "format": {"kind": "number", "formatString": "$.2f", "decimalSymbol": ".", "digitGroupingSymbol": ",", "digitGroupingSize": [3], "currencySymbol": "$"}
+            },
+            {"id": "cAlcNet001", "formula": "[Order Amount] - Zn([Shipping Amount])", "name": "Net of Shipping"}
+          ],
+          "metrics": [
+            {
+              "id": "mGross0001",
+              "formula": "Sum([Order Amount])",
+              "name": "Gross Revenue",
+              "format": {"kind": "number", "formatString": "$.2f", "decimalSymbol": ".", "digitGroupingSymbol": ",", "digitGroupingSize": [3], "currencySymbol": "$"}
+            },
+            {"id": "mNet000001", "formula": "Sum(If([Order Status] = \"completed\", [Order Amount]))", "name": "Net Revenue"},
+            {"id": "mOrders001", "formula": "Count()", "name": "Orders"},
+            {"id": "mRpo000001", "formula": "[Metrics/Net Revenue] / [Metrics/Orders]", "name": "Revenue per Order", "description": "Plain division: Sigma's / with no NullIf."}
+          ],
+          "relationships": [
+            {
+              "id": "rCust00001",
+              "targetElementId": "Cus4mR8tWq",
+              "keys": [{"sourceColumnId": "inode-Kd93nQw7Xb2LpT5vRz8MsY/CUSTOMER_ID", "targetColumnId": "inode-Vn2bQ8xL4mR7tY1pZk6WsD/CUSTOMER_ID"}],
+              "name": "Ordered by"
+            }
+          ],
+          "order": [
+            "inode-Kd93nQw7Xb2LpT5vRz8MsY/ORDER_ID",
+            "inode-Kd93nQw7Xb2LpT5vRz8MsY/ORDER_DATE",
+            "inode-Kd93nQw7Xb2LpT5vRz8MsY/CUSTOMER_ID",
+            "inode-Kd93nQw7Xb2LpT5vRz8MsY/ORDER_STATUS",
+            "inode-Kd93nQw7Xb2LpT5vRz8MsY/ORDER_AMOUNT",
+            "kQ3vX9TmPa",
+            "cAlcNet001"
+          ]
+        },
+        {
+          "id": "Lin5pW3kXr",
+          "kind": "table",
+          "name": "Order Lines",
+          "source": {
+            "connectionId": "9ad28df9-5f5f-4bae-8985-bb12d25829de",
+            "kind": "warehouse-table",
+            "path": ["ANALYTICS", "WAREHOUSE", "FCT_ORDER_LINES"]
+          },
+          "columns": [
+            {"id": "inode-Pq7wT2nB9xL4mR8vZk3YsH/ORDER_LINE_ID", "formula": "[FCT_ORDER_LINES/Order Line Id]"},
+            {"id": "inode-Pq7wT2nB9xL4mR8vZk3YsH/ORDER_ID", "formula": "[FCT_ORDER_LINES/Order Id]"},
+            {"id": "inode-Pq7wT2nB9xL4mR8vZk3YsH/PRODUCT_ID", "formula": "[FCT_ORDER_LINES/Product Id]"},
+            {"id": "inode-Pq7wT2nB9xL4mR8vZk3YsH/QUANTITY", "formula": "[FCT_ORDER_LINES/Quantity]"},
+            {"id": "inode-Pq7wT2nB9xL4mR8vZk3YsH/LINE_AMOUNT", "formula": "[FCT_ORDER_LINES/Line Amount]"},
+            {"id": "uPrice0001", "formula": "Lookup([Products/Unit Price], [Product Id], [Products/Product Id])", "name": "Unit Price"}
+          ],
+          "metrics": [
+            {"id": "mUnits0001", "formula": "Sum([Quantity])", "name": "Units"},
+            {"id": "mList00001", "formula": "Sum([Quantity] * [Unit Price])", "name": "List Price Revenue"}
+          ],
+          "relationships": [
+            {
+              "id": "rProd00001",
+              "targetElementId": "Prd2xN7cVb",
+              "keys": [{"sourceColumnId": "inode-Pq7wT2nB9xL4mR8vZk3YsH/PRODUCT_ID", "targetColumnId": "inode-Gt5yH1qW8eR3uI6oP9aSdF/PRODUCT_ID"}]
+            }
+          ],
+          "order": [
+            "inode-Pq7wT2nB9xL4mR8vZk3YsH/ORDER_LINE_ID",
+            "inode-Pq7wT2nB9xL4mR8vZk3YsH/ORDER_ID",
+            "inode-Pq7wT2nB9xL4mR8vZk3YsH/PRODUCT_ID",
+            "inode-Pq7wT2nB9xL4mR8vZk3YsH/QUANTITY",
+            "inode-Pq7wT2nB9xL4mR8vZk3YsH/LINE_AMOUNT",
+            "uPrice0001"
+          ]
+        },
+        {
+          "id": "Cus4mR8tWq",
+          "kind": "table",
+          "source": {
+            "connectionId": "9ad28df9-5f5f-4bae-8985-bb12d25829de",
+            "kind": "warehouse-table",
+            "path": ["ANALYTICS", "WAREHOUSE", "DIM_CUSTOMER"]
+          },
+          "columns": [
+            {"id": "inode-Vn2bQ8xL4mR7tY1pZk6WsD/CUSTOMER_ID", "formula": "[DIM_CUSTOMER/Customer Id]"},
+            {"id": "inode-Vn2bQ8xL4mR7tY1pZk6WsD/CUSTOMER_NAME", "formula": "[DIM_CUSTOMER/Customer Name]"},
+            {"id": "inode-Vn2bQ8xL4mR7tY1pZk6WsD/SEGMENT", "formula": "[DIM_CUSTOMER/Segment]"},
+            {"id": "inode-Vn2bQ8xL4mR7tY1pZk6WsD/REGION", "formula": "[DIM_CUSTOMER/Region]"}
+          ],
+          "order": [
+            "inode-Vn2bQ8xL4mR7tY1pZk6WsD/CUSTOMER_ID",
+            "inode-Vn2bQ8xL4mR7tY1pZk6WsD/CUSTOMER_NAME",
+            "inode-Vn2bQ8xL4mR7tY1pZk6WsD/SEGMENT",
+            "inode-Vn2bQ8xL4mR7tY1pZk6WsD/REGION"
+          ]
+        },
+        {
+          "id": "Prd2xN7cVb",
+          "kind": "table",
+          "name": "Products",
+          "source": {
+            "connectionId": "9ad28df9-5f5f-4bae-8985-bb12d25829de",
+            "kind": "warehouse-table",
+            "path": ["ANALYTICS", "WAREHOUSE", "DIM_PRODUCT"]
+          },
+          "columns": [
+            {"id": "inode-Gt5yH1qW8eR3uI6oP9aSdF/PRODUCT_ID", "formula": "[DIM_PRODUCT/Product Id]"},
+            {"id": "inode-Gt5yH1qW8eR3uI6oP9aSdF/PRODUCT_NAME", "formula": "[DIM_PRODUCT/Product Name]"},
+            {"id": "inode-Gt5yH1qW8eR3uI6oP9aSdF/CATEGORY", "formula": "[DIM_PRODUCT/Category]"},
+            {"id": "inode-Gt5yH1qW8eR3uI6oP9aSdF/UNIT_PRICE", "formula": "[DIM_PRODUCT/Unit Price]"}
+          ],
+          "order": [
+            "inode-Gt5yH1qW8eR3uI6oP9aSdF/PRODUCT_ID",
+            "inode-Gt5yH1qW8eR3uI6oP9aSdF/PRODUCT_NAME",
+            "inode-Gt5yH1qW8eR3uI6oP9aSdF/CATEGORY",
+            "inode-Gt5yH1qW8eR3uI6oP9aSdF/UNIT_PRICE"
+          ]
+        },
+        {
+          "id": "Sql6vB1nMq",
+          "kind": "table",
+          "name": "Refunds",
+          "source": {
+            "connectionId": "9ad28df9-5f5f-4bae-8985-bb12d25829de",
+            "kind": "sql",
+            "statement": "SELECT order_id, order_amount AS refund_amount\nFROM warehouse.fct_orders\nWHERE order_status = 'refunded'"
+          },
+          "columns": [
+            {"id": "Rf1kW8pQzx", "formula": "[Custom SQL/order_id]"},
+            {"id": "Rf2mT4nVcy", "formula": "[Custom SQL/refund_amount]"}
+          ],
+          "metrics": [
+            {"id": "mRefund001", "formula": "Sum([refund_amount])", "name": "Refund Total"}
+          ],
+          "order": ["Rf1kW8pQzx", "Rf2mT4nVcy"]
+        },
+        {
+          "id": "Jn9cX5vLwe",
+          "kind": "table",
+          "name": "Orders x Lines",
+          "source": {
+            "kind": "join",
+            "joins": [
+              {
+                "left": {"elementId": "Ord8kQ2vZp", "kind": "table"},
+                "right": {"elementId": "Lin5pW3kXr", "kind": "table"},
+                "columns": [{"left": "[Order Id]", "right": "[Order Id]"}],
+                "joinType": "inner"
+              }
+            ],
+            "primarySource": {"elementId": "Ord8kQ2vZp", "kind": "table"}
+          },
+          "columns": [
+            {"id": "Jc1qW7eRty", "formula": "[FCT_ORDERS/Order Id]"},
+            {"id": "Jc2aS9dFgh", "formula": "[FCT_ORDERS/Order Amount]"},
+            {"id": "Jc3zX4cVbn", "formula": "[Order Lines/Quantity]"}
+          ],
+          "metrics": [
+            {"id": "mFan000001", "formula": "Sum([Order Amount])", "name": "Fanned-out Revenue", "description": "Order amount summed over order lines: counts an order once per line."}
+          ],
+          "order": ["Jc1qW7eRty", "Jc2aS9dFgh", "Jc3zX4cVbn"]
+        }
+      ]
+    }
+  ]
+}

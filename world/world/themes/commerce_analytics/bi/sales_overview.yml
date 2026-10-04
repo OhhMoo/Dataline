@@ -1,0 +1,54 @@
+# Sales Overview - the certified SQL behind the Tableau workbook of the same
+# name (bi/tableau in the repo). Sales leadership's view: where the revenue
+# came from, by region, category and account.
+version: 1
+dashboard: sales_overview
+title: Sales Overview
+owner: Analytics Engineering
+metrics:
+  - name: net_revenue
+    expression: "sum(order_amount) filter (where order_status = 'completed')"
+    owner: Analytics Engineering
+    doc: Same definition as the Executive Overview. dbt metric `net_revenue`.
+panels:
+  - name: revenue_by_region_month
+    title: Revenue by Region and Month
+    metric: net_revenue
+    sql: >-
+      select c.region, year(o.order_date) as year, month(o.order_date) as month,
+             sum(o.order_amount) as net_revenue, count(*) as completed_orders
+      from warehouse.fct_orders as o
+      join warehouse.dim_customer as c on c.customer_id = o.customer_id
+      where o.order_status = 'completed'
+      group by all
+      order by c.region, year, month
+    watermark_sql: select max(order_date) as data_through from warehouse.fct_orders
+  - name: revenue_by_category
+    title: Revenue by Category
+    metric: net_revenue
+    sql: >-
+      select p.category, sum(l.line_amount) as net_revenue, sum(l.quantity) as units
+      from warehouse.fct_order_lines as l
+      join warehouse.fct_orders as o on o.order_id = l.order_id
+      join warehouse.dim_product as p on p.product_id = l.product_id
+      where o.order_status = 'completed'
+      group by p.category
+      order by net_revenue desc, p.category
+  - name: order_status_mix
+    title: Orders by Status
+    sql: >-
+      select order_status, count(*) as orders, sum(order_amount) as gross_revenue
+      from warehouse.fct_orders
+      group by order_status
+      order by order_status
+  - name: top_accounts
+    title: Top Accounts
+    metric: net_revenue
+    sql: >-
+      select c.customer_name, c.segment, c.region, sum(o.order_amount) as net_revenue
+      from warehouse.fct_orders as o
+      join warehouse.dim_customer as c on c.customer_id = o.customer_id
+      where o.order_status = 'completed'
+      group by c.customer_id, c.customer_name, c.segment, c.region
+      order by net_revenue desc, c.customer_id
+      limit 10

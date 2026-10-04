@@ -1,0 +1,27 @@
+version: 2
+
+sources:
+  - name: shop
+    description: >
+      The shop platform's nightly change-data-capture extract, loaded as-landed
+      by loader/load_extracts.py (one row per record VERSION, everything
+      VARCHAR, `dt` = the business date of the extract the row came in).
+    schema: raw
+    tables:
+      - name: orders
+        description: >
+          One row per order per status change. A new order arrives in the
+          partition of the day it was placed; it arrives again in a later
+          partition when it is cancelled (usually the next day) or refunded
+          (days to weeks later).
+      - name: order_lines
+        description: Lines of the orders placed that day. Written once; lines never change.
+      - name: customers
+        description: >
+          Accounts. The dt=<cutover> partition is the full snapshot taken when
+          the shop moved to this platform; after that, new signups and
+          account changes (segment upgrades) only.
+      - name: products
+        description: >
+          The catalogue. Full snapshot at cutover, then launches, list-price
+          changes and retirements as they happen.

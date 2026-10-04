@@ -10,6 +10,11 @@ Produces the contract layout (agent.md §9.2.1) under <root>:
   home/                            (only when seed `native: true`: the box's
                                     HOME, carrying ~/.dbt/profiles.yml and
                                     ~/.config/alkera/services.toml)
+  var/world/profile.json           (only when seed `profile:` names one;
+                                    `plugs` in it only when the seed gives them)
+  workspace/data/{exports,api,events}/  (only when seed `files:` asks; files.py)
+  workspace/bi/{powerbi,tableau,sigma}/ (only when the profile plugs that BI
+                                    vendor under `plugs: {bi:}`; bi_projects.py)
   build/provenance.json
 
 The world *shape* lives in world/themes/<name>/ (manifest + gen hooks + static
@@ -33,8 +38,10 @@ import yaml
 
 from . import (
     __version__,
+    bi_projects,
     executor,
     faults,
+    files,
     native_workspace,
     observe,
     scheduler,
@@ -53,6 +60,92 @@ WAREHOUSE_NAME = re.compile(r"^[a-z][a-z0-9_]{0,30}$")
 # that name would be the primary file.
 RESERVED_WAREHOUSE_NAMES = ("primary", "warehouse")
 WAREHOUSES_RECORD = Path("build") / "warehouses.json"
+
+# The environment slots, in `alkera_gateway.plugs.SLOTS` order - spelled here,
+# not imported, for the same layering reason as WAREHOUSE_NAME; world/tests/
+# test_profile_world.py fails if the two lists drift.
+SLOTS = ("files", "notebook", "compute", "warehouse", "transform", "orchestrator",
+         "object_store", "ingest", "bi", "observability", "release", "human")
+# Where a built world says which profile it was built for. Under var/, not
+# build/: it is world state (fingerprint.py's `profile` section reads it) and
+# must survive a snapshot restore, whose SCOPE is workspace + var.
+PROFILE_RECORD = Path("var") / "world" / "profile.json"
+
+
+def resolve_profile(seed: dict) -> dict | None:
+    """The seed's `profile: {name, slots, plugs?}`, validated and canonicalised.
+
+    The harness resolves which slots an environment profile plugs (that is
+    `alkera_gateway.plugs`' job, and world/ never imports it) and writes the
+    list into the seed; the world only honours it. Slots come back in SLOTS
+    order, so the same set spelled in another order is the same profile and
+    the same hash. Loud on anything malformed: an unknown slot is almost
+    always a typo, and a typo'd `obsevability` that silently unplugged the
+    real one would build a world without metrics and say nothing.
+
+    `plugs: {slot: [plug, ...]}` is optional and says WHICH plug fills a
+    slot, where the slot list alone cannot: `bi` is Metabase on the laptop
+    stack and Power BI, Tableau or Sigma on another, and the discovery layer
+    (native_workspace) names an explicit-only vendor only when this says so.
+    Plug NAMES are the gateway's to know (world/ never imports it), so they are
+    checked for shape only - non-empty strings, no repeats - and each slot must
+    be one the profile plugs: a plug for a slot the box does not have is a
+    contradiction, not a no-op. Recorded only when given and non-empty, plug
+    lists sorted, so every profile record written before the key existed is
+    byte for byte unchanged and `[tableau, powerbi]` hashes as `[powerbi,
+    tableau]`.
+
+    None when the seed has no `profile:` - the build every recorded hash
+    was taken from.
+    """
+    if "profile" not in seed:
+        return None
+    spec = seed["profile"]
+    if not isinstance(spec, dict) or not ({"name", "slots"} <= set(spec)
+                                          <= {"name", "slots", "plugs"}):
+        raise SystemExit("seed `profile:` must be a mapping with exactly `name` and "
+                         "`slots`, and optionally `plugs`")
+    name, slots = spec["name"], spec["slots"]
+    if not isinstance(name, str) or not name:
+        raise SystemExit("seed `profile: {name:}` must be a non-empty string")
+    if not isinstance(slots, list):
+        raise SystemExit("seed `profile: {slots:}` must be a list of slot names")
+    unknown = [s for s in slots if s not in SLOTS]
+    if unknown:
+        raise SystemExit(f"seed profile {name!r} names unknown slot(s) {unknown!r} "
+                         f"(known: {', '.join(SLOTS)})")
+    if len(set(slots)) != len(slots):
+        raise SystemExit(f"seed profile {name!r} names a slot twice")
+    out = {"name": name, "slots": [s for s in SLOTS if s in slots]}
+    plugs = _resolve_plugs(name, slots, spec.get("plugs"))
+    if plugs:
+        out["plugs"] = plugs
+    return out
+
+
+def _resolve_plugs(name: str, slots: list, plugs) -> dict:
+    """`profile: {plugs:}` -> {slot: sorted plug names}, in SLOTS order."""
+    if plugs is None:
+        return {}
+    if not isinstance(plugs, dict):
+        raise SystemExit(f"seed profile {name!r}: `plugs:` must be a mapping of "
+                         "slot -> list of plug names")
+    for slot, names in plugs.items():
+        if slot not in SLOTS:
+            raise SystemExit(f"seed profile {name!r} plugs unknown slot {slot!r} "
+                             f"(known: {', '.join(SLOTS)})")
+        if slot not in slots:
+            raise SystemExit(f"seed profile {name!r} plugs slot {slot!r}, which "
+                             f"its `slots:` does not have")
+        if not isinstance(names, list) or not names:
+            raise SystemExit(f"seed profile {name!r}: `plugs: {{{slot}:}}` must be a "
+                             "non-empty list of plug names")
+        if not all(isinstance(n, str) and n for n in names):
+            raise SystemExit(f"seed profile {name!r}: `plugs: {{{slot}:}}` must name "
+                             f"each plug as a non-empty string, not {names!r}")
+        if len(set(names)) != len(names):
+            raise SystemExit(f"seed profile {name!r} names a {slot!r} plug twice")
+    return {slot: sorted(plugs[slot]) for slot in SLOTS if slot in plugs}
 
 
 def _seed_observability(root: Path, theme) -> None:
@@ -267,7 +360,24 @@ def gateway_warehouses(root: Path) -> tuple[list[dict], str | None]:
 
 def build(seed_path: Path, root: Path, lock_path: Path | None = None) -> Path:
     seed = load_seed(seed_path)
+    # Both opt-in keys are validated before anything is written, so a refused
+    # seed leaves no half-built tree for a caller to mistake for a world.
+    profile = resolve_profile(seed)
+    formats = files.resolve(seed)
+    if formats and profile is not None and "files" not in profile["slots"]:
+        raise SystemExit(
+            f"seed asks for `files:` but profile {profile['name']!r} does not plug "
+            "the `files` slot")
+
+    def plugged(slot: str) -> bool:
+        # No profile plugs everything: the world every recorded hash came from.
+        return profile is None or slot in profile["slots"]
+
     theme = load_theme(seed.get("theme", "revenue_daily"))
+    # A profile that plugs a BI vendor needs a theme that can write its
+    # project; refused here, with the other opt-in checks, before anything is
+    # written. [] for every seed that does not plug a vendor.
+    bi_vendors = bi_projects.require(theme, profile)
     root = Path(root)
     workspace, build_dir = root / "workspace", root / "build"
     db_path = root / "var" / "warehouse" / "warehouse.duckdb"
@@ -309,8 +419,14 @@ def build(seed_path: Path, root: Path, lock_path: Path | None = None) -> Path:
     live = scheduler.initial_live(seed, theme)
     if live is not None:
         scheduler.save_live(root, live)
+    # From here down, every plane a profile can unplug is skipped outright when
+    # it is: an unplugged slot leaves NO state behind - no file, no directory,
+    # no fingerprint section - because state no tool can reach is a plane the
+    # fingerprint hashes and the episode cannot see. The workspace, the
+    # warehouse, the dbt build and the scheduler state (the clock) above are
+    # always built; a profile selects planes, it does not change the data.
     write_ingest = getattr(theme.gen, "write_ingest", None)
-    if write_ingest is not None:
+    if write_ingest is not None and plugged("ingest"):
         write_ingest(root, seed, theme.manifest)
     # The workflow plane (gateway/SURFACES.md#workflow): the ticket the work
     # arrives in, the channel the context is scattered across, and the wiki
@@ -320,16 +436,36 @@ def build(seed_path: Path, root: Path, lock_path: Path | None = None) -> Path:
     # scheduler.save because the corpus is dated against the world clock, and
     # the hook reads `vnow` out of the state file rather than re-deriving it.
     write_workflow = getattr(theme.gen, "write_workflow", None)
-    if write_workflow is not None:
+    if write_workflow is not None and plugged("human"):
         write_workflow(root, seed, theme.manifest)
-    for f in sorted((theme.dir / "bi").glob("*.yml")):
-        shutil.copyfile(f, root / "var" / "bi" / "dashboards" / f.name)
+    # var/bi/dashboards/ itself is created above either way: fingerprint.py's
+    # `bi` section is unconditional, and an empty directory is no dashboard.
+    if plugged("bi"):
+        for f in sorted((theme.dir / "bi").glob("*.yml")):
+            shutil.copyfile(f, root / "var" / "bi" / "dashboards" / f.name)
     # The observability store (gateway/SURFACES.md). Definitions are world
     # state a theme seeds; the first sample is the reading the world held at
     # build time, which nothing can re-derive once advance has moved it on.
-    _seed_observability(root, theme)
+    # Unplugged, no definitions are seeded, and observe.record - here and on
+    # every later advance/trigger - is a no-op without them (observe.py,
+    # record), so the clock moving never resurrects var/obs.
+    if plugged("observability"):
+        _seed_observability(root, theme)
     observe.record(root, scheduler.load(root),
                    scheduler.parse_vtime(scheduler.load(root)["vnow"]), "build")
+    # User files (the `files` slot; files.py). Derived from the raw tables the
+    # build loaded above, and written BEFORE the git commit, because an export
+    # somebody was handed is a file somebody checked in.
+    if formats:
+        files.write(root, seed, formats, scheduler.load(root)["vnow"])
+    # The BI vendors' projects (bi_projects.py): the dashboards as code, in the
+    # repository next to the dbt project. After the warehouse (each model's
+    # sources are checked against it), BEFORE native discovery (the onboarding
+    # page points at the project directories, which must exist to be named)
+    # and BEFORE the git commit, because the vendor services publish what was
+    # first committed. A seed whose profile plugs no vendor writes nothing.
+    if bi_vendors:
+        bi_projects.write(root, theme, seed, profile, db_path)
     # Native mode's discovery layer (gateway/NATIVE.md): .envrc, the
     # onboarding page, ~/.dbt/profiles.yml, ~/.config/alkera/services.toml.
     # Opt-in on the same terms as `faults:` and `warehouses:` - a seed without
@@ -339,7 +475,14 @@ def build(seed_path: Path, root: Path, lock_path: Path | None = None) -> Path:
     # now, and because the two files it writes into the workspace belong in the
     # git commit below: on a real box they are checked in.
     if seed.get("native"):
-        native_workspace.write(root, theme)
+        native_workspace.write(root, theme,
+                               slots=profile["slots"] if profile is not None else None,
+                               plugs=profile.get("plugs") if profile is not None else None)
+    # The profile record: the conditional `profile` fingerprint section, so
+    # two profiles over one seed are two worlds. Written only under a profile,
+    # so an unprofiled world has no file and keeps its recorded hash.
+    if profile is not None:
+        _write(root / PROFILE_RECORD, json_canon(profile) + b"\n")
     _git(workspace, seed)
 
     provenance = {
@@ -352,6 +495,11 @@ def build(seed_path: Path, root: Path, lock_path: Path | None = None) -> Path:
         "requirements_lock_sha256": file_hash(lock_path) if lock_path else None,
         "image_digest": None,  # filled by the image build, never by hand
     }
+    # Keys only a seed that opted in gets; an unflagged provenance keeps its bytes.
+    if profile is not None:
+        provenance["profile"] = profile
+    if formats:
+        provenance["files"] = formats
     _write(build_dir / "provenance.json", json_canon(provenance) + b"\n")
     return root
 

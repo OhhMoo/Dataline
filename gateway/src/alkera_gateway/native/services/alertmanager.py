@@ -34,7 +34,7 @@ from fastapi.responses import JSONResponse
 
 from ...observability import iso, parse_vts
 from ...records import ToolError, canonical
-from ..context import Ledger, ServiceError, Span, context_of, served, service_health
+from ..context import Ledger, ServiceError, Span, audit_unrouted, context_of, served, service_health
 from ..http import JSONBody
 
 NAME = "alertmanager"
@@ -53,6 +53,8 @@ DEFAULT_SILENCE_H = 1
 SILENCE_LABEL = "alertname"
 
 app = FastAPI(title="Alkera Alertmanager (fake)", version="0.1.0")
+# One row per request, including the ones no handler ran for (context.py).
+audit_unrouted(app, NAME)
 
 
 @app.exception_handler(ServiceError)

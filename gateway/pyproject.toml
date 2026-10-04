@@ -20,8 +20,33 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dbt = ["dbt-duckdb>=1.9,<2"]
+dbt = ["dbt-duckdb>=1.9,<2", "dbt-postgres>=1.9,<2"]
+# The connector only. dbt-snowflake caps certifi (<2025.4.26) and fakesnow pins
+# sqlglot; resolved in this project they would hold back every image's CA bundle
+# and SQL classifier, so both live in separately compiled locks instead:
+# docker/snowflake-clients.in -> requirements-snowflake.lock (episode images
+# built with --warehouse-clients snowflake) and docker/snowflake.in (the server
+# image). Tests that need them run with
+#   uv run --with-requirements docker/snowflake-dev.in pytest tests/test_snowflake_plug.py
 snowflake = ["snowflake-connector-python>=3,<5"]
+bigquery = ["google-cloud-bigquery>=3.25,<4"]
+# Environment profiles (alkera_gateway.plugs). `notebook` is the Jupyter plug's
+# kernel side (ipykernel runs the per-cell audit extension); `ds` is the data
+# science toolbelt the notebook and DS profiles import.
+notebook = [
+  "ipykernel>=6.29,<8",
+  "jupyter-client>=8.6,<9",
+  "jupyter-server>=2.14,<3",
+  "nbclient>=0.10,<1",
+  "nbformat>=5.10,<6",
+]
+ds = [
+  "pandas>=2.2,<4",
+  "pyarrow>=17,<30",
+  "polars>=1,<2",
+  "scikit-learn>=1.5,<2",
+  "matplotlib>=3.9,<4",
+]
 # Native mode (gateway/NATIVE.md): the fake vendor services and the
 # clients their compatibility tests are driven by. Not a base dependency -
 # an MCP-transport episode never imports any of it, and the episode image's
@@ -46,7 +71,9 @@ native = [
 ]
 
 [dependency-groups]
-dev = ["httpx>=0.28,<1", "pytest>=8,<10", "pytest-asyncio>=1,<2", "ruff>=0.12,<1"]
+dev = [
+  "httpx>=0.28,<1", "pytest>=8,<10", "pytest-asyncio>=1,<2", "ruff>=0.12,<1",
+]
 
 [project.scripts]
 alkera-gateway = "alkera_gateway.cli:main"

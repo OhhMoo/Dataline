@@ -1,0 +1,142 @@
+version: 2
+
+# What reads the marts, so `dbt ls --select +exposure:executive_overview` is
+# the blast radius of a change. The vendor projects themselves live under
+# bi/ at the repo root (bi/README.md); the urls are the published copies.
+
+exposures:
+  - name: executive_overview
+    label: Executive Overview
+    type: dashboard
+    maturity: high
+    url: https://powerbi.internal/groups/commerce-analytics/reports/executive-overview
+    description: >
+      The leadership dashboard (Power BI, bi/powerbi). KPIs, revenue by month
+      against last year, revenue by segment, top products, and a regions page.
+      Finance closes the month off this build: the monthly Net Revenue in the
+      close pack comes from here. Import model, refreshed through the Power BI
+      REST API on every deploy.
+    depends_on:
+      - ref('fct_orders')
+      - ref('fct_order_lines')
+      - ref('dim_customer')
+      - ref('dim_product')
+      - ref('dim_date')
+      - metric('net_revenue')
+      - metric('aov')
+      - metric('yoy_growth')
+    owner:
+      name: Hanna Kowalski
+      email: hanna.kowalski@example.com
+    config:
+      tags: [powerbi, tier-1]
+
+  - name: executive_overview_tableau
+    label: Executive Overview (Sales' build)
+    type: dashboard
+    maturity: high
+    url: https://tableau.internal/#/views/ExecutiveOverview/Overview
+    description: >
+      The Executive Overview as Sales rebuilt it in Tableau (bi/tableau): the
+      published data source Commerce.tds and the workbook Executive
+      Overview.twb on the default site. Same pages and tiles as the Power BI
+      build, Gross Revenue in place of last year. Live connection. Sales quote
+      it in QBR decks.
+    depends_on:
+      - ref('fct_orders')
+      - ref('fct_order_lines')
+      - ref('dim_customer')
+      - ref('dim_product')
+      - ref('dim_date')
+      - metric('net_revenue')
+      - metric('aov')
+    owner:
+      name: Lucia Morales
+      email: lucia.morales@example.com
+    config:
+      tags: [tableau, tier-1]
+
+  - name: executive_overview_sigma
+    label: Executive Overview (Finance's build)
+    type: dashboard
+    maturity: medium
+    url: https://sigma.internal/commerce/workbook/Executive-Overview
+    description: >
+      The Executive Overview as Finance rebuilt it in Sigma (bi/sigma): the
+      Commerce data model and the Executive Overview workbook. No Segment
+      Share and no last-year comparison - Sigma cannot say either. Live
+      connection. FP&A works the close from it before the number is taken off
+      the Power BI build.
+    depends_on:
+      - ref('fct_orders')
+      - ref('fct_order_lines')
+      - ref('dim_customer')
+      - ref('dim_product')
+      - ref('dim_date')
+      - metric('net_revenue')
+      - metric('aov')
+    owner:
+      name: Mia Fischer
+      email: mia.fischer@example.com
+    config:
+      tags: [sigma, finance]
+
+  - name: sales_overview
+    label: Sales Overview
+    type: dashboard
+    maturity: high
+    url: https://tableau.internal/#/views/SalesOverview/Overview
+    description: >
+      Sales leadership's dashboard (Tableau). Revenue and orders by region,
+      category and month; top accounts. Edited on the server, not in this repo
+      yet. Extract refresh 06:00 UTC daily.
+    depends_on:
+      - ref('fct_orders')
+      - ref('fct_order_lines')
+      - ref('dim_customer')
+      - ref('dim_product')
+      - ref('dim_date')
+    owner:
+      name: Lucia Morales
+      email: lucia.morales@example.com
+    config:
+      tags: [tableau, tier-1]
+
+  - name: customer_health
+    label: Customer Health
+    type: dashboard
+    maturity: medium
+    url: https://sigma.internal/commerce/workbook/Customer-Health
+    description: >
+      Account-level workbook (Sigma) used by sales ops: new accounts, order
+      frequency and refund rate by segment. Edited in Sigma, not in this repo
+      yet. Live connection, no extract.
+    depends_on:
+      - ref('fct_orders')
+      - ref('dim_customer')
+      - ref('dim_date')
+    owner:
+      name: Sade Okoro
+      email: sade.okoro@example.com
+    config:
+      tags: [sigma]
+
+  - name: finance_close_pack
+    label: Finance close pack
+    type: analysis
+    maturity: low
+    url: https://sigma.internal/commerce/workbook/Finance-Close-Pack
+    description: >
+      Finance's month-end workbook. Copies Net Revenue and Shipping Revenue for
+      the closed month out of the warehouse on business day 3; what it holds
+      after that is a snapshot, not a live number.
+    depends_on:
+      - ref('fct_orders')
+      - ref('dim_date')
+      - metric('net_revenue')
+      - metric('shipping_revenue')
+    owner:
+      name: Amy Chen
+      email: amy.chen@example.com
+    config:
+      tags: [sigma, finance]

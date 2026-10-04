@@ -780,7 +780,7 @@ def regrade(rollout_dir, task: str | None = None,
     if moved:
         carried.append(moved)
     absent = sorted(_grade_argv_placeholders(spec)
-                    - {"ledger", "artifact"} - set(world))
+                    - {"ledger", "bi_state", "artifact"} - set(world))
     if absent:
         raise RegradeRefused(
             f"{task_id}'s grade_argv names {absent}, which the saved world "
@@ -1164,6 +1164,12 @@ def regrade(rollout_dir, task: str | None = None,
 def run_rollout(args) -> dict:
     tasks_dir = Path(args.tasks_dir).resolve() if args.tasks_dir else None
     spec = taskspec.load(args.task, tasks_dir, variant=args.variant)
+    # The environment profile (alkera_gateway.plugs), resolved for SERVING:
+    # the task loader accepts plugs that are planned, not built, and this is
+    # where a rollout of one stops - before a world, a process or a container,
+    # with the catalog's own reason. None for an unprofiled task.
+    profile_keys = episode.spec_profile_keys(spec)
+    profile = episode.environment_profile(**profile_keys)
     if spec.variant:
         # Exported before anything forks, for the same reason `run_rollouts.py`
         # exports it: the world builder, the fixture stager and the grader are
@@ -1221,6 +1227,10 @@ def run_rollout(args) -> dict:
         "started_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "rollout_dir": str(rollout_dir),
         "tasks_dir": str(tasks_dir) if tasks_dir else None,
+        # Only for a task that declares one, so an unprofiled record is unchanged.
+        **({"environment_profile": {**profile_keys,
+                                    "services": list(profile.services)}}
+           if profile is not None else {}),
     }
     harness_failure: str | None = None
     grader_crashed = False
@@ -1257,6 +1267,9 @@ def run_rollout(args) -> dict:
         # --- world -------------------------------------------------------
         world = episode.build_world(spec, world_root, grading)
         record["world"] = world
+        # The world's planes must be the ones the task's profile serves tools
+        # over, before anything is staged into it or served from it.
+        episode.check_world_profile(Path(world["world_root"]), profile)
         if args.driver == "native":
             # `./ops/sched` goes into the working tree HERE, before the
             # fingerprint and before `tree_manifest`, because the workspace is
@@ -1314,7 +1327,7 @@ def run_rollout(args) -> dict:
             native_container = container_episode.NativeContainerEpisode(
                 project=project, world=world, audit_dir=audit_dir,
                 rollout_dir=rollout_dir, image=args.image,
-                variant=spec.variant,
+                variant=spec.variant, **profile_keys,
                 subject_sandbox=args.subject_sandbox == "container",
                 subject_image=args.subject_image)
             record["image_gate"] = container_episode.assert_image_current(args.image)
@@ -1395,7 +1408,7 @@ def run_rollout(args) -> dict:
                 image=args.image)
             stack.up()
             container_cfg = container_episode.container_gateway_config(
-                world, episode_id, spec.virtual_time)
+                world, episode_id, spec.virtual_time, **profile_keys)
             stack.prepare(container_cfg, spec.surface_probes,
                           rollout_dir / "container")
             record["container"] = {
@@ -1430,7 +1443,7 @@ def run_rollout(args) -> dict:
             # be assembled until the toolbelt is known. On GT004 the report
             # already named 23 live tools the task does not probe; an unprobed
             # tool that is dead must not be able to hide behind that.
-            toolbelt = stack.toolbelt()
+            toolbelt = episode.profile_toolbelt(stack.toolbelt(), profile)
             stack.set_probes(surface_audit.all_probes(toolbelt, spec.surface_probes),
                              rollout_dir / "container")
             surfaces = stack.probe_surfaces()
@@ -1449,7 +1462,8 @@ def run_rollout(args) -> dict:
                 # An endpoint map the caller supplied names a stack the caller
                 # is running; starting a second one on top of it would be two
                 # writers for one audit directory.
-                native_endpoints = aut.resolve_endpoints(args.native_endpoints)
+                native_endpoints = aut.profile_endpoints(
+                    aut.resolve_endpoints(args.native_endpoints), profile)
             else:
                 native = native_stack.NativeStack(
                     world=world, audit_dir=audit_dir, rollout_dir=rollout_dir,
@@ -1465,13 +1479,14 @@ def run_rollout(args) -> dict:
             gateway_cfg = None
         else:
             # --- surface probe, on a throwaway copy, BEFORE the episode ---
-            toolbelt = episode.gateway_tool_names()
+            toolbelt = episode.profile_toolbelt(episode.gateway_tool_names(),
+                                                profile)
             surfaces = episode.probe_surfaces(
                 spec, world, scratch,
                 surface_audit.all_probes(toolbelt, spec.surface_probes))
             gateway_cfg = episode.write_gateway_config(
                 rollout_dir / "gateway.json", world, audit_dir, episode_id,
-                spec.virtual_time)
+                spec.virtual_time, **profile_keys)
 
         record["surfaces"] = surfaces
         record["toolbelt"] = sorted(toolbelt)

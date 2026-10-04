@@ -312,6 +312,13 @@ def audit(*, spec, surfaces: dict, toolbelt) -> dict:
 
 NATIVE_SERVICE_NAMES = ("jira", "slack", "confluence", "metabase", "prometheus",
                         "alertmanager", "loki", "airbyte", "deploy")
+#: The explicit-only BI vendors (`agent_under_test.PLUG_SERVICES`). Separate
+#: from the nine for the same reason the harness keeps them separate: the nine
+#: are the unprofiled box. They are swept as `~<name>`, like the nine, only
+#: when the endpoint map carries them - which only a profile that plugs one
+#: does (`agent_under_test.profile_endpoints`) - so an unprofiled gate checks
+#: exactly what it always checked.
+NATIVE_PLUG_SERVICE_NAMES = ("powerbi", "tableau", "sigma")
 
 # Which native surface a task's gateway-tool probe is really asking about. The
 # task packages declare their probes in MCP terms (`issues_list`, `sql_query`),
@@ -350,6 +357,14 @@ NATIVE_SURFACE_OF = {
     # need, which is whether it is a repository with a commit in it.
     "fs_": "workspace",
     "git_": "git",
+    # The explicit-only BI vendors have no MCP tools at all (the gateway's bi_*
+    # speak to the Metabase-shaped fake); a native task that requires one names
+    # a `<vendor>_health` probe, which is checked as the vendor's /health -
+    # what the `~<vendor>` sweep already asks, under a label the task can
+    # require. Only ever reached through a profiled endpoint map.
+    "powerbi_": "powerbi",
+    "tableau_": "tableau",
+    "sigma_": "sigma",
 }
 
 #: The surface a `sql_*`/`dbt_*` probe names when it addresses a SECOND
@@ -358,7 +373,8 @@ NATIVE_SURFACE_OF = {
 #: runs are the world's to declare (episode.WORLD_WAREHOUSE_KEYS).
 NAMED_WAREHOUSE_PREFIX = "sql:"
 
-NATIVE_CHECK_KIND = {**{n: "http_health" for n in NATIVE_SERVICE_NAMES},
+NATIVE_CHECK_KIND = {**{n: "http_health"
+                        for n in (*NATIVE_SERVICE_NAMES, *NATIVE_PLUG_SERVICE_NAMES)},
                      "sql": "sql", "s3": "s3", "workspace": "path",
                      "git": "git", "docs": "path", "dbt": "dbt",
                      "sched": "sched"}
@@ -846,6 +862,13 @@ def _run_native_check(surface: str, endpoints: dict, world: dict,
                       ) -> tuple[bool, str | None, str]:
     workspace = str(world.get("workspace") or "")
     kind = native_check_kind(surface)
+    address = "s3" if kind == "s3" else surface
+    if (surface in served_planes or kind in ("http_health", "s3")) \
+            and address not in endpoints:
+        # agent_under_test.profile_endpoints dropped it: the task's environment
+        # profile does not serve this surface, so there is nothing to dial.
+        return (False, "excluded_by_profile",
+                f"the environment profile serves no {surface!r}")
     if surface in served_planes:
         # THE GATE MUST ASK THE PLANE THE SUBJECT CAN REACH. Under the container
         # topology the episode mounts the workspace and the warehouse files and
@@ -922,8 +945,10 @@ def probe_native(*, probes: list[dict], endpoints: dict, world: dict,
                          "covers": list(probe.get("covers") or []),
                          "declared": True}
     spoken_for = {c["surface"] for c in checks.values()}
-    for name in NATIVE_SERVICE_NAMES:
-        if name not in spoken_for:
+    for name in (*NATIVE_SERVICE_NAMES, *NATIVE_PLUG_SERVICE_NAMES):
+        # a profiled endpoint map names only what the profile serves, and is
+        # the only kind that can name a BI vendor at all
+        if name not in spoken_for and name in endpoints:
             checks[f"~{name}"] = {"surface": name, "tool": f"{name}.health",
                                   "covers": [], "declared": False}
     if not checks:

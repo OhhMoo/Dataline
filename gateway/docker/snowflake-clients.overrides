@@ -1,0 +1,3 @@
+# The single divergence a snowflake-client image takes from the base locks:
+# dbt-snowflake 1.12 requires certifi<2025.4.26.
+certifi<2025.4.26

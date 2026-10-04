@@ -5,8 +5,9 @@
   workspace files (dbt project, landing CSVs, docs), and — only when the theme
   seeds them — the ingestion control-plane state (var/ingest/state.json), the
   live-world control plane (var/world/live.json, which carries the fault
-  catalogue and the ledger of what fired), and the observability store
-  (var/obs/: metric definitions plus the appended sample record).
+  catalogue and the ledger of what fired), the observability store
+  (var/obs/: metric definitions plus the appended sample record), and the
+  environment profile the seed built for (var/world/profile.json).
   Equal across hosts <=> same world. Comparison excludes `git_head`
   (informational).
 - provenance     — attestation: seed hash, generator + dependency versions,
@@ -144,6 +145,17 @@ def semantic(root: Path) -> dict:
     )
     if extra:
         sections["warehouses"] = {p.stem: _warehouse_hash(p) for p in extra}
+    #   profile - which environment slots the world was built for, written
+    #         only when the seed says `profile:` (build.resolve_profile). The
+    #         planes it unplugs already change other sections by being absent,
+    #         but not always: a theme with no ingest hook builds the same tree
+    #         with or without the `ingest` slot. Two profiles over one seed
+    #         are still two worlds - the gateway serves them different tools -
+    #         so the record itself is hashed. Conditional like the rest: an
+    #         unprofiled world has no record and keeps its recorded hash.
+    profile = root / "var" / "world" / "profile.json"
+    if profile.is_file():
+        sections["profile"] = json_hash(json.loads(profile.read_text(encoding="utf-8")))
     return sections
 
 

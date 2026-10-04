@@ -1,0 +1,64 @@
+{
+  "workbookId": "8e2c4f1a-7b3d-4e9a-b6c5-2d1f0a9e8c73",
+  "workbookUrlId": "Xr7pLq2NvB9mT4wZk8YcDs",
+  "createdBy": "Hq3TfVz8LmP2xR7kN4wY9bD1cJs6e",
+  "updatedBy": "Hq3TfVz8LmP2xR7kN4wY9bD1cJs6e",
+  "createdAt": "2026-03-02T09:15:20.114Z",
+  "updatedAt": "2026-09-18T14:03:51.770Z",
+  "name": "Sales Review",
+  "url": "https://app.sigmacomputing.com/alkera/workbook/sales-review-Xr7pLq2NvB9mT4wZk8YcDs",
+  "path": "Analytics/Sales",
+  "latestVersion": 12,
+  "ownerId": "Hq3TfVz8LmP2xR7kN4wY9bD1cJs6e",
+  "isArchived": false,
+  "contents": {
+    "schemaVersion": 1,
+    "elements": [
+      {"id": "Ctr0nT8wQe", "kind": "container"},
+      {
+        "id": "Kpi1mW4rTy",
+        "kind": "kpi-chart",
+        "name": "Gross",
+        "source": {"dataModelId": "5f0d3c8e-2b7a-4c1e-9a52-7d4e1f0b6a21", "elementId": "Ord8kQ2vZp", "kind": "data-model"},
+        "columns": [{"id": "Kv1aQ9zXsw", "formula": "[Metrics/Gross Revenue]"}],
+        "value": {"columnId": "Kv1aQ9zXsw"}
+      },
+      {
+        "id": "Bar2nE6tYu",
+        "kind": "bar-chart",
+        "name": "Completed revenue by segment",
+        "source": {"dataModelId": "5f0d3c8e-2b7a-4c1e-9a52-7d4e1f0b6a21", "elementId": "Ord8kQ2vZp", "kind": "data-model"},
+        "columns": [
+          {"id": "Bc1sD3fGhj", "formula": "[FCT_ORDERS/Ordered by/Segment]"},
+          {"id": "Bc2kL5mNbv", "formula": "Sum([Order Amount])", "name": "Revenue"},
+          {"id": "Bc3qW7eRty", "formula": "[FCT_ORDERS/Order Amount]"},
+          {"id": "Bc4zX9cVbn", "formula": "[FCT_ORDERS/Order Status]"}
+        ],
+        "yAxis": {"columnIds": ["Bc2kL5mNbv"]},
+        "xAxis": {"columnId": "Bc1sD3fGhj", "sort": {"by": "Bc2kL5mNbv", "direction": "descending"}},
+        "filters": [
+          {"id": "Bf1aS2dFgh", "columnId": "Bc4zX9cVbn", "kind": "list", "values": ["completed"]},
+          {"id": "Bf2qW3eRty", "columnId": "Bc3qW7eRty", "kind": "number-range", "min": 10, "includeNulls": "when-no-value-is-selected"}
+        ]
+      },
+      {
+        "id": "Tbl3pR8uIo",
+        "kind": "table",
+        "name": "Top Products",
+        "source": {"dataModelId": "5f0d3c8e-2b7a-4c1e-9a52-7d4e1f0b6a21", "elementId": "Lin5pW3kXr", "kind": "data-model"},
+        "columns": [
+          {"id": "Tc1yU5iOpa", "formula": "[Order Lines/Products/Product Name]"},
+          {"id": "Tc2hJ7kLzx", "formula": "[Metrics/Units]"}
+        ],
+        "groupings": [{"id": "Tg1cV9bNmq", "groupBy": ["Tc1yU5iOpa"], "calculations": ["Tc2hJ7kLzx"]}],
+        "sort": [{"columnId": "Tc2hJ7kLzx", "direction": "descending"}],
+        "filters": [{"id": "Tf1wE3rTyu", "columnId": "Tc2hJ7kLzx", "kind": "top-n", "rankingFunction": "row-number", "mode": "top-n", "rowCount": 2}]
+      },
+      {"id": "Txt4aS6dFg", "kind": "text"}
+    ],
+    "pages": [{"id": "Pg1sUmMaRy", "name": "Summary"}],
+    "kind": "workbook",
+    "layout": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<Page type=\"grid\" gridTemplateColumns=\"repeat(24, 1fr)\" gridTemplateRows=\"auto\" id=\"Pg1sUmMaRy\">\n  <Element elementId=\"Txt4aS6dFg\" gridColumn=\"1 / 25\" gridRow=\"1 / 3\"/>\n  <Container elementId=\"Ctr0nT8wQe\" type=\"grid\" gridColumn=\"1 / 25\" gridRow=\"3 / 23\" gridTemplateColumns=\"repeat(24, 1fr)\" gridTemplateRows=\"auto\">\n    <Element elementId=\"Kpi1mW4rTy\" gridColumn=\"1 / 9\" gridRow=\"1 / 21\"/>\n  </Container>\n  <Element elementId=\"Bar2nE6tYu\" gridColumn=\"1 / 13\" gridRow=\"23 / 43\"/>\n  <Element elementId=\"Tbl3pR8uIo\" gridColumn=\"13 / 25\" gridRow=\"23 / 43\"/>\n</Page>\n"
+  },
+  "documentVersion": 12
+}

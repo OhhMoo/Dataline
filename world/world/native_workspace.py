@@ -21,6 +21,20 @@ OFF by default. `build.build` calls this only when the seed says `native:
 true`, exactly as it calls `_seed_warehouses` only when the seed names a
 warehouse, so every recorded fingerprint of every existing world is unchanged.
 
+Under a seed `profile:` (build.resolve_profile) every function here takes the
+plugged `slots` and names nothing from a slot the profile left out: an
+onboarding page that lists Jira on a box with no Jira is a fact the world does
+not hold (rule 3 below). `slots=None` - no profile - is the full table, byte
+for byte what this module wrote before profiles existed.
+
+The profile's optional `plugs` ({slot: [plug, ...]}) narrows one step further:
+which plug fills a slot. A slot it names lists only the services of the plugs
+it names (`bi: [powerbi]` is a Power BI shop, so no Metabase); a slot it does
+not name lists what that slot always listed. The BI vendors (PLUG_SERVICES)
+are EXPLICIT-ONLY on the same terms as the notebook (EXPLICIT_SLOTS): named
+only when `plugs` names them, so neither an unprofiled box nor a profile that
+plugs `bi` without saying which vendor ever grows a Power BI endpoint.
+
 Determinism, on the same three rules as the rest of the builder:
 
 1. nothing reads a wall clock, a hostname, an environment variable or a random
@@ -85,6 +99,11 @@ class Endpoint:
     user_var: str = ""
     alias_vars: tuple = ()   # other names the same URL is also exported under
     note: str = ""
+    #: (variable, value) pairs a client needs beside the URL and credentials
+    #: (`TABLEAU_SITE`, `AZURE_TENANT_ID`). Empty for the nine.
+    extra_vars: tuple = ()
+    #: The onboarding page's "reached with" cell, when it is not `note`.
+    clients: str = ""
 
     @property
     def url(self) -> str:
@@ -116,6 +135,56 @@ SERVICES = (
     Endpoint("alertmanager", "alertmanager.internal", 9093, "ALERTMANAGER_URL",
              note="alarms"),
 )
+
+#: The explicit-only BI vendors (`alkera_gateway.native.services.PLUG_NAMES`),
+#: served by `native/serve.py` only under a profile that plugs them, on the
+#: ports in `serve.PLUG_PORTS`. Every variable is the one the service's own
+#: author documents for its clients; the URL is the same for all three of
+#: Power BI's hosts because one service answers the paths of all three
+#: (api.powerbi.com, api.fabric.microsoft.com, login.microsoftonline.com).
+#: `TABLEAU_SITE` is empty because the one site is Default, whose contentUrl
+#: is "" - which is what tabcmd and the Tableau Server Client send for it.
+PLUG_SERVICES = (
+    Endpoint("powerbi", "powerbi.internal", 8095, "POWERBI_API_URL",
+             alias_vars=("FABRIC_API_URL", "AZURE_AUTHORITY_HOST"),
+             user_var="AZURE_CLIENT_ID", auth_var="AZURE_CLIENT_SECRET",
+             extra_vars=(("AZURE_TENANT_ID", FAKE_USER),),
+             note="Power BI: published semantic models, refreshes, DAX queries",
+             clients="Power BI REST / Fabric REST, Entra client-credentials token"),
+    Endpoint("tableau", "tableau.internal", 8096, "TABLEAU_SERVER_URL",
+             user_var="TABLEAU_PAT_NAME", auth_var="TABLEAU_PAT_SECRET",
+             extra_vars=(("TABLEAU_SITE", ""),),
+             note="Tableau Server: published data sources, workbooks, extracts",
+             clients="tabcmd, Tableau Server Client (tableauserverclient), REST"),
+    Endpoint("sigma", "sigma.internal", 8097, "SIGMA_BASE_URL",
+             user_var="SIGMA_CLIENT_ID", auth_var="SIGMA_CLIENT_SECRET",
+             note="Sigma: published workbooks, data models, connections",
+             clients="Sigma REST API v2, client-credentials token"),
+)
+
+#: Which environment slot (`alkera_gateway.plugs.SLOTS`) mounts each service:
+#: the inverse of `Plug.services` in gateway/src/alkera_gateway/plugs.py.
+#: Duplicated rather than imported, like the endpoint table itself;
+#: world/tests/test_profile_world.py compares the two.
+SERVICE_SLOTS = {
+    "metabase": "bi",
+    "loki": "observability", "prometheus": "observability",
+    "alertmanager": "observability",
+    "jira": "human", "slack": "human", "confluence": "human",
+    "airbyte": "ingest",
+    "deploy": "release",
+    "powerbi": "bi", "tableau": "bi", "sigma": "bi",
+}
+#: Which PLUG mounts each service (`Plug.name` in the same catalog), which is
+#: what a profile record's `plugs` names. Same duplication, same drift test.
+SERVICE_PLUGS = {
+    "metabase": "metabase_fake",
+    "loki": "prom_stack", "prometheus": "prom_stack", "alertmanager": "prom_stack",
+    "jira": "workflow", "slack": "workflow", "confluence": "workflow",
+    "airbyte": "airbyte_fake",
+    "deploy": "deploy_fake",
+    "powerbi": "powerbi", "tableau": "tableau", "sigma": "sigma",
+}
 
 #: The planes the workspace reaches through a CLI OF ITS OWN, not a vendor
 #: client. One entry: `./ops/sched`. Mirrors
@@ -153,44 +222,102 @@ CONTROL = {"AIRFLOW_API_URL": "http://airflow.internal:8080/api/v2",
 #: (NATIVE_DRIVER.md, "the world's profiles_dir"); this is that directory as
 #: the episode container sees it, which is `$HOME/.dbt` with `home/` bound at
 #: /root by compose.native.yml.
+DBT = {"DBT_PROFILES_DIR": "/root/.dbt"}
 #: `CONTAINER_HOME` is that default HOME. A box whose engineer has a different
 #: HOME (the Harbor export runs the agent as `engineer`, HOME /home/engineer)
 #: passes `home=` to `environment`, `envrc_block` and `write_for_built_world`,
 #: and `DBT_PROFILES_DIR` follows it; the default writes the same bytes as before.
 CONTAINER_HOME = "/root"
-DBT = {"DBT_PROFILES_DIR": "/root/.dbt"}
+
+
+def dbt_env(home: str = CONTAINER_HOME) -> dict[str, str]:
+    """`DBT` for a box whose HOME is `home`: `$HOME/.dbt` (`DBT` at the default)."""
+    return {"DBT_PROFILES_DIR": f"{str(home).rstrip('/')}/.dbt"}
 SNOWFLAKE = {"SNOWFLAKE_HOST": "snowflake.internal",
              "SNOWFLAKE_ACCOUNT": "acme", "SNOWFLAKE_USER": FAKE_USER,
              "SNOWFLAKE_PASSWORD": FAKE_TOKEN}
+#: The Jupyter plug (gateway/docker/jupyter/README.md): jupyter-server with the
+#: audited kernel, served only when a profile plugs the notebook slot.
+NOTEBOOK = {"JUPYTER_URL": "http://jupyter.internal:8888"}
 #: What a `.internal` alias means, spelled once for the humans reading .envrc.
 BACKEND_NOTES = (
     ("the warehouse", "postgres.internal:5432", "psql, dbt, psycopg"),
     ("object storage", "minio.internal:9000", "aws s3, boto3"),
     ("the scheduler", "airflow.internal:8080", "airflow CLI, REST"),
     ("the second warehouse", "snowflake.internal:8443", "snowsql, the connector"),
+    ("the notebook server", "jupyter.internal:8888", "JupyterLab REST, nbclient"),
 )
+#: The slot behind each backend group, keyed by BACKEND_NOTES label. The
+#: warehouse and dbt are always built (a profile selects planes, never the
+#: data), but they are still keyed so that one rule decides every line.
+BACKEND_SLOTS = {
+    "the warehouse": "warehouse",
+    "object storage": "object_store",
+    "the scheduler": "orchestrator",
+    "the second warehouse": "warehouse",
+    "the notebook server": "notebook",
+}
+
+#: Slots whose plug is newer than the unprofiled box. "No profile" means the
+#: full table as it stood before profiles, and that box is fingerprinted byte
+#: for byte, so these appear only when a profile names them.
+EXPLICIT_SLOTS = frozenset({"notebook"})
 
 
-def dbt_env(home: str = CONTAINER_HOME) -> dict[str, str]:
-    """`DBT` for a box whose HOME is `home`: `$HOME/.dbt` (`DBT` at the default)."""
-    return {"DBT_PROFILES_DIR": f"{str(home).rstrip('/')}/.dbt"}
+def _plugged(slot: str, slots) -> bool:
+    if slots is None:
+        return slot not in EXPLICIT_SLOTS
+    return slot in slots
 
 
-def environment(home: str = CONTAINER_HOME) -> dict[str, str]:
+def _backends(slots):
+    """The backend variable groups this profile plugs, as (comment, mapping)."""
+    groups = (
+        ("the warehouse", "# The warehouse. psql and psycopg need no arguments with these set.",
+         POSTGRES),
+        ("object storage",
+         "# Object storage. `aws s3 ls` and boto3 resolve through this endpoint.", STORAGE),
+        ("the scheduler", "# The scheduler.", CONTROL),
+        ("the second warehouse", "# The second warehouse.", SNOWFLAKE),
+        ("the notebook server", "# The notebook server.", NOTEBOOK),
+    )
+    return [(comment, mapping) for label, comment, mapping in groups
+            if _plugged(BACKEND_SLOTS[label], slots)]
+
+
+def _chosen(service: str, slots, plugs) -> bool:
+    """Does this box serve `service`? Its slot must be plugged; when the
+    profile's `plugs` names that slot, the service's own plug must be named."""
+    slot = SERVICE_SLOTS[service]
+    if not _plugged(slot, slots):
+        return False
+    if not plugs or slot not in plugs:
+        return True
+    return SERVICE_PLUGS[service] in plugs[slot]
+
+
+def _services(slots, plugs=None):
+    """The nine, as plugged, then any BI vendor the profile names by plug.
+    A vendor is never listed on the strength of its slot alone: explicit-only,
+    like the notebook, because "no plugs" is the box as it stood before them."""
+    vendors = [s for s in PLUG_SERVICES
+               if plugs and SERVICE_PLUGS[s.name] in plugs.get(SERVICE_SLOTS[s.name], ())
+               and _chosen(s.name, slots, plugs)]
+    return [s for s in SERVICES if _chosen(s.name, slots, plugs)] + vendors
+
+
+def environment(slots=None, plugs=None, home: str = CONTAINER_HOME) -> dict[str, str]:
     """Every variable the native box exports, as one ordered mapping.
 
     The single definition. `.envrc`, `services.toml` and the test that compares
     this against `compose.native.yml`'s `episode.environment` all read it, so
-    an endpoint cannot be added to one and forgotten in the others. `home` is
-    the box's HOME (see `CONTAINER_HOME`); only `DBT_PROFILES_DIR` depends on it.
+    an endpoint cannot be added to one and forgotten in the others.
     """
     env: dict[str, str] = {}
-    env.update(POSTGRES)
-    env.update(STORAGE)
-    env.update(CONTROL)
-    env.update(SNOWFLAKE)
+    for _, mapping in _backends(slots):
+        env.update(mapping)
     env.update(dbt_env(home))
-    for service in SERVICES:
+    for service in _services(slots, plugs):
         env[service.url_var] = service.url
         for name in service.alias_vars:
             env[name] = service.url
@@ -198,37 +325,30 @@ def environment(home: str = CONTAINER_HOME) -> dict[str, str]:
             env[service.user_var] = FAKE_USER
         if service.auth_var:
             env[service.auth_var] = FAKE_TOKEN
+        for name, value in service.extra_vars:
+            env[name] = value
     return env
 
 
-def envrc_block(home: str = CONTAINER_HOME) -> str:
-    """The delimited block appended to (or replaced inside) `workspace/.envrc`.
-
-    `home` is the box's HOME (see `CONTAINER_HOME`); `DBT_PROFILES_DIR` follows it.
-    """
+def envrc_block(slots=None, plugs=None, home: str = CONTAINER_HOME) -> str:
+    """The delimited block appended to (or replaced inside) `workspace/.envrc`."""
     lines = [
         ENVRC_BEGIN,
         "# Everything below is written by the platform when the box is",
         "# provisioned. The tokens are local development tokens; the real ones",
         "# come from the vault and are injected by the deployment.",
-        "",
-        "# The warehouse. psql and psycopg need no arguments with these set.",
     ]
 
     def emit(mapping):
         for key in sorted(mapping):
             lines.append(f'export {key}="{mapping[key]}"')
 
-    emit(POSTGRES)
-    lines += ["", "# Object storage. `aws s3 ls` and boto3 resolve through this endpoint."]
-    emit(STORAGE)
-    lines += ["", "# The scheduler."]
-    emit(CONTROL)
-    lines += ["", "# The second warehouse."]
-    emit(SNOWFLAKE)
+    for comment, mapping in _backends(slots):
+        lines += ["", comment]
+        emit(mapping)
     lines += ["", "# Where a bare `dbt` finds its profile."]
     emit(dbt_env(home))
-    for service in SERVICES:
+    for service in _services(slots, plugs):
         lines += ["", f"# {service.name} - {service.note}"]
         lines.append(f'export {service.url_var}="{service.url}"')
         for name in service.alias_vars:
@@ -237,6 +357,8 @@ def envrc_block(home: str = CONTAINER_HOME) -> str:
             lines.append(f'export {service.user_var}="{FAKE_USER}"')
         if service.auth_var:
             lines.append(f'export {service.auth_var}="{FAKE_TOKEN}"')
+        for name, value in service.extra_vars:
+            lines.append(f'export {name}="{value}"')
     lines += ["", ENVRC_END]
     return "\n".join(lines) + "\n"
 
@@ -296,7 +418,7 @@ def _toml_string(value: str) -> str:
     return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
-def services_toml(root_in_container: str) -> str:
+def services_toml(root_in_container: str, slots=None, plugs=None) -> str:
     """`~/.config/alkera/services.toml`: the endpoint table, machine-readable.
 
     Hand-rolled rather than through a writer, because `tomllib` is read-only in
@@ -318,18 +440,24 @@ def services_toml(root_in_container: str) -> str:
         f'database = {_toml_string(POSTGRES["PGDATABASE"])}',
         f'user = {_toml_string(POSTGRES["PGUSER"])}',
         f'password = {_toml_string(POSTGRES["PGPASSWORD"])}',
-        "",
-        "[storage]",
-        f'endpoint = {_toml_string(STORAGE["AWS_ENDPOINT_URL"])}',
-        f'access_key_id = {_toml_string(STORAGE["AWS_ACCESS_KEY_ID"])}',
-        f'secret_access_key = {_toml_string(STORAGE["AWS_SECRET_ACCESS_KEY"])}',
-        "",
-        "[scheduler]",
-        f'api = {_toml_string(CONTROL["AIRFLOW_API_URL"])}',
-        f'user = {_toml_string(CONTROL["AIRFLOW_USER"])}',
-        f'password = {_toml_string(CONTROL["AIRFLOW_PASSWORD"])}',
     ]
-    for service in SERVICES:
+    if _plugged(BACKEND_SLOTS["object storage"], slots):
+        lines += [
+            "",
+            "[storage]",
+            f'endpoint = {_toml_string(STORAGE["AWS_ENDPOINT_URL"])}',
+            f'access_key_id = {_toml_string(STORAGE["AWS_ACCESS_KEY_ID"])}',
+            f'secret_access_key = {_toml_string(STORAGE["AWS_SECRET_ACCESS_KEY"])}',
+        ]
+    if _plugged(BACKEND_SLOTS["the scheduler"], slots):
+        lines += [
+            "",
+            "[scheduler]",
+            f'api = {_toml_string(CONTROL["AIRFLOW_API_URL"])}',
+            f'user = {_toml_string(CONTROL["AIRFLOW_USER"])}',
+            f'password = {_toml_string(CONTROL["AIRFLOW_PASSWORD"])}',
+        ]
+    for service in _services(slots, plugs):
         lines += [
             "",
             f"[service.{service.name}]",
@@ -344,6 +472,8 @@ def services_toml(root_in_container: str) -> str:
         if service.auth_var:
             lines.append(f"token = {_toml_string(FAKE_TOKEN)}")
             lines.append(f"token_env = {_toml_string(service.auth_var)}")
+        for name, value in service.extra_vars:
+            lines.append(f"{name.lower()} = {_toml_string(value)}")
     return "\n".join(lines) + "\n"
 
 
@@ -367,14 +497,16 @@ def _project(issues: dict) -> dict:
     return _named(issues.get("project"))
 
 
-def onboarding_markdown(root: Path, manifest: dict) -> str:
+def onboarding_markdown(root: Path, manifest: dict, slots=None, plugs=None) -> str:
     """`docs/onboarding.md`: which systems exist, and where the runbooks are.
 
     Assembled from what the build has already written - the workflow corpus,
     the dashboards, the theme's own job list - so the page can be wrong about
     the world only by the world being wrong about itself. Sections whose source
     a theme does not seed are left out rather than invented, which is why a
-    theme with no wiki gets a shorter page and not a made-up one.
+    theme with no wiki gets a shorter page and not a made-up one. Under a
+    profile, a system in an unplugged slot is left out on the same terms, and
+    so is the job table when there is no orchestrator to run it.
     """
     workflow = Path(root) / "var" / "workflow"
     issues = _load_json(workflow / "issues.json")
@@ -399,11 +531,12 @@ def onboarding_markdown(root: Path, manifest: dict) -> str:
         "|---|---|---|---|",
     ]
     for label, where, clients in BACKEND_NOTES:
-        lines.append(f"| {label} | `{where}` | {clients} | see `.envrc` |")
-    for service in SERVICES:
+        if _plugged(BACKEND_SLOTS[label], slots):
+            lines.append(f"| {label} | `{where}` | {clients} | see `.envrc` |")
+    for service in _services(slots, plugs):
         lines.append(
             f"| {service.name} | `{service.alias}:{service.port}` | "
-            f"{service.note} | `{service.url_var}` |")
+            f"{service.clients or service.note} | `{service.url_var}` |")
     lines += [
         "",
         "`~/.config/alkera/services.toml` holds the same table if you want to "
@@ -411,7 +544,24 @@ def onboarding_markdown(root: Path, manifest: dict) -> str:
         "repository's `config/profiles.yml` is a different target.",
         "",
     ]
-    jobs = manifest.get("jobs") or {}
+    # Where each plugged BI vendor's project is in the repository
+    # (world/world/bi_projects.py). Only a vendor the profile names AND whose
+    # directory the build wrote - rule 3: the page points at what is there, so
+    # an unprofiled box, or a vendor box whose theme ships no project, gets no
+    # such section and keeps its bytes.
+    workspace = Path(root) / "workspace"
+    projects = [s for s in _services(slots, plugs) if s in PLUG_SERVICES
+                and (workspace / "bi" / s.name).is_dir()]
+    if projects:
+        lines += ["## The BI projects", "",
+                  "| tool | project in this repository | service |", "|---|---|---|"]
+        for service in projects:
+            lines.append(f"| {service.name} | `bi/{service.name}/` | "
+                         f"`{service.alias}:{service.port}` |")
+        lines.append("")
+        if (workspace / "bi" / "README.md").is_file():
+            lines += ["`bi/README.md` describes how they are laid out.", ""]
+    jobs = (manifest.get("jobs") or {}) if _plugged("orchestrator", slots) else {}
     if jobs:
         lines += ["## The pipeline", "",
                   "| job | command | runs after |", "|---|---|---|"]
@@ -512,7 +662,7 @@ def write_for_built_world(root: Path, world_in_container: str = "/world",
     home_dir = root / HOME
     envrc = workspace / ".envrc"
     existing = envrc.read_text(encoding="utf-8") if envrc.is_file() else ""
-    block = envrc_block(home)
+    block = envrc_block(home=home)
     state = root / "var" / "sched" / "state.json"
     payload = _load_json(state) or {}
     jobs = payload.get("jobs") if isinstance(payload, dict) else {}
@@ -527,26 +677,28 @@ def write_for_built_world(root: Path, world_in_container: str = "/world",
     ]
 
 
-def write(root: Path, theme, world_in_container: str = "/world") -> list[Path]:
+def write(root: Path, theme, world_in_container: str = "/world",
+          slots=None, plugs=None) -> list[Path]:
     """Write the four discovery files. Returns them, in the order written.
 
     Called by `world.build.build` when the seed says `native: true`, after the
     workflow corpus exists (the onboarding page reads it) and before the git
     commit (the two workspace files belong in it, because on a real box they
-    are checked in).
+    are checked in). `slots` is the seed profile's plugged slots, or None;
+    `plugs` its optional {slot: [plug, ...]}, or None.
     """
     root = Path(root)
     workspace = root / "workspace"
     home = root / HOME
     envrc = workspace / ".envrc"
     existing = envrc.read_text(encoding="utf-8") if envrc.is_file() else ""
-    block = envrc_block()
+    block = envrc_block(slots, plugs)
     return [
         _write(envrc, merge_envrc(existing, block), authored=block),
         _write(workspace / "docs" / "onboarding.md",
-               onboarding_markdown(root, theme.manifest)),
+               onboarding_markdown(root, theme.manifest, slots, plugs)),
         _write(home / ".dbt" / "profiles.yml",
                profiles_yaml(theme.manifest["dbt_profile"])),
         _write(home / ".config" / "alkera" / "services.toml",
-               services_toml(world_in_container)),
+               services_toml(world_in_container, slots, plugs)),
     ]

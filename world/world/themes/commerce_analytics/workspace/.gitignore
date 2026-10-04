@@ -1,0 +1,20 @@
+.env
+.env.local
+
+*.duckdb
+*.duckdb.wal
+dbt_project/target/
+dbt_project/logs/
+# dbt writes its anonymous user id next to whichever profiles.yml it read
+config/.user.yml
+logs/
+__pycache__/
+*.pyc
+
+# Power BI Desktop's local state inside a PBIP project
+bi/powerbi/**/.pbi/localSettings.json
+bi/powerbi/**/.pbi/cache.abf
+# Tableau packaged files carry extracts and embedded credentials
+*.twbx
+*.tdsx
+*.hyper

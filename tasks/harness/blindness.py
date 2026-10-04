@@ -920,7 +920,12 @@ SCHEDULER_TOOLS = frozenset({"sched_trigger"})
 #: equivalent: the `duckdb` CLI shim writes `duckdb.statement` with the tables
 #: the statement named (NATIVE.md, amendment 2026-09-16), and the
 #: generic shim writes `shim.<binary>` with the files the binary changed.
-WAREHOUSE_SHIMS = frozenset({"duckdb.statement", "shim.dbt", "shim.python"})
+#: `jupyter.cell` is the notebook kernel's row (gateway/src/alkera_gateway/native/
+#: notebook.py): it snapshots the workspace and the watched warehouse files the
+#: way the python shim does, so a cell that rewrote the warehouse through the
+#: duckdb library names the file - measured 2026-10-04 (bi_e2e_check.py N3),
+#: before which such a cell quarantined HARD.
+WAREHOUSE_SHIMS = frozenset({"duckdb.statement", "shim.dbt", "shim.python", "jupyter.cell"})
 #: The generic shims that can write a warehouse without naming it. Until
 #: 2026-09-27 `shims/run.py` snapshotted only the WORKSPACE, so a `dbt build`
 #: or a `python` script that rewrote `/world/var/warehouse/*.duckdb` wrote a row

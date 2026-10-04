@@ -1,0 +1,23 @@
+# The roster, authored once and copied into issues.json and chat.json, so a
+# person cannot exist in the channel and not in the tracker.
+#
+# `agent` is the persona the episode's agent writes as (theme.yaml
+# workflow.actor). Nothing lets it write as anybody else.
+users:
+  - {id: hkowalski, name: Hanna Kowalski, role: Analytics engineering lead, team: Analytics}
+  - id: rdesai
+    name: Rohan Desai
+    role: Analytics engineer (Power BI)
+    team: Analytics
+    # On leave until mid-March, and the person the one useful observation in
+    # #analytics-eng is addressed to. Also still the assignee on the runbook
+    # rewrite that has already been done by somebody else.
+    away_until: "+12d"
+  - {id: lmorales, name: Lucia Morales, role: BI developer (Tableau), team: Analytics}
+  - {id: tbrennan, name: Tom Brennan, role: Data engineer, team: Data Platform}
+  - {id: achen, name: Amy Chen, role: Financial controller, team: Finance}
+  - {id: mfischer, name: Mia Fischer, role: FP&A analyst, team: Finance}
+  - {id: jwhitfield, name: James Whitfield, role: VP Sales, team: Sales}
+  - {id: sokoro, name: Sade Okoro, role: Sales operations analyst, team: Sales}
+  - {id: alertbot, name: Alert bot, role: Automation, team: Data Platform}
+  - {id: agent, name: On-call analytics engineer, role: On call, team: Analytics}

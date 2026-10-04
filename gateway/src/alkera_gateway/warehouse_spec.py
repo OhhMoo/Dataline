@@ -36,7 +36,7 @@ class WarehouseSpec(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     name: str = Field(pattern=NAME_PATTERN)
-    backend: Literal["duckdb", "postgres", "snowflake"] = "duckdb"
+    backend: Literal["duckdb", "postgres", "snowflake", "bigquery"] = "duckdb"
     # duckdb only. Resolved against the episode's world root by the registry
     # when relative, so a seed file can name `var/warehouse/legacy.duckdb`.
     path: Path | None = None
@@ -66,6 +66,9 @@ class WarehouseSpec(BaseModel):
 
     @model_validator(mode="after")
     def check_backend_fields(self):
+        # The options variable follows the backend unless the spec names one.
+        if self.backend == "bigquery" and "options_env" not in self.model_fields_set:
+            self.options_env = "ALKERA_BIGQUERY_OPTIONS"
         if self.backend == "duckdb" and self.path is None:
             raise ValueError(f"warehouse {self.name!r} is duckdb and needs a path")
         if self.backend != "duckdb" and self.path is not None:

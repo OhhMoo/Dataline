@@ -16,6 +16,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
+import bistate
 import ledger as ledgerlib
 
 REPO = Path(__file__).resolve().parents[2]
@@ -177,8 +178,128 @@ def reroot_warehouses(specs, old_root, new_root) -> list:
     return out
 
 
+# ------------------------------------------------------ environment profile
+def environment_profile(profile: str = "", plugs: dict | None = None):
+    """The task's `alkera_gateway.plugs.Profile`, or None when it declares none.
+
+    Resolved WITHOUT `allow_planned`: the task loader accepts a profile authored
+    ahead of its tools, and this is where the harness refuses to run one -
+    before a world is built or a container started, with the catalog's own text.
+    """
+    if not profile:
+        if plugs:
+            raise HarnessError("[environment.plugs] adjusts a profile, but no "
+                               "profile is set")
+        return None
+    from alkera_gateway.plugs import ProfileError, resolve
+
+    try:
+        return resolve(profile, plugs or {})
+    except ProfileError as exc:
+        raise HarnessError(str(exc)) from exc
+
+
+#: Where `world.build` records the seed's `profile: {name, slots, plugs?}`
+#: (world/README.md).
+WORLD_PROFILE_RECORD = Path("var") / "world" / "profile.json"
+
+
+def _bi_vendor(plugs) -> bool:
+    """Does this `bi` plug list name an explicit-only BI vendor (a plug that
+    mounts one of `alkera_gateway.native.services.PLUG_NAMES`)?"""
+    from alkera_gateway.native.services import PLUG_NAMES
+    from alkera_gateway.plugs import PLUGS
+
+    return any(set(PLUGS[name].services) & set(PLUG_NAMES) for name in plugs)
+
+
+def check_world_profile(world_root: Path, profile) -> None:
+    """The world the task built must be the box its profile describes.
+
+    A task's world comes from its own `build_world.py` and seed, written by the
+    task author; the tools the agent is served come from `task.toml`. If the two
+    disagree the agent is handed tools over planes that were never seeded (or
+    the reverse), so the rollout stops here, in either direction. A world with
+    no record and a task with no profile is today's case and passes untouched.
+
+    Slots are not enough for BI: `bi` is Metabase on one box and Power BI on
+    another, and a world's BI project (`<workspace>/bi/powerbi/`) and its
+    discovery files are built for one vendor. So when the task plugs a BI
+    vendor (Power BI, Tableau, Sigma), or the world's record says which BI it
+    was built for (`plugs.bi`), the two lists must be the same plugs. A task
+    on Metabase over a record with no `plugs` - every world built before the
+    key existed - is not compared, and passes as it always did.
+    """
+    path = Path(world_root) / WORLD_PROFILE_RECORD
+    record = json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
+    task_bi = sorted(profile.slots.get("bi", ())) if profile is not None else []
+    vendor = _bi_vendor(task_bi)
+    if profile is None:
+        if record is not None:
+            raise HarnessError(
+                f"the world was built for profile {record.get('name')!r} "
+                f"(slots {record.get('slots')}), but the task declares no profile")
+        return
+    if record is None:
+        needs = f", plugs: {{bi: {task_bi}}}" if vendor else ""
+        raise HarnessError(
+            f"the task declares profile {profile.name!r}, but its world was built "
+            f"without one: the seed needs `profile: {{name: {profile.name!r}, "
+            f"slots: {sorted(profile.slots)}{needs}}}`")
+    if record.get("name") != profile.name:
+        raise HarnessError(
+            f"the world was built for profile {record.get('name')!r}, the task "
+            f"declares {profile.name!r}")
+    if sorted(record.get("slots") or []) != sorted(profile.slots):
+        raise HarnessError(
+            f"the world's slots {sorted(record.get('slots') or [])} are not the "
+            f"slots profile {profile.name!r} plugs with its [environment.plugs]: "
+            f"{sorted(profile.slots)}")
+    world_bi = (record.get("plugs") or {}).get("bi")
+    if (vendor or world_bi is not None) and sorted(world_bi or []) != task_bi:
+        built = (f"for BI {sorted(world_bi)}" if world_bi is not None
+                 else "without saying which BI vendor")
+        raise HarnessError(
+            f"the world was built {built}, but profile {profile.name!r} serves "
+            f"BI {task_bi}: the seed needs `profile: {{..., plugs: {{bi: {task_bi}}}}}`")
+
+
+def profile_keys(profile: str = "", plugs: dict | None = None) -> dict:
+    """`{"profile", "plugs"}` for a gateway config, or `{}` with no profile, so
+    an unprofiled config is byte for byte what it was before profiles."""
+    if not profile:
+        return {}
+    return {"profile": profile,
+            "plugs": {slot: list(names) for slot, names in (plugs or {}).items()}}
+
+
+def spec_profile_keys(spec) -> dict:
+    return profile_keys(getattr(spec, "profile", ""), getattr(spec, "plugs", None))
+
+
+def profile_argv(profile: str = "", plugs: dict | None = None) -> list[str]:
+    """`--profile ROLE/STACK --plug SLOT=PLUG[,PLUG]...` for `native.serve`."""
+    if not profile:
+        return []
+    argv = ["--profile", profile]
+    for slot, names in (plugs or {}).items():
+        argv += ["--plug", f"{slot}={','.join(names)}"]
+    return argv
+
+
+def profile_toolbelt(toolbelt: dict, profile=None) -> dict:
+    """The toolbelt a profiled gateway serves: `gateway_tool_names()` and the
+    container shim's `tools` read the whole `TOOLS` table, and `build_tools`
+    drops the unplugged slots' tools from what the config actually serves."""
+    if profile is None:
+        return toolbelt
+    return {name: d for name, d in toolbelt.items()
+            if name not in profile.excluded_tools}
+
+
 def write_gateway_config(path: Path, world: dict, audit_dir: Path,
-                         episode_id: str, virtual_time: str) -> Path:
+                         episode_id: str, virtual_time: str, *,
+                         profile: str = "", plugs: dict | None = None) -> Path:
     """The gateway config. Note what is NOT here: any path under the grading
     zone. The gateway physically cannot address it."""
     path.write_text(json.dumps({
@@ -197,6 +318,8 @@ def write_gateway_config(path: Path, world: dict, audit_dir: Path,
         # after the literal null above on purpose: a world that publishes a
         # fingerprint overrides it, a world that does not keeps it
         **_warehouse_keys(world),
+        # last, and only when the task names one (see `profile_keys`)
+        **profile_keys(profile, plugs),
     }, indent=2), encoding="utf-8")
     return path
 
@@ -260,7 +383,8 @@ def probe_surfaces(spec, world: dict, scratch: Path,
 
     audit = scratch / "probe_audit"
     cfg = write_gateway_config(scratch / "probe_gateway.json", probe_world, audit,
-                               "probe", spec.virtual_time)
+                               "probe", spec.virtual_time,
+                               **spec_profile_keys(spec))
 
     s = socket.socket()
     s.bind(("127.0.0.1", 0))
@@ -327,8 +451,13 @@ def probe_surfaces(spec, world: dict, scratch: Path,
 
 
 # ----------------------------------------------------------------- grading
-def grade(spec, world: dict, artifact_path: Path, out_dir: Path) -> dict:
-    """Run the task's hidden grader. AFTER teardown. Never during the episode."""
+def grade(spec, world: dict, artifact_path: Path, out_dir: Path,
+          bi_state_dir: Path | None = None) -> dict:
+    """Run the task's hidden grader. AFTER teardown. Never during the episode.
+
+    `bi_state_dir` is where this episode's BI vendor services kept their
+    published state; None means the harness default, `<out_dir>/audit/bi`
+    (bistate.py says why that is the same path on every topology)."""
     # The publication ledger moves into the grading zone first
     # (world/README.md#publication-ledger). The grader reads that copy and not
     # <world_root>/var/ledger, for the same reason it reads no other evidence
@@ -336,8 +465,14 @@ def grade(spec, world: dict, artifact_path: Path, out_dir: Path) -> dict:
     # nothing stages nothing and `{ledger}` substitutes to the empty string;
     # a grader must handle a world with no publications anyway.
     staged = ledgerlib.stage(world["world_root"], world["grading"])
+    # The BI vendors' published state, on the same terms (bistate.py): staged
+    # out of the services' state directory, which lives outside the world
+    # tree, into the grading zone; `{bi_state}` is that copy or "".
+    staged_bi = bistate.stage(bi_state_dir if bi_state_dir is not None
+                              else bistate.source_for(out_dir), world["grading"])
     subs = {**{k: v for k, v in world.items() if isinstance(v, str)},
             "ledger": str(staged) if staged else "",
+            "bi_state": str(staged_bi) if staged_bi else "",
             "artifact": str(artifact_path)}
     argv = [a.format(**subs) for a in spec.grade_argv]
     r = subprocess.run([str(PY), str(spec.grade_entrypoint), *argv],
@@ -353,11 +488,12 @@ def grade(spec, world: dict, artifact_path: Path, out_dir: Path) -> dict:
     return score
 
 
-def grade_twice(spec, world: dict, artifact_path: Path, out_dir: Path) -> tuple[dict, bool]:
+def grade_twice(spec, world: dict, artifact_path: Path, out_dir: Path,
+                bi_state_dir: Path | None = None) -> tuple[dict, bool]:
     """Grade, then grade again. A grader whose score moves on an unchanged world
     is a grader defect, and it is the one grader defect detectable mechanically."""
-    first = grade(spec, world, artifact_path, out_dir)
-    second = grade(spec, world, artifact_path, out_dir)
+    first = grade(spec, world, artifact_path, out_dir, bi_state_dir)
+    second = grade(spec, world, artifact_path, out_dir, bi_state_dir)
     stable = (first.get("total") == second.get("total")
               and [c.get("points") for c in first.get("checks", [])]
               == [c.get("points") for c in second.get("checks", [])])

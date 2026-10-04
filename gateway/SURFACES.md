@@ -73,8 +73,13 @@ and explicit cache state, `bi_update` replaces a definition without refreshing i
 state lives in `bi_state_dir` outside the world tree. S3: bucket-scoped
 `s3_list/get/put/delete` against S3Mock/MinIO, bodies base64; buckets and objects are
 seeded by the control plane, never by tool calls. Snowflake: local hostname, trusted local
-TLS, the Python connector wire route only (`/api/v2/statements` unsupported); no SQL
-compatibility or transactional guarantee is claimed.
+TLS, the Python connector wire route only (`/api/v2/statements` unsupported). Multi-statement
+`sql_execute` is atomic for SELECT/INSERT/UPDATE/DELETE/MERGE (rolled back on the first
+failure); DDL in a batch is `unsupported_sql`; DML returns `Count/BIGINT`; column types use
+Snowflake names. Beyond that no SQL compatibility is claimed (`snowflake_fidelity.py`
+DIVERGENCES). BigQuery (`bigquery.py`, goccy emulator): no transactions - a failed batch
+names how many statements were applied - and no cost model: cost fields are never
+returned and dry runs are refused.
 
 ---
 
@@ -198,7 +203,7 @@ The second warehouse is a second **output** in the same profiles file; the agent
 | `Commands.dbt(..., target=, spec=)` | appends `--target` after checking the output exists (`dbt_target_missing`) and is the declared engine (`backend_mismatch`); profiles **read, never rewritten** |
 | action row | `args.warehouse`; `targets` `["<name>:dbt_project"]` for a peer, frozen `["dbt_project"]` for the primary |
 | `read_only` + `dbt_target` | **refused at construction** — dbt opens the file itself and neither guard is in its way |
-| adapters | `dbt-postgres` / `dbt-snowflake` are not in `requirements.lock`; a non-DuckDB `dbt_target` is refused (`dbt_adapter_missing`). A Postgres peer can be read, joined and written by name, not built with dbt |
+| adapters | `dbt-postgres` is in `requirements.lock`; `dbt-snowflake` arrives only in images built with `--warehouse-clients snowflake` (`requirements-snowflake.lock`, compiled apart by `docker/lock_snowflake_clients.py`); `bigquery` is declared and refused. An image without the adapter refuses that backend's `dbt_target` at construction (`dbt_adapter_missing`). Remote outputs are rendered by `warehouses.dbt_output` with `env_var(...)`, never a secret in a file |
 
 World side: `executor.write_profiles` renders one output per `var/warehouse/<name>.duckdb`
 named by stem; `build.py` places a theme-declared DuckDB warehouse there and sets

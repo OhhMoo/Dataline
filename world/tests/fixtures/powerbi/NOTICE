@@ -1,0 +1,24 @@
+Third-party files used by world/tests/test_powerbi_format.py, unmodified.
+
+json-schemas/
+    Microsoft Fabric / Power BI item definition JSON schemas, from
+    https://github.com/microsoft/json-schemas (path fabric/...), commit
+    5e9ded2dd4cb2207c572644b9dce4c3f0c49a517 (2026-09-29).
+    Copyright (c) Microsoft Corporation. MIT License: json-schemas/LICENSE.
+
+samples/pbip-demo-agentic/
+    Model01.SemanticModel from https://github.com/RuiRomano/pbip-demo-agentic
+    (.resources/pbip-sample), commit 2c573dfeb90a4d9983ebcbc340642a8126597605.
+    Copyright (c) 2025 Rui Romano. MIT License: samples/pbip-demo-agentic/LICENSE.
+
+samples/fabric-toolbox-fca/
+    Five TMDL files of FCA_Core_SM.SemanticModel from
+    https://github.com/microsoft/fabric-toolbox
+    (monitoring/fabric-cost-analysis/src), commit
+    c38ea357b804b335d1ed3b558dda38cda778cf70.
+    Copyright (c) Microsoft Corporation. MIT License: samples/fabric-toolbox-fca/LICENSE.
+
+The base theme world/world/semantic/formats/powerbi/CY24SU10.json comes from the
+same fabric-toolbox commit (FCA_Core_Report.Report/StaticResources/
+SharedResources/BaseThemes/CY24SU10.json), MIT, Copyright (c) Microsoft
+Corporation.

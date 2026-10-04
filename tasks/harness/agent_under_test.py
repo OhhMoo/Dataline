@@ -145,11 +145,58 @@ NATIVE_WORKSPACE_SERVICES = {
     "sched": ("SCHED_URL", 8120),
 }
 
+# The explicit-only BI vendors (`alkera_gateway.native.services.PLUG_NAMES`):
+# same shape as NATIVE_SERVICES, and deliberately NOT in it. NATIVE_SERVICES is
+# the unprofiled box - the endpoint map `resolve_endpoints` hands every
+# unprofiled episode, the destinations it is judged against, the nine the
+# surface gate sweeps - and "no profile" must stay the box as it stood before
+# profiles. A vendor enters an episode's map only through `profile_endpoints`,
+# and only when the task's profile plugs it (`bi=powerbi`, or a stack whose
+# default is one: `snowflake` -> `sigma`). Ports are `native/serve.PLUG_PORTS`;
+# world/world/native_workspace.PLUG_SERVICES carries the same table for the
+# workspace's own .envrc, and world/tests/test_profile_world.py compares them.
+PLUG_SERVICES = {
+    "powerbi": ("POWERBI_API_URL",    8095),
+    "tableau": ("TABLEAU_SERVER_URL", 8096),
+    "sigma":   ("SIGMA_BASE_URL",     8097),
+}
+
 # Obviously fake, per the repo rule: never a realistic key format. The same
 # string is the Postgres password, the MinIO access key and its secret, because
 # a credential the workspace carries is a prop and pretending otherwise invites
 # someone to treat a leak as a real one.
 NATIVE_FAKE_CREDENTIAL = "alkera-local-dev"
+
+
+def plug_service_env(name: str, url: str) -> dict[str, str]:
+    """Every variable a plugged BI vendor's clients read, for one base URL.
+
+    The URL is a parameter because there are two: `http://<name>.internal:<port>`
+    inside the episode network (`container_episode.profile_overlay`) and a
+    loopback address on the host topology (`native_env`). Everything else is
+    the obviously fake credential, as everywhere in this harness - the names
+    are the ones each service module's author documents for its clients:
+
+      powerbi  one URL for Power BI REST, Fabric REST and the Entra authority,
+               because one service answers all three hosts' paths; Entra client
+               credentials (any tenant, any client id, the fake secret).
+      tableau  Tableau Server Client / tabcmd: server URL, site contentUrl
+               ("" is the Default site, the only one), a personal access token.
+      sigma    REST API v2 base URL and API client credentials.
+    """
+    fake = NATIVE_FAKE_CREDENTIAL
+    if name == "powerbi":
+        return {"POWERBI_API_URL": url, "FABRIC_API_URL": url,
+                "AZURE_AUTHORITY_HOST": url, "AZURE_CLIENT_ID": fake,
+                "AZURE_CLIENT_SECRET": fake, "AZURE_TENANT_ID": fake}
+    if name == "tableau":
+        return {"TABLEAU_SERVER_URL": url, "TABLEAU_PAT_NAME": fake,
+                "TABLEAU_PAT_SECRET": fake, "TABLEAU_SITE": ""}
+    if name == "sigma":
+        return {"SIGMA_BASE_URL": url, "SIGMA_CLIENT_ID": fake,
+                "SIGMA_CLIENT_SECRET": fake}
+    raise KeyError(f"{name!r} is not a plugged BI vendor ({', '.join(PLUG_SERVICES)})")
+
 
 NATIVE_DEFAULTS = {
     "s3": "http://minio.internal:9000",
@@ -180,6 +227,11 @@ def resolve_endpoints(path: str | Path | None = None) -> dict:
     and the surface gate reports a dead world - blaming the world builder for a
     typo in a harness flag is exactly the misattribution this harness exists to
     prevent.
+
+    A BI vendor (PLUG_SERVICES) is a known key of the FILE - the gate's relay
+    and a profiled host stack write one - but never a default: the map an
+    unprofiled episode gets is the one it got before vendors existed, and
+    `profile_endpoints` keeps an overridden vendor only when the profile plugs it.
     """
     ep: dict = {name: f"http://{name}.internal:{port}"
                 for name, (_, port) in {**NATIVE_SERVICES,
@@ -189,7 +241,7 @@ def resolve_endpoints(path: str | Path | None = None) -> dict:
     if not path:
         return ep
     override = json.loads(Path(path).read_text(encoding="utf-8"))
-    unknown = sorted(set(override) - set(ep))
+    unknown = sorted(set(override) - set(ep) - set(PLUG_SERVICES))
     if unknown:
         raise HarnessError(
             f"--native-endpoints names {unknown}, which is not a native surface. "
@@ -200,6 +252,36 @@ def resolve_endpoints(path: str | Path | None = None) -> dict:
         else:
             ep[key] = value
     return ep
+
+
+def profile_endpoints(endpoints: dict, profile=None) -> dict:
+    """`endpoints` narrowed to what an environment profile serves.
+
+    `profile` is an `alkera_gateway.plugs.Profile` (`episode.environment_profile`),
+    or None for an unprofiled task, whose map comes back unchanged. Narrowed the
+    way `native/serve.py --profile` serves: the vendor services the profile's
+    plugs mount, the scheduler plane only with `ops_sched`, the object store
+    only when the slot is plugged, and a BI vendor (PLUG_SERVICES) only - and
+    always - when a plug names it. Every consumer of the map - the subject's
+    environment, `allowed_destinations`, the containment probe - then neither
+    offers nor expects an address nothing is listening at.
+    """
+    if profile is None:
+        return endpoints
+    drop = {name for name in (*NATIVE_SERVICES, *PLUG_SERVICES)
+            if name not in profile.services}
+    if "ops_sched" not in profile.slots.get("orchestrator", ()):
+        drop |= set(NATIVE_WORKSPACE_SERVICES)
+    if "object_store" not in profile.slots:
+        drop |= {key for key in endpoints if key.startswith("s3")}
+    out = {key: value for key, value in endpoints.items() if key not in drop}
+    # A plugged BI vendor is ADDED - it is in no default map - at its alias,
+    # unless the map already carries an address for it (a relayed or
+    # host-topology override from `resolve_endpoints`).
+    for name, (_, port) in PLUG_SERVICES.items():
+        if name in profile.services and name not in out:
+            out[name] = f"http://{name}.internal:{port}"
+    return out
 
 
 def native_env(*, endpoints: dict, audit_dir: Path,
@@ -214,7 +296,14 @@ def native_env(*, endpoints: dict, audit_dir: Path,
     which is the whole point of native mode.
     """
     pg = endpoints["postgres"]
-    env = {var: endpoints[name] for name, (var, _) in NATIVE_SERVICES.items()}
+    env = {var: endpoints[name] for name, (var, _) in NATIVE_SERVICES.items()
+           if name in endpoints}
+    # A plugged BI vendor brings its client's whole set (URL aliases, the fake
+    # credentials, Tableau's site): only `profile_endpoints` puts one in the
+    # map, so an unprofiled environment is exactly what it was.
+    for name in PLUG_SERVICES:
+        if endpoints.get(name):
+            env.update(plug_service_env(name, endpoints[name]))
     # `SCHED_URL` is deliberately NOT exported here. This function builds the
     # environment for the HOST topology, where `./ops/sched` runs the three
     # operations in its own process against the world's own files and writes
@@ -246,10 +335,8 @@ def native_env(*, endpoints: dict, audit_dir: Path,
         # there IS one: an empty value is still a request to
         # `taskspec.requested_variant`.
         env["ALKERA_TASK_VARIANT"] = variant
-    env.update({
-        # the 9.2.2 action log: every service and shim appends here, so the
-        # budget watcher, the detectors and the grader all read one file
-        "ALKERA_NATIVE_AUDIT": str(Path(audit_dir) / "actions.jsonl"),
+    # No object store in the map (a profile that plugs none): no AWS_* at all.
+    aws = {
         "AWS_ENDPOINT_URL": endpoints["s3"],
         # boto3 and the aws CLI refuse to sign a request without these, so a
         # bucket the episode is meant to reach would be unreachable for a reason
@@ -258,6 +345,12 @@ def native_env(*, endpoints: dict, audit_dir: Path,
         "AWS_ACCESS_KEY_ID": str(endpoints["s3_access_key"]),
         "AWS_SECRET_ACCESS_KEY": str(endpoints["s3_secret_key"]),
         "AWS_DEFAULT_REGION": str(endpoints["s3_region"]),
+    } if "s3" in endpoints else {}
+    env.update({
+        # the 9.2.2 action log: every service and shim appends here, so the
+        # budget watcher, the detectors and the grader all read one file
+        "ALKERA_NATIVE_AUDIT": str(Path(audit_dir) / "actions.jsonl"),
+        **aws,
         "DBT_PROFILES_DIR": str(profiles_dir),
         "PGHOST": str(pg["host"]),
         "PGPORT": str(pg["port"]),
@@ -283,9 +376,10 @@ def allowed_destinations(endpoints: dict) -> set[tuple[str, int]]:
     connection saw and `localhost` and `127.0.0.1` are the same host.
     """
     out = {_host_port(endpoints[name])
-           for name in (*NATIVE_SERVICES, *NATIVE_WORKSPACE_SERVICES)
+           for name in (*NATIVE_SERVICES, *NATIVE_WORKSPACE_SERVICES, *PLUG_SERVICES)
            if endpoints.get(name)}
-    out.add(_host_port(endpoints["s3"]))
+    if "s3" in endpoints:
+        out.add(_host_port(endpoints["s3"]))
     pg = endpoints["postgres"]
     out.add((str(pg["host"]), int(pg["port"])))
     return {(normalise_host(h), p) for h, p in out}

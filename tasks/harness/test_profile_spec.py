@@ -57,12 +57,13 @@ def test_no_profile_loads_as_before(tmp_path):
 
 
 def test_profile_with_planned_plugs_loads(tmp_path):
-    name = write_task(tmp_path, 'profile = "de/snowflake"\n'
-                                'surfaces = ["snowflake", "dbt", "git"]\n')
+    # de/aws: redshift is planned (tableau, its BI, is partial)
+    name = write_task(tmp_path, 'profile = "de/aws"\n'
+                                'surfaces = ["redshift", "dbt", "git"]\n')
     spec = taskspec.load(name, tmp_path)
-    assert spec.profile == "de/snowflake"
+    assert spec.profile == "de/aws"
     assert spec.plugs == {}
-    assert spec.profile_planned == ["sigma"]
+    assert spec.profile_planned == ["redshift"]
 
 
 def test_surface_the_profile_lacks_is_refused(tmp_path):

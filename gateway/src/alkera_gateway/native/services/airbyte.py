@@ -26,7 +26,7 @@ import re
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from ..context import ServiceError, served, service_health
+from ..context import ServiceError, audit_unrouted, served, service_health
 from ..http import JSONBody
 
 NAME = "airbyte"
@@ -42,6 +42,8 @@ _RUN_ID = re.compile(r"^sync-(?P<number>\d+)$")
 MAX_JOBS = 500
 
 app = FastAPI(title="Alkera Airbyte (fake)", version="0.1.0")
+# One row per request, including the ones no handler ran for (context.py).
+audit_unrouted(app, NAME)
 
 
 @app.exception_handler(ServiceError)

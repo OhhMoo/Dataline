@@ -33,7 +33,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from ...records import ToolError
-from ..context import DEV_TOKEN, Ledger, Span, service_health
+from ..context import DEV_TOKEN, Ledger, Span, audit_unrouted, service_health
 from ..http import RawBody
 
 NAME = "slack"
@@ -67,6 +67,8 @@ ERRORS = {
 }
 
 app = FastAPI(title="Slack Web API (alkera native surface)", docs_url=None, redoc_url=None)
+# One row per request, including the ones no handler ran for (context.py).
+audit_unrouted(app, NAME)
 
 
 # --------------------------------------------------------------------------

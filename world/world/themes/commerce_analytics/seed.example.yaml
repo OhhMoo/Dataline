@@ -1,0 +1,25 @@
+# commerce_analytics world seed: a shop's nightly CDC extracts -> raw -> dbt
+# star schema + semantic layer -> Power BI / Tableau / Sigma dashboards.
+theme: commerce_analytics    # world/world/themes/<name>/
+seed: 11
+vtime_start: "2025-01-01T00:00:00Z"
+# 425 nightly extracts: dt=2024-12-31 (the cutover snapshot: accounts and
+# catalogue, no orders) then dt=2025-01-01 .. dt=2026-02-28. Fourteen months of
+# orders, so last-year measures exist for January and February 2026. The world
+# clock opens at 2026-03-02T00:00Z, a Monday - business day 1 of the February
+# close.
+days: 425
+
+# Scale. Every key is optional (gen.DEFAULTS); these are the defaults, spelled
+# out. Build time is dominated by dbt, not by volume - a 2x seed builds in about
+# the same time.
+customers: 220               # accounts on the platform at cutover
+signup_pct: 18               # chance per day of a new account (a second at a quarter of it)
+update_pct: 9                # chance per day that one account is upgraded a segment
+orders_per_day: [20, 60]     # base range, scaled by weekday, month, peak days and growth
+lines_per_order: [1, 4]
+cancel_pct: 6                # 70% the same day, the rest the next day
+refund_pct: 4                # 3 to 45 days after the order
+growth_pct: 20               # year-over-year order volume growth
+
+git_author: "Analytics Engineering <analytics@example.com>"

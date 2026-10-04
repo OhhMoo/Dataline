@@ -40,11 +40,25 @@ from pathlib import Path
 # deliberately absent: their rows come from the server-side tailers, and
 # shimming them too would double every statement in the action log.
 #
+# `python3` is the same interpreter under the name Debian, the episode image
+# and the worlds' own scripts use (`PY="${PYTHON:-python3}"` in a theme's
+# run.sh). Unshimmed it was a second, unaudited python on PATH: measured
+# 2026-10-04 (tasks/harness/bi_e2e_check.py), `python3 -c "...duckdb...
+# CREATE TABLE..."` rewrote the warehouse and wrote no row at all. Its rows
+# are filed as `shim.python` (run.TOOL_NAMES).
+#
 # `duckdb` is on this list and not on that one because nothing serves it: the
 # 2026-09-16 amendment keeps the warehouse a DuckDB FILE for the existing
 # tasks, so there is no statement log to tail and the command line is the only
 # record. `shims/duckdb_cli.py` is what reads it.
-DEFAULT_BINARIES = ("duckdb", "dbt", "python", "git")
+#
+# `tabcmd` (the toolbelt's Tableau CLI) talks to tableau.internal, whose rows
+# record what it asked for - but tabcmd 2 also hard-codes a
+# RotatingFileHandler("tabcmd.log") in the CURRENT DIRECTORY, so every run from
+# the repo writes a file into the workspace. Measured 2026-10-04
+# (bi_e2e_check.py): unshimmed, that was a world change no row named. The shim
+# row names the log; the service rows stay the record of the Tableau calls.
+DEFAULT_BINARIES = ("duckdb", "dbt", "python", "python3", "git", "tabcmd")
 
 CMD_TEMPLATE = """@echo off
 "{interpreter}" -m alkera_gateway.native.shims.run {name} %*

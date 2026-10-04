@@ -168,14 +168,34 @@ def test_a_dbt_target_of_the_wrong_engine_is_refused(world, tmp_path):
         instance.close()
 
 
-def test_a_postgres_dbt_target_is_refused_while_the_adapter_is_absent(world, tmp_path):
-    """dbt-postgres is not in gateway/requirements.lock. A world that promises
-    the agent it can `dbt run` into a Postgres target fails at boot, naming
-    the package, rather than at the agent's first dbt call."""
+def test_a_postgres_dbt_target_is_served_now_the_adapter_is_installed(world, tmp_path):
+    """dbt-postgres ships in the gateway's `dbt` extra. A Postgres peer with a
+    dbt target constructs, is listed as a dbt target, and resolves to its
+    output - the warehouse can be built with dbt, not only read and joined."""
     from alkera_gateway.warehouses import dbt_adapter_missing
 
-    if dbt_adapter_missing("postgres") is None:
-        pytest.skip("dbt-postgres is installed here; the refusal has nothing to refuse")
+    assert dbt_adapter_missing("postgres") is None
+    spec = WarehouseSpec(name="target", backend="postgres", attach=False, dbt_target="target")
+    cfg = dual_config(world, tmp_path / "a", spec=spec)
+    registry = create_registry(cfg)
+    assert registry.dbt_names == ["primary", "target"]
+    assert registry.dbt_plan("target") == {"target": "target", "spec": spec}
+    warehouse = build_tools(cfg)["dbt_run"][0].model_json_schema()["properties"]["warehouse"]
+    assert set(warehouse["enum"]) == {"primary", "target"}
+
+
+def test_a_dbt_target_whose_adapter_is_absent_is_refused_at_construction(
+    world, tmp_path, monkeypatch
+):
+    """An image built without the adapter: a world that promises the agent it
+    can `dbt run` into a Postgres target fails at boot, naming the package,
+    rather than at the agent's first dbt call."""
+    from alkera_gateway import warehouses
+
+    monkeypatch.setattr(
+        warehouses, "dbt_adapter_missing",
+        lambda backend: "dbt-postgres" if backend == "postgres" else None,
+    )
     spec = WarehouseSpec(name="target", backend="postgres", attach=False, dbt_target="target")
     with pytest.raises(ValueError, match="dbt-postgres"):
         create_registry(dual_config(world, tmp_path / "a", spec=spec))

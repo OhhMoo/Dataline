@@ -29,7 +29,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from ...records import json_value
-from ..context import DEV_TOKEN, ServiceError, note, served, service_health
+from ..context import DEV_TOKEN, ServiceError, audit_unrouted, note, served, service_health
 from ..http import JSONBody
 
 NAME = "metabase"
@@ -42,6 +42,8 @@ DATABASE_ID = 1
 SESSION_ID = "alkera-local-dev-session"
 
 app = FastAPI(title="Alkera Metabase (fake)", version="0.1.0")
+# One row per request, including the ones no handler ran for (context.py).
+audit_unrouted(app, NAME)
 
 
 @app.exception_handler(ServiceError)
