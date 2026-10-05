@@ -415,6 +415,112 @@ def test_the_dataset_answers_from_its_last_refresh(plane):
 
 
 # --------------------------------------------------------------------------
+# The world's import: a dataset provisioned from what the world says its last
+# scheduled refresh loaded (<var/bi>/powerbi/datasets.json; world/world/
+# bi_projects.py IMPORTS), not from the warehouse at the first request
+# --------------------------------------------------------------------------
+RELATIONS = ("warehouse.dim_customer", "warehouse.dim_date", "warehouse.dim_product",
+             "warehouse.fct_order_lines", "warehouse.fct_orders")
+LATE_DAY = "2026-02-28"
+
+
+def stale_copy(plane: Plane, tmp_path: Path) -> Path:
+    """The warehouse as a refresh saw it before LATE_DAY's orders landed."""
+    stale = tmp_path / "stale.duckdb"
+    shutil.copy(plane.warehouse, stale)
+    with duckdb.connect(str(stale)) as con:
+        for table in ("fct_order_lines", "fct_orders"):
+            con.execute(f"DELETE FROM stale.warehouse.{table} "
+                        f"WHERE order_date = DATE '{LATE_DAY}'")
+    return stale
+
+
+def write_world_import(plane: Plane, source: Path, relations=RELATIONS,
+                       miscount: int = 0) -> dict:
+    """What gen.bi_imports writes: each relation as CSV in canonical order, its
+    declared column types and row count, and the scheduled refresh history."""
+    folder = plane.root / "var" / "bi" / "powerbi"
+    listed = []
+    with duckdb.connect(":memory:") as con:
+        con.execute(f"ATTACH '{source}' AS wh (READ_ONLY)")
+        for relation in relations:
+            schema, table = relation.split(".")
+            columns = [list(c) for c in con.execute(
+                "SELECT column_name, data_type FROM duckdb_columns() WHERE database_name = "
+                "'wh' AND schema_name = ? AND table_name = ? ORDER BY column_index",
+                [schema, table]).fetchall()]
+            path = folder / "import" / "Commerce" / f"{relation}.csv"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            con.execute(f"COPY (SELECT * FROM wh.{schema}.{table} ORDER BY ALL) TO '{path}' "
+                        f"(FORMAT csv, HEADER true, DELIMITER ',')")
+            rows = con.execute(f"SELECT count(*) FROM wh.{schema}.{table}").fetchone()[0]
+            listed.append({"relation": relation,
+                           "path": path.relative_to(folder).as_posix(),
+                           "columns": columns, "rows": rows + miscount})
+    record = {"datasets": {"Commerce": {
+        "refreshes": [{"refreshType": "Scheduled", "startTime": f"2026-03-0{d}T06:00:00Z",
+                       "endTime": f"2026-03-0{d}T06:07:00Z", "status": "Completed"}
+                      for d in (4, 5)],
+        "import": {"refreshed": "2026-03-05T06:00:00Z", "relations": listed}}}}
+    (folder / "datasets.json").write_text(json.dumps(record, indent=2), encoding="utf-8")
+    return record
+
+
+def snapshot_rows(plane: Plane, relation: str) -> list:
+    state = plane.settings.bi_state_dir / "powerbi"
+    (snapshot,) = sorted((state / "snapshots").glob("*.duckdb"))
+    with duckdb.connect(str(snapshot), read_only=True) as con:
+        return con.execute(f"SELECT * FROM {relation} ORDER BY ALL").fetchall()
+
+
+def test_a_world_import_is_what_the_dataset_answers_until_a_refresh(plane, tmp_path):
+    pytest.importorskip("world.semantic.render", reason="engine not yet available")
+    stale = stale_copy(plane, tmp_path)
+    write_world_import(plane, stale)
+    net = plane.table('EVALUATE ROW("Net", [Net Revenue])')[0]["[Net]"]   # provisions
+    with duckdb.connect(":memory:") as con:
+        con.execute(f"ATTACH '{stale}' AS wh (READ_ONLY)")
+        want = con.execute(NET_REVENUE_SQL).fetchone()[0]
+        for relation in RELATIONS:                       # the CSV round trip is exact
+            assert snapshot_rows(plane, relation) == con.execute(
+                f"SELECT * FROM wh.{relation} ORDER BY ALL").fetchall(), relation
+    live = warehouse_value(plane, NET_REVENUE_SQL)
+    assert net == float(want) and want != live
+    base = f"/v1.0/myorg/groups/{plane.group()}/datasets/{plane.dataset()}/refreshes"
+    history = plane.ok(plane.get(base))["value"]
+    assert [(h["refreshType"], h["startTime"], h["status"]) for h in history] == [
+        ("Scheduled", "2026-03-05T06:00:00Z", "Completed"),
+        ("Scheduled", "2026-03-04T06:00:00Z", "Completed")]
+    state = json.loads((plane.settings.bi_state_dir / "powerbi" / "state.json").read_text())
+    (dataset,) = state["datasets"].values()
+    kpis = dataset["refreshes"][-1]["values"]["Executive Overview"]["Overview"]["KPIs"]
+    assert kpis["rows"][0][0] == str(want)              # what that refresh rendered
+    assert "values" not in dataset["refreshes"][0]
+    assert plane.post(base, json={}).status_code == 202
+    assert plane.table('EVALUATE ROW("Net", [Net Revenue])')[0]["[Net]"] == float(live)
+    assert plane.ok(plane.get(base))["value"][0]["refreshType"] == "ViaApi"
+
+
+@pytest.mark.parametrize("relations, miscount, code", [
+    (RELATIONS[:-1], 0, "powerbi_import_incomplete"),    # the model reads fct_orders too
+    (RELATIONS, 1, "powerbi_import_unreadable"),         # a row count the CSV does not hold
+])
+def test_a_world_import_that_is_not_the_models_is_refused(plane, tmp_path, relations,
+                                                          miscount, code):
+    write_world_import(plane, stale_copy(plane, tmp_path), relations, miscount)
+    response = plane.client.get("/health")
+    assert response.status_code == 503
+    assert response.json()["error"] == code
+
+
+def test_without_a_world_import_the_warehouse_is_the_import(plane):
+    pytest.importorskip("world.semantic.render", reason="engine not yet available")
+    assert not (plane.root / "var" / "bi" / "powerbi").exists()
+    net = plane.table('EVALUATE ROW("Net", [Net Revenue])')[0]["[Net]"]
+    assert net == float(warehouse_value(plane, NET_REVENUE_SQL))
+
+
+# --------------------------------------------------------------------------
 # Fabric: the CI/CD deploy path
 # --------------------------------------------------------------------------
 def definition(plane: Plane) -> dict[str, bytes]:
