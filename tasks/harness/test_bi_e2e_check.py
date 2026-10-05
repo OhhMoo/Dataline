@@ -280,9 +280,10 @@ def test_the_client_script_compiles_and_names_every_step_the_drive_runs():
     compile(check.CLIENTS_PY, "clients.py", "exec")
     namespace: dict = {"__name__": "clients"}
     exec(compile(check.CLIENTS_PY, "clients.py", "exec"), namespace)  # noqa: S102
-    for step in ("py_select", "py_insert", "jira_get", "jira_comment", "slack_history",
-                 "slack_post", "conf_get", "conf_edit", "conf_by_world_id", "pbi_step",
-                 "tsc_view", "sigma_step", "jupyter_server_cell"):
+    for step in ("py_select", "py_insert", "jira_get", "jira_comment", "jira_get_v2",
+                 "slack_history", "slack_post", "conf_get", "conf_edit", "conf_v2_get",
+                 "conf_by_world_id", "pbi_step", "tsc_view", "sigma_step",
+                 "jupyter_server_cell"):
         assert callable(namespace[step]), step
 
 
@@ -394,3 +395,10 @@ def test_every_tool_is_accurate_on_the_host_topology(tmp_path):
         assert by_id[sid]["rows_got"] == 0 and by_id[sid]["verdict"] == "PASS", sid
     # the wiki page by the id the profiled onboarding page lists
     assert by_id["H7"]["verdict"] == "PASS", by_id["H7"]["failures"]
+    # 2026-10-05: the API versions and Sigma routes the BI001 run reached for
+    # first (Jira v2, Confluence v2, an element's query/columns, the sources)
+    # answer, and are right; the guesses no real product serves stay 404
+    for tid in ("H8", "H9", "G7", "U2"):
+        assert by_id[tid]["verdict"] == "PASS", (tid, by_id[tid]["failures"])
+    assert by_id["U2"]["tools"] == ["confluence.request", "confluence.request",
+                                    "jira.request", "sigma.unknown_route"]

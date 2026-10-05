@@ -20,6 +20,19 @@ Two translations are worth naming up front:
   `body.storage.value`. Converting would make every round trip lossy against the
   document the grader reads, which is a worse lie than the format label.
 
+Two API versions, one wiki. Confluence Cloud serves REST v1 under
+`/wiki/rest/api/...` and REST v2 under `/wiki/api/v2/...` ("Confluence Cloud
+REST API v2", OpenAPI https://dac-static.atlassian.com/cloud/confluence/
+openapi-v2.v3.json, servers `https://{your-domain}/wiki/api/v2`). Both are
+served here over the same pages and the same rows; v2 is the subset an
+engineer reads a page with (`GET /pages/{id}?body-format=storage`, `GET
+/pages?title=&space-id=`, `GET /spaces`, `GET /pages/{id}/children` and
+`/direct-children`) and edits it with (`PUT /pages/{id}` carrying `version`).
+Measured 2026-10-04 (BI001 K=8 Opus run): four rollouts asked `$CONFLUENCE_URL/
+wiki/api/v2/pages/<id>?body-format=storage`, and it 404'd. What still 404s, as
+it does on Cloud, is the same paths without `/wiki` (`/rest/api/content/...`,
+`/api/v2/pages/...`): the Cloud REST APIs live under the site's `/wiki`.
+
 Rows are named `confluence.<mcp_tool>` wherever an MCP equivalent exists, so one
 suffix-match rule serves graders and `rollout.py --reclassify` across both
 native planes; the vendor endpoint stays visible in `args.method` / `args.path`.
@@ -31,8 +44,10 @@ from __future__ import annotations
 import base64
 import binascii
 import hashlib
+import json
 import re
 from datetime import UTC, datetime
+from urllib.parse import urlencode
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -40,6 +55,7 @@ from fastapi.responses import JSONResponse
 from ...operations import named
 from ...records import ToolError
 from ..context import DEV_TOKEN, Ledger, Span, audit_unrouted, service_health
+from .jira import adf, plain
 
 NAME = "confluence"
 HOST = "confluence.internal"
@@ -103,11 +119,30 @@ def principal(request: Request) -> str:
     return user
 
 
+V2 = "/wiki/api/v2"
+
+# REST v2's error codes and titles. The OpenAPI document gives v2's error
+# responses no body schema; Cloud answers `{"errors": [{status, code, title,
+# detail}]}`, and that is the envelope served on v2 paths, with this app's
+# reason in `detail`. v1 paths keep v1's `{statusCode, message, reason}`.
+V2_ERRORS = {400: ("INVALID_REQUEST_PARAMETER", "Bad Request"),
+             401: ("UNAUTHORIZED", "Unauthorized"), 404: ("NOT_FOUND", "Not Found"),
+             409: ("CONFLICT", "Conflict")}
+
+
+def error_body(request: Request, status: int, code: str, message: str) -> dict:
+    if request.url.path.startswith(V2 + "/"):
+        name, title = V2_ERRORS.get(status, ("ERROR", "Error"))
+        return {"errors": [{"status": status, "code": name, "title": title,
+                            "detail": f"{code}: {message}"}]}
+    return {"statusCode": status, "message": message, "reason": code}
+
+
 @app.exception_handler(Refused)
 async def _refused(request: Request, exc: Refused) -> JSONResponse:
     headers = {"WWW-Authenticate": 'Basic realm="alkera"'} if exc.status == 401 else {}
-    return JSONResponse({"statusCode": exc.status, "message": exc.message,
-                         "reason": exc.code}, status_code=exc.status, headers=headers)
+    return JSONResponse(error_body(request, exc.status, exc.code, exc.message),
+                        status_code=exc.status, headers=headers)
 
 
 @app.exception_handler(ToolError)
@@ -115,8 +150,7 @@ async def _tool_error(request: Request, exc: ToolError) -> JSONResponse:
     status = 404 if exc.code.endswith("_not_found") or exc.code.startswith("no_") else 400
     if exc.code == "page_exists":
         status = 409
-    return JSONResponse({"statusCode": status, "message": str(exc), "reason": exc.code},
-                        status_code=status)
+    return JSONResponse(error_body(request, status, exc.code, str(exc)), status_code=status)
 
 
 # --------------------------------------------------------------------------
@@ -187,9 +221,14 @@ def resolve(pages: dict, wanted: str) -> str:
                   "not have permission to view the content")
 
 
+def space_number(space: dict) -> int:
+    """The space's numeric id, derived from its key like a content id."""
+    return int(content_id(space["key"])) % 1_000_000
+
+
 def space_object(base: str, space: dict) -> dict:
     return {
-        "id": int(content_id(space["key"])) % 1_000_000,
+        "id": space_number(space),
         "key": space["key"],
         "name": space.get("name", space["key"]),
         "type": "global",
@@ -527,3 +566,398 @@ def content_create(payload: dict, request: Request) -> dict:
         pages, space = index(row)
         return content_object(base_url(request), pages[page_id], space, body=body,
                               parent=parent, want={"body.storage"})
+
+
+# --------------------------------------------------------------------------
+# REST v2 (https://dac-static.atlassian.com/cloud/confluence/openapi-v2.v3.json)
+#
+# The same pages, ids and rows as v1 above, in v2's shapes: `spaceId` and
+# `parentId` instead of embedded objects, `body-format` instead of `expand`,
+# cursor paging with `_links.next` (and a `Link` header) instead of start/limit.
+# Bodies are served for `body-format=storage` (the world's markdown, verbatim,
+# as v1 does) and `atlas_doc_format` (that text as ADF, one paragraph a line,
+# JSON-encoded in `value` as Cloud sends it); the rendered formats (`view`,
+# `export_view`, `styled_view`, `editor`, ...) are a 400 naming the two, never a
+# body quietly labelled as something it is not.
+# --------------------------------------------------------------------------
+
+V2_BODY_FORMATS = ("storage", "atlas_doc_format")
+V2_PAGE_SORTS = {"id", "-id", "created-date", "-created-date", "modified-date",
+                 "-modified-date", "title", "-title"}
+V2_CHILD_SORTS = {"id", "-id", "created-date", "-created-date", "modified-date",
+                  "-modified-date", "child-position", "-child-position", "title", "-title"}
+V2_SPACE_SORTS = {"id", "-id", "key", "-key", "name", "-name"}
+V2_MAX_LIMIT = 250
+
+
+def iso(value: str | None) -> str | None:
+    """World ISO-8601 -> v2's `2025-11-04T10:12:00.000Z`."""
+    if not value:
+        return None
+    moment = datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(UTC)
+    return moment.strftime("%Y-%m-%dT%H:%M:%S.000Z")
+
+
+def listed(request: Request, name: str) -> list[str]:
+    """An array query parameter, repeated (`?id=1&id=2`) or comma-separated
+    (`?space-id=1,2`, which atlassian-python-api sends)."""
+    return [part.strip() for value in request.query_params.getlist(name)
+            for part in value.split(",") if part.strip()]
+
+
+def v2_limit(request: Request) -> int:
+    raw = request.query_params.get("limit", "25")
+    try:
+        limit = int(raw)
+    except ValueError:
+        limit = 0
+    if not 1 <= limit <= V2_MAX_LIMIT:
+        raise Refused(400, "invalid_limit", f"limit must be between 1 and {V2_MAX_LIMIT}")
+    return limit
+
+
+def v2_cursor(request: Request) -> int:
+    """The cursor is the offset the next page starts at: opaque to the client,
+    and no server-side state to keep alive between requests."""
+    raw = request.query_params.get("cursor")
+    if raw is None:
+        return 0
+    if not raw.isdigit():
+        raise Refused(400, "invalid_cursor", "cursor is not one this server issued")
+    return int(raw)
+
+
+def v2_choice(request: Request, name: str, allowed, default: str | None = None) -> str | None:
+    value = request.query_params.get(name, default)
+    if value is not None and value not in allowed:
+        raise Refused(400, f"invalid_{name.replace('-', '_')}",
+                      f"{name} must be one of {', '.join(sorted(allowed))}; got {value!r}")
+    return value
+
+
+def v2_body_format(request: Request) -> str | None:
+    value = request.query_params.get("body-format")
+    if value is not None and value not in V2_BODY_FORMATS:
+        raise Refused(400, "unsupported_body_format",
+                      f"This wiki serves body-format storage and atlas_doc_format; "
+                      f"{value!r} is a rendering it does not produce")
+    return value
+
+
+def v2_flag(request: Request, name: str, default: bool = False) -> bool:
+    value = request.query_params.get(name)
+    return default if value is None else value.lower() == "true"
+
+
+def v2_body(text: str, fmt: str | None) -> dict:
+    if fmt == "storage":
+        return {"storage": {"representation": "storage", "value": text}}
+    if fmt == "atlas_doc_format":
+        return {"atlas_doc_format": {"representation": "atlas_doc_format",
+                                     "value": json.dumps(adf(text))}}
+    return {}
+
+
+def v2_version(number, at, message, by) -> dict:
+    return {"createdAt": iso(at), "message": message or "", "number": number,
+            "minorEdit": False, "authorId": by}
+
+
+def v2_page(base: str, entry: dict, space: dict, pages: dict, history: list, *,
+            body: str | None = None, fmt: str | None = None, include_version: bool = True,
+            labels: bool = False, versions: bool = False) -> dict:
+    """One `kb_list` entry (+ its `kb_get` history) as a v2 page.
+
+    `createdAt` and `authorId` are the first revision's, which `kb_get` keeps in
+    `history`; `version` is the current one, which `kb_list` carries. A parent
+    the wiki does not hold (a root page's `parent: null`) is `parentId: null`.
+    """
+    identifier = content_id(entry["id"])
+    first = min(history, key=lambda revision: revision.get("version") or 0) if history else {}
+    parent = entry.get("parent")
+    payload = {
+        "id": identifier,
+        "status": "current",
+        "title": entry["title"],
+        "spaceId": str(space_number(space)),
+        "parentId": content_id(parent) if parent in pages else None,
+        "parentType": "page" if parent in pages else None,
+        "authorId": first.get("by") or entry.get("last_edited_by"),
+        "ownerId": first.get("by") or entry.get("last_edited_by"),
+        "createdAt": iso(first.get("at") or entry.get("last_edited_at")),
+        "body": v2_body(body or "", fmt) if fmt else {},
+        "_links": {"webui": f"/spaces/{space['key']}/pages/{identifier}/{entry['id']}",
+                   "base": f"{base}/wiki"},
+    }
+    current = v2_version(entry.get("version", 1), entry.get("last_edited_at"),
+                         entry.get("edit_comment"), entry.get("last_edited_by"))
+    if include_version:
+        payload["version"] = current
+    meta = {"hasMore": False, "cursor": None}
+    if labels:
+        payload["labels"] = {
+            "results": [{"id": content_id(name), "name": name, "prefix": "global"}
+                        for name in entry.get("labels", [])],
+            "meta": meta, "_links": {"self": f"{base}{V2}/pages/{identifier}/labels"}}
+    if versions:
+        older = sorted(history, key=lambda revision: revision.get("version") or 0,
+                       reverse=True)
+        payload["versions"] = {
+            "results": [current] + [v2_version(revision.get("version"), revision.get("at"),
+                                               revision.get("comment"), revision.get("by"))
+                                    for revision in older],
+            "meta": meta, "_links": {"self": f"{base}{V2}/pages/{identifier}/versions"}}
+    return payload
+
+
+def histories(row: Span, page_ids: list[str]) -> dict[str, list]:
+    """Each page's revision list, for `createdAt`/`authorId`: header data, read
+    through `aside`, so it costs no row (HUMAN_PLANE.md rule 3)."""
+    return {page_id: row.aside(lambda ops, obs, page=page_id: ops.kb_get(page, obs))
+            .get("history", []) for page_id in page_ids}
+
+
+def v2_listing(request: Request, results: list, start: int, limit: int,
+               total: int) -> JSONResponse:
+    """`{results, _links: {next?, base}}`, and the `Link` header Cloud sends
+    beside `_links.next` ("additional results ... will be available through
+    the `next` URL present in the `Link` response header")."""
+    base = base_url(request)
+    links = {"base": f"{base}/wiki"}
+    headers = {}
+    if start + limit < total:
+        params = [(k, v) for k, v in request.query_params.multi_items() if k != "cursor"]
+        nxt = f"{request.url.path}?{urlencode(params + [('cursor', str(start + limit))])}"
+        links["next"] = nxt
+        headers["Link"] = f'<{nxt}>; rel="next"'
+    return JSONResponse({"results": results, "_links": links}, headers=headers)
+
+
+def v2_sorted(entries: list, sort: str | None, history: dict) -> list:
+    if not sort:
+        return entries
+    field = sort.lstrip("-")
+    keys = {
+        "id": lambda e: int(content_id(e["id"])),
+        "title": lambda e: e["title"],
+        "modified-date": lambda e: e.get("last_edited_at") or "",
+        "created-date": lambda e: min((r.get("at") or "" for r in history.get(e["id"], [])),
+                                      default=e.get("last_edited_at") or ""),
+        "child-position": lambda e: 0,
+    }
+    return sorted(entries, key=keys[field], reverse=sort.startswith("-"))
+
+
+@app.get(V2 + "/pages")
+def v2_pages(request: Request) -> JSONResponse:
+    """`GET /pages`: the space's pages, filtered by `id`, `space-id`, `title`
+    (exact, as Cloud matches it), `status` and `subtype`. The equivalent of
+    `kb_list`, and with a `body-format` one `kb_get` per page returned - the
+    same rule as v1's `expand=body.storage`."""
+    log = Ledger(request, NAME)
+    params = dict(request.query_params)
+    with log.span("kb_list", **params) as row:
+        log.actor = principal(request)
+        limit, start = v2_limit(request), v2_cursor(request)
+        fmt = v2_body_format(request)
+        sort = v2_choice(request, "sort", V2_PAGE_SORTS)
+        statuses = set(listed(request, "status")) or {"current"}
+        unknown = statuses - {"current", "archived", "deleted", "trashed"}
+        if unknown:
+            raise Refused(400, "invalid_status", f"Unknown status {sorted(unknown)[0]!r}")
+        subtype = v2_choice(request, "subtype", {"live", "page"})
+        ids, spaces = set(listed(request, "id")), set(listed(request, "space-id"))
+        title = request.query_params.get("title")
+        pages, space = unpack(row.run(lambda ops, obs: ops.kb_list(obs)))
+        selected = [
+            entry for entry in pages.values()
+            if "current" in statuses and subtype != "live"
+            and (not ids or content_id(entry["id"]) in ids)
+            and (not spaces or str(space_number(space)) in spaces)
+            and (title is None or entry["title"] == title)]
+        history = histories(row, [entry["id"] for entry in selected])
+        selected = v2_sorted(selected, sort, history)
+    window = selected[start:start + limit]
+    text = bodies(log, [entry["id"] for entry in window]) if fmt else {}
+    base = base_url(request)
+    results = [v2_page(base, entry, space, pages, history[entry["id"]],
+                       body=text.get(entry["id"]), fmt=fmt) for entry in window]
+    return v2_listing(request, results, start, limit, len(selected))
+
+
+@app.get(V2 + "/pages/{identifier}")
+def v2_page_get(identifier: str, request: Request) -> dict:
+    """`GET /pages/{id}`: one page. The equivalent of `kb_get`, and one row.
+
+    `include-labels` and `include-versions` are served (the revision list is the
+    evidence that settles a contradiction between two pages); `include-version`
+    defaults to true, as documented. `version=<n>` other than the current one
+    is a 400: the world keeps no historical page bodies to serve.
+    """
+    log = Ledger(request, NAME)
+    with log.span("kb_get", id=identifier, **dict(request.query_params)) as row:
+        log.actor = principal(request)
+        fmt = v2_body_format(request)
+        pages, space = index(row)
+        page_id = resolve(pages, identifier)
+        page = row.run(lambda ops, obs: ops.kb_get(page_id, obs))
+        wanted = request.query_params.get("version")
+        if wanted is not None and wanted != str(page["version"]):
+            raise Refused(400, "unsupported_version",
+                          f"This wiki keeps no historical page bodies; the page is at "
+                          f"version {page['version']}")
+        return v2_page(base_url(request), pages[page_id], space, pages,
+                       page.get("history", []), body=page["body"], fmt=fmt,
+                       include_version=v2_flag(request, "include-version", True),
+                       labels=v2_flag(request, "include-labels"),
+                       versions=v2_flag(request, "include-versions"))
+
+
+def v2_children(identifier: str, request: Request, *, typed: bool) -> JSONResponse:
+    """A page's children, from `kb_list`'s `children` map. One `kb_list` row:
+    the listing is the question asked; resolving the id is a header read."""
+    log = Ledger(request, NAME)
+    with log.span("kb_list", id=identifier, **dict(request.query_params)) as row:
+        log.actor = principal(request)
+        limit, start = v2_limit(request), v2_cursor(request)
+        sort = v2_choice(request, "sort", V2_CHILD_SORTS)
+        pages, _ = index(row)
+        page_id = resolve(pages, identifier)
+        listing = row.run(lambda ops, obs: ops.kb_list(obs))
+        _, space = unpack(listing)
+        children = [pages[child] for child in listing.get("children", {}).get(page_id, [])
+                    if child in pages]
+        history = histories(row, [entry["id"] for entry in children]) \
+            if sort and "created" in sort else {}
+        ordered = v2_sorted(children, sort, history)
+    results = []
+    for position, entry in enumerate(ordered[start:start + limit], start=start):
+        item = {"id": content_id(entry["id"]), "status": "current", "title": entry["title"],
+                "spaceId": str(space_number(space)), "childPosition": position}
+        if typed:
+            item["type"] = "page"
+        results.append(item)
+    return v2_listing(request, results, start, limit, len(ordered))
+
+
+@app.get(V2 + "/pages/{identifier}/children")
+def v2_page_children(identifier: str, request: Request) -> JSONResponse:
+    """`GET /pages/{id}/children` - deprecated in the OpenAPI document in favour
+    of `/direct-children`, and still served there, so served here."""
+    return v2_children(identifier, request, typed=False)
+
+
+@app.get(V2 + "/pages/{identifier}/direct-children")
+def v2_page_direct_children(identifier: str, request: Request) -> JSONResponse:
+    return v2_children(identifier, request, typed=True)
+
+
+@app.get(V2 + "/spaces")
+def v2_spaces(request: Request) -> JSONResponse:
+    """`GET /spaces`: the one space this wiki holds, filtered by `ids`, `keys`,
+    `type` and `status`. The question it asks is `kb_list`, whose header is the
+    space; fields the world does not record (homepage, icon, description,
+    creator) are absent rather than invented."""
+    log = Ledger(request, NAME)
+    with log.span("kb_list", **dict(request.query_params)) as row:
+        log.actor = principal(request)
+        limit, start = v2_limit(request), v2_cursor(request)
+        v2_choice(request, "sort", V2_SPACE_SORTS)
+        kind = v2_choice(request, "type", {"global", "collaboration", "knowledge_base",
+                                           "personal", "system", "onboarding",
+                                           "xflow_sample_space"})
+        status = v2_choice(request, "status", {"current", "archived", "trashed"})
+        ids, keys = set(listed(request, "ids")), set(listed(request, "keys"))
+        _, space = unpack(row.run(lambda ops, obs: ops.kb_list(obs)))
+    spaces = [{"id": str(space_number(space)), "key": space["key"],
+               "name": space.get("name", space["key"]), "type": "global",
+               "status": "current", "_links": {"webui": f"/spaces/{space['key']}"}}]
+    spaces = [item for item in spaces
+              if (not ids or item["id"] in ids) and (not keys or item["key"] in keys)
+              and kind in (None, "global") and status in (None, "current")]
+    return v2_listing(request, spaces[start:start + limit], start, limit, len(spaces))
+
+
+def v2_text(body: object) -> str:
+    """A v2 update body -> the text the world stores. Either spelling the
+    OpenAPI allows: `{representation, value}` or `{storage: {...}}` /
+    `{atlas_doc_format: {...}}`. `storage` is taken verbatim; `atlas_doc_format`
+    (a JSON string, or the object) is read back to its lines, which is the
+    inverse of what `GET ?body-format=atlas_doc_format` serves. `wiki` markup
+    is refused: this wiki would have to convert it, and a lossy write is worse
+    than a 400."""
+    if not isinstance(body, dict):
+        raise Refused(400, "invalid_body", "A page update needs a body")
+    if "representation" not in body:
+        for name in ("storage", "atlas_doc_format", "wiki"):
+            if isinstance(body.get(name), dict):
+                body = {"representation": name, **body[name]}
+                break
+    representation, value = body.get("representation"), body.get("value")
+    if representation == "storage" and isinstance(value, str):
+        return value
+    if representation == "atlas_doc_format" and value is not None:
+        try:
+            document = json.loads(value) if isinstance(value, str) else value
+        except ValueError:
+            raise Refused(400, "invalid_body", "atlas_doc_format value is not JSON") from None
+        return plain(document)
+    if representation == "wiki":
+        raise Refused(400, "unsupported_representation",
+                      "This wiki stores storage format; send body.representation storage")
+    raise Refused(400, "invalid_body",
+                  "A page update needs body.representation storage or atlas_doc_format "
+                  "and body.value")
+
+
+@app.put(V2 + "/pages/{identifier}")
+def v2_page_update(identifier: str, payload: dict, request: Request) -> dict:
+    """`PUT /pages/{id}`: replace a page body and bump its version. The
+    equivalent of `kb_edit`, and one row, exactly as v1's `PUT`.
+
+    The OpenAPI document requires `id`, `status`, `title`, `body` and `version`;
+    a missing one is a 400. The refusals are v1's: a `version.number` that is
+    not current+1 is a lost update (409), and a changed title, parent or space
+    is a rename / move `kb_edit` cannot express (400). `status: draft` is a 400:
+    this wiki publishes and keeps no drafts.
+    """
+    version = (payload.get("version") or {}).get("number")
+    log = Ledger(request, NAME)
+    with log.span("kb_edit", id=identifier, version=version, title=payload.get("title"),
+                  status=payload.get("status")) as row:
+        log.actor = principal(request)
+        pages, space = index(row)
+        page_id = resolve(pages, identifier)
+        current = row.aside(lambda ops, obs: ops.kb_get(page_id, obs))
+        missing = [name for name in ("id", "status", "title", "body", "version")
+                   if payload.get(name) in (None, "")]
+        if missing:
+            raise Refused(400, "invalid_request", f"Missing required field(s): "
+                                                  f"{', '.join(missing)}")
+        if str(payload["id"]) != content_id(page_id):
+            raise Refused(400, "invalid_request",
+                          f"Body id {payload['id']!r} is not the page in the path")
+        if payload["status"] != "current":
+            raise Refused(400, "unsupported_status", "This wiki keeps no drafts; "
+                                                     "status must be current")
+        text = v2_text(payload["body"])
+        if payload["title"] != current["title"]:
+            raise Refused(400, "unsupported_edit",
+                          "This wiki cannot rename a page; the page id is its path")
+        parent = current.get("parent")
+        if payload.get("parentId") not in (None, content_id(parent) if parent else None):
+            raise Refused(400, "unsupported_edit", "This wiki cannot re-parent a page")
+        if payload.get("spaceId") not in (None, str(space_number(space))):
+            raise Refused(400, "unsupported_edit", "This wiki cannot move a page "
+                                                   "to another space")
+        if version is None or str(version) != str(current["version"] + 1):
+            raise Refused(409, "version_conflict",
+                          f"Version must be {current['version'] + 1}; the page is at "
+                          f"version {current['version']}")
+        message = (payload.get("version") or {}).get("message")
+        # `kb_edit` flags the row `overwrite`, as it does for v1's PUT.
+        row.run(lambda ops, obs: ops.kb_edit(page_id, text, message, obs))
+        pages, space = index(row)
+        history = row.aside(lambda ops, obs: ops.kb_get(page_id, obs)).get("history", [])
+        return v2_page(base_url(request), pages[page_id], space, pages, history,
+                       body=text, fmt="storage")

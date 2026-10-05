@@ -24,16 +24,21 @@ clients, from a shell holding the episode's own environment:
                and leave no row)
     human      jira (python `jira`), slack (slack_sdk), confluence
                (atlassian-python-api): one read and one write each, and the
-               wiki page by the id docs/onboarding.md lists
+               wiki page by the id docs/onboarding.md lists; Jira REST v2
+               (`rest_api_version: 2`) and Confluence REST v2 (`/wiki/api/v2`)
+               reads, the versions the BI001 run reached for first
     Power BI   Entra token, groups/datasets, executeQueries, getDefinition,
                updateDefinition with an edited measure, refresh + history
     Tableau    tabcmd 2 (login, publish .tds/.twb, refreshextracts, export
                --csv) and tableauserverclient
     Sigma      token, workbooks, ?includeContents, PUT /contents, export +
-               download, connection sync
+               download, connection sync, an element's query / columns and the
+               workbook's sources
     Jupyter    `jupyter execute` (nbclient) on the alkera-python kernel:
                pandas over a parquet export, duckdb over the warehouse, a file
-    unrouted   one request per HTTP service for a path it does not serve
+    unrouted   one request per HTTP service for a path it does not serve, and
+               the guesses the BI001 run made that the real products do not
+               serve either (they must stay 404)
 
 For EACH action it verifies, from the files the stack wrote:
 
@@ -568,6 +573,17 @@ def jira_comment(key, text):
     out({"id": comment.id})
 
 
+def jira_get_v2(key):
+    """REST v2: the description and comment bodies are plain strings."""
+    from jira import JIRA
+    client = JIRA(server=E["JIRA_URL"], basic_auth=(cred("JIRA_USER"), cred("JIRA_API_TOKEN")),
+                  options={"rest_api_version": "2"})
+    issue = client.issue(key)
+    out({"key": issue.key, "self": issue.self, "status": str(issue.fields.status),
+         "description": issue.fields.description,
+         "comments": [comment.body for comment in issue.fields.comment.comments]})
+
+
 def slack():
     from slack_sdk import WebClient
     return WebClient(base_url=E["SLACK_BASE_URL"].rstrip("/") + "/api/",
@@ -601,6 +617,17 @@ def conf_get(space, title):
 def conf_edit(page_id, title, body):
     updated = confluence().update_page(page_id, title, body)
     out({"version": updated["version"]["number"]})
+
+
+def conf_v2_get(title):
+    """Confluence REST v2, the way a page is found and read there: the space,
+    the page by title in it (the client's own v2 helper), its storage body."""
+    c = confluence()
+    space = c.get("api/v2/spaces")["results"][0]
+    found = c.get_all_pages_by_space_ids_confluence_cloud([space["id"]], title=title)
+    page = c.get("api/v2/pages/" + found[0]["id"], params={"body-format": "storage"})
+    out({"space": space["key"], "id": page["id"], "title": page["title"],
+         "version": page["version"]["number"], "body": page["body"]["storage"]["value"]})
 
 
 def conf_by_world_id(page_id):
@@ -805,6 +832,17 @@ def sigma_step(step):
         r.raise_for_status()
         out({"version": r.json().get("latestVersion"),
              "kpis": sigma_export(s, base, workbook_id, kpis["id"])})
+    elif step == "inspect":
+        kpis = next(el for el in doc["contents"]["elements"] if el["name"] == "KPIs")
+        workbook = f"{base}/workbooks/{workbook_id}"
+        got = {}
+        for name, path in (("query", f"/elements/{kpis['id']}/query"),
+                           ("columns", f"/elements/{kpis['id']}/columns"),
+                           ("sources", "/sources")):
+            r = s.get(workbook + path, timeout=60)
+            r.raise_for_status()
+            got[name] = r.json()
+        out({"elementId": kpis["id"], **got})
 
 
 if __name__ == "__main__":
@@ -1257,6 +1295,24 @@ def drive(topo, truth: Truth) -> list[Action]:
                 Expect("shim.python", "exec", exactly())],
         value=v_jira_comment)
 
+    def v_jira_v2(o, ctx):
+        got, want = parse_result(o.stdout) or {}, truth.issue(JIRA_KEY)
+        bodies = [c["body"] for c in want.get("comments") or []]
+        ok = (got.get("description") == want["body"] and got.get("comments") == bodies
+              and got.get("status") == want["status"]
+              and str(got.get("self", "")).endswith(f"/rest/api/2/issue/{JIRA_KEY}"))
+        return ok, (f"v2 description == issues.json body (plain text): "
+                    f"{got.get('description') == want['body']}; {len(got.get('comments') or [])}"
+                    f" comment strings == issues.json: {got.get('comments') == bodies}")
+
+    add(id="H8", family="jira", label="python jira rest_api_version=2: issue()",
+        command=f"{py} jira_get_v2 {JIRA_KEY}", services=("jira",),
+        expect=[Expect("jira.server_info", "read", exactly("issues")),
+                Expect("jira.issues_get", "read", exactly(f"issue:{JIRA_KEY}"),
+                       exactly(f"issue:{JIRA_KEY}")),
+                Expect("shim.python", "exec", exactly())],
+        value=v_jira_v2)
+
     def v_slack_history(o, ctx):
         got = (parse_result(o.stdout) or {}).get("texts")
         top = [m for m in truth.channel(SLACK_CHANNEL)["messages"] if not m.get("thread_id")]
@@ -1334,6 +1390,28 @@ def drive(topo, truth: Truth) -> list[Action]:
                        exactly(f"kb:{KB_SLUG}")),
                 Expect("shim.python", "exec", exactly())],
         value=v_conf_listed)
+
+    def v_conf_v2(o, ctx):
+        got, want = parse_result(o.stdout) or {}, truth.page(KB_SLUG)
+        space = truth.fixture("kb.json").get("space") or {}
+        ok = (got.get("id") == ctx.get("kb_id") and got.get("title") == KB_TITLE
+              and got.get("body") == want["body"] and got.get("version") == want["version"]
+              and got.get("space") == (space.get("key") if isinstance(space, dict) else space))
+        return ok, (f"v2 page {got.get('id')} (v1 listed {ctx.get('kb_id')}) "
+                    f"v{got.get('version')} body==kb.json: {got.get('body') == want['body']} "
+                    f"(kb.json v{want['version']}, after H6's edit)")
+
+    add(id="H9", family="confluence",
+        label="atlassian REST v2: spaces, pages?title=&space-id=, pages/{id}",
+        command=f"{py} conf_v2_get '{KB_TITLE}'", services=("confluence",),
+        expect=[Expect("confluence.kb_list", "read", exactly("kb"), exactly("kb"),
+                       note="GET /wiki/api/v2/spaces"),
+                Expect("confluence.kb_list", "read", exactly("kb"), exactly("kb"),
+                       note="GET /wiki/api/v2/pages?space-id=&title="),
+                Expect("confluence.kb_get", "read", exactly(f"kb:{KB_SLUG}"),
+                       exactly(f"kb:{KB_SLUG}"), note="GET /wiki/api/v2/pages/{id}"),
+                Expect("shim.python", "exec", exactly())],
+        value=v_conf_v2)
 
     # ----------------------------------------------------------- Power BI
     sm = "powerbi:semantic_model:Commerce"
@@ -1618,6 +1696,48 @@ def drive(topo, truth: Truth) -> list[Action]:
         value=lambda o, ctx: ((parse_result(o.stdout) or {}) == {
             "connectionId": conn_doc["connectionId"], "status": 200, "body": {}},
             f"{parse_result(o.stdout)}"))
+    dm_doc = json.loads((Path(truth.world["workspace"]) / "bi" / "sigma" / "data-models" /
+                         "commerce.json").read_text("utf-8"))
+    dm_elements = {el["id"] for page in dm_doc["pages"] for el in page["elements"]}
+    wb_sources = list(dict.fromkeys(el["source"]["elementId"]
+                                    for el in wb_doc["contents"]["elements"]))
+
+    def v_sigma_inspect(o, ctx):
+        """The KPIs element's SQL, run independently on the warehouse in the
+        connection's names, is what the element computes - after G5 published
+        it on Gross Revenue; its columns are G5's formulas; its sources are the
+        data model elements the workbook reads."""
+        got = parse_result(o.stdout) or {}
+        query, columns = got.get("query") or {}, (got.get("columns") or {}).get("entries", [])
+        sql = re.sub(r"ANALYTICS\.WAREHOUSE\.([A-Z_]+)",
+                     lambda m: f"wh.warehouse.{m.group(1).lower()}", query.get("sql") or "")
+        row = truth.q(sql)[0] if sql else ()
+        k = truth.kpis()
+        formulas = [c.get("formula") for c in columns]
+        sql_ok = (len(row) == 3 and row[0] == truth.gross_all() and row[1] == k["completed"]
+                  and same_number(row[2], k["aov"]))
+        cols_ok = (formulas == ["[Metrics/Gross Revenue]", "[Metrics/Completed Orders]",
+                                "[Metrics/AOV]"]
+                   and all(c.get("type") == {"type": "number"} for c in columns))
+        src_ok = got.get("sources") == [{"type": "data-model",
+                                         "dataModelId": dm_doc["dataModelId"],
+                                         "elementIds": wb_sources}] and \
+            set(wb_sources) <= dm_elements
+        return sql_ok and cols_ok and src_ok and query.get("elementId") == got.get(
+            "elementId"), (f"element SQL on the warehouse {list(row)} vs sql gross "
+                           f"{truth.gross_all()} / n {k['completed']}: {sql_ok}; columns "
+                           f"{formulas}: {cols_ok}; sources == the data model's "
+                           f"{wb_sources}: {src_ok}")
+
+    add(id="G7", family="sigma",
+        label="GET element query + columns, workbook sources",
+        command=f"{py} sigma_inspect", services=("sigma",),
+        expect=[stoken, slist, sget,
+                Expect("sigma.workbook_element_query", "read", exactly(wb), exactly(wb)),
+                Expect("sigma.workbook_element_columns", "read", exactly(wb), exactly(wb)),
+                Expect("sigma.workbook_sources", "read", exactly(wb), exactly(wb)),
+                shim_py],
+        value=v_sigma_inspect)
 
     # ------------------------------------------------------------ Jupyter
     out_rel = "data/e2e_notebook_out.json"
@@ -1689,6 +1809,23 @@ def drive(topo, truth: Truth) -> list[Action]:
         expect=[Expect(f"{s}.request" if s != "sigma" else "sigma.unknown_route", "read",
                        None, exit="error") for s in paths],
         value=lambda o, ctx: (o.stdout.split() == ["404"] * len(paths),
+                              f"statuses {o.stdout.split()}"))
+    # The first guesses the BI001 run (2026-10-04) made that the REAL products
+    # do not serve: Confluence Cloud's REST lives under the site's /wiki; Jira
+    # has no REST v4; Sigma's `contents` is PUT-only. They must stay 404.
+    kb_id = f"$(cat {topo.script('kb_id')})"
+    guesses = [("confluence", "CONFLUENCE_URL", f"/rest/api/content/{kb_id}"),
+               ("confluence", "CONFLUENCE_URL", f"/api/v2/pages/{kb_id}"),
+               ("jira", "JIRA_URL", f"/rest/api/4/issue/{JIRA_KEY}"),
+               ("sigma", "SIGMA_BASE_URL", f"/v2/workbooks/{wb_doc['workbookId']}/contents")]
+    add(id="U2", family="unrouted",
+        label="guesses the real products do not serve either (curl)",
+        command="; ".join(f'curl -s -o /dev/null -w "%{{http_code}}\\n" "${var}{path}"'
+                          for _s, var, path in guesses),
+        services=("confluence", "jira", "sigma"),
+        expect=[Expect(f"{s}.request" if s != "sigma" else "sigma.unknown_route", "read",
+                       exactly(), exit="error") for s, _v, _p in guesses],
+        value=lambda o, ctx: (o.stdout.split() == ["404"] * len(guesses),
                               f"statuses {o.stdout.split()}"))
     return actions
 

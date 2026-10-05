@@ -23,6 +23,13 @@ world/world/semantic/formats/sigma/__init__.py):
   PUT  /v2/workbooks/{id}/contents       replace; a GET response is accepted as is
   GET|PUT /v2/workbooks/{id}/spec        the deprecated spelling (`document`)
   GET  /v2/workbooks/{id}/pages, /pages/{pageId}/elements, /elements
+  GET  /v2/workbooks/{id}/elements/{elementId}/columns   {entries: [{columnId,
+                                         label, formula, type}], nextPage, total}
+  GET  /v2/workbooks/{id}/elements/{elementId}/query     {elementId, name, sql |
+                                         error}; `/queries` lists one per element
+  GET  /v2/workbooks/{id}/columns        every element's columns (+ elementId)
+  GET  /v2/workbooks/{id}/sources        [{type: data-model, dataModelId,
+                                         elementIds}]
   GET  /v2/workbooks/{id}/version-history
   POST /v2/workbooks/{id}/export         {elementId, format: {type}} -> {queryId}
   GET  /v2/query/{queryId}/download      the file
@@ -56,8 +63,25 @@ authentication included, write their row too. Targets: `sigma:workbook:<id>`,
 `sigma:data-model:<id>`, `sigma:connection:<id>`, `sigma:query:<id>`,
 `sigma:session`; an export's `read_targets` are the warehouse relations it read.
 
+ELEMENT SQL AND COLUMNS (formats/sigma/elements.py). An element's `query` is
+the engine's query for it - the one an export runs - over the PUBLISHED
+workbook and data model, in the connection's table names
+(`ANALYTICS.WAREHOUSE.FCT_ORDERS`), with the element's sort and Top N in it, so
+the statement returns the rows the export does; an element the engine cannot
+compute answers `error` (the OpenAPI's field for it), not a guess. Column types
+come from the semantic model. Measured 2026-10-04 (BI001 K=8 Opus run): four
+rollouts asked `/elements/{id}/query`, and `/columns`, `/queries` and
+`/sources` once each, to see what Sigma computes - all four real, all four
+404'd here. What still 404s, because Sigma has no such route: `GET
+/v2/workbooks/{id}/contents` (contents is PUT-only), `/elements/{id}/data`,
+`/elements/{id}/export`, `/elements/{id}`, `/versions`.
+
 NOT IMITATED. Members, teams, grants, folders, tags, schedules, embeds,
-materialization, datasets (retired by Sigma on 2026-09-15), reports, PDF/PNG/
+materialization, datasets (retired by Sigma on 2026-09-15), reports, lineage
+(`/lineage`, `/lineage/elements/{id}`: their node and source ids are not
+defined anywhere a fake could follow), `/schema` (deprecated since 2023-12-15
+and "no longer compatible with workbook layouts", which every workbook here
+has), `tagName`/`bookmarkId` on an element query (400, as on export), PDF/PNG/
 XLSX exports, page and whole-workbook exports, export `parameters`, token
 expiry (tokens never expire: the episode clock is virtual), `POST
 /v2/dataModels/spec`. The default page size (50) is not documented by Sigma.
@@ -305,7 +329,9 @@ def _json(raw: bytes, request: Request | None = None) -> dict:
     return body
 
 
-def _page(request: Request, entries: list) -> dict:
+def _page(request: Request, entries: list, *, has_more: bool = True) -> dict:
+    """`{entries, nextPage, total}`, plus the deprecated `hasMore` that the
+    older list endpoints still document (and the newer ones do not)."""
     params = request.query_params
     try:
         limit = int(float(params.get("limit", DEFAULT_LIMIT)))
@@ -316,8 +342,11 @@ def _page(request: Request, entries: list) -> dict:
         raise Refusal(400, "bad_request", f"limit must be between 1 and {MAX_LIMIT}")
     window = entries[offset:offset + limit]
     more = offset + limit < len(entries)
-    return {"entries": window, "nextPage": str(offset + limit) if more else None,
-            "total": len(entries), "hasMore": more}
+    page = {"entries": window, "nextPage": str(offset + limit) if more else None,
+            "total": len(entries)}
+    if has_more:
+        page["hasMore"] = more
+    return page
 
 
 def _flag(request: Request, name: str) -> bool:
@@ -786,6 +815,153 @@ def download_query(query_id: str, request: Request) -> Response:
 
     result = _serve(request, "query_download", call)
     return Response(result["body"], media_type=EXPORT_TYPES[result["format"]])
+
+
+# ------------------------------------------------- element SQL, columns, sources
+def _elements_module():
+    """formats/sigma/elements.py, imported late for the reason `_semantic` is."""
+    try:
+        from world.semantic.formats.sigma import elements
+    except ImportError as exc:  # pragma: no cover - a broken image
+        raise ServiceError(503, "unavailable", f"Sigma's model engine is not installed: "
+                                               f"{exc}") from None
+    return elements
+
+
+def _published_elements(store: SigmaStore, workbook_id: str) -> tuple[dict, list[dict]]:
+    _s, _r, _e, _c, contents_of, _ev, _co = _semantic()
+    doc = store.workbook(workbook_id)["versions"][-1]
+    return doc, contents_of(doc).get("elements", [])
+
+
+def _one_element(elements: list[dict], element_id: str) -> dict:
+    found = next((el for el in elements if el.get("id") == element_id), None)
+    if found is None:
+        raise Refusal(404, "not_found", f"Element {element_id} not found")
+    return found
+
+
+def _published_model(store: SigmaStore, doc: dict):
+    """(model, index) of the PUBLISHED data model the workbook reads, or the
+    reason it does not parse - which every element query then reports."""
+    _s, _r, SemanticError, *_rest = _semantic()
+    from world.semantic.formats.sigma.datamodel import read_data_model
+
+    try:
+        model, index = read_data_model(store.data_model_for(doc), store.catalog())
+    except SemanticError as exc:
+        return None, None, str(exc)
+    except Refusal as exc:
+        return None, None, exc.message
+    return model, index, None
+
+
+def _query_entry(el: dict, model, index, problem: str | None) -> dict:
+    elements = _elements_module()
+    _s, _r, SemanticError, *_rest = _semantic()
+    entry = {"elementId": el["id"], "name": elements.element_name(el)}
+    if problem is not None:
+        entry["error"] = problem
+        return entry
+    try:
+        entry["sql"] = elements.element_sql(el, model, index)
+    except SemanticError as exc:
+        entry["error"] = str(exc)
+    return entry
+
+
+def _no_versions(request: Request) -> None:
+    if request.query_params.get("tagName"):
+        raise Refusal(400, "bad_request", "Version tags are not supported")
+    if request.query_params.get("bookmarkId"):
+        raise Refusal(400, "bad_request", "Saved views (bookmarks) are not supported")
+
+
+@app.get("/v2/workbooks/{workbook_id}/elements/{element_id}/query")
+def element_query(workbook_id: str, element_id: str, request: Request) -> dict:
+    """`getElementQuery`: `{elementId, name, sql}`, or `error` instead of `sql`."""
+    def call(store, observation):
+        _no_versions(request)
+        doc, elements = _published_elements(store, workbook_id)
+        el = _one_element(elements, element_id)
+        _read(observation, _wb_target(workbook_id))
+        model, index, problem = _published_model(store, doc)
+        return _query_entry(el, model, index, problem)
+
+    return _serve(request, "workbook_element_query", call, **dict(request.query_params))
+
+
+@app.get("/v2/workbooks/{workbook_id}/queries")
+def workbook_queries(workbook_id: str, request: Request) -> dict:
+    """`listWorkbookQueries`: one `{elementId, name, sql | error}` per element
+    that carries data (text, image and container elements run no query)."""
+    def call(store, observation):
+        doc, elements = _published_elements(store, workbook_id)
+        _read(observation, _wb_target(workbook_id))
+        model, index, problem = _published_model(store, doc)
+        carrying = [el for el in elements if _elements_module().has_data(el)]
+        page = _page(request, carrying, has_more=False)
+        page["entries"] = [_query_entry(el, model, index, problem) for el in page["entries"]]
+        return page
+
+    return _serve(request, "workbook_queries", call, **dict(request.query_params))
+
+
+@app.get("/v2/workbooks/{workbook_id}/elements/{element_id}/columns")
+def element_columns(workbook_id: str, element_id: str, request: Request) -> dict:
+    """`getElementColumns`: `{columnId, label, formula, type}` per column."""
+    def call(store, observation):
+        doc, elements = _published_elements(store, workbook_id)
+        el = _one_element(elements, element_id)
+        _read(observation, _wb_target(workbook_id))
+        model, index, _problem = _published_model(store, doc)
+        return _page(request, _elements_module().element_columns(el, model, index),
+                     has_more=False)
+
+    return _serve(request, "workbook_element_columns", call, **dict(request.query_params))
+
+
+@app.get("/v2/workbooks/{workbook_id}/columns")
+def workbook_columns(workbook_id: str, request: Request) -> dict:
+    """`listWorkbookColumns`: every element's columns, `{columnId, name,
+    formula, type, elementId}` (this endpoint says `name` where the element's
+    says `label`)."""
+    def call(store, observation):
+        doc, elements = _published_elements(store, workbook_id)
+        _read(observation, _wb_target(workbook_id))
+        model, index, _problem = _published_model(store, doc)
+        entries = []
+        for el in elements:
+            for column in _elements_module().element_columns(el, model, index):
+                entries.append({"columnId": column["columnId"], "name": column["label"],
+                                "formula": column["formula"], "type": column["type"],
+                                "elementId": el["id"]})
+        return _page(request, entries, has_more=False)
+
+    return _serve(request, "workbook_columns", call, **dict(request.query_params))
+
+
+@app.get("/v2/workbooks/{workbook_id}/sources")
+def workbook_sources(workbook_id: str, request: Request) -> Response:
+    """`getWorkbookSources`: a bare array. Every element here is built on a
+    data model (workbook.py refuses the other source kinds at publish time), so
+    each entry is `{type: "data-model", dataModelId, elementIds}` - the data
+    model elements the workbook's elements read, in first-use order."""
+    def call(store, observation):
+        _doc, elements = _published_elements(store, workbook_id)
+        _read(observation, _wb_target(workbook_id))
+        used: dict[str, list[str]] = {}
+        for el in elements:
+            source = el.get("source") or {}
+            if source.get("kind") != "data-model" or not source.get("dataModelId"):
+                continue
+            ids = used.setdefault(source["dataModelId"], [])
+            if source.get("elementId") and source["elementId"] not in ids:
+                ids.append(source["elementId"])
+        return [{"type": "data-model", "dataModelId": model_id, "elementIds": ids}
+                for model_id, ids in used.items()]
+
+    return JSONResponse(_serve(request, "workbook_sources", call))
 
 
 # -------------------------------------------------------------- data models

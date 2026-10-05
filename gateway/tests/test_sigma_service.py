@@ -428,3 +428,151 @@ def test_published_state_lives_outside_the_world_and_survives_a_restart(served):
     restarted.token = served.token
     spec = restarted.ok("GET", f"/v2/dataModels/{dm['dataModelId']}/spec")
     assert spec["documentVersion"] == 2
+
+
+# ------------------------------------------- element SQL, columns, sources
+# Shapes from the OpenAPI document (operationIds getElementQuery,
+# listWorkbookQueries, getElementColumns, listWorkbookColumns,
+# getWorkbookSources). Measured 2026-10-04 (BI001 K=8 Opus run): agents asked
+# all of `/elements/{id}/query`, `/elements/{id}/columns`, `/queries` and
+# `/sources` to see what an element computes, and every one 404'd.
+QUERY_KEYS = {"elementId", "name", "sql", "error"}
+ELEMENT_COLUMN_KEYS = {"columnId", "label", "formula", "type"}
+WORKBOOK_COLUMN_KEYS = {"columnId", "name", "formula", "type", "elementId"}
+
+
+def _run_element_sql(s: Sigma, sql: str) -> list[list[str]]:
+    """Run Sigma's statement on the world's warehouse, the way an engineer
+    pastes it into the warehouse: the connection's names point at the file."""
+    import re
+
+    from world.hashing import canon_value
+
+    local = re.sub(r"ANALYTICS\.WAREHOUSE\.([A-Z_]+)",
+                   lambda m: f"wh.warehouse.{m.group(1).lower()}", sql)
+    with duckdb.connect() as con:
+        con.execute(f"ATTACH '{s.warehouse}' AS wh (READ_ONLY)")
+        cursor = con.execute(local)
+        header = [d[0] for d in cursor.description]
+        rows = [["" if v is None else str(canon_value(v)) for v in row]
+                for row in cursor.fetchall()]
+    return [header] + rows
+
+
+@needs_engine
+def test_an_element_query_is_the_sql_that_computes_its_export(served):
+    wid = workbook_id(served, "executive-overview")
+    elements = repo_file(served, "workbooks", "executive-overview")["contents"]["elements"]
+    for el in elements:
+        before = len(served.rows())
+        query = served.ok("GET", f"/v2/workbooks/{wid}/elements/{el['id']}/query")
+        assert set(query) <= QUERY_KEYS and {"elementId", "name", "sql"} <= set(query)
+        assert (query["elementId"], query["name"]) == (el["id"], el["name"])
+        assert "ANALYTICS.WAREHOUSE." in query["sql"] and "wh." not in query["sql"]
+        exported = list(csv.reader(io.StringIO(_export(served, wid, el["id"]).text)))
+        assert _run_element_sql(served, query["sql"]) == exported, el["name"]
+        row = served.rows()[before]
+        assert (row["tool"], row["op_class"], row["targets"], row["read_targets"]) == (
+            "sigma.workbook_element_query", "read", [f"sigma:workbook:{wid}"],
+            [f"sigma:workbook:{wid}"])
+    top = next(el for el in elements if el["name"] == "Top Products")
+    sql = served.ok("GET", f"/v2/workbooks/{wid}/elements/{top['id']}/query")["sql"]
+    assert sql.endswith('ORDER BY "Units" DESC NULLS LAST, "product_name" ASC NULLS FIRST '
+                        "LIMIT 3")                            # the sort and Top N travel
+
+    listed = served.ok("GET", f"/v2/workbooks/{wid}/queries")
+    assert set(listed) == {"entries", "nextPage", "total"} and listed["nextPage"] is None
+    assert [q["elementId"] for q in listed["entries"]] == [el["id"] for el in elements]
+    for q in listed["entries"]:
+        assert q == served.ok("GET", f"/v2/workbooks/{wid}/elements/{q['elementId']}/query")
+
+
+@needs_engine
+def test_a_published_data_model_change_moves_the_query_and_a_broken_one_says_why(served):
+    wid = workbook_id(served, "executive-overview")
+    kpis = next(e for e in repo_file(served, "workbooks", "executive-overview")["contents"]
+                ["elements"] if e["name"] == "KPIs")
+    path = f"/v2/workbooks/{wid}/elements/{kpis['id']}/query"
+    assert "'completed'" in served.ok("GET", path)["sql"]
+    dm = data_model(served)
+    orders = dm["pages"][0]["elements"][0]
+    net = next(m for m in orders["metrics"] if m["name"] == "Net Revenue")
+    net["formula"] = "Sum([order_amount])"                       # drop the condition
+    served.ok("PUT", f"/v2/dataModels/{dm['dataModelId']}/spec", json=dm)
+    moved = served.ok("GET", path)["sql"]
+    exported = list(csv.reader(io.StringIO(_export(served, wid, kpis["id"]).text)))
+    assert _run_element_sql(served, moved) == exported
+    # A data model that no longer has a metric the workbook reads: that
+    # element's query reports the engine's reason in `error`, the field Sigma
+    # has for it, and the elements that still compute keep their SQL.
+    top = next(e for e in repo_file(served, "workbooks", "executive-overview")["contents"]
+               ["elements"] if e["name"] == "Top Products")
+    lines = next(el for page in dm["pages"] for el in page["elements"]
+                 if any(m["name"] == "Units" for m in el.get("metrics", [])))
+    lines["metrics"] = [m for m in lines["metrics"] if m["name"] != "Units"]
+    served.ok("PUT", f"/v2/dataModels/{dm['dataModelId']}/spec",
+              json={**dm, "documentVersion": 2})
+    broken = served.ok("GET", f"/v2/workbooks/{wid}/elements/{top['id']}/query")
+    assert set(broken) == {"elementId", "name", "error"} and "Units" in broken["error"]
+    assert "sql" in served.ok("GET", path)
+
+
+def test_element_columns_carry_formulas_and_types(served):
+    wid = workbook_id(served, "executive-overview")
+    elements = repo_file(served, "workbooks", "executive-overview")["contents"]["elements"]
+    segment = next(el for el in elements if el["name"] == "Revenue by Segment")
+    page = served.ok("GET", f"/v2/workbooks/{wid}/elements/{segment['id']}/columns")
+    assert set(page) == {"entries", "nextPage", "total"}
+    assert all(set(c) == ELEMENT_COLUMN_KEYS for c in page["entries"])
+    assert [(c["columnId"], c["formula"]) for c in page["entries"]] == [
+        (c["id"], c["formula"]) for c in segment["columns"]]
+    assert [(c["label"], c["type"]) for c in page["entries"]] == [
+        ("segment", {"type": "text"}), ("Net Revenue", {"type": "number"})]
+    row = served.rows()[-1]
+    assert (row["tool"], row["targets"]) == ("sigma.workbook_element_columns",
+                                             [f"sigma:workbook:{wid}"])
+
+    everything = served.ok("GET", f"/v2/workbooks/{wid}/columns", params={"limit": 4})
+    assert everything["total"] == sum(len(el["columns"]) for el in elements)
+    assert everything["nextPage"] == "4"
+    assert all(set(c) == WORKBOOK_COLUMN_KEYS for c in everything["entries"])
+    assert everything["entries"][0]["elementId"] == elements[0]["id"]
+    assert served.call("GET", f"/v2/workbooks/{wid}/elements/nope/columns").status_code == 404
+
+
+def test_workbook_sources_name_the_data_model_elements_read(served):
+    wid = workbook_id(served, "executive-overview")
+    elements = repo_file(served, "workbooks", "executive-overview")["contents"]["elements"]
+    dm = data_model(served)
+    sources = served.ok("GET", f"/v2/workbooks/{wid}/sources")
+    assert isinstance(sources, list) and len(sources) == 1
+    (source,) = sources
+    assert set(source) == {"type", "dataModelId", "elementIds"}
+    assert (source["type"], source["dataModelId"]) == ("data-model", dm["dataModelId"])
+    used = {el["source"]["elementId"] for el in elements}
+    assert set(source["elementIds"]) == used
+    dm_elements = {el["id"] for page in dm["pages"] for el in page["elements"]}
+    assert used <= dm_elements
+    assert served.rows()[-1]["tool"] == "sigma.workbook_sources"
+
+
+def test_routes_sigma_does_not_have_still_404(served):
+    """The other guesses the BI001 run made are not in the OpenAPI document,
+    so they stay what they are on Sigma: not found, with a row each."""
+    wid = workbook_id(served, "executive-overview")
+    eid = repo_file(served, "workbooks", "executive-overview")["contents"]["elements"][0]["id"]
+    for path in (f"/v2/workbooks/{wid}/contents", f"/v2/workbooks/{wid}/versions",
+                 f"/v2/workbooks/{wid}/elements/{eid}/data",
+                 f"/v2/workbooks/{wid}/elements/{eid}/export",
+                 f"/v2/workbooks/{wid}/elements/{eid}"):
+        before = len(served.rows())
+        r = served.call("GET", path)
+        assert r.status_code == 404 and r.json()["code"] == "not_found", path
+        assert [row["tool"] for row in served.rows()[before:]] == ["sigma.unknown_route"]
+    tagged = served.call("GET", f"/v2/workbooks/{wid}/elements/{eid}/query",
+                         params={"tagName": "prod"})
+    assert tagged.status_code == 400
+    missing = served.call("GET", f"/v2/workbooks/{wid}/elements/nope/query")
+    assert missing.status_code == 404
+    assert served.rows()[-1]["tool"] == "sigma.workbook_element_query"
+    assert served.call("GET", "/v2/workbooks/nope/sources").status_code == 404

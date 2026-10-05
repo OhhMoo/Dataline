@@ -473,6 +473,30 @@ EQUIVALENT = (
       "ancestors": [{"id": confluence_service.content_id("de/postmortems")}]}, None,
      "kb_create", {"page": POSTMORTEM, "title": POSTMORTEM_TITLE, "body": "# Draft\n",
                    "parent": "de/postmortems"}),
+    # The other API versions the same vendors serve (Jira REST v2 and its
+    # `latest` alias; Confluence REST v2): the same action, so the same row.
+    (jira_service, "GET", "/rest/api/2/issue/DATA-141", None, None,
+     "issues_get", {"issue": "DATA-141"}),
+    (jira_service, "GET", "/rest/api/latest/issue/DATA-141", None, None,
+     "issues_get", {"issue": "DATA-141"}),
+    (jira_service, "GET", "/rest/api/2/issue/DATA-141/comment", None, None,
+     "issues_get", {"issue": "DATA-141"}),
+    (jira_service, "GET", "/rest/api/3/issue/DATA-141/comment", None, None,
+     "issues_get", {"issue": "DATA-141"}),
+    (jira_service, "POST", "/rest/api/2/issue/DATA-141/comment", {"body": "Looking."},
+     None, "issues_comment", {"issue": "DATA-141", "body": "Looking."}),
+    (jira_service, "GET", "/rest/api/2/search/jql", None, {"jql": 'text ~ "amount"'},
+     "issues_search", {"query": "amount"}),
+    (confluence_service, "GET", f"/wiki/api/v2/pages/{RUNBOOK_ID}", None,
+     {"body-format": "storage"}, "kb_get", {"page": RUNBOOK}),
+    (confluence_service, "GET", "/wiki/api/v2/pages", None, {"space-id": "1,2"},
+     "kb_list", {}),
+    (confluence_service, "GET", "/wiki/api/v2/spaces", None, None, "kb_list", {}),
+    (confluence_service, "PUT", f"/wiki/api/v2/pages/{RUNBOOK_ID}",
+     {"id": RUNBOOK_ID, "status": "current", "title": "Runbook: nightly orders load",
+      "body": {"representation": "storage", "value": "# Superseded\n"},
+      "version": {"number": 8}}, None,
+     "kb_edit", {"page": RUNBOOK, "body": "# Superseded\n"}),
 )
 
 
@@ -711,3 +735,234 @@ def test_confluence_hides_a_body_until_it_is_expanded(confluence_client):
         confluence_client.get_page_by_id(RUNBOOK_ID)["body"]["storage"]["value"]
     assert confluence_client.get_page_by_id(
         RUNBOOK_ID, expand="body.storage")["body"]["storage"]["value"]
+
+
+# --------------------------------------------------------------------------
+# The other API versions: Jira REST v2 (+ `latest`), Confluence REST v2
+#
+# Measured 2026-10-04 (BI001 K=8 Opus run): five rollouts' first Jira read was
+# `GET /rest/api/2/issue/ANA-241`, and four rollouts asked Confluence for
+# `/wiki/api/v2/pages/<id>?body-format=storage`. Both are real Cloud routes
+# and both 404'd here. Shapes asserted against the vendors' documents:
+# Jira v2 "offer[s] the same collection of operations" as v3 without ADF
+# (developer.atlassian.com/cloud/jira/platform/rest/v2/intro/), and the
+# Confluence v2 OpenAPI (dac-static.atlassian.com/cloud/confluence/
+# openapi-v2.v3.json): PageSingle / PageBulk / SpaceBulk / ChildPage.
+# --------------------------------------------------------------------------
+
+
+def test_jira_v2_client_reads_and_writes_plain_text(plane, tmp_path):
+    """The python `jira` client on `rest_api_version: 2`, unmodified."""
+    with serving(jira_service.app) as base:
+        v2 = JIRA(server=base, basic_auth=(EMAIL, jira_service.TOKEN),
+                  options={"rest_api_version": "2"})
+        v3 = JIRA(server=base, basic_auth=(EMAIL, jira_service.TOKEN),
+                  options={"rest_api_version": "3"})
+        assert v2.server_info()["deploymentType"] == "Cloud"
+        assert v2.myself()["accountId"] == "agent"
+
+        issue = v2.issue("DATA-141")
+        modern = v3.issue("DATA-141")
+        # v2: the description and every comment body are the text itself...
+        assert isinstance(issue.fields.description, str)
+        assert issue.fields.description == jira_service.plain(
+            modern.raw["fields"]["description"])
+        assert "revenue" in issue.fields.description.lower()
+        bodies = [comment.body for comment in issue.fields.comment.comments]
+        assert bodies and all(isinstance(body, str) for body in bodies)
+        assert bodies == [jira_service.plain(comment.raw["body"])
+                          for comment in modern.fields.comment.comments]
+        # ...and every link names the version it was read through.
+        assert issue.self.endswith("/rest/api/2/issue/DATA-141")
+        assert issue.raw["fields"]["status"]["self"].startswith(f"{base}/rest/api/2/")
+        # v3 is still ADF.
+        assert modern.raw["fields"]["description"]["type"] == "doc"
+
+        found = v2.search_issues('status = done AND text ~ "freeze"')    # /2/search/jql
+        assert [item.key for item in found] == ["DATA-118"]
+        assert isinstance(found[0].fields.description, str)
+
+        listed = v2.comments("DATA-141")                                # GET .../comment
+        assert [comment.body for comment in listed] == bodies
+
+        created = v2.add_comment("DATA-141", "Read through v2.")         # POST, a string
+        assert created.raw["body"] == "Read through v2."
+        transitions = {item["name"]: item["id"] for item in v2.transitions("DATA-141")}
+        v2.transition_issue("DATA-141", transitions["in_progress"])
+
+    reader = Gateway(config(plane.root, tmp_path / "reader-audit"))
+    try:
+        world = reader.call("issues_get", {"issue": "DATA-141"})["result"]
+    finally:
+        reader.close()
+    assert world["comments"][-1]["body"] == "Read through v2."
+    assert world["status"] == "in_progress"
+    paths = {row["args"]["path"] for row in plane.written()}
+    assert "/rest/api/2/issue/DATA-141" in paths
+    assert "/rest/api/2/search/jql" in paths
+    assert "/rest/api/2/issue/DATA-141/comment" in paths
+
+
+async def test_jira_latest_is_v2_and_other_versions_are_not_served(plane):
+    """`latest` is v2's alias on Cloud; `/rest/api/4` is a route no Jira has."""
+    async with client(jira_service) as http:
+        latest = await http.get("/rest/api/latest/issue/DATA-141")
+        v2 = await http.get("/rest/api/2/issue/DATA-141")
+        searched = await http.get("/rest/api/2/search", params={"jql": "project = DATA",
+                                                               "maxResults": 2})
+        comments = await http.get("/rest/api/latest/issue/DATA-139/comment",
+                                  params={"orderBy": "-created", "maxResults": 1})
+        nowhere = await http.get("/rest/api/4/issue/DATA-141")
+    assert latest.status_code == v2.status_code == 200
+    assert latest.json()["fields"] == v2.json()["fields"]
+    assert isinstance(latest.json()["fields"]["description"], str)
+    assert searched.json()["total"] == 8 and len(searched.json()["issues"]) == 2
+    page = comments.json()
+    assert set(page) == {"comments", "maxResults", "total", "startAt"}
+    assert page["total"] == 2 and page["maxResults"] == 1 and len(page["comments"]) == 1
+    assert isinstance(page["comments"][0]["body"], str)
+    assert nowhere.status_code == 404
+
+    written = plane.written()
+    # One row a request (a search: its list + one get per issue returned), and
+    # the unrouted 404's.
+    assert [row["tool"] for row in written] == [
+        "jira.issues_get", "jira.issues_get", "jira.issues_list", "jira.issues_get",
+        "jira.issues_get", "jira.issues_get", "jira.request"]
+    assert written[5]["targets"] == ["issue:DATA-139"]
+    assert written[-1]["exit"] == "error" and written[-1]["targets"] == []
+
+
+V2_SPACE = str(confluence_service.space_number({"key": "DE"}))
+
+
+def test_confluence_v2_pages_through_the_real_client(confluence_client):
+    """atlassian-python-api's own v2 paging, plus its plain `get` on v2 paths."""
+    spaces = confluence_client.get("api/v2/spaces")["results"]
+    assert [(space["key"], space["id"], space["type"]) for space in spaces] == [
+        ("DE", V2_SPACE, "global")]
+
+    page = confluence_client.get(f"api/v2/pages/{RUNBOOK_ID}",
+                                 params={"body-format": "storage"})
+    assert {"id", "status", "title", "spaceId", "parentId", "parentType", "authorId",
+            "createdAt", "version", "body", "_links"} <= set(page)
+    assert (page["id"], page["status"], page["spaceId"]) == (RUNBOOK_ID, "current", V2_SPACE)
+    assert page["title"] == "Runbook: nightly orders load"
+    assert page["parentId"] == confluence_service.content_id("de/runbooks")
+    assert page["version"]["number"] == 7
+    assert page["version"]["createdAt"].startswith("2025-11-04")   # the edit date survives
+    assert page["body"]["storage"]["representation"] == "storage"
+    assert "nightly orders load" in page["body"]["storage"]["value"].lower()
+    v1 = confluence_client.get_page_by_id(RUNBOOK_ID, expand="body.storage")
+    assert page["body"]["storage"]["value"] == v1["body"]["storage"]["value"]
+
+    bare = confluence_client.get(f"api/v2/pages/{RUNBOOK_ID}")
+    assert bare["body"] == {}                                   # no body-format, no body
+    adf_page = confluence_client.get(f"api/v2/pages/{RUNBOOK_ID}",
+                                     params={"body-format": "atlas_doc_format"})
+    document = json.loads(adf_page["body"]["atlas_doc_format"]["value"])
+    assert document["type"] == "doc"
+    assert jira_service.plain(document) == page["body"]["storage"]["value"]
+
+    # The client's v2 helper walks `_links.next` (it strips the `/wiki/` prefix).
+    every = confluence_client.get_all_pages_by_space_ids_confluence_cloud(
+        [V2_SPACE], batch_size=2)
+    assert len(every) == 9 and len({item["id"] for item in every}) == 9
+    titled = confluence_client.get_all_pages_by_space_ids_confluence_cloud(
+        [V2_SPACE], title="Runbook: nightly orders load", body_format="storage")
+    assert [item["id"] for item in titled] == [RUNBOOK_ID]
+    assert titled[0]["body"]["storage"]["value"] == page["body"]["storage"]["value"]
+    assert confluence_client.get_all_pages_by_space_ids_confluence_cloud(["1"]) == []
+
+    children = confluence_client.get(
+        f"api/v2/pages/{confluence_service.content_id('de/runbooks')}/children")["results"]
+    assert [child["title"] for child in children] == [
+        "Runbook: nightly orders load", "Vendor feed SLA and redelivery rules"]
+    direct = confluence_client.get(
+        f"api/v2/pages/{confluence_service.content_id('de/runbooks')}/direct-children")
+    assert [child["type"] for child in direct["results"]] == ["page", "page"]
+
+
+def test_confluence_v2_update_lands_in_the_world(confluence_client, plane, tmp_path):
+    page = confluence_client.get(f"api/v2/pages/{RUNBOOK_ID}",
+                                 params={"body-format": "storage"})
+    updated = confluence_client.put(f"api/v2/pages/{RUNBOOK_ID}", data={
+        "id": page["id"], "status": "current", "title": page["title"],
+        "body": {"representation": "storage", "value": "# Superseded\n\nSee the SLA page."},
+        "version": {"number": page["version"]["number"] + 1, "message": "superseded"}})
+    assert updated["version"]["number"] == 8
+    assert updated["version"]["message"] == "superseded"
+    assert updated["body"]["storage"]["value"].startswith("# Superseded")
+
+    reader = Gateway(config(plane.root, tmp_path / "reader-audit"))
+    try:
+        world = reader.call("kb_get", {"page": RUNBOOK})["result"]
+    finally:
+        reader.close()
+    assert world["body"] == "# Superseded\n\nSee the SLA page."
+    assert world["version"] == 8 and world["last_edited_by"] == "agent"
+    edit = next(row for row in plane.written() if row["tool"] == "confluence.kb_edit")
+    assert (edit["op_class"], edit["targets"]) == ("write", [f"kb:{RUNBOOK}"])
+    assert "overwrite" in edit["flags"]
+
+
+async def test_confluence_v2_refuses_what_kb_edit_cannot_do(plane):
+    """A stale version is a lost update; a rename, a draft or wiki markup is
+    something this wiki would have to fake - each refused, in v2's envelope."""
+    good = {"id": RUNBOOK_ID, "status": "current", "title": "Runbook: nightly orders load",
+            "body": {"representation": "storage", "value": "x"}, "version": {"number": 8}}
+    async with client(confluence_service) as http:
+        stale = await http.put(f"/wiki/api/v2/pages/{RUNBOOK_ID}",
+                               json={**good, "version": {"number": 7}})
+        rename = await http.put(f"/wiki/api/v2/pages/{RUNBOOK_ID}",
+                                json={**good, "title": "Something else"})
+        draft = await http.put(f"/wiki/api/v2/pages/{RUNBOOK_ID}",
+                               json={**good, "status": "draft"})
+        wiki = await http.put(f"/wiki/api/v2/pages/{RUNBOOK_ID}", json={
+            **good, "body": {"representation": "wiki", "value": "h1. x"}})
+        missing = await http.put(f"/wiki/api/v2/pages/{RUNBOOK_ID}",
+                                 json={"body": good["body"]})
+        unknown = await http.get("/wiki/api/v2/pages/1")
+        rendered = await http.get(f"/wiki/api/v2/pages/{RUNBOOK_ID}",
+                                  params={"body-format": "view"})
+    assert stale.status_code == 409
+    assert stale.json()["errors"][0]["status"] == 409
+    assert {stale.json()["errors"][0]["code"], stale.json()["errors"][0]["title"]} == {
+        "CONFLICT", "Conflict"}
+    for refused in (rename, draft, wiki, missing, rendered):
+        assert refused.status_code == 400, refused.text
+        assert refused.json()["errors"][0]["code"] == "INVALID_REQUEST_PARAMETER"
+    assert "rename" in rename.json()["errors"][0]["detail"]
+    assert unknown.status_code == 404 and unknown.json()["errors"][0]["code"] == "NOT_FOUND"
+    written = plane.written()
+    assert len(written) == 7                                          # one row each
+    assert [row["tool"] for row in written[:5]] == ["confluence.kb_edit"] * 5
+    assert all(row["exit"] == "error" for row in written)
+
+
+async def test_confluence_without_wiki_prefix_404s_as_cloud_does(plane):
+    """Cloud's REST APIs live under the site's `/wiki`: the first guesses the
+    BI001 run made without it (`/rest/api/content/<id>`, `/api/v2/pages/<id>`,
+    `/rest/api/space`) are not served there, so they are not served here."""
+    async with client(confluence_service) as http:
+        statuses = [(await http.get(path)).status_code for path in (
+            f"/rest/api/content/{RUNBOOK_ID}", f"/api/v2/pages/{RUNBOOK_ID}",
+            "/rest/api/space")]
+    assert statuses == [404, 404, 404]
+    assert [row["tool"] for row in plane.written()] == ["confluence.request"] * 3
+
+
+async def test_a_v2_listing_with_bodies_pays_per_page(plane):
+    """HUMAN_PLANE.md rule 1 for v2: `body-format` costs a `kb_get` per page
+    returned, exactly as v1's `expand=body.storage` does; without it, nothing."""
+    async with client(confluence_service) as http:
+        plain_page = await http.get("/wiki/api/v2/pages", params={"limit": 3})
+        with_bodies = await http.get("/wiki/api/v2/pages",
+                                     params={"limit": 3, "body-format": "storage"})
+    assert plain_page.headers["link"].startswith("</wiki/api/v2/pages?")
+    assert plain_page.json()["_links"]["next"].endswith("cursor=3")
+    assert all(item["body"] == {} for item in plain_page.json()["results"])
+    assert all(item["body"]["storage"]["value"] for item in with_bodies.json()["results"])
+    assert [row["tool"] for row in plane.written()] == [
+        "confluence.kb_list", "confluence.kb_list",
+        "confluence.kb_get", "confluence.kb_get", "confluence.kb_get"]

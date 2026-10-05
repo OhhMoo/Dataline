@@ -60,9 +60,9 @@ tailer; parity in `native/PARITY.md`) remains the warehouse for tasks that decla
 | data | `s3_*` | `aws s3` / `boto3` (`AWS_ENDPOINT_URL`) | MinIO (real; audit via webhook receiver) |
 | control | `sched_*` | `./ops/sched list \| logs \| trigger` in the repo, over the served plane `sched.internal:8120` | the world's own `WorldScheduler` |
 | control | `deploy_*` | `./ops/deploy` + release REST | fake service `deploy` |
-| human | `issues_*` | Jira Cloud REST v3 subset; `jira` CLI / python `jira` / curl | fake service `jira` |
+| human | `issues_*` | Jira Cloud REST subset under `/rest/api/3` (ADF), `/2` and `latest` (plain text); `jira` CLI / python `jira` / curl | fake service `jira` |
 | human | `chat_*` | Slack Web API subset; `slack_sdk` (`base_url`) | fake service `slack` |
-| human | `kb_*` | Confluence REST subset; `atlassian-python-api` | fake service `confluence` |
+| human | `kb_*` | Confluence Cloud REST v1 (`/wiki/rest/api`) and v2 pages (`/wiki/api/v2`) subsets; `atlassian-python-api` | fake service `confluence` |
 | ops | `bi_*` | Metabase API | fake service `metabase` |
 | ops | — (BI as code) | Power BI REST + Fabric item definitions + Entra token; `tabcmd` / Tableau Server Client; Sigma REST API v2 | fake services `powerbi`, `tableau`, `sigma` — **explicit-only**, see below |
 | ops | `metrics_*`, `alarms_*` | Prometheus `/api/v1/query*`, Alertmanager `/api/v2/alerts` | fake services `prometheus`, `alertmanager` |
