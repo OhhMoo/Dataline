@@ -6,61 +6,61 @@
       ],
       "event": "listening",
       "port": 3128,
-      "ts": "2026-09-26T03:14:43Z"
+      "ts": "2026-10-04T19:48:33Z"
     },
     {
       "event": "refused",
       "method": "CONNECT",
-      "peer": "('10.89.0.3', 34188)",
+      "peer": "('172.18.0.3', 47818)",
       "target": "example.com:443",
-      "ts": "2026-09-26T03:14:54Z"
+      "ts": "2026-10-04T19:48:40Z"
     },
     {
       "bytes_down": 0,
       "bytes_up": 0,
       "event": "allowed",
-      "peer": "('10.89.0.3', 34190)",
-      "seconds": 0.04,
+      "peer": "('172.18.0.3', 47822)",
+      "seconds": 0.01,
       "target": "api.anthropic.com:443",
-      "ts": "2026-09-26T03:14:54Z"
+      "ts": "2026-10-04T19:48:40Z"
     },
     {
       "event": "refused",
       "method": "CONNECT",
-      "peer": "('10.89.0.3', 34206)",
+      "peer": "('172.18.0.3', 47838)",
       "target": "example.com:443",
-      "ts": "2026-09-26T03:14:55Z"
+      "ts": "2026-10-04T19:48:41Z"
     },
     {
-      "bytes_down": 5224,
-      "bytes_up": 2010,
+      "bytes_down": 5245,
+      "bytes_up": 1981,
       "event": "allowed",
-      "peer": "('10.89.0.3', 34226)",
-      "seconds": 0.23,
+      "peer": "('172.18.0.3', 47850)",
+      "seconds": 0.11,
       "target": "api.anthropic.com:443",
-      "ts": "2026-09-26T03:14:58Z"
+      "ts": "2026-10-04T19:48:43Z"
     },
     {
-      "bytes_down": 5246,
-      "bytes_up": 2005,
+      "bytes_down": 5222,
+      "bytes_up": 1986,
       "event": "allowed",
-      "peer": "('10.89.0.3', 34212)",
-      "seconds": 0.24,
+      "peer": "('172.18.0.3', 47856)",
+      "seconds": 0.13,
       "target": "api.anthropic.com:443",
-      "ts": "2026-09-26T03:14:58Z"
+      "ts": "2026-10-04T19:48:43Z"
     },
     {
-      "bytes_down": 12704,
-      "bytes_up": 40364,
+      "bytes_down": 12745,
+      "bytes_up": 41512,
       "event": "allowed",
-      "peer": "('10.89.0.3', 34238)",
-      "seconds": 6.15,
+      "peer": "('172.18.0.3', 47866)",
+      "seconds": 5.98,
       "target": "api.anthropic.com:443",
-      "ts": "2026-09-26T03:15:04Z"
+      "ts": "2026-10-04T19:48:50Z"
     }
   ],
   "image": "alkera-episode:head",
-  "measured_utc": "2026-09-26T03:15:10Z",
+  "measured_utc": "2026-10-04T19:48:56Z",
   "model_smoke": {
     "argv": [
       "docker",
@@ -70,7 +70,7 @@
       "/alkera-subject-cwd",
       "-e",
       "CLAUDE_CODE_OAUTH_TOKEN",
-      "6a9af22773cf2e127a167cbf0199fbdba53ea30a4cc0ff0f738ce2a7efc63c32",
+      "f0b9c31c6590a87f12a832aed55dc9f9345d9130f5e929ec40790aa5218ef734",
       "claude",
       "--print",
       "--output-format",
@@ -93,7 +93,7 @@
       "Bash"
     ],
     "bash_tool_used": true,
-    "claude": "/home/OhhMoo/.local/bin/claude",
+    "claude": "/home/ubuntu/.local/bin/claude",
     "commands": [
       "hostname; ls /"
     ],
@@ -104,30 +104,30 @@
       "workspace",
       "world"
     ],
-    "expected_hostname": "61a2f319f6f6",
-    "final": "```\n61a2f319f6f6\naudit\nbin\nboot\ndev\netc\nhome\nlib\nlib64\nmedia\nmnt\nopt\nproc\nroot\nrun\nsbin\nsrv\nsys\ntmp\nusr\nvar\nworkspace\nworld\n```",
+    "expected_hostname": "a8a5ea205554",
+    "final": "```\na8a5ea205554\naudit\nbin\nboot\ndev\netc\nhome\nlib\nlib64\nmedia\nmnt\nopt\nproc\nroot\nrun\nsbin\nsrv\nsys\ntmp\nusr\nvar\nworkspace\nworld\n```",
     "host_hostname_seen": false,
     "host_root_markers_seen": [],
     "hostname_is_the_container": true,
     "launcher": "docker",
-    "measured_utc": "2026-09-26T03:15:04Z",
+    "measured_utc": "2026-10-04T19:48:50Z",
     "model": "opus",
     "prompt": "Run these two commands and reply with their raw output only: hostname; ls /",
     "returncode": 0,
     "stderr": "",
     "subject_env": {},
     "tool_results": [
-      "61a2f319f6f6\naudit\nbin\nboot\ndev\netc\nhome\nlib\nlib64\nmedia\nmnt\nopt\nproc\nroot\nrun\nsbin\nsrv\nsys\ntmp\nusr\nvar\nworkspace\nworld"
+      "a8a5ea205554\naudit\nbin\nboot\ndev\netc\nhome\nlib\nlib64\nmedia\nmnt\nopt\nproc\nroot\nrun\nsbin\nsrv\nsys\ntmp\nusr\nvar\nworkspace\nworld"
     ],
     "verified": true,
-    "wall_s": 6.69
+    "wall_s": 6.61
   },
   "proof": {
-    "expected": "61a2f319f6f6",
+    "expected": "a8a5ea205554",
     "how": "bash -c / bash -lc hostname inside the subject container, forwarded by rexec",
     "observed": {
-      "-c": "61a2f319f6f6",
-      "-lc": "61a2f319f6f6"
+      "-c": "a8a5ea205554",
+      "-lc": "a8a5ea205554"
     },
     "sandbox": {
       "checks": {
@@ -145,7 +145,7 @@
         "proxy_refuses_off_allowlist": true,
         "root_read_only": true
       },
-      "measured_utc": "2026-09-26T03:14:54Z",
+      "measured_utc": "2026-10-04T19:48:40Z",
       "observed": {
         "cap_eff": "0000000000000000",
         "default_route": false,
@@ -158,47 +158,33 @@
         "episode_services_reachable": false,
         "host_paths_visible": [],
         "mounts": [
-          "/run/secrets",
-          "/etc/hostname",
-          "/etc/resolv.conf",
-          "/etc/hosts",
-          "/dev/shm",
-          "/run/.containerenv",
           "/",
-          "/tmp",
-          "/alkera-subject-cwd",
-          "/run",
           "/proc",
           "/dev",
-          "/sys",
-          "/home/agent",
-          "/var/tmp",
           "/dev/pts",
-          "/dev/mqueue",
+          "/sys",
           "/sys/fs/cgroup",
-          "/dev/null",
-          "/dev/zero",
-          "/dev/full",
-          "/dev/tty",
-          "/dev/random",
-          "/dev/urandom",
+          "/dev/mqueue",
+          "/dev/shm",
+          "/alkera-subject-cwd",
+          "/tmp",
+          "/etc/hostname",
+          "/etc/hosts",
+          "/etc/resolv.conf",
+          "/home/agent",
+          "/proc/bus",
+          "/proc/fs",
+          "/proc/irq",
+          "/proc/sys",
+          "/proc/sysrq-trigger",
           "/proc/acpi",
+          "/proc/interrupts",
           "/proc/kcore",
           "/proc/keys",
           "/proc/latency_stats",
           "/proc/scsi",
           "/proc/timer_list",
-          "/sys/devices/virtual/powercap",
-          "/sys/firmware",
-          "/sys/fs/selinux",
-          "/proc/interrupts",
-          "/sys/devices/virtual/powercap",
-          "/proc/asound",
-          "/proc/bus",
-          "/proc/fs",
-          "/proc/irq",
-          "/proc/sys",
-          "/proc/sysrq-trigger"
+          "/sys/firmware"
         ],
         "no_new_privs": "1",
         "proxy_allows_api": "200",
@@ -212,8 +198,8 @@
     "verified": true
   },
   "subject_image": {
-    "claude_version": "2.1.283",
-    "id": "71430a461150194befcb600265a7ca0436aded74951bd698a5c00bc7d703bd54",
+    "claude_version": "2.1.288",
+    "id": "sha256:9306021b4362eb6ddd481151d7f39e9359b0fee10452d014fc2fbe6368a77c30",
     "image": "alkera-subject:head"
   },
   "task": "GT001-aov-halving"

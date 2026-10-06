@@ -54,7 +54,19 @@ warehouse relation the published model reads into the dataset's snapshot
 that snapshot with world.semantic.render, never against the live warehouse.
 So a late partition is invisible until the next refresh - the stale-publish
 archetype behaves as it does at work. Provisioning takes the first snapshot
-and records it as a `Scheduled` refresh at the virtual time it happened.
+and records it as a `Scheduled` refresh at the virtual time it happened -
+unless the WORLD says what the dataset's last scheduled refresh loaded:
+`<var/bi>/powerbi/datasets.json` beside the dashboards plane (`dashboards`'
+parent; world/world/bi_projects.py IMPORTS). A world writes that record only
+when its own timeline put the refresh before data the warehouse now holds (a
+late extract reloaded by hand after the 06:00 refresh); the dataset is then
+provisioned from it, read once like the project: the record's scheduled
+refresh history, and a snapshot loaded from the CSV copy of each relation it
+lists (declared types; the row counts it states are checked). Every relation
+the published model reads must be in the record, or provisioning refuses -
+a dataset half from the world's past and half from today's warehouse is no
+import at all. Without a record nothing changes: on such a world the
+warehouse at provisioning IS what the last scheduled refresh loaded.
 Measures are evaluated at query time (as in VertiPaq), so a measure-only
 deployment takes effect immediately; a deployment that changes a table's
 source or columns leaves that table unprocessed, and queries are refused with
@@ -132,6 +144,10 @@ PORT = 8095
 
 #: Where the world keeps the team's Power BI project, relative to the workspace.
 PROJECT_DIR = "bi/powerbi"
+#: The world's record of what its scheduled refreshes imported, relative to the
+#: BI plane (the parent of GatewayConfig.dashboards, i.e. <world>/var/bi).
+IMPORTS_DIR = "powerbi"
+IMPORTS_RECORD = "datasets.json"
 #: The one Power BI workspace (group) the world's semantic models are published to.
 WORKSPACE_NAME = "Analytics"
 #: Who the datasets say configured them: the deployment service principal.
@@ -434,9 +450,109 @@ class PowerBIStore:
             reports[report_id] = {"id": report_id, "name": name, "datasetId": target,
                                   "parts": {p: b64(d) for p, d in sorted(parts.items())}}
         state = {"workspace": group, "datasets": datasets, "reports": reports}
+        imports = self.world_imports()
         for dataset in datasets.values():
-            self.refresh_dataset(state, dataset, "Scheduled", Observation())
+            record = imports.get(dataset["name"])
+            if record is None:
+                self.refresh_dataset(state, dataset, "Scheduled", Observation())
+            else:
+                self.seed_import(state, dataset, record)
         return state
+
+    # ---------------------------------------------------- world imports
+    def imports_dir(self) -> Path:
+        return Path(self.config.dashboards).parent / IMPORTS_DIR
+
+    def world_imports(self) -> dict:
+        """{dataset name: record} from the world's import record, {} when the
+        world carries none (IMPORT MODE above)."""
+        path = self.imports_dir() / IMPORTS_RECORD
+        if not path.is_file():
+            return {}
+        try:
+            doc = json.loads(path.read_text(encoding="utf-8"))
+            return dict(doc["datasets"])
+        except (ValueError, KeyError, TypeError) as exc:
+            raise ToolError("powerbi_import_unreadable",
+                            f"the world's Power BI import record {path} does not read: "
+                            f"{type(exc).__name__}: {exc}") from None
+
+    def seed_import(self, state: dict, dataset: dict, record: dict) -> None:
+        """Provision `dataset` as the world's last scheduled refresh left it:
+        its refresh history, and the snapshot that refresh loaded."""
+        model = self.model_of(dataset)
+        try:
+            listed = {r["relation"]: r for r in record["import"]["relations"]}
+            refreshed = record["import"]["refreshed"]
+            history = list(record["refreshes"])
+        except (KeyError, TypeError) as exc:
+            raise ToolError("powerbi_import_unreadable",
+                            f"the world's import record for {dataset['name']!r} lacks "
+                            f"{exc}") from None
+        wanted = [f"{s}.{n}" for s, n in self.relations(model)]
+        missing = [r for r in wanted if r not in listed]
+        if missing or not history or history[-1].get("startTime") != refreshed \
+                or history[-1].get("status") != "Completed":
+            raise ToolError("powerbi_import_incomplete",
+                            f"the world's import record for {dataset['name']!r} does not "
+                            f"cover the published model (missing {missing}) or does not "
+                            f"end on the completed refresh it was loaded by ({refreshed})")
+        self.load_snapshot(dataset, [listed[r] for r in wanted])
+        dataset["processed"] = {t.name: self.signature(t) for t in model.tables}
+        events = []
+        for number, entry in enumerate(history, 1):
+            events.append({"id": number,
+                           "requestId": guid(dataset["id"], "refresh", str(number)),
+                           "refreshType": entry.get("refreshType", "Scheduled"),
+                           "startTime": entry["startTime"], "endTime": entry["endTime"],
+                           "status": entry["status"],
+                           "definitionHash": digest(dataset["parts"])})
+        events[-1]["values"] = self.render_reports(state, dataset, model)
+        dataset["refreshes"] = events
+
+    def load_snapshot(self, dataset: dict, relations: list[dict]) -> None:
+        """The snapshot, from the record's CSV copies: one table per relation,
+        each column the type the record declares, the row count it states."""
+        base = self.imports_dir().resolve()
+        path = self.snapshot_path(dataset)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temporary = path.with_name(path.stem + ".loading.duckdb")
+        if temporary.exists():
+            temporary.unlink()
+
+        def quoted(text: str) -> str:
+            return "'" + str(text).replace("'", "''") + "'"
+
+        try:
+            with duckdb.connect(str(temporary), config={"threads": 1}) as con:
+                for entry in relations:
+                    source = (base / entry["path"]).resolve()
+                    if not source.is_relative_to(base) or not source.is_file():
+                        raise ToolError("powerbi_import_unreadable",
+                                        f"the import of {entry['relation']} names "
+                                        f"{entry['path']}, which is not a file under {base}")
+                    schema, _, name = entry["relation"].partition(".")
+                    q_schema = '"' + schema.replace('"', '""') + '"'
+                    q_name = '"' + name.replace('"', '""') + '"'
+                    columns = ", ".join(f"{quoted(c)}: {quoted(t)}" for c, t in entry["columns"])
+                    con.execute(f"CREATE SCHEMA IF NOT EXISTS {q_schema}")
+                    con.execute(
+                        f"CREATE TABLE {q_schema}.{q_name} AS SELECT * FROM read_csv("
+                        f"{quoted(source)}, header = true, auto_detect = false, "
+                        f"delim = ',', quote = '\"', escape = '\"', "
+                        f"allow_quoted_nulls = false, columns = {{{columns}}})")
+                    rows = con.execute(f"SELECT count(*) FROM {q_schema}.{q_name}").fetchone()[0]
+                    if rows != entry["rows"]:
+                        raise ToolError("powerbi_import_unreadable",
+                                        f"the import of {entry['relation']} holds {rows} "
+                                        f"rows; the record says {entry['rows']}")
+            os.replace(temporary, path)
+        except duckdb.Error as exc:
+            raise ToolError("powerbi_import_unreadable",
+                            f"the world's import does not load: {exc}") from None
+        finally:
+            if temporary.exists():
+                temporary.unlink()
 
     # --------------------------------------------------------- lookups
     def group(self, state: dict, group_id: str, observation: Observation) -> dict:

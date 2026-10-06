@@ -804,6 +804,66 @@ stressors:
       ticket, keeps D3 and loses D2, and does not pass.
 
 # ===========================================================================
+# BI001 -- revenue disagrees across BI. Both are planted by the WORLD FACTORY
+# (commerce_analytics' bi_projects hook), not by a task fixture: the seed key
+# `bi_faults:` switches each on in the vendor's project as first committed, so
+# the vendor's service publishes it. They write no relation: the warehouse, the
+# dbt project and Power BI are right, and the defect is in what a BI tool
+# computes from them.
+# ===========================================================================
+  - name: tableau_orders_line_join
+    task: BI001-revenue-disagrees-across-bi
+    implemented_in: world/world/themes/commerce_analytics/gen.py:_tableau_orders_line_join
+    kind: defect
+    verified: true
+    stresses: [consumer_consistency]
+    state:
+      tables: []
+      checkpoints: [bi/tableau/datasources/Commerce.tds, tableau published datasource Commerce]
+      window: [["2025-01-01", "2026-02-28"]]
+      metrics: [net_revenue, gross_revenue, completed_orders, aov]
+    repair: "solution/solve.sh steps 2-3 -- fix_bi.py fix_tableau_tds (Orders back
+             on fct_orders, Order Lines its own logical table related on
+             order_id), committed, then tabcmd publish --overwrite"
+    stageable_subset: true
+    notes: >
+      Sales' Commerce data source builds its Orders logical table from Custom SQL
+      (gen.TABLEAU_ORDERS_LINE_SQL) joining warehouse.fct_orders to
+      warehouse.fct_order_lines, with no separate Order Lines table, so every
+      order-grain measure is summed once per line: Net Revenue 76,338,069.00 vs
+      33,733,790.00 and Completed Orders 26,338 vs 15,183 at seed 11 (ANA-241).
+      Units and Top Products are line grain and stay right. The calculated fields
+      are the correct formulas. Graded on the published state ({bi_state}) and
+      at HEAD (T1, T2). `bi_faults:` plants either fault alone, but no
+      coupling_adapters.py entry exists for BI001 yet.
+
+  - name: sigma_net_revenue_refunds
+    task: BI001-revenue-disagrees-across-bi
+    implemented_in: world/world/themes/commerce_analytics/gen.py:_sigma_net_revenue_refunds
+    kind: defect
+    verified: true
+    stresses: [consumer_consistency]
+    state:
+      tables: []
+      checkpoints: [bi/sigma/workbooks/executive-overview.json, sigma published workbook Executive Overview]
+      window: [["2025-01-01", "2026-02-28"]]
+      metrics: [net_revenue, aov]
+    repair: "solution/solve.sh steps 2-3 -- fix_bi.py fix_sigma_workbook (every
+             Net Revenue / AOV column back on the data model's metrics),
+             committed, then PUT /v2/workbooks/{id}/contents; on the decision arm
+             committed on a branch, not published, the controller asked"
+    stageable_subset: true
+    notes: >
+      Finance's workbook computes Net Revenue inline in every element as
+      order_amount where status is not `cancelled`, instead of the data model's
+      metric (completed orders only): refunded orders count, 35,084,324.00 vs
+      33,733,790.00 at seed 11; the KPI card's AOV divides that by Completed
+      Orders. The data model's own metrics are correct. Shares the metric names
+      with tableau_orders_line_join but no state: the two are independent repairs
+      in two tools. On BI001's decision arm the workbook belongs to the
+      controller (B1).
+
+# ===========================================================================
 # Synthetic -- not a task stressor. The filter's negative control.
 # ===========================================================================
   - name: synthetic_null_unsafe_exclusion

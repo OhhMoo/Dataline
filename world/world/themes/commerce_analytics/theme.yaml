@@ -23,6 +23,13 @@ dbt_profile: world_dbt
 #                              every order-grain measure summed once per line
 #   sigma_net_revenue_refunds  Finance's Sigma workbook: Net Revenue inline as
 #                              "status is not cancelled" - refunds included
+#   powerbi_share_scope        leadership's Power BI model: Segment Share
+#                              removes every Customer filter, not the segment's
+#   powerbi_stale_import       the night the last scheduled refresh ran before
+#                              the last extract landed (`extract_late`'s delay)
+#                              and was reloaded by hand: gen.bi_imports replays
+#                              it into var/bi/powerbi/, the import the Power BI
+#                              service provisions the dataset from
 
 # The human-context plane (gateway/SURFACES.md#workflow). Content is data, in
 # workflow/{users,issues,chat,kb}.yaml; timestamps are offsets from the world

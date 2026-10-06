@@ -333,6 +333,26 @@ class NativeBuildTest(unittest.TestCase):
         self.assertEqual(self.h1, self.h2,
                          "two flagged builds of one seed are not one world")
 
+    def test_the_unprofiled_discovery_files_are_pinned(self):
+        """No profile is the box as it stood before profiles. These are the
+        bytes of the four files recorded at 6b88b39, before the profiled
+        warehouse-plug and wiki-id rules; neither rule may move them."""
+        import hashlib
+        pins = {
+            "workspace/.envrc":
+                "b5b7827be640ea6a5c18981e435f08d9fe88cdd4d7c6c4b26eec8534c41c865e",
+            "workspace/docs/onboarding.md":
+                "c5aa34be84602c1d230985b4f5e081a454a53b36557014dcec4043690ebde7b0",
+            "home/.dbt/profiles.yml":
+                "284c1679da3d6c8ebdf94a5222a3711968d25ebc6c53bba7955fd17f6b57754a",
+            "home/.config/alkera/services.toml":
+                "d6b601010cc44ae98a854a6595920ac830b6f02e6ee1c9b98c510e90624a33a9",
+        }
+        for rel, want in pins.items():
+            got = hashlib.sha256((self.n1 / rel).read_bytes()).hexdigest()
+            self.assertEqual(got, want, rel)
+        self.assertEqual(self.h1, "e2a0b8ae14783e686e1f01facf57d9b0fdc143bd5d0a711463b12b9fd2a9242e")
+
     def test_the_flagged_world_is_a_different_world(self):
         """Allowed, and required to be visible: the workspace is fingerprinted
         and two of the four files live in it, so a flagged build MUST NOT pass
@@ -425,6 +445,26 @@ class WriteForBuiltWorldTest(unittest.TestCase):
         self.assertIn("JIRA_URL", envrc)
         self.assertTrue((root / "workspace" / "docs" / "onboarding.md").is_file())
         self.assertFalse((root / native_workspace.HOME / ".dbt" / "profiles.yml").exists())
+
+    def test_the_bytes_are_the_unprofiled_box(self):
+        """A built fixture world is unprofiled: its discovery files are the ones
+        recorded at 6b88b39, byte for byte."""
+        import hashlib
+        tmp = Path(tempfile.mkdtemp(prefix="native-built-pin-"))
+        self.addCleanup(shutil.rmtree, tmp, True)
+        root = tmp / "w"
+        (root / "workspace").mkdir(parents=True)
+        native_workspace.write_for_built_world(root)
+        pins = {
+            "workspace/.envrc":
+                "da918d100617301afd504c345f1e8a1a782daa14d98ceb40b041c3b5cdb37605",
+            "workspace/docs/onboarding.md":
+                "9b6349a5a7a0211823f429dc982f9bf5a8fa0b823141fce4281bb6e0c78edaec",
+            "home/.config/alkera/services.toml":
+                "d6b601010cc44ae98a854a6595920ac830b6f02e6ee1c9b98c510e90624a33a9",
+        }
+        for rel, want in pins.items():
+            self.assertEqual(hashlib.sha256((root / rel).read_bytes()).hexdigest(), want, rel)
 
     def test_onboarding_jobs_come_only_from_sched_state(self):
         tmp = Path(tempfile.mkdtemp(prefix="native-built-jobs-"))

@@ -1,0 +1,35 @@
+# BI002's world: the commerce_analytics theme's shipped seed (seed 11, 425
+# nightly extracts, world clock Monday 2026-03-02T00:00Z) on an analyst's
+# laptop with Power BI the only BI vendor plugged, and both of the theme's
+# Power BI faults switched on (world/world/themes/commerce_analytics/gen.py
+# BI_FAULTS): leadership's Segment Share removes every Customer filter
+# (powerbi_share_scope, in the project as first committed), and the last
+# scheduled refresh ran before Saturday's extract landed (powerbi_stale_import:
+# the world's import record, var/bi/powerbi, written by gen.bi_imports).
+#
+# tests/build_world.py builds this with world.build and then merges the arm's
+# workflow overlay (fixtures/workflow/) into the theme's corpus.
+theme: commerce_analytics
+seed: 11
+vtime_start: "2025-01-01T00:00:00Z"
+days: 425
+customers: 220
+signup_pct: 18
+update_pct: 9
+orders_per_day: [20, 60]
+lines_per_order: [1, 4]
+cancel_pct: 6
+refund_pct: 4
+growth_pct: 20
+git_author: "Analytics Engineering <analytics@example.com>"
+# The analyst's box (alkera_gateway.plugs ROLES["da"] on the laptop stack):
+# the working tree, the notebook server, the DuckDB warehouse, dbt, Power BI
+# in place of Metabase, and the team's tracker/chat/wiki. Must be the profile
+# task.toml [environment] declares (episode.check_world_profile).
+profile:
+  name: da/laptop
+  slots: [files, notebook, warehouse, transform, bi, human]
+  plugs:
+    bi: [powerbi]
+native: true
+bi_faults: [powerbi_share_scope, powerbi_stale_import]

@@ -36,6 +36,7 @@ gateway/src/alkera_gateway            repo/gateway/src/alkera_gateway  exclude=*
 # verdict) and their whole import closure - rollout.py's top-level imports
 # bring in the driver modules; graders import taskspec and ledger.
 tasks/harness/agent_under_test.py     repo/tasks/harness/
+tasks/harness/bistate.py              repo/tasks/harness/
 tasks/harness/blindness.py            repo/tasks/harness/
 tasks/harness/classify.py             repo/tasks/harness/
 tasks/harness/container_episode.py    repo/tasks/harness/

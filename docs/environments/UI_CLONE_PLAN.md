@@ -1,0 +1,122 @@
+# UI clones: Tableau Server and Sigma in the browser
+
+Written 2026-10-06. Phase 5 of `BI_BUILD_PLAN.md`. Sizes: S ≈ days, M ≈ a week, L ≈ multi-week.
+
+## North star
+
+What an analyst sees and does in Tableau Server / Sigma in a browser: browse projects
+and workbooks, open a dashboard and read its numbers (tables, bar and line charts),
+inspect and edit a calculated field / column formula, save and publish. Every UI action
+lands in the same audited, published state that the REST API serves and the graders
+read. There is one source of truth, and the UI is one more client of it.
+
+## Decisions
+
+1. **Server-rendered HTML, no SPA.** Jinja-free f-string templates, inline CSS, no
+   JavaScript, no build toolchain. Why:
+   - The DOM is deterministic, so an agent can read it through a browser tool, a text
+     browser or `curl`.
+   - A test can parse it with `html.parser`.
+   - The same state gives the same bytes, which keeps rollouts reproducible.
+   - There is no node toolchain to keep in the arm64 image.
+
+   An SPA would buy drag-and-drop authoring and nothing an agent needs for the target
+   tasks.
+2. **Mount into the vendor's own FastAPI app (`mount(app)`).** The UI imports the
+   service module and uses its `Store`, `_LOCK`, file lock, publish methods and `_Row`
+   audit writer. That gives one process, one writer and one audit row per UI action.
+
+   A separate UI service that imports the store classes would also be correct, because
+   the file lock serializes writers. But it would add a port, a second process
+   touching state, and a second place to forget a row. `standalone()` exists only for
+   tests or a separate port, and it shares the same `Context`.
+3. **Driving it: Playwright + headless Chromium in the episode image, `curl`/HTML as
+   the fallback.**
+   - Playwright (Apache-2.0) ships Chromium (BSD) for linux-arm64. Headless Chromium
+     plus its deps add about 300 MB.
+   - A computer-use desktop (Xvfb + WM + VNC + full Chromium) costs about 0.8–1 GB and
+     needs screenshot-grounded actions. Defer it until a task needs pixels (chart
+     reading only, no table). The HTML already exposes every number as text, so a
+     browser tool's accessibility tree is enough.
+   - The text-browser fallback is plain HTTP: forms are real `<form method=post>`, so
+     the whole flow works with `curl -c/-b` or `w3m`.
+4. **Fidelity = URLs, page structure, labels and refusal text.**
+   - Tableau Server routes its pages client-side (`/#/workbooks`, `/#/views/<Wb>/<Sheet>`).
+     A fragment never reaches a server, so the same paths are served without the `#/`.
+   - `/views/<Wb>/<Sheet>` and `/views/<Wb>/<Sheet>.csv` are Tableau Server's real
+     server-side URLs. The session cookie is `workgroup_session_id`.
+   - Labels are Tableau's: Sign In, Workbooks, Data Sources, Calculated Fields, "The
+     calculation contains errors", Download Data.
+   - Sigma (next) uses `/workbook/<name>-<urlId>`, `/workbook/.../page/...` and
+     element/column naming from its docs.
+   - No vendor logos, fonts, icons, colours or CSS. Branding reads "Tableau Server
+     (Alkera)".
+5. **Anti-reward-hack.**
+   - UI writes go through the service's publish method (`Store.publish_datasource`
+     with overwrite), not a side door. A save is one `write` row with targets and
+     flags like the REST publish.
+   - Graders keep re-rendering the published state staged after teardown. The UI adds
+     no grader input.
+   - Every number on a page is a visible table cell. Charts repeat the table. There
+     are no hidden fields, comments or data attributes carrying values.
+   - A formula is validated by the front-end's `parse_expression`, then by re-reading
+     the edited document. A refusal shows the vendor's error verbatim
+     (`unsupported (Tableau): …`) and publishes nothing.
+   - The workspace (git) is never written: publishing is the act, as on the real server.
+6. **First vendor: Tableau.**
+   - Its view-data endpoint gives a byte-exact oracle for the page (`<view>.csv` ≡
+     `views/{id}/data`).
+   - Its app has no catch-all route, so `mount` cannot be shadowed. Sigma's service
+     ends in `/{path:path}`, so mounting there must insert routes before it.
+   - Calculated fields live in one published `.tds`, so a save is a one-attribute diff.
+
+## Built (slice 1, Tableau)
+
+- `gateway/src/alkera_gateway/native/ui/html.py` holds the vendor-neutral shell, tables
+  and inline-SVG bar and line charts.
+- `gateway/src/alkera_gateway/native/ui/tableau.py` serves these pages:
+  - sign in and sign out
+  - `/workbooks` and `/workbooks/{id}/views`
+  - `/views/{wb}/{sheet}` (dashboards show every zone's sheet) and its `.csv`
+  - `/datasources` and `/datasources/{id}`
+  - the calculation editor `/datasources/{id}/calculations/{name}` (GET/POST)
+
+  Tool names are `tableau.ui_*`.
+- `gateway/tests/test_ui_tableau.py` (8 tests) runs on a built `commerce_analytics`
+  world. It checks that:
+  - page tables equal REST CSV and `render_visual`
+  - a UI calc save changes REST view data and the published `.tds` (one attribute)
+    but not the workspace
+  - refused formulas show the front-end's message and publish nothing
+  - each request writes exactly one row
+  - `mount` into `services.tableau.app` coexists with the API
+
+## Integration (not done this round: the service module is someone else's file)
+
+```diff
+--- a/gateway/src/alkera_gateway/native/services/tableau.py
++++ b/gateway/src/alkera_gateway/native/services/tableau.py
+@@ (end of module, after the last route)
++
++# The browser UI (native/ui/tableau.py): same app, same Store, same audit rows.
++from ..ui import tableau as _ui  # noqa: E402  (imports this module; must come last)
++
++_ui.mount(app)
+```
+
+The UI imports private helpers (`_Row`, `_LOCK`, `_find`, `_all_views`, `_visual_for`,
+`_owner`, `_csv`, `_visual_relations`, `_not_found`, `_uid`). When the service is next
+edited, rename them public (or add an `__all__`) so the coupling is explicit. Nothing
+else changes: no new port, no compose or registry change. The episode image needs
+Playwright + Chromium only when a task requires a browser tool.
+
+## Phases
+
+| # | What | Size |
+|---|------|------|
+| 1 | Tableau slice (above) | done |
+| 2 | Wire `mount` into `services/tableau.py`; publicize helpers; add a `/projects` page; workbook-local calcs and embedded `.twb` data sources; `.tdsx` repack; URL filters (`?Region=West`, as Tableau view URLs take them) | S |
+| 3 | Sigma: `/workbook/<slug>-<id>` pages, elements as tables/charts, a column-formula editor through `_publish_workbook` (insert routes before the catch-all), data-model page | M |
+| 4 | Agent harness: Playwright MCP / browser tool in the episode image (arm64 build check, +~300 MB); a task variant that is UI-only (no REST token in the brief); trajectory checks that a UI save produced the row | M |
+| 5 | Authoring depth: create calc, rename, revert/version history, new sheet from shelves (rows/cols/marks as forms, still server-rendered) | L |
+| 6 | Computer-use desktop (Xvfb/VNC), only if a task needs pixel-level chart reading | L |

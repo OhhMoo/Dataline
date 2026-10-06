@@ -59,6 +59,19 @@ DETERMINISM. Every front-end's write_project is deterministic to the byte: ids
 derived from names, sorted keys, no timestamps (Sigma's are a constant epoch).
 Nothing here reads a clock or a PRNG. The files are workspace files, so they
 move the `workspace` fingerprint section and nothing else.
+
+IMPORTS. An import-mode vendor (Power BI) publishes what its last refresh
+loaded, not the warehouse. On almost every world the two are the same thing,
+and the vendor's service copies the warehouse when it is first asked. A theme
+whose timeline puts a refresh BEFORE data the warehouse now holds says what
+that refresh loaded through a second, optional hook:
+
+    bi_imports(root, seed, manifest, db_path) -> [written files]
+
+called here after the projects are written. It writes under var/bi/<vendor>/
+(world state: the `bi` fingerprint section) and may append the runs that
+explain the gap to the scheduler's history; it returns [] and writes nothing
+on every world that needs no record, so every recorded hash stands.
 """
 from __future__ import annotations
 
@@ -72,6 +85,8 @@ VENDORS = ("powerbi", "tableau", "sigma")
 PROJECT_DIRS = {vendor: Path("bi") / vendor for vendor in VENDORS}
 #: The theme's gen.py hook.
 HOOK = "bi_projects"
+#: The theme's optional gen.py hook for import-mode datasets (IMPORTS above).
+IMPORT_HOOK = "bi_imports"
 
 
 def vendors(profile: dict | None) -> list[str]:
@@ -178,7 +193,11 @@ def write(root: Path, theme, seed: dict, profile: dict | None,
                              f"and also generates it with `{HOOK}`; keep one")
         check_sources(model, db_path)
         written += WRITERS[vendor](model, tuple(reports), dest)
+    imports = getattr(theme.gen, IMPORT_HOOK, None)
+    if imports is not None:
+        written += imports(root, seed, theme.manifest, db_path)
     return sorted(written)
 
 
-__all__ = ["HOOK", "PROJECT_DIRS", "VENDORS", "check_sources", "require", "vendors", "write"]
+__all__ = ["HOOK", "IMPORT_HOOK", "PROJECT_DIRS", "VENDORS", "check_sources", "require",
+           "vendors", "write"]

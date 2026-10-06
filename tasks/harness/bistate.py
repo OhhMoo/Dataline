@@ -4,19 +4,50 @@ A BI task's outcome is what each vendor's SERVICE publishes - the data source
 Tableau Server serves, the workbook version Sigma serves, the semantic model
 Power BI was last deployed with - and that state is deliberately not in the
 world tree: `GatewayConfig.bi_state_dir` must be outside it (gateway/src/
-alkera_gateway/config.py), and defaults to `<audit_dir>/bi`. The agent's repo
-holding a fix and the server serving it are two different facts, which is the
-point (gateway/src/alkera_gateway/native/services/{powerbi,tableau,sigma}.py).
+alkera_gateway/config.py). The agent's repo holding a fix and the server
+serving it are two different facts, which is the point
+(gateway/src/alkera_gateway/native/services/{powerbi,tableau,sigma}.py).
 
-Where that is, per topology - the harness never sets `bi_state_dir`, so it is
-always the default, and the audit directory is always `<rollout>/audit`:
+WHERE IT LIVES, AND WHY NOT IN THE AUDIT DIRECTORY
+--------------------------------------------------
+Until 2026-10-04 it was `GatewayConfig`'s default, `<audit_dir>/bi`, and under
+the container topology the episode container mounts `/audit` READ-WRITE (its
+PATH shims append rows there). So a subject could `mkdir -p /audit/bi/sigma`
+and write a "published" workbook the server never served, and this module would
+have staged it for the grader as the vendor's state. The services' own gateway
+config sat beside it (`/audit/native_gateway.json`), and the services re-read
+that file on every request, so a subject could also re-point them.
 
-    host, mcp / native   the gateway (or native/serve.py) runs on the host with
-                         audit_dir=<rollout>/audit           -> <rollout>/audit/bi
-    container, native    native-services runs `serve --audit /audit`, /audit
-                         being a bind of <rollout>/audit     -> <rollout>/audit/bi
-    container, mcp       the in-container gateway's audit_dir is /audit, the
-                         same bind                           -> <rollout>/audit/bi
+It now lives in the rollout's SERVICE-STATE directory, a sibling of the audit
+directory and of the world root, and only the native services write it:
+
+    container, native  native-services mounts <rollout>/service-state at
+                       /service-state (compose.native.yml, ALKERA_EPISODE_
+                       SERVICE_STATE) and its entrypoint
+                       (gateway/docker/native_services.py) serves the
+                       vendors with bi_state_dir=/service-state/bi. The
+                       episode, jupyter and subject containers do not mount
+                       it - containment P7 asserts so on every rollout
+                       (`the_services_state_is_out_of_reach`, and
+                       `services_state_is_mounted_only_in_native_services`
+                       from the stack's own `docker inspect`).
+                                              -> <rollout>/service-state/bi
+    host, native/mcp   the harness writes `bi_state_dir` into the config it
+                       writes into the rollout directory
+                       (episode.write_gateway_config, the rollout layout)
+                                              -> <rollout>/service-state/bi
+                       NOT a boundary: the host subject is a host process and
+                       can write anywhere the operator can, and the config
+                       handed to it as ALKERA_GATEWAY_CONFIG names the path.
+                       It is only outside every directory the subject is
+                       pointed at (the audit dir, the world, the workspace).
+                       The host topology is not measurement_valid for native
+                       (tasks/harness/README.md) and this is one more reason.
+    container, mcp     the in-container gateway keeps GatewayConfig's default,
+                       /audit/bi, in the one container the subject's `bash`
+                       also runs in - there is no second container to hide it
+                       in. No MCP task grades `{bi_state}` (the vendors are
+                       native-only services), and staging does not read it.
 
 Two rules, the publication ledger's (tasks/harness/ledger.py):
 
@@ -36,15 +67,21 @@ Two rules, the publication ledger's (tasks/harness/ledger.py):
 No state (a task with no BI vendor, or a world whose services were never
 touched) stages nothing and `{bi_state}` substitutes to the empty string, the
 same contract as `{ledger}`; a grader must treat that as "published = as
-provisioned".
+provisioned". There is no fallback to `<rollout>/audit/bi`: a fallback to the
+directory the subject can write is the hole this module was moved out of.
 """
 from __future__ import annotations
 
 import shutil
 from pathlib import Path
 
-#: Where the harness's services keep it, relative to the rollout directory.
-AUDIT_REL = Path("audit") / "bi"
+#: The services' own state, relative to the rollout directory: a sibling of
+#: `audit/`, `world/` and `grading/`, mounted into native-services only.
+SERVICE_STATE_REL = Path("service-state")
+#: The BI vendors' published state inside it (GatewayConfig.bi_state_dir).
+BI_SUBDIR = "bi"
+#: Where the services keep it, relative to the rollout directory.
+SOURCE_REL = SERVICE_STATE_REL / BI_SUBDIR
 #: Where stage() puts the copy inside the grading zone.
 STAGED_REL = Path("bi_state")
 #: Cache files a server renders from, never graded (see the module docstring),
@@ -53,9 +90,15 @@ SKIP_DIRS = ("snapshots", "extracts")
 SKIP_SUFFIXES = (".lock", ".tmp", ".duckdb", ".duckdb.wal")
 
 
+def service_state_dir(rollout_dir) -> Path:
+    """The rollout's service-state directory (native-services' /service-state)."""
+    return Path(rollout_dir) / SERVICE_STATE_REL
+
+
 def source_for(rollout_dir) -> Path:
-    """The default `bi_state_dir` of a rollout's services (see the table above)."""
-    return Path(rollout_dir) / AUDIT_REL
+    """Where a rollout's services keep the BI vendors' published state, on
+    every native topology (see the table above)."""
+    return Path(rollout_dir) / SOURCE_REL
 
 
 def _ignore(directory: str, names: list[str]) -> set[str]:

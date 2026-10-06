@@ -140,7 +140,7 @@ def stage_incident(root: Path, seed: dict) -> None:
                       scheduler.load(root)["vnow"])
     profile = wbuild.resolve_profile(seed)
     native_workspace.write(root, theme, slots=profile["slots"],
-                           plugs=profile.get("plugs"))
+                           plugs=profile.get("plugs"), name=profile["name"])
     env = {**os.environ, "GIT_AUTHOR_DATE": seed["vtime_start"],
            "GIT_COMMITTER_DATE": seed["vtime_start"]}
     workspace = root / "workspace"
@@ -238,15 +238,26 @@ def build(root: Path, grading: Path, seed: int = SEED) -> dict:
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--root", required=True)
-    ap.add_argument("--grading", required=True)
+    ap.add_argument("--root")
+    ap.add_argument("--grading")
     ap.add_argument("--seed", type=int, default=SEED)
+    ap.add_argument("--prepare-only", action="store_true",
+                    help="the harness's one-time step before rollouts fork "
+                         "(episode.prepare_task). BI001 caches nothing - every "
+                         "rollout builds its own world from the seed in seconds - "
+                         "so this only proves the arm and the seed resolve.")
     ap.add_argument("--variant", default=None,
                     help="confirm the arm (resolved from ALKERA_TASK_VARIANT at import)")
     a = ap.parse_args(argv)
     if a.variant and a.variant != VARIANT.name:
         ap.error(f"--variant {a.variant!r} disagrees with the arm this process staged "
                  f"({VARIANT.name!r}); set {taskspec.VARIANT_ENV} instead")
+    if a.prepare_only:
+        if a.seed != SEED:
+            ap.error(f"--seed {a.seed} is not this task's seed ({SEED}, {SEED_FILE.name})")
+        return 0
+    if not (a.root and a.grading):
+        ap.error("--root and --grading are required unless --prepare-only")
     print(json.dumps(build(Path(a.root), Path(a.grading), a.seed)))
     return 0
 

@@ -1,15 +1,15 @@
 {
   "configuration": "HOME at the rollout's hook dir; BASH_ENV at the hook; launcher = the real bash.exe rollout.py resolves",
   "harness_proof": {
-    "expected": "76999bd1af7f",
-    "how": "bash.exe -lc hostname, with the subject's own environment",
-    "observed": "76999bd1af7f",
+    "expected": "f35c094a12ce",
+    "how": "bash -lc hostname, with the subject's own environment",
+    "observed": "f35c094a12ce",
     "returncode": 0,
     "stderr": "",
     "verified": true
   },
   "host_root_markers_seen": [],
-  "image": "alkera-native:sched",
+  "image": "alkera-episode:head",
   "ls_root": [
     "audit",
     "bin",
@@ -34,7 +34,7 @@
     "workspace",
     "world"
   ],
-  "measured_at": "2026-09-20T23:55:28-0700",
+  "measured_at": "2026-10-04T07:56:16+0000",
   "measurement": "the BASH_ENV redirect against a live episode container, through the subject's launcher and environment, with no model in the loop",
   "model_turn": "NOT taken - pass --model-smoke <model>; this file does not show that the CLI's Bash tool uses this path"
 }

@@ -57,7 +57,7 @@ property rather than an oversight.
 | `postgres.internal` | 5432 | postgres | the warehouse, served |
 | `minio.internal` | 9000 | minio | object storage, bucket `alkera` |
 | `airflow.internal` | 8080 | airflow | *designed*, `--profile airflow` |
-| `snowflake.internal` | 8443 | snowflake | *designed*, `--profile snowflake` |
+| `snowflake.internal` | 8443 | snowflake | **live** for a profile plugging `warehouse: snowflake` (compose profile `snowflake` via `container_episode.compose_env`; seeded from the world's DuckDB, one `snowflake.statement` row per statement; `tasks/harness/snowflake_e2e_check.py`, evidence `tasks/harness/evidence/snowflake_e2e.json`); containment P6 not yet re-run with it |
 
 One port per service, not one socket with `Host:` routing. The registry already
 declares `PORT` per service; P6's "TCP to anything but the listed ports is
@@ -72,6 +72,47 @@ and resolves none of them; `container_episode.profile_overlay` adds a vendor's
 alias to native-services' `aliases: !override` list and its variables to the
 episode's (and jupyter's) environment only when the task's profile plugs it —
 the notebook plug's rule (`gateway/NATIVE.md`, "explicit-only plugs").
+
+**A profiled environment is restated whole.** Under a profile the per-rollout
+overlay writes `environment: !override` with the complete mapping for
+`episode` and `jupyter` — the static table (compose.yml + compose.native.yml)
+minus the excluded services' variables (`SCHED_URL` without `ops_sched`,
+`AWS_*` without an object store), plus the plugged vendors', plus the overlay's
+own lines (`container_episode.profiled_environment`). The first design wrote
+`VAR: !reset null` per excluded variable; measured 2026-10-04 with `docker
+compose config` on Compose v5.6.0, those lines did nothing on the episode:
+`SCHED_URL`, `METABASE_URL`, `PROMETHEUS_URL`, `AWS_ENDPOINT_URL`, … were all
+still set on a da/laptop box that resolves none of them.
+`test_profile_wiring.py::test_compose_config_drops_excluded_variables` runs
+`docker compose config` (client side, no daemon) and asserts the profiled
+environment is exactly the unprofiled one minus what the profile drops plus
+what it plugs. An unprofiled overlay is the plain merge it always was.
+
+**The world's clock.** The overlay also sets `ALKERA_VIRTUAL_TIME` in `episode`
+and `jupyter` to the world's `vnow` as the episode starts
+(`container_episode.world_clock`). The shims and the notebook kernel stamp rows
+through `native.audit.virtual_time`, which reads `vnow` from the state file
+`ALKERA_SCHEDULER` names on the host topology; here `var/sched` is not mounted
+(P7), so every in-container row carried `GatewayConfig`'s literal
+`2026-03-05T09:00:00Z` (BI001's world is at `2026-03-02T00:00:00Z`). A
+`./ops/sched trigger` that moves `vnow` during the episode is not followed: the
+services' rows carry the moved clock, the shims' rows the starting one.
+
+**The services' own state is not in `/audit`.** `native-services` starts
+through `native_services.py` (this directory, `/opt/stack` in the image), which
+writes the services' gateway config into `/service-state` with
+`bi_state_dir: /service-state/bi` and execs serve.py with it. `/service-state`
+is `<rollout>/service-state` (`ALKERA_EPISODE_SERVICE_STATE`, set by
+`NativeContainerEpisode.compose_env`), mounted into native-services and into no
+other service. Before 2026-10-04 serve.py's defaults put the BI vendors'
+published state (`/audit/bi`, which `tasks/harness/bistate.py` stages for the
+grader as `{bi_state}`) and the config every service re-reads per request
+(`/audit/native_gateway.json`) in `/audit` — which the episode mounts
+read-write — so both were forgeable from the subject's shell. P7 now asserts
+the absence from inside (question H) and from `docker inspect` of the whole
+project (`services_state_is_mounted_only_in_native_services`).
+`containment.py --native` (P6 grades nothing) makes itself a temporary one when
+the variable is unset.
 
 ## The DNS restriction
 
@@ -189,6 +230,20 @@ same three operations at `sched.internal:8120` from this process - which mounts
 the whole world - and the CLI switches onto it when `SCHED_URL` is set. Not a
 tenth vendor: the aggregate does not report it, P6's registry does not expect
 it, and `agent_under_test.NATIVE_SERVICES` is still nine.
+
+P7 is profile-aware (2026-10-04). `native_episode_probe.expectations(profile,
+plugs)` computes, by serve.py's own `selected_services` / `sched_enabled` /
+`object_store_enabled`, which services must answer (plugged BI vendors
+included), which must not even resolve (question G: an excluded one of the
+nine, an unplugged vendor, `sched.internal` without `ops_sched`,
+`minio.internal` without an object store), and whether the scheduler is asked.
+A box with no orchestrator records `the_scheduler_plane_answers_with_jobs`
+under `checks_not_applicable` with the reason, and `spec()` refuses that
+unless `sched.internal` is in the must-not-resolve list — a check replaced by a
+stronger one, never switched off. `containment.py --native-episode` reads the
+profile off the running native-services' `--profile/--plug` (or
+`--env-profile/--env-plug`, refused if they disagree);
+`evidence/containment-native-episode-bi001.json` is BI001's da/laptop box.
 
 Measured by `gateway/docker/native_episode_probe.py` from inside that container,
 through `containment.py --native-episode`:

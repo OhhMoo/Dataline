@@ -254,6 +254,11 @@ def resolve_endpoints(path: str | Path | None = None) -> dict:
     return ep
 
 
+#: The live Snowflake (gateway/docker/snowflake_start.py behind the TLS proxy),
+#: present only for a profile whose warehouse plug is snowflake.
+SNOWFLAKE_ENDPOINT = "https://snowflake.internal:8443"
+
+
 def profile_endpoints(endpoints: dict, profile=None) -> dict:
     """`endpoints` narrowed to what an environment profile serves.
 
@@ -281,6 +286,10 @@ def profile_endpoints(endpoints: dict, profile=None) -> dict:
     for name, (_, port) in PLUG_SERVICES.items():
         if name in profile.services and name not in out:
             out[name] = f"http://{name}.internal:{port}"
+    # A Snowflake warehouse plug runs the live snowflake service (compose
+    # profile `snowflake`, TLS on 8443): the episode may dial it.
+    if "snowflake" in profile.slots.get("warehouse", ()) and "snowflake" not in out:
+        out["snowflake"] = SNOWFLAKE_ENDPOINT
     return out
 
 
@@ -380,6 +389,8 @@ def allowed_destinations(endpoints: dict) -> set[tuple[str, int]]:
            if endpoints.get(name)}
     if "s3" in endpoints:
         out.add(_host_port(endpoints["s3"]))
+    if endpoints.get("snowflake"):
+        out.add(_host_port(endpoints["snowflake"]))
     pg = endpoints["postgres"]
     out.add((str(pg["host"]), int(pg["port"])))
     return {(normalise_host(h), p) for h, p in out}

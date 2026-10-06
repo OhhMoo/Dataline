@@ -1170,6 +1170,9 @@ def run_rollout(args) -> dict:
     # with the catalog's own reason. None for an unprofiled task.
     profile_keys = episode.spec_profile_keys(spec)
     profile = episode.environment_profile(**profile_keys)
+    # A profiled task runs on its role's image unless --image named one.
+    args.image = container_episode.profile_image(
+        getattr(args, "image", container_episode.DEFAULT_IMAGE), profile)
     if spec.variant:
         # Exported before anything forks, for the same reason `run_rollouts.py`
         # exports it: the world builder, the fixture stager and the grader are
@@ -1486,7 +1489,7 @@ def run_rollout(args) -> dict:
                 surface_audit.all_probes(toolbelt, spec.surface_probes))
             gateway_cfg = episode.write_gateway_config(
                 rollout_dir / "gateway.json", world, audit_dir, episode_id,
-                spec.virtual_time, **profile_keys)
+                spec.virtual_time, **profile_keys, service_state=True)
 
         record["surfaces"] = surfaces
         record["toolbelt"] = sorted(toolbelt)

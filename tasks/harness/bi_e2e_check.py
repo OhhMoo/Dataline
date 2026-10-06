@@ -11,7 +11,7 @@ action it takes against the world must leave exactly one agent.md 9.2.2 row,
 written by the fake service it talked to or by the PATH shim in front of the
 binary it ran (gateway/NATIVE.md, "The one thing that must survive"). This check
 builds a real `commerce_analytics` world for the `da/laptop` profile with Power
-BI, Tableau and Sigma plugged (`world.build`, under /home/ubuntu/alkera-e2e/),
+BI, Tableau and Sigma plugged (`world.build`, under ~/alkera-e2e/),
 brings the native stack up the way the harness does - `native_stack.NativeStack`
 on the host, `container_episode.NativeContainerEpisode` in docker - and drives
 every tool an analyst or analytics engineer would reach for, with the real
@@ -20,18 +20,25 @@ clients, from a shell holding the episode's own environment:
     warehouse  the `duckdb` CLI (shim), python/python3 + the duckdb library
     dbt        dbt ls / test -s / build -s
     scheduler  ./ops/sched list | logs | trigger   (this profile plugs NO
-               orchestrator: what happens is reported, not assumed)
+               orchestrator, so the CLI is not in the repo: each must fail
+               and leave no row)
     human      jira (python `jira`), slack (slack_sdk), confluence
-               (atlassian-python-api): one read and one write each
+               (atlassian-python-api): one read and one write each, and the
+               wiki page by the id docs/onboarding.md lists; Jira REST v2
+               (`rest_api_version: 2`) and Confluence REST v2 (`/wiki/api/v2`)
+               reads, the versions the BI001 run reached for first
     Power BI   Entra token, groups/datasets, executeQueries, getDefinition,
                updateDefinition with an edited measure, refresh + history
     Tableau    tabcmd 2 (login, publish .tds/.twb, refreshextracts, export
                --csv) and tableauserverclient
     Sigma      token, workbooks, ?includeContents, PUT /contents, export +
-               download
+               download, connection sync, an element's query / columns and the
+               workbook's sources
     Jupyter    `jupyter execute` (nbclient) on the alkera-python kernel:
                pandas over a parquet export, duckdb over the warehouse, a file
-    unrouted   one request per HTTP service for a path it does not serve
+    unrouted   one request per HTTP service for a path it does not serve, and
+               the guesses the BI001 run made that the real products do not
+               serve either (they must stay 404)
 
 For EACH action it verifies, from the files the stack wrote:
 
@@ -89,7 +96,7 @@ PROFILE_NAME = "da/laptop"
 PROFILE_SLOTS = ("files", "notebook", "warehouse", "transform", "bi", "human")
 PLUGS = {"bi": ["powerbi", "tableau", "sigma"]}
 SEED_EXAMPLE = REPO / "world" / "world" / "themes" / "commerce_analytics" / "seed.example.yaml"
-WORK_ROOT = Path("/home/ubuntu/alkera-e2e")
+WORK_ROOT = Path.home() / "alkera-e2e"
 DEFAULT_IMAGE = "alkera-episode:head-da"
 EVIDENCE = HERE / "evidence"
 #: Services this profile serves over HTTP, and the ones it must not.
@@ -299,6 +306,16 @@ def changed_paths(before: dict, after: dict) -> list[str]:
     return sorted(k for k in set(before) | set(after) if before.get(k) != after.get(k))
 
 
+def listed_wiki_id(onboarding: str, title: str) -> str | None:
+    """The id an engineer copies off docs/onboarding.md for the wiki page
+    `title`: the first backticked token on that page's line (a profiled box
+    lists the Confluence content id, with the path in brackets beside it)."""
+    for match in re.finditer(r"^\s*- `([^`]+)` - (.*)$", onboarding, re.M):
+        if match.group(2) == title or match.group(2).startswith(title + " ("):
+            return match.group(1)
+    return None
+
+
 def in_skip_dir(rel_in_workspace: str) -> bool:
     return any(part in SKIP_DIRECTORIES for part in Path(rel_in_workspace).parts[:-1])
 
@@ -466,6 +483,42 @@ class Truth:
                       "WHERE o.order_status = 'completed' AND d.year = 2026 "
                       "GROUP BY 1 ORDER BY 1")
 
+    def metric_labels(self) -> dict[str, str]:
+        """{metric name: label} straight from the dbt project's metrics YAML."""
+        import yaml
+
+        out: dict[str, str] = {}
+        models = Path(self.world["workspace"]) / "dbt_project" / "models"
+        for path in sorted(models.rglob("*.yml")):
+            for metric in (yaml.safe_load(path.read_text("utf-8")) or {}).get("metrics") or []:
+                out[metric["name"]] = metric.get("label") or metric["name"]
+        return out
+
+    def semantic(self):
+        """world.semantic's reading of the same dbt project (yaml_model, the
+        front-end differential-tested against MetricFlow 0.213.0)."""
+        world_pkg = str(REPO / "world")
+        if world_pkg not in sys.path:
+            sys.path.append(world_pkg)
+        from world.semantic.formats import yaml_model
+
+        model, _ = yaml_model.read_project(Path(self.world["workspace"]) / "dbt_project",
+                                           warehouse=self.warehouse)
+        return model
+
+    def semantic_by_month(self, label: str) -> list[list]:
+        """The engine's rows for `label` by metric_time__month."""
+        from world.semantic import render
+        from world.semantic.expr import Col, MeasureRef
+        from world.semantic.model import Visual
+
+        model = self.semantic()
+        spine = next(t.name for t in model.tables
+                     if any(c.name == "metric_time__month" for c in t.columns))
+        visual = Visual("mf", group_by=(Col(spine, "metric_time__month"),),
+                        values=((label, MeasureRef(label)),))
+        return render.render_visual(model, visual, self.warehouse)["rows"]
+
     def table_exists(self, schema: str, table: str) -> bool:
         return bool(self.q(f"SELECT 1 FROM information_schema.tables WHERE table_catalog "
                            f"= 'wh' AND table_schema = '{schema}' AND table_name = "
@@ -556,6 +609,17 @@ def jira_comment(key, text):
     out({"id": comment.id})
 
 
+def jira_get_v2(key):
+    """REST v2: the description and comment bodies are plain strings."""
+    from jira import JIRA
+    client = JIRA(server=E["JIRA_URL"], basic_auth=(cred("JIRA_USER"), cred("JIRA_API_TOKEN")),
+                  options={"rest_api_version": "2"})
+    issue = client.issue(key)
+    out({"key": issue.key, "self": issue.self, "status": str(issue.fields.status),
+         "description": issue.fields.description,
+         "comments": [comment.body for comment in issue.fields.comment.comments]})
+
+
 def slack():
     from slack_sdk import WebClient
     return WebClient(base_url=E["SLACK_BASE_URL"].rstrip("/") + "/api/",
@@ -591,11 +655,23 @@ def conf_edit(page_id, title, body):
     out({"version": updated["version"]["number"]})
 
 
+def conf_v2_get(title):
+    """Confluence REST v2, the way a page is found and read there: the space,
+    the page by title in it (the client's own v2 helper), its storage body."""
+    c = confluence()
+    space = c.get("api/v2/spaces")["results"][0]
+    found = c.get_all_pages_by_space_ids_confluence_cloud([space["id"]], title=title)
+    page = c.get("api/v2/pages/" + found[0]["id"], params={"body-format": "storage"})
+    out({"space": space["key"], "id": page["id"], "title": page["title"],
+         "version": page["version"]["number"], "body": page["body"]["storage"]["value"]})
+
+
 def conf_by_world_id(page_id):
     try:
-        confluence().get_page_by_id(page_id)
-        out({"found": True})
-    except Exception as exc:  # noqa: BLE001 - the 404 is the observation
+        page = confluence().get_page_by_id(page_id, expand="body.storage,version")
+        out({"found": True, "title": page["title"], "version": page["version"]["number"],
+             "body": page["body"]["storage"]["value"]})
+    except Exception as exc:  # noqa: BLE001 - a 404 is the observation
         out({"found": False, "error": type(exc).__name__})
 
 
@@ -761,6 +837,13 @@ def sigma_step(step):
         out({"ok": True})
         return
     s, base = sigma_session()
+    if step == "sync":
+        conn = s.get(f"{base}/connections", timeout=60).json()["entries"][0]["connectionId"]
+        r = s.post(f"{base}/connections/{conn}/sync", timeout=120,
+                   json={"path": ["ANALYTICS", "WAREHOUSE", "FCT_ORDERS"]})
+        r.raise_for_status()
+        out({"connectionId": conn, "status": r.status_code, "body": r.json()})
+        return
     entries = s.get(f"{base}/workbooks", timeout=60).json()["entries"]
     if step == "list":
         out({"workbooks": [(w["workbookId"], w["name"]) for w in entries]})
@@ -785,6 +868,17 @@ def sigma_step(step):
         r.raise_for_status()
         out({"version": r.json().get("latestVersion"),
              "kpis": sigma_export(s, base, workbook_id, kpis["id"])})
+    elif step == "inspect":
+        kpis = next(el for el in doc["contents"]["elements"] if el["name"] == "KPIs")
+        workbook = f"{base}/workbooks/{workbook_id}"
+        got = {}
+        for name, path in (("query", f"/elements/{kpis['id']}/query"),
+                           ("columns", f"/elements/{kpis['id']}/columns"),
+                           ("sources", "/sources")):
+            r = s.get(workbook + path, timeout=60)
+            r.raise_for_status()
+            got[name] = r.json()
+        out({"elementId": kpis["id"], **got})
 
 
 if __name__ == "__main__":
@@ -1189,62 +1283,120 @@ def drive(topo, truth: Truth) -> list[Action]:
         value=v_dbt_build,
         doc="the shim names the warehouse FILE dbt rewrote, not the model")
 
+    # ------------------------------------------------------ semantic (mf)
+    # MetricFlow's CLI from the toolbelt (dbt-metricflow 0.15.0). Run from the
+    # dbt project it reads target/semantic_manifest.json - so `dbt parse` comes
+    # first - and the profile in DBT_PROFILES_DIR (the world's), opens the
+    # warehouse file through its own dbt-duckdb, and writes logs/dbt.log +
+    # logs/metricflow.log on every call: a directory the shims skip on purpose,
+    # as for dbt, so a read-only call's row names nothing. `--csv` writes where
+    # it is told - into the repo in M4, and the shim row must name that file.
+    # Every call also runs `dbt debug` in-process (dbt-metricflow checks the
+    # connection that way), whose dependency check spawns `git --help`: that is a
+    # real git process through the git shim, so its row (targets []) comes first,
+    # then mf's own, written when mf exits. Measured 2026-10-06, every M action.
+    labels = truth.metric_labels()
+    mf_rows = lambda targets: [Expect("shim.git", "exec", exactly()),  # noqa: E731
+                               Expect("shim.mf", "exec", targets)]
+
+    def v_manifest(o, ctx):
+        path = Path(truth.world["workspace"]) / "dbt_project" / "target" / \
+            "semantic_manifest.json"
+        try:
+            names = sorted(m["name"] for m in json.loads(path.read_text("utf-8"))["metrics"])
+        except (OSError, ValueError, KeyError) as exc:
+            return False, f"no semantic manifest: {exc}"
+        return names == sorted(labels), f"manifest {names} vs metrics YAML {sorted(labels)}"
+
+    add(id="M0", family="semantic", label="dbt parse (the manifest mf reads)",
+        command=dbt.format(cmd="parse"),
+        expect=[Expect("shim.dbt", "exec", subset_of("config/.user.yml"))], value=v_manifest,
+        doc="target/semantic_manifest.json is in dbt's skipped target/ by design")
+
+    def v_mf_validate(o, ctx):
+        text = o.stdout + o.stderr
+        counts = [int(n) for n in re.findall(r"\(ERRORS: (\d+),", text)]
+        return (len(counts) == 6 and not any(counts),
+                f"ERRORS per stage {counts} (semantic + 5 warehouse stages, all 0)")
+
+    add(id="M1", family="semantic", label="mf validate-configs (semantics + warehouse; shim)",
+        command="cd dbt_project && mf validate-configs",
+        expect=mf_rows(exactly()), value=v_mf_validate,
+        doc="mf's logs/dbt.log and logs/metricflow.log are skip-dir churn, as dbt's are")
+
+    def v_mf_list(o, ctx):
+        listed = sorted(re.findall(r"^\W*([a-z_0-9]+): ", o.stdout, re.M))
+        engine = sorted(m.name for m in truth.semantic().measures)
+        return (listed == sorted(labels) and engine == sorted(labels.values()),
+                f"mf {listed} vs metrics YAML {sorted(labels)}; world.semantic "
+                f"{engine} vs labels {sorted(labels.values())}")
+
+    add(id="M2", family="semantic", label="mf list metrics (shim)",
+        command="cd dbt_project && mf list metrics",
+        expect=mf_rows(exactly()), value=v_mf_list)
+
+    def by_month_want() -> tuple[list, list]:
+        sql = [[f"{y:04d}-{m:02d}-01", v] for y, m, v in truth.by_month()]
+        engine = [[str(month)[:10], value]
+                  for month, value in truth.semantic_by_month(labels["net_revenue"])]
+        return sql, engine
+
+    def same_months(got: list, want: list) -> bool:
+        return len(got) == len(want) and all(
+            g[0] == w[0] and same_number(g[1], w[1], 2) for g, w in zip(got, want))
+
+    def v_mf_query(o, ctx):
+        got = [[m.group(1), m.group(2)] for m in re.finditer(
+            r"^(\d{4}-\d{2}-\d{2})T00:00:00\s+(-?[\d.]+)\s*$", o.stdout, re.M)]
+        sql, engine = by_month_want()
+        return (same_months(got, sql) and same_months(got, engine),
+                f"mf {got} vs sql {sql} vs world.semantic {engine}")
+
+    query = ("cd dbt_project && mf query --metrics net_revenue --group-by metric_time__month "
+             "--order metric_time__month")
+    add(id="M3", family="semantic",
+        label="mf query net_revenue by metric_time__month (shim)",
+        command=query + " --decimals 2 --quiet",
+        expect=mf_rows(exactly()), value=v_mf_query)
+
+    mf_csv = "net_revenue_by_month.csv"
+
+    def v_mf_csv(o, ctx):
+        path = Path(truth.world["workspace"]) / "dbt_project" / mf_csv
+        try:
+            rows = list(csv.reader(io.StringIO(path.read_text("utf-8"))))
+        except OSError as exc:
+            return False, f"no CSV: {exc}"
+        got = [[r[0][:10], r[1]] for r in rows[1:]]
+        sql, engine = by_month_want()
+        return (rows[:1] == [["metric_time__month", "net_revenue"]]
+                and same_months(got, sql) and same_months(got, engine),
+                f"mf CSV {rows[:1]} {got} vs sql {sql} vs world.semantic {engine}")
+
+    add(id="M4", family="semantic",
+        label="mf query ... --csv into the repo (shim names the file)",
+        command=f"{query} --csv {mf_csv}",
+        expect=mf_rows(exactly(f"dbt_project/{mf_csv}")),
+        value=v_mf_csv)
+
     # ---------------------------------------------------------- scheduler
-    sched_state = json.loads(Path(truth.world["scheduler"]).read_text("utf-8"))
-    jobs = sorted(sched_state["jobs"])
+    # da/laptop plugs NO orchestrator, so the box has no scheduler CLI on
+    # either topology (native_stack.install_workspace_cli reads the world's
+    # profile record): each operation must fail before anything runs - no row,
+    # no connection, no world change, the scheduler's state untouched.
+    sched_cli = Path(truth.world["workspace"]) / "ops" / "sched"
+    sched_before = Path(truth.world["scheduler"]).read_bytes()
 
-    def sched_finding(o, rows):
-        if o.returncode == 0:
-            return ("profile da/laptop plugs NO orchestrator, yet ./ops/sched works: "
-                    "install_workspace_cli installs it regardless of the profile and "
-                    "its local mode needs no service")
-        return ("./ops/sched is in the repo (install_workspace_cli ignores the "
-                "profile) but fails closed: no scheduler plane is served")
+    def v_no_sched(o, ctx):
+        state = Path(truth.world["scheduler"]).read_bytes()
+        ok = not sched_cli.exists() and state == sched_before
+        return ok, (f"ops/sched in the working tree: {sched_cli.exists()}; "
+                    f"var/sched/state.json unchanged: {state == sched_before}")
 
-    if topo.name == "host":
-        def v_sched_list(o, ctx):
-            listed = o.stdout.split()
-            return listed == jobs, f"{listed} vs state.json {jobs}"
-
-        add(id="S1", family="scheduler", label="./ops/sched list",
-            command="./ops/sched list",
-            expect=[Expect("sched.sched_list", "read", exactly("scheduler"),
-                           exactly("scheduler"))],
-            value=v_sched_list, finding=sched_finding)
-        def v_sched_logs(o, ctx):
-            state = json.loads(Path(truth.world["scheduler"]).read_text("utf-8"))
-            want = [(f"run-{i:06d}", r["job"], r["status"])
-                    for i, r in enumerate(state["runs"], 1)][-3:]
-            got = [tuple(line.split()[:3]) for line in o.stdout.strip().splitlines()]
-            return got == want, f"{got} vs state.json's newest runs {want}"
-
-        add(id="S2", family="scheduler", label="./ops/sched logs",
-            command="./ops/sched logs | tail -3",
-            expect=[Expect("sched.sched_logs", "read", exactly("scheduler"),
-                           exactly("scheduler"))],
-            value=v_sched_logs, finding=sched_finding)
-
-        def v_trigger(o, ctx):
-            state = json.loads(Path(truth.world["scheduler"]).read_text("utf-8"))
-            last = state["runs"][-1]
-            n = truth.count("raw.bi_refresh_history") if truth.table_exists(
-                "raw", "bi_refresh_history") else 0
-            ok = last.get("job") == "bi_refresh" and last.get("status") == "success" and n > 0
-            return ok, (f"run {len(state['runs'])}: {last.get('job')} {last.get('status')} "
-                        f"({last.get('trigger')}); raw.bi_refresh_history rows={n}")
-
-        add(id="S3", family="scheduler", label="./ops/sched trigger bi_refresh",
-            command="./ops/sched trigger bi_refresh > /dev/null",
-            expect=[Expect("sched.sched_trigger", "exec",
-                           exactly("scheduler:bi_refresh", "dbt_project"))],
-            value=v_trigger, finding=sched_finding,
-            doc="Operations.sched_trigger targets the job and `dbt_project`, not the "
-                "tables the job writes (raw.bi_refresh_history) - shared with MCP")
-    else:
-        for sid, argv in (("S1", "list"), ("S2", "logs"), ("S3", "trigger bi_refresh")):
-            add(id=sid, family="scheduler", label=f"./ops/sched {argv}",
-                command=f"./ops/sched {argv}",
-                expect=[], returncode="nonzero", finding=sched_finding)
+    for sid, argv in (("S1", "list"), ("S2", "logs"), ("S3", "trigger bi_refresh")):
+        add(id=sid, family="scheduler", label=f"./ops/sched {argv} (no orchestrator)",
+            command=f"./ops/sched {argv}", expect=[], returncode="nonzero",
+            value=v_no_sched)
 
     # -------------------------------------------------------------- human
     def v_jira_get(o, ctx):
@@ -1274,6 +1426,24 @@ def drive(topo, truth: Truth) -> list[Action]:
                 Expect("jira.issues_comment", "write", exactly(f"issue:{JIRA_KEY}")),
                 Expect("shim.python", "exec", exactly())],
         value=v_jira_comment)
+
+    def v_jira_v2(o, ctx):
+        got, want = parse_result(o.stdout) or {}, truth.issue(JIRA_KEY)
+        bodies = [c["body"] for c in want.get("comments") or []]
+        ok = (got.get("description") == want["body"] and got.get("comments") == bodies
+              and got.get("status") == want["status"]
+              and str(got.get("self", "")).endswith(f"/rest/api/2/issue/{JIRA_KEY}"))
+        return ok, (f"v2 description == issues.json body (plain text): "
+                    f"{got.get('description') == want['body']}; {len(got.get('comments') or [])}"
+                    f" comment strings == issues.json: {got.get('comments') == bodies}")
+
+    add(id="H8", family="jira", label="python jira rest_api_version=2: issue()",
+        command=f"{py} jira_get_v2 {JIRA_KEY}", services=("jira",),
+        expect=[Expect("jira.server_info", "read", exactly("issues")),
+                Expect("jira.issues_get", "read", exactly(f"issue:{JIRA_KEY}"),
+                       exactly(f"issue:{JIRA_KEY}")),
+                Expect("shim.python", "exec", exactly())],
+        value=v_jira_v2)
 
     def v_slack_history(o, ctx):
         got = (parse_result(o.stdout) or {}).get("texts")
@@ -1334,15 +1504,46 @@ def drive(topo, truth: Truth) -> list[Action]:
                 Expect("confluence.kb_edit", "write", exactly(f"kb:{KB_SLUG}")),
                 Expect("shim.python", "exec", exactly())],
         value=v_conf_edit)
-    add(id="H7", family="confluence", label="atlassian: page by the WORLD id (onboarding)",
-        command=f"{py} conf_by_world_id {KB_SLUG}", services=("confluence",),
-        expect=[Expect("confluence.request", "read", exactly(), exit="error"),
+    listed = listed_wiki_id(
+        (Path(truth.world["workspace"]) / "docs" / "onboarding.md").read_text("utf-8"),
+        KB_TITLE)
+
+    def v_conf_listed(o, ctx):
+        got, want = parse_result(o.stdout) or {}, truth.page(KB_SLUG)
+        ok = (got.get("found") is True and got.get("title") == KB_TITLE
+              and got.get("body") == want["body"] and got.get("version") == want["version"])
+        return ok, (f"onboarding.md lists `{listed}`: found={got.get('found')} "
+                    f"{got.get('error', '')} v{got.get('version')} body==kb.json: "
+                    f"{got.get('body') == want['body']}")
+
+    add(id="H7", family="confluence", label="atlassian: page by the id onboarding.md lists",
+        command=f"{py} conf_by_world_id {listed}", services=("confluence",),
+        expect=[Expect("confluence.kb_get", "read", exactly(f"kb:{KB_SLUG}"),
+                       exactly(f"kb:{KB_SLUG}")),
                 Expect("shim.python", "exec", exactly())],
-        value=lambda o, ctx: ((parse_result(o.stdout) or {}).get("found") is False,
-                              f"{parse_result(o.stdout)}"),
-        finding=lambda o, rows: ("docs/onboarding.md lists wiki pages 'by id' as "
-                                 f"`{KB_SLUG}`; the Confluence API addresses numeric ids, "
-                                 "and a slash id is not routable (404)"))
+        value=v_conf_listed)
+
+    def v_conf_v2(o, ctx):
+        got, want = parse_result(o.stdout) or {}, truth.page(KB_SLUG)
+        space = truth.fixture("kb.json").get("space") or {}
+        ok = (got.get("id") == ctx.get("kb_id") and got.get("title") == KB_TITLE
+              and got.get("body") == want["body"] and got.get("version") == want["version"]
+              and got.get("space") == (space.get("key") if isinstance(space, dict) else space))
+        return ok, (f"v2 page {got.get('id')} (v1 listed {ctx.get('kb_id')}) "
+                    f"v{got.get('version')} body==kb.json: {got.get('body') == want['body']} "
+                    f"(kb.json v{want['version']}, after H6's edit)")
+
+    add(id="H9", family="confluence",
+        label="atlassian REST v2: spaces, pages?title=&space-id=, pages/{id}",
+        command=f"{py} conf_v2_get '{KB_TITLE}'", services=("confluence",),
+        expect=[Expect("confluence.kb_list", "read", exactly("kb"), exactly("kb"),
+                       note="GET /wiki/api/v2/spaces"),
+                Expect("confluence.kb_list", "read", exactly("kb"), exactly("kb"),
+                       note="GET /wiki/api/v2/pages?space-id=&title="),
+                Expect("confluence.kb_get", "read", exactly(f"kb:{KB_SLUG}"),
+                       exactly(f"kb:{KB_SLUG}"), note="GET /wiki/api/v2/pages/{id}"),
+                Expect("shim.python", "exec", exactly())],
+        value=v_conf_v2)
 
     # ----------------------------------------------------------- Power BI
     sm = "powerbi:semantic_model:Commerce"
@@ -1430,11 +1631,14 @@ def drive(topo, truth: Truth) -> list[Action]:
               Expect("tableau.auth_signin", "read", exactly("tableau:session")),
               Expect("tableau.users_get", "read", starts("tableau:user:", 1))]
     projects = Expect("tableau.projects_list", "read", exactly("tableau:project:Default"))
+    # tabcmd 2 writes tabcmd.log in the current directory (the repo) on every
+    # run; the PATH shim's row names it (shims/install.py DEFAULT_BINARIES).
+    shim_tab = Expect("shim.tabcmd", "exec", exactly("tabcmd.log"))
     tab = 'tabcmd {}'
     login = ('tabcmd login -s "$TABLEAU_SERVER_URL" --token-name "$TABLEAU_PAT_NAME" '
              '--token-value "$TABLEAU_PAT_SECRET"')
     add(id="T1", family="tableau", label="tabcmd login (PAT)", command=login,
-        services=("tableau",), expect=list(signin))
+        services=("tableau",), expect=[*signin, shim_tab])
     def v_published(rel: str):
         def check(o, ctx):
             import hashlib
@@ -1451,14 +1655,14 @@ def drive(topo, truth: Truth) -> list[Action]:
         services=("tableau",), value=v_published("bi/tableau/datasources/Commerce.tds"),
         expect=[*signin, projects,
                 Expect("tableau.datasources_publish", "write",
-                       exactly("tableau:datasource:Commerce"))])
+                       exactly("tableau:datasource:Commerce")), shim_tab])
     add(id="T3", family="tableau", label="tabcmd publish 'Executive Overview.twb' -o",
         command=tab.format("publish 'bi/tableau/workbooks/Executive Overview.twb' -o"),
         services=("tableau",),
         value=v_published("bi/tableau/workbooks/Executive Overview.twb"),
         expect=[*signin, projects,
                 Expect("tableau.workbooks_publish", "write",
-                       exactly("tableau:workbook:ExecutiveOverview"))])
+                       exactly("tableau:workbook:ExecutiveOverview")), shim_tab])
     add(id="T4", family="tableau", label="tabcmd refreshextracts --datasource Commerce",
         command=tab.format("refreshextracts --datasource Commerce --synchronous"),
         services=("tableau",), returncode="nonzero",
@@ -1466,7 +1670,8 @@ def drive(topo, truth: Truth) -> list[Action]:
                 Expect("tableau.datasources_list", "read",
                        exactly("tableau:datasource:Commerce")),
                 Expect("tableau.datasources_refresh", "write",
-                       exactly("tableau:datasource:Commerce"), exit="error")],
+                       exactly("tableau:datasource:Commerce"), exit="error"),
+                Expect("shim.tabcmd", "exec", exactly("tabcmd.log"), exit="error")],
         value=lambda o, ctx: (any((r.get("error") or {}).get("code") == "403104"
                                   for r in ctx.get("rows") or []),
                               "refused 403104: the published source is a LIVE "
@@ -1492,7 +1697,7 @@ def drive(topo, truth: Truth) -> list[Action]:
                        exactly("tableau:view:ExecutiveOverview/sheets/KPIs")),
                 Expect("tableau.views_data", "read",
                        exactly("tableau:view:ExecutiveOverview/sheets/KPIs"),
-                       exactly("warehouse.fct_orders"))],
+                       exactly("warehouse.fct_orders")), shim_tab],
         value=v_tab_kpis)
 
     def v_tsc_segment(o, ctx):
@@ -1610,6 +1815,61 @@ def drive(topo, truth: Truth) -> list[Action]:
                 Expect("sigma.query_download", "read", starts("sigma:query:", 1)), shim_py],
         value=v_sigma_put)
     del kpis_id
+    # The connection sync replaces what Sigma's catalog knows of the synced
+    # tables: a write on the connection, reading the warehouse relations.
+    conn_doc = json.loads((Path(truth.world["workspace"]) / "bi" / "sigma" / "connections" /
+                           "snowflake.json").read_text("utf-8"))
+    conn = f"sigma:connection:{conn_doc['connectionId']}"
+    add(id="G6", family="sigma", label="POST /v2/connections/{id}/sync (one table)",
+        command=f"{py} sigma_sync", services=("sigma",),
+        expect=[stoken, Expect("sigma.connections_list", "read", exactly(conn), exactly(conn)),
+                Expect("sigma.connection_sync", "write", exactly(conn),
+                       exactly("warehouse.fct_orders")), shim_py],
+        value=lambda o, ctx: ((parse_result(o.stdout) or {}) == {
+            "connectionId": conn_doc["connectionId"], "status": 200, "body": {}},
+            f"{parse_result(o.stdout)}"))
+    dm_doc = json.loads((Path(truth.world["workspace"]) / "bi" / "sigma" / "data-models" /
+                         "commerce.json").read_text("utf-8"))
+    dm_elements = {el["id"] for page in dm_doc["pages"] for el in page["elements"]}
+    wb_sources = list(dict.fromkeys(el["source"]["elementId"]
+                                    for el in wb_doc["contents"]["elements"]))
+
+    def v_sigma_inspect(o, ctx):
+        """The KPIs element's SQL, run independently on the warehouse in the
+        connection's names, is what the element computes - after G5 published
+        it on Gross Revenue; its columns are G5's formulas; its sources are the
+        data model elements the workbook reads."""
+        got = parse_result(o.stdout) or {}
+        query, columns = got.get("query") or {}, (got.get("columns") or {}).get("entries", [])
+        sql = re.sub(r"ANALYTICS\.WAREHOUSE\.([A-Z_]+)",
+                     lambda m: f"wh.warehouse.{m.group(1).lower()}", query.get("sql") or "")
+        row = truth.q(sql)[0] if sql else ()
+        k = truth.kpis()
+        formulas = [c.get("formula") for c in columns]
+        sql_ok = (len(row) == 3 and row[0] == truth.gross_all() and row[1] == k["completed"]
+                  and same_number(row[2], k["aov"]))
+        cols_ok = (formulas == ["[Metrics/Gross Revenue]", "[Metrics/Completed Orders]",
+                                "[Metrics/AOV]"]
+                   and all(c.get("type") == {"type": "number"} for c in columns))
+        src_ok = got.get("sources") == [{"type": "data-model",
+                                         "dataModelId": dm_doc["dataModelId"],
+                                         "elementIds": wb_sources}] and \
+            set(wb_sources) <= dm_elements
+        return sql_ok and cols_ok and src_ok and query.get("elementId") == got.get(
+            "elementId"), (f"element SQL on the warehouse {list(row)} vs sql gross "
+                           f"{truth.gross_all()} / n {k['completed']}: {sql_ok}; columns "
+                           f"{formulas}: {cols_ok}; sources == the data model's "
+                           f"{wb_sources}: {src_ok}")
+
+    add(id="G7", family="sigma",
+        label="GET element query + columns, workbook sources",
+        command=f"{py} sigma_inspect", services=("sigma",),
+        expect=[stoken, slist, sget,
+                Expect("sigma.workbook_element_query", "read", exactly(wb), exactly(wb)),
+                Expect("sigma.workbook_element_columns", "read", exactly(wb), exactly(wb)),
+                Expect("sigma.workbook_sources", "read", exactly(wb), exactly(wb)),
+                shim_py],
+        value=v_sigma_inspect)
 
     # ------------------------------------------------------------ Jupyter
     out_rel = "data/e2e_notebook_out.json"
@@ -1681,6 +1941,23 @@ def drive(topo, truth: Truth) -> list[Action]:
         expect=[Expect(f"{s}.request" if s != "sigma" else "sigma.unknown_route", "read",
                        None, exit="error") for s in paths],
         value=lambda o, ctx: (o.stdout.split() == ["404"] * len(paths),
+                              f"statuses {o.stdout.split()}"))
+    # The first guesses the BI001 run (2026-10-04) made that the REAL products
+    # do not serve: Confluence Cloud's REST lives under the site's /wiki; Jira
+    # has no REST v4; Sigma's `contents` is PUT-only. They must stay 404.
+    kb_id = f"$(cat {topo.script('kb_id')})"
+    guesses = [("confluence", "CONFLUENCE_URL", f"/rest/api/content/{kb_id}"),
+               ("confluence", "CONFLUENCE_URL", f"/api/v2/pages/{kb_id}"),
+               ("jira", "JIRA_URL", f"/rest/api/4/issue/{JIRA_KEY}"),
+               ("sigma", "SIGMA_BASE_URL", f"/v2/workbooks/{wb_doc['workbookId']}/contents")]
+    add(id="U2", family="unrouted",
+        label="guesses the real products do not serve either (curl)",
+        command="; ".join(f'curl -s -o /dev/null -w "%{{http_code}}\\n" "${var}{path}"'
+                          for _s, var, path in guesses),
+        services=("confluence", "jira", "sigma"),
+        expect=[Expect(f"{s}.request" if s != "sigma" else "sigma.unknown_route", "read",
+                       exactly(), exit="error") for s, _v, _p in guesses],
+        value=lambda o, ctx: (o.stdout.split() == ["404"] * len(guesses),
                               f"statuses {o.stdout.split()}"))
     return actions
 
@@ -2016,7 +2293,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--topology", choices=("host", "container"), default="host")
     parser.add_argument("--out", type=Path, default=None)
     parser.add_argument("--work", type=Path, default=None,
-                        help="scratch root (default /home/ubuntu/alkera-e2e/<topology>)")
+                        help="scratch root (default ~/alkera-e2e/<topology>)")
     parser.add_argument("--image", default=DEFAULT_IMAGE)
     parser.add_argument("--keep", action="store_true", help="leave the stack up")
     args = parser.parse_args(argv)

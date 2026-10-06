@@ -291,9 +291,22 @@ def install_workspace_cli(world: dict, topology: str = "host") -> dict:
     is Track A's (`world.gateway_scheduler.WorldScheduler`, injected by
     `alkera_gateway.scheduling.episode_scheduler`) and the gateway venv does not
     install it.
+
+    NOT INSTALLED on a box whose profile has no `ops_sched` orchestrator: the
+    world's profile record (`episode.WORLD_PROFILE_RECORD`, which
+    `episode.check_world_profile` has already matched to the task) plugs no
+    `orchestrator` slot (every da/* profile), or names another orchestrator
+    plug. The CLI's host-topology local mode needs no service, so installing
+    it there handed such a box a scheduler that listed, read and ran jobs
+    (measured by bi_e2e_check.py). The record says why, with `cli` None. A
+    world with no record (unprofiled) is installed exactly as before.
     """
     from alkera_gateway.native.shims import install
 
+    skipped = _no_sched_cli(world)
+    if skipped:
+        return {"cli": None, "topology": topology, "interpreter": None,
+                "pythonpath": None, "files": [], "skipped": skipped}
     target = Path(world["workspace"]) / SCHED_CLI_PATH
     if topology == "container":
         interpreter = container_episode._native_probe().CONTAINER_PYTHON
@@ -306,6 +319,31 @@ def install_workspace_cli(world: dict, topology: str = "host") -> dict:
     return {"cli": SCHED_CLI_PATH, "topology": topology,
             "interpreter": interpreter, "pythonpath": pythonpath,
             "files": [str(p) for p in written]}
+
+
+#: The orchestrator plug `./ops/sched` is (alkera_gateway.plugs), and every
+#: stack's default for the orchestrator slot.
+SCHED_CLI_PLUG = "ops_sched"
+
+
+def _no_sched_cli(world: dict) -> str:
+    """Why this world's box gets no `./ops/sched`, or "" when it does.
+
+    Read from the world's profile record: no record (an unprofiled world) is
+    "" - the CLI as it always was."""
+    root = (Path(world["world_root"]) if world.get("world_root")
+            else Path(world["workspace"]).parent)
+    path = root / episode.WORLD_PROFILE_RECORD
+    if not path.is_file():
+        return ""
+    record = json.loads(path.read_text(encoding="utf-8"))
+    name = record.get("name")
+    if "orchestrator" not in (record.get("slots") or []):
+        return f"profile {name!r} plugs no orchestrator"
+    plugged = (record.get("plugs") or {}).get("orchestrator")
+    if plugged is not None and SCHED_CLI_PLUG not in plugged:
+        return f"profile {name!r} plugs orchestrator {sorted(plugged)}, not {SCHED_CLI_PLUG}"
+    return ""
 
 
 class NativeStack:
@@ -373,7 +411,7 @@ class NativeStack:
             self.config_file, self.world,
             self.audit_dir, "native-host",
             self.world.get("virtual_time") or "",
-            profile=self.profile_name, plugs=self.plugs)
+            profile=self.profile_name, plugs=self.plugs, service_state=True)
 
     def _serve_argv(self) -> list[str]:
         return [str(episode.PY), "-m", "alkera_gateway.native.serve",
@@ -600,17 +638,20 @@ SCRIPTED_SUBJECT = r"""#!/bin/sh
 set -eu
 cd "$ALKERA_WORKSPACE"
 echo "== scheduler =="
-./ops/sched list
+# a profile that plugs no orchestrator has no ./ops/sched (install_workspace_cli)
+if [ -x ./ops/sched ]; then ./ops/sched list; else echo "(no ./ops/sched on this box)"; fi
 echo "== warehouse =="
 duckdb "$ALKERA_WAREHOUSE" \
   -c "CREATE TABLE main.$ALKERA_SCRATCH_TABLE AS SELECT 1 AS n" \
   -c "DELETE FROM main.$ALKERA_SCRATCH_TABLE WHERE n = 1" \
   -c "DROP TABLE main.$ALKERA_SCRATCH_TABLE"
 echo "== scheduler runs =="
-for job in $ALKERA_TRIGGER_JOBS; do
-  echo "-- trigger $job"
-  ./ops/sched trigger "$job"
-done
+if [ -x ./ops/sched ]; then
+  for job in $ALKERA_TRIGGER_JOBS; do
+    echo "-- trigger $job"
+    ./ops/sched trigger "$job"
+  done
+fi
 echo "== jira =="
 if [ -n "$ALKERA_ISSUE_KEY" ]; then
   curl -sS "$JIRA_URL/rest/api/3/issue/$ALKERA_ISSUE_KEY" | head -c 400
@@ -914,18 +955,21 @@ CONTAINER_SUBJECTS = {
 set -eu
 cd "$ALKERA_WORKSPACE"
 echo "== scheduler =="
-./ops/sched list
+# a profile that plugs no orchestrator has no ./ops/sched (install_workspace_cli)
+if [ -x ./ops/sched ]; then ./ops/sched list; else echo "(no ./ops/sched on this box)"; fi
 echo "== warehouse =="
 duckdb "$ALKERA_WAREHOUSE" \
   -c "CREATE TABLE main.$ALKERA_SCRATCH_TABLE AS SELECT 1 AS n" \
   -c "DELETE FROM main.$ALKERA_SCRATCH_TABLE WHERE n = 1" \
   -c "DROP TABLE main.$ALKERA_SCRATCH_TABLE"
 echo "== scheduler runs =="
-for job in $ALKERA_TRIGGER_JOBS; do
-  echo "-- trigger $job"
-  ./ops/sched trigger "$job"
-done
-./ops/sched logs | tail -5
+if [ -x ./ops/sched ]; then
+  for job in $ALKERA_TRIGGER_JOBS; do
+    echo "-- trigger $job"
+    ./ops/sched trigger "$job"
+  done
+  ./ops/sched logs | tail -5
+fi
 echo "== jira =="
 if [ -n "$ALKERA_ISSUE_KEY" ]; then
   curl -sS "$JIRA_URL/rest/api/3/issue/$ALKERA_ISSUE_KEY" | head -c 400

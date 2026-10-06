@@ -58,8 +58,10 @@ import bisect
 import csv
 import json
 import random
+import shutil
 import subprocess
 import sys
+import tempfile
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
@@ -619,13 +621,15 @@ def write_landing(workspace: Path, seed: dict) -> None:
         write_day(workspace, seed, i, (start + timedelta(days=i)).date())
 
 
-def load_raw(workspace: Path, db_path: Path) -> None:
+def load_raw(workspace: Path, db_path: Path, landing: Path | None = None) -> None:
     """Run the workspace's own loader, so the script the agent reads is the
-    code that loads raw.* - at build time and every night after."""
+    code that loads raw.* - at build time and every night after. `landing`
+    defaults to the workspace's own landing zone; `bi_imports` replays a night
+    on the partitions that had landed by then."""
     loader = Path(workspace) / "loader" / "load_extracts.py"
     r = subprocess.run(
         [sys.executable, str(loader),
-         "--landing", str(Path(workspace) / "data" / "landing"),
+         "--landing", str(landing or Path(workspace) / "data" / "landing"),
          "--db", str(db_path)],
         stdin=subprocess.DEVNULL,  # never inherit the MCP JSON-RPC pipe; see executor.py
         capture_output=True, text=True)
@@ -768,9 +772,31 @@ def bi_projects(seed: dict) -> dict:
 #                              only, so refunded orders count. AOV on the KPI
 #                              card divides that by Completed Orders. The data
 #                              model's own metrics are correct.
+#   powerbi_share_scope        Leadership's Power BI model: the Segment Share
+#                              measure's denominator removes EVERY filter on
+#                              Customer - REMOVEFILTERS ( Customer ) - instead
+#                              of the segment's alone (docs/metrics.md: "Net
+#                              Revenue with the segment filter removed").
+#                              Unfiltered, the two are the same number, so the
+#                              Executive Overview's Revenue by Segment tile is
+#                              right; filtered to a region, each segment's
+#                              share is of the WHOLE book, and a region's
+#                              shares add up to its slice of revenue, not 100%.
+#   powerbi_stale_import       Not a line in the project (which is the clean
+#                              one): the night the world's last scheduled
+#                              Power BI refresh ran BEFORE the last nightly
+#                              extract landed. The extract lands late by the
+#                              catalogue's own `extract_late` delay, after the
+#                              06:00 refresh; the data platform's on-call
+#                              reruns daily_load and dbt_build by hand, so the
+#                              warehouse is complete - and nobody refreshes
+#                              the dataset. `bi_imports` below writes what that
+#                              refresh imported, by replaying the load and the
+#                              dbt build on the extracts that had landed, and
+#                              the Power BI service publishes it.
 #
 # Seed: `bi_faults: [tableau_orders_line_join, sigma_net_revenue_refunds]`
-# (a list; one id or both). Refused: an unknown id, and a fault in a vendor the
+# (a list; any of the ids). Refused: an unknown id, and a fault in a vendor the
 # seed's profile does not plug (bi_projects.write would drop the project and
 # the fault with it, silently).
 
@@ -846,10 +872,46 @@ def _sigma_net_revenue_refunds(model, reports):
         for r in reports)
 
 
+def _powerbi_share_scope(model, reports):
+    """Leadership's model: Segment Share = DIVIDE ( [Net Revenue], CALCULATE (
+    [Net Revenue], REMOVEFILTERS ( Customer ) ) ) - every Customer filter
+    removed, the region's with the segment's. The report is untouched."""
+    from dataclasses import replace
+
+    from world.semantic.expr import Calculate, Col, Divide, RemoveFilters
+
+    segment = RemoveFilters(columns=(Col("Customer", "segment"),))
+
+    def widen(measure):
+        expr = measure.expr
+        if measure.name != "Segment Share" or not (
+                isinstance(expr, Divide) and isinstance(expr.den, Calculate)
+                and segment in expr.den.modifiers):
+            return measure
+        modifiers = tuple(RemoveFilters(tables=("Customer",)) if m == segment else m
+                          for m in expr.den.modifiers)
+        return replace(measure, expr=replace(expr, den=replace(expr.den,
+                                                               modifiers=modifiers)))
+
+    measures = tuple(widen(m) for m in model.measures)
+    if measures == model.measures:
+        raise SystemExit("powerbi_share_scope: the Power BI model has no Segment Share "
+                         "that removes the segment filter to widen")
+    return replace(model, measures=measures), reports
+
+
+def _the_project_as_it_is(model, reports):
+    """powerbi_stale_import: the project is the clean one; the fault is the
+    world's timeline, written by `bi_imports`."""
+    return model, reports
+
+
 #: fault id -> (the vendor whose project it is planted in, the planter).
 BI_FAULTS = {
     "tableau_orders_line_join": ("tableau", _tableau_orders_line_join),
     "sigma_net_revenue_refunds": ("sigma", _sigma_net_revenue_refunds),
+    "powerbi_share_scope": ("powerbi", _powerbi_share_scope),
+    "powerbi_stale_import": ("powerbi", _the_project_as_it_is),
 }
 
 
@@ -872,3 +934,243 @@ def bi_faults(seed: dict) -> tuple[str, ...]:
                              f"seed's profile does not plug {vendor} "
                              f"(profile.plugs.bi: {sorted(plugged)})")
     return tuple(f for f in BI_FAULTS if f in set(named))
+
+
+# --------------------------------------------------------------------------
+# the Power BI import: what the world's last scheduled refresh loaded
+# --------------------------------------------------------------------------
+#
+# The Commerce dataset is an IMPORT model (workspace bi/README.md): the report
+# shows what its last refresh copied out of the warehouse, and in this world
+# its scheduled refresh is the 06:00 dashboard refresh (`bi_refresh`,
+# theme.yaml; README.md "Power BI / Tableau / Sigma <--06:00"; the January
+# postmortem). The fake Power BI service (gateway/src/alkera_gateway/native/
+# services/powerbi.py) seeds a dataset's import from POWERBI_IMPORTS when the
+# world carries a record for it, and otherwise copies the warehouse at
+# provisioning - which IS what the last scheduled refresh loaded on a world
+# whose every extract landed before that refresh. So only a world where that
+# is not true needs a record, and only `powerbi_stale_import` writes one:
+# every other world keeps every byte it had (bi_projects.write calls this
+# hook, which returns [] for it).
+#
+# The record is the world's own timeline, replayed, not a number planted:
+#
+#   - the night is the one before the world clock, so nothing after it can
+#     have refreshed the dataset: the last seeded extract (business date
+#     2026-02-28 in the shipped seed) is due at theme.yaml `live.arrival`
+#     (02:00) and lands `extract_late`'s `delay_minutes` later (07:30);
+#   - the load and the refresh are the seeded runs of that night in
+#     var/sched/state.json - `daily_load` 02:30, `bi_refresh` 06:00 - and the
+#     import is what that load and the dbt build after it made of the
+#     partitions that had landed by then: the workspace's own loader and dbt
+#     project, run on a scratch warehouse, the relations the published model
+#     reads exported as CSV (canonical order, DuckDB's own text for each type);
+#   - the warehouse is complete because the data platform's on-call reran
+#     the load and the build by hand RERUN_LAG after the extract landed
+#     (ae/runbooks/nightly-on-call), and stopped there - the step the January
+#     postmortem's action 3 never wrote down. The two manual runs are appended
+#     to the scheduler's history in the shape `trigger` records, with the row
+#     counts the replay and the build actually measured as their effects.
+#
+# CSV, not a DuckDB file: var/bi is hashed byte for byte (fingerprint.py
+# `bi`), and a DuckDB file's page layout is not.
+
+#: Where the world keeps the Power BI imports it can vouch for (beside the
+#: dashboards plane the gateway's `dashboards` path names).
+POWERBI_IMPORTS = Path("var") / "bi" / "powerbi"
+POWERBI_RECORD = "datasets.json"
+#: Landing -> the on-call's manual `daily_load`: the time to notice the
+#: extract (#data-incidents) and start the rerun. Author's choice, stated.
+RERUN_LAG = timedelta(minutes=35)
+#: How many scheduled refreshes the record carries as the dataset's history.
+REFRESH_HISTORY = 14
+#: The fault whose delay dates the late extract (theme.yaml live.faults).
+LATE_EXTRACT_FAULT = "extract_late"
+
+
+def _late_extract_night(seed: dict, manifest: dict, state: dict) -> dict:
+    """The night before the world clock, when the last extract landed after
+    the refresh: every time on it read from theme.yaml and the seeded runs."""
+    params = params_of(seed)
+    start = parse_vtime(seed["vtime_start"])
+    arrival = manifest["live"]["arrival"]["at"]
+    hh, mm = (int(x) for x in arrival["time"].split(":"))
+
+    def due(day_index: int) -> datetime:
+        return start + timedelta(days=day_index + int(arrival.get("day_offset", 0)),
+                                 hours=hh, minutes=mm)
+
+    late = int(seed["days"]) - 1
+    fault = next((f for f in manifest["live"].get("faults") or ()
+                  if f.get("id") == LATE_EXTRACT_FAULT and f.get("kind") == "late_arrival"),
+                 None)
+    if fault is None:
+        raise SystemExit(f"powerbi_stale_import dates the late extract by theme.yaml's "
+                         f"{LATE_EXTRACT_FAULT!r} late_arrival fault, which is not declared")
+    landed = due(late) + timedelta(minutes=int(fault["params"]["delay_minutes"]))
+    vnow = parse_vtime(state["vnow"])
+    refreshes = [r for r in state["runs"] if r["job"] == "bi_refresh"
+                 and parse_vtime(r["vts_start"]) < vnow]
+    if not refreshes:
+        raise SystemExit("powerbi_stale_import: the seeded history has no bi_refresh run")
+    refresh = refreshes[-1]
+    at = parse_vtime(refresh["vts_start"])
+    loads = [r for r in state["runs"] if r["job"] == "daily_load"
+             and parse_vtime(r["vts_start"]) <= at]
+    if not loads:
+        raise SystemExit("powerbi_stale_import: no daily_load ran before the last refresh")
+    load = parse_vtime(loads[-1]["vts_start"])
+    if not (due(late) <= load < at < landed < vnow) or refresh["status"] != "success":
+        raise SystemExit(
+            f"powerbi_stale_import: the timeline does not stage it - extract due "
+            f"{scheduler.iso(due(late))}, load {scheduler.iso(load)}, refresh "
+            f"{refresh['vts_start']} ({refresh['status']}), landed {scheduler.iso(landed)}, "
+            f"world clock {state['vnow']}")
+    landed_by_load = [f"dt={business_date(params, i).isoformat()}"
+                      for i in range(int(seed["days"]))
+                      if (landed if i == late else due(i)) <= load]
+    return {"partition": f"dt={business_date(params, late).isoformat()}",
+            "due": due(late), "landed": landed, "load": load, "refresh": refresh,
+            "partitions": landed_by_load, "history": refreshes[-REFRESH_HISTORY:]}
+
+
+def _replay_warehouse(root: Path, scratch: Path, manifest: dict, partitions: list) -> Path:
+    """The warehouse as `daily_load` + `dbt_build` left it with only
+    `partitions` on disk: the workspace's own loader and dbt project, on a
+    scratch copy of those partitions. Returns the scratch warehouse."""
+    from world import executor
+
+    workspace = Path(root) / "workspace"
+    landing = scratch / "landing"
+    for entity in ENTITIES:
+        for partition in partitions:
+            source = workspace / "data" / "landing" / entity / partition
+            if source.is_dir():
+                shutil.copytree(source, landing / entity / partition)
+    db = scratch / DB
+    db.parent.mkdir(parents=True, exist_ok=True)
+    load_raw(workspace, db, landing=landing)
+    shutil.copytree(workspace / "dbt_project", scratch / "workspace" / "dbt_project")
+    rc, output = executor.dbt_invoke(scratch, "build", out_dir=scratch / "build",
+                                     profile=manifest["dbt_profile"])
+    if rc != 0:
+        raise SystemExit(f"powerbi_stale_import: the replayed dbt build failed:\n{output}")
+    return db
+
+
+def _row_counts(db: Path, relations) -> dict:
+    import duckdb
+
+    con = duckdb.connect(":memory:", config={"threads": 1})
+    try:
+        con.execute("ATTACH '" + str(db).replace("'", "''") + "' AS wh (READ_ONLY)")
+        return {r: con.execute(f"SELECT count(*) FROM wh.{r}").fetchone()[0]
+                for r in relations}
+    finally:
+        con.close()
+
+
+def _export_import(root: Path, dataset: str, db: Path, relations) -> list[dict]:
+    """Each relation as CSV under POWERBI_IMPORTS/import/<dataset>/, rows in
+    canonical order; [{relation, path, columns: [[name, type]], rows}]."""
+    import duckdb
+
+    folder = Path(root) / POWERBI_IMPORTS / "import" / dataset
+    folder.mkdir(parents=True, exist_ok=True)
+    out = []
+    con = duckdb.connect(":memory:", config={"threads": 1})
+    try:
+        con.execute("ATTACH '" + str(db).replace("'", "''") + "' AS wh (READ_ONLY)")
+        for relation in relations:
+            schema, _, table = relation.partition(".")
+            columns = [[name, dtype] for name, dtype in con.execute(
+                "SELECT column_name, data_type FROM duckdb_columns() WHERE "
+                "database_name = 'wh' AND schema_name = ? AND table_name = ? "
+                "ORDER BY column_index", [schema, table]).fetchall()]
+            if not columns:
+                raise SystemExit(f"powerbi_stale_import: the replayed warehouse has no "
+                                 f"{relation}")
+            path = folder / f"{relation}.csv"
+            target = str(path).replace("'", "''")
+            con.execute(f'COPY (SELECT * FROM wh."{schema}"."{table}" ORDER BY ALL) '
+                        f"TO '{target}' (FORMAT csv, HEADER true, DELIMITER ',')")
+            rows = con.execute(f'SELECT count(*) FROM wh."{schema}"."{table}"').fetchone()[0]
+            out.append({"relation": relation,
+                        "path": path.relative_to(Path(root) / POWERBI_IMPORTS).as_posix(),
+                        "columns": columns, "rows": rows})
+    finally:
+        con.close()
+    return out
+
+
+def _effects(tables, before: dict, after: dict) -> dict:
+    return {t: {"rows_before": before[t], "rows_after": after[t]} for t in tables}
+
+
+def bi_imports(root: Path, seed: dict, manifest: dict, db_path: Path) -> list[Path]:
+    """bi_projects.write's import hook: the import-mode BI datasets as the
+    world's last scheduled refresh left them, for the worlds where that is not
+    simply the warehouse (above). Returns the files written; [] - and nothing
+    written, nothing appended - unless `powerbi_stale_import` is on."""
+    if "powerbi_stale_import" not in bi_faults(seed):
+        return []
+    root = Path(root)
+    state = scheduler.load(root)
+    night = _late_extract_night(seed, manifest, state)
+    model = bi_projects(seed)["powerbi"][0]
+    relations = []
+    for table in model.tables:
+        if table.source is None:
+            raise SystemExit(f"powerbi_stale_import: table {table.name!r} is native SQL; "
+                             f"the import replay copies named relations only")
+        relations.append(table.source)
+    relations = sorted(set(relations))
+    jobs = manifest["jobs"]
+    load_tables = list(jobs["daily_load"]["exec"]["tables"])
+    dbt_tables = list(jobs["dbt_build"]["exec"]["tables"])
+    with tempfile.TemporaryDirectory(prefix="powerbi-import-") as tmp:
+        stale = _replay_warehouse(root, Path(tmp), manifest, night["partitions"])
+        imported = _export_import(root, model.name, stale, relations)
+        before = _row_counts(stale, load_tables + dbt_tables)
+    after = _row_counts(Path(db_path), load_tables + dbt_tables)
+
+    # The on-call's rerun: `trigger`'s run record (scheduler._run_record), the
+    # effects measured, not asserted. The world clock does not move: it is the
+    # backstory, like every seeded row.
+    load_at = night["landed"] + RERUN_LAG
+    load_end = load_at + timedelta(seconds=int(jobs["daily_load"]["duration_s"]))
+    dbt_at = load_at + timedelta(minutes=int(jobs["dbt_build"]["after"]["minutes"]))
+    dbt_end = dbt_at + timedelta(seconds=int(jobs["dbt_build"]["duration_s"]))
+    if dbt_end >= parse_vtime(state["vnow"]):
+        raise SystemExit("powerbi_stale_import: the rerun would end after the world clock")
+    state["runs"] += [
+        {"job": "daily_load", "vts_start": scheduler.iso(load_at),
+         "vts_end": scheduler.iso(load_end), "status": "success", "detail": None,
+         "trigger": "manual", "execution_date": None, "executed": True,
+         "action": f"theme:{jobs['daily_load']['exec']['op']}", "error": None,
+         "effects": _effects(load_tables, before, after)},
+        {"job": "dbt_build", "vts_start": scheduler.iso(dbt_at),
+         "vts_end": scheduler.iso(dbt_end), "status": "success", "detail": None,
+         "trigger": "manual", "execution_date": None, "executed": True,
+         "action": f"dbt {jobs['dbt_build']['exec']['command']}", "error": None,
+         "effects": {"returncode": 0, **_effects(dbt_tables, before, after)}},
+    ]
+    scheduler.save(root, state)
+
+    status = {"success": "Completed", "failed": "Failed"}
+    record = {"datasets": {model.name: {
+        "refreshes": [{"refreshType": "Scheduled", "startTime": r["vts_start"],
+                       "endTime": r["vts_end"],
+                       "status": status.get(r["status"], "Failed")}
+                      for r in night["history"]],
+        "import": {"refreshed": night["refresh"]["vts_start"], "relations": imported},
+        "timeline": {"partition": night["partition"],
+                     "due": scheduler.iso(night["due"]),
+                     "landed": scheduler.iso(night["landed"]),
+                     "reloaded": scheduler.iso(dbt_end)},
+    }}}
+    path = root / POWERBI_IMPORTS / POWERBI_RECORD
+    with open(path, "w", encoding="utf-8", newline="") as handle:
+        handle.write(json.dumps(record, indent=2, sort_keys=True) + "\n")
+    folder = root / POWERBI_IMPORTS
+    return sorted(p for p in folder.rglob("*") if p.is_file())

@@ -230,5 +230,16 @@ COPY gateway/tests /opt/gateway/tests
 # 4.7.3 honours - SSL_CERT_FILE never reaches it, and insecure_mode only governs OCSP.
 RUN mkdir -p /etc/alkera/snowflake-tls && python -c "import certifi,shutil;shutil.copyfile(certifi.where(),'/etc/alkera/snowflake-tls/bundle.pem')"
 ENV REQUESTS_CA_BUNDLE=/etc/alkera/snowflake-tls/bundle.pem
+# The repository is a BIND MOUNT (/workspace, owned by the operator's uid on the
+# host) and the agent is root in here, so git >= 2.35.2 refuses it outright:
+# `fatal: detected dubious ownership in repository at '/workspace'` on every
+# `git status`, measured from inside the episode container. That is not what a
+# data engineer's box does - a dev container with a mounted checkout marks it
+# safe, which is what VS Code's devcontainers do for their workspace folder.
+# --system (/etc/gitconfig), not --global: /root is the agent's home and the
+# harness copies the world's `home/` over it, so a ~/.gitconfig could be
+# replaced; the system file is the image's. Exactly one path - not `*`, which
+# would also silence the check for anything else the agent clones or mounts.
+RUN git config --system --add safe.directory /workspace
 WORKDIR /opt/world
 CMD ["python", "/opt/stack/start.py"]

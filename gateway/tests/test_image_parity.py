@@ -206,7 +206,9 @@ def test_image_was_built_from_current_head(image_revision):
     head = _git("rev-parse", "HEAD").stdout.strip()
     if image_revision == head:
         return
-    drift = _git("diff", "--name-only", image_revision, head, "--", "gateway", "world")
+    # build evidence is a record about images, not an input (container_episode.IMAGE_SCOPE)
+    drift = _git("diff", "--name-only", image_revision, head, "--", "gateway", "world",
+                 ":(exclude)gateway/docker/evidence")
     if drift.returncode:
         pytest.skip(
             f"{IMAGE} names revision {image_revision[:12]}, which is not in this "

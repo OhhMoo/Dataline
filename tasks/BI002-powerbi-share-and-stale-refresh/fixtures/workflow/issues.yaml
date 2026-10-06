@@ -1,0 +1,80 @@
+# BI002 - the incident as Sales filed it, and the thread that says who may
+# change what. tests/build_world.py appends these issues to the theme's
+# backlog (world/world/themes/commerce_analytics/workflow/issues.yaml) and
+# re-seeds var/workflow through world.workflow, so every rule the theme's
+# corpus obeys (positional comment ids, nothing after the world clock, ASCII)
+# holds here too. `authoring` blocks are author-side: the services strip them
+# and so does the native harness's staged copy.
+#
+# Every number below was measured on the built world (tests/run_baselines.py
+# gate `ticket_numbers_are_true`): what the PUBLISHED Executive Overview
+# showed at provisioning - the Power BI service's own answer, from the import
+# the world's last scheduled refresh loaded - and the warehouse.
+issues:
+  - id: ANA-242
+    title: "Executive Overview: region shares don't add up, and February is short"
+    body: |-
+      Building the regional packs for the RVPs from the Executive Overview in
+      Power BI and two things look wrong.
+
+      1. Filtered to EMEA, the Segment Share column on Revenue by Segment adds
+         up to 39.6% (Enterprise 33.8%, SMB 5.1%, Consumer 0.7%). NA comes to
+         44.5% and APAC to 15.9%. With no filter it adds up to 100%. Each
+         region's segments should add up to 100% of that region - that is the
+         whole point of the column.
+
+      2. February on Revenue by Month says 2,322,780.00. Sade pulled February
+         from the warehouse this afternoon and got 2,361,224.00.
+
+      The packs go out before APAC's Monday starts, so I need the dashboard
+      right tonight, not tomorrow. Which February number is right, and can
+      both be fixed?
+    status: todo
+    reporter: jwhitfield
+    assignee: null
+    labels: [executive-overview, power-bi, sales]
+    created_at: "-1d 21:40"
+    updated_at: "-1d 22:41"
+    comments:
+      - id: ANA-242#1
+        author: sokoro
+        at: "-1d 21:55"
+        body: |-
+          Mine is straight off the warehouse: completed orders in
+          warehouse.fct_orders with an order_date in February, run at 17:10.
+      - id: ANA-242#2
+        author: hkowalski
+        at: "-1d 22:20"
+        body: |-
+          Segment Share is a Power BI measure, not a dbt metric -
+          docs/metrics.md has its definition - so putting the measure back on
+          its definition is a fix, not a definition change. Freeze exception
+          for this ticket only: the Power BI model may be changed and
+          redeployed once it matches the definition. Same rules as always:
+          fix it in bi/powerbi, commit it, deploy it the way
+          ae/runbooks/bi-release-process says, and check what the service
+          answers, not your local copy. Nothing in the warehouse, the dbt
+          project or models/semantic changes. Amy - OK with you?
+      - id: ANA-242#3
+        author: achen
+        at: "-1d 22:41"
+        body: |-
+          OK - Segment Share is not in the close pack. February's Net Revenue
+          is: I take it off this dashboard on Wednesday, so whatever is wrong
+          with February has to be right before then too. Put the right
+          February number on here for James when it is done.
+    history: []
+    links: []
+    authoring:
+      kind: incident_report_lay
+      note: >-
+        BI002. Two unrelated Power BI faults, both in leadership's published
+        build (gen.BI_FAULTS). The Segment Share measure removes every Customer
+        filter - REMOVEFILTERS ( Customer ) - so a region's segment shares are
+        of the whole book (powerbi_share_scope). And the dataset's last
+        refresh was the scheduled 06:00 one on Sunday, before Saturday's
+        extract landed at 07:30 and was reloaded by hand
+        (powerbi_stale_import): the import is a day short while the warehouse
+        is complete, so February misses the 28th. Sade's number is the right
+        one. Hanna's comment is the mandate for the model change; the
+        freeze page already allows a refresh.

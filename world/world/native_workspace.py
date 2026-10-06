@@ -35,6 +35,20 @@ are EXPLICIT-ONLY on the same terms as the notebook (EXPLICIT_SLOTS): named
 only when `plugs` names them, so neither an unprofiled box nor a profile that
 plugs `bi` without saying which vendor ever grows a Power BI endpoint.
 
+The warehouse slot follows the same rule through its backend groups
+(BACKEND_PLUGS): a box whose warehouse plugs are `[duckdb]` names no Postgres
+and no Snowflake, `[postgres]` names Postgres, `[snowflake]` names Snowflake
+(as "the warehouse"). A record seldom names its warehouse plug, because the
+profile's stack already says it (`da/laptop` is DuckDB); `profile_plugs` fills
+it in from STACK_WAREHOUSE, and `write` applies it. A stack the table does not
+know leaves the slot unnamed, which lists what it always listed.
+
+On a profiled box the wiki section lists each page by its Confluence content
+id (`content_id`, the number the API routes), with its path beside it: the
+path is what tickets, chat and the pages themselves link by, and
+`/wiki/rest/api/content/<path>` is not a route. The unprofiled page keeps
+listing paths, byte for byte.
+
 Determinism, on the same three rules as the rest of the builder:
 
 1. nothing reads a wall clock, a hostname, an environment variable or a random
@@ -63,6 +77,7 @@ Credentials are obviously fake and every one of them is the same string,
 like a real key, and a value that appears in four files under four different
 names is a value nobody mistakes for a secret.
 """
+import hashlib
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -258,10 +273,54 @@ BACKEND_SLOTS = {
     "the notebook server": "notebook",
 }
 
+#: The warehouse PLUG behind each remote-warehouse backend group (a
+#: BACKEND_NOTES label -> `Plug.name` in alkera_gateway.plugs). Under a profile
+#: whose plugs name the warehouse slot, a group is listed only when its plug is
+#: named; DuckDB, the world's own file, has no group (it is not on the network).
+BACKEND_PLUGS = {
+    "the warehouse": "postgres",
+    "the second warehouse": "snowflake",
+}
+#: Each stack's default warehouse plug(s), `alkera_gateway.plugs.STACKS[stack]
+#: ["warehouse"]`: what a profile named "<role>/<stack>" plugs into the
+#: warehouse slot when its record's `plugs` does not say. Duplicated, not
+#: imported (world/ never imports the gateway); world/tests/
+#: test_profile_world.py compares the two.
+STACK_WAREHOUSE = {
+    "laptop": ("duckdb",),
+    "postgres": ("postgres",),
+    "snowflake": ("snowflake",),
+    "databricks": ("databricks",),
+    "aws": ("redshift",),
+    "gcp": ("bigquery",),
+}
+
 #: Slots whose plug is newer than the unprofiled box. "No profile" means the
 #: full table as it stood before profiles, and that box is fingerprinted byte
 #: for byte, so these appear only when a profile names them.
 EXPLICIT_SLOTS = frozenset({"notebook"})
+
+
+def profile_plugs(name, plugs=None):
+    """A profile record's `plugs`, with the warehouse slot's plug filled in
+    from the profile's stack (STACK_WAREHOUSE) when the record names none.
+
+    `name` is the record's "<role>/<stack>"; None (no profile), or a stack the
+    table does not know, adds nothing and returns the plugs as given (None for
+    none), so the slot lists what it always listed.
+    """
+    out = dict(plugs or {})
+    stack = str(name or "").partition("/")[2]
+    if "warehouse" not in out and stack in STACK_WAREHOUSE:
+        out["warehouse"] = list(STACK_WAREHOUSE[stack])
+    return out or None
+
+
+def content_id(page_id: str) -> str:
+    """A wiki page path -> the numeric content id the Confluence API serves
+    it under (`alkera_gateway.native.services.confluence.content_id`,
+    duplicated; test_profile_world.py compares the two)."""
+    return str(int(hashlib.sha256(page_id.encode("utf-8")).hexdigest()[:9], 16))
 
 
 def _plugged(slot: str, slots) -> bool:
@@ -270,7 +329,29 @@ def _plugged(slot: str, slots) -> bool:
     return slot in slots
 
 
-def _backends(slots):
+def _plug_named(label: str, slots, plugs) -> bool:
+    """False only on a profiled box whose plugs name this backend group's
+    slot and not its plug: the box has that slot, filled by something else."""
+    plug = BACKEND_PLUGS.get(label)
+    if slots is None or plug is None or not plugs:
+        return True
+    slot = BACKEND_SLOTS[label]
+    return slot not in plugs or plug in plugs[slot]
+
+
+def _backend_listed(label: str, slots, plugs) -> bool:
+    return _plugged(BACKEND_SLOTS[label], slots) and _plug_named(label, slots, plugs)
+
+
+def _label(label: str, slots, plugs) -> str:
+    """A Snowflake box with no Postgres has one warehouse, not a second one."""
+    if label == "the second warehouse" and slots is not None \
+            and not _backend_listed("the warehouse", slots, plugs):
+        return "the warehouse"
+    return label
+
+
+def _backends(slots, plugs=None):
     """The backend variable groups this profile plugs, as (comment, mapping)."""
     groups = (
         ("the warehouse", "# The warehouse. psql and psycopg need no arguments with these set.",
@@ -281,8 +362,13 @@ def _backends(slots):
         ("the second warehouse", "# The second warehouse.", SNOWFLAKE),
         ("the notebook server", "# The notebook server.", NOTEBOOK),
     )
-    return [(comment, mapping) for label, comment, mapping in groups
-            if _plugged(BACKEND_SLOTS[label], slots)]
+    out = []
+    for label, comment, mapping in groups:
+        if not _backend_listed(label, slots, plugs):
+            continue
+        shown = _label(label, slots, plugs)
+        out.append((comment if shown == label else f"# {shown.capitalize()}.", mapping))
+    return out
 
 
 def _chosen(service: str, slots, plugs) -> bool:
@@ -314,7 +400,7 @@ def environment(slots=None, plugs=None, home: str = CONTAINER_HOME) -> dict[str,
     an endpoint cannot be added to one and forgotten in the others.
     """
     env: dict[str, str] = {}
-    for _, mapping in _backends(slots):
+    for _, mapping in _backends(slots, plugs):
         env.update(mapping)
     env.update(dbt_env(home))
     for service in _services(slots, plugs):
@@ -343,7 +429,7 @@ def envrc_block(slots=None, plugs=None, home: str = CONTAINER_HOME) -> str:
         for key in sorted(mapping):
             lines.append(f'export {key}="{mapping[key]}"')
 
-    for comment, mapping in _backends(slots):
+    for comment, mapping in _backends(slots, plugs):
         lines += ["", comment]
         emit(mapping)
     lines += ["", "# Where a bare `dbt` finds its profile."]
@@ -433,14 +519,20 @@ def services_toml(root_in_container: str, slots=None, plugs=None) -> str:
         "[world]",
         f"root = {_toml_string(root_in_container)}",
         f'workspace = {_toml_string(root_in_container.rstrip("/") + "/workspace")}',
-        "",
-        "[warehouse]",
-        f'host = {_toml_string(POSTGRES["PGHOST"])}',
-        f'port = {POSTGRES["PGPORT"]}',
-        f'database = {_toml_string(POSTGRES["PGDATABASE"])}',
-        f'user = {_toml_string(POSTGRES["PGUSER"])}',
-        f'password = {_toml_string(POSTGRES["PGPASSWORD"])}',
     ]
+    # Postgres, unless the profile's warehouse plugs leave it out (a DuckDB or
+    # a Snowflake box). Not keyed on the slot being plugged: the table has
+    # always carried it, and only a named plug may take it away.
+    if _plug_named("the warehouse", slots, plugs):
+        lines += [
+            "",
+            "[warehouse]",
+            f'host = {_toml_string(POSTGRES["PGHOST"])}',
+            f'port = {POSTGRES["PGPORT"]}',
+            f'database = {_toml_string(POSTGRES["PGDATABASE"])}',
+            f'user = {_toml_string(POSTGRES["PGUSER"])}',
+            f'password = {_toml_string(POSTGRES["PGPASSWORD"])}',
+        ]
     if _plugged(BACKEND_SLOTS["object storage"], slots):
         lines += [
             "",
@@ -531,8 +623,9 @@ def onboarding_markdown(root: Path, manifest: dict, slots=None, plugs=None) -> s
         "|---|---|---|---|",
     ]
     for label, where, clients in BACKEND_NOTES:
-        if _plugged(BACKEND_SLOTS[label], slots):
-            lines.append(f"| {label} | `{where}` | {clients} | see `.envrc` |")
+        if _backend_listed(label, slots, plugs):
+            lines.append(f"| {_label(label, slots, plugs)} | `{where}` | {clients} "
+                         f"| see `.envrc` |")
     for service in _services(slots, plugs):
         lines.append(
             f"| {service.name} | `{service.alias}:{service.port}` | "
@@ -574,12 +667,25 @@ def onboarding_markdown(root: Path, manifest: dict, slots=None, plugs=None) -> s
         lines.append("")
     if kb:
         space = _named(kb["space"])
-        lines += ["## Where the runbooks are", "",
-                  f"The wiki is the `{space['key']}` space ({space['name']}). "
-                  f"Pages, by id:", ""]
-        for page in sorted(kb["pages"], key=lambda p: p["id"]):
-            indent = "  " * page["id"].count("/")
-            lines.append(f"{indent}- `{page['id']}` - {page['title']}")
+        pages = sorted(kb["pages"], key=lambda p: p["id"])
+        if slots is None:
+            # The box as it stood before profiles, byte for byte - including
+            # listing the path, which the Confluence API does not route.
+            lines += ["## Where the runbooks are", "",
+                      f"The wiki is the `{space['key']}` space ({space['name']}). "
+                      f"Pages, by id:", ""]
+            for page in pages:
+                indent = "  " * page["id"].count("/")
+                lines.append(f"{indent}- `{page['id']}` - {page['title']}")
+        else:
+            lines += ["## Where the runbooks are", "",
+                      f"The wiki is the `{space['key']}` space ({space['name']}). "
+                      "Pages, by content id, with the path pages and tickets link "
+                      "them by:", ""]
+            for page in pages:
+                indent = "  " * page["id"].count("/")
+                lines.append(f"{indent}- `{content_id(page['id'])}` - {page['title']} "
+                             f"(`{page['id']}`)")
         lines += [
             "",
             "Two of these overlap. The wiki records who edited a page and when, "
@@ -678,15 +784,18 @@ def write_for_built_world(root: Path, world_in_container: str = "/world",
 
 
 def write(root: Path, theme, world_in_container: str = "/world",
-          slots=None, plugs=None) -> list[Path]:
+          slots=None, plugs=None, name=None) -> list[Path]:
     """Write the four discovery files. Returns them, in the order written.
 
     Called by `world.build.build` when the seed says `native: true`, after the
     workflow corpus exists (the onboarding page reads it) and before the git
     commit (the two workspace files belong in it, because on a real box they
     are checked in). `slots` is the seed profile's plugged slots, or None;
-    `plugs` its optional {slot: [plug, ...]}, or None.
+    `plugs` its optional {slot: [plug, ...]}, or None; `name` its
+    "<role>/<stack>", which supplies the warehouse plug when `plugs` does not
+    name one (`profile_plugs`).
     """
+    plugs = profile_plugs(name, plugs) if slots is not None else plugs
     root = Path(root)
     workspace = root / "workspace"
     home = root / HOME

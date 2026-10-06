@@ -268,13 +268,21 @@ def _block(text: str, service: str) -> str:
     return m.group(1)
 
 
+def _env(block: str) -> dict:
+    """The `environment:` mapping of one service block, comments skipped."""
+    out = {}
+    for name, value in re.findall(r"^      ([A-Z][A-Z0-9_]*): (.*)$", block, re.M):
+        out[name] = json.loads(value) if value.startswith('"') else value
+    return out
+
+
 def test_overlay_profiled_aliases(world, tmp_path, no_docker):
     plain = _stack(world, tmp_path, "r1").write_overlay().read_text()
     text = _stack(world, tmp_path, "r2", profile=PROFILE,
                   plugs=PLUGS).write_overlay().read_text()
-    # everything the unprofiled overlay says, it still says, in order
-    kept = "\n".join(line for line in text.splitlines() if "!reset null" not in line)
-    assert plain.split("services:\n", 1)[1] in kept + "\n"
+    # every variable the unprofiled overlay sets, the profiled one sets the same
+    assert _env(_block(plain, "episode")).items() <= _env(_block(text, "episode")).items()
+    assert _block(plain, "episode").split("    volumes:\n", 1)[1] in _block(text, "episode")
     services = _block(text, "native-services")
     aliases = re.findall(r"^          - (\S+)$", services, re.M)
     assert "aliases: !override" in services
@@ -283,13 +291,20 @@ def test_overlay_profiled_aliases(world, tmp_path, no_docker):
     assert "sched.internal" not in aliases
     minio = _block(text, "minio")
     assert "aliases: !reset []" in minio
-    episode_env = _block(text, "episode")
+    # the WHOLE mapping, restated (`!override`): an excluded service's
+    # variables are absent, not `!reset` (a no-op under Compose v5.6)
+    episode_block = _block(text, "episode")
+    assert "    environment: !override\n" in episode_block
+    assert "!reset" not in episode_block
+    episode_env = _env(episode_block)
     for var in ("LOKI_URL", "LOKI_ADDR", "DEPLOY_URL", "DEPLOY_API_TOKEN",
                 "AIRBYTE_URL", "PROMETHEUS_URL", "ALERTMANAGER_URL",
-                "SCHED_URL", "AWS_ENDPOINT_URL"):
-        assert f"      {var}: !reset null" in episode_env, var
-    for var in ("JIRA_URL", "METABASE_URL", "SLACK_BASE_URL", "PGHOST"):
-        assert var not in episode_env
+                "SCHED_URL", "AWS_ENDPOINT_URL",
+                "PGHOST"):                      # a DuckDB box: no Postgres warehouse
+        assert var not in episode_env, var
+    for var in ("JIRA_URL", "METABASE_URL", "SLACK_BASE_URL", "HOME",
+                "ALKERA_NATIVE_AUDIT", "DBT_PROFILES_DIR"):
+        assert var in episode_env, var
 
 
 def test_overlay_keeps_sched_and_minio_when_plugged(world, tmp_path, no_docker):
@@ -299,7 +314,12 @@ def test_overlay_keeps_sched_and_minio_when_plugged(world, tmp_path, no_docker):
     assert "- sched.internal" in services
     assert "- metabase.internal" not in services
     assert "minio:" not in text
-    assert "AWS_ENDPOINT_URL" not in text and "SCHED_URL" not in text
+    episode_env = _env(_block(text, "episode"))
+    static = ce.static_environment("episode")
+    # kept, with the static value: the orchestrator and the object store are plugged
+    for var in ("AWS_ENDPOINT_URL", "SCHED_URL"):
+        assert episode_env[var] == static[var], var
+    assert "METABASE_URL" not in episode_env and "METABASE_API_KEY" not in episode_env
 
 
 def test_reset_env_names_exist_in_the_static_overlay():
@@ -371,9 +391,14 @@ def test_overlay_with_notebook_gives_jupyter_the_episodes_box(world, tmp_path,
         if line.strip().startswith(("PATH:", "ALKERA_SHIM_", "ALKERA_WORKSPACE:",
                                     "- \"")):
             assert line in jupyter.splitlines(), line
-    # the same endpoint resets: an excluded service is absent from both
+    # the same profile: an excluded service is absent from both, both restate
+    # their whole mapping
+    jupyter_env = _env(jupyter)
     for var in ("LOKI_URL", "SCHED_URL", "AWS_ENDPOINT_URL"):
-        assert f"      {var}: !reset null" in jupyter, var
+        assert var not in jupyter_env and var not in _env(episode_block), var
+    assert "    environment: !override\n" in jupyter
+    assert jupyter_env["JIRA_URL"] == ce.static_environment("jupyter")["JIRA_URL"]
+    assert "JUPYTER_URL" not in jupyter_env
     assert '      JUPYTER_URL: "http://jupyter.internal:8888"' in episode_block
     assert "notebook" in stack.compose_env()["COMPOSE_PROFILES"].split(",")
 
@@ -383,6 +408,33 @@ def test_compose_profiles_keep_the_callers(world, tmp_path, monkeypatch):
     env = _stack(world, tmp_path, "r", profile="da/laptop").compose_env()
     assert env["COMPOSE_PROFILES"].split(",") == ["airflow", "notebook"]
     assert _stack(world, tmp_path, "r2").compose_env()["COMPOSE_PROFILES"] == "airflow"
+
+
+def test_snowflake_plug_starts_a_seeded_audited_service(world, tmp_path, no_docker):
+    stack = _stack(world, tmp_path, "r", profile="da/snowflake", plugs={})
+    text = stack.write_overlay().read_text()
+    service = _block(text, "snowflake")
+    assert "BASE: " + stack.image in service and "pull_policy: build" in service
+    assert "ALKERA_NATIVE_AUDIT: \"/audit/actions.jsonl\"" in service
+    assert f"ALKERA_SNOWFLAKE_SEED: \"{ce.SNOWFLAKE_SEED_IN_CONTAINER}\"" in service
+    for rel in stack.warehouses:
+        assert f"{ce.SNOWFLAKE_SEED_IN_CONTAINER}/{Path(rel).name}:ro" in service
+    episode_block = _block(text, "episode")
+    assert f"snowflaketrust:{ce.SNOWFLAKE_TRUST}:ro" in episode_block
+    assert f'REQUESTS_CA_BUNDLE: "{ce.SNOWFLAKE_BUNDLE}"' in episode_block
+    assert "condition: service_healthy" in episode_block
+    assert "snowflake" in stack.compose_env()["COMPOSE_PROFILES"].split(",")
+
+
+def test_snowflake_is_explicit_only(world, tmp_path, no_docker):
+    """No profile, or a profile whose warehouse is not Snowflake: no service,
+    no trust mount, no CA bundle, no compose profile."""
+    for name, kw in (("r1", {}), ("r2", {"profile": "da/laptop", "plugs": {}})):
+        stack = _stack(world, tmp_path, name, **kw)
+        text = stack.write_overlay().read_text()
+        assert "\n  snowflake:\n" not in text and "snowflaketrust" not in text
+        assert "REQUESTS_CA_BUNDLE" not in text
+        assert "snowflake" not in stack.compose_env().get("COMPOSE_PROFILES", "")
 
 
 def test_static_jupyter_service_is_profile_gated():
@@ -517,8 +569,8 @@ def test_overlay_with_a_vendor_adds_its_alias_and_variables(world, tmp_path, no_
     for var, value in aut.plug_service_env(
             "powerbi", "http://powerbi.internal:8095").items():
         assert f"      {var}: {json.dumps(value)}" in episode_env, var
-    # metabase is reset away like any excluded service; no other vendor appears
-    assert "      METABASE_URL: !reset null" in episode_env
+    # metabase is dropped like any excluded service; no other vendor appears
+    assert "METABASE_URL" not in _env(episode_env)
     assert "TABLEAU" not in text and "SIGMA" not in text
     assert "jupyter" not in text.split("services:\n", 1)[1]
     assert stack.episode_endpoints()["powerbi"] == "http://powerbi.internal:8095"
@@ -531,8 +583,160 @@ def test_overlay_with_a_vendor_and_the_notebook(world, tmp_path, no_docker):
     for var, value in aut.plug_service_env(
             "sigma", "http://sigma.internal:8097").items():
         assert f"      {var}: {json.dumps(value)}" in jupyter, var
-    assert "      METABASE_URL: !reset null" in jupyter
+    assert "METABASE_URL" not in _env(jupyter)
     assert "- sigma.internal" in _block(text, "native-services")
+
+
+# ------------------------------------- the world's clock in the containers
+def _clocked(world: dict, vnow: str | None = "2026-03-02T00:00:00Z") -> dict:
+    state = Path(world["scheduler"])
+    state.parent.mkdir(parents=True, exist_ok=True)
+    if vnow is not None:
+        state.write_text(json.dumps({"vnow": vnow, "jobs": {}}), encoding="utf-8")
+    return world
+
+
+@pytest.mark.parametrize("kw", [{}, {"profile": PROFILE, "plugs": BI_PLUGS},
+                                {"profile": "da/laptop", "plugs": {}}])
+def test_overlay_carries_the_world_clock(world, tmp_path, no_docker, kw):
+    """The shims (episode) and the notebook kernel (jupyter) stamp rows with
+    `native.audit.virtual_time`; `var/sched` is not mounted there (P7), so the
+    overlay hands both the world's `vnow`, not GatewayConfig's literal."""
+    from alkera_gateway.config import GatewayConfig
+
+    _clocked(world)
+    text = _stack(world, tmp_path, "r", **kw).write_overlay().read_text()
+    for service in ("episode", *(("jupyter",) if "jupyter:" in text else ())):
+        env = _env(_block(text, service))
+        assert env[ce.CLOCK_ENV] == "2026-03-02T00:00:00Z", service
+    assert ce.CLOCK_ENV == "ALKERA_VIRTUAL_TIME"
+    assert GatewayConfig().virtual_time != "2026-03-02T00:00:00Z"
+
+
+def test_the_clock_variable_is_the_one_the_row_writer_reads(monkeypatch):
+    from alkera_gateway.native import audit
+
+    for name in ("ALKERA_VTS", "ALKERA_SCHEDULER"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv(ce.CLOCK_ENV, "2026-03-02T00:00:00Z")
+    assert audit.virtual_time() == "2026-03-02T00:00:00Z"
+
+
+def test_world_clock_sources(world):
+    assert ce.world_clock(world) == "2026-03-08T09:00:00Z"      # manifest fallback
+    _clocked(world, "2026-03-02T00:00:00Z")
+    assert ce.world_clock(world) == "2026-03-02T00:00:00Z"      # vnow wins
+    bare = {k: v for k, v in world.items() if k != "virtual_time"}
+    Path(world["scheduler"]).unlink()
+    assert ce.world_clock(bare) is None
+
+
+def test_overlay_without_a_clock_writes_no_clock_line(world, tmp_path, no_docker):
+    bare = {k: v for k, v in world.items() if k != "virtual_time"}
+    text = _stack(bare, tmp_path, "r").write_overlay().read_text()
+    assert ce.CLOCK_ENV not in _env(_block(text, "episode"))
+
+
+# --------------------- the profile's environment: !override, checked by compose
+def test_profiled_environment_is_static_minus_excluded_plus_plugged(world, tmp_path,
+                                                                   no_docker):
+    stack = _stack(world, tmp_path, "r", profile=PROFILE, plugs=BI_PLUGS)
+    text = stack.write_overlay().read_text()
+    dropped, added = stack.profile_variables()
+    plain = _env(_block(_stack(world, tmp_path, "r0").write_overlay().read_text(),
+                        "episode"))
+    static = ce.static_environment("episode")
+    expect = {**{k: v for k, v in static.items() if k not in dropped},
+              **added, **plain}
+    assert _env(_block(text, "episode")) == expect
+    # the static table is compose.yml's episode environment plus the anchor
+    assert {"ALKERA_POSTGRES_DSN", "JIRA_URL", "SCHED_URL", "HOME"} <= set(static)
+    assert set(ce.static_environment("jupyter")) < set(static)
+
+
+BI001_PLUGS = {"bi": ["powerbi", "tableau", "sigma"]}
+
+
+def _compose_config(stack) -> dict:
+    """`docker compose config` over the stack's own files and environment.
+    Client-side only: no daemon, no containers."""
+    import shutil
+    import subprocess
+
+    if not shutil.which("docker"):
+        pytest.skip("no docker CLI")
+    argv = ["docker", "compose", "-p", "cfgcheck"]
+    for path in stack.compose_files():
+        argv += ["-f", str(path)]
+    done = subprocess.run([*argv, "config", "--format", "json"], capture_output=True,
+                          text=True, env=stack.compose_env(), timeout=120)
+    if done.returncode != 0 and "is not a docker command" in done.stderr:
+        pytest.skip("no docker compose plugin")
+    assert done.returncode == 0, done.stderr
+    return json.loads(done.stdout)
+
+
+def test_compose_config_drops_excluded_variables(world, tmp_path, no_docker):
+    """Measured by compose itself, the property the `!reset null` lines claimed
+    and did not have under Compose v5.6.0: a da/laptop box's episode AND jupyter
+    environments name no excluded service, and are the unprofiled ones minus
+    exactly what the profile drops, plus exactly what it plugs."""
+    _clocked(world)
+    plain = _stack(world, tmp_path, "r0")
+    plain.write_overlay()
+    unprofiled = _compose_config(plain)["services"]["episode"]["environment"]
+    # BI001's box: da/laptop (notebook plugged), all three BI vendors
+    stack = _stack(world, tmp_path, "r1", profile=PROFILE, plugs=BI001_PLUGS)
+    stack.write_overlay()
+    services = _compose_config(stack)["services"]
+    dropped, added = stack.profile_variables()
+    for service in ("episode", "jupyter"):
+        env = services[service]["environment"]
+        for var in ("SCHED_URL", "METABASE_URL", "PROMETHEUS_URL", "LOKI_URL",
+                    "AIRBYTE_URL", "DEPLOY_URL", "ALERTMANAGER_URL",
+                    "AWS_ENDPOINT_URL"):
+            assert var not in env, (service, var)
+        assert env[ce.CLOCK_ENV] == "2026-03-02T00:00:00Z"
+        assert env["POWERBI_API_URL"] == "http://powerbi.internal:8095"
+        assert env["TABLEAU_SITE"] == "" and env["SIGMA_BASE_URL"]
+    episode_env = services["episode"]["environment"]
+    assert set(episode_env) == (set(unprofiled) - set(dropped)) | set(added) \
+        | {"JUPYTER_URL"}
+    assert {k: v for k, v in episode_env.items() if k in unprofiled} == \
+        {k: v for k, v in unprofiled.items() if k not in dropped}
+    # unprofiled: the plain merge, every variable of the nine still there
+    assert {"SCHED_URL", "METABASE_URL", "AWS_ENDPOINT_URL"} <= set(unprofiled)
+
+
+# ------------------------------- the services' own state (bistate.py, P7 H)
+def test_compose_env_names_the_rollouts_service_state(world, tmp_path):
+    import bistate
+
+    stack = _stack(world, tmp_path, "r")
+    env = stack.compose_env()
+    assert env["ALKERA_EPISODE_SERVICE_STATE"] == \
+        bistate.service_state_dir((tmp_path / "r").resolve()).as_posix()
+    assert bistate.source_for(tmp_path / "r") == \
+        Path(env["ALKERA_EPISODE_SERVICE_STATE"]) / "bi"
+
+
+def test_service_state_is_mounted_into_native_services_only(world, tmp_path, no_docker):
+    """episode, jupyter, subject, egress-proxy, postgres, minio: none of them."""
+    stack = _stack(world, tmp_path, "r", profile=PROFILE, plugs=BI001_PLUGS,
+                   subject_sandbox=True)
+    stack.write_overlay()
+    services = _compose_config(stack)["services"]
+    assert {"episode", "jupyter", "subject", "egress-proxy"} <= set(services)
+    state = stack.service_state_dir.as_posix()
+    mounts = {name: [(v.get("source"), v.get("target")) for v in svc.get("volumes", [])]
+              for name, svc in services.items()}
+    assert (state, "/service-state") in mounts["native-services"]
+    for name, rows in mounts.items():
+        if name == "native-services":
+            continue
+        assert not any(src == state or tgt == "/service-state" for src, tgt in rows), name
+    command = " ".join(services["native-services"]["command"])
+    assert "native_services.py --state-dir /service-state --" in command
 
 
 def test_compose_env_carries_the_vendor_plug(world, tmp_path):
@@ -660,3 +864,133 @@ def test_host_stack_awaits_and_addresses_a_plugged_bi_vendor(world, tmp_path):
     endpoints = stack._write_endpoints(None)
     assert endpoints["powerbi"] == f"http://127.0.0.1:{serve.PLUG_PORTS['powerbi'] + 7}"
     assert "tableau" not in endpoints and "metabase" not in endpoints
+
+
+# ------------------------------------------------- ./ops/sched and the profile
+DA_SLOTS = ["files", "notebook", "warehouse", "transform", "bi", "human"]
+DE_SLOTS = ["files", "warehouse", "transform", "orchestrator", "object_store", "ingest",
+            "bi", "observability", "release", "human"]
+CLI_KEYS = {"cli", "topology", "interpreter", "pythonpath", "files"}
+
+
+def _record_profile(world: dict, record: dict) -> None:
+    path = Path(world["world_root"]) / episode.WORLD_PROFILE_RECORD
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(record), encoding="utf-8")
+
+
+@pytest.mark.parametrize("topology", ["host", "container"])
+def test_no_orchestrator_no_workspace_cli(world, topology):
+    """A profile that plugs no orchestrator (da/*) has no scheduler on the
+    box: `./ops/sched` is not installed into the working tree on either
+    topology (on the host its local mode listed, read and RAN jobs)."""
+    _record_profile(world, {"name": "da/laptop", "slots": DA_SLOTS,
+                            "plugs": {"bi": ["powerbi", "tableau", "sigma"]}})
+    result = native_stack.install_workspace_cli(world, topology)
+    workspace = Path(world["workspace"])
+    assert not (workspace / native_stack.SCHED_CLI_PATH).exists()
+    assert not (workspace / "ops").exists()
+    assert result["cli"] is None and result["files"] == []
+    assert result["topology"] == topology
+    assert "orchestrator" in result["skipped"]
+    # the keys a caller reads (harbor/alkera_harbor/worldbuild.py) are all there
+    assert CLI_KEYS <= set(result)
+
+
+def test_an_orchestrator_that_is_not_ops_sched_gets_no_cli(world):
+    _record_profile(world, {"name": "de/laptop", "slots": DE_SLOTS,
+                            "plugs": {"orchestrator": ["airflow"]}})
+    result = native_stack.install_workspace_cli(world, "host")
+    assert result["cli"] is None
+    assert not (Path(world["workspace"]) / native_stack.SCHED_CLI_PATH).exists()
+
+
+def test_a_profile_with_the_scheduler_gets_the_cli(world):
+    _record_profile(world, {"name": "de/laptop", "slots": DE_SLOTS})
+    result = native_stack.install_workspace_cli(world, "host")
+    assert result["cli"] == native_stack.SCHED_CLI_PATH
+    assert (Path(world["workspace"]) / native_stack.SCHED_CLI_PATH).is_file()
+    assert set(result) == CLI_KEYS
+
+
+def test_unprofiled_workspace_cli_is_unchanged(world, tmp_path):
+    """No profile record: installed exactly as before profiles existed - the
+    same record and the same bytes a profiled box with ops_sched gets."""
+    result = native_stack.install_workspace_cli(world, "host")
+    target = Path(world["workspace"]) / native_stack.SCHED_CLI_PATH
+    assert set(result) == CLI_KEYS
+    assert result["cli"] == native_stack.SCHED_CLI_PATH
+    assert (result["interpreter"], result["pythonpath"]) == (str(episode.PY),
+                                                             str(episode.TRACK_A))
+    assert target.is_file()
+    unprofiled = target.read_bytes()
+    _record_profile(world, {"name": "de/laptop", "slots": DE_SLOTS})
+    again = native_stack.install_workspace_cli(world, "host")
+    assert again == result and target.read_bytes() == unprofiled
+
+
+# ------------------------- backend variables follow the profile's plugs
+PG = {"PGHOST", "PGPORT", "PGDATABASE", "PGUSER", "PGPASSWORD"}
+SNOW = {"SNOWFLAKE_HOST", "SNOWFLAKE_ACCOUNT", "SNOWFLAKE_USER", "SNOWFLAKE_PASSWORD"}
+AIRFLOW = {"AIRFLOW_API_URL", "AIRFLOW_USER", "AIRFLOW_PASSWORD"}
+
+
+def test_a_duckdb_box_has_no_postgres_snowflake_or_airflow_variables(world, tmp_path,
+                                                                     no_docker):
+    # The discovery files of a profiled world already name only the warehouse
+    # the profile plugs (world/native_workspace.py); the process environment
+    # said otherwise - PGHOST=postgres.internal on a DuckDB analyst box.
+    stack = _stack(world, tmp_path, "r", profile=PROFILE, plugs=BI_PLUGS)
+    dropped, _ = stack.profile_variables()
+    assert PG | SNOW | AIRFLOW <= set(dropped)
+    episode_env = _env(_block(stack.write_overlay().read_text(), "episode"))
+    assert not (PG | SNOW | AIRFLOW) & set(episode_env)
+
+
+def test_a_postgres_or_snowflake_box_keeps_its_warehouse_variables(world, tmp_path,
+                                                                   no_docker):
+    pg, _ = _stack(world, tmp_path, "p", profile="de/postgres").profile_variables()
+    assert not PG & set(pg) and SNOW <= set(pg)
+    sf, _ = _stack(world, tmp_path, "s", profile="de/snowflake").profile_variables()
+    assert not SNOW & set(sf) and PG <= set(sf)
+
+
+# ------------------------------------- the episode image follows the profile
+def _build_episode():
+    import importlib.util
+
+    path = HERE.parent.parent / "gateway" / "docker" / "build_episode.py"
+    spec = importlib.util.spec_from_file_location("build_episode_for_test", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_the_default_image_becomes_the_profiles_role_image():
+    # BI001 (da/laptop) needs the analyst image: the jupyter service runs the
+    # kernel from it and the de image has no jupyter-server. Left at the
+    # default, --image used to start every profiled task on the de image.
+    build = _build_episode()
+    default = ce.DEFAULT_IMAGE
+    cases = [("da/laptop", None, "da", ""), ("ds/laptop", {"compute": []}, "ds", ""),
+             ("de/laptop", None, "de", ""), ("de/snowflake", None, "de", "snowflake"),
+             ("da/snowflake", None, "da", "snowflake")]
+    for name, plugs, role, clients in cases:
+        profile = episode.environment_profile(name, plugs)
+        assert ce.profile_image(default, profile) == build.image_tag(default, role, clients), name
+    assert ce.profile_image(default, None) == default                 # unprofiled: unchanged
+    explicit = "alkera-episode:mine"
+    assert ce.profile_image(explicit, episode.environment_profile("da/laptop")) == explicit
+
+
+def test_a_snowflake_profile_may_connect_to_snowflake_internal(world, tmp_path):
+    # The live snowflake service (compose profile `snowflake`) answers at
+    # snowflake.internal:8443; without it in the endpoint map, every rollout
+    # that used Snowflake was a network_destination quarantine.
+    snow = _stack(world, tmp_path, "s", profile="da/snowflake").episode_endpoints()
+    assert snow["snowflake"] == "https://snowflake.internal:8443"
+    assert ("snowflake.internal", 8443) in aut.allowed_destinations(snow)
+    duck = _stack(world, tmp_path, "d", profile="da/laptop").episode_endpoints()
+    assert "snowflake" not in duck
+    assert ("snowflake.internal", 8443) not in aut.allowed_destinations(duck)
+    assert "snowflake" not in _stack(world, tmp_path, "u").episode_endpoints()   # unprofiled

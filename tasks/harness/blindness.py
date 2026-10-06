@@ -925,7 +925,10 @@ SCHEDULER_TOOLS = frozenset({"sched_trigger"})
 #: way the python shim does, so a cell that rewrote the warehouse through the
 #: duckdb library names the file - measured 2026-10-04 (bi_e2e_check.py N3),
 #: before which such a cell quarantined HARD.
-WAREHOUSE_SHIMS = frozenset({"duckdb.statement", "shim.dbt", "shim.python", "jupyter.cell"})
+#: `shim.mf` (MetricFlow, which runs dbt in-process) names the files it changed
+#: the same way.
+WAREHOUSE_SHIMS = frozenset({"duckdb.statement", "shim.dbt", "shim.python", "jupyter.cell",
+                             "shim.mf"})
 #: The generic shims that can write a warehouse without naming it. Until
 #: 2026-09-27 `shims/run.py` snapshotted only the WORKSPACE, so a `dbt build`
 #: or a `python` script that rewrote `/world/var/warehouse/*.duckdb` wrote a row

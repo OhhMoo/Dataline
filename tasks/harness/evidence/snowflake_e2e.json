@@ -1,0 +1,552 @@
+{
+  "audit_sample": [
+    {
+      "args": {
+        "sql": "CREATE OR REPLACE TABLE WAREHOUSE.PUBLIC.SF_E2E_SCRATCH (id INT, note VARCHAR)"
+      },
+      "args_hash": "22790374197b3c89f560bf851e9bc6d9fe226d3ee27783dfd392572d65429df2",
+      "args_summary": "{\"sql\":\"CREATE OR REPLACE TABLE WAREHOUSE.PUBLIC.SF_E2E_SCRATCH (id INT, note VARCHAR)\"}",
+      "disk_mb": null,
+      "error": null,
+      "exit": "ok",
+      "flags": [
+        "replace",
+        "actor:snowflake"
+      ],
+      "latency_ms": 29.526,
+      "op_class": "destructive",
+      "read_targets": [],
+      "result": {
+        "rows": 1
+      },
+      "result_bytes": 10,
+      "result_hash": "74e2d27c7e03e296805655ddfae226dbae96b8a79693f8d6c403115a3e2e2bbc",
+      "rows_affected": null,
+      "rss_mb": 227.188,
+      "schema_version": 1,
+      "seq": 15,
+      "target": "WAREHOUSE.PUBLIC.SF_E2E_SCRATCH",
+      "targets": [
+        "WAREHOUSE.PUBLIC.SF_E2E_SCRATCH"
+      ],
+      "tool": "snowflake.statement",
+      "transport": "native",
+      "vts": "2026-03-02T00:00:00Z",
+      "wts": 1791258950422
+    },
+    {
+      "args": {
+        "sql": "INSERT INTO WAREHOUSE.PUBLIC.SF_E2E_SCRATCH VALUES (1, 'alpha'), (2, 'beta')"
+      },
+      "args_hash": "6cdad6f824a59e485b51bde2e16fd39c4fae842518c647e7c12a541697f33707",
+      "args_summary": "{\"sql\":\"INSERT INTO WAREHOUSE.PUBLIC.SF_E2E_SCRATCH VALUES (1, 'alpha'), (2, 'beta')\"}",
+      "disk_mb": null,
+      "error": null,
+      "exit": "ok",
+      "flags": [
+        "actor:snowflake"
+      ],
+      "latency_ms": 27.037,
+      "op_class": "write",
+      "read_targets": [],
+      "result": {
+        "rows": 1
+      },
+      "result_bytes": 10,
+      "result_hash": "74e2d27c7e03e296805655ddfae226dbae96b8a79693f8d6c403115a3e2e2bbc",
+      "rows_affected": null,
+      "rss_mb": 227.406,
+      "schema_version": 1,
+      "seq": 16,
+      "target": "WAREHOUSE.PUBLIC.SF_E2E_SCRATCH",
+      "targets": [
+        "WAREHOUSE.PUBLIC.SF_E2E_SCRATCH"
+      ],
+      "tool": "snowflake.statement",
+      "transport": "native",
+      "vts": "2026-03-02T00:00:00Z",
+      "wts": 1791258950457
+    },
+    {
+      "args": {
+        "sql": "SELECT id, note FROM WAREHOUSE.PUBLIC.SF_E2E_SCRATCH ORDER BY id"
+      },
+      "args_hash": "83ed3448176634a3e951a0733da4c150da1e34e14f7636971f3f0793ef4ec71c",
+      "args_summary": "{\"sql\":\"SELECT id, note FROM WAREHOUSE.PUBLIC.SF_E2E_SCRATCH ORDER BY id\"}",
+      "disk_mb": null,
+      "error": null,
+      "exit": "ok",
+      "flags": [
+        "actor:snowflake"
+      ],
+      "latency_ms": 21.12,
+      "op_class": "read",
+      "read_targets": [
+        "WAREHOUSE.PUBLIC.SF_E2E_SCRATCH"
+      ],
+      "result": {
+        "rows": 2
+      },
+      "result_bytes": 10,
+      "result_hash": "19b98918aa59c26ee086d8a818e64fded188be8b6e213ac21eea6ec19fa3bc00",
+      "rows_affected": null,
+      "rss_mb": 227.875,
+      "schema_version": 1,
+      "seq": 17,
+      "target": "WAREHOUSE.PUBLIC.SF_E2E_SCRATCH",
+      "targets": [
+        "WAREHOUSE.PUBLIC.SF_E2E_SCRATCH"
+      ],
+      "tool": "snowflake.statement",
+      "transport": "native",
+      "vts": "2026-03-02T00:00:00Z",
+      "wts": 1791258950485
+    }
+  ],
+  "checks": [
+    {
+      "check": "snowflake service running under the profile",
+      "detail": null,
+      "result": "PASS"
+    },
+    {
+      "check": "connector probe ran inside the episode",
+      "detail": "\"SELECT count(*) FROM WAREHOUSE.RAW.PRODUCTS\", \"SELECT count(*) FROM WAREHOUSE.STAGING.STG_CUSTOMERS\", \"SELECT count(*) FROM WAREHOUSE.STAGING.STG_ORDERS\", \"SELECT count(*) FROM WAREHOUSE.STAGING.STG_ORDER_LINES\", \"SELECT count(*) FROM WAREHOUSE.STAGING.STG_PRODUCTS\", \"SELECT count(*) FROM WAREHOUSE.WAREHOUSE.DIM_CUSTOMER\", \"SELECT count(*) FROM WAREHOUSE.WAREHOUSE.DIM_DATE\", \"SELECT count(*) FROM WAREHOUSE.WAREHOUSE.DIM_PRODUCT\", \"SELECT count(*) FROM WAREHOUSE.WAREHOUSE.FCT_ORDERS\", \"SELECT count(*) FROM WAREHOUSE.WAREHOUSE.FCT_ORDER_LINES\", \"SELECT CAST(sum(customer_id) AS VARCHAR) FROM WAREHOUSE.STAGING.STG_CUSTOMERS\", \"CREATE OR REPLACE TABLE WAREHOUSE.PUBLIC.SF_E2E_SCRATCH (id INT, note VARCHAR)\", \"INSERT INTO WAREHOUSE.PUBLIC.SF_E2E_SCRATCH VALUES (1, 'alpha'), (2, 'beta')\", \"SELECT id, note FROM WAREHOUSE.PUBLIC.SF_E2E_SCRATCH ORDER BY id\"], \"env\": {\"SNOWFLAKE_HOST\": \"snowflake.internal\", \"SNOWFLAKE_ACCOUNT\": \"acme\", \"SNOWFLAKE_USER\": \"alkera-local-dev\", \"REQUESTS_CA_BUNDLE\": \"/etc/alkera/snowflake-tls/bundle.pem\"}, \"counts\": {\"RAW.CUSTOMERS\": 339, \"RAW.ORDERS\": 17768, \"RAW.ORDER_LINES\": 29200, \"RAW.PRODUCTS\": 31, \"STAGING.STG_CUSTOMERS\": 309, \"STAGING.STG_ORDERS\": 16825, \"STAGING.STG_ORDER_LINES\": 29200, \"STAGING.STG_PRODUCTS\": 25, \"WAREHOUSE.DIM_CUSTOMER\": 309, \"WAREHOUSE.DIM_DATE\": 424, \"WAREHOUSE.DIM_PRODUCT\": 25, \"WAREHOUSE.FCT_ORDERS\": 16825, \"WAREHOUSE.FCT_ORDER_LINES\": 29200}, \"sum\": \"356895.0\", \"insert\": [[\"2\"]], \"read_back\": [[\"1\", \"alpha\"], [\"2\", \"beta\"]]}\n",
+      "result": "PASS"
+    },
+    {
+      "check": "TLS: episode trusts the proxy through REQUESTS_CA_BUNDLE",
+      "detail": {
+        "REQUESTS_CA_BUNDLE": "/etc/alkera/snowflake-tls/bundle.pem",
+        "SNOWFLAKE_ACCOUNT": "acme",
+        "SNOWFLAKE_HOST": "snowflake.internal",
+        "SNOWFLAKE_USER": "alkera-local-dev"
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "seeded: every table's row count equals the world's DuckDB",
+      "detail": {
+        "expected": {
+          "RAW.CUSTOMERS": 339,
+          "RAW.ORDERS": 17768,
+          "RAW.ORDER_LINES": 29200,
+          "RAW.PRODUCTS": 31,
+          "STAGING.STG_CUSTOMERS": 309,
+          "STAGING.STG_ORDERS": 16825,
+          "STAGING.STG_ORDER_LINES": 29200,
+          "STAGING.STG_PRODUCTS": 25,
+          "WAREHOUSE.DIM_CUSTOMER": 309,
+          "WAREHOUSE.DIM_DATE": 424,
+          "WAREHOUSE.DIM_PRODUCT": 25,
+          "WAREHOUSE.FCT_ORDERS": 16825,
+          "WAREHOUSE.FCT_ORDER_LINES": 29200
+        },
+        "got": {
+          "RAW.CUSTOMERS": 339,
+          "RAW.ORDERS": 17768,
+          "RAW.ORDER_LINES": 29200,
+          "RAW.PRODUCTS": 31,
+          "STAGING.STG_CUSTOMERS": 309,
+          "STAGING.STG_ORDERS": 16825,
+          "STAGING.STG_ORDER_LINES": 29200,
+          "STAGING.STG_PRODUCTS": 25,
+          "WAREHOUSE.DIM_CUSTOMER": 309,
+          "WAREHOUSE.DIM_DATE": 424,
+          "WAREHOUSE.DIM_PRODUCT": 25,
+          "WAREHOUSE.FCT_ORDERS": 16825,
+          "WAREHOUSE.FCT_ORDER_LINES": 29200
+        }
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "seeded: a numeric sum equals the world's DuckDB",
+      "detail": {
+        "expected": {
+          "column": "customer_id",
+          "table": "STAGING.STG_CUSTOMERS",
+          "value": "356895"
+        },
+        "got": "356895.0"
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "scratch INSERT reads back",
+      "detail": [
+        [
+          "1",
+          "alpha"
+        ],
+        [
+          "2",
+          "beta"
+        ]
+      ],
+      "result": "PASS"
+    },
+    {
+      "check": "audit: one snowflake.statement row per probe statement, in order",
+      "detail": {
+        "rows": 17,
+        "sent": 17
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "dbt debug against the snowflake target",
+      "detail": "uired dependencies:\n\u001b[0m03:55:55   - git [\u001b[32mOK found\u001b[0m]\n\n\u001b[0m03:55:55  Connection:\n\u001b[0m03:55:55    account: acme\n\u001b[0m03:55:55    user: alkera-local-dev\n\u001b[0m03:55:55    database: WAREHOUSE\n\u001b[0m03:55:55    warehouse: COMPUTE_WH\n\u001b[0m03:55:55    role: None\n\u001b[0m03:55:55    schema: DBT_E2E\n\u001b[0m03:55:55    authenticator: None\n\u001b[0m03:55:55    oauth_client_id: None\n\u001b[0m03:55:55    query_tag: None\n\u001b[0m03:55:55    client_session_keep_alive: False\n\u001b[0m03:55:55    host: snowflake.internal\n\u001b[0m03:55:55    port: 8443\n\u001b[0m03:55:55    proxy_host: None\n\u001b[0m03:55:55    proxy_port: None\n\u001b[0m03:55:55    protocol: https\n\u001b[0m03:55:55    connect_retries: 1\n\u001b[0m03:55:55    connect_timeout: 20\n\u001b[0m03:55:55    retry_on_database_errors: False\n\u001b[0m03:55:55    retry_all: False\n\u001b[0m03:55:55    insecure_mode: False\n\u001b[0m03:55:55    reuse_connections: True\n\u001b[0m03:55:55    s3_stage_vpce_dns_name: None\n\u001b[0m03:55:55    workload_identity_provider: None\n\u001b[0m03:55:55    workload_identity_entra_resource: None\n\u001b[0m03:55:55    platform_detection_timeout_seconds: 0.0\n\u001b[0m03:55:55  Registered adapter: snowflake=1.12.1\n\u001b[0m03:55:56    Connection test: [\u001b[32mOK connection ok\u001b[0m]\n\n\u001b[0m03:55:56  \u001b[32mAll checks passed!\u001b[0m\n",
+      "result": "PASS"
+    },
+    {
+      "check": "dbt run -s sf_check against the snowflake target",
+      "detail": "\u001b[0m03:56:00  Running with dbt=1.12.4\n\u001b[0m03:56:00  Registered adapter: snowflake=1.12.1\n\u001b[0m03:56:01  Unable to do partial parsing because saved manifest not found. Starting full parse.\n\u001b[0m03:56:02  Found 1 model, 562 macros\n\u001b[0m03:56:02  \n\u001b[0m03:56:02  Concurrency: 1 threads (target='snowflake')\n\u001b[0m03:56:02  \n\u001b[0m03:56:02  1 of 1 START sql table model DBT_E2E.sf_check .................................. [RUN]\n\u001b[0m03:56:02  1 of 1 OK created sql table model DBT_E2E.sf_check ............................. [\u001b[32mSUCCESS 1\u001b[0m in 0.09s]\n\u001b[0m03:56:02  \n\u001b[0m03:56:02  Finished running 1 table model in 0 hours 0 minutes and 0.29 seconds (0.29s).\n\u001b[0m03:56:02  \n\u001b[0m03:56:02  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m03:56:02  \n\u001b[0m03:56:02  Done. PASS=1 WARN=0 ERROR=0 SKIP=0 NO-OP=0 REUSED=0 TOTAL=1\n",
+      "result": "PASS"
+    },
+    {
+      "check": "dbt model's value equals the world's DuckDB",
+      "detail": {
+        "expected": 339,
+        "got": "339"
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "audit: dbt's statements are snowflake.statement rows",
+      "detail": 6,
+      "result": "PASS"
+    },
+    {
+      "check": "audit: every forwarded statement is exactly one row (statement log 1:1)",
+      "detail": {
+        "audit_rows": 23,
+        "statement_log": 23
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "audit: rows carry exactly the 9.2.2 keys",
+      "detail": [],
+      "result": "PASS"
+    },
+    {
+      "check": "audit: seq is contiguous across writers",
+      "detail": [
+        22,
+        23,
+        24,
+        25,
+        26
+      ],
+      "result": "PASS"
+    },
+    {
+      "check": "destinations.jsonl counts snowflake.internal:8443 after teardown",
+      "detail": [
+        {
+          "count": 4,
+          "first_ts": "2026-10-06T03:55:49Z",
+          "host": "snowflake.internal",
+          "last_ts": "2026-10-06T03:56:04Z",
+          "port": 8443
+        }
+      ],
+      "result": "PASS"
+    }
+  ],
+  "container_id": "cc85e842204f",
+  "counts": {
+    "audit_rows": 23,
+    "dbt_rows": 6,
+    "probe_rows": 17,
+    "statement_log": 23
+  },
+  "database": "WAREHOUSE",
+  "dbt": {
+    "debug": {
+      "rc": 0,
+      "tail": "uired dependencies:\n\u001b[0m03:55:55   - git [\u001b[32mOK found\u001b[0m]\n\n\u001b[0m03:55:55  Connection:\n\u001b[0m03:55:55    account: acme\n\u001b[0m03:55:55    user: alkera-local-dev\n\u001b[0m03:55:55    database: WAREHOUSE\n\u001b[0m03:55:55    warehouse: COMPUTE_WH\n\u001b[0m03:55:55    role: None\n\u001b[0m03:55:55    schema: DBT_E2E\n\u001b[0m03:55:55    authenticator: None\n\u001b[0m03:55:55    oauth_client_id: None\n\u001b[0m03:55:55    query_tag: None\n\u001b[0m03:55:55    client_session_keep_alive: False\n\u001b[0m03:55:55    host: snowflake.internal\n\u001b[0m03:55:55    port: 8443\n\u001b[0m03:55:55    proxy_host: None\n\u001b[0m03:55:55    proxy_port: None\n\u001b[0m03:55:55    protocol: https\n\u001b[0m03:55:55    connect_retries: 1\n\u001b[0m03:55:55    connect_timeout: 20\n\u001b[0m03:55:55    retry_on_database_errors: False\n\u001b[0m03:55:55    retry_all: False\n\u001b[0m03:55:55    insecure_mode: False\n\u001b[0m03:55:55    reuse_connections: True\n\u001b[0m03:55:55    s3_stage_vpce_dns_name: None\n\u001b[0m03:55:55    workload_identity_provider: None\n\u001b[0m03:55:55    workload_identity_entra_resource: None\n\u001b[0m03:55:55    platform_detection_timeout_seconds: 0.0\n\u001b[0m03:55:55  Registered adapter: snowflake=1.12.1\n\u001b[0m03:55:56    Connection test: [\u001b[32mOK connection ok\u001b[0m]\n\n\u001b[0m03:55:56  \u001b[32mAll checks passed!\u001b[0m\n"
+    },
+    "run": {
+      "rc": 0,
+      "tail": "\u001b[0m03:56:00  Running with dbt=1.12.4\n\u001b[0m03:56:00  Registered adapter: snowflake=1.12.1\n\u001b[0m03:56:01  Unable to do partial parsing because saved manifest not found. Starting full parse.\n\u001b[0m03:56:02  Found 1 model, 562 macros\n\u001b[0m03:56:02  \n\u001b[0m03:56:02  Concurrency: 1 threads (target='snowflake')\n\u001b[0m03:56:02  \n\u001b[0m03:56:02  1 of 1 START sql table model DBT_E2E.sf_check .................................. [RUN]\n\u001b[0m03:56:02  1 of 1 OK created sql table model DBT_E2E.sf_check ............................. [\u001b[32mSUCCESS 1\u001b[0m in 0.09s]\n\u001b[0m03:56:02  \n\u001b[0m03:56:02  Finished running 1 table model in 0 hours 0 minutes and 0.29 seconds (0.29s).\n\u001b[0m03:56:02  \n\u001b[0m03:56:02  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m03:56:02  \n\u001b[0m03:56:02  Done. PASS=1 WARN=0 ERROR=0 SKIP=0 NO-OP=0 REUSED=0 TOTAL=1\n"
+    }
+  },
+  "destinations": [
+    {
+      "count": 0,
+      "first_ts": null,
+      "host": "confluence.internal",
+      "last_ts": null,
+      "port": 8090
+    },
+    {
+      "count": 0,
+      "first_ts": null,
+      "host": "jira.internal",
+      "last_ts": null,
+      "port": 8080
+    },
+    {
+      "count": 0,
+      "first_ts": null,
+      "host": "native-services.internal",
+      "last_ts": null,
+      "port": 8099
+    },
+    {
+      "count": 0,
+      "first_ts": null,
+      "host": "sigma.internal",
+      "last_ts": null,
+      "port": 8097
+    },
+    {
+      "count": 0,
+      "first_ts": null,
+      "host": "slack.internal",
+      "last_ts": null,
+      "port": 8081
+    },
+    {
+      "count": 4,
+      "first_ts": "2026-10-06T03:55:49Z",
+      "host": "snowflake.internal",
+      "last_ts": "2026-10-06T03:56:04Z",
+      "port": 8443
+    }
+  ],
+  "discovery": {
+    "files": [],
+    "kept": "the world's own profiled discovery files (world.build native: true under a profile)",
+    "root": "/home/ubuntu/alkera-sf-e2e/world"
+  },
+  "expected": {
+    "counts": {
+      "RAW.CUSTOMERS": 339,
+      "RAW.ORDERS": 17768,
+      "RAW.ORDER_LINES": 29200,
+      "RAW.PRODUCTS": 31,
+      "STAGING.STG_CUSTOMERS": 309,
+      "STAGING.STG_ORDERS": 16825,
+      "STAGING.STG_ORDER_LINES": 29200,
+      "STAGING.STG_PRODUCTS": 25,
+      "WAREHOUSE.DIM_CUSTOMER": 309,
+      "WAREHOUSE.DIM_DATE": 424,
+      "WAREHOUSE.DIM_PRODUCT": 25,
+      "WAREHOUSE.FCT_ORDERS": 16825,
+      "WAREHOUSE.FCT_ORDER_LINES": 29200
+    },
+    "sum": {
+      "column": "customer_id",
+      "table": "STAGING.STG_CUSTOMERS",
+      "value": "356895"
+    }
+  },
+  "image": "alkera-episode:head-da-snowflake",
+  "op_classes": [
+    [
+      "destructive",
+      "CREATE OR REPLACE TABLE WAREHOUSE.PUBLIC"
+    ],
+    [
+      "read",
+      "SELECT CAST(sum(customer_id) AS VARCHAR)"
+    ],
+    [
+      "read",
+      "SELECT count(*) FROM WAREHOUSE.RAW.CUSTO"
+    ],
+    [
+      "read",
+      "SELECT count(*) FROM WAREHOUSE.RAW.ORDER"
+    ],
+    [
+      "read",
+      "SELECT count(*) FROM WAREHOUSE.RAW.PRODU"
+    ],
+    [
+      "read",
+      "SELECT count(*) FROM WAREHOUSE.STAGING.S"
+    ],
+    [
+      "read",
+      "SELECT count(*) FROM WAREHOUSE.WAREHOUSE"
+    ],
+    [
+      "read",
+      "SELECT id, note FROM WAREHOUSE.PUBLIC.SF"
+    ],
+    [
+      "write",
+      "INSERT INTO WAREHOUSE.PUBLIC.SF_E2E_SCRA"
+    ]
+  ],
+  "overlay": "# Generated per rollout by tasks/harness/container_episode.py. Do not edit:\n# it is rewritten on every `up()` and is kept here as the record of which host\n# files this episode's container could see.\n#\n# Three things compose.native.yml cannot say statically:\n#\n#   1. THE WAREHOUSE FILES. Their names and their number come from the world\n#      this rollout built (1 here), read by the same rule\n#      world/world/fingerprint.py hashes by. Each is bound as a FILE at its own\n#      world-relative path, so `/world/var/warehouse` is a directory of\n#      the CONTAINER's - and a `cp` beside the warehouse, which is what two of\n#      five GT001 native subjects did before deleting rows, lands there instead\n#      of in the world.\n#   2. THE SHIM PATH, and the CONTEXT VARIANT. The shims go in front of the\n#      image's own PATH, which is read off the image so /opt/toolbelt/bin\n#      survives; `ALKERA_TASK_VARIANT` appears only when this world was built\n#      from an arm, because an empty value is still a value to\n#      `taskspec.requested_variant`.\n#   3. THE WORLD'S CLOCK. `ALKERA_VIRTUAL_TIME` is this world's `vnow` as the\n#      episode starts, so the rows the shims and the notebook kernel write\n#      carry the world's time and not GatewayConfig's literal: `var/sched`,\n#      where the host topology reads it, is not mounted here (P7).\n#\n# NOT here, and it was here for one afternoon: published host ports. Both\n# compose networks are `internal: true`, and Docker cannot publish a host port\n# off an internal network - the bindings appear in `HostConfig.PortBindings`\n# and nothing ever listens. Measured: GT004's first container rollout failed\n# its surface gate with `WinError 10061` on all nine services while\n# `docker inspect` reported all nine mappings. The harness reaches the services\n# through `container_episode.ServiceGate` instead, one `docker exec` per\n# connection, and `published_host_ports: {}` stays true for every container\n# in the project.\nservices:\n  episode:\n    # ENVIRONMENT PROFILE: the complete mapping, not a merge\n    # (container_episode.profiled_environment).\n    environment: !override\n      PATH: \"/opt/alkera/shims:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/toolbelt/bin\"\n      ALKERA_SHIM_BIN: \"/opt/alkera/shims\"\n      ALKERA_SHIM_WATCH: \"/world/var/warehouse/warehouse.duckdb\"\n      ALKERA_SHIM_WORKSPACE: \"/workspace\"\n      ALKERA_WORKSPACE: \"/workspace\"\n      ALKERA_VIRTUAL_TIME: \"2026-03-02T00:00:00Z\"\n      JUPYTER_URL: \"http://jupyter.internal:8888\"\n      # the static table (compose.yml + compose.native.yml) minus what the\n      # profile excludes: AIRBYTE_API_KEY, AIRBYTE_URL, AIRFLOW_API_URL,\n      # AIRFLOW_PASSWORD, AIRFLOW_USER, ALERTMANAGER_URL, AWS_ACCESS_KEY_ID,\n      # AWS_DEFAULT_REGION, AWS_ENDPOINT_URL, AWS_SECRET_ACCESS_KEY,\n      # DEPLOY_API_TOKEN, DEPLOY_URL, LOKI_ADDR, LOKI_URL, METABASE_API_KEY,\n      # METABASE_URL, PGDATABASE, PGHOST, PGPASSWORD, PGPORT, PGUSER,\n      # PROMETHEUS_URL, SCHED_URL\n      ALKERA_POSTGRES_DSN: \"postgresql://episode:episode-local@postgres/episode\"\n      ALKERA_BACKEND: \"${ALKERA_BACKEND:-postgres}\"\n      ALKERA_WAREHOUSES: \"${ALKERA_WAREHOUSES:-}\"\n      CONFLUENCE_API_TOKEN: \"alkera-local-dev\"\n      CONFLUENCE_URL: \"http://confluence.internal:8090\"\n      CONFLUENCE_USER: \"alkera-local-dev\"\n      DBT_PROFILES_DIR: \"/root/.dbt\"\n      JIRA_API_TOKEN: \"alkera-local-dev\"\n      JIRA_URL: \"http://jira.internal:8080\"\n      JIRA_USER: \"alkera-local-dev\"\n      SLACK_BASE_URL: \"http://slack.internal:8081\"\n      SLACK_BOT_TOKEN: \"alkera-local-dev\"\n      SNOWFLAKE_ACCOUNT: \"acme\"\n      SNOWFLAKE_HOST: \"snowflake.internal\"\n      SNOWFLAKE_PASSWORD: \"alkera-local-dev\"\n      SNOWFLAKE_USER: \"alkera-local-dev\"\n      ALKERA_NATIVE_AUDIT: \"/audit/actions.jsonl\"\n      HOME: \"/root\"\n      # what the profile plugs\n      REQUESTS_CA_BUNDLE: \"/etc/alkera/snowflake-tls/bundle.pem\"\n      SIGMA_BASE_URL: \"http://sigma.internal:8097\"\n      SIGMA_CLIENT_ID: \"alkera-local-dev\"\n      SIGMA_CLIENT_SECRET: \"alkera-local-dev\"\n    volumes:\n      - \"/home/ubuntu/alkera-sf-e2e/world/var/warehouse/warehouse.duckdb:/world/var/warehouse/warehouse.duckdb\"\n      - snowflaketrust:/etc/alkera/snowflake-tls:ro\n    depends_on:\n      snowflake:\n        condition: service_healthy\n\n# ENVIRONMENT PROFILE da/snowflake (plugs: null).\n# native-services runs with --profile (ALKERA_NATIVE_PROFILE_ARGS), and the\n# aliases below REPLACE compose.native.yml's: an excluded service has no name\n# on episode_net at all.\n  native-services:\n    networks:\n      episode_net:\n        aliases: !override\n          - native-services.internal\n          - sigma.internal\n          - jira.internal\n          - slack.internal\n          - confluence.internal\n  minio:\n    networks:\n      episode_net:\n        aliases: !reset []\n\n# WAREHOUSE PLUG snowflake: compose.yml's `snowflake` service (compose profile\n# `snowflake`, enabled by compose_env), reachable as snowflake.internal:8443\n# (compose.native.yml), seeded from this world's warehouse and audited.\n  snowflake:\n    image: alkera-snowflake:native-head-da-snowflake\n    # Always built (layer-cached): the service runs this working tree's\n    # snowflake_start.py, never a stale image of an older one.\n    pull_policy: build\n    build:\n      args:\n        BASE: alkera-episode:head-da-snowflake\n    stop_grace_period: 2s\n    environment:\n      ALKERA_NATIVE_AUDIT: \"/audit/actions.jsonl\"\n      ALKERA_SNOWFLAKE_SEED: \"/seed\"\n      ALKERA_SNOWFLAKE_DESTINATIONS: \"/audit/destinations.snowflake.jsonl\"\n      ALKERA_SNOWFLAKE_STATEMENT_LOG: \"/snowflake-data/statements.jsonl\"\n      ALKERA_VIRTUAL_TIME: \"2026-03-02T00:00:00Z\"\n    volumes:\n      - \"/home/ubuntu/alkera-sf-e2e/audit:/audit\"\n      - \"/home/ubuntu/alkera-sf-e2e/world/var/warehouse/warehouse.duckdb:/seed/warehouse.duckdb:ro\"\n    healthcheck:\n      test: [\"CMD\", \"/usr/local/bin/python\", \"-c\",\n             \"import pathlib,sys;sys.exit(0 if any(f[1].endswith(':20FB') and f[3]=='0A' for f in (l.split() for l in pathlib.Path('/proc/net/tcp').read_text().splitlines()[1:])) else 1)\"]\n      interval: 2s\n      timeout: 5s\n      retries: 90\n      start_period: 5s\n\n# NOTEBOOK PLUG: the `jupyter` service (compose profile `notebook`, enabled by\n# compose_env) sees exactly what the episode sees.\n  jupyter:\n    # ENVIRONMENT PROFILE: the complete mapping, not a merge\n    # (container_episode.profiled_environment).\n    environment: !override\n      PATH: \"/opt/alkera/shims:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/toolbelt/bin\"\n      ALKERA_SHIM_BIN: \"/opt/alkera/shims\"\n      ALKERA_SHIM_WATCH: \"/world/var/warehouse/warehouse.duckdb\"\n      ALKERA_SHIM_WORKSPACE: \"/workspace\"\n      ALKERA_WORKSPACE: \"/workspace\"\n      ALKERA_VIRTUAL_TIME: \"2026-03-02T00:00:00Z\"\n      # the static table (compose.yml + compose.native.yml) minus what the\n      # profile excludes: AIRBYTE_API_KEY, AIRBYTE_URL, AIRFLOW_API_URL,\n      # AIRFLOW_PASSWORD, AIRFLOW_USER, ALERTMANAGER_URL, AWS_ACCESS_KEY_ID,\n      # AWS_DEFAULT_REGION, AWS_ENDPOINT_URL, AWS_SECRET_ACCESS_KEY,\n      # DEPLOY_API_TOKEN, DEPLOY_URL, LOKI_ADDR, LOKI_URL, METABASE_API_KEY,\n      # METABASE_URL, PGDATABASE, PGHOST, PGPASSWORD, PGPORT, PGUSER,\n      # PROMETHEUS_URL, SCHED_URL\n      CONFLUENCE_API_TOKEN: \"alkera-local-dev\"\n      CONFLUENCE_URL: \"http://confluence.internal:8090\"\n      CONFLUENCE_USER: \"alkera-local-dev\"\n      DBT_PROFILES_DIR: \"/root/.dbt\"\n      JIRA_API_TOKEN: \"alkera-local-dev\"\n      JIRA_URL: \"http://jira.internal:8080\"\n      JIRA_USER: \"alkera-local-dev\"\n      SLACK_BASE_URL: \"http://slack.internal:8081\"\n      SLACK_BOT_TOKEN: \"alkera-local-dev\"\n      SNOWFLAKE_ACCOUNT: \"acme\"\n      SNOWFLAKE_HOST: \"snowflake.internal\"\n      SNOWFLAKE_PASSWORD: \"alkera-local-dev\"\n      SNOWFLAKE_USER: \"alkera-local-dev\"\n      ALKERA_NATIVE_AUDIT: \"/audit/actions.jsonl\"\n      HOME: \"/root\"\n      # what the profile plugs\n      REQUESTS_CA_BUNDLE: \"/etc/alkera/snowflake-tls/bundle.pem\"\n      SIGMA_BASE_URL: \"http://sigma.internal:8097\"\n      SIGMA_CLIENT_ID: \"alkera-local-dev\"\n      SIGMA_CLIENT_SECRET: \"alkera-local-dev\"\n    volumes:\n      - \"/home/ubuntu/alkera-sf-e2e/world/var/warehouse/warehouse.duckdb:/world/var/warehouse/warehouse.duckdb\"\n      - snowflaketrust:/etc/alkera/snowflake-tls:ro\n",
+  "prepared": {
+    "dbt_profiles_rerooted": [
+      "world_dbt.dev"
+    ],
+    "home": [
+      ".config",
+      ".dbt"
+    ],
+    "shims": [
+      "dbt",
+      "duckdb",
+      "git",
+      "python",
+      "python3",
+      "tabcmd"
+    ],
+    "stripped": [
+      "/opt/stack",
+      "/opt/gateway/tests"
+    ]
+  },
+  "probe": {
+    "counts": {
+      "RAW.CUSTOMERS": 339,
+      "RAW.ORDERS": 17768,
+      "RAW.ORDER_LINES": 29200,
+      "RAW.PRODUCTS": 31,
+      "STAGING.STG_CUSTOMERS": 309,
+      "STAGING.STG_ORDERS": 16825,
+      "STAGING.STG_ORDER_LINES": 29200,
+      "STAGING.STG_PRODUCTS": 25,
+      "WAREHOUSE.DIM_CUSTOMER": 309,
+      "WAREHOUSE.DIM_DATE": 424,
+      "WAREHOUSE.DIM_PRODUCT": 25,
+      "WAREHOUSE.FCT_ORDERS": 16825,
+      "WAREHOUSE.FCT_ORDER_LINES": 29200
+    },
+    "env": {
+      "REQUESTS_CA_BUNDLE": "/etc/alkera/snowflake-tls/bundle.pem",
+      "SNOWFLAKE_ACCOUNT": "acme",
+      "SNOWFLAKE_HOST": "snowflake.internal",
+      "SNOWFLAKE_USER": "alkera-local-dev"
+    },
+    "insert": [
+      [
+        "2"
+      ]
+    ],
+    "read_back": [
+      [
+        "1",
+        "alpha"
+      ],
+      [
+        "2",
+        "beta"
+      ]
+    ],
+    "statements": [
+      "SELECT count(*) FROM WAREHOUSE.RAW.CUSTOMERS",
+      "SELECT count(*) FROM WAREHOUSE.RAW.ORDERS",
+      "SELECT count(*) FROM WAREHOUSE.RAW.ORDER_LINES",
+      "SELECT count(*) FROM WAREHOUSE.RAW.PRODUCTS",
+      "SELECT count(*) FROM WAREHOUSE.STAGING.STG_CUSTOMERS",
+      "SELECT count(*) FROM WAREHOUSE.STAGING.STG_ORDERS",
+      "SELECT count(*) FROM WAREHOUSE.STAGING.STG_ORDER_LINES",
+      "SELECT count(*) FROM WAREHOUSE.STAGING.STG_PRODUCTS",
+      "SELECT count(*) FROM WAREHOUSE.WAREHOUSE.DIM_CUSTOMER",
+      "SELECT count(*) FROM WAREHOUSE.WAREHOUSE.DIM_DATE",
+      "SELECT count(*) FROM WAREHOUSE.WAREHOUSE.DIM_PRODUCT",
+      "SELECT count(*) FROM WAREHOUSE.WAREHOUSE.FCT_ORDERS",
+      "SELECT count(*) FROM WAREHOUSE.WAREHOUSE.FCT_ORDER_LINES",
+      "SELECT CAST(sum(customer_id) AS VARCHAR) FROM WAREHOUSE.STAGING.STG_CUSTOMERS",
+      "CREATE OR REPLACE TABLE WAREHOUSE.PUBLIC.SF_E2E_SCRATCH (id INT, note VARCHAR)",
+      "INSERT INTO WAREHOUSE.PUBLIC.SF_E2E_SCRATCH VALUES (1, 'alpha'), (2, 'beta')",
+      "SELECT id, note FROM WAREHOUSE.PUBLIC.SF_E2E_SCRATCH ORDER BY id"
+    ],
+    "sum": "356895.0"
+  },
+  "profile": "da/snowflake",
+  "result": "PASS",
+  "seed_log": [
+    {
+      "seed": [
+        {
+          "database": "WAREHOUSE",
+          "rows": 339,
+          "schema": "RAW",
+          "table": "CUSTOMERS"
+        },
+        {
+          "database": "WAREHOUSE",
+          "rows": 29200,
+          "schema": "RAW",
+          "table": "ORDER_LINES"
+        },
+        {
+          "database": "WAREHOUSE",
+          "rows": 17768,
+          "schema": "RAW",
+          "table": "ORDERS"
+        },
+        {
+          "database": "WAREHOUSE",
+          "rows": 31,
+          "schema": "RAW",
+          "table": "PRODUCTS"
+        },
+        {
+          "database": "WAREHOUSE",
+          "rows": 309,
+          "schema": "STAGING",
+          "table": "STG_CUSTOMERS"
+        },
+        {
+          "database": "WAREHOUSE",
+          "rows": 29200,
+          "schema": "STAGING",
+          "table": "STG_ORDER_LINES"
+        },
+        {
+          "database": "WAREHOUSE",
+          "rows": 16825,
+          "schema": "STAGING",
+          "table": "STG_ORDERS"
+        },
+        {
+          "database": "WAREHOUSE",
+          "rows": 25,
+          "schema": "STAGING",
+          "table": "STG_PRODUCTS"
+        },
+        {
+          "database": "WAREHOUSE",
+          "rows": 309,
+          "schema": "WAREHOUSE",
+          "table": "DIM_CUSTOMER"
+        },
+        {
+          "database": "WAREHOUSE",
+          "rows": 424,
+          "schema": "WAREHOUSE",
+          "table": "DIM_DATE"
+        },
+        {
+          "database": "WAREHOUSE",
+          "rows": 25,
+          "schema": "WAREHOUSE",
+          "table": "DIM_PRODUCT"
+        },
+        {
+          "database": "WAREHOUSE",
+          "rows": 29200,
+          "schema": "WAREHOUSE",
+          "table": "FCT_ORDER_LINES"
+        },
+        {
+          "database": "WAREHOUSE",
+          "rows": 16825,
+          "schema": "WAREHOUSE",
+          "table": "FCT_ORDERS"
+        }
+      ]
+    }
+  ]
+}

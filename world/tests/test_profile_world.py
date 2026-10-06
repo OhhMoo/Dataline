@@ -26,7 +26,9 @@ Four claims, one class each:
   profile that plugs `bi` without saying which vendor - and the optional
   `plugs` key leaves every existing profile record as it was.
 """
+import hashlib
 import json
+import re
 import shutil
 import sys
 import tempfile
@@ -92,6 +94,34 @@ class SlotCatalogueTest(unittest.TestCase):
         theirs = {svc: plug.name for plug in gateway_plugs.PLUGS.values()
                   for svc in plug.services}
         self.assertEqual(native_workspace.SERVICE_PLUGS, theirs)
+
+    @unittest.skipIf(gateway_plugs is None, "alkera_gateway not importable")
+    def test_stack_warehouse_plugs_match_the_gateway(self):
+        """What a `<role>/<stack>` profile plugs into the warehouse slot when its
+        record's `plugs` names none: the gateway's STACKS, copied."""
+        theirs = {stack: tuple(slots["warehouse"])
+                  for stack, slots in gateway_plugs.STACKS.items()}
+        self.assertEqual(native_workspace.STACK_WAREHOUSE, theirs)
+
+    @unittest.skipIf(gateway_plugs is None, "alkera_gateway not importable")
+    def test_backend_plugs_are_warehouse_plugs_of_the_catalogue(self):
+        for label, plug in native_workspace.BACKEND_PLUGS.items():
+            self.assertIn(label, native_workspace.BACKEND_SLOTS)
+            self.assertEqual(gateway_plugs.PLUGS[plug].slot,
+                             native_workspace.BACKEND_SLOTS[label], label)
+
+    def test_wiki_content_ids_match_the_confluence_service(self):
+        """The onboarding page of a profiled box lists wiki pages by the
+        numeric id the Confluence API routes; the world computes it without
+        the gateway, so the two derivations are compared here."""
+        try:
+            from alkera_gateway.native.services import confluence
+        except Exception as exc:  # pragma: no cover - a skip, never silent
+            self.skipTest(f"confluence service not importable: {exc}")
+        for page_id in ("ae", "ae/metrics/net-revenue", "de/runbooks/nightly-orders-load",
+                        "ops/postmortems/2026-01-12-stale-dashboards"):
+            self.assertEqual(native_workspace.content_id(page_id),
+                             confluence.content_id(page_id), page_id)
 
 
 class UnflaggedTest(unittest.TestCase):
@@ -439,6 +469,145 @@ class BIVendorDiscoveryTest(unittest.TestCase):
             self.assertEqual({k: env[k] for k in theirs}, theirs, name)
 
 
+#: Words that name a remote warehouse backend in the discovery files.
+POSTGRES_WORDS = ("postgres.internal", "PGHOST", "PGPASSWORD")
+SNOWFLAKE_WORDS = ("snowflake.internal", "SNOWFLAKE_HOST", "SNOWFLAKE_PASSWORD")
+
+
+class WarehouseDiscoveryTest(unittest.TestCase):
+    """Under a recorded profile the warehouse backend groups follow the
+    profile's WAREHOUSE plugs: a DuckDB box names no Postgres and no Snowflake,
+    a Postgres box names Postgres, a Snowflake box names Snowflake. The plugs
+    come from the record's `plugs.warehouse`, else from the stack's default
+    (`profile_plugs`). No profile is the full table, byte for byte."""
+
+    def _texts(self, name, slots, plugs=None, kb=None):
+        nw = native_workspace
+        root = Path(tempfile.mkdtemp(prefix="wh-onboarding-"))
+        self.addCleanup(shutil.rmtree, root, True)
+        if kb is not None:
+            (root / "var" / "workflow").mkdir(parents=True)
+            (root / "var" / "workflow" / "kb.json").write_text(json.dumps(kb), "utf-8")
+        resolved = nw.profile_plugs(name, plugs)
+        return {"env": "\n".join(f"{k}={v}" for k, v in
+                                 nw.environment(slots, resolved).items()),
+                ".envrc": nw.envrc_block(slots, resolved),
+                "services.toml": nw.services_toml("/world", slots, resolved),
+                "onboarding.md": nw.onboarding_markdown(root, {}, slots, resolved)}
+
+    def _absent(self, texts, words, label):
+        for where, text in texts.items():
+            for word in words:
+                self.assertNotIn(word, text, f"{label}: {word} in {where}")
+
+    def _present(self, texts, words, label):
+        for where in (".envrc", "env"):
+            for word in words[1:]:
+                self.assertIn(word, texts[where], f"{label}: {word} not in {where}")
+        self.assertIn(words[0], texts["onboarding.md"], label)
+
+    def test_profile_plugs_fills_the_warehouse_from_the_stack(self):
+        nw = native_workspace
+        self.assertEqual(nw.profile_plugs("da/laptop", None), {"warehouse": ["duckdb"]})
+        self.assertEqual(nw.profile_plugs("de/postgres", {"bi": ["sigma"]}),
+                         {"bi": ["sigma"], "warehouse": ["postgres"]})
+        # the record's own warehouse plugs win over the stack
+        self.assertEqual(nw.profile_plugs("da/laptop", {"warehouse": ["postgres"]}),
+                         {"warehouse": ["postgres"]})
+        # a stack the catalogue does not know says nothing: the plugs as given
+        self.assertIsNone(nw.profile_plugs("da/narrow", None))
+        self.assertEqual(nw.profile_plugs("x", {"bi": ["sigma"]}), {"bi": ["sigma"]})
+        self.assertIsNone(nw.profile_plugs(None, None))
+
+    def test_a_duckdb_box_names_no_remote_warehouse(self):
+        texts = self._texts("da/laptop", DA["slots"])
+        self._absent(texts, POSTGRES_WORDS + SNOWFLAKE_WORDS, "da/laptop")
+        self.assertNotIn("warehouse", tomllib.loads(texts["services.toml"]))
+        self.assertNotIn("second warehouse", texts["onboarding.md"])
+        # the rest of the box is unchanged: the notebook and the human plane
+        self.assertIn("JUPYTER_URL", texts[".envrc"])
+        self.assertIn("jira.internal", texts["onboarding.md"])
+        self.assertIn("DBT_PROFILES_DIR", texts[".envrc"])
+
+    def test_a_postgres_box_names_postgres_only(self):
+        texts = self._texts("de/postgres", ["files", "warehouse", "transform", "human"])
+        self._present(texts, POSTGRES_WORDS, "de/postgres")
+        self._absent(texts, SNOWFLAKE_WORDS, "de/postgres")
+        self.assertIn("| the warehouse | `postgres.internal:5432` |", texts["onboarding.md"])
+        self.assertEqual(tomllib.loads(texts["services.toml"])["warehouse"]["host"],
+                         "postgres.internal")
+
+    def test_a_snowflake_box_names_snowflake_as_its_warehouse(self):
+        texts = self._texts("da/snowflake", DA["slots"])
+        self._present(texts, SNOWFLAKE_WORDS, "da/snowflake")
+        self._absent(texts, POSTGRES_WORDS, "da/snowflake")
+        self.assertIn("| the warehouse | `snowflake.internal:8443` |", texts["onboarding.md"])
+        self.assertIn("# The warehouse.", texts[".envrc"])
+        for where in (".envrc", "onboarding.md"):
+            self.assertNotIn("second warehouse", texts[where].lower(), where)
+
+    def test_the_records_warehouse_plugs_win_over_the_stack(self):
+        both = self._texts("da/laptop", DA["slots"], {"warehouse": ["duckdb", "postgres"]})
+        self._present(both, POSTGRES_WORDS, "duckdb+postgres")
+        self._absent(both, SNOWFLAKE_WORDS, "duckdb+postgres")
+        two = self._texts("de/laptop", ["warehouse", "transform"],
+                          {"warehouse": ["postgres", "snowflake"]})
+        self._present(two, POSTGRES_WORDS, "postgres+snowflake")
+        self._present(two, SNOWFLAKE_WORDS, "postgres+snowflake")
+        self.assertIn("| the second warehouse | `snowflake.internal:8443` |",
+                      two["onboarding.md"])
+
+    def test_an_unknown_stack_lists_what_the_slot_always_listed(self):
+        nw = native_workspace
+        plugs = nw.profile_plugs("da/narrow", None)
+        self.assertEqual(nw.envrc_block(DA["slots"], plugs), nw.envrc_block(DA["slots"]))
+        self.assertIn("PGHOST", nw.envrc_block(DA["slots"], plugs))
+
+    def test_a_profiled_box_lists_wiki_pages_by_a_routable_id(self):
+        """`GET /wiki/rest/api/content/<id>` routes the numeric content id; a
+        slash path is not routable (measured: 404). A profiled box's page lists
+        the content id, and the path pages and tickets link each other by."""
+        nw = native_workspace
+        kb = {"space": {"key": "AE", "name": "Analytics Engineering"},
+              "pages": [{"id": "ae/metrics", "title": "Metrics"},
+                        {"id": "ae/metrics/net-revenue", "title": "Net Revenue and friends"}]}
+        page = self._texts("da/laptop", DA["slots"], kb=kb)["onboarding.md"]
+        for entry in kb["pages"]:
+            cid = nw.content_id(entry["id"])
+            self.assertTrue(cid.isdigit(), cid)
+            indent = "  " * entry["id"].count("/")
+            self.assertIn(f"{indent}- `{cid}` - {entry['title']} (`{entry['id']}`)", page)
+        listed = re.findall(r"^\s*- `([^`]+)` - ", page, re.M)
+        self.assertEqual(sorted(listed),
+                         sorted(nw.content_id(p["id"]) for p in kb["pages"]))
+
+    def test_unprofiled_discovery_bytes_are_pinned(self):
+        """No profile is the box as it stood before profiles: these are the
+        bytes recorded before the warehouse and wiki-id rules existed."""
+        nw = native_workspace
+
+        def sha(text):
+            return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+        self.assertEqual(sha(nw.envrc_block()), UNPROFILED_PINS["envrc_block"])
+        self.assertEqual(sha(nw.envrc_block(home="/home/engineer")),
+                         UNPROFILED_PINS["envrc_block_engineer"])
+        self.assertEqual(sha(nw.services_toml("/world")), UNPROFILED_PINS["services_toml"])
+        self.assertEqual(sha(json.dumps(nw.environment())), UNPROFILED_PINS["environment"])
+        # and a profile_plugs of nothing is nothing
+        self.assertEqual(nw.envrc_block(None, nw.profile_plugs(None, None)), nw.envrc_block())
+
+
+#: sha256 of the unprofiled discovery text, recorded at 6b88b39 (before the
+#: warehouse-plug and wiki-id rules): what "byte for byte" is checked against.
+UNPROFILED_PINS = {
+    "envrc_block": "da918d100617301afd504c345f1e8a1a782daa14d98ceb40b041c3b5cdb37605",
+    "envrc_block_engineer": "2de5f07b8692b5d09d4a15cfb6701f35a3a462178689c81405e1899df7b1b360",
+    "services_toml": "d6b601010cc44ae98a854a6595920ac830b6f02e6ee1c9b98c510e90624a33a9",
+    "environment": "fbafed74a628e009024bedd7beaaacf833446fb665709ca8a89a298dfb363533",
+}
+
+
 class BIVendorBuildTest(unittest.TestCase):
     """One world, built for a Power BI shop: the record carries the plug, and
     the discovery files name Power BI and not Metabase."""
@@ -471,6 +640,28 @@ class BIVendorBuildTest(unittest.TestCase):
         self.assertNotIn("METABASE_URL", envrc)
         page = (self.root / "workspace" / "docs" / "onboarding.md").read_text()
         self.assertIn("powerbi.internal:8095", page)
+
+    def test_the_duckdb_box_names_no_remote_warehouse(self):
+        """da/laptop's warehouse is the DuckDB file: no discovery file the
+        agent reads names a Postgres or a Snowflake the box does not have."""
+        files = {
+            ".envrc": self.root / "workspace" / ".envrc",
+            "onboarding.md": self.root / "workspace" / "docs" / "onboarding.md",
+            "services.toml": (self.root / native_workspace.HOME / ".config" / "alkera"
+                              / "services.toml"),
+        }
+        for label, path in files.items():
+            text = path.read_text(encoding="utf-8")
+            for word in POSTGRES_WORDS + SNOWFLAKE_WORDS:
+                self.assertNotIn(word, text, f"{word} in {label}")
+        self.assertNotIn("warehouse", tomllib.loads(files["services.toml"].read_text()))
+
+    def test_the_wiki_is_listed_by_content_id(self):
+        kb = json.loads((self.root / "var" / "workflow" / "kb.json").read_text())
+        page = (self.root / "workspace" / "docs" / "onboarding.md").read_text()
+        listed = re.findall(r"^\s*- `([^`]+)` - ", page, re.M)
+        self.assertEqual(sorted(listed),
+                         sorted(native_workspace.content_id(p["id"]) for p in kb["pages"]))
 
 
 if __name__ == "__main__":

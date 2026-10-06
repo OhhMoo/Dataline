@@ -87,6 +87,9 @@ PROBES: tuple[tuple[str, tuple[str, ...], tuple[int, ...]], ...] = (
     ("in2csv", ("in2csv", "--version"), (0,)),
     ("csvsql", ("csvsql", "--version"), (0,)),
     ("tabcmd", ("tabcmd", "--version"), (0,)),
+    # MetricFlow over the dbt project's semantic layer (dbt-metricflow); prints
+    # "mf, version 0.15.0" without a project, a profile or a warehouse
+    ("mf", ("mf", "--version"), (0,)),
     # the gateway's own environment
     ("python", ("python", "--version"), (0,)),
     ("pip", ("pip", "--version"), (0,)),

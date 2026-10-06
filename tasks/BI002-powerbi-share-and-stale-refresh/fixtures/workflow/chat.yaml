@@ -1,0 +1,44 @@
+# BI002 - messages appended to the theme's channels (tests/build_world.py).
+# Ids are positional per channel and continue the theme's numbering; a
+# message may only thread under an earlier root of the same channel.
+#
+# Sunday morning's late extract, as the data platform's on-call handled it.
+# The times are the world's own: the extract was due at 02:00 and landed
+# `extract_late`'s 330 minutes later; the manual daily_load and dbt_build are
+# the two runs gen.bi_imports appends to var/sched/state.json (08:05 and
+# 08:15-08:19); the alarm reading is fct_orders_freshness at 06:07 on a
+# morning the mart holds data through the 27th. The gate
+# `the_incident_is_the_worlds` in tests/run_baselines.py checks each time
+# against the built world.
+channels:
+  - id: data-incidents
+    messages:
+      - id: data-incidents/0007
+        author: alertbot
+        at: "-1d 06:07"
+        thread_id: null
+        text: |-
+          ALARM orders_stale (critical): The orders mart is missing a business
+          day. fct_orders_freshness = 194820 > 190000
+        reactions: {}
+      - id: data-incidents/0008
+        author: tbrennan
+        at: "-1d 08:02"
+        thread_id: data-incidents/0007
+        text: Shop extract for the 28th landed at 07:30. Rerunning the load and dbt now.
+        reactions: {}
+      - id: data-incidents/0009
+        author: tbrennan
+        at: "-1d 08:24"
+        thread_id: data-incidents/0007
+        text: |-
+          Marts have the 28th, load and build green. Dashboards pick it up at
+          the next scheduled refresh.
+        reactions: {"+1": 1}
+        authoring:
+          kind: accurate_but_partial
+          note: >-
+            BI002. True, and the incomplete sentence of the on-call wiki page
+            (ae/runbooks/nightly-on-call) repeated: the next scheduled refresh
+            is Monday 06:00, and analytics-eng/0002 says not to wait for it.
+            Nobody refreshed the Power BI dataset.

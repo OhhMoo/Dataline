@@ -11,7 +11,7 @@ in. Three of five GT001 rollouts quarantined on exactly those two actions
 construction when the episode container mounts the workspace and the warehouse
 FILES and nothing else, and P7 is the measurement of "by construction".
 
-Six questions, each answered by trying:
+Eight questions, each answered by trying:
 
   A. `/world` holds the mounted warehouse file(s) AND NOTHING ELSE from the
      world tree. Every other plane the world has - `var/sched`, `var/obs`,
@@ -38,6 +38,18 @@ Six questions, each answered by trying:
      acceptance, where moving the world is the point.
   F. egress is refused - TCP and DNS, with the interface and route list read
      from `/proc` so a second interface nobody declared cannot hide.
+  G. what the environment profile EXCLUDES does not even resolve: an excluded
+     one of the nine, an unplugged BI vendor (none resolves on an unprofiled
+     box), `sched.internal` without `ops_sched`, `minio.internal` without an
+     object store. A profile with no orchestrator is served no scheduler plane
+     BY DESIGN, so for it question E's scheduler half is recorded under
+     `checks_not_applicable` with its reason - never silently dropped - and
+     this question asserts the stronger negative in its place.
+  H. the native services' OWN state (`/service-state` in native-services: the
+     BI vendors' published content, the config the services read) is not
+     mounted here under any name, and its host path does not exist here. It
+     used to live in `/audit`, which this container mounts read-write, and was
+     forgeable from the subject's shell (tasks/harness/bistate.py).
 
 Standard library only: it runs under the episode image's interpreter with
 nothing installed, and it is fed to `python -` on stdin so it is never written
@@ -280,6 +292,35 @@ out["network"] = {"interfaces": ifaces, "routes": routes, "egress_tcp": tcp,
 out["egress_blocked"] = (all(r["result"] != "CONNECTED" for r in tcp)
                          and all(d["result"] != "RESOLVED" for d in dns))
 
+# --- G. what the profile excludes does not resolve ---------------------------
+excluded = []
+for name, host in sorted((spec.get("excluded") or {}).items()):
+    row = {"service": name, "host": host}
+    try:
+        row["addresses"] = sorted({a[4][0] for a in socket.getaddrinfo(host, None)})
+    except OSError as exc:
+        row["addresses"] = []
+        row["error"] = type(exc).__name__
+    excluded.append(row)
+out["excluded_services"] = excluded
+out["excluded_that_resolve"] = [r["service"] for r in excluded if r["addresses"]]
+
+# --- H. the services' own state is not mounted here -------------------------
+def under(path, base):
+    base = base.rstrip("/") or "/"
+    return path == base or path.startswith(base + "/")
+
+state = spec.get("service_state") or {}
+state_mounts = [m for m in mounts
+                if any(under(m.get("target", ""), t) for t in state.get("targets", []))
+                or any(under(m.get("root", ""), r) for r in state.get("roots", []))]
+out["service_state"] = {
+    "targets": state.get("targets", []), "roots": state.get("roots", []),
+    "mounts": state_mounts,
+    "roots_present": [r for r in state.get("roots", []) if os.path.exists(r)],
+    "targets_present_as_plain_paths": [t for t in state.get("targets", [])
+                                       if os.path.exists(t)]}
+
 out["identity"] = {"uid": os.getuid(), "gid": os.getgid(), "cwd": os.getcwd()}
 out["checks"] = {
     "world_holds_only_the_mounted_warehouses": not out["world_planes_present"],
@@ -299,10 +340,19 @@ out["checks"] = {
         and all(work["warehouses_writable"].values()),
     "every_service_is_reachable_from_the_episode":
         bool(services) and not out["services_unreachable"],
-    "the_scheduler_plane_answers_with_jobs":
-        bool(out["scheduler"]) and out["scheduler"].get("populated") is True,
     "egress_refused": out["egress_blocked"] and not out["network"]["default_route"],
 }
+if spec["scheduler"]:
+    out["checks"]["the_scheduler_plane_answers_with_jobs"] = (
+        bool(out["scheduler"]) and out["scheduler"].get("populated") is True)
+if spec.get("excluded"):
+    out["checks"]["no_excluded_service_resolves"] = not out["excluded_that_resolve"]
+if state.get("targets") or state.get("roots"):
+    # A plain directory the subject made at that path is its own container's
+    # and reaches nothing; a MOUNT is the leak, and so is the host path.
+    out["checks"]["the_services_state_is_out_of_reach"] = (
+        not state_mounts and not out["service_state"]["roots_present"])
+out["checks_not_applicable"] = dict(spec.get("not_applicable") or {})
 out["contained"] = all(out["checks"].values())
 print(json.dumps(out, sort_keys=True))
 """
@@ -327,6 +377,13 @@ LEDGER_DIR = "/world/var/ledger"
 #: The one served plane that is not a vendor: the backend of the workspace's own
 #: `./ops/sched`. Named to the probe so question E can single it out.
 SCHEDULER_SERVICE = "sched"
+#: Question E's scheduler half, by the name it carries in `checks`.
+SCHEDULER_CHECK = "the_scheduler_plane_answers_with_jobs"
+#: native-services' own state directory (compose.native.yml,
+#: native_services.py), by the path it has in THAT container.
+SERVICE_STATE_TARGET = "/service-state"
+#: The compose service that, alone, mounts it.
+SERVICE_STATE_OWNER = "native-services"
 #: The episode image's own interpreter. Named absolutely on purpose: the
 #: episode container's PATH puts `/opt/alkera/shims` first, and `python` there
 #: is the audited shim - a harness probe run through it writes a row into the
@@ -339,19 +396,41 @@ SWEEP_LIMIT = 40_000
 def spec(*, warehouses, services, forbidden_files=(), host_paths=(),
          canaries=(), repo_root="", world_planes=WORLD_PLANES,
          sweep_roots=SWEEP_ROOTS, sweep_limit=SWEEP_LIMIT,
-         scheduler=SCHEDULER_SERVICE) -> dict:
+         scheduler=SCHEDULER_SERVICE, excluded=None, not_applicable=None,
+         service_state=None) -> dict:
     """The probe's one JSON argument, built in one place.
 
     `warehouses` are world-relative posix paths (`var/warehouse/x.duckdb`) and
     `services` is `{name: base_url}` as the EPISODE addresses them, never as the
     harness does: the question P7 answers is what the episode's own vantage can
-    reach.
+    reach. `excluded` is `{name: host}` that must NOT resolve (question G);
+    `expectations()` builds `services`, `excluded`, `scheduler` and
+    `not_applicable` together from an environment profile. `service_state` is
+    `{"targets": [...], "roots": [<host path>]}` (question H).
+
+    `scheduler=None` means "this box is served no scheduler plane by design",
+    and it is refused unless the reason is recorded (`not_applicable`) and
+    `sched.internal` is in `excluded` - a containment check may be replaced by
+    a stronger one, never just switched off.
     """
+    excluded = dict(excluded or {})
+    not_applicable = dict(not_applicable or {})
+    if scheduler is None and (SCHEDULER_CHECK not in not_applicable
+                              or SCHEDULER_SERVICE not in excluded):
+        raise ValueError(
+            "scheduler=None needs not_applicable[SCHEDULER_CHECK] (why) and "
+            f"{SCHEDULER_SERVICE!r} in excluded (so its absence is asserted)")
+    if scheduler is not None and SCHEDULER_CHECK in not_applicable:
+        raise ValueError("the scheduler check cannot be both asked and "
+                         "not applicable")
     leaf = str(repo_root).replace("\\", "/").split(":", 1)[-1]
     return {
         "warehouses": sorted(warehouses),
         "world_planes": list(world_planes),
         "services": dict(services),
+        "excluded": excluded,
+        "not_applicable": not_applicable,
+        "service_state": dict(service_state or {}),
         "forbidden_dirs": list(FORBIDDEN_DIRS),
         "forbidden_files": list(forbidden_files),
         "host_paths": list(host_paths),
@@ -363,6 +442,102 @@ def spec(*, warehouses, services, forbidden_files=(), host_paths=(),
         "sweep_roots": list(sweep_roots),
         "sweep_limit": int(sweep_limit),
     }
+
+
+def plug_args(plugs: dict | None) -> list[str]:
+    """`{slot: [plug, ...]}` -> serve.py's `--plug` values (`slot=a,b`)."""
+    return [f"{slot}={','.join(names)}" for slot, names in (plugs or {}).items()]
+
+
+def expectations(profile: str | None = None, plugs=()) -> dict:
+    """What the episode must reach, and what must not even resolve, on a box
+    served for `profile` (None: the unprofiled box), by serve.py's own rules.
+
+    `plugs` is serve.py's `--plug` values (`["bi=powerbi,tableau"]`) or the
+    `{slot: [plug]}` mapping a task declares. The answer is computed by the
+    functions `native/serve.py --profile` itself serves by -
+    `selected_services`, `sched_enabled`, `object_store_enabled` - so P7 asks
+    about exactly the set the native-services process mounted:
+
+      services        every served vendor service (the nine, or the profile's
+                      own, plugged BI vendors included) plus the scheduler
+                      plane when `ops_sched` is plugged, as `{name: url}`
+      excluded        every other one of the nine and of the BI vendors,
+                      `sched` without `ops_sched`, `minio` without an object
+                      store, as `{name: host}` - question G
+      scheduler       SCHEDULER_SERVICE, or None when not served
+      not_applicable  `{SCHEDULER_CHECK: reason}` when not served
+
+    Imports the gateway, so call it where the gateway is installed (the
+    harness venv, containment.py); the PROBE itself stays standard library.
+    """
+    from alkera_gateway.native import serve
+    from alkera_gateway.native import services as registry
+
+    args = plug_args(plugs) if isinstance(plugs, dict) else list(plugs or ())
+    profile = profile or None
+    names = serve.selected_services(profile, args)
+    served = [n for n in (registry.NAMES if names is None else names)
+              if n in serve.SERVICE_PORTS]
+    services = {n: f"http://{n}.internal:{serve.SERVICE_PORTS[n]}" for n in served}
+    excluded = {n: f"{n}.internal" for n in (*registry.NAMES, *registry.PLUG_NAMES)
+                if n not in services}
+    not_applicable = {}
+    if serve.sched_enabled(profile, args):
+        services[SCHEDULER_SERVICE] = (f"http://{SCHEDULER_SERVICE}.internal:"
+                                       f"{serve.SCHED_PORT}")
+        scheduler = SCHEDULER_SERVICE
+    else:
+        excluded[SCHEDULER_SERVICE] = f"{SCHEDULER_SERVICE}.internal"
+        scheduler = None
+        not_applicable[SCHEDULER_CHECK] = (
+            f"profile {profile!r} plugs no ops_sched orchestrator: serve.py "
+            f"--profile serves no scheduler plane by design, so there is none to "
+            f"answer; `{SCHEDULER_SERVICE}.internal` must instead NOT resolve "
+            f"(no_excluded_service_resolves)")
+    if not serve.object_store_enabled(profile, args):
+        excluded["minio"] = "minio.internal"
+    return {"profile": profile, "plugs": args,
+            "services": dict(sorted(services.items())),
+            "excluded": dict(sorted(excluded.items())),
+            "scheduler": scheduler, "not_applicable": not_applicable}
+
+
+def _under(path: str, base: str) -> bool:
+    base = base.rstrip("/") or "/"
+    return path == base or path.startswith(base + "/")
+
+
+def service_state_isolation(container_specs: list[dict], host_dir,
+                            target: str = SERVICE_STATE_TARGET,
+                            owner: str = SERVICE_STATE_OWNER) -> dict:
+    """Who mounts the native services' own state, from `docker inspect`.
+
+    The stack half of question H: native-services must mount `host_dir` at
+    `target` read-write (the positive control - the state is SOMEWHERE, and
+    somewhere the grader can stage it from), and no other container of the
+    project - episode, jupyter, subject, egress-proxy, postgres, minio - may
+    mount that host path or anything at `target`, under any name.
+    `container_specs` are `docker inspect` documents.
+    """
+    host = Path(host_dir).resolve().as_posix() if host_dir else ""
+    rows = []
+    for spec_ in container_specs:
+        labels = (spec_.get("Config") or {}).get("Labels") or {}
+        service = labels.get("com.docker.compose.service") or spec_.get("Name", "?")
+        for mount in spec_.get("Mounts") or []:
+            source = mount.get("Source") or ""
+            destination = mount.get("Destination") or ""
+            if _under(destination, target) or (host and _under(source, host)):
+                rows.append({"service": service, "source": source,
+                             "destination": destination, "rw": bool(mount.get("RW"))})
+    mine = [r for r in rows if r["service"] == owner]
+    others = [r for r in rows if r["service"] != owner]
+    owned = any(r["destination"] == target and r["rw"]
+                and (not host or r["source"] == host) for r in mine)
+    return {"host_dir": host, "target": target, "owner": owner, "mounts": rows,
+            "mounted_read_write_in_owner": owned, "mounted_elsewhere": others,
+            "isolated": owned and not others}
 
 
 def run(container: str, probe_spec: dict, *, timeout: int = 600) -> dict:

@@ -58,7 +58,21 @@ from pathlib import Path
 # the repo writes a file into the workspace. Measured 2026-10-04
 # (bi_e2e_check.py): unshimmed, that was a world change no row named. The shim
 # row names the log; the service rows stay the record of the Tableau calls.
-DEFAULT_BINARIES = ("duckdb", "dbt", "python", "python3", "git", "tabcmd")
+#
+# `mf` (the toolbelt's MetricFlow CLI, dbt-metricflow) is a real binary that
+# touches the world directly and has no service behind it: it reads the dbt
+# project's target/semantic_manifest.json, opens the WAREHOUSE FILE through its
+# own dbt-duckdb connection (validate-configs' warehouse checks, every `mf
+# query`), writes logs/dbt.log + logs/metricflow.log into the dbt project on
+# every call, and `mf query --csv <file>` writes wherever it is told.
+# Unshimmed, none of that left a row. Measured 2026-10-06 on a built
+# commerce_analytics world (bi_e2e_check.py, family "semantic"): the logs are
+# in a directory run.py skips on purpose, as for dbt, so a read-only call's
+# row names nothing; the row names a `--csv` file written into the repo, and
+# the warehouse file should mf ever rewrite it (ALKERA_SHIM_WATCH). Every mf
+# call also runs `dbt debug` in-process, which spawns `git --help`: that real
+# git process leaves its own `shim.git` row (targets []) just before mf's.
+DEFAULT_BINARIES = ("duckdb", "dbt", "python", "python3", "git", "tabcmd", "mf")
 
 CMD_TEMPLATE = """@echo off
 "{interpreter}" -m alkera_gateway.native.shims.run {name} %*

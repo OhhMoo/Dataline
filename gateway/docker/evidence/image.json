@@ -1,11 +1,13 @@
 {
-  "generated": "2026-09-27T20:10:14+00:00",
-  "head_revision": "65a280a6be3cc8dfb146547cede56fa5bf217dda",
-  "image_id": "e693634c2b88e5adebd884d920c81f39c9d722d65d58b4ed85898a4dd76d1d85",
+  "architecture": "amd64",
+  "generated": "2026-10-06T04:06:14+00:00",
+  "head_revision": "9c08ad9907756792f85c1a5d493d37797b333daf",
+  "image_id": "sha256:cce099711f31fbc282615c139ae4fdf4fdfa2e9a2a9cfc6471e490871f191770",
   "labels": {
-    "io.buildah.version": "1.43.4",
-    "org.alkera.source.overlay": "d82ed261db9db72284ca6ccd8878a7a9a0e934f71777a6d3932cdb7a947ec447",
-    "org.alkera.source.revision": "65a280a6be3cc8dfb146547cede56fa5bf217dda"
+    "org.alkera.source.overlay": "a990d7308ab00b3f173bdd6405d0b918458617c9beaf551bfac67f6e63381e50",
+    "org.alkera.source.revision": "9c08ad9907756792f85c1a5d493d37797b333daf",
+    "org.alkera.toolbelt": "da",
+    "org.alkera.warehouse_clients": "snowflake"
   },
   "measured_inside_container": {
     "binaries": [
@@ -497,7 +499,7 @@
         ],
         "binary": "aws",
         "exit": 0,
-        "first_line": "aws-cli/1.46.1 Python/3.11.16 Linux/7.2.7-200.fc44.x86_64 botocore/1.43.62",
+        "first_line": "aws-cli/1.46.1 Python/3.11.16 Linux/7.0.0-1006-aws botocore/1.43.62",
         "ok": true,
         "path": "/opt/toolbelt/bin/aws",
         "reason": null
@@ -521,7 +523,7 @@
         ],
         "binary": "csvlook",
         "exit": 0,
-        "first_line": "csvlook 2.2.0",
+        "first_line": "csvlook 2.0.1",
         "ok": true,
         "path": "/opt/toolbelt/bin/csvlook",
         "reason": null
@@ -533,7 +535,7 @@
         ],
         "binary": "csvstat",
         "exit": 0,
-        "first_line": "csvstat 2.2.0",
+        "first_line": "csvstat 2.0.1",
         "ok": true,
         "path": "/opt/toolbelt/bin/csvstat",
         "reason": null
@@ -545,7 +547,7 @@
         ],
         "binary": "in2csv",
         "exit": 0,
-        "first_line": "in2csv 2.2.0",
+        "first_line": "in2csv 2.0.1",
         "ok": true,
         "path": "/opt/toolbelt/bin/in2csv",
         "reason": null
@@ -557,9 +559,33 @@
         ],
         "binary": "csvsql",
         "exit": 0,
-        "first_line": "csvsql 2.2.0",
+        "first_line": "csvsql 2.0.1",
         "ok": true,
         "path": "/opt/toolbelt/bin/csvsql",
+        "reason": null
+      },
+      {
+        "argv": [
+          "tabcmd",
+          "--version"
+        ],
+        "binary": "tabcmd",
+        "exit": 0,
+        "first_line": "Tableau Server Command Line Utility v2.0.21",
+        "ok": true,
+        "path": "/opt/toolbelt/bin/tabcmd",
+        "reason": null
+      },
+      {
+        "argv": [
+          "mf",
+          "--version"
+        ],
+        "binary": "mf",
+        "exit": 0,
+        "first_line": "mf, version 0.15.0",
+        "ok": true,
+        "path": "/opt/toolbelt/bin/mf",
         "reason": null
       },
       {
@@ -605,14 +631,78 @@
         ],
         "binary": "alkera-gateway",
         "exit": 0,
-        "first_line": "usage: alkera-gateway [-h] {serve,call,trace,replay,signals} ...",
+        "first_line": "usage: alkera-gateway [-h] {serve,call,trace,replay,signals,plugs} ...",
         "ok": true,
         "path": "/usr/local/bin/alkera-gateway",
+        "reason": null
+      },
+      {
+        "argv": [
+          "/usr/local/bin/python",
+          "-c",
+          "import pandas, pyarrow, matplotlib, ipykernel, jupyter_client, jupyter_server, nbclient, nbformat, alkera_gateway.native.notebook; print(pandas.__version__)"
+        ],
+        "binary": "/usr/local/bin/python",
+        "exit": 0,
+        "first_line": "3.0.6",
+        "ok": true,
+        "path": "/usr/local/bin/python",
+        "reason": null
+      },
+      {
+        "argv": [
+          "jupyter",
+          "kernelspec",
+          "list"
+        ],
+        "binary": "jupyter",
+        "exit": 0,
+        "first_line": "Available kernels:",
+        "ok": true,
+        "path": "/usr/local/bin/jupyter",
+        "reason": null
+      },
+      {
+        "argv": [
+          "jupyter",
+          "server",
+          "--version"
+        ],
+        "binary": "jupyter",
+        "exit": 0,
+        "first_line": "2.21.1",
+        "ok": true,
+        "path": "/usr/local/bin/jupyter",
+        "reason": null
+      },
+      {
+        "argv": [
+          "jupyter-execute",
+          "--version"
+        ],
+        "binary": "jupyter-execute",
+        "exit": 0,
+        "first_line": "0.11.0",
+        "ok": true,
+        "path": "/usr/local/bin/jupyter-execute",
+        "reason": null
+      },
+      {
+        "argv": [
+          "ipython",
+          "--version"
+        ],
+        "binary": "ipython",
+        "exit": 0,
+        "first_line": "9.17.1",
+        "ok": true,
+        "path": "/usr/local/bin/ipython",
         "reason": null
       }
     ],
     "binaries_failed": [],
     "binaries_ok": [
+      "/usr/local/bin/python",
       "alkera-gateway",
       "awk",
       "aws",
@@ -634,10 +724,15 @@
       "grep",
       "gzip",
       "in2csv",
+      "ipython",
       "jq",
+      "jupyter",
+      "jupyter",
+      "jupyter-execute",
       "less",
       "ls",
       "make",
+      "mf",
       "nano",
       "nc",
       "nslookup",
@@ -656,6 +751,7 @@
       "sqlfluff",
       "ssh",
       "ssh-keygen",
+      "tabcmd",
       "tar",
       "top",
       "tree",
@@ -676,14 +772,71 @@
       }
     },
     "interpreter": "/usr/local/bin/python",
+    "kernelspecs": {
+      "names": [
+        "alkera-python",
+        "python3"
+      ],
+      "reason": null
+    },
     "os_release": "Debian GNU/Linux 13 (trixie)",
     "passed": true,
     "path": "/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/toolbelt/bin",
-    "platform": "Linux-7.2.7-200.fc44.x86_64-x86_64-with-glibc2.41",
+    "platform": "Linux-7.0.0-1006-aws-x86_64-with-glibc2.41",
     "python_not_shadowed": true,
     "python_on_path": "/usr/local/bin/python",
-    "source_revision": "65a280a6be3cc8dfb146547cede56fa5bf217dda",
+    "role_forbidden_present": [],
+    "role_imports": {
+      "alkera_gateway.native.notebook": {
+        "interpreter": "/usr/local/bin/python",
+        "ok": true,
+        "reason": null
+      },
+      "ipykernel": {
+        "interpreter": "/usr/local/bin/python",
+        "ok": true,
+        "reason": null
+      },
+      "jupyter_client": {
+        "interpreter": "/usr/local/bin/python",
+        "ok": true,
+        "reason": null
+      },
+      "jupyter_server": {
+        "interpreter": "/usr/local/bin/python",
+        "ok": true,
+        "reason": null
+      },
+      "matplotlib": {
+        "interpreter": "/usr/local/bin/python",
+        "ok": true,
+        "reason": null
+      },
+      "nbclient": {
+        "interpreter": "/usr/local/bin/python",
+        "ok": true,
+        "reason": null
+      },
+      "nbformat": {
+        "interpreter": "/usr/local/bin/python",
+        "ok": true,
+        "reason": null
+      },
+      "pandas": {
+        "interpreter": "/usr/local/bin/python",
+        "ok": true,
+        "reason": null
+      },
+      "pyarrow": {
+        "interpreter": "/usr/local/bin/python",
+        "ok": true,
+        "reason": null
+      }
+    },
+    "role_imports_failed": [],
+    "source_revision": "9c08ad9907756792f85c1a5d493d37797b333daf",
     "tool_count": 63,
+    "toolbelt_role": "da",
     "tools": [
       "alarms_get",
       "alarms_history",
@@ -762,16 +915,26 @@
       "gateway/docker/acceptance_inside.py",
       "gateway/docker/aws-config",
       "gateway/docker/aws-keys",
+      "gateway/docker/bigquery/README.md",
+      "gateway/docker/bigquery/fetch.py",
       "gateway/docker/build_episode.py",
       "gateway/docker/compose.episode.yml",
       "gateway/docker/compose.native.yml",
       "gateway/docker/compose.subject.yml",
       "gateway/docker/compose.yml",
       "gateway/docker/containment.py",
+      "gateway/docker/jupyter/README.md",
+      "gateway/docker/jupyter/kernels/alkera-python/kernel.json",
+      "gateway/docker/jupyter/launch.py",
       "gateway/docker/ledger_probe.py",
+      "gateway/docker/lock_snowflake_clients.py",
       "gateway/docker/native_episode_probe.py",
       "gateway/docker/native_probe.py",
+      "gateway/docker/native_services.py",
       "gateway/docker/postgres.sql",
+      "gateway/docker/snowflake-clients.in",
+      "gateway/docker/snowflake-clients.overrides",
+      "gateway/docker/snowflake-dev.in",
       "gateway/docker/snowflake.in",
       "gateway/docker/snowflake.lock",
       "gateway/docker/snowflake_acceptance.py",
@@ -781,17 +944,30 @@
       "gateway/docker/subject/bash_env.sh",
       "gateway/docker/subject/egress_proxy.py",
       "gateway/docker/subject/rexec.py",
+      "gateway/docker/toolbelt.arm64.lock",
       "gateway/docker/toolbelt.in",
       "gateway/docker/toolbelt.lock",
       "gateway/docker/toolbelt_acceptance.py",
       "gateway/docker/toolbelt_check.py"
     ],
-    "hash": "d82ed261db9db72284ca6ccd8878a7a9a0e934f71777a6d3932cdb7a947ec447"
+    "hash": "a990d7308ab00b3f173bdd6405d0b918458617c9beaf551bfac67f6e63381e50"
   },
   "repo_digests": [
-    "localhost/alkera-episode@sha256:afcf5093487ead0f133ecdcc873011db40575d3873c92edc9031f018ad381b5a"
+    "alkera-episode@sha256:cce099711f31fbc282615c139ae4fdf4fdfa2e9a2a9cfc6471e490871f191770"
   ],
-  "size_bytes": 1039944181,
-  "source_revision": "65a280a6be3cc8dfb146547cede56fa5bf217dda",
-  "tag": "alkera-episode:head"
+  "size_bytes": 2566328181,
+  "source_revision": "9c08ad9907756792f85c1a5d493d37797b333daf",
+  "tag": "alkera-episode:head-da-snowflake",
+  "toolbelt": {
+    "label": "da",
+    "matches": true,
+    "probe": "da",
+    "requested": "da"
+  },
+  "warehouse_clients": {
+    "label": "snowflake",
+    "requested": [
+      "snowflake"
+    ]
+  }
 }

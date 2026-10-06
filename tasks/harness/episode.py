@@ -297,11 +297,39 @@ def profile_toolbelt(toolbelt: dict, profile=None) -> dict:
             if name not in profile.excluded_tools}
 
 
+def service_state_keys(path: Path, audit_dir: Path) -> dict:
+    """`{"bi_state_dir": <rollout>/service-state/bi}` for a config written into
+    a ROLLOUT directory, `{}` for any other.
+
+    The rollout layout is the one `rollout.py` makes and both host-topology
+    stacks write their config into: `<rollout>/audit/` beside
+    `<rollout>/gateway.json` (mcp) or `<rollout>/native_gateway.json`
+    (native_stack.NativeStack). For exactly that layout the services keep the
+    BI vendors' published state where `bistate.source_for(<rollout>)` stages it
+    from, beside the audit directory rather than in it (bistate.py). Every
+    other caller - a surface probe's scratch config, Harbor's container-path
+    config, a test's - gets the bytes it always got, and GatewayConfig's
+    default (`<audit_dir>/bi`) still applies to it.
+    """
+    rollout = Path(path).resolve().parent
+    audit = Path(audit_dir).resolve()
+    if audit.name != "audit" or audit.parent != rollout:
+        return {}
+    return {"bi_state_dir": str(bistate.source_for(rollout))}
+
+
 def write_gateway_config(path: Path, world: dict, audit_dir: Path,
                          episode_id: str, virtual_time: str, *,
-                         profile: str = "", plugs: dict | None = None) -> Path:
+                         profile: str = "", plugs: dict | None = None,
+                         service_state: bool = False) -> Path:
     """The gateway config. Note what is NOT here: any path under the grading
-    zone. The gateway physically cannot address it."""
+    zone. The gateway physically cannot address it.
+
+    `service_state=True` (the harness's own rollout configs: rollout.py's and
+    native_stack.NativeStack's) moves the services' state beside the audit dir
+    (service_state_keys). ASKED FOR, never inferred from the layout: Harbor's
+    exporter writes gateway.json with an `audit` dir beside it too, and
+    sniffing put a host temp path into the exported config."""
     path.write_text(json.dumps({
         "workspace": world["workspace"],
         "warehouse": world["warehouse"],
@@ -309,6 +337,9 @@ def write_gateway_config(path: Path, world: dict, audit_dir: Path,
         "dashboards": world["dashboards"],
         **_plane_paths(world),
         "audit_dir": str(audit_dir),
+        # the BI vendors' state beside the audit dir, never in it - only when
+        # the caller asks (a rollout directory's config; service_state_keys)
+        **(service_state_keys(path, audit_dir) if service_state else {}),
         "profiles_dir": world["profiles_dir"],
         "world_root": world["world_root"],
         "episode_id": episode_id,
@@ -456,8 +487,9 @@ def grade(spec, world: dict, artifact_path: Path, out_dir: Path,
     """Run the task's hidden grader. AFTER teardown. Never during the episode.
 
     `bi_state_dir` is where this episode's BI vendor services kept their
-    published state; None means the harness default, `<out_dir>/audit/bi`
-    (bistate.py says why that is the same path on every topology)."""
+    published state; None means the harness default,
+    `<out_dir>/service-state/bi` (bistate.py says why that is the same path on
+    every native topology, and why it is no longer under the audit dir)."""
     # The publication ledger moves into the grading zone first
     # (world/README.md#publication-ledger). The grader reads that copy and not
     # <world_root>/var/ledger, for the same reason it reads no other evidence

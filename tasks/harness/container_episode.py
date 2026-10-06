@@ -67,12 +67,14 @@ import shutil
 import socket
 import subprocess
 import sys
+import textwrap
 import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
-import episode          # WORLD_PLANE_KEYS: one list, two topologies
+import bistate  # where the services' own state lives
+import episode  # WORLD_PLANE_KEYS: one list, two topologies
 
 REPO = Path(__file__).resolve().parents[2]
 DOCKER_DIR = REPO / "gateway" / "docker"
@@ -81,6 +83,23 @@ COMPOSE_OVERLAY = DOCKER_DIR / "compose.episode.yml"
 SHIM = Path(__file__).resolve().parent / "container_shim.py"
 
 DEFAULT_IMAGE = "alkera-episode:head"
+
+
+def profile_image(image: str, profile) -> str:
+    """The episode image a profiled task runs on, when `--image` was left at
+    DEFAULT_IMAGE: the profile's role image (`-da`, `-ds`) and `-snowflake` when
+    the warehouse plug needs the Snowflake clients - exactly
+    gateway/docker/build_episode.py's `image_tag` (test_profile_wiring pins the
+    two together). An explicit `--image`, or an unprofiled task, is unchanged.
+    Without this a da task started on the de image, whose jupyter service has
+    no jupyter-server to run."""
+    if profile is None or image != DEFAULT_IMAGE:
+        return image
+    role = profile.name.split("/", 1)[0]
+    suffix = [] if role == "de" else [role]
+    if "snowflake" in profile.slots.get("warehouse", ()):
+        suffix.append("snowflake")
+    return "-".join([image, *suffix])
 SHIM_IN_CONTAINER = "/opt/episode/shim.py"
 CONFIG_IN_CONTAINER = "/opt/episode/gateway.json"
 PROBES_IN_CONTAINER = "/opt/episode/probes.json"
@@ -267,18 +286,26 @@ def selinux_overlay(compose_argv: list[str], env: dict, dest: Path) -> Path | No
 #: back to the operator: their uid under a rootful engine, 0 under a rootless
 #: one. Every file under the binds is given to that id. Errors are expected and
 #: ignored: `/world/var/ledger` is a read-only tmpfs.
-RELEASE_OWNERSHIP = ("for d in /workspace /world /audit; do "
+RELEASE_PATHS = ("/workspace", "/world", "/audit")
+RELEASE_OWNERSHIP = ("for d in " + " ".join(RELEASE_PATHS) + "; do "
                      "[ -e \"$d\" ] && chown -R --reference=/audit \"$d\" 2>/dev/null; "
                      "done; stat -c %u:%g /audit")
+#: native-services' own state directory, inside that container
+#: (compose.native.yml; gateway/docker/native_services.py).
+SERVICE_STATE_IN_SERVICES = "/service-state"
 
 
-def release_ownership(container_id: str) -> dict:
+def release_ownership(container_id: str, *paths: str) -> dict:
     """Give the operator back every file the containers wrote into the binds.
-    A no-op off Linux, where the engine's file sharing already maps owners."""
+    A no-op off Linux, where the engine's file sharing already maps owners.
+    `paths` defaults to the episode's binds; every container this runs in
+    mounts `/audit`, which is the reference owner."""
     if not container_id or not sys.platform.startswith("linux"):
         return {"skipped": True}
+    script = RELEASE_OWNERSHIP if not paths else RELEASE_OWNERSHIP.replace(
+        " ".join(RELEASE_PATHS), " ".join(paths), 1)
     result = _run(["docker", "exec", "-u", "0", container_id, "sh", "-c",
-                   RELEASE_OWNERSHIP], check=False, timeout=900)
+                   script], check=False, timeout=900)
     return {"owner_inside": result.stdout.strip(), "returncode": result.returncode}
 
 
@@ -839,17 +866,30 @@ MOUNTS_OVERLAY_NAME = "compose.native-mounts.yml"
 #: MinIO's port, published on loopback beside the nine so the surface gate's
 #: signed bucket listing has somewhere to go.
 MINIO_PORT = 9000
+#: The static table's backend variables, by the plug that serves them: a
+#: profiled box keeps a group only when its profile plugs that backend
+#: (`profile_variables`). Unprofiled boxes keep all of them, as before.
+BACKEND_ENV = {
+    "postgres": ("PGHOST", "PGPORT", "PGDATABASE", "PGUSER", "PGPASSWORD"),
+    "snowflake": ("SNOWFLAKE_HOST", "SNOWFLAKE_ACCOUNT", "SNOWFLAKE_USER",
+                  "SNOWFLAKE_PASSWORD"),
+    "airflow": ("AIRFLOW_API_URL", "AIRFLOW_USER", "AIRFLOW_PASSWORD"),
+}
+
 #: Each vendor service's variables in the `episode` environment: the URL
 #: `agent_under_test.NATIVE_SERVICES` names, and the fake credentials beside it.
 #:
 #: Two directions. The nine are in compose.native.yml's static environment, and
-#: a profile that excludes one drops all of its variables (`!reset`). The BI
-#: vendors (`agent_under_test.PLUG_SERVICES`) are in NO static file - an
-#: unprofiled stack must not name them - so a profile that plugs one ADDS its
-#: variables, with the values `agent_under_test.plug_service_env` gives for the
-#: `.internal` alias. test_profile_wiring.py fails when a nine-row name is
-#: missing from the static file, when a vendor's name appears in it, or when a
-#: vendor row here is not exactly `plug_service_env`'s keys.
+#: a profile that excludes one drops all of its variables. The BI vendors
+#: (`agent_under_test.PLUG_SERVICES`) are in NO static file - an unprofiled
+#: stack must not name them - so a profile that plugs one ADDS its variables,
+#: with the values `agent_under_test.plug_service_env` gives for the
+#: `.internal` alias. HOW a variable is dropped is `profiled_environment`'s
+#: business (an `!override` of the whole mapping; `VAR: !reset null` was a
+#: no-op on the episode under Compose v5.6). test_profile_wiring.py fails when
+#: a nine-row name is missing from the static file, when a vendor's name
+#: appears in it, or when a vendor row here is not exactly
+#: `plug_service_env`'s keys.
 EPISODE_SERVICE_ENV = {
     "jira":         ("JIRA_URL", "JIRA_USER", "JIRA_API_TOKEN"),
     "slack":        ("SLACK_BASE_URL", "SLACK_BOT_TOKEN"),
@@ -964,6 +1004,117 @@ def warehouse_mounts(world: dict) -> list[str]:
     return sorted(found)
 
 
+#: The variable the episode's own row writers read the world's clock from
+#: (`alkera_gateway.native.audit.virtual_time`: ALKERA_VTS, else the scheduler
+#: state ALKERA_SCHEDULER names, else THIS, else GatewayConfig's literal).
+CLOCK_ENV = "ALKERA_VIRTUAL_TIME"
+#: The Snowflake plug (`NativeContainerEpisode.snowflake_overlay`): where the
+#: world's warehouse files are bound in the `snowflake` service, the trust
+#: bundle its TLS proxy publishes (compose.yml's `snowflaketrust` volume), and
+#: the destination file it counts into until `fold_destinations`.
+SNOWFLAKE_SEED_IN_CONTAINER = "/seed"
+SNOWFLAKE_TRUST = "/etc/alkera/snowflake-tls"
+SNOWFLAKE_BUNDLE = f"{SNOWFLAKE_TRUST}/bundle.pem"
+SNOWFLAKE_DESTINATIONS = "destinations.snowflake.jsonl"
+
+
+def world_clock(world: dict) -> str | None:
+    """The world's virtual clock as the episode starts: `vnow` of the world's
+    own `var/sched/state.json`, else the manifest's `virtual_time`, else None.
+
+    WHY THE OVERLAY CARRIES IT. Every row the PATH shims (episode) and the
+    notebook kernel (jupyter) write is stamped by `native.audit.virtual_time`,
+    which reads `vnow` from the file `ALKERA_SCHEDULER` names. On the host
+    topology that is the world's state file. In these two containers it cannot
+    be: P7 forbids mounting `var/sched` (the scheduler is served at
+    `sched.internal`, and only for a profile that plugs it), so every
+    in-container row fell through to `GatewayConfig().virtual_time`, the literal
+    2026-03-05T09:00:00Z - measured on BI001's world, whose clock is
+    2026-03-02T00:00:00Z (tasks/harness/evidence/bi_e2e_container.json before
+    this). The value is read on the host when the overlay is written, i.e. at
+    the start of the episode. What it does NOT follow: a `./ops/sched trigger`
+    that moves `vnow` during the episode (only a profile with `ops_sched` has
+    one) - rows the services write carry the moved clock, rows the shims write
+    keep the start. A live clock in the box would need a mount P7 forbids.
+    """
+    path = world.get("scheduler")
+    if path:
+        try:
+            vnow = json.loads(Path(path).read_text(encoding="utf-8")).get("vnow")
+        except (OSError, ValueError, AttributeError):
+            vnow = None
+        if isinstance(vnow, str) and vnow:
+            return vnow
+    value = world.get("virtual_time")
+    return value if isinstance(value, str) and value else None
+
+
+class _Tagged:
+    """A compose merge tag (`!override`, `!reset`) read off a static file."""
+
+    def __init__(self, tag: str, value) -> None:
+        self.tag, self.value = tag, value
+
+
+def _compose_yaml(path: Path) -> dict:
+    """A static compose file, with `!override` / `!reset` kept as `_Tagged`."""
+    import yaml
+
+    class Loader(yaml.SafeLoader):
+        pass
+
+    def tagged(loader, suffix, node):
+        if isinstance(node, yaml.SequenceNode):
+            value = loader.construct_sequence(node, deep=True)
+        elif isinstance(node, yaml.MappingNode):
+            value = loader.construct_mapping(node, deep=True)
+        else:
+            value = loader.construct_scalar(node)
+        return _Tagged(suffix, value)
+
+    Loader.add_multi_constructor("!", tagged)
+    return yaml.load(path.read_text(encoding="utf-8"), Loader=Loader) or {}
+
+
+def static_environment(service: str) -> dict[str, str]:
+    """The environment the static files give `service`, merged in the order
+    the native stack layers them (compose.yml, compose.episode.yml,
+    compose.native.yml): what an unprofiled `episode` or `jupyter` runs with
+    before the per-rollout overlay adds its own lines. Interpolations
+    (`${ALKERA_BACKEND:-postgres}`) are kept as written - compose resolves them
+    in the overlay exactly as it does in the static file.
+    """
+    env: dict[str, str] = {}
+    for path in (COMPOSE_BASE, COMPOSE_OVERLAY, NATIVE_OVERLAY):
+        block = ((_compose_yaml(path).get("services") or {}).get(service)
+                 or {}).get("environment")
+        if isinstance(block, _Tagged):
+            # `!override` replaces what the files before it said; `!reset`
+            # empties it.
+            env = {}
+            block = block.value if block.tag == "override" else None
+        if not block:
+            continue
+        if isinstance(block, list):
+            block = dict(item.split("=", 1) if "=" in item else (item, None)
+                         for item in block)
+        for name, value in block.items():
+            if value is None or isinstance(value, (_Tagged, dict, list)):
+                raise ContainerError(
+                    f"{path.name}: {service}.environment.{name} has no literal "
+                    f"value; a profiled overlay restates the whole mapping and "
+                    f"cannot restate that")
+            env[str(name)] = str(value)
+    return env
+
+
+def _env_lines(mapping: dict[str, str]) -> str:
+    """`environment:` entries, one per line, JSON-quoted (a YAML double-quoted
+    scalar: `TABLEAU_SITE: ""` is an empty string and not a null)."""
+    return "".join(f"\n      {name}: {json.dumps(value)}"
+                   for name, value in mapping.items())
+
+
 def image_path(image: str) -> str:
     """The PATH baked into `image`, read off the image rather than assumed.
 
@@ -1010,11 +1161,18 @@ def _git_head() -> str:
     return result.stdout.strip()
 
 
+#: Build evidence (`gateway/docker/evidence/`) is a record ABOUT images, not an
+#: input to them: counting it made every committed build record stale its own
+#: build, so each evidence commit demanded another rebuild (2026-10-04).
+IMAGE_SCOPE = ("gateway", "world", ":(exclude)gateway/docker/evidence")
+
+
 def _image_scope_changed_paths(old: str, new: str) -> list[str]:
-    """Paths under gateway/ or world/ that differ, same scope as image parity."""
+    """Paths under gateway/ or world/ that differ, same scope as image parity
+    (build evidence excluded: IMAGE_SCOPE)."""
     result = subprocess.run(
         ["git", "-C", str(REPO), "diff", "--name-only", old, new,
-         "--", "gateway", "world"],
+         "--", *IMAGE_SCOPE],
         capture_output=True, text=True, encoding="utf-8", errors="replace")
     if result.returncode != 0:
         raise episode.HarnessError(
@@ -1645,6 +1803,12 @@ class NativeContainerEpisode:
     def overlay(self) -> Path:
         return self.container_dir / MOUNTS_OVERLAY_NAME
 
+    @property
+    def service_state_dir(self) -> Path:
+        """`<rollout>/service-state`: native-services' /service-state, the one
+        directory of this stack only that container mounts (bistate.py)."""
+        return bistate.service_state_dir(Path(self.rollout_dir).resolve())
+
     def compose_files(self) -> list[Path]:
         files = [COMPOSE_BASE, COMPOSE_OVERLAY, NATIVE_OVERLAY, self.overlay]
         return files + [SUBJECT_OVERLAY] if self.subject_sandbox else files
@@ -1664,15 +1828,183 @@ class NativeContainerEpisode:
         """The resolved profile, or None. Raises `episode.HarnessError`."""
         return episode.environment_profile(self.profile, self.plugs)
 
+    def snowflake_plugged(self) -> bool:
+        """The profile plugs `warehouse: snowflake`: compose.yml's `snowflake`
+        service (compose profile `snowflake`) runs, seeded from this world's
+        own DuckDB warehouse and auditing every statement (`snowflake_overlay`).
+        Explicit-only: an unprofiled stack never starts it."""
+        profile = self.environment_profile()
+        return profile is not None and "snowflake" in profile.slots.get("warehouse", ())
+
+    def snowflake_overlay(self, clock: str | None) -> str:
+        """The `snowflake` service for this rollout, "" when it is not plugged.
+
+        Built from Dockerfile.snowflake on THIS episode's image (`BASE`), so the
+        proxy runs the alkera_gateway every other service of the stack runs.
+        It mounts the rollout's audit directory (one 9.2.2 row per statement,
+        destinations counted into its own file, folded in by `down`) and the
+        world's warehouse FILES read-only under /seed, which
+        snowflake_start.seed copies into fakesnow before the first login.
+        Readiness is read from /proc/net/tcp (8443 = 0x20FB in LISTEN), never
+        dialled, for the reason native-services' healthcheck gives.
+        """
+        if not self.snowflake_plugged():
+            return ""
+        audit = Path(self.audit_dir).resolve().as_posix()
+        seeds = "\n".join(
+            f'      - "{(self.world_root / rel).as_posix()}:'
+            f'{SNOWFLAKE_SEED_IN_CONTAINER}/{Path(rel).name}:ro"'
+            for rel in self.warehouses)
+        tag = self.image.rsplit(":", 1)
+        image = f"alkera-snowflake:native-{tag[1] if len(tag) == 2 else 'latest'}"
+        env = {"ALKERA_NATIVE_AUDIT": "/audit/actions.jsonl",
+               "ALKERA_SNOWFLAKE_SEED": SNOWFLAKE_SEED_IN_CONTAINER,
+               "ALKERA_SNOWFLAKE_DESTINATIONS": f"/audit/{SNOWFLAKE_DESTINATIONS}",
+               # The proxy's own statement log, in the service's private volume
+               # (never /audit): the per-statement record the audit rows are
+               # checked 1:1 against (snowflake_e2e_check).
+               "ALKERA_SNOWFLAKE_STATEMENT_LOG": "/snowflake-data/statements.jsonl",
+               **({CLOCK_ENV: clock} if clock else {})}
+        return f"""
+# WAREHOUSE PLUG snowflake: compose.yml's `snowflake` service (compose profile
+# `snowflake`, enabled by compose_env), reachable as snowflake.internal:8443
+# (compose.native.yml), seeded from this world's warehouse and audited.
+  snowflake:
+    image: {image}
+    # Always built (layer-cached): the service runs this working tree's
+    # snowflake_start.py, never a stale image of an older one.
+    pull_policy: build
+    build:
+      args:
+        BASE: {self.image}
+    stop_grace_period: 2s
+    environment:{_env_lines(env)}
+    volumes:
+      - "{audit}:/audit"
+{seeds}
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/python", "-c",
+             "import pathlib,sys;sys.exit(0 if any(f[1].endswith(':20FB') and f[3]=='0A' for f in (l.split() for l in pathlib.Path('/proc/net/tcp').read_text().splitlines()[1:])) else 1)"]
+      interval: 2s
+      timeout: 5s
+      retries: 90
+      start_period: 5s
+"""
+
+    def fold_destinations(self) -> list[dict]:
+        """Merge the snowflake service's destination counts into
+        destinations.jsonl, by (host, port). native-services rewrites that file
+        whole on every accept, so the second writer keeps its own file until
+        the episode is over; this is the one place they become one log."""
+        audit = Path(self.audit_dir)
+        extra = audit / SNOWFLAKE_DESTINATIONS
+        if not extra.is_file():
+            return []
+        main = audit / "destinations.jsonl"
+        rows = {}
+        for source in (main, extra):
+            if source.is_file():
+                for line in source.read_text(encoding="utf-8").splitlines():
+                    if line.strip():
+                        row = json.loads(line)
+                        rows[(row.get("host"), row.get("port"))] = row
+        folded = [rows[key] for key in sorted(rows, key=lambda k: (str(k[0]), k[1] or 0))]
+        # Replaced, not rewritten in place: the file is native-services' (root
+        # inside its container), the directory is the operator's.
+        tmp = main.with_name(main.name + ".fold")
+        tmp.write_text("".join(json.dumps(r, sort_keys=True, separators=(",", ":")) + "\n"
+                               for r in folded), encoding="utf-8")
+        os.replace(tmp, main)
+        return folded
+
     def notebook_plugged(self) -> bool:
         """The profile plugs the notebook slot: compose.native.yml's `jupyter`
         service (profile `notebook`) runs, and the episode is told where."""
         profile = self.environment_profile()
         return profile is not None and "notebook" in profile.slots
 
-    def profile_overlay(self) -> tuple[str, str]:
-        """The overlay's profile sections, `("", "")` for an unprofiled task:
-        lines for the `episode` service's environment, and the services after it.
+    def profile_variables(self) -> tuple[list[str], dict[str, str]] | None:
+        """`(dropped, added)` for a profiled task, None for an unprofiled one.
+
+        `dropped` are the static table's variables for what the profile
+        EXCLUDES: every variable of an excluded one of the nine, `SCHED_URL`
+        unless the orchestrator plugs `ops_sched`, the four `AWS_*` unless the
+        object store is plugged - so nothing in the environment names an
+        address that does not resolve. `added` are a plugged BI vendor's
+        (`agent_under_test.plug_service_env` at its `.internal` alias), which no
+        static file names because the static file is the unprofiled box.
+        """
+        profile = self.environment_profile()
+        if profile is None:
+            return None
+        import agent_under_test as aut
+
+        with_sched = "ops_sched" in profile.slots.get("orchestrator", ())
+        with_store = "object_store" in profile.slots
+        dropped = [var for name in aut.NATIVE_SERVICES
+                   if name not in profile.services
+                   for var in EPISODE_SERVICE_ENV[name]]
+        if not with_sched:
+            dropped.append("SCHED_URL")
+        if not with_store:
+            dropped += ["AWS_ENDPOINT_URL", "AWS_ACCESS_KEY_ID",
+                        "AWS_SECRET_ACCESS_KEY", "AWS_DEFAULT_REGION"]
+        # The backends follow the profile's PLUGS, as the world's own discovery
+        # files do (world/native_workspace.py): a DuckDB box gets no PG*, no
+        # SNOWFLAKE_*, and no AIRFLOW_* unless Airflow is its orchestrator.
+        warehouses = set(profile.slots.get("warehouse", ()))
+        for plug, names in BACKEND_ENV.items():
+            slot = "orchestrator" if plug == "airflow" else "warehouse"
+            plugged = profile.slots.get(slot, ()) if slot != "warehouse" else warehouses
+            if plug not in plugged:
+                dropped += list(names)
+        added: dict[str, str] = {}
+        if "snowflake" in warehouses:
+            # The connector (and dbt-snowflake through it) verifies the proxy's
+            # certificate against this bundle: certifi plus the local CA.
+            added["REQUESTS_CA_BUNDLE"] = SNOWFLAKE_BUNDLE
+        for name in profile.services:
+            if name in aut.PLUG_SERVICES:
+                port = aut.PLUG_SERVICES[name][1]
+                added.update(aut.plug_service_env(
+                    name, f"http://{name}.internal:{port}"))
+        return dropped, added
+
+    def profiled_environment(self, service: str, own: dict[str, str]) -> str:
+        """`service`'s COMPLETE environment under the profile, as overlay text.
+
+        `environment: !override` and every variable restated: the overlay's own
+        lines (`own`), then the static table (`static_environment`) minus
+        `dropped`, then `added`. A merge cannot take a key away: `VAR: !reset
+        null` lines were the mechanism until 2026-10-04 and `docker compose
+        config` on Compose v5.6.0 measured them doing nothing on the episode -
+        SCHED_URL, METABASE_URL, PROMETHEUS_URL, AWS_ENDPOINT_URL ... all still
+        set for a da/laptop box whose network resolves none of them.
+        `!override` (Compose >= 2.24, which the README already requires) is the
+        one form that works on both, and `docker compose config` is how it was
+        checked. An unprofiled overlay never takes this path, so its bytes are
+        the plain merge they always were.
+        """
+        dropped, added = self.profile_variables()
+        static = static_environment(service)
+        kept = {k: v for k, v in static.items() if k not in dropped and k not in own}
+        plugged = {k: v for k, v in added.items() if k not in own and k not in kept}
+        gone = sorted(set(dropped) & set(static))
+        note = textwrap.wrap(
+            "the static table (compose.yml + compose.native.yml) minus what the "
+            "profile excludes: " + (", ".join(gone) or "nothing"), 70)
+        lines = ["    # ENVIRONMENT PROFILE: the complete mapping, not a merge",
+                 "    # (container_episode.profiled_environment).",
+                 "    environment: !override"]
+        text = "\n".join(lines) + _env_lines(own)
+        text += "".join(f"\n      # {line}" for line in note) + _env_lines(kept)
+        if plugged:
+            text += "\n      # what the profile plugs" + _env_lines(plugged)
+        return text
+
+    def profile_overlay(self) -> str:
+        """The services after `episode` for a profiled task, "" for an
+        unprofiled one.
 
         An excluded service must not RESOLVE on episode_net, not merely answer
         404 from a native-services process that did not mount it, so the alias
@@ -1680,19 +2012,17 @@ class NativeContainerEpisode:
         stays only when the orchestrator plugs `ops_sched`, `minio.internal`
         only when the object store is plugged (MinIO keeps running: the episode
         `depends_on` it, and dropping the alias is what takes it off the
-        network the episode sees). The episode's endpoint variables for the
-        same services are dropped (`!reset`), so nothing in its environment
-        names an address that does not exist.
+        network the episode sees). The environment that matches is
+        `profiled_environment`'s.
 
         A plugged BI vendor (`agent_under_test.PLUG_SERVICES`) goes the other
-        way: its alias is ADDED to the replaced list and its variables are
-        ADDED to the environment lines, because compose.native.yml names no
-        vendor at all - the static file is the unprofiled box. The same lines go
-        to `jupyter` when the notebook is plugged (`write_overlay`).
+        way: its alias is ADDED to the replaced list, because
+        compose.native.yml names no vendor at all - the static file is the
+        unprofiled box.
         """
         profile = self.environment_profile()
         if profile is None:
-            return "", ""
+            return ""
         import agent_under_test as aut
 
         with_sched = "ops_sched" in profile.slots.get("orchestrator", ())
@@ -1703,24 +2033,7 @@ class NativeContainerEpisode:
                      if name in aut.NATIVE_SERVICES or name in vendors)]
         if with_sched:
             aliases.append("sched.internal")
-        dropped = [var for name in aut.NATIVE_SERVICES
-                   if name not in profile.services
-                   for var in EPISODE_SERVICE_ENV[name]]
-        if not with_sched:
-            dropped.append("SCHED_URL")
-        if not with_store:
-            dropped += ["AWS_ENDPOINT_URL", "AWS_ACCESS_KEY_ID",
-                        "AWS_SECRET_ACCESS_KEY", "AWS_DEFAULT_REGION"]
-        added = {}
-        for name in vendors:
-            port = aut.PLUG_SERVICES[name][1]
-            added.update(aut.plug_service_env(name, f"http://{name}.internal:{port}"))
         alias_lines = "\n".join(f"          - {a}" for a in aliases)
-        resets = "".join(f"\n      {var}: !reset null" for var in dropped)
-        # JSON-quoted: a YAML double-quoted scalar, and `TABLEAU_SITE: ""` is
-        # an empty string rather than a null.
-        resets += "".join(f"\n      {var}: {json.dumps(value)}"
-                          for var, value in added.items())
         body = f"""
 # ENVIRONMENT PROFILE {profile.name} (plugs: {json.dumps(self.plugs, sort_keys=True)}).
 # native-services runs with --profile (ALKERA_NATIVE_PROFILE_ARGS), and the
@@ -1738,10 +2051,12 @@ class NativeContainerEpisode:
       episode_net:
         aliases: !reset []
 """
-        return resets, body
+        return body
 
     def write_overlay(self) -> Path:
-        """The per-rollout overlay: warehouse binds, shim PATH, published ports.
+        """The per-rollout overlay: warehouse binds, shim PATH, the world's
+        clock, and - under an environment profile - the profile's network and
+        environment.
 
         Written as text rather than through a YAML library so that what a
         reviewer reads in the rollout directory is what compose read, comments
@@ -1753,26 +2068,43 @@ class NativeContainerEpisode:
                 f"the world at {self.world_root} declares no warehouse file "
                 f"under {WAREHOUSE_REL_DIR}/; with nothing to mount the episode "
                 f"container would have no warehouse at all")
-        path_value = f"{SHIMS_IN_CONTAINER}:{image_path(self.image)}"
-        variant = "".join(f'\n      {name}: "{value}"'
-                          for name, value in sorted(self.variant_env().items()))
-        resets, profiled = self.profile_overlay()
         notebook = self.notebook_plugged()
-        jupyter_url = ('\n      JUPYTER_URL: "http://jupyter.internal:8888"'
-                       if notebook else "")
+        clock = world_clock(self.world)
         # The shim watches the same files it cannot see through the workspace
         # snapshot, so a `dbt build` that rewrites a warehouse names it
         # (shims/run.py ALKERA_SHIM_WATCH; blindness.UNSCOPED_WAREHOUSE_SHIMS).
         watch = ":".join(f"{WORLD_IN_CONTAINER}/{rel}" for rel in self.warehouses)
+        # The overlay's own variables, for the episode and (minus JUPYTER_URL)
+        # for jupyter, in the order they have always been written.
+        own = {"PATH": f"{SHIMS_IN_CONTAINER}:{image_path(self.image)}",
+               "ALKERA_SHIM_BIN": SHIMS_IN_CONTAINER,
+               "ALKERA_SHIM_WATCH": watch,
+               "ALKERA_SHIM_WORKSPACE": WORKSPACE_IN_CONTAINER,
+               "ALKERA_WORKSPACE": WORKSPACE_IN_CONTAINER,
+               **({CLOCK_ENV: clock} if clock else {}),
+               **dict(sorted(self.variant_env().items()))}
+        episode_own = {**own, **({"JUPYTER_URL": "http://jupyter.internal:8888"}
+                                 if notebook else {})}
+        profiled = self.environment_profile() is not None
+
+        def environment(service: str, mapping: dict[str, str]) -> str:
+            if profiled:
+                return self.profiled_environment(service, mapping)
+            return "    environment:" + _env_lines(mapping)
+
         binds = "\n".join(
             f'      - "{(self.world_root / rel).as_posix()}:'
             f'{WORLD_IN_CONTAINER}/{rel}"'
             for rel in self.warehouses)
+        snowflake = self.snowflake_plugged()
+        if snowflake:
+            # Public certificates only (the key stays in the snowflake service).
+            binds += f"\n      - snowflaketrust:{SNOWFLAKE_TRUST}:ro"
         body = f"""# Generated per rollout by tasks/harness/container_episode.py. Do not edit:
 # it is rewritten on every `up()` and is kept here as the record of which host
 # files this episode's container could see.
 #
-# Two things compose.native.yml cannot say statically:
+# Three things compose.native.yml cannot say statically:
 #
 #   1. THE WAREHOUSE FILES. Their names and their number come from the world
 #      this rollout built ({len(self.warehouses)} here), read by the same rule
@@ -1786,6 +2118,10 @@ class NativeContainerEpisode:
 #      survives; `ALKERA_TASK_VARIANT` appears only when this world was built
 #      from an arm, because an empty value is still a value to
 #      `taskspec.requested_variant`.
+#   3. THE WORLD'S CLOCK. `{CLOCK_ENV}` is this world's `vnow` as the
+#      episode starts, so the rows the shims and the notebook kernel write
+#      carry the world's time and not GatewayConfig's literal: `var/sched`,
+#      where the host topology reads it, is not mounted here (P7).
 #
 # NOT here, and it was here for one afternoon: published host ports. Both
 # compose networks are `internal: true`, and Docker cannot publish a host port
@@ -1798,31 +2134,24 @@ class NativeContainerEpisode:
 # in the project.
 services:
   episode:
-    environment:
-      PATH: "{path_value}"
-      ALKERA_SHIM_BIN: "{SHIMS_IN_CONTAINER}"
-      ALKERA_SHIM_WATCH: "{watch}"
-      ALKERA_SHIM_WORKSPACE: "{WORKSPACE_IN_CONTAINER}"
-      ALKERA_WORKSPACE: "{WORKSPACE_IN_CONTAINER}"{variant}{jupyter_url}{resets}
+{environment("episode", episode_own)}
     volumes:
 {binds}
-""" + profiled
+""" + ("""    depends_on:
+      snowflake:
+        condition: service_healthy
+""" if snowflake else "") + self.profile_overlay() + self.snowflake_overlay(clock)
         if notebook:
             # The kernel is the agent's own interpreter in a second container,
             # so it gets the box the shell gets: the shim PATH (a `!duckdb` in a
             # cell is audited by the same shim), the watch list (a cell that
             # rewrites a warehouse through the `duckdb` library names it), the
-            # warehouse FILE binds and the same endpoint resets.
+            # world's clock, the warehouse FILE binds and the same profile.
             body += f"""
 # NOTEBOOK PLUG: the `jupyter` service (compose profile `notebook`, enabled by
 # compose_env) sees exactly what the episode sees.
   jupyter:
-    environment:
-      PATH: "{path_value}"
-      ALKERA_SHIM_BIN: "{SHIMS_IN_CONTAINER}"
-      ALKERA_SHIM_WATCH: "{watch}"
-      ALKERA_SHIM_WORKSPACE: "{WORKSPACE_IN_CONTAINER}"
-      ALKERA_WORKSPACE: "{WORKSPACE_IN_CONTAINER}"{variant}{resets}
+{environment("jupyter", own)}
     volumes:
 {binds}
 """
@@ -1837,6 +2166,10 @@ services:
             **os.environ,
             "ALKERA_EPISODE_WORLD": self.world_root.as_posix(),
             "ALKERA_EPISODE_AUDIT": Path(self.audit_dir).resolve().as_posix(),
+            # native-services' own state (the BI vendors' published content,
+            # the config the services read): mounted into that service ONLY,
+            # and where bistate.source_for stages `{bi_state}` from.
+            "ALKERA_EPISODE_SERVICE_STATE": self.service_state_dir.as_posix(),
             "ALKERA_EPISODE_IMAGE": self.image,
             "ALKERA_SUBJECT_IMAGE": self.subject_image,
             "ALKERA_REXEC_TOKEN": self.rexec_token,
@@ -1849,9 +2182,14 @@ services:
             # compose profile `notebook` starts the `jupyter` service; set only
             # when the environment profile plugs it, appended to whatever the
             # caller's shell already enables.
+            # compose profile `snowflake` starts the Snowflake service the
+            # same way, for a profile whose warehouse slot plugs it.
             **({"COMPOSE_PROFILES": ",".join(
                 [p for p in os.environ.get("COMPOSE_PROFILES", "").split(",") if p]
-                + ["notebook"])} if self.notebook_plugged() else {}),
+                + [name for name, on in (("notebook", self.notebook_plugged()),
+                                         ("snowflake", self.snowflake_plugged()))
+                   if on])}
+               if self.notebook_plugged() or self.snowflake_plugged() else {}),
         }
 
     def _compose(self, *args, check: bool = True, timeout: int = 900):
@@ -1876,6 +2214,9 @@ services:
 
     def up(self) -> str:
         Path(self.audit_dir).mkdir(parents=True, exist_ok=True)
+        # Made here, by the operator, so the bind source is theirs and not a
+        # directory the engine creates as root.
+        self.service_state_dir.mkdir(parents=True, exist_ok=True)
         self.write_overlay()
         self._up = True
         self._compose("up", "-d", "--wait", timeout=1200)
@@ -1927,8 +2268,17 @@ services:
             (self.container_dir / "egress.jsonl").write_text(
                 logs.stdout, encoding="utf-8")
         self.ownership = release_ownership(self.container_id)
+        # The services' own state is written by native-services as ITS root,
+        # and the episode does not mount it, so its files are handed back from
+        # there: the grader stages them as the operator after teardown.
+        self.ownership_service_state = release_ownership(
+            self.services_container, SERVICE_STATE_IN_SERVICES)
         self._compose("down", "-v", "-t", "2", "--remove-orphans",
                       check=False, timeout=300)
+        # AFTER down: native-services rewrites destinations.jsonl once more
+        # from its signal handler, so a fold before it would be overwritten.
+        if self.snowflake_plugged():
+            self.destinations_folded = self.fold_destinations()
         self._up = False
 
     def exec_(self, argv: list[str], *, check: bool = True, timeout: int = 300,
@@ -2220,19 +2570,28 @@ services:
         which `gateway/docker/containment.py --native-episode` also runs, so a
         rollout's evidence and the repository's evidence file are the same
         measurement rather than two that resemble each other.
-        """
-        import agent_under_test as aut
 
-        endpoints = self.episode_endpoints()
-        spec = _native_probe().spec(
+        Profile-aware, by the probe's own `expectations` (serve.py's rules):
+        every service this box serves - the nine or the profile's own, plugged
+        BI vendors included - must answer; every one it excludes must not even
+        resolve; the scheduler plane is asked for jobs only when `ops_sched` is
+        plugged, and otherwise its check is recorded as not applicable WITH the
+        reason and `sched.internal` joins the must-not-resolve list. Plus the
+        services' own state (question H): not mounted in this container, and -
+        read off `docker inspect` of the whole project - mounted read-write in
+        native-services and in no other container
+        (`services_state_is_mounted_only_in_native_services`).
+        """
+        probe = _native_probe()
+        expected = probe.expectations(self.profile or None, self.plugs)
+        spec = probe.spec(
             warehouses=self.warehouses,
-            # The nine vendor services AND the scheduler plane: P7's question E
-            # is about every address the episode is expected to reach, and the
-            # scheduler is the one whose files this topology does not mount.
-            services={name: endpoints[name]
-                      for name in sorted({**aut.NATIVE_SERVICES,
-                                          **aut.NATIVE_WORKSPACE_SERVICES})
-                      if name in endpoints},
+            services=expected["services"],
+            excluded=expected["excluded"],
+            scheduler=expected["scheduler"],
+            not_applicable=expected["not_applicable"],
+            service_state={"targets": [SERVICE_STATE_IN_SERVICES],
+                           "roots": [self.service_state_dir.as_posix()]},
             forbidden_files=[
                 Path(grading, "manifest.yaml").as_posix(),
                 Path(grading, "expected.duckdb").as_posix()],
@@ -2242,8 +2601,14 @@ services:
                         REPO.as_posix(), "/c", "/host_mnt", "/mnt/c"],
             canaries=canaries,
             repo_root=REPO)
-        evidence = _native_probe().run(self.container_id, spec)
-        _scheduler_not_served(evidence, endpoints, self.profile)
+        evidence = probe.run(self.container_id, spec)
+        isolation = probe.service_state_isolation(self._project_specs(),
+                                                  self.service_state_dir)
+        evidence["service_state_mounts"] = isolation
+        evidence.setdefault("checks", {})[SERVICE_STATE_STACK_CHECK] = \
+            isolation["isolated"]
+        evidence["contained"] = all(evidence["checks"].values())
+        evidence["expectations"] = expected
         evidence["when"] = when
         evidence["probe_source"] = ("stdin to `python -`; never written to the "
                                     "container disk")
@@ -2252,6 +2617,13 @@ services:
         evidence["container_id"] = self.container_id[:12]
         evidence["services_live"] = self.services
         return evidence
+
+    def _project_specs(self) -> list[dict]:
+        """`docker inspect` of every container in this compose project."""
+        ids = _run(["docker", "ps", "-q", "--filter",
+                    f"label=com.docker.compose.project={self.project}"],
+                   check=False).stdout.split()
+        return [json.loads(_run(["docker", "inspect", cid]).stdout)[0] for cid in ids]
 
     def record(self) -> dict:
         """What the rollout record carries about this stack."""
@@ -2288,36 +2660,17 @@ def _interpreter() -> Path:
     return episode.PY
 
 
-#: P7's scheduler check, and why it can be not-applicable (see below).
+#: P7's scheduler check (`native_episode_probe.SCHEDULER_CHECK`). On a box
+#: whose profile plugs no `ops_sched` it is not asked: the probe records it
+#: under `checks_not_applicable` with the reason and asserts instead that
+#: `sched.internal` does not resolve (`native_episode_probe.expectations`).
+#: Until 2026-10-04 the harness popped it AFTER the probe had answered False
+#: (`_scheduler_not_served`), which recorded the omission but asserted nothing
+#: in its place; an orchestrator-plugging or unprofiled box was never affected
+#: and still is not.
 SCHEDULER_CHECK = "the_scheduler_plane_answers_with_jobs"
-
-
-def _scheduler_not_served(evidence: dict, endpoints: dict, profile: str) -> dict:
-    """Mark P7's scheduler check not-applicable when this episode serves no
-    scheduler plane, and recompute `contained` without it. Returns evidence.
-
-    P7 asks `sched.internal` for its jobs because the container does not mount
-    `var/sched`, so without the plane "a task needing sched_* could not be
-    measured here". An environment profile that plugs no `orchestrator` slot
-    (every `da/*` box) is served WITHOUT that plane on purpose - `serve.py
-    --profile` drops it and `agent_under_test.profile_endpoints` leaves `sched`
-    out of the episode's map - so the check reads False on a container that is
-    perfectly contained, and every such rollout quarantined as `unobserved`
-    (measured 2026-10-04, BI001 on da/laptop, every other P7 check true).
-    Only that case is changed: the plane absent from the episode's endpoint
-    map AND the check False. Every other check, and every unprofiled or
-    orchestrator-plugging stack, is exactly as the probe reported it.
-    """
-    checks = evidence.get("checks")
-    if (not isinstance(checks, dict) or "sched" in endpoints
-            or checks.get(SCHEDULER_CHECK) is not False):
-        return evidence
-    checks.pop(SCHEDULER_CHECK)
-    evidence.setdefault("checks_not_applicable", {})[SCHEDULER_CHECK] = (
-        f"profile {profile or '(none)'!r} plugs no orchestrator slot: the episode "
-        f"is served no scheduler plane, so there is none to answer")
-    evidence["contained"] = all(checks.values())
-    return evidence
+#: The stack half of P7's question H, added to `checks` by `containment_probe`.
+SERVICE_STATE_STACK_CHECK = "services_state_is_mounted_only_in_native_services"
 
 
 def _native_probe():
@@ -2385,6 +2738,10 @@ def _native_cli(argv: list[str] | None = None) -> int:
         one.add_argument("--task", default="GT001-aov-halving")
         one.add_argument("--tasks-dir", default=None)
         one.add_argument("--image", default=DEFAULT_IMAGE)
+        one.add_argument("--skip-prepare", action="store_true",
+                         help="do not run the builder's --prepare-only first: "
+                              "rollout.py never does, and a builder without that "
+                              "mode (BI001's) refuses it")
     args = parser.parse_args(argv)
 
     import taskspec
@@ -2395,7 +2752,8 @@ def _native_cli(argv: list[str] | None = None) -> int:
     manifest = root / "world.json"
     if args.mode == "native-up":
         root.mkdir(parents=True, exist_ok=True)
-        episode.prepare_task(spec)
+        if not args.skip_prepare:
+            episode.prepare_task(spec)
         world = episode.build_world(spec, root / "world", root / "grading")
         manifest.write_text(json.dumps(world, indent=2), encoding="utf-8")
     elif not manifest.is_file():
@@ -2403,11 +2761,25 @@ def _native_cli(argv: list[str] | None = None) -> int:
     else:
         world = json.loads(manifest.read_text(encoding="utf-8"))
 
+    # The task's own environment profile and arm, exactly as rollout.py builds
+    # the stack: P7 on a profiled task (BI001's da/laptop + three BI vendors)
+    # is a claim about the box that task is served, not the unprofiled one.
     stack = NativeContainerEpisode(
         project=args.project, world=world, audit_dir=root / "audit",
-        rollout_dir=root, image=args.image)
+        rollout_dir=root, image=args.image, variant=spec.variant or "",
+        profile=getattr(spec, "profile", "") or "",
+        plugs=dict(getattr(spec, "plugs", None) or {}))
     if args.mode == "native-down":
         stack._up = True                      # `down` on a stack this process did not start
+        # ...whose container ids this process never learned. Found by compose
+        # label, so `down` can hand the operator back what the episode and
+        # native-services wrote into the binds as root.
+        for spec in stack._project_specs():
+            service = spec["Config"]["Labels"].get("com.docker.compose.service")
+            if service == "episode":
+                stack.container_id = spec["Id"]
+            elif service == "native-services":
+                stack.services_container = spec["Id"]
         stack.down()
         print(json.dumps({"project": args.project, "state": "down"}, indent=2))
         return 0

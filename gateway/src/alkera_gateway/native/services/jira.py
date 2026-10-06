@@ -1,4 +1,17 @@
-"""Jira Cloud REST v3 - the subset a data engineer's morning needs.
+"""Jira Cloud REST v3 and v2 - the subset a data engineer's morning needs.
+
+Every route is served under `/rest/api/3`, `/rest/api/2` and `/rest/api/latest`,
+because real Jira Cloud serves all three: "Version 2 and 3 of the API offer the
+same collection of operations. However, version 3 provides support for the
+Atlassian Document Format (ADF)" (developer.atlassian.com/cloud/jira/platform/
+rest/v2/intro/, "Version"), and "`latest` is an alias for version `2` for all
+Jira Cloud customers" (Atlassian staff, community.developer.atlassian.com/t/
+jira-rest-api-version-3-beta/55833, 2022-03-03). So v3 renders an issue's
+description and every comment body as an ADF document and v2/latest render the
+same text as a plain string - the resources, ids and rows are otherwise the
+same. Measured 2026-10-04 (BI001 K=8 Opus run): `curl $JIRA_URL/rest/api/2/
+issue/ANA-241` was the first thing five rollouts tried, and before this it
+404'd, so one agent wrote its own ADF-to-text parser to read a ticket.
 
 Why a fake Jira rather than the `issues_*` tools (gateway/NATIVE.md):
 in native mode nobody hands the agent a tool list. It gets `JIRA_URL` and a
@@ -89,6 +102,31 @@ app = FastAPI(title="Jira Cloud (alkera native surface)", docs_url=None, redoc_u
 # One row per request, including the ones no handler ran for (context.py).
 audit_unrouted(app, NAME)
 
+# The path versions real Jira Cloud answers (the module docstring). Any other
+# `/rest/api/<n>/...` is a 404 here, as it is there.
+VERSIONS = ("3", "2", "latest")
+
+
+def api(method: str, suffix: str, **route):
+    """Register one handler under every version in `VERSIONS`.
+
+    The handler reads which one it was called under from the request path
+    (`api_version`), so the wire format follows the URL the caller chose and
+    the row stays the same row.
+    """
+    def register(handler):
+        for version in VERSIONS:
+            app.add_api_route(f"/rest/api/{version}{suffix}", handler, methods=[method],
+                              **route)
+        return handler
+    return register
+
+
+def api_version(request: Request) -> str:
+    """"3" for a `/rest/api/3/...` request, "2" for `/rest/api/2/...` and for
+    `latest`, which is v2's alias on Cloud."""
+    return "3" if request.url.path.startswith("/rest/api/3/") else "2"
+
 
 # --------------------------------------------------------------------------
 # The caller, and the refusals this app makes in Jira's spelling. The world,
@@ -174,12 +212,24 @@ def adf(text: str) -> dict:
     }
 
 
+def rich(text: str | None, version: str) -> dict | str | None:
+    """A rich-text field (description, a comment body) in `version`'s format.
+
+    v3 is ADF. v2 is the string itself ("plain text / wiki markup"), and an
+    empty description is `null` there, as Jira serves a field nobody filled in.
+    """
+    if version == "3":
+        return adf(text or "")
+    return text or None
+
+
 def plain(body: object) -> str:
     """ADF (or a bare string) -> the text the world stores.
 
     The python `jira` client posts a bare string to the v3 comment endpoint even
     though real Jira Cloud requires ADF there; both are accepted, and
-    HUMAN_PLANE.md records the discrepancy rather than hiding it.
+    HUMAN_PLANE.md records the discrepancy rather than hiding it. A string is
+    what v2 takes, so the same function reads both versions.
     """
     if isinstance(body, str):
         return body
@@ -199,21 +249,22 @@ def category(status: str) -> dict:
     return CATEGORIES["new"]
 
 
-def status_resource(base: str, status: str) -> dict:
+def status_resource(base: str, status: str, version: str = "3") -> dict:
     return {
-        "self": f"{base}/rest/api/3/status/{numeric_id(status)}",
+        "self": f"{base}/rest/api/{version}/status/{numeric_id(status)}",
         "id": numeric_id(status),
         "name": status,
         "statusCategory": category(status),
     }
 
 
-def user_resource(base: str, users: dict, user_id: str | None) -> dict | None:
+def user_resource(base: str, users: dict, user_id: str | None,
+                  version: str = "3") -> dict | None:
     if user_id is None:
         return None
     person = users.get(user_id, {"id": user_id, "name": user_id})
     return {
-        "self": f"{base}/rest/api/3/user?accountId={user_id}",
+        "self": f"{base}/rest/api/{version}/user?accountId={user_id}",
         "accountId": user_id,
         "displayName": person.get("name", user_id),
         "emailAddress": f"{user_id}@alkera.local",
@@ -222,9 +273,9 @@ def user_resource(base: str, users: dict, user_id: str | None) -> dict | None:
     }
 
 
-def project_resource(base: str, project: dict) -> dict:
+def project_resource(base: str, project: dict, version: str = "3") -> dict:
     return {
-        "self": f"{base}/rest/api/3/project/{numeric_id(project['key'])}",
+        "self": f"{base}/rest/api/{version}/project/{numeric_id(project['key'])}",
         "id": numeric_id(project["key"]),
         "key": project["key"],
         "name": project.get("name", project["key"]),
@@ -232,48 +283,59 @@ def project_resource(base: str, project: dict) -> dict:
     }
 
 
-def comment_resource(base: str, issue: str, entry: dict, users: dict) -> dict:
-    author = user_resource(base, users, entry["author"])
+def comment_resource(base: str, issue: str, entry: dict, users: dict,
+                     version: str = "3") -> dict:
+    author = user_resource(base, users, entry["author"], version)
     return {
-        "self": f"{base}/rest/api/3/issue/{issue}/comment/{numeric_id(entry['id'])}",
+        "self": f"{base}/rest/api/{version}/issue/{issue}/comment/{numeric_id(entry['id'])}",
         "id": numeric_id(entry["id"]),
         "author": author,
         "updateAuthor": author,
-        "body": adf(entry["body"]),
+        "body": adf(entry["body"]) if version == "3" else entry["body"],
         "created": stamp(entry["at"]),
         "updated": stamp(entry["at"]),
         "jsdPublic": True,
     }
 
 
-def issue_resource(base: str, full: dict, project: dict, users: dict) -> dict:
-    """One `issues_get` result rendered as a v3 issue."""
+def comment_page(base: str, key: str, entries: list, users: dict, version: str,
+                 start: int = 0, size: int | None = None) -> dict:
+    """The `comment` field of an issue, which is also `GET .../comment`'s body
+    (PageOfComments: startAt, maxResults, total, comments)."""
+    window = entries[start:] if size is None else entries[start:start + size]
+    comments = [comment_resource(base, key, entry, users, version) for entry in window]
+    return {"comments": comments, "maxResults": len(comments) if size is None else size,
+            "total": len(entries), "startAt": start}
+
+
+def issue_resource(base: str, full: dict, project: dict, users: dict,
+                   version: str = "3") -> dict:
+    """One `issues_get` result rendered as a v3 (or v2) issue."""
     key = full["id"]
-    comments = [comment_resource(base, key, entry, users) for entry in full.get("comments", [])]
     return {
         "expand": "renderedFields,names,schema,operations,editmeta,changelog",
         "id": numeric_id(key),
-        "self": f"{base}/rest/api/3/issue/{key}",
+        "self": f"{base}/rest/api/{version}/issue/{key}",
         "key": key,
         "fields": {
             "summary": full["title"],
-            "description": adf(full.get("body", "")),
+            "description": rich(full.get("body", ""), version),
             "issuetype": {"id": "10001", "name": "Task", "subtask": False},
-            "project": project_resource(base, project),
-            "status": status_resource(base, full["status"]),
-            "reporter": user_resource(base, users, full.get("reporter")),
-            "assignee": user_resource(base, users, full.get("assignee")),
+            "project": project_resource(base, project, version),
+            "status": status_resource(base, full["status"], version),
+            "reporter": user_resource(base, users, full.get("reporter"), version),
+            "assignee": user_resource(base, users, full.get("assignee"), version),
             "labels": list(full.get("labels", [])),
             "created": stamp(full.get("created_at")),
             "updated": stamp(full.get("updated_at")),
-            "comment": {"comments": comments, "maxResults": len(comments),
-                        "total": len(comments), "startAt": 0},
-            "issuelinks": [issue_link(base, key, link) for link in full.get("links", [])],
+            "comment": comment_page(base, key, full.get("comments", []), users, version),
+            "issuelinks": [issue_link(base, key, link, version)
+                           for link in full.get("links", [])],
         },
     }
 
 
-def issue_link(base: str, key: str, link: dict) -> dict:
+def issue_link(base: str, key: str, link: dict, version: str = "3") -> dict:
     """One world link as a v3 `issuelinks` entry.
 
     The corpus spells the relation both `type` (the themes, GT001, GT004,
@@ -285,7 +347,7 @@ def issue_link(base: str, key: str, link: dict) -> dict:
     return {"id": numeric_id(f"{key}:{relation}:{link['issue']}"),
             "type": {"name": relation, "inward": relation, "outward": relation},
             "outwardIssue": {"key": link["issue"],
-                             "self": f"{base}/rest/api/3/issue/{link['issue']}"}}
+                             "self": f"{base}/rest/api/{version}/issue/{link['issue']}"}}
 
 
 def unpack(listing: dict) -> tuple[dict, list[str], dict]:
@@ -372,7 +434,8 @@ def parse_jql(text: str) -> dict:
     return query
 
 
-def query_page(log: Ledger, jql: str, start: int, size: int) -> tuple[list, int]:
+def query_page(log: Ledger, jql: str, start: int, size: int,
+               version: str = "3") -> tuple[list, int]:
     """Run a JQL query and render one page of it, paying a row per sub-call.
 
     `issues_list` does the status/assignee/label filtering and `issues_search`
@@ -413,7 +476,7 @@ def query_page(log: Ledger, jql: str, start: int, size: int) -> tuple[list, int]
             # `key=` binds this iteration's id into the call. A lambda that read
             # the loop variable would be a live reference to it (ruff B023).
             full = row.run(lambda ops, obs, key=summary["id"]: ops.issues_get(key, obs))
-        rendered.append(issue_resource(base, full, project, users))
+        rendered.append(issue_resource(base, full, project, users, version))
     return rendered, len(ordered)
 
 
@@ -444,12 +507,12 @@ def health(request: Request) -> object:
     )
 
 
-@app.get("/rest/api/3/serverInfo")
+@api("GET", "/serverInfo")
 def server_info(request: Request) -> dict:
     """What the python `jira` client fetches before anything else.
 
     `deploymentType: Cloud` is the truth about which API shape this is, and it
-    is what routes that client to `/rest/api/3/search/jql`. No MCP tool asks
+    is what routes that client to `/rest/api/<n>/search/jql`. No MCP tool asks
     this question, so the row keeps the vendor name; the question it does ask of
     the world is `issues_list`, for the project title, and that is what
     classifies the row.
@@ -470,7 +533,7 @@ def server_info(request: Request) -> dict:
         }
 
 
-@app.get("/rest/api/3/myself")
+@api("GET", "/myself")
 def myself(request: Request) -> dict:
     """The account the workspace's credentials belong to.
 
@@ -483,10 +546,11 @@ def myself(request: Request) -> dict:
         _, _, users = unpack(row.run(
             lambda ops, obs: ops.issues_list(None, None, None, 0, obs)))
         return user_resource(base_url(request), users,
-                             context_of(request.app).config.workflow_actor)
+                             context_of(request.app).config.workflow_actor,
+                             api_version(request))
 
 
-@app.get("/rest/api/3/field")
+@api("GET", "/field")
 def fields(request: Request) -> list[dict]:
     """The field directory the real client reads before it searches.
 
@@ -515,28 +579,32 @@ def fields(request: Request) -> list[dict]:
     ]
 
 
-@app.get("/rest/api/3/issue/{key}")
+@api("GET", "/issue/{key}")
 def issue_get(key: str, request: Request) -> dict:
-    """GET one issue. The equivalent of `issues_get`, and one row."""
+    """GET one issue. The equivalent of `issues_get`, and one row - under v3
+    with ADF bodies, under v2 and `latest` with plain-text ones."""
     log = Ledger(request, NAME)
     with log.span("issues_get", key=key) as row:
         log.actor = principal(request)
         full = row.run(lambda ops, obs: ops.issues_get(key, obs))
         project, _, users = row.aside(directory)
-        return issue_resource(base_url(request), full, project, users)
+        return issue_resource(base_url(request), full, project, users, api_version(request))
 
 
-@app.get("/rest/api/3/search")
+@api("GET", "/search")
 def search(request: Request, jql: str = "", startAt: int = 0, maxResults: int = 50) -> dict:
-    """The offset-paged search. See `query_page` for what it costs in rows."""
+    """The offset-paged search. See `query_page` for what it costs in rows.
+
+    Atlassian marks it "Currently being removed" (CHANGE-2046) in both
+    versions' OpenAPI documents; it is still listed, so it is still served."""
     log = Ledger(request, NAME)
     size = max(0, min(maxResults, ALL))
-    issues, total = query_page(log, jql, startAt, size)
+    issues, total = query_page(log, jql, startAt, size, api_version(request))
     return {"expand": "names,schema", "startAt": startAt, "maxResults": size,
             "total": total, "issues": issues, "isLast": startAt + len(issues) >= total}
 
 
-@app.get("/rest/api/3/search/jql")
+@api("GET", "/search/jql")
 def search_jql(request: Request, jql: str = "", maxResults: int = 50,
                nextPageToken: str | None = None) -> dict:
     """The token-paged Cloud search, which is where the real client goes.
@@ -554,15 +622,44 @@ def search_jql(request: Request, jql: str = "", maxResults: int = 50,
             log.actor = principal(request)
             raise Refused(400, "invalid_token", "nextPageToken is not a page offset")
     size = max(0, min(maxResults, ALL))
-    issues, total = query_page(log, jql, start, size)
+    issues, total = query_page(log, jql, start, size, api_version(request))
     last = start + len(issues) >= total
     return {"issues": issues, "isLast": last,
             "nextPageToken": None if last else str(start + len(issues))}
 
 
-@app.post("/rest/api/3/issue/{key}/comment", status_code=201)
+@api("GET", "/issue/{key}/comment")
+def issue_comments(key: str, request: Request, startAt: int = 0,
+                   maxResults: int = 5000, orderBy: str | None = None) -> dict:
+    """The issue's comments (PageOfComments), as `GET .../comment` serves them.
+
+    Its one question to the world is the ticket, so the row is an `issues_get`,
+    exactly what `GET /issue/{key}` costs for the same comments. Measured
+    2026-10-04: a BI001 rollout tried it on v3 and got a 405 (only POST was
+    routed). `orderBy` is `created` / `+created` / `-created` and nothing else.
+    """
+    log = Ledger(request, NAME)
+    with log.span("issues_get", key=key, startAt=startAt, maxResults=maxResults,
+                  orderBy=orderBy) as row:
+        log.actor = principal(request)
+        if orderBy not in (None, "created", "+created", "-created"):
+            raise Refused(400, "invalid_order", f"Cannot order comments by {orderBy!r}")
+        if startAt < 0 or maxResults < 0:
+            raise Refused(400, "invalid_page", "startAt and maxResults are not negative")
+        full = row.run(lambda ops, obs: ops.issues_get(key, obs))
+        _, _, users = row.aside(directory)
+        entries = sorted(full.get("comments", []), key=lambda entry: entry["at"],
+                         reverse=orderBy == "-created")
+        return comment_page(base_url(request), key, entries, users, api_version(request),
+                            startAt, maxResults)
+
+
+@api("POST", "/issue/{key}/comment", status_code=201)
 def issue_comment(key: str, payload: dict, request: Request) -> dict:
-    """POST a comment. The equivalent of `issues_comment`: same file, same clock."""
+    """POST a comment. The equivalent of `issues_comment`: same file, same clock.
+
+    v3 takes the body as ADF and v2 as a string; `plain` reads either, so a
+    body in the other version's format is accepted rather than refused."""
     body = plain(payload.get("body"))
     log = Ledger(request, NAME)
     with log.span("issues_comment", key=key, body=body) as row:
@@ -571,10 +668,11 @@ def issue_comment(key: str, payload: dict, request: Request) -> dict:
             raise Refused(400, "invalid_body", "A comment needs a body")
         result = row.run(lambda ops, obs: ops.issues_comment(key, body, obs))
         _, _, users = row.aside(directory)
-        return comment_resource(base_url(request), key, result["comment"], users)
+        return comment_resource(base_url(request), key, result["comment"], users,
+                                api_version(request))
 
 
-@app.get("/rest/api/3/issue/{key}/transitions")
+@api("GET", "/issue/{key}/transitions")
 def transitions_get(key: str, request: Request) -> dict:
     """The statuses this ticket can move to - every other status the world declares.
 
@@ -592,12 +690,12 @@ def transitions_get(key: str, request: Request) -> dict:
         return {"expand": "transitions", "transitions": [
             {"id": str(index + 1), "name": status, "hasScreen": False, "isGlobal": True,
              "isInitial": False, "isAvailable": True, "isConditional": False,
-             "to": status_resource(base, status)}
+             "to": status_resource(base, status, api_version(request))}
             for index, status in enumerate(statuses) if status != full["status"]
         ]}
 
 
-@app.post("/rest/api/3/issue/{key}/transitions", status_code=204)
+@api("POST", "/issue/{key}/transitions", status_code=204)
 def issue_transition(key: str, payload: dict, request: Request) -> Response:
     """Move a ticket. The equivalent of `issues_update` with a status.
 
@@ -621,7 +719,8 @@ def issue_transition(key: str, payload: dict, request: Request) -> Response:
         except (ValueError, IndexError):
             raise Refused(404, "transition_not_found",
                           f"Unknown transition {transition!r}; ask "
-                          f"/rest/api/3/issue/{key}/transitions") from None
+                          f"/rest/api/{api_version(request)}/issue/{key}/transitions"
+                          ) from None
         assignee, unassign = assignee_of(supplied)
         # `issues_update` is what flags a write that changed nothing, so the
         # native row carries `no_change` without this module knowing the word.
@@ -633,7 +732,7 @@ def issue_transition(key: str, payload: dict, request: Request) -> Response:
     return Response(status_code=204)
 
 
-@app.put("/rest/api/3/issue/{key}", status_code=204)
+@api("PUT", "/issue/{key}", status_code=204)
 def issue_update(key: str, payload: dict, request: Request) -> Response:
     """Edit a ticket's assignee or labels. The equivalent of `issues_update`.
 
@@ -653,7 +752,7 @@ def issue_update(key: str, payload: dict, request: Request) -> Response:
         if assignee is None and not unassign and not add and not remove:
             raise Refused(400, "invalid_update",
                           "Name an assignee or some labels; a status moves through "
-                          f"/rest/api/3/issue/{key}/transitions")
+                          f"/rest/api/{api_version(request)}/issue/{key}/transitions")
         row.run(lambda ops, obs: ops.issues_update(
             key, None, assignee, unassign, add, remove, obs))
         return Response(status_code=204)

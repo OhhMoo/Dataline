@@ -498,3 +498,156 @@ def test_each_fault_computes_the_wrong_number_it_is_declared_for(commerce_faulte
     sigma_net, sigma_completed, _aov = kpis["sigma"]["rows"][0]
     assert (sigma_net, sigma_completed) == (with_refunds, right[1])
     assert len({kpis[v]["rows"][0][0] for v in kpis}) == 3, kpis
+
+
+# ======================================================================
+# 6. the Power BI faults: a measure's filter scope, and the world's own
+#    late-extract night written as the import its last refresh loaded
+# ======================================================================
+POWERBI = {**DA, "plugs": {"bi": ["powerbi"]}}
+PBI_FAULTS = ["powerbi_share_scope", "powerbi_stale_import"]
+IMPORT_DIR = Path("var") / "bi" / "powerbi"
+MEASURES = Path("bi") / "powerbi" / "Commerce.SemanticModel" / "definition" / "tables"
+
+
+@pytest.fixture(scope="module")
+def powerbi_worlds(tmp) -> dict[str, Path]:
+    """commerce_analytics on a Power BI box: clean once, both faults twice."""
+    clean = _seed(tmp, "p_clean", COMMERCE_SEED, profile=POWERBI, native=True)
+    faulted = _seed(tmp, "p_faults", COMMERCE_SEED, profile=POWERBI, native=True,
+                    bi_faults=PBI_FAULTS)
+    return {"clean": build.build(clean, tmp / "p_clean"),
+            "faulted": build.build(faulted, tmp / "p_faults_1"),
+            "again": build.build(faulted, tmp / "p_faults_2")}
+
+
+def test_share_scope_moves_one_measure_and_stale_import_no_project_file(powerbi_worlds):
+    clean, faulted = (powerbi_worlds[k] / "workspace" for k in ("clean", "faulted"))
+    a, b = _tree(clean / "bi" / "powerbi"), _tree(faulted / "bi" / "powerbi")
+    assert set(a) == set(b)
+    assert {p for p in a if a[p] != b[p]} == {
+        "Commerce.SemanticModel/definition/tables/Orders.tmdl"}
+    line = next(x for x in (faulted / MEASURES / "Orders.tmdl").read_text().splitlines()
+                if "measure 'Segment Share'" in x)
+    assert "REMOVEFILTERS ( Customer ) )" in line and "Customer[segment]" not in line
+    assert _committed(faulted) >= {f"{MEASURES.as_posix()}/Orders.tmdl"}
+    planted = load_theme("commerce_analytics").gen.bi_projects(
+        {**yaml.safe_load(COMMERCE_SEED.read_text(encoding="utf-8")),
+         "profile": POWERBI, "bi_faults": PBI_FAULTS})
+    got = powerbi.read_project(faulted / "bi" / "powerbi",
+                               warehouse=powerbi_worlds["faulted"] / DB)
+    assert got == planted["powerbi"]
+
+
+def test_share_scope_is_right_unfiltered_and_wrong_under_a_region(powerbi_worlds):
+    from world.semantic.expr import Col, FilterValues
+
+    root = powerbi_worlds["faulted"]
+    clean_model, (report,) = powerbi.read_project(
+        powerbi_worlds["clean"] / "workspace" / "bi" / "powerbi", warehouse=root / DB)
+    model, _ = powerbi.read_project(root / "workspace" / "bi" / "powerbi",
+                                    warehouse=root / DB)
+    tile = _visual(report, "Overview", "Revenue by Segment")
+    with render.Session(root / DB) as session:
+        assert session.visual(model, tile) == session.visual(clean_model, tile)
+        for region in ("NA", "EMEA", "APAC"):
+            scoped = replace(tile, filters=(FilterValues(Col("Customer", "region"),
+                                                         (region,)),))
+            wrong = sum(float(r[2]) for r in session.visual(model, scoped)["rows"])
+            right = sum(float(r[2]) for r in session.visual(clean_model, scoped)["rows"])
+            share = hand(root, "SELECT sum(o.order_amount) FILTER (WHERE c.region = "
+                               f"'{region}') / sum(o.order_amount) FROM warehouse.fct_orders o "
+                               "JOIN warehouse.dim_customer c USING (customer_id) "
+                               "WHERE o.order_status = 'completed'")[0][0]
+            assert abs(right - 1.0) < 1e-9 and abs(wrong - float(share)) < 1e-9, region
+
+
+def _csv_rows(path: Path) -> list[dict]:
+    import csv
+    with path.open(encoding="utf-8", newline="") as handle:
+        return list(csv.DictReader(handle))
+
+
+def test_stale_import_is_the_night_replayed(powerbi_worlds):
+    """The import is what daily_load + dbt_build made of the extracts that had
+    landed by the 06:00 refresh: every order but the late extract's, each with
+    the status its latest version BEFORE that extract gave it."""
+    root = powerbi_worlds["faulted"]
+    record = json.loads((root / IMPORT_DIR / "datasets.json").read_text(encoding="utf-8"))
+    dataset = record["datasets"]["Commerce"]
+    assert dataset["timeline"] == {"partition": "dt=2026-02-28",
+                                   "due": "2026-03-01T02:00:00Z",
+                                   "landed": "2026-03-01T07:30:00Z",
+                                   "reloaded": "2026-03-01T08:19:00Z"}
+    assert dataset["import"]["refreshed"] == "2026-03-01T06:00:00Z"
+    assert [r["startTime"] for r in dataset["refreshes"][-2:]] == [
+        "2026-02-28T06:00:00Z", "2026-03-01T06:00:00Z"]
+    assert {r["status"] for r in dataset["refreshes"]} == {"Completed"}
+    assert sorted(r["relation"] for r in dataset["import"]["relations"]) == [
+        "warehouse.dim_customer", "warehouse.dim_date", "warehouse.dim_product",
+        "warehouse.fct_order_lines", "warehouse.fct_orders"]
+    imported = {int(r["order_id"]): r for r in
+                _csv_rows(root / IMPORT_DIR / "import" / "Commerce" /
+                          "warehouse.fct_orders.csv")}
+    final = {r[0]: r for r in hand(root, "SELECT order_id, order_date, order_status, "
+                                         "order_amount FROM warehouse.fct_orders")}
+    assert set(imported) == {i for i, r in final.items() if r[1] < "2026-02-28"}
+    before = {r[0]: r[1] for r in hand(
+        root, "SELECT CAST(order_id AS INTEGER), arg_max(status, updated_at) FROM "
+              "raw.orders WHERE dt < DATE '2026-02-28' GROUP BY 1")}
+    changed = {r[0] for r in hand(root, "SELECT DISTINCT CAST(order_id AS INTEGER) FROM "
+                                        "raw.orders WHERE dt = DATE '2026-02-28'")}
+    restated = [i for i in imported if i in changed]
+    assert restated, "the late extract restated no earlier order: nothing to tell apart"
+    for order_id, row in imported.items():
+        want = before[order_id] if order_id in changed else final[order_id][2]
+        assert row["order_status"] == want, order_id
+    dates = _csv_rows(root / IMPORT_DIR / "import" / "Commerce" / "warehouse.dim_date.csv")
+    assert max(r["date_day"] for r in dates) == "2026-02-27"
+
+
+def test_stale_import_records_the_reload_and_nothing_else_moves(powerbi_worlds):
+    clean, faulted = powerbi_worlds["clean"], powerbi_worlds["faulted"]
+    assert not (clean / IMPORT_DIR).exists()
+    was = json.loads((clean / "var" / "sched" / "state.json").read_text(encoding="utf-8"))
+    now = json.loads((faulted / "var" / "sched" / "state.json").read_text(encoding="utf-8"))
+    assert now["vnow"] == was["vnow"] and now["jobs"] == was["jobs"]
+    assert now["runs"][:-2] == was["runs"]
+    load, dbt = now["runs"][-2:]
+    assert (load["job"], load["trigger"], load["vts_start"]) == (
+        "daily_load", "manual", "2026-03-01T08:05:00Z")
+    assert (dbt["job"], dbt["trigger"], dbt["vts_start"], dbt["vts_end"]) == (
+        "dbt_build", "manual", "2026-03-01T08:15:00Z", "2026-03-01T08:19:00Z")
+    late = hand(faulted, "SELECT count(*) FROM warehouse.fct_orders "
+                         "WHERE order_date = DATE '2026-02-28'")[0][0]
+    effect = dbt["effects"]["warehouse.fct_orders"]
+    assert effect["rows_after"] - effect["rows_before"] == late > 0
+    a, b = fingerprint.semantic(clean), fingerprint.semantic(faulted)
+    assert {k for k in set(a) | set(b) if a.get(k) != b.get(k)} == {
+        "workspace", "bi", "scheduler"}
+    assert a["warehouse"] == b["warehouse"]
+
+
+def test_the_faulted_power_bi_world_builds_byte_identically(powerbi_worlds):
+    one, two = powerbi_worlds["faulted"], powerbi_worlds["again"]
+    assert _tree(one / IMPORT_DIR) == _tree(two / IMPORT_DIR)
+    assert fingerprint.semantic_hash(one) == fingerprint.semantic_hash(two)
+
+
+def test_a_timeline_that_does_not_stage_a_stale_import_is_refused():
+    gen = load_theme("commerce_analytics").gen
+    manifest = load_theme("commerce_analytics").manifest
+    seed = {**yaml.safe_load(COMMERCE_SEED.read_text(encoding="utf-8")),
+            "profile": POWERBI, "bi_faults": ["powerbi_stale_import"]}
+    state = {"vnow": "2026-03-02T00:00:00Z", "runs": [
+        {"job": "daily_load", "vts_start": "2026-03-01T02:30:00Z", "status": "success"},
+        {"job": "bi_refresh", "vts_start": "2026-03-01T06:00:00Z",
+         "vts_end": "2026-03-01T06:07:00Z", "status": "success"}]}
+    night = gen._late_extract_night(seed, manifest, state)
+    assert night["partitions"][-1] == "dt=2026-02-27" and len(night["partitions"]) == 424
+    early = json.loads(json.dumps(manifest))
+    next(f for f in early["live"]["faults"] if f["id"] == "extract_late")["params"][
+        "delay_minutes"] = 60                 # lands at 03:00: the 06:00 refresh saw it
+    with pytest.raises(SystemExit) as info:
+        gen._late_extract_night(seed, early, state)
+    assert "does not stage it" in str(info.value)

@@ -184,20 +184,71 @@ def test_a_warehouse_write_is_explained_by_the_row_that_opened_the_file(layout):
     assert check.explain_world(before, after, [shim], layout, None)["ok"]
 
 
-def test_a_row_that_names_the_file_explains_it_even_where_blindness_does_not(layout):
-    """A notebook cell row names the warehouse it rewrote (the shim's watch), and
-    `blindness._unattributed` - whose WAREHOUSE_SHIMS lists duckdb/dbt/python
-    only - does not accept `jupyter.cell` as the explanation. The check's rule
-    is the row; the harness's second opinion is recorded beside it."""
+def test_a_notebook_cell_that_names_the_warehouse_explains_it_and_blindness_agrees(layout):
+    """A notebook cell row names the warehouse it rewrote (the kernel's watch).
+    Since 16ede38 `blindness.WAREHOUSE_SHIMS` lists `jupyter.cell`, so the
+    harness accepts the same explanation: no disagreement, so N3 is no FINDING."""
     before, after = {WAREHOUSE: [1, "a"]}, {WAREHOUSE: [1, "b"]}
     cell = _row("jupyter.cell", "exec", [layout["warehouse"]])
     judged = check.explain_world(before, after, [cell], layout, None)
     assert judged["ok"]
-    assert judged["named_by_a_row_but_unattributed_by_blindness"] == [WAREHOUSE]
+    assert judged["named_by_a_row_but_unattributed_by_blindness"] == []
     # ...and spelled the container's way, through the topology's path map
     container = _row("jupyter.cell", "exec", ["/world/" + WAREHOUSE])
     paths = {"/world/": "", "/workspace/": "workspace/"}
-    assert check.explain_world(before, after, [container], layout, paths)["ok"]
+    judged = check.explain_world(before, after, [container], layout, paths)
+    assert judged["ok"] and judged["named_by_a_row_but_unattributed_by_blindness"] == []
+
+
+def test_a_row_that_names_the_file_explains_it_even_where_blindness_does_not(layout):
+    """A writer `blindness._unattributed` has not been taught still explains a
+    file its own row names: the check's rule is the row, and the harness's
+    second opinion is recorded beside it (and becomes a FINDING)."""
+    before, after = {WAREHOUSE: [1, "a"]}, {WAREHOUSE: [1, "b"]}
+    untaught = _row("spark.job", "exec", [layout["warehouse"]])
+    judged = check.explain_world(before, after, [untaught], layout, None)
+    assert judged["ok"]
+    assert judged["named_by_a_row_but_unattributed_by_blindness"] == [WAREHOUSE]
+
+
+def test_the_tabcmd_shim_row_names_its_log(layout):
+    """tabcmd 2 writes tabcmd.log into the repo on every run. With the PATH
+    shim its row names the file, so the change is explained and nothing is
+    left to the transcript (T1-T5 were FINDINGs before the shim)."""
+    log = "workspace/tabcmd.log"
+    before, after = {}, {log: [1, "a"]}
+    rows = [_row("tableau.auth_signin"), _row("shim.tabcmd", "exec", ["tabcmd.log"])]
+    judged = check.explain_world(before, after, rows, layout, None)
+    assert judged["ok"] and judged["transcript_audited"] == []
+    # without the shim's row the same change is the transcript's (a FINDING)
+    judged = check.explain_world(before, after, rows[:1], layout, None)
+    assert judged["ok"] and judged["transcript_audited"] == [log]
+
+
+def test_the_mf_shim_row_names_its_csv_and_its_logs_are_skip_dir_churn(layout):
+    """`mf` writes logs/dbt.log + logs/metricflow.log into the dbt project on
+    every call (skipped by the shim on purpose, as dbt's are) and `--csv` writes
+    where it is told; the shim row names the CSV, so nothing is left unnamed."""
+    logs = ["workspace/dbt_project/logs/dbt.log", "workspace/dbt_project/logs/metricflow.log"]
+    out = "workspace/dbt_project/net_revenue_by_month.csv"
+    before, after = {}, {**{p: [1, "a"] for p in logs}, out: [1, "b"]}
+    rows = [_row("shim.mf", "exec", ["dbt_project/net_revenue_by_month.csv"])]
+    judged = check.explain_world(before, after, rows, layout, None)
+    assert judged["ok"] and judged["skip_dir_churn"] == logs
+    # a row that did not name the CSV leaves it unnamed: a failure
+    judged = check.explain_world(before, after, [_row("shim.mf", "exec", [])], layout, None)
+    assert not judged["ok"] and judged["unnamed_in_workspace"] == [out]
+
+
+def test_the_wiki_id_is_read_off_the_onboarding_page():
+    profiled = ("## Where the runbooks are\n\n"
+                "  - `ae/metrics` - Metrics\n"
+                "    - `113` - Metrics digest (`ae/metrics/digest`)\n"
+                "    - `428` - Net Revenue and friends (`ae/metrics/net-revenue`)\n")
+    assert check.listed_wiki_id(profiled, check.KB_TITLE) == "428"
+    unprofiled = "    - `ae/metrics/net-revenue` - Net Revenue and friends\n"
+    assert check.listed_wiki_id(unprofiled, check.KB_TITLE) == check.KB_SLUG
+    assert check.listed_wiki_id("# Your first week\n", check.KB_TITLE) is None
 
 
 def test_working_tree_changes_must_be_named_by_a_shim_that_ran(layout):
@@ -244,9 +295,10 @@ def test_the_client_script_compiles_and_names_every_step_the_drive_runs():
     compile(check.CLIENTS_PY, "clients.py", "exec")
     namespace: dict = {"__name__": "clients"}
     exec(compile(check.CLIENTS_PY, "clients.py", "exec"), namespace)  # noqa: S102
-    for step in ("py_select", "py_insert", "jira_get", "jira_comment", "slack_history",
-                 "slack_post", "conf_get", "conf_edit", "conf_by_world_id", "pbi_step",
-                 "tsc_view", "sigma_step", "jupyter_server_cell"):
+    for step in ("py_select", "py_insert", "jira_get", "jira_comment", "jira_get_v2",
+                 "slack_history", "slack_post", "conf_get", "conf_edit", "conf_v2_get",
+                 "conf_by_world_id", "pbi_step", "tsc_view", "sigma_step",
+                 "jupyter_server_cell"):
         assert callable(namespace[step]), step
 
 
@@ -318,13 +370,14 @@ def test_the_table_has_one_line_per_action_and_every_dimension():
 # --------------------------------------------------------------------------
 CLIENTS = all(importlib.util.find_spec(name) is not None
               for name in ("tabcmd", "tableauserverclient", "jira", "slack_sdk",
-                           "atlassian", "nbclient"))
+                           "atlassian", "nbclient", "dbt_metricflow"))
 
 
 @pytest.mark.slow
 @pytest.mark.skipif(not CLIENTS, reason=(
-    "needs tabcmd and tableauserverclient: cd gateway && uv run --with tabcmd "
-    "--with tableauserverclient pytest ../tasks/harness/test_bi_e2e_check.py -m slow"))
+    "needs tabcmd, tableauserverclient and mf: cd gateway && uv run --with tabcmd "
+    "--with tableauserverclient --with dbt-metricflow "
+    "pytest ../tasks/harness/test_bi_e2e_check.py -m slow"))
 def test_every_tool_is_accurate_on_the_host_topology(tmp_path):
     out = tmp_path / "bi_e2e_host.json"
     code = check.main(["--topology", "host", "--out", str(out),
@@ -341,6 +394,34 @@ def test_every_tool_is_accurate_on_the_host_topology(tmp_path):
     assert by_id["W5"]["tools"] == ["shim.python"]                         # python3
     assert by_id["D3"]["rows"][0]["targets"] == [evidence["world"]["warehouse"]]
     assert by_id["U1"]["rows_got"] == 6                                     # unrouted
-    assert by_id["T5"]["rows"][-1]["read_targets"] == ["warehouse.fct_orders"]
+    assert by_id["T5"]["rows"][-2]["read_targets"] == ["warehouse.fct_orders"]
     assert all(row["read_targets"] == row["targets"] for row in by_id["P2"]["rows"]
                if row["tool"].startswith("powerbi."))
+    # 16ede38 and after: tabcmd's log is named by its shim, a notebook cell's
+    # warehouse write is the harness's to explain too, Sigma's sync is a write
+    for tid in ("T1", "T2", "T3", "T4", "T5"):
+        assert by_id[tid]["rows"][-1]["tool"] == "shim.tabcmd", tid
+        assert by_id[tid]["rows"][-1]["targets"] == ["tabcmd.log"], tid
+        assert by_id[tid]["verdict"] == "PASS", (tid, by_id[tid]["finding"])
+    assert by_id["N3"]["verdict"] == "DOC", by_id["N3"]["finding"]
+    sync = next(r for r in by_id["G6"]["rows"] if r["tool"] == "sigma.connection_sync")
+    assert sync["op_class"] == "write"
+    # da/laptop plugs no orchestrator: no ./ops/sched, so no scheduler row
+    for sid in ("S1", "S2", "S3"):
+        assert by_id[sid]["rows_got"] == 0 and by_id[sid]["verdict"] == "PASS", sid
+    # the wiki page by the id the profiled onboarding page lists
+    assert by_id["H7"]["verdict"] == "PASS", by_id["H7"]["failures"]
+    # 2026-10-05: the API versions and Sigma routes the BI001 run reached for
+    # first (Jira v2, Confluence v2, an element's query/columns, the sources)
+    # answer, and are right; the guesses no real product serves stay 404
+    for tid in ("H8", "H9", "G7", "U2"):
+        assert by_id[tid]["verdict"] == "PASS", (tid, by_id[tid]["failures"])
+    assert by_id["U2"]["tools"] == ["confluence.request", "confluence.request",
+                                    "jira.request", "sigma.unknown_route"]
+    # 2026-10-06: MetricFlow's `mf` is shimmed; one row per call, its values are
+    # the warehouse's and world.semantic's, and the CSV it wrote is named
+    # (after the `git --help` mf's in-process `dbt debug` spawns, through the git shim)
+    for mid in ("M1", "M2", "M3", "M4"):
+        assert by_id[mid]["tools"] == ["shim.git", "shim.mf"], mid
+        assert by_id[mid]["verdict"] in ("PASS", "DOC"), (mid, by_id[mid]["failures"])
+    assert by_id["M4"]["rows"][-1]["targets"] == ["dbt_project/net_revenue_by_month.csv"]

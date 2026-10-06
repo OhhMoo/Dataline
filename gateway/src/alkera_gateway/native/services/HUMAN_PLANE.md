@@ -1,12 +1,19 @@
 # The human plane: jira, slack, confluence
 
 **Status: executed, 2026-09-16.** Every claim below is asserted by
-`gateway/tests/test_native_services_human.py` (41 tests, all passing) unless the
-line says *designed*. Owner: SERVICES-A. Spec: `gateway/NATIVE.md`.
+`gateway/tests/test_native_services_human.py` (58 tests, all passing on
+2026-10-05) unless the line says *designed*. Owner: SERVICES-A. Spec: `gateway/NATIVE.md`.
 Amended by INTEGRATE-GATEWAY, same day: items 1, 2 and 3 of
 `SERVICES_A_REQUESTS.md` landed, so the classification below is now *obtained*
 rather than asserted and the weakest finding has moved. See
 `native/INTEGRATION_GATEWAY.md` for what changed and what it was measured with.
+Amended 2026-10-05: **Jira REST v2 (and `latest`) and Confluence REST v2** are
+served beside v3 / v1, because a real Opus run of BI001 (K=8,
+`alkera-rollouts/BI001-revenue-disagrees-across-bi/20261004T194856Z`) reached
+for them first and they 404'd: `GET /rest/api/2/issue/{key}` in five rollouts,
+`/rest/api/latest/issue/{key}` and `/rest/api/2/search` in one,
+`/wiki/api/v2/pages/{id}?body-format=storage` in four. One agent wrote an
+ADF-to-text parser to read a ticket because v2 was not there.
 
 The three surfaces a data engineer's day starts in, in their vendors' shapes over
 the documents the `issues_*` / `chat_*` / `kb_*` tools serve. Nothing here holds
@@ -20,9 +27,9 @@ target.
 
 | | NAME | HOST | PORT | credential |
 |---|---|---|---|---|
-| Jira Cloud REST v3 | `jira` | `jira.internal` | 8080 | Basic: any email + `alkera-local-dev-token` |
+| Jira Cloud REST v3, v2 and `latest` | `jira` | `jira.internal` | 8080 | Basic: any email + `alkera-local-dev-token` |
 | Slack Web API | `slack` | `slack.internal` | 8081 | Bearer `xoxb-alkera-local-dev-token` (or `token=`) |
-| Confluence REST | `confluence` | `confluence.internal` | 8090 | Basic: any user + `alkera-local-dev-token` |
+| Confluence REST v1 and v2 | `confluence` | `confluence.internal` | 8090 | Basic: any user + `alkera-local-dev-token` |
 
 ## What costs a row
 
@@ -50,21 +57,24 @@ name. Three rules, in `Ledger` in each module, asserted by
 
 ## Endpoints and the rows they write
 
-Starred rows are proved equal to MCP's by
-`test_one_action_two_transports_one_classification`: 16 pairs, each run natively
+Every Jira route is served under `/rest/api/3`, `/rest/api/2` and
+`/rest/api/latest` and writes the same row under each; the table spells them
+`/rest/api/{3,2}`. Starred rows are proved equal to MCP's by
+`test_one_action_two_transports_one_classification`: 26 pairs, each run natively
 and through an MCP `Gateway` over a pristine clone, diffing `targets`,
 `read_targets`, `op_class`, `flags` and `vts`.
 
 | endpoint | rows, in order | op_class · targets |
 |---|---|---|
-| `GET /rest/api/3/issue/{key}` | `jira.issues_get` * | read · `issue:KEY` |
-| `GET /rest/api/3/search` (startAt/maxResults) and `/search/jql` (nextPageToken) | `jira.issues_list` *, [`jira.issues_search` *], `jira.issues_get` ×page | read · `issues`, `issues`, `issue:KEY` |
-| `POST /rest/api/3/issue/{key}/comment` | `jira.issues_comment` * | write · `issue:KEY` |
-| `GET /rest/api/3/issue/{key}/transitions` | `jira.issues_get` | read · `issue:KEY` |
-| `POST /rest/api/3/issue/{key}/transitions` | `jira.issues_update` *, [`jira.issues_comment`] | write · `issue:KEY` |
-| `PUT /rest/api/3/issue/{key}` | `jira.issues_update` * | write · `issue:KEY` |
-| `GET /rest/api/3/myself`, `/serverInfo` | `jira.myself`, `jira.server_info` | read · `issues` (both run `issues_list`, for the user directory and the project title) |
-| `GET /rest/api/3/field` | `jira.fields` | read · `issues`, through `context.note`: the one endpoint here that asks the world nothing, so no module classifies it |
+| `GET /rest/api/{3,2}/issue/{key}` | `jira.issues_get` * | read · `issue:KEY` |
+| `GET /rest/api/{3,2}/search` (startAt/maxResults) and `/search/jql` (nextPageToken) | `jira.issues_list` *, [`jira.issues_search` *], `jira.issues_get` ×page | read · `issues`, `issues`, `issue:KEY` |
+| `GET /rest/api/{3,2}/issue/{key}/comment` (startAt, maxResults, orderBy) | `jira.issues_get` * | read · `issue:KEY` |
+| `POST /rest/api/{3,2}/issue/{key}/comment` | `jira.issues_comment` * | write · `issue:KEY` |
+| `GET /rest/api/{3,2}/issue/{key}/transitions` | `jira.issues_get` | read · `issue:KEY` |
+| `POST /rest/api/{3,2}/issue/{key}/transitions` | `jira.issues_update` *, [`jira.issues_comment`] | write · `issue:KEY` |
+| `PUT /rest/api/{3,2}/issue/{key}` | `jira.issues_update` * | write · `issue:KEY` |
+| `GET /rest/api/{3,2}/myself`, `/serverInfo` | `jira.myself`, `jira.server_info` | read · `issues` (both run `issues_list`, for the user directory and the project title) |
+| `GET /rest/api/{3,2}/field` | `jira.fields` | read · `issues`, through `context.note`: the one endpoint here that asks the world nothing, so no module classifies it |
 | `conversations.list` *, `users.list` | `slack.chat_channels` | read · `chat` |
 | `conversations.history` | `slack.chat_history` * | read · `chat:<channel>` |
 | `conversations.replies` | `slack.chat_thread` * | read · `chat:<ch>`, `thread:<root>` |
@@ -76,6 +86,11 @@ and through an MCP `Gateway` over a pristine clone, diffing `targets`,
 | `GET /wiki/rest/api/content/search` (CQL) | `confluence.kb_search` *, [`confluence.kb_get` ×page] | read · `kb`, `kb:<page>` |
 | `PUT /wiki/rest/api/content/{id}` | `confluence.kb_edit` * | write · `kb:<page>` |
 | `POST /wiki/rest/api/content` | `confluence.kb_create` * | write · `kb:<page>` |
+| `GET /wiki/api/v2/pages` (id, space-id, title, status, subtype, sort, cursor, limit) | `confluence.kb_list` *, [`confluence.kb_get` ×page with `body-format`] | read · `kb`, `kb:<page>` |
+| `GET /wiki/api/v2/pages/{id}` (body-format, include-version/-labels/-versions) | `confluence.kb_get` * | read · `kb:<page>` |
+| `GET /wiki/api/v2/pages/{id}/children`, `/direct-children` | `confluence.kb_list` | read · `kb` |
+| `GET /wiki/api/v2/spaces` | `confluence.kb_list` * | read · `kb` |
+| `PUT /wiki/api/v2/pages/{id}` | `confluence.kb_edit` * | write · `kb:<page>` |
 | `GET /health` (all three) | `<name>.health` | read · `health:<name>`, really `issues`/`chat`/`kb` in `read_targets` (the `context.service_health` convention: a polling gate injects no episode targets) |
 
 `flags` carry the two the MCP tools set: `no_change` on an edit that changed
@@ -91,7 +106,17 @@ parity needs (`POST /wiki/rest/api/content`, without which native mode cannot do
 ## What of each vendor API is *not* imitated
 
 - **Jira.** No issue creation, attachments, worklogs, watchers, votes, sprints,
-  custom fields, changelog, editmeta, notifications or permissions. JQL is five
+  custom fields, changelog, editmeta, `renderedFields`, notifications or
+  permissions. v2 differs from v3 only where Atlassian says it does ("Version
+  2 and 3 of the API offer the same collection of operations. However, version
+  3 provides support for the Atlassian Document Format", developer.atlassian
+  .com/cloud/jira/platform/rest/v2/intro/): the description and comment bodies
+  are strings, an empty description is `null`, and `self` links name the
+  version read. `latest` is v2 ("`latest` is an alias for version `2` for all
+  Jira Cloud customers", Atlassian staff, community.developer.atlassian.com/t/
+  jira-rest-api-version-3-beta/55833). Any other version (`/rest/api/4/...`)
+  is a 404, as on Cloud. A v2 comment body in ADF, or a v3 one as a string, is
+  accepted rather than refused. JQL is five
   clauses (`project =`, `status =`/`in`, `assignee =`, `labels =`, `text ~`) plus
   `ORDER BY updated|created|key|status`; anything else is **400, never silently
   ignored**. Bodies are ADF; a bare string is also accepted on input, because the
@@ -106,7 +131,18 @@ parity needs (`POST /wiki/rest/api/content`, without which native mode cannot do
   epoch>.<six-digit position>`, round-tripping to a world message id; cursors are
   decimal offsets, opaque to the client.
 - **Confluence.** No blog posts, attachments, comments, labels API, permissions,
-  drafts, rename, re-parenting or trash. `body.storage` carries the world's
+  drafts, rename, re-parenting or trash. REST v2 (OpenAPI
+  dac-static.atlassian.com/cloud/confluence/openapi-v2.v3.json) is the pages
+  subset: `body-format` `storage` (the markdown, as v1 serves it) and
+  `atlas_doc_format` (that text as ADF, one paragraph a line, JSON in `value`);
+  the rendered formats (`view`, `export_view`, ...) and a historical
+  `version=` are 400, because the world keeps neither. Lists page by an opaque
+  `cursor` in `_links.next` and the `Link` header. The v2 error envelope
+  `{"errors": [{status, code, title, detail}]}` is Cloud's observed shape: the
+  OpenAPI gives v2's errors no body. `PUT` needs the five fields the OpenAPI
+  requires and refuses what v1 refuses, plus `status: draft` and `wiki`
+  bodies. Paths without `/wiki` (`/rest/api/content/...`, `/api/v2/...`) are
+  404, as on Cloud, where the REST APIs live under the site's `/wiki`. `body.storage` carries the world's
   **markdown verbatim** rather than XHTML: converting would make a round trip
   lossy against the document the grader reads, a worse lie than the format label.
   Content ids are numbers derived from the page path. CQL is `text ~ "needle"`

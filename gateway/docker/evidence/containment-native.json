@@ -1,14 +1,14 @@
 {
   "backend": "postgres (compose default)",
-  "compose_file": "C:\\Users\\OhhMoo\\Desktop\\research\\alkera\\gateway\\docker\\compose.yml",
+  "compose_file": "/home/ubuntu/env_project-main-2/gateway/docker/compose.yml",
   "compose_overlays": [
-    "C:\\Users\\OhhMoo\\Desktop\\research\\alkera\\gateway\\docker\\compose.episode.yml",
-    "C:\\Users\\OhhMoo\\Desktop\\research\\alkera\\gateway\\docker\\compose.native.yml"
+    "/home/ubuntu/env_project-main-2/gateway/docker/compose.episode.yml",
+    "/home/ubuntu/env_project-main-2/gateway/docker/compose.native.yml"
   ],
-  "generated": "2026-09-17T00:43:51+00:00",
+  "generated": "2026-10-04T07:55:30+00:00",
   "host": {
-    "docker": "29.5.2",
-    "platform": "Windows-10-10.0.26200-SP0"
+    "docker": "29.8.2",
+    "platform": "Linux-7.0.0-1006-aws-x86_64-with-glibc2.43"
   },
   "mode": "native",
   "not_measured_here": "P0-P5 describe the MCP-transport stack (evidence/containment.json); this run measures P6 only.",
@@ -22,9 +22,9 @@
       "postgres.internal:5432"
     ],
     "compose_files": [
-      "C:\\Users\\OhhMoo\\Desktop\\research\\alkera\\gateway\\docker\\compose.yml",
-      "C:\\Users\\OhhMoo\\Desktop\\research\\alkera\\gateway\\docker\\compose.episode.yml",
-      "C:\\Users\\OhhMoo\\Desktop\\research\\alkera\\gateway\\docker\\compose.native.yml"
+      "/home/ubuntu/env_project-main-2/gateway/docker/compose.yml",
+      "/home/ubuntu/env_project-main-2/gateway/docker/compose.episode.yml",
+      "/home/ubuntu/env_project-main-2/gateway/docker/compose.native.yml"
     ],
     "declared_aliases": {
       "minio": [
@@ -40,6 +40,7 @@
         "metabase.internal",
         "native-services.internal",
         "prometheus.internal",
+        "sched.internal",
         "slack.internal"
       ],
       "postgres": [
@@ -51,86 +52,86 @@
       ]
     },
     "declared_aliases_missing_on_the_container": {},
-    "native_services_startup": "alkera native services  bind=0.0.0.0  audit=/audit  world=/world\nservice       alias                     port  state\nmetabase      metabase.internal         3000  module\nloki          loki.internal             3100  module\nairbyte       airbyte.internal          8001  module\njira          jira.internal             8080  module\nslack         slack.internal            8081  module\ndeploy        deploy.internal           8085  module\nconfluence    confluence.internal       8090  module\nprometheus    prometheus.internal       9090  module\nalertmanager  alertmanager.internal     9093  module\nminio-audit   native-services.internal  8110  receiver (not a destination: the stack dials it, not the episode)\nloaded=10 missing=0 port_disagreements=0\nALKERA_GATEWAY_CONFIG=/audit/native_gateway.json\nALKERA_NATIVE_AUDIT=/audit/actions.jsonl\nALKERA_SCHEDULER=/world/var/sched/state.json",
+    "native_services_startup": "native-services: state /service-state (bi_state_dir /service-state/bi), config /service-state/native_gateway.json\nalkera native services  bind=0.0.0.0  audit=/audit  world=/world\nservice       alias                     port  state\nmetabase      metabase.internal         3000  module\nloki          loki.internal             3100  module\nairbyte       airbyte.internal          8001  module\njira          jira.internal             8080  module\nslack         slack.internal            8081  module\ndeploy        deploy.internal           8085  module\nconfluence    confluence.internal       8090  module\nprometheus    prometheus.internal       9090  module\nalertmanager  alertmanager.internal     9093  module\nminio-audit   native-services.internal  8110  receiver (not a destination: the stack dials it, not the episode)\nsched         sched.internal            8120  scheduler\nloaded=11 missing=0 port_disagreements=0\nALKERA_GATEWAY_CONFIG=/service-state/native_gateway.json\nALKERA_NATIVE_AUDIT=/audit/actions.jsonl\nALKERA_SCHEDULER=/world/var/sched/state.json",
     "passed": true,
     "probe": {
       "addresses_probed": [
-        "172.23.0.2",
-        "172.23.0.3",
-        "172.23.0.4"
+        "172.19.0.2",
+        "172.19.0.3",
+        "172.19.0.4"
       ],
       "closed_port_attempts": [
         {
           "result": "ConnectionRefusedError",
-          "target": "172.23.0.2:22"
+          "target": "172.19.0.2:22"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "172.23.0.2:80"
+          "target": "172.19.0.2:80"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "172.23.0.2:443"
+          "target": "172.19.0.2:443"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "172.23.0.2:3306"
+          "target": "172.19.0.2:3306"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "172.23.0.2:6379"
+          "target": "172.19.0.2:6379"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "172.23.0.2:8888"
+          "target": "172.19.0.2:8888"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "172.23.0.3:22"
+          "target": "172.19.0.3:22"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "172.23.0.3:80"
+          "target": "172.19.0.3:80"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "172.23.0.3:443"
+          "target": "172.19.0.3:443"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "172.23.0.3:3306"
+          "target": "172.19.0.3:3306"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "172.23.0.3:6379"
+          "target": "172.19.0.3:6379"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "172.23.0.3:8888"
+          "target": "172.19.0.3:8888"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "172.23.0.4:22"
+          "target": "172.19.0.4:22"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "172.23.0.4:80"
+          "target": "172.19.0.4:80"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "172.23.0.4:443"
+          "target": "172.19.0.4:443"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "172.23.0.4:3306"
+          "target": "172.19.0.4:3306"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "172.23.0.4:6379"
+          "target": "172.19.0.4:6379"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "172.23.0.4:8888"
+          "target": "172.19.0.4:8888"
         }
       ],
       "closed_ports_probed": [
@@ -145,28 +146,28 @@
       "compose_service_names": [
         {
           "addresses": [
-            "172.23.0.5"
+            "172.19.0.5"
           ],
           "name": "episode",
           "points_at_a_known_service": true
         },
         {
           "addresses": [
-            "172.23.0.4"
+            "172.19.0.3"
           ],
           "name": "minio",
           "points_at_a_known_service": true
         },
         {
           "addresses": [
-            "172.23.0.3"
+            "172.19.0.2"
           ],
           "name": "native-services",
           "points_at_a_known_service": true
         },
         {
           "addresses": [
-            "172.23.0.2"
+            "172.19.0.4"
           ],
           "name": "postgres",
           "points_at_a_known_service": true
@@ -280,19 +281,19 @@
         ],
         "routes": [
           {
-            "dest": "172.23.0.0",
+            "dest": "172.19.0.0",
             "iface": "eth0"
           }
         ]
       },
       "own_addresses": [
-        "172.23.0.5"
+        "172.19.0.5"
       ],
       "passed": true,
       "self_test": {
         "name_that_should_resolve": {
           "addresses": [
-            "172.23.0.3"
+            "172.19.0.2"
           ],
           "name": "jira.internal"
         },
@@ -319,7 +320,7 @@
           "reachable": true,
           "resolution": {
             "addresses": [
-              "172.23.0.3"
+              "172.19.0.2"
             ],
             "name": "jira.internal"
           },
@@ -341,7 +342,7 @@
           "reachable": true,
           "resolution": {
             "addresses": [
-              "172.23.0.3"
+              "172.19.0.2"
             ],
             "name": "slack.internal"
           },
@@ -363,7 +364,7 @@
           "reachable": true,
           "resolution": {
             "addresses": [
-              "172.23.0.3"
+              "172.19.0.2"
             ],
             "name": "confluence.internal"
           },
@@ -385,7 +386,7 @@
           "reachable": true,
           "resolution": {
             "addresses": [
-              "172.23.0.3"
+              "172.19.0.2"
             ],
             "name": "metabase.internal"
           },
@@ -407,7 +408,7 @@
           "reachable": true,
           "resolution": {
             "addresses": [
-              "172.23.0.3"
+              "172.19.0.2"
             ],
             "name": "prometheus.internal"
           },
@@ -429,7 +430,7 @@
           "reachable": true,
           "resolution": {
             "addresses": [
-              "172.23.0.3"
+              "172.19.0.2"
             ],
             "name": "alertmanager.internal"
           },
@@ -438,8 +439,8 @@
         },
         {
           "health": {
-            "body": "{\"ok\":true,\"service\":\"loki\",\"items\":30}",
-            "items": 30,
+            "body": "{\"ok\":true,\"service\":\"loki\",\"items\":92}",
+            "items": 92,
             "ok": true,
             "service": "loki",
             "status": 200,
@@ -451,7 +452,7 @@
           "reachable": true,
           "resolution": {
             "addresses": [
-              "172.23.0.3"
+              "172.19.0.2"
             ],
             "name": "loki.internal"
           },
@@ -473,7 +474,7 @@
           "reachable": true,
           "resolution": {
             "addresses": [
-              "172.23.0.3"
+              "172.19.0.2"
             ],
             "name": "airbyte.internal"
           },
@@ -495,7 +496,7 @@
           "reachable": true,
           "resolution": {
             "addresses": [
-              "172.23.0.3"
+              "172.19.0.2"
             ],
             "name": "deploy.internal"
           },
@@ -509,7 +510,7 @@
           "reachable": true,
           "resolution": {
             "addresses": [
-              "172.23.0.4"
+              "172.19.0.3"
             ],
             "name": "minio.internal"
           },
@@ -523,7 +524,7 @@
           "reachable": true,
           "resolution": {
             "addresses": [
-              "172.23.0.2"
+              "172.19.0.4"
             ],
             "name": "postgres.internal"
           },
@@ -558,6 +559,7 @@
         "native-services",
         "native-services.internal",
         "prometheus.internal",
+        "sched.internal",
         "slack.internal"
       ],
       "postgres": [
@@ -580,47 +582,27 @@
         ]
       },
       "container": "alkera-p6-episode-1",
-      "image": "alkera-native:probe",
+      "image": "alkera-episode:head",
       "mounts": [
         {
-          "rw": false,
-          "source": "",
-          "target": "/world/var/ledger"
-        },
-        {
           "rw": true,
-          "source": "C:/Users/OhhMoo/AppData/Local/Temp/claude/C--Users-OhhMoo-Desktop-research-alkera/8e0194ed-9fad-4596-a2aa-3db725359add/scratchpad/p6b/world/home",
-          "target": "/root"
-        },
-        {
-          "rw": true,
-          "source": "C:/Users/OhhMoo/AppData/Local/Temp/claude/C--Users-OhhMoo-Desktop-research-alkera/8e0194ed-9fad-4596-a2aa-3db725359add/scratchpad/p6b/world",
-          "target": "/world"
-        },
-        {
-          "rw": true,
-          "source": "C:/Users/OhhMoo/AppData/Local/Temp/claude/C--Users-OhhMoo-Desktop-research-alkera/8e0194ed-9fad-4596-a2aa-3db725359add/scratchpad/p6b/world/workspace",
-          "target": "/workspace"
-        },
-        {
-          "rw": true,
-          "source": "C:/Users/OhhMoo/AppData/Local/Temp/claude/C--Users-OhhMoo-Desktop-research-alkera/8e0194ed-9fad-4596-a2aa-3db725359add/scratchpad/p6b/audit",
+          "source": "/home/ubuntu/alkera-rollouts/p6/audit",
           "target": "/audit"
         },
         {
           "rw": true,
-          "source": "alkera-p6_bistate",
-          "target": "/service-state/bi"
+          "source": "/home/ubuntu/alkera-rollouts/p6/world/workspace",
+          "target": "/workspace"
         },
         {
-          "rw": true,
-          "source": "alkera-p6_snowflaketrust",
-          "target": "/etc/alkera/snowflake-tls"
+          "rw": false,
+          "source": "",
+          "target": "/world/var/ledger"
         }
       ],
       "network_mode": "alkera-p6_episode_net",
       "networks": {
-        "alkera-p6_episode_net": "172.23.0.5"
+        "alkera-p6_episode_net": "172.19.0.5"
       },
       "published_ports": {},
       "service": "episode"
@@ -638,23 +620,23 @@
         ]
       },
       "container": "alkera-p6-minio-1",
-      "image": "minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e",
+      "image": "docker.io/pgsty/minio@sha256:b6bfe7239bfc83fb90d31612d9704d86039dd714f7904b3f1ad68f211e602372",
       "mounts": [
-        {
-          "rw": true,
-          "source": "alkera-p6_miniodata",
-          "target": "/data"
-        },
         {
           "rw": true,
           "source": "alkera-p6_minioaudit",
           "target": "/audit-spool"
+        },
+        {
+          "rw": true,
+          "source": "alkera-p6_miniodata",
+          "target": "/data"
         }
       ],
       "network_mode": "alkera-p6_backend_net",
       "networks": {
-        "alkera-p6_backend_net": "172.22.0.2",
-        "alkera-p6_episode_net": "172.23.0.4"
+        "alkera-p6_backend_net": "172.18.0.2",
+        "alkera-p6_episode_net": "172.19.0.3"
       },
       "published_ports": {},
       "service": "minio"
@@ -673,15 +655,16 @@
           "metabase.internal",
           "prometheus.internal",
           "alertmanager.internal",
-          "loki.internal"
+          "loki.internal",
+          "sched.internal"
         ]
       },
       "container": "alkera-p6-native-services-1",
-      "image": "alkera-native:probe",
+      "image": "alkera-episode:head",
       "mounts": [
         {
           "rw": true,
-          "source": "C:/Users/OhhMoo/AppData/Local/Temp/claude/C--Users-OhhMoo-Desktop-research-alkera/8e0194ed-9fad-4596-a2aa-3db725359add/scratchpad/p6b/audit",
+          "source": "/home/ubuntu/alkera-rollouts/p6/audit",
           "target": "/audit"
         },
         {
@@ -690,19 +673,24 @@
           "target": "/pgdata"
         },
         {
-          "rw": false,
-          "source": "",
-          "target": "/world/var/ledger"
+          "rw": true,
+          "source": "/home/ubuntu/alkera-rollouts/p6/service-state",
+          "target": "/service-state"
         },
         {
           "rw": true,
-          "source": "C:/Users/OhhMoo/AppData/Local/Temp/claude/C--Users-OhhMoo-Desktop-research-alkera/8e0194ed-9fad-4596-a2aa-3db725359add/scratchpad/p6b/world",
+          "source": "/home/ubuntu/alkera-rollouts/p6/world",
           "target": "/world"
+        },
+        {
+          "rw": false,
+          "source": "",
+          "target": "/world/var/ledger"
         }
       ],
       "network_mode": "alkera-p6_episode_net",
       "networks": {
-        "alkera-p6_episode_net": "172.23.0.3"
+        "alkera-p6_episode_net": "172.19.0.2"
       },
       "published_ports": {},
       "service": "native-services"
@@ -723,20 +711,20 @@
       "image": "postgres@sha256:f1c3376c26f2609ab9f29f71f824103fe2fcd8ee0346485cb6122a4f93df6f94",
       "mounts": [
         {
+          "rw": false,
+          "source": "/home/ubuntu/env_project-main-2/gateway/docker/postgres.sql",
+          "target": "/docker-entrypoint-initdb.d/seed.sql"
+        },
+        {
           "rw": true,
           "source": "alkera-p6_pgdata",
           "target": "/var/lib/postgresql/data"
-        },
-        {
-          "rw": false,
-          "source": "/run/desktop/mnt/host/c/Users/OhhMoo/Desktop/research/alkera/gateway/docker/postgres.sql",
-          "target": "/docker-entrypoint-initdb.d/seed.sql"
         }
       ],
       "network_mode": "alkera-p6_backend_net",
       "networks": {
-        "alkera-p6_backend_net": "172.22.0.3",
-        "alkera-p6_episode_net": "172.23.0.2"
+        "alkera-p6_backend_net": "172.18.0.3",
+        "alkera-p6_episode_net": "172.19.0.4"
       },
       "published_ports": {},
       "service": "postgres"

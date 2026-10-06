@@ -1423,3 +1423,9 @@ def jobs_list(version: str, site: str, request: Request) -> Response:
 
 
 __all__ = ["NAME", "HOST", "PORT", "app", "format_number"]
+
+
+# The browser UI (native/ui/tableau.py): same app, same Store, same audit rows.
+from ..ui import tableau as _ui  # noqa: E402  (imports this module; must come last)
+
+_ui.mount(app)

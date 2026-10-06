@@ -66,6 +66,9 @@
 #        overlay (container_episode.profile_overlay) then adds the alias below
 #        and the vendor's variables to the episode environment.
 #   native-services.internal:8099  the aggregate /health over all nine
+#     The services' own STATE (the BI vendors' published content, the config
+#     they read) is in /service-state, a mount only native-services has - never
+#     in /audit, which the episode container mounts read-write.
 #   native-services.internal:8110  MinIO's audit webhook receiver. Served by
 #        the same process; dialled by MinIO, never by the episode, and so not
 #        a row in destinations.jsonl.
@@ -263,12 +266,23 @@ services:
   # profile (tasks/harness/container_episode.NativeContainerEpisode sets it,
   # empty otherwise), and the per-rollout overlay narrows the aliases below to
   # match.
+  #
+  # THE SERVICES' OWN STATE IS NOT IN /audit. `native_services.py` (this
+  # directory, /opt/stack in the image) writes the services' gateway config to
+  # /service-state with `bi_state_dir: /service-state/bi` and execs serve.py
+  # with it. /service-state is a mount THIS service has and no other: /audit is
+  # read-write in the episode container (the shims append rows there), and
+  # until 2026-10-04 serve.py's defaults put the BI vendors' published state
+  # (`/audit/bi`, which the grader stages as `{bi_state}`) and the config every
+  # service re-reads per request (`/audit/native_gateway.json`) there, both
+  # forgeable from the subject's shell. Containment P7 asserts per rollout that
+  # the episode cannot see it (tasks/harness/bistate.py has the whole story).
   native-services:
     image: ${ALKERA_EPISODE_IMAGE:-alkera-stack:track-b}
     entrypoint: ["sh", "-c"]
     command:
       - >-
-        exec python -m alkera_gateway.native.serve
+        exec python /opt/stack/native_services.py --state-dir /service-state --
         --audit /audit --world /world --bind 0.0.0.0
         ${ALKERA_NATIVE_STUBS:-} ${ALKERA_NATIVE_PROFILE_ARGS:-}
     stop_grace_period: 2s
@@ -302,6 +316,11 @@ services:
       # so there is one world and the graders do not change.
       - "${ALKERA_EPISODE_WORLD:?episode world directory}:/world"
       - "${ALKERA_EPISODE_AUDIT:?episode audit directory}:/audit"
+      # The services' own state: the BI vendors' published content and the
+      # config they read. <rollout>/service-state on the host
+      # (tasks/harness/bistate.service_state_dir), and in NO other service of
+      # this stack - that absence is the property (see the command above).
+      - "${ALKERA_EPISODE_SERVICE_STATE:?the native services' own state directory}:/service-state"
       # The publication ledger is world evidence, not an agent surface
       # (world/README.md#publication-ledger). This container answers HTTP for the agent,
       # so a service module that read /world/var/ledger would be a channel to

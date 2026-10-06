@@ -95,3 +95,14 @@ def test_a_notebook_cell_that_names_the_warehouse_explains_it(tmp_path):
     silent = {**cell, "targets": []}                 # a cell that names nothing
     out, _ = unattributed(tmp_path, [silent], after)
     assert out == ["var/warehouse/warehouse.duckdb"]
+
+
+def test_an_mf_row_that_names_the_warehouse_explains_it(tmp_path):
+    # MetricFlow's `mf` is shimmed like dbt (it runs dbt in-process); if a
+    # call ever rewrote the warehouse, its row names the file and explains it.
+    after = {**BEFORE, "var/warehouse/warehouse.duckdb": "b"}
+    row = {"tool": "shim.mf", "op_class": "exec",
+           "targets": ["/world/var/warehouse/warehouse.duckdb"],
+           "args": {"argv": ["mf", "query", "--metrics", "net_revenue"]},
+           "result": {"returncode": 0, "watched": ["/world/var/warehouse/warehouse.duckdb"]}}
+    assert unattributed(tmp_path, [row], after) == ([], [])

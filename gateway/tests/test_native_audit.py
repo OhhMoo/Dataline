@@ -748,3 +748,59 @@ def test_tabcmd_is_shimmed_so_its_log_file_is_audited(native_log, tmp_path, monk
     row = read_rows(native_log)[-1]
     assert row["tool"] == "shim.tabcmd" and row["op_class"] == "exec"
     assert row["targets"] == ["tabcmd.log"]
+
+
+def test_mf_is_shimmed_so_its_files_and_the_warehouse_are_audited(native_log, tmp_path,
+                                                                   monkeypatch):
+    """Regression, measured 2026-10-06 by tasks/harness/bi_e2e_check.py (family
+    "semantic"): the toolbelt's MetricFlow CLI `mf` writes logs/dbt.log and
+    logs/metricflow.log into the dbt project on every call, `mf query --csv`
+    writes its file wherever it is told, and it opens the warehouse FILE through
+    its own dbt-duckdb connection - and, unshimmed, no row recorded any of it.
+    Shimmed: one `shim.mf` exec row with the argv, naming the CSV it wrote into
+    the repo and the warehouse should it move; its logs/ churn is skipped by
+    design exactly as dbt's is (run.SKIP_DIRECTORIES)."""
+    bin_dir, workspace, real = tmp_path / "bin", tmp_path / "workspace", tmp_path / "real"
+    project = workspace / "dbt_project"
+    (project / "target").mkdir(parents=True)
+    (project / "target" / "semantic_manifest.json").write_text("{}", encoding="utf-8")
+    real.mkdir()
+    warehouse = tmp_path / "warehouse.duckdb"
+    warehouse.write_bytes(b"duckdb")
+    fake = real / "mf"                          # stands in for /opt/toolbelt/bin/mf
+    fake.write_text(
+        "#!/bin/sh\n"
+        "mkdir -p logs\n"
+        "echo parse >> logs/dbt.log\n"
+        "echo query >> logs/metricflow.log\n"
+        'if [ "$1" = query ]; then\n'
+        "  echo metric_time__month,net_revenue > net_revenue.csv\n"
+        f"  echo checkpoint >> '{warehouse}'\n"
+        "fi\n", encoding="utf-8")
+    fake.chmod(0o755)
+    written = shim_install.install(bin_dir)
+    assert bin_dir / "mf" in written
+    _shimmed(bin_dir, workspace, monkeypatch)
+    # `real` ahead of the interpreter's own bin: under `uv run --with
+    # dbt-metricflow` that directory holds a real `mf`, and this test is about
+    # the shim, not MetricFlow.
+    monkeypatch.setenv("PATH", os.pathsep.join([str(bin_dir), str(real), os.environ["PATH"]]))
+    monkeypatch.setenv("ALKERA_SHIM_WATCH", str(warehouse))
+
+    listed = subprocess.run([str(bin_dir / "mf"), "list", "metrics"], cwd=project,
+                            capture_output=True, text=True, timeout=120)
+    assert listed.returncode == 0, listed.stderr
+    row = read_rows(native_log)[-1]
+    assert row["tool"] == "shim.mf" and row["op_class"] == "exec" and row["exit"] == "ok"
+    assert row["args"]["argv"] == ["mf", "list", "metrics"]
+    assert row["targets"] == []                 # logs/ only: skipped, as for dbt
+    assert row["result"]["watched"] == [str(warehouse)]
+
+    queried = subprocess.run(
+        [str(bin_dir / "mf"), "query", "--metrics", "net_revenue", "--group-by",
+         "metric_time__month", "--csv", "net_revenue.csv"],
+        cwd=project, capture_output=True, text=True, timeout=120)
+    assert queried.returncode == 0, queried.stderr
+    rows = read_rows(native_log)
+    assert [r["tool"] for r in rows[-2:]] == ["shim.mf", "shim.mf"]
+    assert rows[-1]["targets"] == ["dbt_project/net_revenue.csv", str(warehouse)]
