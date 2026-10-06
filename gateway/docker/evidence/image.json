@@ -1,13 +1,13 @@
 {
   "architecture": "amd64",
-  "generated": "2026-10-05T04:03:40+00:00",
-  "head_revision": "6231e7e06e591637c6bb705328675289d198b603",
-  "image_id": "sha256:52b8e0039f63d7701c39399bf3ccf0ee95e844aa0b0da1f05552f48fdcc7c9e8",
+  "generated": "2026-10-06T04:06:14+00:00",
+  "head_revision": "9c08ad9907756792f85c1a5d493d37797b333daf",
+  "image_id": "sha256:cce099711f31fbc282615c139ae4fdf4fdfa2e9a2a9cfc6471e490871f191770",
   "labels": {
-    "org.alkera.source.overlay": "d757ba99bb5c669a8b8574d52e6433656e445c1f46a4c85d54501b1060bc7eb2",
-    "org.alkera.source.revision": "6231e7e06e591637c6bb705328675289d198b603",
+    "org.alkera.source.overlay": "a990d7308ab00b3f173bdd6405d0b918458617c9beaf551bfac67f6e63381e50",
+    "org.alkera.source.revision": "9c08ad9907756792f85c1a5d493d37797b333daf",
     "org.alkera.toolbelt": "da",
-    "org.alkera.warehouse_clients": ""
+    "org.alkera.warehouse_clients": "snowflake"
   },
   "measured_inside_container": {
     "binaries": [
@@ -523,7 +523,7 @@
         ],
         "binary": "csvlook",
         "exit": 0,
-        "first_line": "csvlook 2.2.0",
+        "first_line": "csvlook 2.0.1",
         "ok": true,
         "path": "/opt/toolbelt/bin/csvlook",
         "reason": null
@@ -535,7 +535,7 @@
         ],
         "binary": "csvstat",
         "exit": 0,
-        "first_line": "csvstat 2.2.0",
+        "first_line": "csvstat 2.0.1",
         "ok": true,
         "path": "/opt/toolbelt/bin/csvstat",
         "reason": null
@@ -547,7 +547,7 @@
         ],
         "binary": "in2csv",
         "exit": 0,
-        "first_line": "in2csv 2.2.0",
+        "first_line": "in2csv 2.0.1",
         "ok": true,
         "path": "/opt/toolbelt/bin/in2csv",
         "reason": null
@@ -559,7 +559,7 @@
         ],
         "binary": "csvsql",
         "exit": 0,
-        "first_line": "csvsql 2.2.0",
+        "first_line": "csvsql 2.0.1",
         "ok": true,
         "path": "/opt/toolbelt/bin/csvsql",
         "reason": null
@@ -574,6 +574,18 @@
         "first_line": "Tableau Server Command Line Utility v2.0.21",
         "ok": true,
         "path": "/opt/toolbelt/bin/tabcmd",
+        "reason": null
+      },
+      {
+        "argv": [
+          "mf",
+          "--version"
+        ],
+        "binary": "mf",
+        "exit": 0,
+        "first_line": "mf, version 0.15.0",
+        "ok": true,
+        "path": "/opt/toolbelt/bin/mf",
         "reason": null
       },
       {
@@ -720,6 +732,7 @@
       "less",
       "ls",
       "make",
+      "mf",
       "nano",
       "nc",
       "nslookup",
@@ -821,7 +834,7 @@
       }
     },
     "role_imports_failed": [],
-    "source_revision": "6231e7e06e591637c6bb705328675289d198b603",
+    "source_revision": "9c08ad9907756792f85c1a5d493d37797b333daf",
     "tool_count": 63,
     "toolbelt_role": "da",
     "tools": [
@@ -937,14 +950,14 @@
       "gateway/docker/toolbelt_acceptance.py",
       "gateway/docker/toolbelt_check.py"
     ],
-    "hash": "d757ba99bb5c669a8b8574d52e6433656e445c1f46a4c85d54501b1060bc7eb2"
+    "hash": "a990d7308ab00b3f173bdd6405d0b918458617c9beaf551bfac67f6e63381e50"
   },
   "repo_digests": [
-    "alkera-episode@sha256:52b8e0039f63d7701c39399bf3ccf0ee95e844aa0b0da1f05552f48fdcc7c9e8"
+    "alkera-episode@sha256:cce099711f31fbc282615c139ae4fdf4fdfa2e9a2a9cfc6471e490871f191770"
   ],
-  "size_bytes": 2149034859,
-  "source_revision": "6231e7e06e591637c6bb705328675289d198b603",
-  "tag": "alkera-episode:head-da",
+  "size_bytes": 2566328181,
+  "source_revision": "9c08ad9907756792f85c1a5d493d37797b333daf",
+  "tag": "alkera-episode:head-da-snowflake",
   "toolbelt": {
     "label": "da",
     "matches": true,
@@ -952,7 +965,9 @@
     "requested": "da"
   },
   "warehouse_clients": {
-    "label": "",
-    "requested": []
+    "label": "snowflake",
+    "requested": [
+      "snowflake"
+    ]
   }
 }
