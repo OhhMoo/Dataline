@@ -57,7 +57,7 @@ property rather than an oversight.
 | `postgres.internal` | 5432 | postgres | the warehouse, served |
 | `minio.internal` | 9000 | minio | object storage, bucket `alkera` |
 | `airflow.internal` | 8080 | airflow | *designed*, `--profile airflow` |
-| `snowflake.internal` | 8443 | snowflake | *designed*, `--profile snowflake` |
+| `snowflake.internal` | 8443 | snowflake | **live** for a profile plugging `warehouse: snowflake` (compose profile `snowflake` via `container_episode.compose_env`; seeded from the world's DuckDB, one `snowflake.statement` row per statement; `tasks/harness/snowflake_e2e_check.py`, evidence `tasks/harness/evidence/snowflake_e2e.json`); containment P6 not yet re-run with it |
 
 One port per service, not one socket with `Host:` routing. The registry already
 declares `PORT` per service; P6's "TCP to anything but the listed ports is

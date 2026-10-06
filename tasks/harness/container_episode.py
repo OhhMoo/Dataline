@@ -1008,6 +1008,14 @@ def warehouse_mounts(world: dict) -> list[str]:
 #: (`alkera_gateway.native.audit.virtual_time`: ALKERA_VTS, else the scheduler
 #: state ALKERA_SCHEDULER names, else THIS, else GatewayConfig's literal).
 CLOCK_ENV = "ALKERA_VIRTUAL_TIME"
+#: The Snowflake plug (`NativeContainerEpisode.snowflake_overlay`): where the
+#: world's warehouse files are bound in the `snowflake` service, the trust
+#: bundle its TLS proxy publishes (compose.yml's `snowflaketrust` volume), and
+#: the destination file it counts into until `fold_destinations`.
+SNOWFLAKE_SEED_IN_CONTAINER = "/seed"
+SNOWFLAKE_TRUST = "/etc/alkera/snowflake-tls"
+SNOWFLAKE_BUNDLE = f"{SNOWFLAKE_TRUST}/bundle.pem"
+SNOWFLAKE_DESTINATIONS = "destinations.snowflake.jsonl"
 
 
 def world_clock(world: dict) -> str | None:
@@ -1820,6 +1828,95 @@ class NativeContainerEpisode:
         """The resolved profile, or None. Raises `episode.HarnessError`."""
         return episode.environment_profile(self.profile, self.plugs)
 
+    def snowflake_plugged(self) -> bool:
+        """The profile plugs `warehouse: snowflake`: compose.yml's `snowflake`
+        service (compose profile `snowflake`) runs, seeded from this world's
+        own DuckDB warehouse and auditing every statement (`snowflake_overlay`).
+        Explicit-only: an unprofiled stack never starts it."""
+        profile = self.environment_profile()
+        return profile is not None and "snowflake" in profile.slots.get("warehouse", ())
+
+    def snowflake_overlay(self, clock: str | None) -> str:
+        """The `snowflake` service for this rollout, "" when it is not plugged.
+
+        Built from Dockerfile.snowflake on THIS episode's image (`BASE`), so the
+        proxy runs the alkera_gateway every other service of the stack runs.
+        It mounts the rollout's audit directory (one 9.2.2 row per statement,
+        destinations counted into its own file, folded in by `down`) and the
+        world's warehouse FILES read-only under /seed, which
+        snowflake_start.seed copies into fakesnow before the first login.
+        Readiness is read from /proc/net/tcp (8443 = 0x20FB in LISTEN), never
+        dialled, for the reason native-services' healthcheck gives.
+        """
+        if not self.snowflake_plugged():
+            return ""
+        audit = Path(self.audit_dir).resolve().as_posix()
+        seeds = "\n".join(
+            f'      - "{(self.world_root / rel).as_posix()}:'
+            f'{SNOWFLAKE_SEED_IN_CONTAINER}/{Path(rel).name}:ro"'
+            for rel in self.warehouses)
+        tag = self.image.rsplit(":", 1)
+        image = f"alkera-snowflake:native-{tag[1] if len(tag) == 2 else 'latest'}"
+        env = {"ALKERA_NATIVE_AUDIT": "/audit/actions.jsonl",
+               "ALKERA_SNOWFLAKE_SEED": SNOWFLAKE_SEED_IN_CONTAINER,
+               "ALKERA_SNOWFLAKE_DESTINATIONS": f"/audit/{SNOWFLAKE_DESTINATIONS}",
+               # The proxy's own statement log, in the service's private volume
+               # (never /audit): the per-statement record the audit rows are
+               # checked 1:1 against (snowflake_e2e_check).
+               "ALKERA_SNOWFLAKE_STATEMENT_LOG": "/snowflake-data/statements.jsonl",
+               **({CLOCK_ENV: clock} if clock else {})}
+        return f"""
+# WAREHOUSE PLUG snowflake: compose.yml's `snowflake` service (compose profile
+# `snowflake`, enabled by compose_env), reachable as snowflake.internal:8443
+# (compose.native.yml), seeded from this world's warehouse and audited.
+  snowflake:
+    image: {image}
+    # Always built (layer-cached): the service runs this working tree's
+    # snowflake_start.py, never a stale image of an older one.
+    pull_policy: build
+    build:
+      args:
+        BASE: {self.image}
+    stop_grace_period: 2s
+    environment:{_env_lines(env)}
+    volumes:
+      - "{audit}:/audit"
+{seeds}
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/python", "-c",
+             "import pathlib,sys;sys.exit(0 if any(f[1].endswith(':20FB') and f[3]=='0A' for f in (l.split() for l in pathlib.Path('/proc/net/tcp').read_text().splitlines()[1:])) else 1)"]
+      interval: 2s
+      timeout: 5s
+      retries: 90
+      start_period: 5s
+"""
+
+    def fold_destinations(self) -> list[dict]:
+        """Merge the snowflake service's destination counts into
+        destinations.jsonl, by (host, port). native-services rewrites that file
+        whole on every accept, so the second writer keeps its own file until
+        the episode is over; this is the one place they become one log."""
+        audit = Path(self.audit_dir)
+        extra = audit / SNOWFLAKE_DESTINATIONS
+        if not extra.is_file():
+            return []
+        main = audit / "destinations.jsonl"
+        rows = {}
+        for source in (main, extra):
+            if source.is_file():
+                for line in source.read_text(encoding="utf-8").splitlines():
+                    if line.strip():
+                        row = json.loads(line)
+                        rows[(row.get("host"), row.get("port"))] = row
+        folded = [rows[key] for key in sorted(rows, key=lambda k: (str(k[0]), k[1] or 0))]
+        # Replaced, not rewritten in place: the file is native-services' (root
+        # inside its container), the directory is the operator's.
+        tmp = main.with_name(main.name + ".fold")
+        tmp.write_text("".join(json.dumps(r, sort_keys=True, separators=(",", ":")) + "\n"
+                               for r in folded), encoding="utf-8")
+        os.replace(tmp, main)
+        return folded
+
     def notebook_plugged(self) -> bool:
         """The profile plugs the notebook slot: compose.native.yml's `jupyter`
         service (profile `notebook`) runs, and the episode is told where."""
@@ -1862,6 +1959,10 @@ class NativeContainerEpisode:
             if plug not in plugged:
                 dropped += list(names)
         added: dict[str, str] = {}
+        if "snowflake" in warehouses:
+            # The connector (and dbt-snowflake through it) verifies the proxy's
+            # certificate against this bundle: certifi plus the local CA.
+            added["REQUESTS_CA_BUNDLE"] = SNOWFLAKE_BUNDLE
         for name in profile.services:
             if name in aut.PLUG_SERVICES:
                 port = aut.PLUG_SERVICES[name][1]
@@ -1995,6 +2096,10 @@ class NativeContainerEpisode:
             f'      - "{(self.world_root / rel).as_posix()}:'
             f'{WORLD_IN_CONTAINER}/{rel}"'
             for rel in self.warehouses)
+        snowflake = self.snowflake_plugged()
+        if snowflake:
+            # Public certificates only (the key stays in the snowflake service).
+            binds += f"\n      - snowflaketrust:{SNOWFLAKE_TRUST}:ro"
         body = f"""# Generated per rollout by tasks/harness/container_episode.py. Do not edit:
 # it is rewritten on every `up()` and is kept here as the record of which host
 # files this episode's container could see.
@@ -2032,7 +2137,10 @@ services:
 {environment("episode", episode_own)}
     volumes:
 {binds}
-""" + self.profile_overlay()
+""" + ("""    depends_on:
+      snowflake:
+        condition: service_healthy
+""" if snowflake else "") + self.profile_overlay() + self.snowflake_overlay(clock)
         if notebook:
             # The kernel is the agent's own interpreter in a second container,
             # so it gets the box the shell gets: the shim PATH (a `!duckdb` in a
@@ -2074,9 +2182,14 @@ services:
             # compose profile `notebook` starts the `jupyter` service; set only
             # when the environment profile plugs it, appended to whatever the
             # caller's shell already enables.
+            # compose profile `snowflake` starts the Snowflake service the
+            # same way, for a profile whose warehouse slot plugs it.
             **({"COMPOSE_PROFILES": ",".join(
                 [p for p in os.environ.get("COMPOSE_PROFILES", "").split(",") if p]
-                + ["notebook"])} if self.notebook_plugged() else {}),
+                + [name for name, on in (("notebook", self.notebook_plugged()),
+                                         ("snowflake", self.snowflake_plugged()))
+                   if on])}
+               if self.notebook_plugged() or self.snowflake_plugged() else {}),
         }
 
     def _compose(self, *args, check: bool = True, timeout: int = 900):
@@ -2162,6 +2275,10 @@ services:
             self.services_container, SERVICE_STATE_IN_SERVICES)
         self._compose("down", "-v", "-t", "2", "--remove-orphans",
                       check=False, timeout=300)
+        # AFTER down: native-services rewrites destinations.jsonl once more
+        # from its signal handler, so a fold before it would be overwritten.
+        if self.snowflake_plugged():
+            self.destinations_folded = self.fold_destinations()
         self._up = False
 
     def exec_(self, argv: list[str], *, check: bool = True, timeout: int = 300,

@@ -410,6 +410,33 @@ def test_compose_profiles_keep_the_callers(world, tmp_path, monkeypatch):
     assert _stack(world, tmp_path, "r2").compose_env()["COMPOSE_PROFILES"] == "airflow"
 
 
+def test_snowflake_plug_starts_a_seeded_audited_service(world, tmp_path, no_docker):
+    stack = _stack(world, tmp_path, "r", profile="da/snowflake", plugs={})
+    text = stack.write_overlay().read_text()
+    service = _block(text, "snowflake")
+    assert "BASE: " + stack.image in service and "pull_policy: build" in service
+    assert "ALKERA_NATIVE_AUDIT: \"/audit/actions.jsonl\"" in service
+    assert f"ALKERA_SNOWFLAKE_SEED: \"{ce.SNOWFLAKE_SEED_IN_CONTAINER}\"" in service
+    for rel in stack.warehouses:
+        assert f"{ce.SNOWFLAKE_SEED_IN_CONTAINER}/{Path(rel).name}:ro" in service
+    episode_block = _block(text, "episode")
+    assert f"snowflaketrust:{ce.SNOWFLAKE_TRUST}:ro" in episode_block
+    assert f'REQUESTS_CA_BUNDLE: "{ce.SNOWFLAKE_BUNDLE}"' in episode_block
+    assert "condition: service_healthy" in episode_block
+    assert "snowflake" in stack.compose_env()["COMPOSE_PROFILES"].split(",")
+
+
+def test_snowflake_is_explicit_only(world, tmp_path, no_docker):
+    """No profile, or a profile whose warehouse is not Snowflake: no service,
+    no trust mount, no CA bundle, no compose profile."""
+    for name, kw in (("r1", {}), ("r2", {"profile": "da/laptop", "plugs": {}})):
+        stack = _stack(world, tmp_path, name, **kw)
+        text = stack.write_overlay().read_text()
+        assert "\n  snowflake:\n" not in text and "snowflaketrust" not in text
+        assert "REQUESTS_CA_BUNDLE" not in text
+        assert "snowflake" not in stack.compose_env().get("COMPOSE_PROFILES", "")
+
+
 def test_static_jupyter_service_is_profile_gated():
     static = ce.NATIVE_OVERLAY.read_text(encoding="utf-8")
     block = static.split("\n  jupyter:\n", 1)[1].split("\n  # The nine fake", 1)[0]
@@ -954,3 +981,16 @@ def test_the_default_image_becomes_the_profiles_role_image():
     assert ce.profile_image(default, None) == default                 # unprofiled: unchanged
     explicit = "alkera-episode:mine"
     assert ce.profile_image(explicit, episode.environment_profile("da/laptop")) == explicit
+
+
+def test_a_snowflake_profile_may_connect_to_snowflake_internal(world, tmp_path):
+    # The live snowflake service (compose profile `snowflake`) answers at
+    # snowflake.internal:8443; without it in the endpoint map, every rollout
+    # that used Snowflake was a network_destination quarantine.
+    snow = _stack(world, tmp_path, "s", profile="da/snowflake").episode_endpoints()
+    assert snow["snowflake"] == "https://snowflake.internal:8443"
+    assert ("snowflake.internal", 8443) in aut.allowed_destinations(snow)
+    duck = _stack(world, tmp_path, "d", profile="da/laptop").episode_endpoints()
+    assert "snowflake" not in duck
+    assert ("snowflake.internal", 8443) not in aut.allowed_destinations(duck)
+    assert "snowflake" not in _stack(world, tmp_path, "u").episode_endpoints()   # unprofiled

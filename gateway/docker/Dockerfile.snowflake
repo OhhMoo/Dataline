@@ -1,4 +1,8 @@
-FROM alkera-stack:track-b
+# BASE: the MCP route builds on alkera-stack:track-b; the native container
+# topology passes the episode image (tasks/harness/container_episode.py), so
+# the service runs the same alkera_gateway the episode's other services run.
+ARG BASE=alkera-stack:track-b
+FROM ${BASE}
 COPY gateway/docker/snowflake.lock /opt/snowflake.lock
 RUN pip install --no-cache-dir --require-hashes -r /opt/snowflake.lock
 COPY gateway/docker/snowflake_fidelity.py /opt/stack/snowflake_fidelity.py
