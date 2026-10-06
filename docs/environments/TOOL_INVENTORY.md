@@ -49,27 +49,28 @@ conflicts with it, the R004 verdict is overruled (§7).
 
 ---
 
-## 1a. Owners and status (2026-10-04)
+## 1a. Owners and status (2026-10-06)
 
-**done** = built and unit-tested, not yet run in a container (no Docker on the dev host);
-**partial** = usable with stated gaps; **open** = not started.
+**done** = built, tested, and run in the container topology unless stated;
+**partial** = usable with stated gaps; **open** = not started. Model results are Claude
+Opus, native driver, container topology (`docs/implementation_plan/TASK_STATUS.md`).
 
 | item | owner | status | what is still open |
 |---|---|---|---|
-| Snowflake | Michael | task-ready (`partial` plug) | TLS route untested by the new tests; no task selects it; container run |
+| Snowflake | Michael | done (plug live) | fakesnow at `snowflake.internal:8443` over trusted TLS for snowflake profiles, seeded from the world's warehouse, every statement audited (`snowflake.statement`); real connector and dbt-snowflake proven inside the container (`tasks/harness/evidence/snowflake_e2e.json`); image `alkera-episode:head-da-snowflake`. Open: Snowflake box's `services.toml` / onboarding / dbt profile still describe no Snowflake warehouse; containment not re-run with the service up; no task runs on `da/snowflake` |
 | Databricks (lakehouse) | Andrew | open | everything (§3.2 tier 1 / tier 2) |
 | dbt | Andrew | done for duckdb, postgres, snowflake | dbt-bigquery, dbt-redshift, dbt-databricks; dbt-postgres never run against a live server |
 | Airflow | Andrew | open | compose profile designed only; headless prototype archived |
-| Python / Jupyter | Andrew | done | container run; MLflow / compute nodes are separate and open. Notebook cells measured end to end on the host topology (`tasks/harness/evidence/bi_e2e_host.json` N1, N3) |
-| Postgres | Andrew | done | no task uses it; host topology has no Postgres bring-up |
-| BigQuery | Andrew | done (emulator) | dbt-bigquery; GCS fake; no task |
-| Semantic layer / BI-as-code | Michael | done | `world/world/semantic/` (model, expression tree, SQL compiler, render) and the dbt semantic-layer YAML front-end; `world/bi.py`'s SQL panels render through it byte-identically on every theme. Open: a `semantic_yaml` plug in the `bi` slot |
+| Python / Jupyter | Andrew (built by Michael) | done | audited kernel and jupyter service in da/ds images; MLflow / compute nodes are separate and open |
+| Postgres | Andrew | done | no task uses it |
+| BigQuery | Andrew | done (emulator) | GCS fake if a task needs it; dbt-bigquery; no task |
+| Semantic layer / BI-as-code | Michael | done | semantic core + dbt semantic-layer front-end (real MetricFlow agreed 24/24); MetricFlow `mf` CLI in the toolbelt, shimmed, `mf query` equal to the warehouse (`bi_e2e_host.json` M1-M4). Open: a task where the agent fixes a dbt metric |
 | Redshift | Andrew | open | Postgres persona (§3.2) |
-| Spreadsheets (Excel) | Andrew | partial | `excel_close` writes real `.xlsx`, readable via `in2csv`/`unzip`; **openpyxl is only in `/opt/toolbelt`, so `pandas.read_excel` fails in ds/da images**; no formula recalculation; no task writes a workbook |
-| Tableau, Sigma | Michael | partial | `.tds`/`.twb` and workbook/data-model JSON skins over the semantic core, fake Tableau Server REST (tabcmd, tableauserverclient) and Sigma API v2. No golden values from the real products; UI clones (a UI an agent drives) not started |
-| Power BI | Michael | partial | PBIP (TMDL + PBIR) and a DAX subset over the semantic core, fake Power BI / Fabric REST with Entra client credentials. No golden values from Power BI Desktop; see below |
-| BI tasks (`commerce_analytics`, BI001) | Michael | partial | the `commerce_analytics` theme (`bi_projects` hook, `bi_faults:`) and BI001 on `da/laptop` with all three vendors: `TASK VALID` on both arms, native oracle resolved through the harness on host and container. No model run; archetypes 2 (filter context) and 3 (stale publish) and the single-vendor `da/snowflake`/`da/aws`/`da/databricks` skins not built |
-| Better sandboxing | Andrew | partial | strong base (subject sandbox, egress allowlist, containment P0–P7 on x86, authoring strip); re-measure P6/P7 with profile overlays and the `jupyter` container; bare compose name `minio` still resolves; arm64 |
+| Spreadsheets (Excel) | Andrew | done (per owner) | measured here 2026-10-06: `openpyxl` is only in `/opt/toolbelt`, so `pandas.read_excel` fails in the da image's own Python |
+| Tableau, Sigma | Michael | done (file/API); UI clone started | skins + fake Tableau Server (real tabcmd/TSC) and Sigma API v2 with the real endpoints agents reached for; BI001 Opus 5/5 and 8/8. Tableau UI slice mounted in `tableau.internal` (views, charts, calc editor through the publish path; `docs/environments/UI_CLONE_PLAN.md`). Open: Sigma UI, Playwright in the image, a UI-only task; no golden values from the real products |
+| Power BI | Michael | done | PBIP + DAX subset + fake Power BI / Fabric REST with import-mode refresh; BI002 Opus 8/8 on both arms with `updateDefinition` + refresh used as required. Open: deployment-pipeline / Fabric `items` / semantic-model GET / My-workspace endpoints agents reached for; workspace name mismatch with the runbook; no golden values from Power BI Desktop |
+| BI tasks (`commerce_analytics`, BI001, BI002) | Michael | done, saturated | all four arms valid and 100% for Opus (BI001 default 5/5 provisional, decision 8/8; BI002 8/8, 8/8): the stack and grading work, no training signal yet. Next: harder variants (vague brief, subtler faults, red herrings, stacked faults) |
+| Better sandboxing | Andrew | partial | subject sandbox and containment P0-P7 pass; vendor state unforgeable (service-state mounted into native-services only); arm64 not measured |
 
 **Power BI difficulty.** File formats are tractable, the engine is the hard part.
 
