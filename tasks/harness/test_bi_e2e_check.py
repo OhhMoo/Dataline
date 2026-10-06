@@ -225,6 +225,21 @@ def test_the_tabcmd_shim_row_names_its_log(layout):
     assert judged["ok"] and judged["transcript_audited"] == [log]
 
 
+def test_the_mf_shim_row_names_its_csv_and_its_logs_are_skip_dir_churn(layout):
+    """`mf` writes logs/dbt.log + logs/metricflow.log into the dbt project on
+    every call (skipped by the shim on purpose, as dbt's are) and `--csv` writes
+    where it is told; the shim row names the CSV, so nothing is left unnamed."""
+    logs = ["workspace/dbt_project/logs/dbt.log", "workspace/dbt_project/logs/metricflow.log"]
+    out = "workspace/dbt_project/net_revenue_by_month.csv"
+    before, after = {}, {**{p: [1, "a"] for p in logs}, out: [1, "b"]}
+    rows = [_row("shim.mf", "exec", ["dbt_project/net_revenue_by_month.csv"])]
+    judged = check.explain_world(before, after, rows, layout, None)
+    assert judged["ok"] and judged["skip_dir_churn"] == logs
+    # a row that did not name the CSV leaves it unnamed: a failure
+    judged = check.explain_world(before, after, [_row("shim.mf", "exec", [])], layout, None)
+    assert not judged["ok"] and judged["unnamed_in_workspace"] == [out]
+
+
 def test_the_wiki_id_is_read_off_the_onboarding_page():
     profiled = ("## Where the runbooks are\n\n"
                 "  - `ae/metrics` - Metrics\n"
@@ -355,13 +370,14 @@ def test_the_table_has_one_line_per_action_and_every_dimension():
 # --------------------------------------------------------------------------
 CLIENTS = all(importlib.util.find_spec(name) is not None
               for name in ("tabcmd", "tableauserverclient", "jira", "slack_sdk",
-                           "atlassian", "nbclient"))
+                           "atlassian", "nbclient", "dbt_metricflow"))
 
 
 @pytest.mark.slow
 @pytest.mark.skipif(not CLIENTS, reason=(
-    "needs tabcmd and tableauserverclient: cd gateway && uv run --with tabcmd "
-    "--with tableauserverclient pytest ../tasks/harness/test_bi_e2e_check.py -m slow"))
+    "needs tabcmd, tableauserverclient and mf: cd gateway && uv run --with tabcmd "
+    "--with tableauserverclient --with dbt-metricflow "
+    "pytest ../tasks/harness/test_bi_e2e_check.py -m slow"))
 def test_every_tool_is_accurate_on_the_host_topology(tmp_path):
     out = tmp_path / "bi_e2e_host.json"
     code = check.main(["--topology", "host", "--out", str(out),
@@ -402,3 +418,10 @@ def test_every_tool_is_accurate_on_the_host_topology(tmp_path):
         assert by_id[tid]["verdict"] == "PASS", (tid, by_id[tid]["failures"])
     assert by_id["U2"]["tools"] == ["confluence.request", "confluence.request",
                                     "jira.request", "sigma.unknown_route"]
+    # 2026-10-06: MetricFlow's `mf` is shimmed; one row per call, its values are
+    # the warehouse's and world.semantic's, and the CSV it wrote is named
+    # (after the `git --help` mf's in-process `dbt debug` spawns, through the git shim)
+    for mid in ("M1", "M2", "M3", "M4"):
+        assert by_id[mid]["tools"] == ["shim.git", "shim.mf"], mid
+        assert by_id[mid]["verdict"] in ("PASS", "DOC"), (mid, by_id[mid]["failures"])
+    assert by_id["M4"]["rows"][-1]["targets"] == ["dbt_project/net_revenue_by_month.csv"]

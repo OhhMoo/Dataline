@@ -145,6 +145,20 @@ def test_toolbelt_venv_locks_pin_the_same_versions_on_both_arches():
     assert versions(DOCKER / "toolbelt.lock") == versions(DOCKER / "toolbelt.arm64.lock")
 
 
+def test_metricflow_in_the_toolbelt_venv_shares_the_gateways_dbt_and_duckdb():
+    """`mf` (dbt-metricflow) runs its own dbt parse and opens the warehouse FILE
+    with its own DuckDB. Pinned to the gateway's (system interpreter) dbt-core,
+    dbt-duckdb and duckdb, so `mf` parses the project the way the box's `dbt` does
+    and never writes the warehouse in a storage format the world's DuckDB cannot
+    read. csvkit 2.0.1 is the price: csvkit>=2.1 needs agate>=1.12 and every
+    dbt-common pins agate<1.10 (TOOLBELT.md)."""
+    venv, gateway = versions(DOCKER / "toolbelt.lock"), versions(GATEWAY / "requirements.lock")
+    assert venv["dbt-metricflow"] == "0.15.0" and venv["metricflow"] == "0.213.0"
+    for name in ("dbt-core", "dbt-duckdb", "duckdb"):
+        assert venv[name] == gateway[name], name
+    assert venv["csvkit"] == "2.0.1" and venv["agate"].startswith("1.9.")
+
+
 def test_role_libraries_are_not_in_the_toolbelt_venv():
     """They would be invisible there: `python` is /usr/local/bin/python."""
     assert not (ADDED["ds"] & set(versions(DOCKER / "toolbelt.lock")))
@@ -381,3 +395,5 @@ def test_toolbelt_check_probes_and_forbids_per_role():
     assert not check.role_probes("de")
     assert "jupyter" in check.forbidden_binaries("de")
     assert "jupyter" not in check.forbidden_binaries("da")
+    probes = {name: tuple(argv) for name, argv, _ in check.PROBES}
+    assert probes["mf"] == ("mf", "--version")

@@ -483,6 +483,42 @@ class Truth:
                       "WHERE o.order_status = 'completed' AND d.year = 2026 "
                       "GROUP BY 1 ORDER BY 1")
 
+    def metric_labels(self) -> dict[str, str]:
+        """{metric name: label} straight from the dbt project's metrics YAML."""
+        import yaml
+
+        out: dict[str, str] = {}
+        models = Path(self.world["workspace"]) / "dbt_project" / "models"
+        for path in sorted(models.rglob("*.yml")):
+            for metric in (yaml.safe_load(path.read_text("utf-8")) or {}).get("metrics") or []:
+                out[metric["name"]] = metric.get("label") or metric["name"]
+        return out
+
+    def semantic(self):
+        """world.semantic's reading of the same dbt project (yaml_model, the
+        front-end differential-tested against MetricFlow 0.213.0)."""
+        world_pkg = str(REPO / "world")
+        if world_pkg not in sys.path:
+            sys.path.append(world_pkg)
+        from world.semantic.formats import yaml_model
+
+        model, _ = yaml_model.read_project(Path(self.world["workspace"]) / "dbt_project",
+                                           warehouse=self.warehouse)
+        return model
+
+    def semantic_by_month(self, label: str) -> list[list]:
+        """The engine's rows for `label` by metric_time__month."""
+        from world.semantic import render
+        from world.semantic.expr import Col, MeasureRef
+        from world.semantic.model import Visual
+
+        model = self.semantic()
+        spine = next(t.name for t in model.tables
+                     if any(c.name == "metric_time__month" for c in t.columns))
+        visual = Visual("mf", group_by=(Col(spine, "metric_time__month"),),
+                        values=((label, MeasureRef(label)),))
+        return render.render_visual(model, visual, self.warehouse)["rows"]
+
     def table_exists(self, schema: str, table: str) -> bool:
         return bool(self.q(f"SELECT 1 FROM information_schema.tables WHERE table_catalog "
                            f"= 'wh' AND table_schema = '{schema}' AND table_name = "
@@ -1246,6 +1282,102 @@ def drive(topo, truth: Truth) -> list[Action]:
                        lambda got, ctx: ctx["warehouse"] in (got or []))],
         value=v_dbt_build,
         doc="the shim names the warehouse FILE dbt rewrote, not the model")
+
+    # ------------------------------------------------------ semantic (mf)
+    # MetricFlow's CLI from the toolbelt (dbt-metricflow 0.15.0). Run from the
+    # dbt project it reads target/semantic_manifest.json - so `dbt parse` comes
+    # first - and the profile in DBT_PROFILES_DIR (the world's), opens the
+    # warehouse file through its own dbt-duckdb, and writes logs/dbt.log +
+    # logs/metricflow.log on every call: a directory the shims skip on purpose,
+    # as for dbt, so a read-only call's row names nothing. `--csv` writes where
+    # it is told - into the repo in M4, and the shim row must name that file.
+    # Every call also runs `dbt debug` in-process (dbt-metricflow checks the
+    # connection that way), whose dependency check spawns `git --help`: that is a
+    # real git process through the git shim, so its row (targets []) comes first,
+    # then mf's own, written when mf exits. Measured 2026-10-06, every M action.
+    labels = truth.metric_labels()
+    mf_rows = lambda targets: [Expect("shim.git", "exec", exactly()),  # noqa: E731
+                               Expect("shim.mf", "exec", targets)]
+
+    def v_manifest(o, ctx):
+        path = Path(truth.world["workspace"]) / "dbt_project" / "target" / \
+            "semantic_manifest.json"
+        try:
+            names = sorted(m["name"] for m in json.loads(path.read_text("utf-8"))["metrics"])
+        except (OSError, ValueError, KeyError) as exc:
+            return False, f"no semantic manifest: {exc}"
+        return names == sorted(labels), f"manifest {names} vs metrics YAML {sorted(labels)}"
+
+    add(id="M0", family="semantic", label="dbt parse (the manifest mf reads)",
+        command=dbt.format(cmd="parse"),
+        expect=[Expect("shim.dbt", "exec", subset_of("config/.user.yml"))], value=v_manifest,
+        doc="target/semantic_manifest.json is in dbt's skipped target/ by design")
+
+    def v_mf_validate(o, ctx):
+        text = o.stdout + o.stderr
+        counts = [int(n) for n in re.findall(r"\(ERRORS: (\d+),", text)]
+        return (len(counts) == 6 and not any(counts),
+                f"ERRORS per stage {counts} (semantic + 5 warehouse stages, all 0)")
+
+    add(id="M1", family="semantic", label="mf validate-configs (semantics + warehouse; shim)",
+        command="cd dbt_project && mf validate-configs",
+        expect=mf_rows(exactly()), value=v_mf_validate,
+        doc="mf's logs/dbt.log and logs/metricflow.log are skip-dir churn, as dbt's are")
+
+    def v_mf_list(o, ctx):
+        listed = sorted(re.findall(r"^\W*([a-z_0-9]+): ", o.stdout, re.M))
+        engine = sorted(m.name for m in truth.semantic().measures)
+        return (listed == sorted(labels) and engine == sorted(labels.values()),
+                f"mf {listed} vs metrics YAML {sorted(labels)}; world.semantic "
+                f"{engine} vs labels {sorted(labels.values())}")
+
+    add(id="M2", family="semantic", label="mf list metrics (shim)",
+        command="cd dbt_project && mf list metrics",
+        expect=mf_rows(exactly()), value=v_mf_list)
+
+    def by_month_want() -> tuple[list, list]:
+        sql = [[f"{y:04d}-{m:02d}-01", v] for y, m, v in truth.by_month()]
+        engine = [[str(month)[:10], value]
+                  for month, value in truth.semantic_by_month(labels["net_revenue"])]
+        return sql, engine
+
+    def same_months(got: list, want: list) -> bool:
+        return len(got) == len(want) and all(
+            g[0] == w[0] and same_number(g[1], w[1], 2) for g, w in zip(got, want))
+
+    def v_mf_query(o, ctx):
+        got = [[m.group(1), m.group(2)] for m in re.finditer(
+            r"^(\d{4}-\d{2}-\d{2})T00:00:00\s+(-?[\d.]+)\s*$", o.stdout, re.M)]
+        sql, engine = by_month_want()
+        return (same_months(got, sql) and same_months(got, engine),
+                f"mf {got} vs sql {sql} vs world.semantic {engine}")
+
+    query = ("cd dbt_project && mf query --metrics net_revenue --group-by metric_time__month "
+             "--order metric_time__month")
+    add(id="M3", family="semantic",
+        label="mf query net_revenue by metric_time__month (shim)",
+        command=query + " --decimals 2 --quiet",
+        expect=mf_rows(exactly()), value=v_mf_query)
+
+    mf_csv = "net_revenue_by_month.csv"
+
+    def v_mf_csv(o, ctx):
+        path = Path(truth.world["workspace"]) / "dbt_project" / mf_csv
+        try:
+            rows = list(csv.reader(io.StringIO(path.read_text("utf-8"))))
+        except OSError as exc:
+            return False, f"no CSV: {exc}"
+        got = [[r[0][:10], r[1]] for r in rows[1:]]
+        sql, engine = by_month_want()
+        return (rows[:1] == [["metric_time__month", "net_revenue"]]
+                and same_months(got, sql) and same_months(got, engine),
+                f"mf CSV {rows[:1]} {got} vs sql {sql} vs world.semantic {engine}")
+
+    add(id="M4", family="semantic",
+        label="mf query ... --csv into the repo (shim names the file)",
+        command=f"{query} --csv {mf_csv}",
+        expect=mf_rows(exactly(f"dbt_project/{mf_csv}")),
+        value=v_mf_csv)
 
     # ---------------------------------------------------------- scheduler
     # da/laptop plugs NO orchestrator, so the box has no scheduler CLI on

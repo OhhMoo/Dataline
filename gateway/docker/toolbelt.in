@@ -1,7 +1,18 @@
 awscli==1.46.1
-csvkit==2.2.0
+# 2.0.1, not 2.2.0: csvkit>=2.1 needs agate>=1.12, every dbt-common (mf, below)
+# pins agate<1.10 (TOOLBELT.md).
+csvkit==2.0.1
 sqlfluff==4.3.0
 # Tableau: the CLI and the Python client a Tableau shop deploys with (the
 # tableau plug, gateway/docker/TOOLBELT.md); both MIT.
 tabcmd==2.0.21
 tableauserverclient==0.41
+# MetricFlow: the `mf` CLI over the dbt project's semantic layer
+# (models/semantic/), with dbt-duckdb as its adapter; Apache-2.0. dbt-core,
+# dbt-duckdb and duckdb are pinned to the gateway's own (gateway/uv.lock), so
+# mf's dbt parse is the `dbt` binary's parse and its DuckDB reads the
+# warehouse file in the format the world wrote it (gateway/docker/TOOLBELT.md).
+dbt-metricflow[dbt-duckdb]==0.15.0
+dbt-core==1.12.4
+dbt-duckdb==1.11.0
+duckdb==1.5.5
