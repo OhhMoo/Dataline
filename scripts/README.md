@@ -1,7 +1,7 @@
 # scripts/ — host setup and the measurement run
 
-Two entry points, both Linux, both run from anywhere (they resolve the repo from their own
-path). Each prints its full usage with `--help`.
+Three entry points, all Linux, all run from anywhere (they resolve the repo from their own
+path). The first two print their full usage with `--help`.
 
 ```
 setup_linux.sh          set up a host: OS packages and a container engine (Docker CE or rootless
@@ -16,9 +16,15 @@ run_decision_pass1.sh   pass@1 on the decision arms of GT001-GT003 and GT005-GT0
                         inhibitor. --k N  --tasks "GT00x ..."  --audit (off-score grader audit)
                         Env: MODEL CONCURRENCY OUT ALKERA_TMPDIR RUN_ID RETRIES WAIT_S JUDGE_K
                         Results: $OUT/<task>/<RUN_ID>/report.md, $OUT/_logs/<RUN_ID>/summary.tsv
+
+live_bi.sh              one live rollout of BI001 (guided brief) then BI002, K=1, run inside tmux:
+                        splits the window into the run, the agent's words and commands
+                        (transcript.jsonl), and every Power BI / Tableau / Sigma / mf / dbt /
+                        tabcmd call the gateway logged. Restores BI001's brief when it ends.
+                        Env: OUT MODEL. Needs jq.
 ```
 
-Neither creates a subject credential: run `claude setup-token` and export
+None creates a subject credential: run `claude setup-token` and export
 `CLAUDE_CODE_OAUTH_TOKEN` (or `ANTHROPIC_API_KEY`). See `tasks/harness/README.md#linux-hosts`.
 
 The former status scanner `track_status.py` (and its baseline and OVERVIEW) measured the
