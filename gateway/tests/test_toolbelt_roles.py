@@ -321,10 +321,12 @@ def test_gateway_locks_agree_on_every_shared_version(other):
 
 
 def test_snowflake_clients_install_after_the_role():
+    # every client lock (snowflake's among them) is installed by one loop over
+    # ALKERA_WAREHOUSE_CLIENTS, after the role and before the gateway itself
     text = (DOCKER / "Dockerfile").read_text(encoding="utf-8")
     role = text.index("/opt/gateway/requirements-$ALKERA_TOOLBELT.lock")
-    snow = text.index("-r /opt/gateway/requirements-snowflake.lock")
-    assert role < snow < text.index("--no-deps /opt/gateway")
+    clients = text.index('lock="/opt/gateway/clients/requirements-$c.lock"')
+    assert role < clients < text.index('-r "$lock"') < text.index("--no-deps /opt/gateway")
 
 
 def test_base_locks_keep_the_pre_snowflake_certifi_and_sqlglot():
@@ -352,8 +354,11 @@ def test_dockerfile_installs_role_libraries_into_the_system_python():
     text = (DOCKER / "Dockerfile").read_text(encoding="utf-8")
     assert "ARG ALKERA_TOOLBELT=de" in text
     assert 'ARG ALKERA_WAREHOUSE_CLIENTS=""' in text
-    for lock in (*ROLE_LOCKS.values(), "requirements-snowflake.lock"):
+    for lock in ROLE_LOCKS.values():
         assert f"COPY gateway/{lock} /opt/gateway/{lock}" in text
+    # the warehouse-client locks, requirements-snowflake.lock among them, are
+    # staged together and installed per ALKERA_WAREHOUSE_CLIENTS
+    assert "COPY gateway/requirements-*.lock /opt/gateway/clients/" in text
     role_install = text.index("/opt/gateway/requirements-$ALKERA_TOOLBELT.lock")
     gateway_install = text.index("--no-deps /opt/gateway")
     assert role_install < gateway_install, "role libraries go in before the gateway"

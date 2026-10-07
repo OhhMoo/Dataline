@@ -33,17 +33,18 @@ while alkera_gateway comes from the episode image's revision.
 import json
 import os
 import shutil
-import subprocess
 import threading
 import time
 from pathlib import Path
 
-import certifi
 import uvicorn
 
 HOSTNAME = "acme.snowflake.local"
 # `snowflake.internal` is the native episode's name for this service
 # (compose.native.yml); the connector verifies the certificate against it.
+ALT_NAMES = ("*.snowflake.local", "snowflake.internal")
+# What the certificate covers (tls.subject_alt_names(HOSTNAME, ALT_NAMES)),
+# spelled out; gateway/tests/test_backends.py holds the two equal.
 SUBJECT_ALT_NAMES = (f"DNS:{HOSTNAME},DNS:*.snowflake.local,DNS:snowflake.internal,"
                      "DNS:localhost,IP:127.0.0.1")
 NATIVE_HOST = "snowflake.internal"
@@ -60,43 +61,13 @@ DATA = Path("/snowflake-data")  # writable state, outside the fingerprinted tree
 UPSTREAM_PORT = 64616
 
 
-def certificate() -> Path:
-    """Regenerate the certificate and trust bundle together on each boot."""
-    TLS.mkdir(parents=True, exist_ok=True)
-    key, crt = TLS / "server.key", TLS / "server.crt"
-    subprocess.run(
-        [
-            "openssl",
-            "req",
-            "-x509",
-            "-newkey",
-            "rsa:2048",
-            "-nodes",
-            "-keyout",
-            str(key),
-            "-out",
-            str(crt),
-            "-days",
-            "30",
-            "-subj",
-            f"/CN={HOSTNAME}",
-            "-addext",
-            f"subjectAltName={SUBJECT_ALT_NAMES}",
-        ],
-        check=True,
-        capture_output=True,
-    )
-    key.chmod(0o600)
-    return crt
+def certificate() -> tuple[Path, Path]:
+    """Regenerate the certificate and trust bundle together on each boot:
+    `alkera_gateway.native.tls.mint`, the helper every TLS backend shares
+    (backends.BACKENDS rows with `tls=True`), with this service's names."""
+    from alkera_gateway.native.tls import mint
 
-
-def publish_trust(crt: Path) -> Path:
-    """The private key never leaves this container; the certificate always does."""
-    TRUST.mkdir(parents=True, exist_ok=True)
-    (TRUST / "server.crt").write_bytes(crt.read_bytes())
-    bundle = TRUST / "bundle.pem"
-    bundle.write_bytes(Path(certifi.where()).read_bytes() + b"\n" + crt.read_bytes())
-    return bundle
+    return mint(HOSTNAME, TRUST, private_dir=TLS, alt_names=ALT_NAMES)
 
 
 def seed(source: Path, data: Path = DATA) -> list[dict]:
@@ -231,7 +202,7 @@ def serve_native() -> None:
 
 
 def main() -> None:
-    publish_trust(certificate())
+    certificate()
     if os.environ.get(SEED_ENV):
         # The volume's mount point stays; everything in it goes.
         for stale in (DATA.iterdir() if DATA.exists() else ()):

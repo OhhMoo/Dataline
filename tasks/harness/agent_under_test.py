@@ -168,6 +168,14 @@ PLUG_SERVICES = {
 NATIVE_FAKE_CREDENTIAL = "alkera-local-dev"
 
 
+def _backends():
+    """`alkera_gateway.backends`: what a profile can plug into the container
+    topology (Snowflake today), each at its own endpoint. Imported on first use."""
+    from alkera_gateway import backends
+
+    return backends
+
+
 def plug_service_env(name: str, url: str) -> dict[str, str]:
     """Every variable a plugged BI vendor's clients read, for one base URL.
 
@@ -183,7 +191,18 @@ def plug_service_env(name: str, url: str) -> dict[str, str]:
       tableau  Tableau Server Client / tabcmd: server URL, site contentUrl
                ("" is the Default site, the only one), a personal access token.
       sigma    REST API v2 base URL and API client credentials.
+
+    A registry backend (`alkera_gateway.backends.BACKENDS`, e.g. a hosted one
+    a Wave of PLUG_SERVICES adds) answers from its own row: its `env`, with
+    its endpoint (`backends.endpoint`) re-based onto `url`. Anything else is a
+    KeyError naming what is known.
     """
+    backends = _backends()
+    if name in backends.BACKENDS:
+        b = backends.BACKENDS[name]
+        base = backends.endpoint(b)
+        return {key: url + value[len(base):] if value.startswith(base) else value
+                for key, value in b.env.items()}
     fake = NATIVE_FAKE_CREDENTIAL
     if name == "powerbi":
         return {"POWERBI_API_URL": url, "FABRIC_API_URL": url,
@@ -195,7 +214,8 @@ def plug_service_env(name: str, url: str) -> dict[str, str]:
     if name == "sigma":
         return {"SIGMA_BASE_URL": url, "SIGMA_CLIENT_ID": fake,
                 "SIGMA_CLIENT_SECRET": fake}
-    raise KeyError(f"{name!r} is not a plugged BI vendor ({', '.join(PLUG_SERVICES)})")
+    raise KeyError(f"{name!r} is not a plugged BI vendor ({', '.join(PLUG_SERVICES)}) "
+                   f"nor a backend ({', '.join(backends.BACKENDS)})")
 
 
 NATIVE_DEFAULTS = {
@@ -254,11 +274,6 @@ def resolve_endpoints(path: str | Path | None = None) -> dict:
     return ep
 
 
-#: The live Snowflake (gateway/docker/snowflake_start.py behind the TLS proxy),
-#: present only for a profile whose warehouse plug is snowflake.
-SNOWFLAKE_ENDPOINT = "https://snowflake.internal:8443"
-
-
 def profile_endpoints(endpoints: dict, profile=None) -> dict:
     """`endpoints` narrowed to what an environment profile serves.
 
@@ -280,16 +295,19 @@ def profile_endpoints(endpoints: dict, profile=None) -> dict:
     if "object_store" not in profile.slots:
         drop |= {key for key in endpoints if key.startswith("s3")}
     out = {key: value for key, value in endpoints.items() if key not in drop}
+    backends = _backends()
     # A plugged BI vendor is ADDED - it is in no default map - at its alias,
     # unless the map already carries an address for it (a relayed or
     # host-topology override from `resolve_endpoints`).
     for name, (_, port) in PLUG_SERVICES.items():
-        if name in profile.services and name not in out:
+        if name in profile.services and name not in out and name not in backends.BACKENDS:
             out[name] = f"http://{name}.internal:{port}"
-    # A Snowflake warehouse plug runs the live snowflake service (compose
-    # profile `snowflake`, TLS on 8443): the episode may dial it.
-    if "snowflake" in profile.slots.get("warehouse", ()) and "snowflake" not in out:
-        out["snowflake"] = SNOWFLAKE_ENDPOINT
+    # So is a plugged backend (alkera_gateway.backends: the live Snowflake
+    # behind its TLS proxy, https://snowflake.internal:8443), at its registry
+    # endpoint, scheme and all: the episode may dial it.
+    for b in backends.plugged(profile.slots):
+        if b.name not in out:
+            out[b.name] = backends.endpoint(b)
     return out
 
 
@@ -385,12 +403,13 @@ def allowed_destinations(endpoints: dict) -> set[tuple[str, int]]:
     connection saw and `localhost` and `127.0.0.1` are the same host.
     """
     out = {_host_port(endpoints[name])
-           for name in (*NATIVE_SERVICES, *NATIVE_WORKSPACE_SERVICES, *PLUG_SERVICES)
+           for name in (*NATIVE_SERVICES, *NATIVE_WORKSPACE_SERVICES, *PLUG_SERVICES,
+                        # a registry backend is in the map only when plugged
+                        # (`profile_endpoints`)
+                        *_backends().BACKENDS)
            if endpoints.get(name)}
     if "s3" in endpoints:
         out.add(_host_port(endpoints["s3"]))
-    if endpoints.get("snowflake"):
-        out.add(_host_port(endpoints["snowflake"]))
     pg = endpoints["postgres"]
     out.add((str(pg["host"]), int(pg["port"])))
     return {(normalise_host(h), p) for h, p in out}

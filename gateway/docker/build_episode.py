@@ -49,8 +49,23 @@ REPO = HERE.parents[1]
 CHECK = HERE / "toolbelt_check.py"
 DEFAULT_TAG = "alkera-episode:head"
 TOOLBELTS = ("de", "ds", "da")
-WAREHOUSE_CLIENTS = ("snowflake",)
 OVERLAY_DIR = "gateway/docker"
+
+
+def registry_clients() -> tuple[str, ...]:
+    """Every client set a backend names (alkera_gateway.backends.BACKENDS), sorted:
+    the values --warehouse-clients accepts, each a requirements-<c>.lock the
+    Dockerfile installs. Read from this checkout's gateway/src, so a registry row
+    and the image recipe cannot disagree about which client sets exist."""
+    src = str(REPO / "gateway" / "src")
+    if src not in sys.path:
+        sys.path.insert(0, src)
+    from alkera_gateway.backends import BACKENDS
+
+    return tuple(sorted({b.clients for b in BACKENDS.values() if b.clients}))
+
+
+WAREHOUSE_CLIENTS = registry_clients()
 
 
 def run(argv, **kw):

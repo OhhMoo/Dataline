@@ -115,6 +115,12 @@ TOOL_KINDS = {
     # through the CLI was never charged. `shim.duckdb` is kept for older logs.
     "duckdb.statement": "sql",
     "shim.duckdb": "sql",
+    # A backend's own statement rows (`statement_tool` in
+    # alkera_gateway.backends.BACKENDS: the Snowflake proxy writes
+    # `snowflake.statement`). Each one is SQL, so a destructive statement sent
+    # to a plugged warehouse is charged like one sent through psql;
+    # test_backends.py fails for a registered statement tool missing here.
+    "snowflake.statement": "sql",
     "bash": "shell",
     "s3_put": "fs_write",
     "s3_delete": "fs_delete",
