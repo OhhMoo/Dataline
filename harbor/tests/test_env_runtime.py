@@ -670,8 +670,7 @@ def test_world_down_stops_the_services_even_when_the_lock_is_held(staged):
     import fcntl
 
     root = staged["root"]
-    result = up(staged, staged["offset"])
-    assert result.returncode == 0, result.stderr
+    ensure_up(staged)               # whatever ran (or skipped) before this test
     pid = serve_pid(root)
     with open(root / "opt/alkera/run/world-up.lock", "a+") as lock:
         fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
