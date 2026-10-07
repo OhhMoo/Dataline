@@ -1,0 +1,914 @@
+{
+  "audit_sample": [
+    {
+      "args": {
+        "sql": "SELECT count(*) FROM raw.customers"
+      },
+      "args_hash": "3773ee4a8715f6523e5dbcf81165dac9080b4d5f99f1009e19991a333f496c60",
+      "args_summary": "{\"sql\":\"SELECT count(*) FROM raw.customers\"}",
+      "disk_mb": null,
+      "error": null,
+      "exit": "ok",
+      "flags": [
+        "translated",
+        "actor:redshift"
+      ],
+      "latency_ms": 9.617,
+      "op_class": "read",
+      "read_targets": [
+        "raw.customers"
+      ],
+      "result": {
+        "forwarded": true,
+        "translated": "SELECT COUNT(*) FROM raw.customers"
+      },
+      "result_bytes": 68,
+      "result_hash": "39c8df928c71a8754a25bb2f62302cfa5533c5da35539145bf7fa25faf4c488c",
+      "rows_affected": null,
+      "rss_mb": 117.73,
+      "schema_version": 1,
+      "seq": 1,
+      "target": "raw.customers",
+      "targets": [
+        "raw.customers"
+      ],
+      "tool": "redshift.statement",
+      "transport": "native",
+      "vts": "2026-03-02T00:00:00Z",
+      "wts": 1791365619077
+    },
+    {
+      "args": {
+        "sql": "SELECT count(*) FROM raw.order_lines"
+      },
+      "args_hash": "7978511f7907f76a3acaa029c16c7e36f5c2d9a09dc77d13d24e22f98cecff0d",
+      "args_summary": "{\"sql\":\"SELECT count(*) FROM raw.order_lines\"}",
+      "disk_mb": null,
+      "error": null,
+      "exit": "ok",
+      "flags": [
+        "translated",
+        "actor:redshift"
+      ],
+      "latency_ms": 2.948,
+      "op_class": "read",
+      "read_targets": [
+        "raw.order_lines"
+      ],
+      "result": {
+        "forwarded": true,
+        "translated": "SELECT COUNT(*) FROM raw.order_lines"
+      },
+      "result_bytes": 70,
+      "result_hash": "d23beb5b31c19155907fcd1a3740a2d2fb3d210085d74f224586486a6fd78ec6",
+      "rows_affected": null,
+      "rss_mb": 117.766,
+      "schema_version": 1,
+      "seq": 2,
+      "target": "raw.order_lines",
+      "targets": [
+        "raw.order_lines"
+      ],
+      "tool": "redshift.statement",
+      "transport": "native",
+      "vts": "2026-03-02T00:00:00Z",
+      "wts": 1791365619089
+    },
+    {
+      "args": {
+        "sql": "UNLOAD ('select * from warehouse.fct_orders') TO 's3://acme-exports/fct_orders_' IAM_ROLE 'arn:aws:iam::123456789012:role/redshift-unload'"
+      },
+      "args_hash": "d8e64a051d34a74ef2cd25af2753b1b42a3b664091c2b106061f3664215360c3",
+      "args_summary": "{\"sql\":\"UNLOAD ('select * from warehouse.fct_orders') TO 's3://acme-exports/fct_orders_' IAM_ROLE 'arn:aws:iam::123456789012:role/redshift-unload'\"}",
+      "disk_mb": null,
+      "error": {
+        "code": "0A000",
+        "message": "Redshift feature not available in this environment: UNLOAD"
+      },
+      "exit": "error",
+      "flags": [
+        "outside_tool_surface",
+        "actor:redshift"
+      ],
+      "latency_ms": 0.233,
+      "op_class": "exec",
+      "read_targets": [],
+      "result": {
+        "forwarded": false,
+        "translated": null
+      },
+      "result_bytes": 37,
+      "result_hash": "d9c57f22ab6199c79e49c7d80e98ef5a6f418acce14b45b2eb64a62c7a51e92c",
+      "rows_affected": null,
+      "rss_mb": 118.43,
+      "schema_version": 1,
+      "seq": 29,
+      "target": null,
+      "targets": [],
+      "tool": "redshift.statement",
+      "transport": "native",
+      "vts": "2026-03-02T00:00:00Z",
+      "wts": 1791365619432
+    }
+  ],
+  "box_profile": "world_dbt:\n  outputs:\n    dev:\n      path: /world/var/warehouse/warehouse.duckdb\n      threads: 1\n      type: duckdb\n    redshift:\n      type: redshift\n      host: '{{ env_var(''REDSHIFT_HOST'') }}'\n      user: '{{ env_var(''REDSHIFT_USER'') }}'\n      password: '{{ env_var(''REDSHIFT_PASSWORD'') }}'\n      dbname: '{{ env_var(''REDSHIFT_DATABASE'') }}'\n      port: 5439\n      schema: public\n      threads: 1\n      sslmode: disable\n  target: redshift\n",
+  "checks": [
+    {
+      "check": "redshift service running under the profile",
+      "detail": null,
+      "result": "PASS"
+    },
+    {
+      "check": "seeded: every world table is in dev, with the world's row count",
+      "detail": {
+        "expected": {
+          "raw.customers": 339,
+          "raw.order_lines": 29200,
+          "raw.orders": 17768,
+          "raw.products": 31,
+          "staging.stg_customers": 309,
+          "staging.stg_order_lines": 29200,
+          "staging.stg_orders": 16825,
+          "staging.stg_products": 25,
+          "warehouse.dim_customer": 309,
+          "warehouse.dim_date": 424,
+          "warehouse.dim_product": 25,
+          "warehouse.fct_order_lines": 29200,
+          "warehouse.fct_orders": 16825
+        },
+        "seeded": {
+          "raw.customers": 339,
+          "raw.order_lines": 29200,
+          "raw.orders": 17768,
+          "raw.products": 31,
+          "staging.stg_customers": 309,
+          "staging.stg_order_lines": 29200,
+          "staging.stg_orders": 16825,
+          "staging.stg_products": 25,
+          "warehouse.dim_customer": 309,
+          "warehouse.dim_date": 424,
+          "warehouse.dim_product": 25,
+          "warehouse.fct_order_lines": 29200,
+          "warehouse.fct_orders": 16825
+        }
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "connector: connects with ssl=False through the proxy",
+      "detail": "RS-E2E {\"statements\": [], \"env\": {\"REDSHIFT_HOST\": \"redshift.internal\", \"REDSHIFT_PORT\": \"5439\", \"REDSHIFT_DATABASE\": \"dev\", \"REDSHIFT_USER\": \"alkera\"}, \"server_version\": \"8.0.2\", \"startup_parameters\": [\"application_name\", \"client_protocol_version\", \"database\", \"driver_discovery_version\", \"driver_version\", \"os_version\", \"user\"]}\n",
+      "result": "PASS"
+    },
+    {
+      "check": "connector: sends no statement at connect (startup reply only)",
+      "detail": 0,
+      "result": "PASS"
+    },
+    {
+      "check": "connector: the persona reports Redshift's server_version 8.0.2",
+      "detail": "8.0.2",
+      "result": "PASS"
+    },
+    {
+      "check": "connector probe ran inside the episode",
+      "detail": "arn:aws:iam::123456789012:role/redshift-unload'\", \"COPY warehouse.fct_orders FROM 's3://acme-landing/orders/' IAM_ROLE 'arn:aws:iam::123456789012:role/redshift-copy' CSV\", \"SELECT 1\"], \"env\": {\"REDSHIFT_HOST\": \"redshift.internal\", \"REDSHIFT_PORT\": \"5439\", \"REDSHIFT_DATABASE\": \"dev\", \"REDSHIFT_USER\": \"alkera\"}, \"counts\": {\"raw.customers\": 339, \"raw.order_lines\": 29200, \"raw.orders\": 17768, \"raw.products\": 31, \"staging.stg_customers\": 309, \"staging.stg_order_lines\": 29200, \"staging.stg_orders\": 16825, \"staging.stg_products\": 25, \"warehouse.dim_customer\": 309, \"warehouse.dim_date\": 424, \"warehouse.dim_product\": 25, \"warehouse.fct_order_lines\": 29200, \"warehouse.fct_orders\": 16825}, \"corpus\": {\"getdate_datediff_day\": \"221\", \"dateadd_month_back_from_getdate\": \"2026-09-07\", \"dateadd_month_end_clamps\": \"2026-03-28\", \"datediff_month_counts_boundaries\": \"107928\", \"datediff_year_signups\": \"150\", \"nvl_counts_completed\": \"15183\", \"listagg_within_group\": \"cancelled,completed,refunded\", \"cast_colons_net_revenue\": \"33733790.00\", \"top_n_largest_orders\": \"257942.00\", \"decode_completed_revenue\": \"33733790.00\", \"date_trunc_feb_2026_net_revenue\": \"2361224.00\", \"concat_then_pipes\": \"Consumer/APAC\"}, \"read_back\": [[\"1\", \"alpha\"], [\"2\", \"beta\"]], \"refusals\": {\"UNLOAD\": {\"code\": \"0A000\", \"message\": \"Redshift feature not available in this environment: UNLOAD\"}, \"COPY FROM S3\": {\"code\": \"0A000\", \"message\": \"Redshift feature not available in this environment: COPY FROM S3\"}}, \"after_refusal\": [[\"1\"]]}\n",
+      "result": "PASS"
+    },
+    {
+      "check": "connector: every table's row count equals the world's DuckDB",
+      "detail": {
+        "expected": {
+          "raw.customers": 339,
+          "raw.order_lines": 29200,
+          "raw.orders": 17768,
+          "raw.products": 31,
+          "staging.stg_customers": 309,
+          "staging.stg_order_lines": 29200,
+          "staging.stg_orders": 16825,
+          "staging.stg_products": 25,
+          "warehouse.dim_customer": 309,
+          "warehouse.dim_date": 424,
+          "warehouse.dim_product": 25,
+          "warehouse.fct_order_lines": 29200,
+          "warehouse.fct_orders": 16825
+        },
+        "got": {
+          "raw.customers": 339,
+          "raw.order_lines": 29200,
+          "raw.orders": 17768,
+          "raw.products": 31,
+          "staging.stg_customers": 309,
+          "staging.stg_order_lines": 29200,
+          "staging.stg_orders": 16825,
+          "staging.stg_products": 25,
+          "warehouse.dim_customer": 309,
+          "warehouse.dim_date": 424,
+          "warehouse.dim_product": 25,
+          "warehouse.fct_order_lines": 29200,
+          "warehouse.fct_orders": 16825
+        }
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "corpus: all 12 Redshift queries equal the DuckDB truth",
+      "detail": {},
+      "result": "PASS"
+    },
+    {
+      "check": "scratch CREATE (DISTKEY/SORTKEY/ENCODE) + INSERT reads back",
+      "detail": [
+        [
+          "1",
+          "alpha"
+        ],
+        [
+          "2",
+          "beta"
+        ]
+      ],
+      "result": "PASS"
+    },
+    {
+      "check": "refused by name with 0A000: UNLOAD",
+      "detail": {
+        "code": "0A000",
+        "message": "Redshift feature not available in this environment: UNLOAD"
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "refused by name with 0A000: COPY FROM S3",
+      "detail": {
+        "code": "0A000",
+        "message": "Redshift feature not available in this environment: COPY FROM S3"
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "the connection is usable after a refusal",
+      "detail": [
+        [
+          "1"
+        ]
+      ],
+      "result": "PASS"
+    },
+    {
+      "check": "audit: one redshift.statement row per connector statement, in order",
+      "detail": {
+        "rows": 31,
+        "sent": 31
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "audit: each refusal is an error row with 0A000",
+      "detail": [
+        {
+          "code": "0A000",
+          "message": "Redshift feature not available in this environment: UNLOAD"
+        },
+        {
+          "code": "0A000",
+          "message": "Redshift feature not available in this environment: COPY FROM S3"
+        }
+      ],
+      "result": "PASS"
+    },
+    {
+      "check": "psql: February 2026 Net Revenue equals the world's",
+      "detail": "2361224.00",
+      "result": "PASS"
+    },
+    {
+      "check": "psql: version() is the persona's Redshift",
+      "detail": "PostgreSQL 8.0.2 on i686-pc-linux-gnu, compiled by GCC gcc (GCC) 3.4.2 20041017 (Red Hat 3.4.2-6.fc3), Redshift 1.0.87657\n",
+      "result": "PASS"
+    },
+    {
+      "check": "psql: a refusal is an ERROR naming the feature",
+      "detail": "ERROR:  Redshift feature not available in this environment: UNLOAD\n",
+      "result": "PASS"
+    },
+    {
+      "check": "audit: psql's three statements are three rows",
+      "detail": [
+        "SELECT SUM(order_amount) FROM warehouse.fct_orders WHERE ord",
+        "SELECT version()",
+        "UNLOAD ('select 1') TO 's3://acme-exports/x' IAM_ROLE 'arn:a"
+      ],
+      "result": "PASS"
+    },
+    {
+      "check": "dbt debug against the redshift target",
+      "detail": "\n\u001b[0m09:33:48    port: 5439\n\u001b[0m09:33:48    database: dev\n\u001b[0m09:33:48    method: database\n\u001b[0m09:33:48    cluster_id: None\n\u001b[0m09:33:48    iam_profile: None\n\u001b[0m09:33:48    schema: dbt_e2e\n\u001b[0m09:33:48    sslmode: disable\n\u001b[0m09:33:48    region: None\n\u001b[0m09:33:48    sslmode: disable\n\u001b[0m09:33:48    region: None\n\u001b[0m09:33:48    autocreate: False\n\u001b[0m09:33:48    db_groups: []\n\u001b[0m09:33:48    ra3_node: False\n\u001b[0m09:33:48    datasharing: False\n\u001b[0m09:33:48    connect_timeout: 20\n\u001b[0m09:33:48    role: None\n\u001b[0m09:33:48    retries: 1\n\u001b[0m09:33:48    retry_all: False\n\u001b[0m09:33:48    autocommit: True\n\u001b[0m09:33:48    access_key_id: None\n\u001b[0m09:33:48    is_serverless: None\n\u001b[0m09:33:48    serverless_work_group: None\n\u001b[0m09:33:48    serverless_acct_id: None\n\u001b[0m09:33:48    tcp_keepalive: True\n\u001b[0m09:33:48    tcp_keepalive_idle: None\n\u001b[0m09:33:48    tcp_keepalive_interval: None\n\u001b[0m09:33:48    tcp_keepalive_count: None\n\u001b[0m09:33:48    query_group: None\n\u001b[0m09:33:48    allow_concurrent_drops: False\n\u001b[0m09:33:48    drop_without_cascade: False\n\u001b[0m09:33:48  Registered adapter: redshift=1.11.1\n\u001b[0m09:33:49    Connection test: [\u001b[32mOK connection ok\u001b[0m]\n\n\u001b[0m09:33:49  \u001b[32mAll checks passed!\u001b[0m\n",
+      "result": "PASS"
+    },
+    {
+      "check": "dbt run -s rs_check against the redshift target",
+      "detail": "\u001b[0m09:33:56  Running with dbt=1.12.4\n\u001b[0m09:33:56  Registered adapter: redshift=1.11.1\n\u001b[0m09:33:57  Unable to do partial parsing because saved manifest not found. Starting full parse.\n\u001b[0m09:33:59  Found 1 model, 567 macros\n\u001b[0m09:33:59  \n\u001b[0m09:33:59  Concurrency: 1 threads (target='redshift')\n\u001b[0m09:33:59  \n\u001b[0m09:33:59  1 of 1 START sql table model dbt_e2e.rs_check .................................. [RUN]\n\u001b[0m09:33:59  1 of 1 OK created sql table model dbt_e2e.rs_check ............................. [\u001b[32mSUCCESS\u001b[0m in 0.30s]\n\u001b[0m09:33:59  \n\u001b[0m09:33:59  Finished running 1 table model in 0 hours 0 minutes and 0.89 seconds (0.89s).\n\u001b[0m09:34:00  \n\u001b[0m09:34:00  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m09:34:00  \n\u001b[0m09:34:00  Done. PASS=1 WARN=0 ERROR=0 SKIP=0 NO-OP=0 REUSED=0 TOTAL=1\n",
+      "result": "PASS"
+    },
+    {
+      "check": "dbt model's value equals the world's DuckDB",
+      "detail": {
+        "expected": 15183,
+        "got": "15183",
+        "tail": "RS-E2E {\"statements\": [\"SELECT n FROM dbt_e2e.rs_check\"], \"env\": {\"REDSHIFT_HOST\": \"redshift.internal\", \"REDSHIFT_PORT\": \"5439\", \"REDSHIFT_DATABASE\": \"dev\", \"REDSHIFT_USER\": \"alkera\"}, \"value\": \"15183\"}\n"
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "box profile (~/.dbt) defaults to the redshift target, DuckDB dev kept",
+      "detail": "world_dbt:\n  outputs:\n    dev:\n      path: /world/var/warehouse/warehouse.duckdb\n      threads: 1\n      type: duckdb\n    redshift:\n      type: redshift\n      host: '{{ env_var(''REDSHIFT_HOST'') }}'\n      user: '{{ env_var(''REDSHIFT_USER'') }}'\n      password: '{{ env_var(''REDSHIFT_PASSWORD'') }}'\n      dbname: '{{ env_var(''REDSHIFT_DATABASE'') }}'\n      port: 5439\n      schema: public\n      threads: 1\n      sslmode: disable\n  target: redshift\n",
+      "result": "PASS"
+    },
+    {
+      "check": "bare `dbt debug` connects to redshift through the box profile",
+      "detail": "\u001b[0m09:34:08    port: 5439\n\u001b[0m09:34:08    database: dev\n\u001b[0m09:34:08    method: database\n\u001b[0m09:34:08    cluster_id: None\n\u001b[0m09:34:08    iam_profile: None\n\u001b[0m09:34:08    schema: public\n\u001b[0m09:34:08    sslmode: disable\n\u001b[0m09:34:08    region: None\n\u001b[0m09:34:08    sslmode: disable\n\u001b[0m09:34:08    region: None\n\u001b[0m09:34:08    autocreate: False\n\u001b[0m09:34:08    db_groups: []\n\u001b[0m09:34:08    ra3_node: False\n\u001b[0m09:34:08    datasharing: False\n\u001b[0m09:34:08    connect_timeout: None\n\u001b[0m09:34:08    role: None\n\u001b[0m09:34:08    retries: 1\n\u001b[0m09:34:08    retry_all: False\n\u001b[0m09:34:08    autocommit: True\n\u001b[0m09:34:08    access_key_id: None\n\u001b[0m09:34:08    is_serverless: None\n\u001b[0m09:34:08    serverless_work_group: None\n\u001b[0m09:34:08    serverless_acct_id: None\n\u001b[0m09:34:08    tcp_keepalive: True\n\u001b[0m09:34:08    tcp_keepalive_idle: None\n\u001b[0m09:34:08    tcp_keepalive_interval: None\n\u001b[0m09:34:08    tcp_keepalive_count: None\n\u001b[0m09:34:08    query_group: None\n\u001b[0m09:34:08    allow_concurrent_drops: False\n\u001b[0m09:34:08    drop_without_cascade: False\n\u001b[0m09:34:08  Registered adapter: redshift=1.11.1\n\u001b[0m09:34:08    Connection test: [\u001b[32mOK connection ok\u001b[0m]\n\n\u001b[0m09:34:08  \u001b[32mAll checks passed!\u001b[0m\n",
+      "result": "PASS"
+    },
+    {
+      "check": "audit: dbt's statements are redshift.statement rows",
+      "detail": 34,
+      "result": "PASS"
+    },
+    {
+      "check": "remote write: the writes landed in the persona's seeded copy",
+      "detail": {
+        "got": "3361224.00",
+        "tail": "mount) FROM warehouse.fct_orders WHERE order_status = 'completed' AND order_date >= DATE '2026-02-01' AND order_date < DATE '2026-03-01'\"], \"env\": {\"REDSHIFT_HOST\": \"redshift.internal\", \"REDSHIFT_PORT\": \"5439\", \"REDSHIFT_DATABASE\": \"dev\", \"REDSHIFT_USER\": \"alkera\"}, \"net_after_write\": \"3361224.00\"}\n",
+        "world": "2361224.00"
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "test_remote_write_leaves_world_fingerprint_unchanged",
+      "detail": {
+        "after": {
+          "semantic_hash": "5585b941462cea96970e9cb0f9b79463ee794a72cbb09e58283164c8595873b7",
+          "warehouse_bytes": "5585cd37cabb429707765b5ed2b974c9ea592c1f00fe3c235269c14c81dc85b7"
+        },
+        "before": {
+          "semantic_hash": "5585b941462cea96970e9cb0f9b79463ee794a72cbb09e58283164c8595873b7",
+          "warehouse_bytes": "5585cd37cabb429707765b5ed2b974c9ea592c1f00fe3c235269c14c81dc85b7"
+        }
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "remote write: the world's DuckDB still answers the original truth",
+      "detail": null,
+      "result": "PASS"
+    },
+    {
+      "check": "remote write: each write statement is a write-class row",
+      "detail": [
+        [
+          "ddl",
+          "CREATE TABLE warehouse.rs_write_probe AS SELECT * FROM wareh"
+        ],
+        [
+          "write",
+          "INSERT INTO warehouse.fct_orders (order_id, order_date, cust"
+        ],
+        [
+          "write",
+          "UPDATE warehouse.dim_customer SET segment = 'Rewritten' WHER"
+        ],
+        [
+          "destructive",
+          "DELETE FROM warehouse.fct_order_lines WHERE order_id = 10000"
+        ],
+        [
+          "destructive",
+          "DROP TABLE warehouse.rs_write_probe"
+        ],
+        [
+          "read",
+          "SELECT SUM(order_amount) FROM warehouse.fct_orders WHERE ord"
+        ]
+      ],
+      "result": "PASS"
+    },
+    {
+      "check": "audit: every statement the proxy handled is exactly one row (statement log 1:1)",
+      "detail": {
+        "audit_rows": 74,
+        "statement_log": 74
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "audit: rows carry exactly the 9.2.2 keys",
+      "detail": [],
+      "result": "PASS"
+    },
+    {
+      "check": "audit: seq is contiguous across writers",
+      "detail": [
+        75,
+        76,
+        77,
+        78,
+        79
+      ],
+      "result": "PASS"
+    },
+    {
+      "check": "destinations.jsonl counts redshift.internal:5439 after teardown",
+      "detail": [
+        {
+          "count": 15,
+          "first_ts": "2026-10-07T09:33:37Z",
+          "host": "redshift.internal",
+          "last_ts": "2026-10-07T09:34:11Z",
+          "port": 5439
+        }
+      ],
+      "result": "PASS"
+    }
+  ],
+  "connector": {
+    "after_refusal": [
+      [
+        "1"
+      ]
+    ],
+    "corpus": {
+      "cast_colons_net_revenue": "33733790.00",
+      "concat_then_pipes": "Consumer/APAC",
+      "date_trunc_feb_2026_net_revenue": "2361224.00",
+      "dateadd_month_back_from_getdate": "2026-09-07",
+      "dateadd_month_end_clamps": "2026-03-28",
+      "datediff_month_counts_boundaries": "107928",
+      "datediff_year_signups": "150",
+      "decode_completed_revenue": "33733790.00",
+      "getdate_datediff_day": "221",
+      "listagg_within_group": "cancelled,completed,refunded",
+      "nvl_counts_completed": "15183",
+      "top_n_largest_orders": "257942.00"
+    },
+    "counts": {
+      "raw.customers": 339,
+      "raw.order_lines": 29200,
+      "raw.orders": 17768,
+      "raw.products": 31,
+      "staging.stg_customers": 309,
+      "staging.stg_order_lines": 29200,
+      "staging.stg_orders": 16825,
+      "staging.stg_products": 25,
+      "warehouse.dim_customer": 309,
+      "warehouse.dim_date": 424,
+      "warehouse.dim_product": 25,
+      "warehouse.fct_order_lines": 29200,
+      "warehouse.fct_orders": 16825
+    },
+    "env": {
+      "REDSHIFT_DATABASE": "dev",
+      "REDSHIFT_HOST": "redshift.internal",
+      "REDSHIFT_PORT": "5439",
+      "REDSHIFT_USER": "alkera"
+    },
+    "read_back": [
+      [
+        "1",
+        "alpha"
+      ],
+      [
+        "2",
+        "beta"
+      ]
+    ],
+    "refusals": {
+      "COPY FROM S3": {
+        "code": "0A000",
+        "message": "Redshift feature not available in this environment: COPY FROM S3"
+      },
+      "UNLOAD": {
+        "code": "0A000",
+        "message": "Redshift feature not available in this environment: UNLOAD"
+      }
+    },
+    "statements": [
+      "SELECT count(*) FROM raw.customers",
+      "SELECT count(*) FROM raw.order_lines",
+      "SELECT count(*) FROM raw.orders",
+      "SELECT count(*) FROM raw.products",
+      "SELECT count(*) FROM staging.stg_customers",
+      "SELECT count(*) FROM staging.stg_order_lines",
+      "SELECT count(*) FROM staging.stg_orders",
+      "SELECT count(*) FROM staging.stg_products",
+      "SELECT count(*) FROM warehouse.dim_customer",
+      "SELECT count(*) FROM warehouse.dim_date",
+      "SELECT count(*) FROM warehouse.dim_product",
+      "SELECT count(*) FROM warehouse.fct_order_lines",
+      "SELECT count(*) FROM warehouse.fct_orders",
+      "SELECT DATEDIFF(day, '2026-02-28', GETDATE()::date)",
+      "SELECT DATEADD(month, -1, GETDATE())::date",
+      "SELECT DATEADD(month, 1, MAX(order_date))::date FROM warehouse.fct_orders",
+      "SELECT SUM(DATEDIFF(month, order_date, '2026-03-01')) FROM warehouse.fct_orders WHERE order_status = 'completed'",
+      "SELECT COUNT(*) FROM warehouse.dim_customer WHERE DATEDIFF(year, signup_date, '2026-03-02') >= 3",
+      "SELECT COUNT(*) FROM warehouse.fct_orders WHERE NVL(NULLIF(order_status, 'completed'), 'done') = 'done'",
+      "SELECT LISTAGG(DISTINCT order_status, ',') WITHIN GROUP (ORDER BY order_status) FROM warehouse.fct_orders",
+      "SELECT SUM(order_amount::numeric(18,2))::varchar FROM warehouse.fct_orders WHERE order_status = 'completed'",
+      "SELECT SUM(order_amount) FROM (SELECT TOP 10 order_amount FROM warehouse.fct_orders ORDER BY order_amount DESC, order_id) t",
+      "SELECT SUM(DECODE(order_status, 'completed', order_amount, 0)) FROM warehouse.fct_orders",
+      "SELECT SUM(order_amount) FROM warehouse.fct_orders WHERE order_status = 'completed' AND DATE_TRUNC('month', order_date) = '2026-02-01'",
+      "SELECT MIN(CONCAT(segment, '/') || region) FROM warehouse.dim_customer",
+      "CREATE TABLE public.rs_e2e_scratch (id INT ENCODE az64, note VARCHAR(MAX) ENCODE lzo) DISTSTYLE KEY DISTKEY(id) COMPOUND SORTKEY(id)",
+      "INSERT INTO public.rs_e2e_scratch VALUES (1, 'alpha'), (2, 'beta')",
+      "SELECT id, note FROM public.rs_e2e_scratch ORDER BY id",
+      "UNLOAD ('select * from warehouse.fct_orders') TO 's3://acme-exports/fct_orders_' IAM_ROLE 'arn:aws:iam::123456789012:role/redshift-unload'",
+      "COPY warehouse.fct_orders FROM 's3://acme-landing/orders/' IAM_ROLE 'arn:aws:iam::123456789012:role/redshift-copy' CSV",
+      "SELECT 1"
+    ]
+  },
+  "connector_connect": {
+    "env": {
+      "REDSHIFT_DATABASE": "dev",
+      "REDSHIFT_HOST": "redshift.internal",
+      "REDSHIFT_PORT": "5439",
+      "REDSHIFT_USER": "alkera"
+    },
+    "server_version": "8.0.2",
+    "startup_parameters": [
+      "application_name",
+      "client_protocol_version",
+      "database",
+      "driver_discovery_version",
+      "driver_version",
+      "os_version",
+      "user"
+    ],
+    "statements": [],
+    "statements_at_connect": 0
+  },
+  "container_id": "e3beab6a7a72",
+  "corpus": {
+    "cast_colons_net_revenue": {
+      "equal": true,
+      "redshift_sql": "SELECT SUM(order_amount::numeric(18,2))::varchar FROM warehouse.fct_orders WHERE order_status = 'completed'",
+      "truth": "33733790.00",
+      "value": "33733790.00"
+    },
+    "concat_then_pipes": {
+      "equal": true,
+      "redshift_sql": "SELECT MIN(CONCAT(segment, '/') || region) FROM warehouse.dim_customer",
+      "truth": "Consumer/APAC",
+      "value": "Consumer/APAC"
+    },
+    "date_trunc_feb_2026_net_revenue": {
+      "equal": true,
+      "redshift_sql": "SELECT SUM(order_amount) FROM warehouse.fct_orders WHERE order_status = 'completed' AND DATE_TRUNC('month', order_date) = '2026-02-01'",
+      "truth": "2361224.00",
+      "value": "2361224.00"
+    },
+    "dateadd_month_back_from_getdate": {
+      "equal": true,
+      "redshift_sql": "SELECT DATEADD(month, -1, GETDATE())::date",
+      "truth": "2026-09-07",
+      "value": "2026-09-07"
+    },
+    "dateadd_month_end_clamps": {
+      "equal": true,
+      "redshift_sql": "SELECT DATEADD(month, 1, MAX(order_date))::date FROM warehouse.fct_orders",
+      "truth": "2026-03-28",
+      "value": "2026-03-28"
+    },
+    "datediff_month_counts_boundaries": {
+      "equal": true,
+      "redshift_sql": "SELECT SUM(DATEDIFF(month, order_date, '2026-03-01')) FROM warehouse.fct_orders WHERE order_status = 'completed'",
+      "truth": "107928",
+      "value": "107928"
+    },
+    "datediff_year_signups": {
+      "equal": true,
+      "redshift_sql": "SELECT COUNT(*) FROM warehouse.dim_customer WHERE DATEDIFF(year, signup_date, '2026-03-02') >= 3",
+      "truth": "150",
+      "value": "150"
+    },
+    "decode_completed_revenue": {
+      "equal": true,
+      "redshift_sql": "SELECT SUM(DECODE(order_status, 'completed', order_amount, 0)) FROM warehouse.fct_orders",
+      "truth": "33733790.00",
+      "value": "33733790.00"
+    },
+    "getdate_datediff_day": {
+      "equal": true,
+      "redshift_sql": "SELECT DATEDIFF(day, '2026-02-28', GETDATE()::date)",
+      "truth": "221",
+      "value": "221"
+    },
+    "listagg_within_group": {
+      "equal": true,
+      "redshift_sql": "SELECT LISTAGG(DISTINCT order_status, ',') WITHIN GROUP (ORDER BY order_status) FROM warehouse.fct_orders",
+      "truth": "cancelled,completed,refunded",
+      "value": "cancelled,completed,refunded"
+    },
+    "nvl_counts_completed": {
+      "equal": true,
+      "redshift_sql": "SELECT COUNT(*) FROM warehouse.fct_orders WHERE NVL(NULLIF(order_status, 'completed'), 'done') = 'done'",
+      "truth": "15183",
+      "value": "15183"
+    },
+    "top_n_largest_orders": {
+      "equal": true,
+      "redshift_sql": "SELECT SUM(order_amount) FROM (SELECT TOP 10 order_amount FROM warehouse.fct_orders ORDER BY order_amount DESC, order_id) t",
+      "truth": "257942.00",
+      "value": "257942.00"
+    }
+  },
+  "counts": {
+    "audit_rows": 74,
+    "connector_rows": 31,
+    "dbt_rows": 34,
+    "psql_rows": 3,
+    "statement_log": 74,
+    "translated_rows": 20,
+    "write_rows": 6
+  },
+  "dbt": {
+    "bare_debug": {
+      "rc": 0,
+      "tail": "\u001b[0m09:34:08    port: 5439\n\u001b[0m09:34:08    database: dev\n\u001b[0m09:34:08    method: database\n\u001b[0m09:34:08    cluster_id: None\n\u001b[0m09:34:08    iam_profile: None\n\u001b[0m09:34:08    schema: public\n\u001b[0m09:34:08    sslmode: disable\n\u001b[0m09:34:08    region: None\n\u001b[0m09:34:08    sslmode: disable\n\u001b[0m09:34:08    region: None\n\u001b[0m09:34:08    autocreate: False\n\u001b[0m09:34:08    db_groups: []\n\u001b[0m09:34:08    ra3_node: False\n\u001b[0m09:34:08    datasharing: False\n\u001b[0m09:34:08    connect_timeout: None\n\u001b[0m09:34:08    role: None\n\u001b[0m09:34:08    retries: 1\n\u001b[0m09:34:08    retry_all: False\n\u001b[0m09:34:08    autocommit: True\n\u001b[0m09:34:08    access_key_id: None\n\u001b[0m09:34:08    is_serverless: None\n\u001b[0m09:34:08    serverless_work_group: None\n\u001b[0m09:34:08    serverless_acct_id: None\n\u001b[0m09:34:08    tcp_keepalive: True\n\u001b[0m09:34:08    tcp_keepalive_idle: None\n\u001b[0m09:34:08    tcp_keepalive_interval: None\n\u001b[0m09:34:08    tcp_keepalive_count: None\n\u001b[0m09:34:08    query_group: None\n\u001b[0m09:34:08    allow_concurrent_drops: False\n\u001b[0m09:34:08    drop_without_cascade: False\n\u001b[0m09:34:08  Registered adapter: redshift=1.11.1\n\u001b[0m09:34:08    Connection test: [\u001b[32mOK connection ok\u001b[0m]\n\n\u001b[0m09:34:08  \u001b[32mAll checks passed!\u001b[0m\n"
+    },
+    "debug": {
+      "rc": 0,
+      "tail": "\n\u001b[0m09:33:48    port: 5439\n\u001b[0m09:33:48    database: dev\n\u001b[0m09:33:48    method: database\n\u001b[0m09:33:48    cluster_id: None\n\u001b[0m09:33:48    iam_profile: None\n\u001b[0m09:33:48    schema: dbt_e2e\n\u001b[0m09:33:48    sslmode: disable\n\u001b[0m09:33:48    region: None\n\u001b[0m09:33:48    sslmode: disable\n\u001b[0m09:33:48    region: None\n\u001b[0m09:33:48    autocreate: False\n\u001b[0m09:33:48    db_groups: []\n\u001b[0m09:33:48    ra3_node: False\n\u001b[0m09:33:48    datasharing: False\n\u001b[0m09:33:48    connect_timeout: 20\n\u001b[0m09:33:48    role: None\n\u001b[0m09:33:48    retries: 1\n\u001b[0m09:33:48    retry_all: False\n\u001b[0m09:33:48    autocommit: True\n\u001b[0m09:33:48    access_key_id: None\n\u001b[0m09:33:48    is_serverless: None\n\u001b[0m09:33:48    serverless_work_group: None\n\u001b[0m09:33:48    serverless_acct_id: None\n\u001b[0m09:33:48    tcp_keepalive: True\n\u001b[0m09:33:48    tcp_keepalive_idle: None\n\u001b[0m09:33:48    tcp_keepalive_interval: None\n\u001b[0m09:33:48    tcp_keepalive_count: None\n\u001b[0m09:33:48    query_group: None\n\u001b[0m09:33:48    allow_concurrent_drops: False\n\u001b[0m09:33:48    drop_without_cascade: False\n\u001b[0m09:33:48  Registered adapter: redshift=1.11.1\n\u001b[0m09:33:49    Connection test: [\u001b[32mOK connection ok\u001b[0m]\n\n\u001b[0m09:33:49  \u001b[32mAll checks passed!\u001b[0m\n"
+    },
+    "run": {
+      "rc": 0,
+      "tail": "\u001b[0m09:33:56  Running with dbt=1.12.4\n\u001b[0m09:33:56  Registered adapter: redshift=1.11.1\n\u001b[0m09:33:57  Unable to do partial parsing because saved manifest not found. Starting full parse.\n\u001b[0m09:33:59  Found 1 model, 567 macros\n\u001b[0m09:33:59  \n\u001b[0m09:33:59  Concurrency: 1 threads (target='redshift')\n\u001b[0m09:33:59  \n\u001b[0m09:33:59  1 of 1 START sql table model dbt_e2e.rs_check .................................. [RUN]\n\u001b[0m09:33:59  1 of 1 OK created sql table model dbt_e2e.rs_check ............................. [\u001b[32mSUCCESS\u001b[0m in 0.30s]\n\u001b[0m09:33:59  \n\u001b[0m09:33:59  Finished running 1 table model in 0 hours 0 minutes and 0.89 seconds (0.89s).\n\u001b[0m09:34:00  \n\u001b[0m09:34:00  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m09:34:00  \n\u001b[0m09:34:00  Done. PASS=1 WARN=0 ERROR=0 SKIP=0 NO-OP=0 REUSED=0 TOTAL=1\n"
+    }
+  },
+  "dbt_rows": 34,
+  "destinations": [
+    {
+      "count": 0,
+      "first_ts": null,
+      "host": "airbyte.internal",
+      "last_ts": null,
+      "port": 8001
+    },
+    {
+      "count": 0,
+      "first_ts": null,
+      "host": "alertmanager.internal",
+      "last_ts": null,
+      "port": 9093
+    },
+    {
+      "count": 0,
+      "first_ts": null,
+      "host": "confluence.internal",
+      "last_ts": null,
+      "port": 8090
+    },
+    {
+      "count": 0,
+      "first_ts": null,
+      "host": "deploy.internal",
+      "last_ts": null,
+      "port": 8085
+    },
+    {
+      "count": 0,
+      "first_ts": null,
+      "host": "jira.internal",
+      "last_ts": null,
+      "port": 8080
+    },
+    {
+      "count": 0,
+      "first_ts": null,
+      "host": "loki.internal",
+      "last_ts": null,
+      "port": 3100
+    },
+    {
+      "count": 0,
+      "first_ts": null,
+      "host": "native-services.internal",
+      "last_ts": null,
+      "port": 8099
+    },
+    {
+      "count": 0,
+      "first_ts": null,
+      "host": "prometheus.internal",
+      "last_ts": null,
+      "port": 9090
+    },
+    {
+      "count": 15,
+      "first_ts": "2026-10-07T09:33:37Z",
+      "host": "redshift.internal",
+      "last_ts": "2026-10-07T09:34:11Z",
+      "port": 5439
+    },
+    {
+      "count": 0,
+      "first_ts": null,
+      "host": "sched.internal",
+      "last_ts": null,
+      "port": 8120
+    },
+    {
+      "count": 0,
+      "first_ts": null,
+      "host": "slack.internal",
+      "last_ts": null,
+      "port": 8081
+    },
+    {
+      "count": 0,
+      "first_ts": null,
+      "host": "tableau.internal",
+      "last_ts": null,
+      "port": 8096
+    }
+  ],
+  "discovery": {
+    "files": [],
+    "kept": "the world's own profiled discovery files (world.build native: true under a profile)",
+    "root": "/home/ubuntu/alkera-rollouts/w1-redshift/e2e/world"
+  },
+  "expected": {
+    "counts": {
+      "raw.customers": 339,
+      "raw.order_lines": 29200,
+      "raw.orders": 17768,
+      "raw.products": 31,
+      "staging.stg_customers": 309,
+      "staging.stg_order_lines": 29200,
+      "staging.stg_orders": 16825,
+      "staging.stg_products": 25,
+      "warehouse.dim_customer": 309,
+      "warehouse.dim_date": 424,
+      "warehouse.dim_product": 25,
+      "warehouse.fct_order_lines": 29200,
+      "warehouse.fct_orders": 16825
+    },
+    "net_revenue_feb_2026": "2361224.00"
+  },
+  "image": "alkera-episode:w1-redshift",
+  "overlay": "# Generated per rollout by tasks/harness/container_episode.py. Do not edit:\n# it is rewritten on every `up()` and is kept here as the record of which host\n# files this episode's container could see.\n#\n# Three things compose.native.yml cannot say statically:\n#\n#   1. THE WAREHOUSE FILES. Their names and their number come from the world\n#      this rollout built (1 here), read by the same rule\n#      world/world/fingerprint.py hashes by. Each is bound as a FILE at its own\n#      world-relative path, so `/world/var/warehouse` is a directory of\n#      the CONTAINER's - and a `cp` beside the warehouse, which is what two of\n#      five GT001 native subjects did before deleting rows, lands there instead\n#      of in the world.\n#   2. THE SHIM PATH, and the CONTEXT VARIANT. The shims go in front of the\n#      image's own PATH, which is read off the image so /opt/toolbelt/bin\n#      survives; `ALKERA_TASK_VARIANT` appears only when this world was built\n#      from an arm, because an empty value is still a value to\n#      `taskspec.requested_variant`.\n#   3. THE WORLD'S CLOCK. `ALKERA_VIRTUAL_TIME` is this world's `vnow` as the\n#      episode starts, so the rows the shims and the notebook kernel write\n#      carry the world's time and not GatewayConfig's literal: `var/sched`,\n#      where the host topology reads it, is not mounted here (P7).\n#\n# NOT here, and it was here for one afternoon: published host ports. Both\n# compose networks are `internal: true`, and Docker cannot publish a host port\n# off an internal network - the bindings appear in `HostConfig.PortBindings`\n# and nothing ever listens. Measured: GT004's first container rollout failed\n# its surface gate with `WinError 10061` on all nine services while\n# `docker inspect` reported all nine mappings. The harness reaches the services\n# through `container_episode.ServiceGate` instead, one `docker exec` per\n# connection, and `published_host_ports: {}` stays true for every container\n# in the project.\nservices:\n  episode:\n    # ENVIRONMENT PROFILE: the complete mapping, not a merge\n    # (container_episode.profiled_environment).\n    environment: !override\n      PATH: \"/opt/alkera/shims:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/toolbelt/bin\"\n      ALKERA_SHIM_BIN: \"/opt/alkera/shims\"\n      ALKERA_SHIM_WATCH: \"/world/var/warehouse/warehouse.duckdb\"\n      ALKERA_SHIM_WORKSPACE: \"/workspace\"\n      ALKERA_WORKSPACE: \"/workspace\"\n      ALKERA_VIRTUAL_TIME: \"2026-03-02T00:00:00Z\"\n      # the static table (compose.yml + compose.native.yml) minus what the\n      # profile excludes: AIRFLOW_API_URL, AIRFLOW_PASSWORD, AIRFLOW_USER,\n      # METABASE_API_KEY, METABASE_URL, PGDATABASE, PGHOST, PGPASSWORD,\n      # PGPORT, PGUSER, SNOWFLAKE_ACCOUNT, SNOWFLAKE_HOST, SNOWFLAKE_PASSWORD,\n      # SNOWFLAKE_USER\n      ALKERA_POSTGRES_DSN: \"postgresql://episode:episode-local@postgres/episode\"\n      ALKERA_BACKEND: \"${ALKERA_BACKEND:-postgres}\"\n      ALKERA_WAREHOUSES: \"${ALKERA_WAREHOUSES:-}\"\n      AIRBYTE_API_KEY: \"alkera-local-dev\"\n      AIRBYTE_URL: \"http://airbyte.internal:8001\"\n      ALERTMANAGER_URL: \"http://alertmanager.internal:9093\"\n      AWS_ACCESS_KEY_ID: \"alkera-local-dev\"\n      AWS_DEFAULT_REGION: \"us-east-1\"\n      AWS_ENDPOINT_URL: \"http://minio.internal:9000\"\n      AWS_SECRET_ACCESS_KEY: \"alkera-local-dev\"\n      CONFLUENCE_API_TOKEN: \"alkera-local-dev\"\n      CONFLUENCE_URL: \"http://confluence.internal:8090\"\n      CONFLUENCE_USER: \"alkera-local-dev\"\n      DBT_PROFILES_DIR: \"/root/.dbt\"\n      DEPLOY_API_TOKEN: \"alkera-local-dev\"\n      DEPLOY_URL: \"http://deploy.internal:8085\"\n      JIRA_API_TOKEN: \"alkera-local-dev\"\n      JIRA_URL: \"http://jira.internal:8080\"\n      JIRA_USER: \"alkera-local-dev\"\n      LOKI_ADDR: \"http://loki.internal:3100\"\n      LOKI_URL: \"http://loki.internal:3100\"\n      PROMETHEUS_URL: \"http://prometheus.internal:9090\"\n      SCHED_URL: \"http://sched.internal:8120\"\n      SLACK_BASE_URL: \"http://slack.internal:8081\"\n      SLACK_BOT_TOKEN: \"alkera-local-dev\"\n      ALKERA_NATIVE_AUDIT: \"/audit/actions.jsonl\"\n      HOME: \"/root\"\n      # what the profile plugs\n      REDSHIFT_HOST: \"redshift.internal\"\n      REDSHIFT_PORT: \"5439\"\n      REDSHIFT_DATABASE: \"dev\"\n      REDSHIFT_USER: \"alkera\"\n      REDSHIFT_PASSWORD: \"alkera-local-dev\"\n      TABLEAU_SERVER_URL: \"http://tableau.internal:8096\"\n      TABLEAU_PAT_NAME: \"alkera-local-dev\"\n      TABLEAU_PAT_SECRET: \"alkera-local-dev\"\n      TABLEAU_SITE: \"\"\n    volumes:\n      - \"/home/ubuntu/alkera-rollouts/w1-redshift/e2e/world/var/warehouse/warehouse.duckdb:/world/var/warehouse/warehouse.duckdb\"\n    depends_on:\n      redshift:\n        condition: service_healthy\n\n# ENVIRONMENT PROFILE de/aws (plugs: null).\n# native-services runs with --profile (ALKERA_NATIVE_PROFILE_ARGS), and the\n# aliases below REPLACE compose.native.yml's: an excluded service has no name\n# on episode_net at all.\n  native-services:\n    networks:\n      episode_net:\n        aliases: !override\n          - native-services.internal\n          - airbyte.internal\n          - tableau.internal\n          - prometheus.internal\n          - alertmanager.internal\n          - loki.internal\n          - deploy.internal\n          - jira.internal\n          - slack.internal\n          - confluence.internal\n          - sched.internal\n\n# BACKEND redshift (alkera_gateway.backends): its own container, compose\n# profile `redshift` (enabled by compose_env), reachable as redshift.internal:5439\n# on episode_net, seeded from this world's warehouse and audited.\n  redshift:\n    profiles: [redshift]\n    image: alkera-redshift:native-w1-redshift\n    # Always built (layer-cached) from this working tree, never a stale image.\n    pull_policy: build\n    build:\n      context: ../..\n      dockerfile: gateway/docker/Dockerfile.redshift\n      args:\n        BASE: alkera-episode:w1-redshift\n    stop_grace_period: 2s\n    networks:\n      episode_net:\n        aliases:\n          - redshift.internal\n    environment:\n      ALKERA_NATIVE_AUDIT: \"/audit/actions.jsonl\"\n      ALKERA_REDSHIFT_SEED: \"/seed\"\n      ALKERA_REDSHIFT_DESTINATIONS: \"/audit/destinations.redshift.jsonl\"\n      ALKERA_REDSHIFT_STATEMENT_LOG: \"/redshift-data/statements.jsonl\"\n      ALKERA_VIRTUAL_TIME: \"2026-03-02T00:00:00Z\"\n    volumes:\n      - \"/home/ubuntu/alkera-rollouts/w1-redshift/e2e/audit:/audit\"\n      - redshiftdata:/redshift-data\n      - \"/home/ubuntu/alkera-rollouts/w1-redshift/e2e/world/var/warehouse/warehouse.duckdb:/seed/warehouse.duckdb:ro\"\n    healthcheck:\n      test: [\"CMD\", \"/usr/local/bin/python\", \"-c\",\n             \"import pathlib,sys;sys.exit(0 if any(f[1].endswith(':153F') and f[3]=='0A' for f in (l.split() for l in pathlib.Path('/proc/net/tcp').read_text().splitlines()[1:])) else 1)\"]\n      interval: 2s\n      timeout: 5s\n      retries: 90\n      start_period: 5s\n\nvolumes:\n  redshiftdata:\n",
+  "postgres_version": "postgres (PostgreSQL) 17.11 (Debian 17.11-0+deb13u1)",
+  "prepared": {
+    "dbt_profiles_rerooted": [
+      "world_dbt.dev"
+    ],
+    "home": [
+      ".config",
+      ".dbt"
+    ],
+    "shims": [
+      "dbt",
+      "duckdb",
+      "git",
+      "mf",
+      "python",
+      "python3",
+      "tabcmd"
+    ],
+    "stripped": [
+      "/opt/stack",
+      "/opt/gateway/tests"
+    ]
+  },
+  "profile": "de/aws",
+  "psql": {
+    "net_revenue": "2361224.00",
+    "unload": {
+      "rc": 1,
+      "stderr": "ERROR:  Redshift feature not available in this environment: UNLOAD"
+    },
+    "version": "PostgreSQL 8.0.2 on i686-pc-linux-gnu, compiled by GCC gcc (GCC) 3.4.2 20041017 (Red Hat 3.4.2-6.fc3), Redshift 1.0.87657"
+  },
+  "remote_write": {
+    "fingerprint_after": {
+      "semantic_hash": "5585b941462cea96970e9cb0f9b79463ee794a72cbb09e58283164c8595873b7",
+      "warehouse_bytes": "5585cd37cabb429707765b5ed2b974c9ea592c1f00fe3c235269c14c81dc85b7"
+    },
+    "fingerprint_before": {
+      "semantic_hash": "5585b941462cea96970e9cb0f9b79463ee794a72cbb09e58283164c8595873b7",
+      "warehouse_bytes": "5585cd37cabb429707765b5ed2b974c9ea592c1f00fe3c235269c14c81dc85b7"
+    },
+    "net_after_write": "3361224.00",
+    "rows": [
+      [
+        "ddl",
+        "CREATE TABLE warehouse.rs_write_probe AS SELECT * FROM wareh"
+      ],
+      [
+        "write",
+        "INSERT INTO warehouse.fct_orders (order_id, order_date, cust"
+      ],
+      [
+        "write",
+        "UPDATE warehouse.dim_customer SET segment = 'Rewritten' WHER"
+      ],
+      [
+        "destructive",
+        "DELETE FROM warehouse.fct_order_lines WHERE order_id = 10000"
+      ],
+      [
+        "destructive",
+        "DROP TABLE warehouse.rs_write_probe"
+      ],
+      [
+        "read",
+        "SELECT SUM(order_amount) FROM warehouse.fct_orders WHERE ord"
+      ]
+    ]
+  },
+  "result": "PASS",
+  "seed_log": [
+    {
+      "seconds": 2.4,
+      "seed": [
+        {
+          "database": "dev",
+          "rows": 339,
+          "schema": "raw",
+          "table": "customers"
+        },
+        {
+          "database": "dev",
+          "rows": 29200,
+          "schema": "raw",
+          "table": "order_lines"
+        },
+        {
+          "database": "dev",
+          "rows": 17768,
+          "schema": "raw",
+          "table": "orders"
+        },
+        {
+          "database": "dev",
+          "rows": 31,
+          "schema": "raw",
+          "table": "products"
+        },
+        {
+          "database": "dev",
+          "rows": 309,
+          "schema": "staging",
+          "table": "stg_customers"
+        },
+        {
+          "database": "dev",
+          "rows": 29200,
+          "schema": "staging",
+          "table": "stg_order_lines"
+        },
+        {
+          "database": "dev",
+          "rows": 16825,
+          "schema": "staging",
+          "table": "stg_orders"
+        },
+        {
+          "database": "dev",
+          "rows": 25,
+          "schema": "staging",
+          "table": "stg_products"
+        },
+        {
+          "database": "dev",
+          "rows": 309,
+          "schema": "warehouse",
+          "table": "dim_customer"
+        },
+        {
+          "database": "dev",
+          "rows": 424,
+          "schema": "warehouse",
+          "table": "dim_date"
+        },
+        {
+          "database": "dev",
+          "rows": 25,
+          "schema": "warehouse",
+          "table": "dim_product"
+        },
+        {
+          "database": "dev",
+          "rows": 29200,
+          "schema": "warehouse",
+          "table": "fct_order_lines"
+        },
+        {
+          "database": "dev",
+          "rows": 16825,
+          "schema": "warehouse",
+          "table": "fct_orders"
+        }
+      ]
+    }
+  ],
+  "stack_up_seconds": 72.8
+}
