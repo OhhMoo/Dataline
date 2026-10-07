@@ -77,7 +77,17 @@ CA_BUNDLE_VAR = "REQUESTS_CA_BUNDLE"
 #: each warehouse backend that has its HARBOR_BACKENDS entry.
 SERVED_WAREHOUSES = ("duckdb", "databricks", "redshift", "snowflake", "postgres")
 #: Warehouse plugs the image refuses, and why (the export's error says it).
-REFUSED_WAREHOUSES: dict[str, str] = {}
+REFUSED_WAREHOUSES: dict[str, str] = {
+    "bigquery": (
+        "its emulator (goccy bigquery-emulator) answers HTTP and gRPC on TCP ports "
+        "with no credential check, and in a one-container image every process "
+        "shares the loopback, so the agent could query and write the seeded copy "
+        "around the audited proxy at bigquery.internal:9050, unrecorded; fencing a "
+        "loopback port by user needs NET_ADMIN or a network namespace, which no "
+        "Harbor provider grants (the emulator cannot listen on a unix socket, and "
+        "in the container topology it sits on backend_net, out of the agent's "
+        "reach)"),
+}
 #: The warehouse plug served by a process of its own that is not a registry
 #: backend (no client lock, no agent-facing variables of its own: the box's PG*
 #: are the static table's): a Harbor backend all the same.

@@ -201,6 +201,19 @@ def test_a_remote_warehouse_profile_stays_out_of_the_services_config(tmp_path):
         worldbuild.gateway_refuses_profile(config, "x")
 
 
+# ----------------------------------------------------------------- bigquery
+def test_bigquery_is_refused_by_name_with_its_reason():
+    """The emulator listens on loopback TCP with no credential check: in one
+    container the agent could reach it around the audited proxy. Refused before
+    any world is built, naming the plug and why."""
+    with pytest.raises(variant.VariantError) as refused:
+        variant_of("de/gcp")
+    message = str(refused.value)
+    assert "warehouse=bigquery" in message and "around the audited proxy" in message
+    assert "bigquery" not in variant.SERVED_WAREHOUSES
+    assert "bigquery" not in variant.HARBOR_BACKENDS
+
+
 def test_an_unknown_backend_is_refused():
     v = variant.Variant(role="de", profile="de/x", backends=("nope",),
                         harbor_backends=("nope",))

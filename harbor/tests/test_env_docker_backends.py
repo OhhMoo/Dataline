@@ -478,6 +478,19 @@ def test_backend_snowflake_up_probe_down(tmp_path):
     folded_backend_row(record, "snowflake.internal", 8443)
 
 
+def test_backend_bigquery_up_probe_down():
+    """Refused, not run: the goccy emulator answers on loopback TCP with no
+    credential check, and one container shares its loopback with the agent, so
+    nothing would keep the agent from the seeded copy but the port number - the
+    audited proxy at bigquery.internal:9050 would be a door beside an open wall.
+    The export refuses every profile that plugs it, by name, before a world is
+    built (variant.REFUSED_WAREHOUSES); no Docker needed to prove that."""
+    probes = probes_for("bigquery")
+    assert {p.profile for p in probes} == {"de/gcp"}
+    with pytest.raises(variant.VariantError, match="around the audited proxy"):
+        stage("bigquery", probes, Path("/nonexistent-never-built"))
+
+
 POSTGRES_CHECKS = r"""
 pass() { echo "PASS $*"; }
 fail() { echo "FAIL $*"; }
