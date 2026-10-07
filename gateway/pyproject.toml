@@ -46,6 +46,10 @@ ds = [
   "polars>=1,<2",
   "scikit-learn>=1.5,<2",
   "matplotlib>=3.9,<4",
+  # `pandas.read_excel` / `DataFrame.to_excel` for .xlsx. The same pin csvkit
+  # brings into /opt/toolbelt for `in2csv`, where the system interpreter cannot
+  # see it (docker/TOOLBELT.md, "Roles").
+  "openpyxl==3.1.5",
 ]
 # Native mode (gateway/NATIVE.md): the fake vendor services and the
 # clients their compatibility tests are driven by. Not a base dependency -

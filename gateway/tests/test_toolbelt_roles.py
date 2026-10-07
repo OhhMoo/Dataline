@@ -48,15 +48,19 @@ ROLE_LOCKS = {"ds": "requirements-ds.lock", "da": "requirements-da.lock"}
 
 # The task's definition of each role, independent of the files that implement it.
 # jupyter-server is in da too: the da profile has the `notebook` slot, whose plug IS
-# a jupyter-server (docker/jupyter/launch.py).
+# a jupyter-server (docker/jupyter/launch.py). openpyxl is what `pandas.read_excel`
+# needs for .xlsx (measured missing from the da/ds system python on 2026-10-06).
 ADDED = {
     "de": set(),
     "ds": {"pandas", "pyarrow", "polars", "scikit-learn", "matplotlib", "ipykernel",
-           "jupyter-client", "jupyter-server", "nbclient", "nbformat"},
+           "jupyter-client", "jupyter-server", "nbclient", "nbformat", "openpyxl"},
     "da": {"pandas", "pyarrow", "matplotlib", "ipykernel", "jupyter-client",
-           "jupyter-server", "nbclient", "nbformat"},
+           "jupyter-server", "nbclient", "nbformat", "openpyxl"},
 }
 DS_ONLY = ADDED["ds"] - ADDED["da"]
+# In the /opt/toolbelt venv too, on purpose and for every role: csvkit brings it for
+# `in2csv`. The system interpreter cannot see the venv's copy, which is the gap.
+ALSO_IN_TOOLBELT_VENV = {"openpyxl"}
 
 # Packages that ship platform wheels and so need one per arch.
 COMPILED = {"numpy", "pandas", "pyarrow", "polars-runtime-32", "scikit-learn", "scipy",
@@ -160,8 +164,15 @@ def test_metricflow_in_the_toolbelt_venv_shares_the_gateways_dbt_and_duckdb():
 
 
 def test_role_libraries_are_not_in_the_toolbelt_venv():
-    """They would be invisible there: `python` is /usr/local/bin/python."""
-    assert not (ADDED["ds"] & set(versions(DOCKER / "toolbelt.lock")))
+    """They would be invisible there: `python` is /usr/local/bin/python. The one
+    library both places carry (openpyxl: in2csv's in the venv, pandas' in the system
+    interpreter) is the same version in both, so `in2csv` and `pandas.read_excel`
+    read a workbook with one openpyxl."""
+    venv = versions(DOCKER / "toolbelt.lock")
+    assert not ((ADDED["ds"] - ALSO_IN_TOOLBELT_VENV) & set(venv))
+    for role, lock in ROLE_LOCKS.items():
+        for name in ALSO_IN_TOOLBELT_VENV:
+            assert versions(GATEWAY / lock)[name] == venv[name], (role, name)
 
 
 def test_there_are_no_per_role_venv_locks():
@@ -444,3 +455,35 @@ def test_toolbelt_check_probes_and_forbids_per_role():
     assert "jupyter" not in check.forbidden_binaries("da")
     probes = {name: tuple(argv) for name, argv, _ in check.PROBES}
     assert probes["mf"] == ("mf", "--version")
+
+
+@pytest.mark.parametrize("role", ("da", "ds"))
+def test_da_and_ds_images_import_openpyxl_in_system_python(role):
+    """The role probe: openpyxl is checked in the SYSTEM interpreter of a da/ds image
+    and a workbook makes the openpyxl -> pandas.read_excel round trip there. It is
+    in the role's lock at the venv's version, and NOT in ROLE_IMPORTS (pitfall 11:
+    `forbidden_imports` checks both interpreters, and /opt/toolbelt has it)."""
+    check = _load("toolbelt_check")
+    assert "openpyxl" in check.system_imports(role)
+    assert "openpyxl" not in check.role_imports(role)
+    assert "openpyxl" not in check.system_forbidden(role)
+    roundtrip = [argv for _, argv, _ in check.role_probes(role)
+                 if argv[0] == check.ROLE_PYTHON and "read_excel" in " ".join(argv)]
+    assert roundtrip == [(check.ROLE_PYTHON, "-c", check.EXCEL_ROUNDTRIP)]
+    assert "openpyxl.Workbook()" in check.EXCEL_ROUNDTRIP
+    assert versions(GATEWAY / ROLE_LOCKS[role])["openpyxl"] == "3.1.5"
+    assert "openpyxl" in installed(role)
+
+
+def test_de_image_unchanged_by_openpyxl():
+    """de's system interpreter gets no openpyxl, its probes are untouched, and its
+    absence check reads the system interpreter only - the /opt/toolbelt copy
+    (csvkit's, every role's) must not fail a de image."""
+    check = _load("toolbelt_check")
+    assert "openpyxl" not in installed("de")
+    assert not check.system_imports("de") and not check.role_probes("de")
+    assert "openpyxl" in check.system_forbidden("de")
+    every_role_import = {m for r in ROLES for m in check.role_imports(r)}
+    assert "openpyxl" not in every_role_import
+    assert "openpyxl" not in check.forbidden_imports("de")
+    assert versions(DOCKER / "toolbelt.lock")["openpyxl"] == "3.1.5"

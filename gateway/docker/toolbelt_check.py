@@ -130,10 +130,29 @@ def _role_probes(imports: tuple[str, ...]):
     )
 
 
+# Libraries a role's SYSTEM interpreter gets that /opt/toolbelt ALSO carries, so they
+# are checked against ROLE_PYTHON only. openpyxl is the one: csvkit brings it into the
+# venv for `in2csv` on every role, and ds/da put it in the system interpreter for
+# `pandas.read_excel`. In ROLE_IMPORTS it would land in `forbidden_imports("de")`,
+# which checks BOTH interpreters, and fail every de image on the venv's own copy.
+SYSTEM_IMPORTS: dict[str, tuple[str, ...]] = {
+    "de": (),
+    "da": ("openpyxl",),
+    "ds": ("openpyxl",),
+}
+# The Excel round trip the role's own python must make: write a workbook with
+# openpyxl, read it back with pandas.read_excel. Prints the value it read back.
+EXCEL_ROUNDTRIP = (
+    "import io, openpyxl, pandas; wb = openpyxl.Workbook(); ws = wb.active; "
+    "ws.append(['metric', 'value']); ws.append(['net_revenue', 2361224.0]); "
+    "buf = io.BytesIO(); wb.save(buf); buf.seek(0); "
+    "print(pandas.read_excel(buf, engine='openpyxl')['value'].iloc[0])")
+_EXCEL_PROBE = (ROLE_PYTHON, (ROLE_PYTHON, "-c", EXCEL_ROUNDTRIP), (0,))
+
 ROLE_PROBES: dict[str, tuple[tuple[str, tuple[str, ...], tuple[int, ...]], ...]] = {
     "de": (),
-    "da": _role_probes(ROLE_IMPORTS["da"]),
-    "ds": _role_probes(ROLE_IMPORTS["ds"]),
+    "da": (*_role_probes(ROLE_IMPORTS["da"]), _EXCEL_PROBE),
+    "ds": (*_role_probes(ROLE_IMPORTS["ds"]), _EXCEL_PROBE),
 }
 ROLES = tuple(ROLE_IMPORTS)
 
@@ -150,6 +169,17 @@ def forbidden_imports(role: str) -> tuple[str, ...]:
 
 def role_probes(role: str):
     return ROLE_PROBES[role]
+
+
+def system_imports(role: str) -> tuple[str, ...]:
+    return SYSTEM_IMPORTS[role]
+
+
+def system_forbidden(role: str) -> tuple[str, ...]:
+    """SYSTEM_IMPORTS another role has that this role's system interpreter must not:
+    absent from ROLE_PYTHON only (the venv's copy is every role's)."""
+    every = {m for mods in SYSTEM_IMPORTS.values() for m in mods}
+    return tuple(sorted(every - set(SYSTEM_IMPORTS[role])))
 
 
 def forbidden_binaries(role: str) -> tuple[str, ...]:
@@ -262,7 +292,8 @@ def main() -> int:
                           "reason": f"unknown toolbelt role {role!r}"}))
         return 1
     binaries = [probe(*spec) for spec in (*PROBES, *role_probes(role))]
-    imports = {m: importable(ROLE_PYTHON, m) for m in role_imports(role)}
+    imports = {m: importable(ROLE_PYTHON, m)
+               for m in (*role_imports(role), *system_imports(role))}
     # Absent from BOTH interpreters, and no script left behind on disk.
     forbidden_present = sorted(
         {f"import {m} ({py})" for m in forbidden_imports(role)
@@ -270,6 +301,9 @@ def main() -> int:
         | {f"binary {path}" for b in forbidden_binaries(role)
            for path in (shutil.which(b), f"/opt/toolbelt/bin/{b}", f"/usr/local/bin/{b}")
            if path and os.path.exists(path)}
+        # The system interpreter only: /opt/toolbelt carries these for every role.
+        | {f"import {m} ({ROLE_PYTHON})" for m in system_forbidden(role)
+           if importable(ROLE_PYTHON, m)["ok"]}
     )
     report = {
         "toolbelt_role": role,
