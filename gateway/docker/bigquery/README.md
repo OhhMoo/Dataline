@@ -80,16 +80,26 @@ world's warehouse straight upstream (`native/bigquery_seed.py`: one dataset per
 schema, views copied as tables, counts read back; no audit row, no job).
 
 The proxy writes one 9.2.2 row per request before it answers (`bigquery.statement`
-for a query, `bigquery.<op>` for every other route, `bigquery.refused`,
-`bigquery.unknown_route`) and corrects what v0.8.1 gets wrong in a way a client
-would act on: cost fields stripped and dry runs refused (as above); legacy SQL, load
-and extract jobs and `ALTER` refused by name (501 `notImplemented`); a query error's
-`jobInternalError` - which google-cloud-bigquery retries for ten minutes - answered as
-`invalidQuery` / `notFound`; `statementType` recomputed from the SQL (the emulator
-says `SELECT` for everything, which breaks dbt-bigquery); `CREATE SCHEMA` made to
-create the dataset and `CREATE OR REPLACE` made to replace (the emulator does
-neither); the emulator's per-job result datasets hidden from `datasets.list`. The
-module docstring has each measurement.
+for a query, `bigquery.<op>` for every other route, `bigquery.unknown_route`; a
+refused request is still its own row, `exit: error`, flag `refused:<feature>`) and
+corrects what v0.8.1 gets wrong in a way a client would act on:
+- refused by name (501 `notImplemented`), each a case where the emulator answers
+  success and does something else: dry runs, legacy SQL, transactions and
+  BEGIN...END blocks, `ALTER`, `EXECUTE IMMEDIATE`, `ASSERT`, a query job's
+  `WRITE_TRUNCATE`, a schema change through tables.patch/update, `CREATE OR REPLACE`
+  of a table its own query reads, schema DDL or `CREATE OR REPLACE` inside a
+  multi-statement script, load and extract jobs;
+- made right: cost fields stripped; `jobInternalError` (retried for ten minutes by
+  google-cloud-bigquery) answered as `notFound` / `duplicate` / `invalidQuery`;
+  `statementType` recomputed from the SQL (the emulator says `SELECT` for
+  everything, which breaks dbt-bigquery); `CREATE SCHEMA` made to create the dataset
+  and `CREATE OR REPLACE` made to replace (a failed one says the old table is gone);
+  WRITE_EMPTY / CREATE_NEVER on a query job's destination; tabledata.list paged
+  (the emulator ignores maxResults); per-job result datasets hidden from
+  `datasets.list`;
+- not fenced, written down: INT64 arithmetic wraps on overflow (BigQuery raises).
+
+The module docstring has each measurement.
 
 dbt-bigquery is NOT in the image (`docker/bigquery-clients.in`): measured against
 this proxy (method `oauth-secrets` with a static token, `api_endpoint`) it runs

@@ -25,12 +25,14 @@ has its row on file. Tools:
                           the gateway's own classifier's (`sql.inspect_sql`,
                           dialect bigquery), the Postgres tailer's verb rule
                           behind it - exactly what the Snowflake proxy does.
+                          A query that is REFUSED (REFUSALS) is still this row,
+                          classified by its SQL so the path rules read the
+                          attempt, with `exit: error` and the flag
+                          `refused:<feature>`; it never reached the engine.
   bigquery.<op>           every other route BigQuery publishes that the
                           emulator serves (ROUTES): `table_get`, `tabledata_list`,
                           `tabledata_insert_all`, `job_get`, `query_results`, ...
-  bigquery.refused        a request for something this environment does not have,
-                          answered 501 `notImplemented` with a message naming it
-                          (REFUSALS). Not a `statement`: it never ran.
+                          refused the same way (`refused:load_job`, ...).
   bigquery.unknown_route  a path BigQuery does not publish: Google's 404 envelope.
   bigquery.health         `GET /health`, under the target `health:bigquery`.
 
@@ -52,11 +54,12 @@ disqualifying" (alkera_gateway/bigquery.py, whose fences carry over):
     something else. Absent is taken as false (every client library sends it).
   * QUERY ERRORS ARE NOT RETRIED FOREVER. The emulator answers a bad query with
     reason `jobInternalError`, which google-cloud-bigquery's job retry restarts
-    until its 10-minute deadline. A parse/analysis/runtime error becomes
-    `invalidQuery` (400; `notFound`, 404, for a missing table), what BigQuery
-    says. Any other emulator failure - a 500 `internalError` included, which the
-    client also retries - is a feature it lacks: 501 `notImplemented`, its
-    message kept and prefixed NOT_AVAILABLE.
+    until its 10-minute deadline. A missing table or dataset becomes `notFound`
+    (404), an existing one `duplicate` (409; 400 on jobs.insert, where the client
+    reads 409 as "re-fetch this job"), any other error in the query `invalidQuery`
+    (400) - what BigQuery says. Any other emulator failure - a 500
+    `internalError` included, which the client also retries - is a feature it
+    lacks: 501 `notImplemented`, its message kept and prefixed NOT_AVAILABLE.
   * statementType IS THE STATEMENT'S. The emulator reports every job as
     `SELECT`; it is recomputed from the job's own SQL (CREATE_TABLE_AS_SELECT,
     INSERT, DROP_TABLE, SCRIPT, ...), with `ddlTargetTable` for DDL and the
@@ -64,21 +67,41 @@ disqualifying" (alkera_gateway/bigquery.py, whose fences carry over):
   * ROW COUNTS OF DML ARE NOT INVENTED. The emulator never reports
     numDmlAffectedRows; it stays absent (the client says None) and the row is
     flagged `rows_affected_unreported`.
-  * DDL DOES WHAT IT SAYS (`prepare`). The emulator runs `CREATE SCHEMA` and
+  * DDL DOES WHAT IT SAYS (`preflight`). The emulator runs `CREATE SCHEMA` and
     creates no dataset, and `CREATE OR REPLACE` over an existing table or view
     replaces the data, fails `duplicate` and leaves its catalogue stale: the
     dataset is created, or the old table dropped, through REST before the
-    statement is forwarded. `ALTER` it acknowledges and ignores, so it is
-    refused.
+    statement is forwarded - and a REPLACE that then fails says the old table
+    is gone (`replaced_note`), in its own answer and every later read of its
+    job.
+  * A QUERY JOB'S DESTINATION IS WRITTEN AS ASKED (`preflight`). The emulator
+    appends whatever the writeDisposition; WRITE_EMPTY (the default) answers
+    `duplicate` on a table with rows, CREATE_NEVER `notFound` on a missing one,
+    and the row is a write naming the destination.
+  * PAGES ARE PAGES (`page`). The emulator's tabledata.list answers every row
+    whatever maxResults / startIndex / pageToken say, and the client keeps every
+    row of a page - `list_rows(max_results=5)` returned the whole table. The
+    proxy cuts the page and issues the token.
   * QUERY RESULTS ARE NOT DATASETS (`anonymous_datasets`). The emulator files
     each job's result as a dataset named after the job; BigQuery hides its
     anonymous datasets from datasets.list unless `all=true`, and so does this.
 
-REFUSED BY NAME (REFUSALS): dry runs, legacy SQL, ALTER, load and extract jobs
-(both need Cloud Storage or an upload; the emulator's upload route crashes), and
-anything the emulator itself cannot do (the NOT_AVAILABLE prefix). The Storage
-Read API (gRPC) is not proxied: the client library falls back to REST without
-google-cloud-bigquery-storage, which the client lock does not install.
+REFUSED BY NAME (REFUSALS, 501 `notImplemented`), each a measured case where the
+engine answers success and does something else: dry runs (executed for real),
+legacy SQL (run as GoogleSQL), transactions and BEGIN...END blocks (an ERROR()
+keeps the INSERT before it; no ROLLBACK), ALTER (acknowledged, nothing changes),
+EXECUTE IMMEDIATE (acknowledged, nothing runs), ASSERT (always passes), a query
+job's WRITE_TRUNCATE (appends), a schema change through tables.patch / update
+(recorded, the data keeps the old one), CREATE OR REPLACE of a table its own
+query reads (the source would be dropped first), CREATE / DROP SCHEMA or CREATE OR
+REPLACE inside a multi-statement script (`preflight` acts statement by
+statement), load and extract jobs (both need Cloud Storage or an upload; the
+emulator's upload route crashes) - and anything the emulator itself fails at (the
+NOT_AVAILABLE prefix). Fenced by each statement's LEADING keyword from sqlglot's
+tokenizer (FENCED_VERBS), so a keyword in a string never counts. NOT fenced, and
+written down: INT64 arithmetic wraps on overflow where BigQuery raises. The
+Storage Read API (gRPC) is not proxied: the client library falls back to REST
+without google-cloud-bigquery-storage, which the client lock does not install.
 
 WRITES STAY IN THE EMULATOR. Seeding (`native/bigquery_seed.py`) copied the
 world's warehouse into it at boot; whatever the agent creates or changes there
@@ -140,7 +163,37 @@ REFUSALS = {
     "extract_job": f"{NOT_AVAILABLE}: extract jobs (they write to Cloud Storage)",
     "alter": (f"{NOT_AVAILABLE}: ALTER statements (the engine acknowledges them and "
               "changes nothing); create the table again instead"),
+    "transaction": (f"{NOT_AVAILABLE}: transactions and BEGIN...END blocks (BEGIN "
+                    "[TRANSACTION], COMMIT, ROLLBACK): the engine keeps what ran before "
+                    "an error and cannot roll back; send the statements without them"),
+    "execute_immediate": (f"{NOT_AVAILABLE}: EXECUTE IMMEDIATE (the engine acknowledges "
+                          "it and runs nothing); send the statement itself"),
+    "assert": (f"{NOT_AVAILABLE}: ASSERT (the engine passes every assertion); check the "
+               "condition with a SELECT"),
+    "ddl_script": (f"{NOT_AVAILABLE}: CREATE SCHEMA, DROP SCHEMA or CREATE OR REPLACE "
+                   "inside a multi-statement script; send each of those as a statement "
+                   "of its own"),
+    "replace_reads_itself": (f"{NOT_AVAILABLE}: CREATE OR REPLACE of a table its own "
+                             "query reads (the engine cannot replace a table in place, so "
+                             "the source would be gone before it is read); build into a "
+                             "new table first, then replace from that"),
+    "write_truncate": (f"{NOT_AVAILABLE}: writeDisposition WRITE_TRUNCATE on a query job "
+                       "(the engine appends instead); use CREATE OR REPLACE TABLE ... AS "
+                       "SELECT"),
+    "table_schema_change": (f"{NOT_AVAILABLE}: changing a table's schema through "
+                            "tables.patch / tables.update (the engine records the new "
+                            "schema and its data keeps the old one); create the table "
+                            "again"),
 }
+#: Statements refused by their LEADING keyword, read from sqlglot's tokenizer
+#: so a keyword inside a string or comment never counts. By keyword rather
+#: than parse tree because sqlglot parses `ASSERT ...` as an alias and falls
+#: back to an opaque Command for `ALTER TABLE ... ALTER COLUMN` and `EXECUTE`.
+FENCED_VERBS = {"ALTER": "alter", "EXECUTE": "execute_immediate", "ASSERT": "assert",
+                "BEGIN": "transaction", "COMMIT": "transaction",
+                "ROLLBACK": "transaction"}
+#: The flag a refused request's row carries, with the REFUSALS key after it.
+REFUSED_FLAG = "refused:"
 
 _P = r"/bigquery/v2/projects/(?P<project>[^/]+)"
 _D = _P + r"/datasets/(?P<dataset>[^/]+)"
@@ -186,7 +239,7 @@ FORWARD_HEADERS = ("accept", "content-type", "content-encoding", "host", "user-a
 #: The emulator's prefixes for an error in the query itself.
 QUERY_ERRORS = ("failed to parse", "failed to analyze", "failed to scan")
 #: The flag on a statement whose `CREATE OR REPLACE` target was dropped before
-#: the statement ran (`prepare`).
+#: the statement ran (`preflight`).
 REPLACED = "or_replace_dropped_first"
 
 
@@ -215,24 +268,43 @@ def strip_cost(value: Any) -> Any:
     return value
 
 
-def query_error(message: str) -> tuple[int, str, str]:
+#: A missing TABLE or DATASET, in the emulator's words ("Table not found: x",
+#: "dataset s is not found") - the one kind of query error BigQuery answers 404.
+MISSING = re.compile(r"\b(table|dataset)\b[^;]*?\bnot found\b", re.IGNORECASE)
+#: An object that exists already, in the emulator's words ("duplicate: table t:
+#: table is already created", "dataset d is already created") - `duplicate`.
+DUPLICATE = re.compile(r"^duplicate\b|\balready (created|exists)\b", re.IGNORECASE)
+
+
+def duplicate_status(op: str) -> int:
+    """409, BigQuery's status for `duplicate` - except on jobs.insert. There the
+    client library reads a 409 as "this job id exists already", fetches the
+    job instead and retries that fetch's 404 for 200 s (google.cloud.bigquery
+    _job_helpers.query_jobs_insert); no such job exists here, so it is 400."""
+    return 400 if op in ("job_insert", "job_upload") else 409
+
+
+def query_error(message: str, op: str = "statement") -> tuple[int, str, str]:
     """(HTTP status, reason, message) for one emulator `jobInternalError`.
 
-    A missing object is `notFound`, an existing one `duplicate`, an error in
-    the query itself `invalidQuery`; anything else is the engine failing at
-    something BigQuery does, which is named as not available here. Every one of
-    them is a reason the client library does not retry."""
+    A missing table or dataset is `notFound` (404); an existing object is
+    `duplicate` (`duplicate_status`); any other error in the query itself - a
+    syntax error, an unknown column or function, a runtime error - is
+    `invalidQuery` (400); anything else is the engine failing at something
+    BigQuery does, named as not available here (501). None of them is a reason
+    the client library retries."""
     lowered = message.lower()
-    if "not found" in lowered:
+    if MISSING.search(lowered):
         return 404, "notFound", message
-    if lowered.startswith("duplicate") or "already exists" in lowered:
-        return 400, "duplicate", message
+    if DUPLICATE.search(lowered):
+        return duplicate_status(op), "duplicate", message
     if any(lowered.startswith(prefix) for prefix in QUERY_ERRORS):
         return 400, "invalidQuery", message
     return 501, "notImplemented", f"{NOT_AVAILABLE}: {message}"
 
 
-def vendor_error(status: int, body: Any, text: str = "") -> tuple[int, dict]:
+def vendor_error(status: int, body: Any, text: str = "", op: str = "statement"
+                 ) -> tuple[int, dict]:
     """An upstream error response, with what the client library would retry
     forever turned into what BigQuery says (see the module docstring)."""
     error = body.get("error") if isinstance(body, dict) else None
@@ -242,8 +314,12 @@ def vendor_error(status: int, body: Any, text: str = "") -> tuple[int, dict]:
     errors = error.get("errors") or [{}]
     first = errors[0] if isinstance(errors[0], dict) else {}
     message = str(error.get("message") or first.get("message") or "")
-    if first.get("reason") == "jobInternalError":
-        status, reason, message = query_error(message)
+    # The engine answers an insert of an existing dataset or table with a 500
+    # `internalError`; BigQuery says `duplicate`, which client code relies on
+    # (`create_dataset(exists_ok=True)` catches the Conflict).
+    if first.get("reason") == "jobInternalError" or (status >= 500
+                                                     and DUPLICATE.search(message)):
+        status, reason, message = query_error(message, op)
         return status, google_error(status, reason, message)
     if status >= 500:
         return 501, google_error(501, "notImplemented", f"{NOT_AVAILABLE}: {message}")
@@ -419,10 +495,17 @@ def _respond(status: int, body: Any, raw: bytes, media: str) -> Response:
 
 class Plan:
     """What one request is, decided before anything is forwarded: its tool, its
-    classification, the arguments its row carries, or why it is refused."""
+    classification, the arguments its row carries, or why it is refused.
+
+    A refused request is still recorded as what it is - a query as
+    `bigquery.statement`, classified by its SQL, so the path rules read the
+    attempt; anything else as `bigquery.<op>` - with `exit: error` and the flag
+    `refused:<feature>` (REFUSALS)."""
 
     def __init__(self, op: str, op_class: str, params: dict[str, str], payload: Any):
         self.route = op
+        self.params = params
+        self.project = params.get("project", "")
         self.tool = f"{NAME}.{op}"
         self.op_class = op_class
         self.targets = targets_for(op, params)
@@ -431,27 +514,39 @@ class Plan:
         self.args: dict = {}
         self.refused: str | None = None
         self.trees: list = []
-        body = payload if isinstance(payload, dict) else {}
-        config = body.get("configuration") if isinstance(body.get("configuration"),
-                                                          dict) else {}
+        self.sql = ""
+        self.default_dataset: str | None = None
+        #: a query job's destination table (configuration.query.destinationTable)
+        self.destination: dict | None = None
+        self.write_disposition = ""
+        self.create_disposition = ""
+        #: tables a CREATE OR REPLACE dropped before the statement ran (`preflight`)
+        self.replaced: list[str] = []
+        self.body = payload if isinstance(payload, dict) else {}
+        config = self.body.get("configuration")
+        config = config if isinstance(config, dict) else {}
         if op == "statement":
-            self._statement(body, body)
+            self._statement(self.body, self.body)
         elif op == "job_insert" and isinstance(config.get("query"), dict):
             self._statement(config, config["query"])
         elif op == "job_upload" or (op == "job_insert" and "load" in config):
-            self.refused = "load_job"
+            self.refuse("load_job")
+            dest = (config.get("load") or {}).get("destinationTable") or {}
+            self.targets = [_ref_name(dest, self.project)] if dest.get("tableId") \
+                else self.targets
         elif op == "job_insert" and "extract" in config:
-            self.refused = "extract_job"
+            self.refuse("extract_job")
         elif op == "job_insert" and isinstance(config.get("copy"), dict):
             dest = config["copy"].get("destinationTable") or {}
             if dest.get("tableId"):
-                self.targets = [f"{dest.get('projectId') or params['project']}."
-                                f"{dest.get('datasetId')}.{dest['tableId']}"]
+                self.targets = [_ref_name(dest, self.project)]
         elif op == "tabledata_insert_all":
-            self.args["rows"] = len(body.get("rows") or [])
-        if self.refused:
-            self.tool = f"{NAME}.refused"
-            self.args["feature"] = self.refused
+            self.args["rows"] = len(self.body.get("rows") or [])
+
+    def refuse(self, feature: str) -> None:
+        self.refused = feature
+        self.flags.append(f"{REFUSED_FLAG}{feature}")
+        self.args["feature"] = feature
 
     @property
     def statement(self) -> bool:
@@ -461,21 +556,42 @@ class Plan:
         """A query: jobs.query's body is both `holder` and `query`; jobs.insert
         holds `dryRun` on the configuration and the rest under `query`."""
         self.tool = f"{NAME}.statement"
-        self.args["sql"] = sql = str(query.get("query") or "")
+        self.sql = self.args["sql"] = str(query.get("query") or "")
         default = query.get("defaultDataset")
         if isinstance(default, dict) and default.get("datasetId"):
-            self.args["default_dataset"] = default["datasetId"]
-        self.trees = statements(sql)
+            self.default_dataset = self.args["default_dataset"] = default["datasetId"]
+        found = classify(self.sql)
+        self.op_class, self.targets = found.op_class, list(found.targets)
+        self.read_targets, self.flags = list(found.read_targets), list(found.flags)
+        dest = query.get("destinationTable")
+        if isinstance(dest, dict) and dest.get("tableId"):
+            # The query's result lands in a table: a write, whatever it reads.
+            self.destination = {"projectId": dest.get("projectId") or self.project,
+                                "datasetId": dest.get("datasetId"),
+                                "tableId": dest["tableId"]}
+            name = _ref_name(self.destination, self.project)
+            self.args["destination"] = name
+            self.write_disposition = str(query.get("writeDisposition") or "WRITE_EMPTY")
+            self.create_disposition = str(query.get("createDisposition")
+                                          or "CREATE_IF_NEEDED")
+            self.args["write_disposition"] = self.write_disposition
+            if self.op_class == "read":
+                self.op_class = "write"
+            self.targets = [name, *(t for t in self.targets if t != name)]
+        self.trees = statements(self.sql)
         if holder.get("dryRun") or query.get("dryRun"):
-            self.refused = "dry_run"
+            self.refuse("dry_run")
         elif query.get("useLegacySql") is True:
-            self.refused = "legacy_sql"
-        elif any(_is_alter(tree) for tree in self.trees):
-            self.refused = "alter"
-        else:
-            found = classify(sql)
-            self.op_class, self.targets = found.op_class, list(found.targets)
-            self.read_targets, self.flags = list(found.read_targets), list(found.flags)
+            self.refuse("legacy_sql")
+        elif (feature := fence(self.sql, self.trees, self.project,
+                               self.default_dataset)) is not None:
+            self.refuse(feature)
+        elif self.destination is not None and self.write_disposition == "WRITE_TRUNCATE":
+            self.refuse("write_truncate")
+
+
+def _ref_name(ref: dict, project: str) -> str:
+    return f"{ref.get('projectId') or project}.{ref.get('datasetId')}.{ref.get('tableId')}"
 
 
 def statements(sql: str) -> list:
@@ -489,16 +605,84 @@ def statements(sql: str) -> list:
         return []
 
 
-def _is_alter(tree) -> bool:
+def leading_verbs(sql: str) -> list[str]:
+    """The first keyword of every statement in `sql`, upper-cased, from sqlglot's
+    BigQuery tokenizer (strings and comments are tokens of their own, never a
+    keyword). If the text does not tokenize, a split on `;` stands in."""
+    from sqlglot.dialects.dialect import Dialect
+    from sqlglot.errors import SqlglotError
+    from sqlglot.tokens import TokenType
+
+    try:
+        tokens = Dialect.get_or_raise("bigquery").tokenize(sql)
+    except SqlglotError:
+        return [part.split(None, 1)[0].upper() for part in sql.split(";") if part.split()]
+    verbs, start = [], True
+    for token in tokens:
+        if token.token_type == TokenType.SEMICOLON:
+            start = True
+        elif start:
+            verbs.append(token.text.upper())
+            start = False
+    return verbs
+
+
+def fence(sql: str, trees: list, project: str, dataset: str | None) -> str | None:
+    """The REFUSALS key a query is refused under, or None to forward it."""
     from sqlglot import exp
 
-    return isinstance(tree, exp.Alter)
+    verbs = leading_verbs(sql)
+    for verb in verbs:
+        if verb in FENCED_VERBS:
+            return FENCED_VERBS[verb]
+    if any(isinstance(t, (exp.Alter, exp.Transaction, exp.Commit, exp.Rollback))
+           for t in trees):
+        return "transaction" if not any(isinstance(t, exp.Alter) for t in trees) \
+            else "alter"
+    for tree in trees:
+        if isinstance(tree, exp.Command) and str(tree.this).upper() in FENCED_VERBS:
+            return FENCED_VERBS[str(tree.this).upper()]
+    prepared = [t for t in trees if _prepared(t)]
+    if prepared and len(verbs) > 1:
+        return "ddl_script"
+    for tree in prepared:
+        if not (isinstance(tree, exp.Create) and tree.args.get("replace")
+                and isinstance(tree.expression, exp.Query)):
+            continue
+        target = _table_ref(tree.this.find(exp.Table) if tree.this else None,
+                            project, dataset)
+        sources = {_ref_name(r, project) for r in (
+            _table_ref(t, project, dataset) for t in tree.expression.find_all(exp.Table))
+            if r is not None}
+        if target is not None and _ref_name(target, project) in sources:
+            return "replace_reads_itself"
+    return None
 
 
-def prepare(http, plan: Plan, project: str) -> tuple[int, str, str] | None:
-    """Give a statement's DDL the effect BigQuery gives it, where the engine
-    alone would not, before the statement is forwarded. None, or (status,
-    reason, message) to answer with instead. Creates no job (REST, not SQL).
+def _prepared(tree) -> bool:
+    """A statement that cannot run inside a script: CREATE SCHEMA and CREATE OR
+    REPLACE TABLE / VIEW, which `preflight` acts on statement by statement
+    before forwarding (in a script that would run ahead of the statements
+    before them), and DROP SCHEMA, which the engine cannot run at all."""
+    from sqlglot import exp
+
+    kind = str(tree.args.get("kind") or "").upper()
+    if isinstance(tree, (exp.Create, exp.Drop)) and kind == "SCHEMA":
+        return True
+    return isinstance(tree, exp.Create) and kind in ("TABLE", "VIEW") \
+        and bool(tree.args.get("replace"))
+
+
+def _table_path(ref: dict) -> str:
+    return (f"/bigquery/v2/projects/{ref['projectId']}/datasets/{ref['datasetId']}"
+            f"/tables/{ref['tableId']}")
+
+
+def preflight(http, plan: Plan, project: str) -> tuple[int, str, str] | None:
+    """What a request needs from the engine before it is forwarded: None to
+    forward it, or (status, reason, message) to answer with instead. REST
+    only, so it creates no job. `plan.refused` is set when the answer is a
+    refusal by name.
 
       CREATE SCHEMA       the engine runs it and creates no dataset, so the
                           next CREATE TABLE in it fails: the dataset is created
@@ -507,13 +691,42 @@ def prepare(http, plan: Plan, project: str) -> tuple[int, str, str] | None:
       CREATE OR REPLACE   over an existing table or view the engine replaces
                           the data, then fails `duplicate` and leaves the
                           catalogue stale (a replaced view stops answering): the
-                          old one is deleted first (tables.delete) and the row
-                          is flagged REPLACED. If the new query then fails, the
-                          old table is gone - BigQuery would have kept it.
+                          old one is deleted first (tables.delete), the row is
+                          flagged REPLACED, and if the statement then fails its
+                          error says the old table is gone (`replaced_note`) -
+                          BigQuery would have kept it. One whose query reads
+                          its own target is refused before this (`fence`).
+      destinationTable    the engine appends whatever the writeDisposition:
+                          WRITE_TRUNCATE is refused (`Plan`); WRITE_EMPTY, the
+                          default, is BigQuery's `duplicate` when the table
+                          holds rows; CREATE_NEVER is `notFound` when it does
+                          not exist.
+      tables.patch/update a new `schema` is recorded and the data keeps the old
+                          one: refused when the fields differ from the table's.
     """
     from sqlglot import exp
 
-    default = plan.args.get("default_dataset")
+    if plan.route in ("table_patch", "table_update") and "schema" in plan.body:
+        current = http.get(_table_path({"projectId": project,
+                                         "datasetId": plan.params["dataset"],
+                                         "tableId": plan.params["table"]}))
+        if current.status_code == 200 and _fields(_json(current.content).get("schema")) \
+                != _fields(plan.body.get("schema")):
+            plan.refuse("table_schema_change")
+            return 501, "notImplemented", REFUSALS["table_schema_change"]
+        return None
+    if not plan.statement:
+        return None
+    if plan.destination is not None:
+        table = http.get(_table_path(plan.destination))
+        name = _ref_name(plan.destination, project)
+        if table.status_code != 200 and plan.create_disposition == "CREATE_NEVER":
+            return 404, "notFound", f"Not found: Table {name.replace('.', ':', 1)}"
+        if table.status_code == 200 and plan.write_disposition == "WRITE_EMPTY" \
+                and int((_json(table.content) or {}).get("numRows") or 0) > 0:
+            return (duplicate_status(plan.route), "duplicate",
+                    f"Already Exists: Table {name.replace('.', ':', 1)} (writeDisposition "
+                    "WRITE_EMPTY needs an empty table)")
     for tree in plan.trees:
         if not isinstance(tree, exp.Create):
             continue
@@ -528,23 +741,108 @@ def prepare(http, plan: Plan, project: str) -> tuple[int, str, str] | None:
             path = f"/bigquery/v2/projects/{owner}/datasets"
             if http.get(f"{path}/{dataset}").status_code == 200:
                 if not tree.args.get("exists"):
-                    return 400, "duplicate", f"Already Exists: Dataset {owner}:{dataset}"
+                    return (duplicate_status(plan.route), "duplicate",
+                            f"Already Exists: Dataset {owner}:{dataset}")
                 continue
             made = http.post(path, json={"datasetReference": {"projectId": owner,
                                                               "datasetId": dataset}})
             if made.status_code >= 300:
-                status, body = vendor_error(made.status_code, _json(made.content), made.text)
+                status, body = vendor_error(made.status_code, _json(made.content),
+                                            made.text, plan.route)
                 return status, body["error"]["errors"][0]["reason"], body["error"]["message"]
         elif kind in ("TABLE", "VIEW") and tree.args.get("replace"):
-            ref = _table_ref(table, project, default)
+            ref = _table_ref(table, project, plan.default_dataset)
             if ref is None:
                 continue
-            path = (f"/bigquery/v2/projects/{ref['projectId']}/datasets/{ref['datasetId']}"
-                    f"/tables/{ref['tableId']}")
-            if http.get(path).status_code == 200:
-                http.delete(path)
+            if http.get(_table_path(ref)).status_code == 200:
+                http.delete(_table_path(ref))
                 plan.flags.append(REPLACED)
+                plan.replaced.append(_ref_name(ref, project))
     return None
+
+
+def _fields(schema: Any) -> list:
+    """A schema's fields as (name, type, mode, sub-fields), for comparison."""
+    fields = (schema or {}).get("fields") if isinstance(schema, dict) else None
+    return [(str(f.get("name", "")).lower(), str(f.get("type", "")).upper(),
+             str(f.get("mode") or "NULLABLE").upper(), _fields(f))
+            for f in fields or [] if isinstance(f, dict)]
+
+
+def replaced_note(tables: list[str]) -> str:
+    """Appended to the error of a CREATE OR REPLACE that failed after `preflight`
+    dropped its target: the agent must not believe the old table survived."""
+    return (f" [{', '.join(tables)} was dropped before this statement ran - the engine "
+            "cannot replace a table in place - and is gone]")
+
+
+def mark_replaced(body: Any, note: str) -> Any:
+    """`body` with `note` appended to every error message in it: a top-level
+    error envelope, or a job's errorResult and errors."""
+    if not isinstance(body, dict):
+        return body
+    error = body.get("error")
+    if isinstance(error, dict):
+        error["message"] = str(error.get("message", "")) + note
+        for entry in error.get("errors") or []:
+            if isinstance(entry, dict):
+                entry["message"] = str(entry.get("message", "")) + note
+    status = body.get("status") if isinstance(body.get("status"), dict) else {}
+    for entry in [status.get("errorResult"), *(status.get("errors") or [])]:
+        if isinstance(entry, dict):
+            entry["message"] = str(entry.get("message", "")) + note
+    return body
+
+
+def job_id_of(plan: Plan, params: dict[str, str], body: Any) -> str | None:
+    """The job a request is about: in its path, in the answer, or - for a
+    jobs.insert the engine refused outright - in the request's jobReference."""
+    for holder in (body, plan.body):
+        ref = holder.get("jobReference") if isinstance(holder, dict) else None
+        if params.get("job") or (isinstance(ref, dict) and ref.get("jobId")):
+            return params.get("job") or ref["jobId"]
+    return params.get("job")
+
+
+def failed(status: int, body: Any) -> bool:
+    return status >= 400 or (isinstance(body, dict) and isinstance(body.get("status"), dict)
+                             and bool(body["status"].get("errorResult")))
+
+
+#: tabledata.list paging (`page`): the engine ignores maxResults, startIndex
+#: and pageToken there and answers every row, so the proxy pages.
+PAGE_PARAMS = ("maxResults", "startIndex", "pageToken")
+TOKEN_PREFIX = "alkera-row-"
+
+
+def page(body: Any, params) -> tuple[int, Any] | None:
+    """A full tabledata.list answer cut to the requested page, BigQuery's way:
+    `maxResults` rows from `startIndex` (or from where `pageToken` points),
+    `pageToken` while rows remain, `totalRows` always the whole table's; None
+    when the request asked for nothing to cut. (400, error) for a page token
+    this proxy did not issue."""
+    if not isinstance(body, dict):
+        return None
+    rows = body.get("rows") or []
+    token = params.get("pageToken")
+    try:
+        if token:
+            if not token.startswith(TOKEN_PREFIX):
+                raise ValueError(token)
+            start = int(token[len(TOKEN_PREFIX):])
+        else:
+            start = int(params.get("startIndex") or 0)
+        size = params.get("maxResults")
+        end = len(rows) if size in (None, "") else start + int(size)
+    except ValueError:
+        return 400, google_error(400, "invalid", f"Invalid page token or index: {token!r}")
+    body["totalRows"] = str(body.get("totalRows") or len(rows))
+    body["rows"] = rows[start:end]
+    if end < len(rows):
+        body["pageToken"] = f"{TOKEN_PREFIX}{end}"
+    else:
+        body.pop("pageToken", None)
+    return 200, body
 
 
 def anonymous_datasets(http, project: str) -> set[str]:
@@ -607,6 +905,9 @@ def build_app(upstream: str | None = None, seed: dict | None = None) -> FastAPI:
     app.state.upstream = upstream
     app.state.seed = seed
     clients: dict[str, httpx.Client] = {}
+    #: job id -> replaced_note, for a failed CREATE OR REPLACE that dropped its
+    #: target (`preflight`): later reads of the job carry the note too.
+    dropped: dict[str, str] = {}
 
     def client() -> httpx.Client | None:
         base = (app.state.upstream or os.environ.get(UPSTREAM_ENV) or "").rstrip("/")
@@ -631,16 +932,15 @@ def build_app(upstream: str | None = None, seed: dict | None = None) -> FastAPI:
 
     def refuse(request: Request, plan: Plan, started: float, status: int, reason: str,
                code: str, message: str) -> Response:
-        """Answer without the upstream's answer, the row first. A request refused
-        by name (`plan.refused`) touched nothing: `read`, no targets. Any other
-        (the engine unreachable, a prepare step's verdict) keeps the request's
-        own classification - it was an attempt at what it names."""
-        quiet = plan.refused is not None
-        write(request, plan.tool, started, op_class="read" if quiet else plan.op_class,
-              targets=[] if quiet else plan.targets,
-              read_targets=None if quiet else plan.read_targets,
-              status=status, error={"code": code, "message": message}, result={},
-              flags=plan.flags, args=plan.args)
+        """Answer without the upstream's answer, the row first. The row keeps the
+        request's own classification - it was an attempt at what it names, and
+        a refused query is a `bigquery.statement` the path rules read - with
+        `exit: error`, and `refused:<feature>` among its flags when it was
+        refused by name."""
+        write(request, plan.tool, started, op_class=plan.op_class, targets=plan.targets,
+              read_targets=plan.read_targets, status=status,
+              error={"code": code, "message": message}, result={}, flags=plan.flags,
+              args=plan.args)
         return JSONResponse(google_error(status, reason, message), status_code=status)
 
     @app.get("/health")
@@ -682,13 +982,15 @@ def build_app(upstream: str | None = None, seed: dict | None = None) -> FastAPI:
                           f"unset in native-services")
         headers = {k: v for k, v in request.headers.items() if k in FORWARD_HEADERS}
         project = params.get("project", "")
+        query = [(k, v) for k, v in request.query_params.multi_items()
+                 if op != "tabledata_list" or k not in PAGE_PARAMS]
         try:
-            early = prepare(http, plan, project) if plan.statement else None
+            early = preflight(http, plan, project)
             if early is not None:
                 status, reason, message = early
-                return refuse(request, plan, started, status, reason, reason, message)
-            answer = http.request(request.method, request.url.path,
-                                  params=list(request.query_params.multi_items()),
+                code = "not_available" if plan.refused else reason
+                return refuse(request, plan, started, status, reason, code, message)
+            answer = http.request(request.method, request.url.path, params=query,
                                   content=raw, headers=headers)
             hidden = (anonymous_datasets(http, project) if op == "dataset_list"
                       and request.query_params.get("all") != "true"
@@ -703,9 +1005,21 @@ def build_app(upstream: str | None = None, seed: dict | None = None) -> FastAPI:
             body["datasets"] = [d for d in body.get("datasets") or [] if str(
                 (d.get("datasetReference") or {}).get("datasetId")) not in hidden]
         if status >= 400:
-            status, body = vendor_error(status, body, answer.text)
+            status, body = vendor_error(status, body, answer.text, op)
         elif body is not None:
-            body = correct(op, body, params.get("project", ""))
+            body = correct(op, body, project)
+            if op == "tabledata_list":
+                status, body = page(body, request.query_params) or (status, body)
+        # A CREATE OR REPLACE that failed after its target was dropped says so,
+        # here and in every later read of the same job.
+        job_id = job_id_of(plan, params, body)
+        if plan.replaced and failed(status, body):
+            note = replaced_note(plan.replaced)
+            if job_id:
+                dropped[job_id] = note
+            body = mark_replaced(body, note)
+        elif job_id in dropped and failed(status, body):
+            body = mark_replaced(body, dropped[job_id])
         error, result, rows_affected = outcome(plan, status, body)
         write(request, plan.tool, started, op_class=plan.op_class, targets=plan.targets,
               read_targets=plan.read_targets, status=status, error=error, result=result,

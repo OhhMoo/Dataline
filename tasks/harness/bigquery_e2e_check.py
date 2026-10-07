@@ -14,7 +14,9 @@ INSIDE the episode container:
       variables): every seeded table's COUNT(*) and February 2026 Net Revenue equal
       the world's DuckDB, read on the host; CREATE SCHEMA + CREATE OR REPLACE TABLE +
       INSERT + SELECT on a scratch dataset; the fences (dry run, legacy SQL, ALTER,
-      a syntax error answered at once - never retried);
+      a transaction - its INSERT never reaching the engine -, a syntax error
+      answered at once, never retried), each refused query a `bigquery.statement`
+      row flagged `refused:<feature>`; `list_rows(max_results=5)` five rows;
   (b) dbt: dbt-bigquery is NOT in the image (gateway/docker/bigquery-clients.in), so
       the box's dbt profile (~/.dbt) is the world's own, with no bigquery target, and
       the de image's role boundary holds (no pandas, pyarrow, nbformat or `jupyter` in
@@ -112,7 +114,14 @@ out["legacy_sql"] = refused(lambda: client.query(
     "SELECT 1", job_config=bigquery.QueryJobConfig(use_legacy_sql=True)).result())
 out["alter"] = refused(lambda: client.query(
     f"ALTER TABLE `{project}.bq_e2e_scratch.notes` ADD COLUMN extra STRING").result())
+out["transaction"] = refused(lambda: client.query(
+    f"BEGIN TRANSACTION; INSERT INTO `{project}.bq_e2e_scratch.notes` (id, note) "
+    "VALUES (3, 'gamma'); SELECT ERROR('boom'); COMMIT TRANSACTION").result())
 out["bad_sql"] = refused(lambda: client.query("SELEC 1").result())
+out["list_rows_5"] = [[str(v) for v in row.values()] for row in client.list_rows(
+    f"{project}.warehouse.fct_orders", max_results=5)]
+out["read_back_after_fences"] = run(
+    f"SELECT id, note FROM `{project}.bq_e2e_scratch.notes` ORDER BY id")[1]
 client.close()
 print("BQ-E2E " + json.dumps(out))
 '''
@@ -347,11 +356,17 @@ def main(argv=None) -> int:
         for name, code, text in (("dry_run", 501, "cost estimation is not modelled"),
                                  ("legacy_sql", 501, "legacy SQL"),
                                  ("alter", 501, "ALTER"),
+                                 ("transaction", 501, "transactions"),
                                  ("bad_sql", 400, "Syntax error")):
             seen = got.get(name) or {}
             check(f"fence: {name} refused by name, at once ({code})",
                   seen.get("code") == code and text in seen.get("message", "")
                   and seen.get("seconds", 99) < 10, seen)
+        check("fence: the refused transaction's INSERT never reached the engine",
+              got.get("read_back_after_fences") == [["1", "alpha"], ["2", "beta"]],
+              got.get("read_back_after_fences"))
+        check("client: list_rows(max_results=5) returns 5 rows (tabledata.list paged)",
+              len(got.get("list_rows_5") or []) == 5, len(got.get("list_rows_5") or []))
         rows = bi.read_rows(audit_file)
         probe_rows = rows[before_rows:]
         sent = got.get("statements", [])
@@ -359,7 +374,7 @@ def main(argv=None) -> int:
         check("audit: one bigquery.statement row per probe statement, in order",
               [s for s in statement_sql if s in sent] == sent,
               {"sent": len(sent), "statement_rows": len(statement_sql)})
-        writes = [r for r in probe_rows if r["tool"] == TOOL
+        writes = [r for r in probe_rows if r["tool"] == TOOL and r["exit"] == "ok"
                   and r["op_class"] in ("write", "ddl", "destructive")]
         record["write_rows"] = [{k: r[k] for k in ("seq", "op_class", "targets", "flags")}
                                 | {"sql": r["args"]["sql"]} for r in writes]
@@ -368,11 +383,17 @@ def main(argv=None) -> int:
               len(writes) >= 3 and fingerprint_before == fingerprint_after,
               {"before": fingerprint_before, "after": fingerprint_after,
                "write_rows": len(writes)})
-        refusals = [r for r in probe_rows if r["tool"] == "bigquery.refused"]
-        check("audit: the refused requests are `bigquery.refused` rows, never statements",
-              {r["args"].get("feature") for r in refusals} == {"dry_run", "legacy_sql",
-                                                               "alter"},
-              [r["args"] for r in refusals])
+        refusals = [r for r in probe_rows if any(
+            f.startswith("refused:") for f in r["flags"])]
+        record["refused_rows"] = [{k: r[k] for k in ("seq", "tool", "op_class", "exit",
+                                                     "flags")} for r in refusals]
+        check("audit: each refused query is a bigquery.statement row, exit error, "
+              "flagged refused:<feature>",
+              {r["args"].get("feature") for r in refusals}
+              == {"dry_run", "legacy_sql", "alter", "transaction"}
+              and all(r["tool"] == TOOL and r["exit"] == "error" and r["args"].get("sql")
+                      for r in refusals),
+              record["refused_rows"])
 
         # (b) dbt: no adapter, so no bigquery target, and the role boundary holds
         adapter = stack.exec_([PYTHON, "-c", "import dbt.adapters.bigquery"], check=False)

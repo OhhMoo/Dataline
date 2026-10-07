@@ -94,8 +94,10 @@ _CATALOG = (
          note="goccy emulator v0.8.1 behind an audited proxy at "
               "bigquery.internal:9050 (native/services/bigquery.py), seeded from "
               "the world; google-cloud-bigquery in images built with "
-              "--warehouse-clients bigquery; cost not modelled, load jobs, ALTER "
-              "and legacy SQL refused, no transactions; no dbt-bigquery (works "
+              "--warehouse-clients bigquery; cost not modelled; transactions, "
+              "ALTER, EXECUTE IMMEDIATE, ASSERT, WRITE_TRUNCATE, schema patches, "
+              "load jobs and legacy SQL refused by name; INT64 overflow wraps "
+              "instead of erroring (emulator, not fenced); no dbt-bigquery (works "
               "against the proxy, but its pandas/nbformat break the de image's "
               "role gate); container e2e only, arm64 not run, no task uses it"),
     Plug("databricks", "warehouse", "planned", surfaces=("databricks",)),

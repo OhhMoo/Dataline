@@ -12,7 +12,10 @@ as the agent drives it in the container (AnonymousCredentials + api_endpoint).
 What is held: one 9.2.2 row per request, on file before the response starts; the
 seed's counts are the world's; Google's error envelope for a route BigQuery does
 not publish; GoogleSQL answers equal to DuckDB's on the same rows; and the fences -
-cost, legacy SQL, load jobs, ALTER - refused by name, never answered wrongly.
+cost, legacy SQL, load jobs, ALTER, transactions, EXECUTE IMMEDIATE, ASSERT, a
+truncating destination, a schema patch - refused by name, never answered wrongly; and
+a refused query is still a `bigquery.statement` row (`refused:<feature>`, exit error),
+so the path rules read the attempt.
 """
 from __future__ import annotations
 
@@ -394,8 +397,9 @@ def test_dry_run_refused_with_the_cost_refusal(client, emulator, audit):
     _raises(lambda: client.query("SELECT 1", job_config=bigquery.QueryJobConfig(
         dry_run=True)), 501, bq.COST_REFUSAL)
     row = rows_of(audit)[-1]
-    assert row["tool"] == "bigquery.refused" and row["args"]["feature"] == "dry_run"
-    assert row["op_class"] == "read" and row["targets"] == []
+    assert row["tool"] == "bigquery.statement" and row["args"]["sql"] == "SELECT 1"
+    assert row["exit"] == "error" and "refused:dry_run" in row["flags"]
+    assert row["args"]["feature"] == "dry_run" and row["error"]["code"] == "not_available"
     assert set(upstream_jobs(emulator)) == jobs          # never reached the engine
 
 
@@ -408,9 +412,15 @@ def test_legacy_sql_load_jobs_and_alter_refused_by_name(client, audit):
         [{"a": 1}], f"{PROJECT}.warehouse.loaded").result(), 501, "load jobs")
     _raises(lambda: client.query(f"ALTER TABLE `{PROJECT}.warehouse.fct_orders` "
                                  "ADD COLUMN note STRING").result(), 501, "ALTER")
-    features = [r["args"].get("feature") for r in rows_of(audit)
-                if r["tool"] == "bigquery.refused"]
-    assert {"legacy_sql", "load_job", "alter"} <= set(features)
+    refused = {r["args"].get("feature"): r for r in rows_of(audit)
+               if any(f.startswith(bq.REFUSED_FLAG) for f in r["flags"])}
+    assert {"legacy_sql", "load_job", "alter"} <= set(refused)
+    # a refused query is the statement it was, classified by its SQL
+    alter = refused["alter"]
+    assert alter["tool"] == "bigquery.statement"
+    assert alter["op_class"] == bq.classify(alter["args"]["sql"]).op_class != "read"
+    assert alter["targets"] and alter["exit"] == "error"
+    assert refused["load_job"]["tool"] == "bigquery.job_upload"
 
 
 def test_query_errors_are_bigquerys_and_not_retried(client):
@@ -419,6 +429,10 @@ def test_query_errors_are_bigquerys_and_not_retried(client):
     error = _raises(lambda: client.query("SELECT * FROM warehouse.nope").result(),
                     404, "Table not found")
     assert error.errors[0]["reason"] == "notFound"
+    # only a missing table or dataset is a 404: a missing function is the query's
+    error = _raises(lambda: client.query("SELECT NOPE_FN(1)").result(), 400,
+                    "Function not found")
+    assert error.errors[0]["reason"] == "invalidQuery"
 
 
 def test_engine_gaps_are_not_available_not_internal_errors():
@@ -428,7 +442,13 @@ def test_engine_gaps_are_not_available_not_internal_errors():
     assert body["error"]["message"].startswith(bq.NOT_AVAILABLE)
     assert bq.query_error("currently unsupported DROP SCHEMA statement")[:2] == (
         501, "notImplemented")
-    assert bq.query_error("duplicate: table t: table is already created")[1] == "duplicate"
+    duplicate = "duplicate: table t: table is already created"
+    assert bq.query_error(duplicate)[:2] == (409, "duplicate")
+    # never 409 on jobs.insert: the client would re-fetch a job that does not exist
+    assert bq.query_error(duplicate, "job_insert")[:2] == (400, "duplicate")
+    assert bq.query_error("dataset s is not found")[:2] == (404, "notFound")
+    assert bq.query_error("failed to analyze: Function not found: X")[:2] == (
+        400, "invalidQuery")
 
 
 def test_cost_fields_never_reach_the_client(client, proxy):
@@ -508,14 +528,164 @@ def test_unreachable_engine_fails_fast_with_a_row(audit):
     assert rows_of(audit)[-1]["error"]["code"] == "upstream_unavailable"
 
 
+# ------------------------------- what the engine would answer wrongly, fenced
+def _scratch(client, name: str, rows: int = 0) -> str:
+    """A fresh `alkera-local.review.<name>` (a INT64) holding rows 0..rows-1."""
+    from google.cloud import bigquery
+
+    client.create_dataset(f"{PROJECT}.review", exists_ok=True)
+    table = f"{PROJECT}.review.{name}"
+    client.delete_table(table, not_found_ok=True)
+    client.create_table(bigquery.Table(table, schema=[bigquery.SchemaField("a", "INT64")]))
+    if rows:
+        assert client.insert_rows_json(table, [{"a": i} for i in range(rows)]) == []
+    return table
+
+
+def _count(client, table: str) -> int:
+    return list(client.query(f"SELECT COUNT(*) FROM `{table}`").result())[0][0]
+
+
+def _statement(audit, needle: str) -> dict:
+    return [r for r in rows_of(audit) if r["tool"] == "bigquery.statement"
+            and needle in r["args"].get("sql", "")][-1]
+
+
+def test_transactions_and_blocks_refused_by_name(client, audit):
+    """The engine keeps an INSERT across an ERROR() inside a transaction and
+    cannot ROLLBACK: every transaction or BEGIN...END block is refused."""
+    table = _scratch(client, "tx", rows=1)
+    for sql in (f"BEGIN TRANSACTION; INSERT INTO `{table}` (a) VALUES (7); "
+                "SELECT ERROR('boom'); COMMIT TRANSACTION",
+                f"BEGIN TRANSACTION; INSERT INTO `{table}` (a) VALUES (8); "
+                "ROLLBACK TRANSACTION",
+                f"BEGIN INSERT INTO `{table}` (a) VALUES (9); END",
+                "COMMIT TRANSACTION", "ROLLBACK"):
+        _raises(lambda sql=sql: client.query(sql).result(), 501, "transactions")
+        row = _statement(audit, sql)
+        assert "refused:transaction" in row["flags"] and row["exit"] == "error"
+    assert _count(client, table) == 1                     # nothing reached the engine
+    row = _statement(audit, "VALUES (7)")                 # read as what it is
+    assert row["op_class"] == bq.classify(row["args"]["sql"]).op_class != "read"
+
+
+def test_query_destination_dispositions(client, audit):
+    """The engine appends to a query job's destination whatever the
+    writeDisposition: WRITE_TRUNCATE is refused, WRITE_EMPTY (the default)
+    answers `duplicate` on a table with rows, CREATE_NEVER `notFound` on a
+    missing one; the row is a write naming the destination."""
+    from google.cloud import bigquery
+
+    full, empty = _scratch(client, "dest_full", rows=2), _scratch(client, "dest_empty")
+    fresh, missing = f"{PROJECT}.review.dest_new", f"{PROJECT}.review.dest_missing"
+    for table in (fresh, missing):
+        client.delete_table(table, not_found_ok=True)
+
+    def run(dest, sql="SELECT 7 AS a", **config):
+        job = client.query(sql, job_config=bigquery.QueryJobConfig(destination=dest,
+                                                                  **config))
+        return list(job.result())
+
+    _raises(lambda: run(full, write_disposition="WRITE_TRUNCATE"), 501, "WRITE_TRUNCATE")
+    assert "refused:write_truncate" in _statement(audit, "SELECT 7")["flags"]
+    _raises(lambda: run(full), 400, "Already Exists")
+    assert _count(client, full) == 2
+    run(full, write_disposition="WRITE_APPEND")
+    assert _count(client, full) == 3
+    run(empty)
+    assert _count(client, empty) == 1
+    run(fresh, sql="SELECT 8 AS a")
+    assert _count(client, fresh) == 1
+    row = _statement(audit, "SELECT 8")
+    assert row["op_class"] == "write" and row["targets"][0] == fresh
+    assert row["args"]["destination"] == fresh and row["exit"] == "ok"
+    _raises(lambda: run(missing, create_disposition="CREATE_NEVER"), 404, "Not found")
+
+
+def test_list_rows_and_query_results_page(client, proxy):
+    """tabledata.list honours maxResults, startIndex and pageToken (the engine
+    answers every row); getQueryResults pages too."""
+    table = _scratch(client, "paged", rows=23)
+    every = [r["a"] for r in client.list_rows(table)]
+    assert sorted(every) == list(range(23))
+    assert [r["a"] for r in client.list_rows(table, max_results=5)] == every[:5]
+    assert [r["a"] for r in client.list_rows(table, start_index=10, max_results=4)] \
+        == every[10:14]
+    pages = client.list_rows(table, page_size=7).pages
+    assert [len(list(p)) for p in pages] == [7, 7, 7, 2]
+    raw = json.load(urllib.request.urlopen(
+        f"{proxy}/bigquery/v2/projects/{PROJECT}/datasets/review/tables/paged/data"
+        "?maxResults=5", timeout=10))
+    assert len(raw["rows"]) == 5 and raw["totalRows"] == "23" and raw["pageToken"]
+    job = client.query(f"SELECT a FROM `{table}` ORDER BY a")
+    assert [r["a"] for r in job.result(max_results=5)] == list(range(5))
+    assert [r["a"] for r in job.result(page_size=10)] == list(range(23))
+
+
+def test_alter_execute_immediate_assert_and_schema_patches_refused(client, audit):
+    """Each one the engine acknowledges and does not do."""
+    from google.cloud import bigquery
+
+    table = _scratch(client, "fenced", rows=1)
+    for sql, feature, text in (
+            (f"ALTER TABLE `{table}` ALTER COLUMN a SET OPTIONS (description='d')",
+             "alter", "ALTER"),
+            (f"EXECUTE IMMEDIATE 'INSERT INTO `{table}` (a) VALUES (99)'",
+             "execute_immediate", "EXECUTE IMMEDIATE"),
+            (f"ASSERT (SELECT COUNT(*) FROM `{table}`) = 12345 AS 'never true'",
+             "assert", "ASSERT"),
+            ("SELECT 1; ASSERT FALSE AS 'x'", "assert", "ASSERT")):
+        _raises(lambda sql=sql: client.query(sql).result(), 501, text)
+        assert f"refused:{feature}" in _statement(audit, sql)["flags"]
+    assert _count(client, table) == 1
+    # a keyword inside a string is not a statement
+    assert list(client.query("SELECT 'ALTER TABLE x' AS s").result())[0][0] == \
+        "ALTER TABLE x"
+    current = client.get_table(table)
+    current.schema = [*current.schema, bigquery.SchemaField("b", "STRING")]
+    _raises(lambda: client.update_table(current, ["schema"]), 501, "schema")
+    assert [f.name for f in client.get_table(table).schema] == ["a"]
+    patch = [r for r in rows_of(audit) if r["tool"] == "bigquery.table_patch"][-1]
+    assert "refused:table_schema_change" in patch["flags"] and patch["exit"] == "error"
+    same = client.get_table(table)                     # an unchanged schema goes through
+    assert [f.name for f in client.update_table(same, ["schema"]).schema] == ["a"]
+
+
+def test_or_replace_reading_itself_refused_and_a_failed_replace_says_dropped(client, audit):
+    table = _scratch(client, "rep", rows=3)
+    _raises(lambda: client.query(f"CREATE OR REPLACE TABLE `{table}` AS SELECT DISTINCT a "
+                                 f"FROM `{table}`").result(), 501, "its own query reads")
+    assert _count(client, table) == 3
+    source = _scratch(client, "rep_src", rows=1)
+    sql = f"CREATE OR REPLACE TABLE `{table}` AS SELECT no_such_column FROM `{source}`"
+    error = _raises(lambda: client.query(sql).result(), 400, "was dropped before")
+    assert table in str(error)
+    row = _statement(audit, "no_such_column")
+    assert bq.REPLACED in row["flags"] and "was dropped before" in row["error"]["message"]
+    # the synchronous route says it too
+    _scratch(client, "rep", rows=3)
+    _raises(lambda: list(client.query_and_wait(sql)), 400, "was dropped before")
+
+
+def test_scripts_with_schema_or_replace_ddl_refused_temp_tables_kept(client):
+    script = (f"CREATE SCHEMA `{PROJECT}`.s9; CREATE TABLE `{PROJECT}.s9.t` (a INT64)")
+    _raises(lambda: client.query(script).result(), 501, "multi-statement script")
+    assert "s9" not in {d.dataset_id for d in client.list_datasets()}
+    rows = list(client.query("CREATE TEMP TABLE tmp AS SELECT 1 AS a; "
+                             "SELECT a FROM tmp").result())
+    assert [r["a"] for r in rows] == [1]
+    client.query(f"CREATE SCHEMA `{PROJECT}`.fresh_schema").result()
+    assert "fresh_schema" in {d.dataset_id for d in client.list_datasets()}
+
+
 # ---------------------------------------------------------- module contract
 def test_no_tool_name_ends_in_an_mcp_tool():
     """blindness.row_tools suffix-matches native rows to MCP tools: a row ending
     in `sql_query` would explain any change to the world's DuckDB file."""
     from alkera_gateway.tools import TOOLS
 
-    ops = {op for _, _, op, _ in bq.ROUTES} | {"statement", "refused", "unknown_route",
-                                                "health", "request"}
+    ops = {op for _, _, op, _ in bq.ROUTES} | {"statement", "unknown_route", "health",
+                                                "request"}
     assert not ops & set(TOOLS)
     assert not any(op.startswith(("bi_", "s3_", "docs_", "chat_", "issues_", "kb_", "logs_"))
                    for op in ops)
