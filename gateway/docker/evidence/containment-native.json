@@ -1,11 +1,11 @@
 {
   "backend": "postgres (compose default)",
-  "compose_file": "/home/ubuntu/env_project-main-2/gateway/docker/compose.yml",
+  "compose_file": "/home/ubuntu/env_project/.claude/worktrees/agent-a9d585c786e098bb7/gateway/docker/compose.yml",
   "compose_overlays": [
-    "/home/ubuntu/env_project-main-2/gateway/docker/compose.episode.yml",
-    "/home/ubuntu/env_project-main-2/gateway/docker/compose.native.yml"
+    "/home/ubuntu/env_project/.claude/worktrees/agent-a9d585c786e098bb7/gateway/docker/compose.episode.yml",
+    "/home/ubuntu/env_project/.claude/worktrees/agent-a9d585c786e098bb7/gateway/docker/compose.native.yml"
   ],
-  "generated": "2026-10-04T07:55:30+00:00",
+  "generated": "2026-10-07T17:35:15+00:00",
   "host": {
     "docker": "29.8.2",
     "platform": "Linux-7.0.0-1006-aws-x86_64-with-glibc2.43"
@@ -15,6 +15,10 @@
   "p6_only_fake_services_reachable": {
     "backends_declared_but_not_running": [
       "airflow",
+      "airflow-api",
+      "bigquery",
+      "databricks",
+      "redshift",
       "snowflake"
     ],
     "backends_probed": [
@@ -22,9 +26,9 @@
       "postgres.internal:5432"
     ],
     "compose_files": [
-      "/home/ubuntu/env_project-main-2/gateway/docker/compose.yml",
-      "/home/ubuntu/env_project-main-2/gateway/docker/compose.episode.yml",
-      "/home/ubuntu/env_project-main-2/gateway/docker/compose.native.yml"
+      "/home/ubuntu/env_project/.claude/worktrees/agent-a9d585c786e098bb7/gateway/docker/compose.yml",
+      "/home/ubuntu/env_project/.claude/worktrees/agent-a9d585c786e098bb7/gateway/docker/compose.episode.yml",
+      "/home/ubuntu/env_project/.claude/worktrees/agent-a9d585c786e098bb7/gateway/docker/compose.native.yml"
     ],
     "declared_aliases": {
       "minio": [
@@ -56,82 +60,82 @@
     "passed": true,
     "probe": {
       "addresses_probed": [
-        "172.19.0.2",
-        "172.19.0.3",
-        "172.19.0.4"
+        "10.210.1.2",
+        "10.210.1.3",
+        "10.210.1.4"
       ],
       "closed_port_attempts": [
         {
           "result": "ConnectionRefusedError",
-          "target": "172.19.0.2:22"
+          "target": "10.210.1.2:22"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "172.19.0.2:80"
+          "target": "10.210.1.2:80"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "172.19.0.2:443"
+          "target": "10.210.1.2:443"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "172.19.0.2:3306"
+          "target": "10.210.1.2:3306"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "172.19.0.2:6379"
+          "target": "10.210.1.2:6379"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "172.19.0.2:8888"
+          "target": "10.210.1.2:8888"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "172.19.0.3:22"
+          "target": "10.210.1.3:22"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "172.19.0.3:80"
+          "target": "10.210.1.3:80"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "172.19.0.3:443"
+          "target": "10.210.1.3:443"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "172.19.0.3:3306"
+          "target": "10.210.1.3:3306"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "172.19.0.3:6379"
+          "target": "10.210.1.3:6379"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "172.19.0.3:8888"
+          "target": "10.210.1.3:8888"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "172.19.0.4:22"
+          "target": "10.210.1.4:22"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "172.19.0.4:80"
+          "target": "10.210.1.4:80"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "172.19.0.4:443"
+          "target": "10.210.1.4:443"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "172.19.0.4:3306"
+          "target": "10.210.1.4:3306"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "172.19.0.4:6379"
+          "target": "10.210.1.4:6379"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "172.19.0.4:8888"
+          "target": "10.210.1.4:8888"
         }
       ],
       "closed_ports_probed": [
@@ -146,28 +150,28 @@
       "compose_service_names": [
         {
           "addresses": [
-            "172.19.0.5"
+            "10.210.1.5"
           ],
           "name": "episode",
           "points_at_a_known_service": true
         },
         {
           "addresses": [
-            "172.19.0.3"
+            "10.210.1.2"
           ],
           "name": "minio",
           "points_at_a_known_service": true
         },
         {
           "addresses": [
-            "172.19.0.2"
+            "10.210.1.3"
           ],
           "name": "native-services",
           "points_at_a_known_service": true
         },
         {
           "addresses": [
-            "172.19.0.4"
+            "10.210.1.4"
           ],
           "name": "postgres",
           "points_at_a_known_service": true
@@ -281,19 +285,19 @@
         ],
         "routes": [
           {
-            "dest": "172.19.0.0",
+            "dest": "10.210.1.0",
             "iface": "eth0"
           }
         ]
       },
       "own_addresses": [
-        "172.19.0.5"
+        "10.210.1.5"
       ],
       "passed": true,
       "self_test": {
         "name_that_should_resolve": {
           "addresses": [
-            "172.19.0.2"
+            "10.210.1.3"
           ],
           "name": "jira.internal"
         },
@@ -320,7 +324,7 @@
           "reachable": true,
           "resolution": {
             "addresses": [
-              "172.19.0.2"
+              "10.210.1.3"
             ],
             "name": "jira.internal"
           },
@@ -342,7 +346,7 @@
           "reachable": true,
           "resolution": {
             "addresses": [
-              "172.19.0.2"
+              "10.210.1.3"
             ],
             "name": "slack.internal"
           },
@@ -364,7 +368,7 @@
           "reachable": true,
           "resolution": {
             "addresses": [
-              "172.19.0.2"
+              "10.210.1.3"
             ],
             "name": "confluence.internal"
           },
@@ -386,7 +390,7 @@
           "reachable": true,
           "resolution": {
             "addresses": [
-              "172.19.0.2"
+              "10.210.1.3"
             ],
             "name": "metabase.internal"
           },
@@ -408,7 +412,7 @@
           "reachable": true,
           "resolution": {
             "addresses": [
-              "172.19.0.2"
+              "10.210.1.3"
             ],
             "name": "prometheus.internal"
           },
@@ -430,7 +434,7 @@
           "reachable": true,
           "resolution": {
             "addresses": [
-              "172.19.0.2"
+              "10.210.1.3"
             ],
             "name": "alertmanager.internal"
           },
@@ -452,7 +456,7 @@
           "reachable": true,
           "resolution": {
             "addresses": [
-              "172.19.0.2"
+              "10.210.1.3"
             ],
             "name": "loki.internal"
           },
@@ -474,7 +478,7 @@
           "reachable": true,
           "resolution": {
             "addresses": [
-              "172.19.0.2"
+              "10.210.1.3"
             ],
             "name": "airbyte.internal"
           },
@@ -496,7 +500,7 @@
           "reachable": true,
           "resolution": {
             "addresses": [
-              "172.19.0.2"
+              "10.210.1.3"
             ],
             "name": "deploy.internal"
           },
@@ -510,7 +514,7 @@
           "reachable": true,
           "resolution": {
             "addresses": [
-              "172.19.0.3"
+              "10.210.1.2"
             ],
             "name": "minio.internal"
           },
@@ -524,7 +528,7 @@
           "reachable": true,
           "resolution": {
             "addresses": [
-              "172.19.0.4"
+              "10.210.1.4"
             ],
             "name": "postgres.internal"
           },
@@ -539,18 +543,18 @@
     "published_host_ports": {},
     "running_aliases": {
       "episode": [
-        "alkera-p6-episode-1",
+        "alkera-p6m-base-episode-1",
         "episode"
       ],
       "minio": [
-        "alkera-p6-minio-1",
+        "alkera-p6m-base-minio-1",
         "minio",
         "minio.internal"
       ],
       "native-services": [
         "airbyte.internal",
         "alertmanager.internal",
-        "alkera-p6-native-services-1",
+        "alkera-p6m-base-native-services-1",
         "confluence.internal",
         "deploy.internal",
         "jira.internal",
@@ -563,7 +567,7 @@
         "slack.internal"
       ],
       "postgres": [
-        "alkera-p6-postgres-1",
+        "alkera-p6m-base-postgres-1",
         "postgres",
         "postgres.internal"
       ]
@@ -572,26 +576,26 @@
   },
   "passed": true,
   "profiles": [],
-  "project": "alkera-p6",
+  "project": "alkera-p6m-base",
   "services": [
     {
       "aliases": {
-        "alkera-p6_episode_net": [
-          "alkera-p6-episode-1",
+        "alkera-p6m-base_episode_net": [
+          "alkera-p6m-base-episode-1",
           "episode"
         ]
       },
-      "container": "alkera-p6-episode-1",
-      "image": "alkera-episode:head",
+      "container": "alkera-p6m-base-episode-1",
+      "image": "alkera-episode:p6",
       "mounts": [
         {
           "rw": true,
-          "source": "/home/ubuntu/alkera-rollouts/p6/audit",
+          "source": "/home/ubuntu/.cache/p6/native/base/audit",
           "target": "/audit"
         },
         {
           "rw": true,
-          "source": "/home/ubuntu/alkera-rollouts/p6/world/workspace",
+          "source": "/home/ubuntu/.cache/p6/native/base/world/workspace",
           "target": "/workspace"
         },
         {
@@ -600,51 +604,51 @@
           "target": "/world/var/ledger"
         }
       ],
-      "network_mode": "alkera-p6_episode_net",
+      "network_mode": "alkera-p6m-base_episode_net",
       "networks": {
-        "alkera-p6_episode_net": "172.19.0.5"
+        "alkera-p6m-base_episode_net": "10.210.1.5"
       },
       "published_ports": {},
       "service": "episode"
     },
     {
       "aliases": {
-        "alkera-p6_backend_net": [
-          "alkera-p6-minio-1",
+        "alkera-p6m-base_backend_net": [
+          "alkera-p6m-base-minio-1",
           "minio"
         ],
-        "alkera-p6_episode_net": [
-          "alkera-p6-minio-1",
+        "alkera-p6m-base_episode_net": [
+          "alkera-p6m-base-minio-1",
           "minio",
           "minio.internal"
         ]
       },
-      "container": "alkera-p6-minio-1",
+      "container": "alkera-p6m-base-minio-1",
       "image": "docker.io/pgsty/minio@sha256:b6bfe7239bfc83fb90d31612d9704d86039dd714f7904b3f1ad68f211e602372",
       "mounts": [
         {
           "rw": true,
-          "source": "alkera-p6_minioaudit",
+          "source": "alkera-p6m-base_minioaudit",
           "target": "/audit-spool"
         },
         {
           "rw": true,
-          "source": "alkera-p6_miniodata",
+          "source": "alkera-p6m-base_miniodata",
           "target": "/data"
         }
       ],
-      "network_mode": "alkera-p6_backend_net",
+      "network_mode": "alkera-p6m-base_backend_net",
       "networks": {
-        "alkera-p6_backend_net": "172.18.0.2",
-        "alkera-p6_episode_net": "172.19.0.3"
+        "alkera-p6m-base_backend_net": "10.210.2.2",
+        "alkera-p6m-base_episode_net": "10.210.1.2"
       },
       "published_ports": {},
       "service": "minio"
     },
     {
       "aliases": {
-        "alkera-p6_episode_net": [
-          "alkera-p6-native-services-1",
+        "alkera-p6m-base_episode_net": [
+          "alkera-p6m-base-native-services-1",
           "native-services",
           "native-services.internal",
           "jira.internal",
@@ -659,27 +663,27 @@
           "sched.internal"
         ]
       },
-      "container": "alkera-p6-native-services-1",
-      "image": "alkera-episode:head",
+      "container": "alkera-p6m-base-native-services-1",
+      "image": "alkera-episode:p6",
       "mounts": [
         {
           "rw": true,
-          "source": "/home/ubuntu/alkera-rollouts/p6/audit",
+          "source": "/home/ubuntu/.cache/p6/native/base/audit",
           "target": "/audit"
         },
         {
           "rw": false,
-          "source": "alkera-p6_pgdata",
+          "source": "alkera-p6m-base_pgdata",
           "target": "/pgdata"
         },
         {
           "rw": true,
-          "source": "/home/ubuntu/alkera-rollouts/p6/service-state",
+          "source": "/home/ubuntu/.cache/p6/native/base/service-state",
           "target": "/service-state"
         },
         {
           "rw": true,
-          "source": "/home/ubuntu/alkera-rollouts/p6/world",
+          "source": "/home/ubuntu/.cache/p6/native/base/world",
           "target": "/world"
         },
         {
@@ -688,43 +692,43 @@
           "target": "/world/var/ledger"
         }
       ],
-      "network_mode": "alkera-p6_episode_net",
+      "network_mode": "alkera-p6m-base_episode_net",
       "networks": {
-        "alkera-p6_episode_net": "172.19.0.2"
+        "alkera-p6m-base_episode_net": "10.210.1.3"
       },
       "published_ports": {},
       "service": "native-services"
     },
     {
       "aliases": {
-        "alkera-p6_backend_net": [
-          "alkera-p6-postgres-1",
+        "alkera-p6m-base_backend_net": [
+          "alkera-p6m-base-postgres-1",
           "postgres"
         ],
-        "alkera-p6_episode_net": [
-          "alkera-p6-postgres-1",
+        "alkera-p6m-base_episode_net": [
+          "alkera-p6m-base-postgres-1",
           "postgres",
           "postgres.internal"
         ]
       },
-      "container": "alkera-p6-postgres-1",
+      "container": "alkera-p6m-base-postgres-1",
       "image": "postgres@sha256:f1c3376c26f2609ab9f29f71f824103fe2fcd8ee0346485cb6122a4f93df6f94",
       "mounts": [
         {
           "rw": false,
-          "source": "/home/ubuntu/env_project-main-2/gateway/docker/postgres.sql",
+          "source": "/home/ubuntu/env_project/.claude/worktrees/agent-a9d585c786e098bb7/gateway/docker/postgres.sql",
           "target": "/docker-entrypoint-initdb.d/seed.sql"
         },
         {
           "rw": true,
-          "source": "alkera-p6_pgdata",
+          "source": "alkera-p6m-base_pgdata",
           "target": "/var/lib/postgresql/data"
         }
       ],
-      "network_mode": "alkera-p6_backend_net",
+      "network_mode": "alkera-p6m-base_backend_net",
       "networks": {
-        "alkera-p6_backend_net": "172.18.0.3",
-        "alkera-p6_episode_net": "172.19.0.4"
+        "alkera-p6m-base_backend_net": "10.210.2.3",
+        "alkera-p6m-base_episode_net": "10.210.1.4"
       },
       "published_ports": {},
       "service": "postgres"

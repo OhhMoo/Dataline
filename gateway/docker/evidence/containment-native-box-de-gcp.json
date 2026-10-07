@@ -1,0 +1,1576 @@
+{
+  "built_by": "tool_tour.TourTopology (bi_e2e_check.ContainerTopology: container_episode.NativeContainerEpisode + prepare)",
+  "containers": [
+    {
+      "aliases": {
+        "episode_net": [
+          "alkera-p6b-de-gcp-episode-1",
+          "episode"
+        ]
+      },
+      "id": "bf33e63f0bc58b3f54dee16d2ddb40d475312f2398c9cd530c0b20d4f5d365a9",
+      "image": "alkera-episode:p6-bigquery",
+      "networks": {
+        "episode_net": "10.210.2.5"
+      },
+      "published_ports": {},
+      "service": "episode"
+    },
+    {
+      "aliases": {
+        "backend_net": [
+          "alkera-p6b-de-gcp-native-services-1",
+          "native-services"
+        ],
+        "episode_net": [
+          "airbyte.internal",
+          "alertmanager.internal",
+          "alkera-p6b-de-gcp-native-services-1",
+          "bigquery.internal",
+          "confluence.internal",
+          "deploy.internal",
+          "jira.internal",
+          "loki.internal",
+          "metabase.internal",
+          "native-services",
+          "native-services.internal",
+          "prometheus.internal",
+          "sched.internal",
+          "slack.internal"
+        ]
+      },
+      "id": "b03a521ea974c47293ce16fc2caab913004f2ba7cbf4d1f844d56f28601e7c3d",
+      "image": "alkera-episode:p6-bigquery",
+      "networks": {
+        "backend_net": "10.210.1.5",
+        "episode_net": "10.210.2.4"
+      },
+      "published_ports": {},
+      "service": "native-services"
+    },
+    {
+      "aliases": {
+        "backend_net": [
+          "alkera-p6b-de-gcp-postgres-1",
+          "postgres"
+        ],
+        "episode_net": [
+          "alkera-p6b-de-gcp-postgres-1",
+          "postgres",
+          "postgres.internal"
+        ]
+      },
+      "id": "a3b6b8d8004c61255eb17e9bdf86c6998e1fff5a838dbdebadfd12259a3cd706",
+      "image": "postgres@sha256:f1c3376c26f2609ab9f29f71f824103fe2fcd8ee0346485cb6122a4f93df6f94",
+      "networks": {
+        "backend_net": "10.210.1.4",
+        "episode_net": "10.210.2.3"
+      },
+      "published_ports": {},
+      "service": "postgres"
+    },
+    {
+      "aliases": {
+        "backend_net": [
+          "alkera-p6b-de-gcp-minio-1",
+          "minio"
+        ],
+        "episode_net": [
+          "alkera-p6b-de-gcp-minio-1",
+          "minio",
+          "minio.internal"
+        ]
+      },
+      "id": "8a2f0b92fcf8fe8d75ccfb969fb808d8c53784193bb6a01c15aaedca98284a74",
+      "image": "docker.io/pgsty/minio@sha256:b6bfe7239bfc83fb90d31612d9704d86039dd714f7904b3f1ad68f211e602372",
+      "networks": {
+        "backend_net": "10.210.1.3",
+        "episode_net": "10.210.2.2"
+      },
+      "published_ports": {},
+      "service": "minio"
+    },
+    {
+      "aliases": {
+        "backend_net": [
+          "alkera-p6b-de-gcp-bigquery-1",
+          "bigquery"
+        ]
+      },
+      "id": "e32f432e8695905f264017dcf95b826f11feaba90c297afb813e36488aeed587",
+      "image": "ghcr.io/goccy/bigquery-emulator:0.8.1@sha256:f4e428d265a93dc5ce36c294e1c584c7c9b384117d47ab8ddbb63d8d50b7f393",
+      "networks": {
+        "backend_net": "10.210.1.2"
+      },
+      "published_ports": {},
+      "service": "bigquery"
+    }
+  ],
+  "destinations_declared": [
+    {
+      "count": 3,
+      "file": "destinations.jsonl",
+      "first_ts": "2026-10-07T17:49:41Z",
+      "host": "metabase.internal",
+      "last_ts": "2026-10-07T17:49:55Z",
+      "port": 3000
+    },
+    {
+      "count": 3,
+      "file": "destinations.jsonl",
+      "first_ts": "2026-10-07T17:49:40Z",
+      "host": "loki.internal",
+      "last_ts": "2026-10-07T17:49:55Z",
+      "port": 3100
+    },
+    {
+      "count": 5,
+      "file": "destinations.jsonl",
+      "first_ts": "2026-10-07T17:49:40Z",
+      "host": "airbyte.internal",
+      "last_ts": "2026-10-07T17:49:55Z",
+      "port": 8001
+    },
+    {
+      "count": 3,
+      "file": "destinations.jsonl",
+      "first_ts": "2026-10-07T17:49:40Z",
+      "host": "jira.internal",
+      "last_ts": "2026-10-07T17:49:56Z",
+      "port": 8080
+    },
+    {
+      "count": 3,
+      "file": "destinations.jsonl",
+      "first_ts": "2026-10-07T17:49:41Z",
+      "host": "slack.internal",
+      "last_ts": "2026-10-07T17:49:56Z",
+      "port": 8081
+    },
+    {
+      "count": 3,
+      "file": "destinations.jsonl",
+      "first_ts": "2026-10-07T17:49:40Z",
+      "host": "deploy.internal",
+      "last_ts": "2026-10-07T17:49:56Z",
+      "port": 8085
+    },
+    {
+      "count": 3,
+      "file": "destinations.jsonl",
+      "first_ts": "2026-10-07T17:49:40Z",
+      "host": "confluence.internal",
+      "last_ts": "2026-10-07T17:49:56Z",
+      "port": 8090
+    },
+    {
+      "count": 1,
+      "file": "destinations.jsonl",
+      "first_ts": "2026-10-07T17:49:56Z",
+      "host": "native-services.internal",
+      "last_ts": "2026-10-07T17:49:56Z",
+      "port": 8099
+    },
+    {
+      "count": 3,
+      "file": "destinations.jsonl",
+      "first_ts": "2026-10-07T17:49:41Z",
+      "host": "sched.internal",
+      "last_ts": "2026-10-07T17:49:56Z",
+      "port": 8120
+    },
+    {
+      "count": 4,
+      "file": "destinations.jsonl",
+      "first_ts": "2026-10-07T17:49:40Z",
+      "host": "bigquery.internal",
+      "last_ts": "2026-10-07T17:49:56Z",
+      "port": 9050
+    },
+    {
+      "count": 3,
+      "file": "destinations.jsonl",
+      "first_ts": "2026-10-07T17:49:41Z",
+      "host": "prometheus.internal",
+      "last_ts": "2026-10-07T17:49:56Z",
+      "port": 9090
+    },
+    {
+      "count": 3,
+      "file": "destinations.jsonl",
+      "first_ts": "2026-10-07T17:49:40Z",
+      "host": "alertmanager.internal",
+      "last_ts": "2026-10-07T17:49:56Z",
+      "port": 9093
+    }
+  ],
+  "environment_profile": "de/gcp",
+  "episode_endpoints": {
+    "airbyte": "http://airbyte.internal:8001",
+    "alertmanager": "http://alertmanager.internal:9093",
+    "bigquery": "http://bigquery.internal:9050",
+    "confluence": "http://confluence.internal:8090",
+    "deploy": "http://deploy.internal:8085",
+    "jira": "http://jira.internal:8080",
+    "loki": "http://loki.internal:3100",
+    "metabase": "http://metabase.internal:3000",
+    "postgres": {
+      "database": "alkera",
+      "host": "postgres.internal",
+      "password": "alkera-local-dev",
+      "port": 5432,
+      "user": "alkera"
+    },
+    "prometheus": "http://prometheus.internal:9090",
+    "s3": "http://minio.internal:9000",
+    "s3_access_key": "alkera-local-dev",
+    "s3_bucket": "alkera",
+    "s3_region": "us-east-1",
+    "s3_secret_key": "alkera-local-dev",
+    "sched": "http://sched.internal:8120",
+    "slack": "http://slack.internal:8081"
+  },
+  "generated": "2026-10-07T17:49:11+00:00",
+  "image": "alkera-episode:p6-bigquery",
+  "not_audited": [
+    {
+      "banner": {
+        "spoke_first": "SSH-2.0-OpenSSH_10.2p1 Ubuntu-2ubuntu3.6\r\n"
+      },
+      "class": "NOT AN AUDITED DOOR: the bridge gateway, i.e. the HOST",
+      "names": [],
+      "service": "?",
+      "target": "10.210.2.1:22"
+    },
+    {
+      "banner": {
+        "http_get_reply": "HTTP/1.0 200 OK\r\nAccept-Ranges: bytes\r\nContent-Length: 1837\r\nContent-Security-Policy: default-src 'self' 'unsafe-eval' 'unsafe-inline'; script-src 'self' https://unpkg.com;  connect-src 'self' https://unpkg.com;\r\nContent-Type: text/html\r\nLast-Modified: Wed, 07 Oct 2026 17:50:02 GMT\r\nReferrer-Policy:"
+      },
+      "class": "NOT AN AUDITED DOOR: MinIO console (random port; `minio server /data` has no --console-address)",
+      "names": [
+        "alkera-p6b-de-gcp-minio-1",
+        "minio",
+        "minio.internal"
+      ],
+      "service": "minio",
+      "target": "10.210.2.2:44523"
+    },
+    {
+      "banner": {
+        "http_get_reply": "HTTP/1.1 405 Method Not Allowed\r\ndate: Wed, 07 Oct 2026 17:50:03 GMT\r\nserver: uvicorn\r\nallow: POST\r\ncontent-length: 31\r\ncontent-type: application/json\r\nConnection: close\r\n\r\n"
+      },
+      "class": "NOT AUDITED: MinIO audit receiver (serve.MINIO_AUDIT_PORT), pre-existing, not counted by design",
+      "names": [
+        "airbyte.internal",
+        "alertmanager.internal",
+        "alkera-p6b-de-gcp-native-services-1",
+        "bigquery.internal",
+        "confluence.internal",
+        "deploy.internal",
+        "jira.internal",
+        "loki.internal",
+        "metabase.internal",
+        "native-services",
+        "native-services.internal",
+        "prometheus.internal",
+        "sched.internal",
+        "slack.internal"
+      ],
+      "service": "native-services",
+      "target": "10.210.2.4:8110"
+    }
+  ],
+  "open_ports_classified": [
+    {
+      "banner": {
+        "spoke_first": "SSH-2.0-OpenSSH_10.2p1 Ubuntu-2ubuntu3.6\r\n"
+      },
+      "class": "NOT AN AUDITED DOOR: the bridge gateway, i.e. the HOST",
+      "names": [],
+      "service": "?",
+      "target": "10.210.2.1:22"
+    },
+    {
+      "class": "audited door (MinIO audit webhook)",
+      "names": [
+        "alkera-p6b-de-gcp-minio-1",
+        "minio",
+        "minio.internal"
+      ],
+      "service": "minio",
+      "target": "10.210.2.2:9000"
+    },
+    {
+      "banner": {
+        "http_get_reply": "HTTP/1.0 200 OK\r\nAccept-Ranges: bytes\r\nContent-Length: 1837\r\nContent-Security-Policy: default-src 'self' 'unsafe-eval' 'unsafe-inline'; script-src 'self' https://unpkg.com;  connect-src 'self' https://unpkg.com;\r\nContent-Type: text/html\r\nLast-Modified: Wed, 07 Oct 2026 17:50:02 GMT\r\nReferrer-Policy:"
+      },
+      "class": "NOT AN AUDITED DOOR: MinIO console (random port; `minio server /data` has no --console-address)",
+      "names": [
+        "alkera-p6b-de-gcp-minio-1",
+        "minio",
+        "minio.internal"
+      ],
+      "service": "minio",
+      "target": "10.210.2.2:44523"
+    },
+    {
+      "class": "audited door for role alkera only (role-scoped statement log; see pg_logins)",
+      "names": [
+        "alkera-p6b-de-gcp-postgres-1",
+        "postgres",
+        "postgres.internal"
+      ],
+      "service": "postgres",
+      "target": "10.210.2.3:5432"
+    },
+    {
+      "class": "audited door (declared in destinations*.jsonl, service writes 9.2.2 rows)",
+      "names": [
+        "airbyte.internal",
+        "alertmanager.internal",
+        "alkera-p6b-de-gcp-native-services-1",
+        "bigquery.internal",
+        "confluence.internal",
+        "deploy.internal",
+        "jira.internal",
+        "loki.internal",
+        "metabase.internal",
+        "native-services",
+        "native-services.internal",
+        "prometheus.internal",
+        "sched.internal",
+        "slack.internal"
+      ],
+      "service": "native-services",
+      "target": "10.210.2.4:3000"
+    },
+    {
+      "class": "audited door (declared in destinations*.jsonl, service writes 9.2.2 rows)",
+      "names": [
+        "airbyte.internal",
+        "alertmanager.internal",
+        "alkera-p6b-de-gcp-native-services-1",
+        "bigquery.internal",
+        "confluence.internal",
+        "deploy.internal",
+        "jira.internal",
+        "loki.internal",
+        "metabase.internal",
+        "native-services",
+        "native-services.internal",
+        "prometheus.internal",
+        "sched.internal",
+        "slack.internal"
+      ],
+      "service": "native-services",
+      "target": "10.210.2.4:3100"
+    },
+    {
+      "class": "audited door (declared in destinations*.jsonl, service writes 9.2.2 rows)",
+      "names": [
+        "airbyte.internal",
+        "alertmanager.internal",
+        "alkera-p6b-de-gcp-native-services-1",
+        "bigquery.internal",
+        "confluence.internal",
+        "deploy.internal",
+        "jira.internal",
+        "loki.internal",
+        "metabase.internal",
+        "native-services",
+        "native-services.internal",
+        "prometheus.internal",
+        "sched.internal",
+        "slack.internal"
+      ],
+      "service": "native-services",
+      "target": "10.210.2.4:8001"
+    },
+    {
+      "class": "audited door (declared in destinations*.jsonl, service writes 9.2.2 rows)",
+      "names": [
+        "airbyte.internal",
+        "alertmanager.internal",
+        "alkera-p6b-de-gcp-native-services-1",
+        "bigquery.internal",
+        "confluence.internal",
+        "deploy.internal",
+        "jira.internal",
+        "loki.internal",
+        "metabase.internal",
+        "native-services",
+        "native-services.internal",
+        "prometheus.internal",
+        "sched.internal",
+        "slack.internal"
+      ],
+      "service": "native-services",
+      "target": "10.210.2.4:8080"
+    },
+    {
+      "class": "audited door (declared in destinations*.jsonl, service writes 9.2.2 rows)",
+      "names": [
+        "airbyte.internal",
+        "alertmanager.internal",
+        "alkera-p6b-de-gcp-native-services-1",
+        "bigquery.internal",
+        "confluence.internal",
+        "deploy.internal",
+        "jira.internal",
+        "loki.internal",
+        "metabase.internal",
+        "native-services",
+        "native-services.internal",
+        "prometheus.internal",
+        "sched.internal",
+        "slack.internal"
+      ],
+      "service": "native-services",
+      "target": "10.210.2.4:8081"
+    },
+    {
+      "class": "audited door (declared in destinations*.jsonl, service writes 9.2.2 rows)",
+      "names": [
+        "airbyte.internal",
+        "alertmanager.internal",
+        "alkera-p6b-de-gcp-native-services-1",
+        "bigquery.internal",
+        "confluence.internal",
+        "deploy.internal",
+        "jira.internal",
+        "loki.internal",
+        "metabase.internal",
+        "native-services",
+        "native-services.internal",
+        "prometheus.internal",
+        "sched.internal",
+        "slack.internal"
+      ],
+      "service": "native-services",
+      "target": "10.210.2.4:8085"
+    },
+    {
+      "class": "audited door (declared in destinations*.jsonl, service writes 9.2.2 rows)",
+      "names": [
+        "airbyte.internal",
+        "alertmanager.internal",
+        "alkera-p6b-de-gcp-native-services-1",
+        "bigquery.internal",
+        "confluence.internal",
+        "deploy.internal",
+        "jira.internal",
+        "loki.internal",
+        "metabase.internal",
+        "native-services",
+        "native-services.internal",
+        "prometheus.internal",
+        "sched.internal",
+        "slack.internal"
+      ],
+      "service": "native-services",
+      "target": "10.210.2.4:8090"
+    },
+    {
+      "class": "audited door (declared in destinations*.jsonl, service writes 9.2.2 rows)",
+      "names": [
+        "airbyte.internal",
+        "alertmanager.internal",
+        "alkera-p6b-de-gcp-native-services-1",
+        "bigquery.internal",
+        "confluence.internal",
+        "deploy.internal",
+        "jira.internal",
+        "loki.internal",
+        "metabase.internal",
+        "native-services",
+        "native-services.internal",
+        "prometheus.internal",
+        "sched.internal",
+        "slack.internal"
+      ],
+      "service": "native-services",
+      "target": "10.210.2.4:8099"
+    },
+    {
+      "banner": {
+        "http_get_reply": "HTTP/1.1 405 Method Not Allowed\r\ndate: Wed, 07 Oct 2026 17:50:03 GMT\r\nserver: uvicorn\r\nallow: POST\r\ncontent-length: 31\r\ncontent-type: application/json\r\nConnection: close\r\n\r\n"
+      },
+      "class": "NOT AUDITED: MinIO audit receiver (serve.MINIO_AUDIT_PORT), pre-existing, not counted by design",
+      "names": [
+        "airbyte.internal",
+        "alertmanager.internal",
+        "alkera-p6b-de-gcp-native-services-1",
+        "bigquery.internal",
+        "confluence.internal",
+        "deploy.internal",
+        "jira.internal",
+        "loki.internal",
+        "metabase.internal",
+        "native-services",
+        "native-services.internal",
+        "prometheus.internal",
+        "sched.internal",
+        "slack.internal"
+      ],
+      "service": "native-services",
+      "target": "10.210.2.4:8110"
+    },
+    {
+      "class": "audited door (declared in destinations*.jsonl, service writes 9.2.2 rows)",
+      "names": [
+        "airbyte.internal",
+        "alertmanager.internal",
+        "alkera-p6b-de-gcp-native-services-1",
+        "bigquery.internal",
+        "confluence.internal",
+        "deploy.internal",
+        "jira.internal",
+        "loki.internal",
+        "metabase.internal",
+        "native-services",
+        "native-services.internal",
+        "prometheus.internal",
+        "sched.internal",
+        "slack.internal"
+      ],
+      "service": "native-services",
+      "target": "10.210.2.4:8120"
+    },
+    {
+      "class": "audited door (declared in destinations*.jsonl, service writes 9.2.2 rows)",
+      "names": [
+        "airbyte.internal",
+        "alertmanager.internal",
+        "alkera-p6b-de-gcp-native-services-1",
+        "bigquery.internal",
+        "confluence.internal",
+        "deploy.internal",
+        "jira.internal",
+        "loki.internal",
+        "metabase.internal",
+        "native-services",
+        "native-services.internal",
+        "prometheus.internal",
+        "sched.internal",
+        "slack.internal"
+      ],
+      "service": "native-services",
+      "target": "10.210.2.4:9050"
+    },
+    {
+      "class": "audited door (declared in destinations*.jsonl, service writes 9.2.2 rows)",
+      "names": [
+        "airbyte.internal",
+        "alertmanager.internal",
+        "alkera-p6b-de-gcp-native-services-1",
+        "bigquery.internal",
+        "confluence.internal",
+        "deploy.internal",
+        "jira.internal",
+        "loki.internal",
+        "metabase.internal",
+        "native-services",
+        "native-services.internal",
+        "prometheus.internal",
+        "sched.internal",
+        "slack.internal"
+      ],
+      "service": "native-services",
+      "target": "10.210.2.4:9090"
+    },
+    {
+      "class": "audited door (declared in destinations*.jsonl, service writes 9.2.2 rows)",
+      "names": [
+        "airbyte.internal",
+        "alertmanager.internal",
+        "alkera-p6b-de-gcp-native-services-1",
+        "bigquery.internal",
+        "confluence.internal",
+        "deploy.internal",
+        "jira.internal",
+        "loki.internal",
+        "metabase.internal",
+        "native-services",
+        "native-services.internal",
+        "prometheus.internal",
+        "sched.internal",
+        "slack.internal"
+      ],
+      "service": "native-services",
+      "target": "10.210.2.4:9093"
+    }
+  ],
+  "p6_probe_on_the_box": {
+    "backends": [
+      "postgres.internal:5432",
+      "minio.internal:9000",
+      "bigquery.internal:9050"
+    ],
+    "compose_names_on_episode_net": [
+      "episode",
+      "minio",
+      "native-services",
+      "postgres"
+    ],
+    "controls": [
+      "example.internal",
+      "warehouse.internal",
+      "s3",
+      "snowflake",
+      "acme.snowflake.local",
+      "example.com",
+      "pypi.org",
+      "powerbi.internal",
+      "sigma.internal",
+      "tableau.internal",
+      "bigquery"
+    ],
+    "exit": 0,
+    "how": "gateway/docker/native_probe.py, source on stdin to the episode's /usr/local/bin/python (as native_episode_probe.run does); services from native_episode_probe.expectations(profile, plugs) probed as TCP (reachability; P7 records each /health status); --backend for postgres, minio (when the object store is plugged) and every backend the profile plugs, HOSTED ones included; controls = native_probe.CONTROL_NAMES minus the compose service names on episode_net (those are pinned --compose-name instead), plus every host the profile excludes, plus running services NOT on episode_net",
+    "probe": {
+      "addresses_probed": [
+        "10.210.2.2",
+        "10.210.2.3",
+        "10.210.2.4"
+      ],
+      "closed_port_attempts": [
+        {
+          "result": "ConnectionRefusedError",
+          "target": "10.210.2.2:22"
+        },
+        {
+          "result": "ConnectionRefusedError",
+          "target": "10.210.2.2:80"
+        },
+        {
+          "result": "ConnectionRefusedError",
+          "target": "10.210.2.2:443"
+        },
+        {
+          "result": "ConnectionRefusedError",
+          "target": "10.210.2.2:3306"
+        },
+        {
+          "result": "ConnectionRefusedError",
+          "target": "10.210.2.2:6379"
+        },
+        {
+          "result": "ConnectionRefusedError",
+          "target": "10.210.2.2:8888"
+        },
+        {
+          "result": "ConnectionRefusedError",
+          "target": "10.210.2.3:22"
+        },
+        {
+          "result": "ConnectionRefusedError",
+          "target": "10.210.2.3:80"
+        },
+        {
+          "result": "ConnectionRefusedError",
+          "target": "10.210.2.3:443"
+        },
+        {
+          "result": "ConnectionRefusedError",
+          "target": "10.210.2.3:3306"
+        },
+        {
+          "result": "ConnectionRefusedError",
+          "target": "10.210.2.3:6379"
+        },
+        {
+          "result": "ConnectionRefusedError",
+          "target": "10.210.2.3:8888"
+        },
+        {
+          "result": "ConnectionRefusedError",
+          "target": "10.210.2.4:22"
+        },
+        {
+          "result": "ConnectionRefusedError",
+          "target": "10.210.2.4:80"
+        },
+        {
+          "result": "ConnectionRefusedError",
+          "target": "10.210.2.4:443"
+        },
+        {
+          "result": "ConnectionRefusedError",
+          "target": "10.210.2.4:3306"
+        },
+        {
+          "result": "ConnectionRefusedError",
+          "target": "10.210.2.4:6379"
+        },
+        {
+          "result": "ConnectionRefusedError",
+          "target": "10.210.2.4:8888"
+        }
+      ],
+      "closed_ports_probed": [
+        22,
+        80,
+        443,
+        3306,
+        6379,
+        8888
+      ],
+      "compose_names_pointing_elsewhere": [],
+      "compose_service_names": [
+        {
+          "addresses": [
+            "10.210.2.5"
+          ],
+          "name": "episode",
+          "points_at_a_known_service": true
+        },
+        {
+          "addresses": [
+            "10.210.2.2"
+          ],
+          "name": "minio",
+          "points_at_a_known_service": true
+        },
+        {
+          "addresses": [
+            "10.210.2.4"
+          ],
+          "name": "native-services",
+          "points_at_a_known_service": true
+        },
+        {
+          "addresses": [
+            "10.210.2.3"
+          ],
+          "name": "postgres",
+          "points_at_a_known_service": true
+        }
+      ],
+      "controls": [
+        {
+          "error": "gaierror",
+          "name": "example.internal"
+        },
+        {
+          "error": "gaierror",
+          "name": "warehouse.internal"
+        },
+        {
+          "error": "gaierror",
+          "name": "s3"
+        },
+        {
+          "error": "gaierror",
+          "name": "snowflake"
+        },
+        {
+          "error": "gaierror",
+          "name": "acme.snowflake.local"
+        },
+        {
+          "error": "gaierror",
+          "name": "example.com"
+        },
+        {
+          "error": "gaierror",
+          "name": "pypi.org"
+        },
+        {
+          "error": "gaierror",
+          "name": "powerbi.internal"
+        },
+        {
+          "error": "gaierror",
+          "name": "sigma.internal"
+        },
+        {
+          "error": "gaierror",
+          "name": "tableau.internal"
+        },
+        {
+          "error": "gaierror",
+          "name": "bigquery"
+        }
+      ],
+      "controls_that_resolved": [],
+      "dns_deviation": "Docker registers a container's compose service name on every network it joins and gives no way to unregister it, so the names below resolve in addition to the aliases. Each is pinned to an address that is already one of this stack's own services; a name resolving anywhere else fails this property. Removing them needs a resolver of our own in front of 127.0.0.11 - see gateway/docker/NATIVE_STACK.md.",
+      "expected": [
+        {
+          "host": "airbyte.internal",
+          "port": 8001,
+          "probe": "tcp",
+          "source": "native_episode_probe.expectations"
+        },
+        {
+          "host": "alertmanager.internal",
+          "port": 9093,
+          "probe": "tcp",
+          "source": "native_episode_probe.expectations"
+        },
+        {
+          "host": "bigquery.internal",
+          "port": 9050,
+          "probe": "tcp",
+          "source": "native_episode_probe.expectations"
+        },
+        {
+          "host": "confluence.internal",
+          "port": 8090,
+          "probe": "tcp",
+          "source": "native_episode_probe.expectations"
+        },
+        {
+          "host": "deploy.internal",
+          "port": 8085,
+          "probe": "tcp",
+          "source": "native_episode_probe.expectations"
+        },
+        {
+          "host": "jira.internal",
+          "port": 8080,
+          "probe": "tcp",
+          "source": "native_episode_probe.expectations"
+        },
+        {
+          "host": "loki.internal",
+          "port": 3100,
+          "probe": "tcp",
+          "source": "native_episode_probe.expectations"
+        },
+        {
+          "host": "metabase.internal",
+          "port": 3000,
+          "probe": "tcp",
+          "source": "native_episode_probe.expectations"
+        },
+        {
+          "host": "prometheus.internal",
+          "port": 9090,
+          "probe": "tcp",
+          "source": "native_episode_probe.expectations"
+        },
+        {
+          "host": "sched.internal",
+          "port": 8120,
+          "probe": "tcp",
+          "source": "native_episode_probe.expectations"
+        },
+        {
+          "host": "slack.internal",
+          "port": 8081,
+          "probe": "tcp",
+          "source": "native_episode_probe.expectations"
+        },
+        {
+          "host": "postgres.internal",
+          "port": 5432,
+          "probe": "tcp",
+          "source": "--backend"
+        },
+        {
+          "host": "minio.internal",
+          "port": 9000,
+          "probe": "tcp",
+          "source": "--backend"
+        },
+        {
+          "host": "bigquery.internal",
+          "port": 9050,
+          "probe": "tcp",
+          "source": "--backend"
+        }
+      ],
+      "netns": {
+        "default_route": false,
+        "interfaces": [
+          "lo",
+          "eth0"
+        ],
+        "routes": [
+          {
+            "dest": "10.210.2.0",
+            "iface": "eth0"
+          }
+        ]
+      },
+      "own_addresses": [
+        "10.210.2.5"
+      ],
+      "passed": true,
+      "self_test": {
+        "name_that_should_resolve": {
+          "addresses": [
+            "10.210.2.4"
+          ],
+          "name": "airbyte.internal"
+        },
+        "port_that_should_answer": {
+          "result": "CONNECTED",
+          "target": "airbyte.internal:8001"
+        },
+        "probe_can_see_an_open_name_and_port": true,
+        "ran": true
+      },
+      "services": [
+        {
+          "host": "airbyte.internal",
+          "port": 8001,
+          "probe": "tcp",
+          "reachable": true,
+          "resolution": {
+            "addresses": [
+              "10.210.2.4"
+            ],
+            "name": "airbyte.internal"
+          },
+          "source": "native_episode_probe.expectations",
+          "tcp": "CONNECTED"
+        },
+        {
+          "host": "alertmanager.internal",
+          "port": 9093,
+          "probe": "tcp",
+          "reachable": true,
+          "resolution": {
+            "addresses": [
+              "10.210.2.4"
+            ],
+            "name": "alertmanager.internal"
+          },
+          "source": "native_episode_probe.expectations",
+          "tcp": "CONNECTED"
+        },
+        {
+          "host": "bigquery.internal",
+          "port": 9050,
+          "probe": "tcp",
+          "reachable": true,
+          "resolution": {
+            "addresses": [
+              "10.210.2.4"
+            ],
+            "name": "bigquery.internal"
+          },
+          "source": "native_episode_probe.expectations",
+          "tcp": "CONNECTED"
+        },
+        {
+          "host": "confluence.internal",
+          "port": 8090,
+          "probe": "tcp",
+          "reachable": true,
+          "resolution": {
+            "addresses": [
+              "10.210.2.4"
+            ],
+            "name": "confluence.internal"
+          },
+          "source": "native_episode_probe.expectations",
+          "tcp": "CONNECTED"
+        },
+        {
+          "host": "deploy.internal",
+          "port": 8085,
+          "probe": "tcp",
+          "reachable": true,
+          "resolution": {
+            "addresses": [
+              "10.210.2.4"
+            ],
+            "name": "deploy.internal"
+          },
+          "source": "native_episode_probe.expectations",
+          "tcp": "CONNECTED"
+        },
+        {
+          "host": "jira.internal",
+          "port": 8080,
+          "probe": "tcp",
+          "reachable": true,
+          "resolution": {
+            "addresses": [
+              "10.210.2.4"
+            ],
+            "name": "jira.internal"
+          },
+          "source": "native_episode_probe.expectations",
+          "tcp": "CONNECTED"
+        },
+        {
+          "host": "loki.internal",
+          "port": 3100,
+          "probe": "tcp",
+          "reachable": true,
+          "resolution": {
+            "addresses": [
+              "10.210.2.4"
+            ],
+            "name": "loki.internal"
+          },
+          "source": "native_episode_probe.expectations",
+          "tcp": "CONNECTED"
+        },
+        {
+          "host": "metabase.internal",
+          "port": 3000,
+          "probe": "tcp",
+          "reachable": true,
+          "resolution": {
+            "addresses": [
+              "10.210.2.4"
+            ],
+            "name": "metabase.internal"
+          },
+          "source": "native_episode_probe.expectations",
+          "tcp": "CONNECTED"
+        },
+        {
+          "host": "prometheus.internal",
+          "port": 9090,
+          "probe": "tcp",
+          "reachable": true,
+          "resolution": {
+            "addresses": [
+              "10.210.2.4"
+            ],
+            "name": "prometheus.internal"
+          },
+          "source": "native_episode_probe.expectations",
+          "tcp": "CONNECTED"
+        },
+        {
+          "host": "sched.internal",
+          "port": 8120,
+          "probe": "tcp",
+          "reachable": true,
+          "resolution": {
+            "addresses": [
+              "10.210.2.4"
+            ],
+            "name": "sched.internal"
+          },
+          "source": "native_episode_probe.expectations",
+          "tcp": "CONNECTED"
+        },
+        {
+          "host": "slack.internal",
+          "port": 8081,
+          "probe": "tcp",
+          "reachable": true,
+          "resolution": {
+            "addresses": [
+              "10.210.2.4"
+            ],
+            "name": "slack.internal"
+          },
+          "source": "native_episode_probe.expectations",
+          "tcp": "CONNECTED"
+        },
+        {
+          "host": "postgres.internal",
+          "port": 5432,
+          "probe": "tcp",
+          "reachable": true,
+          "resolution": {
+            "addresses": [
+              "10.210.2.3"
+            ],
+            "name": "postgres.internal"
+          },
+          "source": "--backend",
+          "tcp": "CONNECTED"
+        },
+        {
+          "host": "minio.internal",
+          "port": 9000,
+          "probe": "tcp",
+          "reachable": true,
+          "resolution": {
+            "addresses": [
+              "10.210.2.2"
+            ],
+            "name": "minio.internal"
+          },
+          "source": "--backend",
+          "tcp": "CONNECTED"
+        },
+        {
+          "host": "bigquery.internal",
+          "port": 9050,
+          "probe": "tcp",
+          "reachable": true,
+          "resolution": {
+            "addresses": [
+              "10.210.2.4"
+            ],
+            "name": "bigquery.internal"
+          },
+          "source": "--backend",
+          "tcp": "CONNECTED"
+        }
+      ],
+      "services_unreachable": [],
+      "unexpected_open": [],
+      "vantage": "episode container, episode_net only"
+    },
+    "removed_controls_that_are_running_compose_services": [],
+    "services_not_on_episode_net_as_controls": [
+      "bigquery"
+    ]
+  },
+  "p7": {
+    "artifact": "containment-native-episode-de-gcp.json",
+    "exit": 0
+  },
+  "plugs": {},
+  "project": "alkera-p6b-de-gcp",
+  "services_up": [
+    "bigquery",
+    "episode",
+    "minio",
+    "native-services",
+    "postgres"
+  ],
+  "statement_log": {
+    "alkera_role": true,
+    "env_dsn": false,
+    "episode_role": false
+  },
+  "statement_log_lines_with_marker": [
+    "2026-10-07 17:50:00.170 UTC [221] alkera@alkeraLOG:  statement: select /* p6-door-de-gcp-alkera_role */ current_user, current_database()"
+  ],
+  "sweep": {
+    "env_credentials": {
+      "ALKERA_POSTGRES_DSN": "postgresql://episode:episode-local@postgres/episode"
+    },
+    "live_addresses": [
+      "10.210.2.1",
+      "10.210.2.2",
+      "10.210.2.3",
+      "10.210.2.4",
+      "10.210.2.5"
+    ],
+    "liveness_port9": {
+      "10.210.2.1": "ConnectionRefusedError",
+      "10.210.2.10": "timeout",
+      "10.210.2.11": "timeout",
+      "10.210.2.12": "timeout",
+      "10.210.2.13": "timeout",
+      "10.210.2.14": "timeout",
+      "10.210.2.15": "timeout",
+      "10.210.2.16": "timeout",
+      "10.210.2.17": "timeout",
+      "10.210.2.18": "timeout",
+      "10.210.2.19": "timeout",
+      "10.210.2.2": "ConnectionRefusedError",
+      "10.210.2.20": "timeout",
+      "10.210.2.21": "timeout",
+      "10.210.2.22": "timeout",
+      "10.210.2.23": "timeout",
+      "10.210.2.24": "timeout",
+      "10.210.2.25": "timeout",
+      "10.210.2.26": "timeout",
+      "10.210.2.27": "timeout",
+      "10.210.2.28": "timeout",
+      "10.210.2.29": "timeout",
+      "10.210.2.3": "ConnectionRefusedError",
+      "10.210.2.30": "timeout",
+      "10.210.2.31": "timeout",
+      "10.210.2.32": "timeout",
+      "10.210.2.33": "timeout",
+      "10.210.2.34": "timeout",
+      "10.210.2.35": "timeout",
+      "10.210.2.36": "timeout",
+      "10.210.2.37": "timeout",
+      "10.210.2.38": "timeout",
+      "10.210.2.39": "timeout",
+      "10.210.2.4": "ConnectionRefusedError",
+      "10.210.2.40": "timeout",
+      "10.210.2.5": "ConnectionRefusedError",
+      "10.210.2.6": "timeout",
+      "10.210.2.7": "timeout",
+      "10.210.2.8": "timeout",
+      "10.210.2.9": "timeout"
+    },
+    "names": {
+      "acme.snowflake.local": [],
+      "airbyte.internal": [
+        "10.210.2.4"
+      ],
+      "airflow.internal": [],
+      "alertmanager.internal": [
+        "10.210.2.4"
+      ],
+      "alkera-p6b-de-gcp-bigquery-1": [],
+      "alkera-p6b-de-gcp-episode-1": [
+        "10.210.2.5"
+      ],
+      "alkera-p6b-de-gcp-minio-1": [
+        "10.210.2.2"
+      ],
+      "alkera-p6b-de-gcp-native-services-1": [
+        "10.210.2.4"
+      ],
+      "alkera-p6b-de-gcp-postgres-1": [
+        "10.210.2.3"
+      ],
+      "bigquery": [],
+      "bigquery.internal": [
+        "10.210.2.4"
+      ],
+      "confluence.internal": [
+        "10.210.2.4"
+      ],
+      "databricks.internal": [],
+      "deploy.internal": [
+        "10.210.2.4"
+      ],
+      "episode": [
+        "10.210.2.5"
+      ],
+      "example.com": [],
+      "example.internal": [],
+      "jira.internal": [
+        "10.210.2.4"
+      ],
+      "jupyter.internal": [],
+      "loki.internal": [
+        "10.210.2.4"
+      ],
+      "metabase.internal": [
+        "10.210.2.4"
+      ],
+      "minio": [
+        "10.210.2.2"
+      ],
+      "minio.internal": [
+        "10.210.2.2"
+      ],
+      "native-services": [
+        "10.210.2.4"
+      ],
+      "native-services.internal": [
+        "10.210.2.4"
+      ],
+      "postgres": [
+        "10.210.2.3"
+      ],
+      "postgres.internal": [
+        "10.210.2.3"
+      ],
+      "powerbi.internal": [],
+      "prometheus.internal": [
+        "10.210.2.4"
+      ],
+      "pypi.org": [],
+      "redshift": [],
+      "s3": [],
+      "sched.internal": [
+        "10.210.2.4"
+      ],
+      "sigma.internal": [],
+      "slack.internal": [
+        "10.210.2.4"
+      ],
+      "snowflake": [],
+      "tableau.internal": [],
+      "warehouse.internal": []
+    },
+    "off_network": [
+      {
+        "result": "OSError",
+        "target": "10.210.1.5:5432"
+      },
+      {
+        "result": "OSError",
+        "target": "10.210.1.5:5439"
+      },
+      {
+        "result": "OSError",
+        "target": "10.210.1.5:8443"
+      },
+      {
+        "result": "OSError",
+        "target": "10.210.1.5:9000"
+      },
+      {
+        "result": "OSError",
+        "target": "10.210.1.5:9050"
+      },
+      {
+        "result": "OSError",
+        "target": "10.210.1.5:9060"
+      },
+      {
+        "result": "OSError",
+        "target": "10.210.1.5:443"
+      },
+      {
+        "result": "OSError",
+        "target": "10.210.1.5:8080"
+      },
+      {
+        "result": "OSError",
+        "target": "10.210.1.5:8100"
+      },
+      {
+        "result": "OSError",
+        "target": "10.210.1.4:5432"
+      },
+      {
+        "result": "OSError",
+        "target": "10.210.1.4:5439"
+      },
+      {
+        "result": "OSError",
+        "target": "10.210.1.4:8443"
+      },
+      {
+        "result": "OSError",
+        "target": "10.210.1.4:9000"
+      },
+      {
+        "result": "OSError",
+        "target": "10.210.1.4:9050"
+      },
+      {
+        "result": "OSError",
+        "target": "10.210.1.4:9060"
+      },
+      {
+        "result": "OSError",
+        "target": "10.210.1.4:443"
+      },
+      {
+        "result": "OSError",
+        "target": "10.210.1.4:8080"
+      },
+      {
+        "result": "OSError",
+        "target": "10.210.1.4:8100"
+      },
+      {
+        "result": "OSError",
+        "target": "10.210.1.3:5432"
+      },
+      {
+        "result": "OSError",
+        "target": "10.210.1.3:5439"
+      },
+      {
+        "result": "OSError",
+        "target": "10.210.1.3:8443"
+      },
+      {
+        "result": "OSError",
+        "target": "10.210.1.3:9000"
+      },
+      {
+        "result": "OSError",
+        "target": "10.210.1.3:9050"
+      },
+      {
+        "result": "OSError",
+        "target": "10.210.1.3:9060"
+      },
+      {
+        "result": "OSError",
+        "target": "10.210.1.3:443"
+      },
+      {
+        "result": "OSError",
+        "target": "10.210.1.3:8080"
+      },
+      {
+        "result": "OSError",
+        "target": "10.210.1.3:8100"
+      },
+      {
+        "result": "OSError",
+        "target": "10.210.1.2:5432"
+      },
+      {
+        "result": "OSError",
+        "target": "10.210.1.2:5439"
+      },
+      {
+        "result": "OSError",
+        "target": "10.210.1.2:8443"
+      },
+      {
+        "result": "OSError",
+        "target": "10.210.1.2:9000"
+      },
+      {
+        "result": "OSError",
+        "target": "10.210.1.2:9050"
+      },
+      {
+        "result": "OSError",
+        "target": "10.210.1.2:9060"
+      },
+      {
+        "result": "OSError",
+        "target": "10.210.1.2:443"
+      },
+      {
+        "result": "OSError",
+        "target": "10.210.1.2:8080"
+      },
+      {
+        "result": "OSError",
+        "target": "10.210.1.2:8100"
+      }
+    ],
+    "own_addresses": [
+      "10.210.2.5"
+    ],
+    "pg_logins": [
+      {
+        "connected": false,
+        "dsn": "postgres/episode",
+        "error": "OperationalError: connection failed: connection to server at \"10.210.2.3\", port 5432 failed: FATAL:  database \"episode\" does not exist",
+        "label": "env_dsn",
+        "user": "episode"
+      },
+      {
+        "connected": true,
+        "dsn": "postgres.internal:5432/alkera",
+        "identity": [
+          "episode",
+          "alkera"
+        ],
+        "label": "episode_role",
+        "schemas": [
+          [
+            "raw",
+            "episode",
+            "True",
+            "True"
+          ],
+          [
+            "staging",
+            "episode",
+            "True",
+            "True"
+          ],
+          [
+            "warehouse",
+            "episode",
+            "True",
+            "True"
+          ]
+        ],
+        "superuser": false,
+        "tables": [
+          [
+            "warehouse",
+            "items",
+            "episode",
+            "True",
+            "True"
+          ]
+        ],
+        "user": "episode"
+      },
+      {
+        "connected": true,
+        "dsn": "postgres.internal:5432/alkera",
+        "identity": [
+          "alkera",
+          "alkera"
+        ],
+        "label": "alkera_role",
+        "schemas": [
+          [
+            "raw",
+            "episode",
+            "True",
+            "True"
+          ],
+          [
+            "staging",
+            "episode",
+            "True",
+            "True"
+          ],
+          [
+            "warehouse",
+            "episode",
+            "True",
+            "True"
+          ]
+        ],
+        "superuser": false,
+        "tables": [
+          [
+            "warehouse",
+            "items",
+            "episode",
+            "True",
+            "True"
+          ]
+        ],
+        "user": "alkera"
+      }
+    ],
+    "port_scan": {
+      "addresses": [
+        "10.210.2.1",
+        "10.210.2.2",
+        "10.210.2.3",
+        "10.210.2.4"
+      ],
+      "neither_open_nor_refused_first_200": [],
+      "open": [
+        "10.210.2.1:22",
+        "10.210.2.2:9000",
+        "10.210.2.2:44523",
+        "10.210.2.3:5432",
+        "10.210.2.4:3000",
+        "10.210.2.4:3100",
+        "10.210.2.4:8001",
+        "10.210.2.4:8080",
+        "10.210.2.4:8081",
+        "10.210.2.4:8085",
+        "10.210.2.4:8090",
+        "10.210.2.4:8099",
+        "10.210.2.4:8110",
+        "10.210.2.4:8120",
+        "10.210.2.4:9050",
+        "10.210.2.4:9090",
+        "10.210.2.4:9093"
+      ],
+      "ports": "1-65535",
+      "result_counts": {
+        "10.210.2.1": {
+          "CONNECTED": 1,
+          "ConnectionRefusedError": 65534
+        },
+        "10.210.2.2": {
+          "CONNECTED": 2,
+          "ConnectionRefusedError": 65533
+        },
+        "10.210.2.3": {
+          "CONNECTED": 1,
+          "ConnectionRefusedError": 65534
+        },
+        "10.210.2.4": {
+          "CONNECTED": 13,
+          "ConnectionRefusedError": 65522
+        }
+      },
+      "timeout_s": 1.0
+    },
+    "routes": [
+      {
+        "dest": "10.210.2.0",
+        "gateway": "0.0.0.0",
+        "iface": "eth0",
+        "mask": "255.255.255.0"
+      }
+    ],
+    "seconds": 18.2,
+    "vantage": "episode container (docker exec, /usr/local/bin/python)"
+  }
+}
