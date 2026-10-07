@@ -1,6 +1,86 @@
 {
- "findings": [],
+ "findings": [
+  {
+   "cause": "awaiting user decision: theme macro fix moves BI001/BI002 world bytes (see relations.patch)",
+   "failures": [
+    "exit 1",
+    "the last stdout line is not a JSON object"
+   ],
+   "id": "dbt.show.ref_inline",
+   "verdict": "FAIL"
+  }
+ ],
  "probes": [
+  {
+   "command": "cd /workspace\nset -euo pipefail\ncd dbt_project\ndbt --quiet show --inline \"select sum(order_amount) as net_revenue from warehouse.warehouse.fct_orders where order_status = 'completed'\" --output json > /tmp/tour_dbt_show.json\npython3 -c 'import json; print(json.dumps({\"value\": json.load(open(\"/tmp/tour_dbt_show.json\"))[\"show\"][0][\"net_revenue\"]}))'\n",
+   "destinations": {},
+   "doc": null,
+   "drift": false,
+   "expect_args": [
+    "show"
+   ],
+   "expect_tools": [
+    "shim.dbt"
+   ],
+   "failures": [],
+   "id": "dbt.show.net_revenue",
+   "known": null,
+   "missing_args": [],
+   "missing_tools": [],
+   "profile": "da/laptop",
+   "returncode": 0,
+   "rows": 2,
+   "rows_at": "call",
+   "seconds": 8.04,
+   "stderr_tail": "",
+   "stdout_tail": "{\"value\": 33733790.0}\n",
+   "tool": "dbt",
+   "tools": [
+    "shim.dbt",
+    "shim.python"
+   ],
+   "truth": "33733790.00",
+   "truth_after": "33733790.00",
+   "value": 33733790.0,
+   "value_ok": true,
+   "verdict": "PASS"
+  },
+  {
+   "command": "cd /workspace\nset -euo pipefail\ncd dbt_project\ndbt --quiet show --inline \"select sum(order_amount) as net_revenue from {{ ref('fct_orders') }} where order_status = 'completed'\" --output json > /tmp/tour_dbt_show_ref.json || { cat /tmp/tour_dbt_show_ref.json >&2; exit 1; }\npython3 -c 'import json; print(json.dumps({\"value\": json.load(open(\"/tmp/tour_dbt_show_ref.json\"))[\"show\"][0][\"net_revenue\"]}))'\n",
+   "destinations": {},
+   "doc": null,
+   "drift": false,
+   "expect_args": [
+    "show"
+   ],
+   "expect_tools": [
+    "shim.dbt"
+   ],
+   "failures": [
+    "exit 1",
+    "the last stdout line is not a JSON object"
+   ],
+   "id": "dbt.show.ref_inline",
+   "known": "awaiting user decision: theme macro fix moves BI001/BI002 world bytes (see relations.patch)",
+   "missing_args": [],
+   "missing_tools": [],
+   "profile": "da/laptop",
+   "returncode": 1,
+   "rows": 1,
+   "rows_at": "call",
+   "seconds": 5.09,
+   "stderr_tail": "\u001b[0m10:53:13  [\u001b[31mERROR\u001b[0m]: Encountered an error:\nRuntime Error\n  Runtime Error in sql_operation inline_query (from remote system.sql)\n    Binder Error: Ambiguous reference to catalog or schema \"warehouse\" - use a fully qualified path like \"warehouse.warehouse\"\n",
+   "stdout_tail": "",
+   "tool": "dbt",
+   "tools": [
+    "shim.dbt"
+   ],
+   "truth": "33733790.00",
+   "truth_after": "33733790.00",
+   "value": null,
+   "value_ok": null,
+   "verdict": "FAIL"
+  },
   {
    "command": "cd /workspace\nset -euo pipefail\nd=/tmp/tour_excel\nrm -rf \"$d\" && mkdir -p \"$d\"\ncat > \"$d/write_close.py\" <<'PY'\nimport duckdb, openpyxl\ncon = duckdb.connect('/world/var/warehouse/warehouse.duckdb', read_only=True)\nvalue = con.execute(\"SELECT SUM(order_amount) FROM warehouse.warehouse.fct_orders WHERE order_status = 'completed' AND order_date >= DATE '2026-02-01' AND order_date < DATE '2026-03-01'\").fetchone()[0]\ncon.close()\nwb = openpyxl.Workbook()\nws = wb.active\nws.title = 'close'\nws.append(['metric', 'value'])\nws.append(['net_revenue_feb_2026', float(value)])\nwb.save('/tmp/tour_excel/close.xlsx')\nPY\npython3 \"$d/write_close.py\"\nfrom_pandas=$(python3 -c \"import pandas; df = pandas.read_excel('/tmp/tour_excel/close.xlsx', sheet_name='close', engine='openpyxl'); print(df.loc[df.metric == 'net_revenue_feb_2026', 'value'].iloc[0])\")\nfrom_in2csv=$(in2csv --sheet close \"$d/close.xlsx\" | awk -F, '$1 == \"net_revenue_feb_2026\" {print $2}')\npython3 -c \"import sys; a, b = map(float, sys.argv[1:]); sys.exit(0 if a == b else 'pandas and in2csv disagree')\" \"$from_pandas\" \"$from_in2csv\"\nprintf '{\"value\": \"%s\"}\\n' \"$from_in2csv\"\n",
    "destinations": {},
@@ -21,7 +101,7 @@
    "returncode": 0,
    "rows": 3,
    "rows_at": "call",
-   "seconds": 4.67,
+   "seconds": 4.69,
    "stderr_tail": "",
    "stdout_tail": "{\"value\": \"2361224\"}\n",
    "tool": "excel",
@@ -54,7 +134,7 @@
    "returncode": 0,
    "rows": 1,
    "rows_at": "teardown",
-   "seconds": 0.09,
+   "seconds": 0.08,
    "stderr_tail": "",
    "stdout_tail": "{\"value\": \"2361224.00\"}\n",
    "tool": "postgres",
@@ -88,7 +168,7 @@
    "returncode": 0,
    "rows": 32,
    "rows_at": "teardown",
-   "seconds": 12.71,
+   "seconds": 13.3,
    "stderr_tail": "",
    "stdout_tail": "{\"value\": 2361224.0}\n",
    "tool": "postgres_dbt",
@@ -199,15 +279,15 @@
     "network_violations": [],
     "no_stray_rows": true,
     "ok": true,
-    "rows_in_probes": 3,
-    "rows_total": 3,
+    "rows_in_probes": 6,
+    "rows_total": 6,
     "trace_valid": true
    },
    "image": "alkera-episode:w1-pg-da",
    "image_gate": {
-    "head": "ee915fe409c912650497ec7b8f130eb959a89897",
+    "head": "144e03b4b75d29d1a56825e5924ed432965a2b02",
     "image": "alkera-episode:w1-pg-da",
-    "revision": "9407f6d9d9374a10a67924e47e3d2e373085fee3"
+    "revision": "41d567865c7791da58db72fd47e194ea6d4b906c"
    },
    "ok": true,
    "plugs": {
@@ -218,14 +298,16 @@
     ]
    },
    "probes": [
+    "dbt.show.net_revenue",
+    "dbt.show.ref_inline",
     "excel.openpyxl.net_revenue_feb_2026_roundtrip"
    ],
    "profile": "da/laptop",
    "rows_at": "call",
-   "seconds": 24.0,
+   "seconds": 38.3,
    "seed": "# commerce_analytics world seed: a shop's nightly CDC extracts -> raw -> dbt\n# star schema + semantic layer -> Power BI / Tableau / Sigma dashboards.\ntheme: commerce_analytics    # world/world/themes/<name>/\nseed: 11\nvtime_start: \"2025-01-01T00:00:00Z\"\n# 425 nightly extracts: dt=2024-12-31 (the cutover snapshot: accounts and\n# catalogue, no orders) then dt=2025-01-01 .. dt=2026-02-28. Fourteen months of\n# orders, so last-year measures exist for January and February 2026. The world\n# clock opens at 2026-03-02T00:00Z, a Monday - business day 1 of the February\n# close.\ndays: 425\n\n# Scale. Every key is optional (gen.DEFAULTS); these are the defaults, spelled\n# out. Build time is dominated by dbt, not by volume - a 2x seed builds in about\n# the same time.\ncustomers: 220               # accounts on the platform at cutover\nsignup_pct: 18               # chance per day of a new account (a second at a quarter of it)\nupdate_pct: 9                # chance per day that one account is upgraded a segment\norders_per_day: [20, 60]     # base range, scaled by weekday, month, peak days and growth\nlines_per_order: [1, 4]\ncancel_pct: 6                # 70% the same day, the rest the next day\nrefund_pct: 4                # 3 to 45 days after the order\ngrowth_pct: 20               # year-over-year order volume growth\n\ngit_author: \"Analytics Engineering <analytics@example.com>\"\nnative: true\nfiles: {formats: [parquet]}\nprofile:\n  name: da/laptop\n  slots: [files, notebook, warehouse, transform, bi, human]\n  plugs: {bi: [powerbi, sigma, tableau]}\n",
    "stack": {
-    "container_id": "e8be231da833",
+    "container_id": "632dee79c24a",
     "episode_endpoints": {
      "confluence": "http://confluence.internal:8090",
      "jira": "http://jira.internal:8080",
@@ -242,7 +324,7 @@
      "tableau": "http://tableau.internal:8096"
     },
     "image": "alkera-episode:w1-pg-da",
-    "image_digest": "sha256:6b851c376389e09490868c5d0dd4c1657ff23f24e6fe5c70fcd675b53e2eb94d",
+    "image_digest": "sha256:7b1068cf64f83ecf665b836f59c5d3294870f14a1cf8e6def884069021b0bd99",
     "services": [
      "episode",
      "jupyter",
@@ -257,7 +339,7 @@
      "ALKERA_SHIM_BIN": "/opt/alkera/shims",
      "ALKERA_SHIM_WATCH": "/world/var/warehouse/warehouse.duckdb",
      "ALKERA_SHIM_WORKSPACE": "/workspace",
-     "ALKERA_SOURCE_REV": "9407f6d9d9374a10a67924e47e3d2e373085fee3",
+     "ALKERA_SOURCE_REV": "41d567865c7791da58db72fd47e194ea6d4b906c",
      "ALKERA_TOOLBELT": "da",
      "ALKERA_VIRTUAL_TIME": "2026-03-02T00:00:00Z",
      "ALKERA_WAREHOUSES": "",
@@ -415,9 +497,9 @@
    },
    "image": "alkera-episode:w1-pg",
    "image_gate": {
-    "head": "ee915fe409c912650497ec7b8f130eb959a89897",
+    "head": "144e03b4b75d29d1a56825e5924ed432965a2b02",
     "image": "alkera-episode:w1-pg",
-    "revision": "d7b542fddf93e71bba3ef046f754116b9dd84c41"
+    "revision": "41d567865c7791da58db72fd47e194ea6d4b906c"
    },
    "ok": true,
    "plugs": {},
@@ -426,10 +508,10 @@
    ],
    "profile": "de/postgres",
    "rows_at": "teardown",
-   "seconds": 19.3,
+   "seconds": 20.4,
    "seed": "# commerce_analytics world seed: a shop's nightly CDC extracts -> raw -> dbt\n# star schema + semantic layer -> Power BI / Tableau / Sigma dashboards.\ntheme: commerce_analytics    # world/world/themes/<name>/\nseed: 11\nvtime_start: \"2025-01-01T00:00:00Z\"\n# 425 nightly extracts: dt=2024-12-31 (the cutover snapshot: accounts and\n# catalogue, no orders) then dt=2025-01-01 .. dt=2026-02-28. Fourteen months of\n# orders, so last-year measures exist for January and February 2026. The world\n# clock opens at 2026-03-02T00:00Z, a Monday - business day 1 of the February\n# close.\ndays: 425\n\n# Scale. Every key is optional (gen.DEFAULTS); these are the defaults, spelled\n# out. Build time is dominated by dbt, not by volume - a 2x seed builds in about\n# the same time.\ncustomers: 220               # accounts on the platform at cutover\nsignup_pct: 18               # chance per day of a new account (a second at a quarter of it)\nupdate_pct: 9                # chance per day that one account is upgraded a segment\norders_per_day: [20, 60]     # base range, scaled by weekday, month, peak days and growth\nlines_per_order: [1, 4]\ncancel_pct: 6                # 70% the same day, the rest the next day\nrefund_pct: 4                # 3 to 45 days after the order\ngrowth_pct: 20               # year-over-year order volume growth\n\ngit_author: \"Analytics Engineering <analytics@example.com>\"\nnative: true\nfiles: {formats: [parquet]}\nprofile:\n  name: de/postgres\n  slots: [files, warehouse, transform, orchestrator, object_store, ingest, bi, observability, release, human]\n",
    "stack": {
-    "container_id": "9e2b93bf23f1",
+    "container_id": "57b15b925ae3",
     "episode_endpoints": {
      "airbyte": "http://airbyte.internal:8001",
      "alertmanager": "http://alertmanager.internal:9093",
@@ -455,7 +537,7 @@
      "slack": "http://slack.internal:8081"
     },
     "image": "alkera-episode:w1-pg",
-    "image_digest": "sha256:763d0d26fe282dd89bfea341256e781c6222cb37a3d36357602cdbdb755a5510",
+    "image_digest": "sha256:df7605f5bd4cf424f8e1e2ca741d4c374140239ccdea6e1d3477e82b17740481",
     "services": [
      "episode",
      "minio",
@@ -472,7 +554,7 @@
      "ALKERA_SHIM_BIN": "/opt/alkera/shims",
      "ALKERA_SHIM_WATCH": "/world/var/warehouse/warehouse.duckdb",
      "ALKERA_SHIM_WORKSPACE": "/workspace",
-     "ALKERA_SOURCE_REV": "d7b542fddf93e71bba3ef046f754116b9dd84c41",
+     "ALKERA_SOURCE_REV": "41d567865c7791da58db72fd47e194ea6d4b906c",
      "ALKERA_TOOLBELT": "de",
      "ALKERA_VIRTUAL_TIME": "2026-03-02T00:00:00Z",
      "ALKERA_WAREHOUSES": "",
@@ -634,9 +716,9 @@
    },
    "image": "alkera-episode:w1-pg",
    "image_gate": {
-    "head": "ee915fe409c912650497ec7b8f130eb959a89897",
+    "head": "144e03b4b75d29d1a56825e5924ed432965a2b02",
     "image": "alkera-episode:w1-pg",
-    "revision": "d7b542fddf93e71bba3ef046f754116b9dd84c41"
+    "revision": "41d567865c7791da58db72fd47e194ea6d4b906c"
    },
    "ok": true,
    "plugs": {},
@@ -645,10 +727,10 @@
    ],
    "profile": "de/postgres",
    "rows_at": "teardown",
-   "seconds": 31.8,
+   "seconds": 35.6,
    "seed": "# commerce_analytics world seed: a shop's nightly CDC extracts -> raw -> dbt\n# star schema + semantic layer -> Power BI / Tableau / Sigma dashboards.\ntheme: commerce_analytics    # world/world/themes/<name>/\nseed: 11\nvtime_start: \"2025-01-01T00:00:00Z\"\n# 425 nightly extracts: dt=2024-12-31 (the cutover snapshot: accounts and\n# catalogue, no orders) then dt=2025-01-01 .. dt=2026-02-28. Fourteen months of\n# orders, so last-year measures exist for January and February 2026. The world\n# clock opens at 2026-03-02T00:00Z, a Monday - business day 1 of the February\n# close.\ndays: 425\n\n# Scale. Every key is optional (gen.DEFAULTS); these are the defaults, spelled\n# out. Build time is dominated by dbt, not by volume - a 2x seed builds in about\n# the same time.\ncustomers: 220               # accounts on the platform at cutover\nsignup_pct: 18               # chance per day of a new account (a second at a quarter of it)\nupdate_pct: 9                # chance per day that one account is upgraded a segment\norders_per_day: [20, 60]     # base range, scaled by weekday, month, peak days and growth\nlines_per_order: [1, 4]\ncancel_pct: 6                # 70% the same day, the rest the next day\nrefund_pct: 4                # 3 to 45 days after the order\ngrowth_pct: 20               # year-over-year order volume growth\n\ngit_author: \"Analytics Engineering <analytics@example.com>\"\nnative: true\nfiles: {formats: [parquet]}\nprofile:\n  name: de/postgres\n  slots: [files, warehouse, transform, orchestrator, object_store, ingest, bi, observability, release, human]\n",
    "stack": {
-    "container_id": "f3387bbca244",
+    "container_id": "45669c5a0b8b",
     "episode_endpoints": {
      "airbyte": "http://airbyte.internal:8001",
      "alertmanager": "http://alertmanager.internal:9093",
@@ -674,7 +756,7 @@
      "slack": "http://slack.internal:8081"
     },
     "image": "alkera-episode:w1-pg",
-    "image_digest": "sha256:763d0d26fe282dd89bfea341256e781c6222cb37a3d36357602cdbdb755a5510",
+    "image_digest": "sha256:df7605f5bd4cf424f8e1e2ca741d4c374140239ccdea6e1d3477e82b17740481",
     "services": [
      "episode",
      "minio",
@@ -691,7 +773,7 @@
      "ALKERA_SHIM_BIN": "/opt/alkera/shims",
      "ALKERA_SHIM_WATCH": "/world/var/warehouse/warehouse.duckdb",
      "ALKERA_SHIM_WORKSPACE": "/workspace",
-     "ALKERA_SOURCE_REV": "d7b542fddf93e71bba3ef046f754116b9dd84c41",
+     "ALKERA_SOURCE_REV": "41d567865c7791da58db72fd47e194ea6d4b906c",
      "ALKERA_TOOLBELT": "de",
      "ALKERA_VIRTUAL_TIME": "2026-03-02T00:00:00Z",
      "ALKERA_WAREHOUSES": "",
@@ -750,17 +832,18 @@
    }
   }
  ],
- "revision": "ee915fe409c912650497ec7b8f130eb959a89897",
- "seconds": 75.1,
- "started": 1791363473.24183,
+ "revision": "144e03b4b75d29d1a56825e5924ed432965a2b02",
+ "seconds": 94.3,
+ "started": 1791370364.3661876,
  "summary": {
   "DOC": 0,
-  "FAIL": 0,
-  "PASS": 3,
+  "FAIL": 1,
+  "PASS": 4,
   "profiles_ok": true
  },
- "table": "probe                                       profile       verdict   rows  value / truth\n---------------------------------------------------------------------------------------------------------------------\nexcel.openpyxl.net_revenue_feb_2026_roundtr da/laptop     PASS         3  '2361224' / Decimal('2361224.00')\npostgres.psql.net_revenue_feb_2026          de/postgres   PASS         1  '2361224.00' / Decimal('2361224.00')\npostgres_dbt.run.net_revenue_feb_2026       de/postgres   PASS        32  2361224.0 / Decimal('2361224.00')",
+ "table": "probe                                       profile       verdict   rows  value / truth\n---------------------------------------------------------------------------------------------------------------------\ndbt.show.net_revenue                        da/laptop     PASS         2  33733790.0 / Decimal('33733790.00')\ndbt.show.ref_inline                         da/laptop     FAIL         1  None / Decimal('33733790.00')\nexcel.openpyxl.net_revenue_feb_2026_roundtr da/laptop     PASS         3  '2361224' / Decimal('2361224.00')\npostgres.psql.net_revenue_feb_2026          de/postgres   PASS         1  '2361224.00' / Decimal('2361224.00')\npostgres_dbt.run.net_revenue_feb_2026       de/postgres   PASS        32  2361224.0 / Decimal('2361224.00')",
  "tools": [
+  "dbt",
   "excel",
   "postgres",
   "postgres_dbt"

@@ -26,7 +26,28 @@
       "result": "PASS"
     },
     {
-      "check": "psql: every seeded table's row count equals the world's",
+      "check": "the episode role (unlogged; the box's ALKERA_POSTGRES_DSN) cannot read the seeded warehouse.fct_orders",
+      "detail": {
+        "box_dsn": {
+          "err": "psql: error: connection to server at \"postgres\" (10.210.1.4), port 5432 failed: FATAL:  database \"episode\" does not exist",
+          "out": "",
+          "rc": 2
+        },
+        "episode_on_alkera_db": {
+          "err": "ERROR:  permission denied for schema warehouse\nLINE 1: SELECT count(*) FROM warehouse.fct_orders\n                             ^",
+          "out": "",
+          "rc": 1
+        }
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "the seeded schema's owner is a NOLOGIN role, not episode",
+      "detail": "warehouse_owner|f\n",
+      "result": "PASS"
+    },
+    {
+      "check": "psql as the audited alkera role: every seeded table's row count equals the world's",
       "detail": {
         "psql": {
           "dim_customer": 309,
@@ -84,12 +105,12 @@
     },
     {
       "check": "dbt-postgres: `dbt debug` against the live server",
-      "detail": "2mOK found and valid\u001b[0m]\n\u001b[0m08:53:25  Required dependencies:\n\u001b[0m08:53:26   - git [\u001b[32mOK found\u001b[0m]\n\n\u001b[0m08:53:26  Connection:\n\u001b[0m08:53:26    host: postgres.internal\n\u001b[0m08:53:26    port: 5432\n\u001b[0m08:53:26    user: alkera\n\u001b[0m08:53:26    database: alkera\n\u001b[0m08:53:26    schema: staging\n\u001b[0m08:53:26    connect_timeout: 20\n\u001b[0m08:53:26    role: None\n\u001b[0m08:53:26    search_path: None\n\u001b[0m08:53:26    keepalives_idle: 0\n\u001b[0m08:53:26    sslmode: None\n\u001b[0m08:53:26    sslcert: None\n\u001b[0m08:53:26    sslkey: None\n\u001b[0m08:53:26    sslrootcert: None\n\u001b[0m08:53:26    application_name: dbt\n\u001b[0m08:53:26    autocommit: False\n\u001b[0m08:53:26    retries: 1\n\u001b[0m08:53:26  Registered adapter: postgres=1.11.0\n\u001b[0m08:53:26    Connection test: [\u001b[32mOK connection ok\u001b[0m]\n\n\u001b[0m08:53:26  \u001b[32mAll checks passed!\u001b[0m\n",
+      "detail": "2mOK found and valid\u001b[0m]\n\u001b[0m10:49:28  Required dependencies:\n\u001b[0m10:49:29   - git [\u001b[32mOK found\u001b[0m]\n\n\u001b[0m10:49:29  Connection:\n\u001b[0m10:49:29    host: postgres.internal\n\u001b[0m10:49:29    port: 5432\n\u001b[0m10:49:29    user: alkera\n\u001b[0m10:49:29    database: alkera\n\u001b[0m10:49:29    schema: staging\n\u001b[0m10:49:29    connect_timeout: 20\n\u001b[0m10:49:29    role: None\n\u001b[0m10:49:29    search_path: None\n\u001b[0m10:49:29    keepalives_idle: 0\n\u001b[0m10:49:29    sslmode: None\n\u001b[0m10:49:29    sslcert: None\n\u001b[0m10:49:29    sslkey: None\n\u001b[0m10:49:29    sslrootcert: None\n\u001b[0m10:49:29    application_name: dbt\n\u001b[0m10:49:29    autocommit: False\n\u001b[0m10:49:29    retries: 1\n\u001b[0m10:49:29  Registered adapter: postgres=1.11.0\n\u001b[0m10:49:29    Connection test: [\u001b[32mOK connection ok\u001b[0m]\n\n\u001b[0m10:49:29  \u001b[32mAll checks passed!\u001b[0m\n",
       "result": "PASS"
     },
     {
       "check": "dbt-postgres: `dbt run -s pg_net_revenue_feb` against the live server",
-      "detail": "8:53:29  Running with dbt=1.12.4\n\u001b[0m08:53:29  Registered adapter: postgres=1.11.0\n\u001b[0m08:53:29  Unable to do partial parsing because saved manifest not found. Starting full parse.\n\u001b[0m08:53:30  Found 1 model, 1 source, 477 macros\n\u001b[0m08:53:30  \n\u001b[0m08:53:30  Concurrency: 1 threads (target='postgres')\n\u001b[0m08:53:30  \n\u001b[0m08:53:30  1 of 1 START sql table model staging.pg_net_revenue_feb ........................ [RUN]\n\u001b[0m08:53:30  1 of 1 OK created sql table model staging.pg_net_revenue_feb ................... [\u001b[32mSELECT 1\u001b[0m in 0.09s]\n\u001b[0m08:53:30  \n\u001b[0m08:53:30  Finished running 1 table model in 0 hours 0 minutes and 0.16 seconds (0.16s).\n\u001b[0m08:53:30  \n\u001b[0m08:53:30  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m08:53:30  \n\u001b[0m08:53:30  Done. PASS=1 WARN=0 ERROR=0 SKIP=0 NO-OP=0 REUSED=0 TOTAL=1\n",
+      "detail": "0:49:34  Running with dbt=1.12.4\n\u001b[0m10:49:34  Registered adapter: postgres=1.11.0\n\u001b[0m10:49:34  Unable to do partial parsing because saved manifest not found. Starting full parse.\n\u001b[0m10:49:36  Found 1 model, 1 source, 477 macros\n\u001b[0m10:49:36  \n\u001b[0m10:49:36  Concurrency: 1 threads (target='postgres')\n\u001b[0m10:49:36  \n\u001b[0m10:49:36  1 of 1 START sql table model staging.pg_net_revenue_feb ........................ [RUN]\n\u001b[0m10:49:36  1 of 1 OK created sql table model staging.pg_net_revenue_feb ................... [\u001b[32mSELECT 1\u001b[0m in 0.13s]\n\u001b[0m10:49:36  \n\u001b[0m10:49:36  Finished running 1 table model in 0 hours 0 minutes and 0.26 seconds (0.26s).\n\u001b[0m10:49:36  \n\u001b[0m10:49:36  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m10:49:36  \n\u001b[0m10:49:36  Done. PASS=1 WARN=0 ERROR=0 SKIP=0 NO-OP=0 REUSED=0 TOTAL=1\n",
       "result": "PASS"
     },
     {
@@ -108,8 +129,8 @@
     {
       "check": "rows landed at teardown: one psql.statement per logged statement (1:1, in order)",
       "detail": {
-        "logged": 33,
-        "rows": 33
+        "logged": 34,
+        "rows": 34
       },
       "result": "PASS"
     },
@@ -119,18 +140,18 @@
       "result": "PASS"
     },
     {
-      "check": "the statements that succeeded are rows in the order they were sent",
+      "check": "every statement is a row in the order it was sent, the refused DROP included",
       "detail": null,
       "result": "PASS"
     },
     {
       "check": "seq is contiguous across every writer (shims, then the tailer)",
       "detail": [
-        32,
         33,
         34,
         35,
-        36
+        36,
+        37
       ],
       "result": "PASS"
     },
@@ -187,38 +208,88 @@
       "result": "PASS"
     },
     {
-      "check": "unprofiled: the server holds only warehouse.items, with 2 rows",
+      "check": "unprofiled: the server holds only warehouse.items, with 2 rows, its schema owned by episode as compose made it",
       "detail": [
         "items",
-        "2"
+        "2",
+        "episode|t"
       ],
       "result": "PASS"
     },
     {
-      "check": "unprofiled: the two psql statements are audited at teardown",
+      "check": "unprofiled: the three psql statements are audited at teardown",
       "detail": [
         "SELECT string_agg(table_name, ',' ORDER BY table_name) FROM information_schema.tables WHERE table_schema = 'warehouse'",
-        "SELECT count(*) FROM warehouse.items"
+        "SELECT count(*) FROM warehouse.items",
+        "SELECT r.rolname || '|' || CASE WHEN r.rolcanlogin THEN 't' ELSE 'f' END FROM pg_namespace n JOIN pg_roles r ON r.oid = n.nspowner WHERE n.nspname = 'warehouse'"
       ],
       "result": "PASS"
     }
   ],
   "de_postgres": {
+    "as_episode": {
+      "box_dsn": {
+        "err": "psql: error: connection to server at \"postgres\" (10.210.1.4), port 5432 failed: FATAL:  database \"episode\" does not exist",
+        "out": "",
+        "rc": 2
+      },
+      "episode_on_alkera_db": {
+        "err": "ERROR:  permission denied for schema warehouse\nLINE 1: SELECT count(*) FROM warehouse.fct_orders\n                             ^",
+        "out": "",
+        "rc": 1
+      }
+    },
     "audit_sample": [
       {
         "args": {
-          "backend_pid": "112",
-          "sql": "SELECT count(*) FROM warehouse.dim_customer"
+          "backend_pid": "120",
+          "sql": "SELECT r.rolname || '|' || CASE WHEN r.rolcanlogin THEN 't' ELSE 'f' END FROM pg_namespace n JOIN pg_roles r ON r.oid = n.nspowner WHERE n.nspname = 'warehouse'"
         },
-        "args_hash": "a6e2220522989fa860736823d3217cc60b9839c75f16c4e5c5d7dae3e11524c2",
-        "args_summary": "{\"backend_pid\":\"112\",\"sql\":\"SELECT count(*) FROM warehouse.dim_customer\"}",
+        "args_hash": "3e0a12d25379b34a9c39ebf461bab3fae28f561a497c590673e08cd895a46db8",
+        "args_summary": "{\"backend_pid\":\"120\",\"sql\":\"SELECT r.rolname || '|' || CASE WHEN r.rolcanlogin THEN 't' ELSE 'f' END FROM pg_namespace n JOIN pg_roles r ON r.oid = n.nspowner WHERE n.nspname = 'warehouse'\"}",
         "disk_mb": null,
         "error": null,
         "exit": "ok",
         "flags": [
           "actor:postgres-tailer"
         ],
-        "latency_ms": 0.449,
+        "latency_ms": 1.921,
+        "op_class": "read",
+        "read_targets": [
+          "pg_namespace AS n",
+          "pg_roles AS r"
+        ],
+        "result": null,
+        "result_bytes": 4,
+        "result_hash": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+        "rows_affected": null,
+        "rss_mb": 89.449,
+        "schema_version": 1,
+        "seq": 4,
+        "target": "pg_namespace AS n",
+        "targets": [
+          "pg_namespace AS n",
+          "pg_roles AS r"
+        ],
+        "tool": "psql.statement",
+        "transport": "native",
+        "vts": "2026-03-02T00:00:00Z",
+        "wts": 1791370178600
+      },
+      {
+        "args": {
+          "backend_pid": "121",
+          "sql": "SELECT count(*) FROM warehouse.dim_customer"
+        },
+        "args_hash": "d272569d1280f91349db4f586d06a3464315380230007c364136c9dabbc64d8a",
+        "args_summary": "{\"backend_pid\":\"121\",\"sql\":\"SELECT count(*) FROM warehouse.dim_customer\"}",
+        "disk_mb": null,
+        "error": null,
+        "exit": "ok",
+        "flags": [
+          "actor:postgres-tailer"
+        ],
+        "latency_ms": 0.518,
         "op_class": "read",
         "read_targets": [
           "warehouse.dim_customer"
@@ -227,9 +298,9 @@
         "result_bytes": 4,
         "result_hash": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
         "rows_affected": null,
-        "rss_mb": 91.031,
+        "rss_mb": 90.301,
         "schema_version": 1,
-        "seq": 4,
+        "seq": 5,
         "target": "warehouse.dim_customer",
         "targets": [
           "warehouse.dim_customer"
@@ -237,56 +308,53 @@
         "tool": "psql.statement",
         "transport": "native",
         "vts": "2026-03-02T00:00:00Z",
-        "wts": 1791363211857
+        "wts": 1791370178629
       },
       {
         "args": {
-          "backend_pid": "113",
-          "sql": "SELECT count(*) FROM warehouse.dim_date"
+          "backend_pid": "189",
+          "sql": "COMMIT"
         },
-        "args_hash": "ac44454d3e65a1d350da6a870268997abc2c1bda995af7abdb9dd1aa548c9b8a",
-        "args_summary": "{\"backend_pid\":\"113\",\"sql\":\"SELECT count(*) FROM warehouse.dim_date\"}",
+        "args_hash": "8e4b92e9ba9ec1cf4056389354f33984b342c698459099394f90756ce7a2993e",
+        "args_summary": "{\"backend_pid\":\"189\",\"sql\":\"COMMIT\"}",
         "disk_mb": null,
         "error": null,
         "exit": "ok",
         "flags": [
+          "outside_tool_surface",
           "actor:postgres-tailer"
         ],
-        "latency_ms": 0.429,
-        "op_class": "read",
-        "read_targets": [
-          "warehouse.dim_date"
-        ],
+        "latency_ms": 0.022,
+        "op_class": "exec",
+        "read_targets": [],
         "result": null,
         "result_bytes": 4,
         "result_hash": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
         "rows_affected": null,
-        "rss_mb": 91.902,
+        "rss_mb": 90.441,
         "schema_version": 1,
-        "seq": 5,
-        "target": "warehouse.dim_date",
-        "targets": [
-          "warehouse.dim_date"
-        ],
+        "seq": 36,
+        "target": null,
+        "targets": [],
         "tool": "psql.statement",
         "transport": "native",
         "vts": "2026-03-02T00:00:00Z",
-        "wts": 1791363211866
+        "wts": 1791370178802
       },
       {
         "args": {
-          "backend_pid": "169",
+          "backend_pid": "198",
           "sql": "SELECT net_revenue FROM staging.pg_net_revenue_feb"
         },
-        "args_hash": "ae6971119ff51e744b5537abe7655c4a773c95a7b2b54a2aa6a35e4c4f27ac45",
-        "args_summary": "{\"backend_pid\":\"169\",\"sql\":\"SELECT net_revenue FROM staging.pg_net_revenue_feb\"}",
+        "args_hash": "e4f1de9175ba3d93ef7ffb35ae9e88b2a49ff5c8e3b527ab16a914167c4e5e5e",
+        "args_summary": "{\"backend_pid\":\"198\",\"sql\":\"SELECT net_revenue FROM staging.pg_net_revenue_feb\"}",
         "disk_mb": null,
         "error": null,
         "exit": "ok",
         "flags": [
           "actor:postgres-tailer"
         ],
-        "latency_ms": 0.367,
+        "latency_ms": 0.465,
         "op_class": "read",
         "read_targets": [
           "staging.pg_net_revenue_feb"
@@ -295,9 +363,9 @@
         "result_bytes": 4,
         "result_hash": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
         "rows_affected": null,
-        "rss_mb": 92.777,
+        "rss_mb": 90.445,
         "schema_version": 1,
-        "seq": 35,
+        "seq": 37,
         "target": "staging.pg_net_revenue_feb",
         "targets": [
           "staging.pg_net_revenue_feb"
@@ -305,61 +373,24 @@
         "tool": "psql.statement",
         "transport": "native",
         "vts": "2026-03-02T00:00:00Z",
-        "wts": 1791363212111
-      },
-      {
-        "args": {
-          "backend_pid": "129",
-          "sql": "DROP TABLE warehouse.fct_orders"
-        },
-        "args_hash": "bcc23e155c7efd62e6f0db746b6a5d87dc882a23a4bdf01989289778791f7fff",
-        "args_summary": "{\"backend_pid\":\"129\",\"sql\":\"DROP TABLE warehouse.fct_orders\"}",
-        "disk_mb": null,
-        "error": {
-          "code": "sql_error",
-          "message": "must be owner of table fct_orders"
-        },
-        "exit": "error",
-        "flags": [
-          "drop",
-          "no_duration",
-          "actor:postgres-tailer"
-        ],
-        "latency_ms": 0.0,
-        "op_class": "destructive",
-        "read_targets": [],
-        "result": null,
-        "result_bytes": 4,
-        "result_hash": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
-        "rows_affected": null,
-        "rss_mb": 92.777,
-        "schema_version": 1,
-        "seq": 36,
-        "target": "warehouse.fct_orders",
-        "targets": [
-          "warehouse.fct_orders"
-        ],
-        "tool": "psql.statement",
-        "transport": "native",
-        "vts": "2026-03-02T00:00:00Z",
-        "wts": 1791363212116
+        "wts": 1791370178805
       }
     ],
     "counts": {
-      "probe_statements": 12,
-      "psql_rows": 33,
-      "rows_total": 36,
-      "server_log_statements": 33,
+      "probe_statements": 13,
+      "psql_rows": 34,
+      "rows_total": 37,
+      "server_log_statements": 34,
       "shim_rows": 3
     },
     "dbt": {
       "debug": {
         "rc": 0,
-        "tail": "\u001b[0m08:53:25  Running with dbt=1.12.4\n\u001b[0m08:53:25  dbt version: 1.12.4\n\u001b[0m08:53:25  python version: 3.11.16\n\u001b[0m08:53:25  python path: /usr/local/bin/python3.11\n\u001b[0m08:53:25  os info: Linux-7.0.0-1006-aws-x86_64-with-glibc2.41\n\u001b[0m08:53:25  Using profiles dir at /tmp/pg-e2e\n\u001b[0m08:53:25  Using profiles.yml file at /tmp/pg-e2e/profiles.yml\n\u001b[0m08:53:25  Using dbt_project.yml file at /tmp/pg-e2e/dbt_project.yml\n\u001b[0m08:53:25  adapter type: postgres\n\u001b[0m08:53:25  adapter version: 1.11.0\n\u001b[0m08:53:25  Configuration:\n\u001b[0m08:53:25    profiles.yml file [\u001b[32mOK found and valid\u001b[0m]\n\u001b[0m08:53:25    dbt_project.yml file [\u001b[32mOK found and valid\u001b[0m]\n\u001b[0m08:53:25  Required dependencies:\n\u001b[0m08:53:26   - git [\u001b[32mOK found\u001b[0m]\n\n\u001b[0m08:53:26  Connection:\n\u001b[0m08:53:26    host: postgres.internal\n\u001b[0m08:53:26    port: 5432\n\u001b[0m08:53:26    user: alkera\n\u001b[0m08:53:26    database: alkera\n\u001b[0m08:53:26    schema: staging\n\u001b[0m08:53:26    connect_timeout: 20\n\u001b[0m08:53:26    role: None\n\u001b[0m08:53:26    search_path: None\n\u001b[0m08:53:26    keepalives_idle: 0\n\u001b[0m08:53:26    sslmode: None\n\u001b[0m08:53:26    sslcert: None\n\u001b[0m08:53:26    sslkey: None\n\u001b[0m08:53:26    sslrootcert: None\n\u001b[0m08:53:26    application_name: dbt\n\u001b[0m08:53:26    autocommit: False\n\u001b[0m08:53:26    retries: 1\n\u001b[0m08:53:26  Registered adapter: postgres=1.11.0\n\u001b[0m08:53:26    Connection test: [\u001b[32mOK connection ok\u001b[0m]\n\n\u001b[0m08:53:26  \u001b[32mAll checks passed!\u001b[0m\n"
+        "tail": "\u001b[0m10:49:28  Running with dbt=1.12.4\n\u001b[0m10:49:28  dbt version: 1.12.4\n\u001b[0m10:49:28  python version: 3.11.16\n\u001b[0m10:49:28  python path: /usr/local/bin/python3.11\n\u001b[0m10:49:28  os info: Linux-7.0.0-1006-aws-x86_64-with-glibc2.41\n\u001b[0m10:49:28  Using profiles dir at /tmp/pg-e2e\n\u001b[0m10:49:28  Using profiles.yml file at /tmp/pg-e2e/profiles.yml\n\u001b[0m10:49:28  Using dbt_project.yml file at /tmp/pg-e2e/dbt_project.yml\n\u001b[0m10:49:28  adapter type: postgres\n\u001b[0m10:49:28  adapter version: 1.11.0\n\u001b[0m10:49:28  Configuration:\n\u001b[0m10:49:28    profiles.yml file [\u001b[32mOK found and valid\u001b[0m]\n\u001b[0m10:49:28    dbt_project.yml file [\u001b[32mOK found and valid\u001b[0m]\n\u001b[0m10:49:28  Required dependencies:\n\u001b[0m10:49:29   - git [\u001b[32mOK found\u001b[0m]\n\n\u001b[0m10:49:29  Connection:\n\u001b[0m10:49:29    host: postgres.internal\n\u001b[0m10:49:29    port: 5432\n\u001b[0m10:49:29    user: alkera\n\u001b[0m10:49:29    database: alkera\n\u001b[0m10:49:29    schema: staging\n\u001b[0m10:49:29    connect_timeout: 20\n\u001b[0m10:49:29    role: None\n\u001b[0m10:49:29    search_path: None\n\u001b[0m10:49:29    keepalives_idle: 0\n\u001b[0m10:49:29    sslmode: None\n\u001b[0m10:49:29    sslcert: None\n\u001b[0m10:49:29    sslkey: None\n\u001b[0m10:49:29    sslrootcert: None\n\u001b[0m10:49:29    application_name: dbt\n\u001b[0m10:49:29    autocommit: False\n\u001b[0m10:49:29    retries: 1\n\u001b[0m10:49:29  Registered adapter: postgres=1.11.0\n\u001b[0m10:49:29    Connection test: [\u001b[32mOK connection ok\u001b[0m]\n\n\u001b[0m10:49:29  \u001b[32mAll checks passed!\u001b[0m\n"
       },
       "run": {
         "rc": 0,
-        "tail": "\u001b[0m08:53:29  Running with dbt=1.12.4\n\u001b[0m08:53:29  Registered adapter: postgres=1.11.0\n\u001b[0m08:53:29  Unable to do partial parsing because saved manifest not found. Starting full parse.\n\u001b[0m08:53:30  Found 1 model, 1 source, 477 macros\n\u001b[0m08:53:30  \n\u001b[0m08:53:30  Concurrency: 1 threads (target='postgres')\n\u001b[0m08:53:30  \n\u001b[0m08:53:30  1 of 1 START sql table model staging.pg_net_revenue_feb ........................ [RUN]\n\u001b[0m08:53:30  1 of 1 OK created sql table model staging.pg_net_revenue_feb ................... [\u001b[32mSELECT 1\u001b[0m in 0.09s]\n\u001b[0m08:53:30  \n\u001b[0m08:53:30  Finished running 1 table model in 0 hours 0 minutes and 0.16 seconds (0.16s).\n\u001b[0m08:53:30  \n\u001b[0m08:53:30  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m08:53:30  \n\u001b[0m08:53:30  Done. PASS=1 WARN=0 ERROR=0 SKIP=0 NO-OP=0 REUSED=0 TOTAL=1\n"
+        "tail": "\u001b[0m10:49:34  Running with dbt=1.12.4\n\u001b[0m10:49:34  Registered adapter: postgres=1.11.0\n\u001b[0m10:49:34  Unable to do partial parsing because saved manifest not found. Starting full parse.\n\u001b[0m10:49:36  Found 1 model, 1 source, 477 macros\n\u001b[0m10:49:36  \n\u001b[0m10:49:36  Concurrency: 1 threads (target='postgres')\n\u001b[0m10:49:36  \n\u001b[0m10:49:36  1 of 1 START sql table model staging.pg_net_revenue_feb ........................ [RUN]\n\u001b[0m10:49:36  1 of 1 OK created sql table model staging.pg_net_revenue_feb ................... [\u001b[32mSELECT 1\u001b[0m in 0.13s]\n\u001b[0m10:49:36  \n\u001b[0m10:49:36  Finished running 1 table model in 0 hours 0 minutes and 0.26 seconds (0.26s).\n\u001b[0m10:49:36  \n\u001b[0m10:49:36  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m10:49:36  \n\u001b[0m10:49:36  Done. PASS=1 WARN=0 ERROR=0 SKIP=0 NO-OP=0 REUSED=0 TOTAL=1\n"
       }
     },
     "destinations": [
@@ -441,6 +472,7 @@
         "port": 9093
       }
     ],
+    "episode_dsn_in_box": "postgresql://episode:episode-local@postgres/episode",
     "expected": {
       "completed": 15183,
       "counts": {
@@ -502,15 +534,16 @@
       "completed": 15183
     },
     "refused_row_position": {
-      "row_index": 32,
-      "rows": 33,
-      "sent_index": 9
+      "row_index": 10,
+      "rows": 34,
+      "sent_index": 10
     },
     "seed": {
       "granted_to": "alkera",
-      "role": "episode",
+      "owner": "warehouse_owner",
+      "revoked_from": "episode",
       "schema": "warehouse",
-      "seconds": 0.66,
+      "seconds": 1.0,
       "source": "/home/ubuntu/alkera-rollouts/w1-pg-excel/e2e/de-postgres/world/var/warehouse/warehouse.duckdb",
       "tables": {
         "dim_customer": 309,
@@ -521,9 +554,10 @@
       },
       "views_skipped": []
     },
-    "server_log_statements": 33,
+    "seeded_schema_owner": "warehouse_owner|f",
+    "server_log_statements": 34,
     "stack": {
-      "container_id": "8ceedb19f8a0",
+      "container_id": "0b9728b21c28",
       "episode_endpoints": {
         "airbyte": "http://airbyte.internal:8001",
         "alertmanager": "http://alertmanager.internal:9093",
@@ -549,7 +583,7 @@
         "slack": "http://slack.internal:8081"
       },
       "image": "alkera-episode:w1-pg",
-      "image_digest": "sha256:763d0d26fe282dd89bfea341256e781c6222cb37a3d36357602cdbdb755a5510",
+      "image_digest": "sha256:df7605f5bd4cf424f8e1e2ca741d4c374140239ccdea6e1d3477e82b17740481",
       "services": [
         "episode",
         "minio",
@@ -560,14 +594,14 @@
   },
   "image": "alkera-episode:w1-pg",
   "image_gate": {
-    "head": "d7b542fddf93e71bba3ef046f754116b9dd84c41",
+    "head": "41d567865c7791da58db72fd47e194ea6d4b906c",
     "image": "alkera-episode:w1-pg",
-    "revision": "d7b542fddf93e71bba3ef046f754116b9dd84c41"
+    "revision": "41d567865c7791da58db72fd47e194ea6d4b906c"
   },
   "profile": "de/postgres",
   "result": "PASS",
-  "revision": "d7b542fddf93e71bba3ef046f754116b9dd84c41",
-  "seconds": 52.0,
+  "revision": "41d567865c7791da58db72fd47e194ea6d4b906c",
+  "seconds": 97.2,
   "unprofiled": {
     "prepared_keys": [
       "dbt_profiles_rerooted",
@@ -577,7 +611,8 @@
     ],
     "server": [
       "items",
-      "2"
+      "2",
+      "episode|t"
     ]
   }
 }
