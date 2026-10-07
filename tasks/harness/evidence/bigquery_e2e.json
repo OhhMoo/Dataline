@@ -1,0 +1,859 @@
+{
+  "allowed_destinations": [
+    "airbyte.internal:8001",
+    "alertmanager.internal:9093",
+    "bigquery.internal:9050",
+    "confluence.internal:8090",
+    "deploy.internal:8085",
+    "jira.internal:8080",
+    "loki.internal:3100",
+    "metabase.internal:3000",
+    "minio.internal:9000",
+    "postgres.internal:5432",
+    "prometheus.internal:9090",
+    "sched.internal:8120",
+    "slack.internal:8081"
+  ],
+  "audit_sample": [
+    {
+      "args": {
+        "method": "POST",
+        "path": "/bigquery/v2/projects/alkera-local/jobs",
+        "query": "prettyPrint=false",
+        "sql": "CREATE OR REPLACE TABLE `alkera-local.bq_e2e_scratch.notes` (id INT64, note STRING)"
+      },
+      "args_hash": "388573cfdd0ec36f599634e1c736ed47ed3f704854e032859fbafca961dbb59e",
+      "args_summary": "{\"method\":\"POST\",\"path\":\"/bigquery/v2/projects/alkera-local/jobs\",\"query\":\"prettyPrint=false\",\"sql\":\"CREATE OR REPLACE TABLE `alkera-local.bq_e2e_scratch.notes` (id INT64, note STRING)\"}",
+      "disk_mb": null,
+      "error": null,
+      "exit": "ok",
+      "flags": [
+        "replace",
+        "rows_affected_unreported"
+      ],
+      "latency_ms": 135.188,
+      "op_class": "destructive",
+      "read_targets": [],
+      "result": {
+        "job_id": "624a406d-c97a-4345-b52d-cd9b6b2609af",
+        "state": "DONE",
+        "statement_type": "CREATE_TABLE",
+        "status": 200
+      },
+      "result_bytes": 109,
+      "result_hash": "112749d3a2cd835473f853189b44879039b0374a08fba3492841949ae1b0f5ff",
+      "rows_affected": null,
+      "rss_mb": 137.301,
+      "schema_version": 1,
+      "seq": 46,
+      "target": "\"alkera-local\".\"bq_e2e_scratch\".\"notes\"",
+      "targets": [
+        "\"alkera-local\".\"bq_e2e_scratch\".\"notes\""
+      ],
+      "tool": "bigquery.statement",
+      "transport": "native",
+      "vts": "2026-03-02T00:00:00Z",
+      "wts": 1791366418147
+    },
+    {
+      "args": {
+        "method": "POST",
+        "path": "/bigquery/v2/projects/alkera-local/jobs",
+        "query": "prettyPrint=false",
+        "sql": "INSERT INTO `alkera-local.bq_e2e_scratch.notes` (id, note) VALUES (1, 'alpha'), (2, 'beta')"
+      },
+      "args_hash": "8e17421f49b6fc10126861b6f5687e055fa9708fb6f7d47d9facbcafc08fbd5a",
+      "args_summary": "{\"method\":\"POST\",\"path\":\"/bigquery/v2/projects/alkera-local/jobs\",\"query\":\"prettyPrint=false\",\"sql\":\"INSERT INTO `alkera-local.bq_e2e_scratch.notes` (id, note) VALUES (1, 'alpha'), (2, 'beta')\"}",
+      "disk_mb": null,
+      "error": null,
+      "exit": "ok",
+      "flags": [
+        "rows_affected_unreported"
+      ],
+      "latency_ms": 109.976,
+      "op_class": "write",
+      "read_targets": [],
+      "result": {
+        "job_id": "a0e44238-f648-4034-86f7-78cfd1563d4f",
+        "state": "DONE",
+        "statement_type": "INSERT",
+        "status": 200
+      },
+      "result_bytes": 103,
+      "result_hash": "0cbd41fe31d3e34ad1ed51edf57b13a0087b3f6d0646cafdbf03a41c626fd7d5",
+      "rows_affected": null,
+      "rss_mb": 137.285,
+      "schema_version": 1,
+      "seq": 48,
+      "target": "\"alkera-local\".\"bq_e2e_scratch\".\"notes\"",
+      "targets": [
+        "\"alkera-local\".\"bq_e2e_scratch\".\"notes\""
+      ],
+      "tool": "bigquery.statement",
+      "transport": "native",
+      "vts": "2026-03-02T00:00:00Z",
+      "wts": 1791366418495
+    },
+    {
+      "args": {
+        "method": "POST",
+        "path": "/bigquery/v2/projects/alkera-local/jobs",
+        "query": "prettyPrint=false",
+        "sql": "SELEC 1"
+      },
+      "args_hash": "efc9928431df72ec58b557faeebc2c702e872385c623c3d09ba120e47df5f4a9",
+      "args_summary": "{\"method\":\"POST\",\"path\":\"/bigquery/v2/projects/alkera-local/jobs\",\"query\":\"prettyPrint=false\",\"sql\":\"SELEC 1\"}",
+      "disk_mb": null,
+      "error": {
+        "code": "invalidQuery",
+        "message": "failed to parse statements: failed to parse statement: Syntax error: Unexpected identifier \"SELEC\" [at 1:1]"
+      },
+      "exit": "error",
+      "flags": [
+        "outside_tool_surface",
+        "unparsed_statement"
+      ],
+      "latency_ms": 84.864,
+      "op_class": "exec",
+      "read_targets": [],
+      "result": {
+        "job_id": "f890033f-00d5-4deb-af04-274d4b051d78",
+        "state": "DONE",
+        "statement_type": "SELECT",
+        "status": 200
+      },
+      "result_bytes": 103,
+      "result_hash": "aa3720405ef4bf21b90581e5c400d32bf6b73d3f45c2156cf0e43f59ee015c4a",
+      "rows_affected": null,
+      "rss_mb": 137.289,
+      "schema_version": 1,
+      "seq": 56,
+      "target": null,
+      "targets": [],
+      "tool": "bigquery.statement",
+      "transport": "native",
+      "vts": "2026-03-02T00:00:00Z",
+      "wts": 1791366419456
+    }
+  ],
+  "box_profile": "world_dbt:\n  outputs:\n    dev:\n      path: /world/var/warehouse/warehouse.duckdb\n      threads: 1\n      type: duckdb\n  target: dev\n",
+  "checks": [
+    {
+      "check": "spike: the pinned emulator image is multi-arch (amd64 + arm64 in its index)",
+      "detail": [
+        "linux/amd64",
+        "linux/arm64"
+      ],
+      "result": "PASS"
+    },
+    {
+      "check": "compose profile `bigquery` starts the engine beside native-services",
+      "detail": [
+        "bigquery",
+        "episode",
+        "minio",
+        "native-services",
+        "postgres"
+      ],
+      "result": "PASS"
+    },
+    {
+      "check": "native-services seeded the emulator before binding (one seed line)",
+      "detail": ": \"alkera-local\", \"rows\": 140480, \"seconds\": 18.243, \"seed\": \"bigquery\", \"tables\": {\"raw.customers\": 339, \"raw.order_lines\": 29200, \"raw.orders\": 17768, \"raw.products\": 31, \"staging.stg_customers\": 309, \"staging.stg_order_lines\": 29200, \"staging.stg_orders\": 16825, \"staging.stg_products\": 25, \"warehouse.dim_customer\": 309, \"warehouse.dim_date\": 424, \"warehouse.dim_product\": 25, \"warehouse.fct_order_lines\": 29200, \"warehouse.fct_orders\": 16825}, \"upstream\": \"http://bigquery:9050\", \"wait_s\": 0.09}\nalkera native services  bind=0.0.0.0  audit=/audit  world=/world\nservice       alias                     port  state\nmetabase      metabase.internal         3000  module\nloki          loki.internal             3100  module\nairbyte       airbyte.internal          8001  module\njira          jira.internal             8080  module\nslack         slack.internal            8081  module\ndeploy        deploy.internal           8085  module\nconfluence    confluence.internal       8090  module\nbigquery      bigquery.internal         9050  module\nprometheus    prometheus.internal       9090  module\nalertmanager  alertmanager.internal     9093  module\nminio-audit   native-services.internal  8110  receiver (not a destination: the stack dials it, not the episode)\nsched         sched.internal            8120  scheduler\nloaded=12 missing=0 port_disagreements=0\nALKERA_GATEWAY_CONFIG=/service-state/native_gateway.json\nALKERA_NATIVE_AUDIT=/audit/actions.jsonl\nALKERA_SCHEDULER=/world/var/sched/state.json\n",
+      "result": "PASS"
+    },
+    {
+      "check": "seed: every relation's row count equals the world's DuckDB",
+      "detail": {
+        "seed": {
+          "raw.customers": 339,
+          "raw.order_lines": 29200,
+          "raw.orders": 17768,
+          "raw.products": 31,
+          "staging.stg_customers": 309,
+          "staging.stg_order_lines": 29200,
+          "staging.stg_orders": 16825,
+          "staging.stg_products": 25,
+          "warehouse.dim_customer": 309,
+          "warehouse.dim_date": 424,
+          "warehouse.dim_product": 25,
+          "warehouse.fct_order_lines": 29200,
+          "warehouse.fct_orders": 16825
+        },
+        "world": {
+          "raw.customers": 339,
+          "raw.order_lines": 29200,
+          "raw.orders": 17768,
+          "raw.products": 31,
+          "staging.stg_customers": 309,
+          "staging.stg_order_lines": 29200,
+          "staging.stg_orders": 16825,
+          "staging.stg_products": 25,
+          "warehouse.dim_customer": 309,
+          "warehouse.dim_date": 424,
+          "warehouse.dim_product": 25,
+          "warehouse.fct_order_lines": 29200,
+          "warehouse.fct_orders": 16825
+        }
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "seed: within the healthcheck window (< 45 s)",
+      "detail": {
+        "files": [
+          "warehouse.duckdb"
+        ],
+        "project": "alkera-local",
+        "rows": 140480,
+        "seconds": 18.243,
+        "seed": "bigquery",
+        "tables": {
+          "raw.customers": 339,
+          "raw.order_lines": 29200,
+          "raw.orders": 17768,
+          "raw.products": 31,
+          "staging.stg_customers": 309,
+          "staging.stg_order_lines": 29200,
+          "staging.stg_orders": 16825,
+          "staging.stg_products": 25,
+          "warehouse.dim_customer": 309,
+          "warehouse.dim_date": 424,
+          "warehouse.dim_product": 25,
+          "warehouse.fct_order_lines": 29200,
+          "warehouse.fct_orders": 16825
+        },
+        "upstream": "http://bigquery:9050",
+        "wait_s": 0.09
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "seed: writes no audit row",
+      "detail": [],
+      "result": "PASS"
+    },
+    {
+      "check": "isolation: native-services is on backend_net and episode_net",
+      "detail": [
+        "alkera-tour-de-gcp-1791366351_backend_net",
+        "alkera-tour-de-gcp-1791366351_episode_net"
+      ],
+      "result": "PASS"
+    },
+    {
+      "check": "isolation: the episode is on episode_net only",
+      "detail": [
+        "alkera-tour-de-gcp-1791366351_episode_net"
+      ],
+      "result": "PASS"
+    },
+    {
+      "check": "isolation: the episode cannot resolve the engine, only the proxy",
+      "detail": {
+        "bigquery": "",
+        "bigquery.internal": "10.210.4.3      bigquery.internal"
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "client probe ran inside the episode",
+      "detail": ": 31, \"staging.stg_customers\": 309, \"staging.stg_order_lines\": 29200, \"staging.stg_orders\": 16825, \"staging.stg_products\": 25, \"warehouse.dim_customer\": 309, \"warehouse.dim_date\": 424, \"warehouse.dim_product\": 25, \"warehouse.fct_order_lines\": 29200, \"warehouse.fct_orders\": 16825}, \"net_revenue_feb_2026\": \"2361224\", \"select_cost_fields\": {\"total_bytes_processed\": null, \"total_bytes_billed\": null, \"statement_type\": \"SELECT\"}, \"write_types\": [\"CREATE_SCHEMA\", \"CREATE_TABLE\", \"INSERT\"], \"read_back\": [[\"1\", \"alpha\"], [\"2\", \"beta\"]], \"dry_run\": {\"code\": 501, \"reason\": \"notImplemented\", \"message\": \"501 POST http://bigquery.internal:9050/bigquery/v2/projects/alkera-local/jobs?prettyPrint=false: bigquery cost estimation is not modelled\\n\\nLocation: None\\nJob ID: d2e57bb4-8203-4228-8765-838daa9921c7\\n\", \"seconds\": 0.05}, \"legacy_sql\": {\"code\": 501, \"reason\": \"notImplemented\", \"message\": \"501 POST http://bigquery.internal:9050/bigquery/v2/projects/alkera-local/jobs?prettyPrint=false: BigQuery feature not available in this environment: legacy SQL (useLegacySql=true); send GoogleSQL with useLegacySql=false\\n\\nLocation: None\\nJob ID: f1208cb5-37d2-44e7-ad53-44cb4e98f42d\\n\", \"seconds\": 0.05}, \"alter\": {\"code\": 501, \"reason\": \"notImplemented\", \"message\": \"501 POST http://bigquery.internal:9050/bigquery/v2/projects/alkera-local/jobs?prettyPrint=false: BigQuery feature not available in this environment: ALTER statements (the engine acknowledges them and changes nothing); create the table again instead\\n\\nLocation: None\\nJob ID: 2aaef062-d963-4468-b8fe-4724b3aa6b60\\n\", \"seconds\": 0.05}, \"bad_sql\": {\"code\": 400, \"reason\": \"invalidQuery\", \"message\": \"400 failed to parse statements: failed to parse statement: Syntax error: Unexpected identifier \\\"SELEC\\\" [at 1:1]; message: failed to parse statements: failed to parse statement: Syntax error: Unexpected identifier \\\"SELEC\\\" [at 1:1], reason: invalidQuery\\n\\nLocation: None\\nJob ID: f890033f-00d5-4deb-af04-274d4b051d78\\n\", \"seconds\": 0.14}}\n",
+      "result": "PASS"
+    },
+    {
+      "check": "discovery: the episode carries BIGQUERY_API_URL and BIGQUERY_PROJECT",
+      "detail": {
+        "BIGQUERY_API_URL": "http://bigquery.internal:9050",
+        "BIGQUERY_PROJECT": "alkera-local",
+        "REQUESTS_CA_BUNDLE": "/etc/alkera/snowflake-tls/bundle.pem"
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "client: the datasets are the world's schemas (anonymous ones hidden)",
+      "detail": [
+        "raw",
+        "staging",
+        "warehouse"
+      ],
+      "result": "PASS"
+    },
+    {
+      "check": "client: every table's COUNT(*) equals the world's DuckDB",
+      "detail": {
+        "got": {
+          "raw.customers": 339,
+          "raw.order_lines": 29200,
+          "raw.orders": 17768,
+          "raw.products": 31,
+          "staging.stg_customers": 309,
+          "staging.stg_order_lines": 29200,
+          "staging.stg_orders": 16825,
+          "staging.stg_products": 25,
+          "warehouse.dim_customer": 309,
+          "warehouse.dim_date": 424,
+          "warehouse.dim_product": 25,
+          "warehouse.fct_order_lines": 29200,
+          "warehouse.fct_orders": 16825
+        }
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "client: February 2026 Net Revenue equals the world's DuckDB",
+      "detail": {
+        "expected": "2361224.00",
+        "got": "2361224"
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "client: no cost figure reaches the client",
+      "detail": {
+        "statement_type": "SELECT",
+        "total_bytes_billed": null,
+        "total_bytes_processed": null
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "client: statement types are the statements' own",
+      "detail": [
+        "CREATE_SCHEMA",
+        "CREATE_TABLE",
+        "INSERT"
+      ],
+      "result": "PASS"
+    },
+    {
+      "check": "client: scratch INSERT reads back",
+      "detail": [
+        [
+          "1",
+          "alpha"
+        ],
+        [
+          "2",
+          "beta"
+        ]
+      ],
+      "result": "PASS"
+    },
+    {
+      "check": "fence: dry_run refused by name, at once (501)",
+      "detail": {
+        "code": 501,
+        "message": "501 POST http://bigquery.internal:9050/bigquery/v2/projects/alkera-local/jobs?prettyPrint=false: bigquery cost estimation is not modelled\n\nLocation: None\nJob ID: d2e57bb4-8203-4228-8765-838daa9921c7\n",
+        "reason": "notImplemented",
+        "seconds": 0.05
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "fence: legacy_sql refused by name, at once (501)",
+      "detail": {
+        "code": 501,
+        "message": "501 POST http://bigquery.internal:9050/bigquery/v2/projects/alkera-local/jobs?prettyPrint=false: BigQuery feature not available in this environment: legacy SQL (useLegacySql=true); send GoogleSQL with useLegacySql=false\n\nLocation: None\nJob ID: f1208cb5-37d2-44e7-ad53-44cb4e98f42d\n",
+        "reason": "notImplemented",
+        "seconds": 0.05
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "fence: alter refused by name, at once (501)",
+      "detail": {
+        "code": 501,
+        "message": "501 POST http://bigquery.internal:9050/bigquery/v2/projects/alkera-local/jobs?prettyPrint=false: BigQuery feature not available in this environment: ALTER statements (the engine acknowledges them and changes nothing); create the table again instead\n\nLocation: None\nJob ID: 2aaef062-d963-4468-b8fe-4724b3aa6b60\n",
+        "reason": "notImplemented",
+        "seconds": 0.05
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "fence: bad_sql refused by name, at once (400)",
+      "detail": {
+        "code": 400,
+        "message": "400 failed to parse statements: failed to parse statement: Syntax error: Unexpected identifier \"SELEC\" [at 1:1]; message: failed to parse statements: failed to parse statement: Syntax error: Unexpected identifier \"SELEC\" [at 1:1], reason: invalidQuery\n\nLocation: None\nJob ID: f890033f-00d5-4deb-af04-274d4b051d78\n",
+        "reason": "invalidQuery",
+        "seconds": 0.14
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "audit: one bigquery.statement row per probe statement, in order",
+      "detail": {
+        "sent": 18,
+        "statement_rows": 19
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "test_remote_write_leaves_world_fingerprint_unchanged: the remote writes left write-class rows and the world's fingerprint did not move",
+      "detail": {
+        "after": "401383aad19e4e6d404961608ec2f38fa51142a85afb637812e4707994bded37",
+        "before": "401383aad19e4e6d404961608ec2f38fa51142a85afb637812e4707994bded37",
+        "write_rows": 3
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "audit: the refused requests are `bigquery.refused` rows, never statements",
+      "detail": [
+        {
+          "feature": "dry_run",
+          "method": "POST",
+          "path": "/bigquery/v2/projects/alkera-local/jobs",
+          "query": "prettyPrint=false",
+          "sql": "SELECT 1"
+        },
+        {
+          "feature": "legacy_sql",
+          "method": "POST",
+          "path": "/bigquery/v2/projects/alkera-local/jobs",
+          "query": "prettyPrint=false",
+          "sql": "SELECT 1"
+        },
+        {
+          "feature": "alter",
+          "method": "POST",
+          "path": "/bigquery/v2/projects/alkera-local/jobs",
+          "query": "prettyPrint=false",
+          "sql": "ALTER TABLE `alkera-local.bq_e2e_scratch.notes` ADD COLUMN extra STRING"
+        }
+      ],
+      "result": "PASS"
+    },
+    {
+      "check": "dbt-bigquery is not installed (a bigquery dbt_target is refused by name)",
+      "detail": "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\nModuleNotFoundError: No module named 'dbt.adapters.bigquery'\n",
+      "result": "PASS"
+    },
+    {
+      "check": "role boundary: no pandas, pyarrow, nbformat or jupyter in the de image",
+      "detail": {
+        "jupyter": false,
+        "nbformat": false,
+        "pandas": false,
+        "pyarrow": false
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "box profile (~/.dbt) is the world's own: DuckDB dev, no bigquery target",
+      "detail": "world_dbt:\n  outputs:\n    dev:\n      path: /world/var/warehouse/warehouse.duckdb\n      threads: 1\n      type: duckdb\n  target: dev\n",
+      "result": "PASS"
+    },
+    {
+      "check": "audit: statements = audit rows - every engine job is exactly one bigquery.statement row with its job id and text, and the reverse",
+      "detail": {
+        "only_in_engine": [],
+        "only_in_rows": [],
+        "text_differs": []
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "audit: rows carry exactly the 9.2.2 keys",
+      "detail": [],
+      "result": "PASS"
+    },
+    {
+      "check": "audit: seq is contiguous across writers",
+      "detail": [
+        52,
+        53,
+        54,
+        55,
+        56
+      ],
+      "result": "PASS"
+    },
+    {
+      "check": "the profile allows bigquery.internal:9050",
+      "detail": [
+        "airbyte.internal:8001",
+        "alertmanager.internal:9093",
+        "bigquery.internal:9050",
+        "confluence.internal:8090",
+        "deploy.internal:8085",
+        "jira.internal:8080",
+        "loki.internal:3100",
+        "metabase.internal:3000",
+        "minio.internal:9000",
+        "postgres.internal:5432",
+        "prometheus.internal:9090",
+        "sched.internal:8120",
+        "slack.internal:8081"
+      ],
+      "result": "PASS"
+    },
+    {
+      "check": "destinations.jsonl counts bigquery.internal:9050 after teardown",
+      "detail": [
+        {
+          "count": 1,
+          "first_ts": "2026-10-07T09:46:49Z",
+          "host": "bigquery.internal",
+          "last_ts": "2026-10-07T09:46:49Z",
+          "port": 9050
+        }
+      ],
+      "result": "PASS"
+    },
+    {
+      "check": "no destination outside the profile's allowlist",
+      "detail": [],
+      "result": "PASS"
+    },
+    {
+      "check": "the world's warehouse never changed (after every write, dbt and teardown)",
+      "detail": {
+        "after_down": "d79b90327f2bedea1d63f39d75ca3418af2a0e8610822a6709673f6673627d31",
+        "before_up": "d79b90327f2bedea1d63f39d75ca3418af2a0e8610822a6709673f6673627d31"
+      },
+      "result": "PASS"
+    }
+  ],
+  "compose_profiles": "bigquery",
+  "counts": {
+    "engine_jobs": 19,
+    "rows_total": 56,
+    "statement_rows": 19,
+    "statement_rows_with_job": 19,
+    "statement_rows_without_job": 0
+  },
+  "destinations": [
+    {
+      "count": 0,
+      "first_ts": null,
+      "host": "metabase.internal",
+      "last_ts": null,
+      "port": 3000
+    },
+    {
+      "count": 0,
+      "first_ts": null,
+      "host": "loki.internal",
+      "last_ts": null,
+      "port": 3100
+    },
+    {
+      "count": 0,
+      "first_ts": null,
+      "host": "airbyte.internal",
+      "last_ts": null,
+      "port": 8001
+    },
+    {
+      "count": 0,
+      "first_ts": null,
+      "host": "jira.internal",
+      "last_ts": null,
+      "port": 8080
+    },
+    {
+      "count": 0,
+      "first_ts": null,
+      "host": "slack.internal",
+      "last_ts": null,
+      "port": 8081
+    },
+    {
+      "count": 0,
+      "first_ts": null,
+      "host": "deploy.internal",
+      "last_ts": null,
+      "port": 8085
+    },
+    {
+      "count": 0,
+      "first_ts": null,
+      "host": "confluence.internal",
+      "last_ts": null,
+      "port": 8090
+    },
+    {
+      "count": 0,
+      "first_ts": null,
+      "host": "native-services.internal",
+      "last_ts": null,
+      "port": 8099
+    },
+    {
+      "count": 0,
+      "first_ts": null,
+      "host": "sched.internal",
+      "last_ts": null,
+      "port": 8120
+    },
+    {
+      "count": 1,
+      "first_ts": "2026-10-07T09:46:49Z",
+      "host": "bigquery.internal",
+      "last_ts": "2026-10-07T09:46:49Z",
+      "port": 9050
+    },
+    {
+      "count": 0,
+      "first_ts": null,
+      "host": "prometheus.internal",
+      "last_ts": null,
+      "port": 9090
+    },
+    {
+      "count": 0,
+      "first_ts": null,
+      "host": "alertmanager.internal",
+      "last_ts": null,
+      "port": 9093
+    }
+  ],
+  "expected": {
+    "net_revenue_feb_2026": "2361224.00",
+    "tables": {
+      "raw.customers": 339,
+      "raw.order_lines": 29200,
+      "raw.orders": 17768,
+      "raw.products": 31,
+      "staging.stg_customers": 309,
+      "staging.stg_order_lines": 29200,
+      "staging.stg_orders": 16825,
+      "staging.stg_products": 25,
+      "warehouse.dim_customer": 309,
+      "warehouse.dim_date": 424,
+      "warehouse.dim_product": 25,
+      "warehouse.fct_order_lines": 29200,
+      "warehouse.fct_orders": 16825
+    }
+  },
+  "image": "alkera-episode:w1-bigquery",
+  "networks": {
+    "episode": [
+      "alkera-tour-de-gcp-1791366351_episode_net"
+    ],
+    "native-services": [
+      "alkera-tour-de-gcp-1791366351_backend_net",
+      "alkera-tour-de-gcp-1791366351_episode_net"
+    ]
+  },
+  "overlay": "# Generated per rollout by tasks/harness/container_episode.py. Do not edit:\n# it is rewritten on every `up()` and is kept here as the record of which host\n# files this episode's container could see.\n#\n# Three things compose.native.yml cannot say statically:\n#\n#   1. THE WAREHOUSE FILES. Their names and their number come from the world\n#      this rollout built (1 here), read by the same rule\n#      world/world/fingerprint.py hashes by. Each is bound as a FILE at its own\n#      world-relative path, so `/world/var/warehouse` is a directory of\n#      the CONTAINER's - and a `cp` beside the warehouse, which is what two of\n#      five GT001 native subjects did before deleting rows, lands there instead\n#      of in the world.\n#   2. THE SHIM PATH, and the CONTEXT VARIANT. The shims go in front of the\n#      image's own PATH, which is read off the image so /opt/toolbelt/bin\n#      survives; `ALKERA_TASK_VARIANT` appears only when this world was built\n#      from an arm, because an empty value is still a value to\n#      `taskspec.requested_variant`.\n#   3. THE WORLD'S CLOCK. `ALKERA_VIRTUAL_TIME` is this world's `vnow` as the\n#      episode starts, so the rows the shims and the notebook kernel write\n#      carry the world's time and not GatewayConfig's literal: `var/sched`,\n#      where the host topology reads it, is not mounted here (P7).\n#\n# NOT here, and it was here for one afternoon: published host ports. Both\n# compose networks are `internal: true`, and Docker cannot publish a host port\n# off an internal network - the bindings appear in `HostConfig.PortBindings`\n# and nothing ever listens. Measured: GT004's first container rollout failed\n# its surface gate with `WinError 10061` on all nine services while\n# `docker inspect` reported all nine mappings. The harness reaches the services\n# through `container_episode.ServiceGate` instead, one `docker exec` per\n# connection, and `published_host_ports: {}` stays true for every container\n# in the project.\nservices:\n  episode:\n    # ENVIRONMENT PROFILE: the complete mapping, not a merge\n    # (container_episode.profiled_environment).\n    environment: !override\n      PATH: \"/opt/alkera/shims:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/toolbelt/bin\"\n      ALKERA_SHIM_BIN: \"/opt/alkera/shims\"\n      ALKERA_SHIM_WATCH: \"/world/var/warehouse/warehouse.duckdb\"\n      ALKERA_SHIM_WORKSPACE: \"/workspace\"\n      ALKERA_WORKSPACE: \"/workspace\"\n      ALKERA_VIRTUAL_TIME: \"2026-03-02T00:00:00Z\"\n      # the static table (compose.yml + compose.native.yml) minus what the\n      # profile excludes: AIRFLOW_API_URL, AIRFLOW_PASSWORD, AIRFLOW_USER,\n      # PGDATABASE, PGHOST, PGPASSWORD, PGPORT, PGUSER, SNOWFLAKE_ACCOUNT,\n      # SNOWFLAKE_HOST, SNOWFLAKE_PASSWORD, SNOWFLAKE_USER\n      ALKERA_POSTGRES_DSN: \"postgresql://episode:episode-local@postgres/episode\"\n      ALKERA_BACKEND: \"${ALKERA_BACKEND:-postgres}\"\n      ALKERA_WAREHOUSES: \"${ALKERA_WAREHOUSES:-}\"\n      AIRBYTE_API_KEY: \"alkera-local-dev\"\n      AIRBYTE_URL: \"http://airbyte.internal:8001\"\n      ALERTMANAGER_URL: \"http://alertmanager.internal:9093\"\n      AWS_ACCESS_KEY_ID: \"alkera-local-dev\"\n      AWS_DEFAULT_REGION: \"us-east-1\"\n      AWS_ENDPOINT_URL: \"http://minio.internal:9000\"\n      AWS_SECRET_ACCESS_KEY: \"alkera-local-dev\"\n      CONFLUENCE_API_TOKEN: \"alkera-local-dev\"\n      CONFLUENCE_URL: \"http://confluence.internal:8090\"\n      CONFLUENCE_USER: \"alkera-local-dev\"\n      DBT_PROFILES_DIR: \"/root/.dbt\"\n      DEPLOY_API_TOKEN: \"alkera-local-dev\"\n      DEPLOY_URL: \"http://deploy.internal:8085\"\n      JIRA_API_TOKEN: \"alkera-local-dev\"\n      JIRA_URL: \"http://jira.internal:8080\"\n      JIRA_USER: \"alkera-local-dev\"\n      LOKI_ADDR: \"http://loki.internal:3100\"\n      LOKI_URL: \"http://loki.internal:3100\"\n      METABASE_API_KEY: \"alkera-local-dev\"\n      METABASE_URL: \"http://metabase.internal:3000\"\n      PROMETHEUS_URL: \"http://prometheus.internal:9090\"\n      SCHED_URL: \"http://sched.internal:8120\"\n      SLACK_BASE_URL: \"http://slack.internal:8081\"\n      SLACK_BOT_TOKEN: \"alkera-local-dev\"\n      ALKERA_NATIVE_AUDIT: \"/audit/actions.jsonl\"\n      HOME: \"/root\"\n      # what the profile plugs\n      BIGQUERY_API_URL: \"http://bigquery.internal:9050\"\n      BIGQUERY_PROJECT: \"alkera-local\"\n    volumes:\n      - \"/home/ubuntu/alkera-rollouts/w1-bigquery/e2e/world/var/warehouse/warehouse.duckdb:/world/var/warehouse/warehouse.duckdb\"\n\n# ENVIRONMENT PROFILE de/gcp (plugs: {}).\n# native-services runs with --profile (ALKERA_NATIVE_PROFILE_ARGS), and the\n# aliases below REPLACE compose.native.yml's: an excluded service has no name\n# on episode_net at all.\n  native-services:\n    networks:\n      episode_net:\n        aliases: !override\n          - native-services.internal\n          - airbyte.internal\n          - metabase.internal\n          - prometheus.internal\n          - alertmanager.internal\n          - loki.internal\n          - deploy.internal\n          - jira.internal\n          - slack.internal\n          - confluence.internal\n          - bigquery.internal\n          - sched.internal\n      backend_net: {}\n    environment:\n      ALKERA_BIGQUERY_UPSTREAM: http://bigquery:9050\n    depends_on:\n      bigquery:\n        condition: service_started\n\n# HOSTED ENGINE bigquery: compose.yml's `bigquery` service (compose profile\n# `bigquery`, enabled by compose_env), on backend_net only. The episode reaches\n# it through the audited proxy in native-services, bigquery.internal:9050.\n  bigquery:\n    command: [\"--project=alkera-local\", \"--port=9050\", \"--grpc-port=9060\", \"--database=/bigquery-data/emulator.db\"]\n    networks:\n      backend_net:\n        aliases: !reset []\n",
+  "probe": {
+    "alter": {
+      "code": 501,
+      "message": "501 POST http://bigquery.internal:9050/bigquery/v2/projects/alkera-local/jobs?prettyPrint=false: BigQuery feature not available in this environment: ALTER statements (the engine acknowledges them and changes nothing); create the table again instead\n\nLocation: None\nJob ID: 2aaef062-d963-4468-b8fe-4724b3aa6b60\n",
+      "reason": "notImplemented",
+      "seconds": 0.05
+    },
+    "bad_sql": {
+      "code": 400,
+      "message": "400 failed to parse statements: failed to parse statement: Syntax error: Unexpected identifier \"SELEC\" [at 1:1]; message: failed to parse statements: failed to parse statement: Syntax error: Unexpected identifier \"SELEC\" [at 1:1], reason: invalidQuery\n\nLocation: None\nJob ID: f890033f-00d5-4deb-af04-274d4b051d78\n",
+      "reason": "invalidQuery",
+      "seconds": 0.14
+    },
+    "counts": {
+      "raw.customers": 339,
+      "raw.order_lines": 29200,
+      "raw.orders": 17768,
+      "raw.products": 31,
+      "staging.stg_customers": 309,
+      "staging.stg_order_lines": 29200,
+      "staging.stg_orders": 16825,
+      "staging.stg_products": 25,
+      "warehouse.dim_customer": 309,
+      "warehouse.dim_date": 424,
+      "warehouse.dim_product": 25,
+      "warehouse.fct_order_lines": 29200,
+      "warehouse.fct_orders": 16825
+    },
+    "datasets": [
+      "raw",
+      "staging",
+      "warehouse"
+    ],
+    "dry_run": {
+      "code": 501,
+      "message": "501 POST http://bigquery.internal:9050/bigquery/v2/projects/alkera-local/jobs?prettyPrint=false: bigquery cost estimation is not modelled\n\nLocation: None\nJob ID: d2e57bb4-8203-4228-8765-838daa9921c7\n",
+      "reason": "notImplemented",
+      "seconds": 0.05
+    },
+    "env": {
+      "BIGQUERY_API_URL": "http://bigquery.internal:9050",
+      "BIGQUERY_PROJECT": "alkera-local",
+      "REQUESTS_CA_BUNDLE": "/etc/alkera/snowflake-tls/bundle.pem"
+    },
+    "legacy_sql": {
+      "code": 501,
+      "message": "501 POST http://bigquery.internal:9050/bigquery/v2/projects/alkera-local/jobs?prettyPrint=false: BigQuery feature not available in this environment: legacy SQL (useLegacySql=true); send GoogleSQL with useLegacySql=false\n\nLocation: None\nJob ID: f1208cb5-37d2-44e7-ad53-44cb4e98f42d\n",
+      "reason": "notImplemented",
+      "seconds": 0.05
+    },
+    "net_revenue_feb_2026": "2361224",
+    "read_back": [
+      [
+        "1",
+        "alpha"
+      ],
+      [
+        "2",
+        "beta"
+      ]
+    ],
+    "select_cost_fields": {
+      "statement_type": "SELECT",
+      "total_bytes_billed": null,
+      "total_bytes_processed": null
+    },
+    "statements": [
+      "SELECT COUNT(*) FROM `alkera-local.raw.customers`",
+      "SELECT COUNT(*) FROM `alkera-local.raw.order_lines`",
+      "SELECT COUNT(*) FROM `alkera-local.raw.orders`",
+      "SELECT COUNT(*) FROM `alkera-local.raw.products`",
+      "SELECT COUNT(*) FROM `alkera-local.staging.stg_customers`",
+      "SELECT COUNT(*) FROM `alkera-local.staging.stg_order_lines`",
+      "SELECT COUNT(*) FROM `alkera-local.staging.stg_orders`",
+      "SELECT COUNT(*) FROM `alkera-local.staging.stg_products`",
+      "SELECT COUNT(*) FROM `alkera-local.warehouse.dim_customer`",
+      "SELECT COUNT(*) FROM `alkera-local.warehouse.dim_date`",
+      "SELECT COUNT(*) FROM `alkera-local.warehouse.dim_product`",
+      "SELECT COUNT(*) FROM `alkera-local.warehouse.fct_order_lines`",
+      "SELECT COUNT(*) FROM `alkera-local.warehouse.fct_orders`",
+      "SELECT SUM(order_amount) FROM `alkera-local.warehouse.fct_orders` WHERE order_status = 'completed' AND order_date >= '2026-02-01' AND order_date < '2026-03-01'",
+      "CREATE SCHEMA IF NOT EXISTS `alkera-local`.bq_e2e_scratch",
+      "CREATE OR REPLACE TABLE `alkera-local.bq_e2e_scratch.notes` (id INT64, note STRING)",
+      "INSERT INTO `alkera-local.bq_e2e_scratch.notes` (id, note) VALUES (1, 'alpha'), (2, 'beta')",
+      "SELECT id, note FROM `alkera-local.bq_e2e_scratch.notes` ORDER BY id"
+    ],
+    "write_types": [
+      "CREATE_SCHEMA",
+      "CREATE_TABLE",
+      "INSERT"
+    ]
+  },
+  "profile": "de/gcp",
+  "resolve": {
+    "bigquery": "",
+    "bigquery.internal": "10.210.4.3      bigquery.internal"
+  },
+  "result": "PASS",
+  "revision": "aa6f27f6e743426e2bcd0acd46a2483ab2aa9bce",
+  "role_boundary": {
+    "jupyter": false,
+    "nbformat": false,
+    "pandas": false,
+    "pyarrow": false
+  },
+  "seed": {
+    "files": [
+      "warehouse.duckdb"
+    ],
+    "project": "alkera-local",
+    "rows": 140480,
+    "seconds": 18.243,
+    "seed": "bigquery",
+    "tables": {
+      "raw.customers": 339,
+      "raw.order_lines": 29200,
+      "raw.orders": 17768,
+      "raw.products": 31,
+      "staging.stg_customers": 309,
+      "staging.stg_order_lines": 29200,
+      "staging.stg_orders": 16825,
+      "staging.stg_products": 25,
+      "warehouse.dim_customer": 309,
+      "warehouse.dim_date": 424,
+      "warehouse.dim_product": 25,
+      "warehouse.fct_order_lines": 29200,
+      "warehouse.fct_orders": 16825
+    },
+    "upstream": "http://bigquery:9050",
+    "wait_s": 0.09
+  },
+  "services": [
+    "bigquery",
+    "episode",
+    "minio",
+    "native-services",
+    "postgres"
+  ],
+  "spike": {
+    "dbt_bigquery": {
+      "against_the_raw_emulator": "dbt debug passed; dbt run failed: every job reports statementType SELECT, so dbt read the destination table of a CREATE SCHEMA (`'NoneType' object has no attribute 'path'`)",
+      "credentials": "oauth-secrets with a static token is the one dbt-bigquery method that never calls Google; the proxy forwards no credential and the emulator checks none (`AnonymousCredentials` has no dbt equivalent)",
+      "custom_api_endpoint": true,
+      "profile": {
+        "api_endpoint": "<the proxy>",
+        "dataset": "dbt_spike",
+        "method": "oauth-secrets",
+        "project": "alkera-local",
+        "token": "<static, fake>",
+        "type": "bigquery"
+      },
+      "shipped": false,
+      "through_the_proxy": {
+        "debug": "pass",
+        "re-run (CREATE OR REPLACE)": "pass",
+        "run (table + view)": "pass",
+        "seed": "refused by name: load jobs (501 notImplemented)",
+        "show --inline": "pass",
+        "test (not_null, unique)": "pass"
+      },
+      "why_not_shipped": "dbt-bigquery requires google-cloud-bigquery[pandas] and nbformat: pandas, pyarrow, nbformat and jupyter_core's `jupyter` in the system Python, which gateway/docker/toolbelt_check.py forbids on a de image; the de/gcp image built with them failed that gate (role_forbidden_present). A decision about the gate, left to the coordinator; DBT_ADAPTERS keeps it refused by name."
+    },
+    "emulator_image": {
+      "image": "ghcr.io/goccy/bigquery-emulator:0.8.1@sha256:f4e428d265a93dc5ce36c294e1c584c7c9b384117d47ab8ddbb63d8d50b7f393",
+      "platforms": [
+        "linux/amd64",
+        "linux/arm64"
+      ],
+      "returncode": 0
+    }
+  },
+  "statements_without_job": [],
+  "summary": "34/34 PASS; seed 140480 rows in 18.243 s; {'statement_rows': 19, 'engine_jobs': 19, 'statement_rows_with_job': 19, 'statement_rows_without_job': 0, 'rows_total': 56}",
+  "tools": [
+    "bigquery.dataset_list",
+    "bigquery.query_results",
+    "bigquery.refused",
+    "bigquery.statement"
+  ],
+  "up_seconds": 50.3,
+  "warehouse_hash": {
+    "after_down": "d79b90327f2bedea1d63f39d75ca3418af2a0e8610822a6709673f6673627d31",
+    "before_up": "d79b90327f2bedea1d63f39d75ca3418af2a0e8610822a6709673f6673627d31"
+  },
+  "write_rows": [
+    {
+      "flags": [],
+      "op_class": "ddl",
+      "seq": 44,
+      "sql": "CREATE SCHEMA IF NOT EXISTS `alkera-local`.bq_e2e_scratch",
+      "targets": [
+        "\"alkera-local\".bq_e2e_scratch"
+      ]
+    },
+    {
+      "flags": [
+        "replace",
+        "rows_affected_unreported"
+      ],
+      "op_class": "destructive",
+      "seq": 46,
+      "sql": "CREATE OR REPLACE TABLE `alkera-local.bq_e2e_scratch.notes` (id INT64, note STRING)",
+      "targets": [
+        "\"alkera-local\".\"bq_e2e_scratch\".\"notes\""
+      ]
+    },
+    {
+      "flags": [
+        "rows_affected_unreported"
+      ],
+      "op_class": "write",
+      "seq": 48,
+      "sql": "INSERT INTO `alkera-local.bq_e2e_scratch.notes` (id, note) VALUES (1, 'alpha'), (2, 'beta')",
+      "targets": [
+        "\"alkera-local\".\"bq_e2e_scratch\".\"notes\""
+      ]
+    }
+  ]
+}
