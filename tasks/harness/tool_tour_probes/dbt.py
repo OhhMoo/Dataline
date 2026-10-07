@@ -52,7 +52,8 @@ PROBES = [
             "cd dbt_project\n"
             "dbt --quiet show --inline \"select sum(order_amount) as net_revenue from "
             "{{ ref('fct_orders') }} where order_status = 'completed'\" "
-            "--output json > /tmp/tour_dbt_show_ref.json\n"
+            "--output json > /tmp/tour_dbt_show_ref.json "
+            "|| { cat /tmp/tour_dbt_show_ref.json >&2; exit 1; }\n"
             "python3 -c 'import json; print(json.dumps({\"value\": "
             "json.load(open(\"/tmp/tour_dbt_show_ref.json\"))[\"show\"][0]"
             "[\"net_revenue\"]}))'\n"),
