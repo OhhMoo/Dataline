@@ -2168,7 +2168,6 @@ class NativeContainerEpisode:
         import agent_under_test as aut
 
         with_sched = "ops_sched" in profile.slots.get("orchestrator", ())
-        with_store = "object_store" in profile.slots
         vendors = [name for name in profile.services if name in aut.PLUG_SERVICES]
         aliases = ["native-services.internal",
                    *(f"{name}.internal" for name in profile.services
@@ -2198,7 +2197,7 @@ class NativeContainerEpisode:
                 f"      - {b.name}trust:{_backends().trust_dir(b)}\n" for b in trust)
         if engines:
             body += self.engine_overlay(engines)
-        if not with_store:
+        if self.minio_unstarted():
             body += f"""
 # NO OBJECT STORE: this profile plugs no object_store, so MinIO is NOT STARTED.
 # Its compose profile `{MINIO_COMPOSE_PROFILE}` is one nothing enables, and the
