@@ -92,13 +92,14 @@ _CATALOG = (
     Plug("redshift", "warehouse", "partial", surfaces=("redshift",),
          note="Postgres persona: PostgreSQL 17 seeded from the world behind an "
               "audited wire proxy at redshift.internal:5439 (sqlglot redshift->"
-              "postgres, checked; UNLOAD/COPY/SUPER/PartiQL/Spectrum refused by "
-              "name; DISTKEY/SORTKEY accepted with no effect); psql, "
+              "postgres, checked, default deny; UNLOAD/COPY/SUPER/PartiQL/Spectrum "
+              "refused by name; DISTKEY/SORTKEY accepted with no effect); psql, "
               "redshift_connector and dbt-redshift run against it in the "
               "container topology; clients only in images built with "
-              "--warehouse-clients redshift; no Redshift Data API, no svv_* "
-              "system views, psql \\d fails as against a real cluster; no task "
-              "uses it"),
+              "--warehouse-clients redshift; system views svv_tables, svv_columns "
+              "and pg_table_def only (no other svv_*/stl_*); no Redshift Data "
+              "API; psql \\d fails as against a real cluster; AVG(int) keeps "
+              "its fraction (Redshift truncates); no task uses it"),
     Plug("bigquery", "warehouse", "partial", surfaces=("bigquery",),
          note="goccy emulator v0.8.1 behind an audited proxy at "
               "bigquery.internal:9050 (native/services/bigquery.py), seeded from "

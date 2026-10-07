@@ -165,6 +165,111 @@ def test_backslash_escapes_are_redshifts():
     # the Postgres side gets a standard string with the same value
     assert translate(r"SELECT 'a\nb'") == "SELECT 'a\nb'"
     assert translate(r"SELECT 'c:\\dir'") == r"SELECT 'c:\dir'"
+    # an unknown escape drops its backslash: LIKE 'pg\_%' is LIKE 'pg_%' there
+    assert translate(r"SELECT 'a\_b'") == "SELECT 'a_b'"
+    assert translate(r"SELECT 'a\vb'") == "SELECT 'avb'"       # no \v in 8.0
+    assert translate(r"SELECT x FROM t WHERE y LIKE 'pg\_%'") == \
+        "SELECT x FROM t WHERE y LIKE 'pg_%'"
+    # octal and hex escapes are refused, not guessed
+    assert refused(r"SELECT 'x\101'") == "an octal or hex escape in a string literal"
+    assert refused(r"SELECT 'x\x41'") == "an octal or hex escape in a string literal"
+
+
+def test_untokenizable_text_is_refused_not_passed_through():
+    # Redshift reads 'a\' as an unterminated string; Postgres (standard
+    # strings) would end it at the quote and run the COPY after it
+    with pytest.raises(Unsupported) as raised:
+        translate("SELECT 'a\\'; COPY t FROM STDIN")
+    assert raised.value.sqlstate == "42601"
+    assert str(raised.value).startswith("syntax error (read as Redshift SQL): ")
+    # and a text sqlglot cannot parse is a syntax error, not the server's to read
+    with pytest.raises(redshift_sql.Unparsable):
+        translate("SELECT a AS b FROM t WHERE")
+    # a nested comment is read as Postgres reads it: the COPY after it is seen
+    assert refused("/* a /* nested */ comment */ COPY t FROM STDIN") == "COPY FROM STDIN"
+
+
+def test_settings_that_change_how_text_is_read_are_refused_wherever_named():
+    for sql in ("SET standard_conforming_strings = off",
+                "SET SESSION backslash_quote TO on",
+                "SELECT set_config('standard_conforming_strings', 'off', false)",
+                "ALTER ROLE alkera SET standard_conforming_strings = off",
+                "ALTER DATABASE dev SET backslash_quote = on"):
+        assert refused(sql).startswith("SET "), sql
+    for sql in ("SET client_encoding TO 'SJIS'", "SET NAMES 'BIG5'",
+                "SELECT set_config('client_encoding', 'SJIS', false)",
+                "ALTER ROLE alkera SET client_encoding = 'SJIS'"):
+        assert refused(sql) == "a client_encoding other than UTF8", sql
+    assert translate("SET client_encoding TO 'UTF8'") == "SET client_encoding TO 'UTF8'"
+    assert translate("SELECT current_setting('client_encoding')") == \
+        "SELECT current_setting('client_encoding')"
+
+
+def test_startup_parameters_are_filtered_like_set():
+    keep = {"user": "alkera", "database": "dev"}
+    assert redshift_sql.startup_parameters(keep) == keep
+    out = redshift_sql.startup_parameters(
+        {**keep, "options": "-c query_group=etl --search_path=warehouse -cdatestyle=iso"})
+    assert out["options"] == "-c search_path=warehouse -c datestyle=iso"
+    assert "options" not in redshift_sql.startup_parameters({**keep, "options": "-c auto_mv=1"})
+    for options, feature in (("-c standard_conforming_strings=off",
+                              "SET standard_conforming_strings"),
+                             ("--backslash-quote=on", "SET backslash_quote"),
+                             ("-c client_encoding=SJIS", "a client_encoding other than UTF8"),
+                             ("-d 5", "startup option '-d'")):
+        with pytest.raises(Unsupported) as raised:
+            redshift_sql.startup_parameters({**keep, "options": options})
+        assert raised.value.feature == feature
+    with pytest.raises(Unsupported):
+        redshift_sql.startup_parameters({**keep, "client_encoding": "SJIS"})
+
+
+def test_unparsed_commands_default_deny():
+    # through as written: no SQL of their own to translate
+    for sql in ("SHOW search_path", "VACUUM warehouse.fct_orders", "CALL p(1)", "LOCK t",
+                "FETCH NEXT FROM c", "EXECUTE p(1)", "RESET ALL", "START TRANSACTION",
+                "ABORT", "CLOSE c", "DEALLOCATE p", "REFRESH MATERIALIZED VIEW mv"):
+        assert translate(sql) == sql, sql
+    # the statement inside is translated
+    assert translate("EXPLAIN SELECT TOP 1 a FROM t") == "EXPLAIN SELECT a FROM t LIMIT 1"
+    assert translate("PREPARE p (int) AS SELECT NVL(a, 0) FROM t WHERE b = $1") == \
+        "PREPARE p (int) AS SELECT COALESCE(a, 0) FROM t WHERE b = $1"
+    assert translate("DECLARE c CURSOR FOR SELECT TOP 2 a FROM t") == \
+        "DECLARE c CURSOR FOR SELECT a FROM t LIMIT 2"
+    assert refused("PREPARE p AS UNLOAD ('select 1') TO 's3://b/k' IAM_ROLE 'r'") == "UNLOAD"
+    # refused by name: bodies that would run untranslated, and what Redshift lacks
+    for sql, feature in (
+            ("CREATE FUNCTION f() RETURNS int AS $$ SELECT 1 $$ LANGUAGE sql",
+             "CREATE FUNCTION"),
+            ("CREATE OR REPLACE PROCEDURE p() AS $$ BEGIN COPY t FROM STDIN; END $$ "
+             "LANGUAGE plpgsql", "CREATE PROCEDURE"),
+            ("CREATE TRIGGER tr AFTER INSERT ON t FOR EACH ROW EXECUTE FUNCTION f()",
+             "CREATE TRIGGER"),
+            ("CREATE RULE r AS ON INSERT TO t DO ALSO DELETE FROM s", "CREATE RULE"),
+            ("DO $$ BEGIN PERFORM 1; END $$", "DO (an anonymous code block)"),
+            ("EXPLAIN ANALYZE DELETE FROM t", "EXPLAIN ANALYZE / EXPLAIN (options)"),
+            ("LOAD 'x'", "LOAD X"), ("CHECKPOINT", "CHECKPOINT"),
+            ("LISTEN x", "LISTEN"), ("NOTIFY x", "NOTIFY"), ("DISCARD ALL", "DISCARD"),
+            ("ALTER SYSTEM SET work_mem = '1GB'", "ALTER SYSTEM")):
+        assert refused(sql) == feature, sql
+
+
+def test_bare_numeric_is_redshifts_18_0():
+    assert translate("SELECT 2.5::numeric, CAST(x AS DECIMAL), y::numeric(10,2) FROM t") == \
+        "SELECT CAST(2.5 AS DECIMAL(18, 0)), CAST(x AS DECIMAL(18, 0)), " \
+        "CAST(y AS DECIMAL(10, 2)) FROM t"
+    assert translate("CREATE TABLE t (a numeric, b decimal(12,2))") == \
+        "CREATE TABLE t (a DECIMAL(18, 0), b DECIMAL(12, 2))"
+
+
+def test_delimited_identifiers_fold_to_lower_case():
+    assert translate('SELECT "MixedCase" AS "Total" FROM "Warehouse".t') == \
+        'SELECT "mixedcase" AS "total" FROM "warehouse".t'
+
+
+def test_qualify_is_refused_by_its_name():
+    assert refused("SELECT a FROM t QUALIFY ROW_NUMBER() OVER (ORDER BY a) = 1") == \
+        "QUALIFY (no verified PostgreSQL equivalent)"
 
 
 def test_several_statements_translate_one_by_one():
@@ -215,4 +320,4 @@ def test_translation_matches_duckdb_truth():
         conn.close()
     wrong = {n: (got[n], truth[n]) for n in got if not redshift_corpus.same(got[n], truth[n])}
     assert not wrong, wrong
-    assert len(got) == 12
+    assert len(got) == len(redshift_corpus.CORPUS) == 13

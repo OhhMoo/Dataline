@@ -11,10 +11,12 @@ No docker; tasks/harness/redshift_e2e_check.py is the live half.
 """
 from __future__ import annotations
 
+import os
 import sys
 import tomllib
 from pathlib import Path
 
+import pytest
 import yaml
 
 HERE = Path(__file__).resolve().parent
@@ -130,6 +132,54 @@ def test_box_dbt_profile_defaults_to_redshift_without_ssl(tmp_path, monkeypatch)
     for value in target.values():
         if isinstance(value, str) and "env_var(" in value:
             assert value.split("'")[1] in added, value
+
+
+def _start_module():
+    import importlib.util
+
+    path = HERE.parent.parent / "gateway" / "docker" / "redshift_start.py"
+    spec = importlib.util.spec_from_file_location("redshift_start_for_tests", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_the_server_has_one_door():
+    """No TCP listener; a socket only `postgres` (and root) can open; password
+    auth for the agent's role; the proxy dials that socket."""
+    start = _start_module()
+    conf = dict(line.split(" = ", 1) for line in start.POSTGRESQL_CONF.splitlines() if line)
+    assert conf["listen_addresses"] == "''"
+    assert conf["unix_socket_permissions"] == "0700"
+    assert conf["unix_socket_directories"] == f"'{start.SOCKET_DIR}'"
+    hba = [line.split() for line in start.PG_HBA.splitlines() if line.strip()]
+    assert [h[0] for h in hba] == ["local", "local"]          # no host lines at all
+    assert hba[0][2:] == ["postgres", "trust"] and hba[1][2:] == ["all", "md5"]
+    text = (HERE.parent.parent / "gateway" / "docker" / "redshift_start.py").read_text()
+    assert 'serve(("0.0.0.0", PORT), str(SOCKET),' in text
+    assert "path.chmod(0o700)" in text
+
+
+def test_the_proxy_dies_with_the_postmaster_it_seeded(tmp_path, monkeypatch):
+    start = _start_module()
+    monkeypatch.setattr(start, "PGDATA", tmp_path)
+    monkeypatch.setattr(start.time, "sleep", lambda _s: None)
+    died: list[dict] = []
+
+    def die(reason):
+        died.append(reason)
+        raise SystemExit(1)
+
+    monkeypatch.setattr(start, "_die", die)
+    seeded = os.getpid()
+    (tmp_path / "postmaster.pid").write_text(f"{seeded + 1}\n/redshift-data/pgdata\n")
+    with pytest.raises(SystemExit):
+        start._watch_postmaster(seeded)                     # a restarted postmaster
+    (tmp_path / "postmaster.pid").unlink()
+    with pytest.raises(SystemExit):
+        start._watch_postmaster(seeded)                     # none at all
+    assert died == [{"postmaster_changed": {"seeded": seeded, "now": seeded + 1}},
+                    {"postmaster_changed": {"seeded": seeded, "now": None}}]
 
 
 def test_statement_rows_are_sql_and_containment_probes_the_alias():

@@ -1,41 +1,59 @@
 """An audited PostgreSQL wire-protocol proxy: the front door of a Postgres persona.
 
-    serve(("0.0.0.0", 5439), ("127.0.0.1", 5432),
-          translate=redshift_sql.translate, tool="redshift.statement", actor="redshift")
+    serve(("0.0.0.0", 5439), "/redshift-data/run/.s.PGSQL.5432",
+          translate=redshift_sql.translate, tool="redshift.statement", actor="redshift",
+          refuse=redshift_sql.Unsupported, startup_filter=redshift_sql.startup_parameters)
 
-The Redshift plug (gateway/docker/redshift_start.py) is a PostgreSQL server on
-loopback with this proxy in front of it, on the port the agent's clients dial.
-An HTTP proxy cannot see the Postgres wire protocol, and the Postgres log tailer
-writes its rows only at teardown, so the audit lives here: every statement a
-client runs is ONE 9.2.2 row (`tool`), written server-side BEFORE the statement
-is forwarded - so the row is ordered before anything the agent does next.
+The Redshift plug (gateway/docker/redshift_start.py) is a PostgreSQL server that
+listens on a private unix socket only, with this proxy in front of it on the
+port the agent's clients dial. An HTTP proxy cannot see the Postgres wire
+protocol, and the Postgres log tailer writes its rows only at teardown, so the
+audit lives here: every statement a client runs is ONE 9.2.2 row (`tool`),
+written server-side BEFORE the statement is forwarded - so the row is ordered
+before anything the agent does next.
 
-WHAT THE PROXY DOES, message by message (protocol 3.0):
+WHAT THE PROXY DOES, message by message (protocol 3.0). DEFAULT DENY: a frontend
+message is relayed only if it is listed here; any other type is written as an
+error row and refused (FRONTEND_REFUSED names the known ones).
 
   SSLRequest / GSSENCRequest   answered `N`: the cluster does not require SSL
                                (the box's onboarding says so, and the clients
                                connect with ssl=False / sslmode=disable).
   CancelRequest                relayed to the upstream as is.
   StartupMessage               relayed with only the parameters PostgreSQL
-                               knows: redshift_connector sends its own
-                               (client_protocol_version, driver_version,
-                               os_version, ...), which Postgres would reject as
-                               unknown settings. Authentication then passes
-                               through untouched (SCRAM or MD5, the upstream's).
+                               knows (STARTUP_KEEP: redshift_connector sends its
+                               own client_protocol_version, driver_version, ...,
+                               which Postgres would reject), then through the
+                               persona's `startup_filter` (the `options`
+                               parameter's `-c` settings); a refused one is a
+                               FATAL and an error row. Authentication then
+                               passes through untouched (the upstream's MD5).
   ParameterStatus (server)     `parameters` overrides the server's own values
                                (the persona's server_version).
   Query ('Q')                  translated; ONE row; forwarded.
-  Parse ('P')                  translated; ONE row; forwarded. The statement is
-                               remembered by name: its first Execute is the run
-                               that row stands for. (A row at Parse, not at
+  Parse ('P')                  translated; ONE row; forwarded. The row stands for
+                               the statement's first run. (At Parse, not at
                                Execute, because a statement the server rejects
-                               at parse - an unknown relation - is never
-                               executed, and it was still the agent's action.)
-  Bind ('B'), Execute ('E')    the portal -> statement map; every LATER Execute
-                               of a statement is ONE more row, so a prepared
-                               statement a driver re-executes from its cache
-                               (redshift_connector does) is a row each time.
-  everything else              relayed.
+                               at parse - an unknown relation - never runs, and
+                               it was still the agent's action.) The name ->
+                               statement map changes only when the server says
+                               ParseComplete: a Parse it rejects (the name is
+                               taken) leaves the old statement where it was.
+  Bind ('B')                   binds the portal to the statement the SERVER
+                               will see: a Parse earlier in the same batch, else
+                               the confirmed map (waiting for an earlier batch's
+                               answers first, so a pipelined Bind cannot be
+                               attributed to a Parse the server then rejected).
+  Execute ('E')                the FIRST Execute after a Bind is one run: ONE row
+                               (none for the run a Parse row stands for); more
+                               Executes on the same portal (a row limit, then
+                               "fetch the rest") are the same run, no row.
+  Describe, Close, Flush,
+  Sync, Terminate, Password    relayed.
+  anything else                ONE error row, then refused: the message is
+                               replaced by a Query that fails, so the client
+                               gets ErrorResponse + ReadyForQuery - what it
+                               waits for after a FunctionCall ('F').
 
 A REFUSAL (the translator raises a `Refusal`) is written as an error row and
 then sent to the upstream as a statement that fails at parse time - a call to a
@@ -60,6 +78,7 @@ import struct
 import threading
 import time
 import uuid
+from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -73,9 +92,22 @@ PROTOCOL_3 = 196608
 STARTUP_KEEP = frozenset({"user", "database", "application_name", "options",
                           "client_encoding", "datestyle", "timezone", "intervalstyle",
                           "extra_float_digits", "search_path"})
+#: Frontend messages relayed as they are (Q, P, B and E are handled).
+RELAYED = frozenset({b"D", b"C", b"H", b"S", b"X", b"p"})
+#: Names for the frontend messages the proxy refuses (any unlisted type is
+#: refused too, under its type byte).
+FRONTEND_REFUSED = {
+    b"F": "FunctionCall (the fastpath protocol)",
+    b"d": "CopyData (COPY is not imitated)",
+    b"c": "CopyDone (COPY is not imitated)",
+    b"f": "CopyFail (COPY is not imitated)",
+}
 SENTINEL = "alkera_refused_"
 _SENTINEL_RE = re.compile(SENTINEL + r"[0-9a-f]{16}")
 CHUNK = 1 << 16
+
+#: Where the upstream is: (host, port) over TCP, or a unix socket's path.
+Upstream = tuple[str, int] | str
 
 
 class Refusal(Exception):
@@ -85,14 +117,25 @@ class Refusal(Exception):
     sqlstate = "0A000"
 
 
+def _refusal(feature: str) -> Refusal:
+    return Refusal(f"not supported by this server: {feature}")
+
+
 @dataclass
 class Prepared:
     sql: str
     translated: str
     refused: bool = False
-    #: True from Parse until the first Execute, which the Parse row stands for;
-    #: every later Execute writes its own row.
+    #: True from Parse until the first run, which the Parse row stands for;
+    #: every later run writes its own row.
     parse_row_unspent: bool = False
+
+
+@dataclass
+class Portal:
+    statement: Prepared | None
+    statement_name: str
+    ran: bool = False
 
 
 # --------------------------------------------------------------------------- wire helpers
@@ -156,15 +199,23 @@ def observation(sql: str, dialect: str):
     return found
 
 
+async def open_upstream(upstream: Upstream):
+    if isinstance(upstream, str):
+        return await asyncio.open_unix_connection(upstream)
+    return await asyncio.open_connection(*upstream)
+
+
 # --------------------------------------------------------------------------- the proxy
 class ProxyServer:
     """One listening proxy; `handle` serves one client connection."""
 
-    def __init__(self, upstream: tuple[str, int], *, translate: Callable[[str], str],
+    def __init__(self, upstream: Upstream, *, translate: Callable[[str], str],
                  tool: str, actor: str, dialect: str = "redshift",
                  destinations=None, statement_log: Path | None = None,
                  record: Callable[..., dict] | None = None,
-                 parameters: dict[str, str] | None = None):
+                 parameters: dict[str, str] | None = None,
+                 refuse: Callable[[str], Refusal] = _refusal,
+                 startup_filter: Callable[[dict[str, str]], dict[str, str]] | None = None):
         self.upstream = upstream
         self.translate = translate
         self.tool = tool
@@ -174,6 +225,8 @@ class ProxyServer:
         # (Redshift's `server_version` is 8.0.2, and redshift_connector parses
         # it: Debian's "17.11 (Debian 17.11-0+deb13u1)" is an InvalidVersion).
         self.parameters = dict(parameters or {})
+        self.refuse = refuse
+        self.startup_filter = startup_filter
         self.destinations = destinations
         self.statement_log = Path(statement_log) if statement_log else None
         self._record = record
@@ -195,10 +248,13 @@ class ProxyServer:
     # ---------------------------------------------------------------- the row
     def _write_row(self, sql: str, *, translated: str | None, refused: Refusal | None,
                    via: str, latency_ms: float) -> None:
-        seen = observation(sql, self.dialect) if sql.strip() else None
+        protocol = via in ("message", "startup")
+        seen = observation(sql, self.dialect) if sql.strip() and not protocol else None
         result = {"forwarded": refused is None,
                   "translated": translated if translated not in (None, sql) else None}
         flags = list(seen.flags) if seen is not None else []
+        if protocol:
+            flags.append(f"protocol_{via}")
         if result["translated"] is not None:
             flags.append("translated")
         self.record_fn()(
@@ -230,8 +286,8 @@ class ProxyServer:
         except Refusal as exc:
             return sql, exc
         except Exception as exc:  # noqa: BLE001 - never a silent pass-through
-            return sql, Refusal(f"statement the proxy could not translate "
-                                f"({type(exc).__name__}: {exc})")
+            return sql, self.refuse(f"statement the proxy could not translate "
+                                    f"({type(exc).__name__}: {exc})")
 
     # ---------------------------------------------------------------- a connection
     async def handle(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
@@ -252,8 +308,14 @@ class _Session:
         self.proxy = proxy
         self.client_r, self.client_w = reader, writer
         self.up_r = self.up_w = None
+        # name -> statement, as the server has confirmed it (ParseComplete)
         self.prepared: dict[str, Prepared] = {}
-        self.portals: dict[str, str] = {}
+        # (batch, name, statement) forwarded, not yet confirmed or dropped
+        self.pending: deque[tuple[int, str, Prepared]] = deque()
+        self.batch = 0          # Syncs and Queries forwarded: each ends a batch
+        self.answered = 0       # ReadyForQuery seen: batches the server finished
+        self.changed = asyncio.Condition()
+        self.portals: dict[str, Portal] = {}
         self.refusals: dict[str, Refusal] = {}
 
     async def close(self) -> None:
@@ -270,7 +332,7 @@ class _Session:
         if startup is None:
             return
         try:
-            self.up_r, self.up_w = await asyncio.open_connection(*self.proxy.upstream)
+            self.up_r, self.up_w = await open_upstream(self.proxy.upstream)
         except OSError as exc:
             self.client_w.write(error_response("08006", f"the warehouse is not reachable: "
                                                         f"{exc}", "FATAL"))
@@ -290,7 +352,8 @@ class _Session:
                 raise exc
 
     async def _startup(self) -> bytes | None:
-        """The client's StartupMessage, filtered - or None (cancel relayed, or gone)."""
+        """The client's StartupMessage, filtered - or None (cancel relayed,
+        refused, or gone)."""
         while True:
             head = await self.client_r.readexactly(8)
             length, code = struct.unpack("!II", head)
@@ -301,7 +364,7 @@ class _Session:
                 continue
             if code == CANCEL_REQUEST:
                 try:
-                    _, w = await asyncio.open_connection(*self.proxy.upstream)
+                    _, w = await open_upstream(self.proxy.upstream)
                     w.write(head + rest)
                     await w.drain()
                     w.close()
@@ -316,6 +379,18 @@ class _Session:
                 return None
             params = parse_startup(head[4:] + rest)
             kept = {k: v for k, v in params.items() if k.lower() in STARTUP_KEEP}
+            if self.proxy.startup_filter is not None:
+                try:
+                    kept = self.proxy.startup_filter(kept)
+                except Refusal as refusal:
+                    await self.proxy.audit(
+                        f"/* startup parameters {json.dumps(kept, sort_keys=True)} */",
+                        translated=None, refused=refusal, via="startup",
+                        started=time.monotonic())
+                    self.client_w.write(error_response(refusal.sqlstate, str(refusal),
+                                                       "FATAL"))
+                    await self.client_w.drain()
+                    return None
             return startup_message(kept)
 
     # ---------------------------------------------------------------- client -> server
@@ -332,16 +407,25 @@ class _Session:
                 body = await self._parse(body, started)
             elif kind == b"B":
                 portal, at = _cstring(body, 0)
-                statement, _ = _cstring(body, at)
-                self.portals[portal] = statement
+                name, _ = _cstring(body, at)
+                self.portals[portal] = Portal(await self._resolve(name), name)
             elif kind == b"E":
                 portal, _ = _cstring(body, 0)
                 await self._execute(portal, started)
             elif kind == b"C" and body[:1] in (b"S", b"P"):
                 name, _ = _cstring(body, 1)
-                (self.prepared if body[:1] == b"S" else self.portals).pop(name, None)
+                if body[:1] == b"S":
+                    self.prepared.pop(name, None)
+                    self.pending = deque(e for e in self.pending
+                                         if not (e[0] == self.batch and e[1] == name))
+                else:
+                    self.portals.pop(name, None)
+            elif kind not in RELAYED:
+                kind, body = b"Q", await self._refuse_message(kind, body, started)
             self.up_w.write(message(kind, body))
             await self.up_w.drain()
+            if kind in (b"Q", b"S"):
+                self.batch += 1
             if kind == b"X":
                 return
 
@@ -349,6 +433,18 @@ class _Session:
         token = SENTINEL + uuid.uuid4().hex[:16]
         self.refusals[token] = refusal
         return f"SELECT {token}()"
+
+    async def _refuse_message(self, kind: bytes, body: bytes, started: float) -> bytes:
+        """Default deny: a frontend message the proxy does not relay is one
+        error row and a Query that fails with the refusal."""
+        name = FRONTEND_REFUSED.get(kind) or f"frontend message type {kind!r}"
+        what = name
+        if kind == b"F" and len(body) >= 4:
+            what = f"{name}, function oid {struct.unpack('!I', body[:4])[0]}"
+        refusal = self.proxy.refuse(name)
+        await self.proxy.audit(f"/* {what} */", translated=None, refused=refusal,
+                               via="message", started=started)
+        return self._refusal_sql(refusal).encode("utf-8") + b"\0"
 
     async def _query(self, body: bytes, started: float) -> bytes:
         sql = body[:-1].decode("utf-8", "replace") if body.endswith(b"\0") else \
@@ -367,21 +463,40 @@ class _Session:
         await self.proxy.audit(sql, translated=None if refusal else translated,
                                refused=refusal, via="parse", started=started)
         if refusal is not None:
-            self.prepared[name] = Prepared(sql, sql, refused=True)
+            self.pending.append((self.batch, name, Prepared(sql, sql, refused=True)))
             # The parameter count goes with the text: nothing past the error
             # is processed before the next Sync.
             return name.encode() + b"\0" + self._refusal_sql(refusal).encode() + b"\0" + \
                 struct.pack("!H", 0)
-        self.prepared[name] = Prepared(sql, translated, parse_row_unspent=True)
+        self.pending.append((self.batch, name,
+                             Prepared(sql, translated, parse_row_unspent=True)))
         return name.encode() + b"\0" + translated.encode("utf-8") + b"\0" + tail
 
-    async def _execute(self, portal: str, started: float) -> None:
-        name = self.portals.get(portal)
-        statement = self.prepared.get(name) if name is not None else None
+    async def _resolve(self, name: str) -> Prepared | None:
+        """The statement the server will bind `name` to: a Parse of it earlier
+        in this batch (if that Parse fails, the server skips the Bind too),
+        else what the server has confirmed - once every earlier batch is
+        answered, so a pipelined Parse the server rejects is not believed."""
+        current = [p for b, n, p in self.pending if b == self.batch and n == name]
+        if current:
+            return current[-1]
+        async with self.changed:
+            await self.changed.wait_for(
+                lambda: not any(b < self.batch for b, _, _ in self.pending))
+        return self.prepared.get(name)
+
+    async def _execute(self, name: str, started: float) -> None:
+        portal = self.portals.get(name)
+        if portal is not None and portal.ran:
+            return                               # the same run, fetching more rows
+        if portal is not None:
+            portal.ran = True
+        statement = portal.statement if portal is not None else None
         if statement is None:
             # A portal over a statement this proxy never saw parsed (a SQL-level
-            # PREPARE): still one row, naming it.
-            await self.proxy.audit(f"EXECUTE {name or portal}", translated=None, refused=None,
+            # PREPARE), or no portal at all: still one row, naming it.
+            label = portal.statement_name if portal is not None else name
+            await self.proxy.audit(f"EXECUTE {label}", translated=None, refused=None,
                                    via="execute", started=started)
             return
         if statement.refused:
@@ -400,20 +515,32 @@ class _Session:
             if not chunk:
                 return
             buffer += chunk
-            out, at = [], 0
+            out, at, settled = [], 0, False
             while len(buffer) - at >= 5:
                 (length,) = struct.unpack("!I", buffer[at + 1:at + 5])
                 end = at + 1 + length
                 if end > len(buffer):
                     break
-                if buffer[at:at + 1] == b"E" and SENTINEL.encode() in buffer[at + 5:end]:
+                kind = buffer[at:at + 1]
+                if kind == b"1" and self.pending:          # ParseComplete
+                    _, name, statement = self.pending.popleft()
+                    self.prepared[name] = statement
+                    settled = True
+                elif kind == b"Z":                         # ReadyForQuery
+                    self.answered += 1
+                    self.pending = deque(e for e in self.pending if e[0] >= self.answered)
+                    settled = True
+                if kind == b"E" and SENTINEL.encode() in buffer[at + 5:end]:
                     out.append(self._rewrite_error(buffer[at + 5:end]) or buffer[at:end])
-                elif buffer[at:at + 1] == b"S" and self.proxy.parameters:
+                elif kind == b"S" and self.proxy.parameters:
                     out.append(self._rewrite_parameter(buffer[at + 5:end]) or buffer[at:end])
                 else:
                     out.append(buffer[at:end])
                 at = end
             buffer = buffer[at:]
+            if settled:
+                async with self.changed:
+                    self.changed.notify_all()
             if out:
                 self.client_w.write(b"".join(out))
                 await self.client_w.drain()
@@ -438,17 +565,20 @@ class _Session:
         return error_response(refusal.sqlstate, str(refusal))
 
 
-def serve(listen: tuple[str, int], upstream: tuple[str, int], *,
+def serve(listen: tuple[str, int], upstream: Upstream, *,
           translate: Callable[[str], str], tool: str, actor: str,
           dialect: str = "redshift", destinations=None, statement_log: Path | None = None,
           parameters: dict[str, str] | None = None,
+          refuse: Callable[[str], Refusal] = _refusal,
+          startup_filter: Callable[[dict[str, str]], dict[str, str]] | None = None,
           on_listening: Callable[[asyncio.base_events.Server], None] | None = None) -> None:
     """Listen on `listen`, relay to `upstream`, audit every statement. Blocks."""
 
     async def main() -> None:
         proxy = ProxyServer(upstream, translate=translate, tool=tool, actor=actor,
                             dialect=dialect, destinations=destinations,
-                            statement_log=statement_log, parameters=parameters)
+                            statement_log=statement_log, parameters=parameters,
+                            refuse=refuse, startup_filter=startup_filter)
         server = await proxy.start(*listen)
         if on_listening is not None:
             on_listening(server)

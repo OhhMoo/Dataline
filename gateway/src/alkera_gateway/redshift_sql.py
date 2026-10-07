@@ -26,10 +26,20 @@ dialect) and rendered for both dialects; where the renderings differ, the
 SMALLEST differing nodes are the constructs sqlglot translated, and every one
 of them must be in VETTED (checked against PostgreSQL 17 here) or HANDLED
 (rewritten by this module with Redshift's semantics). Anything else is refused,
-named. A statement both dialects render the same goes to Postgres as the client
-wrote it, byte for byte; a statement sqlglot cannot parse goes through as
-written too, for Postgres to run or refuse (catalog queries psql and the
-drivers send are Postgres SQL that Redshift also speaks).
+named. A statement both dialects render the same - with no rewrite, no
+canonicalised Redshift spelling and no backslash in it - goes to Postgres as
+the client wrote it, byte for byte; any other goes as the rendering.
+
+DEFAULT DENY. Nothing reaches Postgres that this module did not read: text it
+cannot tokenize or parse is refused as a syntax error (Unparsable, 42601), not
+passed through for Postgres to read its own way; a statement sqlglot leaves as
+an unparsed Command goes through only if its verb is in COMMAND_VERBS (EXPLAIN
+[VERBOSE], PREPARE and DECLARE have the statement inside them translated); a
+"statement" sqlglot reads as a bare expression goes through only for
+BARE_VERBS; CREATE FUNCTION / PROCEDURE / TRIGGER / RULE ... (DENIED_CREATE)
+and DO are refused, since their bodies would run untranslated; the settings
+that would change how the server reads a literal (standard_conforming_strings,
+backslash_quote) or the client encoding are refused wherever they are named.
 
 NOT IMITATED, refused by name: UNLOAD, COPY (from S3, STDIN or anywhere: this
 cluster has no object store wired to it), SUPER and PartiQL navigation,
@@ -56,7 +66,15 @@ Redshift-only behaviour (a select-list alias referenced in WHERE,
 pg_proc_info), which Postgres refuses - loudly. get_schemas, get_primary_keys
 and get_catalogs work.
 
-KNOWN DIVERGENCES (not silent-wrong for values, recorded here):
+REDSHIFT'S READING, KEPT: a literal's backslash escapes are PostgreSQL 8.0's
+('a\\_b' is 'a_b', '\\n' a newline; octal / hex escapes are refused); a
+delimited identifier is folded to lower case ("Total" is total); NUMERIC /
+DECIMAL with no precision is (18,0).
+
+KNOWN DIVERGENCES (recorded here; no type information reaches this module):
+  AVG over an integer column: Redshift returns BIGINT (the average truncated),
+      Postgres a NUMERIC with the fraction. The VALUE differs whenever the
+      average is not whole - cast it yourself (AVG(x)::BIGINT) for Redshift's.
   GETDATE()/SYSDATE -> CURRENT_TIMESTAMP: a TIMESTAMPTZ in the server's UTC,
       not Redshift's TIMESTAMP; the instant is the same. Both read the box's
       wall clock, as Redshift reads AWS's - not the world's virtual clock.
@@ -64,6 +82,8 @@ KNOWN DIVERGENCES (not silent-wrong for values, recorded here):
   NUMERIC division keeps Postgres' scale rules; values agree, digits may not.
   Aggregate window functions with ORDER BY and no frame clause run with
       Postgres' default frame; Redshift refuses them.
+  ALTER USER / SCHEMA / DEFAULT PRIVILEGES and other statements sqlglot leaves
+      unparsed outside COMMAND_VERBS are refused, though Redshift has them.
 """
 from __future__ import annotations
 
@@ -74,7 +94,7 @@ import sqlglot
 from sqlglot import exp
 from sqlglot.dialects.redshift import Redshift
 from sqlglot.errors import ParseError, TokenError
-from sqlglot.tokens import TokenType
+from sqlglot.tokens import Token, TokenType
 
 from .native.pgwire_proxy import Refusal
 
@@ -173,9 +193,31 @@ class Unsupported(Refusal):
         super().__init__(MESSAGE.format(feature=feature))
 
 
+class Unparsable(Unsupported):
+    """Text this persona cannot read as Redshift SQL: refused as a syntax error
+    (42601), never passed through for Postgres to read its own way."""
+
+    sqlstate = "42601"
+
+    def __init__(self, detail: str):
+        self.feature = "unparsable statement"
+        Refusal.__init__(self, f"syntax error (read as Redshift SQL): {detail}")
+
+
 class _Persona(Redshift):
-    """Redshift as sqlglot parses it, with ADD_MONTHS kept apart from DATEADD
-    (sqlglot folds both into one TsOrDsAdd, and their month-end rules differ)."""
+    """Redshift as sqlglot parses it, with two corrections:
+
+    ADD_MONTHS is kept apart from DATEADD (sqlglot folds both into one
+    TsOrDsAdd, and their month-end rules differ).
+
+    A string literal's backslash escapes are PostgreSQL 8.0's, which Redshift
+    keeps: \\b \\f \\n \\r \\t and \\\\ are what they say, and a backslash before
+    any other character is dropped ('a\\_b' is 'a_b'). sqlglot keeps that
+    backslash, and knows \\a and \\v, which 8.0 did not. Octal and hex escapes
+    (\\101, \\x41) are left as written here and refused (`_escape_fence`)."""
+
+    class Tokenizer(Redshift.Tokenizer):
+        ESCAPE_FOLLOW_CHARS = [*"0123456789", "x", "X", "u", "U"]
 
     class Parser(Redshift.Parser):
         FUNCTIONS = {
@@ -183,6 +225,9 @@ class _Persona(Redshift):
             "ADD_MONTHS": lambda args: exp.Anonymous(this="ADD_MONTHS", expressions=args),
         }
 
+
+_Persona.UNESCAPED_SEQUENCES = {k: v for k, v in _Persona.UNESCAPED_SEQUENCES.items()
+                                if k not in ("\\a", "\\v")}
 
 READ = _Persona
 RENDER_REDSHIFT = "redshift"
@@ -219,15 +264,48 @@ NOOP_SETTINGS = frozenset({"query_group", "wlm_query_slot_count",
                            "enable_result_cache_for_session",
                            "analyze_threshold_percent", "auto_mv",
                            "statement_timeout_ms"})
-#: Session settings that change identifiers or output: refused, never ignored.
+#: Settings that change identifiers or output - or how the SERVER reads a
+#: string literal, which would let text this module read one way run another
+#: way (standard_conforming_strings, backslash_quote): refused wherever they
+#: are named - SET, set_config(), ALTER ROLE/DATABASE ... SET, the startup
+#: packet's `options` - never ignored.
 FENCED_SETTINGS = frozenset({"enable_case_sensitive_identifier",
                              "enable_case_sensitive_super_attribute",
                              "describe_field_name_in_uppercase",
                              "json_parse_truncate_strings",
                              "json_serialization_enable",
                              "downcase_delimited_identifier",
-                             "enable_numeric_rounding"})
+                             "enable_numeric_rounding",
+                             "standard_conforming_strings",
+                             "backslash_quote"})
+#: The only client encoding: the proxy and this module read text as UTF-8,
+#: and a multibyte encoding whose second byte can be a quote or a backslash
+#: (SJIS, BIG5, GBK ...) would let the server split strings differently.
+UTF8_NAMES = frozenset({"utf8", "utf-8", "unicode"})
 NOOP_PREFIX = "alkera."
+
+#: Statement kinds sqlglot parses into a tree this module translates.
+STATEMENTS = (exp.Query, exp.Insert, exp.Update, exp.Delete, exp.Merge, exp.Create, exp.Drop,
+              exp.Alter, exp.Set, exp.Transaction, exp.Commit, exp.Rollback, exp.Analyze,
+              exp.Grant, exp.Revoke, exp.TruncateTable, exp.Comment, exp.Values)
+#: Statements sqlglot leaves as an unparsed `Command` that may go through as
+#: written (Redshift and Postgres read them alike, and they hold no SQL of
+#: their own to translate). EXPLAIN, PREPARE and DECLARE hold one: theirs is
+#: translated (`_wrapped`). Any other Command is refused by name.
+COMMAND_VERBS = frozenset({"SHOW", "VACUUM", "ANALYZE", "GRANT", "REVOKE", "CALL", "BEGIN",
+                           "START", "COMMIT", "END", "ROLLBACK", "ABORT", "RESET", "FETCH",
+                           "EXECUTE", "DEALLOCATE", "CLOSE", "MOVE", "LOCK", "REFRESH"})
+#: Statements sqlglot misreads as a bare expression (`START TRANSACTION` as an
+#: alias): the Redshift ones go through as written, the rest are refused.
+BARE_VERBS = frozenset({"START", "ABORT", "CLOSE", "MOVE", "DEALLOCATE", "BEGIN", "END",
+                        "COMMIT", "ROLLBACK"})
+#: CREATE kinds whose body or effect is not SQL this module translates (a
+#: function's or procedure's body runs unseen), or that Redshift does not have.
+DENIED_CREATE = frozenset({"FUNCTION", "PROCEDURE", "TRIGGER", "RULE", "EXTENSION",
+                           "LANGUAGE", "SERVER", "FOREIGN", "EVENT", "AGGREGATE", "OPERATOR",
+                           "CAST", "TRANSFORM", "ACCESS", "CONVERSION", "PUBLICATION",
+                           "SUBSCRIPTION", "STATISTICS", "TEXT", "COLLATION", "DOMAIN",
+                           "TYPE"})
 
 #: DATEDIFF units whose boundary rule this module implements.
 _DIFF_UNITS = {"YEAR", "QUARTER", "MONTH", "DAY", "HOUR", "MINUTE", "SECOND"}
@@ -239,27 +317,42 @@ def _tokens(text: str):
     return _Persona().tokenize(text)
 
 
+_COMMAND_TOKENS = frozenset(_Persona.Tokenizer.COMMANDS)
+
+
+def _read(text: str):
+    """The tokens, or `Unparsable`: a text this module cannot tokenize (an
+    unterminated string, identifier or comment as Redshift reads them) is never
+    passed on for Postgres to read its own way.
+
+    sqlglot reads a statement that starts with a command keyword (EXPLAIN,
+    PREPARE, DECLARE, CALL, VACUUM, SHOW, RESET, EXECUTE, ...) as that keyword
+    and ONE string holding the rest; the rest is tokenized here too, so every
+    fence below sees its words, at their own offsets in `text`."""
+    try:
+        tokens = _tokens(text)
+    except (TokenError, ValueError) as exc:
+        raise Unparsable(f"unterminated string, identifier or comment "
+                         f"({str(exc).splitlines()[0][:120]})") from exc
+    if len(tokens) > 1 and tokens[0].token_type in _COMMAND_TOKENS:
+        at = tokens[0].end + 1
+        rest = _read(text[at:])
+        tokens = tokens[:1] + [Token(t.token_type, t.text, t.line, t.col, t.start + at,
+                                     t.end + at, t.comments) for t in rest]
+    return tokens
+
+
 def _statements(sql: str) -> list[str]:
     """`sql` split on its top-level semicolons (strings and comments respected),
-    empty statements dropped. A text the tokenizer cannot read is one statement."""
-    try:
-        tokens = _tokens(sql)
-    except (TokenError, ValueError):
-        return [sql]
+    empty statements dropped."""
+    tokens = _read(sql)
     out, start = [], 0
     for token in tokens:
         if token.token_type == TokenType.SEMICOLON:
             out.append(sql[start:token.start])
             start = token.end + 1
     out.append(sql[start:])
-    return [s for s in out if s.strip() and _has_code(s)]
-
-
-def _has_code(text: str) -> bool:
-    try:
-        return bool(_tokens(text))
-    except (TokenError, ValueError):
-        return True
+    return [s for s in out if s.strip() and _read(s)]
 
 
 def _words(tokens, n: int = 6) -> list[str]:
@@ -297,6 +390,16 @@ def _verb_fences(tokens, text: str) -> None:
         raise Unsupported("CREATE MODEL (Redshift ML)")
     if head == "CREATE" and words[1:2] == ["LIBRARY"]:
         raise Unsupported("CREATE LIBRARY")
+    if head == "CREATE":
+        kind = next((w for w in words[1:] if w not in (
+            "OR", "REPLACE", "TEMP", "TEMPORARY", "LOCAL", "TRUSTED", "PROCEDURAL",
+            "CONSTRAINT", "DEFAULT", "UNLOGGED")), "")
+        if kind in DENIED_CREATE:
+            raise Unsupported(f"CREATE {kind}")
+    if head == "DO":
+        raise Unsupported("DO (an anonymous code block)")
+    if head == "ALTER" and words[1:2] == ["SYSTEM"]:
+        raise Unsupported("ALTER SYSTEM")
     if "DATASHARE" in words:
         raise Unsupported("DATASHARE")
     if head == "ALTER" and words[1:2] == ["TABLE"]:
@@ -307,6 +410,39 @@ def _verb_fences(tokens, text: str) -> None:
                           r"(DISTKEY|DISTSTYLE|SORTKEY|ENCODE)\b", upper)
         if found:
             raise Unsupported(f"ALTER TABLE ... ALTER {found.group(1)}")
+
+
+_STRINGS = frozenset({TokenType.STRING, TokenType.NATIONAL_STRING, TokenType.BYTE_STRING})
+
+
+def _fenced_names(tokens) -> None:
+    """A fenced setting named ANYWHERE - an identifier or a string - is refused:
+    `SET x`, `set_config('x', ...)`, `ALTER ROLE r SET x = ...` alike. The
+    client encoding may be changed only by a plain SET (`_setting` checks the
+    value): through set_config() or ALTER ... SET it is refused."""
+    words = {t.text.lower() for t in tokens}
+    for name in sorted(words & FENCED_SETTINGS):
+        raise Unsupported(f"SET {name}")
+    if "client_encoding" in words and tokens[0].text.upper() != "SET" and (
+            "set_config" in words or "set" in words):
+        raise Unsupported("a client_encoding other than UTF8")
+
+
+def _escape_fence(tokens, text: str) -> None:
+    """Octal and hex escapes in a string literal ('\\101', '\\x41') are refused:
+    their bytes are not read here the way Redshift reads them."""
+    for t in tokens:
+        if t.token_type not in _STRINGS:
+            continue
+        raw = text[t.start:t.end + 1]
+        i = 0
+        while i < len(raw) - 1:
+            if raw[i] == "\\":
+                if raw[i + 1].isdigit() or raw[i + 1] in "xXuU":
+                    raise Unsupported("an octal or hex escape in a string literal")
+                i += 2
+                continue
+            i += 1
 
 
 def _setting(tokens, text: str) -> str | None:
@@ -326,9 +462,57 @@ def _setting(tokens, text: str) -> str | None:
     name = name_token.text.lower()
     if name in FENCED_SETTINGS:
         raise Unsupported(f"SET {name}")
+    if words[0] == "SET" and name in ("client_encoding", "names"):
+        value = [t.text.lower() for t in tokens[index + 1:]
+                 if t.text.upper() not in ("TO", "=")]
+        if not value or value[0] not in UTF8_NAMES | {"default"}:
+            raise Unsupported("a client_encoding other than UTF8")
     if name not in NOOP_SETTINGS:
+        if "\\" in text:
+            raise Unsupported("a backslash escape in a SET statement")
         return text
     return text[:name_token.start] + NOOP_PREFIX + name + text[name_token.end + 1:]
+
+
+def startup_parameters(params: dict[str, str]) -> dict[str, str]:
+    """The startup packet's parameters as the persona allows them (the proxy's
+    `startup_filter`): a UTF-8 client_encoding only, and in `options` only
+    `-c name=value` / `--name=value` settings, a fenced one refused, a
+    Redshift-only one dropped. Anything else in `options` (a backend switch)
+    is refused."""
+    out = dict(params)
+    encoding = out.get("client_encoding")
+    if encoding is not None and encoding.strip().lower() not in UTF8_NAMES | {"auto"}:
+        raise Unsupported("a client_encoding other than UTF8")
+    options = out.get("options")
+    if options is None:
+        return out
+    items = re.split(r"(?<!\\)\s+", options.strip()) if options.strip() else []
+    kept: list[str] = []
+    i = 0
+    while i < len(items):
+        item = items[i]
+        if item == "-c" and i + 1 < len(items):
+            setting, i = items[i + 1], i + 2
+        elif item.startswith("-c") and len(item) > 2:
+            setting, i = item[2:], i + 1
+        elif item.startswith("--") and "=" in item:
+            setting, i = item[2:], i + 1
+        else:
+            raise Unsupported(f"startup option {item!r}")
+        name, _, value = setting.partition("=")
+        name = name.strip().lower().replace("-", "_")
+        if name in FENCED_SETTINGS:
+            raise Unsupported(f"SET {name}")
+        if name == "client_encoding" and value.strip().lower() not in UTF8_NAMES:
+            raise Unsupported("a client_encoding other than UTF8")
+        if name not in NOOP_SETTINGS:
+            kept.append(f"-c {setting}")
+    if kept:
+        out["options"] = " ".join(kept)
+    else:
+        out.pop("options")
+    return out
 
 
 # --------------------------------------------------------------------------- DDL
@@ -454,6 +638,8 @@ def _name(node: exp.Expression) -> str:
         return str(node.this).upper()
     if isinstance(node, exp.Func):
         return node.sql_name()
+    if isinstance(node, exp.Select) and node.args.get("qualify") is not None:
+        return "QUALIFY"
     return node.key.upper()
 
 
@@ -591,7 +777,8 @@ def _rewrite(tree: exp.Expression) -> bool:
     nodes = [n for n in tree.walk() if isinstance(n, (exp.Concat, exp.TsOrDsDiff,
                                                       exp.GroupConcat, exp.ApproxDistinct,
                                                       exp.Anonymous, exp.DataType,
-                                                      exp.CurrentVersion, exp.Bracket))]
+                                                      exp.CurrentVersion, exp.Bracket,
+                                                      exp.Identifier))]
     nodes.sort(key=lambda n: n.depth, reverse=True)
     changed = False
     for node in nodes:
@@ -632,6 +819,21 @@ def _rewrite(tree: exp.Expression) -> bool:
                     isinstance(params[0].this, exp.Var) and params[0].this.name.upper() == "MAX":
                 params[0].set("this", exp.Literal.number(65535))
                 changed = True
+            elif node.this == exp.DataType.Type.DECIMAL and not params:
+                # Redshift's NUMERIC / DECIMAL with no precision is (18,0): a
+                # cast to it rounds to an integer; Postgres' keeps every digit.
+                node.set("expressions", [exp.DataTypeParam(this=exp.Literal.number(18)),
+                                         exp.DataTypeParam(this=exp.Literal.number(0))])
+                changed = True
+            continue
+        elif isinstance(node, exp.Identifier):
+            # A delimited identifier is case-insensitive on Redshift and folded
+            # to lower case (enable_case_sensitive_identifier, which would
+            # change that, is fenced): "Total" is total, as a name and as the
+            # column a client is handed back.
+            if node.quoted and node.this != node.this.lower():
+                node.set("this", node.this.lower())
+                changed = True
             continue
         if new is not None:
             if node is tree:
@@ -642,13 +844,65 @@ def _rewrite(tree: exp.Expression) -> bool:
 
 
 # --------------------------------------------------------------------------- entry
-def _statement(text: str) -> str:
-    try:
-        tokens = _tokens(text)
-    except (TokenError, ValueError):
+def _first_line(exc: Exception) -> str:
+    text = str(exc).strip().splitlines()
+    return (text[0] if text else type(exc).__name__)[:200]
+
+
+def _wrapped(tokens, text: str, verb: str) -> str:
+    """EXPLAIN [VERBOSE] <statement>, PREPARE name [(types)] AS <statement>,
+    DECLARE name ... CURSOR ... FOR <statement>: the statement inside is
+    translated like any other, its prefix kept as written."""
+    start = None
+    if verb == "EXPLAIN":
+        i = 1
+        if i < len(tokens) and tokens[i].text.upper() == "VERBOSE":
+            i += 1
+        if i < len(tokens) and (tokens[i].text.upper() in ("ANALYZE", "ANALYSE")
+                                or tokens[i].token_type == TokenType.L_PAREN):
+            raise Unsupported("EXPLAIN ANALYZE / EXPLAIN (options)")
+        start = tokens[i].start if i < len(tokens) else None
+    else:
+        marker = TokenType.ALIAS if verb == "PREPARE" else None
+        depth = 0
+        for i, t in enumerate(tokens):
+            if t.token_type == TokenType.L_PAREN:
+                depth += 1
+            elif t.token_type == TokenType.R_PAREN:
+                depth -= 1
+            elif depth == 0 and i + 1 < len(tokens) and (
+                    (marker is not None and t.token_type == marker)
+                    or (marker is None and t.text.upper() == "FOR")):
+                start = tokens[i + 1].start
+                break
+    if start is None:
+        raise Unparsable(f"{verb} without a statement")
+    prefix, inner = text[:start], text[start:]
+    if "\\" in prefix:
+        raise Unsupported(f"a backslash escape in a {verb} statement")
+    return prefix + _statement(inner)
+
+
+def _command(tree: exp.Command, tokens, text: str) -> str:
+    """A statement sqlglot left unparsed: one that holds a statement is
+    translated inside; a short list goes as written; the rest are refused."""
+    verb = str(tree.this).upper()
+    if verb in ("EXPLAIN", "PREPARE", "DECLARE"):
+        return _wrapped(tokens, text, verb)
+    if verb in COMMAND_VERBS:
+        if "\\" in text:
+            raise Unsupported(f"a backslash escape in a {verb} statement")
         return text
+    words = _words(tokens, 2)
+    raise Unsupported(" ".join(words))
+
+
+def _statement(text: str) -> str:
+    tokens = _read(text)
     if not tokens:
         return text
+    _escape_fence(tokens, text)
+    _fenced_names(tokens)
     _verb_fences(tokens, text)
     setting = _setting(tokens, text)
     if setting is not None:
@@ -656,11 +910,18 @@ def _statement(text: str) -> str:
     stripped = _strip_physical(tokens, text)
     try:
         trees = [t for t in sqlglot.parse(stripped, read=READ) if t is not None]
-    except (ParseError, TokenError, ValueError):
-        return stripped
-    if len(trees) != 1 or isinstance(trees[0], exp.Command):
-        return stripped
+    except (ParseError, TokenError, ValueError) as exc:
+        raise Unparsable(_first_line(exc)) from exc
+    if len(trees) != 1:
+        raise Unparsable("one statement was expected")
     tree = trees[0]
+    if isinstance(tree, exp.Command):
+        return _command(tree, _read(stripped), stripped)
+    if not isinstance(tree, STATEMENTS):
+        head = _words(tokens, 1)[0]
+        if head in BARE_VERBS and "\\" not in text:
+            return text
+        raise Unsupported(head)
     _node_fences(tree)
     try:
         differs = _render(tree, RENDER_REDSHIFT) != _render(tree, POSTGRES)
@@ -678,9 +939,11 @@ def _statement(text: str) -> str:
         raise Unsupported(f"statement the translator cannot render "
                           f"({type(exc).__name__}: {exc})") from exc
     # The client's bytes go up only when nothing was translated: no dialect
-    # difference (a literal's backslash escapes are one), no rewrite, and no
-    # Redshift spelling sqlglot canonicalised on the way in.
-    if stripped == text and not differs and not changed and _spelled_alike(text, rendered):
+    # difference, no rewrite, no Redshift spelling sqlglot canonicalised on the
+    # way in - and no backslash anywhere, the one character Redshift's reader
+    # (escapes in a literal) and Postgres' (standard strings) treat apart.
+    if stripped == text and not differs and not changed and "\\" not in text \
+            and _spelled_alike(text, rendered):
         return text
     return rendered
 

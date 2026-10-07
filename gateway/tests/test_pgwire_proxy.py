@@ -14,8 +14,10 @@ from __future__ import annotations
 
 import asyncio
 import json
+import shutil
 import socket
 import struct
+import tempfile
 import threading
 from pathlib import Path
 
@@ -67,16 +69,26 @@ def _startup(params: dict[str, str]) -> bytes:
 
 # --------------------------------------------------------------------------- fake upstream
 class FakeUpstream:
-    """Records (kind, body, rows in the audit log on arrival) per message."""
+    """Records (kind, body, rows in the audit log on arrival) per message.
 
-    def __init__(self, audit: Path):
+    Listens on a unix socket (`path`), as the persona's server does, or on TCP
+    (`port`). Like PostgreSQL it keeps each connection's named statements: a
+    Parse of a name that is taken is an error (42P05), and after an error in
+    the extended protocol everything up to the next Sync is skipped."""
+
+    def __init__(self, audit: Path, path: Path | None = None):
         self.audit = audit
         self.received: list[tuple[bytes, bytes, int]] = []
         self.startups: list[dict[str, str]] = []
-        self.sock = socket.socket()
-        self.sock.bind(("127.0.0.1", 0))
+        if path is not None:
+            self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            self.sock.bind(str(path))
+            self.address: str | tuple[str, int] = str(path)
+        else:
+            self.sock = socket.socket()
+            self.sock.bind(("127.0.0.1", 0))
+            self.address = ("127.0.0.1", self.sock.getsockname()[1])
         self.sock.listen()
-        self.port = self.sock.getsockname()[1]
         threading.Thread(target=self._accept, daemon=True).start()
 
     def rows(self) -> int:
@@ -97,6 +109,7 @@ class FakeUpstream:
             self.startups.append(pw.parse_startup(body))
             conn.sendall(_msg(b"R", struct.pack("!I", 0)) + _msg(b"Z", b"I"))
             skipping = False
+            named: set[str] = set()
             while True:
                 kind, body = _read_msg(conn)
                 self.received.append((kind, body, self.rows()))
@@ -116,13 +129,23 @@ class FakeUpstream:
                 elif skipping:
                     continue
                 elif kind == b"P":
+                    statement = body[:body.index(b"\0")].decode()
                     if refused:
                         name = body[body.index(b"alkera"):body.index(b"(")].decode()
                         conn.sendall(pw.error_response(
                             "42883", f"function {name}() does not exist"))
                         skipping = True
+                    elif statement and statement in named:
+                        conn.sendall(pw.error_response(
+                            "42P05", f'prepared statement "{statement}" already exists'))
+                        skipping = True
                     else:
+                        if statement:
+                            named.add(statement)
                         conn.sendall(_msg(b"1", b""))
+                elif kind == b"C":
+                    named.discard(body[1:body.index(b"\0", 1)].decode())
+                    conn.sendall(_msg(b"3", b""))
                 elif kind == b"B":
                     conn.sendall(_msg(b"2", b""))
                 elif kind == b"D":
@@ -136,12 +159,15 @@ class FakeUpstream:
 
 
 # --------------------------------------------------------------------------- proxy
-@pytest.fixture
-def stack(tmp_path, monkeypatch):
+@pytest.fixture(params=["unix", "tcp"])
+def stack(request, tmp_path, monkeypatch):
     audit = tmp_path / "audit" / "actions.jsonl"
     monkeypatch.setenv("ALKERA_NATIVE_AUDIT", str(audit))
     monkeypatch.setenv("ALKERA_VIRTUAL_TIME", "2026-03-02T00:00:00Z")
-    upstream = FakeUpstream(audit)
+    # a short directory: a unix socket's path is limited to ~107 bytes
+    sockets = Path(tempfile.mkdtemp(prefix="pgw"))
+    upstream = FakeUpstream(audit, sockets / ".s.PGSQL.5432"
+                            if request.param == "unix" else None)
     destinations = DestinationLog(tmp_path / "audit" / "destinations.redshift.jsonl")
     destinations.declare("redshift.internal", 0)
     statements = tmp_path / "data" / "statements.jsonl"
@@ -152,9 +178,10 @@ def stack(tmp_path, monkeypatch):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         box["loop"] = loop
-        proxy = pw.ProxyServer(("127.0.0.1", upstream.port), translate=redshift_sql.translate,
+        proxy = pw.ProxyServer(upstream.address, translate=redshift_sql.translate,
                                tool=TOOL, actor="redshift", destinations=destinations,
-                               statement_log=statements)
+                               statement_log=statements, refuse=redshift_sql.Unsupported,
+                               startup_filter=redshift_sql.startup_parameters)
         server = loop.run_until_complete(proxy.start("127.0.0.1", 0))
         box["port"] = server.sockets[0].getsockname()[1]
         # the declared row is keyed by the port the proxy listens on
@@ -176,6 +203,7 @@ def stack(tmp_path, monkeypatch):
     box["loop"].call_soon_threadsafe(box["loop"].stop)
     thread.join(10)
     upstream.sock.close()
+    shutil.rmtree(sockets, ignore_errors=True)
 
 
 def _connect(port: int, *, ssl_first: bool = False, params=None) -> socket.socket:
@@ -186,6 +214,21 @@ def _connect(port: int, *, ssl_first: bool = False, params=None) -> socket.socke
     sock.sendall(_startup(params or {"user": "alkera", "database": "dev"}))
     _until_ready(sock)
     return sock
+
+
+def _parse(name: bytes, sql: bytes) -> bytes:
+    return _msg(b"P", name + b"\0" + sql + b"\0" + struct.pack("!H", 0))
+
+
+def _bind(statement: bytes, portal: bytes = b"") -> bytes:
+    return _msg(b"B", portal + b"\0" + statement + b"\0" + struct.pack("!HHH", 0, 0, 0))
+
+
+def _execute(portal: bytes = b"", max_rows: int = 0) -> bytes:
+    return _msg(b"E", portal + b"\0" + struct.pack("!I", max_rows))
+
+
+SYNC = _msg(b"S", b"")
 
 
 def _rows(audit: Path) -> list[dict]:
@@ -324,3 +367,108 @@ def test_error_rewrite_leaves_the_servers_own_errors_alone():
     session.refusals = {}
     body = pw.error_response("42P01", 'relation "nope" does not exist')[5:]
     assert session._rewrite_error(body) is None
+
+
+# --------------------------------------------------------------------------- default deny
+def test_function_call_is_audited_and_refused(stack):
+    sock = _connect(stack["port"])
+    # FunctionCall: function oid, 0 argument formats, 1 argument, result text
+    call = struct.pack("!IHHI", 2617, 0, 1, 4) + b"test" + struct.pack("!H", 0)
+    sock.sendall(_msg(b"F", call))
+    replies = _until_ready(sock)                     # E + Z: what a fastpath client awaits
+    errors = [dict(pw.error_fields(body)) for kind, body in replies if kind == b"E"]
+    assert [e[b"C"] for e in errors] == ["0A000"]
+    assert errors[0][b"M"] == ("Redshift feature not available in this environment: "
+                               "FunctionCall (the fastpath protocol)")
+    sock.sendall(_msg(b"Q", b"SELECT 1\0"))          # and the session goes on
+    _until_ready(sock)
+    sock.close()
+    assert not _sent(stack["upstream"], b"F")         # never reached the server
+    rows = _rows(stack["audit"])
+    assert rows[0]["args"]["sql"] == ("/* FunctionCall (the fastpath protocol), "
+                                      "function oid 2617 */")
+    assert (rows[0]["exit"], rows[0]["error"]["code"]) == ("error", "0A000")
+    assert "protocol_message" in rows[0]["flags"]
+    assert [r["args"]["sql"] for r in rows[1:]] == ["SELECT 1"]
+
+
+def test_any_unlisted_frontend_message_is_audited_and_refused(stack):
+    sock = _connect(stack["port"])
+    for kind in (b"d", b"c", b"f", b"j"):            # CopyData/Done/Fail, and nothing at all
+        sock.sendall(_msg(kind, b"payload\0"))
+        replies = _until_ready(sock)
+        assert [k for k, _ in replies] == [b"E", b"Z"], kind
+    sock.close()
+    assert not any(k in (b"d", b"c", b"f", b"j") for k, _, _ in stack["upstream"].received)
+    rows = _rows(stack["audit"])
+    assert len(rows) == 4 and all(r["exit"] == "error" for r in rows)
+    assert "frontend message type b'j'" in rows[3]["error"]["message"]
+    assert set(pw.RELAYED) == {b"D", b"C", b"H", b"S", b"X", b"p"}
+
+
+# --------------------------------------------------------------------------- statement map
+def test_a_rejected_reparse_keeps_the_statement_the_server_kept(stack):
+    """Reviewer's repro: s1 is a DELETE; a second Parse of s1 is refused by the
+    server (the name is taken); the Bind/Executes that follow run the DELETE,
+    and their rows must say so."""
+    sock = _connect(stack["port"])
+    delete = b"DELETE FROM warehouse.fct_orders WHERE order_id = 1"
+    sock.sendall(_parse(b"s1", delete) + _bind(b"s1") + _execute() + SYNC)
+    _until_ready(sock)
+    sock.sendall(_parse(b"s1", b"SELECT 1") + SYNC)
+    replies = _until_ready(sock)
+    assert [dict(pw.error_fields(b))[b"C"] for k, b in replies if k == b"E"] == ["42P05"]
+    for _ in range(2):
+        sock.sendall(_bind(b"s1") + _execute() + SYNC)
+        _until_ready(sock)
+    sock.close()
+    rows = [r["args"]["sql"] for r in _rows(stack["audit"])]
+    assert rows == [delete.decode(), "SELECT 1", delete.decode(), delete.decode()]
+
+
+def test_a_pipelined_batch_binds_the_parse_before_it(stack):
+    """Parse, Bind, Execute, Sync in one write (psycopg 3 and asyncpg do this):
+    the Execute is the parsed statement's first run, which its Parse row
+    stands for; the next batch's Parse of the unnamed statement replaces it."""
+    sock = _connect(stack["port"])
+    sock.sendall(_parse(b"", b"SELECT 1") + _bind(b"") + _execute() + SYNC +
+                 _parse(b"", b"SELECT 2") + _bind(b"") + _execute() + _bind(b"") +
+                 _execute() + SYNC)
+    _until_ready(sock)
+    _until_ready(sock)
+    sock.close()
+    assert [r["args"]["sql"] for r in _rows(stack["audit"])] == \
+        ["SELECT 1", "SELECT 2", "SELECT 2"]
+
+
+def test_a_portal_fetched_in_parts_is_one_run(stack):
+    sock = _connect(stack["port"])
+    sock.sendall(_parse(b"s1", b"SELECT order_id FROM warehouse.fct_orders") + SYNC)
+    _until_ready(sock)
+    sock.sendall(_bind(b"s1") + _execute(max_rows=100) + _execute(max_rows=100) +
+                 _execute(max_rows=100) + SYNC)       # first run: the Parse row's
+    _until_ready(sock)
+    sock.sendall(_bind(b"s1") + _execute(max_rows=100) + _execute(max_rows=100) + SYNC)
+    _until_ready(sock)                                # second run: one more row
+    sock.close()
+    assert len(_rows(stack["audit"])) == 2
+    assert len(_sent(stack["upstream"], b"E")) == 5
+
+
+# --------------------------------------------------------------------------- startup
+def test_startup_options_are_filtered_like_set(stack):
+    _connect(stack["port"], params={
+        "user": "alkera", "database": "dev",
+        "options": "-c query_group=etl -c search_path=warehouse"}).close()
+    assert stack["upstream"].startups[-1]["options"] == "-c search_path=warehouse"
+    sock = socket.create_connection(("127.0.0.1", stack["port"]), timeout=10)
+    sock.sendall(_startup({"user": "alkera", "database": "dev",
+                           "options": "-c standard_conforming_strings=off"}))
+    kind, body = _read_msg(sock)
+    sock.close()
+    fields = dict(pw.error_fields(body))
+    assert kind == b"E" and fields[b"S"] == "FATAL" and fields[b"C"] == "0A000"
+    assert "standard_conforming_strings" in fields[b"M"]
+    assert len(stack["upstream"].startups) == 1      # never reached the server
+    row = _rows(stack["audit"])[-1]
+    assert row["exit"] == "error" and "protocol_startup" in row["flags"]

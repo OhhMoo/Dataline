@@ -386,6 +386,39 @@ def main(argv=None) -> int:
         psql_rows = [r for r in rows()[before:] if r["tool"] == TOOL]
         check("audit: psql's three statements are three rows", len(psql_rows) == 3,
               [r["args"]["sql"][:60] for r in psql_rows])
+        # libpq's large-object calls are FunctionCall ('F') messages: default deny
+        before = len(rows())
+        lo = stack.exec_(["bash", "-c", PSQL.replace(" -tAc", "") +
+                          " -c '\\lo_import /etc/hostname'"], check=False, timeout=120)
+        fastpath = [r for r in rows()[before:] if r["tool"] == TOOL
+                    and "protocol_message" in r["flags"]]
+        record["psql"]["lo_import"] = {"rc": lo.returncode, "stderr": lo.stderr.strip()[-300:],
+                                       "rows": [r["args"]["sql"] for r in fastpath]}
+        check("psql \\lo_import (a FunctionCall) is refused by name and is an error row",
+              lo.returncode != 0 and REFUSAL + "FunctionCall" in lo.stderr
+              and len(fastpath) == 1 and fastpath[0]["exit"] == "error",
+              record["psql"]["lo_import"])
+
+        # one door: the server is reachable only through the proxy
+        door = subprocess.run(["docker", "exec", "-u", "nobody", redshift, "python3", "-c", (
+            "import socket\n"
+            "s = socket.socket(socket.AF_UNIX)\n"
+            "try:\n    s.connect('/redshift-data/run/.s.PGSQL.5432'); print('unix open')\n"
+            "except OSError as e:\n    print('unix', e.errno)\n"
+            "t = socket.socket()\n"
+            "try:\n    t.connect(('127.0.0.1', 5432)); print('tcp open')\n"
+            "except OSError as e:\n    print('tcp', e.errno)\n")],
+            capture_output=True, text=True)
+        outside = stack.exec_([PYTHON, "-c", (
+            "import socket\n"
+            "try:\n    socket.create_connection(('redshift.internal', 5432), 3); print('open')\n"
+            "except OSError as e:\n    print('closed', e.errno)\n")], check=False)
+        record["one_door"] = {"in_container_as_nobody": door.stdout.split("\n"),
+                              "from_the_episode_5432": outside.stdout.strip()}
+        check("one door: as a non-postgres user the server's socket is refused and it "
+              "has no TCP port; the episode reaches only the proxy",
+              door.stdout.split("\n")[:2] == ["unix 13", "tcp 111"]
+              and outside.stdout.startswith("closed"), record["one_door"])
 
         # (c) dbt-redshift, explicit profile, then the box profile
         files = {"dbt_project.yml": DBT_PROJECT, "profiles.yml": DBT_PROFILES,

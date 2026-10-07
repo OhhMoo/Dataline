@@ -71,6 +71,12 @@ CORPUS: list[tuple[str, str, str]] = [
     ("concat_then_pipes",
      "SELECT MIN(CONCAT(segment, '/') || region) FROM warehouse.dim_customer",
      f"SELECT MIN(segment || '/' || region) FROM {W}.dim_customer"),
+    # a bare NUMERIC is Redshift's (18,0): the average, cast, is a whole number
+    ("bare_numeric_is_18_0",
+     "SELECT AVG(order_amount)::numeric FROM warehouse.fct_orders "
+     "WHERE order_status = 'completed'",
+     f"SELECT CAST(AVG(order_amount) AS DECIMAL(18,0)) FROM {W}.fct_orders "
+     "WHERE order_status = 'completed'"),
 ]
 
 

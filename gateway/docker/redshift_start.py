@@ -1,5 +1,5 @@
-"""Start the Postgres-persona Redshift: PostgreSQL on loopback, seeded from the
-world, behind the audited wire proxy on redshift.internal:5439.
+"""Start the Postgres-persona Redshift: PostgreSQL on a private unix socket,
+seeded from the world, behind the audited wire proxy on redshift.internal:5439.
 
     python /opt/stack/redshift_start.py            # all of it, one container
     python /opt/stack/redshift_start.py postgres   # only the server, foreground
@@ -10,12 +10,18 @@ NATIVE MODE (container topology, a profile that plugs `warehouse: redshift`;
 The bare form does, in order:
 
   1. `postgres`: a fresh cluster in ALKERA_REDSHIFT_DATA/pgdata (rebuilt on
-     every boot), listening on 127.0.0.1:5432 ONLY - the proxy is the one door,
-     so nothing reaches the server without a row - and on a private unix socket;
-     UTC, ISO dates, SCRAM passwords for TCP, trust for the socket (root and
-     postgres inside this container are the only processes that can use it).
+     every boot). ONE DOOR: no TCP listener at all (listen_addresses = ''),
+     only a unix socket in a directory that is the server's own, 0700, socket
+     0700 - so in a container shared with the agent (the Harbor image) no
+     process but root and `postgres` can reach the server, and everything else
+     must come through the proxy, which writes a row per statement. UTC, ISO
+     dates; MD5 passwords for `alkera` (as a Redshift cluster's are), trust for
+     the `postgres` superuser on that private socket.
   2. `provision`: role `alkera` (password: the box's REDSHIFT_PASSWORD, the
-     obviously fake shared credential) and database `dev`, owned by it.
+     obviously fake shared credential) and database `dev`, owned by it -
+     dropped and created again if it exists, so a proxy that restarts serves
+     the world's warehouse, not what an earlier session wrote into it - and the
+     Redshift system views (redshift_sql.SYSTEM_VIEWS) in its pg_catalog.
   3. `seed`, when ALKERA_REDSHIFT_SEED names a directory: every base table and
      view of every user schema of each `<stem>.duckdb` there is copied, as a
      TABLE (a view's definition is DuckDB's, its rows are what is portable), by
@@ -25,9 +31,10 @@ The bare form does, in order:
      sorted. The seed record is printed as one `{"seed": [...]}` line. Seeding
      goes straight to the server, never through the proxy: it writes no row.
   4. the proxy (`alkera_gateway.native.pgwire_proxy.serve`) on 0.0.0.0:5439,
-     translating with `alkera_gateway.redshift_sql.translate`. It listens only
-     once the seed is in, so the healthcheck (the port in LISTEN, read from
-     /proc/net/tcp, never dialled) means "seeded and answering".
+     translating with `alkera_gateway.redshift_sql.translate`, connecting to the
+     server over its socket. It listens only once the seed is in, so the
+     healthcheck (the port in LISTEN, read from /proc/net/tcp, never dialled)
+     means "seeded and answering".
 
   ALKERA_NATIVE_AUDIT            the rollout's actions.jsonl: one 9.2.2
                                  `redshift.statement` row per statement, written
@@ -38,11 +45,19 @@ The bare form does, in order:
   ALKERA_REDSHIFT_STATEMENT_LOG  the proxy's private record, one line per
                                  statement it handled (the 1:1 check)
 
+THE SERVER AND THE PROXY LIVE AND DIE TOGETHER. A proxy in front of a server
+that restarted would be in front of a fresh, unseeded cluster (`postgres`
+re-initialises it): so the proxy watches the postmaster it seeded (its pid, in
+postmaster.pid) and exits the moment it changes or dies, and the bare form
+exits when its server child does. A supervisor that restarts the proxy gets a
+re-provisioned, re-seeded `dev`.
+
 The split forms are for a supervisor that runs the server and the proxy as two
 processes (the Harbor image, Task 10): `postgres` execs the server in the
 foreground after (re)initialising the cluster; `proxy` waits for the server's
-port, then provisions, seeds and serves. Paths and ports are environment
-variables; nothing here assumes compose.
+socket, then provisions, seeds and serves. The proxy must run as root or as
+`postgres` (the socket's directory is theirs alone). Paths and ports are
+environment variables; nothing here assumes compose.
 
 This file is what Dockerfile.redshift copies from the working tree;
 alkera_gateway comes from the episode image's revision, like snowflake_start.py.
@@ -62,11 +77,13 @@ from pathlib import Path
 
 PORT = 5439
 NATIVE_HOST = "redshift.internal"
-UPSTREAM_HOST = "127.0.0.1"
+#: The server's port number, which names its socket (.s.PGSQL.<port>); it
+#: opens no TCP port.
 UPSTREAM_PORT = int(os.environ.get("ALKERA_REDSHIFT_UPSTREAM_PORT", "5432"))
 DATA = Path(os.environ.get("ALKERA_REDSHIFT_DATA", "/redshift-data"))
 PGDATA = DATA / "pgdata"
 SOCKET_DIR = DATA / "run"
+SOCKET = SOCKET_DIR / f".s.PGSQL.{UPSTREAM_PORT}"
 PG_BIN = Path(os.environ.get("ALKERA_REDSHIFT_PG_BIN", "/usr/lib/postgresql/17/bin"))
 SEED_ENV = "ALKERA_REDSHIFT_SEED"
 AUDIT_ENV = "ALKERA_NATIVE_AUDIT"
@@ -84,9 +101,10 @@ MAIN_STEM = "warehouse"
 SERVER_USER = "postgres"
 
 POSTGRESQL_CONF = f"""\
-listen_addresses = '{UPSTREAM_HOST}'
+listen_addresses = ''
 port = {UPSTREAM_PORT}
 unix_socket_directories = '{SOCKET_DIR}'
+unix_socket_permissions = 0700
 max_connections = 50
 shared_buffers = 64MB
 timezone = 'UTC'
@@ -100,14 +118,23 @@ logging_collector = off
 log_min_messages = warning
 log_min_error_statement = panic
 """
-#: MD5, as a Redshift cluster's password authentication is. Measured: SCRAM is
-#: what Postgres 17 would pick, and redshift_connector 2.1.17 cannot complete it
-#: (it reads the SASL mechanism list's terminator as a mechanism named '' and
-#: scramp refuses it), where psql, psycopg2 and the connector all do MD5.
+#: MD5 for the agent's role, as a Redshift cluster's password authentication
+#: is. Measured: SCRAM is what Postgres 17 would pick, and redshift_connector
+#: 2.1.17 cannot complete it (it reads the SASL mechanism list's terminator as
+#: a mechanism named '' and scramp refuses it), where psql, psycopg2 and the
+#: connector all do MD5. Trust for the superuser on the private socket only
+#: (provisioning and seeding, as root inside this container).
 PG_HBA = """\
-local   all   all                    trust
-host    all   all   127.0.0.1/32     md5
+local   all   postgres               trust
+local   all   all                    md5
 """
+
+
+def _ids(name: str) -> tuple[int, int]:
+    import pwd
+
+    entry = pwd.getpwnam(name)
+    return entry.pw_uid, entry.pw_gid
 
 
 def _as_server(argv, **kw):
@@ -121,7 +148,8 @@ def _as_server(argv, **kw):
 
 def init_cluster() -> None:
     """A fresh cluster on every boot: the volume's mount point stays, the
-    cluster in it goes."""
+    cluster in it goes. The data directory and the socket's are the server's,
+    0700."""
     for stale in (PGDATA, SOCKET_DIR):
         shutil.rmtree(stale, ignore_errors=True)
     DATA.mkdir(parents=True, exist_ok=True)
@@ -129,9 +157,9 @@ def init_cluster() -> None:
         path.mkdir(parents=True)
         if os.geteuid() == 0:
             shutil.chown(path, SERVER_USER, SERVER_USER)
-        path.chmod(0o700 if path == PGDATA else 0o755)
+        path.chmod(0o700)
     _as_server([str(PG_BIN / "initdb"), "-D", str(PGDATA), "-U", SERVER_USER,
-                "--auth-local=trust", "--auth-host=md5", "-E", "UTF8",
+                "--auth-local=trust", "--auth-host=reject", "-E", "UTF8",
                 "--locale=C.UTF-8", "--no-instructions"], stdout=subprocess.DEVNULL)
     with open(PGDATA / "postgresql.conf", "a", encoding="utf-8") as stream:
         stream.write("\n# alkera redshift persona (gateway/docker/redshift_start.py)\n"
@@ -150,34 +178,45 @@ def start_server() -> subprocess.Popen:
     return subprocess.Popen(server_argv(), **kw)
 
 
+def socket_answers() -> bool:
+    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as probe:
+        probe.settimeout(1)
+        try:
+            probe.connect(str(SOCKET))
+            return True
+        except OSError:
+            return False
+
+
 def wait_for_server(timeout: float = 60.0) -> None:
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
-        try:
-            with socket.create_connection((UPSTREAM_HOST, UPSTREAM_PORT), timeout=1):
-                pass
-            if (SOCKET_DIR / f".s.PGSQL.{UPSTREAM_PORT}").exists():
-                return
-        except OSError:
-            pass
+        if socket_answers():
+            return
         time.sleep(0.2)
-    raise RuntimeError(f"postgres did not listen on {UPSTREAM_HOST}:{UPSTREAM_PORT} "
-                       f"within {timeout:.0f}s")
+    raise RuntimeError(f"postgres did not answer on {SOCKET} within {timeout:.0f}s")
+
+
+def postmaster_pid() -> int | None:
+    try:
+        return int((PGDATA / "postmaster.pid").read_text(encoding="utf-8").split()[0])
+    except (OSError, ValueError, IndexError):
+        return None
 
 
 def _connect(database: str, user: str = SERVER_USER):
     import psycopg2
 
     conn = psycopg2.connect(host=str(SOCKET_DIR), port=UPSTREAM_PORT, dbname=database,
-                            user=user)
+                            user=user, password=PASSWORD if user == USER else None)
     conn.autocommit = True
     return conn
 
 
 def provision(databases=(DATABASE,)) -> None:
-    """Role `alkera`, its databases, and in each the Redshift system views
-    (`redshift_sql.SYSTEM_VIEWS`, in pg_catalog, readable by everyone).
-    Idempotent."""
+    """Role `alkera`; each database dropped if it exists and created again,
+    owned by it; the Redshift system views (`redshift_sql.SYSTEM_VIEWS`) in its
+    pg_catalog, readable by everyone."""
     from alkera_gateway.redshift_sql import SYSTEM_VIEWS
 
     conn = _connect("postgres")
@@ -187,9 +226,8 @@ def provision(databases=(DATABASE,)) -> None:
         if cur.fetchone() is None:
             cur.execute(f"CREATE ROLE {USER} LOGIN PASSWORD %s", (PASSWORD,))
         for name in databases:
-            cur.execute("SELECT 1 FROM pg_database WHERE datname = %s", (name,))
-            if cur.fetchone() is None:
-                cur.execute(f'CREATE DATABASE "{name}" OWNER {USER}')
+            cur.execute(f'DROP DATABASE IF EXISTS "{name}" WITH (FORCE)')
+            cur.execute(f'CREATE DATABASE "{name}" OWNER {USER}')
     finally:
         conn.close()
     for name in databases:
@@ -228,7 +266,7 @@ def seed(source: Path) -> list[dict]:
             conn.execute("LOAD postgres")
             conn.execute(f"ATTACH '{file.as_posix()}' AS src (READ_ONLY)")
             conn.execute(f"ATTACH 'host={SOCKET_DIR} port={UPSTREAM_PORT} dbname={database} "
-                         f"user={USER}' AS pg (TYPE postgres)")
+                         f"user={USER} password={PASSWORD}' AS pg (TYPE postgres)")
             tables = conn.execute(
                 "SELECT table_schema, table_name FROM information_schema.tables "
                 "WHERE table_catalog = 'src' AND table_schema NOT IN "
@@ -266,13 +304,47 @@ def serve_proxy() -> None:
     if log:
         Path(log).parent.mkdir(parents=True, exist_ok=True)
         Path(log).write_text("", encoding="utf-8")
-    serve(("0.0.0.0", PORT), (UPSTREAM_HOST, UPSTREAM_PORT),
+    serve(("0.0.0.0", PORT), str(SOCKET),
           translate=redshift_sql.translate, tool=TOOL, actor=ACTOR,
           destinations=destinations, statement_log=Path(log) if log else None,
           parameters={"server_version": redshift_sql.SERVER_VERSION},
+          refuse=redshift_sql.Unsupported, startup_filter=redshift_sql.startup_parameters,
           on_listening=lambda _server: print(json.dumps(
-              {"listening": f"0.0.0.0:{PORT}", "upstream":
-               f"{UPSTREAM_HOST}:{UPSTREAM_PORT}"}), flush=True))
+              {"listening": f"0.0.0.0:{PORT}", "upstream": str(SOCKET)}), flush=True))
+
+
+_STOPPING = threading.Event()
+
+
+def _die(reason: dict) -> None:
+    if _STOPPING.is_set():
+        return
+    print(json.dumps(reason), file=sys.stderr, flush=True)
+    os._exit(1)
+
+
+def _watch_child(server: subprocess.Popen) -> None:
+    """The bare form: the server child dying takes the container with it."""
+    _die({"postgres_exited": server.wait()})
+
+
+def _watch_postmaster(pid: int) -> None:
+    """The split form: the postmaster this proxy seeded must stay the one
+    serving; another one (a supervisor restarted it, on a fresh cluster) or
+    none at all ends the proxy too."""
+    while True:
+        time.sleep(1)
+        now = postmaster_pid()
+        alive = now == pid
+        if alive:
+            try:
+                os.kill(pid, 0)
+            except ProcessLookupError:
+                alive = False
+            except PermissionError:
+                pass
+        if not alive:
+            _die({"postmaster_changed": {"seeded": pid, "now": now}})
 
 
 def provision_seed_serve() -> None:
@@ -286,19 +358,6 @@ def provision_seed_serve() -> None:
     serve_proxy()
 
 
-_STOPPING = threading.Event()
-
-
-def _watch(server: subprocess.Popen) -> None:
-    """The server dying takes the container with it: a proxy in front of
-    nothing would answer every connection with an error, quietly."""
-    code = server.wait()
-    if _STOPPING.is_set():
-        return
-    print(json.dumps({"postgres_exited": code}), file=sys.stderr, flush=True)
-    os._exit(1)
-
-
 def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     mode = argv[0] if argv else "all"
@@ -307,12 +366,16 @@ def main(argv: list[str] | None = None) -> int:
     if mode == "postgres":
         init_cluster()
         if os.geteuid() == 0:
-            os.setgid(int(subprocess.check_output(["id", "-g", SERVER_USER]).strip()))
+            uid, gid = _ids(SERVER_USER)
+            os.setgid(gid)
             os.setgroups([])
-            os.setuid(int(subprocess.check_output(["id", "-u", SERVER_USER]).strip()))
+            os.setuid(uid)
         os.execv(server_argv()[0], server_argv())
     if mode == "proxy":
         wait_for_server()
+        pid = postmaster_pid()
+        threading.Thread(target=_watch_postmaster, args=(pid,), daemon=True,
+                         name="postmaster").start()
         provision_seed_serve()
         return 0
     init_cluster()
@@ -329,7 +392,8 @@ def main(argv: list[str] | None = None) -> int:
     signal.signal(signal.SIGTERM, stop)
     signal.signal(signal.SIGINT, stop)
     wait_for_server()
-    threading.Thread(target=_watch, args=(server,), daemon=True, name="postgres").start()
+    threading.Thread(target=_watch_child, args=(server,), daemon=True,
+                     name="postgres").start()
     provision_seed_serve()
     return 0
 
