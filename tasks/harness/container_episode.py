@@ -2364,6 +2364,17 @@ services:
             self.gate = None
         if not self._up:
             return
+        # FIRST, while every container is still up: the Postgres server's
+        # statement log becomes `psql.statement` rows (postgres_live). The
+        # tailer appends through native.audit.record, which takes each `seq`
+        # under <audit>/writer.lock like every other writer, so the sequence
+        # stays contiguous; the rows are in actions.jsonl before ownership is
+        # handed back, before `compose down -v` deletes the log with its
+        # volume, and before destinations are folded or a grader reads /audit.
+        import postgres_live
+
+        self.postgres_statements = postgres_live.fold_statement_log(
+            self, clock=world_clock(self.world))
         if self.proxy_container:
             # Every connection the subject tried to make off the box, kept
             # beside the mounts overlay as part of the rollout's record.
@@ -2384,6 +2395,12 @@ services:
         if self.plugged_backends():
             self.destinations_folded = self.fold_destinations()
         self._up = False
+        if self.postgres_statements.get("error"):
+            # Loud, and only once the stack is gone: an action log missing the
+            # Postgres statements is not this rollout's record.
+            raise ContainerError(
+                f"postgres statement log not folded into the action log: "
+                f"{self.postgres_statements['error']}")
 
     def exec_(self, argv: list[str], *, check: bool = True, timeout: int = 300,
               env: dict | None = None,
@@ -2424,6 +2441,13 @@ services:
                                  if p.strip())
         record["home"] = self._copy_home()
         record["dbt_profiles_rerooted"] = self._stage_profiles()
+        # The world's warehouse.* into Postgres, only for a profile that plugs
+        # it (postgres_live.seed); an unprofiled box's server stays compose's.
+        import postgres_live
+
+        seeded = postgres_live.seed(self)
+        if seeded is not None:
+            record["postgres_seed"] = seeded
         return record
 
     def _copy_home(self) -> list[str]:

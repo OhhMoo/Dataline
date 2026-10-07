@@ -54,7 +54,7 @@ property rather than an oversight.
 | `tableau.internal` | 8096 | native-services | same |
 | `sigma.internal` | 8097 | native-services | same |
 | `native-services.internal` | 8099 | native-services | ours: the aggregate `/health` |
-| `postgres.internal` | 5432 | postgres | the warehouse, served |
+| `postgres.internal` | 5432 | postgres | the warehouse, served. **Audited at teardown**: `NativeContainerEpisode.down()` runs `native/tailers/postgres.py` over the role-scoped statement log inside native-services before anything is torn down, one `psql.statement` row per `alkera` statement (`tasks/harness/postgres_live.py`). **Seeded** with the world's `warehouse.*` only for a profile plugging `warehouse: postgres` (`de/postgres`); every other box keeps compose's `warehouse.items` (2 rows). psql, psycopg and dbt-postgres live: `tasks/harness/postgres_e2e_check.py`, evidence `tasks/harness/evidence/postgres_e2e.json`. Its connections are not counted in `destinations.jsonl` |
 | `minio.internal` | 9000 | minio | object storage, bucket `alkera` |
 | `airflow.internal` | 8080 | airflow | *designed*, `--profile airflow` |
 | `snowflake.internal` | 8443 | snowflake | **live** for a profile plugging `warehouse: snowflake` (compose profile `snowflake` via `container_episode.compose_env`; seeded from the world's DuckDB, one `snowflake.statement` row per statement; `tasks/harness/snowflake_e2e_check.py`, evidence `tasks/harness/evidence/snowflake_e2e.json`); containment P6 not yet re-run with it |

@@ -77,8 +77,14 @@ _CATALOG = (
          surfaces=("duckdb", "duckdb_legacy", "streaming"),
          note="GT002's `streaming` surface is tables in the DuckDB file"),
     Plug("postgres", "warehouse", "partial", surfaces=("postgres",),
-         note="real backend; dbt-postgres in requirements.lock; no task uses it "
-              "and no Postgres server on the dev host to test dbt against"),
+         note="real server at postgres.internal:5432 in every native stack; its "
+              "role-scoped statement log is folded into the action log at "
+              "teardown (psql.statement, one row per statement); seeded with "
+              "the world's warehouse.* only when a profile plugs it; psql, psycopg "
+              "and dbt-postgres run live against it in a container "
+              "(tasks/harness/evidence/postgres_e2e.json); rows land at teardown, "
+              "not per call; connections are not counted in destinations.jsonl; "
+              "no task uses it"),
     Plug("snowflake", "warehouse", "partial", surfaces=("snowflake",),
          note="fakesnow 0.11.18 behind a TLS proxy; sql_* and dbt-snowflake verified "
               "against it in-process; clients only in images built with "
