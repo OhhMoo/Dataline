@@ -89,9 +89,13 @@ and extract jobs and `ALTER` refused by name (501 `notImplemented`); a query err
 says `SELECT` for everything, which breaks dbt-bigquery); `CREATE SCHEMA` made to
 create the dataset and `CREATE OR REPLACE` made to replace (the emulator does
 neither); the emulator's per-job result datasets hidden from `datasets.list`. The
-module docstring has each measurement. With that, dbt-bigquery (method
-`oauth-secrets` with the box's fake `BIGQUERY_TOKEN`, `api_endpoint`) runs `debug`,
-`run`, re-`run`, `test` and `show`; `dbt seed` is a load job and is refused by name.
+module docstring has each measurement.
+
+dbt-bigquery is NOT in the image (`docker/bigquery-clients.in`): measured against
+this proxy (method `oauth-secrets` with a static token, `api_endpoint`) it runs
+`debug`, `run`, re-`run`, `test` and `show` (`dbt seed` is a load job, refused by
+name), but it brings pandas, pyarrow and nbformat into the system Python, which a
+de image's toolbelt gate forbids. It stays refused by name in `DBT_ADAPTERS`.
 
 Measured end to end by `tasks/harness/bigquery_e2e_check.py` (evidence
 `tasks/harness/evidence/bigquery_e2e.json`); the tool tour's `bigquery` probes are in

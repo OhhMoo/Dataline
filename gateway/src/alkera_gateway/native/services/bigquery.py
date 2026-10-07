@@ -6,8 +6,10 @@ service on backend_net, which the episode cannot reach. The FRONT DOOR is this
 module, mounted by native-services on episode_net as `bigquery.internal:9050`
 only when a profile plugs it (`de/gcp`). The agent's own clients -
 `google.cloud.bigquery.Client(credentials=AnonymousCredentials(),
-client_options={"api_endpoint": $BIGQUERY_API_URL})`, `dbt-bigquery`, curl - talk
-to this module, and this module talks to `$ALKERA_BIGQUERY_UPSTREAM`
+client_options={"api_endpoint": $BIGQUERY_API_URL})`, curl, and dbt-bigquery
+where an image carries it (measured through this proxy; not in the client lock,
+gateway/docker/bigquery-clients.in says why) - talk to this module, and this
+module talks to `$ALKERA_BIGQUERY_UPSTREAM`
 (`http://bigquery:9050` in compose; a supervised child on 127.0.0.1:19050 in
 Harbor). The upstream is never hard-coded here.
 

@@ -139,11 +139,10 @@ BACKENDS: dict[str, Backend] = {
     # which seeds the emulator from the world's warehouse at boot
     # (native/bigquery_seed.py). `seeds_world` is a container backend's /seed
     # mount; native-services already mounts the world, so it stays False. The
-    # clients: google-cloud-bigquery (AnonymousCredentials + client_options
-    # api_endpoint=BIGQUERY_API_URL) and dbt-bigquery, whose box target reads
-    # BIGQUERY_TOKEN (method oauth-secrets: a static bearer token, the one
-    # dbt-bigquery credential that never calls Google; the proxy forwards no
-    # credential and the emulator checks none).
+    # client is google-cloud-bigquery with AnonymousCredentials and
+    # client_options api_endpoint=BIGQUERY_API_URL: the proxy forwards no
+    # credential and the emulator checks none. No dbt-bigquery
+    # (docker/bigquery-clients.in says why).
     "bigquery": Backend(
         name="bigquery",
         host="bigquery.internal",
@@ -153,8 +152,7 @@ BACKENDS: dict[str, Backend] = {
         clients="bigquery",
         statement_tool="bigquery.statement",
         env={"BIGQUERY_API_URL": "http://bigquery.internal:9050",
-             "BIGQUERY_PROJECT": "alkera-local",
-             "BIGQUERY_TOKEN": FAKE_CREDENTIAL},
+             "BIGQUERY_PROJECT": "alkera-local"},
     ),
 }
 

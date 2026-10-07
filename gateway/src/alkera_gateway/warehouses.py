@@ -72,19 +72,13 @@ DBT_ADAPTERS = {
     "duckdb": ("dbt.adapters.duckdb", "dbt-duckdb"),
     "postgres": ("dbt.adapters.postgres", "dbt-postgres"),
     "snowflake": ("dbt.adapters.snowflake", "dbt-snowflake"),
-    # In images built with `--warehouse-clients bigquery` only (docker/
-    # bigquery-clients.in); elsewhere a bigquery `dbt_target` is refused at
+    # Not installed in any image: a bigquery `dbt_target` is refused at
     # construction (dbt_adapter_missing) rather than failing inside dbt.
+    # Measured 2026-10-07: dbt-bigquery 1.12.1 runs against the container's
+    # BigQuery proxy, but it brings pandas, pyarrow and nbformat into the
+    # system Python, which a de image's toolbelt gate forbids
+    # (docker/bigquery-clients.in).
     "bigquery": ("dbt.adapters.bigquery", "dbt-bigquery"),
-}
-
-#: The fixed (non-secret) fields a variable-backed output (`dbt_output(env=)`)
-#: needs that no box variable carries. BigQuery: `oauth-secrets` is the one
-#: dbt-bigquery method that takes a static token and never calls Google - the
-#: box's emulator behind its proxy checks no credential (backends.BACKENDS
-#: ["bigquery"]).
-DBT_FIXED_FIELDS = {
-    "bigquery": {"method": "oauth-secrets"},
 }
 
 
@@ -139,7 +133,7 @@ def dbt_output(
     if env is not None:
         if backend == "duckdb" or backend not in DBT_ADAPTERS:
             raise ValueError(f"no variable-backed dbt output for backend {backend!r}")
-        output = {"type": backend, **DBT_FIXED_FIELDS.get(backend, {})}
+        output = {"type": backend}
         output.update({name: f"{{{{ env_var('{var}') }}}}" for name, var in env.items()})
         if port is not None:
             output["port"] = int(port)

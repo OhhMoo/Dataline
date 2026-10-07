@@ -1,7 +1,8 @@
 """The BigQuery plug as a box that plugs it is told about it (native_workspace
-.DISCOVERY["bigquery"]): its variables, its `[bigquery]` section, its onboarding
-row - which must say how to point `google.cloud.bigquery.Client` at the endpoint -
-and a dbt target that becomes the default. A box that does not plug it names it
+.DISCOVERY["bigquery"]): its variables, its `[bigquery]` section and its onboarding
+row - which must say how to point `google.cloud.bigquery.Client` at the endpoint.
+No dbt target: dbt-bigquery is not in the image (gateway/docker/bigquery-clients.in),
+so the box's dbt profile stays the world's own. A box that does not plug it names it
 nowhere (test_discovery_registry.test_unplugged_backend_is_absent_everywhere covers
 every DISCOVERY row).
 
@@ -10,8 +11,6 @@ every DISCOVERY row).
 import sys
 import tomllib
 from pathlib import Path
-
-import yaml
 
 WORLD_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(WORLD_DIR))
@@ -36,7 +35,6 @@ def test_gcp_stack_plugs_bigquery_and_nothing_else_remote():
     env = nw.environment(*_gcp_box())
     assert env["BIGQUERY_API_URL"] == "http://bigquery.internal:9050"
     assert env["BIGQUERY_PROJECT"] == "alkera-local"
-    assert env["BIGQUERY_TOKEN"] == nw.FAKE_TOKEN
     assert not any(k.startswith(("PG", "SNOWFLAKE_")) for k in env)
 
 
@@ -54,24 +52,16 @@ def test_onboarding_says_how_to_point_the_client_at_the_endpoint(tmp_path):
     row = next(line for line in page.splitlines() if "bigquery.internal:9050" in line)
     assert row.startswith("| the warehouse |")
     for needed in ("AnonymousCredentials()", "api_endpoint", "BIGQUERY_API_URL",
-                   "BIGQUERY_PROJECT", "dbt-bigquery"):
+                   "BIGQUERY_PROJECT", "REST API v2"):
         assert needed in row, needed
+    assert "dbt" not in row                              # no adapter on the box
     assert row.count("|") == 5                           # one table row, no stray pipe
     page.encode("ascii")                                 # what _write accepts
 
 
-def test_bigquery_box_profile_defaults_to_bigquery_and_names_variables_only():
-    text = nw.box_profiles_yaml(WORLD_PROFILE, ["bigquery"])
-    profile = yaml.safe_load(text)["world_dbt"]
-    assert profile["target"] == "bigquery"
-    assert profile["outputs"]["dev"]["type"] == "duckdb"
-    out = profile["outputs"]["bigquery"]
-    assert out["type"] == "bigquery" and out["method"] == "oauth-secrets"
-    assert out["token"] == "{{ env_var('BIGQUERY_TOKEN') }}"
-    assert out["project"] == "{{ env_var('BIGQUERY_PROJECT') }}"
-    assert out["api_endpoint"] == "{{ env_var('BIGQUERY_API_URL') }}"
-    assert out["schema"] == "dbt_dev"                    # a dataset the seed did not fill
-    assert nw.FAKE_TOKEN not in text and "alkera-local" not in text
+def test_bigquery_adds_no_dbt_target():
+    assert nw.DISCOVERY["bigquery"].dbt_type is None
+    assert nw.box_profiles_yaml(WORLD_PROFILE, ["bigquery"]) == WORLD_PROFILE
 
 
 def test_bigquery_is_explicit_only():

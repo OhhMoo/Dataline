@@ -93,11 +93,11 @@ _CATALOG = (
     Plug("bigquery", "warehouse", "partial", surfaces=("bigquery",),
          note="goccy emulator v0.8.1 behind an audited proxy at "
               "bigquery.internal:9050 (native/services/bigquery.py), seeded from "
-              "the world; google-cloud-bigquery and dbt-bigquery (debug, run, test, "
-              "show; seed and other load jobs refused) in images built with "
-              "--warehouse-clients bigquery; cost not modelled, ALTER and legacy "
-              "SQL refused, no transactions; container e2e only, arm64 not run, "
-              "no task uses it"),
+              "the world; google-cloud-bigquery in images built with "
+              "--warehouse-clients bigquery; cost not modelled, load jobs, ALTER "
+              "and legacy SQL refused, no transactions; no dbt-bigquery (works "
+              "against the proxy, but its pandas/nbformat break the de image's "
+              "role gate); container e2e only, arm64 not run, no task uses it"),
     Plug("databricks", "warehouse", "planned", surfaces=("databricks",)),
     Plug("dbt", "transform", "shipped", surfaces=("dbt",)),
     Plug("ops_sched", "orchestrator", "shipped",

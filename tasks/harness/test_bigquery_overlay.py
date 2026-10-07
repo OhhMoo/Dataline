@@ -53,7 +53,6 @@ def test_episode_gets_the_proxy_not_the_engine(tmp_path, monkeypatch):
     env = episode["environment"]
     assert env["BIGQUERY_API_URL"] == "http://bigquery.internal:9050"
     assert env["BIGQUERY_PROJECT"] == "alkera-local"
-    assert env["BIGQUERY_TOKEN"] == "alkera-local-dev"
     assert "ALKERA_BIGQUERY_UPSTREAM" not in env
     assert "depends_on" not in episode               # a hosted backend has no container
     endpoints = stack.episode_endpoints()
