@@ -22,7 +22,7 @@
    "returncode": 0,
    "rows": 2,
    "rows_at": "call",
-   "seconds": 0.73,
+   "seconds": 0.26,
    "stderr_tail": "",
    "stdout_tail": "{\"value\": 425}\n",
    "tool": "airflow",
@@ -57,7 +57,7 @@
    "returncode": 0,
    "rows": 2,
    "rows_at": "call",
-   "seconds": 5.04,
+   "seconds": 3.18,
    "stderr_tail": "",
    "stdout_tail": "{\"value\": \"30 2 * * *\"}\n",
    "tool": "airflow",
@@ -148,9 +148,9 @@
      },
      {
       "count": 4,
-      "first_ts": "2026-10-07T09:52:52Z",
+      "first_ts": "2026-10-07T10:57:57Z",
       "host": "airflow.internal",
-      "last_ts": "2026-10-07T09:52:58Z",
+      "last_ts": "2026-10-07T10:58:00Z",
       "port": 8100
      },
      {
@@ -177,9 +177,9 @@
    },
    "image": "alkera-episode:w1-airflow",
    "image_gate": {
-    "head": "e9af4c3c89ed64f41a2515ff54459c7124c6e876",
+    "head": "eb246213cf74af48d5173e2be866efb246c5eedf",
     "image": "alkera-episode:w1-airflow",
-    "revision": "e9af4c3c89ed64f41a2515ff54459c7124c6e876"
+    "revision": "eb246213cf74af48d5173e2be866efb246c5eedf"
    },
    "ok": true,
    "plugs": {
@@ -193,10 +193,10 @@
    ],
    "profile": "de/laptop",
    "rows_at": "call",
-   "seconds": 66.6,
+   "seconds": 26.2,
    "seed": "# commerce_analytics world seed: a shop's nightly CDC extracts -> raw -> dbt\n# star schema + semantic layer -> Power BI / Tableau / Sigma dashboards.\ntheme: commerce_analytics    # world/world/themes/<name>/\nseed: 11\nvtime_start: \"2025-01-01T00:00:00Z\"\n# 425 nightly extracts: dt=2024-12-31 (the cutover snapshot: accounts and\n# catalogue, no orders) then dt=2025-01-01 .. dt=2026-02-28. Fourteen months of\n# orders, so last-year measures exist for January and February 2026. The world\n# clock opens at 2026-03-02T00:00Z, a Monday - business day 1 of the February\n# close.\ndays: 425\n\n# Scale. Every key is optional (gen.DEFAULTS); these are the defaults, spelled\n# out. Build time is dominated by dbt, not by volume - a 2x seed builds in about\n# the same time.\ncustomers: 220               # accounts on the platform at cutover\nsignup_pct: 18               # chance per day of a new account (a second at a quarter of it)\nupdate_pct: 9                # chance per day that one account is upgraded a segment\norders_per_day: [20, 60]     # base range, scaled by weekday, month, peak days and growth\nlines_per_order: [1, 4]\ncancel_pct: 6                # 70% the same day, the rest the next day\nrefund_pct: 4                # 3 to 45 days after the order\ngrowth_pct: 20               # year-over-year order volume growth\n\ngit_author: \"Analytics Engineering <analytics@example.com>\"\nnative: true\nfiles: {formats: [parquet]}\nprofile:\n  name: de/laptop\n  slots: [files, warehouse, transform, orchestrator, object_store, ingest, bi, observability, release, human]\n  plugs: {orchestrator: [airflow]}\n",
    "stack": {
-    "container_id": "491162eaa7fc",
+    "container_id": "df717c13f805",
     "episode_endpoints": {
      "airbyte": "http://airbyte.internal:8001",
      "airflow": "http://airflow.internal:8100",
@@ -222,7 +222,7 @@
      "slack": "http://slack.internal:8081"
     },
     "image": "alkera-episode:w1-airflow",
-    "image_digest": "sha256:7fd7909e147775cc7fbb383c41568bd493d17a17deaa5cd7d90d39dafe7f93fd",
+    "image_digest": "sha256:4a15cb25990babf796ce28057d83dbe234df6d0dc000cc033555d5b41833e1aa",
     "services": [
      "episode",
      "minio",
@@ -239,7 +239,7 @@
      "ALKERA_SHIM_BIN": "/opt/alkera/shims",
      "ALKERA_SHIM_WATCH": "/world/var/warehouse/warehouse.duckdb",
      "ALKERA_SHIM_WORKSPACE": "/workspace",
-     "ALKERA_SOURCE_REV": "e9af4c3c89ed64f41a2515ff54459c7124c6e876",
+     "ALKERA_SOURCE_REV": "eb246213cf74af48d5173e2be866efb246c5eedf",
      "ALKERA_TOOLBELT": "de",
      "ALKERA_VIRTUAL_TIME": "2026-03-02T00:00:00Z",
      "ALKERA_WAREHOUSES": "",
@@ -291,9 +291,9 @@
    }
   }
  ],
- "revision": "e9af4c3c89ed64f41a2515ff54459c7124c6e876",
- "seconds": 66.6,
- "started": 1791366729.8012848,
+ "revision": "eb246213cf74af48d5173e2be866efb246c5eedf",
+ "seconds": 26.2,
+ "started": 1791370661.9615998,
  "summary": {
   "DOC": 0,
   "FAIL": 0,

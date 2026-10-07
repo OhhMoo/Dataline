@@ -38,7 +38,7 @@
    }
   ],
   "hours": 1.0,
-  "seconds": 41.3
+  "seconds": 13.2
  },
  "after": {
   "rc": 0,
@@ -107,10 +107,10 @@
   "stderr": ""
  },
  "airflowctl": {
-  "no_limit": "2026-10-07 09:51:06 [warning  ] Server error                   [airflowctl.api.client] extra={'detail': [{'type': 'int_parsing', 'loc': ['query', 'limit'], 'msg': 'Input should be a valid integer, unable to parse string as an integer', 'input': ''}]} Server response error: Client error message: {'detail': [{'type': 'int_parsing', 'loc': ['query', 'limit'], 'msg': 'Input should be a valid integer, unable to  parse string as an integer', 'input': ''}]} Client error,  Please check the command and its parameters. If you need help,  run the command with --help. ",
+  "no_limit": "2026-10-07 10:57:19 [warning  ] Server error                   [airflowctl.api.client] extra={'detail': [{'type': 'int_parsing', 'loc': ['query', 'limit'], 'msg': 'Input should be a valid integer, unable to parse string as an integer', 'input': ''}]} Server response error: Client error message: {'detail': [{'type': 'int_parsing', 'loc': ['query', 'limit'], 'msg': 'Input should be a valid integer, unable to  parse string as an integer', 'input': ''}]} Client error,  Please check the command and its parameters. If you need help,  run the command with --help. ",
   "rc": 0,
   "stderr": "",
-  "stdout": "AF-CTL-TOKEN 289\nAF-CTL-LOGIN 0\nAF-CTL-VERSION {'airflowctl_version': '0.1.5', 'version': '3.3.2', 'git_version': None} \nAF-CTL-DAGS [\"bi_refresh\",\"commerce_nightly\"]\nAF-CTL-GET [{\"dag_id\":\"commerce_nightly\",\"dag_display_name\":\"commerce_nightly\",\"is_paused\":\"False\",\"is_stale\":\"False\",\"last_parsed_time\":null,\"last_parse_duration\":null,\"last_expired\":null,\"bundle_name\":\"dags-folder\",\"bundle_version\":null,\"relative_fileloc\":\"commerce_nightly.py\",\"fileloc\":\"/world/workspace/dags/commerce_nightly.py\",\"description\":null,\"timetable_summary\":\"30 2 * * *\",\"timetable_description\":\"At 02:30\",\"timetable_partitioned\":\"False\",\"timetable_periodic\":\"True\",\"tags\":[{\"name\":\"commerce\",\"dag_id\":\"commerce_nightly\",\"dag_display_name\":\"commerce_nightly\"},{\"name\":\"dbt\",\"dag_id\":\"commerce_nightly\",\"dag_display_name\":\"commerce_nightly\"}],\"max_active_tasks\":\"16\",\"max_active_runs\":\"1\",\"max_consecutive_failed_dag_runs\":\"0\",\"has_task_concurrency_limits\":\"False\",\"has_import_errors\":\"False\",\"next_dagrun_logical_date\":\"2026-03-02T02:30:00Z\",\"next_dagrun_data_interval_start\":\"2026-03-02T02:30:00Z\",\"next_dagrun_data_interval_end\":\"2026-03-02T02:30:00Z\",\"next_dagrun_run_after\":\"2026-03-02T02:30:00Z\",\"allowed_run_types\":null,\"owners\":[\"analytics-eng\"],\"is_backfillable\":\"False\",\"file_token\":\"93cd78262710819774e4a14bed867fc0a3342de0\"}]\nAF-CTL-RUNS [{\"dag_run_id\":\"manual__2026-03-02T00:00:00+00:00_AU5QEulX\",\"state\":\"queued\"},{\"dag_run_id\":\"manual__2026-03-02T00:00:00+00:00_EgPkM0o2\",\"state\":\"queued\"}]\nAF-CTL-WALLCLOCK \"2026-10-07 09:51:04 [warning  ] Server error                   [airflowctl.api.client] extra={'detail': \\\"logical_date 2026-10-07T09:51:04Z is after the world's clock (2026-03-02T00:00:00Z): a run for a time the world has not reached is not available here - the clock is the world's. Pass a logical_date at or before 2026-03-02T00:00:00Z, or null.\\\"} Server response error: Client error message: {'detail': \\\"logical_date  2026-10-07T09:51:04Z is after the world's clock (2026-03-02T00:00:00Z): a run  for a time the world has not reached is not available here - the clock is the  world's. Pass a logical_date at or before 2026-03-02T00:00:00Z, or null.\\\"} Client error,  Please check the command and its parameters. If you need help,  run the command with --help. \"\nAF-CTL-NOLIMIT \"2026-10-07 09:51:06 [warning  ] Server error                   [airflowctl.api.client] extra={'detail': [{'type': 'int_parsing', 'loc': ['query', 'limit'], 'msg': 'Input should be a valid integer, unable to parse string as an integer', 'input': ''}]} Server response error: Client error message: {'detail': [{'type': 'int_parsing', 'loc': ['query', 'limit'], 'msg': 'Input should be a valid integer, unable to  parse string as an integer', 'input': ''}]} Client error,  Please check the command and its parameters. If you need help,  run the command with --help. \"\n",
+  "stdout": "AF-CTL-TOKEN 289\nAF-CTL-LOGIN 0\nAF-CTL-VERSION {'airflowctl_version': '0.1.5', 'version': '3.3.2', 'git_version': None} \nAF-CTL-DAGS [\"bi_refresh\",\"commerce_nightly\"]\nAF-CTL-GET [{\"dag_id\":\"commerce_nightly\",\"dag_display_name\":\"commerce_nightly\",\"is_paused\":\"False\",\"is_stale\":\"False\",\"last_parsed_time\":null,\"last_parse_duration\":null,\"last_expired\":null,\"bundle_name\":\"dags-folder\",\"bundle_version\":null,\"relative_fileloc\":\"commerce_nightly.py\",\"fileloc\":\"/world/workspace/dags/commerce_nightly.py\",\"description\":null,\"timetable_summary\":\"30 2 * * *\",\"timetable_description\":\"At 02:30\",\"timetable_partitioned\":\"False\",\"timetable_periodic\":\"True\",\"tags\":[{\"name\":\"commerce\",\"dag_id\":\"commerce_nightly\",\"dag_display_name\":\"commerce_nightly\"},{\"name\":\"dbt\",\"dag_id\":\"commerce_nightly\",\"dag_display_name\":\"commerce_nightly\"}],\"max_active_tasks\":\"16\",\"max_active_runs\":\"1\",\"max_consecutive_failed_dag_runs\":\"0\",\"has_task_concurrency_limits\":\"False\",\"has_import_errors\":\"False\",\"next_dagrun_logical_date\":\"2026-03-02T02:30:00Z\",\"next_dagrun_data_interval_start\":\"2026-03-02T02:30:00Z\",\"next_dagrun_data_interval_end\":\"2026-03-02T02:30:00Z\",\"next_dagrun_run_after\":\"2026-03-02T02:30:00Z\",\"allowed_run_types\":null,\"owners\":[\"analytics-eng\"],\"is_backfillable\":\"False\",\"file_token\":\"93cd78262710819774e4a14bed867fc0a3342de0\"}]\nAF-CTL-RUNS [{\"dag_run_id\":\"manual__2026-03-02T00:00:00+00:00_AU5QEulX\",\"state\":\"queued\"},{\"dag_run_id\":\"manual__2026-03-02T00:00:00+00:00_EgPkM0o2\",\"state\":\"queued\"}]\nAF-CTL-WALLCLOCK \"2026-10-07 10:57:18 [warning  ] Server error                   [airflowctl.api.client] extra={'detail': \\\"logical_date 2026-10-07T10:57:18Z is after the world's clock (2026-03-02T00:00:00Z): a run for a time the world has not reached is not available here - the clock is the world's. Pass a logical_date at or before 2026-03-02T00:00:00Z, or null.\\\"} Server response error: Client error message: {'detail': \\\"logical_date  2026-10-07T10:57:18Z is after the world's clock (2026-03-02T00:00:00Z): a run  for a time the world has not reached is not available here - the clock is the  world's. Pass a logical_date at or before 2026-03-02T00:00:00Z, or null.\\\"} Client error,  Please check the command and its parameters. If you need help,  run the command with --help. \"\nAF-CTL-NOLIMIT \"2026-10-07 10:57:19 [warning  ] Server error                   [airflowctl.api.client] extra={'detail': [{'type': 'int_parsing', 'loc': ['query', 'limit'], 'msg': 'Input should be a valid integer, unable to parse string as an integer', 'input': ''}]} Server response error: Client error message: {'detail': [{'type': 'int_parsing', 'loc': ['query', 'limit'], 'msg': 'Input should be a valid integer, unable to  parse string as an integer', 'input': ''}]} Client error,  Please check the command and its parameters. If you need help,  run the command with --help. \"\n",
   "tools": [
    "airflow.auth_token",
    "airflow.version",
@@ -479,12 +479,12 @@
   },
   {
    "check": "airflowctl: a token from /auth/token/cli",
-   "detail": "and with --help. \"\nAF-CTL-NOLIMIT \"2026-10-07 09:51:06 [warning  ] Server error                   [airflowctl.api.client] extra={'detail': [{'type': 'int_parsing', 'loc': ['query', 'limit'], 'msg': 'Input should be a valid integer, unable to parse string as an integer', 'input': ''}]} Server response error: Client error message: {'detail': [{'type': 'int_parsing', 'loc': ['query', 'limit'], 'msg': 'Input should be a valid integer, unable to  parse string as an integer', 'input': ''}]} Client error,  Please check the command and its parameters. If you need help,  run the command with --help. \"\n",
+   "detail": "and with --help. \"\nAF-CTL-NOLIMIT \"2026-10-07 10:57:19 [warning  ] Server error                   [airflowctl.api.client] extra={'detail': [{'type': 'int_parsing', 'loc': ['query', 'limit'], 'msg': 'Input should be a valid integer, unable to parse string as an integer', 'input': ''}]} Server response error: Client error message: {'detail': [{'type': 'int_parsing', 'loc': ['query', 'limit'], 'msg': 'Input should be a valid integer, unable to  parse string as an integer', 'input': ''}]} Client error,  Please check the command and its parameters. If you need help,  run the command with --help. \"\n",
    "result": "PASS"
   },
   {
    "check": "airflowctl: login --skip-keyring",
-   "detail": "and with --help. \"\nAF-CTL-NOLIMIT \"2026-10-07 09:51:06 [warning  ] Server error                   [airflowctl.api.client] extra={'detail': [{'type': 'int_parsing', 'loc': ['query', 'limit'], 'msg': 'Input should be a valid integer, unable to parse string as an integer', 'input': ''}]} Server response error: Client error message: {'detail': [{'type': 'int_parsing', 'loc': ['query', 'limit'], 'msg': 'Input should be a valid integer, unable to  parse string as an integer', 'input': ''}]} Client error,  Please check the command and its parameters. If you need help,  run the command with --help. \"\n",
+   "detail": "and with --help. \"\nAF-CTL-NOLIMIT \"2026-10-07 10:57:19 [warning  ] Server error                   [airflowctl.api.client] extra={'detail': [{'type': 'int_parsing', 'loc': ['query', 'limit'], 'msg': 'Input should be a valid integer, unable to parse string as an integer', 'input': ''}]} Server response error: Client error message: {'detail': [{'type': 'int_parsing', 'loc': ['query', 'limit'], 'msg': 'Input should be a valid integer, unable to  parse string as an integer', 'input': ''}]} Client error,  Please check the command and its parameters. If you need help,  run the command with --help. \"\n",
    "result": "PASS"
   },
   {
@@ -565,7 +565,7 @@
   },
   {
    "check": "airflowctl: `dags trigger` with the wall clock as logical date is refused",
-   "detail": "lock (2026-03-02T00:00:00Z): a run for a time the world has not reached is not available here - the clock is the world's. Pass a logical_date at or before 2026-03-02T00:00:00Z, or null.\"} Server response error: Client error message: {'detail': \"logical_date  2026-10-07T09:51:04Z is after the world's clock (2026-03-02T00:00:00Z): a run  for a time the world has not reached is not available here - the clock is the  world's. Pass a logical_date at or before 2026-03-02T00:00:00Z, or null.\"} Client error,  Please check the command and its parameters. If you need help,  run the command with --help. ",
+   "detail": "lock (2026-03-02T00:00:00Z): a run for a time the world has not reached is not available here - the clock is the world's. Pass a logical_date at or before 2026-03-02T00:00:00Z, or null.\"} Server response error: Client error message: {'detail': \"logical_date  2026-10-07T10:57:18Z is after the world's clock (2026-03-02T00:00:00Z): a run  for a time the world has not reached is not available here - the clock is the  world's. Pass a logical_date at or before 2026-03-02T00:00:00Z, or null.\"} Client error,  Please check the command and its parameters. If you need help,  run the command with --help. ",
    "result": "PASS"
   },
   {
@@ -795,9 +795,9 @@
    "detail": [
     {
      "count": 18,
-     "first_ts": "2026-10-07T09:50:49Z",
+     "first_ts": "2026-10-07T10:57:10Z",
      "host": "airflow.internal",
-     "last_ts": "2026-10-07T09:51:51Z",
+     "last_ts": "2026-10-07T10:57:33Z",
      "port": 8100
     }
    ],
@@ -909,9 +909,9 @@
   },
   {
    "count": 18,
-   "first_ts": "2026-10-07T09:50:49Z",
+   "first_ts": "2026-10-07T10:57:10Z",
    "host": "airflow.internal",
-   "last_ts": "2026-10-07T09:51:51Z",
+   "last_ts": "2026-10-07T10:57:33Z",
    "port": 8100
   },
   {
@@ -1250,13 +1250,13 @@
   "runs": 1275,
   "source_sha": "d1773779f9f8b144b5305f2e717d5b66bd75b123c503186bc202c12b9b19c1f2",
   "vnow": "2026-03-02T00:00:00Z",
-  "warehouse_sha": "9d2fed5a71f618d84e67b82fc3f44e5a0257706ed39353754843bc71d657a800"
+  "warehouse_sha": "edd765ecf92d66685eb43b521936d3eafeebb1fa29e70dccbb697677b8dfeff7"
  },
  "image": "alkera-episode:w1-airflow",
  "image_gate": {
-  "head": "e9af4c3c89ed64f41a2515ff54459c7124c6e876",
+  "head": "eb246213cf74af48d5173e2be866efb246c5eedf",
   "image": "alkera-episode:w1-airflow",
-  "revision": "e9af4c3c89ed64f41a2515ff54459c7124c6e876"
+  "revision": "eb246213cf74af48d5173e2be866efb246c5eedf"
  },
  "plugs": {
   "orchestrator": [
@@ -1265,7 +1265,7 @@
  },
  "profile": "de/laptop",
  "result": "PASS",
- "revision": "e9af4c3c89ed64f41a2515ff54459c7124c6e876",
+ "revision": "eb246213cf74af48d5173e2be866efb246c5eedf",
  "rows": {
   "airflow": 40,
   "by_tool": {
@@ -1287,7 +1287,7 @@
   "total": 43
  },
  "stack": {
-  "container_id": "b1f79ff23eea",
+  "container_id": "e13534a3e916",
   "episode_endpoints": {
    "airbyte": "http://airbyte.internal:8001",
    "airflow": "http://airflow.internal:8100",
@@ -1313,7 +1313,7 @@
    "slack": "http://slack.internal:8081"
   },
   "image": "alkera-episode:w1-airflow",
-  "image_digest": "sha256:7fd7909e147775cc7fbb383c41568bd493d17a17deaa5cd7d90d39dafe7f93fd",
+  "image_digest": "sha256:4a15cb25990babf796ce28057d83dbe234df6d0dc000cc033555d5b41833e1aa",
   "services": [
    "episode",
    "minio",
@@ -1330,7 +1330,7 @@
    "ALKERA_SHIM_BIN": "/opt/alkera/shims",
    "ALKERA_SHIM_WATCH": "/world/var/warehouse/warehouse.duckdb",
    "ALKERA_SHIM_WORKSPACE": "/workspace",
-   "ALKERA_SOURCE_REV": "e9af4c3c89ed64f41a2515ff54459c7124c6e876",
+   "ALKERA_SOURCE_REV": "eb246213cf74af48d5173e2be866efb246c5eedf",
    "ALKERA_TOOLBELT": "de",
    "ALKERA_VIRTUAL_TIME": "2026-03-02T00:00:00Z",
    "ALKERA_WAREHOUSES": "",
