@@ -8,7 +8,8 @@ scheduler. One `databricks.statement` row per statement, `databricks.<op>` for t
 Everything is configured from the box alone: DATABRICKS_HOST / _SERVER_HOSTNAME /
 _HTTP_PATH / _TOKEN, and the certificate trust REQUESTS_CA_BUNDLE (the SDK's) and
 SSL_CERT_FILE (the connector's and curl's) name. The run-now probe is last: it is the one
-that changes the world (the job really runs), and its truth is the ledger before it.
+that changes the world - it QUEUES a run in the ledger (nothing runs, and the clock does not
+move, until the grader's advance) - and its truth is the ledger before it.
 """
 from tool_tour import Probe
 
@@ -149,18 +150,20 @@ w = WorkspaceClient()
 job = next(j for j in w.jobs.list() if j.settings.name == "bi_refresh")
 run = w.jobs.run_now(job_id=job.job_id)
 got = w.jobs.get_run(run_id=run.run_id)
-assert got.state.life_cycle_state.value == "TERMINATED", got.state
-print(json.dumps({"value": run.run_id}))
+# queued, not run: the world's scheduler runs it when the world's clock next moves
+assert got.state.life_cycle_state.value == "QUEUED", got.state
+assert got.state.result_state is None and got.end_time == 0, got
+print(json.dumps({"value": got.start_time}))
 PY
 """,
         expect_tools=("databricks.sched_list", "databricks.sched_trigger",
                       "databricks.sched_state"),
-        # The run id is the run's 1-based place in the world's ledger: one past the runs
-        # the world held before the probe.
-        truth_sql=("SELECT json_array_length(json(content)->'runs') + 1 "
+        # A run-now is queued at the world's clock and moves nothing, so the run's
+        # start_time is the ledger's vnow before the probe, in epoch milliseconds.
+        truth_sql=("SELECT epoch_ms(CAST(json(content)->>'vnow' AS TIMESTAMPTZ)) "
                    "FROM read_text('var/sched/state.json')"),
         instruction=(
-            "Through the team's Databricks Jobs, start the bi_refresh job now, wait for the "
-            "run to finish, and report its run id."),
+            "Through the team's Databricks Jobs, start the bi_refresh job now and report "
+            "the run's start time as the Jobs API reports it, in epoch milliseconds."),
     ),
 ]

@@ -60,21 +60,23 @@ TRANSPORT. The Statement Execution API only. databricks-sql-connector speaks it 
 `x-thriftserver-error-message` header the connector puts in its exception.
 
 JOBS are the world's scheduler, nothing else. `jobs/list` is `sched_list` (job ids 1..n
-in job-name order), `run-now` is `sched_trigger` - the same `Operations` call
-`./ops/sched trigger` makes, so the run is WorldScheduler.trigger's: one manual run,
-executed for real at trigger time and recorded in `var/sched/state.json`, the clock
-moved by that run's own duration and nothing else. There is no `advance` here: only
-the grader moves the world's time. `start_run` is the one place run-now touches the
-scheduler, so moving it to a queued trigger (WorldScheduler.enqueue) is one line.
-`runs/get` and `runs/list` read the ledger (`sched_state`); a run's id is its 1-based
-position there.
+in job-name order). `run-now` QUEUES one manual run (`start_run` ->
+WorldScheduler.enqueue, as the Airflow fake's trigger does): an entry under
+`var/sched/state.json`'s `queue`, nothing executed and `vnow` unmoved, so no request to
+this workspace moves the world's clock. There is no `advance` here: the grader's advance
+runs the queue first, and only then does the run exist in the ledger. Its id is its own
+(above `RUN_NOW_IDS`, kept in the entry's `origin` and carried onto the ledger run), so
+`runs/get` answers for the same id before and after: QUEUED (no `result_state`) while
+it waits, TERMINATED with the ledger's result once it has run. `runs/get` and
+`runs/list` read the ledger (`sched_state`); any other run's id is its 1-based position
+there. A full queue (`MAX_QUEUED`) is a 400 `RESOURCE_EXHAUSTED` naming the limit.
 
 ROWS. Every request writes exactly one 9.2.2 row before it answers, refusals and
 unknown routes included: `databricks.statement` per statement (the registry row's
 `statement_tool`, args `sql`, op_class and targets from the gateway's own SQL
 classifier, dialect databricks), `databricks.sched_list` / `sched_trigger` /
 `sched_state` for Jobs (named after the MCP operation they are, like `sched.*`, so the
-blindness detector attributes a triggered run's world changes), and
+blindness detector attributes a queued run's ledger change to its run-now), and
 `databricks.<op>` for the rest: `statement_get`, `statement_chunk`,
 `statement_cancel`, `statement_close`, `session_create`, `session_delete`,
 `warehouses_list`, `warehouse_get`, `catalogs_list`, `catalog_get`, `schemas_list`,
@@ -834,6 +836,23 @@ def health(request: Request) -> object:
 
 
 # ------------------------------------------------------------------------ jobs
+#: Where run-now's run ids start. A run-now is QUEUED (`start_run`), and a queued run has
+#: no place in the ledger until the world's next advance executes it - nor a knowable
+#: one: a `sched_trigger` in between takes the next position. So a run-now's id is its
+#: own, kept in the queue entry's `origin` and carried onto the ledger run when it runs,
+#: and it is drawn above every ledger position (a run nobody asked for here keeps its
+#: 1-based position as its id), so the two kinds never collide.
+RUN_NOW_IDS = 1_000_000_000
+#: The state.json key queued runs wait under (`world.scheduler.QUEUE`; the gateway does
+#: not import `world`).
+QUEUE = "queue"
+#: What a queued run's `state_message` says.
+QUEUED_MESSAGE = ("Queued: the world's scheduler runs it when the world's clock next "
+                  "moves, and nothing in this workspace moves the clock.")
+#: One run-now at a time picks its id and queues it, so two never share one.
+_RUN_NOW = threading.Lock()
+
+
 def _jobs(ops, observation) -> dict[str, int]:
     """{job name: job_id}, ids 1..n in name order (sched_list is sorted by name)."""
     listed = ops.sched_list(observation.child()) or {}
@@ -859,22 +878,59 @@ def _job(job: dict, job_id: int) -> dict:
     return {"job_id": job_id, "creator_user_name": USER, "settings": settings}
 
 
-def _run(run: dict, run_id: int, job_ids: dict[str, int]) -> dict:
-    status = str(run.get("status") or "")
-    result = {"success": "SUCCESS", "failed": "FAILED"}.get(status)
-    state = {"life_cycle_state": "TERMINATED" if result else "INTERNAL_ERROR",
-             "result_state": result or "FAILED",
-             "state_message": str(run.get("error") or run.get("detail") or
-                                  ("" if result else f"ledger status {status!r}")),
-             "user_cancelled_or_timedout": False}
-    start, end = _ms(run.get("vts_start")), _ms(run.get("vts_end"))
-    duration = (end - start) if start is not None and end is not None else None
+def _origin(record: dict) -> dict:
+    """The run-now `origin` a ledger run or a queue entry carries, or {}."""
+    origin = record.get("origin")
+    return origin if isinstance(origin, dict) and origin.get("service") == NAME else {}
+
+
+def _addressed(state: dict) -> list[tuple[int, dict, bool]]:
+    """Every run this workspace can address, as (run_id, record, queued): the ledger's
+    runs - a run-now's under its own id, any other under its 1-based position - then the
+    queue entries run-now made. An entry another control plane queued (the Airflow fake's)
+    has no Databricks id until it runs, and then has its position."""
+    out = [(int(_origin(run)["run_id"]) if _origin(run) else position, run, False)
+           for position, run in enumerate(state.get("runs") or [], 1)]
+    out += [(int(_origin(entry)["run_id"]), entry, True)
+            for entry in state.get(QUEUE) or [] if _origin(entry)]
+    return out
+
+
+def _run(run: dict, run_id: int, job_ids: dict[str, int], *, queued: bool = False,
+         vnow: str | None = None) -> dict:
+    """One run as Jobs 2.1 shows it.
+
+    A ledger run has finished: TERMINATED, with the ledger's result (INTERNAL_ERROR for a
+    status that is neither success nor failure). A queued run-now has not started:
+    `life_cycle_state` QUEUED ("The run is queued" - PENDING is a run whose cluster is
+    being prepared, which is not what this one waits for), no `result_state`,
+    `start_time` the moment it was queued (the docs: "may not be the time when the job
+    task starts executing"), `end_time` 0 ("set to 0 if the job is still running"), and
+    `queue_duration` the time it has waited."""
+    queued_at = _ms(run.get("queued_at"))
+    if queued:
+        state = {"life_cycle_state": "QUEUED", "state_message": QUEUED_MESSAGE,
+                 "user_cancelled_or_timedout": False}
+        start, end, duration = queued_at, 0, 0
+        waited = max(0, (_ms(vnow) or 0) - queued_at) if queued_at is not None else 0
+    else:
+        status = str(run.get("status") or "")
+        result = {"success": "SUCCESS", "failed": "FAILED"}.get(status)
+        state = {"life_cycle_state": "TERMINATED" if result else "INTERNAL_ERROR",
+                 "result_state": result or "FAILED",
+                 "state_message": str(run.get("error") or run.get("detail") or
+                                      ("" if result else f"ledger status {status!r}")),
+                 "user_cancelled_or_timedout": False}
+        start, end = _ms(run.get("vts_start")), _ms(run.get("vts_end"))
+        duration = (end - start) if start is not None and end is not None else None
+        waited = (start - queued_at) if start is not None and queued_at is not None else 0
     job = run.get("job")
     return {"job_id": job_ids.get(job), "run_id": run_id, "number_in_job": run_id,
             "run_name": job, "creator_user_name": USER, "state": state,
             "start_time": start, "end_time": end, "setup_duration": 0,
             "execution_duration": duration, "cleanup_duration": 0, "run_duration": duration,
-            "trigger": "ONE_TIME" if run.get("trigger") == "manual" else "PERIODIC",
+            "queue_duration": waited,
+            "trigger": "ONE_TIME" if queued or run.get("trigger") == "manual" else "PERIODIC",
             "run_type": "JOB_RUN", "format": "MULTI_TASK",
             "run_page_url": f"https://{HOST}/#job/{job_ids.get(job)}/run/{run_id}",
             "tasks": [{"task_key": job, "run_id": run_id, "state": state,
@@ -936,20 +992,52 @@ def run_now(request: Request, raw: RawBody):
         if job_id not in names:
             raise DatabricksError(400, "INVALID_PARAMETER_VALUE",
                                   f"Job {job_id} does not exist.")
-        run = start_run(ops, observation, names[job_id], variables)
-        run_id = int(str(run.get("id", "run-0")).rsplit("-", 1)[-1])
+        run_id = start_run(ops, observation, names[job_id], job_id, variables)
         return {"run_id": run_id, "number_in_job": run_id}
     return _jobs_served(request, "sched_trigger", call, raw=raw,
                         fields=("job_id", "job_parameters", "notebook_params"))
 
 
-def start_run(ops, observation: Observation, job: str, variables: dict) -> dict:
-    """What run-now does to the world, in one place: today the same `sched_trigger`
-    `./ops/sched trigger` makes (WorldScheduler.trigger - the job runs at trigger time,
-    the clock moves by its own duration). When the world scheduler gains `enqueue`
-    (queued until the grader's advance; the Airflow lane), switching run-now to it is
-    this one line."""
-    return sched_cli.trigger_job(ops, observation, job, "", variables)
+def start_run(ops, observation: Observation, job: str, job_id: int,
+              variables: dict) -> int:
+    """What run-now does to the world, in one place: QUEUE one run of `job`
+    (`WorldScheduler.enqueue`, as the Airflow fake's trigger does) and return its run
+    id. Nothing executes and `vnow` does not move: the queue entry in
+    `var/sched/state.json` is the whole change, and the world's next advance - never
+    this workspace's: only the grader moves the clock - runs it first, at its own start.
+    The entry's `origin` names this workspace and the run's id (`RUN_NOW_IDS`), which is
+    how `runs/get` finds the same run queued now and executed later.
+
+    The row keeps the name `databricks.sched_trigger` and the classification
+    `Operations.sched_trigger` gives the same request (exec on `scheduler:<job>` and the
+    dbt project), so blindness.SCHEDULER_TOOLS attributes the ledger change to it. A full
+    queue (`world.scheduler.MAX_QUEUED`) is a 400 RESOURCE_EXHAUSTED naming the limit,
+    not a 429: the SDK retries a 429 for minutes, and nothing frees the queue before
+    the next advance."""
+    observation.op_class = "exec"
+    observation.targets = [f"scheduler:{job}", "dbt_project"]
+    enqueue = getattr(ops.scheduler, "enqueue", None)
+    if enqueue is None:
+        raise DatabricksError(400, "INVALID_STATE", "Jobs run on the world's scheduler, and "
+                                                    "this workspace has no world.")
+    with _RUN_NOW:
+        state = ops.sched_state(None, observation.child())
+        records = (state.get("runs") or []) + (state.get(QUEUE) or [])
+        run_id = max((int(_origin(r)["run_id"]) for r in records if _origin(r)),
+                     default=RUN_NOW_IDS) + 1
+        try:
+            enqueue(job, sched_cli.vnow_day(ops), variables,
+                    {"service": NAME, "run_id": run_id, "job_id": job_id})
+        except ValueError as exc:
+            # A WorldScheduler raised, so `world` is importable.
+            from world.gateway_scheduler import QueueFull
+
+            if isinstance(exc, QueueFull):
+                raise DatabricksError(400, "RESOURCE_EXHAUSTED",
+                                      f"Run-now of job {job_id} was not queued: {exc}"
+                                      ) from None
+            raise
+    return run_id
 
 
 @app.get("/api/2.1/jobs/runs/get")
@@ -960,12 +1048,14 @@ def get_run(request: Request):
     def call(ops, observation):
         run_id = _int(params.get("run_id"), "run_id")
         job_ids = _jobs(ops, observation)
-        try:
-            run = ops.sched_state(f"run-{run_id:06d}", observation)
-        except ValueError:
-            raise DatabricksError(400, "INVALID_PARAMETER_VALUE",
-                                  f"Run {run_id} does not exist.") from None
-        return _run(run, run_id, job_ids)
+        state = ops.sched_state(None, observation)
+        for found, run, queued in _addressed(state):
+            if found == run_id:
+                if not queued:             # the read is of that run, as sched_state(id) says
+                    observation.targets = observation.read_targets = [
+                        f"scheduler:{run['id']}"]
+                return _run(run, run_id, job_ids, queued=queued, vnow=state.get("vnow"))
+        raise DatabricksError(400, "INVALID_PARAMETER_VALUE", f"Run {run_id} does not exist.")
     return _jobs_served(request, "sched_state", call, **params)
 
 
@@ -977,12 +1067,16 @@ def list_runs(request: Request):
     def call(ops, observation):
         job_ids = _jobs(ops, observation)
         state = ops.sched_state(None, observation)
-        runs = [_run(r, n, job_ids) for n, r in enumerate(state.get("runs") or [], 1)]
+        runs = [_run(run, run_id, job_ids, queued=queued, vnow=state.get("vnow"))
+                for run_id, run, queued in _addressed(state)]
         if params.get("job_id"):
             wanted = _int(params["job_id"], "job_id")
             runs = [r for r in runs if r["job_id"] == wanted]
+        # QUEUED is the one active state here: a ledger run has finished.
         if str(params.get("active_only", "")).lower() == "true":
-            runs = []                    # every ledger run has finished
+            runs = [r for r in runs if r["state"]["life_cycle_state"] == "QUEUED"]
+        if str(params.get("completed_only", "")).lower() == "true":
+            runs = [r for r in runs if r["state"]["life_cycle_state"] != "QUEUED"]
         runs.sort(key=lambda r: (r["start_time"] or 0, r["run_id"]), reverse=True)
         offset = _int(params.get("offset") or 0, "offset")
         limit = _int(params.get("limit") or 25, "limit")

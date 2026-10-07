@@ -386,7 +386,7 @@ def test_enqueue_refuses_an_unknown_job(world):
 
 # ------------------------------------------------- the queue is bounded
 def test_the_queue_holds_at_most_max_queued(world, monkeypatch):
-    from world.gateway_scheduler import WorldScheduler
+    from world import gateway_scheduler
 
     monkeypatch.setattr(scheduler, "MAX_QUEUED", 3)
     for _ in range(3):
@@ -394,8 +394,9 @@ def test_the_queue_holds_at_most_max_queued(world, monkeypatch):
     before = (world / scheduler.STATE).read_bytes()
     with pytest.raises(scheduler.QueueFull, match="MAX_QUEUED"):
         scheduler.enqueue(world, "dbt_build")
-    with pytest.raises(ValueError, match="MAX_QUEUED"):
-        WorldScheduler(world).enqueue("dbt_build", None)
+    with pytest.raises(ValueError, match="MAX_QUEUED") as refused:
+        gateway_scheduler.WorldScheduler(world).enqueue("dbt_build", None)
+    assert isinstance(refused.value, gateway_scheduler.QueueFull)   # named, for callers
     assert (world / scheduler.STATE).read_bytes() == before
     assert scheduler.queue_room(state(world)) == 0
 

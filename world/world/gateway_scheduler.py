@@ -34,6 +34,15 @@ def _run_id(index: int) -> str:
     return f"run-{index:06d}"
 
 
+class QueueFull(ValueError):
+    """`enqueue` refused: the world's queue holds `scheduler.MAX_QUEUED` runs.
+
+    A ValueError like every other refusal here, so a caller that maps them all
+    to one error keeps working; its own type so a control plane can answer this
+    one by name (the Databricks fake's `RESOURCE_EXHAUSTED`) without parsing
+    the message."""
+
+
 class WorldScheduler:
     def __init__(self, root: Path):
         self.root = Path(root)
@@ -123,6 +132,6 @@ class WorldScheduler:
             entry = scheduler.enqueue(self.root, job_id, variables or None,
                                       execution_date, origin)
         except scheduler.QueueFull as exc:
-            raise ValueError(str(exc)) from None
+            raise QueueFull(str(exc)) from None
         return {"job_id": job_id, "position": len(self._state().get(
             scheduler.QUEUE) or []), **entry}

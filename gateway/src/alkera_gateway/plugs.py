@@ -114,9 +114,11 @@ _CATALOG = (
     Plug("databricks", "warehouse", "partial", surfaces=("databricks",),
          note="tier 1 at https://databricks.internal (native-services, port 443): SQL "
               "Statement Execution, Unity Catalog reads, SQL warehouses, SCIM Me and "
-              "Jobs 2.1 over the world scheduler, on a seeded DuckDB copy of the world's "
-              "warehouse; databricks-sdk, databricks-sql-connector (use_sea=True: no "
-              "Thrift) and dbt-databricks only in images built with --warehouse-clients "
+              "Jobs 2.1 over the world scheduler (run-now queues; the run is QUEUED until "
+              "the grader's advance runs it, and no request moves the clock), on a seeded "
+              "DuckDB copy of the world's warehouse; databricks-sdk, "
+              "databricks-sql-connector (use_sea=True: no Thrift) and dbt-databricks "
+              "only in images built with --warehouse-clients "
               "databricks; no Delta log (time travel, OPTIMIZE, VACUUM, CLONE refused by "
               "name), no PySpark (tier 2), no Databricks CLI (licence); no task uses it"),
     Plug("dbt", "transform", "shipped", surfaces=("dbt",)),

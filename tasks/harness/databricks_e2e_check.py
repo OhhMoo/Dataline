@@ -23,8 +23,12 @@ world's DuckDB warehouse into its own state - and from INSIDE the episode contai
       the copy: they read back through the workspace, and the world's semantic
       fingerprint is unchanged (`test_remote_write_leaves_world_fingerprint_unchanged`);
       each is a write-class `databricks.statement` row;
-  (g) Jobs run-now on `bi_refresh` is the world scheduler's trigger: one manual run in
-      the ledger, the clock moved by that run's own duration only, `runs/get` agrees;
+  (g) Jobs run-now on `bi_refresh` QUEUES one run in the world's ledger
+      (WorldScheduler.enqueue): `runs` and `vnow` unchanged, `runs/get` shows it QUEUED
+      with no result and the world's clock as its start, and blindness attributes the
+      one world change (var/sched/state.json) to the `databricks.sched_trigger` row;
+      then the grader's advance, run on the host, executes it first, and the same run
+      id shows TERMINATED with the ledger's result;
   (h) the audit: every probe statement is exactly one `databricks.statement` row, in
       order; every row a valid 9.2.2 row; seq contiguous; destinations.jsonl names
       databricks.internal:443 after teardown.
@@ -38,6 +42,7 @@ import json
 import shutil
 import sys
 import time
+from datetime import datetime
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -52,6 +57,9 @@ PYTHON = "/usr/local/bin/python"  # absolute: the probe is the check's, not a sh
 IN_DIR = "/tmp/dbx-e2e"
 TOOL = "databricks.statement"
 JOB = "bi_refresh"
+#: The grader's advance after the run-now (g'): long enough to drain the queue, which
+#: runs first, at the advance's start.
+ADVANCE_HOURS = 1.0
 
 SDK_PROBE = r'''
 import json, os, sys
@@ -115,13 +123,19 @@ JOBS_PROBE = r'''
 import json, sys
 from databricks.sdk import WorkspaceClient
 w = WorkspaceClient()
-job_id = dict((name, i) for i, name in [(j.job_id, j.settings.name) for j in w.jobs.list()])[
-    sys.argv[1]]
-run = w.jobs.run_now(job_id=job_id)
-got = w.jobs.get_run(run_id=run.run_id)
-print("DBX-JOBS " + json.dumps({"job_id": job_id, "run_id": run.run_id,
-      "state": [got.state.life_cycle_state.value, got.state.result_state.value],
-      "trigger": got.trigger.value, "run_name": got.run_name}))
+if sys.argv[1] == "run-now":                       # run-now JOB: queue it, then read it
+    job_id = dict((name, i) for i, name in [(j.job_id, j.settings.name)
+                                            for j in w.jobs.list()])[sys.argv[2]]
+    run_id = w.jobs.run_now(job_id=job_id).run_id
+else:                                              # get RUN_ID: read it again
+    job_id, run_id = None, int(sys.argv[2])
+got = w.jobs.get_run(run_id=run_id)
+result = got.state.result_state
+print("DBX-JOBS " + json.dumps({"job_id": job_id, "run_id": run_id,
+      "state": [got.state.life_cycle_state.value, result.value if result else None],
+      "start_time": got.start_time, "end_time": got.end_time,
+      "trigger": got.trigger.value, "run_name": got.run_name,
+      "active": [r.run_id for r in w.jobs.list_runs(active_only=True)]}))
 '''
 
 DBT_PROJECT = """name: dbx_e2e
@@ -170,9 +184,11 @@ def truths(world_root: str) -> dict:
 
 def main(argv=None) -> int:
     import bi_e2e_check as bi
+    import blindness
+    import episode
     import tool_tour as tour
 
-    from world import fingerprint
+    from world import fingerprint, scheduler
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--image", default=DEFAULT_IMAGE)
@@ -385,27 +401,73 @@ def main(argv=None) -> int:
               tour.same_value(model_value, truth["feb"]),
               {"got": model_value, "truth": truth["feb"], "out": model.stdout[-300:]})
 
-        # (g) Jobs run-now over the world scheduler
+        # (g) Jobs run-now over the world scheduler: QUEUED, nothing run, no clock moved
         state_file = root / "var" / "sched" / "state.json"
         ledger_before = json.loads(state_file.read_text(encoding="utf-8"))
-        jobs, done = probe("jobs.py", JOBS_PROBE, JOB, marker="DBX-JOBS")
+        tree_before, jobs_from = episode.tree_manifest(root), len(rows())
+        jobs, done = probe("jobs.py", JOBS_PROBE, "run-now", JOB, marker="DBX-JOBS")
         ledger_after = json.loads(state_file.read_text(encoding="utf-8"))
+        tree_after = episode.tree_manifest(root)
+        queue = ledger_after.get("queue") or []
         record["jobs"] = {"probe": jobs, "runs_before": len(ledger_before["runs"]),
-                          "runs_after": len(ledger_after["runs"]),
+                          "runs_after": len(ledger_after["runs"]), "queue": queue,
                           "vnow": [ledger_before["vnow"], ledger_after["vnow"]]}
-        last = ledger_after["runs"][-1] if ledger_after["runs"] else {}
         jobs = jobs or {}
-        check("run-now is one manual run in the world's ledger, the clock moved by it alone",
-              len(ledger_after["runs"]) == len(ledger_before["runs"]) + 1
-              and last.get("job") == JOB and last.get("trigger") == "manual"
-              and ledger_after["vnow"] == last.get("vts_end")
-              and jobs.get("run_id") == len(ledger_after["runs"])
-              and jobs.get("trigger") == "ONE_TIME"
-              and jobs.get("state", [None])[0] == "TERMINATED",
-              {"probe": jobs or (done.stdout + done.stderr)[-800:], "run": last})
+        vnow_ms = int(datetime.fromisoformat(ledger_before["vnow"].replace("Z", "+00:00"))
+                      .timestamp() * 1000)
+        check("run-now queues one run: the ledger's runs and clock unchanged, nothing run",
+              ledger_after["runs"] == ledger_before["runs"]
+              and ledger_after["vnow"] == ledger_before["vnow"]
+              and "queue" not in ledger_before and len(queue) == 1
+              and queue[0]["job"] == JOB and queue[0]["queued_at"] == ledger_before["vnow"]
+              and queue[0].get("origin", {}).get("service") == "databricks"
+              and queue[0]["origin"].get("run_id") == jobs.get("run_id"),
+              {"probe": jobs or (done.stdout + done.stderr)[-800:], "queue": queue})
+        check("runs/get: the queued run is QUEUED, no result, started at the world's clock",
+              jobs.get("state") == ["QUEUED", None] and jobs.get("start_time") == vnow_ms
+              and jobs.get("end_time") == 0 and jobs.get("trigger") == "ONE_TIME"
+              and jobs.get("run_name") == JOB and jobs.get("active") == [jobs.get("run_id")],
+              jobs)
         check("audit: run-now is a databricks.sched_trigger row (blindness attributes it)",
-              any(r["tool"] == "databricks.sched_trigger" and r["op_class"] == "exec"
-                  for r in rows()), sorted({r["tool"] for r in rows()}))
+              [(r["tool"], r["op_class"]) for r in rows()[jobs_from:]
+               if r["tool"] == "databricks.sched_trigger"] == [("databricks.sched_trigger",
+                                                                  "exec")],
+              sorted({r["tool"] for r in rows()[jobs_from:]}))
+        changed = sorted(k for k in set(tree_before) | set(tree_after)
+                         if tree_before.get(k) != tree_after.get(k))
+        layout = {**world, "world_root": str(root)}
+        paths = blindness.container_path_map(world)
+        jobs_rows = rows()[jobs_from:]
+        reads_only = [r for r in jobs_rows if r["tool"] != "databricks.sched_trigger"]
+        record["jobs"]["world_changed"] = changed
+        check("blindness: run-now changed only the ledger, and its row explains the change",
+              changed == ["var/sched/state.json"]
+              and blindness._unattributed(tree_before, tree_after, jobs_rows, layout,
+                                          paths) == []
+              and blindness._unattributed(tree_before, tree_after, reads_only, layout,
+                                          paths) == ["var/sched/state.json"],
+              {"changed": changed, "tools": [r["tool"] for r in jobs_rows]})
+
+        # (g') the grader's advance, on the host where graders run it, executes the queue
+        # first; the same run id then answers with the ledger's run
+        advanced = scheduler.advance(root, ADVANCE_HOURS)
+        ledger_run = json.loads(state_file.read_text(encoding="utf-8"))
+        drained = [(n, r) for n, r in enumerate(ledger_run["runs"], 1)
+                   if (r.get("origin") or {}).get("run_id") == jobs.get("run_id")]
+        after, done = probe("jobs.py", JOBS_PROBE, "get", str(jobs.get("run_id")),
+                            marker="DBX-JOBS")
+        after = after or {}
+        ran = drained[0][1] if drained else {}
+        record["jobs"]["advance"] = {"hours": ADVANCE_HOURS, "events": advanced["events"][:6],
+                                     "ledger_run": ran, "probe": after}
+        result = {"success": "SUCCESS", "failed": "FAILED"}.get(ran.get("status"))
+        check("after advance: the queued run ran first, and runs/get shows the ledger's run",
+              "queue" not in ledger_run and len(drained) == 1 and ran.get("job") == JOB
+              and ran.get("vts_start") == ledger_before["vnow"]
+              and after.get("run_id") == jobs.get("run_id")
+              and after.get("state") == ["TERMINATED", result]
+              and after.get("start_time") == vnow_ms and after.get("active") == [],
+              {"probe": after or (done.stdout + done.stderr)[-800:], "ledger": ran})
 
         # (h) the audit, whole
         everything = rows()

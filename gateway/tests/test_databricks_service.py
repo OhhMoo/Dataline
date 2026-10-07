@@ -13,19 +13,23 @@ Execution 2.0, Unity Catalog 2.1, SQL Warehouses 2.0, SCIM 2.0 `Me`, Jobs 2.1):
   shows; an unknown route is Databricks' 404 envelope.
 - ONE ROW PER REQUEST, before the response - `databricks.statement` per statement,
   `databricks.<op>` for the rest, `databricks.unknown_route` for what is not served.
-- JOBS ARE THE WORLD SCHEDULER. Jobs 2.1 lists the world's jobs, and run-now is the
-  same `sched_trigger` the agent's `./ops/sched trigger` makes (WorldScheduler.trigger:
-  one manual run in the ledger) - never `advance`, which only the grader calls.
+- JOBS ARE THE WORLD SCHEDULER. Jobs 2.1 lists the world's jobs, and run-now QUEUES
+  one run (WorldScheduler.enqueue): nothing executes and the clock does not move until
+  the grader's `advance`, which runs it; the run id run-now returns shows QUEUED until
+  then and the executed ledger run after. Blindness attributes the queue entry to the
+  run-now row (`databricks.sched_trigger`).
 - THE WORLD IS NEVER WRITTEN through a statement: the lakehouse is a copy in the
   service's own state.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import socket
 import sys
 import threading
 import time
+from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -426,41 +430,138 @@ def test_jobs_list_is_the_world_scheduler(ws):
     assert ws.rows()[-1]["tool"] == "databricks.sched_list"
 
 
-def test_jobs_run_now_is_a_world_scheduler_trigger_never_an_advance(ws, monkeypatch):
-    """run-now goes where `./ops/sched trigger` goes: Operations.sched_trigger ->
-    WorldScheduler.trigger, ONE manual run in the ledger. The clock moves only by that
-    run's own declared duration, exactly as sched_trigger moves it; `advance` - the
-    grader's, which lands arrivals and fires scheduled jobs - is never called."""
+def _ledger(ws) -> dict:
+    return json.loads((ws.root / "var" / "sched" / "state.json").read_text())
+
+
+def _ms(vts: str) -> int:
+    return int(datetime.fromisoformat(vts.replace("Z", "+00:00")).timestamp() * 1000)
+
+
+def test_jobs_run_now_queues_without_advancing(ws, monkeypatch):
+    """run-now QUEUES (WorldScheduler.enqueue): one entry under state.json's `queue`,
+    `runs` and `vnow` untouched, no job's work run - `trigger`, `advance` and the
+    executor are never reached. runs/get and runs/list (2.1 and 2.2) show it QUEUED
+    under the id run-now returned, with no result_state; one exec row, sched_trigger."""
     from world import scheduler
 
-    def no_advance(*_a, **_k):
-        raise AssertionError("run-now must never advance the world's clock")
+    def never(*_a, **_k):
+        raise AssertionError("run-now must neither run a job nor move the world's clock")
 
-    monkeypatch.setattr(scheduler, "advance", no_advance)
+    for name in ("advance", "trigger", "_execute"):
+        monkeypatch.setattr(scheduler, name, never)
+    before = _ledger(ws)
+    started = ws.ok("POST", "/api/2.1/jobs/run-now",
+                    json={"job_id": 1, "job_parameters": {"day": "2026-03-04"}})
+    run_id = databricks.RUN_NOW_IDS + 1
+    assert started == {"run_id": run_id, "number_in_job": run_id}
+    after = _ledger(ws)
+    assert after["vnow"] == before["vnow"] and after["runs"] == before["runs"] == []
+    assert after["queue"] == [{
+        "job": "daily_load", "queued_at": before["vnow"],
+        "execution_date": before["vnow"][:10], "variables": {"day": "2026-03-04"},
+        "origin": {"service": "databricks", "run_id": run_id, "job_id": 1}}]
+    for version in ("2.1", "2.2"):
+        got = ws.ok("GET", f"/api/{version}/jobs/runs/get", params={"run_id": run_id})
+        assert (got["job_id"], got["run_id"], got["run_name"]) == (1, run_id, "daily_load")
+        assert got["state"]["life_cycle_state"] == "QUEUED"
+        assert "result_state" not in got["state"]
+        assert got["start_time"] == _ms(before["vnow"]) and got["end_time"] == 0
+        assert got["queue_duration"] == 0 and got["trigger"] == "ONE_TIME"
+        listed = ws.ok("GET", f"/api/{version}/jobs/runs/list", params={"job_id": 1})
+        assert [r["run_id"] for r in listed["runs"]] == [run_id]
+    active = ws.ok("GET", "/api/2.1/jobs/runs/list", params={"active_only": "true"})
+    assert [r["run_id"] for r in active["runs"]] == [run_id]
+    assert "runs" not in ws.ok("GET", "/api/2.1/jobs/runs/list",
+                               params={"completed_only": "true"})
+    assert _ledger(ws) == after                        # reading it changes nothing
+    triggers = [r for r in ws.rows() if r["tool"] == "databricks.sched_trigger"]
+    assert len(triggers) == 1 and triggers[0]["exit"] == "ok"
+    assert triggers[0]["op_class"] == "exec"
+    assert triggers[0]["targets"] == ["scheduler:daily_load", "dbt_project"]
+
+
+def test_queued_run_resolves_after_advance(ws):
+    """The grader's advance drains the queue first; the SAME run id then answers with
+    the executed ledger run - TERMINATED and its result - even though a sched_trigger in
+    between took the next ledger position (why run-now's ids are its own)."""
+    from world import scheduler
+    from world.gateway_scheduler import WorldScheduler
+
+    run_id = ws.ok("POST", "/api/2.1/jobs/run-now", json={"job_id": 1})["run_id"]
+    queued_at = _ledger(ws)["vnow"]
+    WorldScheduler(ws.root).trigger("daily_load", queued_at[:10], {})  # ./ops/sched trigger
+    scheduler.advance(ws.root, 1)
+    ledger = _ledger(ws)
+    assert "queue" not in ledger and len(ledger["runs"]) == 2
+    manual, drained = ledger["runs"]
+    assert "origin" not in manual
+    assert drained["origin"] == {"service": "databricks", "run_id": run_id, "job_id": 1}
+    assert drained["queued_at"] == queued_at and drained["vts_start"] == manual["vts_end"]
+    got = ws.ok("GET", "/api/2.1/jobs/runs/get", params={"run_id": run_id})
+    assert got["run_id"] == run_id and got["state"]["life_cycle_state"] == "TERMINATED"
+    assert got["state"]["result_state"] == {"success": "SUCCESS",
+                                            "failed": "FAILED"}[drained["status"]]
+    assert (got["start_time"], got["end_time"]) == (_ms(drained["vts_start"]),
+                                                    _ms(drained["vts_end"]))
+    assert got["queue_duration"] == _ms(drained["vts_start"]) - _ms(queued_at) == 5000
+    assert ws.ok("GET", "/api/2.2/jobs/runs/get", params={"run_id": 1})["run_id"] == 1
+    # one id per run: the drained run is not also reachable at its ledger position
+    r = ws.call("GET", "/api/2.1/jobs/runs/get", params={"run_id": 2})
+    assert r.status_code == 400 and r.json()["error_code"] == "INVALID_PARAMETER_VALUE"
+    listed = ws.ok("GET", "/api/2.1/jobs/runs/list")["runs"]
+    assert sorted(r["run_id"] for r in listed) == [1, run_id]
+    assert "runs" not in ws.ok("GET", "/api/2.1/jobs/runs/list", params={"active_only": "true"})
+    # the next run-now gets the next id, never one already handed out
+    assert ws.ok("POST", "/api/2.1/jobs/run-now", json={"job_id": 1})["run_id"] == run_id + 1
+
+
+def test_run_now_queue_full_is_named(ws, monkeypatch):
+    """Past world.scheduler.MAX_QUEUED a run-now is refused in Databricks' envelope,
+    400 RESOURCE_EXHAUSTED naming the limit (not a 429, which the SDK retries for
+    minutes), with exactly one row, and the ledger unchanged."""
+    from world import scheduler
+
+    monkeypatch.setattr(scheduler, "MAX_QUEUED", 2)
+    for _ in range(2):
+        ws.ok("POST", "/api/2.1/jobs/run-now", json={"job_id": 1})
     state_file = ws.root / "var" / "sched" / "state.json"
-    before = json.loads(state_file.read_text())
-    started = ws.ok("POST", "/api/2.1/jobs/run-now", json={"job_id": 1})
-    after = json.loads(state_file.read_text())
-    assert len(after["runs"]) == len(before["runs"]) + 1
-    run = after["runs"][-1]
-    assert (run["job"], run["trigger"]) == ("daily_load", "manual")
-    assert after["vnow"] == run["vts_end"]                 # its own 5 s, nothing more
-    assert started["run_id"] == len(after["runs"])
-    # the job declares no `exec` block, so nothing ran: the ledger says so
-    assert run["executed"] is False and run["effects"] == {}
-    got = ws.ok("GET", "/api/2.1/jobs/runs/get", params={"run_id": started["run_id"]})
-    assert got["job_id"] == 1 and got["run_id"] == started["run_id"]
-    assert got["state"]["life_cycle_state"] == "TERMINATED"
-    assert got["state"]["result_state"] == "FAILED"
-    assert got["trigger"] == "ONE_TIME"
-    listed = ws.ok("GET", "/api/2.1/jobs/runs/list", params={"job_id": 1})
-    assert [r["run_id"] for r in listed["runs"]] == [started["run_id"]]
-    tools = [r["tool"] for r in ws.rows()]
-    assert tools[-3:] == ["databricks.sched_trigger", "databricks.sched_state",
-                          "databricks.sched_state"]
-    trigger_row = [r for r in ws.rows() if r["tool"] == "databricks.sched_trigger"][0]
-    assert trigger_row["op_class"] == "exec"
-    assert "scheduler:daily_load" in trigger_row["targets"]
+    before, rows = state_file.read_bytes(), len(ws.rows())
+    r = ws.call("POST", "/api/2.2/jobs/run-now", json={"job_id": 1})
+    assert r.status_code == 400 and r.json()["error_code"] == "RESOURCE_EXHAUSTED"
+    assert "MAX_QUEUED" in r.json()["message"] and "2 runs" in r.json()["message"]
+    assert state_file.read_bytes() == before
+    new = ws.rows()[rows:]
+    assert [(x["tool"], x["exit"], x["error"]["code"]) for x in new] == [
+        ("databricks.sched_trigger", "error", "RESOURCE_EXHAUSTED")]
+
+
+def test_blindness_attributes_the_queued_change_to_run_now(ws):
+    """The queue entry is the one world change a run-now makes, and the harness's
+    blindness detector attributes it to the `databricks.sched_trigger` row (suffix
+    `sched_trigger`, blindness.SCHEDULER_TOOLS); with only the reads it is off-channel."""
+    sys.path.insert(0, str(REPO / "tasks" / "harness"))
+    import blindness
+
+    def tree() -> dict:
+        return {p.relative_to(ws.root).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
+                for p in sorted(ws.root.rglob("*")) if p.is_file()}
+
+    ws.ok("GET", "/api/2.1/jobs/list")
+    before, rows = tree(), len(ws.rows())
+    run_id = ws.ok("POST", "/api/2.1/jobs/run-now", json={"job_id": 1})["run_id"]
+    ws.ok("GET", "/api/2.1/jobs/runs/get", params={"run_id": run_id})
+    after, log = tree(), ws.rows()[rows:]
+    assert sorted(k for k in set(before) | set(after)
+                  if before.get(k) != after.get(k)) == ["var/sched/state.json"]
+    assert [r["tool"] for r in log] == ["databricks.sched_trigger", "databricks.sched_state"]
+    assert blindness.row_tools(log) & blindness.SCHEDULER_TOOLS == {"sched_trigger"}
+    layout = {"world_root": str(ws.root), "workspace": str(ws.root / "workspace"),
+              "warehouse": str(WAREHOUSE(ws)), "scheduler": str(ws.config.scheduler),
+              "profiles_dir": str(ws.root / "build")}
+    assert blindness._unattributed(before, after, log, layout) == []
+    reads = [r for r in log if r["tool"] != "databricks.sched_trigger"]
+    assert blindness._unattributed(before, after, reads, layout) == ["var/sched/state.json"]
 
 
 def test_run_now_unknown_job_is_databricks_shaped(ws):
