@@ -160,6 +160,31 @@ def test_health_counts_published_semantic_models(plane):
     assert row["read_targets"] == ["powerbi:semantic_model:Commerce"]
 
 
+def test_provisioning_reads_a_hostile_repository_without_running_it(plane, tmp_path):
+    """The agent owns the workspace's `.git`, and this service owns the
+    published state: provisioning reads the first commit of bi/powerbi with
+    alkera_gateway.safegit, so a committed `* filter=pwn`, a smudge/process
+    filter, fsmonitor and hooks in `.git/config` run nothing here
+    (gateway/tests/test_safegit.py proves the same wiring fires `git archive`)."""
+    import hostile_git
+
+    workspace = plane.root / "workspace"
+    committed = powerbi.tree_project(workspace)
+    markers = tmp_path / "markers"
+    hostile_git.weaponize(workspace, markers)
+    assert powerbi.git_project(workspace) == committed
+    body = plane.ok(plane.client.get("/health"))
+    assert body == {"ok": True, "service": "powerbi", "items": 1}
+    state = json.loads((Path(plane.settings.bi_state_dir) / "powerbi" / "state.json")
+                       .read_text(encoding="utf-8"))
+    (dataset,) = state["datasets"].values()
+    model = "Commerce.SemanticModel/"
+    assert {p: base64.b64decode(d) for p, d in dataset["parts"].items()} == {
+        rel[len(model):]: data for rel, data in committed.items()
+        if rel.startswith(model) and not rel[len(model):].startswith(".pbi/")}
+    assert hostile_git.fired(markers) == []
+
+
 def test_a_world_without_a_project_says_so(world, tmp_path, monkeypatch):
     settings = config(world, tmp_path / "audit")
     monkeypatch.setenv("ALKERA_NATIVE_AUDIT", str(tmp_path / "audit" / "actions.jsonl"))

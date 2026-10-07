@@ -116,11 +116,8 @@ import base64
 import binascii
 import hashlib
 import hmac
-import io
 import json
 import os
-import subprocess
-import tarfile
 import threading
 import uuid
 from datetime import UTC, datetime
@@ -134,6 +131,7 @@ from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 from sqlglot import exp
 
+from ... import safegit
 from ...records import Observation, ToolError, canonical, digest, json_value
 from ..context import DEV_TOKEN, Context, Ledger, audit_unrouted, context_of, service_health
 from ..http import JSONBody, RawBody
@@ -346,27 +344,22 @@ def unb64(text: str) -> bytes:
 
 
 def git_project(workspace: Path) -> dict[str, bytes] | None:
-    """bi/powerbi as of the first commit that added it, or None."""
-    git = ["git", "-c", "safe.directory=*", "-C", str(workspace)]
+    """bi/powerbi as of the first commit that added it, or None.
+
+    The agent owns this repository's `.git` and this process owns the published
+    state, so it is read with alkera_gateway.safegit - committed bytes, never
+    `git archive` (which runs the smudge filter a committed .gitattributes
+    names, from the agent's .git/config)."""
     try:
-        commits = subprocess.run(git + ["rev-list", "--reverse", "HEAD", "--", PROJECT_DIR],
-                                 capture_output=True, check=True, timeout=30).stdout.split()
+        commits = safegit.rev_list(workspace, "HEAD", PROJECT_DIR)
         if not commits:
             return None
-        archive = subprocess.run(git + ["archive", "--format=tar", commits[0].decode(),
-                                        PROJECT_DIR], capture_output=True, check=True,
-                                 timeout=60).stdout
-    except (OSError, subprocess.SubprocessError):
+        files = safegit.read_tree(workspace, commits[0], [PROJECT_DIR])
+    except safegit.GitUnreadable:
         return None
-    out = {}
-    with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
-        for member in tar.getmembers():
-            if member.isfile():
-                rel = member.name[len(PROJECT_DIR) + 1:]
-                handle = tar.extractfile(member)
-                if handle is not None and rel:
-                    out[rel] = handle.read()
-    return out
+    prefix = PROJECT_DIR + "/"
+    return {path[len(prefix):]: data for path, data in files.items()
+            if path.startswith(prefix) and path != prefix}
 
 
 def tree_project(workspace: Path) -> dict[str, bytes]:
