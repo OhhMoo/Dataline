@@ -360,7 +360,9 @@ below plus airflow x2, databricks x6, redshift x3, snowflake, postgres, postgres
 Harbor with `--validate`; oracle reward 1 on every probe (all four checks met; the
 postgres probes on their rows folded at world-down) and nop reward 0 on every probe, no
 trial exception (`evidence/tooltour-oracle-5c18d18.json`,
-`evidence/tooltour-nop-5c18d18.json`). Before it, 2026-10-07, `9bb9537` (on main-2
+`evidence/tooltour-nop-5c18d18.json`); after main-2 `8701e94` (Databricks run-now
+queues its run) the six databricks tasks were re-exported and re-accepted, 6/6, at
+`0bf4ddb` (`evidence/tooltour-{oracle,nop}-0bf4ddb-databricks.json`). Before it, 2026-10-07, `9bb9537` (on main-2
 `5ed3ed5`): **ACCEPTED, 12/12** - 30 probes, 12 exported (dbt, duckdb, excel, jira,
 confluence, slack, jupyter, mf, powerbi, sched, sigma, tableau), 18 skipped by name;
 every exported task loaded by Harbor with `--validate`; oracle reward 1 on every probe
