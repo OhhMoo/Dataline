@@ -47,7 +47,9 @@ the subset of that document every response here is checked against.
   refused, 400, by name    /api/v2/backfills* ("the clock is the world's"),
                            PATCH /dags/{id} {is_paused: true} ("pause is not
                            modelled"; {is_paused: false} is the state it is in
-                           and answers 200), a clear across runs.
+                           and answers 200), a clear across runs, a trigger
+                           whose logical_date is after the world's clock
+                           (airflowctl sends the wall clock when it has none).
   every other route        404 {"detail": ...}: a route real Airflow serves
                            (ROUTES) is named as one this environment does not
                            model; anything else is "Not Found".

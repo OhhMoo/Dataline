@@ -417,11 +417,13 @@ def test_trigger_fences(af):
     assert later.status_code == 400 and "run_after is not modelled" in later.json()["detail"]
     part = af.post(path, json={"logical_date": None, "partition_key": "p"})
     assert part.status_code == 400 and "partition_key" in part.json()["detail"]
+    wall = af.post(path, json={"logical_date": "2026-10-07T09:00:00Z"})
+    assert wall.status_code == 400 and "after the world's clock" in wall.json()["detail"]
     nodag = af.post(f"{API}/dags/nope/dagRuns", json={"logical_date": None})
     assert nodag.status_code == 404
     assert "queue" not in af.state()
     rows = [r for r in af.rows() if r["tool"] == "airflow.dag_trigger"]
-    assert len(rows) == 5 and all(r["exit"] == "error" for r in rows)
+    assert len(rows) == 6 and all(r["exit"] == "error" for r in rows)
 
 
 def test_unknown_and_unmodelled_routes_404_with_a_row(af):
