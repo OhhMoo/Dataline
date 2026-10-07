@@ -53,9 +53,25 @@ logs each statement whatever the client read it from; extended-protocol
 `ERROR:` (`exit: "error"`, `error.code: "sql_error"`); and the combined
 `duration: N ms  statement: ...` entry the server writes when only
 `log_min_duration_statement` covers a statement - which a parser that stops at
-the duration drops silently.
+the duration drops silently. A failing statement's row is emitted at its
+`ERROR:`, since no `duration:` follows an error: before 2026-10-07 it waited for
+the backend's next entry, and a `psql -c` refused by the server (which exits on
+the error) put its row last in the log, after statements other backends ran
+later (`tasks/harness/postgres_e2e_check.py`: a refused DROP was row 33 of 33).
 
-Not captured: a `\!` shell escape never reaches the server (the shims' job;
+Rows land at teardown in the container topology: `NativeContainerEpisode.down()`
+runs this tailer over the server's log inside native-services
+(`tasks/harness/postgres_live.py`), not per call.
+
+Not captured: a statement the server rejects as a SYNTAX error - the parser
+refuses it before `log_statement` sees it, so the log holds `ERROR:` +
+`STATEMENT:` and no `statement:` entry, and the tailer writes no row for it
+(deferred; the `STATEMENT:` text is there to be read if it is ever wanted). A
+statement run by a role other than `alkera` - `log_statement` is role-scoped -
+including compose's `episode`, which owns `raw`/`staging` (and `warehouse` on a
+box that is not seeded) and whose DSN the episode environment carries
+(`ALKERA_POSTGRES_DSN`); a seeded box's `warehouse` is closed to it. A `\!`
+shell escape never reaches the server (the shims' job;
 `\copy` does, as `COPY ... FROM STDIN`); SQL-level `PREPARE`/`EXECUTE` measures
 `op_class: exec`, `targets: []`, the server logging the portal name and not the
 statement behind it - the extended protocol has no such problem. `COPY` also

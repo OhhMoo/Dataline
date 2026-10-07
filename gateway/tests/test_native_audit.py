@@ -405,6 +405,39 @@ def test_every_native_writer_produces_a_valid_trace(native_log, tmp_path, monkey
     }
 
 
+def test_postgres_tailer_emits_a_refused_statement_at_its_error(native_log):
+    """Regression, measured 2026-10-07 by tasks/harness/postgres_e2e_check.py: the
+    server writes no `duration:` after an error, so a refused statement waited for
+    its backend's next entry - a `psql -c` that exits on the error has none - and
+    its row landed after statements other backends ran later (the refused DROP
+    was the last of 33 rows). It is emitted at its ERROR now: rows keep server
+    order. Lines as compose.native.yml's server writes them (`%m [%p] %u@%d`)."""
+    log = (
+        "2026-10-07 08:53:20.100 UTC [77] alkera@alkera LOG:  statement: DROP TABLE "
+        "warehouse.fct_orders",
+        "2026-10-07 08:53:20.101 UTC [77] alkera@alkera ERROR:  must be owner of table "
+        "fct_orders",
+        "2026-10-07 08:53:20.101 UTC [77] alkera@alkera STATEMENT:  DROP TABLE "
+        "warehouse.fct_orders",
+        "2026-10-07 08:53:20.200 UTC [78] alkera@alkera LOG:  statement: SELECT 1",
+        "2026-10-07 08:53:20.201 UTC [78] alkera@alkera LOG:  duration: 0.120 ms",
+    )
+    rows = postgres_tailer.run(log)
+    assert [(r["args"]["sql"], r["exit"]) for r in rows] == [
+        ("DROP TABLE warehouse.fct_orders", "error"), ("SELECT 1", "ok")]
+    assert rows[0]["error"] == {"code": "sql_error",
+                                "message": "must be owner of table fct_orders"}
+    assert rows[0]["op_class"] == "destructive" and "no_duration" in rows[0]["flags"]
+    assert rows[1]["latency_ms"] == 0.12 and "no_duration" not in rows[1]["flags"]
+    assert [r["seq"] for r in read_rows(native_log)] == [1, 2]
+    # A syntax error is never a `statement:` entry - the server refuses it before
+    # log_statement sees it - so it leaves no row (native/PARITY.md, "Not captured").
+    assert postgres_tailer.run((
+        "2026-10-07 08:53:21.000 UTC [79] alkera@alkera ERROR:  syntax error at or "
+        "near \"SELEC\" at character 1",
+        "2026-10-07 08:53:21.000 UTC [79] alkera@alkera STATEMENT:  SELEC 1",)) == []
+
+
 def test_record_refuses_a_directory_a_gateway_holds(gateway, monkeypatch):
     """Two sequence allocators on one log is corruption; the writer says so."""
     monkeypatch.setattr(audit, "LOCK_TIMEOUT_S", 0.2)
