@@ -415,5 +415,6 @@ def test_one_statement_per_request(lake):
 def test_translate_is_a_string_in_duckdb_with_the_engine_catalog():
     out = dbx.translate("SELECT `a` FROM `main`.`warehouse`.`t` WHERE b = 'main'")
     assert out == f'SELECT "a" FROM "{dbx.ENGINE_CATALOG}"."warehouse"."t" WHERE b = \'main\''
+    # an unaliased result expression keeps Spark's name, whatever its DuckDB form
     assert dbx.translate("select 1 from hive_metastore.s.t") == \
-        f"SELECT 1 FROM {dbx.ENGINE_CATALOG}.s.t"
+        f'SELECT 1 AS "1" FROM {dbx.ENGINE_CATALOG}.s.t'

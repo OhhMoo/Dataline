@@ -36,9 +36,17 @@ fenced and rewritten:
     (integral CAST, dayofweek/weekday, date_add, timestampdiff, substring, division by
     zero, current_date on the world's clock) - and anything off them is refused naming
     it;
-  qualified: an unqualified table name is the session's schema in catalog `main`, a
-    two-part name a schema of `main` - never one of the engine's own catalogs, nor a
-    DuckDB table function called without parentheses.
+  qualified: an unqualified table name is the session's schema in catalog `main` -
+    unless a CTE of that name is visible in the reference's OWN scope - and a two-part
+    name a schema of `main`: never one of the engine's own catalogs, nor a DuckDB table
+    function called without parentheses;
+  typed: the statement is typed as Spark types it first (databricks_types), so the
+    rewrites land on Spark's result types and rounding (DECIMAL division and avg exact,
+    HALF_UP), and unaliased results keep Spark's column names (`spark_name`).
+
+STATEMENTS a warehouse runs here (`check_statement`): queries, DML, CREATE/DROP of a
+table, view or schema, TRUNCATE TABLE, COMMENT ON - anything else sqlglot parses (a
+DuckDB SEQUENCE, MACRO, SECRET, a TEMPORARY view, PRAGMA, ATTACH) is refused by name.
 
 COMMANDS a SQL warehouse answers that are not queries - USE, SET, SHOW
 CATALOGS/SCHEMAS/TABLES/VIEWS/COLUMNS, DESCRIBE TABLE - are answered by `Lakehouse`
@@ -69,6 +77,7 @@ from sqlglot import exp
 from sqlglot.errors import ErrorLevel, ParseError, UnsupportedError
 
 from . import databricks_functions as dbf
+from . import databricks_types as dbt
 
 #: The one Unity Catalog catalog, and the legacy name that means the same.
 CATALOG = "main"
@@ -210,7 +219,18 @@ def json_value(value):
         return bytes(value).hex()
     if isinstance(value, (list, tuple, dict)):
         return json.dumps(value, default=str, separators=(",", ":"))
+    if isinstance(value, float):
+        return dbf.java_double(value)
     return str(value)
+
+
+def render(value, col: Column | None = None):
+    """One cell of a result column as the JSON_ARRAY format carries it: a FLOAT as
+    Java's Float.toString writes it (`1.1`, not the DOUBLE it widens to), a DOUBLE as
+    Double.toString (`1.0E20`), everything else as `json_value`."""
+    if isinstance(value, float) and col is not None and col.type_name == "FLOAT":
+        return dbf.java_double(value, single=True)
+    return json_value(value)
 
 
 # ----------------------------------------------------------------------- fences
@@ -321,16 +341,57 @@ def _engine(identifier: exp.Identifier | None) -> exp.Identifier | None:
 
 
 def _written(tree: exp.Expression) -> list[exp.Table]:
-    """The relations a statement writes: a DROP's every table, another write's target."""
+    """The relations a statement writes: a DROP's or a TRUNCATE's every table, another
+    write's target."""
     if isinstance(tree, (*QUERY_KINDS, exp.With)):
         return []
-    if isinstance(tree, exp.Drop):
+    if isinstance(tree, (exp.Drop, exp.TruncateTable)):
         return list(tree.find_all(exp.Table))
     target = tree.this
     if isinstance(target, exp.Table):
         return [target]
     found = target.find(exp.Table) if isinstance(target, exp.Expression) else None
     return [found] if found is not None else []
+
+
+#: What CREATE and DROP make or remove here. Everything else sqlglot parses - a DuckDB
+#: SEQUENCE, INDEX, TYPE, MACRO, SECRET, a FUNCTION - is refused by its own name,
+#: never run on the engine.
+_OBJECT_KINDS = ("TABLE", "VIEW", "SCHEMA", "DATABASE")
+#: Schema names the engine keeps for itself: DuckDB's default schema of the copy, and
+#: the name the catalog's own views answer to.
+RESERVED_SCHEMAS = (ENGINE_DEFAULT_SCHEMA, "information_schema")
+
+
+def check_statement(tree: exp.Expression, sql: str) -> None:
+    """The statement allowlist: queries, DML, CREATE/DROP of a table, view or schema,
+    TRUNCATE TABLE and COMMENT ON - anything else refused naming its leading words."""
+    verb = re.match(r"\s*([A-Za-z]+)", _bare(sql))
+    verb = verb.group(1).upper() if verb else type(tree).__name__.upper()
+    if not isinstance(tree, (*QUERY_KINDS, *DML_KINDS, *DDL_KINDS, exp.With)):
+        # named by the statement's own leading word (INSTALL, DETACH, PRAGMA), not by
+        # whatever node sqlglot made of it
+        raise Unsupported(f"{verb} statements", "not Databricks SQL this warehouse runs")
+    if isinstance(tree, (exp.Create, exp.Drop)):
+        kind = str(tree.args.get("kind") or "").upper()
+        if kind not in _OBJECT_KINDS:
+            raise Unsupported(f"{verb} {kind or type(tree.this).__name__.upper()} statements",
+                              "served: CREATE/DROP TABLE, VIEW, SCHEMA")
+        if tree.find(exp.TemporaryProperty) is not None or tree.args.get("temporary"):
+            raise Unsupported("TEMPORARY views and tables",
+                              "a statement here runs in no session that could keep one")
+        targets = [tree.this] if isinstance(tree, exp.Create) else \
+            (tree.args.get("tables") or [tree.this])
+        for target in targets if kind in ("SCHEMA", "DATABASE") else []:
+            name = target.args.get("db") or target.args.get("this") \
+                if isinstance(target, exp.Table) else None
+            if isinstance(name, exp.Identifier) and name.name.lower() in RESERVED_SCHEMAS:
+                raise Unsupported(f"schema name `{name.name}`",
+                                  "reserved by this lakehouse's engine")
+    if isinstance(tree, exp.Comment) and \
+            str(tree.args.get("kind") or "").upper() not in ("TABLE", "COLUMN", "VIEW"):
+        raise Unsupported(f"COMMENT ON {str(tree.args.get('kind') or '').upper()}",
+                          "served: COMMENT ON TABLE, VIEW, COLUMN")
 
 
 def _rewrite(tree: exp.Expression, context: Context) -> exp.Expression:
@@ -342,12 +403,14 @@ def _rewrite(tree: exp.Expression, context: Context) -> exp.Expression:
 
     schema_ddl = isinstance(tree, (exp.Create, exp.Drop)) and \
         str(tree.args.get("kind") or "").upper() in ("SCHEMA", "DATABASE")
-    ctes = {cte.alias_or_name.lower() for cte in tree.find_all(exp.CTE)}
+    # The Table nodes that name a CTE visible IN THEIR OWN SCOPE: a WITH inside a
+    # subquery exempts nothing outside it. Every other unqualified name is qualified.
+    cte_refs = dbt.cte_references(tree)
 
     def visit(node: exp.Expression) -> exp.Expression:
         if isinstance(node, exp.Table):
             schema = (node.db or "").lower()
-            if schema == "information_schema" and \
+            if schema == "information_schema" and not schema_ddl and \
                     (node.catalog or "").lower() in ("", "system", *CATALOG_ALIASES):
                 view = node.name.lower()
                 if view not in INFO_VIEWS:
@@ -363,13 +426,19 @@ def _rewrite(tree: exp.Expression, context: Context) -> exp.Expression:
                 # own (`memory`, `temp`, `system`, the copy's internal name), which a
                 # statement must not be able to reach.
                 raise _not_found([catalog, node.db.lower(), node.name.lower()])
-            if node.db and not catalog and not schema_ddl:
+            if schema_ddl:
+                # CREATE/DROP SCHEMA [catalog.]name: `db` is the schema's own name, kept
+                # as typed (a schema may be called `main`); only the catalog is the
+                # engine's.
+                node.set("catalog", exp.to_identifier(ENGINE_CATALOG))
+                return node
+            if node.db and not catalog:
                 # A two-part name is schema.table IN THE CURRENT CATALOG. DuckDB would
                 # also read it as catalog.table (`memory.x`, `temp.x`): say which.
                 node.set("catalog", exp.to_identifier(ENGINE_CATALOG))
                 return node
-            if not node.db and not schema_ddl and isinstance(node.this, exp.Identifier) \
-                    and node.name.lower() not in ctes:
+            if not node.db and isinstance(node.this, exp.Identifier) \
+                    and id(node) not in cte_refs:
                 # An unqualified name is a relation of the session's schema - never a
                 # DuckDB table function called without parentheses
                 # (`FROM pragma_database_list`).
@@ -384,52 +453,114 @@ def _rewrite(tree: exp.Expression, context: Context) -> exp.Expression:
         return dbf.rewrite(node, context)
 
     tree = _post_order(tree, visit)
-    if schema_ddl:
-        target = tree.this
-        if isinstance(target, exp.Table) and (target.db or "").lower() in CATALOG_ALIASES:
-            target.set("db", exp.Identifier(this=ENGINE_CATALOG,
-                                            quoted=target.args["db"].args.get("quoted")))
-        if str(tree.args.get("kind")).upper() == "DATABASE":
-            tree.set("kind", "SCHEMA")
+    if schema_ddl and str(tree.args.get("kind")).upper() == "DATABASE":
+        tree.set("kind", "SCHEMA")
     return tree
+
+
+_OPERATOR_NAMES = {exp.Add: "+", exp.Sub: "-", exp.Mul: "*", exp.Div: "/", exp.Mod: "%",
+                   exp.IntDiv: "div", exp.EQ: "=", exp.NEQ: "!=", exp.GT: ">",
+                   exp.GTE: ">=", exp.LT: "<", exp.LTE: "<=", exp.NullSafeEQ: "<=>",
+                   exp.And: "AND", exp.Or: "OR"}
+
+
+def spark_name(node: exp.Expression) -> str:
+    """The column name Spark gives an unaliased projection (its pretty SQL): `(d / 3)`,
+    `count(1)`, `year(dt)` - so a rewrite's DuckDB form never names the column."""
+    if isinstance(node, exp.Column):
+        return node.name
+    if isinstance(node, exp.Literal):
+        return node.name
+    if isinstance(node, exp.Null):
+        return "NULL"
+    if isinstance(node, exp.Boolean):
+        return "true" if node.this else "false"
+    if isinstance(node, exp.Paren):
+        return spark_name(node.this)
+    if isinstance(node, exp.Count) and isinstance(node.this, exp.Star):
+        return "count(1)"
+    if type(node) in _OPERATOR_NAMES:
+        return (f"({spark_name(node.this)} {_OPERATOR_NAMES[type(node)]} "
+                f"{spark_name(node.expression)})")
+    if isinstance(node, exp.Neg):
+        return f"(- {spark_name(node.this)})"
+    if isinstance(node, exp.Not):
+        return f"(NOT {spark_name(node.this)})"
+    try:
+        return node.sql(dialect="databricks", normalize_functions="lower")
+    except Exception:  # noqa: BLE001 - a node sqlglot cannot write back
+        return type(node).__name__.lower()
+
+
+def _name_projections(tree: exp.Expression) -> None:
+    """Alias the statement's unaliased result expressions with Spark's names, before
+    the rewrite makes them DuckDB's (`CAST(length(s) AS INTEGER)`)."""
+    query = tree.expression if isinstance(tree, exp.Create) else tree
+    while isinstance(query, exp.SetOperation):
+        query = query.left
+    if not isinstance(query, exp.Select):
+        return
+    named = []
+    for projection in query.expressions:
+        if not isinstance(projection, (exp.Alias, exp.Column, exp.Star)):
+            projection = exp.Alias(this=projection, alias=exp.Identifier(
+                this=spark_name(projection), quoted=True))
+        named.append(projection)
+    query.set("expressions", named)
 
 
 def _post_order(tree: exp.Expression, visit) -> exp.Expression:
     """`visit` every node, children before their parent, replacing each node with what
-    it returns. A replacement may wrap the (already visited) original children."""
+    it returns. A replacement may wrap the (already visited) original children, and
+    keeps the original's Databricks type (databricks_types)."""
     root = tree
     for node in reversed(list(tree.walk(bfs=False))):
+        # where the node sits, taken BEFORE the visit: a replacement that wraps the
+        # node (CAST(node AS ...)) has already made itself the node's parent
+        parent, key, index = node.parent, node.arg_key, node.index
         new = visit(node)
         if new is node:
             continue
+        if "dbx_type" in node.meta and "dbx_type" not in new.meta:
+            new.meta["dbx_type"] = node.meta["dbx_type"]
         if node is root:
             root = new
         else:
-            node.replace(new)
+            parent.set(key, new, index)
     return root
 
 
-def translate(sql: str, context: Context | None = None) -> str:
+def translate(sql: str, context: Context | None = None,
+              lookup: dbt.Lookup | None = None) -> str:
     """One Databricks SQL statement -> the DuckDB SQL that runs it on the lakehouse.
 
     FAIL-CLOSED (alkera_gateway.databricks_functions): every function and expression in
     the statement must be on the vetted lists, each translated either as sqlglot does it
     (checked against Databricks' documented results) or by a rewrite with Databricks'
-    semantics; anything else is refused naming it. Raises `Unsupported(feature)` for
-    what is refused by name (the module docstring), and `SqlError` for SQL Databricks
-    itself would reject (a parse error, more than one statement)."""
+    semantics - for which the statement is first typed the way Spark types it
+    (databricks_types; `lookup(schema, table)` gives a lakehouse table's columns);
+    anything else is refused naming it. Raises `Unsupported(feature)` for what is
+    refused by name (the module docstring), and `SqlError` for SQL Databricks itself
+    would reject (a parse error, more than one statement)."""
+    context = context or Context()
     fence(sql)
     tree = split(sql)
+    check_statement(tree, sql)
     _fence_tree(tree)
     _strip_layout(tree)
     dbf.mark_two_arg_datediff(tree, sql)
+    typer = None
     try:
         dbf.vet(tree)
+        _name_projections(tree)
+        typer = dbt.Typer(tree, lookup, context.schema)
+        typer.annotate(tree)
+        tree = _rewrite(tree, context)
     except dbf.Refused as refused:
-        raise Unsupported(refused.feature, refused.why) from None
-    try:
-        tree = _rewrite(tree, context or Context())
-    except dbf.Refused as refused:
+        if lookup is not None and typer is not None and typer.missing and \
+                "unknown type" in refused.feature:
+            # the type is unknown because the table is: say that, as Databricks would
+            raise _not_found(typer.missing[0]) from None
         raise Unsupported(refused.feature, refused.why) from None
     try:
         return tree.sql(dialect="duckdb", unsupported_level=ErrorLevel.RAISE)
@@ -515,6 +646,9 @@ class Lakehouse:
         # A SQL warehouse's session time zone, UTC: TIMESTAMP literals and
         # date_trunc/timestampadd results are read in it.
         self.con.execute("SET TimeZone = 'UTC'")
+        for name, function, parameters, returns in dbf.UDFS:
+            self.con.create_function(name, function, parameters, returns,
+                                     side_effects=False)
         for macro in dbf.MACROS:
             self.con.execute(macro)
         self._information_schema()
@@ -693,21 +827,30 @@ class Lakehouse:
                 if handled is not None:
                     return handled
             tree = split(sql)
-            if not isinstance(tree, (*QUERY_KINDS, *DML_KINDS, *DDL_KINDS, exp.With)):
-                # named by the statement's own leading word (INSTALL, DETACH, PRAGMA),
-                # not by whatever node sqlglot made of it
-                verb = re.match(r"\s*([A-Za-z]+)", _bare(sql))
-                kind = verb.group(1).upper() if verb else type(tree).__name__.upper()
-                raise Unsupported(f"{kind} statements",
-                                  "not Databricks SQL this warehouse runs")
+            check_statement(tree, sql)
             if self.schema_named(context.schema) is None and _unqualified(tree):
                 # the engine would resolve the name in its own default schema
                 raise SqlError("SCHEMA_NOT_FOUND",
                                f"The schema `{context.catalog}`.`{context.schema}` cannot "
                                f"be found. Verify the spelling and correctness of the "
                                f"schema and catalog.", "42704")
-            duck = translate(sql, context)
+            duck = translate(sql, context, self.column_types)
             return self._run(duck, tree, context, params), context
+
+    def column_types(self, schema: str, table: str) -> dict[str, str]:
+        """{column: DuckDB type} of a lakehouse table or view (empty when there is
+        none): what the translator types a statement's columns by."""
+        with self.lock:
+            if str(schema).lower() == "information_schema":
+                database, found = INFO_CATALOG, INFO_SCHEMA
+            else:
+                database, found = ENGINE_CATALOG, self.schema_named(schema)
+            if found is None:
+                return {}
+            return dict(self._rows(
+                "SELECT column_name, data_type FROM duckdb_columns() WHERE "
+                "database_name = ? AND schema_name = ? AND lower(table_name) = lower(?)",
+                [database, found, table]))
 
     def _enter(self, context: Context) -> None:
         """Point the connection at the session's schema (or its catalog, when the
@@ -777,6 +920,9 @@ class Lakehouse:
         if not found:
             return None
         rest = found.group("rest").strip()
+        if re.match(r"VAR(IABLE)?\b", rest, re.I):
+            raise Unsupported("SET VARIABLE (SQL session variables)",
+                              "a statement here runs in no session that could keep one")
         columns = [column("key", "VARCHAR"), column("value", "VARCHAR")]
         if found.group("verb").upper() == "RESET" or not rest:
             return Result(columns, []), context
@@ -992,15 +1138,15 @@ class Lakehouse:
 
 
 def _unqualified(tree: exp.Expression) -> list[str]:
-    """Relation names a statement gives without a schema (CTE names excepted): the ones
-    the session's current schema resolves."""
-    ctes = {cte.alias_or_name.lower() for cte in tree.find_all(exp.CTE)}
+    """Relation names a statement gives without a schema (references to a CTE in their
+    own scope excepted): the ones the session's current schema resolves."""
     if isinstance(tree, (exp.Create, exp.Drop)) and \
             str(tree.args.get("kind") or "").upper() in ("SCHEMA", "DATABASE"):
         return []
+    cte_refs = dbt.cte_references(tree)
     return [t.name for t in tree.find_all(exp.Table)
             if isinstance(t.this, exp.Identifier) and not t.db
-            and t.name.lower() not in ctes]
+            and id(t) not in cte_refs]
 
 
 def _not_found(parts: list[str]) -> SqlError:
@@ -1035,6 +1181,9 @@ def engine_error(exc: duckdb.Error) -> SqlError:
         return SqlError("CAST_INVALID_INPUT", first, "22018")
     if isinstance(exc, duckdb.ConstraintException):
         return SqlError("CONSTRAINT_VIOLATION", first, "23000")
+    if isinstance(exc, duckdb.OutOfRangeException):
+        # an INT sum past 2^31, a DECIMAL past its precision: ANSI overflow
+        return SqlError("ARITHMETIC_OVERFLOW", first, "22003")
     if isinstance(exc, duckdb.PermissionException):
         return SqlError("INSUFFICIENT_PERMISSIONS", first, "42501")
     return SqlError("SQL_EXECUTION_ERROR", first, "42000")
@@ -1079,4 +1228,3 @@ def _typed(value, kind: str):
     if kind in ("STRING", "VARCHAR", "CHAR"):
         return str(value)
     raise ValueError(f"parameter type {kind} is not supported")
-    return out

@@ -23,18 +23,33 @@ An entry is one of:
                          vetted (a datetime format with tokens beyond yyyy/yy/MM/dd/HH/mm/
                          ss, an EXTRACT field, a truncation unit, a CAST target type).
 
-Every entry has a case in gateway/tests/test_databricks_sql.py's FUNCTION_CORPUS, which
-asserts the result Databricks documents for it; a test fails when an entry has none.
+TYPED. Before the rewrite, `databricks_types.Typer` gives every node the type Spark
+gives it (`node.meta["dbx_type"]`), and the rewrites land the DuckDB form on that type
+and on Spark's rounding: DECIMAL arithmetic in Spark's result precision and scale
+(division and avg exact, HALF_UP, `dbx_decimal_quotient`), `div` as a BIGINT, an
+integral CAST truncating by its input's type (a string must be an integer, as ANSI
+CAST requires), a DOUBLE rounded and cast on its decimal representation (Java's
+Double.toString, `java_double`), the INT-valued functions as INT. Where the type is
+needed and not known, the rewrite refuses by name.
 
-The rewrites call DuckDB TEMP macros (`MACROS`), created on the lakehouse connection
-before its configuration is locked. A statement cannot call them itself: their names
-are on no list.
+Every entry has a case in gateway/tests/test_databricks_functions.py's FUNCTION_CORPUS,
+which asserts the value AND the type Databricks returns, as the JSON_ARRAY format
+renders the value; a test fails when an entry has none.
+
+The rewrites call DuckDB TEMP macros (`MACROS`) and Python functions (`UDFS`), created on
+the lakehouse connection before its configuration is locked. A statement cannot call
+them itself: their names are on no list.
 """
 from __future__ import annotations
 
+import datetime
+import math
 import re
+import struct
 from collections.abc import Callable
 from dataclasses import dataclass
+from decimal import ROUND_HALF_UP, Decimal
+from fractions import Fraction
 
 from sqlglot import exp
 
@@ -67,9 +82,56 @@ _DIVIDE_BY_ZERO = ("[DIVIDE_BY_ZERO] Division by zero. Use `try_divide` to toler
 #: ChronoUnit.between (what Databricks' timestampdiff uses): the end date steps back a
 #: day when its time of day is before the start's, months are (packed month*32+day)
 #: differences divided by 32, truncating toward zero, time units are whole durations.
+def _malformed(value: str, target: str) -> str:
+    """The CAST_INVALID_INPUT message, as SQL building it from `value` (an expression)."""
+    return ("'[CAST_INVALID_INPUT] The value ''' || " + value + " || ''' of the type "
+            "\"STRING\" cannot be cast to \"' || " + target + " || '\" because it is "
+            "malformed. Correct the value as per the syntax, or change its target type. "
+            "Use `try_cast` to tolerate malformed input and return NULL instead. "
+            "SQLSTATE: 22018'")
+
+
+#: ANSI CAST of a string to an integral type: optional sign and digits, nothing else,
+#: inside whitespace and control characters (UTF8String.toLongExact).
+_INTEGER_TEXT = r"[\x00-\x20]*[+-]?[0-9]+[\x00-\x20]*"
+_TRIM_ALL = r"^[\x00-\x20]+|[\x00-\x20]+$"
+
 MACROS = (
-    "CREATE TEMP MACRO dbx_divisor(b) AS (CASE WHEN b = 0 THEN error("
-    f"'{_DIVIDE_BY_ZERO}') ELSE b END)",
+    # a NULL dividend is NULL before its divisor is looked at (Spark's DivModLike)
+    "CREATE TEMP MACRO dbx_divisor(a, b) AS (CASE WHEN b = 0 AND a IS NOT NULL THEN "
+    f"error('{_DIVIDE_BY_ZERO}') ELSE b END)",
+    "CREATE TEMP MACRO dbx_int_text(s, target) AS (CASE WHEN s IS NULL THEN NULL"
+    f" WHEN regexp_full_match(s, '{_INTEGER_TEXT}') THEN regexp_extract(s, '[+-]?[0-9]+')"
+    f" ELSE error({_malformed('s', 'target')}) END)",
+    "CREATE TEMP MACRO dbx_try_int_text(s) AS (CASE"
+    f" WHEN regexp_full_match(s, '{_INTEGER_TEXT}') THEN regexp_extract(s, '[+-]?[0-9]+')"
+    " ELSE NULL END)",
+    f"CREATE TEMP MACRO dbx_bool_text(s) AS (lower(regexp_replace(s, '{_TRIM_ALL}', '', 'g')))",
+    "CREATE TEMP MACRO dbx_bool(s) AS (CASE WHEN s IS NULL THEN NULL"
+    " WHEN dbx_bool_text(s) IN ('t', 'true', 'y', 'yes', '1') THEN true"
+    " WHEN dbx_bool_text(s) IN ('f', 'false', 'n', 'no', '0') THEN false"
+    f" ELSE error({_malformed('s', chr(39) + 'BOOLEAN' + chr(39))}) END)",
+    "CREATE TEMP MACRO dbx_try_bool(s) AS (CASE"
+    " WHEN dbx_bool_text(s) IN ('t', 'true', 'y', 'yes', '1') THEN true"
+    " WHEN dbx_bool_text(s) IN ('f', 'false', 'n', 'no', '0') THEN false ELSE NULL END)",
+    # array_contains: NULL when the value is not found and the array holds a NULL
+    "CREATE TEMP MACRO dbx_array_contains(a, v) AS (CASE"
+    " WHEN a IS NULL OR v IS NULL THEN NULL WHEN list_contains(a, v) THEN true"
+    " WHEN len(list_filter(a, lambda x: x IS NULL)) > 0 THEN NULL ELSE false END)",
+    # concat_ws over strings and arrays of strings: NULLs skipped, a NULL separator NULL
+    "CREATE TEMP MACRO dbx_concat_ws(sep, items) AS (CASE WHEN sep IS NULL THEN NULL"
+    " ELSE array_to_string(list_filter(items, lambda x: x IS NOT NULL), sep) END)",
+    # lpad/rpad (UTF8String.lpad): no padding to do, or nothing to pad with, is the
+    # string cut to the length ('' for a length below 1)
+    "CREATE TEMP MACRO dbx_lpad(s, n, p) AS (CASE WHEN n - length(s) <= 0 OR p = ''"
+    " THEN substring(s, 1, greatest(n, 0)) ELSE lpad(s, n, p) END)",
+    "CREATE TEMP MACRO dbx_rpad(s, n, p) AS (CASE WHEN n - length(s) <= 0 OR p = ''"
+    " THEN substring(s, 1, greatest(n, 0)) ELSE rpad(s, n, p) END)",
+    # upper/lower: DuckDB's for ASCII, Java's full case mapping otherwise
+    "CREATE TEMP MACRO dbx_upper(s) AS (CASE WHEN regexp_full_match(s, '[\\x00-\\x7F]*')"
+    " THEN upper(s) ELSE dbx_upper_text(s) END)",
+    "CREATE TEMP MACRO dbx_lower(s) AS (CASE WHEN regexp_full_match(s, '[\\x00-\\x7F]*')"
+    " THEN lower(s) ELSE dbx_lower_text(s) END)",
     "CREATE TEMP MACRO dbx_substring(s, p, l) AS (CASE"
     " WHEN greatest(CASE WHEN p > 0 THEN p - 1 WHEN p < 0 THEN length(s) + p ELSE 0 END,"
     " 0) >= (CASE WHEN p > 0 THEN p - 1 WHEN p < 0 THEN length(s) + p ELSE 0 END) + l"
@@ -92,6 +154,119 @@ MACROS = (
     " ((dbx_packed(dbx_end_date(s, e)) - dbx_packed(CAST(dbx_ts(s) AS DATE))) // 32)",
     "CREATE TEMP MACRO dbx_days(s, e) AS (dbx_end_date(s, e) - CAST(dbx_ts(s) AS DATE))",
     "CREATE TEMP MACRO dbx_micros(s, e) AS (epoch_us(dbx_ts(e)) - epoch_us(dbx_ts(s)))",
+)
+
+
+# ------------------------------------------------------------- Python functions
+def java_double(value: float, *, single: bool = False) -> str:
+    """A DOUBLE (or, `single`, a FLOAT) as Java's Double.toString / Float.toString
+    write it, which is how Spark casts it to a string and renders it: the shortest
+    digits that read back as the same value, `1.0` not `1`, and computerized
+    scientific notation (`1.0E7`, `1.0E-4`) outside [1e-3, 1e7)."""
+    if math.isnan(value):
+        return "NaN"
+    if math.isinf(value):
+        return "Infinity" if value > 0 else "-Infinity"
+    if value == 0:
+        return "-0.0" if math.copysign(1.0, value) < 0 else "0.0"
+    if single:
+        target = struct.unpack("f", struct.pack("f", value))[0]
+        text = next(t for t in (f"{target:.{n}g}" for n in range(1, 10))
+                    if struct.unpack("f", struct.pack("f", float(t)))[0] == target)
+    else:
+        text = repr(float(value))
+    sign, digits, exponent = Decimal(text).as_tuple()
+    shown = "".join(map(str, digits)).rstrip("0") or "0"
+    point = len(digits) + exponent              # digits before the decimal point
+    magnitude = abs(float(text))
+    if 1e-3 <= magnitude < 1e7:
+        if point <= 0:
+            body = "0." + "0" * -point + shown
+        elif point >= len(shown):
+            body = shown + "0" * (point - len(shown)) + ".0"
+        else:
+            body = shown[:point] + "." + shown[point:]
+    else:
+        body = f"{shown[0]}.{shown[1:] or '0'}E{point - 1}"
+    return ("-" if sign else "") + body
+
+
+def _decimal_of(value: float) -> Decimal:
+    """A DOUBLE as the decimal Spark reads it as (`BigDecimal.decimal`: its toString)."""
+    return Decimal(repr(float(value)))
+
+
+def _half_up(q: Fraction, scale: int) -> Decimal:
+    scaled = q * Fraction(10) ** scale
+    n = (2 * abs(scaled.numerator) + scaled.denominator) // (2 * scaled.denominator)
+    return Decimal(-n if scaled < 0 else n).scaleb(-scale)
+
+
+def _udf_double_str(value: float) -> str:
+    return java_double(value)
+
+
+def _udf_float_str(value: float) -> str:
+    return java_double(value, single=True)
+
+
+def _udf_round_double(value: float, scale: int) -> float:
+    """round(DOUBLE, n): HALF_UP on the double's decimal representation, so
+    round(1.005, 2) is 1.01 as in Spark (the binary value is just below 1.005)."""
+    if math.isnan(value) or math.isinf(value):
+        return value
+    return float(_decimal_of(value).quantize(Decimal(1).scaleb(-scale), ROUND_HALF_UP))
+
+
+def _udf_double_decimal(value: float, scale: int) -> str:
+    """CAST(DOUBLE AS DECIMAL(p, s)): the decimal representation, HALF_UP to `s`."""
+    if math.isnan(value) or math.isinf(value):
+        raise ValueError(f"[CAST_INVALID_INPUT] The value {java_double(value)} of the type "
+                         f"\"DOUBLE\" cannot be cast to a DECIMAL. SQLSTATE: 22018")
+    return format(_decimal_of(value).quantize(Decimal(1).scaleb(-scale), ROUND_HALF_UP), "f")
+
+
+def _quotient(a: str, b: str) -> Fraction:
+    divisor = Fraction(Decimal(b))
+    if divisor == 0:
+        raise ZeroDivisionError(_DIVIDE_BY_ZERO)
+    return Fraction(Decimal(a)) / divisor
+
+
+def _udf_decimal_quotient(a: str, b: str, scale: int, final_scale: int) -> str:
+    """a / b for DECIMAL operands, exact: HALF_UP to Spark's result scale (then, for
+    avg, to its result type's scale - Spark rounds twice there, and so does this)."""
+    result = _half_up(_quotient(a, b), scale)
+    if final_scale != scale:
+        result = _half_up(Fraction(result), final_scale)
+    return format(result, "f")
+
+
+def _udf_decimal_div(a: str, b: str) -> int:
+    """a div b for DECIMAL operands: the quotient truncated toward zero, exactly."""
+    return int(_quotient(a, b))
+
+
+def _udf_upper(text: str) -> str:
+    return text.upper()
+
+
+def _udf_lower(text: str) -> str:
+    return text.lower()
+
+
+#: (name, function, parameter types, result type), created on the lakehouse connection.
+UDFS = (
+    ("dbx_double_str", _udf_double_str, ["DOUBLE"], "VARCHAR"),
+    ("dbx_float_str", _udf_float_str, ["FLOAT"], "VARCHAR"),
+    ("dbx_round_double", _udf_round_double, ["DOUBLE", "INTEGER"], "DOUBLE"),
+    ("dbx_double_decimal", _udf_double_decimal, ["DOUBLE", "INTEGER"], "VARCHAR"),
+    ("dbx_decimal_quotient", _udf_decimal_quotient,
+     ["VARCHAR", "VARCHAR", "INTEGER", "INTEGER"], "VARCHAR"),
+    ("dbx_decimal_div", _udf_decimal_div, ["VARCHAR", "VARCHAR"], "BIGINT"),
+    # Java's full case mapping ('ß' upper is 'SS'), for text that is not ASCII
+    ("dbx_upper_text", _udf_upper, ["VARCHAR"], "VARCHAR"),
+    ("dbx_lower_text", _udf_lower, ["VARCHAR"], "VARCHAR"),
 )
 
 
@@ -124,6 +299,36 @@ def _literal(node: exp.Expression | None) -> str | None:
     return node.name if isinstance(node, exp.Literal) and node.is_string else None
 
 
+def _t(node: exp.Expression | None):
+    """The Spark type databricks_types gave `node` (None: not known)."""
+    return node.meta.get("dbx_type") if node is not None else None
+
+
+def _sql(node: exp.Expression) -> str:
+    try:
+        return node.sql(dialect="databricks")
+    except Exception:  # noqa: BLE001 - a node sqlglot cannot write back
+        return type(node).__name__
+
+
+def _unknown(node: exp.Expression, what: str) -> Refused:
+    return Refused(f"{what} on an expression of unknown type ({_sql(node)})",
+                   "the lakehouse answers it only where it knows Spark's result type; "
+                   "CAST the operands")
+
+
+def _as(node: exp.Expression, spark_type) -> exp.Expression:
+    """`node` CAST to the DuckDB spelling of a Spark type."""
+    return _cast(node, _DUCK_TYPES.get(spark_type.kind) or
+                 f"DECIMAL({spark_type.p}, {spark_type.s})")
+
+
+_DUCK_TYPES = {"tinyint": "TINYINT", "smallint": "SMALLINT", "int": "INTEGER",
+               "bigint": "BIGINT", "double": "DOUBLE", "float": "FLOAT",
+               "string": "VARCHAR", "date": "DATE", "timestamp": "TIMESTAMP",
+               "boolean": "BOOLEAN"}
+
+
 # ----------------------------------------------------------------- checks
 #: sqlglot keeps the Java pattern as strftime codes, some marked `strict`.
 _FORMAT_OK = re.compile(r"(%[YymdHMS](?:strict)?|[-/:. ,_T])*")
@@ -151,6 +356,7 @@ _CAST_TYPES = {
 }
 _INTEGRAL = {exp.DataType.Type.TINYINT, exp.DataType.Type.SMALLINT, exp.DataType.Type.INT,
              exp.DataType.Type.BIGINT}
+_ZONED = {exp.DataType.Type.TIMESTAMPTZ, exp.DataType.Type.TIMESTAMPLTZ}
 
 
 def _check_cast(node: exp.Expression) -> None:
@@ -224,40 +430,76 @@ def _check_like(node: exp.Expression) -> None:
 
 
 # ----------------------------------------------------------------- rewrites
-def _integral_cast(node: exp.Expression, _context) -> exp.Expression:
-    """CAST to an integral type truncates toward zero in Databricks (DuckDB rounds):
-    through DECIMAL(38,18), TRUNC, then the target type."""
+_SPARK_NAMES = {exp.DataType.Type.TINYINT: "TINYINT", exp.DataType.Type.SMALLINT: "SMALLINT",
+                exp.DataType.Type.INT: "INT", exp.DataType.Type.BIGINT: "BIGINT"}
+
+
+def _typed_cast(node: exp.Expression, _context) -> exp.Expression:
+    """CAST as Databricks (ANSI) does it, by the input's type:
+
+      to an integral type   a DECIMAL or DOUBLE truncates toward zero (DuckDB rounds);
+                            a string must be an integer - '1.9' and '1e3' are
+                            CAST_INVALID_INPUT (try_cast: NULL);
+      to DECIMAL(p, s)      a DOUBLE is its decimal representation, HALF_UP;
+      to STRING             a DOUBLE or FLOAT is written as Java writes it ('1.0E20');
+      to BOOLEAN            a string is t/true/y/yes/1 or f/false/n/no/0, any case."""
     to = node.args["to"]
-    if to.this not in _INTEGRAL:
-        return node
+    source = _t(node.this)
     try_ = isinstance(node, exp.TryCast)
-    inner = _cast(node.this, "DECIMAL(38, 18)", try_=try_)
-    return _mark(type(node)(this=_fn("trunc", inner), to=to))
+    if to.this in _INTEGRAL:
+        if source is None:
+            # not known: through DECIMAL(38,18), exact for every value but a string
+            # that is not an integer
+            inner = _cast(node.this, "DECIMAL(38, 18)", try_=try_)
+            return _mark(type(node)(this=_fn("trunc", inner), to=to))
+        if source.kind == "string":
+            text = _fn("dbx_try_int_text", node.this) if try_ else \
+                _fn("dbx_int_text", node.this, exp.Literal.string(_SPARK_NAMES[to.this]))
+            return _mark(type(node)(this=text, to=to))
+        if source.is_decimal or source.is_fractional:
+            return _mark(type(node)(this=_fn("trunc", node.this), to=to))
+        return node
+    if to.this == exp.DataType.Type.DECIMAL and source is not None and source.is_fractional:
+        target = _t(node)
+        return _mark(type(node)(this=_fn("dbx_double_decimal", node.this, _int(target.s)),
+                                to=to))
+    if to.this in (exp.DataType.Type.TEXT, exp.DataType.Type.VARCHAR) and \
+            source is not None and source.is_fractional:
+        return _fn("dbx_float_str" if source.kind == "float" else "dbx_double_str", node.this)
+    if to.this == exp.DataType.Type.BOOLEAN and source is not None and source.kind == "string":
+        return _fn("dbx_try_bool" if try_ else "dbx_bool", node.this)
+    return node
 
 
 def _named_cast(to: str):
-    def rewrite(node: exp.Expression, _context) -> exp.Expression:
+    def rewrite(node: exp.Expression, context) -> exp.Expression:
         if len(node.expressions) != 1:
             raise Refused(f"{node.name}() with {len(node.expressions)} arguments",
                           "a cast function takes one")
-        return _integral_cast(_mark(exp.Cast(this=node.expressions[0],
-                                             to=exp.DataType.build(to))), None)
+        return _typed_cast(_mark(exp.Cast(this=node.expressions[0],
+                                          to=exp.DataType.build(to))), context)
     return rewrite
+
+
+def _as_int(node: exp.Expression, _context=None) -> exp.Expression:
+    """An INT-valued Spark function (year, length, instr, size, ...): DuckDB's is a
+    BIGINT."""
+    return _cast(_mark(node), "INTEGER")
 
 
 def _day_of_week(node: exp.Expression, _context) -> exp.Expression:
     """dayofweek: Sunday 1 .. Saturday 7 (DuckDB: Sunday 0)."""
-    return _mark(exp.Paren(this=_mark(exp.Add(
+    return _as_int(_mark(exp.Paren(this=_mark(exp.Add(
         this=_mark(exp.Mod(this=_fn("isodow", node.this), expression=_int(7))),
-        expression=_int(1)))))
+        expression=_int(1))))))
 
 
 def _weekday(node: exp.Expression, _context) -> exp.Expression:
     """weekday: Monday 0 .. Sunday 6 (DuckDB's weekday is dayofweek)."""
     if len(node.expressions) != 1:
         raise Refused("weekday() with other than one argument", "weekday takes a date")
-    return _mark(exp.Paren(this=_mark(exp.Sub(this=_fn("isodow", node.expressions[0]),
-                                              expression=_int(1)))))
+    return _as_int(_mark(exp.Paren(this=_mark(exp.Sub(
+        this=_fn("isodow", node.expressions[0]), expression=_int(1))))))
 
 
 def _extract(node: exp.Expression, _context) -> exp.Expression:
@@ -270,7 +512,314 @@ def _extract(node: exp.Expression, _context) -> exp.Expression:
         return _cast(_mark(exp.Div(this=_fn("microsecond", value),
                                    expression=exp.Literal.number("1000000.0"))),
                      "DECIMAL(8, 6)")
-    return _fn(target, value)
+    return _as_int(_fn(target, value))
+
+
+# --------------------------------------------------------- typed arithmetic
+def _divide(node: exp.Expression, _context) -> exp.Expression:
+    """a / b: a DECIMAL quotient exact in Spark's result precision and scale, HALF_UP
+    (DuckDB divides DECIMALs as DOUBLEs); a DOUBLE otherwise. A zero divisor raises
+    DIVIDE_BY_ZERO, as on an ANSI warehouse (DuckDB answers inf or NULL)."""
+    result = _t(node)
+    a, b = node.this, node.expression
+    if result is None:
+        raise _unknown(node, "DECIMAL arithmetic (/)")
+    divisor = _fn("dbx_divisor", a.copy(), b)
+    if result.is_decimal:
+        quotient = _fn("dbx_decimal_quotient", _cast(a, "VARCHAR"), _cast(divisor, "VARCHAR"),
+                       _int(result.s), _int(result.s))
+        return _as(quotient, result)
+    node.set("expression", divisor)
+    return _mark(node)
+
+
+def _int_divide(node: exp.Expression, _context) -> exp.Expression:
+    """a div b: the quotient truncated toward zero, a BIGINT - exact for DECIMALs
+    (`dbx_decimal_div`), on the DOUBLE quotient for DOUBLEs."""
+    a, b = node.this, node.expression
+    ta, tb = _t(a), _t(b)
+    if ta is None or tb is None or not (ta.is_numeric or ta.kind == "null") or \
+            not (tb.is_numeric or tb.kind == "null"):
+        raise _unknown(node, "div")
+    divisor = _fn("dbx_divisor", a.copy(), b)
+    if ta.is_fractional or tb.is_fractional:
+        return _cast(_fn("trunc", _mark(exp.Div(this=a, expression=divisor))), "BIGINT")
+    if ta.is_decimal or tb.is_decimal:
+        return _fn("dbx_decimal_div", _cast(a, "VARCHAR"), _cast(divisor, "VARCHAR"))
+    return _cast(_mark(exp.IntDiv(this=a, expression=divisor)), "BIGINT")
+
+
+def _modulo(node: exp.Expression, _context) -> exp.Expression:
+    """a % b: the dividend's sign, as DuckDB's; a DECIMAL in Spark's result type."""
+    node.set("expression", _fn("dbx_divisor", node.this.copy(), node.expression))
+    return _typed_result(_mark(node))
+
+
+def _typed_result(node: exp.Expression, _context=None) -> exp.Expression:
+    """+, -, *, %: DuckDB's DECIMAL result has Spark's value and scale (exact sums and
+    products) but its own precision: CAST to Spark's type. Subtracting DATEs or
+    TIMESTAMPs (an INTERVAL in Databricks) is refused."""
+    if isinstance(node, exp.Sub):
+        left, right = _t(node.this), _t(node.expression)
+        if left is not None and right is not None and \
+                {left.kind, right.kind} <= {"date", "timestamp"}:
+            raise Refused("subtracting DATEs or TIMESTAMPs (an INTERVAL)",
+                          "use datediff or timestampdiff")
+    result = _t(node)
+    if result is not None and result.is_decimal:
+        return _as(_mark(node), result)
+    return node
+
+
+def _round(node: exp.Expression, _context) -> exp.Expression:
+    """round(x, n): HALF_UP. A DECIMAL in Spark's result type; a DOUBLE rounded on its
+    decimal representation (round(1.005, 2) is 1.01, as in Spark)."""
+    source, result = _t(node.this), _t(node)
+    if source is None:
+        raise _unknown(node, "round")
+    if source.is_fractional:
+        scale = node.args.get("decimals") or _int(0)
+        return _fn("dbx_round_double", node.this, _cast(scale, "INTEGER"))
+    if source.is_decimal:
+        if result is None:
+            raise Refused("round(DECIMAL, n) with a scale that is not a constant",
+                          "Spark's result type depends on it")
+        return _as(_mark(node), result)
+    return node
+
+
+def _floor_ceil(node: exp.Expression, _context) -> exp.Expression:
+    """floor/ceil: a BIGINT for a DOUBLE or an integer, DECIMAL(p-s+1, 0) for a
+    DECIMAL (DuckDB keeps a DOUBLE)."""
+    result = _t(node)
+    if result is None:
+        raise _unknown(node, "floor/ceil")
+    return _as(_mark(node), result)
+
+
+def _sign(node: exp.Expression, _context) -> exp.Expression:
+    return _cast(_mark(node), "DOUBLE")
+
+
+# ------------------------------------------------------------ typed strings
+def _string_args(args: list[exp.Expression]) -> list[exp.Expression]:
+    """Arguments a string function reads as strings: a DOUBLE or FLOAT as Java writes it."""
+    out = []
+    for arg in args:
+        kind = getattr(_t(arg), "kind", None)
+        if kind in ("double", "float"):
+            arg = _fn("dbx_float_str" if kind == "float" else "dbx_double_str", arg)
+        out.append(arg)
+    return out
+
+
+def _concat(node: exp.Expression, _context) -> exp.Expression:
+    """concat / ||: a DOUBLE argument written as Java writes it; NULL when an argument
+    is NULL, as a STRING."""
+    if isinstance(node, exp.DPipe):
+        left, right = _string_args([node.this, node.expression])
+        node.set("this", left)
+        node.set("expression", right)
+    else:
+        node.set("expressions", _string_args(node.expressions))
+    args = [node.this, node.expression] if isinstance(node, exp.DPipe) else node.expressions
+    if any(getattr(_t(a), "kind", None) == "null" for a in args):
+        return _cast(_mark(node), "VARCHAR")
+    return _mark(node)
+
+
+def _concat_ws(node: exp.Expression, _context) -> exp.Expression:
+    """concat_ws(sep, ...): strings and ARRAYs of strings, flattened, NULLs skipped."""
+    separator, *args = node.expressions
+    types = [_t(a) for a in args]
+    if not any(t is not None and t.kind == "array" for t in types):
+        if any(t is None for t in types):
+            raise _unknown(node, "concat_ws")
+        node.set("expressions", [separator, *_string_args(args)])
+        return _mark(node)
+    if any(t is None for t in types):
+        raise _unknown(node, "concat_ws")
+    parts = []
+    for arg, kind in zip(args, types, strict=True):
+        if kind.kind == "array":
+            parts.append(_cast(arg, "VARCHAR[]"))
+        elif kind.kind != "null":
+            parts.append(_mark(exp.Array(expressions=[_cast(_string_args([arg])[0],
+                                                            "VARCHAR")])))
+    items = _fn("flatten", _mark(exp.Array(expressions=parts))) if parts else \
+        _cast(_mark(exp.Array(expressions=[])), "VARCHAR[]")
+    return _fn("dbx_concat_ws", separator, items)
+
+
+def _java_replacement(text: str) -> str:
+    """A java.util.regex replacement ($1) as RE2's (\\1). `\\` cannot reach here: a
+    string literal with a backslash is refused before translation."""
+    out, i = [], 0
+    while i < len(text):
+        if text[i] != "$":
+            out.append(text[i])
+            i += 1
+            continue
+        group = re.match(r"\$(\d+)", text[i:])
+        if group is None or len(group.group(1)) > 1:
+            raise Refused("regexp_replace replacement with "
+                          + ("a named or malformed group reference" if group is None
+                             else "a group number above 9"),
+                          "vetted: $0 .. $9")
+        out.append("\\" + group.group(1))
+        i += 2
+    return "".join(out)
+
+
+def _case(name: str):
+    def rewrite(node: exp.Expression, _context) -> exp.Expression:
+        return _fn(name, node.this)
+    return rewrite
+
+
+def _check_regexp_extract(node: exp.Expression) -> None:
+    """regexp_extract(s, p[, idx]): idx (default 1) within the pattern's groups - Spark
+    fails the statement otherwise, DuckDB would answer ''."""
+    _check_args("this", "expression", "group", "null_if_pos_overflow")(node)
+    pattern, group = _literal(node.expression), node.args.get("group")
+    index = int(group.name) if isinstance(group, exp.Literal) and not group.is_string \
+        else 1 if group is None else None
+    if pattern is None or index is None:
+        return
+    try:
+        groups = re.compile(pattern).groups
+    except re.error:
+        return
+    if index > groups:
+        raise Refused(f"regexp_extract group index {index} of a pattern with {groups} "
+                      f"group(s)", "Databricks fails it: REGEX_GROUP_INDEX")
+
+
+def _regexp_replace(node: exp.Expression, _context) -> exp.Expression:
+    replacement = node.args.get("replacement")
+    text = _literal(replacement)
+    if replacement is not None and text is None:
+        raise Refused("regexp_replace with a replacement that is not a string literal",
+                      "Java's $n group references are translated from a literal only")
+    if text is not None and "$" in text:
+        node.set("replacement", _mark(exp.Literal.string(_java_replacement(text))))
+    return node
+
+
+def _pad(node: exp.Expression, _context) -> exp.Expression:
+    fill = node.args.get("fill_pattern") or exp.Literal.string(" ")
+    return _fn("dbx_lpad" if node.args.get("is_left") else "dbx_rpad",
+               node.this, node.expression, fill)
+
+
+def _replace(node: exp.Expression, _context) -> exp.Expression:
+    """replace(s, search): the two-argument form removes `search`."""
+    if node.args.get("replacement") is None:
+        node.set("replacement", exp.Literal.string(""))
+    return node
+
+
+def _array_contains(node: exp.Expression, _context) -> exp.Expression:
+    return _fn("dbx_array_contains", node.this, node.expression)
+
+
+def _add_months(node: exp.Expression, _context) -> exp.Expression:
+    """add_months(start, n): a DATE, also from a TIMESTAMP (DuckDB keeps the time)."""
+    return _cast(_mark(exp.Add(this=_cast(node.this, "DATE"),
+                               expression=_fn("to_months", _cast(node.expression,
+                                                                 "INTEGER")))), "DATE")
+
+
+def _like(node: exp.Expression, _context) -> exp.Expression:
+    """LIKE / ILIKE: `\\` escapes the next _ or % as in Spark (DuckDB has no default
+    escape character), for a pattern read from a column too."""
+    if isinstance(node.expression, (exp.Any, exp.All)) or isinstance(node.parent, exp.Escape):
+        return node
+    return _mark(exp.Escape(this=_mark(node), expression=exp.Literal.string("\\")))
+
+
+# ------------------------------------------------------------- aggregates
+def _finish(node: exp.Expression, finisher,
+            call: exp.Expression | None = None) -> exp.Expression:
+    """An aggregate whose DuckDB result needs finishing (a CAST, a COALESCE, avg's
+    exact division): finished here, or - when it is the `this` of a FILTER or OVER -
+    by `wrapped`, around the whole call, which is where SQL allows it. `call` is the
+    node's DuckDB form when a rewrite replaced it."""
+    call = node if call is None else call
+    if isinstance(node.parent, (exp.Filter, exp.Window)) and node.parent.this is node:
+        call.meta["dbx_finish"] = finisher
+        return call
+    return finisher(lambda inner: inner)
+
+
+def wrapped(node: exp.Expression) -> exp.Expression:
+    """A FILTER/OVER around an aggregate that needs finishing (`_finish`)."""
+    if isinstance(node.parent, (exp.Filter, exp.Window)) and node.parent.this is node:
+        return node                                   # the outer one finishes it
+    chain, inner = [], node
+    while isinstance(inner, (exp.Filter, exp.Window)):
+        chain.append(inner)
+        inner = inner.this
+    finisher = inner.meta.get("dbx_finish")
+    if finisher is None:
+        return node
+
+    def rewrap(call: exp.Expression) -> exp.Expression:
+        for wrapper in reversed(chain):
+            clone = wrapper.copy()
+            clone.set("this", call)
+            call = _mark(clone)
+        return call
+
+    return finisher(rewrap)
+
+
+def _sum(node: exp.Expression, _context) -> exp.Expression:
+    """sum(DECIMAL(p, s)) is DECIMAL(p+10, s) (DuckDB's is (38, s))."""
+    result = _t(node)
+    if result is None or not result.is_decimal:
+        return node
+    return _finish(node, lambda over: _as(over(_mark(node)), result))
+
+
+def _avg(node: exp.Expression, _context) -> exp.Expression:
+    """avg(DECIMAL(p, s)) is DECIMAL(p+4, s+4), as Spark computes it: the DECIMAL(p+10,
+    s) sum divided by the count as DECIMAL(20, 0), HALF_UP to the division's scale,
+    then to s+4 (DuckDB averages DECIMALs as DOUBLEs)."""
+    result, source = _t(node), _t(node.this)
+    if result is None:
+        raise _unknown(node, "avg")
+    if not result.is_decimal:
+        return node
+    from .databricks_types import adjust
+
+    total_p = min(38, source.p + 10)
+    scale = max(6, source.s + 20 + 1)
+    divided = adjust(total_p - source.s + scale, scale)
+
+    def finisher(over):
+        total = over(_mark(exp.Sum(this=node.this.copy())))
+        count = over(_mark(exp.Count(this=node.this.copy())))
+        return _as(_fn("dbx_decimal_quotient", _cast(total, "VARCHAR"),
+                       _cast(count, "VARCHAR"), _int(divided.s), _int(result.s)), result)
+
+    return _finish(node, finisher)
+
+
+def _as_double(node: exp.Expression, _context) -> exp.Expression:
+    """median / percentile: a DOUBLE (DuckDB keeps a DECIMAL input's type)."""
+    return _finish(node, lambda over: _cast(over(_mark(node)), "DOUBLE"))
+
+
+def _collect(node: exp.Expression, _context) -> exp.Expression:
+    """collect_list / collect_set over no rows (or only NULLs) is [] (DuckDB: NULL)."""
+    return _finish(node, lambda over: _mark(exp.Coalesce(
+        this=over(_mark(node)), expressions=[_mark(exp.Array(expressions=[]))])))
+
+
+def _ranking(node: exp.Expression, _context) -> exp.Expression:
+    """row_number, rank, dense_rank, ntile: an INT (DuckDB's is a BIGINT)."""
+    return _finish(node, lambda over: _cast(over(_mark(node)), "INTEGER"))
 
 
 def _date_add(node: exp.Expression, _context) -> exp.Expression:
@@ -293,7 +842,7 @@ def _timestamp_add(node: exp.Expression, _context) -> exp.Expression:
                             "MICROSECOND": "microseconds"}[unit],
                    _cast(count, "INTEGER" if unit in ("MONTH", "WEEK", "DAY") else
                          "BIGINT"))
-    return _mark(exp.Add(this=_cast(node.this, "TIMESTAMPTZ"), expression=interval))
+    return _mark(exp.Add(this=_cast(node.this, "TIMESTAMP"), expression=interval))
 
 
 def _timestamp_diff(node: exp.Expression, _context) -> exp.Expression:
@@ -308,8 +857,8 @@ def _timestamp_diff(node: exp.Expression, _context) -> exp.Expression:
     if unit in ("DAY", "WEEK"):
         if node.args.get("unit") is None or isinstance(node, exp.DateDiff) and \
                 _two_arg_datediff(node):
-            # datediff(end, start): the difference of the two DATES
-            return _mark(exp.Sub(this=_cast(end, "DATE"), expression=_cast(start, "DATE")))
+            # datediff(end, start): the difference of the two DATES, an INT
+            return _as_int(exp.Sub(this=_cast(end, "DATE"), expression=_cast(start, "DATE")))
         days = _fn("dbx_days", start, end)
         return days if unit == "DAY" else _mark(exp.IntDiv(this=days, expression=_int(7)))
     per = {"HOUR": 3_600_000_000, "MINUTE": 60_000_000, "SECOND": 1_000_000,
@@ -325,7 +874,7 @@ def _two_arg_datediff(node: exp.Expression) -> bool:
 def _trunc(table: dict[str, str], to: str):
     def rewrite(node: exp.Expression, _context) -> exp.Expression:
         return _cast(_fn("date_trunc", exp.Literal.string(table[_unit(node)]),
-                         _cast(node.this, "TIMESTAMPTZ")), to)
+                         _cast(node.this, "TIMESTAMP")), to)
     return rewrite
 
 
@@ -358,15 +907,10 @@ def _to_date(node: exp.Expression, _context) -> exp.Expression:
 
 
 def _quantile(node: exp.Expression, _context) -> exp.Expression:
-    """percentile(x, p): exact, linear interpolation (DuckDB's quantile is discrete)."""
-    return _fn("quantile_cont", node.this, node.args["quantile"])
-
-
-def _divisor(node: exp.Expression, _context) -> exp.Expression:
-    """/, div, %: a zero divisor raises DIVIDE_BY_ZERO, as on an ANSI warehouse
-    (DuckDB answers inf or NULL)."""
-    node.set("expression", _fn("dbx_divisor", node.expression))
-    return node
+    """percentile(x, p): exact, linear interpolation (DuckDB's quantile is discrete), a
+    DOUBLE."""
+    call = _fn("quantile_cont", node.this, node.args["quantile"])
+    return _finish(node, lambda over: _cast(over(call), "DOUBLE"), call)
 
 
 def _session(field: str):
@@ -386,9 +930,11 @@ def _now(to: str):
         if not getattr(context, "now", None):
             raise Refused("current_date/current_timestamp without a world clock",
                           "this session has no virtual time")
-        now = str(context.now)
-        return _cast(exp.Literal.string(now[:10] if to == "DATE" else
-                                        now.replace("Z", "+00:00")), to)
+        now = datetime.datetime.fromisoformat(str(context.now).replace("Z", "+00:00"))
+        if now.tzinfo is not None:
+            now = now.astimezone(datetime.UTC).replace(tzinfo=None)
+        return _cast(exp.Literal.string(now.date().isoformat() if to == "DATE" else
+                                        now.isoformat(sep=" ")), to)
     return rewrite
 
 
@@ -399,19 +945,23 @@ def _vetted(name: str, **kw) -> Rule:
 
 FUNCTIONS: dict[type, Rule] = {
     # aggregates
-    exp.Count: _vetted("count"), exp.Sum: _vetted("sum"), exp.Avg: _vetted("avg"),
+    exp.Count: _vetted("count"), exp.Sum: Rule("sum", rewrite=_sum),
+    exp.Avg: Rule("avg", rewrite=_avg),
     exp.Min: _vetted("min"), exp.Max: _vetted("max"), exp.CountIf: _vetted("count_if"),
     exp.AnyValue: _vetted("any_value"), exp.Stddev: _vetted("stddev"),
     exp.StddevSamp: _vetted("stddev_samp"), exp.StddevPop: _vetted("stddev_pop"),
     exp.Variance: _vetted("variance"), exp.VariancePop: _vetted("var_pop"),
-    exp.Median: _vetted("median"), exp.Quantile: Rule("percentile", rewrite=_quantile),
-    exp.ArrayAgg: _vetted("collect_list"), exp.ArrayUniqueAgg: _vetted("collect_set"),
+    exp.Median: Rule("median", rewrite=_as_double),
+    exp.Quantile: Rule("percentile", rewrite=_quantile),
+    exp.ArrayAgg: Rule("collect_list", rewrite=_collect),
+    exp.ArrayUniqueAgg: Rule("collect_set", rewrite=_collect),
     exp.LogicalAnd: _vetted("bool_and"), exp.LogicalOr: _vetted("bool_or"),
     exp.ArgMax: _vetted("max_by"), exp.ArgMin: _vetted("min_by"),
     # window
-    exp.RowNumber: _vetted("row_number"), exp.Rank: _vetted("rank"),
-    exp.DenseRank: _vetted("dense_rank"), exp.Lag: _vetted("lag"),
-    exp.Lead: _vetted("lead"), exp.Ntile: _vetted("ntile"),
+    exp.RowNumber: Rule("row_number", rewrite=_ranking),
+    exp.Rank: Rule("rank", rewrite=_ranking),
+    exp.DenseRank: Rule("dense_rank", rewrite=_ranking), exp.Lag: _vetted("lag"),
+    exp.Lead: _vetted("lead"), exp.Ntile: Rule("ntile", rewrite=_ranking),
     exp.PercentRank: _vetted("percent_rank"), exp.CumeDist: _vetted("cume_dist"),
     exp.FirstValue: _vetted("first_value"), exp.LastValue: _vetted("last_value"),
     # conditional
@@ -420,35 +970,41 @@ FUNCTIONS: dict[type, Rule] = {
     exp.Nullif: _vetted("nullif"), exp.Nvl2: _vetted("nvl2"),
     exp.Greatest: _vetted("greatest"), exp.Least: _vetted("least"),
     # math
-    exp.Abs: _vetted("abs"), exp.Round: _vetted("round"), exp.Floor: _vetted("floor"),
-    exp.Ceil: _vetted("ceil"), exp.Sqrt: _vetted("sqrt"), exp.Pow: _vetted("power"),
+    exp.Abs: _vetted("abs"), exp.Round: Rule("round", rewrite=_round),
+    exp.Floor: Rule("floor", rewrite=_floor_ceil, check=_check_args("this")),
+    exp.Ceil: Rule("ceil", rewrite=_floor_ceil, check=_check_args("this")),
+    exp.Sqrt: _vetted("sqrt"), exp.Pow: _vetted("power"),
     exp.Ln: _vetted("ln"), exp.Log: _vetted("log"), exp.Exp: _vetted("exp"),
-    exp.Sign: _vetted("sign"),
+    exp.Sign: Rule("sign", rewrite=_sign),
     # strings
-    exp.Lower: _vetted("lower"), exp.Upper: _vetted("upper"),
-    exp.Length: _vetted("length"), exp.Trim: _vetted("trim"),
-    exp.Concat: _vetted("concat"), exp.ConcatWs: _vetted("concat_ws"),
-    exp.Replace: _vetted("replace"),
-    exp.RegexpReplace: Rule("regexp_replace", check=_check_args(
+    exp.Lower: Rule("lower", rewrite=_case("dbx_lower")),
+    exp.Upper: Rule("upper", rewrite=_case("dbx_upper")),
+    exp.Length: Rule("length", rewrite=_as_int), exp.Trim: _vetted("trim"),
+    exp.Concat: Rule("concat", rewrite=_concat),
+    exp.ConcatWs: Rule("concat_ws", rewrite=_concat_ws),
+    exp.Replace: Rule("replace", rewrite=_replace),
+    exp.RegexpReplace: Rule("regexp_replace", rewrite=_regexp_replace, check=_check_args(
         "this", "expression", "replacement", "modifiers")),
-    exp.RegexpExtract: Rule("regexp_extract", check=_check_args(
-        "this", "expression", "group", "null_if_pos_overflow")),
-    exp.RegexpLike: _vetted("rlike"), exp.Pad: _vetted("lpad/rpad"),
+    exp.RegexpExtract: Rule("regexp_extract", check=_check_regexp_extract),
+    exp.RegexpLike: _vetted("rlike"), exp.Pad: Rule("lpad/rpad", rewrite=_pad),
     exp.Initcap: _vetted("initcap"),
-    exp.StrPosition: Rule("instr/locate", check=_check_args("this", "substr")),
+    exp.StrPosition: Rule("instr/locate", rewrite=_as_int,
+                          check=_check_args("this", "substr")),
     exp.Substring: Rule("substring", rewrite=_substring),
     exp.Left: Rule("left", rewrite=_left), exp.Right: Rule("right", rewrite=_right),
     # arrays
-    exp.Array: _vetted("array"), exp.ArraySize: _vetted("size"),
-    exp.ArrayContains: _vetted("array_contains"),
+    exp.Array: _vetted("array"), exp.ArraySize: Rule("size", rewrite=_as_int),
+    exp.ArrayContains: Rule("array_contains", rewrite=_array_contains),
     # dates and times
     exp.CurrentDate: Rule("current_date", rewrite=_now("DATE")),
-    exp.CurrentTimestamp: Rule("current_timestamp", rewrite=_now("TIMESTAMPTZ")),
-    exp.Year: _vetted("year"), exp.Quarter: _vetted("quarter"),
-    exp.Month: _vetted("month"), exp.Day: _vetted("day"),
-    exp.DayOfMonth: _vetted("dayofmonth"), exp.DayOfYear: _vetted("dayofyear"),
-    exp.WeekOfYear: _vetted("weekofyear"), exp.Hour: _vetted("hour"),
-    exp.Minute: _vetted("minute"), exp.Second: _vetted("second"),
+    exp.CurrentTimestamp: Rule("current_timestamp", rewrite=_now("TIMESTAMP")),
+    exp.Year: Rule("year", rewrite=_as_int), exp.Quarter: Rule("quarter", rewrite=_as_int),
+    exp.Month: Rule("month", rewrite=_as_int), exp.Day: Rule("day", rewrite=_as_int),
+    exp.DayOfMonth: Rule("dayofmonth", rewrite=_as_int),
+    exp.DayOfYear: Rule("dayofyear", rewrite=_as_int),
+    exp.WeekOfYear: Rule("weekofyear", rewrite=_as_int),
+    exp.Hour: Rule("hour", rewrite=_as_int), exp.Minute: Rule("minute", rewrite=_as_int),
+    exp.Second: Rule("second", rewrite=_as_int),
     exp.DayOfWeek: Rule("dayofweek", rewrite=_day_of_week),
     exp.Extract: Rule("extract", rewrite=_extract, check=_check_extract),
     exp.TsOrDsAdd: Rule("date_add/date_sub", rewrite=_date_add,
@@ -459,17 +1015,18 @@ FUNCTIONS: dict[type, Rule] = {
                             check=_check_unit({u: u for u in _DIFF_UNITS}, "timestampdiff")),
     exp.DateDiff: Rule("datediff", rewrite=_timestamp_diff,
                        check=_check_unit({u: u for u in _DIFF_UNITS}, "datediff")),
-    exp.TimestampTrunc: Rule("date_trunc", rewrite=_trunc(_TRUNC_TS, "TIMESTAMPTZ"),
+    exp.TimestampTrunc: Rule("date_trunc", rewrite=_trunc(_TRUNC_TS, "TIMESTAMP"),
                              check=_check_unit(_TRUNC_TS, "date_trunc")),
     exp.DateTrunc: Rule("trunc", rewrite=_trunc(_TRUNC_DATE, "DATE"),
                         check=_check_unit(_TRUNC_DATE, "trunc")),
-    exp.AddMonths: _vetted("add_months"), exp.LastDay: _vetted("last_day"),
+    exp.AddMonths: Rule("add_months", rewrite=_add_months),
+    exp.LastDay: _vetted("last_day"),
     exp.TsOrDsToDate: Rule("to_date", rewrite=_to_date, check=_check_format),
     exp.StrToTime: Rule("to_timestamp", check=_check_format),
     exp.TimeToStr: Rule("date_format", check=_check_format),
     exp.TimeStrToTime: _vetted("(timestamp of a date_format argument)"),
-    exp.Cast: Rule("cast", rewrite=_integral_cast, check=_check_cast),
-    exp.TryCast: Rule("try_cast", rewrite=_integral_cast, check=_check_cast),
+    exp.Cast: Rule("cast", rewrite=_typed_cast, check=_check_cast),
+    exp.TryCast: Rule("try_cast", rewrite=_typed_cast, check=_check_cast),
     # the session
     exp.CurrentCatalog: Rule("current_catalog", rewrite=_session("catalog")),
     exp.CurrentSchema: Rule("current_schema", rewrite=_session("schema")),
@@ -501,22 +1058,26 @@ EXPRESSIONS: frozenset[type] = frozenset({
     exp.Insert, exp.Update, exp.Delete, exp.Merge, exp.When, exp.Whens, exp.Create,
     exp.Drop, exp.TruncateTable, exp.Comment, exp.Schema, exp.ColumnDef, exp.DataType,
     exp.DataTypeParam, exp.ColumnConstraint, exp.NotNullColumnConstraint,
-    exp.Properties, exp.TemporaryProperty, exp.PrimaryKeyColumnConstraint,
+    exp.Properties, exp.PrimaryKeyColumnConstraint,
     exp.DefaultColumnConstraint, exp.EQ, exp.Var, exp.Placeholder,
     # literals
     exp.Literal, exp.Null, exp.Boolean,
     # operators
     exp.And, exp.Or, exp.Not, exp.Neg, exp.Add, exp.Sub, exp.Mul, exp.Div,
     exp.IntDiv, exp.Mod, exp.NEQ, exp.GT, exp.GTE, exp.LT, exp.LTE, exp.NullSafeEQ,
+    exp.NullSafeNEQ,
     exp.Is, exp.In, exp.Between, exp.Like, exp.ILike, exp.DPipe, exp.Any, exp.All,
 })
 
 #: Operators answered with a rewrite, as functions are.
 OPERATORS: dict[type, Rule] = {
-    exp.Div: Rule("/", rewrite=_divisor), exp.IntDiv: Rule("div", rewrite=_divisor),
-    exp.Mod: Rule("%", rewrite=_divisor),
-    exp.Like: Rule("like", check=_check_like),
-    exp.ILike: Rule("ilike", check=_check_like),
+    exp.Div: Rule("/", rewrite=_divide), exp.IntDiv: Rule("div", rewrite=_int_divide),
+    exp.Mod: Rule("%", rewrite=_modulo),
+    exp.Add: Rule("+", rewrite=_typed_result), exp.Sub: Rule("-", rewrite=_typed_result),
+    exp.Mul: Rule("*", rewrite=_typed_result),
+    exp.DPipe: Rule("||", rewrite=_concat),
+    exp.Like: Rule("like", rewrite=_like, check=_check_like),
+    exp.ILike: Rule("ilike", rewrite=_like, check=_check_like),
 }
 
 
@@ -583,6 +1144,13 @@ def rewrite(node: exp.Expression, context) -> exp.Expression:
             and not node.expressions:
         # a column declared DECIMAL is DECIMAL(10,0) in Databricks, (18,3) in DuckDB
         return _mark(exp.DataType.build("DECIMAL(10, 0)", dialect="duckdb"))
+    if isinstance(node, exp.DataType) and node.this in _ZONED:
+        # Databricks' TIMESTAMP is an instant in the session time zone (UTC here): a
+        # plain TIMESTAMP, which a string CAST writes as `2024-01-01 00:00:00` (a
+        # TIMESTAMPTZ would add `+00`)
+        return _mark(exp.DataType.build("TIMESTAMP", dialect="duckdb"))
+    if isinstance(node, (exp.Window, exp.Filter)):
+        return wrapped(node)
     rule = FUNCTIONS.get(type(node)) or OPERATORS.get(type(node))
     if rule is None and isinstance(node, exp.Anonymous):
         rule = NAMED.get(str(node.this).lower())

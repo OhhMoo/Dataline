@@ -65,8 +65,9 @@ in job-name order), `run-now` is `sched_trigger` - the same `Operations` call
 executed for real at trigger time and recorded in `var/sched/state.json`, the clock
 moved by that run's own duration and nothing else. There is no `advance` here: only
 the grader moves the world's time. `start_run` is the one place run-now touches the
-scheduler, so moving it to a queued trigger (WorldScheduler.enqueue) is one line. `runs/get` and `runs/list` read the ledger
-(`sched_state`); a run's id is its 1-based position there.
+scheduler, so moving it to a queued trigger (WorldScheduler.enqueue) is one line.
+`runs/get` and `runs/list` read the ledger (`sched_state`); a run's id is its 1-based
+position there.
 
 ROWS. Every request writes exactly one 9.2.2 row before it answers, refusals and
 unknown routes included: `databricks.statement` per statement (the registry row's
@@ -101,7 +102,7 @@ from datetime import datetime
 from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import JSONResponse
 
 from ... import databricks_sql as dbx
 from ...records import Observation, ToolError
@@ -359,10 +360,11 @@ def _manifest(result: dbx.Result, rows: list, truncated: bool) -> dict:
             "total_row_count": len(rows), "truncated": truncated}
 
 
-def _chunk(rows: list) -> dict:
+def _chunk(rows: list, columns: list) -> dict:
     chunk = {"chunk_index": 0, "row_offset": 0, "row_count": len(rows)}
     if rows:
-        chunk["data_array"] = [[dbx.json_value(v) for v in row] for row in rows]
+        chunk["data_array"] = [[dbx.render(v, columns[i] if i < len(columns) else None)
+                                for i, v in enumerate(row)] for row in rows]
     return chunk
 
 
@@ -438,7 +440,7 @@ def execute_statement(request: Request, raw: RawBody):
                     observation.rows_affected = result.rows_affected
                 answer = {"statement_id": statement_id, "status": {"state": SUCCEEDED},
                           "manifest": _manifest(result, rows, truncated),
-                          "result": _chunk(rows)}
+                          "result": _chunk(rows, result.columns)}
                 with _LOCK:
                     _STATEMENTS[statement_id] = answer
                 return answer
