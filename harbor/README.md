@@ -268,6 +268,12 @@ Harbor sends equal to the harness prompt, Harbor's content digest equal to ours)
 * 2026-10-07, `cc5d0e5` (before plan Task 4): **ACCEPTED, GT 28/28**, oracle reward 1
   (`resolved`) and nop reward 0 (`silent`) on every arm, no exceptions
   (`evidence/acceptance-cc5d0e5.json`).
+* 2026-10-07, `3f24ebc` (Task 10, the backends; rebased onto main-2 `84b6a1c` as `b367d4a`,
+  whose re-export is byte-identical but for the source commit and the known
+  nondeterminism): **ACCEPTED, GT 28/28 and BI 4/4**, oracle 1 and nop 0 on every arm, no
+  trial exception, `-n 2` (`evidence/acceptance-3f24ebc.json`). Against the export before
+  Task 10, every GT task differs only in `environment/bin/alkera_runtime.py` and
+  `environment/README.md`; the BI Dockerfiles, `episode.json` and `gateway.json` are unchanged.
 * 2026-10-07, `a83f059` (Task 4, on main-2 `03c326a`): **ACCEPTED, GT 28/28 and BI 4/4**
   (BI001, BI002, both arms: oracle 1 `resolved`, nop 0 `silent`), plain Harbor runs
   (`evidence/acceptance-a83f059.json`).
@@ -340,13 +346,21 @@ sealed copy and the verifier's files out of `environment/`, and the probe's trut
 world payload too; a short value cannot be told from noise and is not).
 
 **Skipped by name** (`manifest.json` `skipped`, `--list`): a probe whose profile the
-Harbor image cannot serve yet - its variant is refused by `variant.variant_of` /
-`backend_specs` (snowflake, redshift, databricks, bigquery, postgres, airflow: plan
-Task 10's backends; re-export after it merges and they become tasks) - and a KNOWN
-finding of the container tour (`dbt.show.ref_inline`, whose own command fails until the
-theme's `relations.sql` fix lands).
+Harbor image refuses - its variant is refused by `variant.variant_of` /
+`backend_specs` (today the three bigquery probes: `variant.REFUSED_WAREHOUSES`, the
+emulator cannot be fenced from the agent in one container) - and a KNOWN finding of the
+container tour (`dbt.show.ref_inline`, whose own command fails until the theme's
+`relations.sql` fix lands). The probes on plan Task 10's backends (airflow, databricks,
+redshift, snowflake, postgres, postgres_dbt) are tasks.
 
-Last results (harbor 0.23.0, docker 29.8.2): 2026-10-07, `9bb9537` (on main-2
+Last results (harbor 0.23.0, docker 29.8.2): 2026-10-07, `5c18d18` (Task 10's
+backends, on main-2 `84b6a1c`): **ACCEPTED, 26/26** - 30 probes, 26 exported (the 12
+below plus airflow x2, databricks x6, redshift x3, snowflake, postgres, postgres_dbt),
+4 skipped by name (bigquery x3, `dbt.show.ref_inline`); every exported task loaded by
+Harbor with `--validate`; oracle reward 1 on every probe (all four checks met; the
+postgres probes on their rows folded at world-down) and nop reward 0 on every probe, no
+trial exception (`evidence/tooltour-oracle-5c18d18.json`,
+`evidence/tooltour-nop-5c18d18.json`). Before it, 2026-10-07, `9bb9537` (on main-2
 `5ed3ed5`): **ACCEPTED, 12/12** - 30 probes, 12 exported (dbt, duckdb, excel, jira,
 confluence, slack, jupyter, mf, powerbi, sched, sigma, tableau), 18 skipped by name;
 every exported task loaded by Harbor with `--validate`; oracle reward 1 on every probe

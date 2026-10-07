@@ -1,0 +1,1174 @@
+{
+ "schema": "alkera-harbor-tooltour-acceptance-evidence/1",
+ "rev": "5c18d18",
+ "agent": "oracle",
+ "note": "Task 11 tool tour with Task 10's backends, exported from the clean commit 5c18d18 (Task 10 rebased onto main-2 84b6a1c) with --validate (every task loaded by Harbor 0.23.0, digest equal), --work-dir on disk. Plain Harbor runs (images built by Harbor), -n 2, TMPDIR on disk. 26 of 30 probes exported - the 12 of 9bb9537 plus the 14 the backends serve (airflow x2, databricks x6, redshift x3, snowflake, postgres, postgres_dbt); 4 skipped by name (bigquery x3: refused, its emulator cannot be fenced from the agent in one container; 1 KNOWN container-tour finding: dbt.show.ref_inline).",
+ "harbor": "0.23.0",
+ "docker": "29.8.2",
+ "command": "TMPDIR=<disk> python3 harbor/acceptance.py --dataset harbor/dist/alkera-tooltour -n 2 --sg docker --harbor <harbor 0.23.0 env>/bin/harbor",
+ "export": "gateway/.venv/bin/python harbor/export.py --tooltour --output-dir harbor/dist/alkera-tooltour --overwrite --validate --work-dir <disk>",
+ "accepted": true,
+ "dataset": {
+  "path": "harbor/dist/alkera-tooltour",
+  "name": "alkera/tool-tour",
+  "source_commit": "5c18d18279d97fe4347f5c0545054736a822e45b",
+  "source_dirty": false,
+  "exported_at": "2026-10-07T15:15:23Z",
+  "tasks": [
+   {
+    "name": "alkera/airflow.airflowctl.commerce_nightly_schedule__tour",
+    "probe": "airflow.airflowctl.commerce_nightly_schedule",
+    "tool": "airflow",
+    "profile": "de/laptop",
+    "digest": "sha256:6652c67f3ff0b9aaad6f0ff9b13d6d98c3f663db10e5a1d1f9ee4040b042a9a8"
+   },
+   {
+    "name": "alkera/airflow.rest.dbt_build_successes__tour",
+    "probe": "airflow.rest.dbt_build_successes",
+    "tool": "airflow",
+    "profile": "de/laptop",
+    "digest": "sha256:5a69ef7fa5e0dbcacaa9e598403102e024971f4909eb9d4137a258404a712897"
+   },
+   {
+    "name": "alkera/databricks.connector.completed_orders_feb_2026__tour",
+    "probe": "databricks.connector.completed_orders_feb_2026",
+    "tool": "databricks",
+    "profile": "de/databricks",
+    "digest": "sha256:49fa2847b6cac40a10cbdf16a0280b68f000ed4bcad68cfc52702f040f8647f6"
+   },
+   {
+    "name": "alkera/databricks.dbt.net_revenue_feb_2026__tour",
+    "probe": "databricks.dbt.net_revenue_feb_2026",
+    "tool": "databricks",
+    "profile": "de/databricks",
+    "digest": "sha256:c14a26a491044d78c89964555d40206c5024df8d0f7474b71136a807c6c097a5"
+   },
+   {
+    "name": "alkera/databricks.jobs.run_now_bi_refresh__tour",
+    "probe": "databricks.jobs.run_now_bi_refresh",
+    "tool": "databricks",
+    "profile": "de/databricks",
+    "digest": "sha256:3787fce9859695ab76ab12bf6359726a625beaf7ada8a17924f04f47856d0a92"
+   },
+   {
+    "name": "alkera/databricks.rest.net_revenue__tour",
+    "probe": "databricks.rest.net_revenue",
+    "tool": "databricks",
+    "profile": "de/databricks",
+    "digest": "sha256:65f6910ac18b69d9e66fc2814a9874126dcb96ac04a01884a7e0be98d87e68ce"
+   },
+   {
+    "name": "alkera/databricks.sdk.net_revenue_feb_2026__tour",
+    "probe": "databricks.sdk.net_revenue_feb_2026",
+    "tool": "databricks",
+    "profile": "de/databricks",
+    "digest": "sha256:395ed75883f39fa6c3690275620a9c2050c6ac7625f6eb38f39f96c81322b24d"
+   },
+   {
+    "name": "alkera/databricks.uc.fct_orders_columns__tour",
+    "probe": "databricks.uc.fct_orders_columns",
+    "tool": "databricks",
+    "profile": "de/databricks",
+    "digest": "sha256:6346c49d4be4ba957f08bc38e7163869652858cacfefabb213e1414d1bfce2c6"
+   },
+   {
+    "name": "alkera/dbt.show.net_revenue__tour",
+    "probe": "dbt.show.net_revenue",
+    "tool": "dbt",
+    "profile": "da/laptop",
+    "digest": "sha256:c18058643ad9e5030e8e06aebd4e17b7ca46ed080f268b5332d215cc1dc2d433"
+   },
+   {
+    "name": "alkera/duckdb.cli.net_revenue_feb_2026__tour",
+    "probe": "duckdb.cli.net_revenue_feb_2026",
+    "tool": "duckdb",
+    "profile": "da/laptop",
+    "digest": "sha256:7f8d74e0d0d92c4e0f1350bb1e65fe474a80bacf80fbe27902573a65e813895e"
+   },
+   {
+    "name": "alkera/excel.openpyxl.net_revenue_feb_2026_roundtrip__tour",
+    "probe": "excel.openpyxl.net_revenue_feb_2026_roundtrip",
+    "tool": "excel",
+    "profile": "da/laptop",
+    "digest": "sha256:48859ca76d79c18c4b0319f61fb054efa104db944eea79337ce44db2c190c577"
+   },
+   {
+    "name": "alkera/human.confluence.net_revenue_page_version__tour",
+    "probe": "human.confluence.net_revenue_page_version",
+    "tool": "human",
+    "profile": "da/laptop",
+    "digest": "sha256:2d98778a1a0718ebb021d0de20642970d905293df926e6bcf9cb34fd2b4142a9"
+   },
+   {
+    "name": "alkera/human.jira.ana238_status__tour",
+    "probe": "human.jira.ana238_status",
+    "tool": "human",
+    "profile": "da/laptop",
+    "digest": "sha256:cec93e83dd7e1d76db21b71f6bd39a8e07198a26cc476f13206f36107f06a486"
+   },
+   {
+    "name": "alkera/human.slack.analytics_eng_threads__tour",
+    "probe": "human.slack.analytics_eng_threads",
+    "tool": "human",
+    "profile": "da/laptop",
+    "digest": "sha256:cd488d0f2b0328a97b7f479ca1f7572e45c666f1957c9e1dbeb7eb02ab8be169"
+   },
+   {
+    "name": "alkera/jupyter.kernel.completed_orders_feb_2026__tour",
+    "probe": "jupyter.kernel.completed_orders_feb_2026",
+    "tool": "jupyter",
+    "profile": "da/laptop",
+    "digest": "sha256:0883b53f542d580a347a15e6c5402b8b8b5ccd3bf0aec24fc71787ffc1e73eb3"
+   },
+   {
+    "name": "alkera/mf.query.net_revenue_feb_2026__tour",
+    "probe": "mf.query.net_revenue_feb_2026",
+    "tool": "mf",
+    "profile": "da/laptop",
+    "digest": "sha256:f7b499ee1a061dd66359fd87c80a728b5e6dcda6d2873c72441b08037748a0b8"
+   },
+   {
+    "name": "alkera/postgres.psql.net_revenue_feb_2026__tour",
+    "probe": "postgres.psql.net_revenue_feb_2026",
+    "tool": "postgres",
+    "profile": "de/postgres",
+    "digest": "sha256:675190a9d3bece2ab226d594e3e1f3708b19153680db93c3f5604276fa4d04b0"
+   },
+   {
+    "name": "alkera/postgres_dbt.run.net_revenue_feb_2026__tour",
+    "probe": "postgres_dbt.run.net_revenue_feb_2026",
+    "tool": "postgres_dbt",
+    "profile": "de/postgres",
+    "digest": "sha256:deb905e10a049e9408e17e6eb3be7d14d2ee5558be6496572d315212ead1be54"
+   },
+   {
+    "name": "alkera/powerbi.rest.net_revenue__tour",
+    "probe": "powerbi.rest.net_revenue",
+    "tool": "powerbi",
+    "profile": "da/laptop",
+    "digest": "sha256:f45d74a5d1db6a846a55cd59362c077c525388ee764e8985053e0320e1e3ea39"
+   },
+   {
+    "name": "alkera/redshift.connector.net_revenue_feb_2026__tour",
+    "probe": "redshift.connector.net_revenue_feb_2026",
+    "tool": "redshift",
+    "profile": "de/aws",
+    "digest": "sha256:c2c51246b5c989c3aa3415dcea405a7f34703fe8dab23ab84e67c758d716aa68"
+   },
+   {
+    "name": "alkera/redshift.dbt.show_net_revenue_feb_2026__tour",
+    "probe": "redshift.dbt.show_net_revenue_feb_2026",
+    "tool": "redshift",
+    "profile": "de/aws",
+    "digest": "sha256:2acba5a5b24fa5f791c8e97cbf39ea6ebd9682c1e7f887d7301e9073ffe3d14f"
+   },
+   {
+    "name": "alkera/redshift.psql.completed_orders_feb_2026__tour",
+    "probe": "redshift.psql.completed_orders_feb_2026",
+    "tool": "redshift",
+    "profile": "de/aws",
+    "digest": "sha256:820a0728f40d5e6e2c3acd103ff5686eeec70e7d229959e4b473189317b6b7f3"
+   },
+   {
+    "name": "alkera/sched.ops_sched.dbt_build_successes__tour",
+    "probe": "sched.ops_sched.dbt_build_successes",
+    "tool": "sched",
+    "profile": "de/laptop",
+    "digest": "sha256:d6698d1908fe811541a42c0efa49bc0c046d09c816c2fbf24256092035d4f286"
+   },
+   {
+    "name": "alkera/sigma.rest.net_revenue_feb_2026__tour",
+    "probe": "sigma.rest.net_revenue_feb_2026",
+    "tool": "sigma",
+    "profile": "da/laptop",
+    "digest": "sha256:91a98c6eb0eaf478b9a91e6da4f43bab9348767b1b8806b8577ebd6468962770"
+   },
+   {
+    "name": "alkera/snowflake.connector.net_revenue_feb_2026__tour",
+    "probe": "snowflake.connector.net_revenue_feb_2026",
+    "tool": "snowflake",
+    "profile": "da/snowflake",
+    "digest": "sha256:f8c913ba565e7e619179cab2e0e3b6fab16f2e5e64427acf168aa68a3e5c5e5e"
+   },
+   {
+    "name": "alkera/tableau.tabcmd.net_revenue__tour",
+    "probe": "tableau.tabcmd.net_revenue",
+    "tool": "tableau",
+    "profile": "da/laptop",
+    "digest": "sha256:aead43c22f953dc3b08e5c82dc19533dd1fdb52988b0d05906751a3669a6c806"
+   }
+  ],
+  "skipped": [
+   {
+    "probe": "bigquery.client.net_revenue_feb_2026",
+    "tool": "bigquery",
+    "name": "alkera/bigquery.client.net_revenue_feb_2026__tour",
+    "profile": "de/gcp",
+    "plugs": {},
+    "reason": "not served by the Harbor image: profile 'de/gcp' plugs a warehouse the Harbor image refuses to serve:\n  warehouse=bigquery: its emulator (goccy bigquery-emulator) answers HTTP and gRPC on TCP ports with no credential check, and in a one-container image every process shares the loopback, so the agent could query and write the seeded copy around the audited proxy at bigquery.internal:9050, unrecorded; fencing a loopback port by user needs NET_ADMIN or a network namespace, which no Harbor provider grants (the emulator cannot listen on a unix socket, and in the container topology it sits on backend_net, out of the agent's reach)"
+   },
+   {
+    "probe": "bigquery.client.warehouse_tables",
+    "tool": "bigquery",
+    "name": "alkera/bigquery.client.warehouse_tables__tour",
+    "profile": "de/gcp",
+    "plugs": {},
+    "reason": "not served by the Harbor image: profile 'de/gcp' plugs a warehouse the Harbor image refuses to serve:\n  warehouse=bigquery: its emulator (goccy bigquery-emulator) answers HTTP and gRPC on TCP ports with no credential check, and in a one-container image every process shares the loopback, so the agent could query and write the seeded copy around the audited proxy at bigquery.internal:9050, unrecorded; fencing a loopback port by user needs NET_ADMIN or a network namespace, which no Harbor provider grants (the emulator cannot listen on a unix socket, and in the container topology it sits on backend_net, out of the agent's reach)"
+   },
+   {
+    "probe": "bigquery.rest.completed_orders_feb_2026",
+    "tool": "bigquery",
+    "name": "alkera/bigquery.rest.completed_orders_feb_2026__tour",
+    "profile": "de/gcp",
+    "plugs": {},
+    "reason": "not served by the Harbor image: profile 'de/gcp' plugs a warehouse the Harbor image refuses to serve:\n  warehouse=bigquery: its emulator (goccy bigquery-emulator) answers HTTP and gRPC on TCP ports with no credential check, and in a one-container image every process shares the loopback, so the agent could query and write the seeded copy around the audited proxy at bigquery.internal:9050, unrecorded; fencing a loopback port by user needs NET_ADMIN or a network namespace, which no Harbor provider grants (the emulator cannot listen on a unix socket, and in the container topology it sits on backend_net, out of the agent's reach)"
+   },
+   {
+    "probe": "dbt.show.ref_inline",
+    "tool": "dbt",
+    "name": "alkera/dbt.show.ref_inline__tour",
+    "profile": "da/laptop",
+    "plugs": {
+     "bi": [
+      "powerbi",
+      "sigma",
+      "tableau"
+     ]
+    },
+    "reason": "known finding of the container tour (the probe's own command fails, so the oracle could not pass): awaiting user decision: theme macro fix moves BI001/BI002 world bytes (see relations.patch)"
+   }
+  ]
+ },
+ "summary": {
+  "trials": 26,
+  "expected": 1.0,
+  "matching": 26,
+  "rewards": [
+   "1"
+  ],
+  "exceptions": [],
+  "seconds": 1556,
+  "problems": []
+ },
+ "per_tool": [
+  {
+   "tool": "airflow",
+   "trials": 2,
+   "probes": [
+    "airflow.airflowctl.commerce_nightly_schedule",
+    "airflow.rest.dbt_build_successes"
+   ],
+   "mean_reward": 1.0,
+   "rewarded": 2,
+   "unmeasured_or_errored": 0,
+   "expected_tool_used": 2,
+   "unknown_route_rows": 0,
+   "unknown_routes": [],
+   "median_agent_seconds": 5.25
+  },
+  {
+   "tool": "databricks",
+   "trials": 6,
+   "probes": [
+    "databricks.connector.completed_orders_feb_2026",
+    "databricks.dbt.net_revenue_feb_2026",
+    "databricks.jobs.run_now_bi_refresh",
+    "databricks.rest.net_revenue",
+    "databricks.sdk.net_revenue_feb_2026",
+    "databricks.uc.fct_orders_columns"
+   ],
+   "mean_reward": 1.0,
+   "rewarded": 6,
+   "unmeasured_or_errored": 0,
+   "expected_tool_used": 6,
+   "unknown_route_rows": 0,
+   "unknown_routes": [],
+   "median_agent_seconds": 5.949999999999999
+  },
+  {
+   "tool": "dbt",
+   "trials": 1,
+   "probes": [
+    "dbt.show.net_revenue"
+   ],
+   "mean_reward": 1.0,
+   "rewarded": 1,
+   "unmeasured_or_errored": 0,
+   "expected_tool_used": 1,
+   "unknown_route_rows": 0,
+   "unknown_routes": [],
+   "median_agent_seconds": 13.0
+  },
+  {
+   "tool": "duckdb",
+   "trials": 1,
+   "probes": [
+    "duckdb.cli.net_revenue_feb_2026"
+   ],
+   "mean_reward": 1.0,
+   "rewarded": 1,
+   "unmeasured_or_errored": 0,
+   "expected_tool_used": 1,
+   "unknown_route_rows": 0,
+   "unknown_routes": [],
+   "median_agent_seconds": 4.3
+  },
+  {
+   "tool": "excel",
+   "trials": 1,
+   "probes": [
+    "excel.openpyxl.net_revenue_feb_2026_roundtrip"
+   ],
+   "mean_reward": 1.0,
+   "rewarded": 1,
+   "unmeasured_or_errored": 0,
+   "expected_tool_used": 1,
+   "unknown_route_rows": 0,
+   "unknown_routes": [],
+   "median_agent_seconds": 10.0
+  },
+  {
+   "tool": "human",
+   "trials": 3,
+   "probes": [
+    "human.confluence.net_revenue_page_version",
+    "human.jira.ana238_status",
+    "human.slack.analytics_eng_threads"
+   ],
+   "mean_reward": 1.0,
+   "rewarded": 3,
+   "unmeasured_or_errored": 0,
+   "expected_tool_used": 3,
+   "unknown_route_rows": 0,
+   "unknown_routes": [],
+   "median_agent_seconds": 4.9
+  },
+  {
+   "tool": "jupyter",
+   "trials": 1,
+   "probes": [
+    "jupyter.kernel.completed_orders_feb_2026"
+   ],
+   "mean_reward": 1.0,
+   "rewarded": 1,
+   "unmeasured_or_errored": 0,
+   "expected_tool_used": 1,
+   "unknown_route_rows": 0,
+   "unknown_routes": [],
+   "median_agent_seconds": 7.6
+  },
+  {
+   "tool": "mf",
+   "trials": 1,
+   "probes": [
+    "mf.query.net_revenue_feb_2026"
+   ],
+   "mean_reward": 1.0,
+   "rewarded": 1,
+   "unmeasured_or_errored": 0,
+   "expected_tool_used": 1,
+   "unknown_route_rows": 0,
+   "unknown_routes": [],
+   "median_agent_seconds": 21.5
+  },
+  {
+   "tool": "postgres",
+   "trials": 1,
+   "probes": [
+    "postgres.psql.net_revenue_feb_2026"
+   ],
+   "mean_reward": 1.0,
+   "rewarded": 1,
+   "unmeasured_or_errored": 0,
+   "expected_tool_used": 1,
+   "unknown_route_rows": 0,
+   "unknown_routes": [],
+   "median_agent_seconds": 3.5
+  },
+  {
+   "tool": "postgres_dbt",
+   "trials": 1,
+   "probes": [
+    "postgres_dbt.run.net_revenue_feb_2026"
+   ],
+   "mean_reward": 1.0,
+   "rewarded": 1,
+   "unmeasured_or_errored": 0,
+   "expected_tool_used": 1,
+   "unknown_route_rows": 0,
+   "unknown_routes": [],
+   "median_agent_seconds": 18.9
+  },
+  {
+   "tool": "powerbi",
+   "trials": 1,
+   "probes": [
+    "powerbi.rest.net_revenue"
+   ],
+   "mean_reward": 1.0,
+   "rewarded": 1,
+   "unmeasured_or_errored": 0,
+   "expected_tool_used": 1,
+   "unknown_route_rows": 0,
+   "unknown_routes": [],
+   "median_agent_seconds": 5.0
+  },
+  {
+   "tool": "redshift",
+   "trials": 3,
+   "probes": [
+    "redshift.connector.net_revenue_feb_2026",
+    "redshift.dbt.show_net_revenue_feb_2026",
+    "redshift.psql.completed_orders_feb_2026"
+   ],
+   "mean_reward": 1.0,
+   "rewarded": 3,
+   "unmeasured_or_errored": 0,
+   "expected_tool_used": 3,
+   "unknown_route_rows": 0,
+   "unknown_routes": [],
+   "median_agent_seconds": 5.1
+  },
+  {
+   "tool": "sched",
+   "trials": 1,
+   "probes": [
+    "sched.ops_sched.dbt_build_successes"
+   ],
+   "mean_reward": 1.0,
+   "rewarded": 1,
+   "unmeasured_or_errored": 0,
+   "expected_tool_used": 1,
+   "unknown_route_rows": 0,
+   "unknown_routes": [],
+   "median_agent_seconds": 4.3
+  },
+  {
+   "tool": "sigma",
+   "trials": 1,
+   "probes": [
+    "sigma.rest.net_revenue_feb_2026"
+   ],
+   "mean_reward": 1.0,
+   "rewarded": 1,
+   "unmeasured_or_errored": 0,
+   "expected_tool_used": 1,
+   "unknown_route_rows": 0,
+   "unknown_routes": [],
+   "median_agent_seconds": 5.0
+  },
+  {
+   "tool": "snowflake",
+   "trials": 1,
+   "probes": [
+    "snowflake.connector.net_revenue_feb_2026"
+   ],
+   "mean_reward": 1.0,
+   "rewarded": 1,
+   "unmeasured_or_errored": 0,
+   "expected_tool_used": 1,
+   "unknown_route_rows": 0,
+   "unknown_routes": [],
+   "median_agent_seconds": 6.8
+  },
+  {
+   "tool": "tableau",
+   "trials": 1,
+   "probes": [
+    "tableau.tabcmd.net_revenue"
+   ],
+   "mean_reward": 1.0,
+   "rewarded": 1,
+   "unmeasured_or_errored": 0,
+   "expected_tool_used": 1,
+   "unknown_route_rows": 0,
+   "unknown_routes": [],
+   "median_agent_seconds": 8.6
+  }
+ ],
+ "trials": [
+  {
+   "probe": "airflow.airflowctl.commerce_nightly_schedule",
+   "tool": "airflow",
+   "task": "alkera/airflow.airflowctl.commerce_nightly_schedule__tour",
+   "trial": "airflow.airflowctl.commerce_nigh__iC92w4J",
+   "reward": 1,
+   "exception": null,
+   "unmeasured": null,
+   "checks": {
+    "answer": true,
+    "tools": true,
+    "network": true,
+    "seq": true
+   },
+   "expected_tool_used": true,
+   "tools_used": [
+    "airflow.auth_token",
+    "airflow.dag_get",
+    "shim.python"
+   ],
+   "unknown_route_rows": 0,
+   "answer": "30 2 * * *",
+   "truth": "30 2 * * *",
+   "agent_seconds": 6.8,
+   "trial_seconds": 86.9
+  },
+  {
+   "probe": "airflow.rest.dbt_build_successes",
+   "tool": "airflow",
+   "task": "alkera/airflow.rest.dbt_build_successes__tour",
+   "trial": "airflow.rest.dbt_build_successes__M6Py4Cj",
+   "reward": 1,
+   "exception": null,
+   "unmeasured": null,
+   "checks": {
+    "answer": true,
+    "tools": true,
+    "network": true,
+    "seq": true
+   },
+   "expected_tool_used": true,
+   "tools_used": [
+    "airflow.auth_token",
+    "airflow.task_list",
+    "shim.python"
+   ],
+   "unknown_route_rows": 0,
+   "answer": 425,
+   "truth": 425,
+   "agent_seconds": 3.7,
+   "trial_seconds": 94.3
+  },
+  {
+   "probe": "databricks.connector.completed_orders_feb_2026",
+   "tool": "databricks",
+   "task": "alkera/databricks.connector.completed_orders_feb_2026__tour",
+   "trial": "databricks.connector.completed_o__P8UNquk",
+   "reward": 1,
+   "exception": null,
+   "unmeasured": null,
+   "checks": {
+    "answer": true,
+    "tools": true,
+    "network": true,
+    "seq": true
+   },
+   "expected_tool_used": true,
+   "tools_used": [
+    "databricks.feature_flags",
+    "databricks.session_create",
+    "databricks.session_delete",
+    "databricks.statement",
+    "databricks.statement_close",
+    "shim.python"
+   ],
+   "unknown_route_rows": 0,
+   "answer": 1068,
+   "truth": 1068,
+   "agent_seconds": 6.1,
+   "trial_seconds": 88.0
+  },
+  {
+   "probe": "databricks.dbt.net_revenue_feb_2026",
+   "tool": "databricks",
+   "task": "alkera/databricks.dbt.net_revenue_feb_2026__tour",
+   "trial": "databricks.dbt.net_revenue_feb_2__59Zjfjq",
+   "reward": 1,
+   "exception": null,
+   "unmeasured": null,
+   "checks": {
+    "answer": true,
+    "tools": true,
+    "network": true,
+    "seq": true
+   },
+   "expected_tool_used": true,
+   "tools_used": [
+    "databricks.feature_flags",
+    "databricks.session_create",
+    "databricks.session_delete",
+    "databricks.statement",
+    "databricks.statement_close",
+    "shim.dbt",
+    "shim.python"
+   ],
+   "unknown_route_rows": 0,
+   "answer": 2361224.0,
+   "truth": "2361224.00",
+   "agent_seconds": 14.7,
+   "trial_seconds": 88.2
+  },
+  {
+   "probe": "databricks.jobs.run_now_bi_refresh",
+   "tool": "databricks",
+   "task": "alkera/databricks.jobs.run_now_bi_refresh__tour",
+   "trial": "databricks.jobs.run_now_bi_refre__BQbu5mF",
+   "reward": 1,
+   "exception": null,
+   "unmeasured": null,
+   "checks": {
+    "answer": true,
+    "tools": true,
+    "network": true,
+    "seq": true
+   },
+   "expected_tool_used": true,
+   "tools_used": [
+    "databricks.sched_list",
+    "databricks.sched_state",
+    "databricks.sched_trigger",
+    "shim.python"
+   ],
+   "unknown_route_rows": 0,
+   "answer": 1276,
+   "truth": 1276,
+   "agent_seconds": 7.0,
+   "trial_seconds": 78.0
+  },
+  {
+   "probe": "databricks.rest.net_revenue",
+   "tool": "databricks",
+   "task": "alkera/databricks.rest.net_revenue__tour",
+   "trial": "databricks.rest.net_revenue__tou__upG7kED",
+   "reward": 1,
+   "exception": null,
+   "unmeasured": null,
+   "checks": {
+    "answer": true,
+    "tools": true,
+    "network": true,
+    "seq": true
+   },
+   "expected_tool_used": true,
+   "tools_used": [
+    "databricks.statement",
+    "shim.python"
+   ],
+   "unknown_route_rows": 0,
+   "answer": "33733790.00",
+   "truth": "33733790.00",
+   "agent_seconds": 4.7,
+   "trial_seconds": 101.4
+  },
+  {
+   "probe": "databricks.sdk.net_revenue_feb_2026",
+   "tool": "databricks",
+   "task": "alkera/databricks.sdk.net_revenue_feb_2026__tour",
+   "trial": "databricks.sdk.net_revenue_feb_2__2Mn8UPg",
+   "reward": 1,
+   "exception": null,
+   "unmeasured": null,
+   "checks": {
+    "answer": true,
+    "tools": true,
+    "network": true,
+    "seq": true
+   },
+   "expected_tool_used": true,
+   "tools_used": [
+    "databricks.statement",
+    "shim.python"
+   ],
+   "unknown_route_rows": 0,
+   "answer": "2361224.00",
+   "truth": "2361224.00",
+   "agent_seconds": 5.8,
+   "trial_seconds": 113.8
+  },
+  {
+   "probe": "databricks.uc.fct_orders_columns",
+   "tool": "databricks",
+   "task": "alkera/databricks.uc.fct_orders_columns__tour",
+   "trial": "databricks.uc.fct_orders_columns__xhFt34v",
+   "reward": 1,
+   "exception": null,
+   "unmeasured": null,
+   "checks": {
+    "answer": true,
+    "tools": true,
+    "network": true,
+    "seq": true
+   },
+   "expected_tool_used": true,
+   "tools_used": [
+    "databricks.table_get",
+    "shim.python"
+   ],
+   "unknown_route_rows": 0,
+   "answer": 6,
+   "truth": 6,
+   "agent_seconds": 5.8,
+   "trial_seconds": 115.9
+  },
+  {
+   "probe": "dbt.show.net_revenue",
+   "tool": "dbt",
+   "task": "alkera/dbt.show.net_revenue__tour",
+   "trial": "dbt.show.net_revenue__tour__2MqV8Km",
+   "reward": 1,
+   "exception": null,
+   "unmeasured": null,
+   "checks": {
+    "answer": true,
+    "tools": true,
+    "network": true,
+    "seq": true
+   },
+   "expected_tool_used": true,
+   "tools_used": [
+    "shim.dbt",
+    "shim.python"
+   ],
+   "unknown_route_rows": 0,
+   "answer": 33733790.0,
+   "truth": "33733790.00",
+   "agent_seconds": 13.0,
+   "trial_seconds": 95.3
+  },
+  {
+   "probe": "duckdb.cli.net_revenue_feb_2026",
+   "tool": "duckdb",
+   "task": "alkera/duckdb.cli.net_revenue_feb_2026__tour",
+   "trial": "duckdb.cli.net_revenue_feb_2026__k8RaWNU",
+   "reward": 1,
+   "exception": null,
+   "unmeasured": null,
+   "checks": {
+    "answer": true,
+    "tools": true,
+    "network": true,
+    "seq": true
+   },
+   "expected_tool_used": true,
+   "tools_used": [
+    "duckdb.statement",
+    "shim.python"
+   ],
+   "unknown_route_rows": 0,
+   "answer": "2361224.00",
+   "truth": "2361224.00",
+   "agent_seconds": 4.3,
+   "trial_seconds": 82.6
+  },
+  {
+   "probe": "excel.openpyxl.net_revenue_feb_2026_roundtrip",
+   "tool": "excel",
+   "task": "alkera/excel.openpyxl.net_revenue_feb_2026_roundtrip__tour",
+   "trial": "excel.openpyxl.net_revenue_feb_2__tWgpyso",
+   "reward": 1,
+   "exception": null,
+   "unmeasured": null,
+   "checks": {
+    "answer": true,
+    "tools": true,
+    "network": true,
+    "seq": true
+   },
+   "expected_tool_used": true,
+   "tools_used": [
+    "shim.python"
+   ],
+   "unknown_route_rows": 0,
+   "answer": "2361224",
+   "truth": "2361224.00",
+   "agent_seconds": 10.0,
+   "trial_seconds": 86.6
+  },
+  {
+   "probe": "human.confluence.net_revenue_page_version",
+   "tool": "human",
+   "task": "alkera/human.confluence.net_revenue_page_version__tour",
+   "trial": "human.confluence.net_revenue_pag__trxcwEp",
+   "reward": 1,
+   "exception": null,
+   "unmeasured": null,
+   "checks": {
+    "answer": true,
+    "tools": true,
+    "network": true,
+    "seq": true
+   },
+   "expected_tool_used": true,
+   "tools_used": [
+    "confluence.kb_get",
+    "confluence.kb_list",
+    "shim.python"
+   ],
+   "unknown_route_rows": 0,
+   "answer": 5,
+   "truth": 5,
+   "agent_seconds": 5.2,
+   "trial_seconds": 86.9
+  },
+  {
+   "probe": "human.jira.ana238_status",
+   "tool": "human",
+   "task": "alkera/human.jira.ana238_status__tour",
+   "trial": "human.jira.ana238_status__tour__ooXRgST",
+   "reward": 1,
+   "exception": null,
+   "unmeasured": null,
+   "checks": {
+    "answer": true,
+    "tools": true,
+    "network": true,
+    "seq": true
+   },
+   "expected_tool_used": true,
+   "tools_used": [
+    "jira.issues_get",
+    "jira.server_info",
+    "shim.python"
+   ],
+   "unknown_route_rows": 0,
+   "answer": "todo",
+   "truth": "todo",
+   "agent_seconds": 4.9,
+   "trial_seconds": 77.0
+  },
+  {
+   "probe": "human.slack.analytics_eng_threads",
+   "tool": "human",
+   "task": "alkera/human.slack.analytics_eng_threads__tour",
+   "trial": "human.slack.analytics_eng_thread__tcuBAAV",
+   "reward": 1,
+   "exception": null,
+   "unmeasured": null,
+   "checks": {
+    "answer": true,
+    "tools": true,
+    "network": true,
+    "seq": true
+   },
+   "expected_tool_used": true,
+   "tools_used": [
+    "shim.python",
+    "slack.chat_channels",
+    "slack.chat_history"
+   ],
+   "unknown_route_rows": 0,
+   "answer": 5,
+   "truth": 5,
+   "agent_seconds": 4.9,
+   "trial_seconds": 102.9
+  },
+  {
+   "probe": "jupyter.kernel.completed_orders_feb_2026",
+   "tool": "jupyter",
+   "task": "alkera/jupyter.kernel.completed_orders_feb_2026__tour",
+   "trial": "jupyter.kernel.completed_orders__3Aq5o6T",
+   "reward": 1,
+   "exception": null,
+   "unmeasured": null,
+   "checks": {
+    "answer": true,
+    "tools": true,
+    "network": true,
+    "seq": true
+   },
+   "expected_tool_used": true,
+   "tools_used": [
+    "jupyter.cell",
+    "shim.python"
+   ],
+   "unknown_route_rows": 0,
+   "answer": 1068,
+   "truth": 1068,
+   "agent_seconds": 7.6,
+   "trial_seconds": 80.9
+  },
+  {
+   "probe": "mf.query.net_revenue_feb_2026",
+   "tool": "mf",
+   "task": "alkera/mf.query.net_revenue_feb_2026__tour",
+   "trial": "mf.query.net_revenue_feb_2026__t__Mb6RAyJ",
+   "reward": 1,
+   "exception": null,
+   "unmeasured": null,
+   "checks": {
+    "answer": true,
+    "tools": true,
+    "network": true,
+    "seq": true
+   },
+   "expected_tool_used": true,
+   "tools_used": [
+    "shim.dbt",
+    "shim.git",
+    "shim.mf",
+    "shim.python"
+   ],
+   "unknown_route_rows": 0,
+   "answer": "2361224.0",
+   "truth": "2361224.00",
+   "agent_seconds": 21.5,
+   "trial_seconds": 97.9
+  },
+  {
+   "probe": "postgres.psql.net_revenue_feb_2026",
+   "tool": "postgres",
+   "task": "alkera/postgres.psql.net_revenue_feb_2026__tour",
+   "trial": "postgres.psql.net_revenue_feb_20__njCGqgK",
+   "reward": 1,
+   "exception": null,
+   "unmeasured": null,
+   "checks": {
+    "answer": true,
+    "tools": true,
+    "network": true,
+    "seq": true
+   },
+   "expected_tool_used": true,
+   "tools_used": [
+    "psql.statement",
+    "shim.python"
+   ],
+   "unknown_route_rows": 0,
+   "answer": "2361224.00",
+   "truth": "2361224.00",
+   "agent_seconds": 3.5,
+   "trial_seconds": 109.8
+  },
+  {
+   "probe": "postgres_dbt.run.net_revenue_feb_2026",
+   "tool": "postgres_dbt",
+   "task": "alkera/postgres_dbt.run.net_revenue_feb_2026__tour",
+   "trial": "postgres_dbt.run.net_revenue_feb__dhiceZU",
+   "reward": 1,
+   "exception": null,
+   "unmeasured": null,
+   "checks": {
+    "answer": true,
+    "tools": true,
+    "network": true,
+    "seq": true
+   },
+   "expected_tool_used": true,
+   "tools_used": [
+    "psql.statement",
+    "shim.dbt",
+    "shim.git",
+    "shim.python"
+   ],
+   "unknown_route_rows": 0,
+   "answer": 2361224.0,
+   "truth": "2361224.00",
+   "agent_seconds": 18.9,
+   "trial_seconds": 110.8
+  },
+  {
+   "probe": "powerbi.rest.net_revenue",
+   "tool": "powerbi",
+   "task": "alkera/powerbi.rest.net_revenue__tour",
+   "trial": "powerbi.rest.net_revenue__tour__AHvw4SF",
+   "reward": 1,
+   "exception": null,
+   "unmeasured": null,
+   "checks": {
+    "answer": true,
+    "tools": true,
+    "network": true,
+    "seq": true
+   },
+   "expected_tool_used": true,
+   "tools_used": [
+    "powerbi.datasets_list",
+    "powerbi.execute_queries",
+    "powerbi.groups_list",
+    "powerbi.token",
+    "shim.python"
+   ],
+   "unknown_route_rows": 0,
+   "answer": 33733790,
+   "truth": "33733790.00",
+   "agent_seconds": 5.0,
+   "trial_seconds": 98.9
+  },
+  {
+   "probe": "redshift.connector.net_revenue_feb_2026",
+   "tool": "redshift",
+   "task": "alkera/redshift.connector.net_revenue_feb_2026__tour",
+   "trial": "redshift.connector.net_revenue_f__qs2SrCk",
+   "reward": 1,
+   "exception": null,
+   "unmeasured": null,
+   "checks": {
+    "answer": true,
+    "tools": true,
+    "network": true,
+    "seq": true
+   },
+   "expected_tool_used": true,
+   "tools_used": [
+    "redshift.statement",
+    "shim.python"
+   ],
+   "unknown_route_rows": 0,
+   "answer": "2361224.00",
+   "truth": "2361224.00",
+   "agent_seconds": 5.1,
+   "trial_seconds": 101.5
+  },
+  {
+   "probe": "redshift.dbt.show_net_revenue_feb_2026",
+   "tool": "redshift",
+   "task": "alkera/redshift.dbt.show_net_revenue_feb_2026__tour",
+   "trial": "redshift.dbt.show_net_revenue_fe__39aWTgh",
+   "reward": 1,
+   "exception": null,
+   "unmeasured": null,
+   "checks": {
+    "answer": true,
+    "tools": true,
+    "network": true,
+    "seq": true
+   },
+   "expected_tool_used": true,
+   "tools_used": [
+    "redshift.statement",
+    "shim.dbt",
+    "shim.python"
+   ],
+   "unknown_route_rows": 0,
+   "answer": 2361224.0,
+   "truth": "2361224.00",
+   "agent_seconds": 11.9,
+   "trial_seconds": 108.5
+  },
+  {
+   "probe": "redshift.psql.completed_orders_feb_2026",
+   "tool": "redshift",
+   "task": "alkera/redshift.psql.completed_orders_feb_2026__tour",
+   "trial": "redshift.psql.completed_orders_f__stKXjBo",
+   "reward": 1,
+   "exception": null,
+   "unmeasured": null,
+   "checks": {
+    "answer": true,
+    "tools": true,
+    "network": true,
+    "seq": true
+   },
+   "expected_tool_used": true,
+   "tools_used": [
+    "redshift.statement",
+    "shim.python"
+   ],
+   "unknown_route_rows": 0,
+   "answer": 1068,
+   "truth": 1068,
+   "agent_seconds": 3.6,
+   "trial_seconds": 105.6
+  },
+  {
+   "probe": "sched.ops_sched.dbt_build_successes",
+   "tool": "sched",
+   "task": "alkera/sched.ops_sched.dbt_build_successes__tour",
+   "trial": "sched.ops_sched.dbt_build_succes__RapeEpx",
+   "reward": 1,
+   "exception": null,
+   "unmeasured": null,
+   "checks": {
+    "answer": true,
+    "tools": true,
+    "network": true,
+    "seq": true
+   },
+   "expected_tool_used": true,
+   "tools_used": [
+    "sched.sched_logs",
+    "shim.python"
+   ],
+   "unknown_route_rows": 0,
+   "answer": 425,
+   "truth": 425,
+   "agent_seconds": 4.3,
+   "trial_seconds": 82.7
+  },
+  {
+   "probe": "sigma.rest.net_revenue_feb_2026",
+   "tool": "sigma",
+   "task": "alkera/sigma.rest.net_revenue_feb_2026__tour",
+   "trial": "sigma.rest.net_revenue_feb_2026__yzGdYNr",
+   "reward": 1,
+   "exception": null,
+   "unmeasured": null,
+   "checks": {
+    "answer": true,
+    "tools": true,
+    "network": true,
+    "seq": true
+   },
+   "expected_tool_used": true,
+   "tools_used": [
+    "shim.python",
+    "sigma.auth_token",
+    "sigma.query_download",
+    "sigma.workbook_export",
+    "sigma.workbook_get",
+    "sigma.workbooks_list"
+   ],
+   "unknown_route_rows": 0,
+   "answer": "2361224.00",
+   "truth": "2361224.00",
+   "agent_seconds": 5.0,
+   "trial_seconds": 76.7
+  },
+  {
+   "probe": "snowflake.connector.net_revenue_feb_2026",
+   "tool": "snowflake",
+   "task": "alkera/snowflake.connector.net_revenue_feb_2026__tour",
+   "trial": "snowflake.connector.net_revenue__KY7QKjm",
+   "reward": 1,
+   "exception": null,
+   "unmeasured": null,
+   "checks": {
+    "answer": true,
+    "tools": true,
+    "network": true,
+    "seq": true
+   },
+   "expected_tool_used": true,
+   "tools_used": [
+    "shim.python",
+    "snowflake.statement"
+   ],
+   "unknown_route_rows": 0,
+   "answer": "2361224.0",
+   "truth": "2361224.00",
+   "agent_seconds": 6.8,
+   "trial_seconds": 108.7
+  },
+  {
+   "probe": "tableau.tabcmd.net_revenue",
+   "tool": "tableau",
+   "task": "alkera/tableau.tabcmd.net_revenue__tour",
+   "trial": "tableau.tabcmd.net_revenue__tour__dQda8KF",
+   "reward": 1,
+   "exception": null,
+   "unmeasured": null,
+   "checks": {
+    "answer": true,
+    "tools": true,
+    "network": true,
+    "seq": true
+   },
+   "expected_tool_used": true,
+   "tools_used": [
+    "shim.python",
+    "shim.tabcmd",
+    "tableau.auth_signin",
+    "tableau.server_info",
+    "tableau.users_get",
+    "tableau.views_data",
+    "tableau.views_list"
+   ],
+   "unknown_route_rows": 0,
+   "answer": "33733790.00",
+   "truth": "33733790.00",
+   "agent_seconds": 8.6,
+   "trial_seconds": 88.8
+  }
+ ],
+ "acceptance_job": "acceptance-oracle-20261007T160203"
+}
