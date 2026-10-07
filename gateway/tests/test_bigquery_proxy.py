@@ -678,6 +678,77 @@ def test_scripts_with_schema_or_replace_ddl_refused_temp_tables_kept(client):
     assert "fresh_schema" in {d.dataset_id for d in client.list_datasets()}
 
 
+def test_a_script_is_as_serious_as_its_worst_statement(client, audit):
+    """The gateway's classifier refuses most scripts and the verb rule behind it
+    read the FIRST verb: `SELECT 1; DROP TABLE t` was a read row, which the path
+    rules skip. Each statement is classified; the row takes the worst."""
+    for name, script, op_class in (
+            ("s_drop", "SELECT 1; /* c */ DROP TABLE `{t}`", "destructive"),
+            ("s_delete", "SELECT 1; /* c */ delete from `{t}` where true", "destructive"),
+            ("s_set", "SELECT 1; SET @@dataset_id = 'review'; DROP TABLE `{t}`",
+             "destructive"),
+            ("s_insert", "SELECT 1; INSERT INTO `{t}` (a) VALUES (5)", "write")):
+        table = _scratch(client, name, rows=2)
+        sql = script.format(t=table)
+        try:
+            client.query(sql).result()
+        except Exception:  # noqa: BLE001 - what the engine does is not under test
+            pass
+        row = _statement(audit, sql)
+        assert row["op_class"] == op_class, (sql, row["op_class"])
+        assert table in " ".join(row["targets"]).replace('"', "").replace("`", "") or \
+            name in " ".join(row["targets"]), row["targets"]
+    refused = "SELECT 1; /* c */ alter table `{t}` add column b INT64".format(
+        t=_scratch(client, "s_alter"))
+    _raises(lambda: client.query(refused).result(), 501, "ALTER")
+    assert _statement(audit, refused)["op_class"] != "read"
+
+
+def test_procedural_scripting_refused_by_name(client, audit):
+    """IF / FOR / WHILE / LOOP / REPEAT / CASE bodies never run on the engine,
+    CALL runs nothing, RAISE answers 200, and `IF TRUE THEN ASSERT FALSE; END
+    IF` passes: refused under `scripting`. Functions of the same names are not."""
+    table = _scratch(client, "scripted", rows=1)
+    for sql in ("IF TRUE THEN ASSERT FALSE; END IF",
+                f"IF TRUE THEN ALTER TABLE `{table}` ADD COLUMN b INT64; END IF",
+                f"FOR x IN (SELECT 1 AS a) DO INSERT INTO `{table}` (a) VALUES (x.a); END FOR",
+                "WHILE FALSE DO SELECT 1; END WHILE",
+                "LOOP LEAVE; END LOOP",
+                "REPEAT SELECT 1; UNTIL TRUE END REPEAT",
+                "CASE WHEN TRUE THEN SELECT 1; END CASE",
+                f"CALL `{PROJECT}.review.proc`()",
+                "RAISE USING MESSAGE = 'stop'",
+                f"CREATE OR REPLACE PROCEDURE `{PROJECT}.review.proc`() BEGIN SELECT 1; END",
+                "DECLARE n INT64 DEFAULT 1; IF n = 1 THEN SELECT 1; END IF"):
+        _raises(lambda sql=sql: client.query(sql).result(), 501, "procedural scripting")
+        row = _statement(audit, sql)
+        assert "refused:scripting" in row["flags"] and row["exit"] == "error"
+    assert _count(client, table) == 1
+    got = list(client.query("SELECT IF(TRUE, 1, 2) AS i, REPEAT('a', 2) AS r").result())
+    assert tuple(got[0].values()) == (1, "aa")
+
+
+def test_untokenizable_sql_is_one_row_and_a_400(client, emulator, audit):
+    """sqlglot's tokenizer cannot read an unterminated string: before, the
+    proxy crashed - a bare 500, no row, and the client retried it for ten
+    minutes. Now: BigQuery's 400 invalidQuery, at once, and exactly one row."""
+    jobs = set(upstream_jobs(emulator))
+    for sql in ("SELECT 'abc", "SELECT r'\\'", "SELECT 1; DROP TABLE x; SELECT 'abc"):
+        for call in (lambda sql=sql: client.query(sql).result(),
+                     lambda sql=sql: list(client.query_and_wait(sql))):
+            before = len(rows_of(audit))
+            error = _raises(call, 400, "Syntax error")
+            assert error.errors[0]["reason"] == "invalidQuery"
+            rows = rows_of(audit)[before:]
+            assert len(rows) == 1, [r["tool"] for r in rows]
+            row = rows[0]
+            assert row["tool"] == "bigquery.statement" and row["args"]["sql"] == sql
+            assert row["exit"] == "error" and row["error"]["code"] == "invalidQuery"
+            assert "unparsed_statement" in row["flags"]
+    assert _statement(audit, "DROP TABLE x")["op_class"] == "destructive"
+    assert set(upstream_jobs(emulator)) == jobs            # nothing was forwarded
+
+
 # ---------------------------------------------------------- module contract
 def test_no_tool_name_ends_in_an_mcp_tool():
     """blindness.row_tools suffix-matches native rows to MCP tools: a row ending

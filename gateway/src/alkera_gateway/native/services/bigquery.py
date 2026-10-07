@@ -24,7 +24,12 @@ has its row on file. Tools:
                           reads it as SQL (TOOL_KINDS); op_class and targets are
                           the gateway's own classifier's (`sql.inspect_sql`,
                           dialect bigquery), the Postgres tailer's verb rule
-                          behind it - exactly what the Snowflake proxy does.
+                          behind it - what the Snowflake proxy does - applied to
+                          EACH statement of a script, the row taking the most
+                          serious class (`classify`): `SELECT 1; DROP TABLE t` is
+                          a destructive row, never a read. Text sqlglot cannot
+                          even tokenize is answered 400 `invalidQuery` with one
+                          row flagged `unparsed_statement`, never forwarded.
                           A query that is REFUSED (REFUSALS) is still this row,
                           classified by its SQL so the path rules read the
                           attempt, with `exit: error` and the flag
@@ -89,8 +94,10 @@ disqualifying" (alkera_gateway/bigquery.py, whose fences carry over):
 REFUSED BY NAME (REFUSALS, 501 `notImplemented`), each a measured case where the
 engine answers success and does something else: dry runs (executed for real),
 legacy SQL (run as GoogleSQL), transactions and BEGIN...END blocks (an ERROR()
-keeps the INSERT before it; no ROLLBACK), ALTER (acknowledged, nothing changes),
-EXECUTE IMMEDIATE (acknowledged, nothing runs), ASSERT (always passes), a query
+keeps the INSERT before it; no ROLLBACK), procedural scripting - IF, WHILE, LOOP,
+REPEAT, FOR, CASE, CALL, RAISE, CREATE PROCEDURE (bodies never run, RAISE answers
+200, `IF TRUE THEN ASSERT FALSE; END IF` passes) - ALTER (acknowledged, nothing
+changes), EXECUTE IMMEDIATE (acknowledged, nothing runs), ASSERT (always passes), a query
 job's WRITE_TRUNCATE (appends), a schema change through tables.patch / update
 (recorded, the data keeps the old one), CREATE OR REPLACE of a table its own
 query reads (the source would be dropped first), CREATE / DROP SCHEMA or CREATE OR
@@ -127,6 +134,7 @@ import time
 from pathlib import Path
 from typing import Annotated, Any
 
+import sqlglot
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse, Response
 
@@ -170,6 +178,9 @@ REFUSALS = {
                           "it and runs nothing); send the statement itself"),
     "assert": (f"{NOT_AVAILABLE}: ASSERT (the engine passes every assertion); check the "
                "condition with a SELECT"),
+    "scripting": (f"{NOT_AVAILABLE}: procedural scripting (IF, WHILE, LOOP, REPEAT, "
+                  "FOR, CASE, CALL, RAISE, CREATE PROCEDURE, ...): the engine answers "
+                  "success and runs none of the body; send the statements themselves"),
     "ddl_script": (f"{NOT_AVAILABLE}: CREATE SCHEMA, DROP SCHEMA or CREATE OR REPLACE "
                    "inside a multi-statement script; send each of those as a statement "
                    "of its own"),
@@ -191,7 +202,10 @@ REFUSALS = {
 #: back to an opaque Command for `ALTER TABLE ... ALTER COLUMN` and `EXECUTE`.
 FENCED_VERBS = {"ALTER": "alter", "EXECUTE": "execute_immediate", "ASSERT": "assert",
                 "BEGIN": "transaction", "COMMIT": "transaction",
-                "ROLLBACK": "transaction"}
+                "ROLLBACK": "transaction",
+                **dict.fromkeys(("IF", "WHILE", "LOOP", "REPEAT", "FOR", "CASE", "CALL",
+                                 "RAISE", "LEAVE", "ITERATE", "BREAK", "CONTINUE",
+                                 "RETURN"), "scripting")}
 #: The flag a refused request's row carries, with the REFUSALS key after it.
 REFUSED_FLAG = "refused:"
 
@@ -437,19 +451,73 @@ def correct(op: str, body: Any, project: str) -> Any:
     return body
 
 
-def classify(sql: str):
-    """op_class / targets for one statement: the gateway's own classifier, the
-    Postgres tailer's verb rule behind it (an unparsed statement is still one
-    row, flagged, never dropped) - gateway/docker/snowflake_start.observation."""
+#: How serious an op_class is, for a script that holds several: the gateway's
+#: own order (`sql.OP_PRIORITY`), with `exec` - a verb nobody classified - above
+#: `read`, so an unknown statement never lets a script pass as a read.
+SEVERITY = {"read": 0, "exec": 1, "write": 2, "ddl": 3, "destructive": 4}
+
+
+def _classify_one(sql: str):
+    """One statement: the gateway's own classifier, the Postgres tailer's verb
+    rule behind it - gateway/docker/snowflake_start.observation - and, for text
+    neither can read, the verb alone, flagged `unparsed_statement`."""
+    import sqlglot
+
     from ...records import Observation, ToolError
     from ...sql import inspect_sql
-    from ..tailers.postgres import fallback_observation
+    from ..tailers.postgres import FALLBACK_OP_CLASS, VERB_OP_CLASS, fallback_observation
 
     found = Observation()
     try:
         inspect_sql(sql, found, read_only=False, dialect="bigquery")
-    except ToolError:
-        found = fallback_observation(sql, dialect="bigquery")
+        return found
+    except (ToolError, sqlglot.errors.SqlglotError):
+        pass
+    try:
+        return fallback_observation(sql, dialect="bigquery")
+    except sqlglot.errors.SqlglotError:
+        # Not even tokens: each `;`-separated part's first word, the most
+        # serious of them - a script must not read as its first verb.
+        verbs = [re.sub(r"^\W+", "", part.split(None, 1)[0]).upper()
+                 for part in sql.split(";") if part.split()] or [""]
+        classes = [VERB_OP_CLASS.get(verb, FALLBACK_OP_CLASS) for verb in verbs]
+        return Observation(op_class=max(classes, key=lambda c: SEVERITY.get(c, 1)),
+                           flags=["outside_tool_surface", "unparsed_statement"])
+
+
+def classify(sql: str):
+    """op_class / targets for a query, which may be a script of several
+    statements. Never raises: an unparsed statement is still one row, flagged.
+
+    A SCRIPT IS AS SERIOUS AS ITS WORST STATEMENT. The gateway's classifier
+    refuses most scripts (`unsupported_sql`), and the verb rule behind it reads
+    the FIRST verb - so `SELECT 1; DROP TABLE t` was a `read`, and path.py
+    skips read rows: the DROP was never charged. Each statement (split by
+    `split_statements`, comments and strings respected) is classified on its
+    own, and the row takes the most serious class (SEVERITY), every statement's
+    targets and every flag."""
+    import sqlglot
+
+    from ...records import Observation
+
+    try:
+        parts = [text for text, _ in split_statements(sql)]
+    except sqlglot.errors.SqlglotError:
+        return _classify_one(sql)
+    if len(parts) <= 1:
+        return _classify_one(parts[0] if parts else sql)
+    found = Observation(op_class="read")
+    targets, read_targets, flags = [], [], []
+    for part in [sql, *parts]:
+        one = _classify_one(part)
+        if part is sql and "outside_tool_surface" in one.flags:
+            continue            # the whole script refused: its statements speak
+        if SEVERITY.get(one.op_class, 1) > SEVERITY.get(found.op_class, 0):
+            found.op_class = one.op_class
+        targets += [t for t in one.targets if t not in targets]
+        read_targets += [t for t in one.read_targets if t not in read_targets]
+        flags += [f for f in one.flags if f not in flags]
+    found.targets, found.read_targets, found.flags = targets, read_targets, flags
     return found
 
 
@@ -522,6 +590,8 @@ class Plan:
         self.create_disposition = ""
         #: tables a CREATE OR REPLACE dropped before the statement ran (`preflight`)
         self.replaced: list[str] = []
+        #: why a query that does not tokenize is answered `invalidQuery`
+        self.unparsed: str | None = None
         self.body = payload if isinstance(payload, dict) else {}
         config = self.body.get("configuration")
         config = config if isinstance(config, dict) else {}
@@ -579,6 +649,16 @@ class Plan:
                 self.op_class = "write"
             self.targets = [name, *(t for t in self.targets if t != name)]
         self.trees = statements(self.sql)
+        try:
+            split_statements(self.sql)
+        except sqlglot.errors.SqlglotError as exc:
+            # Text no fence can read (an unterminated string): BigQuery's own
+            # answer to it is a syntax error, and forwarding it would put SQL
+            # nobody inspected in front of the engine.
+            self.unparsed = f"Syntax error: the query does not tokenize ({exc})"
+            if "unparsed_statement" not in self.flags:
+                self.flags.append("unparsed_statement")
+            return
         if holder.get("dryRun") or query.get("dryRun"):
             self.refuse("dry_run")
         elif query.get("useLegacySql") is True:
@@ -605,36 +685,56 @@ def statements(sql: str) -> list:
         return []
 
 
-def leading_verbs(sql: str) -> list[str]:
-    """The first keyword of every statement in `sql`, upper-cased, from sqlglot's
-    BigQuery tokenizer (strings and comments are tokens of their own, never a
-    keyword). If the text does not tokenize, a split on `;` stands in."""
+def split_statements(sql: str) -> list[tuple[str, list[str]]]:
+    """Every statement in `sql` as (its text, its tokens' text upper-cased), cut
+    on sqlglot's BigQuery tokenizer: a `;` inside a string or a comment does not
+    split, and the text runs from the statement's first token to its last, so
+    a leading comment is not part of it. Raises sqlglot's SqlglotError for text
+    that does not tokenize (an unterminated string)."""
     from sqlglot.dialects.dialect import Dialect
-    from sqlglot.errors import SqlglotError
     from sqlglot.tokens import TokenType
 
+    statements, current = [], []
+    for token in Dialect.get_or_raise("bigquery").tokenize(sql):
+        if token.token_type == TokenType.SEMICOLON:
+            if current:
+                statements.append(current)
+            current = []
+        else:
+            current.append(token)
+    if current:
+        statements.append(current)
+    return [(sql[tokens[0].start:tokens[-1].end + 1],
+             [token.text.upper() for token in tokens]) for tokens in statements]
+
+
+def leading_verbs(sql: str) -> list[str]:
+    """The first keyword of every statement in `sql`, upper-cased
+    (`split_statements`). If the text does not tokenize, a split on `;` stands
+    in - such a query is answered `invalidQuery` before it is forwarded (`Plan`)."""
+    from sqlglot.errors import SqlglotError
+
     try:
-        tokens = Dialect.get_or_raise("bigquery").tokenize(sql)
+        return [words[0] for _, words in split_statements(sql)]
     except SqlglotError:
         return [part.split(None, 1)[0].upper() for part in sql.split(";") if part.split()]
-    verbs, start = [], True
-    for token in tokens:
-        if token.token_type == TokenType.SEMICOLON:
-            start = True
-        elif start:
-            verbs.append(token.text.upper())
-            start = False
-    return verbs
 
 
 def fence(sql: str, trees: list, project: str, dataset: str | None) -> str | None:
     """The REFUSALS key a query is refused under, or None to forward it."""
     from sqlglot import exp
+    from sqlglot.errors import SqlglotError
 
     verbs = leading_verbs(sql)
     for verb in verbs:
         if verb in FENCED_VERBS:
             return FENCED_VERBS[verb]
+    try:
+        words = [w for _, w in split_statements(sql)]
+    except SqlglotError:
+        words = []
+    if any(w[0] == "CREATE" and "PROCEDURE" in w[:6] for w in words):
+        return "scripting"
     if any(isinstance(t, (exp.Alter, exp.Transaction, exp.Commit, exp.Rollback))
            for t in trees):
         return "transaction" if not any(isinstance(t, exp.Alter) for t in trees) \
@@ -971,6 +1071,9 @@ def build_app(upstream: str | None = None, seed: dict | None = None) -> FastAPI:
             return JSONResponse(google_error(404, "notFound", message), status_code=404)
         op, op_class, params = found
         plan = Plan(op, op_class, params, _json(raw))
+        if plan.unparsed:
+            return refuse(request, plan, started, 400, "invalidQuery", "invalidQuery",
+                          plan.unparsed)
         if plan.refused:
             return refuse(request, plan, started, 501, "notImplemented", "not_available",
                           REFUSALS[plan.refused])

@@ -85,7 +85,8 @@ refused request is still its own row, `exit: error`, flag `refused:<feature>`) a
 corrects what v0.8.1 gets wrong in a way a client would act on:
 - refused by name (501 `notImplemented`), each a case where the emulator answers
   success and does something else: dry runs, legacy SQL, transactions and
-  BEGIN...END blocks, `ALTER`, `EXECUTE IMMEDIATE`, `ASSERT`, a query job's
+  BEGIN...END blocks, procedural scripting (IF, WHILE, LOOP, REPEAT, FOR, CASE,
+  CALL, RAISE, CREATE PROCEDURE), `ALTER`, `EXECUTE IMMEDIATE`, `ASSERT`, a query job's
   `WRITE_TRUNCATE`, a schema change through tables.patch/update, `CREATE OR REPLACE`
   of a table its own query reads, schema DDL or `CREATE OR REPLACE` inside a
   multi-statement script, load and extract jobs;
@@ -97,6 +98,8 @@ corrects what v0.8.1 gets wrong in a way a client would act on:
   WRITE_EMPTY / CREATE_NEVER on a query job's destination; tabledata.list paged
   (the emulator ignores maxResults); per-job result datasets hidden from
   `datasets.list`;
+- a script's row is as serious as its worst statement (each statement classified),
+  and SQL that does not tokenize is answered 400 `invalidQuery` with one row;
 - not fenced, written down: INT64 arithmetic wraps on overflow (BigQuery raises).
 
 The module docstring has each measurement.

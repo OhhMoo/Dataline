@@ -95,6 +95,7 @@ _CATALOG = (
               "bigquery.internal:9050 (native/services/bigquery.py), seeded from "
               "the world; google-cloud-bigquery in images built with "
               "--warehouse-clients bigquery; cost not modelled; transactions, "
+              "procedural scripting (IF/FOR/WHILE/CALL/...), "
               "ALTER, EXECUTE IMMEDIATE, ASSERT, WRITE_TRUNCATE, schema patches, "
               "load jobs and legacy SQL refused by name; INT64 overflow wraps "
               "instead of erroring (emulator, not fenced); no dbt-bigquery (works "
