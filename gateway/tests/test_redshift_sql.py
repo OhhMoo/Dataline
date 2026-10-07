@@ -121,8 +121,11 @@ def test_redshift_spellings_become_postgres():
     assert translate("SELECT TOP 5 a FROM t ORDER BY a") == "SELECT a FROM t ORDER BY a LIMIT 5"
     assert translate("SELECT LEN(x), CHARINDEX('b', x) FROM t") == \
         "SELECT LENGTH(x), POSITION('b' IN x) FROM t"
-    assert translate("SELECT GETDATE(), SYSDATE") == \
-        "SELECT CURRENT_TIMESTAMP, CURRENT_TIMESTAMP"
+    # GETDATE() is the statement's start in whole seconds, SYSDATE the
+    # transaction's; both TIMESTAMP. CURRENT_TIMESTAMP stays Postgres'.
+    assert translate("SELECT GETDATE(), SYSDATE, CURRENT_TIMESTAMP") == \
+        "SELECT CAST(DATE_TRUNC('SECOND', STATEMENT_TIMESTAMP()) AS TIMESTAMP), " \
+        "CAST(TRANSACTION_TIMESTAMP() AS TIMESTAMP), CURRENT_TIMESTAMP"
     assert translate("SELECT a::varchar(max) FROM t") == "SELECT CAST(a AS VARCHAR(65535)) FROM t"
     assert translate("SELECT APPROXIMATE COUNT(DISTINCT x) FROM t") == \
         "SELECT COUNT(DISTINCT x) FROM t"
@@ -216,12 +219,40 @@ def test_startup_parameters_are_filtered_like_set():
                               "SET standard_conforming_strings"),
                              ("--backslash-quote=on", "SET backslash_quote"),
                              ("-c client_encoding=SJIS", "a client_encoding other than UTF8"),
-                             ("-d 5", "startup option '-d'")):
+                             ("-d 5", "startup option '-d'"),
+                             # Postgres drops these backslashes when it splits options
+                             ("-c standard\\_conforming_strings=off",
+                              "a backslash in the startup options"),
+                             ("-c backslash_quote\\=on", "a backslash in the startup options")):
         with pytest.raises(Unsupported) as raised:
             redshift_sql.startup_parameters({**keep, "options": options})
         assert raised.value.feature == feature
     with pytest.raises(Unsupported):
         redshift_sql.startup_parameters({**keep, "client_encoding": "SJIS"})
+    # keys are Postgres' case-insensitive names
+    with pytest.raises(Unsupported):
+        redshift_sql.startup_parameters({**keep, "CLIENT_ENCODING": "SJIS"})
+    assert redshift_sql.startup_parameters({**keep, "OPTIONS": "-c search_path=x"}) == \
+        {**keep, "options": "-c search_path=x"}
+
+
+def test_regexp_replace_replaces_every_match_as_redshift_does():
+    assert translate("SELECT REGEXP_REPLACE(s, 'a', 'b') FROM t") == \
+        "SELECT REGEXP_REPLACE(s, 'a', 'b', 'g') FROM t"
+    assert translate("SELECT REGEXP_REPLACE(s, 'a') FROM t") == \
+        "SELECT REGEXP_REPLACE(s, 'a', '', 'g') FROM t"
+    assert translate("SELECT REGEXP_REPLACE(s, 'a', 'b', 2) FROM t") == \
+        "SELECT REGEXP_REPLACE(s, 'a', 'b', 2, 0) FROM t"
+    assert translate("SELECT REGEXP_REPLACE(s, 'a', 'b', 1, 'i') FROM t") == \
+        "SELECT REGEXP_REPLACE(s, 'a', 'b', 1, 0, 'i') FROM t"
+    assert refused("SELECT REGEXP_REPLACE(s, 'a', 'b', 1, 'p') FROM t") == \
+        "REGEXP_REPLACE (parameter 'p')"
+
+
+def test_adjacent_string_literals_on_one_line_are_a_syntax_error():
+    with pytest.raises(redshift_sql.Unparsable):
+        translate("SELECT 'a' 'b'")
+    assert translate("SELECT 'a'\n'b'") == "SELECT 'a' || 'b'"   # the standard's continuation
 
 
 def test_unparsed_commands_default_deny():
@@ -320,4 +351,4 @@ def test_translation_matches_duckdb_truth():
         conn.close()
     wrong = {n: (got[n], truth[n]) for n in got if not redshift_corpus.same(got[n], truth[n])}
     assert not wrong, wrong
-    assert len(got) == len(redshift_corpus.CORPUS) == 13
+    assert len(got) == len(redshift_corpus.CORPUS) == 14

@@ -20,6 +20,10 @@ is not semantics-preserving everywhere - measured on sqlglot 30.18.0:
                               CONCAT is `||` and returns NULL
   ADD_MONTHS(d, n)            parsed as DATEADD: Feb 29 + 1 is Mar 29, where
                               Redshift's month-end rule gives Mar 31
+  REGEXP_REPLACE(s, p, r)     passed as written: Postgres replaces the FIRST
+                              match, Redshift every one ('aaa' -> 'baa' / 'bbb')
+  GETDATE(), SYSDATE          CURRENT_TIMESTAMP, the transaction's start: Redshift's
+                              GETDATE() is the statement's, in whole seconds
 
 So the translation is checked, not trusted. Each statement is parsed (redshift
 dialect) and rendered for both dialects; where the renderings differ, the
@@ -75,9 +79,12 @@ KNOWN DIVERGENCES (recorded here; no type information reaches this module):
   AVG over an integer column: Redshift returns BIGINT (the average truncated),
       Postgres a NUMERIC with the fraction. The VALUE differs whenever the
       average is not whole - cast it yourself (AVG(x)::BIGINT) for Redshift's.
-  GETDATE()/SYSDATE -> CURRENT_TIMESTAMP: a TIMESTAMPTZ in the server's UTC,
-      not Redshift's TIMESTAMP; the instant is the same. Both read the box's
-      wall clock, as Redshift reads AWS's - not the world's virtual clock.
+  The clock functions read the box's wall clock (in the server's UTC), as
+      Redshift reads AWS's - not the world's virtual clock. GETDATE() is the
+      start of the current STATEMENT in whole seconds and SYSDATE the start of
+      the current TRANSACTION, both TIMESTAMP, as on Redshift
+      (date_trunc('second', statement_timestamp()) / transaction_timestamp());
+      CURRENT_TIMESTAMP stays Postgres' (transaction start, TIMESTAMPTZ).
   TEXT is unbounded (Redshift: VARCHAR(256)); VARCHAR(MAX) is VARCHAR(65535).
   NUMERIC division keeps Postgres' scale rules; values agree, digits may not.
   Aggregate window functions with ORDER BY and no frame clause run with
@@ -223,6 +230,8 @@ class _Persona(Redshift):
         FUNCTIONS = {
             **Redshift.Parser.FUNCTIONS,
             "ADD_MONTHS": lambda args: exp.Anonymous(this="ADD_MONTHS", expressions=args),
+            # kept apart from CURRENT_TIMESTAMP: statement start, whole seconds
+            "GETDATE": lambda args: exp.Anonymous(this="GETDATE", expressions=args),
         }
 
 
@@ -236,7 +245,7 @@ RENDER_REDSHIFT = "redshift"
 #: Redshift's documented semantics (gateway/tests/test_redshift_sql.py and the
 #: corpus the e2e check runs through a real PostgreSQL 17).
 VETTED = frozenset({
-    "CurrentTimestamp",      # GETDATE(), SYSDATE -> CURRENT_TIMESTAMP (see KNOWN DIVERGENCES)
+    "CurrentTimestamp",      # CURRENT_TIMESTAMP; SYSDATE and GETDATE() are rewritten
     "DataType",              # INT vs INTEGER, TEXT vs VARCHAR(MAX): spelling only
     "Identifier",            # quoting of a reserved word, same name
     "Literal",               # a string's backslash escapes (Redshift processes them,
@@ -255,7 +264,7 @@ VETTED = frozenset({
 })
 #: Constructs this module rewrites itself (see `_rewrite`).
 HANDLED = frozenset({"Concat", "TsOrDsDiff", "GroupConcat", "WithinGroup",
-                     "ApproxDistinct", "Anonymous", "Bracket"})
+                     "ApproxDistinct", "Anonymous", "Bracket", "RegexpReplace"})
 
 #: Session settings Redshift has and Postgres does not, which change nothing a
 #: query returns (WLM routing, the result cache, auto-analyze): accepted, kept
@@ -428,6 +437,16 @@ def _fenced_names(tokens) -> None:
         raise Unsupported("a client_encoding other than UTF8")
 
 
+def _adjacent_literals(tokens, text: str) -> None:
+    """Two string literals in a row are one string only when a newline
+    separates them (the SQL standard, which Redshift and Postgres follow);
+    on one line it is a syntax error on both - never a concatenation."""
+    for prev, cur in zip(tokens, tokens[1:]):
+        if prev.token_type in _STRINGS and cur.token_type in _STRINGS \
+                and "\n" not in text[prev.end + 1:cur.start]:
+            raise Unparsable("two string literals in a row on one line")
+
+
 def _escape_fence(tokens, text: str) -> None:
     """Octal and hex escapes in a string literal ('\\101', '\\x41') are refused:
     their bytes are not read here the way Redshift reads them."""
@@ -479,15 +498,20 @@ def startup_parameters(params: dict[str, str]) -> dict[str, str]:
     `startup_filter`): a UTF-8 client_encoding only, and in `options` only
     `-c name=value` / `--name=value` settings, a fenced one refused, a
     Redshift-only one dropped. Anything else in `options` (a backend switch)
-    is refused."""
-    out = dict(params)
+    is refused, and so is any backslash in it: Postgres drops backslashes when
+    it splits `options` (pg_split_opts), so `standard\\_conforming_strings`
+    would be read here as one name and there as another. Keys are compared
+    by their lower-case name, which is how Postgres matches a setting."""
+    out = {key.lower(): value for key, value in params.items()}
     encoding = out.get("client_encoding")
     if encoding is not None and encoding.strip().lower() not in UTF8_NAMES | {"auto"}:
         raise Unsupported("a client_encoding other than UTF8")
     options = out.get("options")
     if options is None:
         return out
-    items = re.split(r"(?<!\\)\s+", options.strip()) if options.strip() else []
+    if "\\" in options:
+        raise Unsupported("a backslash in the startup options")
+    items = options.split()
     kept: list[str] = []
     i = 0
     while i < len(items):
@@ -679,9 +703,13 @@ def _causes(tree: exp.Expression) -> list[exp.Expression]:
     return found
 
 
+#: Functions the persona's parser keeps as Anonymous for `_rewrite`.
+HANDLED_FUNCTIONS = frozenset({"ADD_MONTHS", "GETDATE"})
+
+
 def _handled(node: exp.Expression) -> bool:
     kind = type(node).__name__
-    return kind in HANDLED and (kind != "Anonymous" or _name(node) == "ADD_MONTHS")
+    return kind in HANDLED and (kind != "Anonymous" or _name(node) in HANDLED_FUNCTIONS)
 
 
 def _check(tree: exp.Expression) -> None:
@@ -771,6 +799,38 @@ def _add_months(node: exp.Anonymous) -> exp.Expression:
     return sqlglot.parse_one(template, read=POSTGRES)
 
 
+def _regexp_replace(node: exp.RegexpReplace) -> exp.Expression:
+    """REGEXP_REPLACE(source, pattern [, replace [, position [, parameters]]]):
+    Redshift replaces EVERY match (and an absent replacement is ''); Postgres
+    replaces the first unless told 'g'. Rendered as Postgres'
+    regexp_replace(source, pattern, replace, 'g[i]'), or with a position
+    regexp_replace(source, pattern, replace, position, 0 [, 'i']) - N = 0 is
+    every match. Parameters: 'c' (the default) and 'i'; 'p' (PCRE) is refused."""
+    source, pattern = node.this, node.expression
+    replacement = node.args.get("replacement") or exp.Literal.string("")
+    position = node.args.get("position")
+    modifiers = node.args.get("modifiers")
+    if node.args.get("occurrence") is not None:
+        raise Unsupported("REGEXP_REPLACE (occurrence)")
+    flags = ""
+    if modifiers is not None:
+        if not (isinstance(modifiers, exp.Literal) and modifiers.is_string):
+            raise Unsupported("REGEXP_REPLACE (parameters that are not a literal)")
+        for char in modifiers.this:
+            if char == "i":
+                flags += "i" if "i" not in flags else ""
+            elif char != "c":
+                raise Unsupported(f"REGEXP_REPLACE (parameter {char!r})")
+    args = [source.copy(), pattern.copy(), replacement.copy()]
+    if position is None:
+        args.append(exp.Literal.string("g" + flags))
+    else:
+        args += [position.copy(), exp.Literal.number(0)]
+        if flags:
+            args.append(exp.Literal.string(flags))
+    return exp.Anonymous(this="REGEXP_REPLACE", expressions=args)
+
+
 def _rewrite(tree: exp.Expression) -> bool:
     """Apply the HANDLED rewrites (and VARCHAR(MAX)), deepest first. True when
     anything changed."""
@@ -778,7 +838,8 @@ def _rewrite(tree: exp.Expression) -> bool:
                                                       exp.GroupConcat, exp.ApproxDistinct,
                                                       exp.Anonymous, exp.DataType,
                                                       exp.CurrentVersion, exp.Bracket,
-                                                      exp.Identifier))]
+                                                      exp.Identifier, exp.RegexpReplace,
+                                                      exp.CurrentTimestamp))]
     nodes.sort(key=lambda n: n.depth, reverse=True)
     changed = False
     for node in nodes:
@@ -801,6 +862,19 @@ def _rewrite(tree: exp.Expression) -> bool:
             new = exp.Count(this=exp.Distinct(expressions=[node.this.copy()]))
         elif isinstance(node, exp.Anonymous) and _name(node) == "ADD_MONTHS":
             new = _add_months(node)
+        elif isinstance(node, exp.Anonymous) and _name(node) == "GETDATE":
+            if node.expressions:
+                raise Unsupported("GETDATE (arguments)")
+            # the start of the current statement, whole seconds, TIMESTAMP
+            new = sqlglot.parse_one(
+                "CAST(DATE_TRUNC('SECOND', STATEMENT_TIMESTAMP()) AS TIMESTAMP)", read=POSTGRES)
+        elif isinstance(node, exp.CurrentTimestamp) and node.args.get("sysdate"):
+            # SYSDATE: the start of the current transaction, TIMESTAMP
+            new = sqlglot.parse_one("CAST(TRANSACTION_TIMESTAMP() AS TIMESTAMP)", read=POSTGRES)
+        elif isinstance(node, exp.CurrentTimestamp):
+            continue
+        elif isinstance(node, exp.RegexpReplace):
+            new = _regexp_replace(node)
         elif isinstance(node, exp.Bracket):
             # sqlglot reads a Redshift subscript as 0-based (SUPER's PartiQL)
             # and adds one for Postgres; the arrays left after the PartiQL fence
@@ -902,6 +976,7 @@ def _statement(text: str) -> str:
     if not tokens:
         return text
     _escape_fence(tokens, text)
+    _adjacent_literals(tokens, text)
     _fenced_names(tokens)
     _verb_fences(tokens, text)
     setting = _setting(tokens, text)

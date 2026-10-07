@@ -200,6 +200,16 @@ elif spec["mode"] == "write":
     out["net_after_write"] = run(spec["net_sql"])[0][0]
 elif spec["mode"] == "dbt_value":
     out["value"] = run("SELECT n FROM dbt_e2e.rs_check")[0][0]
+elif spec["mode"] == "clock":
+    # inside one transaction: GETDATE() moves with each statement (whole
+    # seconds), SYSDATE stays the transaction's start
+    import time
+    conn.autocommit = False
+    first = run("SELECT GETDATE(), SYSDATE")[0]
+    time.sleep(1.5)
+    second = run("SELECT GETDATE(), SYSDATE")[0]
+    conn.commit()
+    out["clock"] = {"first": first, "second": second}
 cur.close()
 conn.close()
 print("RS-E2E " + json.dumps(out))
@@ -354,6 +364,14 @@ def main(argv=None) -> int:
         check("audit: one redshift.statement row per connector statement, in order",
               [r["args"]["sql"] for r in probe_rows] == sent,
               {"sent": len(sent), "rows": len(probe_rows)})
+        clock, tail = connector({"mode": "clock"})
+        record["clock"] = clock.get("clock")
+        (g1, s1), (g2, s2) = (clock.get("clock") or {}).get("first", [None, None]), \
+            (clock.get("clock") or {}).get("second", [None, None])
+        check("GETDATE() is the statement's start in whole seconds, SYSDATE the "
+              "transaction's (two statements in one transaction)",
+              None not in (g1, g2, s1, s2) and "." not in g1 and "." not in g2
+              and g2 > g1 and s1 == s2, {"clock": record["clock"], "tail": tail[-300:]})
         refused_rows = [r for r in probe_rows if r["exit"] == "error"]
         check("audit: each refusal is an error row with 0A000",
               len(refused_rows) == 2 and all(r["error"]["code"] == "0A000" for r in refused_rows),

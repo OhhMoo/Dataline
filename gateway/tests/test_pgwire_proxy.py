@@ -19,6 +19,7 @@ import socket
 import struct
 import tempfile
 import threading
+import time
 from pathlib import Path
 
 import pytest
@@ -80,6 +81,8 @@ class FakeUpstream:
         self.audit = audit
         self.received: list[tuple[bytes, bytes, int]] = []
         self.startups: list[dict[str, str]] = []
+        #: seconds to hold the answer to each connection's first Sync (a slow server)
+        self.first_sync_delay = 0.0
         if path is not None:
             self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
             self.sock.bind(str(path))
@@ -110,6 +113,8 @@ class FakeUpstream:
             conn.sendall(_msg(b"R", struct.pack("!I", 0)) + _msg(b"Z", b"I"))
             skipping = False
             named: set[str] = set()
+            syncs = 0
+            out = b""      # extended-protocol replies, held until Sync or Flush as Postgres does
             while True:
                 kind, body = _read_msg(conn)
                 self.received.append((kind, body, self.rows()))
@@ -125,33 +130,39 @@ class FakeUpstream:
                         conn.sendall(_msg(b"C", b"SELECT 0\0") + _msg(b"Z", b"I"))
                 elif kind == b"S":
                     skipping = False
-                    conn.sendall(_msg(b"Z", b"I"))
+                    syncs += 1
+                    if syncs == 1 and self.first_sync_delay:
+                        time.sleep(self.first_sync_delay)
+                    conn.sendall(out + _msg(b"Z", b"I"))
+                    out = b""
+                elif kind == b"H":
+                    conn.sendall(out)
+                    out = b""
                 elif skipping:
                     continue
                 elif kind == b"P":
                     statement = body[:body.index(b"\0")].decode()
                     if refused:
                         name = body[body.index(b"alkera"):body.index(b"(")].decode()
-                        conn.sendall(pw.error_response(
-                            "42883", f"function {name}() does not exist"))
+                        out += pw.error_response("42883", f"function {name}() does not exist")
                         skipping = True
                     elif statement and statement in named:
-                        conn.sendall(pw.error_response(
-                            "42P05", f'prepared statement "{statement}" already exists'))
+                        out += pw.error_response(
+                            "42P05", f'prepared statement "{statement}" already exists')
                         skipping = True
                     else:
                         if statement:
                             named.add(statement)
-                        conn.sendall(_msg(b"1", b""))
+                        out += _msg(b"1", b"")
                 elif kind == b"C":
                     named.discard(body[1:body.index(b"\0", 1)].decode())
-                    conn.sendall(_msg(b"3", b""))
+                    out += _msg(b"3", b"")
                 elif kind == b"B":
-                    conn.sendall(_msg(b"2", b""))
+                    out += _msg(b"2", b"")
                 elif kind == b"D":
-                    conn.sendall(_msg(b"n", b""))
+                    out += _msg(b"n", b"")
                 elif kind == b"E":
-                    conn.sendall(_msg(b"C", b"SELECT 0\0"))
+                    out += _msg(b"C", b"SELECT 0\0")
         except (ConnectionError, OSError):
             return
         finally:
@@ -472,3 +483,69 @@ def test_startup_options_are_filtered_like_set(stack):
     assert len(stack["upstream"].startups) == 1      # never reached the server
     row = _rows(stack["audit"])[-1]
     assert row["exit"] == "error" and "protocol_startup" in row["flags"]
+
+
+def test_startup_keys_are_filtered_by_their_lower_case_name(stack):
+    """Postgres matches a startup setting case-insensitively: CLIENT_ENCODING
+    is client_encoding, and is filtered as such."""
+    sock = socket.create_connection(("127.0.0.1", stack["port"]), timeout=10)
+    sock.sendall(_startup({"user": "alkera", "database": "dev", "CLIENT_ENCODING": "SJIS"}))
+    kind, body = _read_msg(sock)
+    sock.close()
+    assert kind == b"E" and "client_encoding" in dict(pw.error_fields(body))[b"M"]
+    assert not stack["upstream"].startups
+    _connect(stack["port"], params={"user": "alkera", "database": "dev",
+                                    "Client_Encoding": "UTF8"}).close()
+    assert stack["upstream"].startups[-1]["client_encoding"] == "UTF8"
+
+
+# --------------------------------------------------------------------------- re-check repros
+def test_the_login_ready_for_query_ends_no_batch(stack):
+    """Reviewer's repro (psycopg 3 pipeline mode): three Parse+Sync batches in
+    one write, the first batch's ReadyForQuery held back, then Bind s2 and two
+    Executes. The run is the DELETE parsed as s2 - never `EXECUTE s2`."""
+    stack["upstream"].first_sync_delay = 0.5
+    sock = _connect(stack["port"])
+    delete = b"DELETE FROM warehouse.fct_orders WHERE order_id = 2"
+    sock.sendall(_parse(b"s1", b"SELECT 1") + SYNC + _parse(b"s2", delete) + SYNC +
+                 _parse(b"s3", b"SELECT 3") + SYNC)
+    for _ in range(3):
+        _until_ready(sock)
+    sock.sendall(_bind(b"s2") + _execute() + _execute() + SYNC)
+    _until_ready(sock)
+    sock.sendall(_bind(b"s2") + _execute() + SYNC)    # a second run: its own row
+    _until_ready(sock)
+    sock.close()
+    rows = [r["args"]["sql"] for r in _rows(stack["audit"])]
+    assert rows == ["SELECT 1", delete.decode(), "SELECT 3", delete.decode()]
+    assert not any(r.startswith("EXECUTE") for r in rows)
+
+
+def test_a_close_and_a_rejected_parse_leave_the_confirmed_statement(stack):
+    """Reviewer's repro: s2 is a confirmed DELETE; in one batch s1 is parsed
+    and closed and a Parse of s2 is rejected (the name is taken); the Bind and
+    Execute of s2 that follow run the DELETE, and the row says so."""
+    sock = _connect(stack["port"])
+    delete = b"DELETE FROM warehouse.fct_orders WHERE order_id = 3"
+    sock.sendall(_parse(b"s2", delete) + _bind(b"s2") + _execute() + SYNC)
+    _until_ready(sock)                                 # the DELETE's first run
+    sock.sendall(_parse(b"s1", b"SELECT 1") + _msg(b"C", b"Ss1\0") +
+                 _parse(b"s2", b"SELECT 2") + SYNC)
+    replies = _until_ready(sock)
+    assert [k for k, _ in replies] == [b"1", b"3", b"E", b"Z"]
+    sock.sendall(_bind(b"s2") + _execute() + SYNC)
+    _until_ready(sock)
+    sock.close()
+    rows = _rows(stack["audit"])
+    assert [r["args"]["sql"] for r in rows] == [delete.decode(), "SELECT 1", "SELECT 2",
+                                                delete.decode()]
+    assert rows[-1]["op_class"] == "destructive"
+
+
+def test_select_into_is_ddl(stack):
+    sock = _connect(stack["port"])
+    sock.sendall(_msg(b"Q", b"SELECT order_id INTO tmp_orders FROM warehouse.fct_orders\0"))
+    _until_ready(sock)
+    sock.close()
+    row = _rows(stack["audit"])[0]
+    assert row["op_class"] == "ddl" and "tmp_orders" in row["targets"]

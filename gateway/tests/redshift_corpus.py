@@ -71,6 +71,10 @@ CORPUS: list[tuple[str, str, str]] = [
     ("concat_then_pipes",
      "SELECT MIN(CONCAT(segment, '/') || region) FROM warehouse.dim_customer",
      f"SELECT MIN(segment || '/' || region) FROM {W}.dim_customer"),
+    # REGEXP_REPLACE replaces every match on Redshift (Postgres: the first only)
+    ("regexp_replace_every_match",
+     "SELECT MAX(REGEXP_REPLACE(order_status, 'e', 'E')) FROM warehouse.fct_orders",
+     f"SELECT MAX(regexp_replace(order_status, 'e', 'E', 'g')) FROM {W}.fct_orders"),
     # a bare NUMERIC is Redshift's (18,0): the average, cast, is a whole number
     ("bare_numeric_is_18_0",
      "SELECT AVG(order_amount)::numeric FROM warehouse.fct_orders "

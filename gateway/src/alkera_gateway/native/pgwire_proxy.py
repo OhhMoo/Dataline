@@ -39,11 +39,16 @@ error row and refused (FRONTEND_REFUSED names the known ones).
                                statement map changes only when the server says
                                ParseComplete: a Parse it rejects (the name is
                                taken) leaves the old statement where it was.
-  Bind ('B')                   binds the portal to the statement the SERVER
-                               will see: a Parse earlier in the same batch, else
-                               the confirmed map (waiting for an earlier batch's
-                               answers first, so a pipelined Bind cannot be
-                               attributed to a Parse the server then rejected).
+  Bind ('B'), Close ('C')      likewise change the portal / statement maps only
+                               when the server confirms them. ONE ordered queue
+                               of expected confirmations (ParseComplete,
+                               BindComplete, CloseComplete) is applied reply by
+                               reply; an ErrorResponse drops the rest of its
+                               batch, as the server skips it. A Bind is resolved
+                               against the maps as the server will hold them:
+                               every earlier batch answered (ReadyForQuery - the
+                               one after login ends no batch), then this batch's
+                               own changes in order.
   Execute ('E')                the FIRST Execute after a Bind is one run: ONE row
                                (none for the run a Parse row stands for); more
                                Executes on the same portal (a row limit, then
@@ -196,7 +201,36 @@ def observation(sql: str, dialect: str):
     except Exception:  # noqa: BLE001 - a classifier bug must not drop the row
         found = fallback_observation(sql, dialect=dialect)
         found.flags.append("classifier_error")
+    _select_into(sql, dialect, found)
     return found
+
+
+def _select_into(sql: str, dialect: str, found) -> None:
+    """`SELECT ... INTO t FROM ...` creates the table t: DDL, with t its target -
+    the gateway's classifier reads it as a plain SELECT."""
+    import sqlglot
+    from sqlglot import exp
+
+    try:
+        trees = [t for t in sqlglot.parse(sql, read=dialect) if t is not None]
+    except Exception:  # noqa: BLE001 - nothing to add to the classifier's answer
+        return
+    into = [node for tree in trees for node in tree.find_all(exp.Into)]
+    if not into:
+        return
+    if found.op_class in ("read", "exec"):
+        found.op_class = "ddl"
+    names = {table.sql(dialect=dialect) for node in into for table in node.find_all(exp.Table)}
+    found.targets = sorted(set(found.targets) | names)
+    found.flags.append("select_into")
+
+
+def _apply(mapping: dict, name: str, value) -> None:
+    """One confirmed change: a Parse or Bind sets `name`, a Close (None) drops it."""
+    if value is None:
+        mapping.pop(name, None)
+    else:
+        mapping[name] = value
 
 
 async def open_upstream(upstream: Upstream):
@@ -308,14 +342,21 @@ class _Session:
         self.proxy = proxy
         self.client_r, self.client_w = reader, writer
         self.up_r = self.up_w = None
-        # name -> statement, as the server has confirmed it (ParseComplete)
+        # The statements and portals as the SERVER holds them: changed only when
+        # the server confirms the message that changes them.
         self.prepared: dict[str, Prepared] = {}
-        # (batch, name, statement) forwarded, not yet confirmed or dropped
-        self.pending: deque[tuple[int, str, Prepared]] = deque()
-        self.batch = 0          # Syncs and Queries forwarded: each ends a batch
-        self.answered = 0       # ReadyForQuery seen: batches the server finished
-        self.changed = asyncio.Condition()
         self.portals: dict[str, Portal] = {}
+        # ONE ordered queue of the changes forwarded and not yet confirmed:
+        # (batch, reply, kind, name, value), `reply` the message the server
+        # answers it with (ParseComplete '1', BindComplete '2', CloseComplete
+        # '3'). Each reply applies the head of the queue; an ErrorResponse drops
+        # the rest of its batch (the server skips to Sync); ReadyForQuery ends
+        # the batch.
+        self.expected: deque[tuple[int, bytes, str, str, object]] = deque()
+        self.batch = 0          # Syncs and Queries forwarded: each ends a batch
+        self.finished = 0       # batches the server has ended with ReadyForQuery
+        self.logged_in = False  # the ReadyForQuery after authentication ends no batch
+        self.changed = asyncio.Condition()
         self.refusals: dict[str, Refusal] = {}
 
     async def close(self) -> None:
@@ -378,7 +419,10 @@ class _Session:
                 await self.client_w.drain()
                 return None
             params = parse_startup(head[4:] + rest)
-            kept = {k: v for k, v in params.items() if k.lower() in STARTUP_KEEP}
+            # Keys by their lower-case name, which is what Postgres matches a
+            # setting by: `CLIENT_ENCODING` is client_encoding to the server,
+            # so it is to the filter too.
+            kept = {k.lower(): v for k, v in params.items() if k.lower() in STARTUP_KEEP}
             if self.proxy.startup_filter is not None:
                 try:
                     kept = self.proxy.startup_filter(kept)
@@ -408,18 +452,16 @@ class _Session:
             elif kind == b"B":
                 portal, at = _cstring(body, 0)
                 name, _ = _cstring(body, at)
-                self.portals[portal] = Portal(await self._resolve(name), name)
+                statements, _ = await self._view()
+                self.expected.append((self.batch, b"2", "portal", portal,
+                                      Portal(statements.get(name), name)))
             elif kind == b"E":
                 portal, _ = _cstring(body, 0)
                 await self._execute(portal, started)
             elif kind == b"C" and body[:1] in (b"S", b"P"):
                 name, _ = _cstring(body, 1)
-                if body[:1] == b"S":
-                    self.prepared.pop(name, None)
-                    self.pending = deque(e for e in self.pending
-                                         if not (e[0] == self.batch and e[1] == name))
-                else:
-                    self.portals.pop(name, None)
+                self.expected.append((self.batch, b"3",
+                                      "statement" if body[:1] == b"S" else "portal", name, None))
             elif kind not in RELAYED:
                 kind, body = b"Q", await self._refuse_message(kind, body, started)
             self.up_w.write(message(kind, body))
@@ -463,30 +505,32 @@ class _Session:
         await self.proxy.audit(sql, translated=None if refusal else translated,
                                refused=refusal, via="parse", started=started)
         if refusal is not None:
-            self.pending.append((self.batch, name, Prepared(sql, sql, refused=True)))
+            self.expected.append((self.batch, b"1", "statement", name,
+                                  Prepared(sql, sql, refused=True)))
             # The parameter count goes with the text: nothing past the error
             # is processed before the next Sync.
             return name.encode() + b"\0" + self._refusal_sql(refusal).encode() + b"\0" + \
                 struct.pack("!H", 0)
-        self.pending.append((self.batch, name,
-                             Prepared(sql, translated, parse_row_unspent=True)))
+        self.expected.append((self.batch, b"1", "statement", name,
+                              Prepared(sql, translated, parse_row_unspent=True)))
         return name.encode() + b"\0" + translated.encode("utf-8") + b"\0" + tail
 
-    async def _resolve(self, name: str) -> Prepared | None:
-        """The statement the server will bind `name` to: a Parse of it earlier
-        in this batch (if that Parse fails, the server skips the Bind too),
-        else what the server has confirmed - once every earlier batch is
-        answered, so a pipelined Parse the server rejects is not believed."""
-        current = [p for b, n, p in self.pending if b == self.batch and n == name]
-        if current:
-            return current[-1]
+    async def _view(self) -> tuple[dict[str, Prepared], dict[str, Portal]]:
+        """The statements and portals as the server will hold them when it
+        reaches the message being handled: once every EARLIER batch is answered
+        (so a change the server rejected there is never believed), what it
+        confirmed, with this batch's changes applied in order - if one of them
+        fails, the server skips the rest of the batch, this message included."""
         async with self.changed:
-            await self.changed.wait_for(
-                lambda: not any(b < self.batch for b, _, _ in self.pending))
-        return self.prepared.get(name)
+            await self.changed.wait_for(lambda: self.finished >= self.batch)
+        statements, portals = dict(self.prepared), dict(self.portals)
+        for _, _, kind, name, value in self.expected:
+            _apply(statements if kind == "statement" else portals, name, value)
+        return statements, portals
 
     async def _execute(self, name: str, started: float) -> None:
-        portal = self.portals.get(name)
+        _, portals = await self._view()
+        portal = portals.get(name)
         if portal is not None and portal.ran:
             return                               # the same run, fetching more rows
         if portal is not None:
@@ -522,13 +566,7 @@ class _Session:
                 if end > len(buffer):
                     break
                 kind = buffer[at:at + 1]
-                if kind == b"1" and self.pending:          # ParseComplete
-                    _, name, statement = self.pending.popleft()
-                    self.prepared[name] = statement
-                    settled = True
-                elif kind == b"Z":                         # ReadyForQuery
-                    self.answered += 1
-                    self.pending = deque(e for e in self.pending if e[0] >= self.answered)
+                if self._settle(kind):
                     settled = True
                 if kind == b"E" and SENTINEL.encode() in buffer[at + 5:end]:
                     out.append(self._rewrite_error(buffer[at + 5:end]) or buffer[at:end])
@@ -544,6 +582,28 @@ class _Session:
             if out:
                 self.client_w.write(b"".join(out))
                 await self.client_w.drain()
+
+    def _settle(self, kind: bytes) -> bool:
+        """Apply what one backend message confirms. True when the state moved."""
+        if not self.logged_in:
+            if kind == b"Z":
+                self.logged_in = True        # the end of authentication, not of a batch
+            return False
+        if kind in (b"1", b"2", b"3"):       # Parse/Bind/CloseComplete: the head
+            while self.expected and self.expected[0][0] < self.finished:
+                self.expected.popleft()      # (defensive) a batch already ended
+            if self.expected and self.expected[0][1] == kind:
+                _, _, target, name, value = self.expected.popleft()
+                _apply(self.prepared if target == "statement" else self.portals, name, value)
+            return True
+        if kind == b"E":                     # the rest of this batch is skipped
+            self.expected = deque(e for e in self.expected if e[0] != self.finished)
+            return True
+        if kind == b"Z":
+            self.expected = deque(e for e in self.expected if e[0] > self.finished)
+            self.finished += 1
+            return True
+        return False
 
     def _rewrite_parameter(self, body: bytes) -> bytes | None:
         try:
