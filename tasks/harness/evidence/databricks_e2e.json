@@ -15,7 +15,7 @@
       "flags": [
         "actor:alkera-local-dev"
       ],
-      "latency_ms": 162.682,
+      "latency_ms": 187.809,
       "op_class": "read",
       "read_targets": [
         "main.warehouse.fct_orders"
@@ -31,7 +31,7 @@
       "result_bytes": 116,
       "result_hash": "8e3d74e87303eec995233943f2d214fa669a0485c31d95fbe03b977714ba3bc6",
       "rows_affected": null,
-      "rss_mb": 192.547,
+      "rss_mb": 194.613,
       "schema_version": 1,
       "seq": 1,
       "target": "main.warehouse.fct_orders",
@@ -41,7 +41,7 @@
       "tool": "databricks.statement",
       "transport": "native",
       "vts": "2026-03-02T00:00:00Z",
-      "wts": 1791366816835
+      "wts": 1791373703304
     },
     {
       "args": {
@@ -58,7 +58,7 @@
       "flags": [
         "actor:alkera-local-dev"
       ],
-      "latency_ms": 5.835,
+      "latency_ms": 8.284,
       "op_class": "read",
       "read_targets": [
         "main.warehouse.dim_customer"
@@ -74,7 +74,7 @@
       "result_bytes": 111,
       "result_hash": "1305d82578c9b67031e19e44334cdad7c9626f4df7a7509a7c2ac2bbacea5816",
       "rows_affected": null,
-      "rss_mb": 193.379,
+      "rss_mb": 195.453,
       "schema_version": 1,
       "seq": 2,
       "target": "main.warehouse.dim_customer",
@@ -84,7 +84,7 @@
       "tool": "databricks.statement",
       "transport": "native",
       "vts": "2026-03-02T00:00:00Z",
-      "wts": 1791366816860
+      "wts": 1791373703324
     },
     {
       "args": {
@@ -101,7 +101,7 @@
       "flags": [
         "actor:alkera-local-dev"
       ],
-      "latency_ms": 9.051,
+      "latency_ms": 10.823,
       "op_class": "read",
       "read_targets": [
         "main.default.e2e_scratch"
@@ -118,7 +118,7 @@
       "result_bytes": 108,
       "result_hash": "74462306c65c0dc37862be17ca3324ebe0c6f39c1c753ac0d19767c34428727a",
       "rows_affected": null,
-      "rss_mb": 195.203,
+      "rss_mb": 197.203,
       "schema_version": 1,
       "seq": 18,
       "target": "main.default.e2e_scratch",
@@ -128,7 +128,7 @@
       "tool": "databricks.statement",
       "transport": "native",
       "vts": "2026-03-02T00:00:00Z",
-      "wts": 1791366817711
+      "wts": 1791373704267
     },
     {
       "args": {
@@ -145,7 +145,7 @@
       "flags": [
         "actor:alkera-local-dev"
       ],
-      "latency_ms": 6.087,
+      "latency_ms": 15.437,
       "op_class": "read",
       "read_targets": [
         "main.warehouse.fct_orders"
@@ -161,7 +161,7 @@
       "result_bytes": 111,
       "result_hash": "1c117718e9b6b1ef7d0143b72d81675781843ac69825e46261edc0dd5f0a7130",
       "rows_affected": null,
-      "rss_mb": 195.207,
+      "rss_mb": 197.203,
       "schema_version": 1,
       "seq": 19,
       "target": "main.warehouse.fct_orders",
@@ -171,7 +171,7 @@
       "tool": "databricks.statement",
       "transport": "native",
       "vts": "2026-03-02T00:00:00Z",
-      "wts": 1791366817767
+      "wts": 1791373704337
     }
   ],
   "box_profile": "world_dbt:\n  outputs:\n    dev:\n      path: /world/var/warehouse/warehouse.duckdb\n      threads: 1\n      type: duckdb\n    databricks:\n      type: databricks\n      host: '{{ env_var(''DATABRICKS_SERVER_HOSTNAME'') }}'\n      http_path: '{{ env_var(''DATABRICKS_HTTP_PATH'') }}'\n      token: '{{ env_var(''DATABRICKS_TOKEN'') }}'\n      port: 443\n      catalog: main\n      connection_parameters:\n        use_sea: true\n      schema: default\n      threads: 1\n  target: databricks\n",
@@ -406,12 +406,12 @@
     },
     {
       "check": "bare `dbt debug` connects to databricks through the box profile",
-      "detail": "4  adapter type: databricks\n\u001b[0m09:53:54  adapter version: 1.10.9\n\u001b[0m09:53:54  Configuration:\n\u001b[0m09:53:54    profiles.yml file [\u001b[32mOK found and valid\u001b[0m]\n\u001b[0m09:53:54    dbt_project.yml file [\u001b[32mOK found and valid\u001b[0m]\n\u001b[0m09:53:54  Required dependencies:\n\u001b[0m09:53:56   - git [\u001b[32mOK found\u001b[0m]\n\n\u001b[0m09:53:56  Connection:\n\u001b[0m09:53:56    host: databricks.internal\n\u001b[0m09:53:56    http_path: /sql/1.0/warehouses/alkera\n\u001b[0m09:53:56    catalog: main\n\u001b[0m09:53:56    schema: default\n\u001b[0m09:53:56  Registered adapter: databricks=1.10.9\n\u001b[0m09:53:56  databricks-sql-connector adapter: The SEA backend (use_sea=True) is deprecated and incomplete and should not be used in production; it is slated for removal. Use the kernel backend instead by passing use_kernel=True and installing the kernel extra: pip install 'databricks-sql-connector[kernel]'.\n\u001b[0m09:53:56    Connection test: [\u001b[32mOK connection ok\u001b[0m]\n\n\u001b[0m09:53:56  \u001b[32mAll checks passed!\u001b[0m\n/usr/local/lib/python3.11/site-packages/pydantic/_internal/_config.py:386: UserWarning: Valid config keys have changed in V2:\n* 'allow_population_by_field_name' has been renamed to 'validate_by_name'\n  warnings.warn(message, UserWarning)\nWARNING:databricks.sql.backend.sea.backend:The SEA backend (use_sea=True) is deprecated and incomplete and should not be used in production; it is slated for removal. Use the kernel backend instead by passing use_kernel=True and installing the kernel extra: pip install 'databricks-sql-connector[kernel]'.\n",
+      "detail": "5  adapter type: databricks\n\u001b[0m11:48:35  adapter version: 1.10.9\n\u001b[0m11:48:35  Configuration:\n\u001b[0m11:48:35    profiles.yml file [\u001b[32mOK found and valid\u001b[0m]\n\u001b[0m11:48:35    dbt_project.yml file [\u001b[32mOK found and valid\u001b[0m]\n\u001b[0m11:48:35  Required dependencies:\n\u001b[0m11:48:36   - git [\u001b[32mOK found\u001b[0m]\n\n\u001b[0m11:48:36  Connection:\n\u001b[0m11:48:36    host: databricks.internal\n\u001b[0m11:48:36    http_path: /sql/1.0/warehouses/alkera\n\u001b[0m11:48:36    catalog: main\n\u001b[0m11:48:36    schema: default\n\u001b[0m11:48:36  Registered adapter: databricks=1.10.9\n\u001b[0m11:48:36  databricks-sql-connector adapter: The SEA backend (use_sea=True) is deprecated and incomplete and should not be used in production; it is slated for removal. Use the kernel backend instead by passing use_kernel=True and installing the kernel extra: pip install 'databricks-sql-connector[kernel]'.\n\u001b[0m11:48:37    Connection test: [\u001b[32mOK connection ok\u001b[0m]\n\n\u001b[0m11:48:37  \u001b[32mAll checks passed!\u001b[0m\n/usr/local/lib/python3.11/site-packages/pydantic/_internal/_config.py:386: UserWarning: Valid config keys have changed in V2:\n* 'allow_population_by_field_name' has been renamed to 'validate_by_name'\n  warnings.warn(message, UserWarning)\nWARNING:databricks.sql.backend.sea.backend:The SEA backend (use_sea=True) is deprecated and incomplete and should not be used in production; it is slated for removal. Use the kernel backend instead by passing use_kernel=True and installing the kernel extra: pip install 'databricks-sql-connector[kernel]'.\n",
       "result": "PASS"
     },
     {
       "check": "dbt debug against the databricks target",
-      "detail": "6  adapter type: databricks\n\u001b[0m09:54:06  adapter version: 1.10.9\n\u001b[0m09:54:06  Configuration:\n\u001b[0m09:54:06    profiles.yml file [\u001b[32mOK found and valid\u001b[0m]\n\u001b[0m09:54:06    dbt_project.yml file [\u001b[32mOK found and valid\u001b[0m]\n\u001b[0m09:54:06  Required dependencies:\n\u001b[0m09:54:07   - git [\u001b[32mOK found\u001b[0m]\n\n\u001b[0m09:54:07  Connection:\n\u001b[0m09:54:07    host: databricks.internal\n\u001b[0m09:54:07    http_path: /sql/1.0/warehouses/alkera\n\u001b[0m09:54:07    catalog: main\n\u001b[0m09:54:07    schema: dbt_e2e\n\u001b[0m09:54:07  Registered adapter: databricks=1.10.9\n\u001b[0m09:54:07  databricks-sql-connector adapter: The SEA backend (use_sea=True) is deprecated and incomplete and should not be used in production; it is slated for removal. Use the kernel backend instead by passing use_kernel=True and installing the kernel extra: pip install 'databricks-sql-connector[kernel]'.\n\u001b[0m09:54:08    Connection test: [\u001b[32mOK connection ok\u001b[0m]\n\n\u001b[0m09:54:08  \u001b[32mAll checks passed!\u001b[0m\n/usr/local/lib/python3.11/site-packages/pydantic/_internal/_config.py:386: UserWarning: Valid config keys have changed in V2:\n* 'allow_population_by_field_name' has been renamed to 'validate_by_name'\n  warnings.warn(message, UserWarning)\nWARNING:databricks.sql.backend.sea.backend:The SEA backend (use_sea=True) is deprecated and incomplete and should not be used in production; it is slated for removal. Use the kernel backend instead by passing use_kernel=True and installing the kernel extra: pip install 'databricks-sql-connector[kernel]'.\n",
+      "detail": "4  adapter type: databricks\n\u001b[0m11:48:44  adapter version: 1.10.9\n\u001b[0m11:48:44  Configuration:\n\u001b[0m11:48:44    profiles.yml file [\u001b[32mOK found and valid\u001b[0m]\n\u001b[0m11:48:44    dbt_project.yml file [\u001b[32mOK found and valid\u001b[0m]\n\u001b[0m11:48:44  Required dependencies:\n\u001b[0m11:48:45   - git [\u001b[32mOK found\u001b[0m]\n\n\u001b[0m11:48:45  Connection:\n\u001b[0m11:48:45    host: databricks.internal\n\u001b[0m11:48:45    http_path: /sql/1.0/warehouses/alkera\n\u001b[0m11:48:45    catalog: main\n\u001b[0m11:48:45    schema: dbt_e2e\n\u001b[0m11:48:45  Registered adapter: databricks=1.10.9\n\u001b[0m11:48:46  databricks-sql-connector adapter: The SEA backend (use_sea=True) is deprecated and incomplete and should not be used in production; it is slated for removal. Use the kernel backend instead by passing use_kernel=True and installing the kernel extra: pip install 'databricks-sql-connector[kernel]'.\n\u001b[0m11:48:46    Connection test: [\u001b[32mOK connection ok\u001b[0m]\n\n\u001b[0m11:48:46  \u001b[32mAll checks passed!\u001b[0m\n/usr/local/lib/python3.11/site-packages/pydantic/_internal/_config.py:386: UserWarning: Valid config keys have changed in V2:\n* 'allow_population_by_field_name' has been renamed to 'validate_by_name'\n  warnings.warn(message, UserWarning)\nWARNING:databricks.sql.backend.sea.backend:The SEA backend (use_sea=True) is deprecated and incomplete and should not be used in production; it is slated for removal. Use the kernel backend instead by passing use_kernel=True and installing the kernel extra: pip install 'databricks-sql-connector[kernel]'.\n",
       "result": "PASS"
     },
     {
@@ -522,9 +522,9 @@
       "detail": [
         {
           "count": 17,
-          "first_ts": "2026-10-07T09:53:36Z",
+          "first_ts": "2026-10-07T11:48:23Z",
           "host": "databricks.internal",
-          "last_ts": "2026-10-07T09:54:22Z",
+          "last_ts": "2026-10-07T11:49:00Z",
           "port": 443
         }
       ],
@@ -566,11 +566,11 @@
   "dbt": {
     "bare_debug": {
       "rc": 0,
-      "tail": "4  adapter type: databricks\n\u001b[0m09:53:54  adapter version: 1.10.9\n\u001b[0m09:53:54  Configuration:\n\u001b[0m09:53:54    profiles.yml file [\u001b[32mOK found and valid\u001b[0m]\n\u001b[0m09:53:54    dbt_project.yml file [\u001b[32mOK found and valid\u001b[0m]\n\u001b[0m09:53:54  Required dependencies:\n\u001b[0m09:53:56   - git [\u001b[32mOK found\u001b[0m]\n\n\u001b[0m09:53:56  Connection:\n\u001b[0m09:53:56    host: databricks.internal\n\u001b[0m09:53:56    http_path: /sql/1.0/warehouses/alkera\n\u001b[0m09:53:56    catalog: main\n\u001b[0m09:53:56    schema: default\n\u001b[0m09:53:56  Registered adapter: databricks=1.10.9\n\u001b[0m09:53:56  databricks-sql-connector adapter: The SEA backend (use_sea=True) is deprecated and incomplete and should not be used in production; it is slated for removal. Use the kernel backend instead by passing use_kernel=True and installing the kernel extra: pip install 'databricks-sql-connector[kernel]'.\n\u001b[0m09:53:56    Connection test: [\u001b[32mOK connection ok\u001b[0m]\n\n\u001b[0m09:53:56  \u001b[32mAll checks passed!\u001b[0m\n/usr/local/lib/python3.11/site-packages/pydantic/_internal/_config.py:386: UserWarning: Valid config keys have changed in V2:\n* 'allow_population_by_field_name' has been renamed to 'validate_by_name'\n  warnings.warn(message, UserWarning)\nWARNING:databricks.sql.backend.sea.backend:The SEA backend (use_sea=True) is deprecated and incomplete and should not be used in production; it is slated for removal. Use the kernel backend instead by passing use_kernel=True and installing the kernel extra: pip install 'databricks-sql-connector[kernel]'.\n"
+      "tail": "5  adapter type: databricks\n\u001b[0m11:48:35  adapter version: 1.10.9\n\u001b[0m11:48:35  Configuration:\n\u001b[0m11:48:35    profiles.yml file [\u001b[32mOK found and valid\u001b[0m]\n\u001b[0m11:48:35    dbt_project.yml file [\u001b[32mOK found and valid\u001b[0m]\n\u001b[0m11:48:35  Required dependencies:\n\u001b[0m11:48:36   - git [\u001b[32mOK found\u001b[0m]\n\n\u001b[0m11:48:36  Connection:\n\u001b[0m11:48:36    host: databricks.internal\n\u001b[0m11:48:36    http_path: /sql/1.0/warehouses/alkera\n\u001b[0m11:48:36    catalog: main\n\u001b[0m11:48:36    schema: default\n\u001b[0m11:48:36  Registered adapter: databricks=1.10.9\n\u001b[0m11:48:36  databricks-sql-connector adapter: The SEA backend (use_sea=True) is deprecated and incomplete and should not be used in production; it is slated for removal. Use the kernel backend instead by passing use_kernel=True and installing the kernel extra: pip install 'databricks-sql-connector[kernel]'.\n\u001b[0m11:48:37    Connection test: [\u001b[32mOK connection ok\u001b[0m]\n\n\u001b[0m11:48:37  \u001b[32mAll checks passed!\u001b[0m\n/usr/local/lib/python3.11/site-packages/pydantic/_internal/_config.py:386: UserWarning: Valid config keys have changed in V2:\n* 'allow_population_by_field_name' has been renamed to 'validate_by_name'\n  warnings.warn(message, UserWarning)\nWARNING:databricks.sql.backend.sea.backend:The SEA backend (use_sea=True) is deprecated and incomplete and should not be used in production; it is slated for removal. Use the kernel backend instead by passing use_kernel=True and installing the kernel extra: pip install 'databricks-sql-connector[kernel]'.\n"
     },
     "debug": {
       "rc": 0,
-      "tail": "6  adapter type: databricks\n\u001b[0m09:54:06  adapter version: 1.10.9\n\u001b[0m09:54:06  Configuration:\n\u001b[0m09:54:06    profiles.yml file [\u001b[32mOK found and valid\u001b[0m]\n\u001b[0m09:54:06    dbt_project.yml file [\u001b[32mOK found and valid\u001b[0m]\n\u001b[0m09:54:06  Required dependencies:\n\u001b[0m09:54:07   - git [\u001b[32mOK found\u001b[0m]\n\n\u001b[0m09:54:07  Connection:\n\u001b[0m09:54:07    host: databricks.internal\n\u001b[0m09:54:07    http_path: /sql/1.0/warehouses/alkera\n\u001b[0m09:54:07    catalog: main\n\u001b[0m09:54:07    schema: dbt_e2e\n\u001b[0m09:54:07  Registered adapter: databricks=1.10.9\n\u001b[0m09:54:07  databricks-sql-connector adapter: The SEA backend (use_sea=True) is deprecated and incomplete and should not be used in production; it is slated for removal. Use the kernel backend instead by passing use_kernel=True and installing the kernel extra: pip install 'databricks-sql-connector[kernel]'.\n\u001b[0m09:54:08    Connection test: [\u001b[32mOK connection ok\u001b[0m]\n\n\u001b[0m09:54:08  \u001b[32mAll checks passed!\u001b[0m\n/usr/local/lib/python3.11/site-packages/pydantic/_internal/_config.py:386: UserWarning: Valid config keys have changed in V2:\n* 'allow_population_by_field_name' has been renamed to 'validate_by_name'\n  warnings.warn(message, UserWarning)\nWARNING:databricks.sql.backend.sea.backend:The SEA backend (use_sea=True) is deprecated and incomplete and should not be used in production; it is slated for removal. Use the kernel backend instead by passing use_kernel=True and installing the kernel extra: pip install 'databricks-sql-connector[kernel]'.\n"
+      "tail": "4  adapter type: databricks\n\u001b[0m11:48:44  adapter version: 1.10.9\n\u001b[0m11:48:44  Configuration:\n\u001b[0m11:48:44    profiles.yml file [\u001b[32mOK found and valid\u001b[0m]\n\u001b[0m11:48:44    dbt_project.yml file [\u001b[32mOK found and valid\u001b[0m]\n\u001b[0m11:48:44  Required dependencies:\n\u001b[0m11:48:45   - git [\u001b[32mOK found\u001b[0m]\n\n\u001b[0m11:48:45  Connection:\n\u001b[0m11:48:45    host: databricks.internal\n\u001b[0m11:48:45    http_path: /sql/1.0/warehouses/alkera\n\u001b[0m11:48:45    catalog: main\n\u001b[0m11:48:45    schema: dbt_e2e\n\u001b[0m11:48:45  Registered adapter: databricks=1.10.9\n\u001b[0m11:48:46  databricks-sql-connector adapter: The SEA backend (use_sea=True) is deprecated and incomplete and should not be used in production; it is slated for removal. Use the kernel backend instead by passing use_kernel=True and installing the kernel extra: pip install 'databricks-sql-connector[kernel]'.\n\u001b[0m11:48:46    Connection test: [\u001b[32mOK connection ok\u001b[0m]\n\n\u001b[0m11:48:46  \u001b[32mAll checks passed!\u001b[0m\n/usr/local/lib/python3.11/site-packages/pydantic/_internal/_config.py:386: UserWarning: Valid config keys have changed in V2:\n* 'allow_population_by_field_name' has been renamed to 'validate_by_name'\n  warnings.warn(message, UserWarning)\nWARNING:databricks.sql.backend.sea.backend:The SEA backend (use_sea=True) is deprecated and incomplete and should not be used in production; it is slated for removal. Use the kernel backend instead by passing use_kernel=True and installing the kernel extra: pip install 'databricks-sql-connector[kernel]'.\n"
     },
     "run": {
       "rc": 0,
@@ -580,9 +580,9 @@
   "destinations": [
     {
       "count": 17,
-      "first_ts": "2026-10-07T09:53:36Z",
+      "first_ts": "2026-10-07T11:48:23Z",
       "host": "databricks.internal",
-      "last_ts": "2026-10-07T09:54:22Z",
+      "last_ts": "2026-10-07T11:49:00Z",
       "port": 443
     },
     {
@@ -842,7 +842,7 @@
     ]
   },
   "stack": {
-    "container_id": "7d2a7f959ef5",
+    "container_id": "098374381ef8",
     "episode_endpoints": {
       "airbyte": "http://airbyte.internal:8001",
       "alertmanager": "http://alertmanager.internal:9093",
