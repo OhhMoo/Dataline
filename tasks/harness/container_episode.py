@@ -873,6 +873,11 @@ MOUNTS_OVERLAY_NAME = "compose.native-mounts.yml"
 #: MinIO's port, published on loopback beside the nine so the surface gate's
 #: signed bucket listing has somewhere to go.
 MINIO_PORT = 9000
+#: The variable `compose_env` hands compose the per-rollout MinIO audit token
+#: in. compose.native.yml interpolates it into exactly two environments, MinIO's
+#: webhook (`MINIO_AUDIT_WEBHOOK_AUTH_TOKEN_alkera`) and native-services' (the
+#: receiver checks it): never the episode's, jupyter's or the subject's.
+MINIO_AUDIT_TOKEN_ENV = "ALKERA_MINIO_AUDIT_TOKEN"
 #: The static table's backend variables, by the plug that serves them: a
 #: profiled box keeps a group only when its profile plugs that backend
 #: (`profile_variables`). Unprofiled boxes keep all of them, as before.
@@ -1826,6 +1831,12 @@ class NativeContainerEpisode:
     subject_container: str = ""
     proxy_container: str = ""
     rexec_token: str = field(default_factory=lambda: secrets.token_hex(16))
+    #: The shared secret MinIO's audit webhook sends and native-services'
+    #: receiver (:8110) requires, so a POST from the episode cannot forge
+    #: `minio.*` rows (gateway/docker/evidence/CONTAINMENT_2026-10-07.md, the
+    #: 8110 row). Minted per rollout and handed to compose in its process
+    #: environment only (`compose_env`): it is in no file the rollout writes.
+    minio_audit_token: str = field(default_factory=lambda: secrets.token_hex(32))
     #: What `down()` folded from the Postgres server's statement log
     #: (`postgres_live.fold_statement_log`): rows, or the `error` that makes the
     #: rollout a harness failure (rollout.py), or `skipped`. {} until `down()`.
@@ -2346,6 +2357,11 @@ services:
             "ALKERA_EPISODE_IMAGE": self.image,
             "ALKERA_SUBJECT_IMAGE": self.subject_image,
             "ALKERA_REXEC_TOKEN": self.rexec_token,
+            # MinIO's webhook sends it and native-services' receiver requires
+            # it (compose.native.yml interpolates it into those two services
+            # only). Set on every stack; a box with no object store runs
+            # neither, and the value goes unused.
+            MINIO_AUDIT_TOKEN_ENV: self.minio_audit_token,
             # `--profile ... --plug ...` on the native-services command line
             # (compose.native.yml). Always set, so an empty value from this
             # process and not one inherited from the caller's shell is what an

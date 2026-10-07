@@ -167,6 +167,11 @@ MINIO_AUDIT_PORT = 8110
 #: never dials it (MinIO does, from inside the stack), so it is excluded from
 #: the aggregate's service list the way any non-agent surface would be.
 MINIO_AUDIT_NAME = "minio-audit"
+#: The variable the receiver's shared secret arrives in (compose.native.yml sets
+#: it on native-services; `tailers.minio.TOKEN_ENV` is the same name). `main`
+#: removes it from the environment before any service module is imported, so
+#: none of them, and no process one of them starts, inherits it.
+MINIO_AUDIT_TOKEN_ENV = "ALKERA_MINIO_AUDIT_TOKEN"
 #: The SCHEDULER plane, under its own alias `sched.internal`.
 #:
 #: It is not one of the nine and it is not a vendor: `sched_*` has no fake
@@ -497,7 +502,7 @@ def service_environment(audit: Path, world: Path,
     return {name: os.environ[name] for name in env}
 
 
-def minio_receiver(port: int) -> tuple[Mounted | None, str | None]:
+def minio_receiver(port: int, token: str = "") -> tuple[Mounted | None, str | None]:
     """AUDIT's MinIO audit-webhook receiver, mounted on this process.
 
     Returns `(mounted, None)` or `(None, why)`. It is not fatal: MinIO's
@@ -506,13 +511,23 @@ def minio_receiver(port: int) -> tuple[Mounted | None, str | None]:
     than rows - but the reason is carried into the startup table and the
     aggregate's `missing`, because a storage plane whose rows are all still in
     a spool directory must not look like a storage plane nobody used.
+
+    `token` is the shared secret MinIO's webhook sends (MINIO_AUDIT_TOKEN_ENV).
+    Without one no receiver is served: the episode shares its network, and an
+    unauthenticated receiver is a way for it to forge `minio.*` rows
+    (gateway/docker/evidence/CONTAINMENT_2026-10-07.md).
     """
+    if not token:
+        return None, (f"no {MINIO_AUDIT_TOKEN_ENV}: an unauthenticated receiver "
+                      f"would let anything that reaches it append minio.* rows, "
+                      f"so none is served")
     try:
         from .tailers.minio import build_app
+        app = build_app(token)
     except ImportError as exc:                         # the `native` extra
         return None, f"{type(exc).__name__}: {exc}"
     return Mounted(MINIO_AUDIT_NAME, "native-services.internal", port,
-                   build_app(), "receiver", False, destination=False), None
+                   app, "receiver", False, destination=False), None
 
 
 def sched_plane(port: int) -> tuple[Mounted | None, str | None]:
@@ -828,6 +843,10 @@ def main(argv: list[str] | None = None) -> int:
         print(exc, file=sys.stderr, flush=True)
         return 2
 
+    # The receiver's secret leaves the environment before any service module
+    # is imported, so none of them, and nothing they start, inherits it.
+    minio_token = os.environ.pop(MINIO_AUDIT_TOKEN_ENV, "")
+
     # The services read the world and write the action log through
     # `native.audit.record`, which takes both from the environment. Set here
     # rather than passed, because a PATH shim the agent runs is a separate
@@ -852,7 +871,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"--minio-audit-port {audit_port} is a service port",
                   file=sys.stderr, flush=True)
             return 1
-        receiver, why = minio_receiver(audit_port)
+        receiver, why = minio_receiver(audit_port, minio_token)
         if receiver is not None:
             mounted.append(receiver)
         else:

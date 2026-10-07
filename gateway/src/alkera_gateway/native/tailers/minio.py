@@ -13,8 +13,24 @@ HOW THE SERVER IS MADE TO TALK
     MINIO_AUDIT_WEBHOOK_ENDPOINT_alkera=http://<receiver>:<port>/audit
 
 MinIO then POSTs one JSON object per request it serves, `api.name` naming the
-S3 operation. The receiver is `app` below; `python -m
-alkera_gateway.native.tailers.minio --port 9010` runs it.
+S3 operation. The receiver is `build_app` below; `ALKERA_MINIO_AUDIT_TOKEN=<token>
+python -m alkera_gateway.native.tailers.minio --port 9010` runs it.
+
+WHO MAY POST
+------------
+Only MinIO. The receiver shares a network with the episode (native-services is
+on episode_net, which is how MinIO reaches it), so without a check anything the
+agent runs could POST a made-up event and forge `minio.*` rows. MinIO is given
+a shared secret,
+
+    MINIO_AUDIT_WEBHOOK_AUTH_TOKEN_alkera=<token>
+
+which it sends, bare, as the `Authorization` header of every webhook POST
+(measured on the pinned pgsty/minio, RELEASE.2026-08-04), and the
+receiver is built with the same token (`build_app(token)`; serve.py reads it
+from TOKEN_ENV). A POST without it is answered 401 before its body is read, and
+writes no row. There is no unauthenticated mode: `build_app` refuses an empty
+token, and serve.py then serves no receiver and says so.
 
 WHAT IS DROPPED AND WHY
 -----------------------
@@ -26,13 +42,22 @@ entry for - those get an `op_class` from the verb prefix and the flag
 worse than one logged as a write with a note on it.
 """
 import argparse
+import hmac
 import json
+import os
 import sys
 from typing import Any
 
 from ..audit import record
 
 ACTOR = "minio-tailer"
+#: Where serve.py (and `main` below) read the shared secret from. Set on the
+#: native-services container by compose.native.yml, from the per-rollout value
+#: tasks/harness/container_episode.NativeContainerEpisode mints.
+TOKEN_ENV = "ALKERA_MINIO_AUDIT_TOKEN"
+#: What a refused POST is answered. No row is written for it.
+UNAUTHORIZED = {"error": "unauthorized",
+                "message": "the MinIO audit receiver accepts MinIO's webhook only"}
 
 # The S3 operations an episode's storage surface uses, classified the way
 # `alkera_gateway.storage.ObjectStorage` classifies the MCP tools that wrap
@@ -170,8 +195,23 @@ def row_from_event(event: dict[str, Any]) -> dict | None:
     )
 
 
-def build_app():
-    """The receiver.
+def authorized(header: str | None, token: str) -> bool:
+    """Does an `Authorization` header carry `token`?
+
+    Accepted as MinIO may send it: the bare token, or `Bearer <token>`. Compared
+    in constant time. An empty token authorizes nothing.
+    """
+    if not token or not header:
+        return False
+    value = header.strip()
+    scheme, _, rest = value.partition(" ")
+    if scheme.lower() == "bearer" and rest.strip():
+        value = rest.strip()
+    return hmac.compare_digest(value.encode("utf-8"), token.encode("utf-8"))
+
+
+def build_app(token: str):
+    """The receiver, answering only POSTs that carry `token` (see WHO MAY POST).
 
     FastAPI is imported here, not at module scope, because it is the `native`
     extra and the parse functions above must stay importable on a base install.
@@ -180,13 +220,25 @@ def build_app():
     stringised `Request` imported into a function scope is unresolvable and the
     handler is served as a 422 - measured against MinIO before it was fixed.
     """
+    if not token:
+        raise ValueError(
+            f"the MinIO audit receiver needs a token ({TOKEN_ENV}): without one, "
+            f"anything that can reach it could append minio.* rows")
     from fastapi import FastAPI, Request
+    from fastapi.responses import JSONResponse
 
     application = FastAPI(title="alkera minio audit receiver")
 
     @application.post("/{path:path}")
     async def audit(request: Request):
         """MinIO posts one JSON object per request it served."""
+        if not authorized(request.headers.get("authorization"), token):
+            # Refused before the body is read: nothing of it reaches a row.
+            # Said on stderr (the container's log), not in actions.jsonl.
+            client = request.client.host if request.client else "?"
+            print(f"minio audit receiver: refused a POST from {client} "
+                  f"(no valid token)", file=sys.stderr, flush=True)
+            return JSONResponse(UNAUTHORIZED, status_code=401)
         body = await request.body()
         written = 0
         for line in body.decode("utf-8", "replace").splitlines():
@@ -204,11 +256,17 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=9010)
     arguments = parser.parse_args(argv)
+    token = os.environ.pop(TOKEN_ENV, "")
+    if not token:
+        print(f"set {TOKEN_ENV}, and give MinIO the same value as "
+              f"MINIO_AUDIT_WEBHOOK_AUTH_TOKEN_alkera", file=sys.stderr)
+        return 2
     print(
         f"MINIO_AUDIT_WEBHOOK_ENDPOINT_alkera=http://{arguments.host}:{arguments.port}/audit",
         file=sys.stderr,
     )
-    uvicorn.run(build_app(), host=arguments.host, port=arguments.port, log_level="warning")
+    uvicorn.run(build_app(token), host=arguments.host, port=arguments.port,
+                log_level="warning")
     return 0
 
 

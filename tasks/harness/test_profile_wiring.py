@@ -720,6 +720,35 @@ def test_compose_config_drops_excluded_variables(world, tmp_path, no_docker):
     assert {"SCHED_URL", "METABASE_URL", "AWS_ENDPOINT_URL"} <= set(unprofiled)
 
 
+# ---------------------------------------- MinIO: the audit receiver's token
+def test_minio_audit_token_reaches_minio_and_native_services_only(world, tmp_path,
+                                                                  no_docker):
+    """The receiver's shared secret: per rollout, in compose's process environment
+    (no file), interpolated into MinIO's webhook and native-services - never into
+    the episode, jupyter or the subject."""
+    _clocked(world)
+    a, b = _stack(world, tmp_path, "r1"), _stack(world, tmp_path, "r2")
+    assert a.minio_audit_token != b.minio_audit_token and len(a.minio_audit_token) == 64
+    a.write_overlay()
+    assert a.minio_audit_token not in a.overlay.read_text(encoding="utf-8")
+    env = a.compose_env()
+    assert env[ce.MINIO_AUDIT_TOKEN_ENV] == a.minio_audit_token
+    services = _compose_config(a)["services"]
+    token = a.minio_audit_token
+    assert services["minio"]["environment"]["MINIO_AUDIT_WEBHOOK_AUTH_TOKEN_alkera"] == token
+    assert services["native-services"]["environment"][ce.MINIO_AUDIT_TOKEN_ENV] == token
+    holders = {name for name, svc in services.items()
+               if token in json.dumps(svc.get("environment") or {})}
+    assert holders == {"minio", "native-services"}
+    stack = _stack(world, tmp_path, "r3", profile=PROFILE, plugs=BI001_PLUGS,
+                   subject_sandbox=True)
+    stack.write_overlay()
+    services = _compose_config(stack)["services"]
+    assert {"episode", "jupyter", "subject"} <= set(services)
+    assert not any(stack.minio_audit_token in json.dumps(svc.get("environment") or {})
+                   for name, svc in services.items() if name != "native-services")
+
+
 # ------------------------------- the services' own state (bistate.py, P7 H)
 def test_compose_env_names_the_rollouts_service_state(world, tmp_path):
     import bistate

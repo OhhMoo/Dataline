@@ -52,6 +52,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import secrets
 import socket
 import subprocess
 import sys
@@ -403,6 +404,10 @@ class NativeStack:
         self._proc: subprocess.Popen | None = None
         self._log = None
         self._minio: str | None = None
+        #: The shared secret MinIO's audit webhook sends and serve.py's receiver
+        #: requires (`tailers.minio.build_app`): without it serve.py serves no
+        #: receiver at all. Handed to both through their environments.
+        self._minio_token = secrets.token_hex(32)
 
     # ------------------------------------------------------------- bring-up
     def up(self) -> dict:
@@ -459,9 +464,12 @@ class NativeStack:
     def _start_services(self) -> None:
         argv = self._serve_argv()
         self._log = open(self.log_path, "w", encoding="utf-8", newline="")
+        from alkera_gateway.native import serve
+
+        env = {**venv_env(), serve.MINIO_AUDIT_TOKEN_ENV: self._minio_token}
         self._proc = subprocess.Popen(argv, stdout=self._log,
                                       stderr=subprocess.STDOUT,
-                                      env=venv_env(), cwd=str(self.rollout_dir))
+                                      env=env, cwd=str(self.rollout_dir))
         self._await_listening()
 
     def _await_listening(self) -> None:
@@ -599,12 +607,17 @@ class NativeStack:
             "-e", "MINIO_AUDIT_WEBHOOK_ENABLE_alkera=on",
             "-e", f"MINIO_AUDIT_WEBHOOK_ENDPOINT_alkera={endpoint}",
             "-e", "MINIO_AUDIT_WEBHOOK_QUEUE_DIR_alkera=/audit-spool",
+            # By name only: docker takes the value from this process's
+            # environment (`env=` below), so it is not on the command line.
+            "-e", "MINIO_AUDIT_WEBHOOK_AUTH_TOKEN_alkera",
             "--entrypoint", "sh", MINIO_IMAGE, "-c",
             f"mkdir -p /data/{aut.NATIVE_DEFAULTS['s3_bucket']} /audit-spool "
             f"&& exec minio server /data",
         ]
         result = subprocess.run(argv, capture_output=True, text=True,
-                                encoding="utf-8")
+                                encoding="utf-8",
+                                env={**os.environ, "MINIO_AUDIT_WEBHOOK_AUTH_TOKEN_alkera":
+                                     self._minio_token})
         if result.returncode != 0:
             raise episode.HarnessError(
                 f"could not start MinIO for the native stack:\n{result.stderr}")

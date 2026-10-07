@@ -75,6 +75,8 @@ PG_PASSWORD = "alkera-test"
 # clear MinIO's eight-character minimum.
 MINIO_USER = "alkera-local-dev"
 MINIO_SECRET = "alkera-local-dev-secret"
+#: The audit webhook's shared secret, as compose.native.yml passes it.
+MINIO_AUDIT_TOKEN = "alkera-local-dev-audit-token"
 
 START_TIMEOUT_S = 90
 # The webhook round-trip crosses Docker Desktop's VM; a loaded CI host has
@@ -288,7 +290,8 @@ def minio(docker_daemon):
 
     port = free_port()
     server = uvicorn.Server(
-        uvicorn.Config(minio_tailer.build_app(), host="0.0.0.0", port=port, log_level="warning")
+        uvicorn.Config(minio_tailer.build_app(MINIO_AUDIT_TOKEN), host="0.0.0.0", port=port,
+                       log_level="warning")
     )
     thread = threading.Thread(target=server.run, daemon=True)
     thread.start()
@@ -305,6 +308,9 @@ def minio(docker_daemon):
         "-e", f"MINIO_ROOT_PASSWORD={MINIO_SECRET}",
         "-e", "MINIO_AUDIT_WEBHOOK_ENABLE_alkera=on",
         "-e", f"MINIO_AUDIT_WEBHOOK_ENDPOINT_alkera=http://alkera-audit-host:{port}/audit",
+        # The receiver answers only MinIO's own token (tailers.minio, WHO MAY
+        # POST): so the rows below also measure that this MinIO sends it.
+        "-e", f"MINIO_AUDIT_WEBHOOK_AUTH_TOKEN_alkera={MINIO_AUDIT_TOKEN}",
         "--add-host", f"alkera-audit-host:{host_ip}",
         MINIO_IMAGE, "server", "/data",
     )
@@ -529,6 +535,66 @@ def test_minio_tailer_records_what_boto3_did(minio, native_log):
     assert rows["minio.GetObject"]["op_class"] == "read"
     assert rows["minio.DeleteObject"]["op_class"] == "destructive"
     assert rows["minio.DeleteObject"]["flags"][:1] == ["delete"]
+
+
+# A webhook body as MinIO posts it: one JSON object per line.
+FORGED_EVENT = json.dumps({"api": {"name": "PutObject", "bucket": BUCKET, "object": KEY,
+                                   "statusCode": 200}}) + "\n"
+
+
+def test_minio_receiver_refuses_a_post_without_the_token(native_log):
+    """Anything on episode_net can reach :8110; only MinIO holds the token. A POST
+    without it, or with another, is a 401 and writes no row."""
+    from fastapi.testclient import TestClient
+
+    client = TestClient(minio_tailer.build_app(MINIO_AUDIT_TOKEN))
+    for headers in ({}, {"Authorization": "wrong"}, {"Authorization": "Bearer wrong"},
+                    {"Authorization": f"Basic {MINIO_AUDIT_TOKEN}"},
+                    {"X-Auth-Token": MINIO_AUDIT_TOKEN}):
+        reply = client.post("/minio/audit", content=FORGED_EVENT, headers=headers)
+        assert reply.status_code == 401, headers
+        assert reply.json()["error"] == "unauthorized"
+    assert not native_log.exists() or read_rows(native_log) == []
+    # MinIO's own POST: the bare token, or as a bearer token
+    for header in (MINIO_AUDIT_TOKEN, f"Bearer {MINIO_AUDIT_TOKEN}"):
+        reply = client.post("/minio/audit", content=FORGED_EVENT,
+                            headers={"Authorization": header})
+        assert reply.status_code == 200 and reply.json() == {"rows": 1}
+    assert [row["tool"] for row in read_rows(native_log)] == ["minio.PutObject"] * 2
+
+
+def test_minio_receiver_has_no_unauthenticated_mode():
+    from alkera_gateway.native import serve
+
+    with pytest.raises(ValueError, match=minio_tailer.TOKEN_ENV):
+        minio_tailer.build_app("")
+    assert not minio_tailer.authorized("", "")
+    assert not minio_tailer.authorized("Bearer ", "")
+    mounted, why = serve.minio_receiver(serve.MINIO_AUDIT_PORT, "")
+    assert mounted is None and serve.MINIO_AUDIT_TOKEN_ENV in why
+    mounted, why = serve.minio_receiver(serve.MINIO_AUDIT_PORT, MINIO_AUDIT_TOKEN)
+    assert why is None and mounted.port == serve.MINIO_AUDIT_PORT
+    assert mounted.destination is False
+    assert serve.MINIO_AUDIT_TOKEN_ENV == minio_tailer.TOKEN_ENV
+
+
+def test_serve_takes_the_token_out_of_its_environment(tmp_path, monkeypatch, capsys):
+    """The service modules (and anything they start) never inherit the secret, and
+    without it the receiver is reported missing, never served open."""
+    from alkera_gateway.native import serve
+
+    world = tmp_path / "world"
+    world.mkdir()
+    monkeypatch.setenv(serve.MINIO_AUDIT_TOKEN_ENV, MINIO_AUDIT_TOKEN)
+    assert serve.main(["--audit", str(tmp_path / "a1"), "--world", str(world),
+                       "--print-only"]) == 0
+    assert serve.MINIO_AUDIT_TOKEN_ENV not in os.environ
+    printed = capsys.readouterr().out
+    assert MINIO_AUDIT_TOKEN not in printed
+    assert "minio-audit" in printed and "no ALKERA_MINIO_AUDIT_TOKEN" not in printed
+    assert serve.main(["--audit", str(tmp_path / "a2"), "--world", str(world),
+                       "--print-only"]) == 0
+    assert "no ALKERA_MINIO_AUDIT_TOKEN" in capsys.readouterr().out
 
 
 def test_airflow_tailer_routes_a_real_access_log(native_log):

@@ -71,7 +71,9 @@
 #     in /audit, which the episode container mounts read-write.
 #   native-services.internal:8110  MinIO's audit webhook receiver. Served by
 #        the same process; dialled by MinIO, never by the episode, and so not
-#        a row in destinations.jsonl.
+#        a row in destinations.jsonl. The episode can still REACH it (same
+#        network), so it answers only a POST carrying the per-stack
+#        ALKERA_MINIO_AUDIT_TOKEN that MinIO's webhook sends; see `minio` below.
 #   postgres.internal:5432    the primary warehouse, log_statement=all
 #   minio.internal:9000       object storage, audit webhook -> the tailer
 #   airflow.internal:8080     the scheduler's REST API and CLI
@@ -286,6 +288,11 @@ services:
         --audit /audit --world /world --bind 0.0.0.0
         ${ALKERA_NATIVE_STUBS:-} ${ALKERA_NATIVE_PROFILE_ARGS:-}
     stop_grace_period: 2s
+    environment:
+      # The MinIO audit receiver's shared secret; the `minio` service below
+      # says why and where it comes from. serve.py takes it out of its own
+      # environment before any service module loads.
+      ALKERA_MINIO_AUDIT_TOKEN: ${ALKERA_MINIO_AUDIT_TOKEN:-}
     networks:
       episode_net:
         aliases:
@@ -475,6 +482,18 @@ services:
         ${ALKERA_MINIO_AUDIT_ENDPOINT:-http://native-services.internal:8110/minio/audit}
       MINIO_AUDIT_WEBHOOK_QUEUE_DIR_alkera: /audit-spool
       MINIO_AUDIT_WEBHOOK_QUEUE_SIZE_alkera: "100000"
+      # Sent as the webhook's Authorization header; the receiver refuses any
+      # POST without it, so nothing else on episode_net (the episode above all)
+      # can forge `minio.*` rows (evidence/CONTAINMENT_2026-10-07.md, the
+      # native-services:8110 row). The value is minted per rollout by
+      # tasks/harness/container_episode.NativeContainerEpisode and handed to
+      # compose in its process environment, so it is in no file: not here, not
+      # in the per-rollout overlay. Only this service and native-services
+      # interpolate it, and the episode can read neither one's environment.
+      # Unset (a stack someone else brings up), MinIO sends no token and
+      # serve.py serves no receiver; it reports the receiver as `missing` and
+      # MinIO keeps its events in the queue directory.
+      MINIO_AUDIT_WEBHOOK_AUTH_TOKEN_alkera: ${ALKERA_MINIO_AUDIT_TOKEN:-}
       # 8110 and not 8099: 8099 is serve.py's aggregate /health. The receiver
       # is AUDIT's `native/tailers/minio.py:build_app()`, hosted by serve.py in
       # the native-services process (serve.MINIO_AUDIT_PORT) - one process, so
