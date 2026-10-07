@@ -17,6 +17,7 @@ from pathlib import Path
 from . import digest, dockerenv
 from .constants import CANARY_MD, CANARY_TEXT, TASKS_DIR
 from .context import GitView
+from .harness import is_task_package_name
 
 #: Files that must carry the canary in their first lines (contract 1.8).
 CANARY_FILES = ("task.toml", "instruction.md", "environment/Dockerfile",
@@ -75,14 +76,16 @@ def _sha(path: Path) -> str:
 
 
 def grading_fingerprints(tasks_dir: Path = TASKS_DIR) -> dict[str, str]:
-    """sha256 -> repo path of every grader / oracle file of every task.
+    """sha256 -> repo path of every grader / oracle file of every task package
+    (GT*, BI*, ...: harness.is_task_package_name).
 
     `tasks/*/tests/**` (minus `tests/fixtures/`, which ARE world sources) and
     `tasks/*/solution/**`, as git sees them (so build caches are not counted).
     """
     repo = tasks_dir.parent
     candidates: list[tuple[str, Path]] = []
-    for task in sorted(tasks_dir.glob("GT*")):
+    for task in sorted(p for p in tasks_dir.iterdir()
+                       if p.is_dir() and is_task_package_name(p.name)):
         for sub in ("tests", "solution"):
             root = task / sub
             if not root.is_dir():

@@ -7,27 +7,27 @@
     "original_benchmark": [
       {
         "split": "full",
-        "size": 28,
+        "size": 32,
         "harness": "agent",
         "supported_agents": [
           "claude-code"
         ],
         "adaptable": true,
-        "notes": "Nine source tasks (tasks/GT001-GT009), each with 2-8 context arms declared in its task.toml [variants]; 28 (task, arm) units in total. The original harness (tasks/harness/rollout.py, --driver native --topology container) runs the agent at a shell in an episode container with the world's services in a sibling container, and grades with each task's deterministic grade.py plus the outcome/progress/path/reward composition of report.py."
+        "notes": "Eleven source tasks (tasks/GT001-GT009 and the BI tasks BI001, BI002), each with 2-8 context arms declared in its task.toml [variants]; 32 (task, arm) units in total (GT 28, BI 4). The original harness (tasks/harness/rollout.py, --driver native --topology container) runs the agent at a shell in an episode container with the world's services in a sibling container, and grades with each task's deterministic grade.py plus the outcome/progress/path/reward composition of report.py; a BI task also grades what each BI vendor's service published (tasks/harness/bistate.py)."
       }
     ],
     "harbor_adapter": [
       {
         "split": "full",
-        "adapted_benchmark_size": 28,
+        "adapted_benchmark_size": 32,
         "parity_benchmark_size": null,
         "parity_sampling_rate": null,
-        "registry_benchmark_size": 28,
+        "registry_benchmark_size": 32,
         "added_agents": [],
         "parity_matching_agents": [],
         "parity_unmatching_agents": null,
         "parity_costs": null,
-        "notes": "One Harbor task per (task, arm), named alkera/<task-id-lowercase>__<arm>. The world is built once at export time with the source builder and re-rooted into the image; a separate no-network verifier regrades from the /world, /workspace and /audit artifacts. instruction.md is byte-identical to the harness prompt except the dbt profile path (/home/engineer/.dbt). Deviations from the measured topology: one container instead of compose, agent user engineer instead of root, Postgres/MinIO not started (no task uses them), services bound to 127.0.0.1. Parity experiments against the source harness have not been run yet."
+        "notes": "One Harbor task per (task, arm), named alkera/<task-id-lowercase>__<arm>. The world is built once at export time with the source builder and re-rooted into the image; a separate no-network verifier regrades from the /world, /workspace and /audit artifacts. instruction.md is byte-identical to the harness prompt except the dbt profile path (/home/engineer/.dbt). A task with an environment profile (the BI tasks: da/laptop) builds from a variant of the agent Dockerfile keyed by (role, clients, profile and plugs), whose ENV is that profile's environment; the BI vendors' published state lives in a root-only directory and reaches the verifier through world-down's copy in the audit artifact. Deviations from the measured topology: one container instead of compose, agent user engineer instead of root, Postgres/MinIO not started (no task uses them), Jupyter not started on the da/laptop box (no BI task needs it), services bound to 127.0.0.1. Parity experiments against the source harness have not been run yet."
       }
     ]
   }

@@ -25,8 +25,8 @@ from .naming import NamingError
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="harbor/export.py",
-        description="Turn every (task, arm) of tasks/GT00* into a Harbor task "
-                    "directory plus dataset.toml.",
+        description="Turn every (task, arm) of every task package (tasks/GT*, "
+                    "tasks/BI*) into a Harbor task directory plus dataset.toml.",
         formatter_class=argparse.RawDescriptionHelpFormatter, epilog=__doc__)
     parser.add_argument("--output-dir", type=Path,
                         help="directory to write the dataset into (required unless --list)")

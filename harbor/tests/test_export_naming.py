@@ -62,7 +62,7 @@ def test_unknown_selector_is_an_error(bad):
 
 def test_every_real_arm_has_a_unique_valid_harbor_name():
     refs = [ArmRef(t, a) for t in harness.task_ids() for a in harness.arms_of(t)]
-    assert len(refs) == 28, [r.selector for r in refs]
+    assert len(refs) == 32, [r.selector for r in refs]          # GT 28 + BI 4
     check_unique(refs)
     names = [r.harbor_name for r in refs]
     assert all(re.match(ORG_NAME_PATTERN, n) and ".." not in n for n in names)

@@ -37,9 +37,11 @@ from . import __version__, checks, digest, dockerenv, harness, render, tomlw
 from .constants import (AGENT_NETWORK_MODES, CANARY_HASH, CONTEXT_FILE,
                         DEFAULT_DATASET_NAME, DEFAULT_DATASET_VERSION, MANIFEST_SCHEMA,
                         ORG, REPO, REWARD_MODES, TASKS_DIR, TEMPLATE_DIR)
-from .context import ALWAYS_EXCLUDE, GitView, copy_file, matches, resolve_context
+from .context import (ALWAYS_EXCLUDE, ContextEntry, GitView, copy_file, matches,
+                      parse_context, resolve_context, resolve_entries)
 from .naming import ArmRef, check_unique, select
 from .reroot import iter_files, needles_for, scan
+from .variant import UNPROFILED, Variant, render_dockerfile, render_tests_dockerfile
 from .worldbuild import (CANONICAL_STAGE_ROOT, GATEWAY_CONFIG_IN_CONTAINER,
                          StagedArm, stage_arm)
 
@@ -68,6 +70,8 @@ class TaskResult:
     seconds: float = 0.0
     instruction_sha256: str | None = None
     validation: dict | None = None
+    #: The agent image's variant key (variant.Variant.key)
+    variant: str | None = None
 
 
 @dataclass
@@ -189,7 +193,8 @@ class AlkeraHarborAdapter:
         #: and C work concurrently) cannot give two tasks different bytes.
         self._templates: Path = self.template_dir
         self._templates_snapshot = False
-        self._static_env: dict[str, str] | None = None
+        #: variant key -> the image's ENV minus PATH (static_env)
+        self._static_env: dict[str, dict[str, str]] = {}
 
     # ------------------------------------------------------------ discovery
     def available(self) -> list[ArmRef]:
@@ -245,6 +250,7 @@ class AlkeraHarborAdapter:
     def _write_task(self, ref: ArmRef, staged: StagedArm, out: Path) -> TaskResult:
         spec = staged.spec
         role = harness.role_of(spec)
+        variant = staged.variant
         task_root = self.tasks_dir / ref.task_id
         commit, dirty = self.source
         out.mkdir(parents=True)
@@ -252,13 +258,16 @@ class AlkeraHarborAdapter:
         # ---- solution/ (first: the oracle status goes into task.toml)
         oracle = self._write_solution(ref, task_root, out / "solution")
 
-        # ---- environment/
+        # ---- environment/: the template verbatim, its Dockerfile rendered for
+        # a profiled variant (variant.py), and the context plus the variant's
+        # extra locks
         env_dir = out / "environment"
         repo_check = None if self._templates_snapshot else REPO
         copy_template(self._templates / "environment", env_dir, repo=repo_check)
-        resolve_context(self._templates / "environment" / CONTEXT_FILE,
-                        env_dir / "alkera", repo=REPO, task=ref.task_id,
-                        forbid=_forbid_in_environment)
+        if variant.profiled:
+            (env_dir / "Dockerfile").write_text(self.dockerfile(variant),
+                                                encoding="utf-8", newline="")
+        self._environment_context(variant, ref.task_id, env_dir / "alkera")
         episode_dir = env_dir / "episode"
         _move_tree(staged.world_dir, episode_dir / "world")
         shutil.copytree(staged.workspace_dir, episode_dir / "workspace", symlinks=True)
@@ -268,6 +277,9 @@ class AlkeraHarborAdapter:
         # ---- tests/
         tests_dir = out / "tests"
         copy_template(self._templates / "tests", tests_dir, repo=repo_check)
+        if variant.profiled:
+            (tests_dir / "Dockerfile").write_text(self.tests_dockerfile(variant),
+                                                  encoding="utf-8", newline="")
         brief = spec.instruction_path.resolve().relative_to(REPO).as_posix()
         resolve_context(self._templates / "tests" / CONTEXT_FILE,
                         tests_dir / "alkera", repo=REPO, task=ref.task_id,
@@ -285,10 +297,14 @@ class AlkeraHarborAdapter:
         # and in task.toml also the image's ENV minus PATH, for providers that
         # apply Dockerfile ENV at build time only (dockerenv.py)
         env = {"ALKERA_TASK_VARIANT": ref.arm, "ALKERA_SHIM_WATCH": staged.shim_watch}
+        if variant.profiled and staged.clock:
+            # the world's clock for the rows the agent's shims write, as the
+            # measured container overlay sets it (dockerenv.PER_ARM_KEYS)
+            env["ALKERA_VIRTUAL_TIME"] = staged.clock
         document = render.task_document(
             ref=ref, spec=spec, role=role, reward_mode=self.reward_mode,
-            agent_network=self.agent_network, env={**self.static_env(), **env},
-            source_commit=commit, source_dirty=dirty, oracle=oracle)
+            agent_network=self.agent_network, env={**self.static_env(variant), **env},
+            source_commit=commit, source_dirty=dirty, oracle=oracle, variant=variant)
         task_toml = render.task_toml(document)
         (out / "task.toml").write_text(task_toml, encoding="utf-8", newline="")
         episode = render.episode_json(render.episode_document(
@@ -297,7 +313,10 @@ class AlkeraHarborAdapter:
             task_toml_sha256=hashlib.sha256(
                 (task_root / "task.toml").read_bytes()).hexdigest(),
             anchors=anchors, oracle=oracle, restore=staged.restore,
-            gateway_config=GATEWAY_CONFIG_IN_CONTAINER))
+            gateway_config=GATEWAY_CONFIG_IN_CONTAINER,
+            # the supervised backends (environment runtime): none yet for any
+            # profile the image serves; the key is there so the contract is
+            backends=[] if variant.profiled else None))
         for path in (episode_dir / "episode.json", verifier_episode / "episode.json"):
             path.write_text(episode, encoding="utf-8", newline="")
 
@@ -306,7 +325,8 @@ class AlkeraHarborAdapter:
         (out / "README.md").write_text(render.readme(
             ref=ref, spec=spec, role=role, reward_mode=self.reward_mode,
             oracle=oracle, anchors=anchors, agent_network=self.agent_network,
-            n_checks=_count_checks(task_root, spec)), encoding="utf-8", newline="")
+            n_checks=_count_checks(task_root, spec), variant=variant),
+            encoding="utf-8", newline="")
         _normalize_modes(out)
 
         # ---- release gates
@@ -329,7 +349,23 @@ class AlkeraHarborAdapter:
             selector=ref.selector, name=ref.harbor_name, status="ok", role=role,
             oracle=oracle, anchors=anchors, digest=digest.task_digest(out),
             files=len(files), bytes=sum(p.stat().st_size for p in files),
-            instruction_sha256=hashlib.sha256(staged.prompt.encode()).hexdigest())
+            instruction_sha256=hashlib.sha256(staged.prompt.encode()).hexdigest(),
+            variant=variant.key)
+
+    def _environment_context(self, variant: Variant, task_id: str, dest: Path) -> None:
+        """environment/alkera/: the template's context.txt, plus the locks a
+        profiled variant's Dockerfile COPYs (Variant.context_files), resolved
+        together (so two entries can never write one file)."""
+        context = self._templates / "environment" / CONTEXT_FILE
+        if not variant.profiled:
+            resolve_context(context, dest, repo=REPO, task=task_id,
+                            forbid=_forbid_in_environment)
+            return
+        entries = parse_context(context.read_text(encoding="utf-8"), task=task_id,
+                                origin=str(context))
+        entries += [ContextEntry(origin=f"variant {variant.key}", src=rel, dest=rel)
+                    for rel in variant.context_files()]
+        resolve_entries(entries, dest, repo=REPO, forbid=_forbid_in_environment)
 
     def _needles(self, staged: StagedArm):
         m = harness.modules()
@@ -407,7 +443,7 @@ class AlkeraHarborAdapter:
             report.results.append(result)
         shutil.rmtree(staging_root, ignore_errors=True)
         self._templates, self._templates_snapshot = self.template_dir, False
-        self._static_env = None
+        self._static_env = {}
         self._check_static_parts(report)
 
         tasks = self.collect_existing()
@@ -424,40 +460,63 @@ class AlkeraHarborAdapter:
         for part in ("environment", "tests"):
             copy_template(self.template_dir / part, root / part, keep_context=True)
         self._templates, self._templates_snapshot = root, True
-        self._static_env = None
+        self._static_env = {}
         self.static_env()
 
-    def static_env(self) -> dict[str, str]:
+    def dockerfile(self, variant: Variant = UNPROFILED) -> str:
+        """The agent Dockerfile for `variant`: the template's bytes for the
+        unprofiled tasks, rendered by variant.render_dockerfile otherwise."""
+        path = self._templates / "environment" / "Dockerfile"
+        try:
+            text = path.read_text(encoding="utf-8")
+            return render_dockerfile(text, variant, dockerenv.parse_env(text))
+        except (OSError, ValueError) as exc:
+            raise ExportError(f"{path} ({variant.key}): {exc}") from None
+
+    def tests_dockerfile(self, variant: Variant = UNPROFILED) -> str:
+        """The verifier Dockerfile for `variant` (variant.render_tests_dockerfile):
+        the template's bytes for the unprofiled tasks."""
+        path = self._templates / "tests" / "Dockerfile"
+        try:
+            return render_tests_dockerfile(
+                path.read_text(encoding="utf-8"), variant,
+                (self._templates / "environment" / "Dockerfile").read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            raise ExportError(f"{path} ({variant.key}): {exc}") from None
+
+    def static_env(self, variant: Variant = UNPROFILED) -> dict[str, str]:
         """The image's ENV minus `PATH` (dockerenv.NOT_MIRRORED), parsed from
-        the environment template's Dockerfile (dockerenv.py)."""
-        if self._static_env is None:
-            dockerfile = self._templates / "environment" / "Dockerfile"
+        the variant's Dockerfile (dockerenv.py)."""
+        if variant.key not in self._static_env:
             try:
-                self._static_env = dockerenv.static_agent_env(
-                    dockerfile.read_text(encoding="utf-8"))
-            except (OSError, dockerenv.DockerEnvError) as exc:
-                raise ExportError(f"{dockerfile}: {exc}") from None
-        return self._static_env
+                self._static_env[variant.key] = dockerenv.static_agent_env(
+                    self.dockerfile(variant))
+            except dockerenv.DockerEnvError as exc:
+                raise ExportError(f"the {variant.key} Dockerfile: {exc}") from None
+        return self._static_env[variant.key]
 
     def _check_static_parts(self, report: ExportReport) -> None:
-        """Every task of one run must share its task-independent bytes (the
-        templates and the context sources); a source edited mid-run breaks
-        that, and the run then fails rather than ship a mixed dataset."""
-        groups: dict[str, list[str]] = {}
+        """Every task of one run and one variant must share its task-independent
+        bytes (the templates, the variant's Dockerfile and the context
+        sources); a source edited mid-run breaks that, and the run then fails
+        rather than ship a mixed dataset."""
+        groups: dict[str, dict[str, list[str]]] = {}
         for r in report.results:
             if r.status != "ok":
                 continue
             short = r.name.split("/", 1)[1]
             task_id = r.selector.split(":", 1)[0]
             fp = checks.static_fingerprint(self.output_dir / short, task_id)
-            groups.setdefault(fp, []).append(short)
-        if len(groups) > 1:
-            sizes = sorted((len(v), v[0]) for v in groups.values())
-            report.dataset_problems.append(
-                f"task-independent sources (templates, context sources) changed "
-                f"while the export ran: {len(groups)} different versions across "
-                f"this run's tasks (e.g. {sizes}); re-run with --overwrite on a "
-                f"quiet tree")
+            groups.setdefault(r.variant or UNPROFILED.key, {}).setdefault(
+                fp, []).append(short)
+        for key, versions in sorted(groups.items()):
+            if len(versions) > 1:
+                sizes = sorted((len(v), v[0]) for v in versions.values())
+                report.dataset_problems.append(
+                    f"task-independent sources (templates, context sources) changed "
+                    f"while the export ran: {len(versions)} different versions across "
+                    f"this run's {key} tasks (e.g. {sizes}); re-run with --overwrite "
+                    f"on a quiet tree")
 
     # ------------------------------------------------------------ dataset level
     def collect_existing(self) -> list[dict]:
@@ -475,6 +534,7 @@ class AlkeraHarborAdapter:
                 "name": name, "dir": task_dir.name,
                 "task": meta.get("alkera_task"), "arm": meta.get("alkera_arm"),
                 "role": meta.get("alkera_role"), "oracle": meta.get("oracle"),
+                "profile": meta.get("alkera_profile"),
                 "reward_mode": meta.get("reward_mode"),
                 "source_commit": meta.get("source_commit"),
                 "source_dirty": meta.get("source_dirty"),
@@ -493,7 +553,8 @@ class AlkeraHarborAdapter:
                 "description": (
                     "Alkera data-engineering benchmark: on-call incidents in a "
                     "closed production data stack (DuckDB warehouse, dbt, git, "
-                    "scheduler, nine internal services), one Harbor task per "
+                    "and the internal services each task's box plugs: tracker, "
+                    "chat, wiki, BI, scheduler ...), one Harbor task per "
                     "(task, context arm); a separate deterministic verifier "
                     "grades the end state of the world."),
                 "authors": [{"name": render.AUTHOR}],
@@ -584,9 +645,10 @@ def _print_flush(*args) -> None:
 
 
 def _forbid_in_environment(repo_rel: str) -> str | None:
-    """The agent image never carries any task package file."""
+    """The agent image never carries any task package file (GT*, BI*, ...:
+    harness.is_task_package_name)."""
     parts = repo_rel.split("/")
-    if len(parts) >= 2 and parts[0] == "tasks" and parts[1].startswith("GT"):
+    if len(parts) >= 2 and parts[0] == "tasks" and harness.is_task_package_name(parts[1]):
         return ("task package files (graders, fixtures, oracles, briefs) never "
                 "enter the agent environment")
     return None
@@ -628,9 +690,12 @@ def _dataset_readme(name, version, tasks, commit, dirty, modes) -> str:
         "",
         "On-call data-engineering incidents in a closed, simulated production "
         "stack. Each task is one context arm of a source task: the agent works a "
-        "ticket at a real shell (DuckDB warehouse, dbt, git, a scheduler CLI and "
-        "nine internal services it discovers from its environment) and is graded "
-        "on the end state of the world plus the report it leaves.",
+        "ticket at a real shell (DuckDB warehouse, dbt, git and the internal "
+        "services its box plugs, which it discovers from its environment: the "
+        "nine on-call services for the GT tasks, a profile's own set - Power BI, "
+        "Tableau, Sigma, the tracker, chat and wiki for the BI tasks) and is "
+        "graded on the end state of the world plus the report it leaves (for a "
+        "BI task, also what each vendor's service published).",
         "",
         f"Generated by `harbor/export.py` from `{commit}`"
         f"{' (dirty tree)' if dirty else ''}; reward mode(s): "

@@ -10,6 +10,7 @@ scripts, not a package), so they are imported by path, once, on first use.
 from __future__ import annotations
 
 import os
+import re
 import sys
 from contextlib import contextmanager
 from types import SimpleNamespace
@@ -57,10 +58,20 @@ def variant_env(arm: str | None):
             os.environ[VARIANT_ENV] = previous
 
 
+#: A task package's directory name: a code (`GT001`, `BI002`) and a slug.
+#: `tasks/harness`, `tasks/contracts`, `tasks/stressors` are not packages.
+TASK_PACKAGE = re.compile(r"^[A-Z]{2,}\d{3}-[a-z0-9][a-z0-9-]*$")
+
+
+def is_task_package_name(name: str) -> bool:
+    return bool(TASK_PACKAGE.match(name))
+
+
 def task_ids(tasks_dir=TASKS_DIR) -> list[str]:
-    """Every task package: a `tasks/GT*` directory with a task.toml."""
+    """Every task package: a `tasks/<CODE><NNN>-<slug>` directory with a
+    task.toml (GT001-GT009, BI001, BI002, ...)."""
     return sorted(p.name for p in tasks_dir.iterdir()
-                  if p.is_dir() and p.name.startswith("GT")
+                  if p.is_dir() and is_task_package_name(p.name)
                   and (p / "task.toml").is_file())
 
 

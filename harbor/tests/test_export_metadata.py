@@ -27,7 +27,7 @@ def test_adapter_metadata_follows_harbors_template():
                             "parity_sampling_rate", "registry_benchmark_size",
                             "added_agents", "parity_matching_agents",
                             "parity_unmatching_agents", "parity_costs", "notes"}
-    assert original["size"] == adapted["adapted_benchmark_size"] == 28
+    assert original["size"] == adapted["adapted_benchmark_size"] == 32
 
 
 def test_run_config_is_a_valid_harbor_job_config():

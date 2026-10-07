@@ -97,7 +97,9 @@ def solve_stub(ref: ArmRef) -> str:
 # ----------------------------------------------------------------- task.toml
 def task_document(*, ref: ArmRef, spec, role: str, reward_mode: str,
                   agent_network: str, env: dict, source_commit: str,
-                  source_dirty: bool, oracle: str) -> dict:
+                  source_dirty: bool, oracle: str, variant=None) -> dict:
+    """task.toml. `variant` (variant.Variant) adds the profile's metadata for
+    a profiled task only, so an unprofiled task.toml keeps its bytes."""
     raw = spec.raw
     task = raw.get("task") or {}
     difficulty = raw.get("difficulty") or {}
@@ -140,6 +142,9 @@ def task_document(*, ref: ArmRef, spec, role: str, reward_mode: str,
         "source_dirty": bool(source_dirty),
         "oracle": oracle,
     })
+    if variant is not None and variant.profiled:
+        metadata["alkera_profile"] = variant.profile
+        metadata["alkera_variant"] = variant.key
 
     return {
         "schema_version": "1.4",
@@ -205,8 +210,14 @@ def episode_document(*, ref: ArmRef, spec, role: str, reward_mode: str,
                      world: dict, env: dict, source_commit: str,
                      source_dirty: bool, task_toml_sha256: str,
                      anchors: str, oracle: str, restore: dict | None = None,
-                     gateway_config: str | None = None) -> dict:
-    return {
+                     gateway_config: str | None = None,
+                     backends: list[dict] | None = None) -> dict:
+    """episode.json. `backends` (the environment runtime's supervised
+    processes: name, argv, user, ports, hosts, health) is written when given -
+    a profiled task's list, empty until its profile plugs a backend the image
+    runs beside the services (plan Task 10) - and left out when None, so an
+    unprofiled episode.json keeps its bytes (the runtime reads absent as [])."""
+    document = {
         "schema": EPISODE_SCHEMA,
         "task": ref.task_id,
         "variant": ref.arm,
@@ -237,6 +248,9 @@ def episode_document(*, ref: ArmRef, spec, role: str, reward_mode: str,
         "source": {"repo_commit": source_commit, "repo_dirty": bool(source_dirty),
                    "task_toml_sha256": task_toml_sha256},
     }
+    if backends is not None:
+        document["backends"] = [dict(b) for b in backends]
+    return document
 
 
 def episode_json(document: dict) -> str:
@@ -278,8 +292,28 @@ _ROLE_TEXT = {
 }
 
 
+#: The unprofiled box, as every GT README has always described it.
+_UNPROFILED_BOX = (
+    "a DuckDB warehouse, dbt, git, a "
+    "scheduler CLI and nine internal services (tracker, chat, wiki, BI, "
+    "metrics, alerts, logs, ingestion, deploys) that it discovers from its "
+    "environment")
+
+
+def box_text(variant=None) -> str:
+    """What the agent's box offers, for the task README: the unprofiled box's
+    sentence as it always was, or the services the profile plugs."""
+    if variant is None or not variant.profiled:
+        return _UNPROFILED_BOX
+    services = ", ".join(variant.services) or "no internal service"
+    return (f"the world's DuckDB warehouse, dbt and git on a `{variant.profile}` "
+            f"box, and the internal services that profile plugs ({services}), which "
+            f"it discovers from its environment")
+
+
 def readme(*, ref: ArmRef, spec, role: str, reward_mode: str, oracle: str,
-           anchors: str, agent_network: str, n_checks: int | None) -> str:
+           anchors: str, agent_network: str, n_checks: int | None,
+           variant=None) -> str:
     raw = spec.raw
     title = str((raw.get("task") or {}).get("title") or "").strip()
     difficulty = raw.get("difficulty") or {}
@@ -326,10 +360,8 @@ def readme(*, ref: ArmRef, spec, role: str, reward_mode: str, oracle: str,
         "## The task",
         "",
         "The agent is the on-call data engineer of a production data stack, "
-        "working one ticket at a real shell: a DuckDB warehouse, dbt, git, a "
-        "scheduler CLI and nine internal services (tracker, chat, wiki, BI, "
-        "metrics, alerts, logs, ingestion, deploys) that it discovers from its "
-        "environment. `instruction.md` is exactly the prompt the source "
+        f"working one ticket at a real shell: {box_text(variant)}. "
+        "`instruction.md` is exactly the prompt the source "
         "harness sends; it ends with the ticket. The agent must leave the "
         f"world in a correct state AND write `{spec.artifact_in_world}`.",
         "",
