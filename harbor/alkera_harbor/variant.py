@@ -65,7 +65,7 @@ import re
 from dataclasses import dataclass, field
 
 from . import harness
-from .constants import AGENT_HOME
+from .constants import AGENT_HOME, AUDIT_IN_CONTAINER, WORLD_IN_CONTAINER
 
 #: The template ENV names that are the image's own, not the box's discovery
 #: environment: kept verbatim in every variant.
@@ -75,7 +75,7 @@ KEPT_ENV_NAMES = ("PATH",)
 CA_BUNDLE_VAR = "REQUESTS_CA_BUNDLE"
 #: Warehouse plugs the Harbor image serves: the world's own DuckDB file, and
 #: each warehouse backend that has its HARBOR_BACKENDS entry.
-SERVED_WAREHOUSES = ("duckdb", "databricks")
+SERVED_WAREHOUSES = ("duckdb", "databricks", "redshift")
 #: Warehouse plugs the image refuses, and why (the export's error says it).
 REFUSED_WAREHOUSES: dict[str, str] = {}
 #: The warehouse plug served by a process of its own that is not a registry
@@ -489,6 +489,68 @@ def _hosted(_variant: Variant) -> list[dict]:
     return []
 
 
+def _registry(name: str):
+    harness.modules()                           # the gateway's src on sys.path
+    from alkera_gateway import backends
+
+    return backends, backends.BACKENDS[name]
+
+
+#: Where a backend run as root keeps its private per-statement record (the
+#: runtime's log directory: root 0700).
+PRIVATE_LOGS = "/var/log/alkera"
+#: The image's interpreter (the services' and the agent's).
+PYTHON = "/usr/local/bin/python"
+
+
+def _container_backend(name: str, argv: list[str], *, data: str) -> list[dict]:
+    """A registry backend that has its own container in the measured topology,
+    run here as root with the environment backend_overlay gives that container
+    (container_episode.NativeContainerEpisode.backend_overlay): the action log,
+    the world's warehouse files to seed from (read before the agent starts),
+    its own destinations file (world-down folds it), its private statement
+    record and data directory."""
+    backends, b = _registry(name)
+    upper = name.upper()
+    env = [f"ALKERA_NATIVE_AUDIT={AUDIT_IN_CONTAINER}/actions.jsonl",
+           *([f"ALKERA_{upper}_SEED={WORLD_IN_CONTAINER}/var/warehouse"]
+             if b.seeds_world else []),
+           f"ALKERA_{upper}_DESTINATIONS={AUDIT_IN_CONTAINER}/{backends.destinations_file(b)}",
+           f"ALKERA_{upper}_STATEMENT_LOG={PRIVATE_LOGS}/{name}-statements.jsonl",
+           f"ALKERA_{upper}_DATA={data}"]
+    return [{"name": name, "argv": ["/usr/bin/env", *env, *argv], "user": "root",
+             "ports": [b.port], "hosts": [b.host], "health": "tcp"}]
+
+
+def _redshift(_variant: Variant) -> list[dict]:
+    """The Postgres persona, server and proxy in ONE session (redshift_start.py's
+    bare form): the server has no TCP port to be supervised by (a private unix
+    socket only, by design), the proxy listens only once the seed is in - what
+    world-up waits for - and the two live and die together."""
+    return _container_backend("redshift", [PYTHON, "/opt/stack/redshift_start.py"],
+                              data="/var/lib/alkera/redshift")
+
+
+#: PostgreSQL 17's server, from the frozen snapshot the toolbelt's apt layer
+#: resolved against (its sources stay in the image) - the same build as its
+#: postgresql-client-17 - with no default cluster. Shared by the backends that
+#: need it (one layer when two are plugged).
+POSTGRES_SERVER_LAYER = (
+    "",
+    "# PostgreSQL 17, the server (a warehouse backend's): the same frozen snapshot",
+    "# and build as the toolbelt's postgresql-client-17. No default cluster; each",
+    "# backend initialises its own, fresh, at every start.",
+    "RUN set -eux; \\",
+    "    mkdir -p /etc/postgresql-common/createcluster.d; \\",
+    "    echo 'create_main_cluster = false' > "
+    "/etc/postgresql-common/createcluster.d/alkera.conf; \\",
+    "    apt-get update; \\",
+    "    apt-get install -y --no-install-recommends postgresql-17=17.11-0+deb13u1; \\",
+    "    rm -rf /var/lib/apt/lists/*; \\",
+    "    /usr/lib/postgresql/17/bin/postgres --version",
+)
+
+
 HARBOR_BACKENDS: dict = {
     # Airflow 3 REST v2 over the world ledger (native/services/airflow.py), at
     # airflow.internal:8100; its client lock (airflowctl) is the box's.
@@ -499,8 +561,22 @@ HARBOR_BACKENDS: dict = {
     # start (the key in a root-only temporary directory), its bundle published
     # to the trust directory below.
     "databricks": _hosted,
+    # Redshift: the Postgres persona (gateway/docker/redshift_start.py), as root
+    # (the proxy writes the action log; the server it starts runs as
+    # `postgres`), 5439 at redshift.internal.
+    "redshift": _redshift,
 }
 CLIENT_LAYERS: dict[str, tuple[str, ...]] = {
+    "redshift": (
+        *POSTGRES_SERVER_LAYER,
+        "",
+        "# Redshift (the Postgres persona behind the audited wire proxy, run whole:",
+        "# redshift_start.py). Its data directory is root's; the server's directories",
+        "# in it are postgres' own (0700), so only root and postgres reach its socket.",
+        "COPY alkera/gateway/docker/redshift_start.py /opt/stack/redshift_start.py",
+        "RUN chmod 0700 /opt/stack \\",
+        "    && mkdir -p /var/lib/alkera/redshift && chmod 0711 /var/lib/alkera/redshift",
+    ),
     "databricks": (
         "# Databricks (hosted by the services): the trust directory they publish",
         "# the minted certificate's bundle to at start, holding certifi until then,",
@@ -511,5 +587,7 @@ CLIENT_LAYERS: dict[str, tuple[str, ...]] = {
     ),
 }
 PLUG_LAYERS: dict[str, tuple[str, ...]] = {}
-SUPPORT_FILES: dict[str, tuple[tuple[str, str], ...]] = {}
+SUPPORT_FILES: dict[str, tuple[tuple[str, str], ...]] = {
+    "redshift": (("gateway/docker/redshift_start.py", "gateway/docker/redshift_start.py"),),
+}
 STATEMENT_LOGS: dict[str, tuple[dict, ...]] = {}

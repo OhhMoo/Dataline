@@ -114,6 +114,39 @@ def test_databricks_is_hosted_and_the_box_trusts_its_bundle(tmp_path):
         == tev.template_env()["REQUESTS_CA_BUNDLE"]
 
 
+# ----------------------------------------------------------------- redshift
+def test_redshift_runs_whole_as_root_with_its_server(tmp_path):
+    from alkera_gateway import backends
+
+    v = variant_of("de/aws")
+    assert v.backends == ("redshift",) and v.clients == ("redshift",)
+    [spec] = variant.backend_specs(v)
+    row = backends.BACKENDS["redshift"]
+    assert spec["name"] == "redshift" and spec["user"] == "root"
+    assert spec["ports"] == [row.port] == [5439] and spec["hosts"] == [row.host]
+    assert spec["health"] == "tcp"
+    argv = spec["argv"]
+    assert argv[0] == "/usr/bin/env" and argv[-2:] == [variant.PYTHON,
+                                                       "/opt/stack/redshift_start.py"]
+    env = dict(a.split("=", 1) for a in argv[1:-2])
+    assert env == {"ALKERA_NATIVE_AUDIT": "/audit/actions.jsonl",
+                   "ALKERA_REDSHIFT_SEED": "/world/var/warehouse",
+                   "ALKERA_REDSHIFT_DESTINATIONS": "/audit/destinations.redshift.jsonl",
+                   "ALKERA_REDSHIFT_STATEMENT_LOG": "/var/log/alkera/redshift-statements.jsonl",
+                   "ALKERA_REDSHIFT_DATA": "/var/lib/alkera/redshift"}
+    assert variant.statement_logs(v) == []
+    text = assert_exportable(v, tmp_path)
+    steps = runs(text)
+    lock = next(i for i, r in enumerate(steps) if "requirements-redshift.lock" in r)
+    assert "postgresql-17=17.11-0+deb13u1" in steps[lock + 1]
+    assert "create_main_cluster = false" in steps[lock + 1]
+    # the server is the client's build, from the toolbelt's frozen snapshot
+    toolbelt = next(r for r in steps if "postgresql-client-17=" in r)
+    assert "postgresql-client-17=17.11-0+deb13u1" in toolbelt
+    assert v.support_files() == [("gateway/docker/redshift_start.py",
+                                  "gateway/docker/redshift_start.py")]
+
+
 def test_an_unknown_backend_is_refused():
     v = variant.Variant(role="de", profile="de/x", backends=("nope",),
                         harbor_backends=("nope",))

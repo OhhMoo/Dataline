@@ -421,3 +421,30 @@ def test_backend_databricks_up_probe_down(tmp_path):
     record = up_probe_down("databricks", ("databricks",), tmp_path, DATABRICKS_CHECKS)
     assert record["backends"] == []
     folded_backend_row(record, "databricks.internal", 443)
+
+
+REDSHIFT_CHECKS = r"""
+pass() { echo "PASS $*"; }
+fail() { echo "FAIL $*"; }
+deny() { local n="$1"; shift; if "$@" >/dev/null 2>&1; then fail "$n (allowed)"; else pass "$n"; fi; }
+out=$(PGPASSWORD=x PGCONNECT_TIMEOUT=10 psql -h redshift.internal -p 5439 -U postgres -d dev -tAc 'select 1' 2>&1)
+case "$out" in *"logging in as 'postgres'"*) pass "the superuser is refused at the proxy, by name";; *) fail "superuser through the proxy: $out";; esac
+deny "cannot reach the server's socket directly" psql -h /var/lib/alkera/redshift/run -U postgres -d dev -tAc 'select 1'
+deny "cannot list the server's data" ls /var/lib/alkera/redshift/pgdata
+deny "cannot read the proxy's statement record" cat /var/log/alkera/redshift-statements.jsonl
+deny "cannot read the start script's directory" ls /opt/stack
+[ "$REDSHIFT_HOST" = redshift.internal ] && [ "$REDSHIFT_PORT" = 5439 ] && pass "REDSHIFT_*" || fail "REDSHIFT_HOST=$REDSHIFT_HOST"
+"""
+
+
+@needs_docker
+def test_backend_redshift_up_probe_down(tmp_path):
+    """PostgreSQL on a private socket behind the audited wire proxy at
+    redshift.internal:5439, one supervised session (redshift_start.py): psql,
+    redshift_connector and dbt-redshift as engineer; the proxy's destinations
+    file folded at world-down."""
+    record = up_probe_down("redshift", ("redshift",), tmp_path, REDSHIFT_CHECKS)
+    assert [b["name"] for b in record["backends"]] == ["redshift"]
+    assert record["backends"][0]["user"] == "root"
+    folded_backend_row(record, "redshift.internal", 5439)
+    assert any("redshift: listening on [5439]" in line for line in record["world_up"])
