@@ -1,6 +1,7 @@
 """powerbi: Power BI REST with an Entra client-credentials token, `executeQueries` with DAX
 against the published Commerce semantic model (powerbi.internal:8095)."""
 from tool_tour import Probe
+
 from tool_tour_probes import DA_LAPTOP_BI, NET_REVENUE_SQL
 
 PROFILE, PLUGS = DA_LAPTOP_BI
@@ -28,9 +29,9 @@ api = env["POWERBI_API_URL"] + "/v1.0/myorg"
 for group in s.get(f"{api}/groups", timeout=60).json()["value"]:
     for dataset in s.get(f"{api}/groups/{group['id']}/datasets", timeout=60).json()["value"]:
         if dataset["name"] == "Commerce":
+            dax = 'EVALUATE SUMMARIZECOLUMNS("Net Revenue", [Net Revenue])'
             r = s.post(f"{api}/groups/{group['id']}/datasets/{dataset['id']}/executeQueries",
-                       json={"queries": [{"query": 'EVALUATE SUMMARIZECOLUMNS("Net Revenue", [Net Revenue])'}]},
-                       timeout=120)
+                       json={"queries": [{"query": dax}]}, timeout=120)
             r.raise_for_status()
             row = r.json()["results"][0]["tables"][0]["rows"][0]
             print(json.dumps({"value": row["[Net Revenue]"]}))

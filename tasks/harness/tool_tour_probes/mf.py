@@ -6,6 +6,7 @@ have, so the probe runs `dbt parse` first, exactly as bi_e2e_check's M0 does. Ev
 precedes the `shim.mf` one.
 """
 from tool_tour import Probe
+
 from tool_tour_probes import DA_LAPTOP_BI, NET_REVENUE_FEB_2026_SQL
 
 PROFILE, PLUGS = DA_LAPTOP_BI

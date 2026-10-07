@@ -6,6 +6,7 @@ The seeded database is the warehouse file's stem upper-cased (`WAREHOUSE`); once
 discovery registry exports `SNOWFLAKE_DATABASE` (Task 2) the probe reads it from there.
 """
 from tool_tour import Probe
+
 from tool_tour_probes import NET_REVENUE_FEB_2026_SQL
 
 PROBES = [

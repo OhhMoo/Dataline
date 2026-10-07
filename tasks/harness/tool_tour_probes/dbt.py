@@ -10,6 +10,7 @@ to catalog or schema"). That is the world theme's dbt project, not the tool; it 
 reported as a finding of the tour, not worked around in the theme.
 """
 from tool_tour import Probe
+
 from tool_tour_probes import DA_LAPTOP_BI, NET_REVENUE_SQL
 
 PROFILE, PLUGS = DA_LAPTOP_BI

@@ -5,6 +5,7 @@ Their truth is the world's own workflow state (`var/workflow/*.json`, which the 
 serve and write), read by DuckDB on the host.
 """
 from tool_tour import Probe
+
 from tool_tour_probes import DA_LAPTOP_BI
 
 PROFILE, PLUGS = DA_LAPTOP_BI

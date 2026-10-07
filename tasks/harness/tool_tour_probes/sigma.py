@@ -1,6 +1,7 @@
 """sigma: Sigma REST API v2 (client-credentials token, workbook contents, element export
 and download) at sigma.internal:8097."""
 from tool_tour import Probe
+
 from tool_tour_probes import DA_LAPTOP_BI, NET_REVENUE_FEB_2026_SQL
 
 PROFILE, PLUGS = DA_LAPTOP_BI

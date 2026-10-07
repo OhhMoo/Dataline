@@ -6,6 +6,7 @@ it (`$#,0.00`); the probe strips the currency formatting, nothing else. tabcmd w
 `tabcmd.log` in the current directory, which the shim's row names.
 """
 from tool_tour import Probe
+
 from tool_tour_probes import DA_LAPTOP_BI, NET_REVENUE_SQL
 
 PROFILE, PLUGS = DA_LAPTOP_BI
@@ -20,8 +21,9 @@ PROBES = [
             "tabcmd login -s \"$TABLEAU_SERVER_URL\" --token-name \"$TABLEAU_PAT_NAME\" "
             "--token-value \"$TABLEAU_PAT_SECRET\"\n"
             "tabcmd export /ExecutiveOverview/KPIs --csv -f /tmp/tour_kpis.csv\n"
-            "python3 -c 'import csv, json; row = next(csv.DictReader(open(\"/tmp/tour_kpis.csv\")));"
-            " print(json.dumps({\"value\": row[\"Net Revenue\"].replace(\"$\", \"\")"
+            "python3 -c 'import csv, json; "
+            "row = next(csv.DictReader(open(\"/tmp/tour_kpis.csv\"))); "
+            "print(json.dumps({\"value\": row[\"Net Revenue\"].replace(\"$\", \"\")"
             ".replace(\",\", \"\")}))'\n"),
         expect_tools=("tableau.auth_signin", "tableau.views_data", "shim.tabcmd"),
         truth_sql=NET_REVENUE_SQL,

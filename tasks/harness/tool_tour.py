@@ -73,6 +73,8 @@ VERDICTS = ("PASS", "FAIL", "DOC")
 #: The world's warehouse file, relative to the world root (`bi_e2e_check.manifest`).
 WAREHOUSE_REL = Path("var") / "warehouse" / "warehouse.duckdb"
 TAIL = 800
+#: One probe's wall-clock budget inside the episode; past it the probe FAILs, the group goes on.
+PROBE_TIMEOUT_S = 600
 
 
 @dataclass(frozen=True)
@@ -82,8 +84,10 @@ class Probe:
     id: str                        # "<tool>.<client>.<what>"; <tool> is the module's name
     profile: str                   # "da/laptop"
     plugs: Mapping[str, tuple[str, ...]]
-    command: str                   # bash, run in the episode as the agent user; last stdout line is JSON {"value": ...}
-    expect_tools: tuple[str, ...]  # audit `tool` values that must appear, e.g. ("snowflake.statement",)
+    command: str                   # bash, run in the episode as the agent user;
+                                   # last stdout line is JSON {"value": ...}
+    expect_tools: tuple[str, ...]  # audit `tool` values that must appear,
+                                   # e.g. ("snowflake.statement",)
     truth_sql: str | None          # DuckDB SQL over the world warehouse; scalar must equal "value"
     instruction: str               # one-paragraph brief for the Harbor live-agent run (Task 11)
 
@@ -285,15 +289,15 @@ def world_seed(profile_name: str, plugs: Mapping[str, Sequence[str]]) -> str:
     its explicit plugs, and the stack's BI vendor when it has one (da/snowflake ->
     sigma), because a vendor's project must be in the workspace."""
     import episode
-    from alkera_gateway.plugs import PLUGS, SLOTS
+    from alkera_gateway.plugs import SLOTS
 
     profile = episode.environment_profile(profile_name, dict(plugs))
     slots = [s for s in SLOTS if s in profile.slots]
     seed_plugs = {s: sorted(v) for s, v in plugs.items()}
-    bi_plugs = profile.slots.get("bi", ())
-    if "bi" not in seed_plugs and any(PLUGS[p].services and p != "metabase_fake"
-                                      for p in bi_plugs):
-        seed_plugs["bi"] = sorted(bi_plugs)
+    bi_plugs = sorted(profile.slots.get("bi", ()))
+    # The rule check_world_profile applies: a vendor BI must be named in the record.
+    if "bi" not in seed_plugs and episode._bi_vendor(bi_plugs):
+        seed_plugs["bi"] = bi_plugs
     text = bi.SEED_EXAMPLE.read_text(encoding="utf-8").rstrip("\n") + "\nnative: true\n"
     if "files" in slots:
         text += "files: {formats: [parquet]}\n"
@@ -362,7 +366,6 @@ def run_group(probes: Sequence[Probe], work: Path, image: str,
     import agent_under_test as aut
     import container_episode as ce
     import episode
-
     from alkera_gateway.audit import validate_trace
 
     profile_name, plugs = probes[0].profile, {s: list(v) for s, v in probes[0].plugs.items()}
@@ -375,10 +378,8 @@ def run_group(probes: Sequence[Probe], work: Path, image: str,
     topo, allowed = None, None
     try:
         profile = episode.environment_profile(profile_name, plugs)
-        try:
-            group["image_gate"] = ce.assert_image_current(image)
-        except episode.HarnessError as exc:
-            raise RuntimeError(str(exc)) from exc
+        # stale_episode_image fails the group: a stale image measures old code
+        group["image_gate"] = ce.assert_image_current(image)
         seed = world_seed(profile_name, plugs)
         group["seed"] = seed
         print(f"\n  [{profile_name}] world build under {work}", flush=True)
@@ -400,7 +401,7 @@ def run_group(probes: Sequence[Probe], work: Path, image: str,
             before_rows = len(bi.read_rows(audit))
             before_dest = read_destinations(topo.audit_dir)
             clock_before = _clock(world)
-            outcome = topo.run(probe.command)
+            outcome = run_probe(topo, probe)
             clock_after = _clock(world)
             rows = bi.read_rows(audit)[before_rows:]
             dest = bi.destination_delta(before_dest, read_destinations(topo.audit_dir))
@@ -446,6 +447,16 @@ def run_group(probes: Sequence[Probe], work: Path, image: str,
     return group, results
 
 
+def run_probe(topo, probe: Probe) -> bi.Outcome:
+    """`topo.run(probe.command)`, with a timeout that fails the probe, not the group."""
+    try:
+        return topo.run(probe.command, timeout=PROBE_TIMEOUT_S)
+    except subprocess.TimeoutExpired as exc:
+        out = exc.stdout.decode("utf-8", "replace") if isinstance(exc.stdout, bytes) \
+            else (exc.stdout or "")
+        return bi.Outcome(124, out, f"timed out after {PROBE_TIMEOUT_S}s", PROBE_TIMEOUT_S)
+
+
 def episode_checks(topo, results: list[dict], allowed: set[tuple[str, int]],
                    validate_trace) -> dict:
     """After teardown: the whole trace, and the folded destinations against the allowlist."""
@@ -462,11 +473,14 @@ def episode_checks(topo, results: list[dict], allowed: set[tuple[str, int]],
     rows = bi.read_rows(audit)
     out["rows_total"] = len(rows)
     out["rows_in_probes"] = sum(r.get("rows", 0) for r in results)
+    # every row in the log is one some probe's command left: nothing else wrote
+    out["no_stray_rows"] = out["rows_total"] == out["rows_in_probes"]
     destinations = read_destinations(topo.audit_dir)
     out["destinations"] = destinations
     out["network_violations"] = [str(v) for v in blindness.network_violations(
         destinations, allowed, aut.normalise_host)]
-    out["ok"] = out["trace_valid"] is True and not out["network_violations"]
+    out["ok"] = (out["trace_valid"] is True and out["no_stray_rows"]
+                 and not out["network_violations"])
     return out
 
 

@@ -5,6 +5,7 @@ as targets (gateway/src/alkera_gateway/native/shims/duckdb_cli.py). The file's p
 the one the box's own dbt profile names (`~/.dbt/profiles.yml`).
 """
 from tool_tour import Probe
+
 from tool_tour_probes import DA_LAPTOP_BI, NET_REVENUE_FEB_2026_SQL
 
 PROFILE, PLUGS = DA_LAPTOP_BI

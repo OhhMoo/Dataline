@@ -5,6 +5,7 @@ The notebook is written by hand as nbformat 4.4 JSON (no cell ids to invent), an
 cell leaves its answer in a file because `jupyter execute` does not print outputs.
 """
 from tool_tour import Probe
+
 from tool_tour_probes import COMPLETED_ORDERS_FEB_2026_SQL, DA_LAPTOP_BI
 
 PROFILE, PLUGS = DA_LAPTOP_BI

@@ -8,13 +8,11 @@ import json
 import re
 import subprocess
 from decimal import Decimal
-from pathlib import Path
-
-import pytest
-import yaml
 
 import episode
+import pytest
 import tool_tour as tt
+import yaml
 from tool_tour import Probe
 
 ELEVEN = {"duckdb", "dbt", "mf", "jupyter", "postgres", "snowflake", "powerbi", "tableau",
@@ -75,7 +73,10 @@ def test_every_probe_is_runnable_as_written():
                               capture_output=True)
         assert done.returncode == 0, (probe.id, done.stderr)
         assert probe.expect_tools and probe.instruction.strip(), probe.id
-        assert probe.command.strip().splitlines()[0] not in probe.instruction, probe.id
+        handed = [line.strip() for line in probe.command.splitlines()
+                  if len(line.strip()) > 20 and line.strip() in probe.instruction]
+        assert not handed, (probe.id, handed)
+        assert len(probe.instruction) < 400, probe.id
 
 
 def test_jupyter_probe_notebook_is_valid_and_its_cell_compiles():
@@ -147,6 +148,18 @@ def test_verdict_without_truth_records_the_value(audit):
                   instruction="Count warehouse.items.")
     result = judge(probe, rows=[audit("psql.statement")], stdout='{"value": 2}\n', truth=None)
     assert result["verdict"] == "PASS" and result["value"] == 2 and result["value_ok"] is None
+
+
+def test_a_probe_that_times_out_fails_alone(audit):
+    class Topo:
+        def run(self, command, timeout=900):
+            raise subprocess.TimeoutExpired(["bash"], timeout, output=b'{"value": 1}\n')
+
+    outcome = tt.run_probe(Topo(), SF)
+    assert outcome.returncode == 124 and "timed out" in outcome.stderr
+    result = judge(rows=[audit("snowflake.statement")], stdout=outcome.stdout,
+                   returncode=outcome.returncode)
+    assert result["verdict"] == "FAIL" and "exit 124" in result["failures"]
 
 
 def test_same_value_compares_numbers_as_numbers():
