@@ -85,6 +85,18 @@ def truth(world: Path, sql: str):
         return con.execute(sql).fetchall()
 
 
+def naive(rows) -> list[tuple]:
+    """Rows with every aware datetime as naive UTC: a Databricks TIMESTAMP (the
+    lakehouse's TIMESTAMPTZ in a UTC session) compares with a DuckDB TIMESTAMP."""
+    import datetime
+
+    def one(value):
+        if isinstance(value, datetime.datetime) and value.tzinfo is not None:
+            return value.astimezone(datetime.UTC).replace(tzinfo=None)
+        return value
+    return [tuple(one(v) for v in row) for row in rows]
+
+
 # --------------------------------------------------------------------- fences
 DELTA_ONLY = [
     ("DESCRIBE HISTORY main.warehouse.fct_orders", "DESCRIBE HISTORY"),
@@ -177,7 +189,7 @@ CORPUS = [
 @pytest.mark.parametrize("databricks,duck", CORPUS)
 def test_backticks_and_three_part_names_match_duckdb_truth(lake, world, databricks, duck):
     got = run(lake, databricks).rows
-    assert [tuple(r) for r in got] == [tuple(r) for r in truth(world, duck)]
+    assert naive(got) == naive(truth(world, duck))
 
 
 def test_two_part_names_resolve_in_the_current_catalog(lake, world):
@@ -362,6 +374,36 @@ def test_no_statement_reaches_past_the_copy(lake, world, sql):
     assert digest(world) == before
     assert run(lake, "select count(*) from system.information_schema.tables "
                      "where table_schema = 'warehouse'").rows[0][0] > 0
+
+
+@pytest.mark.parametrize("sql,name", [
+    ("INSTALL httpfs", "INSTALL statements"),
+    ("DETACH dbx_main", "DETACH statements"),
+    ("CHECKPOINT", "CHECKPOINT statements"),
+    ("PRAGMA database_list", "PRAGMA statements"),
+    ("SELECT * FROM memory.x", "TABLE_OR_VIEW_NOT_FOUND"),
+    ("SELECT * FROM pragma_database_list", "TABLE_OR_VIEW_NOT_FOUND"),
+    ("SELECT * FROM duckdb_databases()", "duckdb_databases()"),
+    ("SELECT * FROM query_table('dbx_main.warehouse.fct_orders')", "query_table()"),
+])
+def test_refusals_name_what_was_refused(lake, sql, name):
+    with pytest.raises((Unsupported, SqlError)) as refused:
+        run(lake, sql)
+    said = refused.value.feature if isinstance(refused.value, Unsupported) else \
+        refused.value.error_class
+    assert name in said, (sql, said)
+
+
+def test_merge_update_and_insert_on_the_copy(lake):
+    run(lake, "CREATE TABLE main.default.m (id INT, v STRING)")
+    run(lake, "INSERT INTO main.default.m VALUES (1, 'old'), (2, 'keep')")
+    merged = run(lake, "MERGE INTO main.default.m AS t USING (SELECT 1 AS id, 'new' AS v "
+                       "UNION ALL SELECT 3, 'added') AS s ON t.id = s.id "
+                       "WHEN MATCHED THEN UPDATE SET v = s.v "
+                       "WHEN NOT MATCHED THEN INSERT (id, v) VALUES (s.id, s.v)")
+    assert merged.rows == [(2,)] and merged.rows_affected == 2
+    assert run(lake, "select id, v from main.default.m order by id").rows == [
+        (1, "new"), (2, "keep"), (3, "added")]
 
 
 def test_one_statement_per_request(lake):

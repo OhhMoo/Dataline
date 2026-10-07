@@ -117,6 +117,30 @@ def service_ports(profile=None) -> list[int]:
     return sorted(ports)
 
 
+#: Plugged backends the host topology cannot serve faithfully, and why. Databricks
+#: is served on 443 because its clients cannot reach a workspace anywhere else (the
+#: SQL connector takes no host:port and fetches its feature flags and telemetry on
+#: 443 regardless; docs/environments/DATABRICKS_SPIKE.md), and the host topology
+#: runs K rollouts side by side on one loopback interface at an offset, so none of
+#: them has 443 - nor a `databricks.internal` the certificate and the variables name.
+HOST_TOPOLOGY_REFUSED = {
+    "databricks": "Databricks (warehouse: databricks) answers only on "
+                  "https://databricks.internal:443, which a port-offset loopback stack "
+                  "cannot offer; run it with --topology container",
+}
+
+
+def host_topology_refusals(profile) -> list[str]:
+    """Why this profile cannot run here ([] when it can): each plugged backend in
+    HOST_TOPOLOGY_REFUSED, by its reason."""
+    if profile is None:
+        return []
+    from alkera_gateway.backends import plugged
+
+    return [HOST_TOPOLOGY_REFUSED[b.name] for b in plugged(profile.slots)
+            if b.name in HOST_TOPOLOGY_REFUSED]
+
+
 def port_free(port: int) -> bool:
     """Can this process bind 127.0.0.1:port right now?
 
@@ -364,6 +388,11 @@ class NativeStack:
         self.profile_name = getattr(spec, "profile", "") or ""
         self.plugs = dict(getattr(spec, "plugs", None) or {})
         self.profile = episode.environment_profile(self.profile_name, self.plugs)
+        refused = host_topology_refusals(self.profile)
+        if refused:
+            raise episode.HarnessError(
+                f"profile {self.profile_name!r} cannot run in the host topology: "
+                + "; ".join(refused))
         self.key = key or self.rollout_dir.as_posix()
         self._offset = offset
         self.endpoints: dict | None = None

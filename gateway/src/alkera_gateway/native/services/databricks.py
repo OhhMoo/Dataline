@@ -64,7 +64,8 @@ in job-name order), `run-now` is `sched_trigger` - the same `Operations` call
 `./ops/sched trigger` makes, so the run is WorldScheduler.trigger's: one manual run,
 executed for real at trigger time and recorded in `var/sched/state.json`, the clock
 moved by that run's own duration and nothing else. There is no `advance` here: only
-the grader moves the world's time. `runs/get` and `runs/list` read the ledger
+the grader moves the world's time. `start_run` is the one place run-now touches the
+scheduler, so moving it to a queued trigger (WorldScheduler.enqueue) is one line. `runs/get` and `runs/list` read the ledger
 (`sched_state`); a run's id is its 1-based position there.
 
 ROWS. Every request writes exactly one 9.2.2 row before it answers, refusals and
@@ -95,6 +96,7 @@ import os
 import re
 import tempfile
 import threading
+from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
 
@@ -103,7 +105,17 @@ from fastapi.responses import JSONResponse, Response
 
 from ... import databricks_sql as dbx
 from ...records import Observation, ToolError
-from ..context import DEV_TOKEN, Ledger, ServiceError, audit_unrouted, context_of, service_health
+from ..audit import record
+from ..context import (
+    DEV_TOKEN,
+    Ledger,
+    ServiceError,
+    audit_unrouted,
+    context_of,
+    mark_audited,
+    service_health,
+    was_audited,
+)
 from ..http import RawBody
 from ..shims import sched_cli
 
@@ -147,9 +159,18 @@ class DatabricksError(ServiceError):
 
 
 @app.exception_handler(ServiceError)
-async def _service_error(_request: Request, exc: ServiceError) -> JSONResponse:
+async def _service_error(request: Request, exc: ServiceError) -> JSONResponse:
     headers = {"x-thriftserver-error-message": THRIFT_REFUSAL} if exc.code == "THRIFT" else {}
     code = "BAD_REQUEST" if exc.code == "THRIFT" else exc.code
+    if not was_audited(request):
+        # Belt and braces: every handler refuses inside its span, so this row is
+        # written only for a refusal raised outside one - never none.
+        mark_audited(request)
+        record(tool=f"{NAME}.request",
+               args={"method": request.method, "path": request.url.path},
+               op_class="read", targets=[], exit="error",
+               error={"code": code, "message": exc.message}, result={"status": exc.status},
+               transport="native")
     return JSONResponse(status_code=exc.status, headers=headers,
                         content={"error_code": code, "message": exc.message})
 
@@ -231,15 +252,25 @@ def _authenticate(request: Request) -> str:
     return USER
 
 
-def _serve(request: Request, tool: str, call, *, auth: bool = True, **args):
-    """One request, one row: authenticate, run, classify - all inside the span."""
+def _serve(request: Request, tool: str, call, *, auth: bool = True,
+           raw: bytes | None = None, fields: tuple[str, ...] = (), **args):
+    """One request, one row: authenticate, run, classify - all inside the span.
+
+    With `raw`, the JSON body is parsed INSIDE the span (a malformed body is a
+    refused request with its row, never an unaudited 400), its `fields` are recorded
+    in the row's args, and `call` gets it: `call(observation, body)`."""
     ledger = Ledger(request, NAME)
     try:
         with ledger.span(tool, **args) as row:
+            body = None
+            if raw is not None:
+                body = _json(raw) if raw else {}
+                row.args.update({f: body[f] for f in fields if body.get(f) is not None})
+
             def run(_operations, observation):
                 if auth:
                     ledger.actor = _authenticate(request)
-                return call(observation)
+                return call(observation) if raw is None else call(observation, body)
             return row.run(run)
     except ToolError as exc:
         raise ServiceError.from_tool_error(exc) from None
@@ -353,17 +384,20 @@ def execute_statement(request: Request, raw: RawBody):
     """One statement on the lakehouse; one `databricks.statement` row, written before
     the answer. A failed statement is HTTP 200 with `status.state: FAILED` (the API's
     contract) and a row with `exit: error`."""
-    body = _json(raw) if raw else {}
-    sql = body.get("statement")
-    args = {"sql": sql if isinstance(sql, str) else None,
-            "warehouse_id": body.get("warehouse_id")}
-    for key in ("session_id", "catalog", "schema", "parameters", "row_limit"):
-        if body.get(key) is not None:
-            args[key] = body[key]
     statement_id = _new_id("statement")
     ledger = Ledger(request, NAME)
     try:
-        with ledger.span("statement", **args) as row:
+        with ledger.span("statement", sql=None) as row:
+            # Parsed inside the span: a body that is not JSON is a refused request,
+            # and a refused request is still one row.
+            body = _json(raw) if raw else {}
+            sql = body.get("statement")
+            row.args["sql"] = sql if isinstance(sql, str) else None
+            row.args["warehouse_id"] = body.get("warehouse_id")
+            for key in ("session_id", "catalog", "schema", "parameters", "row_limit"):
+                if body.get(key) is not None:
+                    row.args[key] = body[key]
+
             def run(_operations, observation):
                 ledger.actor = _authenticate(request)
                 _warehouse(body.get("warehouse_id"))
@@ -383,6 +417,8 @@ def execute_statement(request: Request, raw: RawBody):
                     context = _SESSIONS.get(session) or dbx.Context(
                         catalog=str(body.get("catalog") or dbx.CATALOG).lower(),
                         schema=str(body.get("schema") or dbx.DEFAULT_SCHEMA).lower())
+                # current_date/current_timestamp read the world's clock
+                context = replace(context, now=context_of(request.app).clock())
                 try:
                     params = dbx.parameters(body.get("parameters"))
                     result, after = _lakehouse(request).execute(sql, context, params)
@@ -393,7 +429,7 @@ def execute_statement(request: Request, raw: RawBody):
                     raise StatementFailed(failed, code, message) from None
                 if session:
                     with _LOCK:
-                        _SESSIONS[session] = after
+                        _SESSIONS[session] = replace(after, now=None)
                 rows, truncated = result.rows, False
                 limit = body.get("row_limit")
                 if isinstance(limit, int) and 0 <= limit < len(rows):
@@ -492,9 +528,7 @@ def feature_flags(driver: str, version: str, request: Request):
 @app.post("/api/2.0/sql/sessions")
 @app.post("/api/2.0/sql/sessions/")
 def create_session(request: Request, raw: RawBody):
-    body = _json(raw)
-
-    def call(observation):
+    def call(observation, body):
         _warehouse(body.get("warehouse_id"))
         catalog = str(body.get("catalog") or dbx.CATALOG).lower()
         schema = str(body.get("schema") or dbx.DEFAULT_SCHEMA).lower()
@@ -508,9 +542,8 @@ def create_session(request: Request, raw: RawBody):
             _SESSIONS[session] = dbx.Context(catalog=catalog, schema=schema)
         _read(observation, f"databricks:session:{session}")
         return {"session_id": session}
-    return _serve(request, "session_create", call,
-                  **{k: body.get(k) for k in ("warehouse_id", "catalog", "schema")
-                     if body.get(k) is not None})
+    return _serve(request, "session_create", call, raw=raw,
+                  fields=("warehouse_id", "catalog", "schema"))
 
 
 @app.delete("/api/2.0/sql/sessions/{session_id}")
@@ -682,9 +715,10 @@ def list_schemas(request: Request):
 def get_schema(full_name: str, request: Request):
     def call(observation):
         _read(observation, full_name.lower())
-        catalog, _, schema = full_name.lower().partition(".")
+        catalog, _, name = full_name.partition(".")
         catalog = _catalog(catalog)
-        if not schema or schema not in _lakehouse(request).schemas():
+        schema = _lakehouse(request).schema_named(name) if name else None
+        if schema is None:
             raise DatabricksError(404, "SCHEMA_DOES_NOT_EXIST",
                                   f"Schema '{full_name}' does not exist.")
         return _schema_info(catalog, schema)
@@ -697,13 +731,14 @@ def list_tables(request: Request):
 
     def call(observation):
         catalog = _catalog(params.get("catalog_name"))
-        schema = (params.get("schema_name") or "").lower()
-        if not schema:
+        name = params.get("schema_name") or ""
+        if not name:
             raise DatabricksError(400, "INVALID_PARAMETER_VALUE", "schema_name is required.")
         lake = _lakehouse(request)
-        if schema not in lake.schemas():
+        schema = lake.schema_named(name)
+        if schema is None:
             raise DatabricksError(404, "SCHEMA_DOES_NOT_EXIST",
-                                  f"Schema '{catalog}.{schema}' does not exist.")
+                                  f"Schema '{catalog}.{name}' does not exist.")
         tables = lake.tables(schema)
         _read(observation, *(f"{catalog}.{schema}.{t['table_name']}" for t in tables))
         if not tables:
@@ -716,15 +751,16 @@ def list_tables(request: Request):
 def get_table(full_name: str, request: Request):
     def call(observation):
         _read(observation, full_name.lower())
-        parts = full_name.lower().split(".")
+        parts = full_name.split(".")
         missing = DatabricksError(404, "TABLE_DOES_NOT_EXIST",
                                   f"Table '{full_name}' does not exist.")
         if len(parts) != 3:
             raise missing
         catalog = _catalog(parts[0])
         lake = _lakehouse(request)
-        found = [t for t in lake.tables(parts[1]) if t["table_name"] == parts[2]] \
-            if parts[1] in lake.schemas() else []
+        schema = lake.schema_named(parts[1])
+        found = [t for t in lake.tables(schema) if t["table_name"].lower()
+                 == parts[2].lower()] if schema is not None else []
         if not found:
             raise missing
         return _table_info(lake, catalog, found[0])
@@ -762,15 +798,15 @@ def host_metadata(request: Request):
 def telemetry(request: Request, raw: RawBody):
     """The connector's usage reports. Accepted (so the client neither retries nor
     warns), counted in the row, kept nowhere else."""
-    body = _json(raw) if raw else {}
-    items = body.get("protoLogs") or body.get("items") or []
-
-    def call(observation):
+    def call(observation, body):
+        items = body.get("protoLogs") or body.get("items") or []
+        if not isinstance(items, list):
+            raise DatabricksError(400, "MALFORMED_REQUEST", "protoLogs must be a list.")
         _read(observation, "databricks:telemetry")
         return {"errors": [], "numSuccess": len(items), "numProtoSuccess": len(items),
                 "numRealtimeSuccess": 0}
     return _serve(request, "telemetry", call, auth=request.url.path == "/telemetry-ext",
-                  events=len(items))
+                  raw=raw)
 
 
 @app.post("/sql/1.0/warehouses/{warehouse_id}")
@@ -843,13 +879,21 @@ def _run(run: dict, run_id: int, job_ids: dict[str, int]) -> dict:
                        "start_time": start, "end_time": end}]}
 
 
-def _jobs_served(request: Request, tool: str, call, **args):
-    """A Jobs request as the MCP operation it is (`sched_*`), one row, Databricks' errors."""
+def _jobs_served(request: Request, tool: str, call, *, raw: bytes | None = None,
+                 fields: tuple[str, ...] = (), **args):
+    """A Jobs request as the MCP operation it is (`sched_*`), one row, Databricks' errors.
+    With `raw`, the body is parsed inside the span, as `_serve` does it."""
     try:
         with Ledger(request, NAME).span(tool, **args) as row:
+            body = None
+            if raw is not None:
+                body = _json(raw) if raw else {}
+                row.args.update({f: body[f] for f in fields if body.get(f) is not None})
+
             def run(operations, observation):
                 _authenticate(request)
-                return call(operations, observation)
+                return (call(operations, observation) if raw is None
+                        else call(operations, observation, body))
             return row.run(run)
     except ToolError as exc:
         raise DatabricksError(400, "INVALID_PARAMETER_VALUE", str(exc)) from None
@@ -878,21 +922,32 @@ def list_jobs(request: Request):
 @app.post("/api/2.1/jobs/run-now")
 @app.post("/api/2.2/jobs/run-now")
 def run_now(request: Request, raw: RawBody):
-    body = _json(raw)
-    variables = {str(k): str(v) for k, v in
-                 (body.get("job_parameters") or body.get("notebook_params") or {}).items()}
-
-    def call(ops, observation):
+    def call(ops, observation, body):
         job_id = _int(body.get("job_id"), "job_id")
+        given = body.get("job_parameters") or body.get("notebook_params") or {}
+        if not isinstance(given, dict) or not all(
+                isinstance(v, (str, int, float, bool)) for v in given.values()):
+            raise DatabricksError(400, "INVALID_PARAMETER_VALUE",
+                                  "job_parameters must be an object of string values.")
+        variables = {str(k): str(v) for k, v in given.items()}
         names = {n: name for name, n in _jobs(ops, observation).items()}
         if job_id not in names:
             raise DatabricksError(400, "INVALID_PARAMETER_VALUE",
                                   f"Job {job_id} does not exist.")
-        run = sched_cli.trigger_job(ops, observation, names[job_id], "", variables)
+        run = start_run(ops, observation, names[job_id], variables)
         run_id = int(str(run.get("id", "run-0")).rsplit("-", 1)[-1])
         return {"run_id": run_id, "number_in_job": run_id}
-    return _jobs_served(request, "sched_trigger", call, job_id=body.get("job_id"),
-                        job_parameters=variables)
+    return _jobs_served(request, "sched_trigger", call, raw=raw,
+                        fields=("job_id", "job_parameters", "notebook_params"))
+
+
+def start_run(ops, observation: Observation, job: str, variables: dict) -> dict:
+    """What run-now does to the world, in one place: today the same `sched_trigger`
+    `./ops/sched trigger` makes (WorldScheduler.trigger - the job runs at trigger time,
+    the clock moves by its own duration). When the world scheduler gains `enqueue`
+    (queued until the grader's advance; the Airflow lane), switching run-now to it is
+    this one line."""
+    return sched_cli.trigger_job(ops, observation, job, "", variables)
 
 
 @app.get("/api/2.1/jobs/runs/get")

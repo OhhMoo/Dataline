@@ -100,6 +100,37 @@ there is no cloud storage to presign external links against, and the values are 
 same. Recorded as a deviation: an SDK caller that asks for EXTERNAL_LINKS gets
 `result.data_array`, not `external_links`.
 
+## SQL: fail-closed, after review (2026-10-07)
+
+Review found sqlglot's `databricks` -> `duckdb` translation quietly wrong in places, each a
+different answer rather than an error: `CAST(10.50 AS INT)` rounds (11; Databricks
+truncates, 10), `dayofweek` counts Sunday as 0 (Databricks 1) and `weekday` likewise
+(Sunday 6), `date_add` returns a TIMESTAMP (Databricks a DATE), `timestampdiff(MONTH,
+'2024-01-31', '2024-02-29')` counts the boundary (1; Databricks counts whole months, 0),
+`substring(s, 0, n)` is one character short, `hash()` is DuckDB's hash. So the translator
+is now fail-closed (`gateway/src/alkera_gateway/databricks_functions.py`):
+
+- every function must be on a vetted list - 101 sqlglot function classes, 5 functions by
+  name, 5 rewritten operators - and every other expression node on a list of 82
+  structural and operator types; anything else is refused naming it;
+- an entry is vetted as sqlglot translates it, or rewritten with Databricks' semantics:
+  integral CAST truncates, dayofweek/weekday/EXTRACT(DOW), date_add/date_sub return a
+  DATE, timestampdiff/datediff(unit) count whole units the way java.time does,
+  substring/left/right follow Spark's positions, percentile interpolates, `/`, `div` and
+  `%` raise DIVIDE_BY_ZERO as an ANSI warehouse does, current_date/current_timestamp read
+  the WORLD's clock;
+- argument shapes are checked: datetime formats beyond yyyy/yy/MM/dd/HH/mm/ss, EXTRACT
+  fields, truncation units, CAST targets, `CAST(x AS DECIMAL)` without a precision (it
+  parses like a `1.5BD` literal), LIKE escapes and backslash escapes in string literals
+  are refused by name;
+- `gateway/tests/test_databricks_functions.py` holds the corpus: 179 expressions and 38
+  queries, each with the result the Databricks SQL reference gives (its examples where
+  it has one), and 26 refusals; a test fails when a vetted entry has no case.
+
+Unqualified names are qualified with the session's schema, two-part names with catalog
+`main`, so no statement reaches DuckDB's own catalogs or a table function called without
+parentheses (`FROM pragma_database_list`).
+
 ## Validated against the implementation (locked clients, before the image)
 
 The module served over TLS on a loopback port, a fixture world behind it; the locked

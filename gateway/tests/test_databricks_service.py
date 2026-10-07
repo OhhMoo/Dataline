@@ -266,6 +266,67 @@ def test_the_connectors_bookkeeping_is_served_and_reads(ws):
     assert writes == ["databricks.statement"]          # the CREATE SCHEMA, nothing else
 
 
+def test_a_session_schema_is_an_identifier_never_sql(ws):
+    """The reviewer's repro: a schema name carrying `"; drop view ...; --` reaches the
+    engine only as a quoted identifier - nothing is dropped, the rows say what was
+    sent."""
+    evil = 'x"; DROP VIEW memory.dbx_information_schema.tables; --'
+    session = ws.ok("POST", "/api/2.0/sql/sessions",
+                    json={"warehouse_id": "alkera", "schema": evil})["session_id"]
+    assert ws.statement("select 1", session_id=session)["status"]["state"] == "SUCCEEDED"
+    made = ws.statement(f"CREATE SCHEMA main.`{evil}`", session_id=session)
+    assert made["status"]["state"] == "SUCCEEDED", made
+    # the schema now exists, so the session's USE names it - as an identifier
+    created = ws.statement("CREATE TABLE t AS SELECT 1 AS id", session_id=session)
+    assert created["status"]["state"] == "SUCCEEDED", created
+    assert ws.statement("select id from t", session_id=session)[
+        "result"]["data_array"] == [["1"]]
+    tables = ws.statement("select count(*) from system.information_schema.tables "
+                          "where table_schema = 'warehouse'")
+    assert tables["status"]["state"] == "SUCCEEDED" and int(
+        tables["result"]["data_array"][0][0]) == 4     # the views were not dropped
+    rows = [r for r in ws.rows() if r["tool"] == "databricks.statement"]
+    assert [r["args"]["sql"] for r in rows][-2:] == [
+        "select id from t", "select count(*) from system.information_schema.tables "
+        "where table_schema = 'warehouse'"]
+    assert rows[-2]["args"]["session_id"] == session
+
+
+@pytest.mark.parametrize("method,path", [
+    ("POST", SQL), ("POST", "/api/2.0/sql/sessions"), ("POST", "/api/2.1/jobs/run-now"),
+    ("POST", "/telemetry-ext")])
+def test_a_malformed_body_is_refused_with_exactly_one_row(ws, method, path):
+    before = len(ws.rows())
+    r = ws.call(method, path, content=b"{not json", headers={"Content-Type":
+                                                               "application/json"})
+    assert r.status_code == 400 and r.json()["error_code"] == "MALFORMED_REQUEST"
+    rows = ws.rows()[before:]
+    assert len(rows) == 1 and rows[0]["exit"] == "error", rows
+    assert rows[0]["error"]["code"] == "MALFORMED_REQUEST"
+
+
+def test_run_now_job_parameters_must_be_an_object(ws):
+    before = len(ws.rows())
+    r = ws.call("POST", "/api/2.1/jobs/run-now",
+                json={"job_id": 1, "job_parameters": ["not", "an", "object"]})
+    assert r.status_code == 400 and r.json()["error_code"] == "INVALID_PARAMETER_VALUE"
+    rows = ws.rows()[before:]
+    assert [(x["tool"], x["exit"]) for x in rows] == [("databricks.sched_trigger", "error")]
+    assert rows[0]["args"]["job_parameters"] == ["not", "an", "object"]
+
+
+@pytest.mark.parametrize("params", [
+    [{"name": "n", "value": "abc", "type": "INT"}],
+    [{"name": "d", "value": "2026-13-45", "type": "DATE"}],
+    [{"name": "b", "value": "maybe", "type": "BOOLEAN"}],
+    {"name": "n"}, 7])
+def test_a_bad_parameter_is_a_failed_statement_not_a_500(ws, params):
+    r = ws.statement("select :n", parameters=params)
+    assert r["status"]["state"] == "FAILED"
+    assert "INVALID_PARAMETER_VALUE" in r["status"]["error"]["message"]
+    assert ws.rows()[-1]["exit"] == "error"
+
+
 def test_statement_parameters_and_row_limit(ws):
     r = ws.statement("select order_id from main.warehouse.fct_orders "
                      "where order_status = :status order by order_id",
