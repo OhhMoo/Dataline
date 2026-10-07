@@ -266,7 +266,11 @@ def fold_statement_log(stack, *, clock: str | None = None,
     `down()` while the stack is still up, before anything else is torn down."""
     container = getattr(stack, "services_container", "")
     if not container:
-        return {"rows": None, "error": "no native-services container to run the tailer in"}
+        # `up()` never got as far as naming its containers: no agent ran, so there
+        # is no statement to fold, and a teardown after a failed `up()` must not
+        # trade that failure for this one.
+        return {"rows": None, "skipped": "no native-services container: the stack "
+                                         "never came up"}
     started = time.monotonic()
     done = runner(tail_argv(container, clock), capture_output=True, text=True,
                   encoding="utf-8", errors="replace", timeout=600)

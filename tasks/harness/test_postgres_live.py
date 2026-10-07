@@ -291,6 +291,18 @@ def test_a_failed_fold_is_loud_after_the_stack_is_down(tmp_path, monkeypatch):
     assert not stack._up
 
 
+def test_a_stack_that_never_came_up_tears_down_quietly(tmp_path, monkeypatch):
+    """`up()` failed before naming its containers: no agent ran, nothing to fold,
+    and the teardown must not replace the original failure with its own."""
+    calls: list = []
+    stack = _teardown_stack(tmp_path, monkeypatch, lambda *a, **k: calls.append("fold"),
+                            calls)
+    stack.services_container = ""
+    stack.down()
+    assert "fold" not in calls and "skipped" in stack.postgres_statements
+    assert not stack._up
+
+
 def test_tail_runs_in_native_services_over_the_read_only_log():
     argv = postgres_live.tail_argv("svc", CLOCK)
     assert argv[:2] == ["docker", "exec"] and argv[-4] == "svc"
