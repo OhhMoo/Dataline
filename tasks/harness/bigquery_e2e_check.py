@@ -14,9 +14,12 @@ INSIDE the episode container:
       variables): every seeded table's COUNT(*) and February 2026 Net Revenue equal
       the world's DuckDB, read on the host; CREATE SCHEMA + CREATE OR REPLACE TABLE +
       INSERT + SELECT on a scratch dataset; the fences (dry run, legacy SQL, ALTER,
-      a transaction - its INSERT never reaching the engine -, a syntax error
-      answered at once, never retried), each refused query a `bigquery.statement`
-      row flagged `refused:<feature>`; `list_rows(max_results=5)` five rows;
+      a transaction - its INSERT never reaching the engine -, procedural
+      scripting, a syntax error and an untokenizable query answered at once,
+      never retried), each refused query a `bigquery.statement` row flagged
+      `refused:<feature>`, the untokenizable one a single `unparsed_statement`
+      row; a `SELECT; DROP` script a destructive row; `list_rows(max_results=5)`
+      five rows;
   (b) dbt: dbt-bigquery is NOT in the image (gateway/docker/bigquery-clients.in), so
       the box's dbt profile (~/.dbt) is the world's own, with no bigquery target, and
       the de image's role boundary holds (no pandas, pyarrow, nbformat or `jupyter` in
@@ -118,6 +121,11 @@ out["transaction"] = refused(lambda: client.query(
     f"BEGIN TRANSACTION; INSERT INTO `{project}.bq_e2e_scratch.notes` (id, note) "
     "VALUES (3, 'gamma'); SELECT ERROR('boom'); COMMIT TRANSACTION").result())
 out["bad_sql"] = refused(lambda: client.query("SELEC 1").result())
+out["scripting"] = refused(lambda: client.query("IF TRUE THEN SELECT 1; END IF").result())
+out["untokenizable"] = refused(lambda: client.query("SELECT 'abc").result())
+run(f"CREATE TABLE `{project}.bq_e2e_scratch.drop_me` (a INT64)")
+out["drop_script"] = f"SELECT 1; /* tidy */ DROP TABLE `{project}.bq_e2e_scratch.drop_me`"
+run(out["drop_script"])
 out["list_rows_5"] = [[str(v) for v in row.values()] for row in client.list_rows(
     f"{project}.warehouse.fct_orders", max_results=5)]
 out["read_back_after_fences"] = run(
@@ -357,6 +365,8 @@ def main(argv=None) -> int:
                                  ("legacy_sql", 501, "legacy SQL"),
                                  ("alter", 501, "ALTER"),
                                  ("transaction", 501, "transactions"),
+                                 ("scripting", 501, "procedural scripting"),
+                                 ("untokenizable", 400, "Syntax error"),
                                  ("bad_sql", 400, "Syntax error")):
             seen = got.get(name) or {}
             check(f"fence: {name} refused by name, at once ({code})",
@@ -390,10 +400,21 @@ def main(argv=None) -> int:
         check("audit: each refused query is a bigquery.statement row, exit error, "
               "flagged refused:<feature>",
               {r["args"].get("feature") for r in refusals}
-              == {"dry_run", "legacy_sql", "alter", "transaction"}
+              == {"dry_run", "legacy_sql", "alter", "transaction", "scripting"}
               and all(r["tool"] == TOOL and r["exit"] == "error" and r["args"].get("sql")
                       for r in refusals),
               record["refused_rows"])
+        unparsed = [r for r in probe_rows if r["args"].get("sql") == "SELECT 'abc"]
+        check("audit: an untokenizable query is exactly one statement row, "
+              "unparsed_statement, invalidQuery",
+              len(unparsed) == 1 and "unparsed_statement" in unparsed[0]["flags"]
+              and (unparsed[0]["error"] or {}).get("code") == "invalidQuery",
+              [{k: r[k] for k in ("seq", "flags", "error")} for r in unparsed])
+        script = [r for r in probe_rows if r["args"].get("sql") == got.get("drop_script")]
+        check("audit: a script is as serious as its worst statement "
+              "(SELECT then DROP is a destructive row)",
+              len(script) == 1 and script[0]["op_class"] == "destructive",
+              [{k: r[k] for k in ("seq", "op_class", "targets")} for r in script])
 
         # (b) dbt: no adapter, so no bigquery target, and the role boundary holds
         adapter = stack.exec_([PYTHON, "-c", "import dbt.adapters.bigquery"], check=False)
