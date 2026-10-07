@@ -3,7 +3,7 @@
     TMPDIR=<disk> gateway/.venv/bin/python -m pytest harbor/tests/test_tooltour_export.py -q
 
 One real export (a module fixture): the duckdb and dbt probes (da/laptop) and
-the redshift probes (de/aws, a warehouse the Harbor image does not serve yet),
+the bigquery probes (de/gcp, a warehouse the Harbor image refuses to serve),
 from real world builds, with the real templates. The verifier cases run the
 exported duckdb task's own tests/verify_tool.py in a subprocess (a clean
 interpreter: -I, no repository on the path), over R/{world,workspace,audit}
@@ -31,7 +31,7 @@ from alkera_harbor import digest, tooltour
 from alkera_harbor.constants import CANARY_MD
 from alkera_harbor.validate import validate_tasks
 
-TOOLS = ("dbt", "duckdb", "redshift")
+TOOLS = ("dbt", "duckdb", "bigquery")
 EXPORTED = {"dbt.show.net_revenue", "duckdb.cli.net_revenue_feb_2026"}
 DUCKDB = "duckdb.cli.net_revenue_feb_2026"
 #: February 2026 Net Revenue on the commerce_analytics world, seed 11
@@ -71,8 +71,9 @@ def test_one_task_per_probe(exported):
     assert set(tasks) | set(skipped) == set(probes)
     assert not set(tasks) & set(skipped)
     for probe_id, reason in skipped.items():
-        if probe_id.startswith("redshift."):
-            assert "warehouse=redshift" in reason and "Task 10" in reason, reason
+        if probe_id.startswith("bigquery."):
+            assert "warehouse=bigquery" in reason and "around the audited proxy" in reason, \
+                reason
     assert skipped["dbt.show.ref_inline"].startswith("known finding"), skipped
     assert sorted(r.status for r in report.results) == ["ok"] * 2 + ["skipped"] * 4
 

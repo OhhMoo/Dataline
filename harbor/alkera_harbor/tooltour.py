@@ -32,8 +32,9 @@ a Harbor task an agent must solve itself:
 
 SKIPPED, BY NAME. A probe the current tree cannot serve in Harbor is not
 exported: either its variant is refused (variant.variant_of /
-backend_specs: a warehouse or hosted backend the Harbor image has no process
-for yet - plan Task 10 lifts those; re-export after it merges), or it is a
+backend_specs: a warehouse the Harbor image refuses to serve - BigQuery, whose
+emulator one container cannot fence from the agent - or a backend it has no
+process for), or it is a
 KNOWN finding of the container tour (its module's KNOWN: the probe's own
 command fails, for a cause owned elsewhere, so the oracle could not pass).
 manifest.json `skipped` names each probe with its reason.
@@ -71,7 +72,7 @@ from .context import ContextError, resolve_context
 from .naming import ArmRef, NamingError, check_unique, select
 from .reroot import EXPORT_MARKER, iter_files, scan
 from .tooltour_world import PLUGS_ENV, PROFILE_ENV, TOUR_SEED
-from .variant import VariantError, backend_specs, variant_of
+from .variant import VariantError, backend_specs, statement_logs, variant_of
 from .worldbuild import GATEWAY_CONFIG_IN_CONTAINER, StagedArm
 
 #: Every probe is one task with one arm: `alkera/<probe id>__tour`.
@@ -143,7 +144,7 @@ def skip_reason(probe, known: dict[str, str]) -> str | None:
         backend_specs(variant_of(SimpleNamespace(profile=probe.profile,
                                                  plugs=probe.plug_map())))
     except VariantError as exc:
-        return f"not served by the Harbor image yet: {exc}"
+        return f"not served by the Harbor image: {exc}"
     return None
 
 
@@ -529,7 +530,10 @@ class ToolTourAdapter(AlkeraHarborAdapter):
             task_toml_sha256=hashlib.sha256(probe_bytes).hexdigest(),
             anchors="n/a", oracle="probe", restore=staged.restore,
             gateway_config=GATEWAY_CONFIG_IN_CONTAINER,
-            backends=backend_specs(variant) if variant.profiled else None))
+            backends=backend_specs(variant) if variant.profiled else None,
+            # the server logs world-down folds into the action log (the postgres
+            # warehouse: its psql.statement rows land there, before collection)
+            statement_logs=statement_logs(variant)))
         for path in (episode_dir / "episode.json", tests_dir / "episode" / "episode.json"):
             path.write_text(episode, encoding="utf-8", newline="")
 

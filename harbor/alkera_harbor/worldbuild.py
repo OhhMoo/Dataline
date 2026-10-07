@@ -205,7 +205,7 @@ def _stage(ref: ArmRef, temp: Path, m, log) -> StagedArm:
         world = m.episode.build_world(spec, world_root, grading)
         records["build_s"] = round(time.time() - started, 1)
         clock = m.container_episode.world_clock(world) if variant.profiled else None
-        stage_native(world, variant, label=ref.selector, records=records)
+        stage_native(world, variant, label=ref.selector, records=records, m=m)
 
     def compose_prompt(world: dict) -> str:
         # --- step 4: the prompt, from the HOST world, as aut.run composes it
@@ -218,15 +218,17 @@ def _stage(ref: ArmRef, temp: Path, m, log) -> StagedArm:
 
     staged = stage_built_world(world, rollout, variant=variant, profile=spec.profile,
                                plugs=spec.plugs, label=ref.selector, records=records,
-                               compose_prompt=compose_prompt, temp=temp)
+                               compose_prompt=compose_prompt, temp=temp, m=m)
     return StagedArm(ref=ref, spec=spec, temp=temp, variant=variant, clock=clock, **staged)
 
 
-def stage_native(world: dict, variant: Variant, *, label: str, records: dict) -> None:
+def stage_native(world: dict, variant: Variant, *, label: str, records: dict,
+                 m=None) -> None:
     """Step 3: the container-native staging of a built world, in rollout.py's
     order: the workspace CLI baked for the container, the discovery files, the
-    sanitised world files. Writes what it did into `records`."""
-    m = harness.modules()
+    sanitised world files. Writes what it did into `records`. `m` is the
+    harness modules `_stage` was handed (default harness.modules())."""
+    m = m or harness.modules()
     world_root = Path(world["world_root"])
     cli = m.native_stack.install_workspace_cli(world, topology="container")
     records["workspace_cli"] = {k: cli[k] for k in ("cli", "topology",
@@ -258,15 +260,15 @@ def stage_native(world: dict, variant: Variant, *, label: str, records: dict) ->
 def stage_built_world(world: dict, rollout: Path, *, variant: Variant,
                       profile: str | None, plugs: dict | None, label: str,
                       records: dict, compose_prompt=None,
-                      temp: Path | None = None) -> dict:
+                      temp: Path | None = None, m=None) -> dict:
     """Steps 4-6 for a world built under `rollout` (`world/` and `grading/`
     siblings) and staged by `stage_native`: build caches dropped, the prompt
     (`compose_prompt(world)`, "" without one), the services' gateway config
     (with `profile` and `plugs` for a profiled variant), the episode HOME, the
     workspace moved out, git normalised, every host path re-rooted. Returns
     StagedArm's fields that describe the world (`temp`, default the rollout's
-    parent, is a leak needle)."""
-    m = harness.modules()
+    parent, is a leak needle; `m` as for stage_native)."""
+    m = m or harness.modules()
     world_root, grading = rollout / "world", rollout / "grading"
     temp = Path(temp) if temp is not None else rollout.parent
     # profiled worlds only (theme worlds whose build ran dbt), so an unprofiled
