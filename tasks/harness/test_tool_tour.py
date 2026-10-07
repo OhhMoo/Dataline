@@ -157,13 +157,21 @@ def test_jupyter_probe_notebook_is_valid_and_its_cell_compiles():
     compile(notebook["cells"][0]["source"], "cell", "exec")
 
 
-def test_postgres_probe_is_a_teardown_probe_with_both_gaps_known():
-    probe = next(p for p in tt.load_probes(["postgres"]))
-    assert probe.rows_at == "teardown"
+def test_postgres_probes_are_teardown_probes_over_the_seeded_world():
+    """Task 9 wired the tailer into down() and seeds a de/postgres box from the world,
+    so the psql probe reads a world fact and carries no KNOWN finding any more."""
+    from tool_tour_probes import NET_REVENUE_FEB_2026_SQL
+
+    probes = tt.load_probes(["postgres", "postgres_dbt"])
+    assert {p.id for p in probes} == {"postgres.psql.net_revenue_feb_2026",
+                                      "postgres_dbt.run.net_revenue_feb_2026"}
+    for probe in probes:
+        assert probe.rows_at == "teardown" and probe.profile == "de/postgres"
+        assert probe.truth_sql == NET_REVENUE_FEB_2026_SQL
+        assert "psql.statement" in probe.expect_tools
     known = tt.known_findings()
     assert set(known) <= {p.id for p in tt.load_probes()}
-    cause = known["postgres.psql.items_count"]
-    assert "Task 9" in cause and "not wired" in cause and "not seeded" in cause
+    assert not {p.id for p in probes} & set(known)
 
 
 # --------------------------------------------------------------------------- verdict

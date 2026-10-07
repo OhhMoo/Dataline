@@ -1,42 +1,39 @@
 """postgres: `psql` with the box's PG* variables, which only a profile that plugs the
 postgres warehouse exports (de/postgres).
 
-The server is the always-on compose `postgres`: today it holds `warehouse.items` (2 rows)
-and nothing of the world, so there is no world truth to compare against (truth_sql None).
-Its statements are audited by a TAILER that folds the server's log into the action log
-in the stack's `down()`, so the probe is `rows_at="teardown"`: judged after teardown,
-on a stack of its own.
-
-OWNED BY TASK 9, which seeds the server from the world for profiles that plug postgres,
-wires the tailer, and rewrites this probe as February 2026 Net Revenue through psql.
-Until then no `psql.statement` row is written and this probe FAILs on purpose (KNOWN).
+A profile that plugs postgres gets the world's `warehouse.*` copied into the stack's
+server when the box is prepared (`postgres_live.seed`), so a psql read answers the
+world's facts: here February 2026 Net Revenue, in Postgres' own spelling (database
+`alkera`, schema `warehouse`). Its statements are audited by the TAILER that folds the
+server's role-scoped log into the action log in the stack's `down()`
+(`postgres_live.fold_statement_log`), so the probe is `rows_at="teardown"`: judged
+after teardown, on a stack of its own.
 """
 from tool_tour import Probe
 
+from tool_tour_probes import NET_REVENUE_FEB_2026_SQL
+
+#: The same fact over the seeded copy: two-part names, the server's own database.
+PG_NET_REVENUE_FEB_2026_SQL = NET_REVENUE_FEB_2026_SQL.replace(
+    "warehouse.warehouse.fct_orders", "warehouse.fct_orders")
+
 PROBES = [
     Probe(
-        id="postgres.psql.items_count",
+        id="postgres.psql.net_revenue_feb_2026",
         profile="de/postgres",
         plugs={},
         command=(
             "cd /workspace\n"
             "set -euo pipefail\n"
-            "n=$(psql -tAc \"SELECT count(*) FROM warehouse.items\")\n"
-            "printf '{\"value\": %s}\\n' \"$n\"\n"),
+            "value=$(psql -X -tA -v ON_ERROR_STOP=1 -c \""
+            + PG_NET_REVENUE_FEB_2026_SQL + "\")\n"
+            "printf '{\"value\": \"%s\"}\\n' \"$value\"\n"),
         expect_tools=("psql.statement",),
-        truth_sql=None,
+        truth_sql=NET_REVENUE_FEB_2026_SQL,
         rows_at="teardown",
         instruction=(
-            "How many rows are in warehouse.items on the team's Postgres warehouse? Use "
-            "psql with the connection settings this box provides."),
+            "Finance wants February 2026 Net Revenue from the team's Postgres warehouse. "
+            "Using psql with the connection settings this box provides, sum order_amount "
+            "over completed orders (warehouse.fct_orders) placed in February 2026."),
     ),
 ]
-
-KNOWN = {
-    "postgres.psql.items_count": (
-        "Task 9, two missing pieces: (1) the tailer is not wired - "
-        "native/tailers/postgres.py is not run by NativeContainerEpisode.down(), so a psql "
-        "statement leaves no psql.statement row even after teardown; (2) the server is not "
-        "seeded - it holds warehouse.items (2 rows), not the world, so there is no world "
-        "truth for a psql read"),
-}
