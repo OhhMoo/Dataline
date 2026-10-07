@@ -21,6 +21,7 @@ PROBES = [
         profile=PROFILE,
         plugs=PLUGS,
         command=(
+            "cd /workspace\n"
             "set -euo pipefail\n"
             "cd dbt_project\n"
             "dbt --quiet show --inline \"select sum(order_amount) as net_revenue from "
@@ -29,6 +30,7 @@ PROBES = [
             "python3 -c 'import json; print(json.dumps({\"value\": "
             "json.load(open(\"/tmp/tour_dbt_show.json\"))[\"show\"][0][\"net_revenue\"]}))'\n"),
         expect_tools=("shim.dbt",),
+        expect_args=("show",),
         truth_sql=NET_REVENUE_SQL,
         instruction=(
             "Using dbt from the repository's dbt project (with the profile a bare `dbt` "

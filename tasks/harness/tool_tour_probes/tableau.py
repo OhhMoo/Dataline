@@ -17,6 +17,7 @@ PROBES = [
         profile=PROFILE,
         plugs=PLUGS,
         command=(
+            "cd /workspace\n"
             "set -euo pipefail\n"
             "tabcmd login -s \"$TABLEAU_SERVER_URL\" --token-name \"$TABLEAU_PAT_NAME\" "
             "--token-value \"$TABLEAU_PAT_SECRET\"\n"

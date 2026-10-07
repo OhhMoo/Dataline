@@ -1,14 +1,18 @@
-"""tool_tour.py: probe loading, the verdict, truth and the world seed - no docker.
+"""tool_tour.py / tool_tour_core.py: probe loading and shapes, the verdict, truth, the
+drive (teardown rows), the episode checks and the world seed - no docker.
 
 The live tour is `tool_tour.py --topology container` (evidence/tool_tour_container.json).
 """
 from __future__ import annotations
 
+import dataclasses
 import json
 import re
 import subprocess
+import sys
 from decimal import Decimal
 
+import bi_e2e_check as bi
 import episode
 import pytest
 import tool_tour as tt
@@ -20,12 +24,15 @@ ELEVEN = {"duckdb", "dbt", "mf", "jupyter", "postgres", "snowflake", "powerbi", 
 SF = Probe(id="snowflake.connector.net_revenue_feb_2026", profile="da/snowflake", plugs={},
            command="true", expect_tools=("snowflake.statement",),
            truth_sql="SELECT 2361224.00", instruction="February 2026 Net Revenue.")
+PG = Probe(id="postgres.psql.items_count", profile="de/postgres", plugs={},
+           command="true", expect_tools=("psql.statement",), truth_sql=None,
+           instruction="Count warehouse.items.", rows_at="teardown")
 ALLOWED = {("snowflake.internal", 8443), ("jira.internal", 8080)}
 
 
 @pytest.fixture
 def audit(tmp_path, monkeypatch):
-    """Canned 9.2.2 rows, written by the real native writer into a scratch log."""
+    """Canned 9.2.2 rows, written by the real native writer into tmp_path/actions.jsonl."""
     from alkera_gateway.native import audit as native_audit
 
     monkeypatch.setenv("ALKERA_NATIVE_AUDIT", str(tmp_path / "actions.jsonl"))
@@ -39,9 +46,10 @@ def audit(tmp_path, monkeypatch):
 
 
 def judge(probe=SF, *, stdout='{"value": "2361224.0"}\n', rows=(), destinations=None,
-          truth=Decimal("2361224.00"), returncode=0):
+          truth=Decimal("2361224.00"), truth_error=None, returncode=0):
     return tt.verdict(probe, returncode=returncode, stdout=stdout, rows=list(rows),
-                      destinations=destinations or {}, allowed=ALLOWED, truth=truth)
+                      destinations=destinations or {}, allowed=ALLOWED, truth=truth,
+                      truth_error=truth_error, validate_row=bi.validate_row)
 
 
 # --------------------------------------------------------------------------- loading
@@ -64,34 +72,98 @@ def test_load_probes_filters_and_refuses_unknown_tools():
         tt.load_probes(["redshiftt"])
 
 
+@pytest.fixture
+def probe_package(tmp_path, monkeypatch):
+    """A scratch probes package, so load_probes can be fed broken modules."""
+    package = tmp_path / "scratch_probes"
+    package.mkdir()
+    (package / "__init__.py").write_text("")
+    monkeypatch.syspath_prepend(str(tmp_path))
+    monkeypatch.setattr(tt, "PROBES_DIR", package)
+    monkeypatch.setattr(tt, "PROBES_PACKAGE", "scratch_probes")
+    yield package
+    for name in [m for m in sys.modules if m.startswith("scratch_probes")]:
+        del sys.modules[name]
+
+
+PROBE_SRC = ("from tool_tour import Probe\nPROBES = [{probes}]\n")
+ONE = ('Probe(id="{id}", profile="de/laptop", plugs={plugs}, command="true", '
+       'expect_tools={tools}, truth_sql=None, instruction="x")')
+
+
+def test_load_probes_names_the_module_of_a_misshapen_probe(probe_package):
+    (probe_package / "wrong.py").write_text(PROBE_SRC.format(probes=ONE.format(
+        id="wrong.a.b", plugs="42", tools='("x.y",)')))
+    with pytest.raises(ValueError, match=r"wrong\.py.*plugs must be a mapping"):
+        tt.load_probes(["wrong"])
+    (probe_package / "empty.py").write_text(PROBE_SRC.format(probes=ONE.format(
+        id="empty.a.b", plugs="{}", tools="()")))
+    with pytest.raises(ValueError, match=r"empty\.py.*expect_tools is empty"):
+        tt.load_probes(["empty"])
+    (probe_package / "twice.py").write_text(PROBE_SRC.format(probes=", ".join(
+        [ONE.format(id="twice.a.b", plugs="{}", tools='("x.y",)')] * 2)))
+    with pytest.raises(ValueError, match="duplicate probe ids"):
+        tt.load_probes(["twice"])
+    (probe_package / "stray.py").write_text(PROBE_SRC.format(probes=ONE.format(
+        id="other.a.b", plugs="{}", tools='("x.y",)')))
+    with pytest.raises(ValueError, match="filed under stray.py"):
+        tt.load_probes(["stray"])
+
+
+def test_probe_shapes_are_normalised_and_hashable():
+    probe = dataclasses.replace(SF, plugs={"warehouse": "snowflake", "bi": ["sigma"]})
+    assert probe.plugs == (("bi", ("sigma",)), ("warehouse", ("snowflake",)))
+    assert probe.plug_map() == {"bi": ("sigma",), "warehouse": ("snowflake",)}
+    assert dataclasses.replace(probe, id="snowflake.a.b").plugs == probe.plugs
+    assert len({probe, dataclasses.replace(probe), SF}) == 2
+    assert dataclasses.replace(SF, expect_tools=["a.b"]).expect_tools == ("a.b",)
+    for bad in ({"bi": 3}, {"bi": ()}, ["bi", "sigma"], "bi=sigma", {"bi": [""]}):
+        with pytest.raises(TypeError):
+            dataclasses.replace(SF, plugs=bad)
+    with pytest.raises(ValueError, match="expect_tools is empty"):
+        dataclasses.replace(SF, expect_tools=())
+    with pytest.raises(ValueError, match="rows_at"):
+        dataclasses.replace(SF, rows_at="later")
+    with pytest.raises(ValueError, match="<tool>.<client>.<what>"):
+        dataclasses.replace(SF, id="snowflake")
+
+
 def test_every_probe_is_runnable_as_written():
-    """Its profile resolves (no planned plug), its command is valid bash ending in the
-    answer line, and its brief does not hand over the command."""
+    """Its profile resolves (no planned plug), its command is valid bash that starts in
+    the workspace, and its brief does not hand over the command."""
     for probe in tt.load_probes():
-        assert episode.environment_profile(probe.profile, dict(probe.plugs)) is not None
+        assert episode.environment_profile(probe.profile, probe.plug_map()) is not None
+        assert probe.command.startswith("cd /workspace\n"), probe.id
         done = subprocess.run(["bash", "-n"], input=probe.command, text=True,
-                              capture_output=True)
+                              capture_output=True, check=False)
         assert done.returncode == 0, (probe.id, done.stderr)
-        assert probe.expect_tools and probe.instruction.strip(), probe.id
         handed = [line.strip() for line in probe.command.splitlines()
                   if len(line.strip()) > 20 and line.strip() in probe.instruction]
         assert not handed, (probe.id, handed)
         assert len(probe.instruction) < 400, probe.id
 
 
+def test_dbt_and_mf_probes_name_their_subcommand():
+    by_id = {p.id: p for p in tt.load_probes(["dbt", "mf"])}
+    assert by_id["dbt.show.net_revenue"].expect_args == ("show",)
+    assert by_id["mf.query.net_revenue_feb_2026"].expect_args == ("query",)
+
+
 def test_jupyter_probe_notebook_is_valid_and_its_cell_compiles():
     probe = next(p for p in tt.load_probes(["jupyter"]))
-    text = re.search(r"<<'NB'\n(.*?)\nNB\n", probe.command, re.S).group(1)
+    text = re.search(r"<<'NB'\n(.*?)\nNB\n", probe.command, re.DOTALL).group(1)
     notebook = json.loads(text)
     assert notebook["metadata"]["kernelspec"]["name"] == "alkera-python"
     compile(notebook["cells"][0]["source"], "cell", "exec")
 
 
-def test_known_findings_name_real_probes():
-    ids = {p.id for p in tt.load_probes()}
+def test_postgres_probe_is_a_teardown_probe_with_both_gaps_known():
+    probe = next(p for p in tt.load_probes(["postgres"]))
+    assert probe.rows_at == "teardown"
     known = tt.known_findings()
-    assert set(known) <= ids
-    assert "Task 9" in known["postgres.psql.items_count"]
+    assert set(known) <= {p.id for p in tt.load_probes()}
+    cause = known["postgres.psql.items_count"]
+    assert "Task 9" in cause and "not wired" in cause and "not seeded" in cause
 
 
 # --------------------------------------------------------------------------- verdict
@@ -108,6 +180,21 @@ def test_verdict_fails_when_expected_tool_missing(audit):
     assert result["verdict"] == "FAIL"
     assert result["missing_tools"] == ["snowflake.statement"]
     assert judge(rows=[])["verdict"] == "FAIL"
+
+
+def test_verdict_checks_expect_args_in_an_expected_rows_argv(audit):
+    probe = Probe(id="dbt.show.net_revenue", profile="da/laptop", plugs={},
+                  command="true", expect_tools=("shim.dbt",), truth_sql=None,
+                  instruction="x", expect_args=("show",))
+    parse = audit("shim.dbt", op_class="exec", targets=[], args={"argv": ["dbt", "parse"]})
+    show = audit("shim.dbt", op_class="exec", targets=[],
+                 args={"argv": ["dbt", "--quiet", "show", "--inline", "select 1"]})
+    elsewhere = audit("shim.python", op_class="exec", targets=[],
+                      args={"argv": ["python3", "show"]})
+    ok = judge(probe, rows=[parse, show], stdout='{"value": 1}\n', truth=None)
+    assert ok["verdict"] == "PASS", ok["failures"]
+    bad = judge(probe, rows=[parse, elsewhere], stdout='{"value": 1}\n', truth=None)
+    assert bad["verdict"] == "FAIL" and bad["missing_args"] == ["show"]
 
 
 def test_verdict_fails_on_value_mismatch(audit):
@@ -135,6 +222,13 @@ def test_verdict_fails_on_a_bad_row_exit_or_answer_line(audit):
     assert judge(rows=[row], stdout='{"answer": 1}\n')["verdict"] == "FAIL"
 
 
+def test_verdict_refuses_value_and_doc_together(audit):
+    result = judge(rows=[audit("snowflake.statement")],
+                   stdout='{"value": "2361224.00", "doc": "also refused"}\n')
+    assert result["verdict"] == "FAIL"
+    assert any("both `value` and `doc`" in f for f in result["failures"])
+
+
 def test_verdict_doc_when_the_path_is_refused_by_name(audit):
     result = judge(rows=[audit("snowflake.statement")],
                    stdout='{"doc": "dbt-databricks refused by name"}\n')
@@ -143,14 +237,57 @@ def test_verdict_doc_when_the_path_is_refused_by_name(audit):
 
 
 def test_verdict_without_truth_records_the_value(audit):
-    probe = Probe(id="postgres.psql.items_count", profile="de/postgres", plugs={},
-                  command="true", expect_tools=("psql.statement",), truth_sql=None,
-                  instruction="Count warehouse.items.")
+    probe = dataclasses.replace(PG, rows_at="call")
     result = judge(probe, rows=[audit("psql.statement")], stdout='{"value": 2}\n', truth=None)
     assert result["verdict"] == "PASS" and result["value"] == 2 and result["value_ok"] is None
 
 
-def test_a_probe_that_times_out_fails_alone(audit):
+def test_a_null_truth_fails_the_probe(audit, tmp_path):
+    import duckdb
+
+    (tmp_path / "var" / "warehouse").mkdir(parents=True)
+    duckdb.connect(str(tmp_path / tt.WAREHOUSE_REL)).close()
+    with pytest.raises(ValueError, match="NULL"):
+        tt.truth("SELECT NULL", tmp_path)
+    facts = tt.world_truths([SF, dataclasses.replace(SF, id="snowflake.a.null",
+                                                     truth_sql="SELECT NULL")], tmp_path)
+    assert facts[SF.id][0] == Decimal("2361224.00") and facts[SF.id][1] is None
+    fact, error = facts["snowflake.a.null"]
+    result = judge(rows=[audit("snowflake.statement")], truth=fact, truth_error=error)
+    assert result["verdict"] == "FAIL" and "NULL" in " ".join(result["failures"])
+    assert not tt.same_value(None, None)
+
+
+def test_same_value_compares_numbers_as_numbers():
+    assert tt.same_value("2361224.00", Decimal("2361224.00"))
+    assert tt.same_value(2361224.0, Decimal("2361224.00"))
+    assert tt.same_value(33733790, Decimal("33733790.00"))
+    assert tt.same_value(" 5 ", 5)
+    assert not tt.same_value("2361224.01", Decimal("2361224.00"))
+    assert tt.same_value("todo", "todo") and not tt.same_value("done", "todo")
+    assert not tt.same_value(None, Decimal("1")) and not tt.same_value(True, 1)
+
+
+def test_normalise_host_agrees_with_agent_under_test():
+    import agent_under_test as aut
+
+    for host in ("localhost", "127.0.0.1", "::1", "jira.internal", "0.0.0.0"):
+        assert tt.normalise_host(host) == aut.normalise_host(host)
+
+
+def test_core_imports_nothing_of_the_harness():
+    """tool_tour_core ships alone in Task 11's verifier: stdlib + duckdb only."""
+    probe = ("import sys; sys.path.insert(0, sys.argv[1]); import tool_tour_core; "
+             "print(sorted({m.split('.')[0] for m in sys.modules}))")
+    done = subprocess.run([sys.executable, "-c", probe, str(tt.HERE)], capture_output=True,
+                          text=True, check=True)
+    loaded = set(json.loads(done.stdout.replace("'", '"')))
+    harness = {p.stem for p in tt.HERE.glob("*.py")} - {"tool_tour_core"}
+    assert not loaded & (harness | {"alkera_gateway", "world", "yaml"}), loaded & harness
+
+
+# --------------------------------------------------------------------------- timeouts
+def test_a_probe_that_times_out_on_the_host_fails_alone(audit):
     class Topo:
         def run(self, command, timeout=900):
             raise subprocess.TimeoutExpired(["bash"], timeout, output=b'{"value": 1}\n')
@@ -162,16 +299,22 @@ def test_a_probe_that_times_out_fails_alone(audit):
     assert result["verdict"] == "FAIL" and "exit 124" in result["failures"]
 
 
-def test_same_value_compares_numbers_as_numbers():
-    assert tt.same_value("2361224.00", Decimal("2361224.00"))
-    assert tt.same_value(2361224.0, Decimal("2361224.00"))
-    assert tt.same_value(33733790, Decimal("33733790.00"))
-    assert not tt.same_value("2361224.01", Decimal("2361224.00"))
-    assert tt.same_value("todo", "todo") and not tt.same_value("done", "todo")
-    assert not tt.same_value(None, Decimal("1"))
+def test_tour_topology_runs_each_command_under_timeout_in_the_episode():
+    topo = object.__new__(tt.TourTopology)
+    seen = {}
+
+    def exec_raw(argv, *, workdir=None, timeout=900):
+        seen.update(argv=argv, workdir=workdir, timeout=timeout)
+        return subprocess.CompletedProcess(argv, 0, "out", "err")
+
+    topo.exec_raw = exec_raw
+    outcome = topo.run("echo hi", timeout=60)
+    assert seen["argv"] == ["timeout", "-k", "10", "60", "bash", "-c", "echo hi"]
+    assert seen["workdir"] == "/workspace" and seen["timeout"] == 60 + tt.HOST_GRACE_S
+    assert outcome.returncode == 0 and outcome.stdout == "out"
 
 
-# --------------------------------------------------------------------------- truth
+# --------------------------------------------------------------------------- truth, files
 def test_truth_reads_the_warehouse_and_world_files(tmp_path):
     import duckdb
 
@@ -195,19 +338,127 @@ def test_truth_reads_the_warehouse_and_world_files(tmp_path):
         tt.truth("SELECT order_status FROM warehouse.warehouse.fct_orders", root)
 
 
-def test_read_destinations_merges_backend_files(tmp_path):
+def test_read_destinations_sums_files_and_counts_a_folded_row_once(tmp_path):
     assert tt.read_destinations(tmp_path) is None
+    jira = {"count": 1, "host": "jira.internal", "port": 8080}
+    sf = {"count": 3, "host": "snowflake.internal", "port": 8443}
+    (tmp_path / "destinations.jsonl").write_text(json.dumps(jira) + "\n")
+    (tmp_path / "destinations.snowflake.jsonl").write_text(json.dumps(sf) + "\n")
+    (tmp_path / "destinations.other.jsonl").write_text(
+        json.dumps({**jira, "count": 2}) + "\n")
+
+    def counts():
+        return {(r["host"], r["port"]): r["count"] for r in tt.read_destinations(tmp_path)}
+
+    assert counts() == {("jira.internal", 8080): 3, ("snowflake.internal", 8443): 3}
+    # teardown folds the snowflake row into destinations.jsonl verbatim: still 3, not 6
+    (tmp_path / "destinations.jsonl").write_text(json.dumps(jira) + "\n" + json.dumps(sf))
+    assert counts() == {("jira.internal", 8080): 3, ("snowflake.internal", 8443): 3}
+
+
+# --------------------------------------------------------------------------- drive
+class FakeTopo:
+    """A stack whose psql row lands either as the command runs or in down()."""
+
+    def __init__(self, audit_dir, write, row_lands):
+        self.audit_dir, self.write, self.row_lands = audit_dir, write, row_lands
+        self.downs = 0
+
+    def run(self, command, timeout=600):
+        if self.row_lands == "run":
+            self.write("psql.statement")
+        return bi.Outcome(0, '{"value": 2}\n', "", 0.1)
+
+    def down(self):
+        self.downs += 1
+        if self.row_lands == "down":
+            self.write("psql.statement")
+
+
+def _drive(tmp_path, audit, probe, row_lands):
+    (tmp_path / "destinations.jsonl").write_text("")
+    topo = FakeTopo(tmp_path, audit, row_lands)
+    results: list[dict] = []
+    episode_ = tt.drive(topo, [probe], world={"world_root": str(tmp_path),
+                                              "scheduler": str(tmp_path / "none.json")},
+                        facts={probe.id: (None, None)}, allowed=set(), known={},
+                        results=results)
+    assert topo.downs == 1
+    return results[0], episode_
+
+
+def test_teardown_rows_pass_only_a_teardown_probe(tmp_path, audit):
+    result, episode_ = _drive(tmp_path, audit, PG, row_lands="down")
+    assert result["verdict"] == "PASS", result["failures"]
+    assert result["rows"] == 1 and episode_["rows_in_probes"] == 1
+    assert episode_["no_stray_rows"] and episode_["ok"]
+
+
+def test_teardown_rows_fail_a_call_probe(tmp_path, audit):
+    result, episode_ = _drive(tmp_path, audit, dataclasses.replace(PG, rows_at="call"),
+                              row_lands="down")
+    assert result["verdict"] == "FAIL" and result["missing_tools"] == ["psql.statement"]
+    assert not episode_["no_stray_rows"] and not episode_["ok"]
+
+
+def test_call_rows_pass_a_call_probe(tmp_path, audit):
+    result, episode_ = _drive(tmp_path, audit, dataclasses.replace(PG, rows_at="call"),
+                              row_lands="run")
+    assert result["verdict"] == "PASS" and episode_["ok"]
+
+
+def test_group_key_gives_a_teardown_probe_its_own_stack():
+    a = dataclasses.replace(PG, id="postgres.a.b", rows_at="call")
+    b = dataclasses.replace(PG, id="postgres.c.d", rows_at="call")
+    assert tt.group_key(a) == tt.group_key(b) != tt.group_key(PG)
+    assert tt.group_dir(tt.group_key(PG)) == "de-postgres-postgres-psql-items-count"
+    assert tt.group_dir(tt.group_key(dataclasses.replace(
+        SF, profile="da/laptop", plugs={"bi": ("powerbi", "sigma")}))) == \
+        "da-laptop-bi-powerbi-sigma"
+
+
+# --------------------------------------------------------------------------- episode
+def test_episode_checks_catch_a_stray_row_and_a_seq_gap(tmp_path, audit):
+    (tmp_path / "destinations.jsonl").write_text("")
+    audit("snowflake.statement")
+    audit("snowflake.statement")
+    clean = tt.episode_checks(tmp_path, [{"rows": 2}], set())
+    assert clean["ok"] and clean["trace_valid"] is True and clean["no_stray_rows"]
+    stray = tt.episode_checks(tmp_path, [{"rows": 1}], set())
+    assert not stray["ok"] and not stray["no_stray_rows"]
+    log = tmp_path / "actions.jsonl"
+    rows = [json.loads(line) for line in log.read_text().splitlines()]
+    rows[1]["seq"] = 3
+    log.write_text("".join(json.dumps(r) + "\n" for r in rows))
+    gap = tt.episode_checks(tmp_path, [{"rows": 2}], set())
+    assert gap["trace_valid"] is not True and not gap["ok"]
+
+
+def test_episode_checks_catch_an_unallowed_destination(tmp_path):
     (tmp_path / "destinations.jsonl").write_text(
-        '{"count":1,"host":"jira.internal","port":8080}\n')
-    (tmp_path / "destinations.snowflake.jsonl").write_text(
-        '{"count":3,"host":"snowflake.internal","port":8443}\n')
-    got = {(r["host"], r["port"]): r["count"] for r in tt.read_destinations(tmp_path)}
-    assert got == {("jira.internal", 8080): 1, ("snowflake.internal", 8443): 3}
+        '{"count":1,"host":"example.com","port":443}\n')
+    checks = tt.episode_checks(tmp_path, [], {("jira.internal", 8080)})
+    assert checks["network_violations"] and not checks["ok"]
+
+
+def test_run_group_records_a_world_build_that_exits(tmp_path, monkeypatch):
+    import container_episode as ce
+
+    monkeypatch.setattr(ce, "assert_image_current", lambda image: {"image": image})
+
+    def exits(work):
+        raise SystemExit("world.build failed: no theme")
+
+    monkeypatch.setattr(bi, "build_world", exits)
+    group, results = tt.run_group([dataclasses.replace(PG, rows_at="call")],
+                                  tmp_path / "g", "x:y", {})
+    assert "SystemExit" in group["error"] and not group["ok"]
+    assert results[0]["verdict"] == "FAIL" and "not run" in results[0]["failures"][0]
 
 
 # --------------------------------------------------------------------------- the world
 @pytest.mark.parametrize("profile,plugs", sorted(
-    {(p.profile, json.dumps({s: list(v) for s, v in p.plugs.items()}, sort_keys=True))
+    {(p.profile, json.dumps({s: list(v) for s, v in p.plugs}, sort_keys=True))
      for p in tt.load_probes()}))
 def test_world_seed_is_the_box_its_profile_describes(tmp_path, profile, plugs):
     """The seed's `profile:` record, written the way world.build writes it, passes the
@@ -232,8 +483,6 @@ def test_da_snowflake_seed_carries_its_stack_bi_vendor():
 
 
 def test_as_profile_restores_bi_e2e_check():
-    import bi_e2e_check as bi
-
     before = (bi.seed_text, bi.PROFILE_NAME, bi.PLUGS)
     with tt.as_profile("de/laptop", {}, "seed"):
         assert bi.PROFILE_NAME == "de/laptop" and bi.PLUGS == {}
@@ -264,8 +513,6 @@ def test_cli_image_flags():
 def test_probe_modules_shadow_nothing():
     """`tool_tour_probes/duckdb.py` (and snowflake.py) are submodules: loading them
     leaves the real packages of the same name importable."""
-    import sys
-
     tt.load_probes(["duckdb", "snowflake"])
     import duckdb
 

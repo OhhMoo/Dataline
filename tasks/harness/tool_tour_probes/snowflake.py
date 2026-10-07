@@ -14,7 +14,8 @@ PROBES = [
         id="snowflake.connector.net_revenue_feb_2026",
         profile="da/snowflake",
         plugs={},
-        command="""set -euo pipefail
+        command="""cd /workspace
+set -euo pipefail
 python3 - <<'PY'
 import json, os
 import snowflake.connector

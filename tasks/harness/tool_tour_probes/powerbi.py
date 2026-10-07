@@ -11,7 +11,8 @@ PROBES = [
         id="powerbi.rest.net_revenue",
         profile=PROFILE,
         plugs=PLUGS,
-        command="""set -euo pipefail
+        command="""cd /workspace
+set -euo pipefail
 python3 - <<'PY'
 import json, os
 import requests

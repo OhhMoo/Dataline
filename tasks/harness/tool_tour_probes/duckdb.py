@@ -16,6 +16,7 @@ PROBES = [
         profile=PROFILE,
         plugs=PLUGS,
         command=(
+            "cd /workspace\n"
             "set -euo pipefail\n"
             "value=$(duckdb -readonly /world/var/warehouse/warehouse.duckdb -c \""
             + NET_REVENUE_FEB_2026_SQL + "\" | tail -n 1)\n"

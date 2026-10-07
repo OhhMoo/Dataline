@@ -17,6 +17,7 @@ PROBES = [
         profile=PROFILE,
         plugs=PLUGS,
         command=(
+            "cd /workspace\n"
             "set -euo pipefail\n"
             "cd dbt_project\n"
             "dbt --quiet parse\n"
@@ -26,6 +27,7 @@ PROBES = [
             "\"/tmp/tour_mf.csv\")) if r[\"metric_time__month\"].startswith(\"2026-02\")]; "
             "print(json.dumps({\"value\": rows[0][\"net_revenue\"]}))'\n"),
         expect_tools=("shim.mf",),
+        expect_args=("query",),
         truth_sql=NET_REVENUE_FEB_2026_SQL,
         instruction=(
             "Use the semantic layer's own CLI (MetricFlow) on the repository's dbt project "

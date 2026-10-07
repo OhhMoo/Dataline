@@ -14,6 +14,7 @@ PROBES = [
         profile="de/laptop",
         plugs={},
         command=(
+            "cd /workspace\n"
             "set -euo pipefail\n"
             "n=$(./ops/sched logs dbt_build | awk '$3 == \"success\"' | wc -l)\n"
             "printf '{\"value\": %s}\\n' \"$n\"\n"),

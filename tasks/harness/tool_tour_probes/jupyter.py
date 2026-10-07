@@ -23,6 +23,7 @@ PROBES = [
         profile=PROFILE,
         plugs=PLUGS,
         command=(
+            "cd /workspace\n"
             "set -euo pipefail\n"
             "mkdir -p /tmp/tour_jupyter\n"
             "cat > /tmp/tour_jupyter/feb_orders.ipynb <<'NB'\n"

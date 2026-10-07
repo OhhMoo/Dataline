@@ -15,7 +15,8 @@ PROBES = [
         id="human.jira.ana238_status",
         profile=PROFILE,
         plugs=PLUGS,
-        command="""set -euo pipefail
+        command="""cd /workspace
+set -euo pipefail
 python3 - <<'PY'
 import json, os
 from jira import JIRA
@@ -36,7 +37,8 @@ PY
         id="human.confluence.net_revenue_page_version",
         profile=PROFILE,
         plugs=PLUGS,
-        command="""set -euo pipefail
+        command="""cd /workspace
+set -euo pipefail
 python3 - <<'PY'
 import json, os
 from atlassian import Confluence
@@ -60,7 +62,8 @@ PY
         id="human.slack.analytics_eng_threads",
         profile=PROFILE,
         plugs=PLUGS,
-        command="""set -euo pipefail
+        command="""cd /workspace
+set -euo pipefail
 python3 - <<'PY'
 import json, os
 from slack_sdk import WebClient
@@ -85,7 +88,8 @@ PY
                    "unnest(channels) AS c FROM read_json('var/workflow/chat.json')) "
                    "WHERE c.id = 'analytics-eng') WHERE m.thread_id IS NULL"),
         instruction=(
-            "How many top-level messages (thread starters, not replies) are in the "
-            "#analytics-eng Slack channel? Read the channel history from the team's Slack."),
+            "How many top-level messages are in the #analytics-eng Slack channel - every "
+            "top-level message, i.e. not a reply in a thread? Read the channel history from "
+            "the team's Slack."),
     ),
 ]

@@ -11,7 +11,8 @@ PROBES = [
         id="sigma.rest.net_revenue_feb_2026",
         profile=PROFILE,
         plugs=PLUGS,
-        command="""set -euo pipefail
+        command="""cd /workspace
+set -euo pipefail
 python3 - <<'PY'
 import csv, io, json, os
 import requests
