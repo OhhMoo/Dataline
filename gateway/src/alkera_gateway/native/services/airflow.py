@@ -293,6 +293,15 @@ def _validated(model, payload: Any):
         raise Refusal(422, "validation_error", detail) from None
 
 
+def _peek(raw: bytes) -> dict | None:
+    """The body as the row's `args` record it: a JSON object, or None."""
+    try:
+        body = json.loads(raw) if raw else None
+    except (ValueError, UnicodeError):
+        return None
+    return body if isinstance(body, dict) else None
+
+
 def _json(raw: bytes) -> Any:
     try:
         return json.loads(raw) if raw else {}
@@ -478,23 +487,25 @@ def health(request: Request) -> object:
 
 
 def _login(request: Request, raw: bytes, form_ok: bool) -> JSONResponse:
-    content_type = request.headers.get("content-type", "")
-    if form_ok and "application/x-www-form-urlencoded" in content_type:
-        payload = {k: v[0] for k, v in parse_qs(raw.decode("utf-8", "replace")).items()}
-    else:
-        payload = _json(raw)
+    form = form_ok and "application/x-www-form-urlencoded" in request.headers.get(
+        "content-type", "")
+
+    def parsed():
+        if form:
+            return {k: v[0] for k, v in parse_qs(raw.decode("utf-8", "replace")).items()}
+        return _json(raw)
 
     def call(view, world, observation, _actor):
         _read(observation, "airflow:session")
-        body = _validated(LoginBody, payload)
+        body = _validated(LoginBody, parsed())
         if body.password != DEV_TOKEN or not body.username:
             raise Refusal(401, "unauthorized", "Invalid credentials")
         return {"access_token": _issue(request, body.username)}
 
     tool = "auth_token"
+    peek = parsed() if form else _peek(raw)
     result = _serve(request, tool, call, auth=False,
-                    username=(payload or {}).get("username") if isinstance(payload, dict)
-                    else None)
+                    username=(peek or {}).get("username") if isinstance(peek, dict) else None)
     return JSONResponse(status_code=201, content=result)
 
 
@@ -591,13 +602,12 @@ def get_dag_details(dag_id: str, request: Request) -> dict:
 
 @app.patch(f"{API}/dags/{{dag_id}}")
 def patch_dag(dag_id: str, request: Request, raw: RawBody) -> dict:
-    payload = _json(raw)
 
     def call(view, world, observation, _actor):
         observation.op_class = "write"
         observation.targets = [f"scheduler:{dag_id}"]
         found = view.dag(world, dag_id)
-        body = _validated(PatchBody, payload)
+        body = _validated(PatchBody, _json(raw))
         if body.is_paused:
             raise Refusal(400, "bad_request",
                           "Pausing a DAG is not modelled in this environment: the world's "
@@ -607,7 +617,7 @@ def patch_dag(dag_id: str, request: Request, raw: RawBody) -> dict:
         return view.dag_shape(world, found, _fileloc(world, found))
 
     return _serve(request, "dag_update", call, dag_id=dag_id,
-                  body=payload if isinstance(payload, dict) else None)
+                  body=_peek(raw))
 
 
 @app.get(f"{API}/dagSources/{{dag_id}}")
@@ -689,13 +699,12 @@ def list_dag_runs(dag_id: str, request: Request) -> dict:
 
 @app.post(f"{API}/dags/{{dag_id}}/dagRuns")
 def trigger_dag_run(dag_id: str, request: Request, raw: RawBody) -> dict:
-    payload = _json(raw)
 
     def call(view, world, observation, actor):
         observation.op_class = "exec"
         observation.targets = [f"scheduler:{dag_id}", "dbt_project"]
         view.dag(world, dag_id)                       # 404 before the body is judged
-        body = _validated(TriggerBody, payload)
+        body = _validated(TriggerBody, _json(raw))
         vnow = _clock(request)
         if body.partition_key is not None:
             raise Refusal(400, "bad_request", "Partitioned DAG runs (partition_key) are not "
@@ -718,7 +727,7 @@ def trigger_dag_run(dag_id: str, request: Request, raw: RawBody) -> dict:
         return result
 
     return _serve(request, "dag_trigger", call, dag_id=dag_id,
-                  body=payload if isinstance(payload, dict) else None)
+                  body=_peek(raw))
 
 
 @app.get(f"{API}/dags/{{dag_id}}/dagRuns/{{dag_run_id}}")
@@ -812,12 +821,11 @@ def get_log(dag_id: str, dag_run_id: str, task_id: str, try_number: str,
 
 @app.post(f"{API}/dags/{{dag_id}}/clearTaskInstances")
 def clear_task_instances(dag_id: str, request: Request, raw: RawBody) -> dict:
-    payload = _json(raw)
 
     def call(view, world, observation, actor):
         observation.targets = [f"scheduler:{dag_id}"]
         view.dag(world, dag_id)
-        body = _validated(ClearBody, payload)
+        body = _validated(ClearBody, _json(raw))
         if body.dry_run:
             observation.read_targets = [f"scheduler:{dag_id}"]
         else:
@@ -849,7 +857,7 @@ def clear_task_instances(dag_id: str, request: Request, raw: RawBody) -> dict:
         return {"task_instances": cleared, "total_entries": len(cleared)}
 
     return _serve(request, "task_clear", call, dag_id=dag_id,
-                  body=payload if isinstance(payload, dict) else None)
+                  body=_peek(raw))
 
 
 @app.api_route(f"{API}/backfills", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])

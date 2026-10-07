@@ -451,7 +451,15 @@ def test_every_request_writes_exactly_one_row(af):
     af.call("DELETE", f"{API}/dags/commerce_nightly")
     af.post(f"{API}/backfills", json={})
     af.get("/health")
-    assert len(af.rows()) - start == af.requests == 8
+    malformed = af.post(f"{API}/dags/commerce_nightly/dagRuns", content=b"{nope",
+                        headers={"Content-Type": "application/json"})
+    assert malformed.status_code == 422
+    conforms(malformed.json(), "HTTPValidationError")
+    garbled = af.post("/auth/token", content=b"[1", auth=False,
+                      headers={"Content-Type": "application/json"})
+    assert garbled.status_code == 422
+    assert len(af.rows()) - start == af.requests == 10
+    assert [r["tool"] for r in af.rows()[-2:]] == ["airflow.dag_trigger", "airflow.auth_token"]
     seqs = [r["seq"] for r in af.rows()]
     assert seqs == list(range(seqs[0], seqs[0] + len(seqs)))
 
