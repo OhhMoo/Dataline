@@ -188,14 +188,19 @@ def test_token_is_a_jwt_whose_sub_is_the_actor(af):
     row = af.rows()[-1]
     assert row["tool"] == "airflow.dag_list" and actor(row) == USER
     # form-encoded works on /auth/token, JSON on /auth/token/cli (airflowctl)
-    form = af.post("/auth/token", data={"username": "ops", "password": USER}, auth=False)
+    form = af.post("/auth/token", data={"username": USER, "password": USER}, auth=False)
     assert form.status_code == 201
     conforms(form.json(), "LoginResponse")
-    cli = af.post("/auth/token/cli", json={"username": "ops", "password": USER}, auth=False)
+    cli = af.post("/auth/token/cli", json={"username": USER, "password": USER}, auth=False)
     assert cli.status_code == 201
     af.token = cli.json()["access_token"]
     af.ok("GET", f"{API}/dags")
-    assert actor(af.rows()[-1]) == "ops"
+    assert actor(af.rows()[-1]) == USER
+    # the box's one user, as a simple-auth-manager deployment has its own: any
+    # other name is refused even with the right password
+    for name in ("ops", "admin", ""):
+        other = af.post("/auth/token", json={"username": name, "password": USER}, auth=False)
+        assert other.status_code == 401 and other.json() == {"detail": "Invalid credentials"}
 
 
 def test_refusals_without_or_with_a_bad_token(af):
@@ -292,10 +297,11 @@ def test_filters_pagination_and_the_tilde(af):
 def test_trigger_queues_and_never_advances(af):
     before = af.state()
     run = af.ok("POST", f"{API}/dags/commerce_nightly/dagRuns",
-                "DAGRunResponse", json={"logical_date": None, "conf": {"why": "rerun"}})
+                "DAGRunResponse", json={"logical_date": None, "note": "rerun", "conf": {}})
     after = af.state()
     assert run["state"] == "queued" and run["triggered_by"] == "rest_api"
-    assert run["triggering_user_name"] == USER and run["conf"] == {"why": "rerun"}
+    assert run["triggering_user_name"] == USER and run["note"] == "rerun"
+    assert run["conf"] == {}
     assert after["vnow"] == before["vnow"] and after["runs"] == before["runs"]
     assert [e["job"] for e in after["queue"]] == ["daily_load", "dbt_build"]
     with duckdb.connect(str(af.root / "var" / "warehouse" / "warehouse.duckdb"),
@@ -324,6 +330,60 @@ def test_double_trigger_gives_two_runs(af):
                     json={"logical_date": None, "dag_run_id": one["dag_run_id"]})
     assert clash.status_code == 409
     assert len(af.state()["queue"]) == 4
+
+
+def test_a_trigger_loop_is_bounded(af, monkeypatch):
+    """Every queued run is work the grader's next advance must do: a DAG holds
+    at most 16 queued runs (max_active_runs_per_dag) and the world's queue at
+    most MAX_QUEUED entries; past either, a trigger is a 409 naming the limit
+    and nothing more is queued."""
+    path = f"{API}/dags/commerce_nightly/dagRuns"
+    for _ in range(16):
+        af.ok("POST", path, json={"logical_date": None})
+    over = af.post(path, json={"logical_date": None})
+    assert over.status_code == 409 and "max_active_runs_per_dag, 16" in over.json()["detail"]
+    conforms(over.json(), "HTTPExceptionResponse")
+    assert len(af.state()["queue"]) == 32
+    # another DAG still has room - until the world's queue is full
+    monkeypatch.setattr(scheduler, "MAX_QUEUED", 33)
+    af.ok("POST", f"{API}/dags/bi_refresh/dagRuns", json={"logical_date": None})
+    full = af.post(f"{API}/dags/bi_refresh/dagRuns", json={"logical_date": None})
+    assert full.status_code == 409 and "queue is full" in full.json()["detail"]
+    assert len(af.state()["queue"]) == 33
+    rows = [r for r in af.rows() if r["tool"] == "airflow.dag_trigger"]
+    assert [r["exit"] for r in rows].count("error") == 2
+
+
+def test_conf_and_a_data_interval_are_refused_by_name(af):
+    path = f"{API}/dags/commerce_nightly/dagRuns"
+    conf = af.post(path, json={"logical_date": None, "conf": {"why": "rerun"}})
+    assert conf.status_code == 400 and "conf is not available" in conf.json()["detail"]
+    both = af.post(path, json={"logical_date": None,
+                               "data_interval_start": "2025-01-01T00:00:00Z",
+                               "data_interval_end": "2025-01-02T00:00:00Z"})
+    assert both.status_code == 400 and "data_interval_start" in both.json()["detail"]
+    assert "queue" not in af.state()
+
+
+def test_one_unreadable_dag_file_is_an_import_error_not_a_500(af):
+    """An agent-written DAG too deep for `ast` (a 3000-operand `>>` chain) is
+    that file's import error: /health, the DAG list and the other DAGs answer."""
+    chain = " >> ".join(f"t{i}" for i in range(3200))
+    (af.root / "workspace" / "dags" / "deep.py").write_text(
+        "from airflow import DAG\nwith DAG('deep', schedule=None) as dag:\n"
+        f"    pass\n{chain}\n", "utf-8")
+    assert af.get("/health").json() == {"ok": True, "service": "airflow", "items": 2}
+    dags = af.ok("GET", f"{API}/dags", "DAGCollectionResponse")
+    assert [d["dag_id"] for d in dags["dags"]] == ["bi_refresh", "commerce_nightly"]
+    errors = af.ok("GET", f"{API}/importErrors", "ImportErrorCollectionResponse")
+    assert [e["filename"] for e in errors["import_errors"]] == ["deep.py"]
+    assert "Recursion" in errors["import_errors"][0]["stack_trace"] or \
+        "recursion" in errors["import_errors"][0]["stack_trace"]
+    one = af.ok("GET", f"{API}/importErrors/{errors['import_errors'][0]['import_error_id']}",
+                "ImportErrorResponse")
+    assert one == errors["import_errors"][0]
+    assert af.get(f"{API}/importErrors/99").status_code == 404
+    assert af.ok("GET", f"{API}/dags/commerce_nightly/dagRuns")["total_entries"] == 3
 
 
 def test_clear_marks_and_next_advance_executes(af):

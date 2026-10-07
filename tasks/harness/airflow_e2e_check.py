@@ -53,7 +53,7 @@ API = "http://airflow.internal:8100/api/v2"
 VOCABULARY = {"auth_token", "version", "monitor_health", "dag_list", "dag_get",
               "dag_source", "dag_tasks", "dag_update", "dagrun_list", "dagrun_get",
               "dag_trigger", "task_list", "task_get", "task_logs", "task_clear",
-              "backfill", "unknown_route", "health", "request"}
+              "import_errors", "backfill", "unknown_route", "health", "request"}
 
 ENV = r"""cd /workspace
 for v in AIRFLOW_API_URL AIRFLOW_USER SCHED_URL; do echo "$v=${!v-<unset>}"; done

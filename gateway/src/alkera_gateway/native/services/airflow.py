@@ -28,11 +28,16 @@ the subset of that document every response here is checked against.
 
   POST /auth/token, /auth/token/cli   {username, password} (JSON, or form for
                                       /auth/token) -> 201 {access_token}: a JWT
-                                      whose `sub` is the row's `actor`. Any user
-                                      name; the password is the workspace's
-                                      obviously-fake credential.
+                                      whose `sub` is the row's `actor`. The one
+                                      user is the box's AIRFLOW_USER, with its
+                                      AIRFLOW_PASSWORD (the backend row's env), as
+                                      a simple-auth-manager deployment has its
+                                      configured users and no others.
   GET  /api/v2/version, /monitor/health   no token needed, as in Airflow
   GET  /api/v2/dags, /dags/{id}, /dags/{id}/details, /dags/{id}/tasks[/{task}]
+  GET  /api/v2/importErrors[/{id}]    a DAG file that cannot be read (syntax, or
+                                      too deep or too big for `ast`) is that
+                                      file's import error, never a 500
   GET  /api/v2/dagSources/{id}        JSON, or text/plain with that Accept
   GET  /api/v2/dags/{id}/dagRuns      `~` for every DAG; state, run_type, the
                                       date filters, order_by, limit/offset
@@ -49,7 +54,14 @@ the subset of that document every response here is checked against.
                            modelled"; {is_paused: false} is the state it is in
                            and answers 200), a clear across runs, a trigger
                            whose logical_date is after the world's clock
-                           (airflowctl sends the wall clock when it has none).
+                           (airflowctl sends the wall clock when it has none),
+                           a non-empty `conf` or a data interval (the world's
+                           jobs take neither, so they would be recorded and
+                           never reach the run).
+  refused, 409, by name    a trigger or clear that would queue a DAG's 17th run
+                           (max_active_runs_per_dag, 16) or overflow the
+                           world's queue (world.scheduler.MAX_QUEUED, 256): every
+                           queued run is work the grader's next advance does.
   every other route        404 {"detail": ...}: a route real Airflow serves
                            (ROUTES) is named as one this environment does not
                            model; anything else is "Not Found".
@@ -60,8 +72,8 @@ AUDIT. One 9.2.2 row per request, written before the response, through
 write for the same request against real Airflow: `airflow.dag_list`,
 `dag_get`, `dag_source`, `dagrun_list`, `dagrun_get`, `dag_trigger`,
 `task_list`, `task_get`, `task_logs`, `task_clear`, `dag_update`; plus
-`auth_token`, `version`, `monitor_health`, `dag_tasks`, `backfill` and
-`unknown_route`. Targets are the MCP scheduler's strings (`scheduler:<dag_id>`,
+`auth_token`, `version`, `monitor_health`, `dag_tasks`, `import_errors`,
+`backfill` and `unknown_route`. Targets are the MCP scheduler's strings (`scheduler:<dag_id>`,
 `scheduler:<dag_run_id>`), the parity the tailer keeps. A trigger and an
 applied clear are what blindness.SCHEDULER_TOOLS attributes a ledger change to.
 
@@ -84,6 +96,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from pydantic import BaseModel, ConfigDict, ValidationError
 
+from ...backends import BACKENDS
 from ...records import Observation, ToolError
 from ..context import DEV_TOKEN, Ledger, ServiceError, audit_unrouted, context_of, service_health
 from ..http import RawBody
@@ -103,6 +116,11 @@ AUDIENCE = "apache-airflow"
 #: credential, so nothing in it is a secret and two processes agree on it.
 JWT_KEY = hashlib.sha256(f"alkera-airflow-jwt:{DEV_TOKEN}".encode()).hexdigest()
 TOKEN_SECONDS = 86400
+#: The one user (username, password): what the box exports as AIRFLOW_USER and
+#: AIRFLOW_PASSWORD (backends.BACKENDS["airflow"].env), both the workspace's
+#: obviously-fake credential.
+USER = (BACKENDS[NAME].env["AIRFLOW_USER"], BACKENDS[NAME].env["AIRFLOW_PASSWORD"])
+assert USER[1] == DEV_TOKEN, "the box's Airflow password is the shared fake credential"
 
 #: Every route Airflow 3.3.2's REST API and simple auth manager serve, from the
 #: OpenAPI documents (module docstring): a request for one this module does not
@@ -500,7 +518,7 @@ def _login(request: Request, raw: bytes, form_ok: bool) -> JSONResponse:
     def call(view, world, observation, _actor):
         _read(observation, "airflow:session")
         body = _validated(LoginBody, parsed())
-        if body.password != DEV_TOKEN or not body.username:
+        if (body.username, body.password) != USER:
             raise Refusal(401, "unauthorized", "Invalid credentials")
         return {"access_token": _issue(request, body.username)}
 
@@ -659,6 +677,36 @@ def get_task(dag_id: str, task_id: str, request: Request) -> dict:
         return view.task_shape(found, task)
 
     return _serve(request, "dag_tasks", call, dag_id=dag_id, task_id=task_id)
+
+
+@app.get(f"{API}/importErrors")
+def list_import_errors(request: Request) -> dict:
+    def call(view, world, observation, _actor):
+        _read(observation, "scheduler")
+        limit, offset = _ints(request)
+        errors = view.import_error_shapes(world)
+        filename = request.query_params.get("filename")
+        if filename:
+            errors = [e for e in errors if e["filename"] == filename]
+        errors = _ordered(errors, _many(request, "order_by") or ["id"],
+                          {"id": "import_error_id", "import_error_id": "import_error_id",
+                           "filename": "filename", "timestamp": "timestamp"})
+        return {"import_errors": errors[offset:offset + limit], "total_entries": len(errors)}
+
+    return _serve(request, "import_errors", call)
+
+
+@app.get(f"{API}/importErrors/{{import_error_id}}")
+def get_import_error(import_error_id: str, request: Request) -> dict:
+    def call(view, world, observation, _actor):
+        _read(observation, "scheduler")
+        for error in view.import_error_shapes(world):
+            if str(error["import_error_id"]) == import_error_id:
+                return error
+        raise Refusal(404, "not_found", f"The ImportError with import_error_id: "
+                                        f"`{import_error_id}` was not found")
+
+    return _serve(request, "import_errors", call, import_error_id=import_error_id)
 
 
 #: dagRuns `order_by` fields -> the response key they sort on.

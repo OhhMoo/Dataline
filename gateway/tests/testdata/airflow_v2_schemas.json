@@ -1553,6 +1553,70 @@
    "title": "HealthInfoResponse",
    "type": "object"
   },
+  "ImportErrorCollectionResponse": {
+   "description": "Import Error Collection Response.",
+   "properties": {
+    "import_errors": {
+     "items": {
+      "$ref": "#/$defs/ImportErrorResponse"
+     },
+     "title": "Import Errors",
+     "type": "array"
+    },
+    "total_entries": {
+     "title": "Total Entries",
+     "type": "integer"
+    }
+   },
+   "required": [
+    "import_errors",
+    "total_entries"
+   ],
+   "title": "ImportErrorCollectionResponse",
+   "type": "object"
+  },
+  "ImportErrorResponse": {
+   "description": "Import Error Response.",
+   "properties": {
+    "bundle_name": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "title": "Bundle Name"
+    },
+    "filename": {
+     "title": "Filename",
+     "type": "string"
+    },
+    "import_error_id": {
+     "title": "Import Error Id",
+     "type": "integer"
+    },
+    "stack_trace": {
+     "title": "Stack Trace",
+     "type": "string"
+    },
+    "timestamp": {
+     "format": "date-time",
+     "title": "Timestamp",
+     "type": "string"
+    }
+   },
+   "required": [
+    "import_error_id",
+    "timestamp",
+    "filename",
+    "bundle_name",
+    "stack_trace"
+   ],
+   "title": "ImportErrorResponse",
+   "type": "object"
+  },
   "JobResponse": {
    "description": "Job serializer for responses.",
    "properties": {
