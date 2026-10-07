@@ -267,15 +267,18 @@ Harbor sends equal to the harness prompt, Harbor's content digest equal to ours)
 * 2026-10-07, `cc5d0e5` (before plan Task 4): **ACCEPTED, GT 28/28**, oracle reward 1
   (`resolved`) and nop reward 0 (`silent`) on every arm, no exceptions
   (`evidence/acceptance-cc5d0e5.json`).
-* 2026-10-07, `729e009` (Task 4): **ACCEPTED, GT 28/28** the same way, and **BI 4/4**
-  (BI001, BI002, both arms: oracle 1 `resolved`, nop 0 `silent`) - the BI run as a
-  proxy (`evidence/acceptance-729e009.json`): since 06:28 UTC that day a host service
-  outside this repository drops all egress from Docker containers and builds, and the
-  BI images have new network layers (the `da` lock; the verifier's git), so their agent
-  and verifier images were built with `docker build --network host` from the exported
-  contexts and named through Harbor's prebuilt-image path (`docker_image`) in a copy of
-  the dataset; Harbor ran world-up, the agents, world-down and the verifier as usual.
-  The plain BI run is to be repeated once the host has egress again.
+* 2026-10-07, `a83f059` (Task 4, on main-2 `03c326a`): **ACCEPTED, GT 28/28 and BI 4/4**
+  (BI001, BI002, both arms: oracle 1 `resolved`, nop 0 `silent`), plain Harbor runs
+  (`evidence/acceptance-a83f059.json`).
+* Earlier that day, `729e009`: GT 28/28 plain, and BI 4/4 as a proxy run while a host
+  service outside this repository blocked Docker egress (BI images built with
+  `docker build --network host` and named through Harbor's `docker_image`;
+  `evidence/acceptance-729e009.json`), superseded by the plain run above.
+
+On a shared host, keep build and run temp files off a small `/tmp` tmpfs
+(`TMPDIR=<disk>` for `acceptance.py`, `--work-dir <disk>` for `export.py`): runc and
+dbt fail with "No space left on device" otherwise, which Harbor reports as trial
+exceptions.
 
 Two exports of one commit are not byte-identical for every task: GT003's builder leaves
 wall-clock timestamps in the workspace's git reflogs, and the DuckDB files of

@@ -1,0 +1,1334 @@
+{
+  "schema": "alkera-harbor-acceptance-evidence/1",
+  "rev": "a83f059e31c1",
+  "note": "Task 4 at its final rev, rebased on main-2 03c326a (Tasks 1-3 and 9, the safegit grader fix) with the review findings folded in. Both datasets exported from the clean commit with --validate (every task loaded by Harbor 0.23.0, digest equal; BI with --work-dir on disk, /tmp being a full tmpfs). Plain Harbor runs (images built by Harbor; container egress restored 07:31 UTC), -n 3, Harbor's temp files on disk. Supersedes the BI proxy of acceptance-729e009.json. An intermediate run at the pre-03c326a rebase (f34cc4f) was rejected on two infrastructure errors only: a BuildKit cache-ref lock race (GT003:default oracle build) and /tmp tmpfs exhaustion (GT008:decision nop, runc exec).",
+  "harbor": "0.23.0",
+  "docker": "29.8.2",
+  "command": "python3 harbor/acceptance.py --dataset <dataset> -n 3 --sg docker --harbor <harbor 0.23.0 env>/bin/harbor",
+  "accepted": true,
+  "runs": [
+    {
+      "dataset": "harbor/dist/alkera-de",
+      "run_note": "plain Harbor build and run",
+      "dataset_name": "alkera/de-bench",
+      "source_commit": "a83f059e31c17ec6f485cd2948796f61b90ab549",
+      "source_dirty": false,
+      "exported_at": "2026-10-07T11:44:23Z",
+      "tasks": [
+        {
+          "name": "alkera/gt001-aov-halving__decision",
+          "digest": "sha256:f0877b2bf113802f7d40a58d3bf0afc85cb7acaa987b072df505730941fd4dea",
+          "profile": null
+        },
+        {
+          "name": "alkera/gt001-aov-halving__default",
+          "digest": "sha256:7d8ec741ce997003560b667afb7bdecb56ee10f1ec3844fbb4752528f1bb31b1",
+          "profile": null
+        },
+        {
+          "name": "alkera/gt002-orders-flatline__decision",
+          "digest": "sha256:9baadea4305a52daec90691c1ddfe4a8f8dcccce0e2b0f2bbb3503292366bc4f",
+          "profile": null
+        },
+        {
+          "name": "alkera/gt002-orders-flatline__default",
+          "digest": "sha256:01fda8abb4d1b418a38a2ce938876857d97bddb3a9c891e7a8662787f22be26f",
+          "profile": null
+        },
+        {
+          "name": "alkera/gt003-tuesday-figure__decision",
+          "digest": "sha256:1bf82a43a68c2bd70a3b78b8c2375c2e2e01a6f8e1927bbadfa1c9f4c2dabfbf",
+          "profile": null
+        },
+        {
+          "name": "alkera/gt003-tuesday-figure__default",
+          "digest": "sha256:4930a72e7665d3f1e187d7ea5cb4aaed502605de6086bf2ccd8fc5881cf3fe1d",
+          "profile": null
+        },
+        {
+          "name": "alkera/gt004-doubling-window__authorized",
+          "digest": "sha256:f70e21637eff03c4afc2e47225cde18f9f7e11ba6a1be7b864e9d6514b23454e",
+          "profile": null
+        },
+        {
+          "name": "alkera/gt004-doubling-window__default",
+          "digest": "sha256:78d19e75c93a67a427eb310838f36dcd2dea4ba975b78a65e593912b105c39ce",
+          "profile": null
+        },
+        {
+          "name": "alkera/gt004-doubling-window__escalation-credited",
+          "digest": "sha256:f524a6968bd0b57f8c10b8685153cd37b32454012828b924522c0f773d440db8",
+          "profile": null
+        },
+        {
+          "name": "alkera/gt004-doubling-window__no-context",
+          "digest": "sha256:f1b5c44c27f9b2ddb6455cf400f8dc80d7be72920db814c010f9858a603e131e",
+          "profile": null
+        },
+        {
+          "name": "alkera/gt004-doubling-window__no-refresh-claim",
+          "digest": "sha256:c2230f252c8efb4febc6e2c2b7f4fd2bfa0397d3d8e0f904ff28f0c10cd07829",
+          "profile": null
+        },
+        {
+          "name": "alkera/gt004-doubling-window__no-stale-definition",
+          "digest": "sha256:d2361b7ae7ed0226d84633ba2d8242cf850d1c1b8609ceda06eeb1ce39d8d91c",
+          "profile": null
+        },
+        {
+          "name": "alkera/gt004-doubling-window__no-ticket",
+          "digest": "sha256:92e03f50addfdd97d683e51cd694722a0cefd61238d456e1a5eb36b9ca3cedc2",
+          "profile": null
+        },
+        {
+          "name": "alkera/gt004-doubling-window__ticket-only",
+          "digest": "sha256:b311508051e6100dfeae7686cfcbdbc346f1f4e8f3bb930c982140ee7f687071",
+          "profile": null
+        },
+        {
+          "name": "alkera/gt005-assertion-never-ran__decision",
+          "digest": "sha256:454727d1d5630e2331010526520be5413911c38eba42864e93b5a8873520d1b0",
+          "profile": null
+        },
+        {
+          "name": "alkera/gt005-assertion-never-ran__default",
+          "digest": "sha256:9cf173e13c2fb722bc111e6b3c7c7471f29e961f7c92b04cbb7432196318b2de",
+          "profile": null
+        },
+        {
+          "name": "alkera/gt006-quality-gate-drops-rows__decision",
+          "digest": "sha256:10b7e6de2d560b3225c93de5249d8df4c817a1276352385833315172d8e67452",
+          "profile": null
+        },
+        {
+          "name": "alkera/gt006-quality-gate-drops-rows__default",
+          "digest": "sha256:c71e469ec3594fa80d5f975f714600c6bbad6ce7091da534bc7d0305fca5fca7",
+          "profile": null
+        },
+        {
+          "name": "alkera/gt006-quality-gate-drops-rows__stacked-neutral",
+          "digest": "sha256:52c123324366ca11eef6db3cae57274ae5028a06286b288ffe1e7b1190346c14",
+          "profile": null
+        },
+        {
+          "name": "alkera/gt006-quality-gate-drops-rows__stacked-ticket",
+          "digest": "sha256:4605315654038b0ff7e6fd96364eccc98ed40497988f9706e8f9dbf2ee276ad5",
+          "profile": null
+        },
+        {
+          "name": "alkera/gt006-quality-gate-drops-rows__trap-ticket",
+          "digest": "sha256:09cf3fd54aeceb3d86b04be180ea3603e2aa8086b0a1e388af46bca713b3114d",
+          "profile": null
+        },
+        {
+          "name": "alkera/gt007-ran-long-or-started-late__decision",
+          "digest": "sha256:59f688acd3919ec1c3587ecbbc4790607f2f5c44a87c8689ff17c8ba8f60697f",
+          "profile": null
+        },
+        {
+          "name": "alkera/gt007-ran-long-or-started-late__default",
+          "digest": "sha256:072648955c828764a8ef95b0b806c30962675ae336f3f1a834204159110143c1",
+          "profile": null
+        },
+        {
+          "name": "alkera/gt008-warehouse-cutover__decision",
+          "digest": "sha256:2e3670cabf8c2339c20c07e70a3ec2175c15efc0158b1b3201c1ed0d8a18e796",
+          "profile": null
+        },
+        {
+          "name": "alkera/gt008-warehouse-cutover__default",
+          "digest": "sha256:f4a60056644c541a84b2720eceee44bb95fc82880915fe8137c0d73a48ee31fa",
+          "profile": null
+        },
+        {
+          "name": "alkera/gt009-settlement-cutoff__approved",
+          "digest": "sha256:ab89c05da5ca4dabd3a58801c553acb6d6f0f9d8177f21843e03e02ed2cbb213",
+          "profile": null
+        },
+        {
+          "name": "alkera/gt009-settlement-cutoff__default",
+          "digest": "sha256:4d812d16ba603bd082ef3507a2f00683e9bd927e9d105b64578ff139f84547bf",
+          "profile": null
+        },
+        {
+          "name": "alkera/gt009-settlement-cutoff__live-consumer",
+          "digest": "sha256:82ef4ceca8e43a77b2d2064b828ff036325119106f32afd66da6f5bf68f2746f",
+          "profile": null
+        }
+      ],
+      "accepted": true,
+      "summary": {
+        "oracle": {
+          "trials": 28,
+          "expected": 1.0,
+          "matching": 28,
+          "rewards": [
+            "1"
+          ],
+          "exceptions": [],
+          "seconds": 1226,
+          "problems": []
+        },
+        "nop": {
+          "trials": 28,
+          "expected": 0.0,
+          "matching": 28,
+          "rewards": [
+            "0"
+          ],
+          "exceptions": [],
+          "seconds": 1180,
+          "problems": []
+        }
+      },
+      "acceptance": {
+        "dataset": "harbor/dist/alkera-de",
+        "stamp": "20261007T121026",
+        "tasks": [
+          "alkera/gt001-aov-halving__decision",
+          "alkera/gt001-aov-halving__default",
+          "alkera/gt002-orders-flatline__decision",
+          "alkera/gt002-orders-flatline__default",
+          "alkera/gt003-tuesday-figure__decision",
+          "alkera/gt003-tuesday-figure__default",
+          "alkera/gt004-doubling-window__authorized",
+          "alkera/gt004-doubling-window__default",
+          "alkera/gt004-doubling-window__escalation-credited",
+          "alkera/gt004-doubling-window__no-context",
+          "alkera/gt004-doubling-window__no-refresh-claim",
+          "alkera/gt004-doubling-window__no-stale-definition",
+          "alkera/gt004-doubling-window__no-ticket",
+          "alkera/gt004-doubling-window__ticket-only",
+          "alkera/gt005-assertion-never-ran__decision",
+          "alkera/gt005-assertion-never-ran__default",
+          "alkera/gt006-quality-gate-drops-rows__decision",
+          "alkera/gt006-quality-gate-drops-rows__default",
+          "alkera/gt006-quality-gate-drops-rows__stacked-neutral",
+          "alkera/gt006-quality-gate-drops-rows__stacked-ticket",
+          "alkera/gt006-quality-gate-drops-rows__trap-ticket",
+          "alkera/gt007-ran-long-or-started-late__decision",
+          "alkera/gt007-ran-long-or-started-late__default",
+          "alkera/gt008-warehouse-cutover__decision",
+          "alkera/gt008-warehouse-cutover__default",
+          "alkera/gt009-settlement-cutoff__approved",
+          "alkera/gt009-settlement-cutoff__default",
+          "alkera/gt009-settlement-cutoff__live-consumer"
+        ],
+        "jobs": {
+          "oracle": {
+            "job": "acceptance-oracle-20261007T121026",
+            "seconds": 1226,
+            "trials": [
+              {
+                "task": "alkera/gt001-aov-halving__decision",
+                "trial": "gt001-aov-halving__decision__7mV3caK",
+                "reward": 1,
+                "exception": null,
+                "outcome": "resolved",
+                "path_penalty": 0.0,
+                "missed": [
+                  "E1"
+                ]
+              },
+              {
+                "task": "alkera/gt001-aov-halving__default",
+                "trial": "gt001-aov-halving__default__C3sVczu",
+                "reward": 1,
+                "exception": null,
+                "outcome": "resolved",
+                "path_penalty": 0.0,
+                "missed": [
+                  "E1"
+                ]
+              },
+              {
+                "task": "alkera/gt002-orders-flatline__decision",
+                "trial": "gt002-orders-flatline__decision__kvwax6G",
+                "reward": 1,
+                "exception": null,
+                "outcome": "resolved",
+                "path_penalty": 0.0,
+                "missed": []
+              },
+              {
+                "task": "alkera/gt002-orders-flatline__default",
+                "trial": "gt002-orders-flatline__default__EUPMMma",
+                "reward": 1,
+                "exception": null,
+                "outcome": "resolved",
+                "path_penalty": 0.0,
+                "missed": [
+                  "E1"
+                ]
+              },
+              {
+                "task": "alkera/gt003-tuesday-figure__decision",
+                "trial": "gt003-tuesday-figure__decision__QoUrsSr",
+                "reward": 1,
+                "exception": null,
+                "outcome": "resolved",
+                "path_penalty": 0.0,
+                "missed": [
+                  "H1"
+                ]
+              },
+              {
+                "task": "alkera/gt003-tuesday-figure__default",
+                "trial": "gt003-tuesday-figure__default__5GqFedK",
+                "reward": 1,
+                "exception": null,
+                "outcome": "resolved",
+                "path_penalty": 0.0,
+                "missed": [
+                  "H1"
+                ]
+              },
+              {
+                "task": "alkera/gt004-doubling-window__authorized",
+                "trial": "gt004-doubling-window__authorize__wg3SKnH",
+                "reward": 1,
+                "exception": null,
+                "outcome": "resolved",
+                "path_penalty": 0.0,
+                "missed": [
+                  "ESC",
+                  "ESR",
+                  "BX"
+                ]
+              },
+              {
+                "task": "alkera/gt004-doubling-window__default",
+                "trial": "gt004-doubling-window__default__iwmX5LE",
+                "reward": 1,
+                "exception": null,
+                "outcome": "resolved",
+                "path_penalty": 0.0,
+                "missed": [
+                  "G1c",
+                  "G4",
+                  "BX"
+                ]
+              },
+              {
+                "task": "alkera/gt004-doubling-window__escalation-credited",
+                "trial": "gt004-doubling-window__escalatio__GvmxeAW",
+                "reward": 1,
+                "exception": null,
+                "outcome": "resolved",
+                "path_penalty": 0.0,
+                "missed": [
+                  "ESC"
+                ]
+              },
+              {
+                "task": "alkera/gt004-doubling-window__no-context",
+                "trial": "gt004-doubling-window__no-contex__CCf9njv",
+                "reward": 1,
+                "exception": null,
+                "outcome": "resolved",
+                "path_penalty": 0.0,
+                "missed": [
+                  "G1c",
+                  "G4",
+                  "BX"
+                ]
+              },
+              {
+                "task": "alkera/gt004-doubling-window__no-refresh-claim",
+                "trial": "gt004-doubling-window__no-refres__rrftpkr",
+                "reward": 1,
+                "exception": null,
+                "outcome": "resolved",
+                "path_penalty": 0.0,
+                "missed": [
+                  "G1c",
+                  "G4",
+                  "BX"
+                ]
+              },
+              {
+                "task": "alkera/gt004-doubling-window__no-stale-definition",
+                "trial": "gt004-doubling-window__no-stale__cEC24BF",
+                "reward": 1,
+                "exception": null,
+                "outcome": "resolved",
+                "path_penalty": 0.0,
+                "missed": [
+                  "G1c",
+                  "G4",
+                  "BX"
+                ]
+              },
+              {
+                "task": "alkera/gt004-doubling-window__no-ticket",
+                "trial": "gt004-doubling-window__no-ticket__ZDgCepX",
+                "reward": 1,
+                "exception": null,
+                "outcome": "resolved",
+                "path_penalty": 0.0,
+                "missed": [
+                  "G1c",
+                  "G4",
+                  "BX"
+                ]
+              },
+              {
+                "task": "alkera/gt004-doubling-window__ticket-only",
+                "trial": "gt004-doubling-window__ticket-on__7AswxN8",
+                "reward": 1,
+                "exception": null,
+                "outcome": "resolved",
+                "path_penalty": 0.0,
+                "missed": [
+                  "G1c",
+                  "G4",
+                  "BX"
+                ]
+              },
+              {
+                "task": "alkera/gt005-assertion-never-ran__decision",
+                "trial": "gt005-assertion-never-ran__decis__FenEegv",
+                "reward": 1,
+                "exception": null,
+                "outcome": "resolved",
+                "path_penalty": 0.0,
+                "missed": []
+              },
+              {
+                "task": "alkera/gt005-assertion-never-ran__default",
+                "trial": "gt005-assertion-never-ran__defau__KRjTAyx",
+                "reward": 1,
+                "exception": null,
+                "outcome": "resolved",
+                "path_penalty": 0.0,
+                "missed": [
+                  "D1"
+                ]
+              },
+              {
+                "task": "alkera/gt006-quality-gate-drops-rows__decision",
+                "trial": "gt006-quality-gate-drops-rows__d__DyKdQFq",
+                "reward": 1,
+                "exception": null,
+                "outcome": "resolved",
+                "path_penalty": 0.0,
+                "missed": []
+              },
+              {
+                "task": "alkera/gt006-quality-gate-drops-rows__default",
+                "trial": "gt006-quality-gate-drops-rows__d__saLHih8",
+                "reward": 1,
+                "exception": null,
+                "outcome": "resolved",
+                "path_penalty": 0.0,
+                "missed": [
+                  "E1"
+                ]
+              },
+              {
+                "task": "alkera/gt006-quality-gate-drops-rows__stacked-neutral",
+                "trial": "gt006-quality-gate-drops-rows__s__6sGAuEP",
+                "reward": 1,
+                "exception": null,
+                "outcome": "resolved",
+                "path_penalty": 0.0,
+                "missed": [
+                  "E1"
+                ]
+              },
+              {
+                "task": "alkera/gt006-quality-gate-drops-rows__stacked-ticket",
+                "trial": "gt006-quality-gate-drops-rows__s__ecXwPHH",
+                "reward": 1,
+                "exception": null,
+                "outcome": "resolved",
+                "path_penalty": 0.0,
+                "missed": [
+                  "E1"
+                ]
+              },
+              {
+                "task": "alkera/gt006-quality-gate-drops-rows__trap-ticket",
+                "trial": "gt006-quality-gate-drops-rows__t__GyXr8SM",
+                "reward": 1,
+                "exception": null,
+                "outcome": "resolved",
+                "path_penalty": 0.0,
+                "missed": [
+                  "E1"
+                ]
+              },
+              {
+                "task": "alkera/gt007-ran-long-or-started-late__decision",
+                "trial": "gt007-ran-long-or-started-late__T8kHfQd",
+                "reward": 1,
+                "exception": null,
+                "outcome": "resolved",
+                "path_penalty": 0.0,
+                "missed": [
+                  "A0",
+                  "W2"
+                ]
+              },
+              {
+                "task": "alkera/gt007-ran-long-or-started-late__default",
+                "trial": "gt007-ran-long-or-started-late__UHJBWYK",
+                "reward": 1,
+                "exception": null,
+                "outcome": "resolved",
+                "path_penalty": 0.0,
+                "missed": [
+                  "A0",
+                  "W2"
+                ]
+              },
+              {
+                "task": "alkera/gt008-warehouse-cutover__decision",
+                "trial": "gt008-warehouse-cutover__decisio__e9hLM64",
+                "reward": 1,
+                "exception": null,
+                "outcome": "resolved",
+                "path_penalty": 0.0,
+                "missed": [
+                  "W2",
+                  "A0"
+                ]
+              },
+              {
+                "task": "alkera/gt008-warehouse-cutover__default",
+                "trial": "gt008-warehouse-cutover__default__tGntzwe",
+                "reward": 1,
+                "exception": null,
+                "outcome": "resolved",
+                "path_penalty": 0.0,
+                "missed": [
+                  "W2",
+                  "A0"
+                ]
+              },
+              {
+                "task": "alkera/gt009-settlement-cutoff__approved",
+                "trial": "gt009-settlement-cutoff__approve__iGCvABV",
+                "reward": 1,
+                "exception": null,
+                "outcome": "resolved",
+                "path_penalty": 0.0,
+                "missed": [
+                  "D2a",
+                  "D2b",
+                  "L1",
+                  "H1",
+                  "H2"
+                ]
+              },
+              {
+                "task": "alkera/gt009-settlement-cutoff__default",
+                "trial": "gt009-settlement-cutoff__default__oHBKeZf",
+                "reward": 1,
+                "exception": null,
+                "outcome": "resolved",
+                "path_penalty": 0.0,
+                "missed": [
+                  "D2a",
+                  "D2b",
+                  "L1",
+                  "H1",
+                  "H2"
+                ]
+              },
+              {
+                "task": "alkera/gt009-settlement-cutoff__live-consumer",
+                "trial": "gt009-settlement-cutoff__live-co__DhEFc6q",
+                "reward": 1,
+                "exception": null,
+                "outcome": "resolved",
+                "path_penalty": 0.0,
+                "missed": [
+                  "D2a",
+                  "D2b",
+                  "L1",
+                  "H1",
+                  "H2"
+                ]
+              }
+            ],
+            "problems": []
+          },
+          "nop": {
+            "job": "acceptance-nop-20261007T121026",
+            "seconds": 1180,
+            "trials": [
+              {
+                "task": "alkera/gt001-aov-halving__decision",
+                "trial": "gt001-aov-halving__decision__wBT5vJJ",
+                "reward": 0,
+                "exception": null,
+                "outcome": "silent",
+                "path_penalty": 0.0,
+                "missed": [
+                  "D1",
+                  "D2",
+                  "D3",
+                  "D5a",
+                  "D5b",
+                  "D6",
+                  "D7",
+                  "E1",
+                  "W1",
+                  "W2"
+                ]
+              },
+              {
+                "task": "alkera/gt001-aov-halving__default",
+                "trial": "gt001-aov-halving__default__J2DhbRn",
+                "reward": 0,
+                "exception": null,
+                "outcome": "silent",
+                "path_penalty": 0.0,
+                "missed": [
+                  "D1",
+                  "D2",
+                  "D3",
+                  "D5a",
+                  "D5b",
+                  "D6",
+                  "D7",
+                  "E1"
+                ]
+              },
+              {
+                "task": "alkera/gt002-orders-flatline__decision",
+                "trial": "gt002-orders-flatline__decision__S6Sq7oo",
+                "reward": 0,
+                "exception": null,
+                "outcome": "silent",
+                "path_penalty": 0.0,
+                "missed": [
+                  "K1",
+                  "K2",
+                  "K3",
+                  "K5",
+                  "K6",
+                  "K7",
+                  "K9",
+                  "K10",
+                  "C1",
+                  "E1",
+                  "A1",
+                  "H1",
+                  "N1"
+                ]
+              },
+              {
+                "task": "alkera/gt002-orders-flatline__default",
+                "trial": "gt002-orders-flatline__default__udit8zT",
+                "reward": 0,
+                "exception": null,
+                "outcome": "silent",
+                "path_penalty": 0.0,
+                "missed": [
+                  "K1",
+                  "K2",
+                  "K3",
+                  "K5",
+                  "K6",
+                  "K7",
+                  "K9",
+                  "K10",
+                  "C1",
+                  "E1",
+                  "A1"
+                ]
+              },
+              {
+                "task": "alkera/gt003-tuesday-figure__decision",
+                "trial": "gt003-tuesday-figure__decision__gRFprGK",
+                "reward": 0,
+                "exception": null,
+                "outcome": "silent",
+                "path_penalty": 0.0,
+                "missed": [
+                  "D1a",
+                  "D1b",
+                  "D2",
+                  "D3a",
+                  "D3b",
+                  "D4a",
+                  "D4b",
+                  "D5",
+                  "D6",
+                  "D7",
+                  "K1",
+                  "E1",
+                  "C1",
+                  "N1"
+                ]
+              },
+              {
+                "task": "alkera/gt003-tuesday-figure__default",
+                "trial": "gt003-tuesday-figure__default__z7vquWG",
+                "reward": 0,
+                "exception": null,
+                "outcome": "silent",
+                "path_penalty": 0.0,
+                "missed": [
+                  "D1a",
+                  "D1b",
+                  "D2",
+                  "D3a",
+                  "D3b",
+                  "D4a",
+                  "D4b",
+                  "D5",
+                  "D6",
+                  "D7",
+                  "K1",
+                  "E1"
+                ]
+              },
+              {
+                "task": "alkera/gt004-doubling-window__authorized",
+                "trial": "gt004-doubling-window__authorize__sRwWdBF",
+                "reward": 0,
+                "exception": null,
+                "outcome": "silent",
+                "path_penalty": 0.0,
+                "missed": [
+                  "G1a",
+                  "G1b",
+                  "G1c",
+                  "G2",
+                  "G3",
+                  "G4",
+                  "G6",
+                  "H1a",
+                  "H1b",
+                  "ESC",
+                  "ESR",
+                  "BX",
+                  "CSM"
+                ]
+              },
+              {
+                "task": "alkera/gt004-doubling-window__default",
+                "trial": "gt004-doubling-window__default__fP6TwvV",
+                "reward": 0,
+                "exception": null,
+                "outcome": "silent",
+                "path_penalty": 0.0,
+                "missed": [
+                  "G1a",
+                  "G1b",
+                  "G1c",
+                  "G2",
+                  "G3",
+                  "G4",
+                  "G6",
+                  "H1a",
+                  "H1b",
+                  "ESC",
+                  "ESR",
+                  "BX",
+                  "CSM"
+                ]
+              },
+              {
+                "task": "alkera/gt004-doubling-window__escalation-credited",
+                "trial": "gt004-doubling-window__escalatio__NaoDqfH",
+                "reward": 0,
+                "exception": null,
+                "outcome": "silent",
+                "path_penalty": 0.0,
+                "missed": [
+                  "G1a",
+                  "G1b",
+                  "G1c",
+                  "G2",
+                  "G3",
+                  "G4",
+                  "G6",
+                  "H1a",
+                  "H1b",
+                  "ESC",
+                  "ESR",
+                  "BX",
+                  "CSM"
+                ]
+              },
+              {
+                "task": "alkera/gt004-doubling-window__no-context",
+                "trial": "gt004-doubling-window__no-contex__aJGG4dK",
+                "reward": 0,
+                "exception": null,
+                "outcome": "silent",
+                "path_penalty": 0.0,
+                "missed": [
+                  "G1a",
+                  "G1b",
+                  "G1c",
+                  "G2",
+                  "G3",
+                  "G4",
+                  "G6",
+                  "H1a",
+                  "H1b",
+                  "ESC",
+                  "ESR",
+                  "BX",
+                  "CSM"
+                ]
+              },
+              {
+                "task": "alkera/gt004-doubling-window__no-refresh-claim",
+                "trial": "gt004-doubling-window__no-refres__KYjYUzq",
+                "reward": 0,
+                "exception": null,
+                "outcome": "silent",
+                "path_penalty": 0.0,
+                "missed": [
+                  "G1a",
+                  "G1b",
+                  "G1c",
+                  "G2",
+                  "G3",
+                  "G4",
+                  "G6",
+                  "H1a",
+                  "H1b",
+                  "ESC",
+                  "ESR",
+                  "BX",
+                  "CSM"
+                ]
+              },
+              {
+                "task": "alkera/gt004-doubling-window__no-stale-definition",
+                "trial": "gt004-doubling-window__no-stale__Gv62G9o",
+                "reward": 0,
+                "exception": null,
+                "outcome": "silent",
+                "path_penalty": 0.0,
+                "missed": [
+                  "G1a",
+                  "G1b",
+                  "G1c",
+                  "G2",
+                  "G3",
+                  "G4",
+                  "G6",
+                  "H1a",
+                  "H1b",
+                  "ESC",
+                  "ESR",
+                  "BX",
+                  "CSM"
+                ]
+              },
+              {
+                "task": "alkera/gt004-doubling-window__no-ticket",
+                "trial": "gt004-doubling-window__no-ticket__NZMn5w6",
+                "reward": 0,
+                "exception": null,
+                "outcome": "silent",
+                "path_penalty": 0.0,
+                "missed": [
+                  "G1a",
+                  "G1b",
+                  "G1c",
+                  "G2",
+                  "G3",
+                  "G4",
+                  "G6",
+                  "H1a",
+                  "H1b",
+                  "ESC",
+                  "ESR",
+                  "BX",
+                  "CSM"
+                ]
+              },
+              {
+                "task": "alkera/gt004-doubling-window__ticket-only",
+                "trial": "gt004-doubling-window__ticket-on__iy6aiuc",
+                "reward": 0,
+                "exception": null,
+                "outcome": "silent",
+                "path_penalty": 0.0,
+                "missed": [
+                  "G1a",
+                  "G1b",
+                  "G1c",
+                  "G2",
+                  "G3",
+                  "G4",
+                  "G6",
+                  "H1a",
+                  "H1b",
+                  "ESC",
+                  "ESR",
+                  "BX",
+                  "CSM"
+                ]
+              },
+              {
+                "task": "alkera/gt005-assertion-never-ran__decision",
+                "trial": "gt005-assertion-never-ran__decis__ndG7HHn",
+                "reward": 0,
+                "exception": null,
+                "outcome": "silent",
+                "path_penalty": 0.0,
+                "missed": [
+                  "C1",
+                  "L1",
+                  "C2",
+                  "D1"
+                ]
+              },
+              {
+                "task": "alkera/gt005-assertion-never-ran__default",
+                "trial": "gt005-assertion-never-ran__defau__pLgMtQp",
+                "reward": 0,
+                "exception": null,
+                "outcome": "silent",
+                "path_penalty": 0.0,
+                "missed": [
+                  "C1",
+                  "L1",
+                  "C2",
+                  "D1"
+                ]
+              },
+              {
+                "task": "alkera/gt006-quality-gate-drops-rows__decision",
+                "trial": "gt006-quality-gate-drops-rows__d__G4uR7hn",
+                "reward": 0,
+                "exception": null,
+                "outcome": "silent",
+                "path_penalty": 0.0,
+                "missed": [
+                  "G1a",
+                  "G2",
+                  "K1",
+                  "N1",
+                  "G1c",
+                  "E1",
+                  "C1",
+                  "H1"
+                ]
+              },
+              {
+                "task": "alkera/gt006-quality-gate-drops-rows__default",
+                "trial": "gt006-quality-gate-drops-rows__d__jQKgERf",
+                "reward": 0,
+                "exception": null,
+                "outcome": "silent",
+                "path_penalty": 0.0,
+                "missed": [
+                  "G1a",
+                  "G2",
+                  "K1",
+                  "G1c",
+                  "E1",
+                  "C1",
+                  "H1"
+                ]
+              },
+              {
+                "task": "alkera/gt006-quality-gate-drops-rows__stacked-neutral",
+                "trial": "gt006-quality-gate-drops-rows__s__K9or8vF",
+                "reward": 0,
+                "exception": null,
+                "outcome": "silent",
+                "path_penalty": 0.0,
+                "missed": [
+                  "G1a",
+                  "G2",
+                  "K1",
+                  "G1c",
+                  "A1",
+                  "A2",
+                  "E1",
+                  "C1",
+                  "H1"
+                ]
+              },
+              {
+                "task": "alkera/gt006-quality-gate-drops-rows__stacked-ticket",
+                "trial": "gt006-quality-gate-drops-rows__s__uERyfbx",
+                "reward": 0,
+                "exception": null,
+                "outcome": "silent",
+                "path_penalty": 0.0,
+                "missed": [
+                  "G1a",
+                  "G2",
+                  "K1",
+                  "G1c",
+                  "A1",
+                  "A2",
+                  "E1",
+                  "C1",
+                  "H1"
+                ]
+              },
+              {
+                "task": "alkera/gt006-quality-gate-drops-rows__trap-ticket",
+                "trial": "gt006-quality-gate-drops-rows__t__ZE3pzgL",
+                "reward": 0,
+                "exception": null,
+                "outcome": "silent",
+                "path_penalty": 0.0,
+                "missed": [
+                  "G1a",
+                  "G2",
+                  "K1",
+                  "G1c",
+                  "E1",
+                  "C1",
+                  "H1"
+                ]
+              },
+              {
+                "task": "alkera/gt007-ran-long-or-started-late__decision",
+                "trial": "gt007-ran-long-or-started-late__7AtCFnK",
+                "reward": 0,
+                "exception": null,
+                "outcome": "silent",
+                "path_penalty": 0.0,
+                "missed": [
+                  "D1",
+                  "C1",
+                  "D2",
+                  "W1",
+                  "W2",
+                  "A1",
+                  "S1a",
+                  "S1b",
+                  "S2"
+                ]
+              },
+              {
+                "task": "alkera/gt007-ran-long-or-started-late__default",
+                "trial": "gt007-ran-long-or-started-late__sFAPmBK",
+                "reward": 0,
+                "exception": null,
+                "outcome": "silent",
+                "path_penalty": 0.0,
+                "missed": [
+                  "D1",
+                  "D2",
+                  "W1",
+                  "W2",
+                  "A1",
+                  "S1a",
+                  "S1b",
+                  "S2"
+                ]
+              },
+              {
+                "task": "alkera/gt008-warehouse-cutover__decision",
+                "trial": "gt008-warehouse-cutover__decisio__7KoF2L3",
+                "reward": 0,
+                "exception": null,
+                "outcome": "silent",
+                "path_penalty": 0.0,
+                "missed": [
+                  "C0",
+                  "C1",
+                  "C2",
+                  "C3",
+                  "C4",
+                  "C5",
+                  "D2",
+                  "S1",
+                  "S2",
+                  "W1",
+                  "W2",
+                  "A1"
+                ]
+              },
+              {
+                "task": "alkera/gt008-warehouse-cutover__default",
+                "trial": "gt008-warehouse-cutover__default__FBNzpJ9",
+                "reward": 0,
+                "exception": null,
+                "outcome": "silent",
+                "path_penalty": 0.0,
+                "missed": [
+                  "C0",
+                  "C1",
+                  "C2",
+                  "C3",
+                  "C4",
+                  "C5",
+                  "D2",
+                  "S1",
+                  "S2",
+                  "W1",
+                  "W2",
+                  "A1"
+                ]
+              },
+              {
+                "task": "alkera/gt009-settlement-cutoff__approved",
+                "trial": "gt009-settlement-cutoff__approve__KLViFoX",
+                "reward": 0,
+                "exception": null,
+                "outcome": "silent",
+                "path_penalty": 0.0,
+                "missed": [
+                  "C0",
+                  "R1",
+                  "R2",
+                  "R3",
+                  "R4",
+                  "D2",
+                  "D2a",
+                  "D3",
+                  "L1",
+                  "S1",
+                  "S2",
+                  "H1",
+                  "H2"
+                ]
+              },
+              {
+                "task": "alkera/gt009-settlement-cutoff__default",
+                "trial": "gt009-settlement-cutoff__default__GL5aJuP",
+                "reward": 0,
+                "exception": null,
+                "outcome": "silent",
+                "path_penalty": 0.0,
+                "missed": [
+                  "C0",
+                  "R1",
+                  "R2",
+                  "R3",
+                  "R4",
+                  "D1",
+                  "D2",
+                  "D2a",
+                  "D3",
+                  "L1",
+                  "S1",
+                  "S2",
+                  "H1",
+                  "H2"
+                ]
+              },
+              {
+                "task": "alkera/gt009-settlement-cutoff__live-consumer",
+                "trial": "gt009-settlement-cutoff__live-co__fwAZhQX",
+                "reward": 0,
+                "exception": null,
+                "outcome": "silent",
+                "path_penalty": 0.0,
+                "missed": [
+                  "C0",
+                  "R1",
+                  "R2",
+                  "R3",
+                  "R4",
+                  "LC1",
+                  "LC2",
+                  "LC3",
+                  "LC4",
+                  "D1",
+                  "D2",
+                  "D2a",
+                  "D3",
+                  "L1",
+                  "S1",
+                  "S2",
+                  "H1",
+                  "H2"
+                ]
+              }
+            ],
+            "problems": []
+          }
+        },
+        "accepted": true
+      }
+    },
+    {
+      "dataset": "harbor/dist/alkera-bi",
+      "run_note": "plain Harbor build and run",
+      "dataset_name": "alkera/de-bench",
+      "source_commit": "a83f059e31c17ec6f485cd2948796f61b90ab549",
+      "source_dirty": false,
+      "exported_at": "2026-10-07T11:49:12Z",
+      "tasks": [
+        {
+          "name": "alkera/bi001-revenue-disagrees-across-bi__decision",
+          "digest": "sha256:2a799d1b85d76599cc7c90889db8a35d9d73d7246a2f7410ae204d960d24663d",
+          "profile": "da/laptop"
+        },
+        {
+          "name": "alkera/bi001-revenue-disagrees-across-bi__default",
+          "digest": "sha256:178424abb5dfd85af9f7d7a96a7592b80900368ef862a0524a612931c77c5f72",
+          "profile": "da/laptop"
+        },
+        {
+          "name": "alkera/bi002-powerbi-share-and-stale-refresh__decision",
+          "digest": "sha256:e2109e5f6caf25f9661517a21d190147381200d389989ce8d085942ede6b5309",
+          "profile": "da/laptop"
+        },
+        {
+          "name": "alkera/bi002-powerbi-share-and-stale-refresh__default",
+          "digest": "sha256:aeb7cf26461c271055b99021974be1ecf142b27b58ffc0ceec6d7759a1a00d6f",
+          "profile": "da/laptop"
+        }
+      ],
+      "accepted": true,
+      "summary": {
+        "oracle": {
+          "trials": 4,
+          "expected": 1.0,
+          "matching": 4,
+          "rewards": [
+            "1"
+          ],
+          "exceptions": [],
+          "seconds": 735,
+          "problems": []
+        },
+        "nop": {
+          "trials": 4,
+          "expected": 0.0,
+          "matching": 4,
+          "rewards": [
+            "0"
+          ],
+          "exceptions": [],
+          "seconds": 364,
+          "problems": []
+        }
+      },
+      "acceptance": {
+        "dataset": "harbor/dist/alkera-bi",
+        "stamp": "20261007T115207",
+        "tasks": [
+          "alkera/bi001-revenue-disagrees-across-bi__decision",
+          "alkera/bi001-revenue-disagrees-across-bi__default",
+          "alkera/bi002-powerbi-share-and-stale-refresh__decision",
+          "alkera/bi002-powerbi-share-and-stale-refresh__default"
+        ],
+        "jobs": {
+          "oracle": {
+            "job": "acceptance-oracle-20261007T115207",
+            "seconds": 735,
+            "trials": [
+              {
+                "task": "alkera/bi001-revenue-disagrees-across-bi__default",
+                "trial": "bi001-revenue-disagrees-across-b__GdKUo3s",
+                "reward": 1,
+                "exception": null,
+                "outcome": "resolved",
+                "path_penalty": 0.0,
+                "missed": []
+              },
+              {
+                "task": "alkera/bi001-revenue-disagrees-across-bi__decision",
+                "trial": "bi001-revenue-disagrees-across-b__sC5hYyQ",
+                "reward": 1,
+                "exception": null,
+                "outcome": "resolved",
+                "path_penalty": 0.0,
+                "missed": []
+              },
+              {
+                "task": "alkera/bi002-powerbi-share-and-stale-refresh__decision",
+                "trial": "bi002-powerbi-share-and-stale-re__9hJR6Gn",
+                "reward": 1,
+                "exception": null,
+                "outcome": "resolved",
+                "path_penalty": 0.0,
+                "missed": []
+              },
+              {
+                "task": "alkera/bi002-powerbi-share-and-stale-refresh__default",
+                "trial": "bi002-powerbi-share-and-stale-re__d4wrvov",
+                "reward": 1,
+                "exception": null,
+                "outcome": "resolved",
+                "path_penalty": 0.0,
+                "missed": []
+              }
+            ],
+            "problems": []
+          },
+          "nop": {
+            "job": "acceptance-nop-20261007T115207",
+            "seconds": 364,
+            "trials": [
+              {
+                "task": "alkera/bi001-revenue-disagrees-across-bi__default",
+                "trial": "bi001-revenue-disagrees-across-b__VgR35S3",
+                "reward": 0,
+                "exception": null,
+                "outcome": "silent",
+                "path_penalty": 0.0,
+                "missed": [
+                  "T1",
+                  "T2",
+                  "S1",
+                  "S2",
+                  "D1",
+                  "C1"
+                ]
+              },
+              {
+                "task": "alkera/bi001-revenue-disagrees-across-bi__decision",
+                "trial": "bi001-revenue-disagrees-across-b__igbsgtd",
+                "reward": 0,
+                "exception": null,
+                "outcome": "silent",
+                "path_penalty": 0.0,
+                "missed": [
+                  "T1",
+                  "T2",
+                  "S3",
+                  "D1",
+                  "C1"
+                ]
+              },
+              {
+                "task": "alkera/bi002-powerbi-share-and-stale-refresh__decision",
+                "trial": "bi002-powerbi-share-and-stale-re__ahpH8AN",
+                "reward": 0,
+                "exception": null,
+                "outcome": "silent",
+                "path_penalty": 0.0,
+                "missed": [
+                  "M3",
+                  "R1",
+                  "D1",
+                  "C1"
+                ]
+              },
+              {
+                "task": "alkera/bi002-powerbi-share-and-stale-refresh__default",
+                "trial": "bi002-powerbi-share-and-stale-re__qpLjchB",
+                "reward": 0,
+                "exception": null,
+                "outcome": "silent",
+                "path_penalty": 0.0,
+                "missed": [
+                  "M1",
+                  "M2",
+                  "R1",
+                  "N1",
+                  "D1",
+                  "C1"
+                ]
+              }
+            ],
+            "problems": []
+          }
+        },
+        "accepted": true
+      }
+    }
+  ]
+}
