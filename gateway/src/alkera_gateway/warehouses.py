@@ -79,6 +79,17 @@ DBT_ADAPTERS = {
     # system Python, which a de image's toolbelt gate forbids
     # (docker/bigquery-clients.in).
     "bigquery": ("dbt.adapters.bigquery", "dbt-bigquery"),
+    # In images built with `--warehouse-clients redshift` only
+    # (requirements-redshift.lock); the box target of a redshift-plugged box.
+    "redshift": ("dbt.adapters.redshift", "dbt-redshift"),
+}
+
+#: Fields a variable-backed box target (`dbt_output(env=...)`) carries as
+#: values, because they are the backend's shape and not a secret: the
+#: Postgres-persona Redshift does not require SSL, and dbt-redshift's default
+#: (`prefer`) makes redshift_connector demand it and fail ("Server refuses SSL").
+DBT_FIXED_FIELDS: dict[str, dict[str, str]] = {
+    "redshift": {"sslmode": "disable"},
 }
 
 
@@ -138,6 +149,7 @@ def dbt_output(
         if port is not None:
             output["port"] = int(port)
         output.update({"schema": schema, "threads": 1})
+        output.update(DBT_FIXED_FIELDS.get(backend, {}))
         return output
     if backend == "duckdb":
         if path is None:

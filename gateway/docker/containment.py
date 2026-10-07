@@ -88,6 +88,7 @@ NATIVE_BACKENDS = {
     # front of it (tasks/harness/container_episode.HOSTED_ENGINES); the engine
     # itself is on backend_net only.
     "bigquery": ("bigquery.internal", 9050),
+    "redshift": ("redshift.internal", 5439),
 }
 PROBE_IMAGE = "alkera-stack:track-b"
 ALL_PROFILES = ("harness", "grading", "snowflake")

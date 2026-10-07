@@ -154,6 +154,29 @@ BACKENDS: dict[str, Backend] = {
         env={"BIGQUERY_API_URL": "http://bigquery.internal:9050",
              "BIGQUERY_PROJECT": "alkera-local"},
     ),
+    # The Postgres persona (gateway/docker/redshift_start.py): PostgreSQL 17 on
+    # loopback inside its own container, seeded from the world's warehouse
+    # (database `dev`, the world's schemas), behind the audited wire proxy
+    # (alkera_gateway.native.pgwire_proxy) that translates Redshift SQL
+    # (alkera_gateway.redshift_sql) and refuses what Postgres cannot imitate.
+    # No TLS: the cluster does not require SSL, and the box says so.
+    "redshift": Backend(
+        name="redshift",
+        host="redshift.internal",
+        port=5439,
+        scheme="postgres",
+        hosted=False,
+        dockerfile="Dockerfile.redshift",
+        clients="redshift",
+        seeds_world=True,
+        tls=False,
+        statement_tool="redshift.statement",
+        env={"REDSHIFT_HOST": "redshift.internal",
+             "REDSHIFT_PORT": "5439",
+             "REDSHIFT_DATABASE": "dev",
+             "REDSHIFT_USER": "alkera",
+             "REDSHIFT_PASSWORD": FAKE_CREDENTIAL},
+    ),
 }
 
 

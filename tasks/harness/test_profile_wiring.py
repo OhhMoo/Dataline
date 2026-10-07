@@ -72,9 +72,11 @@ def test_profile_resolves_and_spells_its_flags():
 
 
 def test_planned_plug_is_a_harness_error_with_the_profile_text():
-    # de/aws plugs redshift (planned) and tableau (partial since the BI build)
-    with pytest.raises(episode.HarnessError, match="planned, not built: redshift"):
-        episode.environment_profile("de/aws")
+    # ds/aws plugs ml_workers and mlflow (planned); its redshift (the Postgres
+    # persona) and de/aws's tableau are partial
+    with pytest.raises(episode.HarnessError, match="planned, not built: ml_workers, mlflow"):
+        episode.environment_profile("ds/aws")
+    assert episode.environment_profile("de/aws") is not None
     with pytest.raises(episode.HarnessError, match="--plug|profile"):
         episode.environment_profile("", {"notebook": []})
 
@@ -83,7 +85,7 @@ def test_rollout_stops_on_a_planned_plug_before_the_world(monkeypatch, tmp_path)
     import rollout
     import taskspec
 
-    spec = SimpleNamespace(variant="", profile="de/aws", plugs={})
+    spec = SimpleNamespace(variant="", profile="ds/aws", plugs={})
     monkeypatch.setattr(taskspec, "load", lambda *a, **k: spec)
 
     def no_world(*a, **k):
@@ -92,7 +94,7 @@ def test_rollout_stops_on_a_planned_plug_before_the_world(monkeypatch, tmp_path)
     monkeypatch.setattr(episode, "build_world", no_world)
     args = SimpleNamespace(tasks_dir=None, task="T", variant=None,
                            out=str(tmp_path / "r"))
-    with pytest.raises(episode.HarnessError, match="planned, not built: redshift"):
+    with pytest.raises(episode.HarnessError, match="planned, not built: ml_workers"):
         rollout.run_rollout(args)
     assert not (tmp_path / "r").exists()
 

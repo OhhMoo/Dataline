@@ -89,7 +89,16 @@ _CATALOG = (
          note="fakesnow 0.11.18 behind a TLS proxy; sql_* and dbt-snowflake verified "
               "against it in-process; clients only in images built with "
               "--warehouse-clients snowflake; TLS route untested; no task uses it"),
-    Plug("redshift", "warehouse", "planned", surfaces=("redshift",)),
+    Plug("redshift", "warehouse", "partial", surfaces=("redshift",),
+         note="Postgres persona: PostgreSQL 17 seeded from the world behind an "
+              "audited wire proxy at redshift.internal:5439 (sqlglot redshift->"
+              "postgres, checked; UNLOAD/COPY/SUPER/PartiQL/Spectrum refused by "
+              "name; DISTKEY/SORTKEY accepted with no effect); psql, "
+              "redshift_connector and dbt-redshift run against it in the "
+              "container topology; clients only in images built with "
+              "--warehouse-clients redshift; no Redshift Data API, no svv_* "
+              "system views, psql \\d fails as against a real cluster; no task "
+              "uses it"),
     Plug("bigquery", "warehouse", "partial", surfaces=("bigquery",),
          note="goccy emulator v0.8.1 behind an audited proxy at "
               "bigquery.internal:9050 (native/services/bigquery.py), seeded from "

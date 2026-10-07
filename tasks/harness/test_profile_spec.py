@@ -57,13 +57,18 @@ def test_no_profile_loads_as_before(tmp_path):
 
 
 def test_profile_with_planned_plugs_loads(tmp_path):
-    # de/aws: redshift is planned (tableau, its BI, is partial)
-    name = write_task(tmp_path, 'profile = "de/aws"\n'
+    # ds/aws: ml_workers and mlflow are planned (redshift, its warehouse, is
+    # partial since the Postgres persona)
+    name = write_task(tmp_path, 'profile = "ds/aws"\n'
                                 'surfaces = ["redshift", "dbt", "git"]\n')
     spec = taskspec.load(name, tmp_path)
-    assert spec.profile == "de/aws"
+    assert spec.profile == "ds/aws"
     assert spec.plugs == {}
-    assert spec.profile_planned == ["redshift"]
+    assert spec.profile_planned == ["ml_workers", "mlflow"]
+    # de/aws plans nothing any more
+    name = write_task(tmp_path, 'profile = "de/aws"\n'
+                                'surfaces = ["redshift", "dbt", "git"]\n', name="GT000-aws")
+    assert taskspec.load(name, tmp_path).profile_planned == []
 
 
 def test_surface_the_profile_lacks_is_refused(tmp_path):

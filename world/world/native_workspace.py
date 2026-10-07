@@ -393,6 +393,24 @@ DISCOVERY: dict[str, Discovery] = {
         env={"BIGQUERY_API_URL": "http://bigquery.internal:9050",
              "BIGQUERY_PROJECT": "alkera-local"},
     ),
+    # The Postgres-persona Redshift (gateway/docker/redshift_start.py): database
+    # `dev` holds the world's schemas; `public` is where a session's own work
+    # (and the box's dbt target) lands. No SSL - the clients say ssl=False /
+    # sslmode=disable, which the services.toml row and the dbt target carry.
+    "redshift": Discovery(
+        backend="redshift",
+        label="the warehouse",
+        clients="psql, redshift_connector, dbt-redshift",
+        services_toml={"host": "redshift.internal", "port": "5439", "database": "dev",
+                       "user": "alkera", "password": FAKE_TOKEN, "schema": "public",
+                       "sslmode": "disable"},
+        dbt_type="redshift",
+        env={"REDSHIFT_HOST": "redshift.internal", "REDSHIFT_PORT": "5439",
+             "REDSHIFT_DATABASE": "dev", "REDSHIFT_USER": "alkera",
+             "REDSHIFT_PASSWORD": FAKE_TOKEN},
+        dbt_env={"host": "REDSHIFT_HOST", "user": "REDSHIFT_USER",
+                 "password": "REDSHIFT_PASSWORD", "dbname": "REDSHIFT_DATABASE"},
+    ),
 }
 
 #: Registry backends the box listed BEFORE the registry, and so still lists the

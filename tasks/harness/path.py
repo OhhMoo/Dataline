@@ -124,6 +124,7 @@ TOOL_KINDS = {
     # The BigQuery proxy (native/services/bigquery.py): one row per query job
     # or jobs.query call, its text in `args.sql`.
     "bigquery.statement": "sql",
+    "redshift.statement": "sql",
     "bash": "shell",
     "s3_put": "fs_write",
     "s3_delete": "fs_delete",

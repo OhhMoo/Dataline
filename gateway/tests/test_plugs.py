@@ -94,8 +94,10 @@ def test_planned_refusal_names_every_planned_plug():
 
 
 def test_allow_planned_resolves_and_lists_them():
-    # tableau is partial now; redshift is still only a name in the catalog
-    assert set(resolve("de/aws", allow_planned=True).planned) == {"redshift"}
+    # tableau and redshift (the Postgres persona) are partial now; a data
+    # scientist's compute plugs are still only names in the catalog
+    assert resolve("de/aws", allow_planned=True).planned == ()
+    assert set(resolve("ds/aws", allow_planned=True).planned) == {"ml_workers", "mlflow"}
 
 
 def test_override_adds_a_slot_and_checks_plug_slot():
@@ -141,7 +143,7 @@ def test_readiness_matrix_covers_every_role_and_stack():
     assert rows["de/snowflake"] == {"profile": "de/snowflake", "status": "runnable",
                                     "planned": []}
     assert rows["da/snowflake"]["status"] == "runnable"
-    assert rows["de/aws"]["planned"] == ["redshift"]
+    assert rows["de/aws"] == {"profile": "de/aws", "status": "runnable", "planned": []}
     assert rows["de/databricks"]["planned"] == ["databricks"]
     assert rows["da/laptop"]["status"] == "runnable"     # jupyter is partial, not planned
 
