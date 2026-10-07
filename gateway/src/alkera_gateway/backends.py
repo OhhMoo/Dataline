@@ -155,7 +155,8 @@ BACKENDS: dict[str, Backend] = {
              "BIGQUERY_PROJECT": "alkera-local"},
     ),
     # The Postgres persona (gateway/docker/redshift_start.py): PostgreSQL 17 on
-    # loopback inside its own container, seeded from the world's warehouse
+    # a private unix socket inside its own container (no TCP port; the proxy is
+    # the one door), seeded from the world's warehouse
     # (database `dev`, the world's schemas), behind the audited wire proxy
     # (alkera_gateway.native.pgwire_proxy) that translates Redshift SQL
     # (alkera_gateway.redshift_sql) and refuses what Postgres cannot imitate.
