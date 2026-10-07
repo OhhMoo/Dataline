@@ -436,6 +436,22 @@ def trigger(root: Path, job: str, variables: dict | None = None,
 #: world nothing was ever queued in is byte-identical to one built before the
 #: queue existed, and `advance` removes the key when it drains it.
 QUEUE = "queue"
+#: At most this many runs wait in the queue. Every one of them is work the
+#: grader's next `advance` must execute before anything else, so a caller that
+#: loops on a trigger cannot push unbounded work onto it; `advance` also counts
+#: them against MAX_EVENTS. A caller that queues several runs at once (a DAG
+#: run's tasks) checks `queue_room` first, so a request is accepted whole or
+#: not at all.
+MAX_QUEUED = 256
+
+
+class QueueFull(SystemExit):
+    """`enqueue` refused: the queue already holds MAX_QUEUED runs."""
+
+
+def queue_room(state: dict) -> int:
+    """How many more runs the queue accepts."""
+    return MAX_QUEUED - len(state.get(QUEUE) or [])
 
 
 def enqueue(root: Path, job: str, variables: dict | None = None,
@@ -459,6 +475,9 @@ def enqueue(root: Path, job: str, variables: dict | None = None,
     state = load(root)
     if job not in state["jobs"]:
         raise SystemExit(f"unknown job: {job} (have: {', '.join(state['jobs'])})")
+    if queue_room(state) <= 0:
+        raise QueueFull(f"the queue already holds {MAX_QUEUED} runs (MAX_QUEUED); they run "
+                        f"at the next advance - nothing more is accepted until then")
     entry = {"job": job, "queued_at": state["vnow"], "execution_date": execution_date}
     if variables:
         entry["variables"] = dict(variables)
@@ -836,6 +855,16 @@ def _simulate_job(root: Path, state: dict, live: dict, event: dict,
     return made, None
 
 
+def _cap_events(state: dict, planned: list) -> None:
+    """Refuse, before anything runs, a span whose queued runs plus planned
+    events exceed MAX_EVENTS: the queue is simulated work like any other."""
+    queued = len(state.get(QUEUE) or [])
+    if queued + len(planned) > MAX_EVENTS:
+        raise SystemExit(
+            f"advance would simulate {queued} queued run(s) and {len(planned)} "
+            f"event(s) (cap {MAX_EVENTS}); advance in smaller steps")
+
+
 def advance(root: Path, hours: float) -> dict:
     """Move the clock by `hours`, materialising everything in the span.
 
@@ -856,6 +885,7 @@ def advance(root: Path, hours: float) -> dict:
         # Queued runs still run: they were asked for, and `trigger` on the
         # same world would have executed them (as `unsupported`, with no
         # `exec` to run). Nothing queued: the same bytes as before the queue.
+        _cap_events(state, [])
         drained = _drain(root, state, None, start) if state.get(QUEUE) else []
         state["vnow"] = iso(target)
         save(root, state)
@@ -881,6 +911,7 @@ def advance(root: Path, hours: float) -> dict:
     # Runs queued before this span (`enqueue`) execute first, at `start`; the
     # span was planned above, before they were appended. A no-op, touching
     # nothing, when nothing is queued.
+    _cap_events(state, queue)
     log = _drain(root, state, live, start) if state.get(QUEUE) else []
     index = 0
     while index < len(queue):

@@ -119,7 +119,10 @@ class WorldScheduler:
         state = self._state()
         if job_id not in state["jobs"]:
             raise ValueError(f"Unknown job: {job_id}")
-        entry = scheduler.enqueue(self.root, job_id, variables or None,
-                                  execution_date, origin)
+        try:
+            entry = scheduler.enqueue(self.root, job_id, variables or None,
+                                      execution_date, origin)
+        except scheduler.QueueFull as exc:
+            raise ValueError(str(exc)) from None
         return {"job_id": job_id, "position": len(self._state().get(
             scheduler.QUEUE) or []), **entry}

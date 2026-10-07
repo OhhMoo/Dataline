@@ -384,6 +384,83 @@ def test_enqueue_refuses_an_unknown_job(world):
     assert (world / scheduler.STATE).read_bytes() == before
 
 
+# ------------------------------------------------- the queue is bounded
+def test_the_queue_holds_at_most_max_queued(world, monkeypatch):
+    from world.gateway_scheduler import WorldScheduler
+
+    monkeypatch.setattr(scheduler, "MAX_QUEUED", 3)
+    for _ in range(3):
+        scheduler.enqueue(world, "dbt_build")
+    before = (world / scheduler.STATE).read_bytes()
+    with pytest.raises(scheduler.QueueFull, match="MAX_QUEUED"):
+        scheduler.enqueue(world, "dbt_build")
+    with pytest.raises(ValueError, match="MAX_QUEUED"):
+        WorldScheduler(world).enqueue("dbt_build", None)
+    assert (world / scheduler.STATE).read_bytes() == before
+    assert scheduler.queue_room(state(world)) == 0
+
+
+def test_a_trigger_is_accepted_whole_or_not_at_all(world, monkeypatch):
+    monkeypatch.setattr(scheduler, "MAX_QUEUED", 3)
+    av.trigger(world, "commerce_nightly")                 # 2 entries
+    before = (world / scheduler.STATE).read_bytes()
+    with pytest.raises(av.AirflowError) as full:            # needs 2, room 1
+        av.trigger(world, "commerce_nightly")
+    assert full.value.status == 409 and "queue is full" in str(full.value)
+    assert (world / scheduler.STATE).read_bytes() == before
+    av.trigger(world, "bi_refresh")                       # 1 entry still fits
+
+
+def test_a_dag_holds_at_most_sixteen_queued_runs(world):
+    for _ in range(av.MAX_QUEUED_RUNS_PER_DAG):
+        av.trigger(world, "bi_refresh")
+    before = (world / scheduler.STATE).read_bytes()
+    with pytest.raises(av.AirflowError) as over:
+        av.trigger(world, "bi_refresh")
+    assert over.value.status == 409 and "max_active_runs_per_dag, 16" in str(over.value)
+    # a clear that would queue the DAG's 17th run is refused the same way...
+    scheduled = next(r for r in av.dag_runs(world, "bi_refresh")
+                     if r["run_type"] == "scheduled")
+    with pytest.raises(av.AirflowError) as clear_over:
+        av.clear(world, "bi_refresh", dag_run_id=scheduled["dag_run_id"],
+                 only_failed=False, dry_run=False)
+    assert clear_over.value.status == 409
+    assert (world / scheduler.STATE).read_bytes() == before
+    # ...and a DAG with room is unaffected
+    av.trigger(world, "commerce_nightly")
+
+
+def test_queued_runs_count_against_max_events(world, monkeypatch):
+    av.trigger(world, "commerce_nightly")
+    before = (world / scheduler.STATE).read_bytes()
+    monkeypatch.setattr(scheduler, "MAX_EVENTS", 1)
+    with pytest.raises(SystemExit, match="2 queued run"):
+        scheduler.advance(world, 0)
+    assert (world / scheduler.STATE).read_bytes() == before         # nothing ran
+    assert ran(world) == []
+
+
+def test_conf_and_a_data_interval_are_refused(world):
+    with pytest.raises(av.AirflowError, match="conf is not available"):
+        av.trigger(world, "commerce_nightly", conf={"why": "rerun"})
+    with pytest.raises(av.AirflowError, match="data_interval_start"):
+        av.trigger(world, "commerce_nightly", data_interval_start="2025-01-01T00:00:00Z",
+                   data_interval_end="2025-01-02T00:00:00Z")
+    assert "queue" not in state(world)
+    assert av.trigger(world, "commerce_nightly", conf={})["conf"] == {}
+
+
+def test_a_dag_file_too_deep_for_ast_is_an_import_error(world):
+    chain = " >> ".join(f"t{i}" for i in range(3200))
+    (world / "workspace" / "dags" / "deep.py").write_text(
+        f"from airflow import DAG\nwith DAG('deep') as dag:\n    pass\n{chain}\n", "utf-8")
+    assert [d.dag_id for d in av.dags(world)] == ["bi_refresh", "commerce_nightly"]
+    errors = av.import_error_shapes(world)
+    assert [(e["filename"], e["bundle_name"]) for e in errors] == [("deep.py", av.BUNDLE)]
+    assert "RecursionError" in errors[0]["stack_trace"]
+    assert errors[0]["timestamp"] == av.stamp(state(world)["vnow"])
+
+
 def test_world_scheduler_enqueue_is_the_one_write(world):
     from world.gateway_scheduler import WorldScheduler
 

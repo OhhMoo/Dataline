@@ -289,7 +289,20 @@ def _ref(node, tasks_by_var: dict) -> str | None:
 
 
 def _parse_file(path: Path, jobs: set) -> tuple[list[DagInfo], str | None]:
-    """The DAGs one file defines, or ([], why) when it does not parse."""
+    """The DAGs one file defines, or ([], why) when it cannot be read.
+
+    Anything reading the file raises - a syntax error, or a file the agent wrote
+    that is too deep for `ast` or for the walks below (`RecursionError`), or too
+    big (`MemoryError`) - is that FILE's import error, the way Airflow's DagBag
+    records one: one bad DAG file must not take every endpoint, /health
+    included, down with it."""
+    try:
+        return _parse_file_unguarded(path, jobs)
+    except Exception as exc:  # noqa: BLE001 - recorded as the file's import error
+        return [], f"{type(exc).__name__}: {exc}"
+
+
+def _parse_file_unguarded(path: Path, jobs: set) -> tuple[list[DagInfo], str | None]:
     try:
         source = path.read_text(encoding="utf-8")
         tree = ast.parse(source, filename=path.name)
@@ -492,6 +505,22 @@ def import_errors(world: Path) -> dict[str, str]:
         why = _parse_file(path, set())[1]
         if why:
             out[path.name] = why
+    return out
+
+
+def import_error_shapes(world: Path) -> list[dict]:
+    """ImportErrorResponse objects (Airflow 3.3.2), one per DAG file that does
+    not parse. The id is the file's 1-based position in dags/ (stable while the
+    folder is), the timestamp the world's clock: the files are read now."""
+    vnow = stamp(_state(world).get("vnow"))
+    files = sorted((Path(world) / DAGS_DIR).glob("*.py"))
+    out = []
+    for position, path in enumerate(files, 1):
+        why = _parse_file(path, set())[1]
+        if why:
+            out.append({"import_error_id": position, "timestamp": vnow,
+                        "filename": path.name, "bundle_name": BUNDLE,
+                        "stack_trace": why})
     return out
 
 
@@ -930,6 +959,38 @@ def _scheduler(world: Path):
     return WorldScheduler(Path(world))
 
 
+#: Queued DAG runs one DAG may hold. In Airflow a DAG's `max_active_runs` caps
+#: RUNNING runs and further triggers wait queued; here nothing runs until the
+#: grader advances, so every accepted run is queued work for that advance - so
+#: the cap is on queued runs, at Airflow's default `max_active_runs_per_dag`
+#: (16), whatever the DAG file says (the themes say 1, which would refuse the
+#: second of two triggers outright).
+MAX_QUEUED_RUNS_PER_DAG = DEFAULT_MAX_ACTIVE_RUNS
+
+
+def _queued(run: DagRun) -> bool:
+    return any(a.queued for attempts in run.attempts.values() for a in attempts)
+
+
+def _room_for_run(found: DagInfo, existing: list[DagRun], state: dict, entries: int,
+                  run: DagRun | None = None) -> None:
+    """Refuse (409, naming the limit) a request that would give the DAG one queued
+    run more than MAX_QUEUED_RUNS_PER_DAG, or the world's queue more entries than
+    it takes (`scheduler.MAX_QUEUED`). `run`: the DAG run a clear re-queues, which
+    counts only if it is not queued already."""
+    if run is None or not _queued(run):
+        queued = sum(_queued(r) for r in existing)
+        if queued >= MAX_QUEUED_RUNS_PER_DAG:
+            raise AirflowError(409, f"Dag {found.dag_id} already has {queued} DAG runs "
+                                    f"queued, the limit (max_active_runs_per_dag, "
+                                    f"{MAX_QUEUED_RUNS_PER_DAG}): they run when the world's "
+                                    f"scheduler next advances the clock")
+    if entries > scheduler.queue_room(state):
+        raise AirflowError(409, f"The world's scheduler queue is full: it takes "
+                                f"{scheduler.MAX_QUEUED} runs (MAX_QUEUED), they run at the "
+                                f"next advance, and this request needs {entries} more")
+
+
 def trigger(world: Path, dag_id: str, *, dag_run_id: str | None = None,
             logical_date: str | None = None, conf: dict | None = None,
             note: str | None = None, user: str | None = None,
@@ -948,8 +1009,20 @@ def trigger(world: Path, dag_id: str, *, dag_run_id: str | None = None,
         raise AirflowError(400, f"Dag {dag_id} has no task the world's scheduler runs: "
                                 f"none of {[t.task_id for t in found.tasks]} is a job in "
                                 f"var/sched/state.json")
+    # Accepted and then ignored would be a silent wrong answer: the world's jobs
+    # take no Airflow conf and no data interval (they run the execution day).
+    if conf:
+        raise AirflowError(400, "conf is not available in this environment: the world's "
+                                "jobs take no DAG-run conf, so it would be recorded and "
+                                "never reach the run. Trigger with an empty conf.")
+    if data_interval_start is not None or data_interval_end is not None:
+        raise AirflowError(400, "data_interval_start/data_interval_end are not available in "
+                                "this environment: a world job runs for its execution day "
+                                "(the logical_date's date), not an interval. Leave both "
+                                "null.")
     vnow = state["vnow"]
     existing = dag_run_objects(world, found, state)
+    _room_for_run(found, existing, state, len(found.jobs))
     if logical_date is not None and _dt(logical_date) > _dt(vnow):
         # airflowctl's `dags trigger` fills in the WALL clock when no
         # --logical-date is given; that is a time this world has not reached.
@@ -1022,6 +1095,7 @@ def clear(world: Path, dag_id: str, *, dag_run_id: str, task_ids=None,
             continue                     # nothing the scheduler could re-run
         selected.append(task_id)
     if not dry_run and selected:
+        _room_for_run(found, dag_run_objects(world, found, state), state, len(selected), run)
         origin = {"dag_id": dag_id, "dag_run_id": run.run_id, "run_type": run.run_type,
                   "triggered_by": run.triggered_by, "run_after": run.run_after,
                   "queued_at": run.queued_at, "logical_date": run.logical_date,
