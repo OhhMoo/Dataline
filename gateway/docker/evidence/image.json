@@ -1,11 +1,11 @@
 {
   "architecture": "amd64",
-  "generated": "2026-10-06T04:06:14+00:00",
-  "head_revision": "9c08ad9907756792f85c1a5d493d37797b333daf",
-  "image_id": "sha256:cce099711f31fbc282615c139ae4fdf4fdfa2e9a2a9cfc6471e490871f191770",
+  "generated": "2026-10-07T08:35:13+00:00",
+  "head_revision": "bfd1b59025721f62dd5567c2b43789e5d2369e2a",
+  "image_id": "sha256:8d6acc7f15888967428180af44a1c24de027ffd543da8af7b6c6b2fc00220cfd",
   "labels": {
-    "org.alkera.source.overlay": "a990d7308ab00b3f173bdd6405d0b918458617c9beaf551bfac67f6e63381e50",
-    "org.alkera.source.revision": "9c08ad9907756792f85c1a5d493d37797b333daf",
+    "org.alkera.source.overlay": "3e3d2b03320d29830d74e583aa49362ddcc30df744e3011c1eb7b445b43b89fa",
+    "org.alkera.source.revision": "bfd1b59025721f62dd5567c2b43789e5d2369e2a",
     "org.alkera.toolbelt": "da",
     "org.alkera.warehouse_clients": "snowflake"
   },
@@ -834,7 +834,7 @@
       }
     },
     "role_imports_failed": [],
-    "source_revision": "9c08ad9907756792f85c1a5d493d37797b333daf",
+    "source_revision": "bfd1b59025721f62dd5567c2b43789e5d2369e2a",
     "tool_count": 63,
     "toolbelt_role": "da",
     "tools": [
@@ -928,6 +928,7 @@
       "gateway/docker/jupyter/launch.py",
       "gateway/docker/ledger_probe.py",
       "gateway/docker/lock_snowflake_clients.py",
+      "gateway/docker/lock_warehouse_clients.py",
       "gateway/docker/native_episode_probe.py",
       "gateway/docker/native_probe.py",
       "gateway/docker/native_services.py",
@@ -948,15 +949,16 @@
       "gateway/docker/toolbelt.in",
       "gateway/docker/toolbelt.lock",
       "gateway/docker/toolbelt_acceptance.py",
-      "gateway/docker/toolbelt_check.py"
+      "gateway/docker/toolbelt_check.py",
+      "gateway/docker/warehouse_clients.py"
     ],
-    "hash": "a990d7308ab00b3f173bdd6405d0b918458617c9beaf551bfac67f6e63381e50"
+    "hash": "3e3d2b03320d29830d74e583aa49362ddcc30df744e3011c1eb7b445b43b89fa"
   },
   "repo_digests": [
-    "alkera-episode@sha256:cce099711f31fbc282615c139ae4fdf4fdfa2e9a2a9cfc6471e490871f191770"
+    "alkera-episode@sha256:8d6acc7f15888967428180af44a1c24de027ffd543da8af7b6c6b2fc00220cfd"
   ],
-  "size_bytes": 2566328181,
-  "source_revision": "9c08ad9907756792f85c1a5d493d37797b333daf",
+  "size_bytes": 2567218197,
+  "source_revision": "bfd1b59025721f62dd5567c2b43789e5d2369e2a",
   "tag": "alkera-episode:head-da-snowflake",
   "toolbelt": {
     "label": "da",
