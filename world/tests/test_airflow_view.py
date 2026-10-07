@@ -222,11 +222,41 @@ def test_double_trigger_gives_two_queued_runs(world):
     assert [r["dag_run_id"] for r in queued] == sorted([one["dag_run_id"],
                                                         two["dag_run_id"]])
     # a logical date makes Airflow's own run id, and a second one is a conflict
-    dated = av.trigger(world, "bi_refresh", logical_date="2026-03-01T00:00:00Z")
-    assert dated["dag_run_id"] == "manual__2026-03-01T00:00:00+00:00"
+    day = state(world)["vnow"][:10] + "T00:00:00Z"            # a past instant
+    dated = av.trigger(world, "bi_refresh", logical_date=day)
+    assert dated["dag_run_id"] == f"manual__{day[:10]}T00:00:00+00:00"
     with pytest.raises(av.AirflowError) as again:
-        av.trigger(world, "bi_refresh", logical_date="2026-03-01T00:00:00Z")
+        av.trigger(world, "bi_refresh", logical_date=day)
     assert again.value.status == 409
+
+
+def test_a_logical_date_after_the_worlds_clock_is_refused(world):
+    """airflowctl fills in the wall clock when no --logical-date is given: a day
+    the world has not reached. Refused by name; vnow itself is fine."""
+    vnow = state(world)["vnow"]
+    with pytest.raises(av.AirflowError) as later:
+        av.trigger(world, "commerce_nightly", logical_date="2026-10-07T09:00:00Z")
+    assert later.value.status == 400 and "after the world's clock" in str(later.value)
+    assert "queue" not in state(world)
+    run = av.trigger(world, "commerce_nightly", logical_date=vnow)
+    assert run["logical_date"] == av.stamp(vnow)
+    assert state(world)["queue"][0]["execution_date"] == vnow[:10]
+
+
+def test_an_engine_log_the_executor_kept_is_served(world):
+    """A run's raw engine output (build/sched/logs/run-NNNNNN.log) is in its log,
+    between the start line and the outcome."""
+    data = state(world)
+    index = max(i for i, r in enumerate(data["runs"], 1) if r["job"] == "dbt_build")
+    raw = world / av.LOGS_DIR / f"run-{index:06d}.log"
+    raw.parent.mkdir(parents=True)
+    raw.write_text("Running with dbt=1.12.4\nCompleted successfully\n", "utf-8")
+    run = av.dag_runs(world, "commerce_nightly")[-1]["dag_run_id"]
+    events = av.task_log_events(world, "commerce_nightly", run, "dbt_build", 1)
+    texts = [e["event"] for e in events]
+    assert texts[1:3] == ["Running with dbt=1.12.4", "Completed successfully"]
+    assert events[1]["logger"] == "task.stdout" and texts[-1] == "Task instance in success state"
+    assert "kept no engine output" not in "\n".join(texts)
 
 
 def test_the_next_advance_executes_the_queue_first(world):

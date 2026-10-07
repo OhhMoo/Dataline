@@ -950,6 +950,13 @@ def trigger(world: Path, dag_id: str, *, dag_run_id: str | None = None,
                                 f"var/sched/state.json")
     vnow = state["vnow"]
     existing = dag_run_objects(world, found, state)
+    if logical_date is not None and _dt(logical_date) > _dt(vnow):
+        # airflowctl's `dags trigger` fills in the WALL clock when no
+        # --logical-date is given; that is a time this world has not reached.
+        raise AirflowError(400, f"logical_date {stamp(logical_date)} is after the world's "
+                                f"clock ({stamp(vnow)}): a run for a time the world has not "
+                                f"reached is not available here - the clock is the world's. "
+                                f"Pass a logical_date at or before {stamp(vnow)}, or null.")
     if logical_date is not None:
         logical = _dt(logical_date)
         if any(r.logical_date and _dt(r.logical_date) == logical for r in existing):
