@@ -998,13 +998,84 @@ def spawn_backend(layout: Layout, episode: dict, spec: dict) -> dict:
     stat = proc_stat(proc.pid)
     return {"pid": proc.pid, "starttime": stat[1] if stat else None,
             "argv": list(spec["argv"]), "user": spec["user"], "run_as": note,
+            "uid": uid if uid is not None else os.geteuid(),
             "ports": list(spec["ports"]), "started_at": _iso(_now())}
+
+
+def listening_socket_uids() -> dict[int, dict[int, int]]:
+    """TCP port -> {inode: owner uid} of LISTEN sockets, from /proc/net/tcp{,6}."""
+    out: dict[int, dict[int, int]] = {}
+    for table in ("/proc/net/tcp", "/proc/net/tcp6"):
+        try:
+            lines = Path(table).read_text(encoding="utf-8").splitlines()[1:]
+        except OSError:
+            continue
+        for line in lines:
+            fields = line.split()
+            if len(fields) < 10 or fields[3] != "0A":
+                continue
+            port = int(fields[1].rsplit(":", 1)[1], 16)
+            out.setdefault(port, {})[int(fields[9])] = int(fields[7])
+    return out
+
+
+def session_fd_view(sid: int) -> tuple[set[int], bool]:
+    """(socket inodes held by session `sid`'s processes, whether any of their
+    fd tables could not be read). A container's root has no CAP_SYS_PTRACE in
+    Docker's default capability set, so it cannot read /proc/<pid>/fd of a
+    backend running as another user."""
+    inodes: set[int] = set()
+    blind = False
+    for pid in session_pids(sid):
+        try:
+            names = os.listdir(f"/proc/{pid}/fd")
+        except PermissionError:
+            blind = True
+            continue
+        except OSError:
+            continue
+        for name in names:
+            try:
+                target = os.readlink(f"/proc/{pid}/fd/{name}")
+            except PermissionError:
+                blind = True
+                continue
+            except OSError:
+                continue
+            if target.startswith("socket:["):
+                inodes.add(int(target[8:-1]))
+    return inodes, blind
+
+
+def backend_port_owners(ports: list[int], listening: dict[int, dict[int, int]],
+                        mine: set[int], blind: bool, uid: int | None
+                        ) -> tuple[list[int], list[int]]:
+    """(missing, foreign) for a backend's declared ports.
+
+    A port is the backend's when one of its LISTEN sockets is held by a
+    process of the backend's session (by inode). When world-up cannot read
+    that session's fd tables (`blind`, see session_fd_view), a socket owned
+    by the uid world-up started the backend as counts instead: that user is
+    the backend's own (postgres, nobody ...), and nothing else runs under it
+    before the agent starts. Any other listener on the port is foreign."""
+    missing, foreign = [], []
+    for port in ports:
+        sockets = listening.get(port, {})
+        if not sockets:
+            missing.append(port)
+        elif set(sockets) & mine or (blind and uid is not None
+                                     and any(u == uid for u in sockets.values())):
+            continue
+        else:
+            foreign.append(port)
+    return missing, foreign
 
 
 def wait_backend(layout: Layout, spec: dict, entry: dict, deadline: float) -> None:
     """Until every declared port is LISTENed by a process of the backend's own
-    session. Reads /proc only. A port another process holds, a backend that
-    exits, or the deadline: RuntimeFailure naming the backend and its log."""
+    session (backend_port_owners). Reads /proc only. A port another process
+    holds, a backend that exits, or the deadline: RuntimeFailure naming the
+    backend and its log."""
     sid = int(entry["pid"])
     name, ports = spec["name"], list(spec["ports"])
     missing = ports
@@ -1013,16 +1084,16 @@ def wait_backend(layout: Layout, spec: dict, entry: dict, deadline: float) -> No
             raise RuntimeFailure(
                 f"backend {name} (pid {sid}) exited during start-up.\nlast lines of "
                 f"{layout.backend_log(name)}:\n{log_tail(layout.backend_log(name))}")
-        listening = listening_sockets()
-        mine = session_socket_inodes(sid)
-        foreign = {p: socket_owner(listening[p]) for p in ports
-                   if p in listening and not listening[p] & mine}
+        listening = listening_socket_uids()
+        mine, blind = session_fd_view(sid)
+        missing, foreign = backend_port_owners(ports, listening, mine, blind,
+                                               entry.get("uid"))
         if foreign:
             raise RuntimeFailure(
                 f"backend {name}: "
-                + "; ".join(f"port {p} is held by {who}" for p, who in foreign.items())
+                + "; ".join(f"port {p} is held by {socket_owner(set(listening[p]))}"
+                            for p in foreign)
                 + " - not a process world-up supervises")
-        missing = [p for p in ports if not listening.get(p, set()) & mine]
         if not missing:
             return
         if time.monotonic() >= deadline:

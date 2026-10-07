@@ -137,6 +137,20 @@ def test_backends_contract_refuses_shared_ports_and_names():
     assert rt.load_backends({}) == [] and rt.load_backends({"backends": None}) == []
 
 
+def test_port_ownership_rules():
+    """By inode when the backend's fds are readable; by the backend's uid only
+    when they are not (a container's root lacks CAP_SYS_PTRACE, so it cannot
+    read /proc/<pid>/fd of a backend running as `nobody` or `postgres`)."""
+    owners = rt.backend_port_owners
+    listening = {5432: {111: 70}, 8443: {222: 0}}
+    assert owners([5432], listening, {111}, False, 70) == ([], [])
+    assert owners([5432], listening, set(), False, 70) == ([], [5432])   # readable: inode rules
+    assert owners([5432], listening, set(), True, 70) == ([], [])        # blind: the uid
+    assert owners([5432], listening, set(), True, 71) == ([], [5432])    # another user's
+    assert owners([8443, 9000], listening, set(), True, 70) == ([9000], [8443])
+    assert owners([9000], listening, set(), True, None) == ([9000], [])
+
+
 def test_episode_json_backends_are_checked_at_build(gt001, tmp_path):
     """world-seal (the Dockerfile's last RUN) loads episode.json: a malformed
     `backends` fails the image build, not the first trial."""
