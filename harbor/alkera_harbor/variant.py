@@ -110,6 +110,9 @@ class Variant:
     #: The internal services the profile serves (Profile.services), for the
     #: task README.
     services: tuple[str, ...] = field(default=(), compare=False)
+    #: The registry backends the profile plugs (`alkera_gateway.backends`), by
+    #: name: the box dbt profile's extra targets (worldbuild, box_profiles_yaml).
+    backends: tuple[str, ...] = field(default=(), compare=False)
 
     @property
     def profiled(self) -> bool:
@@ -147,19 +150,20 @@ def _canonical(mapping) -> tuple[tuple[str, tuple[str, ...]], ...]:
                         for slot, names in (mapping or {}).items()))
 
 
-def clients_for(slots: dict) -> tuple[str, ...]:
-    """The warehouse client locks a profile's box installs.
-
-    The backend registry (`alkera_gateway.backends`, plan Task 1) when this
-    checkout has it; otherwise the rule `container_episode.profile_image`
-    applies today: the Snowflake clients when the warehouse plugs Snowflake.
-    """
+def plugged_backends(slots: dict) -> tuple:
+    """The registry backends a profile's slots plug
+    (`alkera_gateway.backends.plugged`: a ProfileError for two TLS backends)."""
     harness.modules()                           # the gateway's src on sys.path
-    try:
-        from alkera_gateway import backends  # plan Task 1: the backend registry
-    except ImportError:
-        return ("snowflake",) if "snowflake" in slots.get("warehouse", ()) else ()
-    return tuple(sorted({b.clients for b in backends.plugged(slots) if b.clients}))
+    from alkera_gateway import backends
+
+    return backends.plugged(slots)
+
+
+def clients_for(slots: dict) -> tuple[str, ...]:
+    """The warehouse client locks a profile's box installs: each plugged
+    registry backend's `clients` (`requirements-<clients>.lock`), the rule
+    container_episode.profile_image and build_episode.image_tag share."""
+    return tuple(sorted({b.clients for b in plugged_backends(slots) if b.clients}))
 
 
 def variant_of(spec) -> Variant:
@@ -185,9 +189,15 @@ def variant_of(spec) -> Variant:
             f"answer at its address. Backends land as episode.json `backends` "
             f"(plan Task 10).")
     role = profile.split("/", 1)[0]
-    return Variant(role=role, clients=clients_for(slots), profile=profile,
-                   plugs=_canonical(plugs), slots=_canonical(slots),
-                   services=tuple(resolved.services))
+    try:
+        plugged = plugged_backends(slots)
+    except ValueError as exc:                    # plugs.ProfileError: two TLS backends
+        raise VariantError(f"profile {profile!r}: {exc}") from None
+    return Variant(role=role,
+                   clients=tuple(sorted({b.clients for b in plugged if b.clients})),
+                   profile=profile, plugs=_canonical(plugs), slots=_canonical(slots),
+                   services=tuple(resolved.services),
+                   backends=tuple(b.name for b in plugged))
 
 
 def unserved_notes(variant: Variant) -> list[str]:

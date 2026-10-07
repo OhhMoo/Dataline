@@ -279,6 +279,11 @@ def _stage(ref: ArmRef, temp: Path, m, log) -> StagedArm:
     if world.get("profiles_dir") and profiles.is_file():
         rewritten, moved = m.container_episode.reroot_profiles(
             profiles.read_text(encoding="utf-8"), world_root)
+        # A profile that plugs a registry backend with a dbt adapter gets the
+        # BOX profile, as container_episode._stage_profiles stages it: the same
+        # re-rooted targets plus the backend's, made the default. Nothing to
+        # add (every unprofiled world, the da/laptop worlds) is the same bytes.
+        rewritten = box_profile(rewritten, variant)
         (home / ".dbt").mkdir(parents=True, exist_ok=True)
         with open(home / ".dbt" / "profiles.yml", "w", encoding="utf-8",
                   newline="") as stream:
@@ -342,6 +347,18 @@ def _stage(ref: ArmRef, temp: Path, m, log) -> StagedArm:
                      grading_dir=grading, prompt=prompt, shim_watch=shim_watch,
                      gateway_config=Path(gateway_config), records=records,
                      restore=restore, variant=variant, clock=clock)
+
+
+def box_profile(rerooted: str, variant: Variant) -> str:
+    """`world.native_workspace.box_profiles_yaml` over the re-rooted world
+    profile, for the backends `variant` plugs; the input unchanged when it
+    plugs none (`box_profiles_yaml` itself returns its input then)."""
+    if not variant.backends:
+        return rerooted
+    harness.modules()                                  # world/ on sys.path
+    from world.native_workspace import box_profiles_yaml
+
+    return box_profiles_yaml(rerooted, list(variant.backends))
 
 
 def drop_build_caches(roots: list[Path]) -> list[str]:

@@ -300,6 +300,41 @@ def test_warehouse_clients_render_after_the_role():
     assert dockerenv.parse_env(text)["SNOWFLAKE_HOST"] == "snowflake.internal"
 
 
+def test_clients_come_from_the_backend_registry(bi):
+    """`alkera_gateway.backends.plugged` decides the client locks, the rule
+    container_episode.profile_image and build_episode.image_tag share."""
+    from alkera_gateway import backends
+    from alkera_gateway.plugs import resolve
+
+    snowflake = resolve("da/snowflake", {}).slots
+    assert variant.clients_for(snowflake) == tuple(
+        sorted({b.clients for b in backends.plugged(snowflake) if b.clients})) \
+        == ("snowflake",)
+    assert [b.name for b in variant.plugged_backends(snowflake)] == ["snowflake"]
+    assert bi.clients == () and bi.backends == ()
+    assert variant.UNPROFILED.backends == ()
+
+
+def test_box_profile_follows_the_container_topology(bi):
+    """The agent's ~/.dbt/profiles.yml: a profile that plugs a registry backend
+    with a dbt adapter gets world.native_workspace.box_profiles_yaml (as
+    container_episode._stage_profiles stages it); every other box keeps the
+    re-rooted world profile byte for byte."""
+    from alkera_harbor import worldbuild
+    from world.native_workspace import box_profiles_yaml
+
+    world_profile = ("world_dbt:\n  outputs:\n    dev:\n      path: "
+                     "/world/var/warehouse/warehouse.duckdb\n      type: duckdb\n"
+                     "  target: dev\n")
+    assert worldbuild.box_profile(world_profile, bi) == world_profile
+    assert worldbuild.box_profile(world_profile, variant.UNPROFILED) == world_profile
+    snowflake = variant.Variant(role="da", clients=("snowflake",), profile="da/snowflake",
+                                backends=("snowflake",))
+    boxed = worldbuild.box_profile(world_profile, snowflake)
+    assert boxed == box_profiles_yaml(world_profile, ["snowflake"])
+    assert "target: snowflake" in boxed and "type: snowflake" in boxed
+
+
 def test_unserved_warehouse_is_refused_by_name():
     """A profile whose warehouse the Harbor image does not serve yet fails
     loudly, naming it, before any world is built (plan Task 10 lifts it)."""
