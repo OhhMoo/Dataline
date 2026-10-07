@@ -1,0 +1,910 @@
+{
+  "audit_sample": [
+    {
+      "args": {
+        "method": "POST",
+        "path": "/api/2.0/sql/statements/",
+        "sql": "select sum(order_amount) from main.warehouse.fct_orders where order_status = 'completed' and order_date >= date'2026-02-01' and order_date < date'2026-03-01'",
+        "warehouse_id": "alkera"
+      },
+      "args_hash": "277b332fab00d1021e3d40927968c8f1523aa65c475d43abf8beaf56e1e31320",
+      "args_summary": "{\"method\":\"POST\",\"path\":\"/api/2.0/sql/statements/\",\"sql\":\"select sum(order_amount) from main.warehouse.fct_orders where order_status = 'completed' and order_date >= date'2026-02-01' and order_date < date'2026-03-01'\",\"warehouse_id\":\"alkera\"",
+      "disk_mb": null,
+      "error": null,
+      "exit": "ok",
+      "flags": [
+        "actor:alkera-local-dev"
+      ],
+      "latency_ms": 162.682,
+      "op_class": "read",
+      "read_targets": [
+        "main.warehouse.fct_orders"
+      ],
+      "result": {
+        "columns": [
+          "sum(order_amount)"
+        ],
+        "rows": 1,
+        "state": "SUCCEEDED",
+        "statement_id": "01f00000-0000-0000-0000-000000000001"
+      },
+      "result_bytes": 116,
+      "result_hash": "8e3d74e87303eec995233943f2d214fa669a0485c31d95fbe03b977714ba3bc6",
+      "rows_affected": null,
+      "rss_mb": 192.547,
+      "schema_version": 1,
+      "seq": 1,
+      "target": "main.warehouse.fct_orders",
+      "targets": [
+        "main.warehouse.fct_orders"
+      ],
+      "tool": "databricks.statement",
+      "transport": "native",
+      "vts": "2026-03-02T00:00:00Z",
+      "wts": 1791366816835
+    },
+    {
+      "args": {
+        "method": "POST",
+        "path": "/api/2.0/sql/statements/",
+        "sql": "select count(*) from main.warehouse.dim_customer",
+        "warehouse_id": "alkera"
+      },
+      "args_hash": "fb7553a4200c3804f8593db7f9f41c7bdaad81c83e26d30d49d5b83f6954f838",
+      "args_summary": "{\"method\":\"POST\",\"path\":\"/api/2.0/sql/statements/\",\"sql\":\"select count(*) from main.warehouse.dim_customer\",\"warehouse_id\":\"alkera\"}",
+      "disk_mb": null,
+      "error": null,
+      "exit": "ok",
+      "flags": [
+        "actor:alkera-local-dev"
+      ],
+      "latency_ms": 5.835,
+      "op_class": "read",
+      "read_targets": [
+        "main.warehouse.dim_customer"
+      ],
+      "result": {
+        "columns": [
+          "count_star()"
+        ],
+        "rows": 1,
+        "state": "SUCCEEDED",
+        "statement_id": "01f00000-0000-0000-0000-000000000002"
+      },
+      "result_bytes": 111,
+      "result_hash": "1305d82578c9b67031e19e44334cdad7c9626f4df7a7509a7c2ac2bbacea5816",
+      "rows_affected": null,
+      "rss_mb": 193.379,
+      "schema_version": 1,
+      "seq": 2,
+      "target": "main.warehouse.dim_customer",
+      "targets": [
+        "main.warehouse.dim_customer"
+      ],
+      "tool": "databricks.statement",
+      "transport": "native",
+      "vts": "2026-03-02T00:00:00Z",
+      "wts": 1791366816860
+    },
+    {
+      "args": {
+        "method": "POST",
+        "path": "/api/2.0/sql/statements/",
+        "sql": "select id, note from main.default.e2e_scratch order by id",
+        "warehouse_id": "alkera"
+      },
+      "args_hash": "a3b9b76d87bcf32611bcb949fe44c41e4052df4c07370264d49797fd5d4c66a1",
+      "args_summary": "{\"method\":\"POST\",\"path\":\"/api/2.0/sql/statements/\",\"sql\":\"select id, note from main.default.e2e_scratch order by id\",\"warehouse_id\":\"alkera\"}",
+      "disk_mb": null,
+      "error": null,
+      "exit": "ok",
+      "flags": [
+        "actor:alkera-local-dev"
+      ],
+      "latency_ms": 9.051,
+      "op_class": "read",
+      "read_targets": [
+        "main.default.e2e_scratch"
+      ],
+      "result": {
+        "columns": [
+          "id",
+          "note"
+        ],
+        "rows": 2,
+        "state": "SUCCEEDED",
+        "statement_id": "01f00000-0000-0000-0000-00000000000b"
+      },
+      "result_bytes": 108,
+      "result_hash": "74462306c65c0dc37862be17ca3324ebe0c6f39c1c753ac0d19767c34428727a",
+      "rows_affected": null,
+      "rss_mb": 195.203,
+      "schema_version": 1,
+      "seq": 18,
+      "target": "main.default.e2e_scratch",
+      "targets": [
+        "main.default.e2e_scratch"
+      ],
+      "tool": "databricks.statement",
+      "transport": "native",
+      "vts": "2026-03-02T00:00:00Z",
+      "wts": 1791366817711
+    },
+    {
+      "args": {
+        "method": "POST",
+        "path": "/api/2.0/sql/statements/",
+        "sql": "select count(*) from main.warehouse.fct_orders where order_status = 'returned'",
+        "warehouse_id": "alkera"
+      },
+      "args_hash": "c8273c6f4ce38a961f4ee9ae9208ae7a45781357e6b05bb699f40b2b6f8c645c",
+      "args_summary": "{\"method\":\"POST\",\"path\":\"/api/2.0/sql/statements/\",\"sql\":\"select count(*) from main.warehouse.fct_orders where order_status = 'returned'\",\"warehouse_id\":\"alkera\"}",
+      "disk_mb": null,
+      "error": null,
+      "exit": "ok",
+      "flags": [
+        "actor:alkera-local-dev"
+      ],
+      "latency_ms": 6.087,
+      "op_class": "read",
+      "read_targets": [
+        "main.warehouse.fct_orders"
+      ],
+      "result": {
+        "columns": [
+          "count_star()"
+        ],
+        "rows": 1,
+        "state": "SUCCEEDED",
+        "statement_id": "01f00000-0000-0000-0000-00000000000c"
+      },
+      "result_bytes": 111,
+      "result_hash": "1c117718e9b6b1ef7d0143b72d81675781843ac69825e46261edc0dd5f0a7130",
+      "rows_affected": null,
+      "rss_mb": 195.207,
+      "schema_version": 1,
+      "seq": 19,
+      "target": "main.warehouse.fct_orders",
+      "targets": [
+        "main.warehouse.fct_orders"
+      ],
+      "tool": "databricks.statement",
+      "transport": "native",
+      "vts": "2026-03-02T00:00:00Z",
+      "wts": 1791366817767
+    }
+  ],
+  "box_profile": "world_dbt:\n  outputs:\n    dev:\n      path: /world/var/warehouse/warehouse.duckdb\n      threads: 1\n      type: duckdb\n    databricks:\n      type: databricks\n      host: '{{ env_var(''DATABRICKS_SERVER_HOSTNAME'') }}'\n      http_path: '{{ env_var(''DATABRICKS_HTTP_PATH'') }}'\n      token: '{{ env_var(''DATABRICKS_TOKEN'') }}'\n      port: 443\n      catalog: main\n      connection_parameters:\n        use_sea: true\n      schema: default\n      threads: 1\n  target: databricks\n",
+  "checks": [
+    {
+      "check": "episode env: the workspace and both trust knobs",
+      "detail": {
+        "DATABRICKS_HOST": "https://databricks.internal",
+        "REQUESTS_CA_BUNDLE": "/etc/alkera/databricks-tls/bundle.pem",
+        "SSL_CERT_FILE": "/etc/alkera/databricks-tls/bundle.pem"
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "SDK probe ran inside the episode",
+      "detail": "from main.warehouse.fct_orders where order_status = 'returned'\"], \"env\": {\"DATABRICKS_HOST\": \"https://databricks.internal\", \"DATABRICKS_SERVER_HOSTNAME\": \"databricks.internal\", \"DATABRICKS_HTTP_PATH\": \"/sql/1.0/warehouses/alkera\", \"REQUESTS_CA_BUNDLE\": \"/etc/alkera/databricks-tls/bundle.pem\", \"SSL_CERT_FILE\": \"/etc/alkera/databricks-tls/bundle.pem\"}, \"feb\": {\"state\": \"SUCCEEDED\", \"rows\": [[\"2361224.00\"]]}, \"counts\": {\"dim_customer\": \"309\", \"dim_date\": \"424\", \"dim_product\": \"25\", \"fct_order_lines\": \"29200\", \"fct_orders\": \"16825\"}, \"me\": \"alkera-local-dev\", \"catalogs\": [\"main\"], \"schemas\": [\"default\", \"information_schema\", \"raw\", \"staging\", \"warehouse\"], \"tables\": [\"dim_customer\", \"dim_date\", \"dim_product\", \"fct_order_lines\", \"fct_orders\"], \"fct_columns\": [[\"order_id\", \"INT\"], [\"order_date\", \"DATE\"], [\"customer_id\", \"INT\"], [\"order_status\", \"STRING\"], [\"order_amount\", \"DECIMAL\"], [\"shipping_amount\", \"DECIMAL\"]], \"warehouses\": [[\"alkera\", \"RUNNING\"]], \"jobs\": [[1, \"bi_refresh\"], [2, \"daily_load\"], [3, \"dbt_build\"]], \"delta\": {\"state\": \"FAILED\", \"error\": \"[UNSUPPORTED_FEATURE] Databricks feature not available in this environment: DESCRIBE HISTORY - this lakehouse keeps no Delta transaction log SQLSTATE: 0A000\"}, \"writes\": [{\"state\": \"SUCCEEDED\", \"rows\": []}, {\"state\": \"SUCCEEDED\", \"rows\": [[\"2\", \"2\"]]}, {\"state\": \"SUCCEEDED\", \"rows\": [[\"0\"]]}], \"scratch\": {\"state\": \"SUCCEEDED\", \"rows\": [[\"1\", \"alpha\"], [\"2\", \"beta\"]]}, \"fct_after_delete\": {\"state\": \"SUCCEEDED\", \"rows\": [[\"0\"]]}}\n",
+      "result": "PASS"
+    },
+    {
+      "check": "SDK statement: February 2026 Net Revenue equals the world's DuckDB",
+      "detail": {
+        "got": [
+          [
+            "2361224.00"
+          ]
+        ],
+        "truth": "2361224.00"
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "SDK statements: every warehouse table's count equals the world's DuckDB",
+      "detail": {
+        "got": {
+          "dim_customer": "309",
+          "dim_date": "424",
+          "dim_product": "25",
+          "fct_order_lines": "29200",
+          "fct_orders": "16825"
+        },
+        "truth": {
+          "dim_customer": 309,
+          "dim_date": 424,
+          "dim_product": 25,
+          "fct_order_lines": 29200,
+          "fct_orders": 16825
+        }
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "SCIM Me, Unity Catalog's three levels, the warehouse, Jobs",
+      "detail": {
+        "catalogs": [
+          "main"
+        ],
+        "jobs": [
+          [
+            1,
+            "bi_refresh"
+          ],
+          [
+            2,
+            "daily_load"
+          ],
+          [
+            3,
+            "dbt_build"
+          ]
+        ],
+        "me": "alkera-local-dev",
+        "schemas": [
+          "default",
+          "information_schema",
+          "raw",
+          "staging",
+          "warehouse"
+        ],
+        "warehouses": [
+          [
+            "alkera",
+            "RUNNING"
+          ]
+        ]
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "Delta-only SQL refused by name (DESCRIBE HISTORY)",
+      "detail": {
+        "error": "[UNSUPPORTED_FEATURE] Databricks feature not available in this environment: DESCRIBE HISTORY - this lakehouse keeps no Delta transaction log SQLSTATE: 0A000",
+        "state": "FAILED"
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "remote writes succeed on the copy and read back",
+      "detail": {
+        "fct_after_delete": {
+          "rows": [
+            [
+              "0"
+            ]
+          ],
+          "state": "SUCCEEDED"
+        },
+        "scratch": {
+          "rows": [
+            [
+              "1",
+              "alpha"
+            ],
+            [
+              "2",
+              "beta"
+            ]
+          ],
+          "state": "SUCCEEDED"
+        },
+        "writes": [
+          {
+            "rows": [],
+            "state": "SUCCEEDED"
+          },
+          {
+            "rows": [
+              [
+                "2",
+                "2"
+              ]
+            ],
+            "state": "SUCCEEDED"
+          },
+          {
+            "rows": [
+              [
+                "0"
+              ]
+            ],
+            "state": "SUCCEEDED"
+          }
+        ]
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "test_remote_write_leaves_world_fingerprint_unchanged",
+      "detail": {
+        "after_writes": "191e28daa3e7e697092bdd596f459a06e3ef1434f263dd66d2e1777465ae8fc7",
+        "moved": [],
+        "up": "191e28daa3e7e697092bdd596f459a06e3ef1434f263dd66d2e1777465ae8fc7"
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "audit: one databricks.statement row per SDK statement, in order",
+      "detail": {
+        "rows": 12,
+        "sent": 12
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "audit: the remote writes are write-class rows",
+      "detail": [
+        "ddl",
+        "write",
+        "destructive"
+      ],
+      "result": "PASS"
+    },
+    {
+      "check": "REST (curl, trusting SSL_CERT_FILE's bundle): the same value",
+      "detail": "{\"statement_id\":\"01f00000-0000-0000-0000-00000000000d\",\"status\":{\"state\":\"SUCCEEDED\"},\"manifest\":{\"format\":\"JSON_ARRAY\",\"schema\":{\"column_count\":1,\"columns\":[{\"name\":\"sum(order_amount)\",\"type_text\":\"decimal(38,2)\",\"type_name\":\"DECIMAL\",\"position\":0,\"type_precision\":38,\"type_scale\":2}]},\"total_chunk_count\":1,\"chunks\":[{\"chunk_index\":0,\"row_offset\":0,\"row_count\":1}],\"total_row_count\":1,\"truncated\":false},\"result\":{\"chunk_index\":0,\"row_offset\":0,\"row_count\":1,\"data_array\":[[\"2361224.00\"]]}}",
+      "result": "PASS"
+    },
+    {
+      "check": "an unknown route is Databricks' 404 envelope, audited",
+      "detail": "{\"error_code\":\"ENDPOINT_NOT_FOUND\",\"message\":\"No API found for 'GET /api/2.0/clusters/list'\"}",
+      "result": "PASS"
+    },
+    {
+      "check": "databricks-sql-connector (use_sea=True): the same value",
+      "detail": {
+        "feb": "2361224.00",
+        "statements": [
+          "select sum(order_amount) from main.warehouse.fct_orders where order_status = 'completed' and order_date >= date'2026-02-01' and order_date < date'2026-03-01'"
+        ],
+        "tables": [
+          "dim_customer",
+          "dim_date",
+          "dim_product",
+          "fct_order_lines",
+          "fct_orders"
+        ],
+        "thrift": "Error during request to server: Thrift HS2 transport is not available in this environment: connect with use_sea=True (SQL Statement Execution API). "
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "databricks-sql-connector: cursor.tables() lists the warehouse schema",
+      "detail": [
+        "dim_customer",
+        "dim_date",
+        "dim_product",
+        "fct_order_lines",
+        "fct_orders"
+      ],
+      "result": "PASS"
+    },
+    {
+      "check": "the connector's default Thrift transport is refused, naming use_sea=True",
+      "detail": "Error during request to server: Thrift HS2 transport is not available in this environment: connect with use_sea=True (SQL Statement Execution API). ",
+      "result": "PASS"
+    },
+    {
+      "check": "the connector met no unknown route (feature flags, closes, telemetry served)",
+      "detail": [
+        "databricks.feature_flags",
+        "databricks.session_create",
+        "databricks.session_delete",
+        "databricks.statement",
+        "databricks.statement_close",
+        "databricks.thrift"
+      ],
+      "result": "PASS"
+    },
+    {
+      "check": "box profile (~/.dbt) defaults to the databricks target, DuckDB dev kept",
+      "detail": "world_dbt:\n  outputs:\n    dev:\n      path: /world/var/warehouse/warehouse.duckdb\n      threads: 1\n      type: duckdb\n    databricks:\n      type: databricks\n      host: '{{ env_var(''DATABRICKS_SERVER_HOSTNAME'') }}'\n      http_path: '{{ env_var(''DATABRICKS_HTTP_PATH'') }}'\n      token: '{{ env_var(''DATABRICKS_TOKEN'') }}'\n      port: 443\n      catalog: main\n      connection_parameters:\n        use_sea: true\n      schema: default\n      threads: 1\n  target: databricks\n",
+      "result": "PASS"
+    },
+    {
+      "check": "bare `dbt debug` connects to databricks through the box profile",
+      "detail": "4  adapter type: databricks\n\u001b[0m09:53:54  adapter version: 1.10.9\n\u001b[0m09:53:54  Configuration:\n\u001b[0m09:53:54    profiles.yml file [\u001b[32mOK found and valid\u001b[0m]\n\u001b[0m09:53:54    dbt_project.yml file [\u001b[32mOK found and valid\u001b[0m]\n\u001b[0m09:53:54  Required dependencies:\n\u001b[0m09:53:56   - git [\u001b[32mOK found\u001b[0m]\n\n\u001b[0m09:53:56  Connection:\n\u001b[0m09:53:56    host: databricks.internal\n\u001b[0m09:53:56    http_path: /sql/1.0/warehouses/alkera\n\u001b[0m09:53:56    catalog: main\n\u001b[0m09:53:56    schema: default\n\u001b[0m09:53:56  Registered adapter: databricks=1.10.9\n\u001b[0m09:53:56  databricks-sql-connector adapter: The SEA backend (use_sea=True) is deprecated and incomplete and should not be used in production; it is slated for removal. Use the kernel backend instead by passing use_kernel=True and installing the kernel extra: pip install 'databricks-sql-connector[kernel]'.\n\u001b[0m09:53:56    Connection test: [\u001b[32mOK connection ok\u001b[0m]\n\n\u001b[0m09:53:56  \u001b[32mAll checks passed!\u001b[0m\n/usr/local/lib/python3.11/site-packages/pydantic/_internal/_config.py:386: UserWarning: Valid config keys have changed in V2:\n* 'allow_population_by_field_name' has been renamed to 'validate_by_name'\n  warnings.warn(message, UserWarning)\nWARNING:databricks.sql.backend.sea.backend:The SEA backend (use_sea=True) is deprecated and incomplete and should not be used in production; it is slated for removal. Use the kernel backend instead by passing use_kernel=True and installing the kernel extra: pip install 'databricks-sql-connector[kernel]'.\n",
+      "result": "PASS"
+    },
+    {
+      "check": "dbt debug against the databricks target",
+      "detail": "6  adapter type: databricks\n\u001b[0m09:54:06  adapter version: 1.10.9\n\u001b[0m09:54:06  Configuration:\n\u001b[0m09:54:06    profiles.yml file [\u001b[32mOK found and valid\u001b[0m]\n\u001b[0m09:54:06    dbt_project.yml file [\u001b[32mOK found and valid\u001b[0m]\n\u001b[0m09:54:06  Required dependencies:\n\u001b[0m09:54:07   - git [\u001b[32mOK found\u001b[0m]\n\n\u001b[0m09:54:07  Connection:\n\u001b[0m09:54:07    host: databricks.internal\n\u001b[0m09:54:07    http_path: /sql/1.0/warehouses/alkera\n\u001b[0m09:54:07    catalog: main\n\u001b[0m09:54:07    schema: dbt_e2e\n\u001b[0m09:54:07  Registered adapter: databricks=1.10.9\n\u001b[0m09:54:07  databricks-sql-connector adapter: The SEA backend (use_sea=True) is deprecated and incomplete and should not be used in production; it is slated for removal. Use the kernel backend instead by passing use_kernel=True and installing the kernel extra: pip install 'databricks-sql-connector[kernel]'.\n\u001b[0m09:54:08    Connection test: [\u001b[32mOK connection ok\u001b[0m]\n\n\u001b[0m09:54:08  \u001b[32mAll checks passed!\u001b[0m\n/usr/local/lib/python3.11/site-packages/pydantic/_internal/_config.py:386: UserWarning: Valid config keys have changed in V2:\n* 'allow_population_by_field_name' has been renamed to 'validate_by_name'\n  warnings.warn(message, UserWarning)\nWARNING:databricks.sql.backend.sea.backend:The SEA backend (use_sea=True) is deprecated and incomplete and should not be used in production; it is slated for removal. Use the kernel backend instead by passing use_kernel=True and installing the kernel extra: pip install 'databricks-sql-connector[kernel]'.\n",
+      "result": "PASS"
+    },
+    {
+      "check": "dbt run -s dbx_check against the databricks target",
+      "detail": "ROR=0 SKIP=0 NO-OP=0 REUSED=0 TOTAL=1\n/usr/local/lib/python3.11/site-packages/pydantic/_internal/_config.py:386: UserWarning: Valid config keys have changed in V2:\n* 'allow_population_by_field_name' has been renamed to 'validate_by_name'\n  warnings.warn(message, UserWarning)\nWARNING:databricks.sql.backend.sea.backend:The SEA backend (use_sea=True) is deprecated and incomplete and should not be used in production; it is slated for removal. Use the kernel backend instead by passing use_kernel=True and installing the kernel extra: pip install 'databricks-sql-connector[kernel]'.\nWARNING:databricks.sql.backend.sea.backend:The SEA backend (use_sea=True) is deprecated and incomplete and should not be used in production; it is slated for removal. Use the kernel backend instead by passing use_kernel=True and installing the kernel extra: pip install 'databricks-sql-connector[kernel]'.\nWARNING:databricks.sql.backend.sea.backend:The SEA backend (use_sea=True) is deprecated and incomplete and should not be used in production; it is slated for removal. Use the kernel backend instead by passing use_kernel=True and installing the kernel extra: pip install 'databricks-sql-connector[kernel]'.\nWARNING:databricks.sql.backend.sea.backend:The SEA backend (use_sea=True) is deprecated and incomplete and should not be used in production; it is slated for removal. Use the kernel backend instead by passing use_kernel=True and installing the kernel extra: pip install 'databricks-sql-connector[kernel]'.\n",
+      "result": "PASS"
+    },
+    {
+      "check": "audit: dbt's statements are databricks.statement rows",
+      "detail": 5,
+      "result": "PASS"
+    },
+    {
+      "check": "the dbt model's value equals the world's DuckDB",
+      "detail": {
+        "got": "2361224.00",
+        "out": "text\":\"decimal(38,2)\",\"type_name\":\"DECIMAL\",\"position\":0,\"type_precision\":38,\"type_scale\":2}]},\"total_chunk_count\":1,\"chunks\":[{\"chunk_index\":0,\"row_offset\":0,\"row_count\":1}],\"total_row_count\":1,\"truncated\":false},\"result\":{\"chunk_index\":0,\"row_offset\":0,\"row_count\":1,\"data_array\":[[\"2361224.00\"]]}}",
+        "truth": "2361224.00"
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "run-now is one manual run in the world's ledger, the clock moved by it alone",
+      "detail": {
+        "probe": {
+          "job_id": 1,
+          "run_id": 1276,
+          "run_name": "bi_refresh",
+          "state": [
+            "TERMINATED",
+            "SUCCESS"
+          ],
+          "trigger": "ONE_TIME"
+        },
+        "run": {
+          "action": "theme:refresh_bi",
+          "detail": "theme:refresh_bi",
+          "effects": {
+            "dashboards": 2,
+            "panels": 10,
+            "raw.bi_refresh_history": {
+              "rows_after": 2,
+              "rows_before": null
+            },
+            "refresh_id": 1
+          },
+          "error": null,
+          "executed": true,
+          "execution_date": "2026-03-02",
+          "job": "bi_refresh",
+          "status": "success",
+          "trigger": "manual",
+          "vts_end": "2026-03-02T00:07:00Z",
+          "vts_start": "2026-03-02T00:00:00Z"
+        }
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "audit: run-now is a databricks.sched_trigger row (blindness attributes it)",
+      "detail": [
+        "databricks.catalogs_list",
+        "databricks.feature_flags",
+        "databricks.me",
+        "databricks.sched_list",
+        "databricks.sched_state",
+        "databricks.sched_trigger",
+        "databricks.schemas_list",
+        "databricks.session_create",
+        "databricks.session_delete",
+        "databricks.statement",
+        "databricks.statement_close",
+        "databricks.table_get",
+        "databricks.tables_list",
+        "databricks.thrift",
+        "databricks.unknown_route",
+        "databricks.warehouses_list",
+        "shim.dbt",
+        "shim.git"
+      ],
+      "result": "PASS"
+    },
+    {
+      "check": "audit: every databricks row is a valid 9.2.2 row",
+      "detail": {},
+      "result": "PASS"
+    },
+    {
+      "check": "audit: seq is contiguous across writers",
+      "detail": [
+        61,
+        62,
+        63,
+        64,
+        65
+      ],
+      "result": "PASS"
+    },
+    {
+      "check": "audit: the only unknown route is the deliberate one",
+      "detail": [
+        "/api/2.0/clusters/list"
+      ],
+      "result": "PASS"
+    },
+    {
+      "check": "destinations.jsonl counts databricks.internal:443 after teardown",
+      "detail": [
+        {
+          "count": 17,
+          "first_ts": "2026-10-07T09:53:36Z",
+          "host": "databricks.internal",
+          "last_ts": "2026-10-07T09:54:22Z",
+          "port": 443
+        }
+      ],
+      "result": "PASS"
+    },
+    {
+      "check": "no destination outside the profile's endpoint map",
+      "detail": [],
+      "result": "PASS"
+    }
+  ],
+  "connector": {
+    "feb": "2361224.00",
+    "statements": [
+      "select sum(order_amount) from main.warehouse.fct_orders where order_status = 'completed' and order_date >= date'2026-02-01' and order_date < date'2026-03-01'"
+    ],
+    "tables": [
+      "dim_customer",
+      "dim_date",
+      "dim_product",
+      "fct_order_lines",
+      "fct_orders"
+    ],
+    "thrift": "Error during request to server: Thrift HS2 transport is not available in this environment: connect with use_sea=True (SQL Statement Execution API). "
+  },
+  "connector_tools": [
+    "databricks.feature_flags",
+    "databricks.session_create",
+    "databricks.session_delete",
+    "databricks.statement",
+    "databricks.statement_close",
+    "databricks.thrift"
+  ],
+  "counts": {
+    "dbt_statements": 5,
+    "rows": 65,
+    "statements": 22
+  },
+  "dbt": {
+    "bare_debug": {
+      "rc": 0,
+      "tail": "4  adapter type: databricks\n\u001b[0m09:53:54  adapter version: 1.10.9\n\u001b[0m09:53:54  Configuration:\n\u001b[0m09:53:54    profiles.yml file [\u001b[32mOK found and valid\u001b[0m]\n\u001b[0m09:53:54    dbt_project.yml file [\u001b[32mOK found and valid\u001b[0m]\n\u001b[0m09:53:54  Required dependencies:\n\u001b[0m09:53:56   - git [\u001b[32mOK found\u001b[0m]\n\n\u001b[0m09:53:56  Connection:\n\u001b[0m09:53:56    host: databricks.internal\n\u001b[0m09:53:56    http_path: /sql/1.0/warehouses/alkera\n\u001b[0m09:53:56    catalog: main\n\u001b[0m09:53:56    schema: default\n\u001b[0m09:53:56  Registered adapter: databricks=1.10.9\n\u001b[0m09:53:56  databricks-sql-connector adapter: The SEA backend (use_sea=True) is deprecated and incomplete and should not be used in production; it is slated for removal. Use the kernel backend instead by passing use_kernel=True and installing the kernel extra: pip install 'databricks-sql-connector[kernel]'.\n\u001b[0m09:53:56    Connection test: [\u001b[32mOK connection ok\u001b[0m]\n\n\u001b[0m09:53:56  \u001b[32mAll checks passed!\u001b[0m\n/usr/local/lib/python3.11/site-packages/pydantic/_internal/_config.py:386: UserWarning: Valid config keys have changed in V2:\n* 'allow_population_by_field_name' has been renamed to 'validate_by_name'\n  warnings.warn(message, UserWarning)\nWARNING:databricks.sql.backend.sea.backend:The SEA backend (use_sea=True) is deprecated and incomplete and should not be used in production; it is slated for removal. Use the kernel backend instead by passing use_kernel=True and installing the kernel extra: pip install 'databricks-sql-connector[kernel]'.\n"
+    },
+    "debug": {
+      "rc": 0,
+      "tail": "6  adapter type: databricks\n\u001b[0m09:54:06  adapter version: 1.10.9\n\u001b[0m09:54:06  Configuration:\n\u001b[0m09:54:06    profiles.yml file [\u001b[32mOK found and valid\u001b[0m]\n\u001b[0m09:54:06    dbt_project.yml file [\u001b[32mOK found and valid\u001b[0m]\n\u001b[0m09:54:06  Required dependencies:\n\u001b[0m09:54:07   - git [\u001b[32mOK found\u001b[0m]\n\n\u001b[0m09:54:07  Connection:\n\u001b[0m09:54:07    host: databricks.internal\n\u001b[0m09:54:07    http_path: /sql/1.0/warehouses/alkera\n\u001b[0m09:54:07    catalog: main\n\u001b[0m09:54:07    schema: dbt_e2e\n\u001b[0m09:54:07  Registered adapter: databricks=1.10.9\n\u001b[0m09:54:07  databricks-sql-connector adapter: The SEA backend (use_sea=True) is deprecated and incomplete and should not be used in production; it is slated for removal. Use the kernel backend instead by passing use_kernel=True and installing the kernel extra: pip install 'databricks-sql-connector[kernel]'.\n\u001b[0m09:54:08    Connection test: [\u001b[32mOK connection ok\u001b[0m]\n\n\u001b[0m09:54:08  \u001b[32mAll checks passed!\u001b[0m\n/usr/local/lib/python3.11/site-packages/pydantic/_internal/_config.py:386: UserWarning: Valid config keys have changed in V2:\n* 'allow_population_by_field_name' has been renamed to 'validate_by_name'\n  warnings.warn(message, UserWarning)\nWARNING:databricks.sql.backend.sea.backend:The SEA backend (use_sea=True) is deprecated and incomplete and should not be used in production; it is slated for removal. Use the kernel backend instead by passing use_kernel=True and installing the kernel extra: pip install 'databricks-sql-connector[kernel]'.\n"
+    },
+    "run": {
+      "rc": 0,
+      "tail": "ROR=0 SKIP=0 NO-OP=0 REUSED=0 TOTAL=1\n/usr/local/lib/python3.11/site-packages/pydantic/_internal/_config.py:386: UserWarning: Valid config keys have changed in V2:\n* 'allow_population_by_field_name' has been renamed to 'validate_by_name'\n  warnings.warn(message, UserWarning)\nWARNING:databricks.sql.backend.sea.backend:The SEA backend (use_sea=True) is deprecated and incomplete and should not be used in production; it is slated for removal. Use the kernel backend instead by passing use_kernel=True and installing the kernel extra: pip install 'databricks-sql-connector[kernel]'.\nWARNING:databricks.sql.backend.sea.backend:The SEA backend (use_sea=True) is deprecated and incomplete and should not be used in production; it is slated for removal. Use the kernel backend instead by passing use_kernel=True and installing the kernel extra: pip install 'databricks-sql-connector[kernel]'.\nWARNING:databricks.sql.backend.sea.backend:The SEA backend (use_sea=True) is deprecated and incomplete and should not be used in production; it is slated for removal. Use the kernel backend instead by passing use_kernel=True and installing the kernel extra: pip install 'databricks-sql-connector[kernel]'.\nWARNING:databricks.sql.backend.sea.backend:The SEA backend (use_sea=True) is deprecated and incomplete and should not be used in production; it is slated for removal. Use the kernel backend instead by passing use_kernel=True and installing the kernel extra: pip install 'databricks-sql-connector[kernel]'.\n"
+    }
+  },
+  "destinations": [
+    {
+      "count": 17,
+      "first_ts": "2026-10-07T09:53:36Z",
+      "host": "databricks.internal",
+      "last_ts": "2026-10-07T09:54:22Z",
+      "port": 443
+    },
+    {
+      "count": 0,
+      "first_ts": null,
+      "host": "loki.internal",
+      "last_ts": null,
+      "port": 3100
+    },
+    {
+      "count": 0,
+      "first_ts": null,
+      "host": "airbyte.internal",
+      "last_ts": null,
+      "port": 8001
+    },
+    {
+      "count": 0,
+      "first_ts": null,
+      "host": "jira.internal",
+      "last_ts": null,
+      "port": 8080
+    },
+    {
+      "count": 0,
+      "first_ts": null,
+      "host": "slack.internal",
+      "last_ts": null,
+      "port": 8081
+    },
+    {
+      "count": 0,
+      "first_ts": null,
+      "host": "deploy.internal",
+      "last_ts": null,
+      "port": 8085
+    },
+    {
+      "count": 0,
+      "first_ts": null,
+      "host": "confluence.internal",
+      "last_ts": null,
+      "port": 8090
+    },
+    {
+      "count": 0,
+      "first_ts": null,
+      "host": "powerbi.internal",
+      "last_ts": null,
+      "port": 8095
+    },
+    {
+      "count": 0,
+      "first_ts": null,
+      "host": "native-services.internal",
+      "last_ts": null,
+      "port": 8099
+    },
+    {
+      "count": 0,
+      "first_ts": null,
+      "host": "sched.internal",
+      "last_ts": null,
+      "port": 8120
+    },
+    {
+      "count": 0,
+      "first_ts": null,
+      "host": "prometheus.internal",
+      "last_ts": null,
+      "port": 9090
+    },
+    {
+      "count": 0,
+      "first_ts": null,
+      "host": "alertmanager.internal",
+      "last_ts": null,
+      "port": 9093
+    }
+  ],
+  "fingerprint_before": "cfd329425c6062b907742a7aa386d1324aefa8a645412ba66e25b0cda67d5a89",
+  "fingerprint_sections_moved_by_up": [
+    "obs",
+    "workflow",
+    "workspace"
+  ],
+  "fingerprint_up": "191e28daa3e7e697092bdd596f459a06e3ef1434f263dd66d2e1777465ae8fc7",
+  "image": "alkera-episode:w1-databricks",
+  "jobs": {
+    "probe": {
+      "job_id": 1,
+      "run_id": 1276,
+      "run_name": "bi_refresh",
+      "state": [
+        "TERMINATED",
+        "SUCCESS"
+      ],
+      "trigger": "ONE_TIME"
+    },
+    "runs_after": 1276,
+    "runs_before": 1275,
+    "vnow": [
+      "2026-03-02T00:00:00Z",
+      "2026-03-02T00:07:00Z"
+    ]
+  },
+  "profile": "de/databricks",
+  "result": "PASS",
+  "sdk": {
+    "catalogs": [
+      "main"
+    ],
+    "counts": {
+      "dim_customer": "309",
+      "dim_date": "424",
+      "dim_product": "25",
+      "fct_order_lines": "29200",
+      "fct_orders": "16825"
+    },
+    "delta": {
+      "error": "[UNSUPPORTED_FEATURE] Databricks feature not available in this environment: DESCRIBE HISTORY - this lakehouse keeps no Delta transaction log SQLSTATE: 0A000",
+      "state": "FAILED"
+    },
+    "env": {
+      "DATABRICKS_HOST": "https://databricks.internal",
+      "DATABRICKS_HTTP_PATH": "/sql/1.0/warehouses/alkera",
+      "DATABRICKS_SERVER_HOSTNAME": "databricks.internal",
+      "REQUESTS_CA_BUNDLE": "/etc/alkera/databricks-tls/bundle.pem",
+      "SSL_CERT_FILE": "/etc/alkera/databricks-tls/bundle.pem"
+    },
+    "fct_after_delete": {
+      "rows": [
+        [
+          "0"
+        ]
+      ],
+      "state": "SUCCEEDED"
+    },
+    "fct_columns": [
+      [
+        "order_id",
+        "INT"
+      ],
+      [
+        "order_date",
+        "DATE"
+      ],
+      [
+        "customer_id",
+        "INT"
+      ],
+      [
+        "order_status",
+        "STRING"
+      ],
+      [
+        "order_amount",
+        "DECIMAL"
+      ],
+      [
+        "shipping_amount",
+        "DECIMAL"
+      ]
+    ],
+    "feb": {
+      "rows": [
+        [
+          "2361224.00"
+        ]
+      ],
+      "state": "SUCCEEDED"
+    },
+    "jobs": [
+      [
+        1,
+        "bi_refresh"
+      ],
+      [
+        2,
+        "daily_load"
+      ],
+      [
+        3,
+        "dbt_build"
+      ]
+    ],
+    "me": "alkera-local-dev",
+    "schemas": [
+      "default",
+      "information_schema",
+      "raw",
+      "staging",
+      "warehouse"
+    ],
+    "scratch": {
+      "rows": [
+        [
+          "1",
+          "alpha"
+        ],
+        [
+          "2",
+          "beta"
+        ]
+      ],
+      "state": "SUCCEEDED"
+    },
+    "statements": [
+      "select sum(order_amount) from main.warehouse.fct_orders where order_status = 'completed' and order_date >= date'2026-02-01' and order_date < date'2026-03-01'",
+      "select count(*) from main.warehouse.dim_customer",
+      "select count(*) from main.warehouse.dim_date",
+      "select count(*) from main.warehouse.dim_product",
+      "select count(*) from main.warehouse.fct_order_lines",
+      "select count(*) from main.warehouse.fct_orders",
+      "DESCRIBE HISTORY main.warehouse.fct_orders",
+      "CREATE TABLE main.default.e2e_scratch (id INT, note STRING) USING DELTA",
+      "INSERT INTO main.default.e2e_scratch VALUES (1, 'alpha'), (2, 'beta')",
+      "DELETE FROM main.warehouse.fct_orders WHERE order_status = 'returned'",
+      "select id, note from main.default.e2e_scratch order by id",
+      "select count(*) from main.warehouse.fct_orders where order_status = 'returned'"
+    ],
+    "tables": [
+      "dim_customer",
+      "dim_date",
+      "dim_product",
+      "fct_order_lines",
+      "fct_orders"
+    ],
+    "warehouses": [
+      [
+        "alkera",
+        "RUNNING"
+      ]
+    ],
+    "writes": [
+      {
+        "rows": [],
+        "state": "SUCCEEDED"
+      },
+      {
+        "rows": [
+          [
+            "2",
+            "2"
+          ]
+        ],
+        "state": "SUCCEEDED"
+      },
+      {
+        "rows": [
+          [
+            "0"
+          ]
+        ],
+        "state": "SUCCEEDED"
+      }
+    ]
+  },
+  "stack": {
+    "container_id": "7d2a7f959ef5",
+    "episode_endpoints": {
+      "airbyte": "http://airbyte.internal:8001",
+      "alertmanager": "http://alertmanager.internal:9093",
+      "confluence": "http://confluence.internal:8090",
+      "databricks": "https://databricks.internal:443",
+      "deploy": "http://deploy.internal:8085",
+      "jira": "http://jira.internal:8080",
+      "loki": "http://loki.internal:3100",
+      "postgres": {
+        "database": "alkera",
+        "host": "postgres.internal",
+        "password": "alkera-local-dev",
+        "port": 5432,
+        "user": "alkera"
+      },
+      "powerbi": "http://powerbi.internal:8095",
+      "prometheus": "http://prometheus.internal:9090",
+      "s3": "http://minio.internal:9000",
+      "s3_access_key": "alkera-local-dev",
+      "s3_bucket": "alkera",
+      "s3_region": "us-east-1",
+      "s3_secret_key": "alkera-local-dev",
+      "sched": "http://sched.internal:8120",
+      "slack": "http://slack.internal:8081"
+    },
+    "image": "alkera-episode:w1-databricks",
+    "services": [
+      "episode",
+      "minio",
+      "native-services",
+      "postgres"
+    ]
+  },
+  "tools": [
+    "databricks.catalogs_list",
+    "databricks.feature_flags",
+    "databricks.me",
+    "databricks.sched_list",
+    "databricks.sched_state",
+    "databricks.sched_trigger",
+    "databricks.schemas_list",
+    "databricks.session_create",
+    "databricks.session_delete",
+    "databricks.statement",
+    "databricks.statement_close",
+    "databricks.table_get",
+    "databricks.tables_list",
+    "databricks.thrift",
+    "databricks.unknown_route",
+    "databricks.warehouses_list",
+    "shim.dbt",
+    "shim.git"
+  ],
+  "truth": {
+    "counts": {
+      "dim_customer": 309,
+      "dim_date": 424,
+      "dim_product": 25,
+      "fct_order_lines": 29200,
+      "fct_orders": 16825
+    },
+    "feb": "2361224.00",
+    "returned": 0
+  }
+}

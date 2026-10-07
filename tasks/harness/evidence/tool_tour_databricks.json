@@ -1,0 +1,481 @@
+{
+ "findings": [],
+ "probes": [
+  {
+   "command": "cd /workspace\nset -euo pipefail\npython3 - <<'PY'\nimport json\nfrom databricks.sdk import WorkspaceClient\n\nw = WorkspaceClient()\nr = w.statement_execution.execute_statement(\n    warehouse_id=\"alkera\",\n    statement=\"SELECT SUM(order_amount) FROM main.warehouse.fct_orders \"\n              \"WHERE order_status = 'completed' AND order_date >= DATE'2026-02-01' \"\n              \"AND order_date < DATE'2026-03-01'\")\nassert r.status.state.value == \"SUCCEEDED\", r.status\nprint(json.dumps({\"value\": r.result.data_array[0][0]}))\nPY\n",
+   "destinations": {
+    "databricks.internal:443": 1
+   },
+   "doc": null,
+   "drift": false,
+   "expect_args": [],
+   "expect_tools": [
+    "databricks.statement"
+   ],
+   "failures": [],
+   "id": "databricks.sdk.net_revenue_feb_2026",
+   "known": null,
+   "missing_args": [],
+   "missing_tools": [],
+   "profile": "de/databricks",
+   "returncode": 0,
+   "rows": 2,
+   "rows_at": "call",
+   "seconds": 3.92,
+   "stderr_tail": "",
+   "stdout_tail": "{\"value\": \"2361224.00\"}\n",
+   "tool": "databricks",
+   "tools": [
+    "databricks.statement",
+    "shim.python"
+   ],
+   "truth": "2361224.00",
+   "truth_after": "2361224.00",
+   "value": "2361224.00",
+   "value_ok": true,
+   "verdict": "PASS"
+  },
+  {
+   "command": "cd /workspace\nset -euo pipefail\npython3 - <<'PY'\nimport json, os\nfrom databricks import sql\n\nenv = os.environ\nwith sql.connect(server_hostname=env[\"DATABRICKS_SERVER_HOSTNAME\"],\n                 http_path=env[\"DATABRICKS_HTTP_PATH\"],\n                 access_token=env[\"DATABRICKS_TOKEN\"], use_sea=True) as conn:\n    with conn.cursor() as cur:\n        cur.execute(\"SELECT COUNT(*) FROM `main`.`warehouse`.`fct_orders` \"\n                    \"WHERE order_status = 'completed' AND order_date >= '2026-02-01' \"\n                    \"AND order_date < '2026-03-01'\")\n        print(json.dumps({\"value\": cur.fetchone()[0]}))\nPY\n",
+   "destinations": {
+    "databricks.internal:443": 2
+   },
+   "doc": null,
+   "drift": false,
+   "expect_args": [],
+   "expect_tools": [
+    "databricks.statement"
+   ],
+   "failures": [],
+   "id": "databricks.connector.completed_orders_feb_2026",
+   "known": null,
+   "missing_args": [],
+   "missing_tools": [],
+   "profile": "de/databricks",
+   "returncode": 0,
+   "rows": 6,
+   "rows_at": "call",
+   "seconds": 3.18,
+   "stderr_tail": "The SEA backend (use_sea=True) is deprecated and incomplete and should not be used in production; it is slated for removal. Use the kernel backend instead by passing use_kernel=True and installing the kernel extra: pip install 'databricks-sql-connector[kernel]'.\n",
+   "stdout_tail": "{\"value\": 1068}\n",
+   "tool": "databricks",
+   "tools": [
+    "databricks.session_create",
+    "databricks.feature_flags",
+    "databricks.statement",
+    "databricks.statement_close",
+    "databricks.session_delete",
+    "shim.python"
+   ],
+   "truth": 1068,
+   "truth_after": 1068,
+   "value": 1068,
+   "value_ok": true,
+   "verdict": "PASS"
+  },
+  {
+   "command": "cd /workspace\nset -euo pipefail\ncurl -sS --fail-with-body \"$DATABRICKS_HOST/api/2.0/sql/statements\" \\\n  -H \"Authorization: Bearer $DATABRICKS_TOKEN\" -H \"Content-Type: application/json\" \\\n  -d '{\"warehouse_id\": \"alkera\", \"statement\": \"SELECT SUM(order_amount) FROM main.warehouse.fct_orders WHERE order_status = '\"'\"'completed'\"'\"'\"}' \\\n  > /tmp/dbx_rest.json\npython3 -c 'import json; d = json.load(open(\"/tmp/dbx_rest.json\")); print(json.dumps({\"value\": d[\"result\"][\"data_array\"][0][0]}))'\n",
+   "destinations": {
+    "databricks.internal:443": 1
+   },
+   "doc": null,
+   "drift": false,
+   "expect_args": [],
+   "expect_tools": [
+    "databricks.statement"
+   ],
+   "failures": [],
+   "id": "databricks.rest.net_revenue",
+   "known": null,
+   "missing_args": [],
+   "missing_tools": [],
+   "profile": "de/databricks",
+   "returncode": 0,
+   "rows": 2,
+   "rows_at": "call",
+   "seconds": 1.8,
+   "stderr_tail": "",
+   "stdout_tail": "{\"value\": \"33733790.00\"}\n",
+   "tool": "databricks",
+   "tools": [
+    "databricks.statement",
+    "shim.python"
+   ],
+   "truth": "33733790.00",
+   "truth_after": "33733790.00",
+   "value": "33733790.00",
+   "value_ok": true,
+   "verdict": "PASS"
+  },
+  {
+   "command": "cd /workspace\nset -euo pipefail\npython3 - <<'PY'\nimport json\nfrom databricks.sdk import WorkspaceClient\n\nw = WorkspaceClient()\ntable = w.tables.get(\"main.warehouse.fct_orders\")\nprint(json.dumps({\"value\": len(table.columns)}))\nPY\n",
+   "destinations": {
+    "databricks.internal:443": 1
+   },
+   "doc": null,
+   "drift": false,
+   "expect_args": [],
+   "expect_tools": [
+    "databricks.table_get"
+   ],
+   "failures": [],
+   "id": "databricks.uc.fct_orders_columns",
+   "known": null,
+   "missing_args": [],
+   "missing_tools": [],
+   "profile": "de/databricks",
+   "returncode": 0,
+   "rows": 2,
+   "rows_at": "call",
+   "seconds": 3.97,
+   "stderr_tail": "",
+   "stdout_tail": "{\"value\": 6}\n",
+   "tool": "databricks",
+   "tools": [
+    "databricks.table_get",
+    "shim.python"
+   ],
+   "truth": 6,
+   "truth_after": 6,
+   "value": 6,
+   "value_ok": true,
+   "verdict": "PASS"
+  },
+  {
+   "command": "cd /workspace\nset -euo pipefail\ncd dbt_project\ndbt --quiet show --inline \"select sum(order_amount) as net_revenue from main.warehouse.fct_orders where order_status = 'completed' and order_date >= date'2026-02-01' and order_date < date'2026-03-01'\" --output json > /tmp/dbx_dbt_show.json\npython3 -c 'import json; print(json.dumps({\"value\": json.load(open(\"/tmp/dbx_dbt_show.json\"))[\"show\"][0][\"net_revenue\"]}))'\n",
+   "destinations": {
+    "databricks.internal:443": 4
+   },
+   "doc": null,
+   "drift": false,
+   "expect_args": [
+    "show"
+   ],
+   "expect_tools": [
+    "shim.dbt",
+    "databricks.statement"
+   ],
+   "failures": [],
+   "id": "databricks.dbt.net_revenue_feb_2026",
+   "known": null,
+   "missing_args": [],
+   "missing_tools": [],
+   "profile": "de/databricks",
+   "returncode": 0,
+   "rows": 15,
+   "rows_at": "call",
+   "seconds": 16.0,
+   "stderr_tail": "be used in production; it is slated for removal. Use the kernel backend instead by passing use_kernel=True and installing the kernel extra: pip install 'databricks-sql-connector[kernel]'.\nWARNING:databricks.sql.backend.sea.backend:The SEA backend (use_sea=True) is deprecated and incomplete and should not be used in production; it is slated for removal. Use the kernel backend instead by passing use_kernel=True and installing the kernel extra: pip install 'databricks-sql-connector[kernel]'.\nWARNING:databricks.sql.backend.sea.backend:The SEA backend (use_sea=True) is deprecated and incomplete and should not be used in production; it is slated for removal. Use the kernel backend instead by passing use_kernel=True and installing the kernel extra: pip install 'databricks-sql-connector[kernel]'.\n",
+   "stdout_tail": "{\"value\": 2361224.0}\n",
+   "tool": "databricks",
+   "tools": [
+    "databricks.session_create",
+    "databricks.feature_flags",
+    "databricks.statement",
+    "databricks.statement_close",
+    "databricks.session_delete",
+    "databricks.session_create",
+    "databricks.statement",
+    "databricks.statement_close",
+    "databricks.session_delete",
+    "databricks.session_create",
+    "databricks.statement",
+    "databricks.statement_close",
+    "databricks.session_delete",
+    "shim.dbt",
+    "shim.python"
+   ],
+   "truth": "2361224.00",
+   "truth_after": "2361224.00",
+   "value": 2361224.0,
+   "value_ok": true,
+   "verdict": "PASS"
+  },
+  {
+   "command": "cd /workspace\nset -euo pipefail\npython3 - <<'PY'\nimport json\nfrom databricks.sdk import WorkspaceClient\n\nw = WorkspaceClient()\njob = next(j for j in w.jobs.list() if j.settings.name == \"bi_refresh\")\nrun = w.jobs.run_now(job_id=job.job_id)\ngot = w.jobs.get_run(run_id=run.run_id)\nassert got.state.life_cycle_state.value == \"TERMINATED\", got.state\nprint(json.dumps({\"value\": run.run_id}))\nPY\n",
+   "destinations": {
+    "databricks.internal:443": 1
+   },
+   "doc": null,
+   "drift": true,
+   "expect_args": [],
+   "expect_tools": [
+    "databricks.sched_list",
+    "databricks.sched_trigger",
+    "databricks.sched_state"
+   ],
+   "failures": [],
+   "id": "databricks.jobs.run_now_bi_refresh",
+   "known": null,
+   "missing_args": [],
+   "missing_tools": [],
+   "profile": "de/databricks",
+   "returncode": 0,
+   "rows": 4,
+   "rows_at": "call",
+   "seconds": 5.45,
+   "stderr_tail": "",
+   "stdout_tail": "{\"value\": 1276}\n",
+   "tool": "databricks",
+   "tools": [
+    "databricks.sched_list",
+    "databricks.sched_trigger",
+    "databricks.sched_state",
+    "shim.python"
+   ],
+   "truth": 1276,
+   "truth_after": 1277,
+   "value": 1276,
+   "value_ok": true,
+   "verdict": "PASS"
+  }
+ ],
+ "profiles": [
+  {
+   "allowed_destinations": [
+    "airbyte.internal:8001",
+    "alertmanager.internal:9093",
+    "confluence.internal:8090",
+    "databricks.internal:443",
+    "deploy.internal:8085",
+    "jira.internal:8080",
+    "loki.internal:3100",
+    "minio.internal:9000",
+    "postgres.internal:5432",
+    "powerbi.internal:8095",
+    "prometheus.internal:9090",
+    "sched.internal:8120",
+    "slack.internal:8081"
+   ],
+   "episode": {
+    "destinations": [
+     {
+      "count": 10,
+      "first_ts": "2026-10-07T09:55:53Z",
+      "host": "databricks.internal",
+      "last_ts": "2026-10-07T09:56:22Z",
+      "port": 443
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "loki.internal",
+      "last_ts": null,
+      "port": 3100
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "airbyte.internal",
+      "last_ts": null,
+      "port": 8001
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "jira.internal",
+      "last_ts": null,
+      "port": 8080
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "slack.internal",
+      "last_ts": null,
+      "port": 8081
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "deploy.internal",
+      "last_ts": null,
+      "port": 8085
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "confluence.internal",
+      "last_ts": null,
+      "port": 8090
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "powerbi.internal",
+      "last_ts": null,
+      "port": 8095
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "native-services.internal",
+      "last_ts": null,
+      "port": 8099
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "sched.internal",
+      "last_ts": null,
+      "port": 8120
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "prometheus.internal",
+      "last_ts": null,
+      "port": 9090
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "alertmanager.internal",
+      "last_ts": null,
+      "port": 9093
+     }
+    ],
+    "network_violations": [],
+    "no_stray_rows": true,
+    "ok": true,
+    "rows_in_probes": 31,
+    "rows_total": 31,
+    "trace_valid": true
+   },
+   "image": "alkera-episode:w1-databricks",
+   "image_gate": {
+    "head": "822181ed13c4367493a3184bc61949f2b963864b",
+    "image": "alkera-episode:w1-databricks",
+    "revision": "822181ed13c4367493a3184bc61949f2b963864b"
+   },
+   "ok": true,
+   "plugs": {},
+   "probes": [
+    "databricks.sdk.net_revenue_feb_2026",
+    "databricks.connector.completed_orders_feb_2026",
+    "databricks.rest.net_revenue",
+    "databricks.uc.fct_orders_columns",
+    "databricks.dbt.net_revenue_feb_2026",
+    "databricks.jobs.run_now_bi_refresh"
+   ],
+   "profile": "de/databricks",
+   "rows_at": "call",
+   "seconds": 84.2,
+   "seed": "# commerce_analytics world seed: a shop's nightly CDC extracts -> raw -> dbt\n# star schema + semantic layer -> Power BI / Tableau / Sigma dashboards.\ntheme: commerce_analytics    # world/world/themes/<name>/\nseed: 11\nvtime_start: \"2025-01-01T00:00:00Z\"\n# 425 nightly extracts: dt=2024-12-31 (the cutover snapshot: accounts and\n# catalogue, no orders) then dt=2025-01-01 .. dt=2026-02-28. Fourteen months of\n# orders, so last-year measures exist for January and February 2026. The world\n# clock opens at 2026-03-02T00:00Z, a Monday - business day 1 of the February\n# close.\ndays: 425\n\n# Scale. Every key is optional (gen.DEFAULTS); these are the defaults, spelled\n# out. Build time is dominated by dbt, not by volume - a 2x seed builds in about\n# the same time.\ncustomers: 220               # accounts on the platform at cutover\nsignup_pct: 18               # chance per day of a new account (a second at a quarter of it)\nupdate_pct: 9                # chance per day that one account is upgraded a segment\norders_per_day: [20, 60]     # base range, scaled by weekday, month, peak days and growth\nlines_per_order: [1, 4]\ncancel_pct: 6                # 70% the same day, the rest the next day\nrefund_pct: 4                # 3 to 45 days after the order\ngrowth_pct: 20               # year-over-year order volume growth\n\ngit_author: \"Analytics Engineering <analytics@example.com>\"\nnative: true\nfiles: {formats: [parquet]}\nprofile:\n  name: de/databricks\n  slots: [files, warehouse, transform, orchestrator, object_store, ingest, bi, observability, release, human]\n  plugs: {bi: [powerbi]}\n",
+   "stack": {
+    "container_id": "89d098c21f2b",
+    "episode_endpoints": {
+     "airbyte": "http://airbyte.internal:8001",
+     "alertmanager": "http://alertmanager.internal:9093",
+     "confluence": "http://confluence.internal:8090",
+     "databricks": "https://databricks.internal:443",
+     "deploy": "http://deploy.internal:8085",
+     "jira": "http://jira.internal:8080",
+     "loki": "http://loki.internal:3100",
+     "postgres": {
+      "database": "alkera",
+      "host": "postgres.internal",
+      "password": "alkera-local-dev",
+      "port": 5432,
+      "user": "alkera"
+     },
+     "powerbi": "http://powerbi.internal:8095",
+     "prometheus": "http://prometheus.internal:9090",
+     "s3": "http://minio.internal:9000",
+     "s3_access_key": "alkera-local-dev",
+     "s3_bucket": "alkera",
+     "s3_region": "us-east-1",
+     "s3_secret_key": "alkera-local-dev",
+     "sched": "http://sched.internal:8120",
+     "slack": "http://slack.internal:8081"
+    },
+    "image": "alkera-episode:w1-databricks",
+    "image_digest": "sha256:0d36e01b13b06165bc93353a37d669a64437134bc032177cd44e845b6bfbb34a",
+    "services": [
+     "episode",
+     "minio",
+     "native-services",
+     "postgres"
+    ],
+    "subject_env": {
+     "AIRBYTE_API_KEY": "alkera-local-dev",
+     "AIRBYTE_URL": "http://airbyte.internal:8001",
+     "ALERTMANAGER_URL": "http://alertmanager.internal:9093",
+     "ALKERA_BACKEND": "postgres",
+     "ALKERA_NATIVE_AUDIT": "/audit/actions.jsonl",
+     "ALKERA_POSTGRES_DSN": "postgresql://episode:episode-local@postgres/episode",
+     "ALKERA_SHIM_BIN": "/opt/alkera/shims",
+     "ALKERA_SHIM_WATCH": "/world/var/warehouse/warehouse.duckdb",
+     "ALKERA_SHIM_WORKSPACE": "/workspace",
+     "ALKERA_SOURCE_REV": "822181ed13c4367493a3184bc61949f2b963864b",
+     "ALKERA_TOOLBELT": "de",
+     "ALKERA_VIRTUAL_TIME": "2026-03-02T00:00:00Z",
+     "ALKERA_WAREHOUSES": "",
+     "ALKERA_WAREHOUSE_CLIENTS": "databricks",
+     "ALKERA_WORKSPACE": "/workspace",
+     "AWS_ACCESS_KEY_ID": "alkera-local-dev",
+     "AWS_DEFAULT_REGION": "us-east-1",
+     "AWS_ENDPOINT_URL": "http://minio.internal:9000",
+     "AWS_SECRET_ACCESS_KEY": "alkera-local-dev",
+     "AZURE_AUTHORITY_HOST": "http://powerbi.internal:8095",
+     "AZURE_CLIENT_ID": "alkera-local-dev",
+     "AZURE_CLIENT_SECRET": "alkera-local-dev",
+     "AZURE_TENANT_ID": "alkera-local-dev",
+     "CONFLUENCE_API_TOKEN": "alkera-local-dev",
+     "CONFLUENCE_URL": "http://confluence.internal:8090",
+     "CONFLUENCE_USER": "alkera-local-dev",
+     "DBT_PROFILES_DIR": "/root/.dbt",
+     "DEPLOY_API_TOKEN": "alkera-local-dev",
+     "DEPLOY_URL": "http://deploy.internal:8085",
+     "FABRIC_API_URL": "http://powerbi.internal:8095",
+     "HOME": "/root",
+     "JIRA_API_TOKEN": "alkera-local-dev",
+     "JIRA_URL": "http://jira.internal:8080",
+     "JIRA_USER": "alkera-local-dev",
+     "LOKI_ADDR": "http://loki.internal:3100",
+     "LOKI_URL": "http://loki.internal:3100",
+     "PATH": "/opt/alkera/shims:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/toolbelt/bin",
+     "POWERBI_API_URL": "http://powerbi.internal:8095",
+     "PROMETHEUS_URL": "http://prometheus.internal:9090",
+     "SCHED_URL": "http://sched.internal:8120",
+     "SLACK_BASE_URL": "http://slack.internal:8081",
+     "SLACK_BOT_TOKEN": "alkera-local-dev"
+    },
+    "workspace_cli": {
+     "cli": "ops/sched",
+     "files": [
+      "/home/ubuntu/alkera-rollouts/w1-databricks/tour-final/de-databricks/world/workspace/ops/sched"
+     ],
+     "interpreter": "/usr/local/bin/python",
+     "pythonpath": "/opt/world",
+     "topology": "container"
+    }
+   },
+   "truths_read": "after the world build, before the stack came up",
+   "work": "/home/ubuntu/alkera-rollouts/w1-databricks/tour-final/de-databricks",
+   "world": {
+    "dashboards": "/home/ubuntu/alkera-rollouts/w1-databricks/tour-final/de-databricks/world/var/bi/dashboards",
+    "grading": "/home/ubuntu/alkera-rollouts/w1-databricks/tour-final/de-databricks/grading",
+    "profiles_dir": "/home/ubuntu/alkera-rollouts/w1-databricks/tour-final/de-databricks/world/build",
+    "scheduler": "/home/ubuntu/alkera-rollouts/w1-databricks/tour-final/de-databricks/world/var/sched/state.json",
+    "warehouse": "/home/ubuntu/alkera-rollouts/w1-databricks/tour-final/de-databricks/world/var/warehouse/warehouse.duckdb",
+    "workflow_dir": "/home/ubuntu/alkera-rollouts/w1-databricks/tour-final/de-databricks/world/var/workflow",
+    "workspace": "/home/ubuntu/alkera-rollouts/w1-databricks/tour-final/de-databricks/world/workspace",
+    "world_root": "/home/ubuntu/alkera-rollouts/w1-databricks/tour-final/de-databricks/world"
+   }
+  }
+ ],
+ "revision": "822181ed13c4367493a3184bc61949f2b963864b",
+ "seconds": 84.3,
+ "started": 1791366905.0966616,
+ "summary": {
+  "DOC": 0,
+  "FAIL": 0,
+  "PASS": 6,
+  "profiles_ok": true
+ },
+ "table": "probe                                       profile       verdict   rows  value / truth\n---------------------------------------------------------------------------------------------------------------------\ndatabricks.sdk.net_revenue_feb_2026         de/databricks PASS         2  '2361224.00' / Decimal('2361224.00')\ndatabricks.connector.completed_orders_feb_2 de/databricks PASS         6  1068 / 1068\ndatabricks.rest.net_revenue                 de/databricks PASS         2  '33733790.00' / Decimal('33733790.00')\ndatabricks.uc.fct_orders_columns            de/databricks PASS         2  6 / 6\ndatabricks.dbt.net_revenue_feb_2026         de/databricks PASS        15  2361224.0 / Decimal('2361224.00')\ndatabricks.jobs.run_now_bi_refresh          de/databricks PASS         4  1276 / 1276",
+ "tools": [
+  "databricks"
+ ],
+ "topology": "container"
+}
