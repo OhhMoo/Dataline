@@ -1806,6 +1806,10 @@ class NativeContainerEpisode:
     subject_container: str = ""
     proxy_container: str = ""
     rexec_token: str = field(default_factory=lambda: secrets.token_hex(16))
+    #: What `down()` folded from the Postgres server's statement log
+    #: (`postgres_live.fold_statement_log`): rows, or the `error` that makes the
+    #: rollout a harness failure (rollout.py), or `skipped`. {} until `down()`.
+    postgres_statements: dict = field(default_factory=dict)
     _up: bool = False
 
     # ---------------------------------------------------------------- paths
@@ -2371,10 +2375,17 @@ services:
         # stays contiguous; the rows are in actions.jsonl before ownership is
         # handed back, before `compose down -v` deletes the log with its
         # volume, and before destinations are folded or a grader reads /audit.
+        # Whatever it raises (a timed-out `docker exec` included) is kept, not
+        # thrown: the rest of the teardown always runs, and the error is raised
+        # once the stack is gone.
         import postgres_live
 
-        self.postgres_statements = postgres_live.fold_statement_log(
-            self, clock=world_clock(self.world))
+        try:
+            self.postgres_statements = postgres_live.fold_statement_log(
+                self, clock=world_clock(self.world))
+        except Exception as exc:  # noqa: BLE001 - raised below, after teardown
+            self.postgres_statements = {"rows": None,
+                                        "error": f"{type(exc).__name__}: {exc}"}
         if self.proxy_container:
             # Every connection the subject tried to make off the box, kept
             # beside the mounts overlay as part of the rollout's record.

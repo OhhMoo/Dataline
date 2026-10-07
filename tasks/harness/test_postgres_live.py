@@ -157,7 +157,21 @@ def test_a_profile_that_plugs_postgres_is_seeded_from_the_world(tmp_path, profil
     assert copy[:4] == ["docker", "exec", "-i", "pgcid"]
     assert copy[4:] == ["psql", "-X", "-q", "-v", "ON_ERROR_STOP=1", "-U", "postgres",
                         "-d", "alkera", "-1"]
-    assert script.startswith("SET ROLE episode;\n")
+    # The seeded schema leaves `episode` (compose's owner, unlogged, whose DSN the box
+    # carries) for a NOLOGIN owner; only the audited `alkera` role is granted.
+    head = script.split("SET ROLE warehouse_owner;\n", 1)[0].splitlines()
+    assert "CREATE ROLE warehouse_owner NOLOGIN" in head[0]
+    assert head[1:] == [
+        'ALTER SCHEMA "warehouse" OWNER TO warehouse_owner;',
+        head[2],
+        'REVOKE ALL ON SCHEMA "warehouse" FROM episode;',
+        'REVOKE ALL ON ALL TABLES IN SCHEMA "warehouse" FROM episode;',
+        'GRANT USAGE, CREATE ON SCHEMA "warehouse" TO alkera;']
+    assert "ALTER TABLE %I.%I OWNER TO warehouse_owner" in head[2]
+    assert script.index("SET ROLE warehouse_owner;") < script.index("CREATE TABLE")
+    assert script.endswith("RESET ROLE;\n")
+    assert "TO episode" not in script and "SET ROLE episode" not in script
+    assert record["owner"] == "warehouse_owner" and record["revoked_from"] == "episode"
     assert 'CREATE TABLE "warehouse"."fct_orders" ("order_id" integer, "order_status" ' \
            'varchar, "order_amount" numeric(12,2), "order_date" date, "paid" boolean, ' \
            '"placed_at" timestamp);' in script
@@ -289,6 +303,66 @@ def test_a_failed_fold_is_loud_after_the_stack_is_down(tmp_path, monkeypatch):
         stack.down()
     assert ("compose", ("down", "-v", "-t", "2", "--remove-orphans")) in calls
     assert not stack._up
+
+
+@pytest.mark.parametrize("failure", [
+    RuntimeError("native-services is gone"),
+    subprocess.TimeoutExpired(["docker", "exec"], 600)])
+def test_a_fold_that_raises_still_tears_the_stack_down(tmp_path, monkeypatch, failure):
+    """A tailer that raises - a `docker exec` that times out included - never stops
+    the teardown: ownership is handed back, `compose down -v` runs, the stack is
+    marked down, and only then is the failure raised."""
+    calls: list = []
+
+    def raising(argv, **kwargs):
+        calls.append(("fold", argv))
+        raise failure
+
+    stack = _teardown_stack(tmp_path, monkeypatch, raising, calls)
+    with pytest.raises(ce.ContainerError, match=type(failure).__name__):
+        stack.down()
+    kinds = [kind if kind != "run" else argv[1] for kind, argv in calls]
+    assert kinds[0] == "fold" and "exec" in kinds, kinds
+    assert ("compose", ("down", "-v", "-t", "2", "--remove-orphans")) in calls
+    assert not stack._up
+    assert type(failure).__name__ in stack.postgres_statements["error"]
+
+
+def test_a_rollout_missing_its_postgres_rows_is_a_harness_failure():
+    """rollout.py records what `down()` folded and, when the fold carried an error,
+    sets `harness_failure`: the rollout is classified `harness_error` and is never
+    graded (grading runs only when harness_failure is None)."""
+    import inspect
+
+    import classify
+    import rollout
+
+    assert rollout.postgres_fold_failure({"rows": None, "error": "exit 3"}) == (
+        "postgres statement log not folded into the action log: exit 3")
+    for fine in (None, {}, {"rows": 0, "returncode": 0}, {"rows": None, "skipped": "x"}):
+        assert rollout.postgres_fold_failure(fine) is None, fine
+    source = inspect.getsource(rollout.run_rollout)
+    down = source.index("native_container.down()")
+    recorded = source.index('record["postgres_statements"] = '
+                            'native_container.postgres_statements')
+    failed = source.index("harness_failure = harness_failure or postgres_fold_failure(")
+    graded = source.index("if world and harness_failure is None:")
+    assert down < recorded < failed < graded
+    assert ce.NativeContainerEpisode.__dataclass_fields__["postgres_statements"]
+    assert _stack_fields_default() == {}
+    verdict = classify.classify(
+        spec=type("S", (), {"wall_clock_seconds": 60, "max_tool_calls": 10})(),
+        score=None, score_stable=False, grader_crashed=False,
+        harness_failure=rollout.postgres_fold_failure({"error": "exit 3"}),
+        agent_exit_reason="ok", blindness={}, action_rows=[], surfaces={},
+        artifact_present=False)
+    assert verdict["classification"] == "harness_error"
+
+
+def _stack_fields_default() -> dict:
+    return ce.NativeContainerEpisode(project="t", world={"world_root": "."},
+                                     audit_dir=Path("a"),
+                                     rollout_dir=Path("r")).postgres_statements
 
 
 def test_a_stack_that_never_came_up_tears_down_quietly(tmp_path, monkeypatch):

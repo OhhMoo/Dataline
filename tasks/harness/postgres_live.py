@@ -14,15 +14,22 @@ server exactly as compose seeds it: `warehouse.items`, two rows. The copy:
 
   - reads the world's DuckDB warehouse file on the HOST, read-only;
   - runs as the superuser over the server container's own socket, through `psql -1`
-    (one transaction), as role `episode`, which owns the `warehouse` schema and the
-    `items` table already in it. Neither role is logged: `log_statement` is set on
-    the `alkera` role only (compose.native.yml, `pg_native_role`), so seeding writes
-    no server log line and therefore no audit row - the world is not the agent;
-  - grants the agent role the privileges compose's init gives it on `items`
-    (SELECT, INSERT, UPDATE, DELETE). A write lands in the seeded COPY: the world's
-    files never move, and no grader reads through this plug;
+    (one transaction). Not logged: `log_statement` is set on the `alkera` role only
+    (compose.native.yml, `pg_native_role`), so seeding writes no server log line
+    and therefore no audit row - the world is not the agent;
+  - takes the `warehouse` schema, and every table already in it, away from
+    `episode` (compose's owner, whose DSN the box carries in ALKERA_POSTGRES_DSN
+    and whose statements are NOT logged) and gives them to OWNER, a NOLOGIN role
+    no client can connect as. `episode` keeps no privilege on the seeded schema, so
+    the one way to the seeded copy is the audited `alkera` role;
+  - creates the tables as OWNER and grants the agent role what compose's init
+    gives it on `items`: USAGE and CREATE on the schema, SELECT, INSERT, UPDATE,
+    DELETE on each table. A write lands in the seeded COPY: the world's files never
+    move, and no grader reads through this plug;
   - refuses, by name, a column type it does not map (fences are loud), and checks
     each table's row count back against the DuckDB file.
+
+`raw` and `staging` stay `episode`'s, as on every box (containment: the episode DSN).
 
 AUDITED AT TEARDOWN (`fold_statement_log`, from `down()`). The server logs every
 statement of the `alkera` role (`log_statement=all`, `log_min_duration_statement=0`,
@@ -51,11 +58,14 @@ from pathlib import Path
 
 #: The plug that turns seeding on (alkera_gateway.plugs, slot `warehouse`).
 PLUG = "postgres"
-#: compose.native.yml: the database the episode connects to, the role that owns the
-#: seeded schema (gateway/docker/postgres.sql), the agent's role.
+#: compose.native.yml: the database the episode connects to and the agent's role;
+#: gateway/docker/postgres.sql: the role that owns raw/staging/warehouse on every box
+#: (`ALKERA_POSTGRES_DSN` in the box's environment names it, and it is not logged).
 DATABASE = "alkera"
 SUPERUSER = "postgres"
-OWNER = "episode"
+COMPOSE_OWNER = "episode"
+#: Owns the seeded schema and its tables: NOLOGIN, so no client is ever it.
+OWNER = "warehouse_owner"
 AGENT_ROLE = "alkera"
 AGENT_PRIVILEGES = "SELECT, INSERT, UPDATE, DELETE"
 #: The world schema that is copied, from the world's primary warehouse file.
@@ -181,8 +191,23 @@ def read_tables(warehouse: Path, schema: str = SCHEMA) -> tuple[list[Table], lis
 
 def seed_script(tables: list[Table], schema: str = SCHEMA) -> str:
     """The psql script that copies `tables` into `schema`: run with `psql -1` as the
-    superuser, as role OWNER, data inline after each COPY."""
-    lines = [f"SET ROLE {OWNER};"]
+    superuser. The schema and every table already in it pass from COMPOSE_OWNER to
+    the NOLOGIN OWNER, COMPOSE_OWNER keeps nothing on it, the agent role gets USAGE
+    and CREATE; then, as OWNER, each table is created, filled (data inline after its
+    COPY) and granted to the agent role."""
+    s = _ident(schema)
+    lines = [
+        f"DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{OWNER}') "
+        f"THEN CREATE ROLE {OWNER} NOLOGIN; END IF; END $$;",
+        f"ALTER SCHEMA {s} OWNER TO {OWNER};",
+        f"DO $$ DECLARE t record; BEGIN FOR t IN SELECT tablename FROM pg_tables "
+        f"WHERE schemaname = '{schema}' LOOP EXECUTE format('ALTER TABLE %I.%I OWNER "
+        f"TO {OWNER}', '{schema}', t.tablename); END LOOP; END $$;",
+        f"REVOKE ALL ON SCHEMA {s} FROM {COMPOSE_OWNER};",
+        f"REVOKE ALL ON ALL TABLES IN SCHEMA {s} FROM {COMPOSE_OWNER};",
+        f"GRANT USAGE, CREATE ON SCHEMA {s} TO {AGENT_ROLE};",
+        f"SET ROLE {OWNER};",
+    ]
     for table in tables:
         qualified = f"{_ident(schema)}.{_ident(table.name)}"
         columns = ", ".join(f"{_ident(c)} {t}" for c, t in table.columns)
@@ -192,6 +217,7 @@ def seed_script(tables: list[Table], schema: str = SCHEMA) -> str:
                   f"COPY {qualified} ({names}) FROM STDIN WITH (FORMAT csv);"]
         lines.append(table.csv.rstrip("\n") + "\n\\." if table.csv.strip() else "\\.")
         lines.append(f"GRANT {AGENT_PRIVILEGES} ON {qualified} TO {AGENT_ROLE};")
+    lines.append("RESET ROLE;")
     return "\n".join(lines) + "\n"
 
 
@@ -244,7 +270,8 @@ def seed(stack, *, runner: Runner = subprocess.run) -> dict | None:
         raise SeedError(f"seeded row counts {seeded or check.stderr[-500:]} != the "
                         f"world's {counts}")
     return {"schema": SCHEMA, "source": str(warehouse), "tables": counts,
-            "views_skipped": views, "role": OWNER, "granted_to": AGENT_ROLE,
+            "views_skipped": views, "owner": OWNER, "granted_to": AGENT_ROLE,
+            "revoked_from": COMPOSE_OWNER,
             "seconds": round(time.monotonic() - started, 2)}
 
 

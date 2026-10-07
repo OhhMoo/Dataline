@@ -9,6 +9,10 @@ A `de/postgres` box (a `commerce_analytics` world, seed 11). `prepare()` copies 
 world's `warehouse.*` into the stack's Postgres (`postgres_live.seed`); then, from
 INSIDE the episode container, as the agent's role with the box's own PG* variables:
 
+  (0) the seeded schema belongs to a NOLOGIN role, and `episode` - compose's owner,
+      whose statements the server does NOT log and whose credentials the box's
+      ALKERA_POSTGRES_DSN carries - is refused on it, so the seeded copy is reached
+      through the audited `alkera` role only;
   (a) psql: every seeded table's row count and February 2026 Net Revenue equal the
       world's DuckDB warehouse read on the host; a scratch CREATE + INSERT in
       `staging`, and a DROP of a seeded table the role does not own (refused by the
@@ -26,8 +30,8 @@ INSIDE the episode container, as the agent's role with the box's own PG* variabl
       in the seeded copy; seeding itself put no statement in the server log.
 
 An UNPROFILED box (the same theme, no profile): `prepare()` seeds nothing, and the
-server holds what compose gave it - `warehouse.items`, 2 rows - read with psql and
-audited at teardown the same way.
+server holds what compose gave it - `warehouse.items`, 2 rows, in a schema `episode`
+owns - read with psql and audited at teardown the same way.
 
 Evidence: tasks/harness/evidence/postgres_e2e.json. Exit 1 on any FAIL.
 """
@@ -63,6 +67,13 @@ SCRATCH = ["CREATE TABLE staging.pg_e2e_scratch (id integer, note text)",
            "INSERT INTO staging.pg_e2e_scratch VALUES (1, 'alpha'), (2, 'beta')",
            "SELECT id, note FROM staging.pg_e2e_scratch ORDER BY id"]
 REFUSED = "DROP TABLE warehouse.fct_orders"
+#: compose's schema owner (gateway/docker/postgres.sql), against the server's real
+#: database: the role is the one the box's ALKERA_POSTGRES_DSN names.
+EPISODE_URL = "postgresql://episode:episode-local@postgres.internal:5432/alkera"
+EPISODE_PROBE = "SELECT count(*) FROM warehouse.fct_orders"
+OWNER_SQL = ("SELECT r.rolname || '|' || CASE WHEN r.rolcanlogin THEN 't' ELSE 'f' END "
+             "FROM pg_namespace n JOIN pg_roles r ON r.oid = n.nspowner "
+             "WHERE n.nspname = 'warehouse'")
 
 PSYCOPG = r'''
 import json, os, psycopg
@@ -234,6 +245,32 @@ def run_profiled(args, check: Checks, record: dict) -> None:
         check("seeding put no statement in the server log (superuser, unlogged role)",
               before_log == [], before_log[:5])
 
+        # The seeded copy is reachable through the audited role only. `episode`
+        # (compose's schema owner, NOT logged) is the role ALKERA_POSTGRES_DSN in
+        # the box's environment names; it keeps nothing on the seeded schema.
+        record["episode_dsn_in_box"] = topo.container_env.get("ALKERA_POSTGRES_DSN")
+        as_episode = {}
+        for label, url in (("box_dsn", record["episode_dsn_in_box"]),
+                           ("episode_on_alkera_db", EPISODE_URL)):
+            if not url:
+                continue
+            done = topo.run(f"psql {json.dumps(url)} -X -tA -c "
+                            f"{json.dumps(EPISODE_PROBE)}", timeout=120)
+            as_episode[label] = {"rc": done.returncode, "out": done.stdout.strip(),
+                                 "err": done.stderr.strip()[-300:]}
+        record["as_episode"] = as_episode
+        denied = as_episode.get("episode_on_alkera_db") or {}
+        check("the episode role (unlogged; the box's ALKERA_POSTGRES_DSN) cannot read "
+              "the seeded warehouse.fct_orders",
+              denied.get("rc") not in (0, None)
+              and "permission denied for schema warehouse" in denied.get("err", ""),
+              as_episode)
+        sent.append(OWNER_SQL)
+        owner = psql(topo, OWNER_SQL)
+        record["seeded_schema_owner"] = owner.stdout.strip()
+        check("the seeded schema's owner is a NOLOGIN role, not episode",
+              owner.stdout.strip() == "warehouse_owner|f", owner.stdout + owner.stderr)
+
         # (a) psql
         counts = {}
         for table in expected["counts"]:
@@ -241,8 +278,8 @@ def run_profiled(args, check: Checks, record: dict) -> None:
             sent.append(sql)
             out = psql(topo, sql)
             counts[table] = int(out.stdout.strip() or -1) if out.returncode == 0 else None
-        check("psql: every seeded table's row count equals the world's",
-              counts == expected["counts"], {"psql": counts})
+        check("psql as the audited alkera role: every seeded table's row count equals "
+              "the world's", counts == expected["counts"], {"psql": counts})
         sent.append(FEB_SQL)
         feb = psql(topo, FEB_SQL)
         record["psql_net_revenue_feb_2026"] = feb.stdout.strip()
@@ -324,13 +361,12 @@ def run_profiled(args, check: Checks, record: dict) -> None:
     check("every statement the probes sent is exactly one row",
           all(audited.count(sql) == 1 for sql in sent),
           {s[:60]: audited.count(s) for s in sent if audited.count(s) != 1})
-    # In server order - except a statement the server REFUSED: no `duration:` entry
-    # follows an error, so the tailer closes it only when its backend's stream ends
-    # (iter_statements), and its row comes after statements that started later.
-    ok_sent = [s for s in sent if s != REFUSED]
+    # In server order, the REFUSED one included: the tailer emits a failing
+    # statement at its ERROR (no `duration:` follows an error), not when its
+    # backend's stream ends, which put it last of all before 2026-10-07.
     it = iter(audited)
-    check("the statements that succeeded are rows in the order they were sent",
-          all(any(sql == a for a in it) for sql in ok_sent))
+    check("every statement is a row in the order it was sent, the refused DROP included",
+          all(any(sql == a for a in it) for sql in sent))
     record["refused_row_position"] = {"sent_index": sent.index(REFUSED),
                                       "row_index": audited.index(REFUSED)
                                       if REFUSED in audited else None,
@@ -393,7 +429,7 @@ def run_unprofiled(args, check: Checks, record: dict) -> None:
     topo = tool_tour.TourTopology(world, work, args.image, "", {}, seed)
     sent = ["SELECT string_agg(table_name, ',' ORDER BY table_name) FROM "
             "information_schema.tables WHERE table_schema = 'warehouse'",
-            "SELECT count(*) FROM warehouse.items"]
+            "SELECT count(*) FROM warehouse.items", OWNER_SQL]
     out = []
     try:
         up = topo.up()
@@ -405,10 +441,10 @@ def run_unprofiled(args, check: Checks, record: dict) -> None:
         topo.down()
     got = [o.stdout.strip() for o in out]
     record["server"] = got
-    check("unprofiled: the server holds only warehouse.items, with 2 rows",
-          got == ["items", "2"], got)
+    check("unprofiled: the server holds only warehouse.items, with 2 rows, its schema "
+          "owned by episode as compose made it", got == ["items", "2", "episode|t"], got)
     rows = [r for r in read_rows(Path(topo.audit_dir)) if r["tool"] == TOOL]
-    check("unprofiled: the two psql statements are audited at teardown",
+    check("unprofiled: the three psql statements are audited at teardown",
           [r["args"]["sql"] for r in rows] == sent, [r["args"]["sql"] for r in rows])
 
 
