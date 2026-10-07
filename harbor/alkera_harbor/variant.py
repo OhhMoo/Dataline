@@ -75,7 +75,7 @@ KEPT_ENV_NAMES = ("PATH",)
 CA_BUNDLE_VAR = "REQUESTS_CA_BUNDLE"
 #: Warehouse plugs the Harbor image serves: the world's own DuckDB file, and
 #: each warehouse backend that has its HARBOR_BACKENDS entry.
-SERVED_WAREHOUSES = ("duckdb", "databricks", "redshift")
+SERVED_WAREHOUSES = ("duckdb", "databricks", "redshift", "snowflake")
 #: Warehouse plugs the image refuses, and why (the export's error says it).
 REFUSED_WAREHOUSES: dict[str, str] = {}
 #: The warehouse plug served by a process of its own that is not a registry
@@ -503,13 +503,14 @@ PRIVATE_LOGS = "/var/log/alkera"
 PYTHON = "/usr/local/bin/python"
 
 
-def _container_backend(name: str, argv: list[str], *, data: str) -> list[dict]:
+def _container_backend(name: str, argv: list[str], **extra: str) -> list[dict]:
     """A registry backend that has its own container in the measured topology,
     run here as root with the environment backend_overlay gives that container
     (container_episode.NativeContainerEpisode.backend_overlay): the action log,
     the world's warehouse files to seed from (read before the agent starts),
     its own destinations file (world-down folds it), its private statement
-    record and data directory."""
+    record; plus `extra` (ALKERA_<NAME>_<KEY>=value) for what one container's
+    isolation gave it and this image must say."""
     backends, b = _registry(name)
     upper = name.upper()
     env = [f"ALKERA_NATIVE_AUDIT={AUDIT_IN_CONTAINER}/actions.jsonl",
@@ -517,9 +518,19 @@ def _container_backend(name: str, argv: list[str], *, data: str) -> list[dict]:
              if b.seeds_world else []),
            f"ALKERA_{upper}_DESTINATIONS={AUDIT_IN_CONTAINER}/{backends.destinations_file(b)}",
            f"ALKERA_{upper}_STATEMENT_LOG={PRIVATE_LOGS}/{name}-statements.jsonl",
-           f"ALKERA_{upper}_DATA={data}"]
+           *(f"ALKERA_{upper}_{key.upper()}={value}" for key, value in extra.items())]
     return [{"name": name, "argv": ["/usr/bin/env", *env, *argv], "user": "root",
              "ports": [b.port], "hosts": [b.host], "health": "tcp"}]
+
+
+def _snowflake(_variant: Variant) -> list[dict]:
+    """fakesnow behind the audited TLS proxy (snowflake_start.py), with its
+    upstream on a unix socket in a root-only directory: in its own container
+    the upstream's loopback port is out of the agent's reach, here it would be
+    a second door, unaudited."""
+    return _container_backend("snowflake", ["/opt/snowflake/bin/python",
+                                            "/opt/stack/snowflake_start.py"],
+                              upstream_socket="/snowflake-data/run/fakesnow.sock")
 
 
 def _redshift(_variant: Variant) -> list[dict]:
@@ -565,6 +576,10 @@ HARBOR_BACKENDS: dict = {
     # (the proxy writes the action log; the server it starts runs as
     # `postgres`), 5439 at redshift.internal.
     "redshift": _redshift,
+    # Snowflake: fakesnow behind the audited TLS proxy, as root, 8443 at
+    # snowflake.internal; the certificate minted at start, its bundle at
+    # /etc/alkera/snowflake-tls/bundle.pem (the box's REQUESTS_CA_BUNDLE).
+    "snowflake": _snowflake,
 }
 CLIENT_LAYERS: dict[str, tuple[str, ...]] = {
     "redshift": (
@@ -576,6 +591,22 @@ CLIENT_LAYERS: dict[str, tuple[str, ...]] = {
         "COPY alkera/gateway/docker/redshift_start.py /opt/stack/redshift_start.py",
         "RUN chmod 0700 /opt/stack \\",
         "    && mkdir -p /var/lib/alkera/redshift && chmod 0711 /var/lib/alkera/redshift",
+    ),
+    "snowflake": (
+        "",
+        "# Snowflake (fakesnow behind the audited TLS proxy, snowflake_start.py), as",
+        "# Dockerfile.snowflake installs it - into a venv of its own over this",
+        "# interpreter's packages, so fakesnow's pins (an older sqlglot, a newer",
+        "# certifi) never replace the services' or the agent's. Root's alone, like",
+        "# its key (/tls) and its data and upstream socket (/snowflake-data).",
+        "COPY alkera/gateway/docker/snowflake.lock /opt/snowflake.lock",
+        "RUN python -m venv --system-site-packages /opt/snowflake \\",
+        f"    && /opt/snowflake/bin/{_PIP} /opt/snowflake.lock \\",
+        "    && chmod 0700 /opt/snowflake",
+        "COPY alkera/gateway/docker/snowflake_fidelity.py /opt/stack/snowflake_fidelity.py",
+        "COPY alkera/gateway/docker/snowflake_start.py /opt/stack/snowflake_start.py",
+        "RUN chmod 0700 /opt/stack \\",
+        "    && mkdir -p /tls /snowflake-data && chmod 0700 /tls /snowflake-data",
     ),
     "databricks": (
         "# Databricks (hosted by the services): the trust directory they publish",
@@ -589,5 +620,7 @@ CLIENT_LAYERS: dict[str, tuple[str, ...]] = {
 PLUG_LAYERS: dict[str, tuple[str, ...]] = {}
 SUPPORT_FILES: dict[str, tuple[tuple[str, str], ...]] = {
     "redshift": (("gateway/docker/redshift_start.py", "gateway/docker/redshift_start.py"),),
+    "snowflake": tuple((f"gateway/docker/{name}", f"gateway/docker/{name}") for name in
+                       ("snowflake.lock", "snowflake_fidelity.py", "snowflake_start.py")),
 }
 STATEMENT_LOGS: dict[str, tuple[dict, ...]] = {}

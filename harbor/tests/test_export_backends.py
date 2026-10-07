@@ -147,6 +147,60 @@ def test_redshift_runs_whole_as_root_with_its_server(tmp_path):
                                   "gateway/docker/redshift_start.py")]
 
 
+# ---------------------------------------------------------------- snowflake
+def test_snowflake_runs_as_root_on_a_private_upstream_socket(tmp_path):
+    v = variant_of("da/snowflake")
+    assert v.backends == ("snowflake",) and v.clients == ("snowflake",) and v.role == "da"
+    [spec] = variant.backend_specs(v)
+    assert (spec["name"], spec["user"], spec["ports"], spec["hosts"], spec["health"]) == (
+        "snowflake", "root", [8443], ["snowflake.internal"], "tcp")
+    argv = spec["argv"]
+    assert argv[-2:] == ["/opt/snowflake/bin/python", "/opt/stack/snowflake_start.py"]
+    env = dict(a.split("=", 1) for a in argv[1:-2])
+    assert env["ALKERA_SNOWFLAKE_UPSTREAM_SOCKET"] == "/snowflake-data/run/fakesnow.sock"
+    assert env["ALKERA_SNOWFLAKE_SEED"] == "/world/var/warehouse"
+    assert env["ALKERA_SNOWFLAKE_DESTINATIONS"] == "/audit/destinations.snowflake.jsonl"
+    text = assert_exportable(v, tmp_path)
+    steps = runs(text)
+    venv = next(r for r in steps if "/opt/snowflake" in r and "venv" in r)
+    assert "--system-site-packages" in venv and "--require-hashes" in venv
+    assert "chmod 0700 /opt/snowflake" in venv
+    assert any("chmod 0700 /tls /snowflake-data" in r for r in steps)
+    # fakesnow's pins go into the backend's venv, never the box's interpreter
+    assert not any(r.startswith("pip install") and "/opt/snowflake.lock" in r for r in steps)
+    assert dockerenv.parse_env(text)["REQUESTS_CA_BUNDLE"] == \
+        "/etc/alkera/snowflake-tls/bundle.pem"
+
+
+def test_a_remote_warehouse_profile_stays_out_of_the_services_config(tmp_path):
+    """GatewayConfig ties a profile's warehouse plug (duckdb, postgres, snowflake,
+    bigquery) to the config's own warehouse_backend - how the gateway reaches the
+    warehouse, here the world's DuckDB file - and every service validates its
+    config at its first request: a config naming da/snowflake is a 500 on
+    jira.internal. The exporter keeps such a profile out of the config (the
+    services take it from --profile); a profile the config accepts stays in it."""
+    import json
+
+    from alkera_harbor import worldbuild
+
+    world = tmp_path / "world"
+    (world / "var" / "warehouse").mkdir(parents=True)
+    (world / "var" / "warehouse" / "warehouse.duckdb").write_bytes(b"")
+    base = {"workspace": str(tmp_path / "ws"), "audit_dir": str(tmp_path / "audit"),
+            "warehouse": str(world / "var" / "warehouse" / "warehouse.duckdb"),
+            "world_root": str(world), "profiles_dir": str(world / "build")}
+    config = tmp_path / "gateway.json"
+    config.write_text(json.dumps({**base, "profile": "da/snowflake", "plugs": {}}))
+    refused = worldbuild.gateway_refuses_profile(config, "x")
+    assert refused and "snowflake" in refused
+    for profile in ("da/laptop", "de/aws", "de/databricks"):
+        config.write_text(json.dumps({**base, "profile": profile, "plugs": {}}))
+        assert worldbuild.gateway_refuses_profile(config, "x") is None, profile
+    config.write_text(json.dumps({**base, "warehouse_backend": "nope"}))
+    with pytest.raises(worldbuild.StageError, match="does not load"):
+        worldbuild.gateway_refuses_profile(config, "x")
+
+
 def test_an_unknown_backend_is_refused():
     v = variant.Variant(role="de", profile="de/x", backends=("nope",),
                         harbor_backends=("nope",))

@@ -448,3 +448,31 @@ def test_backend_redshift_up_probe_down(tmp_path):
     assert record["backends"][0]["user"] == "root"
     folded_backend_row(record, "redshift.internal", 5439)
     assert any("redshift: listening on [5439]" in line for line in record["world_up"])
+
+
+SNOWFLAKE_CHECKS = r"""
+pass() { echo "PASS $*"; }
+fail() { echo "FAIL $*"; }
+deny() { local n="$1"; shift; if "$@" >/dev/null 2>&1; then fail "$n (allowed)"; else pass "$n"; fi; }
+[ "$REQUESTS_CA_BUNDLE" = /etc/alkera/snowflake-tls/bundle.pem ] && pass "REQUESTS_CA_BUNDLE" || fail "REQUESTS_CA_BUNDLE=$REQUESTS_CA_BUNDLE"
+openssl x509 -in /etc/alkera/snowflake-tls/server.crt -noout -ext subjectAltName | grep -q snowflake.internal && pass "the minted certificate names snowflake.internal" || fail "certificate"
+grep -qF "$(sed -n 2p /etc/alkera/snowflake-tls/server.crt)" /etc/alkera/snowflake-tls/bundle.pem && pass "the bundle carries it" || fail "bundle"
+deny "cannot read the private key" cat /tls/server.key
+deny "cannot enter fakesnow's data and socket" ls /snowflake-data
+deny "cannot reach the fakesnow upstream socket" /usr/local/bin/python3 -c "import socket; s = socket.socket(socket.AF_UNIX); s.connect('/snowflake-data/run/fakesnow.sock')"
+deny "cannot run the backend's interpreter" /opt/snowflake/bin/python -c pass
+[ "$(/usr/local/bin/python3 -c 'import sqlglot; print(sqlglot.__version__)')" = 30.18.0 ] && pass "the box keeps its own sqlglot" || fail "sqlglot moved"
+deny "fakesnow is not the box's" /usr/local/bin/python3 -c "import fakesnow"
+"""
+
+
+@needs_docker
+def test_backend_snowflake_up_probe_down(tmp_path):
+    """fakesnow behind the audited TLS proxy at snowflake.internal:8443, its upstream
+    on a root-only unix socket (no loopback port to go around the proxy): the
+    connector as engineer, trusted through the minted bundle; the proxy's
+    destinations file folded at world-down."""
+    record = up_probe_down("snowflake", ("snowflake",), tmp_path, SNOWFLAKE_CHECKS)
+    assert [b["name"] for b in record["backends"]] == ["snowflake"]
+    assert 64616 not in record["listening"]
+    folded_backend_row(record, "snowflake.internal", 8443)

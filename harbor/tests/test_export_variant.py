@@ -349,12 +349,12 @@ def test_box_profile_follows_the_container_topology(bi):
 
 
 def test_unserved_warehouse_is_refused_by_name():
-    """A profile whose warehouse the Harbor image does not serve yet fails
-    loudly, naming it, before any world is built (plan Task 10 lifts it)."""
+    """A profile whose warehouse the Harbor image does not serve fails loudly,
+    naming it, before any world is built (plan Task 10 served the rest)."""
     class Spec:
-        profile = "da/snowflake"
-        plugs = {}
-    with pytest.raises(variant.VariantError, match="warehouse=snowflake"):
+        profile = "de/laptop"
+        plugs = {"warehouse": ["duckdb", "bigquery"]}
+    with pytest.raises(variant.VariantError, match="warehouse=bigquery"):
         variant.variant_of(Spec())
 
 

@@ -296,6 +296,20 @@ def stage_built_world(world: dict, rollout: Path, *, variant: Variant,
     gateway_config = m.episode.write_gateway_config(
         rollout / "gateway.json", world, rollout / "audit", GATEWAY_EPISODE_ID,
         world.get("virtual_time") or "", **profiled)
+    if variant.profiled:
+        refused = gateway_refuses_profile(Path(gateway_config), label)
+        if refused:
+            # The services select what they serve from serve.py's --profile/--plug
+            # (episode.json); the config's profile only filters the MCP tool table
+            # and is validated against the config's own warehouse_backend, which
+            # names how the GATEWAY reaches the warehouse - the world's DuckDB file
+            # here, whatever remote copy a backend serves the agent. A config that
+            # names a remote warehouse plug is refused by every service at its
+            # first request (a 500), so it does not name the profile.
+            gateway_config = m.episode.write_gateway_config(
+                rollout / "gateway.json", world, rollout / "audit", GATEWAY_EPISODE_ID,
+                world.get("virtual_time") or "", service_state=True)
+            records["gateway_profile_dropped"] = refused
 
     wals = [p.relative_to(rollout).as_posix() for p in rollout.rglob("*.wal")]
     if wals:
@@ -380,6 +394,31 @@ def stage_built_world(world: dict, rollout: Path, *, variant: Variant,
             "prompt": prompt, "shim_watch": shim_watch,
             "gateway_config": Path(gateway_config), "records": records,
             "restore": restore}
+
+
+#: GatewayConfig's one refusal a profiled services config may hit by design: a
+#: remote warehouse plug against the gateway's own (DuckDB) warehouse_backend.
+GATEWAY_PROFILE_REFUSAL = "disagrees with warehouse_backend"
+
+
+def gateway_refuses_profile(config: Path, label: str) -> str | None:
+    """None when the services would load `config` (GatewayConfig, the model
+    every service validates at its first request); the reason when it refuses
+    the profile's warehouse plug; StageError for any other refusal - a config
+    the services cannot load is an export error, never a task."""
+    harness.modules()
+    from alkera_gateway.config import GatewayConfig
+
+    try:
+        GatewayConfig.load(config)
+    except ValueError as exc:
+        reason = str(exc)
+        if GATEWAY_PROFILE_REFUSAL in reason:
+            return " ".join(line.strip() for line in reason.splitlines()
+                            if GATEWAY_PROFILE_REFUSAL in line)
+        raise StageError(f"{label}: the services' gateway config does not load: "
+                         f"{reason[-800:]}") from None
+    return None
 
 
 def box_profile(rerooted: str, variant: Variant) -> str:
