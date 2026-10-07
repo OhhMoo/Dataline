@@ -64,11 +64,20 @@ disqualifying" (alkera_gateway/bigquery.py, whose fences carry over):
   * ROW COUNTS OF DML ARE NOT INVENTED. The emulator never reports
     numDmlAffectedRows; it stays absent (the client says None) and the row is
     flagged `rows_affected_unreported`.
+  * DDL DOES WHAT IT SAYS (`prepare`). The emulator runs `CREATE SCHEMA` and
+    creates no dataset, and `CREATE OR REPLACE` over an existing table or view
+    replaces the data, fails `duplicate` and leaves its catalogue stale: the
+    dataset is created, or the old table dropped, through REST before the
+    statement is forwarded. `ALTER` it acknowledges and ignores, so it is
+    refused.
+  * QUERY RESULTS ARE NOT DATASETS (`anonymous_datasets`). The emulator files
+    each job's result as a dataset named after the job; BigQuery hides its
+    anonymous datasets from datasets.list unless `all=true`, and so does this.
 
-REFUSED BY NAME (REFUSALS): dry runs, legacy SQL, load and extract jobs (both need
-Cloud Storage or an upload; the emulator's upload route crashes), and anything the
-emulator itself cannot do (the NOT_AVAILABLE prefix). The Storage Read API (gRPC)
-is not proxied: the client library falls back to REST without
+REFUSED BY NAME (REFUSALS): dry runs, legacy SQL, ALTER, load and extract jobs
+(both need Cloud Storage or an upload; the emulator's upload route crashes), and
+anything the emulator itself cannot do (the NOT_AVAILABLE prefix). The Storage
+Read API (gRPC) is not proxied: the client library falls back to REST without
 google-cloud-bigquery-storage, which the client lock does not install.
 
 WRITES STAY IN THE EMULATOR. Seeding (`native/bigquery_seed.py`) copied the
