@@ -1,0 +1,1374 @@
+{
+ "advance": {
+  "events": [
+   {
+    "error": null,
+    "kind": "queued",
+    "name": "daily_load",
+    "status": "success",
+    "vts": "2026-03-02T00:00:00Z"
+   },
+   {
+    "error": null,
+    "kind": "queued",
+    "name": "dbt_build",
+    "status": "success",
+    "vts": "2026-03-02T00:01:15Z"
+   },
+   {
+    "error": null,
+    "kind": "queued",
+    "name": "daily_load",
+    "status": "success",
+    "vts": "2026-03-02T00:05:15Z"
+   },
+   {
+    "error": null,
+    "kind": "queued",
+    "name": "dbt_build",
+    "status": "success",
+    "vts": "2026-03-02T00:06:30Z"
+   },
+   {
+    "error": null,
+    "kind": "queued",
+    "name": "bi_refresh",
+    "status": "success",
+    "vts": "2026-03-02T00:10:30Z"
+   }
+  ],
+  "hours": 1.0,
+  "seconds": 41.3
+ },
+ "after": {
+  "rc": 0,
+  "result": {
+   "requests": 12,
+   "runs": {
+    "manual__2026-03-02T00:00:00+00:00_1ti7WdRJ": {
+     "end_date": "2026-03-02T00:17:30Z",
+     "logs": {
+      "bi_refresh": [
+       "Executing BashOperator bi_refresh (try 1)",
+       "theme:refresh_bi",
+       "Task instance in success state"
+      ]
+     },
+     "start_date": "2026-03-02T00:10:30Z",
+     "state": "success",
+     "tis": {
+      "bi_refresh": "success"
+     }
+    },
+    "manual__2026-03-02T00:00:00+00:00_AU5QEulX": {
+     "end_date": "2026-03-02T00:05:15Z",
+     "logs": {
+      "daily_load": [
+       "Executing BashOperator daily_load (try 1)",
+       "theme:load_raw",
+       "Task instance in success state"
+      ],
+      "dbt_build": [
+       "Executing BashOperator dbt_build (try 1)",
+       "dbt build",
+       "Task instance in success state"
+      ]
+     },
+     "start_date": "2026-03-02T00:00:00Z",
+     "state": "success",
+     "tis": {
+      "daily_load": "success",
+      "dbt_build": "success"
+     }
+    },
+    "manual__2026-03-02T00:00:00+00:00_EgPkM0o2": {
+     "end_date": "2026-03-02T00:10:30Z",
+     "logs": {
+      "daily_load": [
+       "Executing BashOperator daily_load (try 1)",
+       "theme:load_raw",
+       "Task instance in success state"
+      ],
+      "dbt_build": [
+       "Executing BashOperator dbt_build (try 1)",
+       "dbt build",
+       "Task instance in success state"
+      ]
+     },
+     "start_date": "2026-03-02T00:05:15Z",
+     "state": "success",
+     "tis": {
+      "daily_load": "success",
+      "dbt_build": "success"
+     }
+    }
+   }
+  },
+  "stderr": ""
+ },
+ "airflowctl": {
+  "no_limit": "2026-10-07 09:51:06 [warning  ] Server error                   [airflowctl.api.client] extra={'detail': [{'type': 'int_parsing', 'loc': ['query', 'limit'], 'msg': 'Input should be a valid integer, unable to parse string as an integer', 'input': ''}]} Server response error: Client error message: {'detail': [{'type': 'int_parsing', 'loc': ['query', 'limit'], 'msg': 'Input should be a valid integer, unable to  parse string as an integer', 'input': ''}]} Client error,  Please check the command and its parameters. If you need help,  run the command with --help. ",
+  "rc": 0,
+  "stderr": "",
+  "stdout": "AF-CTL-TOKEN 289\nAF-CTL-LOGIN 0\nAF-CTL-VERSION {'airflowctl_version': '0.1.5', 'version': '3.3.2', 'git_version': None} \nAF-CTL-DAGS [\"bi_refresh\",\"commerce_nightly\"]\nAF-CTL-GET [{\"dag_id\":\"commerce_nightly\",\"dag_display_name\":\"commerce_nightly\",\"is_paused\":\"False\",\"is_stale\":\"False\",\"last_parsed_time\":null,\"last_parse_duration\":null,\"last_expired\":null,\"bundle_name\":\"dags-folder\",\"bundle_version\":null,\"relative_fileloc\":\"commerce_nightly.py\",\"fileloc\":\"/world/workspace/dags/commerce_nightly.py\",\"description\":null,\"timetable_summary\":\"30 2 * * *\",\"timetable_description\":\"At 02:30\",\"timetable_partitioned\":\"False\",\"timetable_periodic\":\"True\",\"tags\":[{\"name\":\"commerce\",\"dag_id\":\"commerce_nightly\",\"dag_display_name\":\"commerce_nightly\"},{\"name\":\"dbt\",\"dag_id\":\"commerce_nightly\",\"dag_display_name\":\"commerce_nightly\"}],\"max_active_tasks\":\"16\",\"max_active_runs\":\"1\",\"max_consecutive_failed_dag_runs\":\"0\",\"has_task_concurrency_limits\":\"False\",\"has_import_errors\":\"False\",\"next_dagrun_logical_date\":\"2026-03-02T02:30:00Z\",\"next_dagrun_data_interval_start\":\"2026-03-02T02:30:00Z\",\"next_dagrun_data_interval_end\":\"2026-03-02T02:30:00Z\",\"next_dagrun_run_after\":\"2026-03-02T02:30:00Z\",\"allowed_run_types\":null,\"owners\":[\"analytics-eng\"],\"is_backfillable\":\"False\",\"file_token\":\"93cd78262710819774e4a14bed867fc0a3342de0\"}]\nAF-CTL-RUNS [{\"dag_run_id\":\"manual__2026-03-02T00:00:00+00:00_AU5QEulX\",\"state\":\"queued\"},{\"dag_run_id\":\"manual__2026-03-02T00:00:00+00:00_EgPkM0o2\",\"state\":\"queued\"}]\nAF-CTL-WALLCLOCK \"2026-10-07 09:51:04 [warning  ] Server error                   [airflowctl.api.client] extra={'detail': \\\"logical_date 2026-10-07T09:51:04Z is after the world's clock (2026-03-02T00:00:00Z): a run for a time the world has not reached is not available here - the clock is the world's. Pass a logical_date at or before 2026-03-02T00:00:00Z, or null.\\\"} Server response error: Client error message: {'detail': \\\"logical_date  2026-10-07T09:51:04Z is after the world's clock (2026-03-02T00:00:00Z): a run  for a time the world has not reached is not available here - the clock is the  world's. Pass a logical_date at or before 2026-03-02T00:00:00Z, or null.\\\"} Client error,  Please check the command and its parameters. If you need help,  run the command with --help. \"\nAF-CTL-NOLIMIT \"2026-10-07 09:51:06 [warning  ] Server error                   [airflowctl.api.client] extra={'detail': [{'type': 'int_parsing', 'loc': ['query', 'limit'], 'msg': 'Input should be a valid integer, unable to parse string as an integer', 'input': ''}]} Server response error: Client error message: {'detail': [{'type': 'int_parsing', 'loc': ['query', 'limit'], 'msg': 'Input should be a valid integer, unable to  parse string as an integer', 'input': ''}]} Client error,  Please check the command and its parameters. If you need help,  run the command with --help. \"\n",
+  "tools": [
+   "airflow.auth_token",
+   "airflow.version",
+   "airflow.dag_list",
+   "airflow.dag_get",
+   "airflow.dagrun_list",
+   "airflow.dag_trigger",
+   "airflow.dagrun_list"
+  ]
+ },
+ "allowed_destinations": [
+  "airbyte.internal:8001",
+  "airflow.internal:8100",
+  "alertmanager.internal:9093",
+  "confluence.internal:8090",
+  "deploy.internal:8085",
+  "jira.internal:8080",
+  "loki.internal:3100",
+  "metabase.internal:3000",
+  "minio.internal:9000",
+  "postgres.internal:5432",
+  "prometheus.internal:9090",
+  "slack.internal:8081"
+ ],
+ "checks": [
+  {
+   "check": "discovery: AIRFLOW_API_URL names airflow.internal:8100",
+   "detail": {
+    "AIRFLOW_API_URL": "http://airflow.internal:8100/api/v2",
+    "AIRFLOW_USER": "alkera-local-dev",
+    "SCHED_URL": "<unset>",
+    "airflow_cli": "absent",
+    "airflowctl": "present",
+    "ops_sched": "absent"
+   },
+   "result": "PASS"
+  },
+  {
+   "check": "discovery: no SCHED_URL and no ./ops/sched on an airflow box",
+   "detail": {
+    "AIRFLOW_API_URL": "http://airflow.internal:8100/api/v2",
+    "AIRFLOW_USER": "alkera-local-dev",
+    "SCHED_URL": "<unset>",
+    "airflow_cli": "absent",
+    "airflowctl": "present",
+    "ops_sched": "absent"
+   },
+   "result": "PASS"
+  },
+  {
+   "check": "discovery: no `airflow` CLI, airflowctl present",
+   "detail": {
+    "AIRFLOW_API_URL": "http://airflow.internal:8100/api/v2",
+    "AIRFLOW_USER": "alkera-local-dev",
+    "SCHED_URL": "<unset>",
+    "airflow_cli": "absent",
+    "airflowctl": "present",
+    "ops_sched": "absent"
+   },
+   "result": "PASS"
+  },
+  {
+   "check": "discovery: onboarding names :8100 and says the airflow CLI is absent",
+   "detail": "AIRFLOW_API_URL=http://airflow.internal:8100/api/v2\nAIRFLOW_USER=alkera-local-dev\nSCHED_URL=<unset>\nops_sched=absent\nairflow_cli=absent\nairflowctl=present\n12:| the scheduler | `airflow.internal:8100` | Airflow REST API v2 (token from POST /auth/token), airflowctl; no `airflow` CLI: this box has no Airflow metadata database | see `.envrc` |\nTOML {\"airflow\": {\"host\": \"airflow.internal\", \"port\": 8100, \"api\": \"http://airflow.internal:8100/api/v2\", \"user\": \"alkera-local-dev\", \"password\": \"alkera-local-dev\"}, \"scheduler\": null}\n",
+   "result": "PASS"
+  },
+  {
+   "check": "discovery: services.toml has [airflow] at 8100 and no [scheduler]",
+   "detail": {
+    "airflow": {
+     "api": "http://airflow.internal:8100/api/v2",
+     "host": "airflow.internal",
+     "password": "alkera-local-dev",
+     "port": 8100,
+     "user": "alkera-local-dev"
+    },
+    "scheduler": null
+   },
+   "result": "PASS"
+  },
+  {
+   "check": "curl: every call answered",
+   "detail": "",
+   "result": "PASS"
+  },
+  {
+   "check": "curl: /version is Airflow 3.3.2",
+   "detail": {
+    "git_version": null,
+    "version": "3.3.2"
+   },
+   "result": "PASS"
+  },
+  {
+   "check": "curl: the DAGs are the workspace's dags/",
+   "detail": [
+    [
+     "bi_refresh",
+     "commerce_nightly"
+    ],
+    [
+     "bi_refresh",
+     "commerce_nightly"
+    ]
+   ],
+   "result": "PASS"
+  },
+  {
+   "check": "curl: dagSources equals the DAG file on the host",
+   "detail": null,
+   "result": "PASS"
+  },
+  {
+   "check": "curl: commerce_nightly's DAG runs = the ledger's daily_load runs",
+   "detail": [
+    425,
+    425
+   ],
+   "result": "PASS"
+  },
+  {
+   "check": "curl: successful dbt_build task instances = the ledger's",
+   "detail": [
+    425,
+    425
+   ],
+   "result": "PASS"
+  },
+  {
+   "check": "curl: a task log is served",
+   "detail": [
+    "Executing BashOperator dbt_build (try 1)",
+    "The scheduler kept no engine output for this run: it is part of the history the episode began with",
+    "Task instance in success state"
+   ],
+   "result": "PASS"
+  },
+  {
+   "check": "audit: one row per curl request",
+   "detail": [
+    "airflow.auth_token",
+    "airflow.version",
+    "airflow.dag_list",
+    "airflow.dag_source",
+    "airflow.dagrun_list",
+    "airflow.dagrun_list",
+    "airflow.task_list",
+    "airflow.task_list",
+    "airflow.task_logs"
+   ],
+   "result": "PASS"
+  },
+  {
+   "check": "requests: the driver ran",
+   "detail": "",
+   "result": "PASS"
+  },
+  {
+   "check": "fence: no token is 401 Not authenticated",
+   "detail": [
+    401,
+    {
+     "detail": "Not authenticated"
+    }
+   ],
+   "result": "PASS"
+  },
+  {
+   "check": "fence: a backfill is 400 and names it",
+   "detail": [
+    400,
+    {
+     "detail": "Backfills are not available in this environment: the clock is the world's. Runs happen when the world's scheduler advances it; to re-run one DAG run, clear it (POST /api/v2/dags/{dag_id}/clearTaskInstances with its dag_run_id)."
+    }
+   ],
+   "result": "PASS"
+  },
+  {
+   "check": "fence: pausing is 400 and names it",
+   "detail": [
+    400,
+    {
+     "detail": "Pausing a DAG is not modelled in this environment: the world's scheduler runs every job on its schedule, so a paused flag would be a claim nothing honours. The DAG stays unpaused."
+    }
+   ],
+   "result": "PASS"
+  },
+  {
+   "check": "fence: a real route this does not model is 404 naming it",
+   "detail": [
+    404,
+    {
+     "detail": "GET /api/v2/pools (GET/PATCH/POST /api/v2/pools) is an Airflow REST API route this environment does not model"
+    }
+   ],
+   "result": "PASS"
+  },
+  {
+   "check": "fence: an unknown route is Airflow's 404",
+   "detail": [
+    404,
+    {
+     "detail": "Not Found"
+    }
+   ],
+   "result": "PASS"
+  },
+  {
+   "check": "clear: dry run (the default) lists the task instances",
+   "detail": [
+    200,
+    {
+     "task_instances": [
+      {
+       "dag_display_name": "commerce_nightly",
+       "dag_id": "commerce_nightly",
+       "dag_run_id": "scheduled__2026-03-01T02:30:00+00:00",
+       "dag_version": null,
+       "duration": 75.0,
+       "end_date": "2026-03-01T02:31:15Z",
+       "executor": null,
+       "executor_config": "{}",
+       "hostname": null,
+       "id": "61d5938d-1247-5007-96de-2700ff63ffdd",
+       "logical_date": "2026-03-01T02:30:00Z",
+       "map_index": -1,
+       "max_tries": 1,
+       "note": null,
+       "operator": "BashOperator",
+       "operator_name": "BashOperator",
+       "pid": null,
+       "pool": "default_pool",
+       "pool_slots": 1,
+       "priority_weight": 2,
+       "queue": "default",
+       "queued_when": null,
+       "rendered_fields": {},
+       "rendered_map_index": null,
+       "run_after": "2026-03-01T02:30:00Z",
+       "scheduled_when": null,
+       "start_date": "2026-03-01T02:30:00Z",
+       "state": "success",
+       "task_display_name": "daily_load",
+       "task_id": "daily_load",
+       "trigger": null,
+       "triggerer_job": null,
+       "try_number": 1,
+       "unixname": null
+      },
+      {
+       "dag_display_name": "commerce_nightly",
+       "dag_id": "commerce_nightly",
+       "dag_run_id": "scheduled__2026-03-01T02:30:00+00:00",
+       "dag_version": null,
+       "duration": 240.0,
+       "end_date": "2026-03-01T02:44:00Z",
+       "executor": null,
+       "executor_config": "{}",
+       "hostname": null,
+       "id": "311985e2-a5eb-5b60-80da-04349ed36edd",
+       "logical_date": "2026-03-01T02:30:00Z",
+       "map_index": -1,
+       "max_tries": 1,
+       "note": null,
+       "operator": "BashOperator",
+       "operator_name": "BashOperator",
+       "pid": null,
+       "pool": "default_pool",
+       "pool_slots": 1,
+       "priority_weight": 1,
+       "queue": "default",
+       "queued_when": null,
+       "rendered_fields": {},
+       "rendered_map_index": null,
+       "run_after": "2026-03-01T02:30:00Z",
+       "scheduled_when": null,
+       "start_date": "2026-03-01T02:40:00Z",
+       "state": "success",
+       "task_display_name": "dbt_build",
+       "task_id": "dbt_build",
+       "trigger": null,
+       "triggerer_job": null,
+       "try_number": 1,
+       "unixname": null
+      }
+     ],
+     "total_entries": 2
+    }
+   ],
+   "result": "PASS"
+  },
+  {
+   "check": "trigger: three triggers answer 200 queued",
+   "detail": [
+    200,
+    200,
+    200
+   ],
+   "result": "PASS"
+  },
+  {
+   "check": "trigger: the same DAG twice is two runs",
+   "detail": [
+    [
+     "commerce_nightly",
+     "manual__2026-03-02T00:00:00+00:00_AU5QEulX"
+    ],
+    [
+     "commerce_nightly",
+     "manual__2026-03-02T00:00:00+00:00_EgPkM0o2"
+    ],
+    [
+     "bi_refresh",
+     "manual__2026-03-02T00:00:00+00:00_1ti7WdRJ"
+    ]
+   ],
+   "result": "PASS"
+  },
+  {
+   "check": "trigger: the API lists exactly the three queued runs",
+   "detail": 3,
+   "result": "PASS"
+  },
+  {
+   "check": "audit: one row per requests call",
+   "detail": [
+    "airflow.dag_list",
+    "airflow.auth_token",
+    "airflow.backfill",
+    "airflow.dag_update",
+    "airflow.unknown_route",
+    "airflow.unknown_route",
+    "airflow.dagrun_list",
+    "airflow.task_clear",
+    "airflow.dag_trigger",
+    "airflow.dag_trigger",
+    "airflow.dag_trigger",
+    "airflow.dagrun_list",
+    "shim.python"
+   ],
+   "result": "PASS"
+  },
+  {
+   "check": "ledger: vnow unchanged and no run added",
+   "detail": {
+    "runs": 1275,
+    "vnow": "2026-03-02T00:00:00Z"
+   },
+   "result": "PASS"
+  },
+  {
+   "check": "ledger: the queue holds exactly the requested runs, in order",
+   "detail": [
+    "daily_load",
+    "dbt_build",
+    "daily_load",
+    "dbt_build",
+    "bi_refresh"
+   ],
+   "result": "PASS"
+  },
+  {
+   "check": "ledger: nothing executed (warehouse and engine logs untouched)",
+   "detail": null,
+   "result": "PASS"
+  },
+  {
+   "check": "airflowctl: a token from /auth/token/cli",
+   "detail": "and with --help. \"\nAF-CTL-NOLIMIT \"2026-10-07 09:51:06 [warning  ] Server error                   [airflowctl.api.client] extra={'detail': [{'type': 'int_parsing', 'loc': ['query', 'limit'], 'msg': 'Input should be a valid integer, unable to parse string as an integer', 'input': ''}]} Server response error: Client error message: {'detail': [{'type': 'int_parsing', 'loc': ['query', 'limit'], 'msg': 'Input should be a valid integer, unable to  parse string as an integer', 'input': ''}]} Client error,  Please check the command and its parameters. If you need help,  run the command with --help. \"\n",
+   "result": "PASS"
+  },
+  {
+   "check": "airflowctl: login --skip-keyring",
+   "detail": "and with --help. \"\nAF-CTL-NOLIMIT \"2026-10-07 09:51:06 [warning  ] Server error                   [airflowctl.api.client] extra={'detail': [{'type': 'int_parsing', 'loc': ['query', 'limit'], 'msg': 'Input should be a valid integer, unable to parse string as an integer', 'input': ''}]} Server response error: Client error message: {'detail': [{'type': 'int_parsing', 'loc': ['query', 'limit'], 'msg': 'Input should be a valid integer, unable to  parse string as an integer', 'input': ''}]} Client error,  Please check the command and its parameters. If you need help,  run the command with --help. \"\n",
+   "result": "PASS"
+  },
+  {
+   "check": "airflowctl: version --remote reports 3.3.2",
+   "detail": "{'airflowctl_version': '0.1.5', 'version': '3.3.2', 'git_version': None} ",
+   "result": "PASS"
+  },
+  {
+   "check": "airflowctl: dags list validates and lists both DAGs",
+   "detail": [
+    "bi_refresh",
+    "commerce_nightly"
+   ],
+   "result": "PASS"
+  },
+  {
+   "check": "airflowctl: dags get validates (Airflow 3.3 DAGResponse)",
+   "detail": {
+    "allowed_run_types": null,
+    "bundle_name": "dags-folder",
+    "bundle_version": null,
+    "dag_display_name": "commerce_nightly",
+    "dag_id": "commerce_nightly",
+    "description": null,
+    "file_token": "93cd78262710819774e4a14bed867fc0a3342de0",
+    "fileloc": "/world/workspace/dags/commerce_nightly.py",
+    "has_import_errors": "False",
+    "has_task_concurrency_limits": "False",
+    "is_backfillable": "False",
+    "is_paused": "False",
+    "is_stale": "False",
+    "last_expired": null,
+    "last_parse_duration": null,
+    "last_parsed_time": null,
+    "max_active_runs": "1",
+    "max_active_tasks": "16",
+    "max_consecutive_failed_dag_runs": "0",
+    "next_dagrun_data_interval_end": "2026-03-02T02:30:00Z",
+    "next_dagrun_data_interval_start": "2026-03-02T02:30:00Z",
+    "next_dagrun_logical_date": "2026-03-02T02:30:00Z",
+    "next_dagrun_run_after": "2026-03-02T02:30:00Z",
+    "owners": [
+     "analytics-eng"
+    ],
+    "relative_fileloc": "commerce_nightly.py",
+    "tags": [
+     {
+      "dag_display_name": "commerce_nightly",
+      "dag_id": "commerce_nightly",
+      "name": "commerce"
+     },
+     {
+      "dag_display_name": "commerce_nightly",
+      "dag_id": "commerce_nightly",
+      "name": "dbt"
+     }
+    ],
+    "timetable_description": "At 02:30",
+    "timetable_partitioned": "False",
+    "timetable_periodic": "True",
+    "timetable_summary": "30 2 * * *"
+   },
+   "result": "PASS"
+  },
+  {
+   "check": "airflowctl: dagrun list validates and shows the queued runs",
+   "detail": [
+    {
+     "dag_run_id": "manual__2026-03-02T00:00:00+00:00_AU5QEulX",
+     "state": "queued"
+    },
+    {
+     "dag_run_id": "manual__2026-03-02T00:00:00+00:00_EgPkM0o2",
+     "state": "queued"
+    }
+   ],
+   "result": "PASS"
+  },
+  {
+   "check": "airflowctl: `dags trigger` with the wall clock as logical date is refused",
+   "detail": "lock (2026-03-02T00:00:00Z): a run for a time the world has not reached is not available here - the clock is the world's. Pass a logical_date at or before 2026-03-02T00:00:00Z, or null.\"} Server response error: Client error message: {'detail': \"logical_date  2026-10-07T09:51:04Z is after the world's clock (2026-03-02T00:00:00Z): a run  for a time the world has not reached is not available here - the clock is the  world's. Pass a logical_date at or before 2026-03-02T00:00:00Z, or null.\"} Client error,  Please check the command and its parameters. If you need help,  run the command with --help. ",
+   "result": "PASS"
+  },
+  {
+   "check": "blindness: the agent phase changed only the ledger",
+   "detail": [
+    "var/sched/state.json"
+   ],
+   "result": "PASS"
+  },
+  {
+   "check": "blindness: the change is attributed to the trigger rows (none unexplained)",
+   "detail": [],
+   "result": "PASS"
+  },
+  {
+   "check": "blindness: without the trigger rows the same change is off-channel",
+   "detail": null,
+   "result": "PASS"
+  },
+  {
+   "check": "advance: the queue drains first, in order, and the key is gone",
+   "detail": [
+    [
+     "daily_load",
+     "success",
+     "2026-03-02T00:00:00Z"
+    ],
+    [
+     "dbt_build",
+     "success",
+     "2026-03-02T00:01:15Z"
+    ],
+    [
+     "daily_load",
+     "success",
+     "2026-03-02T00:05:15Z"
+    ],
+    [
+     "dbt_build",
+     "success",
+     "2026-03-02T00:06:30Z"
+    ],
+    [
+     "bi_refresh",
+     "success",
+     "2026-03-02T00:10:30Z"
+    ]
+   ],
+   "result": "PASS"
+  },
+  {
+   "check": "after advance: each triggered run's task states equal the ledger's",
+   "detail": {
+    "api": {
+     "manual__2026-03-02T00:00:00+00:00_1ti7WdRJ": {
+      "bi_refresh": "success"
+     },
+     "manual__2026-03-02T00:00:00+00:00_AU5QEulX": {
+      "daily_load": "success",
+      "dbt_build": "success"
+     },
+     "manual__2026-03-02T00:00:00+00:00_EgPkM0o2": {
+      "daily_load": "success",
+      "dbt_build": "success"
+     }
+    },
+    "ledger": {
+     "manual__2026-03-02T00:00:00+00:00_1ti7WdRJ": {
+      "bi_refresh": "success"
+     },
+     "manual__2026-03-02T00:00:00+00:00_AU5QEulX": {
+      "daily_load": "success",
+      "dbt_build": "success"
+     },
+     "manual__2026-03-02T00:00:00+00:00_EgPkM0o2": {
+      "daily_load": "success",
+      "dbt_build": "success"
+     }
+    }
+   },
+   "result": "PASS"
+  },
+  {
+   "check": "after advance: no triggered run is still queued",
+   "detail": {
+    "manual__2026-03-02T00:00:00+00:00_1ti7WdRJ": {
+     "end_date": "2026-03-02T00:17:30Z",
+     "logs": {
+      "bi_refresh": [
+       "Executing BashOperator bi_refresh (try 1)",
+       "theme:refresh_bi",
+       "Task instance in success state"
+      ]
+     },
+     "start_date": "2026-03-02T00:10:30Z",
+     "state": "success",
+     "tis": {
+      "bi_refresh": "success"
+     }
+    },
+    "manual__2026-03-02T00:00:00+00:00_AU5QEulX": {
+     "end_date": "2026-03-02T00:05:15Z",
+     "logs": {
+      "daily_load": [
+       "Executing BashOperator daily_load (try 1)",
+       "theme:load_raw",
+       "Task instance in success state"
+      ],
+      "dbt_build": [
+       "Executing BashOperator dbt_build (try 1)",
+       "dbt build",
+       "Task instance in success state"
+      ]
+     },
+     "start_date": "2026-03-02T00:00:00Z",
+     "state": "success",
+     "tis": {
+      "daily_load": "success",
+      "dbt_build": "success"
+     }
+    },
+    "manual__2026-03-02T00:00:00+00:00_EgPkM0o2": {
+     "end_date": "2026-03-02T00:10:30Z",
+     "logs": {
+      "daily_load": [
+       "Executing BashOperator daily_load (try 1)",
+       "theme:load_raw",
+       "Task instance in success state"
+      ],
+      "dbt_build": [
+       "Executing BashOperator dbt_build (try 1)",
+       "dbt build",
+       "Task instance in success state"
+      ]
+     },
+     "start_date": "2026-03-02T00:05:15Z",
+     "state": "success",
+     "tis": {
+      "daily_load": "success",
+      "dbt_build": "success"
+     }
+    }
+   },
+   "result": "PASS"
+  },
+  {
+   "check": "after advance: dbt_build's log is its ledger record (+ any engine output)",
+   "detail": {
+    "events": [
+     "Executing BashOperator dbt_build (try 1)",
+     "dbt build",
+     "Task instance in success state"
+    ],
+    "raw": false
+   },
+   "result": "PASS"
+  },
+  {
+   "check": "audit: every airflow row is a valid 9.2.2 row",
+   "detail": {},
+   "result": "PASS"
+  },
+  {
+   "check": "audit: tool names are the tailer's vocabulary",
+   "detail": [],
+   "result": "PASS"
+  },
+  {
+   "check": "audit: the trigger rows are exec, on scheduler:<dag>, with the token's sub",
+   "detail": [
+    [
+     "exec",
+     [
+      "scheduler:commerce_nightly",
+      "dbt_project"
+     ],
+     [
+      "actor:alkera-local-dev"
+     ]
+    ],
+    [
+     "exec",
+     [
+      "scheduler:commerce_nightly",
+      "dbt_project"
+     ],
+     [
+      "actor:alkera-local-dev"
+     ]
+    ],
+    [
+     "exec",
+     [
+      "scheduler:bi_refresh",
+      "dbt_project"
+     ],
+     [
+      "actor:alkera-local-dev"
+     ]
+    ],
+    [
+     "exec",
+     [
+      "scheduler:commerce_nightly",
+      "dbt_project"
+     ],
+     [
+      "actor:alkera-local-dev"
+     ]
+    ]
+   ],
+   "result": "PASS"
+  },
+  {
+   "check": "audit: seq is contiguous across writers",
+   "detail": [
+    39,
+    40,
+    41,
+    42,
+    43
+   ],
+   "result": "PASS"
+  },
+  {
+   "check": "destinations: airflow.internal:8100 counted after teardown",
+   "detail": [
+    {
+     "count": 18,
+     "first_ts": "2026-10-07T09:50:49Z",
+     "host": "airflow.internal",
+     "last_ts": "2026-10-07T09:51:51Z",
+     "port": 8100
+    }
+   ],
+   "result": "PASS"
+  },
+  {
+   "check": "destinations: nothing outside the profile's allowlist",
+   "detail": [],
+   "result": "PASS"
+  },
+  {
+   "check": "destinations: sched.internal is not served on an airflow box",
+   "detail": null,
+   "result": "PASS"
+  }
+ ],
+ "curl": {
+  "rc": 0,
+  "result": {
+   "dags": [
+    "bi_refresh",
+    "commerce_nightly"
+   ],
+   "dbt_build_successes": 425,
+   "latest": "scheduled__2026-03-01T02:30:00+00:00",
+   "log": [
+    "Executing BashOperator dbt_build (try 1)",
+    "The scheduler kept no engine output for this run: it is part of the history the episode began with",
+    "Task instance in success state"
+   ],
+   "requests": 9,
+   "runs": 425,
+   "source_sha": "d1773779f9f8b144b5305f2e717d5b66bd75b123c503186bc202c12b9b19c1f2",
+   "tis": [
+    {
+     "state": "success",
+     "task_id": "daily_load",
+     "try_number": 1
+    },
+    {
+     "state": "success",
+     "task_id": "dbt_build",
+     "try_number": 1
+    }
+   ],
+   "version": {
+    "git_version": null,
+    "version": "3.3.2"
+   }
+  },
+  "stderr": ""
+ },
+ "destinations": [
+  {
+   "count": 0,
+   "first_ts": null,
+   "host": "metabase.internal",
+   "last_ts": null,
+   "port": 3000
+  },
+  {
+   "count": 0,
+   "first_ts": null,
+   "host": "loki.internal",
+   "last_ts": null,
+   "port": 3100
+  },
+  {
+   "count": 0,
+   "first_ts": null,
+   "host": "airbyte.internal",
+   "last_ts": null,
+   "port": 8001
+  },
+  {
+   "count": 0,
+   "first_ts": null,
+   "host": "jira.internal",
+   "last_ts": null,
+   "port": 8080
+  },
+  {
+   "count": 0,
+   "first_ts": null,
+   "host": "slack.internal",
+   "last_ts": null,
+   "port": 8081
+  },
+  {
+   "count": 0,
+   "first_ts": null,
+   "host": "deploy.internal",
+   "last_ts": null,
+   "port": 8085
+  },
+  {
+   "count": 0,
+   "first_ts": null,
+   "host": "confluence.internal",
+   "last_ts": null,
+   "port": 8090
+  },
+  {
+   "count": 0,
+   "first_ts": null,
+   "host": "native-services.internal",
+   "last_ts": null,
+   "port": 8099
+  },
+  {
+   "count": 18,
+   "first_ts": "2026-10-07T09:50:49Z",
+   "host": "airflow.internal",
+   "last_ts": "2026-10-07T09:51:51Z",
+   "port": 8100
+  },
+  {
+   "count": 0,
+   "first_ts": null,
+   "host": "prometheus.internal",
+   "last_ts": null,
+   "port": 9090
+  },
+  {
+   "count": 0,
+   "first_ts": null,
+   "host": "alertmanager.internal",
+   "last_ts": null,
+   "port": 9093
+  }
+ ],
+ "drained": [
+  {
+   "error": null,
+   "job": "dbt_build",
+   "queued_at": "2026-03-02T00:00:00Z",
+   "status": "success",
+   "trigger": "manual",
+   "vts_end": "2026-03-02T00:05:15Z",
+   "vts_start": "2026-03-02T00:01:15Z"
+  },
+  {
+   "error": null,
+   "job": "dbt_build",
+   "queued_at": "2026-03-02T00:00:00Z",
+   "status": "success",
+   "trigger": "manual",
+   "vts_end": "2026-03-02T00:10:30Z",
+   "vts_start": "2026-03-02T00:06:30Z"
+  },
+  {
+   "error": null,
+   "job": "bi_refresh",
+   "queued_at": "2026-03-02T00:00:00Z",
+   "status": "success",
+   "trigger": "manual",
+   "vts_end": "2026-03-02T00:17:30Z",
+   "vts_start": "2026-03-02T00:10:30Z"
+  }
+ ],
+ "drive": {
+  "rc": 0,
+  "result": {
+   "backfill": [
+    400,
+    {
+     "detail": "Backfills are not available in this environment: the clock is the world's. Runs happen when the world's scheduler advances it; to re-run one DAG run, clear it (POST /api/v2/dags/{dag_id}/clearTaskInstances with its dag_run_id)."
+    }
+   ],
+   "clear_dry_run": [
+    200,
+    {
+     "task_instances": [
+      {
+       "dag_display_name": "commerce_nightly",
+       "dag_id": "commerce_nightly",
+       "dag_run_id": "scheduled__2026-03-01T02:30:00+00:00",
+       "dag_version": null,
+       "duration": 75.0,
+       "end_date": "2026-03-01T02:31:15Z",
+       "executor": null,
+       "executor_config": "{}",
+       "hostname": null,
+       "id": "61d5938d-1247-5007-96de-2700ff63ffdd",
+       "logical_date": "2026-03-01T02:30:00Z",
+       "map_index": -1,
+       "max_tries": 1,
+       "note": null,
+       "operator": "BashOperator",
+       "operator_name": "BashOperator",
+       "pid": null,
+       "pool": "default_pool",
+       "pool_slots": 1,
+       "priority_weight": 2,
+       "queue": "default",
+       "queued_when": null,
+       "rendered_fields": {},
+       "rendered_map_index": null,
+       "run_after": "2026-03-01T02:30:00Z",
+       "scheduled_when": null,
+       "start_date": "2026-03-01T02:30:00Z",
+       "state": "success",
+       "task_display_name": "daily_load",
+       "task_id": "daily_load",
+       "trigger": null,
+       "triggerer_job": null,
+       "try_number": 1,
+       "unixname": null
+      },
+      {
+       "dag_display_name": "commerce_nightly",
+       "dag_id": "commerce_nightly",
+       "dag_run_id": "scheduled__2026-03-01T02:30:00+00:00",
+       "dag_version": null,
+       "duration": 240.0,
+       "end_date": "2026-03-01T02:44:00Z",
+       "executor": null,
+       "executor_config": "{}",
+       "hostname": null,
+       "id": "311985e2-a5eb-5b60-80da-04349ed36edd",
+       "logical_date": "2026-03-01T02:30:00Z",
+       "map_index": -1,
+       "max_tries": 1,
+       "note": null,
+       "operator": "BashOperator",
+       "operator_name": "BashOperator",
+       "pid": null,
+       "pool": "default_pool",
+       "pool_slots": 1,
+       "priority_weight": 1,
+       "queue": "default",
+       "queued_when": null,
+       "rendered_fields": {},
+       "rendered_map_index": null,
+       "run_after": "2026-03-01T02:30:00Z",
+       "scheduled_when": null,
+       "start_date": "2026-03-01T02:40:00Z",
+       "state": "success",
+       "task_display_name": "dbt_build",
+       "task_id": "dbt_build",
+       "trigger": null,
+       "triggerer_job": null,
+       "try_number": 1,
+       "unixname": null
+      }
+     ],
+     "total_entries": 2
+    }
+   ],
+   "no_token": [
+    401,
+    {
+     "detail": "Not authenticated"
+    }
+   ],
+   "pause": [
+    400,
+    {
+     "detail": "Pausing a DAG is not modelled in this environment: the world's scheduler runs every job on its schedule, so a paused flag would be a claim nothing honours. The DAG stays unpaused."
+    }
+   ],
+   "queued": [
+    200,
+    {
+     "dag_runs": [
+      {
+       "bundle_version": null,
+       "conf": {},
+       "dag_display_name": "bi_refresh",
+       "dag_id": "bi_refresh",
+       "dag_run_id": "manual__2026-03-02T00:00:00+00:00_1ti7WdRJ",
+       "dag_versions": [],
+       "data_interval_end": null,
+       "data_interval_start": null,
+       "duration": null,
+       "end_date": null,
+       "last_scheduling_decision": null,
+       "logical_date": null,
+       "note": null,
+       "partition_date": null,
+       "partition_key": null,
+       "queued_at": "2026-03-02T00:00:00Z",
+       "run_after": "2026-03-02T00:00:00Z",
+       "run_type": "manual",
+       "start_date": null,
+       "state": "queued",
+       "triggered_by": "rest_api",
+       "triggering_user_name": "alkera-local-dev"
+      },
+      {
+       "bundle_version": null,
+       "conf": {},
+       "dag_display_name": "commerce_nightly",
+       "dag_id": "commerce_nightly",
+       "dag_run_id": "manual__2026-03-02T00:00:00+00:00_AU5QEulX",
+       "dag_versions": [],
+       "data_interval_end": null,
+       "data_interval_start": null,
+       "duration": null,
+       "end_date": null,
+       "last_scheduling_decision": null,
+       "logical_date": null,
+       "note": "e2e",
+       "partition_date": null,
+       "partition_key": null,
+       "queued_at": "2026-03-02T00:00:00Z",
+       "run_after": "2026-03-02T00:00:00Z",
+       "run_type": "manual",
+       "start_date": null,
+       "state": "queued",
+       "triggered_by": "rest_api",
+       "triggering_user_name": "alkera-local-dev"
+      },
+      {
+       "bundle_version": null,
+       "conf": {},
+       "dag_display_name": "commerce_nightly",
+       "dag_id": "commerce_nightly",
+       "dag_run_id": "manual__2026-03-02T00:00:00+00:00_EgPkM0o2",
+       "dag_versions": [],
+       "data_interval_end": null,
+       "data_interval_start": null,
+       "duration": null,
+       "end_date": null,
+       "last_scheduling_decision": null,
+       "logical_date": null,
+       "note": null,
+       "partition_date": null,
+       "partition_key": null,
+       "queued_at": "2026-03-02T00:00:00Z",
+       "run_after": "2026-03-02T00:00:00Z",
+       "run_type": "manual",
+       "start_date": null,
+       "state": "queued",
+       "triggered_by": "rest_api",
+       "triggering_user_name": "alkera-local-dev"
+      }
+     ],
+     "total_entries": 3
+    }
+   ],
+   "requests": 12,
+   "token_status": 201,
+   "trigger_1": [
+    200,
+    {
+     "bundle_version": null,
+     "conf": {},
+     "dag_display_name": "commerce_nightly",
+     "dag_id": "commerce_nightly",
+     "dag_run_id": "manual__2026-03-02T00:00:00+00:00_AU5QEulX",
+     "dag_versions": [],
+     "data_interval_end": null,
+     "data_interval_start": null,
+     "duration": null,
+     "end_date": null,
+     "last_scheduling_decision": null,
+     "logical_date": null,
+     "note": "e2e",
+     "partition_date": null,
+     "partition_key": null,
+     "queued_at": "2026-03-02T00:00:00Z",
+     "run_after": "2026-03-02T00:00:00Z",
+     "run_type": "manual",
+     "start_date": null,
+     "state": "queued",
+     "triggered_by": "rest_api",
+     "triggering_user_name": "alkera-local-dev"
+    }
+   ],
+   "trigger_2": [
+    200,
+    {
+     "bundle_version": null,
+     "conf": {},
+     "dag_display_name": "commerce_nightly",
+     "dag_id": "commerce_nightly",
+     "dag_run_id": "manual__2026-03-02T00:00:00+00:00_EgPkM0o2",
+     "dag_versions": [],
+     "data_interval_end": null,
+     "data_interval_start": null,
+     "duration": null,
+     "end_date": null,
+     "last_scheduling_decision": null,
+     "logical_date": null,
+     "note": null,
+     "partition_date": null,
+     "partition_key": null,
+     "queued_at": "2026-03-02T00:00:00Z",
+     "run_after": "2026-03-02T00:00:00Z",
+     "run_type": "manual",
+     "start_date": null,
+     "state": "queued",
+     "triggered_by": "rest_api",
+     "triggering_user_name": "alkera-local-dev"
+    }
+   ],
+   "trigger_bi": [
+    200,
+    {
+     "bundle_version": null,
+     "conf": {},
+     "dag_display_name": "bi_refresh",
+     "dag_id": "bi_refresh",
+     "dag_run_id": "manual__2026-03-02T00:00:00+00:00_1ti7WdRJ",
+     "dag_versions": [],
+     "data_interval_end": null,
+     "data_interval_start": null,
+     "duration": null,
+     "end_date": null,
+     "last_scheduling_decision": null,
+     "logical_date": null,
+     "note": null,
+     "partition_date": null,
+     "partition_key": null,
+     "queued_at": "2026-03-02T00:00:00Z",
+     "run_after": "2026-03-02T00:00:00Z",
+     "run_type": "manual",
+     "start_date": null,
+     "state": "queued",
+     "triggered_by": "rest_api",
+     "triggering_user_name": "alkera-local-dev"
+    }
+   ],
+   "typo": [
+    404,
+    {
+     "detail": "Not Found"
+    }
+   ],
+   "unmodelled": [
+    404,
+    {
+     "detail": "GET /api/v2/pools (GET/PATCH/POST /api/v2/pools) is an Airflow REST API route this environment does not model"
+    }
+   ]
+  },
+  "stderr": ""
+ },
+ "env": "AIRFLOW_API_URL=http://airflow.internal:8100/api/v2\nAIRFLOW_USER=alkera-local-dev\nSCHED_URL=<unset>\nops_sched=absent\nairflow_cli=absent\nairflowctl=present\n12:| the scheduler | `airflow.internal:8100` | Airflow REST API v2 (token from POST /auth/token), airflowctl; no `airflow` CLI: this box has no Airflow metadata database | see `.envrc` |\nTOML {\"airflow\": {\"host\": \"airflow.internal\", \"port\": 8100, \"api\": \"http://airflow.internal:8100/api/v2\", \"user\": \"alkera-local-dev\", \"password\": \"alkera-local-dev\"}, \"scheduler\": null}\n",
+ "headline": "PASS 48/48",
+ "host": {
+  "dags": [
+   "bi_refresh",
+   "commerce_nightly"
+  ],
+  "daily_load_runs": 425,
+  "dbt_build_successes": 425,
+  "logs": [],
+  "runs": 1275,
+  "source_sha": "d1773779f9f8b144b5305f2e717d5b66bd75b123c503186bc202c12b9b19c1f2",
+  "vnow": "2026-03-02T00:00:00Z",
+  "warehouse_sha": "9d2fed5a71f618d84e67b82fc3f44e5a0257706ed39353754843bc71d657a800"
+ },
+ "image": "alkera-episode:w1-airflow",
+ "image_gate": {
+  "head": "e9af4c3c89ed64f41a2515ff54459c7124c6e876",
+  "image": "alkera-episode:w1-airflow",
+  "revision": "e9af4c3c89ed64f41a2515ff54459c7124c6e876"
+ },
+ "plugs": {
+  "orchestrator": [
+   "airflow"
+  ]
+ },
+ "profile": "de/laptop",
+ "result": "PASS",
+ "revision": "e9af4c3c89ed64f41a2515ff54459c7124c6e876",
+ "rows": {
+  "airflow": 40,
+  "by_tool": {
+   "airflow.auth_token": 4,
+   "airflow.backfill": 1,
+   "airflow.dag_get": 1,
+   "airflow.dag_list": 3,
+   "airflow.dag_source": 1,
+   "airflow.dag_trigger": 4,
+   "airflow.dag_update": 1,
+   "airflow.dagrun_get": 3,
+   "airflow.dagrun_list": 6,
+   "airflow.task_clear": 1,
+   "airflow.task_list": 5,
+   "airflow.task_logs": 6,
+   "airflow.unknown_route": 2,
+   "airflow.version": 2
+  },
+  "total": 43
+ },
+ "stack": {
+  "container_id": "b1f79ff23eea",
+  "episode_endpoints": {
+   "airbyte": "http://airbyte.internal:8001",
+   "airflow": "http://airflow.internal:8100",
+   "alertmanager": "http://alertmanager.internal:9093",
+   "confluence": "http://confluence.internal:8090",
+   "deploy": "http://deploy.internal:8085",
+   "jira": "http://jira.internal:8080",
+   "loki": "http://loki.internal:3100",
+   "metabase": "http://metabase.internal:3000",
+   "postgres": {
+    "database": "alkera",
+    "host": "postgres.internal",
+    "password": "alkera-local-dev",
+    "port": 5432,
+    "user": "alkera"
+   },
+   "prometheus": "http://prometheus.internal:9090",
+   "s3": "http://minio.internal:9000",
+   "s3_access_key": "alkera-local-dev",
+   "s3_bucket": "alkera",
+   "s3_region": "us-east-1",
+   "s3_secret_key": "alkera-local-dev",
+   "slack": "http://slack.internal:8081"
+  },
+  "image": "alkera-episode:w1-airflow",
+  "image_digest": "sha256:7fd7909e147775cc7fbb383c41568bd493d17a17deaa5cd7d90d39dafe7f93fd",
+  "services": [
+   "episode",
+   "minio",
+   "native-services",
+   "postgres"
+  ],
+  "subject_env": {
+   "AIRBYTE_API_KEY": "alkera-local-dev",
+   "AIRBYTE_URL": "http://airbyte.internal:8001",
+   "ALERTMANAGER_URL": "http://alertmanager.internal:9093",
+   "ALKERA_BACKEND": "postgres",
+   "ALKERA_NATIVE_AUDIT": "/audit/actions.jsonl",
+   "ALKERA_POSTGRES_DSN": "postgresql://episode:episode-local@postgres/episode",
+   "ALKERA_SHIM_BIN": "/opt/alkera/shims",
+   "ALKERA_SHIM_WATCH": "/world/var/warehouse/warehouse.duckdb",
+   "ALKERA_SHIM_WORKSPACE": "/workspace",
+   "ALKERA_SOURCE_REV": "e9af4c3c89ed64f41a2515ff54459c7124c6e876",
+   "ALKERA_TOOLBELT": "de",
+   "ALKERA_VIRTUAL_TIME": "2026-03-02T00:00:00Z",
+   "ALKERA_WAREHOUSES": "",
+   "ALKERA_WAREHOUSE_CLIENTS": "airflow",
+   "ALKERA_WORKSPACE": "/workspace",
+   "AWS_ACCESS_KEY_ID": "alkera-local-dev",
+   "AWS_DEFAULT_REGION": "us-east-1",
+   "AWS_ENDPOINT_URL": "http://minio.internal:9000",
+   "AWS_SECRET_ACCESS_KEY": "alkera-local-dev",
+   "CONFLUENCE_API_TOKEN": "alkera-local-dev",
+   "CONFLUENCE_URL": "http://confluence.internal:8090",
+   "CONFLUENCE_USER": "alkera-local-dev",
+   "DBT_PROFILES_DIR": "/root/.dbt",
+   "DEPLOY_API_TOKEN": "alkera-local-dev",
+   "DEPLOY_URL": "http://deploy.internal:8085",
+   "HOME": "/root",
+   "JIRA_API_TOKEN": "alkera-local-dev",
+   "JIRA_URL": "http://jira.internal:8080",
+   "JIRA_USER": "alkera-local-dev",
+   "LOKI_ADDR": "http://loki.internal:3100",
+   "LOKI_URL": "http://loki.internal:3100",
+   "METABASE_API_KEY": "alkera-local-dev",
+   "METABASE_URL": "http://metabase.internal:3000",
+   "PATH": "/opt/alkera/shims:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/toolbelt/bin",
+   "PROMETHEUS_URL": "http://prometheus.internal:9090",
+   "SLACK_BASE_URL": "http://slack.internal:8081",
+   "SLACK_BOT_TOKEN": "alkera-local-dev"
+  },
+  "workspace_cli": {
+   "cli": null,
+   "files": [],
+   "interpreter": null,
+   "pythonpath": null,
+   "skipped": "profile 'de/laptop' plugs orchestrator ['airflow'], not ops_sched",
+   "topology": "container"
+  }
+ },
+ "world_changed": [
+  "var/sched/state.json"
+ ]
+}
