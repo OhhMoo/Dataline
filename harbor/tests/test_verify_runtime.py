@@ -783,6 +783,33 @@ def test_agent_git_config_never_runs_in_the_grader(tmp_path, committed):
     assert sanitized["config"] == "rewritten" and sanitized["readable"] is True
 
 
+def test_declared_service_state_must_have_been_copied(tmp_path):
+    """A task whose grader reads `{bi_state}` declares `service_state` in
+    episode.json. Without world-down's marker and copy it is unmeasured - a
+    failed copy must never grade as "published = as provisioned" - and with
+    them it is graded (the agent cannot write /audit, so it cannot cause this)."""
+    ep = make(tmp_path, GT001, "default", "untouched")
+    path = ep.T / "episode" / "episode.json"
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    doc["service_state"] = "/var/lib/alkera/service-state"
+    path.write_text(json.dumps(doc, indent=2), encoding="utf-8")
+    missing = ep.verify()
+    assert missing.rc == 1 and missing.reward is None
+    assert missing.grading["unmeasured"]["code"] == "artifacts_missing"
+    assert ".service_state.json" in missing.grading["unmeasured"]["message"]
+    (ep.R / "audit" / ".service_state.json").write_text(
+        json.dumps({"copied": True, "files": 1}), encoding="utf-8")
+    empty = ep.verify()
+    assert empty.rc == 1 and empty.grading["unmeasured"]["code"] == "artifacts_missing"
+    state = ep.R / "audit" / "service-state" / "bi" / "sigma"
+    state.mkdir(parents=True)
+    (state / "state.json").write_text("{}\n", encoding="utf-8")
+    graded = ep.verify()
+    assert graded.rc == 0, graded.why()
+    assert graded.grading["artifacts"]["service_state"] == {"copied": True, "files": 1}
+    assert graded.reward == {"reward": 0}
+
+
 def test_sanitize_git_keeps_the_format_and_nothing_else(tmp_path):
     verify = _verify_module()
     ws = tmp_path / "ws"

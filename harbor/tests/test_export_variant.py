@@ -59,7 +59,18 @@ def test_task_ids_include_bi001_bi002():
     assert [t for t in ids if t.startswith("GT")] == sorted(
         p.name for p in (REPO / "tasks").glob("GT*") if (p / "task.toml").is_file())
     assert not {"harness", "contracts", "stressors", "README.md"} & set(ids)
-    assert all(harness.is_task_package_name(t) for t in ids)
+    assert all(harness.is_task_package(REPO / "tasks" / t) for t in ids)
+
+
+def test_a_package_is_any_dir_with_a_task_toml(tmp_path):
+    """No naming rule to fail open: a package called anything is a package,
+    for the listing and for the grading fingerprints alike."""
+    for name in ("GT001-x", "odd_name", "BI9-short"):
+        (tmp_path / name / "tests").mkdir(parents=True)
+        (tmp_path / name / "task.toml").write_text("[task]\n")
+    (tmp_path / "harness").mkdir()
+    (tmp_path / "harness" / "episode.py").write_text("")
+    assert harness.task_ids(tmp_path) == ["BI9-short", "GT001-x", "odd_name"]
 
 
 def test_every_bi_arm_is_selectable():
@@ -72,10 +83,12 @@ def test_every_bi_arm_is_selectable():
 # ------------------------------------------------------------- the leak gate
 def test_bi_grading_files_forbidden_in_environment():
     for rel in (f"tasks/{BI001}/tests/grade.py", f"tasks/{BI002}/solution/solve.sh",
-                f"tasks/{BI001}/fixtures/seed.yaml", "tasks/GT001-aov-halving/task.toml"):
+                f"tasks/{BI001}/fixtures/seed.yaml", "tasks/GT001-aov-halving/task.toml",
+                "tasks/a_package_named_otherwise/tests/grade.py",
+                "tasks/harness/episode.py"):
         assert adapter._forbid_in_environment(rel), rel
-    assert adapter._forbid_in_environment("tasks/harness/episode.py") is None
     assert adapter._forbid_in_environment("gateway/requirements-da.lock") is None
+    assert adapter._forbid_in_environment("world/world/build.py") is None
     fingerprints = set(checks.grading_fingerprints().values())
     for task in (BI001, BI002):
         assert f"tasks/{task}/tests/grade.py" in fingerprints

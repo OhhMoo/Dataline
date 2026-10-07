@@ -83,8 +83,10 @@ def box(gt001, tmp_path):
     document = envrt.arrange(gt001, root, "default")
     state = {"root": root, "doc": document, "env": envrt.agent_env(document)}
 
-    def declare(backends: list[dict]) -> None:
+    def declare(backends: list[dict], env: dict | None = None) -> None:
         document["backends"] = backends
+        document["env"].update(env or {})
+        state["env"] = envrt.agent_env(document)
         (root / "opt/alkera/episode.json").write_text(
             json.dumps(document, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         sealed = envrt.run("world-seal", root, env=state["env"])
@@ -140,7 +142,8 @@ def test_backends_contract_refuses_shared_ports_and_names():
 def test_port_ownership_rules():
     """By inode when the backend's fds are readable; by the backend's uid only
     when they are not (a container's root lacks CAP_SYS_PTRACE, so it cannot
-    read /proc/<pid>/fd of a backend running as `nobody` or `postgres`)."""
+    read /proc/<pid>/fd of a backend running as `nobody` or `postgres`), and
+    then only for a socket that did not exist before the backend was spawned."""
     owners = rt.backend_port_owners
     listening = {5432: {111: 70}, 8443: {222: 0}}
     assert owners([5432], listening, {111}, False, 70) == ([], [])
@@ -149,6 +152,24 @@ def test_port_ownership_rules():
     assert owners([5432], listening, set(), True, 71) == ([], [5432])    # another user's
     assert owners([8443, 9000], listening, set(), True, 70) == ([9000], [8443])
     assert owners([9000], listening, set(), True, None) == ([9000], [])
+    # an orphan / another same-uid backend that was listening before the spawn
+    assert owners([5432], listening, set(), True, 70, {111}) == ([], [5432])
+    assert owners([5432], {5432: {111: 70, 333: 70}}, set(), True, 70, {111}) == ([], [])
+
+
+def test_a_backend_never_runs_as_the_agent():
+    with pytest.raises(rt.RuntimeFailure, match="is the agent's"):
+        rt.load_backends({"agent_user": "engineer",
+                          "backends": [{**stub("pg", 5432), "user": "engineer"}]})
+    with pytest.raises(rt.RuntimeFailure, match="is the agent's"):
+        rt.load_backends({"backends": [{**stub("pg", 5432), "user": "engineer"}]})
+    assert rt.load_backends({"agent_user": "engineer", "backends": [stub("pg", 5432)]})
+
+
+def test_the_services_never_get_the_clock(tmp_path):
+    env = rt.serve_env(rt.Layout(tmp_path), {"env": {
+        "ALKERA_VIRTUAL_TIME": "2026-03-02T00:00:00Z", "ALKERA_TASK_VARIANT": "default"}})
+    assert "ALKERA_VIRTUAL_TIME" not in env and env["ALKERA_TASK_VARIANT"] == "default"
 
 
 def test_episode_json_backends_are_checked_at_build(gt001, tmp_path):
@@ -225,8 +246,81 @@ def test_world_up_fails_when_backend_never_listens(box):
     assert result.returncode == 1
     assert "backend never did not listen on" in result.stderr
     assert elapsed < budget + 30, elapsed
-    assert not any("never.internal" in line for line in hosts_block(box["root"]))
+    assert hosts_block(box["root"]) == []
     assert not (box["root"] / "audit" / rt.WATERMARK).exists()
+
+
+def test_backends_stop_in_reverse_order(box):
+    first, second = free_port(), free_port()
+    box["declare"]([stub("first", first), stub("second", second)])
+    result = world_up(box)
+    assert result.returncode == 0, result.stderr + result.stdout
+    assert result.stdout.index("backend first: started") \
+        < result.stdout.index("backend second: started")
+    down = envrt.run("world-down", box["root"], env=box["env"])
+    out = down.stdout
+    assert out.index("backend second stopped") < out.index("backend first stopped") \
+        < out.index("services stopped")
+    assert not {first, second} & set(rt.listening_sockets())
+
+
+#: A backend whose leader forks the listener and stays in the session: the
+#: shape of a forking server (postgres' postmaster and its children).
+FORKING = ("import subprocess, sys, time; "
+           "subprocess.Popen([sys.executable, '-m', 'http.server', sys.argv[1], "
+           "'--bind', '127.0.0.1']); time.sleep(600)")
+
+
+def test_a_dead_leaders_session_is_still_stopped(box):
+    """The leader dies, its forked listener lives on in the session: world-up
+    clears what is left before it respawns, and world-down stops the session
+    whether or not the leader is there."""
+    import signal
+
+    port = free_port()
+    box["declare"]([stub("fork", port, argv=[sys.executable, "-c", FORKING, str(port)])])
+    assert world_up(box).returncode == 0
+    entry = json.loads((box["root"] / "opt/alkera/run/backends.json").read_text())["fork"]
+    orphans = [p for p in rt.session_pids(entry["pid"]) if p != entry["pid"]]
+    assert orphans
+    os.kill(entry["pid"], signal.SIGKILL)
+    deadline = time.monotonic() + 10
+    while envrt.alive(entry["pid"]) and time.monotonic() < deadline:
+        time.sleep(0.1)
+    assert not rt.backend_alive(entry) and rt.backend_session_pids(entry) == orphans
+    again = envrt.run("world-up", box["root"], "--no-hosts", "--port-offset",
+                      str(envrt.free_offset(random.Random())), env=box["env"])
+    assert "stopped what was left of its last session" in again.stdout, again.stderr
+    assert again.returncode == 0, again.stderr
+    assert not any(envrt.alive(p) for p in orphans)
+    entry = json.loads((box["root"] / "opt/alkera/run/backends.json").read_text())["fork"]
+    os.kill(entry["pid"], signal.SIGKILL)               # and once more, for world-down
+    while envrt.alive(entry["pid"]):
+        time.sleep(0.1)
+    left = rt.backend_session_pids(entry)
+    assert left
+    down = envrt.run("world-down", box["root"], env=box["env"])
+    assert "backend fork stopped" in down.stdout
+    assert not any(envrt.alive(p) for p in left) and port not in rt.listening_sockets()
+
+
+def test_the_clock_reaches_backends_but_not_the_services(box, tmp_path):
+    """ALKERA_VIRTUAL_TIME (a profiled task's per-arm env): the measured
+    overlay gives it to the Snowflake service, never to native-services."""
+    port, seen = free_port(), tmp_path / "clock.txt"
+    reader = ("import os, runpy, sys; open(sys.argv[1], 'w').write("
+              "os.environ.get('ALKERA_VIRTUAL_TIME', '-')); "
+              "sys.argv = ['http.server', sys.argv[2], '--bind', '127.0.0.1']; "
+              "runpy.run_module('http.server', run_name='__main__')")
+    box["declare"]([stub("clock", port, argv=[sys.executable, "-c", reader, str(seen),
+                                               str(port)])],
+                   env={"ALKERA_VIRTUAL_TIME": "2026-03-02T00:00:00Z"})
+    assert world_up(box).returncode == 0
+    assert seen.read_text() == "2026-03-02T00:00:00Z"
+    serve = json.loads((box["root"] / "opt/alkera/run/serve.json").read_text())["pid"]
+    environ = (Path(f"/proc/{serve}/environ").read_bytes()).split(b"\0")
+    assert not [v for v in environ if v.startswith(b"ALKERA_VIRTUAL_TIME=")]
+    assert b"ALKERA_TASK_VARIANT=default" in environ
 
 
 def test_world_up_fails_when_backend_exits(box):
@@ -290,6 +384,9 @@ def test_world_down_copies_service_state(box):
     copy = box["root"] / "audit" / rt.SERVICE_STATE_COPY
     files = sorted(p.relative_to(copy).as_posix() for p in copy.rglob("*") if p.is_file())
     assert files == ["bi/powerbi/datasets.json", "bi/sigma/state.json"]
+    marker = json.loads((box["root"] / "audit" / rt.SERVICE_STATE_MARKER).read_text())
+    assert marker["copied"] is True and marker["files"] == 2
+    assert marker["schema"] == rt.SERVICE_STATE_SCHEMA
     # readable for collection, like the rest of /audit
     assert envrt.mode(copy / "bi" / "sigma" / "state.json") & 0o444 == 0o444
     # a second world-down replaces the copy whole
@@ -371,6 +468,8 @@ def test_bi_vendor_state_reaches_the_audit_copy(bi001_task, tmp_path):
     root = tmp_path / "R"
     document = lay_out(bi001_task, root)
     assert document["backends"] == [] and document["profile"] == "da/laptop"
+    # BI001's grader reads {bi_state}: its verifier requires world-down's copy
+    assert document["service_state"] == rt.SERVICE_STATE
     env = envrt.agent_env(document)
     sealed = envrt.run("world-seal", root, env=env)
     assert sealed.returncode == 0, sealed.stderr
@@ -386,3 +485,4 @@ def test_bi_vendor_state_reaches_the_audit_copy(bi001_task, tmp_path):
     copy = root / "audit" / rt.SERVICE_STATE_COPY / "bi"
     assert {p.name for p in copy.iterdir()} >= {"powerbi", "tableau", "sigma"}, down.stdout
     assert not [p for p in copy.rglob("*") if p.suffix == ".duckdb"]
+    assert json.loads((root / "audit" / rt.SERVICE_STATE_MARKER).read_text())["copied"]

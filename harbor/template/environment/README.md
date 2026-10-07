@@ -159,12 +159,19 @@ these steps:
 4. Starts the **supervised backends** `episode.json` `backends` declares, in
    order (none yet: plan Task 10 adds the warehouse backends). Each entry is
    `{"name", "argv", "user", "ports", "hosts", "health"}`; each runs in its
-   own session as `user`, logs to `/var/log/alkera/backend-<name>.log`, and
-   is waited for, inside the same budget, until every declared port is in
-   LISTEN state and held by a process of that session (from `/proc`, no
-   connection). A backend that exits, never listens or finds its port taken
-   fails `world-up` loudly, before any host name is written: the agent is
-   never handed a name with nothing behind it.
+   own session as `user` (never the agent's), logs to
+   `/var/log/alkera/backend-<name>.log`, and is waited for, inside the same
+   budget, until every declared port is in LISTEN state and held by a
+   process of that session (from `/proc`, no connection). When root cannot
+   read that session's fd tables (Docker gives a container's root no
+   `CAP_SYS_PTRACE`, so another user's `/proc/<pid>/fd` is closed to it), a
+   socket counts when its owner uid is the backend's and it did not exist
+   before the spawn. A backend that exits, never listens or finds its port
+   taken fails `world-up` loudly, before any host name is written: the
+   agent is never handed a name with nothing behind it. A dead leader's
+   session (a forking server's children) is stopped before a respawn.
+   Backends get the episode's `ALKERA_VIRTUAL_TIME`; the services process
+   does not (as in the measured topology).
 5. Waits until every port the services process declares in
    `destinations.jsonl` is in LISTEN state and owned by it, reading `/proc`
    and opening no connection.
@@ -200,13 +207,17 @@ steps:
 
 1. Stops processes the agent user left running. A background `dbt` run must
    not write while the trees are copied.
-2. Stops the supervised backends, in reverse order (each whole session).
+2. Stops the supervised backends, in reverse order (each whole session,
+   leader alive or not).
 3. Stops the services: SIGTERM to the process group, SIGKILL after 30 s.
 4. Copies `/var/lib/alkera/service-state` to `/audit/service-state`, replacing
    any earlier copy, minus what `bistate.stage` never stages (render caches
-   `snapshots/`, `extracts/`, `*.duckdb`, lock and temp files). The verifier
-   hands `/audit/service-state/bi` to `episode.grade_twice` as `bi_state_dir`,
-   which is the grader's `{bi_state}`.
+   `snapshots/`, `extracts/`, `*.duckdb`, lock and temp files), and only then
+   writes `/audit/.service_state.json`. The verifier hands
+   `/audit/service-state/bi` to `episode.grade_twice` as `bi_state_dir`,
+   which is the grader's `{bi_state}`; a task that declares `service_state`
+   in `episode.json` (its grader reads `{bi_state}`) is unmeasured without
+   the marker and the copy.
 5. Checkpoints any warehouse file that has a WAL beside it.
 6. Runs `sync`.
 7. Adds `a+rX` (never write) on `/world`, `/workspace` and `/audit`, so any

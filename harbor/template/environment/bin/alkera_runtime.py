@@ -108,6 +108,10 @@ GATEWAY_CONFIG_KEY = "gateway_config"
 #: artifact (`/audit/service-state`), which is how it reaches the verifier.
 SERVICE_STATE = "/var/lib/alkera/service-state"
 SERVICE_STATE_COPY = "service-state"
+#: Written into /audit by world-down (root) only after the copy succeeded; a
+#: task whose episode.json declares `service_state` is unmeasured without it.
+SERVICE_STATE_MARKER = ".service_state.json"
+SERVICE_STATE_SCHEMA = "alkera-harbor-service-state/1"
 #: The gateway-config keys that may name a path under SERVICE_STATE.
 SERVICE_STATE_KEYS = ("bi_state_dir", "obs_state_dir")
 #: What the copy leaves out: exactly what tasks/harness/bistate.stage never
@@ -328,6 +332,10 @@ def load_backends(episode: dict, where: str = "episode.json") -> list[dict]:
         user = spec["user"]
         if not isinstance(user, str) or not re.match(r"^[a-z_][a-z0-9_-]*$", user):
             raise RuntimeFailure(f"{label} ({name}): user {user!r} is not a user name")
+        if user == str(episode.get("agent_user") or DEFAULT_AGENT_USER):
+            raise RuntimeFailure(f"{label} ({name}): user {user!r} is the agent's; a "
+                                 f"backend runs as a user the agent cannot signal or "
+                                 f"impersonate (root or its own service user)")
         declared = spec["ports"]
         if not isinstance(declared, list) or not declared or not all(
                 isinstance(p, int) and not isinstance(p, bool) and 0 < p < 65536
@@ -971,11 +979,22 @@ def spawn_backend(layout: Layout, episode: dict, spec: dict) -> dict:
     /var/log/alkera/backend-<name>.log. Its environment is the services'
     (no agent shims on PATH) with its user's HOME."""
     uid, gid, home, note = backend_identity(spec["user"])
+    agent_uid, _ = agent_ids(episode)
+    if uid is not None and uid == agent_uid:
+        raise RuntimeFailure(f"backend {spec['name']}: user {spec['user']!r} is the agent's "
+                             f"uid {agent_uid}; the agent could signal or impersonate it")
     layout.log_dir.mkdir(parents=True, exist_ok=True)
     os.chmod(layout.log_dir, 0o700)
     env = serve_env(layout, episode)
+    clock = (episode.get("env") or {}).get(CLOCK_ENV)
+    if clock:
+        env[CLOCK_ENV] = str(clock)
     if home:
         env["HOME"] = home
+    # what already listens on the backend's ports: never the backend's, even
+    # when only its uid can be checked (backend_port_owners)
+    listening = listening_socket_uids()
+    before = sorted({inode for port in spec["ports"] for inode in listening.get(port, {})})
     kwargs = {}
     if uid is not None:
         kwargs.update(user=uid, group=gid, extra_groups=[])
@@ -999,7 +1018,8 @@ def spawn_backend(layout: Layout, episode: dict, spec: dict) -> dict:
     return {"pid": proc.pid, "starttime": stat[1] if stat else None,
             "argv": list(spec["argv"]), "user": spec["user"], "run_as": note,
             "uid": uid if uid is not None else os.geteuid(),
-            "ports": list(spec["ports"]), "started_at": _iso(_now())}
+            "ports": list(spec["ports"]), "listen_before": before,
+            "started_at": _iso(_now())}
 
 
 def listening_socket_uids() -> dict[int, dict[int, int]]:
@@ -1048,23 +1068,26 @@ def session_fd_view(sid: int) -> tuple[set[int], bool]:
 
 
 def backend_port_owners(ports: list[int], listening: dict[int, dict[int, int]],
-                        mine: set[int], blind: bool, uid: int | None
+                        mine: set[int], blind: bool, uid: int | None,
+                        before: set[int] | frozenset = frozenset()
                         ) -> tuple[list[int], list[int]]:
     """(missing, foreign) for a backend's declared ports.
 
     A port is the backend's when one of its LISTEN sockets is held by a
     process of the backend's session (by inode). When world-up cannot read
-    that session's fd tables (`blind`, see session_fd_view), a socket owned
-    by the uid world-up started the backend as counts instead: that user is
-    the backend's own (postgres, nobody ...), and nothing else runs under it
-    before the agent starts. Any other listener on the port is foreign."""
+    that session's fd tables (`blind`, see session_fd_view), a socket counts
+    instead when it is owned by the uid world-up started the backend as AND
+    did not exist before world-up spawned it (`before`, the inodes listening
+    on its ports then): an orphan of an earlier run, or another backend of
+    the same user, is never taken for it. The backend's user is never the
+    agent's (load_backends, spawn_backend). Any other listener is foreign."""
     missing, foreign = [], []
     for port in ports:
         sockets = listening.get(port, {})
         if not sockets:
             missing.append(port)
-        elif set(sockets) & mine or (blind and uid is not None
-                                     and any(u == uid for u in sockets.values())):
+        elif set(sockets) & mine or (blind and uid is not None and any(
+                u == uid and inode not in before for inode, u in sockets.items())):
             continue
         else:
             foreign.append(port)
@@ -1087,7 +1110,8 @@ def wait_backend(layout: Layout, spec: dict, entry: dict, deadline: float) -> No
         listening = listening_socket_uids()
         mine, blind = session_fd_view(sid)
         missing, foreign = backend_port_owners(ports, listening, mine, blind,
-                                               entry.get("uid"))
+                                               entry.get("uid"),
+                                               set(entry.get("listen_before") or ()))
         if foreign:
             raise RuntimeFailure(
                 f"backend {name}: "
@@ -1117,6 +1141,12 @@ def bring_up_backends(layout: Layout, episode: dict, deadline: float) -> list[st
         if backend_alive(entry):
             report.append(f"backend {spec['name']}: running (pid {entry['pid']})")
         else:
+            # a dead leader's session may still hold its ports: clear it first
+            remnants = backend_session_pids(entry)
+            if remnants:
+                stop_processes(remnants, grace=DEFAULT_DOWN_TIMEOUT_S)
+                report.append(f"backend {spec['name']}: stopped what was left of its "
+                              f"last session {remnants}")
             entry = spawn_backend(layout, episode, spec)
             state[spec["name"]] = entry
             _write_private_json(layout.backends_file, state)
@@ -1151,8 +1181,29 @@ def probe_backends(specs: list[dict]) -> dict[str, str]:
     return probed
 
 
+def backend_session_pids(entry: dict | None) -> list[int]:
+    """Every live process of a recorded backend's session, whether or not its
+    leader is still there (a forking server's children outlive it), started
+    no earlier than the leader was (a recycled session id is not ours)."""
+    if not entry or not entry.get("pid"):
+        return []
+    since = entry.get("starttime")
+    leader = proc_stat(int(entry["pid"]))
+    if leader is not None and since is not None and leader[1] != int(since):
+        # the pid (and so the session id) now belongs to another process; while
+        # any member of OUR session lived, the kernel could not have reused it
+        return []
+    pids = []
+    for pid in session_pids(int(entry["pid"])):
+        stat = proc_stat(pid)
+        if stat is not None and (since is None or stat[1] >= int(since)):
+            pids.append(pid)
+    return pids
+
+
 def stop_backends(layout: Layout, episode: dict, grace: float) -> list[str]:
-    """Stop every recorded backend, in reverse declared order (whole session)."""
+    """Stop every recorded backend, in reverse declared order (its whole
+    session, leader alive or not: backend_session_pids)."""
     state = read_backends_state(layout)
     if not state:
         return []
@@ -1160,11 +1211,10 @@ def stop_backends(layout: Layout, episode: dict, grace: float) -> list[str]:
     names = [n for n in order if n in state] + sorted(n for n in state if n not in order)
     report = []
     for name in reversed(names):
-        entry = state.get(name) or {}
-        if not backend_alive(entry):
+        pids = backend_session_pids(state.get(name))
+        if not pids:
             report.append(f"backend {name}: not running")
             continue
-        pids = session_pids(int(entry["pid"]))
         stopped = stop_processes(pids, grace=grace)
         report.append(f"backend {name} stopped: {stopped}")
     with contextlib.suppress(OSError):
@@ -1237,9 +1287,18 @@ def serve_argv(python: str, layout: Layout, episode: dict, offset: int) -> list[
     return argv
 
 
+#: The world's clock at the episode's start (a profiled task's per-arm env).
+#: The measured overlay gives it to the episode, the notebook and the
+#: Snowflake service (container_episode CLOCK_ENV), never to native-services,
+#: whose rows read the live clock from the world's scheduler state: so the
+#: services process does not get it here, and a backend does (spawn_backend).
+CLOCK_ENV = "ALKERA_VIRTUAL_TIME"
+
+
 def serve_env(layout: Layout, episode: dict) -> dict[str, str]:
     """The base environment, PATH without the agent's shims, plus the episode's
-    own variables (ALKERA_TASK_VARIANT): the world served is that arm's."""
+    own variables (ALKERA_TASK_VARIANT) but CLOCK_ENV: the world served is that
+    arm's."""
     env = {name: os.environ[name] for name in SERVE_ENV_PASSTHROUGH
            if os.environ.get(name)}
     shim_dirs = {os.path.normpath(p) for p in (
@@ -1248,7 +1307,8 @@ def serve_env(layout: Layout, episode: dict) -> dict[str, str]:
     env["PATH"] = os.pathsep.join(
         e for e in entries if e and os.path.normpath(e) not in shim_dirs)
     env.setdefault("HOME", "/root" if is_root() else str(Path.home()))
-    env.update({str(k): str(v) for k, v in (episode.get("env") or {}).items()})
+    env.update({str(k): str(v) for k, v in (episode.get("env") or {}).items()
+                if k != CLOCK_ENV})
     return env
 
 
@@ -1806,14 +1866,23 @@ def bring_down(layout: Layout, args) -> list[str]:
         report.append("no services process was running")
     with contextlib.suppress(OSError):
         layout.state_file.unlink()
+    marker = layout.audit / SERVICE_STATE_MARKER
+    with contextlib.suppress(OSError):
+        marker.unlink()                      # only a copy made NOW may be vouched for
     try:
         copied = copy_service_state(layout)
     except OSError as exc:
-        # the verifier then grades "published = as provisioned"; say so loudly
-        copied = None
+        # no marker: the verifier of a task that declares service state is
+        # then unmeasured, never "published = as provisioned"
         report.append(f"WARNING: the service state was not copied: {exc}")
-    if copied:
-        report.append(f"service state copied for the verifier: {copied}")
+    else:
+        files = sum(1 for p in (layout.audit / SERVICE_STATE_COPY).rglob("*")
+                    if p.is_file()) if copied else 0
+        _write_private_json(marker, {"schema": SERVICE_STATE_SCHEMA, "source": SERVICE_STATE,
+                                     "copied": bool(copied), "files": files,
+                                     "at": _iso(_now())}, mode=0o644)
+        if copied:
+            report.append(f"service state copied for the verifier: {copied}")
     checkpointed = checkpoint_warehouses(layout)
     if checkpointed:
         report.append(f"checkpointed: {checkpointed}")

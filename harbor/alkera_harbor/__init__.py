@@ -1,6 +1,7 @@
 """Alkera -> Harbor adapter.
 
-Turns every (task, arm) of `tasks/GT00*` into one self-contained Harbor task
+Turns every (task, arm) of every task package (`tasks/GT*`, `tasks/BI*`: any
+`tasks/<dir>` with a task.toml) into one self-contained Harbor task
 directory, plus a `dataset.toml`, following Harbor's adapter pattern
 (`adapters/<name>`: an adapter class with `run()`, an argparse `main`).
 

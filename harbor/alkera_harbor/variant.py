@@ -70,6 +70,15 @@ UNSERVED_ALLOWED = {("notebook", "jupyter"): "jupyter.internal:8888 is not start
 ROLE_LOCKS = ("ds", "da")
 #: Roles whose box carries the audited Jupyter kernelspec.
 KERNEL_ROLES = ("ds", "da")
+#: Plan Task 10's two extension points, empty today (no profile the image
+#: serves plugs a registry backend):
+#:   HARBOR_BACKENDS  registry backend name -> its episode.json `backends`
+#:                    entries for a variant (name, argv, user, ports, hosts,
+#:                    health; the environment runtime's contract)
+#:   CLIENT_LAYERS    client lock name -> extra Dockerfile lines after that
+#:                    client's lock (a server package, a pinned binary)
+HARBOR_BACKENDS: dict = {}
+CLIENT_LAYERS: dict[str, tuple[str, ...]] = {}
 
 # ---- anchors on the template's own lines (each must match exactly once)
 _PIP = "pip install --no-cache-dir --retries=5 --timeout=120 --require-hashes -r"
@@ -200,6 +209,18 @@ def variant_of(spec) -> Variant:
                    backends=tuple(b.name for b in plugged))
 
 
+def backend_specs(variant: Variant) -> list[dict]:
+    """The episode.json `backends` of a variant: HARBOR_BACKENDS' entries
+    for each registry backend it plugs, in plugged order. Empty today."""
+    specs: list[dict] = []
+    for name in variant.backends:
+        if name not in HARBOR_BACKENDS:
+            raise VariantError(f"the {variant.key} variant plugs backend {name!r}, which "
+                               f"the Harbor image has no process for (plan Task 10)")
+        specs += [dict(spec) for spec in HARBOR_BACKENDS[name](variant)]
+    return specs
+
+
 def unserved_notes(variant: Variant) -> list[str]:
     """The known deviations this variant carries (UNSERVED_ALLOWED)."""
     slots = variant.slot_map() or {}
@@ -299,7 +320,8 @@ def render_dockerfile(template: str, variant: Variant, template_env: dict[str, s
         insert += ["",
                    f"# {what}",
                    f"COPY alkera/gateway/requirements-{name}.lock {lock}",
-                   f"RUN {_PIP} {lock}"]
+                   f"RUN {_PIP} {lock}",
+                   *(CLIENT_LAYERS.get(name, ()) if kind == "clients" else ())]
     if variant.role in KERNEL_ROLES:
         insert += ["",
                    f"# Role {variant.role}: the Jupyter plug's audited kernelspec, "
@@ -366,4 +388,3 @@ def render_tests_dockerfile(template: str, variant: Variant,
     ]
     _header(lines, variant, template="tests", edits="and git after the pip layer")
     return "\n".join(lines)
-

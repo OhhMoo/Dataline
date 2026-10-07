@@ -211,12 +211,16 @@ def episode_document(*, ref: ArmRef, spec, role: str, reward_mode: str,
                      source_dirty: bool, task_toml_sha256: str,
                      anchors: str, oracle: str, restore: dict | None = None,
                      gateway_config: str | None = None,
-                     backends: list[dict] | None = None) -> dict:
+                     backends: list[dict] | None = None,
+                     service_state: str | None = None) -> dict:
     """episode.json. `backends` (the environment runtime's supervised
     processes: name, argv, user, ports, hosts, health) is written when given -
     a profiled task's list, empty until its profile plugs a backend the image
     runs beside the services (plan Task 10) - and left out when None, so an
-    unprofiled episode.json keeps its bytes (the runtime reads absent as [])."""
+    unprofiled episode.json keeps its bytes (the runtime reads absent as []).
+    `service_state` (the services' private directory) is written when the
+    task's grader reads `{bi_state}`: the verifier then requires world-down's
+    copy of it."""
     document = {
         "schema": EPISODE_SCHEMA,
         "task": ref.task_id,
@@ -250,6 +254,8 @@ def episode_document(*, ref: ArmRef, spec, role: str, reward_mode: str,
     }
     if backends is not None:
         document["backends"] = [dict(b) for b in backends]
+    if service_state is not None:
+        document["service_state"] = service_state
     return document
 
 

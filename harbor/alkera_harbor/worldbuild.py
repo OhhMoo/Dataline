@@ -232,7 +232,10 @@ def _stage(ref: ArmRef, temp: Path, m, log) -> StagedArm:
         records["discovery"] = sorted(Path(f).relative_to(world_root).as_posix()
                                       for f in discovery["files"])
         records["sanitized"] = m.native_stack.sanitize_world_files(world)
-    records["dropped_build_caches"] = drop_build_caches([world_root, grading])
+    # profiled worlds only (theme worlds whose build ran dbt), so an unprofiled
+    # export is unchanged by construction: a cache there still fails the leak gate
+    records["dropped_build_caches"] = (drop_build_caches([world_root, grading])
+                                       if variant.profiled else [])
 
     # --- step 4: the prompt, from the HOST world, as aut.run composes it
     prompt = m.aut.build_prompt(

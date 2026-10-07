@@ -160,6 +160,32 @@ SERVICE_STATE_COPY = "service-state"
 #: `bistate.BI_SUBDIR`: what `episode.grade_twice(bi_state_dir=...)` stages as
 #: the grader's `{bi_state}`.
 BI_SUBDIR = "bi"
+#: world-down's record that the copy above was made (environment runtime
+#: SERVICE_STATE_MARKER, root-written). A task whose episode.json declares
+#: `service_state` (its grader reads `{bi_state}`) is unmeasured without it.
+SERVICE_STATE_MARKER = ".service_state.json"
+
+
+def check_service_state(episode: dict, work: Path) -> dict | None:
+    """None for a task that declares no service state. Otherwise the
+    marker's record, or Unmeasured: a copy that failed or never ran must not
+    be graded as "published = as provisioned" (only root writes /audit, so
+    the agent cannot cause this)."""
+    if not episode.get("service_state"):
+        return None
+    marker = work / "audit" / SERVICE_STATE_MARKER
+    try:
+        record = json.loads(marker.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        raise Unmeasured("artifacts_missing", f"the task grades the services' published "
+                         f"state, but world-down left no {SERVICE_STATE_MARKER}: the copy "
+                         f"of {episode['service_state']} failed or never ran") from None
+    if not isinstance(record, dict) or record.get("copied") is not True \
+            or not bi_state_source(work).is_dir():
+        raise Unmeasured("artifacts_missing", f"the task grades the services' published "
+                         f"state, but there is none in the audit artifact "
+                         f"({SERVICE_STATE_COPY}/{BI_SUBDIR}; marker {record!r:.200})")
+    return {"copied": True, "files": record.get("files")}
 CTRF_TOOL = "alkera-grade"
 STDERR_TAIL = 4000
 MAX_LISTED = 50
@@ -1382,6 +1408,9 @@ def main(argv=None) -> int:
         doc["artifacts"] = {k: staged[k] for k in ("files", "bytes", "links",
                                                    "audit_present", "workspace_from")}
         doc["artifacts"]["git"] = sanitize_git(work / "world" / "workspace")
+        declared = check_service_state(episode, work)
+        if declared is not None:
+            doc["artifacts"]["service_state"] = declared
         doc["artifacts"]["dropped"] = staged["dropped"][:MAX_LISTED]
         doc["artifacts"]["dropped_count"] = len(staged["dropped"])
         if staged["dropped"]:

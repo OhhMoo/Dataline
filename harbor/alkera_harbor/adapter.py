@@ -41,8 +41,10 @@ from .context import (ALWAYS_EXCLUDE, ContextEntry, GitView, copy_file, matches,
                       parse_context, resolve_context, resolve_entries)
 from .naming import ArmRef, check_unique, select
 from .reroot import iter_files, needles_for, scan
-from .variant import UNPROFILED, Variant, render_dockerfile, render_tests_dockerfile
+from .variant import (UNPROFILED, Variant, backend_specs, render_dockerfile,
+                      render_tests_dockerfile)
 from .worldbuild import (CANONICAL_STAGE_ROOT, GATEWAY_CONFIG_IN_CONTAINER,
+                         SERVICE_STATE_IN_CONTAINER,
                          StagedArm, stage_arm)
 
 STAGING_DIR = ".staging"
@@ -314,9 +316,13 @@ class AlkeraHarborAdapter:
                 (task_root / "task.toml").read_bytes()).hexdigest(),
             anchors=anchors, oracle=oracle, restore=staged.restore,
             gateway_config=GATEWAY_CONFIG_IN_CONTAINER,
-            # the supervised backends (environment runtime): none yet for any
-            # profile the image serves; the key is there so the contract is
-            backends=[] if variant.profiled else None))
+            # the supervised backends (environment runtime): the variant's
+            # (variant.backend_specs: none yet for any profile the image serves)
+            backends=backend_specs(variant) if variant.profiled else None,
+            # the grader reads the vendors' published state: the verifier
+            # requires world-down's copy of it
+            service_state=(SERVICE_STATE_IN_CONTAINER if variant.profiled and any(
+                "{bi_state}" in str(a) for a in spec.grade_argv) else None)))
         for path in (episode_dir / "episode.json", verifier_episode / "episode.json"):
             path.write_text(episode, encoding="utf-8", newline="")
 
@@ -645,12 +651,12 @@ def _print_flush(*args) -> None:
 
 
 def _forbid_in_environment(repo_rel: str) -> str | None:
-    """The agent image never carries any task package file (GT*, BI*, ...:
-    harness.is_task_package_name)."""
-    parts = repo_rel.split("/")
-    if len(parts) >= 2 and parts[0] == "tasks" and harness.is_task_package_name(parts[1]):
-        return ("task package files (graders, fixtures, oracles, briefs) never "
-                "enter the agent environment")
+    """The agent image carries nothing under `tasks/`: not a task package
+    file (graders, fixtures, oracles, briefs) whatever the package is called,
+    nor the harness or the contracts, which no image file needs."""
+    if repo_rel.split("/", 1)[0] == "tasks":
+        return ("nothing under tasks/ (task packages: graders, fixtures, oracles, "
+                "briefs; the harness) enters the agent environment")
     return None
 
 
