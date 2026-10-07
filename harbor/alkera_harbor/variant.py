@@ -75,7 +75,7 @@ KEPT_ENV_NAMES = ("PATH",)
 CA_BUNDLE_VAR = "REQUESTS_CA_BUNDLE"
 #: Warehouse plugs the Harbor image serves: the world's own DuckDB file, and
 #: each warehouse backend that has its HARBOR_BACKENDS entry.
-SERVED_WAREHOUSES = ("duckdb",)
+SERVED_WAREHOUSES = ("duckdb", "databricks")
 #: Warehouse plugs the image refuses, and why (the export's error says it).
 REFUSED_WAREHOUSES: dict[str, str] = {}
 #: The warehouse plug served by a process of its own that is not a registry
@@ -493,8 +493,23 @@ HARBOR_BACKENDS: dict = {
     # Airflow 3 REST v2 over the world ledger (native/services/airflow.py), at
     # airflow.internal:8100; its client lock (airflowctl) is the box's.
     "airflow": _hosted,
+    # Databricks tier 1 (native/services/databricks.py) at
+    # https://databricks.internal (443: the services run as root): its
+    # lakehouse copy in the services' private state, its certificate minted at
+    # start (the key in a root-only temporary directory), its bundle published
+    # to the trust directory below.
+    "databricks": _hosted,
 }
-CLIENT_LAYERS: dict[str, tuple[str, ...]] = {}
+CLIENT_LAYERS: dict[str, tuple[str, ...]] = {
+    "databricks": (
+        "# Databricks (hosted by the services): the trust directory they publish",
+        "# the minted certificate's bundle to at start, holding certifi until then,",
+        "# so REQUESTS_CA_BUNDLE and SSL_CERT_FILE always name a bundle that exists.",
+        "RUN mkdir -p /etc/alkera/databricks-tls \\",
+        "    && python -c \"import certifi, shutil; shutil.copyfile(certifi.where(), "
+        "'/etc/alkera/databricks-tls/bundle.pem')\"",
+    ),
+}
 PLUG_LAYERS: dict[str, tuple[str, ...]] = {}
 SUPPORT_FILES: dict[str, tuple[tuple[str, str], ...]] = {}
 STATEMENT_LOGS: dict[str, tuple[dict, ...]] = {}

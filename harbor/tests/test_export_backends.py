@@ -96,6 +96,24 @@ def test_airflow_is_hosted_with_its_client(tmp_path):
     assert env["REQUESTS_CA_BUNDLE"] == tev.template_env()["REQUESTS_CA_BUNDLE"]
 
 
+# --------------------------------------------------------------- databricks
+def test_databricks_is_hosted_and_the_box_trusts_its_bundle(tmp_path):
+    v = variant_of("de/databricks")
+    assert v.backends == ("databricks",) and v.clients == ("databricks",)
+    assert variant.backend_specs(v) == [] and variant.statement_logs(v) == []
+    text = assert_exportable(v, tmp_path)
+    env = dockerenv.parse_env(text)
+    bundle = "/etc/alkera/databricks-tls/bundle.pem"
+    assert env["REQUESTS_CA_BUNDLE"] == env["SSL_CERT_FILE"] == bundle
+    assert env["DATABRICKS_HOST"] == "https://databricks.internal"
+    lock = next(i for i, r in enumerate(runs(text)) if "requirements-databricks.lock" in r)
+    assert "/etc/alkera/databricks-tls" in runs(text)[lock + 1]
+    # every non-TLS variant keeps the template's bundle
+    laptop = variant_of("de/laptop", {"orchestrator": ["airflow"]})
+    assert dockerenv.parse_env(dockerfile(laptop))["REQUESTS_CA_BUNDLE"] \
+        == tev.template_env()["REQUESTS_CA_BUNDLE"]
+
+
 def test_an_unknown_backend_is_refused():
     v = variant.Variant(role="de", profile="de/x", backends=("nope",),
                         harbor_backends=("nope",))

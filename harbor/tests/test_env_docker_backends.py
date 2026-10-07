@@ -398,3 +398,26 @@ def test_backend_airflow_up_probe_down(tmp_path):
     record = up_probe_down("airflow", ("airflow",), tmp_path, AIRFLOW_CHECKS)
     assert record["backends"] == []
     folded_backend_row(record, "airflow.internal", 8100)
+
+
+DATABRICKS_CHECKS = r"""
+pass() { echo "PASS $*"; }
+fail() { echo "FAIL $*"; }
+deny() { local n="$1"; shift; if "$@" >/dev/null 2>&1; then fail "$n (allowed)"; else pass "$n"; fi; }
+b=/etc/alkera/databricks-tls/bundle.pem
+[ "$REQUESTS_CA_BUNDLE" = "$b" ] && [ "$SSL_CERT_FILE" = "$b" ] && pass "trust names the minted bundle" || fail "REQUESTS_CA_BUNDLE=$REQUESTS_CA_BUNDLE SSL_CERT_FILE=$SSL_CERT_FILE"
+openssl x509 -in /etc/alkera/databricks-tls/server.crt -noout -ext subjectAltName | grep -q databricks.internal && pass "the certificate names databricks.internal" || fail "certificate"
+curl -sf "$DATABRICKS_HOST/health" >/dev/null && pass "https://databricks.internal answers, verified" || fail "databricks /health over TLS"
+ls -d /tmp/alkera-databricks-tls-* >/dev/null 2>&1 && pass "the private key's directory exists" || fail "no key directory"
+deny "cannot read the private key" sh -c 'cat /tmp/alkera-databricks-tls-*/server.key'
+deny "cannot read the services' state (the lakehouse copy)" ls /var/lib/alkera/service-state
+"""
+
+
+@needs_docker
+def test_backend_databricks_up_probe_down(tmp_path):
+    """Hosted in the services process on https://databricks.internal (443): SDK,
+    SQL connector (use_sea), REST, Unity Catalog, dbt-databricks, Jobs run-now."""
+    record = up_probe_down("databricks", ("databricks",), tmp_path, DATABRICKS_CHECKS)
+    assert record["backends"] == []
+    folded_backend_row(record, "databricks.internal", 443)
