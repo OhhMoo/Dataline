@@ -21,7 +21,7 @@
    "returncode": 0,
    "rows": 4,
    "rows_at": "call",
-   "seconds": 3.17,
+   "seconds": 5.33,
    "stderr_tail": "",
    "stdout_tail": "{\"value\": \"2361224\"}\n",
    "tool": "bigquery",
@@ -57,7 +57,7 @@
    "returncode": 0,
    "rows": 3,
    "rows_at": "call",
-   "seconds": 3.11,
+   "seconds": 4.02,
    "stderr_tail": "",
    "stdout_tail": "{\"value\": \"1068\"}\n",
    "tool": "bigquery",
@@ -92,7 +92,7 @@
    "returncode": 0,
    "rows": 2,
    "rows_at": "call",
-   "seconds": 2.25,
+   "seconds": 3.12,
    "stderr_tail": "",
    "stdout_tail": "{\"value\": 5}\n",
    "tool": "bigquery",
@@ -191,9 +191,9 @@
      },
      {
       "count": 3,
-      "first_ts": "2026-10-07T11:09:42Z",
+      "first_ts": "2026-10-07T11:44:43Z",
       "host": "bigquery.internal",
-      "last_ts": "2026-10-07T11:09:48Z",
+      "last_ts": "2026-10-07T11:44:51Z",
       "port": 9050
      },
      {
@@ -220,9 +220,9 @@
    },
    "image": "alkera-episode:w1-bigquery",
    "image_gate": {
-    "head": "f15d4420ffbf080398106a1d9de668f0b4449ab6",
+    "head": "7caa8fa2e3b283fbd7f4953d2542898304cdf03c",
     "image": "alkera-episode:w1-bigquery",
-    "revision": "f15d4420ffbf080398106a1d9de668f0b4449ab6"
+    "revision": "7caa8fa2e3b283fbd7f4953d2542898304cdf03c"
    },
    "ok": true,
    "plugs": {},
@@ -233,10 +233,10 @@
    ],
    "profile": "de/gcp",
    "rows_at": "call",
-   "seconds": 59.5,
+   "seconds": 78.3,
    "seed": "# commerce_analytics world seed: a shop's nightly CDC extracts -> raw -> dbt\n# star schema + semantic layer -> Power BI / Tableau / Sigma dashboards.\ntheme: commerce_analytics    # world/world/themes/<name>/\nseed: 11\nvtime_start: \"2025-01-01T00:00:00Z\"\n# 425 nightly extracts: dt=2024-12-31 (the cutover snapshot: accounts and\n# catalogue, no orders) then dt=2025-01-01 .. dt=2026-02-28. Fourteen months of\n# orders, so last-year measures exist for January and February 2026. The world\n# clock opens at 2026-03-02T00:00Z, a Monday - business day 1 of the February\n# close.\ndays: 425\n\n# Scale. Every key is optional (gen.DEFAULTS); these are the defaults, spelled\n# out. Build time is dominated by dbt, not by volume - a 2x seed builds in about\n# the same time.\ncustomers: 220               # accounts on the platform at cutover\nsignup_pct: 18               # chance per day of a new account (a second at a quarter of it)\nupdate_pct: 9                # chance per day that one account is upgraded a segment\norders_per_day: [20, 60]     # base range, scaled by weekday, month, peak days and growth\nlines_per_order: [1, 4]\ncancel_pct: 6                # 70% the same day, the rest the next day\nrefund_pct: 4                # 3 to 45 days after the order\ngrowth_pct: 20               # year-over-year order volume growth\n\ngit_author: \"Analytics Engineering <analytics@example.com>\"\nnative: true\nfiles: {formats: [parquet]}\nprofile:\n  name: de/gcp\n  slots: [files, warehouse, transform, orchestrator, object_store, ingest, bi, observability, release, human]\n",
    "stack": {
-    "container_id": "6a2da57725e2",
+    "container_id": "0e9b06189065",
     "episode_endpoints": {
      "airbyte": "http://airbyte.internal:8001",
      "alertmanager": "http://alertmanager.internal:9093",
@@ -263,7 +263,7 @@
      "slack": "http://slack.internal:8081"
     },
     "image": "alkera-episode:w1-bigquery",
-    "image_digest": "sha256:f67f29f512d30b433a1c80cc58c614900be2faac756969fb4b02c4e337847f5e",
+    "image_digest": "sha256:25103ce16d7d0fd4a2134b06b341af1d257f195dfe0378f50dbe51ef918cb812",
     "services": [
      "bigquery",
      "episode",
@@ -281,7 +281,7 @@
      "ALKERA_SHIM_BIN": "/opt/alkera/shims",
      "ALKERA_SHIM_WATCH": "/world/var/warehouse/warehouse.duckdb",
      "ALKERA_SHIM_WORKSPACE": "/workspace",
-     "ALKERA_SOURCE_REV": "f15d4420ffbf080398106a1d9de668f0b4449ab6",
+     "ALKERA_SOURCE_REV": "7caa8fa2e3b283fbd7f4953d2542898304cdf03c",
      "ALKERA_TOOLBELT": "de",
      "ALKERA_VIRTUAL_TIME": "2026-03-02T00:00:00Z",
      "ALKERA_WAREHOUSES": "",
@@ -335,9 +335,9 @@
    }
   }
  ],
- "revision": "f15d4420ffbf080398106a1d9de668f0b4449ab6",
- "seconds": 59.6,
- "started": 1791371342.0592637,
+ "revision": "7caa8fa2e3b283fbd7f4953d2542898304cdf03c",
+ "seconds": 78.3,
+ "started": 1791373430.857748,
  "summary": {
   "DOC": 0,
   "FAIL": 0,
