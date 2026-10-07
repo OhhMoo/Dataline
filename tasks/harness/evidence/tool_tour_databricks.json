@@ -21,7 +21,7 @@
    "returncode": 0,
    "rows": 2,
    "rows_at": "call",
-   "seconds": 2.4,
+   "seconds": 2.56,
    "stderr_tail": "",
    "stdout_tail": "{\"value\": \"2361224.00\"}\n",
    "tool": "databricks",
@@ -55,7 +55,7 @@
    "returncode": 0,
    "rows": 6,
    "rows_at": "call",
-   "seconds": 2.17,
+   "seconds": 2.31,
    "stderr_tail": "The SEA backend (use_sea=True) is deprecated and incomplete and should not be used in production; it is slated for removal. Use the kernel backend instead by passing use_kernel=True and installing the kernel extra: pip install 'databricks-sql-connector[kernel]'.\n",
    "stdout_tail": "{\"value\": 1068}\n",
    "tool": "databricks",
@@ -93,7 +93,7 @@
    "returncode": 0,
    "rows": 2,
    "rows_at": "call",
-   "seconds": 1.08,
+   "seconds": 1.21,
    "stderr_tail": "",
    "stdout_tail": "{\"value\": \"33733790.00\"}\n",
    "tool": "databricks",
@@ -127,7 +127,7 @@
    "returncode": 0,
    "rows": 2,
    "rows_at": "call",
-   "seconds": 2.07,
+   "seconds": 2.12,
    "stderr_tail": "",
    "stdout_tail": "{\"value\": 6}\n",
    "tool": "databricks",
@@ -164,7 +164,7 @@
    "returncode": 0,
    "rows": 15,
    "rows_at": "call",
-   "seconds": 10.51,
+   "seconds": 10.83,
    "stderr_tail": "be used in production; it is slated for removal. Use the kernel backend instead by passing use_kernel=True and installing the kernel extra: pip install 'databricks-sql-connector[kernel]'.\nWARNING:databricks.sql.backend.sea.backend:The SEA backend (use_sea=True) is deprecated and incomplete and should not be used in production; it is slated for removal. Use the kernel backend instead by passing use_kernel=True and installing the kernel extra: pip install 'databricks-sql-connector[kernel]'.\nWARNING:databricks.sql.backend.sea.backend:The SEA backend (use_sea=True) is deprecated and incomplete and should not be used in production; it is slated for removal. Use the kernel backend instead by passing use_kernel=True and installing the kernel extra: pip install 'databricks-sql-connector[kernel]'.\n",
    "stdout_tail": "{\"value\": 2361224.0}\n",
    "tool": "databricks",
@@ -213,7 +213,7 @@
    "returncode": 0,
    "rows": 4,
    "rows_at": "call",
-   "seconds": 3.18,
+   "seconds": 3.16,
    "stderr_tail": "",
    "stdout_tail": "{\"value\": 1276}\n",
    "tool": "databricks",
@@ -251,9 +251,9 @@
     "destinations": [
      {
       "count": 10,
-      "first_ts": "2026-10-07T13:19:56Z",
+      "first_ts": "2026-10-07T13:41:34Z",
       "host": "databricks.internal",
-      "last_ts": "2026-10-07T13:20:14Z",
+      "last_ts": "2026-10-07T13:41:53Z",
       "port": 443
      },
      {
@@ -343,9 +343,9 @@
    },
    "image": "alkera-episode:w1-databricks",
    "image_gate": {
-    "head": "27fbad1e98761519c2f5e877926cf291206b9b3a",
+    "head": "5917f2984674ebf3bc5f4ad742586fad692abf99",
     "image": "alkera-episode:w1-databricks",
-    "revision": "27fbad1e98761519c2f5e877926cf291206b9b3a"
+    "revision": "5917f2984674ebf3bc5f4ad742586fad692abf99"
    },
    "ok": true,
    "plugs": {},
@@ -359,10 +359,10 @@
    ],
    "profile": "de/databricks",
    "rows_at": "call",
-   "seconds": 43.8,
+   "seconds": 43.7,
    "seed": "# commerce_analytics world seed: a shop's nightly CDC extracts -> raw -> dbt\n# star schema + semantic layer -> Power BI / Tableau / Sigma dashboards.\ntheme: commerce_analytics    # world/world/themes/<name>/\nseed: 11\nvtime_start: \"2025-01-01T00:00:00Z\"\n# 425 nightly extracts: dt=2024-12-31 (the cutover snapshot: accounts and\n# catalogue, no orders) then dt=2025-01-01 .. dt=2026-02-28. Fourteen months of\n# orders, so last-year measures exist for January and February 2026. The world\n# clock opens at 2026-03-02T00:00Z, a Monday - business day 1 of the February\n# close.\ndays: 425\n\n# Scale. Every key is optional (gen.DEFAULTS); these are the defaults, spelled\n# out. Build time is dominated by dbt, not by volume - a 2x seed builds in about\n# the same time.\ncustomers: 220               # accounts on the platform at cutover\nsignup_pct: 18               # chance per day of a new account (a second at a quarter of it)\nupdate_pct: 9                # chance per day that one account is upgraded a segment\norders_per_day: [20, 60]     # base range, scaled by weekday, month, peak days and growth\nlines_per_order: [1, 4]\ncancel_pct: 6                # 70% the same day, the rest the next day\nrefund_pct: 4                # 3 to 45 days after the order\ngrowth_pct: 20               # year-over-year order volume growth\n\ngit_author: \"Analytics Engineering <analytics@example.com>\"\nnative: true\nfiles: {formats: [parquet]}\nprofile:\n  name: de/databricks\n  slots: [files, warehouse, transform, orchestrator, object_store, ingest, bi, observability, release, human]\n  plugs: {bi: [powerbi]}\n",
    "stack": {
-    "container_id": "7a2be12bec10",
+    "container_id": "d89d94483252",
     "episode_endpoints": {
      "airbyte": "http://airbyte.internal:8001",
      "alertmanager": "http://alertmanager.internal:9093",
@@ -389,7 +389,7 @@
      "slack": "http://slack.internal:8081"
     },
     "image": "alkera-episode:w1-databricks",
-    "image_digest": "sha256:0333ca4bf3d5d43ab6d4b44e0cc63747038ba604d7734ccae07f0ff306760c97",
+    "image_digest": "sha256:58f26d3d7272fb5aaa7bd65050395b5372c197e5062b253940288b2360195481",
     "services": [
      "episode",
      "minio",
@@ -406,7 +406,7 @@
      "ALKERA_SHIM_BIN": "/opt/alkera/shims",
      "ALKERA_SHIM_WATCH": "/world/var/warehouse/warehouse.duckdb",
      "ALKERA_SHIM_WORKSPACE": "/workspace",
-     "ALKERA_SOURCE_REV": "27fbad1e98761519c2f5e877926cf291206b9b3a",
+     "ALKERA_SOURCE_REV": "5917f2984674ebf3bc5f4ad742586fad692abf99",
      "ALKERA_TOOLBELT": "de",
      "ALKERA_VIRTUAL_TIME": "2026-03-02T00:00:00Z",
      "ALKERA_WAREHOUSES": "",
@@ -443,7 +443,7 @@
     "workspace_cli": {
      "cli": "ops/sched",
      "files": [
-      "/home/ubuntu/alkera-rollouts/w1-databricks/tour-final4/de-databricks/world/workspace/ops/sched"
+      "/home/ubuntu/alkera-rollouts/w1-databricks/tour-final5/de-databricks/world/workspace/ops/sched"
      ],
      "interpreter": "/usr/local/bin/python",
      "pythonpath": "/opt/world",
@@ -451,22 +451,22 @@
     }
    },
    "truths_read": "after the world build, before the stack came up",
-   "work": "/home/ubuntu/alkera-rollouts/w1-databricks/tour-final4/de-databricks",
+   "work": "/home/ubuntu/alkera-rollouts/w1-databricks/tour-final5/de-databricks",
    "world": {
-    "dashboards": "/home/ubuntu/alkera-rollouts/w1-databricks/tour-final4/de-databricks/world/var/bi/dashboards",
-    "grading": "/home/ubuntu/alkera-rollouts/w1-databricks/tour-final4/de-databricks/grading",
-    "profiles_dir": "/home/ubuntu/alkera-rollouts/w1-databricks/tour-final4/de-databricks/world/build",
-    "scheduler": "/home/ubuntu/alkera-rollouts/w1-databricks/tour-final4/de-databricks/world/var/sched/state.json",
-    "warehouse": "/home/ubuntu/alkera-rollouts/w1-databricks/tour-final4/de-databricks/world/var/warehouse/warehouse.duckdb",
-    "workflow_dir": "/home/ubuntu/alkera-rollouts/w1-databricks/tour-final4/de-databricks/world/var/workflow",
-    "workspace": "/home/ubuntu/alkera-rollouts/w1-databricks/tour-final4/de-databricks/world/workspace",
-    "world_root": "/home/ubuntu/alkera-rollouts/w1-databricks/tour-final4/de-databricks/world"
+    "dashboards": "/home/ubuntu/alkera-rollouts/w1-databricks/tour-final5/de-databricks/world/var/bi/dashboards",
+    "grading": "/home/ubuntu/alkera-rollouts/w1-databricks/tour-final5/de-databricks/grading",
+    "profiles_dir": "/home/ubuntu/alkera-rollouts/w1-databricks/tour-final5/de-databricks/world/build",
+    "scheduler": "/home/ubuntu/alkera-rollouts/w1-databricks/tour-final5/de-databricks/world/var/sched/state.json",
+    "warehouse": "/home/ubuntu/alkera-rollouts/w1-databricks/tour-final5/de-databricks/world/var/warehouse/warehouse.duckdb",
+    "workflow_dir": "/home/ubuntu/alkera-rollouts/w1-databricks/tour-final5/de-databricks/world/var/workflow",
+    "workspace": "/home/ubuntu/alkera-rollouts/w1-databricks/tour-final5/de-databricks/world/workspace",
+    "world_root": "/home/ubuntu/alkera-rollouts/w1-databricks/tour-final5/de-databricks/world"
    }
   }
  ],
- "revision": "27fbad1e98761519c2f5e877926cf291206b9b3a",
- "seconds": 43.8,
- "started": 1791379178.3721387,
+ "revision": "5917f2984674ebf3bc5f4ad742586fad692abf99",
+ "seconds": 43.7,
+ "started": 1791380475.2332993,
  "summary": {
   "DOC": 0,
   "FAIL": 0,
