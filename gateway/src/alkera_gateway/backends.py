@@ -133,6 +133,29 @@ BACKENDS: dict[str, Backend] = {
              "AIRFLOW_USER": FAKE_CREDENTIAL,
              "AIRFLOW_PASSWORD": FAKE_CREDENTIAL},
     ),
+    # goccy/bigquery-emulator v0.8.1 - compose.yml's `bigquery` service on
+    # backend_net, out of the episode's reach - behind the audited proxy
+    # native-services hosts on this row's port (native/services/bigquery.py),
+    # which seeds the emulator from the world's warehouse at boot
+    # (native/bigquery_seed.py). `seeds_world` is a container backend's /seed
+    # mount; native-services already mounts the world, so it stays False. The
+    # clients: google-cloud-bigquery (AnonymousCredentials + client_options
+    # api_endpoint=BIGQUERY_API_URL) and dbt-bigquery, whose box target reads
+    # BIGQUERY_TOKEN (method oauth-secrets: a static bearer token, the one
+    # dbt-bigquery credential that never calls Google; the proxy forwards no
+    # credential and the emulator checks none).
+    "bigquery": Backend(
+        name="bigquery",
+        host="bigquery.internal",
+        port=9050,
+        scheme="http",
+        hosted=True,
+        clients="bigquery",
+        statement_tool="bigquery.statement",
+        env={"BIGQUERY_API_URL": "http://bigquery.internal:9050",
+             "BIGQUERY_PROJECT": "alkera-local",
+             "BIGQUERY_TOKEN": FAKE_CREDENTIAL},
+    ),
 }
 
 

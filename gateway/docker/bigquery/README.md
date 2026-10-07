@@ -64,3 +64,35 @@ types with no exact BigQuery equivalent raise rather than round.
 
 Not verified here: the container image (no Docker on the build host) and the arm64
 binary running (its tarball digest and ELF header were checked, not executed).
+
+## Native container topology (the `bigquery` plug, `de/gcp`)
+
+The agent's own clients reach BigQuery at `bigquery.internal:9050`, which is NOT the
+emulator: it is an audited proxy inside native-services
+(`src/alkera_gateway/native/services/bigquery.py`, the hosted row
+`backends.BACKENDS["bigquery"]`). The emulator is this compose stanza, started by
+`tasks/harness/container_episode.py` (compose profile `bigquery`, `HOSTED_ENGINES`)
+with `--project=alkera-local` and without its `bigquery.internal` alias; it stays on
+backend_net, which native-services joins and the episode does not. native-services
+gets `ALKERA_BIGQUERY_UPSTREAM=http://bigquery:9050` (Harbor: the supervised child on
+`127.0.0.1:19050`) and, at import, before it binds a port, seeds the emulator from the
+world's warehouse straight upstream (`native/bigquery_seed.py`: one dataset per
+schema, views copied as tables, counts read back; no audit row, no job).
+
+The proxy writes one 9.2.2 row per request before it answers (`bigquery.statement`
+for a query, `bigquery.<op>` for every other route, `bigquery.refused`,
+`bigquery.unknown_route`) and corrects what v0.8.1 gets wrong in a way a client
+would act on: cost fields stripped and dry runs refused (as above); legacy SQL, load
+and extract jobs and `ALTER` refused by name (501 `notImplemented`); a query error's
+`jobInternalError` - which google-cloud-bigquery retries for ten minutes - answered as
+`invalidQuery` / `notFound`; `statementType` recomputed from the SQL (the emulator
+says `SELECT` for everything, which breaks dbt-bigquery); `CREATE SCHEMA` made to
+create the dataset and `CREATE OR REPLACE` made to replace (the emulator does
+neither); the emulator's per-job result datasets hidden from `datasets.list`. The
+module docstring has each measurement. With that, dbt-bigquery (method
+`oauth-secrets` with the box's fake `BIGQUERY_TOKEN`, `api_endpoint`) runs `debug`,
+`run`, re-`run`, `test` and `show`; `dbt seed` is a load job and is refused by name.
+
+Measured end to end by `tasks/harness/bigquery_e2e_check.py` (evidence
+`tasks/harness/evidence/bigquery_e2e.json`); the tool tour's `bigquery` probes are in
+`tasks/harness/tool_tour_probes/bigquery.py`.

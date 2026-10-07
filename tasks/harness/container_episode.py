@@ -1024,6 +1024,26 @@ SEED_IN_CONTAINER = "/seed"
 #: is per rollout and their overlay bytes stay what they were. Every other
 #: backend gets a complete service block and needs no static compose edit.
 STATIC_BACKENDS = frozenset({"snowflake"})
+#: HOSTED backends whose ENGINE is a compose.yml service of its own, by backend
+#: name: (compose service == its compose profile, port, command). The registry
+#: row's module is the front door inside native-services; the engine sits on
+#: backend_net, which the episode is not on. When one is plugged, `compose_env`
+#: turns the engine's profile on and `profile_overlay` puts native-services on
+#: backend_net, hands it the engine's address as `ALKERA_<NAME>_UPSTREAM`,
+#: orders it after the engine, and restates the engine's command (each argument
+#: formatted with the row's `env`).
+#:
+#: bigquery: goccy's emulator (compose.yml's stanza), started under the
+#: registry's project - the stanza names `episode`, the project the MCP
+#: topology's ALKERA_BIGQUERY_OPTIONS use, and the emulator serves one project
+#: only - and without its `bigquery.internal` alias on backend_net: once
+#: native-services joins that network, the name would mean both the proxy and
+#: its engine there.
+HOSTED_ENGINES = {
+    "bigquery": ("bigquery", 9050, ("--project={BIGQUERY_PROJECT}", "--port=9050",
+                                    "--grpc-port=9060",
+                                    "--database=/bigquery-data/emulator.db")),
+}
 #: The Snowflake plug, by name, as the checks and tests read it: where the
 #: world's warehouse files are bound in the `snowflake` service, the trust
 #: bundle its TLS proxy publishes (compose.yml's `snowflaketrust` volume), and
@@ -2144,10 +2164,15 @@ class NativeContainerEpisode:
         aliases: !override
 {alias_lines}
 """
+        engines = [b for b in hosted if b.name in HOSTED_ENGINES]
+        if engines:
+            body += "      backend_net: {}\n"
         trust = [b for b in hosted if b.tls]
         if trust:
             body += "    volumes:\n" + "".join(
                 f"      - {b.name}trust:{_backends().trust_dir(b)}\n" for b in trust)
+        if engines:
+            body += self.engine_overlay(engines)
         if not with_store:
             body += """  minio:
     networks:
@@ -2155,6 +2180,36 @@ class NativeContainerEpisode:
         aliases: !reset []
 """
         return body
+
+    def engine_overlay(self, engines) -> str:
+        """The rest of native-services' block for plugged HOSTED_ENGINES
+        backends - each engine's address (`ALKERA_<NAME>_UPSTREAM`, which the
+        module forwards to and seeds through at import) and the start order -
+        then each engine's own block. The engine has no healthcheck (goccy's
+        image has no shell to run one in, and a probe would be a dial): it only
+        has to be STARTED, because the module polls it before seeding and
+        native-services binds nothing until the seed is in."""
+        text = "    environment:\n" + "".join(
+            f"      ALKERA_{b.name.upper()}_UPSTREAM: "
+            f"http://{HOSTED_ENGINES[b.name][0]}:{HOSTED_ENGINES[b.name][1]}\n"
+            for b in engines)
+        text += "    depends_on:\n" + "".join(
+            f"      {HOSTED_ENGINES[b.name][0]}:\n        condition: service_started\n"
+            for b in engines)
+        for b in engines:
+            service, _, command = HOSTED_ENGINES[b.name]
+            args = ", ".join(json.dumps(arg.format(**b.env)) for arg in command)
+            text += f"""
+# HOSTED ENGINE {b.name}: compose.yml's `{service}` service (compose profile
+# `{service}`, enabled by compose_env), on backend_net only. The episode reaches
+# it through the audited proxy in native-services, {b.host}:{b.port}.
+  {service}:
+    command: [{args}]
+    networks:
+      backend_net:
+        aliases: !reset []
+"""
+        return text
 
     def write_overlay(self) -> Path:
         """The per-rollout overlay: warehouse binds, shim PATH, the world's
@@ -2273,9 +2328,13 @@ services:
         # compose profile `notebook` starts the `jupyter` service, and each
         # plugged backend with a container of its own starts under its name
         # (compose profile `snowflake` for compose.yml's stanza, the profile
-        # `backend_overlay` declares for any other).
+        # `backend_overlay` declares for any other). A hosted backend whose
+        # engine is a compose.yml service (HOSTED_ENGINES: BigQuery's emulator)
+        # starts that service under its profile.
         profiles = [name for name, on in (("notebook", self.notebook_plugged()),)
-                    if on] + [b.name for b in self.plugged_backends() if not b.hosted]
+                    if on] + [b.name for b in self.plugged_backends() if not b.hosted] + [
+            HOSTED_ENGINES[b.name][0] for b in self.plugged_backends()
+            if b.hosted and b.name in HOSTED_ENGINES]
         return {
             **os.environ,
             "ALKERA_EPISODE_WORLD": self.world_root.as_posix(),

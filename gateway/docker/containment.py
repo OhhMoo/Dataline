@@ -83,6 +83,11 @@ NATIVE_BACKENDS = {
     # and never dials it: measuring it means a P6 run with the profile plugged
     # that probes the hosted alias on native-services (the Task 12 re-measure).
     "airflow-api": ("airflow.internal", 8100),
+    # Keyed by the ENGINE's compose service (compose.yml `bigquery`, profile
+    # `bigquery`): when it runs, the alias is native-services' audited proxy in
+    # front of it (tasks/harness/container_episode.HOSTED_ENGINES); the engine
+    # itself is on backend_net only.
+    "bigquery": ("bigquery.internal", 9050),
 }
 PROBE_IMAGE = "alkera-stack:track-b"
 ALL_PROFILES = ("harness", "grading", "snowflake")

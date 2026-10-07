@@ -121,6 +121,9 @@ TOOL_KINDS = {
     # to a plugged warehouse is charged like one sent through psql;
     # test_backends.py fails for a registered statement tool missing here.
     "snowflake.statement": "sql",
+    # The BigQuery proxy (native/services/bigquery.py): one row per query job
+    # or jobs.query call, its text in `args.sql`.
+    "bigquery.statement": "sql",
     "bash": "shell",
     "s3_put": "fs_write",
     "s3_delete": "fs_delete",

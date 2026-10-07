@@ -1,0 +1,17 @@
+# The BigQuery plug's client side, for episode images built with
+# `--warehouse-clients bigquery` (Dockerfile ALKERA_WAREHOUSE_CLIENTS): the
+# Python client (AnonymousCredentials + client_options api_endpoint against
+# bigquery.internal:9050, the audited proxy in front of the emulator) and the
+# dbt adapter (method oauth-secrets with the box's fake token and
+# api_endpoint; measured against the emulator through the proxy - debug, run,
+# re-run, test and show pass; seed is a load job and is refused by name).
+# dbt-bigquery pulls google-cloud-bigquery[pandas], so to_dataframe() works;
+# it does NOT pull google-cloud-bigquery-storage, so the client reads results
+# over REST and never dials the Storage Read API's gRPC endpoint.
+# Compiled here, NOT in pyproject/uv.lock, like every backend's clients
+# (docker/lock_warehouse_clients.py): constrained to the base, native and ds
+# locks, so every package it shares with them is the same version; certifi is
+# the one deliberate exception (bigquery-clients.overrides). Regenerate with the
+# command in requirements-bigquery.lock's header.
+google-cloud-bigquery[pandas]>=3.25,<4
+dbt-bigquery>=1.9,<2

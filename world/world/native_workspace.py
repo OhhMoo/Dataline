@@ -372,6 +372,30 @@ DISCOVERY: dict[str, Discovery] = {
              "AIRFLOW_USER": FAKE_USER, "AIRFLOW_PASSWORD": FAKE_TOKEN},
         replaces=("the scheduler",),
     ),
+    # The BigQuery REST API at bigquery.internal:9050 (an audited proxy in
+    # front of goccy's emulator), seeded from the world's warehouse: project
+    # alkera-local, one dataset per warehouse schema (`warehouse.fct_orders`
+    # is `alkera-local.warehouse.fct_orders`). The client needs no Google
+    # credential - AnonymousCredentials and the endpoint as api_endpoint - and
+    # dbt-bigquery reads BIGQUERY_TOKEN (method oauth-secrets). The box's dbt
+    # target builds into `dbt_dev`, a dataset the seed did not fill, the way
+    # Snowflake's builds into PUBLIC.
+    "bigquery": Discovery(
+        backend="bigquery",
+        label="the warehouse",
+        clients=("google-cloud-bigquery: `bigquery.Client(project=BIGQUERY_PROJECT, "
+                 "credentials=AnonymousCredentials(), client_options={\"api_endpoint\": "
+                 "BIGQUERY_API_URL})`; dbt-bigquery"),
+        services_toml={"host": "bigquery.internal", "port": "9050",
+                       "endpoint": "http://bigquery.internal:9050",
+                       "project": "alkera-local", "dataset": "warehouse",
+                       "schema": "dbt_dev"},
+        dbt_type="bigquery",
+        env={"BIGQUERY_API_URL": "http://bigquery.internal:9050",
+             "BIGQUERY_PROJECT": "alkera-local", "BIGQUERY_TOKEN": FAKE_TOKEN},
+        dbt_env={"project": "BIGQUERY_PROJECT", "api_endpoint": "BIGQUERY_API_URL",
+                 "token": "BIGQUERY_TOKEN"},
+    ),
 }
 
 #: Registry backends the box listed BEFORE the registry, and so still lists the
