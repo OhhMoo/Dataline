@@ -40,11 +40,24 @@ differ), so "profile" in the plan's (role, clients, profile) is the resolved
 profile, name and plugs. Two tasks with one key get byte-identical Dockerfiles
 and share every build-cache layer up to the per-task block.
 
+BACKENDS (plan Task 10). A profile that plugs a registry backend
+(`alkera_gateway.backends`) or the `postgres` warehouse gets, per backend
+(HARBOR_BACKENDS and its companion tables below):
+
+  processes  episode.json `backends` entries, which world-up supervises
+             beside the services (none for a backend the services host);
+  layers     Dockerfile lines after that backend's client lock (a server
+             package, a launcher, a private directory), and the repository
+             files they COPY (`Variant.support_files`, never under tasks/);
+  audit      episode.json `statement_logs`, the server logs world-down turns
+             into action-log rows (a backend whose audit is its own log).
+
 FENCES (loud, by name). A profile whose warehouse plug the Harbor image does
-not serve yet is refused (plan Task 10 adds those backends as `episode.json`
-`backends`); nothing would answer at its address. The notebook plug (Jupyter)
-is not served either: it is allowed, because the BI tasks plug it without
-using it, and listed in harbor/README.md's known deviations.
+not serve is refused before its world is built: nothing would answer at its
+address, or (REFUSED_WAREHOUSES) what would answer cannot be made safe in one
+container. The notebook plug (Jupyter) is not served either: it is allowed,
+because the BI tasks plug it without using it, and listed in harbor/README.md's
+known deviations.
 """
 from __future__ import annotations
 
@@ -60,8 +73,15 @@ KEPT_ENV_PREFIXES = ("ALKERA_",)
 KEPT_ENV_NAMES = ("PATH",)
 #: The bundle every image ships (the template's RUN copies certifi there).
 CA_BUNDLE_VAR = "REQUESTS_CA_BUNDLE"
-#: Warehouse plugs the Harbor image serves today: the world's own DuckDB file.
+#: Warehouse plugs the Harbor image serves: the world's own DuckDB file, and
+#: each warehouse backend that has its HARBOR_BACKENDS entry.
 SERVED_WAREHOUSES = ("duckdb",)
+#: Warehouse plugs the image refuses, and why (the export's error says it).
+REFUSED_WAREHOUSES: dict[str, str] = {}
+#: The warehouse plug served by a process of its own that is not a registry
+#: backend (no client lock, no agent-facing variables of its own: the box's PG*
+#: are the static table's): a Harbor backend all the same.
+POSTGRES_PLUG = "postgres"
 #: Plugs that are not served in the image but do not block an export; each is
 #: a known deviation (harbor/README.md).
 UNSERVED_ALLOWED = {("notebook", "jupyter"): "jupyter.internal:8888 is not started"}
@@ -70,15 +90,24 @@ UNSERVED_ALLOWED = {("notebook", "jupyter"): "jupyter.internal:8888 is not start
 ROLE_LOCKS = ("ds", "da")
 #: Roles whose box carries the audited Jupyter kernelspec.
 KERNEL_ROLES = ("ds", "da")
-#: Plan Task 10's two extension points, empty today (no profile the image
-#: serves plugs a registry backend):
-#:   HARBOR_BACKENDS  registry backend name -> its episode.json `backends`
-#:                    entries for a variant (name, argv, user, ports, hosts,
-#:                    health; the environment runtime's contract)
-#:   CLIENT_LAYERS    client lock name -> extra Dockerfile lines after that
-#:                    client's lock (a server package, a pinned binary)
-HARBOR_BACKENDS: dict = {}
-CLIENT_LAYERS: dict[str, tuple[str, ...]] = {}
+#: Plan Task 10's extension points, keyed by Harbor backend name (a registry
+#: backend's name, or POSTGRES_PLUG):
+#:   HARBOR_BACKENDS  -> a function of the variant giving its episode.json
+#:                    `backends` entries (name, argv, user, ports, hosts,
+#:                    health; the environment runtime's contract). [] for a
+#:                    backend the services process hosts. A plugged backend
+#:                    with no entry here is refused at export.
+#:   CLIENT_LAYERS    client lock name -> extra Dockerfile lines right after
+#:                    that client's lock (a server package, a launcher)
+#:   PLUG_LAYERS      a backend with no client lock (POSTGRES_PLUG) -> its
+#:                    Dockerfile lines, after every client lock. A block (lines
+#:                    between blank lines) already emitted is not emitted again,
+#:                    so two backends can share one server package layer.
+#:   SUPPORT_FILES    -> (repository file, path under the context's alkera/)
+#:                    pairs those lines COPY
+#:   STATEMENT_LOGS   -> its episode.json `statement_logs` entries ({"log",
+#:                    "tailer"}): world-down folds each into the action log
+#: (Defined at the end of this module, one block per backend.)
 
 # ---- anchors on the template's own lines (each must match exactly once)
 _PIP = "pip install --no-cache-dir --retries=5 --timeout=120 --require-hashes -r"
@@ -122,6 +151,10 @@ class Variant:
     #: The registry backends the profile plugs (`alkera_gateway.backends`), by
     #: name: the box dbt profile's extra targets (worldbuild, box_profiles_yaml).
     backends: tuple[str, ...] = field(default=(), compare=False)
+    #: What the image runs or hosts for the profile beyond the unprofiled box:
+    #: `backends` plus POSTGRES_PLUG when the warehouse slot plugs it, in that
+    #: order (the keys of HARBOR_BACKENDS and its companion tables).
+    harbor_backends: tuple[str, ...] = field(default=(), compare=False)
 
     @property
     def profiled(self) -> bool:
@@ -149,6 +182,16 @@ class Variant:
         template's context.txt (destination = the same path under alkera/)."""
         locks = ([self.role] if self.role in ROLE_LOCKS else []) + list(self.clients)
         return [f"gateway/requirements-{name}.lock" for name in locks]
+
+    def support_files(self) -> list[tuple[str, str]]:
+        """(repository file, destination under alkera/) for every file the
+        backends' Dockerfile lines COPY (SUPPORT_FILES), in backend order, once."""
+        out: list[tuple[str, str]] = []
+        for name in self.harbor_backends:
+            for pair in SUPPORT_FILES.get(name, ()):
+                if pair not in out:
+                    out.append(pair)
+        return out
 
 
 UNPROFILED = Variant()
@@ -189,36 +232,53 @@ def variant_of(spec) -> Variant:
     except m.episode.HarnessError as exc:
         raise VariantError(f"profile {profile!r}: {exc}") from None
     slots = {slot: tuple(names) for slot, names in resolved.slots.items()}
-    unserved = [f"warehouse={name}" for name in slots.get("warehouse", ())
+    warehouses = slots.get("warehouse", ())
+    refused = [f"warehouse={name}: {REFUSED_WAREHOUSES[name]}" for name in warehouses
+               if name in REFUSED_WAREHOUSES]
+    if refused:
+        raise VariantError(
+            f"profile {profile!r} plugs a warehouse the Harbor image refuses to serve:\n  "
+            + "\n  ".join(refused))
+    unserved = [f"warehouse={name}" for name in warehouses
                 if name not in SERVED_WAREHOUSES]
     if unserved:
         raise VariantError(
             f"profile {profile!r} plugs {', '.join(unserved)}, which the Harbor image "
-            f"does not serve yet (only {', '.join(SERVED_WAREHOUSES)}): nothing would "
-            f"answer at its address. Backends land as episode.json `backends` "
-            f"(plan Task 10).")
+            f"does not serve (only {', '.join(SERVED_WAREHOUSES)}): nothing would "
+            f"answer at its address.")
     role = profile.split("/", 1)[0]
     try:
         plugged = plugged_backends(slots)
     except ValueError as exc:                    # plugs.ProfileError: two TLS backends
         raise VariantError(f"profile {profile!r}: {exc}") from None
+    names = tuple(b.name for b in plugged)
     return Variant(role=role,
                    clients=tuple(sorted({b.clients for b in plugged if b.clients})),
                    profile=profile, plugs=_canonical(plugs), slots=_canonical(slots),
-                   services=tuple(resolved.services),
-                   backends=tuple(b.name for b in plugged))
+                   services=tuple(resolved.services), backends=names,
+                   harbor_backends=names + ((POSTGRES_PLUG,) if POSTGRES_PLUG in warehouses
+                                            else ()))
 
 
 def backend_specs(variant: Variant) -> list[dict]:
-    """The episode.json `backends` of a variant: HARBOR_BACKENDS' entries
-    for each registry backend it plugs, in plugged order. Empty today."""
+    """The episode.json `backends` of a variant: HARBOR_BACKENDS' entries for
+    each backend it plugs, in `harbor_backends` order (none for a backend the
+    services host). A plugged backend the image knows nothing of is refused."""
     specs: list[dict] = []
-    for name in variant.backends:
+    for name in variant.harbor_backends:
         if name not in HARBOR_BACKENDS:
             raise VariantError(f"the {variant.key} variant plugs backend {name!r}, which "
-                               f"the Harbor image has no process for (plan Task 10)")
+                               f"the Harbor image neither runs nor hosts")
         specs += [dict(spec) for spec in HARBOR_BACKENDS[name](variant)]
     return specs
+
+
+def statement_logs(variant: Variant) -> list[dict]:
+    """The episode.json `statement_logs` of a variant (STATEMENT_LOGS), in
+    `harbor_backends` order: [] for every variant whose backends write their
+    rows themselves."""
+    return [dict(entry) for name in variant.harbor_backends
+            for entry in STATEMENT_LOGS.get(name, ())]
 
 
 def unserved_notes(variant: Variant) -> list[str]:
@@ -236,7 +296,10 @@ def environment(variant: Variant, template_env: dict[str, str],
     order: sorted by name, `REQUESTS_CA_BUNDLE` last (as in the template).
 
     `template_env` is the template's parsed ENV (dockerenv.parse_env), the
-    source of the bundle path, so the two cannot drift."""
+    source of the bundle path, so the two cannot drift - unless the profile
+    plugs a TLS backend, whose own bundle (`backends.bundle`: certifi plus the
+    certificate it mints at boot) is the one the box trusts, as the measured
+    container overlay sets it (one TLS backend per profile: `backends.plugged`)."""
     harness.modules()                           # world/ on sys.path
     from world import native_workspace as nw
 
@@ -252,6 +315,12 @@ def environment(variant: Variant, template_env: dict[str, str],
     env.pop(CA_BUNDLE_VAR, None)
     ordered = {name: env[name] for name in sorted(env)}
     ordered[CA_BUNDLE_VAR] = template_env[CA_BUNDLE_VAR]
+    if variant.backends:
+        from alkera_gateway import backends as registry
+
+        for name in variant.backends:
+            if registry.BACKENDS[name].tls:
+                ordered[CA_BUNDLE_VAR] = registry.bundle(registry.BACKENDS[name])
     for name, value in ordered.items():
         if "$" in value or any(c.isspace() for c in value) or '"' in value:
             raise VariantError(f"{name}={value!r} is not a literal ENV value")
@@ -310,6 +379,7 @@ def render_dockerfile(template: str, variant: Variant, template_env: dict[str, s
     # layer, so every layer before them is the unprofiled image's (cached)
     at = _index(lines, ANCHOR_DUCKDB_EXTENSION, "DuckDB extension install")
     insert: list[str] = []
+    emitted: set[tuple[str, ...]] = set()
     for kind, name in ([("role", variant.role)] if variant.role in ROLE_LOCKS else []) \
             + [("clients", c) for c in variant.clients]:
         lock = f"/opt/gateway/requirements-{name}.lock"
@@ -320,8 +390,11 @@ def render_dockerfile(template: str, variant: Variant, template_env: dict[str, s
         insert += ["",
                    f"# {what}",
                    f"COPY alkera/gateway/requirements-{name}.lock {lock}",
-                   f"RUN {_PIP} {lock}",
-                   *(CLIENT_LAYERS.get(name, ()) if kind == "clients" else ())]
+                   f"RUN {_PIP} {lock}"]
+        if kind == "clients":
+            insert += _blocks(CLIENT_LAYERS.get(name, ()), emitted)
+    for name in variant.harbor_backends:
+        insert += _blocks(PLUG_LAYERS.get(name, ()), emitted)
     if variant.role in KERNEL_ROLES:
         insert += ["",
                    f"# Role {variant.role}: the Jupyter plug's audited kernelspec, "
@@ -333,6 +406,24 @@ def render_dockerfile(template: str, variant: Variant, template_env: dict[str, s
 
     _header(lines, variant)
     return "\n".join(lines)
+
+
+def _blocks(layer_lines: tuple[str, ...], emitted: set[tuple[str, ...]]) -> list[str]:
+    """`layer_lines` split into blocks at blank lines, each preceded by a blank
+    line, minus any block already in `emitted` (which is updated): two backends
+    that need one server package install it once."""
+    blocks: list[list[str]] = [[]]
+    for line in layer_lines:
+        if line == "":
+            blocks.append([])
+        else:
+            blocks[-1].append(line)
+    out: list[str] = []
+    for block in blocks:
+        if block and tuple(block) not in emitted:
+            emitted.add(tuple(block))
+            out += ["", *block]
+    return out
 
 
 def _header(lines: list[str], variant: Variant, template: str = "environment",
@@ -388,3 +479,18 @@ def render_tests_dockerfile(template: str, variant: Variant,
     ]
     _header(lines, variant, template="tests", edits="and git after the pip layer")
     return "\n".join(lines)
+
+
+# ------------------------------------------------------------- the backends
+def _hosted(_variant: Variant) -> list[dict]:
+    """A backend the services process hosts: serve.py mounts its module on its
+    registry port when the profile plugs it, and world-up aliases its host from
+    the services' own destinations. No process of its own."""
+    return []
+
+
+HARBOR_BACKENDS: dict = {}
+CLIENT_LAYERS: dict[str, tuple[str, ...]] = {}
+PLUG_LAYERS: dict[str, tuple[str, ...]] = {}
+SUPPORT_FILES: dict[str, tuple[tuple[str, str], ...]] = {}
+STATEMENT_LOGS: dict[str, tuple[dict, ...]] = {}

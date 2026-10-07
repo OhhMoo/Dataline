@@ -55,6 +55,22 @@ world-up loudly, before any host is written. `health: "http"` additionally
 GETs `http://127.0.0.1:<first port>/health` once, on the first start, and
 requires a 2xx (that connection is recorded in the watermark). world-down
 stops them in reverse order, before the services.
+
+WHAT WORLD-DOWN FOLDS INTO /audit, once every process that writes it stopped
+and before the verifier reads it:
+
+  destinations   a backend that counts its accepted connections keeps its own
+                 `destinations.<name>.jsonl` (the services rewrite
+                 destinations.jsonl whole); each declared backend's file is
+                 merged into destinations.jsonl by (host, port), as the
+                 measured topology's teardown does.
+  statements     episode.json `statement_logs` ({"log", "tailer"}): a backend
+                 audited by its own server log (the Postgres warehouse, which
+                 logs the agent's role only) has that log turned into rows by
+                 the named tailer module, through the services' own writer
+                 (same lock, contiguous seq), at the world's clock. Each log is
+                 folded from where the last world-down stopped, never twice;
+                 `/audit/.statement_logs.json` says what was folded.
 """
 from __future__ import annotations
 
@@ -130,6 +146,12 @@ ACTIONS = "actions.jsonl"
 WRITER_LOCK = "writer.lock"
 DESTINATIONS = "destinations.jsonl"
 WATERMARK = ".episode_start.json"
+#: world-down's record of the statement logs it folded (statement_logs).
+STATEMENT_LOGS_MARKER = ".statement_logs.json"
+STATEMENT_LOGS_SCHEMA = "alkera-harbor-statement-logs/1"
+#: The services' aggregate /health (serve.py), which lists every served
+#: surface with its scheme: the one world-up asks first.
+AGGREGATE_HOST = "native-services.internal"
 
 #: The services bind loopback only: the world is closed, and the egress
 #: sidecar of `no-network` trials leaves loopback alone.
@@ -232,6 +254,11 @@ class Layout:
     def backends_file(self) -> Path:
         return self.run_dir / "backends.json"
 
+    @property
+    def tailed_file(self) -> Path:
+        """How far world-down folded each statement log (private)."""
+        return self.run_dir / "statement_logs.json"
+
     def backend_log(self, name: str) -> Path:
         return self.log_dir / f"backend-{name}.log"
 
@@ -290,6 +317,7 @@ def load_episode(layout: Layout) -> dict:
             f"{path} declares plugs {sorted(plugs)} but no profile; the services "
             f"accept --plug only together with --profile.")
     load_backends(episode, where=str(path))
+    load_statement_logs(episode, where=str(path))
     return episode
 
 
@@ -357,6 +385,43 @@ def load_backends(episode: dict, where: str = "episode.json") -> list[dict]:
             raise RuntimeFailure(f"{label} ({name}): health must be one of "
                                  f"{list(BACKEND_HEALTH)}, got {spec['health']!r}")
         out.append({key: spec[key] for key in BACKEND_KEYS})
+    return out
+
+
+STATEMENT_LOG_KEYS = ("log", "tailer")
+#: Where a statement log may live: a backend's private state, root's or its
+#: service user's, never anything the agent writes.
+STATEMENT_LOG_ROOT = "/var/lib/alkera"
+_TAILER = re.compile(r"^alkera_gateway\.native\.tailers\.[a-z][a-z0-9_]*$")
+
+
+def load_statement_logs(episode: dict, where: str = "episode.json") -> list[dict]:
+    """episode.json `statement_logs`, checked: a list (absent = none) of
+    objects with exactly STATEMENT_LOG_KEYS - `log` an absolute path under
+    STATEMENT_LOG_ROOT (outside the copied service state), `tailer` a module of
+    alkera_gateway.native.tailers - each log named once."""
+    raw = episode.get("statement_logs")
+    if raw is None:
+        return []
+    if not isinstance(raw, list):
+        raise RuntimeFailure(f"{where}: `statement_logs` must be a list, got {raw!r}")
+    out, seen = [], set()
+    for index, spec in enumerate(raw):
+        label = f"{where}: statement_logs[{index}]"
+        if not isinstance(spec, dict) or set(spec) != set(STATEMENT_LOG_KEYS):
+            raise RuntimeFailure(f"{label} must be an object with exactly the keys "
+                                 f"{list(STATEMENT_LOG_KEYS)}, got {spec!r}")
+        log, tailer = spec["log"], spec["tailer"]
+        if not isinstance(log, str) or posixpath.normpath(log) != log \
+                or not _under(log, (STATEMENT_LOG_ROOT,)) or log == STATEMENT_LOG_ROOT \
+                or _under(log, (SERVICE_STATE,)) or log in seen:
+            raise RuntimeFailure(f"{label}: log {log!r} is not a distinct normalised path "
+                                 f"under {STATEMENT_LOG_ROOT} (outside {SERVICE_STATE})")
+        if not isinstance(tailer, str) or not _TAILER.match(tailer):
+            raise RuntimeFailure(f"{label}: tailer {tailer!r} is not a module of "
+                                 f"alkera_gateway.native.tailers")
+        seen.add(log)
+        out.append({"log": log, "tailer": tailer})
     return out
 
 
@@ -1094,14 +1159,15 @@ def backend_port_owners(ports: list[int], listening: dict[int, dict[int, int]],
     return missing, foreign
 
 
-def wait_backend(layout: Layout, spec: dict, entry: dict, deadline: float) -> None:
+def wait_backend(layout: Layout, spec: dict, entry: dict, deadline: float) -> float:
     """Until every declared port is LISTENed by a process of the backend's own
     session (backend_port_owners). Reads /proc only. A port another process
     holds, a backend that exits, or the deadline: RuntimeFailure naming the
-    backend and its log."""
+    backend and its log. Returns the seconds it waited."""
     sid = int(entry["pid"])
     name, ports = spec["name"], list(spec["ports"])
     missing = ports
+    began = time.monotonic()
     while True:
         if not backend_alive(entry):
             raise RuntimeFailure(
@@ -1119,7 +1185,7 @@ def wait_backend(layout: Layout, spec: dict, entry: dict, deadline: float) -> No
                             for p in foreign)
                 + " - not a process world-up supervises")
         if not missing:
-            return
+            return round(time.monotonic() - began, 1)
         if time.monotonic() >= deadline:
             break
         time.sleep(POLL_S)
@@ -1152,7 +1218,9 @@ def bring_up_backends(layout: Layout, episode: dict, deadline: float) -> list[st
             _write_private_json(layout.backends_file, state)
             report.append(f"backend {spec['name']}: started (pid {entry['pid']}, "
                           f"{entry['run_as']})")
-        wait_backend(layout, spec, entry, deadline)
+        waited = wait_backend(layout, spec, entry, deadline)
+        report.append(f"backend {spec['name']}: listening on {spec['ports']} after "
+                      f"{waited}s")
     report.append("backends listening: " + ", ".join(
         f"{s['name']} {s['ports']}" for s in specs))
     return report
@@ -1440,11 +1508,30 @@ def resolution_problems(hosts: list[str]) -> list[str]:
 _NO_PROXY = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
 
-def probe_health(port: int, timeout: float = HEALTH_TIMEOUT_S) -> tuple[int, dict]:
-    """GET http://127.0.0.1:<port>/health -> (status, JSON body). Never via a proxy."""
-    url = f"http://{BIND}:{port}/health"
+def _tls_opener():
+    """An opener for a TLS surface the services host (a backend whose registry
+    row says tls): verified against the bundle the agent's clients trust
+    (REQUESTS_CA_BUNDLE, which the image names; the minted certificate covers
+    127.0.0.1), never via a proxy. The bundle is read when this is called,
+    after the services published it."""
+    import ssl
+
+    bundle = os.environ.get("REQUESTS_CA_BUNDLE")
+    if not bundle or not os.path.isfile(bundle):
+        raise RuntimeFailure(f"a TLS surface is served but REQUESTS_CA_BUNDLE "
+                             f"({bundle!r}) names no bundle to verify it with")
+    context = ssl.create_default_context(cafile=bundle)
+    return urllib.request.build_opener(urllib.request.ProxyHandler({}),
+                                       urllib.request.HTTPSHandler(context=context))
+
+
+def probe_health(port: int, timeout: float = HEALTH_TIMEOUT_S, *,
+                 tls: bool = False) -> tuple[int, dict]:
+    """GET http(s)://127.0.0.1:<port>/health -> (status, JSON body). Never via a proxy."""
+    url = f"{'https' if tls else 'http'}://{BIND}:{port}/health"
+    opener = _tls_opener() if tls else _NO_PROXY
     try:
-        with _NO_PROXY.open(url, timeout=timeout) as response:
+        with opener.open(url, timeout=timeout) as response:
             status, body = response.status, response.read()
     except urllib.error.HTTPError as exc:
         status, body = exc.code, exc.read()
@@ -1460,14 +1547,23 @@ def probe_health(port: int, timeout: float = HEALTH_TIMEOUT_S) -> tuple[int, dic
     return status, payload
 
 
+def tls_ports(aggregate: dict) -> set[int]:
+    """The ports the aggregate /health lists with an https URL (a hosted TLS
+    backend, e.g. databricks.internal:443)."""
+    return {int(s["port"]) for s in aggregate.get("services") or []
+            if isinstance(s, dict) and str(s.get("url", "")).startswith("https://")}
+
+
 def check_answers(rows: list[dict]) -> dict[str, dict]:
-    """One /health per destination. 200, or 503 when that service's slice of
-    the world is empty (a world with no ticket queue: `items: 0`); anything else
-    - a 500, a body that is not the service's JSON - is a broken world. The
-    aggregate must report no missing service."""
+    """One /health per destination, the aggregate's first: it says which
+    surfaces speak TLS. 200, or 503 when that service's slice of the world is
+    empty (a world with no ticket queue: `items: 0`); anything else - a 500, a
+    body that is not the service's JSON - is a broken world. The aggregate
+    must report no missing service."""
     answers = {}
-    for row in sorted(rows, key=lambda r: int(r["port"])):
-        status, payload = probe_health(int(row["port"]))
+    secure: set[int] = set()
+    for row in sorted(rows, key=lambda r: (r.get("host") != AGGREGATE_HOST, int(r["port"]))):
+        status, payload = probe_health(int(row["port"]), tls=int(row["port"]) in secure)
         name = f"{row['host']}:{row['port']}"
         if status not in (200, 503) or "service" not in payload:
             raise RuntimeFailure(f"{name} answered /health with {status}: "
@@ -1479,6 +1575,7 @@ def check_answers(rows: list[dict]) -> dict[str, dict]:
                 raise RuntimeFailure(
                     f"the services process reports a broken set: missing={missing} "
                     f"port_disagreements={disagree}")
+            secure = tls_ports(payload)
         answers[name] = {"status": status, "items": payload.get("items")}
     return answers
 
@@ -1818,6 +1915,109 @@ def agent_processes(uid: int) -> list[int]:
     return sorted(found)
 
 
+def fold_backend_destinations(layout: Layout, episode: dict) -> list[str]:
+    """Merge each declared backend's `destinations.<name>.jsonl` into
+    destinations.jsonl, one row per (host, port), the backend's row winning
+    (container_episode.fold_destinations' rule). Idempotent. Runs after every
+    writer stopped: the services rewrite destinations.jsonl whole until then."""
+    extras = [layout.audit / f"destinations.{spec['name']}.jsonl"
+              for spec in load_backends(episode)]
+    extras = [p for p in extras if p.is_file() and not p.is_symlink()]
+    if not extras:
+        return []
+    main = layout.audit / DESTINATIONS
+    if main.is_symlink():
+        raise RuntimeFailure(f"{main} is a symlink; refusing to write through it")
+    rows: dict = {}
+    for source in ([main] if main.is_file() else []) + extras:
+        for line in source.read_text(encoding="utf-8").splitlines():
+            if line.strip():
+                row = json.loads(line)
+                rows[(row.get("host"), row.get("port"))] = row
+    folded = [rows[key] for key in sorted(rows, key=lambda k: (str(k[0]), k[1] or 0))]
+    tmp = main.with_name(main.name + ".fold")
+    with open(tmp, "w", encoding="utf-8", newline="") as stream:
+        stream.write("".join(json.dumps(r, sort_keys=True, separators=(",", ":")) + "\n"
+                             for r in folded))
+    os.chmod(tmp, 0o644)
+    os.replace(tmp, main)
+    return [f"folded {', '.join(p.name for p in extras)} into {DESTINATIONS} "
+            f"({len(folded)} destination(s))"]
+
+
+_ROWS_LINE = re.compile(r"^(\d+) rows$", re.MULTILINE)
+
+
+def tail_statement_logs(layout: Layout, episode: dict, python: str) -> list[str]:
+    """Fold each `statement_logs` entry into the action log: the bytes the log
+    gained since the last fold (same file by inode, else from the start) go to
+    `python -m <tailer>` on stdin, which appends one row per statement through
+    native.audit.record (the writer lock every row source holds, so `seq`
+    stays contiguous), at the world's clock. Runs after the backend stopped,
+    so the log is complete. A failed fold is reported, recorded in
+    /audit/.statement_logs.json, and retried by the next world-down."""
+    specs = load_statement_logs(episode)
+    if not specs:
+        return []
+    try:
+        marks = json.loads(layout.tailed_file.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        marks = {}
+    report, record = [], []
+    env = serve_env(layout, episode)
+    env["ALKERA_NATIVE_AUDIT"] = str(layout.audit / ACTIONS)
+    env["ALKERA_SCHEDULER"] = str(layout.world / "var" / "sched" / "state.json")
+    clock = (episode.get("env") or {}).get(CLOCK_ENV)
+    if clock:
+        env[CLOCK_ENV] = str(clock)
+    for spec in specs:
+        path = layout.at(spec["log"])
+        entry = {"log": spec["log"], "tailer": spec["tailer"], "rows": 0, "error": None}
+        if path.is_symlink() or not path.is_file():
+            entry["error"] = "no such log: the backend never wrote one"
+            report.append(f"WARNING: statement log {spec['log']}: {entry['error']}")
+            record.append(entry)
+            continue
+        stat = os.stat(path)
+        mark = marks.get(spec["log"]) or {}
+        offset = int(mark.get("offset") or 0) if mark.get("inode") == stat.st_ino \
+            and int(mark.get("offset") or 0) <= stat.st_size else 0
+        with open(path, "rb") as stream:
+            stream.seek(offset)
+            data = stream.read()
+        entry.update(offset=offset, bytes=len(data))
+        if data.strip():
+            try:
+                done = subprocess.run([python, "-m", spec["tailer"]], input=data,
+                                      capture_output=True, env=env, timeout=600,
+                                      cwd=str(layout.run_dir))
+            except (OSError, subprocess.TimeoutExpired) as exc:
+                entry["error"] = f"{type(exc).__name__}: {exc}"
+            else:
+                err = done.stderr.decode("utf-8", "replace")
+                found = _ROWS_LINE.search(err)
+                if done.returncode != 0 or found is None:
+                    entry["error"] = f"exit {done.returncode}: {err[-1500:]}"
+                else:
+                    entry["rows"] = int(found.group(1))
+        if entry["error"]:
+            report.append(f"WARNING: statement log {spec['log']} not folded: "
+                          f"{entry['error'][-300:]}")
+        else:
+            total = (int(mark.get("rows") or 0) if offset else 0) + entry["rows"]
+            marks[spec["log"]] = {"inode": stat.st_ino, "offset": offset + len(data),
+                                  "rows": total}
+            entry["rows_total"] = total
+            report.append(f"statement log {spec['log']}: {entry['rows']} row(s) folded "
+                          f"into {ACTIONS} by {spec['tailer']}")
+        record.append(entry)
+    _write_private_json(layout.tailed_file, marks)
+    _write_private_json(layout.audit / STATEMENT_LOGS_MARKER,
+                        {"schema": STATEMENT_LOGS_SCHEMA, "logs": record, "at": _iso(_now())},
+                        mode=0o644)
+    return report
+
+
 def checkpoint_warehouses(layout: Layout) -> list[str]:
     """CHECKPOINT every warehouse file a crashed writer left a WAL beside, so
     the collected artifact is one self-contained file. Best effort."""
@@ -1866,6 +2066,15 @@ def bring_down(layout: Layout, args) -> list[str]:
         report.append("no services process was running")
     with contextlib.suppress(OSError):
         layout.state_file.unlink()
+    # every writer has stopped: what the backends logged becomes the audit's
+    try:
+        report += tail_statement_logs(layout, episode, sys.executable) if episode else []
+    except (RuntimeFailure, OSError) as exc:
+        report.append(f"WARNING: statement logs: {exc}")
+    try:
+        report += fold_backend_destinations(layout, episode) if episode else []
+    except (RuntimeFailure, OSError, ValueError) as exc:
+        report.append(f"WARNING: backend destinations not folded: {exc}")
     marker = layout.audit / SERVICE_STATE_MARKER
     with contextlib.suppress(OSError):
         marker.unlink()                      # only a copy made NOW may be vouched for

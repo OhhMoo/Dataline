@@ -212,7 +212,8 @@ def episode_document(*, ref: ArmRef, spec, role: str, reward_mode: str,
                      anchors: str, oracle: str, restore: dict | None = None,
                      gateway_config: str | None = None,
                      backends: list[dict] | None = None,
-                     service_state: str | None = None) -> dict:
+                     service_state: str | None = None,
+                     statement_logs: list[dict] | None = None) -> dict:
     """episode.json. `backends` (the environment runtime's supervised
     processes: name, argv, user, ports, hosts, health) is written when given -
     a profiled task's list, empty until its profile plugs a backend the image
@@ -220,7 +221,9 @@ def episode_document(*, ref: ArmRef, spec, role: str, reward_mode: str,
     unprofiled episode.json keeps its bytes (the runtime reads absent as []).
     `service_state` (the services' private directory) is written when the
     task's grader reads `{bi_state}`: the verifier then requires world-down's
-    copy of it."""
+    copy of it. `statement_logs` (server logs world-down folds into the action
+    log: {"log", "tailer"}) is written only when non-empty, so every episode
+    whose backends write their own rows keeps its bytes."""
     document = {
         "schema": EPISODE_SCHEMA,
         "task": ref.task_id,
@@ -256,6 +259,8 @@ def episode_document(*, ref: ArmRef, spec, role: str, reward_mode: str,
         document["backends"] = [dict(b) for b in backends]
     if service_state is not None:
         document["service_state"] = service_state
+    if statement_logs:
+        document["statement_logs"] = [dict(entry) for entry in statement_logs]
     return document
 
 

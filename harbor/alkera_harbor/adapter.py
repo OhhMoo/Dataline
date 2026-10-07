@@ -42,7 +42,7 @@ from .context import (ALWAYS_EXCLUDE, ContextEntry, GitView, copy_file, matches,
 from .naming import ArmRef, check_unique, select
 from .reroot import iter_files, needles_for, scan
 from .variant import (UNPROFILED, Variant, backend_specs, render_dockerfile,
-                      render_tests_dockerfile)
+                      render_tests_dockerfile, statement_logs)
 from .worldbuild import (CANONICAL_STAGE_ROOT, GATEWAY_CONFIG_IN_CONTAINER,
                          SERVICE_STATE_IN_CONTAINER,
                          StagedArm, stage_arm)
@@ -317,12 +317,15 @@ class AlkeraHarborAdapter:
             anchors=anchors, oracle=oracle, restore=staged.restore,
             gateway_config=GATEWAY_CONFIG_IN_CONTAINER,
             # the supervised backends (environment runtime): the variant's
-            # (variant.backend_specs: none yet for any profile the image serves)
+            # (variant.backend_specs: none for a backend the services host)
             backends=backend_specs(variant) if variant.profiled else None,
             # the grader reads the vendors' published state: the verifier
             # requires world-down's copy of it
             service_state=(SERVICE_STATE_IN_CONTAINER if variant.profiled and any(
-                "{bi_state}" in str(a) for a in spec.grade_argv) else None)))
+                "{bi_state}" in str(a) for a in spec.grade_argv) else None),
+            # the server logs world-down folds into the action log (a backend
+            # audited by its own statement log: the postgres warehouse)
+            statement_logs=statement_logs(variant)))
         for path in (episode_dir / "episode.json", verifier_episode / "episode.json"):
             path.write_text(episode, encoding="utf-8", newline="")
 
@@ -371,6 +374,8 @@ class AlkeraHarborAdapter:
                                 origin=str(context))
         entries += [ContextEntry(origin=f"variant {variant.key}", src=rel, dest=rel)
                     for rel in variant.context_files()]
+        entries += [ContextEntry(origin=f"variant {variant.key}", src=src, dest=dest)
+                    for src, dest in variant.support_files()]
         resolve_entries(entries, dest, repo=REPO, forbid=_forbid_in_environment)
 
     def _needles(self, staged: StagedArm):

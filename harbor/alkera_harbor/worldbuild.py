@@ -205,49 +205,79 @@ def _stage(ref: ArmRef, temp: Path, m, log) -> StagedArm:
         world = m.episode.build_world(spec, world_root, grading)
         records["build_s"] = round(time.time() - started, 1)
         clock = m.container_episode.world_clock(world) if variant.profiled else None
+        stage_native(world, variant, label=ref.selector, records=records)
 
-        # --- step 3: the container-native staging, in rollout.py's order
-        cli = m.native_stack.install_workspace_cli(world, topology="container")
-        records["workspace_cli"] = {k: cli[k] for k in ("cli", "topology",
-                                                         "interpreter", "pythonpath")}
-        if variant.profiled:
-            # A profiled world is built `native: true` under its profile and
-            # carries ITS OWN discovery files: .envrc and docs/onboarding.md
-            # committed in its repository, home/.config/alkera/services.toml in
-            # its fingerprinted home - the measured inputs, kept byte for byte
-            # (stage_discovery keeps them only when given no `home`).
-            # write_for_built_world knows no profile: it would put the
-            # unprofiled box's nine services there, dirty the repository and
-            # move the world's `home` fingerprint section.
-            discovery = m.native_stack.stage_discovery(world)
-            if not discovery.get("kept"):
-                raise StageError(
-                    f"{ref.selector}: profile {spec.profile!r}, but the world carries "
-                    f"no discovery files of its own (var/world/profile.json and "
-                    f"home/.config/alkera/services.toml): the box would describe the "
-                    f"unprofiled stack")
-            records["discovery_kept"] = discovery["kept"]
-        else:
-            discovery = m.native_stack.stage_discovery(world, home=AGENT_HOME)
-        records["discovery"] = sorted(Path(f).relative_to(world_root).as_posix()
-                                      for f in discovery["files"])
-        records["sanitized"] = m.native_stack.sanitize_world_files(world)
+    def compose_prompt(world: dict) -> str:
+        # --- step 4: the prompt, from the HOST world, as aut.run composes it
+        return m.aut.build_prompt(
+            spec.instruction, {}, spec.artifact_in_world,
+            spec.max_tool_calls, spec.wall_clock_seconds, "native",
+            redteam=False, shell=False,
+            workspace=world.get("workspace"), profiles_dir=world.get("profiles_dir"),
+            container_shell=True, home=AGENT_HOME)
+
+    staged = stage_built_world(world, rollout, variant=variant, profile=spec.profile,
+                               plugs=spec.plugs, label=ref.selector, records=records,
+                               compose_prompt=compose_prompt, temp=temp)
+    return StagedArm(ref=ref, spec=spec, temp=temp, variant=variant, clock=clock, **staged)
+
+
+def stage_native(world: dict, variant: Variant, *, label: str, records: dict) -> None:
+    """Step 3: the container-native staging of a built world, in rollout.py's
+    order: the workspace CLI baked for the container, the discovery files, the
+    sanitised world files. Writes what it did into `records`."""
+    m = harness.modules()
+    world_root = Path(world["world_root"])
+    cli = m.native_stack.install_workspace_cli(world, topology="container")
+    records["workspace_cli"] = {k: cli[k] for k in ("cli", "topology",
+                                                     "interpreter", "pythonpath")}
+    if variant.profiled:
+        # A profiled world is built `native: true` under its profile and
+        # carries ITS OWN discovery files: .envrc and docs/onboarding.md
+        # committed in its repository, home/.config/alkera/services.toml in
+        # its fingerprinted home - the measured inputs, kept byte for byte
+        # (stage_discovery keeps them only when given no `home`).
+        # write_for_built_world knows no profile: it would put the
+        # unprofiled box's nine services there, dirty the repository and
+        # move the world's `home` fingerprint section.
+        discovery = m.native_stack.stage_discovery(world)
+        if not discovery.get("kept"):
+            raise StageError(
+                f"{label}: profile {variant.profile!r}, but the world carries "
+                f"no discovery files of its own (var/world/profile.json and "
+                f"home/.config/alkera/services.toml): the box would describe the "
+                f"unprofiled stack")
+        records["discovery_kept"] = discovery["kept"]
+    else:
+        discovery = m.native_stack.stage_discovery(world, home=AGENT_HOME)
+    records["discovery"] = sorted(Path(f).relative_to(world_root).as_posix()
+                                  for f in discovery["files"])
+    records["sanitized"] = m.native_stack.sanitize_world_files(world)
+
+
+def stage_built_world(world: dict, rollout: Path, *, variant: Variant,
+                      profile: str | None, plugs: dict | None, label: str,
+                      records: dict, compose_prompt=None,
+                      temp: Path | None = None) -> dict:
+    """Steps 4-6 for a world built under `rollout` (`world/` and `grading/`
+    siblings) and staged by `stage_native`: build caches dropped, the prompt
+    (`compose_prompt(world)`, "" without one), the services' gateway config
+    (with `profile` and `plugs` for a profiled variant), the episode HOME, the
+    workspace moved out, git normalised, every host path re-rooted. Returns
+    StagedArm's fields that describe the world (`temp`, default the rollout's
+    parent, is a leak needle)."""
+    m = harness.modules()
+    world_root, grading = rollout / "world", rollout / "grading"
+    temp = Path(temp) if temp is not None else rollout.parent
     # profiled worlds only (theme worlds whose build ran dbt), so an unprofiled
     # export is unchanged by construction: a cache there still fails the leak gate
     records["dropped_build_caches"] = (drop_build_caches([world_root, grading])
                                        if variant.profiled else [])
-
-    # --- step 4: the prompt, from the HOST world, as aut.run composes it
-    prompt = m.aut.build_prompt(
-        spec.instruction, {}, spec.artifact_in_world,
-        spec.max_tool_calls, spec.wall_clock_seconds, "native",
-        redteam=False, shell=False,
-        workspace=world.get("workspace"), profiles_dir=world.get("profiles_dir"),
-        container_shell=True, home=AGENT_HOME)
+    prompt = compose_prompt(world) if compose_prompt else ""
 
     warehouses = m.container_episode.warehouse_mounts(world)
     if not warehouses:
-        raise StageError(f"{ref.selector}: the world declares no warehouse file "
+        raise StageError(f"{label}: the world declares no warehouse file "
                          f"under var/warehouse/; the container would have none")
     shim_watch = ":".join(f"{m.container_episode.WORLD_IN_CONTAINER}/{rel}"
                           for rel in warehouses)
@@ -261,7 +291,7 @@ def _stage(ref: ArmRef, temp: Path, m, log) -> StagedArm:
     # and NativeStack's do) and keeps the vendors' state in the rollout's
     # service-state directory, re-rooted below to the image's private one. An
     # unprofiled config is the bytes it always was.
-    profiled = {"profile": spec.profile, "plugs": dict(spec.plugs or {}),
+    profiled = {"profile": profile, "plugs": dict(plugs or {}),
                 "service_state": True} if variant.profiled else {}
     gateway_config = m.episode.write_gateway_config(
         rollout / "gateway.json", world, rollout / "audit", GATEWAY_EPISODE_ID,
@@ -269,7 +299,7 @@ def _stage(ref: ArmRef, temp: Path, m, log) -> StagedArm:
 
     wals = [p.relative_to(rollout).as_posix() for p in rollout.rglob("*.wal")]
     if wals:
-        raise StageError(f"{ref.selector}: uncheckpointed DuckDB WAL files in the "
+        raise StageError(f"{label}: uncheckpointed DuckDB WAL files in the "
                          f"built world: {wals}")
 
     # --- step 5: the episode HOME (/home/engineer)
@@ -299,7 +329,7 @@ def _stage(ref: ArmRef, temp: Path, m, log) -> StagedArm:
     workspace = rollout / "workspace"
     host_workspace = Path(world["workspace"])
     if host_workspace.resolve() != (world_root / "workspace").resolve():
-        raise StageError(f"{ref.selector}: the workspace is not <world>/workspace "
+        raise StageError(f"{label}: the workspace is not <world>/workspace "
                          f"({host_workspace}); the container layout needs it there")
     shutil.move(str(world_root / "workspace"), str(workspace))
     records["git"] = [normalize_git(git_dir) for git_dir in
@@ -326,14 +356,14 @@ def _stage(ref: ArmRef, temp: Path, m, log) -> StagedArm:
     json.loads(rerooted)                                  # still valid JSON
     Path(gateway_config).write_text(rerooted, encoding="utf-8", newline="")
     changed["gateway_config"] = ["gateway.json"] if rerooted != text else []
-    for label, directory, rerooter in (("world", world_root, env_rerooter),
-                                       ("workspace", workspace, env_rerooter),
-                                       ("home", home, env_rerooter),
-                                       ("grading", grading, grading_rerooter)):
+    for part, directory, rerooter in (("world", world_root, env_rerooter),
+                                      ("workspace", workspace, env_rerooter),
+                                      ("home", home, env_rerooter),
+                                      ("grading", grading, grading_rerooter)):
         try:
-            changed[label] = rerooter.tree(directory)
+            changed[part] = rerooter.tree(directory)
         except LeakError as exc:
-            raise StageError(f"{ref.selector}: {label}/{exc}") from None
+            raise StageError(f"{label}: {part}/{exc}") from None
     records["rerooted_files"] = changed
     restore = restore_lists([(world_root, WORLD_IN_CONTAINER),
                              (workspace, WORKSPACE_IN_CONTAINER),
@@ -343,13 +373,13 @@ def _stage(ref: ArmRef, temp: Path, m, log) -> StagedArm:
     leftover = [n for n in env_rerooter.needles + [str(temp), EXPORT_MARKER]
                 if n in json.dumps(container_world)]
     if leftover:
-        raise StageError(f"{ref.selector}: the world manifest still names host "
+        raise StageError(f"{label}: the world manifest still names host "
                          f"paths after re-rooting: {leftover}")
-    return StagedArm(ref=ref, spec=spec, temp=temp, world=container_world,
-                     world_dir=world_root, workspace_dir=workspace, home_dir=home,
-                     grading_dir=grading, prompt=prompt, shim_watch=shim_watch,
-                     gateway_config=Path(gateway_config), records=records,
-                     restore=restore, variant=variant, clock=clock)
+    return {"world": container_world, "world_dir": world_root,
+            "workspace_dir": workspace, "home_dir": home, "grading_dir": grading,
+            "prompt": prompt, "shim_watch": shim_watch,
+            "gateway_config": Path(gateway_config), "records": records,
+            "restore": restore}
 
 
 def box_profile(rerooted: str, variant: Variant) -> str:
