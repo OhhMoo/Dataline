@@ -166,7 +166,9 @@ def test_hosted_backend_port_matches_serve(tmp_path, monkeypatch):
     hx = {m.name: m for m in serve.mount(loaded)}["hx"]
     assert (hx.host, hx.port) == (row.host, row.port)
     assert serve.port_disagreements([hx]) == {}
-    assert serve.hosted_ports() == {"hx": 8123} and serve.service_ports()["hx"] == 8123
+    # every hosted row, the synthetic one among them (Wave 1 adds real ones)
+    assert serve.hosted_ports() == {n: b.port for n, b in BACKENDS.items() if b.hosted}
+    assert serve.hosted_ports()["hx"] == 8123 and serve.service_ports()["hx"] == 8123
     declared = _declared(tmp_path, "plugged",
                          ["--profile", "da/laptop", "--plug", "notebook=",
                           "--plug", "warehouse=hx"])

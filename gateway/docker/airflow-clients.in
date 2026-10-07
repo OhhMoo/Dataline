@@ -1,0 +1,6 @@
+# The Airflow plug's client side, for episode images built with
+# `--warehouse-clients airflow` (Dockerfile ALKERA_WAREHOUSE_CLIENTS).
+# airflowctl - Airflow 3's REST-only CLI (apache-airflow-ctl) - talks to the
+# fake's /api/v2 like any other client; the `airflow` CLI is deliberately NOT
+# here: it needs a metadata database, and this box has none.
+apache-airflow-ctl>=0.1.5,<0.2

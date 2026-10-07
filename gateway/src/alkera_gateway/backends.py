@@ -112,6 +112,27 @@ BACKENDS: dict[str, Backend] = {
              "SNOWFLAKE_PASSWORD": FAKE_CREDENTIAL,
              "SNOWFLAKE_DATABASE": "WAREHOUSE"},
     ),
+    # Airflow 3's REST API v2 over the world ledger, hosted in native-services
+    # (native/services/airflow.py over world/world/airflow_view.py): DAGs from
+    # the workspace's dags/, runs and task instances from var/sched/state.json,
+    # trigger and clear queued for the grader's advance - no clock of its own.
+    # Its three variables are the unprofiled static table's scheduler group
+    # (8080, the designed real-Airflow stanza in compose.native.yml), which a
+    # box that plugs this row gets in place, at 8100 (native_workspace
+    # DISCOVERY["airflow"].replaces). `clients`: airflowctl, the REST-only CLI.
+    # No statement tool: nothing here is SQL.
+    "airflow": Backend(
+        name="airflow",
+        host="airflow.internal",
+        port=8100,
+        scheme="http",
+        hosted=True,
+        clients="airflow",
+        tls=False,
+        env={"AIRFLOW_API_URL": "http://airflow.internal:8100/api/v2",
+             "AIRFLOW_USER": FAKE_CREDENTIAL,
+             "AIRFLOW_PASSWORD": FAKE_CREDENTIAL},
+    ),
 }
 
 

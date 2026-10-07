@@ -353,6 +353,25 @@ DISCOVERY: dict[str, Discovery] = {
                  "user": "SNOWFLAKE_USER", "password": "SNOWFLAKE_PASSWORD",
                  "database": "SNOWFLAKE_DATABASE"},
     ),
+    # Airflow 3's REST API v2 over this world's scheduler ledger
+    # (gateway native/services/airflow.py, world/airflow_view.py). It IS the
+    # scheduler on a box that plugs it, so it replaces the static group: one
+    # address (8100), the same three variables. The `airflow` CLI is not on the
+    # box - it needs a metadata database, and this box has none - which the
+    # onboarding row says, so nobody goes looking for it.
+    "airflow": Discovery(
+        backend="airflow",
+        label="the scheduler",
+        clients=("Airflow REST API v2 (token from POST /auth/token), airflowctl; "
+                 "no `airflow` CLI: this box has no Airflow metadata database"),
+        services_toml={"host": "airflow.internal", "port": "8100",
+                       "api": "http://airflow.internal:8100/api/v2",
+                       "user": FAKE_USER, "password": FAKE_TOKEN},
+        dbt_type=None,
+        env={"AIRFLOW_API_URL": "http://airflow.internal:8100/api/v2",
+             "AIRFLOW_USER": FAKE_USER, "AIRFLOW_PASSWORD": FAKE_TOKEN},
+        replaces=("the scheduler",),
+    ),
 }
 
 #: Registry backends the box listed BEFORE the registry, and so still lists the

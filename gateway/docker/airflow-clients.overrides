@@ -1,0 +1,7 @@
+# The one divergence an airflow-client image takes from the base locks, and it is
+# not airflowctl's: the client locks must agree with EACH OTHER (an image built
+# with two client sets installs both into one interpreter -
+# gateway/tests/test_toolbelt_roles.py test_client_locks_agree_with_each_other),
+# and snowflake's is held below 2025.4.26 by dbt-snowflake
+# (snowflake-clients.overrides). certifi is the only package DIVERGES allows.
+certifi<2025.4.26

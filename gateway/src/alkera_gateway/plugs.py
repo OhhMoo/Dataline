@@ -98,7 +98,12 @@ _CATALOG = (
     Plug("ops_sched", "orchestrator", "shipped",
          surfaces=("scheduler", "orchestration_secondary"),
          note="GT002's `orchestration_secondary` is this same scheduler"),
-    Plug("airflow", "orchestrator", "planned", surfaces=("airflow",)),
+    Plug("airflow", "orchestrator", "partial", surfaces=("airflow",),
+         note="Airflow 3 REST v2 fake over the world ledger, not real Airflow: DAGs "
+              "parsed (ast) from the workspace's dags/, runs and logs from "
+              "var/sched/state.json; trigger and clear queue for the grader's advance "
+              "(no clock, no backfill, no pause); airflowctl, no airflow CLI; at "
+              "airflow.internal:8100 (backends.BACKENDS)"),
     Plug("s3mock", "object_store", "shipped", surfaces=("s3",)),
     Plug("airbyte_fake", "ingest", "shipped", services=("airbyte",), surfaces=("ingest",)),
     Plug("metabase_fake", "bi", "shipped", services=("metabase",), surfaces=("bi",)),
