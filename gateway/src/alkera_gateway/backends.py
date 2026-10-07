@@ -76,8 +76,12 @@ class Backend:
 BACKENDS: dict[str, Backend] = {
     # fakesnow behind the TLS proxy (gateway/docker/snowflake_start.py), its own
     # container from Dockerfile.snowflake. Its compose stanza predates this
-    # registry (compose.yml + compose.native.yml), and its variables are in the
-    # unprofiled static table - both kept byte for byte.
+    # registry (compose.yml + compose.native.yml), and four of its variables are
+    # in the unprofiled static table - both kept byte for byte. The fifth,
+    # SNOWFLAKE_DATABASE, only a box that plugs it gets: the database the seed
+    # makes of the world's warehouse.duckdb (snowflake_start.seed upper-cases the
+    # file's stem), which the box's dbt target reads
+    # (world/world/native_workspace.py DISCOVERY, compared to this row).
     "snowflake": Backend(
         name="snowflake",
         host="snowflake.internal",
@@ -92,7 +96,8 @@ BACKENDS: dict[str, Backend] = {
         env={"SNOWFLAKE_HOST": "snowflake.internal",
              "SNOWFLAKE_ACCOUNT": "acme",
              "SNOWFLAKE_USER": FAKE_CREDENTIAL,
-             "SNOWFLAKE_PASSWORD": FAKE_CREDENTIAL},
+             "SNOWFLAKE_PASSWORD": FAKE_CREDENTIAL,
+             "SNOWFLAKE_DATABASE": "WAREHOUSE"},
     ),
 }
 

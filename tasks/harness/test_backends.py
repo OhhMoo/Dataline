@@ -325,6 +325,74 @@ def test_a_hosted_tls_backend_publishes_through_native_services(tmp_path, monkey
         "HX_HOST": "https://127.0.0.1:18098", "HX_TOKEN": "t"}
 
 
+# ------------------------------------------- the box's dbt profile (Task 2)
+def _staged(tmp_path, monkeypatch, name, **kw) -> tuple[str, str]:
+    """(world profile re-rooted, what `_stage_profiles` staged) for a world
+    whose build/profiles.yml is the commerce theme's DuckDB `dev` target."""
+    stack = _stack(tmp_path, name, **kw)
+    build = Path(stack.world["profiles_dir"])
+    build.mkdir(parents=True, exist_ok=True)
+    (build / "profiles.yml").write_text(
+        "world_dbt:\n  outputs:\n    dev:\n"
+        f"      path: {stack.world['warehouse']}\n      threads: 1\n      type: duckdb\n"
+        "  target: dev\n", encoding="utf-8")
+    monkeypatch.setattr(stack, "exec_", lambda *a, **k: None)
+    monkeypatch.setattr(stack, "copy_in", lambda *a, **k: None)
+    assert stack._stage_profiles() == ["world_dbt.dev"]
+    rerooted, _ = ce.reroot_profiles((build / "profiles.yml").read_text(encoding="utf-8"),
+                                     stack.world_root)
+    return rerooted, (stack.container_dir / "profiles.yml").read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("kw", [{}, {"profile": "da/laptop",
+                                     "plugs": {"bi": ["powerbi", "tableau", "sigma"]}}])
+def test_box_profile_unplugged_is_todays_bytes(tmp_path, monkeypatch, kw):
+    rerooted, staged = _staged(tmp_path, monkeypatch, "u", **kw)
+    assert staged == rerooted
+
+
+def test_box_profile_of_a_snowflake_box_defaults_to_snowflake(tmp_path, monkeypatch):
+    import yaml
+
+    rerooted, staged = _staged(tmp_path, monkeypatch, "s", profile="da/snowflake")
+    profile = yaml.safe_load(staged)["world_dbt"]
+    assert profile["target"] == "snowflake"
+    assert profile["outputs"]["dev"] == yaml.safe_load(rerooted)["world_dbt"]["outputs"]["dev"]
+    assert profile["outputs"]["snowflake"]["type"] == "snowflake"
+    assert profile["outputs"]["snowflake"]["database"] == "{{ env_var('SNOWFLAKE_DATABASE') }}"
+    # every variable it reads is in the episode's environment under this profile
+    stack = _stack(tmp_path, "s2", profile="da/snowflake")
+    _, added = stack.profile_variables()
+    env = {**ce.static_environment("episode"), **added}
+    for value in profile["outputs"]["snowflake"].values():
+        if isinstance(value, str) and "env_var(" in value:
+            assert value.split("'")[1] in env, value
+
+
+def test_surface_gate_accepts_a_box_profile_defaulting_to_the_backend(tmp_path, monkeypatch):
+    """The dbt gate reads the world-side profile and asks for an output whose
+    path is the warehouse: a box profile whose default is the plugged
+    warehouse still carries the DuckDB target, so it passes."""
+    import surface_audit
+
+    sys.path.insert(0, str(HERE.parent.parent / "world"))
+    from world.native_workspace import box_profiles_yaml
+
+    warehouse = tmp_path / "var" / "warehouse" / "warehouse.duckdb"
+    warehouse.parent.mkdir(parents=True)
+    warehouse.write_bytes(b"x")
+    world_profile = ("world_dbt:\n  outputs:\n    dev:\n"
+                     f"      path: {warehouse}\n      threads: 1\n      type: duckdb\n"
+                     "  target: dev\n")
+    profiles = tmp_path / "box"
+    profiles.mkdir()
+    (profiles / "profiles.yml").write_text(box_profiles_yaml(world_profile, ["snowflake"]),
+                                           encoding="utf-8")
+    monkeypatch.setattr(surface_audit, "dbt_executable", lambda: "/usr/bin/dbt")
+    ok, code, detail = surface_audit._dbt_toolchain(str(profiles), str(warehouse))
+    assert ok and code is None and "target 'dev'" in detail, detail
+
+
 if __name__ == "__main__":
     import tempfile
 

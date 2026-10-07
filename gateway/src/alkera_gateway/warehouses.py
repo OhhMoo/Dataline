@@ -46,6 +46,7 @@ engine rather than by a rule we would have to keep enforcing.
 """
 
 import importlib.util
+from collections.abc import Mapping
 from functools import cache
 from typing import Literal
 
@@ -100,6 +101,8 @@ def dbt_output(
     path=None,
     dsn_env: str = "ALKERA_POSTGRES_DSN",
     options_env: str = "ALKERA_SNOWFLAKE_OPTIONS",
+    env: Mapping[str, str] | None = None,
+    port: int | None = None,
 ) -> dict:
     """One profiles.yml output for `backend`, reading the secret the connector reads.
 
@@ -114,7 +117,24 @@ def dbt_output(
     are required; `host` / `port` / `protocol` default to the TLS front door
     (443, https), exactly as the Python connector defaults them; `warehouse` and
     `role` are passed through when present. `schema` is the dbt build schema.
+
+    `env` is the other way to read a remote backend: from the BOX's own
+    variables, one per profile field (`{field: VARIABLE}`, a plugged backend's
+    `native_workspace.DISCOVERY` row), each rendered `{{ env_var('VARIABLE') }}`.
+    That is the target a bare `dbt` finds on a box that plugs the backend
+    (`native_workspace.box_profiles_yaml`), and it carries no value either.
+    `port` is then written as a number: where the backend answers is not a
+    secret, and the box exports no variable for it.
     """
+    if env is not None:
+        if backend == "duckdb" or backend not in DBT_ADAPTERS:
+            raise ValueError(f"no variable-backed dbt output for backend {backend!r}")
+        output = {"type": backend}
+        output.update({name: f"{{{{ env_var('{var}') }}}}" for name, var in env.items()})
+        if port is not None:
+            output["port"] = int(port)
+        output.update({"schema": schema, "threads": 1})
+        return output
     if backend == "duckdb":
         if path is None:
             raise ValueError("a duckdb dbt output needs the warehouse file path")

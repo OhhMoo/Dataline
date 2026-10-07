@@ -42,10 +42,12 @@ def test_snowflake_row_is_the_service_as_it_runs():
     assert backends.endpoint(sf) == "https://snowflake.internal:8443"
     assert backends.destinations_file(sf) == "destinations.snowflake.jsonl"
     assert backends.bundle(sf) == "/etc/alkera/snowflake-tls/bundle.pem"
-    # the variables the unprofiled static table already carries for it
+    # the variables the unprofiled static table already carries for it, and
+    # the database the seed makes of the world's warehouse.duckdb
     assert set(sf.env) == {"SNOWFLAKE_HOST", "SNOWFLAKE_ACCOUNT", "SNOWFLAKE_USER",
-                           "SNOWFLAKE_PASSWORD"}
+                           "SNOWFLAKE_PASSWORD", "SNOWFLAKE_DATABASE"}
     assert sf.env["SNOWFLAKE_HOST"] == sf.host
+    assert sf.env["SNOWFLAKE_DATABASE"] == "WAREHOUSE"
 
 
 def test_every_row_is_a_plug_and_complete():
@@ -94,6 +96,21 @@ def test_registry_module_is_dependency_free():
             imported.add("." * node.level + (node.module or ""))
     assert imported == {"__future__", "collections.abc", "dataclasses", "types",
                         "typing", ".plugs"}, imported
+
+
+def test_dbt_output_from_the_boxs_variables():
+    from alkera_gateway.warehouses import dbt_output
+
+    out = dbt_output("snowflake", schema="PUBLIC", port=8443,
+                     env={"account": "SNOWFLAKE_ACCOUNT", "database": "SNOWFLAKE_DATABASE"})
+    assert out == {"type": "snowflake", "account": "{{ env_var('SNOWFLAKE_ACCOUNT') }}",
+                   "database": "{{ env_var('SNOWFLAKE_DATABASE') }}", "port": 8443,
+                   "schema": "PUBLIC", "threads": 1}
+    # without `env` the gateway's own secret is read, as before
+    assert "ALKERA_SNOWFLAKE_OPTIONS" in dbt_output("snowflake", schema="s")["account"]
+    for backend in ("duckdb", "nope"):
+        with pytest.raises(ValueError, match=backend):
+            dbt_output(backend, schema="s", env={"host": "H"})
 
 
 # --------------------------------------------------------------- native.tls

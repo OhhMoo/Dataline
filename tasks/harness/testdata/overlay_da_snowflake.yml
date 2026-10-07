@@ -69,6 +69,7 @@ services:
       HOME: "/root"
       # what the profile plugs
       REQUESTS_CA_BUNDLE: "/etc/alkera/snowflake-tls/bundle.pem"
+      SNOWFLAKE_DATABASE: "WAREHOUSE"
       SIGMA_BASE_URL: "http://sigma.internal:8097"
       SIGMA_CLIENT_ID: "alkera-local-dev"
       SIGMA_CLIENT_SECRET: "alkera-local-dev"
@@ -162,6 +163,7 @@ services:
       HOME: "/root"
       # what the profile plugs
       REQUESTS_CA_BUNDLE: "/etc/alkera/snowflake-tls/bundle.pem"
+      SNOWFLAKE_DATABASE: "WAREHOUSE"
       SIGMA_BASE_URL: "http://sigma.internal:8097"
       SIGMA_CLIENT_ID: "alkera-local-dev"
       SIGMA_CLIENT_SECRET: "alkera-local-dev"

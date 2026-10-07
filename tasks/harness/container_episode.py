@@ -2450,12 +2450,25 @@ services:
         A world whose `profiles_dir` holds no `profiles.yml` gets nothing, and
         the dbt surface is then dead for the same reason it is dead on the host
         - which is the correct answer, not a gap this method should paper over.
+
+        A profile that plugs a backend with a dbt adapter (Snowflake) gets the
+        BOX profile instead (`world.native_workspace.box_profiles_yaml`): the
+        same re-rooted DuckDB targets, plus a target for the backend that is
+        the default, so a bare `dbt` on a Snowflake box talks to Snowflake.
+        Anything else is staged byte for byte as before.
         """
         source = Path(self.world.get("profiles_dir") or "") / "profiles.yml"
         if not source.is_file():
             return []
         rewritten, moved = reroot_profiles(source.read_text(encoding="utf-8"),
                                            self.world_root)
+        plugged = [b.name for b in self.plugged_backends()]
+        if plugged:
+            if str(episode.TRACK_A) not in sys.path:
+                sys.path.insert(0, str(episode.TRACK_A))
+            from world.native_workspace import box_profiles_yaml
+
+            rewritten = box_profiles_yaml(rewritten, plugged)
         staged = self.container_dir / "profiles.yml"
         self.container_dir.mkdir(parents=True, exist_ok=True)
         with open(staged, "w", encoding="utf-8", newline="") as stream:
