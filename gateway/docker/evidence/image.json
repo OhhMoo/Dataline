@@ -1,11 +1,11 @@
 {
   "architecture": "amd64",
-  "generated": "2026-10-07T14:06:20+00:00",
-  "head_revision": "5ed3ed5a62322be195a2422c9034ca1d592c7067",
-  "image_id": "sha256:1eeefcc8114e15404b2aa4f9a69e962b4c909f3d73d2bae34f3e6f25f8b66f05",
+  "generated": "2026-10-07T17:50:59+00:00",
+  "head_revision": "2c015cdacd6fe9114df38b5cb277ec48f77c0f9b",
+  "image_id": "sha256:0786c71246392fd85fcdcc628a719d729b4a4c2328ef12142a92099bbf378ad4",
   "labels": {
-    "org.alkera.source.overlay": "073ffa8b1e733f0381de188c83cfcb913e5f1b6951b0fdc08db938ddf22bae24",
-    "org.alkera.source.revision": "5ed3ed5a62322be195a2422c9034ca1d592c7067",
+    "org.alkera.source.overlay": "5e647b9eeb542ea694e2c438eb2900ba9b0d6ef873f10b7d4711f86036ab7e3b",
+    "org.alkera.source.revision": "2c015cdacd6fe9114df38b5cb277ec48f77c0f9b",
     "org.alkera.toolbelt": "de",
     "org.alkera.warehouse_clients": "airflow"
   },
@@ -715,7 +715,7 @@
     "role_forbidden_present": [],
     "role_imports": {},
     "role_imports_failed": [],
-    "source_revision": "5ed3ed5a62322be195a2422c9034ca1d592c7067",
+    "source_revision": "2c015cdacd6fe9114df38b5cb277ec48f77c0f9b",
     "tool_count": 63,
     "toolbelt_role": "de",
     "tools": [
@@ -843,13 +843,13 @@
       "gateway/docker/toolbelt_check.py",
       "gateway/docker/warehouse_clients.py"
     ],
-    "hash": "073ffa8b1e733f0381de188c83cfcb913e5f1b6951b0fdc08db938ddf22bae24"
+    "hash": "5e647b9eeb542ea694e2c438eb2900ba9b0d6ef873f10b7d4711f86036ab7e3b"
   },
   "repo_digests": [
-    "alkera-episode@sha256:1eeefcc8114e15404b2aa4f9a69e962b4c909f3d73d2bae34f3e6f25f8b66f05"
+    "alkera-episode@sha256:0786c71246392fd85fcdcc628a719d729b4a4c2328ef12142a92099bbf378ad4"
   ],
-  "size_bytes": 1885176227,
-  "source_revision": "5ed3ed5a62322be195a2422c9034ca1d592c7067",
+  "size_bytes": 1885261065,
+  "source_revision": "2c015cdacd6fe9114df38b5cb277ec48f77c0f9b",
   "tag": "alkera-episode:head-airflow",
   "toolbelt": {
     "label": "de",
