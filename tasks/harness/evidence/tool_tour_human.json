@@ -1,0 +1,1785 @@
+{
+ "findings": [],
+ "probes": [
+  {
+   "command": "cd /workspace\nset -euo pipefail\npython3 - <<'PY'\nimport json, os\nfrom jira import JIRA\n\nenv = os.environ\njira = JIRA(server=env[\"JIRA_URL\"], basic_auth=(env[\"JIRA_USER\"], env[\"JIRA_API_TOKEN\"]))\nprint(json.dumps({\"value\": str(jira.issue(\"ANA-238\").fields.status)}))\nPY\n",
+   "destinations": {
+    "jira.internal:8080": 1
+   },
+   "doc": null,
+   "drift": false,
+   "expect_args": [],
+   "expect_tools": [
+    "jira.issues_get"
+   ],
+   "failures": [],
+   "id": "human.jira.ana238_status",
+   "known": null,
+   "missing_args": [],
+   "missing_tools": [],
+   "profile": "da/laptop",
+   "returncode": 0,
+   "rows": 3,
+   "rows_at": "call",
+   "seconds": 1.53,
+   "stderr_tail": "",
+   "stdout_tail": "{\"value\": \"todo\"}\n",
+   "tool": "human",
+   "tools": [
+    "jira.server_info",
+    "jira.issues_get",
+    "shim.python"
+   ],
+   "truth": "todo",
+   "truth_after": "todo",
+   "value": "todo",
+   "value_ok": true,
+   "verdict": "PASS"
+  },
+  {
+   "command": "cd /workspace\nset -euo pipefail\npython3 - <<'PY'\nimport json, os\nfrom atlassian import Confluence\n\nenv = os.environ\nwiki = Confluence(url=env[\"CONFLUENCE_URL\"].rstrip(\"/\") + \"/wiki\",\n                  username=env[\"CONFLUENCE_USER\"], password=env[\"CONFLUENCE_API_TOKEN\"])\npage = wiki.get_page_by_id(wiki.get_page_id(\"AE\", \"Net Revenue and friends\"),\n                           expand=\"version\")\nprint(json.dumps({\"value\": page[\"version\"][\"number\"]}))\nPY\n",
+   "destinations": {
+    "confluence.internal:8090": 1
+   },
+   "doc": null,
+   "drift": false,
+   "expect_args": [],
+   "expect_tools": [
+    "confluence.kb_get"
+   ],
+   "failures": [],
+   "id": "human.confluence.net_revenue_page_version",
+   "known": null,
+   "missing_args": [],
+   "missing_tools": [],
+   "profile": "da/laptop",
+   "returncode": 0,
+   "rows": 3,
+   "rows_at": "call",
+   "seconds": 1.6,
+   "stderr_tail": "",
+   "stdout_tail": "{\"value\": 5}\n",
+   "tool": "human",
+   "tools": [
+    "confluence.kb_list",
+    "confluence.kb_get",
+    "shim.python"
+   ],
+   "truth": 5,
+   "truth_after": 5,
+   "value": 5,
+   "value_ok": true,
+   "verdict": "PASS"
+  },
+  {
+   "command": "cd /workspace\nset -euo pipefail\npython3 - <<'PY'\nimport json, os\nfrom slack_sdk import WebClient\n\nenv = os.environ\nslack = WebClient(base_url=env[\"SLACK_BASE_URL\"].rstrip(\"/\") + \"/api/\",\n                  token=env[\"SLACK_BOT_TOKEN\"])\nchannel = next(c for c in slack.conversations_list()[\"channels\"]\n               if c[\"name\"] == \"analytics-eng\")\nmessages, cursor = [], None\nwhile True:\n    page = slack.conversations_history(channel=channel[\"id\"], limit=200, cursor=cursor)\n    messages += page[\"messages\"]\n    cursor = (page.get(\"response_metadata\") or {}).get(\"next_cursor\")\n    if not page.get(\"has_more\") or not cursor:\n        break\nprint(json.dumps({\"value\": len(messages)}))\nPY\n",
+   "destinations": {
+    "slack.internal:8081": 2
+   },
+   "doc": null,
+   "drift": false,
+   "expect_args": [],
+   "expect_tools": [
+    "slack.chat_history"
+   ],
+   "failures": [],
+   "id": "human.slack.analytics_eng_threads",
+   "known": null,
+   "missing_args": [],
+   "missing_tools": [],
+   "profile": "da/laptop",
+   "returncode": 0,
+   "rows": 3,
+   "rows_at": "call",
+   "seconds": 1.43,
+   "stderr_tail": "",
+   "stdout_tail": "{\"value\": 5}\n",
+   "tool": "human",
+   "tools": [
+    "slack.chat_channels",
+    "slack.chat_history",
+    "shim.python"
+   ],
+   "truth": 5,
+   "truth_after": 5,
+   "value": 5,
+   "value_ok": true,
+   "verdict": "PASS"
+  },
+  {
+   "command": "cd /workspace\nset -euo pipefail\npython3 - <<'PY'\nimport json, os\nfrom jira import JIRA\n\nenv = os.environ\njira = JIRA(server=env[\"JIRA_URL\"], basic_auth=(env[\"JIRA_USER\"], env[\"JIRA_API_TOKEN\"]))\nprint(json.dumps({\"value\": str(jira.issue(\"ANA-238\").fields.status)}))\nPY\n",
+   "destinations": {
+    "jira.internal:8080": 1
+   },
+   "doc": null,
+   "drift": false,
+   "expect_args": [],
+   "expect_tools": [
+    "jira.issues_get"
+   ],
+   "failures": [],
+   "id": "human.jira.ana238_status_da_snowflake",
+   "known": null,
+   "missing_args": [],
+   "missing_tools": [],
+   "profile": "da/snowflake",
+   "returncode": 0,
+   "rows": 3,
+   "rows_at": "call",
+   "seconds": 1.55,
+   "stderr_tail": "",
+   "stdout_tail": "{\"value\": \"todo\"}\n",
+   "tool": "human",
+   "tools": [
+    "jira.server_info",
+    "jira.issues_get",
+    "shim.python"
+   ],
+   "truth": "todo",
+   "truth_after": "todo",
+   "value": "todo",
+   "value_ok": true,
+   "verdict": "PASS"
+  },
+  {
+   "command": "cd /workspace\nset -euo pipefail\npython3 - <<'PY'\nimport json, os\nfrom jira import JIRA\n\nenv = os.environ\njira = JIRA(server=env[\"JIRA_URL\"], basic_auth=(env[\"JIRA_USER\"], env[\"JIRA_API_TOKEN\"]))\nprint(json.dumps({\"value\": str(jira.issue(\"ANA-238\").fields.status)}))\nPY\n",
+   "destinations": {
+    "jira.internal:8080": 1
+   },
+   "doc": null,
+   "drift": false,
+   "expect_args": [],
+   "expect_tools": [
+    "jira.issues_get"
+   ],
+   "failures": [],
+   "id": "human.jira.ana238_status_de_postgres",
+   "known": null,
+   "missing_args": [],
+   "missing_tools": [],
+   "profile": "de/postgres",
+   "returncode": 0,
+   "rows": 3,
+   "rows_at": "call",
+   "seconds": 1.52,
+   "stderr_tail": "",
+   "stdout_tail": "{\"value\": \"todo\"}\n",
+   "tool": "human",
+   "tools": [
+    "jira.server_info",
+    "jira.issues_get",
+    "shim.python"
+   ],
+   "truth": "todo",
+   "truth_after": "todo",
+   "value": "todo",
+   "value_ok": true,
+   "verdict": "PASS"
+  },
+  {
+   "command": "cd /workspace\nset -euo pipefail\npython3 - <<'PY'\nimport json, os\nfrom jira import JIRA\n\nenv = os.environ\njira = JIRA(server=env[\"JIRA_URL\"], basic_auth=(env[\"JIRA_USER\"], env[\"JIRA_API_TOKEN\"]))\nprint(json.dumps({\"value\": str(jira.issue(\"ANA-238\").fields.status)}))\nPY\n",
+   "destinations": {
+    "jira.internal:8080": 1
+   },
+   "doc": null,
+   "drift": false,
+   "expect_args": [],
+   "expect_tools": [
+    "jira.issues_get"
+   ],
+   "failures": [],
+   "id": "human.jira.ana238_status_de_aws",
+   "known": null,
+   "missing_args": [],
+   "missing_tools": [],
+   "profile": "de/aws",
+   "returncode": 0,
+   "rows": 3,
+   "rows_at": "call",
+   "seconds": 1.46,
+   "stderr_tail": "",
+   "stdout_tail": "{\"value\": \"todo\"}\n",
+   "tool": "human",
+   "tools": [
+    "jira.server_info",
+    "jira.issues_get",
+    "shim.python"
+   ],
+   "truth": "todo",
+   "truth_after": "todo",
+   "value": "todo",
+   "value_ok": true,
+   "verdict": "PASS"
+  },
+  {
+   "command": "cd /workspace\nset -euo pipefail\npython3 - <<'PY'\nimport json, os\nfrom jira import JIRA\n\nenv = os.environ\njira = JIRA(server=env[\"JIRA_URL\"], basic_auth=(env[\"JIRA_USER\"], env[\"JIRA_API_TOKEN\"]))\nprint(json.dumps({\"value\": str(jira.issue(\"ANA-238\").fields.status)}))\nPY\n",
+   "destinations": {
+    "jira.internal:8080": 1
+   },
+   "doc": null,
+   "drift": false,
+   "expect_args": [],
+   "expect_tools": [
+    "jira.issues_get"
+   ],
+   "failures": [],
+   "id": "human.jira.ana238_status_de_databricks",
+   "known": null,
+   "missing_args": [],
+   "missing_tools": [],
+   "profile": "de/databricks",
+   "returncode": 0,
+   "rows": 3,
+   "rows_at": "call",
+   "seconds": 1.46,
+   "stderr_tail": "",
+   "stdout_tail": "{\"value\": \"todo\"}\n",
+   "tool": "human",
+   "tools": [
+    "jira.server_info",
+    "jira.issues_get",
+    "shim.python"
+   ],
+   "truth": "todo",
+   "truth_after": "todo",
+   "value": "todo",
+   "value_ok": true,
+   "verdict": "PASS"
+  },
+  {
+   "command": "cd /workspace\nset -euo pipefail\npython3 - <<'PY'\nimport json, os\nfrom jira import JIRA\n\nenv = os.environ\njira = JIRA(server=env[\"JIRA_URL\"], basic_auth=(env[\"JIRA_USER\"], env[\"JIRA_API_TOKEN\"]))\nprint(json.dumps({\"value\": str(jira.issue(\"ANA-238\").fields.status)}))\nPY\n",
+   "destinations": {
+    "jira.internal:8080": 1
+   },
+   "doc": null,
+   "drift": false,
+   "expect_args": [],
+   "expect_tools": [
+    "jira.issues_get"
+   ],
+   "failures": [],
+   "id": "human.jira.ana238_status_de_gcp",
+   "known": null,
+   "missing_args": [],
+   "missing_tools": [],
+   "profile": "de/gcp",
+   "returncode": 0,
+   "rows": 3,
+   "rows_at": "call",
+   "seconds": 1.55,
+   "stderr_tail": "",
+   "stdout_tail": "{\"value\": \"todo\"}\n",
+   "tool": "human",
+   "tools": [
+    "jira.server_info",
+    "jira.issues_get",
+    "shim.python"
+   ],
+   "truth": "todo",
+   "truth_after": "todo",
+   "value": "todo",
+   "value_ok": true,
+   "verdict": "PASS"
+  },
+  {
+   "command": "cd /workspace\nset -euo pipefail\npython3 - <<'PY'\nimport json, os\nfrom jira import JIRA\n\nenv = os.environ\njira = JIRA(server=env[\"JIRA_URL\"], basic_auth=(env[\"JIRA_USER\"], env[\"JIRA_API_TOKEN\"]))\nprint(json.dumps({\"value\": str(jira.issue(\"ANA-238\").fields.status)}))\nPY\n",
+   "destinations": {
+    "jira.internal:8080": 1
+   },
+   "doc": null,
+   "drift": false,
+   "expect_args": [],
+   "expect_tools": [
+    "jira.issues_get"
+   ],
+   "failures": [],
+   "id": "human.jira.ana238_status_de_laptop_airflow",
+   "known": null,
+   "missing_args": [],
+   "missing_tools": [],
+   "profile": "de/laptop",
+   "returncode": 0,
+   "rows": 3,
+   "rows_at": "call",
+   "seconds": 1.62,
+   "stderr_tail": "",
+   "stdout_tail": "{\"value\": \"todo\"}\n",
+   "tool": "human",
+   "tools": [
+    "jira.server_info",
+    "jira.issues_get",
+    "shim.python"
+   ],
+   "truth": "todo",
+   "truth_after": "todo",
+   "value": "todo",
+   "value_ok": true,
+   "verdict": "PASS"
+  }
+ ],
+ "profiles": [
+  {
+   "allowed_destinations": [
+    "confluence.internal:8090",
+    "jira.internal:8080",
+    "postgres.internal:5432",
+    "powerbi.internal:8095",
+    "sigma.internal:8097",
+    "slack.internal:8081",
+    "tableau.internal:8096"
+   ],
+   "episode": {
+    "destinations": [
+     {
+      "count": 1,
+      "first_ts": "2026-10-07T17:29:16Z",
+      "host": "jira.internal",
+      "last_ts": "2026-10-07T17:29:16Z",
+      "port": 8080
+     },
+     {
+      "count": 2,
+      "first_ts": "2026-10-07T17:29:19Z",
+      "host": "slack.internal",
+      "last_ts": "2026-10-07T17:29:19Z",
+      "port": 8081
+     },
+     {
+      "count": 1,
+      "first_ts": "2026-10-07T17:29:18Z",
+      "host": "confluence.internal",
+      "last_ts": "2026-10-07T17:29:18Z",
+      "port": 8090
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "powerbi.internal",
+      "last_ts": null,
+      "port": 8095
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "tableau.internal",
+      "last_ts": null,
+      "port": 8096
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "sigma.internal",
+      "last_ts": null,
+      "port": 8097
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "native-services.internal",
+      "last_ts": null,
+      "port": 8099
+     }
+    ],
+    "network_violations": [],
+    "no_stray_rows": true,
+    "ok": true,
+    "rows_in_probes": 9,
+    "rows_total": 9,
+    "trace_valid": true
+   },
+   "image": "alkera-episode:hfix-da",
+   "image_gate": {
+    "head": "6b849cd6f3bc4375b69cf5fcbc8879ad5c20c026",
+    "image": "alkera-episode:hfix-da",
+    "revision": "6b849cd6f3bc4375b69cf5fcbc8879ad5c20c026"
+   },
+   "ok": true,
+   "plugs": {
+    "bi": [
+     "powerbi",
+     "sigma",
+     "tableau"
+    ]
+   },
+   "probes": [
+    "human.jira.ana238_status",
+    "human.confluence.net_revenue_page_version",
+    "human.slack.analytics_eng_threads"
+   ],
+   "profile": "da/laptop",
+   "rows_at": "call",
+   "seconds": 26.8,
+   "seed": "# commerce_analytics world seed: a shop's nightly CDC extracts -> raw -> dbt\n# star schema + semantic layer -> Power BI / Tableau / Sigma dashboards.\ntheme: commerce_analytics    # world/world/themes/<name>/\nseed: 11\nvtime_start: \"2025-01-01T00:00:00Z\"\n# 425 nightly extracts: dt=2024-12-31 (the cutover snapshot: accounts and\n# catalogue, no orders) then dt=2025-01-01 .. dt=2026-02-28. Fourteen months of\n# orders, so last-year measures exist for January and February 2026. The world\n# clock opens at 2026-03-02T00:00Z, a Monday - business day 1 of the February\n# close.\ndays: 425\n\n# Scale. Every key is optional (gen.DEFAULTS); these are the defaults, spelled\n# out. Build time is dominated by dbt, not by volume - a 2x seed builds in about\n# the same time.\ncustomers: 220               # accounts on the platform at cutover\nsignup_pct: 18               # chance per day of a new account (a second at a quarter of it)\nupdate_pct: 9                # chance per day that one account is upgraded a segment\norders_per_day: [20, 60]     # base range, scaled by weekday, month, peak days and growth\nlines_per_order: [1, 4]\ncancel_pct: 6                # 70% the same day, the rest the next day\nrefund_pct: 4                # 3 to 45 days after the order\ngrowth_pct: 20               # year-over-year order volume growth\n\ngit_author: \"Analytics Engineering <analytics@example.com>\"\nnative: true\nfiles: {formats: [parquet]}\nprofile:\n  name: da/laptop\n  slots: [files, notebook, warehouse, transform, bi, human]\n  plugs: {bi: [powerbi, sigma, tableau]}\n",
+   "stack": {
+    "container_id": "6f829adb53e5",
+    "episode_endpoints": {
+     "confluence": "http://confluence.internal:8090",
+     "jira": "http://jira.internal:8080",
+     "postgres": {
+      "database": "alkera",
+      "host": "postgres.internal",
+      "password": "alkera-local-dev",
+      "port": 5432,
+      "user": "alkera"
+     },
+     "powerbi": "http://powerbi.internal:8095",
+     "sigma": "http://sigma.internal:8097",
+     "slack": "http://slack.internal:8081",
+     "tableau": "http://tableau.internal:8096"
+    },
+    "image": "alkera-episode:hfix-da",
+    "image_digest": "sha256:0645e91d450ec9afdeb3dc37d68d9b718a87d285ff1ee2c6c1422569edf7cd04",
+    "services": [
+     "episode",
+     "jupyter",
+     "minio",
+     "native-services",
+     "postgres"
+    ],
+    "subject_env": {
+     "ALKERA_BACKEND": "postgres",
+     "ALKERA_NATIVE_AUDIT": "/audit/actions.jsonl",
+     "ALKERA_POSTGRES_DSN": "postgresql://episode:episode-local@postgres/episode",
+     "ALKERA_SHIM_BIN": "/opt/alkera/shims",
+     "ALKERA_SHIM_WATCH": "/world/var/warehouse/warehouse.duckdb",
+     "ALKERA_SHIM_WORKSPACE": "/workspace",
+     "ALKERA_SOURCE_REV": "6b849cd6f3bc4375b69cf5fcbc8879ad5c20c026",
+     "ALKERA_TOOLBELT": "da",
+     "ALKERA_VIRTUAL_TIME": "2026-03-02T00:00:00Z",
+     "ALKERA_WAREHOUSES": "",
+     "ALKERA_WAREHOUSE_CLIENTS": "",
+     "ALKERA_WORKSPACE": "/workspace",
+     "AZURE_AUTHORITY_HOST": "http://powerbi.internal:8095",
+     "AZURE_CLIENT_ID": "alkera-local-dev",
+     "AZURE_CLIENT_SECRET": "alkera-local-dev",
+     "AZURE_TENANT_ID": "alkera-local-dev",
+     "CONFLUENCE_API_TOKEN": "alkera-local-dev",
+     "CONFLUENCE_URL": "http://confluence.internal:8090",
+     "CONFLUENCE_USER": "alkera-local-dev",
+     "DBT_PROFILES_DIR": "/root/.dbt",
+     "FABRIC_API_URL": "http://powerbi.internal:8095",
+     "HOME": "/root",
+     "JIRA_API_TOKEN": "alkera-local-dev",
+     "JIRA_URL": "http://jira.internal:8080",
+     "JIRA_USER": "alkera-local-dev",
+     "JUPYTER_URL": "http://jupyter.internal:8888",
+     "PATH": "/opt/alkera/shims:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/toolbelt/bin",
+     "POWERBI_API_URL": "http://powerbi.internal:8095",
+     "SIGMA_BASE_URL": "http://sigma.internal:8097",
+     "SIGMA_CLIENT_ID": "alkera-local-dev",
+     "SIGMA_CLIENT_SECRET": "alkera-local-dev",
+     "SLACK_BASE_URL": "http://slack.internal:8081",
+     "SLACK_BOT_TOKEN": "alkera-local-dev",
+     "TABLEAU_PAT_NAME": "alkera-local-dev",
+     "TABLEAU_PAT_SECRET": "alkera-local-dev",
+     "TABLEAU_SERVER_URL": "http://tableau.internal:8096",
+     "TABLEAU_SITE": ""
+    },
+    "workspace_cli": {
+     "cli": null,
+     "files": [],
+     "interpreter": null,
+     "pythonpath": null,
+     "skipped": "profile 'da/laptop' plugs no orchestrator",
+     "topology": "container"
+    }
+   },
+   "truths_read": "after the world build, before the stack came up",
+   "work": "/home/ubuntu/alkera-rollouts/human-fix/da-laptop-bi-powerbi-sigma-tableau",
+   "world": {
+    "dashboards": "/home/ubuntu/alkera-rollouts/human-fix/da-laptop-bi-powerbi-sigma-tableau/world/var/bi/dashboards",
+    "grading": "/home/ubuntu/alkera-rollouts/human-fix/da-laptop-bi-powerbi-sigma-tableau/grading",
+    "profiles_dir": "/home/ubuntu/alkera-rollouts/human-fix/da-laptop-bi-powerbi-sigma-tableau/world/build",
+    "scheduler": "/home/ubuntu/alkera-rollouts/human-fix/da-laptop-bi-powerbi-sigma-tableau/world/var/sched/state.json",
+    "warehouse": "/home/ubuntu/alkera-rollouts/human-fix/da-laptop-bi-powerbi-sigma-tableau/world/var/warehouse/warehouse.duckdb",
+    "workflow_dir": "/home/ubuntu/alkera-rollouts/human-fix/da-laptop-bi-powerbi-sigma-tableau/world/var/workflow",
+    "workspace": "/home/ubuntu/alkera-rollouts/human-fix/da-laptop-bi-powerbi-sigma-tableau/world/workspace",
+    "world_root": "/home/ubuntu/alkera-rollouts/human-fix/da-laptop-bi-powerbi-sigma-tableau/world"
+   }
+  },
+  {
+   "allowed_destinations": [
+    "confluence.internal:8090",
+    "jira.internal:8080",
+    "postgres.internal:5432",
+    "sigma.internal:8097",
+    "slack.internal:8081",
+    "snowflake.internal:8443"
+   ],
+   "episode": {
+    "destinations": [
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "confluence.internal",
+      "last_ts": null,
+      "port": 8090
+     },
+     {
+      "count": 1,
+      "first_ts": "2026-10-07T17:30:17Z",
+      "host": "jira.internal",
+      "last_ts": "2026-10-07T17:30:17Z",
+      "port": 8080
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "native-services.internal",
+      "last_ts": null,
+      "port": 8099
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "sigma.internal",
+      "last_ts": null,
+      "port": 8097
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "slack.internal",
+      "last_ts": null,
+      "port": 8081
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "snowflake.internal",
+      "last_ts": null,
+      "port": 8443
+     }
+    ],
+    "network_violations": [],
+    "no_stray_rows": true,
+    "ok": true,
+    "rows_in_probes": 3,
+    "rows_total": 3,
+    "trace_valid": true
+   },
+   "image": "alkera-episode:hfix-da-snowflake",
+   "image_gate": {
+    "head": "6b849cd6f3bc4375b69cf5fcbc8879ad5c20c026",
+    "image": "alkera-episode:hfix-da-snowflake",
+    "revision": "6b849cd6f3bc4375b69cf5fcbc8879ad5c20c026"
+   },
+   "ok": true,
+   "plugs": {},
+   "probes": [
+    "human.jira.ana238_status_da_snowflake"
+   ],
+   "profile": "da/snowflake",
+   "rows_at": "call",
+   "seconds": 58.2,
+   "seed": "# commerce_analytics world seed: a shop's nightly CDC extracts -> raw -> dbt\n# star schema + semantic layer -> Power BI / Tableau / Sigma dashboards.\ntheme: commerce_analytics    # world/world/themes/<name>/\nseed: 11\nvtime_start: \"2025-01-01T00:00:00Z\"\n# 425 nightly extracts: dt=2024-12-31 (the cutover snapshot: accounts and\n# catalogue, no orders) then dt=2025-01-01 .. dt=2026-02-28. Fourteen months of\n# orders, so last-year measures exist for January and February 2026. The world\n# clock opens at 2026-03-02T00:00Z, a Monday - business day 1 of the February\n# close.\ndays: 425\n\n# Scale. Every key is optional (gen.DEFAULTS); these are the defaults, spelled\n# out. Build time is dominated by dbt, not by volume - a 2x seed builds in about\n# the same time.\ncustomers: 220               # accounts on the platform at cutover\nsignup_pct: 18               # chance per day of a new account (a second at a quarter of it)\nupdate_pct: 9                # chance per day that one account is upgraded a segment\norders_per_day: [20, 60]     # base range, scaled by weekday, month, peak days and growth\nlines_per_order: [1, 4]\ncancel_pct: 6                # 70% the same day, the rest the next day\nrefund_pct: 4                # 3 to 45 days after the order\ngrowth_pct: 20               # year-over-year order volume growth\n\ngit_author: \"Analytics Engineering <analytics@example.com>\"\nnative: true\nfiles: {formats: [parquet]}\nprofile:\n  name: da/snowflake\n  slots: [files, notebook, warehouse, transform, bi, human]\n  plugs: {bi: [sigma]}\n",
+   "stack": {
+    "container_id": "c833ef7b6626",
+    "episode_endpoints": {
+     "confluence": "http://confluence.internal:8090",
+     "jira": "http://jira.internal:8080",
+     "postgres": {
+      "database": "alkera",
+      "host": "postgres.internal",
+      "password": "alkera-local-dev",
+      "port": 5432,
+      "user": "alkera"
+     },
+     "sigma": "http://sigma.internal:8097",
+     "slack": "http://slack.internal:8081",
+     "snowflake": "https://snowflake.internal:8443"
+    },
+    "image": "alkera-episode:hfix-da-snowflake",
+    "image_digest": "sha256:2423cad8ed8045287d15737dc4bb28a7be17a2359a7fc087f7bf35ca094e3a8c",
+    "services": [
+     "episode",
+     "jupyter",
+     "minio",
+     "native-services",
+     "postgres",
+     "snowflake"
+    ],
+    "subject_env": {
+     "ALKERA_BACKEND": "postgres",
+     "ALKERA_NATIVE_AUDIT": "/audit/actions.jsonl",
+     "ALKERA_POSTGRES_DSN": "postgresql://episode:episode-local@postgres/episode",
+     "ALKERA_SHIM_BIN": "/opt/alkera/shims",
+     "ALKERA_SHIM_WATCH": "/world/var/warehouse/warehouse.duckdb",
+     "ALKERA_SHIM_WORKSPACE": "/workspace",
+     "ALKERA_SOURCE_REV": "6b849cd6f3bc4375b69cf5fcbc8879ad5c20c026",
+     "ALKERA_TOOLBELT": "da",
+     "ALKERA_VIRTUAL_TIME": "2026-03-02T00:00:00Z",
+     "ALKERA_WAREHOUSES": "",
+     "ALKERA_WAREHOUSE_CLIENTS": "snowflake",
+     "ALKERA_WORKSPACE": "/workspace",
+     "CONFLUENCE_API_TOKEN": "alkera-local-dev",
+     "CONFLUENCE_URL": "http://confluence.internal:8090",
+     "CONFLUENCE_USER": "alkera-local-dev",
+     "DBT_PROFILES_DIR": "/root/.dbt",
+     "HOME": "/root",
+     "JIRA_API_TOKEN": "alkera-local-dev",
+     "JIRA_URL": "http://jira.internal:8080",
+     "JIRA_USER": "alkera-local-dev",
+     "JUPYTER_URL": "http://jupyter.internal:8888",
+     "PATH": "/opt/alkera/shims:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/toolbelt/bin",
+     "SIGMA_BASE_URL": "http://sigma.internal:8097",
+     "SIGMA_CLIENT_ID": "alkera-local-dev",
+     "SIGMA_CLIENT_SECRET": "alkera-local-dev",
+     "SLACK_BASE_URL": "http://slack.internal:8081",
+     "SLACK_BOT_TOKEN": "alkera-local-dev",
+     "SNOWFLAKE_ACCOUNT": "acme",
+     "SNOWFLAKE_DATABASE": "WAREHOUSE",
+     "SNOWFLAKE_HOST": "snowflake.internal",
+     "SNOWFLAKE_PASSWORD": "alkera-local-dev",
+     "SNOWFLAKE_USER": "alkera-local-dev"
+    },
+    "workspace_cli": {
+     "cli": null,
+     "files": [],
+     "interpreter": null,
+     "pythonpath": null,
+     "skipped": "profile 'da/snowflake' plugs no orchestrator",
+     "topology": "container"
+    }
+   },
+   "truths_read": "after the world build, before the stack came up",
+   "work": "/home/ubuntu/alkera-rollouts/human-fix/da-snowflake",
+   "world": {
+    "dashboards": "/home/ubuntu/alkera-rollouts/human-fix/da-snowflake/world/var/bi/dashboards",
+    "grading": "/home/ubuntu/alkera-rollouts/human-fix/da-snowflake/grading",
+    "profiles_dir": "/home/ubuntu/alkera-rollouts/human-fix/da-snowflake/world/build",
+    "scheduler": "/home/ubuntu/alkera-rollouts/human-fix/da-snowflake/world/var/sched/state.json",
+    "warehouse": "/home/ubuntu/alkera-rollouts/human-fix/da-snowflake/world/var/warehouse/warehouse.duckdb",
+    "workflow_dir": "/home/ubuntu/alkera-rollouts/human-fix/da-snowflake/world/var/workflow",
+    "workspace": "/home/ubuntu/alkera-rollouts/human-fix/da-snowflake/world/workspace",
+    "world_root": "/home/ubuntu/alkera-rollouts/human-fix/da-snowflake/world"
+   }
+  },
+  {
+   "allowed_destinations": [
+    "airbyte.internal:8001",
+    "alertmanager.internal:9093",
+    "confluence.internal:8090",
+    "deploy.internal:8085",
+    "jira.internal:8080",
+    "loki.internal:3100",
+    "metabase.internal:3000",
+    "minio.internal:9000",
+    "postgres.internal:5432",
+    "prometheus.internal:9090",
+    "sched.internal:8120",
+    "slack.internal:8081"
+   ],
+   "episode": {
+    "destinations": [
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "metabase.internal",
+      "last_ts": null,
+      "port": 3000
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "loki.internal",
+      "last_ts": null,
+      "port": 3100
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "airbyte.internal",
+      "last_ts": null,
+      "port": 8001
+     },
+     {
+      "count": 1,
+      "first_ts": "2026-10-07T17:30:40Z",
+      "host": "jira.internal",
+      "last_ts": "2026-10-07T17:30:40Z",
+      "port": 8080
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "slack.internal",
+      "last_ts": null,
+      "port": 8081
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "deploy.internal",
+      "last_ts": null,
+      "port": 8085
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "confluence.internal",
+      "last_ts": null,
+      "port": 8090
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "native-services.internal",
+      "last_ts": null,
+      "port": 8099
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "sched.internal",
+      "last_ts": null,
+      "port": 8120
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "prometheus.internal",
+      "last_ts": null,
+      "port": 9090
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "alertmanager.internal",
+      "last_ts": null,
+      "port": 9093
+     }
+    ],
+    "network_violations": [],
+    "no_stray_rows": true,
+    "ok": true,
+    "rows_in_probes": 3,
+    "rows_total": 3,
+    "trace_valid": true
+   },
+   "image": "alkera-episode:hfix-de",
+   "image_gate": {
+    "head": "6b849cd6f3bc4375b69cf5fcbc8879ad5c20c026",
+    "image": "alkera-episode:hfix-de",
+    "revision": "6b849cd6f3bc4375b69cf5fcbc8879ad5c20c026"
+   },
+   "ok": true,
+   "plugs": {},
+   "probes": [
+    "human.jira.ana238_status_de_postgres"
+   ],
+   "profile": "de/postgres",
+   "rows_at": "call",
+   "seconds": 23.0,
+   "seed": "# commerce_analytics world seed: a shop's nightly CDC extracts -> raw -> dbt\n# star schema + semantic layer -> Power BI / Tableau / Sigma dashboards.\ntheme: commerce_analytics    # world/world/themes/<name>/\nseed: 11\nvtime_start: \"2025-01-01T00:00:00Z\"\n# 425 nightly extracts: dt=2024-12-31 (the cutover snapshot: accounts and\n# catalogue, no orders) then dt=2025-01-01 .. dt=2026-02-28. Fourteen months of\n# orders, so last-year measures exist for January and February 2026. The world\n# clock opens at 2026-03-02T00:00Z, a Monday - business day 1 of the February\n# close.\ndays: 425\n\n# Scale. Every key is optional (gen.DEFAULTS); these are the defaults, spelled\n# out. Build time is dominated by dbt, not by volume - a 2x seed builds in about\n# the same time.\ncustomers: 220               # accounts on the platform at cutover\nsignup_pct: 18               # chance per day of a new account (a second at a quarter of it)\nupdate_pct: 9                # chance per day that one account is upgraded a segment\norders_per_day: [20, 60]     # base range, scaled by weekday, month, peak days and growth\nlines_per_order: [1, 4]\ncancel_pct: 6                # 70% the same day, the rest the next day\nrefund_pct: 4                # 3 to 45 days after the order\ngrowth_pct: 20               # year-over-year order volume growth\n\ngit_author: \"Analytics Engineering <analytics@example.com>\"\nnative: true\nfiles: {formats: [parquet]}\nprofile:\n  name: de/postgres\n  slots: [files, warehouse, transform, orchestrator, object_store, ingest, bi, observability, release, human]\n",
+   "stack": {
+    "container_id": "9f393fe7381a",
+    "episode_endpoints": {
+     "airbyte": "http://airbyte.internal:8001",
+     "alertmanager": "http://alertmanager.internal:9093",
+     "confluence": "http://confluence.internal:8090",
+     "deploy": "http://deploy.internal:8085",
+     "jira": "http://jira.internal:8080",
+     "loki": "http://loki.internal:3100",
+     "metabase": "http://metabase.internal:3000",
+     "postgres": {
+      "database": "alkera",
+      "host": "postgres.internal",
+      "password": "alkera-local-dev",
+      "port": 5432,
+      "user": "alkera"
+     },
+     "prometheus": "http://prometheus.internal:9090",
+     "s3": "http://minio.internal:9000",
+     "s3_access_key": "alkera-local-dev",
+     "s3_bucket": "alkera",
+     "s3_region": "us-east-1",
+     "s3_secret_key": "alkera-local-dev",
+     "sched": "http://sched.internal:8120",
+     "slack": "http://slack.internal:8081"
+    },
+    "image": "alkera-episode:hfix-de",
+    "image_digest": "sha256:ab4f8d911be78c2500355144b27d966502dc57e310394401901b6fa3dbd854f5",
+    "services": [
+     "episode",
+     "minio",
+     "native-services",
+     "postgres"
+    ],
+    "subject_env": {
+     "AIRBYTE_API_KEY": "alkera-local-dev",
+     "AIRBYTE_URL": "http://airbyte.internal:8001",
+     "ALERTMANAGER_URL": "http://alertmanager.internal:9093",
+     "ALKERA_BACKEND": "postgres",
+     "ALKERA_NATIVE_AUDIT": "/audit/actions.jsonl",
+     "ALKERA_POSTGRES_DSN": "postgresql://episode:episode-local@postgres/episode",
+     "ALKERA_SHIM_BIN": "/opt/alkera/shims",
+     "ALKERA_SHIM_WATCH": "/world/var/warehouse/warehouse.duckdb",
+     "ALKERA_SHIM_WORKSPACE": "/workspace",
+     "ALKERA_SOURCE_REV": "6b849cd6f3bc4375b69cf5fcbc8879ad5c20c026",
+     "ALKERA_TOOLBELT": "de",
+     "ALKERA_VIRTUAL_TIME": "2026-03-02T00:00:00Z",
+     "ALKERA_WAREHOUSES": "",
+     "ALKERA_WAREHOUSE_CLIENTS": "",
+     "ALKERA_WORKSPACE": "/workspace",
+     "AWS_ACCESS_KEY_ID": "alkera-local-dev",
+     "AWS_DEFAULT_REGION": "us-east-1",
+     "AWS_ENDPOINT_URL": "http://minio.internal:9000",
+     "AWS_SECRET_ACCESS_KEY": "alkera-local-dev",
+     "CONFLUENCE_API_TOKEN": "alkera-local-dev",
+     "CONFLUENCE_URL": "http://confluence.internal:8090",
+     "CONFLUENCE_USER": "alkera-local-dev",
+     "DBT_PROFILES_DIR": "/root/.dbt",
+     "DEPLOY_API_TOKEN": "alkera-local-dev",
+     "DEPLOY_URL": "http://deploy.internal:8085",
+     "HOME": "/root",
+     "JIRA_API_TOKEN": "alkera-local-dev",
+     "JIRA_URL": "http://jira.internal:8080",
+     "JIRA_USER": "alkera-local-dev",
+     "LOKI_ADDR": "http://loki.internal:3100",
+     "LOKI_URL": "http://loki.internal:3100",
+     "METABASE_API_KEY": "alkera-local-dev",
+     "METABASE_URL": "http://metabase.internal:3000",
+     "PATH": "/opt/alkera/shims:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/toolbelt/bin",
+     "PGDATABASE": "alkera",
+     "PGHOST": "postgres.internal",
+     "PGPASSWORD": "alkera-local-dev",
+     "PGPORT": "5432",
+     "PGUSER": "alkera",
+     "PROMETHEUS_URL": "http://prometheus.internal:9090",
+     "SCHED_URL": "http://sched.internal:8120",
+     "SLACK_BASE_URL": "http://slack.internal:8081",
+     "SLACK_BOT_TOKEN": "alkera-local-dev"
+    },
+    "workspace_cli": {
+     "cli": "ops/sched",
+     "files": [
+      "/home/ubuntu/alkera-rollouts/human-fix/de-postgres/world/workspace/ops/sched"
+     ],
+     "interpreter": "/usr/local/bin/python",
+     "pythonpath": "/opt/world",
+     "topology": "container"
+    }
+   },
+   "truths_read": "after the world build, before the stack came up",
+   "work": "/home/ubuntu/alkera-rollouts/human-fix/de-postgres",
+   "world": {
+    "dashboards": "/home/ubuntu/alkera-rollouts/human-fix/de-postgres/world/var/bi/dashboards",
+    "grading": "/home/ubuntu/alkera-rollouts/human-fix/de-postgres/grading",
+    "profiles_dir": "/home/ubuntu/alkera-rollouts/human-fix/de-postgres/world/build",
+    "scheduler": "/home/ubuntu/alkera-rollouts/human-fix/de-postgres/world/var/sched/state.json",
+    "warehouse": "/home/ubuntu/alkera-rollouts/human-fix/de-postgres/world/var/warehouse/warehouse.duckdb",
+    "workflow_dir": "/home/ubuntu/alkera-rollouts/human-fix/de-postgres/world/var/workflow",
+    "workspace": "/home/ubuntu/alkera-rollouts/human-fix/de-postgres/world/workspace",
+    "world_root": "/home/ubuntu/alkera-rollouts/human-fix/de-postgres/world"
+   }
+  },
+  {
+   "allowed_destinations": [
+    "airbyte.internal:8001",
+    "alertmanager.internal:9093",
+    "confluence.internal:8090",
+    "deploy.internal:8085",
+    "jira.internal:8080",
+    "loki.internal:3100",
+    "minio.internal:9000",
+    "postgres.internal:5432",
+    "prometheus.internal:9090",
+    "redshift.internal:5439",
+    "sched.internal:8120",
+    "slack.internal:8081",
+    "tableau.internal:8096"
+   ],
+   "episode": {
+    "destinations": [
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "airbyte.internal",
+      "last_ts": null,
+      "port": 8001
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "alertmanager.internal",
+      "last_ts": null,
+      "port": 9093
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "confluence.internal",
+      "last_ts": null,
+      "port": 8090
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "deploy.internal",
+      "last_ts": null,
+      "port": 8085
+     },
+     {
+      "count": 1,
+      "first_ts": "2026-10-07T17:31:33Z",
+      "host": "jira.internal",
+      "last_ts": "2026-10-07T17:31:33Z",
+      "port": 8080
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "loki.internal",
+      "last_ts": null,
+      "port": 3100
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "native-services.internal",
+      "last_ts": null,
+      "port": 8099
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "prometheus.internal",
+      "last_ts": null,
+      "port": 9090
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "redshift.internal",
+      "last_ts": null,
+      "port": 5439
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "sched.internal",
+      "last_ts": null,
+      "port": 8120
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "slack.internal",
+      "last_ts": null,
+      "port": 8081
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "tableau.internal",
+      "last_ts": null,
+      "port": 8096
+     }
+    ],
+    "network_violations": [],
+    "no_stray_rows": true,
+    "ok": true,
+    "rows_in_probes": 3,
+    "rows_total": 3,
+    "trace_valid": true
+   },
+   "image": "alkera-episode:hfix-de-redshift",
+   "image_gate": {
+    "head": "6b849cd6f3bc4375b69cf5fcbc8879ad5c20c026",
+    "image": "alkera-episode:hfix-de-redshift",
+    "revision": "6b849cd6f3bc4375b69cf5fcbc8879ad5c20c026"
+   },
+   "ok": true,
+   "plugs": {},
+   "probes": [
+    "human.jira.ana238_status_de_aws"
+   ],
+   "profile": "de/aws",
+   "rows_at": "call",
+   "seconds": 52.7,
+   "seed": "# commerce_analytics world seed: a shop's nightly CDC extracts -> raw -> dbt\n# star schema + semantic layer -> Power BI / Tableau / Sigma dashboards.\ntheme: commerce_analytics    # world/world/themes/<name>/\nseed: 11\nvtime_start: \"2025-01-01T00:00:00Z\"\n# 425 nightly extracts: dt=2024-12-31 (the cutover snapshot: accounts and\n# catalogue, no orders) then dt=2025-01-01 .. dt=2026-02-28. Fourteen months of\n# orders, so last-year measures exist for January and February 2026. The world\n# clock opens at 2026-03-02T00:00Z, a Monday - business day 1 of the February\n# close.\ndays: 425\n\n# Scale. Every key is optional (gen.DEFAULTS); these are the defaults, spelled\n# out. Build time is dominated by dbt, not by volume - a 2x seed builds in about\n# the same time.\ncustomers: 220               # accounts on the platform at cutover\nsignup_pct: 18               # chance per day of a new account (a second at a quarter of it)\nupdate_pct: 9                # chance per day that one account is upgraded a segment\norders_per_day: [20, 60]     # base range, scaled by weekday, month, peak days and growth\nlines_per_order: [1, 4]\ncancel_pct: 6                # 70% the same day, the rest the next day\nrefund_pct: 4                # 3 to 45 days after the order\ngrowth_pct: 20               # year-over-year order volume growth\n\ngit_author: \"Analytics Engineering <analytics@example.com>\"\nnative: true\nfiles: {formats: [parquet]}\nprofile:\n  name: de/aws\n  slots: [files, warehouse, transform, orchestrator, object_store, ingest, bi, observability, release, human]\n  plugs: {bi: [tableau]}\n",
+   "stack": {
+    "container_id": "2c7f7970496b",
+    "episode_endpoints": {
+     "airbyte": "http://airbyte.internal:8001",
+     "alertmanager": "http://alertmanager.internal:9093",
+     "confluence": "http://confluence.internal:8090",
+     "deploy": "http://deploy.internal:8085",
+     "jira": "http://jira.internal:8080",
+     "loki": "http://loki.internal:3100",
+     "postgres": {
+      "database": "alkera",
+      "host": "postgres.internal",
+      "password": "alkera-local-dev",
+      "port": 5432,
+      "user": "alkera"
+     },
+     "prometheus": "http://prometheus.internal:9090",
+     "redshift": "postgres://redshift.internal:5439",
+     "s3": "http://minio.internal:9000",
+     "s3_access_key": "alkera-local-dev",
+     "s3_bucket": "alkera",
+     "s3_region": "us-east-1",
+     "s3_secret_key": "alkera-local-dev",
+     "sched": "http://sched.internal:8120",
+     "slack": "http://slack.internal:8081",
+     "tableau": "http://tableau.internal:8096"
+    },
+    "image": "alkera-episode:hfix-de-redshift",
+    "image_digest": "sha256:00af9f38a43e3a85fa2cba0e9ce5048bb86ea473edc8e4820270f81e7fde6a2c",
+    "services": [
+     "episode",
+     "minio",
+     "native-services",
+     "postgres",
+     "redshift"
+    ],
+    "subject_env": {
+     "AIRBYTE_API_KEY": "alkera-local-dev",
+     "AIRBYTE_URL": "http://airbyte.internal:8001",
+     "ALERTMANAGER_URL": "http://alertmanager.internal:9093",
+     "ALKERA_BACKEND": "postgres",
+     "ALKERA_NATIVE_AUDIT": "/audit/actions.jsonl",
+     "ALKERA_POSTGRES_DSN": "postgresql://episode:episode-local@postgres/episode",
+     "ALKERA_SHIM_BIN": "/opt/alkera/shims",
+     "ALKERA_SHIM_WATCH": "/world/var/warehouse/warehouse.duckdb",
+     "ALKERA_SHIM_WORKSPACE": "/workspace",
+     "ALKERA_SOURCE_REV": "6b849cd6f3bc4375b69cf5fcbc8879ad5c20c026",
+     "ALKERA_TOOLBELT": "de",
+     "ALKERA_VIRTUAL_TIME": "2026-03-02T00:00:00Z",
+     "ALKERA_WAREHOUSES": "",
+     "ALKERA_WAREHOUSE_CLIENTS": "redshift",
+     "ALKERA_WORKSPACE": "/workspace",
+     "AWS_ACCESS_KEY_ID": "alkera-local-dev",
+     "AWS_DEFAULT_REGION": "us-east-1",
+     "AWS_ENDPOINT_URL": "http://minio.internal:9000",
+     "AWS_SECRET_ACCESS_KEY": "alkera-local-dev",
+     "CONFLUENCE_API_TOKEN": "alkera-local-dev",
+     "CONFLUENCE_URL": "http://confluence.internal:8090",
+     "CONFLUENCE_USER": "alkera-local-dev",
+     "DBT_PROFILES_DIR": "/root/.dbt",
+     "DEPLOY_API_TOKEN": "alkera-local-dev",
+     "DEPLOY_URL": "http://deploy.internal:8085",
+     "HOME": "/root",
+     "JIRA_API_TOKEN": "alkera-local-dev",
+     "JIRA_URL": "http://jira.internal:8080",
+     "JIRA_USER": "alkera-local-dev",
+     "LOKI_ADDR": "http://loki.internal:3100",
+     "LOKI_URL": "http://loki.internal:3100",
+     "PATH": "/opt/alkera/shims:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/toolbelt/bin",
+     "PROMETHEUS_URL": "http://prometheus.internal:9090",
+     "SCHED_URL": "http://sched.internal:8120",
+     "SLACK_BASE_URL": "http://slack.internal:8081",
+     "SLACK_BOT_TOKEN": "alkera-local-dev",
+     "TABLEAU_PAT_NAME": "alkera-local-dev",
+     "TABLEAU_PAT_SECRET": "alkera-local-dev",
+     "TABLEAU_SERVER_URL": "http://tableau.internal:8096",
+     "TABLEAU_SITE": ""
+    },
+    "workspace_cli": {
+     "cli": "ops/sched",
+     "files": [
+      "/home/ubuntu/alkera-rollouts/human-fix/de-aws/world/workspace/ops/sched"
+     ],
+     "interpreter": "/usr/local/bin/python",
+     "pythonpath": "/opt/world",
+     "topology": "container"
+    }
+   },
+   "truths_read": "after the world build, before the stack came up",
+   "work": "/home/ubuntu/alkera-rollouts/human-fix/de-aws",
+   "world": {
+    "dashboards": "/home/ubuntu/alkera-rollouts/human-fix/de-aws/world/var/bi/dashboards",
+    "grading": "/home/ubuntu/alkera-rollouts/human-fix/de-aws/grading",
+    "profiles_dir": "/home/ubuntu/alkera-rollouts/human-fix/de-aws/world/build",
+    "scheduler": "/home/ubuntu/alkera-rollouts/human-fix/de-aws/world/var/sched/state.json",
+    "warehouse": "/home/ubuntu/alkera-rollouts/human-fix/de-aws/world/var/warehouse/warehouse.duckdb",
+    "workflow_dir": "/home/ubuntu/alkera-rollouts/human-fix/de-aws/world/var/workflow",
+    "workspace": "/home/ubuntu/alkera-rollouts/human-fix/de-aws/world/workspace",
+    "world_root": "/home/ubuntu/alkera-rollouts/human-fix/de-aws/world"
+   }
+  },
+  {
+   "allowed_destinations": [
+    "airbyte.internal:8001",
+    "alertmanager.internal:9093",
+    "confluence.internal:8090",
+    "databricks.internal:443",
+    "deploy.internal:8085",
+    "jira.internal:8080",
+    "loki.internal:3100",
+    "minio.internal:9000",
+    "postgres.internal:5432",
+    "powerbi.internal:8095",
+    "prometheus.internal:9090",
+    "sched.internal:8120",
+    "slack.internal:8081"
+   ],
+   "episode": {
+    "destinations": [
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "databricks.internal",
+      "last_ts": null,
+      "port": 443
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "loki.internal",
+      "last_ts": null,
+      "port": 3100
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "airbyte.internal",
+      "last_ts": null,
+      "port": 8001
+     },
+     {
+      "count": 1,
+      "first_ts": "2026-10-07T17:31:56Z",
+      "host": "jira.internal",
+      "last_ts": "2026-10-07T17:31:56Z",
+      "port": 8080
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "slack.internal",
+      "last_ts": null,
+      "port": 8081
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "deploy.internal",
+      "last_ts": null,
+      "port": 8085
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "confluence.internal",
+      "last_ts": null,
+      "port": 8090
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "powerbi.internal",
+      "last_ts": null,
+      "port": 8095
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "native-services.internal",
+      "last_ts": null,
+      "port": 8099
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "sched.internal",
+      "last_ts": null,
+      "port": 8120
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "prometheus.internal",
+      "last_ts": null,
+      "port": 9090
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "alertmanager.internal",
+      "last_ts": null,
+      "port": 9093
+     }
+    ],
+    "network_violations": [],
+    "no_stray_rows": true,
+    "ok": true,
+    "rows_in_probes": 3,
+    "rows_total": 3,
+    "trace_valid": true
+   },
+   "image": "alkera-episode:hfix-de-databricks",
+   "image_gate": {
+    "head": "6b849cd6f3bc4375b69cf5fcbc8879ad5c20c026",
+    "image": "alkera-episode:hfix-de-databricks",
+    "revision": "6b849cd6f3bc4375b69cf5fcbc8879ad5c20c026"
+   },
+   "ok": true,
+   "plugs": {},
+   "probes": [
+    "human.jira.ana238_status_de_databricks"
+   ],
+   "profile": "de/databricks",
+   "rows_at": "call",
+   "seconds": 22.8,
+   "seed": "# commerce_analytics world seed: a shop's nightly CDC extracts -> raw -> dbt\n# star schema + semantic layer -> Power BI / Tableau / Sigma dashboards.\ntheme: commerce_analytics    # world/world/themes/<name>/\nseed: 11\nvtime_start: \"2025-01-01T00:00:00Z\"\n# 425 nightly extracts: dt=2024-12-31 (the cutover snapshot: accounts and\n# catalogue, no orders) then dt=2025-01-01 .. dt=2026-02-28. Fourteen months of\n# orders, so last-year measures exist for January and February 2026. The world\n# clock opens at 2026-03-02T00:00Z, a Monday - business day 1 of the February\n# close.\ndays: 425\n\n# Scale. Every key is optional (gen.DEFAULTS); these are the defaults, spelled\n# out. Build time is dominated by dbt, not by volume - a 2x seed builds in about\n# the same time.\ncustomers: 220               # accounts on the platform at cutover\nsignup_pct: 18               # chance per day of a new account (a second at a quarter of it)\nupdate_pct: 9                # chance per day that one account is upgraded a segment\norders_per_day: [20, 60]     # base range, scaled by weekday, month, peak days and growth\nlines_per_order: [1, 4]\ncancel_pct: 6                # 70% the same day, the rest the next day\nrefund_pct: 4                # 3 to 45 days after the order\ngrowth_pct: 20               # year-over-year order volume growth\n\ngit_author: \"Analytics Engineering <analytics@example.com>\"\nnative: true\nfiles: {formats: [parquet]}\nprofile:\n  name: de/databricks\n  slots: [files, warehouse, transform, orchestrator, object_store, ingest, bi, observability, release, human]\n  plugs: {bi: [powerbi]}\n",
+   "stack": {
+    "container_id": "cc353b8d2eb3",
+    "episode_endpoints": {
+     "airbyte": "http://airbyte.internal:8001",
+     "alertmanager": "http://alertmanager.internal:9093",
+     "confluence": "http://confluence.internal:8090",
+     "databricks": "https://databricks.internal:443",
+     "deploy": "http://deploy.internal:8085",
+     "jira": "http://jira.internal:8080",
+     "loki": "http://loki.internal:3100",
+     "postgres": {
+      "database": "alkera",
+      "host": "postgres.internal",
+      "password": "alkera-local-dev",
+      "port": 5432,
+      "user": "alkera"
+     },
+     "powerbi": "http://powerbi.internal:8095",
+     "prometheus": "http://prometheus.internal:9090",
+     "s3": "http://minio.internal:9000",
+     "s3_access_key": "alkera-local-dev",
+     "s3_bucket": "alkera",
+     "s3_region": "us-east-1",
+     "s3_secret_key": "alkera-local-dev",
+     "sched": "http://sched.internal:8120",
+     "slack": "http://slack.internal:8081"
+    },
+    "image": "alkera-episode:hfix-de-databricks",
+    "image_digest": "sha256:5e048d050995745f33ff7c366ef46c24d8fde40f44fb92f6655f5963e60a3e3f",
+    "services": [
+     "episode",
+     "minio",
+     "native-services",
+     "postgres"
+    ],
+    "subject_env": {
+     "AIRBYTE_API_KEY": "alkera-local-dev",
+     "AIRBYTE_URL": "http://airbyte.internal:8001",
+     "ALERTMANAGER_URL": "http://alertmanager.internal:9093",
+     "ALKERA_BACKEND": "postgres",
+     "ALKERA_NATIVE_AUDIT": "/audit/actions.jsonl",
+     "ALKERA_POSTGRES_DSN": "postgresql://episode:episode-local@postgres/episode",
+     "ALKERA_SHIM_BIN": "/opt/alkera/shims",
+     "ALKERA_SHIM_WATCH": "/world/var/warehouse/warehouse.duckdb",
+     "ALKERA_SHIM_WORKSPACE": "/workspace",
+     "ALKERA_SOURCE_REV": "6b849cd6f3bc4375b69cf5fcbc8879ad5c20c026",
+     "ALKERA_TOOLBELT": "de",
+     "ALKERA_VIRTUAL_TIME": "2026-03-02T00:00:00Z",
+     "ALKERA_WAREHOUSES": "",
+     "ALKERA_WAREHOUSE_CLIENTS": "databricks",
+     "ALKERA_WORKSPACE": "/workspace",
+     "AWS_ACCESS_KEY_ID": "alkera-local-dev",
+     "AWS_DEFAULT_REGION": "us-east-1",
+     "AWS_ENDPOINT_URL": "http://minio.internal:9000",
+     "AWS_SECRET_ACCESS_KEY": "alkera-local-dev",
+     "AZURE_AUTHORITY_HOST": "http://powerbi.internal:8095",
+     "AZURE_CLIENT_ID": "alkera-local-dev",
+     "AZURE_CLIENT_SECRET": "alkera-local-dev",
+     "AZURE_TENANT_ID": "alkera-local-dev",
+     "CONFLUENCE_API_TOKEN": "alkera-local-dev",
+     "CONFLUENCE_URL": "http://confluence.internal:8090",
+     "CONFLUENCE_USER": "alkera-local-dev",
+     "DBT_PROFILES_DIR": "/root/.dbt",
+     "DEPLOY_API_TOKEN": "alkera-local-dev",
+     "DEPLOY_URL": "http://deploy.internal:8085",
+     "FABRIC_API_URL": "http://powerbi.internal:8095",
+     "HOME": "/root",
+     "JIRA_API_TOKEN": "alkera-local-dev",
+     "JIRA_URL": "http://jira.internal:8080",
+     "JIRA_USER": "alkera-local-dev",
+     "LOKI_ADDR": "http://loki.internal:3100",
+     "LOKI_URL": "http://loki.internal:3100",
+     "PATH": "/opt/alkera/shims:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/toolbelt/bin",
+     "POWERBI_API_URL": "http://powerbi.internal:8095",
+     "PROMETHEUS_URL": "http://prometheus.internal:9090",
+     "SCHED_URL": "http://sched.internal:8120",
+     "SLACK_BASE_URL": "http://slack.internal:8081",
+     "SLACK_BOT_TOKEN": "alkera-local-dev"
+    },
+    "workspace_cli": {
+     "cli": "ops/sched",
+     "files": [
+      "/home/ubuntu/alkera-rollouts/human-fix/de-databricks/world/workspace/ops/sched"
+     ],
+     "interpreter": "/usr/local/bin/python",
+     "pythonpath": "/opt/world",
+     "topology": "container"
+    }
+   },
+   "truths_read": "after the world build, before the stack came up",
+   "work": "/home/ubuntu/alkera-rollouts/human-fix/de-databricks",
+   "world": {
+    "dashboards": "/home/ubuntu/alkera-rollouts/human-fix/de-databricks/world/var/bi/dashboards",
+    "grading": "/home/ubuntu/alkera-rollouts/human-fix/de-databricks/grading",
+    "profiles_dir": "/home/ubuntu/alkera-rollouts/human-fix/de-databricks/world/build",
+    "scheduler": "/home/ubuntu/alkera-rollouts/human-fix/de-databricks/world/var/sched/state.json",
+    "warehouse": "/home/ubuntu/alkera-rollouts/human-fix/de-databricks/world/var/warehouse/warehouse.duckdb",
+    "workflow_dir": "/home/ubuntu/alkera-rollouts/human-fix/de-databricks/world/var/workflow",
+    "workspace": "/home/ubuntu/alkera-rollouts/human-fix/de-databricks/world/workspace",
+    "world_root": "/home/ubuntu/alkera-rollouts/human-fix/de-databricks/world"
+   }
+  },
+  {
+   "allowed_destinations": [
+    "airbyte.internal:8001",
+    "alertmanager.internal:9093",
+    "bigquery.internal:9050",
+    "confluence.internal:8090",
+    "deploy.internal:8085",
+    "jira.internal:8080",
+    "loki.internal:3100",
+    "metabase.internal:3000",
+    "minio.internal:9000",
+    "postgres.internal:5432",
+    "prometheus.internal:9090",
+    "sched.internal:8120",
+    "slack.internal:8081"
+   ],
+   "episode": {
+    "destinations": [
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "metabase.internal",
+      "last_ts": null,
+      "port": 3000
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "loki.internal",
+      "last_ts": null,
+      "port": 3100
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "airbyte.internal",
+      "last_ts": null,
+      "port": 8001
+     },
+     {
+      "count": 1,
+      "first_ts": "2026-10-07T17:32:27Z",
+      "host": "jira.internal",
+      "last_ts": "2026-10-07T17:32:27Z",
+      "port": 8080
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "slack.internal",
+      "last_ts": null,
+      "port": 8081
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "deploy.internal",
+      "last_ts": null,
+      "port": 8085
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "confluence.internal",
+      "last_ts": null,
+      "port": 8090
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "native-services.internal",
+      "last_ts": null,
+      "port": 8099
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "sched.internal",
+      "last_ts": null,
+      "port": 8120
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "bigquery.internal",
+      "last_ts": null,
+      "port": 9050
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "prometheus.internal",
+      "last_ts": null,
+      "port": 9090
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "alertmanager.internal",
+      "last_ts": null,
+      "port": 9093
+     }
+    ],
+    "network_violations": [],
+    "no_stray_rows": true,
+    "ok": true,
+    "rows_in_probes": 3,
+    "rows_total": 3,
+    "trace_valid": true
+   },
+   "image": "alkera-episode:hfix-de-bigquery",
+   "image_gate": {
+    "head": "6b849cd6f3bc4375b69cf5fcbc8879ad5c20c026",
+    "image": "alkera-episode:hfix-de-bigquery",
+    "revision": "6b849cd6f3bc4375b69cf5fcbc8879ad5c20c026"
+   },
+   "ok": true,
+   "plugs": {},
+   "probes": [
+    "human.jira.ana238_status_de_gcp"
+   ],
+   "profile": "de/gcp",
+   "rows_at": "call",
+   "seconds": 31.5,
+   "seed": "# commerce_analytics world seed: a shop's nightly CDC extracts -> raw -> dbt\n# star schema + semantic layer -> Power BI / Tableau / Sigma dashboards.\ntheme: commerce_analytics    # world/world/themes/<name>/\nseed: 11\nvtime_start: \"2025-01-01T00:00:00Z\"\n# 425 nightly extracts: dt=2024-12-31 (the cutover snapshot: accounts and\n# catalogue, no orders) then dt=2025-01-01 .. dt=2026-02-28. Fourteen months of\n# orders, so last-year measures exist for January and February 2026. The world\n# clock opens at 2026-03-02T00:00Z, a Monday - business day 1 of the February\n# close.\ndays: 425\n\n# Scale. Every key is optional (gen.DEFAULTS); these are the defaults, spelled\n# out. Build time is dominated by dbt, not by volume - a 2x seed builds in about\n# the same time.\ncustomers: 220               # accounts on the platform at cutover\nsignup_pct: 18               # chance per day of a new account (a second at a quarter of it)\nupdate_pct: 9                # chance per day that one account is upgraded a segment\norders_per_day: [20, 60]     # base range, scaled by weekday, month, peak days and growth\nlines_per_order: [1, 4]\ncancel_pct: 6                # 70% the same day, the rest the next day\nrefund_pct: 4                # 3 to 45 days after the order\ngrowth_pct: 20               # year-over-year order volume growth\n\ngit_author: \"Analytics Engineering <analytics@example.com>\"\nnative: true\nfiles: {formats: [parquet]}\nprofile:\n  name: de/gcp\n  slots: [files, warehouse, transform, orchestrator, object_store, ingest, bi, observability, release, human]\n",
+   "stack": {
+    "container_id": "7adcfa904c7f",
+    "episode_endpoints": {
+     "airbyte": "http://airbyte.internal:8001",
+     "alertmanager": "http://alertmanager.internal:9093",
+     "bigquery": "http://bigquery.internal:9050",
+     "confluence": "http://confluence.internal:8090",
+     "deploy": "http://deploy.internal:8085",
+     "jira": "http://jira.internal:8080",
+     "loki": "http://loki.internal:3100",
+     "metabase": "http://metabase.internal:3000",
+     "postgres": {
+      "database": "alkera",
+      "host": "postgres.internal",
+      "password": "alkera-local-dev",
+      "port": 5432,
+      "user": "alkera"
+     },
+     "prometheus": "http://prometheus.internal:9090",
+     "s3": "http://minio.internal:9000",
+     "s3_access_key": "alkera-local-dev",
+     "s3_bucket": "alkera",
+     "s3_region": "us-east-1",
+     "s3_secret_key": "alkera-local-dev",
+     "sched": "http://sched.internal:8120",
+     "slack": "http://slack.internal:8081"
+    },
+    "image": "alkera-episode:hfix-de-bigquery",
+    "image_digest": "sha256:937c5886e295ff8dca1391df4eff1885b3143fb7b6d31c3287ab990eb4a2f950",
+    "services": [
+     "bigquery",
+     "episode",
+     "minio",
+     "native-services",
+     "postgres"
+    ],
+    "subject_env": {
+     "AIRBYTE_API_KEY": "alkera-local-dev",
+     "AIRBYTE_URL": "http://airbyte.internal:8001",
+     "ALERTMANAGER_URL": "http://alertmanager.internal:9093",
+     "ALKERA_BACKEND": "postgres",
+     "ALKERA_NATIVE_AUDIT": "/audit/actions.jsonl",
+     "ALKERA_POSTGRES_DSN": "postgresql://episode:episode-local@postgres/episode",
+     "ALKERA_SHIM_BIN": "/opt/alkera/shims",
+     "ALKERA_SHIM_WATCH": "/world/var/warehouse/warehouse.duckdb",
+     "ALKERA_SHIM_WORKSPACE": "/workspace",
+     "ALKERA_SOURCE_REV": "6b849cd6f3bc4375b69cf5fcbc8879ad5c20c026",
+     "ALKERA_TOOLBELT": "de",
+     "ALKERA_VIRTUAL_TIME": "2026-03-02T00:00:00Z",
+     "ALKERA_WAREHOUSES": "",
+     "ALKERA_WAREHOUSE_CLIENTS": "bigquery",
+     "ALKERA_WORKSPACE": "/workspace",
+     "AWS_ACCESS_KEY_ID": "alkera-local-dev",
+     "AWS_DEFAULT_REGION": "us-east-1",
+     "AWS_ENDPOINT_URL": "http://minio.internal:9000",
+     "AWS_SECRET_ACCESS_KEY": "alkera-local-dev",
+     "CONFLUENCE_API_TOKEN": "alkera-local-dev",
+     "CONFLUENCE_URL": "http://confluence.internal:8090",
+     "CONFLUENCE_USER": "alkera-local-dev",
+     "DBT_PROFILES_DIR": "/root/.dbt",
+     "DEPLOY_API_TOKEN": "alkera-local-dev",
+     "DEPLOY_URL": "http://deploy.internal:8085",
+     "HOME": "/root",
+     "JIRA_API_TOKEN": "alkera-local-dev",
+     "JIRA_URL": "http://jira.internal:8080",
+     "JIRA_USER": "alkera-local-dev",
+     "LOKI_ADDR": "http://loki.internal:3100",
+     "LOKI_URL": "http://loki.internal:3100",
+     "METABASE_API_KEY": "alkera-local-dev",
+     "METABASE_URL": "http://metabase.internal:3000",
+     "PATH": "/opt/alkera/shims:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/toolbelt/bin",
+     "PROMETHEUS_URL": "http://prometheus.internal:9090",
+     "SCHED_URL": "http://sched.internal:8120",
+     "SLACK_BASE_URL": "http://slack.internal:8081",
+     "SLACK_BOT_TOKEN": "alkera-local-dev"
+    },
+    "workspace_cli": {
+     "cli": "ops/sched",
+     "files": [
+      "/home/ubuntu/alkera-rollouts/human-fix/de-gcp/world/workspace/ops/sched"
+     ],
+     "interpreter": "/usr/local/bin/python",
+     "pythonpath": "/opt/world",
+     "topology": "container"
+    }
+   },
+   "truths_read": "after the world build, before the stack came up",
+   "work": "/home/ubuntu/alkera-rollouts/human-fix/de-gcp",
+   "world": {
+    "dashboards": "/home/ubuntu/alkera-rollouts/human-fix/de-gcp/world/var/bi/dashboards",
+    "grading": "/home/ubuntu/alkera-rollouts/human-fix/de-gcp/grading",
+    "profiles_dir": "/home/ubuntu/alkera-rollouts/human-fix/de-gcp/world/build",
+    "scheduler": "/home/ubuntu/alkera-rollouts/human-fix/de-gcp/world/var/sched/state.json",
+    "warehouse": "/home/ubuntu/alkera-rollouts/human-fix/de-gcp/world/var/warehouse/warehouse.duckdb",
+    "workflow_dir": "/home/ubuntu/alkera-rollouts/human-fix/de-gcp/world/var/workflow",
+    "workspace": "/home/ubuntu/alkera-rollouts/human-fix/de-gcp/world/workspace",
+    "world_root": "/home/ubuntu/alkera-rollouts/human-fix/de-gcp/world"
+   }
+  },
+  {
+   "allowed_destinations": [
+    "airbyte.internal:8001",
+    "airflow.internal:8100",
+    "alertmanager.internal:9093",
+    "confluence.internal:8090",
+    "deploy.internal:8085",
+    "jira.internal:8080",
+    "loki.internal:3100",
+    "metabase.internal:3000",
+    "minio.internal:9000",
+    "postgres.internal:5432",
+    "prometheus.internal:9090",
+    "slack.internal:8081"
+   ],
+   "episode": {
+    "destinations": [
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "metabase.internal",
+      "last_ts": null,
+      "port": 3000
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "loki.internal",
+      "last_ts": null,
+      "port": 3100
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "airbyte.internal",
+      "last_ts": null,
+      "port": 8001
+     },
+     {
+      "count": 1,
+      "first_ts": "2026-10-07T17:32:50Z",
+      "host": "jira.internal",
+      "last_ts": "2026-10-07T17:32:50Z",
+      "port": 8080
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "slack.internal",
+      "last_ts": null,
+      "port": 8081
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "deploy.internal",
+      "last_ts": null,
+      "port": 8085
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "confluence.internal",
+      "last_ts": null,
+      "port": 8090
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "native-services.internal",
+      "last_ts": null,
+      "port": 8099
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "airflow.internal",
+      "last_ts": null,
+      "port": 8100
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "prometheus.internal",
+      "last_ts": null,
+      "port": 9090
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "alertmanager.internal",
+      "last_ts": null,
+      "port": 9093
+     }
+    ],
+    "network_violations": [],
+    "no_stray_rows": true,
+    "ok": true,
+    "rows_in_probes": 3,
+    "rows_total": 3,
+    "trace_valid": true
+   },
+   "image": "alkera-episode:hfix-de-airflow",
+   "image_gate": {
+    "head": "6b849cd6f3bc4375b69cf5fcbc8879ad5c20c026",
+    "image": "alkera-episode:hfix-de-airflow",
+    "revision": "6b849cd6f3bc4375b69cf5fcbc8879ad5c20c026"
+   },
+   "ok": true,
+   "plugs": {
+    "orchestrator": [
+     "airflow"
+    ]
+   },
+   "probes": [
+    "human.jira.ana238_status_de_laptop_airflow"
+   ],
+   "profile": "de/laptop",
+   "rows_at": "call",
+   "seconds": 22.6,
+   "seed": "# commerce_analytics world seed: a shop's nightly CDC extracts -> raw -> dbt\n# star schema + semantic layer -> Power BI / Tableau / Sigma dashboards.\ntheme: commerce_analytics    # world/world/themes/<name>/\nseed: 11\nvtime_start: \"2025-01-01T00:00:00Z\"\n# 425 nightly extracts: dt=2024-12-31 (the cutover snapshot: accounts and\n# catalogue, no orders) then dt=2025-01-01 .. dt=2026-02-28. Fourteen months of\n# orders, so last-year measures exist for January and February 2026. The world\n# clock opens at 2026-03-02T00:00Z, a Monday - business day 1 of the February\n# close.\ndays: 425\n\n# Scale. Every key is optional (gen.DEFAULTS); these are the defaults, spelled\n# out. Build time is dominated by dbt, not by volume - a 2x seed builds in about\n# the same time.\ncustomers: 220               # accounts on the platform at cutover\nsignup_pct: 18               # chance per day of a new account (a second at a quarter of it)\nupdate_pct: 9                # chance per day that one account is upgraded a segment\norders_per_day: [20, 60]     # base range, scaled by weekday, month, peak days and growth\nlines_per_order: [1, 4]\ncancel_pct: 6                # 70% the same day, the rest the next day\nrefund_pct: 4                # 3 to 45 days after the order\ngrowth_pct: 20               # year-over-year order volume growth\n\ngit_author: \"Analytics Engineering <analytics@example.com>\"\nnative: true\nfiles: {formats: [parquet]}\nprofile:\n  name: de/laptop\n  slots: [files, warehouse, transform, orchestrator, object_store, ingest, bi, observability, release, human]\n  plugs: {orchestrator: [airflow]}\n",
+   "stack": {
+    "container_id": "0567bef25c55",
+    "episode_endpoints": {
+     "airbyte": "http://airbyte.internal:8001",
+     "airflow": "http://airflow.internal:8100",
+     "alertmanager": "http://alertmanager.internal:9093",
+     "confluence": "http://confluence.internal:8090",
+     "deploy": "http://deploy.internal:8085",
+     "jira": "http://jira.internal:8080",
+     "loki": "http://loki.internal:3100",
+     "metabase": "http://metabase.internal:3000",
+     "postgres": {
+      "database": "alkera",
+      "host": "postgres.internal",
+      "password": "alkera-local-dev",
+      "port": 5432,
+      "user": "alkera"
+     },
+     "prometheus": "http://prometheus.internal:9090",
+     "s3": "http://minio.internal:9000",
+     "s3_access_key": "alkera-local-dev",
+     "s3_bucket": "alkera",
+     "s3_region": "us-east-1",
+     "s3_secret_key": "alkera-local-dev",
+     "slack": "http://slack.internal:8081"
+    },
+    "image": "alkera-episode:hfix-de-airflow",
+    "image_digest": "sha256:55fd6e495b1bc77d0843b0fc3e9cc1efc50d9d4aea6b21058b081f3920272032",
+    "services": [
+     "episode",
+     "minio",
+     "native-services",
+     "postgres"
+    ],
+    "subject_env": {
+     "AIRBYTE_API_KEY": "alkera-local-dev",
+     "AIRBYTE_URL": "http://airbyte.internal:8001",
+     "ALERTMANAGER_URL": "http://alertmanager.internal:9093",
+     "ALKERA_BACKEND": "postgres",
+     "ALKERA_NATIVE_AUDIT": "/audit/actions.jsonl",
+     "ALKERA_POSTGRES_DSN": "postgresql://episode:episode-local@postgres/episode",
+     "ALKERA_SHIM_BIN": "/opt/alkera/shims",
+     "ALKERA_SHIM_WATCH": "/world/var/warehouse/warehouse.duckdb",
+     "ALKERA_SHIM_WORKSPACE": "/workspace",
+     "ALKERA_SOURCE_REV": "6b849cd6f3bc4375b69cf5fcbc8879ad5c20c026",
+     "ALKERA_TOOLBELT": "de",
+     "ALKERA_VIRTUAL_TIME": "2026-03-02T00:00:00Z",
+     "ALKERA_WAREHOUSES": "",
+     "ALKERA_WAREHOUSE_CLIENTS": "airflow",
+     "ALKERA_WORKSPACE": "/workspace",
+     "AWS_ACCESS_KEY_ID": "alkera-local-dev",
+     "AWS_DEFAULT_REGION": "us-east-1",
+     "AWS_ENDPOINT_URL": "http://minio.internal:9000",
+     "AWS_SECRET_ACCESS_KEY": "alkera-local-dev",
+     "CONFLUENCE_API_TOKEN": "alkera-local-dev",
+     "CONFLUENCE_URL": "http://confluence.internal:8090",
+     "CONFLUENCE_USER": "alkera-local-dev",
+     "DBT_PROFILES_DIR": "/root/.dbt",
+     "DEPLOY_API_TOKEN": "alkera-local-dev",
+     "DEPLOY_URL": "http://deploy.internal:8085",
+     "HOME": "/root",
+     "JIRA_API_TOKEN": "alkera-local-dev",
+     "JIRA_URL": "http://jira.internal:8080",
+     "JIRA_USER": "alkera-local-dev",
+     "LOKI_ADDR": "http://loki.internal:3100",
+     "LOKI_URL": "http://loki.internal:3100",
+     "METABASE_API_KEY": "alkera-local-dev",
+     "METABASE_URL": "http://metabase.internal:3000",
+     "PATH": "/opt/alkera/shims:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/toolbelt/bin",
+     "PROMETHEUS_URL": "http://prometheus.internal:9090",
+     "SLACK_BASE_URL": "http://slack.internal:8081",
+     "SLACK_BOT_TOKEN": "alkera-local-dev"
+    },
+    "workspace_cli": {
+     "cli": null,
+     "files": [],
+     "interpreter": null,
+     "pythonpath": null,
+     "skipped": "profile 'de/laptop' plugs orchestrator ['airflow'], not ops_sched",
+     "topology": "container"
+    }
+   },
+   "truths_read": "after the world build, before the stack came up",
+   "work": "/home/ubuntu/alkera-rollouts/human-fix/de-laptop-orchestrator-airflow",
+   "world": {
+    "dashboards": "/home/ubuntu/alkera-rollouts/human-fix/de-laptop-orchestrator-airflow/world/var/bi/dashboards",
+    "grading": "/home/ubuntu/alkera-rollouts/human-fix/de-laptop-orchestrator-airflow/grading",
+    "profiles_dir": "/home/ubuntu/alkera-rollouts/human-fix/de-laptop-orchestrator-airflow/world/build",
+    "scheduler": "/home/ubuntu/alkera-rollouts/human-fix/de-laptop-orchestrator-airflow/world/var/sched/state.json",
+    "warehouse": "/home/ubuntu/alkera-rollouts/human-fix/de-laptop-orchestrator-airflow/world/var/warehouse/warehouse.duckdb",
+    "workflow_dir": "/home/ubuntu/alkera-rollouts/human-fix/de-laptop-orchestrator-airflow/world/var/workflow",
+    "workspace": "/home/ubuntu/alkera-rollouts/human-fix/de-laptop-orchestrator-airflow/world/workspace",
+    "world_root": "/home/ubuntu/alkera-rollouts/human-fix/de-laptop-orchestrator-airflow/world"
+   }
+  }
+ ],
+ "revision": "6b849cd6f3bc4375b69cf5fcbc8879ad5c20c026",
+ "seconds": 237.7,
+ "started": 1791394138.0031707,
+ "summary": {
+  "DOC": 0,
+  "FAIL": 0,
+  "PASS": 9,
+  "profiles_ok": true
+ },
+ "table": "probe                                       profile       verdict   rows  value / truth\n---------------------------------------------------------------------------------------------------------------------\nhuman.jira.ana238_status                    da/laptop     PASS         3  'todo' / 'todo'\nhuman.confluence.net_revenue_page_version   da/laptop     PASS         3  5 / 5\nhuman.slack.analytics_eng_threads           da/laptop     PASS         3  5 / 5\nhuman.jira.ana238_status_da_snowflake       da/snowflake  PASS         3  'todo' / 'todo'\nhuman.jira.ana238_status_de_postgres        de/postgres   PASS         3  'todo' / 'todo'\nhuman.jira.ana238_status_de_aws             de/aws        PASS         3  'todo' / 'todo'\nhuman.jira.ana238_status_de_databricks      de/databricks PASS         3  'todo' / 'todo'\nhuman.jira.ana238_status_de_gcp             de/gcp        PASS         3  'todo' / 'todo'\nhuman.jira.ana238_status_de_laptop_airflow  de/laptop     PASS         3  'todo' / 'todo'",
+ "tools": [
+  "human"
+ ],
+ "topology": "container"
+}
