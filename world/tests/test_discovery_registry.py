@@ -36,6 +36,7 @@ import sys
 import tomllib
 from pathlib import Path
 
+import pytest
 import yaml
 
 WORLD_DIR = Path(__file__).resolve().parents[1]
@@ -164,6 +165,12 @@ def test_box_profile_without_a_plugged_backend_is_the_world_profile():
     assert nw.box_profiles_yaml(WORLD_PROFILE, ["duckdb", "nope"]) == WORLD_PROFILE
 
 
+def test_box_profile_refuses_to_overwrite_a_world_output():
+    clash = WORLD_PROFILE.replace("    dev:\n", "    snowflake:\n")
+    with pytest.raises(ValueError, match="'snowflake'"):
+        nw.box_profiles_yaml(clash, ["snowflake"])
+
+
 def test_box_profile_target_is_the_gateways_dbt_output():
     _, warehouses = _gateway()
     d = nw.DISCOVERY["snowflake"]
@@ -196,6 +203,54 @@ def test_onboarding_names_the_plugged_backend_from_its_row(tmp_path):
     two = nw.onboarding_markdown(tmp_path, {}, ["warehouse"],
                                  {"warehouse": ["postgres", "snowflake"]})
     assert f"| the second warehouse | `snowflake.internal:8443` | {d.clients} |" in two
+
+
+#: A hosted backend standing in for Airflow (Wave 1's row is its own): it
+#: answers on 8100 and supersedes the static scheduler group (8080).
+AIRFLOW_LIKE = nw.Discovery(
+    backend="airflow", label="the scheduler", clients="Airflow REST API v2",
+    services_toml={"host": "airflow.internal", "port": "8100",
+                   "api": "http://airflow.internal:8100/api/v2",
+                   "user": nw.FAKE_USER, "password": nw.FAKE_TOKEN},
+    dbt_type=None,
+    env={"AIRFLOW_API_URL": "http://airflow.internal:8100/api/v2",
+         "AIRFLOW_USER": nw.FAKE_USER, "AIRFLOW_PASSWORD": nw.FAKE_TOKEN},
+    replaces=("the scheduler",))
+DE_SLOTS = ["files", "warehouse", "transform", "orchestrator", "human"]
+
+
+def test_a_plugged_backend_replaces_the_static_group(tmp_path, monkeypatch):
+    monkeypatch.setitem(nw.DISCOVERY, "airflow", AIRFLOW_LIKE)
+    plugs = {"orchestrator": ["airflow"], "warehouse": ["duckdb"]}
+    env = nw.environment(DE_SLOTS, plugs)
+    envrc = nw.envrc_block(DE_SLOTS, plugs)
+    toml_text = nw.services_toml("/world", DE_SLOTS, plugs)
+    toml = tomllib.loads(toml_text)
+    page = nw.onboarding_markdown(tmp_path, {}, DE_SLOTS, plugs)
+    assert env["AIRFLOW_API_URL"] == "http://airflow.internal:8100/api/v2"
+    for text in (envrc, toml_text, page):
+        assert "airflow.internal:8100" in text
+        assert "airflow.internal:8080" not in text
+    assert envrc.count("AIRFLOW_API_URL") == 1
+    assert "scheduler" not in toml and toml["airflow"]["port"] == 8100
+    assert "| the scheduler | `airflow.internal:8100` | Airflow REST API v2 |" in page
+    # a box that does not plug it keeps the static group, as before
+    ops = nw.environment(DE_SLOTS, {"orchestrator": ["ops_sched"], "warehouse": ["duckdb"]})
+    assert ops["AIRFLOW_API_URL"] == "http://airflow.internal:8080/api/v2"
+
+
+def test_goldens_hold_with_another_backend_registered(tmp_path, monkeypatch):
+    """A new registry row is explicit-only: the unprofiled and da/laptop boxes
+    do not move."""
+    monkeypatch.setitem(nw.DISCOVERY, "airflow", AIRFLOW_LIKE)
+    assert render("unprofiled", tmp_path / "u") == _golden("unprofiled")
+    assert render("da_laptop", tmp_path / "d") == _golden("da_laptop")
+
+
+def test_replaces_names_static_groups():
+    labels = {label for label, _, _ in nw.BACKEND_NOTES}
+    for name, d in nw.DISCOVERY.items():
+        assert set(d.replaces) <= labels, name
 
 
 def test_discovery_never_imports_the_gateway():

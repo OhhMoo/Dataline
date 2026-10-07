@@ -316,6 +316,11 @@ class Discovery:
     container's process environment gets), and `dbt_env`, the box target's
     fields and the variable each one reads (`warehouses.dbt_output(env=...)`):
     the dbt profile names variables, never values.
+
+    `replaces` names the static groups (BACKEND_NOTES labels, e.g. "the
+    scheduler") a box that plugs this backend no longer lists: their
+    variables, their services.toml section and their onboarding row give way
+    to this row's, so the box names one address for the thing and not two.
     """
 
     backend: str
@@ -325,6 +330,7 @@ class Discovery:
     dbt_type: str | None
     env: Mapping[str, str] = field(default_factory=dict)
     dbt_env: Mapping[str, str] = field(default_factory=dict)
+    replaces: tuple[str, ...] = ()
 
 
 #: One row per backend `alkera_gateway.backends.BACKENDS` registers (copied,
@@ -440,11 +446,24 @@ def _backend_plugged(backend: str, slots, plugs) -> bool:
         backend in names and _plugged(slot, slots) for slot, names in plugs.items())
 
 
+def _replaced(slots, plugs) -> set[str]:
+    """The static groups (BACKEND_NOTES labels) a plugged backend supersedes
+    (`Discovery.replaces`)."""
+    return {label for name, d in DISCOVERY.items()
+            if _backend_plugged(name, slots, plugs) for label in d.replaces}
+
+
+def _static_listed(label: str, slots, plugs) -> bool:
+    """A static group (BACKEND_NOTES) this box lists: plugged, its plug named,
+    and not superseded by a plugged registry backend."""
+    return _backend_listed(label, slots, plugs) and label not in _replaced(slots, plugs)
+
+
 def _discovered(slots, plugs=None) -> list[_Listed]:
     """The registry backends this box lists, in DISCOVERY order: the ones its
     profile plugs, with their DISCOVERY row, and - where no profile names their
     slot - the ones the box always listed, as it always did (UNNAMED_LISTING)."""
-    second = _backend_listed("the warehouse", slots, plugs)
+    second = _static_listed("the warehouse", slots, plugs)
     out = []
     for name, d in DISCOVERY.items():
         label = "the second warehouse" if d.label == "the warehouse" and second else d.label
@@ -467,10 +486,10 @@ def _backends(slots, plugs=None):
         ("the scheduler", "# The scheduler.", CONTROL),
     )
     out = [(comment, mapping) for label, comment, mapping in groups
-           if _backend_listed(label, slots, plugs)]
+           if _static_listed(label, slots, plugs)]
     out += [(f"# {listed.label.capitalize()}.", listed.variables)
             for listed in _discovered(slots, plugs)]
-    if _backend_listed("the notebook server", slots, plugs):
+    if _static_listed("the notebook server", slots, plugs):
         out.append(("# The notebook server.", NOTEBOOK))
     return out
 
@@ -633,6 +652,13 @@ def box_profiles_yaml(world_profile: str, plugged: Sequence[str]) -> str:
         if not isinstance(profile, dict) or not isinstance(profile.get("outputs"), dict):
             continue
         for d in targets:
+            if d.backend in profile["outputs"]:
+                # The world's own target of that name is not this module's to
+                # replace: refused, loudly, rather than silently overwritten.
+                raise ValueError(
+                    f"the world's dbt profile already has an output named "
+                    f"{d.backend!r}; the box target for the plugged {d.backend} "
+                    f"backend would replace it")
             profile["outputs"][d.backend] = dbt_output(
                 d.dbt_type, schema=d.services_toml["schema"], env=d.dbt_env,
                 port=int(d.services_toml["port"]))
@@ -663,7 +689,8 @@ def services_toml(root_in_container: str, slots=None, plugs=None) -> str:
     # Postgres, unless the profile's warehouse plugs leave it out (a DuckDB or
     # a Snowflake box). Not keyed on the slot being plugged: the table has
     # always carried it, and only a named plug may take it away.
-    if _plug_named("the warehouse", slots, plugs):
+    replaced = _replaced(slots, plugs)
+    if _plug_named("the warehouse", slots, plugs) and "the warehouse" not in replaced:
         lines += [
             "",
             "[warehouse]",
@@ -673,7 +700,7 @@ def services_toml(root_in_container: str, slots=None, plugs=None) -> str:
             f'user = {_toml_string(POSTGRES["PGUSER"])}',
             f'password = {_toml_string(POSTGRES["PGPASSWORD"])}',
         ]
-    if _plugged(BACKEND_SLOTS["object storage"], slots):
+    if _plugged(BACKEND_SLOTS["object storage"], slots) and "object storage" not in replaced:
         lines += [
             "",
             "[storage]",
@@ -681,7 +708,7 @@ def services_toml(root_in_container: str, slots=None, plugs=None) -> str:
             f'access_key_id = {_toml_string(STORAGE["AWS_ACCESS_KEY_ID"])}',
             f'secret_access_key = {_toml_string(STORAGE["AWS_SECRET_ACCESS_KEY"])}',
         ]
-    if _plugged(BACKEND_SLOTS["the scheduler"], slots):
+    if _plugged(BACKEND_SLOTS["the scheduler"], slots) and "the scheduler" not in replaced:
         lines += [
             "",
             "[scheduler]",
@@ -771,7 +798,7 @@ def onboarding_markdown(root: Path, manifest: dict, slots=None, plugs=None) -> s
         "|---|---|---|---|",
     ]
     rows = [(label, where, clients) for label, where, clients in BACKEND_NOTES
-            if _backend_listed(label, slots, plugs)]
+            if _static_listed(label, slots, plugs)]
     # the registry's backends, where the second warehouse always was: before
     # the notebook server
     notebook = rows.pop() if rows and rows[-1][0] == "the notebook server" else None
