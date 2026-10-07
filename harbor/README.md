@@ -190,9 +190,12 @@ and asks for a re-run.
 
 ## Determinism and digests
 
-Two exports of one commit give identical digests (tested). The only
-non-reproducible bytes a world build produces are the workspace's `.git/index`
-stat data; the index is rebuilt with `git read-tree` from its own tree (every
+Two exports of one commit give identical digests (tested on GT001), except
+where a task's own world builder is not byte-deterministic (measured
+2026-10-07: GT003's git reflog timestamps, and the DuckDB file bytes of
+GT004:authorized, GT005:decision and GT006:decision, whose logical contents
+are equal; see the acceptance section). The non-reproducible bytes every
+world build produces are the workspace's `.git/index` stat data; the index is rebuilt with `git read-tree` from its own tree (every
 entry and `git status` unchanged, stat fields zeroed) and the exporter's
 `hooks/*.sample` templates are dropped. File modes are normalised (0644/0755).
 `exported_at` exists only in `manifest.json`, which is not part of any task.
@@ -251,15 +254,33 @@ dataset and fails unless every task's native oracle scores exactly 1 and doing n
 own verdict (outcome class, path penalty, missed checks) from `grading.json`.
 
 ```bash
-python3 harbor/acceptance.py --dataset harbor/dist/alkera-de -n 4      # add --sg docker if your shell is not in the docker group
+python3 harbor/acceptance.py --dataset harbor/dist/alkera-de -n 3      # add --sg docker if your shell is not in the docker group
+python3 harbor/acceptance.py --dataset harbor/dist/alkera-bi -n 3
 python3 harbor/acceptance.py --dataset harbor/dist/alkera-de -i 'gt007*' -k 3   # a subset, 3 attempts each (determinism)
 ```
 
-Last result (2026-10-03, harbor 0.23.0, docker 29.1.3, commit of this adapter): **ACCEPTED,
-28/28 tasks**: oracle reward 1 (`resolved`) and nop reward 0 (`silent`) on every arm,
-no exceptions. Every exported task was also loaded by Harbor itself (`--validate`):
-`TaskConfig` with no dropped keys, `Task()`, the instruction Harbor sends equal to the
-harness prompt, and Harbor's content digest equal to ours.
+Last results (harbor 0.23.0, docker 29.8.2; every exported task also loaded by Harbor
+itself with `--validate`: `TaskConfig` with no dropped keys, `Task()`, the instruction
+Harbor sends equal to the harness prompt, Harbor's content digest equal to ours):
+
+* 2026-10-07, `cc5d0e5` (before plan Task 4): **ACCEPTED, GT 28/28**, oracle reward 1
+  (`resolved`) and nop reward 0 (`silent`) on every arm, no exceptions
+  (`evidence/acceptance-cc5d0e5.json`).
+* 2026-10-07, `729e009` (Task 4): **ACCEPTED, GT 28/28** the same way, and **BI 4/4**
+  (BI001, BI002, both arms: oracle 1 `resolved`, nop 0 `silent`) - the BI run as a
+  proxy (`evidence/acceptance-729e009.json`): since 06:28 UTC that day a host service
+  outside this repository drops all egress from Docker containers and builds, and the
+  BI images have new network layers (the `da` lock; the verifier's git), so their agent
+  and verifier images were built with `docker build --network host` from the exported
+  contexts and named through Harbor's prebuilt-image path (`docker_image`) in a copy of
+  the dataset; Harbor ran world-up, the agents, world-down and the verifier as usual.
+  The plain BI run is to be repeated once the host has egress again.
+
+Two exports of one commit are not byte-identical for every task: GT003's builder leaves
+wall-clock timestamps in the workspace's git reflogs, and the DuckDB files of
+GT004:authorized, GT005:decision and GT006:decision differ in bytes (their logical
+contents, as world/world/fingerprint.py hashes them, are equal). Those digests move from
+export to export; the other 23 GT tasks reproduce.
 
 ## Open work: grader hardening
 
