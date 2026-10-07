@@ -189,7 +189,11 @@ nothing about them.
   that writes `actions.jsonl`, so there is one writer for the `seq` lock. It is
   excluded from `destinations.jsonl` on purpose: MinIO dials it and the episode
   never does, and a counted row there is a hard `network_destination`
-  violation on every rollout that touches storage.
+  violation on every rollout that touches storage. The episode can still
+  *reach* it, so since 2026-10-07 it answers only a POST carrying the
+  per-rollout `ALKERA_MINIO_AUDIT_TOKEN`, which MinIO's webhook sends as its
+  `Authorization` header (`MINIO_AUDIT_WEBHOOK_AUTH_TOKEN_alkera`); anything
+  else is a 401 with no row. Without a token serve.py serves no receiver.
 - **The services carry the world's clock.** `serve.py` derives a
   `GatewayConfig` from `--world` and exports `ALKERA_GATEWAY_CONFIG`,
   `ALKERA_NATIVE_AUDIT` and `ALKERA_SCHEDULER` (SERVICES_A_REQUESTS.md item 5).
@@ -281,6 +285,13 @@ tries `dig postgres` learns the box is docker-compose — and the fix is a
 resolver of our own (a dnsmasq answering only the alias table, with
 `dns: [<its address>]` on the episode service) which was rejected here as one
 more container to go wrong for a property nothing else depends on.
+
+On a profiled box without an object store it was worse than a tell: the
+overlay dropped only `minio.internal`, and `minio` still reached a MinIO whose
+audit receiver was not served (`evidence/CONTAINMENT_2026-10-07.md`, finding 1).
+Since 2026-10-07 such a box does not start MinIO at all
+(`container_episode.profile_overlay`), measured by
+`tasks/harness/minio_containment_check.py`.
 
 Runner-up, **closed 2026-09-16**: `<root>/home` is now a conditional
 `fingerprint.py` section (`docs/implementation_plan/gateway/COMPOSE_REQUESTS.md` item 2), so a home directory

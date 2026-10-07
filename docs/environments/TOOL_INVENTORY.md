@@ -314,10 +314,14 @@ Five enforcement points, each needed:
 3. **Native services, done.** `serve --profile` loads only the profile's services and
    drops the scheduler plane and the object store's audit receiver when their slots are
    unplugged; the per-rollout compose overlay replaces the `*.internal` alias list
-   (`!override`), drops `minio.internal` without an object store, `!reset`s the excluded
+   (`!override`), does not start MinIO at all without an object store, `!reset`s the excluded
    services' endpoint variables, and narrows the endpoint map the destination audit and
-   the surface gate read. Not run: compose `!override`/`!reset` need Compose >= 2.24.4; the
-   bare service name `minio` still resolves (known, `NATIVE_STACK.md` weakest finding).
+   the surface gate read. Not run: compose `!override`/`!reset` need Compose >= 2.24.4.
+   Until 2026-10-07 the overlay only dropped `minio.internal`, so the bare service name
+   `minio` still resolved to a MinIO no receiver audited (CONTAINMENT_2026-10-07.md
+   finding 1); MinIO is now gated behind a compose profile nothing enables on such a box,
+   measured by `tasks/harness/minio_containment_check.py`. The MinIO audit receiver
+   answers only MinIO's per-rollout token.
 4. **Episode image, done (not built).** `build_episode.py --toolbelt {de,ds,da}
    --warehouse-clients snowflake` -> build args and tags (`alkera-episode:head-ds`). An
    excluded package is **not installed**, never PATH-masked; `toolbelt_check.py` fails an
