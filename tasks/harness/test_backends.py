@@ -141,6 +141,20 @@ def test_two_tls_backends_refused(monkeypatch):
     assert [b.name for b in backends.plugged({"warehouse": ("x",)})] == ["x"]
 
 
+def test_two_tls_backends_refused_at_profile_resolution(monkeypatch):
+    """The harness resolves a task's profile before it builds a world: two TLS
+    backends stop the rollout there, naming both."""
+    import episode
+
+    from alkera_gateway import backends, plugs
+
+    monkeypatch.setitem(backends.BACKENDS, "x", backends.Backend("x", port=1, tls=True))
+    monkeypatch.setitem(plugs.PLUGS, "x", plugs.Plug("x", "warehouse", "partial"))
+    with pytest.raises(episode.HarnessError, match="'snowflake', 'x'"):
+        episode.environment_profile("da/laptop", {"warehouse": ["snowflake", "x"]})
+    assert episode.environment_profile("da/laptop", {"warehouse": ["x"]}) is not None
+
+
 def test_two_tls_backends_refused_before_the_overlay(tmp_path, monkeypatch):
     """The container topology asks the registry before it writes a byte."""
     from alkera_gateway import backends
@@ -323,6 +337,54 @@ def test_a_hosted_tls_backend_publishes_through_native_services(tmp_path, monkey
     # the host topology re-bases the same variables onto its own address
     assert aut.plug_service_env("hx", "https://127.0.0.1:18098") == {
         "HX_HOST": "https://127.0.0.1:18098", "HX_TOKEN": "t"}
+
+
+def test_a_plugged_backend_env_wins_over_the_static_table(tmp_path, monkeypatch):
+    """A hosted row standing in for Airflow: the static table's AIRFLOW_API_URL
+    (8080) gives way, in place, to the row's (8100) - one variable, one
+    address - and the episode may dial only that one."""
+    from alkera_gateway import backends
+
+    url = "http://airflow.internal:8100/api/v2"
+    monkeypatch.setitem(backends.BACKENDS, "airflow", backends.Backend(
+        "airflow", port=8100, env={"AIRFLOW_API_URL": url,
+                                   "AIRFLOW_USER": "alkera-local-dev",
+                                   "AIRFLOW_PASSWORD": "alkera-local-dev"}))
+    stack = _stack(tmp_path, "a", profile="de/laptop")
+    profile = stack.environment_profile()
+    fake = SimpleNamespace(name=profile.name, services=profile.services,
+                           slots={**profile.slots, "orchestrator": ("airflow",)})
+    monkeypatch.setattr(stack, "environment_profile", lambda: fake)
+    monkeypatch.setattr(ce, "image_path", lambda image: IMAGE_PATH)
+    text = stack.write_overlay().read_text(encoding="utf-8")
+    overlay = _overlay_yaml(text)
+    episode_env = overlay["services"]["episode"]["environment"]
+    assert episode_env["AIRFLOW_API_URL"] == url
+    assert "airflow.internal:8080" not in text and text.count("AIRFLOW_API_URL:") == 1
+    assert "airflow.internal" in \
+        overlay["services"]["native-services"]["networks"]["episode_net"]["aliases"]
+    endpoints = stack.episode_endpoints()
+    assert endpoints["airflow"] == "http://airflow.internal:8100"
+    allowed = aut.allowed_destinations(endpoints)
+    assert ("airflow.internal", 8100) in allowed and ("airflow.internal", 8080) not in allowed
+
+
+def test_hosted_backends_are_registry_only():
+    """A registry backend is in none of the BI vendors' tables: serve.py mounts
+    it, the harness aliases and exports it, from its row alone."""
+    import surface_audit
+
+    from alkera_gateway import backends
+    from alkera_gateway.native import serve, services
+
+    sys.path.insert(0, str(HERE.parent.parent / "world"))
+    from world import native_workspace as nw
+
+    names = set(backends.BACKENDS)
+    for table in (services.PLUG_NAMES, serve.PLUG_PORTS, aut.PLUG_SERVICES,
+                  {s.name for s in nw.PLUG_SERVICES}, ce.EPISODE_SERVICE_ENV,
+                  surface_audit.NATIVE_PLUG_SERVICE_NAMES):
+        assert not names & set(table), table
 
 
 # ------------------------------------------- the box's dbt profile (Task 2)

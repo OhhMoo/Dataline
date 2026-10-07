@@ -46,6 +46,12 @@ def mint(host: str, trust_dir: Path, *, private_dir: Path,
     import certifi
 
     private_dir, trust_dir = Path(private_dir), Path(trust_dir)
+    private, trust = private_dir.resolve(), trust_dir.resolve()
+    if private == trust or trust in private.parents:
+        # The trust directory is a volume the episode mounts: a key written
+        # anywhere under it is a key the agent can read.
+        raise ValueError(f"private_dir {private_dir} is inside trust_dir {trust_dir}; "
+                         "the key must never be where the public bundle is published")
     private_dir.mkdir(parents=True, exist_ok=True)
     key, crt = private_dir / "server.key", private_dir / "server.crt"
     subprocess.run(

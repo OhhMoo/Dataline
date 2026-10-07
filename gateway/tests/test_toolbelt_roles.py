@@ -279,9 +279,33 @@ def _unusable(pypi, path: Path, arch: str) -> dict:
     return unusable
 
 
+def _docker_module(name: str):
+    spec = importlib.util.spec_from_file_location(f"{name}_for_roles", DOCKER / f"{name}.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+#: Every warehouse client set the backend registry names (alkera_gateway.backends,
+#: read the way build_episode.py reads it), each one requirements-<c>.lock.
+CLIENT_SETS = _docker_module("warehouse_clients").names(GATEWAY / "src" / "alkera_gateway")
+#: The packages a client lock may pin differently from the base locks.
+DIVERGES = _docker_module("lock_warehouse_clients").DIVERGES
+
+
+def client_lock(name: str) -> Path:
+    """requirements-<name>.lock, or a skip when the lane that registered the
+    client set has not generated it yet."""
+    path = GATEWAY / f"requirements-{name}.lock"
+    if not path.is_file():
+        pytest.skip(f"{path.name} not generated yet "
+                    f"(gateway/docker/lock_warehouse_clients.py {name})")
+    return path
+
+
 LOCK_FILES = [DOCKER / "toolbelt.lock", DOCKER / "toolbelt.arm64.lock",
-              *(GATEWAY / n for n in (*BASE_LOCKS, *ROLE_LOCKS.values(),
-                                      "requirements-snowflake.lock"))]
+              *(GATEWAY / n for n in (*BASE_LOCKS, *ROLE_LOCKS.values())),
+              *(GATEWAY / f"requirements-{c}.lock" for c in CLIENT_SETS)]
 
 
 @pytest.mark.parametrize("arch", ARCHES)
@@ -294,6 +318,8 @@ def test_every_package_has_a_wheel_for_its_arch(pypi, path, arch):
         pytest.skip("the arm64 venv lock is installed on arm64 only")
     if path.name == "toolbelt.lock" and arch == "arm64":
         pytest.skip("the amd64 venv lock is installed on amd64 only")
+    if path.name.removeprefix("requirements-").removesuffix(".lock") in CLIENT_SETS:
+        client_lock(path.name.removeprefix("requirements-").removesuffix(".lock"))
     unusable = _unusable(pypi, path, arch)
     assert not unusable, f"{path.name}/{arch}: no installable wheel hashed in the lock: {unusable}"
 
@@ -308,16 +334,32 @@ def test_snowflake_lock_pins_the_connector_and_the_adapter():
     assert "dbt-snowflake" in locked
 
 
+@pytest.mark.parametrize("client", CLIENT_SETS)
 @pytest.mark.parametrize("other", (*BASE_LOCKS, *ROLE_LOCKS.values()))
-def test_gateway_locks_agree_on_every_shared_version(other):
-    """The snowflake clients are compiled against the base, native and ds pins, so a
-    package they share with any of them carries one version - except certifi,
-    which dbt-snowflake caps (docker/snowflake-clients.overrides) and which only a
-    snowflake-client image takes at the capped version."""
-    snow = versions(GATEWAY / "requirements-snowflake.lock")
+def test_gateway_locks_agree_on_every_shared_version(client, other):
+    """Every client lock is compiled against the base, native and ds pins, so a
+    package it shares with any of them carries one version - except DIVERGES
+    (certifi, which dbt-snowflake caps: docker/snowflake-clients.overrides), which
+    only that client set's image takes at the capped version."""
+    mine = versions(client_lock(client))
     base = versions(GATEWAY / other)
-    clash = {k: (snow[k], base[k]) for k in set(snow) & set(base) if snow[k] != base[k]}
-    assert set(clash) <= {"certifi"}, clash
+    clash = {k: (mine[k], base[k]) for k in set(mine) & set(base) if mine[k] != base[k]}
+    assert set(clash) <= DIVERGES, clash
+
+
+def test_client_locks_agree_with_each_other():
+    """An image built with two client sets installs both locks into one
+    interpreter: every package they share - certifi included, whatever each
+    one diverged to - has to be one version, or the second install silently
+    replaces the first's."""
+    import itertools
+
+    present = [c for c in CLIENT_SETS if (GATEWAY / f"requirements-{c}.lock").is_file()]
+    for a, b in itertools.combinations(present, 2):
+        left, right = versions(client_lock(a)), versions(client_lock(b))
+        clash = {k: (left[k], right[k]) for k in set(left) & set(right)
+                 if left[k] != right[k]}
+        assert not clash, (a, b, clash)
 
 
 def test_snowflake_clients_install_after_the_role():

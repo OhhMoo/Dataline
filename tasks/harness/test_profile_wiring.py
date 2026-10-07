@@ -243,6 +243,14 @@ def test_native_env(tmp_path):
 
 
 # --------------------------------------------------- the container topology
+def _registry() -> dict:
+    """alkera_gateway.backends.BACKENDS: names the BI-vendor parity checks
+    leave out (a hosted backend lives in the registry only)."""
+    from alkera_gateway.backends import BACKENDS
+
+    return BACKENDS
+
+
 def _stack(world, tmp_path, name, **kw):
     return ce.NativeContainerEpisode(project="t", world=world,
                                      audit_dir=tmp_path / "audit",
@@ -334,6 +342,8 @@ def test_reset_env_names_exist_in_the_static_overlay():
         assert name in ce.EPISODE_SERVICE_ENV
         assert f"- {name}.internal" in static
     for name in aut.PLUG_SERVICES:
+        if name in _registry():
+            continue            # a backend's variables are its registry row's
         assert ce.EPISODE_SERVICE_ENV[name] == tuple(aut.plug_service_env(name, "u"))
         assert f"- {name}.internal" not in static   # no alias (a comment may name it)
 
@@ -844,7 +854,9 @@ def test_surface_gate_sweeps_a_plugged_vendor_only(tmp_path):
     finally:
         server.shutdown()
     assert set(surface_audit.NATIVE_SERVICE_NAMES) == set(aut.NATIVE_SERVICES)
-    assert set(surface_audit.NATIVE_PLUG_SERVICE_NAMES) == set(aut.PLUG_SERVICES)
+    # the BI vendors exactly; a registry backend is no vendor of the gate's
+    assert set(surface_audit.NATIVE_PLUG_SERVICE_NAMES) - set(_registry()) == \
+        set(aut.PLUG_SERVICES) - set(_registry())
 
 
 # ------------------------------------------- BI vendors on the host topology

@@ -2070,7 +2070,13 @@ class NativeContainerEpisode:
         """
         dropped, added = self.profile_variables()
         static = static_environment(service)
-        kept = {k: v for k, v in static.items() if k not in dropped and k not in own}
+        # What the profile plugs wins over the static table: a plugged
+        # backend's variable that the static table also carries (Airflow's
+        # AIRFLOW_API_URL, served elsewhere once Airflow is a registry backend)
+        # takes the static line's place with the backend's value. Snowflake's
+        # values are the static ones, so its bytes do not move.
+        kept = {k: added.get(k, v) for k, v in static.items()
+                if k not in dropped and k not in own}
         plugged = {k: v for k, v in added.items() if k not in own and k not in kept}
         gone = sorted(set(dropped) & set(static))
         note = textwrap.wrap(

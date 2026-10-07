@@ -107,6 +107,10 @@ def service_ports(profile=None) -> list[int]:
     # nine an unprofiled stack waits for.
     ports = {({**serve.STUB_PORTS, **serve.PLUG_PORTS})[name] for name in profile.services
              if name in serve.STUB_PORTS or name in serve.PLUG_PORTS}
+    # So does a plugged hosted backend, on its registry row's port.
+    from alkera_gateway.backends import plugged
+
+    ports |= {b.port for b in plugged(profile.slots) if b.hosted}
     ports.add(serve.AGGREGATE_PORT)
     if "object_store" in profile.slots:
         ports.add(serve.MINIO_AUDIT_PORT)
@@ -521,6 +525,13 @@ class NativeStack:
                 name: f"http://127.0.0.1:{port + self.offset}"
                 for name, (_, port) in aut.PLUG_SERVICES.items()
                 if name in self.profile.services})
+            # A plugged hosted backend is served by this same process, on its
+            # registry row's port and scheme.
+            from alkera_gateway.backends import plugged
+
+            overrides.update({
+                b.name: f"{b.scheme}://127.0.0.1:{b.port + self.offset}"
+                for b in plugged(self.profile.slots) if b.hosted})
         if s3_url:
             overrides["s3"] = s3_url
         self.endpoints_file.write_text(

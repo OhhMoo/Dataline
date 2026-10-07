@@ -187,21 +187,27 @@ ENV ALKERA_TOOLBELT=$ALKERA_TOOLBELT
 # snowflake-client image (and only that image) takes at the capped version
 # (docker/snowflake-clients.overrides).
 #   gateway/.venv/bin/python gateway/docker/lock_warehouse_clients.py <c>
-# Every lock is staged and only the requested ones stay, at
-# /opt/gateway/requirements-$c.lock. A set with no lock, or a role or base lock's
-# name, fails the build rather than quietly installing nothing.
+# The client sets that exist are the backend registry's (alkera_gateway/backends.py,
+# read with the stdlib by docker/warehouse_clients.py, before the gateway is
+# installed): a name it does not list, or a set with no lock, fails the build
+# rather than quietly installing nothing or a role's lock. Every lock is staged
+# and only the requested ones stay, at /opt/gateway/requirements-$c.lock.
+# `set -f`: a client name is a word, never a glob.
 ARG ALKERA_WAREHOUSE_CLIENTS=""
+COPY gateway/docker/warehouse_clients.py /opt/gateway/registry/warehouse_clients.py
+COPY gateway/src/alkera_gateway/plugs.py gateway/src/alkera_gateway/backends.py /opt/gateway/registry/alkera_gateway/
 COPY gateway/requirements-*.lock /opt/gateway/clients/
-RUN set -eu; \
+RUN set -euf; \
+    known=" $(python /opt/gateway/registry/warehouse_clients.py /opt/gateway/registry/alkera_gateway) "; \
     for c in $(echo "$ALKERA_WAREHOUSE_CLIENTS" | tr ',' ' '); do \
-      case "$c" in native|ds|da) echo "'$c' is not a warehouse client set" >&2; exit 1 ;; esac; \
+      case "$known" in *" $c "*) ;; *) echo "'$c' is not a warehouse client set the backend registry names:$known" >&2; exit 1 ;; esac; \
       lock="/opt/gateway/clients/requirements-$c.lock"; \
       [ -f "$lock" ] || { echo "no gateway/requirements-$c.lock for warehouse clients '$c'" >&2; exit 1; }; \
       pip install --no-cache-dir --retries 5 --timeout 120 --require-hashes -r "$lock"; \
       cp "$lock" "/opt/gateway/requirements-$c.lock"; \
     done; \
     [ -n "$ALKERA_WAREHOUSE_CLIENTS" ] || echo "warehouse clients: none beyond requirements.lock"; \
-    rm -rf /opt/gateway/clients
+    rm -rf /opt/gateway/clients /opt/gateway/registry
 LABEL org.alkera.warehouse_clients=$ALKERA_WAREHOUSE_CLIENTS
 ENV ALKERA_WAREHOUSE_CLIENTS=$ALKERA_WAREHOUSE_CLIENTS
 COPY gateway/pyproject.toml /opt/gateway/

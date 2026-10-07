@@ -185,16 +185,21 @@ def environment_profile(profile: str = "", plugs: dict | None = None):
     Resolved WITHOUT `allow_planned`: the task loader accepts a profile authored
     ahead of its tools, and this is where the harness refuses to run one -
     before a world is built or a container started, with the catalog's own text.
+    So is a profile that plugs two TLS backends (`alkera_gateway.backends
+    .plugged`, which names both).
     """
     if not profile:
         if plugs:
             raise HarnessError("[environment.plugs] adjusts a profile, but no "
                                "profile is set")
         return None
+    from alkera_gateway.backends import plugged
     from alkera_gateway.plugs import ProfileError, resolve
 
     try:
-        return resolve(profile, plugs or {})
+        resolved = resolve(profile, plugs or {})
+        plugged(resolved.slots)
+        return resolved
     except ProfileError as exc:
         raise HarnessError(str(exc)) from exc
 

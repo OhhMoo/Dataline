@@ -10,7 +10,9 @@ lists the whole set, so "what is this process serving" is one request rather
 than nine. `--profile` (with `--plug`) narrows the set to one environment
 profile's services and drops the scheduler plane when it plugs no `ops_sched`;
 it is also the only way a BI vendor (`services.PLUG_NAMES`: powerbi, tableau,
-sigma; ports in PLUG_PORTS) is served at all.
+sigma; ports in PLUG_PORTS) is served at all, and the only way a hosted backend
+(`alkera_gateway.backends`, `hosted=True`; port and alias from its registry
+row, `hosted_ports()`) is.
 
 Ports, not host-header routing
 ------------------------------
@@ -121,8 +123,23 @@ PLUG_PORTS = {
     "tableau": 8096,
     "sigma": 8097,
 }
-#: Every port a named service is known to listen on, either table.
-SERVICE_PORTS = {**STUB_PORTS, **PLUG_PORTS}
+def hosted_ports() -> dict[str, int]:
+    """The registry's hosted backends (`alkera_gateway.backends`, `hosted=True`)
+    and the port each row names: where serve.py mounts its module, only when a
+    profile plugs it (`selected_services`). Read from the registry at call
+    time, never copied into a table here."""
+    return {name: b.port for name, b in services.hosted().items()}
+
+
+def service_ports() -> dict[str, int]:
+    """Every port a named service is known to listen on: the nine, the BI
+    vendors, the registry's hosted backends."""
+    return {**STUB_PORTS, **PLUG_PORTS, **hosted_ports()}
+
+
+#: Every port a named service is known to listen on (`service_ports()` as the
+#: registry stood at import).
+SERVICE_PORTS = service_ports()
 #: Every service answers this path. A service that defines its own route for it
 #: keeps it; otherwise `HealthWrapper` answers.
 #:
@@ -379,8 +396,12 @@ def mount(loaded: dict, stubs: dict[str, int] | None = None,
     NATIVE_DRIVER_REQUESTS.md item 3 by subtracting it.
     """
     mounted: list[Mounted] = []
+    hosted = services.hosted()
     for name, module in sorted(loaded.items()):
         host, port, app = module.HOST, int(module.PORT) + offset, module.app
+        if name in hosted:
+            # a hosted backend answers where its registry row says
+            host, port = hosted[name].host, hosted[name].port + offset
         own = serves_health(app)
         mounted.append(Mounted(name, host, port,
                                app if own else HealthWrapper(app, name, 0),
@@ -511,12 +532,13 @@ def port_disagreements(mounted: list[Mounted], offset: int = 0) -> dict[str, str
     disagreement is a dead surface with a live process behind it, which is the
     one failure that looks like the agent's fault.
     """
+    known = service_ports()
     return {
         item.name: f"serving {item.port}, the subject is told "
-                   f"{SERVICE_PORTS[item.name] + offset}"
+                   f"{known[item.name] + offset}"
         for item in mounted
-        if item.origin == "module" and item.name in SERVICE_PORTS
-        and item.port != SERVICE_PORTS[item.name] + offset
+        if item.origin == "module" and item.name in known
+        and item.port != known[item.name] + offset
     }
 
 
@@ -664,11 +686,12 @@ def parse_stub(value: str) -> tuple[str, int]:
         raise argparse.ArgumentTypeError(f"--stub {value!r} has no name")
     if port:
         return name, int(port)
-    if name not in SERVICE_PORTS:
+    known = service_ports()
+    if name not in known:
         raise argparse.ArgumentTypeError(
-            f"--stub {name!r} is not one of {sorted(SERVICE_PORTS)}; give it a "
+            f"--stub {name!r} is not one of {sorted(known)}; give it a "
             f"port as {name}:PORT")
-    return name, SERVICE_PORTS[name]
+    return name, known[name]
 
 
 def _profile(profile: str | None, plug_args: Sequence[str]):
@@ -685,9 +708,18 @@ def selected_services(profile: str | None,
 
     A profile's list may name an explicit-only BI vendor (`services.PLUG_NAMES`)
     - `bi=powerbi` mounts powerbi at 8095 in place of metabase - and `load`
-    accepts it because it is named; None never does."""
+    accepts it because it is named; None never does. A hosted backend the
+    profile plugs (`alkera_gateway.backends.plugged`, `hosted=True`) is named
+    after them, from the registry, and mounted on its row's port; a profile
+    that plugs two TLS backends is a ProfileError here."""
+    from ..backends import plugged
+
     resolved = _profile(profile, plug_args)
-    return None if resolved is None else resolved.services
+    if resolved is None:
+        return None
+    hosted = tuple(b.name for b in plugged(resolved.slots)
+                   if b.hosted and b.name not in resolved.services)
+    return resolved.services + hosted
 
 
 def sched_enabled(profile: str | None, plug_args: Sequence[str]) -> bool:

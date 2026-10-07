@@ -458,11 +458,19 @@ class BIVendorDiscoveryTest(unittest.TestCase):
             import agent_under_test as aut
         except Exception as exc:  # pragma: no cover
             self.skipTest(f"gateway/harness not importable: {exc}")
-        ours = {s.name: s.port for s in native_workspace.PLUG_SERVICES}
-        self.assertEqual(ours, serve.PLUG_PORTS)
+        # The BI vendors, exactly. A registry backend (alkera_gateway.backends)
+        # is in none of these tables - a hosted one is the registry's alone -
+        # so its name is left out of the comparison.
+        from alkera_gateway.backends import BACKENDS
+
+        ours = {s.name: s.port for s in native_workspace.PLUG_SERVICES
+                if s.name not in BACKENDS}
+        self.assertEqual(ours, {n: p for n, p in serve.PLUG_PORTS.items()
+                                if n not in BACKENDS})
         self.assertEqual({s.name: (s.url_var, s.port)
-                          for s in native_workspace.PLUG_SERVICES},
-                         dict(aut.PLUG_SERVICES))
+                          for s in native_workspace.PLUG_SERVICES
+                          if s.name not in BACKENDS},
+                         {n: v for n, v in aut.PLUG_SERVICES.items() if n not in BACKENDS})
         env = native_workspace.environment(DA["slots"], plugs={"bi": list(VENDORS)})
         for name, (_, port) in aut.PLUG_SERVICES.items():
             theirs = aut.plug_service_env(name, f"http://{name}.internal:{port}")

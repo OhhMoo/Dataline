@@ -34,8 +34,21 @@ AT MOST ONE TLS BACKEND PER PROFILE. The episode trusts exactly one bundle
 would quietly trust one of them and fail the other's handshake mid-episode.
 `plugged` refuses it up front, naming both.
 
-Dependency-free, like `plugs.py`: the harness, the image build script and the
-world-side tests import it without the gateway's runtime.
+This file imports the standard library and `plugs.py` (itself standard library
+only) and nothing else. Importing it as `alkera_gateway.backends` still runs the
+package `__init__` (pydantic, duckdb, ...); a reader that must not need the
+gateway's runtime - gateway/docker/build_episode.py on a plain `python`, the
+Dockerfile's client loop - loads the two files by path instead
+(gateway/docker/warehouse_clients.py), and keeping this file free of every
+other import is what makes that possible (gateway/tests/test_backends.py).
+
+A HOSTED backend lives in the registry only: its row here plus its own module,
+`alkera_gateway/native/services/<name>.py` (`NAME`, `HOST`, `PORT`, `app`). It is
+not a BI vendor and is in none of their tables (`services.PLUG_NAMES`,
+`serve.PLUG_PORTS`, `agent_under_test.PLUG_SERVICES`, `native_workspace
+.PLUG_SERVICES`): serve.py mounts it, on this row's `port`, exactly when a
+profile plugs it (`serve.selected_services`), and the harness aliases it,
+exports its `env` and allows its endpoint from this row.
 """
 from __future__ import annotations
 
