@@ -28,6 +28,14 @@ more things, each by one environment variable, and neither changes the MCP route
 Both live HERE, in gateway/docker, and not in alkera_gateway.snowflake_proxy, on
 purpose: this file is what Dockerfile.snowflake copies from the working tree,
 while alkera_gateway comes from the episode image's revision.
+
+ONE DOOR IN A SHARED CONTAINER. fakesnow itself answers the wire protocol with
+no credential check and no audit; the proxy in front of it is the door. In its
+own container that upstream listens on 127.0.0.1:64616, out of the episode's
+reach. Where the agent shares the container (the Harbor image) a loopback port
+is the agent's to dial, so `ALKERA_SNOWFLAKE_UPSTREAM_SOCKET` puts the upstream
+on a unix socket instead - in a directory only this service's user can enter -
+and the proxy reaches it through that socket. Unset, nothing changes.
 """
 
 import json
@@ -52,6 +60,7 @@ PORT = 8443
 SEED_ENV = "ALKERA_SNOWFLAKE_SEED"
 AUDIT_ENV = "ALKERA_NATIVE_AUDIT"
 DESTINATIONS_ENV = "ALKERA_SNOWFLAKE_DESTINATIONS"
+UPSTREAM_SOCKET_ENV = "ALKERA_SNOWFLAKE_UPSTREAM_SOCKET"
 TOOL = "snowflake.statement"
 ACTOR = "snowflake"
 
@@ -164,9 +173,13 @@ def upstream() -> None:
     # 500 -> retry-storm catch-all, strict mode, the silent-wrong fences and session
     # identity. See gateway/docker/snowflake_fidelity.py; ALKERA_SNOWFLAKE_* tunes it.
     app = snowflake_fidelity.apply(fakesnow_server)
-    server = uvicorn.Server(
-        uvicorn.Config(app, host="127.0.0.1", port=UPSTREAM_PORT, log_level="info")
-    )
+    socket_path = os.environ.get(UPSTREAM_SOCKET_ENV)
+    if socket_path:
+        private_socket_dir(Path(socket_path))
+        config = uvicorn.Config(app, uds=socket_path, log_level="info")
+    else:
+        config = uvicorn.Config(app, host="127.0.0.1", port=UPSTREAM_PORT, log_level="info")
+    server = uvicorn.Server(config)
     thread = threading.Thread(target=server.run, name="fakesnow", daemon=True)
     thread.start()
     deadline = time.monotonic() + 30
@@ -178,6 +191,41 @@ def upstream() -> None:
     # from a session that logged in without one.
     for file in sorted(DATA.glob("*.db")):
         fakesnow_server.shared_fs.connect(database=file.stem).close()
+
+
+def private_socket_dir(socket_path: Path) -> None:
+    """The upstream socket's directory: this process's user's alone (0700), so
+    the socket (uvicorn makes it 0666) is reachable by nobody else. Refuses a
+    directory another user owns or can enter."""
+    directory = socket_path.parent
+    directory.mkdir(parents=True, exist_ok=True)
+    stat = directory.stat()
+    if stat.st_uid != os.geteuid():
+        raise SystemExit(f"{directory} is not this user's: the fakesnow upstream socket "
+                         f"would be another user's to reach")
+    directory.chmod(0o700)
+    socket_path.unlink(missing_ok=True)
+
+
+def upstream_route():
+    """(the proxy's upstream URL, the httpx transport to reach it with): the
+    private socket when ALKERA_SNOWFLAKE_UPSTREAM_SOCKET names one, else the
+    loopback port (FAKESNOW_UPSTREAM overrides) and httpx's own transport."""
+    socket_path = os.environ.get(UPSTREAM_SOCKET_ENV)
+    if not socket_path:
+        return (os.environ.get("FAKESNOW_UPSTREAM", f"http://127.0.0.1:{UPSTREAM_PORT}"),
+                None)
+    import httpx
+
+    class SharedSocketTransport(httpx.AsyncHTTPTransport):
+        """One pool over the socket for every request. The proxy opens a client
+        per request, and that client's exit would close this pool's connections -
+        those of the requests still in flight on it too - so it does not."""
+
+        async def __aexit__(self, *exc) -> None:
+            return None
+
+    return "http://fakesnow", SharedSocketTransport(uds=socket_path)
 
 
 def serve_native() -> None:
@@ -193,9 +241,9 @@ def serve_native() -> None:
         log.declare(NATIVE_HOST, PORT)
         log.flush()
         AuditedH11Protocol.destinations = log
+    upstream_url, transport = upstream_route()
     uvicorn.run(
-        snowflake_proxy.proxy_app(os.environ.get("FAKESNOW_UPSTREAM",
-                                                 f"http://127.0.0.1:{UPSTREAM_PORT}")),
+        snowflake_proxy.proxy_app(upstream_url, transport=transport),
         host="0.0.0.0", port=PORT, ssl_certfile="/tls/server.crt",
         ssl_keyfile="/tls/server.key",
         http=AuditedH11Protocol if destinations else "auto")
