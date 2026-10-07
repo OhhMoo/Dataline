@@ -21,7 +21,7 @@
    "returncode": 0,
    "rows": 2,
    "rows_at": "call",
-   "seconds": 2.56,
+   "seconds": 2.28,
    "stderr_tail": "",
    "stdout_tail": "{\"value\": \"2361224.00\"}\n",
    "tool": "databricks",
@@ -55,7 +55,7 @@
    "returncode": 0,
    "rows": 6,
    "rows_at": "call",
-   "seconds": 2.31,
+   "seconds": 2.08,
    "stderr_tail": "The SEA backend (use_sea=True) is deprecated and incomplete and should not be used in production; it is slated for removal. Use the kernel backend instead by passing use_kernel=True and installing the kernel extra: pip install 'databricks-sql-connector[kernel]'.\n",
    "stdout_tail": "{\"value\": 1068}\n",
    "tool": "databricks",
@@ -93,7 +93,7 @@
    "returncode": 0,
    "rows": 2,
    "rows_at": "call",
-   "seconds": 1.21,
+   "seconds": 1.18,
    "stderr_tail": "",
    "stdout_tail": "{\"value\": \"33733790.00\"}\n",
    "tool": "databricks",
@@ -127,7 +127,7 @@
    "returncode": 0,
    "rows": 2,
    "rows_at": "call",
-   "seconds": 2.12,
+   "seconds": 2.11,
    "stderr_tail": "",
    "stdout_tail": "{\"value\": 6}\n",
    "tool": "databricks",
@@ -164,7 +164,7 @@
    "returncode": 0,
    "rows": 15,
    "rows_at": "call",
-   "seconds": 10.83,
+   "seconds": 9.51,
    "stderr_tail": "be used in production; it is slated for removal. Use the kernel backend instead by passing use_kernel=True and installing the kernel extra: pip install 'databricks-sql-connector[kernel]'.\nWARNING:databricks.sql.backend.sea.backend:The SEA backend (use_sea=True) is deprecated and incomplete and should not be used in production; it is slated for removal. Use the kernel backend instead by passing use_kernel=True and installing the kernel extra: pip install 'databricks-sql-connector[kernel]'.\nWARNING:databricks.sql.backend.sea.backend:The SEA backend (use_sea=True) is deprecated and incomplete and should not be used in production; it is slated for removal. Use the kernel backend instead by passing use_kernel=True and installing the kernel extra: pip install 'databricks-sql-connector[kernel]'.\n",
    "stdout_tail": "{\"value\": 2361224.0}\n",
    "tool": "databricks",
@@ -192,12 +192,12 @@
    "verdict": "PASS"
   },
   {
-   "command": "cd /workspace\nset -euo pipefail\npython3 - <<'PY'\nimport json\nfrom databricks.sdk import WorkspaceClient\n\nw = WorkspaceClient()\njob = next(j for j in w.jobs.list() if j.settings.name == \"bi_refresh\")\nrun = w.jobs.run_now(job_id=job.job_id)\ngot = w.jobs.get_run(run_id=run.run_id)\nassert got.state.life_cycle_state.value == \"TERMINATED\", got.state\nprint(json.dumps({\"value\": run.run_id}))\nPY\n",
+   "command": "cd /workspace\nset -euo pipefail\npython3 - <<'PY'\nimport json\nfrom databricks.sdk import WorkspaceClient\n\nw = WorkspaceClient()\njob = next(j for j in w.jobs.list() if j.settings.name == \"bi_refresh\")\nrun = w.jobs.run_now(job_id=job.job_id)\ngot = w.jobs.get_run(run_id=run.run_id)\n# queued, not run: the world's scheduler runs it when the world's clock next moves\nassert got.state.life_cycle_state.value == \"QUEUED\", got.state\nassert got.state.result_state is None and got.end_time == 0, got\nprint(json.dumps({\"value\": got.start_time}))\nPY\n",
    "destinations": {
     "databricks.internal:443": 1
    },
    "doc": null,
-   "drift": true,
+   "drift": false,
    "expect_args": [],
    "expect_tools": [
     "databricks.sched_list",
@@ -213,9 +213,9 @@
    "returncode": 0,
    "rows": 4,
    "rows_at": "call",
-   "seconds": 3.16,
+   "seconds": 2.25,
    "stderr_tail": "",
-   "stdout_tail": "{\"value\": 1276}\n",
+   "stdout_tail": "{\"value\": 1772409600000}\n",
    "tool": "databricks",
    "tools": [
     "databricks.sched_list",
@@ -223,9 +223,9 @@
     "databricks.sched_state",
     "shim.python"
    ],
-   "truth": 1276,
-   "truth_after": 1277,
-   "value": 1276,
+   "truth": 1772409600000,
+   "truth_after": 1772409600000,
+   "value": 1772409600000,
    "value_ok": true,
    "verdict": "PASS"
   }
@@ -251,9 +251,9 @@
     "destinations": [
      {
       "count": 10,
-      "first_ts": "2026-10-07T13:41:34Z",
+      "first_ts": "2026-10-07T15:54:28Z",
       "host": "databricks.internal",
-      "last_ts": "2026-10-07T13:41:53Z",
+      "last_ts": "2026-10-07T15:54:45Z",
       "port": 443
      },
      {
@@ -341,11 +341,11 @@
     "rows_total": 31,
     "trace_valid": true
    },
-   "image": "alkera-episode:w1-databricks",
+   "image": "alkera-episode:fix-dbx-queue",
    "image_gate": {
-    "head": "5917f2984674ebf3bc5f4ad742586fad692abf99",
-    "image": "alkera-episode:w1-databricks",
-    "revision": "5917f2984674ebf3bc5f4ad742586fad692abf99"
+    "head": "8a71ac7075079966b405c989baeecd4753c9003d",
+    "image": "alkera-episode:fix-dbx-queue",
+    "revision": "8a71ac7075079966b405c989baeecd4753c9003d"
    },
    "ok": true,
    "plugs": {},
@@ -359,10 +359,10 @@
    ],
    "profile": "de/databricks",
    "rows_at": "call",
-   "seconds": 43.7,
+   "seconds": 40.4,
    "seed": "# commerce_analytics world seed: a shop's nightly CDC extracts -> raw -> dbt\n# star schema + semantic layer -> Power BI / Tableau / Sigma dashboards.\ntheme: commerce_analytics    # world/world/themes/<name>/\nseed: 11\nvtime_start: \"2025-01-01T00:00:00Z\"\n# 425 nightly extracts: dt=2024-12-31 (the cutover snapshot: accounts and\n# catalogue, no orders) then dt=2025-01-01 .. dt=2026-02-28. Fourteen months of\n# orders, so last-year measures exist for January and February 2026. The world\n# clock opens at 2026-03-02T00:00Z, a Monday - business day 1 of the February\n# close.\ndays: 425\n\n# Scale. Every key is optional (gen.DEFAULTS); these are the defaults, spelled\n# out. Build time is dominated by dbt, not by volume - a 2x seed builds in about\n# the same time.\ncustomers: 220               # accounts on the platform at cutover\nsignup_pct: 18               # chance per day of a new account (a second at a quarter of it)\nupdate_pct: 9                # chance per day that one account is upgraded a segment\norders_per_day: [20, 60]     # base range, scaled by weekday, month, peak days and growth\nlines_per_order: [1, 4]\ncancel_pct: 6                # 70% the same day, the rest the next day\nrefund_pct: 4                # 3 to 45 days after the order\ngrowth_pct: 20               # year-over-year order volume growth\n\ngit_author: \"Analytics Engineering <analytics@example.com>\"\nnative: true\nfiles: {formats: [parquet]}\nprofile:\n  name: de/databricks\n  slots: [files, warehouse, transform, orchestrator, object_store, ingest, bi, observability, release, human]\n  plugs: {bi: [powerbi]}\n",
    "stack": {
-    "container_id": "d89d94483252",
+    "container_id": "4a7fca680deb",
     "episode_endpoints": {
      "airbyte": "http://airbyte.internal:8001",
      "alertmanager": "http://alertmanager.internal:9093",
@@ -388,8 +388,8 @@
      "sched": "http://sched.internal:8120",
      "slack": "http://slack.internal:8081"
     },
-    "image": "alkera-episode:w1-databricks",
-    "image_digest": "sha256:58f26d3d7272fb5aaa7bd65050395b5372c197e5062b253940288b2360195481",
+    "image": "alkera-episode:fix-dbx-queue",
+    "image_digest": "sha256:24bc5a7716793bd2b095f91608b1194d264a6f54e8a958fc00050be4241065cb",
     "services": [
      "episode",
      "minio",
@@ -406,7 +406,7 @@
      "ALKERA_SHIM_BIN": "/opt/alkera/shims",
      "ALKERA_SHIM_WATCH": "/world/var/warehouse/warehouse.duckdb",
      "ALKERA_SHIM_WORKSPACE": "/workspace",
-     "ALKERA_SOURCE_REV": "5917f2984674ebf3bc5f4ad742586fad692abf99",
+     "ALKERA_SOURCE_REV": "8a71ac7075079966b405c989baeecd4753c9003d",
      "ALKERA_TOOLBELT": "de",
      "ALKERA_VIRTUAL_TIME": "2026-03-02T00:00:00Z",
      "ALKERA_WAREHOUSES": "",
@@ -443,7 +443,7 @@
     "workspace_cli": {
      "cli": "ops/sched",
      "files": [
-      "/home/ubuntu/alkera-rollouts/w1-databricks/tour-final5/de-databricks/world/workspace/ops/sched"
+      "/home/ubuntu/alkera-rollouts/fix-dbx-queue/tour/de-databricks/world/workspace/ops/sched"
      ],
      "interpreter": "/usr/local/bin/python",
      "pythonpath": "/opt/world",
@@ -451,29 +451,29 @@
     }
    },
    "truths_read": "after the world build, before the stack came up",
-   "work": "/home/ubuntu/alkera-rollouts/w1-databricks/tour-final5/de-databricks",
+   "work": "/home/ubuntu/alkera-rollouts/fix-dbx-queue/tour/de-databricks",
    "world": {
-    "dashboards": "/home/ubuntu/alkera-rollouts/w1-databricks/tour-final5/de-databricks/world/var/bi/dashboards",
-    "grading": "/home/ubuntu/alkera-rollouts/w1-databricks/tour-final5/de-databricks/grading",
-    "profiles_dir": "/home/ubuntu/alkera-rollouts/w1-databricks/tour-final5/de-databricks/world/build",
-    "scheduler": "/home/ubuntu/alkera-rollouts/w1-databricks/tour-final5/de-databricks/world/var/sched/state.json",
-    "warehouse": "/home/ubuntu/alkera-rollouts/w1-databricks/tour-final5/de-databricks/world/var/warehouse/warehouse.duckdb",
-    "workflow_dir": "/home/ubuntu/alkera-rollouts/w1-databricks/tour-final5/de-databricks/world/var/workflow",
-    "workspace": "/home/ubuntu/alkera-rollouts/w1-databricks/tour-final5/de-databricks/world/workspace",
-    "world_root": "/home/ubuntu/alkera-rollouts/w1-databricks/tour-final5/de-databricks/world"
+    "dashboards": "/home/ubuntu/alkera-rollouts/fix-dbx-queue/tour/de-databricks/world/var/bi/dashboards",
+    "grading": "/home/ubuntu/alkera-rollouts/fix-dbx-queue/tour/de-databricks/grading",
+    "profiles_dir": "/home/ubuntu/alkera-rollouts/fix-dbx-queue/tour/de-databricks/world/build",
+    "scheduler": "/home/ubuntu/alkera-rollouts/fix-dbx-queue/tour/de-databricks/world/var/sched/state.json",
+    "warehouse": "/home/ubuntu/alkera-rollouts/fix-dbx-queue/tour/de-databricks/world/var/warehouse/warehouse.duckdb",
+    "workflow_dir": "/home/ubuntu/alkera-rollouts/fix-dbx-queue/tour/de-databricks/world/var/workflow",
+    "workspace": "/home/ubuntu/alkera-rollouts/fix-dbx-queue/tour/de-databricks/world/workspace",
+    "world_root": "/home/ubuntu/alkera-rollouts/fix-dbx-queue/tour/de-databricks/world"
    }
   }
  ],
- "revision": "5917f2984674ebf3bc5f4ad742586fad692abf99",
- "seconds": 43.7,
- "started": 1791380475.2332993,
+ "revision": "8a71ac7075079966b405c989baeecd4753c9003d",
+ "seconds": 40.4,
+ "started": 1791388450.767057,
  "summary": {
   "DOC": 0,
   "FAIL": 0,
   "PASS": 6,
   "profiles_ok": true
  },
- "table": "probe                                       profile       verdict   rows  value / truth\n---------------------------------------------------------------------------------------------------------------------\ndatabricks.sdk.net_revenue_feb_2026         de/databricks PASS         2  '2361224.00' / Decimal('2361224.00')\ndatabricks.connector.completed_orders_feb_2 de/databricks PASS         6  1068 / 1068\ndatabricks.rest.net_revenue                 de/databricks PASS         2  '33733790.00' / Decimal('33733790.00')\ndatabricks.uc.fct_orders_columns            de/databricks PASS         2  6 / 6\ndatabricks.dbt.net_revenue_feb_2026         de/databricks PASS        15  2361224.0 / Decimal('2361224.00')\ndatabricks.jobs.run_now_bi_refresh          de/databricks PASS         4  1276 / 1276",
+ "table": "probe                                       profile       verdict   rows  value / truth\n---------------------------------------------------------------------------------------------------------------------\ndatabricks.sdk.net_revenue_feb_2026         de/databricks PASS         2  '2361224.00' / Decimal('2361224.00')\ndatabricks.connector.completed_orders_feb_2 de/databricks PASS         6  1068 / 1068\ndatabricks.rest.net_revenue                 de/databricks PASS         2  '33733790.00' / Decimal('33733790.00')\ndatabricks.uc.fct_orders_columns            de/databricks PASS         2  6 / 6\ndatabricks.dbt.net_revenue_feb_2026         de/databricks PASS        15  2361224.0 / Decimal('2361224.00')\ndatabricks.jobs.run_now_bi_refresh          de/databricks PASS         4  1772409600000 / 1772409600000",
  "tools": [
   "databricks"
  ],
