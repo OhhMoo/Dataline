@@ -79,6 +79,7 @@ services:
     depends_on:
       snowflake:
         condition: service_healthy
+      minio: !reset null
 
 # ENVIRONMENT PROFILE da/snowflake (plugs: {}).
 # native-services runs with --profile (ALKERA_NATIVE_PROFILE_ARGS), and the
@@ -93,10 +94,15 @@ services:
           - jira.internal
           - slack.internal
           - confluence.internal
+
+# NO OBJECT STORE: this profile plugs no object_store, so MinIO is NOT STARTED.
+# Its compose profile `object_store` is one nothing enables, and the
+# episode's `depends_on: minio` is reset above. A service that does not run
+# cannot be resolved or reached from any container of this project; with only
+# its alias gone, the compose name `minio` still resolved, and no receiver
+# audited what reached it (CONTAINMENT_2026-10-07.md, finding 1).
   minio:
-    networks:
-      episode_net:
-        aliases: !reset []
+    profiles: [object_store]
 
 # WAREHOUSE PLUG snowflake: compose.yml's `snowflake` service (compose profile
 # `snowflake`, enabled by compose_env), reachable as snowflake.internal:8443

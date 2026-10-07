@@ -301,7 +301,9 @@ def test_a_new_backend_gets_a_complete_service_block(tmp_path, monkeypatch):
     assert ":153F'" in service["healthcheck"]["test"][-1]           # 5439, LISTEN
     assert overlay["volumes"] == {"pgxdata": None}
     episode_block = overlay["services"]["episode"]
-    assert episode_block["depends_on"] == {"pgx": {"condition": "service_healthy"}}
+    # da/laptop plugs no object store: MinIO is not started, so not waited for
+    assert episode_block["depends_on"] == {"pgx": {"condition": "service_healthy"},
+                                           "minio": "null"}
     assert episode_block["environment"]["PGX_HOST"] == "pgx.internal"
     assert "REQUESTS_CA_BUNDLE" not in episode_block["environment"]
     assert "pgx" in stack.compose_env()["COMPOSE_PROFILES"].split(",")
@@ -330,7 +332,8 @@ def test_a_hosted_tls_backend_publishes_through_native_services(tmp_path, monkey
     assert "hxtrust:/etc/alkera/hx-tls:ro" in episode_block["volumes"]
     assert episode_block["environment"]["REQUESTS_CA_BUNDLE"] == "/etc/alkera/hx-tls/bundle.pem"
     assert episode_block["environment"]["HX_HOST"] == url
-    assert "depends_on" not in episode_block
+    # hosted: nothing of its own to wait for (MinIO's reset is da/laptop's, no store)
+    assert episode_block["depends_on"] == {"minio": "null"}
     assert overlay["volumes"] == {"hxtrust": None}
     assert "hx" not in stack.compose_env().get("COMPOSE_PROFILES", "")
     assert stack.episode_endpoints()["hx"] == url

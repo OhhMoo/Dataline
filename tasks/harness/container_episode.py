@@ -873,6 +873,10 @@ MOUNTS_OVERLAY_NAME = "compose.native-mounts.yml"
 #: MinIO's port, published on loopback beside the nine so the surface gate's
 #: signed bucket listing has somewhere to go.
 MINIO_PORT = 9000
+#: The compose profile `profile_overlay` gates MinIO behind on a box whose
+#: environment profile plugs no `object_store`. Nothing enables it
+#: (`compose_env` never names it), so MinIO is not started on such a box at all.
+MINIO_COMPOSE_PROFILE = "object_store"
 #: The variable `compose_env` hands compose the per-rollout MinIO audit token
 #: in. compose.native.yml interpolates it into exactly two environments, MinIO's
 #: webhook (`MINIO_AUDIT_WEBHOOK_AUTH_TOKEN_alkera`) and native-services' (the
@@ -2032,6 +2036,13 @@ class NativeContainerEpisode:
         profile = self.environment_profile()
         return profile is not None and "notebook" in profile.slots
 
+    def minio_unstarted(self) -> bool:
+        """A profiled box that plugs no `object_store`: MinIO is not started
+        (`profile_overlay`) and the episode does not wait for it
+        (`write_overlay`). Unprofiled boxes plug the store, as before."""
+        profile = self.environment_profile()
+        return profile is not None and "object_store" not in profile.slots
+
     def profile_variables(self) -> tuple[list[str], dict[str, str]] | None:
         """`(dropped, added)` for a profiled task, None for an unprofiled one.
 
@@ -2134,11 +2145,14 @@ class NativeContainerEpisode:
         An excluded service must not RESOLVE on episode_net, not merely answer
         404 from a native-services process that did not mount it, so the alias
         list is replaced (`!override`) with the profile's own. `sched.internal`
-        stays only when the orchestrator plugs `ops_sched`, `minio.internal`
-        only when the object store is plugged (MinIO keeps running: the episode
-        `depends_on` it, and dropping the alias is what takes it off the
-        network the episode sees). The environment that matches is
-        `profiled_environment`'s.
+        stays only when the orchestrator plugs `ops_sched`. MinIO runs only
+        when the object store is plugged: otherwise it is gated behind a compose
+        profile nothing enables (MINIO_COMPOSE_PROFILE), so it is not started,
+        and `write_overlay` resets the episode's `depends_on: minio`. Dropping
+        only its `minio.internal` alias, which is what this did from 2026-10-04,
+        left the compose name `minio` resolving on episode_net to a MinIO that
+        no receiver audited (gateway/docker/evidence/CONTAINMENT_2026-10-07.md,
+        finding 1). The environment that matches is `profiled_environment`'s.
 
         A plugged BI vendor (`agent_under_test.PLUG_SERVICES`) goes the other
         way: its alias is ADDED to the replaced list, because
@@ -2185,10 +2199,15 @@ class NativeContainerEpisode:
         if engines:
             body += self.engine_overlay(engines)
         if not with_store:
-            body += """  minio:
-    networks:
-      episode_net:
-        aliases: !reset []
+            body += f"""
+# NO OBJECT STORE: this profile plugs no object_store, so MinIO is NOT STARTED.
+# Its compose profile `{MINIO_COMPOSE_PROFILE}` is one nothing enables, and the
+# episode's `depends_on: minio` is reset above. A service that does not run
+# cannot be resolved or reached from any container of this project; with only
+# its alias gone, the compose name `minio` still resolved, and no receiver
+# audited what reached it (CONTAINMENT_2026-10-07.md, finding 1).
+  minio:
+    profiles: [{MINIO_COMPOSE_PROFILE}]
 """
         return body
 
@@ -2272,9 +2291,15 @@ class NativeContainerEpisode:
                 # Public certificates only (the key stays with the backend).
                 binds += f"\n      - {b.name}trust:{_backends().trust_dir(b)}:ro"
         containers = [b for b in plugged_backends if not b.hosted]
-        depends_on = ("    depends_on:\n" + "".join(
-            f"      {b.name}:\n        condition: service_healthy\n" for b in containers)
-            if containers else "")
+        waits = "".join(f"      {b.name}:\n        condition: service_healthy\n"
+                        for b in containers)
+        if self.minio_unstarted():
+            # Not started on this box (`profile_overlay`), so not waited for.
+            # `!reset` on this one key, measured with `docker compose config`
+            # on Compose v5.6.0: the entry is gone and the rest of the static
+            # mapping (postgres, native-services) stays.
+            waits += "      minio: !reset null\n"
+        depends_on = "    depends_on:\n" + waits if waits else ""
         body = f"""# Generated per rollout by tasks/harness/container_episode.py. Do not edit:
 # it is rewritten on every `up()` and is kept here as the record of which host
 # files this episode's container could see.

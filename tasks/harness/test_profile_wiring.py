@@ -299,13 +299,19 @@ def test_overlay_profiled_aliases(world, tmp_path, no_docker):
     assert aliases == ["native-services.internal",
                        *(f"{s}.internal" for s in SERVICES)]
     assert "sched.internal" not in aliases
+    # no object store: MinIO is not started (a compose profile nothing enables)
+    # and the episode does not wait for it - not merely un-aliased
     minio = _block(text, "minio")
-    assert "aliases: !reset []" in minio
+    assert minio.strip() == f"profiles: [{ce.MINIO_COMPOSE_PROFILE}]"
+    assert "      minio: !reset null\n" in _block(text, "episode")
     # the WHOLE mapping, restated (`!override`): an excluded service's
     # variables are absent, not `!reset` (a no-op under Compose v5.6)
     episode_block = _block(text, "episode")
     assert "    environment: !override\n" in episode_block
-    assert "!reset" not in episode_block
+    # no `VAR: !reset null` (a no-op under Compose v5.6); the one `!reset` is
+    # the depends_on key above, which compose does honour (test below)
+    assert [ln for ln in episode_block.splitlines() if "!reset" in ln] == [
+        "      minio: !reset null"]
     episode_env = _env(episode_block)
     for var in ("LOKI_URL", "LOKI_ADDR", "DEPLOY_URL", "DEPLOY_API_TOKEN",
                 "AIRBYTE_URL", "PROMETHEUS_URL", "ALERTMANAGER_URL",
@@ -323,7 +329,7 @@ def test_overlay_keeps_sched_and_minio_when_plugged(world, tmp_path, no_docker):
     services = _block(text, "native-services")
     assert "- sched.internal" in services
     assert "- metabase.internal" not in services
-    assert "minio:" not in text
+    assert "minio:" not in text and "minio: !reset" not in text
     episode_env = _env(_block(text, "episode"))
     static = ce.static_environment("episode")
     # kept, with the static value: the orchestrator and the object store are plugged
@@ -720,7 +726,32 @@ def test_compose_config_drops_excluded_variables(world, tmp_path, no_docker):
     assert {"SCHED_URL", "METABASE_URL", "AWS_ENDPOINT_URL"} <= set(unprofiled)
 
 
-# ---------------------------------------- MinIO: the audit receiver's token
+# ------------------------- MinIO: not started without a store, token-gated with one
+def test_compose_config_starts_no_minio_without_an_object_store(world, tmp_path,
+                                                                no_docker):
+    """Measured by compose: on BI001's da/laptop box (and da/snowflake's) there is
+    no `minio` service at all - nothing can resolve or reach it - and nothing
+    waits for one. The unprofiled box still runs it and still waits for it."""
+    _clocked(world)
+    plain = _stack(world, tmp_path, "r0")
+    plain.write_overlay()
+    unprofiled = _compose_config(plain)["services"]
+    assert "minio" in unprofiled and "minio" in unprofiled["episode"]["depends_on"]
+    for profile, plugs in ((PROFILE, BI001_PLUGS), ("da/snowflake", {})):
+        stack = _stack(world, tmp_path, f"r-{profile.replace('/', '-')}",
+                       profile=profile, plugs=plugs)
+        stack.write_overlay()
+        assert stack.minio_unstarted()
+        services = _compose_config(stack)["services"]
+        assert "minio" not in services, profile
+        assert "minio" not in services["episode"]["depends_on"], profile
+        assert {"postgres", "native-services"} <= set(services["episode"]["depends_on"])
+        assert ce.MINIO_COMPOSE_PROFILE not in stack.compose_env().get(
+            "COMPOSE_PROFILES", "").split(",")
+        for name in ("episode", "jupyter"):
+            assert not any(k.startswith("AWS_") for k in services[name]["environment"])
+
+
 def test_minio_audit_token_reaches_minio_and_native_services_only(world, tmp_path,
                                                                   no_docker):
     """The receiver's shared secret: per rollout, in compose's process environment
