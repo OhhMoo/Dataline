@@ -449,6 +449,9 @@ def test_toolbelt_check_probes_and_forbids_per_role():
     with_dbx = set(check.forbidden_imports("de", ("databricks",)))
     assert not {"pandas", "pyarrow"} & with_dbx
     assert {"ipykernel", "jupyter_server", "matplotlib", "polars"} <= with_dbx
+    # openpyxl (the connector's) is a system-interpreter check, allowed the same way
+    assert "openpyxl" in check.system_forbidden("de")
+    assert "openpyxl" not in check.system_forbidden("de", ("databricks",))
     assert set(check.CLIENT_IMPORTS) <= set(CLIENT_SETS)
     for role in ("ds", "da"):
         argvs = {tuple(argv) for _, argv, _ in check.role_probes(role)}
