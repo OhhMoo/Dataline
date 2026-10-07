@@ -290,6 +290,26 @@ def seed(source: Path) -> list[dict]:
     return copied
 
 
+def startup_filter(params: dict[str, str]) -> dict[str, str]:
+    """The persona's startup filter (`redshift_sql.startup_parameters`), and ONE
+    login role: the cluster's, `alkera`.
+
+    The proxy reaches the server over its private socket, where the superuser
+    `postgres` is trusted (provisioning and seeding need that), and the server
+    cannot tell a relayed login from this file's own. A startup naming the
+    superuser, relayed, would be a superuser session - `COPY ... TO PROGRAM`
+    runs commands as the server's OS user, in a container the agent may share
+    with it (the Harbor image). So any user but the cluster's is refused at
+    the door, by name, as an error row, before a byte reaches the server."""
+    from alkera_gateway.redshift_sql import Unsupported, startup_parameters
+
+    kept = startup_parameters(params)
+    user = kept.get("user")
+    if user != USER:
+        raise Unsupported(f"logging in as {user!r} (this cluster's one user is {USER!r})")
+    return kept
+
+
 def serve_proxy() -> None:
     from alkera_gateway import redshift_sql
     from alkera_gateway.native.pgwire_proxy import serve
@@ -308,7 +328,7 @@ def serve_proxy() -> None:
           translate=redshift_sql.translate, tool=TOOL, actor=ACTOR,
           destinations=destinations, statement_log=Path(log) if log else None,
           parameters={"server_version": redshift_sql.SERVER_VERSION},
-          refuse=redshift_sql.Unsupported, startup_filter=redshift_sql.startup_parameters,
+          refuse=redshift_sql.Unsupported, startup_filter=startup_filter,
           on_listening=lambda _server: print(json.dumps(
               {"listening": f"0.0.0.0:{PORT}", "upstream": str(SOCKET)}), flush=True))
 
