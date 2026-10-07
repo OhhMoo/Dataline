@@ -58,8 +58,8 @@ Opus, native driver, container topology (`docs/implementation_plan/TASK_STATUS.m
 | item | owner | status | what is still open |
 |---|---|---|---|
 | Snowflake | Michael | done (plug live) | fakesnow at `snowflake.internal:8443` over trusted TLS for snowflake profiles, seeded from the world's warehouse, every statement audited (`snowflake.statement`); real connector and dbt-snowflake proven inside the container (`tasks/harness/evidence/snowflake_e2e.json`); image `alkera-episode:head-da-snowflake`. Open: Snowflake box's `services.toml` / onboarding / dbt profile still describe no Snowflake warehouse; containment not re-run with the service up; no task runs on `da/snowflake` |
-| Databricks (lakehouse) | Andrew | open | everything (§3.2 tier 1 / tier 2) |
-| dbt | Andrew | done for duckdb, postgres, snowflake | dbt-bigquery (measured working against the container's BigQuery proxy, not shipped: it pulls pandas/pyarrow/nbformat into a de image, which its toolbelt gate forbids), dbt-redshift, dbt-databricks. dbt-postgres `debug`/`run` live in a container since 2026-10-07 (`tasks/harness/evidence/postgres_e2e.json`). Finding: `dbt show --inline` with `{{ ref() }}` to a `warehouse`-schema model is a DuckDB Binder Error on commerce_analytics (`macros/relations.sql` puts the database back only in tests; the other four themes carry the same macro); fixing it moves world bytes, so it waits on a decision |
+| Databricks (lakehouse) | Andrew | partial (tier 1 live) | tier 1 at `https://databricks.internal` (443, hosted in native-services for `*/databricks` profiles, trusted TLS): SQL Statement Execution (+ the connector's SEA sessions), Unity Catalog reads, SQL warehouses, SCIM Me, Jobs 2.1/2.2 over the world scheduler (run-now = `sched_trigger`, never advance), on a seeded DuckDB copy of the world's warehouse in the service's own state; Delta-only SQL refused by name; databricks-sdk, databricks-sql-connector (`use_sea=True`; no Thrift) and dbt-databricks proven inside the container (`tasks/harness/evidence/databricks_e2e.json`, `docs/environments/DATABRICKS_SPIKE.md`). Open: tier 2 (PySpark), DBFS/Volumes, Arrow/external-link results, no Databricks CLI (licence), containment not re-run with it, no task uses it |
+| dbt | Andrew | done for duckdb, postgres, snowflake, databricks | dbt-bigquery (measured working against the container's BigQuery proxy, not shipped: it pulls pandas/pyarrow/nbformat into a de image, which its toolbelt gate forbids), dbt-redshift. dbt-postgres `debug`/`run` live in a container since 2026-10-07 (`tasks/harness/evidence/postgres_e2e.json`); dbt-databricks `debug`/`run` over the Statement Execution API (`tasks/harness/evidence/databricks_e2e.json`). Finding: `dbt show --inline` with `{{ ref() }}` to a `warehouse`-schema model is a DuckDB Binder Error on commerce_analytics (`macros/relations.sql` puts the database back only in tests; the other four themes carry the same macro); fixing it moves world bytes, so it waits on a decision |
 | Airflow | Andrew | partial (plug live, 2026-10-07) | Airflow 3 REST v2 fake over the world ledger at `airflow.internal:8100` for `orchestrator = airflow` (not real Airflow): DAGs read with `ast` from the workspace's `dags/`, DAG runs / task instances / logs derived from `var/sched/state.json`, trigger and clear QUEUE runs that the grader's `advance` executes (`world.scheduler.enqueue`; no clock, no backfill, no pause, no conf - each refused by name; at most 16 queued runs per DAG and 256 in the queue); one row per request in the tailer's vocabulary; real `curl` and `airflowctl` proven inside the container (`tasks/harness/evidence/airflow_e2e.json`); image tag suffix `-airflow`. Open: real headless Airflow under the same plug; `LEDGER_IS_NOT_THE_DAG` (editing a DAG's schedule or edges changes the API's view, not what the ledger runs); containment P6 not re-run with it; no task uses it |
 | Python / Jupyter | Andrew (built by Michael) | done | audited kernel and jupyter service in da/ds images; MLflow / compute nodes are separate and open |
 | Postgres | Andrew | done (live, audited) | real server at `postgres.internal:5432` in every native stack. Statements audited at teardown: `NativeContainerEpisode.down()` folds the role-scoped server log into the action log (`psql.statement`, one row per statement, `seq` contiguous). A fold that fails makes the rollout a `harness_error` (never graded). Seeded with the world's `warehouse.*` only when a profile plugs it (`de/postgres`), in a schema owned by a NOLOGIN role and closed to `episode` (compose's unlogged owner, whose DSN the box carries in `ALKERA_POSTGRES_DSN`); every other box keeps `warehouse.items` (2 rows) as compose made it. psql, psycopg and dbt-postgres proven inside the container (`tasks/harness/evidence/postgres_e2e.json`, 27/27); tour probes `postgres`, `postgres_dbt`. Open: rows land at teardown, not per call; `episode` (unlogged) still owns `raw`/`staging` on every box and `warehouse` on unseeded ones (containment record); a syntax-error statement leaves no row; connections not counted in `destinations.jsonl`; the box's bare `dbt` still targets DuckDB on `de/postgres`; no task uses it |
@@ -266,25 +266,26 @@ Output of `alkera-gateway plugs matrix`. A profile is `runnable` when none of
 its plugs is `planned`; `partial` plugs (Postgres, Snowflake, BigQuery, Jupyter, Power BI, Tableau,
 Sigma) run with the gaps §3 lists. Regenerate this block whenever a plug's status changes
 (regenerated 2026-10-04: Sigma, Tableau and Power BI are `partial`, so `*/snowflake` is
-runnable and `*/aws`, `*/databricks` wait only on their warehouses).
+runnable and `*/aws`, `*/databricks` wait only on their warehouses; 2026-10-07: Databricks
+tier 1 is `partial`, so `*/databricks` is runnable on its de and da roles).
 
 ```
 de/laptop        runnable
 de/postgres      runnable
 de/snowflake     runnable
-de/databricks    planned: databricks
+de/databricks    runnable
 de/aws           planned: redshift
 de/gcp           runnable
 ds/laptop        planned: ml_workers, mlflow
 ds/postgres      planned: ml_workers, mlflow
 ds/snowflake     planned: ml_workers, mlflow
-ds/databricks    planned: ml_workers, mlflow, databricks
+ds/databricks    planned: ml_workers, mlflow
 ds/aws           planned: ml_workers, mlflow, redshift
 ds/gcp           planned: ml_workers, mlflow
 da/laptop        runnable
 da/postgres      runnable
 da/snowflake     runnable
-da/databricks    planned: databricks
+da/databricks    runnable
 da/aws           planned: redshift
 da/gcp           runnable
 ```

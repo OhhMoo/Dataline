@@ -163,10 +163,30 @@ def role_imports(role: str) -> tuple[str, ...]:
     return ROLE_IMPORTS[role]
 
 
-def forbidden_imports(role: str) -> tuple[str, ...]:
-    """Everything any other role imports that this one must not have installed."""
+#: Role-forbidden modules a warehouse client set brings as a hard dependency, and so
+#: allowed in an image built with that set (build_episode.py --warehouse-clients):
+#: databricks-sql-connector requires pandas, and dbt-databricks requires the connector
+#: with its pyarrow extra. They come with the client, not with a notebook - no
+#: Jupyter, no kernel - so the role's rule (no tool the role does not get) is kept for
+#: everything else. The installed sets are the client locks the image kept,
+#: /opt/gateway/requirements-<c>.lock (the Dockerfile's client loop).
+CLIENT_IMPORTS: dict[str, tuple[str, ...]] = {
+    # the connector's own dependencies: pandas, openpyxl; dbt-databricks adds pyarrow
+    "databricks": ("openpyxl", "pandas", "pyarrow"),
+}
+CLIENT_LOCK = "/opt/gateway/requirements-{}.lock"
+
+
+def installed_clients() -> tuple[str, ...]:
+    return tuple(c for c in sorted(CLIENT_IMPORTS) if os.path.isfile(CLIENT_LOCK.format(c)))
+
+
+def forbidden_imports(role: str, clients: tuple[str, ...] = ()) -> tuple[str, ...]:
+    """Everything any other role imports that this one must not have installed, less
+    what an installed warehouse client set brings (`CLIENT_IMPORTS`)."""
     every = {m for mods in ROLE_IMPORTS.values() for m in mods}
-    return tuple(sorted(every - set(ROLE_IMPORTS[role])))
+    allowed = {m for c in clients for m in CLIENT_IMPORTS.get(c, ())}
+    return tuple(sorted(every - set(ROLE_IMPORTS[role]) - allowed))
 
 
 def role_probes(role: str):
@@ -177,11 +197,13 @@ def system_imports(role: str) -> tuple[str, ...]:
     return SYSTEM_IMPORTS[role]
 
 
-def system_forbidden(role: str) -> tuple[str, ...]:
+def system_forbidden(role: str, clients: tuple[str, ...] = ()) -> tuple[str, ...]:
     """SYSTEM_IMPORTS another role has that this role's system interpreter must not:
-    absent from ROLE_PYTHON only (the venv's copy is every role's)."""
+    absent from ROLE_PYTHON only (the venv's copy is every role's), less what an
+    installed warehouse client set brings (`CLIENT_IMPORTS`)."""
     every = {m for mods in SYSTEM_IMPORTS.values() for m in mods}
-    return tuple(sorted(every - set(SYSTEM_IMPORTS[role])))
+    allowed = {m for c in clients for m in CLIENT_IMPORTS.get(c, ())}
+    return tuple(sorted(every - set(SYSTEM_IMPORTS[role]) - allowed))
 
 
 def forbidden_binaries(role: str) -> tuple[str, ...]:
@@ -296,15 +318,16 @@ def main() -> int:
     binaries = [probe(*spec) for spec in (*PROBES, *role_probes(role))]
     imports = {m: importable(ROLE_PYTHON, m)
                for m in (*role_imports(role), *system_imports(role))}
+    clients = installed_clients()
     # Absent from BOTH interpreters, and no script left behind on disk.
     forbidden_present = sorted(
-        {f"import {m} ({py})" for m in forbidden_imports(role)
+        {f"import {m} ({py})" for m in forbidden_imports(role, clients)
          for py in (ROLE_PYTHON, TOOLBELT_PYTHON) if importable(py, m)["ok"]}
         | {f"binary {path}" for b in forbidden_binaries(role)
            for path in (shutil.which(b), f"/opt/toolbelt/bin/{b}", f"/usr/local/bin/{b}")
            if path and os.path.exists(path)}
         # The system interpreter only: /opt/toolbelt carries these for every role.
-        | {f"import {m} ({ROLE_PYTHON})" for m in system_forbidden(role)
+        | {f"import {m} ({ROLE_PYTHON})" for m in system_forbidden(role, clients)
            if importable(ROLE_PYTHON, m)["ok"]}
     )
     report = {
@@ -312,6 +335,7 @@ def main() -> int:
         "role_imports": imports,
         "role_imports_failed": sorted(m for m, r in imports.items() if not r["ok"]),
         "role_forbidden_present": forbidden_present,
+        "client_allowed_imports": {c: list(CLIENT_IMPORTS[c]) for c in clients},
         # ds/da: the Jupyter plug's audited kernel must be the one installed.
         "kernelspecs": kernelspecs() if role_imports(role) else None,
         "source_revision": os.environ.get("ALKERA_SOURCE_REV") or None,

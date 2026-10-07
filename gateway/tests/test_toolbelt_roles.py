@@ -445,6 +445,11 @@ def test_toolbelt_check_probes_and_forbids_per_role():
     assert "alkera_gateway.native.notebook" in check.role_imports("da")
     assert {"pandas", "pyarrow", "ipykernel", "jupyter_server"} <= \
         set(check.forbidden_imports("de"))
+    # a client set's hard dependencies are allowed in its image, and nothing more
+    with_dbx = set(check.forbidden_imports("de", ("databricks",)))
+    assert not {"pandas", "pyarrow"} & with_dbx
+    assert {"ipykernel", "jupyter_server", "matplotlib", "polars"} <= with_dbx
+    assert set(check.CLIENT_IMPORTS) <= set(CLIENT_SETS)
     for role in ("ds", "da"):
         argvs = {tuple(argv) for _, argv, _ in check.role_probes(role)}
         assert ("jupyter", "kernelspec", "list") in argvs

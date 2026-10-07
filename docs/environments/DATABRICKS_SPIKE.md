@@ -94,10 +94,50 @@ the box trusts is lost).
 
 The connector over SEA asks for `format: ARROW_STREAM`, `disposition: EXTERNAL_LINKS`
 (cloud fetch) unless `use_cloud_fetch=False`, and builds its result queue from the
-manifest the server answers with. The fake answers JSON_ARRAY inline and ARROW_STREAM
-inline (an Arrow IPC `attachment`, `result_compression: NONE`); it serves no external links
-(there is no cloud storage to presign against), and says so in the manifest rather than
-pretending.
+manifest the server answers with, not from what it asked for. The fake answers every
+statement JSON_ARRAY, inline, in one chunk, and the manifest says `format: JSON_ARRAY`:
+there is no cloud storage to presign external links against, and the values are the
+same. Recorded as a deviation: an SDK caller that asks for EXTERNAL_LINKS gets
+`result.data_array`, not `external_links`.
+
+## Validated against the implementation (locked clients, before the image)
+
+The module served over TLS on a loopback port, a fixture world behind it; the locked
+venv's clients pointed at it:
+
+- connector, `use_sea=True`: SELECT (decimal, date, string columns typed by the manifest),
+  named parameters, CREATE/INSERT, `cursor.tables()` / `cursor.columns()` (sent as
+  `SHOW TABLES|COLUMNS IN CATALOG main SCHEMA LIKE ...`, answered in the column layout the
+  connector's own filter reads), DESCRIBE HISTORY refused by name, and the default
+  Thrift transport refused with the header message;
+- SDK 0.47.0: statements (`POST /api/2.0/sql/statements/`), SCIM Me, catalogs, schemas,
+  tables, table get, warehouses, and Jobs - which this SDK calls at **`/api/2.2/jobs/...`**,
+  so the fake serves 2.1 and 2.2 alike;
+- dbt-databricks 1.10.9 with `connection_parameters: {use_sea: true}`: `dbt debug` OK,
+  `dbt run` of a table and a view model OK (over SEA it opens a session per connection,
+  `SHOW SCHEMAS IN main`, `CREATE SCHEMA IF NOT EXISTS`, `system.information_schema.tables`,
+  `create or replace table ... using delta as ...`).
+
+Two more measurements for port 443: the connector 4.6.0 fetches
+`GET /api/2.0/connector-service/feature-flags/PYTHON/4.6.0` and posts telemetry on port
+**443 whatever `_port` says**; against the loopback port every `dbt` invocation spent
+300 s retrying them. On 443 the fake answers both (empty flags; telemetry accepted and
+recorded).
+
+## The image
+
+The client lock resolves dbt-databricks 1.10.9, databricks-sql-connector 4.6.0,
+databricks-sdk 0.47.0 against the base locks. Two findings:
+
+- **certifi**: the lock pins `certifi==2025.1.31` (`databricks-clients.overrides`), the
+  Snowflake lock's capped version, not because Databricks needs it but because an image
+  built with both client sets installs both locks into one interpreter and the pairwise
+  agreement test (`test_client_locks_agree_with_each_other`) requires one version.
+- **pandas and pyarrow in a de image**: the connector requires pandas and dbt-databricks
+  requires `databricks-sql-connector[pyarrow]`, so `--toolbelt de --warehouse-clients
+  databricks` failed `toolbelt_check`'s de rule (no notebook libraries). The check now
+  allows the hard dependencies of an installed client set (`CLIENT_IMPORTS`), and only
+  those: no Jupyter, no kernel, nothing else of the da/ds roles.
 
 ## The Databricks CLI: not shipped
 
