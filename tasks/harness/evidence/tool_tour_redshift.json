@@ -21,7 +21,7 @@
    "returncode": 0,
    "rows": 3,
    "rows_at": "call",
-   "seconds": 2.89,
+   "seconds": 1.84,
    "stderr_tail": "",
    "stdout_tail": "{\"value\": \"2361224.00\"}\n",
    "tool": "redshift",
@@ -56,7 +56,7 @@
    "returncode": 0,
    "rows": 1,
    "rows_at": "call",
-   "seconds": 0.22,
+   "seconds": 0.14,
    "stderr_tail": "",
    "stdout_tail": "{\"value\": 1068}\n",
    "tool": "redshift",
@@ -92,7 +92,7 @@
    "returncode": 0,
    "rows": 16,
    "rows_at": "call",
-   "seconds": 14.43,
+   "seconds": 8.68,
    "stderr_tail": "",
    "stdout_tail": "{\"value\": 2361224.0}\n",
    "tool": "redshift",
@@ -198,9 +198,9 @@
      },
      {
       "count": 6,
-      "first_ts": "2026-10-07T11:43:42Z",
+      "first_ts": "2026-10-07T12:36:00Z",
       "host": "redshift.internal",
-      "last_ts": "2026-10-07T11:43:54Z",
+      "last_ts": "2026-10-07T12:36:08Z",
       "port": 5439
      },
      {
@@ -234,9 +234,9 @@
    },
    "image": "alkera-episode:w1-redshift",
    "image_gate": {
-    "head": "2d2585dae3fdce200e1c20b045a7c87043421a56",
+    "head": "ae654bac177f313fb5a414121f667cb413919f7d",
     "image": "alkera-episode:w1-redshift",
-    "revision": "2d2585dae3fdce200e1c20b045a7c87043421a56"
+    "revision": "ae654bac177f313fb5a414121f667cb413919f7d"
    },
    "ok": true,
    "plugs": {},
@@ -247,10 +247,10 @@
    ],
    "profile": "de/aws",
    "rows_at": "call",
-   "seconds": 74.1,
+   "seconds": 41.5,
    "seed": "# commerce_analytics world seed: a shop's nightly CDC extracts -> raw -> dbt\n# star schema + semantic layer -> Power BI / Tableau / Sigma dashboards.\ntheme: commerce_analytics    # world/world/themes/<name>/\nseed: 11\nvtime_start: \"2025-01-01T00:00:00Z\"\n# 425 nightly extracts: dt=2024-12-31 (the cutover snapshot: accounts and\n# catalogue, no orders) then dt=2025-01-01 .. dt=2026-02-28. Fourteen months of\n# orders, so last-year measures exist for January and February 2026. The world\n# clock opens at 2026-03-02T00:00Z, a Monday - business day 1 of the February\n# close.\ndays: 425\n\n# Scale. Every key is optional (gen.DEFAULTS); these are the defaults, spelled\n# out. Build time is dominated by dbt, not by volume - a 2x seed builds in about\n# the same time.\ncustomers: 220               # accounts on the platform at cutover\nsignup_pct: 18               # chance per day of a new account (a second at a quarter of it)\nupdate_pct: 9                # chance per day that one account is upgraded a segment\norders_per_day: [20, 60]     # base range, scaled by weekday, month, peak days and growth\nlines_per_order: [1, 4]\ncancel_pct: 6                # 70% the same day, the rest the next day\nrefund_pct: 4                # 3 to 45 days after the order\ngrowth_pct: 20               # year-over-year order volume growth\n\ngit_author: \"Analytics Engineering <analytics@example.com>\"\nnative: true\nfiles: {formats: [parquet]}\nprofile:\n  name: de/aws\n  slots: [files, warehouse, transform, orchestrator, object_store, ingest, bi, observability, release, human]\n  plugs: {bi: [tableau]}\n",
    "stack": {
-    "container_id": "b55b3bfd7da5",
+    "container_id": "19bd4f8a0ab7",
     "episode_endpoints": {
      "airbyte": "http://airbyte.internal:8001",
      "alertmanager": "http://alertmanager.internal:9093",
@@ -277,7 +277,7 @@
      "tableau": "http://tableau.internal:8096"
     },
     "image": "alkera-episode:w1-redshift",
-    "image_digest": "sha256:43d7cdfeafbaedc25cfea504ed24deb5c26119a7b0959a890e78762a17fc38cb",
+    "image_digest": "sha256:0085f0c19d90d96e7c5daa8beacc1eb61d550b92bb0a8226c5381d82a425df71",
     "services": [
      "episode",
      "minio",
@@ -295,7 +295,7 @@
      "ALKERA_SHIM_BIN": "/opt/alkera/shims",
      "ALKERA_SHIM_WATCH": "/world/var/warehouse/warehouse.duckdb",
      "ALKERA_SHIM_WORKSPACE": "/workspace",
-     "ALKERA_SOURCE_REV": "2d2585dae3fdce200e1c20b045a7c87043421a56",
+     "ALKERA_SOURCE_REV": "ae654bac177f313fb5a414121f667cb413919f7d",
      "ALKERA_TOOLBELT": "de",
      "ALKERA_VIRTUAL_TIME": "2026-03-02T00:00:00Z",
      "ALKERA_WAREHOUSES": "",
@@ -351,9 +351,9 @@
    }
   }
  ],
- "revision": "2d2585dae3fdce200e1c20b045a7c87043421a56",
- "seconds": 74.3,
- "started": 1791373369.6473227,
+ "revision": "ae654bac177f313fb5a414121f667cb413919f7d",
+ "seconds": 41.5,
+ "started": 1791376533.8272874,
  "summary": {
   "DOC": 0,
   "FAIL": 0,
