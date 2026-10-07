@@ -1,10 +1,19 @@
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, model_validator
 
 from . import plugs as plug_catalog
 from .warehouse_spec import NAME_PATTERN, WarehouseSpec
+
+#: The validation context the NATIVE SERVICES read a config with
+#: (`GatewayConfig.for_services`): `native/context.process_context`, which every
+#: service resolves its world through per request, and the `./ops/sched` shim,
+#: which reads the same file.
+_READER = "alkera_config_reader"
+SERVICES = {_READER: "services"}
+#: The warehouse plugs `warehouse_backend` can name.
+_BACKEND_PLUGS = ("duckdb", "postgres", "snowflake", "bigquery")
 
 
 class GatewayConfig(BaseModel):
@@ -57,7 +66,7 @@ class GatewayConfig(BaseModel):
     sql_timeout_s: int = Field(default=30, ge=1)
 
     @model_validator(mode="after")
-    def resolve_paths(self):
+    def resolve_paths(self, info: ValidationInfo):
         for name in (
             "workspace",
             "warehouse",
@@ -117,7 +126,17 @@ class GatewayConfig(BaseModel):
             profile = plug_catalog.resolve(self.profile, self.plugs)
             plug = next(iter(profile.slots.get("warehouse", ())), None)
             backend = self.warehouse_backend
-            if plug in ("duckdb", "postgres", "snowflake", "bigquery") and plug != backend:
+            # The MCP gateway's tie, not the services': `warehouse_backend` is
+            # how the GATEWAY's sql_* reach the warehouse, and a gateway serving
+            # a Snowflake box's tool table over the world's DuckDB file would
+            # misdescribe the box. The services never reach the warehouse
+            # through it - they serve the world's files, take their selection
+            # from serve.py's --profile/--plug, and a backend is its own
+            # process - so a services config naming da/snowflake over the
+            # DuckDB file is a correct one (for_services). Every other rule in
+            # this validator holds for both readers.
+            for_services = (info.context or {}).get(_READER) == SERVICES[_READER]
+            if plug in _BACKEND_PLUGS and plug != backend and not for_services:
                 raise ValueError(
                     f"profile warehouse plug {plug!r} disagrees with "
                     f"warehouse_backend {backend!r}"
@@ -131,3 +150,12 @@ class GatewayConfig(BaseModel):
     @classmethod
     def load(cls, path: Path):
         return cls.model_validate_json(path.read_text(encoding="utf-8"))
+
+    @classmethod
+    def for_services(cls, raw: str | bytes):
+        """The config as the native services read it: every rule `load` applies
+        except the profile's warehouse plug against `warehouse_backend`, which
+        is the MCP gateway's (see `resolve_paths`). Until this existed every
+        service validated a profiled config as the gateway does, at its first
+        request, and answered 500 on da/snowflake, de/postgres and de/gcp."""
+        return cls.model_validate_json(raw, context=SERVICES)

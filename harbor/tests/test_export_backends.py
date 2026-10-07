@@ -176,9 +176,11 @@ def test_a_remote_warehouse_profile_stays_out_of_the_services_config(tmp_path):
     """GatewayConfig ties a profile's warehouse plug (duckdb, postgres, snowflake,
     bigquery) to the config's own warehouse_backend - how the gateway reaches the
     warehouse, here the world's DuckDB file - and every service validates its
-    config at its first request: a config naming da/snowflake is a 500 on
-    jira.internal. The exporter keeps such a profile out of the config (the
-    services take it from --profile); a profile the config accepts stays in it."""
+    config at its first request: a config naming da/snowflake was a 500 on
+    jira.internal until the services read it with GatewayConfig.for_services.
+    The exporter still keeps such a profile out of the config (the services
+    take it from --profile; worldbuild.stage_built_world says why the drop is
+    kept); a profile the config accepts stays in it."""
     import json
 
     from alkera_harbor import worldbuild

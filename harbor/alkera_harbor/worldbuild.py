@@ -306,8 +306,15 @@ def stage_built_world(world: dict, rollout: Path, *, variant: Variant,
             # and is validated against the config's own warehouse_backend, which
             # names how the GATEWAY reaches the warehouse - the world's DuckDB file
             # here, whatever remote copy a backend serves the agent. A config that
-            # names a remote warehouse plug is refused by every service at its
+            # names a remote warehouse plug was refused by every service at its
             # first request (a 500), so it does not name the profile.
+            # KEPT after the shared fix: the services now read their config with
+            # GatewayConfig.for_services (gateway/src/alkera_gateway/config.py),
+            # which accepts such a config, so a gateway built from this tree no
+            # longer needs the drop. Removing it would change the exported
+            # gateway.json of every da/snowflake, de/postgres and de/gcp variant
+            # (it would gain `profile`/`plugs`), and an image whose gateway predates
+            # the fix would answer 500 again - so it stays until those are rebuilt.
             gateway_config = m.episode.write_gateway_config(
                 rollout / "gateway.json", world, rollout / "audit", GATEWAY_EPISODE_ID,
                 world.get("virtual_time") or "", service_state=True)
@@ -400,6 +407,9 @@ def stage_built_world(world: dict, rollout: Path, *, variant: Variant,
 
 #: GatewayConfig's one refusal a profiled services config may hit by design: a
 #: remote warehouse plug against the gateway's own (DuckDB) warehouse_backend.
+#: The MCP gateway's rule (`GatewayConfig.load`); the services no longer apply
+#: it (`GatewayConfig.for_services`) - see stage_built_world for why the
+#: exporter still does.
 GATEWAY_PROFILE_REFUSAL = "disagrees with warehouse_backend"
 
 
