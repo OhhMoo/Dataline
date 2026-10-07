@@ -1,0 +1,1024 @@
+{
+ "schema": "alkera-harbor-backends-evidence/1",
+ "rev": "3f24ebc",
+ "command": "ALKERA_DOCKER_TESTS=1 ALKERA_DOCKER_SG=1 ALKERA_BACKEND_EVIDENCE=<dir> gateway/.venv/bin/python -m pytest harbor/tests/test_env_docker_backends.py -v",
+ "pytest": "======================== 6 passed in 417.54s (0:06:57) =========================",
+ "refused": {
+  "bigquery": "variant.REFUSED_WAREHOUSES (the emulator answers on loopback TCP with no credential check; one container cannot fence it from the agent: no NET_ADMIN, unshare EPERM, measured)"
+ },
+ "backends": {
+  "airflow": {
+   "profile": "de/laptop",
+   "plugs": {
+    "orchestrator": [
+     "airflow"
+    ]
+   },
+   "variant": "de/laptop+orchestrator=airflow [role de, clients airflow]",
+   "processes": [],
+   "statement_logs": null,
+   "world_build_s": 8.6,
+   "image_build_s": 100.6,
+   "world_up_s": 4.0,
+   "budget_s": 90.0,
+   "backend_listening_after_s": null,
+   "seed": null,
+   "world_up": [
+    "world-up: gateway config: /opt/alkera/gateway.json",
+    "world-up: started the services (pid 12)",
+    "world-up: /etc/hosts: 11 *.internal names -> 127.0.0.1",
+    "world-up: healthy: 11 destinations answer /health (4 report an empty slice of this world: airbyte.internal:8001, alertmanager.internal:9093, deploy.internal:8085, prometheus.internal:9090)",
+    "world-up: watermark: 11 action rows precede the episode (the last is episode.start, seq 11)"
+   ],
+   "world_down": [
+    "world-down: services stopped: {'terminated': [12], 'killed': []}",
+    "world-down: synced; /world, /workspace and /audit are readable for collection"
+   ],
+   "listening_ports": [
+    3000,
+    3100,
+    8001,
+    8080,
+    8081,
+    8085,
+    8090,
+    8099,
+    8100,
+    9090,
+    9093
+   ],
+   "engineer_checks": [
+    "PASS AIRFLOW_API_URL",
+    "PASS no SCHED_URL (airflow replaces the scheduler)",
+    "PASS airflow.internal resolves",
+    "PASS airflowctl installed"
+   ],
+   "probes": [
+    {
+     "id": "airflow.rest.dbt_build_successes",
+     "verdict": "PASS",
+     "failures": [],
+     "value": 425,
+     "truth": 425,
+     "rows": 2,
+     "tools": [
+      "airflow.auth_token",
+      "airflow.task_list"
+     ],
+     "seconds": 0.4,
+     "destinations": {
+      "airflow.internal:8100": 2
+     }
+    },
+    {
+     "id": "airflow.airflowctl.commerce_nightly_schedule",
+     "verdict": "PASS",
+     "failures": [],
+     "value": "30 2 * * *",
+     "truth": "30 2 * * *",
+     "rows": 2,
+     "tools": [
+      "airflow.auth_token",
+      "airflow.dag_get"
+     ],
+     "seconds": 3.9,
+     "destinations": {
+      "airflow.internal:8100": 2
+     }
+    }
+   ],
+   "rows_folded_at_teardown": 0,
+   "destinations_folded": [
+    {
+     "count": 1,
+     "first_ts": "2026-10-07T14:53:49Z",
+     "host": "metabase.internal",
+     "last_ts": "2026-10-07T14:53:49Z",
+     "port": 3000
+    },
+    {
+     "count": 1,
+     "first_ts": "2026-10-07T14:53:49Z",
+     "host": "loki.internal",
+     "last_ts": "2026-10-07T14:53:49Z",
+     "port": 3100
+    },
+    {
+     "count": 1,
+     "first_ts": "2026-10-07T14:53:50Z",
+     "host": "airbyte.internal",
+     "last_ts": "2026-10-07T14:53:50Z",
+     "port": 8001
+    },
+    {
+     "count": 1,
+     "first_ts": "2026-10-07T14:53:50Z",
+     "host": "jira.internal",
+     "last_ts": "2026-10-07T14:53:50Z",
+     "port": 8080
+    },
+    {
+     "count": 1,
+     "first_ts": "2026-10-07T14:53:50Z",
+     "host": "slack.internal",
+     "last_ts": "2026-10-07T14:53:50Z",
+     "port": 8081
+    },
+    {
+     "count": 1,
+     "first_ts": "2026-10-07T14:53:50Z",
+     "host": "deploy.internal",
+     "last_ts": "2026-10-07T14:53:50Z",
+     "port": 8085
+    },
+    {
+     "count": 1,
+     "first_ts": "2026-10-07T14:53:50Z",
+     "host": "confluence.internal",
+     "last_ts": "2026-10-07T14:53:50Z",
+     "port": 8090
+    },
+    {
+     "count": 1,
+     "first_ts": "2026-10-07T14:53:49Z",
+     "host": "native-services.internal",
+     "last_ts": "2026-10-07T14:53:49Z",
+     "port": 8099
+    },
+    {
+     "count": 5,
+     "first_ts": "2026-10-07T14:53:50Z",
+     "host": "airflow.internal",
+     "last_ts": "2026-10-07T14:53:56Z",
+     "port": 8100
+    },
+    {
+     "count": 1,
+     "first_ts": "2026-10-07T14:53:50Z",
+     "host": "prometheus.internal",
+     "last_ts": "2026-10-07T14:53:50Z",
+     "port": 9090
+    },
+    {
+     "count": 1,
+     "first_ts": "2026-10-07T14:53:50Z",
+     "host": "alertmanager.internal",
+     "last_ts": "2026-10-07T14:53:50Z",
+     "port": 9093
+    }
+   ],
+   "left_running_after_world_down": []
+  },
+  "databricks": {
+   "profile": "de/databricks",
+   "plugs": {},
+   "variant": "de/databricks [role de, clients databricks]",
+   "processes": [],
+   "statement_logs": null,
+   "world_build_s": 13.1,
+   "image_build_s": 35.2,
+   "world_up_s": 6.9,
+   "budget_s": 90.0,
+   "backend_listening_after_s": null,
+   "seed": null,
+   "world_up": [
+    "world-up: gateway config: /opt/alkera/gateway.json",
+    "world-up: started the services (pid 13)",
+    "world-up: /etc/hosts: 12 *.internal names -> 127.0.0.1",
+    "world-up: healthy: 12 destinations answer /health (4 report an empty slice of this world: airbyte.internal:8001, alertmanager.internal:9093, deploy.internal:8085, prometheus.internal:9090)",
+    "world-up: watermark: 12 action rows precede the episode (the last is episode.start, seq 12)"
+   ],
+   "world_down": [
+    "world-down: stopped 1 leftover agent process(es) (uid 1000): {'terminated': [227], 'killed': []}",
+    "world-down: services stopped: {'terminated': [13], 'killed': []}",
+    "world-down: service state copied for the verifier: /var/lib/alkera/service-state -> /audit/service-state (2 file(s))",
+    "world-down: synced; /world, /workspace and /audit are readable for collection"
+   ],
+   "listening_ports": [
+    443,
+    3100,
+    8001,
+    8080,
+    8081,
+    8085,
+    8090,
+    8095,
+    8099,
+    8120,
+    9090,
+    9093
+   ],
+   "engineer_checks": [
+    "PASS trust names the minted bundle",
+    "PASS the certificate names databricks.internal",
+    "PASS https://databricks.internal answers, verified",
+    "PASS the private key's directory exists",
+    "PASS cannot read the private key",
+    "PASS cannot read the services' state (the lakehouse copy)"
+   ],
+   "probes": [
+    {
+     "id": "databricks.sdk.net_revenue_feb_2026",
+     "verdict": "PASS",
+     "failures": [],
+     "value": "2361224.00",
+     "truth": "2361224.00",
+     "rows": 2,
+     "tools": [
+      "databricks.statement",
+      "shim.python"
+     ],
+     "seconds": 4.7,
+     "destinations": {
+      "databricks.internal:443": 1
+     }
+    },
+    {
+     "id": "databricks.connector.completed_orders_feb_2026",
+     "verdict": "PASS",
+     "failures": [],
+     "value": 1068,
+     "truth": 1068,
+     "rows": 6,
+     "tools": [
+      "databricks.session_create",
+      "databricks.feature_flags",
+      "databricks.statement",
+      "databricks.statement_close",
+      "databricks.session_delete",
+      "shim.python"
+     ],
+     "seconds": 4.2,
+     "destinations": {
+      "databricks.internal:443": 2
+     }
+    },
+    {
+     "id": "databricks.rest.net_revenue",
+     "verdict": "PASS",
+     "failures": [],
+     "value": "33733790.00",
+     "truth": "33733790.00",
+     "rows": 2,
+     "tools": [
+      "databricks.statement",
+      "shim.python"
+     ],
+     "seconds": 1.2,
+     "destinations": {
+      "databricks.internal:443": 1
+     }
+    },
+    {
+     "id": "databricks.uc.fct_orders_columns",
+     "verdict": "PASS",
+     "failures": [],
+     "value": 6,
+     "truth": 6,
+     "rows": 2,
+     "tools": [
+      "databricks.table_get",
+      "shim.python"
+     ],
+     "seconds": 2.3,
+     "destinations": {
+      "databricks.internal:443": 1
+     }
+    },
+    {
+     "id": "databricks.dbt.net_revenue_feb_2026",
+     "verdict": "PASS",
+     "failures": [],
+     "value": 2361224.0,
+     "truth": "2361224.00",
+     "rows": 15,
+     "tools": [
+      "databricks.session_create",
+      "databricks.feature_flags",
+      "databricks.statement",
+      "databricks.statement_close",
+      "databricks.session_delete",
+      "databricks.session_create",
+      "databricks.statement",
+      "databricks.statement_close",
+      "databricks.session_delete",
+      "databricks.session_create",
+      "databricks.statement",
+      "databricks.statement_close",
+      "databricks.session_delete",
+      "shim.dbt",
+      "shim.python"
+     ],
+     "seconds": 11.6,
+     "destinations": {
+      "databricks.internal:443": 4
+     }
+    },
+    {
+     "id": "databricks.jobs.run_now_bi_refresh",
+     "verdict": "PASS",
+     "failures": [],
+     "value": 1276,
+     "truth": 1276,
+     "rows": 4,
+     "tools": [
+      "databricks.sched_list",
+      "databricks.sched_trigger",
+      "databricks.sched_state",
+      "shim.python"
+     ],
+     "seconds": 3.4,
+     "destinations": {
+      "databricks.internal:443": 1
+     }
+    }
+   ],
+   "rows_folded_at_teardown": 0,
+   "destinations_folded": [
+    {
+     "count": 12,
+     "first_ts": "2026-10-07T14:55:11Z",
+     "host": "databricks.internal",
+     "last_ts": "2026-10-07T14:55:42Z",
+     "port": 443
+    },
+    {
+     "count": 1,
+     "first_ts": "2026-10-07T14:55:11Z",
+     "host": "loki.internal",
+     "last_ts": "2026-10-07T14:55:11Z",
+     "port": 3100
+    },
+    {
+     "count": 1,
+     "first_ts": "2026-10-07T14:55:12Z",
+     "host": "airbyte.internal",
+     "last_ts": "2026-10-07T14:55:12Z",
+     "port": 8001
+    },
+    {
+     "count": 1,
+     "first_ts": "2026-10-07T14:55:12Z",
+     "host": "jira.internal",
+     "last_ts": "2026-10-07T14:55:12Z",
+     "port": 8080
+    },
+    {
+     "count": 1,
+     "first_ts": "2026-10-07T14:55:12Z",
+     "host": "slack.internal",
+     "last_ts": "2026-10-07T14:55:12Z",
+     "port": 8081
+    },
+    {
+     "count": 1,
+     "first_ts": "2026-10-07T14:55:12Z",
+     "host": "deploy.internal",
+     "last_ts": "2026-10-07T14:55:12Z",
+     "port": 8085
+    },
+    {
+     "count": 1,
+     "first_ts": "2026-10-07T14:55:12Z",
+     "host": "confluence.internal",
+     "last_ts": "2026-10-07T14:55:12Z",
+     "port": 8090
+    },
+    {
+     "count": 1,
+     "first_ts": "2026-10-07T14:55:12Z",
+     "host": "powerbi.internal",
+     "last_ts": "2026-10-07T14:55:12Z",
+     "port": 8095
+    },
+    {
+     "count": 1,
+     "first_ts": "2026-10-07T14:55:11Z",
+     "host": "native-services.internal",
+     "last_ts": "2026-10-07T14:55:11Z",
+     "port": 8099
+    },
+    {
+     "count": 1,
+     "first_ts": "2026-10-07T14:55:12Z",
+     "host": "sched.internal",
+     "last_ts": "2026-10-07T14:55:12Z",
+     "port": 8120
+    },
+    {
+     "count": 1,
+     "first_ts": "2026-10-07T14:55:12Z",
+     "host": "prometheus.internal",
+     "last_ts": "2026-10-07T14:55:12Z",
+     "port": 9090
+    },
+    {
+     "count": 1,
+     "first_ts": "2026-10-07T14:55:12Z",
+     "host": "alertmanager.internal",
+     "last_ts": "2026-10-07T14:55:12Z",
+     "port": 9093
+    }
+   ],
+   "left_running_after_world_down": []
+  },
+  "postgres": {
+   "profile": "de/postgres",
+   "plugs": {},
+   "variant": "de/postgres [role de, clients none]",
+   "processes": [
+    {
+     "name": "postgres",
+     "user": "postgres",
+     "ports": [
+      5432
+     ],
+     "hosts": [
+      "postgres.internal"
+     ],
+     "health": "tcp"
+    }
+   ],
+   "statement_logs": [
+    {
+     "log": "/var/lib/alkera/postgres/log/postgresql.log",
+     "tailer": "alkera_gateway.native.tailers.postgres"
+    }
+   ],
+   "world_build_s": 9.4,
+   "image_build_s": 21.9,
+   "world_up_s": 6.6,
+   "budget_s": 90.0,
+   "backend_listening_after_s": 4.5,
+   "seed": {
+    "seconds": 4.11,
+    "tables": 5
+   },
+   "world_up": [
+    "world-up: gateway config: /opt/alkera/gateway.json",
+    "world-up: started the services (pid 13)",
+    "world-up: backend postgres: started (pid 14, as postgres)",
+    "world-up: backend postgres: listening on [5432] after 4.5s",
+    "world-up: backends listening: postgres [5432]",
+    "world-up: /etc/hosts: 12 *.internal names -> 127.0.0.1",
+    "world-up: healthy: 11 destinations answer /health (4 report an empty slice of this world: airbyte.internal:8001, alertmanager.internal:9093, deploy.internal:8085, prometheus.internal:9090)",
+    "world-up: watermark: 11 action rows precede the episode (the last is episode.start, seq 11)"
+   ],
+   "world_down": [
+    "world-down: stopped 3 leftover agent process(es) (uid 1000): {'terminated': [185, 197, 227], 'killed': []}",
+    "world-down: backend postgres stopped: {'terminated': [14], 'killed': []}",
+    "world-down: services stopped: {'terminated': [13], 'killed': []}",
+    "world-down: statement log /var/lib/alkera/postgres/log/postgresql.log: 30 row(s) folded into actions.jsonl by alkera_gateway.native.tailers.postgres",
+    "world-down: synced; /world, /workspace and /audit are readable for collection"
+   ],
+   "listening_ports": [
+    3000,
+    3100,
+    5432,
+    8001,
+    8080,
+    8081,
+    8085,
+    8090,
+    8099,
+    8120,
+    9090,
+    9093
+   ],
+   "engineer_checks": [
+    "PASS PG* name the agent's role",
+    "PASS the superuser cannot log in over TCP",
+    "PASS compose's owner role cannot log in",
+    "PASS the seeded schema's owner cannot log in",
+    "PASS the agent's role cannot turn its own logging off",
+    "PASS the agent's role is no superuser",
+    "PASS cannot enter the server's data, socket or log"
+   ],
+   "probes": [
+    {
+     "id": "postgres.psql.net_revenue_feb_2026",
+     "verdict": "PASS",
+     "failures": [],
+     "value": "2361224.00",
+     "truth": "2361224.00",
+     "rows": 35,
+     "tools": [
+      "shim.git",
+      "shim.dbt",
+      "shim.dbt",
+      "shim.dbt",
+      "shim.python",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement"
+     ],
+     "seconds": 0.1,
+     "destinations": {}
+    },
+    {
+     "id": "postgres_dbt.run.net_revenue_feb_2026",
+     "verdict": "PASS",
+     "failures": [],
+     "value": 2361224.0,
+     "truth": "2361224.00",
+     "rows": 35,
+     "tools": [
+      "shim.git",
+      "shim.dbt",
+      "shim.dbt",
+      "shim.dbt",
+      "shim.python",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement",
+      "psql.statement"
+     ],
+     "seconds": 15.1,
+     "destinations": {}
+    }
+   ],
+   "rows_folded_at_teardown": 30,
+   "destinations_folded": [
+    {
+     "count": 1,
+     "first_ts": "2026-10-07T14:58:31Z",
+     "host": "metabase.internal",
+     "last_ts": "2026-10-07T14:58:31Z",
+     "port": 3000
+    },
+    {
+     "count": 1,
+     "first_ts": "2026-10-07T14:58:31Z",
+     "host": "loki.internal",
+     "last_ts": "2026-10-07T14:58:31Z",
+     "port": 3100
+    },
+    {
+     "count": 1,
+     "first_ts": "2026-10-07T14:58:32Z",
+     "host": "airbyte.internal",
+     "last_ts": "2026-10-07T14:58:32Z",
+     "port": 8001
+    },
+    {
+     "count": 1,
+     "first_ts": "2026-10-07T14:58:32Z",
+     "host": "jira.internal",
+     "last_ts": "2026-10-07T14:58:32Z",
+     "port": 8080
+    },
+    {
+     "count": 1,
+     "first_ts": "2026-10-07T14:58:32Z",
+     "host": "slack.internal",
+     "last_ts": "2026-10-07T14:58:32Z",
+     "port": 8081
+    },
+    {
+     "count": 1,
+     "first_ts": "2026-10-07T14:58:32Z",
+     "host": "deploy.internal",
+     "last_ts": "2026-10-07T14:58:32Z",
+     "port": 8085
+    },
+    {
+     "count": 1,
+     "first_ts": "2026-10-07T14:58:32Z",
+     "host": "confluence.internal",
+     "last_ts": "2026-10-07T14:58:32Z",
+     "port": 8090
+    },
+    {
+     "count": 1,
+     "first_ts": "2026-10-07T14:58:31Z",
+     "host": "native-services.internal",
+     "last_ts": "2026-10-07T14:58:31Z",
+     "port": 8099
+    },
+    {
+     "count": 1,
+     "first_ts": "2026-10-07T14:58:32Z",
+     "host": "sched.internal",
+     "last_ts": "2026-10-07T14:58:32Z",
+     "port": 8120
+    },
+    {
+     "count": 1,
+     "first_ts": "2026-10-07T14:58:32Z",
+     "host": "prometheus.internal",
+     "last_ts": "2026-10-07T14:58:32Z",
+     "port": 9090
+    },
+    {
+     "count": 1,
+     "first_ts": "2026-10-07T14:58:32Z",
+     "host": "alertmanager.internal",
+     "last_ts": "2026-10-07T14:58:32Z",
+     "port": 9093
+    }
+   ],
+   "left_running_after_world_down": []
+  },
+  "redshift": {
+   "profile": "de/aws",
+   "plugs": {},
+   "variant": "de/aws [role de, clients redshift]",
+   "processes": [
+    {
+     "name": "redshift",
+     "user": "root",
+     "ports": [
+      5439
+     ],
+     "hosts": [
+      "redshift.internal"
+     ],
+     "health": "tcp"
+    }
+   ],
+   "statement_logs": null,
+   "world_build_s": 10.2,
+   "image_build_s": 29.9,
+   "world_up_s": 8.3,
+   "budget_s": 90.0,
+   "backend_listening_after_s": 5.7,
+   "seed": {
+    "seconds": 1.71,
+    "tables": 13
+   },
+   "world_up": [
+    "world-up: gateway config: /opt/alkera/gateway.json",
+    "world-up: started the services (pid 14)",
+    "world-up: backend redshift: started (pid 15, as root)",
+    "world-up: backend redshift: listening on [5439] after 5.7s",
+    "world-up: backends listening: redshift [5439]",
+    "world-up: /etc/hosts: 12 *.internal names -> 127.0.0.1",
+    "world-up: healthy: 11 destinations answer /health (4 report an empty slice of this world: airbyte.internal:8001, alertmanager.internal:9093, deploy.internal:8085, prometheus.internal:9090)",
+    "world-up: watermark: 11 action rows precede the episode (the last is episode.start, seq 11)"
+   ],
+   "world_down": [
+    "world-down: stopped 1 leftover agent process(es) (uid 1000): {'terminated': [225], 'killed': []}",
+    "world-down: backend redshift stopped: {'terminated': [15, 36], 'killed': []}",
+    "world-down: services stopped: {'terminated': [14], 'killed': []}",
+    "world-down: folded destinations.redshift.jsonl into destinations.jsonl (12 destination(s))",
+    "world-down: service state copied for the verifier: /var/lib/alkera/service-state -> /audit/service-state (3 file(s))",
+    "world-down: synced; /world, /workspace and /audit are readable for collection"
+   ],
+   "listening_ports": [
+    3100,
+    5439,
+    8001,
+    8080,
+    8081,
+    8085,
+    8090,
+    8096,
+    8099,
+    8120,
+    9090,
+    9093
+   ],
+   "engineer_checks": [
+    "PASS the superuser is refused at the proxy, by name",
+    "PASS cannot reach the server's socket directly",
+    "PASS cannot list the server's data",
+    "PASS cannot read the proxy's statement record",
+    "PASS cannot read the start script's directory",
+    "PASS REDSHIFT_*"
+   ],
+   "probes": [
+    {
+     "id": "redshift.connector.net_revenue_feb_2026",
+     "verdict": "PASS",
+     "failures": [],
+     "value": "2361224.00",
+     "truth": "2361224.00",
+     "rows": 3,
+     "tools": [
+      "redshift.statement",
+      "redshift.statement",
+      "shim.python"
+     ],
+     "seconds": 2.2,
+     "destinations": {
+      "redshift.internal:5439": 1
+     }
+    },
+    {
+     "id": "redshift.psql.completed_orders_feb_2026",
+     "verdict": "PASS",
+     "failures": [],
+     "value": 1068,
+     "truth": 1068,
+     "rows": 1,
+     "tools": [
+      "redshift.statement"
+     ],
+     "seconds": 0.1,
+     "destinations": {
+      "redshift.internal:5439": 1
+     }
+    },
+    {
+     "id": "redshift.dbt.show_net_revenue_feb_2026",
+     "verdict": "PASS",
+     "failures": [],
+     "value": 2361224.0,
+     "truth": "2361224.00",
+     "rows": 16,
+     "tools": [
+      "redshift.statement",
+      "redshift.statement",
+      "redshift.statement",
+      "redshift.statement",
+      "redshift.statement",
+      "redshift.statement",
+      "redshift.statement",
+      "redshift.statement",
+      "redshift.statement",
+      "redshift.statement",
+      "redshift.statement",
+      "redshift.statement",
+      "redshift.statement",
+      "redshift.statement",
+      "shim.dbt",
+      "shim.python"
+     ],
+     "seconds": 12.1,
+     "destinations": {
+      "redshift.internal:5439": 4
+     }
+    }
+   ],
+   "rows_folded_at_teardown": 0,
+   "destinations_folded": [
+    {
+     "count": 1,
+     "first_ts": "2026-10-07T14:56:41Z",
+     "host": "airbyte.internal",
+     "last_ts": "2026-10-07T14:56:41Z",
+     "port": 8001
+    },
+    {
+     "count": 1,
+     "first_ts": "2026-10-07T14:56:41Z",
+     "host": "alertmanager.internal",
+     "last_ts": "2026-10-07T14:56:41Z",
+     "port": 9093
+    },
+    {
+     "count": 1,
+     "first_ts": "2026-10-07T14:56:41Z",
+     "host": "confluence.internal",
+     "last_ts": "2026-10-07T14:56:41Z",
+     "port": 8090
+    },
+    {
+     "count": 1,
+     "first_ts": "2026-10-07T14:56:41Z",
+     "host": "deploy.internal",
+     "last_ts": "2026-10-07T14:56:41Z",
+     "port": 8085
+    },
+    {
+     "count": 1,
+     "first_ts": "2026-10-07T14:56:41Z",
+     "host": "jira.internal",
+     "last_ts": "2026-10-07T14:56:41Z",
+     "port": 8080
+    },
+    {
+     "count": 1,
+     "first_ts": "2026-10-07T14:56:40Z",
+     "host": "loki.internal",
+     "last_ts": "2026-10-07T14:56:40Z",
+     "port": 3100
+    },
+    {
+     "count": 1,
+     "first_ts": "2026-10-07T14:56:40Z",
+     "host": "native-services.internal",
+     "last_ts": "2026-10-07T14:56:40Z",
+     "port": 8099
+    },
+    {
+     "count": 1,
+     "first_ts": "2026-10-07T14:56:41Z",
+     "host": "prometheus.internal",
+     "last_ts": "2026-10-07T14:56:41Z",
+     "port": 9090
+    },
+    {
+     "count": 7,
+     "first_ts": "2026-10-07T14:56:43Z",
+     "host": "redshift.internal",
+     "last_ts": "2026-10-07T14:56:56Z",
+     "port": 5439
+    },
+    {
+     "count": 1,
+     "first_ts": "2026-10-07T14:56:41Z",
+     "host": "sched.internal",
+     "last_ts": "2026-10-07T14:56:41Z",
+     "port": 8120
+    },
+    {
+     "count": 1,
+     "first_ts": "2026-10-07T14:56:41Z",
+     "host": "slack.internal",
+     "last_ts": "2026-10-07T14:56:41Z",
+     "port": 8081
+    },
+    {
+     "count": 1,
+     "first_ts": "2026-10-07T14:56:41Z",
+     "host": "tableau.internal",
+     "last_ts": "2026-10-07T14:56:41Z",
+     "port": 8096
+    }
+   ],
+   "left_running_after_world_down": []
+  },
+  "snowflake": {
+   "profile": "da/snowflake",
+   "plugs": {},
+   "variant": "da/snowflake [role da, clients snowflake]",
+   "processes": [
+    {
+     "name": "snowflake",
+     "user": "root",
+     "ports": [
+      8443
+     ],
+     "hosts": [
+      "snowflake.internal"
+     ],
+     "health": "tcp"
+    }
+   ],
+   "statement_logs": null,
+   "world_build_s": 10.5,
+   "image_build_s": 22.4,
+   "world_up_s": 5.2,
+   "budget_s": 90.0,
+   "backend_listening_after_s": 3.7,
+   "seed": {
+    "seconds": null,
+    "tables": 13
+   },
+   "world_up": [
+    "world-up: gateway config: /opt/alkera/gateway.json",
+    "world-up: started the services (pid 13)",
+    "world-up: backend snowflake: started (pid 14, as root)",
+    "world-up: backend snowflake: listening on [8443] after 3.7s",
+    "world-up: backends listening: snowflake [8443]",
+    "world-up: /etc/hosts: 6 *.internal names -> 127.0.0.1",
+    "world-up: healthy: 5 destinations answer /health",
+    "world-up: watermark: 5 action rows precede the episode (the last is episode.start, seq 5)"
+   ],
+   "world_down": [
+    "world-down: backend snowflake stopped: {'terminated': [14], 'killed': []}",
+    "world-down: services stopped: {'terminated': [13], 'killed': []}",
+    "world-down: folded destinations.snowflake.jsonl into destinations.jsonl (6 destination(s))",
+    "world-down: service state copied for the verifier: /var/lib/alkera/service-state -> /audit/service-state (1 file(s))",
+    "world-down: synced; /world, /workspace and /audit are readable for collection"
+   ],
+   "listening_ports": [
+    8080,
+    8081,
+    8090,
+    8097,
+    8099,
+    8443
+   ],
+   "engineer_checks": [
+    "PASS REQUESTS_CA_BUNDLE",
+    "PASS the minted certificate names snowflake.internal",
+    "PASS the bundle carries it",
+    "PASS cannot read the private key",
+    "PASS cannot enter fakesnow's data and socket",
+    "PASS cannot reach the fakesnow upstream socket",
+    "PASS cannot run the backend's interpreter",
+    "PASS the box keeps its own sqlglot",
+    "PASS fakesnow is not the box's"
+   ],
+   "probes": [
+    {
+     "id": "snowflake.connector.net_revenue_feb_2026",
+     "verdict": "PASS",
+     "failures": [],
+     "value": "2361224.0",
+     "truth": "2361224.00",
+     "rows": 2,
+     "tools": [
+      "snowflake.statement",
+      "shim.python"
+     ],
+     "seconds": 3.4,
+     "destinations": {
+      "snowflake.internal:8443": 1
+     }
+    }
+   ],
+   "rows_folded_at_teardown": 0,
+   "destinations_folded": [
+    {
+     "count": 1,
+     "first_ts": "2026-10-07T14:57:39Z",
+     "host": "confluence.internal",
+     "last_ts": "2026-10-07T14:57:39Z",
+     "port": 8090
+    },
+    {
+     "count": 1,
+     "first_ts": "2026-10-07T14:57:39Z",
+     "host": "jira.internal",
+     "last_ts": "2026-10-07T14:57:39Z",
+     "port": 8080
+    },
+    {
+     "count": 1,
+     "first_ts": "2026-10-07T14:57:39Z",
+     "host": "native-services.internal",
+     "last_ts": "2026-10-07T14:57:39Z",
+     "port": 8099
+    },
+    {
+     "count": 1,
+     "first_ts": "2026-10-07T14:57:39Z",
+     "host": "sigma.internal",
+     "last_ts": "2026-10-07T14:57:39Z",
+     "port": 8097
+    },
+    {
+     "count": 1,
+     "first_ts": "2026-10-07T14:57:39Z",
+     "host": "slack.internal",
+     "last_ts": "2026-10-07T14:57:39Z",
+     "port": 8081
+    },
+    {
+     "count": 1,
+     "first_ts": "2026-10-07T14:57:44Z",
+     "host": "snowflake.internal",
+     "last_ts": "2026-10-07T14:57:44Z",
+     "port": 8443
+    }
+   ],
+   "left_running_after_world_down": []
+  }
+ }
+}
