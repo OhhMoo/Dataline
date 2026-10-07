@@ -111,7 +111,14 @@ _CATALOG = (
               "instead of erroring (emulator, not fenced); no dbt-bigquery (works "
               "against the proxy, but its pandas/nbformat break the de image's "
               "role gate); container e2e only, arm64 not run, no task uses it"),
-    Plug("databricks", "warehouse", "planned", surfaces=("databricks",)),
+    Plug("databricks", "warehouse", "partial", surfaces=("databricks",),
+         note="tier 1 at https://databricks.internal (native-services, port 443): SQL "
+              "Statement Execution, Unity Catalog reads, SQL warehouses, SCIM Me and "
+              "Jobs 2.1 over the world scheduler, on a seeded DuckDB copy of the world's "
+              "warehouse; databricks-sdk, databricks-sql-connector (use_sea=True: no "
+              "Thrift) and dbt-databricks only in images built with --warehouse-clients "
+              "databricks; no Delta log (time travel, OPTIMIZE, VACUUM, CLONE refused by "
+              "name), no PySpark (tier 2), no Databricks CLI (licence); no task uses it"),
     Plug("dbt", "transform", "shipped", surfaces=("dbt",)),
     Plug("ops_sched", "orchestrator", "shipped",
          surfaces=("scheduler", "orchestration_secondary"),

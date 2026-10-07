@@ -1,0 +1,15 @@
+# The Databricks plug's client side, for episode images built with
+# `--warehouse-clients databricks` (Dockerfile ALKERA_WAREHOUSE_CLIENTS).
+# Compiled here, NOT in pyproject/uv.lock, for the reason snowflake-clients.in
+# gives: a vendor adapter's caps must not hold back every image. Constrained to
+# the base, native and ds locks, so every package it shares with them is the
+# same version. Regenerate with the command in requirements-databricks.lock's
+# header.
+#
+# All three are Apache-2.0. The Databricks CLI is NOT here: its licence (the
+# "Databricks License") permits use "solely for the purposes of using the
+# Licensed Materials within or connecting to the Databricks Services", which a
+# local fake is not (docs/environments/DATABRICKS_SPIKE.md).
+databricks-sdk
+databricks-sql-connector
+dbt-databricks>=1.9,<2

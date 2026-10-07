@@ -125,6 +125,7 @@ TOOL_KINDS = {
     # or jobs.query call, its text in `args.sql`.
     "bigquery.statement": "sql",
     "redshift.statement": "sql",
+    "databricks.statement": "sql",
     "bash": "shell",
     "s3_put": "fs_write",
     "s3_delete": "fs_delete",

@@ -178,6 +178,29 @@ BACKENDS: dict[str, Backend] = {
              "REDSHIFT_USER": "alkera",
              "REDSHIFT_PASSWORD": FAKE_CREDENTIAL},
     ),
+    # Databricks tier 1, a module inside native-services (native/services/
+    # databricks.py): SQL Statement Execution, Unity Catalog, SQL warehouses, SCIM
+    # Me and Jobs 2.1 over a seeded DuckDB copy of the world's warehouse in the
+    # service's own state. Port 443, not 8098: the SQL connector cannot take
+    # host:port and dbt-databricks hands one bare host to it and to the SDK
+    # (docs/environments/DATABRICKS_SPIKE.md). SSL_CERT_FILE beside the
+    # REQUESTS_CA_BUNDLE every TLS row gets: the SDK trusts through requests, the
+    # connector through OpenSSL's default paths - the same bundle for both.
+    "databricks": Backend(
+        name="databricks",
+        host="databricks.internal",
+        port=443,
+        scheme="https",
+        hosted=True,
+        clients="databricks",
+        tls=True,
+        statement_tool="databricks.statement",
+        env={"DATABRICKS_HOST": "https://databricks.internal",
+             "DATABRICKS_SERVER_HOSTNAME": "databricks.internal",
+             "DATABRICKS_HTTP_PATH": "/sql/1.0/warehouses/alkera",
+             "DATABRICKS_TOKEN": FAKE_CREDENTIAL,
+             "SSL_CERT_FILE": "/etc/alkera/databricks-tls/bundle.pem"},
+    ),
 }
 
 

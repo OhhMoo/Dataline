@@ -1,0 +1,9 @@
+# The single divergence a databricks-client image takes from the base locks, and
+# not one of its own: an image built with --warehouse-clients snowflake,databricks
+# installs both client locks into one interpreter, so every package they share must
+# be one version (gateway/tests/test_toolbelt_roles.py
+# test_client_locks_agree_with_each_other). dbt-snowflake caps certifi below
+# 2025.4.26 (snowflake-clients.overrides), so this lock holds certifi where the
+# Snowflake lock does. Nothing in the Databricks clients needs a newer CA list:
+# the only server they reach presents the certificate minted at boot.
+certifi==2025.1.31

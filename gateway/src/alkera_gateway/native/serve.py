@@ -376,6 +376,13 @@ class Mounted:
     #: quarantine every rollout that touched object storage for a connection
     #: the subject never made. So the receiver is neither declared nor counted.
     destination: bool = True
+    #: A hosted backend whose registry row says `tls=True` is served over HTTPS:
+    #: `certificate` is its module's own (`() -> (certfile, keyfile)`, minting with
+    #: `native.tls.mint` and publishing the bundle the episode trusts), called by
+    #: `serve_all` before anything binds. A TLS row whose module has none is a
+    #: refusal there, never a plain-HTTP fallback the clients would fail against.
+    tls: bool = False
+    certificate: Callable | None = None
 
 
 def mount(loaded: dict, stubs: dict[str, int] | None = None,
@@ -399,13 +406,17 @@ def mount(loaded: dict, stubs: dict[str, int] | None = None,
     hosted = services.hosted()
     for name, module in sorted(loaded.items()):
         host, port, app = module.HOST, int(module.PORT) + offset, module.app
+        tls = False
         if name in hosted:
-            # a hosted backend answers where its registry row says
+            # a hosted backend answers where its registry row says, and as it says
             host, port = hosted[name].host, hosted[name].port + offset
+            tls = hosted[name].tls
         own = serves_health(app)
         mounted.append(Mounted(name, host, port,
                                app if own else HealthWrapper(app, name, 0),
-                               "module", own))
+                               "module", own, tls=tls,
+                               certificate=getattr(module, "certificate", None)
+                               if tls else None))
     for name, port in sorted((stubs or {}).items()):
         mounted.append(Mounted(name, f"{name}.internal", port + offset,
                                HealthWrapper(stub_app(name), name, STUB_ITEMS),
@@ -562,7 +573,8 @@ def aggregate_app(mounted: list[Mounted], missing: dict[str, str],
         "environment": dict(sorted((environment or {}).items())),
         "services": [
             {"service": item.name, "host": item.host, "port": item.port,
-             "url": f"http://{item.host}:{item.port}", "origin": item.origin,
+             "url": f"{'https' if item.tls else 'http'}://{item.host}:{item.port}",
+             "origin": item.origin,
              "own_health": item.own_health}
             for item in mounted
         ],
@@ -614,6 +626,18 @@ class _Server(uvicorn.Server):
         yield
 
 
+def tls_options(item: Mounted) -> dict[str, str]:
+    """uvicorn's `ssl_certfile`/`ssl_keyfile` for a TLS-serving item, {} otherwise."""
+    if not item.tls:
+        return {}
+    if not callable(item.certificate):
+        raise SystemExit(f"{item.name} is a TLS backend (its registry row says tls=True) "
+                         f"but its module defines no certificate(); refusing to serve it "
+                         f"over plain HTTP")
+    certfile, keyfile = item.certificate()
+    return {"ssl_certfile": str(certfile), "ssl_keyfile": str(keyfile)}
+
+
 async def serve_all(mounted: list[Mounted], bind: str,
                     log: DestinationLog) -> None:
     """Run every mounted service in this process, on one event loop."""
@@ -622,7 +646,7 @@ async def serve_all(mounted: list[Mounted], bind: str,
         _Server(uvicorn.Config(
             item.app, host=bind, port=item.port, http=AuditedH11Protocol,
             log_level="warning", access_log=False, lifespan="auto",
-            timeout_graceful_shutdown=5,
+            timeout_graceful_shutdown=5, **tls_options(item),
         ))
         for item in mounted
     ]

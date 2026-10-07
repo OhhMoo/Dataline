@@ -89,6 +89,9 @@ NATIVE_BACKENDS = {
     # itself is on backend_net only.
     "bigquery": ("bigquery.internal", 9050),
     "redshift": ("redshift.internal", 5439),
+    # hosted in native-services (alkera_gateway.backends), so never a running compose
+    # service of its own: listed for the P6 re-measure (Task 12)
+    "databricks": ("databricks.internal", 443),
 }
 PROBE_IMAGE = "alkera-stack:track-b"
 ALL_PROFILES = ("harness", "grading", "snowflake")

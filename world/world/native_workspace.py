@@ -411,6 +411,32 @@ DISCOVERY: dict[str, Discovery] = {
         dbt_env={"host": "REDSHIFT_HOST", "user": "REDSHIFT_USER",
                  "password": "REDSHIFT_PASSWORD", "dbname": "REDSHIFT_DATABASE"},
     ),
+    # Databricks tier 1 in native-services (gateway native/services/databricks.py):
+    # a SQL warehouse `alkera` over a copy of the world's warehouse, catalog `main`
+    # (alias `hive_metastore`), one schema per warehouse schema plus `default`, where
+    # a session - and the box's dbt target - lands. The SQL connector needs
+    # use_sea=True: the workspace serves the Statement Execution API, not Thrift
+    # (docs/environments/DATABRICKS_SPIKE.md). SSL_CERT_FILE is the connector's trust
+    # (OpenSSL's default paths); the SDK's is the REQUESTS_CA_BUNDLE every TLS
+    # backend's box gets.
+    "databricks": Discovery(
+        backend="databricks",
+        label="the warehouse",
+        clients="databricks-sdk, databricks-sql-connector (use_sea=True), dbt-databricks, "
+                "REST; no databricks CLI",
+        services_toml={"host": "databricks.internal", "port": "443",
+                       "http_path": "/sql/1.0/warehouses/alkera", "warehouse_id": "alkera",
+                       "token": FAKE_TOKEN, "catalog": "main", "schema": "default",
+                       "use_sea": "true"},
+        dbt_type="databricks",
+        env={"DATABRICKS_HOST": "https://databricks.internal",
+             "DATABRICKS_SERVER_HOSTNAME": "databricks.internal",
+             "DATABRICKS_HTTP_PATH": "/sql/1.0/warehouses/alkera",
+             "DATABRICKS_TOKEN": FAKE_TOKEN,
+             "SSL_CERT_FILE": "/etc/alkera/databricks-tls/bundle.pem"},
+        dbt_env={"host": "DATABRICKS_SERVER_HOSTNAME", "http_path": "DATABRICKS_HTTP_PATH",
+                 "token": "DATABRICKS_TOKEN"},
+    ),
 }
 
 #: Registry backends the box listed BEFORE the registry, and so still lists the

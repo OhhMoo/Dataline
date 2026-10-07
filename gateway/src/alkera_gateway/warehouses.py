@@ -45,6 +45,7 @@ the world declared, and a peer declared `read_only` is refused writes by the
 engine rather than by a rule we would have to keep enforcing.
 """
 
+import copy
 import importlib.util
 from collections.abc import Mapping
 from functools import cache
@@ -82,6 +83,9 @@ DBT_ADAPTERS = {
     # In images built with `--warehouse-clients redshift` only
     # (requirements-redshift.lock); the box target of a redshift-plugged box.
     "redshift": ("dbt.adapters.redshift", "dbt-redshift"),
+    # The Databricks plug's clients (requirements-databricks.lock), only in images
+    # built with --warehouse-clients databricks.
+    "databricks": ("dbt.adapters.databricks", "dbt-databricks"),
 }
 
 #: Fields a variable-backed box target (`dbt_output(env=...)`) carries as
@@ -90,6 +94,15 @@ DBT_ADAPTERS = {
 #: (`prefer`) makes redshift_connector demand it and fail ("Server refuses SSL").
 DBT_FIXED_FIELDS: dict[str, dict[str, str]] = {
     "redshift": {"sslmode": "disable"},
+}
+
+#: Fields a variable-backed output (`dbt_output(..., env=...)`) carries as constants:
+#: what is the same on every box and is not a credential. Databricks: the Unity
+#: Catalog catalog, and the connector's Statement Execution API transport - the fake
+#: workspace serves no Thrift (docs/environments/DATABRICKS_SPIKE.md). (Nested values,
+#: so a separate table from DBT_FIXED_FIELDS' flat strings, deep-copied per output.)
+DBT_OUTPUT_CONSTANTS: dict[str, dict] = {
+    "databricks": {"catalog": "main", "connection_parameters": {"use_sea": True}},
 }
 
 
@@ -139,7 +152,8 @@ def dbt_output(
     That is the target a bare `dbt` finds on a box that plugs the backend
     (`native_workspace.box_profiles_yaml`), and it carries no value either.
     `port` is then written as a number: where the backend answers is not a
-    secret, and the box exports no variable for it.
+    secret, and the box exports no variable for it; so are the backend's
+    `DBT_OUTPUT_CONSTANTS` (Databricks: its catalog and connector transport).
     """
     if env is not None:
         if backend == "duckdb" or backend not in DBT_ADAPTERS:
@@ -148,6 +162,7 @@ def dbt_output(
         output.update({name: f"{{{{ env_var('{var}') }}}}" for name, var in env.items()})
         if port is not None:
             output["port"] = int(port)
+        output.update(copy.deepcopy(DBT_OUTPUT_CONSTANTS.get(backend, {})))
         output.update({"schema": schema, "threads": 1})
         output.update(DBT_FIXED_FIELDS.get(backend, {}))
         return output
