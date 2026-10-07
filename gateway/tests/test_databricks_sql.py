@@ -341,6 +341,29 @@ def test_errors_name_catalog_main_never_the_engine(lake):
     assert syntax.value.error_class == "PARSE_SYNTAX_ERROR"
 
 
+@pytest.mark.parametrize("sql", [
+    "ATTACH '/world/var/warehouse/warehouse.duckdb' AS w",
+    "INSTALL httpfs",
+    "COPY main.warehouse.fct_orders TO '/tmp/out.csv'",
+    "SELECT * FROM read_csv('/world/var/warehouse/x.csv')",
+    "DROP VIEW memory.dbx_information_schema.tables",
+    "DROP VIEW information_schema.tables",
+    "DROP VIEW system.information_schema.columns",
+    "INSERT INTO main.information_schema.tables SELECT * FROM main.information_schema.tables",
+    f"SELECT * FROM {dbx.ENGINE_CATALOG}.warehouse.fct_orders",
+    "SELECT * FROM samples.nyctaxi.trips",
+])
+def test_no_statement_reaches_past_the_copy(lake, world, sql):
+    """The engine's own catalogs, files and extensions are not Databricks SQL: refused
+    (by name, or as Databricks fails them), and the world file is untouched."""
+    before = digest(world)
+    with pytest.raises((Unsupported, SqlError)):
+        run(lake, sql)
+    assert digest(world) == before
+    assert run(lake, "select count(*) from system.information_schema.tables "
+                     "where table_schema = 'warehouse'").rows[0][0] > 0
+
+
 def test_one_statement_per_request(lake):
     with pytest.raises(SqlError, match="one statement"):
         run(lake, "select 1; select 2")

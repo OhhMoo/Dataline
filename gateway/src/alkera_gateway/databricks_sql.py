@@ -332,7 +332,26 @@ def _session_literal(node: exp.Expression, context: Context) -> exp.Expression |
     return None
 
 
+def _written(tree: exp.Expression) -> list[exp.Table]:
+    """The relations a statement writes: a DROP's every table, another write's target."""
+    if isinstance(tree, (*QUERY_KINDS, exp.With)):
+        return []
+    if isinstance(tree, exp.Drop):
+        return list(tree.find_all(exp.Table))
+    target = tree.this
+    if isinstance(target, exp.Table):
+        return [target]
+    found = target.find(exp.Table) if isinstance(target, exp.Expression) else None
+    return [found] if found is not None else []
+
+
 def _rewrite(tree: exp.Expression, context: Context) -> exp.Expression:
+    for target in _written(tree):
+        if (target.db or "").lower() == "information_schema":
+            # The views are the catalog describing itself, not tables to write.
+            raise SqlError("INSUFFICIENT_PERMISSIONS",
+                           f"information_schema.{target.name.lower()} is read-only.", "42501")
+
     def visit(node: exp.Expression) -> exp.Expression:
         replaced = _session_literal(node, context)
         if replaced is not None:
@@ -349,6 +368,12 @@ def _rewrite(tree: exp.Expression, context: Context) -> exp.Expression:
                 node.set("db", exp.to_identifier(INFO_SCHEMA))
                 node.set("this", exp.to_identifier(view))
                 return node
+            catalog = (node.catalog or "").lower()
+            if catalog and catalog not in CATALOG_ALIASES:
+                # Not a catalog of this workspace - and never one of the engine's
+                # own (`memory`, `temp`, `system`, the copy's internal name), which a
+                # statement must not be able to reach.
+                raise _not_found([catalog, node.db.lower(), node.name.lower()])
             node.set("catalog", _engine(node.args.get("catalog")))
             return node
         if isinstance(node, exp.Column) and node.args.get("catalog") is not None:
