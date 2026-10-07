@@ -279,17 +279,22 @@ def profile_endpoints(endpoints: dict, profile=None) -> dict:
     """`endpoints` narrowed to what an environment profile serves.
 
     `profile` is an `alkera_gateway.plugs.Profile` (`episode.environment_profile`),
-    or None for an unprofiled task, whose map comes back unchanged. Narrowed the
-    way `native/serve.py --profile` serves: the vendor services the profile's
-    plugs mount, the scheduler plane only with `ops_sched`, the object store
-    only when the slot is plugged, and a BI vendor (PLUG_SERVICES) only - and
-    always - when a plug names it. Every consumer of the map - the subject's
-    environment, `allowed_destinations`, the containment probe - then neither
-    offers nor expects an address nothing is listening at.
+    or None for an unprofiled task, whose map comes back unchanged - except that
+    a registry backend (`alkera_gateway.backends`) is never in it: nothing plugs
+    one, so an override file that names one exports no variable and allows no
+    destination. Narrowed the way `native/serve.py --profile` serves: the vendor
+    services the profile's plugs mount, the scheduler plane only with
+    `ops_sched`, the object store only when the slot is plugged, and a BI vendor
+    (PLUG_SERVICES) only - and always - when a plug names it. Every consumer of
+    the map - the subject's environment, `allowed_destinations`, the
+    containment probe - then neither offers nor expects an address nothing is
+    listening at.
     """
-    if profile is None:
-        return endpoints
     backends = _backends()
+    if profile is None:
+        if not set(endpoints) & set(backends.BACKENDS):
+            return endpoints
+        return {k: v for k, v in endpoints.items() if k not in backends.BACKENDS}
     plugged = backends.plugged(profile.slots)
     drop = {name for name in (*NATIVE_SERVICES, *PLUG_SERVICES)
             if name not in profile.services}
@@ -335,10 +340,12 @@ def native_env(*, endpoints: dict, audit_dir: Path,
     for name in PLUG_SERVICES:
         if endpoints.get(name):
             env.update(plug_service_env(name, endpoints[name]))
-    # So does a plugged registry backend (in the map only when plugged), its
-    # row's variables re-based onto the address this topology reaches it at.
-    for name in _backends().BACKENDS:
-        if endpoints.get(name):
+    # So does a plugged HOSTED backend (in the map only when plugged), served by
+    # this topology's own serve.py: its row's variables re-based onto the
+    # address it is reached at. A backend with a container of its own
+    # (Snowflake) has no server on the host, so it exports nothing here.
+    for name, b in _backends().BACKENDS.items():
+        if b.hosted and endpoints.get(name):
             env.update(plug_service_env(name, endpoints[name]))
     # `SCHED_URL` is deliberately NOT exported here. This function builds the
     # environment for the HOST topology, where `./ops/sched` runs the three

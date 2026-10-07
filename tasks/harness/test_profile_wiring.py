@@ -878,6 +878,82 @@ def test_host_stack_awaits_and_addresses_a_plugged_bi_vendor(world, tmp_path):
     assert "tableau" not in endpoints and "metabase" not in endpoints
 
 
+def _hosted_row(monkeypatch):
+    """A synthetic hosted backend (Wave 1's real rows are their own): its
+    registry row and its catalogue plug in the warehouse slot."""
+    from alkera_gateway import backends, plugs
+
+    row = backends.Backend("hx", port=8123, scheme="https",
+                           env={"HX_URL": "https://hx.internal:8123/api", "HX_TOKEN": "t"})
+    monkeypatch.setitem(backends.BACKENDS, "hx", row)
+    monkeypatch.setitem(plugs.PLUGS, "hx", plugs.Plug("hx", "warehouse", "partial"))
+    return row
+
+
+def _host_stack(world, tmp_path, name, profile, plugs):
+    (tmp_path / name).mkdir()
+    spec = SimpleNamespace(profile=profile, plugs=plugs)
+    return native_stack.NativeStack(world=world, audit_dir=tmp_path / f"{name}-a",
+                                    rollout_dir=tmp_path / name, spec=spec, offset=7)
+
+
+def test_host_stack_awaits_and_addresses_a_plugged_hosted_backend(world, tmp_path,
+                                                                 monkeypatch):
+    """The hosted twin of the BI vendor test: serve.py on the host binds the
+    row's port, the subject is handed the loopback address with the row's
+    scheme and the row's variables re-based onto it - only when plugged."""
+    row = _hosted_row(monkeypatch)
+    plugged = episode.environment_profile("da/laptop", {"warehouse": ["hx"]})
+    assert row.port in native_stack.service_ports(plugged)
+    for other in (None, episode.environment_profile("da/laptop", None)):
+        assert row.port not in native_stack.service_ports(other)
+
+    endpoints = _host_stack(world, tmp_path, "p", "da/laptop",
+                            {"warehouse": ["hx"]})._write_endpoints(None)
+    assert endpoints["hx"] == f"https://127.0.0.1:{row.port + 7}"
+    env = aut.native_env(endpoints=endpoints, audit_dir=tmp_path, profiles_dir=tmp_path)
+    assert env["HX_URL"] == f"https://127.0.0.1:{row.port + 7}/api"
+    assert env["HX_TOKEN"] == "t"
+    assert ("127.0.0.1", row.port + 7) in aut.allowed_destinations(endpoints)
+
+    for name, profile, plugs in (("u", "", {}), ("d", "da/laptop", {})):
+        endpoints = _host_stack(world, tmp_path, name, profile, plugs)._write_endpoints(None)
+        assert "hx" not in endpoints, name
+        env = aut.native_env(endpoints=endpoints, audit_dir=tmp_path, profiles_dir=tmp_path)
+        assert not {"HX_URL", "HX_TOKEN"} & set(env), name
+        assert ("127.0.0.1", row.port + 7) not in aut.allowed_destinations(endpoints), name
+
+
+def test_an_unprofiled_override_cannot_name_a_backend(tmp_path, monkeypatch):
+    """No profile plugs a registry backend, so an endpoint file that names one
+    (by mistake or on purpose) exports none of its variables and allows none
+    of its destinations."""
+    row = _hosted_row(monkeypatch)
+    path = tmp_path / "endpoints.json"
+    path.write_text(json.dumps({"hx": "https://127.0.0.1:9999",
+                                "snowflake": "https://127.0.0.1:9443"}))
+    endpoints = aut.profile_endpoints(aut.resolve_endpoints(path), None)
+    assert "hx" not in endpoints and "snowflake" not in endpoints
+    env = aut.native_env(endpoints=endpoints, audit_dir=tmp_path, profiles_dir=tmp_path)
+    assert not {"HX_URL", "SNOWFLAKE_HOST"} & set(env)
+    allowed = aut.allowed_destinations(endpoints)
+    assert ("127.0.0.1", 9999) not in allowed and ("127.0.0.1", 9443) not in allowed
+    assert row.name in aut._backends().BACKENDS
+    plain = aut.resolve_endpoints(None)
+    assert aut.profile_endpoints(plain, None) is plain          # unchanged, as before
+
+
+def test_a_snowflake_host_run_exports_no_snowflake_variables(tmp_path):
+    """Snowflake has a container of its own and no server on the host: a
+    da/snowflake host-topology run is not told SNOWFLAKE_* (the container
+    topology gets them from compose)."""
+    endpoints = aut.profile_endpoints(aut.resolve_endpoints(None),
+                                      episode.environment_profile("da/snowflake"))
+    assert "snowflake" in endpoints                 # judged against, as before
+    env = aut.native_env(endpoints=endpoints, audit_dir=tmp_path, profiles_dir=tmp_path)
+    assert not any(k.startswith("SNOWFLAKE_") for k in env)
+
+
 # ------------------------------------------------- ./ops/sched and the profile
 DA_SLOTS = ["files", "notebook", "warehouse", "transform", "bi", "human"]
 DE_SLOTS = ["files", "warehouse", "transform", "orchestrator", "object_store", "ingest",

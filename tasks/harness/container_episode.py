@@ -2042,9 +2042,10 @@ class NativeContainerEpisode:
                 # bundle: certifi plus the local CA. One TLS backend at most
                 # (`backends.plugged`), so one bundle.
                 added["REQUESTS_CA_BUNDLE"] = backends.bundle(b)
-            # Its agent-facing variables; a name the static table already
-            # carries (SNOWFLAKE_HOST, ...) stays where it is
-            # (`profiled_environment` keeps the static value, not this one).
+            # Its agent-facing variables. A name the static table already
+            # carries (SNOWFLAKE_HOST, AIRFLOW_API_URL, ...) keeps the static
+            # line's position, but with THIS value: `profiled_environment`
+            # lets what the profile plugs win.
             added.update(b.env)
         for name in profile.services:
             if name in aut.PLUG_SERVICES and name not in backends.BACKENDS:

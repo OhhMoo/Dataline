@@ -253,6 +253,29 @@ def test_replaces_names_static_groups():
         assert set(d.replaces) <= labels, name
 
 
+#: Each static group's variables (native_workspace._backends), by label.
+STATIC_GROUPS = {"the warehouse": nw.POSTGRES, "object storage": nw.STORAGE,
+                 "the scheduler": nw.CONTROL, "the notebook server": nw.NOTEBOOK}
+
+
+def _replace_gaps(d) -> dict[str, list[str]]:
+    """A replaced group's variables the row does not carry itself: the world's
+    files would drop them while the container (whose plugged env wins only key
+    by key) kept the static values - two answers for one box."""
+    return {label: sorted(set(STATIC_GROUPS[label]) - set(d.env))
+            for label in d.replaces if set(STATIC_GROUPS[label]) - set(d.env)}
+
+
+def test_a_replacing_row_carries_every_variable_it_replaces():
+    assert set(STATIC_GROUPS) == {label for label, _, _ in nw.BACKEND_NOTES}
+    for name, d in nw.DISCOVERY.items():          # vacuous until a row replaces
+        assert _replace_gaps(d) == {}, name
+    assert _replace_gaps(AIRFLOW_LIKE) == {}
+    short = nw.Discovery(**{**AIRFLOW_LIKE.__dict__,
+                            "env": {"AIRFLOW_API_URL": "http://airflow.internal:8100/api/v2"}})
+    assert _replace_gaps(short) == {"the scheduler": ["AIRFLOW_PASSWORD", "AIRFLOW_USER"]}
+
+
 def test_discovery_never_imports_the_gateway():
     """world/ never imports alkera_gateway (the world factory runs without it):
     rendering the discovery files - .envrc, onboarding, services.toml - for a

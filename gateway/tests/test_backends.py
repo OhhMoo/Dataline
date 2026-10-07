@@ -178,6 +178,66 @@ def test_hosted_backend_port_matches_serve(tmp_path, monkeypatch):
         serve.selected_services("da/laptop", ["notebook=", "warehouse=snowflake,hx"])
 
 
+def _hosted_problems(name: str, row: Backend, module) -> list[str]:
+    """What is wrong with a hosted row and its service module: the module
+    must name the row's NAME/HOST/PORT, and the row's port must be free in the
+    one serve.py process it is mounted in."""
+    from alkera_gateway.native import serve
+
+    problems = []
+    for attr, want in (("NAME", name), ("HOST", row.host), ("PORT", row.port)):
+        got = getattr(module, attr, None)
+        if (int(got) if attr == "PORT" and got is not None else got) != want:
+            problems.append(f"{attr} {got!r} != row's {want!r}")
+    taken = {**{f"stub {n}": p for n, p in serve.STUB_PORTS.items()},
+             **{f"bi {n}": p for n, p in serve.PLUG_PORTS.items()},
+             "aggregate": serve.AGGREGATE_PORT, "sched": serve.SCHED_PORT,
+             "minio receiver": serve.MINIO_AUDIT_PORT,
+             **{f"hosted {n}": b.port for n, b in BACKENDS.items()
+                if b.hosted and n != name}}
+    problems += [f"port {row.port} is {owner}'s" for owner, port in taken.items()
+                 if port == row.port]
+    return problems
+
+
+HOSTED_ROWS = sorted(n for n, b in BACKENDS.items() if b.hosted)
+
+
+@pytest.mark.parametrize("name", HOSTED_ROWS or [pytest.param(None, id="no-hosted-row-yet")])
+def test_every_hosted_row_has_its_module_on_a_free_port(name):
+    """Each hosted row: `native/services/<name>.py` exists and is mounted where
+    the row says, on a port nothing else in serve.py takes. Vacuous until Wave 1
+    adds the first real row."""
+    if name is None:
+        return
+    from alkera_gateway.native import services
+
+    path = GATEWAY / "src" / "alkera_gateway" / "native" / "services" / f"{name}.py"
+    assert path.is_file(), path
+    loaded, missing = services.load((name,))
+    assert name in loaded, missing
+    assert _hosted_problems(name, BACKENDS[name], loaded[name]) == []
+
+
+def test_the_hosted_row_check_catches_what_it_should():
+    import types
+
+    def module(name, host, port):
+        m = types.ModuleType(name)
+        m.NAME, m.HOST, m.PORT = name, host, port
+        return m
+
+    good = Backend("hx", port=8123)
+    assert _hosted_problems("hx", good, module("hx", "hx.internal", 8123)) == []
+    assert _hosted_problems("hx", good, module("hx", "hx.internal", 8124)) == [
+        "PORT 8124 != row's 8123"]
+    for port, owner in ((8099, "aggregate"), (8120, "sched"), (8110, "minio receiver"),
+                        (8080, "stub jira"), (8097, "bi sigma")):
+        clash = Backend("hx", port=port)
+        assert _hosted_problems("hx", clash, module("hx", "hx.internal", port)) == [
+            f"port {port} is {owner}'s"], port
+
+
 # --------------------------------------------------------------- native.tls
 def _x509(path: Path) -> str:
     return subprocess.run(["openssl", "x509", "-in", str(path), "-noout", "-text"],
