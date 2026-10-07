@@ -16,6 +16,9 @@ from tool_tour_probes import NET_REVENUE_FEB_2026_SQL
 #: The same fact over the seeded copy: two-part names, the server's own database.
 PG_NET_REVENUE_FEB_2026_SQL = NET_REVENUE_FEB_2026_SQL.replace(
     "warehouse.warehouse.fct_orders", "warehouse.fct_orders")
+assert PG_NET_REVENUE_FEB_2026_SQL != NET_REVENUE_FEB_2026_SQL \
+    and "warehouse.warehouse." not in PG_NET_REVENUE_FEB_2026_SQL, \
+    "NET_REVENUE_FEB_2026_SQL no longer names warehouse.warehouse.fct_orders"
 
 PROBES = [
     Probe(

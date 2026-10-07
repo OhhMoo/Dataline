@@ -8,6 +8,11 @@ an inline query is a `sql_operation` node, and a two-part `warehouse.fct_orders`
 a DuckDB file whose catalog is also `warehouse` is a Binder Error ("Ambiguous reference
 to catalog or schema"). That is the world theme's dbt project, not the tool; it is
 reported as a finding of the tour, not worked around in the theme.
+
+`dbt.show.ref_inline` is the same question asked the way an engineer would ask it,
+through `{{ ref('fct_orders') }}`. It FAILs until the theme's macro also restores the
+database for `sql_operation` nodes, a fix that moves the BI001/BI002 world bytes and
+so waits on the user (KNOWN).
 """
 from tool_tour import Probe
 
@@ -37,4 +42,33 @@ PROBES = [
             "picks up on this box), run an ad-hoc query that returns total Net Revenue: "
             "the sum of order_amount over completed orders in the fct_orders mart."),
     ),
+    Probe(
+        id="dbt.show.ref_inline",
+        profile=PROFILE,
+        plugs=PLUGS,
+        command=(
+            "cd /workspace\n"
+            "set -euo pipefail\n"
+            "cd dbt_project\n"
+            "dbt --quiet show --inline \"select sum(order_amount) as net_revenue from "
+            "{{ ref('fct_orders') }} where order_status = 'completed'\" "
+            "--output json > /tmp/tour_dbt_show_ref.json\n"
+            "python3 -c 'import json; print(json.dumps({\"value\": "
+            "json.load(open(\"/tmp/tour_dbt_show_ref.json\"))[\"show\"][0]"
+            "[\"net_revenue\"]}))'\n"),
+        expect_tools=("shim.dbt",),
+        expect_args=("show",),
+        truth_sql=NET_REVENUE_SQL,
+        instruction=(
+            "Using dbt from the repository's dbt project (with the profile a bare `dbt` "
+            "picks up on this box), run an ad-hoc query over the fct_orders model - "
+            "referenced the way the project's own models reference it - that returns "
+            "total Net Revenue: order_amount summed over completed orders."),
+    ),
 ]
+
+KNOWN = {
+    "dbt.show.ref_inline": (
+        "awaiting user decision: theme macro fix moves BI001/BI002 world bytes "
+        "(see relations.patch)"),
+}

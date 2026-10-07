@@ -141,12 +141,14 @@ SYSTEM_IMPORTS: dict[str, tuple[str, ...]] = {
     "ds": ("openpyxl",),
 }
 # The Excel round trip the role's own python must make: write a workbook with
-# openpyxl, read it back with pandas.read_excel. Prints the value it read back.
+# openpyxl, read it back with pandas.read_excel, and fail (non-zero exit) unless the
+# value read back is the value written. Prints it.
 EXCEL_ROUNDTRIP = (
     "import io, openpyxl, pandas; wb = openpyxl.Workbook(); ws = wb.active; "
     "ws.append(['metric', 'value']); ws.append(['net_revenue', 2361224.0]); "
     "buf = io.BytesIO(); wb.save(buf); buf.seek(0); "
-    "print(pandas.read_excel(buf, engine='openpyxl')['value'].iloc[0])")
+    "got = pandas.read_excel(buf, engine='openpyxl')['value'].iloc[0]; "
+    "assert float(got) == 2361224.0, f'read back {got!r}, wrote 2361224.0'; print(got)")
 _EXCEL_PROBE = (ROLE_PYTHON, (ROLE_PYTHON, "-c", EXCEL_ROUNDTRIP), (0,))
 
 ROLE_PROBES: dict[str, tuple[tuple[str, tuple[str, ...], tuple[int, ...]], ...]] = {
