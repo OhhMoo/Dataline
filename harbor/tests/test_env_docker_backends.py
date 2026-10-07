@@ -476,3 +476,33 @@ def test_backend_snowflake_up_probe_down(tmp_path):
     assert [b["name"] for b in record["backends"]] == ["snowflake"]
     assert 64616 not in record["listening"]
     folded_backend_row(record, "snowflake.internal", 8443)
+
+
+POSTGRES_CHECKS = r"""
+pass() { echo "PASS $*"; }
+fail() { echo "FAIL $*"; }
+deny() { local n="$1"; shift; if "$@" >/dev/null 2>&1; then fail "$n (allowed)"; else pass "$n"; fi; }
+[ "$PGHOST" = postgres.internal ] && [ "$PGUSER" = alkera ] && pass "PG* name the agent's role" || fail "PGHOST=$PGHOST PGUSER=$PGUSER"
+out=$(PGPASSWORD=x PGCONNECT_TIMEOUT=10 psql -X -h postgres.internal -U postgres -d alkera -tAc 'select 1' 2>&1)
+case "$out" in *"no pg_hba.conf entry"*) pass "the superuser cannot log in over TCP";; *) fail "superuser: $out";; esac
+deny "compose's owner role cannot log in" env PGPASSWORD=episode-local psql -X -h postgres.internal -U episode -d alkera -tAc 'select 1'
+deny "the seeded schema's owner cannot log in" env PGPASSWORD=x psql -X -h postgres.internal -U warehouse_owner -d alkera -tAc 'select 1'
+deny "the agent's role cannot turn its own logging off" psql -X -v ON_ERROR_STOP=1 -tAc "set log_statement = 'none'"
+deny "the agent's role is no superuser" sh -c "psql -X -tAc 'select rolsuper from pg_roles where rolname = current_user' | grep -q t"
+deny "cannot enter the server's data, socket or log" ls /var/lib/alkera/postgres
+"""
+
+
+@needs_docker
+def test_backend_postgres_up_probe_down(tmp_path):
+    """PostgreSQL seeded from the world as its own user, 127.0.0.1:5432 only once
+    seeded; psql and dbt-postgres (run, show) as engineer; the agent role's
+    statements logged by the server and folded into the action log at world-down
+    (both probes are `rows_at="teardown"`), seq contiguous."""
+    record = up_probe_down("postgres", ("postgres", "postgres_dbt"), tmp_path,
+                           POSTGRES_CHECKS)
+    assert [(b["name"], b["user"]) for b in record["backends"]] == [("postgres", "postgres")]
+    assert record["statement_logs"] == [{"log": "/var/lib/alkera/postgres/log/postgresql.log",
+                                         "tailer": "alkera_gateway.native.tailers.postgres"}]
+    assert record["rows_at_teardown"] > 0
+    assert any("row(s) folded into actions.jsonl" in line for line in record["world_down"])

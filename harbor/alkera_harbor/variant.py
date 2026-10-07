@@ -75,7 +75,7 @@ KEPT_ENV_NAMES = ("PATH",)
 CA_BUNDLE_VAR = "REQUESTS_CA_BUNDLE"
 #: Warehouse plugs the Harbor image serves: the world's own DuckDB file, and
 #: each warehouse backend that has its HARBOR_BACKENDS entry.
-SERVED_WAREHOUSES = ("duckdb", "databricks", "redshift", "snowflake")
+SERVED_WAREHOUSES = ("duckdb", "databricks", "redshift", "snowflake", "postgres")
 #: Warehouse plugs the image refuses, and why (the export's error says it).
 REFUSED_WAREHOUSES: dict[str, str] = {}
 #: The warehouse plug served by a process of its own that is not a registry
@@ -501,6 +501,8 @@ def _registry(name: str):
 PRIVATE_LOGS = "/var/log/alkera"
 #: The image's interpreter (the services' and the agent's).
 PYTHON = "/usr/local/bin/python"
+#: Where the Harbor-only backend launchers (harbor/template/backends/) go.
+BACKEND_DIR = "/opt/alkera/backends"
 
 
 def _container_backend(name: str, argv: list[str], **extra: str) -> list[dict]:
@@ -531,6 +533,18 @@ def _snowflake(_variant: Variant) -> list[dict]:
     return _container_backend("snowflake", ["/opt/snowflake/bin/python",
                                             "/opt/stack/snowflake_start.py"],
                               upstream_socket="/snowflake-data/run/fakesnow.sock")
+
+
+def _postgres(_variant: Variant) -> list[dict]:
+    """The `postgres` warehouse plug: PostgreSQL seeded from the world, as the
+    server's own user (harbor/template/backends/postgres_start.py), listening on
+    127.0.0.1:5432 only once seeded. It writes no row itself: the server logs
+    the agent's role's statements, and world-down folds that log
+    (STATEMENT_LOGS). Connections are not counted (as in the measured
+    topology)."""
+    return [{"name": "postgres", "argv": [PYTHON, f"{BACKEND_DIR}/postgres_start.py"],
+             "user": "postgres", "ports": [5432], "hosts": ["postgres.internal"],
+             "health": "tcp"}]
 
 
 def _redshift(_variant: Variant) -> list[dict]:
@@ -580,6 +594,9 @@ HARBOR_BACKENDS: dict = {
     # snowflake.internal; the certificate minted at start, its bundle at
     # /etc/alkera/snowflake-tls/bundle.pem (the box's REQUESTS_CA_BUNDLE).
     "snowflake": _snowflake,
+    # The postgres warehouse plug: PostgreSQL as `postgres`, 5432 at
+    # postgres.internal, audited by world-down's fold of its statement log.
+    POSTGRES_PLUG: _postgres,
 }
 CLIENT_LAYERS: dict[str, tuple[str, ...]] = {
     "redshift": (
@@ -617,10 +634,29 @@ CLIENT_LAYERS: dict[str, tuple[str, ...]] = {
         "'/etc/alkera/databricks-tls/bundle.pem')\"",
     ),
 }
-PLUG_LAYERS: dict[str, tuple[str, ...]] = {}
+PLUG_LAYERS: dict[str, tuple[str, ...]] = {
+    POSTGRES_PLUG: (
+        *POSTGRES_SERVER_LAYER,
+        "",
+        "# The postgres warehouse plug: its launcher (harbor/template/backends/",
+        "# postgres_start.py) and compose.yml's own seed SQL beside it; its data,",
+        "# socket and statement log are the server user's alone.",
+        f"COPY alkera/harbor/backends/postgres_start.py {BACKEND_DIR}/postgres_start.py",
+        f"COPY alkera/gateway/docker/postgres.sql {BACKEND_DIR}/postgres.sql",
+        "RUN mkdir -p /var/lib/alkera/postgres \\",
+        "    && chown postgres:postgres /var/lib/alkera/postgres \\",
+        "    && chmod 0700 /var/lib/alkera/postgres",
+    ),
+}
 SUPPORT_FILES: dict[str, tuple[tuple[str, str], ...]] = {
     "redshift": (("gateway/docker/redshift_start.py", "gateway/docker/redshift_start.py"),),
     "snowflake": tuple((f"gateway/docker/{name}", f"gateway/docker/{name}") for name in
                        ("snowflake.lock", "snowflake_fidelity.py", "snowflake_start.py")),
+    POSTGRES_PLUG: (("harbor/template/backends/postgres_start.py",
+                     "harbor/backends/postgres_start.py"),
+                    ("gateway/docker/postgres.sql", "gateway/docker/postgres.sql")),
 }
-STATEMENT_LOGS: dict[str, tuple[dict, ...]] = {}
+STATEMENT_LOGS: dict[str, tuple[dict, ...]] = {
+    POSTGRES_PLUG: ({"log": "/var/lib/alkera/postgres/log/postgresql.log",
+                     "tailer": "alkera_gateway.native.tailers.postgres"},),
+}
