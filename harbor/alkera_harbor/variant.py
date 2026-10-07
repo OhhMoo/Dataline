@@ -489,7 +489,11 @@ def _hosted(_variant: Variant) -> list[dict]:
     return []
 
 
-HARBOR_BACKENDS: dict = {}
+HARBOR_BACKENDS: dict = {
+    # Airflow 3 REST v2 over the world ledger (native/services/airflow.py), at
+    # airflow.internal:8100; its client lock (airflowctl) is the box's.
+    "airflow": _hosted,
+}
 CLIENT_LAYERS: dict[str, tuple[str, ...]] = {}
 PLUG_LAYERS: dict[str, tuple[str, ...]] = {}
 SUPPORT_FILES: dict[str, tuple[tuple[str, str], ...]] = {}

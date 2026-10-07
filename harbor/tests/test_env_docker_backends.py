@@ -378,3 +378,23 @@ def folded_backend_row(record: dict, host: str, port: int) -> dict:
     assert found and found[0]["count"] >= 1, rows
     return found[0]
 
+
+
+# ------------------------------------------------------------------ the backends
+AIRFLOW_CHECKS = r"""
+pass() { echo "PASS $*"; }
+fail() { echo "FAIL $*"; }
+[ "$AIRFLOW_API_URL" = http://airflow.internal:8100/api/v2 ] && pass "AIRFLOW_API_URL" || fail "AIRFLOW_API_URL=$AIRFLOW_API_URL"
+[ -z "${SCHED_URL:-}" ] && pass "no SCHED_URL (airflow replaces the scheduler)" || fail "SCHED_URL=$SCHED_URL"
+getent hosts airflow.internal | grep -q 127.0.0.1 && pass "airflow.internal resolves" || fail "airflow.internal"
+command -v airflowctl >/dev/null && pass "airflowctl installed" || fail "no airflowctl"
+"""
+
+
+@needs_docker
+def test_backend_airflow_up_probe_down(tmp_path):
+    """Hosted in the services process (no backend process): the REST API over
+    the world ledger at airflow.internal:8100, read with curl + jq and airflowctl."""
+    record = up_probe_down("airflow", ("airflow",), tmp_path, AIRFLOW_CHECKS)
+    assert record["backends"] == []
+    folded_backend_row(record, "airflow.internal", 8100)
