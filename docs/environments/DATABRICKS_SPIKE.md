@@ -111,8 +111,8 @@ truncates, 10), `dayofweek` counts Sunday as 0 (Databricks 1) and `weekday` like
 is now fail-closed (`gateway/src/alkera_gateway/databricks_functions.py`):
 
 - every function must be on a vetted list - 101 sqlglot function classes, 5 functions by
-  name, 5 rewritten operators - and every other expression node on a list of 82
-  structural and operator types; anything else is refused naming it;
+  name, 9 rewritten operators (after the second review) - and every other expression
+  node on a list of 82 structural and operator types; anything else is refused naming it;
 - an entry is vetted as sqlglot translates it, or rewritten with Databricks' semantics:
   integral CAST truncates, dayofweek/weekday/EXTRACT(DOW), date_add/date_sub return a
   DATE, timestampdiff/datediff(unit) count whole units the way java.time does,
@@ -123,13 +123,80 @@ is now fail-closed (`gateway/src/alkera_gateway/databricks_functions.py`):
   fields, truncation units, CAST targets, `CAST(x AS DECIMAL)` without a precision (it
   parses like a `1.5BD` literal), LIKE escapes and backslash escapes in string literals
   are refused by name;
-- `gateway/tests/test_databricks_functions.py` holds the corpus: 179 expressions and 38
-  queries, each with the result the Databricks SQL reference gives (its examples where
-  it has one), and 26 refusals; a test fails when a vetted entry has no case.
+- `gateway/tests/test_databricks_functions.py` holds the corpus: 237 expressions and 55
+  queries (after the second review), each with the result the Databricks SQL reference
+  gives (its examples where it has one), and 35 refusals; a test fails when a vetted
+  entry has no case.
 
 Unqualified names are qualified with the session's schema, two-part names with catalog
 `main`, so no statement reaches DuckDB's own catalogs or a table function called without
 parentheses (`FROM pragma_database_list`).
+
+## SQL: typed, after the second review (2026-10-07)
+
+The second review found the first fix's answers right in value class but wrong in type,
+scale or rendering, and one way back to the engine. Fixed:
+
+- **CTE scope (security).** CTE names were collected statement-wide, so a WITH inside a
+  subquery exempted a same-named DuckDB view outside it from qualification (`SELECT *
+  FROM pragma_database_list WHERE 1 IN (WITH pragma_database_list AS ...)` read the
+  engine's database list; duckdb_settings/views/secrets and a CTAS that persisted them
+  likewise). A table name is now a CTE reference only when a CTE of that name is visible
+  in ITS OWN scope (sqlglot's scopes, `databricks_types.cte_references`); everything
+  else is qualified with the session's schema, and anything the scopes cannot place is
+  qualified too. Each of the reviewer's repros is a test
+  (`gateway/tests/test_databricks_review_probes.py`).
+- **A statement allowlist.** Queries, DML, CREATE/DROP of a TABLE, VIEW or SCHEMA,
+  TRUNCATE TABLE and COMMENT ON - anything else (CREATE SEQUENCE/INDEX/TYPE/MACRO/SECRET/
+  FUNCTION, a TEMPORARY view, SET VARIABLE) is refused naming its leading words; the
+  schema names `main` and `information_schema` are reserved (DuckDB's own); `CREATE
+  SCHEMA x` keeps its name (the first fix renamed `main` onto the engine's catalog);
+  TRUNCATE is a write, refused on information_schema.
+- **Spark's types (item 4 implemented, not refused).** Before the rewrite every node is
+  typed the way Spark types it (`gateway/src/alkera_gateway/databricks_types.py`: the
+  lakehouse's column types, literals at minimum precision, Spark's DecimalPrecision
+  rules for + - * / %, sum DECIMAL(p+10,s), avg DECIMAL(p+4,s+4), round/floor/ceil,
+  widening for CASE/COALESCE/VALUES). DECIMAL division and avg are computed exactly
+  (`dbx_decimal_quotient`: the rational quotient, HALF_UP to Spark's result scale; avg
+  as Spark does it, the DECIMAL(p+10,s) sum over the count as DECIMAL(20,0), then to
+  s+4); + - * % and sum are CAST to Spark's precision (DuckDB's values and scales are
+  already exact). `d/3` on DECIMAL(18,2) is DECIMAL(22,6) 40.166667, `1.0/3`
+  DECIMAL(7,6) 0.333333, `avg(d)` DECIMAL(22,6). Where a rewrite needs a type it cannot
+  know it refuses (`DECIMAL arithmetic (/) on an expression of unknown type`), unless
+  the unknown is a missing table, which fails TABLE_OR_VIEW_NOT_FOUND as on Databricks.
+  Not modelled: Spark divides to 38 decimal places before rounding to the result scale
+  (a second rounding that differs only when the quotient's digits past the result
+  scale are 4999... to the 38th place).
+- **div** is a BIGINT, truncating - exactly for DECIMALs (`-5.9 div 1` = -5, `0.3 div
+  0.1` = 3), on the quotient for DOUBLEs.
+- **CAST** truncates by its input's type (`cast(0.9999999999999999999 as int)` = 0, no
+  longer through DECIMAL(38,18)); a string to an integral type must be an integer
+  (`'1.9'`, `'1e3'`: CAST_INVALID_INPUT, try_cast NULL); a string to BOOLEAN takes
+  t/true/y/yes/1 and f/false/n/no/0; a DOUBLE to DECIMAL or `round(DOUBLE, n)` rounds its
+  decimal representation HALF_UP (`round(1.005, 2)` = 1.01); a DOUBLE or FLOAT to a
+  string, and every DOUBLE/FLOAT cell, is written as Java writes it (`1.0E20`, `1.1` for
+  a FLOAT); floor/ceil of a DOUBLE are BIGINT, sign a DOUBLE, the date-part functions,
+  length, instr, size and the ranking window functions INT, two-argument datediff INT.
+- **TIMESTAMP** is DuckDB's plain TIMESTAMP everywhere (session time zone UTC), so a
+  string cast writes `2024-01-01 00:00:00`, not `+00`.
+- **Smaller semantics.** concat_ws flattens ARRAY arguments and skips NULL elements;
+  regexp_replace maps Java's `$n` to RE2's `\n` (named groups, `$10`, a computed
+  replacement refused by name); collect_list/collect_set over no rows are `[]`, also
+  under OVER; array_contains is NULL when not found in an array holding a NULL;
+  add_months returns a DATE from a TIMESTAMP; lpad/rpad with an empty pad, two-argument
+  replace, upper/lower's full case mapping (`upper('ß')` = SS), LIKE's `\` escape for a
+  pattern read from a column, a NULL dividend over a zero divisor (NULL), INT overflow
+  (ARITHMETIC_OVERFLOW), DATE - DATE (an INTERVAL: refused), regexp_extract with a group
+  index beyond the pattern (refused).
+- **The corpus compares exactly**: the value as the JSON_ARRAY format carries it and the
+  manifest's type (`('40.166667', 'decimal(22,6)')`), no float tolerance. Unaliased
+  result columns are named as Spark names them (`(d / 3)`, `count(1)`, `year(dt)`), so a
+  rewrite's DuckDB form never shows in a column name.
+
+Still different, not refused: a TIMESTAMP cell is rendered `2024-01-31T10:00:00Z` in
+JSON_ARRAY (the connectors parse any ISO form; the warehouse's exact spelling was not
+measured), `array()` is `array<int>` (Spark: `array<void>`), and comparing an INT to a
+string such as `'3.0'` follows DuckDB's cast rather than ANSI's.
 
 ## Validated against the implementation (locked clients, before the image)
 
