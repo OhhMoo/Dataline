@@ -16,6 +16,16 @@ oracle and baseline digests are what they were; the tables below stand as measur
 The host-topology native oracle was re-run on the new world; the container rows were
 not (see the last section).
 
+**Re-measured 2026-10-08 after the commerce_analytics `macros/relations.sql` fix** (an
+inline query - `dbt show --inline` / `dbt compile --inline`, a `sql_operation` node -
+now renders `ref()` with its database, as a test does; stored view bodies are
+unchanged). `run_baselines.py` on both arms: `TASK VALID`, and every baseline's checks
+(points and pass/fail), total and class, every gate but determinism, and the corpus,
+oracle and baseline digests are what they were; both ladders `valid: True`, no
+findings. The workspace moved: digest `47b032c86f1c` -> `2abd63ba7134`, git HEAD
+`ffed9795bd7c` -> `5800a80ff340`, on both arms. The native oracle rollouts below were
+not re-run; the Harbor export of the current world scores oracle 1 / nop 0 on both arms.
+
 ## Commands
 
 From `gateway/`:
@@ -96,7 +106,7 @@ arm.
 | ticket numbers are the provisioned cards | ok: ANA-241 quotes Power BI 33,733,790.00, Tableau 76,338,069.00, Sigma 35,084,324.00 and Completed Orders 26,338 vs 15,183 - each the provisioned KPI card, rendered |
 | briefs locked | ok: instruction.md, prompts/guided.md, prompts/specific.md match `[prompt_variants]` |
 | falsifier | 14/14 planted damages caught by a named check (`run_baselines.py FALSIFIERS`): the Tableau fan-out (T1, T2), the Sigma refunds (S1, S2), a fix never published (T1), a fix never committed (S2), a literal in a calculation (T1), a filter added to the tiles (S1), Finance never told (D1), a deploy claimed that never landed (H1), the marts edited (P1 warehouse_changed), a definition edited (P1 definitions_changed), Power BI moved (P1 powerbi_changed), a record in someone else's name (P1 record_forged) |
-| determinism | ok: two builds agree on the workspace bytes (`47b032c86f1c`), the git HEAD (`ffed9795bd7c`), the corpus, oracle.json and baseline.json; the built repo is clean |
+| determinism | ok: two builds agree on the workspace bytes (`2abd63ba7134`), the git HEAD (`5800a80ff340`), the corpus, oracle.json and baseline.json; the built repo is clean |
 
 ## Decision arm (`decision`, role decision) - 2026-10-04
 
@@ -153,9 +163,9 @@ twice, classify.
 
 | arm | topology | image | world | result |
 |---|---|---|---|---|
-| default | host (`uv run --with tabcmd`) | - | current | `pass`, 22.0/22, outcome `resolved`, reward 1.0, path penalty 0, not quarantined (`detection_only`, as every host native run) |
+| default | host (`uv run --with tabcmd`) | - | after the discovery change, before the 2026-10-08 macro fix | `pass`, 22.0/22, outcome `resolved`, reward 1.0, path penalty 0, not quarantined (`detection_only`, as every host native run) |
 | default | container | `alkera-episode:head-da` built at 16ede38 | before the discovery change | `pass`, 22.0/22, outcome `resolved`, reward 1.0, path 0, guarantee `filesystem_isolated`, no violation |
-| decision | host | - | current | `pass`, 18.0/18, outcome `resolved`, reward 1.0, path 0, not quarantined |
+| decision | host | - | after the discovery change, before the 2026-10-08 macro fix | `pass`, 18.0/18, outcome `resolved`, reward 1.0, path 0, not quarantined |
 | decision | container | `alkera-episode:head-da` at 16ede38 | before the discovery change | `pass`, 18.0/18, outcome `resolved`, reward 1.0, path 0, `filesystem_isolated` |
 
 Control arm: the published cards the oracle read before its fix were Power BI
@@ -164,7 +174,7 @@ after it. Decision arm: Tableau 33733790.00 after, Sigma still 35084324.00
 (held), the fix on branch `ana-241-sigma`, the controller asked on ANA-241.
 `rollout.py --regrade` of the current host rollout reproduces its total (`regrade:
 complete`). Runs: `~/alkera-rollouts/BI001-revenue-disagrees-across-bi/
-oracle-host-r2`, `oracle-host-decision-r2` (current world) and
+oracle-host-r2`, `oracle-host-decision-r2` (the world before the 2026-10-08 macro fix) and
 `oracle-container{,-decision}` (16ede38); `run_rollouts.py --re-report ...
 --baselines <arm>.json` prints the class and the scalar above. On the current
 world the host rollouts record `./ops/sched` as not installed (`profile 'da/laptop'

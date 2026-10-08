@@ -220,7 +220,7 @@ actual  = "gate ok: landed 2026-03-01T07:30:00Z, refresh 2026-03-01 06:00:00+00:
 agent   = "determinism"
 expect  = "two builds: identical workspace bytes, git HEAD, corpus, import record and grading-zone digests"
 outcome = "unmeasured"
-actual  = "gate ok: two builds agree on workspace 7db7b6cdd043, git HEAD 45dfbe0a9509, import 0aec557a19a2, scheduler bed5f46b8a54, corpus, oracle and baseline digests; repo clean (measured 2026-10-05, seed 11)"
+actual  = "gate ok: two builds agree on workspace e7777067cb90, git HEAD 7747538e99f8, import 0aec557a19a2, scheduler bed5f46b8a54, corpus, oracle and baseline digests; repo clean (measured 2026-10-08, seed 11)"
 
 [[validity]]
 agent   = "fixture_falsifier"
@@ -232,7 +232,7 @@ actual  = "15/15 caught: segment share scope, published, segment share scope, in
 agent   = "native_oracle_rollout"
 expect  = "solution/solve.sh as the scripted subject of a real rollout grades resolved on both topologies"
 outcome = "unmeasured"
-actual  = "default arm - host: pass 21.0/21, resolved, reward 1.0, path 0; container (alkera-episode:bi002-da = e4a6579 + the three uncommitted image-bearing files): pass 21.0/21, resolved, filesystem_isolated. decision arm - host: pass 15.0/15, resolved; container (bi002-da): pass 15.0/15, resolved, filesystem_isolated (tests/oracle_rollout.py, 2026-10-05)"
+actual  = "default arm - host: pass 21.0/21, resolved, reward 1.0, path 0; container (alkera-episode:bi002-da = e4a6579 + the three uncommitted image-bearing files): pass 21.0/21, resolved, filesystem_isolated. decision arm - host: pass 15.0/15, resolved; container (bi002-da): pass 15.0/15, resolved, filesystem_isolated (tests/oracle_rollout.py, 2026-10-05, the world before the 2026-10-08 relations.sql fix; not re-run since, the Harbor oracle on the current world scores 1 on both arms, harbor/evidence/acceptance-*-bi.json)"
 
 # ---------------------------------------------------------------------------
 # THE DECISION ARM'S OWN GATE (run with ALKERA_TASK_VARIANT=decision). Max 15.
