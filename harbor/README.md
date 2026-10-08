@@ -265,6 +265,10 @@ Last results (harbor 0.23.0, docker 29.8.2; every exported task also loaded by H
 itself with `--validate`: `TaskConfig` with no dropped keys, `Task()`, the instruction
 Harbor sends equal to the harness prompt, Harbor's content digest equal to ours):
 
+* 2026-10-08, `ce6ee42` (the commerce_analytics `relations.sql` fix and BI001/BI002's
+  re-measured baselines): **ACCEPTED, BI 4/4**, oracle 1 (`resolved`) and nop 0
+  (`silent`) on both arms of both tasks, no trial exception, `-n 2`
+  (`evidence/acceptance-ce6ee42-bi.json`). GT was not re-run: its themes did not change.
 * 2026-10-07, `cc5d0e5` (before plan Task 4): **ACCEPTED, GT 28/28**, oracle reward 1
   (`resolved`) and nop reward 0 (`silent`) on every arm, no exceptions
   (`evidence/acceptance-cc5d0e5.json`).
@@ -347,13 +351,19 @@ world payload too; a short value cannot be told from noise and is not).
 
 **Skipped by name** (`manifest.json` `skipped`, `--list`): a probe whose profile the
 Harbor image refuses - its variant is refused by `variant.variant_of` /
-`backend_specs` (today the three bigquery probes: `variant.REFUSED_WAREHOUSES`, the
+`backend_specs` (today the de/gcp probes: `variant.REFUSED_WAREHOUSES`, the
 emulator cannot be fenced from the agent in one container) - and a KNOWN finding of the
-container tour (`dbt.show.ref_inline`, whose own command fails until the theme's
-`relations.sql` fix lands). The probes on plan Task 10's backends (airflow, databricks,
-redshift, snowflake, postgres, postgres_dbt) are tasks.
+container tour (a probe module's `KNOWN`: the probe's own command fails, so its oracle
+could not pass; none today - `dbt.show.ref_inline` was one until the commerce_analytics
+`relations.sql` fix of 2026-10-08). The probes on plan Task 10's backends (airflow,
+databricks, redshift, snowflake, postgres, postgres_dbt) are tasks.
 
-Last results (harbor 0.23.0, docker 29.8.2): 2026-10-07, `5c18d18` (Task 10's
+Last results (harbor 0.23.0, docker 29.8.2): 2026-10-08, `21d8ef2` (the commerce_analytics
+`relations.sql` fix: an inline query's `ref()` keeps its database): `dbt.show.ref_inline`
+is exported; with `--tools dbt` **ACCEPTED, 2/2** (`dbt.show.net_revenue`,
+`dbt.show.ref_inline`), oracle 1 and nop 0, no trial exception
+(`evidence/tooltour-{oracle,nop}-21d8ef2.json`); the other tasks were not re-run (only the
+commerce_analytics dbt macro changed). Before it, 2026-10-07, `5c18d18` (Task 10's
 backends, on main-2 `84b6a1c`): **ACCEPTED, 26/26** - 30 probes, 26 exported (the 12
 below plus airflow x2, databricks x6, redshift x3, snowflake, postgres, postgres_dbt),
 4 skipped by name (bigquery x3, `dbt.show.ref_inline`); every exported task loaded by

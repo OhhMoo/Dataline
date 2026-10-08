@@ -1,0 +1,193 @@
+{
+  "schema": "alkera-harbor-acceptance-evidence/1",
+  "rev": "ce6ee42",
+  "note": "BI001/BI002 (both arms) after the commerce_analytics relations.sql fix (073f6f5: an inline query's ref() keeps its database), with the baselines re-measured (f1180a6). Exported with --task-ids <the four arms> --overwrite --validate --work-dir on disk from the clean commit ce6ee42 (every task loaded by Harbor 0.23.0, digest equal); plain Harbor runs, -n 2, TMPDIR on disk. Only the workspace plane moved; GT tasks are not affected and were not re-run.",
+  "harbor": "0.23.0",
+  "docker": "29.8.2",
+  "command": "TMPDIR=<disk> python3 harbor/acceptance.py --dataset <dataset> -n 2 --sg docker --harbor <harbor 0.23.0 env>/bin/harbor",
+  "accepted": true,
+  "runs": [
+    {
+      "dataset": "harbor/dist/alkera-bi",
+      "run_note": "plain Harbor build and run",
+      "dataset_name": {
+        "name": "alkera/de-bench",
+        "version": "0.1.0"
+      },
+      "source_commit": "ce6ee424b9d5977843ffb4d8cbf555b99edb53a3",
+      "source_dirty": false,
+      "exported_at": "2026-10-08T03:53:51Z",
+      "tasks": [
+        {
+          "name": "alkera/bi001-revenue-disagrees-across-bi__decision",
+          "digest": "sha256:7834a89eb6629ef7a25bb56ec8b83cb37c9681568549b738956b80566682519e",
+          "profile": "da/laptop"
+        },
+        {
+          "name": "alkera/bi001-revenue-disagrees-across-bi__default",
+          "digest": "sha256:f57addee8c7c3ffd849aaf352f664486ce20f87ecf3c970e16f84f79a8456895",
+          "profile": "da/laptop"
+        },
+        {
+          "name": "alkera/bi002-powerbi-share-and-stale-refresh__decision",
+          "digest": "sha256:799dc23a125a16f3375990d191883f74578c4b444234e164467064fc50ccb5ff",
+          "profile": "da/laptop"
+        },
+        {
+          "name": "alkera/bi002-powerbi-share-and-stale-refresh__default",
+          "digest": "sha256:e812a1ded3ade782a16941ab08efdf483e0b722aa25912b9bfc2c9bf27a7fd51",
+          "profile": "da/laptop"
+        }
+      ],
+      "accepted": true,
+      "summary": {
+        "oracle": {
+          "trials": 4,
+          "expected": 1.0,
+          "matching": 4,
+          "rewards": [
+            "1"
+          ],
+          "exceptions": [],
+          "seconds": 284,
+          "problems": []
+        },
+        "nop": {
+          "trials": 4,
+          "expected": 0.0,
+          "matching": 4,
+          "rewards": [
+            "0"
+          ],
+          "exceptions": [],
+          "seconds": 173,
+          "problems": []
+        }
+      },
+      "acceptance": {
+        "dataset": "/home/ubuntu/alkera-rollouts/dbtref/harbor/alkera-bi",
+        "stamp": "20261008T035417",
+        "tasks": [
+          "alkera/bi001-revenue-disagrees-across-bi__decision",
+          "alkera/bi001-revenue-disagrees-across-bi__default",
+          "alkera/bi002-powerbi-share-and-stale-refresh__decision",
+          "alkera/bi002-powerbi-share-and-stale-refresh__default"
+        ],
+        "jobs": {
+          "oracle": {
+            "job": "acceptance-oracle-20261008T035417",
+            "seconds": 284,
+            "trials": [
+              {
+                "task": "alkera/bi001-revenue-disagrees-across-bi__decision",
+                "trial": "bi001-revenue-disagrees-across-b__E7KNDeQ",
+                "reward": 1,
+                "exception": null,
+                "outcome": "resolved",
+                "path_penalty": 0.0,
+                "missed": []
+              },
+              {
+                "task": "alkera/bi001-revenue-disagrees-across-bi__default",
+                "trial": "bi001-revenue-disagrees-across-b__aZPMgJN",
+                "reward": 1,
+                "exception": null,
+                "outcome": "resolved",
+                "path_penalty": 0.0,
+                "missed": []
+              },
+              {
+                "task": "alkera/bi002-powerbi-share-and-stale-refresh__default",
+                "trial": "bi002-powerbi-share-and-stale-re__HpSX5FY",
+                "reward": 1,
+                "exception": null,
+                "outcome": "resolved",
+                "path_penalty": 0.0,
+                "missed": []
+              },
+              {
+                "task": "alkera/bi002-powerbi-share-and-stale-refresh__decision",
+                "trial": "bi002-powerbi-share-and-stale-re__M9sRvZq",
+                "reward": 1,
+                "exception": null,
+                "outcome": "resolved",
+                "path_penalty": 0.0,
+                "missed": []
+              }
+            ],
+            "problems": []
+          },
+          "nop": {
+            "job": "acceptance-nop-20261008T035417",
+            "seconds": 173,
+            "trials": [
+              {
+                "task": "alkera/bi001-revenue-disagrees-across-bi__default",
+                "trial": "bi001-revenue-disagrees-across-b__Yh6KRik",
+                "reward": 0,
+                "exception": null,
+                "outcome": "silent",
+                "path_penalty": 0.0,
+                "missed": [
+                  "T1",
+                  "T2",
+                  "S1",
+                  "S2",
+                  "D1",
+                  "C1"
+                ]
+              },
+              {
+                "task": "alkera/bi001-revenue-disagrees-across-bi__decision",
+                "trial": "bi001-revenue-disagrees-across-b__fXSDqQa",
+                "reward": 0,
+                "exception": null,
+                "outcome": "silent",
+                "path_penalty": 0.0,
+                "missed": [
+                  "T1",
+                  "T2",
+                  "S3",
+                  "D1",
+                  "C1"
+                ]
+              },
+              {
+                "task": "alkera/bi002-powerbi-share-and-stale-refresh__decision",
+                "trial": "bi002-powerbi-share-and-stale-re__7DYhAGh",
+                "reward": 0,
+                "exception": null,
+                "outcome": "silent",
+                "path_penalty": 0.0,
+                "missed": [
+                  "M3",
+                  "R1",
+                  "D1",
+                  "C1"
+                ]
+              },
+              {
+                "task": "alkera/bi002-powerbi-share-and-stale-refresh__default",
+                "trial": "bi002-powerbi-share-and-stale-re__xinkXhP",
+                "reward": 0,
+                "exception": null,
+                "outcome": "silent",
+                "path_penalty": 0.0,
+                "missed": [
+                  "M1",
+                  "M2",
+                  "R1",
+                  "N1",
+                  "D1",
+                  "C1"
+                ]
+              }
+            ],
+            "problems": []
+          }
+        },
+        "accepted": true
+      }
+    }
+  ]
+}
