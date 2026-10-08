@@ -1,11 +1,11 @@
 {
   "architecture": "amd64",
-  "generated": "2026-10-07T19:34:28+00:00",
-  "head_revision": "1a4564135e76ed54f828cfde2cfbf1a2c0b510db",
-  "image_id": "sha256:dbe2521fad3312e3d09e2ea3c53e0e587021808dc420c301f2fe78d6e4e6022f",
+  "generated": "2026-10-08T04:18:37+00:00",
+  "head_revision": "21fed38c832dcab0f795775c3bd7dcc2583dc68b",
+  "image_id": "sha256:56c887f57c4000e8cb5452d12adc7b66c353b9696c8f95fd42f574ade8c1f5cd",
   "labels": {
     "org.alkera.source.overlay": "3bcec0084e72940560fb337262010d68cdeed873945820d659f516ff74f75cb2",
-    "org.alkera.source.revision": "1a4564135e76ed54f828cfde2cfbf1a2c0b510db",
+    "org.alkera.source.revision": "21fed38c832dcab0f795775c3bd7dcc2583dc68b",
     "org.alkera.toolbelt": "de",
     "org.alkera.warehouse_clients": "airflow"
   },
@@ -715,7 +715,7 @@
     "role_forbidden_present": [],
     "role_imports": {},
     "role_imports_failed": [],
-    "source_revision": "1a4564135e76ed54f828cfde2cfbf1a2c0b510db",
+    "source_revision": "21fed38c832dcab0f795775c3bd7dcc2583dc68b",
     "tool_count": 63,
     "toolbelt_role": "de",
     "tools": [
@@ -846,10 +846,10 @@
     "hash": "3bcec0084e72940560fb337262010d68cdeed873945820d659f516ff74f75cb2"
   },
   "repo_digests": [
-    "alkera-episode@sha256:dbe2521fad3312e3d09e2ea3c53e0e587021808dc420c301f2fe78d6e4e6022f"
+    "alkera-episode@sha256:56c887f57c4000e8cb5452d12adc7b66c353b9696c8f95fd42f574ade8c1f5cd"
   ],
-  "size_bytes": 1885909438,
-  "source_revision": "1a4564135e76ed54f828cfde2cfbf1a2c0b510db",
+  "size_bytes": 1885909547,
+  "source_revision": "21fed38c832dcab0f795775c3bd7dcc2583dc68b",
   "tag": "alkera-episode:head-airflow",
   "toolbelt": {
     "label": "de",
