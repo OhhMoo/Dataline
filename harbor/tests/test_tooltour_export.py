@@ -32,7 +32,8 @@ from alkera_harbor.constants import CANARY_MD
 from alkera_harbor.validate import validate_tasks
 
 TOOLS = ("dbt", "duckdb", "bigquery")
-EXPORTED = {"dbt.show.net_revenue", "duckdb.cli.net_revenue_feb_2026"}
+EXPORTED = {"dbt.show.net_revenue", "dbt.show.ref_inline",
+            "duckdb.cli.net_revenue_feb_2026"}
 DUCKDB = "duckdb.cli.net_revenue_feb_2026"
 #: February 2026 Net Revenue on the commerce_analytics world, seed 11
 #: (tasks/harness/tool_tour_probes/__init__.py): an anchor, so a truth that
@@ -74,8 +75,7 @@ def test_one_task_per_probe(exported):
         if probe_id.startswith("bigquery."):
             assert "warehouse=bigquery" in reason and "around the audited proxy" in reason, \
                 reason
-    assert skipped["dbt.show.ref_inline"].startswith("known finding"), skipped
-    assert sorted(r.status for r in report.results) == ["ok"] * 2 + ["skipped"] * 4
+    assert sorted(r.status for r in report.results) == ["ok"] * 3 + ["skipped"] * 3
 
     dataset = tomllib.loads((out / "dataset.toml").read_text(encoding="utf-8"))
     assert dataset["dataset"]["name"] == tooltour.DATASET_NAME
@@ -126,6 +126,16 @@ def test_one_task_per_probe(exported):
                    for pid in EXPORTED}
     assert len(dockerfiles) == 1
 
+
+def test_a_known_finding_is_skipped_by_name():
+    """A probe in its module's KNOWN (a FAIL owned elsewhere) is not exported: its
+    oracle could not pass. No probe is KNOWN today (dbt.show.ref_inline was, until
+    the commerce_analytics macro fix), so the rule is exercised on a stand-in."""
+    probe = next(p for p in tooltour.load_probes(["dbt"]) if p.id == "dbt.show.ref_inline")
+    assert tooltour.known_findings(["dbt"]) == {}
+    assert tooltour.skip_reason(probe, {}) is None
+    reason = tooltour.skip_reason(probe, {probe.id: "a cause owned elsewhere"})
+    assert reason.startswith("known finding") and reason.endswith("a cause owned elsewhere")
 
 def test_harbor_loads_every_task(exported):
     _adapter, report, out = exported

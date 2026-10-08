@@ -158,6 +158,52 @@ class CommerceAnalyticsThemeTest(unittest.TestCase):
     def test_every_dbt_view_is_readable_through_the_alias(self):
         self.assertEqual(executor.unreadable_views(self.w1), {})
 
+    def _dbt_inline(self, world: Path, command: str, sql: str) -> tuple[int, str]:
+        """`dbt <command> --inline <sql>` against the world, run the way
+        executor.dbt_invoke runs dbt (which takes no --inline)."""
+        import subprocess
+        out_dir = executor.write_profiles(world, world / "build" / "inline")
+        argv = [sys.executable, "-c", "from dbt.cli.main import cli; cli()", command,
+                "--quiet", "--inline", sql,
+                "--project-dir", str(world / "workspace" / "dbt_project"),
+                "--profiles-dir", str(out_dir),
+                "--target-path", str(out_dir / "target"),
+                "--log-path", str(out_dir / "logs")]
+        if command == "show":
+            argv += ["--output", "json"]
+        r = subprocess.run(argv, stdin=subprocess.DEVNULL, capture_output=True, text=True)
+        return r.returncode, (r.stdout or "") + (r.stderr or "")
+
+    def test_dbt_show_inline_ref_returns_the_warehouse_truth(self):
+        """`dbt show --inline "... {{ ref('fct_orders') }}"`: an inline query is a
+        `sql_operation` node, and macros/relations.sql must put the database back
+        on for it as it does for a test - two-part `warehouse.fct_orders` against
+        a file whose catalog is also `warehouse` is a Binder Error ("Ambiguous
+        reference to catalog or schema"). The number dbt returns is the one the
+        warehouse holds, read through the contract alias; afterwards `dbt build`
+        still passes and every stored view still reads through the alias (no
+        catalog baked into a body)."""
+        world = self.copy("dbt_inline")
+        truth = scalar(world, "SELECT sum(order_amount) FROM warehouse.fct_orders "
+                              "WHERE order_status = 'completed'")
+        self.assertIsNotNone(truth)
+
+        rc, output = self._dbt_inline(
+            world, "compile", "select 1 from {{ ref('fct_orders') }}")
+        self.assertEqual(rc, 0, output[-3000:])
+        self.assertIn('"warehouse"."warehouse"."fct_orders"', output)
+
+        rc, output = self._dbt_inline(
+            world, "show", "select sum(order_amount) as net_revenue from "
+                           "{{ ref('fct_orders') }} where order_status = 'completed'")
+        self.assertEqual(rc, 0, output[-3000:])
+        shown = json.loads(output[output.index("{"):output.rindex("}") + 1])
+        self.assertEqual(Decimal(str(shown["show"][0]["net_revenue"])), Decimal(str(truth)))
+
+        rc, output = executor.dbt_invoke(world, "build", out_dir=world / "build" / "b")
+        self.assertEqual(rc, 0, output[-3000:])
+        self.assertEqual(executor.unreadable_views(world), {})
+
     # ------------------------------------------------------------------
     # the star schema contract
     # ------------------------------------------------------------------

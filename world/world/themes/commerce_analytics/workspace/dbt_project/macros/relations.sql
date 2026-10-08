@@ -43,10 +43,21 @@
   qualifier goes back on. Without this branch NO dbt test can be written
   against any model in the `warehouse` schema, in any theme, and the failure
   is a binder error that says nothing about why.
+
+  The same holds for an inline query (`dbt show --inline` / `dbt compile
+  --inline`, `resource_type` `sql_operation`): executed at once, never stored,
+  and two-part `warehouse.fct_orders` is the same ambiguous reference.
+
+  The four other themes carry this macro without the `sql_operation` branch,
+  so `dbt show --inline "... {{ ref(...) }}"` still fails there. That is
+  deliberate: the macro is workspace content, and changing it moves the
+  workspace digest of every world built from that theme (and with it the
+  recorded baselines of every task on it). Fixed here first because the BI
+  tasks' analyst checks a number with `dbt show`.
 #}
 {% macro _in_test() %}
   {% do return(model is defined and model is mapping
-                and model.get('resource_type') == 'test') %}
+                and model.get('resource_type') in ('test', 'sql_operation')) %}
 {% endmacro %}
 
 {% macro ref() %}
