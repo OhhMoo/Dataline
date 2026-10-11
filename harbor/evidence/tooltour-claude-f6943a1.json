@@ -1,0 +1,1261 @@
+{
+  "jobs": "/home/ubuntu/env_project-main-2/harbor/dist/alkera-tooltour-jobs-20261010T043354Z",
+  "tools": [
+    {
+      "tool": "airflow",
+      "trials": 2,
+      "probes": [
+        "airflow.airflowctl.commerce_nightly_schedule",
+        "airflow.rest.dbt_build_successes"
+      ],
+      "mean_reward": 1.0,
+      "rewarded": 2,
+      "unmeasured_or_errored": 0,
+      "expected_tool_used": 2,
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "median_agent_seconds": 52.2
+    },
+    {
+      "tool": "databricks",
+      "trials": 6,
+      "probes": [
+        "databricks.connector.completed_orders_feb_2026",
+        "databricks.dbt.net_revenue_feb_2026",
+        "databricks.jobs.run_now_bi_refresh",
+        "databricks.rest.net_revenue",
+        "databricks.sdk.net_revenue_feb_2026",
+        "databricks.uc.fct_orders_columns"
+      ],
+      "mean_reward": 0.833,
+      "rewarded": 5,
+      "unmeasured_or_errored": 0,
+      "expected_tool_used": 5,
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "median_agent_seconds": 48.6
+    },
+    {
+      "tool": "dbt",
+      "trials": 2,
+      "probes": [
+        "dbt.show.net_revenue",
+        "dbt.show.ref_inline"
+      ],
+      "mean_reward": 1.0,
+      "rewarded": 2,
+      "unmeasured_or_errored": 0,
+      "expected_tool_used": 2,
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "median_agent_seconds": 56.8
+    },
+    {
+      "tool": "duckdb",
+      "trials": 1,
+      "probes": [
+        "duckdb.cli.net_revenue_feb_2026"
+      ],
+      "mean_reward": 1.0,
+      "rewarded": 1,
+      "unmeasured_or_errored": 0,
+      "expected_tool_used": 1,
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "median_agent_seconds": 47.9
+    },
+    {
+      "tool": "excel",
+      "trials": 1,
+      "probes": [
+        "excel.openpyxl.net_revenue_feb_2026_roundtrip"
+      ],
+      "mean_reward": 0.0,
+      "rewarded": 0,
+      "unmeasured_or_errored": 0,
+      "expected_tool_used": 1,
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "median_agent_seconds": 62.6
+    },
+    {
+      "tool": "human",
+      "trials": 8,
+      "probes": [
+        "human.confluence.net_revenue_page_version",
+        "human.jira.ana238_status",
+        "human.jira.ana238_status_da_snowflake",
+        "human.jira.ana238_status_de_aws",
+        "human.jira.ana238_status_de_databricks",
+        "human.jira.ana238_status_de_laptop_airflow",
+        "human.jira.ana238_status_de_postgres",
+        "human.slack.analytics_eng_threads"
+      ],
+      "mean_reward": 1.0,
+      "rewarded": 8,
+      "unmeasured_or_errored": 0,
+      "expected_tool_used": 8,
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "median_agent_seconds": 34.9
+    },
+    {
+      "tool": "jupyter",
+      "trials": 1,
+      "probes": [
+        "jupyter.kernel.completed_orders_feb_2026"
+      ],
+      "mean_reward": 0.0,
+      "rewarded": 0,
+      "unmeasured_or_errored": 0,
+      "expected_tool_used": 0,
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "median_agent_seconds": 81.2
+    },
+    {
+      "tool": "mf",
+      "trials": 1,
+      "probes": [
+        "mf.query.net_revenue_feb_2026"
+      ],
+      "mean_reward": 1.0,
+      "rewarded": 1,
+      "unmeasured_or_errored": 0,
+      "expected_tool_used": 1,
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "median_agent_seconds": 84.3
+    },
+    {
+      "tool": "postgres",
+      "trials": 1,
+      "probes": [
+        "postgres.psql.net_revenue_feb_2026"
+      ],
+      "mean_reward": 1.0,
+      "rewarded": 1,
+      "unmeasured_or_errored": 0,
+      "expected_tool_used": 1,
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "median_agent_seconds": 38.2
+    },
+    {
+      "tool": "postgres_dbt",
+      "trials": 1,
+      "probes": [
+        "postgres_dbt.run.net_revenue_feb_2026"
+      ],
+      "mean_reward": 1.0,
+      "rewarded": 1,
+      "unmeasured_or_errored": 0,
+      "expected_tool_used": 1,
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "median_agent_seconds": 65.7
+    },
+    {
+      "tool": "powerbi",
+      "trials": 1,
+      "probes": [
+        "powerbi.rest.net_revenue"
+      ],
+      "mean_reward": 1.0,
+      "rewarded": 1,
+      "unmeasured_or_errored": 0,
+      "expected_tool_used": 1,
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "median_agent_seconds": 71.0
+    },
+    {
+      "tool": "redshift",
+      "trials": 3,
+      "probes": [
+        "redshift.connector.net_revenue_feb_2026",
+        "redshift.dbt.show_net_revenue_feb_2026",
+        "redshift.psql.completed_orders_feb_2026"
+      ],
+      "mean_reward": 1.0,
+      "rewarded": 3,
+      "unmeasured_or_errored": 0,
+      "expected_tool_used": 3,
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "median_agent_seconds": 47.2
+    },
+    {
+      "tool": "sched",
+      "trials": 1,
+      "probes": [
+        "sched.ops_sched.dbt_build_successes"
+      ],
+      "mean_reward": 1.0,
+      "rewarded": 1,
+      "unmeasured_or_errored": 0,
+      "expected_tool_used": 1,
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "median_agent_seconds": 52.5
+    },
+    {
+      "tool": "sigma",
+      "trials": 1,
+      "probes": [
+        "sigma.rest.net_revenue_feb_2026"
+      ],
+      "mean_reward": 1.0,
+      "rewarded": 1,
+      "unmeasured_or_errored": 0,
+      "expected_tool_used": 1,
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "median_agent_seconds": 50.5
+    },
+    {
+      "tool": "snowflake",
+      "trials": 1,
+      "probes": [
+        "snowflake.connector.net_revenue_feb_2026"
+      ],
+      "mean_reward": 1.0,
+      "rewarded": 1,
+      "unmeasured_or_errored": 0,
+      "expected_tool_used": 1,
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "median_agent_seconds": 56.4
+    },
+    {
+      "tool": "tableau",
+      "trials": 1,
+      "probes": [
+        "tableau.tabcmd.net_revenue"
+      ],
+      "mean_reward": 1.0,
+      "rewarded": 1,
+      "unmeasured_or_errored": 0,
+      "expected_tool_used": 1,
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "median_agent_seconds": 45.8
+    }
+  ],
+  "trials": [
+    {
+      "job": "2026-10-10__04-33-55",
+      "trial": "airflow.airflowctl.commerce_nigh__CVvuLxK",
+      "task": "alkera/airflow.airflowctl.commerce_nightly_schedule__tour",
+      "probe": "airflow.airflowctl.commerce_nightly_schedule",
+      "tool": "airflow",
+      "agent": "claude-code",
+      "model": "claude-opus-5-5",
+      "reward": 1,
+      "measured": true,
+      "unmeasured": null,
+      "exception": null,
+      "expected_tool_used": true,
+      "checks": {
+        "answer": true,
+        "tools": true,
+        "network": true,
+        "seq": true
+      },
+      "tools_used": [
+        "airflow.auth_token",
+        "airflow.dag_get",
+        "shim.git",
+        "shim.python"
+      ],
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "answer": "30 2 * * *",
+      "truth": "30 2 * * *",
+      "agent_seconds": 44.2,
+      "trial_seconds": 320.7
+    },
+    {
+      "job": "2026-10-10__04-33-55",
+      "trial": "airflow.rest.dbt_build_successes__6jNjdoq",
+      "task": "alkera/airflow.rest.dbt_build_successes__tour",
+      "probe": "airflow.rest.dbt_build_successes",
+      "tool": "airflow",
+      "agent": "claude-code",
+      "model": "claude-opus-5-5",
+      "reward": 1,
+      "measured": true,
+      "unmeasured": null,
+      "exception": null,
+      "expected_tool_used": true,
+      "checks": {
+        "answer": true,
+        "tools": true,
+        "network": true,
+        "seq": true
+      },
+      "tools_used": [
+        "airflow.auth_token",
+        "airflow.dagrun_list",
+        "airflow.task_list",
+        "shim.git",
+        "shim.python"
+      ],
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "answer": 425,
+      "truth": 425,
+      "agent_seconds": 60.2,
+      "trial_seconds": 317.2
+    },
+    {
+      "job": "2026-10-10__04-33-55",
+      "trial": "databricks.connector.completed_o__swfg95V",
+      "task": "alkera/databricks.connector.completed_orders_feb_2026__tour",
+      "probe": "databricks.connector.completed_orders_feb_2026",
+      "tool": "databricks",
+      "agent": "claude-code",
+      "model": "claude-opus-5-5",
+      "reward": 1,
+      "measured": true,
+      "unmeasured": null,
+      "exception": null,
+      "expected_tool_used": true,
+      "checks": {
+        "answer": true,
+        "tools": true,
+        "network": true,
+        "seq": true
+      },
+      "tools_used": [
+        "databricks.feature_flags",
+        "databricks.session_create",
+        "databricks.statement",
+        "databricks.statement_close",
+        "databricks.telemetry",
+        "databricks.thrift",
+        "shim.git",
+        "shim.python"
+      ],
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "answer": 1068,
+      "truth": 1068,
+      "agent_seconds": 51.8,
+      "trial_seconds": 516.1
+    },
+    {
+      "job": "2026-10-10__04-33-55",
+      "trial": "databricks.dbt.net_revenue_feb_2__7mZMRGE",
+      "task": "alkera/databricks.dbt.net_revenue_feb_2026__tour",
+      "probe": "databricks.dbt.net_revenue_feb_2026",
+      "tool": "databricks",
+      "agent": "claude-code",
+      "model": "claude-opus-5-5",
+      "reward": 1,
+      "measured": true,
+      "unmeasured": null,
+      "exception": null,
+      "expected_tool_used": true,
+      "checks": {
+        "answer": true,
+        "tools": true,
+        "network": true,
+        "seq": true
+      },
+      "tools_used": [
+        "databricks.feature_flags",
+        "databricks.session_create",
+        "databricks.session_delete",
+        "databricks.statement",
+        "databricks.statement_close",
+        "shim.dbt",
+        "shim.git"
+      ],
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "answer": 2361224.0,
+      "truth": "2361224.00",
+      "agent_seconds": 71.6,
+      "trial_seconds": 514.6
+    },
+    {
+      "job": "2026-10-10__04-33-55",
+      "trial": "databricks.jobs.run_now_bi_refre__UGoJ2xj",
+      "task": "alkera/databricks.jobs.run_now_bi_refresh__tour",
+      "probe": "databricks.jobs.run_now_bi_refresh",
+      "tool": "databricks",
+      "agent": "claude-code",
+      "model": "claude-opus-5-5",
+      "reward": 1,
+      "measured": true,
+      "unmeasured": null,
+      "exception": null,
+      "expected_tool_used": true,
+      "checks": {
+        "answer": true,
+        "tools": true,
+        "network": true,
+        "seq": true
+      },
+      "tools_used": [
+        "databricks.sched_list",
+        "databricks.sched_state",
+        "databricks.sched_trigger",
+        "shim.git",
+        "shim.python"
+      ],
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "answer": 1772409600000,
+      "truth": 1772409600000,
+      "agent_seconds": 42.2,
+      "trial_seconds": 322.3
+    },
+    {
+      "job": "2026-10-10__04-33-55",
+      "trial": "databricks.rest.net_revenue__tou__C5sDcjh",
+      "task": "alkera/databricks.rest.net_revenue__tour",
+      "probe": "databricks.rest.net_revenue",
+      "tool": "databricks",
+      "agent": "claude-code",
+      "model": "claude-opus-5-5",
+      "reward": 1,
+      "measured": true,
+      "unmeasured": null,
+      "exception": null,
+      "expected_tool_used": true,
+      "checks": {
+        "answer": true,
+        "tools": true,
+        "network": true,
+        "seq": true
+      },
+      "tools_used": [
+        "databricks.statement",
+        "shim.git",
+        "shim.python"
+      ],
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "answer": 33733790.0,
+      "truth": "33733790.00",
+      "agent_seconds": 46.5,
+      "trial_seconds": 434.8
+    },
+    {
+      "job": "2026-10-10__04-33-55",
+      "trial": "databricks.sdk.net_revenue_feb_2__hippEZu",
+      "task": "alkera/databricks.sdk.net_revenue_feb_2026__tour",
+      "probe": "databricks.sdk.net_revenue_feb_2026",
+      "tool": "databricks",
+      "agent": "claude-code",
+      "model": "claude-opus-5-5",
+      "reward": 1,
+      "measured": true,
+      "unmeasured": null,
+      "exception": null,
+      "expected_tool_used": true,
+      "checks": {
+        "answer": true,
+        "tools": true,
+        "network": true,
+        "seq": true
+      },
+      "tools_used": [
+        "databricks.statement",
+        "databricks.warehouses_list",
+        "shim.git",
+        "shim.python"
+      ],
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "answer": 2361224.0,
+      "truth": "2361224.00",
+      "agent_seconds": 50.7,
+      "trial_seconds": 326.2
+    },
+    {
+      "job": "2026-10-10__04-33-55",
+      "trial": "databricks.uc.fct_orders_columns__8rtrzPB",
+      "task": "alkera/databricks.uc.fct_orders_columns__tour",
+      "probe": "databricks.uc.fct_orders_columns",
+      "tool": "databricks",
+      "agent": "claude-code",
+      "model": "claude-opus-5-5",
+      "reward": 0,
+      "measured": true,
+      "unmeasured": null,
+      "exception": null,
+      "expected_tool_used": false,
+      "checks": {
+        "answer": true,
+        "tools": false,
+        "network": true,
+        "seq": true
+      },
+      "tools_used": [
+        "databricks.catalogs_list",
+        "databricks.schemas_list",
+        "databricks.tables_list",
+        "shim.git",
+        "shim.python"
+      ],
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "answer": 6,
+      "truth": 6,
+      "agent_seconds": 45.5,
+      "trial_seconds": 322.9
+    },
+    {
+      "job": "2026-10-10__04-33-55",
+      "trial": "dbt.show.net_revenue__tour__MY6SXQ2",
+      "task": "alkera/dbt.show.net_revenue__tour",
+      "probe": "dbt.show.net_revenue",
+      "tool": "dbt",
+      "agent": "claude-code",
+      "model": "claude-opus-5-5",
+      "reward": 1,
+      "measured": true,
+      "unmeasured": null,
+      "exception": null,
+      "expected_tool_used": true,
+      "checks": {
+        "answer": true,
+        "tools": true,
+        "network": true,
+        "seq": true
+      },
+      "tools_used": [
+        "shim.dbt",
+        "shim.git"
+      ],
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "answer": 33733790.0,
+      "truth": "33733790.00",
+      "agent_seconds": 49.0,
+      "trial_seconds": 312.3
+    },
+    {
+      "job": "2026-10-10__04-33-55",
+      "trial": "dbt.show.ref_inline__tour__d4ZkdM3",
+      "task": "alkera/dbt.show.ref_inline__tour",
+      "probe": "dbt.show.ref_inline",
+      "tool": "dbt",
+      "agent": "claude-code",
+      "model": "claude-opus-5-5",
+      "reward": 1,
+      "measured": true,
+      "unmeasured": null,
+      "exception": null,
+      "expected_tool_used": true,
+      "checks": {
+        "answer": true,
+        "tools": true,
+        "network": true,
+        "seq": true
+      },
+      "tools_used": [
+        "shim.dbt",
+        "shim.git"
+      ],
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "answer": 33733790.0,
+      "truth": "33733790.00",
+      "agent_seconds": 64.6,
+      "trial_seconds": 431.4
+    },
+    {
+      "job": "2026-10-10__04-33-55",
+      "trial": "duckdb.cli.net_revenue_feb_2026__pqLkTZR",
+      "task": "alkera/duckdb.cli.net_revenue_feb_2026__tour",
+      "probe": "duckdb.cli.net_revenue_feb_2026",
+      "tool": "duckdb",
+      "agent": "claude-code",
+      "model": "claude-opus-5-5",
+      "reward": 1,
+      "measured": true,
+      "unmeasured": null,
+      "exception": null,
+      "expected_tool_used": true,
+      "checks": {
+        "answer": true,
+        "tools": true,
+        "network": true,
+        "seq": true
+      },
+      "tools_used": [
+        "duckdb.statement",
+        "shim.git"
+      ],
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "answer": 2361224.0,
+      "truth": "2361224.00",
+      "agent_seconds": 47.9,
+      "trial_seconds": 276.1
+    },
+    {
+      "job": "2026-10-10__04-33-55",
+      "trial": "excel.openpyxl.net_revenue_feb_2__VPJNtYd",
+      "task": "alkera/excel.openpyxl.net_revenue_feb_2026_roundtrip__tour",
+      "probe": "excel.openpyxl.net_revenue_feb_2026_roundtrip",
+      "tool": "excel",
+      "agent": "claude-code",
+      "model": "claude-opus-5-5",
+      "reward": 0,
+      "measured": true,
+      "unmeasured": null,
+      "exception": null,
+      "expected_tool_used": true,
+      "checks": {
+        "answer": true,
+        "tools": false,
+        "network": true,
+        "seq": true
+      },
+      "tools_used": [
+        "duckdb.statement",
+        "shim.git",
+        "shim.python"
+      ],
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "answer": 2361224.0,
+      "truth": "2361224.00",
+      "agent_seconds": 62.6,
+      "trial_seconds": 321.3
+    },
+    {
+      "job": "2026-10-10__04-33-55",
+      "trial": "human.confluence.net_revenue_pag__jDGpYLH",
+      "task": "alkera/human.confluence.net_revenue_page_version__tour",
+      "probe": "human.confluence.net_revenue_page_version",
+      "tool": "human",
+      "agent": "claude-code",
+      "model": "claude-opus-5-5",
+      "reward": 1,
+      "measured": true,
+      "unmeasured": null,
+      "exception": null,
+      "expected_tool_used": true,
+      "checks": {
+        "answer": true,
+        "tools": true,
+        "network": true,
+        "seq": true
+      },
+      "tools_used": [
+        "confluence.kb_get",
+        "confluence.kb_list",
+        "confluence.request",
+        "shim.git",
+        "shim.python"
+      ],
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "answer": 5,
+      "truth": 5,
+      "agent_seconds": 38.2,
+      "trial_seconds": 317.4
+    },
+    {
+      "job": "2026-10-10__04-33-55",
+      "trial": "human.jira.ana238_status__tour__3edgHeK",
+      "task": "alkera/human.jira.ana238_status__tour",
+      "probe": "human.jira.ana238_status",
+      "tool": "human",
+      "agent": "claude-code",
+      "model": "claude-opus-5-5",
+      "reward": 1,
+      "measured": true,
+      "unmeasured": null,
+      "exception": null,
+      "expected_tool_used": true,
+      "checks": {
+        "answer": true,
+        "tools": true,
+        "network": true,
+        "seq": true
+      },
+      "tools_used": [
+        "jira.issues_get",
+        "shim.git"
+      ],
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "answer": "todo",
+      "truth": "todo",
+      "agent_seconds": 33.5,
+      "trial_seconds": 317.3
+    },
+    {
+      "job": "2026-10-10__04-33-55",
+      "trial": "human.jira.ana238_status_da_snow__cQtXPgz",
+      "task": "alkera/human.jira.ana238_status_da_snowflake__tour",
+      "probe": "human.jira.ana238_status_da_snowflake",
+      "tool": "human",
+      "agent": "claude-code",
+      "model": "claude-opus-5-5",
+      "reward": 1,
+      "measured": true,
+      "unmeasured": null,
+      "exception": null,
+      "expected_tool_used": true,
+      "checks": {
+        "answer": true,
+        "tools": true,
+        "network": true,
+        "seq": true
+      },
+      "tools_used": [
+        "jira.issues_get",
+        "shim.git"
+      ],
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "answer": "todo",
+      "truth": "todo",
+      "agent_seconds": 32.2,
+      "trial_seconds": 331.4
+    },
+    {
+      "job": "2026-10-10__04-33-55",
+      "trial": "human.jira.ana238_status_de_aws__Vnjxd6Q",
+      "task": "alkera/human.jira.ana238_status_de_aws__tour",
+      "probe": "human.jira.ana238_status_de_aws",
+      "tool": "human",
+      "agent": "claude-code",
+      "model": "claude-opus-5-5",
+      "reward": 1,
+      "measured": true,
+      "unmeasured": null,
+      "exception": null,
+      "expected_tool_used": true,
+      "checks": {
+        "answer": true,
+        "tools": true,
+        "network": true,
+        "seq": true
+      },
+      "tools_used": [
+        "jira.issues_get",
+        "shim.git"
+      ],
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "answer": "todo",
+      "truth": "todo",
+      "agent_seconds": 36.3,
+      "trial_seconds": 519.4
+    },
+    {
+      "job": "2026-10-10__04-33-55",
+      "trial": "human.jira.ana238_status_de_data__yXevThg",
+      "task": "alkera/human.jira.ana238_status_de_databricks__tour",
+      "probe": "human.jira.ana238_status_de_databricks",
+      "tool": "human",
+      "agent": "claude-code",
+      "model": "claude-opus-5-5",
+      "reward": 1,
+      "measured": true,
+      "unmeasured": null,
+      "exception": null,
+      "expected_tool_used": true,
+      "checks": {
+        "answer": true,
+        "tools": true,
+        "network": true,
+        "seq": true
+      },
+      "tools_used": [
+        "jira.issues_get",
+        "shim.git"
+      ],
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "answer": "todo",
+      "truth": "todo",
+      "agent_seconds": 33.3,
+      "trial_seconds": 311.9
+    },
+    {
+      "job": "2026-10-10__04-33-55",
+      "trial": "human.jira.ana238_status_de_lapt__UjKgpZi",
+      "task": "alkera/human.jira.ana238_status_de_laptop_airflow__tour",
+      "probe": "human.jira.ana238_status_de_laptop_airflow",
+      "tool": "human",
+      "agent": "claude-code",
+      "model": "claude-opus-5-5",
+      "reward": 1,
+      "measured": true,
+      "unmeasured": null,
+      "exception": null,
+      "expected_tool_used": true,
+      "checks": {
+        "answer": true,
+        "tools": true,
+        "network": true,
+        "seq": true
+      },
+      "tools_used": [
+        "jira.issues_get",
+        "shim.git"
+      ],
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "answer": "todo",
+      "truth": "todo",
+      "agent_seconds": 31.6,
+      "trial_seconds": 255.7
+    },
+    {
+      "job": "2026-10-10__04-33-55",
+      "trial": "human.jira.ana238_status_de_post__PtyRstc",
+      "task": "alkera/human.jira.ana238_status_de_postgres__tour",
+      "probe": "human.jira.ana238_status_de_postgres",
+      "tool": "human",
+      "agent": "claude-code",
+      "model": "claude-opus-5-5",
+      "reward": 1,
+      "measured": true,
+      "unmeasured": null,
+      "exception": null,
+      "expected_tool_used": true,
+      "checks": {
+        "answer": true,
+        "tools": true,
+        "network": true,
+        "seq": true
+      },
+      "tools_used": [
+        "jira.issues_get",
+        "shim.git"
+      ],
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "answer": "todo",
+      "truth": "todo",
+      "agent_seconds": 37.1,
+      "trial_seconds": 516.4
+    },
+    {
+      "job": "2026-10-10__04-33-55",
+      "trial": "human.slack.analytics_eng_thread__nWdCbDZ",
+      "task": "alkera/human.slack.analytics_eng_threads__tour",
+      "probe": "human.slack.analytics_eng_threads",
+      "tool": "human",
+      "agent": "claude-code",
+      "model": "claude-opus-5-5",
+      "reward": 1,
+      "measured": true,
+      "unmeasured": null,
+      "exception": null,
+      "expected_tool_used": true,
+      "checks": {
+        "answer": true,
+        "tools": true,
+        "network": true,
+        "seq": true
+      },
+      "tools_used": [
+        "shim.git",
+        "slack.chat_channels",
+        "slack.chat_history",
+        "slack.chat_thread"
+      ],
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "answer": 5,
+      "truth": 5,
+      "agent_seconds": 38.7,
+      "trial_seconds": 434.5
+    },
+    {
+      "job": "2026-10-10__04-33-55",
+      "trial": "jupyter.kernel.completed_orders__CCmhkBZ",
+      "task": "alkera/jupyter.kernel.completed_orders_feb_2026__tour",
+      "probe": "jupyter.kernel.completed_orders_feb_2026",
+      "tool": "jupyter",
+      "agent": "claude-code",
+      "model": "claude-opus-5-5",
+      "reward": 0,
+      "measured": true,
+      "unmeasured": null,
+      "exception": null,
+      "expected_tool_used": false,
+      "checks": {
+        "answer": true,
+        "tools": false,
+        "network": true,
+        "seq": true
+      },
+      "tools_used": [
+        "shim.dbt",
+        "shim.git",
+        "shim.python"
+      ],
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "answer": 1068,
+      "truth": 1068,
+      "agent_seconds": 81.2,
+      "trial_seconds": 323.5
+    },
+    {
+      "job": "2026-10-10__04-33-55",
+      "trial": "mf.query.net_revenue_feb_2026__t__B4DFJaZ",
+      "task": "alkera/mf.query.net_revenue_feb_2026__tour",
+      "probe": "mf.query.net_revenue_feb_2026",
+      "tool": "mf",
+      "agent": "claude-code",
+      "model": "claude-opus-5-5",
+      "reward": 1,
+      "measured": true,
+      "unmeasured": null,
+      "exception": null,
+      "expected_tool_used": true,
+      "checks": {
+        "answer": true,
+        "tools": true,
+        "network": true,
+        "seq": true
+      },
+      "tools_used": [
+        "shim.dbt",
+        "shim.git",
+        "shim.mf"
+      ],
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "answer": 2361224.0,
+      "truth": "2361224.00",
+      "agent_seconds": 84.3,
+      "trial_seconds": 336.7
+    },
+    {
+      "job": "2026-10-10__04-33-55",
+      "trial": "postgres.psql.net_revenue_feb_20__udaH6jL",
+      "task": "alkera/postgres.psql.net_revenue_feb_2026__tour",
+      "probe": "postgres.psql.net_revenue_feb_2026",
+      "tool": "postgres",
+      "agent": "claude-code",
+      "model": "claude-opus-5-5",
+      "reward": 1,
+      "measured": true,
+      "unmeasured": null,
+      "exception": null,
+      "expected_tool_used": true,
+      "checks": {
+        "answer": true,
+        "tools": true,
+        "network": true,
+        "seq": true
+      },
+      "tools_used": [
+        "psql.statement",
+        "shim.git"
+      ],
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "answer": 2361224.0,
+      "truth": "2361224.00",
+      "agent_seconds": 38.2,
+      "trial_seconds": 328.4
+    },
+    {
+      "job": "2026-10-10__04-33-55",
+      "trial": "postgres_dbt.run.net_revenue_feb__K4iwd2U",
+      "task": "alkera/postgres_dbt.run.net_revenue_feb_2026__tour",
+      "probe": "postgres_dbt.run.net_revenue_feb_2026",
+      "tool": "postgres_dbt",
+      "agent": "claude-code",
+      "model": "claude-opus-5-5",
+      "reward": 1,
+      "measured": true,
+      "unmeasured": null,
+      "exception": null,
+      "expected_tool_used": true,
+      "checks": {
+        "answer": true,
+        "tools": true,
+        "network": true,
+        "seq": true
+      },
+      "tools_used": [
+        "psql.statement",
+        "shim.dbt",
+        "shim.git"
+      ],
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "answer": 2361224.0,
+      "truth": "2361224.00",
+      "agent_seconds": 65.7,
+      "trial_seconds": 317.1
+    },
+    {
+      "job": "2026-10-10__04-33-55",
+      "trial": "powerbi.rest.net_revenue__tour__vZyBmAC",
+      "task": "alkera/powerbi.rest.net_revenue__tour",
+      "probe": "powerbi.rest.net_revenue",
+      "tool": "powerbi",
+      "agent": "claude-code",
+      "model": "claude-opus-5-5",
+      "reward": 1,
+      "measured": true,
+      "unmeasured": null,
+      "exception": null,
+      "expected_tool_used": true,
+      "checks": {
+        "answer": true,
+        "tools": true,
+        "network": true,
+        "seq": true
+      },
+      "tools_used": [
+        "powerbi.datasets_list",
+        "powerbi.execute_queries",
+        "powerbi.groups_list",
+        "powerbi.refreshes_list",
+        "powerbi.request",
+        "powerbi.token",
+        "shim.git",
+        "shim.python"
+      ],
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "answer": 33733790,
+      "truth": "33733790.00",
+      "agent_seconds": 71.0,
+      "trial_seconds": 445.6
+    },
+    {
+      "job": "2026-10-10__04-33-55",
+      "trial": "redshift.connector.net_revenue_f__8LWG6FD",
+      "task": "alkera/redshift.connector.net_revenue_feb_2026__tour",
+      "probe": "redshift.connector.net_revenue_feb_2026",
+      "tool": "redshift",
+      "agent": "claude-code",
+      "model": "claude-opus-5-5",
+      "reward": 1,
+      "measured": true,
+      "unmeasured": null,
+      "exception": null,
+      "expected_tool_used": true,
+      "checks": {
+        "answer": true,
+        "tools": true,
+        "network": true,
+        "seq": true
+      },
+      "tools_used": [
+        "redshift.statement",
+        "shim.git",
+        "shim.python"
+      ],
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "answer": 2361224.0,
+      "truth": "2361224.00",
+      "agent_seconds": 47.2,
+      "trial_seconds": 275.8
+    },
+    {
+      "job": "2026-10-10__04-33-55",
+      "trial": "redshift.dbt.show_net_revenue_fe__NJhJMsK",
+      "task": "alkera/redshift.dbt.show_net_revenue_feb_2026__tour",
+      "probe": "redshift.dbt.show_net_revenue_feb_2026",
+      "tool": "redshift",
+      "agent": "claude-code",
+      "model": "claude-opus-5-5",
+      "reward": 1,
+      "measured": true,
+      "unmeasured": null,
+      "exception": null,
+      "expected_tool_used": true,
+      "checks": {
+        "answer": true,
+        "tools": true,
+        "network": true,
+        "seq": true
+      },
+      "tools_used": [
+        "redshift.statement",
+        "shim.dbt",
+        "shim.git"
+      ],
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "answer": 2361224.0,
+      "truth": "2361224.00",
+      "agent_seconds": 56.9,
+      "trial_seconds": 323.7
+    },
+    {
+      "job": "2026-10-10__04-33-55",
+      "trial": "redshift.psql.completed_orders_f__TRwPjhv",
+      "task": "alkera/redshift.psql.completed_orders_feb_2026__tour",
+      "probe": "redshift.psql.completed_orders_feb_2026",
+      "tool": "redshift",
+      "agent": "claude-code",
+      "model": "claude-opus-5-5",
+      "reward": 1,
+      "measured": true,
+      "unmeasured": null,
+      "exception": null,
+      "expected_tool_used": true,
+      "checks": {
+        "answer": true,
+        "tools": true,
+        "network": true,
+        "seq": true
+      },
+      "tools_used": [
+        "redshift.statement",
+        "shim.git"
+      ],
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "answer": 1068,
+      "truth": 1068,
+      "agent_seconds": 45.5,
+      "trial_seconds": 270.5
+    },
+    {
+      "job": "2026-10-10__04-33-55",
+      "trial": "sched.ops_sched.dbt_build_succes__Zt9gBCA",
+      "task": "alkera/sched.ops_sched.dbt_build_successes__tour",
+      "probe": "sched.ops_sched.dbt_build_successes",
+      "tool": "sched",
+      "agent": "claude-code",
+      "model": "claude-opus-5-5",
+      "reward": 1,
+      "measured": true,
+      "unmeasured": null,
+      "exception": null,
+      "expected_tool_used": true,
+      "checks": {
+        "answer": true,
+        "tools": true,
+        "network": true,
+        "seq": true
+      },
+      "tools_used": [
+        "sched.sched_list",
+        "sched.sched_logs",
+        "shim.git"
+      ],
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "answer": 425,
+      "truth": 425,
+      "agent_seconds": 52.5,
+      "trial_seconds": 338.3
+    },
+    {
+      "job": "2026-10-10__04-33-55",
+      "trial": "sigma.rest.net_revenue_feb_2026__qQkxQPU",
+      "task": "alkera/sigma.rest.net_revenue_feb_2026__tour",
+      "probe": "sigma.rest.net_revenue_feb_2026",
+      "tool": "sigma",
+      "agent": "claude-code",
+      "model": "claude-opus-5-5",
+      "reward": 1,
+      "measured": true,
+      "unmeasured": null,
+      "exception": null,
+      "expected_tool_used": true,
+      "checks": {
+        "answer": true,
+        "tools": true,
+        "network": true,
+        "seq": true
+      },
+      "tools_used": [
+        "shim.git",
+        "sigma.auth_token",
+        "sigma.query_download",
+        "sigma.workbook_export",
+        "sigma.workbook_page_elements",
+        "sigma.workbook_pages",
+        "sigma.workbooks_list"
+      ],
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "answer": 2361224.0,
+      "truth": "2361224.00",
+      "agent_seconds": 50.5,
+      "trial_seconds": 338.1
+    },
+    {
+      "job": "2026-10-10__04-33-55",
+      "trial": "snowflake.connector.net_revenue__BNUEQ5f",
+      "task": "alkera/snowflake.connector.net_revenue_feb_2026__tour",
+      "probe": "snowflake.connector.net_revenue_feb_2026",
+      "tool": "snowflake",
+      "agent": "claude-code",
+      "model": "claude-opus-5-5",
+      "reward": 1,
+      "measured": true,
+      "unmeasured": null,
+      "exception": null,
+      "expected_tool_used": true,
+      "checks": {
+        "answer": true,
+        "tools": true,
+        "network": true,
+        "seq": true
+      },
+      "tools_used": [
+        "shim.git",
+        "shim.python",
+        "snowflake.statement"
+      ],
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "answer": 2361224.0,
+      "truth": "2361224.00",
+      "agent_seconds": 56.4,
+      "trial_seconds": 311.5
+    },
+    {
+      "job": "2026-10-10__04-33-55",
+      "trial": "tableau.tabcmd.net_revenue__tour__MC5EkTh",
+      "task": "alkera/tableau.tabcmd.net_revenue__tour",
+      "probe": "tableau.tabcmd.net_revenue",
+      "tool": "tableau",
+      "agent": "claude-code",
+      "model": "claude-opus-5-5",
+      "reward": 1,
+      "measured": true,
+      "unmeasured": null,
+      "exception": null,
+      "expected_tool_used": true,
+      "checks": {
+        "answer": true,
+        "tools": true,
+        "network": true,
+        "seq": true
+      },
+      "tools_used": [
+        "shim.git",
+        "shim.tabcmd",
+        "tableau.auth_signin",
+        "tableau.server_info",
+        "tableau.users_get",
+        "tableau.views_data",
+        "tableau.views_list"
+      ],
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "answer": 33733790,
+      "truth": "33733790.00",
+      "agent_seconds": 45.8,
+      "trial_seconds": 341.6
+    }
+  ]
+}
