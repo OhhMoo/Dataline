@@ -1,0 +1,161 @@
+{
+  "destinations_final": {
+    "airbyte.internal:8001": 0,
+    "alertmanager.internal:9093": 0,
+    "bigquery.internal:9050": 0,
+    "confluence.internal:8090": 0,
+    "deploy.internal:8085": 0,
+    "jira.internal:8080": 1,
+    "loki.internal:3100": 0,
+    "metabase.internal:3000": 0,
+    "native-services.internal:8099": 0,
+    "prometheus.internal:9090": 0,
+    "sched.internal:8120": 0,
+    "slack.internal:8081": 0
+  },
+  "episode_own_request": {
+    "jira_count": [
+      0,
+      1
+    ],
+    "status": "200"
+  },
+  "image": "alkera-episode:t8b-bigquery",
+  "minio_batch_job": [
+    {
+      "count_changes": {},
+      "info": [
+        403,
+        "{\"Code\":\"AccessDenied\",\"Message\":\"Access Denied.\",\"Resource\":\"/minio/admin/v3/info\",\"RequestId\":\"18DE177C1164D3FB\",\"HostId\":\"dd9025bab4ad464b049177c95eb6ebf374d3b3fd1af9251148b658df7ac2e3e8\"}\n"
+      ],
+      "start_job": [
+        403,
+        "{\"Code\":\"AccessDenied\",\"Message\":\"Access Denied.\",\"Resource\":\"/minio/admin/v3/start-job\",\"RequestId\":\"18DE177C11841B46\",\"HostId\":\"dd9025bab4ad464b049177c95eb6ebf374d3b3fd1af9251148b658df7ac2e3e8\"}\n"
+      ],
+      "target": "backend_ip:8080",
+      "url": "http://10.210.1.5:8080"
+    },
+    {
+      "count_changes": {},
+      "info": [
+        403,
+        "{\"Code\":\"AccessDenied\",\"Message\":\"Access Denied.\",\"Resource\":\"/minio/admin/v3/info\",\"RequestId\":\"18DE177D246DF473\",\"HostId\":\"dd9025bab4ad464b049177c95eb6ebf374d3b3fd1af9251148b658df7ac2e3e8\"}\n"
+      ],
+      "start_job": [
+        403,
+        "{\"Code\":\"AccessDenied\",\"Message\":\"Access Denied.\",\"Resource\":\"/minio/admin/v3/start-job\",\"RequestId\":\"18DE177D24871A50\",\"HostId\":\"dd9025bab4ad464b049177c95eb6ebf374d3b3fd1af9251148b658df7ac2e3e8\"}\n"
+      ],
+      "target": "compose_name:8080",
+      "url": "http://native-services:8080"
+    },
+    {
+      "count_changes": {},
+      "info": [
+        403,
+        "{\"Code\":\"AccessDenied\",\"Message\":\"Access Denied.\",\"Resource\":\"/minio/admin/v3/info\",\"RequestId\":\"18DE177E353F93BA\",\"HostId\":\"dd9025bab4ad464b049177c95eb6ebf374d3b3fd1af9251148b658df7ac2e3e8\"}\n"
+      ],
+      "start_job": [
+        403,
+        "{\"Code\":\"AccessDenied\",\"Message\":\"Access Denied.\",\"Resource\":\"/minio/admin/v3/start-job\",\"RequestId\":\"18DE177E35587DCE\",\"HostId\":\"dd9025bab4ad464b049177c95eb6ebf374d3b3fd1af9251148b658df7ac2e3e8\"}\n"
+      ],
+      "target": "backend_ip:8099",
+      "url": "http://10.210.1.5:8099"
+    },
+    {
+      "count_changes": {},
+      "info": [
+        403,
+        "{\"Code\":\"AccessDenied\",\"Message\":\"Access Denied.\",\"Resource\":\"/minio/admin/v3/info\",\"RequestId\":\"18DE177F44E472D3\",\"HostId\":\"dd9025bab4ad464b049177c95eb6ebf374d3b3fd1af9251148b658df7ac2e3e8\"}\n"
+      ],
+      "start_job": [
+        403,
+        "{\"Code\":\"AccessDenied\",\"Message\":\"Access Denied.\",\"Resource\":\"/minio/admin/v3/start-job\",\"RequestId\":\"18DE177F4502DCBE\",\"HostId\":\"dd9025bab4ad464b049177c95eb6ebf374d3b3fd1af9251148b658df7ac2e3e8\"}\n"
+      ],
+      "target": "episode_alias:8080",
+      "url": "http://jira.internal:8080"
+    }
+  ],
+  "minio_notify_webhook": [
+    {
+      "count_changes": {},
+      "steps": [
+        {
+          "cmd": "mc admin config set m notify_webhook:t8b0 endpoint=http://10.210.1.5:8080/ queue_limit=0",
+          "out": "alias=0\nmc: <ERROR> Unable to set 'notify_webhook:t8b0 endpoint=http://10.210.1.5:8080/ queue_limit=0' to server. Access Denied.",
+          "rc": 1
+        },
+        {
+          "cmd": "mc admin service restart m --json; sleep 3; mc ready m",
+          "out": "alias=0\n{\"status\":\"error\",\"error\":{\"message\":\"Unable to restart the server.\",\"cause\":{\"message\":\"Access Denied.\",\"error\":{\"Code\":\"AccessDenied\",\"Message\":\"Access Denied.\",\"BucketName\":\"\",\"Key\":\"\",\"RequestID\":\"18DE17804BAB8F52\",\"HostID\":\"dd9025bab4ad464b049177c95eb6ebf374d3b3fd1af9251148b658df7ac2e3e8\",\"Region\":\"\"}},\"type\":\"fatal\"}}\nThe cluster 'm' is ready",
+          "rc": 0
+        },
+        {
+          "cmd": "mc event add m/alkera arn:minio:sqs::t8b0:webhook --event put --prefix t8b0/",
+          "out": "alias=0\nmc: <ERROR> Unable to enable notification on the specified bucket. Access Denied.",
+          "rc": 1
+        },
+        {
+          "cmd": "echo x | mc pipe m/alkera/t8b0/obj",
+          "out": "alias=0\n\n 0 B / ? 2 bytes -> `m/alkera/t8b0/obj`",
+          "rc": 0
+        }
+      ],
+      "target": "jira_8080_backend_ip",
+      "url": "http://10.210.1.5:8080"
+    },
+    {
+      "count_changes": {},
+      "steps": [
+        {
+          "cmd": "mc admin config set m notify_webhook:t8b1 endpoint=http://jira.internal:8080/ queue_limit=0",
+          "out": "alias=0\nmc: <ERROR> Unable to set 'notify_webhook:t8b1 endpoint=http://jira.internal:8080/ queue_limit=0' to server. Access Denied.",
+          "rc": 1
+        },
+        {
+          "cmd": "mc admin service restart m --json; sleep 3; mc ready m",
+          "out": "alias=0\n{\"status\":\"error\",\"error\":{\"message\":\"Unable to restart the server.\",\"cause\":{\"message\":\"Access Denied.\",\"error\":{\"Code\":\"AccessDenied\",\"Message\":\"Access Denied.\",\"BucketName\":\"\",\"Key\":\"\",\"RequestID\":\"18DE17820FC34629\",\"HostID\":\"dd9025bab4ad464b049177c95eb6ebf374d3b3fd1af9251148b658df7ac2e3e8\",\"Region\":\"\"}},\"type\":\"fatal\"}}\nThe cluster 'm' is ready",
+          "rc": 0
+        },
+        {
+          "cmd": "mc event add m/alkera arn:minio:sqs::t8b1:webhook --event put --prefix t8b1/",
+          "out": "alias=0\nmc: <ERROR> Unable to enable notification on the specified bucket. Access Denied.",
+          "rc": 1
+        },
+        {
+          "cmd": "echo x | mc pipe m/alkera/t8b1/obj",
+          "out": "alias=0\n\n 0 B / ? 2 bytes -> `m/alkera/t8b1/obj`",
+          "rc": 0
+        }
+      ],
+      "target": "jira_8080_episode_alias",
+      "url": "http://jira.internal:8080"
+    }
+  ],
+  "networks": {
+    "backend_net": {
+      "members": {
+        "alkera-tour-de-gcp-1791895504-bigquery-1": "10.210.1.3",
+        "alkera-tour-de-gcp-1791895504-minio-1": "10.210.1.2",
+        "alkera-tour-de-gcp-1791895504-native-services-1": "10.210.1.5",
+        "alkera-tour-de-gcp-1791895504-postgres-1": "10.210.1.4"
+      },
+      "subnet": [
+        "10.210.1.0/24"
+      ]
+    },
+    "episode_net": {
+      "members": {
+        "alkera-tour-de-gcp-1791895504-episode-1": "10.210.132.5",
+        "alkera-tour-de-gcp-1791895504-minio-1": "10.210.132.2",
+        "alkera-tour-de-gcp-1791895504-native-services-1": "10.210.132.4",
+        "alkera-tour-de-gcp-1791895504-postgres-1": "10.210.132.3"
+      },
+      "subnet": [
+        "10.210.132.0/24"
+      ]
+    }
+  },
+  "profile": "de/gcp",
+  "project": "alkera-tour-de-gcp-1791895504",
+  "revision": "644dc0719d91c3ac7fe436bc4aae76ea77ef0335"
+}

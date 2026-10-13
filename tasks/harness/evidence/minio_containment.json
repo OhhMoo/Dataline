@@ -19,14 +19,14 @@
      "check": "nothing_resolves",
      "detail": {
       "episode": {
-       "alkera-mfix-da-laptop-1791883730-minio-1": "gaierror: [Errno -3] Temporary failure in name resolution",
-       "alkera-mfix-da-laptop-1791883730_minio_1": "gaierror: [Errno -3] Temporary failure in name resolution",
+       "alkera-mfix-da-laptop-1791895193-minio-1": "gaierror: [Errno -3] Temporary failure in name resolution",
+       "alkera-mfix-da-laptop-1791895193_minio_1": "gaierror: [Errno -3] Temporary failure in name resolution",
        "minio": "gaierror: [Errno -3] Temporary failure in name resolution",
        "minio.internal": "gaierror: [Errno -3] Temporary failure in name resolution"
       },
       "jupyter": {
-       "alkera-mfix-da-laptop-1791883730-minio-1": "gaierror: [Errno -3] Temporary failure in name resolution",
-       "alkera-mfix-da-laptop-1791883730_minio_1": "gaierror: [Errno -3] Temporary failure in name resolution",
+       "alkera-mfix-da-laptop-1791895193-minio-1": "gaierror: [Errno -3] Temporary failure in name resolution",
+       "alkera-mfix-da-laptop-1791895193_minio_1": "gaierror: [Errno -3] Temporary failure in name resolution",
        "minio": "gaierror: [Errno -3] Temporary failure in name resolution",
        "minio.internal": "gaierror: [Errno -3] Temporary failure in name resolution"
       }
@@ -48,7 +48,7 @@
       "answered": [],
       "cut": [],
       "networks": [
-       "10.210.2.0/24"
+       "10.210.1.0/24"
       ],
       "port": 9000
      },
@@ -64,11 +64,11 @@
      "ok": true
     }
    ],
-   "image": "alkera-episode:t8-da",
+   "image": "alkera-episode:t8b-da",
    "image_gate": {
-    "head": "3798c40a9f6493e1be6c8c835eeb636c8977e399",
-    "image": "alkera-episode:t8-da",
-    "revision": "3798c40a9f6493e1be6c8c835eeb636c8977e399"
+    "head": "644dc0719d91c3ac7fe436bc4aae76ea77ef0335",
+    "image": "alkera-episode:t8b-da",
+    "revision": "644dc0719d91c3ac7fe436bc4aae76ea77ef0335"
    },
    "minio_unstarted": true,
    "object_store_plugged": false,
@@ -81,8 +81,8 @@
     ]
    },
    "profile": "da/laptop",
-   "project": "alkera-mfix-da-laptop-1791883730",
-   "seconds": 35.3,
+   "project": "alkera-mfix-da-laptop-1791895193",
+   "seconds": 21.9,
    "services": [
     "episode",
     "jupyter",
@@ -110,14 +110,14 @@
      "check": "nothing_resolves",
      "detail": {
       "episode": {
-       "alkera-mfix-da-snowflake-1791883764-minio-1": "gaierror: [Errno -3] Temporary failure in name resolution",
-       "alkera-mfix-da-snowflake-1791883764_minio_1": "gaierror: [Errno -3] Temporary failure in name resolution",
+       "alkera-mfix-da-snowflake-1791895216-minio-1": "gaierror: [Errno -3] Temporary failure in name resolution",
+       "alkera-mfix-da-snowflake-1791895216_minio_1": "gaierror: [Errno -3] Temporary failure in name resolution",
        "minio": "gaierror: [Errno -3] Temporary failure in name resolution",
        "minio.internal": "gaierror: [Errno -3] Temporary failure in name resolution"
       },
       "jupyter": {
-       "alkera-mfix-da-snowflake-1791883764-minio-1": "gaierror: [Errno -3] Temporary failure in name resolution",
-       "alkera-mfix-da-snowflake-1791883764_minio_1": "gaierror: [Errno -3] Temporary failure in name resolution",
+       "alkera-mfix-da-snowflake-1791895216-minio-1": "gaierror: [Errno -3] Temporary failure in name resolution",
+       "alkera-mfix-da-snowflake-1791895216_minio_1": "gaierror: [Errno -3] Temporary failure in name resolution",
        "minio": "gaierror: [Errno -3] Temporary failure in name resolution",
        "minio.internal": "gaierror: [Errno -3] Temporary failure in name resolution"
       }
@@ -139,7 +139,7 @@
       "answered": [],
       "cut": [],
       "networks": [
-       "10.210.4.0/24"
+       "10.210.1.0/24"
       ],
       "port": 9000
      },
@@ -155,19 +155,19 @@
      "ok": true
     }
    ],
-   "image": "alkera-episode:t8-da-snowflake",
+   "image": "alkera-episode:t8b-da-snowflake",
    "image_gate": {
-    "head": "3798c40a9f6493e1be6c8c835eeb636c8977e399",
-    "image": "alkera-episode:t8-da-snowflake",
-    "revision": "3798c40a9f6493e1be6c8c835eeb636c8977e399"
+    "head": "644dc0719d91c3ac7fe436bc4aae76ea77ef0335",
+    "image": "alkera-episode:t8b-da-snowflake",
+    "revision": "644dc0719d91c3ac7fe436bc4aae76ea77ef0335"
    },
    "minio_unstarted": true,
    "object_store_plugged": false,
    "ok": true,
    "plugs": {},
    "profile": "da/snowflake",
-   "project": "alkera-mfix-da-snowflake-1791883764",
-   "seconds": 79.9,
+   "project": "alkera-mfix-da-snowflake-1791895216",
+   "seconds": 94.9,
    "services": [
     "episode",
     "jupyter",
@@ -196,14 +196,14 @@
      "detail": {
       "addresses": 254,
       "answered": [
-       "10.210.1.2"
+       "10.210.2.2"
       ],
       "cut": [],
       "minio.internal": [
-       "10.210.1.2"
+       "10.210.2.2"
       ],
       "networks": [
-       "10.210.1.0/24"
+       "10.210.2.0/24"
       ],
       "port": 9000
      },
@@ -215,14 +215,14 @@
       "dialed": 65535,
       "first": 1,
       "hosts": [
-       "10.210.1.2"
+       "10.210.2.2"
       ],
       "last": 65535,
       "minio.internal": [
-       "10.210.1.2"
+       "10.210.2.2"
       ],
       "open": {
-       "10.210.1.2": [
+       "10.210.2.2": [
         9000
        ]
       },
@@ -303,6 +303,110 @@
      "ok": true
     },
     {
+     "check": "box_credential",
+     "detail": {
+      "AWS_ACCESS_KEY_ID": "alkera-local-dev",
+      "AWS_ENDPOINT_URL": "http://minio.internal:9000",
+      "AWS_SECRET_ACCESS_KEY": "alkera-local-dev"
+     },
+     "ok": true
+    },
+    {
+     "check": "box_s3_workload",
+     "detail": {
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "ok\n"
+     },
+     "ok": true
+    },
+    {
+     "check": "box_admin_refused",
+     "detail": {
+      "access_key": "alkera-local-dev",
+      "destinations_moved": {},
+      "endpoint": "http://minio.internal:9000",
+      "jira_count": [
+       0,
+       0
+      ],
+      "not_refused": {},
+      "status": {
+       "add_user_self": 403,
+       "get_config_kv": 403,
+       "info": 403,
+       "list_users": 403,
+       "put_bucket_notification": 403,
+       "service_restart": 403,
+       "set_config_kv": 403,
+       "start_job": 403
+      }
+     },
+     "ok": true
+    },
+    {
+     "check": "box_mc_refused",
+     "detail": {
+      "destinations_moved": {},
+      "jira_count": [
+       0,
+       0
+      ],
+      "mc": {
+       "admin_info": {
+        "output": "mc: <ERROR> Unable to get service info. Access Denied.",
+        "rc": 1
+       },
+       "event_add": {
+        "output": "mc: <ERROR> Unable to enable notification on the specified bucket. Access Denied.",
+        "rc": 1
+       },
+       "notify_webhook_set": {
+        "output": "mc: <ERROR> Unable to set 'notify_webhook:mfix endpoint=http://jira.internal:8080/ queue_limit=0' to server. Access Denied.",
+        "rc": 1
+       },
+       "service_restart": {
+        "output": ":{\"message\":\"Unable to restart the server.\",\"cause\":{\"message\":\"Access Denied.\",\"error\":{\"Code\":\"AccessDenied\",\"Message\":\"Access Denied.\",\"BucketName\":\"\",\"Key\":\"\",\"RequestID\":\"18DE17559642CD91\",\"HostID\":\"dd9025bab4ad464b049177c95eb6ebf374d3b3fd1af9251148b658df7ac2e3e8\",\"Region\":\"\"}},\"type\":\"fatal\"}}",
+        "rc": 1
+       },
+       "svcacct_add": {
+        "output": "mc: <ERROR> Unable to add a new service account. Access Denied.",
+        "rc": 1
+       },
+       "user_add_self": {
+        "output": "mc: <ERROR> Unable to add new user. Access Denied.",
+        "rc": 1
+       }
+      },
+      "put_returncode": 0,
+      "put_stderr": ""
+     },
+     "ok": true
+    },
+    {
+     "check": "root_admin_control",
+     "detail": {
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "{\"status\":\"success\",\"info\":{\"mode\":\"online\",\"deploymentID\":\"bfe5dc62-7320-4b18-b10d-f54fffaf2d6c\",\"buckets\":{\"count\":0},\"objects\":{\"count\":0},\"versions\":{\"count\":0},\"deletemarkers\":{\"count\":0},\"usage\""
+     },
+     "ok": true
+    },
+    {
+     "check": "root_secret_unseen",
+     "detail": {
+      "files_read": 3917,
+      "hits": [],
+      "in_docker_inspect": [],
+      "in_overlay": false,
+      "root_user": "alkera-minio-root",
+      "secret_length": 64,
+      "secret_sha256_12": "5ea2bba4df46",
+      "token_in_env": []
+     },
+     "ok": true
+    },
+    {
      "check": "webhook_delivered",
      "detail": {
       "minio_webhook_errors": 0
@@ -310,19 +414,19 @@
      "ok": true
     }
    ],
-   "image": "alkera-episode:t8",
+   "image": "alkera-episode:t8b",
    "image_gate": {
-    "head": "3798c40a9f6493e1be6c8c835eeb636c8977e399",
-    "image": "alkera-episode:t8",
-    "revision": "3798c40a9f6493e1be6c8c835eeb636c8977e399"
+    "head": "644dc0719d91c3ac7fe436bc4aae76ea77ef0335",
+    "image": "alkera-episode:t8b",
+    "revision": "644dc0719d91c3ac7fe436bc4aae76ea77ef0335"
    },
    "minio_unstarted": false,
    "object_store_plugged": true,
    "ok": true,
    "plugs": {},
    "profile": null,
-   "project": "alkera-mfix-unprofiled-1791883843",
-   "seconds": 43.1,
+   "project": "alkera-mfix-unprofiled-1791895312",
+   "seconds": 69.4,
    "services": [
     "episode",
     "minio",
@@ -350,14 +454,14 @@
      "detail": {
       "addresses": 254,
       "answered": [
-       "10.210.2.3"
+       "10.210.1.3"
       ],
       "cut": [],
       "minio.internal": [
-       "10.210.2.3"
+       "10.210.1.3"
       ],
       "networks": [
-       "10.210.2.0/24"
+       "10.210.1.0/24"
       ],
       "port": 9000
      },
@@ -369,14 +473,14 @@
       "dialed": 65535,
       "first": 1,
       "hosts": [
-       "10.210.2.3"
+       "10.210.1.3"
       ],
       "last": 65535,
       "minio.internal": [
-       "10.210.2.3"
+       "10.210.1.3"
       ],
       "open": {
-       "10.210.2.3": [
+       "10.210.1.3": [
         9000
        ]
       },
@@ -450,8 +554,112 @@
     {
      "check": "token_unseen",
      "detail": {
-      "files_read": 3940,
+      "files_read": 3938,
       "hits": [],
+      "token_in_env": []
+     },
+     "ok": true
+    },
+    {
+     "check": "box_credential",
+     "detail": {
+      "AWS_ACCESS_KEY_ID": "alkera-local-dev",
+      "AWS_ENDPOINT_URL": "http://minio.internal:9000",
+      "AWS_SECRET_ACCESS_KEY": "alkera-local-dev"
+     },
+     "ok": true
+    },
+    {
+     "check": "box_s3_workload",
+     "detail": {
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "ok\n"
+     },
+     "ok": true
+    },
+    {
+     "check": "box_admin_refused",
+     "detail": {
+      "access_key": "alkera-local-dev",
+      "destinations_moved": {},
+      "endpoint": "http://minio.internal:9000",
+      "jira_count": [
+       0,
+       0
+      ],
+      "not_refused": {},
+      "status": {
+       "add_user_self": 403,
+       "get_config_kv": 403,
+       "info": 403,
+       "list_users": 403,
+       "put_bucket_notification": 403,
+       "service_restart": 403,
+       "set_config_kv": 403,
+       "start_job": 403
+      }
+     },
+     "ok": true
+    },
+    {
+     "check": "box_mc_refused",
+     "detail": {
+      "destinations_moved": {},
+      "jira_count": [
+       0,
+       0
+      ],
+      "mc": {
+       "admin_info": {
+        "output": "mc: <ERROR> Unable to get service info. Access Denied.",
+        "rc": 1
+       },
+       "event_add": {
+        "output": "mc: <ERROR> Unable to enable notification on the specified bucket. Access Denied.",
+        "rc": 1
+       },
+       "notify_webhook_set": {
+        "output": "mc: <ERROR> Unable to set 'notify_webhook:mfix endpoint=http://jira.internal:8080/ queue_limit=0' to server. Access Denied.",
+        "rc": 1
+       },
+       "service_restart": {
+        "output": ":{\"message\":\"Unable to restart the server.\",\"cause\":{\"message\":\"Access Denied.\",\"error\":{\"Code\":\"AccessDenied\",\"Message\":\"Access Denied.\",\"BucketName\":\"\",\"Key\":\"\",\"RequestID\":\"18DE176583A69A33\",\"HostID\":\"dd9025bab4ad464b049177c95eb6ebf374d3b3fd1af9251148b658df7ac2e3e8\",\"Region\":\"\"}},\"type\":\"fatal\"}}",
+        "rc": 1
+       },
+       "svcacct_add": {
+        "output": "mc: <ERROR> Unable to add a new service account. Access Denied.",
+        "rc": 1
+       },
+       "user_add_self": {
+        "output": "mc: <ERROR> Unable to add new user. Access Denied.",
+        "rc": 1
+       }
+      },
+      "put_returncode": 0,
+      "put_stderr": ""
+     },
+     "ok": true
+    },
+    {
+     "check": "root_admin_control",
+     "detail": {
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "{\"status\":\"success\",\"info\":{\"mode\":\"online\",\"deploymentID\":\"0e43cc6e-a381-480d-bd0c-18ecd758f8f3\",\"buckets\":{\"count\":0},\"objects\":{\"count\":0},\"versions\":{\"count\":0},\"deletemarkers\":{\"count\":0},\"usage\""
+     },
+     "ok": true
+    },
+    {
+     "check": "root_secret_unseen",
+     "detail": {
+      "files_read": 3938,
+      "hits": [],
+      "in_docker_inspect": [],
+      "in_overlay": false,
+      "root_user": "alkera-minio-root",
+      "secret_length": 64,
+      "secret_sha256_12": "330469f67f25",
       "token_in_env": []
      },
      "ok": true
@@ -464,19 +672,19 @@
      "ok": true
     }
    ],
-   "image": "alkera-episode:t8",
+   "image": "alkera-episode:t8b",
    "image_gate": {
-    "head": "3798c40a9f6493e1be6c8c835eeb636c8977e399",
-    "image": "alkera-episode:t8",
-    "revision": "3798c40a9f6493e1be6c8c835eeb636c8977e399"
+    "head": "644dc0719d91c3ac7fe436bc4aae76ea77ef0335",
+    "image": "alkera-episode:t8b",
+    "revision": "644dc0719d91c3ac7fe436bc4aae76ea77ef0335"
    },
    "minio_unstarted": false,
    "object_store_plugged": true,
    "ok": true,
    "plugs": {},
    "profile": "de/laptop",
-   "project": "alkera-mfix-de-laptop-1791883887",
-   "seconds": 43.6,
+   "project": "alkera-mfix-de-laptop-1791895381",
+   "seconds": 68.7,
    "services": [
     "episode",
     "minio",
@@ -485,8 +693,8 @@
    ]
   }
  ],
- "generated": "2026-10-13T09:28:38Z",
- "headline": "PASS: da-laptop 5/5, da-snowflake 5/5, unprofiled 7/7, de-laptop 7/7",
+ "generated": "2026-10-13T12:39:44Z",
+ "headline": "PASS: da-laptop 5/5, da-snowflake 5/5, unprofiled 13/13, de-laptop 13/13",
  "ok": true,
- "revision": "3798c40a9f6493e1be6c8c835eeb636c8977e399"
+ "revision": "644dc0719d91c3ac7fe436bc4aae76ea77ef0335"
 }
