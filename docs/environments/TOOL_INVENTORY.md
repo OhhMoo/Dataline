@@ -269,26 +269,27 @@ Sigma) run with the gaps §3 lists. Regenerate this block whenever a plug's stat
 runnable and `*/aws`, `*/databricks` wait only on their warehouses; 2026-10-07: Databricks
 tier 1 is `partial`, so `*/databricks` is runnable on its de and da roles; 2026-10-13:
 the databricks stack's compute is Spark Connect (tier 2, `partial`), so ds/databricks is
-runnable - only that line was regenerated here).
+runnable; 2026-10-13 close-out: the whole block regenerated - Redshift is `partial`, so
+`de/aws` and `da/aws` are runnable and `ds/aws` waits only on ml_workers and mlflow).
 
 ```
 de/laptop        runnable
 de/postgres      runnable
 de/snowflake     runnable
 de/databricks    runnable
-de/aws           planned: redshift
+de/aws           runnable
 de/gcp           runnable
 ds/laptop        planned: ml_workers, mlflow
 ds/postgres      planned: ml_workers, mlflow
 ds/snowflake     planned: ml_workers, mlflow
 ds/databricks    runnable
-ds/aws           planned: ml_workers, mlflow, redshift
+ds/aws           planned: ml_workers, mlflow
 ds/gcp           planned: ml_workers, mlflow
 da/laptop        runnable
 da/postgres      runnable
 da/snowflake     runnable
 da/databricks    runnable
-da/aws           planned: redshift
+da/aws           runnable
 da/gcp           runnable
 ```
 
