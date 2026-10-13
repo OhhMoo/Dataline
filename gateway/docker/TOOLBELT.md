@@ -251,15 +251,39 @@ is the intent.
 
 ### Warehouse clients
 
-`--warehouse-clients snowflake` (build-arg `ALKERA_WAREHOUSE_CLIENTS`) installs
-`gateway/requirements-snowflake.lock` - the `snowflake` extra: `snowflake-connector-python`
-and `dbt-snowflake` - into the gateway's environment after `requirements.lock`. It is the
-extra's whole closure from `uv export`, not a hand-trimmed diff: both are exported from
-the one `uv.lock`, so the 84 packages they share carry identical versions (asserted by
-the test) and pip reports them already satisfied; 14 install (`snowflake-connector-python`,
-`dbt-snowflake`, `keyring`, `pyopenssl`, `asn1crypto`, `tomlkit`, …). Trimming would buy
-nothing at install time and would cost the header's claim that the file is exactly what
-that command emits.
+`--warehouse-clients <c>[,<c>...]` (build-arg `ALKERA_WAREHOUSE_CLIENTS`) installs
+`gateway/requirements-<c>.lock` for each set into the gateway's environment after
+`requirements.lock`. The sets are the registry's (`build_episode.WAREHOUSE_CLIENTS`, from
+`alkera_gateway.backends`): `airflow`, `bigquery`, `databricks`, `redshift`, `snowflake`,
+`spark`. Each lock is compiled apart from `gateway/uv.lock` by
+`lock_warehouse_clients.py <c>` (snowflake's header names the `lock_snowflake_clients.py`
+wrapper) from `docker/<c>-clients.in`, constrained to every version the base, native and
+ds locks pin. A package a set shares with them is therefore the same version and pip
+reports it already satisfied; the one deliberate exception is certifi, which
+dbt-snowflake caps below 2025.4.26 (`<c>-clients.overrides`). Compiling them inside
+`uv.lock` would hold back every image's CA bundle.
+
+**What a client set may bring onto a role that forbids it.** The role gate forbids every
+module and console script another role has (`forbidden_imports`, `system_forbidden`,
+`forbidden_binaries`). Two sets require some of those as hard dependencies, so
+`toolbelt_check.py` allows exactly those, for each set the image installed
+(`installed_clients()`: the `/opt/gateway/requirements-<c>.lock` files it kept). The
+report lists them as `client_allowed_imports`.
+
+| set | `CLIENT_IMPORTS` | `CLIENT_BINARIES` | why |
+|---|---|---|---|
+| `databricks` | `openpyxl`, `pandas`, `pyarrow` | — | databricks-sql-connector requires pandas and openpyxl; dbt-databricks requires the connector with its pyarrow extra |
+| `bigquery` | `nbformat`, `pandas`, `pyarrow` | `jupyter` | dbt-bigquery requires `google-cloud-bigquery[pandas]` and nbformat (plan decision D2, `docker/bigquery-clients.in`); nbformat requires jupyter_core, whose `jupyter` dispatcher is all it brings |
+
+The rest stays forbidden on a de box with either set: no kernel, no Jupyter server, no
+nbclient, matplotlib, polars or scikit-learn, and `jupyter server` / `kernelspec` /
+`execute` name scripts the image does not have. The bigquery set's pandas, pyarrow and
+nbformat are the versions the da/ds role locks pin, so one interpreter has one pandas
+(`test_bigquery_clients_may_carry_pandas_and_nbformat_in_de`,
+`test_jupyter_script_from_a_client_lock_is_not_a_role_leak`). Cost: adding
+dbt-bigquery to the set made the de image 649 MB larger (`alkera-episode:t13-bigquery`,
+2554.7 MB, over the set without it; mostly pyarrow, pandas, numpy and
+google-cloud-aiplatform).
 
 ---
 
@@ -399,6 +423,12 @@ it was cut from, without Playwright), x86_64:
 untouched: its chromium step only prints, and `toolbelt_check.py` forbids `playwright`
 there. The UI_CLONE_PLAN estimate was ~300 MB; the difference is
 the node driver Playwright for Python ships and the mesa/LLVM chain `libgbm1` drags in.
+ds carries the same step and was not measured; Harbor's ds/da variants carry it too
+(`variant.BROWSER_ROLES`).
+
+**Follow-up (plan decision D5's cost, not done):** move the browser layer to an opt-in
+variant, so that only a box whose task drives the BI UIs pays the +900 MB. Today every
+da and ds image carries it, BI001/BI002's included, whether or not a task opens a page.
 
 ### de, as built on 2026-09-14
 
