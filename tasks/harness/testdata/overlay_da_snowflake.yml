@@ -1,0 +1,178 @@
+# Generated per rollout by tasks/harness/container_episode.py. Do not edit:
+# it is rewritten on every `up()` and is kept here as the record of which host
+# files this episode's container could see.
+#
+# Three things compose.native.yml cannot say statically:
+#
+#   1. THE WAREHOUSE FILES. Their names and their number come from the world
+#      this rollout built (1 here), read by the same rule
+#      world/world/fingerprint.py hashes by. Each is bound as a FILE at its own
+#      world-relative path, so `/world/var/warehouse` is a directory of
+#      the CONTAINER's - and a `cp` beside the warehouse, which is what two of
+#      five GT001 native subjects did before deleting rows, lands there instead
+#      of in the world.
+#   2. THE SHIM PATH, and the CONTEXT VARIANT. The shims go in front of the
+#      image's own PATH, which is read off the image so /opt/toolbelt/bin
+#      survives; `ALKERA_TASK_VARIANT` appears only when this world was built
+#      from an arm, because an empty value is still a value to
+#      `taskspec.requested_variant`.
+#   3. THE WORLD'S CLOCK. `ALKERA_VIRTUAL_TIME` is this world's `vnow` as the
+#      episode starts, so the rows the shims and the notebook kernel write
+#      carry the world's time and not GatewayConfig's literal: `var/sched`,
+#      where the host topology reads it, is not mounted here (P7).
+#
+# NOT here, and it was here for one afternoon: published host ports. Both
+# compose networks are `internal: true`, and Docker cannot publish a host port
+# off an internal network - the bindings appear in `HostConfig.PortBindings`
+# and nothing ever listens. Measured: GT004's first container rollout failed
+# its surface gate with `WinError 10061` on all nine services while
+# `docker inspect` reported all nine mappings. The harness reaches the services
+# through `container_episode.ServiceGate` instead, one `docker exec` per
+# connection, and `published_host_ports: {}` stays true for every container
+# in the project.
+services:
+  episode:
+    # ENVIRONMENT PROFILE: the complete mapping, not a merge
+    # (container_episode.profiled_environment).
+    environment: !override
+      PATH: "/opt/alkera/shims:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/toolbelt/bin"
+      ALKERA_SHIM_BIN: "/opt/alkera/shims"
+      ALKERA_SHIM_WATCH: "/world/var/warehouse/warehouse.duckdb"
+      ALKERA_SHIM_WORKSPACE: "/workspace"
+      ALKERA_WORKSPACE: "/workspace"
+      ALKERA_VIRTUAL_TIME: "2026-03-02T00:00:00Z"
+      JUPYTER_URL: "http://jupyter.internal:8888"
+      # the static table (compose.yml + compose.native.yml) minus what the
+      # profile excludes: AIRBYTE_API_KEY, AIRBYTE_URL, AIRFLOW_API_URL,
+      # AIRFLOW_PASSWORD, AIRFLOW_USER, ALERTMANAGER_URL, AWS_ACCESS_KEY_ID,
+      # AWS_DEFAULT_REGION, AWS_ENDPOINT_URL, AWS_SECRET_ACCESS_KEY,
+      # DEPLOY_API_TOKEN, DEPLOY_URL, LOKI_ADDR, LOKI_URL, METABASE_API_KEY,
+      # METABASE_URL, PGDATABASE, PGHOST, PGPASSWORD, PGPORT, PGUSER,
+      # PROMETHEUS_URL, SCHED_URL
+      ALKERA_POSTGRES_DSN: "postgresql://episode:episode-local@postgres/episode"
+      ALKERA_BACKEND: "${ALKERA_BACKEND:-postgres}"
+      ALKERA_WAREHOUSES: "${ALKERA_WAREHOUSES:-}"
+      CONFLUENCE_API_TOKEN: "alkera-local-dev"
+      CONFLUENCE_URL: "http://confluence.internal:8090"
+      CONFLUENCE_USER: "alkera-local-dev"
+      DBT_PROFILES_DIR: "/root/.dbt"
+      JIRA_API_TOKEN: "alkera-local-dev"
+      JIRA_URL: "http://jira.internal:8080"
+      JIRA_USER: "alkera-local-dev"
+      SLACK_BASE_URL: "http://slack.internal:8081"
+      SLACK_BOT_TOKEN: "alkera-local-dev"
+      SNOWFLAKE_ACCOUNT: "acme"
+      SNOWFLAKE_HOST: "snowflake.internal"
+      SNOWFLAKE_PASSWORD: "alkera-local-dev"
+      SNOWFLAKE_USER: "alkera-local-dev"
+      ALKERA_NATIVE_AUDIT: "/audit/actions.jsonl"
+      HOME: "/root"
+      # what the profile plugs
+      REQUESTS_CA_BUNDLE: "/etc/alkera/snowflake-tls/bundle.pem"
+      SNOWFLAKE_DATABASE: "WAREHOUSE"
+      SIGMA_BASE_URL: "http://sigma.internal:8097"
+      SIGMA_CLIENT_ID: "alkera-local-dev"
+      SIGMA_CLIENT_SECRET: "alkera-local-dev"
+    volumes:
+      - "/rollouts/r0/world/var/warehouse/warehouse.duckdb:/world/var/warehouse/warehouse.duckdb"
+      - snowflaketrust:/etc/alkera/snowflake-tls:ro
+    depends_on:
+      snowflake:
+        condition: service_healthy
+      minio: !reset null
+
+# ENVIRONMENT PROFILE da/snowflake (plugs: {}).
+# native-services runs with --profile (ALKERA_NATIVE_PROFILE_ARGS), and the
+# aliases below REPLACE compose.native.yml's: an excluded service has no name
+# on episode_net at all.
+  native-services:
+    networks:
+      episode_net:
+        aliases: !override
+          - native-services.internal
+          - sigma.internal
+          - jira.internal
+          - slack.internal
+          - confluence.internal
+
+# NO OBJECT STORE: this profile plugs no object_store, so MinIO is NOT STARTED.
+# Its compose profile `object_store` is one nothing enables, and the
+# episode's `depends_on: minio` is reset above. A service that does not run
+# cannot be resolved or reached from any container of this project; with only
+# its alias gone, the compose name `minio` still resolved, and no receiver
+# audited what reached it (CONTAINMENT_2026-10-07.md, finding 1).
+  minio:
+    profiles: [object_store]
+
+# WAREHOUSE PLUG snowflake: compose.yml's `snowflake` service (compose profile
+# `snowflake`, enabled by compose_env), reachable as snowflake.internal:8443
+# (compose.native.yml), seeded from this world's warehouse and audited.
+  snowflake:
+    image: alkera-snowflake:native-head-da-snowflake
+    # Always built (layer-cached): the service runs this working tree's
+    # snowflake_start.py, never a stale image of an older one.
+    pull_policy: build
+    build:
+      args:
+        BASE: alkera-episode:head-da-snowflake
+    stop_grace_period: 2s
+    environment:
+      ALKERA_NATIVE_AUDIT: "/audit/actions.jsonl"
+      ALKERA_SNOWFLAKE_SEED: "/seed"
+      ALKERA_SNOWFLAKE_DESTINATIONS: "/audit/destinations.snowflake.jsonl"
+      ALKERA_SNOWFLAKE_STATEMENT_LOG: "/snowflake-data/statements.jsonl"
+      ALKERA_VIRTUAL_TIME: "2026-03-02T00:00:00Z"
+    volumes:
+      - "/rollouts/r0/audit:/audit"
+      - "/rollouts/r0/world/var/warehouse/warehouse.duckdb:/seed/warehouse.duckdb:ro"
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/python", "-c",
+             "import pathlib,sys;sys.exit(0 if any(f[1].endswith(':20FB') and f[3]=='0A' for f in (l.split() for l in pathlib.Path('/proc/net/tcp').read_text().splitlines()[1:])) else 1)"]
+      interval: 2s
+      timeout: 5s
+      retries: 90
+      start_period: 5s
+
+# NOTEBOOK PLUG: the `jupyter` service (compose profile `notebook`, enabled by
+# compose_env) sees exactly what the episode sees.
+  jupyter:
+    # ENVIRONMENT PROFILE: the complete mapping, not a merge
+    # (container_episode.profiled_environment).
+    environment: !override
+      PATH: "/opt/alkera/shims:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/toolbelt/bin"
+      ALKERA_SHIM_BIN: "/opt/alkera/shims"
+      ALKERA_SHIM_WATCH: "/world/var/warehouse/warehouse.duckdb"
+      ALKERA_SHIM_WORKSPACE: "/workspace"
+      ALKERA_WORKSPACE: "/workspace"
+      ALKERA_VIRTUAL_TIME: "2026-03-02T00:00:00Z"
+      # the static table (compose.yml + compose.native.yml) minus what the
+      # profile excludes: AIRBYTE_API_KEY, AIRBYTE_URL, AIRFLOW_API_URL,
+      # AIRFLOW_PASSWORD, AIRFLOW_USER, ALERTMANAGER_URL, AWS_ACCESS_KEY_ID,
+      # AWS_DEFAULT_REGION, AWS_ENDPOINT_URL, AWS_SECRET_ACCESS_KEY,
+      # DEPLOY_API_TOKEN, DEPLOY_URL, LOKI_ADDR, LOKI_URL, METABASE_API_KEY,
+      # METABASE_URL, PGDATABASE, PGHOST, PGPASSWORD, PGPORT, PGUSER,
+      # PROMETHEUS_URL, SCHED_URL
+      CONFLUENCE_API_TOKEN: "alkera-local-dev"
+      CONFLUENCE_URL: "http://confluence.internal:8090"
+      CONFLUENCE_USER: "alkera-local-dev"
+      DBT_PROFILES_DIR: "/root/.dbt"
+      JIRA_API_TOKEN: "alkera-local-dev"
+      JIRA_URL: "http://jira.internal:8080"
+      JIRA_USER: "alkera-local-dev"
+      SLACK_BASE_URL: "http://slack.internal:8081"
+      SLACK_BOT_TOKEN: "alkera-local-dev"
+      SNOWFLAKE_ACCOUNT: "acme"
+      SNOWFLAKE_HOST: "snowflake.internal"
+      SNOWFLAKE_PASSWORD: "alkera-local-dev"
+      SNOWFLAKE_USER: "alkera-local-dev"
+      ALKERA_NATIVE_AUDIT: "/audit/actions.jsonl"
+      HOME: "/root"
+      # what the profile plugs
+      REQUESTS_CA_BUNDLE: "/etc/alkera/snowflake-tls/bundle.pem"
+      SNOWFLAKE_DATABASE: "WAREHOUSE"
+      SIGMA_BASE_URL: "http://sigma.internal:8097"
+      SIGMA_CLIENT_ID: "alkera-local-dev"
+      SIGMA_CLIENT_SECRET: "alkera-local-dev"
+    volumes:
+      - "/rollouts/r0/world/var/warehouse/warehouse.duckdb:/world/var/warehouse/warehouse.duckdb"
+      - snowflaketrust:/etc/alkera/snowflake-tls:ro

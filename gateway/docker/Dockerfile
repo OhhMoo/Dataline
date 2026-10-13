@@ -173,23 +173,41 @@ RUN set -eu; \
 LABEL org.alkera.toolbelt=$ALKERA_TOOLBELT
 ENV ALKERA_TOOLBELT=$ALKERA_TOOLBELT
 # Warehouse clients beyond DuckDB/Postgres, opt-in per image, installed AFTER the
-# role so nothing later can undo their one divergence. Empty (the default)
-# installs nothing, so the default image's gateway environment is exactly the
-# locks above. Containing "snowflake" adds requirements-snowflake.lock
-# (snowflake-connector-python and dbt-snowflake). That lock is compiled by
-# docker/lock_snowflake_clients.py, NOT exported from uv.lock: dbt-snowflake caps
-# certifi below 2025.4.26, and resolving it with the gateway would hold back every
-# image's CA bundle. It is constrained to requirements.lock, -native and -ds, so
-# every package it shares with them is the same version and pip reports it
-# satisfied - except certifi, which a snowflake-client image (and only that image)
-# takes at the capped version (docker/snowflake-clients.overrides).
-#   gateway/.venv/bin/python gateway/docker/lock_snowflake_clients.py
+# role so nothing later can undo their one divergence. ALKERA_WAREHOUSE_CLIENTS is
+# a comma-separated list of client sets (`clients` in alkera_gateway.backends;
+# build_episode.py --warehouse-clients), and each `c` in it installs
+# requirements-$c.lock. Empty (the default) installs nothing, so the default
+# image's gateway environment is exactly the locks above. "snowflake" is
+# requirements-snowflake.lock (snowflake-connector-python and dbt-snowflake).
+# A client lock is compiled by docker/lock_warehouse_clients.py <c>, NOT exported
+# from uv.lock: dbt-snowflake caps certifi below 2025.4.26, and resolving it with
+# the gateway would hold back every image's CA bundle. It is constrained to
+# requirements.lock, -native and -ds, so every package it shares with them is the
+# same version and pip reports it satisfied - except certifi, which a
+# snowflake-client image (and only that image) takes at the capped version
+# (docker/snowflake-clients.overrides).
+#   gateway/.venv/bin/python gateway/docker/lock_warehouse_clients.py <c>
+# The client sets that exist are the backend registry's (alkera_gateway/backends.py,
+# read with the stdlib by docker/warehouse_clients.py, before the gateway is
+# installed): a name it does not list, or a set with no lock, fails the build
+# rather than quietly installing nothing or a role's lock. Every lock is staged
+# and only the requested ones stay, at /opt/gateway/requirements-$c.lock.
+# `set -f`: a client name is a word, never a glob.
 ARG ALKERA_WAREHOUSE_CLIENTS=""
-COPY gateway/requirements-snowflake.lock /opt/gateway/requirements-snowflake.lock
-RUN case ",$ALKERA_WAREHOUSE_CLIENTS," in \
-      *snowflake*) pip install --no-cache-dir --retries 5 --timeout 120 --require-hashes -r /opt/gateway/requirements-snowflake.lock ;; \
-      *) echo "warehouse clients: none beyond requirements.lock" ;; \
-    esac
+COPY gateway/docker/warehouse_clients.py /opt/gateway/registry/warehouse_clients.py
+COPY gateway/src/alkera_gateway/plugs.py gateway/src/alkera_gateway/backends.py /opt/gateway/registry/alkera_gateway/
+COPY gateway/requirements-*.lock /opt/gateway/clients/
+RUN set -euf; \
+    known=" $(python /opt/gateway/registry/warehouse_clients.py /opt/gateway/registry/alkera_gateway) "; \
+    for c in $(echo "$ALKERA_WAREHOUSE_CLIENTS" | tr ',' ' '); do \
+      case "$known" in *" $c "*) ;; *) echo "'$c' is not a warehouse client set the backend registry names:$known" >&2; exit 1 ;; esac; \
+      lock="/opt/gateway/clients/requirements-$c.lock"; \
+      [ -f "$lock" ] || { echo "no gateway/requirements-$c.lock for warehouse clients '$c'" >&2; exit 1; }; \
+      pip install --no-cache-dir --retries 5 --timeout 120 --require-hashes -r "$lock"; \
+      cp "$lock" "/opt/gateway/requirements-$c.lock"; \
+    done; \
+    [ -n "$ALKERA_WAREHOUSE_CLIENTS" ] || echo "warehouse clients: none beyond requirements.lock"; \
+    rm -rf /opt/gateway/clients /opt/gateway/registry
 LABEL org.alkera.warehouse_clients=$ALKERA_WAREHOUSE_CLIENTS
 ENV ALKERA_WAREHOUSE_CLIENTS=$ALKERA_WAREHOUSE_CLIENTS
 COPY gateway/pyproject.toml /opt/gateway/

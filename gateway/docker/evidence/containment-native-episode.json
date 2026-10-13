@@ -1,11 +1,11 @@
 {
-  "compose_file": "/home/ubuntu/env_project-main-2/gateway/docker/compose.yml",
+  "compose_file": "/home/ubuntu/env_project/.claude/worktrees/agent-a9d585c786e098bb7/gateway/docker/compose.yml",
   "compose_overlays": [
-    "/home/ubuntu/env_project-main-2/gateway/docker/compose.episode.yml",
-    "/home/ubuntu/env_project-main-2/gateway/docker/compose.native.yml",
+    "/home/ubuntu/env_project/.claude/worktrees/agent-a9d585c786e098bb7/gateway/docker/compose.episode.yml",
+    "/home/ubuntu/env_project/.claude/worktrees/agent-a9d585c786e098bb7/gateway/docker/compose.native.yml",
     "+ the rollout's own compose.native-mounts.yml"
   ],
-  "generated": "2026-10-04T08:02:16+00:00",
+  "generated": "2026-10-07T17:48:20+00:00",
   "host": {
     "docker": "29.8.2",
     "platform": "Linux-7.0.0-1006-aws-x86_64-with-glibc2.43"
@@ -15,9 +15,9 @@
   "p7_native_episode_filesystem": {
     "checks_not_applicable": {},
     "compose_files": [
-      "/home/ubuntu/env_project-main-2/gateway/docker/compose.yml",
-      "/home/ubuntu/env_project-main-2/gateway/docker/compose.episode.yml",
-      "/home/ubuntu/env_project-main-2/gateway/docker/compose.native.yml"
+      "/home/ubuntu/env_project/.claude/worktrees/agent-a9d585c786e098bb7/gateway/docker/compose.yml",
+      "/home/ubuntu/env_project/.claude/worktrees/agent-a9d585c786e098bb7/gateway/docker/compose.episode.yml",
+      "/home/ubuntu/env_project/.claude/worktrees/agent-a9d585c786e098bb7/gateway/docker/compose.native.yml"
     ],
     "environment_profile": {
       "plugs": [],
@@ -120,13 +120,13 @@
         {
           "fstype": "ext4",
           "options": "rw,relatime",
-          "root": "/home/ubuntu/alkera-rollouts/p7-gt001/audit",
+          "root": "/home/ubuntu/.cache/p6/box/base/audit",
           "target": "/audit"
         },
         {
           "fstype": "ext4",
           "options": "rw,relatime",
-          "root": "/home/ubuntu/alkera-rollouts/p7-gt001/world/workspace",
+          "root": "/home/ubuntu/.cache/p6/box/base/world/workspace",
           "target": "/workspace"
         },
         {
@@ -138,7 +138,7 @@
         {
           "fstype": "ext4",
           "options": "rw,relatime",
-          "root": "/home/ubuntu/alkera-rollouts/p7-gt001/world/var/warehouse/warehouse.duckdb",
+          "root": "/home/ubuntu/.cache/p6/box/base/world/var/warehouse/warehouse.duckdb",
           "target": "/world/var/warehouse/warehouse.duckdb"
         }
       ],
@@ -178,7 +178,7 @@
         ],
         "routes": [
           {
-            "dest": "172.23.0.0",
+            "dest": "10.210.1.0",
             "iface": "eth0"
           }
         ]
@@ -220,7 +220,7 @@
       "service_state": {
         "mounts": [],
         "roots": [
-          "/home/ubuntu/alkera-rollouts/p7-gt001/service-state"
+          "/home/ubuntu/.cache/p6/box/base/service-state"
         ],
         "roots_present": [],
         "targets": [
@@ -317,7 +317,7 @@
         "slack"
       ],
       "sweep": {
-        "files_scanned": 50,
+        "files_scanned": 57,
         "hits": [],
         "roots": [
           "/world",
@@ -349,7 +349,7 @@
     },
     "published_host_ports": {},
     "service_state_mounts": {
-      "host_dir": "/home/ubuntu/alkera-rollouts/p7-gt001/service-state",
+      "host_dir": "/home/ubuntu/.cache/p6/box/base/service-state",
       "isolated": true,
       "mounted_elsewhere": [],
       "mounted_read_write_in_owner": true,
@@ -358,7 +358,7 @@
           "destination": "/service-state",
           "rw": true,
           "service": "native-services",
-          "source": "/home/ubuntu/alkera-rollouts/p7-gt001/service-state"
+          "source": "/home/ubuntu/.cache/p6/box/base/service-state"
         }
       ],
       "owner": "native-services",
@@ -395,27 +395,27 @@
     "world_binds_that_are_not_declared_warehouses": []
   },
   "passed": true,
-  "project": "alkera-p7",
-  "service_state_dir_on_the_host": "/home/ubuntu/alkera-rollouts/p7-gt001/service-state",
+  "project": "alkera-p6b-base",
+  "service_state_dir_on_the_host": "/home/ubuntu/.cache/p6/box/base/service-state",
   "services": [
     {
       "aliases": {
-        "alkera-p7_episode_net": [
-          "alkera-p7-episode-1",
+        "alkera-p6b-base_episode_net": [
+          "alkera-p6b-base-episode-1",
           "episode"
         ]
       },
-      "container": "alkera-p7-episode-1",
-      "image": "alkera-episode:head",
+      "container": "alkera-p6b-base-episode-1",
+      "image": "alkera-episode:p6",
       "mounts": [
         {
           "rw": true,
-          "source": "/home/ubuntu/alkera-rollouts/p7-gt001/audit",
+          "source": "/home/ubuntu/.cache/p6/box/base/audit",
           "target": "/audit"
         },
         {
           "rw": true,
-          "source": "/home/ubuntu/alkera-rollouts/p7-gt001/world/workspace",
+          "source": "/home/ubuntu/.cache/p6/box/base/world/workspace",
           "target": "/workspace"
         },
         {
@@ -425,21 +425,89 @@
         },
         {
           "rw": true,
-          "source": "/home/ubuntu/alkera-rollouts/p7-gt001/world/var/warehouse/warehouse.duckdb",
+          "source": "/home/ubuntu/.cache/p6/box/base/world/var/warehouse/warehouse.duckdb",
           "target": "/world/var/warehouse/warehouse.duckdb"
         }
       ],
-      "network_mode": "alkera-p7_episode_net",
+      "network_mode": "alkera-p6b-base_episode_net",
       "networks": {
-        "alkera-p7_episode_net": "172.23.0.5"
+        "alkera-p6b-base_episode_net": "10.210.1.5"
       },
       "published_ports": {},
       "service": "episode"
     },
     {
       "aliases": {
-        "alkera-p7_episode_net": [
-          "alkera-p7-native-services-1",
+        "alkera-p6b-base_backend_net": [
+          "alkera-p6b-base-postgres-1",
+          "postgres"
+        ],
+        "alkera-p6b-base_episode_net": [
+          "alkera-p6b-base-postgres-1",
+          "postgres",
+          "postgres.internal"
+        ]
+      },
+      "container": "alkera-p6b-base-postgres-1",
+      "image": "postgres@sha256:f1c3376c26f2609ab9f29f71f824103fe2fcd8ee0346485cb6122a4f93df6f94",
+      "mounts": [
+        {
+          "rw": false,
+          "source": "/home/ubuntu/env_project/.claude/worktrees/agent-a9d585c786e098bb7/gateway/docker/postgres.sql",
+          "target": "/docker-entrypoint-initdb.d/seed.sql"
+        },
+        {
+          "rw": true,
+          "source": "alkera-p6b-base_pgdata",
+          "target": "/var/lib/postgresql/data"
+        }
+      ],
+      "network_mode": "alkera-p6b-base_backend_net",
+      "networks": {
+        "alkera-p6b-base_backend_net": "10.210.2.3",
+        "alkera-p6b-base_episode_net": "10.210.1.4"
+      },
+      "published_ports": {},
+      "service": "postgres"
+    },
+    {
+      "aliases": {
+        "alkera-p6b-base_backend_net": [
+          "alkera-p6b-base-minio-1",
+          "minio"
+        ],
+        "alkera-p6b-base_episode_net": [
+          "alkera-p6b-base-minio-1",
+          "minio",
+          "minio.internal"
+        ]
+      },
+      "container": "alkera-p6b-base-minio-1",
+      "image": "docker.io/pgsty/minio@sha256:b6bfe7239bfc83fb90d31612d9704d86039dd714f7904b3f1ad68f211e602372",
+      "mounts": [
+        {
+          "rw": true,
+          "source": "alkera-p6b-base_minioaudit",
+          "target": "/audit-spool"
+        },
+        {
+          "rw": true,
+          "source": "alkera-p6b-base_miniodata",
+          "target": "/data"
+        }
+      ],
+      "network_mode": "alkera-p6b-base_backend_net",
+      "networks": {
+        "alkera-p6b-base_backend_net": "10.210.2.2",
+        "alkera-p6b-base_episode_net": "10.210.1.3"
+      },
+      "published_ports": {},
+      "service": "minio"
+    },
+    {
+      "aliases": {
+        "alkera-p6b-base_episode_net": [
+          "alkera-p6b-base-native-services-1",
           "native-services",
           "native-services.internal",
           "jira.internal",
@@ -454,27 +522,27 @@
           "sched.internal"
         ]
       },
-      "container": "alkera-p7-native-services-1",
-      "image": "alkera-episode:head",
+      "container": "alkera-p6b-base-native-services-1",
+      "image": "alkera-episode:p6",
       "mounts": [
         {
           "rw": true,
-          "source": "/home/ubuntu/alkera-rollouts/p7-gt001/audit",
+          "source": "/home/ubuntu/.cache/p6/box/base/audit",
           "target": "/audit"
         },
         {
           "rw": false,
-          "source": "alkera-p7_pgdata",
+          "source": "alkera-p6b-base_pgdata",
           "target": "/pgdata"
         },
         {
           "rw": true,
-          "source": "/home/ubuntu/alkera-rollouts/p7-gt001/service-state",
+          "source": "/home/ubuntu/.cache/p6/box/base/service-state",
           "target": "/service-state"
         },
         {
           "rw": true,
-          "source": "/home/ubuntu/alkera-rollouts/p7-gt001/world",
+          "source": "/home/ubuntu/.cache/p6/box/base/world",
           "target": "/world"
         },
         {
@@ -483,84 +551,16 @@
           "target": "/world/var/ledger"
         }
       ],
-      "network_mode": "alkera-p7_episode_net",
+      "network_mode": "alkera-p6b-base_episode_net",
       "networks": {
-        "alkera-p7_episode_net": "172.23.0.3"
+        "alkera-p6b-base_episode_net": "10.210.1.2"
       },
       "published_ports": {},
       "service": "native-services"
-    },
-    {
-      "aliases": {
-        "alkera-p7_backend_net": [
-          "alkera-p7-postgres-1",
-          "postgres"
-        ],
-        "alkera-p7_episode_net": [
-          "alkera-p7-postgres-1",
-          "postgres",
-          "postgres.internal"
-        ]
-      },
-      "container": "alkera-p7-postgres-1",
-      "image": "postgres@sha256:f1c3376c26f2609ab9f29f71f824103fe2fcd8ee0346485cb6122a4f93df6f94",
-      "mounts": [
-        {
-          "rw": false,
-          "source": "/home/ubuntu/env_project-main-2/gateway/docker/postgres.sql",
-          "target": "/docker-entrypoint-initdb.d/seed.sql"
-        },
-        {
-          "rw": true,
-          "source": "alkera-p7_pgdata",
-          "target": "/var/lib/postgresql/data"
-        }
-      ],
-      "network_mode": "alkera-p7_backend_net",
-      "networks": {
-        "alkera-p7_backend_net": "172.22.0.3",
-        "alkera-p7_episode_net": "172.23.0.4"
-      },
-      "published_ports": {},
-      "service": "postgres"
-    },
-    {
-      "aliases": {
-        "alkera-p7_backend_net": [
-          "alkera-p7-minio-1",
-          "minio"
-        ],
-        "alkera-p7_episode_net": [
-          "alkera-p7-minio-1",
-          "minio",
-          "minio.internal"
-        ]
-      },
-      "container": "alkera-p7-minio-1",
-      "image": "docker.io/pgsty/minio@sha256:b6bfe7239bfc83fb90d31612d9704d86039dd714f7904b3f1ad68f211e602372",
-      "mounts": [
-        {
-          "rw": true,
-          "source": "alkera-p7_minioaudit",
-          "target": "/audit-spool"
-        },
-        {
-          "rw": true,
-          "source": "alkera-p7_miniodata",
-          "target": "/data"
-        }
-      ],
-      "network_mode": "alkera-p7_backend_net",
-      "networks": {
-        "alkera-p7_backend_net": "172.22.0.2",
-        "alkera-p7_episode_net": "172.23.0.2"
-      },
-      "published_ports": {},
-      "service": "minio"
     }
   ],
   "summary": {
     "p7_native_episode_filesystem": true
   },
-  "world_root_on_the_host": "/home/ubuntu/alkera-rollouts/p7-gt001/world"
+  "world_root_on_the_host": "/home/ubuntu/.cache/p6/box/base/world"
 }

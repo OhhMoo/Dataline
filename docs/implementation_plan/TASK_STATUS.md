@@ -69,6 +69,20 @@ Round-2 reports print "pass@1 = WITHHELD" for GT003, GT005 and GT007 because pro
 above are the reports' provisional ones; declaring those surfaces `dead_by_design` in each
 `task.toml` would release them.
 
+## Tool tour and Harbor (2026-10-07)
+
+Not tasks: one audited probe per tool, each reading a fact the world pins through the tool's real
+client, judged on the value (against the world's DuckDB, computed before the stack starts), the
+expected audit rows, the trace and the network (`tasks/harness/tool_tour.py`, probes in
+`tasks/harness/tool_tour_probes/`).
+
+| where | what ran | result | evidence |
+|---|---|---|---|
+| container topology | every tool on 9 profile stacks (da/laptop, da/snowflake, de/laptop, de/laptop+airflow, de/postgres, de/aws, de/databricks, de/gcp) | 35 PASS, 1 known FAIL (`dbt.show.ref_inline`) at 59f69b2; every stack: trace valid, no stray rows, no network violations. 2026-10-08, after the commerce_analytics `relations.sql` fix (an inline query's `ref()` keeps its database): only the dbt probes re-run (da/laptop, image `alkera-episode:dbtref-da` at 073f6f5), 2/2 PASS incl. `dbt.show.ref_inline`, stack clean; the other 34 probes not re-run, no known FAIL remains | `tasks/harness/evidence/tool_tour_container.json`, `tasks/harness/evidence/tool_tour_dbt_ref.json` |
+| Harbor, oracle / nop | the tool tour as a Harbor dataset (`harbor/export.py --tooltour`), one task per probe | 26/26 tasks: oracle 1, nop 0 (BigQuery refused in Harbor by name; `dbt.show.ref_inline` skipped). 2026-10-08 at 21d8ef2: `dbt.show.ref_inline` exported and, with `dbt.show.net_revenue`, 2/2: oracle 1, nop 0 (only the dbt tasks re-run) | `harbor/evidence/tooltour-{oracle,nop}-*.json` |
+| Harbor, real tasks | GT001-GT009 (28 arms) and BI001/BI002 (4 arms) through the export | GT 28/28, BI 4/4: oracle 1, nop 0; BI 4/4 again on 2026-10-08 at ce6ee42 (the relations.sql fix, re-measured baselines) | `harbor/evidence/acceptance-*.json` |
+| Harbor, live agent | `harbor run -p harbor/dist/alkera-tooltour -a claude-code ...` (`harbor/README.md`, tool tour section) | not yet run (needs the user's token) | `harbor/evidence/tooltour-claude-<rev>.json` when run |
+
 ## Per task
 
 ### GT001 aov-halving: "Average order value looks wrong"

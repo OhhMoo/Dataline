@@ -1,0 +1,259 @@
+{
+ "schema": "alkera-harbor-tooltour-acceptance-evidence/1",
+ "rev": "0bf4ddb-databricks",
+ "agent": "oracle",
+ "note": "Re-check of the six databricks tool-tour tasks after Task 10 was rebased onto main-2 8701e94 (8a71ac7: Databricks Jobs run-now queues its run, the probe reads the queued run): exported with --tools databricks --validate from the clean commit 0bf4ddb, plain Harbor runs, -n 2. The other 20 tasks of tooltour-*-5c18d18 do not depend on that change.",
+ "harbor": "0.23.0",
+ "docker": "29.8.2",
+ "command": "TMPDIR=<disk> python3 harbor/acceptance.py --dataset harbor/dist/alkera-tooltour -n 2 --sg docker --harbor <harbor 0.23.0 env>/bin/harbor",
+ "export": "gateway/.venv/bin/python harbor/export.py --tooltour --output-dir harbor/dist/alkera-tooltour --overwrite --validate --work-dir <disk>",
+ "accepted": true,
+ "dataset": {
+  "path": "harbor/dist/alkera-tooltour",
+  "name": "alkera/tool-tour",
+  "source_commit": "0bf4ddb84b05b3ec9e6417c9995c3c580b101c3e",
+  "source_dirty": false,
+  "exported_at": "2026-10-07T16:53:09Z",
+  "tasks": [
+   {
+    "name": "alkera/databricks.connector.completed_orders_feb_2026__tour",
+    "probe": "databricks.connector.completed_orders_feb_2026",
+    "tool": "databricks",
+    "profile": "de/databricks",
+    "digest": "sha256:934742da36bb3e9ed902df9a5369aa1f55cc29b0671ebf249fed2946a1a27458"
+   },
+   {
+    "name": "alkera/databricks.dbt.net_revenue_feb_2026__tour",
+    "probe": "databricks.dbt.net_revenue_feb_2026",
+    "tool": "databricks",
+    "profile": "de/databricks",
+    "digest": "sha256:552d492e7179b213d049ef53b857ff1b881ed8fc460d2e1e36a4290bab506baf"
+   },
+   {
+    "name": "alkera/databricks.jobs.run_now_bi_refresh__tour",
+    "probe": "databricks.jobs.run_now_bi_refresh",
+    "tool": "databricks",
+    "profile": "de/databricks",
+    "digest": "sha256:1c41e7f2bb797fad58269639fbb8a0cc2e529a63a1bd3b7c3f42c88655d67c37"
+   },
+   {
+    "name": "alkera/databricks.rest.net_revenue__tour",
+    "probe": "databricks.rest.net_revenue",
+    "tool": "databricks",
+    "profile": "de/databricks",
+    "digest": "sha256:c43db15bc6a2d51292219d0f5d507d14612dfcd9f533f9af69299bff2f4e8ec4"
+   },
+   {
+    "name": "alkera/databricks.sdk.net_revenue_feb_2026__tour",
+    "probe": "databricks.sdk.net_revenue_feb_2026",
+    "tool": "databricks",
+    "profile": "de/databricks",
+    "digest": "sha256:eca4fc44a30e85b9f7e353422a150b2b9f80e1b95452419feb169bd92af2287a"
+   },
+   {
+    "name": "alkera/databricks.uc.fct_orders_columns__tour",
+    "probe": "databricks.uc.fct_orders_columns",
+    "tool": "databricks",
+    "profile": "de/databricks",
+    "digest": "sha256:361d027779a3be4b150190b363655fc5de4aa171dcdf18b152f168084294347e"
+   }
+  ],
+  "skipped": []
+ },
+ "summary": {
+  "trials": 6,
+  "expected": 1.0,
+  "matching": 6,
+  "rewards": [
+   "1"
+  ],
+  "exceptions": [],
+  "seconds": 437,
+  "problems": []
+ },
+ "per_tool": [
+  {
+   "tool": "databricks",
+   "trials": 6,
+   "probes": [
+    "databricks.connector.completed_orders_feb_2026",
+    "databricks.dbt.net_revenue_feb_2026",
+    "databricks.jobs.run_now_bi_refresh",
+    "databricks.rest.net_revenue",
+    "databricks.sdk.net_revenue_feb_2026",
+    "databricks.uc.fct_orders_columns"
+   ],
+   "mean_reward": 1.0,
+   "rewarded": 6,
+   "unmeasured_or_errored": 0,
+   "expected_tool_used": 6,
+   "unknown_route_rows": 0,
+   "unknown_routes": [],
+   "median_agent_seconds": 5.9
+  }
+ ],
+ "trials": [
+  {
+   "probe": "databricks.connector.completed_orders_feb_2026",
+   "tool": "databricks",
+   "task": "alkera/databricks.connector.completed_orders_feb_2026__tour",
+   "trial": "databricks.connector.completed_o__gJ7UPRM",
+   "reward": 1,
+   "exception": null,
+   "unmeasured": null,
+   "checks": {
+    "answer": true,
+    "tools": true,
+    "network": true,
+    "seq": true
+   },
+   "expected_tool_used": true,
+   "tools_used": [
+    "databricks.feature_flags",
+    "databricks.session_create",
+    "databricks.session_delete",
+    "databricks.statement",
+    "databricks.statement_close",
+    "shim.python"
+   ],
+   "unknown_route_rows": 0,
+   "answer": 1068,
+   "truth": 1068,
+   "agent_seconds": 6.0,
+   "trial_seconds": 143.0
+  },
+  {
+   "probe": "databricks.dbt.net_revenue_feb_2026",
+   "tool": "databricks",
+   "task": "alkera/databricks.dbt.net_revenue_feb_2026__tour",
+   "trial": "databricks.dbt.net_revenue_feb_2__yZ9hTuR",
+   "reward": 1,
+   "exception": null,
+   "unmeasured": null,
+   "checks": {
+    "answer": true,
+    "tools": true,
+    "network": true,
+    "seq": true
+   },
+   "expected_tool_used": true,
+   "tools_used": [
+    "databricks.feature_flags",
+    "databricks.session_create",
+    "databricks.session_delete",
+    "databricks.statement",
+    "databricks.statement_close",
+    "shim.dbt",
+    "shim.python"
+   ],
+   "unknown_route_rows": 0,
+   "answer": 2361224.0,
+   "truth": "2361224.00",
+   "agent_seconds": 14.9,
+   "trial_seconds": 138.9
+  },
+  {
+   "probe": "databricks.jobs.run_now_bi_refresh",
+   "tool": "databricks",
+   "task": "alkera/databricks.jobs.run_now_bi_refresh__tour",
+   "trial": "databricks.jobs.run_now_bi_refre__TXbU7pz",
+   "reward": 1,
+   "exception": null,
+   "unmeasured": null,
+   "checks": {
+    "answer": true,
+    "tools": true,
+    "network": true,
+    "seq": true
+   },
+   "expected_tool_used": true,
+   "tools_used": [
+    "databricks.sched_list",
+    "databricks.sched_state",
+    "databricks.sched_trigger",
+    "shim.python"
+   ],
+   "unknown_route_rows": 0,
+   "answer": 1772409600000,
+   "truth": 1772409600000,
+   "agent_seconds": 5.8,
+   "trial_seconds": 116.8
+  },
+  {
+   "probe": "databricks.rest.net_revenue",
+   "tool": "databricks",
+   "task": "alkera/databricks.rest.net_revenue__tour",
+   "trial": "databricks.rest.net_revenue__tou__3F4Mfk9",
+   "reward": 1,
+   "exception": null,
+   "unmeasured": null,
+   "checks": {
+    "answer": true,
+    "tools": true,
+    "network": true,
+    "seq": true
+   },
+   "expected_tool_used": true,
+   "tools_used": [
+    "databricks.statement",
+    "shim.python"
+   ],
+   "unknown_route_rows": 0,
+   "answer": "33733790.00",
+   "truth": "33733790.00",
+   "agent_seconds": 4.9,
+   "trial_seconds": 150.3
+  },
+  {
+   "probe": "databricks.sdk.net_revenue_feb_2026",
+   "tool": "databricks",
+   "task": "alkera/databricks.sdk.net_revenue_feb_2026__tour",
+   "trial": "databricks.sdk.net_revenue_feb_2__At9Zch7",
+   "reward": 1,
+   "exception": null,
+   "unmeasured": null,
+   "checks": {
+    "answer": true,
+    "tools": true,
+    "network": true,
+    "seq": true
+   },
+   "expected_tool_used": true,
+   "tools_used": [
+    "databricks.statement",
+    "shim.python"
+   ],
+   "unknown_route_rows": 0,
+   "answer": "2361224.00",
+   "truth": "2361224.00",
+   "agent_seconds": 5.7,
+   "trial_seconds": 112.5
+  },
+  {
+   "probe": "databricks.uc.fct_orders_columns",
+   "tool": "databricks",
+   "task": "alkera/databricks.uc.fct_orders_columns__tour",
+   "trial": "databricks.uc.fct_orders_columns__R9Rj7oj",
+   "reward": 1,
+   "exception": null,
+   "unmeasured": null,
+   "checks": {
+    "answer": true,
+    "tools": true,
+    "network": true,
+    "seq": true
+   },
+   "expected_tool_used": true,
+   "tools_used": [
+    "databricks.table_get",
+    "shim.python"
+   ],
+   "unknown_route_rows": 0,
+   "answer": 6,
+   "truth": 6,
+   "agent_seconds": 6.0,
+   "trial_seconds": 151.9
+  }
+ ],
+ "acceptance_job": "acceptance-oracle-20261007T165319"
+}

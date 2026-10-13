@@ -914,7 +914,12 @@ WAREHOUSE_TOOLS = frozenset({
 #: two: neither transport has a way for the AGENT to advance the world's clock -
 #: `Operations` has no such method and `./ops/sched` deliberately has no such
 #: subcommand - so a row that moved `var/world/live.json` was not the subject's.
-SCHEDULER_TOOLS = frozenset({"sched_trigger"})
+#: The Airflow plug's two ledger writes (gateway native/services/airflow.py) are
+#: here too, named in full since their suffixes are no MCP tool: a DAG-run
+#: trigger and an applied clear each QUEUE runs in var/sched/state.json
+#: (world.scheduler.enqueue) and move no clock, so a ledger change after either
+#: is the agent's - attributed, not quarantined.
+SCHEDULER_TOOLS = frozenset({"sched_trigger", "airflow.dag_trigger", "airflow.task_clear"})
 #: Native rows that open a warehouse FILE with no server in front of it. They
 #: are named here rather than suffix-matched because they have no MCP
 #: equivalent: the `duckdb` CLI shim writes `duckdb.statement` with the tables

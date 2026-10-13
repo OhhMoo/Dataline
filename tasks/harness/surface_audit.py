@@ -754,7 +754,12 @@ def dbt_profile_targets_warehouse(profiles_dir: str, warehouse: str
 
 def _dbt_toolchain(profiles_dir: str, warehouse: str
                    ) -> tuple[bool, str | None, str]:
-    """`dbt` on PATH and profiled against this world's warehouse, or dead."""
+    """`dbt` on PATH and profiled against this world's warehouse, or dead.
+
+    Any output counts, not only the default `target`: a box that plugs a
+    remote warehouse (world.native_workspace.box_profiles_yaml) defaults to
+    that warehouse and keeps the DuckDB target this check finds
+    (test_backends.test_surface_gate_accepts_a_box_profile_defaulting_to_the_backend)."""
     executable = dbt_executable()
     if executable is None:
         return (False, "no_dbt_toolchain",

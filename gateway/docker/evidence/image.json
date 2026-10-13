@@ -1,13 +1,13 @@
 {
   "architecture": "amd64",
-  "generated": "2026-10-06T04:06:14+00:00",
-  "head_revision": "9c08ad9907756792f85c1a5d493d37797b333daf",
-  "image_id": "sha256:cce099711f31fbc282615c139ae4fdf4fdfa2e9a2a9cfc6471e490871f191770",
+  "generated": "2026-10-08T04:18:37+00:00",
+  "head_revision": "21fed38c832dcab0f795775c3bd7dcc2583dc68b",
+  "image_id": "sha256:56c887f57c4000e8cb5452d12adc7b66c353b9696c8f95fd42f574ade8c1f5cd",
   "labels": {
-    "org.alkera.source.overlay": "a990d7308ab00b3f173bdd6405d0b918458617c9beaf551bfac67f6e63381e50",
-    "org.alkera.source.revision": "9c08ad9907756792f85c1a5d493d37797b333daf",
-    "org.alkera.toolbelt": "da",
-    "org.alkera.warehouse_clients": "snowflake"
+    "org.alkera.source.overlay": "3bcec0084e72940560fb337262010d68cdeed873945820d659f516ff74f75cb2",
+    "org.alkera.source.revision": "21fed38c832dcab0f795775c3bd7dcc2583dc68b",
+    "org.alkera.toolbelt": "de",
+    "org.alkera.warehouse_clients": "airflow"
   },
   "measured_inside_container": {
     "binaries": [
@@ -635,74 +635,10 @@
         "ok": true,
         "path": "/usr/local/bin/alkera-gateway",
         "reason": null
-      },
-      {
-        "argv": [
-          "/usr/local/bin/python",
-          "-c",
-          "import pandas, pyarrow, matplotlib, ipykernel, jupyter_client, jupyter_server, nbclient, nbformat, alkera_gateway.native.notebook; print(pandas.__version__)"
-        ],
-        "binary": "/usr/local/bin/python",
-        "exit": 0,
-        "first_line": "3.0.6",
-        "ok": true,
-        "path": "/usr/local/bin/python",
-        "reason": null
-      },
-      {
-        "argv": [
-          "jupyter",
-          "kernelspec",
-          "list"
-        ],
-        "binary": "jupyter",
-        "exit": 0,
-        "first_line": "Available kernels:",
-        "ok": true,
-        "path": "/usr/local/bin/jupyter",
-        "reason": null
-      },
-      {
-        "argv": [
-          "jupyter",
-          "server",
-          "--version"
-        ],
-        "binary": "jupyter",
-        "exit": 0,
-        "first_line": "2.21.1",
-        "ok": true,
-        "path": "/usr/local/bin/jupyter",
-        "reason": null
-      },
-      {
-        "argv": [
-          "jupyter-execute",
-          "--version"
-        ],
-        "binary": "jupyter-execute",
-        "exit": 0,
-        "first_line": "0.11.0",
-        "ok": true,
-        "path": "/usr/local/bin/jupyter-execute",
-        "reason": null
-      },
-      {
-        "argv": [
-          "ipython",
-          "--version"
-        ],
-        "binary": "ipython",
-        "exit": 0,
-        "first_line": "9.17.1",
-        "ok": true,
-        "path": "/usr/local/bin/ipython",
-        "reason": null
       }
     ],
     "binaries_failed": [],
     "binaries_ok": [
-      "/usr/local/bin/python",
       "alkera-gateway",
       "awk",
       "aws",
@@ -724,11 +660,7 @@
       "grep",
       "gzip",
       "in2csv",
-      "ipython",
       "jq",
-      "jupyter",
-      "jupyter",
-      "jupyter-execute",
       "less",
       "ls",
       "make",
@@ -760,6 +692,7 @@
       "wc",
       "xargs"
     ],
+    "client_allowed_imports": {},
     "duckdb_extensions": {
       "postgres": {
         "canonical_name": "postgres_scanner",
@@ -772,13 +705,7 @@
       }
     },
     "interpreter": "/usr/local/bin/python",
-    "kernelspecs": {
-      "names": [
-        "alkera-python",
-        "python3"
-      ],
-      "reason": null
-    },
+    "kernelspecs": null,
     "os_release": "Debian GNU/Linux 13 (trixie)",
     "passed": true,
     "path": "/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/toolbelt/bin",
@@ -786,57 +713,11 @@
     "python_not_shadowed": true,
     "python_on_path": "/usr/local/bin/python",
     "role_forbidden_present": [],
-    "role_imports": {
-      "alkera_gateway.native.notebook": {
-        "interpreter": "/usr/local/bin/python",
-        "ok": true,
-        "reason": null
-      },
-      "ipykernel": {
-        "interpreter": "/usr/local/bin/python",
-        "ok": true,
-        "reason": null
-      },
-      "jupyter_client": {
-        "interpreter": "/usr/local/bin/python",
-        "ok": true,
-        "reason": null
-      },
-      "jupyter_server": {
-        "interpreter": "/usr/local/bin/python",
-        "ok": true,
-        "reason": null
-      },
-      "matplotlib": {
-        "interpreter": "/usr/local/bin/python",
-        "ok": true,
-        "reason": null
-      },
-      "nbclient": {
-        "interpreter": "/usr/local/bin/python",
-        "ok": true,
-        "reason": null
-      },
-      "nbformat": {
-        "interpreter": "/usr/local/bin/python",
-        "ok": true,
-        "reason": null
-      },
-      "pandas": {
-        "interpreter": "/usr/local/bin/python",
-        "ok": true,
-        "reason": null
-      },
-      "pyarrow": {
-        "interpreter": "/usr/local/bin/python",
-        "ok": true,
-        "reason": null
-      }
-    },
+    "role_imports": {},
     "role_imports_failed": [],
-    "source_revision": "9c08ad9907756792f85c1a5d493d37797b333daf",
+    "source_revision": "21fed38c832dcab0f795775c3bd7dcc2583dc68b",
     "tool_count": 63,
-    "toolbelt_role": "da",
+    "toolbelt_role": "de",
     "tools": [
       "alarms_get",
       "alarms_history",
@@ -907,31 +788,42 @@
   "overlay": {
     "files": [
       "gateway/docker/Dockerfile",
+      "gateway/docker/Dockerfile.redshift",
       "gateway/docker/Dockerfile.snowflake",
       "gateway/docker/Dockerfile.subject",
       "gateway/docker/NATIVE_STACK.md",
       "gateway/docker/TOOLBELT.md",
       "gateway/docker/acceptance.py",
       "gateway/docker/acceptance_inside.py",
+      "gateway/docker/airflow-clients.in",
+      "gateway/docker/airflow-clients.overrides",
       "gateway/docker/aws-config",
       "gateway/docker/aws-keys",
       "gateway/docker/bigquery/README.md",
       "gateway/docker/bigquery/fetch.py",
+      "gateway/docker/bigquery-clients.in",
+      "gateway/docker/bigquery-clients.overrides",
       "gateway/docker/build_episode.py",
       "gateway/docker/compose.episode.yml",
       "gateway/docker/compose.native.yml",
       "gateway/docker/compose.subject.yml",
       "gateway/docker/compose.yml",
       "gateway/docker/containment.py",
+      "gateway/docker/databricks-clients.in",
+      "gateway/docker/databricks-clients.overrides",
       "gateway/docker/jupyter/README.md",
       "gateway/docker/jupyter/kernels/alkera-python/kernel.json",
       "gateway/docker/jupyter/launch.py",
       "gateway/docker/ledger_probe.py",
       "gateway/docker/lock_snowflake_clients.py",
+      "gateway/docker/lock_warehouse_clients.py",
       "gateway/docker/native_episode_probe.py",
       "gateway/docker/native_probe.py",
       "gateway/docker/native_services.py",
       "gateway/docker/postgres.sql",
+      "gateway/docker/redshift-clients.in",
+      "gateway/docker/redshift-clients.overrides",
+      "gateway/docker/redshift_start.py",
       "gateway/docker/snowflake-clients.in",
       "gateway/docker/snowflake-clients.overrides",
       "gateway/docker/snowflake-dev.in",
@@ -948,26 +840,27 @@
       "gateway/docker/toolbelt.in",
       "gateway/docker/toolbelt.lock",
       "gateway/docker/toolbelt_acceptance.py",
-      "gateway/docker/toolbelt_check.py"
+      "gateway/docker/toolbelt_check.py",
+      "gateway/docker/warehouse_clients.py"
     ],
-    "hash": "a990d7308ab00b3f173bdd6405d0b918458617c9beaf551bfac67f6e63381e50"
+    "hash": "3bcec0084e72940560fb337262010d68cdeed873945820d659f516ff74f75cb2"
   },
   "repo_digests": [
-    "alkera-episode@sha256:cce099711f31fbc282615c139ae4fdf4fdfa2e9a2a9cfc6471e490871f191770"
+    "alkera-episode@sha256:56c887f57c4000e8cb5452d12adc7b66c353b9696c8f95fd42f574ade8c1f5cd"
   ],
-  "size_bytes": 2566328181,
-  "source_revision": "9c08ad9907756792f85c1a5d493d37797b333daf",
-  "tag": "alkera-episode:head-da-snowflake",
+  "size_bytes": 1885909547,
+  "source_revision": "21fed38c832dcab0f795775c3bd7dcc2583dc68b",
+  "tag": "alkera-episode:head-airflow",
   "toolbelt": {
-    "label": "da",
+    "label": "de",
     "matches": true,
-    "probe": "da",
-    "requested": "da"
+    "probe": "de",
+    "requested": "de"
   },
   "warehouse_clients": {
-    "label": "snowflake",
+    "label": "airflow",
     "requested": [
-      "snowflake"
+      "airflow"
     ]
   }
 }

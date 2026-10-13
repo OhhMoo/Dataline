@@ -45,7 +45,9 @@ the world declared, and a peer declared `read_only` is refused writes by the
 engine rather than by a rule we would have to keep enforcing.
 """
 
+import copy
 import importlib.util
+from collections.abc import Mapping
 from functools import cache
 from typing import Literal
 
@@ -71,9 +73,36 @@ DBT_ADAPTERS = {
     "duckdb": ("dbt.adapters.duckdb", "dbt-duckdb"),
     "postgres": ("dbt.adapters.postgres", "dbt-postgres"),
     "snowflake": ("dbt.adapters.snowflake", "dbt-snowflake"),
-    # Not installed in any image yet: a bigquery `dbt_target` is refused at
+    # Not installed in any image: a bigquery `dbt_target` is refused at
     # construction (dbt_adapter_missing) rather than failing inside dbt.
+    # Measured 2026-10-07: dbt-bigquery 1.12.1 runs against the container's
+    # BigQuery proxy, but it brings pandas, pyarrow and nbformat into the
+    # system Python, which a de image's toolbelt gate forbids
+    # (docker/bigquery-clients.in).
     "bigquery": ("dbt.adapters.bigquery", "dbt-bigquery"),
+    # In images built with `--warehouse-clients redshift` only
+    # (requirements-redshift.lock); the box target of a redshift-plugged box.
+    "redshift": ("dbt.adapters.redshift", "dbt-redshift"),
+    # The Databricks plug's clients (requirements-databricks.lock), only in images
+    # built with --warehouse-clients databricks.
+    "databricks": ("dbt.adapters.databricks", "dbt-databricks"),
+}
+
+#: Fields a variable-backed box target (`dbt_output(env=...)`) carries as
+#: values, because they are the backend's shape and not a secret: the
+#: Postgres-persona Redshift does not require SSL, and dbt-redshift's default
+#: (`prefer`) makes redshift_connector demand it and fail ("Server refuses SSL").
+DBT_FIXED_FIELDS: dict[str, dict[str, str]] = {
+    "redshift": {"sslmode": "disable"},
+}
+
+#: Fields a variable-backed output (`dbt_output(..., env=...)`) carries as constants:
+#: what is the same on every box and is not a credential. Databricks: the Unity
+#: Catalog catalog, and the connector's Statement Execution API transport - the fake
+#: workspace serves no Thrift (docs/environments/DATABRICKS_SPIKE.md). (Nested values,
+#: so a separate table from DBT_FIXED_FIELDS' flat strings, deep-copied per output.)
+DBT_OUTPUT_CONSTANTS: dict[str, dict] = {
+    "databricks": {"catalog": "main", "connection_parameters": {"use_sea": True}},
 }
 
 
@@ -100,6 +129,8 @@ def dbt_output(
     path=None,
     dsn_env: str = "ALKERA_POSTGRES_DSN",
     options_env: str = "ALKERA_SNOWFLAKE_OPTIONS",
+    env: Mapping[str, str] | None = None,
+    port: int | None = None,
 ) -> dict:
     """One profiles.yml output for `backend`, reading the secret the connector reads.
 
@@ -114,7 +145,27 @@ def dbt_output(
     are required; `host` / `port` / `protocol` default to the TLS front door
     (443, https), exactly as the Python connector defaults them; `warehouse` and
     `role` are passed through when present. `schema` is the dbt build schema.
+
+    `env` is the other way to read a remote backend: from the BOX's own
+    variables, one per profile field (`{field: VARIABLE}`, a plugged backend's
+    `native_workspace.DISCOVERY` row), each rendered `{{ env_var('VARIABLE') }}`.
+    That is the target a bare `dbt` finds on a box that plugs the backend
+    (`native_workspace.box_profiles_yaml`), and it carries no value either.
+    `port` is then written as a number: where the backend answers is not a
+    secret, and the box exports no variable for it; so are the backend's
+    `DBT_OUTPUT_CONSTANTS` (Databricks: its catalog and connector transport).
     """
+    if env is not None:
+        if backend == "duckdb" or backend not in DBT_ADAPTERS:
+            raise ValueError(f"no variable-backed dbt output for backend {backend!r}")
+        output = {"type": backend}
+        output.update({name: f"{{{{ env_var('{var}') }}}}" for name, var in env.items()})
+        if port is not None:
+            output["port"] = int(port)
+        output.update(copy.deepcopy(DBT_OUTPUT_CONSTANTS.get(backend, {})))
+        output.update({"schema": schema, "threads": 1})
+        output.update(DBT_FIXED_FIELDS.get(backend, {}))
+        return output
     if backend == "duckdb":
         if path is None:
             raise ValueError("a duckdb dbt output needs the warehouse file path")

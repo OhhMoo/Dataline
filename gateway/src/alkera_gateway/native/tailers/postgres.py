@@ -149,6 +149,12 @@ def iter_statements(entries: Iterable[Entry]) -> Iterator[Statement]:
     about it, or at end of stream. That ordering is what lets `duration:`,
     `DETAIL:  parameters:` and a failing `ERROR:` - all of which the server
     writes *after* the statement - land on the row they belong to.
+
+    A failing statement is emitted AT its `ERROR:`/`FATAL:`/`PANIC:`. The server
+    writes no `duration:` after an error, so waiting for the backend's next entry
+    held the row back until that backend spoke again - for a `psql -c` that exits
+    on the error, until the end of the log - and it landed after statements other
+    backends ran later (measured: a refused DROP's row came last of 33).
     """
     pending: dict[str, Statement] = {}
     for entry in entries:
@@ -156,6 +162,8 @@ def iter_statements(entries: Iterable[Entry]) -> Iterator[Statement]:
         if entry.severity in ("ERROR", "FATAL", "PANIC"):
             if current is not None:
                 current.error = entry.body
+                current.flags.append("no_duration")
+                yield pending.pop(entry.pid)
             continue
         if entry.severity == "DETAIL":
             parameters = PARAMETERS.match(entry.body)

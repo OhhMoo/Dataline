@@ -175,7 +175,7 @@ def process_context() -> Context:
                 raise
             raw = None
         if _process_context is None or _process_context[:2] != (name, raw):
-            config = GatewayConfig.model_validate_json(raw) if raw is not None else GatewayConfig()
+            config = GatewayConfig.for_services(raw) if raw is not None else GatewayConfig()
             _process_context = (name, raw, Context(config))
         return _process_context[2]
 

@@ -1,0 +1,25 @@
+# The BigQuery plug's client side, for episode images built with
+# `--warehouse-clients bigquery` (Dockerfile ALKERA_WAREHOUSE_CLIENTS): the
+# Python client, pointed at bigquery.internal:9050 (the audited proxy in front
+# of the emulator) with AnonymousCredentials and client_options api_endpoint.
+#
+# The client ONLY - no `[pandas]` extra and no dbt-bigquery - measured
+# 2026-10-07. dbt-bigquery 1.12.1 works against the proxy (method
+# oauth-secrets with a static token + api_endpoint: debug, run, re-run, test and
+# show pass; seed is a load job and is refused by name), but it requires
+# google-cloud-bigquery[pandas] and nbformat, and with them pandas, pyarrow,
+# nbformat and jupyter_core's `jupyter` land in the image's system Python -
+# which gateway/docker/toolbelt_check.py forbids on a de image (ROLE_IMPORTS /
+# ROLE_BINARIES: the notebook libraries are the da/ds roles'). A de/gcp image
+# built with them failed that gate (`role_forbidden_present`). Shipping the
+# adapter is a decision about that gate, not about this lock; until it is
+# made, dbt-bigquery stays refused by name (warehouses.DBT_ADAPTERS). Without
+# the pandas extra, `to_dataframe()` says "Please install the 'db-dtypes'
+# package", loudly; rows, `to_arrow()` aside, read as they always do.
+#
+# Compiled here, NOT in pyproject/uv.lock, like every backend's clients
+# (docker/lock_warehouse_clients.py): constrained to the base, native and ds
+# locks, so every package it shares with them is the same version; certifi is
+# the one deliberate exception (bigquery-clients.overrides). Regenerate with the
+# command in requirements-bigquery.lock's header.
+google-cloud-bigquery>=3.25,<4

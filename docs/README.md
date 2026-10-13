@@ -15,6 +15,9 @@ research/                       design research with sources
                                 (normative spec: tasks/contracts/DECISION_TEMPLATE.md §9)
   LLM_Judge_Research.md         why no LLM grades an episode; what the off-score judge does
   llm-judge/r1..r6_*.md         the source sweeps behind it, with quotes
+  ENVIRONMENT_DESIGN.md         the 2026 environment-design sweep: fidelity, dynamism,
+                                reward-hacking defense, difficulty mechanics, episode
+                                economics, packaging — ranked recommendations (Oct 2)
 
 implementation_plan/            plans, round logs, findings and status: history, kept unchanged
   TASK_STATUS.md                per-task results under the current grader and whether to use each

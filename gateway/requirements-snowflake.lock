@@ -5,7 +5,7 @@ agate==1.9.1 \
     --hash=sha256:1cf329510b3dde07c4ad1740b7587c9c679abc3dcd92bb1107eabc10c2e03c50 \
     --hash=sha256:bc60880c2ee59636a2a80cd8603d63f995be64526abf3cbba12f00767bcd5b3d
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   dbt-adapters
     #   dbt-common
     #   dbt-core
@@ -14,7 +14,7 @@ annotated-types==0.8.0 \
     --hash=sha256:13b2beaad985e05e2d6407ee4c4f35590b11f8d693a258a561055cac8f64cab7 \
     --hash=sha256:f072f4d804ea359e4eaf198b1af7a8b0943881a87f31bb764f8bf219bb9419e0
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   pydantic
 asn1crypto==1.5.1 \
     --hash=sha256:13ae38502be632115abf8a24cbe5f4da52e3b5231990aff31123c805306ccb9c \
@@ -24,14 +24,14 @@ attrs==26.1.0 \
     --hash=sha256:c647aa4a12dfbad9333ca4e71fe62ddc36f4e63b2d260a37a8b83d2f043ac309 \
     --hash=sha256:d03ceb89cb322a8fd706d4fb91940737b6642aa36998fe130a9bc96c985eff32
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   jsonschema
     #   referencing
 babel==2.18.0 \
     --hash=sha256:b80b99a14bd085fcacfa15c9165f651fbb3406e66cc603abf11c5750937c992d \
     --hash=sha256:e2b422b277c2b9a9630c1d7903c2a00d0830c409c59ac8cae9081c92f1aeba35
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   agate
 backports-tarfile==1.2.0 ; python_full_version < '3.12' \
     --hash=sha256:77e284d754527b01fb1e6fa8a1afe577858ebe4e9dad8919e34c862cb399bc34 \
@@ -41,13 +41,13 @@ boto3==1.43.93 \
     --hash=sha256:196bfc8b4c9cd5505f9f7b963e30956db3a00fd47e20dd0ee3574a243c1fb212 \
     --hash=sha256:3c948fe231490d446bf90bf3322d1452632107329d3683b37d88b7399bf481a0
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   snowflake-connector-python
 botocore==1.43.93 \
     --hash=sha256:3ca57bb5d26d88b554a74de708a5c991f45306436c91aacca931252d1d4d54ff \
     --hash=sha256:82da355d18a7f784347b00444be33942834651f31b6c5ffef49999cd47364c5e
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   boto3
     #   s3transfer
     #   snowflake-connector-python
@@ -149,7 +149,7 @@ cffi==2.1.1 ; platform_python_implementation != 'PyPy' \
     --hash=sha256:fb92203a88b3d3053034db775110081c49d28be6551923805e039924093761e4 \
     --hash=sha256:fcd22650c908d7b7da162bbfaab594a1227a15d1643a98c68b122ac642fa2264
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   cryptography
 charset-normalizer==3.5.1 \
     --hash=sha256:01e93745f7f219b703b60ba7afead36cfc4242782be5af484673fc500df12da5 \
@@ -293,20 +293,20 @@ charset-normalizer==3.5.1 \
     --hash=sha256:fd0a274c0e5f9a21565cd9d3dd749b61f96b7aa1e20a93aa1ba4029518f2e5c0 \
     --hash=sha256:fdb8a068947befafba9952162645dc2fecaeb400e64584829ed5e9b2fbe21a7f
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   requests
     #   snowflake-connector-python
 click==8.5.0 \
     --hash=sha256:255bc9599cf7748b4b1a446ccc735421bd08a2ae529a8b88597d3de5664ee360 \
     --hash=sha256:ba0d2089de75ea0310e2dde03160e6ca10009947fb95a182f9b54021bb272e34
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   dbt-core
 colorama==0.4.6 \
     --hash=sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44 \
     --hash=sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   dbt-common
 cryptography==50.0.1 \
     --hash=sha256:01f41478cf33fc605a6a089cd56d28b45c6c0b45a1928b61797f2621a04bac71 \
@@ -356,7 +356,7 @@ cryptography==50.0.1 \
     --hash=sha256:fd3718b960d0b5dd213cdf03f3bcb7000e69dda0de8b956061947ff6bcff5558 \
     --hash=sha256:ff838d62ec1bfce4f9ba7fa16f4a7b554cd8d0c299e6be37502161a660c84eef
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   pyopenssl
     #   secretstorage
     #   snowflake-connector-python
@@ -364,20 +364,20 @@ daff==1.4.2 \
     --hash=sha256:47f0391eda7e2b5011f7ccac006b9178accb465bcb94a2c9f284257fff5d2686 \
     --hash=sha256:88981a21d065e4378b5c4bd40b975dbfdea9b7ff540071f3bb5e20cc8b3590b5
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   dbt-core
 dbt-adapters==1.24.5 \
     --hash=sha256:32345118b921160722a13f12c3e369b9d59a0fb8fb9b3297e29d8cd53f973411 \
     --hash=sha256:87de096a0d5b219905f1079b002f13e3447ffb63558f4f3c5b7278670d198acb
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   dbt-core
     #   dbt-snowflake
 dbt-common==1.39.0 \
     --hash=sha256:30d63490b9ef2aad6f469ec841fb758430fcb1d997b79ff3df36fcb7b79a241f \
     --hash=sha256:868256ab2b59328efdd455644172ad17303f3f6a78a015f06667e865e068d620
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   dbt-adapters
     #   dbt-core
     #   dbt-snowflake
@@ -385,12 +385,12 @@ dbt-core==1.12.4 \
     --hash=sha256:a5d567a54f7ed44c5f08da86f7c01d5ca42f6756e69a9183b514fd37a2e89e1d \
     --hash=sha256:cf869cac339eb9d108181fc5b9bce0a467917e0515b48498e9d49311c82375b8
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   dbt-snowflake
 dbt-core-experimental-parser==2.0.0rc2 \
     --hash=sha256:44d6d888b283c9b3805439800f1594f43cdefa0deb9887c4b4e5e81a061f15d0
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   dbt-core
 dbt-extractor==0.6.0 \
     --hash=sha256:05bcfab7ebd70296ceb31742e8333ba66a2c939de44e61a7088bebafa939aaf6 \
@@ -410,13 +410,13 @@ dbt-extractor==0.6.0 \
     --hash=sha256:d6cf08ec793b8bc2bd6e260ef818230ae68a4f71436fa489f08d7db1a52e2ffe \
     --hash=sha256:dcf14ed245de8df269815ff4c4f555fa72d2621f4fff37c023b8c99d0e421b4f
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   dbt-core
 dbt-protos==1.0.565 \
     --hash=sha256:130a8333fcd644ba1f00c8377e8f8013b28cca696a6af56037feb55a011f964c \
     --hash=sha256:fabee73a6f98a7eb7e52ab34571ef24d82cce760829e268c7263a5805f3937cf
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   dbt-adapters
     #   dbt-common
     #   dbt-core
@@ -428,33 +428,33 @@ deepdiff==8.6.2 \
     --hash=sha256:186dcbd181e4d76cef11ab05f802d0056c5d6083c5a6748c1473e9d7481e183e \
     --hash=sha256:4d22034a866c3928303a9332c279362f714192d9305bac17c498720d095fd1b4
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   dbt-common
 filelock==3.32.6 \
     --hash=sha256:3f16ecd0117feae0dfc147e8c62eb5daeccd8bd800378c3ddf416de9b4feb6b1 \
     --hash=sha256:a3f55a18af3652a94d8f47d6055df434f254ca1d02ef2524850c6d249ca2512c
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   snowflake-connector-python
 idna==3.19 \
     --hash=sha256:5e0811a4383b21dc5838069f801c4fb62113b7447663d2530d2bd6e77b49bf15 \
     --hash=sha256:815e7be7a7806d54abb586dc943addc79e8b2ee16915059658cbeff4b1b43bf4
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   requests
     #   snowflake-connector-python
 importlib-metadata==9.0.1 \
     --hash=sha256:ab830580bc0ef3db61ce8fae716389e5462b67e033018bab6d8f80ef17172f99 \
     --hash=sha256:bba5600596a7e21f3eef53281cf28d6a5195634d2f2b78ff9501a3272c6eaab0
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   keyring
     #   metricflow
 isodate==0.7.2 \
     --hash=sha256:28009937d8031054830160fce6d409ed342816b543597cece116d966c6d99e15 \
     --hash=sha256:4cd1aa0f43ca76f4a6c6c0292a85f40b35ec2e43e315b59f06e6d32171a953e6
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   agate
     #   dbt-common
 jaraco-classes==3.4.0 \
@@ -479,7 +479,7 @@ jinja2==3.1.6 \
     --hash=sha256:0137fb05990d35f1275a587e9aee6d56da821fc83491a0fb838183be43f66d6d \
     --hash=sha256:85ece4451f492d0c13c5dd7c13a64681a86afae63a5f347908daf103ce6d2f67
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   dbt-common
     #   dbt-core
     #   metricflow
@@ -487,14 +487,14 @@ jmespath==1.1.0 \
     --hash=sha256:472c87d80f36026ae83c6ddd0f1d05d4e510134ed462851fd5f754c8c3cbb88d \
     --hash=sha256:a5663118de4908c91729bea0acadca56526eb2698e83de10cd116ae0f4e97c64
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   boto3
     #   botocore
 jsonschema==4.26.0 \
     --hash=sha256:0c26707e2efad8aa1bfc5b7ce170f3fccc2e4918ff85989ba9ffa9facb2be326 \
     --hash=sha256:d489f15263b8d200f8387e64b4c3a75f06629559fb73deb8fdfb525f2dab50ce
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   dbt-common
     #   dbt-core
     #   metricflow
@@ -502,7 +502,7 @@ jsonschema-specifications==2025.9.1 \
     --hash=sha256:98802fee3a11ee76ecaca44429fda8a41bff98b00a0f2838151b113f210cc6fe \
     --hash=sha256:b540987f239e745613c7a9176f3edb72b832a4ac465cf02712288397832b5e8d
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   jsonschema
 keyring==25.7.0 \
     --hash=sha256:be4a0b195f149690c166e850609a477c532ddbfbaed96a404d4e43f8d5e2689f \
@@ -512,7 +512,7 @@ leather==0.4.1 \
     --hash=sha256:67119c2aee93be821f077193bd8534e296c05b38bd174d9c5a80c4aa31d1a4d3 \
     --hash=sha256:ec61cba1ca3ccb96ed90e38b116fc58757d97d352171006b3288c47ce3fbd183
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   agate
 markupsafe==3.0.3 \
     --hash=sha256:068f375c472b3e7acbe2d5318dea141359e6900156b5b2ba06a30b169086b91a \
@@ -583,13 +583,13 @@ markupsafe==3.0.3 \
     --hash=sha256:f9e130248f4462aaa8e2552d547f36ddadbeaa573879158d721bbd33dfe4743a \
     --hash=sha256:fed51ac40f757d41b7c48425901843666a6677e3e8eb0abcff09e4ba6e664f50
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   jinja2
 mashumaro==3.17 \
     --hash=sha256:3964e2c804f62de9e4c58fb985de71dcd716f9507cc18374b1bd5c4f1a1b879b \
     --hash=sha256:de1d8b1faffee58969c7f97e35963a92480a38d4c9858e92e0721efec12258ed
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   dbt-adapters
     #   dbt-common
     #   dbt-core
@@ -597,13 +597,13 @@ metricflow==0.213.0 \
     --hash=sha256:6e1865535a200607529970f6ca1a9fcd22b7814d0b71cd654d9ee01eecf0157b \
     --hash=sha256:e6b5e8f05a0b9b0183430416052a61747fc89f809c39f2cdc5a3d9ba7a3f6931
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   dbt-core
 more-itertools==10.8.0 \
     --hash=sha256:52d4362373dcf7c52546bc4af9a86ee7c4579df9a8dc268be0a2f949d376cc9b \
     --hash=sha256:f638ddf8a1a0d134181275fb5d58b086ead7c6a72429ad725c67503f13ba30bd
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   jaraco-classes
     #   jaraco-functools
     #   metricflow
@@ -687,52 +687,52 @@ msgpack==1.2.2 \
     --hash=sha256:f80361592c13d7226b4379c8941529b63fe1a9d0e05d2de8f3306b70e522b53f \
     --hash=sha256:ffdd2f4950daf7815490f23087963e3420175b9609520b7ff5df64d351159c22
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   mashumaro
 networkx==3.6.1 \
     --hash=sha256:26b7c357accc0c8cde558ad486283728b65b6a95d85ee1cd66bafab4c8168509 \
     --hash=sha256:d47fbf302e7d9cbbb9e2555a0d267983d2aa476bac30e90dfbe5669bd57f3762
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   dbt-core
 opentelemetry-api==1.44.0 \
     --hash=sha256:67647e5e9566edcf421166fdf022b3537f818635daa852b289e34604dc6fb33a \
     --hash=sha256:94b98c893a91b88657eaac1e3ba89618cdb85be6918196705354f34728b2cdef
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   dbt-common
     #   dbt-core
 orderly-set==5.5.0 \
     --hash=sha256:46f0b801948e98f427b412fcabb831677194c05c3b699b80de260374baa0b1e7 \
     --hash=sha256:e87185c8e4d8afa64e7f8160ee2c542a475b738bc891dc3f58102e654125e6ce
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   deepdiff
 packaging==26.3 \
     --hash=sha256:94edc256424af38762eb31306eed28beb9f0efc50a8837492c9d6fd6004aed79 \
     --hash=sha256:d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   dbt-core
     #   snowflake-connector-python
 parsedatetime==2.6 \
     --hash=sha256:4cb368fbb18a0b7231f4d76119165451c8d2e35951455dfee97c62a87b04d455 \
     --hash=sha256:cb96edd7016872f58479e35879294258c71437195760746faffedb692aef000b
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   agate
 pathspec==1.0.4 \
     --hash=sha256:0210e2ae8a21a9137c0d470578cb0e595af87edaa6ebf12ff176f14a02e0e645 \
     --hash=sha256:fb6ae2fd4e7c921a165808a552060e722767cfa526f99ca5156ed2ce45a5c723
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   dbt-common
     #   dbt-core
 platformdirs==4.11.8 \
     --hash=sha256:52f2f181bbfde907966932cc8312d967d02976422d66d537ea16092b8e291081 \
     --hash=sha256:f23abafea7dd4276d1f29104b83598d7dcc567cafd07c9c951e66665645437fc
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   snowflake-connector-python
 protobuf==6.33.6 \
     --hash=sha256:0cd27b587afca21b7cfa59a74dcbd48a50f0a6400cfb59391340ad729d91d326 \
@@ -744,7 +744,7 @@ protobuf==6.33.6 \
     --hash=sha256:e2afbae9b8e1825e3529f88d514754e094278bb95eadc0e199751cdd9a2e82a2 \
     --hash=sha256:e9db7e292e0ab79dd108d7f1a94fe31601ce1ee3f7b79e0692043423020b0593
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   dbt-adapters
     #   dbt-common
     #   dbt-core
@@ -753,13 +753,13 @@ pycparser==3.0 ; implementation_name != 'PyPy' and platform_python_implementatio
     --hash=sha256:600f49d217304a5902ac3c37e1281c9fe94e4d0489de643a9504c5cdfdfc6b29 \
     --hash=sha256:b727414169a36b7d524c1c3e31839a521725078d7b2ff038656844266160a992
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   cffi
 pydantic==2.13.5 \
     --hash=sha256:346a034f080da3755d8e9cb5e00e8b07de1d39e4f6e2c87d8ab7cafa0b269a73 \
     --hash=sha256:51a9c5f7b2f8e636f04c6cada605d9b6a3bf1348fdf945a3d8869b19bba0ee08
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   dbt-core
     #   metricflow
 pydantic-core==2.46.5 \
@@ -856,13 +856,13 @@ pydantic-core==2.46.5 \
     --hash=sha256:fa10ef4112775900e7a0661068635eb67b2ab824fbde764de6e0e21982a93db0 \
     --hash=sha256:ff218293c9c806138dca139765e3b067621be52bcd93cdc14c7711be7ddc90a9
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   pydantic
 pyjwt==2.14.0 \
     --hash=sha256:77283c83fb56ecf566a886c757a714bc83668e38156de2cce8263302f42e0b86 \
     --hash=sha256:ad0cef71c756a56e74863c2919cf0985f72decbcfcb550ee2f422e7c62b5eedc
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   snowflake-connector-python
 pyopenssl==26.4.0 \
     --hash=sha256:28dfcce0162b9211413e26dfbfdf1d24317fbeba18fc93c12400a1856b2a0bc7 \
@@ -872,7 +872,7 @@ python-dateutil==2.9.0.post0 \
     --hash=sha256:37dd54208da7e1cd875388217d5e00ebd4179249f90fb72437e91a35459a0ad3 \
     --hash=sha256:a8b2bc7bffae282281c8140a97d3aa9c14da0b136dfe83f850eea9a5f7470427
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   botocore
     #   dbt-common
     #   metricflow
@@ -880,25 +880,25 @@ python-dotenv==1.2.3 \
     --hash=sha256:904552145e8bfed22162c09dab1c2b9b54fefa7b23ba780f4f26ca0316b0f0d9 \
     --hash=sha256:a20a594dabeaa385725aa239d5244871c143ecb356add8a20fcf23773a6c3a35
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   dbt-core
 python-slugify==9.0.0 \
     --hash=sha256:1cd20fe7ebf941b11964a92aba9e5319edfe18606276c6e2481b92e737cde44a \
     --hash=sha256:b1180fb0fd6b3590e7fbd8328b08d56cde9dcac736527a070c0a811480621316
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   agate
 pytimeparse==1.1.8 \
     --hash=sha256:04b7be6cc8bd9f5647a6325444926c3ac34ee6bc7e69da4367ba282f076036bd \
     --hash=sha256:e86136477be924d7e670646a98561957e8ca7308d44841e21f5ddea757556a0a
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   agate
 pytz==2026.3.post1 \
     --hash=sha256:2211d3fcf9a797d3405cac96ac7f61d80e6a644f72a3309607282fe8a2010c5d \
     --hash=sha256:dd95840dd199baea12d9cc096a1d452caa6596a1c1e4b5f3dbd1541855d5e815
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   dbt-adapters
     #   dbt-core
     #   snowflake-connector-python
@@ -956,7 +956,7 @@ pyyaml==6.0.3 \
     --hash=sha256:f7057c9a337546edc7973c0d3ba84ddcdf0daa14533c2065749c9075001090e6 \
     --hash=sha256:fc09d0aa354569bc501d4e787133afc08552722d3ab34836a80547331bb5d4a0
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   dbt-core
     #   metricflow
 rapidfuzz==3.14.6 \
@@ -1064,13 +1064,13 @@ rapidfuzz==3.14.6 \
     --hash=sha256:fc166efa4ca2fc9cc52e43784a54cbea95fc0e03e533f8266ef66b1c04c7cb76 \
     --hash=sha256:fc950bb77105a2717d03d9f9c9e21e9ace7df2b8e864dd91edef7e32fa143be2
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   metricflow
 referencing==0.37.0 \
     --hash=sha256:381329a9f99628c9069361716891d34ad94af76e461dcb0335825aecc7692231 \
     --hash=sha256:44aefc3142c5b842538163acb373e24cce6632bd54bdb01b21ad5863489f50d8
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   jsonschema
     #   jsonschema-specifications
     #   metricflow
@@ -1078,7 +1078,7 @@ requests==2.34.2 \
     --hash=sha256:2a0d60c172f83ac6ab31e4554906c0f3b3588d37b5cb939b1c061f4907e278e0 \
     --hash=sha256:f288924cae4e29463698d6d60bc6a4da69c89185ad1e0bcc4104f584e960b9ed
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   dbt-common
     #   dbt-core
     #   snowflake-connector-python
@@ -1201,14 +1201,14 @@ rpds-py==2026.6.3 \
     --hash=sha256:f90938e92afda60266da758ee7d363447f7f0138c9559f9e1811629580582d90 \
     --hash=sha256:faa679d19a6696fd54259ad321251ad77a13e70e03dd834daa762a44fb6196ef
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   jsonschema
     #   referencing
 s3transfer==0.19.2 \
     --hash=sha256:ba0309fd86be3c27dbf78cdd813c13c5e1df16e5874b99d2535ebbdfb9892993 \
     --hash=sha256:d8168eccca828cbb2cd573675333f3bddd254313a9c42494b84c76b539e8ba25
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   boto3
 secretstorage==3.5.0 ; sys_platform == 'linux' \
     --hash=sha256:0ce65888c0725fcb2c5bc0fdb8e5438eece02c523557ea40ce0703c266248137 \
@@ -1218,7 +1218,7 @@ six==1.17.0 \
     --hash=sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274 \
     --hash=sha256:ff70335d468e7eb6ec65b95b99d3a2836546063f63acc5171de367e834932a81
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   python-dateutil
 snowflake-connector-python==4.7.3 \
     --hash=sha256:0348c697d2daaa9a5a6f5f505b11f3fb7d041fc828e64d8c7e4cdf3895fc0908 \
@@ -1254,7 +1254,7 @@ snowplow-tracker==1.1.0 \
     --hash=sha256:24ea32ddac9cca547421bf9ab162f5f33c00711c6ef118ad5f78093cee962224 \
     --hash=sha256:95d8fdc8bd542fd12a0b9a076852239cbaf0599eda8721deaf5f93f7138fe755
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   dbt-core
 sortedcontainers==2.4.0 \
     --hash=sha256:25caa5a06cc30b6b83d11423433f65d1f9d76c4c6a0c90e3379eaa43b9bfdb88 \
@@ -1264,25 +1264,25 @@ sqlglot==30.18.0 \
     --hash=sha256:e57e1b205e341979d1df5b1212c1435c598a0437e4619e3f428b15d5bc3a5cc6 \
     --hash=sha256:ee0f9a9f3e2193e763c326e52dfb377b96fdb4292f6305c3ff2d9a220e71c601
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   metricflow
 sqlparse==0.6.0 \
     --hash=sha256:113c35c75365ab9cc9c7231d68c6428fb11c085fc8e9eb1ad659b7ddbf6cd2b9 \
     --hash=sha256:b861c0288ce2fa56209a9a6412d2e066ac664b3873b89c26c9d8415e8e32996f
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   dbt-core
 tabulate==0.10.0 \
     --hash=sha256:e2cfde8f79420f6deeffdeda9aaec3b6bc5abce947655d17ac662b126e48a60d \
     --hash=sha256:f0b0622e567335c8fabaaa659f1b33bcb6ddfe2e496071b743aa113f8774f2d3
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   metricflow
 text-unidecode==1.3 \
     --hash=sha256:1311f10e8b895935241623731c2ba64f4c455287888b18189350b67134a822e8 \
     --hash=sha256:bad6603bb14d279193107714b288be206cac565dfa49aa5b105294dd5c4aab93
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   python-slugify
 tomlkit==0.15.1 \
     --hash=sha256:177a05aece5a8ca5266fd3c448abb47b8d352f09d477d3ca8332db4d89b24304 \
@@ -1292,7 +1292,7 @@ typing-extensions==4.16.0 \
     --hash=sha256:481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8 \
     --hash=sha256:dc983d19a509c94dba722ee6abd33940f7c05a89e243c47e907eb4db6f1a43e5
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   dbt-adapters
     #   dbt-common
     #   dbt-core
@@ -1310,24 +1310,24 @@ typing-inspection==0.4.4 \
     --hash=sha256:547274fa6b0a561ccf549cc9524b999a578e737d015d8709d021f9d0d13bea47 \
     --hash=sha256:65b8397ba37ccbce054456aaccddfc91e6e3083c92824df348d96ca832f3f147
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   pydantic
 tzdata==2026.4 ; sys_platform == 'win32' \
     --hash=sha256:c2169a8b0a7a5e9674da5a135ccdfb2b3e671b333ed9fed17b41f73c34476e81 \
     --hash=sha256:f1b8bd365d8d210c55353f4d7f8d6d8561c0ba50d704b700d195a9424bba0d79
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   agate
 urllib3==2.7.0 \
     --hash=sha256:231e0ec3b63ceb14667c67be60f2f2c40a518cb38b03af60abc813da26505f4c \
     --hash=sha256:9fb4c81ebbb1ce9531cce37674bbc6f1360472bc18ca9a553ede278ef7276897
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   botocore
     #   requests
 zipp==4.1.0 \
     --hash=sha256:25ad4e16390cd314347dd8f1de67a2ac538ae658ed4ab9db16029c07c188e97f \
     --hash=sha256:4cb57381f544315db7688e976e922a2b18cdb513d21cc194eb42232ba2a3e602
     # via
-    #   -c /tmp/tmpz_34rl_5/base-pins.txt
+    #   -c base-pins.txt
     #   importlib-metadata

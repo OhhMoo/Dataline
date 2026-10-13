@@ -1,0 +1,43 @@
+# The Redshift plug: PostgreSQL behind the audited wire proxy (redshift_start.py).
+#
+# BASE is the episode image (tasks/harness/container_episode.py backend_overlay
+# passes it), so the proxy and the translator are the alkera_gateway every other
+# service of the stack runs, and DuckDB's postgres extension - baked into that
+# image for the dual-warehouse path - is what seeds the server from the world.
+ARG BASE=alkera-episode:head
+FROM ${BASE}
+
+# PostgreSQL from the base's own Debian release (trixie), resolved against the
+# same snapshot.debian.org timestamp gateway/docker/Dockerfile pins its apt to,
+# so the server is the same bytes on every build. Restated rather than inherited:
+# this file must not depend on what a base happened to leave in sources.list.d.
+# 17.11-0+deb13u1 is the version that snapshot holds - the same build as the
+# episode image's postgresql-client-17. No default cluster: redshift_start.py
+# initialises its own, fresh, on every boot.
+ARG ALKERA_DEBIAN_SNAPSHOT=20260910T000000Z
+RUN set -eux; \
+    printf '%s\n' \
+      'Types: deb' \
+      "URIs: http://snapshot.debian.org/archive/debian/${ALKERA_DEBIAN_SNAPSHOT}/" \
+      'Suites: trixie trixie-updates' \
+      'Components: main' \
+      'Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg' \
+      '' \
+      'Types: deb' \
+      "URIs: http://snapshot.debian.org/archive/debian-security/${ALKERA_DEBIAN_SNAPSHOT}/" \
+      'Suites: trixie-security' \
+      'Components: main' \
+      'Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg' \
+      > /etc/apt/sources.list.d/debian.sources; \
+    echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99snapshot; \
+    mkdir -p /etc/postgresql-common/createcluster.d; \
+    echo 'create_main_cluster = false' > /etc/postgresql-common/createcluster.d/alkera.conf; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+      postgresql-17=17.11-0+deb13u1 \
+    ; \
+    rm -rf /var/lib/apt/lists/*; \
+    /usr/lib/postgresql/17/bin/postgres --version
+
+COPY gateway/docker/redshift_start.py /opt/stack/redshift_start.py
+CMD ["python", "/opt/stack/redshift_start.py"]

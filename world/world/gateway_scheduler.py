@@ -34,6 +34,15 @@ def _run_id(index: int) -> str:
     return f"run-{index:06d}"
 
 
+class QueueFull(ValueError):
+    """`enqueue` refused: the world's queue holds `scheduler.MAX_QUEUED` runs.
+
+    A ValueError like every other refusal here, so a caller that maps them all
+    to one error keeps working; its own type so a control plane can answer this
+    one by name (the Databricks fake's `RESOURCE_EXHAUSTED`) without parsing
+    the message."""
+
+
 class WorldScheduler:
     def __init__(self, root: Path):
         self.root = Path(root)
@@ -99,3 +108,30 @@ class WorldScheduler:
                 # envelope-level difference from FileScheduler.
                 "returncode": 0 if run["status"] == "success" else 1,
                 **run}
+
+    def enqueue(self, job_id: str, execution_date: str | None,
+                variables: dict | None = None, origin: dict | None = None) -> dict:
+        """Queue a run for the next `advance` (`world.scheduler.enqueue`).
+
+        Not part of the gateway's `Scheduler` protocol - no MCP tool queues -
+        so nothing in the gateway calls it; the native control planes that
+        ACCEPT a run rather than execute it (the Airflow fake's trigger and
+        clear) do. Nothing executes and `vnow` does not move: the queue entry
+        is the whole change, and the grader's `advance` runs it.
+        """
+        if execution_date is not None:
+            try:
+                datetime.fromisoformat(str(execution_date).replace("Z", "+00:00"))
+            except ValueError as exc:
+                raise ValueError(
+                    "execution_date must be an ISO date or timestamp") from exc
+        state = self._state()
+        if job_id not in state["jobs"]:
+            raise ValueError(f"Unknown job: {job_id}")
+        try:
+            entry = scheduler.enqueue(self.root, job_id, variables or None,
+                                      execution_date, origin)
+        except scheduler.QueueFull as exc:
+            raise QueueFull(str(exc)) from None
+        return {"job_id": job_id, "position": len(self._state().get(
+            scheduler.QUEUE) or []), **entry}

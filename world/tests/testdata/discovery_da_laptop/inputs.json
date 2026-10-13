@@ -1,0 +1,197 @@
+{
+ "bi_projects": [
+  "powerbi",
+  "sigma",
+  "tableau"
+ ],
+ "bi_readme": true,
+ "case": "da_laptop",
+ "dashboards": [
+  "executive_overview",
+  "sales_overview"
+ ],
+ "dbt_profile": "world_dbt",
+ "jobs": {},
+ "plugs": {
+  "bi": [
+   "powerbi",
+   "sigma",
+   "tableau"
+  ],
+  "warehouse": [
+   "duckdb"
+  ]
+ },
+ "slots": [
+  "files",
+  "notebook",
+  "warehouse",
+  "transform",
+  "bi",
+  "human"
+ ],
+ "workflow": {
+  "chat": {
+   "channels": [
+    {
+     "id": "analytics-eng"
+    },
+    {
+     "id": "data-incidents"
+    },
+    {
+     "id": "bi-requests"
+    },
+    {
+     "id": "finance-analytics"
+    }
+   ],
+   "workspace": "harrow-finch"
+  },
+  "issues": {
+   "issues": [
+    {
+     "status": "done"
+    },
+    {
+     "status": "todo"
+    },
+    {
+     "status": "wont_do"
+    },
+    {
+     "status": "done"
+    },
+    {
+     "status": "backlog"
+    },
+    {
+     "status": "done"
+    },
+    {
+     "status": "todo"
+    },
+    {
+     "status": "backlog"
+    },
+    {
+     "status": "todo"
+    },
+    {
+     "status": "todo"
+    },
+    {
+     "status": "todo"
+    },
+    {
+     "status": "todo"
+    }
+   ],
+   "project": {
+    "key": "ANA",
+    "name": "Analytics"
+   },
+   "statuses": [
+    "backlog",
+    "todo",
+    "in_progress",
+    "in_review",
+    "done",
+    "wont_do"
+   ],
+   "users": [
+    {
+     "team": "Analytics"
+    },
+    {
+     "team": "Analytics"
+    },
+    {
+     "team": "Analytics"
+    },
+    {
+     "team": "Data Platform"
+    },
+    {
+     "team": "Finance"
+    },
+    {
+     "team": "Finance"
+    },
+    {
+     "team": "Sales"
+    },
+    {
+     "team": "Sales"
+    },
+    {
+     "team": "Data Platform"
+    },
+    {
+     "team": "Analytics"
+    }
+   ]
+  },
+  "kb": {
+   "pages": [
+    {
+     "id": "ae/architecture",
+     "title": "Architecture"
+    },
+    {
+     "id": "ae/architecture/analytics-stack",
+     "title": "The analytics stack"
+    },
+    {
+     "id": "ae/architecture/data-dictionary",
+     "title": "Data dictionary"
+    },
+    {
+     "id": "ae/metrics",
+     "title": "Metrics"
+    },
+    {
+     "id": "ae/metrics/net-revenue",
+     "title": "Net Revenue and friends"
+    },
+    {
+     "id": "ae/runbooks",
+     "title": "Runbooks"
+    },
+    {
+     "id": "ae/runbooks/nightly-on-call",
+     "title": "Runbook: nightly on-call"
+    },
+    {
+     "id": "ae/runbooks/publishing-dashboards",
+     "title": "Runbook: publishing dashboards"
+    },
+    {
+     "id": "ae/runbooks/bi-release-process",
+     "title": "Runbook: BI release process"
+    },
+    {
+     "id": "ae/postmortems",
+     "title": "Postmortems"
+    },
+    {
+     "id": "ae/postmortems/2026-01-12-stale-dashboards",
+     "title": "Postmortem: stale dashboards, 2026-01-12"
+    },
+    {
+     "id": "ae/policies",
+     "title": "Policies"
+    },
+    {
+     "id": "ae/policies/month-end-freeze",
+     "title": "Month-end freeze"
+    }
+   ],
+   "space": {
+    "key": "AE",
+    "name": "Analytics Engineering"
+   }
+  }
+ },
+ "world_in_container": "/world"
+}

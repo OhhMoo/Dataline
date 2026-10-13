@@ -1,0 +1,9 @@
+# certifi, the one package a client lock may pin apart from the base locks
+# (lock_warehouse_clients.DIVERGES). Nothing in this set caps it; it is held to
+# requirements-snowflake.lock's pin because an image built with two client
+# sets installs both locks into one interpreter, and every package two client
+# locks share must be one version (test_toolbelt_roles
+# .test_client_locks_agree_with_each_other). The BigQuery plug speaks plain
+# HTTP inside the episode network, so the older bundle costs this image nothing
+# it uses.
+certifi==2025.1.31

@@ -43,6 +43,16 @@ profile's stack already says it (`da/laptop` is DuckDB); `profile_plugs` fills
 it in from STACK_WAREHOUSE, and `write` applies it. A stack the table does not
 know leaves the slot unnamed, which lists what it always listed.
 
+A backend a profile plugs into the container topology (`alkera_gateway.
+backends.BACKENDS`: Snowflake today) has one DISCOVERY row, and a box that
+plugs it gets all of it: its variables (`.envrc`, `environment`), its row on the
+onboarding page, its `[<backend>]` section in `services.toml`, and - when it has
+a dbt adapter - a target in the box's dbt profile that becomes the default
+(`box_profiles_yaml`, which the harness stages at `~/.dbt` in the container). A
+box that does not plug it names it nowhere. Snowflake was listed before the
+registry, so wherever no profile names its slot (no profile at all, an unknown
+stack) it is still listed exactly as it was (UNNAMED_LISTING).
+
 On a profiled box the wiki section lists each page by its Confluence content
 id (`content_id`, the number the API routes), with its path beside it: the
 path is what tickets, chat and the pages themselves link by, and
@@ -70,7 +80,12 @@ the same values or a human shell and the driver disagree about one endpoint.
 The table is duplicated rather than imported because `world/` imports neither
 `alkera_gateway` nor `tasks/`; `world/tests/test_native_workspace.py` reads
 `gateway/docker/compose.native.yml` and `alkera_gateway.native.serve` and fails
-when any of the three drift, which is what makes the duplication safe.
+when any of the three drift, which is what makes the duplication safe. DISCOVERY
+is the same kind of copy of `alkera_gateway.backends.BACKENDS`
+(world/tests/test_discovery_registry.py). The one exception is
+`box_profiles_yaml`, which renders a plugged backend's dbt target with the
+gateway's own `warehouses.dbt_output` and so imports it, lazily: it is called by
+the harness when it stages the box, never by `world.build`.
 
 Credentials are obviously fake and every one of them is the same string,
 `alkera-local-dev`: the repository rule is that nothing in a world may look
@@ -79,7 +94,8 @@ names is a value nobody mistakes for a secret.
 """
 import hashlib
 import json
-from dataclasses import dataclass
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import yaml
@@ -255,11 +271,12 @@ SNOWFLAKE = {"SNOWFLAKE_HOST": "snowflake.internal",
 #: audited kernel, served only when a profile plugs the notebook slot.
 NOTEBOOK = {"JUPYTER_URL": "http://jupyter.internal:8888"}
 #: What a `.internal` alias means, spelled once for the humans reading .envrc.
+#: The registry's backends (DISCOVERY) are listed between the scheduler and the
+#: notebook server, where the second warehouse always was.
 BACKEND_NOTES = (
     ("the warehouse", "postgres.internal:5432", "psql, dbt, psycopg"),
     ("object storage", "minio.internal:9000", "aws s3, boto3"),
     ("the scheduler", "airflow.internal:8080", "airflow CLI, REST"),
-    ("the second warehouse", "snowflake.internal:8443", "snowsql, the connector"),
     ("the notebook server", "jupyter.internal:8888", "JupyterLab REST, nbclient"),
 )
 #: The slot behind each backend group, keyed by BACKEND_NOTES label. The
@@ -269,7 +286,6 @@ BACKEND_SLOTS = {
     "the warehouse": "warehouse",
     "object storage": "object_store",
     "the scheduler": "orchestrator",
-    "the second warehouse": "warehouse",
     "the notebook server": "notebook",
 }
 
@@ -279,7 +295,157 @@ BACKEND_SLOTS = {
 #: named; DuckDB, the world's own file, has no group (it is not on the network).
 BACKEND_PLUGS = {
     "the warehouse": "postgres",
-    "the second warehouse": "snowflake",
+}
+
+
+@dataclass(frozen=True)
+class Discovery:
+    """What a box that plugs one registry backend is told about it.
+
+    `backend` is the key into `alkera_gateway.backends.BACKENDS` (the same
+    plug name). `label` and `clients` are its onboarding row's "system" and
+    "reached with" cells; "where" is `services_toml`'s host:port. A label of
+    "the warehouse" reads "the second warehouse" on a box that also lists
+    Postgres. `services_toml` is the `[<backend>]` section, a digit-only value
+    written as a number. `dbt_type` is the adapter of the box profile's target
+    for it (`box_profiles_yaml`), None for no dbt.
+
+    Two more fields than the onboarding row needs, because the world cannot
+    read the gateway's row: `env`, the variables a box that plugs it exports
+    (`.envrc`, `environment`; equal to `BACKENDS[backend].env`, which the
+    container's process environment gets), and `dbt_env`, the box target's
+    fields and the variable each one reads (`warehouses.dbt_output(env=...)`):
+    the dbt profile names variables, never values.
+
+    `replaces` names the static groups (BACKEND_NOTES labels, e.g. "the
+    scheduler") a box that plugs this backend no longer lists: their
+    variables, their services.toml section and their onboarding row give way
+    to this row's, so the box names one address for the thing and not two.
+    """
+
+    backend: str
+    label: str
+    clients: str
+    services_toml: Mapping[str, str]
+    dbt_type: str | None
+    env: Mapping[str, str] = field(default_factory=dict)
+    dbt_env: Mapping[str, str] = field(default_factory=dict)
+    replaces: tuple[str, ...] = ()
+
+
+#: One row per backend `alkera_gateway.backends.BACKENDS` registers (copied,
+#: not imported; world/tests/test_discovery_registry.py compares the two).
+DISCOVERY: dict[str, Discovery] = {
+    # fakesnow behind the TLS proxy (gateway/docker/snowflake_start.py), seeded
+    # from the world's warehouse: database WAREHOUSE, the world's schemas, and
+    # PUBLIC, which every Snowflake database has and a session with no schema
+    # of its own lands in.
+    "snowflake": Discovery(
+        backend="snowflake",
+        label="the warehouse",
+        clients="snowflake-connector-python, dbt-snowflake",
+        services_toml={"host": "snowflake.internal", "port": "8443",
+                       "account": "acme", "user": FAKE_USER, "password": FAKE_TOKEN,
+                       "database": "WAREHOUSE", "schema": "PUBLIC"},
+        dbt_type="snowflake",
+        env={**SNOWFLAKE, "SNOWFLAKE_DATABASE": "WAREHOUSE"},
+        dbt_env={"account": "SNOWFLAKE_ACCOUNT", "host": "SNOWFLAKE_HOST",
+                 "user": "SNOWFLAKE_USER", "password": "SNOWFLAKE_PASSWORD",
+                 "database": "SNOWFLAKE_DATABASE"},
+    ),
+    # Airflow 3's REST API v2 over this world's scheduler ledger
+    # (gateway native/services/airflow.py, world/airflow_view.py). It IS the
+    # scheduler on a box that plugs it, so it replaces the static group: one
+    # address (8100), the same three variables. The `airflow` CLI is not on the
+    # box - it needs a metadata database, and this box has none - which the
+    # onboarding row says, so nobody goes looking for it.
+    "airflow": Discovery(
+        backend="airflow",
+        label="the scheduler",
+        clients=("Airflow REST API v2 (token from POST /auth/token), airflowctl; "
+                 "no `airflow` CLI: this box has no Airflow metadata database"),
+        services_toml={"host": "airflow.internal", "port": "8100",
+                       "api": "http://airflow.internal:8100/api/v2",
+                       "user": FAKE_USER, "password": FAKE_TOKEN},
+        dbt_type=None,
+        env={"AIRFLOW_API_URL": "http://airflow.internal:8100/api/v2",
+             "AIRFLOW_USER": FAKE_USER, "AIRFLOW_PASSWORD": FAKE_TOKEN},
+        replaces=("the scheduler",),
+    ),
+    # The BigQuery REST API at bigquery.internal:9050 (an audited proxy in
+    # front of goccy's emulator), seeded from the world's warehouse: project
+    # alkera-local, one dataset per warehouse schema (`warehouse.fct_orders`
+    # is `alkera-local.warehouse.fct_orders`). The client needs no Google
+    # credential: AnonymousCredentials, and the endpoint as api_endpoint. No
+    # dbt target (`dbt_type` None): dbt-bigquery is not in the image
+    # (gateway/docker/bigquery-clients.in), so the box's dbt profile stays the
+    # world's own.
+    "bigquery": Discovery(
+        backend="bigquery",
+        label="the warehouse",
+        clients=("google-cloud-bigquery: `bigquery.Client(project=BIGQUERY_PROJECT, "
+                 "credentials=AnonymousCredentials(), client_options={\"api_endpoint\": "
+                 "BIGQUERY_API_URL})`, or the REST API v2 at that URL"),
+        services_toml={"host": "bigquery.internal", "port": "9050",
+                       "endpoint": "http://bigquery.internal:9050",
+                       "project": "alkera-local", "dataset": "warehouse"},
+        dbt_type=None,
+        env={"BIGQUERY_API_URL": "http://bigquery.internal:9050",
+             "BIGQUERY_PROJECT": "alkera-local"},
+    ),
+    # The Postgres-persona Redshift (gateway/docker/redshift_start.py): database
+    # `dev` holds the world's schemas; `public` is where a session's own work
+    # (and the box's dbt target) lands. No SSL - the clients say ssl=False /
+    # sslmode=disable, which the services.toml row and the dbt target carry.
+    "redshift": Discovery(
+        backend="redshift",
+        label="the warehouse",
+        clients="psql, redshift_connector, dbt-redshift",
+        services_toml={"host": "redshift.internal", "port": "5439", "database": "dev",
+                       "user": "alkera", "password": FAKE_TOKEN, "schema": "public",
+                       "sslmode": "disable"},
+        dbt_type="redshift",
+        env={"REDSHIFT_HOST": "redshift.internal", "REDSHIFT_PORT": "5439",
+             "REDSHIFT_DATABASE": "dev", "REDSHIFT_USER": "alkera",
+             "REDSHIFT_PASSWORD": FAKE_TOKEN},
+        dbt_env={"host": "REDSHIFT_HOST", "user": "REDSHIFT_USER",
+                 "password": "REDSHIFT_PASSWORD", "dbname": "REDSHIFT_DATABASE"},
+    ),
+    # Databricks tier 1 in native-services (gateway native/services/databricks.py):
+    # a SQL warehouse `alkera` over a copy of the world's warehouse, catalog `main`
+    # (alias `hive_metastore`), one schema per warehouse schema plus `default`, where
+    # a session - and the box's dbt target - lands. The SQL connector needs
+    # use_sea=True: the workspace serves the Statement Execution API, not Thrift
+    # (docs/environments/DATABRICKS_SPIKE.md). SSL_CERT_FILE is the connector's trust
+    # (OpenSSL's default paths); the SDK's is the REQUESTS_CA_BUNDLE every TLS
+    # backend's box gets.
+    "databricks": Discovery(
+        backend="databricks",
+        label="the warehouse",
+        clients="databricks-sdk, databricks-sql-connector (use_sea=True), dbt-databricks, "
+                "REST; no databricks CLI",
+        services_toml={"host": "databricks.internal", "port": "443",
+                       "http_path": "/sql/1.0/warehouses/alkera", "warehouse_id": "alkera",
+                       "token": FAKE_TOKEN, "catalog": "main", "schema": "default",
+                       "use_sea": "true"},
+        dbt_type="databricks",
+        env={"DATABRICKS_HOST": "https://databricks.internal",
+             "DATABRICKS_SERVER_HOSTNAME": "databricks.internal",
+             "DATABRICKS_HTTP_PATH": "/sql/1.0/warehouses/alkera",
+             "DATABRICKS_TOKEN": FAKE_TOKEN,
+             "SSL_CERT_FILE": "/etc/alkera/databricks-tls/bundle.pem"},
+        dbt_env={"host": "DATABRICKS_SERVER_HOSTNAME", "http_path": "DATABRICKS_HTTP_PATH",
+                 "token": "DATABRICKS_TOKEN"},
+    ),
+}
+
+#: Registry backends the box listed BEFORE the registry, and so still lists the
+#: way it always did wherever no profile names their slot - no profile at all,
+#: or a stack whose warehouse the record leaves unnamed: (slot, variables,
+#: onboarding "reached with"). Byte for byte the pre-registry box. A backend
+#: added to DISCOVERY later has no row here: it is explicit-only.
+UNNAMED_LISTING = {
+    "snowflake": ("warehouse", SNOWFLAKE, "snowsql, the connector"),
 }
 #: Each stack's default warehouse plug(s), `alkera_gateway.plugs.STACKS[stack]
 #: ["warehouse"]`: what a profile named "<role>/<stack>" plugs into the
@@ -343,12 +509,55 @@ def _backend_listed(label: str, slots, plugs) -> bool:
     return _plugged(BACKEND_SLOTS[label], slots) and _plug_named(label, slots, plugs)
 
 
-def _label(label: str, slots, plugs) -> str:
-    """A Snowflake box with no Postgres has one warehouse, not a second one."""
-    if label == "the second warehouse" and slots is not None \
-            and not _backend_listed("the warehouse", slots, plugs):
-        return "the warehouse"
-    return label
+@dataclass(frozen=True)
+class _Listed:
+    """One registry backend as this box lists it."""
+
+    discovery: Discovery
+    label: str                    # as shown: "the warehouse" / "the second warehouse"
+    variables: Mapping[str, str]
+    clients: str
+    plugged: bool                 # named by the profile's plugs; False: UNNAMED_LISTING
+
+    @property
+    def where(self) -> str:
+        return f"{self.discovery.services_toml['host']}:{self.discovery.services_toml['port']}"
+
+
+def _backend_plugged(backend: str, slots, plugs) -> bool:
+    """A profiled box whose plugs name `backend` in a slot the box has."""
+    return slots is not None and bool(plugs) and any(
+        backend in names and _plugged(slot, slots) for slot, names in plugs.items())
+
+
+def _replaced(slots, plugs) -> set[str]:
+    """The static groups (BACKEND_NOTES labels) a plugged backend supersedes
+    (`Discovery.replaces`)."""
+    return {label for name, d in DISCOVERY.items()
+            if _backend_plugged(name, slots, plugs) for label in d.replaces}
+
+
+def _static_listed(label: str, slots, plugs) -> bool:
+    """A static group (BACKEND_NOTES) this box lists: plugged, its plug named,
+    and not superseded by a plugged registry backend."""
+    return _backend_listed(label, slots, plugs) and label not in _replaced(slots, plugs)
+
+
+def _discovered(slots, plugs=None) -> list[_Listed]:
+    """The registry backends this box lists, in DISCOVERY order: the ones its
+    profile plugs, with their DISCOVERY row, and - where no profile names their
+    slot - the ones the box always listed, as it always did (UNNAMED_LISTING)."""
+    second = _static_listed("the warehouse", slots, plugs)
+    out = []
+    for name, d in DISCOVERY.items():
+        label = "the second warehouse" if d.label == "the warehouse" and second else d.label
+        if _backend_plugged(name, slots, plugs):
+            out.append(_Listed(d, label, d.env, d.clients, True))
+        elif name in UNNAMED_LISTING:
+            slot, variables, clients = UNNAMED_LISTING[name]
+            if _plugged(slot, slots) and (slots is None or not plugs or slot not in plugs):
+                out.append(_Listed(d, label, variables, clients, False))
+    return out
 
 
 def _backends(slots, plugs=None):
@@ -359,15 +568,13 @@ def _backends(slots, plugs=None):
         ("object storage",
          "# Object storage. `aws s3 ls` and boto3 resolve through this endpoint.", STORAGE),
         ("the scheduler", "# The scheduler.", CONTROL),
-        ("the second warehouse", "# The second warehouse.", SNOWFLAKE),
-        ("the notebook server", "# The notebook server.", NOTEBOOK),
     )
-    out = []
-    for label, comment, mapping in groups:
-        if not _backend_listed(label, slots, plugs):
-            continue
-        shown = _label(label, slots, plugs)
-        out.append((comment if shown == label else f"# {shown.capitalize()}.", mapping))
+    out = [(comment, mapping) for label, comment, mapping in groups
+           if _static_listed(label, slots, plugs)]
+    out += [(f"# {listed.label.capitalize()}.", listed.variables)
+            for listed in _discovered(slots, plugs)]
+    if _static_listed("the notebook server", slots, plugs):
+        out.append(("# The notebook server.", NOTEBOOK))
     return out
 
 
@@ -500,6 +707,49 @@ def profiles_yaml(profile: str) -> str:
                                    allow_unicode=False)
 
 
+def box_profiles_yaml(world_profile: str, plugged: Sequence[str]) -> str:
+    """The dbt profile a bare `dbt` finds on a box that plugs `plugged`.
+
+    `world_profile` is the world's own profiles.yml as the box sees it (the
+    harness re-roots its DuckDB paths onto the container: container_episode
+    .reroot_profiles); `plugged` names the profile's plugged backends. Each one
+    with a dbt adapter (DISCOVERY `dbt_type`) gets a target of its own, named
+    after it, and the first becomes every profile's default `target`, so a bare
+    `dbt debug` on a Snowflake box talks to Snowflake. The re-rooted DuckDB
+    targets stay, unchanged. Every connection field of a new target reads one of
+    the box's variables (`{{ env_var(...) }}`, the gateway's own
+    `warehouses.dbt_output` with `env=`): the file names variables, never values.
+
+    With nothing to add the world's profile comes back as it was given - the
+    same bytes the box has always had.
+    """
+    targets = [d for name, d in DISCOVERY.items() if name in plugged and d.dbt_type]
+    if not targets:
+        return world_profile
+    # The one gateway import in world/, and the reason it is here rather than
+    # at the top: the harness calls this when it stages the box; world.build
+    # never does.
+    from alkera_gateway.warehouses import dbt_output
+
+    document = yaml.safe_load(world_profile) or {}
+    for profile in document.values():
+        if not isinstance(profile, dict) or not isinstance(profile.get("outputs"), dict):
+            continue
+        for d in targets:
+            if d.backend in profile["outputs"]:
+                # The world's own target of that name is not this module's to
+                # replace: refused, loudly, rather than silently overwritten.
+                raise ValueError(
+                    f"the world's dbt profile already has an output named "
+                    f"{d.backend!r}; the box target for the plugged {d.backend} "
+                    f"backend would replace it")
+            profile["outputs"][d.backend] = dbt_output(
+                d.dbt_type, schema=d.services_toml["schema"], env=d.dbt_env,
+                port=int(d.services_toml["port"]))
+        profile["target"] = targets[0].backend
+    return yaml.safe_dump(document, sort_keys=False)
+
+
 def _toml_string(value: str) -> str:
     return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
@@ -523,7 +773,8 @@ def services_toml(root_in_container: str, slots=None, plugs=None) -> str:
     # Postgres, unless the profile's warehouse plugs leave it out (a DuckDB or
     # a Snowflake box). Not keyed on the slot being plugged: the table has
     # always carried it, and only a named plug may take it away.
-    if _plug_named("the warehouse", slots, plugs):
+    replaced = _replaced(slots, plugs)
+    if _plug_named("the warehouse", slots, plugs) and "the warehouse" not in replaced:
         lines += [
             "",
             "[warehouse]",
@@ -533,7 +784,7 @@ def services_toml(root_in_container: str, slots=None, plugs=None) -> str:
             f'user = {_toml_string(POSTGRES["PGUSER"])}',
             f'password = {_toml_string(POSTGRES["PGPASSWORD"])}',
         ]
-    if _plugged(BACKEND_SLOTS["object storage"], slots):
+    if _plugged(BACKEND_SLOTS["object storage"], slots) and "object storage" not in replaced:
         lines += [
             "",
             "[storage]",
@@ -541,7 +792,7 @@ def services_toml(root_in_container: str, slots=None, plugs=None) -> str:
             f'access_key_id = {_toml_string(STORAGE["AWS_ACCESS_KEY_ID"])}',
             f'secret_access_key = {_toml_string(STORAGE["AWS_SECRET_ACCESS_KEY"])}',
         ]
-    if _plugged(BACKEND_SLOTS["the scheduler"], slots):
+    if _plugged(BACKEND_SLOTS["the scheduler"], slots) and "the scheduler" not in replaced:
         lines += [
             "",
             "[scheduler]",
@@ -549,6 +800,14 @@ def services_toml(root_in_container: str, slots=None, plugs=None) -> str:
             f'user = {_toml_string(CONTROL["AIRFLOW_USER"])}',
             f'password = {_toml_string(CONTROL["AIRFLOW_PASSWORD"])}',
         ]
+    # A registry backend the profile plugs (an unnamed-slot listing keeps the
+    # table it always had, which had no section for it).
+    for listed in _discovered(slots, plugs):
+        if not listed.plugged:
+            continue
+        lines += ["", f"[{listed.discovery.backend}]"]
+        lines += [f"{key} = {value if value.isdigit() else _toml_string(value)}"
+                  for key, value in listed.discovery.services_toml.items()]
     for service in _services(slots, plugs):
         lines += [
             "",
@@ -622,10 +881,16 @@ def onboarding_markdown(root: Path, manifest: dict, slots=None, plugs=None) -> s
         "| system | where | reached with | variable |",
         "|---|---|---|---|",
     ]
-    for label, where, clients in BACKEND_NOTES:
-        if _backend_listed(label, slots, plugs):
-            lines.append(f"| {_label(label, slots, plugs)} | `{where}` | {clients} "
-                         f"| see `.envrc` |")
+    rows = [(label, where, clients) for label, where, clients in BACKEND_NOTES
+            if _static_listed(label, slots, plugs)]
+    # the registry's backends, where the second warehouse always was: before
+    # the notebook server
+    notebook = rows.pop() if rows and rows[-1][0] == "the notebook server" else None
+    rows += [(listed.label, listed.where, listed.clients)
+             for listed in _discovered(slots, plugs)]
+    rows += [notebook] if notebook else []
+    for label, where, clients in rows:
+        lines.append(f"| {label} | `{where}` | {clients} | see `.envrc` |")
     for service in _services(slots, plugs):
         lines.append(
             f"| {service.name} | `{service.alias}:{service.port}` | "

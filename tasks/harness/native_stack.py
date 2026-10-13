@@ -52,6 +52,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import secrets
 import socket
 import subprocess
 import sys
@@ -107,10 +108,38 @@ def service_ports(profile=None) -> list[int]:
     # nine an unprofiled stack waits for.
     ports = {({**serve.STUB_PORTS, **serve.PLUG_PORTS})[name] for name in profile.services
              if name in serve.STUB_PORTS or name in serve.PLUG_PORTS}
+    # So does a plugged hosted backend, on its registry row's port.
+    from alkera_gateway.backends import plugged
+
+    ports |= {b.port for b in plugged(profile.slots) if b.hosted}
     ports.add(serve.AGGREGATE_PORT)
     if "object_store" in profile.slots:
         ports.add(serve.MINIO_AUDIT_PORT)
     return sorted(ports)
+
+
+#: Plugged backends the host topology cannot serve faithfully, and why. Databricks
+#: is served on 443 because its clients cannot reach a workspace anywhere else (the
+#: SQL connector takes no host:port and fetches its feature flags and telemetry on
+#: 443 regardless; docs/environments/DATABRICKS_SPIKE.md), and the host topology
+#: runs K rollouts side by side on one loopback interface at an offset, so none of
+#: them has 443 - nor a `databricks.internal` the certificate and the variables name.
+HOST_TOPOLOGY_REFUSED = {
+    "databricks": "Databricks (warehouse: databricks) answers only on "
+                  "https://databricks.internal:443, which a port-offset loopback stack "
+                  "cannot offer; run it with --topology container",
+}
+
+
+def host_topology_refusals(profile) -> list[str]:
+    """Why this profile cannot run here ([] when it can): each plugged backend in
+    HOST_TOPOLOGY_REFUSED, by its reason."""
+    if profile is None:
+        return []
+    from alkera_gateway.backends import plugged
+
+    return [HOST_TOPOLOGY_REFUSED[b.name] for b in plugged(profile.slots)
+            if b.name in HOST_TOPOLOGY_REFUSED]
 
 
 def port_free(port: int) -> bool:
@@ -360,6 +389,11 @@ class NativeStack:
         self.profile_name = getattr(spec, "profile", "") or ""
         self.plugs = dict(getattr(spec, "plugs", None) or {})
         self.profile = episode.environment_profile(self.profile_name, self.plugs)
+        refused = host_topology_refusals(self.profile)
+        if refused:
+            raise episode.HarnessError(
+                f"profile {self.profile_name!r} cannot run in the host topology: "
+                + "; ".join(refused))
         self.key = key or self.rollout_dir.as_posix()
         self._offset = offset
         self.endpoints: dict | None = None
@@ -370,6 +404,10 @@ class NativeStack:
         self._proc: subprocess.Popen | None = None
         self._log = None
         self._minio: str | None = None
+        #: The shared secret MinIO's audit webhook sends and serve.py's receiver
+        #: requires (`tailers.minio.build_app`): without it serve.py serves no
+        #: receiver at all. Handed to both through their environments.
+        self._minio_token = secrets.token_hex(32)
 
     # ------------------------------------------------------------- bring-up
     def up(self) -> dict:
@@ -426,9 +464,12 @@ class NativeStack:
     def _start_services(self) -> None:
         argv = self._serve_argv()
         self._log = open(self.log_path, "w", encoding="utf-8", newline="")
+        from alkera_gateway.native import serve
+
+        env = {**venv_env(), serve.MINIO_AUDIT_TOKEN_ENV: self._minio_token}
         self._proc = subprocess.Popen(argv, stdout=self._log,
                                       stderr=subprocess.STDOUT,
-                                      env=venv_env(), cwd=str(self.rollout_dir))
+                                      env=env, cwd=str(self.rollout_dir))
         self._await_listening()
 
     def _await_listening(self) -> None:
@@ -521,6 +562,13 @@ class NativeStack:
                 name: f"http://127.0.0.1:{port + self.offset}"
                 for name, (_, port) in aut.PLUG_SERVICES.items()
                 if name in self.profile.services})
+            # A plugged hosted backend is served by this same process, on its
+            # registry row's port and scheme.
+            from alkera_gateway.backends import plugged
+
+            overrides.update({
+                b.name: f"{b.scheme}://127.0.0.1:{b.port + self.offset}"
+                for b in plugged(self.profile.slots) if b.hosted})
         if s3_url:
             overrides["s3"] = s3_url
         self.endpoints_file.write_text(
@@ -559,12 +607,17 @@ class NativeStack:
             "-e", "MINIO_AUDIT_WEBHOOK_ENABLE_alkera=on",
             "-e", f"MINIO_AUDIT_WEBHOOK_ENDPOINT_alkera={endpoint}",
             "-e", "MINIO_AUDIT_WEBHOOK_QUEUE_DIR_alkera=/audit-spool",
+            # By name only: docker takes the value from this process's
+            # environment (`env=` below), so it is not on the command line.
+            "-e", "MINIO_AUDIT_WEBHOOK_AUTH_TOKEN_alkera",
             "--entrypoint", "sh", MINIO_IMAGE, "-c",
             f"mkdir -p /data/{aut.NATIVE_DEFAULTS['s3_bucket']} /audit-spool "
             f"&& exec minio server /data",
         ]
         result = subprocess.run(argv, capture_output=True, text=True,
-                                encoding="utf-8")
+                                encoding="utf-8",
+                                env={**os.environ, "MINIO_AUDIT_WEBHOOK_AUTH_TOKEN_alkera":
+                                     self._minio_token})
         if result.returncode != 0:
             raise episode.HarnessError(
                 f"could not start MinIO for the native stack:\n{result.stderr}")

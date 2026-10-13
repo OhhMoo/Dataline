@@ -168,6 +168,14 @@ PLUG_SERVICES = {
 NATIVE_FAKE_CREDENTIAL = "alkera-local-dev"
 
 
+def _backends():
+    """`alkera_gateway.backends`: what a profile can plug into the container
+    topology (Snowflake today), each at its own endpoint. Imported on first use."""
+    from alkera_gateway import backends
+
+    return backends
+
+
 def plug_service_env(name: str, url: str) -> dict[str, str]:
     """Every variable a plugged BI vendor's clients read, for one base URL.
 
@@ -183,7 +191,19 @@ def plug_service_env(name: str, url: str) -> dict[str, str]:
       tableau  Tableau Server Client / tabcmd: server URL, site contentUrl
                ("" is the Default site, the only one), a personal access token.
       sigma    REST API v2 base URL and API client credentials.
+
+    A registry backend (`alkera_gateway.backends.BACKENDS`; a hosted one is in
+    the registry ONLY, never in PLUG_SERVICES) answers from its own row: its
+    `env`, with its endpoint (`backends.endpoint`) re-based onto `url` - the
+    host topology's loopback address (`native_env`). Anything else is a
+    KeyError naming what is known.
     """
+    backends = _backends()
+    if name in backends.BACKENDS:
+        b = backends.BACKENDS[name]
+        base = backends.endpoint(b)
+        return {key: url + value[len(base):] if value.startswith(base) else value
+                for key, value in b.env.items()}
     fake = NATIVE_FAKE_CREDENTIAL
     if name == "powerbi":
         return {"POWERBI_API_URL": url, "FABRIC_API_URL": url,
@@ -195,7 +215,8 @@ def plug_service_env(name: str, url: str) -> dict[str, str]:
     if name == "sigma":
         return {"SIGMA_BASE_URL": url, "SIGMA_CLIENT_ID": fake,
                 "SIGMA_CLIENT_SECRET": fake}
-    raise KeyError(f"{name!r} is not a plugged BI vendor ({', '.join(PLUG_SERVICES)})")
+    raise KeyError(f"{name!r} is not a plugged BI vendor ({', '.join(PLUG_SERVICES)}) "
+                   f"nor a backend ({', '.join(backends.BACKENDS)})")
 
 
 NATIVE_DEFAULTS = {
@@ -241,7 +262,7 @@ def resolve_endpoints(path: str | Path | None = None) -> dict:
     if not path:
         return ep
     override = json.loads(Path(path).read_text(encoding="utf-8"))
-    unknown = sorted(set(override) - set(ep) - set(PLUG_SERVICES))
+    unknown = sorted(set(override) - set(ep) - set(PLUG_SERVICES) - set(_backends().BACKENDS))
     if unknown:
         raise HarnessError(
             f"--native-endpoints names {unknown}, which is not a native surface. "
@@ -254,27 +275,31 @@ def resolve_endpoints(path: str | Path | None = None) -> dict:
     return ep
 
 
-#: The live Snowflake (gateway/docker/snowflake_start.py behind the TLS proxy),
-#: present only for a profile whose warehouse plug is snowflake.
-SNOWFLAKE_ENDPOINT = "https://snowflake.internal:8443"
-
-
 def profile_endpoints(endpoints: dict, profile=None) -> dict:
     """`endpoints` narrowed to what an environment profile serves.
 
     `profile` is an `alkera_gateway.plugs.Profile` (`episode.environment_profile`),
-    or None for an unprofiled task, whose map comes back unchanged. Narrowed the
-    way `native/serve.py --profile` serves: the vendor services the profile's
-    plugs mount, the scheduler plane only with `ops_sched`, the object store
-    only when the slot is plugged, and a BI vendor (PLUG_SERVICES) only - and
-    always - when a plug names it. Every consumer of the map - the subject's
-    environment, `allowed_destinations`, the containment probe - then neither
-    offers nor expects an address nothing is listening at.
+    or None for an unprofiled task, whose map comes back unchanged - except that
+    a registry backend (`alkera_gateway.backends`) is never in it: nothing plugs
+    one, so an override file that names one exports no variable and allows no
+    destination. Narrowed the way `native/serve.py --profile` serves: the vendor
+    services the profile's plugs mount, the scheduler plane only with
+    `ops_sched`, the object store only when the slot is plugged, and a BI vendor
+    (PLUG_SERVICES) only - and always - when a plug names it. Every consumer of
+    the map - the subject's environment, `allowed_destinations`, the
+    containment probe - then neither offers nor expects an address nothing is
+    listening at.
     """
+    backends = _backends()
     if profile is None:
-        return endpoints
+        if not set(endpoints) & set(backends.BACKENDS):
+            return endpoints
+        return {k: v for k, v in endpoints.items() if k not in backends.BACKENDS}
+    plugged = backends.plugged(profile.slots)
     drop = {name for name in (*NATIVE_SERVICES, *PLUG_SERVICES)
             if name not in profile.services}
+    # a registry backend's address (a host-topology override) only when plugged
+    drop |= set(backends.BACKENDS) - {b.name for b in plugged}
     if "ops_sched" not in profile.slots.get("orchestrator", ()):
         drop |= set(NATIVE_WORKSPACE_SERVICES)
     if "object_store" not in profile.slots:
@@ -284,12 +309,14 @@ def profile_endpoints(endpoints: dict, profile=None) -> dict:
     # unless the map already carries an address for it (a relayed or
     # host-topology override from `resolve_endpoints`).
     for name, (_, port) in PLUG_SERVICES.items():
-        if name in profile.services and name not in out:
+        if name in profile.services and name not in out and name not in backends.BACKENDS:
             out[name] = f"http://{name}.internal:{port}"
-    # A Snowflake warehouse plug runs the live snowflake service (compose
-    # profile `snowflake`, TLS on 8443): the episode may dial it.
-    if "snowflake" in profile.slots.get("warehouse", ()) and "snowflake" not in out:
-        out["snowflake"] = SNOWFLAKE_ENDPOINT
+    # So is a plugged backend (alkera_gateway.backends: the live Snowflake
+    # behind its TLS proxy, https://snowflake.internal:8443), at its registry
+    # endpoint, scheme and all: the episode may dial it.
+    for b in plugged:
+        if b.name not in out:
+            out[b.name] = backends.endpoint(b)
     return out
 
 
@@ -312,6 +339,13 @@ def native_env(*, endpoints: dict, audit_dir: Path,
     # map, so an unprofiled environment is exactly what it was.
     for name in PLUG_SERVICES:
         if endpoints.get(name):
+            env.update(plug_service_env(name, endpoints[name]))
+    # So does a plugged HOSTED backend (in the map only when plugged), served by
+    # this topology's own serve.py: its row's variables re-based onto the
+    # address it is reached at. A backend with a container of its own
+    # (Snowflake) has no server on the host, so it exports nothing here.
+    for name, b in _backends().BACKENDS.items():
+        if b.hosted and endpoints.get(name):
             env.update(plug_service_env(name, endpoints[name]))
     # `SCHED_URL` is deliberately NOT exported here. This function builds the
     # environment for the HOST topology, where `./ops/sched` runs the three
@@ -385,12 +419,13 @@ def allowed_destinations(endpoints: dict) -> set[tuple[str, int]]:
     connection saw and `localhost` and `127.0.0.1` are the same host.
     """
     out = {_host_port(endpoints[name])
-           for name in (*NATIVE_SERVICES, *NATIVE_WORKSPACE_SERVICES, *PLUG_SERVICES)
+           for name in (*NATIVE_SERVICES, *NATIVE_WORKSPACE_SERVICES, *PLUG_SERVICES,
+                        # a registry backend is in the map only when plugged
+                        # (`profile_endpoints`)
+                        *_backends().BACKENDS)
            if endpoints.get(name)}
     if "s3" in endpoints:
         out.add(_host_port(endpoints["s3"]))
-    if endpoints.get("snowflake"):
-        out.add(_host_port(endpoints["snowflake"]))
     pg = endpoints["postgres"]
     out.add((str(pg["host"]), int(pg["port"])))
     return {(normalise_host(h), p) for h, p in out}

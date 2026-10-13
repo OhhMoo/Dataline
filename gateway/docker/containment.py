@@ -74,6 +74,24 @@ NATIVE_BACKENDS = {
     "minio": ("minio.internal", 9000),
     "airflow": ("airflow.internal", 8080),
     "snowflake": ("snowflake.internal", 8443),
+    # The Airflow REST v2 fake (alkera_gateway.backends.BACKENDS["airflow"]):
+    # HOSTED in native-services, which carries the alias only when the
+    # profile plugs `orchestrator = airflow`. Its own key, not "airflow" (that
+    # is the designed real-Airflow compose service on 8080, above). No compose
+    # service of that name exists, so P6 as written (it probes the backends of
+    # RUNNING compose services) lists it under `backends_declared_but_not_running`
+    # and never dials it: measuring it means a P6 run with the profile plugged
+    # that probes the hosted alias on native-services (the Task 12 re-measure).
+    "airflow-api": ("airflow.internal", 8100),
+    # Keyed by the ENGINE's compose service (compose.yml `bigquery`, profile
+    # `bigquery`): when it runs, the alias is native-services' audited proxy in
+    # front of it (tasks/harness/container_episode.HOSTED_ENGINES); the engine
+    # itself is on backend_net only.
+    "bigquery": ("bigquery.internal", 9050),
+    "redshift": ("redshift.internal", 5439),
+    # hosted in native-services (alkera_gateway.backends), so never a running compose
+    # service of its own: listed for the P6 re-measure (Task 12)
+    "databricks": ("databricks.internal", 443),
 }
 PROBE_IMAGE = "alkera-stack:track-b"
 ALL_PROFILES = ("harness", "grading", "snowflake")

@@ -72,9 +72,11 @@ def test_profile_resolves_and_spells_its_flags():
 
 
 def test_planned_plug_is_a_harness_error_with_the_profile_text():
-    # de/aws plugs redshift (planned) and tableau (partial since the BI build)
-    with pytest.raises(episode.HarnessError, match="planned, not built: redshift"):
-        episode.environment_profile("de/aws")
+    # ds/aws plugs ml_workers and mlflow (planned); its redshift (the Postgres
+    # persona) and de/aws's tableau are partial
+    with pytest.raises(episode.HarnessError, match="planned, not built: ml_workers, mlflow"):
+        episode.environment_profile("ds/aws")
+    assert episode.environment_profile("de/aws") is not None
     with pytest.raises(episode.HarnessError, match="--plug|profile"):
         episode.environment_profile("", {"notebook": []})
 
@@ -83,7 +85,7 @@ def test_rollout_stops_on_a_planned_plug_before_the_world(monkeypatch, tmp_path)
     import rollout
     import taskspec
 
-    spec = SimpleNamespace(variant="", profile="de/aws", plugs={})
+    spec = SimpleNamespace(variant="", profile="ds/aws", plugs={})
     monkeypatch.setattr(taskspec, "load", lambda *a, **k: spec)
 
     def no_world(*a, **k):
@@ -92,7 +94,7 @@ def test_rollout_stops_on_a_planned_plug_before_the_world(monkeypatch, tmp_path)
     monkeypatch.setattr(episode, "build_world", no_world)
     args = SimpleNamespace(tasks_dir=None, task="T", variant=None,
                            out=str(tmp_path / "r"))
-    with pytest.raises(episode.HarnessError, match="planned, not built: redshift"):
+    with pytest.raises(episode.HarnessError, match="planned, not built: ml_workers"):
         rollout.run_rollout(args)
     assert not (tmp_path / "r").exists()
 
@@ -243,6 +245,14 @@ def test_native_env(tmp_path):
 
 
 # --------------------------------------------------- the container topology
+def _registry() -> dict:
+    """alkera_gateway.backends.BACKENDS: names the BI-vendor parity checks
+    leave out (a hosted backend lives in the registry only)."""
+    from alkera_gateway.backends import BACKENDS
+
+    return BACKENDS
+
+
 def _stack(world, tmp_path, name, **kw):
     return ce.NativeContainerEpisode(project="t", world=world,
                                      audit_dir=tmp_path / "audit",
@@ -289,13 +299,19 @@ def test_overlay_profiled_aliases(world, tmp_path, no_docker):
     assert aliases == ["native-services.internal",
                        *(f"{s}.internal" for s in SERVICES)]
     assert "sched.internal" not in aliases
+    # no object store: MinIO is not started (a compose profile nothing enables)
+    # and the episode does not wait for it - not merely un-aliased
     minio = _block(text, "minio")
-    assert "aliases: !reset []" in minio
+    assert minio.strip() == f"profiles: [{ce.MINIO_COMPOSE_PROFILE}]"
+    assert "      minio: !reset null\n" in _block(text, "episode")
     # the WHOLE mapping, restated (`!override`): an excluded service's
     # variables are absent, not `!reset` (a no-op under Compose v5.6)
     episode_block = _block(text, "episode")
     assert "    environment: !override\n" in episode_block
-    assert "!reset" not in episode_block
+    # no `VAR: !reset null` (a no-op under Compose v5.6); the one `!reset` is
+    # the depends_on key above, which compose does honour (test below)
+    assert [ln for ln in episode_block.splitlines() if "!reset" in ln] == [
+        "      minio: !reset null"]
     episode_env = _env(episode_block)
     for var in ("LOKI_URL", "LOKI_ADDR", "DEPLOY_URL", "DEPLOY_API_TOKEN",
                 "AIRBYTE_URL", "PROMETHEUS_URL", "ALERTMANAGER_URL",
@@ -313,7 +329,7 @@ def test_overlay_keeps_sched_and_minio_when_plugged(world, tmp_path, no_docker):
     services = _block(text, "native-services")
     assert "- sched.internal" in services
     assert "- metabase.internal" not in services
-    assert "minio:" not in text
+    assert "minio:" not in text and "minio: !reset" not in text
     episode_env = _env(_block(text, "episode"))
     static = ce.static_environment("episode")
     # kept, with the static value: the orchestrator and the object store are plugged
@@ -334,6 +350,8 @@ def test_reset_env_names_exist_in_the_static_overlay():
         assert name in ce.EPISODE_SERVICE_ENV
         assert f"- {name}.internal" in static
     for name in aut.PLUG_SERVICES:
+        if name in _registry():
+            continue            # a backend's variables are its registry row's
         assert ce.EPISODE_SERVICE_ENV[name] == tuple(aut.plug_service_env(name, "u"))
         assert f"- {name}.internal" not in static   # no alias (a comment may name it)
 
@@ -708,6 +726,60 @@ def test_compose_config_drops_excluded_variables(world, tmp_path, no_docker):
     assert {"SCHED_URL", "METABASE_URL", "AWS_ENDPOINT_URL"} <= set(unprofiled)
 
 
+# ------------------------- MinIO: not started without a store, token-gated with one
+def test_compose_config_starts_no_minio_without_an_object_store(world, tmp_path,
+                                                                no_docker):
+    """Measured by compose: on BI001's da/laptop box (and da/snowflake's) there is
+    no `minio` service at all - nothing can resolve or reach it - and nothing
+    waits for one. The unprofiled box still runs it and still waits for it."""
+    _clocked(world)
+    plain = _stack(world, tmp_path, "r0")
+    plain.write_overlay()
+    unprofiled = _compose_config(plain)["services"]
+    assert "minio" in unprofiled and "minio" in unprofiled["episode"]["depends_on"]
+    for profile, plugs in ((PROFILE, BI001_PLUGS), ("da/snowflake", {})):
+        stack = _stack(world, tmp_path, f"r-{profile.replace('/', '-')}",
+                       profile=profile, plugs=plugs)
+        stack.write_overlay()
+        assert stack.minio_unstarted()
+        services = _compose_config(stack)["services"]
+        assert "minio" not in services, profile
+        assert "minio" not in services["episode"]["depends_on"], profile
+        assert {"postgres", "native-services"} <= set(services["episode"]["depends_on"])
+        assert ce.MINIO_COMPOSE_PROFILE not in stack.compose_env().get(
+            "COMPOSE_PROFILES", "").split(",")
+        for name in ("episode", "jupyter"):
+            assert not any(k.startswith("AWS_") for k in services[name]["environment"])
+
+
+def test_minio_audit_token_reaches_minio_and_native_services_only(world, tmp_path,
+                                                                  no_docker):
+    """The receiver's shared secret: per rollout, in compose's process environment
+    (no file), interpolated into MinIO's webhook and native-services - never into
+    the episode, jupyter or the subject."""
+    _clocked(world)
+    a, b = _stack(world, tmp_path, "r1"), _stack(world, tmp_path, "r2")
+    assert a.minio_audit_token != b.minio_audit_token and len(a.minio_audit_token) == 64
+    a.write_overlay()
+    assert a.minio_audit_token not in a.overlay.read_text(encoding="utf-8")
+    env = a.compose_env()
+    assert env[ce.MINIO_AUDIT_TOKEN_ENV] == a.minio_audit_token
+    services = _compose_config(a)["services"]
+    token = a.minio_audit_token
+    assert services["minio"]["environment"]["MINIO_AUDIT_WEBHOOK_AUTH_TOKEN_alkera"] == token
+    assert services["native-services"]["environment"][ce.MINIO_AUDIT_TOKEN_ENV] == token
+    holders = {name for name, svc in services.items()
+               if token in json.dumps(svc.get("environment") or {})}
+    assert holders == {"minio", "native-services"}
+    stack = _stack(world, tmp_path, "r3", profile=PROFILE, plugs=BI001_PLUGS,
+                   subject_sandbox=True)
+    stack.write_overlay()
+    services = _compose_config(stack)["services"]
+    assert {"episode", "jupyter", "subject"} <= set(services)
+    assert not any(stack.minio_audit_token in json.dumps(svc.get("environment") or {})
+                   for name, svc in services.items() if name != "native-services")
+
+
 # ------------------------------- the services' own state (bistate.py, P7 H)
 def test_compose_env_names_the_rollouts_service_state(world, tmp_path):
     import bistate
@@ -844,7 +916,9 @@ def test_surface_gate_sweeps_a_plugged_vendor_only(tmp_path):
     finally:
         server.shutdown()
     assert set(surface_audit.NATIVE_SERVICE_NAMES) == set(aut.NATIVE_SERVICES)
-    assert set(surface_audit.NATIVE_PLUG_SERVICE_NAMES) == set(aut.PLUG_SERVICES)
+    # the BI vendors exactly; a registry backend is no vendor of the gate's
+    assert set(surface_audit.NATIVE_PLUG_SERVICE_NAMES) - set(_registry()) == \
+        set(aut.PLUG_SERVICES) - set(_registry())
 
 
 # ------------------------------------------- BI vendors on the host topology
@@ -864,6 +938,82 @@ def test_host_stack_awaits_and_addresses_a_plugged_bi_vendor(world, tmp_path):
     endpoints = stack._write_endpoints(None)
     assert endpoints["powerbi"] == f"http://127.0.0.1:{serve.PLUG_PORTS['powerbi'] + 7}"
     assert "tableau" not in endpoints and "metabase" not in endpoints
+
+
+def _hosted_row(monkeypatch):
+    """A synthetic hosted backend (Wave 1's real rows are their own): its
+    registry row and its catalogue plug in the warehouse slot."""
+    from alkera_gateway import backends, plugs
+
+    row = backends.Backend("hx", port=8123, scheme="https",
+                           env={"HX_URL": "https://hx.internal:8123/api", "HX_TOKEN": "t"})
+    monkeypatch.setitem(backends.BACKENDS, "hx", row)
+    monkeypatch.setitem(plugs.PLUGS, "hx", plugs.Plug("hx", "warehouse", "partial"))
+    return row
+
+
+def _host_stack(world, tmp_path, name, profile, plugs):
+    (tmp_path / name).mkdir()
+    spec = SimpleNamespace(profile=profile, plugs=plugs)
+    return native_stack.NativeStack(world=world, audit_dir=tmp_path / f"{name}-a",
+                                    rollout_dir=tmp_path / name, spec=spec, offset=7)
+
+
+def test_host_stack_awaits_and_addresses_a_plugged_hosted_backend(world, tmp_path,
+                                                                 monkeypatch):
+    """The hosted twin of the BI vendor test: serve.py on the host binds the
+    row's port, the subject is handed the loopback address with the row's
+    scheme and the row's variables re-based onto it - only when plugged."""
+    row = _hosted_row(monkeypatch)
+    plugged = episode.environment_profile("da/laptop", {"warehouse": ["hx"]})
+    assert row.port in native_stack.service_ports(plugged)
+    for other in (None, episode.environment_profile("da/laptop", None)):
+        assert row.port not in native_stack.service_ports(other)
+
+    endpoints = _host_stack(world, tmp_path, "p", "da/laptop",
+                            {"warehouse": ["hx"]})._write_endpoints(None)
+    assert endpoints["hx"] == f"https://127.0.0.1:{row.port + 7}"
+    env = aut.native_env(endpoints=endpoints, audit_dir=tmp_path, profiles_dir=tmp_path)
+    assert env["HX_URL"] == f"https://127.0.0.1:{row.port + 7}/api"
+    assert env["HX_TOKEN"] == "t"
+    assert ("127.0.0.1", row.port + 7) in aut.allowed_destinations(endpoints)
+
+    for name, profile, plugs in (("u", "", {}), ("d", "da/laptop", {})):
+        endpoints = _host_stack(world, tmp_path, name, profile, plugs)._write_endpoints(None)
+        assert "hx" not in endpoints, name
+        env = aut.native_env(endpoints=endpoints, audit_dir=tmp_path, profiles_dir=tmp_path)
+        assert not {"HX_URL", "HX_TOKEN"} & set(env), name
+        assert ("127.0.0.1", row.port + 7) not in aut.allowed_destinations(endpoints), name
+
+
+def test_an_unprofiled_override_cannot_name_a_backend(tmp_path, monkeypatch):
+    """No profile plugs a registry backend, so an endpoint file that names one
+    (by mistake or on purpose) exports none of its variables and allows none
+    of its destinations."""
+    row = _hosted_row(monkeypatch)
+    path = tmp_path / "endpoints.json"
+    path.write_text(json.dumps({"hx": "https://127.0.0.1:9999",
+                                "snowflake": "https://127.0.0.1:9443"}))
+    endpoints = aut.profile_endpoints(aut.resolve_endpoints(path), None)
+    assert "hx" not in endpoints and "snowflake" not in endpoints
+    env = aut.native_env(endpoints=endpoints, audit_dir=tmp_path, profiles_dir=tmp_path)
+    assert not {"HX_URL", "SNOWFLAKE_HOST"} & set(env)
+    allowed = aut.allowed_destinations(endpoints)
+    assert ("127.0.0.1", 9999) not in allowed and ("127.0.0.1", 9443) not in allowed
+    assert row.name in aut._backends().BACKENDS
+    plain = aut.resolve_endpoints(None)
+    assert aut.profile_endpoints(plain, None) is plain          # unchanged, as before
+
+
+def test_a_snowflake_host_run_exports_no_snowflake_variables(tmp_path):
+    """Snowflake has a container of its own and no server on the host: a
+    da/snowflake host-topology run is not told SNOWFLAKE_* (the container
+    topology gets them from compose)."""
+    endpoints = aut.profile_endpoints(aut.resolve_endpoints(None),
+                                      episode.environment_profile("da/snowflake"))
+    assert "snowflake" in endpoints                 # judged against, as before
+    env = aut.native_env(endpoints=endpoints, audit_dir=tmp_path, profiles_dir=tmp_path)
+    assert not any(k.startswith("SNOWFLAKE_") for k in env)
 
 
 # ------------------------------------------------- ./ops/sched and the profile

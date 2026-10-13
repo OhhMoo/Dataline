@@ -48,15 +48,19 @@ ROLE_LOCKS = {"ds": "requirements-ds.lock", "da": "requirements-da.lock"}
 
 # The task's definition of each role, independent of the files that implement it.
 # jupyter-server is in da too: the da profile has the `notebook` slot, whose plug IS
-# a jupyter-server (docker/jupyter/launch.py).
+# a jupyter-server (docker/jupyter/launch.py). openpyxl is what `pandas.read_excel`
+# needs for .xlsx (measured missing from the da/ds system python on 2026-10-06).
 ADDED = {
     "de": set(),
     "ds": {"pandas", "pyarrow", "polars", "scikit-learn", "matplotlib", "ipykernel",
-           "jupyter-client", "jupyter-server", "nbclient", "nbformat"},
+           "jupyter-client", "jupyter-server", "nbclient", "nbformat", "openpyxl"},
     "da": {"pandas", "pyarrow", "matplotlib", "ipykernel", "jupyter-client",
-           "jupyter-server", "nbclient", "nbformat"},
+           "jupyter-server", "nbclient", "nbformat", "openpyxl"},
 }
 DS_ONLY = ADDED["ds"] - ADDED["da"]
+# In the /opt/toolbelt venv too, on purpose and for every role: csvkit brings it for
+# `in2csv`. The system interpreter cannot see the venv's copy, which is the gap.
+ALSO_IN_TOOLBELT_VENV = {"openpyxl"}
 
 # Packages that ship platform wheels and so need one per arch.
 COMPILED = {"numpy", "pandas", "pyarrow", "polars-runtime-32", "scikit-learn", "scipy",
@@ -160,8 +164,15 @@ def test_metricflow_in_the_toolbelt_venv_shares_the_gateways_dbt_and_duckdb():
 
 
 def test_role_libraries_are_not_in_the_toolbelt_venv():
-    """They would be invisible there: `python` is /usr/local/bin/python."""
-    assert not (ADDED["ds"] & set(versions(DOCKER / "toolbelt.lock")))
+    """They would be invisible there: `python` is /usr/local/bin/python. The one
+    library both places carry (openpyxl: in2csv's in the venv, pandas' in the system
+    interpreter) is the same version in both, so `in2csv` and `pandas.read_excel`
+    read a workbook with one openpyxl."""
+    venv = versions(DOCKER / "toolbelt.lock")
+    assert not ((ADDED["ds"] - ALSO_IN_TOOLBELT_VENV) & set(venv))
+    for role, lock in ROLE_LOCKS.items():
+        for name in ALSO_IN_TOOLBELT_VENV:
+            assert versions(GATEWAY / lock)[name] == venv[name], (role, name)
 
 
 def test_there_are_no_per_role_venv_locks():
@@ -279,9 +290,33 @@ def _unusable(pypi, path: Path, arch: str) -> dict:
     return unusable
 
 
+def _docker_module(name: str):
+    spec = importlib.util.spec_from_file_location(f"{name}_for_roles", DOCKER / f"{name}.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+#: Every warehouse client set the backend registry names (alkera_gateway.backends,
+#: read the way build_episode.py reads it), each one requirements-<c>.lock.
+CLIENT_SETS = _docker_module("warehouse_clients").names(GATEWAY / "src" / "alkera_gateway")
+#: The packages a client lock may pin differently from the base locks.
+DIVERGES = _docker_module("lock_warehouse_clients").DIVERGES
+
+
+def client_lock(name: str) -> Path:
+    """requirements-<name>.lock, or a skip when the lane that registered the
+    client set has not generated it yet."""
+    path = GATEWAY / f"requirements-{name}.lock"
+    if not path.is_file():
+        pytest.skip(f"{path.name} not generated yet "
+                    f"(gateway/docker/lock_warehouse_clients.py {name})")
+    return path
+
+
 LOCK_FILES = [DOCKER / "toolbelt.lock", DOCKER / "toolbelt.arm64.lock",
-              *(GATEWAY / n for n in (*BASE_LOCKS, *ROLE_LOCKS.values(),
-                                      "requirements-snowflake.lock"))]
+              *(GATEWAY / n for n in (*BASE_LOCKS, *ROLE_LOCKS.values())),
+              *(GATEWAY / f"requirements-{c}.lock" for c in CLIENT_SETS)]
 
 
 @pytest.mark.parametrize("arch", ARCHES)
@@ -294,6 +329,8 @@ def test_every_package_has_a_wheel_for_its_arch(pypi, path, arch):
         pytest.skip("the arm64 venv lock is installed on arm64 only")
     if path.name == "toolbelt.lock" and arch == "arm64":
         pytest.skip("the amd64 venv lock is installed on amd64 only")
+    if path.name.removeprefix("requirements-").removesuffix(".lock") in CLIENT_SETS:
+        client_lock(path.name.removeprefix("requirements-").removesuffix(".lock"))
     unusable = _unusable(pypi, path, arch)
     assert not unusable, f"{path.name}/{arch}: no installable wheel hashed in the lock: {unusable}"
 
@@ -308,23 +345,41 @@ def test_snowflake_lock_pins_the_connector_and_the_adapter():
     assert "dbt-snowflake" in locked
 
 
+@pytest.mark.parametrize("client", CLIENT_SETS)
 @pytest.mark.parametrize("other", (*BASE_LOCKS, *ROLE_LOCKS.values()))
-def test_gateway_locks_agree_on_every_shared_version(other):
-    """The snowflake clients are compiled against the base, native and ds pins, so a
-    package they share with any of them carries one version - except certifi,
-    which dbt-snowflake caps (docker/snowflake-clients.overrides) and which only a
-    snowflake-client image takes at the capped version."""
-    snow = versions(GATEWAY / "requirements-snowflake.lock")
+def test_gateway_locks_agree_on_every_shared_version(client, other):
+    """Every client lock is compiled against the base, native and ds pins, so a
+    package it shares with any of them carries one version - except DIVERGES
+    (certifi, which dbt-snowflake caps: docker/snowflake-clients.overrides), which
+    only that client set's image takes at the capped version."""
+    mine = versions(client_lock(client))
     base = versions(GATEWAY / other)
-    clash = {k: (snow[k], base[k]) for k in set(snow) & set(base) if snow[k] != base[k]}
-    assert set(clash) <= {"certifi"}, clash
+    clash = {k: (mine[k], base[k]) for k in set(mine) & set(base) if mine[k] != base[k]}
+    assert set(clash) <= DIVERGES, clash
+
+
+def test_client_locks_agree_with_each_other():
+    """An image built with two client sets installs both locks into one
+    interpreter: every package they share - certifi included, whatever each
+    one diverged to - has to be one version, or the second install silently
+    replaces the first's."""
+    import itertools
+
+    present = [c for c in CLIENT_SETS if (GATEWAY / f"requirements-{c}.lock").is_file()]
+    for a, b in itertools.combinations(present, 2):
+        left, right = versions(client_lock(a)), versions(client_lock(b))
+        clash = {k: (left[k], right[k]) for k in set(left) & set(right)
+                 if left[k] != right[k]}
+        assert not clash, (a, b, clash)
 
 
 def test_snowflake_clients_install_after_the_role():
+    # every client lock (snowflake's among them) is installed by one loop over
+    # ALKERA_WAREHOUSE_CLIENTS, after the role and before the gateway itself
     text = (DOCKER / "Dockerfile").read_text(encoding="utf-8")
     role = text.index("/opt/gateway/requirements-$ALKERA_TOOLBELT.lock")
-    snow = text.index("-r /opt/gateway/requirements-snowflake.lock")
-    assert role < snow < text.index("--no-deps /opt/gateway")
+    clients = text.index('lock="/opt/gateway/clients/requirements-$c.lock"')
+    assert role < clients < text.index('-r "$lock"') < text.index("--no-deps /opt/gateway")
 
 
 def test_base_locks_keep_the_pre_snowflake_certifi_and_sqlglot():
@@ -352,8 +407,11 @@ def test_dockerfile_installs_role_libraries_into_the_system_python():
     text = (DOCKER / "Dockerfile").read_text(encoding="utf-8")
     assert "ARG ALKERA_TOOLBELT=de" in text
     assert 'ARG ALKERA_WAREHOUSE_CLIENTS=""' in text
-    for lock in (*ROLE_LOCKS.values(), "requirements-snowflake.lock"):
+    for lock in ROLE_LOCKS.values():
         assert f"COPY gateway/{lock} /opt/gateway/{lock}" in text
+    # the warehouse-client locks, requirements-snowflake.lock among them, are
+    # staged together and installed per ALKERA_WAREHOUSE_CLIENTS
+    assert "COPY gateway/requirements-*.lock /opt/gateway/clients/" in text
     role_install = text.index("/opt/gateway/requirements-$ALKERA_TOOLBELT.lock")
     gateway_install = text.index("--no-deps /opt/gateway")
     assert role_install < gateway_install, "role libraries go in before the gateway"
@@ -387,6 +445,14 @@ def test_toolbelt_check_probes_and_forbids_per_role():
     assert "alkera_gateway.native.notebook" in check.role_imports("da")
     assert {"pandas", "pyarrow", "ipykernel", "jupyter_server"} <= \
         set(check.forbidden_imports("de"))
+    # a client set's hard dependencies are allowed in its image, and nothing more
+    with_dbx = set(check.forbidden_imports("de", ("databricks",)))
+    assert not {"pandas", "pyarrow"} & with_dbx
+    assert {"ipykernel", "jupyter_server", "matplotlib", "polars"} <= with_dbx
+    # openpyxl (the connector's) is a system-interpreter check, allowed the same way
+    assert "openpyxl" in check.system_forbidden("de")
+    assert "openpyxl" not in check.system_forbidden("de", ("databricks",))
+    assert set(check.CLIENT_IMPORTS) <= set(CLIENT_SETS)
     for role in ("ds", "da"):
         argvs = {tuple(argv) for _, argv, _ in check.role_probes(role)}
         assert ("jupyter", "kernelspec", "list") in argvs
@@ -397,3 +463,35 @@ def test_toolbelt_check_probes_and_forbids_per_role():
     assert "jupyter" not in check.forbidden_binaries("da")
     probes = {name: tuple(argv) for name, argv, _ in check.PROBES}
     assert probes["mf"] == ("mf", "--version")
+
+
+@pytest.mark.parametrize("role", ("da", "ds"))
+def test_da_and_ds_images_import_openpyxl_in_system_python(role):
+    """The role probe: openpyxl is checked in the SYSTEM interpreter of a da/ds image
+    and a workbook makes the openpyxl -> pandas.read_excel round trip there. It is
+    in the role's lock at the venv's version, and NOT in ROLE_IMPORTS (pitfall 11:
+    `forbidden_imports` checks both interpreters, and /opt/toolbelt has it)."""
+    check = _load("toolbelt_check")
+    assert "openpyxl" in check.system_imports(role)
+    assert "openpyxl" not in check.role_imports(role)
+    assert "openpyxl" not in check.system_forbidden(role)
+    roundtrip = [argv for _, argv, _ in check.role_probes(role)
+                 if argv[0] == check.ROLE_PYTHON and "read_excel" in " ".join(argv)]
+    assert roundtrip == [(check.ROLE_PYTHON, "-c", check.EXCEL_ROUNDTRIP)]
+    assert "openpyxl.Workbook()" in check.EXCEL_ROUNDTRIP
+    assert versions(GATEWAY / ROLE_LOCKS[role])["openpyxl"] == "3.1.5"
+    assert "openpyxl" in installed(role)
+
+
+def test_de_image_unchanged_by_openpyxl():
+    """de's system interpreter gets no openpyxl, its probes are untouched, and its
+    absence check reads the system interpreter only - the /opt/toolbelt copy
+    (csvkit's, every role's) must not fail a de image."""
+    check = _load("toolbelt_check")
+    assert "openpyxl" not in installed("de")
+    assert not check.system_imports("de") and not check.role_probes("de")
+    assert "openpyxl" in check.system_forbidden("de")
+    every_role_import = {m for r in ROLES for m in check.role_imports(r)}
+    assert "openpyxl" not in every_role_import
+    assert "openpyxl" not in check.forbidden_imports("de")
+    assert versions(DOCKER / "toolbelt.lock")["openpyxl"] == "3.1.5"

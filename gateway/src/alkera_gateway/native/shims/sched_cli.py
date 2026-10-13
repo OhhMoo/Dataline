@@ -128,8 +128,7 @@ def config() -> GatewayConfig:
     """
     name = os.environ.get("ALKERA_GATEWAY_CONFIG")
     if name and Path(name).is_file():
-        return GatewayConfig.model_validate_json(
-            Path(name).read_bytes())
+        return GatewayConfig.for_services(Path(name).read_bytes())
     state = os.environ.get("ALKERA_SCHEDULER")
     if not state:
         raise SchedulerError(

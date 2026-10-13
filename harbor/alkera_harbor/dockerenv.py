@@ -21,7 +21,11 @@ import shlex
 _ENV_LINE = re.compile(r"^\s*ENV\s+(.*)$", re.IGNORECASE)
 _NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 #: Per-arm variables: task.toml carries them, the template Dockerfile must not.
-PER_ARM_KEYS = ("ALKERA_TASK_VARIANT", "ALKERA_SHIM_WATCH")
+#: `ALKERA_VIRTUAL_TIME` is the world's clock as the episode starts (what the
+#: measured container overlay sets: container_episode.world_clock), so the
+#: rows the agent's shims write carry the world's time; profiled tasks only,
+#: so the unprofiled export is byte-identical (harbor/README.md).
+PER_ARM_KEYS = ("ALKERA_TASK_VARIANT", "ALKERA_SHIM_WATCH", "ALKERA_VIRTUAL_TIME")
 #: Image ENV that task.toml must NOT repeat. `PATH`: Harbor's docker provider
 #: puts a Dockerfile-only task's [environment.env] into its persistent env
 #: (harbor 0.23.0 environments/base.py:282-284) and merges that OVER the host's

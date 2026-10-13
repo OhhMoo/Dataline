@@ -85,20 +85,27 @@ SHIM = Path(__file__).resolve().parent / "container_shim.py"
 DEFAULT_IMAGE = "alkera-episode:head"
 
 
+def _backends():
+    """`alkera_gateway.backends`, the registry of what a profile can plug into
+    this topology. Imported on first use, like `agent_under_test` below."""
+    from alkera_gateway import backends
+
+    return backends
+
+
 def profile_image(image: str, profile) -> str:
     """The episode image a profiled task runs on, when `--image` was left at
-    DEFAULT_IMAGE: the profile's role image (`-da`, `-ds`) and `-snowflake` when
-    the warehouse plug needs the Snowflake clients - exactly
-    gateway/docker/build_episode.py's `image_tag` (test_profile_wiring pins the
-    two together). An explicit `--image`, or an unprofiled task, is unchanged.
-    Without this a da task started on the de image, whose jupyter service has
-    no jupyter-server to run."""
+    DEFAULT_IMAGE: the profile's role image (`-da`, `-ds`) and one suffix per
+    client set its plugged backends need (`-snowflake`), sorted - exactly
+    gateway/docker/build_episode.py's `image_tag` (test_profile_wiring and
+    test_backends pin the two together). An explicit `--image`, or an
+    unprofiled task, is unchanged. Without this a da task started on the de
+    image, whose jupyter service has no jupyter-server to run."""
     if profile is None or image != DEFAULT_IMAGE:
         return image
     role = profile.name.split("/", 1)[0]
     suffix = [] if role == "de" else [role]
-    if "snowflake" in profile.slots.get("warehouse", ()):
-        suffix.append("snowflake")
+    suffix += sorted({b.clients for b in _backends().plugged(profile.slots) if b.clients})
     return "-".join([image, *suffix])
 SHIM_IN_CONTAINER = "/opt/episode/shim.py"
 CONFIG_IN_CONTAINER = "/opt/episode/gateway.json"
@@ -866,6 +873,15 @@ MOUNTS_OVERLAY_NAME = "compose.native-mounts.yml"
 #: MinIO's port, published on loopback beside the nine so the surface gate's
 #: signed bucket listing has somewhere to go.
 MINIO_PORT = 9000
+#: The compose profile `profile_overlay` gates MinIO behind on a box whose
+#: environment profile plugs no `object_store`. Nothing enables it
+#: (`compose_env` never names it), so MinIO is not started on such a box at all.
+MINIO_COMPOSE_PROFILE = "object_store"
+#: The variable `compose_env` hands compose the per-rollout MinIO audit token
+#: in. compose.native.yml interpolates it into exactly two environments, MinIO's
+#: webhook (`MINIO_AUDIT_WEBHOOK_AUTH_TOKEN_alkera`) and native-services' (the
+#: receiver checks it): never the episode's, jupyter's or the subject's.
+MINIO_AUDIT_TOKEN_ENV = "ALKERA_MINIO_AUDIT_TOKEN"
 #: The static table's backend variables, by the plug that serves them: a
 #: profiled box keeps a group only when its profile plugs that backend
 #: (`profile_variables`). Unprofiled boxes keep all of them, as before.
@@ -1008,11 +1024,42 @@ def warehouse_mounts(world: dict) -> list[str]:
 #: (`alkera_gateway.native.audit.virtual_time`: ALKERA_VTS, else the scheduler
 #: state ALKERA_SCHEDULER names, else THIS, else GatewayConfig's literal).
 CLOCK_ENV = "ALKERA_VIRTUAL_TIME"
-#: The Snowflake plug (`NativeContainerEpisode.snowflake_overlay`): where the
+#: A backend container (`NativeContainerEpisode.backend_overlay`) that seeds
+#: from the world finds the world's warehouse FILES here, read-only.
+SEED_IN_CONTAINER = "/seed"
+#: Backends whose compose stanza predates the registry: compose.yml declares
+#: the service (profile, build context, Dockerfile, volumes, network) and
+#: compose.native.yml its episode_net alias, so `backend_overlay` adds only what
+#: is per rollout and their overlay bytes stay what they were. Every other
+#: backend gets a complete service block and needs no static compose edit.
+STATIC_BACKENDS = frozenset({"snowflake"})
+#: HOSTED backends whose ENGINE is a compose.yml service of its own, by backend
+#: name: (compose service == its compose profile, port, command). The registry
+#: row's module is the front door inside native-services; the engine sits on
+#: backend_net, which the episode is not on. When one is plugged, `compose_env`
+#: turns the engine's profile on and `profile_overlay` puts native-services on
+#: backend_net, hands it the engine's address as `ALKERA_<NAME>_UPSTREAM`,
+#: orders it after the engine, and restates the engine's command (each argument
+#: formatted with the row's `env`).
+#:
+#: bigquery: goccy's emulator (compose.yml's stanza), started under the
+#: registry's project - the stanza names `episode`, the project the MCP
+#: topology's ALKERA_BIGQUERY_OPTIONS use, and the emulator serves one project
+#: only - and without its `bigquery.internal` alias on backend_net: once
+#: native-services joins that network, the name would mean both the proxy and
+#: its engine there.
+HOSTED_ENGINES = {
+    "bigquery": ("bigquery", 9050, ("--project={BIGQUERY_PROJECT}", "--port=9050",
+                                    "--grpc-port=9060",
+                                    "--database=/bigquery-data/emulator.db")),
+}
+#: The Snowflake plug, by name, as the checks and tests read it: where the
 #: world's warehouse files are bound in the `snowflake` service, the trust
 #: bundle its TLS proxy publishes (compose.yml's `snowflaketrust` volume), and
-#: the destination file it counts into until `fold_destinations`.
-SNOWFLAKE_SEED_IN_CONTAINER = "/seed"
+#: the destination file it counts into until `fold_destinations`. The registry
+#: derives the same values (`backends.trust_dir`, `bundle`, `destinations_file`;
+#: test_backends.py holds them equal).
+SNOWFLAKE_SEED_IN_CONTAINER = SEED_IN_CONTAINER
 SNOWFLAKE_TRUST = "/etc/alkera/snowflake-tls"
 SNOWFLAKE_BUNDLE = f"{SNOWFLAKE_TRUST}/bundle.pem"
 SNOWFLAKE_DESTINATIONS = "destinations.snowflake.jsonl"
@@ -1788,6 +1835,16 @@ class NativeContainerEpisode:
     subject_container: str = ""
     proxy_container: str = ""
     rexec_token: str = field(default_factory=lambda: secrets.token_hex(16))
+    #: The shared secret MinIO's audit webhook sends and native-services'
+    #: receiver (:8110) requires, so a POST from the episode cannot forge
+    #: `minio.*` rows (gateway/docker/evidence/CONTAINMENT_2026-10-07.md, the
+    #: 8110 row). Minted per rollout and handed to compose in its process
+    #: environment only (`compose_env`): it is in no file the rollout writes.
+    minio_audit_token: str = field(default_factory=lambda: secrets.token_hex(32))
+    #: What `down()` folded from the Postgres server's statement log
+    #: (`postgres_live.fold_statement_log`): rows, or the `error` that makes the
+    #: rollout a harness failure (rollout.py), or `skipped`. {} until `down()`.
+    postgres_statements: dict = field(default_factory=dict)
     _up: bool = False
 
     # ---------------------------------------------------------------- paths
@@ -1828,51 +1885,71 @@ class NativeContainerEpisode:
         """The resolved profile, or None. Raises `episode.HarnessError`."""
         return episode.environment_profile(self.profile, self.plugs)
 
-    def snowflake_plugged(self) -> bool:
-        """The profile plugs `warehouse: snowflake`: compose.yml's `snowflake`
-        service (compose profile `snowflake`) runs, seeded from this world's
-        own DuckDB warehouse and auditing every statement (`snowflake_overlay`).
-        Explicit-only: an unprofiled stack never starts it."""
+    def plugged_backends(self) -> tuple:
+        """The registry backends this rollout's profile plugs
+        (`alkera_gateway.backends.plugged`), in registry order; () unprofiled.
+        Explicit-only: an unprofiled stack never starts one. Raises the
+        registry's `ProfileError` for a profile that plugs two TLS backends,
+        before a byte of the overlay is written."""
         profile = self.environment_profile()
-        return profile is not None and "snowflake" in profile.slots.get("warehouse", ())
+        return () if profile is None else _backends().plugged(profile.slots)
 
-    def snowflake_overlay(self, clock: str | None) -> str:
-        """The `snowflake` service for this rollout, "" when it is not plugged.
+    def backend_overlay(self, b, clock: str | None) -> str:
+        """Backend `b`'s service for this rollout, "" for a hosted one (a
+        module inside native-services, which `profile_overlay` aliases).
 
-        Built from Dockerfile.snowflake on THIS episode's image (`BASE`), so the
-        proxy runs the alkera_gateway every other service of the stack runs.
+        Built from `b.dockerfile` on THIS episode's image (`BASE`), so the
+        backend runs the alkera_gateway every other service of the stack runs.
         It mounts the rollout's audit directory (one 9.2.2 row per statement,
-        destinations counted into its own file, folded in by `down`) and the
-        world's warehouse FILES read-only under /seed, which
-        snowflake_start.seed copies into fakesnow before the first login.
-        Readiness is read from /proc/net/tcp (8443 = 0x20FB in LISTEN), never
+        destinations counted into its own file, folded in by `down`) and, when
+        it seeds from the world, the world's warehouse FILES read-only under
+        /seed. Readiness is read from /proc/net/tcp (the port in LISTEN), never
         dialled, for the reason native-services' healthcheck gives.
+
+        A STATIC_BACKENDS name (Snowflake) already has its stanza in
+        compose.yml + compose.native.yml, so only the per-rollout part is
+        written here - byte for byte the overlay it always had. Any other
+        backend gets the COMPLETE block (profile, build context, network and
+        alias, its private data volume, the trust volume for a TLS backend),
+        so it needs no edit to a static compose file.
         """
-        if not self.snowflake_plugged():
+        if b.hosted:
             return ""
+        backends = _backends()
         audit = Path(self.audit_dir).resolve().as_posix()
-        seeds = "\n".join(
-            f'      - "{(self.world_root / rel).as_posix()}:'
-            f'{SNOWFLAKE_SEED_IN_CONTAINER}/{Path(rel).name}:ro"'
-            for rel in self.warehouses)
+        volumes = [f'      - "{audit}:/audit"']
+        if b.seeds_world:
+            volumes += [f'      - "{(self.world_root / rel).as_posix()}:'
+                        f'{SEED_IN_CONTAINER}/{Path(rel).name}:ro"'
+                        for rel in self.warehouses]
         tag = self.image.rsplit(":", 1)
-        image = f"alkera-snowflake:native-{tag[1] if len(tag) == 2 else 'latest'}"
+        image = f"alkera-{b.name}:native-{tag[1] if len(tag) == 2 else 'latest'}"
+        upper = b.name.upper()
         env = {"ALKERA_NATIVE_AUDIT": "/audit/actions.jsonl",
-               "ALKERA_SNOWFLAKE_SEED": SNOWFLAKE_SEED_IN_CONTAINER,
-               "ALKERA_SNOWFLAKE_DESTINATIONS": f"/audit/{SNOWFLAKE_DESTINATIONS}",
-               # The proxy's own statement log, in the service's private volume
-               # (never /audit): the per-statement record the audit rows are
-               # checked 1:1 against (snowflake_e2e_check).
-               "ALKERA_SNOWFLAKE_STATEMENT_LOG": "/snowflake-data/statements.jsonl",
+               **({f"ALKERA_{upper}_SEED": SEED_IN_CONTAINER} if b.seeds_world else {}),
+               f"ALKERA_{upper}_DESTINATIONS": f"/audit/{backends.destinations_file(b)}",
+               # The backend's own statement log, in its private volume (never
+               # /audit): the per-statement record the audit rows are checked
+               # 1:1 against (snowflake_e2e_check).
+               f"ALKERA_{upper}_STATEMENT_LOG": f"/{b.name}-data/statements.jsonl",
                **({CLOCK_ENV: clock} if clock else {})}
-        return f"""
-# WAREHOUSE PLUG snowflake: compose.yml's `snowflake` service (compose profile
-# `snowflake`, enabled by compose_env), reachable as snowflake.internal:8443
+        healthcheck = f"""    healthcheck:
+      test: ["CMD", "/usr/local/bin/python", "-c",
+             "import pathlib,sys;sys.exit(0 if any(f[1].endswith(':{b.port:04X}') and f[3]=='0A' for f in (l.split() for l in pathlib.Path('/proc/net/tcp').read_text().splitlines()[1:])) else 1)"]
+      interval: 2s
+      timeout: 5s
+      retries: 90
+      start_period: 5s
+"""
+        if b.name in STATIC_BACKENDS:
+            return f"""
+# WAREHOUSE PLUG {b.name}: compose.yml's `{b.name}` service (compose profile
+# `{b.name}`, enabled by compose_env), reachable as {b.host}:{b.port}
 # (compose.native.yml), seeded from this world's warehouse and audited.
-  snowflake:
+  {b.name}:
     image: {image}
     # Always built (layer-cached): the service runs this working tree's
-    # snowflake_start.py, never a stale image of an older one.
+    # {b.name}_start.py, never a stale image of an older one.
     pull_policy: build
     build:
       args:
@@ -1880,29 +1957,65 @@ class NativeContainerEpisode:
     stop_grace_period: 2s
     environment:{_env_lines(env)}
     volumes:
-      - "{audit}:/audit"
-{seeds}
-    healthcheck:
-      test: ["CMD", "/usr/local/bin/python", "-c",
-             "import pathlib,sys;sys.exit(0 if any(f[1].endswith(':20FB') and f[3]=='0A' for f in (l.split() for l in pathlib.Path('/proc/net/tcp').read_text().splitlines()[1:])) else 1)"]
-      interval: 2s
-      timeout: 5s
-      retries: 90
-      start_period: 5s
-"""
+""" + "\n".join(volumes) + "\n" + healthcheck
+        volumes.insert(1, f"      - {b.name}data:/{b.name}-data")
+        if b.tls:
+            volumes.append(f"      - {b.name}trust:{backends.trust_dir(b)}")
+        seeded = ", seeded from this world's warehouse" if b.seeds_world else ""
+        return f"""
+# BACKEND {b.name} (alkera_gateway.backends): its own container, compose
+# profile `{b.name}` (enabled by compose_env), reachable as {b.host}:{b.port}
+# on episode_net{seeded} and audited.
+  {b.name}:
+    profiles: [{b.name}]
+    image: {image}
+    # Always built (layer-cached) from this working tree, never a stale image.
+    pull_policy: build
+    build:
+      context: ../..
+      dockerfile: gateway/docker/{b.dockerfile}
+      args:
+        BASE: {self.image}
+    stop_grace_period: 2s
+    networks:
+      episode_net:
+        aliases:
+          - {b.host}
+    environment:{_env_lines(env)}
+    volumes:
+""" + "\n".join(volumes) + "\n" + healthcheck
+
+    def backend_volumes(self) -> str:
+        """The top-level `volumes:` the plugged backends' blocks name, "" when
+        there are none: a complete block's private data volume and a TLS
+        backend's trust volume. STATIC_BACKENDS have theirs in compose.yml."""
+        names = []
+        for b in self.plugged_backends():
+            if b.name in STATIC_BACKENDS:
+                continue
+            if not b.hosted:
+                names.append(f"{b.name}data")
+            if b.tls:
+                names.append(f"{b.name}trust")
+        if not names:
+            return ""
+        return "\nvolumes:\n" + "".join(f"  {name}:\n" for name in names)
 
     def fold_destinations(self) -> list[dict]:
-        """Merge the snowflake service's destination counts into
-        destinations.jsonl, by (host, port). native-services rewrites that file
-        whole on every accept, so the second writer keeps its own file until
-        the episode is over; this is the one place they become one log."""
+        """Merge every plugged backend's destination counts
+        (`backends.destinations_file`) into destinations.jsonl, by (host,
+        port). native-services rewrites that file whole on every accept, so a
+        second writer keeps its own file until the episode is over; this is
+        the one place they become one log."""
+        backends = _backends()
         audit = Path(self.audit_dir)
-        extra = audit / SNOWFLAKE_DESTINATIONS
-        if not extra.is_file():
+        extras = [audit / backends.destinations_file(b) for b in self.plugged_backends()]
+        extras = [extra for extra in extras if extra.is_file()]
+        if not extras:
             return []
         main = audit / "destinations.jsonl"
         rows = {}
-        for source in (main, extra):
+        for source in (main, *extras):
             if source.is_file():
                 for line in source.read_text(encoding="utf-8").splitlines():
                     if line.strip():
@@ -1922,6 +2035,13 @@ class NativeContainerEpisode:
         service (profile `notebook`) runs, and the episode is told where."""
         profile = self.environment_profile()
         return profile is not None and "notebook" in profile.slots
+
+    def minio_unstarted(self) -> bool:
+        """A profiled box that plugs no `object_store`: MinIO is not started
+        (`profile_overlay`) and the episode does not wait for it
+        (`write_overlay`). Unprofiled boxes plug the store, as before."""
+        profile = self.environment_profile()
+        return profile is not None and "object_store" not in profile.slots
 
     def profile_variables(self) -> tuple[list[str], dict[str, str]] | None:
         """`(dropped, added)` for a profiled task, None for an unprofiled one.
@@ -1959,12 +2079,22 @@ class NativeContainerEpisode:
             if plug not in plugged:
                 dropped += list(names)
         added: dict[str, str] = {}
-        if "snowflake" in warehouses:
-            # The connector (and dbt-snowflake through it) verifies the proxy's
-            # certificate against this bundle: certifi plus the local CA.
-            added["REQUESTS_CA_BUNDLE"] = SNOWFLAKE_BUNDLE
+        backends = _backends()
+        plugged_backends = self.plugged_backends()
+        for b in plugged_backends:
+            if b.tls:
+                # The clients (the Snowflake connector, and dbt-snowflake
+                # through it) verify the backend's certificate against this
+                # bundle: certifi plus the local CA. One TLS backend at most
+                # (`backends.plugged`), so one bundle.
+                added["REQUESTS_CA_BUNDLE"] = backends.bundle(b)
+            # Its agent-facing variables. A name the static table already
+            # carries (SNOWFLAKE_HOST, AIRFLOW_API_URL, ...) keeps the static
+            # line's position, but with THIS value: `profiled_environment`
+            # lets what the profile plugs win.
+            added.update(b.env)
         for name in profile.services:
-            if name in aut.PLUG_SERVICES:
+            if name in aut.PLUG_SERVICES and name not in backends.BACKENDS:
                 port = aut.PLUG_SERVICES[name][1]
                 added.update(aut.plug_service_env(
                     name, f"http://{name}.internal:{port}"))
@@ -1987,7 +2117,13 @@ class NativeContainerEpisode:
         """
         dropped, added = self.profile_variables()
         static = static_environment(service)
-        kept = {k: v for k, v in static.items() if k not in dropped and k not in own}
+        # What the profile plugs wins over the static table: a plugged
+        # backend's variable that the static table also carries (Airflow's
+        # AIRFLOW_API_URL, served elsewhere once Airflow is a registry backend)
+        # takes the static line's place with the backend's value. Snowflake's
+        # values are the static ones, so its bytes do not move.
+        kept = {k: added.get(k, v) for k, v in static.items()
+                if k not in dropped and k not in own}
         plugged = {k: v for k, v in added.items() if k not in own and k not in kept}
         gone = sorted(set(dropped) & set(static))
         note = textwrap.wrap(
@@ -2009,16 +2145,22 @@ class NativeContainerEpisode:
         An excluded service must not RESOLVE on episode_net, not merely answer
         404 from a native-services process that did not mount it, so the alias
         list is replaced (`!override`) with the profile's own. `sched.internal`
-        stays only when the orchestrator plugs `ops_sched`, `minio.internal`
-        only when the object store is plugged (MinIO keeps running: the episode
-        `depends_on` it, and dropping the alias is what takes it off the
-        network the episode sees). The environment that matches is
-        `profiled_environment`'s.
+        stays only when the orchestrator plugs `ops_sched`. MinIO runs only
+        when the object store is plugged: otherwise it is gated behind a compose
+        profile nothing enables (MINIO_COMPOSE_PROFILE), so it is not started,
+        and `write_overlay` resets the episode's `depends_on: minio`. Dropping
+        only its `minio.internal` alias, which is what this did from 2026-10-04,
+        left the compose name `minio` resolving on episode_net to a MinIO that
+        no receiver audited (gateway/docker/evidence/CONTAINMENT_2026-10-07.md,
+        finding 1). The environment that matches is `profiled_environment`'s.
 
         A plugged BI vendor (`agent_under_test.PLUG_SERVICES`) goes the other
         way: its alias is ADDED to the replaced list, because
         compose.native.yml names no vendor at all - the static file is the
-        unprofiled box.
+        unprofiled box. So is a plugged HOSTED backend's (`backends.Backend`
+        with `hosted=True`, a module inside native-services), and a hosted TLS
+        backend gets its trust volume here, writable, to publish its bundle
+        into (`native.tls.mint`); the episode mounts the same volume read-only.
         """
         profile = self.environment_profile()
         if profile is None:
@@ -2026,11 +2168,12 @@ class NativeContainerEpisode:
         import agent_under_test as aut
 
         with_sched = "ops_sched" in profile.slots.get("orchestrator", ())
-        with_store = "object_store" in profile.slots
         vendors = [name for name in profile.services if name in aut.PLUG_SERVICES]
         aliases = ["native-services.internal",
                    *(f"{name}.internal" for name in profile.services
                      if name in aut.NATIVE_SERVICES or name in vendors)]
+        hosted = [b for b in self.plugged_backends() if b.hosted]
+        aliases += [b.host for b in hosted if b.host not in aliases]
         if with_sched:
             aliases.append("sched.internal")
         alias_lines = "\n".join(f"          - {a}" for a in aliases)
@@ -2045,13 +2188,57 @@ class NativeContainerEpisode:
         aliases: !override
 {alias_lines}
 """
-        if not with_store:
-            body += """  minio:
-    networks:
-      episode_net:
-        aliases: !reset []
+        engines = [b for b in hosted if b.name in HOSTED_ENGINES]
+        if engines:
+            body += "      backend_net: {}\n"
+        trust = [b for b in hosted if b.tls]
+        if trust:
+            body += "    volumes:\n" + "".join(
+                f"      - {b.name}trust:{_backends().trust_dir(b)}\n" for b in trust)
+        if engines:
+            body += self.engine_overlay(engines)
+        if self.minio_unstarted():
+            body += f"""
+# NO OBJECT STORE: this profile plugs no object_store, so MinIO is NOT STARTED.
+# Its compose profile `{MINIO_COMPOSE_PROFILE}` is one nothing enables, and the
+# episode's `depends_on: minio` is reset above. A service that does not run
+# cannot be resolved or reached from any container of this project; with only
+# its alias gone, the compose name `minio` still resolved, and no receiver
+# audited what reached it (CONTAINMENT_2026-10-07.md, finding 1).
+  minio:
+    profiles: [{MINIO_COMPOSE_PROFILE}]
 """
         return body
+
+    def engine_overlay(self, engines) -> str:
+        """The rest of native-services' block for plugged HOSTED_ENGINES
+        backends - each engine's address (`ALKERA_<NAME>_UPSTREAM`, which the
+        module forwards to and seeds through at import) and the start order -
+        then each engine's own block. The engine has no healthcheck (goccy's
+        image has no shell to run one in, and a probe would be a dial): it only
+        has to be STARTED, because the module polls it before seeding and
+        native-services binds nothing until the seed is in."""
+        text = "    environment:\n" + "".join(
+            f"      ALKERA_{b.name.upper()}_UPSTREAM: "
+            f"http://{HOSTED_ENGINES[b.name][0]}:{HOSTED_ENGINES[b.name][1]}\n"
+            for b in engines)
+        text += "    depends_on:\n" + "".join(
+            f"      {HOSTED_ENGINES[b.name][0]}:\n        condition: service_started\n"
+            for b in engines)
+        for b in engines:
+            service, _, command = HOSTED_ENGINES[b.name]
+            args = ", ".join(json.dumps(arg.format(**b.env)) for arg in command)
+            text += f"""
+# HOSTED ENGINE {b.name}: compose.yml's `{service}` service (compose profile
+# `{service}`, enabled by compose_env), on backend_net only. The episode reaches
+# it through the audited proxy in native-services, {b.host}:{b.port}.
+  {service}:
+    command: [{args}]
+    networks:
+      backend_net:
+        aliases: !reset []
+"""
+        return text
 
     def write_overlay(self) -> Path:
         """The per-rollout overlay: warehouse binds, shim PATH, the world's
@@ -2068,6 +2255,8 @@ class NativeContainerEpisode:
                 f"the world at {self.world_root} declares no warehouse file "
                 f"under {WAREHOUSE_REL_DIR}/; with nothing to mount the episode "
                 f"container would have no warehouse at all")
+        # Asked first: a profile that plugs two TLS backends stops here.
+        plugged_backends = self.plugged_backends()
         notebook = self.notebook_plugged()
         clock = world_clock(self.world)
         # The shim watches the same files it cannot see through the workspace
@@ -2096,10 +2285,20 @@ class NativeContainerEpisode:
             f'      - "{(self.world_root / rel).as_posix()}:'
             f'{WORLD_IN_CONTAINER}/{rel}"'
             for rel in self.warehouses)
-        snowflake = self.snowflake_plugged()
-        if snowflake:
-            # Public certificates only (the key stays in the snowflake service).
-            binds += f"\n      - snowflaketrust:{SNOWFLAKE_TRUST}:ro"
+        for b in plugged_backends:
+            if b.tls:
+                # Public certificates only (the key stays with the backend).
+                binds += f"\n      - {b.name}trust:{_backends().trust_dir(b)}:ro"
+        containers = [b for b in plugged_backends if not b.hosted]
+        waits = "".join(f"      {b.name}:\n        condition: service_healthy\n"
+                        for b in containers)
+        if self.minio_unstarted():
+            # Not started on this box (`profile_overlay`), so not waited for.
+            # `!reset` on this one key, measured with `docker compose config`
+            # on Compose v5.6.0: the entry is gone and the rest of the static
+            # mapping (postgres, native-services) stays.
+            waits += "      minio: !reset null\n"
+        depends_on = "    depends_on:\n" + waits if waits else ""
         body = f"""# Generated per rollout by tasks/harness/container_episode.py. Do not edit:
 # it is rewritten on every `up()` and is kept here as the record of which host
 # files this episode's container could see.
@@ -2137,10 +2336,8 @@ services:
 {environment("episode", episode_own)}
     volumes:
 {binds}
-""" + ("""    depends_on:
-      snowflake:
-        condition: service_healthy
-""" if snowflake else "") + self.profile_overlay() + self.snowflake_overlay(clock)
+""" + depends_on + self.profile_overlay() + "".join(
+            self.backend_overlay(b, clock) for b in plugged_backends)
         if notebook:
             # The kernel is the agent's own interpreter in a second container,
             # so it gets the box the shell gets: the shim PATH (a `!duckdb` in a
@@ -2155,6 +2352,7 @@ services:
     volumes:
 {binds}
 """
+        body += self.backend_volumes()
         self.container_dir.mkdir(parents=True, exist_ok=True)
         with open(self.overlay, "w", encoding="utf-8", newline="") as stream:
             stream.write(body)
@@ -2162,6 +2360,16 @@ services:
 
     # ------------------------------------------------------------- lifecycle
     def compose_env(self) -> dict:
+        # compose profile `notebook` starts the `jupyter` service, and each
+        # plugged backend with a container of its own starts under its name
+        # (compose profile `snowflake` for compose.yml's stanza, the profile
+        # `backend_overlay` declares for any other). A hosted backend whose
+        # engine is a compose.yml service (HOSTED_ENGINES: BigQuery's emulator)
+        # starts that service under its profile.
+        profiles = [name for name, on in (("notebook", self.notebook_plugged()),)
+                    if on] + [b.name for b in self.plugged_backends() if not b.hosted] + [
+            HOSTED_ENGINES[b.name][0] for b in self.plugged_backends()
+            if b.hosted and b.name in HOSTED_ENGINES]
         return {
             **os.environ,
             "ALKERA_EPISODE_WORLD": self.world_root.as_posix(),
@@ -2173,23 +2381,22 @@ services:
             "ALKERA_EPISODE_IMAGE": self.image,
             "ALKERA_SUBJECT_IMAGE": self.subject_image,
             "ALKERA_REXEC_TOKEN": self.rexec_token,
+            # MinIO's webhook sends it and native-services' receiver requires
+            # it (compose.native.yml interpolates it into those two services
+            # only). Set on every stack; a box with no object store runs
+            # neither, and the value goes unused.
+            MINIO_AUDIT_TOKEN_ENV: self.minio_audit_token,
             # `--profile ... --plug ...` on the native-services command line
             # (compose.native.yml). Always set, so an empty value from this
             # process and not one inherited from the caller's shell is what an
             # unprofiled stack runs with.
             "ALKERA_NATIVE_PROFILE_ARGS": shlex.join(
                 episode.profile_argv(self.profile, self.plugs)),
-            # compose profile `notebook` starts the `jupyter` service; set only
-            # when the environment profile plugs it, appended to whatever the
-            # caller's shell already enables.
-            # compose profile `snowflake` starts the Snowflake service the
-            # same way, for a profile whose warehouse slot plugs it.
+            # Set only when the environment profile plugs one of `profiles`,
+            # appended to whatever the caller's shell already enables.
             **({"COMPOSE_PROFILES": ",".join(
                 [p for p in os.environ.get("COMPOSE_PROFILES", "").split(",") if p]
-                + [name for name, on in (("notebook", self.notebook_plugged()),
-                                         ("snowflake", self.snowflake_plugged()))
-                   if on])}
-               if self.notebook_plugged() or self.snowflake_plugged() else {}),
+                + profiles)} if profiles else {}),
         }
 
     def _compose(self, *args, check: bool = True, timeout: int = 900):
@@ -2260,6 +2467,24 @@ services:
             self.gate = None
         if not self._up:
             return
+        # FIRST, while every container is still up: the Postgres server's
+        # statement log becomes `psql.statement` rows (postgres_live). The
+        # tailer appends through native.audit.record, which takes each `seq`
+        # under <audit>/writer.lock like every other writer, so the sequence
+        # stays contiguous; the rows are in actions.jsonl before ownership is
+        # handed back, before `compose down -v` deletes the log with its
+        # volume, and before destinations are folded or a grader reads /audit.
+        # Whatever it raises (a timed-out `docker exec` included) is kept, not
+        # thrown: the rest of the teardown always runs, and the error is raised
+        # once the stack is gone.
+        import postgres_live
+
+        try:
+            self.postgres_statements = postgres_live.fold_statement_log(
+                self, clock=world_clock(self.world))
+        except Exception as exc:  # noqa: BLE001 - raised below, after teardown
+            self.postgres_statements = {"rows": None,
+                                        "error": f"{type(exc).__name__}: {exc}"}
         if self.proxy_container:
             # Every connection the subject tried to make off the box, kept
             # beside the mounts overlay as part of the rollout's record.
@@ -2277,9 +2502,15 @@ services:
                       check=False, timeout=300)
         # AFTER down: native-services rewrites destinations.jsonl once more
         # from its signal handler, so a fold before it would be overwritten.
-        if self.snowflake_plugged():
+        if self.plugged_backends():
             self.destinations_folded = self.fold_destinations()
         self._up = False
+        if self.postgres_statements.get("error"):
+            # Loud, and only once the stack is gone: an action log missing the
+            # Postgres statements is not this rollout's record.
+            raise ContainerError(
+                f"postgres statement log not folded into the action log: "
+                f"{self.postgres_statements['error']}")
 
     def exec_(self, argv: list[str], *, check: bool = True, timeout: int = 300,
               env: dict | None = None,
@@ -2320,6 +2551,13 @@ services:
                                  if p.strip())
         record["home"] = self._copy_home()
         record["dbt_profiles_rerooted"] = self._stage_profiles()
+        # The world's warehouse.* into Postgres, only for a profile that plugs
+        # it (postgres_live.seed); an unprofiled box's server stays compose's.
+        import postgres_live
+
+        seeded = postgres_live.seed(self)
+        if seeded is not None:
+            record["postgres_seed"] = seeded
         return record
 
     def _copy_home(self) -> list[str]:
@@ -2353,12 +2591,25 @@ services:
         A world whose `profiles_dir` holds no `profiles.yml` gets nothing, and
         the dbt surface is then dead for the same reason it is dead on the host
         - which is the correct answer, not a gap this method should paper over.
+
+        A profile that plugs a backend with a dbt adapter (Snowflake) gets the
+        BOX profile instead (`world.native_workspace.box_profiles_yaml`): the
+        same re-rooted DuckDB targets, plus a target for the backend that is
+        the default, so a bare `dbt` on a Snowflake box talks to Snowflake.
+        Anything else is staged byte for byte as before.
         """
         source = Path(self.world.get("profiles_dir") or "") / "profiles.yml"
         if not source.is_file():
             return []
         rewritten, moved = reroot_profiles(source.read_text(encoding="utf-8"),
                                            self.world_root)
+        plugged = [b.name for b in self.plugged_backends()]
+        if plugged:
+            if str(episode.TRACK_A) not in sys.path:
+                sys.path.insert(0, str(episode.TRACK_A))
+            from world.native_workspace import box_profiles_yaml
+
+            rewritten = box_profiles_yaml(rewritten, plugged)
         staged = self.container_dir / "profiles.yml"
         self.container_dir.mkdir(parents=True, exist_ok=True)
         with open(staged, "w", encoding="utf-8", newline="") as stream:

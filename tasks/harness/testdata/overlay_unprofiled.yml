@@ -1,0 +1,44 @@
+# Generated per rollout by tasks/harness/container_episode.py. Do not edit:
+# it is rewritten on every `up()` and is kept here as the record of which host
+# files this episode's container could see.
+#
+# Three things compose.native.yml cannot say statically:
+#
+#   1. THE WAREHOUSE FILES. Their names and their number come from the world
+#      this rollout built (1 here), read by the same rule
+#      world/world/fingerprint.py hashes by. Each is bound as a FILE at its own
+#      world-relative path, so `/world/var/warehouse` is a directory of
+#      the CONTAINER's - and a `cp` beside the warehouse, which is what two of
+#      five GT001 native subjects did before deleting rows, lands there instead
+#      of in the world.
+#   2. THE SHIM PATH, and the CONTEXT VARIANT. The shims go in front of the
+#      image's own PATH, which is read off the image so /opt/toolbelt/bin
+#      survives; `ALKERA_TASK_VARIANT` appears only when this world was built
+#      from an arm, because an empty value is still a value to
+#      `taskspec.requested_variant`.
+#   3. THE WORLD'S CLOCK. `ALKERA_VIRTUAL_TIME` is this world's `vnow` as the
+#      episode starts, so the rows the shims and the notebook kernel write
+#      carry the world's time and not GatewayConfig's literal: `var/sched`,
+#      where the host topology reads it, is not mounted here (P7).
+#
+# NOT here, and it was here for one afternoon: published host ports. Both
+# compose networks are `internal: true`, and Docker cannot publish a host port
+# off an internal network - the bindings appear in `HostConfig.PortBindings`
+# and nothing ever listens. Measured: GT004's first container rollout failed
+# its surface gate with `WinError 10061` on all nine services while
+# `docker inspect` reported all nine mappings. The harness reaches the services
+# through `container_episode.ServiceGate` instead, one `docker exec` per
+# connection, and `published_host_ports: {}` stays true for every container
+# in the project.
+services:
+  episode:
+    environment:
+      PATH: "/opt/alkera/shims:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/toolbelt/bin"
+      ALKERA_SHIM_BIN: "/opt/alkera/shims"
+      ALKERA_SHIM_WATCH: "/world/var/warehouse/warehouse.duckdb"
+      ALKERA_SHIM_WORKSPACE: "/workspace"
+      ALKERA_WORKSPACE: "/workspace"
+      ALKERA_VIRTUAL_TIME: "2026-03-05T00:00:00Z"
+      ALKERA_TASK_VARIANT: "default"
+    volumes:
+      - "/rollouts/r0/world/var/warehouse/warehouse.duckdb:/world/var/warehouse/warehouse.duckdb"

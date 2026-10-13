@@ -1,0 +1,185 @@
+{
+  "containers": [
+    [
+      "episode",
+      {
+        "episode_net": "10.210.1.7"
+      },
+      {
+        "episode_net": [
+          "alkera-p6c-da-snowflake-episode-1",
+          "episode"
+        ]
+      }
+    ],
+    [
+      "snowflake",
+      {
+        "backend_net": "10.210.2.3",
+        "episode_net": "10.210.1.5"
+      },
+      {
+        "backend_net": [
+          "acme.snowflake.local",
+          "alkera-p6c-da-snowflake-snowflake-1",
+          "snowflake"
+        ],
+        "episode_net": [
+          "alkera-p6c-da-snowflake-snowflake-1",
+          "snowflake",
+          "snowflake.internal"
+        ]
+      }
+    ],
+    [
+      "postgres",
+      {
+        "backend_net": "10.210.2.4",
+        "episode_net": "10.210.1.6"
+      },
+      {
+        "backend_net": [
+          "alkera-p6c-da-snowflake-postgres-1",
+          "postgres"
+        ],
+        "episode_net": [
+          "alkera-p6c-da-snowflake-postgres-1",
+          "postgres",
+          "postgres.internal"
+        ]
+      }
+    ],
+    [
+      "native-services",
+      {
+        "episode_net": "10.210.1.2"
+      },
+      {
+        "episode_net": [
+          "alkera-p6c-da-snowflake-native-services-1",
+          "confluence.internal",
+          "jira.internal",
+          "native-services",
+          "native-services.internal",
+          "sigma.internal",
+          "slack.internal"
+        ]
+      }
+    ],
+    [
+      "jupyter",
+      {
+        "episode_net": "10.210.1.4"
+      },
+      {
+        "episode_net": [
+          "alkera-p6c-da-snowflake-jupyter-1",
+          "jupyter",
+          "jupyter.internal"
+        ]
+      }
+    ],
+    [
+      "minio",
+      {
+        "backend_net": "10.210.2.2",
+        "episode_net": "10.210.1.3"
+      },
+      {
+        "backend_net": [
+          "alkera-p6c-da-snowflake-minio-1",
+          "minio"
+        ],
+        "episode_net": [
+          "alkera-p6c-da-snowflake-minio-1",
+          "minio"
+        ]
+      }
+    ]
+  ],
+  "destinations": [
+    {
+      "count": 0,
+      "first_ts": null,
+      "host": "jira.internal",
+      "last_ts": null,
+      "port": 8080
+    },
+    {
+      "count": 0,
+      "first_ts": null,
+      "host": "slack.internal",
+      "last_ts": null,
+      "port": 8081
+    },
+    {
+      "count": 0,
+      "first_ts": null,
+      "host": "confluence.internal",
+      "last_ts": null,
+      "port": 8090
+    },
+    {
+      "count": 0,
+      "first_ts": null,
+      "host": "sigma.internal",
+      "last_ts": null,
+      "port": 8097
+    },
+    {
+      "count": 0,
+      "first_ts": null,
+      "host": "native-services.internal",
+      "last_ts": null,
+      "port": 8099
+    }
+  ],
+  "environment_profile": "da/snowflake",
+  "generated": "2026-10-07T17:50:24+00:00",
+  "image": "alkera-episode:p6-da-snowflake",
+  "minio_from_episode": {
+    "aws_env": [],
+    "list_buckets": [
+      "alkera"
+    ],
+    "listed": [
+      "p6-door-probe.txt"
+    ],
+    "ok": true,
+    "read_back": "p6-door",
+    "resolve": {
+      "minio": [
+        "10.210.1.3"
+      ],
+      "minio.internal": "gaierror"
+    }
+  },
+  "minio_log_tail": [
+    "INFO: Formatting 1st pool, 1 set(s), 1 drives per set.",
+    "INFO: WARNING: Host local has more than 0 drives of set. A host failure will result in data becoming unavailable.",
+    "MinIO Object Storage Server",
+    "Copyright: 2015-2026 MinIO, Inc.",
+    "License: GNU AGPLv3 - https://www.gnu.org/licenses/agpl-3.0.html",
+    "Version: RELEASE.2026-08-04T00-00-00Z (go1.26.5 linux/amd64)",
+    "",
+    "API: http://10.210.1.3:9000  http://10.210.2.2:9000  http://127.0.0.1:9000 ",
+    "WebUI: http://10.210.1.3:36875 http://10.210.2.2:36875 http://127.0.0.1:36875  ",
+    "",
+    "Docs: https://silo.pgsty.com/docs/",
+    "",
+    "API: SYSTEM.config",
+    "Time: 17:50:47 UTC 10/07/2026",
+    "DeploymentID: 5aedcc9f-adfb-4460-807b-aa2246337022",
+    "Error: unable to send log entry to 'minio-http-audit-alkera' err 'http://native-services.internal:8110/minio/audit returned 'Post \"http://native-services.internal:8110/minio/audit\": dial tcp 10.210.1.2:8110: connect: connection refused', please check your endpoint configuration' (*fmt.wrapError)",
+    "       6: internal/logger/logonce.go:64:logger.(*logOnceType).logOnceConsoleIf()",
+    "       5: internal/logger/logonce.go:157:logger.LogOnceConsoleIf()",
+    "       4: cmd/logging.go:132:cmd.configLogOnceConsoleIf()",
+    "       3: internal/store/store.go:151:store.sendItems.func1()",
+    "       2: internal/store/store.go:174:store.sendItems()",
+    "       1: internal/store/store.go:187:store.StreamItems[...].func1()"
+  ],
+  "minio_rows_written": [],
+  "plugs": {},
+  "project": "alkera-p6c-da-snowflake",
+  "rows_written_during_the_minio_calls": []
+}

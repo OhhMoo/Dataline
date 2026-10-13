@@ -369,15 +369,11 @@ def _claimed(value) -> list:
 
 def _on_branches(workspace: Path, rel: str) -> list[bytes | None]:
     """`rel` as each local branch other than HEAD's holds it (None: absent).
-    A change prepared on a branch is a change (the decision arm's fix)."""
-    import subprocess
-
-    out = []
-    for branch in E.other_branches(Path(workspace)):
-        r = subprocess.run(["git", "-c", "safe.directory=*", "-C", str(workspace), "show",
-                            f"{branch}:{rel}"], capture_output=True, timeout=60)
-        out.append(r.stdout if r.returncode == 0 else None)
-    return out
+    A change prepared on a branch is a change (the decision arm's fix). Read
+    with alkera_gateway.safegit (pbi_eval.ref_file), never `git show`: the
+    agent owns the repository's .git, and branch names are the agent's too."""
+    return [E.ref_file(Path(workspace), branch, rel)
+            for branch in E.other_branches(Path(workspace))]
 
 
 def check_claims(artifact: Path, workspace: Path, grading: Path, state: dict | None,

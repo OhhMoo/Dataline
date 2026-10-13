@@ -40,6 +40,7 @@ from .constants import (AGENT_HOME, AUDIT_IN_CONTAINER, GRADING_IN_VERIFIER, REP
                         WORKSPACE_IN_CONTAINER, WORLD_IN_CONTAINER)
 from .naming import ArmRef
 from .reroot import EXPORT_MARKER, LeakError, Rerooter, iter_files
+from .variant import UNPROFILED, Variant, variant_of
 
 #: Where `taskspec.stage_fixtures` puts overlay trees inside a Linux container
 #: with the default TMPDIR (the verifier re-stages there at grade time).
@@ -52,6 +53,17 @@ GATEWAY_CONFIG_IN_CONTAINER = "/opt/alkera/gateway.json"
 #: audit files are readable by the agent, and rollout.py stopped writing the
 #: task name there because it hands over the defect mechanism.
 GATEWAY_EPISODE_ID = "native-harbor"
+#: Where the image keeps the services' own state (the environment runtime's
+#: SERVICE_STATE). A profiled task's gateway config is written with
+#: `service_state=True` (the harness's rollout layout: `<rollout>/service-state`,
+#: tasks/harness/bistate.py), and that directory is re-rooted here.
+SERVICE_STATE_IN_CONTAINER = "/var/lib/alkera/service-state"
+#: Build caches the world builder's own dbt runs leave in the world, which the
+#: re-rooter cannot rewrite (binary, holding the build's absolute paths) and no
+#: reader needs: dbt re-parses when its cache does not match the project, as it
+#: does in the measured topology, where the world is mounted at another path
+#: than the one it was built at. Not hashed by world/world/fingerprint.py.
+DROPPED_BUILD_CACHES = ("partial_parse.msgpack",)
 
 
 class StageError(Exception):
@@ -72,6 +84,11 @@ class StagedArm:
     shim_watch: str
     gateway_config: Path         # episode.write_gateway_config output, re-rooted
     records: dict = field(default_factory=dict)
+    #: The agent image's variant (variant.py): UNPROFILED for GT001-GT009.
+    variant: Variant = UNPROFILED
+    #: The world's clock as the episode starts (container_episode.world_clock),
+    #: exported as ALKERA_VIRTUAL_TIME for profiled tasks; None otherwise.
+    clock: str | None = None
     #: What Harbor's packager loses (`harbor publish` archives FILES only, every
     #: one mode 0644): container paths of empty directories and of executable
     #: files, for the image (world-up / world-seal) and the verifier to restore.
@@ -180,31 +197,89 @@ def _stage(ref: ArmRef, temp: Path, m, log) -> StagedArm:
         spec = m.taskspec.load(ref.task_id, variant=ref.arm)
         if spec.variant != ref.arm:
             raise StageError(f"{ref.selector}: taskspec resolved arm {spec.variant!r}")
+        # the image variant first: a profile the image cannot serve is refused
+        # before anything is built (variant.py's fences)
+        variant = variant_of(spec)
         records["prepare_s"] = _prepare(spec, log)
         started = time.time()
         world = m.episode.build_world(spec, world_root, grading)
         records["build_s"] = round(time.time() - started, 1)
+        clock = m.container_episode.world_clock(world) if variant.profiled else None
+        stage_native(world, variant, label=ref.selector, records=records, m=m)
 
-        # --- step 3: the container-native staging, in rollout.py's order
-        cli = m.native_stack.install_workspace_cli(world, topology="container")
-        records["workspace_cli"] = {k: cli[k] for k in ("cli", "topology",
-                                                         "interpreter", "pythonpath")}
+    def compose_prompt(world: dict) -> str:
+        # --- step 4: the prompt, from the HOST world, as aut.run composes it
+        return m.aut.build_prompt(
+            spec.instruction, {}, spec.artifact_in_world,
+            spec.max_tool_calls, spec.wall_clock_seconds, "native",
+            redteam=False, shell=False,
+            workspace=world.get("workspace"), profiles_dir=world.get("profiles_dir"),
+            container_shell=True, home=AGENT_HOME)
+
+    staged = stage_built_world(world, rollout, variant=variant, profile=spec.profile,
+                               plugs=spec.plugs, label=ref.selector, records=records,
+                               compose_prompt=compose_prompt, temp=temp, m=m)
+    return StagedArm(ref=ref, spec=spec, temp=temp, variant=variant, clock=clock, **staged)
+
+
+def stage_native(world: dict, variant: Variant, *, label: str, records: dict,
+                 m=None) -> None:
+    """Step 3: the container-native staging of a built world, in rollout.py's
+    order: the workspace CLI baked for the container, the discovery files, the
+    sanitised world files. Writes what it did into `records`. `m` is the
+    harness modules `_stage` was handed (default harness.modules())."""
+    m = m or harness.modules()
+    world_root = Path(world["world_root"])
+    cli = m.native_stack.install_workspace_cli(world, topology="container")
+    records["workspace_cli"] = {k: cli[k] for k in ("cli", "topology",
+                                                     "interpreter", "pythonpath")}
+    if variant.profiled:
+        # A profiled world is built `native: true` under its profile and
+        # carries ITS OWN discovery files: .envrc and docs/onboarding.md
+        # committed in its repository, home/.config/alkera/services.toml in
+        # its fingerprinted home - the measured inputs, kept byte for byte
+        # (stage_discovery keeps them only when given no `home`).
+        # write_for_built_world knows no profile: it would put the
+        # unprofiled box's nine services there, dirty the repository and
+        # move the world's `home` fingerprint section.
+        discovery = m.native_stack.stage_discovery(world)
+        if not discovery.get("kept"):
+            raise StageError(
+                f"{label}: profile {variant.profile!r}, but the world carries "
+                f"no discovery files of its own (var/world/profile.json and "
+                f"home/.config/alkera/services.toml): the box would describe the "
+                f"unprofiled stack")
+        records["discovery_kept"] = discovery["kept"]
+    else:
         discovery = m.native_stack.stage_discovery(world, home=AGENT_HOME)
-        records["discovery"] = sorted(Path(f).relative_to(world_root).as_posix()
-                                      for f in discovery["files"])
-        records["sanitized"] = m.native_stack.sanitize_world_files(world)
+    records["discovery"] = sorted(Path(f).relative_to(world_root).as_posix()
+                                  for f in discovery["files"])
+    records["sanitized"] = m.native_stack.sanitize_world_files(world)
 
-    # --- step 4: the prompt, from the HOST world, as aut.run composes it
-    prompt = m.aut.build_prompt(
-        spec.instruction, {}, spec.artifact_in_world,
-        spec.max_tool_calls, spec.wall_clock_seconds, "native",
-        redteam=False, shell=False,
-        workspace=world.get("workspace"), profiles_dir=world.get("profiles_dir"),
-        container_shell=True, home=AGENT_HOME)
+
+def stage_built_world(world: dict, rollout: Path, *, variant: Variant,
+                      profile: str | None, plugs: dict | None, label: str,
+                      records: dict, compose_prompt=None,
+                      temp: Path | None = None, m=None) -> dict:
+    """Steps 4-6 for a world built under `rollout` (`world/` and `grading/`
+    siblings) and staged by `stage_native`: build caches dropped, the prompt
+    (`compose_prompt(world)`, "" without one), the services' gateway config
+    (with `profile` and `plugs` for a profiled variant), the episode HOME, the
+    workspace moved out, git normalised, every host path re-rooted. Returns
+    StagedArm's fields that describe the world (`temp`, default the rollout's
+    parent, is a leak needle; `m` as for stage_native)."""
+    m = m or harness.modules()
+    world_root, grading = rollout / "world", rollout / "grading"
+    temp = Path(temp) if temp is not None else rollout.parent
+    # profiled worlds only (theme worlds whose build ran dbt), so an unprofiled
+    # export is unchanged by construction: a cache there still fails the leak gate
+    records["dropped_build_caches"] = (drop_build_caches([world_root, grading])
+                                       if variant.profiled else [])
+    prompt = compose_prompt(world) if compose_prompt else ""
 
     warehouses = m.container_episode.warehouse_mounts(world)
     if not warehouses:
-        raise StageError(f"{ref.selector}: the world declares no warehouse file "
+        raise StageError(f"{label}: the world declares no warehouse file "
                          f"under var/warehouse/; the container would have none")
     shim_watch = ":".join(f"{m.container_episode.WORLD_IN_CONTAINER}/{rel}"
                           for rel in warehouses)
@@ -214,13 +289,40 @@ def _stage(ref: ArmRef, temp: Path, m, log) -> StagedArm:
     # native_stack.NativeStack._config_path writes on the host): serve.py's
     # fixed-layout default cannot see planes or a second warehouse a task
     # publishes only in its manifest (GT008's legacy warehouse).
+    # A profiled task's config names its profile and plugs (as rollout.py's
+    # and NativeStack's do) and keeps the vendors' state in the rollout's
+    # service-state directory, re-rooted below to the image's private one. An
+    # unprofiled config is the bytes it always was.
+    profiled = {"profile": profile, "plugs": dict(plugs or {}),
+                "service_state": True} if variant.profiled else {}
     gateway_config = m.episode.write_gateway_config(
         rollout / "gateway.json", world, rollout / "audit", GATEWAY_EPISODE_ID,
-        world.get("virtual_time") or "")
+        world.get("virtual_time") or "", **profiled)
+    if variant.profiled:
+        refused = gateway_refuses_profile(Path(gateway_config), label)
+        if refused:
+            # The services select what they serve from serve.py's --profile/--plug
+            # (episode.json); the config's profile only filters the MCP tool table
+            # and is validated against the config's own warehouse_backend, which
+            # names how the GATEWAY reaches the warehouse - the world's DuckDB file
+            # here, whatever remote copy a backend serves the agent. A config that
+            # names a remote warehouse plug was refused by every service at its
+            # first request (a 500), so it does not name the profile.
+            # KEPT after the shared fix: the services now read their config with
+            # GatewayConfig.for_services (gateway/src/alkera_gateway/config.py),
+            # which accepts such a config, so a gateway built from this tree no
+            # longer needs the drop. Removing it would change the exported
+            # gateway.json of every da/snowflake, de/postgres and de/gcp variant
+            # (it would gain `profile`/`plugs`), and an image whose gateway predates
+            # the fix would answer 500 again - so it stays until those are rebuilt.
+            gateway_config = m.episode.write_gateway_config(
+                rollout / "gateway.json", world, rollout / "audit", GATEWAY_EPISODE_ID,
+                world.get("virtual_time") or "", service_state=True)
+            records["gateway_profile_dropped"] = refused
 
     wals = [p.relative_to(rollout).as_posix() for p in rollout.rglob("*.wal")]
     if wals:
-        raise StageError(f"{ref.selector}: uncheckpointed DuckDB WAL files in the "
+        raise StageError(f"{label}: uncheckpointed DuckDB WAL files in the "
                          f"built world: {wals}")
 
     # --- step 5: the episode HOME (/home/engineer)
@@ -233,6 +335,11 @@ def _stage(ref: ArmRef, temp: Path, m, log) -> StagedArm:
     if world.get("profiles_dir") and profiles.is_file():
         rewritten, moved = m.container_episode.reroot_profiles(
             profiles.read_text(encoding="utf-8"), world_root)
+        # A profile that plugs a registry backend with a dbt adapter gets the
+        # BOX profile, as container_episode._stage_profiles stages it: the same
+        # re-rooted targets plus the backend's, made the default. Nothing to
+        # add (every unprofiled world, the da/laptop worlds) is the same bytes.
+        rewritten = box_profile(rewritten, variant)
         (home / ".dbt").mkdir(parents=True, exist_ok=True)
         with open(home / ".dbt" / "profiles.yml", "w", encoding="utf-8",
                   newline="") as stream:
@@ -245,7 +352,7 @@ def _stage(ref: ArmRef, temp: Path, m, log) -> StagedArm:
     workspace = rollout / "workspace"
     host_workspace = Path(world["workspace"])
     if host_workspace.resolve() != (world_root / "workspace").resolve():
-        raise StageError(f"{ref.selector}: the workspace is not <world>/workspace "
+        raise StageError(f"{label}: the workspace is not <world>/workspace "
                          f"({host_workspace}); the container layout needs it there")
     shutil.move(str(world_root / "workspace"), str(workspace))
     records["git"] = [normalize_git(git_dir) for git_dir in
@@ -258,6 +365,8 @@ def _stage(ref: ArmRef, temp: Path, m, log) -> StagedArm:
         (str(world_root), WORLD_IN_CONTAINER),
         (str(grading), GRADING_IN_VERIFIER),
         (str(rollout / "audit"), AUDIT_IN_CONTAINER),
+        *[(str(state), SERVICE_STATE_IN_CONTAINER) for state in
+          dict.fromkeys([rollout / "service-state", rollout.resolve() / "service-state"])],
     ]
     env_rerooter = Rerooter(env_map)
     grading_rerooter = Rerooter(env_map + [
@@ -270,14 +379,14 @@ def _stage(ref: ArmRef, temp: Path, m, log) -> StagedArm:
     json.loads(rerooted)                                  # still valid JSON
     Path(gateway_config).write_text(rerooted, encoding="utf-8", newline="")
     changed["gateway_config"] = ["gateway.json"] if rerooted != text else []
-    for label, directory, rerooter in (("world", world_root, env_rerooter),
-                                       ("workspace", workspace, env_rerooter),
-                                       ("home", home, env_rerooter),
-                                       ("grading", grading, grading_rerooter)):
+    for part, directory, rerooter in (("world", world_root, env_rerooter),
+                                      ("workspace", workspace, env_rerooter),
+                                      ("home", home, env_rerooter),
+                                      ("grading", grading, grading_rerooter)):
         try:
-            changed[label] = rerooter.tree(directory)
+            changed[part] = rerooter.tree(directory)
         except LeakError as exc:
-            raise StageError(f"{ref.selector}: {label}/{exc}") from None
+            raise StageError(f"{label}: {part}/{exc}") from None
     records["rerooted_files"] = changed
     restore = restore_lists([(world_root, WORLD_IN_CONTAINER),
                              (workspace, WORKSPACE_IN_CONTAINER),
@@ -287,13 +396,67 @@ def _stage(ref: ArmRef, temp: Path, m, log) -> StagedArm:
     leftover = [n for n in env_rerooter.needles + [str(temp), EXPORT_MARKER]
                 if n in json.dumps(container_world)]
     if leftover:
-        raise StageError(f"{ref.selector}: the world manifest still names host "
+        raise StageError(f"{label}: the world manifest still names host "
                          f"paths after re-rooting: {leftover}")
-    return StagedArm(ref=ref, spec=spec, temp=temp, world=container_world,
-                     world_dir=world_root, workspace_dir=workspace, home_dir=home,
-                     grading_dir=grading, prompt=prompt, shim_watch=shim_watch,
-                     gateway_config=Path(gateway_config), records=records,
-                     restore=restore)
+    return {"world": container_world, "world_dir": world_root,
+            "workspace_dir": workspace, "home_dir": home, "grading_dir": grading,
+            "prompt": prompt, "shim_watch": shim_watch,
+            "gateway_config": Path(gateway_config), "records": records,
+            "restore": restore}
+
+
+#: GatewayConfig's one refusal a profiled services config may hit by design: a
+#: remote warehouse plug against the gateway's own (DuckDB) warehouse_backend.
+#: The MCP gateway's rule (`GatewayConfig.load`); the services no longer apply
+#: it (`GatewayConfig.for_services`) - see stage_built_world for why the
+#: exporter still does.
+GATEWAY_PROFILE_REFUSAL = "disagrees with warehouse_backend"
+
+
+def gateway_refuses_profile(config: Path, label: str) -> str | None:
+    """None when the services would load `config` (GatewayConfig, the model
+    every service validates at its first request); the reason when it refuses
+    the profile's warehouse plug; StageError for any other refusal - a config
+    the services cannot load is an export error, never a task."""
+    harness.modules()
+    from alkera_gateway.config import GatewayConfig
+
+    try:
+        GatewayConfig.load(config)
+    except ValueError as exc:
+        reason = str(exc)
+        if GATEWAY_PROFILE_REFUSAL in reason:
+            return " ".join(line.strip() for line in reason.splitlines()
+                            if GATEWAY_PROFILE_REFUSAL in line)
+        raise StageError(f"{label}: the services' gateway config does not load: "
+                         f"{reason[-800:]}") from None
+    return None
+
+
+def box_profile(rerooted: str, variant: Variant) -> str:
+    """`world.native_workspace.box_profiles_yaml` over the re-rooted world
+    profile, for the backends `variant` plugs; the input unchanged when it
+    plugs none (`box_profiles_yaml` itself returns its input then)."""
+    if not variant.backends:
+        return rerooted
+    harness.modules()                                  # world/ on sys.path
+    from world.native_workspace import box_profiles_yaml
+
+    return box_profiles_yaml(rerooted, list(variant.backends))
+
+
+def drop_build_caches(roots: list[Path]) -> list[str]:
+    """Remove DROPPED_BUILD_CACHES under each root; returns what went, spelled
+    relative to the root's parent (so a record never holds an export path)."""
+    gone = []
+    for root in roots:
+        root = Path(root)
+        for path in sorted(root.rglob("*")):
+            if path.name in DROPPED_BUILD_CACHES and path.is_file() \
+                    and not path.is_symlink():
+                gone.append(f"{root.name}/{path.relative_to(root).as_posix()}")
+                path.unlink()
+    return gone
 
 
 def restore_lists(roots: list[tuple[Path, str]]) -> dict:

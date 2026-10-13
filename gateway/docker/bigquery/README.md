@@ -64,3 +64,52 @@ types with no exact BigQuery equivalent raise rather than round.
 
 Not verified here: the container image (no Docker on the build host) and the arm64
 binary running (its tarball digest and ELF header were checked, not executed).
+
+## Native container topology (the `bigquery` plug, `de/gcp`)
+
+The agent's own clients reach BigQuery at `bigquery.internal:9050`, which is NOT the
+emulator: it is an audited proxy inside native-services
+(`src/alkera_gateway/native/services/bigquery.py`, the hosted row
+`backends.BACKENDS["bigquery"]`). The emulator is this compose stanza, started by
+`tasks/harness/container_episode.py` (compose profile `bigquery`, `HOSTED_ENGINES`)
+with `--project=alkera-local` and without its `bigquery.internal` alias; it stays on
+backend_net, which native-services joins and the episode does not. native-services
+gets `ALKERA_BIGQUERY_UPSTREAM=http://bigquery:9050` (Harbor: the supervised child on
+`127.0.0.1:19050`) and, at import, before it binds a port, seeds the emulator from the
+world's warehouse straight upstream (`native/bigquery_seed.py`: one dataset per
+schema, views copied as tables, counts read back; no audit row, no job).
+
+The proxy writes one 9.2.2 row per request before it answers (`bigquery.statement`
+for a query, `bigquery.<op>` for every other route, `bigquery.unknown_route`; a
+refused request is still its own row, `exit: error`, flag `refused:<feature>`) and
+corrects what v0.8.1 gets wrong in a way a client would act on:
+- refused by name (501 `notImplemented`), each a case where the emulator answers
+  success and does something else: dry runs, legacy SQL, transactions and
+  BEGIN...END blocks, procedural scripting (IF, WHILE, LOOP, REPEAT, FOR, CASE,
+  CALL, RAISE, CREATE PROCEDURE), `ALTER`, `EXECUTE IMMEDIATE`, `ASSERT`, a query job's
+  `WRITE_TRUNCATE`, a schema change through tables.patch/update, `CREATE OR REPLACE`
+  of a table its own query reads, schema DDL or `CREATE OR REPLACE` inside a
+  multi-statement script, load and extract jobs;
+- made right: cost fields stripped; `jobInternalError` (retried for ten minutes by
+  google-cloud-bigquery) answered as `notFound` / `duplicate` / `invalidQuery`;
+  `statementType` recomputed from the SQL (the emulator says `SELECT` for
+  everything, which breaks dbt-bigquery); `CREATE SCHEMA` made to create the dataset
+  and `CREATE OR REPLACE` made to replace (a failed one says the old table is gone);
+  WRITE_EMPTY / CREATE_NEVER on a query job's destination; tabledata.list paged
+  (the emulator ignores maxResults); per-job result datasets hidden from
+  `datasets.list`;
+- a script's row is as serious as its worst statement (each statement classified),
+  and SQL that does not tokenize is answered 400 `invalidQuery` with one row;
+- not fenced, written down: INT64 arithmetic wraps on overflow (BigQuery raises).
+
+The module docstring has each measurement.
+
+dbt-bigquery is NOT in the image (`docker/bigquery-clients.in`): measured against
+this proxy (method `oauth-secrets` with a static token, `api_endpoint`) it runs
+`debug`, `run`, re-`run`, `test` and `show` (`dbt seed` is a load job, refused by
+name), but it brings pandas, pyarrow and nbformat into the system Python, which a
+de image's toolbelt gate forbids. It stays refused by name in `DBT_ADAPTERS`.
+
+Measured end to end by `tasks/harness/bigquery_e2e_check.py` (evidence
+`tasks/harness/evidence/bigquery_e2e.json`); the tool tour's `bigquery` probes are in
+`tasks/harness/tool_tour_probes/bigquery.py`.

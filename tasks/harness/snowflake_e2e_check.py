@@ -12,7 +12,10 @@ and from INSIDE the episode container:
       DuckDB warehouse read on the host, then CREATE + INSERT + SELECT on a
       scratch table;
   (b) dbt-snowflake: `dbt debug` and `dbt run -s sf_check` against a snowflake
-      profile target, the model reading a seeded table;
+      profile target, the model reading a seeded table; and a BARE `dbt debug`
+      in the world's own project, through the box profile at ~/.dbt
+      (world.native_workspace.box_profiles_yaml), whose default target is
+      Snowflake;
   (c) the audit: every statement the proxy forwarded (its private statement
       log, in the service's own volume) is ONE `snowflake.statement` row in the
       rollout's actions.jsonl, in order, each a valid 9.2.2 row; the probe's own
@@ -281,6 +284,30 @@ def main(argv=None) -> int:
               verify.stdout.strip() == str(expected["counts"][table]),
               {"got": verify.stdout.strip() or verify.stderr[-400:],
                "expected": expected["counts"][table]})
+        # The box's own dbt profile (DBT_PROFILES_DIR=/root/.dbt), staged by
+        # _stage_profiles from native_workspace.box_profiles_yaml: the world's
+        # DuckDB target kept, a snowflake target added and made the default, so
+        # a BARE `dbt debug` in the world's project talks to Snowflake.
+        import yaml
+
+        box = stack.exec_(["cat", "/root/.dbt/profiles.yml"], check=False)
+        record["box_profile"] = box.stdout
+        try:
+            box_profile = (yaml.safe_load(box.stdout) or {}).get("world_dbt") or {}
+        except yaml.YAMLError:
+            box_profile = {}
+        check("box profile (~/.dbt) defaults to the snowflake target, DuckDB dev kept",
+              box_profile.get("target") == "snowflake"
+              and (box_profile.get("outputs") or {}).get("dev", {}).get("type") == "duckdb"
+              and (box_profile.get("outputs") or {}).get("snowflake", {}).get("type")
+              == "snowflake", box.stdout[-800:] or box.stderr[-400:])
+        bare = stack.exec_(["sh", "-c", "cd /workspace/dbt_project && dbt debug"],
+                           check=False, timeout=600)
+        bare_out = bare.stdout + bare.stderr
+        dbt["bare_debug"] = {"rc": bare.returncode, "tail": bare_out[-1200:]}
+        check("bare `dbt debug` connects to snowflake through the box profile",
+              bare.returncode == 0 and "Registered adapter: snowflake" in bare_out,
+              dbt["bare_debug"]["tail"])
         rows = [json.loads(ln) for ln in audit_file.read_text(encoding="utf-8").splitlines()]
         dbt_rows = [r for r in rows[dbt_before:] if r["tool"] == TOOL]
         check("audit: dbt's statements are snowflake.statement rows", len(dbt_rows) > 0,

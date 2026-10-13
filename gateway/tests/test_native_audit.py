@@ -75,6 +75,8 @@ PG_PASSWORD = "alkera-test"
 # clear MinIO's eight-character minimum.
 MINIO_USER = "alkera-local-dev"
 MINIO_SECRET = "alkera-local-dev-secret"
+#: The audit webhook's shared secret, as compose.native.yml passes it.
+MINIO_AUDIT_TOKEN = "alkera-local-dev-audit-token"
 
 START_TIMEOUT_S = 90
 # The webhook round-trip crosses Docker Desktop's VM; a loaded CI host has
@@ -288,7 +290,8 @@ def minio(docker_daemon):
 
     port = free_port()
     server = uvicorn.Server(
-        uvicorn.Config(minio_tailer.build_app(), host="0.0.0.0", port=port, log_level="warning")
+        uvicorn.Config(minio_tailer.build_app(MINIO_AUDIT_TOKEN), host="0.0.0.0", port=port,
+                       log_level="warning")
     )
     thread = threading.Thread(target=server.run, daemon=True)
     thread.start()
@@ -305,6 +308,9 @@ def minio(docker_daemon):
         "-e", f"MINIO_ROOT_PASSWORD={MINIO_SECRET}",
         "-e", "MINIO_AUDIT_WEBHOOK_ENABLE_alkera=on",
         "-e", f"MINIO_AUDIT_WEBHOOK_ENDPOINT_alkera=http://alkera-audit-host:{port}/audit",
+        # The receiver answers only MinIO's own token (tailers.minio, WHO MAY
+        # POST): so the rows below also measure that this MinIO sends it.
+        "-e", f"MINIO_AUDIT_WEBHOOK_AUTH_TOKEN_alkera={MINIO_AUDIT_TOKEN}",
         "--add-host", f"alkera-audit-host:{host_ip}",
         MINIO_IMAGE, "server", "/data",
     )
@@ -405,6 +411,39 @@ def test_every_native_writer_produces_a_valid_trace(native_log, tmp_path, monkey
     }
 
 
+def test_postgres_tailer_emits_a_refused_statement_at_its_error(native_log):
+    """Regression, measured 2026-10-07 by tasks/harness/postgres_e2e_check.py: the
+    server writes no `duration:` after an error, so a refused statement waited for
+    its backend's next entry - a `psql -c` that exits on the error has none - and
+    its row landed after statements other backends ran later (the refused DROP
+    was the last of 33 rows). It is emitted at its ERROR now: rows keep server
+    order. Lines as compose.native.yml's server writes them (`%m [%p] %u@%d`)."""
+    log = (
+        "2026-10-07 08:53:20.100 UTC [77] alkera@alkera LOG:  statement: DROP TABLE "
+        "warehouse.fct_orders",
+        "2026-10-07 08:53:20.101 UTC [77] alkera@alkera ERROR:  must be owner of table "
+        "fct_orders",
+        "2026-10-07 08:53:20.101 UTC [77] alkera@alkera STATEMENT:  DROP TABLE "
+        "warehouse.fct_orders",
+        "2026-10-07 08:53:20.200 UTC [78] alkera@alkera LOG:  statement: SELECT 1",
+        "2026-10-07 08:53:20.201 UTC [78] alkera@alkera LOG:  duration: 0.120 ms",
+    )
+    rows = postgres_tailer.run(log)
+    assert [(r["args"]["sql"], r["exit"]) for r in rows] == [
+        ("DROP TABLE warehouse.fct_orders", "error"), ("SELECT 1", "ok")]
+    assert rows[0]["error"] == {"code": "sql_error",
+                                "message": "must be owner of table fct_orders"}
+    assert rows[0]["op_class"] == "destructive" and "no_duration" in rows[0]["flags"]
+    assert rows[1]["latency_ms"] == 0.12 and "no_duration" not in rows[1]["flags"]
+    assert [r["seq"] for r in read_rows(native_log)] == [1, 2]
+    # A syntax error is never a `statement:` entry - the server refuses it before
+    # log_statement sees it - so it leaves no row (native/PARITY.md, "Not captured").
+    assert postgres_tailer.run((
+        "2026-10-07 08:53:21.000 UTC [79] alkera@alkera ERROR:  syntax error at or "
+        "near \"SELEC\" at character 1",
+        "2026-10-07 08:53:21.000 UTC [79] alkera@alkera STATEMENT:  SELEC 1",)) == []
+
+
 def test_record_refuses_a_directory_a_gateway_holds(gateway, monkeypatch):
     """Two sequence allocators on one log is corruption; the writer says so."""
     monkeypatch.setattr(audit, "LOCK_TIMEOUT_S", 0.2)
@@ -496,6 +535,66 @@ def test_minio_tailer_records_what_boto3_did(minio, native_log):
     assert rows["minio.GetObject"]["op_class"] == "read"
     assert rows["minio.DeleteObject"]["op_class"] == "destructive"
     assert rows["minio.DeleteObject"]["flags"][:1] == ["delete"]
+
+
+# A webhook body as MinIO posts it: one JSON object per line.
+FORGED_EVENT = json.dumps({"api": {"name": "PutObject", "bucket": BUCKET, "object": KEY,
+                                   "statusCode": 200}}) + "\n"
+
+
+def test_minio_receiver_refuses_a_post_without_the_token(native_log):
+    """Anything on episode_net can reach :8110; only MinIO holds the token. A POST
+    without it, or with another, is a 401 and writes no row."""
+    from fastapi.testclient import TestClient
+
+    client = TestClient(minio_tailer.build_app(MINIO_AUDIT_TOKEN))
+    for headers in ({}, {"Authorization": "wrong"}, {"Authorization": "Bearer wrong"},
+                    {"Authorization": f"Basic {MINIO_AUDIT_TOKEN}"},
+                    {"X-Auth-Token": MINIO_AUDIT_TOKEN}):
+        reply = client.post("/minio/audit", content=FORGED_EVENT, headers=headers)
+        assert reply.status_code == 401, headers
+        assert reply.json()["error"] == "unauthorized"
+    assert not native_log.exists() or read_rows(native_log) == []
+    # MinIO's own POST: the bare token, or as a bearer token
+    for header in (MINIO_AUDIT_TOKEN, f"Bearer {MINIO_AUDIT_TOKEN}"):
+        reply = client.post("/minio/audit", content=FORGED_EVENT,
+                            headers={"Authorization": header})
+        assert reply.status_code == 200 and reply.json() == {"rows": 1}
+    assert [row["tool"] for row in read_rows(native_log)] == ["minio.PutObject"] * 2
+
+
+def test_minio_receiver_has_no_unauthenticated_mode():
+    from alkera_gateway.native import serve
+
+    with pytest.raises(ValueError, match=minio_tailer.TOKEN_ENV):
+        minio_tailer.build_app("")
+    assert not minio_tailer.authorized("", "")
+    assert not minio_tailer.authorized("Bearer ", "")
+    mounted, why = serve.minio_receiver(serve.MINIO_AUDIT_PORT, "")
+    assert mounted is None and serve.MINIO_AUDIT_TOKEN_ENV in why
+    mounted, why = serve.minio_receiver(serve.MINIO_AUDIT_PORT, MINIO_AUDIT_TOKEN)
+    assert why is None and mounted.port == serve.MINIO_AUDIT_PORT
+    assert mounted.destination is False
+    assert serve.MINIO_AUDIT_TOKEN_ENV == minio_tailer.TOKEN_ENV
+
+
+def test_serve_takes_the_token_out_of_its_environment(tmp_path, monkeypatch, capsys):
+    """The service modules (and anything they start) never inherit the secret, and
+    without it the receiver is reported missing, never served open."""
+    from alkera_gateway.native import serve
+
+    world = tmp_path / "world"
+    world.mkdir()
+    monkeypatch.setenv(serve.MINIO_AUDIT_TOKEN_ENV, MINIO_AUDIT_TOKEN)
+    assert serve.main(["--audit", str(tmp_path / "a1"), "--world", str(world),
+                       "--print-only"]) == 0
+    assert serve.MINIO_AUDIT_TOKEN_ENV not in os.environ
+    printed = capsys.readouterr().out
+    assert MINIO_AUDIT_TOKEN not in printed
+    assert "minio-audit" in printed and "no ALKERA_MINIO_AUDIT_TOKEN" not in printed
+    assert serve.main(["--audit", str(tmp_path / "a2"), "--world", str(world),
+                       "--print-only"]) == 0
+    assert "no ALKERA_MINIO_AUDIT_TOKEN" in capsys.readouterr().out
 
 
 def test_airflow_tailer_routes_a_real_access_log(native_log):

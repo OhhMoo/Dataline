@@ -3,8 +3,10 @@ with `world.semantic`, and compare it with the oracle.
 
 Shared by tests/build_world.py (pristine values, oracle, perturbed warehouse),
 tests/grade.py (every check) and tests/run_baselines.py (its gates). Imports
-`world.semantic` and nothing from the gateway: the graders recompute from FILES
-(world/world/semantic/__init__.py rule 2) and never ask a service.
+`world.semantic`, and from the gateway only `alkera_gateway.safegit` (stdlib:
+reads the agent's git repository without running anything its .git configures):
+the graders recompute from FILES (world/world/semantic/__init__.py rule 2) and
+never ask a service.
 
 WHERE A BUILD LIVES
 
@@ -15,7 +17,7 @@ WHERE A BUILD LIVES
                                                     staged into the grading zone
                                                     after teardown
                                                     (tasks/harness/bistate.py)
-    repo       `git archive HEAD bi/<vendor>`       what the team's repo holds
+    repo       HEAD:bi/<vendor> (safegit.read_tree) what the team's repo holds
 
 `published` mirrors exactly how each fake service resolves what it serves, so a
 grader and the server agree on WHICH definition is published; the numbers are
@@ -28,13 +30,10 @@ the agent's working tree.
 from __future__ import annotations
 
 import base64
-import io
 import json
 import math
 import shutil
-import subprocess
 import sys
-import tarfile
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
@@ -44,6 +43,7 @@ if str(REPO / "world") not in sys.path:
     sys.path.insert(0, str(REPO / "world"))
 
 import contract as K                                            # noqa: E402
+from alkera_gateway import safegit                              # noqa: E402
 from world.hashing import canon_value                           # noqa: E402
 from world.semantic import render                               # noqa: E402
 from world.semantic.errors import SemanticError                 # noqa: E402
@@ -180,57 +180,49 @@ HEAD_PATHS = ("bi", "dbt_project/models")
 
 
 def head_tree(workspace: Path, scratch: Path) -> Path:
-    """`git archive HEAD bi dbt_project/models` of the agent's repository,
-    extracted under `scratch`. Returns the extraction root."""
+    """HEAD's bi/ and dbt_project/models/ in the agent's repository, as
+    committed, extracted under `scratch`. Returns the extraction root."""
     return ref_tree(workspace, "HEAD", scratch)
 
 
-def _git(workspace: Path) -> list[str]:
-    return ["git", "-c", "safe.directory=*", "-C", str(workspace)]
-
-
+# THE AGENT OWNS THIS REPOSITORY'S .git, and the grader runs on the host as the
+# host user: it is read only through alkera_gateway.safegit (ls-tree + cat-file
+# under a config that runs nothing), never `git archive` / `git show`, which run
+# the smudge filter a committed .gitattributes names from the agent's
+# .git/config. The files are the regular files `git archive` held.
 def ref_tree(workspace: Path, ref: str, scratch: Path) -> Path:
-    """`git archive <ref>` of HEAD_PATHS, extracted under `scratch`."""
+    """HEAD_PATHS of `ref`'s tree, as committed, extracted under `scratch`."""
     scratch = Path(scratch)
     if scratch.exists():
         shutil.rmtree(scratch)
     scratch.mkdir(parents=True)
-    git = _git(workspace)
     try:
-        present = [p for p in HEAD_PATHS if subprocess.run(
-            git + ["cat-file", "-e", f"{ref}:{p}"], capture_output=True,
-            timeout=60).returncode == 0]
+        present = [p for p in HEAD_PATHS if safegit.exists(workspace, ref, p)]
         if "bi" not in present:
             raise BuildUnreadable(f"{ref} has no bi/ directory")
-        archive = subprocess.run(git + ["archive", "--format=tar", ref, *present],
-                                 capture_output=True, check=True, timeout=120).stdout
-    except (OSError, subprocess.SubprocessError) as exc:
+        files = safegit.read_tree(workspace, ref, present)
+    except safegit.GitUnreadable as exc:
         raise BuildUnreadable(f"the repository has no readable {ref} with bi/: "
                               f"{exc}") from None
-    with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
-        for member in tar.getmembers():
-            if member.isfile() and ".." not in Path(member.name).parts:
-                target = scratch / member.name
-                target.parent.mkdir(parents=True, exist_ok=True)
-                handle = tar.extractfile(member)
-                target.write_bytes(handle.read() if handle else b"")
+    for name, data in files.items():
+        target = scratch / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(data)
     return scratch
 
 
 def other_branches(workspace: Path) -> list[str]:
     """Local branches other than the one HEAD is on (with a detached HEAD:
     every branch whose tip is not HEAD's commit), sorted."""
-    git = _git(workspace)
-
-    def out(*args) -> str:
-        r = subprocess.run(git + list(args), capture_output=True, text=True, timeout=60)
-        return r.stdout.strip() if r.returncode == 0 else ""
-
-    current = out("symbolic-ref", "-q", "--short", "HEAD")
-    head = out("rev-parse", "HEAD")
+    try:
+        current = safegit.symbolic_ref(workspace) or ""
+        head = safegit.rev_parse(workspace, "HEAD") or ""
+        refs = safegit.for_each_ref(workspace, "%(refname:short) %(objectname)",
+                                    "refs/heads")
+    except safegit.GitUnreadable:
+        return []
     names = []
-    for line in out("for-each-ref", "--format=%(refname:short) %(objectname)",
-                    "refs/heads").splitlines():
+    for line in refs:
         name, _, sha = line.partition(" ")
         if name and name != current and (current or sha != head):
             names.append(name)

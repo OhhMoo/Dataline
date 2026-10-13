@@ -572,8 +572,9 @@ def test_every_shipped_backend_has_an_installed_adapter():
     from alkera_gateway.warehouses import DBT_ADAPTERS, dbt_adapter_missing
 
     # bigquery is declared so a bigquery dbt_target is refused by name
-    # (dbt-bigquery is in no image yet); the other three must be installed.
-    assert set(DBT_ADAPTERS) == {"duckdb", "postgres", "snowflake", "bigquery"}
+    # (dbt-bigquery is in no image yet); redshift's adapter is in images built
+    # with --warehouse-clients redshift only; the other three must be installed.
+    assert set(DBT_ADAPTERS) == {"duckdb", "postgres", "snowflake", "bigquery", "redshift"}
     for backend in ("duckdb", "postgres", "snowflake"):
         assert dbt_adapter_missing(backend) is None, backend
 

@@ -1,0 +1,23 @@
+{
+ "bi_projects": [],
+ "bi_readme": false,
+ "case": "unprofiled",
+ "dashboards": [
+  "commercial_daily"
+ ],
+ "dbt_profile": "world_dbt",
+ "jobs": {
+  "daily_load": {
+   "command": "load_daily_revenue",
+   "duration_s": 45
+  },
+  "dbt_build": {
+   "command": "dbt_build",
+   "duration_s": 90
+  }
+ },
+ "plugs": null,
+ "slots": null,
+ "workflow": {},
+ "world_in_container": "/world"
+}

@@ -54,10 +54,14 @@ property rather than an oversight.
 | `tableau.internal` | 8096 | native-services | same |
 | `sigma.internal` | 8097 | native-services | same |
 | `native-services.internal` | 8099 | native-services | ours: the aggregate `/health` |
-| `postgres.internal` | 5432 | postgres | the warehouse, served |
+| `databricks.internal` | 443 | native-services | **live** for a profile plugging `warehouse: databricks` (hosted backend, `alkera_gateway.backends`; HTTPS with a certificate minted at boot, trust volume `databrickstrust`; seeded from the world's DuckDB into service state; one `databricks.statement` row per statement; `tasks/harness/databricks_e2e_check.py`, evidence `tasks/harness/evidence/databricks_e2e.json`); 443 and not 8098: `docs/environments/DATABRICKS_SPIKE.md`; containment P6 not yet re-run with it |
+| `postgres.internal` | 5432 | postgres | the warehouse, served. **Audited at teardown**: `NativeContainerEpisode.down()` runs `native/tailers/postgres.py` over the role-scoped statement log inside native-services before anything is torn down, one `psql.statement` row per `alkera` statement (`tasks/harness/postgres_live.py`). **Seeded** with the world's `warehouse.*` only for a profile plugging `warehouse: postgres` (`de/postgres`); every other box keeps compose's `warehouse.items` (2 rows). psql, psycopg and dbt-postgres live: `tasks/harness/postgres_e2e_check.py`, evidence `tasks/harness/evidence/postgres_e2e.json`. Its connections are not counted in `destinations.jsonl` |
 | `minio.internal` | 9000 | minio | object storage, bucket `alkera` |
-| `airflow.internal` | 8080 | airflow | *designed*, `--profile airflow` |
+| `airflow.internal` | 8080 | airflow | *designed*, `--profile airflow` (real headless Airflow; never run) |
+| `airflow.internal` | 8100 | native-services | **live** for a profile plugging `orchestrator: airflow`: the Airflow 3 REST v2 fake over the world ledger (`native/services/airflow.py`, `world/world/airflow_view.py`), a hosted row of `alkera_gateway.backends.BACKENDS`; its alias and variables come from the registry, `./ops/sched` and `sched.internal` are dropped; `tasks/harness/airflow_e2e_check.py`, evidence `tasks/harness/evidence/airflow_e2e.json`; `containment.NATIVE_BACKENDS` key `airflow-api`, P6 not yet re-run with it |
 | `snowflake.internal` | 8443 | snowflake | **live** for a profile plugging `warehouse: snowflake` (compose profile `snowflake` via `container_episode.compose_env`; seeded from the world's DuckDB, one `snowflake.statement` row per statement; `tasks/harness/snowflake_e2e_check.py`, evidence `tasks/harness/evidence/snowflake_e2e.json`); containment P6 not yet re-run with it |
+| `bigquery.internal` | 9050 | native-services | **live** for a profile plugging `warehouse: bigquery` (`de/gcp`): the audited BigQuery REST proxy (`native/services/bigquery.py`, hosted row in `alkera_gateway.backends`), in front of compose.yml's `bigquery` emulator, which `container_episode.HOSTED_ENGINES` starts (compose profile `bigquery`) on backend_net only - native-services joins backend_net and reaches it as `bigquery:9050`, the episode cannot. Seeded from the world's DuckDB at native-services' import, before any port binds; one `bigquery.statement` row per query; `tasks/harness/bigquery_e2e_check.py`, evidence `tasks/harness/evidence/bigquery_e2e.json`; containment P6 not yet re-run with it |
+| `redshift.internal` | 5439 | redshift | **live** for a profile plugging `warehouse: redshift` (`de/aws`; the whole service is the per-rollout overlay's, `container_episode.backend_overlay`, compose profile `redshift`): the audited wire proxy in front of PostgreSQL 17, which opens no TCP port at all - only a unix socket in a 0700 directory of its own that the proxy dials - so it is never on `episode_net` and nothing reaches it without a row; seeded from the world's DuckDB (database `dev`), one `redshift.statement` row per statement; `tasks/harness/redshift_e2e_check.py`, evidence `tasks/harness/evidence/redshift_e2e.json`; containment P6 not yet re-run with it |
 
 One port per service, not one socket with `Host:` routing. The registry already
 declares `PORT` per service; P6's "TCP to anything but the listed ports is
@@ -185,7 +189,11 @@ nothing about them.
   that writes `actions.jsonl`, so there is one writer for the `seq` lock. It is
   excluded from `destinations.jsonl` on purpose: MinIO dials it and the episode
   never does, and a counted row there is a hard `network_destination`
-  violation on every rollout that touches storage.
+  violation on every rollout that touches storage. The episode can still
+  *reach* it, so since 2026-10-07 it answers only a POST carrying the
+  per-rollout `ALKERA_MINIO_AUDIT_TOKEN`, which MinIO's webhook sends as its
+  `Authorization` header (`MINIO_AUDIT_WEBHOOK_AUTH_TOKEN_alkera`); anything
+  else is a 401 with no row. Without a token serve.py serves no receiver.
 - **The services carry the world's clock.** `serve.py` derives a
   `GatewayConfig` from `--world` and exports `ALKERA_GATEWAY_CONFIG`,
   `ALKERA_NATIVE_AUDIT` and `ALKERA_SCHEDULER` (SERVICES_A_REQUESTS.md item 5).
@@ -277,6 +285,13 @@ tries `dig postgres` learns the box is docker-compose — and the fix is a
 resolver of our own (a dnsmasq answering only the alias table, with
 `dns: [<its address>]` on the episode service) which was rejected here as one
 more container to go wrong for a property nothing else depends on.
+
+On a profiled box without an object store it was worse than a tell: the
+overlay dropped only `minio.internal`, and `minio` still reached a MinIO whose
+audit receiver was not served (`evidence/CONTAINMENT_2026-10-07.md`, finding 1).
+Since 2026-10-07 such a box does not start MinIO at all
+(`container_episode.profile_overlay`), measured by
+`tasks/harness/minio_containment_check.py`.
 
 Runner-up, **closed 2026-09-16**: `<root>/home` is now a conditional
 `fingerprint.py` section (`docs/implementation_plan/gateway/COMPOSE_REQUESTS.md` item 2), so a home directory

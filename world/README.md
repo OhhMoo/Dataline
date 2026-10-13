@@ -287,7 +287,11 @@ into every view body it creates, so views were unreadable through the alias
 (`Binder Error: Catalog "warehouse" does not exist`). Each theme's
 `dbt_project/macros/relations.sql` overrides `ref()` / `source()` to render without the
 database qualifier; `executor.unreadable_views(root)` is the gate, asserted in every theme
-suite over every view `duckdb_views()` reports.
+suite over every view `duckdb_views()` reports. A query dbt runs at once and never stores
+keeps the qualifier, because two-part `warehouse.<model>` is ambiguous against a catalog
+also named `warehouse`: a test in every theme, and on commerce_analytics only also an
+inline query (`dbt show --inline` / `dbt compile --inline`, a `sql_operation` node; the
+other themes' macros are unchanged so their worlds do not move).
 
 ## Trust zones and the acceptance battery
 

@@ -1,0 +1,67 @@
+# The services this box can reach. Written when the box is provisioned.
+# Names resolve on the internal network only; nothing here is routable.
+
+[world]
+root = "/world"
+workspace = "/world/workspace"
+
+[service.jira]
+url = "http://jira.internal:8080"
+alias = "jira.internal"
+port = 8080
+env = "JIRA_URL"
+description = "the ticket queue"
+user = "alkera-local-dev"
+token = "alkera-local-dev"
+token_env = "JIRA_API_TOKEN"
+
+[service.slack]
+url = "http://slack.internal:8081"
+alias = "slack.internal"
+port = 8081
+env = "SLACK_BASE_URL"
+description = "the team channels"
+token = "alkera-local-dev"
+token_env = "SLACK_BOT_TOKEN"
+
+[service.confluence]
+url = "http://confluence.internal:8090"
+alias = "confluence.internal"
+port = 8090
+env = "CONFLUENCE_URL"
+description = "the wiki: runbooks, postmortems, policies"
+user = "alkera-local-dev"
+token = "alkera-local-dev"
+token_env = "CONFLUENCE_API_TOKEN"
+
+[service.powerbi]
+url = "http://powerbi.internal:8095"
+alias = "powerbi.internal"
+port = 8095
+env = "POWERBI_API_URL"
+description = "Power BI: published semantic models, refreshes, DAX queries"
+user = "alkera-local-dev"
+token = "alkera-local-dev"
+token_env = "AZURE_CLIENT_SECRET"
+azure_tenant_id = "alkera-local-dev"
+
+[service.tableau]
+url = "http://tableau.internal:8096"
+alias = "tableau.internal"
+port = 8096
+env = "TABLEAU_SERVER_URL"
+description = "Tableau Server: published data sources, workbooks, extracts"
+user = "alkera-local-dev"
+token = "alkera-local-dev"
+token_env = "TABLEAU_PAT_SECRET"
+tableau_site = ""
+
+[service.sigma]
+url = "http://sigma.internal:8097"
+alias = "sigma.internal"
+port = 8097
+env = "SIGMA_BASE_URL"
+description = "Sigma: published workbooks, data models, connections"
+user = "alkera-local-dev"
+token = "alkera-local-dev"
+token_env = "SIGMA_CLIENT_SECRET"

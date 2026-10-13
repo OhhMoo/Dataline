@@ -1161,6 +1161,16 @@ def regrade(rollout_dir, task: str | None = None,
     return rec
 
 
+def postgres_fold_failure(folded: dict | None) -> str | None:
+    """The harness failure of a container rollout whose Postgres statements did not
+    reach its action log (`NativeContainerEpisode.postgres_statements`, written by
+    `down()`), or None. A log missing those rows is not the episode's record, so
+    such a rollout is a harness failure - never graded, never counted."""
+    error = (folded or {}).get("error")
+    return (f"postgres statement log not folded into the action log: {error}"
+            if error else None)
+
+
 def run_rollout(args) -> dict:
     tasks_dir = Path(args.tasks_dir).resolve() if args.tasks_dir else None
     spec = taskspec.load(args.task, tasks_dir, variant=args.variant)
@@ -1667,6 +1677,9 @@ def run_rollout(args) -> dict:
             except Exception as exc:                   # noqa: BLE001 - recorded
                 record.setdefault("teardown_errors", []).append(
                     f"{type(exc).__name__}: {exc}")
+            record["postgres_statements"] = native_container.postgres_statements
+            harness_failure = harness_failure or postgres_fold_failure(
+                native_container.postgres_statements)
         if native is not None:
             # Before the fingerprint and the grader, like the container: the
             # services hold this world's json planes open, and a row written

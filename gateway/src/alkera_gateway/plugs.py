@@ -77,22 +77,60 @@ _CATALOG = (
          surfaces=("duckdb", "duckdb_legacy", "streaming"),
          note="GT002's `streaming` surface is tables in the DuckDB file"),
     Plug("postgres", "warehouse", "partial", surfaces=("postgres",),
-         note="real backend; dbt-postgres in requirements.lock; no task uses it "
-              "and no Postgres server on the dev host to test dbt against"),
+         note="real server at postgres.internal:5432 in every native stack; its "
+              "role-scoped statement log is folded into the action log at "
+              "teardown (psql.statement, one row per statement); seeded with "
+              "the world's warehouse.* only when a profile plugs it; psql, psycopg "
+              "and dbt-postgres run live against it in a container "
+              "(tasks/harness/evidence/postgres_e2e.json); rows land at teardown, "
+              "not per call; connections are not counted in destinations.jsonl; "
+              "no task uses it"),
     Plug("snowflake", "warehouse", "partial", surfaces=("snowflake",),
          note="fakesnow 0.11.18 behind a TLS proxy; sql_* and dbt-snowflake verified "
               "against it in-process; clients only in images built with "
               "--warehouse-clients snowflake; TLS route untested; no task uses it"),
-    Plug("redshift", "warehouse", "planned", surfaces=("redshift",)),
+    Plug("redshift", "warehouse", "partial", surfaces=("redshift",),
+         note="Postgres persona: PostgreSQL 17 seeded from the world behind an "
+              "audited wire proxy at redshift.internal:5439 (sqlglot redshift->"
+              "postgres, checked, default deny; UNLOAD/COPY/SUPER/PartiQL/Spectrum "
+              "refused by name; DISTKEY/SORTKEY accepted with no effect); psql, "
+              "redshift_connector and dbt-redshift run against it in the "
+              "container topology; clients only in images built with "
+              "--warehouse-clients redshift; system views svv_tables, svv_columns "
+              "and pg_table_def only (no other svv_*/stl_*); no Redshift Data "
+              "API; psql \\d fails as against a real cluster; AVG(int) keeps "
+              "its fraction (Redshift truncates); no task uses it"),
     Plug("bigquery", "warehouse", "partial", surfaces=("bigquery",),
-         note="goccy emulator v0.8.1 (bigquery.py); cost not modelled, no "
-              "transactions, no dbt-bigquery; not yet run in a container"),
-    Plug("databricks", "warehouse", "planned", surfaces=("databricks",)),
+         note="goccy emulator v0.8.1 behind an audited proxy at "
+              "bigquery.internal:9050 (native/services/bigquery.py), seeded from "
+              "the world; google-cloud-bigquery in images built with "
+              "--warehouse-clients bigquery; cost not modelled; transactions, "
+              "procedural scripting (IF/FOR/WHILE/CALL/...), "
+              "ALTER, EXECUTE IMMEDIATE, ASSERT, WRITE_TRUNCATE, schema patches, "
+              "load jobs and legacy SQL refused by name; INT64 overflow wraps "
+              "instead of erroring (emulator, not fenced); no dbt-bigquery (works "
+              "against the proxy, but its pandas/nbformat break the de image's "
+              "role gate); container e2e only, arm64 not run, no task uses it"),
+    Plug("databricks", "warehouse", "partial", surfaces=("databricks",),
+         note="tier 1 at https://databricks.internal (native-services, port 443): SQL "
+              "Statement Execution, Unity Catalog reads, SQL warehouses, SCIM Me and "
+              "Jobs 2.1 over the world scheduler (run-now queues; the run is QUEUED until "
+              "the grader's advance runs it, and no request moves the clock), on a seeded "
+              "DuckDB copy of the world's warehouse; databricks-sdk, "
+              "databricks-sql-connector (use_sea=True: no Thrift) and dbt-databricks "
+              "only in images built with --warehouse-clients "
+              "databricks; no Delta log (time travel, OPTIMIZE, VACUUM, CLONE refused by "
+              "name), no PySpark (tier 2), no Databricks CLI (licence); no task uses it"),
     Plug("dbt", "transform", "shipped", surfaces=("dbt",)),
     Plug("ops_sched", "orchestrator", "shipped",
          surfaces=("scheduler", "orchestration_secondary"),
          note="GT002's `orchestration_secondary` is this same scheduler"),
-    Plug("airflow", "orchestrator", "planned", surfaces=("airflow",)),
+    Plug("airflow", "orchestrator", "partial", surfaces=("airflow",),
+         note="Airflow 3 REST v2 fake over the world ledger, not real Airflow: DAGs "
+              "parsed (ast) from the workspace's dags/, runs and logs from "
+              "var/sched/state.json; trigger and clear queue for the grader's advance "
+              "(no clock, no backfill, no pause); airflowctl, no airflow CLI; at "
+              "airflow.internal:8100 (backends.BACKENDS)"),
     Plug("s3mock", "object_store", "shipped", surfaces=("s3",)),
     Plug("airbyte_fake", "ingest", "shipped", services=("airbyte",), surfaces=("ingest",)),
     Plug("metabase_fake", "bi", "shipped", services=("metabase",), surfaces=("bi",)),

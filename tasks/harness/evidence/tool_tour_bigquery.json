@@ -1,0 +1,352 @@
+{
+ "findings": [],
+ "probes": [
+  {
+   "command": "cd /workspace\nset -euo pipefail\npython3 - <<'PY'\nimport json, os\nfrom google.api_core.client_options import ClientOptions\nfrom google.auth.credentials import AnonymousCredentials\nfrom google.cloud import bigquery\n\nproject = os.environ[\"BIGQUERY_PROJECT\"]\nclient = bigquery.Client(project=project, credentials=AnonymousCredentials(),\n                         client_options=ClientOptions(api_endpoint=os.environ[\"BIGQUERY_API_URL\"]))\nrows = list(client.query(\n    f\"SELECT SUM(order_amount) AS v FROM `{project}.warehouse.fct_orders` \"\n    \"WHERE order_status = 'completed' AND order_date >= '2026-02-01' \"\n    \"AND order_date < '2026-03-01'\").result())\nclient.close()\nprint(json.dumps({\"value\": str(rows[0][\"v\"])}))\nPY\n",
+   "destinations": {
+    "bigquery.internal:9050": 1
+   },
+   "doc": null,
+   "drift": false,
+   "expect_args": [],
+   "expect_tools": [
+    "bigquery.statement"
+   ],
+   "failures": [],
+   "id": "bigquery.client.net_revenue_feb_2026",
+   "known": null,
+   "missing_args": [],
+   "missing_tools": [],
+   "profile": "de/gcp",
+   "returncode": 0,
+   "rows": 4,
+   "rows_at": "call",
+   "seconds": 2.19,
+   "stderr_tail": "",
+   "stdout_tail": "{\"value\": \"2361224\"}\n",
+   "tool": "bigquery",
+   "tools": [
+    "bigquery.statement",
+    "bigquery.query_results",
+    "bigquery.query_results",
+    "shim.python"
+   ],
+   "truth": "2361224.00",
+   "truth_after": "2361224.00",
+   "value": "2361224",
+   "value_ok": true,
+   "verdict": "PASS"
+  },
+  {
+   "command": "cd /workspace\nset -euo pipefail\npython3 -c 'import json, os; print(json.dumps({\"useLegacySql\": False, \"query\": \"SELECT COUNT(*) FROM `\" + os.environ[\"BIGQUERY_PROJECT\"] + \".warehouse.fct_orders` WHERE order_status = \\\"completed\\\" AND order_date >= \\\"2026-02-01\\\" AND order_date < \\\"2026-03-01\\\"\"}))' > /tmp/tour_bq_query.json\ncurl -sS --fail-with-body -X POST -H 'Content-Type: application/json' \\\n  --data @/tmp/tour_bq_query.json \\\n  \"$BIGQUERY_API_URL/bigquery/v2/projects/$BIGQUERY_PROJECT/queries\" > /tmp/tour_bq_rest.json\npython3 -c 'import json; print(json.dumps({\"value\": json.load(open(\"/tmp/tour_bq_rest.json\"))[\"rows\"][0][\"f\"][0][\"v\"]}))'\n",
+   "destinations": {
+    "bigquery.internal:9050": 1
+   },
+   "doc": null,
+   "drift": false,
+   "expect_args": [],
+   "expect_tools": [
+    "bigquery.statement"
+   ],
+   "failures": [],
+   "id": "bigquery.rest.completed_orders_feb_2026",
+   "known": null,
+   "missing_args": [],
+   "missing_tools": [],
+   "profile": "de/gcp",
+   "returncode": 0,
+   "rows": 3,
+   "rows_at": "call",
+   "seconds": 2.35,
+   "stderr_tail": "",
+   "stdout_tail": "{\"value\": \"1068\"}\n",
+   "tool": "bigquery",
+   "tools": [
+    "shim.python",
+    "bigquery.statement",
+    "shim.python"
+   ],
+   "truth": 1068,
+   "truth_after": 1068,
+   "value": "1068",
+   "value_ok": true,
+   "verdict": "PASS"
+  },
+  {
+   "command": "cd /workspace\nset -euo pipefail\npython3 - <<'PY'\nimport json, os\nfrom google.api_core.client_options import ClientOptions\nfrom google.auth.credentials import AnonymousCredentials\nfrom google.cloud import bigquery\n\nclient = bigquery.Client(project=os.environ[\"BIGQUERY_PROJECT\"],\n                         credentials=AnonymousCredentials(),\n                         client_options=ClientOptions(api_endpoint=os.environ[\"BIGQUERY_API_URL\"]))\ntables = [t.table_id for t in client.list_tables(\"warehouse\")]\nclient.close()\nprint(json.dumps({\"value\": len(tables)}))\nPY\n",
+   "destinations": {
+    "bigquery.internal:9050": 1
+   },
+   "doc": null,
+   "drift": false,
+   "expect_args": [],
+   "expect_tools": [
+    "bigquery.table_list"
+   ],
+   "failures": [],
+   "id": "bigquery.client.warehouse_tables",
+   "known": null,
+   "missing_args": [],
+   "missing_tools": [],
+   "profile": "de/gcp",
+   "returncode": 0,
+   "rows": 2,
+   "rows_at": "call",
+   "seconds": 1.61,
+   "stderr_tail": "",
+   "stdout_tail": "{\"value\": 5}\n",
+   "tool": "bigquery",
+   "tools": [
+    "bigquery.table_list",
+    "shim.python"
+   ],
+   "truth": 5,
+   "truth_after": 5,
+   "value": 5,
+   "value_ok": true,
+   "verdict": "PASS"
+  }
+ ],
+ "profiles": [
+  {
+   "allowed_destinations": [
+    "airbyte.internal:8001",
+    "alertmanager.internal:9093",
+    "bigquery.internal:9050",
+    "confluence.internal:8090",
+    "deploy.internal:8085",
+    "jira.internal:8080",
+    "loki.internal:3100",
+    "metabase.internal:3000",
+    "minio.internal:9000",
+    "postgres.internal:5432",
+    "prometheus.internal:9090",
+    "sched.internal:8120",
+    "slack.internal:8081"
+   ],
+   "episode": {
+    "destinations": [
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "metabase.internal",
+      "last_ts": null,
+      "port": 3000
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "loki.internal",
+      "last_ts": null,
+      "port": 3100
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "airbyte.internal",
+      "last_ts": null,
+      "port": 8001
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "jira.internal",
+      "last_ts": null,
+      "port": 8080
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "slack.internal",
+      "last_ts": null,
+      "port": 8081
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "deploy.internal",
+      "last_ts": null,
+      "port": 8085
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "confluence.internal",
+      "last_ts": null,
+      "port": 8090
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "native-services.internal",
+      "last_ts": null,
+      "port": 8099
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "sched.internal",
+      "last_ts": null,
+      "port": 8120
+     },
+     {
+      "count": 3,
+      "first_ts": "2026-10-07T12:27:54Z",
+      "host": "bigquery.internal",
+      "last_ts": "2026-10-07T12:27:59Z",
+      "port": 9050
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "prometheus.internal",
+      "last_ts": null,
+      "port": 9090
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "alertmanager.internal",
+      "last_ts": null,
+      "port": 9093
+     }
+    ],
+    "network_violations": [],
+    "no_stray_rows": true,
+    "ok": true,
+    "rows_in_probes": 9,
+    "rows_total": 9,
+    "trace_valid": true
+   },
+   "image": "alkera-episode:w1-bigquery",
+   "image_gate": {
+    "head": "6e3678f68734521c939cea7f6038c9b69139a939",
+    "image": "alkera-episode:w1-bigquery",
+    "revision": "6e3678f68734521c939cea7f6038c9b69139a939"
+   },
+   "ok": true,
+   "plugs": {},
+   "probes": [
+    "bigquery.client.net_revenue_feb_2026",
+    "bigquery.rest.completed_orders_feb_2026",
+    "bigquery.client.warehouse_tables"
+   ],
+   "profile": "de/gcp",
+   "rows_at": "call",
+   "seconds": 38.9,
+   "seed": "# commerce_analytics world seed: a shop's nightly CDC extracts -> raw -> dbt\n# star schema + semantic layer -> Power BI / Tableau / Sigma dashboards.\ntheme: commerce_analytics    # world/world/themes/<name>/\nseed: 11\nvtime_start: \"2025-01-01T00:00:00Z\"\n# 425 nightly extracts: dt=2024-12-31 (the cutover snapshot: accounts and\n# catalogue, no orders) then dt=2025-01-01 .. dt=2026-02-28. Fourteen months of\n# orders, so last-year measures exist for January and February 2026. The world\n# clock opens at 2026-03-02T00:00Z, a Monday - business day 1 of the February\n# close.\ndays: 425\n\n# Scale. Every key is optional (gen.DEFAULTS); these are the defaults, spelled\n# out. Build time is dominated by dbt, not by volume - a 2x seed builds in about\n# the same time.\ncustomers: 220               # accounts on the platform at cutover\nsignup_pct: 18               # chance per day of a new account (a second at a quarter of it)\nupdate_pct: 9                # chance per day that one account is upgraded a segment\norders_per_day: [20, 60]     # base range, scaled by weekday, month, peak days and growth\nlines_per_order: [1, 4]\ncancel_pct: 6                # 70% the same day, the rest the next day\nrefund_pct: 4                # 3 to 45 days after the order\ngrowth_pct: 20               # year-over-year order volume growth\n\ngit_author: \"Analytics Engineering <analytics@example.com>\"\nnative: true\nfiles: {formats: [parquet]}\nprofile:\n  name: de/gcp\n  slots: [files, warehouse, transform, orchestrator, object_store, ingest, bi, observability, release, human]\n",
+   "stack": {
+    "container_id": "241406dd9149",
+    "episode_endpoints": {
+     "airbyte": "http://airbyte.internal:8001",
+     "alertmanager": "http://alertmanager.internal:9093",
+     "bigquery": "http://bigquery.internal:9050",
+     "confluence": "http://confluence.internal:8090",
+     "deploy": "http://deploy.internal:8085",
+     "jira": "http://jira.internal:8080",
+     "loki": "http://loki.internal:3100",
+     "metabase": "http://metabase.internal:3000",
+     "postgres": {
+      "database": "alkera",
+      "host": "postgres.internal",
+      "password": "alkera-local-dev",
+      "port": 5432,
+      "user": "alkera"
+     },
+     "prometheus": "http://prometheus.internal:9090",
+     "s3": "http://minio.internal:9000",
+     "s3_access_key": "alkera-local-dev",
+     "s3_bucket": "alkera",
+     "s3_region": "us-east-1",
+     "s3_secret_key": "alkera-local-dev",
+     "sched": "http://sched.internal:8120",
+     "slack": "http://slack.internal:8081"
+    },
+    "image": "alkera-episode:w1-bigquery",
+    "image_digest": "sha256:2bd5b520ffa619b360acda96cd7663cf465db2776549f389de5fafce25265338",
+    "services": [
+     "bigquery",
+     "episode",
+     "minio",
+     "native-services",
+     "postgres"
+    ],
+    "subject_env": {
+     "AIRBYTE_API_KEY": "alkera-local-dev",
+     "AIRBYTE_URL": "http://airbyte.internal:8001",
+     "ALERTMANAGER_URL": "http://alertmanager.internal:9093",
+     "ALKERA_BACKEND": "postgres",
+     "ALKERA_NATIVE_AUDIT": "/audit/actions.jsonl",
+     "ALKERA_POSTGRES_DSN": "postgresql://episode:episode-local@postgres/episode",
+     "ALKERA_SHIM_BIN": "/opt/alkera/shims",
+     "ALKERA_SHIM_WATCH": "/world/var/warehouse/warehouse.duckdb",
+     "ALKERA_SHIM_WORKSPACE": "/workspace",
+     "ALKERA_SOURCE_REV": "6e3678f68734521c939cea7f6038c9b69139a939",
+     "ALKERA_TOOLBELT": "de",
+     "ALKERA_VIRTUAL_TIME": "2026-03-02T00:00:00Z",
+     "ALKERA_WAREHOUSES": "",
+     "ALKERA_WAREHOUSE_CLIENTS": "bigquery",
+     "ALKERA_WORKSPACE": "/workspace",
+     "AWS_ACCESS_KEY_ID": "alkera-local-dev",
+     "AWS_DEFAULT_REGION": "us-east-1",
+     "AWS_ENDPOINT_URL": "http://minio.internal:9000",
+     "AWS_SECRET_ACCESS_KEY": "alkera-local-dev",
+     "CONFLUENCE_API_TOKEN": "alkera-local-dev",
+     "CONFLUENCE_URL": "http://confluence.internal:8090",
+     "CONFLUENCE_USER": "alkera-local-dev",
+     "DBT_PROFILES_DIR": "/root/.dbt",
+     "DEPLOY_API_TOKEN": "alkera-local-dev",
+     "DEPLOY_URL": "http://deploy.internal:8085",
+     "HOME": "/root",
+     "JIRA_API_TOKEN": "alkera-local-dev",
+     "JIRA_URL": "http://jira.internal:8080",
+     "JIRA_USER": "alkera-local-dev",
+     "LOKI_ADDR": "http://loki.internal:3100",
+     "LOKI_URL": "http://loki.internal:3100",
+     "METABASE_API_KEY": "alkera-local-dev",
+     "METABASE_URL": "http://metabase.internal:3000",
+     "PATH": "/opt/alkera/shims:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/toolbelt/bin",
+     "PROMETHEUS_URL": "http://prometheus.internal:9090",
+     "SCHED_URL": "http://sched.internal:8120",
+     "SLACK_BASE_URL": "http://slack.internal:8081",
+     "SLACK_BOT_TOKEN": "alkera-local-dev"
+    },
+    "workspace_cli": {
+     "cli": "ops/sched",
+     "files": [
+      "/home/ubuntu/alkera-rollouts/w1-bigquery/tour/de-gcp/world/workspace/ops/sched"
+     ],
+     "interpreter": "/usr/local/bin/python",
+     "pythonpath": "/opt/world",
+     "topology": "container"
+    }
+   },
+   "truths_read": "after the world build, before the stack came up",
+   "work": "/home/ubuntu/alkera-rollouts/w1-bigquery/tour/de-gcp",
+   "world": {
+    "dashboards": "/home/ubuntu/alkera-rollouts/w1-bigquery/tour/de-gcp/world/var/bi/dashboards",
+    "grading": "/home/ubuntu/alkera-rollouts/w1-bigquery/tour/de-gcp/grading",
+    "profiles_dir": "/home/ubuntu/alkera-rollouts/w1-bigquery/tour/de-gcp/world/build",
+    "scheduler": "/home/ubuntu/alkera-rollouts/w1-bigquery/tour/de-gcp/world/var/sched/state.json",
+    "warehouse": "/home/ubuntu/alkera-rollouts/w1-bigquery/tour/de-gcp/world/var/warehouse/warehouse.duckdb",
+    "workflow_dir": "/home/ubuntu/alkera-rollouts/w1-bigquery/tour/de-gcp/world/var/workflow",
+    "workspace": "/home/ubuntu/alkera-rollouts/w1-bigquery/tour/de-gcp/world/workspace",
+    "world_root": "/home/ubuntu/alkera-rollouts/w1-bigquery/tour/de-gcp/world"
+   }
+  }
+ ],
+ "revision": "6e3678f68734521c939cea7f6038c9b69139a939",
+ "seconds": 38.9,
+ "started": 1791376045.18784,
+ "summary": {
+  "DOC": 0,
+  "FAIL": 0,
+  "PASS": 3,
+  "profiles_ok": true
+ },
+ "table": "probe                                       profile       verdict   rows  value / truth\n---------------------------------------------------------------------------------------------------------------------\nbigquery.client.net_revenue_feb_2026        de/gcp        PASS         4  '2361224' / Decimal('2361224.00')\nbigquery.rest.completed_orders_feb_2026     de/gcp        PASS         3  '1068' / 1068\nbigquery.client.warehouse_tables            de/gcp        PASS         2  5 / 5",
+ "tools": [
+  "bigquery"
+ ],
+ "topology": "container"
+}

@@ -10,7 +10,9 @@ lists the whole set, so "what is this process serving" is one request rather
 than nine. `--profile` (with `--plug`) narrows the set to one environment
 profile's services and drops the scheduler plane when it plugs no `ops_sched`;
 it is also the only way a BI vendor (`services.PLUG_NAMES`: powerbi, tableau,
-sigma; ports in PLUG_PORTS) is served at all.
+sigma; ports in PLUG_PORTS) is served at all, and the only way a hosted backend
+(`alkera_gateway.backends`, `hosted=True`; port and alias from its registry
+row, `hosted_ports()`) is.
 
 Ports, not host-header routing
 ------------------------------
@@ -121,8 +123,23 @@ PLUG_PORTS = {
     "tableau": 8096,
     "sigma": 8097,
 }
-#: Every port a named service is known to listen on, either table.
-SERVICE_PORTS = {**STUB_PORTS, **PLUG_PORTS}
+def hosted_ports() -> dict[str, int]:
+    """The registry's hosted backends (`alkera_gateway.backends`, `hosted=True`)
+    and the port each row names: where serve.py mounts its module, only when a
+    profile plugs it (`selected_services`). Read from the registry at call
+    time, never copied into a table here."""
+    return {name: b.port for name, b in services.hosted().items()}
+
+
+def service_ports() -> dict[str, int]:
+    """Every port a named service is known to listen on: the nine, the BI
+    vendors, the registry's hosted backends."""
+    return {**STUB_PORTS, **PLUG_PORTS, **hosted_ports()}
+
+
+#: Every port a named service is known to listen on (`service_ports()` as the
+#: registry stood at import).
+SERVICE_PORTS = service_ports()
 #: Every service answers this path. A service that defines its own route for it
 #: keeps it; otherwise `HealthWrapper` answers.
 #:
@@ -150,6 +167,11 @@ MINIO_AUDIT_PORT = 8110
 #: never dials it (MinIO does, from inside the stack), so it is excluded from
 #: the aggregate's service list the way any non-agent surface would be.
 MINIO_AUDIT_NAME = "minio-audit"
+#: The variable the receiver's shared secret arrives in (compose.native.yml sets
+#: it on native-services; `tailers.minio.TOKEN_ENV` is the same name). `main`
+#: removes it from the environment before any service module is imported, so
+#: none of them, and no process one of them starts, inherits it.
+MINIO_AUDIT_TOKEN_ENV = "ALKERA_MINIO_AUDIT_TOKEN"
 #: The SCHEDULER plane, under its own alias `sched.internal`.
 #:
 #: It is not one of the nine and it is not a vendor: `sched_*` has no fake
@@ -359,6 +381,13 @@ class Mounted:
     #: quarantine every rollout that touched object storage for a connection
     #: the subject never made. So the receiver is neither declared nor counted.
     destination: bool = True
+    #: A hosted backend whose registry row says `tls=True` is served over HTTPS:
+    #: `certificate` is its module's own (`() -> (certfile, keyfile)`, minting with
+    #: `native.tls.mint` and publishing the bundle the episode trusts), called by
+    #: `serve_all` before anything binds. A TLS row whose module has none is a
+    #: refusal there, never a plain-HTTP fallback the clients would fail against.
+    tls: bool = False
+    certificate: Callable | None = None
 
 
 def mount(loaded: dict, stubs: dict[str, int] | None = None,
@@ -379,12 +408,20 @@ def mount(loaded: dict, stubs: dict[str, int] | None = None,
     NATIVE_DRIVER_REQUESTS.md item 3 by subtracting it.
     """
     mounted: list[Mounted] = []
+    hosted = services.hosted()
     for name, module in sorted(loaded.items()):
         host, port, app = module.HOST, int(module.PORT) + offset, module.app
+        tls = False
+        if name in hosted:
+            # a hosted backend answers where its registry row says, and as it says
+            host, port = hosted[name].host, hosted[name].port + offset
+            tls = hosted[name].tls
         own = serves_health(app)
         mounted.append(Mounted(name, host, port,
                                app if own else HealthWrapper(app, name, 0),
-                               "module", own))
+                               "module", own, tls=tls,
+                               certificate=getattr(module, "certificate", None)
+                               if tls else None))
     for name, port in sorted((stubs or {}).items()):
         mounted.append(Mounted(name, f"{name}.internal", port + offset,
                                HealthWrapper(stub_app(name), name, STUB_ITEMS),
@@ -465,7 +502,7 @@ def service_environment(audit: Path, world: Path,
     return {name: os.environ[name] for name in env}
 
 
-def minio_receiver(port: int) -> tuple[Mounted | None, str | None]:
+def minio_receiver(port: int, token: str = "") -> tuple[Mounted | None, str | None]:
     """AUDIT's MinIO audit-webhook receiver, mounted on this process.
 
     Returns `(mounted, None)` or `(None, why)`. It is not fatal: MinIO's
@@ -474,13 +511,23 @@ def minio_receiver(port: int) -> tuple[Mounted | None, str | None]:
     than rows - but the reason is carried into the startup table and the
     aggregate's `missing`, because a storage plane whose rows are all still in
     a spool directory must not look like a storage plane nobody used.
+
+    `token` is the shared secret MinIO's webhook sends (MINIO_AUDIT_TOKEN_ENV).
+    Without one no receiver is served: the episode shares its network, and an
+    unauthenticated receiver is a way for it to forge `minio.*` rows
+    (gateway/docker/evidence/CONTAINMENT_2026-10-07.md).
     """
+    if not token:
+        return None, (f"no {MINIO_AUDIT_TOKEN_ENV}: an unauthenticated receiver "
+                      f"would let anything that reaches it append minio.* rows, "
+                      f"so none is served")
     try:
         from .tailers.minio import build_app
+        app = build_app(token)
     except ImportError as exc:                         # the `native` extra
         return None, f"{type(exc).__name__}: {exc}"
     return Mounted(MINIO_AUDIT_NAME, "native-services.internal", port,
-                   build_app(), "receiver", False, destination=False), None
+                   app, "receiver", False, destination=False), None
 
 
 def sched_plane(port: int) -> tuple[Mounted | None, str | None]:
@@ -511,12 +558,13 @@ def port_disagreements(mounted: list[Mounted], offset: int = 0) -> dict[str, str
     disagreement is a dead surface with a live process behind it, which is the
     one failure that looks like the agent's fault.
     """
+    known = service_ports()
     return {
         item.name: f"serving {item.port}, the subject is told "
-                   f"{SERVICE_PORTS[item.name] + offset}"
+                   f"{known[item.name] + offset}"
         for item in mounted
-        if item.origin == "module" and item.name in SERVICE_PORTS
-        and item.port != SERVICE_PORTS[item.name] + offset
+        if item.origin == "module" and item.name in known
+        and item.port != known[item.name] + offset
     }
 
 
@@ -540,7 +588,8 @@ def aggregate_app(mounted: list[Mounted], missing: dict[str, str],
         "environment": dict(sorted((environment or {}).items())),
         "services": [
             {"service": item.name, "host": item.host, "port": item.port,
-             "url": f"http://{item.host}:{item.port}", "origin": item.origin,
+             "url": f"{'https' if item.tls else 'http'}://{item.host}:{item.port}",
+             "origin": item.origin,
              "own_health": item.own_health}
             for item in mounted
         ],
@@ -592,6 +641,18 @@ class _Server(uvicorn.Server):
         yield
 
 
+def tls_options(item: Mounted) -> dict[str, str]:
+    """uvicorn's `ssl_certfile`/`ssl_keyfile` for a TLS-serving item, {} otherwise."""
+    if not item.tls:
+        return {}
+    if not callable(item.certificate):
+        raise SystemExit(f"{item.name} is a TLS backend (its registry row says tls=True) "
+                         f"but its module defines no certificate(); refusing to serve it "
+                         f"over plain HTTP")
+    certfile, keyfile = item.certificate()
+    return {"ssl_certfile": str(certfile), "ssl_keyfile": str(keyfile)}
+
+
 async def serve_all(mounted: list[Mounted], bind: str,
                     log: DestinationLog) -> None:
     """Run every mounted service in this process, on one event loop."""
@@ -600,7 +661,7 @@ async def serve_all(mounted: list[Mounted], bind: str,
         _Server(uvicorn.Config(
             item.app, host=bind, port=item.port, http=AuditedH11Protocol,
             log_level="warning", access_log=False, lifespan="auto",
-            timeout_graceful_shutdown=5,
+            timeout_graceful_shutdown=5, **tls_options(item),
         ))
         for item in mounted
     ]
@@ -664,11 +725,12 @@ def parse_stub(value: str) -> tuple[str, int]:
         raise argparse.ArgumentTypeError(f"--stub {value!r} has no name")
     if port:
         return name, int(port)
-    if name not in SERVICE_PORTS:
+    known = service_ports()
+    if name not in known:
         raise argparse.ArgumentTypeError(
-            f"--stub {name!r} is not one of {sorted(SERVICE_PORTS)}; give it a "
+            f"--stub {name!r} is not one of {sorted(known)}; give it a "
             f"port as {name}:PORT")
-    return name, SERVICE_PORTS[name]
+    return name, known[name]
 
 
 def _profile(profile: str | None, plug_args: Sequence[str]):
@@ -685,9 +747,18 @@ def selected_services(profile: str | None,
 
     A profile's list may name an explicit-only BI vendor (`services.PLUG_NAMES`)
     - `bi=powerbi` mounts powerbi at 8095 in place of metabase - and `load`
-    accepts it because it is named; None never does."""
+    accepts it because it is named; None never does. A hosted backend the
+    profile plugs (`alkera_gateway.backends.plugged`, `hosted=True`) is named
+    after them, from the registry, and mounted on its row's port; a profile
+    that plugs two TLS backends is a ProfileError here."""
+    from ..backends import plugged
+
     resolved = _profile(profile, plug_args)
-    return None if resolved is None else resolved.services
+    if resolved is None:
+        return None
+    hosted = tuple(b.name for b in plugged(resolved.slots)
+                   if b.hosted and b.name not in resolved.services)
+    return resolved.services + hosted
 
 
 def sched_enabled(profile: str | None, plug_args: Sequence[str]) -> bool:
@@ -772,6 +843,10 @@ def main(argv: list[str] | None = None) -> int:
         print(exc, file=sys.stderr, flush=True)
         return 2
 
+    # The receiver's secret leaves the environment before any service module
+    # is imported, so none of them, and nothing they start, inherits it.
+    minio_token = os.environ.pop(MINIO_AUDIT_TOKEN_ENV, "")
+
     # The services read the world and write the action log through
     # `native.audit.record`, which takes both from the environment. Set here
     # rather than passed, because a PATH shim the agent runs is a separate
@@ -796,7 +871,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"--minio-audit-port {audit_port} is a service port",
                   file=sys.stderr, flush=True)
             return 1
-        receiver, why = minio_receiver(audit_port)
+        receiver, why = minio_receiver(audit_port, minio_token)
         if receiver is not None:
             mounted.append(receiver)
         else:

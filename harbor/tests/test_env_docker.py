@@ -205,6 +205,62 @@ def test_image_builds_starts_and_holds_the_permission_model(task, arm, tmp_path,
               f"(content size), {len(lines)} engineer checks passed")
 
 
+#: As `engineer`: the supervised stub backend answers at its alias, and the
+#: services' private state is out of reach.
+BACKEND_CHECKS = r"""
+check() { local n="$1"; shift; if "$@" >/dev/null 2>&1; then echo "PASS $n"; else echo "FAIL $n"; fi; }
+deny()  { local n="$1"; shift; if "$@" >/dev/null 2>&1; then echo "FAIL $n (allowed)"; else echo "PASS $n"; fi; }
+check "stub.internal resolves to loopback" sh -c 'getent hosts stub.internal | grep -q 127.0.0.1'
+check "the backend answers at its alias" sh -c 'test "$(curl -s -o /dev/null -w %{http_code} --max-time 10 http://stub.internal:9999/)" = 200'
+deny  "cannot list the service state" ls /var/lib/alkera/service-state
+deny  "cannot create in the service state" touch /var/lib/alkera/service-state/x
+"""
+
+
+def test_a_supervised_backend_runs_as_its_user(tmp_path, capsys):
+    """episode.json `backends` in the real image: root's world-up starts the
+    stub as `nobody` in its own session, aliases stub.internal only once it
+    listens, and world-down stops it before the services (plan Task 4; Task 10
+    puts real backends here)."""
+    context, document = assemble_context("default", tmp_path, fixture.TASK)
+    document["backends"] = [{
+        "name": "stub", "argv": ["/usr/local/bin/python", "-m", "http.server", "9999",
+                                 "--bind", "127.0.0.1"],
+        "user": "nobody", "ports": [9999], "hosts": ["stub.internal"], "health": "tcp"}]
+    (context / "episode" / "episode.json").write_text(json.dumps(document))
+    tag = f"{TAG}:backend"
+    docker("build", "-q", "-t", tag, str(context), timeout=3600)
+    name = f"alkera-env-test-backend-{os.getpid()}"
+    env_flags = [flag for k, v in document["env"].items() for flag in ("-e", f"{k}={v}")]
+    try:
+        docker("run", "-d", "--name", name, "--network", "none", *env_flags, tag)
+        up = docker("exec", name, "/opt/alkera/bin/world-up", check=False, timeout=300)
+        assert up.returncode == 0, up.stderr + up.stdout
+        assert "backend stub: started" in up.stdout and "as nobody" in up.stdout, up.stdout
+        owner = docker("exec", name, "sh", "-c",
+                       "ps -o user= -p $(python3 -c \"import json; print(json.load(open("
+                       "'/opt/alkera/run/backends.json'))['stub']['pid'])\")").stdout.strip()
+        assert owner == "nobody", owner
+        state = docker("exec", name, "stat", "-c", "%a %U", "/var/lib/alkera/service-state"
+                       ).stdout.strip()
+        assert state == "700 root", state
+        checks = docker("exec", "-i", "-u", "engineer", "-w", "/workspace", name, "bash", "-s",
+                        stdin=BACKEND_CHECKS, check=False, timeout=300)
+        lines = [ln for ln in checks.stdout.splitlines() if ln.startswith(("PASS", "FAIL"))]
+        assert lines and not [ln for ln in lines if ln.startswith("FAIL")], checks.stdout
+        down = docker("exec", name, "/opt/alkera/bin/world-down", check=False, timeout=300)
+        assert down.returncode == 0
+        assert down.stdout.index("backend stub stopped") < down.stdout.index("services stopped")
+        left = docker("exec", name, "sh", "-c",
+                      "ps -eo stat=,args= | grep -v '^Z' | grep http.server | grep -v grep "
+                      "|| true").stdout
+        assert left.strip() == "", left
+    finally:
+        docker("rm", "-f", name, check=False)
+    with capsys.disabled():
+        print(f"\n[backend as nobody] {len(lines)} engineer checks passed")
+
+
 #: As `engineer` after a publish round trip: the CLI the round trip stripped.
 ROUND_TRIP_CHECKS = r"""
 check() { local n="$1"; shift; if "$@" >/dev/null 2>&1; then echo "PASS $n"; else echo "FAIL $n"; fi; }

@@ -1,0 +1,618 @@
+{
+  "schema": "alkera-harbor-tooltour-acceptance-evidence/1",
+  "rev": "9bb9537",
+  "agent": "nop",
+  "note": "Task 11 tool tour, exported from the clean commit 9bb9537 (on main-2 5ed3ed5) with --validate (every task loaded by Harbor 0.23.0, digest equal), --work-dir on disk. Plain Harbor runs (images built by Harbor), -n 2, TMPDIR on disk. 12 of 30 probes exported; 18 skipped by name (17 whose profile the Harbor image does not serve until plan Task 10: snowflake, redshift, databricks, bigquery, postgres, postgres_dbt, airflow; 1 KNOWN container-tour finding: dbt.show.ref_inline).",
+  "harbor": "0.23.0",
+  "docker": "29.8.2",
+  "command": "TMPDIR=<disk> python3 harbor/acceptance.py --dataset harbor/dist/alkera-tooltour -n 2 --sg docker --harbor <harbor 0.23.0 env>/bin/harbor",
+  "export": "gateway/.venv/bin/python harbor/export.py --tooltour --output-dir harbor/dist/alkera-tooltour --overwrite --validate --work-dir <disk>",
+  "accepted": true,
+  "dataset": {
+    "path": "harbor/dist/alkera-tooltour",
+    "name": "alkera/tool-tour",
+    "source_commit": "9bb95378be0eb6c7525e5c1d4d055f47728141b1",
+    "source_dirty": false,
+    "exported_at": "2026-10-07T14:31:12Z",
+    "tasks": [
+      {
+        "name": "alkera/dbt.show.net_revenue__tour",
+        "probe": "dbt.show.net_revenue",
+        "tool": "dbt",
+        "profile": "da/laptop",
+        "digest": "sha256:cbe1454e4a3dae57e5ea80ba4777054ec2331710aa72102643b297ac05ef7087"
+      },
+      {
+        "name": "alkera/duckdb.cli.net_revenue_feb_2026__tour",
+        "probe": "duckdb.cli.net_revenue_feb_2026",
+        "tool": "duckdb",
+        "profile": "da/laptop",
+        "digest": "sha256:99ff8eece7a5d751e678ab33a5a49c85e9db3093b37869a32fc9a7d983239519"
+      },
+      {
+        "name": "alkera/excel.openpyxl.net_revenue_feb_2026_roundtrip__tour",
+        "probe": "excel.openpyxl.net_revenue_feb_2026_roundtrip",
+        "tool": "excel",
+        "profile": "da/laptop",
+        "digest": "sha256:73a77ca79c1497bbd713807560f485a47f295e5c14e2b22c95220f153bad5834"
+      },
+      {
+        "name": "alkera/human.confluence.net_revenue_page_version__tour",
+        "probe": "human.confluence.net_revenue_page_version",
+        "tool": "human",
+        "profile": "da/laptop",
+        "digest": "sha256:9b767e03521ada5b968266e521b47db9db48adc80f321bdd69d952414c095ead"
+      },
+      {
+        "name": "alkera/human.jira.ana238_status__tour",
+        "probe": "human.jira.ana238_status",
+        "tool": "human",
+        "profile": "da/laptop",
+        "digest": "sha256:f0a8a7829bed8e75f307ad236c9ea5ad79bbca50575a2a24b25ecafdeca6b82f"
+      },
+      {
+        "name": "alkera/human.slack.analytics_eng_threads__tour",
+        "probe": "human.slack.analytics_eng_threads",
+        "tool": "human",
+        "profile": "da/laptop",
+        "digest": "sha256:3443b5c62abd1441ac694503ded154b9056c41081691f728b658cebf129762e8"
+      },
+      {
+        "name": "alkera/jupyter.kernel.completed_orders_feb_2026__tour",
+        "probe": "jupyter.kernel.completed_orders_feb_2026",
+        "tool": "jupyter",
+        "profile": "da/laptop",
+        "digest": "sha256:0d5215924b814b80e94341b05317594d38eacd52285c1dde2e0ece2dc5008803"
+      },
+      {
+        "name": "alkera/mf.query.net_revenue_feb_2026__tour",
+        "probe": "mf.query.net_revenue_feb_2026",
+        "tool": "mf",
+        "profile": "da/laptop",
+        "digest": "sha256:afa97674943ffb8dfc97c6795342f4a6ffef7115680f89fbbf78039130065e6d"
+      },
+      {
+        "name": "alkera/powerbi.rest.net_revenue__tour",
+        "probe": "powerbi.rest.net_revenue",
+        "tool": "powerbi",
+        "profile": "da/laptop",
+        "digest": "sha256:4fe7482cc56ed25f1bb405c67059b9a821e8b1e90ae3bf28c6af7792d141d8b6"
+      },
+      {
+        "name": "alkera/sched.ops_sched.dbt_build_successes__tour",
+        "probe": "sched.ops_sched.dbt_build_successes",
+        "tool": "sched",
+        "profile": "de/laptop",
+        "digest": "sha256:6eaef7d0d405cf4b8ba6faa48d576759c42e54303b4dbe942d67fa9f9b4c9c93"
+      },
+      {
+        "name": "alkera/sigma.rest.net_revenue_feb_2026__tour",
+        "probe": "sigma.rest.net_revenue_feb_2026",
+        "tool": "sigma",
+        "profile": "da/laptop",
+        "digest": "sha256:9384d55ea743697b677f133f369fd76c3b233df49158a3d38ae86950c203db98"
+      },
+      {
+        "name": "alkera/tableau.tabcmd.net_revenue__tour",
+        "probe": "tableau.tabcmd.net_revenue",
+        "tool": "tableau",
+        "profile": "da/laptop",
+        "digest": "sha256:9cb83d240026bd39bd8aea6e99177ae1a485b901fd99697dcdec0c06f970a939"
+      }
+    ],
+    "skipped": [
+      {
+        "probe": "airflow.airflowctl.commerce_nightly_schedule",
+        "profile": "de/laptop",
+        "reason": "not served by the Harbor image yet: the de/laptop+orchestrator=airflow [role de, clients airflow] variant plugs backend 'airflow', which the Harbor image has no process for (plan Task 10)"
+      },
+      {
+        "probe": "airflow.rest.dbt_build_successes",
+        "profile": "de/laptop",
+        "reason": "not served by the Harbor image yet: the de/laptop+orchestrator=airflow [role de, clients airflow] variant plugs backend 'airflow', which the Harbor image has no process for (plan Task 10)"
+      },
+      {
+        "probe": "bigquery.client.net_revenue_feb_2026",
+        "profile": "de/gcp",
+        "reason": "not served by the Harbor image yet: profile 'de/gcp' plugs warehouse=bigquery, which the Harbor image does not serve yet (only duckdb): nothing would answer at its address. Backends land as episode.json `backends` (plan Task 10)."
+      },
+      {
+        "probe": "bigquery.client.warehouse_tables",
+        "profile": "de/gcp",
+        "reason": "not served by the Harbor image yet: profile 'de/gcp' plugs warehouse=bigquery, which the Harbor image does not serve yet (only duckdb): nothing would answer at its address. Backends land as episode.json `backends` (plan Task 10)."
+      },
+      {
+        "probe": "bigquery.rest.completed_orders_feb_2026",
+        "profile": "de/gcp",
+        "reason": "not served by the Harbor image yet: profile 'de/gcp' plugs warehouse=bigquery, which the Harbor image does not serve yet (only duckdb): nothing would answer at its address. Backends land as episode.json `backends` (plan Task 10)."
+      },
+      {
+        "probe": "databricks.connector.completed_orders_feb_2026",
+        "profile": "de/databricks",
+        "reason": "not served by the Harbor image yet: profile 'de/databricks' plugs warehouse=databricks, which the Harbor image does not serve yet (only duckdb): nothing would answer at its address. Backends land as episode.json `backends` (plan Task 10)."
+      },
+      {
+        "probe": "databricks.dbt.net_revenue_feb_2026",
+        "profile": "de/databricks",
+        "reason": "not served by the Harbor image yet: profile 'de/databricks' plugs warehouse=databricks, which the Harbor image does not serve yet (only duckdb): nothing would answer at its address. Backends land as episode.json `backends` (plan Task 10)."
+      },
+      {
+        "probe": "databricks.jobs.run_now_bi_refresh",
+        "profile": "de/databricks",
+        "reason": "not served by the Harbor image yet: profile 'de/databricks' plugs warehouse=databricks, which the Harbor image does not serve yet (only duckdb): nothing would answer at its address. Backends land as episode.json `backends` (plan Task 10)."
+      },
+      {
+        "probe": "databricks.rest.net_revenue",
+        "profile": "de/databricks",
+        "reason": "not served by the Harbor image yet: profile 'de/databricks' plugs warehouse=databricks, which the Harbor image does not serve yet (only duckdb): nothing would answer at its address. Backends land as episode.json `backends` (plan Task 10)."
+      },
+      {
+        "probe": "databricks.sdk.net_revenue_feb_2026",
+        "profile": "de/databricks",
+        "reason": "not served by the Harbor image yet: profile 'de/databricks' plugs warehouse=databricks, which the Harbor image does not serve yet (only duckdb): nothing would answer at its address. Backends land as episode.json `backends` (plan Task 10)."
+      },
+      {
+        "probe": "databricks.uc.fct_orders_columns",
+        "profile": "de/databricks",
+        "reason": "not served by the Harbor image yet: profile 'de/databricks' plugs warehouse=databricks, which the Harbor image does not serve yet (only duckdb): nothing would answer at its address. Backends land as episode.json `backends` (plan Task 10)."
+      },
+      {
+        "probe": "dbt.show.ref_inline",
+        "profile": "da/laptop",
+        "reason": "known finding of the container tour (the probe's own command fails, so the oracle could not pass): awaiting user decision: theme macro fix moves BI001/BI002 world bytes (see relations.patch)"
+      },
+      {
+        "probe": "postgres.psql.net_revenue_feb_2026",
+        "profile": "de/postgres",
+        "reason": "not served by the Harbor image yet: profile 'de/postgres' plugs warehouse=postgres, which the Harbor image does not serve yet (only duckdb): nothing would answer at its address. Backends land as episode.json `backends` (plan Task 10)."
+      },
+      {
+        "probe": "postgres_dbt.run.net_revenue_feb_2026",
+        "profile": "de/postgres",
+        "reason": "not served by the Harbor image yet: profile 'de/postgres' plugs warehouse=postgres, which the Harbor image does not serve yet (only duckdb): nothing would answer at its address. Backends land as episode.json `backends` (plan Task 10)."
+      },
+      {
+        "probe": "redshift.connector.net_revenue_feb_2026",
+        "profile": "de/aws",
+        "reason": "not served by the Harbor image yet: profile 'de/aws' plugs warehouse=redshift, which the Harbor image does not serve yet (only duckdb): nothing would answer at its address. Backends land as episode.json `backends` (plan Task 10)."
+      },
+      {
+        "probe": "redshift.dbt.show_net_revenue_feb_2026",
+        "profile": "de/aws",
+        "reason": "not served by the Harbor image yet: profile 'de/aws' plugs warehouse=redshift, which the Harbor image does not serve yet (only duckdb): nothing would answer at its address. Backends land as episode.json `backends` (plan Task 10)."
+      },
+      {
+        "probe": "redshift.psql.completed_orders_feb_2026",
+        "profile": "de/aws",
+        "reason": "not served by the Harbor image yet: profile 'de/aws' plugs warehouse=redshift, which the Harbor image does not serve yet (only duckdb): nothing would answer at its address. Backends land as episode.json `backends` (plan Task 10)."
+      },
+      {
+        "probe": "snowflake.connector.net_revenue_feb_2026",
+        "profile": "da/snowflake",
+        "reason": "not served by the Harbor image yet: profile 'da/snowflake' plugs warehouse=snowflake, which the Harbor image does not serve yet (only duckdb): nothing would answer at its address. Backends land as episode.json `backends` (plan Task 10)."
+      }
+    ]
+  },
+  "summary": {
+    "trials": 12,
+    "expected": 0.0,
+    "matching": 12,
+    "rewards": [
+      "0"
+    ],
+    "exceptions": [],
+    "seconds": 654,
+    "problems": []
+  },
+  "per_tool": [
+    {
+      "tool": "dbt",
+      "trials": 1,
+      "probes": [
+        "dbt.show.net_revenue"
+      ],
+      "mean_reward": 0.0,
+      "rewarded": 0,
+      "unmeasured_or_errored": 0,
+      "expected_tool_used": 0,
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "median_agent_seconds": 2.2
+    },
+    {
+      "tool": "duckdb",
+      "trials": 1,
+      "probes": [
+        "duckdb.cli.net_revenue_feb_2026"
+      ],
+      "mean_reward": 0.0,
+      "rewarded": 0,
+      "unmeasured_or_errored": 0,
+      "expected_tool_used": 0,
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "median_agent_seconds": 2.2
+    },
+    {
+      "tool": "excel",
+      "trials": 1,
+      "probes": [
+        "excel.openpyxl.net_revenue_feb_2026_roundtrip"
+      ],
+      "mean_reward": 0.0,
+      "rewarded": 0,
+      "unmeasured_or_errored": 0,
+      "expected_tool_used": 0,
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "median_agent_seconds": 2.5
+    },
+    {
+      "tool": "human",
+      "trials": 3,
+      "probes": [
+        "human.confluence.net_revenue_page_version",
+        "human.jira.ana238_status",
+        "human.slack.analytics_eng_threads"
+      ],
+      "mean_reward": 0.0,
+      "rewarded": 0,
+      "unmeasured_or_errored": 0,
+      "expected_tool_used": 0,
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "median_agent_seconds": 2.2
+    },
+    {
+      "tool": "jupyter",
+      "trials": 1,
+      "probes": [
+        "jupyter.kernel.completed_orders_feb_2026"
+      ],
+      "mean_reward": 0.0,
+      "rewarded": 0,
+      "unmeasured_or_errored": 0,
+      "expected_tool_used": 0,
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "median_agent_seconds": 2.2
+    },
+    {
+      "tool": "mf",
+      "trials": 1,
+      "probes": [
+        "mf.query.net_revenue_feb_2026"
+      ],
+      "mean_reward": 0.0,
+      "rewarded": 0,
+      "unmeasured_or_errored": 0,
+      "expected_tool_used": 0,
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "median_agent_seconds": 2.2
+    },
+    {
+      "tool": "powerbi",
+      "trials": 1,
+      "probes": [
+        "powerbi.rest.net_revenue"
+      ],
+      "mean_reward": 0.0,
+      "rewarded": 0,
+      "unmeasured_or_errored": 0,
+      "expected_tool_used": 0,
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "median_agent_seconds": 2.2
+    },
+    {
+      "tool": "sched",
+      "trials": 1,
+      "probes": [
+        "sched.ops_sched.dbt_build_successes"
+      ],
+      "mean_reward": 0.0,
+      "rewarded": 0,
+      "unmeasured_or_errored": 0,
+      "expected_tool_used": 0,
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "median_agent_seconds": 2.2
+    },
+    {
+      "tool": "sigma",
+      "trials": 1,
+      "probes": [
+        "sigma.rest.net_revenue_feb_2026"
+      ],
+      "mean_reward": 0.0,
+      "rewarded": 0,
+      "unmeasured_or_errored": 0,
+      "expected_tool_used": 0,
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "median_agent_seconds": 2.2
+    },
+    {
+      "tool": "tableau",
+      "trials": 1,
+      "probes": [
+        "tableau.tabcmd.net_revenue"
+      ],
+      "mean_reward": 0.0,
+      "rewarded": 0,
+      "unmeasured_or_errored": 0,
+      "expected_tool_used": 0,
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "median_agent_seconds": 2.2
+    }
+  ],
+  "trials": [
+    {
+      "probe": "dbt.show.net_revenue",
+      "tool": "dbt",
+      "task": "alkera/dbt.show.net_revenue__tour",
+      "trial": "dbt.show.net_revenue__tour__i24pJbb",
+      "reward": 0,
+      "exception": null,
+      "unmeasured": null,
+      "checks": {
+        "answer": false,
+        "tools": false,
+        "network": true,
+        "seq": true
+      },
+      "expected_tool_used": false,
+      "tools_used": [],
+      "unknown_route_rows": 0,
+      "answer": null,
+      "truth": "33733790.00",
+      "agent_seconds": 2.2,
+      "trial_seconds": 136.0
+    },
+    {
+      "probe": "duckdb.cli.net_revenue_feb_2026",
+      "tool": "duckdb",
+      "task": "alkera/duckdb.cli.net_revenue_feb_2026__tour",
+      "trial": "duckdb.cli.net_revenue_feb_2026__4rwXSxc",
+      "reward": 0,
+      "exception": null,
+      "unmeasured": null,
+      "checks": {
+        "answer": false,
+        "tools": false,
+        "network": true,
+        "seq": true
+      },
+      "expected_tool_used": false,
+      "tools_used": [],
+      "unknown_route_rows": 0,
+      "answer": null,
+      "truth": "2361224.00",
+      "agent_seconds": 2.2,
+      "trial_seconds": 152.3
+    },
+    {
+      "probe": "excel.openpyxl.net_revenue_feb_2026_roundtrip",
+      "tool": "excel",
+      "task": "alkera/excel.openpyxl.net_revenue_feb_2026_roundtrip__tour",
+      "trial": "excel.openpyxl.net_revenue_feb_2__3sPZQpm",
+      "reward": 0,
+      "exception": null,
+      "unmeasured": null,
+      "checks": {
+        "answer": false,
+        "tools": false,
+        "network": true,
+        "seq": true
+      },
+      "expected_tool_used": false,
+      "tools_used": [],
+      "unknown_route_rows": 0,
+      "answer": null,
+      "truth": "2361224.00",
+      "agent_seconds": 2.5,
+      "trial_seconds": 92.0
+    },
+    {
+      "probe": "human.confluence.net_revenue_page_version",
+      "tool": "human",
+      "task": "alkera/human.confluence.net_revenue_page_version__tour",
+      "trial": "human.confluence.net_revenue_pag__y2UMFzy",
+      "reward": 0,
+      "exception": null,
+      "unmeasured": null,
+      "checks": {
+        "answer": false,
+        "tools": false,
+        "network": true,
+        "seq": true
+      },
+      "expected_tool_used": false,
+      "tools_used": [],
+      "unknown_route_rows": 0,
+      "answer": null,
+      "truth": 5,
+      "agent_seconds": 2.2,
+      "trial_seconds": 65.6
+    },
+    {
+      "probe": "human.jira.ana238_status",
+      "tool": "human",
+      "task": "alkera/human.jira.ana238_status__tour",
+      "trial": "human.jira.ana238_status__tour__oPtJB6P",
+      "reward": 0,
+      "exception": null,
+      "unmeasured": null,
+      "checks": {
+        "answer": false,
+        "tools": false,
+        "network": true,
+        "seq": true
+      },
+      "expected_tool_used": false,
+      "tools_used": [],
+      "unknown_route_rows": 0,
+      "answer": null,
+      "truth": "todo",
+      "agent_seconds": 2.2,
+      "trial_seconds": 68.2
+    },
+    {
+      "probe": "human.slack.analytics_eng_threads",
+      "tool": "human",
+      "task": "alkera/human.slack.analytics_eng_threads__tour",
+      "trial": "human.slack.analytics_eng_thread__ZTypaCy",
+      "reward": 0,
+      "exception": null,
+      "unmeasured": null,
+      "checks": {
+        "answer": false,
+        "tools": false,
+        "network": true,
+        "seq": true
+      },
+      "expected_tool_used": false,
+      "tools_used": [],
+      "unknown_route_rows": 0,
+      "answer": null,
+      "truth": 5,
+      "agent_seconds": 2.2,
+      "trial_seconds": 164.9
+    },
+    {
+      "probe": "jupyter.kernel.completed_orders_feb_2026",
+      "tool": "jupyter",
+      "task": "alkera/jupyter.kernel.completed_orders_feb_2026__tour",
+      "trial": "jupyter.kernel.completed_orders__AYbGwPp",
+      "reward": 0,
+      "exception": null,
+      "unmeasured": null,
+      "checks": {
+        "answer": false,
+        "tools": false,
+        "network": true,
+        "seq": true
+      },
+      "expected_tool_used": false,
+      "tools_used": [],
+      "unknown_route_rows": 0,
+      "answer": null,
+      "truth": 1068,
+      "agent_seconds": 2.2,
+      "trial_seconds": 54.5
+    },
+    {
+      "probe": "mf.query.net_revenue_feb_2026",
+      "tool": "mf",
+      "task": "alkera/mf.query.net_revenue_feb_2026__tour",
+      "trial": "mf.query.net_revenue_feb_2026__t__GpaGpuc",
+      "reward": 0,
+      "exception": null,
+      "unmeasured": null,
+      "checks": {
+        "answer": false,
+        "tools": false,
+        "network": true,
+        "seq": true
+      },
+      "expected_tool_used": false,
+      "tools_used": [],
+      "unknown_route_rows": 0,
+      "answer": null,
+      "truth": "2361224.00",
+      "agent_seconds": 2.2,
+      "trial_seconds": 47.6
+    },
+    {
+      "probe": "powerbi.rest.net_revenue",
+      "tool": "powerbi",
+      "task": "alkera/powerbi.rest.net_revenue__tour",
+      "trial": "powerbi.rest.net_revenue__tour__b6GnjuZ",
+      "reward": 0,
+      "exception": null,
+      "unmeasured": null,
+      "checks": {
+        "answer": false,
+        "tools": false,
+        "network": true,
+        "seq": true
+      },
+      "expected_tool_used": false,
+      "tools_used": [],
+      "unknown_route_rows": 0,
+      "answer": null,
+      "truth": "33733790.00",
+      "agent_seconds": 2.2,
+      "trial_seconds": 189.1
+    },
+    {
+      "probe": "sched.ops_sched.dbt_build_successes",
+      "tool": "sched",
+      "task": "alkera/sched.ops_sched.dbt_build_successes__tour",
+      "trial": "sched.ops_sched.dbt_build_succes__QTn5Cs8",
+      "reward": 0,
+      "exception": null,
+      "unmeasured": null,
+      "checks": {
+        "answer": false,
+        "tools": false,
+        "network": true,
+        "seq": true
+      },
+      "expected_tool_used": false,
+      "tools_used": [],
+      "unknown_route_rows": 0,
+      "answer": null,
+      "truth": 425,
+      "agent_seconds": 2.2,
+      "trial_seconds": 56.5
+    },
+    {
+      "probe": "sigma.rest.net_revenue_feb_2026",
+      "tool": "sigma",
+      "task": "alkera/sigma.rest.net_revenue_feb_2026__tour",
+      "trial": "sigma.rest.net_revenue_feb_2026__66ec8ig",
+      "reward": 0,
+      "exception": null,
+      "unmeasured": null,
+      "checks": {
+        "answer": false,
+        "tools": false,
+        "network": true,
+        "seq": true
+      },
+      "expected_tool_used": false,
+      "tools_used": [],
+      "unknown_route_rows": 0,
+      "answer": null,
+      "truth": "2361224.00",
+      "agent_seconds": 2.2,
+      "trial_seconds": 82.4
+    },
+    {
+      "probe": "tableau.tabcmd.net_revenue",
+      "tool": "tableau",
+      "task": "alkera/tableau.tabcmd.net_revenue__tour",
+      "trial": "tableau.tabcmd.net_revenue__tour__zp8i4TE",
+      "reward": 0,
+      "exception": null,
+      "unmeasured": null,
+      "checks": {
+        "answer": false,
+        "tools": false,
+        "network": true,
+        "seq": true
+      },
+      "expected_tool_used": false,
+      "tools_used": [],
+      "unknown_route_rows": 0,
+      "answer": null,
+      "truth": "33733790.00",
+      "agent_seconds": 2.2,
+      "trial_seconds": 100.6
+    }
+  ],
+  "acceptance_job": "acceptance-nop-20261007T143139"
+}

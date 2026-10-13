@@ -1,0 +1,15 @@
+# The warehouse a bare `dbt` uses. The project's own config/profiles.yml
+# targets the developer DuckDB file instead; that is the usual reason two
+# people get two different answers out of the same model.
+world_dbt:
+  outputs:
+    dev:
+      dbname: alkera
+      host: postgres.internal
+      password: alkera-local-dev
+      port: 5432
+      schema: warehouse
+      threads: 1
+      type: postgres
+      user: alkera
+  target: dev

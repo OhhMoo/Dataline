@@ -140,8 +140,15 @@ def test_the_dockerfile_has_no_per_task_token():
 
 def test_generated_dockerfiles_are_the_template_byte_for_byte(tmp_path):
     """The generator copies the template verbatim; two tasks, same bytes. With
-    ALKERA_HARBOR_EXPORT_DIR set, every exported task is checked too."""
+    ALKERA_HARBOR_EXPORT_DIR set, every exported task is checked too: an
+    unprofiled task's Dockerfile IS the template, a profiled task's is its
+    variant rendered from it (alkera_harbor/variant.py), and every task of
+    one variant has the same bytes."""
+    import tomllib
+
+    from alkera_harbor import dockerenv, harness
     from alkera_harbor.adapter import copy_template
+    from alkera_harbor.variant import render_dockerfile, variant_of
 
     for name in ("a", "b"):
         copy_template(ENV_TEMPLATE, tmp_path / name)
@@ -151,8 +158,21 @@ def test_generated_dockerfiles_are_the_template_byte_for_byte(tmp_path):
     if export:
         found = sorted(Path(export).glob("*/environment/Dockerfile"))
         assert found, f"no task under {export}"
+        template = DOCKERFILE.read_text(encoding="utf-8")
+        by_variant: dict[str, set[bytes]] = {}
         for path in found:
-            assert path.read_bytes() == DOCKERFILE.read_bytes(), path
+            meta = tomllib.loads((path.parents[1] / "task.toml").read_text())["metadata"]
+            key = meta.get("alkera_variant")
+            if key is None:
+                assert path.read_bytes() == DOCKERFILE.read_bytes(), path
+                continue
+            spec = harness.load_spec(meta["alkera_task"], meta["alkera_arm"])
+            variant = variant_of(spec)
+            assert variant.key == key, path
+            assert path.read_text(encoding="utf-8") == render_dockerfile(
+                template, variant, dockerenv.parse_env(template)), path
+            by_variant.setdefault(key, set()).add(path.read_bytes())
+        assert all(len(v) == 1 for v in by_variant.values())
 
 
 def test_single_stage_pinned_by_digest_without_platform():

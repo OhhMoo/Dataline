@@ -1,6 +1,6 @@
 # scripts/ — host setup and the measurement run
 
-Three entry points, all Linux, all run from anywhere (they resolve the repo from their own
+Four entry points, all Linux, all run from anywhere (they resolve the repo from their own
 path). The first two print their full usage with `--help`.
 
 ```
@@ -22,6 +22,13 @@ live_bi.sh              one live rollout of BI001 (guided brief) then BI002, K=1
                         (transcript.jsonl), and every Power BI / Tableau / Sigma / mf / dbt /
                         tabcmd call the gateway logged. Restores BI001's brief when it ends.
                         Env: OUT MODEL. Needs jq.
+
+harbor_live.sh          a live Claude agent over the Harbor datasets, inside Harbor's sandbox, run
+                        in tmux with the model login exported: `tour` (one task per tool probe),
+                        `bi` (BI001/BI002, 4 tasks), `tasks` (every GT and BI arm), `all`, or
+                        `export` (datasets only, no token). Exports once per commit to
+                        harbor/dist/, prints a per-task or per-tool table (tooltour_report.py).
+                        Env: MODEL N HARBOR WORK REEXPORT
 ```
 
 None creates a subject credential: run `claude setup-token` and export

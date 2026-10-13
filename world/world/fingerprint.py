@@ -19,6 +19,7 @@
 import argparse
 import hashlib
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -163,9 +164,37 @@ def semantic_hash(root: Path) -> str:
     return json_hash(semantic(root))
 
 
+# git_head runs in the AGENT's repository once an episode has run (and on the
+# host), and the agent owns `.git/config`: git runs there exactly as
+# gateway/src/alkera_gateway/safegit.py runs it - no system/global config, no
+# GIT_* inherited, fsmonitor/hooks/attributes/protocols off, GIT_DIR pinned to a
+# plain `.git` directory. world/ does not import the gateway, so the env and
+# argv are a private copy, pinned equal by gateway/tests/test_safegit.py.
+def _git_env() -> dict[str, str]:
+    env = {k: v for k, v in os.environ.items() if not k.upper().startswith("GIT_")}
+    env.update({"GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": "/dev/null",
+                "GIT_ATTR_NOSYSTEM": "1", "GIT_TERMINAL_PROMPT": "0",
+                "GIT_NO_LAZY_FETCH": "1", "GIT_ALLOW_PROTOCOL": ""})
+    return env
+
+
+def _git_argv(repo: Path) -> list[str]:
+    return ["git", "-c", "safe.directory=*", "-c", "core.fsmonitor=false",
+            "-c", "core.hooksPath=/dev/null", "-c", "core.attributesFile=/dev/null",
+            "-c", "protocol.allow=never", "-C", str(repo)]
+
+
 def git_head(root: Path) -> str | None:
-    r = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True,
-                       cwd=Path(root) / "workspace")
+    workspace = (Path(root) / "workspace").absolute()
+    git_dir = workspace / ".git"
+    if git_dir.is_symlink() or not git_dir.is_dir():
+        return None
+    env = {**_git_env(), "GIT_DIR": str(git_dir), "GIT_WORK_TREE": str(workspace)}
+    try:
+        r = subprocess.run([*_git_argv(workspace), "rev-parse", "HEAD"],
+                           capture_output=True, env=env, timeout=60, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return None
     return r.stdout.decode().strip() if r.returncode == 0 else None
 
 

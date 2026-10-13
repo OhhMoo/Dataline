@@ -23,6 +23,11 @@ What `trigger` and `advance` now do:
   this module will never do is report a status it did not observe.
 - `advance(root, hours)` materialises the span: new source partitions land and
   scheduled jobs fire, in virtual-time order, executing for real.
+- `enqueue(root, job)` accepts a run without running it: one entry under
+  state.json's `queue` key, `vnow` and `runs` untouched. The next `advance`
+  executes the queue first, at its own start (`_drain`). This is the control
+  plane's shape (Airflow's `POST .../dagRuns`) as opposed to `trigger`'s, and
+  the key exists only while something is queued.
 
 Determinism (agent.md 7.4), all of it load-bearing because state.json is
 fingerprinted:
@@ -423,6 +428,107 @@ def trigger(root: Path, job: str, variables: dict | None = None,
 
 
 # --------------------------------------------------------------------------
+# the queue: a run asked for now, executed when the clock next moves
+# --------------------------------------------------------------------------
+
+#: The state.json key holding runs that were asked for and have not run. It is
+#: present ONLY while something is queued: the conditional-section rule, so a
+#: world nothing was ever queued in is byte-identical to one built before the
+#: queue existed, and `advance` removes the key when it drains it.
+QUEUE = "queue"
+#: At most this many runs wait in the queue. Every one of them is work the
+#: grader's next `advance` must execute before anything else, so a caller that
+#: loops on a trigger cannot push unbounded work onto it; `advance` also counts
+#: them against MAX_EVENTS. A caller that queues several runs at once (a DAG
+#: run's tasks) checks `queue_room` first, so a request is accepted whole or
+#: not at all.
+MAX_QUEUED = 256
+
+
+class QueueFull(SystemExit):
+    """`enqueue` refused: the queue already holds MAX_QUEUED runs."""
+
+
+def queue_room(state: dict) -> int:
+    """How many more runs the queue accepts."""
+    return MAX_QUEUED - len(state.get(QUEUE) or [])
+
+
+def enqueue(root: Path, job: str, variables: dict | None = None,
+            execution_date: str | None = None, origin: dict | None = None) -> dict:
+    """Queue a run of `job` for the next `advance`. Runs nothing, moves nothing.
+
+    `trigger` executes now and stamps `vnow` forward to the run's end; this is
+    the other shape a control plane has - Airflow's `POST .../dagRuns`, a
+    Databricks `run-now` - where the request is ACCEPTED now and a scheduler
+    picks it up later. Here "later" is the next `advance`, the grader's, which
+    executes every queued run first, at its own start, in queue order
+    (`_drain`). So `vnow` is unchanged, `runs` is unchanged and no job's work
+    has run when this returns: the only change is one entry under QUEUE, and
+    the ledger stays the single time authority.
+
+    `origin` is the caller's own record of what it asked for (the Airflow fake
+    keeps its dag_id and dag_run_id there); it is carried onto the run record
+    when the run executes and is never read by this module.
+    """
+    root = Path(root)
+    state = load(root)
+    if job not in state["jobs"]:
+        raise SystemExit(f"unknown job: {job} (have: {', '.join(state['jobs'])})")
+    if queue_room(state) <= 0:
+        raise QueueFull(f"the queue already holds {MAX_QUEUED} runs (MAX_QUEUED); they run "
+                        f"at the next advance - nothing more is accepted until then")
+    entry = {"job": job, "queued_at": state["vnow"], "execution_date": execution_date}
+    if variables:
+        entry["variables"] = dict(variables)
+    if origin:
+        entry["origin"] = dict(origin)
+    state.setdefault(QUEUE, []).append(entry)
+    save(root, state)
+    return entry
+
+
+def _drain(root: Path, state: dict, live: dict | None, start: datetime) -> list:
+    """Execute every queued run, oldest first, from `start`; return the log.
+
+    Called by `advance` after it has planned the span and before it executes
+    any of it: a run queued at `vnow` was asked for before anything in
+    (start, target] happened, so it runs first - and planning first means a
+    drained run can never dedupe a scheduled occurrence (`_plan_jobs` keys on
+    (job, vts_start)). Runs are laid end to end, each starting when the one
+    before it finished, which is what one worker draining a queue does; the
+    placement depends on the queue and `start` alone, so `advance(1)` x N and
+    `advance(N)` drain identically. A queued run executes for real and is
+    recorded the way a manual trigger is (`trigger: manual`), with
+    `queued_at` and the caller's `origin` beside it; it publishes, because it
+    ran in the world (`_publish`).
+    """
+    queued = state.pop(QUEUE, None) or []
+    log = []
+    at = start
+    for entry in queued:
+        job = entry["job"]
+        variables = entry.get("variables") or None
+        execution_date = entry.get("execution_date")
+        day = (variables or {}).get("day") or (
+            str(execution_date)[:10] if execution_date else None)
+        result = _execute(root, state, live, job, variables, day)
+        run = _run_record(job, at, state["jobs"][job]["duration_s"], result,
+                          "manual", None, execution_date)
+        run["queued_at"] = entry.get("queued_at")
+        if entry.get("origin"):
+            run["origin"] = entry["origin"]
+        state["runs"].append(run)
+        _publish(root, state, live, job, run, day)
+        observe.record(root, state, parse_vtime(run["vts_end"]), "advance",
+                       observe.run_id(len(state["runs"]), job))
+        log.append({"kind": "queued", "vts": run["vts_start"], "name": job,
+                    "status": run["status"], "error": run["error"]})
+        at = parse_vtime(run["vts_end"])
+    return log
+
+
+# --------------------------------------------------------------------------
 # time and traffic
 # --------------------------------------------------------------------------
 
@@ -749,6 +855,16 @@ def _simulate_job(root: Path, state: dict, live: dict, event: dict,
     return made, None
 
 
+def _cap_events(state: dict, planned: list) -> None:
+    """Refuse, before anything runs, a span whose queued runs plus planned
+    events exceed MAX_EVENTS: the queue is simulated work like any other."""
+    queued = len(state.get(QUEUE) or [])
+    if queued + len(planned) > MAX_EVENTS:
+        raise SystemExit(
+            f"advance would simulate {queued} queued run(s) and {len(planned)} "
+            f"event(s) (cap {MAX_EVENTS}); advance in smaller steps")
+
+
 def advance(root: Path, hours: float) -> dict:
     """Move the clock by `hours`, materialising everything in the span.
 
@@ -766,11 +882,20 @@ def advance(root: Path, hours: float) -> dict:
     target = start + timedelta(hours=hours)
 
     if live is None:
+        # Queued runs still run: they were asked for, and `trigger` on the
+        # same world would have executed them (as `unsupported`, with no
+        # `exec` to run). Nothing queued: the same bytes as before the queue.
+        _cap_events(state, [])
+        drained = _drain(root, state, None, start) if state.get(QUEUE) else []
         state["vnow"] = iso(target)
         save(root, state)
-        return {"vnow": state["vnow"], "live": False, "events": [],
-                "note": "no live-world control plane (var/world/live.json): "
-                        "the clock moved, nothing was executed"}
+        out = {"vnow": state["vnow"], "live": False, "events": drained,
+               "note": "no live-world control plane (var/world/live.json): "
+                       "the clock moved, nothing was executed"}
+        if drained:
+            out["note"] = ("no live-world control plane (var/world/live.json): "
+                           "the clock moved and only the queued runs were executed")
+        return out
 
     gen, seed = live_gen(live), live_seed(live)
     arrivals, cursor, deferred = ([], None, None)
@@ -781,9 +906,13 @@ def advance(root: Path, hours: float) -> dict:
     # would be lost and the occurrence would never complete - the job would
     # have failed once and then silently never run again.
     pending_runs, runs_later = _plan_deferred_runs(live, target)
-    log = []
     queue = _ordered(arrivals + pending_runs
                      + _plan_jobs(state, live, start, target))
+    # Runs queued before this span (`enqueue`) execute first, at `start`; the
+    # span was planned above, before they were appended. A no-op, touching
+    # nothing, when nothing is queued.
+    _cap_events(state, queue)
+    log = _drain(root, state, live, start) if state.get(QUEUE) else []
     index = 0
     while index < len(queue):
         event = queue[index]

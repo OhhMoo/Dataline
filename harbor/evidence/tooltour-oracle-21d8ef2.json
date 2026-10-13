@@ -1,0 +1,116 @@
+{
+  "schema": "alkera-harbor-tooltour-acceptance-evidence/1",
+  "rev": "21d8ef2",
+  "agent": "oracle",
+  "note": "The two dbt tool-tour tasks after the commerce_analytics relations.sql fix (an inline query's ref() keeps its database): dbt.show.ref_inline, skipped as a known finding until now, is exported and accepted next to dbt.show.net_revenue. Exported with --tools dbt --validate from the clean commit 21d8ef2 (fix at 073f6f5), plain Harbor runs, -n 2, TMPDIR on disk. The other 24 tasks of tooltour-*-5c18d18 / -0bf4ddb-databricks are not affected (only the commerce_analytics dbt macro changed).",
+  "harbor": "0.23.0",
+  "docker": "29.8.2",
+  "command": "TMPDIR=<disk> python3 harbor/acceptance.py --dataset harbor/dist/alkera-tooltour -n 2 --sg docker --harbor <harbor 0.23.0 env>/bin/harbor",
+  "export": "gateway/.venv/bin/python harbor/export.py --tooltour --tools dbt --output-dir harbor/dist/alkera-tooltour --overwrite --validate --work-dir <disk>",
+  "accepted": true,
+  "dataset": {
+    "path": "harbor/dist/alkera-tooltour",
+    "name": "alkera/tool-tour",
+    "source_commit": "21d8ef23af751a55da54c8e2da53d6797004e717",
+    "source_dirty": false,
+    "exported_at": "2026-10-08T03:39:14Z",
+    "tasks": [
+      {
+        "name": "alkera/dbt.show.net_revenue__tour",
+        "probe": "dbt.show.net_revenue",
+        "tool": "dbt",
+        "profile": "da/laptop",
+        "digest": "sha256:13b3646123e135373baca448574899a410c16a729f2270bb0b0812cec34fdc09"
+      },
+      {
+        "name": "alkera/dbt.show.ref_inline__tour",
+        "probe": "dbt.show.ref_inline",
+        "tool": "dbt",
+        "profile": "da/laptop",
+        "digest": "sha256:5590c5ff024bf377997ed3ad874a23eb34b7fac846fa035d780060d3b1f5327a"
+      }
+    ],
+    "skipped": []
+  },
+  "summary": {
+    "trials": 2,
+    "expected": 1.0,
+    "matching": 2,
+    "rewards": [
+      "1"
+    ],
+    "exceptions": [],
+    "seconds": 224,
+    "problems": []
+  },
+  "per_tool": [
+    {
+      "tool": "dbt",
+      "trials": 2,
+      "probes": [
+        "dbt.show.net_revenue",
+        "dbt.show.ref_inline"
+      ],
+      "mean_reward": 1.0,
+      "rewarded": 2,
+      "unmeasured_or_errored": 0,
+      "expected_tool_used": 2,
+      "unknown_route_rows": 0,
+      "unknown_routes": [],
+      "median_agent_seconds": 16.3
+    }
+  ],
+  "trials": [
+    {
+      "probe": "dbt.show.net_revenue",
+      "tool": "dbt",
+      "task": "alkera/dbt.show.net_revenue__tour",
+      "trial": "dbt.show.net_revenue__tour__gjBQzwh",
+      "reward": 1,
+      "exception": null,
+      "unmeasured": null,
+      "checks": {
+        "answer": true,
+        "tools": true,
+        "network": true,
+        "seq": true
+      },
+      "expected_tool_used": true,
+      "tools_used": [
+        "shim.dbt",
+        "shim.python"
+      ],
+      "unknown_route_rows": 0,
+      "answer": 33733790.0,
+      "truth": "33733790.00",
+      "agent_seconds": 16.0,
+      "trial_seconds": 210.0
+    },
+    {
+      "probe": "dbt.show.ref_inline",
+      "tool": "dbt",
+      "task": "alkera/dbt.show.ref_inline__tour",
+      "trial": "dbt.show.ref_inline__tour__Pqsp3bc",
+      "reward": 1,
+      "exception": null,
+      "unmeasured": null,
+      "checks": {
+        "answer": true,
+        "tools": true,
+        "network": true,
+        "seq": true
+      },
+      "expected_tool_used": true,
+      "tools_used": [
+        "shim.dbt",
+        "shim.python"
+      ],
+      "unknown_route_rows": 0,
+      "answer": 33733790.0,
+      "truth": "33733790.00",
+      "agent_seconds": 16.6,
+      "trial_seconds": 208.0
+    }
+  ],
+  "acceptance_job": "acceptance-oracle-20261008T034527"
+}

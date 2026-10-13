@@ -1,0 +1,368 @@
+{
+ "findings": [],
+ "probes": [
+  {
+   "command": "cd /workspace\nset -euo pipefail\npython3 - <<'PY'\nimport json, os\nimport redshift_connector\n\nenv = os.environ\nconn = redshift_connector.connect(\n    host=env[\"REDSHIFT_HOST\"], port=int(env[\"REDSHIFT_PORT\"]),\n    database=env[\"REDSHIFT_DATABASE\"], user=env[\"REDSHIFT_USER\"],\n    password=env[\"REDSHIFT_PASSWORD\"], ssl=False, timeout=30)\ncur = conn.cursor()\ncur.execute(\"SELECT SUM(order_amount) AS net_revenue FROM warehouse.fct_orders WHERE order_status = 'completed' AND order_date >= '2026-02-01' AND order_date < '2026-03-01'\")\nvalue = cur.fetchone()[0]\ncur.close()\nconn.close()\nprint(json.dumps({\"value\": str(value)}))\nPY\n",
+   "destinations": {
+    "redshift.internal:5439": 1
+   },
+   "doc": null,
+   "drift": false,
+   "expect_args": [],
+   "expect_tools": [
+    "redshift.statement"
+   ],
+   "failures": [],
+   "id": "redshift.connector.net_revenue_feb_2026",
+   "known": null,
+   "missing_args": [],
+   "missing_tools": [],
+   "profile": "de/aws",
+   "returncode": 0,
+   "rows": 3,
+   "rows_at": "call",
+   "seconds": 1.54,
+   "stderr_tail": "",
+   "stdout_tail": "{\"value\": \"2361224.00\"}\n",
+   "tool": "redshift",
+   "tools": [
+    "redshift.statement",
+    "redshift.statement",
+    "shim.python"
+   ],
+   "truth": "2361224.00",
+   "truth_after": "2361224.00",
+   "value": "2361224.00",
+   "value_ok": true,
+   "verdict": "PASS"
+  },
+  {
+   "command": "cd /workspace\nset -euo pipefail\nn=$(PGPASSWORD=\"$REDSHIFT_PASSWORD\" psql -h \"$REDSHIFT_HOST\" -p \"$REDSHIFT_PORT\" -U \"$REDSHIFT_USER\" -d \"$REDSHIFT_DATABASE\" -v ON_ERROR_STOP=1 -tAc \"SELECT COUNT(*) FROM warehouse.fct_orders WHERE order_status = 'completed' AND order_date >= '2026-02-01' AND order_date < '2026-03-01'\")\nprintf '{\"value\": %s}\\n' \"$n\"\n",
+   "destinations": {
+    "redshift.internal:5439": 1
+   },
+   "doc": null,
+   "drift": false,
+   "expect_args": [],
+   "expect_tools": [
+    "redshift.statement"
+   ],
+   "failures": [],
+   "id": "redshift.psql.completed_orders_feb_2026",
+   "known": null,
+   "missing_args": [],
+   "missing_tools": [],
+   "profile": "de/aws",
+   "returncode": 0,
+   "rows": 1,
+   "rows_at": "call",
+   "seconds": 0.09,
+   "stderr_tail": "",
+   "stdout_tail": "{\"value\": 1068}\n",
+   "tool": "redshift",
+   "tools": [
+    "redshift.statement"
+   ],
+   "truth": 1068,
+   "truth_after": 1068,
+   "value": 1068,
+   "value_ok": true,
+   "verdict": "PASS"
+  },
+  {
+   "command": "cd /workspace\nset -euo pipefail\ncd dbt_project\ndbt --quiet show --inline \"SELECT SUM(order_amount) AS net_revenue FROM warehouse.fct_orders WHERE order_status = 'completed' AND order_date >= '2026-02-01' AND order_date < '2026-03-01'\" --output json > /tmp/tour_redshift_dbt_show.json\npython3 -c 'import json; print(json.dumps({\"value\": json.load(open(\"/tmp/tour_redshift_dbt_show.json\"))[\"show\"][0][\"net_revenue\"]}))'\n",
+   "destinations": {
+    "redshift.internal:5439": 4
+   },
+   "doc": null,
+   "drift": false,
+   "expect_args": [
+    "show"
+   ],
+   "expect_tools": [
+    "shim.dbt",
+    "redshift.statement"
+   ],
+   "failures": [],
+   "id": "redshift.dbt.show_net_revenue_feb_2026",
+   "known": null,
+   "missing_args": [],
+   "missing_tools": [],
+   "profile": "de/aws",
+   "returncode": 0,
+   "rows": 16,
+   "rows_at": "call",
+   "seconds": 7.16,
+   "stderr_tail": "",
+   "stdout_tail": "{\"value\": 2361224.0}\n",
+   "tool": "redshift",
+   "tools": [
+    "redshift.statement",
+    "redshift.statement",
+    "redshift.statement",
+    "redshift.statement",
+    "redshift.statement",
+    "redshift.statement",
+    "redshift.statement",
+    "redshift.statement",
+    "redshift.statement",
+    "redshift.statement",
+    "redshift.statement",
+    "redshift.statement",
+    "redshift.statement",
+    "redshift.statement",
+    "shim.dbt",
+    "shim.python"
+   ],
+   "truth": "2361224.00",
+   "truth_after": "2361224.00",
+   "value": 2361224.0,
+   "value_ok": true,
+   "verdict": "PASS"
+  }
+ ],
+ "profiles": [
+  {
+   "allowed_destinations": [
+    "airbyte.internal:8001",
+    "alertmanager.internal:9093",
+    "confluence.internal:8090",
+    "deploy.internal:8085",
+    "jira.internal:8080",
+    "loki.internal:3100",
+    "minio.internal:9000",
+    "postgres.internal:5432",
+    "prometheus.internal:9090",
+    "redshift.internal:5439",
+    "sched.internal:8120",
+    "slack.internal:8081",
+    "tableau.internal:8096"
+   ],
+   "episode": {
+    "destinations": [
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "airbyte.internal",
+      "last_ts": null,
+      "port": 8001
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "alertmanager.internal",
+      "last_ts": null,
+      "port": 9093
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "confluence.internal",
+      "last_ts": null,
+      "port": 8090
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "deploy.internal",
+      "last_ts": null,
+      "port": 8085
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "jira.internal",
+      "last_ts": null,
+      "port": 8080
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "loki.internal",
+      "last_ts": null,
+      "port": 3100
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "native-services.internal",
+      "last_ts": null,
+      "port": 8099
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "prometheus.internal",
+      "last_ts": null,
+      "port": 9090
+     },
+     {
+      "count": 6,
+      "first_ts": "2026-10-07T13:03:12Z",
+      "host": "redshift.internal",
+      "last_ts": "2026-10-07T13:03:18Z",
+      "port": 5439
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "sched.internal",
+      "last_ts": null,
+      "port": 8120
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "slack.internal",
+      "last_ts": null,
+      "port": 8081
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "tableau.internal",
+      "last_ts": null,
+      "port": 8096
+     }
+    ],
+    "network_violations": [],
+    "no_stray_rows": true,
+    "ok": true,
+    "rows_in_probes": 20,
+    "rows_total": 20,
+    "trace_valid": true
+   },
+   "image": "alkera-episode:w1-redshift",
+   "image_gate": {
+    "head": "dce40db143885b9123b60caa080fec785ba25925",
+    "image": "alkera-episode:w1-redshift",
+    "revision": "dce40db143885b9123b60caa080fec785ba25925"
+   },
+   "ok": true,
+   "plugs": {},
+   "probes": [
+    "redshift.connector.net_revenue_feb_2026",
+    "redshift.psql.completed_orders_feb_2026",
+    "redshift.dbt.show_net_revenue_feb_2026"
+   ],
+   "profile": "de/aws",
+   "rows_at": "call",
+   "seconds": 38.9,
+   "seed": "# commerce_analytics world seed: a shop's nightly CDC extracts -> raw -> dbt\n# star schema + semantic layer -> Power BI / Tableau / Sigma dashboards.\ntheme: commerce_analytics    # world/world/themes/<name>/\nseed: 11\nvtime_start: \"2025-01-01T00:00:00Z\"\n# 425 nightly extracts: dt=2024-12-31 (the cutover snapshot: accounts and\n# catalogue, no orders) then dt=2025-01-01 .. dt=2026-02-28. Fourteen months of\n# orders, so last-year measures exist for January and February 2026. The world\n# clock opens at 2026-03-02T00:00Z, a Monday - business day 1 of the February\n# close.\ndays: 425\n\n# Scale. Every key is optional (gen.DEFAULTS); these are the defaults, spelled\n# out. Build time is dominated by dbt, not by volume - a 2x seed builds in about\n# the same time.\ncustomers: 220               # accounts on the platform at cutover\nsignup_pct: 18               # chance per day of a new account (a second at a quarter of it)\nupdate_pct: 9                # chance per day that one account is upgraded a segment\norders_per_day: [20, 60]     # base range, scaled by weekday, month, peak days and growth\nlines_per_order: [1, 4]\ncancel_pct: 6                # 70% the same day, the rest the next day\nrefund_pct: 4                # 3 to 45 days after the order\ngrowth_pct: 20               # year-over-year order volume growth\n\ngit_author: \"Analytics Engineering <analytics@example.com>\"\nnative: true\nfiles: {formats: [parquet]}\nprofile:\n  name: de/aws\n  slots: [files, warehouse, transform, orchestrator, object_store, ingest, bi, observability, release, human]\n  plugs: {bi: [tableau]}\n",
+   "stack": {
+    "container_id": "614f137a2fb1",
+    "episode_endpoints": {
+     "airbyte": "http://airbyte.internal:8001",
+     "alertmanager": "http://alertmanager.internal:9093",
+     "confluence": "http://confluence.internal:8090",
+     "deploy": "http://deploy.internal:8085",
+     "jira": "http://jira.internal:8080",
+     "loki": "http://loki.internal:3100",
+     "postgres": {
+      "database": "alkera",
+      "host": "postgres.internal",
+      "password": "alkera-local-dev",
+      "port": 5432,
+      "user": "alkera"
+     },
+     "prometheus": "http://prometheus.internal:9090",
+     "redshift": "postgres://redshift.internal:5439",
+     "s3": "http://minio.internal:9000",
+     "s3_access_key": "alkera-local-dev",
+     "s3_bucket": "alkera",
+     "s3_region": "us-east-1",
+     "s3_secret_key": "alkera-local-dev",
+     "sched": "http://sched.internal:8120",
+     "slack": "http://slack.internal:8081",
+     "tableau": "http://tableau.internal:8096"
+    },
+    "image": "alkera-episode:w1-redshift",
+    "image_digest": "sha256:dc122ca25306f1f7c4ed74ca49e49de5b0725d85a9ac0f5341c35899da321d8c",
+    "services": [
+     "episode",
+     "minio",
+     "native-services",
+     "postgres",
+     "redshift"
+    ],
+    "subject_env": {
+     "AIRBYTE_API_KEY": "alkera-local-dev",
+     "AIRBYTE_URL": "http://airbyte.internal:8001",
+     "ALERTMANAGER_URL": "http://alertmanager.internal:9093",
+     "ALKERA_BACKEND": "postgres",
+     "ALKERA_NATIVE_AUDIT": "/audit/actions.jsonl",
+     "ALKERA_POSTGRES_DSN": "postgresql://episode:episode-local@postgres/episode",
+     "ALKERA_SHIM_BIN": "/opt/alkera/shims",
+     "ALKERA_SHIM_WATCH": "/world/var/warehouse/warehouse.duckdb",
+     "ALKERA_SHIM_WORKSPACE": "/workspace",
+     "ALKERA_SOURCE_REV": "dce40db143885b9123b60caa080fec785ba25925",
+     "ALKERA_TOOLBELT": "de",
+     "ALKERA_VIRTUAL_TIME": "2026-03-02T00:00:00Z",
+     "ALKERA_WAREHOUSES": "",
+     "ALKERA_WAREHOUSE_CLIENTS": "redshift",
+     "ALKERA_WORKSPACE": "/workspace",
+     "AWS_ACCESS_KEY_ID": "alkera-local-dev",
+     "AWS_DEFAULT_REGION": "us-east-1",
+     "AWS_ENDPOINT_URL": "http://minio.internal:9000",
+     "AWS_SECRET_ACCESS_KEY": "alkera-local-dev",
+     "CONFLUENCE_API_TOKEN": "alkera-local-dev",
+     "CONFLUENCE_URL": "http://confluence.internal:8090",
+     "CONFLUENCE_USER": "alkera-local-dev",
+     "DBT_PROFILES_DIR": "/root/.dbt",
+     "DEPLOY_API_TOKEN": "alkera-local-dev",
+     "DEPLOY_URL": "http://deploy.internal:8085",
+     "HOME": "/root",
+     "JIRA_API_TOKEN": "alkera-local-dev",
+     "JIRA_URL": "http://jira.internal:8080",
+     "JIRA_USER": "alkera-local-dev",
+     "LOKI_ADDR": "http://loki.internal:3100",
+     "LOKI_URL": "http://loki.internal:3100",
+     "PATH": "/opt/alkera/shims:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/toolbelt/bin",
+     "PROMETHEUS_URL": "http://prometheus.internal:9090",
+     "SCHED_URL": "http://sched.internal:8120",
+     "SLACK_BASE_URL": "http://slack.internal:8081",
+     "SLACK_BOT_TOKEN": "alkera-local-dev",
+     "TABLEAU_PAT_NAME": "alkera-local-dev",
+     "TABLEAU_PAT_SECRET": "alkera-local-dev",
+     "TABLEAU_SERVER_URL": "http://tableau.internal:8096",
+     "TABLEAU_SITE": ""
+    },
+    "workspace_cli": {
+     "cli": "ops/sched",
+     "files": [
+      "/home/ubuntu/alkera-rollouts/w1-redshift/tour/de-aws/world/workspace/ops/sched"
+     ],
+     "interpreter": "/usr/local/bin/python",
+     "pythonpath": "/opt/world",
+     "topology": "container"
+    }
+   },
+   "truths_read": "after the world build, before the stack came up",
+   "work": "/home/ubuntu/alkera-rollouts/w1-redshift/tour/de-aws",
+   "world": {
+    "dashboards": "/home/ubuntu/alkera-rollouts/w1-redshift/tour/de-aws/world/var/bi/dashboards",
+    "grading": "/home/ubuntu/alkera-rollouts/w1-redshift/tour/de-aws/grading",
+    "profiles_dir": "/home/ubuntu/alkera-rollouts/w1-redshift/tour/de-aws/world/build",
+    "scheduler": "/home/ubuntu/alkera-rollouts/w1-redshift/tour/de-aws/world/var/sched/state.json",
+    "warehouse": "/home/ubuntu/alkera-rollouts/w1-redshift/tour/de-aws/world/var/warehouse/warehouse.duckdb",
+    "workflow_dir": "/home/ubuntu/alkera-rollouts/w1-redshift/tour/de-aws/world/var/workflow",
+    "workspace": "/home/ubuntu/alkera-rollouts/w1-redshift/tour/de-aws/world/workspace",
+    "world_root": "/home/ubuntu/alkera-rollouts/w1-redshift/tour/de-aws/world"
+   }
+  }
+ ],
+ "revision": "dce40db143885b9123b60caa080fec785ba25925",
+ "seconds": 38.9,
+ "started": 1791378172.3608878,
+ "summary": {
+  "DOC": 0,
+  "FAIL": 0,
+  "PASS": 3,
+  "profiles_ok": true
+ },
+ "table": "probe                                       profile       verdict   rows  value / truth\n---------------------------------------------------------------------------------------------------------------------\nredshift.connector.net_revenue_feb_2026     de/aws        PASS         3  '2361224.00' / Decimal('2361224.00')\nredshift.psql.completed_orders_feb_2026     de/aws        PASS         1  1068 / 1068\nredshift.dbt.show_net_revenue_feb_2026      de/aws        PASS        16  2361224.0 / Decimal('2361224.00')",
+ "tools": [
+  "redshift"
+ ],
+ "topology": "container"
+}

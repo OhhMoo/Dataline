@@ -1,0 +1,100 @@
+# The services this box can reach. Written when the box is provisioned.
+# Names resolve on the internal network only; nothing here is routable.
+
+[world]
+root = "/world"
+workspace = "/world/workspace"
+
+[warehouse]
+host = "postgres.internal"
+port = 5432
+database = "alkera"
+user = "alkera"
+password = "alkera-local-dev"
+
+[storage]
+endpoint = "http://minio.internal:9000"
+access_key_id = "alkera-local-dev"
+secret_access_key = "alkera-local-dev"
+
+[scheduler]
+api = "http://airflow.internal:8080/api/v2"
+user = "alkera-local-dev"
+password = "alkera-local-dev"
+
+[service.metabase]
+url = "http://metabase.internal:3000"
+alias = "metabase.internal"
+port = 3000
+env = "METABASE_URL"
+description = "dashboards and saved questions"
+token = "alkera-local-dev"
+token_env = "METABASE_API_KEY"
+
+[service.loki]
+url = "http://loki.internal:3100"
+alias = "loki.internal"
+port = 3100
+env = "LOKI_URL"
+description = "job logs; logcli reads LOKI_ADDR"
+
+[service.jira]
+url = "http://jira.internal:8080"
+alias = "jira.internal"
+port = 8080
+env = "JIRA_URL"
+description = "the ticket queue"
+user = "alkera-local-dev"
+token = "alkera-local-dev"
+token_env = "JIRA_API_TOKEN"
+
+[service.slack]
+url = "http://slack.internal:8081"
+alias = "slack.internal"
+port = 8081
+env = "SLACK_BASE_URL"
+description = "the team channels"
+token = "alkera-local-dev"
+token_env = "SLACK_BOT_TOKEN"
+
+[service.airbyte]
+url = "http://airbyte.internal:8001"
+alias = "airbyte.internal"
+port = 8001
+env = "AIRBYTE_URL"
+description = "connector control plane"
+token = "alkera-local-dev"
+token_env = "AIRBYTE_API_KEY"
+
+[service.deploy]
+url = "http://deploy.internal:8085"
+alias = "deploy.internal"
+port = 8085
+env = "DEPLOY_URL"
+description = "releases; ops/deploy wraps it"
+token = "alkera-local-dev"
+token_env = "DEPLOY_API_TOKEN"
+
+[service.confluence]
+url = "http://confluence.internal:8090"
+alias = "confluence.internal"
+port = 8090
+env = "CONFLUENCE_URL"
+description = "the wiki: runbooks, postmortems, policies"
+user = "alkera-local-dev"
+token = "alkera-local-dev"
+token_env = "CONFLUENCE_API_TOKEN"
+
+[service.prometheus]
+url = "http://prometheus.internal:9090"
+alias = "prometheus.internal"
+port = 9090
+env = "PROMETHEUS_URL"
+description = "metrics"
+
+[service.alertmanager]
+url = "http://alertmanager.internal:9093"
+alias = "alertmanager.internal"
+port = 9093
+env = "ALERTMANAGER_URL"
+description = "alarms"

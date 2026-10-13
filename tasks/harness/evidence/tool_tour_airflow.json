@@ -1,0 +1,308 @@
+{
+ "findings": [],
+ "probes": [
+  {
+   "command": "cd /workspace\nset -euo pipefail\ntoken=$(curl -sf -X POST \"${AIRFLOW_API_URL%/api/v2}/auth/token\" \\\n  -H 'Content-Type: application/json' \\\n  -d \"{\\\"username\\\": \\\"$AIRFLOW_USER\\\", \\\"password\\\": \\\"$AIRFLOW_PASSWORD\\\"}\" \\\n  | jq -r .access_token)\ntis=\"$AIRFLOW_API_URL/dags/commerce_nightly/dagRuns/~/taskInstances\"\nn=$(curl -sf -H \"Authorization: Bearer $token\" \\\n  \"$tis?task_id=dbt_build&state=success&limit=1\" | jq .total_entries)\nprintf '{\"value\": %s}\\n' \"$n\"\n",
+   "destinations": {
+    "airflow.internal:8100": 2
+   },
+   "doc": null,
+   "drift": false,
+   "expect_args": [],
+   "expect_tools": [
+    "airflow.auth_token",
+    "airflow.task_list"
+   ],
+   "failures": [],
+   "id": "airflow.rest.dbt_build_successes",
+   "known": null,
+   "missing_args": [],
+   "missing_tools": [],
+   "profile": "de/laptop",
+   "returncode": 0,
+   "rows": 2,
+   "rows_at": "call",
+   "seconds": 0.61,
+   "stderr_tail": "",
+   "stdout_tail": "{\"value\": 425}\n",
+   "tool": "airflow",
+   "tools": [
+    "airflow.auth_token",
+    "airflow.task_list"
+   ],
+   "truth": 425,
+   "truth_after": 425,
+   "value": 425,
+   "value_ok": true,
+   "verdict": "PASS"
+  },
+  {
+   "command": "cd /workspace\nset -euo pipefail\nexport AIRFLOW_HOME=/tmp/airflowctl\nbase=\"${AIRFLOW_API_URL%/api/v2}\"\ntoken=$(airflowctl auth token --api-url \"$base\" --username \"$AIRFLOW_USER\" \\\n  --password \"$AIRFLOW_PASSWORD\" | tail -n 1)\nairflowctl auth login --api-url \"$base\" --api-token \"$token\" --skip-keyring >/dev/null\nschedule=$(AIRFLOW_CLI_TOKEN=\"$token\" airflowctl dags get commerce_nightly -o json \\\n  | jq -r 'if type == \"array\" then .[0] else . end | .timetable_summary')\nprintf '{\"value\": \"%s\"}\\n' \"$schedule\"\n",
+   "destinations": {
+    "airflow.internal:8100": 2
+   },
+   "doc": null,
+   "drift": false,
+   "expect_args": [],
+   "expect_tools": [
+    "airflow.auth_token",
+    "airflow.dag_get"
+   ],
+   "failures": [],
+   "id": "airflow.airflowctl.commerce_nightly_schedule",
+   "known": null,
+   "missing_args": [],
+   "missing_tools": [],
+   "profile": "de/laptop",
+   "returncode": 0,
+   "rows": 2,
+   "rows_at": "call",
+   "seconds": 4.53,
+   "stderr_tail": "",
+   "stdout_tail": "{\"value\": \"30 2 * * *\"}\n",
+   "tool": "airflow",
+   "tools": [
+    "airflow.auth_token",
+    "airflow.dag_get"
+   ],
+   "truth": "30 2 * * *",
+   "truth_after": "30 2 * * *",
+   "value": "30 2 * * *",
+   "value_ok": true,
+   "verdict": "PASS"
+  }
+ ],
+ "profiles": [
+  {
+   "allowed_destinations": [
+    "airbyte.internal:8001",
+    "airflow.internal:8100",
+    "alertmanager.internal:9093",
+    "confluence.internal:8090",
+    "deploy.internal:8085",
+    "jira.internal:8080",
+    "loki.internal:3100",
+    "metabase.internal:3000",
+    "minio.internal:9000",
+    "postgres.internal:5432",
+    "prometheus.internal:9090",
+    "slack.internal:8081"
+   ],
+   "episode": {
+    "destinations": [
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "metabase.internal",
+      "last_ts": null,
+      "port": 3000
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "loki.internal",
+      "last_ts": null,
+      "port": 3100
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "airbyte.internal",
+      "last_ts": null,
+      "port": 8001
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "jira.internal",
+      "last_ts": null,
+      "port": 8080
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "slack.internal",
+      "last_ts": null,
+      "port": 8081
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "deploy.internal",
+      "last_ts": null,
+      "port": 8085
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "confluence.internal",
+      "last_ts": null,
+      "port": 8090
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "native-services.internal",
+      "last_ts": null,
+      "port": 8099
+     },
+     {
+      "count": 4,
+      "first_ts": "2026-10-07T11:46:48Z",
+      "host": "airflow.internal",
+      "last_ts": "2026-10-07T11:46:53Z",
+      "port": 8100
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "prometheus.internal",
+      "last_ts": null,
+      "port": 9090
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "alertmanager.internal",
+      "last_ts": null,
+      "port": 9093
+     }
+    ],
+    "network_violations": [],
+    "no_stray_rows": true,
+    "ok": true,
+    "rows_in_probes": 4,
+    "rows_total": 4,
+    "trace_valid": true
+   },
+   "image": "alkera-episode:w1-airflow",
+   "image_gate": {
+    "head": "9fb2ea8c8ba9390074b4fae74cf18f3a7bcdece7",
+    "image": "alkera-episode:w1-airflow",
+    "revision": "9fb2ea8c8ba9390074b4fae74cf18f3a7bcdece7"
+   },
+   "ok": true,
+   "plugs": {
+    "orchestrator": [
+     "airflow"
+    ]
+   },
+   "probes": [
+    "airflow.rest.dbt_build_successes",
+    "airflow.airflowctl.commerce_nightly_schedule"
+   ],
+   "profile": "de/laptop",
+   "rows_at": "call",
+   "seconds": 84.8,
+   "seed": "# commerce_analytics world seed: a shop's nightly CDC extracts -> raw -> dbt\n# star schema + semantic layer -> Power BI / Tableau / Sigma dashboards.\ntheme: commerce_analytics    # world/world/themes/<name>/\nseed: 11\nvtime_start: \"2025-01-01T00:00:00Z\"\n# 425 nightly extracts: dt=2024-12-31 (the cutover snapshot: accounts and\n# catalogue, no orders) then dt=2025-01-01 .. dt=2026-02-28. Fourteen months of\n# orders, so last-year measures exist for January and February 2026. The world\n# clock opens at 2026-03-02T00:00Z, a Monday - business day 1 of the February\n# close.\ndays: 425\n\n# Scale. Every key is optional (gen.DEFAULTS); these are the defaults, spelled\n# out. Build time is dominated by dbt, not by volume - a 2x seed builds in about\n# the same time.\ncustomers: 220               # accounts on the platform at cutover\nsignup_pct: 18               # chance per day of a new account (a second at a quarter of it)\nupdate_pct: 9                # chance per day that one account is upgraded a segment\norders_per_day: [20, 60]     # base range, scaled by weekday, month, peak days and growth\nlines_per_order: [1, 4]\ncancel_pct: 6                # 70% the same day, the rest the next day\nrefund_pct: 4                # 3 to 45 days after the order\ngrowth_pct: 20               # year-over-year order volume growth\n\ngit_author: \"Analytics Engineering <analytics@example.com>\"\nnative: true\nfiles: {formats: [parquet]}\nprofile:\n  name: de/laptop\n  slots: [files, warehouse, transform, orchestrator, object_store, ingest, bi, observability, release, human]\n  plugs: {orchestrator: [airflow]}\n",
+   "stack": {
+    "container_id": "208b86c3a696",
+    "episode_endpoints": {
+     "airbyte": "http://airbyte.internal:8001",
+     "airflow": "http://airflow.internal:8100",
+     "alertmanager": "http://alertmanager.internal:9093",
+     "confluence": "http://confluence.internal:8090",
+     "deploy": "http://deploy.internal:8085",
+     "jira": "http://jira.internal:8080",
+     "loki": "http://loki.internal:3100",
+     "metabase": "http://metabase.internal:3000",
+     "postgres": {
+      "database": "alkera",
+      "host": "postgres.internal",
+      "password": "alkera-local-dev",
+      "port": 5432,
+      "user": "alkera"
+     },
+     "prometheus": "http://prometheus.internal:9090",
+     "s3": "http://minio.internal:9000",
+     "s3_access_key": "alkera-local-dev",
+     "s3_bucket": "alkera",
+     "s3_region": "us-east-1",
+     "s3_secret_key": "alkera-local-dev",
+     "slack": "http://slack.internal:8081"
+    },
+    "image": "alkera-episode:w1-airflow",
+    "image_digest": "sha256:5d6641fd310a72a59006e80ae72e4d88d0fcd9a5b9746aa40c1f5f7be68a5532",
+    "services": [
+     "episode",
+     "minio",
+     "native-services",
+     "postgres"
+    ],
+    "subject_env": {
+     "AIRBYTE_API_KEY": "alkera-local-dev",
+     "AIRBYTE_URL": "http://airbyte.internal:8001",
+     "ALERTMANAGER_URL": "http://alertmanager.internal:9093",
+     "ALKERA_BACKEND": "postgres",
+     "ALKERA_NATIVE_AUDIT": "/audit/actions.jsonl",
+     "ALKERA_POSTGRES_DSN": "postgresql://episode:episode-local@postgres/episode",
+     "ALKERA_SHIM_BIN": "/opt/alkera/shims",
+     "ALKERA_SHIM_WATCH": "/world/var/warehouse/warehouse.duckdb",
+     "ALKERA_SHIM_WORKSPACE": "/workspace",
+     "ALKERA_SOURCE_REV": "9fb2ea8c8ba9390074b4fae74cf18f3a7bcdece7",
+     "ALKERA_TOOLBELT": "de",
+     "ALKERA_VIRTUAL_TIME": "2026-03-02T00:00:00Z",
+     "ALKERA_WAREHOUSES": "",
+     "ALKERA_WAREHOUSE_CLIENTS": "airflow",
+     "ALKERA_WORKSPACE": "/workspace",
+     "AWS_ACCESS_KEY_ID": "alkera-local-dev",
+     "AWS_DEFAULT_REGION": "us-east-1",
+     "AWS_ENDPOINT_URL": "http://minio.internal:9000",
+     "AWS_SECRET_ACCESS_KEY": "alkera-local-dev",
+     "CONFLUENCE_API_TOKEN": "alkera-local-dev",
+     "CONFLUENCE_URL": "http://confluence.internal:8090",
+     "CONFLUENCE_USER": "alkera-local-dev",
+     "DBT_PROFILES_DIR": "/root/.dbt",
+     "DEPLOY_API_TOKEN": "alkera-local-dev",
+     "DEPLOY_URL": "http://deploy.internal:8085",
+     "HOME": "/root",
+     "JIRA_API_TOKEN": "alkera-local-dev",
+     "JIRA_URL": "http://jira.internal:8080",
+     "JIRA_USER": "alkera-local-dev",
+     "LOKI_ADDR": "http://loki.internal:3100",
+     "LOKI_URL": "http://loki.internal:3100",
+     "METABASE_API_KEY": "alkera-local-dev",
+     "METABASE_URL": "http://metabase.internal:3000",
+     "PATH": "/opt/alkera/shims:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/toolbelt/bin",
+     "PROMETHEUS_URL": "http://prometheus.internal:9090",
+     "SLACK_BASE_URL": "http://slack.internal:8081",
+     "SLACK_BOT_TOKEN": "alkera-local-dev"
+    },
+    "workspace_cli": {
+     "cli": null,
+     "files": [],
+     "interpreter": null,
+     "pythonpath": null,
+     "skipped": "profile 'de/laptop' plugs orchestrator ['airflow'], not ops_sched",
+     "topology": "container"
+    }
+   },
+   "truths_read": "after the world build, before the stack came up",
+   "work": "/home/ubuntu/alkera-rollouts/w1-airflow/tour/de-laptop-orchestrator-airflow",
+   "world": {
+    "dashboards": "/home/ubuntu/alkera-rollouts/w1-airflow/tour/de-laptop-orchestrator-airflow/world/var/bi/dashboards",
+    "grading": "/home/ubuntu/alkera-rollouts/w1-airflow/tour/de-laptop-orchestrator-airflow/grading",
+    "profiles_dir": "/home/ubuntu/alkera-rollouts/w1-airflow/tour/de-laptop-orchestrator-airflow/world/build",
+    "scheduler": "/home/ubuntu/alkera-rollouts/w1-airflow/tour/de-laptop-orchestrator-airflow/world/var/sched/state.json",
+    "warehouse": "/home/ubuntu/alkera-rollouts/w1-airflow/tour/de-laptop-orchestrator-airflow/world/var/warehouse/warehouse.duckdb",
+    "workflow_dir": "/home/ubuntu/alkera-rollouts/w1-airflow/tour/de-laptop-orchestrator-airflow/world/var/workflow",
+    "workspace": "/home/ubuntu/alkera-rollouts/w1-airflow/tour/de-laptop-orchestrator-airflow/world/workspace",
+    "world_root": "/home/ubuntu/alkera-rollouts/w1-airflow/tour/de-laptop-orchestrator-airflow/world"
+   }
+  }
+ ],
+ "revision": "9fb2ea8c8ba9390074b4fae74cf18f3a7bcdece7",
+ "seconds": 84.8,
+ "started": 1791373559.4496834,
+ "summary": {
+  "DOC": 0,
+  "FAIL": 0,
+  "PASS": 2,
+  "profiles_ok": true
+ },
+ "table": "probe                                       profile       verdict   rows  value / truth\n---------------------------------------------------------------------------------------------------------------------\nairflow.rest.dbt_build_successes            de/laptop     PASS         2  425 / 425\nairflow.airflowctl.commerce_nightly_schedul de/laptop     PASS         2  '30 2 * * *' / '30 2 * * *'",
+ "tools": [
+  "airflow"
+ ],
+ "topology": "container"
+}

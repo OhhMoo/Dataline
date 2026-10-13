@@ -77,8 +77,14 @@ def test_load_names_a_bi_vendor_explicitly():
 
 
 def test_bi_vendor_modules_listen_where_the_table_says():
-    assert set(services.PLUG_NAMES) == set(BI)
-    assert serve.PLUG_PORTS == BI
+    # The BI set, exactly. A registry backend (alkera_gateway.backends) is never
+    # one of these tables' rows - a hosted one is mounted from its registry row
+    # (tasks/harness/test_backends.py holds that rule) - so its name is left out
+    # of the comparison rather than made a reason for it to fail.
+    from alkera_gateway.backends import BACKENDS
+
+    assert set(services.PLUG_NAMES) - set(BACKENDS) == set(BI)
+    assert {n: p for n, p in serve.PLUG_PORTS.items() if n not in BACKENDS} == BI
     # The legacy table is untouched: the host topology awaits every port in it
     # for an unprofiled stack (tasks/harness/native_stack.service_ports).
     assert set(serve.STUB_PORTS) == set(services.NAMES)

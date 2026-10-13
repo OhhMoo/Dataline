@@ -57,11 +57,17 @@ def variant_env(arm: str | None):
             os.environ[VARIANT_ENV] = previous
 
 
+def is_task_package(path) -> bool:
+    """A task package is any `tasks/<dir>` holding a task.toml (GT001-GT009,
+    BI001, BI002, ...), whatever it is called: a rule by name would fail open
+    for a package named another way. `tasks/harness`, `tasks/contracts` and
+    `tasks/stressors` hold none."""
+    return path.is_dir() and (path / "task.toml").is_file()
+
+
 def task_ids(tasks_dir=TASKS_DIR) -> list[str]:
-    """Every task package: a `tasks/GT*` directory with a task.toml."""
-    return sorted(p.name for p in tasks_dir.iterdir()
-                  if p.is_dir() and p.name.startswith("GT")
-                  and (p / "task.toml").is_file())
+    """Every task package under `tasks_dir` (is_task_package)."""
+    return sorted(p.name for p in tasks_dir.iterdir() if is_task_package(p))
 
 
 def load_spec(task_id: str, arm: str | None, tasks_dir=TASKS_DIR):

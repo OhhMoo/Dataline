@@ -1,0 +1,450 @@
+{
+ "boxes": [
+  {
+   "box": "da-laptop",
+   "checks": [
+    {
+     "check": "no_minio_container",
+     "detail": {
+      "services": [
+       "episode",
+       "jupyter",
+       "native-services",
+       "postgres"
+      ]
+     },
+     "ok": true
+    },
+    {
+     "check": "nothing_resolves",
+     "detail": {
+      "episode": {
+       "alkera-mfix-da-laptop-1791397047-minio-1": "gaierror: [Errno -3] Temporary failure in name resolution",
+       "alkera-mfix-da-laptop-1791397047_minio_1": "gaierror: [Errno -3] Temporary failure in name resolution",
+       "minio": "gaierror: [Errno -3] Temporary failure in name resolution",
+       "minio.internal": "gaierror: [Errno -3] Temporary failure in name resolution"
+      },
+      "jupyter": {
+       "alkera-mfix-da-laptop-1791397047-minio-1": "gaierror: [Errno -3] Temporary failure in name resolution",
+       "alkera-mfix-da-laptop-1791397047_minio_1": "gaierror: [Errno -3] Temporary failure in name resolution",
+       "minio": "gaierror: [Errno -3] Temporary failure in name resolution",
+       "minio.internal": "gaierror: [Errno -3] Temporary failure in name resolution"
+      }
+     },
+     "ok": true
+    },
+    {
+     "check": "no_storage_env",
+     "detail": {
+      "episode": [],
+      "jupyter": []
+     },
+     "ok": true
+    },
+    {
+     "check": "no_port_9000",
+     "detail": {
+      "addresses": 254,
+      "answered": [],
+      "cut": [],
+      "networks": [
+       "10.210.1.0/24"
+      ],
+      "port": 9000
+     },
+     "ok": true
+    },
+    {
+     "check": "no_receiver",
+     "detail": {
+      "error": "URLError: <urlopen error [Errno 111] Connection refused>",
+      "headers": [],
+      "status": null
+     },
+     "ok": true
+    }
+   ],
+   "image": "alkera-episode:mfix-da",
+   "image_gate": {
+    "head": "7819e93b2e6e8e08f8220f9c39f80982f6617de7",
+    "image": "alkera-episode:mfix-da",
+    "revision": "3def55b87cc5378c42a6508d61ac5037e20f001c"
+   },
+   "minio_unstarted": true,
+   "object_store_plugged": false,
+   "ok": true,
+   "plugs": {
+    "bi": [
+     "powerbi",
+     "tableau",
+     "sigma"
+    ]
+   },
+   "profile": "da/laptop",
+   "project": "alkera-mfix-da-laptop-1791397047",
+   "seconds": 21.0,
+   "services": [
+    "episode",
+    "jupyter",
+    "native-services",
+    "postgres"
+   ]
+  },
+  {
+   "box": "da-snowflake",
+   "checks": [
+    {
+     "check": "no_minio_container",
+     "detail": {
+      "services": [
+       "episode",
+       "jupyter",
+       "native-services",
+       "postgres",
+       "snowflake"
+      ]
+     },
+     "ok": true
+    },
+    {
+     "check": "nothing_resolves",
+     "detail": {
+      "episode": {
+       "alkera-mfix-da-snowflake-1791397067-minio-1": "gaierror: [Errno -3] Temporary failure in name resolution",
+       "alkera-mfix-da-snowflake-1791397067_minio_1": "gaierror: [Errno -3] Temporary failure in name resolution",
+       "minio": "gaierror: [Errno -3] Temporary failure in name resolution",
+       "minio.internal": "gaierror: [Errno -3] Temporary failure in name resolution"
+      },
+      "jupyter": {
+       "alkera-mfix-da-snowflake-1791397067-minio-1": "gaierror: [Errno -3] Temporary failure in name resolution",
+       "alkera-mfix-da-snowflake-1791397067_minio_1": "gaierror: [Errno -3] Temporary failure in name resolution",
+       "minio": "gaierror: [Errno -3] Temporary failure in name resolution",
+       "minio.internal": "gaierror: [Errno -3] Temporary failure in name resolution"
+      }
+     },
+     "ok": true
+    },
+    {
+     "check": "no_storage_env",
+     "detail": {
+      "episode": [],
+      "jupyter": []
+     },
+     "ok": true
+    },
+    {
+     "check": "no_port_9000",
+     "detail": {
+      "addresses": 254,
+      "answered": [],
+      "cut": [],
+      "networks": [
+       "10.210.2.0/24"
+      ],
+      "port": 9000
+     },
+     "ok": true
+    },
+    {
+     "check": "no_receiver",
+     "detail": {
+      "error": "URLError: <urlopen error [Errno 111] Connection refused>",
+      "headers": [],
+      "status": null
+     },
+     "ok": true
+    }
+   ],
+   "image": "alkera-episode:mfix-da-snowflake",
+   "image_gate": {
+    "head": "7819e93b2e6e8e08f8220f9c39f80982f6617de7",
+    "image": "alkera-episode:mfix-da-snowflake",
+    "revision": "3def55b87cc5378c42a6508d61ac5037e20f001c"
+   },
+   "minio_unstarted": true,
+   "object_store_plugged": false,
+   "ok": true,
+   "plugs": {},
+   "profile": "da/snowflake",
+   "project": "alkera-mfix-da-snowflake-1791397067",
+   "seconds": 50.2,
+   "services": [
+    "episode",
+    "jupyter",
+    "native-services",
+    "postgres",
+    "snowflake"
+   ]
+  },
+  {
+   "box": "unprofiled",
+   "checks": [
+    {
+     "check": "minio_container",
+     "detail": {
+      "services": [
+       "episode",
+       "minio",
+       "native-services",
+       "postgres"
+      ]
+     },
+     "ok": true
+    },
+    {
+     "check": "sweep_control",
+     "detail": {
+      "addresses": 254,
+      "answered": [
+       "10.210.2.2"
+      ],
+      "cut": [],
+      "minio.internal": [
+       "10.210.2.2"
+      ],
+      "networks": [
+       "10.210.2.0/24"
+      ],
+      "port": 9000
+     },
+     "ok": true
+    },
+    {
+     "check": "genuine_rows",
+     "detail": {
+      "minio_tools_for_key": [
+       "minio.DeleteObject",
+       "minio.GetObject",
+       "minio.PutObject"
+      ],
+      "returncode": 0,
+      "stderr": "",
+      "tools": [
+       "minio.DeleteObject",
+       "minio.GetObject",
+       "minio.PutObject"
+      ]
+     },
+     "ok": true
+    },
+    {
+     "check": "forged_refused",
+     "detail": {
+      "attempts": [
+       {
+        "body": "{\"error\":\"unauthorized\",\"message\":\"the MinIO audit receiver accepts MinIO's webhook only\"}",
+        "headers": [],
+        "status": 401
+       },
+       {
+        "body": "{\"error\":\"unauthorized\",\"message\":\"the MinIO audit receiver accepts MinIO's webhook only\"}",
+        "headers": [
+         "Authorization"
+        ],
+        "status": 401
+       },
+       {
+        "body": "{\"error\":\"unauthorized\",\"message\":\"the MinIO audit receiver accepts MinIO's webhook only\"}",
+        "headers": [
+         "Authorization"
+        ],
+        "status": 401
+       },
+       {
+        "body": "{\"error\":\"unauthorized\",\"message\":\"the MinIO audit receiver accepts MinIO's webhook only\"}",
+        "headers": [
+         "Authorization"
+        ],
+        "status": 401
+       },
+       {
+        "body": "{\"error\":\"unauthorized\",\"message\":\"the MinIO audit receiver accepts MinIO's webhook only\"}",
+        "headers": [
+         "Authorization"
+        ],
+        "status": 401
+       }
+      ],
+      "refusals_logged_by_native_services": 5,
+      "rows_after": 3,
+      "rows_before": 3,
+      "rows_naming_the_forged_key": 0
+     },
+     "ok": true
+    },
+    {
+     "check": "token_unseen",
+     "detail": {
+      "files_read": 3917,
+      "hits": [],
+      "token_in_env": []
+     },
+     "ok": true
+    },
+    {
+     "check": "webhook_delivered",
+     "detail": {
+      "minio_webhook_errors": 0
+     },
+     "ok": true
+    }
+   ],
+   "image": "alkera-episode:mfix",
+   "image_gate": {
+    "head": "7819e93b2e6e8e08f8220f9c39f80982f6617de7",
+    "image": "alkera-episode:mfix",
+    "revision": "3def55b87cc5378c42a6508d61ac5037e20f001c"
+   },
+   "minio_unstarted": false,
+   "object_store_plugged": true,
+   "ok": true,
+   "plugs": {},
+   "profile": null,
+   "project": "alkera-mfix-unprofiled-1791397117",
+   "seconds": 32.8,
+   "services": [
+    "episode",
+    "minio",
+    "native-services",
+    "postgres"
+   ]
+  },
+  {
+   "box": "de-laptop",
+   "checks": [
+    {
+     "check": "minio_container",
+     "detail": {
+      "services": [
+       "episode",
+       "minio",
+       "native-services",
+       "postgres"
+      ]
+     },
+     "ok": true
+    },
+    {
+     "check": "sweep_control",
+     "detail": {
+      "addresses": 254,
+      "answered": [
+       "10.210.2.3"
+      ],
+      "cut": [],
+      "minio.internal": [
+       "10.210.2.3"
+      ],
+      "networks": [
+       "10.210.2.0/24"
+      ],
+      "port": 9000
+     },
+     "ok": true
+    },
+    {
+     "check": "genuine_rows",
+     "detail": {
+      "minio_tools_for_key": [
+       "minio.DeleteObject",
+       "minio.GetObject",
+       "minio.PutObject"
+      ],
+      "returncode": 0,
+      "stderr": "",
+      "tools": [
+       "minio.DeleteObject",
+       "minio.GetObject",
+       "minio.PutObject"
+      ]
+     },
+     "ok": true
+    },
+    {
+     "check": "forged_refused",
+     "detail": {
+      "attempts": [
+       {
+        "body": "{\"error\":\"unauthorized\",\"message\":\"the MinIO audit receiver accepts MinIO's webhook only\"}",
+        "headers": [],
+        "status": 401
+       },
+       {
+        "body": "{\"error\":\"unauthorized\",\"message\":\"the MinIO audit receiver accepts MinIO's webhook only\"}",
+        "headers": [
+         "Authorization"
+        ],
+        "status": 401
+       },
+       {
+        "body": "{\"error\":\"unauthorized\",\"message\":\"the MinIO audit receiver accepts MinIO's webhook only\"}",
+        "headers": [
+         "Authorization"
+        ],
+        "status": 401
+       },
+       {
+        "body": "{\"error\":\"unauthorized\",\"message\":\"the MinIO audit receiver accepts MinIO's webhook only\"}",
+        "headers": [
+         "Authorization"
+        ],
+        "status": 401
+       },
+       {
+        "body": "{\"error\":\"unauthorized\",\"message\":\"the MinIO audit receiver accepts MinIO's webhook only\"}",
+        "headers": [
+         "Authorization"
+        ],
+        "status": 401
+       }
+      ],
+      "refusals_logged_by_native_services": 5,
+      "rows_after": 3,
+      "rows_before": 3,
+      "rows_naming_the_forged_key": 0
+     },
+     "ok": true
+    },
+    {
+     "check": "token_unseen",
+     "detail": {
+      "files_read": 3940,
+      "hits": [],
+      "token_in_env": []
+     },
+     "ok": true
+    },
+    {
+     "check": "webhook_delivered",
+     "detail": {
+      "minio_webhook_errors": 0
+     },
+     "ok": true
+    }
+   ],
+   "image": "alkera-episode:mfix",
+   "image_gate": {
+    "head": "7819e93b2e6e8e08f8220f9c39f80982f6617de7",
+    "image": "alkera-episode:mfix",
+    "revision": "3def55b87cc5378c42a6508d61ac5037e20f001c"
+   },
+   "minio_unstarted": false,
+   "object_store_plugged": true,
+   "ok": true,
+   "plugs": {},
+   "profile": "de/laptop",
+   "project": "alkera-mfix-de-laptop-1791397151",
+   "seconds": 34.1,
+   "services": [
+    "episode",
+    "minio",
+    "native-services",
+    "postgres"
+   ]
+  }
+ ],
+ "generated": "2026-10-07T18:17:18Z",
+ "headline": "PASS: da-laptop 5/5, da-snowflake 5/5, unprofiled 6/6, de-laptop 6/6",
+ "ok": true,
+ "revision": "7819e93b2e6e8e08f8220f9c39f80982f6617de7"
+}

@@ -30,10 +30,47 @@ THE PERMISSION MODEL (contract sections 1.3 and 2; README.md has the why)
     /audit/writer.lock       root:agent 0664  the row writer's lock (filelock)
     /opt/alkera/episode.json root 0600; /opt/alkera/{bin,run} root 0700
     /opt/alkera/gateway.json root 0600   the services' world, from the builder's manifest
+    /var/lib/alkera/service-state  root 0700  the vendors' own state (BI published
+                                              content); world-down copies it to
+                                              /audit/service-state for the verifier
 
 The planes are reachable only through the services, which run as root and
 write every action to the audit log, so nothing the agent does to approvals,
 tickets, the scheduler's history or the ledger can happen off the record.
+
+SUPERVISED BACKENDS (episode.json `backends`). A process the world needs
+beside the services (a warehouse server, a proxy) is declared, never
+discovered:
+
+    {"name": "pg", "argv": ["/usr/lib/postgresql/17/bin/postgres", ...],
+     "user": "postgres", "ports": [5432], "hosts": ["postgres.internal"],
+     "health": "tcp"}
+
+world-up spawns each one in declared order, in its own session, as `user`,
+and waits (inside the one start-up budget) until every declared port is
+LISTENed by a process of THAT session - read from /proc, never dialled. Only
+then are its `hosts` aliased to 127.0.0.1, so the agent is never handed a
+name with nothing behind it; a backend that dies or never listens fails
+world-up loudly, before any host is written. `health: "http"` additionally
+GETs `http://127.0.0.1:<first port>/health` once, on the first start, and
+requires a 2xx (that connection is recorded in the watermark). world-down
+stops them in reverse order, before the services.
+
+WHAT WORLD-DOWN FOLDS INTO /audit, once every process that writes it stopped
+and before the verifier reads it:
+
+  destinations   a backend that counts its accepted connections keeps its own
+                 `destinations.<name>.jsonl` (the services rewrite
+                 destinations.jsonl whole); each declared backend's file is
+                 merged into destinations.jsonl by (host, port), as the
+                 measured topology's teardown does.
+  statements     episode.json `statement_logs` ({"log", "tailer"}): a backend
+                 audited by its own server log (the Postgres warehouse, which
+                 logs the agent's role only) has that log turned into rows by
+                 the named tailer module, through the services' own writer
+                 (same lock, contiguous seq), at the world's clock. Each log is
+                 folded from where the last world-down stopped, never twice;
+                 `/audit/.statement_logs.json` says what was folded.
 """
 from __future__ import annotations
 
@@ -43,6 +80,8 @@ import fcntl
 import json
 import os
 import posixpath
+import re
+import shutil
 import signal
 import socket
 import subprocess
@@ -78,6 +117,23 @@ EPISODE_JSON = "/opt/alkera/episode.json"
 #: planes such as `var/obs/definitions.yaml`.
 GATEWAY_CONFIG = "/opt/alkera/gateway.json"
 GATEWAY_CONFIG_KEY = "gateway_config"
+#: The services' own state (tasks/harness/bistate.py: the measured topology's
+#: native-services-only `/service-state` mount). Root 0700: the agent can
+#: neither read nor forge what a vendor published. A profiled task's gateway
+#: config puts `bi_state_dir` under it; world-down copies it into the audit
+#: artifact (`/audit/service-state`), which is how it reaches the verifier.
+SERVICE_STATE = "/var/lib/alkera/service-state"
+SERVICE_STATE_COPY = "service-state"
+#: Written into /audit by world-down (root) only after the copy succeeded; a
+#: task whose episode.json declares `service_state` is unmeasured without it.
+SERVICE_STATE_MARKER = ".service_state.json"
+SERVICE_STATE_SCHEMA = "alkera-harbor-service-state/1"
+#: The gateway-config keys that may name a path under SERVICE_STATE.
+SERVICE_STATE_KEYS = ("bi_state_dir", "obs_state_dir")
+#: What the copy leaves out: exactly what tasks/harness/bistate.stage never
+#: stages (its SKIP_DIRS / SKIP_SUFFIXES): render caches and lock/temp files.
+STATE_SKIP_DIRS = ("snapshots", "extracts")
+STATE_SKIP_SUFFIXES = (".lock", ".tmp", ".duckdb", ".duckdb.wal")
 RUN_DIR = "/opt/alkera/run"
 BIN_DIR = "/opt/alkera/bin"
 SHIM_BIN = "/opt/alkera/shims"
@@ -90,6 +146,12 @@ ACTIONS = "actions.jsonl"
 WRITER_LOCK = "writer.lock"
 DESTINATIONS = "destinations.jsonl"
 WATERMARK = ".episode_start.json"
+#: world-down's record of the statement logs it folded (statement_logs).
+STATEMENT_LOGS_MARKER = ".statement_logs.json"
+STATEMENT_LOGS_SCHEMA = "alkera-harbor-statement-logs/1"
+#: The services' aggregate /health (serve.py), which lists every served
+#: surface with its scheme: the one world-up asks first.
+AGGREGATE_HOST = "native-services.internal"
 
 #: The services bind loopback only: the world is closed, and the egress
 #: sidecar of `no-network` trials leaves loopback alone.
@@ -185,6 +247,22 @@ class Layout:
         return self.at(HOSTS)
 
     @property
+    def service_state(self) -> Path:
+        return self.at(SERVICE_STATE)
+
+    @property
+    def backends_file(self) -> Path:
+        return self.run_dir / "backends.json"
+
+    @property
+    def tailed_file(self) -> Path:
+        """How far world-down folded each statement log (private)."""
+        return self.run_dir / "statement_logs.json"
+
+    def backend_log(self, name: str) -> Path:
+        return self.log_dir / f"backend-{name}.log"
+
+    @property
     def state_file(self) -> Path:
         return self.run_dir / "serve.json"
 
@@ -238,7 +316,113 @@ def load_episode(layout: Layout) -> dict:
         raise RuntimeFailure(
             f"{path} declares plugs {sorted(plugs)} but no profile; the services "
             f"accept --plug only together with --profile.")
+    load_backends(episode, where=str(path))
+    load_statement_logs(episode, where=str(path))
     return episode
+
+
+# ------------------------------------------------------------------ backends
+BACKEND_KEYS = ("name", "argv", "user", "ports", "hosts", "health")
+BACKEND_HEALTH = ("tcp", "http")
+_BACKEND_NAME = re.compile(r"^[a-z][a-z0-9_-]{0,31}$")
+_HOST_LABEL = re.compile(r"^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$")
+
+
+def load_backends(episode: dict, where: str = "episode.json") -> list[dict]:
+    """episode.json `backends`, checked: a list (absent = none) of objects with
+    exactly BACKEND_KEYS. Names unique; argv a non-empty list of strings; user
+    a name; ports distinct integers 1-65535, never two backends on one port;
+    hosts DNS names; health `tcp` (listening and owned, read from /proc) or
+    `http` (that, plus one GET /health answered 2xx on the first start)."""
+    raw = episode.get("backends")
+    if raw is None:
+        return []
+    if not isinstance(raw, list):
+        raise RuntimeFailure(f"{where}: `backends` must be a list, got {raw!r}")
+    names: set[str] = set()
+    ports: dict[int, str] = {}
+    out = []
+    for index, spec in enumerate(raw):
+        label = f"{where}: backends[{index}]"
+        if not isinstance(spec, dict) or set(spec) != set(BACKEND_KEYS):
+            raise RuntimeFailure(f"{label} must be an object with exactly the keys "
+                                 f"{list(BACKEND_KEYS)}, got {spec!r}")
+        name = spec["name"]
+        if not isinstance(name, str) or not _BACKEND_NAME.match(name) or name in names:
+            raise RuntimeFailure(f"{label}: name {name!r} is not a unique "
+                                 f"[a-z][a-z0-9_-]* name")
+        names.add(name)
+        argv = spec["argv"]
+        if not isinstance(argv, list) or not argv or not all(
+                isinstance(a, str) and a for a in argv):
+            raise RuntimeFailure(f"{label} ({name}): argv must be a non-empty list of "
+                                 f"non-empty strings")
+        user = spec["user"]
+        if not isinstance(user, str) or not re.match(r"^[a-z_][a-z0-9_-]*$", user):
+            raise RuntimeFailure(f"{label} ({name}): user {user!r} is not a user name")
+        if user == str(episode.get("agent_user") or DEFAULT_AGENT_USER):
+            raise RuntimeFailure(f"{label} ({name}): user {user!r} is the agent's; a "
+                                 f"backend runs as a user the agent cannot signal or "
+                                 f"impersonate (root or its own service user)")
+        declared = spec["ports"]
+        if not isinstance(declared, list) or not declared or not all(
+                isinstance(p, int) and not isinstance(p, bool) and 0 < p < 65536
+                for p in declared) or len(set(declared)) != len(declared):
+            raise RuntimeFailure(f"{label} ({name}): ports must be distinct integers "
+                                 f"1-65535, got {declared!r}")
+        for port in declared:
+            if port in ports:
+                raise RuntimeFailure(f"{label} ({name}): port {port} is also "
+                                     f"{ports[port]}'s")
+            ports[port] = name
+        hosts = spec["hosts"]
+        if not isinstance(hosts, list) or not all(
+                isinstance(h, str) and h and all(_HOST_LABEL.match(p) for p in h.split("."))
+                for h in hosts):
+            raise RuntimeFailure(f"{label} ({name}): hosts must be DNS names, "
+                                 f"got {hosts!r}")
+        if spec["health"] not in BACKEND_HEALTH:
+            raise RuntimeFailure(f"{label} ({name}): health must be one of "
+                                 f"{list(BACKEND_HEALTH)}, got {spec['health']!r}")
+        out.append({key: spec[key] for key in BACKEND_KEYS})
+    return out
+
+
+STATEMENT_LOG_KEYS = ("log", "tailer")
+#: Where a statement log may live: a backend's private state, root's or its
+#: service user's, never anything the agent writes.
+STATEMENT_LOG_ROOT = "/var/lib/alkera"
+_TAILER = re.compile(r"^alkera_gateway\.native\.tailers\.[a-z][a-z0-9_]*$")
+
+
+def load_statement_logs(episode: dict, where: str = "episode.json") -> list[dict]:
+    """episode.json `statement_logs`, checked: a list (absent = none) of
+    objects with exactly STATEMENT_LOG_KEYS - `log` an absolute path under
+    STATEMENT_LOG_ROOT (outside the copied service state), `tailer` a module of
+    alkera_gateway.native.tailers - each log named once."""
+    raw = episode.get("statement_logs")
+    if raw is None:
+        return []
+    if not isinstance(raw, list):
+        raise RuntimeFailure(f"{where}: `statement_logs` must be a list, got {raw!r}")
+    out, seen = [], set()
+    for index, spec in enumerate(raw):
+        label = f"{where}: statement_logs[{index}]"
+        if not isinstance(spec, dict) or set(spec) != set(STATEMENT_LOG_KEYS):
+            raise RuntimeFailure(f"{label} must be an object with exactly the keys "
+                                 f"{list(STATEMENT_LOG_KEYS)}, got {spec!r}")
+        log, tailer = spec["log"], spec["tailer"]
+        if not isinstance(log, str) or posixpath.normpath(log) != log \
+                or not _under(log, (STATEMENT_LOG_ROOT,)) or log == STATEMENT_LOG_ROOT \
+                or _under(log, (SERVICE_STATE,)) or log in seen:
+            raise RuntimeFailure(f"{label}: log {log!r} is not a distinct normalised path "
+                                 f"under {STATEMENT_LOG_ROOT} (outside {SERVICE_STATE})")
+        if not isinstance(tailer, str) or not _TAILER.match(tailer):
+            raise RuntimeFailure(f"{label}: tailer {tailer!r} is not a module of "
+                                 f"alkera_gateway.native.tailers")
+        seen.add(log)
+        out.append({"log": log, "tailer": tailer})
+    return out
 
 
 def agent_ids(episode: dict) -> tuple[int, int]:
@@ -320,8 +504,9 @@ def load_gateway_config(layout: Layout, episode: dict) -> dict | None:
         if isinstance(spec, dict) and spec.get("path"):
             paths[f"warehouses[{index}].path"] = str(spec["path"])
     for key, value in sorted(paths.items()):
-        if not _under(value):
-            problems.append(f"{key} {value!r} is not under {', '.join(CONTAINER_ROOTS)} "
+        roots = CONTAINER_ROOTS + ((SERVICE_STATE,) if key in SERVICE_STATE_KEYS else ())
+        if not _under(value, roots):
+            problems.append(f"{key} {value!r} is not under {', '.join(roots)} "
                             f"(a host path that was not re-rooted?)")
         elif (key == "warehouse" or key.startswith("warehouses[")) \
                 and not layout.at(value).is_file():
@@ -333,7 +518,7 @@ def load_gateway_config(layout: Layout, episode: dict) -> dict | None:
 
 
 def _reroot_config(value, layout: Layout):
-    if isinstance(value, str) and _under(value):
+    if isinstance(value, str) and _under(value, CONTAINER_ROOTS + (SERVICE_STATE,)):
         return str(layout.at(value))
     if isinstance(value, list):
         return [_reroot_config(item, layout) for item in value]
@@ -789,6 +974,360 @@ def stop_processes(pids: list[int], grace: float) -> dict:
     return report
 
 
+# ------------------------------------------------------- supervised backends
+def proc_session(pid: int) -> int | None:
+    """The session id of `pid` (/proc/<pid>/stat field 6), or None."""
+    try:
+        raw = Path(f"/proc/{int(pid)}/stat").read_text(encoding="utf-8", errors="replace")
+    except (OSError, ValueError):
+        return None
+    return int(raw[raw.rindex(")") + 2:].split()[3])
+
+
+def session_pids(sid: int) -> list[int]:
+    """Every live process of session `sid`: the backend and whatever it forked."""
+    found = []
+    for entry in Path("/proc").iterdir():
+        if entry.name.isdigit() and proc_session(int(entry.name)) == sid \
+                and not _gone(int(entry.name)):
+            found.append(int(entry.name))
+    return sorted(found)
+
+
+def session_socket_inodes(sid: int) -> set[int]:
+    inodes: set[int] = set()
+    for pid in session_pids(sid):
+        inodes |= socket_inodes(pid)
+    return inodes
+
+
+def read_backends_state(layout: Layout) -> dict:
+    try:
+        state = json.loads(layout.backends_file.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return state if isinstance(state, dict) else {}
+
+
+def backend_alive(entry: dict | None) -> bool:
+    """The recorded leader is the process world-up started (same start time)
+    and the leader of its own session."""
+    if not entry or not entry.get("pid"):
+        return False
+    pid = int(entry["pid"])
+    stat = proc_stat(pid)
+    if stat is None or stat[0] in ("Z", "X"):
+        return False
+    if entry.get("starttime") is not None and stat[1] != entry["starttime"]:
+        return False
+    return proc_session(pid) == pid
+
+
+def backend_identity(user: str) -> tuple[int | None, int | None, str | None, str]:
+    """(uid, gid, home, note) to run a backend as `user`. Only root can switch:
+    under a non-root world-up (the host tests) the backend runs as the caller,
+    which is reported, never silently assumed."""
+    import pwd
+    try:
+        entry = pwd.getpwnam(user)
+    except KeyError:
+        raise RuntimeFailure(f"backend user {user!r} does not exist in this image") from None
+    if is_root():
+        return entry.pw_uid, entry.pw_gid, entry.pw_dir, f"as {user}"
+    if entry.pw_uid == os.geteuid():
+        return None, None, entry.pw_dir, f"as {user}"
+    return None, None, None, f"as uid {os.geteuid()} (not root: cannot switch to {user})"
+
+
+def spawn_backend(layout: Layout, episode: dict, spec: dict) -> dict:
+    """Start one backend in its own session, as its user, logging to
+    /var/log/alkera/backend-<name>.log. Its environment is the services'
+    (no agent shims on PATH) with its user's HOME."""
+    uid, gid, home, note = backend_identity(spec["user"])
+    agent_uid, _ = agent_ids(episode)
+    if uid is not None and uid == agent_uid:
+        raise RuntimeFailure(f"backend {spec['name']}: user {spec['user']!r} is the agent's "
+                             f"uid {agent_uid}; the agent could signal or impersonate it")
+    layout.log_dir.mkdir(parents=True, exist_ok=True)
+    os.chmod(layout.log_dir, 0o700)
+    env = serve_env(layout, episode)
+    clock = (episode.get("env") or {}).get(CLOCK_ENV)
+    if clock:
+        env[CLOCK_ENV] = str(clock)
+    if home:
+        env["HOME"] = home
+    # what already listens on the backend's ports: never the backend's, even
+    # when only its uid can be checked (backend_port_owners)
+    listening = listening_socket_uids()
+    before = sorted({inode for port in spec["ports"] for inode in listening.get(port, {})})
+    kwargs = {}
+    if uid is not None:
+        kwargs.update(user=uid, group=gid, extra_groups=[])
+    log_path = layout.backend_log(spec["name"])
+    with open(log_path, "ab") as log:
+        log.write(f"\n=== {_iso(_now())} world-up starts {spec['name']} {note}: "
+                  f"{' '.join(spec['argv'])}\n".encode())
+        log.flush()
+        previous = os.umask(0o022)
+        try:
+            proc = subprocess.Popen(
+                spec["argv"], stdin=subprocess.DEVNULL, stdout=log,
+                stderr=subprocess.STDOUT, cwd="/", env=env, start_new_session=True,
+                close_fds=True, **kwargs)
+        except OSError as exc:
+            raise RuntimeFailure(f"backend {spec['name']}: cannot start "
+                                 f"{spec['argv'][0]!r}: {exc}") from None
+        finally:
+            os.umask(previous)
+    stat = proc_stat(proc.pid)
+    return {"pid": proc.pid, "starttime": stat[1] if stat else None,
+            "argv": list(spec["argv"]), "user": spec["user"], "run_as": note,
+            "uid": uid if uid is not None else os.geteuid(),
+            "ports": list(spec["ports"]), "listen_before": before,
+            "started_at": _iso(_now())}
+
+
+def listening_socket_uids() -> dict[int, dict[int, int]]:
+    """TCP port -> {inode: owner uid} of LISTEN sockets, from /proc/net/tcp{,6}."""
+    out: dict[int, dict[int, int]] = {}
+    for table in ("/proc/net/tcp", "/proc/net/tcp6"):
+        try:
+            lines = Path(table).read_text(encoding="utf-8").splitlines()[1:]
+        except OSError:
+            continue
+        for line in lines:
+            fields = line.split()
+            if len(fields) < 10 or fields[3] != "0A":
+                continue
+            port = int(fields[1].rsplit(":", 1)[1], 16)
+            out.setdefault(port, {})[int(fields[9])] = int(fields[7])
+    return out
+
+
+def session_fd_view(sid: int) -> tuple[set[int], bool]:
+    """(socket inodes held by session `sid`'s processes, whether any of their
+    fd tables could not be read). A container's root has no CAP_SYS_PTRACE in
+    Docker's default capability set, so it cannot read /proc/<pid>/fd of a
+    backend running as another user."""
+    inodes: set[int] = set()
+    blind = False
+    for pid in session_pids(sid):
+        try:
+            names = os.listdir(f"/proc/{pid}/fd")
+        except PermissionError:
+            blind = True
+            continue
+        except OSError:
+            continue
+        for name in names:
+            try:
+                target = os.readlink(f"/proc/{pid}/fd/{name}")
+            except PermissionError:
+                blind = True
+                continue
+            except OSError:
+                continue
+            if target.startswith("socket:["):
+                inodes.add(int(target[8:-1]))
+    return inodes, blind
+
+
+def backend_port_owners(ports: list[int], listening: dict[int, dict[int, int]],
+                        mine: set[int], blind: bool, uid: int | None,
+                        before: set[int] | frozenset = frozenset()
+                        ) -> tuple[list[int], list[int]]:
+    """(missing, foreign) for a backend's declared ports.
+
+    A port is the backend's when one of its LISTEN sockets is held by a
+    process of the backend's session (by inode). When world-up cannot read
+    that session's fd tables (`blind`, see session_fd_view), a socket counts
+    instead when it is owned by the uid world-up started the backend as AND
+    did not exist before world-up spawned it (`before`, the inodes listening
+    on its ports then): an orphan of an earlier run, or another backend of
+    the same user, is never taken for it. The backend's user is never the
+    agent's (load_backends, spawn_backend). Any other listener is foreign."""
+    missing, foreign = [], []
+    for port in ports:
+        sockets = listening.get(port, {})
+        if not sockets:
+            missing.append(port)
+        elif set(sockets) & mine or (blind and uid is not None and any(
+                u == uid and inode not in before for inode, u in sockets.items())):
+            continue
+        else:
+            foreign.append(port)
+    return missing, foreign
+
+
+def wait_backend(layout: Layout, spec: dict, entry: dict, deadline: float) -> float:
+    """Until every declared port is LISTENed by a process of the backend's own
+    session (backend_port_owners). Reads /proc only. A port another process
+    holds, a backend that exits, or the deadline: RuntimeFailure naming the
+    backend and its log. Returns the seconds it waited."""
+    sid = int(entry["pid"])
+    name, ports = spec["name"], list(spec["ports"])
+    missing = ports
+    began = time.monotonic()
+    while True:
+        if not backend_alive(entry):
+            raise RuntimeFailure(
+                f"backend {name} (pid {sid}) exited during start-up.\nlast lines of "
+                f"{layout.backend_log(name)}:\n{log_tail(layout.backend_log(name))}")
+        listening = listening_socket_uids()
+        mine, blind = session_fd_view(sid)
+        missing, foreign = backend_port_owners(ports, listening, mine, blind,
+                                               entry.get("uid"),
+                                               set(entry.get("listen_before") or ()))
+        if foreign:
+            raise RuntimeFailure(
+                f"backend {name}: "
+                + "; ".join(f"port {p} is held by {socket_owner(set(listening[p]))}"
+                            for p in foreign)
+                + " - not a process world-up supervises")
+        if not missing:
+            return round(time.monotonic() - began, 1)
+        if time.monotonic() >= deadline:
+            break
+        time.sleep(POLL_S)
+    raise RuntimeFailure(
+        f"backend {name} did not listen on {missing} within the start-up budget "
+        f"(its hosts {spec['hosts']} were not aliased).\nlast lines of "
+        f"{layout.backend_log(name)}:\n{log_tail(layout.backend_log(name))}")
+
+
+def bring_up_backends(layout: Layout, episode: dict, deadline: float) -> list[str]:
+    """Spawn (or keep) every declared backend in order and wait for each."""
+    specs = load_backends(episode)
+    if not specs:
+        return []
+    report = []
+    state = read_backends_state(layout)
+    for spec in specs:
+        entry = state.get(spec["name"])
+        if backend_alive(entry):
+            report.append(f"backend {spec['name']}: running (pid {entry['pid']})")
+        else:
+            # a dead leader's session may still hold its ports: clear it first
+            remnants = backend_session_pids(entry)
+            if remnants:
+                stop_processes(remnants, grace=DEFAULT_DOWN_TIMEOUT_S)
+                report.append(f"backend {spec['name']}: stopped what was left of its "
+                              f"last session {remnants}")
+            entry = spawn_backend(layout, episode, spec)
+            state[spec["name"]] = entry
+            _write_private_json(layout.backends_file, state)
+            report.append(f"backend {spec['name']}: started (pid {entry['pid']}, "
+                          f"{entry['run_as']})")
+        waited = wait_backend(layout, spec, entry, deadline)
+        report.append(f"backend {spec['name']}: listening on {spec['ports']} after "
+                      f"{waited}s")
+    report.append("backends listening: " + ", ".join(
+        f"{s['name']} {s['ports']}" for s in specs))
+    return report
+
+
+def probe_backends(specs: list[dict]) -> dict[str, str]:
+    """`health: http` backends: one GET /health on the first port, 2xx
+    required. Returns {name: "host:port"} of the connections made."""
+    probed = {}
+    for spec in specs:
+        if spec["health"] != "http":
+            continue
+        port = int(spec["ports"][0])
+        url = f"http://{BIND}:{port}/health"
+        try:
+            with _NO_PROXY.open(url, timeout=HEALTH_TIMEOUT_S) as response:
+                status = response.status
+        except urllib.error.HTTPError as exc:
+            status = exc.code
+        except (OSError, urllib.error.URLError) as exc:
+            raise RuntimeFailure(f"backend {spec['name']}: {url} did not answer: "
+                                 f"{exc}") from None
+        if not 200 <= status < 300:
+            raise RuntimeFailure(f"backend {spec['name']}: {url} answered {status}")
+        probed[spec["name"]] = f"{(spec['hosts'] or [BIND])[0]}:{port}"
+    return probed
+
+
+def backend_session_pids(entry: dict | None) -> list[int]:
+    """Every live process of a recorded backend's session, whether or not its
+    leader is still there (a forking server's children outlive it), started
+    no earlier than the leader was (a recycled session id is not ours)."""
+    if not entry or not entry.get("pid"):
+        return []
+    since = entry.get("starttime")
+    leader = proc_stat(int(entry["pid"]))
+    if leader is not None and since is not None and leader[1] != int(since):
+        # the pid (and so the session id) now belongs to another process; while
+        # any member of OUR session lived, the kernel could not have reused it
+        return []
+    pids = []
+    for pid in session_pids(int(entry["pid"])):
+        stat = proc_stat(pid)
+        if stat is not None and (since is None or stat[1] >= int(since)):
+            pids.append(pid)
+    return pids
+
+
+def stop_backends(layout: Layout, episode: dict, grace: float) -> list[str]:
+    """Stop every recorded backend, in reverse declared order (its whole
+    session, leader alive or not: backend_session_pids)."""
+    state = read_backends_state(layout)
+    if not state:
+        return []
+    order = [s["name"] for s in load_backends(episode)] if episode else []
+    names = [n for n in order if n in state] + sorted(n for n in state if n not in order)
+    report = []
+    for name in reversed(names):
+        pids = backend_session_pids(state.get(name))
+        if not pids:
+            report.append(f"backend {name}: not running")
+            continue
+        stopped = stop_processes(pids, grace=grace)
+        report.append(f"backend {name} stopped: {stopped}")
+    with contextlib.suppress(OSError):
+        layout.backends_file.unlink()
+    return report
+
+
+# -------------------------------------------------------------- service state
+def prepare_service_state(layout: Layout) -> None:
+    """/var/lib/alkera/service-state, root 0700, before the services start."""
+    path = layout.service_state
+    if path.is_symlink():
+        raise RuntimeFailure(f"{path} is a symlink; refusing to use it")
+    path.mkdir(parents=True, exist_ok=True)
+    if is_root():
+        _lchown(path, 0, 0)
+    os.chmod(path, 0o700)
+
+
+def _state_ignore(directory: str, names: list[str]) -> set[str]:
+    return {n for n in names
+            if (n in STATE_SKIP_DIRS and (Path(directory) / n).is_dir())
+            or n.endswith(STATE_SKIP_SUFFIXES)
+            or (Path(directory) / n).is_symlink()}
+
+
+def copy_service_state(layout: Layout) -> str | None:
+    """Copy the vendors' state into the audit artifact (`/audit/service-state`),
+    replacing any earlier copy, minus what the grader never stages. Runs after
+    every process that writes it has stopped. None when there is nothing."""
+    source = layout.service_state
+    target = layout.audit / SERVICE_STATE_COPY
+    # whatever is there is replaced (only root writes /audit/service-state, and
+    # a copy from an earlier world-down must not outlive the state it copied)
+    if target.is_symlink() or target.is_file():
+        target.unlink()
+    elif target.exists():
+        shutil.rmtree(target)
+    if not source.is_dir() or source.is_symlink() or not any(source.iterdir()):
+        return None
+    shutil.copytree(source, target, symlinks=False, ignore=_state_ignore)
+    files = sum(1 for p in target.rglob("*") if p.is_file())
+    return f"{source} -> {target} ({files} file(s))"
+
+
 # ---------------------------------------------------------------------- serve
 def serve_argv(python: str, layout: Layout, episode: dict, offset: int) -> list[str]:
     """The services process, as compose ran `native-services` (bind loopback here).
@@ -816,9 +1355,18 @@ def serve_argv(python: str, layout: Layout, episode: dict, offset: int) -> list[
     return argv
 
 
+#: The world's clock at the episode's start (a profiled task's per-arm env).
+#: The measured overlay gives it to the episode, the notebook and the
+#: Snowflake service (container_episode CLOCK_ENV), never to native-services,
+#: whose rows read the live clock from the world's scheduler state: so the
+#: services process does not get it here, and a backend does (spawn_backend).
+CLOCK_ENV = "ALKERA_VIRTUAL_TIME"
+
+
 def serve_env(layout: Layout, episode: dict) -> dict[str, str]:
     """The base environment, PATH without the agent's shims, plus the episode's
-    own variables (ALKERA_TASK_VARIANT): the world served is that arm's."""
+    own variables (ALKERA_TASK_VARIANT) but CLOCK_ENV: the world served is that
+    arm's."""
     env = {name: os.environ[name] for name in SERVE_ENV_PASSTHROUGH
            if os.environ.get(name)}
     shim_dirs = {os.path.normpath(p) for p in (
@@ -827,7 +1375,8 @@ def serve_env(layout: Layout, episode: dict) -> dict[str, str]:
     env["PATH"] = os.pathsep.join(
         e for e in entries if e and os.path.normpath(e) not in shim_dirs)
     env.setdefault("HOME", "/root" if is_root() else str(Path.home()))
-    env.update({str(k): str(v) for k, v in (episode.get("env") or {}).items()})
+    env.update({str(k): str(v) for k, v in (episode.get("env") or {}).items()
+                if k != CLOCK_ENV})
     return env
 
 
@@ -959,11 +1508,30 @@ def resolution_problems(hosts: list[str]) -> list[str]:
 _NO_PROXY = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
 
-def probe_health(port: int, timeout: float = HEALTH_TIMEOUT_S) -> tuple[int, dict]:
-    """GET http://127.0.0.1:<port>/health -> (status, JSON body). Never via a proxy."""
-    url = f"http://{BIND}:{port}/health"
+def _tls_opener():
+    """An opener for a TLS surface the services host (a backend whose registry
+    row says tls): verified against the bundle the agent's clients trust
+    (REQUESTS_CA_BUNDLE, which the image names; the minted certificate covers
+    127.0.0.1), never via a proxy. The bundle is read when this is called,
+    after the services published it."""
+    import ssl
+
+    bundle = os.environ.get("REQUESTS_CA_BUNDLE")
+    if not bundle or not os.path.isfile(bundle):
+        raise RuntimeFailure(f"a TLS surface is served but REQUESTS_CA_BUNDLE "
+                             f"({bundle!r}) names no bundle to verify it with")
+    context = ssl.create_default_context(cafile=bundle)
+    return urllib.request.build_opener(urllib.request.ProxyHandler({}),
+                                       urllib.request.HTTPSHandler(context=context))
+
+
+def probe_health(port: int, timeout: float = HEALTH_TIMEOUT_S, *,
+                 tls: bool = False) -> tuple[int, dict]:
+    """GET http(s)://127.0.0.1:<port>/health -> (status, JSON body). Never via a proxy."""
+    url = f"{'https' if tls else 'http'}://{BIND}:{port}/health"
+    opener = _tls_opener() if tls else _NO_PROXY
     try:
-        with _NO_PROXY.open(url, timeout=timeout) as response:
+        with opener.open(url, timeout=timeout) as response:
             status, body = response.status, response.read()
     except urllib.error.HTTPError as exc:
         status, body = exc.code, exc.read()
@@ -979,14 +1547,23 @@ def probe_health(port: int, timeout: float = HEALTH_TIMEOUT_S) -> tuple[int, dic
     return status, payload
 
 
+def tls_ports(aggregate: dict) -> set[int]:
+    """The ports the aggregate /health lists with an https URL (a hosted TLS
+    backend, e.g. databricks.internal:443)."""
+    return {int(s["port"]) for s in aggregate.get("services") or []
+            if isinstance(s, dict) and str(s.get("url", "")).startswith("https://")}
+
+
 def check_answers(rows: list[dict]) -> dict[str, dict]:
-    """One /health per destination. 200, or 503 when that service's slice of
-    the world is empty (a world with no ticket queue: `items: 0`); anything else
-    - a 500, a body that is not the service's JSON - is a broken world. The
-    aggregate must report no missing service."""
+    """One /health per destination, the aggregate's first: it says which
+    surfaces speak TLS. 200, or 503 when that service's slice of the world is
+    empty (a world with no ticket queue: `items: 0`); anything else - a 500, a
+    body that is not the service's JSON - is a broken world. The aggregate
+    must report no missing service."""
     answers = {}
-    for row in sorted(rows, key=lambda r: int(r["port"])):
-        status, payload = probe_health(int(row["port"]))
+    secure: set[int] = set()
+    for row in sorted(rows, key=lambda r: (r.get("host") != AGGREGATE_HOST, int(r["port"]))):
+        status, payload = probe_health(int(row["port"]), tls=int(row["port"]) in secure)
         name = f"{row['host']}:{row['port']}"
         if status not in (200, 503) or "service" not in payload:
             raise RuntimeFailure(f"{name} answered /health with {status}: "
@@ -998,6 +1575,7 @@ def check_answers(rows: list[dict]) -> dict[str, dict]:
                 raise RuntimeFailure(
                     f"the services process reports a broken set: missing={missing} "
                     f"port_disagreements={disagree}")
+            secure = tls_ports(payload)
         answers[name] = {"status": status, "items": payload.get("items")}
     return answers
 
@@ -1019,7 +1597,7 @@ _RECORD_ROW = (
 
 
 def record_episode_start(layout: Layout, episode: dict, python: str,
-                         rows: list[dict]) -> dict:
+                         rows: list[dict], backends: list[dict] | None = None) -> dict:
     """Append the `episode.start` row with the services' own writer
     (`alkera_gateway.native.audit.record`: same seq allocation, same lock,
     same 9.2.2 shape), in a child process so this module stays stdlib-only and
@@ -1033,6 +1611,12 @@ def record_episode_start(layout: Layout, episode: dict, python: str,
         "args": {key: episode.get(key) for key in ("harbor_name", "task", "variant")},
         "result": {"destinations": sorted(f"{r['host']}:{r['port']}" for r in rows)},
     }
+    if backends:
+        # only when there are any: an episode without backends writes the row
+        # it always wrote
+        spec["result"]["backends"] = sorted(
+            f"{host}:{port}" for b in backends for host in (b["hosts"] or [BIND])
+            for port in b["ports"])
     try:
         done = subprocess.run([python, "-c", _RECORD_ROW], input=json.dumps(spec),
                               capture_output=True, text=True, env=env, timeout=60,
@@ -1057,7 +1641,8 @@ def count_lines(path: Path) -> int:
 
 
 def write_watermark(layout: Layout, rows: list[dict], episode: dict,
-                    start: dict) -> dict:
+                    start: dict, backends: list[dict] | None = None,
+                    probed: dict[str, str] | None = None) -> dict:
     """`audit/.episode_start.json`: what was in the action log before the agent.
 
     Written once, on the first successful start, never again, right after the
@@ -1084,6 +1669,12 @@ def write_watermark(layout: Layout, rows: list[dict], episode: dict,
         "destinations_baseline": {f"{r['host']}:{r['port']}": int(r.get("count") or 0)
                                   for r in rows},
     }
+    if backends:
+        # the supervised backends this episode started with, and the one
+        # /health connection world-up made to each `health: http` backend
+        payload["backends"] = {b["name"]: {"ports": b["ports"], "hosts": b["hosts"],
+                                           "health": b["health"]} for b in backends}
+        payload["backends_probed"] = dict(probed or {})
     _write_private_json(layout.audit / WATERMARK, payload, mode=0o644)
     return payload
 
@@ -1209,6 +1800,7 @@ def bring_up(layout: Layout, args) -> list[str]:
                     f"(environment/episode/world was not in the build context)")
             close_planes(layout)
             prepare_audit(layout, gid)
+            prepare_service_state(layout)
             if config:
                 report.append(f"gateway config: {config}")
             stale = layout.audit / DESTINATIONS
@@ -1217,15 +1809,29 @@ def bring_up(layout: Layout, args) -> list[str]:
                 stale.replace(layout.audit / f"destinations.{_now():%Y%m%dT%H%M%S%fZ}.jsonl")
             state = spawn_serve(layout, episode, args.python, args.port_offset)
             report.append(f"started the services (pid {state['pid']})")
+    # The supervised backends, in declared order, inside the same budget. A
+    # backend that never listens fails here, before any host is written.
+    backends = load_backends(episode)
+    report += bring_up_backends(layout, episode, deadline)
     rows = wait_until_listening(layout, state, deadline)
-    hosts = sorted({str(r["host"]) for r in rows})
+    clash = sorted({int(r["port"]) for r in rows}
+                   & {p for b in backends for p in b["ports"]})
+    if clash:
+        raise RuntimeFailure(f"backend port(s) {clash} are also the services' ports")
+    hosts = sorted({str(r["host"]) for r in rows} | {h for b in backends for h in b["hosts"]})
     if not args.no_hosts:
+        if not _is_real_root(layout):
+            layout.hosts.parent.mkdir(parents=True, exist_ok=True)
         if ensure_hosts(layout.hosts, hosts):
             report.append(f"{layout.hosts}: {len(hosts)} *.internal names -> {BIND}")
-        problems = resolution_problems(hosts)
-        if problems:
-            raise RuntimeFailure("the services' names do not resolve:\n  - "
-                                 + "\n  - ".join(problems))
+        if _is_real_root(layout):
+            problems = resolution_problems(hosts)
+            if problems:
+                raise RuntimeFailure("the services' names do not resolve:\n  - "
+                                     + "\n  - ".join(problems))
+        else:
+            report.append(f"{layout.hosts}: written under a root prefix; name "
+                          f"resolution is checked in the image only")
     watermark = layout.audit / WATERMARK
     if watermark.exists():
         report.append(f"healthy: pid {state['pid']} holds all {len(rows)} ports "
@@ -1236,8 +1842,10 @@ def bring_up(layout: Layout, args) -> list[str]:
         except RuntimeFailure as exc:
             raise RuntimeFailure(f"{exc}\nlast lines of {layout.serve_log}:\n"
                                  f"{log_tail(layout.serve_log)}") from None
-        start = record_episode_start(layout, episode, args.python, rows)
-        mark = write_watermark(layout, read_destinations(layout), episode, start)
+        probed = probe_backends(backends)
+        start = record_episode_start(layout, episode, args.python, rows, backends)
+        mark = write_watermark(layout, read_destinations(layout), episode, start,
+                               backends, probed)
         empty = sorted(name for name, a in answers.items() if a["status"] == 503)
         report.append(f"healthy: {len(rows)} destinations answer /health"
                       + (f" ({len(empty)} report an empty slice of this world: "
@@ -1257,9 +1865,11 @@ def world_up(argv: list[str] | None = None) -> int:
     parser.add_argument("--no-hosts", action="store_true",
                         help="do not touch /etc/hosts (host tests)")
     parser.add_argument("--port-offset", type=int, default=0,
-                        help="shift every service port (host tests; 0 in the image)")
+                        help="shift every port of the services process (host tests; 0 "
+                             "in the image). Backends listen where episode.json says")
     parser.add_argument("--timeout", type=float, default=DEFAULT_UP_TIMEOUT_S,
-                        help="seconds to wait for the services (default %(default)s)")
+                        help="seconds to wait for the services and every backend, in "
+                             "all (default %(default)s)")
     parser.add_argument("--python", default=sys.executable,
                         help="interpreter for the services (default: this one)")
     parser.add_argument("--skip-env-check", action="store_true",
@@ -1305,6 +1915,109 @@ def agent_processes(uid: int) -> list[int]:
     return sorted(found)
 
 
+def fold_backend_destinations(layout: Layout, episode: dict) -> list[str]:
+    """Merge each declared backend's `destinations.<name>.jsonl` into
+    destinations.jsonl, one row per (host, port), the backend's row winning
+    (container_episode.fold_destinations' rule). Idempotent. Runs after every
+    writer stopped: the services rewrite destinations.jsonl whole until then."""
+    extras = [layout.audit / f"destinations.{spec['name']}.jsonl"
+              for spec in load_backends(episode)]
+    extras = [p for p in extras if p.is_file() and not p.is_symlink()]
+    if not extras:
+        return []
+    main = layout.audit / DESTINATIONS
+    if main.is_symlink():
+        raise RuntimeFailure(f"{main} is a symlink; refusing to write through it")
+    rows: dict = {}
+    for source in ([main] if main.is_file() else []) + extras:
+        for line in source.read_text(encoding="utf-8").splitlines():
+            if line.strip():
+                row = json.loads(line)
+                rows[(row.get("host"), row.get("port"))] = row
+    folded = [rows[key] for key in sorted(rows, key=lambda k: (str(k[0]), k[1] or 0))]
+    tmp = main.with_name(main.name + ".fold")
+    with open(tmp, "w", encoding="utf-8", newline="") as stream:
+        stream.write("".join(json.dumps(r, sort_keys=True, separators=(",", ":")) + "\n"
+                             for r in folded))
+    os.chmod(tmp, 0o644)
+    os.replace(tmp, main)
+    return [f"folded {', '.join(p.name for p in extras)} into {DESTINATIONS} "
+            f"({len(folded)} destination(s))"]
+
+
+_ROWS_LINE = re.compile(r"^(\d+) rows$", re.MULTILINE)
+
+
+def tail_statement_logs(layout: Layout, episode: dict, python: str) -> list[str]:
+    """Fold each `statement_logs` entry into the action log: the bytes the log
+    gained since the last fold (same file by inode, else from the start) go to
+    `python -m <tailer>` on stdin, which appends one row per statement through
+    native.audit.record (the writer lock every row source holds, so `seq`
+    stays contiguous), at the world's clock. Runs after the backend stopped,
+    so the log is complete. A failed fold is reported, recorded in
+    /audit/.statement_logs.json, and retried by the next world-down."""
+    specs = load_statement_logs(episode)
+    if not specs:
+        return []
+    try:
+        marks = json.loads(layout.tailed_file.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        marks = {}
+    report, record = [], []
+    env = serve_env(layout, episode)
+    env["ALKERA_NATIVE_AUDIT"] = str(layout.audit / ACTIONS)
+    env["ALKERA_SCHEDULER"] = str(layout.world / "var" / "sched" / "state.json")
+    clock = (episode.get("env") or {}).get(CLOCK_ENV)
+    if clock:
+        env[CLOCK_ENV] = str(clock)
+    for spec in specs:
+        path = layout.at(spec["log"])
+        entry = {"log": spec["log"], "tailer": spec["tailer"], "rows": 0, "error": None}
+        if path.is_symlink() or not path.is_file():
+            entry["error"] = "no such log: the backend never wrote one"
+            report.append(f"WARNING: statement log {spec['log']}: {entry['error']}")
+            record.append(entry)
+            continue
+        stat = os.stat(path)
+        mark = marks.get(spec["log"]) or {}
+        offset = int(mark.get("offset") or 0) if mark.get("inode") == stat.st_ino \
+            and int(mark.get("offset") or 0) <= stat.st_size else 0
+        with open(path, "rb") as stream:
+            stream.seek(offset)
+            data = stream.read()
+        entry.update(offset=offset, bytes=len(data))
+        if data.strip():
+            try:
+                done = subprocess.run([python, "-m", spec["tailer"]], input=data,
+                                      capture_output=True, env=env, timeout=600,
+                                      cwd=str(layout.run_dir))
+            except (OSError, subprocess.TimeoutExpired) as exc:
+                entry["error"] = f"{type(exc).__name__}: {exc}"
+            else:
+                err = done.stderr.decode("utf-8", "replace")
+                found = _ROWS_LINE.search(err)
+                if done.returncode != 0 or found is None:
+                    entry["error"] = f"exit {done.returncode}: {err[-1500:]}"
+                else:
+                    entry["rows"] = int(found.group(1))
+        if entry["error"]:
+            report.append(f"WARNING: statement log {spec['log']} not folded: "
+                          f"{entry['error'][-300:]}")
+        else:
+            total = (int(mark.get("rows") or 0) if offset else 0) + entry["rows"]
+            marks[spec["log"]] = {"inode": stat.st_ino, "offset": offset + len(data),
+                                  "rows": total}
+            entry["rows_total"] = total
+            report.append(f"statement log {spec['log']}: {entry['rows']} row(s) folded "
+                          f"into {ACTIONS} by {spec['tailer']}")
+        record.append(entry)
+    _write_private_json(layout.tailed_file, marks)
+    _write_private_json(layout.audit / STATEMENT_LOGS_MARKER,
+                        {"schema": STATEMENT_LOGS_SCHEMA, "logs": record, "at": _iso(_now())},
+                        mode=0o644)
+    return report
+
+
 def checkpoint_warehouses(layout: Layout) -> list[str]:
     """CHECKPOINT every warehouse file a crashed writer left a WAL beside, so
     the collected artifact is one self-contained file. Best effort."""
@@ -1336,6 +2049,12 @@ def bring_down(layout: Layout, args) -> list[str]:
             stopped = stop_processes(leftovers, grace=2.0)
             report.append(f"stopped {len(leftovers)} leftover agent process(es) "
                           f"(uid {uid}): {stopped}")
+    # the supervised backends first (reverse of their start order), then the
+    # services they were started after
+    try:
+        report += stop_backends(layout, episode, grace=args.timeout)
+    except RuntimeFailure as exc:
+        report.append(f"WARNING: backends: {exc}")
     state = read_state(layout)
     pids = set(find_serve_pids(layout))
     if serve_alive(state, layout):
@@ -1347,6 +2066,32 @@ def bring_down(layout: Layout, args) -> list[str]:
         report.append("no services process was running")
     with contextlib.suppress(OSError):
         layout.state_file.unlink()
+    # every writer has stopped: what the backends logged becomes the audit's
+    try:
+        report += tail_statement_logs(layout, episode, sys.executable) if episode else []
+    except (RuntimeFailure, OSError) as exc:
+        report.append(f"WARNING: statement logs: {exc}")
+    try:
+        report += fold_backend_destinations(layout, episode) if episode else []
+    except (RuntimeFailure, OSError, ValueError) as exc:
+        report.append(f"WARNING: backend destinations not folded: {exc}")
+    marker = layout.audit / SERVICE_STATE_MARKER
+    with contextlib.suppress(OSError):
+        marker.unlink()                      # only a copy made NOW may be vouched for
+    try:
+        copied = copy_service_state(layout)
+    except OSError as exc:
+        # no marker: the verifier of a task that declares service state is
+        # then unmeasured, never "published = as provisioned"
+        report.append(f"WARNING: the service state was not copied: {exc}")
+    else:
+        files = sum(1 for p in (layout.audit / SERVICE_STATE_COPY).rglob("*")
+                    if p.is_file()) if copied else 0
+        _write_private_json(marker, {"schema": SERVICE_STATE_SCHEMA, "source": SERVICE_STATE,
+                                     "copied": bool(copied), "files": files,
+                                     "at": _iso(_now())}, mode=0o644)
+        if copied:
+            report.append(f"service state copied for the verifier: {copied}")
     checkpointed = checkpoint_warehouses(layout)
     if checkpointed:
         report.append(f"checkpointed: {checkpointed}")

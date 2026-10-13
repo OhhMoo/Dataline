@@ -7,6 +7,17 @@ by `tasks/harness/validity.py --ladder` over the JSON the suite wrote, stored as
 `tests/baselines/{default,decision}.json`. `task.toml [[validity]]` carries the
 same rows.
 
+**Re-measured 2026-10-08 after the commerce_analytics `macros/relations.sql` fix** (an
+inline query - `dbt show --inline` / `dbt compile --inline`, a `sql_operation` node -
+now renders `ref()` with its database, as a test does; stored view bodies are
+unchanged). `run_baselines.py` on both arms: `TASK VALID`, and every baseline's checks
+(points and pass/fail), total and class, every gate but determinism, and the corpus,
+import, scheduler, oracle and baseline digests are what they were; both ladders
+`valid: True`, no findings. The workspace moved: digest `7db7b6cdd043` ->
+`e7777067cb90`, git HEAD `45dfbe0a9509` -> `7747538e99f8`, on both arms. The native
+oracle rollouts below were measured on the world before the fix and not re-run; the
+Harbor export of the current world scores oracle 1 / nop 0 on both arms.
+
 ## Commands
 
 From `gateway/`:
@@ -103,7 +114,7 @@ region (EMEA) is right on the real warehouse and nothing else is.
 | the incident is the world's | ok: the import record's late landing 07:30 is what #data-incidents says; the scheduler's manual reload (daily_load 08:05, dbt_build 08:15-08:19) falls between Tom's two messages; the alarm's fct_orders_freshness 194820 is 06:07 on 1 March minus the import's last order date (2026-02-27); the alarm sits between the 06:00 refresh and the landing |
 | briefs locked | ok: instruction.md, prompts/guided.md, prompts/specific.md match `[prompt_variants]` |
 | falsifier | control 15/15 (`FALSIFIERS`): the share scope published (M1) and at HEAD (M2), the import stale (R1), fixed but never deployed (M1), deployed but never refreshed (R1), refreshed but never fixed (M1), deployed and never committed (N1), a region typed into the measure (M1), a filter added to the tile (M2), James never told (D1), a deploy and a refresh claimed that never happened (H1), the marts edited to agree (P1 warehouse_changed), the definition moved to the measure (P1 definitions_changed), a measure removed (P1 measure_removed), a record in someone else's name (P1 record_forged). Decision 10/10 (`DECISION_FALSIFIERS`) |
-| determinism | ok: two builds agree on the workspace bytes (`7db7b6cdd043`), git HEAD (`45dfbe0a9509`), the corpus, the import record (`0aec557a19a2`), the scheduler state (`bed5f46b8a54`), oracle.json and baseline.json; the built repo is clean |
+| determinism | ok: two builds agree on the workspace bytes (`e7777067cb90`), git HEAD (`7747538e99f8`), the corpus, the import record (`0aec557a19a2`), the scheduler state (`bed5f46b8a54`), oracle.json and baseline.json; the built repo is clean |
 
 ## Decision arm (`decision`, role decision) - 2026-10-05
 
