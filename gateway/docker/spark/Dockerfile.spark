@@ -1,0 +1,89 @@
+# The Spark engine of Databricks tier 2 (the `spark_connect` compute plug):
+# Apache Spark 4.2.0 with Delta Lake 4.4.1, serving Spark Connect on :15002,
+# seeded from the world's warehouse at boot (spark_start.py). It runs on
+# backend_net only; the agent reaches it through the audited gRPC proxy in
+# native-services (alkera_gateway/native/services/spark_connect.py).
+#
+#   docker build -f gateway/docker/spark/Dockerfile.spark -t alkera-spark:<tag> .
+#
+# Built from the repository root (the per-rollout overlay's engine stanza,
+# tasks/harness/container_episode.py). Every download is HERE, at build time,
+# checked by digest (fetch.py: the Spark tarball by Apache's published sha512,
+# each Maven jar by sha256; DuckDB by the base lock's hashes; the JRE from the
+# same snapshot.debian.org timestamp gateway/docker/Dockerfile pins). The
+# running engine has no network and fetches nothing.
+#
+# Not the episode image: the engine shares nothing with the agent's box, and
+# carries no toolbelt, no gateway and no Spark Python (pyspark is removed from
+# the distribution, so a Python UDF that got past both fences would find no
+# worker to run in).
+
+# --- the distribution and the Delta jars, verified -----------------------------------
+FROM python@sha256:9534e5a8e315485d4061ed659af0fd78a284c015f9b73661b41d6bab25604534 AS fetch
+COPY gateway/docker/spark/fetch.py /build/fetch.py
+RUN python /build/fetch.py spark --dest /opt/spark \
+ && python /build/fetch.py jars --dest /opt/spark/jars \
+ && rm -rf /opt/spark/R /opt/spark/examples /opt/spark/data /opt/spark/yarn \
+           /opt/spark/kubernetes /opt/spark/python /opt/spark/jars/connect-repl \
+ && rm -f /opt/spark/jars/spark-yarn_* /opt/spark/jars/spark-kubernetes_* \
+          /opt/spark/jars/kubernetes-*
+
+# --- a JRE from the base's pinned Debian snapshot -----------------------------------
+FROM python@sha256:9534e5a8e315485d4061ed659af0fd78a284c015f9b73661b41d6bab25604534 AS jre
+ARG ALKERA_DEBIAN_SNAPSHOT=20260910T000000Z
+RUN set -eux; \
+    printf '%s\n' \
+      'Types: deb' \
+      "URIs: http://snapshot.debian.org/archive/debian/${ALKERA_DEBIAN_SNAPSHOT}/" \
+      'Suites: trixie trixie-updates' \
+      'Components: main' \
+      'Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg' \
+      '' \
+      'Types: deb' \
+      "URIs: http://snapshot.debian.org/archive/debian-security/${ALKERA_DEBIAN_SNAPSHOT}/" \
+      'Suites: trixie-security' \
+      'Components: main' \
+      'Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg' \
+      > /etc/apt/sources.list.d/debian.sources; \
+    echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99snapshot; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends openjdk-21-jre-headless=21.0.12.1+1-1~deb13u1; \
+    rm -rf /var/lib/apt/lists/*; \
+    ln -s "/usr/lib/jvm/java-21-openjdk-$(dpkg --print-architecture)" /usr/lib/jvm/java-21
+
+# --- the engine's own classes: the seeded server, the `main` catalog, the fences -----
+FROM jre AS compile
+RUN set -eux; apt-get update; \
+    apt-get install -y --no-install-recommends openjdk-21-jdk-headless=21.0.12.1+1-1~deb13u1; \
+    rm -rf /var/lib/apt/lists/*
+COPY --from=fetch /opt/spark/jars /opt/spark/jars
+COPY gateway/docker/spark/java /build/java
+RUN set -eux; mkdir -p /build/classes; \
+    javac --release 17 -Xlint:-options -cp '/opt/spark/jars/*' -d /build/classes \
+      $(find /build/java -name '*.java' | sort); \
+    jar --create --file /build/alkera-spark.jar --date 2026-10-13T00:00:00Z -C /build/classes .
+
+# --- the engine -------------------------------------------------------------------
+FROM jre
+COPY gateway/docker/spark/requirements.txt /opt/spark-start/requirements.txt
+RUN pip install --no-cache-dir --retries 5 --timeout 120 --require-hashes \
+      -r /opt/spark-start/requirements.txt
+COPY --from=fetch /opt/spark /opt/spark
+COPY --from=compile /build/alkera-spark.jar /opt/spark/jars/alkera-spark.jar
+COPY gateway/docker/spark/log4j2.properties /opt/spark/conf/log4j2.properties
+COPY gateway/docker/spark/spark_start.py /opt/spark-start/spark_start.py
+# The engine is not root: uid 185 is the Spark images' own `spark` user. Its data
+# (Parquet staging, the Delta warehouse) is rebuilt on every boot.
+RUN set -eux; useradd --uid 185 --no-create-home --home-dir /spark-data --shell /usr/sbin/nologin spark; \
+    mkdir -p /spark-data; chown spark:spark /spark-data
+# SPARK_LOCAL_IP / SPARK_LOCAL_HOSTNAME: the driver is loopback-only (its RPC and
+# block manager; Spark Connect's own port is the one that listens on every
+# interface), and with them Spark never resolves the container's hostname, which
+# --network none leaves unresolvable.
+ENV SPARK_HOME=/opt/spark JAVA_HOME=/usr/lib/jvm/java-21 SPARK_SCALA_VERSION=2.13 \
+    SPARK_LOCAL_IP=127.0.0.1 SPARK_LOCAL_HOSTNAME=localhost TZ=UTC \
+    PYTHONUTF8=1 PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+USER spark
+WORKDIR /spark-data
+EXPOSE 15002
+ENTRYPOINT ["python", "/opt/spark-start/spark_start.py"]
