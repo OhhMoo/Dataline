@@ -43,8 +43,9 @@ carries one row per destination::
     {"host": "jira.internal", "port": 8080, "count": 3,
      "first_ts": "2026-09-16T11:02:04Z", "last_ts": "2026-09-16T11:09:41Z"}
 
-`count` is **TCP connections accepted**, counted in `connection_made` on
-uvicorn's HTTP protocol - the accept, not the request - so a keep-alive
+`count` is **TCP connections accepted**, counted by uvicorn's HTTP protocol at
+the accept, not the request (and on a TLS listener before the handshake, so a
+dial that never completes one is counted too) - so a keep-alive
 connection carrying six API calls is one bump here and six rows in
 `actions.jsonl`. The two files answer different questions on purpose: this one
 says what the agent talked to, `actions.jsonl` says what it did there.
@@ -279,15 +280,37 @@ class AuditedH11Protocol(H11Protocol):
     because uvicorn instantiates the protocol class itself
     (`Config.http_protocol_class`) and passes it only what it knows about.
     `serve_all` sets it once, for the whole process.
+
+    WHERE THE COUNT HAPPENS depends on the listener, and the accept is the
+    event on both:
+
+    * A plain listener counts in `connection_made`, by the accepted socket's
+      local port. asyncio calls it at accept.
+    * A TLS listener (`config.ssl`) counts here, in the constructor. asyncio
+      calls `connection_made` only once the handshake has completed, so a dial
+      that never finishes one - a TCP probe, a port scan, a client that does not
+      trust the bundle - would never be counted
+      (gateway/docker/evidence/CONTAINMENT_2026-10-07.md). The constructor is
+      what uvicorn's protocol factory calls, and asyncio calls that factory at
+      accept, before it wraps the socket in `SSLProtocol`. No transport exists
+      yet, so the port is the listener's own (`config.port`: one listener per
+      port), and `connection_made` does not count the same dial again.
     """
 
     destinations: DestinationLog | None = None
+
+    def __init__(self, config, server_state, app_state, _loop=None) -> None:
+        super().__init__(config, server_state, app_state, _loop)
+        self._counted_at_accept = config.ssl is not None
+        log = AuditedH11Protocol.destinations
+        if log is not None and self._counted_at_accept:
+            log.accepted(int(config.port))
 
     def connection_made(self, transport) -> None:
         super().connection_made(transport)
         log = AuditedH11Protocol.destinations
         sockname = transport.get_extra_info("sockname")
-        if log is not None and sockname:
+        if log is not None and sockname and not self._counted_at_accept:
             log.accepted(int(sockname[1]))
 
 
