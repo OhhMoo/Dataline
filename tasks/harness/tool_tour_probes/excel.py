@@ -7,15 +7,22 @@ gateway/docker/TOOLBELT.md "Roles"); before that only /opt/toolbelt had it, so
 `pandas.read_excel` failed where the analyst's python runs (measured 2026-10-06).
 The value written is February 2026 Net Revenue read from the warehouse file; the
 answer is what `in2csv` reads back, after the command has checked that pandas read
-the same number. The python steps are audited by the PATH shim (`shim.python`, argv
-kept, so the `read_excel` call is on the record); `in2csv` is not shimmed.
+the same number. The python steps are audited by the PATH shim (`shim.python`); `in2csv`
+is not shimmed.
+
+What proves the tool is the workbook on the record: a `shim.python` row that exited ok
+and names an `.xlsx` among its targets (the shim's workspace diff, so the workbook is
+written under /workspace). Not the argv: the 10-10 live Claude run wrote and read its
+workbook from a `python3 -` heredoc, whose argv is `['python3', '-']` and holds no
+`read_excel` - a right answer the old `expect_args=("read_excel",)` failed - while its
+row's targets named `output/february_2026_close.xlsx`.
 """
 from tool_tour import Probe
 
 from tool_tour_probes import DA_LAPTOP_BI, NET_REVENUE_FEB_2026_SQL
 
 PROFILE, PLUGS = DA_LAPTOP_BI
-_DIR = "/tmp/tour_excel"
+_DIR = "/workspace/tour_excel"
 
 PROBES = [
     Probe(
@@ -50,7 +57,7 @@ PROBES = [
             "\"$from_pandas\" \"$from_in2csv\"\n"
             "printf '{\"value\": \"%s\"}\\n' \"$from_in2csv\"\n"),
         expect_tools=("shim.python",),
-        expect_args=("read_excel",),
+        expect_targets=("*.xlsx",),
         truth_sql=NET_REVENUE_FEB_2026_SQL,
         instruction=(
             "Finance keeps the February close in a spreadsheet. Put February 2026 Net "
