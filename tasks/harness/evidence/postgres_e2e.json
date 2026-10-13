@@ -26,19 +26,24 @@
       "result": "PASS"
     },
     {
-      "check": "the episode role (unlogged; the box's ALKERA_POSTGRES_DSN) cannot read the seeded warehouse.fct_orders",
+      "check": "episode_role_login_refused: psql as episode (compose's unlogged owner) fails with 'role \"episode\" is not permitted to log in'",
       "detail": {
         "box_dsn": {
-          "err": "psql: error: connection to server at \"postgres\" (10.210.1.4), port 5432 failed: FATAL:  database \"episode\" does not exist",
+          "err": "psql: error: connection to server at \"postgres\" (10.210.4.4), port 5432 failed: FATAL:  role \"episode\" is not permitted to log in",
           "out": "",
           "rc": 2
         },
         "episode_on_alkera_db": {
-          "err": "ERROR:  permission denied for schema warehouse\nLINE 1: SELECT count(*) FROM warehouse.fct_orders\n                             ^",
+          "err": "psql: error: connection to server at \"postgres.internal\" (10.210.4.4), port 5432 failed: FATAL:  role \"episode\" is not permitted to log in",
           "out": "",
-          "rc": 1
+          "rc": 2
         }
       },
+      "result": "PASS"
+    },
+    {
+      "check": "the episode role holds no privilege on the seeded warehouse.fct_orders",
+      "detail": "f\n",
       "result": "PASS"
     },
     {
@@ -105,12 +110,12 @@
     },
     {
       "check": "dbt-postgres: `dbt debug` against the live server",
-      "detail": "2mOK found and valid\u001b[0m]\n\u001b[0m10:49:28  Required dependencies:\n\u001b[0m10:49:29   - git [\u001b[32mOK found\u001b[0m]\n\n\u001b[0m10:49:29  Connection:\n\u001b[0m10:49:29    host: postgres.internal\n\u001b[0m10:49:29    port: 5432\n\u001b[0m10:49:29    user: alkera\n\u001b[0m10:49:29    database: alkera\n\u001b[0m10:49:29    schema: staging\n\u001b[0m10:49:29    connect_timeout: 20\n\u001b[0m10:49:29    role: None\n\u001b[0m10:49:29    search_path: None\n\u001b[0m10:49:29    keepalives_idle: 0\n\u001b[0m10:49:29    sslmode: None\n\u001b[0m10:49:29    sslcert: None\n\u001b[0m10:49:29    sslkey: None\n\u001b[0m10:49:29    sslrootcert: None\n\u001b[0m10:49:29    application_name: dbt\n\u001b[0m10:49:29    autocommit: False\n\u001b[0m10:49:29    retries: 1\n\u001b[0m10:49:29  Registered adapter: postgres=1.11.0\n\u001b[0m10:49:29    Connection test: [\u001b[32mOK connection ok\u001b[0m]\n\n\u001b[0m10:49:29  \u001b[32mAll checks passed!\u001b[0m\n",
+      "detail": "2mOK found and valid\u001b[0m]\n\u001b[0m09:29:08  Required dependencies:\n\u001b[0m09:29:09   - git [\u001b[32mOK found\u001b[0m]\n\n\u001b[0m09:29:09  Connection:\n\u001b[0m09:29:09    host: postgres.internal\n\u001b[0m09:29:09    port: 5432\n\u001b[0m09:29:09    user: alkera\n\u001b[0m09:29:09    database: alkera\n\u001b[0m09:29:09    schema: staging\n\u001b[0m09:29:09    connect_timeout: 20\n\u001b[0m09:29:09    role: None\n\u001b[0m09:29:09    search_path: None\n\u001b[0m09:29:09    keepalives_idle: 0\n\u001b[0m09:29:09    sslmode: None\n\u001b[0m09:29:09    sslcert: None\n\u001b[0m09:29:09    sslkey: None\n\u001b[0m09:29:09    sslrootcert: None\n\u001b[0m09:29:09    application_name: dbt\n\u001b[0m09:29:09    autocommit: False\n\u001b[0m09:29:09    retries: 1\n\u001b[0m09:29:09  Registered adapter: postgres=1.11.0\n\u001b[0m09:29:10    Connection test: [\u001b[32mOK connection ok\u001b[0m]\n\n\u001b[0m09:29:10  \u001b[32mAll checks passed!\u001b[0m\n",
       "result": "PASS"
     },
     {
       "check": "dbt-postgres: `dbt run -s pg_net_revenue_feb` against the live server",
-      "detail": "0:49:34  Running with dbt=1.12.4\n\u001b[0m10:49:34  Registered adapter: postgres=1.11.0\n\u001b[0m10:49:34  Unable to do partial parsing because saved manifest not found. Starting full parse.\n\u001b[0m10:49:36  Found 1 model, 1 source, 477 macros\n\u001b[0m10:49:36  \n\u001b[0m10:49:36  Concurrency: 1 threads (target='postgres')\n\u001b[0m10:49:36  \n\u001b[0m10:49:36  1 of 1 START sql table model staging.pg_net_revenue_feb ........................ [RUN]\n\u001b[0m10:49:36  1 of 1 OK created sql table model staging.pg_net_revenue_feb ................... [\u001b[32mSELECT 1\u001b[0m in 0.13s]\n\u001b[0m10:49:36  \n\u001b[0m10:49:36  Finished running 1 table model in 0 hours 0 minutes and 0.26 seconds (0.26s).\n\u001b[0m10:49:36  \n\u001b[0m10:49:36  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m10:49:36  \n\u001b[0m10:49:36  Done. PASS=1 WARN=0 ERROR=0 SKIP=0 NO-OP=0 REUSED=0 TOTAL=1\n",
+      "detail": "9:29:13  Running with dbt=1.12.4\n\u001b[0m09:29:13  Registered adapter: postgres=1.11.0\n\u001b[0m09:29:13  Unable to do partial parsing because saved manifest not found. Starting full parse.\n\u001b[0m09:29:15  Found 1 model, 1 source, 477 macros\n\u001b[0m09:29:15  \n\u001b[0m09:29:15  Concurrency: 1 threads (target='postgres')\n\u001b[0m09:29:15  \n\u001b[0m09:29:15  1 of 1 START sql table model staging.pg_net_revenue_feb ........................ [RUN]\n\u001b[0m09:29:15  1 of 1 OK created sql table model staging.pg_net_revenue_feb ................... [\u001b[32mSELECT 1\u001b[0m in 0.14s]\n\u001b[0m09:29:15  \n\u001b[0m09:29:15  Finished running 1 table model in 0 hours 0 minutes and 0.24 seconds (0.24s).\n\u001b[0m09:29:15  \n\u001b[0m09:29:15  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m09:29:15  \n\u001b[0m09:29:15  Done. PASS=1 WARN=0 ERROR=0 SKIP=0 NO-OP=0 REUSED=0 TOTAL=1\n",
       "result": "PASS"
     },
     {
@@ -129,8 +134,8 @@
     {
       "check": "rows landed at teardown: one psql.statement per logged statement (1:1, in order)",
       "detail": {
-        "logged": 34,
-        "rows": 34
+        "logged": 35,
+        "rows": 35
       },
       "result": "PASS"
     },
@@ -147,11 +152,11 @@
     {
       "check": "seq is contiguous across every writer (shims, then the tailer)",
       "detail": [
-        33,
         34,
         35,
         36,
-        37
+        37,
+        38
       ],
       "result": "PASS"
     },
@@ -208,12 +213,28 @@
       "result": "PASS"
     },
     {
-      "check": "unprofiled: the server holds only warehouse.items, with 2 rows, its schema owned by episode as compose made it",
+      "check": "unprofiled: the server holds only warehouse.items, with 2 rows, its schema owned by episode as compose made it, and episode is NOLOGIN",
       "detail": [
         "items",
         "2",
-        "episode|t"
+        "episode|f"
       ],
+      "result": "PASS"
+    },
+    {
+      "check": "unprofiled: episode_role_login_refused: psql as episode fails with 'role \"episode\" is not permitted to log in'",
+      "detail": {
+        "box_dsn": {
+          "err": "psql: error: connection to server at \"postgres\" (10.210.2.4), port 5432 failed: FATAL:  role \"episode\" is not permitted to log in",
+          "out": "",
+          "rc": 2
+        },
+        "episode_on_alkera_db": {
+          "err": "psql: error: connection to server at \"postgres.internal\" (10.210.2.4), port 5432 failed: FATAL:  role \"episode\" is not permitted to log in",
+          "out": "",
+          "rc": 2
+        }
+      },
       "result": "PASS"
     },
     {
@@ -229,31 +250,61 @@
   "de_postgres": {
     "as_episode": {
       "box_dsn": {
-        "err": "psql: error: connection to server at \"postgres\" (10.210.1.4), port 5432 failed: FATAL:  database \"episode\" does not exist",
+        "err": "psql: error: connection to server at \"postgres\" (10.210.4.4), port 5432 failed: FATAL:  role \"episode\" is not permitted to log in",
         "out": "",
         "rc": 2
       },
       "episode_on_alkera_db": {
-        "err": "ERROR:  permission denied for schema warehouse\nLINE 1: SELECT count(*) FROM warehouse.fct_orders\n                             ^",
+        "err": "psql: error: connection to server at \"postgres.internal\" (10.210.4.4), port 5432 failed: FATAL:  role \"episode\" is not permitted to log in",
         "out": "",
-        "rc": 1
+        "rc": 2
       }
     },
     "audit_sample": [
       {
         "args": {
-          "backend_pid": "120",
-          "sql": "SELECT r.rolname || '|' || CASE WHEN r.rolcanlogin THEN 't' ELSE 'f' END FROM pg_namespace n JOIN pg_roles r ON r.oid = n.nspowner WHERE n.nspname = 'warehouse'"
+          "backend_pid": "121",
+          "sql": "SELECT has_schema_privilege('episode', 'warehouse', 'USAGE') OR has_table_privilege('episode', 'warehouse.fct_orders', 'SELECT')"
         },
-        "args_hash": "3e0a12d25379b34a9c39ebf461bab3fae28f561a497c590673e08cd895a46db8",
-        "args_summary": "{\"backend_pid\":\"120\",\"sql\":\"SELECT r.rolname || '|' || CASE WHEN r.rolcanlogin THEN 't' ELSE 'f' END FROM pg_namespace n JOIN pg_roles r ON r.oid = n.nspowner WHERE n.nspname = 'warehouse'\"}",
+        "args_hash": "6b4c8332faff5fbcfe81fc44e1541d89bb7b81dba1a744760f59b253b8b2ab0c",
+        "args_summary": "{\"backend_pid\":\"121\",\"sql\":\"SELECT has_schema_privilege('episode', 'warehouse', 'USAGE') OR has_table_privilege('episode', 'warehouse.fct_orders', 'SELECT')\"}",
         "disk_mb": null,
         "error": null,
         "exit": "ok",
         "flags": [
           "actor:postgres-tailer"
         ],
-        "latency_ms": 1.921,
+        "latency_ms": 0.599,
+        "op_class": "read",
+        "read_targets": [],
+        "result": null,
+        "result_bytes": 4,
+        "result_hash": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+        "rows_affected": null,
+        "rss_mb": 90.906,
+        "schema_version": 1,
+        "seq": 4,
+        "target": null,
+        "targets": [],
+        "tool": "psql.statement",
+        "transport": "native",
+        "vts": "2026-03-02T00:00:00Z",
+        "wts": 1791883757166
+      },
+      {
+        "args": {
+          "backend_pid": "122",
+          "sql": "SELECT r.rolname || '|' || CASE WHEN r.rolcanlogin THEN 't' ELSE 'f' END FROM pg_namespace n JOIN pg_roles r ON r.oid = n.nspowner WHERE n.nspname = 'warehouse'"
+        },
+        "args_hash": "b2db26e37a79460519572dca86567722d9eb43ec0bd419436e4870c00a61c186",
+        "args_summary": "{\"backend_pid\":\"122\",\"sql\":\"SELECT r.rolname || '|' || CASE WHEN r.rolcanlogin THEN 't' ELSE 'f' END FROM pg_namespace n JOIN pg_roles r ON r.oid = n.nspowner WHERE n.nspname = 'warehouse'\"}",
+        "disk_mb": null,
+        "error": null,
+        "exit": "ok",
+        "flags": [
+          "actor:postgres-tailer"
+        ],
+        "latency_ms": 1.652,
         "op_class": "read",
         "read_targets": [
           "pg_namespace AS n",
@@ -263,9 +314,9 @@
         "result_bytes": 4,
         "result_hash": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
         "rows_affected": null,
-        "rss_mb": 89.449,
+        "rss_mb": 91.742,
         "schema_version": 1,
-        "seq": 4,
+        "seq": 5,
         "target": "pg_namespace AS n",
         "targets": [
           "pg_namespace AS n",
@@ -274,49 +325,15 @@
         "tool": "psql.statement",
         "transport": "native",
         "vts": "2026-03-02T00:00:00Z",
-        "wts": 1791370178600
+        "wts": 1791883757174
       },
       {
         "args": {
-          "backend_pid": "121",
-          "sql": "SELECT count(*) FROM warehouse.dim_customer"
-        },
-        "args_hash": "d272569d1280f91349db4f586d06a3464315380230007c364136c9dabbc64d8a",
-        "args_summary": "{\"backend_pid\":\"121\",\"sql\":\"SELECT count(*) FROM warehouse.dim_customer\"}",
-        "disk_mb": null,
-        "error": null,
-        "exit": "ok",
-        "flags": [
-          "actor:postgres-tailer"
-        ],
-        "latency_ms": 0.518,
-        "op_class": "read",
-        "read_targets": [
-          "warehouse.dim_customer"
-        ],
-        "result": null,
-        "result_bytes": 4,
-        "result_hash": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
-        "rows_affected": null,
-        "rss_mb": 90.301,
-        "schema_version": 1,
-        "seq": 5,
-        "target": "warehouse.dim_customer",
-        "targets": [
-          "warehouse.dim_customer"
-        ],
-        "tool": "psql.statement",
-        "transport": "native",
-        "vts": "2026-03-02T00:00:00Z",
-        "wts": 1791370178629
-      },
-      {
-        "args": {
-          "backend_pid": "189",
+          "backend_pid": "194",
           "sql": "COMMIT"
         },
-        "args_hash": "8e4b92e9ba9ec1cf4056389354f33984b342c698459099394f90756ce7a2993e",
-        "args_summary": "{\"backend_pid\":\"189\",\"sql\":\"COMMIT\"}",
+        "args_hash": "5af5d8fa35173c5d1e74b73878846f6ef77ce25f01b477d299e9b2685a179fd8",
+        "args_summary": "{\"backend_pid\":\"194\",\"sql\":\"COMMIT\"}",
         "disk_mb": null,
         "error": null,
         "exit": "ok",
@@ -324,37 +341,37 @@
           "outside_tool_surface",
           "actor:postgres-tailer"
         ],
-        "latency_ms": 0.022,
+        "latency_ms": 0.012,
         "op_class": "exec",
         "read_targets": [],
         "result": null,
         "result_bytes": 4,
         "result_hash": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
         "rows_affected": null,
-        "rss_mb": 90.441,
+        "rss_mb": 92.66,
         "schema_version": 1,
-        "seq": 36,
+        "seq": 37,
         "target": null,
         "targets": [],
         "tool": "psql.statement",
         "transport": "native",
         "vts": "2026-03-02T00:00:00Z",
-        "wts": 1791370178802
+        "wts": 1791883757336
       },
       {
         "args": {
-          "backend_pid": "198",
+          "backend_pid": "195",
           "sql": "SELECT net_revenue FROM staging.pg_net_revenue_feb"
         },
-        "args_hash": "e4f1de9175ba3d93ef7ffb35ae9e88b2a49ff5c8e3b527ab16a914167c4e5e5e",
-        "args_summary": "{\"backend_pid\":\"198\",\"sql\":\"SELECT net_revenue FROM staging.pg_net_revenue_feb\"}",
+        "args_hash": "a273395775dfce20d8745ced58c3d2491ecece88d001a6913cfa5de2cab99a31",
+        "args_summary": "{\"backend_pid\":\"195\",\"sql\":\"SELECT net_revenue FROM staging.pg_net_revenue_feb\"}",
         "disk_mb": null,
         "error": null,
         "exit": "ok",
         "flags": [
           "actor:postgres-tailer"
         ],
-        "latency_ms": 0.465,
+        "latency_ms": 0.505,
         "op_class": "read",
         "read_targets": [
           "staging.pg_net_revenue_feb"
@@ -363,9 +380,9 @@
         "result_bytes": 4,
         "result_hash": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
         "rows_affected": null,
-        "rss_mb": 90.445,
+        "rss_mb": 92.664,
         "schema_version": 1,
-        "seq": 37,
+        "seq": 38,
         "target": "staging.pg_net_revenue_feb",
         "targets": [
           "staging.pg_net_revenue_feb"
@@ -373,24 +390,24 @@
         "tool": "psql.statement",
         "transport": "native",
         "vts": "2026-03-02T00:00:00Z",
-        "wts": 1791370178805
+        "wts": 1791883757341
       }
     ],
     "counts": {
-      "probe_statements": 13,
-      "psql_rows": 34,
-      "rows_total": 37,
-      "server_log_statements": 34,
+      "probe_statements": 14,
+      "psql_rows": 35,
+      "rows_total": 38,
+      "server_log_statements": 35,
       "shim_rows": 3
     },
     "dbt": {
       "debug": {
         "rc": 0,
-        "tail": "\u001b[0m10:49:28  Running with dbt=1.12.4\n\u001b[0m10:49:28  dbt version: 1.12.4\n\u001b[0m10:49:28  python version: 3.11.16\n\u001b[0m10:49:28  python path: /usr/local/bin/python3.11\n\u001b[0m10:49:28  os info: Linux-7.0.0-1006-aws-x86_64-with-glibc2.41\n\u001b[0m10:49:28  Using profiles dir at /tmp/pg-e2e\n\u001b[0m10:49:28  Using profiles.yml file at /tmp/pg-e2e/profiles.yml\n\u001b[0m10:49:28  Using dbt_project.yml file at /tmp/pg-e2e/dbt_project.yml\n\u001b[0m10:49:28  adapter type: postgres\n\u001b[0m10:49:28  adapter version: 1.11.0\n\u001b[0m10:49:28  Configuration:\n\u001b[0m10:49:28    profiles.yml file [\u001b[32mOK found and valid\u001b[0m]\n\u001b[0m10:49:28    dbt_project.yml file [\u001b[32mOK found and valid\u001b[0m]\n\u001b[0m10:49:28  Required dependencies:\n\u001b[0m10:49:29   - git [\u001b[32mOK found\u001b[0m]\n\n\u001b[0m10:49:29  Connection:\n\u001b[0m10:49:29    host: postgres.internal\n\u001b[0m10:49:29    port: 5432\n\u001b[0m10:49:29    user: alkera\n\u001b[0m10:49:29    database: alkera\n\u001b[0m10:49:29    schema: staging\n\u001b[0m10:49:29    connect_timeout: 20\n\u001b[0m10:49:29    role: None\n\u001b[0m10:49:29    search_path: None\n\u001b[0m10:49:29    keepalives_idle: 0\n\u001b[0m10:49:29    sslmode: None\n\u001b[0m10:49:29    sslcert: None\n\u001b[0m10:49:29    sslkey: None\n\u001b[0m10:49:29    sslrootcert: None\n\u001b[0m10:49:29    application_name: dbt\n\u001b[0m10:49:29    autocommit: False\n\u001b[0m10:49:29    retries: 1\n\u001b[0m10:49:29  Registered adapter: postgres=1.11.0\n\u001b[0m10:49:29    Connection test: [\u001b[32mOK connection ok\u001b[0m]\n\n\u001b[0m10:49:29  \u001b[32mAll checks passed!\u001b[0m\n"
+        "tail": "\u001b[0m09:29:08  Running with dbt=1.12.4\n\u001b[0m09:29:08  dbt version: 1.12.4\n\u001b[0m09:29:08  python version: 3.11.16\n\u001b[0m09:29:08  python path: /usr/local/bin/python3.11\n\u001b[0m09:29:08  os info: Linux-7.0.0-1006-aws-x86_64-with-glibc2.41\n\u001b[0m09:29:08  Using profiles dir at /tmp/pg-e2e\n\u001b[0m09:29:08  Using profiles.yml file at /tmp/pg-e2e/profiles.yml\n\u001b[0m09:29:08  Using dbt_project.yml file at /tmp/pg-e2e/dbt_project.yml\n\u001b[0m09:29:08  adapter type: postgres\n\u001b[0m09:29:08  adapter version: 1.11.0\n\u001b[0m09:29:08  Configuration:\n\u001b[0m09:29:08    profiles.yml file [\u001b[32mOK found and valid\u001b[0m]\n\u001b[0m09:29:08    dbt_project.yml file [\u001b[32mOK found and valid\u001b[0m]\n\u001b[0m09:29:08  Required dependencies:\n\u001b[0m09:29:09   - git [\u001b[32mOK found\u001b[0m]\n\n\u001b[0m09:29:09  Connection:\n\u001b[0m09:29:09    host: postgres.internal\n\u001b[0m09:29:09    port: 5432\n\u001b[0m09:29:09    user: alkera\n\u001b[0m09:29:09    database: alkera\n\u001b[0m09:29:09    schema: staging\n\u001b[0m09:29:09    connect_timeout: 20\n\u001b[0m09:29:09    role: None\n\u001b[0m09:29:09    search_path: None\n\u001b[0m09:29:09    keepalives_idle: 0\n\u001b[0m09:29:09    sslmode: None\n\u001b[0m09:29:09    sslcert: None\n\u001b[0m09:29:09    sslkey: None\n\u001b[0m09:29:09    sslrootcert: None\n\u001b[0m09:29:09    application_name: dbt\n\u001b[0m09:29:09    autocommit: False\n\u001b[0m09:29:09    retries: 1\n\u001b[0m09:29:09  Registered adapter: postgres=1.11.0\n\u001b[0m09:29:10    Connection test: [\u001b[32mOK connection ok\u001b[0m]\n\n\u001b[0m09:29:10  \u001b[32mAll checks passed!\u001b[0m\n"
       },
       "run": {
         "rc": 0,
-        "tail": "\u001b[0m10:49:34  Running with dbt=1.12.4\n\u001b[0m10:49:34  Registered adapter: postgres=1.11.0\n\u001b[0m10:49:34  Unable to do partial parsing because saved manifest not found. Starting full parse.\n\u001b[0m10:49:36  Found 1 model, 1 source, 477 macros\n\u001b[0m10:49:36  \n\u001b[0m10:49:36  Concurrency: 1 threads (target='postgres')\n\u001b[0m10:49:36  \n\u001b[0m10:49:36  1 of 1 START sql table model staging.pg_net_revenue_feb ........................ [RUN]\n\u001b[0m10:49:36  1 of 1 OK created sql table model staging.pg_net_revenue_feb ................... [\u001b[32mSELECT 1\u001b[0m in 0.13s]\n\u001b[0m10:49:36  \n\u001b[0m10:49:36  Finished running 1 table model in 0 hours 0 minutes and 0.26 seconds (0.26s).\n\u001b[0m10:49:36  \n\u001b[0m10:49:36  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m10:49:36  \n\u001b[0m10:49:36  Done. PASS=1 WARN=0 ERROR=0 SKIP=0 NO-OP=0 REUSED=0 TOTAL=1\n"
+        "tail": "\u001b[0m09:29:13  Running with dbt=1.12.4\n\u001b[0m09:29:13  Registered adapter: postgres=1.11.0\n\u001b[0m09:29:13  Unable to do partial parsing because saved manifest not found. Starting full parse.\n\u001b[0m09:29:15  Found 1 model, 1 source, 477 macros\n\u001b[0m09:29:15  \n\u001b[0m09:29:15  Concurrency: 1 threads (target='postgres')\n\u001b[0m09:29:15  \n\u001b[0m09:29:15  1 of 1 START sql table model staging.pg_net_revenue_feb ........................ [RUN]\n\u001b[0m09:29:15  1 of 1 OK created sql table model staging.pg_net_revenue_feb ................... [\u001b[32mSELECT 1\u001b[0m in 0.14s]\n\u001b[0m09:29:15  \n\u001b[0m09:29:15  Finished running 1 table model in 0 hours 0 minutes and 0.24 seconds (0.24s).\n\u001b[0m09:29:15  \n\u001b[0m09:29:15  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m09:29:15  \n\u001b[0m09:29:15  Done. PASS=1 WARN=0 ERROR=0 SKIP=0 NO-OP=0 REUSED=0 TOTAL=1\n"
       }
     },
     "destinations": [
@@ -473,6 +490,7 @@
       }
     ],
     "episode_dsn_in_box": "postgresql://episode:episode-local@postgres/episode",
+    "episode_privilege_on_seeded_copy": "f",
     "expected": {
       "completed": 15183,
       "counts": {
@@ -486,7 +504,7 @@
     },
     "fingerprint": {
       "after": {
-        "hash": "dcee2092a68e1072131b51bfdb43dd463e70e81a92eac4e020fe7e8c32f0b8d7",
+        "hash": "9c97f3b8f6d47ab95d868a9c75ee6b94f2b354ecb07f8d56961b90fbd097e677",
         "planes": {
           "bi": "62816166d6977a6c5f5013f4cd7229848bf381db2aca01b8c7311b30fe009ff8",
           "home": "613dc93b1dc04a73d35fdb8ebb04fba858c924d3551148fa9355227ef32c3215",
@@ -496,11 +514,11 @@
           "scheduler": "be02d070e0a66bbcb8fa1456e12ac3c2751cb3ce3001405b5d0cc7c872a871a8",
           "warehouse": "{\"hash\": \"d79b90327f2bedea1d63f39d75ca3418af2a0e8610822a6709673f6673627d31\", \"tables\": {\"raw.customers\": \"6541eab48776eb650f8fbea4e7a7a54d9071c21620a6118dd1bcf51f6fc08377\", \"raw.order_lines\": \"9ac705c",
           "workflow": "419dcff22ed1367dd0d02c5bec119b63d9e704b232a7db12bbe3697b4fb27b70",
-          "workspace": "034296b9167d20202dd3a0bd291846be85b30911deda9b8ea0952d37e7d3965e"
+          "workspace": "fe148b707a712c65aa4fb98671a886dc5f6ce38c9bd80ed2034392926c204ce6"
         }
       },
       "before": {
-        "hash": "dcee2092a68e1072131b51bfdb43dd463e70e81a92eac4e020fe7e8c32f0b8d7",
+        "hash": "9c97f3b8f6d47ab95d868a9c75ee6b94f2b354ecb07f8d56961b90fbd097e677",
         "planes": {
           "bi": "62816166d6977a6c5f5013f4cd7229848bf381db2aca01b8c7311b30fe009ff8",
           "home": "613dc93b1dc04a73d35fdb8ebb04fba858c924d3551148fa9355227ef32c3215",
@@ -510,7 +528,7 @@
           "scheduler": "be02d070e0a66bbcb8fa1456e12ac3c2751cb3ce3001405b5d0cc7c872a871a8",
           "warehouse": "{\"hash\": \"d79b90327f2bedea1d63f39d75ca3418af2a0e8610822a6709673f6673627d31\", \"tables\": {\"raw.customers\": \"6541eab48776eb650f8fbea4e7a7a54d9071c21620a6118dd1bcf51f6fc08377\", \"raw.order_lines\": \"9ac705c",
           "workflow": "419dcff22ed1367dd0d02c5bec119b63d9e704b232a7db12bbe3697b4fb27b70",
-          "workspace": "034296b9167d20202dd3a0bd291846be85b30911deda9b8ea0952d37e7d3965e"
+          "workspace": "fe148b707a712c65aa4fb98671a886dc5f6ce38c9bd80ed2034392926c204ce6"
         }
       }
     },
@@ -534,17 +552,17 @@
       "completed": 15183
     },
     "refused_row_position": {
-      "row_index": 10,
-      "rows": 34,
-      "sent_index": 10
+      "row_index": 11,
+      "rows": 35,
+      "sent_index": 11
     },
     "seed": {
       "granted_to": "alkera",
       "owner": "warehouse_owner",
       "revoked_from": "episode",
       "schema": "warehouse",
-      "seconds": 1.0,
-      "source": "/home/ubuntu/alkera-rollouts/w1-pg-excel/e2e/de-postgres/world/var/warehouse/warehouse.duckdb",
+      "seconds": 1.29,
+      "source": "/home/ubuntu/.cache/alkera-harbor-work/t7-pg-e2e/de-postgres/world/var/warehouse/warehouse.duckdb",
       "tables": {
         "dim_customer": 309,
         "dim_date": 424,
@@ -555,9 +573,9 @@
       "views_skipped": []
     },
     "seeded_schema_owner": "warehouse_owner|f",
-    "server_log_statements": 34,
+    "server_log_statements": 35,
     "stack": {
-      "container_id": "0b9728b21c28",
+      "container_id": "0b28e7d8902a",
       "episode_endpoints": {
         "airbyte": "http://airbyte.internal:8001",
         "alertmanager": "http://alertmanager.internal:9093",
@@ -582,8 +600,8 @@
         "sched": "http://sched.internal:8120",
         "slack": "http://slack.internal:8081"
       },
-      "image": "alkera-episode:w1-pg",
-      "image_digest": "sha256:df7605f5bd4cf424f8e1e2ca741d4c374140239ccdea6e1d3477e82b17740481",
+      "image": "alkera-episode:t8",
+      "image_digest": "sha256:b656db9fa32730e4670528eed311d504e96393c37101f34dbfc6d8919a42ab79",
       "services": [
         "episode",
         "minio",
@@ -592,17 +610,30 @@
       ]
     }
   },
-  "image": "alkera-episode:w1-pg",
+  "image": "alkera-episode:t8",
   "image_gate": {
-    "head": "41d567865c7791da58db72fd47e194ea6d4b906c",
-    "image": "alkera-episode:w1-pg",
-    "revision": "41d567865c7791da58db72fd47e194ea6d4b906c"
+    "head": "3798c40a9f6493e1be6c8c835eeb636c8977e399",
+    "image": "alkera-episode:t8",
+    "revision": "3798c40a9f6493e1be6c8c835eeb636c8977e399"
   },
   "profile": "de/postgres",
   "result": "PASS",
-  "revision": "41d567865c7791da58db72fd47e194ea6d4b906c",
-  "seconds": 97.2,
+  "revision": "3798c40a9f6493e1be6c8c835eeb636c8977e399",
+  "seconds": 118.4,
   "unprofiled": {
+    "as_episode": {
+      "box_dsn": {
+        "err": "psql: error: connection to server at \"postgres\" (10.210.2.4), port 5432 failed: FATAL:  role \"episode\" is not permitted to log in",
+        "out": "",
+        "rc": 2
+      },
+      "episode_on_alkera_db": {
+        "err": "psql: error: connection to server at \"postgres.internal\" (10.210.2.4), port 5432 failed: FATAL:  role \"episode\" is not permitted to log in",
+        "out": "",
+        "rc": 2
+      }
+    },
+    "episode_dsn_in_box": "postgresql://episode:episode-local@postgres/episode",
     "prepared_keys": [
       "dbt_profiles_rerooted",
       "home",
@@ -612,7 +643,7 @@
     "server": [
       "items",
       "2",
-      "episode|t"
+      "episode|f"
     ]
   }
 }
