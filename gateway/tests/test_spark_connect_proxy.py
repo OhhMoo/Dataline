@@ -442,3 +442,93 @@ def test_descriptors_of_the_installed_client_match_the_fixture():
                                           ".lock), not the gateway venv's")
     live = sc.descriptor_set()
     assert live == TESTDATA.read_bytes()
+
+
+# --------------------------------------------------------------------------- in serve.py
+# The module is served by serve.py's own `serve_all` through `serve_socket` (Spark Connect
+# is HTTP/2, which uvicorn does not speak), on the listener serve.py binds: the same peer
+# filter as every agent listener (Task 6) and a count at accept (Task 5). Loopback stands
+# in for the two networks, as in test_peer_filter.py: 127.0.0.1 is the episode, a client
+# bound to 127.0.0.2 a backend_net peer.
+def _served(monkeypatch, protos, upstream_port):
+    from test_tls_destinations import free_port
+
+    from alkera_gateway.native import serve
+
+    monkeypatch.setenv(sc.UPSTREAM_ENV, f"127.0.0.1:{upstream_port}")
+    monkeypatch.setattr(sc, "load_protos", lambda source=None: protos)
+    return serve.Mounted(sc.NAME, sc.HOST, free_port(), sc.app, "module", False,
+                         serve_socket=sc.serve_socket)
+
+
+def _release(port: int, *, options=()):
+    channel = grpc.insecure_channel(f"127.0.0.1:{port}", options=list(options))
+    try:
+        request = sc.load_protos(TESTDATA).cls("spark.connect.ReleaseSessionRequest")(
+            session_id="s-1").SerializeToString()
+        channel.unary_unary(SERVICE + "ReleaseSession")(request, timeout=20)
+    finally:
+        channel.close()
+
+
+def test_mount_hands_the_hosted_module_its_socket():
+    from alkera_gateway.native import serve
+
+    item = {m.name: m for m in serve.mount({sc.NAME: sc})}[sc.NAME]
+    assert item.serve_socket is sc.serve_socket and (item.host, item.port) == (sc.HOST, 15002)
+    # every other module is served by uvicorn, as before
+    stub = serve.mount({}, {"jira": 8080})[0]
+    assert stub.serve_socket is None
+
+
+def test_spark_connect_listener_refuses_backend_net_peers(tmp_path, monkeypatch, protos):
+    import ipaddress
+
+    from test_peer_filter import dial_from, rows
+    from test_tls_destinations import count, serving, settled
+
+    from alkera_gateway.native import serve
+
+    audit = tmp_path / "audit" / "actions.jsonl"
+    monkeypatch.setenv("ALKERA_NATIVE_AUDIT", str(audit))
+    upstream = FakeUpstream(audit, protos)
+    try:
+        item = _served(monkeypatch, protos, upstream.port)
+        log = serve.DestinationLog(tmp_path / "destinations.jsonl")
+        log.declare(item.host, item.port)
+        with serving([item], log, allowed=[ipaddress.IPv4Network("127.0.0.1/32")]):
+            assert dial_from("127.0.0.2", item.port) == b""      # closed at accept
+            time.sleep(0.5)
+            assert count(log, item.port) == 0                    # never a destination
+            _release(item.port)                                  # the episode's own
+            assert settled(log, item.port, at_least=1) == 1
+        refused = rows(audit)
+        assert [r["args"] for r in refused] == [
+            {"peer": "127.0.0.2", "host": sc.HOST, "port": item.port}]
+        assert [r["args"]["rpc"] for r in rows(audit, TOOL)] == ["ReleaseSession"]
+        assert [c[0] for c in upstream.calls] == ["ReleaseSession"]
+    finally:
+        upstream.stop()
+
+
+def test_spark_connect_bare_dial_is_counted_once(tmp_path, monkeypatch, protos):
+    from test_tls_destinations import bare_dial, serving, settled
+
+    from alkera_gateway.native import serve
+
+    audit = tmp_path / "audit" / "actions.jsonl"
+    monkeypatch.setenv("ALKERA_NATIVE_AUDIT", str(audit))
+    upstream = FakeUpstream(audit, protos)
+    try:
+        item = _served(monkeypatch, protos, upstream.port)
+        log = serve.DestinationLog(tmp_path / "destinations.jsonl")
+        log.declare(item.host, item.port)
+        with serving([item], log):
+            bare_dial(item.port)                     # a TCP connect and close: one
+            assert settled(log, item.port, at_least=1) == 1
+            # one gRPC connection carrying a call is one more, never two
+            _release(item.port, options=[("grpc.use_local_subchannel_pool", 1)])
+            assert settled(log, item.port, at_least=2) == 2
+        assert not _rows(audit) or [r["tool"] for r in _rows(audit)] == [TOOL]
+    finally:
+        upstream.stop()

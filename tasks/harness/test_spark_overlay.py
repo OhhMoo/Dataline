@@ -11,6 +11,7 @@ goldens), and de/databricks - no compute slot - gets none of tier 2.
 """
 from __future__ import annotations
 
+import ipaddress
 import sys
 from pathlib import Path
 
@@ -22,10 +23,13 @@ import container_episode as ce  # noqa: E402
 import test_backends as tb  # noqa: E402
 
 IMAGE = "alkera-episode:t14-ds-databricks-spark"
+#: What `docker network inspect` reports as taken in these tests (`docker_subnets`).
+TAKEN = [ipaddress.IPv4Network("10.210.0.0/24"), ipaddress.IPv4Network("172.17.0.0/16")]
 
 
 def _box(tmp_path, monkeypatch, profile="ds/databricks", plugs=None):
     monkeypatch.setattr(ce, "image_path", lambda image: tb.IMAGE_PATH)
+    monkeypatch.setattr(ce, "docker_subnets", lambda: list(TAKEN))
     stack = tb._stack(tmp_path, profile.replace("/", "_"), profile=profile, image=IMAGE,
                       **({"plugs": plugs} if plugs is not None else {}))
     return stack, tb._overlay_yaml(stack.write_overlay().read_text(encoding="utf-8"))
@@ -53,7 +57,12 @@ def test_native_services_reaches_the_engine_and_waits_for_it(tmp_path, monkeypat
     assert "backend_net" in services["networks"]
     assert "spark_connect.internal" in services["networks"]["episode_net"]["aliases"]
     assert "databricks.internal" in services["networks"]["episode_net"]["aliases"]
-    assert services["environment"] == {"ALKERA_SPARK_CONNECT_UPSTREAM": "spark:15002"}
+    # the peer filter (Task 6): native-services is on backend_net for the engine, so
+    # its agent listeners - 15002 among them - admit episode_net's pinned subnet only
+    subnet = overlay["networks"]["episode_net"]["ipam"]["config"][0]["subnet"]
+    assert ipaddress.IPv4Network(subnet).subnet_of(ce.EPISODE_SUBNET_POOL)
+    assert services["environment"] == {"ALKERA_SPARK_CONNECT_UPSTREAM": "spark:15002",
+                                       "ALKERA_EPISODE_SUBNETS": subnet}
     assert services["depends_on"] == {"spark": {"condition": "service_started"}}
     # the JVM's cold start fits the healthcheck's start period, not its 60 s of retries
     assert services["healthcheck"] == {"start_period": "600s"}

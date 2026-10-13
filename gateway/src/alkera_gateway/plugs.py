@@ -82,8 +82,9 @@ _CATALOG = (
               "second copy of the world, apart from tier 1's (a write in one is not seen "
               "in the other); AddArtifacts, Python UDFs, file paths/DBFS, streaming, "
               "reflect, TRANSFORM, ADD JAR, CREATE FUNCTION refused by name; no "
-              "dbutils; plain gRPC on 15002, not TLS on 443; serving it needs "
-              "serve.py's raw-listener hook; Harbor export refuses it; no task uses it"),
+              "dbutils; plain gRPC on 15002, not TLS on 443 (served through serve.py's "
+              "serve_socket hook, behind the episode-peer filter); Harbor export refuses "
+              "it; no task uses it"),
     Plug("duckdb", "warehouse", "shipped",
          surfaces=("duckdb", "duckdb_legacy", "streaming"),
          note="GT002's `streaming` surface is tables in the DuckDB file"),

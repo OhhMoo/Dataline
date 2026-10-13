@@ -498,6 +498,13 @@ class Mounted:
     #: refusal there, never a plain-HTTP fallback the clients would fail against.
     tls: bool = False
     certificate: Callable | None = None
+    #: A hosted backend that does not speak HTTP/1.1 - Spark Connect is gRPC over
+    #: HTTP/2, which uvicorn does not serve: its module's `serve_socket(listener,
+    #: destinations)` coroutine serves the listener `serve_all` bound, instead of
+    #: uvicorn. The listener is the one every agent door gets (EpisodePeersOnly
+    #: when peers are filtered), and the module counts each accepted connection
+    #: into `destinations` itself, at accept.
+    serve_socket: Callable | None = None
 
 
 def mount(loaded: dict, stubs: dict[str, int] | None = None,
@@ -531,7 +538,9 @@ def mount(loaded: dict, stubs: dict[str, int] | None = None,
                                app if own else HealthWrapper(app, name, 0),
                                "module", own, tls=tls,
                                certificate=getattr(module, "certificate", None)
-                               if tls else None))
+                               if tls else None,
+                               serve_socket=getattr(module, "serve_socket", None)
+                               if name in hosted else None))
     for name, port in sorted((stubs or {}).items()):
         mounted.append(Mounted(name, f"{name}.internal", port + offset,
                                HealthWrapper(stub_app(name), name, STUB_ITEMS),
@@ -771,18 +780,22 @@ async def serve_all(mounted: list[Mounted], bind: str, log: DestinationLog,
     `Mounted.destination` - admits only peers inside it (EpisodePeersOnly).
     MinIO's audit receiver is not an agent listener and is not filtered."""
     AuditedH11Protocol.destinations = log
-    servers = [
-        _Server(uvicorn.Config(
+    servers = {
+        item.name: _Server(uvicorn.Config(
             item.app, host=bind, port=item.port, http=AuditedH11Protocol,
             log_level="warning", access_log=False, lifespan="auto",
             timeout_graceful_shutdown=5, **tls_options(item),
         ))
-        for item in mounted
-    ]
+        for item in mounted if item.serve_socket is None
+    }
+    #: `Mounted.serve_socket` services, which run until cancelled.
+    raw: list[asyncio.Task] = []
 
     def stop(*_: object) -> None:
-        for server in servers:
+        for server in servers.values():
             server.should_exit = True
+        for task in raw:
+            task.cancel()
 
     installed = {}
     for sig in (signal.SIGINT, signal.SIGTERM):
@@ -808,14 +821,19 @@ async def serve_all(mounted: list[Mounted], bind: str, log: DestinationLog,
                 listener = EpisodePeersOnly(listener, item.host, allowed)
             listener.setblocking(False)
             sockets.append(listener)
-        tasks = [asyncio.create_task(run(server, listener))
-                 for server, listener in zip(servers, sockets, strict=True)]
+        for item, listener in zip(mounted, sockets, strict=True):
+            if item.serve_socket is not None:
+                raw.append(asyncio.create_task(item.serve_socket(listener, log)))
+                tasks.append(raw[-1])
+            else:
+                tasks.append(asyncio.create_task(run(servers[item.name], listener)))
         if tasks:
             done, _ = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
-            expected = all(server.should_exit for server in servers)
+            expected = all(server.should_exit for server in servers.values())
             stop()
             for task in done:
-                task.result()
+                if not task.cancelled():
+                    task.result()
             if not expected:
                 raise RuntimeError("Native listener stopped unexpectedly")
     finally:

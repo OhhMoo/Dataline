@@ -296,24 +296,26 @@ spark_connect`).
   unchanged; tier 1 still answering
   the world's count after tier 2's DELETE; `spark_connect.internal:15002` in
   destinations.jsonl and nothing outside the allowlist; the engine listening off loopback on
-  15002 only. **Measured on a trial image** that adds the serve.py hook below (not on the
-  branch).
-- **Tour** `--tools spark`: 3/3 PASS (`tasks/harness/evidence/tool_tour_spark.json`), same
-  trial image. **P7** on `ds/databricks`: 11 of 12 checks pass; "every service is reachable"
+  15002 only.
+- **Tour** `--tools spark`: 3/3 PASS (`tasks/harness/evidence/tool_tour_spark.json`). **P7** on `ds/databricks`: 11 of 12 checks pass; "every service is reachable"
   fails on `databricks.internal:443` (plain HTTP to TLS, the known false negative) and on
   `spark_connect.internal:15002`, where P7's HTTP/1.1 GET met an HTTP/2 SETTINGS frame - the
   same instrument gap, not a door
   (`gateway/docker/evidence/containment-native-episode-ds-databricks.json`).
 
-## What serving it needs: serve.py's raw-listener hook
+## How serve.py serves it
 
-serve.py mounts every module as a uvicorn server, HTTP/1.1 only; Spark Connect is gRPC over
-HTTP/2. The module exposes `serve_socket(listener, destinations)`, and serve.py needs ~25
-lines to await it, instead of uvicorn, for a hosted module that defines it (a
-`Mounted.serve_socket` field filled in `mount()`, awaited in `serve_all()`, cancelled by its
-`stop()`). serve.py belongs to T5 and T6, so the hook is not on this branch: until it lands,
-a `ds/databricks` stack mounts the module's `app` on 15002, which answers HTTP/1.1 only, and
-the thin client cannot connect. T6's peer filter has to cover this listener too.
+serve.py mounts every other module as a uvicorn server, HTTP/1.1 only; Spark Connect is
+gRPC over HTTP/2. A hosted module that defines `serve_socket(listener, destinations)` is
+served by that coroutine instead (`Mounted.serve_socket`, filled in `mount()`, awaited by
+`serve_all()`, cancelled by its `stop()`), on the listener `serve_all` bound - the same one
+every agent door gets. So the Spark Connect door has the same two properties as the others:
+with `ALKERA_EPISODE_SUBNETS` set (native-services is on backend_net for the engine), a
+peer outside the episode's subnet is closed at accept, written as one
+`native.refused_peer` row and never counted (Task 6's `EpisodePeersOnly`); and every
+accepted connection is counted at accept, a bare TCP dial included (Task 5's rule for a
+door). `test_spark_connect_listener_refuses_backend_net_peers`,
+`test_spark_connect_bare_dial_is_counted_once`.
 
 ## Deviations from Databricks
 
@@ -329,8 +331,8 @@ the thin client cannot connect. T6's peer filter has to cover this listener too.
   is `sc://spark_connect.internal:15002` and nothing is authenticated (the episode network is
   the boundary). The host is `spark_connect.internal`, not the workspace's
   `databricks.internal`: the registry gives every row its own `<name>.internal`
-  (`test_every_row_is_a_plug_and_complete`), so D1's `databricks.internal:15002` needs that
-  test relaxed for a hosted row that shares a host.
+  (`test_every_row_is_a_plug_and_complete`); recorded as an amendment to D1's
+  `databricks.internal:15002`.
 - **`local[1]` never spills out**: one core in one 1 GB driver JVM, no executors; a plan
   bigger than that fails instead of scaling.
 - **The catalog.** `main` is a delegating plugin over Spark's session catalog

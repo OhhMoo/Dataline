@@ -83,7 +83,8 @@ CONTAINER_PYTHON = "/usr/local/bin/python"
 #     inside native-services, so no compose service of its name ever runs and
 #     the carrier is native-services: `airflow-api`, `bigquery` (its alias is
 #     the audited proxy's, while the engine sits on backend_net only, so the
-#     engine is a must-not-resolve control) and `databricks`;
+#     engine is a must-not-resolve control), `databricks`, and `spark` (Databricks
+#     tier 2: the Spark Connect proxy's alias, its engine on backend_net only);
 #   - `airflow.internal` names two rows: 8080 is the designed real-Airflow
 #     compose service, 8100 the hosted REST fake. The carrier tells them apart;
 #   - `redshift` and `snowflake` are containers of their own.
@@ -122,6 +123,10 @@ NATIVE_CARRIERS = {
     "snowflake": "snowflake", "airflow-api": "native-services",
     "bigquery": "native-services", "redshift": "redshift",
     "databricks": "native-services",
+    # Databricks tier 2: the alias is the audited Spark Connect proxy's, carried by
+    # native-services; the `spark` engine sits on backend_net only, so it is a
+    # must-not-resolve control, as bigquery's engine is
+    "spark": "native-services",
     "aggregate": "native-services", "sched": "native-services", "jupyter": "jupyter",
 }
 MINIO_PORT = 9000

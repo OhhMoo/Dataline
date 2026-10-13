@@ -99,8 +99,13 @@ does, so `compose up --wait` fails loudly. Unset (the tests, every unplugged
 stack) nothing is dialled at import.
 
 SERVED BY serve.py THROUGH `serve_socket`, not `app`: Spark Connect is HTTP/2,
-which uvicorn does not speak. `app` exists for the service contract (NAME, HOST,
-PORT, app) and answers plain HTTP with a pointer to the gRPC door.
+which uvicorn does not speak (serve.Mounted.serve_socket). serve.py hands it the
+listener it binds for every agent door - so with ALKERA_EPISODE_SUBNETS set a peer
+outside the episode is closed at accept and written as one `native.refused_peer`
+row before this module ever sees it (serve.EpisodePeersOnly), and this module
+counts each connection it is handed at accept. `app` exists for the service
+contract (NAME, HOST, PORT, app) and answers plain HTTP with a pointer to the
+gRPC door.
 """
 from __future__ import annotations
 
