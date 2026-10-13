@@ -48,11 +48,12 @@ TASKS = {"BI001": REPO / "tasks" / "BI001-revenue-disagrees-across-bi",
          "BI002": REPO / "tasks" / "BI002-powerbi-share-and-stale-refresh"}
 
 DRIVER = r'''
-import importlib.util, json, os, shutil, subprocess, sys, tempfile
+import importlib.util, json, os, shutil, subprocess, sys
 from pathlib import Path
 
-task, hostile, harness, out, sandbox = (Path(sys.argv[1]), Path(sys.argv[2]),
-                                        Path(sys.argv[3]), Path(sys.argv[4]), sys.argv[5])
+task, hostile, harness, out, sandbox, base = (Path(sys.argv[1]), Path(sys.argv[2]),
+                                              Path(sys.argv[3]), Path(sys.argv[4]),
+                                              sys.argv[5], Path(sys.argv[6]))
 spec = importlib.util.spec_from_file_location("hostile_git", hostile)
 H = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(H)
@@ -61,7 +62,6 @@ import run_baselines as RB
 sys.path.insert(0, str(harness))
 import episode, taskspec
 
-base = Path(tempfile.mkdtemp(prefix="bi-git-safety-"))
 fn, _ = RB.BASELINES["oracle"]
 world = RB.build_at(base, "oracle")
 rollout = base / "oracle"                     # world/, grading/, audit/: a rollout's layout
@@ -116,11 +116,13 @@ def test_grading_a_weaponized_repository_runs_nothing_and_scores_the_same(
     driver = tmp_path / "driver.py"
     driver.write_text(DRIVER, encoding="utf-8")
     out = tmp_path / "out.json"
+    work = tmp_path / "work"          # under pytest's basetemp, which pytest prunes
+    work.mkdir()
     env = {**os.environ, "ALKERA_TASK_VARIANT": arm, "PYTHONUTF8": "1"}
     if arm == "default":
         env.pop("ALKERA_TASK_VARIANT")
     done = subprocess.run([sys.executable, str(driver), str(folder), str(HOSTILE), str(HERE),
-                           str(out), sandbox],
+                           str(out), sandbox, str(work)],
                           capture_output=True, text=True, env=env, timeout=900, check=False)
     assert done.returncode == 0, done.stderr[-4000:]
     got = json.loads(out.read_text(encoding="utf-8"))
