@@ -291,8 +291,9 @@ spark_connect`).
   is 26-31 s.
 - **Container e2e** (`tasks/harness/evidence/spark_e2e.json`, 41/41 PASS): SQL, the DataFrame
   API and toPandas against DuckDB truth; saveAsTable, INSERT and DELETE on the copy, DESCRIBE
-  HISTORY; every fence refused by name; rows 1:1 with the 194 RPCs the client sent (counted by
-  a gRPC interceptor in the client); the world's fingerprint unchanged; tier 1 still answering
+  HISTORY; every fence refused by name; rows 1:1 with every RPC the client sent (188 in the
+  recorded run, counted by a gRPC interceptor in the client); the world's fingerprint
+  unchanged; tier 1 still answering
   the world's count after tier 2's DELETE; `spark_connect.internal:15002` in
   destinations.jsonl and nothing outside the allowlist; the engine listening off loopback on
   15002 only. **Measured on a trial image** that adds the serve.py hook below (not on the

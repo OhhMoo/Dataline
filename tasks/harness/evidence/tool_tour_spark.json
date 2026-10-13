@@ -1,7 +1,7 @@
 {
  "findings": [],
- "image_note": "Measured on alkera-episode:t14-ds-databricks-spark-hook, built from the ref-less trial commit ff5be2fdd23dd20cf18fee4d002e2625d02c72c8 = this branch's 8bfea28 + the proposed serve.py raw-listener hook (docs/environments/DATABRICKS_SPIKE.md, 'What serving it needs'): serve.py is T5/T6's file, so the hook is not on this branch. Without it the proxy is not served. The tour ran from a temporary worktree at the trial commit: its stale-image guard compares the image's revision with HEAD.",
- "image_revision": "ff5be2fdd23dd20cf18fee4d002e2625d02c72c8",
+ "image_note": "Measured on alkera-episode:t14-ds-databricks-spark-hook, built from the ref-less trial commit 0a2acc4496f9ea3b6422bbff440e585d8d8602d1 = this branch's 0f7a1c9 + the proposed serve.py raw-listener hook (docs/environments/DATABRICKS_SPIKE.md, 'What serving it needs'): serve.py is T5/T6's file, so the hook is not on this branch. Without it the proxy is not served. The tour ran from a temporary worktree at the trial commit: its stale-image guard compares the image's revision with HEAD.",
+ "image_revision": "0a2acc4496f9ea3b6422bbff440e585d8d8602d1",
  "probes": [
   {
    "command": "cd /workspace\nset -euo pipefail\npython3 - <<'PY'\nimport json\nfrom pyspark.sql import SparkSession\n\nspark = SparkSession.builder.getOrCreate()\nvalue = spark.sql(\n    \"SELECT SUM(order_amount) FROM main.warehouse.fct_orders \"\n    \"WHERE order_status = 'completed' AND order_date >= DATE'2026-02-01' \"\n    \"AND order_date < DATE'2026-03-01'\").collect()[0][0]\nprint(json.dumps({\"value\": str(value)}))\nPY\n",
@@ -21,14 +21,13 @@
    "missing_tools": [],
    "profile": "ds/databricks",
    "returncode": 0,
-   "rows": 17,
+   "rows": 16,
    "rows_at": "call",
-   "seconds": 4.59,
+   "seconds": 4.82,
    "stderr_tail": "/usr/local/lib/python3.11/site-packages/pyspark/sql/connect/utils.py:41: FutureWarning: PySpark does not yet fully support pandas >= 3.0.0. Some features may not work correctly. It is recommended to use pandas < 3.0.0 for now.\n  require_minimum_pandas_version()\n/usr/local/lib/python3.11/site-packages/pyspark/testing/utils.py:127: FutureWarning: PySpark does not yet fully support pandas >= 3.0.0. Some features may not work correctly. It is recommended to use pandas < 3.0.0 for now.\n  require_minimum_pandas_version()\n",
    "stdout_tail": "{\"value\": \"2361224.00\"}\n",
    "tool": "spark",
    "tools": [
-    "databricks.spark",
     "databricks.spark",
     "databricks.spark",
     "databricks.spark",
@@ -72,7 +71,7 @@
    "returncode": 0,
    "rows": 13,
    "rows_at": "call",
-   "seconds": 3.15,
+   "seconds": 3.67,
    "stderr_tail": "/usr/local/lib/python3.11/site-packages/pyspark/sql/connect/utils.py:41: FutureWarning: PySpark does not yet fully support pandas >= 3.0.0. Some features may not work correctly. It is recommended to use pandas < 3.0.0 for now.\n  require_minimum_pandas_version()\n/usr/local/lib/python3.11/site-packages/pyspark/testing/utils.py:127: FutureWarning: PySpark does not yet fully support pandas >= 3.0.0. Some features may not work correctly. It is recommended to use pandas < 3.0.0 for now.\n  require_minimum_pandas_version()\n",
    "stdout_tail": "{\"value\": 1068}\n",
    "tool": "spark",
@@ -115,14 +114,13 @@
    "missing_tools": [],
    "profile": "ds/databricks",
    "returncode": 0,
-   "rows": 10,
+   "rows": 9,
    "rows_at": "call",
-   "seconds": 2.52,
+   "seconds": 2.75,
    "stderr_tail": "/usr/local/lib/python3.11/site-packages/pyspark/sql/connect/utils.py:41: FutureWarning: PySpark does not yet fully support pandas >= 3.0.0. Some features may not work correctly. It is recommended to use pandas < 3.0.0 for now.\n  require_minimum_pandas_version()\n/usr/local/lib/python3.11/site-packages/pyspark/testing/utils.py:127: FutureWarning: PySpark does not yet fully support pandas >= 3.0.0. Some features may not work correctly. It is recommended to use pandas < 3.0.0 for now.\n  require_minimum_pandas_version()\n",
    "stdout_tail": "{\"value\": 6}\n",
    "tool": "spark",
    "tools": [
-    "databricks.spark",
     "databricks.spark",
     "databricks.spark",
     "databricks.spark",
@@ -198,24 +196,24 @@
      },
      {
       "count": 3,
-      "first_ts": "2026-10-13T10:40:44Z",
+      "first_ts": "2026-10-13T11:19:18Z",
       "host": "spark_connect.internal",
-      "last_ts": "2026-10-13T10:40:51Z",
+      "last_ts": "2026-10-13T11:19:27Z",
       "port": 15002
      }
     ],
     "network_violations": [],
     "no_stray_rows": true,
     "ok": true,
-    "rows_in_probes": 40,
-    "rows_total": 40,
+    "rows_in_probes": 38,
+    "rows_total": 38,
     "trace_valid": true
    },
    "image": "alkera-episode:t14-ds-databricks-spark-hook",
    "image_gate": {
-    "head": "ff5be2fdd23dd20cf18fee4d002e2625d02c72c8",
+    "head": "0a2acc4496f9ea3b6422bbff440e585d8d8602d1",
     "image": "alkera-episode:t14-ds-databricks-spark-hook",
-    "revision": "ff5be2fdd23dd20cf18fee4d002e2625d02c72c8"
+    "revision": "0a2acc4496f9ea3b6422bbff440e585d8d8602d1"
    },
    "ok": true,
    "plugs": {},
@@ -226,10 +224,10 @@
    ],
    "profile": "ds/databricks",
    "rows_at": "call",
-   "seconds": 76.9,
+   "seconds": 81.1,
    "seed": "# commerce_analytics world seed: a shop's nightly CDC extracts -> raw -> dbt\n# star schema + semantic layer -> Power BI / Tableau / Sigma dashboards.\ntheme: commerce_analytics    # world/world/themes/<name>/\nseed: 11\nvtime_start: \"2025-01-01T00:00:00Z\"\n# 425 nightly extracts: dt=2024-12-31 (the cutover snapshot: accounts and\n# catalogue, no orders) then dt=2025-01-01 .. dt=2026-02-28. Fourteen months of\n# orders, so last-year measures exist for January and February 2026. The world\n# clock opens at 2026-03-02T00:00Z, a Monday - business day 1 of the February\n# close.\ndays: 425\n\n# Scale. Every key is optional (gen.DEFAULTS); these are the defaults, spelled\n# out. Build time is dominated by dbt, not by volume - a 2x seed builds in about\n# the same time.\ncustomers: 220               # accounts on the platform at cutover\nsignup_pct: 18               # chance per day of a new account (a second at a quarter of it)\nupdate_pct: 9                # chance per day that one account is upgraded a segment\norders_per_day: [20, 60]     # base range, scaled by weekday, month, peak days and growth\nlines_per_order: [1, 4]\ncancel_pct: 6                # 70% the same day, the rest the next day\nrefund_pct: 4                # 3 to 45 days after the order\ngrowth_pct: 20               # year-over-year order volume growth\n\ngit_author: \"Analytics Engineering <analytics@example.com>\"\nnative: true\nfiles: {formats: [parquet]}\nprofile:\n  name: ds/databricks\n  slots: [files, notebook, compute, warehouse, transform, orchestrator, object_store, human]\n",
    "stack": {
-    "container_id": "866a88e72c6f",
+    "container_id": "e8fac00ef38e",
     "episode_endpoints": {
      "confluence": "http://confluence.internal:8090",
      "databricks": "https://databricks.internal:443",
@@ -251,7 +249,7 @@
      "spark_connect": "http://spark_connect.internal:15002"
     },
     "image": "alkera-episode:t14-ds-databricks-spark-hook",
-    "image_digest": "sha256:412c01a1d3b21d912fb5598acda6f9a16adad43027b187f82486426fe3b8b1b2",
+    "image_digest": "sha256:2801dac77f7d4834cb879ab430b9522c6b5f3d27cf1ccaf2044f464d4d15d85d",
     "services": [
      "episode",
      "jupyter",
@@ -267,7 +265,7 @@
      "ALKERA_SHIM_BIN": "/opt/alkera/shims",
      "ALKERA_SHIM_WATCH": "/world/var/warehouse/warehouse.duckdb",
      "ALKERA_SHIM_WORKSPACE": "/workspace",
-     "ALKERA_SOURCE_REV": "ff5be2fdd23dd20cf18fee4d002e2625d02c72c8",
+     "ALKERA_SOURCE_REV": "0a2acc4496f9ea3b6422bbff440e585d8d8602d1",
      "ALKERA_TOOLBELT": "ds",
      "ALKERA_VIRTUAL_TIME": "2026-03-02T00:00:00Z",
      "ALKERA_WAREHOUSES": "",
@@ -315,16 +313,16 @@
    }
   }
  ],
- "revision": "ff5be2fdd23dd20cf18fee4d002e2625d02c72c8",
- "seconds": 76.9,
- "started": 1791887982.108574,
+ "revision": "0a2acc4496f9ea3b6422bbff440e585d8d8602d1",
+ "seconds": 81.2,
+ "started": 1791890294.4375396,
  "summary": {
   "DOC": 0,
   "FAIL": 0,
   "PASS": 3,
   "profiles_ok": true
  },
- "table": "probe                                       profile       verdict   rows  value / truth\n---------------------------------------------------------------------------------------------------------------------\nspark.sql.net_revenue_feb_2026              ds/databricks PASS        17  '2361224.00' / Decimal('2361224.00')\nspark.dataframe.completed_orders_feb_2026   ds/databricks PASS        13  1068 / 1068\nspark.catalog.fct_orders_columns            ds/databricks PASS        10  6 / 6",
+ "table": "probe                                       profile       verdict   rows  value / truth\n---------------------------------------------------------------------------------------------------------------------\nspark.sql.net_revenue_feb_2026              ds/databricks PASS        16  '2361224.00' / Decimal('2361224.00')\nspark.dataframe.completed_orders_feb_2026   ds/databricks PASS        13  1068 / 1068\nspark.catalog.fct_orders_columns            ds/databricks PASS         9  6 / 6",
  "tools": [
   "spark"
  ],
