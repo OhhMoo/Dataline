@@ -96,7 +96,10 @@ def copies() -> list[tuple[list[str], str]]:
 
 
 class _ComposeLoader(yaml.SafeLoader):
-    """compose's `!override` tag, read as plain YAML."""
+    """compose's `!override` tag, read as plain YAML; `!reset` as removal."""
+
+
+_RESET = object()
 
 
 def _override(loader, node):
@@ -106,11 +109,13 @@ def _override(loader, node):
 
 
 _ComposeLoader.add_constructor("!override", _override)
+_ComposeLoader.add_constructor("!reset", lambda loader, node: _RESET)
 
 
 def compose_episode_env() -> dict[str, str]:
     compose = yaml.load(COMPOSE_NATIVE.read_text(encoding="utf-8"), Loader=_ComposeLoader)
-    return {k: str(v) for k, v in compose["services"]["episode"]["environment"].items()}
+    return {k: str(v) for k, v in compose["services"]["episode"]["environment"].items()
+            if v is not _RESET}
 
 
 # ------------------------------------------------------------- the template

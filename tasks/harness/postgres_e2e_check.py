@@ -278,6 +278,8 @@ def run_profiled(args, check: Checks, record: dict) -> None:
         # (compose's schema owner, NOT logged) cannot log in, and keeps nothing on
         # the seeded schema should it ever be able to.
         record["episode_dsn_in_box"] = topo.container_env.get("ALKERA_POSTGRES_DSN")
+        check("the box carries no ALKERA_POSTGRES_DSN (compose.yml's MCP-gateway DSN)",
+              record["episode_dsn_in_box"] is None, record["episode_dsn_in_box"])
         as_episode = episode_logins(topo)
         record["as_episode"] = as_episode
         check("episode_role_login_refused: psql as episode (compose's unlogged owner) "
@@ -471,6 +473,9 @@ def run_unprofiled(args, check: Checks, record: dict) -> None:
     check("unprofiled: the server holds only warehouse.items, with 2 rows, its schema "
           "owned by episode as compose made it, and episode is NOLOGIN",
           got == ["items", "2", "episode|f"], got)
+    check("unprofiled: the box carries no ALKERA_POSTGRES_DSN",
+          "episode_dsn_in_box" in record and record["episode_dsn_in_box"] is None,
+          record.get("episode_dsn_in_box"))
     check("unprofiled: episode_role_login_refused: psql as episode fails with "
           f"'{EPISODE_LOGIN_REFUSED}'", login_refused(as_episode), as_episode)
     rows = [r for r in read_rows(Path(topo.audit_dir)) if r["tool"] == TOOL]

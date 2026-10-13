@@ -88,10 +88,19 @@ def _override(loader, node):
 
 
 _ComposeLoader.add_constructor("!override", _override)
+#: compose's `!reset` on an environment key removes the key.
+_RESET = object()
+_ComposeLoader.add_constructor("!reset", lambda loader, node: _RESET)
 
 
 def compose_native() -> dict:
-    return yaml.load(COMPOSE_NATIVE.read_text(encoding="utf-8"), Loader=_ComposeLoader)
+    compose = yaml.load(COMPOSE_NATIVE.read_text(encoding="utf-8"), Loader=_ComposeLoader)
+    for spec in compose["services"].values():
+        env = spec.get("environment")
+        if isinstance(env, dict):
+            for name in [k for k, v in env.items() if v is _RESET]:
+                del env[name]
+    return compose
 
 
 class EndpointTableTest(unittest.TestCase):

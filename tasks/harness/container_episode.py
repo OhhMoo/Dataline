@@ -1173,7 +1173,9 @@ def static_environment(service: str) -> dict[str, str]:
     compose.native.yml): what an unprofiled `episode` or `jupyter` runs with
     before the per-rollout overlay adds its own lines. Interpolations
     (`${ALKERA_BACKEND:-postgres}`) are kept as written - compose resolves them
-    in the overlay exactly as it does in the static file.
+    in the overlay exactly as it does in the static file. `VAR: !reset null`
+    removes VAR, as compose does in compose.native.yml (compose.yml's
+    ALKERA_POSTGRES_DSN).
     """
     env: dict[str, str] = {}
     for path in (COMPOSE_BASE, COMPOSE_OVERLAY, NATIVE_OVERLAY):
@@ -1190,6 +1192,9 @@ def static_environment(service: str) -> dict[str, str]:
             block = dict(item.split("=", 1) if "=" in item else (item, None)
                          for item in block)
         for name, value in block.items():
+            if isinstance(value, _Tagged) and value.tag == "reset":
+                env.pop(str(name), None)
+                continue
             if value is None or isinstance(value, (_Tagged, dict, list)):
                 raise ContainerError(
                     f"{path.name}: {service}.environment.{name} has no literal "

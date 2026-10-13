@@ -159,6 +159,15 @@ services:
       # services write (gateway/src/alkera_gateway/native/audit.py).
       ALKERA_NATIVE_AUDIT: /audit/actions.jsonl
       HOME: /root
+      # compose.yml's DSN for the MCP gateway, as `episode`: a role that cannot
+      # log in on a native box (`pg_compose_owner` below). REMOVED, not emptied
+      # and not `null` (a null value passes the variable through from compose's
+      # own environment). Compose honours a per-key `!reset` here only because
+      # compose.episode.yml sets no episode environment between compose.yml and
+      # this file; measured on v5.6.0, a `!reset` one file further on does
+      # nothing. tasks/harness/test_profile_wiring.py
+      # test_native_episode_env_has_no_episode_role_dsn asks compose itself.
+      ALKERA_POSTGRES_DSN: !reset null
     # THE MOUNT SET, AND IT REPLACES compose.episode.yml'S. `!override` and not
     # a merge: the episode overlay binds the WHOLE world root at /world, and
     # that single mount is what made a host-topology native rollout

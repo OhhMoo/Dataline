@@ -667,8 +667,10 @@ def test_profiled_environment_is_static_minus_excluded_plus_plugged(world, tmp_p
     expect = {**{k: v for k, v in static.items() if k not in dropped},
               **added, **plain}
     assert _env(_block(text, "episode")) == expect
-    # the static table is compose.yml's episode environment plus the anchor
-    assert {"ALKERA_POSTGRES_DSN", "JIRA_URL", "SCHED_URL", "HOME"} <= set(static)
+    # the static table is compose.yml's episode environment plus the anchor,
+    # minus compose.yml's MCP-gateway DSN (reset in compose.native.yml)
+    assert {"ALKERA_BACKEND", "JIRA_URL", "SCHED_URL", "HOME"} <= set(static)
+    assert "ALKERA_POSTGRES_DSN" not in static
     assert set(ce.static_environment("jupyter")) < set(static)
 
 
@@ -1189,6 +1191,35 @@ def test_native_postgres_takes_login_away_from_the_compose_owner(world, tmp_path
         assert closing and order.index(closing[0]) > order.index("seed.sql"), order
         assert COMPOSE_OWNER_NOLOGIN not in scripts["zz-native.sql"]
         assert "CREATE ROLE alkera LOGIN" in scripts["zz-native.sql"]
+
+
+def test_native_episode_env_has_no_episode_role_dsn(world, tmp_path, no_docker):
+    """compose.yml gives the MCP episode ALKERA_POSTGRES_DSN, the `episode` role's
+    credentials. A native box must not carry them (that role cannot log in there,
+    and its statements would not be logged if it could): compose.native.yml
+    resets the key. Measured by compose on an unprofiled box and two profiled
+    ones, for the episode and the notebook box, and read the way the overlays
+    restate it (static_environment)."""
+    for service in ("episode", "jupyter"):
+        assert "ALKERA_POSTGRES_DSN" not in ce.static_environment(service), service
+    _clocked(world)
+    for name, profile, plugs in (("r0", "", {}), ("r1", PROFILE, BI001_PLUGS),
+                                 ("r2", "de/postgres", {})):
+        stack = _stack(world, tmp_path, name, profile=profile, plugs=plugs)
+        text = stack.write_overlay().read_text(encoding="utf-8")
+        assert "ALKERA_POSTGRES_DSN" not in text and "episode-local" not in text
+        services = _compose_config(stack)["services"]
+        for service in ("episode", "jupyter"):
+            if service not in services or (profile != PROFILE and service == "jupyter"):
+                continue
+            env = services[service]["environment"]
+            assert "ALKERA_POSTGRES_DSN" not in env, (profile, service)
+            assert not any("episode-local" in str(v) for v in env.values()), (profile,
+                                                                              service)
+            if profile != PROFILE:          # da/laptop excludes postgres: no PG* at all
+                assert env["PGUSER"] == "alkera", (profile, service)
+            else:
+                assert not any(k.startswith("PG") for k in env), (profile, service)
 
 
 def test_mcp_topology_keeps_postgres_dsn(tmp_path, monkeypatch):
