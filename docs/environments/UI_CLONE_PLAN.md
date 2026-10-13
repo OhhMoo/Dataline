@@ -121,9 +121,11 @@ read. There is one source of truth, and the UI is one more client of it.
 - **Its own sign-in.** The browser's password is `services.tableau.UI_PASSWORD`,
   not the REST token. The REST sign-in refuses it, the browser refuses the REST
   token, and browser sessions (`ui_sessions` in the manifest) are not
-  `X-Tableau-Auth` tokens. The box is to carry it as `TABLEAU_UI_PASSWORD`; that
-  variable is not wired yet, because the discovery files it belongs in (`.envrc`,
-  `services.toml`) are part of BI001's world, which moves only with a sign-off.
+  `X-Tableau-Auth` tokens. It is deliberately in no box env and no discovery file
+  (`.envrc`, `services.toml`, `onboarding.md`, the plug env): those are part of the
+  BI001/BI002 da/laptop worlds, which stay byte-identical (wiring it moves BI001's
+  workspace digest and three discovery/overlay goldens). A UI-only task arm (phase
+  4) hands it out through its own brief.
 - `gateway/tests/test_ui_tableau.py` (14 tests) adds the checks for all of the
   above; `test_tableau_service.py` adds `test_url_filter_matches_by_caption`.
 

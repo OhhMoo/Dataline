@@ -35,10 +35,11 @@ ignored. Only the Default site exists (as in the REST service), so there is no
 `/t/<site>/` prefix.
 
 SIGNING IN. The browser has a password of its own, `services.tableau
-.UI_PASSWORD` (any user name; the box is to carry it as TABLEAU_UI_PASSWORD). It is
-not the REST token: the REST sign-in refuses it, this page refuses the REST
-token, and a browser session (`ui_sessions` in the manifest) is not an
-`X-Tableau-Auth` token, nor the other way round.
+.UI_PASSWORD`, with any user name. It is not the REST token: the REST sign-in
+refuses it, this page refuses the REST token, and a browser session
+(`ui_sessions` in the manifest) is not an `X-Tableau-Auth` token, nor the other
+way round. No box env or discovery file carries it; a task arm that uses the
+browser hands it out in its own brief.
 
 THE CALCULATION EDITOR shows a formula as Tableau's editor does - fields by
 caption (`[Net Revenue] / [Completed Orders]`) - and stores it as Tableau

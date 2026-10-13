@@ -118,8 +118,10 @@ PROJECT_DESCRIPTION = "The default project that was automatically created by Tab
 DEFAULT_USER = "alkera"
 #: The browser sign-in's password (native/ui/tableau.py): a credential of its
 #: own, not the REST token. The REST sign-in refuses it and the browser refuses
-#: DEV_TOKEN, so an arm can hand an agent the one without the other. The box is
-#: to carry it as TABLEAU_UI_PASSWORD (not wired yet: see UI_CLONE_PLAN.md).
+#: DEV_TOKEN, so an arm can hand an agent the one without the other. It is in
+#: no box env and no discovery file (.envrc, services.toml, onboarding.md):
+#: those are part of the BI001/BI002 worlds, which stay byte-identical, and no
+#: task uses the browser yet. A UI-only task arm hands it out in its own brief.
 #: Obviously fake, by repo rule.
 UI_PASSWORD = "alkera-local-dev-ui"
 _UUID_NS = uuid.UUID("6a1c3c2e-0d7e-5d43-9b8e-7461626c6561")
