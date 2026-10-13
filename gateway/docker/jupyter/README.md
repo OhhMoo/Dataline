@@ -64,7 +64,14 @@ The server-side flags, all set in `launch.py`:
 - `root_dir=/workspace`: the contents API cannot reach the warehouse files bound
   under `/world`.
 
-## Compose service (to be added to `compose.native.yml`, not added here)
+## Compose service, as designed
+
+The shipped stanza is `compose.native.yml`'s `jupyter` service. It differs from this
+sketch in three ways: it is behind compose profile `notebook`, which
+`container_episode.NativeContainerEpisode` enables only for an environment profile that
+plugs the notebook slot; its environment is the episode's `&native-endpoints` table, as
+the comment below asks; and `launch.py` gets `--strip /opt/stack --strip
+/opt/gateway/tests`.
 
 ```yaml
   # The notebook plug. Same image, same audit file, same workspace as the
@@ -128,7 +135,22 @@ jupyter-server 2.21 on loopback. That check confirmed: `/api/kernelspecs` lists 
 sent over the kernel websocket wrote one row with `notebook: analysis.ipynb` and the
 server's kernel id.
 
-Not executed: anything in Docker. The image does not yet contain ipykernel,
-jupyter-server, pandas or pyarrow: no `requirements*.lock` has the `notebook` /
-`ds` extras. Containment P6 does not yet probe `jupyter.internal:8888`.
-jupyter-server's connections are not in `destinations.jsonl`.
+Executed in Docker since. The ds/da images carry ipykernel, jupyter-server, nbclient,
+pandas and pyarrow (`requirements-{ds,da}.lock`, the `notebook` and `ds` extras), and
+`compose.native.yml` runs the plug as its `jupyter` service:
+
+- On da/laptop (`tasks/harness/evidence/bi_e2e_container.json`, 2026-10-04): `jupyter
+  execute` on `alkera-python` wrote one row per cell, and a cell sent through
+  `jupyter.internal:8888` (REST + websocket) wrote its `jupyter.cell` row.
+- Task 1 (2026-10-13), nbclient on a one-cell notebook inside the image: `python3` gave
+  0 `jupyter.cell` rows on `alkera-episode:head-da` and 1 on `alkera-episode:t1-da` (the
+  table above). The container tour's `jupyter.kernel...` probe passes on da/laptop; its
+  `jupyter.default_kernel...` probe is recorded only on the old `head-da`, where it fails,
+  as the regression proof (`tasks/harness/evidence/tool_tour_routes.json`).
+- Containment: P6 (`--attach`) dials `jupyter.internal:8888`, P7 asks it as a TCP door
+  (`gateway/docker/evidence/containment-native{,-episode}-da-snowflake.json`), and the
+  box sweep (`box_sweep.py`) classes it a designed door.
+
+Still not: jupyter-server's connections are not in `destinations.jsonl` (serve.py does
+not front it; the bi e2e records that as a finding). Harbor starts no Jupyter server
+(`harbor/README.md`, "Known deviations").
