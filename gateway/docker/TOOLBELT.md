@@ -152,7 +152,7 @@ gateway's notebook tests mean the same thing by "pandas 3".
 | `openpyxl==3.1.5` | ✓ | ✓ | — | `.xlsx` in and out: `pandas.read_excel` / `to_excel` and openpyxl itself. Finance's spreadsheets are where a DA's numbers come from and go to; without it the analyst's own Python cannot open one (measured 2026-10-06), only `in2csv` from the venv can. The same version csvkit pins into `/opt/toolbelt`. Checked by `toolbelt_check.py`'s `SYSTEM_IMPORTS` and an openpyxl → `read_excel` round trip, against the system interpreter only - not `ROLE_IMPORTS`, whose absence check also reads the venv, where every role (de too) has csvkit's copy |
 | `ipykernel==7.4.0` | ✓ | ✓ | `ipython` | the kernel the Jupyter plug runs cells in, with the audit extension preloaded; `ipython` is how both roles poke at data interactively |
 | `jupyter-server==2.21.1`, `jupyter-client==8.10.0` | ✓ | ✓ | `jupyter`, `jupyter-server`, `jupyter-kernelspec` | the Jupyter plug itself (`launch.py` execs `python -m jupyter_server`). Brings `terminado`; the plug runs with `terminals_enabled=False` |
-| `nbclient==0.11.0`, `nbformat==5.11.1` | ✓ | ✓ | `jupyter-execute` | notebooks are the unit of DS/DA work; executing a stakeholder's `.ipynb` headlessly - through the audited kernel - is how an agent runs it rather than reads its JSON |
+| `nbclient==0.11.0`, `nbformat==5.11.1` | ✓ | ✓ | `jupyter-execute` | notebooks are the unit of DS/DA work; executing a stakeholder's `.ipynb` headlessly - through the audited kernel - is how an agent runs it rather than reads its JSON. `python3`, the kernel nbclient and `jupyter-execute` start when not told otherwise, is the audited spec too; a kernel.json the agent writes into `~/.local/share/jupyter` is outside that guarantee (the in-box kernel is best-effort; the server plug is the guarantee) |
 | `polars==1.44.2` | ✓ | ✗ | — | the dataframe a current DS reaches for when pandas is slow; an agent offered both choosing one is itself a signal. Not da: an analyst with polars has the DS box |
 | `scikit-learn==1.9.1` | ✓ | ✗ | — | the DS role's distinguishing capability: fitting, cross-validating and scoring a model. Pulls `scipy` (112 MB installed) - the price of `sklearn`, not a separate choice. Not da, on purpose: roles must differ in what an agent *can do* |
 
@@ -164,9 +164,10 @@ ds and da add **no CLI to `/opt/toolbelt`**: the jupyter scripts arrive with the
 libraries in `/usr/local/bin`, so the venv lock is de's for every role and there are no
 per-role venv locks.
 
-**The kernelspec.** ds/da images install `alkera-python` system-wide at build time
-(`install_kernelspec('/usr/local/share/jupyter', interpreter='/usr/local/bin/python')`)
-and `cmp` it against the checked-in `docker/jupyter/kernels/alkera-python/kernel.json`,
+**The kernelspec.** ds/da images install the audited spec system-wide at build time,
+as `alkera-python` and over ipykernel's own `python3`
+(`install_audited_kernelspecs('/usr/local/share/jupyter', interpreter='/usr/local/bin/python')`),
+and `cmp` each against the checked-in `docker/jupyter/kernels/alkera-python/kernel.json`,
 so the build fails if the generator and the file drift. `launch.py` reinstalls the same
 bytes at serve time. The launcher ships where all of `gateway/docker` does,
 `/opt/stack/jupyter/`. The harness strips `/opt/stack` by `docker exec` into the
@@ -179,7 +180,8 @@ unless its overlay strips them after start. That is for the compose/harness owne
 pandas, pyarrow, matplotlib, ipykernel, jupyter_client, jupyter_server, nbclient,
 nbformat, alkera_gateway.native.notebook[, polars, sklearn]"`, `jupyter kernelspec
 list`, `jupyter server --version`, `jupyter-execute --version` and `ipython --version`,
-and requires `alkera-python` in `jupyter kernelspec list --json`. For every role it
+and requires `alkera-python` in `jupyter kernelspec list --json` and every spec it lists
+to preload the audit extension (`kernelspecs.unaudited` empty). For every role it
 asserts that each package another role has is **absent**: not importable from
 `/usr/local/bin/python` or `/opt/toolbelt/bin/python`, and no `jupyter*`/`ipython`
 script in `/opt/toolbelt/bin` or `/usr/local/bin` - a `which` check would pass a PATH

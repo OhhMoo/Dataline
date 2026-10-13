@@ -200,7 +200,7 @@ def test_bi_variant_installs_its_role(bi_dockerfile):
     runs = [rest for k, rest in steps if k == "RUN"]
     extension = runs.index(next(r for r in runs if "INSTALL postgres" in r))
     assert "requirements-da.lock" in runs[extension + 1]
-    assert "install_kernelspec('/usr/local/share/jupyter'" in runs[extension + 2]
+    assert "install_audited_kernelspecs('/usr/local/share/jupyter'" in runs[extension + 2]
     assert bi_dockerfile.splitlines()[0] == tdf.CANARY
     assert "# VARIANT da/laptop+bi=powerbi,sigma,tableau" in bi_dockerfile
 

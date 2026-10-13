@@ -102,6 +102,9 @@ PROBES: tuple[tuple[str, tuple[str, ...], tuple[int, ...]], ...] = (
 ROLE_PYTHON = "/usr/local/bin/python"
 TOOLBELT_PYTHON = "/opt/toolbelt/bin/python"
 KERNEL_NAME = "alkera-python"
+# What the audited kernelspec preloads (alkera_gateway.native.notebook.kernelspec).
+# A kernelspec without it runs cells and writes no row.
+KERNEL_AUDIT_FLAG = "--IPKernelApp.extra_extensions=alkera_gateway.native.notebook"
 _NOTEBOOK = ("pandas", "pyarrow", "matplotlib", "ipykernel", "jupyter_client",
              "jupyter_server", "nbclient", "nbformat", "alkera_gateway.native.notebook")
 ROLE_IMPORTS: dict[str, tuple[str, ...]] = {
@@ -211,14 +214,26 @@ def forbidden_binaries(role: str) -> tuple[str, ...]:
     return tuple(sorted(every - set(ROLE_BINARIES[role])))
 
 
+def unaudited_kernelspecs(listing: dict) -> list[str]:
+    """The names in a `jupyter kernelspec list --json` listing whose argv lacks
+    KERNEL_AUDIT_FLAG. A client starts any listed kernel by name, so one of these
+    is a way to run cells with no row: ipykernel's own `python3` is the one an
+    image has unless the audited spec is installed over it."""
+    return sorted(name for name, entry in listing["kernelspecs"].items()
+                  if KERNEL_AUDIT_FLAG not in entry["spec"]["argv"])
+
+
 def kernelspecs() -> dict:
-    """`jupyter kernelspec list --json`, or the reason it could not be read."""
+    """`jupyter kernelspec list --json` (the names, and which are unaudited), or
+    the reason it could not be read."""
     try:
         done = subprocess.run(["jupyter", "kernelspec", "list", "--json"],
                               capture_output=True, text=True, timeout=120, errors="replace")
-        return {"names": sorted(json.loads(done.stdout)["kernelspecs"]), "reason": None}
+        listing = json.loads(done.stdout)
+        return {"names": sorted(listing["kernelspecs"]),
+                "unaudited": unaudited_kernelspecs(listing), "reason": None}
     except Exception as exc:  # noqa: BLE001 - the reason is the finding
-        return {"names": [], "reason": f"{type(exc).__name__}: {exc}"[:200]}
+        return {"names": [], "unaudited": [], "reason": f"{type(exc).__name__}: {exc}"[:200]}
 
 
 def toolbelt_role() -> str:
@@ -336,7 +351,8 @@ def main() -> int:
         "role_imports_failed": sorted(m for m, r in imports.items() if not r["ok"]),
         "role_forbidden_present": forbidden_present,
         "client_allowed_imports": {c: list(CLIENT_IMPORTS[c]) for c in clients},
-        # ds/da: the Jupyter plug's audited kernel must be the one installed.
+        # ds/da: the Jupyter plug's audited kernel must be installed, and every
+        # kernelspec a client can start by name (`python3` too) must be it.
         "kernelspecs": kernelspecs() if role_imports(role) else None,
         "source_revision": os.environ.get("ALKERA_SOURCE_REV") or None,
         "platform": platform.platform(),
@@ -376,7 +392,8 @@ def main() -> int:
         not report["binaries_failed"]
         and not report["role_imports_failed"]
         and not report["role_forbidden_present"]
-        and (not role_imports(role) or KERNEL_NAME in report["kernelspecs"]["names"])
+        and (not role_imports(role) or (KERNEL_NAME in report["kernelspecs"]["names"]
+                                        and not report["kernelspecs"]["unaudited"]))
         and report["python_not_shadowed"]
         and report["tool_count"] > 0
         and all(row["loaded"] for row in report["duckdb_extensions"].values())

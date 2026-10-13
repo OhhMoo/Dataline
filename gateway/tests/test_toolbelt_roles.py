@@ -415,9 +415,12 @@ def test_dockerfile_installs_role_libraries_into_the_system_python():
     role_install = text.index("/opt/gateway/requirements-$ALKERA_TOOLBELT.lock")
     gateway_install = text.index("--no-deps /opt/gateway")
     assert role_install < gateway_install, "role libraries go in before the gateway"
-    # the audited kernelspec is installed system-wide, and checked against the
-    # checked-in copy the Jupyter plug's launcher serves from /opt/stack/jupyter
-    assert "install_kernelspec('/usr/local/share/jupyter'" in text
+    # the audited kernelspec is installed system-wide under both names (python3
+    # over ipykernel's own), and each is checked against the checked-in copy the
+    # Jupyter plug's launcher serves from /opt/stack/jupyter
+    assert "install_audited_kernelspecs('/usr/local/share/jupyter'" in text
+    for name in ("alkera-python", "python3"):
+        assert f"/usr/local/share/jupyter/kernels/{name}/kernel.json" in text
     assert "/opt/stack/jupyter/kernels/alkera-python/kernel.json" in text
 
 
@@ -463,6 +466,17 @@ def test_toolbelt_check_probes_and_forbids_per_role():
     assert "jupyter" not in check.forbidden_binaries("da")
     probes = {name: tuple(argv) for name, argv, _ in check.PROBES}
     assert probes["mf"] == ("mf", "--version")
+
+
+def test_a_kernelspec_without_the_audit_extension_is_a_failure():
+    """Any kernel a client can start by name must preload the audit extension;
+    `python3` from ipykernel's own spec is the one an image gets by default."""
+    check = _load("toolbelt_check")
+    listing = {"kernelspecs": {
+        "alkera-python": {"spec": {"argv": ["/usr/local/bin/python", "-m", "ipykernel_launcher",
+            "-f", "{connection_file}", "--IPKernelApp.extra_extensions=alkera_gateway.native.notebook"]}},
+        "python3": {"spec": {"argv": ["python", "-m", "ipykernel_launcher", "-f", "{connection_file}"]}}}}
+    assert check.unaudited_kernelspecs(listing) == ["python3"]
 
 
 @pytest.mark.parametrize("role", ("da", "ds"))

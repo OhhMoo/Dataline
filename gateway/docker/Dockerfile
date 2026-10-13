@@ -231,14 +231,17 @@ COPY world/requirements.lock /opt/world/requirements.lock
 COPY world/docker/egress_test.py /opt/stack/egress_test.py
 COPY gateway/docker /opt/stack
 # ds/da: the Jupyter plug's audited kernelspec, installed system-wide so
-# `jupyter kernelspec list` names it in the image as built, and checked byte-equal
-# to the checked-in copy that docker/jupyter/launch.py (run from /opt/stack/jupyter
-# by the plug's own container) serves. /opt/stack is stripped from the EPISODE
-# container only (tasks/harness/container_episode.py STRIP_PATHS, exec'd into that
-# one container), so the jupyter container keeps its launcher.
+# `jupyter kernelspec list` names it in the image as built, under `alkera-python`
+# and over ipykernel's own `python3` (the name nbclient and `jupyter execute`
+# default to), each checked byte-equal to the checked-in copy that
+# docker/jupyter/launch.py (run from /opt/stack/jupyter by the plug's own
+# container) serves. /opt/stack is stripped from the EPISODE container only
+# (tasks/harness/container_episode.py STRIP_PATHS, exec'd into that one
+# container), so the jupyter container keeps its launcher.
 RUN case "$ALKERA_TOOLBELT" in \
-      ds|da) python -c "from alkera_gateway.native.notebook import install_kernelspec; install_kernelspec('/usr/local/share/jupyter', interpreter='/usr/local/bin/python')" \
-             && cmp /usr/local/share/jupyter/kernels/alkera-python/kernel.json /opt/stack/jupyter/kernels/alkera-python/kernel.json ;; \
+      ds|da) python -c "from alkera_gateway.native.notebook import install_audited_kernelspecs; install_audited_kernelspecs('/usr/local/share/jupyter', interpreter='/usr/local/bin/python')" \
+             && cmp /usr/local/share/jupyter/kernels/alkera-python/kernel.json /opt/stack/jupyter/kernels/alkera-python/kernel.json \
+             && cmp /usr/local/share/jupyter/kernels/python3/kernel.json /opt/stack/jupyter/kernels/alkera-python/kernel.json ;; \
     esac
 COPY gateway/tests /opt/gateway/tests
 # Local Snowflake trust store. Seeded with certifi so REQUESTS_CA_BUNDLE always names a

@@ -224,6 +224,40 @@ def test_install_defaults_to_this_interpreter(tmp_path):
     assert spec["argv"][0] == sys.executable
 
 
+def test_install_audited_kernelspecs_writes_both_names_with_identical_bytes(tmp_path):
+    """`python3` is the name every client defaults to (nbclient, `jupyter execute`,
+    a notebook with no kernelspec metadata), so it is installed as the audited
+    spec too, byte for byte, over ipykernel's own."""
+    assert plug.AUDITED_KERNEL_NAMES == ("alkera-python", "python3")
+    written = plug.install_audited_kernelspecs(tmp_path, interpreter="/usr/local/bin/python")
+    assert written == [tmp_path / "kernels" / name / "kernel.json"
+                       for name in ("alkera-python", "python3")]
+    for path in written:
+        assert path.read_bytes() == (CHECKED_IN / "kernel.json").read_bytes()
+
+
+def test_default_kernel_name_resolves_to_the_audited_spec(tmp_path):
+    """jupyter_client resolves `python3` from the data dirs before falling back to
+    ipykernel's built-in spec, so the installed file is the one a client starts."""
+    from jupyter_client.kernelspec import KernelSpecManager
+
+    plug.install_audited_kernelspecs(tmp_path)
+    manager = KernelSpecManager(kernel_dirs=[str(tmp_path / "kernels")])
+    assert f"--IPKernelApp.extra_extensions={plug.EXTENSION}" in \
+        manager.get_kernel_spec("python3").argv
+
+
+def test_nbclient_on_python3_writes_one_cell_row(episode):
+    """The tour's miss: `NotebookClient(kernel_name="python3")` ran ipykernel's
+    own spec and left no row. With the audited pair installed it leaves one."""
+    plug.install_audited_kernelspecs(episode["jupyter"])
+    nb = run_notebook(episode["workspace"], ["print(6 * 7)"], kernel="python3")
+    assert nb.cells[0].outputs[0]["text"] == "42\n"
+    rows = validate_trace(episode["log"])
+    assert [row["tool"] for row in rows] == ["jupyter.cell"]
+    assert rows[0]["args"]["source_sha256"] == sha("print(6 * 7)")
+
+
 def test_the_server_can_start_no_other_kernel(tmp_path, monkeypatch):
     """`allowed_kernelspecs` only filters the LISTING; jupyter_client still starts
     ipykernel's built-in `python3` by name (measured against jupyter-server 2.21),

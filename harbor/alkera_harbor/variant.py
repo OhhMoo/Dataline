@@ -408,9 +408,11 @@ def render_dockerfile(template: str, variant: Variant, template_env: dict[str, s
     if variant.role in KERNEL_ROLES:
         insert += ["",
                    f"# Role {variant.role}: the Jupyter plug's audited kernelspec, "
-                   f"system-wide (gateway/docker/Dockerfile).",
+                   f"system-wide as `alkera-python` and over ipykernel's `python3` "
+                   f"(gateway/docker/Dockerfile).",
                    "RUN python -c \"from alkera_gateway.native.notebook import "
-                   "install_kernelspec; install_kernelspec('/usr/local/share/jupyter', "
+                   "install_audited_kernelspecs; "
+                   "install_audited_kernelspecs('/usr/local/share/jupyter', "
                    "interpreter='/usr/local/bin/python')\""]
     lines[at + 1:at + 1] = insert
 
