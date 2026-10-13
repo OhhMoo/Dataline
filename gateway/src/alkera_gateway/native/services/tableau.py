@@ -114,9 +114,17 @@ SCHEMA = (f"{NS} https://help.tableau.com/samples/en-us/rest_api/"
 MAX_UPLOAD = 64 * 1024 * 1024
 SITE_NAME = "Default"
 PROJECT_NAME = "Default"
+PROJECT_DESCRIPTION = "The default project that was automatically created by Tableau."
 DEFAULT_USER = "alkera"
+#: The browser sign-in's password (native/ui/tableau.py): a credential of its
+#: own, not the REST token. The REST sign-in refuses it and the browser refuses
+#: DEV_TOKEN, so an arm can hand an agent the one without the other. The box is
+#: to carry it as TABLEAU_UI_PASSWORD (not wired yet: see UI_CLONE_PLAN.md).
+#: Obviously fake, by repo rule.
+UI_PASSWORD = "alkera-local-dev-ui"
 _UUID_NS = uuid.UUID("6a1c3c2e-0d7e-5d43-9b8e-7461626c6561")
-_LOCK = RLock()
+#: The in-process half of the writer lock (the file lock is `Store.lock`).
+LOCK = RLock()
 
 app = FastAPI(title="Alkera Tableau Server (fake)", version=PRODUCT_VERSION)
 
@@ -183,13 +191,13 @@ async def _bad_request(request: Request, exc: RequestValidationError) -> Respons
         400, "400000", "Bad Request", "The request parameters are invalid."))
 
 
-def _not_found(kind: str, code: str, ident: str) -> TableauError:
+def not_found(kind: str, code: str, ident: str) -> TableauError:
     return TableauError(404, code, "Resource Not Found",
                         f"{kind} '{ident}' could not be found.")
 
 
 # ===================================================================== audit
-class _Row:
+class Row:
     """One 9.2.2 row for this request, written on the way out - failures too."""
 
     def __init__(self, request: Request, operation: str, *, op_class: str = "read",
@@ -204,7 +212,7 @@ class _Row:
         self.result: object = None
         self.started = time.monotonic()
 
-    def __enter__(self) -> _Row:
+    def __enter__(self) -> Row:
         return self
 
     def __exit__(self, kind, exc, tb) -> None:
@@ -223,12 +231,23 @@ class _Row:
 
 
 # ===================================================================== state
-def _uid(*parts) -> str:
+def uid(*parts) -> str:
     return str(uuid.uuid5(_UUID_NS, "/".join(map(str, parts))))
 
 
-SITE_ID = _uid("site", SITE_NAME)
-PROJECT_ID = _uid("project", PROJECT_NAME)
+SITE_ID = uid("site", SITE_NAME)
+PROJECT_ID = uid("project", PROJECT_NAME)
+
+
+def projects() -> list[dict]:
+    """The site's projects: Default alone (projects beyond it are not imitated).
+    `GET .../projects` and the browser's /projects page both list these."""
+    return [{"id": PROJECT_ID, "name": PROJECT_NAME, "description": PROJECT_DESCRIPTION}]
+
+
+def project_of(item: dict) -> dict:
+    """The project a published workbook or data source is in."""
+    return find(projects(), item["project_id"], "Project", "404005")
 
 
 class Store:
@@ -333,7 +352,7 @@ class Store:
                                f"'{PROJECT_NAME}'; publish with overwrite.")
         now = self.now()
         if existing is None:
-            existing = {"id": _uid("datasource", name, self.next(state)), "name": name,
+            existing = {"id": uid("datasource", name, self.next(state)), "name": name,
                         "content_url": self._unique_url(state["datasources"], name, None),
                         "created_at": now, "project_id": PROJECT_ID}
             state["datasources"].append(existing)
@@ -379,14 +398,14 @@ class Store:
                                "overwrite parameter was not set to true.")
         now = self.now()
         if existing is None:
-            existing = {"id": _uid("workbook", name, self.next(state)), "name": name,
+            existing = {"id": uid("workbook", name, self.next(state)), "name": name,
                         "content_url": self._unique_url(state["workbooks"], name, None),
                         "created_at": now, "project_id": PROJECT_ID}
             state["workbooks"].append(existing)
         url = existing["content_url"]
         existing.update({
             "file_type": file_type, "updated_at": now, "show_tabs": show_tabs,
-            "views": [{"id": _uid("view", existing["id"], sheet), "name": sheet,
+            "views": [{"id": uid("view", existing["id"], sheet), "name": sheet,
                        "content_url": f"{url}/sheets/{re.sub(r'[^A-Za-z0-9_-]', '', sheet)}",
                        "sheet_type": kind} for sheet, kind in sheets],
             "connections": _workbook_connections(root)})
@@ -411,15 +430,43 @@ class Store:
         return tproject.read_datasource_bytes(data, f"{item['name']}.{item['file_type']}",
                                               strict=False)
 
-    def read_workbook(self, state: dict, item: dict, deferred: dict):
+    def read_workbook(self, state: dict, item: dict, deferred: dict,
+                      data: bytes | None = None):
+        """The published workbook, or `data` as it would read if published in
+        its place (the browser checks an edit this way before publishing it)."""
         def resolve(name):
             d = self.datasource_by_url(state, name)
             return None if d is None else self.read_datasource(d)
 
-        data = self.content_path(item).read_bytes()
+        if data is None:
+            data = self.content_path(item).read_bytes()
         return tproject.read_workbook_bytes(data, f"{item['name']}.{item['file_type']}",
                                             strict=False, resolve_published=resolve,
                                             deferred=deferred)
+
+    def field_captions(self, state: dict, item: dict, ds) -> dict[str, str]:
+        """Field name -> caption, for the fields of workbook `item`'s data
+        source `ds` that have one: the `caption` of their `<column>` in the
+        document that defines them - the published data source when the
+        workbook connects to one, else the copy the workbook embeds."""
+        if ds.published:
+            source = self.datasource_by_url(state, ds.published)
+            if source is None:
+                return {}
+            what = f"{source['name']}.{source['file_type']}"
+            elem = xmlio.parse(tproject.document_bytes(
+                self.content_path(source).read_bytes(), what), what)
+        else:
+            what = f"{item['name']}.{item['file_type']}"
+            root = xmlio.parse(tproject.document_bytes(
+                self.content_path(item).read_bytes(), what), what)
+            elem = next((d for d in root.findall("datasources/datasource")
+                         if d.get("name") == ds.name), None)
+            if elem is None:
+                return {}
+        return {c.get("name")[1:-1].replace("]]", "]"): c.get("caption")
+                for c in elem.findall("column") if c.get("caption")
+                and c.get("name", "").startswith("[") and "].[" not in c.get("name")}
 
     def warehouse_for(self, state: dict, owner: tuple[str, str]) -> tuple[Path, str | None]:
         """The DuckDB file a view of `owner`'s data renders from: its extract copy,
@@ -477,7 +524,7 @@ def _relations(model) -> set[str]:
     return out
 
 
-def _visual_relations(model, visual) -> list[str]:
+def visual_relations(model, visual) -> list[str]:
     """The warehouse relations ONE view's query reads, as `schema.table`.
 
     `_relations(model)` is every relation the data source declares, which is
@@ -700,7 +747,7 @@ def _select(request: Request, items: list[dict], fields: dict) -> list[dict]:
 
 
 def _owner_xml() -> str:
-    return _xml("owner", {"id": _uid("user", DEFAULT_USER), "name": DEFAULT_USER})
+    return _xml("owner", {"id": uid("user", DEFAULT_USER), "name": DEFAULT_USER})
 
 
 def _project_xml() -> str:
@@ -760,18 +807,18 @@ def _job_xml(job: dict, *, full: bool) -> str:
     return _xml("job", attrs, _xml("extractRefreshJob", None, *inner))
 
 
-def _find(items: list[dict], ident: str, kind: str, code: str) -> dict:
+def find(items: list[dict], ident: str, kind: str, code: str) -> dict:
     for item in items:
         if item["id"] == ident:
             return item
-    raise _not_found(kind, code, ident)
+    raise not_found(kind, code, ident)
 
 
 # ===================================================================== routes
 @app.get("/health")
 def health(request: Request) -> object:
     """Published workbooks + data sources, counted from the server's state."""
-    with _Row(request, "health", targets=[f"health:{NAME}"]) as row, _LOCK:
+    with Row(request, "health", targets=[f"health:{NAME}"]) as row, LOCK:
         store = Store(request)
         with store.lock():
             state = store.load()
@@ -783,7 +830,7 @@ def health(request: Request) -> object:
 
 
 def _serverinfo(request: Request) -> Response:
-    with _Row(request, "server_info", targets=[f"{NAME}:server"]) as row:
+    with Row(request, "server_info", targets=[f"{NAME}:server"]) as row:
         row.result = {"restApiVersion": API_VERSION}
         return _ts(_xml("serverInfo", None,
                         _xml("productVersion", {"build": BUILD}, text=PRODUCT_VERSION),
@@ -809,7 +856,7 @@ async def signin(version: str, request: Request) -> Response:
     obviously-fake credential. Anything else is Tableau's 401001."""
     _version(version)
     raw = await _body(request, 1_048_576)
-    with _Row(request, "auth_signin", targets=[f"{NAME}:session"]) as row:
+    with Row(request, "auth_signin", targets=[f"{NAME}:session"]) as row:
         creds = _parse_request(raw).find("credentials")
         if creds is None:
             raise TableauError(400, "400000", "Bad Request", "Missing <credentials>.")
@@ -823,13 +870,13 @@ async def signin(version: str, request: Request) -> Response:
         if secret != DEV_TOKEN or content_url not in ("", SITE_NAME.lower()):
             raise TableauError(401, "401001", "Signin Error",
                                "Error signing in to Tableau Server")
-        with _LOCK:
+        with LOCK:
             store = Store(request)
             with store.lock():
                 state = store.load()
                 n = store.next(state)
                 token = hashlib.sha256(f"session/{n}/{user}".encode()).hexdigest()[:32]
-                user_id = _uid("user", user)
+                user_id = uid("user", user)
                 state["sessions"][token] = {"user": user, "user_id": user_id,
                                             "site_id": SITE_ID}
                 store.save(state)
@@ -842,7 +889,7 @@ async def signin(version: str, request: Request) -> Response:
 @app.post("/api/{version}/auth/signout")
 def signout(version: str, request: Request) -> Response:
     _version(version)
-    with _Row(request, "auth_signout", targets=[f"{NAME}:session"]), _LOCK:
+    with Row(request, "auth_signout", targets=[f"{NAME}:session"]), LOCK:
         store = Store(request)
         with store.lock():
             state = store.load()
@@ -860,8 +907,8 @@ def _site_xml() -> str:
                          "runNowEnabled": "true", "useDefaultTimeZone": "true"})
 
 
-def _read_state(request: Request, row: _Row, site: str | None = None) -> tuple[Store, dict]:
-    with _LOCK:
+def _read_state(request: Request, row: Row, site: str | None = None) -> tuple[Store, dict]:
+    with LOCK:
         store = Store(request)
         with store.lock():
             state = store.load()
@@ -873,7 +920,7 @@ def _read_state(request: Request, row: _Row, site: str | None = None) -> tuple[S
 @app.get("/api/{version}/sites")
 def sites(version: str, request: Request) -> Response:
     _version(version)
-    with _Row(request, "sites_list", targets=[f"{NAME}:site:{SITE_NAME}"]) as row:
+    with Row(request, "sites_list", targets=[f"{NAME}:site:{SITE_NAME}"]) as row:
         _read_state(request, row)
         page, pagination = _paginate(request, [{}])
         return _ts(pagination, _xml("sites", None, *(_site_xml() for _ in page)))
@@ -882,24 +929,24 @@ def sites(version: str, request: Request) -> Response:
 @app.get("/api/{version}/sites/{site}")
 def site_get(version: str, site: str, request: Request) -> Response:
     _version(version)
-    with _Row(request, "sites_get", targets=[f"{NAME}:site:{SITE_NAME}"]) as row:
+    with Row(request, "sites_get", targets=[f"{NAME}:site:{SITE_NAME}"]) as row:
         _read_state(request, row)
         key = request.query_params.get("key", "id")
         match = {"id": SITE_ID, "name": SITE_NAME, "contentUrl": ""}.get(key)
         if site != match and not (key == "name" and site.lower() == SITE_NAME.lower()):
-            raise _not_found("Site", "404000", site)
+            raise not_found("Site", "404000", site)
         return _ts(_site_xml())
 
 
 @app.get("/api/{version}/sites/{site}/users/{user_id}")
 def user_get(version: str, site: str, user_id: str, request: Request) -> Response:
     _version(version)
-    with _Row(request, "users_get", targets=[f"{NAME}:user:{user_id}"]) as row:
+    with Row(request, "users_get", targets=[f"{NAME}:user:{user_id}"]) as row:
         _, state = _read_state(request, row, site)
         users = {s["user_id"]: s["user"] for s in state["sessions"].values()}
-        users.setdefault(_uid("user", DEFAULT_USER), DEFAULT_USER)
+        users.setdefault(uid("user", DEFAULT_USER), DEFAULT_USER)
         if user_id not in users:
-            raise _not_found("User", "404002", user_id)
+            raise not_found("User", "404002", user_id)
         name = users[user_id]
         return _ts(_xml("user", {"id": user_id, "name": name, "fullName": name,
                                  "siteRole": "SiteAdministratorCreator",
@@ -908,18 +955,17 @@ def user_get(version: str, site: str, user_id: str, request: Request) -> Respons
 
 
 @app.get("/api/{version}/sites/{site}/projects")
-def projects(version: str, site: str, request: Request) -> Response:
+def projects_list(version: str, site: str, request: Request) -> Response:
     _version(version)
-    with _Row(request, "projects_list", targets=[f"{NAME}:project:{PROJECT_NAME}"]) as row:
+    with Row(request, "projects_list", targets=[f"{NAME}:project:{PROJECT_NAME}"]) as row:
         _read_state(request, row, site)
-        items = _select(request, [{"id": PROJECT_ID, "name": PROJECT_NAME}],
+        items = _select(request, projects(),
                         {"name": lambda p: p["name"], "id": lambda p: p["id"],
                          "parentProjectId": lambda p: "", "topLevelProject": lambda p: "true"})
         page, pagination = _paginate(request, items)
         return _ts(pagination, _xml("projects", None, *(
             _xml("project", {"id": p["id"], "name": p["name"],
-                             "description": "The default project that was automatically "
-                                            "created by Tableau.",
+                             "description": p["description"],
                              "contentPermissions": "ManagedByOwner",
                              "topLevelProject": "true", "writeable": "true"},
                  _owner_xml()) for p in page)))
@@ -935,7 +981,7 @@ _WB_FIELDS = {"name": lambda w: w["name"], "contentUrl": lambda w: w["content_ur
 @app.get("/api/{version}/sites/{site}/workbooks")
 def workbooks_list(version: str, site: str, request: Request) -> Response:
     _version(version)
-    with _Row(request, "workbooks_list") as row:
+    with Row(request, "workbooks_list") as row:
         store, state = _read_state(request, row, site)
         items = _select(request, state["workbooks"], _WB_FIELDS)
         page, pagination = _paginate(request, items)
@@ -949,9 +995,9 @@ def workbooks_list(version: str, site: str, request: Request) -> Response:
 @app.get("/api/{version}/sites/{site}/workbooks/{wb_id}")
 def workbooks_get(version: str, site: str, wb_id: str, request: Request) -> Response:
     _version(version)
-    with _Row(request, "workbooks_get") as row:
+    with Row(request, "workbooks_get") as row:
         store, state = _read_state(request, row, site)
-        wb = _find(state["workbooks"], wb_id, "Workbook", "404006")
+        wb = find(state["workbooks"], wb_id, "Workbook", "404006")
         row.targets = [f"{NAME}:workbook:{wb['content_url']}"]
         return _ts(_workbook_xml(store, wb, views=True))
 
@@ -959,9 +1005,9 @@ def workbooks_get(version: str, site: str, wb_id: str, request: Request) -> Resp
 @app.get("/api/{version}/sites/{site}/workbooks/{wb_id}/views")
 def workbooks_views(version: str, site: str, wb_id: str, request: Request) -> Response:
     _version(version)
-    with _Row(request, "workbooks_views") as row:
+    with Row(request, "workbooks_views") as row:
         _, state = _read_state(request, row, site)
-        wb = _find(state["workbooks"], wb_id, "Workbook", "404006")
+        wb = find(state["workbooks"], wb_id, "Workbook", "404006")
         row.targets = [f"{NAME}:workbook:{wb['content_url']}"]
         return _ts(_xml("views", None, *(_view_xml(v, wb, short=True) for v in wb["views"])))
 
@@ -969,18 +1015,18 @@ def workbooks_views(version: str, site: str, wb_id: str, request: Request) -> Re
 @app.get("/api/{version}/sites/{site}/workbooks/{wb_id}/connections")
 def workbooks_connections(version: str, site: str, wb_id: str, request: Request) -> Response:
     _version(version)
-    with _Row(request, "workbooks_connections") as row:
+    with Row(request, "workbooks_connections") as row:
         _, state = _read_state(request, row, site)
-        wb = _find(state["workbooks"], wb_id, "Workbook", "404006")
+        wb = find(state["workbooks"], wb_id, "Workbook", "404006")
         row.targets = [f"{NAME}:workbook:{wb['content_url']}"]
         out = []
         for i, c in enumerate(wb.get("connections", [])):
             published = c["published"] and next(
                 (d for d in state["datasources"] if c["published"] in
                  (d["content_url"], d["name"])), None)
-            ds_id = published["id"] if published else _uid("embedded", wb["id"], i)
+            ds_id = published["id"] if published else uid("embedded", wb["id"], i)
             out.append(_xml("connection", {
-                "id": _uid("connection", wb["id"], i), "type": c["class"],
+                "id": uid("connection", wb["id"], i), "type": c["class"],
                 "embedPassword": "false", "serverAddress": c["server"],
                 "serverPort": c["port"], "userName": c["username"],
                 "queryTaggingEnabled": "false"},
@@ -991,9 +1037,9 @@ def workbooks_connections(version: str, site: str, wb_id: str, request: Request)
 @app.get("/api/{version}/sites/{site}/workbooks/{wb_id}/content")
 def workbooks_download(version: str, site: str, wb_id: str, request: Request) -> Response:
     _version(version)
-    with _Row(request, "workbooks_download") as row:
+    with Row(request, "workbooks_download") as row:
         store, state = _read_state(request, row, site)
-        wb = _find(state["workbooks"], wb_id, "Workbook", "404006")
+        wb = find(state["workbooks"], wb_id, "Workbook", "404006")
         row.targets = [f"{NAME}:workbook:{wb['content_url']}"]
         data = store.content_path(wb).read_bytes()
         row.result = {"bytes": len(data), "sha256": hashlib.sha256(data).hexdigest()}
@@ -1006,7 +1052,7 @@ def workbooks_download(version: str, site: str, wb_id: str, request: Request) ->
 async def _publish(request: Request, version: str, site: str, kind: str) -> Response:
     _version(version)
     body = await _body(request, MAX_UPLOAD)
-    with _Row(request, f"{kind}s_publish", op_class="write") as row:
+    with Row(request, f"{kind}s_publish", op_class="write") as row:
         store, state = _read_state(request, row, site)
         if request.query_params.get("uploadSessionId"):
             raise TableauError(400, "400000", "Bad Request",
@@ -1027,7 +1073,7 @@ async def _publish(request: Request, version: str, site: str, kind: str) -> Resp
                                f"The request payload has no <{kind} name=...>.")
         project = item_xml.find("project")
         if project is not None and project.get("id") not in (None, "", PROJECT_ID):
-            raise _not_found("Project", "404005", project.get("id"))
+            raise not_found("Project", "404005", project.get("id"))
         filename = file_part[0] or ""
         allowed = ("twb", "twbx") if kind == "workbook" else ("tds", "tdsx")
         file_type = (request.query_params.get(f"{kind}Type")
@@ -1039,7 +1085,7 @@ async def _publish(request: Request, version: str, site: str, kind: str) -> Resp
         overwrite = request.query_params.get("overwrite", "false").lower() == "true"
         name = item_xml.get("name")
         row.args.update({"name": name, "file": filename, "overwrite": overwrite})
-        with _LOCK, store.lock():
+        with LOCK, store.lock():
             state = store.load()
             if kind == "workbook":
                 item = store.publish_workbook(
@@ -1081,7 +1127,7 @@ def _job(store: Store, state: dict, jtype: str, kind: str, item: dict, code: int
         fresh = store.load()
         n = store.next(fresh)
         now = store.now()
-        job = {"id": _uid("job", n), "type": jtype, "created_at": now, "started_at": now,
+        job = {"id": uid("job", n), "type": jtype, "created_at": now, "started_at": now,
                "completed_at": now, "finish_code": code, "target_kind": kind,
                "target_id": item["id"], "target_name": item["name"], "notes": notes}
         fresh["jobs"].append(job)
@@ -1091,10 +1137,10 @@ def _job(store: Store, state: dict, jtype: str, kind: str, item: dict, code: int
 
 def _refresh(request: Request, version: str, site: str, kind: str, ident: str) -> Response:
     _version(version)
-    with _Row(request, f"{kind}s_refresh", op_class="write") as row:
+    with Row(request, f"{kind}s_refresh", op_class="write") as row:
         store, state = _read_state(request, row, site)
         items = state["workbooks" if kind == "workbook" else "datasources"]
-        item = _find(items, ident, "Workbook" if kind == "workbook" else "Data source",
+        item = find(items, ident, "Workbook" if kind == "workbook" else "Data source",
                      "404006" if kind == "workbook" else "404004")
         row.targets = [f"{NAME}:{kind}:{item['content_url']}"]
         if not item.get("has_extract"):
@@ -1102,7 +1148,7 @@ def _refresh(request: Request, version: str, site: str, kind: str, ident: str) -
                                f"The {kind} '{item['name']}' uses a live connection; there is "
                                f"no extract to refresh.")
         notes, code = None, 0
-        with _LOCK, store.lock():
+        with LOCK, store.lock():
             state = store.load()
             try:
                 entry = store.refresh_extract(state, (kind, item["id"]))
@@ -1137,7 +1183,7 @@ _DS_FIELDS = {"name": lambda d: d["name"], "contentUrl": lambda d: d["content_ur
 @app.get("/api/{version}/sites/{site}/datasources")
 def datasources_list(version: str, site: str, request: Request) -> Response:
     _version(version)
-    with _Row(request, "datasources_list") as row:
+    with Row(request, "datasources_list") as row:
         store, state = _read_state(request, row, site)
         items = _select(request, state["datasources"], _DS_FIELDS)
         page, pagination = _paginate(request, items)
@@ -1150,9 +1196,9 @@ def datasources_list(version: str, site: str, request: Request) -> Response:
 @app.get("/api/{version}/sites/{site}/datasources/{ds_id}")
 def datasources_get(version: str, site: str, ds_id: str, request: Request) -> Response:
     _version(version)
-    with _Row(request, "datasources_get") as row:
+    with Row(request, "datasources_get") as row:
         store, state = _read_state(request, row, site)
-        ds = _find(state["datasources"], ds_id, "Data source", "404004")
+        ds = find(state["datasources"], ds_id, "Data source", "404004")
         row.targets = [f"{NAME}:datasource:{ds['content_url']}"]
         return _ts(_datasource_xml(store, ds))
 
@@ -1160,12 +1206,12 @@ def datasources_get(version: str, site: str, ds_id: str, request: Request) -> Re
 @app.get("/api/{version}/sites/{site}/datasources/{ds_id}/connections")
 def datasources_connections(version: str, site: str, ds_id: str, request: Request) -> Response:
     _version(version)
-    with _Row(request, "datasources_connections") as row:
+    with Row(request, "datasources_connections") as row:
         _, state = _read_state(request, row, site)
-        ds = _find(state["datasources"], ds_id, "Data source", "404004")
+        ds = find(state["datasources"], ds_id, "Data source", "404004")
         row.targets = [f"{NAME}:datasource:{ds['content_url']}"]
         return _ts(_xml("connections", None, _xml("connection", {
-            "id": _uid("connection", ds["id"]), "type": ds["type"], "embedPassword": "false",
+            "id": uid("connection", ds["id"]), "type": ds["type"], "embedPassword": "false",
             "serverAddress": ds["server"], "serverPort": ds["port"],
             "userName": ds["username"], "queryTaggingEnabled": "false"})))
 
@@ -1173,9 +1219,9 @@ def datasources_connections(version: str, site: str, ds_id: str, request: Reques
 @app.get("/api/{version}/sites/{site}/datasources/{ds_id}/content")
 def datasources_download(version: str, site: str, ds_id: str, request: Request) -> Response:
     _version(version)
-    with _Row(request, "datasources_download") as row:
+    with Row(request, "datasources_download") as row:
         store, state = _read_state(request, row, site)
-        ds = _find(state["datasources"], ds_id, "Data source", "404004")
+        ds = find(state["datasources"], ds_id, "Data source", "404004")
         row.targets = [f"{NAME}:datasource:{ds['content_url']}"]
         data = store.content_path(ds).read_bytes()
         row.result = {"bytes": len(data), "sha256": hashlib.sha256(data).hexdigest()}
@@ -1186,7 +1232,7 @@ def datasources_download(version: str, site: str, ds_id: str, request: Request) 
 
 
 # --------------------------------------------------------------------- views
-def _all_views(state: dict) -> list[tuple[dict, dict]]:
+def all_views(state: dict) -> list[tuple[dict, dict]]:
     return [(v, wb) for wb in state["workbooks"] for v in wb["views"]]
 
 
@@ -1200,29 +1246,29 @@ _VIEW_FIELDS = {"name": lambda vw: vw[0]["name"], "contentUrl": lambda vw: vw[0]
 @app.get("/api/{version}/sites/{site}/views")
 def views_list(version: str, site: str, request: Request) -> Response:
     _version(version)
-    with _Row(request, "views_list") as row:
+    with Row(request, "views_list") as row:
         _, state = _read_state(request, row, site)
-        items = _select(request, _all_views(state), _VIEW_FIELDS)
+        items = _select(request, all_views(state), _VIEW_FIELDS)
         page, pagination = _paginate(request, items)
         row.targets = [f"{NAME}:view:{v['content_url']}" for v, _ in page] or [f"{NAME}:views"]
         return _ts(pagination, _xml("views", None, *(_view_xml(v, wb) for v, wb in page)))
 
 
 def _view(state: dict, view_id: str, code: str = "404011") -> tuple[dict, dict]:
-    for v, wb in _all_views(state):
+    for v, wb in all_views(state):
         if v["id"] == view_id:
             return v, wb
     if code == "400080":
         raise TableauError(400, "400080", "Bad Request",
                            f"The view ID '{view_id}' doesn't correspond to a view available "
                            f"on the specified site.")
-    raise _not_found("View", code, view_id)
+    raise not_found("View", code, view_id)
 
 
 @app.get("/api/{version}/sites/{site}/views/{view_id}")
 def views_get(version: str, site: str, view_id: str, request: Request) -> Response:
     _version(version)
-    with _Row(request, "views_get") as row:
+    with Row(request, "views_get") as row:
         _, state = _read_state(request, row, site)
         v, wb = _view(state, view_id)
         row.targets = [f"{NAME}:view:{v['content_url']}"]
@@ -1233,7 +1279,7 @@ def views_get(version: str, site: str, view_id: str, request: Request) -> Respon
 def views_data(version: str, site: str, view_id: str, request: Request) -> Response:
     """The view's summary data as CSV, rendered from the PUBLISHED workbook."""
     _version(version)
-    with _Row(request, "views_data") as row:
+    with Row(request, "views_data") as row:
         store, state = _read_state(request, row, site)
         v, wb = _view(state, view_id, code="400080")
         row.targets = [f"{NAME}:view:{v['content_url']}"]
@@ -1245,9 +1291,10 @@ def views_data(version: str, site: str, view_id: str, request: Request) -> Respo
             sheet = v["name"]
             if sheet in deferred:
                 raise deferred[sheet]
-            visual = _visual_for(report, sheet, v["sheet_type"])
-            visual = _with_url_filters(ds.model, visual, vf)
-            owner = _owner(state, wb, ds)
+            visual = visual_for(report, sheet, v["sheet_type"])
+            if vf:
+                visual = with_url_filters(ds, visual, vf, store.field_captions(state, wb, ds))
+            owner = extract_owner(state, wb, ds)
             warehouse, refreshed = store.warehouse_for(state, owner)
             row.read_targets = sorted(_relations(ds.model))
             if refreshed is not None:
@@ -1255,19 +1302,19 @@ def views_data(version: str, site: str, view_id: str, request: Request) -> Respo
             result = render.render_visual(ds.model, visual, warehouse)
             # What the view's query read, not every relation its data source
             # declares: the KPIs card reads warehouse.fct_orders and nothing else.
-            row.read_targets = _visual_relations(ds.model, visual)
+            row.read_targets = visual_relations(ds.model, visual)
         except Unsupported as exc:
             raise TableauError(400, "400000", "Bad Request", str(exc)) from None
         except (ModelError, SemanticError) as exc:
             raise TableauError(400, "400000", "Bad Request", f"{type(exc).__name__}: {exc}") \
                 from None
-        body = _csv(ds.model, visual, result)
+        body = view_csv(ds.model, visual, result)
         row.result = {"columns": result["columns"], "rows": len(result["rows"]),
                       "sha256": hashlib.sha256(body).hexdigest()}
         return Response(body, media_type="text/csv; charset=utf-8")
 
 
-def _visual_for(report, sheet: str, sheet_type: str):
+def visual_for(report, sheet: str, sheet_type: str):
     for page in report.pages:
         if sheet_type == "worksheet":
             for visual in page.visuals:
@@ -1283,7 +1330,7 @@ def _visual_for(report, sheet: str, sheet_type: str):
     raise TableauError(400, "400000", "Bad Request", f"View '{sheet}' has no data to export.")
 
 
-def _owner(state: dict, wb: dict, ds) -> tuple[str, str]:
+def extract_owner(state: dict, wb: dict, ds) -> tuple[str, str]:
     """Whose extract a view reads: the published data source it connects to, or
     the workbook itself when it embeds its source."""
     if ds.published:
@@ -1294,20 +1341,37 @@ def _owner(state: dict, wb: dict, ds) -> tuple[str, str]:
     return "workbook", wb["id"]
 
 
-def _with_url_filters(model, visual, vf: dict):
-    """`vf_<field>=a,b` -> a filter on the field captioned <field>, replacing any
-    filter the view has on it. Unknown field names are ignored, as Tableau
-    Server ignores URL filters on fields the view's data source lacks."""
+def url_filter_fields(ds, captions: dict[str, str]) -> dict[str, tuple[Col, str]]:
+    """The name a URL filter gives each dimension field of `ds` -> (its column,
+    its type). The name is the one Tableau shows: the field's caption
+    (`captions`, from `Store.field_captions`), else its own name - so of the
+    two `order_id` fields of Orders and Order Lines, `order_id` is Orders' and
+    the other is `order_id (fct_order_lines)`. A name two fields share names
+    neither."""
+    types = {(t.name, c.name): c.data_type for t in ds.model.tables for c in t.columns}
+    out: dict[str, tuple[Col, str] | None] = {}
+    for name, ref in ds.names.refs.items():
+        if not isinstance(ref, Col) or (ref.table, ref.column) not in types:
+            continue
+        shown = captions.get(name, name)
+        out[shown] = None if shown in out else (ref, types[(ref.table, ref.column)])
+    return {k: v for k, v in out.items() if v is not None}
+
+
+def with_url_filters(ds, visual, vf: dict, captions: dict[str, str]):
+    """`vf_<field>=a,b` (REST) or `?<field>=a,b` (a view's URL) -> a filter on
+    the field captioned <field> (`url_filter_fields`), replacing any filter the
+    view has on it. Unknown field names are ignored, as Tableau Server ignores
+    URL filters on fields the view's data source lacks."""
     if not vf:
         return visual
+    fields = url_filter_fields(ds, captions)
     filters = list(visual.filters)
     for field, raw in vf.items():
-        matches = [(t, c) for t in model.tables for c in t.columns if c.name == field]
-        if len(matches) != 1:
+        if field not in fields:
             continue
-        table, column = matches[0]
-        col = Col(table.name, column.name)
-        values = tuple(_typed(v, column.data_type) for v in raw.split(","))
+        col, dtype = fields[field]
+        values = tuple(_typed(v, dtype) for v in raw.split(","))
         filters = [f for f in filters if f.column != col] + [FilterValues(col, values)]
     return replace(visual, filters=tuple(filters))
 
@@ -1332,7 +1396,7 @@ def _typed(text: str, dtype: str):
     return text
 
 
-def _csv(model, visual, result: dict) -> bytes:
+def view_csv(model, visual, result: dict) -> bytes:
     """CSV the way Query View Data writes it: field captions as headers, measures
     in their declared number format (or Tableau's automatic one)."""
     formats = {}
@@ -1397,11 +1461,11 @@ def format_number(value, fmt: str) -> str | None:
 @app.get("/api/{version}/sites/{site}/jobs/{job_id}")
 def jobs_get(version: str, site: str, job_id: str, request: Request) -> Response:
     _version(version)
-    with _Row(request, "jobs_get", targets=[f"{NAME}:job:{job_id}"]) as row:
+    with Row(request, "jobs_get", targets=[f"{NAME}:job:{job_id}"]) as row:
         _, state = _read_state(request, row, site)
         job = next((j for j in state["jobs"] if j["id"] == job_id), None)
         if job is None:
-            raise _not_found("Job", "404018", job_id)
+            raise not_found("Job", "404018", job_id)
         row.result = {"finishCode": job["finish_code"]}
         return _ts(_job_xml(job, full=True))
 
@@ -1409,7 +1473,7 @@ def jobs_get(version: str, site: str, job_id: str, request: Request) -> Response
 @app.get("/api/{version}/sites/{site}/jobs")
 def jobs_list(version: str, site: str, request: Request) -> Response:
     _version(version)
-    with _Row(request, "jobs_list", targets=[f"{NAME}:jobs"]) as row:
+    with Row(request, "jobs_list", targets=[f"{NAME}:jobs"]) as row:
         _, state = _read_state(request, row, site)
         page, pagination = _paginate(request, list(reversed(state["jobs"])))
         status = {0: "Success", 1: "Failed", 2: "Cancelled"}
@@ -1422,7 +1486,16 @@ def jobs_list(version: str, site: str, request: Request) -> Response:
             for j in page)))
 
 
-__all__ = ["NAME", "HOST", "PORT", "app", "format_number"]
+# What the browser UI (native/ui/tableau.py) and other modules may use: the
+# same store, lock, audit row and render path as the REST routes above.
+__all__ = [
+    "NAME", "HOST", "PORT", "app", "format_number",
+    "DEFAULT_USER", "SITE_ID", "PROJECT_ID", "PROJECT_NAME", "UI_PASSWORD",
+    "LOCK", "Row", "Store", "TableauError",
+    "all_views", "extract_owner", "find", "not_found", "project_of", "projects",
+    "uid", "url_filter_fields", "view_csv", "visual_for", "visual_relations",
+    "with_url_filters",
+]
 
 
 # The browser UI (native/ui/tableau.py): same app, same Store, same audit rows.

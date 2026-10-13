@@ -313,6 +313,38 @@ def test_url_filters_narrow_the_view(server):
     assert parse_csv(server.view_csv("Revenue by Segment", query="?vf_nonexistent=1")) == every
 
 
+def test_url_filter_matches_by_caption(server):
+    """`vf_<field>` names a field as Tableau shows it: its caption, else its
+    name. Two logical tables hold `order_id`, and Tableau shows the second as
+    `order_id (fct_order_lines)` - so `vf_order_id` is the Orders field (one
+    order), not an ambiguity to ignore."""
+    server.signin()
+    every = parse_csv(server.view_csv("KPIs"))
+    with duckdb.connect(str(server.warehouse), read_only=True) as con:
+        oid, amount = con.execute(
+            "SELECT order_id, order_amount FROM warehouse.warehouse.fct_orders "
+            "WHERE order_status = 'completed' ORDER BY order_id LIMIT 1").fetchone()
+        na = con.execute("SELECT SUM(o.order_amount) FROM warehouse.warehouse.fct_orders o "
+                         "JOIN warehouse.warehouse.dim_customer c USING (customer_id) "
+                         "WHERE c.region = 'NA' AND o.order_status = 'completed'").fetchone()[0]
+    one = parse_csv(server.view_csv("KPIs", query=f"?vf_order_id={oid}"))
+    assert one != every
+    assert money(one[1][0]) == amount and one[1][1] == "1"
+    # A caption the data source gives a field is the name a URL uses for it;
+    # the field's own name is then unknown here, and ignored as Tableau
+    # ignores it.
+    tds = (server.project / "datasources" / "Commerce.tds").read_bytes()
+    head, tail = tds.split(b"<column ", 1)
+    assert b"name='[region]'" not in tail
+    captioned = head + (b"<column caption='Sales Region' datatype='string' name='[region]' "
+                        b"role='dimension' type='nominal' />\n  <column ") + tail
+    server.xml(server.publish("datasource", "Commerce", captioned, "Commerce.tds"), 201)
+    every = parse_csv(server.view_csv("Revenue by Segment"))
+    rows = parse_csv(server.view_csv("Revenue by Segment", query="?vf_Sales%20Region=NA"))
+    assert sum(money(r[1]) for r in rows[1:]) == na
+    assert parse_csv(server.view_csv("Revenue by Segment", query="?vf_region=NA")) == every
+
+
 def test_publishing_changes_the_numbers_editing_the_workspace_does_not(server):
     server.signin()
     before = parse_csv(server.view_csv("KPIs"))
