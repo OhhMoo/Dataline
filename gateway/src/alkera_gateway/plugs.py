@@ -119,7 +119,9 @@ _CATALOG = (
               "--warehouse-clients bigquery; cost not modelled; transactions, "
               "procedural scripting (IF/FOR/WHILE/CALL/...), "
               "ALTER, EXECUTE IMMEDIATE, ASSERT, WRITE_TRUNCATE, schema patches, "
-              "load jobs and legacy SQL refused by name; INT64 overflow wraps "
+              "load and extract jobs (LOAD DATA, EXPORT DATA), external tables "
+              "and other external data (over gs:// the engine would hang) and "
+              "legacy SQL refused by name; INT64 overflow wraps "
               "instead of erroring (emulator, not fenced); dbt-bigquery through "
               "the proxy (the box profile's default target; seed is a load job, "
               "refused); container e2e only, arm64 not run, no task uses it"),
