@@ -89,6 +89,19 @@ REFUSED_WAREHOUSES: dict[str, str] = {
         "in the container topology it sits on backend_net, out of the agent's "
         "reach)"),
 }
+#: Plugs of other slots the image refuses, and why, by (slot, plug).
+REFUSED_PLUGS: dict[tuple[str, str], str] = {
+    ("compute", "spark_connect"): (
+        "Databricks tier 2's engine is a JVM - Spark 4.2 with Delta, its own ~1.4 GB "
+        "image and a ~30 s cold start - as a second supervised process, and its Spark "
+        "Connect port (with the driver's own) takes no credential; in a one-container "
+        "image every process shares the loopback, so the agent could run plans on the "
+        "seeded copy around the audited proxy at spark_connect.internal:15002, "
+        "unrecorded, for the reason BigQuery's emulator is refused (no NET_ADMIN, no "
+        "network namespace; Spark Connect cannot listen on a unix socket). In the "
+        "container topology the engine sits on backend_net, out of the agent's reach. "
+        "Export the task with `[environment.plugs] compute = []` for the tier-1 box"),
+}
 #: The warehouse plug served by a process of its own that is not a registry
 #: backend (no client lock, no agent-facing variables of its own: the box's PG*
 #: are the static table's): a Harbor backend all the same.
@@ -252,6 +265,13 @@ def variant_of(spec) -> Variant:
     if refused:
         raise VariantError(
             f"profile {profile!r} plugs a warehouse the Harbor image refuses to serve:\n  "
+            + "\n  ".join(refused))
+    refused = [f"{slot}={name}: {REFUSED_PLUGS[(slot, name)]}"
+               for slot, names in slots.items() for name in names
+               if (slot, name) in REFUSED_PLUGS]
+    if refused:
+        raise VariantError(
+            f"profile {profile!r} plugs what the Harbor image refuses to serve:\n  "
             + "\n  ".join(refused))
     unserved = [f"warehouse={name}" for name in warehouses
                 if name not in SERVED_WAREHOUSES]

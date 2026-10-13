@@ -88,11 +88,26 @@ def test_da_laptop_with_and_without_its_notebook():
 
 def test_planned_refusal_names_every_planned_plug():
     with pytest.raises(ProfileError) as e:
-        resolve("ds/databricks")
-    # databricks itself is partial (tier 1); the DS role's compute plugs are not built
+        resolve("ds/aws")
+    # redshift itself is partial (the Postgres persona); the DS role's compute
+    # plugs on that stack are not built
     for name in ("ml_workers", "mlflow"):
         assert name in str(e.value)
-    assert "databricks" not in str(e.value).split(":", 1)[1]
+    assert "redshift" not in str(e.value).split(":", 1)[1]
+
+
+def test_ds_databricks_resolves_with_spark_connect_compute():
+    """D1: the Databricks stack's compute is Spark Connect (tier 2); ml_workers
+    and mlflow stay planned, and plugged back in they are still refused."""
+    p = resolve("ds/databricks")
+    assert p.slots["compute"] == ("spark_connect",)
+    assert p.slots["warehouse"] == ("databricks",) and p.planned == ()
+    assert "spark" in p.surfaces
+    with pytest.raises(ProfileError, match="ml_workers"):
+        resolve("ds/databricks", {"compute": ["spark_connect", "ml_workers"]})
+    # no other role has the compute slot, so no other databricks box changes
+    assert "compute" not in resolve("de/databricks").slots
+    assert "compute" not in resolve("da/databricks").slots
 
 
 def test_allow_planned_resolves_and_lists_them():
@@ -149,7 +164,9 @@ def test_readiness_matrix_covers_every_role_and_stack():
     # databricks is partial (tier 1) and powerbi, its BI, is partial: the stack runs
     assert rows["de/databricks"] == {"profile": "de/databricks", "status": "runnable",
                                      "planned": []}
-    assert rows["ds/databricks"]["planned"] == ["ml_workers", "mlflow"]
+    assert rows["ds/databricks"] == {"profile": "ds/databricks", "status": "runnable",
+                                     "planned": []}       # compute: spark_connect (tier 2)
+    assert rows["ds/aws"]["planned"] == ["ml_workers", "mlflow"]
     assert rows["da/laptop"]["status"] == "runnable"     # jupyter is partial, not planned
 
 

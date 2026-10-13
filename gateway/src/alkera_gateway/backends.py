@@ -201,6 +201,29 @@ BACKENDS: dict[str, Backend] = {
              "DATABRICKS_TOKEN": FAKE_CREDENTIAL,
              "SSL_CERT_FILE": "/etc/alkera/databricks-tls/bundle.pem"},
     ),
+    # Databricks tier 2: Spark Connect (docs/environments/DATABRICKS_SPIKE.md,
+    # "Tier 2"), the `compute` slot's plug. The engine is Spark 4.2.0 with Delta
+    # Lake, its own image (gateway/docker/spark/Dockerfile.spark) on backend_net
+    # only, seeded from the world's warehouse at boot; this row is the audited
+    # gRPC proxy native-services hosts in front of it (native/services/
+    # spark_connect.py), one `databricks.spark` row per RPC. Plain gRPC (scheme
+    # http: HTTP/2 cleartext), not TLS: Spark's thin client turns TLS on whenever
+    # the URL carries a token, so SPARK_REMOTE has none. SPARK_HOME is the thin
+    # client's own package directory: pyspark-client 4.2.0 exits 255 under
+    # `python -c` when it finds no SPARK_HOME (gateway/docker/evidence/
+    # spark_spike.json). No statement_tool: its rows are plans, not statements
+    # (path.TOOL_KINDS reads `databricks.spark` as SQL all the same).
+    "spark_connect": Backend(
+        name="spark_connect",
+        host="spark_connect.internal",
+        port=15002,
+        scheme="http",
+        hosted=True,
+        clients="spark",
+        tls=False,
+        env={"SPARK_REMOTE": "sc://spark_connect.internal:15002",
+             "SPARK_HOME": "/usr/local/lib/python3.11/site-packages/pyspark"},
+    ),
 }
 
 

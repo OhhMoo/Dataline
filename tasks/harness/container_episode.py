@@ -1054,6 +1054,18 @@ HOSTED_ENGINES = {
     "bigquery": ("bigquery", 9050, ("--project={BIGQUERY_PROJECT}", "--port=9050",
                                     "--grpc-port=9060",
                                     "--database=/bigquery-data/emulator.db")),
+    # Databricks tier 2: Spark 4.2 + Delta, its own image (HOSTED_ENGINE_BUILDS),
+    # its default command (gateway/docker/spark/spark_start.py).
+    "spark_connect": ("spark", 15002, ()),
+}
+#: HOSTED_ENGINES whose engine is NOT a compose.yml service but an image built
+#: from this repository, by backend name: the Dockerfile under gateway/docker.
+#: `engine_overlay` writes such an engine's COMPLETE service block (compose
+#: profile, build, backend_net, the world's warehouse FILES read-only at /seed,
+#: as a container backend's `seeds_world`), so no static compose file names it.
+#: Its upstream is `host:port` (gRPC), not a URL.
+HOSTED_ENGINE_BUILDS = {
+    "spark_connect": "spark/Dockerfile.spark",
 }
 #: Where a pinned episode_net subnet comes from: the daemon's own pool on the
 #: hosts these stacks run on (/etc/docker/daemon.json, `default-address-pools`
@@ -2304,7 +2316,8 @@ networks:
         native-services binds nothing until the seed is in."""
         text = "    environment:\n" + "".join(
             f"      ALKERA_{b.name.upper()}_UPSTREAM: "
-            f"http://{HOSTED_ENGINES[b.name][0]}:{HOSTED_ENGINES[b.name][1]}\n"
+            f"{'' if b.name in HOSTED_ENGINE_BUILDS else 'http://'}"
+            f"{HOSTED_ENGINES[b.name][0]}:{HOSTED_ENGINES[b.name][1]}\n"
             for b in engines)
         # On backend_net its agent listeners answer the engine, postgres and
         # minio too; they admit episode_net's pinned subnet only (`episode_network`).
@@ -2312,8 +2325,17 @@ networks:
         text += "    depends_on:\n" + "".join(
             f"      {HOSTED_ENGINES[b.name][0]}:\n        condition: service_started\n"
             for b in engines)
+        if any(b.name in HOSTED_ENGINE_BUILDS for b in engines):
+            # A JVM engine's cold start (Spark: ~30 s, plus its seed) is longer
+            # than compose.native.yml's 60 s of retries, and native-services binds
+            # nothing until it answers; failures in the start period do not count,
+            # and the first pass ends it.
+            text += "    healthcheck:\n      start_period: 600s\n"
         for b in engines:
             service, _, command = HOSTED_ENGINES[b.name]
+            if b.name in HOSTED_ENGINE_BUILDS:
+                text += self.engine_build_overlay(b, service)
+                continue
             args = ", ".join(json.dumps(arg.format(**b.env)) for arg in command)
             text += f"""
 # HOSTED ENGINE {b.name}: compose.yml's `{service}` service (compose profile
@@ -2326,6 +2348,39 @@ networks:
         aliases: !reset []
 """
         return text
+
+    def engine_build_overlay(self, b, service: str) -> str:
+        """A HOSTED_ENGINE_BUILDS engine's complete service: built from this
+        working tree (layer-cached, never a stale image), under its own compose
+        profile, on backend_net only with no alias there (native-services dials
+        it by its service name), the world's warehouse FILES read-only at /seed.
+        No healthcheck: the module in native-services waits for the engine's
+        port before native-services binds anything, and the engine binds only
+        once its seed is in."""
+        tag = self.image.rsplit(":", 1)
+        image = f"alkera-{service}:native-{tag[1] if len(tag) == 2 else 'latest'}"
+        volumes = "\n".join(
+            f'      - "{(self.world_root / rel).as_posix()}:'
+            f'{SEED_IN_CONTAINER}/{Path(rel).name}:ro"' for rel in self.warehouses)
+        return f"""
+# HOSTED ENGINE {b.name}: its own image (gateway/docker/{HOSTED_ENGINE_BUILDS[b.name]}),
+# compose profile `{service}` (enabled by compose_env), on backend_net only and
+# seeded from this world's warehouse. The episode reaches it through the audited
+# proxy in native-services, {b.host}:{b.port}.
+  {service}:
+    profiles: [{service}]
+    image: {image}
+    pull_policy: build
+    build:
+      context: ../..
+      dockerfile: gateway/docker/{HOSTED_ENGINE_BUILDS[b.name]}
+    stop_grace_period: 5s
+    networks:
+      backend_net:
+        aliases: !reset []
+    volumes:
+{volumes}
+"""
 
     def write_overlay(self) -> Path:
         """The per-rollout overlay: warehouse binds, shim PATH, the world's

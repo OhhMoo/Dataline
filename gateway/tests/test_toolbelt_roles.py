@@ -75,6 +75,11 @@ SDIST_OK = {
     # dbt-core GitHub release and checks a sha256 embedded in the sdist; the manifest
     # lists manylinux_2_28_x86_64 and manylinux_2_28_aarch64. Via dbt-core.
     "dbt-core-experimental-parser",
+    # Spark's own Spark Connect thin client (requirements-spark.lock): Apache
+    # publishes every PySpark distribution as an sdist only. Pure Python - pip
+    # builds it with setuptools (fetched by its build isolation at image build
+    # time), no compiler - measured building in the python:3.11-slim base.
+    "pyspark-client",
 }
 
 _REQ = re.compile(r"^([A-Za-z0-9][A-Za-z0-9._-]*)==([^\s;\\]+)(?:\s*;\s*([^\\]+?))?\s*\\?$")

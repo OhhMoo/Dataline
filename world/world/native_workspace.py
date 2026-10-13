@@ -439,6 +439,27 @@ DISCOVERY: dict[str, Discovery] = {
         dbt_env={"host": "DATABRICKS_SERVER_HOSTNAME", "http_path": "DATABRICKS_HTTP_PATH",
                  "token": "DATABRICKS_TOKEN"},
     ),
+    # Databricks tier 2, the compute slot's Spark Connect (gateway native/services/
+    # spark_connect.py in front of a Spark 4.2 + Delta engine): the same world as
+    # Delta tables in catalog `main` - the same names as tier 1's, a separate
+    # copy. The thin client reads SPARK_REMOTE, which carries no token: the client
+    # would switch TLS on, and this door is plain gRPC. SPARK_HOME is the client's
+    # own package directory, which pyspark-client needs under `python -c`. No dbt
+    # target: the box's dbt stays on tier 1's SQL warehouse.
+    "spark_connect": Discovery(
+        backend="spark_connect",
+        label="the cluster",
+        clients=("PySpark over Spark Connect (the pyspark-client thin client; no JVM on "
+                 "this box): `SparkSession.builder.getOrCreate()` reads SPARK_REMOTE; "
+                 "catalog `main` holds the warehouse as Delta tables, a copy apart from "
+                 "the SQL warehouse's; no dbutils, no DBFS, no Python UDFs"),
+        services_toml={"host": "spark_connect.internal", "port": "15002",
+                       "remote": "sc://spark_connect.internal:15002",
+                       "catalog": "main", "schema": "default"},
+        dbt_type=None,
+        env={"SPARK_REMOTE": "sc://spark_connect.internal:15002",
+             "SPARK_HOME": "/usr/local/lib/python3.11/site-packages/pyspark"},
+    ),
 }
 
 #: Registry backends the box listed BEFORE the registry, and so still lists the
@@ -463,6 +484,15 @@ STACK_WAREHOUSE = {
     "gcp": ("bigquery",),
 }
 
+#: Each stack's default compute plug(s) that are registry backends,
+#: `alkera_gateway.plugs.STACKS[stack]["compute"]` less the planned ones (which
+#: no box serves): what a profile on that stack plugs into the compute slot -
+#: a slot only the ds role has - when its record's `plugs` does not say.
+#: Duplicated, not imported; world/tests/test_spark_discovery.py compares.
+STACK_COMPUTE = {
+    "databricks": ("spark_connect",),
+}
+
 #: Slots whose plug is newer than the unprofiled box. "No profile" means the
 #: full table as it stood before profiles, and that box is fingerprinted byte
 #: for byte, so these appear only when a profile names them.
@@ -471,7 +501,9 @@ EXPLICIT_SLOTS = frozenset({"notebook"})
 
 def profile_plugs(name, plugs=None):
     """A profile record's `plugs`, with the warehouse slot's plug filled in
-    from the profile's stack (STACK_WAREHOUSE) when the record names none.
+    from the profile's stack (STACK_WAREHOUSE) when the record names none, and
+    likewise the compute slot's (STACK_COMPUTE: a box without the slot lists
+    none of it).
 
     `name` is the record's "<role>/<stack>"; None (no profile), or a stack the
     table does not know, adds nothing and returns the plugs as given (None for
@@ -481,6 +513,8 @@ def profile_plugs(name, plugs=None):
     stack = str(name or "").partition("/")[2]
     if "warehouse" not in out and stack in STACK_WAREHOUSE:
         out["warehouse"] = list(STACK_WAREHOUSE[stack])
+    if "compute" not in out and stack in STACK_COMPUTE:
+        out["compute"] = list(STACK_COMPUTE[stack])
     return out or None
 
 

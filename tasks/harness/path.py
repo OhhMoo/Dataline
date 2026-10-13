@@ -126,6 +126,9 @@ TOOL_KINDS = {
     "bigquery.statement": "sql",
     "redshift.statement": "sql",
     "databricks.statement": "sql",
+    # Databricks tier 2's Spark Connect proxy (native/services/spark_connect.py):
+    # one row per RPC; a plan's SQL text, when it has one, in `args.sql`.
+    "databricks.spark": "sql",
     "bash": "shell",
     "s3_put": "fs_write",
     "s3_delete": "fs_delete",

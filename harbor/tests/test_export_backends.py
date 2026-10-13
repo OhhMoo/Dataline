@@ -216,6 +216,20 @@ def test_bigquery_is_refused_by_name_with_its_reason():
     assert "bigquery" not in variant.HARBOR_BACKENDS
 
 
+def test_spark_connect_is_refused_by_name_with_its_reason():
+    """Databricks tier 2's engine is a JVM (Spark Connect) whose gRPC port takes no
+    credential: in one container it would share the agent's loopback, reachable
+    around the audited proxy. Refused before any world is built, naming the plug
+    and why; ds/databricks without it is the tier-1 box as before."""
+    with pytest.raises(variant.VariantError) as refused:
+        variant_of("ds/databricks")
+    message = str(refused.value)
+    assert "compute=spark_connect" in message and "around the audited proxy" in message
+    assert "spark_connect" not in variant.HARBOR_BACKENDS
+    tier1 = variant_of("ds/databricks", {"compute": []})
+    assert "spark_connect" not in tier1.backends and "databricks" in tier1.backends
+
+
 def test_an_unknown_backend_is_refused():
     v = variant.Variant(role="de", profile="de/x", backends=("nope",),
                         harbor_backends=("nope",))

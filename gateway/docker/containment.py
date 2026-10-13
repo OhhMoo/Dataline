@@ -101,6 +101,11 @@ NATIVE_BACKENDS = {
     "bigquery": ("bigquery.internal", 9050),
     "redshift": ("redshift.internal", 5439),
     "databricks": ("databricks.internal", 443),
+    # Databricks tier 2, keyed by its ENGINE's compose service (`spark`, the
+    # overlay's HOSTED_ENGINE_BUILDS block): when it runs, the alias is
+    # native-services' audited Spark Connect proxy in front of it; the engine
+    # itself is on backend_net only.
+    "spark": ("spark_connect.internal", 15002),
 }
 #: Doors that are not backends and not one of the nine, selected the same way:
 #: native-services' aggregate /health (serve.AGGREGATE_PORT), the scheduler
