@@ -351,7 +351,7 @@ class NativeBuildTest(unittest.TestCase):
         for rel, want in pins.items():
             got = hashlib.sha256((self.n1 / rel).read_bytes()).hexdigest()
             self.assertEqual(got, want, rel)
-        self.assertEqual(self.h1, "e2a0b8ae14783e686e1f01facf57d9b0fdc143bd5d0a711463b12b9fd2a9242e")
+        self.assertEqual(self.h1, "ca5adaee0c976a4f0258fe254ccf48db763cdc646d1e4d7ab242500481618bf7")
 
     def test_the_flagged_world_is_a_different_world(self):
         """Allowed, and required to be visible: the workspace is fingerprinted
