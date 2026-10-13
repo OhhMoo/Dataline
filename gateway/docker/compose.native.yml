@@ -479,6 +479,16 @@ services:
     environment:
       MINIO_ROOT_USER: alkera-local-dev
       MINIO_ROOT_PASSWORD: alkera-local-dev
+      # No web console on episode_net. Measured on this build (RELEASE.2026-08-04,
+      # listeners read from /proc/net/tcp{,6}): `minio server /data` with no
+      # --console-address serves the console on a random port of EVERY address
+      # ([::]), so anything on episode_net could open it
+      # (evidence/CONTAINMENT_2026-10-07.md, `minio:<random port>`); with
+      # MINIO_BROWSER=off nothing listens but :9000. `--console-address
+      # 127.0.0.1:9001` instead only moves the console to loopback. The S3 API on
+      # :9000 is the one audited door; tasks/harness/minio_containment_check.py
+      # dials every port of MinIO's address and fails on any other.
+      MINIO_BROWSER: "off"
       MINIO_AUDIT_WEBHOOK_ENABLE_alkera: "on"
       MINIO_AUDIT_WEBHOOK_ENDPOINT_alkera: >-
         ${ALKERA_MINIO_AUDIT_ENDPOINT:-http://native-services.internal:8110/minio/audit}

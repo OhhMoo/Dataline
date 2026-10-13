@@ -33,6 +33,11 @@ and no file in the box.
   STORE boxes (unprofiled, de/laptop), where MinIO is an audited door:
     sweep_control          the same sweep DOES find MinIO's address on :9000, so
                            "nothing answers" above is a measurement
+    only_9000_open         every TCP port of MinIO's address (1-65535), dialed
+                           from the episode: only :9000, the audited S3 API,
+                           answers - no web console (it listened on a random port
+                           of every address until compose.native.yml set
+                           MINIO_BROWSER=off; CONTAINMENT_2026-10-07.md)
     genuine_rows           `aws s3api` put/get/delete from the episode lands
                            minio.PutObject/GetObject/DeleteObject rows: MinIO's
                            own webhook, with its token, still gets through
@@ -81,6 +86,9 @@ SWEEP_TIMEOUT_S = 0.5
 #: At most this many addresses per on-link network (a /20 or wider is cut, and
 #: the record says so).
 SWEEP_CAP = 4096
+#: Every TCP port, dialed on a store box's MinIO address: the API on :9000 is the
+#: one door, so anything else that answers - a console on a random port - is not.
+FULL_SWEEP = (1, 65535)
 
 
 @dataclass(frozen=True)
@@ -154,6 +162,24 @@ if SPEC.get("sweep"):
         answered = [h for h, ok in zip(hosts, pool.map(tcp, hosts)) if ok]
     out["sweep"] = {"networks": [str(n) for n in nets], "cut": cut, "addresses": len(hosts),
                     "port": SPEC["port"], "answered": answered}
+
+if SPEC.get("port_sweep"):
+    ps = SPEC["port_sweep"]
+    targets = [(h, p) for h in ps["hosts"] for p in range(ps["first"], ps["last"] + 1)]
+
+    def dial(target):
+        try:
+            socket.create_connection(target, timeout=ps["timeout"]).close()
+            return True
+        except OSError:
+            return False
+
+    with concurrent.futures.ThreadPoolExecutor(256) as pool:
+        hits = [t for t, ok in zip(targets, pool.map(dial, targets)) if ok]
+    out["port_sweep"] = {"hosts": ps["hosts"], "first": ps["first"], "last": ps["last"],
+                         "dialed": len(targets),
+                         "open": {h: sorted(p for hh, p in hits if hh == h)
+                                  for h in ps["hosts"]}}
 
 if SPEC.get("forge"):
     attempts = []
@@ -300,6 +326,18 @@ def settle(audit_dir: Path, quiet_s: float = 3.0, timeout: float = 30.0) -> int:
     return count
 
 
+def store_sweep_spec(addresses: list[str]) -> dict:
+    """The in-container spec that dials every port of `addresses`."""
+    return {"names": [], "port_sweep": {"hosts": list(addresses), "first": FULL_SWEEP[0],
+                                        "last": FULL_SWEEP[1], "timeout": SWEEP_TIMEOUT_S}}
+
+
+def other_open_ports(sweep: dict, allowed: int = SWEEP_PORT) -> dict[str, list[int]]:
+    """{address: its open ports other than `allowed`}, for the addresses that have any."""
+    return {host: others for host, ports in sweep["open"].items()
+            if (others := [p for p in ports if p != allowed])}
+
+
 def check(name: str, ok: bool, detail) -> dict:
     return {"check": name, "ok": bool(ok), "detail": detail}
 
@@ -349,6 +387,17 @@ def measure_store(box: Box, topo, nonce: str) -> list[dict]:
     out.append(check("sweep_control", isinstance(minio_addresses, list)
                      and set(minio_addresses) & set(sweep["answered"]),
                      {"minio.internal": minio_addresses, **sweep}))
+    # Every port of MinIO's address: the S3 API is the only thing that answers.
+    addresses = minio_addresses if isinstance(minio_addresses, list) else []
+    ports = (in_container(stack.container_id, store_sweep_spec(addresses))["port_sweep"]
+             if addresses else {"dialed": 0, "open": {}})
+    span = FULL_SWEEP[1] - FULL_SWEEP[0] + 1
+    out.append(check("only_9000_open",
+                     addresses and ports["dialed"] == span * len(addresses)
+                     and all(SWEEP_PORT in ports["open"][a] for a in addresses)
+                     and not other_open_ports(ports),
+                     {"minio.internal": minio_addresses, **ports,
+                      "other_open_ports": other_open_ports(ports)}))
     # MinIO's own webhook, with its token: real client calls land rows.
     key = f"mfix-genuine-{nonce}.txt"
     start = len(rows(audit))

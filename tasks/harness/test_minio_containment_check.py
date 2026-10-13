@@ -61,3 +61,31 @@ def test_probe_reports_resolution_refusal_and_a_planted_token(tmp_path):
     assert got["token_in_env"] == []
     assert str(tmp_path / "a" / "b" / "leak.txt") in got["token_scan"]["hits"]
     assert str(tmp_path / "clean.txt") not in got["token_scan"]["hits"]
+
+
+def test_probe_reports_any_open_port_besides_9000():
+    """On a store box MinIO's address is dialed on EVERY TCP port, not only :9000:
+    the console MinIO serves unless told not to (`minio:<random port>`,
+    CONTAINMENT_2026-10-07.md) is a listener nobody audits, and `only_9000_open`
+    has to see it wherever it lands. Here two listeners stand in for the API and
+    a console on a random port; the sweep finds both and names the second."""
+    import socket
+
+    assert check.FULL_SWEEP == (1, 65535)
+    spec = check.store_sweep_spec(["127.0.0.1"])
+    assert (spec["port_sweep"]["first"], spec["port_sweep"]["last"]) == check.FULL_SWEEP
+    servers = [socket.create_server(("127.0.0.1", 0)) for _ in range(2)]
+    try:
+        api, console = (s.getsockname()[1] for s in servers)
+        got = _probe(spec)
+    finally:
+        for server in servers:
+            server.close()
+    sweep = got["port_sweep"]
+    assert sweep["dialed"] == 65535
+    assert {api, console} <= set(sweep["open"]["127.0.0.1"])
+    others = check.other_open_ports(sweep, allowed=api)
+    assert console in others["127.0.0.1"] and api not in others["127.0.0.1"]
+    assert check.other_open_ports({"open": {"10.0.0.2": [9000]}}) == {}
+    assert check.other_open_ports({"open": {"10.0.0.2": [9000, 41045]}}) == \
+        {"10.0.0.2": [41045]}
