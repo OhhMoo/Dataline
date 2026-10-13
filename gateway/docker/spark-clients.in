@@ -3,7 +3,7 @@
 # ALKERA_WAREHOUSE_CLIENTS): Apache Spark's own Spark Connect thin client, which
 # `SparkSession.builder.getOrCreate()` points at $SPARK_REMOTE - the audited
 # gRPC proxy native-services hosts in front of the Spark engine
-# (gateway/docker/spark/README.md). Pure Python over grpcio: no JVM in the
+# (docs/environments/DATABRICKS_SPIKE.md, "Tier 2"). Pure Python over grpcio: no JVM in the
 # agent's image. Apache-2.0 (its PKG-INFO). Not databricks-connect, which is
 # under the Databricks License and only connects to the Databricks Services.
 #

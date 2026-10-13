@@ -54,18 +54,18 @@ PROBE = r'''
 import hashlib, json, sys, time
 from pyspark.sql import SparkSession, functions as F
 t0 = time.monotonic()
-spark = SparkSession.builder.remote("sc://localhost:%d").getOrCreate()
-count = spark.sql("select count(*) from %s").collect()[0][0]
+spark = SparkSession.builder.remote("sc://localhost:@PORT@").getOrCreate()
+count = spark.sql("select count(*) from @TABLE@").collect()[0][0]
 first_ms = round((time.monotonic() - t0) * 1000)
-rows = spark.sql("select * from %s order by order_id").collect()
+rows = spark.sql("select * from @TABLE@ order by order_id").collect()
 digest = hashlib.sha256(json.dumps([[str(v) for v in r] for r in rows]).encode()).hexdigest()
-agg = (spark.table("%s").filter(F.col("order_amount") > 50).groupBy("order_status")
+agg = (spark.table("@TABLE@").filter(F.col("order_amount") > 50).groupBy("order_status")
        .agg(F.count("*").alias("n"), F.sum("order_amount").alias("amount"))
        .orderBy("order_status").collect())
 print("SPIKE " + json.dumps({"count": count, "rows": len(rows), "hash": digest,
                              "agg": [[str(v) for v in r] for r in agg],
                              "first_query_ms": first_ms, "spark": spark.version}))
-''' % (PORT, TABLE, TABLE, TABLE)
+'''.replace("@PORT@", str(PORT)).replace("@TABLE@", TABLE)
 
 
 #: How an agent may start the client, each measured once: pyspark-client 4.2.0's
@@ -77,14 +77,16 @@ INVOCATIONS = r'''
 Q='from pyspark.sql import SparkSession
 s = SparkSession.builder.getOrCreate()
 print("RESULT", s.sql("select count(*) from main.warehouse.fct_orders").collect()[0][0])'
-export SPARK_REMOTE=sc://localhost:%d
-SH=$(python -I -c "import importlib.util,os;print(os.path.dirname(importlib.util.find_spec('pyspark').origin))")
-row() { printf '%%s rc=%%s %%s\n' "$1" "$2" "$(grep -oE 'RESULT [0-9]+|Could not find valid SPARK_HOME' "$3" | head -1)"; }
+export SPARK_REMOTE=sc://localhost:@PORT@
+SH=$(python -I -c "import importlib.util as u, os
+print(os.path.dirname(u.find_spec('pyspark').origin))")
+seen() { grep -oE 'RESULT [0-9]+|Could not find valid SPARK_HOME' "$1" | head -1; }
+row() { printf '%s rc=%s %s\n' "$1" "$2" "$(seen "$3")"; }
 python -c "$Q" > /tmp/o 2>&1; row "python -c" $? /tmp/o
-printf '%%s\n' "$Q" | python - > /tmp/o 2>&1; row "python - (heredoc)" $? /tmp/o
-printf '%%s\n' "$Q" > /tmp/q.py; python /tmp/q.py > /tmp/o 2>&1; row "python file.py" $? /tmp/o
+printf '%s\n' "$Q" | python - > /tmp/o 2>&1; row "python - (heredoc)" $? /tmp/o
+printf '%s\n' "$Q" > /tmp/q.py; python /tmp/q.py > /tmp/o 2>&1; row "python file.py" $? /tmp/o
 SPARK_HOME=$SH python -c "$Q" > /tmp/o 2>&1; row "SPARK_HOME=<pyspark dir> python -c" $? /tmp/o
-''' % PORT
+'''.replace("@PORT@", str(PORT))
 
 
 def invocations(name: str) -> list[str]:

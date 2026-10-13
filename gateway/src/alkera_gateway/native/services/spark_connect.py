@@ -789,12 +789,12 @@ class _Handler:
                     await passthrough_error(context, exc)
             return grpc.unary_stream_rpc_method_handler(unary_stream)
 
-        if cardinality == "stream_unary":                # AddArtifacts: refused unread
+        if cardinality == "stream_unary":                # AddArtifacts: refused
             async def stream_unary(requests, context):
                 started = time.monotonic()
-                first = b""
-                async for first in requests:          # the first message names the
-                    break                             # session and the artifacts
+                # the first message names the session and the artifacts; the rest
+                # of the stream is never read
+                first = await anext(aiter(requests), b"")
                 refused = await proxy.audit(name, first, started)
                 await context.abort(grpc.StatusCode.FAILED_PRECONDITION, refused)
             return grpc.stream_unary_rpc_method_handler(stream_unary)

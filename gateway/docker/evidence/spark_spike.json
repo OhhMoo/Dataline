@@ -1,5 +1,19 @@
 {
-  "agent_image_size_delta": "measured in step 3 (alkera-episode:t14-ds-databricks-spark vs the same image without the spark client set)",
+  "agent_image_size_delta": {
+    "delta_bytes": 86211460,
+    "delta_mb": 86.2,
+    "note": "the first ds images built: --toolbelt ds --warehouse-clients databricks[,spark]; the toolbelt check passed on both",
+    "with_spark": {
+      "size_bytes": 3192710616,
+      "source_revision": "64cfff6d5fca70f6928e5a4fdabdeaabb0283868",
+      "tag": "alkera-episode:t14-ds-databricks-spark"
+    },
+    "without_spark": {
+      "size_bytes": 3106499156,
+      "source_revision": "64cfff6d5fca70f6928e5a4fdabdeaabb0283868",
+      "tag": "alkera-episode:t14-ds-databricks"
+    }
+  },
   "checks": [
     {
       "check": "the engine seeds and listens with --network none, every run",

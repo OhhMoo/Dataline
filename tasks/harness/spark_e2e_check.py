@@ -256,8 +256,9 @@ def main(argv=None) -> int:
     import bi_e2e_check as bi
     import blindness
     import tool_tour as tour
-    from alkera_gateway.native.audit import ROW_KEYS
     from bigquery_e2e_check import semantic_hash, warehouse_section
+
+    from alkera_gateway.native.audit import ROW_KEYS
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--image", default=DEFAULT_IMAGE)
