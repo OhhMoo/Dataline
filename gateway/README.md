@@ -129,7 +129,7 @@ image at `/opt/stack` and removed from the episode container before the agent st
 | `box_sweep.py` | the box sweep: door by door, what a rollout-built box's episode network reaches and whether anything audits it (P6 `--attach`, P7, the full sweep, names resolved, Postgres logins checked against the role-scoped statement log) → `evidence/containment-native-box[-<slug>].json`; it dials every port, so never on a rollout that will be scored | operator, under `scripts/docker_slot.sh` |
 | `ledger_probe.py` | P5 alone → `evidence/containment-ledger.json` | operator |
 | `acceptance.py` + `acceptance_inside.py` | transport parity and live surfaces, then containment | operator |
-| `snowflake_start.py`, `snowflake_fidelity.py` | the optional fakesnow backend (`Dockerfile.snowflake`) | `compose.yml` profile `snowflake`; no task or rollout starts it |
+| `snowflake_start.py`, `snowflake_fidelity.py` | the optional fakesnow backend (`Dockerfile.snowflake`) | `compose.yml` profile `snowflake`; started by the per-rollout overlay of a profile plugging `warehouse: snowflake` (`da/snowflake`: the tool tour, `snowflake_e2e_check.py`); no graded task uses it yet |
 | `snowflake_acceptance.py` | TLS/DNS/wire checks on that backend → `evidence/snowflake_socket.json` | operator |
 | `subject/`, `Dockerfile.subject`, `compose.subject.yml` | the subject sandbox image and overlay | `tasks/harness/container_episode.py` |
 

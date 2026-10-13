@@ -32,9 +32,10 @@ a Harbor task an agent must solve itself:
 
 SKIPPED, BY NAME. A probe the current tree cannot serve in Harbor is not
 exported: either its variant is refused (variant.variant_of /
-backend_specs: a warehouse the Harbor image refuses to serve - BigQuery, whose
-emulator one container cannot fence from the agent - or a backend it has no
-process for), or it is a
+backend_specs: a backend the Harbor image refuses to serve - BigQuery, whose
+emulator one container cannot fence from the agent, and Spark Connect
+(variant.REFUSED_PLUGS), whose JVM engine has no place in the one container -
+or a backend it has no process for), or it is a
 KNOWN finding of the container tour (its module's KNOWN: the probe's own
 command fails, for a cause owned elsewhere, so the oracle could not pass).
 manifest.json `skipped` names each probe with its reason.

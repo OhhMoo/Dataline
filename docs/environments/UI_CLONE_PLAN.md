@@ -33,7 +33,7 @@ read. There is one source of truth, and the UI is one more client of it.
 3. **Driving it: Playwright + headless Chromium in the episode image, `curl`/HTML as
    the fallback.**
    - Playwright (Apache-2.0) ships Chromium (BSD) for linux-arm64. Headless Chromium
-     plus its deps add about 300 MB.
+     plus its deps add about 300 MB (the estimate; measured 2026-10-13 on the da image: ~900 MB with fonts and Chromium's shared libraries, libLLVM via libgbm1 included).
    - A computer-use desktop (Xvfb + WM + VNC + full Chromium) costs about 0.8–1 GB and
      needs screenshot-grounded actions. Defer it until a task needs pixels (chart
      reading only, no table). The HTML already exposes every number as text, so a
@@ -168,6 +168,6 @@ da/laptop worlds: wiring a UI password into them moves BI001's workspace digest
 | 1 | Tableau slice (above) | done |
 | 2 | Wire `mount` into `services/tableau.py`; publicize helpers; add a `/projects` page; workbook-local calcs and embedded `.twb` data sources; `.tdsx` repack; URL filters (`?region=EMEA`, as Tableau view URLs take them); a UI password of its own | done |
 | 3 | Sigma: `/workbook/<slug>-<id>` pages, elements as tables/charts, a column-formula editor through `_publish_workbook` (insert routes before the catch-all), data-model page | done |
-| 4 | Agent harness: Playwright MCP / browser tool in the episode image (arm64 build check, +~300 MB); a task variant that is UI-only (no REST token in the brief); trajectory checks that a UI save produced the row | partial: Playwright and chromium-headless-shell are in the da/ds images (plan decision D5; +900 MB on the da image, `gateway/docker/TOOLBELT.md` "Cost, measured"; arm64 inputs resolve, not built), and the browser tour probes pass (`tasks/harness/evidence/tool_tour_browser.json`, 4/4). Open: a browser MCP and a UI-only graded arm |
+| 4 | Agent harness: Playwright MCP / browser tool in the episode image (arm64 build check; +~900 MB measured); a task variant that is UI-only (no REST token in the brief); trajectory checks that a UI save produced the row | partial: Playwright and chromium-headless-shell are in the da/ds images (plan decision D5; +900 MB on the da image, `gateway/docker/TOOLBELT.md` "Cost, measured"; arm64 inputs resolve, not built), and the browser tour probes pass (`tasks/harness/evidence/tool_tour_browser.json`, 4/4). Open: a browser MCP and a UI-only graded arm |
 | 5 | Authoring depth: create calc, rename, revert/version history, new sheet from shelves (rows/cols/marks as forms, still server-rendered) | L |
 | 6 | Computer-use desktop (Xvfb/VNC), only if a task needs pixel-level chart reading | L |

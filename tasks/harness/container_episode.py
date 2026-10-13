@@ -1071,8 +1071,9 @@ HOSTED_ENGINE_BUILDS = {
 #: hosts these stacks run on (/etc/docker/daemon.json, `default-address-pools`
 #: 10.210.0.0/16 in /24s). With a HOSTED_ENGINES backend plugged, native-services
 #: joins backend_net and its agent listeners answer there too; MinIO, a
-#: backend_net peer the box's root credential drives, was measured dialling
-#: them for the agent (gateway/docker/evidence/PEERS_2026-10-13.md). The filter
+#: backend_net peer, was measured dialling them for the agent while the box's
+#: credential was MinIO's root (gateway/docker/evidence/PEERS_2026-10-13.md;
+#: the box is a scoped user since, gateway/docker/minio_start.sh). The filter
 #: that refuses such peers (serve.EPISODE_SUBNETS_ENV) needs episode_net's subnet
 #: before the network exists, so `profile_overlay` pins one (`episode_subnet`).
 EPISODE_SUBNET_POOL = ipaddress.IPv4Network("10.210.0.0/16")
