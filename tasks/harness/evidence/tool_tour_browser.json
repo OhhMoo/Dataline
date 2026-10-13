@@ -1,0 +1,366 @@
+{
+ "findings": [],
+ "probes": [
+  {
+   "command": "cd /workspace\nset -euo pipefail\nmkdir -p /tmp/tour_browser\ncat > /tmp/tour_browser/tableau_kpis.py <<'PY'\nimport json, os\nfrom playwright.sync_api import sync_playwright\n\nserver = os.environ[\"TABLEAU_SERVER_URL\"].rstrip(\"/\")\nwith sync_playwright() as p:\n    browser = p.chromium.launch()\n    page = browser.new_page()\n    # the view's own URL: signed out, the server sends the browser to Sign In and back\n    page.goto(server + \"/views/ExecutiveOverview/KPIs\")\n    page.fill(\"#signin input[name=username]\", \"analyst\")\n    page.fill(\"#signin input[name=password]\", \"alkera-local-dev-ui\")\n    page.click(\"#signin button[type=submit]\")\n    table = page.locator(\"table.summary\").first\n    table.wait_for()\n    head = table.locator(\"thead th\").all_inner_texts()\n    cells = table.locator(\"tbody tr\").first.locator(\"td\").all_inner_texts()\n    browser.close()\nnet = dict(zip(head, cells))[\"Net Revenue\"]\nprint(json.dumps({\"value\": net.replace(\"$\", \"\").replace(\",\", \"\")}))\nPY\npython3 /tmp/tour_browser/tableau_kpis.py\n",
+   "destinations": {
+    "tableau.internal:8096": 1
+   },
+   "doc": null,
+   "drift": false,
+   "expect_args": [],
+   "expect_tools": [
+    "tableau.ui_signin",
+    "tableau.ui_view",
+    "shim.python"
+   ],
+   "failures": [],
+   "id": "browser.playwright.tableau_view_net_revenue",
+   "known": null,
+   "missing_args": [],
+   "missing_tools": [],
+   "profile": "da/laptop",
+   "returncode": 0,
+   "rows": 5,
+   "rows_at": "call",
+   "seconds": 3.8,
+   "stderr_tail": "",
+   "stdout_tail": "{\"value\": \"33733790.00\"}\n",
+   "tool": "browser",
+   "tools": [
+    "tableau.ui_view",
+    "tableau.ui_signin_page",
+    "tableau.ui_signin",
+    "tableau.ui_view",
+    "shim.python"
+   ],
+   "truth": "33733790.00",
+   "truth_after": "33733790.00",
+   "value": "33733790.00",
+   "value_ok": true,
+   "verdict": "PASS"
+  },
+  {
+   "command": "cd /workspace\nset -euo pipefail\nmkdir -p /tmp/tour_browser\ncat > /tmp/tour_browser/sigma_kpis.py <<'PY'\nimport json, os\nfrom playwright.sync_api import sync_playwright\n\napp = os.environ[\"SIGMA_BASE_URL\"].rstrip(\"/\")\nwith sync_playwright() as p:\n    browser = p.chromium.launch()\n    page = browser.new_page()\n    # Home: signed out, Sigma sends the browser to its sign-in form and back\n    page.goto(app + \"/alkera\")\n    page.fill(\"#login input[name=email]\", \"analyst@example.com\")\n    page.fill(\"#login input[name=password]\", \"alkera-local-ui\")\n    page.click(\"#login button[type=submit]\")\n    page.locator(\"table.documents[data-kind=workbook]\").get_by_role(\n        \"link\", name=\"Executive Overview\", exact=True).click()\n    kpis = page.locator(\"section[data-element]\").filter(\n        has=page.get_by_role(\"heading\", name=\"KPIs\", exact=True))\n    table = kpis.locator(\"table.summary\")\n    table.wait_for()\n    head = table.locator(\"thead th\").all_inner_texts()\n    cells = table.locator(\"tbody tr\").first.locator(\"td\").all_inner_texts()\n    browser.close()\nprint(json.dumps({\"value\": dict(zip(head, cells))[\"Net Revenue\"]}))\nPY\npython3 /tmp/tour_browser/sigma_kpis.py\n",
+   "destinations": {
+    "sigma.internal:8097": 1
+   },
+   "doc": null,
+   "drift": false,
+   "expect_args": [],
+   "expect_tools": [
+    "sigma.ui_login",
+    "sigma.ui_workbook",
+    "shim.python"
+   ],
+   "failures": [],
+   "id": "browser.playwright.sigma_element_net_revenue",
+   "known": null,
+   "missing_args": [],
+   "missing_tools": [],
+   "profile": "da/laptop",
+   "returncode": 0,
+   "rows": 6,
+   "rows_at": "call",
+   "seconds": 2.61,
+   "stderr_tail": "",
+   "stdout_tail": "{\"value\": \"33733790.00\"}\n",
+   "tool": "browser",
+   "tools": [
+    "sigma.ui_home",
+    "sigma.ui_login_page",
+    "sigma.ui_login",
+    "sigma.ui_home",
+    "sigma.ui_workbook",
+    "shim.python"
+   ],
+   "truth": "33733790.00",
+   "truth_after": "33733790.00",
+   "value": "33733790.00",
+   "value_ok": true,
+   "verdict": "PASS"
+  },
+  {
+   "command": "cd /workspace\nset -euo pipefail\npython3 - <<'PY'\nimport csv, io, json, os\nimport requests\n\nenv = os.environ\nbase = env[\"SIGMA_BASE_URL\"].rstrip(\"/\") + \"/v2\"\ntoken = requests.post(f\"{base}/auth/token\", data={\"grant_type\": \"client_credentials\"},\n                      auth=(env[\"SIGMA_CLIENT_ID\"], env[\"SIGMA_CLIENT_SECRET\"]), timeout=60)\ntoken.raise_for_status()\ns = requests.Session()\ns.headers[\"Authorization\"] = \"Bearer \" + token.json()[\"access_token\"]\nworkbook = next(w for w in s.get(f\"{base}/workbooks\", timeout=60).json()[\"entries\"]\n                if w[\"name\"] == \"Executive Overview\")\ndoc = s.get(f\"{base}/workbooks/{workbook['workbookId']}\", params={\"includeContents\": \"true\"},\n            timeout=60).json()\nelement = next(e for e in doc[\"contents\"][\"elements\"] if e[\"name\"] == \"Revenue by Month\")\njob = s.post(f\"{base}/workbooks/{workbook['workbookId']}/export\",\n             json={\"elementId\": element[\"id\"], \"format\": {\"type\": \"csv\"}}, timeout=120)\njob.raise_for_status()\ngot = s.get(f\"{base}/query/{job.json()['queryId']}/download\", timeout=60)\ngot.raise_for_status()\nfeb = next(r for r in csv.DictReader(io.StringIO(got.text))\n           if r[\"year\"] == \"2026\" and r[\"month\"] == \"2\")\nprint(json.dumps({\"value\": feb[\"Net Revenue\"]}))\nPY\n",
+   "destinations": {
+    "sigma.internal:8097": 2
+   },
+   "doc": null,
+   "drift": false,
+   "expect_args": [],
+   "expect_tools": [
+    "sigma.auth_token",
+    "sigma.workbook_export",
+    "sigma.query_download"
+   ],
+   "failures": [],
+   "id": "sigma.rest.net_revenue_feb_2026",
+   "known": null,
+   "missing_args": [],
+   "missing_tools": [],
+   "profile": "da/laptop",
+   "returncode": 0,
+   "rows": 6,
+   "rows_at": "call",
+   "seconds": 1.64,
+   "stderr_tail": "",
+   "stdout_tail": "{\"value\": \"2361224.00\"}\n",
+   "tool": "sigma",
+   "tools": [
+    "sigma.auth_token",
+    "sigma.workbooks_list",
+    "sigma.workbook_get",
+    "sigma.workbook_export",
+    "sigma.query_download",
+    "shim.python"
+   ],
+   "truth": "2361224.00",
+   "truth_after": "2361224.00",
+   "value": "2361224.00",
+   "value_ok": true,
+   "verdict": "PASS"
+  },
+  {
+   "command": "cd /workspace\nset -euo pipefail\ntabcmd login -s \"$TABLEAU_SERVER_URL\" --token-name \"$TABLEAU_PAT_NAME\" --token-value \"$TABLEAU_PAT_SECRET\"\ntabcmd export /ExecutiveOverview/KPIs --csv -f /tmp/tour_kpis.csv\npython3 -c 'import csv, json; row = next(csv.DictReader(open(\"/tmp/tour_kpis.csv\"))); print(json.dumps({\"value\": row[\"Net Revenue\"].replace(\"$\", \"\").replace(\",\", \"\")}))'\n",
+   "destinations": {
+    "tableau.internal:8096": 2
+   },
+   "doc": null,
+   "drift": false,
+   "expect_args": [],
+   "expect_tools": [
+    "tableau.auth_signin",
+    "tableau.views_data",
+    "shim.tabcmd"
+   ],
+   "failures": [],
+   "id": "tableau.tabcmd.net_revenue",
+   "known": null,
+   "missing_args": [],
+   "missing_tools": [],
+   "profile": "da/laptop",
+   "returncode": 0,
+   "rows": 11,
+   "rows_at": "call",
+   "seconds": 5.84,
+   "stderr_tail": "Tabcmd 2.0.21                 \n=====   Server: http://tableau.internal:8096\n=====   Token Name: alkera-local-dev\nTableau Server Site: Default Site\nConnecting to the server...   \nFetched user details from server\nSucceeded                     \nTabcmd 2.0.21                 \n=====   Server: http://tableau.internal:8096\n=====   Username: alkera      \n=====   Token Name: alkera-local-dev\nTableau Server Site: Default Site\nConnecting to the server...   \nSucceeded                     \nRequesting '/ExecutiveOverview/KPIs' from the server...\nFound attachment: /tmp/tour_kpis.csv\nSaved  to '/tmp/tour_kpis.csv'\n",
+   "stdout_tail": "logging: INFO\nlogging: INFO\n{\"value\": \"33733790.00\"}\n",
+   "tool": "tableau",
+   "tools": [
+    "tableau.server_info",
+    "tableau.auth_signin",
+    "tableau.users_get",
+    "shim.tabcmd",
+    "tableau.server_info",
+    "tableau.auth_signin",
+    "tableau.users_get",
+    "tableau.views_list",
+    "tableau.views_data",
+    "shim.tabcmd",
+    "shim.python"
+   ],
+   "truth": "33733790.00",
+   "truth_after": "33733790.00",
+   "value": "33733790.00",
+   "value_ok": true,
+   "verdict": "PASS"
+  }
+ ],
+ "profiles": [
+  {
+   "allowed_destinations": [
+    "confluence.internal:8090",
+    "jira.internal:8080",
+    "postgres.internal:5432",
+    "powerbi.internal:8095",
+    "sigma.internal:8097",
+    "slack.internal:8081",
+    "tableau.internal:8096"
+   ],
+   "episode": {
+    "destinations": [
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "jira.internal",
+      "last_ts": null,
+      "port": 8080
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "slack.internal",
+      "last_ts": null,
+      "port": 8081
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "confluence.internal",
+      "last_ts": null,
+      "port": 8090
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "powerbi.internal",
+      "last_ts": null,
+      "port": 8095
+     },
+     {
+      "count": 3,
+      "first_ts": "2026-10-13T11:42:36Z",
+      "host": "tableau.internal",
+      "last_ts": "2026-10-13T11:42:45Z",
+      "port": 8096
+     },
+     {
+      "count": 3,
+      "first_ts": "2026-10-13T11:42:38Z",
+      "host": "sigma.internal",
+      "last_ts": "2026-10-13T11:42:41Z",
+      "port": 8097
+     },
+     {
+      "count": 0,
+      "first_ts": null,
+      "host": "native-services.internal",
+      "last_ts": null,
+      "port": 8099
+     }
+    ],
+    "network_violations": [],
+    "no_stray_rows": true,
+    "ok": true,
+    "rows_in_probes": 28,
+    "rows_total": 28,
+    "trace_valid": true
+   },
+   "image": "alkera-episode:t17-da",
+   "image_gate": {
+    "head": "27ad14371c714b4f7dba4233d07b7da37058bc45",
+    "image": "alkera-episode:t17-da",
+    "revision": "27ad14371c714b4f7dba4233d07b7da37058bc45"
+   },
+   "ok": true,
+   "plugs": {
+    "bi": [
+     "powerbi",
+     "sigma",
+     "tableau"
+    ]
+   },
+   "probes": [
+    "browser.playwright.tableau_view_net_revenue",
+    "browser.playwright.sigma_element_net_revenue",
+    "sigma.rest.net_revenue_feb_2026",
+    "tableau.tabcmd.net_revenue"
+   ],
+   "profile": "da/laptop",
+   "rows_at": "call",
+   "seconds": 100.8,
+   "seed": "# commerce_analytics world seed: a shop's nightly CDC extracts -> raw -> dbt\n# star schema + semantic layer -> Power BI / Tableau / Sigma dashboards.\ntheme: commerce_analytics    # world/world/themes/<name>/\nseed: 11\nvtime_start: \"2025-01-01T00:00:00Z\"\n# 425 nightly extracts: dt=2024-12-31 (the cutover snapshot: accounts and\n# catalogue, no orders) then dt=2025-01-01 .. dt=2026-02-28. Fourteen months of\n# orders, so last-year measures exist for January and February 2026. The world\n# clock opens at 2026-03-02T00:00Z, a Monday - business day 1 of the February\n# close.\ndays: 425\n\n# Scale. Every key is optional (gen.DEFAULTS); these are the defaults, spelled\n# out. Build time is dominated by dbt, not by volume - a 2x seed builds in about\n# the same time.\ncustomers: 220               # accounts on the platform at cutover\nsignup_pct: 18               # chance per day of a new account (a second at a quarter of it)\nupdate_pct: 9                # chance per day that one account is upgraded a segment\norders_per_day: [20, 60]     # base range, scaled by weekday, month, peak days and growth\nlines_per_order: [1, 4]\ncancel_pct: 6                # 70% the same day, the rest the next day\nrefund_pct: 4                # 3 to 45 days after the order\ngrowth_pct: 20               # year-over-year order volume growth\n\ngit_author: \"Analytics Engineering <analytics@example.com>\"\nnative: true\nfiles: {formats: [parquet]}\nprofile:\n  name: da/laptop\n  slots: [files, notebook, warehouse, transform, bi, human]\n  plugs: {bi: [powerbi, sigma, tableau]}\n",
+   "stack": {
+    "container_id": "7cf335c3ecc1",
+    "episode_endpoints": {
+     "confluence": "http://confluence.internal:8090",
+     "jira": "http://jira.internal:8080",
+     "postgres": {
+      "database": "alkera",
+      "host": "postgres.internal",
+      "password": "alkera-local-dev",
+      "port": 5432,
+      "user": "alkera"
+     },
+     "powerbi": "http://powerbi.internal:8095",
+     "sigma": "http://sigma.internal:8097",
+     "slack": "http://slack.internal:8081",
+     "tableau": "http://tableau.internal:8096"
+    },
+    "image": "alkera-episode:t17-da",
+    "image_digest": "sha256:0cfa3aef6746710c47f1a528b879bf0e065372df766c581278eb13ff65d3ec2d",
+    "services": [
+     "episode",
+     "jupyter",
+     "native-services",
+     "postgres"
+    ],
+    "subject_env": {
+     "ALKERA_BACKEND": "postgres",
+     "ALKERA_NATIVE_AUDIT": "/audit/actions.jsonl",
+     "ALKERA_POSTGRES_DSN": "postgresql://episode:episode-local@postgres/episode",
+     "ALKERA_SHIM_BIN": "/opt/alkera/shims",
+     "ALKERA_SHIM_WATCH": "/world/var/warehouse/warehouse.duckdb",
+     "ALKERA_SHIM_WORKSPACE": "/workspace",
+     "ALKERA_SOURCE_REV": "27ad14371c714b4f7dba4233d07b7da37058bc45",
+     "ALKERA_TOOLBELT": "da",
+     "ALKERA_VIRTUAL_TIME": "2026-03-02T00:00:00Z",
+     "ALKERA_WAREHOUSES": "",
+     "ALKERA_WAREHOUSE_CLIENTS": "",
+     "ALKERA_WORKSPACE": "/workspace",
+     "AZURE_AUTHORITY_HOST": "http://powerbi.internal:8095",
+     "AZURE_CLIENT_ID": "alkera-local-dev",
+     "AZURE_CLIENT_SECRET": "alkera-local-dev",
+     "AZURE_TENANT_ID": "alkera-local-dev",
+     "CONFLUENCE_API_TOKEN": "alkera-local-dev",
+     "CONFLUENCE_URL": "http://confluence.internal:8090",
+     "CONFLUENCE_USER": "alkera-local-dev",
+     "DBT_PROFILES_DIR": "/root/.dbt",
+     "FABRIC_API_URL": "http://powerbi.internal:8095",
+     "HOME": "/root",
+     "JIRA_API_TOKEN": "alkera-local-dev",
+     "JIRA_URL": "http://jira.internal:8080",
+     "JIRA_USER": "alkera-local-dev",
+     "JUPYTER_URL": "http://jupyter.internal:8888",
+     "PATH": "/opt/alkera/shims:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/toolbelt/bin",
+     "POWERBI_API_URL": "http://powerbi.internal:8095",
+     "SIGMA_BASE_URL": "http://sigma.internal:8097",
+     "SIGMA_CLIENT_ID": "alkera-local-dev",
+     "SIGMA_CLIENT_SECRET": "alkera-local-dev",
+     "SLACK_BASE_URL": "http://slack.internal:8081",
+     "SLACK_BOT_TOKEN": "alkera-local-dev",
+     "TABLEAU_PAT_NAME": "alkera-local-dev",
+     "TABLEAU_PAT_SECRET": "alkera-local-dev",
+     "TABLEAU_SERVER_URL": "http://tableau.internal:8096",
+     "TABLEAU_SITE": ""
+    },
+    "workspace_cli": {
+     "cli": null,
+     "files": [],
+     "interpreter": null,
+     "pythonpath": null,
+     "skipped": "profile 'da/laptop' plugs no orchestrator",
+     "topology": "container"
+    }
+   },
+   "truths_read": "after the world build, before the stack came up",
+   "work": "/home/ubuntu/.cache/t17/tour-work/da-laptop-bi-powerbi-sigma-tableau",
+   "world": {
+    "dashboards": "/home/ubuntu/.cache/t17/tour-work/da-laptop-bi-powerbi-sigma-tableau/world/var/bi/dashboards",
+    "grading": "/home/ubuntu/.cache/t17/tour-work/da-laptop-bi-powerbi-sigma-tableau/grading",
+    "profiles_dir": "/home/ubuntu/.cache/t17/tour-work/da-laptop-bi-powerbi-sigma-tableau/world/build",
+    "scheduler": "/home/ubuntu/.cache/t17/tour-work/da-laptop-bi-powerbi-sigma-tableau/world/var/sched/state.json",
+    "warehouse": "/home/ubuntu/.cache/t17/tour-work/da-laptop-bi-powerbi-sigma-tableau/world/var/warehouse/warehouse.duckdb",
+    "workflow_dir": "/home/ubuntu/.cache/t17/tour-work/da-laptop-bi-powerbi-sigma-tableau/world/var/workflow",
+    "workspace": "/home/ubuntu/.cache/t17/tour-work/da-laptop-bi-powerbi-sigma-tableau/world/workspace",
+    "world_root": "/home/ubuntu/.cache/t17/tour-work/da-laptop-bi-powerbi-sigma-tableau/world"
+   }
+  }
+ ],
+ "revision": "27ad14371c714b4f7dba4233d07b7da37058bc45",
+ "seconds": 100.9,
+ "started": 1791891728.613774,
+ "summary": {
+  "DOC": 0,
+  "FAIL": 0,
+  "PASS": 4,
+  "profiles_ok": true
+ },
+ "table": "probe                                       profile       verdict   rows  value / truth\n---------------------------------------------------------------------------------------------------------------------\nbrowser.playwright.tableau_view_net_revenue da/laptop     PASS         5  '33733790.00' / Decimal('33733790.00')\nbrowser.playwright.sigma_element_net_revenu da/laptop     PASS         6  '33733790.00' / Decimal('33733790.00')\nsigma.rest.net_revenue_feb_2026             da/laptop     PASS         6  '2361224.00' / Decimal('2361224.00')\ntableau.tabcmd.net_revenue                  da/laptop     PASS        11  '33733790.00' / Decimal('33733790.00')",
+ "tools": [
+  "browser",
+  "sigma",
+  "tableau"
+ ],
+ "topology": "container"
+}

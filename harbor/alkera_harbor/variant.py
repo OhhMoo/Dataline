@@ -15,12 +15,13 @@ it stays a valid Dockerfile and the unprofiled bytes):
   clients  (what gateway/docker/Dockerfile installs for ALKERA_TOOLBELT=<role>),
            then the warehouse client locks the profile's warehouse plugs need
            (`gateway/requirements-<client>.lock`), then for `ds`/`da` the
-           audited Jupyter kernelspec, as the episode image installs them -
-           all into the image interpreter, right after the DuckDB extension
-           layer. Every instruction before that point is the template's, so a
-           variant reuses the unprofiled image's cached layers (apt, the
-           toolbelt, the gateway locks and wheel, the extension: everything a
-           build fetches from the network but the role's own lock). The
+           audited Jupyter kernelspec and Playwright's headless Chromium
+           (BROWSER_LAYER), as the episode image installs them - all into the
+           image interpreter, right after the DuckDB extension layer. Every
+           instruction before that point is the template's, so a variant
+           reuses the unprofiled image's cached layers (apt, the toolbelt, the
+           gateway locks and wheel, the extension: everything a build fetches
+           from the network but the role's own lock and its browser). The
            episode image installs the role lock before the gateway wheel;
            the order changes nothing installed, because every lock is an
            export of the one gateway/uv.lock and the wheel goes in --no-deps.
@@ -100,6 +101,9 @@ UNSERVED_ALLOWED = {("notebook", "jupyter"): "jupyter.internal:8888 is not start
 ROLE_LOCKS = ("ds", "da")
 #: Roles whose box carries the audited Jupyter kernelspec.
 KERNEL_ROLES = ("ds", "da")
+#: Roles whose box carries Playwright's headless Chromium (BROWSER_LAYER; the
+#: episode image's chromium step for ALKERA_TOOLBELT=ds|da).
+BROWSER_ROLES = ("ds", "da")
 #: Plan Task 10's extension points, keyed by Harbor backend name (a registry
 #: backend's name, or POSTGRES_PLUG):
 #:   HARBOR_BACKENDS  -> a function of the variant giving its episode.json
@@ -414,6 +418,8 @@ def render_dockerfile(template: str, variant: Variant, template_env: dict[str, s
                    "install_audited_kernelspecs; "
                    "install_audited_kernelspecs('/usr/local/share/jupyter', "
                    "interpreter='/usr/local/bin/python')\""]
+    if variant.role in BROWSER_ROLES:
+        insert += ["", f"# Role {variant.role}: " + BROWSER_LAYER[0], *BROWSER_LAYER[1:]]
     lines[at + 1:at + 1] = insert
 
     _header(lines, variant)
@@ -585,6 +591,70 @@ POSTGRES_SERVER_LAYER = (
     "    apt-get install -y --no-install-recommends postgresql-17=17.11-0+deb13u1; \\",
     "    rm -rf /var/lib/apt/lists/*; \\",
     "    /usr/lib/postgresql/17/bin/postgres --version",
+)
+
+
+#: Playwright's headless Chromium for a ds/da box (plan decision D5), exactly
+#: as gateway/docker/Dockerfile's chromium step installs it: the shared
+#: libraries chrome-headless-shell links, from the frozen snapshot the
+#: toolbelt's apt layer left in the image; the browser revision and ffmpeg the
+#: role lock's Playwright 1.63.0 pins, fetched while the build has the
+#: network and checked by sha256 per arch; linked into ~/.cache/ms-playwright
+#: for the agent and for root, where Playwright looks by default, so no ENV
+#: (and no task.toml env) changes; launched once on about:blank. The first
+#: line is the comment the role prefix goes on. harbor/tests/
+#: test_export_variant.py holds its pins and digests to the episode image's.
+BROWSER_LAYER = (
+    "Playwright's headless Chromium (gateway/docker/Dockerfile;",
+    "# gateway/docker/TOOLBELT.md, \"Roles\"): its libraries from the frozen snapshot,",
+    "# the browser the role lock's Playwright pins, checked by sha256, found where",
+    "# Playwright looks by default for the agent and for root.",
+    "RUN set -eu; \\",
+    "    apt-get update; \\",
+    "    apt-get install -y --no-install-recommends \\",
+    "      fontconfig-config=2.15.0-2.3 \\",
+    "      fonts-liberation=1:2.1.5-3 \\",
+    "      libasound2t64=1.2.14-1 \\",
+    "      libatk-bridge2.0-0t64=2.56.2-1+deb13u1 \\",
+    "      libatk1.0-0t64=2.56.2-1+deb13u1 \\",
+    "      libatspi2.0-0t64=2.56.2-1+deb13u1 \\",
+    "      libdbus-1-3=1.16.2-2 \\",
+    "      libgbm1=25.0.7-2+deb13u1 \\",
+    "      libglib2.0-0t64=2.84.4-3~deb13u3 \\",
+    "      libnspr4=2:4.36-1 \\",
+    "      libnss3=2:3.110-1+deb13u4 \\",
+    "      libx11-6=2:1.8.12-1 \\",
+    "      libxcb1=1.17.0-2+b1 \\",
+    "      libxcomposite1=1:0.4.6-1 \\",
+    "      libxdamage1=1:1.1.6-1+b2 \\",
+    "      libxext6=2:1.3.4-1+b3 \\",
+    "      libxfixes3=1:6.0.0-2+b4 \\",
+    "      libxkbcommon0=1.7.0-2 \\",
+    "      libxrandr2=2:1.5.4-1+b3 \\",
+    "    ; \\",
+    "    rm -rf /var/lib/apt/lists/*; \\",
+    ("    PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright python -m playwright install "
+     "--only-shell chromium; \\"),
+    "    case \"$(dpkg --print-architecture)\" in \\",
+    "      amd64) shell=chrome-headless-shell-linux64; \\",
+    "             shell_sum=ded93a9c9a53a1ae040f08124badcca95c938e9d5015ff340c3b5538c41bf39e; \\",
+    "             ffmpeg_sum=460d44f3416005662f528d4b92e7b94ace924e8a0288106d3803b73c56eaadc8 ;; \\",
+    "      arm64) shell=chrome-headless-shell-linux-arm64; \\",
+    "             shell_sum=f5d89353cc9ef8dc1541268bbee1f05ee40a31ce3d9799b3a274e5147f6a8cdb; \\",
+    "             ffmpeg_sum=b662355fff37fa4a0c2a353b26b3255f16a5e7fd358d97231e5a5eedd511158c ;; \\",
+    "      *) echo \"no pinned chromium-headless-shell for this architecture\" >&2; exit 1 ;; \\",
+    "    esac; \\",
+    "    printf '%s  %s\\n' \\",
+    ("      \"$shell_sum\" \"/opt/ms-playwright/chromium_headless_shell-1243/$shell/"
+     "chrome-headless-shell\" \\"),
+    "      \"$ffmpeg_sum\" /opt/ms-playwright/ffmpeg-1011/ffmpeg-linux | sha256sum -c -; \\",
+    "    mkdir -p /root/.cache /home/engineer/.cache; \\",
+    "    ln -s /opt/ms-playwright /root/.cache/ms-playwright; \\",
+    "    ln -s /opt/ms-playwright /home/engineer/.cache/ms-playwright; \\",
+    ("    python -c \"from playwright.sync_api import sync_playwright; "
+     "p = sync_playwright().start(); browser = p.chromium.launch(); "
+     "page = browser.new_page(); page.goto('about:blank'); "
+     "print('chromium', browser.version, page.url); browser.close(); p.stop()\""),
 )
 
 

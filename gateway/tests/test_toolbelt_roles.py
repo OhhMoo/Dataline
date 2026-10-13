@@ -50,12 +50,14 @@ ROLE_LOCKS = {"ds": "requirements-ds.lock", "da": "requirements-da.lock"}
 # jupyter-server is in da too: the da profile has the `notebook` slot, whose plug IS
 # a jupyter-server (docker/jupyter/launch.py). openpyxl is what `pandas.read_excel`
 # needs for .xlsx (measured missing from the da/ds system python on 2026-10-06).
+# playwright is how an analyst drives the BI vendors' web UIs (plan decision D5).
 ADDED = {
     "de": set(),
     "ds": {"pandas", "pyarrow", "polars", "scikit-learn", "matplotlib", "ipykernel",
-           "jupyter-client", "jupyter-server", "nbclient", "nbformat", "openpyxl"},
+           "jupyter-client", "jupyter-server", "nbclient", "nbformat", "openpyxl",
+           "playwright"},
     "da": {"pandas", "pyarrow", "matplotlib", "ipykernel", "jupyter-client",
-           "jupyter-server", "nbclient", "nbformat", "openpyxl"},
+           "jupyter-server", "nbclient", "nbformat", "openpyxl", "playwright"},
 }
 DS_ONLY = ADDED["ds"] - ADDED["da"]
 # In the /opt/toolbelt venv too, on purpose and for every role: csvkit brings it for
@@ -65,7 +67,7 @@ ALSO_IN_TOOLBELT_VENV = {"openpyxl"}
 # Packages that ship platform wheels and so need one per arch.
 COMPILED = {"numpy", "pandas", "pyarrow", "polars-runtime-32", "scikit-learn", "scipy",
             "matplotlib", "pyzmq", "tornado", "psutil", "kiwisolver", "pillow",
-            "contourpy"}
+            "contourpy", "playwright", "greenlet"}
 
 # Locked as an sdist on purpose, with the reason. Anything else sdist-only fails.
 SDIST_OK = {
@@ -582,3 +584,91 @@ def test_de_image_unchanged_by_openpyxl():
     assert "openpyxl" not in every_role_import
     assert "openpyxl" not in check.forbidden_imports("de")
     assert versions(DOCKER / "toolbelt.lock")["openpyxl"] == "3.1.5"
+
+
+# --- Playwright and headless Chromium (plan decision D5) --------------------------------
+
+#: The Playwright for Python the role locks pin, and the browser revision that version
+#: downloads for `playwright install --only-shell chromium` (its driver's
+#: browsers.json: chromium-headless-shell 1243 = Chrome for Testing 153.0.8010.12).
+PLAYWRIGHT = "1.63.0"
+CHROMIUM_SHELL_DIR = "/opt/ms-playwright/chromium_headless_shell-1243"
+
+
+def dockerfile_run(text: str, needle: str) -> str:
+    """The one RUN instruction of a Dockerfile that contains `needle`, its backslash
+    continuations joined."""
+    runs, current = [], None
+    for line in text.splitlines():
+        if current is None and not line.startswith("RUN "):
+            continue
+        current = (current or "") + line.rstrip("\\").strip() + " "
+        if not line.endswith("\\"):
+            runs.append(current)
+            current = None
+    hits = [r for r in runs if needle in r]
+    assert len(hits) == 1, (needle, len(hits))
+    return hits[0]
+
+
+def apt_pins(run: str) -> list[str]:
+    """The `name=version` arguments of a RUN's `apt-get install`."""
+    tail = run.split("apt-get install -y --no-install-recommends", 1)[1]
+    return tail.split(";", 1)[0].split()
+
+
+def test_da_role_carries_playwright_and_de_does_not():
+    """An analyst drives the Tableau and Sigma web UIs with a real Playwright script
+    (D5), so da and ds carry Playwright for Python - in both role locks at one
+    version, from the one uv.lock - and the headless Chromium shell that version
+    pins, installed by a da/ds-only Dockerfile step whose shared libraries come
+    from the frozen apt snapshot and whose browser binary is checked by sha256 per
+    arch. de carries neither: `playwright` is a forbidden import and binary there,
+    its image gets no browser and no probe."""
+    for role in ("da", "ds"):
+        pins = versions(GATEWAY / ROLE_LOCKS[role])
+        assert pins["playwright"] == PLAYWRIGHT, role
+        assert {"greenlet", "pyee"} <= set(pins), role
+    assert not {"playwright", "greenlet", "pyee"} & set(installed("de"))
+
+    check = _load("toolbelt_check")
+    for role in ("da", "ds"):
+        assert "playwright" in check.role_imports(role)
+        assert "playwright" in check.ROLE_BINARIES[role]
+        argvs = [tuple(argv) for _, argv, _ in check.role_probes(role)]
+        assert (check.ROLE_PYTHON, "-c", check.CHROMIUM_PROBE) in argvs
+        assert ("playwright", "--version") in argvs
+    # headless Chromium launched through Playwright's default lookup, as the
+    # agent's own script would, and loading about:blank
+    assert "sync_playwright" in check.CHROMIUM_PROBE
+    assert "chromium.launch()" in check.CHROMIUM_PROBE
+    assert "about:blank" in check.CHROMIUM_PROBE
+    assert "PLAYWRIGHT_BROWSERS_PATH" not in check.CHROMIUM_PROBE
+    assert "playwright" in check.forbidden_imports("de")
+    assert "playwright" in check.forbidden_binaries("de")
+    assert "playwright" not in check.forbidden_imports("da")
+    assert not check.role_probes("de")
+
+    text = (DOCKER / "Dockerfile").read_text(encoding="utf-8")
+    step = dockerfile_run(text, "playwright install --only-shell chromium")
+    assert 'case "$ALKERA_TOOLBELT" in' in step and "ds|da)" in step
+    assert "PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright python -m playwright install" in step
+    pins = apt_pins(step)
+    assert pins and all(re.fullmatch(r"[a-z0-9.+-]+=[0-9][A-Za-z0-9.+:~-]*", p)
+                        for p in pins), pins
+    assert {"libnss3", "libgbm1", "libasound2t64"} <= {p.split("=")[0] for p in pins}
+    # the browser and the ffmpeg Playwright installs with it, per arch, are the
+    # bytes this Playwright version pins
+    assert CHROMIUM_SHELL_DIR in step and "/opt/ms-playwright/ffmpeg-1011/" in step
+    assert len(set(re.findall(r"\b[0-9a-f]{64}\b", step))) == 4
+    assert "sha256sum -c" in step
+    # fontconfig's config and a font: without one the browser aborts on its first glyph
+    assert {"fontconfig-config", "fonts-liberation"} <= {p.split("=")[0] for p in pins}
+    # found where Playwright looks by default for the agent (root, HOME=/root):
+    # no environment variable, so the box's environment is unchanged
+    assert "/root/.cache/ms-playwright" in step
+    assert "ENV PLAYWRIGHT_BROWSERS_PATH" not in text
+    # after the role lock that installs Playwright, before the gateway itself
+    assert text.index("/opt/gateway/requirements-$ALKERA_TOOLBELT.lock") < \
+        text.index("playwright install --only-shell chromium") < \
+        text.index("--no-deps /opt/gateway")

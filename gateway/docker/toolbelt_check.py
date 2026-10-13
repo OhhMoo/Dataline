@@ -107,18 +107,23 @@ KERNEL_NAME = "alkera-python"
 KERNEL_AUDIT_FLAG = "--IPKernelApp.extra_extensions=alkera_gateway.native.notebook"
 _NOTEBOOK = ("pandas", "pyarrow", "matplotlib", "ipykernel", "jupyter_client",
              "jupyter_server", "nbclient", "nbformat", "alkera_gateway.native.notebook")
+# Playwright for Python: how an analyst drives the BI vendors' web UIs (plan D5).
+_BROWSER = ("playwright",)
 ROLE_IMPORTS: dict[str, tuple[str, ...]] = {
     "de": (),
-    "da": _NOTEBOOK,
-    "ds": (*_NOTEBOOK, "polars", "sklearn"),
+    "da": (*_NOTEBOOK, *_BROWSER),
+    "ds": (*_NOTEBOOK, *_BROWSER, "polars", "sklearn"),
 }
 # Console scripts each role's lock installs into /usr/local/bin. `jupyter` is
 # jupyter_core's dispatcher: `jupyter server` and `jupyter kernelspec` resolve to the
-# jupyter-server / jupyter-kernelspec scripts beside it.
+# jupyter-server / jupyter-kernelspec scripts beside it. `playwright` is Playwright's
+# own CLI (`playwright install`, `playwright codegen`).
 ROLE_BINARIES: dict[str, tuple[str, ...]] = {
     "de": (),
-    "da": ("jupyter", "jupyter-server", "jupyter-kernelspec", "jupyter-execute", "ipython"),
-    "ds": ("jupyter", "jupyter-server", "jupyter-kernelspec", "jupyter-execute", "ipython"),
+    "da": ("jupyter", "jupyter-server", "jupyter-kernelspec", "jupyter-execute", "ipython",
+           "playwright"),
+    "ds": ("jupyter", "jupyter-server", "jupyter-kernelspec", "jupyter-execute", "ipython",
+           "playwright"),
 }
 
 
@@ -153,11 +158,29 @@ EXCEL_ROUNDTRIP = (
     "got = pandas.read_excel(buf, engine='openpyxl')['value'].iloc[0]; "
     "assert float(got) == 2361224.0, f'read back {got!r}, wrote 2361224.0'; print(got)")
 _EXCEL_PROBE = (ROLE_PYTHON, (ROLE_PYTHON, "-c", EXCEL_ROUNDTRIP), (0,))
+# Headless Chromium, launched the way the agent's own script launches it: Playwright's
+# default lookup (no PLAYWRIGHT_BROWSERS_PATH; the image links ~/.cache/ms-playwright
+# to the browsers it installed), loading about:blank, printing the browser's version.
+# A missing shared library, a browser revision the installed Playwright does not
+# expect, or a browser that cannot start in the image fails it (non-zero exit).
+CHROMIUM_PROBE = (
+    "from playwright.sync_api import sync_playwright\n"
+    "with sync_playwright() as p:\n"
+    "    browser = p.chromium.launch()\n"
+    "    page = browser.new_page()\n"
+    "    page.goto('about:blank')\n"
+    "    assert page.url == 'about:blank', page.url\n"
+    "    print('chromium', browser.version)\n"
+    "    browser.close()\n")
+_BROWSER_PROBES = (
+    ("playwright", ("playwright", "--version"), (0,)),
+    (ROLE_PYTHON, (ROLE_PYTHON, "-c", CHROMIUM_PROBE), (0,)),
+)
 
 ROLE_PROBES: dict[str, tuple[tuple[str, tuple[str, ...], tuple[int, ...]], ...]] = {
     "de": (),
-    "da": (*_role_probes(ROLE_IMPORTS["da"]), _EXCEL_PROBE),
-    "ds": (*_role_probes(ROLE_IMPORTS["ds"]), _EXCEL_PROBE),
+    "da": (*_role_probes(ROLE_IMPORTS["da"]), _EXCEL_PROBE, *_BROWSER_PROBES),
+    "ds": (*_role_probes(ROLE_IMPORTS["ds"]), _EXCEL_PROBE, *_BROWSER_PROBES),
 }
 ROLES = tuple(ROLE_IMPORTS)
 

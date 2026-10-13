@@ -14,6 +14,7 @@
 """
 from __future__ import annotations
 
+import dataclasses
 import re
 import subprocess
 
@@ -203,6 +204,44 @@ def test_bi_variant_installs_its_role(bi_dockerfile):
     assert "install_audited_kernelspecs('/usr/local/share/jupyter'" in runs[extension + 2]
     assert bi_dockerfile.splitlines()[0] == tdf.CANARY
     assert "# VARIANT da/laptop+bi=powerbi,sigma,tableau" in bi_dockerfile
+
+
+def _apt_pins(run: str) -> list[str]:
+    return run.split("apt-get install -y --no-install-recommends", 1)[1] \
+        .split(";", 1)[0].split()
+
+
+def test_bi_variant_installs_chromium_shell(bi, bi_dockerfile):
+    """A da box carries Playwright's headless Chromium (plan decision D5), as the
+    measured episode image installs it for ALKERA_TOOLBELT=da: its shared libraries
+    from the frozen snapshot, the browser the role lock's Playwright pins, checked
+    by the same sha256 per arch, and linked where Playwright looks by default for
+    the agent (engineer) and root - so the box's ENV, and task.toml's mirror of it,
+    stay the profile's. After the kernelspec, so every layer before it is the
+    role's as before. A de variant gets none of it, and the template none."""
+    text = bi_dockerfile
+    runs = [rest for k, rest in tdf.instructions(text) if k == "RUN"]
+    kernel = runs.index(next(r for r in runs if "install_audited_kernelspecs" in r))
+    browser = runs[kernel + 1]
+    assert "PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright python -m playwright install " \
+           "--only-shell chromium" in browser
+    pins = _apt_pins(browser)
+    assert pins and all("=" in p for p in pins), pins
+    episode = next(rest for k, rest in tdf.instructions(tdf.EPISODE_DOCKERFILE.read_text(
+        encoding="utf-8")) if k == "RUN" and "playwright install --only-shell" in rest)
+    assert pins == _apt_pins(episode)                  # one set of pins, two images
+    digests = set(re.findall(r"\b[0-9a-f]{64}\b", browser))
+    assert len(digests) == 4 and digests == set(re.findall(r"\b[0-9a-f]{64}\b", episode))
+    assert "/opt/ms-playwright/chromium_headless_shell-1243/" in browser
+    assert "/opt/ms-playwright/chromium_headless_shell-1243/" in episode
+    for home in ("/home/engineer", "/root"):
+        assert f"{home}/.cache/ms-playwright" in browser
+    assert "chromium.launch()" in browser and "about:blank" in browser
+    assert "PLAYWRIGHT_BROWSERS_PATH" not in dockerenv.parse_env(text)
+    assert "playwright" not in template_text()
+    de = variant.render_dockerfile(template_text(), dataclasses.replace(bi, role="de"),
+                                   template_env())
+    assert "playwright" not in de and "ms-playwright" not in de
 
 
 def test_a_variant_reuses_every_network_layer_of_the_unprofiled_image(bi_dockerfile):

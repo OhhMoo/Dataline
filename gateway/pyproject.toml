@@ -50,6 +50,10 @@ ds = [
   # brings into /opt/toolbelt for `in2csv`, where the system interpreter cannot
   # see it (docker/TOOLBELT.md, "Roles").
   "openpyxl==3.1.5",
+  # Driving the BI vendors' web UIs from a script, in headless Chromium. Exact:
+  # the version fixes the browser revision docker/Dockerfile installs and checks
+  # by sha256 (chromium_headless_shell-1243; docker/TOOLBELT.md, "Roles").
+  "playwright==1.63.0",
 ]
 # Native mode (gateway/NATIVE.md): the fake vendor services and the
 # clients their compatibility tests are driven by. Not a base dependency -
