@@ -1,11 +1,11 @@
 {
-  "compose_file": "/home/ubuntu/env_project/.claude/worktrees/agent-a9d585c786e098bb7/gateway/docker/compose.yml",
+  "compose_file": "/home/ubuntu/tool_implementation.wt/t4-containment/gateway/docker/compose.yml",
   "compose_overlays": [
-    "/home/ubuntu/env_project/.claude/worktrees/agent-a9d585c786e098bb7/gateway/docker/compose.episode.yml",
-    "/home/ubuntu/env_project/.claude/worktrees/agent-a9d585c786e098bb7/gateway/docker/compose.native.yml",
+    "/home/ubuntu/tool_implementation.wt/t4-containment/gateway/docker/compose.episode.yml",
+    "/home/ubuntu/tool_implementation.wt/t4-containment/gateway/docker/compose.native.yml",
     "+ the rollout's own compose.native-mounts.yml"
   ],
-  "generated": "2026-10-07T17:45:49+00:00",
+  "generated": "2026-10-13T08:59:29+00:00",
   "host": {
     "docker": "29.8.2",
     "platform": "Linux-7.0.0-1006-aws-x86_64-with-glibc2.43"
@@ -15,10 +15,14 @@
   "p7_native_episode_filesystem": {
     "checks_not_applicable": {},
     "compose_files": [
-      "/home/ubuntu/env_project/.claude/worktrees/agent-a9d585c786e098bb7/gateway/docker/compose.yml",
-      "/home/ubuntu/env_project/.claude/worktrees/agent-a9d585c786e098bb7/gateway/docker/compose.episode.yml",
-      "/home/ubuntu/env_project/.claude/worktrees/agent-a9d585c786e098bb7/gateway/docker/compose.native.yml"
+      "/home/ubuntu/tool_implementation.wt/t4-containment/gateway/docker/compose.yml",
+      "/home/ubuntu/tool_implementation.wt/t4-containment/gateway/docker/compose.episode.yml",
+      "/home/ubuntu/tool_implementation.wt/t4-containment/gateway/docker/compose.native.yml"
     ],
+    "doors_expected": {
+      "minio": "minio.internal:9000",
+      "postgres": "postgres.internal:5432"
+    },
     "environment_profile": {
       "plugs": [],
       "profile": "de/databricks",
@@ -31,7 +35,7 @@
       "/world/var/warehouse/warehouse.duckdb"
     ],
     "episode_publishes_no_host_port": true,
-    "passed": false,
+    "passed": true,
     "probe": {
       "bind_targets": [
         "/audit",
@@ -41,7 +45,8 @@
       "checks": {
         "egress_refused": true,
         "every_declared_warehouse_is_mounted": true,
-        "every_service_is_reachable_from_the_episode": false,
+        "every_plugged_door_accepts_tcp": true,
+        "every_service_is_reachable_from_the_episode": true,
         "ledger_is_present_empty_and_read_only": true,
         "no_canary_and_no_marker_is_readable": true,
         "no_excluded_service_resolves": true,
@@ -53,25 +58,47 @@
         "world_holds_only_the_mounted_warehouses": true
       },
       "checks_not_applicable": {},
-      "contained": false,
+      "contained": true,
+      "doors": [
+        {
+          "door": "minio",
+          "target": "minio.internal:9000",
+          "tcp": "CONNECTED"
+        },
+        {
+          "door": "postgres",
+          "target": "postgres.internal:5432",
+          "tcp": "CONNECTED"
+        }
+      ],
+      "doors_unreachable": [],
       "egress_blocked": true,
       "excluded_services": [
         {
           "addresses": [],
           "error": "gaierror",
           "host": "metabase.internal",
+          "names": {
+            "metabase.internal": []
+          },
           "service": "metabase"
         },
         {
           "addresses": [],
           "error": "gaierror",
           "host": "sigma.internal",
+          "names": {
+            "sigma.internal": []
+          },
           "service": "sigma"
         },
         {
           "addresses": [],
           "error": "gaierror",
           "host": "tableau.internal",
+          "names": {
+            "tableau.internal": []
+          },
           "service": "tableau"
         }
       ],
@@ -121,13 +148,13 @@
         {
           "fstype": "ext4",
           "options": "rw,relatime",
-          "root": "/home/ubuntu/.cache/p6/box/de-databricks/audit",
+          "root": "/home/ubuntu/.cache/alkera-harbor-work/t4/de-databricks-1791881929/audit",
           "target": "/audit"
         },
         {
           "fstype": "ext4",
           "options": "rw,relatime",
-          "root": "/home/ubuntu/.cache/p6/box/de-databricks/world/workspace",
+          "root": "/home/ubuntu/.cache/alkera-harbor-work/t4/de-databricks-1791881929/world/workspace",
           "target": "/workspace"
         },
         {
@@ -139,7 +166,7 @@
         {
           "fstype": "ext4",
           "options": "rw,relatime",
-          "root": "/home/ubuntu/.cache/p6/box/de-databricks/world/var/warehouse/warehouse.duckdb",
+          "root": "/home/ubuntu/.cache/alkera-harbor-work/t4/de-databricks-1791881929/world/var/warehouse/warehouse.duckdb",
           "target": "/world/var/warehouse/warehouse.duckdb"
         }
       ],
@@ -179,7 +206,7 @@
         ],
         "routes": [
           {
-            "dest": "10.210.2.0",
+            "dest": "10.210.1.0",
             "iface": "eth0"
           }
         ]
@@ -221,7 +248,7 @@
       "service_state": {
         "mounts": [],
         "roots": [
-          "/home/ubuntu/.cache/p6/box/de-databricks/rollout/service-state"
+          "/home/ubuntu/.cache/alkera-harbor-work/t4/de-databricks-1791881929/rollout/service-state"
         ],
         "roots_present": [],
         "targets": [
@@ -256,11 +283,15 @@
           "url": "http://confluence.internal:8090"
         },
         {
-          "error": "RemoteDisconnected: Remote end closed connection without response",
-          "populated": false,
-          "reachable": false,
+          "bundle": "/etc/alkera/databricks-tls/bundle.pem",
+          "items": 13,
+          "ok": true,
+          "populated": true,
+          "reachable": true,
           "service": "databricks",
-          "url": "http://databricks.internal:443"
+          "status": 200,
+          "tcp": "CONNECTED",
+          "url": "https://databricks.internal:443"
         },
         {
           "items": 1,
@@ -326,9 +357,7 @@
           "url": "http://slack.internal:8081"
         }
       ],
-      "services_unreachable": [
-        "databricks"
-      ],
+      "services_unreachable": [],
       "services_with_no_content": [
         "airbyte"
       ],
@@ -365,7 +394,7 @@
     },
     "published_host_ports": {},
     "service_state_mounts": {
-      "host_dir": "/home/ubuntu/.cache/p6/box/de-databricks/rollout/service-state",
+      "host_dir": "/home/ubuntu/.cache/alkera-harbor-work/t4/de-databricks-1791881929/rollout/service-state",
       "isolated": true,
       "mounted_elsewhere": [],
       "mounted_read_write_in_owner": true,
@@ -374,7 +403,7 @@
           "destination": "/service-state",
           "rw": true,
           "service": "native-services",
-          "source": "/home/ubuntu/.cache/p6/box/de-databricks/rollout/service-state"
+          "source": "/home/ubuntu/.cache/alkera-harbor-work/t4/de-databricks-1791881929/rollout/service-state"
         }
       ],
       "owner": "native-services",
@@ -389,7 +418,7 @@
       "airbyte": "http://airbyte.internal:8001",
       "alertmanager": "http://alertmanager.internal:9093",
       "confluence": "http://confluence.internal:8090",
-      "databricks": "http://databricks.internal:443",
+      "databricks": "https://databricks.internal:443",
       "deploy": "http://deploy.internal:8085",
       "jira": "http://jira.internal:8080",
       "loki": "http://loki.internal:3100",
@@ -402,6 +431,9 @@
     "shadowed_paths_with_no_host_source": [
       "/world/var/ledger"
     ],
+    "tls_bundles": {
+      "databricks": "/etc/alkera/databricks-tls/bundle.pem"
+    },
     "vantage": "episode container, native topology",
     "warehouses_declared": [
       "var/warehouse/warehouse.duckdb"
@@ -411,33 +443,33 @@
     ],
     "world_binds_that_are_not_declared_warehouses": []
   },
-  "passed": false,
-  "project": "alkera-p6b-de-databricks",
-  "service_state_dir_on_the_host": "/home/ubuntu/.cache/p6/box/de-databricks/rollout/service-state",
+  "passed": true,
+  "project": "alkera-t4b-de-databricks",
+  "service_state_dir_on_the_host": "/home/ubuntu/.cache/alkera-harbor-work/t4/de-databricks-1791881929/rollout/service-state",
   "services": [
     {
       "aliases": {
-        "alkera-p6b-de-databricks_episode_net": [
-          "alkera-p6b-de-databricks-episode-1",
+        "alkera-t4b-de-databricks_episode_net": [
+          "alkera-t4b-de-databricks-episode-1",
           "episode"
         ]
       },
-      "container": "alkera-p6b-de-databricks-episode-1",
-      "image": "alkera-episode:p6-databricks",
+      "container": "alkera-t4b-de-databricks-episode-1",
+      "image": "alkera-episode:t4-databricks",
       "mounts": [
         {
           "rw": true,
-          "source": "/home/ubuntu/.cache/p6/box/de-databricks/audit",
+          "source": "/home/ubuntu/.cache/alkera-harbor-work/t4/de-databricks-1791881929/audit",
           "target": "/audit"
         },
         {
           "rw": true,
-          "source": "/home/ubuntu/.cache/p6/box/de-databricks/world/workspace",
+          "source": "/home/ubuntu/.cache/alkera-harbor-work/t4/de-databricks-1791881929/world/workspace",
           "target": "/workspace"
         },
         {
           "rw": false,
-          "source": "alkera-p6b-de-databricks_databrickstrust",
+          "source": "alkera-t4b-de-databricks_databrickstrust",
           "target": "/etc/alkera/databricks-tls"
         },
         {
@@ -447,21 +479,55 @@
         },
         {
           "rw": true,
-          "source": "/home/ubuntu/.cache/p6/box/de-databricks/world/var/warehouse/warehouse.duckdb",
+          "source": "/home/ubuntu/.cache/alkera-harbor-work/t4/de-databricks-1791881929/world/var/warehouse/warehouse.duckdb",
           "target": "/world/var/warehouse/warehouse.duckdb"
         }
       ],
-      "network_mode": "alkera-p6b-de-databricks_episode_net",
+      "network_mode": "alkera-t4b-de-databricks_episode_net",
       "networks": {
-        "alkera-p6b-de-databricks_episode_net": "10.210.2.5"
+        "alkera-t4b-de-databricks_episode_net": "10.210.1.5"
       },
       "published_ports": {},
       "service": "episode"
     },
     {
       "aliases": {
-        "alkera-p6b-de-databricks_episode_net": [
-          "alkera-p6b-de-databricks-native-services-1",
+        "alkera-t4b-de-databricks_backend_net": [
+          "alkera-t4b-de-databricks-postgres-1",
+          "postgres"
+        ],
+        "alkera-t4b-de-databricks_episode_net": [
+          "alkera-t4b-de-databricks-postgres-1",
+          "postgres",
+          "postgres.internal"
+        ]
+      },
+      "container": "alkera-t4b-de-databricks-postgres-1",
+      "image": "postgres@sha256:f1c3376c26f2609ab9f29f71f824103fe2fcd8ee0346485cb6122a4f93df6f94",
+      "mounts": [
+        {
+          "rw": false,
+          "source": "/home/ubuntu/tool_implementation.wt/t4-containment/gateway/docker/postgres.sql",
+          "target": "/docker-entrypoint-initdb.d/seed.sql"
+        },
+        {
+          "rw": true,
+          "source": "alkera-t4b-de-databricks_pgdata",
+          "target": "/var/lib/postgresql/data"
+        }
+      ],
+      "network_mode": "alkera-t4b-de-databricks_backend_net",
+      "networks": {
+        "alkera-t4b-de-databricks_backend_net": "10.210.2.3",
+        "alkera-t4b-de-databricks_episode_net": "10.210.1.4"
+      },
+      "published_ports": {},
+      "service": "postgres"
+    },
+    {
+      "aliases": {
+        "alkera-t4b-de-databricks_episode_net": [
+          "alkera-t4b-de-databricks-native-services-1",
           "native-services",
           "native-services.internal",
           "airbyte.internal",
@@ -477,32 +543,32 @@
           "sched.internal"
         ]
       },
-      "container": "alkera-p6b-de-databricks-native-services-1",
-      "image": "alkera-episode:p6-databricks",
+      "container": "alkera-t4b-de-databricks-native-services-1",
+      "image": "alkera-episode:t4-databricks",
       "mounts": [
         {
           "rw": true,
-          "source": "/home/ubuntu/.cache/p6/box/de-databricks/audit",
+          "source": "/home/ubuntu/.cache/alkera-harbor-work/t4/de-databricks-1791881929/audit",
           "target": "/audit"
         },
         {
           "rw": false,
-          "source": "alkera-p6b-de-databricks_pgdata",
+          "source": "alkera-t4b-de-databricks_pgdata",
           "target": "/pgdata"
         },
         {
           "rw": true,
-          "source": "/home/ubuntu/.cache/p6/box/de-databricks/rollout/service-state",
+          "source": "/home/ubuntu/.cache/alkera-harbor-work/t4/de-databricks-1791881929/rollout/service-state",
           "target": "/service-state"
         },
         {
           "rw": true,
-          "source": "/home/ubuntu/.cache/p6/box/de-databricks/world",
+          "source": "/home/ubuntu/.cache/alkera-harbor-work/t4/de-databricks-1791881929/world",
           "target": "/world"
         },
         {
           "rw": true,
-          "source": "alkera-p6b-de-databricks_databrickstrust",
+          "source": "alkera-t4b-de-databricks_databrickstrust",
           "target": "/etc/alkera/databricks-tls"
         },
         {
@@ -511,84 +577,50 @@
           "target": "/world/var/ledger"
         }
       ],
-      "network_mode": "alkera-p6b-de-databricks_episode_net",
+      "network_mode": "alkera-t4b-de-databricks_episode_net",
       "networks": {
-        "alkera-p6b-de-databricks_episode_net": "10.210.2.2"
+        "alkera-t4b-de-databricks_episode_net": "10.210.1.3"
       },
       "published_ports": {},
       "service": "native-services"
     },
     {
       "aliases": {
-        "alkera-p6b-de-databricks_backend_net": [
-          "alkera-p6b-de-databricks-postgres-1",
-          "postgres"
-        ],
-        "alkera-p6b-de-databricks_episode_net": [
-          "alkera-p6b-de-databricks-postgres-1",
-          "postgres",
-          "postgres.internal"
-        ]
-      },
-      "container": "alkera-p6b-de-databricks-postgres-1",
-      "image": "postgres@sha256:f1c3376c26f2609ab9f29f71f824103fe2fcd8ee0346485cb6122a4f93df6f94",
-      "mounts": [
-        {
-          "rw": false,
-          "source": "/home/ubuntu/env_project/.claude/worktrees/agent-a9d585c786e098bb7/gateway/docker/postgres.sql",
-          "target": "/docker-entrypoint-initdb.d/seed.sql"
-        },
-        {
-          "rw": true,
-          "source": "alkera-p6b-de-databricks_pgdata",
-          "target": "/var/lib/postgresql/data"
-        }
-      ],
-      "network_mode": "alkera-p6b-de-databricks_backend_net",
-      "networks": {
-        "alkera-p6b-de-databricks_backend_net": "10.210.1.3",
-        "alkera-p6b-de-databricks_episode_net": "10.210.2.4"
-      },
-      "published_ports": {},
-      "service": "postgres"
-    },
-    {
-      "aliases": {
-        "alkera-p6b-de-databricks_backend_net": [
-          "alkera-p6b-de-databricks-minio-1",
+        "alkera-t4b-de-databricks_backend_net": [
+          "alkera-t4b-de-databricks-minio-1",
           "minio"
         ],
-        "alkera-p6b-de-databricks_episode_net": [
-          "alkera-p6b-de-databricks-minio-1",
+        "alkera-t4b-de-databricks_episode_net": [
+          "alkera-t4b-de-databricks-minio-1",
           "minio",
           "minio.internal"
         ]
       },
-      "container": "alkera-p6b-de-databricks-minio-1",
+      "container": "alkera-t4b-de-databricks-minio-1",
       "image": "docker.io/pgsty/minio@sha256:b6bfe7239bfc83fb90d31612d9704d86039dd714f7904b3f1ad68f211e602372",
       "mounts": [
         {
           "rw": true,
-          "source": "alkera-p6b-de-databricks_minioaudit",
+          "source": "alkera-t4b-de-databricks_minioaudit",
           "target": "/audit-spool"
         },
         {
           "rw": true,
-          "source": "alkera-p6b-de-databricks_miniodata",
+          "source": "alkera-t4b-de-databricks_miniodata",
           "target": "/data"
         }
       ],
-      "network_mode": "alkera-p6b-de-databricks_backend_net",
+      "network_mode": "alkera-t4b-de-databricks_backend_net",
       "networks": {
-        "alkera-p6b-de-databricks_backend_net": "10.210.1.2",
-        "alkera-p6b-de-databricks_episode_net": "10.210.2.3"
+        "alkera-t4b-de-databricks_backend_net": "10.210.2.2",
+        "alkera-t4b-de-databricks_episode_net": "10.210.1.2"
       },
       "published_ports": {},
       "service": "minio"
     }
   ],
   "summary": {
-    "p7_native_episode_filesystem": false
+    "p7_native_episode_filesystem": true
   },
-  "world_root_on_the_host": "/home/ubuntu/.cache/p6/box/de-databricks/world"
+  "world_root_on_the_host": "/home/ubuntu/.cache/alkera-harbor-work/t4/de-databricks-1791881929/world"
 }

@@ -3,84 +3,84 @@
   "containers": [
     {
       "aliases": {
-        "episode_net": [
-          "alkera-p6b-de-databricks-episode-1",
+        "alkera-t4b-de-databricks_episode_net": [
+          "alkera-t4b-de-databricks-episode-1",
           "episode"
         ]
       },
-      "id": "69f51244cffc97a313192d5f57ad0873f5c362592dd9e97d32e9b9331d69a87f",
-      "image": "alkera-episode:p6-databricks",
+      "id": "3ecdeed3d0903c4c04280a33e67ffacb2b9c09b4eb36ed995fb6630890ab8a73",
+      "image": "alkera-episode:t4-databricks",
       "networks": {
-        "episode_net": "10.210.2.5"
+        "alkera-t4b-de-databricks_episode_net": "10.210.1.5"
       },
       "published_ports": {},
       "service": "episode"
     },
     {
       "aliases": {
-        "episode_net": [
-          "airbyte.internal",
-          "alertmanager.internal",
-          "alkera-p6b-de-databricks-native-services-1",
-          "confluence.internal",
-          "databricks.internal",
-          "deploy.internal",
-          "jira.internal",
-          "loki.internal",
-          "native-services",
-          "native-services.internal",
-          "powerbi.internal",
-          "prometheus.internal",
-          "sched.internal",
-          "slack.internal"
-        ]
-      },
-      "id": "e5f77b689f9f3066a967f0ad9691f01e381b9ebb343c754a12c579f2393129a2",
-      "image": "alkera-episode:p6-databricks",
-      "networks": {
-        "episode_net": "10.210.2.2"
-      },
-      "published_ports": {},
-      "service": "native-services"
-    },
-    {
-      "aliases": {
-        "backend_net": [
-          "alkera-p6b-de-databricks-postgres-1",
+        "alkera-t4b-de-databricks_backend_net": [
+          "alkera-t4b-de-databricks-postgres-1",
           "postgres"
         ],
-        "episode_net": [
-          "alkera-p6b-de-databricks-postgres-1",
+        "alkera-t4b-de-databricks_episode_net": [
+          "alkera-t4b-de-databricks-postgres-1",
           "postgres",
           "postgres.internal"
         ]
       },
-      "id": "89bb50501fbb92785cd1db6a1eedd759f0804de33f4ab01dd6b83af57bc0bcec",
+      "id": "513298f3444e98efd6c4002d9dffbe12803bfc283de381ed92b7f4c35f4034a6",
       "image": "postgres@sha256:f1c3376c26f2609ab9f29f71f824103fe2fcd8ee0346485cb6122a4f93df6f94",
       "networks": {
-        "backend_net": "10.210.1.3",
-        "episode_net": "10.210.2.4"
+        "alkera-t4b-de-databricks_backend_net": "10.210.2.3",
+        "alkera-t4b-de-databricks_episode_net": "10.210.1.4"
       },
       "published_ports": {},
       "service": "postgres"
     },
     {
       "aliases": {
-        "backend_net": [
-          "alkera-p6b-de-databricks-minio-1",
+        "alkera-t4b-de-databricks_episode_net": [
+          "alkera-t4b-de-databricks-native-services-1",
+          "native-services",
+          "native-services.internal",
+          "airbyte.internal",
+          "powerbi.internal",
+          "prometheus.internal",
+          "alertmanager.internal",
+          "loki.internal",
+          "deploy.internal",
+          "jira.internal",
+          "slack.internal",
+          "confluence.internal",
+          "databricks.internal",
+          "sched.internal"
+        ]
+      },
+      "id": "0458093964a4847fd3aa49b41a1580c51dbaf74f73784a46e976cd2aafbf2783",
+      "image": "alkera-episode:t4-databricks",
+      "networks": {
+        "alkera-t4b-de-databricks_episode_net": "10.210.1.3"
+      },
+      "published_ports": {},
+      "service": "native-services"
+    },
+    {
+      "aliases": {
+        "alkera-t4b-de-databricks_backend_net": [
+          "alkera-t4b-de-databricks-minio-1",
           "minio"
         ],
-        "episode_net": [
-          "alkera-p6b-de-databricks-minio-1",
+        "alkera-t4b-de-databricks_episode_net": [
+          "alkera-t4b-de-databricks-minio-1",
           "minio",
           "minio.internal"
         ]
       },
-      "id": "4515eca39f955bacbc0f41c8937038b3347347e6ca23c7e67f750070ba17165e",
+      "id": "9e966a95791b5e8cadf52e0ec24a9fd56c56b5d51bce17a7fe52b0dbcd0c1c44",
       "image": "docker.io/pgsty/minio@sha256:b6bfe7239bfc83fb90d31612d9704d86039dd714f7904b3f1ad68f211e602372",
       "networks": {
-        "backend_net": "10.210.1.2",
-        "episode_net": "10.210.2.3"
+        "alkera-t4b-de-databricks_backend_net": "10.210.2.2",
+        "alkera-t4b-de-databricks_episode_net": "10.210.1.2"
       },
       "published_ports": {},
       "service": "minio"
@@ -88,99 +88,99 @@
   ],
   "destinations_declared": [
     {
-      "count": 0,
+      "count": 1,
       "file": "destinations.jsonl",
-      "first_ts": null,
+      "first_ts": "2026-10-13T08:59:30Z",
       "host": "databricks.internal",
-      "last_ts": null,
+      "last_ts": "2026-10-13T08:59:30Z",
       "port": 443
-    },
-    {
-      "count": 3,
-      "file": "destinations.jsonl",
-      "first_ts": "2026-10-07T17:45:49Z",
-      "host": "loki.internal",
-      "last_ts": "2026-10-07T17:45:57Z",
-      "port": 3100
     },
     {
       "count": 5,
       "file": "destinations.jsonl",
-      "first_ts": "2026-10-07T17:45:49Z",
+      "first_ts": "2026-10-13T08:59:14Z",
+      "host": "loki.internal",
+      "last_ts": "2026-10-13T08:59:40Z",
+      "port": 3100
+    },
+    {
+      "count": 9,
+      "file": "destinations.jsonl",
+      "first_ts": "2026-10-13T08:59:14Z",
       "host": "airbyte.internal",
-      "last_ts": "2026-10-07T17:45:57Z",
+      "last_ts": "2026-10-13T08:59:46Z",
       "port": 8001
     },
     {
-      "count": 3,
+      "count": 5,
       "file": "destinations.jsonl",
-      "first_ts": "2026-10-07T17:45:49Z",
+      "first_ts": "2026-10-13T08:59:14Z",
       "host": "jira.internal",
-      "last_ts": "2026-10-07T17:45:57Z",
+      "last_ts": "2026-10-13T08:59:40Z",
       "port": 8080
     },
     {
-      "count": 3,
+      "count": 5,
       "file": "destinations.jsonl",
-      "first_ts": "2026-10-07T17:45:51Z",
+      "first_ts": "2026-10-13T08:59:14Z",
       "host": "slack.internal",
-      "last_ts": "2026-10-07T17:45:57Z",
+      "last_ts": "2026-10-13T08:59:40Z",
       "port": 8081
     },
     {
-      "count": 3,
+      "count": 5,
       "file": "destinations.jsonl",
-      "first_ts": "2026-10-07T17:45:49Z",
+      "first_ts": "2026-10-13T08:59:14Z",
       "host": "deploy.internal",
-      "last_ts": "2026-10-07T17:45:57Z",
+      "last_ts": "2026-10-13T08:59:40Z",
       "port": 8085
     },
     {
-      "count": 3,
+      "count": 5,
       "file": "destinations.jsonl",
-      "first_ts": "2026-10-07T17:45:49Z",
+      "first_ts": "2026-10-13T08:59:14Z",
       "host": "confluence.internal",
-      "last_ts": "2026-10-07T17:45:57Z",
+      "last_ts": "2026-10-13T08:59:40Z",
       "port": 8090
     },
     {
-      "count": 3,
+      "count": 5,
       "file": "destinations.jsonl",
-      "first_ts": "2026-10-07T17:45:50Z",
+      "first_ts": "2026-10-13T08:59:14Z",
       "host": "powerbi.internal",
-      "last_ts": "2026-10-07T17:45:57Z",
+      "last_ts": "2026-10-13T08:59:40Z",
       "port": 8095
     },
     {
-      "count": 1,
+      "count": 4,
       "file": "destinations.jsonl",
-      "first_ts": "2026-10-07T17:45:57Z",
+      "first_ts": "2026-10-13T08:59:14Z",
       "host": "native-services.internal",
-      "last_ts": "2026-10-07T17:45:57Z",
+      "last_ts": "2026-10-13T08:59:40Z",
       "port": 8099
     },
     {
-      "count": 3,
+      "count": 5,
       "file": "destinations.jsonl",
-      "first_ts": "2026-10-07T17:45:51Z",
+      "first_ts": "2026-10-13T08:59:14Z",
       "host": "sched.internal",
-      "last_ts": "2026-10-07T17:45:57Z",
+      "last_ts": "2026-10-13T08:59:40Z",
       "port": 8120
     },
     {
-      "count": 3,
+      "count": 5,
       "file": "destinations.jsonl",
-      "first_ts": "2026-10-07T17:45:51Z",
+      "first_ts": "2026-10-13T08:59:14Z",
       "host": "prometheus.internal",
-      "last_ts": "2026-10-07T17:45:57Z",
+      "last_ts": "2026-10-13T08:59:40Z",
       "port": 9090
     },
     {
-      "count": 3,
+      "count": 5,
       "file": "destinations.jsonl",
-      "first_ts": "2026-10-07T17:45:49Z",
+      "first_ts": "2026-10-13T08:59:14Z",
       "host": "alertmanager.internal",
-      "last_ts": "2026-10-07T17:45:57Z",
+      "last_ts": "2026-10-13T08:59:40Z",
       "port": 9093
     }
   ],
@@ -210,8 +210,16 @@
     "sched": "http://sched.internal:8120",
     "slack": "http://slack.internal:8081"
   },
-  "generated": "2026-10-07T17:45:32+00:00",
-  "image": "alkera-episode:p6-databricks",
+  "episode_network": {
+    "gateway": "10.210.1.1",
+    "gateway_source": "docker network inspect (IPAM)",
+    "internal": true,
+    "name": "alkera-t4b-de-databricks_episode_net",
+    "subnet": "10.210.1.0/24"
+  },
+  "generated": "2026-10-13T08:59:47+00:00",
+  "image": "alkera-episode:t4-databricks",
+  "image_revision": "21fed38c832dcab0f795775c3bd7dcc2583dc68b",
   "not_audited": [
     {
       "banner": {
@@ -220,17 +228,30 @@
       "class": "NOT AN AUDITED DOOR: the bridge gateway, i.e. the HOST",
       "names": [],
       "service": "?",
-      "target": "10.210.2.1:22"
+      "target": "10.210.1.1:22"
     },
     {
       "banner": {
-        "http_get_reply": "HTTP/1.1 405 Method Not Allowed\r\ndate: Wed, 07 Oct 2026 17:46:12 GMT\r\nserver: uvicorn\r\nallow: POST\r\ncontent-length: 31\r\ncontent-type: application/json\r\nConnection: close\r\n\r\n"
+        "http_get_reply": "HTTP/1.0 200 OK\r\nAccept-Ranges: bytes\r\nContent-Length: 1837\r\nContent-Security-Policy: default-src 'self' 'unsafe-eval' 'unsafe-inline'; script-src 'self' https://unpkg.com;  connect-src 'self' https://unpkg.com;\r\nContent-Type: text/html\r\nLast-Modified: Tue, 13 Oct 2026 08:59:45 GMT\r\nReferrer-Policy:"
       },
-      "class": "NOT AUDITED: MinIO audit receiver (serve.MINIO_AUDIT_PORT), pre-existing, not counted by design",
+      "class": "NOT AN AUDITED DOOR: MinIO console (a random port; `minio server /data` has no --console-address)",
+      "names": [
+        "alkera-t4b-de-databricks-minio-1",
+        "minio",
+        "minio.internal"
+      ],
+      "service": "minio",
+      "target": "10.210.1.2:36021"
+    },
+    {
+      "banner": {
+        "http_get_reply": "HTTP/1.1 405 Method Not Allowed\r\ndate: Tue, 13 Oct 2026 08:59:46 GMT\r\nserver: uvicorn\r\nallow: POST\r\ncontent-length: 31\r\ncontent-type: application/json\r\nConnection: close\r\n\r\n"
+      },
+      "class": "NOT AN AUDITED DOOR: MinIO audit receiver (serve.MINIO_AUDIT_PORT); the episode reaches it, and it answers only a POST carrying the per-rollout token",
       "names": [
         "airbyte.internal",
         "alertmanager.internal",
-        "alkera-p6b-de-databricks-native-services-1",
+        "alkera-t4b-de-databricks-native-services-1",
         "confluence.internal",
         "databricks.internal",
         "deploy.internal",
@@ -244,22 +265,46 @@
         "slack.internal"
       ],
       "service": "native-services",
-      "target": "10.210.2.2:8110"
+      "target": "10.210.1.3:8110"
     },
     {
-      "banner": {
-        "http_get_reply": "HTTP/1.0 200 OK\r\nAccept-Ranges: bytes\r\nContent-Length: 1837\r\nContent-Security-Policy: default-src 'self' 'unsafe-eval' 'unsafe-inline'; script-src 'self' https://unpkg.com;  connect-src 'self' https://unpkg.com;\r\nContent-Type: text/html\r\nLast-Modified: Wed, 07 Oct 2026 17:46:14 GMT\r\nReferrer-Policy:"
+      "class": "NOT AUDITED: role `episode` logs in with the credentials of ALKERA_POSTGRES_DSN, and its statement is absent from the role-scoped statement log",
+      "login": {
+        "dsn": "postgres.internal:5432/alkera",
+        "identity": [
+          "episode",
+          "alkera"
+        ],
+        "schemas": [
+          [
+            "raw",
+            "episode",
+            "True",
+            "True"
+          ],
+          [
+            "staging",
+            "episode",
+            "True",
+            "True"
+          ],
+          [
+            "warehouse",
+            "episode",
+            "True",
+            "True"
+          ]
+        ],
+        "superuser": false
       },
-      "class": "NOT AN AUDITED DOOR: MinIO console (random port; `minio server /data` has no --console-address)",
       "names": [
-        "alkera-p6b-de-databricks-minio-1",
-        "minio",
-        "minio.internal"
+        "postgres.internal"
       ],
-      "service": "minio",
-      "target": "10.210.2.3:34135"
+      "service": "postgres",
+      "target": "postgres.internal:5432 (role episode)"
     }
   ],
+  "off_network_reached": [],
   "open_ports_classified": [
     {
       "banner": {
@@ -268,323 +313,331 @@
       "class": "NOT AN AUDITED DOOR: the bridge gateway, i.e. the HOST",
       "names": [],
       "service": "?",
-      "target": "10.210.2.1:22"
+      "target": "10.210.1.1:22"
     },
     {
-      "class": "audited door (declared in destinations*.jsonl, service writes 9.2.2 rows)",
+      "class": "audited door (MinIO audit webhook to native-services:8110)",
       "names": [
-        "airbyte.internal",
-        "alertmanager.internal",
-        "alkera-p6b-de-databricks-native-services-1",
-        "confluence.internal",
-        "databricks.internal",
-        "deploy.internal",
-        "jira.internal",
-        "loki.internal",
-        "native-services",
-        "native-services.internal",
-        "powerbi.internal",
-        "prometheus.internal",
-        "sched.internal",
-        "slack.internal"
-      ],
-      "service": "native-services",
-      "target": "10.210.2.2:443"
-    },
-    {
-      "class": "audited door (declared in destinations*.jsonl, service writes 9.2.2 rows)",
-      "names": [
-        "airbyte.internal",
-        "alertmanager.internal",
-        "alkera-p6b-de-databricks-native-services-1",
-        "confluence.internal",
-        "databricks.internal",
-        "deploy.internal",
-        "jira.internal",
-        "loki.internal",
-        "native-services",
-        "native-services.internal",
-        "powerbi.internal",
-        "prometheus.internal",
-        "sched.internal",
-        "slack.internal"
-      ],
-      "service": "native-services",
-      "target": "10.210.2.2:3100"
-    },
-    {
-      "class": "audited door (declared in destinations*.jsonl, service writes 9.2.2 rows)",
-      "names": [
-        "airbyte.internal",
-        "alertmanager.internal",
-        "alkera-p6b-de-databricks-native-services-1",
-        "confluence.internal",
-        "databricks.internal",
-        "deploy.internal",
-        "jira.internal",
-        "loki.internal",
-        "native-services",
-        "native-services.internal",
-        "powerbi.internal",
-        "prometheus.internal",
-        "sched.internal",
-        "slack.internal"
-      ],
-      "service": "native-services",
-      "target": "10.210.2.2:8001"
-    },
-    {
-      "class": "audited door (declared in destinations*.jsonl, service writes 9.2.2 rows)",
-      "names": [
-        "airbyte.internal",
-        "alertmanager.internal",
-        "alkera-p6b-de-databricks-native-services-1",
-        "confluence.internal",
-        "databricks.internal",
-        "deploy.internal",
-        "jira.internal",
-        "loki.internal",
-        "native-services",
-        "native-services.internal",
-        "powerbi.internal",
-        "prometheus.internal",
-        "sched.internal",
-        "slack.internal"
-      ],
-      "service": "native-services",
-      "target": "10.210.2.2:8080"
-    },
-    {
-      "class": "audited door (declared in destinations*.jsonl, service writes 9.2.2 rows)",
-      "names": [
-        "airbyte.internal",
-        "alertmanager.internal",
-        "alkera-p6b-de-databricks-native-services-1",
-        "confluence.internal",
-        "databricks.internal",
-        "deploy.internal",
-        "jira.internal",
-        "loki.internal",
-        "native-services",
-        "native-services.internal",
-        "powerbi.internal",
-        "prometheus.internal",
-        "sched.internal",
-        "slack.internal"
-      ],
-      "service": "native-services",
-      "target": "10.210.2.2:8081"
-    },
-    {
-      "class": "audited door (declared in destinations*.jsonl, service writes 9.2.2 rows)",
-      "names": [
-        "airbyte.internal",
-        "alertmanager.internal",
-        "alkera-p6b-de-databricks-native-services-1",
-        "confluence.internal",
-        "databricks.internal",
-        "deploy.internal",
-        "jira.internal",
-        "loki.internal",
-        "native-services",
-        "native-services.internal",
-        "powerbi.internal",
-        "prometheus.internal",
-        "sched.internal",
-        "slack.internal"
-      ],
-      "service": "native-services",
-      "target": "10.210.2.2:8085"
-    },
-    {
-      "class": "audited door (declared in destinations*.jsonl, service writes 9.2.2 rows)",
-      "names": [
-        "airbyte.internal",
-        "alertmanager.internal",
-        "alkera-p6b-de-databricks-native-services-1",
-        "confluence.internal",
-        "databricks.internal",
-        "deploy.internal",
-        "jira.internal",
-        "loki.internal",
-        "native-services",
-        "native-services.internal",
-        "powerbi.internal",
-        "prometheus.internal",
-        "sched.internal",
-        "slack.internal"
-      ],
-      "service": "native-services",
-      "target": "10.210.2.2:8090"
-    },
-    {
-      "class": "audited door (declared in destinations*.jsonl, service writes 9.2.2 rows)",
-      "names": [
-        "airbyte.internal",
-        "alertmanager.internal",
-        "alkera-p6b-de-databricks-native-services-1",
-        "confluence.internal",
-        "databricks.internal",
-        "deploy.internal",
-        "jira.internal",
-        "loki.internal",
-        "native-services",
-        "native-services.internal",
-        "powerbi.internal",
-        "prometheus.internal",
-        "sched.internal",
-        "slack.internal"
-      ],
-      "service": "native-services",
-      "target": "10.210.2.2:8095"
-    },
-    {
-      "class": "audited door (declared in destinations*.jsonl, service writes 9.2.2 rows)",
-      "names": [
-        "airbyte.internal",
-        "alertmanager.internal",
-        "alkera-p6b-de-databricks-native-services-1",
-        "confluence.internal",
-        "databricks.internal",
-        "deploy.internal",
-        "jira.internal",
-        "loki.internal",
-        "native-services",
-        "native-services.internal",
-        "powerbi.internal",
-        "prometheus.internal",
-        "sched.internal",
-        "slack.internal"
-      ],
-      "service": "native-services",
-      "target": "10.210.2.2:8099"
-    },
-    {
-      "banner": {
-        "http_get_reply": "HTTP/1.1 405 Method Not Allowed\r\ndate: Wed, 07 Oct 2026 17:46:12 GMT\r\nserver: uvicorn\r\nallow: POST\r\ncontent-length: 31\r\ncontent-type: application/json\r\nConnection: close\r\n\r\n"
-      },
-      "class": "NOT AUDITED: MinIO audit receiver (serve.MINIO_AUDIT_PORT), pre-existing, not counted by design",
-      "names": [
-        "airbyte.internal",
-        "alertmanager.internal",
-        "alkera-p6b-de-databricks-native-services-1",
-        "confluence.internal",
-        "databricks.internal",
-        "deploy.internal",
-        "jira.internal",
-        "loki.internal",
-        "native-services",
-        "native-services.internal",
-        "powerbi.internal",
-        "prometheus.internal",
-        "sched.internal",
-        "slack.internal"
-      ],
-      "service": "native-services",
-      "target": "10.210.2.2:8110"
-    },
-    {
-      "class": "audited door (declared in destinations*.jsonl, service writes 9.2.2 rows)",
-      "names": [
-        "airbyte.internal",
-        "alertmanager.internal",
-        "alkera-p6b-de-databricks-native-services-1",
-        "confluence.internal",
-        "databricks.internal",
-        "deploy.internal",
-        "jira.internal",
-        "loki.internal",
-        "native-services",
-        "native-services.internal",
-        "powerbi.internal",
-        "prometheus.internal",
-        "sched.internal",
-        "slack.internal"
-      ],
-      "service": "native-services",
-      "target": "10.210.2.2:8120"
-    },
-    {
-      "class": "audited door (declared in destinations*.jsonl, service writes 9.2.2 rows)",
-      "names": [
-        "airbyte.internal",
-        "alertmanager.internal",
-        "alkera-p6b-de-databricks-native-services-1",
-        "confluence.internal",
-        "databricks.internal",
-        "deploy.internal",
-        "jira.internal",
-        "loki.internal",
-        "native-services",
-        "native-services.internal",
-        "powerbi.internal",
-        "prometheus.internal",
-        "sched.internal",
-        "slack.internal"
-      ],
-      "service": "native-services",
-      "target": "10.210.2.2:9090"
-    },
-    {
-      "class": "audited door (declared in destinations*.jsonl, service writes 9.2.2 rows)",
-      "names": [
-        "airbyte.internal",
-        "alertmanager.internal",
-        "alkera-p6b-de-databricks-native-services-1",
-        "confluence.internal",
-        "databricks.internal",
-        "deploy.internal",
-        "jira.internal",
-        "loki.internal",
-        "native-services",
-        "native-services.internal",
-        "powerbi.internal",
-        "prometheus.internal",
-        "sched.internal",
-        "slack.internal"
-      ],
-      "service": "native-services",
-      "target": "10.210.2.2:9093"
-    },
-    {
-      "class": "audited door (MinIO audit webhook)",
-      "names": [
-        "alkera-p6b-de-databricks-minio-1",
+        "alkera-t4b-de-databricks-minio-1",
         "minio",
         "minio.internal"
       ],
       "service": "minio",
-      "target": "10.210.2.3:9000"
+      "target": "10.210.1.2:9000"
     },
     {
       "banner": {
-        "http_get_reply": "HTTP/1.0 200 OK\r\nAccept-Ranges: bytes\r\nContent-Length: 1837\r\nContent-Security-Policy: default-src 'self' 'unsafe-eval' 'unsafe-inline'; script-src 'self' https://unpkg.com;  connect-src 'self' https://unpkg.com;\r\nContent-Type: text/html\r\nLast-Modified: Wed, 07 Oct 2026 17:46:14 GMT\r\nReferrer-Policy:"
+        "http_get_reply": "HTTP/1.0 200 OK\r\nAccept-Ranges: bytes\r\nContent-Length: 1837\r\nContent-Security-Policy: default-src 'self' 'unsafe-eval' 'unsafe-inline'; script-src 'self' https://unpkg.com;  connect-src 'self' https://unpkg.com;\r\nContent-Type: text/html\r\nLast-Modified: Tue, 13 Oct 2026 08:59:45 GMT\r\nReferrer-Policy:"
       },
-      "class": "NOT AN AUDITED DOOR: MinIO console (random port; `minio server /data` has no --console-address)",
+      "class": "NOT AN AUDITED DOOR: MinIO console (a random port; `minio server /data` has no --console-address)",
       "names": [
-        "alkera-p6b-de-databricks-minio-1",
+        "alkera-t4b-de-databricks-minio-1",
         "minio",
         "minio.internal"
       ],
       "service": "minio",
-      "target": "10.210.2.3:34135"
+      "target": "10.210.1.2:36021"
+    },
+    {
+      "class": "audited door (declared in destinations*.jsonl, service writes 9.2.2 rows)",
+      "names": [
+        "airbyte.internal",
+        "alertmanager.internal",
+        "alkera-t4b-de-databricks-native-services-1",
+        "confluence.internal",
+        "databricks.internal",
+        "deploy.internal",
+        "jira.internal",
+        "loki.internal",
+        "native-services",
+        "native-services.internal",
+        "powerbi.internal",
+        "prometheus.internal",
+        "sched.internal",
+        "slack.internal"
+      ],
+      "service": "native-services",
+      "target": "10.210.1.3:443"
+    },
+    {
+      "class": "audited door (declared in destinations*.jsonl, service writes 9.2.2 rows)",
+      "names": [
+        "airbyte.internal",
+        "alertmanager.internal",
+        "alkera-t4b-de-databricks-native-services-1",
+        "confluence.internal",
+        "databricks.internal",
+        "deploy.internal",
+        "jira.internal",
+        "loki.internal",
+        "native-services",
+        "native-services.internal",
+        "powerbi.internal",
+        "prometheus.internal",
+        "sched.internal",
+        "slack.internal"
+      ],
+      "service": "native-services",
+      "target": "10.210.1.3:3100"
+    },
+    {
+      "class": "audited door (declared in destinations*.jsonl, service writes 9.2.2 rows)",
+      "names": [
+        "airbyte.internal",
+        "alertmanager.internal",
+        "alkera-t4b-de-databricks-native-services-1",
+        "confluence.internal",
+        "databricks.internal",
+        "deploy.internal",
+        "jira.internal",
+        "loki.internal",
+        "native-services",
+        "native-services.internal",
+        "powerbi.internal",
+        "prometheus.internal",
+        "sched.internal",
+        "slack.internal"
+      ],
+      "service": "native-services",
+      "target": "10.210.1.3:8001"
+    },
+    {
+      "class": "audited door (declared in destinations*.jsonl, service writes 9.2.2 rows)",
+      "names": [
+        "airbyte.internal",
+        "alertmanager.internal",
+        "alkera-t4b-de-databricks-native-services-1",
+        "confluence.internal",
+        "databricks.internal",
+        "deploy.internal",
+        "jira.internal",
+        "loki.internal",
+        "native-services",
+        "native-services.internal",
+        "powerbi.internal",
+        "prometheus.internal",
+        "sched.internal",
+        "slack.internal"
+      ],
+      "service": "native-services",
+      "target": "10.210.1.3:8080"
+    },
+    {
+      "class": "audited door (declared in destinations*.jsonl, service writes 9.2.2 rows)",
+      "names": [
+        "airbyte.internal",
+        "alertmanager.internal",
+        "alkera-t4b-de-databricks-native-services-1",
+        "confluence.internal",
+        "databricks.internal",
+        "deploy.internal",
+        "jira.internal",
+        "loki.internal",
+        "native-services",
+        "native-services.internal",
+        "powerbi.internal",
+        "prometheus.internal",
+        "sched.internal",
+        "slack.internal"
+      ],
+      "service": "native-services",
+      "target": "10.210.1.3:8081"
+    },
+    {
+      "class": "audited door (declared in destinations*.jsonl, service writes 9.2.2 rows)",
+      "names": [
+        "airbyte.internal",
+        "alertmanager.internal",
+        "alkera-t4b-de-databricks-native-services-1",
+        "confluence.internal",
+        "databricks.internal",
+        "deploy.internal",
+        "jira.internal",
+        "loki.internal",
+        "native-services",
+        "native-services.internal",
+        "powerbi.internal",
+        "prometheus.internal",
+        "sched.internal",
+        "slack.internal"
+      ],
+      "service": "native-services",
+      "target": "10.210.1.3:8085"
+    },
+    {
+      "class": "audited door (declared in destinations*.jsonl, service writes 9.2.2 rows)",
+      "names": [
+        "airbyte.internal",
+        "alertmanager.internal",
+        "alkera-t4b-de-databricks-native-services-1",
+        "confluence.internal",
+        "databricks.internal",
+        "deploy.internal",
+        "jira.internal",
+        "loki.internal",
+        "native-services",
+        "native-services.internal",
+        "powerbi.internal",
+        "prometheus.internal",
+        "sched.internal",
+        "slack.internal"
+      ],
+      "service": "native-services",
+      "target": "10.210.1.3:8090"
+    },
+    {
+      "class": "audited door (declared in destinations*.jsonl, service writes 9.2.2 rows)",
+      "names": [
+        "airbyte.internal",
+        "alertmanager.internal",
+        "alkera-t4b-de-databricks-native-services-1",
+        "confluence.internal",
+        "databricks.internal",
+        "deploy.internal",
+        "jira.internal",
+        "loki.internal",
+        "native-services",
+        "native-services.internal",
+        "powerbi.internal",
+        "prometheus.internal",
+        "sched.internal",
+        "slack.internal"
+      ],
+      "service": "native-services",
+      "target": "10.210.1.3:8095"
+    },
+    {
+      "class": "audited door (declared in destinations*.jsonl, service writes 9.2.2 rows)",
+      "names": [
+        "airbyte.internal",
+        "alertmanager.internal",
+        "alkera-t4b-de-databricks-native-services-1",
+        "confluence.internal",
+        "databricks.internal",
+        "deploy.internal",
+        "jira.internal",
+        "loki.internal",
+        "native-services",
+        "native-services.internal",
+        "powerbi.internal",
+        "prometheus.internal",
+        "sched.internal",
+        "slack.internal"
+      ],
+      "service": "native-services",
+      "target": "10.210.1.3:8099"
+    },
+    {
+      "banner": {
+        "http_get_reply": "HTTP/1.1 405 Method Not Allowed\r\ndate: Tue, 13 Oct 2026 08:59:46 GMT\r\nserver: uvicorn\r\nallow: POST\r\ncontent-length: 31\r\ncontent-type: application/json\r\nConnection: close\r\n\r\n"
+      },
+      "class": "NOT AN AUDITED DOOR: MinIO audit receiver (serve.MINIO_AUDIT_PORT); the episode reaches it, and it answers only a POST carrying the per-rollout token",
+      "names": [
+        "airbyte.internal",
+        "alertmanager.internal",
+        "alkera-t4b-de-databricks-native-services-1",
+        "confluence.internal",
+        "databricks.internal",
+        "deploy.internal",
+        "jira.internal",
+        "loki.internal",
+        "native-services",
+        "native-services.internal",
+        "powerbi.internal",
+        "prometheus.internal",
+        "sched.internal",
+        "slack.internal"
+      ],
+      "service": "native-services",
+      "target": "10.210.1.3:8110"
+    },
+    {
+      "class": "audited door (declared in destinations*.jsonl, service writes 9.2.2 rows)",
+      "names": [
+        "airbyte.internal",
+        "alertmanager.internal",
+        "alkera-t4b-de-databricks-native-services-1",
+        "confluence.internal",
+        "databricks.internal",
+        "deploy.internal",
+        "jira.internal",
+        "loki.internal",
+        "native-services",
+        "native-services.internal",
+        "powerbi.internal",
+        "prometheus.internal",
+        "sched.internal",
+        "slack.internal"
+      ],
+      "service": "native-services",
+      "target": "10.210.1.3:8120"
+    },
+    {
+      "class": "audited door (declared in destinations*.jsonl, service writes 9.2.2 rows)",
+      "names": [
+        "airbyte.internal",
+        "alertmanager.internal",
+        "alkera-t4b-de-databricks-native-services-1",
+        "confluence.internal",
+        "databricks.internal",
+        "deploy.internal",
+        "jira.internal",
+        "loki.internal",
+        "native-services",
+        "native-services.internal",
+        "powerbi.internal",
+        "prometheus.internal",
+        "sched.internal",
+        "slack.internal"
+      ],
+      "service": "native-services",
+      "target": "10.210.1.3:9090"
+    },
+    {
+      "class": "audited door (declared in destinations*.jsonl, service writes 9.2.2 rows)",
+      "names": [
+        "airbyte.internal",
+        "alertmanager.internal",
+        "alkera-t4b-de-databricks-native-services-1",
+        "confluence.internal",
+        "databricks.internal",
+        "deploy.internal",
+        "jira.internal",
+        "loki.internal",
+        "native-services",
+        "native-services.internal",
+        "powerbi.internal",
+        "prometheus.internal",
+        "sched.internal",
+        "slack.internal"
+      ],
+      "service": "native-services",
+      "target": "10.210.1.3:9093"
     },
     {
       "class": "audited door for role alkera only (role-scoped statement log; see pg_logins)",
       "names": [
-        "alkera-p6b-de-databricks-postgres-1",
+        "alkera-t4b-de-databricks-postgres-1",
         "postgres",
         "postgres.internal"
       ],
       "service": "postgres",
-      "target": "10.210.2.4:5432"
+      "target": "10.210.1.4:5432"
     }
   ],
   "p6_probe_on_the_box": {
     "backends": [
-      "postgres.internal:5432",
+      "databricks.internal:443",
       "minio.internal:9000",
-      "databricks.internal:443"
+      "native-services.internal:8099",
+      "postgres.internal:5432",
+      "sched.internal:8120"
+    ],
+    "compose_names": [
+      "episode",
+      "minio",
+      "native-services",
+      "postgres"
     ],
     "controls": [
       "example.internal",
@@ -596,76 +649,82 @@
       "pypi.org",
       "metabase.internal",
       "sigma.internal",
-      "tableau.internal"
+      "tableau.internal",
+      "airflow.internal",
+      "bigquery.internal",
+      "redshift.internal",
+      "snowflake.internal"
     ],
     "exit": 0,
-    "how": "gateway/docker/native_probe.py, source on stdin to the episode's /usr/local/bin/python (as native_episode_probe.run does); services from native_episode_probe.expectations(profile, plugs) probed as TCP (reachability; P7 records each /health status); --backend for postgres, minio (when the object store is plugged) and every backend the profile plugs, HOSTED ones included; controls = native_probe.CONTROL_NAMES minus running compose service names, plus every host the profile excludes",
+    "how": "gateway/docker/native_probe.py, source on stdin to the episode's /usr/local/bin/python, with containment.p6_plan's inputs (the profile's services as TCP, backends by the service that carries their alias, compose names only for services on episode_net, controls minus those plus every service off it and every excluded host) and --sweep-cidr of the episode network",
+    "must_not_resolve_off_episode_net": [],
+    "plugged_backends_not_carried": [],
     "probe": {
       "addresses_probed": [
-        "10.210.2.2",
-        "10.210.2.3",
-        "10.210.2.4"
+        "10.210.1.2",
+        "10.210.1.3",
+        "10.210.1.4"
       ],
       "closed_port_attempts": [
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.2.2:22"
+          "target": "10.210.1.2:22"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.2.2:80"
+          "target": "10.210.1.2:80"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.2.2:3306"
+          "target": "10.210.1.2:3306"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.2.2:6379"
+          "target": "10.210.1.2:6379"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.2.2:8888"
+          "target": "10.210.1.2:8888"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.2.3:22"
+          "target": "10.210.1.3:22"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.2.3:80"
+          "target": "10.210.1.3:80"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.2.3:3306"
+          "target": "10.210.1.3:3306"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.2.3:6379"
+          "target": "10.210.1.3:6379"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.2.3:8888"
+          "target": "10.210.1.3:8888"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.2.4:22"
+          "target": "10.210.1.4:22"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.2.4:80"
+          "target": "10.210.1.4:80"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.2.4:3306"
+          "target": "10.210.1.4:3306"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.2.4:6379"
+          "target": "10.210.1.4:6379"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.2.4:8888"
+          "target": "10.210.1.4:8888"
         }
       ],
       "closed_ports_probed": [
@@ -679,28 +738,28 @@
       "compose_service_names": [
         {
           "addresses": [
-            "10.210.2.5"
+            "10.210.1.5"
           ],
           "name": "episode",
           "points_at_a_known_service": true
         },
         {
           "addresses": [
-            "10.210.2.3"
+            "10.210.1.2"
           ],
           "name": "minio",
           "points_at_a_known_service": true
         },
         {
           "addresses": [
-            "10.210.2.2"
+            "10.210.1.3"
           ],
           "name": "native-services",
           "points_at_a_known_service": true
         },
         {
           "addresses": [
-            "10.210.2.4"
+            "10.210.1.4"
           ],
           "name": "postgres",
           "points_at_a_known_service": true
@@ -746,10 +805,28 @@
         {
           "error": "gaierror",
           "name": "tableau.internal"
+        },
+        {
+          "error": "gaierror",
+          "name": "airflow.internal"
+        },
+        {
+          "error": "gaierror",
+          "name": "bigquery.internal"
+        },
+        {
+          "error": "gaierror",
+          "name": "redshift.internal"
+        },
+        {
+          "error": "gaierror",
+          "name": "snowflake.internal"
         }
       ],
       "controls_that_resolved": [],
       "dns_deviation": "Docker registers a container's compose service name on every network it joins and gives no way to unregister it, so the names below resolve in addition to the aliases. Each is pinned to an address that is already one of this stack's own services; a name resolving anywhere else fails this property. Removing them needs a resolver of our own in front of 127.0.0.11 - see gateway/docker/NATIVE_STACK.md.",
+      "every_open_port_is_expected": false,
+      "exit": 0,
       "expected": [
         {
           "host": "airbyte.internal",
@@ -770,12 +847,6 @@
           "source": "native_episode_probe.expectations"
         },
         {
-          "host": "databricks.internal",
-          "port": 443,
-          "probe": "tcp",
-          "source": "native_episode_probe.expectations"
-        },
-        {
           "host": "deploy.internal",
           "port": 8085,
           "probe": "tcp",
@@ -806,20 +877,14 @@
           "source": "native_episode_probe.expectations"
         },
         {
-          "host": "sched.internal",
-          "port": 8120,
-          "probe": "tcp",
-          "source": "native_episode_probe.expectations"
-        },
-        {
           "host": "slack.internal",
           "port": 8081,
           "probe": "tcp",
           "source": "native_episode_probe.expectations"
         },
         {
-          "host": "postgres.internal",
-          "port": 5432,
+          "host": "databricks.internal",
+          "port": 443,
           "probe": "tcp",
           "source": "--backend"
         },
@@ -830,8 +895,20 @@
           "source": "--backend"
         },
         {
-          "host": "databricks.internal",
-          "port": 443,
+          "host": "native-services.internal",
+          "port": 8099,
+          "probe": "tcp",
+          "source": "--backend"
+        },
+        {
+          "host": "postgres.internal",
+          "port": 5432,
+          "probe": "tcp",
+          "source": "--backend"
+        },
+        {
+          "host": "sched.internal",
+          "port": 8120,
           "probe": "tcp",
           "source": "--backend"
         }
@@ -844,19 +921,65 @@
         ],
         "routes": [
           {
-            "dest": "10.210.2.0",
+            "dest": "10.210.1.0",
             "iface": "eth0"
           }
         ]
       },
+      "not_audited": [
+        {
+          "address": "10.210.1.1",
+          "banner": {
+            "spoke_first": "SSH-2.0-OpenSSH_10.2p1 Ubuntu-2ubuntu3.6\r\n"
+          },
+          "names": [],
+          "port": 22,
+          "target": "10.210.1.1:22"
+        },
+        {
+          "address": "10.210.1.2",
+          "banner": {
+            "http_get_reply": "HTTP/1.0 200 OK\r\nAccept-Ranges: bytes\r\nContent-Length: 1837\r\nContent-Security-Policy: default-src 'self' 'unsafe-eval' 'unsafe-inline'; script-src 'self' https://unpkg.com;  connect-src 'self' https://unpkg.com;\r\nContent-Type: text/html\r\nLast-Modified: Tue, 13 Oct 2026 08:59:45 GMT\r\nReferrer-Policy:"
+          },
+          "names": [
+            "minio",
+            "minio.internal"
+          ],
+          "port": 36021,
+          "target": "10.210.1.2:36021"
+        },
+        {
+          "address": "10.210.1.3",
+          "banner": {
+            "http_get_reply": "HTTP/1.1 405 Method Not Allowed\r\ndate: Tue, 13 Oct 2026 08:59:46 GMT\r\nserver: uvicorn\r\nallow: POST\r\ncontent-length: 31\r\ncontent-type: application/json\r\nConnection: close\r\n\r\n"
+          },
+          "names": [
+            "airbyte.internal",
+            "alertmanager.internal",
+            "confluence.internal",
+            "databricks.internal",
+            "deploy.internal",
+            "jira.internal",
+            "loki.internal",
+            "native-services",
+            "native-services.internal",
+            "powerbi.internal",
+            "prometheus.internal",
+            "sched.internal",
+            "slack.internal"
+          ],
+          "port": 8110,
+          "target": "10.210.1.3:8110"
+        }
+      ],
       "own_addresses": [
-        "10.210.2.5"
+        "10.210.1.5"
       ],
       "passed": true,
       "self_test": {
         "name_that_should_resolve": {
           "addresses": [
-            "10.210.2.2"
+            "10.210.1.3"
           ],
           "name": "airbyte.internal"
         },
@@ -875,7 +998,7 @@
           "reachable": true,
           "resolution": {
             "addresses": [
-              "10.210.2.2"
+              "10.210.1.3"
             ],
             "name": "airbyte.internal"
           },
@@ -889,7 +1012,7 @@
           "reachable": true,
           "resolution": {
             "addresses": [
-              "10.210.2.2"
+              "10.210.1.3"
             ],
             "name": "alertmanager.internal"
           },
@@ -903,23 +1026,9 @@
           "reachable": true,
           "resolution": {
             "addresses": [
-              "10.210.2.2"
+              "10.210.1.3"
             ],
             "name": "confluence.internal"
-          },
-          "source": "native_episode_probe.expectations",
-          "tcp": "CONNECTED"
-        },
-        {
-          "host": "databricks.internal",
-          "port": 443,
-          "probe": "tcp",
-          "reachable": true,
-          "resolution": {
-            "addresses": [
-              "10.210.2.2"
-            ],
-            "name": "databricks.internal"
           },
           "source": "native_episode_probe.expectations",
           "tcp": "CONNECTED"
@@ -931,7 +1040,7 @@
           "reachable": true,
           "resolution": {
             "addresses": [
-              "10.210.2.2"
+              "10.210.1.3"
             ],
             "name": "deploy.internal"
           },
@@ -945,7 +1054,7 @@
           "reachable": true,
           "resolution": {
             "addresses": [
-              "10.210.2.2"
+              "10.210.1.3"
             ],
             "name": "jira.internal"
           },
@@ -959,7 +1068,7 @@
           "reachable": true,
           "resolution": {
             "addresses": [
-              "10.210.2.2"
+              "10.210.1.3"
             ],
             "name": "loki.internal"
           },
@@ -973,7 +1082,7 @@
           "reachable": true,
           "resolution": {
             "addresses": [
-              "10.210.2.2"
+              "10.210.1.3"
             ],
             "name": "powerbi.internal"
           },
@@ -987,23 +1096,9 @@
           "reachable": true,
           "resolution": {
             "addresses": [
-              "10.210.2.2"
+              "10.210.1.3"
             ],
             "name": "prometheus.internal"
-          },
-          "source": "native_episode_probe.expectations",
-          "tcp": "CONNECTED"
-        },
-        {
-          "host": "sched.internal",
-          "port": 8120,
-          "probe": "tcp",
-          "reachable": true,
-          "resolution": {
-            "addresses": [
-              "10.210.2.2"
-            ],
-            "name": "sched.internal"
           },
           "source": "native_episode_probe.expectations",
           "tcp": "CONNECTED"
@@ -1015,7 +1110,7 @@
           "reachable": true,
           "resolution": {
             "addresses": [
-              "10.210.2.2"
+              "10.210.1.3"
             ],
             "name": "slack.internal"
           },
@@ -1023,15 +1118,15 @@
           "tcp": "CONNECTED"
         },
         {
-          "host": "postgres.internal",
-          "port": 5432,
+          "host": "databricks.internal",
+          "port": 443,
           "probe": "tcp",
           "reachable": true,
           "resolution": {
             "addresses": [
-              "10.210.2.4"
+              "10.210.1.3"
             ],
-            "name": "postgres.internal"
+            "name": "databricks.internal"
           },
           "source": "--backend",
           "tcp": "CONNECTED"
@@ -1043,7 +1138,7 @@
           "reachable": true,
           "resolution": {
             "addresses": [
-              "10.210.2.3"
+              "10.210.1.2"
             ],
             "name": "minio.internal"
           },
@@ -1051,21 +1146,368 @@
           "tcp": "CONNECTED"
         },
         {
-          "host": "databricks.internal",
-          "port": 443,
+          "host": "native-services.internal",
+          "port": 8099,
           "probe": "tcp",
           "reachable": true,
           "resolution": {
             "addresses": [
-              "10.210.2.2"
+              "10.210.1.3"
             ],
-            "name": "databricks.internal"
+            "name": "native-services.internal"
+          },
+          "source": "--backend",
+          "tcp": "CONNECTED"
+        },
+        {
+          "host": "postgres.internal",
+          "port": 5432,
+          "probe": "tcp",
+          "reachable": true,
+          "resolution": {
+            "addresses": [
+              "10.210.1.4"
+            ],
+            "name": "postgres.internal"
+          },
+          "source": "--backend",
+          "tcp": "CONNECTED"
+        },
+        {
+          "host": "sched.internal",
+          "port": 8120,
+          "probe": "tcp",
+          "reachable": true,
+          "resolution": {
+            "addresses": [
+              "10.210.1.3"
+            ],
+            "name": "sched.internal"
           },
           "source": "--backend",
           "tcp": "CONNECTED"
         }
       ],
       "services_unreachable": [],
+      "sweep": {
+        "addresses_in_cidr": 254,
+        "cidr": "10.210.1.0/24",
+        "live_addresses": [
+          "10.210.1.1",
+          "10.210.1.2",
+          "10.210.1.3",
+          "10.210.1.4"
+        ],
+        "liveness": {
+          "10.210.1.1": "ConnectionRefusedError",
+          "10.210.1.10": "timeout",
+          "10.210.1.100": "timeout",
+          "10.210.1.101": "timeout",
+          "10.210.1.102": "timeout",
+          "10.210.1.103": "timeout",
+          "10.210.1.104": "timeout",
+          "10.210.1.105": "timeout",
+          "10.210.1.106": "timeout",
+          "10.210.1.107": "timeout",
+          "10.210.1.108": "timeout",
+          "10.210.1.109": "timeout",
+          "10.210.1.11": "timeout",
+          "10.210.1.110": "timeout",
+          "10.210.1.111": "timeout",
+          "10.210.1.112": "timeout",
+          "10.210.1.113": "timeout",
+          "10.210.1.114": "timeout",
+          "10.210.1.115": "timeout",
+          "10.210.1.116": "timeout",
+          "10.210.1.117": "timeout",
+          "10.210.1.118": "timeout",
+          "10.210.1.119": "timeout",
+          "10.210.1.12": "timeout",
+          "10.210.1.120": "timeout",
+          "10.210.1.121": "timeout",
+          "10.210.1.122": "timeout",
+          "10.210.1.123": "timeout",
+          "10.210.1.124": "timeout",
+          "10.210.1.125": "timeout",
+          "10.210.1.126": "timeout",
+          "10.210.1.127": "timeout",
+          "10.210.1.128": "timeout",
+          "10.210.1.129": "timeout",
+          "10.210.1.13": "timeout",
+          "10.210.1.130": "timeout",
+          "10.210.1.131": "timeout",
+          "10.210.1.132": "timeout",
+          "10.210.1.133": "timeout",
+          "10.210.1.134": "timeout",
+          "10.210.1.135": "timeout",
+          "10.210.1.136": "timeout",
+          "10.210.1.137": "timeout",
+          "10.210.1.138": "timeout",
+          "10.210.1.139": "timeout",
+          "10.210.1.14": "timeout",
+          "10.210.1.140": "timeout",
+          "10.210.1.141": "timeout",
+          "10.210.1.142": "timeout",
+          "10.210.1.143": "timeout",
+          "10.210.1.144": "timeout",
+          "10.210.1.145": "timeout",
+          "10.210.1.146": "timeout",
+          "10.210.1.147": "timeout",
+          "10.210.1.148": "timeout",
+          "10.210.1.149": "timeout",
+          "10.210.1.15": "timeout",
+          "10.210.1.150": "timeout",
+          "10.210.1.151": "timeout",
+          "10.210.1.152": "timeout",
+          "10.210.1.153": "timeout",
+          "10.210.1.154": "timeout",
+          "10.210.1.155": "timeout",
+          "10.210.1.156": "timeout",
+          "10.210.1.157": "timeout",
+          "10.210.1.158": "timeout",
+          "10.210.1.159": "timeout",
+          "10.210.1.16": "timeout",
+          "10.210.1.160": "timeout",
+          "10.210.1.161": "timeout",
+          "10.210.1.162": "timeout",
+          "10.210.1.163": "timeout",
+          "10.210.1.164": "timeout",
+          "10.210.1.165": "timeout",
+          "10.210.1.166": "timeout",
+          "10.210.1.167": "timeout",
+          "10.210.1.168": "timeout",
+          "10.210.1.169": "timeout",
+          "10.210.1.17": "timeout",
+          "10.210.1.170": "timeout",
+          "10.210.1.171": "timeout",
+          "10.210.1.172": "timeout",
+          "10.210.1.173": "timeout",
+          "10.210.1.174": "timeout",
+          "10.210.1.175": "timeout",
+          "10.210.1.176": "timeout",
+          "10.210.1.177": "timeout",
+          "10.210.1.178": "timeout",
+          "10.210.1.179": "timeout",
+          "10.210.1.18": "timeout",
+          "10.210.1.180": "timeout",
+          "10.210.1.181": "timeout",
+          "10.210.1.182": "timeout",
+          "10.210.1.183": "timeout",
+          "10.210.1.184": "timeout",
+          "10.210.1.185": "timeout",
+          "10.210.1.186": "timeout",
+          "10.210.1.187": "timeout",
+          "10.210.1.188": "timeout",
+          "10.210.1.189": "timeout",
+          "10.210.1.19": "timeout",
+          "10.210.1.190": "timeout",
+          "10.210.1.191": "timeout",
+          "10.210.1.192": "timeout",
+          "10.210.1.193": "timeout",
+          "10.210.1.194": "timeout",
+          "10.210.1.195": "timeout",
+          "10.210.1.196": "timeout",
+          "10.210.1.197": "timeout",
+          "10.210.1.198": "timeout",
+          "10.210.1.199": "timeout",
+          "10.210.1.2": "ConnectionRefusedError",
+          "10.210.1.20": "timeout",
+          "10.210.1.200": "timeout",
+          "10.210.1.201": "timeout",
+          "10.210.1.202": "timeout",
+          "10.210.1.203": "timeout",
+          "10.210.1.204": "timeout",
+          "10.210.1.205": "timeout",
+          "10.210.1.206": "timeout",
+          "10.210.1.207": "timeout",
+          "10.210.1.208": "timeout",
+          "10.210.1.209": "timeout",
+          "10.210.1.21": "timeout",
+          "10.210.1.210": "timeout",
+          "10.210.1.211": "timeout",
+          "10.210.1.212": "timeout",
+          "10.210.1.213": "timeout",
+          "10.210.1.214": "timeout",
+          "10.210.1.215": "timeout",
+          "10.210.1.216": "timeout",
+          "10.210.1.217": "timeout",
+          "10.210.1.218": "timeout",
+          "10.210.1.219": "timeout",
+          "10.210.1.22": "timeout",
+          "10.210.1.220": "timeout",
+          "10.210.1.221": "timeout",
+          "10.210.1.222": "timeout",
+          "10.210.1.223": "timeout",
+          "10.210.1.224": "timeout",
+          "10.210.1.225": "timeout",
+          "10.210.1.226": "timeout",
+          "10.210.1.227": "timeout",
+          "10.210.1.228": "timeout",
+          "10.210.1.229": "timeout",
+          "10.210.1.23": "timeout",
+          "10.210.1.230": "timeout",
+          "10.210.1.231": "timeout",
+          "10.210.1.232": "timeout",
+          "10.210.1.233": "timeout",
+          "10.210.1.234": "timeout",
+          "10.210.1.235": "timeout",
+          "10.210.1.236": "timeout",
+          "10.210.1.237": "timeout",
+          "10.210.1.238": "timeout",
+          "10.210.1.239": "timeout",
+          "10.210.1.24": "timeout",
+          "10.210.1.240": "timeout",
+          "10.210.1.241": "timeout",
+          "10.210.1.242": "timeout",
+          "10.210.1.243": "timeout",
+          "10.210.1.244": "timeout",
+          "10.210.1.245": "timeout",
+          "10.210.1.246": "timeout",
+          "10.210.1.247": "timeout",
+          "10.210.1.248": "timeout",
+          "10.210.1.249": "timeout",
+          "10.210.1.25": "timeout",
+          "10.210.1.250": "timeout",
+          "10.210.1.251": "timeout",
+          "10.210.1.252": "timeout",
+          "10.210.1.253": "timeout",
+          "10.210.1.254": "timeout",
+          "10.210.1.26": "timeout",
+          "10.210.1.27": "timeout",
+          "10.210.1.28": "timeout",
+          "10.210.1.29": "timeout",
+          "10.210.1.3": "ConnectionRefusedError",
+          "10.210.1.30": "timeout",
+          "10.210.1.31": "timeout",
+          "10.210.1.32": "timeout",
+          "10.210.1.33": "timeout",
+          "10.210.1.34": "timeout",
+          "10.210.1.35": "timeout",
+          "10.210.1.36": "timeout",
+          "10.210.1.37": "timeout",
+          "10.210.1.38": "timeout",
+          "10.210.1.39": "timeout",
+          "10.210.1.4": "ConnectionRefusedError",
+          "10.210.1.40": "timeout",
+          "10.210.1.41": "timeout",
+          "10.210.1.42": "timeout",
+          "10.210.1.43": "timeout",
+          "10.210.1.44": "timeout",
+          "10.210.1.45": "timeout",
+          "10.210.1.46": "timeout",
+          "10.210.1.47": "timeout",
+          "10.210.1.48": "timeout",
+          "10.210.1.49": "timeout",
+          "10.210.1.50": "timeout",
+          "10.210.1.51": "timeout",
+          "10.210.1.52": "timeout",
+          "10.210.1.53": "timeout",
+          "10.210.1.54": "timeout",
+          "10.210.1.55": "timeout",
+          "10.210.1.56": "timeout",
+          "10.210.1.57": "timeout",
+          "10.210.1.58": "timeout",
+          "10.210.1.59": "timeout",
+          "10.210.1.6": "timeout",
+          "10.210.1.60": "timeout",
+          "10.210.1.61": "timeout",
+          "10.210.1.62": "timeout",
+          "10.210.1.63": "timeout",
+          "10.210.1.64": "timeout",
+          "10.210.1.65": "timeout",
+          "10.210.1.66": "timeout",
+          "10.210.1.67": "timeout",
+          "10.210.1.68": "timeout",
+          "10.210.1.69": "timeout",
+          "10.210.1.7": "timeout",
+          "10.210.1.70": "timeout",
+          "10.210.1.71": "timeout",
+          "10.210.1.72": "timeout",
+          "10.210.1.73": "timeout",
+          "10.210.1.74": "timeout",
+          "10.210.1.75": "timeout",
+          "10.210.1.76": "timeout",
+          "10.210.1.77": "timeout",
+          "10.210.1.78": "timeout",
+          "10.210.1.79": "timeout",
+          "10.210.1.8": "timeout",
+          "10.210.1.80": "timeout",
+          "10.210.1.81": "timeout",
+          "10.210.1.82": "timeout",
+          "10.210.1.83": "timeout",
+          "10.210.1.84": "timeout",
+          "10.210.1.85": "timeout",
+          "10.210.1.86": "timeout",
+          "10.210.1.87": "timeout",
+          "10.210.1.88": "timeout",
+          "10.210.1.89": "timeout",
+          "10.210.1.9": "timeout",
+          "10.210.1.90": "timeout",
+          "10.210.1.91": "timeout",
+          "10.210.1.92": "timeout",
+          "10.210.1.93": "timeout",
+          "10.210.1.94": "timeout",
+          "10.210.1.95": "timeout",
+          "10.210.1.96": "timeout",
+          "10.210.1.97": "timeout",
+          "10.210.1.98": "timeout",
+          "10.210.1.99": "timeout"
+        },
+        "liveness_ports": [
+          9,
+          22,
+          80,
+          443,
+          3306,
+          6379,
+          8888
+        ],
+        "neither_open_nor_refused_first_200": [],
+        "open": [
+          "10.210.1.1:22",
+          "10.210.1.2:9000",
+          "10.210.1.2:36021",
+          "10.210.1.3:443",
+          "10.210.1.3:3100",
+          "10.210.1.3:8001",
+          "10.210.1.3:8080",
+          "10.210.1.3:8081",
+          "10.210.1.3:8085",
+          "10.210.1.3:8090",
+          "10.210.1.3:8095",
+          "10.210.1.3:8099",
+          "10.210.1.3:8110",
+          "10.210.1.3:8120",
+          "10.210.1.3:9090",
+          "10.210.1.3:9093",
+          "10.210.1.4:5432"
+        ],
+        "own_addresses_skipped": [
+          "10.210.1.5"
+        ],
+        "ports": "1-65535",
+        "result_counts": {
+          "10.210.1.1": {
+            "CONNECTED": 1,
+            "ConnectionRefusedError": 65534
+          },
+          "10.210.1.2": {
+            "CONNECTED": 2,
+            "ConnectionRefusedError": 65533
+          },
+          "10.210.1.3": {
+            "CONNECTED": 13,
+            "ConnectionRefusedError": 65522
+          },
+          "10.210.1.4": {
+            "CONNECTED": 1,
+            "ConnectionRefusedError": 65534
+          }
+        },
+        "saw_every_expected_port_open": true,
+        "seconds": 10.1,
+        "timeout_s": 1.0
+      },
       "unexpected_open": [],
       "vantage": "episode container, episode_net only"
     },
@@ -1073,10 +1515,11 @@
   },
   "p7": {
     "artifact": "containment-native-episode-de-databricks.json",
-    "exit": 1
+    "exit": 0,
+    "passed": true
   },
   "plugs": {},
-  "project": "alkera-p6b-de-databricks",
+  "project": "alkera-t4b-de-databricks",
   "services_up": [
     "episode",
     "minio",
@@ -1089,226 +1532,439 @@
     "episode_role": false
   },
   "statement_log_lines_with_marker": [
-    "2026-10-07 17:46:10.170 UTC [184] alkera@alkeraLOG:  statement: select /* p6-door-de-databricks-alkera_role */ current_user, current_database()"
+    "2026-10-13 08:59:47.453 UTC [226] alkera@alkeraLOG:  statement: select /* box-sweep-alkera-t4b-de-databricks-alkera_role */ current_user, current_database()"
   ],
   "sweep": {
+    "cidr": "10.210.1.0/24",
     "env_credentials": {
       "ALKERA_POSTGRES_DSN": "postgresql://episode:episode-local@postgres/episode"
     },
+    "gateway": "10.210.1.1",
     "live_addresses": [
-      "10.210.2.1",
-      "10.210.2.2",
-      "10.210.2.3",
-      "10.210.2.4",
-      "10.210.2.5"
+      "10.210.1.1",
+      "10.210.1.2",
+      "10.210.1.3",
+      "10.210.1.4"
     ],
     "liveness_port9": {
-      "10.210.2.1": "ConnectionRefusedError",
-      "10.210.2.10": "timeout",
-      "10.210.2.11": "timeout",
-      "10.210.2.12": "timeout",
-      "10.210.2.13": "timeout",
-      "10.210.2.14": "timeout",
-      "10.210.2.15": "timeout",
-      "10.210.2.16": "timeout",
-      "10.210.2.17": "timeout",
-      "10.210.2.18": "timeout",
-      "10.210.2.19": "timeout",
-      "10.210.2.2": "ConnectionRefusedError",
-      "10.210.2.20": "timeout",
-      "10.210.2.21": "timeout",
-      "10.210.2.22": "timeout",
-      "10.210.2.23": "timeout",
-      "10.210.2.24": "timeout",
-      "10.210.2.25": "timeout",
-      "10.210.2.26": "timeout",
-      "10.210.2.27": "timeout",
-      "10.210.2.28": "timeout",
-      "10.210.2.29": "timeout",
-      "10.210.2.3": "ConnectionRefusedError",
-      "10.210.2.30": "timeout",
-      "10.210.2.31": "timeout",
-      "10.210.2.32": "timeout",
-      "10.210.2.33": "timeout",
-      "10.210.2.34": "timeout",
-      "10.210.2.35": "timeout",
-      "10.210.2.36": "timeout",
-      "10.210.2.37": "timeout",
-      "10.210.2.38": "timeout",
-      "10.210.2.39": "timeout",
-      "10.210.2.4": "ConnectionRefusedError",
-      "10.210.2.40": "timeout",
-      "10.210.2.5": "ConnectionRefusedError",
-      "10.210.2.6": "timeout",
-      "10.210.2.7": "timeout",
-      "10.210.2.8": "timeout",
-      "10.210.2.9": "timeout"
+      "10.210.1.1": "ConnectionRefusedError",
+      "10.210.1.10": "timeout",
+      "10.210.1.100": "timeout",
+      "10.210.1.101": "timeout",
+      "10.210.1.102": "timeout",
+      "10.210.1.103": "timeout",
+      "10.210.1.104": "timeout",
+      "10.210.1.105": "timeout",
+      "10.210.1.106": "timeout",
+      "10.210.1.107": "timeout",
+      "10.210.1.108": "timeout",
+      "10.210.1.109": "timeout",
+      "10.210.1.11": "timeout",
+      "10.210.1.110": "timeout",
+      "10.210.1.111": "timeout",
+      "10.210.1.112": "timeout",
+      "10.210.1.113": "timeout",
+      "10.210.1.114": "timeout",
+      "10.210.1.115": "timeout",
+      "10.210.1.116": "timeout",
+      "10.210.1.117": "timeout",
+      "10.210.1.118": "timeout",
+      "10.210.1.119": "timeout",
+      "10.210.1.12": "timeout",
+      "10.210.1.120": "timeout",
+      "10.210.1.121": "timeout",
+      "10.210.1.122": "timeout",
+      "10.210.1.123": "timeout",
+      "10.210.1.124": "timeout",
+      "10.210.1.125": "timeout",
+      "10.210.1.126": "timeout",
+      "10.210.1.127": "timeout",
+      "10.210.1.128": "timeout",
+      "10.210.1.129": "timeout",
+      "10.210.1.13": "timeout",
+      "10.210.1.130": "timeout",
+      "10.210.1.131": "timeout",
+      "10.210.1.132": "timeout",
+      "10.210.1.133": "timeout",
+      "10.210.1.134": "timeout",
+      "10.210.1.135": "timeout",
+      "10.210.1.136": "timeout",
+      "10.210.1.137": "timeout",
+      "10.210.1.138": "timeout",
+      "10.210.1.139": "timeout",
+      "10.210.1.14": "timeout",
+      "10.210.1.140": "timeout",
+      "10.210.1.141": "timeout",
+      "10.210.1.142": "timeout",
+      "10.210.1.143": "timeout",
+      "10.210.1.144": "timeout",
+      "10.210.1.145": "timeout",
+      "10.210.1.146": "timeout",
+      "10.210.1.147": "timeout",
+      "10.210.1.148": "timeout",
+      "10.210.1.149": "timeout",
+      "10.210.1.15": "timeout",
+      "10.210.1.150": "timeout",
+      "10.210.1.151": "timeout",
+      "10.210.1.152": "timeout",
+      "10.210.1.153": "timeout",
+      "10.210.1.154": "timeout",
+      "10.210.1.155": "timeout",
+      "10.210.1.156": "timeout",
+      "10.210.1.157": "timeout",
+      "10.210.1.158": "timeout",
+      "10.210.1.159": "timeout",
+      "10.210.1.16": "timeout",
+      "10.210.1.160": "timeout",
+      "10.210.1.161": "timeout",
+      "10.210.1.162": "timeout",
+      "10.210.1.163": "timeout",
+      "10.210.1.164": "timeout",
+      "10.210.1.165": "timeout",
+      "10.210.1.166": "timeout",
+      "10.210.1.167": "timeout",
+      "10.210.1.168": "timeout",
+      "10.210.1.169": "timeout",
+      "10.210.1.17": "timeout",
+      "10.210.1.170": "timeout",
+      "10.210.1.171": "timeout",
+      "10.210.1.172": "timeout",
+      "10.210.1.173": "timeout",
+      "10.210.1.174": "timeout",
+      "10.210.1.175": "timeout",
+      "10.210.1.176": "timeout",
+      "10.210.1.177": "timeout",
+      "10.210.1.178": "timeout",
+      "10.210.1.179": "timeout",
+      "10.210.1.18": "timeout",
+      "10.210.1.180": "timeout",
+      "10.210.1.181": "timeout",
+      "10.210.1.182": "timeout",
+      "10.210.1.183": "timeout",
+      "10.210.1.184": "timeout",
+      "10.210.1.185": "timeout",
+      "10.210.1.186": "timeout",
+      "10.210.1.187": "timeout",
+      "10.210.1.188": "timeout",
+      "10.210.1.189": "timeout",
+      "10.210.1.19": "timeout",
+      "10.210.1.190": "timeout",
+      "10.210.1.191": "timeout",
+      "10.210.1.192": "timeout",
+      "10.210.1.193": "timeout",
+      "10.210.1.194": "timeout",
+      "10.210.1.195": "timeout",
+      "10.210.1.196": "timeout",
+      "10.210.1.197": "timeout",
+      "10.210.1.198": "timeout",
+      "10.210.1.199": "timeout",
+      "10.210.1.2": "ConnectionRefusedError",
+      "10.210.1.20": "timeout",
+      "10.210.1.200": "timeout",
+      "10.210.1.201": "timeout",
+      "10.210.1.202": "timeout",
+      "10.210.1.203": "timeout",
+      "10.210.1.204": "timeout",
+      "10.210.1.205": "timeout",
+      "10.210.1.206": "timeout",
+      "10.210.1.207": "timeout",
+      "10.210.1.208": "timeout",
+      "10.210.1.209": "timeout",
+      "10.210.1.21": "timeout",
+      "10.210.1.210": "timeout",
+      "10.210.1.211": "timeout",
+      "10.210.1.212": "timeout",
+      "10.210.1.213": "timeout",
+      "10.210.1.214": "timeout",
+      "10.210.1.215": "timeout",
+      "10.210.1.216": "timeout",
+      "10.210.1.217": "timeout",
+      "10.210.1.218": "timeout",
+      "10.210.1.219": "timeout",
+      "10.210.1.22": "timeout",
+      "10.210.1.220": "timeout",
+      "10.210.1.221": "timeout",
+      "10.210.1.222": "timeout",
+      "10.210.1.223": "timeout",
+      "10.210.1.224": "timeout",
+      "10.210.1.225": "timeout",
+      "10.210.1.226": "timeout",
+      "10.210.1.227": "timeout",
+      "10.210.1.228": "timeout",
+      "10.210.1.229": "timeout",
+      "10.210.1.23": "timeout",
+      "10.210.1.230": "timeout",
+      "10.210.1.231": "timeout",
+      "10.210.1.232": "timeout",
+      "10.210.1.233": "timeout",
+      "10.210.1.234": "timeout",
+      "10.210.1.235": "timeout",
+      "10.210.1.236": "timeout",
+      "10.210.1.237": "timeout",
+      "10.210.1.238": "timeout",
+      "10.210.1.239": "timeout",
+      "10.210.1.24": "timeout",
+      "10.210.1.240": "timeout",
+      "10.210.1.241": "timeout",
+      "10.210.1.242": "timeout",
+      "10.210.1.243": "timeout",
+      "10.210.1.244": "timeout",
+      "10.210.1.245": "timeout",
+      "10.210.1.246": "timeout",
+      "10.210.1.247": "timeout",
+      "10.210.1.248": "timeout",
+      "10.210.1.249": "timeout",
+      "10.210.1.25": "timeout",
+      "10.210.1.250": "timeout",
+      "10.210.1.251": "timeout",
+      "10.210.1.252": "timeout",
+      "10.210.1.253": "timeout",
+      "10.210.1.254": "timeout",
+      "10.210.1.26": "timeout",
+      "10.210.1.27": "timeout",
+      "10.210.1.28": "timeout",
+      "10.210.1.29": "timeout",
+      "10.210.1.3": "ConnectionRefusedError",
+      "10.210.1.30": "timeout",
+      "10.210.1.31": "timeout",
+      "10.210.1.32": "timeout",
+      "10.210.1.33": "timeout",
+      "10.210.1.34": "timeout",
+      "10.210.1.35": "timeout",
+      "10.210.1.36": "timeout",
+      "10.210.1.37": "timeout",
+      "10.210.1.38": "timeout",
+      "10.210.1.39": "timeout",
+      "10.210.1.4": "ConnectionRefusedError",
+      "10.210.1.40": "timeout",
+      "10.210.1.41": "timeout",
+      "10.210.1.42": "timeout",
+      "10.210.1.43": "timeout",
+      "10.210.1.44": "timeout",
+      "10.210.1.45": "timeout",
+      "10.210.1.46": "timeout",
+      "10.210.1.47": "timeout",
+      "10.210.1.48": "timeout",
+      "10.210.1.49": "timeout",
+      "10.210.1.50": "timeout",
+      "10.210.1.51": "timeout",
+      "10.210.1.52": "timeout",
+      "10.210.1.53": "timeout",
+      "10.210.1.54": "timeout",
+      "10.210.1.55": "timeout",
+      "10.210.1.56": "timeout",
+      "10.210.1.57": "timeout",
+      "10.210.1.58": "timeout",
+      "10.210.1.59": "timeout",
+      "10.210.1.6": "timeout",
+      "10.210.1.60": "timeout",
+      "10.210.1.61": "timeout",
+      "10.210.1.62": "timeout",
+      "10.210.1.63": "timeout",
+      "10.210.1.64": "timeout",
+      "10.210.1.65": "timeout",
+      "10.210.1.66": "timeout",
+      "10.210.1.67": "timeout",
+      "10.210.1.68": "timeout",
+      "10.210.1.69": "timeout",
+      "10.210.1.7": "timeout",
+      "10.210.1.70": "timeout",
+      "10.210.1.71": "timeout",
+      "10.210.1.72": "timeout",
+      "10.210.1.73": "timeout",
+      "10.210.1.74": "timeout",
+      "10.210.1.75": "timeout",
+      "10.210.1.76": "timeout",
+      "10.210.1.77": "timeout",
+      "10.210.1.78": "timeout",
+      "10.210.1.79": "timeout",
+      "10.210.1.8": "timeout",
+      "10.210.1.80": "timeout",
+      "10.210.1.81": "timeout",
+      "10.210.1.82": "timeout",
+      "10.210.1.83": "timeout",
+      "10.210.1.84": "timeout",
+      "10.210.1.85": "timeout",
+      "10.210.1.86": "timeout",
+      "10.210.1.87": "timeout",
+      "10.210.1.88": "timeout",
+      "10.210.1.89": "timeout",
+      "10.210.1.9": "timeout",
+      "10.210.1.90": "timeout",
+      "10.210.1.91": "timeout",
+      "10.210.1.92": "timeout",
+      "10.210.1.93": "timeout",
+      "10.210.1.94": "timeout",
+      "10.210.1.95": "timeout",
+      "10.210.1.96": "timeout",
+      "10.210.1.97": "timeout",
+      "10.210.1.98": "timeout",
+      "10.210.1.99": "timeout"
     },
     "names": {
       "acme.snowflake.local": [],
       "airbyte.internal": [
-        "10.210.2.2"
+        "10.210.1.3"
       ],
       "airflow.internal": [],
       "alertmanager.internal": [
-        "10.210.2.2"
+        "10.210.1.3"
       ],
-      "alkera-p6b-de-databricks-episode-1": [
-        "10.210.2.5"
+      "alkera-t4b-de-databricks-episode-1": [
+        "10.210.1.5"
       ],
-      "alkera-p6b-de-databricks-minio-1": [
-        "10.210.2.3"
+      "alkera-t4b-de-databricks-minio-1": [
+        "10.210.1.2"
       ],
-      "alkera-p6b-de-databricks-native-services-1": [
-        "10.210.2.2"
+      "alkera-t4b-de-databricks-native-services-1": [
+        "10.210.1.3"
       ],
-      "alkera-p6b-de-databricks-postgres-1": [
-        "10.210.2.4"
+      "alkera-t4b-de-databricks-postgres-1": [
+        "10.210.1.4"
       ],
-      "bigquery": [],
       "bigquery.internal": [],
       "confluence.internal": [
-        "10.210.2.2"
+        "10.210.1.3"
       ],
       "databricks.internal": [
-        "10.210.2.2"
+        "10.210.1.3"
       ],
       "deploy.internal": [
-        "10.210.2.2"
+        "10.210.1.3"
       ],
       "episode": [
-        "10.210.2.5"
+        "10.210.1.5"
       ],
       "example.com": [],
       "example.internal": [],
       "jira.internal": [
-        "10.210.2.2"
+        "10.210.1.3"
       ],
-      "jupyter.internal": [],
       "loki.internal": [
-        "10.210.2.2"
+        "10.210.1.3"
       ],
       "metabase.internal": [],
       "minio": [
-        "10.210.2.3"
+        "10.210.1.2"
       ],
       "minio.internal": [
-        "10.210.2.3"
+        "10.210.1.2"
       ],
       "native-services": [
-        "10.210.2.2"
+        "10.210.1.3"
       ],
       "native-services.internal": [
-        "10.210.2.2"
+        "10.210.1.3"
       ],
       "postgres": [
-        "10.210.2.4"
+        "10.210.1.4"
       ],
       "postgres.internal": [
-        "10.210.2.4"
+        "10.210.1.4"
       ],
       "powerbi.internal": [
-        "10.210.2.2"
+        "10.210.1.3"
       ],
       "prometheus.internal": [
-        "10.210.2.2"
+        "10.210.1.3"
       ],
       "pypi.org": [],
-      "redshift": [],
+      "redshift.internal": [],
       "s3": [],
       "sched.internal": [
-        "10.210.2.2"
+        "10.210.1.3"
       ],
       "sigma.internal": [],
       "slack.internal": [
-        "10.210.2.2"
+        "10.210.1.3"
       ],
       "snowflake": [],
+      "snowflake.internal": [],
       "tableau.internal": [],
       "warehouse.internal": []
     },
     "off_network": [
       {
         "result": "OSError",
-        "target": "10.210.1.3:5432"
+        "target": "10.210.2.3:5432"
       },
       {
         "result": "OSError",
-        "target": "10.210.1.3:5439"
+        "target": "10.210.2.3:5439"
       },
       {
         "result": "OSError",
-        "target": "10.210.1.3:8443"
+        "target": "10.210.2.3:8443"
       },
       {
         "result": "OSError",
-        "target": "10.210.1.3:9000"
+        "target": "10.210.2.3:9000"
       },
       {
         "result": "OSError",
-        "target": "10.210.1.3:9050"
+        "target": "10.210.2.3:9050"
       },
       {
         "result": "OSError",
-        "target": "10.210.1.3:9060"
+        "target": "10.210.2.3:9060"
       },
       {
         "result": "OSError",
-        "target": "10.210.1.3:443"
+        "target": "10.210.2.3:443"
       },
       {
         "result": "OSError",
-        "target": "10.210.1.3:8080"
+        "target": "10.210.2.3:8080"
       },
       {
         "result": "OSError",
-        "target": "10.210.1.3:8100"
+        "target": "10.210.2.3:8100"
       },
       {
         "result": "OSError",
-        "target": "10.210.1.2:5432"
+        "target": "10.210.2.2:5432"
       },
       {
         "result": "OSError",
-        "target": "10.210.1.2:5439"
+        "target": "10.210.2.2:5439"
       },
       {
         "result": "OSError",
-        "target": "10.210.1.2:8443"
+        "target": "10.210.2.2:8443"
       },
       {
         "result": "OSError",
-        "target": "10.210.1.2:9000"
+        "target": "10.210.2.2:9000"
       },
       {
         "result": "OSError",
-        "target": "10.210.1.2:9050"
+        "target": "10.210.2.2:9050"
       },
       {
         "result": "OSError",
-        "target": "10.210.1.2:9060"
+        "target": "10.210.2.2:9060"
       },
       {
         "result": "OSError",
-        "target": "10.210.1.2:443"
+        "target": "10.210.2.2:443"
       },
       {
         "result": "OSError",
-        "target": "10.210.1.2:8080"
+        "target": "10.210.2.2:8080"
       },
       {
         "result": "OSError",
-        "target": "10.210.1.2:8100"
+        "target": "10.210.2.2:8100"
       }
     ],
     "own_addresses": [
-      "10.210.2.5"
+      "10.210.1.5"
     ],
     "pg_logins": [
       {
         "connected": false,
-        "dsn": "postgres/episode",
-        "error": "OperationalError: connection failed: connection to server at \"10.210.2.4\", port 5432 failed: FATAL:  database \"episode\" does not exist",
+        "dsn": "postgres:5432/episode",
+        "error": "OperationalError: connection failed: connection to server at \"10.210.1.4\", port 5432 failed: FATAL:  database \"episode\" does not exist",
         "label": "env_dsn",
         "user": "episode"
       },
@@ -1395,46 +2051,46 @@
     ],
     "port_scan": {
       "addresses": [
-        "10.210.2.1",
-        "10.210.2.2",
-        "10.210.2.3",
-        "10.210.2.4"
+        "10.210.1.1",
+        "10.210.1.2",
+        "10.210.1.3",
+        "10.210.1.4"
       ],
       "neither_open_nor_refused_first_200": [],
       "open": [
-        "10.210.2.1:22",
-        "10.210.2.2:443",
-        "10.210.2.2:3100",
-        "10.210.2.2:8001",
-        "10.210.2.2:8080",
-        "10.210.2.2:8081",
-        "10.210.2.2:8085",
-        "10.210.2.2:8090",
-        "10.210.2.2:8095",
-        "10.210.2.2:8099",
-        "10.210.2.2:8110",
-        "10.210.2.2:8120",
-        "10.210.2.2:9090",
-        "10.210.2.2:9093",
-        "10.210.2.3:9000",
-        "10.210.2.3:34135",
-        "10.210.2.4:5432"
+        "10.210.1.1:22",
+        "10.210.1.2:9000",
+        "10.210.1.2:36021",
+        "10.210.1.3:443",
+        "10.210.1.3:3100",
+        "10.210.1.3:8001",
+        "10.210.1.3:8080",
+        "10.210.1.3:8081",
+        "10.210.1.3:8085",
+        "10.210.1.3:8090",
+        "10.210.1.3:8095",
+        "10.210.1.3:8099",
+        "10.210.1.3:8110",
+        "10.210.1.3:8120",
+        "10.210.1.3:9090",
+        "10.210.1.3:9093",
+        "10.210.1.4:5432"
       ],
       "ports": "1-65535",
       "result_counts": {
-        "10.210.2.1": {
+        "10.210.1.1": {
           "CONNECTED": 1,
           "ConnectionRefusedError": 65534
         },
-        "10.210.2.2": {
-          "CONNECTED": 13,
-          "ConnectionRefusedError": 65522
-        },
-        "10.210.2.3": {
+        "10.210.1.2": {
           "CONNECTED": 2,
           "ConnectionRefusedError": 65533
         },
-        "10.210.2.4": {
+        "10.210.1.3": {
+          "CONNECTED": 13,
+          "ConnectionRefusedError": 65522
+        },
+        "10.210.1.4": {
           "CONNECTED": 1,
           "ConnectionRefusedError": 65534
         }
@@ -1443,13 +2099,13 @@
     },
     "routes": [
       {
-        "dest": "10.210.2.0",
+        "dest": "10.210.1.0",
         "gateway": "0.0.0.0",
         "iface": "eth0",
         "mask": "255.255.255.0"
       }
     ],
-    "seconds": 18.7,
+    "seconds": 14.6,
     "vantage": "episode container (docker exec, /usr/local/bin/python)"
   }
 }
