@@ -1,26 +1,29 @@
 {
-  "compose_file": "/home/ubuntu/.cache/alkera-harbor-work/tmp/t14/trialwt/gateway/docker/compose.yml",
+  "compose_file": "/home/ubuntu/tool_implementation.wt/t14-spark/gateway/docker/compose.yml",
   "compose_overlays": [
-    "/home/ubuntu/.cache/alkera-harbor-work/tmp/t14/trialwt/gateway/docker/compose.episode.yml",
-    "/home/ubuntu/.cache/alkera-harbor-work/tmp/t14/trialwt/gateway/docker/compose.native.yml",
+    "/home/ubuntu/tool_implementation.wt/t14-spark/gateway/docker/compose.episode.yml",
+    "/home/ubuntu/tool_implementation.wt/t14-spark/gateway/docker/compose.native.yml",
     "+ the rollout's own compose.native-mounts.yml"
   ],
-  "generated": "2026-10-13T10:50:03+00:00",
+  "generated": "2026-10-13T12:15:11+00:00",
   "host": {
     "docker": "29.8.2",
     "platform": "Linux-7.0.0-1006-aws-x86_64-with-glibc2.43"
   },
-  "image_note": "Measured on alkera-episode:t14-ds-databricks-spark-hook, built from the ref-less trial commit ff5be2fdd23dd20cf18fee4d002e2625d02c72c8 = this branch's 8bfea28 + the proposed serve.py raw-listener hook (docs/environments/DATABRICKS_SPIKE.md, 'What serving it needs'): serve.py is T5/T6's file, so the hook is not on this branch. Without it the proxy is not served.",
-  "image_revision": "ff5be2fdd23dd20cf18fee4d002e2625d02c72c8",
   "mode": "native-episode",
   "not_measured_here": "P0-P5 describe the MCP-transport stack (evidence/containment.json) and P6 the native network (evidence/containment-native.json); this run measures P7 only.",
   "p7_native_episode_filesystem": {
     "checks_not_applicable": {},
     "compose_files": [
-      "/home/ubuntu/.cache/alkera-harbor-work/tmp/t14/trialwt/gateway/docker/compose.yml",
-      "/home/ubuntu/.cache/alkera-harbor-work/tmp/t14/trialwt/gateway/docker/compose.episode.yml",
-      "/home/ubuntu/.cache/alkera-harbor-work/tmp/t14/trialwt/gateway/docker/compose.native.yml"
+      "/home/ubuntu/tool_implementation.wt/t14-spark/gateway/docker/compose.yml",
+      "/home/ubuntu/tool_implementation.wt/t14-spark/gateway/docker/compose.episode.yml",
+      "/home/ubuntu/tool_implementation.wt/t14-spark/gateway/docker/compose.native.yml"
     ],
+    "doors_expected": {
+      "jupyter": "jupyter.internal:8888",
+      "minio": "minio.internal:9000",
+      "postgres": "postgres.internal:5432"
+    },
     "environment_profile": {
       "plugs": [],
       "profile": "ds/databricks",
@@ -43,6 +46,7 @@
       "checks": {
         "egress_refused": true,
         "every_declared_warehouse_is_mounted": true,
+        "every_plugged_door_accepts_tcp": true,
         "every_service_is_reachable_from_the_episode": false,
         "ledger_is_present_empty_and_read_only": true,
         "no_canary_and_no_marker_is_readable": true,
@@ -56,60 +60,105 @@
       },
       "checks_not_applicable": {},
       "contained": false,
+      "doors": [
+        {
+          "door": "jupyter",
+          "target": "jupyter.internal:8888",
+          "tcp": "CONNECTED"
+        },
+        {
+          "door": "minio",
+          "target": "minio.internal:9000",
+          "tcp": "CONNECTED"
+        },
+        {
+          "door": "postgres",
+          "target": "postgres.internal:5432",
+          "tcp": "CONNECTED"
+        }
+      ],
+      "doors_unreachable": [],
       "egress_blocked": true,
       "excluded_services": [
         {
           "addresses": [],
           "error": "gaierror",
           "host": "airbyte.internal",
+          "names": {
+            "airbyte.internal": []
+          },
           "service": "airbyte"
         },
         {
           "addresses": [],
           "error": "gaierror",
           "host": "alertmanager.internal",
+          "names": {
+            "alertmanager.internal": []
+          },
           "service": "alertmanager"
         },
         {
           "addresses": [],
           "error": "gaierror",
           "host": "deploy.internal",
+          "names": {
+            "deploy.internal": []
+          },
           "service": "deploy"
         },
         {
           "addresses": [],
           "error": "gaierror",
           "host": "loki.internal",
+          "names": {
+            "loki.internal": []
+          },
           "service": "loki"
         },
         {
           "addresses": [],
           "error": "gaierror",
           "host": "metabase.internal",
+          "names": {
+            "metabase.internal": []
+          },
           "service": "metabase"
         },
         {
           "addresses": [],
           "error": "gaierror",
           "host": "powerbi.internal",
+          "names": {
+            "powerbi.internal": []
+          },
           "service": "powerbi"
         },
         {
           "addresses": [],
           "error": "gaierror",
           "host": "prometheus.internal",
+          "names": {
+            "prometheus.internal": []
+          },
           "service": "prometheus"
         },
         {
           "addresses": [],
           "error": "gaierror",
           "host": "sigma.internal",
+          "names": {
+            "sigma.internal": []
+          },
           "service": "sigma"
         },
         {
           "addresses": [],
           "error": "gaierror",
           "host": "tableau.internal",
+          "names": {
+            "tableau.internal": []
+          },
           "service": "tableau"
         }
       ],
@@ -159,13 +208,13 @@
         {
           "fstype": "ext4",
           "options": "rw,relatime",
-          "root": "/home/ubuntu/alkera-rollouts/t14-spark/e2e-keep/audit",
+          "root": "/home/ubuntu/.cache/t14/sweep/work/audit",
           "target": "/audit"
         },
         {
           "fstype": "ext4",
           "options": "rw,relatime",
-          "root": "/home/ubuntu/alkera-rollouts/t14-spark/e2e-keep/world/workspace",
+          "root": "/home/ubuntu/.cache/t14/sweep/work/world/workspace",
           "target": "/workspace"
         },
         {
@@ -177,7 +226,7 @@
         {
           "fstype": "ext4",
           "options": "rw,relatime",
-          "root": "/home/ubuntu/alkera-rollouts/t14-spark/e2e-keep/world/var/warehouse/warehouse.duckdb",
+          "root": "/home/ubuntu/.cache/t14/sweep/work/world/var/warehouse/warehouse.duckdb",
           "target": "/world/var/warehouse/warehouse.duckdb"
         }
       ],
@@ -217,7 +266,7 @@
         ],
         "routes": [
           {
-            "dest": "10.210.2.0",
+            "dest": "10.210.202.0",
             "iface": "eth0"
           }
         ]
@@ -259,7 +308,7 @@
       "service_state": {
         "mounts": [],
         "roots": [
-          "/home/ubuntu/alkera-rollouts/t14-spark/e2e-keep/rollout/service-state"
+          "/home/ubuntu/.cache/t14/sweep/work/rollout/service-state"
         ],
         "roots_present": [],
         "targets": [
@@ -278,11 +327,15 @@
           "url": "http://confluence.internal:8090"
         },
         {
-          "error": "RemoteDisconnected: Remote end closed connection without response",
-          "populated": false,
-          "reachable": false,
+          "bundle": "/etc/alkera/databricks-tls/bundle.pem",
+          "items": 13,
+          "ok": true,
+          "populated": true,
+          "reachable": true,
           "service": "databricks",
-          "url": "http://databricks.internal:443"
+          "status": 200,
+          "tcp": "CONNECTED",
+          "url": "https://databricks.internal:443"
         },
         {
           "items": 11,
@@ -320,12 +373,11 @@
         }
       ],
       "services_unreachable": [
-        "databricks",
         "spark_connect"
       ],
       "services_with_no_content": [],
       "sweep": {
-        "files_scanned": 1808,
+        "files_scanned": 1804,
         "hits": [],
         "roots": [
           "/world",
@@ -357,7 +409,7 @@
     },
     "published_host_ports": {},
     "service_state_mounts": {
-      "host_dir": "/home/ubuntu/alkera-rollouts/t14-spark/e2e-keep/rollout/service-state",
+      "host_dir": "/home/ubuntu/.cache/t14/sweep/work/rollout/service-state",
       "isolated": true,
       "mounted_elsewhere": [],
       "mounted_read_write_in_owner": true,
@@ -366,7 +418,7 @@
           "destination": "/service-state",
           "rw": true,
           "service": "native-services",
-          "source": "/home/ubuntu/alkera-rollouts/t14-spark/e2e-keep/rollout/service-state"
+          "source": "/home/ubuntu/.cache/t14/sweep/work/rollout/service-state"
         }
       ],
       "owner": "native-services",
@@ -385,7 +437,7 @@
     },
     "services_expected": {
       "confluence": "http://confluence.internal:8090",
-      "databricks": "http://databricks.internal:443",
+      "databricks": "https://databricks.internal:443",
       "jira": "http://jira.internal:8080",
       "sched": "http://sched.internal:8120",
       "slack": "http://slack.internal:8081",
@@ -395,6 +447,9 @@
     "shadowed_paths_with_no_host_source": [
       "/world/var/ledger"
     ],
+    "tls_bundles": {
+      "databricks": "/etc/alkera/databricks-tls/bundle.pem"
+    },
     "vantage": "episode container, native topology",
     "warehouses_declared": [
       "var/warehouse/warehouse.duckdb"
@@ -405,32 +460,32 @@
     "world_binds_that_are_not_declared_warehouses": []
   },
   "passed": false,
-  "project": "alkera-tour-ds-databricks-1791888082",
-  "service_state_dir_on_the_host": "/home/ubuntu/alkera-rollouts/t14-spark/e2e-keep/rollout/service-state",
+  "project": "alkera-t4b-ds-databricks",
+  "service_state_dir_on_the_host": "/home/ubuntu/.cache/t14/sweep/work/rollout/service-state",
   "services": [
     {
       "aliases": {
-        "alkera-tour-ds-databricks-1791888082_episode_net": [
-          "alkera-tour-ds-databricks-1791888082-episode-1",
+        "alkera-t4b-ds-databricks_episode_net": [
+          "alkera-t4b-ds-databricks-episode-1",
           "episode"
         ]
       },
-      "container": "alkera-tour-ds-databricks-1791888082-episode-1",
-      "image": "alkera-episode:t14-ds-databricks-spark-hook",
+      "container": "alkera-t4b-ds-databricks-episode-1",
+      "image": "alkera-episode:t14-ds-databricks-spark",
       "mounts": [
         {
           "rw": true,
-          "source": "/home/ubuntu/alkera-rollouts/t14-spark/e2e-keep/audit",
+          "source": "/home/ubuntu/.cache/t14/sweep/work/audit",
           "target": "/audit"
         },
         {
           "rw": true,
-          "source": "/home/ubuntu/alkera-rollouts/t14-spark/e2e-keep/world/workspace",
+          "source": "/home/ubuntu/.cache/t14/sweep/work/world/workspace",
           "target": "/workspace"
         },
         {
           "rw": false,
-          "source": "alkera-tour-ds-databricks-1791888082_databrickstrust",
+          "source": "alkera-t4b-ds-databricks_databrickstrust",
           "target": "/etc/alkera/databricks-tls"
         },
         {
@@ -440,25 +495,25 @@
         },
         {
           "rw": true,
-          "source": "/home/ubuntu/alkera-rollouts/t14-spark/e2e-keep/world/var/warehouse/warehouse.duckdb",
+          "source": "/home/ubuntu/.cache/t14/sweep/work/world/var/warehouse/warehouse.duckdb",
           "target": "/world/var/warehouse/warehouse.duckdb"
         }
       ],
-      "network_mode": "alkera-tour-ds-databricks-1791888082_episode_net",
+      "network_mode": "alkera-t4b-ds-databricks_episode_net",
       "networks": {
-        "alkera-tour-ds-databricks-1791888082_episode_net": "10.210.2.6"
+        "alkera-t4b-ds-databricks_episode_net": "10.210.202.6"
       },
       "published_ports": {},
       "service": "episode"
     },
     {
       "aliases": {
-        "alkera-tour-ds-databricks-1791888082_backend_net": [
-          "alkera-tour-ds-databricks-1791888082-native-services-1",
+        "alkera-t4b-ds-databricks_backend_net": [
+          "alkera-t4b-ds-databricks-native-services-1",
           "native-services"
         ],
-        "alkera-tour-ds-databricks-1791888082_episode_net": [
-          "alkera-tour-ds-databricks-1791888082-native-services-1",
+        "alkera-t4b-ds-databricks_episode_net": [
+          "alkera-t4b-ds-databricks-native-services-1",
           "native-services",
           "native-services.internal",
           "jira.internal",
@@ -469,32 +524,32 @@
           "sched.internal"
         ]
       },
-      "container": "alkera-tour-ds-databricks-1791888082-native-services-1",
-      "image": "alkera-episode:t14-ds-databricks-spark-hook",
+      "container": "alkera-t4b-ds-databricks-native-services-1",
+      "image": "alkera-episode:t14-ds-databricks-spark",
       "mounts": [
         {
           "rw": true,
-          "source": "/home/ubuntu/alkera-rollouts/t14-spark/e2e-keep/audit",
+          "source": "/home/ubuntu/.cache/t14/sweep/work/audit",
           "target": "/audit"
         },
         {
           "rw": false,
-          "source": "alkera-tour-ds-databricks-1791888082_pgdata",
+          "source": "alkera-t4b-ds-databricks_pgdata",
           "target": "/pgdata"
         },
         {
           "rw": true,
-          "source": "/home/ubuntu/alkera-rollouts/t14-spark/e2e-keep/rollout/service-state",
+          "source": "/home/ubuntu/.cache/t14/sweep/work/rollout/service-state",
           "target": "/service-state"
         },
         {
           "rw": true,
-          "source": "/home/ubuntu/alkera-rollouts/t14-spark/e2e-keep/world",
+          "source": "/home/ubuntu/.cache/t14/sweep/work/world",
           "target": "/world"
         },
         {
           "rw": true,
-          "source": "alkera-tour-ds-databricks-1791888082_databrickstrust",
+          "source": "alkera-t4b-ds-databricks_databrickstrust",
           "target": "/etc/alkera/databricks-tls"
         },
         {
@@ -503,38 +558,38 @@
           "target": "/world/var/ledger"
         }
       ],
-      "network_mode": "alkera-tour-ds-databricks-1791888082_backend_net",
+      "network_mode": "alkera-t4b-ds-databricks_backend_net",
       "networks": {
-        "alkera-tour-ds-databricks-1791888082_backend_net": "10.210.1.5",
-        "alkera-tour-ds-databricks-1791888082_episode_net": "10.210.2.5"
+        "alkera-t4b-ds-databricks_backend_net": "10.210.1.5",
+        "alkera-t4b-ds-databricks_episode_net": "10.210.202.5"
       },
       "published_ports": {},
       "service": "native-services"
     },
     {
       "aliases": {
-        "alkera-tour-ds-databricks-1791888082_episode_net": [
-          "alkera-tour-ds-databricks-1791888082-jupyter-1",
+        "alkera-t4b-ds-databricks_episode_net": [
+          "alkera-t4b-ds-databricks-jupyter-1",
           "jupyter",
           "jupyter.internal"
         ]
       },
-      "container": "alkera-tour-ds-databricks-1791888082-jupyter-1",
-      "image": "alkera-episode:t14-ds-databricks-spark-hook",
+      "container": "alkera-t4b-ds-databricks-jupyter-1",
+      "image": "alkera-episode:t14-ds-databricks-spark",
       "mounts": [
         {
           "rw": true,
-          "source": "/home/ubuntu/alkera-rollouts/t14-spark/e2e-keep/audit",
+          "source": "/home/ubuntu/.cache/t14/sweep/work/audit",
           "target": "/audit"
         },
         {
           "rw": true,
-          "source": "/home/ubuntu/alkera-rollouts/t14-spark/e2e-keep/world/workspace",
+          "source": "/home/ubuntu/.cache/t14/sweep/work/world/workspace",
           "target": "/workspace"
         },
         {
           "rw": false,
-          "source": "alkera-tour-ds-databricks-1791888082_databrickstrust",
+          "source": "alkera-t4b-ds-databricks_databrickstrust",
           "target": "/etc/alkera/databricks-tls"
         },
         {
@@ -544,104 +599,104 @@
         },
         {
           "rw": true,
-          "source": "/home/ubuntu/alkera-rollouts/t14-spark/e2e-keep/world/var/warehouse/warehouse.duckdb",
+          "source": "/home/ubuntu/.cache/t14/sweep/work/world/var/warehouse/warehouse.duckdb",
           "target": "/world/var/warehouse/warehouse.duckdb"
         }
       ],
-      "network_mode": "alkera-tour-ds-databricks-1791888082_episode_net",
+      "network_mode": "alkera-t4b-ds-databricks_episode_net",
       "networks": {
-        "alkera-tour-ds-databricks-1791888082_episode_net": "10.210.2.3"
+        "alkera-t4b-ds-databricks_episode_net": "10.210.202.2"
       },
       "published_ports": {},
       "service": "jupyter"
     },
     {
       "aliases": {
-        "alkera-tour-ds-databricks-1791888082_backend_net": [
-          "alkera-tour-ds-databricks-1791888082-postgres-1",
+        "alkera-t4b-ds-databricks_backend_net": [
+          "alkera-t4b-ds-databricks-postgres-1",
           "postgres"
         ],
-        "alkera-tour-ds-databricks-1791888082_episode_net": [
-          "alkera-tour-ds-databricks-1791888082-postgres-1",
+        "alkera-t4b-ds-databricks_episode_net": [
+          "alkera-t4b-ds-databricks-postgres-1",
           "postgres",
           "postgres.internal"
         ]
       },
-      "container": "alkera-tour-ds-databricks-1791888082-postgres-1",
+      "container": "alkera-t4b-ds-databricks-postgres-1",
       "image": "postgres@sha256:f1c3376c26f2609ab9f29f71f824103fe2fcd8ee0346485cb6122a4f93df6f94",
       "mounts": [
         {
           "rw": false,
-          "source": "/home/ubuntu/.cache/alkera-harbor-work/tmp/t14/trialwt/gateway/docker/postgres.sql",
+          "source": "/home/ubuntu/tool_implementation.wt/t14-spark/gateway/docker/postgres.sql",
           "target": "/docker-entrypoint-initdb.d/seed.sql"
         },
         {
           "rw": true,
-          "source": "alkera-tour-ds-databricks-1791888082_pgdata",
+          "source": "alkera-t4b-ds-databricks_pgdata",
           "target": "/var/lib/postgresql/data"
         }
       ],
-      "network_mode": "alkera-tour-ds-databricks-1791888082_backend_net",
+      "network_mode": "alkera-t4b-ds-databricks_backend_net",
       "networks": {
-        "alkera-tour-ds-databricks-1791888082_backend_net": "10.210.1.4",
-        "alkera-tour-ds-databricks-1791888082_episode_net": "10.210.2.4"
+        "alkera-t4b-ds-databricks_backend_net": "10.210.1.4",
+        "alkera-t4b-ds-databricks_episode_net": "10.210.202.4"
       },
       "published_ports": {},
       "service": "postgres"
     },
     {
       "aliases": {
-        "alkera-tour-ds-databricks-1791888082_backend_net": [
-          "alkera-tour-ds-databricks-1791888082-minio-1",
+        "alkera-t4b-ds-databricks_backend_net": [
+          "alkera-t4b-ds-databricks-minio-1",
           "minio"
         ],
-        "alkera-tour-ds-databricks-1791888082_episode_net": [
-          "alkera-tour-ds-databricks-1791888082-minio-1",
+        "alkera-t4b-ds-databricks_episode_net": [
+          "alkera-t4b-ds-databricks-minio-1",
           "minio",
           "minio.internal"
         ]
       },
-      "container": "alkera-tour-ds-databricks-1791888082-minio-1",
+      "container": "alkera-t4b-ds-databricks-minio-1",
       "image": "docker.io/pgsty/minio@sha256:b6bfe7239bfc83fb90d31612d9704d86039dd714f7904b3f1ad68f211e602372",
       "mounts": [
         {
           "rw": true,
-          "source": "alkera-tour-ds-databricks-1791888082_minioaudit",
+          "source": "alkera-t4b-ds-databricks_minioaudit",
           "target": "/audit-spool"
         },
         {
           "rw": true,
-          "source": "alkera-tour-ds-databricks-1791888082_miniodata",
+          "source": "alkera-t4b-ds-databricks_miniodata",
           "target": "/data"
         }
       ],
-      "network_mode": "alkera-tour-ds-databricks-1791888082_backend_net",
+      "network_mode": "alkera-t4b-ds-databricks_backend_net",
       "networks": {
-        "alkera-tour-ds-databricks-1791888082_backend_net": "10.210.1.2",
-        "alkera-tour-ds-databricks-1791888082_episode_net": "10.210.2.2"
+        "alkera-t4b-ds-databricks_backend_net": "10.210.1.3",
+        "alkera-t4b-ds-databricks_episode_net": "10.210.202.3"
       },
       "published_ports": {},
       "service": "minio"
     },
     {
       "aliases": {
-        "alkera-tour-ds-databricks-1791888082_backend_net": [
-          "alkera-tour-ds-databricks-1791888082-spark-1",
+        "alkera-t4b-ds-databricks_backend_net": [
+          "alkera-t4b-ds-databricks-spark-1",
           "spark"
         ]
       },
-      "container": "alkera-tour-ds-databricks-1791888082-spark-1",
-      "image": "alkera-spark:native-t14-ds-databricks-spark-hook",
+      "container": "alkera-t4b-ds-databricks-spark-1",
+      "image": "alkera-spark:native-t14-ds-databricks-spark",
       "mounts": [
         {
           "rw": false,
-          "source": "/home/ubuntu/alkera-rollouts/t14-spark/e2e-keep/world/var/warehouse/warehouse.duckdb",
+          "source": "/home/ubuntu/.cache/t14/sweep/work/world/var/warehouse/warehouse.duckdb",
           "target": "/seed/warehouse.duckdb"
         }
       ],
-      "network_mode": "alkera-tour-ds-databricks-1791888082_backend_net",
+      "network_mode": "alkera-t4b-ds-databricks_backend_net",
       "networks": {
-        "alkera-tour-ds-databricks-1791888082_backend_net": "10.210.1.3"
+        "alkera-t4b-ds-databricks_backend_net": "10.210.1.2"
       },
       "published_ports": {},
       "service": "spark"
@@ -650,6 +705,5 @@
   "summary": {
     "p7_native_episode_filesystem": false
   },
-  "t14_reading": "11 of 12 checks pass. every_service_is_reachable_from_the_episode fails on databricks.internal:443 (P7 speaks plain HTTP to a TLS port: the known false negative, CONTAINMENT_2026-10-07.md) and on spark_connect.internal:15002 (P7's HTTP/1.1 GET met the gRPC server's HTTP/2 SETTINGS frame: reachable, the same instrument gap). No new door: tasks/harness/evidence/spark_e2e.json measures the engine on backend_net only, unresolvable from the episode, listening off loopback on 15002 only.",
-  "world_root_on_the_host": "/home/ubuntu/alkera-rollouts/t14-spark/e2e-keep/world"
+  "world_root_on_the_host": "/home/ubuntu/.cache/t14/sweep/work/world"
 }

@@ -293,15 +293,19 @@ spark_connect`).
   API and toPandas against DuckDB truth; saveAsTable, INSERT and DELETE on the copy, DESCRIBE
   HISTORY; every fence refused by name; rows 1:1 with every RPC the client sent (188 in the
   recorded run, counted by a gRPC interceptor in the client); the world's fingerprint
-  unchanged; tier 1 still answering
-  the world's count after tier 2's DELETE; `spark_connect.internal:15002` in
-  destinations.jsonl and nothing outside the allowlist; the engine listening off loopback on
-  15002 only.
-- **Tour** `--tools spark`: 3/3 PASS (`tasks/harness/evidence/tool_tour_spark.json`). **P7** on `ds/databricks`: 11 of 12 checks pass; "every service is reachable"
-  fails on `databricks.internal:443` (plain HTTP to TLS, the known false negative) and on
-  `spark_connect.internal:15002`, where P7's HTTP/1.1 GET met an HTTP/2 SETTINGS frame - the
-  same instrument gap, not a door
-  (`gateway/docker/evidence/containment-native-episode-ds-databricks.json`).
+  unchanged; tier 1 still answering the world's count after tier 2's DELETE;
+  `spark_connect.internal:15002` in destinations.jsonl and nothing outside the allowlist;
+  the engine listening off loopback on 15002 only.
+- **Tour** `--tools spark`: 3/3 PASS (`tasks/harness/evidence/tool_tour_spark.json`).
+- **Containment on `ds/databricks`** (T4's instruments, `box_sweep.py --up`): P6 `--attach`
+  passes (only the fake services reachable; `spark_connect.internal:15002` probed, the
+  engine `spark` a must-not-resolve control); the box sweep classes 15002 an audited door
+  and reports two `not_audited` doors, neither tier 2's: the host's sshd at the bridge
+  gateway (`:22`, H1) and native-services' MinIO audit receiver (`:8110`, token-only),
+  as on every profiled box. P7 passes 11 of 12: "every service is reachable" fails only on
+  `spark_connect.internal:15002`, where P7's HTTP/1.1 GET meets the gRPC server's HTTP/2
+  SETTINGS frame - reachable, an instrument gap (P7 speaks TLS since T4, not gRPC).
+  `gateway/docker/evidence/containment-native{,-episode,-box}-ds-databricks.json`.
 
 ## How serve.py serves it
 

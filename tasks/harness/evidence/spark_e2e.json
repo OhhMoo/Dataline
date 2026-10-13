@@ -19,17 +19,17 @@
           ]
         },
         "rpc": "Config",
-        "session_id": "59a6b047-99a8-4350-aa85-fddb4a380f0b"
+        "session_id": "f33218e6-f977-47c0-b6a3-4ce1f2dc7c12"
       },
-      "args_hash": "d714c2fe487e4c99420ef417a253e675ac8b439213d39bb18aed78832aa3919d",
-      "args_summary": "{\"config\":{\"get\":[\"spark.connect.session.planCompression.threshold\",\"spark.connect.session.planCompression.defaultAlgorithm\"]},\"rpc\":\"Config\",\"session_id\":\"59a6b047-99a8-4350-aa85-fddb4a380f0b\"}",
+      "args_hash": "308af67db0d31876cb1de8118b051e53483b0ea2c8cd0bc5a751d74863671589",
+      "args_summary": "{\"config\":{\"get\":[\"spark.connect.session.planCompression.threshold\",\"spark.connect.session.planCompression.defaultAlgorithm\"]},\"rpc\":\"Config\",\"session_id\":\"f33218e6-f977-47c0-b6a3-4ce1f2dc7c12\"}",
       "disk_mb": null,
       "error": null,
       "exit": "ok",
       "flags": [
         "actor:spark_connect"
       ],
-      "latency_ms": 0.09,
+      "latency_ms": 0.103,
       "op_class": "read",
       "read_targets": [],
       "result": {
@@ -38,7 +38,7 @@
       "result_bytes": 18,
       "result_hash": "37aa49c4d54a38910b50a36a0c72de870c6371a7e8bb0f0bebc0c1aaa57b4124",
       "rows_affected": null,
-      "rss_mb": 208.641,
+      "rss_mb": 211.203,
       "schema_version": 1,
       "seq": 63,
       "target": null,
@@ -46,24 +46,24 @@
       "tool": "databricks.spark",
       "transport": "native",
       "vts": "2026-03-02T00:00:00Z",
-      "wts": 1791889948181
+      "wts": 1791893427536
     },
     {
       "args": {
         "plan": "command:sql_command(sql)",
         "rpc": "ExecutePlan",
-        "session_id": "59a6b047-99a8-4350-aa85-fddb4a380f0b",
+        "session_id": "f33218e6-f977-47c0-b6a3-4ce1f2dc7c12",
         "sql": "SELECT count(*) FROM main.warehouse.dim_customer"
       },
-      "args_hash": "8978f23205831832ab8b53273e7e864ca73741a9e82fbd467e62f4ab87a3ec29",
-      "args_summary": "{\"plan\":\"command:sql_command(sql)\",\"rpc\":\"ExecutePlan\",\"session_id\":\"59a6b047-99a8-4350-aa85-fddb4a380f0b\",\"sql\":\"SELECT count(*) FROM main.warehouse.dim_customer\"}",
+      "args_hash": "1b2140539af874fd172b835c7f26a2577684b4d9b09e86c042a4da3b6e0ff944",
+      "args_summary": "{\"plan\":\"command:sql_command(sql)\",\"rpc\":\"ExecutePlan\",\"session_id\":\"f33218e6-f977-47c0-b6a3-4ce1f2dc7c12\",\"sql\":\"SELECT count(*) FROM main.warehouse.dim_customer\"}",
       "disk_mb": null,
       "error": null,
       "exit": "ok",
       "flags": [
         "actor:spark_connect"
       ],
-      "latency_ms": 0.752,
+      "latency_ms": 1.112,
       "op_class": "read",
       "read_targets": [
         "main.warehouse.dim_customer"
@@ -74,7 +74,7 @@
       "result_bytes": 18,
       "result_hash": "37aa49c4d54a38910b50a36a0c72de870c6371a7e8bb0f0bebc0c1aaa57b4124",
       "rows_affected": null,
-      "rss_mb": 208.641,
+      "rss_mb": 211.203,
       "schema_version": 1,
       "seq": 64,
       "target": "main.warehouse.dim_customer",
@@ -84,7 +84,7 @@
       "tool": "databricks.spark",
       "transport": "native",
       "vts": "2026-03-02T00:00:00Z",
-      "wts": 1791889948236
+      "wts": 1791893427549
     },
     {
       "args": {
@@ -94,10 +94,10 @@
           ]
         },
         "rpc": "Config",
-        "session_id": "59a6b047-99a8-4350-aa85-fddb4a380f0b"
+        "session_id": "f33218e6-f977-47c0-b6a3-4ce1f2dc7c12"
       },
-      "args_hash": "aeee3c2eafd5db4f98739c3e0c535dd1c97234e1f898c0bbe07595708f600afd",
-      "args_summary": "{\"config\":{\"set\":[\"spark.sql.catalog.evil\"]},\"rpc\":\"Config\",\"session_id\":\"59a6b047-99a8-4350-aa85-fddb4a380f0b\"}",
+      "args_hash": "9adcda804563716cc3e8a7d68415a91875e99e570bb7ab8e00b028a641d1720d",
+      "args_summary": "{\"config\":{\"set\":[\"spark.sql.catalog.evil\"]},\"rpc\":\"Config\",\"session_id\":\"f33218e6-f977-47c0-b6a3-4ce1f2dc7c12\"}",
       "disk_mb": null,
       "error": {
         "code": "FAILED_PRECONDITION",
@@ -108,7 +108,7 @@
         "refused:setting spark.sql.catalog.evil",
         "actor:spark_connect"
       ],
-      "latency_ms": 0.157,
+      "latency_ms": 0.094,
       "op_class": "exec",
       "read_targets": [],
       "result": {
@@ -117,30 +117,30 @@
       "result_bytes": 19,
       "result_hash": "a003b9c3534792979f284fb759fae48cece749d2a43c22c6577a3ea8310dc632",
       "rows_affected": null,
-      "rss_mb": 208.773,
+      "rss_mb": 211.27,
       "schema_version": 1,
-      "seq": 249,
+      "seq": 254,
       "target": null,
       "targets": [],
       "tool": "databricks.spark",
       "transport": "native",
       "vts": "2026-03-02T00:00:00Z",
-      "wts": 1791889960249
+      "wts": 1791893435819
     },
     {
       "args": {
         "rpc": "ReleaseSession",
-        "session_id": "59a6b047-99a8-4350-aa85-fddb4a380f0b"
+        "session_id": "f33218e6-f977-47c0-b6a3-4ce1f2dc7c12"
       },
-      "args_hash": "07d59540617a35d30779a013e24d417539ed046b54eba7e79b97a4d8475a214b",
-      "args_summary": "{\"rpc\":\"ReleaseSession\",\"session_id\":\"59a6b047-99a8-4350-aa85-fddb4a380f0b\"}",
+      "args_hash": "3ec1be1ad3421ad8fb85c16650a37c562749d62e19bab9af5972257a90e65d93",
+      "args_summary": "{\"rpc\":\"ReleaseSession\",\"session_id\":\"f33218e6-f977-47c0-b6a3-4ce1f2dc7c12\"}",
       "disk_mb": null,
       "error": null,
       "exit": "ok",
       "flags": [
         "actor:spark_connect"
       ],
-      "latency_ms": 0.038,
+      "latency_ms": 0.02,
       "op_class": "exec",
       "read_targets": [],
       "result": {
@@ -149,15 +149,15 @@
       "result_bytes": 18,
       "result_hash": "37aa49c4d54a38910b50a36a0c72de870c6371a7e8bb0f0bebc0c1aaa57b4124",
       "rows_affected": null,
-      "rss_mb": 208.773,
+      "rss_mb": 211.27,
       "schema_version": 1,
-      "seq": 250,
+      "seq": 255,
       "target": null,
       "targets": [],
       "tool": "databricks.spark",
       "transport": "native",
       "vts": "2026-03-02T00:00:00Z",
-      "wts": 1791889960258
+      "wts": 1791893435825
     }
   ],
   "checks": [
@@ -177,7 +177,7 @@
       "check": "the engine seeded every warehouse table with the world's count, then listened",
       "detail": {
         "listening": {
-          "listening_ms": 35878,
+          "listening_ms": 30902,
           "port": 15002,
           "seed": [
             {
@@ -233,7 +233,7 @@
               "table": "main.`warehouse`.`fct_orders`"
             }
           ],
-          "seed_ms": 35535,
+          "seed_ms": 30581,
           "spark": "4.2.0",
           "spark_connect": "listening"
         },
@@ -268,22 +268,22 @@
     {
       "check": "isolation: native-services is on backend_net and episode_net",
       "detail": [
-        "alkera-tour-ds-databricks-1791889892_backend_net",
-        "alkera-tour-ds-databricks-1791889892_episode_net"
+        "alkera-tour-ds-databricks-1791893379_backend_net",
+        "alkera-tour-ds-databricks-1791893379_episode_net"
       ],
       "result": "PASS"
     },
     {
       "check": "isolation: the engine is on backend_net only",
       "detail": [
-        "alkera-tour-ds-databricks-1791889892_backend_net"
+        "alkera-tour-ds-databricks-1791893379_backend_net"
       ],
       "result": "PASS"
     },
     {
       "check": "isolation: the episode is on episode_net only",
       "detail": [
-        "alkera-tour-ds-databricks-1791889892_episode_net"
+        "alkera-tour-ds-databricks-1791893379_episode_net"
       ],
       "result": "PASS"
     },
@@ -291,7 +291,7 @@
       "check": "isolation: the episode cannot resolve the engine, only the proxy",
       "detail": {
         "spark": "",
-        "spark_connect.internal": "10.210.1.4      spark_connect.internal"
+        "spark_connect.internal": "10.210.185.5    spark_connect.internal"
       },
       "result": "PASS"
     },
@@ -300,17 +300,17 @@
       "detail": [
         [
           "127.0.0.1",
-          34721,
+          38637,
           true
         ],
         [
           "127.0.0.1",
-          38459,
+          46869,
           true
         ],
         [
           "127.0.0.11",
-          44135,
+          33681,
           true
         ],
         [
@@ -323,7 +323,7 @@
     },
     {
       "check": "thin-client probe ran inside the episode",
-      "detail": "xecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"Config\", \"ExecutePlan\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ExecutePlan\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"Config\", \"ExecutePlan\", \"ReleaseExecute\", \"ReleaseExecute\", \"ExecutePlan\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"Config\", \"ExecutePlan\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ExecutePlan\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"Config\", \"ReleaseExecute\", \"ExecutePlan\", \"ReleaseExecute\", \"ReleaseExecute\", \"ExecutePlan\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"Config\", \"ExecutePlan\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ExecutePlan\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"Config\", \"ReleaseExecute\", \"AddArtifacts\", \"Config\", \"AnalyzePlan\", \"ExecutePlan\", \"ReleaseExecute\", \"ExecutePlan\", \"ReleaseExecute\", \"ExecutePlan\", \"ReleaseExecute\", \"FetchErrorDetails\", \"Config\", \"ExecutePlan\", \"ReleaseExecute\", \"FetchErrorDetails\", \"Config\", \"ExecutePlan\", \"ReleaseExecute\", \"FetchErrorDetails\", \"Config\", \"Config\", \"ReleaseSession\"], \"sqls\": [\"SELECT count(*) FROM main.warehouse.dim_customer\", \"SELECT count(*) FROM main.warehouse.dim_date\", \"SELECT count(*) FROM main.warehouse.dim_product\", \"SELECT count(*) FROM main.warehouse.fct_order_lines\", \"SELECT count(*) FROM main.warehouse.fct_orders\", \"CREATE SCHEMA IF NOT EXISTS main.t14_scratch\", \"SELECT count(*) FROM main.t14_scratch.refunded\", \"INSERT INTO main.t14_scratch.refunded SELECT * FROM main.warehouse.fct_orders WHERE order_status = 'refunded' LIMIT 1\", \"SELECT count(*) FROM main.t14_scratch.refunded\", \"DELETE FROM main.warehouse.fct_orders WHERE order_status = 'refunded'\", \"SELECT count(*) FROM main.warehouse.fct_orders WHERE order_status = 'refunded'\", \"DESCRIBE HISTORY main.warehouse.fct_orders\"]}\n/usr/local/lib/python3.11/site-packages/pyspark/sql/connect/utils.py:41: FutureWarning: PySpark does not yet fully support pandas >= 3.0.0. Some features may not work correctly. It is recommended to use pandas < 3.0.0 for now.\n  require_minimum_pandas_version()\n/usr/local/lib/python3.11/site-packages/pyspark/testing/utils.py:127: FutureWarning: PySpark does not yet fully support pandas >= 3.0.0. Some features may not work correctly. It is recommended to use pandas < 3.0.0 for now.\n  require_minimum_pandas_version()\n/usr/local/lib/python3.11/site-packages/pyspark/sql/connect/udf.py:78: FutureWarning: PySpark does not yet fully support pandas >= 3.0.0. Some features may not work correctly. It is recommended to use pandas < 3.0.0 for now.\n  require_minimum_pandas_version()\n",
+      "detail": "xecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"Config\", \"ExecutePlan\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ExecutePlan\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"Config\", \"ExecutePlan\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ExecutePlan\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"Config\", \"ExecutePlan\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ExecutePlan\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"Config\", \"ExecutePlan\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ExecutePlan\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"Config\", \"ExecutePlan\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ExecutePlan\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"Config\", \"AddArtifacts\", \"Config\", \"AnalyzePlan\", \"ExecutePlan\", \"ReleaseExecute\", \"ExecutePlan\", \"ReleaseExecute\", \"ExecutePlan\", \"ReleaseExecute\", \"FetchErrorDetails\", \"Config\", \"ExecutePlan\", \"ReleaseExecute\", \"FetchErrorDetails\", \"Config\", \"ExecutePlan\", \"ReleaseExecute\", \"FetchErrorDetails\", \"Config\", \"Config\", \"ReleaseSession\"], \"sqls\": [\"SELECT count(*) FROM main.warehouse.dim_customer\", \"SELECT count(*) FROM main.warehouse.dim_date\", \"SELECT count(*) FROM main.warehouse.dim_product\", \"SELECT count(*) FROM main.warehouse.fct_order_lines\", \"SELECT count(*) FROM main.warehouse.fct_orders\", \"CREATE SCHEMA IF NOT EXISTS main.t14_scratch\", \"SELECT count(*) FROM main.t14_scratch.refunded\", \"INSERT INTO main.t14_scratch.refunded SELECT * FROM main.warehouse.fct_orders WHERE order_status = 'refunded' LIMIT 1\", \"SELECT count(*) FROM main.t14_scratch.refunded\", \"DELETE FROM main.warehouse.fct_orders WHERE order_status = 'refunded'\", \"SELECT count(*) FROM main.warehouse.fct_orders WHERE order_status = 'refunded'\", \"DESCRIBE HISTORY main.warehouse.fct_orders\"]}\n/usr/local/lib/python3.11/site-packages/pyspark/sql/connect/utils.py:41: FutureWarning: PySpark does not yet fully support pandas >= 3.0.0. Some features may not work correctly. It is recommended to use pandas < 3.0.0 for now.\n  require_minimum_pandas_version()\n/usr/local/lib/python3.11/site-packages/pyspark/testing/utils.py:127: FutureWarning: PySpark does not yet fully support pandas >= 3.0.0. Some features may not work correctly. It is recommended to use pandas < 3.0.0 for now.\n  require_minimum_pandas_version()\n/usr/local/lib/python3.11/site-packages/pyspark/sql/connect/udf.py:78: FutureWarning: PySpark does not yet fully support pandas >= 3.0.0. Some features may not work correctly. It is recommended to use pandas < 3.0.0 for now.\n  require_minimum_pandas_version()\n",
       "result": "PASS"
     },
     {
@@ -522,7 +522,7 @@
           "Config": 21,
           "ExecutePlan": 32,
           "FetchErrorDetails": 3,
-          "ReleaseExecute": 129,
+          "ReleaseExecute": 134,
           "ReleaseSession": 1
         },
         "by_rpc_sent": {
@@ -531,12 +531,12 @@
           "Config": 21,
           "ExecutePlan": 32,
           "FetchErrorDetails": 3,
-          "ReleaseExecute": 129,
+          "ReleaseExecute": 134,
           "ReleaseSession": 1
         },
-        "rows_total": 266,
-        "session_rows": 188,
-        "session_rpcs_sent": 188
+        "rows_total": 271,
+        "session_rows": 193,
+        "session_rpcs_sent": 193
       },
       "result": "PASS"
     },
@@ -549,7 +549,7 @@
           "Config": 21,
           "ExecutePlan": 32,
           "FetchErrorDetails": 3,
-          "ReleaseExecute": 129,
+          "ReleaseExecute": 134,
           "ReleaseSession": 1
         },
         "by_rpc_sent": {
@@ -558,12 +558,12 @@
           "Config": 21,
           "ExecutePlan": 32,
           "FetchErrorDetails": 3,
-          "ReleaseExecute": 129,
+          "ReleaseExecute": 134,
           "ReleaseSession": 1
         },
-        "rows_total": 266,
-        "session_rows": 188,
-        "session_rpcs_sent": 188
+        "rows_total": 271,
+        "session_rows": 193,
+        "session_rpcs_sent": 193
       },
       "result": "PASS"
     },
@@ -629,7 +629,7 @@
           ],
           "op_class": "exec",
           "rpc": "AddArtifacts",
-          "seq": 230
+          "seq": 235
         },
         {
           "flags": [
@@ -638,7 +638,7 @@
           ],
           "op_class": "exec",
           "rpc": "ExecutePlan",
-          "seq": 233
+          "seq": 238
         },
         {
           "flags": [
@@ -647,7 +647,7 @@
           ],
           "op_class": "exec",
           "rpc": "ExecutePlan",
-          "seq": 235
+          "seq": 240
         },
         {
           "flags": [
@@ -656,7 +656,7 @@
           ],
           "op_class": "exec",
           "rpc": "Config",
-          "seq": 249
+          "seq": 254
         },
         {
           "flags": [
@@ -665,7 +665,7 @@
           ],
           "op_class": "exec",
           "rpc": "ExecutePlan",
-          "seq": 265
+          "seq": 270
         }
       ],
       "result": "PASS"
@@ -678,11 +678,11 @@
     {
       "check": "audit: seq is contiguous across writers",
       "detail": [
-        262,
-        263,
-        264,
-        265,
-        266
+        267,
+        268,
+        269,
+        270,
+        271
       ],
       "result": "PASS"
     },
@@ -705,9 +705,9 @@
       "detail": [
         {
           "count": 6,
-          "first_ts": "2026-10-13T11:12:22Z",
+          "first_ts": "2026-10-13T12:10:22Z",
           "host": "spark_connect.internal",
-          "last_ts": "2026-10-13T11:12:43Z",
+          "last_ts": "2026-10-13T12:10:38Z",
           "port": 15002
         }
       ],
@@ -735,7 +735,7 @@
       "Config": 21,
       "ExecutePlan": 32,
       "FetchErrorDetails": 3,
-      "ReleaseExecute": 129,
+      "ReleaseExecute": 134,
       "ReleaseSession": 1
     },
     "by_rpc_sent": {
@@ -744,20 +744,20 @@
       "Config": 21,
       "ExecutePlan": 32,
       "FetchErrorDetails": 3,
-      "ReleaseExecute": 129,
+      "ReleaseExecute": 134,
       "ReleaseSession": 1
     },
-    "rows_total": 266,
-    "session_rows": 188,
-    "session_rpcs_sent": 188
+    "rows_total": 271,
+    "session_rows": 193,
+    "session_rpcs_sent": 193
   },
   "dash_c": "andas >= 3.0.0. Some features may not work correctly. It is recommended to use pandas < 3.0.0 for now.\n  require_minimum_pandas_version()\n/usr/local/lib/python3.11/site-packages/pyspark/sql/connect/utils.py:41: FutureWarning: PySpark does not yet fully support pandas >= 3.0.0. Some features may not work correctly. It is recommended to use pandas < 3.0.0 for now.\n  require_minimum_pandas_version()\n",
   "destinations": [
     {
       "count": 1,
-      "first_ts": "2026-10-13T11:12:46Z",
+      "first_ts": "2026-10-13T12:10:39Z",
       "host": "databricks.internal",
-      "last_ts": "2026-10-13T11:12:46Z",
+      "last_ts": "2026-10-13T12:10:39Z",
       "port": 443
     },
     {
@@ -797,14 +797,14 @@
     },
     {
       "count": 6,
-      "first_ts": "2026-10-13T11:12:22Z",
+      "first_ts": "2026-10-13T12:10:22Z",
       "host": "spark_connect.internal",
-      "last_ts": "2026-10-13T11:12:43Z",
+      "last_ts": "2026-10-13T12:10:38Z",
       "port": 15002
     }
   ],
   "engine": {
-    "listening_ms": 35878,
+    "listening_ms": 30902,
     "port": 15002,
     "seed": [
       {
@@ -860,24 +860,24 @@
         "table": "main.`warehouse`.`fct_orders`"
       }
     ],
-    "seed_ms": 35535,
+    "seed_ms": 30581,
     "spark": "4.2.0",
     "spark_connect": "listening"
   },
   "engine_listening": [
     [
       "127.0.0.1",
-      34721,
+      38637,
       true
     ],
     [
       "127.0.0.1",
-      38459,
+      46869,
       true
     ],
     [
       "127.0.0.11",
-      44135,
+      33681,
       true
     ],
     [
@@ -891,22 +891,20 @@
     "70730c9a1ef597fb52354c3202cb258fc78003b762c9f41d71bf3618c26d21db",
     "70730c9a1ef597fb52354c3202cb258fc78003b762c9f41d71bf3618c26d21db"
   ],
-  "image": "alkera-episode:t14-ds-databricks-spark-hook",
-  "image_note": "Measured on alkera-episode:t14-ds-databricks-spark-hook, built from the ref-less trial commit 0a2acc4496f9ea3b6422bbff440e585d8d8602d1 = this branch's 0f7a1c9 + the proposed serve.py raw-listener hook (docs/environments/DATABRICKS_SPIKE.md, 'What serving it needs'): serve.py is T5/T6's file, so the hook is not on this branch. Without it the proxy is not served.",
-  "image_revision": "0a2acc4496f9ea3b6422bbff440e585d8d8602d1",
+  "image": "alkera-episode:t14-ds-databricks-spark",
   "networks": {
     "engine": [
-      "alkera-tour-ds-databricks-1791889892_backend_net"
+      "alkera-tour-ds-databricks-1791893379_backend_net"
     ],
     "episode": [
-      "alkera-tour-ds-databricks-1791889892_episode_net"
+      "alkera-tour-ds-databricks-1791893379_episode_net"
     ],
     "native-services": [
-      "alkera-tour-ds-databricks-1791889892_backend_net",
-      "alkera-tour-ds-databricks-1791889892_episode_net"
+      "alkera-tour-ds-databricks-1791893379_backend_net",
+      "alkera-tour-ds-databricks-1791893379_episode_net"
     ]
   },
-  "overlay": "# Generated per rollout by tasks/harness/container_episode.py. Do not edit:\n# it is rewritten on every `up()` and is kept here as the record of which host\n# files this episode's container could see.\n#\n# Three things compose.native.yml cannot say statically:\n#\n#   1. THE WAREHOUSE FILES. Their names and their number come from the world\n#      this rollout built (1 here), read by the same rule\n#      world/world/fingerprint.py hashes by. Each is bound as a FILE at its own\n#      world-relative path, so `/world/var/warehouse` is a directory of\n#      the CONTAINER's - and a `cp` beside the warehouse, which is what two of\n#      five GT001 native subjects did before deleting rows, lands there instead\n#      of in the world.\n#   2. THE SHIM PATH, and the CONTEXT VARIANT. The shims go in front of the\n#      image's own PATH, which is read off the image so /opt/toolbelt/bin\n#      survives; `ALKERA_TASK_VARIANT` appears only when this world was built\n#      from an arm, because an empty value is still a value to\n#      `taskspec.requested_variant`.\n#   3. THE WORLD'S CLOCK. `ALKERA_VIRTUAL_TIME` is this world's `vnow` as the\n#      episode starts, so the rows the shims and the notebook kernel write\n#      carry the world's time and not GatewayConfig's literal: `var/sched`,\n#      where the host topology reads it, is not mounted here (P7).\n#\n# NOT here, and it was here for one afternoon: published host ports. Both\n# compose networks are `internal: true`, and Docker cannot publish a host port\n# off an internal network - the bindings appear in `HostConfig.PortBindings`\n# and nothing ever listens. Measured: GT004's first container rollout failed\n# its surface gate with `WinError 10061` on all nine services while\n# `docker inspect` reported all nine mappings. The harness reaches the services\n# through `container_episode.ServiceGate` instead, one `docker exec` per\n# connection, and `published_host_ports: {}` stays true for every container\n# in the project.\nservices:\n  episode:\n    # ENVIRONMENT PROFILE: the complete mapping, not a merge\n    # (container_episode.profiled_environment).\n    environment: !override\n      PATH: \"/opt/alkera/shims:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/toolbelt/bin\"\n      ALKERA_SHIM_BIN: \"/opt/alkera/shims\"\n      ALKERA_SHIM_WATCH: \"/world/var/warehouse/warehouse.duckdb\"\n      ALKERA_SHIM_WORKSPACE: \"/workspace\"\n      ALKERA_WORKSPACE: \"/workspace\"\n      ALKERA_VIRTUAL_TIME: \"2026-03-02T00:00:00Z\"\n      JUPYTER_URL: \"http://jupyter.internal:8888\"\n      # the static table (compose.yml + compose.native.yml) minus what the\n      # profile excludes: AIRBYTE_API_KEY, AIRBYTE_URL, AIRFLOW_API_URL,\n      # AIRFLOW_PASSWORD, AIRFLOW_USER, ALERTMANAGER_URL, DEPLOY_API_TOKEN,\n      # DEPLOY_URL, LOKI_ADDR, LOKI_URL, METABASE_API_KEY, METABASE_URL,\n      # PGDATABASE, PGHOST, PGPASSWORD, PGPORT, PGUSER, PROMETHEUS_URL,\n      # SNOWFLAKE_ACCOUNT, SNOWFLAKE_HOST, SNOWFLAKE_PASSWORD, SNOWFLAKE_USER\n      ALKERA_POSTGRES_DSN: \"postgresql://episode:episode-local@postgres/episode\"\n      ALKERA_BACKEND: \"${ALKERA_BACKEND:-postgres}\"\n      ALKERA_WAREHOUSES: \"${ALKERA_WAREHOUSES:-}\"\n      AWS_ACCESS_KEY_ID: \"alkera-local-dev\"\n      AWS_DEFAULT_REGION: \"us-east-1\"\n      AWS_ENDPOINT_URL: \"http://minio.internal:9000\"\n      AWS_SECRET_ACCESS_KEY: \"alkera-local-dev\"\n      CONFLUENCE_API_TOKEN: \"alkera-local-dev\"\n      CONFLUENCE_URL: \"http://confluence.internal:8090\"\n      CONFLUENCE_USER: \"alkera-local-dev\"\n      DBT_PROFILES_DIR: \"/root/.dbt\"\n      JIRA_API_TOKEN: \"alkera-local-dev\"\n      JIRA_URL: \"http://jira.internal:8080\"\n      JIRA_USER: \"alkera-local-dev\"\n      SCHED_URL: \"http://sched.internal:8120\"\n      SLACK_BASE_URL: \"http://slack.internal:8081\"\n      SLACK_BOT_TOKEN: \"alkera-local-dev\"\n      ALKERA_NATIVE_AUDIT: \"/audit/actions.jsonl\"\n      HOME: \"/root\"\n      # what the profile plugs\n      REQUESTS_CA_BUNDLE: \"/etc/alkera/databricks-tls/bundle.pem\"\n      DATABRICKS_HOST: \"https://databricks.internal\"\n      DATABRICKS_SERVER_HOSTNAME: \"databricks.internal\"\n      DATABRICKS_HTTP_PATH: \"/sql/1.0/warehouses/alkera\"\n      DATABRICKS_TOKEN: \"alkera-local-dev\"\n      SSL_CERT_FILE: \"/etc/alkera/databricks-tls/bundle.pem\"\n      SPARK_REMOTE: \"sc://spark_connect.internal:15002\"\n      SPARK_HOME: \"/usr/local/lib/python3.11/site-packages/pyspark\"\n    volumes:\n      - \"/home/ubuntu/alkera-rollouts/t14-spark/e2e/world/var/warehouse/warehouse.duckdb:/world/var/warehouse/warehouse.duckdb\"\n      - databrickstrust:/etc/alkera/databricks-tls:ro\n\n# ENVIRONMENT PROFILE ds/databricks (plugs: {}).\n# native-services runs with --profile (ALKERA_NATIVE_PROFILE_ARGS), and the\n# aliases below REPLACE compose.native.yml's: an excluded service has no name\n# on episode_net at all.\n  native-services:\n    networks:\n      episode_net:\n        aliases: !override\n          - native-services.internal\n          - jira.internal\n          - slack.internal\n          - confluence.internal\n          - databricks.internal\n          - spark_connect.internal\n          - sched.internal\n      backend_net: {}\n    volumes:\n      - databrickstrust:/etc/alkera/databricks-tls\n    environment:\n      ALKERA_SPARK_CONNECT_UPSTREAM: spark:15002\n    depends_on:\n      spark:\n        condition: service_started\n    healthcheck:\n      start_period: 600s\n\n# HOSTED ENGINE spark_connect: its own image (gateway/docker/spark/Dockerfile.spark),\n# compose profile `spark` (enabled by compose_env), on backend_net only and\n# seeded from this world's warehouse. The episode reaches it through the audited\n# proxy in native-services, spark_connect.internal:15002.\n  spark:\n    profiles: [spark]\n    image: alkera-spark:native-t14-ds-databricks-spark-hook\n    pull_policy: build\n    build:\n      context: ../..\n      dockerfile: gateway/docker/spark/Dockerfile.spark\n    stop_grace_period: 5s\n    networks:\n      backend_net:\n        aliases: !reset []\n    volumes:\n      - \"/home/ubuntu/alkera-rollouts/t14-spark/e2e/world/var/warehouse/warehouse.duckdb:/seed/warehouse.duckdb:ro\"\n\n# NOTEBOOK PLUG: the `jupyter` service (compose profile `notebook`, enabled by\n# compose_env) sees exactly what the episode sees.\n  jupyter:\n    # ENVIRONMENT PROFILE: the complete mapping, not a merge\n    # (container_episode.profiled_environment).\n    environment: !override\n      PATH: \"/opt/alkera/shims:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/toolbelt/bin\"\n      ALKERA_SHIM_BIN: \"/opt/alkera/shims\"\n      ALKERA_SHIM_WATCH: \"/world/var/warehouse/warehouse.duckdb\"\n      ALKERA_SHIM_WORKSPACE: \"/workspace\"\n      ALKERA_WORKSPACE: \"/workspace\"\n      ALKERA_VIRTUAL_TIME: \"2026-03-02T00:00:00Z\"\n      # the static table (compose.yml + compose.native.yml) minus what the\n      # profile excludes: AIRBYTE_API_KEY, AIRBYTE_URL, AIRFLOW_API_URL,\n      # AIRFLOW_PASSWORD, AIRFLOW_USER, ALERTMANAGER_URL, DEPLOY_API_TOKEN,\n      # DEPLOY_URL, LOKI_ADDR, LOKI_URL, METABASE_API_KEY, METABASE_URL,\n      # PGDATABASE, PGHOST, PGPASSWORD, PGPORT, PGUSER, PROMETHEUS_URL,\n      # SNOWFLAKE_ACCOUNT, SNOWFLAKE_HOST, SNOWFLAKE_PASSWORD, SNOWFLAKE_USER\n      AWS_ACCESS_KEY_ID: \"alkera-local-dev\"\n      AWS_DEFAULT_REGION: \"us-east-1\"\n      AWS_ENDPOINT_URL: \"http://minio.internal:9000\"\n      AWS_SECRET_ACCESS_KEY: \"alkera-local-dev\"\n      CONFLUENCE_API_TOKEN: \"alkera-local-dev\"\n      CONFLUENCE_URL: \"http://confluence.internal:8090\"\n      CONFLUENCE_USER: \"alkera-local-dev\"\n      DBT_PROFILES_DIR: \"/root/.dbt\"\n      JIRA_API_TOKEN: \"alkera-local-dev\"\n      JIRA_URL: \"http://jira.internal:8080\"\n      JIRA_USER: \"alkera-local-dev\"\n      SCHED_URL: \"http://sched.internal:8120\"\n      SLACK_BASE_URL: \"http://slack.internal:8081\"\n      SLACK_BOT_TOKEN: \"alkera-local-dev\"\n      ALKERA_NATIVE_AUDIT: \"/audit/actions.jsonl\"\n      HOME: \"/root\"\n      # what the profile plugs\n      REQUESTS_CA_BUNDLE: \"/etc/alkera/databricks-tls/bundle.pem\"\n      DATABRICKS_HOST: \"https://databricks.internal\"\n      DATABRICKS_SERVER_HOSTNAME: \"databricks.internal\"\n      DATABRICKS_HTTP_PATH: \"/sql/1.0/warehouses/alkera\"\n      DATABRICKS_TOKEN: \"alkera-local-dev\"\n      SSL_CERT_FILE: \"/etc/alkera/databricks-tls/bundle.pem\"\n      SPARK_REMOTE: \"sc://spark_connect.internal:15002\"\n      SPARK_HOME: \"/usr/local/lib/python3.11/site-packages/pyspark\"\n    volumes:\n      - \"/home/ubuntu/alkera-rollouts/t14-spark/e2e/world/var/warehouse/warehouse.duckdb:/world/var/warehouse/warehouse.duckdb\"\n      - databrickstrust:/etc/alkera/databricks-tls:ro\n\nvolumes:\n  databrickstrust:\n",
+  "overlay": "# Generated per rollout by tasks/harness/container_episode.py. Do not edit:\n# it is rewritten on every `up()` and is kept here as the record of which host\n# files this episode's container could see.\n#\n# Three things compose.native.yml cannot say statically:\n#\n#   1. THE WAREHOUSE FILES. Their names and their number come from the world\n#      this rollout built (1 here), read by the same rule\n#      world/world/fingerprint.py hashes by. Each is bound as a FILE at its own\n#      world-relative path, so `/world/var/warehouse` is a directory of\n#      the CONTAINER's - and a `cp` beside the warehouse, which is what two of\n#      five GT001 native subjects did before deleting rows, lands there instead\n#      of in the world.\n#   2. THE SHIM PATH, and the CONTEXT VARIANT. The shims go in front of the\n#      image's own PATH, which is read off the image so /opt/toolbelt/bin\n#      survives; `ALKERA_TASK_VARIANT` appears only when this world was built\n#      from an arm, because an empty value is still a value to\n#      `taskspec.requested_variant`.\n#   3. THE WORLD'S CLOCK. `ALKERA_VIRTUAL_TIME` is this world's `vnow` as the\n#      episode starts, so the rows the shims and the notebook kernel write\n#      carry the world's time and not GatewayConfig's literal: `var/sched`,\n#      where the host topology reads it, is not mounted here (P7).\n#\n# NOT here, and it was here for one afternoon: published host ports. Both\n# compose networks are `internal: true`, and Docker cannot publish a host port\n# off an internal network - the bindings appear in `HostConfig.PortBindings`\n# and nothing ever listens. Measured: GT004's first container rollout failed\n# its surface gate with `WinError 10061` on all nine services while\n# `docker inspect` reported all nine mappings. The harness reaches the services\n# through `container_episode.ServiceGate` instead, one `docker exec` per\n# connection, and `published_host_ports: {}` stays true for every container\n# in the project.\nservices:\n  episode:\n    # ENVIRONMENT PROFILE: the complete mapping, not a merge\n    # (container_episode.profiled_environment).\n    environment: !override\n      PATH: \"/opt/alkera/shims:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/toolbelt/bin\"\n      ALKERA_SHIM_BIN: \"/opt/alkera/shims\"\n      ALKERA_SHIM_WATCH: \"/world/var/warehouse/warehouse.duckdb\"\n      ALKERA_SHIM_WORKSPACE: \"/workspace\"\n      ALKERA_WORKSPACE: \"/workspace\"\n      ALKERA_VIRTUAL_TIME: \"2026-03-02T00:00:00Z\"\n      JUPYTER_URL: \"http://jupyter.internal:8888\"\n      # the static table (compose.yml + compose.native.yml) minus what the\n      # profile excludes: AIRBYTE_API_KEY, AIRBYTE_URL, AIRFLOW_API_URL,\n      # AIRFLOW_PASSWORD, AIRFLOW_USER, ALERTMANAGER_URL, DEPLOY_API_TOKEN,\n      # DEPLOY_URL, LOKI_ADDR, LOKI_URL, METABASE_API_KEY, METABASE_URL,\n      # PGDATABASE, PGHOST, PGPASSWORD, PGPORT, PGUSER, PROMETHEUS_URL,\n      # SNOWFLAKE_ACCOUNT, SNOWFLAKE_HOST, SNOWFLAKE_PASSWORD, SNOWFLAKE_USER\n      ALKERA_BACKEND: \"${ALKERA_BACKEND:-postgres}\"\n      ALKERA_WAREHOUSES: \"${ALKERA_WAREHOUSES:-}\"\n      AWS_ACCESS_KEY_ID: \"alkera-local-dev\"\n      AWS_DEFAULT_REGION: \"us-east-1\"\n      AWS_ENDPOINT_URL: \"http://minio.internal:9000\"\n      AWS_SECRET_ACCESS_KEY: \"alkera-local-dev\"\n      CONFLUENCE_API_TOKEN: \"alkera-local-dev\"\n      CONFLUENCE_URL: \"http://confluence.internal:8090\"\n      CONFLUENCE_USER: \"alkera-local-dev\"\n      DBT_PROFILES_DIR: \"/root/.dbt\"\n      JIRA_API_TOKEN: \"alkera-local-dev\"\n      JIRA_URL: \"http://jira.internal:8080\"\n      JIRA_USER: \"alkera-local-dev\"\n      SCHED_URL: \"http://sched.internal:8120\"\n      SLACK_BASE_URL: \"http://slack.internal:8081\"\n      SLACK_BOT_TOKEN: \"alkera-local-dev\"\n      ALKERA_NATIVE_AUDIT: \"/audit/actions.jsonl\"\n      HOME: \"/root\"\n      # what the profile plugs\n      REQUESTS_CA_BUNDLE: \"/etc/alkera/databricks-tls/bundle.pem\"\n      DATABRICKS_HOST: \"https://databricks.internal\"\n      DATABRICKS_SERVER_HOSTNAME: \"databricks.internal\"\n      DATABRICKS_HTTP_PATH: \"/sql/1.0/warehouses/alkera\"\n      DATABRICKS_TOKEN: \"alkera-local-dev\"\n      SSL_CERT_FILE: \"/etc/alkera/databricks-tls/bundle.pem\"\n      SPARK_REMOTE: \"sc://spark_connect.internal:15002\"\n      SPARK_HOME: \"/usr/local/lib/python3.11/site-packages/pyspark\"\n    volumes:\n      - \"/home/ubuntu/alkera-rollouts/t14-spark/e2e/world/var/warehouse/warehouse.duckdb:/world/var/warehouse/warehouse.duckdb\"\n      - databrickstrust:/etc/alkera/databricks-tls:ro\n\n# ENVIRONMENT PROFILE ds/databricks (plugs: {}).\n# native-services runs with --profile (ALKERA_NATIVE_PROFILE_ARGS), and the\n# aliases below REPLACE compose.native.yml's: an excluded service has no name\n# on episode_net at all.\n  native-services:\n    networks:\n      episode_net:\n        aliases: !override\n          - native-services.internal\n          - jira.internal\n          - slack.internal\n          - confluence.internal\n          - databricks.internal\n          - spark_connect.internal\n          - sched.internal\n      backend_net: {}\n    volumes:\n      - databrickstrust:/etc/alkera/databricks-tls\n    environment:\n      ALKERA_SPARK_CONNECT_UPSTREAM: spark:15002\n      ALKERA_EPISODE_SUBNETS: 10.210.185.0/24\n    depends_on:\n      spark:\n        condition: service_started\n    healthcheck:\n      start_period: 600s\n\n# HOSTED ENGINE spark_connect: its own image (gateway/docker/spark/Dockerfile.spark),\n# compose profile `spark` (enabled by compose_env), on backend_net only and\n# seeded from this world's warehouse. The episode reaches it through the audited\n# proxy in native-services, spark_connect.internal:15002.\n  spark:\n    profiles: [spark]\n    image: alkera-spark:native-t14-ds-databricks-spark\n    pull_policy: build\n    build:\n      context: ../..\n      dockerfile: gateway/docker/spark/Dockerfile.spark\n    stop_grace_period: 5s\n    networks:\n      backend_net:\n        aliases: !reset []\n    volumes:\n      - \"/home/ubuntu/alkera-rollouts/t14-spark/e2e/world/var/warehouse/warehouse.duckdb:/seed/warehouse.duckdb:ro\"\n\n# NOTEBOOK PLUG: the `jupyter` service (compose profile `notebook`, enabled by\n# compose_env) sees exactly what the episode sees.\n  jupyter:\n    # ENVIRONMENT PROFILE: the complete mapping, not a merge\n    # (container_episode.profiled_environment).\n    environment: !override\n      PATH: \"/opt/alkera/shims:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/toolbelt/bin\"\n      ALKERA_SHIM_BIN: \"/opt/alkera/shims\"\n      ALKERA_SHIM_WATCH: \"/world/var/warehouse/warehouse.duckdb\"\n      ALKERA_SHIM_WORKSPACE: \"/workspace\"\n      ALKERA_WORKSPACE: \"/workspace\"\n      ALKERA_VIRTUAL_TIME: \"2026-03-02T00:00:00Z\"\n      # the static table (compose.yml + compose.native.yml) minus what the\n      # profile excludes: AIRBYTE_API_KEY, AIRBYTE_URL, AIRFLOW_API_URL,\n      # AIRFLOW_PASSWORD, AIRFLOW_USER, ALERTMANAGER_URL, DEPLOY_API_TOKEN,\n      # DEPLOY_URL, LOKI_ADDR, LOKI_URL, METABASE_API_KEY, METABASE_URL,\n      # PGDATABASE, PGHOST, PGPASSWORD, PGPORT, PGUSER, PROMETHEUS_URL,\n      # SNOWFLAKE_ACCOUNT, SNOWFLAKE_HOST, SNOWFLAKE_PASSWORD, SNOWFLAKE_USER\n      AWS_ACCESS_KEY_ID: \"alkera-local-dev\"\n      AWS_DEFAULT_REGION: \"us-east-1\"\n      AWS_ENDPOINT_URL: \"http://minio.internal:9000\"\n      AWS_SECRET_ACCESS_KEY: \"alkera-local-dev\"\n      CONFLUENCE_API_TOKEN: \"alkera-local-dev\"\n      CONFLUENCE_URL: \"http://confluence.internal:8090\"\n      CONFLUENCE_USER: \"alkera-local-dev\"\n      DBT_PROFILES_DIR: \"/root/.dbt\"\n      JIRA_API_TOKEN: \"alkera-local-dev\"\n      JIRA_URL: \"http://jira.internal:8080\"\n      JIRA_USER: \"alkera-local-dev\"\n      SCHED_URL: \"http://sched.internal:8120\"\n      SLACK_BASE_URL: \"http://slack.internal:8081\"\n      SLACK_BOT_TOKEN: \"alkera-local-dev\"\n      ALKERA_NATIVE_AUDIT: \"/audit/actions.jsonl\"\n      HOME: \"/root\"\n      # what the profile plugs\n      REQUESTS_CA_BUNDLE: \"/etc/alkera/databricks-tls/bundle.pem\"\n      DATABRICKS_HOST: \"https://databricks.internal\"\n      DATABRICKS_SERVER_HOSTNAME: \"databricks.internal\"\n      DATABRICKS_HTTP_PATH: \"/sql/1.0/warehouses/alkera\"\n      DATABRICKS_TOKEN: \"alkera-local-dev\"\n      SSL_CERT_FILE: \"/etc/alkera/databricks-tls/bundle.pem\"\n      SPARK_REMOTE: \"sc://spark_connect.internal:15002\"\n      SPARK_HOME: \"/usr/local/lib/python3.11/site-packages/pyspark\"\n    volumes:\n      - \"/home/ubuntu/alkera-rollouts/t14-spark/e2e/world/var/warehouse/warehouse.duckdb:/world/var/warehouse/warehouse.duckdb\"\n      - databrickstrust:/etc/alkera/databricks-tls:ro\n\nvolumes:\n  databrickstrust:\n\n# PEER FILTER: native-services is on backend_net for the engine, so its agent\n# listeners admit episode_net's peers only (ALKERA_EPISODE_SUBNETS, above). The\n# subnet is pinned here because the filter needs it before the network exists.\nnetworks:\n  episode_net:\n    ipam:\n      config:\n        - subnet: 10.210.185.0/24\n",
   "probe": {
     "after_insert": 642,
     "by_status": [
@@ -958,7 +956,7 @@
       "transform": "UnsupportedOperationException: Spark feature not available in this environment: TRANSFORM (script transformation runs a command)\n\nJVM stacktrace:\njava.lang.UnsupportedOperationException\n\tat org.alkera.spark.Guard.check(Guard.java:136)\n\tat org.alkera.spark.Guard.lambda$apply$0(Guard.java:115)\n\tat org.apache.spark.sql.catalyst.analysis.CheckAnalysis.$anonfun$checkAnalysis0$58(CheckAnalysis.scala:1089)\n\tat org.apache.spark.sql.catalyst.analysis.CheckAnalysis.$anonfun$checkAnalysis0$58$adapted(CheckAnalysis.scala:1089)\n\tat scala.collection.immutable.List.foreach(List.scala:323)\n\tat org.apache.spar"
     },
     "saved": 641,
-    "session_id": "59a6b047-99a8-4350-aa85-fddb4a380f0b",
+    "session_id": "f33218e6-f977-47c0-b6a3-4ce1f2dc7c12",
     "sqls": [
       "SELECT count(*) FROM main.warehouse.dim_customer",
       "SELECT count(*) FROM main.warehouse.dim_date",
@@ -996,7 +994,7 @@
       ],
       "op_class": "exec",
       "rpc": "AddArtifacts",
-      "seq": 230
+      "seq": 235
     },
     {
       "flags": [
@@ -1005,7 +1003,7 @@
       ],
       "op_class": "exec",
       "rpc": "ExecutePlan",
-      "seq": 233
+      "seq": 238
     },
     {
       "flags": [
@@ -1014,7 +1012,7 @@
       ],
       "op_class": "exec",
       "rpc": "ExecutePlan",
-      "seq": 235
+      "seq": 240
     },
     {
       "flags": [
@@ -1023,7 +1021,7 @@
       ],
       "op_class": "exec",
       "rpc": "Config",
-      "seq": 249
+      "seq": 254
     },
     {
       "flags": [
@@ -1032,15 +1030,15 @@
       ],
       "op_class": "exec",
       "rpc": "ExecutePlan",
-      "seq": 265
+      "seq": 270
     }
   ],
   "resolve": {
     "spark": "",
-    "spark_connect.internal": "10.210.1.4      spark_connect.internal"
+    "spark_connect.internal": "10.210.185.5    spark_connect.internal"
   },
   "result": "PASS",
-  "revision": "0f7a1c9ea2189cf9a2a3e53757b1e40ed955dacb",
+  "revision": "701b729ef7dc3f15472bec84f06365b411ebb25b",
   "seed": {
     "from": "warehouse.duckdb",
     "not_seeded": [],
@@ -1069,7 +1067,7 @@
     "postgres",
     "spark"
   ],
-  "summary": "41/41 PASS; up in 46.7 s; {'rows_total': 266, 'session_rows': 188, 'session_rpcs_sent': 188, 'by_rpc_sent': {'AddArtifacts': 1, 'AnalyzePlan': 1, 'Config': 21, 'ExecutePlan': 32, 'FetchErrorDetails': 3, 'ReleaseExecute': 129, 'ReleaseSession': 1}, 'by_rpc_rows': {'AddArtifacts': 1, 'AnalyzePlan': 1, 'Config': 21, 'ExecutePlan': 32, 'FetchErrorDetails': 3, 'ReleaseExecute': 129, 'ReleaseSession': 1}}",
+  "summary": "41/41 PASS; up in 41.4 s; {'rows_total': 271, 'session_rows': 193, 'session_rpcs_sent': 193, 'by_rpc_sent': {'AddArtifacts': 1, 'AnalyzePlan': 1, 'Config': 21, 'ExecutePlan': 32, 'FetchErrorDetails': 3, 'ReleaseExecute': 134, 'ReleaseSession': 1}, 'by_rpc_rows': {'AddArtifacts': 1, 'AnalyzePlan': 1, 'Config': 21, 'ExecutePlan': 32, 'FetchErrorDetails': 3, 'ReleaseExecute': 134, 'ReleaseSession': 1}}",
   "tier1_after_tier2_delete": {
     "rows": [
       [
@@ -1109,7 +1107,7 @@
     "hash": "70730c9a1ef597fb52354c3202cb258fc78003b762c9f41d71bf3618c26d21db",
     "refunded": 641
   },
-  "up_seconds": 46.7,
+  "up_seconds": 41.4,
   "warehouse_hash": {
     "after_down": "d79b90327f2bedea1d63f39d75ca3418af2a0e8610822a6709673f6673627d31",
     "before_up": "d79b90327f2bedea1d63f39d75ca3418af2a0e8610822a6709673f6673627d31"
@@ -1118,7 +1116,7 @@
     {
       "op_class": "ddl",
       "plan": "command:sql_command(sql)",
-      "seq": 139,
+      "seq": 143,
       "targets": [
         "main.t14_scratch"
       ]
@@ -1126,7 +1124,7 @@
     {
       "op_class": "write",
       "plan": "command:write_operation(filter(read))",
-      "seq": 151,
+      "seq": 156,
       "targets": [
         "main.t14_scratch.refunded"
       ]
@@ -1134,7 +1132,7 @@
     {
       "op_class": "write",
       "plan": "command:sql_command(sql)",
-      "seq": 168,
+      "seq": 171,
       "targets": [
         "main.t14_scratch.refunded",
         "main.warehouse.fct_orders"
@@ -1143,7 +1141,7 @@
     {
       "op_class": "destructive",
       "plan": "command:sql_command(sql)",
-      "seq": 193,
+      "seq": 198,
       "targets": [
         "main.warehouse.fct_orders"
       ]
