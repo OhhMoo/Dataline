@@ -19,105 +19,14 @@
      "check": "nothing_resolves",
      "detail": {
       "episode": {
-       "alkera-mfix-da-laptop-1791397047-minio-1": "gaierror: [Errno -3] Temporary failure in name resolution",
-       "alkera-mfix-da-laptop-1791397047_minio_1": "gaierror: [Errno -3] Temporary failure in name resolution",
+       "alkera-mfix-da-laptop-1791883730-minio-1": "gaierror: [Errno -3] Temporary failure in name resolution",
+       "alkera-mfix-da-laptop-1791883730_minio_1": "gaierror: [Errno -3] Temporary failure in name resolution",
        "minio": "gaierror: [Errno -3] Temporary failure in name resolution",
        "minio.internal": "gaierror: [Errno -3] Temporary failure in name resolution"
       },
       "jupyter": {
-       "alkera-mfix-da-laptop-1791397047-minio-1": "gaierror: [Errno -3] Temporary failure in name resolution",
-       "alkera-mfix-da-laptop-1791397047_minio_1": "gaierror: [Errno -3] Temporary failure in name resolution",
-       "minio": "gaierror: [Errno -3] Temporary failure in name resolution",
-       "minio.internal": "gaierror: [Errno -3] Temporary failure in name resolution"
-      }
-     },
-     "ok": true
-    },
-    {
-     "check": "no_storage_env",
-     "detail": {
-      "episode": [],
-      "jupyter": []
-     },
-     "ok": true
-    },
-    {
-     "check": "no_port_9000",
-     "detail": {
-      "addresses": 254,
-      "answered": [],
-      "cut": [],
-      "networks": [
-       "10.210.1.0/24"
-      ],
-      "port": 9000
-     },
-     "ok": true
-    },
-    {
-     "check": "no_receiver",
-     "detail": {
-      "error": "URLError: <urlopen error [Errno 111] Connection refused>",
-      "headers": [],
-      "status": null
-     },
-     "ok": true
-    }
-   ],
-   "image": "alkera-episode:mfix-da",
-   "image_gate": {
-    "head": "7819e93b2e6e8e08f8220f9c39f80982f6617de7",
-    "image": "alkera-episode:mfix-da",
-    "revision": "3def55b87cc5378c42a6508d61ac5037e20f001c"
-   },
-   "minio_unstarted": true,
-   "object_store_plugged": false,
-   "ok": true,
-   "plugs": {
-    "bi": [
-     "powerbi",
-     "tableau",
-     "sigma"
-    ]
-   },
-   "profile": "da/laptop",
-   "project": "alkera-mfix-da-laptop-1791397047",
-   "seconds": 21.0,
-   "services": [
-    "episode",
-    "jupyter",
-    "native-services",
-    "postgres"
-   ]
-  },
-  {
-   "box": "da-snowflake",
-   "checks": [
-    {
-     "check": "no_minio_container",
-     "detail": {
-      "services": [
-       "episode",
-       "jupyter",
-       "native-services",
-       "postgres",
-       "snowflake"
-      ]
-     },
-     "ok": true
-    },
-    {
-     "check": "nothing_resolves",
-     "detail": {
-      "episode": {
-       "alkera-mfix-da-snowflake-1791397067-minio-1": "gaierror: [Errno -3] Temporary failure in name resolution",
-       "alkera-mfix-da-snowflake-1791397067_minio_1": "gaierror: [Errno -3] Temporary failure in name resolution",
-       "minio": "gaierror: [Errno -3] Temporary failure in name resolution",
-       "minio.internal": "gaierror: [Errno -3] Temporary failure in name resolution"
-      },
-      "jupyter": {
-       "alkera-mfix-da-snowflake-1791397067-minio-1": "gaierror: [Errno -3] Temporary failure in name resolution",
-       "alkera-mfix-da-snowflake-1791397067_minio_1": "gaierror: [Errno -3] Temporary failure in name resolution",
+       "alkera-mfix-da-laptop-1791883730-minio-1": "gaierror: [Errno -3] Temporary failure in name resolution",
+       "alkera-mfix-da-laptop-1791883730_minio_1": "gaierror: [Errno -3] Temporary failure in name resolution",
        "minio": "gaierror: [Errno -3] Temporary failure in name resolution",
        "minio.internal": "gaierror: [Errno -3] Temporary failure in name resolution"
       }
@@ -155,19 +64,110 @@
      "ok": true
     }
    ],
-   "image": "alkera-episode:mfix-da-snowflake",
+   "image": "alkera-episode:t8-da",
    "image_gate": {
-    "head": "7819e93b2e6e8e08f8220f9c39f80982f6617de7",
-    "image": "alkera-episode:mfix-da-snowflake",
-    "revision": "3def55b87cc5378c42a6508d61ac5037e20f001c"
+    "head": "3798c40a9f6493e1be6c8c835eeb636c8977e399",
+    "image": "alkera-episode:t8-da",
+    "revision": "3798c40a9f6493e1be6c8c835eeb636c8977e399"
+   },
+   "minio_unstarted": true,
+   "object_store_plugged": false,
+   "ok": true,
+   "plugs": {
+    "bi": [
+     "powerbi",
+     "tableau",
+     "sigma"
+    ]
+   },
+   "profile": "da/laptop",
+   "project": "alkera-mfix-da-laptop-1791883730",
+   "seconds": 35.3,
+   "services": [
+    "episode",
+    "jupyter",
+    "native-services",
+    "postgres"
+   ]
+  },
+  {
+   "box": "da-snowflake",
+   "checks": [
+    {
+     "check": "no_minio_container",
+     "detail": {
+      "services": [
+       "episode",
+       "jupyter",
+       "native-services",
+       "postgres",
+       "snowflake"
+      ]
+     },
+     "ok": true
+    },
+    {
+     "check": "nothing_resolves",
+     "detail": {
+      "episode": {
+       "alkera-mfix-da-snowflake-1791883764-minio-1": "gaierror: [Errno -3] Temporary failure in name resolution",
+       "alkera-mfix-da-snowflake-1791883764_minio_1": "gaierror: [Errno -3] Temporary failure in name resolution",
+       "minio": "gaierror: [Errno -3] Temporary failure in name resolution",
+       "minio.internal": "gaierror: [Errno -3] Temporary failure in name resolution"
+      },
+      "jupyter": {
+       "alkera-mfix-da-snowflake-1791883764-minio-1": "gaierror: [Errno -3] Temporary failure in name resolution",
+       "alkera-mfix-da-snowflake-1791883764_minio_1": "gaierror: [Errno -3] Temporary failure in name resolution",
+       "minio": "gaierror: [Errno -3] Temporary failure in name resolution",
+       "minio.internal": "gaierror: [Errno -3] Temporary failure in name resolution"
+      }
+     },
+     "ok": true
+    },
+    {
+     "check": "no_storage_env",
+     "detail": {
+      "episode": [],
+      "jupyter": []
+     },
+     "ok": true
+    },
+    {
+     "check": "no_port_9000",
+     "detail": {
+      "addresses": 254,
+      "answered": [],
+      "cut": [],
+      "networks": [
+       "10.210.4.0/24"
+      ],
+      "port": 9000
+     },
+     "ok": true
+    },
+    {
+     "check": "no_receiver",
+     "detail": {
+      "error": "URLError: <urlopen error [Errno 111] Connection refused>",
+      "headers": [],
+      "status": null
+     },
+     "ok": true
+    }
+   ],
+   "image": "alkera-episode:t8-da-snowflake",
+   "image_gate": {
+    "head": "3798c40a9f6493e1be6c8c835eeb636c8977e399",
+    "image": "alkera-episode:t8-da-snowflake",
+    "revision": "3798c40a9f6493e1be6c8c835eeb636c8977e399"
    },
    "minio_unstarted": true,
    "object_store_plugged": false,
    "ok": true,
    "plugs": {},
    "profile": "da/snowflake",
-   "project": "alkera-mfix-da-snowflake-1791397067",
-   "seconds": 50.2,
+   "project": "alkera-mfix-da-snowflake-1791883764",
+   "seconds": 79.9,
    "services": [
     "episode",
     "jupyter",
@@ -196,16 +196,37 @@
      "detail": {
       "addresses": 254,
       "answered": [
-       "10.210.2.2"
+       "10.210.1.2"
       ],
       "cut": [],
       "minio.internal": [
-       "10.210.2.2"
+       "10.210.1.2"
       ],
       "networks": [
-       "10.210.2.0/24"
+       "10.210.1.0/24"
       ],
       "port": 9000
+     },
+     "ok": true
+    },
+    {
+     "check": "only_9000_open",
+     "detail": {
+      "dialed": 65535,
+      "first": 1,
+      "hosts": [
+       "10.210.1.2"
+      ],
+      "last": 65535,
+      "minio.internal": [
+       "10.210.1.2"
+      ],
+      "open": {
+       "10.210.1.2": [
+        9000
+       ]
+      },
+      "other_open_ports": {}
      },
      "ok": true
     },
@@ -289,19 +310,19 @@
      "ok": true
     }
    ],
-   "image": "alkera-episode:mfix",
+   "image": "alkera-episode:t8",
    "image_gate": {
-    "head": "7819e93b2e6e8e08f8220f9c39f80982f6617de7",
-    "image": "alkera-episode:mfix",
-    "revision": "3def55b87cc5378c42a6508d61ac5037e20f001c"
+    "head": "3798c40a9f6493e1be6c8c835eeb636c8977e399",
+    "image": "alkera-episode:t8",
+    "revision": "3798c40a9f6493e1be6c8c835eeb636c8977e399"
    },
    "minio_unstarted": false,
    "object_store_plugged": true,
    "ok": true,
    "plugs": {},
    "profile": null,
-   "project": "alkera-mfix-unprofiled-1791397117",
-   "seconds": 32.8,
+   "project": "alkera-mfix-unprofiled-1791883843",
+   "seconds": 43.1,
    "services": [
     "episode",
     "minio",
@@ -339,6 +360,27 @@
        "10.210.2.0/24"
       ],
       "port": 9000
+     },
+     "ok": true
+    },
+    {
+     "check": "only_9000_open",
+     "detail": {
+      "dialed": 65535,
+      "first": 1,
+      "hosts": [
+       "10.210.2.3"
+      ],
+      "last": 65535,
+      "minio.internal": [
+       "10.210.2.3"
+      ],
+      "open": {
+       "10.210.2.3": [
+        9000
+       ]
+      },
+      "other_open_ports": {}
      },
      "ok": true
     },
@@ -422,19 +464,19 @@
      "ok": true
     }
    ],
-   "image": "alkera-episode:mfix",
+   "image": "alkera-episode:t8",
    "image_gate": {
-    "head": "7819e93b2e6e8e08f8220f9c39f80982f6617de7",
-    "image": "alkera-episode:mfix",
-    "revision": "3def55b87cc5378c42a6508d61ac5037e20f001c"
+    "head": "3798c40a9f6493e1be6c8c835eeb636c8977e399",
+    "image": "alkera-episode:t8",
+    "revision": "3798c40a9f6493e1be6c8c835eeb636c8977e399"
    },
    "minio_unstarted": false,
    "object_store_plugged": true,
    "ok": true,
    "plugs": {},
    "profile": "de/laptop",
-   "project": "alkera-mfix-de-laptop-1791397151",
-   "seconds": 34.1,
+   "project": "alkera-mfix-de-laptop-1791883887",
+   "seconds": 43.6,
    "services": [
     "episode",
     "minio",
@@ -443,8 +485,8 @@
    ]
   }
  ],
- "generated": "2026-10-07T18:17:18Z",
- "headline": "PASS: da-laptop 5/5, da-snowflake 5/5, unprofiled 6/6, de-laptop 6/6",
+ "generated": "2026-10-13T09:28:38Z",
+ "headline": "PASS: da-laptop 5/5, da-snowflake 5/5, unprofiled 7/7, de-laptop 7/7",
  "ok": true,
- "revision": "7819e93b2e6e8e08f8220f9c39f80982f6617de7"
+ "revision": "3798c40a9f6493e1be6c8c835eeb636c8977e399"
 }
