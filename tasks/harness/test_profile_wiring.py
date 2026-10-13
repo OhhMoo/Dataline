@@ -1144,3 +1144,87 @@ def test_a_snowflake_profile_may_connect_to_snowflake_internal(world, tmp_path):
     assert "snowflake" not in duck
     assert ("snowflake.internal", 8443) not in aut.allowed_destinations(duck)
     assert "snowflake" not in _stack(world, tmp_path, "u").episode_endpoints()   # unprofiled
+
+
+# ----------------- the `episode` role: closed on native boxes, the MCP gateway's own
+#: gateway/docker/postgres.sql's role: compose's schema owner, whose statements the
+#: server does not log (only `alkera`'s are, compose.native.yml `pg_native_role`).
+COMPOSE_OWNER_NOLOGIN = "ALTER ROLE episode NOLOGIN"
+EPISODE_DSN = "postgresql://episode:episode-local@postgres/episode"
+
+
+def _init_scripts(config: dict) -> dict[str, str]:
+    """{init script file name: its SQL} for the `postgres` service of a compose
+    config: the bind-mounted seed and every inline config."""
+    scripts = {}
+    for volume in config["services"]["postgres"].get("volumes") or []:
+        target = volume.get("target", "")
+        if target.startswith("/docker-entrypoint-initdb.d/"):
+            scripts[target.rsplit("/", 1)[1]] = Path(volume["source"]).read_text(
+                encoding="utf-8")
+    contents = config.get("configs") or {}
+    for item in config["services"]["postgres"].get("configs") or []:
+        target = item.get("target", "")
+        if target.startswith("/docker-entrypoint-initdb.d/"):
+            scripts[target.rsplit("/", 1)[1]] = contents[item["source"]]["content"]
+    return scripts
+
+
+def test_native_postgres_takes_login_away_from_the_compose_owner(world, tmp_path,
+                                                                  no_docker):
+    """Measured by compose: on a native box the server's init runs compose's own
+    postgres.sql (which creates `episode` LOGIN) and THEN a script that makes it
+    NOLOGIN, so the unlogged role no client can be audited as cannot log in at all
+    (CONTAINMENT_2026-10-07.md, the `postgres.internal:5432 as role episode` row).
+    The agent's role script stays the one Harbor mirrors verbatim."""
+    _clocked(world)
+    for name, profile in (("r0", ""), ("r1", "de/postgres")):
+        stack = _stack(world, tmp_path, name, profile=profile)
+        stack.write_overlay()
+        scripts = _init_scripts(_compose_config(stack))
+        order = sorted(scripts)
+        assert order[0] == "seed.sql", order
+        assert "CREATE ROLE episode LOGIN" in scripts["seed.sql"]
+        closing = [n for n in order if COMPOSE_OWNER_NOLOGIN in scripts[n]]
+        assert closing and order.index(closing[0]) > order.index("seed.sql"), order
+        assert COMPOSE_OWNER_NOLOGIN not in scripts["zz-native.sql"]
+        assert "CREATE ROLE alkera LOGIN" in scripts["zz-native.sql"]
+
+
+def test_mcp_topology_keeps_postgres_dsn(tmp_path, monkeypatch):
+    """Review focus 3. The MCP topology is compose.yml + compose.episode.yml and
+    nothing else: its gateway runs inside the episode and connects as `episode`
+    through ALKERA_POSTGRES_DSN (config.py `warehouse_dsn_env`). Measured by
+    compose: that stack keeps the DSN and its server runs compose's postgres.sql
+    only, so the role it logs in as keeps LOGIN."""
+    import shutil
+    import subprocess
+
+    from alkera_gateway.config import GatewayConfig
+
+    assert GatewayConfig().warehouse_dsn_env == "ALKERA_POSTGRES_DSN"
+    base = ce._compose_yaml(ce.COMPOSE_BASE)["services"]["episode"]["environment"]
+    assert base["ALKERA_POSTGRES_DSN"] == EPISODE_DSN
+    if not shutil.which("docker"):
+        pytest.skip("no docker CLI")
+    mcp = ce.ContainerEpisode(project="cfgcheck", world_root=tmp_path / "world",
+                              audit_dir=tmp_path / "audit")
+    original = subprocess.run
+    seen = []
+
+    def run(argv, *args, **kw):
+        seen.append(list(argv))
+        return original(argv, *args, **kw)
+
+    monkeypatch.setattr(ce.subprocess, "run", run)
+    done = mcp._compose("config", "--format", "json", check=False, timeout=120)
+    if done.returncode != 0 and "is not a docker command" in done.stderr:
+        pytest.skip("no docker compose plugin")
+    assert done.returncode == 0, done.stderr
+    assert not any(str(ce.NATIVE_OVERLAY) in argv for argv in seen), seen
+    config = json.loads(done.stdout)
+    assert config["services"]["episode"]["environment"]["ALKERA_POSTGRES_DSN"] == \
+        EPISODE_DSN
+    scripts = _init_scripts(config)
+    assert sorted(scripts) == ["seed.sql"]
+    assert not any(COMPOSE_OWNER_NOLOGIN in sql for sql in scripts.values())

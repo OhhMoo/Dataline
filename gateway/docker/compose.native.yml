@@ -433,6 +433,8 @@ services:
     configs:
       - source: pg_native_role
         target: /docker-entrypoint-initdb.d/zz-native.sql
+      - source: pg_compose_owner
+        target: /docker-entrypoint-initdb.d/zz-native-owner.sql
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./postgres.sql:/docker-entrypoint-initdb.d/seed.sql:ro
@@ -599,6 +601,22 @@ configs:
       -- entry (native/PARITY.md, measured).
       ALTER ROLE alkera SET log_statement = 'all';
       ALTER ROLE alkera SET log_min_duration_statement = 0;
+  # compose.yml's postgres.sql creates `episode` LOGIN: the MCP gateway's role,
+  # which it reaches through compose.yml's ALKERA_POSTGRES_DSN. On a native box
+  # no client should be it. The server logs `alkera`'s statements and no one
+  # else's, so a session as `episode` was a second, unaudited way into
+  # raw/staging/warehouse, with its password in every box's environment
+  # (evidence/CONTAINMENT_2026-10-07.md, the `postgres.internal:5432 as role
+  # episode` row). It still owns what postgres.sql made it own; it just cannot
+  # log in. This is a script of its own and not a line in pg_native_role:
+  # that one is the agent's role, which Harbor's
+  # postgres_start.NATIVE_ROLE_SQL repeats statement for statement, and Harbor
+  # closes this same door with pg_hba instead (only `alkera` over TCP).
+  pg_compose_owner:
+    content: |
+      -- Native mode: compose's schema owner (gateway/docker/postgres.sql) cannot
+      -- log in. Its statements are not logged, so no client may be it.
+      ALTER ROLE episode NOLOGIN;
 
 volumes:
   miniodata:
