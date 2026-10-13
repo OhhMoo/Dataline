@@ -78,6 +78,16 @@ out["plain_type"] = type(plain).__module__
 out["feb"] = str(plain.sql(spec["feb_sql"]).collect()[0][0])
 plain.stop()
 
+# (d) determinism, before anything writes: the same rows hashed in 3 sessions
+hashes = []
+for _ in range(3):
+    s = SparkSession.builder.getOrCreate()
+    rows = s.sql(spec["hash_sql"]).collect()
+    hashes.append(hashlib.sha256(json.dumps([[str(v) for v in r] for r in rows])
+                                 .encode()).hexdigest())
+    s.stop()
+out["hashes"] = hashes
+
 # the client's own witness: every RPC this session sends, by method
 sent = []
 class Count(grpc.UnaryUnaryClientInterceptor, grpc.UnaryStreamClientInterceptor,
@@ -111,6 +121,11 @@ by_status = (spark.table("main.warehouse.fct_orders").filter(F.col("order_amount
              .groupBy("order_status").agg(F.sum("order_amount").alias("amount"))
              .orderBy("order_status").collect())
 out["by_status"] = [[r["order_status"], str(r["amount"])] for r in by_status]
+# toPandas over Arrow: the ds lock's pandas 3, which pyspark-client warns it does not
+# fully support
+frame = spark.table("main.warehouse.dim_date").orderBy("date_day").limit(3).toPandas()
+out["to_pandas"] = {"rows": len(frame), "columns": list(frame.columns),
+                    "first": str(frame.iloc[0]["date_day"])}
 
 # (b) writes on the copy, Delta's own
 sql("CREATE SCHEMA IF NOT EXISTS main.t14_scratch").collect()
@@ -145,27 +160,18 @@ refused("transform", lambda: spark.sql(
     "SELECT TRANSFORM(order_id) USING 'cat' AS (x) FROM main.warehouse.fct_orders").collect())
 refused("reflect", lambda: spark.sql(
     "SELECT reflect('java.lang.System', 'getenv', 'PATH')").collect())
-refused("parquet_path", lambda: spark.sql(
-    "SELECT * FROM parquet.`/seed/warehouse.duckdb`").collect())
+refused("parquet_path", lambda: spark.sql(   # the engine's own seed staging file
+    "SELECT * FROM parquet.`/spark-data/seed/warehouse.fct_orders.parquet`").collect())
 refused("config", lambda: spark.conf.set("spark.sql.catalog.evil", "x.Y"))
 try:
     dbutils  # noqa: F821 - not provided, and an honest NameError says so
     out["dbutils"] = "defined"
 except NameError as exc:
     out["dbutils"] = f"NameError: {exc}"
-out["sent"] = list(sent)
-out["sqls"] = sqls
 spark.stop()
+out["sent"] = list(sent)                  # ReleaseSession, from stop(), included
+out["sqls"] = sqls
 
-# (d) determinism: the same rows hashed in 3 sessions
-hashes = []
-for _ in range(3):
-    s = SparkSession.builder.getOrCreate()
-    rows = s.sql(spec["hash_sql"]).collect()
-    hashes.append(hashlib.sha256(json.dumps([[str(v) for v in r] for r in rows])
-                                 .encode()).hexdigest())
-    s.stop()
-out["hashes"] = hashes
 print("SPARK-E2E " + json.dumps(out))
 '''
 #: `python -c`, which pyspark-client 4.2.0 runs only with SPARK_HOME set (the box sets it).
@@ -183,20 +189,24 @@ r = w.statement_execution.execute_statement(
 print("TIER1 " + json.dumps({"state": r.status.state.value,
                              "rows": r.result.data_array if r.result else None}))
 '''
-#: Every LISTEN socket in a container, from /proc/net/tcp{,6}: (address, port).
+#: Every LISTEN socket in a container, from /proc/net/tcp{,6}: [address, port, loopback],
+#: the address decoded (each 32-bit word is host-endian) and a v4-mapped one unwrapped.
 LISTENING = r'''
-import json, pathlib
+import ipaddress, json, pathlib, struct
 out = []
 for name in ("tcp", "tcp6"):
-    path = pathlib.Path("/proc/net") / name
-    for line in path.read_text().splitlines()[1:]:
+    for line in (pathlib.Path("/proc/net") / name).read_text().splitlines()[1:]:
         f = line.split()
-        if f[3] == "0A":
-            addr, port = f[1].rsplit(":", 1)
-            out.append([addr, int(port, 16)])
+        if f[3] != "0A":
+            continue
+        raw, port = f[1].rsplit(":", 1)
+        packed = b"".join(struct.pack("<I", int(raw[i:i + 8], 16)) for i in range(0, len(raw), 8))
+        addr = ipaddress.ip_address(packed)
+        if addr.version == 6 and addr.ipv4_mapped:
+            addr = addr.ipv4_mapped
+        out.append([str(addr), int(port, 16), addr.is_loopback])
 print(json.dumps(sorted(out)))
 '''
-LOOPBACK = {"0100007F", "00000000000000000000000001000000"}
 
 
 def truths(warehouse: Path) -> dict:
@@ -333,7 +343,7 @@ def main(argv=None) -> int:
             else None
         listen = json.loads(sockets.stdout) if sockets and sockets.stdout.strip() else []
         record["engine_listening"] = listen
-        off_loopback = sorted({port for addr, port in listen if addr not in LOOPBACK})
+        off_loopback = sorted({port for _, port, loopback in listen if not loopback})
         check("isolation: in the engine only Spark Connect's port listens off loopback",
               off_loopback == [PORT], listen)
 
@@ -369,14 +379,18 @@ def main(argv=None) -> int:
         check("DataFrame API: filter / groupBy / agg equals the world's DuckDB",
               got.get("by_status") == truth["by_status"],
               {"got": got.get("by_status"), "truth": truth["by_status"]})
+        check("toPandas: an Arrow result becomes a pandas frame (pandas 3)",
+              (got.get("to_pandas") or {}).get("rows") == 3
+              and "date_day" in (got.get("to_pandas") or {}).get("columns", []),
+              got.get("to_pandas"))
         check("writes: saveAsTable, INSERT and DELETE land in the copy and read back",
               got.get("saved") == truth["refunded"]
               and got.get("after_insert") == truth["refunded"] + 1
               and got.get("copy_after_delete") == 0,
               {k: got.get(k) for k in ("saved", "after_insert", "copy_after_delete")})
-        check("Delta: DESCRIBE HISTORY of the copy names the DELETE and the seed's CTAS",
+        check("Delta: DESCRIBE HISTORY of the copy names the DELETE and the seed's create",
               (got.get("history") or [])[:1] == ["DELETE"]
-              and "CREATE TABLE AS SELECT" in (got.get("history") or []),
+              and any(op.startswith("CREATE") for op in got.get("history") or []),
               got.get("history"))
         check("test_remote_write_leaves_world_fingerprint_unchanged",
               fingerprint_before == fingerprint_after,

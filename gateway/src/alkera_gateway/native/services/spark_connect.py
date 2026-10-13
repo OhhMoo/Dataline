@@ -519,17 +519,31 @@ def inspect_plan(plan, protos: Protos) -> Inspection:
 
 # ------------------------------------------------------------------ the rows
 def describe(method: str, request: bytes, protos: Protos) -> tuple[dict, Inspection]:
-    """(args, inspection) for one SparkConnectService request; raises Refused."""
+    """(args, inspection) for one SparkConnectService request; raises
+    `_RefusedWith`, carrying the args the refused row is written with."""
     message, _, kind = METHODS[method]
     args: dict = {"rpc": method}
-    found = Inspection(op_class="exec")
-    if kind == "refused":
-        raise Refused(method)
     parsed = protos.parse(message, request)
     if parsed.session_id:
         # which client session sent it: the client chooses it (a UUID), and the
         # checks match a session's rows to what that session sent
         args["session_id"] = parsed.session_id
+    try:
+        return args, _describe(method, kind, parsed, args, protos)
+    except _RefusedWith:
+        raise
+    except Refused as exc:
+        raise _RefusedWith(args, str(exc)) from None
+
+
+def _describe(method: str, kind: str, parsed, args: dict, protos: Protos) -> Inspection:
+    found = Inspection(op_class="exec")
+    if kind == "refused":                            # AddArtifacts: what it would upload
+        names = [a.name for a in parsed.batch.artifacts]
+        if parsed.HasField("begin_chunk"):
+            names.append(parsed.begin_chunk.name)
+        args["artifacts"] = names
+        raise Refused(method)
     if kind == "plan":
         found = inspect_plan(parsed.plan, protos)
     elif kind == "analyze":
@@ -569,7 +583,7 @@ def describe(method: str, request: bytes, protos: Protos) -> tuple[dict, Inspect
         args["sql"] = found.sql[0] if len(found.sql) == 1 else ";\n".join(found.sql)
     if found.expressions:
         args["expressions"] = found.expressions
-    return args, found
+    return found
 
 
 class _RefusedWith(Refused):
@@ -697,8 +711,6 @@ class Proxy:
             args, found = describe(method, request, self.protos)
         except _RefusedWith as exc:
             args, refused = exc.row_args, str(exc)
-        except Refused as exc:
-            refused = str(exc)
         except Exception as exc:  # noqa: BLE001 - an unreadable request is never forwarded blind
             refused = f"a request this proxy cannot read ({type(exc).__name__})"
         if refused:
@@ -779,7 +791,11 @@ class _Handler:
 
         if cardinality == "stream_unary":                # AddArtifacts: refused unread
             async def stream_unary(requests, context):
-                refused = await proxy.audit(name, b"", time.monotonic())
+                started = time.monotonic()
+                first = b""
+                async for first in requests:          # the first message names the
+                    break                             # session and the artifacts
+                refused = await proxy.audit(name, first, started)
                 await context.abort(grpc.StatusCode.FAILED_PRECONDITION, refused)
             return grpc.stream_unary_rpc_method_handler(stream_unary)
 

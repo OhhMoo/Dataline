@@ -286,6 +286,9 @@ def test_add_artifacts_refused_by_name(stack, protos):
         "Spark feature not available in this environment: AddArtifacts"
     row = _rows(stack["audit"])[-1]
     assert row["tool"] == TOOL and row["args"]["rpc"] == "AddArtifacts"
+    # read from the first message, which is all the proxy reads of the stream
+    assert row["args"]["session_id"] == "s-1"
+    assert row["args"]["artifacts"] == ["jars/evil.jar"]
     assert row["exit"] == "error" and "refused:AddArtifacts" in row["flags"]
     assert row["result"] == {"forwarded": False}
     assert not stack["upstream"].calls
@@ -363,6 +366,7 @@ def test_fenced_plans_are_refused_by_name_and_never_forwarded(stack, protos, wha
     row = _rows(stack["audit"])[-1]
     assert row["exit"] == "error" and row["result"] == {"forwarded": False}
     assert any(f.startswith("refused:") for f in row["flags"])
+    assert row["args"]["session_id"] == "s-1"          # which session tried it
     assert not stack["upstream"].calls
 
 
