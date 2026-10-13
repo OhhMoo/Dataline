@@ -32,21 +32,21 @@
         "or_replace_dropped_first",
         "rows_affected_unreported"
       ],
-      "latency_ms": 1245.588,
+      "latency_ms": 1480.558,
       "op_class": "destructive",
       "read_targets": [],
       "result": {
-        "job_id": "c3b673a0-67b2-424e-8046-c879546b4601",
+        "job_id": "42e0dab4-5e8e-48d8-b599-9066b1a7fd61",
         "state": "DONE",
         "statement_type": "CREATE_TABLE_AS_SELECT",
         "status": 200
       },
       "result_bytes": 119,
-      "result_hash": "8b800d0138285bf3e8bdb1f257dd25f3dd91d849d2f3c05e33c93cd1d5b28a55",
+      "result_hash": "5e85ae7b13cdba669bff708df4320a1b1c3702c75027c86bf497a508362d9bbd",
       "rows_affected": null,
-      "rss_mb": 138.766,
+      "rss_mb": 145.035,
       "schema_version": 1,
-      "seq": 90,
+      "seq": 97,
       "target": "\"alkera-local\".\"bq_e2e_dbt\".\"bq_feb_revenue\"",
       "targets": [
         "\"alkera-local\".\"bq_e2e_dbt\".\"bq_feb_revenue\"",
@@ -55,7 +55,7 @@
       "tool": "bigquery.statement",
       "transport": "native",
       "vts": "2026-03-02T00:00:00Z",
-      "wts": 1791885114236
+      "wts": 1791892680431
     },
     {
       "args": {
@@ -74,21 +74,21 @@
         "or_replace_dropped_first",
         "rows_affected_unreported"
       ],
-      "latency_ms": 958.158,
+      "latency_ms": 910.565,
       "op_class": "destructive",
       "read_targets": [],
       "result": {
-        "job_id": "2ed2d700-a645-49b1-95ef-7cefd857e00a",
+        "job_id": "17abc6d0-622b-4c87-ae0e-23504fcdf698",
         "state": "DONE",
         "statement_type": "CREATE_VIEW",
         "status": 200
       },
       "result_bytes": 108,
-      "result_hash": "5992b2806032931a4de921f8187d9591693d936bb1ce1f229f770a250df1f115",
+      "result_hash": "2bb3b9b8414924942e1a91a06d6cc5fa6e250912e77cda8cf5ae2367a1671200",
       "rows_affected": null,
-      "rss_mb": 138.77,
+      "rss_mb": 145.035,
       "schema_version": 1,
-      "seq": 93,
+      "seq": 100,
       "target": "\"alkera-local\".\"bq_e2e_dbt\".\"bq_feb_revenue\"",
       "targets": [
         "\"alkera-local\".\"bq_e2e_dbt\".\"bq_feb_revenue\"",
@@ -97,7 +97,7 @@
       "tool": "bigquery.statement",
       "transport": "native",
       "vts": "2026-03-02T00:00:00Z",
-      "wts": 1791885115531
+      "wts": 1791892681664
     },
     {
       "args": {
@@ -115,21 +115,21 @@
       },
       "exit": "error",
       "flags": [],
-      "latency_ms": 38.819,
+      "latency_ms": 38.276,
       "op_class": "write",
       "read_targets": [],
       "result": {
-        "job_id": "d863d862-135f-4c1a-83fb-15654a300810",
+        "job_id": "e6945ca8-0b25-4c16-915a-30b2b2ab9d50",
         "state": "DONE",
         "statement_type": "MERGE",
         "status": 200
       },
       "result_bytes": 102,
-      "result_hash": "3646f6ced2420aaf6ff189d4d3dc46982a9c6df0d3a1dea62274436a1ecb3b92",
+      "result_hash": "68d6b1c66f0285f38502d09e29669655c73efb366932d9294f30b172a6040141",
       "rows_affected": null,
-      "rss_mb": 138.773,
+      "rss_mb": 145.055,
       "schema_version": 1,
-      "seq": 101,
+      "seq": 108,
       "target": "\"alkera-local\".\"bq_e2e_dbt\".\"bq_orders_inc\" AS DBT_INTERNAL_DEST",
       "targets": [
         "\"alkera-local\".\"bq_e2e_dbt\".\"bq_orders_inc\" AS DBT_INTERNAL_DEST",
@@ -138,7 +138,7 @@
       "tool": "bigquery.statement",
       "transport": "native",
       "vts": "2026-03-02T00:00:00Z",
-      "wts": 1791885130405
+      "wts": 1791892695688
     }
   ],
   "box_profile": "world_dbt:\n  outputs:\n    dev:\n      path: /world/var/warehouse/warehouse.duckdb\n      threads: 1\n      type: duckdb\n    bigquery:\n      type: bigquery\n      project: '{{ env_var(''BIGQUERY_PROJECT'') }}'\n      api_endpoint: '{{ env_var(''BIGQUERY_API_URL'') }}'\n      method: oauth-secrets\n      token: anonymous\n      schema: warehouse\n      threads: 1\n  target: bigquery\n",
@@ -164,7 +164,7 @@
     },
     {
       "check": "native-services seeded the emulator before binding (one seed line)",
-      "detail": " \"alkera-local\", \"rows\": 140480, \"seconds\": 11.798, \"seed\": \"bigquery\", \"tables\": {\"raw.customers\": 339, \"raw.order_lines\": 29200, \"raw.orders\": 17768, \"raw.products\": 31, \"staging.stg_customers\": 309, \"staging.stg_order_lines\": 29200, \"staging.stg_orders\": 16825, \"staging.stg_products\": 25, \"warehouse.dim_customer\": 309, \"warehouse.dim_date\": 424, \"warehouse.dim_product\": 25, \"warehouse.fct_order_lines\": 29200, \"warehouse.fct_orders\": 16825}, \"upstream\": \"http://bigquery:9050\", \"wait_s\": 0.041}\nalkera native services  bind=0.0.0.0  audit=/audit  world=/world\nservice       alias                     port  state\nmetabase      metabase.internal         3000  module\nloki          loki.internal             3100  module\nairbyte       airbyte.internal          8001  module\njira          jira.internal             8080  module\nslack         slack.internal            8081  module\ndeploy        deploy.internal           8085  module\nconfluence    confluence.internal       8090  module\nbigquery      bigquery.internal         9050  module\nprometheus    prometheus.internal       9090  module\nalertmanager  alertmanager.internal     9093  module\nminio-audit   native-services.internal  8110  receiver (not a destination: the stack dials it, not the episode)\nsched         sched.internal            8120  scheduler\nloaded=12 missing=0 port_disagreements=0\nALKERA_GATEWAY_CONFIG=/service-state/native_gateway.json\nALKERA_NATIVE_AUDIT=/audit/actions.jsonl\nALKERA_SCHEDULER=/world/var/sched/state.json\n",
+      "detail": " {\"raw.customers\": 339, \"raw.order_lines\": 29200, \"raw.orders\": 17768, \"raw.products\": 31, \"staging.stg_customers\": 309, \"staging.stg_order_lines\": 29200, \"staging.stg_orders\": 16825, \"staging.stg_products\": 25, \"warehouse.dim_customer\": 309, \"warehouse.dim_date\": 424, \"warehouse.dim_product\": 25, \"warehouse.fct_order_lines\": 29200, \"warehouse.fct_orders\": 16825}, \"upstream\": \"http://bigquery:9050\", \"wait_s\": 0.043}\nalkera native services  bind=0.0.0.0  audit=/audit  world=/world\nservice       alias                     port  state\nmetabase      metabase.internal         3000  module\nloki          loki.internal             3100  module\nairbyte       airbyte.internal          8001  module\njira          jira.internal             8080  module\nslack         slack.internal            8081  module\ndeploy        deploy.internal           8085  module\nconfluence    confluence.internal       8090  module\nbigquery      bigquery.internal         9050  module\nprometheus    prometheus.internal       9090  module\nalertmanager  alertmanager.internal     9093  module\nminio-audit   native-services.internal  8110  receiver (not a destination: the stack dials it, not the episode)\nsched         sched.internal            8120  scheduler\nloaded=12 missing=0 port_disagreements=0\nALKERA_GATEWAY_CONFIG=/service-state/native_gateway.json\nALKERA_NATIVE_AUDIT=/audit/actions.jsonl\nALKERA_SCHEDULER=/world/var/sched/state.json\npeer filter: agent listeners admit 10.210.221.0/24 only (ALKERA_EPISODE_SUBNETS)\n",
       "result": "PASS"
     },
     {
@@ -211,7 +211,7 @@
         ],
         "project": "alkera-local",
         "rows": 140480,
-        "seconds": 11.798,
+        "seconds": 11.533,
         "seed": "bigquery",
         "tables": {
           "raw.customers": 339,
@@ -229,7 +229,7 @@
           "warehouse.fct_orders": 16825
         },
         "upstream": "http://bigquery:9050",
-        "wait_s": 0.041
+        "wait_s": 0.043
       },
       "result": "PASS"
     },
@@ -241,15 +241,15 @@
     {
       "check": "isolation: native-services is on backend_net and episode_net",
       "detail": [
-        "alkera-tour-de-gcp-1791885053_backend_net",
-        "alkera-tour-de-gcp-1791885053_episode_net"
+        "alkera-tour-de-gcp-1791892617_backend_net",
+        "alkera-tour-de-gcp-1791892617_episode_net"
       ],
       "result": "PASS"
     },
     {
       "check": "isolation: the episode is on episode_net only",
       "detail": [
-        "alkera-tour-de-gcp-1791885053_episode_net"
+        "alkera-tour-de-gcp-1791892617_episode_net"
       ],
       "result": "PASS"
     },
@@ -257,13 +257,13 @@
       "check": "isolation: the episode cannot resolve the engine, only the proxy",
       "detail": {
         "bigquery": "",
-        "bigquery.internal": "10.210.1.4      bigquery.internal"
+        "bigquery.internal": "10.210.221.4    bigquery.internal"
       },
       "result": "PASS"
     },
     {
       "check": "client probe ran inside the episode",
-      "detail": "nt=false: BigQuery feature not available in this environment: transactions and BEGIN...END blocks (BEGIN [TRANSACTION], COMMIT, ROLLBACK): the engine keeps what ran before an error and cannot roll back; send the statements without them\\n\\nLocation: None\\nJob ID: 6363e6c3-8762-4888-b58c-782407c7f531\\n\", \"seconds\": 0.06}, \"bad_sql\": {\"code\": 400, \"reason\": \"invalidQuery\", \"message\": \"400 failed to parse statements: failed to parse statement: Syntax error: Unexpected identifier \\\"SELEC\\\" [at 1:1]; message: failed to parse statements: failed to parse statement: Syntax error: Unexpected identifier \\\"SELEC\\\" [at 1:1], reason: invalidQuery\\n\\nLocation: None\\nJob ID: 8f1f5432-6cd6-4726-8b82-700206fe5fd5\\n\", \"seconds\": 0.09}, \"scripting\": {\"code\": 501, \"reason\": \"notImplemented\", \"message\": \"501 POST http://bigquery.internal:9050/bigquery/v2/projects/alkera-local/jobs?prettyPrint=false: BigQuery feature not available in this environment: procedural scripting (IF, WHILE, LOOP, REPEAT, FOR, CASE, CALL, RAISE, CREATE PROCEDURE, ...): the engine answers success and runs none of the body; send the statements themselves\\n\\nLocation: None\\nJob ID: c2b5c2fa-6aeb-47ad-b7a1-db6f3f384966\\n\", \"seconds\": 0.05}, \"untokenizable\": {\"code\": 400, \"reason\": \"invalidQuery\", \"message\": \"400 POST http://bigquery.internal:9050/bigquery/v2/projects/alkera-local/jobs?prettyPrint=false: Syntax error: the query does not tokenize (Error tokenizing 'SELECT 'ab')\\n\\nLocation: None\\nJob ID: 7dcb339e-fb25-4db6-83a1-3cd3bec4505c\\n\", \"seconds\": 0.05}, \"drop_script\": \"SELECT 1; /* tidy */ DROP TABLE `alkera-local.bq_e2e_scratch.drop_me`\", \"list_rows_5\": [[\"100001\", \"2025-01-01\", \"1100\", \"cancelled\", \"2501\", \"0\"], [\"100002\", \"2025-01-01\", \"1156\", \"completed\", \"1370\", \"49\"], [\"100003\", \"2025-01-01\", \"1165\", \"completed\", \"3119\", \"0\"], [\"100004\", \"2025-01-01\", \"1091\", \"completed\", \"8787\", \"0\"], [\"100005\", \"2025-01-01\", \"1193\", \"cancelled\", \"2617\", \"0\"]], \"read_back_after_fences\": [[\"1\", \"alpha\"], [\"2\", \"beta\"]]}\n",
+      "detail": ": they read Cloud Storage (gs\", \"seconds\": 0.05}, \"external_table_definition\": {\"code\": 501, \"reason\": \"notImplemented\", \"message\": \"501 POST http://bigquery.internal:9050/bigquery/v2/projects/alkera-local/jobs?prettyPrint=false: BigQuery feature not available in this environment: external tables and other external data (CREATE EXTERNAL TABLE / SCHEMA, OPTIONS uris / format, a query's tableDefinitions, a table's externalDataConfiguration or biglakeConfiguration, a dataset's externalDatasetReference): they read Cloud Storage (gs\", \"seconds\": 0.05}, \"external_table_rest\": {\"code\": 501, \"reason\": \"notImplemented\", \"message\": \"501 POST http://bigquery.internal:9050/bigquery/v2/projects/alkera-local/datasets/bq_e2e_scratch/tables?prettyPrint=false: BigQuery feature not available in this environment: external tables and other external data (CREATE EXTERNAL TABLE / SCHEMA, OPTIONS uris / format, a query's tableDefinitions, a table's externalDataConfiguration or biglakeConfiguration, a dataset's externalDatasetReference): t\", \"seconds\": 0.05}, \"load_data\": {\"code\": 501, \"reason\": \"notImplemented\", \"message\": \"501 POST http://bigquery.internal:9050/bigquery/v2/projects/alkera-local/jobs?prettyPrint=false: BigQuery feature not available in this environment: load jobs and LOAD DATA (Cloud Storage and file uploads); use INSERT statements or tabledata.insertAll\\n\\nLocation: None\\nJob ID: aca5d6b9-8cc2-48a0-9268-ff8535037e45\\n\", \"seconds\": 0.05}, \"after_external\": [[\"engine still answers\"]], \"after_external_seconds\": 0.45, \"drop_script\": \"SELECT 1; /* tidy */ DROP TABLE `alkera-local.bq_e2e_scratch.drop_me`\", \"list_rows_5\": [[\"100001\", \"2025-01-01\", \"1100\", \"cancelled\", \"2501\", \"0\"], [\"100002\", \"2025-01-01\", \"1156\", \"completed\", \"1370\", \"49\"], [\"100003\", \"2025-01-01\", \"1165\", \"completed\", \"3119\", \"0\"], [\"100004\", \"2025-01-01\", \"1091\", \"completed\", \"8787\", \"0\"], [\"100005\", \"2025-01-01\", \"1193\", \"cancelled\", \"2617\", \"0\"]], \"read_back_after_fences\": [[\"1\", \"alpha\"], [\"2\", \"beta\"]]}\n",
       "result": "PASS"
     },
     {
@@ -349,7 +349,7 @@
       "check": "fence: dry_run refused by name, at once (501)",
       "detail": {
         "code": 501,
-        "message": "501 POST http://bigquery.internal:9050/bigquery/v2/projects/alkera-local/jobs?prettyPrint=false: bigquery cost estimation is not modelled\n\nLocation: None\nJob ID: 926232bc-c14e-4f54-af6f-462df28d8cc2\n",
+        "message": "501 POST http://bigquery.internal:9050/bigquery/v2/projects/alkera-local/jobs?prettyPrint=false: bigquery cost estimation is not modelled\n\nLocation: None\nJob ID: 3d3b4e2e-1d20-4a94-8af5-5dc8e1390bb1\n",
         "reason": "notImplemented",
         "seconds": 0.05
       },
@@ -359,7 +359,7 @@
       "check": "fence: legacy_sql refused by name, at once (501)",
       "detail": {
         "code": 501,
-        "message": "501 POST http://bigquery.internal:9050/bigquery/v2/projects/alkera-local/jobs?prettyPrint=false: BigQuery feature not available in this environment: legacy SQL (useLegacySql=true); send GoogleSQL with useLegacySql=false\n\nLocation: None\nJob ID: e30d59d2-8d2d-46ac-abaf-322c451c2356\n",
+        "message": "501 POST http://bigquery.internal:9050/bigquery/v2/projects/alkera-local/jobs?prettyPrint=false: BigQuery feature not available in this environment: legacy SQL (useLegacySql=true); send GoogleSQL with useLegacySql=false\n\nLocation: None\nJob ID: a03ae0d8-2597-4c58-be99-f39817f8dacd\n",
         "reason": "notImplemented",
         "seconds": 0.05
       },
@@ -369,7 +369,7 @@
       "check": "fence: alter refused by name, at once (501)",
       "detail": {
         "code": 501,
-        "message": "501 POST http://bigquery.internal:9050/bigquery/v2/projects/alkera-local/jobs?prettyPrint=false: BigQuery feature not available in this environment: ALTER statements (the engine acknowledges them and changes nothing); create the table again instead\n\nLocation: None\nJob ID: eff6b952-462d-4214-89fd-07917ba46486\n",
+        "message": "501 POST http://bigquery.internal:9050/bigquery/v2/projects/alkera-local/jobs?prettyPrint=false: BigQuery feature not available in this environment: ALTER statements (the engine acknowledges them and changes nothing); create the table again instead\n\nLocation: None\nJob ID: 120b2e7c-3e2b-465b-b3d0-a365cad1793c\n",
         "reason": "notImplemented",
         "seconds": 0.05
       },
@@ -379,9 +379,9 @@
       "check": "fence: transaction refused by name, at once (501)",
       "detail": {
         "code": 501,
-        "message": "501 POST http://bigquery.internal:9050/bigquery/v2/projects/alkera-local/jobs?prettyPrint=false: BigQuery feature not available in this environment: transactions and BEGIN...END blocks (BEGIN [TRANSACTION], COMMIT, ROLLBACK): the engine keeps what ran before an error and cannot roll back; send the statements without them\n\nLocation: None\nJob ID: 6363e6c3-8762-4888-b58c-782407c7f531\n",
+        "message": "501 POST http://bigquery.internal:9050/bigquery/v2/projects/alkera-local/jobs?prettyPrint=false: BigQuery feature not available in this environment: transactions and BEGIN...END blocks (BEGIN [TRANSACTION], COMMIT, ROLLBACK): the engine keeps what ran before an error and cannot roll back; send the statements without them\n\nLocation: None\nJob ID: d495c259-eeff-4fab-b76e-e0e2d640f6b6\n",
         "reason": "notImplemented",
-        "seconds": 0.06
+        "seconds": 0.05
       },
       "result": "PASS"
     },
@@ -389,7 +389,7 @@
       "check": "fence: scripting refused by name, at once (501)",
       "detail": {
         "code": 501,
-        "message": "501 POST http://bigquery.internal:9050/bigquery/v2/projects/alkera-local/jobs?prettyPrint=false: BigQuery feature not available in this environment: procedural scripting (IF, WHILE, LOOP, REPEAT, FOR, CASE, CALL, RAISE, CREATE PROCEDURE, ...): the engine answers success and runs none of the body; send the statements themselves\n\nLocation: None\nJob ID: c2b5c2fa-6aeb-47ad-b7a1-db6f3f384966\n",
+        "message": "501 POST http://bigquery.internal:9050/bigquery/v2/projects/alkera-local/jobs?prettyPrint=false: BigQuery feature not available in this environment: procedural scripting (IF, WHILE, LOOP, REPEAT, FOR, CASE, CALL, RAISE, CREATE PROCEDURE, ...): the engine answers success and runs none of the body; send the statements themselves\n\nLocation: None\nJob ID: 58cdd44a-3f3e-44ac-9a6c-42b4ca3edff9\n",
         "reason": "notImplemented",
         "seconds": 0.05
       },
@@ -399,7 +399,7 @@
       "check": "fence: untokenizable refused by name, at once (400)",
       "detail": {
         "code": 400,
-        "message": "400 POST http://bigquery.internal:9050/bigquery/v2/projects/alkera-local/jobs?prettyPrint=false: Syntax error: the query does not tokenize (Error tokenizing 'SELECT 'ab')\n\nLocation: None\nJob ID: 7dcb339e-fb25-4db6-83a1-3cd3bec4505c\n",
+        "message": "400 POST http://bigquery.internal:9050/bigquery/v2/projects/alkera-local/jobs?prettyPrint=false: Syntax error: the query does not tokenize (Error tokenizing 'SELECT 'ab')\n\nLocation: None\nJob ID: e750e963-12dd-40a0-bd27-5db8636635bd\n",
         "reason": "invalidQuery",
         "seconds": 0.05
       },
@@ -409,9 +409,61 @@
       "check": "fence: bad_sql refused by name, at once (400)",
       "detail": {
         "code": 400,
-        "message": "400 failed to parse statements: failed to parse statement: Syntax error: Unexpected identifier \"SELEC\" [at 1:1]; message: failed to parse statements: failed to parse statement: Syntax error: Unexpected identifier \"SELEC\" [at 1:1], reason: invalidQuery\n\nLocation: None\nJob ID: 8f1f5432-6cd6-4726-8b82-700206fe5fd5\n",
+        "message": "400 failed to parse statements: failed to parse statement: Syntax error: Unexpected identifier \"SELEC\" [at 1:1]; message: failed to parse statements: failed to parse statement: Syntax error: Unexpected identifier \"SELEC\" [at 1:1], reason: invalidQuery\n\nLocation: None\nJob ID: 78a20101-25df-43c3-80aa-21ee13e3a2e4\n",
         "reason": "invalidQuery",
-        "seconds": 0.09
+        "seconds": 0.08
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "fence: external_table_sql refused by name, at once (501)",
+      "detail": {
+        "code": 501,
+        "message": "501 POST http://bigquery.internal:9050/bigquery/v2/projects/alkera-local/jobs?prettyPrint=false: BigQuery feature not available in this environment: external tables and other external data (CREATE EXTERNAL TABLE / SCHEMA, OPTIONS uris / format, a query's tableDefinitions, a table's externalDataConfiguration or biglakeConfiguration, a dataset's externalDatasetReference): they read Cloud Storage (gs",
+        "reason": "notImplemented",
+        "seconds": 0.05
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "fence: external_table_definition refused by name, at once (501)",
+      "detail": {
+        "code": 501,
+        "message": "501 POST http://bigquery.internal:9050/bigquery/v2/projects/alkera-local/jobs?prettyPrint=false: BigQuery feature not available in this environment: external tables and other external data (CREATE EXTERNAL TABLE / SCHEMA, OPTIONS uris / format, a query's tableDefinitions, a table's externalDataConfiguration or biglakeConfiguration, a dataset's externalDatasetReference): they read Cloud Storage (gs",
+        "reason": "notImplemented",
+        "seconds": 0.05
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "fence: external_table_rest refused by name, at once (501)",
+      "detail": {
+        "code": 501,
+        "message": "501 POST http://bigquery.internal:9050/bigquery/v2/projects/alkera-local/datasets/bq_e2e_scratch/tables?prettyPrint=false: BigQuery feature not available in this environment: external tables and other external data (CREATE EXTERNAL TABLE / SCHEMA, OPTIONS uris / format, a query's tableDefinitions, a table's externalDataConfiguration or biglakeConfiguration, a dataset's externalDatasetReference): t",
+        "reason": "notImplemented",
+        "seconds": 0.05
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "fence: load_data refused by name, at once (501)",
+      "detail": {
+        "code": 501,
+        "message": "501 POST http://bigquery.internal:9050/bigquery/v2/projects/alkera-local/jobs?prettyPrint=false: BigQuery feature not available in this environment: load jobs and LOAD DATA (Cloud Storage and file uploads); use INSERT statements or tabledata.insertAll\n\nLocation: None\nJob ID: aca5d6b9-8cc2-48a0-9268-ff8535037e45\n",
+        "reason": "notImplemented",
+        "seconds": 0.05
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "fence: external data over gs:// never reached the engine - it answers at once after every attempt",
+      "detail": {
+        "after_external": [
+          [
+            "engine still answers"
+          ]
+        ],
+        "after_external_seconds": 0.45
       },
       "result": "PASS"
     },
@@ -437,8 +489,8 @@
     {
       "check": "audit: one bigquery.statement row per probe statement, in order",
       "detail": {
-        "sent": 21,
-        "statement_rows": 28
+        "sent": 22,
+        "statement_rows": 32
       },
       "result": "PASS"
     },
@@ -501,6 +553,134 @@
           "op_class": "exec",
           "seq": 58,
           "tool": "bigquery.statement"
+        },
+        {
+          "exit": "error",
+          "flags": [
+            "refused:external_table"
+          ],
+          "op_class": "ddl",
+          "seq": 60,
+          "tool": "bigquery.statement"
+        },
+        {
+          "exit": "error",
+          "flags": [
+            "refused:external_table"
+          ],
+          "op_class": "read",
+          "seq": 61,
+          "tool": "bigquery.statement"
+        },
+        {
+          "exit": "error",
+          "flags": [
+            "refused:external_table"
+          ],
+          "op_class": "ddl",
+          "seq": 62,
+          "tool": "bigquery.table_insert"
+        },
+        {
+          "exit": "error",
+          "flags": [
+            "outside_tool_surface",
+            "refused:load_job"
+          ],
+          "op_class": "exec",
+          "seq": 63,
+          "tool": "bigquery.statement"
+        }
+      ],
+      "result": "PASS"
+    },
+    {
+      "check": "audit: the external table over REST is one bigquery.table_insert row, exit error, flagged refused:external_table",
+      "detail": [
+        {
+          "exit": "error",
+          "flags": [
+            "refused:dry_run"
+          ],
+          "op_class": "read",
+          "seq": 53,
+          "tool": "bigquery.statement"
+        },
+        {
+          "exit": "error",
+          "flags": [
+            "refused:legacy_sql"
+          ],
+          "op_class": "read",
+          "seq": 54,
+          "tool": "bigquery.statement"
+        },
+        {
+          "exit": "error",
+          "flags": [
+            "alter",
+            "refused:alter"
+          ],
+          "op_class": "destructive",
+          "seq": 55,
+          "tool": "bigquery.statement"
+        },
+        {
+          "exit": "error",
+          "flags": [
+            "outside_tool_surface",
+            "refused:transaction"
+          ],
+          "op_class": "write",
+          "seq": 56,
+          "tool": "bigquery.statement"
+        },
+        {
+          "exit": "error",
+          "flags": [
+            "outside_tool_surface",
+            "refused:scripting"
+          ],
+          "op_class": "exec",
+          "seq": 58,
+          "tool": "bigquery.statement"
+        },
+        {
+          "exit": "error",
+          "flags": [
+            "refused:external_table"
+          ],
+          "op_class": "ddl",
+          "seq": 60,
+          "tool": "bigquery.statement"
+        },
+        {
+          "exit": "error",
+          "flags": [
+            "refused:external_table"
+          ],
+          "op_class": "read",
+          "seq": 61,
+          "tool": "bigquery.statement"
+        },
+        {
+          "exit": "error",
+          "flags": [
+            "refused:external_table"
+          ],
+          "op_class": "ddl",
+          "seq": 62,
+          "tool": "bigquery.table_insert"
+        },
+        {
+          "exit": "error",
+          "flags": [
+            "outside_tool_surface",
+            "refused:load_job"
+          ],
+          "op_class": "exec",
+          "seq": 63,
+          "tool": "bigquery.statement"
         }
       ],
       "result": "PASS"
@@ -527,7 +707,7 @@
       "detail": [
         {
           "op_class": "destructive",
-          "seq": 62,
+          "seq": 69,
           "targets": [
             "\"alkera-local\".\"bq_e2e_scratch\".\"drop_me\""
           ]
@@ -610,17 +790,17 @@
     },
     {
       "check": "dbt debug through the box profile's bigquery target",
-      "detail": "51:35  adapter version: 1.11.3\n\u001b[0m09:51:35  Configuration:\n\u001b[0m09:51:35    profiles.yml file [\u001b[32mOK found and valid\u001b[0m]\n\u001b[0m09:51:35    dbt_project.yml file [\u001b[32mOK found and valid\u001b[0m]\n\u001b[0m09:51:35  Required dependencies:\n\u001b[0m09:51:36   - git [\u001b[32mOK found\u001b[0m]\n\n\u001b[0m09:51:36  Connection:\n\u001b[0m09:51:36    method: oauth-secrets\n\u001b[0m09:51:36    database: alkera-local\n\u001b[0m09:51:36    execution_project: alkera-local\n\u001b[0m09:51:36    schema: warehouse\n\u001b[0m09:51:36    location: None\n\u001b[0m09:51:36    priority: None\n\u001b[0m09:51:36    maximum_bytes_billed: None\n\u001b[0m09:51:36    impersonate_service_account: None\n\u001b[0m09:51:36    job_retry_deadline_seconds: None\n\u001b[0m09:51:36    job_retries: 1\n\u001b[0m09:51:36    job_creation_timeout_seconds: None\n\u001b[0m09:51:36    job_execution_timeout_seconds: None\n\u001b[0m09:51:36    timeout_seconds: None\n\u001b[0m09:51:36    client_id: None\n\u001b[0m09:51:36    token_uri: None\n\u001b[0m09:51:36    compute_region: None\n\u001b[0m09:51:36    dataproc_cluster_name: None\n\u001b[0m09:51:36    gcs_bucket: None\n\u001b[0m09:51:36    dataproc_batch: None\n\u001b[0m09:51:36  Registered adapter: bigquery=1.11.3\n\u001b[0m09:51:37    Connection test: [\u001b[32mOK connection ok\u001b[0m]\n\n\u001b[0m09:51:37  \u001b[32mAll checks passed!\u001b[0m\n",
+      "detail": "57:40  adapter version: 1.11.3\n\u001b[0m11:57:40  Configuration:\n\u001b[0m11:57:40    profiles.yml file [\u001b[32mOK found and valid\u001b[0m]\n\u001b[0m11:57:40    dbt_project.yml file [\u001b[32mOK found and valid\u001b[0m]\n\u001b[0m11:57:40  Required dependencies:\n\u001b[0m11:57:41   - git [\u001b[32mOK found\u001b[0m]\n\n\u001b[0m11:57:41  Connection:\n\u001b[0m11:57:41    method: oauth-secrets\n\u001b[0m11:57:41    database: alkera-local\n\u001b[0m11:57:41    execution_project: alkera-local\n\u001b[0m11:57:41    schema: warehouse\n\u001b[0m11:57:41    location: None\n\u001b[0m11:57:41    priority: None\n\u001b[0m11:57:41    maximum_bytes_billed: None\n\u001b[0m11:57:41    impersonate_service_account: None\n\u001b[0m11:57:41    job_retry_deadline_seconds: None\n\u001b[0m11:57:41    job_retries: 1\n\u001b[0m11:57:41    job_creation_timeout_seconds: None\n\u001b[0m11:57:41    job_execution_timeout_seconds: None\n\u001b[0m11:57:41    timeout_seconds: None\n\u001b[0m11:57:41    client_id: None\n\u001b[0m11:57:41    token_uri: None\n\u001b[0m11:57:41    compute_region: None\n\u001b[0m11:57:41    dataproc_cluster_name: None\n\u001b[0m11:57:41    gcs_bucket: None\n\u001b[0m11:57:41    dataproc_batch: None\n\u001b[0m11:57:41  Registered adapter: bigquery=1.11.3\n\u001b[0m11:57:42    Connection test: [\u001b[32mOK connection ok\u001b[0m]\n\n\u001b[0m11:57:42  \u001b[32mAll checks passed!\u001b[0m\n",
       "result": "PASS"
     },
     {
       "check": "dbt run through the box profile's bigquery target",
-      "detail": " parse.\n\u001b[0m09:51:43  Found 3 models, 1 seed, 2 data tests, 1 source, 556 macros\n\u001b[0m09:51:43  \n\u001b[0m09:51:43  Concurrency: 1 threads (target='bigquery')\n\u001b[0m09:51:43  \n\u001b[0m09:51:44  1 of 3 START sql table model bq_e2e_dbt.bq_feb_revenue ......................... [RUN]\n\u001b[0m09:51:44  1 of 3 OK created sql table model bq_e2e_dbt.bq_feb_revenue .................... [\u001b[32mCREATE TABLE (1.0 rows, None processed)\u001b[0m in 0.56s]\n\u001b[0m09:51:44  2 of 3 START sql incremental model bq_e2e_dbt.bq_orders_inc .................... [RUN]\n\u001b[0m09:51:45  2 of 3 OK created sql incremental model bq_e2e_dbt.bq_orders_inc ............... [\u001b[32mCREATE TABLE (3.0 rows, None processed)\u001b[0m in 0.47s]\n\u001b[0m09:51:45  3 of 3 START sql view model bq_e2e_dbt.bq_feb_revenue_v ........................ [RUN]\n\u001b[0m09:51:45  3 of 3 OK created sql view model bq_e2e_dbt.bq_feb_revenue_v ................... [\u001b[32mCREATE VIEW\u001b[0m in 0.32s]\n\u001b[0m09:51:45  \n\u001b[0m09:51:45  Finished running 1 incremental model, 1 table model, 1 view model in 0 hours 0 minutes and 1.77 seconds (1.77s).\n\u001b[0m09:51:45  \n\u001b[0m09:51:45  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m09:51:45  \n\u001b[0m09:51:45  Done. PASS=3 WARN=0 ERROR=0 SKIP=0 NO-OP=0 REUSED=0 TOTAL=3\n",
+      "detail": " parse.\n\u001b[0m11:57:49  Found 3 models, 1 seed, 2 data tests, 1 source, 556 macros\n\u001b[0m11:57:49  \n\u001b[0m11:57:49  Concurrency: 1 threads (target='bigquery')\n\u001b[0m11:57:49  \n\u001b[0m11:57:49  1 of 3 START sql table model bq_e2e_dbt.bq_feb_revenue ......................... [RUN]\n\u001b[0m11:57:50  1 of 3 OK created sql table model bq_e2e_dbt.bq_feb_revenue .................... [\u001b[32mCREATE TABLE (1.0 rows, None processed)\u001b[0m in 0.56s]\n\u001b[0m11:57:50  2 of 3 START sql incremental model bq_e2e_dbt.bq_orders_inc .................... [RUN]\n\u001b[0m11:57:50  2 of 3 OK created sql incremental model bq_e2e_dbt.bq_orders_inc ............... [\u001b[32mCREATE TABLE (3.0 rows, None processed)\u001b[0m in 0.49s]\n\u001b[0m11:57:50  3 of 3 START sql view model bq_e2e_dbt.bq_feb_revenue_v ........................ [RUN]\n\u001b[0m11:57:51  3 of 3 OK created sql view model bq_e2e_dbt.bq_feb_revenue_v ................... [\u001b[32mCREATE VIEW\u001b[0m in 0.28s]\n\u001b[0m11:57:51  \n\u001b[0m11:57:51  Finished running 1 incremental model, 1 table model, 1 view model in 0 hours 0 minutes and 1.77 seconds (1.77s).\n\u001b[0m11:57:51  \n\u001b[0m11:57:51  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m11:57:51  \n\u001b[0m11:57:51  Done. PASS=3 WARN=0 ERROR=0 SKIP=0 NO-OP=0 REUSED=0 TOTAL=3\n",
       "result": "PASS"
     },
     {
       "check": "dbt re-run through the box profile's bigquery target",
-      "detail": "\u001b[0m09:51:49  Running with dbt=1.12.4\n\u001b[0m09:51:50  Registered adapter: bigquery=1.11.3\n\u001b[0m09:51:50  Unable to do partial parsing because saved manifest not found. Starting full parse.\n\u001b[0m09:51:52  Found 3 models, 1 seed, 2 data tests, 1 source, 556 macros\n\u001b[0m09:51:52  \n\u001b[0m09:51:52  Concurrency: 1 threads (target='bigquery')\n\u001b[0m09:51:52  \n\u001b[0m09:51:52  1 of 2 START sql table model bq_e2e_dbt.bq_feb_revenue ......................... [RUN]\n\u001b[0m09:51:54  1 of 2 OK created sql table model bq_e2e_dbt.bq_feb_revenue .................... [\u001b[32mCREATE TABLE (1.0 rows, None processed)\u001b[0m in 1.63s]\n\u001b[0m09:51:54  2 of 2 START sql view model bq_e2e_dbt.bq_feb_revenue_v ........................ [RUN]\n\u001b[0m09:51:55  2 of 2 OK created sql view model bq_e2e_dbt.bq_feb_revenue_v ................... [\u001b[32mCREATE VIEW\u001b[0m in 1.17s]\n\u001b[0m09:51:55  \n\u001b[0m09:51:55  Finished running 1 table model, 1 view model in 0 hours 0 minutes and 2.92 seconds (2.92s).\n\u001b[0m09:51:55  \n\u001b[0m09:51:55  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m09:51:55  \n\u001b[0m09:51:55  Done. PASS=2 WARN=0 ERROR=0 SKIP=0 NO-OP=0 REUSED=0 TOTAL=2\n",
+      "detail": "\u001b[0m11:57:55  Running with dbt=1.12.4\n\u001b[0m11:57:56  Registered adapter: bigquery=1.11.3\n\u001b[0m11:57:56  Unable to do partial parsing because saved manifest not found. Starting full parse.\n\u001b[0m11:57:58  Found 3 models, 1 seed, 2 data tests, 1 source, 556 macros\n\u001b[0m11:57:58  \n\u001b[0m11:57:58  Concurrency: 1 threads (target='bigquery')\n\u001b[0m11:57:58  \n\u001b[0m11:57:58  1 of 2 START sql table model bq_e2e_dbt.bq_feb_revenue ......................... [RUN]\n\u001b[0m11:58:00  1 of 2 OK created sql table model bq_e2e_dbt.bq_feb_revenue .................... [\u001b[32mCREATE TABLE (1.0 rows, None processed)\u001b[0m in 1.89s]\n\u001b[0m11:58:00  2 of 2 START sql view model bq_e2e_dbt.bq_feb_revenue_v ........................ [RUN]\n\u001b[0m11:58:01  2 of 2 OK created sql view model bq_e2e_dbt.bq_feb_revenue_v ................... [\u001b[32mCREATE VIEW\u001b[0m in 1.11s]\n\u001b[0m11:58:01  \n\u001b[0m11:58:01  Finished running 1 table model, 1 view model in 0 hours 0 minutes and 3.13 seconds (3.13s).\n\u001b[0m11:58:01  \n\u001b[0m11:58:01  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m11:58:01  \n\u001b[0m11:58:01  Done. PASS=2 WARN=0 ERROR=0 SKIP=0 NO-OP=0 REUSED=0 TOTAL=2\n",
       "result": "PASS"
     },
     {
@@ -634,13 +814,13 @@
         "merge": 1,
         "rc": 1,
         "rebuilt": 0,
-        "tail": "ders_inc (models/bq_orders_inc.sql)\n\u001b[0m09:52:10    Database Error in model bq_orders_inc (models/bq_orders_inc.sql)\n  501 BigQuery feature not available in this environment: MERGE: source must be a single-table reference, got *googlesql.ResolvedProjectScan; message: BigQuery feature not available in this environment: MERGE: source must be a single-table reference, got *googlesql.ResolvedProjectScan, reason: notImplemented\n  \n  Location: None\n  Job ID: d863d862-135f-4c1a-83fb-15654a300810\n  \n  compiled code at /tmp/bq-e2e/dbt/target/incremental/run/bq_e2e/models/bq_orders_inc.sql\n\u001b[0m09:52:10  \n\u001b[0m09:52:10    compiled code at /tmp/bq-e2e/dbt/target/incremental/compiled/bq_e2e/models/bq_orders_inc.sql\n\u001b[0m09:52:10  \n\u001b[0m09:52:10  Done. PASS=0 WARN=0 ERROR=1 SKIP=0 NO-OP=0 REUSED=0 TOTAL=1\n"
+        "tail": "ders_inc (models/bq_orders_inc.sql)\n\u001b[0m11:58:15    Database Error in model bq_orders_inc (models/bq_orders_inc.sql)\n  501 BigQuery feature not available in this environment: MERGE: source must be a single-table reference, got *googlesql.ResolvedProjectScan; message: BigQuery feature not available in this environment: MERGE: source must be a single-table reference, got *googlesql.ResolvedProjectScan, reason: notImplemented\n  \n  Location: None\n  Job ID: e6945ca8-0b25-4c16-915a-30b2b2ab9d50\n  \n  compiled code at /tmp/bq-e2e/dbt/target/incremental/run/bq_e2e/models/bq_orders_inc.sql\n\u001b[0m11:58:15  \n\u001b[0m11:58:15    compiled code at /tmp/bq-e2e/dbt/target/incremental/compiled/bq_e2e/models/bq_orders_inc.sql\n\u001b[0m11:58:15  \n\u001b[0m11:58:15  Done. PASS=0 WARN=0 ERROR=1 SKIP=0 NO-OP=0 REUSED=0 TOTAL=1\n"
       },
       "result": "PASS"
     },
     {
       "check": "dbt test through the box profile's bigquery target",
-      "detail": "\u001b[0m09:52:14  Running with dbt=1.12.4\n\u001b[0m09:52:15  Registered adapter: bigquery=1.11.3\n\u001b[0m09:52:15  Unable to do partial parsing because saved manifest not found. Starting full parse.\n\u001b[0m09:52:17  Found 3 models, 1 seed, 2 data tests, 1 source, 556 macros\n\u001b[0m09:52:17  \n\u001b[0m09:52:17  Concurrency: 1 threads (target='bigquery')\n\u001b[0m09:52:17  \n\u001b[0m09:52:17  1 of 2 START test not_null_bq_feb_revenue_order_status ......................... [RUN]\n\u001b[0m09:52:18  1 of 2 PASS not_null_bq_feb_revenue_order_status ............................... [\u001b[32mPASS\u001b[0m in 0.62s]\n\u001b[0m09:52:18  2 of 2 START test unique_bq_feb_revenue_order_status ........................... [RUN]\n\u001b[0m09:52:18  2 of 2 PASS unique_bq_feb_revenue_order_status ................................. [\u001b[32mPASS\u001b[0m in 0.58s]\n\u001b[0m09:52:18  \n\u001b[0m09:52:18  Finished running 2 data tests in 0 hours 0 minutes and 1.27 seconds (1.27s).\n\u001b[0m09:52:18  \n\u001b[0m09:52:18  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m09:52:18  \n\u001b[0m09:52:18  Done. PASS=2 WARN=0 ERROR=0 SKIP=0 NO-OP=0 REUSED=0 TOTAL=2\n",
+      "detail": "\u001b[0m11:58:19  Running with dbt=1.12.4\n\u001b[0m11:58:20  Registered adapter: bigquery=1.11.3\n\u001b[0m11:58:20  Unable to do partial parsing because saved manifest not found. Starting full parse.\n\u001b[0m11:58:22  Found 3 models, 1 seed, 2 data tests, 1 source, 556 macros\n\u001b[0m11:58:22  \n\u001b[0m11:58:22  Concurrency: 1 threads (target='bigquery')\n\u001b[0m11:58:22  \n\u001b[0m11:58:22  1 of 2 START test not_null_bq_feb_revenue_order_status ......................... [RUN]\n\u001b[0m11:58:22  1 of 2 PASS not_null_bq_feb_revenue_order_status ............................... [\u001b[32mPASS\u001b[0m in 0.54s]\n\u001b[0m11:58:22  2 of 2 START test unique_bq_feb_revenue_order_status ........................... [RUN]\n\u001b[0m11:58:23  2 of 2 PASS unique_bq_feb_revenue_order_status ................................. [\u001b[32mPASS\u001b[0m in 0.52s]\n\u001b[0m11:58:23  \n\u001b[0m11:58:23  Finished running 2 data tests in 0 hours 0 minutes and 1.10 seconds (1.10s).\n\u001b[0m11:58:23  \n\u001b[0m11:58:23  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m11:58:23  \n\u001b[0m11:58:23  Done. PASS=2 WARN=0 ERROR=0 SKIP=0 NO-OP=0 REUSED=0 TOTAL=2\n",
       "result": "PASS"
     },
     {
@@ -655,13 +835,13 @@
         "refused": [
           "refused:load_job"
         ],
-        "stdout": "\u001b[0m09:52:30  Running with dbt=1.12.4\n\u001b[0m09:52:31  Registered adapter: bigquery=1.11.3\n\u001b[0m09:52:31  Unable to do partial parsing because saved manifest not found. Starting full parse.\n\u001b[0m09:52:33  Found 3 models, 1 seed, 2 data tests, 1 source, 556 macros\n\u001b[0m09:52:33  \n\u001b[0m09:52:33  Concurrency: 1 threads (target='bigquery')\n\u001b[0m09:52:33  \n\u001b[0m09:52:33  1 of 1 START seed file bq_e2e_dbt.bq_seed ...................................... [RUN]\n\u001b[0m09:52:33  1 of 1 ERROR loading seed file bq_e2e_dbt.bq_seed .............................. [\u001b[31mERROR\u001b[0m in 0.08s]\n\u001b[0m09:52:33  \n\u001b[0m09:52:33  Finished running 1 seed in 0 hours 0 minutes and 0.19 seconds (0.19s).\n\u001b[0m09:52:33  \n\u001b[0m09:52:33  \u001b[31mCompleted with 1 error, 0 partial successes, and 0 warnings:\u001b[0m\n\u001b[0m09:52:33  \n\u001b[0m09:52:33  [\u001b[31mERROR\u001b[0m]: in seed bq_seed (seeds/bq_seed.csv)\n\u001b[0m09:52:33    Database Error in seed bq_seed (seeds/bq_seed.csv)\n  501 POST http://bigquery.internal:9050/upload/bigquery/v2/projects/alkera-local/jobs?uploadType=resumable: BigQuery feature not available in this environment: load jobs (Cloud Storage and file uploads); use INSERT statements or tabledata.insertAll\n\u001b[0m09:52:33  \n\u001b[0m09:52:33  Done. PASS=0 WARN=0 ERROR=1 SKIP=0 NO-OP=0 REUSED=0 TOTAL=1\n"
+        "stdout": "\u001b[0m11:58:34  Running with dbt=1.12.4\n\u001b[0m11:58:35  Registered adapter: bigquery=1.11.3\n\u001b[0m11:58:35  Unable to do partial parsing because saved manifest not found. Starting full parse.\n\u001b[0m11:58:37  Found 3 models, 1 seed, 2 data tests, 1 source, 556 macros\n\u001b[0m11:58:37  \n\u001b[0m11:58:37  Concurrency: 1 threads (target='bigquery')\n\u001b[0m11:58:37  \n\u001b[0m11:58:37  1 of 1 START seed file bq_e2e_dbt.bq_seed ...................................... [RUN]\n\u001b[0m11:58:37  1 of 1 ERROR loading seed file bq_e2e_dbt.bq_seed .............................. [\u001b[31mERROR\u001b[0m in 0.06s]\n\u001b[0m11:58:37  \n\u001b[0m11:58:37  Finished running 1 seed in 0 hours 0 minutes and 0.16 seconds (0.16s).\n\u001b[0m11:58:37  \n\u001b[0m11:58:37  \u001b[31mCompleted with 1 error, 0 partial successes, and 0 warnings:\u001b[0m\n\u001b[0m11:58:37  \n\u001b[0m11:58:37  [\u001b[31mERROR\u001b[0m]: in seed bq_seed (seeds/bq_seed.csv)\n\u001b[0m11:58:37    Database Error in seed bq_seed (seeds/bq_seed.csv)\n  501 POST http://bigquery.internal:9050/upload/bigquery/v2/projects/alkera-local/jobs?uploadType=resumable: BigQuery feature not available in this environment: load jobs and LOAD DATA (Cloud Storage and file uploads); use INSERT statements or tabledata.insertAll\n\u001b[0m11:58:37  \n\u001b[0m11:58:37  Done. PASS=0 WARN=0 ERROR=1 SKIP=0 NO-OP=0 REUSED=0 TOTAL=1\n"
       },
       "result": "PASS"
     },
     {
       "check": "dbt bare debug through the box profile's bigquery target",
-      "detail": "52:38  adapter version: 1.11.3\n\u001b[0m09:52:38  Configuration:\n\u001b[0m09:52:38    profiles.yml file [\u001b[32mOK found and valid\u001b[0m]\n\u001b[0m09:52:38    dbt_project.yml file [\u001b[32mOK found and valid\u001b[0m]\n\u001b[0m09:52:38  Required dependencies:\n\u001b[0m09:52:39   - git [\u001b[32mOK found\u001b[0m]\n\n\u001b[0m09:52:39  Connection:\n\u001b[0m09:52:39    method: oauth-secrets\n\u001b[0m09:52:39    database: alkera-local\n\u001b[0m09:52:39    execution_project: alkera-local\n\u001b[0m09:52:39    schema: warehouse\n\u001b[0m09:52:39    location: None\n\u001b[0m09:52:39    priority: None\n\u001b[0m09:52:39    maximum_bytes_billed: None\n\u001b[0m09:52:39    impersonate_service_account: None\n\u001b[0m09:52:39    job_retry_deadline_seconds: None\n\u001b[0m09:52:39    job_retries: 1\n\u001b[0m09:52:39    job_creation_timeout_seconds: None\n\u001b[0m09:52:39    job_execution_timeout_seconds: None\n\u001b[0m09:52:39    timeout_seconds: None\n\u001b[0m09:52:39    client_id: None\n\u001b[0m09:52:39    token_uri: None\n\u001b[0m09:52:39    compute_region: None\n\u001b[0m09:52:39    dataproc_cluster_name: None\n\u001b[0m09:52:39    gcs_bucket: None\n\u001b[0m09:52:39    dataproc_batch: None\n\u001b[0m09:52:39  Registered adapter: bigquery=1.11.3\n\u001b[0m09:52:39    Connection test: [\u001b[32mOK connection ok\u001b[0m]\n\n\u001b[0m09:52:39  \u001b[32mAll checks passed!\u001b[0m\n",
+      "detail": "58:41  adapter version: 1.11.3\n\u001b[0m11:58:42  Configuration:\n\u001b[0m11:58:42    profiles.yml file [\u001b[32mOK found and valid\u001b[0m]\n\u001b[0m11:58:42    dbt_project.yml file [\u001b[32mOK found and valid\u001b[0m]\n\u001b[0m11:58:42  Required dependencies:\n\u001b[0m11:58:43   - git [\u001b[32mOK found\u001b[0m]\n\n\u001b[0m11:58:43  Connection:\n\u001b[0m11:58:43    method: oauth-secrets\n\u001b[0m11:58:43    database: alkera-local\n\u001b[0m11:58:43    execution_project: alkera-local\n\u001b[0m11:58:43    schema: warehouse\n\u001b[0m11:58:43    location: None\n\u001b[0m11:58:43    priority: None\n\u001b[0m11:58:43    maximum_bytes_billed: None\n\u001b[0m11:58:43    impersonate_service_account: None\n\u001b[0m11:58:43    job_retry_deadline_seconds: None\n\u001b[0m11:58:43    job_retries: 1\n\u001b[0m11:58:43    job_creation_timeout_seconds: None\n\u001b[0m11:58:43    job_execution_timeout_seconds: None\n\u001b[0m11:58:43    timeout_seconds: None\n\u001b[0m11:58:43    client_id: None\n\u001b[0m11:58:43    token_uri: None\n\u001b[0m11:58:43    compute_region: None\n\u001b[0m11:58:43    dataproc_cluster_name: None\n\u001b[0m11:58:43    gcs_bucket: None\n\u001b[0m11:58:43    dataproc_batch: None\n\u001b[0m11:58:43  Registered adapter: bigquery=1.11.3\n\u001b[0m11:58:43    Connection test: [\u001b[32mOK connection ok\u001b[0m]\n\n\u001b[0m11:58:43  \u001b[32mAll checks passed!\u001b[0m\n",
       "result": "PASS"
     },
     {
@@ -678,12 +858,12 @@
     },
     {
       "check": "dbt debug: the bigquery adapter, and the connection test passes",
-      "detail": "roject: alkera-local\n\u001b[0m09:51:36    schema: warehouse\n\u001b[0m09:51:36    location: None\n\u001b[0m09:51:36    priority: None\n\u001b[0m09:51:36    maximum_bytes_billed: None\n\u001b[0m09:51:36    impersonate_service_account: None\n\u001b[0m09:51:36    job_retry_deadline_seconds: None\n\u001b[0m09:51:36    job_retries: 1\n\u001b[0m09:51:36    job_creation_timeout_seconds: None\n\u001b[0m09:51:36    job_execution_timeout_seconds: None\n\u001b[0m09:51:36    timeout_seconds: None\n\u001b[0m09:51:36    client_id: None\n\u001b[0m09:51:36    token_uri: None\n\u001b[0m09:51:36    compute_region: None\n\u001b[0m09:51:36    dataproc_cluster_name: None\n\u001b[0m09:51:36    gcs_bucket: None\n\u001b[0m09:51:36    dataproc_batch: None\n\u001b[0m09:51:36  Registered adapter: bigquery=1.11.3\n\u001b[0m09:51:37    Connection test: [\u001b[32mOK connection ok\u001b[0m]\n\n\u001b[0m09:51:37  \u001b[32mAll checks passed!\u001b[0m\n",
+      "detail": "roject: alkera-local\n\u001b[0m11:57:41    schema: warehouse\n\u001b[0m11:57:41    location: None\n\u001b[0m11:57:41    priority: None\n\u001b[0m11:57:41    maximum_bytes_billed: None\n\u001b[0m11:57:41    impersonate_service_account: None\n\u001b[0m11:57:41    job_retry_deadline_seconds: None\n\u001b[0m11:57:41    job_retries: 1\n\u001b[0m11:57:41    job_creation_timeout_seconds: None\n\u001b[0m11:57:41    job_execution_timeout_seconds: None\n\u001b[0m11:57:41    timeout_seconds: None\n\u001b[0m11:57:41    client_id: None\n\u001b[0m11:57:41    token_uri: None\n\u001b[0m11:57:41    compute_region: None\n\u001b[0m11:57:41    dataproc_cluster_name: None\n\u001b[0m11:57:41    gcs_bucket: None\n\u001b[0m11:57:41    dataproc_batch: None\n\u001b[0m11:57:41  Registered adapter: bigquery=1.11.3\n\u001b[0m11:57:42    Connection test: [\u001b[32mOK connection ok\u001b[0m]\n\n\u001b[0m11:57:42  \u001b[32mAll checks passed!\u001b[0m\n",
       "result": "PASS"
     },
     {
       "check": "dbt bare debug: the bigquery adapter, and the connection test passes",
-      "detail": "roject: alkera-local\n\u001b[0m09:52:39    schema: warehouse\n\u001b[0m09:52:39    location: None\n\u001b[0m09:52:39    priority: None\n\u001b[0m09:52:39    maximum_bytes_billed: None\n\u001b[0m09:52:39    impersonate_service_account: None\n\u001b[0m09:52:39    job_retry_deadline_seconds: None\n\u001b[0m09:52:39    job_retries: 1\n\u001b[0m09:52:39    job_creation_timeout_seconds: None\n\u001b[0m09:52:39    job_execution_timeout_seconds: None\n\u001b[0m09:52:39    timeout_seconds: None\n\u001b[0m09:52:39    client_id: None\n\u001b[0m09:52:39    token_uri: None\n\u001b[0m09:52:39    compute_region: None\n\u001b[0m09:52:39    dataproc_cluster_name: None\n\u001b[0m09:52:39    gcs_bucket: None\n\u001b[0m09:52:39    dataproc_batch: None\n\u001b[0m09:52:39  Registered adapter: bigquery=1.11.3\n\u001b[0m09:52:39    Connection test: [\u001b[32mOK connection ok\u001b[0m]\n\n\u001b[0m09:52:39  \u001b[32mAll checks passed!\u001b[0m\n",
+      "detail": "roject: alkera-local\n\u001b[0m11:58:43    schema: warehouse\n\u001b[0m11:58:43    location: None\n\u001b[0m11:58:43    priority: None\n\u001b[0m11:58:43    maximum_bytes_billed: None\n\u001b[0m11:58:43    impersonate_service_account: None\n\u001b[0m11:58:43    job_retry_deadline_seconds: None\n\u001b[0m11:58:43    job_retries: 1\n\u001b[0m11:58:43    job_creation_timeout_seconds: None\n\u001b[0m11:58:43    job_execution_timeout_seconds: None\n\u001b[0m11:58:43    timeout_seconds: None\n\u001b[0m11:58:43    client_id: None\n\u001b[0m11:58:43    token_uri: None\n\u001b[0m11:58:43    compute_region: None\n\u001b[0m11:58:43    dataproc_cluster_name: None\n\u001b[0m11:58:43    gcs_bucket: None\n\u001b[0m11:58:43    dataproc_batch: None\n\u001b[0m11:58:43  Registered adapter: bigquery=1.11.3\n\u001b[0m11:58:43    Connection test: [\u001b[32mOK connection ok\u001b[0m]\n\n\u001b[0m11:58:43  \u001b[32mAll checks passed!\u001b[0m\n",
       "result": "PASS"
     },
     {
@@ -721,14 +901,14 @@
       "detail": [
         {
           "op_class": "ddl",
-          "seq": 75,
+          "seq": 82,
           "targets": [
             "\"alkera-local\".\"bq_e2e_dbt\""
           ]
         },
         {
           "op_class": "destructive",
-          "seq": 78,
+          "seq": 85,
           "targets": [
             "\"alkera-local\".\"bq_e2e_dbt\".\"bq_feb_revenue\"",
             "\"alkera-local\".\"warehouse\".\"fct_orders\""
@@ -736,7 +916,7 @@
         },
         {
           "op_class": "destructive",
-          "seq": 81,
+          "seq": 88,
           "targets": [
             "\"alkera-local\".\"bq_e2e_dbt\".\"bq_orders_inc\"",
             "\"alkera-local\".\"warehouse\".\"fct_orders\""
@@ -744,7 +924,7 @@
         },
         {
           "op_class": "destructive",
-          "seq": 84,
+          "seq": 91,
           "targets": [
             "\"alkera-local\".\"bq_e2e_dbt\".\"bq_feb_revenue\"",
             "\"alkera-local\".\"bq_e2e_dbt\".\"bq_feb_revenue_v\""
@@ -752,7 +932,7 @@
         },
         {
           "op_class": "destructive",
-          "seq": 90,
+          "seq": 97,
           "targets": [
             "\"alkera-local\".\"bq_e2e_dbt\".\"bq_feb_revenue\"",
             "\"alkera-local\".\"warehouse\".\"fct_orders\""
@@ -760,7 +940,7 @@
         },
         {
           "op_class": "destructive",
-          "seq": 93,
+          "seq": 100,
           "targets": [
             "\"alkera-local\".\"bq_e2e_dbt\".\"bq_feb_revenue\"",
             "\"alkera-local\".\"bq_e2e_dbt\".\"bq_feb_revenue_v\""
@@ -786,11 +966,11 @@
     {
       "check": "audit: seq is contiguous across writers",
       "detail": [
-        130,
-        131,
-        132,
-        133,
-        134
+        137,
+        138,
+        139,
+        140,
+        141
       ],
       "result": "PASS"
     },
@@ -818,9 +998,9 @@
       "detail": [
         {
           "count": 28,
-          "first_ts": "2026-10-13T09:51:13Z",
+          "first_ts": "2026-10-13T11:57:17Z",
           "host": "bigquery.internal",
-          "last_ts": "2026-10-13T09:52:47Z",
+          "last_ts": "2026-10-13T11:58:50Z",
           "port": 9050
         }
       ],
@@ -842,11 +1022,11 @@
   ],
   "compose_profiles": "bigquery",
   "counts": {
-    "engine_jobs": 35,
-    "rows_total": 134,
-    "statement_rows": 41,
-    "statement_rows_with_job": 35,
-    "statement_rows_without_job": 6
+    "engine_jobs": 36,
+    "rows_total": 141,
+    "statement_rows": 45,
+    "statement_rows_with_job": 36,
+    "statement_rows_without_job": 9
   },
   "dbt": {
     "bare debug": {
@@ -857,7 +1037,7 @@
       ],
       "statement_rows": 1,
       "statements": 1,
-      "stdout": "9:52:37  os info: Linux-7.0.0-1006-aws-x86_64-with-glibc2.41\n\u001b[0m09:52:38  Using profiles dir at /root/.dbt\n\u001b[0m09:52:38  Using profiles.yml file at /root/.dbt/profiles.yml\n\u001b[0m09:52:38  Using dbt_project.yml file at /workspace/dbt_project/dbt_project.yml\n\u001b[0m09:52:38  adapter type: bigquery\n\u001b[0m09:52:38  adapter version: 1.11.3\n\u001b[0m09:52:38  Configuration:\n\u001b[0m09:52:38    profiles.yml file [\u001b[32mOK found and valid\u001b[0m]\n\u001b[0m09:52:38    dbt_project.yml file [\u001b[32mOK found and valid\u001b[0m]\n\u001b[0m09:52:38  Required dependencies:\n\u001b[0m09:52:39   - git [\u001b[32mOK found\u001b[0m]\n\n\u001b[0m09:52:39  Connection:\n\u001b[0m09:52:39    method: oauth-secrets\n\u001b[0m09:52:39    database: alkera-local\n\u001b[0m09:52:39    execution_project: alkera-local\n\u001b[0m09:52:39    schema: warehouse\n\u001b[0m09:52:39    location: None\n\u001b[0m09:52:39    priority: None\n\u001b[0m09:52:39    maximum_bytes_billed: None\n\u001b[0m09:52:39    impersonate_service_account: None\n\u001b[0m09:52:39    job_retry_deadline_seconds: None\n\u001b[0m09:52:39    job_retries: 1\n\u001b[0m09:52:39    job_creation_timeout_seconds: None\n\u001b[0m09:52:39    job_execution_timeout_seconds: None\n\u001b[0m09:52:39    timeout_seconds: None\n\u001b[0m09:52:39    client_id: None\n\u001b[0m09:52:39    token_uri: None\n\u001b[0m09:52:39    compute_region: None\n\u001b[0m09:52:39    dataproc_cluster_name: None\n\u001b[0m09:52:39    gcs_bucket: None\n\u001b[0m09:52:39    dataproc_batch: None\n\u001b[0m09:52:39  Registered adapter: bigquery=1.11.3\n\u001b[0m09:52:39    Connection test: [\u001b[32mOK connection ok\u001b[0m]\n\n\u001b[0m09:52:39  \u001b[32mAll checks passed!\u001b[0m\n",
+      "stdout": "1:58:41  os info: Linux-7.0.0-1006-aws-x86_64-with-glibc2.41\n\u001b[0m11:58:41  Using profiles dir at /root/.dbt\n\u001b[0m11:58:41  Using profiles.yml file at /root/.dbt/profiles.yml\n\u001b[0m11:58:41  Using dbt_project.yml file at /workspace/dbt_project/dbt_project.yml\n\u001b[0m11:58:41  adapter type: bigquery\n\u001b[0m11:58:41  adapter version: 1.11.3\n\u001b[0m11:58:42  Configuration:\n\u001b[0m11:58:42    profiles.yml file [\u001b[32mOK found and valid\u001b[0m]\n\u001b[0m11:58:42    dbt_project.yml file [\u001b[32mOK found and valid\u001b[0m]\n\u001b[0m11:58:42  Required dependencies:\n\u001b[0m11:58:43   - git [\u001b[32mOK found\u001b[0m]\n\n\u001b[0m11:58:43  Connection:\n\u001b[0m11:58:43    method: oauth-secrets\n\u001b[0m11:58:43    database: alkera-local\n\u001b[0m11:58:43    execution_project: alkera-local\n\u001b[0m11:58:43    schema: warehouse\n\u001b[0m11:58:43    location: None\n\u001b[0m11:58:43    priority: None\n\u001b[0m11:58:43    maximum_bytes_billed: None\n\u001b[0m11:58:43    impersonate_service_account: None\n\u001b[0m11:58:43    job_retry_deadline_seconds: None\n\u001b[0m11:58:43    job_retries: 1\n\u001b[0m11:58:43    job_creation_timeout_seconds: None\n\u001b[0m11:58:43    job_execution_timeout_seconds: None\n\u001b[0m11:58:43    timeout_seconds: None\n\u001b[0m11:58:43    client_id: None\n\u001b[0m11:58:43    token_uri: None\n\u001b[0m11:58:43    compute_region: None\n\u001b[0m11:58:43    dataproc_cluster_name: None\n\u001b[0m11:58:43    gcs_bucket: None\n\u001b[0m11:58:43    dataproc_batch: None\n\u001b[0m11:58:43  Registered adapter: bigquery=1.11.3\n\u001b[0m11:58:43    Connection test: [\u001b[32mOK connection ok\u001b[0m]\n\n\u001b[0m11:58:43  \u001b[32mAll checks passed!\u001b[0m\n",
       "tail": "",
       "tools": [
         "bigquery.query_results",
@@ -893,7 +1073,7 @@
       ],
       "statement_rows": 1,
       "statements": 1,
-      "stdout": "1\n\u001b[0m09:51:34  os info: Linux-7.0.0-1006-aws-x86_64-with-glibc2.41\n\u001b[0m09:51:35  Using profiles dir at /root/.dbt\n\u001b[0m09:51:35  Using profiles.yml file at /root/.dbt/profiles.yml\n\u001b[0m09:51:35  Using dbt_project.yml file at /tmp/bq-e2e/dbt/dbt_project.yml\n\u001b[0m09:51:35  adapter type: bigquery\n\u001b[0m09:51:35  adapter version: 1.11.3\n\u001b[0m09:51:35  Configuration:\n\u001b[0m09:51:35    profiles.yml file [\u001b[32mOK found and valid\u001b[0m]\n\u001b[0m09:51:35    dbt_project.yml file [\u001b[32mOK found and valid\u001b[0m]\n\u001b[0m09:51:35  Required dependencies:\n\u001b[0m09:51:36   - git [\u001b[32mOK found\u001b[0m]\n\n\u001b[0m09:51:36  Connection:\n\u001b[0m09:51:36    method: oauth-secrets\n\u001b[0m09:51:36    database: alkera-local\n\u001b[0m09:51:36    execution_project: alkera-local\n\u001b[0m09:51:36    schema: warehouse\n\u001b[0m09:51:36    location: None\n\u001b[0m09:51:36    priority: None\n\u001b[0m09:51:36    maximum_bytes_billed: None\n\u001b[0m09:51:36    impersonate_service_account: None\n\u001b[0m09:51:36    job_retry_deadline_seconds: None\n\u001b[0m09:51:36    job_retries: 1\n\u001b[0m09:51:36    job_creation_timeout_seconds: None\n\u001b[0m09:51:36    job_execution_timeout_seconds: None\n\u001b[0m09:51:36    timeout_seconds: None\n\u001b[0m09:51:36    client_id: None\n\u001b[0m09:51:36    token_uri: None\n\u001b[0m09:51:36    compute_region: None\n\u001b[0m09:51:36    dataproc_cluster_name: None\n\u001b[0m09:51:36    gcs_bucket: None\n\u001b[0m09:51:36    dataproc_batch: None\n\u001b[0m09:51:36  Registered adapter: bigquery=1.11.3\n\u001b[0m09:51:37    Connection test: [\u001b[32mOK connection ok\u001b[0m]\n\n\u001b[0m09:51:37  \u001b[32mAll checks passed!\u001b[0m\n",
+      "stdout": "1\n\u001b[0m11:57:39  os info: Linux-7.0.0-1006-aws-x86_64-with-glibc2.41\n\u001b[0m11:57:40  Using profiles dir at /root/.dbt\n\u001b[0m11:57:40  Using profiles.yml file at /root/.dbt/profiles.yml\n\u001b[0m11:57:40  Using dbt_project.yml file at /tmp/bq-e2e/dbt/dbt_project.yml\n\u001b[0m11:57:40  adapter type: bigquery\n\u001b[0m11:57:40  adapter version: 1.11.3\n\u001b[0m11:57:40  Configuration:\n\u001b[0m11:57:40    profiles.yml file [\u001b[32mOK found and valid\u001b[0m]\n\u001b[0m11:57:40    dbt_project.yml file [\u001b[32mOK found and valid\u001b[0m]\n\u001b[0m11:57:40  Required dependencies:\n\u001b[0m11:57:41   - git [\u001b[32mOK found\u001b[0m]\n\n\u001b[0m11:57:41  Connection:\n\u001b[0m11:57:41    method: oauth-secrets\n\u001b[0m11:57:41    database: alkera-local\n\u001b[0m11:57:41    execution_project: alkera-local\n\u001b[0m11:57:41    schema: warehouse\n\u001b[0m11:57:41    location: None\n\u001b[0m11:57:41    priority: None\n\u001b[0m11:57:41    maximum_bytes_billed: None\n\u001b[0m11:57:41    impersonate_service_account: None\n\u001b[0m11:57:41    job_retry_deadline_seconds: None\n\u001b[0m11:57:41    job_retries: 1\n\u001b[0m11:57:41    job_creation_timeout_seconds: None\n\u001b[0m11:57:41    job_execution_timeout_seconds: None\n\u001b[0m11:57:41    timeout_seconds: None\n\u001b[0m11:57:41    client_id: None\n\u001b[0m11:57:41    token_uri: None\n\u001b[0m11:57:41    compute_region: None\n\u001b[0m11:57:41    dataproc_cluster_name: None\n\u001b[0m11:57:41    gcs_bucket: None\n\u001b[0m11:57:41    dataproc_batch: None\n\u001b[0m11:57:41  Registered adapter: bigquery=1.11.3\n\u001b[0m11:57:42    Connection test: [\u001b[32mOK connection ok\u001b[0m]\n\n\u001b[0m11:57:42  \u001b[32mAll checks passed!\u001b[0m\n",
       "tail": "",
       "tools": [
         "bigquery.query_results",
@@ -911,7 +1091,7 @@
       ],
       "statement_rows": 1,
       "statements": 1,
-      "stdout": "ved manifest not found. Starting full parse.\n\u001b[0m09:52:10  Found 3 models, 1 seed, 2 data tests, 1 source, 556 macros\n\u001b[0m09:52:10  \n\u001b[0m09:52:10  Concurrency: 1 threads (target='bigquery')\n\u001b[0m09:52:10  \n\u001b[0m09:52:10  1 of 1 START sql incremental model bq_e2e_dbt.bq_orders_inc .................... [RUN]\n\u001b[0m09:52:10  1 of 1 ERROR creating sql incremental model bq_e2e_dbt.bq_orders_inc ........... [\u001b[31mERROR\u001b[0m in 0.15s]\n\u001b[0m09:52:10  \n\u001b[0m09:52:10  Finished running 1 incremental model in 0 hours 0 minutes and 0.25 seconds (0.25s).\n\u001b[0m09:52:10  \n\u001b[0m09:52:10  \u001b[31mCompleted with 1 error, 0 partial successes, and 0 warnings:\u001b[0m\n\u001b[0m09:52:10  \n\u001b[0m09:52:10  [\u001b[31mERROR\u001b[0m]: in model bq_orders_inc (models/bq_orders_inc.sql)\n\u001b[0m09:52:10    Database Error in model bq_orders_inc (models/bq_orders_inc.sql)\n  501 BigQuery feature not available in this environment: MERGE: source must be a single-table reference, got *googlesql.ResolvedProjectScan; message: BigQuery feature not available in this environment: MERGE: source must be a single-table reference, got *googlesql.ResolvedProjectScan, reason: notImplemented\n  \n  Location: None\n  Job ID: d863d862-135f-4c1a-83fb-15654a300810\n  \n  compiled code at /tmp/bq-e2e/dbt/target/incremental/run/bq_e2e/models/bq_orders_inc.sql\n\u001b[0m09:52:10  \n\u001b[0m09:52:10    compiled code at /tmp/bq-e2e/dbt/target/incremental/compiled/bq_e2e/models/bq_orders_inc.sql\n\u001b[0m09:52:10  \n\u001b[0m09:52:10  Done. PASS=0 WARN=0 ERROR=1 SKIP=0 NO-OP=0 REUSED=0 TOTAL=1\n",
+      "stdout": "ved manifest not found. Starting full parse.\n\u001b[0m11:58:15  Found 3 models, 1 seed, 2 data tests, 1 source, 556 macros\n\u001b[0m11:58:15  \n\u001b[0m11:58:15  Concurrency: 1 threads (target='bigquery')\n\u001b[0m11:58:15  \n\u001b[0m11:58:15  1 of 1 START sql incremental model bq_e2e_dbt.bq_orders_inc .................... [RUN]\n\u001b[0m11:58:15  1 of 1 ERROR creating sql incremental model bq_e2e_dbt.bq_orders_inc ........... [\u001b[31mERROR\u001b[0m in 0.16s]\n\u001b[0m11:58:15  \n\u001b[0m11:58:15  Finished running 1 incremental model in 0 hours 0 minutes and 0.26 seconds (0.26s).\n\u001b[0m11:58:15  \n\u001b[0m11:58:15  \u001b[31mCompleted with 1 error, 0 partial successes, and 0 warnings:\u001b[0m\n\u001b[0m11:58:15  \n\u001b[0m11:58:15  [\u001b[31mERROR\u001b[0m]: in model bq_orders_inc (models/bq_orders_inc.sql)\n\u001b[0m11:58:15    Database Error in model bq_orders_inc (models/bq_orders_inc.sql)\n  501 BigQuery feature not available in this environment: MERGE: source must be a single-table reference, got *googlesql.ResolvedProjectScan; message: BigQuery feature not available in this environment: MERGE: source must be a single-table reference, got *googlesql.ResolvedProjectScan, reason: notImplemented\n  \n  Location: None\n  Job ID: e6945ca8-0b25-4c16-915a-30b2b2ab9d50\n  \n  compiled code at /tmp/bq-e2e/dbt/target/incremental/run/bq_e2e/models/bq_orders_inc.sql\n\u001b[0m11:58:15  \n\u001b[0m11:58:15    compiled code at /tmp/bq-e2e/dbt/target/incremental/compiled/bq_e2e/models/bq_orders_inc.sql\n\u001b[0m11:58:15  \n\u001b[0m11:58:15  Done. PASS=0 WARN=0 ERROR=1 SKIP=0 NO-OP=0 REUSED=0 TOTAL=1\n",
       "tail": "",
       "tools": [
         "bigquery.dataset_list",
@@ -930,7 +1110,7 @@
       ],
       "statement_rows": 2,
       "statements": 2,
-      "stdout": "\u001b[0m09:51:49  Running with dbt=1.12.4\n\u001b[0m09:51:50  Registered adapter: bigquery=1.11.3\n\u001b[0m09:51:50  Unable to do partial parsing because saved manifest not found. Starting full parse.\n\u001b[0m09:51:52  Found 3 models, 1 seed, 2 data tests, 1 source, 556 macros\n\u001b[0m09:51:52  \n\u001b[0m09:51:52  Concurrency: 1 threads (target='bigquery')\n\u001b[0m09:51:52  \n\u001b[0m09:51:52  1 of 2 START sql table model bq_e2e_dbt.bq_feb_revenue ......................... [RUN]\n\u001b[0m09:51:54  1 of 2 OK created sql table model bq_e2e_dbt.bq_feb_revenue .................... [\u001b[32mCREATE TABLE (1.0 rows, None processed)\u001b[0m in 1.63s]\n\u001b[0m09:51:54  2 of 2 START sql view model bq_e2e_dbt.bq_feb_revenue_v ........................ [RUN]\n\u001b[0m09:51:55  2 of 2 OK created sql view model bq_e2e_dbt.bq_feb_revenue_v ................... [\u001b[32mCREATE VIEW\u001b[0m in 1.17s]\n\u001b[0m09:51:55  \n\u001b[0m09:51:55  Finished running 1 table model, 1 view model in 0 hours 0 minutes and 2.92 seconds (2.92s).\n\u001b[0m09:51:55  \n\u001b[0m09:51:55  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m09:51:55  \n\u001b[0m09:51:55  Done. PASS=2 WARN=0 ERROR=0 SKIP=0 NO-OP=0 REUSED=0 TOTAL=2\n",
+      "stdout": "\u001b[0m11:57:55  Running with dbt=1.12.4\n\u001b[0m11:57:56  Registered adapter: bigquery=1.11.3\n\u001b[0m11:57:56  Unable to do partial parsing because saved manifest not found. Starting full parse.\n\u001b[0m11:57:58  Found 3 models, 1 seed, 2 data tests, 1 source, 556 macros\n\u001b[0m11:57:58  \n\u001b[0m11:57:58  Concurrency: 1 threads (target='bigquery')\n\u001b[0m11:57:58  \n\u001b[0m11:57:58  1 of 2 START sql table model bq_e2e_dbt.bq_feb_revenue ......................... [RUN]\n\u001b[0m11:58:00  1 of 2 OK created sql table model bq_e2e_dbt.bq_feb_revenue .................... [\u001b[32mCREATE TABLE (1.0 rows, None processed)\u001b[0m in 1.89s]\n\u001b[0m11:58:00  2 of 2 START sql view model bq_e2e_dbt.bq_feb_revenue_v ........................ [RUN]\n\u001b[0m11:58:01  2 of 2 OK created sql view model bq_e2e_dbt.bq_feb_revenue_v ................... [\u001b[32mCREATE VIEW\u001b[0m in 1.11s]\n\u001b[0m11:58:01  \n\u001b[0m11:58:01  Finished running 1 table model, 1 view model in 0 hours 0 minutes and 3.13 seconds (3.13s).\n\u001b[0m11:58:01  \n\u001b[0m11:58:01  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m11:58:01  \n\u001b[0m11:58:01  Done. PASS=2 WARN=0 ERROR=0 SKIP=0 NO-OP=0 REUSED=0 TOTAL=2\n",
       "tail": "",
       "tools": [
         "bigquery.dataset_list",
@@ -965,7 +1145,7 @@
       ],
       "statement_rows": 4,
       "statements": 4,
-      "stdout": "\u001b[0m09:51:40  Running with dbt=1.12.4\n\u001b[0m09:51:41  Registered adapter: bigquery=1.11.3\n\u001b[0m09:51:41  Unable to do partial parsing because saved manifest not found. Starting full parse.\n\u001b[0m09:51:43  Found 3 models, 1 seed, 2 data tests, 1 source, 556 macros\n\u001b[0m09:51:43  \n\u001b[0m09:51:43  Concurrency: 1 threads (target='bigquery')\n\u001b[0m09:51:43  \n\u001b[0m09:51:44  1 of 3 START sql table model bq_e2e_dbt.bq_feb_revenue ......................... [RUN]\n\u001b[0m09:51:44  1 of 3 OK created sql table model bq_e2e_dbt.bq_feb_revenue .................... [\u001b[32mCREATE TABLE (1.0 rows, None processed)\u001b[0m in 0.56s]\n\u001b[0m09:51:44  2 of 3 START sql incremental model bq_e2e_dbt.bq_orders_inc .................... [RUN]\n\u001b[0m09:51:45  2 of 3 OK created sql incremental model bq_e2e_dbt.bq_orders_inc ............... [\u001b[32mCREATE TABLE (3.0 rows, None processed)\u001b[0m in 0.47s]\n\u001b[0m09:51:45  3 of 3 START sql view model bq_e2e_dbt.bq_feb_revenue_v ........................ [RUN]\n\u001b[0m09:51:45  3 of 3 OK created sql view model bq_e2e_dbt.bq_feb_revenue_v ................... [\u001b[32mCREATE VIEW\u001b[0m in 0.32s]\n\u001b[0m09:51:45  \n\u001b[0m09:51:45  Finished running 1 incremental model, 1 table model, 1 view model in 0 hours 0 minutes and 1.77 seconds (1.77s).\n\u001b[0m09:51:45  \n\u001b[0m09:51:45  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m09:51:45  \n\u001b[0m09:51:45  Done. PASS=3 WARN=0 ERROR=0 SKIP=0 NO-OP=0 REUSED=0 TOTAL=3\n",
+      "stdout": "\u001b[0m11:57:46  Running with dbt=1.12.4\n\u001b[0m11:57:47  Registered adapter: bigquery=1.11.3\n\u001b[0m11:57:47  Unable to do partial parsing because saved manifest not found. Starting full parse.\n\u001b[0m11:57:49  Found 3 models, 1 seed, 2 data tests, 1 source, 556 macros\n\u001b[0m11:57:49  \n\u001b[0m11:57:49  Concurrency: 1 threads (target='bigquery')\n\u001b[0m11:57:49  \n\u001b[0m11:57:49  1 of 3 START sql table model bq_e2e_dbt.bq_feb_revenue ......................... [RUN]\n\u001b[0m11:57:50  1 of 3 OK created sql table model bq_e2e_dbt.bq_feb_revenue .................... [\u001b[32mCREATE TABLE (1.0 rows, None processed)\u001b[0m in 0.56s]\n\u001b[0m11:57:50  2 of 3 START sql incremental model bq_e2e_dbt.bq_orders_inc .................... [RUN]\n\u001b[0m11:57:50  2 of 3 OK created sql incremental model bq_e2e_dbt.bq_orders_inc ............... [\u001b[32mCREATE TABLE (3.0 rows, None processed)\u001b[0m in 0.49s]\n\u001b[0m11:57:50  3 of 3 START sql view model bq_e2e_dbt.bq_feb_revenue_v ........................ [RUN]\n\u001b[0m11:57:51  3 of 3 OK created sql view model bq_e2e_dbt.bq_feb_revenue_v ................... [\u001b[32mCREATE VIEW\u001b[0m in 0.28s]\n\u001b[0m11:57:51  \n\u001b[0m11:57:51  Finished running 1 incremental model, 1 table model, 1 view model in 0 hours 0 minutes and 1.77 seconds (1.77s).\n\u001b[0m11:57:51  \n\u001b[0m11:57:51  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m11:57:51  \n\u001b[0m11:57:51  Done. PASS=3 WARN=0 ERROR=0 SKIP=0 NO-OP=0 REUSED=0 TOTAL=3\n",
       "tail": "",
       "tools": [
         "bigquery.dataset_list",
@@ -984,7 +1164,7 @@
       "sent": [],
       "statement_rows": 0,
       "statements": 0,
-      "stdout": "\u001b[0m09:52:30  Running with dbt=1.12.4\n\u001b[0m09:52:31  Registered adapter: bigquery=1.11.3\n\u001b[0m09:52:31  Unable to do partial parsing because saved manifest not found. Starting full parse.\n\u001b[0m09:52:33  Found 3 models, 1 seed, 2 data tests, 1 source, 556 macros\n\u001b[0m09:52:33  \n\u001b[0m09:52:33  Concurrency: 1 threads (target='bigquery')\n\u001b[0m09:52:33  \n\u001b[0m09:52:33  1 of 1 START seed file bq_e2e_dbt.bq_seed ...................................... [RUN]\n\u001b[0m09:52:33  1 of 1 ERROR loading seed file bq_e2e_dbt.bq_seed .............................. [\u001b[31mERROR\u001b[0m in 0.08s]\n\u001b[0m09:52:33  \n\u001b[0m09:52:33  Finished running 1 seed in 0 hours 0 minutes and 0.19 seconds (0.19s).\n\u001b[0m09:52:33  \n\u001b[0m09:52:33  \u001b[31mCompleted with 1 error, 0 partial successes, and 0 warnings:\u001b[0m\n\u001b[0m09:52:33  \n\u001b[0m09:52:33  [\u001b[31mERROR\u001b[0m]: in seed bq_seed (seeds/bq_seed.csv)\n\u001b[0m09:52:33    Database Error in seed bq_seed (seeds/bq_seed.csv)\n  501 POST http://bigquery.internal:9050/upload/bigquery/v2/projects/alkera-local/jobs?uploadType=resumable: BigQuery feature not available in this environment: load jobs (Cloud Storage and file uploads); use INSERT statements or tabledata.insertAll\n\u001b[0m09:52:33  \n\u001b[0m09:52:33  Done. PASS=0 WARN=0 ERROR=1 SKIP=0 NO-OP=0 REUSED=0 TOTAL=1\n",
+      "stdout": "\u001b[0m11:58:34  Running with dbt=1.12.4\n\u001b[0m11:58:35  Registered adapter: bigquery=1.11.3\n\u001b[0m11:58:35  Unable to do partial parsing because saved manifest not found. Starting full parse.\n\u001b[0m11:58:37  Found 3 models, 1 seed, 2 data tests, 1 source, 556 macros\n\u001b[0m11:58:37  \n\u001b[0m11:58:37  Concurrency: 1 threads (target='bigquery')\n\u001b[0m11:58:37  \n\u001b[0m11:58:37  1 of 1 START seed file bq_e2e_dbt.bq_seed ...................................... [RUN]\n\u001b[0m11:58:37  1 of 1 ERROR loading seed file bq_e2e_dbt.bq_seed .............................. [\u001b[31mERROR\u001b[0m in 0.06s]\n\u001b[0m11:58:37  \n\u001b[0m11:58:37  Finished running 1 seed in 0 hours 0 minutes and 0.16 seconds (0.16s).\n\u001b[0m11:58:37  \n\u001b[0m11:58:37  \u001b[31mCompleted with 1 error, 0 partial successes, and 0 warnings:\u001b[0m\n\u001b[0m11:58:37  \n\u001b[0m11:58:37  [\u001b[31mERROR\u001b[0m]: in seed bq_seed (seeds/bq_seed.csv)\n\u001b[0m11:58:37    Database Error in seed bq_seed (seeds/bq_seed.csv)\n  501 POST http://bigquery.internal:9050/upload/bigquery/v2/projects/alkera-local/jobs?uploadType=resumable: BigQuery feature not available in this environment: load jobs and LOAD DATA (Cloud Storage and file uploads); use INSERT statements or tabledata.insertAll\n\u001b[0m11:58:37  \n\u001b[0m11:58:37  Done. PASS=0 WARN=0 ERROR=1 SKIP=0 NO-OP=0 REUSED=0 TOTAL=1\n",
       "tail": "",
       "tools": [
         "bigquery.dataset_list",
@@ -1020,7 +1200,7 @@
       ],
       "statement_rows": 2,
       "statements": 2,
-      "stdout": "\u001b[0m09:52:14  Running with dbt=1.12.4\n\u001b[0m09:52:15  Registered adapter: bigquery=1.11.3\n\u001b[0m09:52:15  Unable to do partial parsing because saved manifest not found. Starting full parse.\n\u001b[0m09:52:17  Found 3 models, 1 seed, 2 data tests, 1 source, 556 macros\n\u001b[0m09:52:17  \n\u001b[0m09:52:17  Concurrency: 1 threads (target='bigquery')\n\u001b[0m09:52:17  \n\u001b[0m09:52:17  1 of 2 START test not_null_bq_feb_revenue_order_status ......................... [RUN]\n\u001b[0m09:52:18  1 of 2 PASS not_null_bq_feb_revenue_order_status ............................... [\u001b[32mPASS\u001b[0m in 0.62s]\n\u001b[0m09:52:18  2 of 2 START test unique_bq_feb_revenue_order_status ........................... [RUN]\n\u001b[0m09:52:18  2 of 2 PASS unique_bq_feb_revenue_order_status ................................. [\u001b[32mPASS\u001b[0m in 0.58s]\n\u001b[0m09:52:18  \n\u001b[0m09:52:18  Finished running 2 data tests in 0 hours 0 minutes and 1.27 seconds (1.27s).\n\u001b[0m09:52:18  \n\u001b[0m09:52:18  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m09:52:18  \n\u001b[0m09:52:18  Done. PASS=2 WARN=0 ERROR=0 SKIP=0 NO-OP=0 REUSED=0 TOTAL=2\n",
+      "stdout": "\u001b[0m11:58:19  Running with dbt=1.12.4\n\u001b[0m11:58:20  Registered adapter: bigquery=1.11.3\n\u001b[0m11:58:20  Unable to do partial parsing because saved manifest not found. Starting full parse.\n\u001b[0m11:58:22  Found 3 models, 1 seed, 2 data tests, 1 source, 556 macros\n\u001b[0m11:58:22  \n\u001b[0m11:58:22  Concurrency: 1 threads (target='bigquery')\n\u001b[0m11:58:22  \n\u001b[0m11:58:22  1 of 2 START test not_null_bq_feb_revenue_order_status ......................... [RUN]\n\u001b[0m11:58:22  1 of 2 PASS not_null_bq_feb_revenue_order_status ............................... [\u001b[32mPASS\u001b[0m in 0.54s]\n\u001b[0m11:58:22  2 of 2 START test unique_bq_feb_revenue_order_status ........................... [RUN]\n\u001b[0m11:58:23  2 of 2 PASS unique_bq_feb_revenue_order_status ................................. [\u001b[32mPASS\u001b[0m in 0.52s]\n\u001b[0m11:58:23  \n\u001b[0m11:58:23  Finished running 2 data tests in 0 hours 0 minutes and 1.10 seconds (1.10s).\n\u001b[0m11:58:23  \n\u001b[0m11:58:23  \u001b[32mCompleted successfully\u001b[0m\n\u001b[0m11:58:23  \n\u001b[0m11:58:23  Done. PASS=2 WARN=0 ERROR=0 SKIP=0 NO-OP=0 REUSED=0 TOTAL=2\n",
       "tail": "",
       "tools": [
         "bigquery.query_results",
@@ -1110,9 +1290,9 @@
     },
     {
       "count": 28,
-      "first_ts": "2026-10-13T09:51:13Z",
+      "first_ts": "2026-10-13T11:57:17Z",
       "host": "bigquery.internal",
-      "last_ts": "2026-10-13T09:52:47Z",
+      "last_ts": "2026-10-13T11:58:50Z",
       "port": 9050
     },
     {
@@ -1148,29 +1328,35 @@
       "warehouse.fct_orders": 16825
     }
   },
-  "image": "alkera-episode:t13-bigquery",
+  "image": "alkera-episode:t13b-bigquery",
   "networks": {
     "episode": [
-      "alkera-tour-de-gcp-1791885053_episode_net"
+      "alkera-tour-de-gcp-1791892617_episode_net"
     ],
     "native-services": [
-      "alkera-tour-de-gcp-1791885053_backend_net",
-      "alkera-tour-de-gcp-1791885053_episode_net"
+      "alkera-tour-de-gcp-1791892617_backend_net",
+      "alkera-tour-de-gcp-1791892617_episode_net"
     ]
   },
-  "overlay": "# Generated per rollout by tasks/harness/container_episode.py. Do not edit:\n# it is rewritten on every `up()` and is kept here as the record of which host\n# files this episode's container could see.\n#\n# Three things compose.native.yml cannot say statically:\n#\n#   1. THE WAREHOUSE FILES. Their names and their number come from the world\n#      this rollout built (1 here), read by the same rule\n#      world/world/fingerprint.py hashes by. Each is bound as a FILE at its own\n#      world-relative path, so `/world/var/warehouse` is a directory of\n#      the CONTAINER's - and a `cp` beside the warehouse, which is what two of\n#      five GT001 native subjects did before deleting rows, lands there instead\n#      of in the world.\n#   2. THE SHIM PATH, and the CONTEXT VARIANT. The shims go in front of the\n#      image's own PATH, which is read off the image so /opt/toolbelt/bin\n#      survives; `ALKERA_TASK_VARIANT` appears only when this world was built\n#      from an arm, because an empty value is still a value to\n#      `taskspec.requested_variant`.\n#   3. THE WORLD'S CLOCK. `ALKERA_VIRTUAL_TIME` is this world's `vnow` as the\n#      episode starts, so the rows the shims and the notebook kernel write\n#      carry the world's time and not GatewayConfig's literal: `var/sched`,\n#      where the host topology reads it, is not mounted here (P7).\n#\n# NOT here, and it was here for one afternoon: published host ports. Both\n# compose networks are `internal: true`, and Docker cannot publish a host port\n# off an internal network - the bindings appear in `HostConfig.PortBindings`\n# and nothing ever listens. Measured: GT004's first container rollout failed\n# its surface gate with `WinError 10061` on all nine services while\n# `docker inspect` reported all nine mappings. The harness reaches the services\n# through `container_episode.ServiceGate` instead, one `docker exec` per\n# connection, and `published_host_ports: {}` stays true for every container\n# in the project.\nservices:\n  episode:\n    # ENVIRONMENT PROFILE: the complete mapping, not a merge\n    # (container_episode.profiled_environment).\n    environment: !override\n      PATH: \"/opt/alkera/shims:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/toolbelt/bin\"\n      ALKERA_SHIM_BIN: \"/opt/alkera/shims\"\n      ALKERA_SHIM_WATCH: \"/world/var/warehouse/warehouse.duckdb\"\n      ALKERA_SHIM_WORKSPACE: \"/workspace\"\n      ALKERA_WORKSPACE: \"/workspace\"\n      ALKERA_VIRTUAL_TIME: \"2026-03-02T00:00:00Z\"\n      # the static table (compose.yml + compose.native.yml) minus what the\n      # profile excludes: AIRFLOW_API_URL, AIRFLOW_PASSWORD, AIRFLOW_USER,\n      # PGDATABASE, PGHOST, PGPASSWORD, PGPORT, PGUSER, SNOWFLAKE_ACCOUNT,\n      # SNOWFLAKE_HOST, SNOWFLAKE_PASSWORD, SNOWFLAKE_USER\n      ALKERA_POSTGRES_DSN: \"postgresql://episode:episode-local@postgres/episode\"\n      ALKERA_BACKEND: \"${ALKERA_BACKEND:-postgres}\"\n      ALKERA_WAREHOUSES: \"${ALKERA_WAREHOUSES:-}\"\n      AIRBYTE_API_KEY: \"alkera-local-dev\"\n      AIRBYTE_URL: \"http://airbyte.internal:8001\"\n      ALERTMANAGER_URL: \"http://alertmanager.internal:9093\"\n      AWS_ACCESS_KEY_ID: \"alkera-local-dev\"\n      AWS_DEFAULT_REGION: \"us-east-1\"\n      AWS_ENDPOINT_URL: \"http://minio.internal:9000\"\n      AWS_SECRET_ACCESS_KEY: \"alkera-local-dev\"\n      CONFLUENCE_API_TOKEN: \"alkera-local-dev\"\n      CONFLUENCE_URL: \"http://confluence.internal:8090\"\n      CONFLUENCE_USER: \"alkera-local-dev\"\n      DBT_PROFILES_DIR: \"/root/.dbt\"\n      DEPLOY_API_TOKEN: \"alkera-local-dev\"\n      DEPLOY_URL: \"http://deploy.internal:8085\"\n      JIRA_API_TOKEN: \"alkera-local-dev\"\n      JIRA_URL: \"http://jira.internal:8080\"\n      JIRA_USER: \"alkera-local-dev\"\n      LOKI_ADDR: \"http://loki.internal:3100\"\n      LOKI_URL: \"http://loki.internal:3100\"\n      METABASE_API_KEY: \"alkera-local-dev\"\n      METABASE_URL: \"http://metabase.internal:3000\"\n      PROMETHEUS_URL: \"http://prometheus.internal:9090\"\n      SCHED_URL: \"http://sched.internal:8120\"\n      SLACK_BASE_URL: \"http://slack.internal:8081\"\n      SLACK_BOT_TOKEN: \"alkera-local-dev\"\n      ALKERA_NATIVE_AUDIT: \"/audit/actions.jsonl\"\n      HOME: \"/root\"\n      # what the profile plugs\n      BIGQUERY_API_URL: \"http://bigquery.internal:9050\"\n      BIGQUERY_PROJECT: \"alkera-local\"\n    volumes:\n      - \"/home/ubuntu/alkera-rollouts/t13-bigquery/e2e/world/var/warehouse/warehouse.duckdb:/world/var/warehouse/warehouse.duckdb\"\n\n# ENVIRONMENT PROFILE de/gcp (plugs: {}).\n# native-services runs with --profile (ALKERA_NATIVE_PROFILE_ARGS), and the\n# aliases below REPLACE compose.native.yml's: an excluded service has no name\n# on episode_net at all.\n  native-services:\n    networks:\n      episode_net:\n        aliases: !override\n          - native-services.internal\n          - airbyte.internal\n          - metabase.internal\n          - prometheus.internal\n          - alertmanager.internal\n          - loki.internal\n          - deploy.internal\n          - jira.internal\n          - slack.internal\n          - confluence.internal\n          - bigquery.internal\n          - sched.internal\n      backend_net: {}\n    environment:\n      ALKERA_BIGQUERY_UPSTREAM: http://bigquery:9050\n    depends_on:\n      bigquery:\n        condition: service_started\n\n# HOSTED ENGINE bigquery: compose.yml's `bigquery` service (compose profile\n# `bigquery`, enabled by compose_env), on backend_net only. The episode reaches\n# it through the audited proxy in native-services, bigquery.internal:9050.\n  bigquery:\n    command: [\"--project=alkera-local\", \"--port=9050\", \"--grpc-port=9060\", \"--database=/bigquery-data/emulator.db\"]\n    networks:\n      backend_net:\n        aliases: !reset []\n",
+  "overlay": "# Generated per rollout by tasks/harness/container_episode.py. Do not edit:\n# it is rewritten on every `up()` and is kept here as the record of which host\n# files this episode's container could see.\n#\n# Three things compose.native.yml cannot say statically:\n#\n#   1. THE WAREHOUSE FILES. Their names and their number come from the world\n#      this rollout built (1 here), read by the same rule\n#      world/world/fingerprint.py hashes by. Each is bound as a FILE at its own\n#      world-relative path, so `/world/var/warehouse` is a directory of\n#      the CONTAINER's - and a `cp` beside the warehouse, which is what two of\n#      five GT001 native subjects did before deleting rows, lands there instead\n#      of in the world.\n#   2. THE SHIM PATH, and the CONTEXT VARIANT. The shims go in front of the\n#      image's own PATH, which is read off the image so /opt/toolbelt/bin\n#      survives; `ALKERA_TASK_VARIANT` appears only when this world was built\n#      from an arm, because an empty value is still a value to\n#      `taskspec.requested_variant`.\n#   3. THE WORLD'S CLOCK. `ALKERA_VIRTUAL_TIME` is this world's `vnow` as the\n#      episode starts, so the rows the shims and the notebook kernel write\n#      carry the world's time and not GatewayConfig's literal: `var/sched`,\n#      where the host topology reads it, is not mounted here (P7).\n#\n# NOT here, and it was here for one afternoon: published host ports. Both\n# compose networks are `internal: true`, and Docker cannot publish a host port\n# off an internal network - the bindings appear in `HostConfig.PortBindings`\n# and nothing ever listens. Measured: GT004's first container rollout failed\n# its surface gate with `WinError 10061` on all nine services while\n# `docker inspect` reported all nine mappings. The harness reaches the services\n# through `container_episode.ServiceGate` instead, one `docker exec` per\n# connection, and `published_host_ports: {}` stays true for every container\n# in the project.\nservices:\n  episode:\n    # ENVIRONMENT PROFILE: the complete mapping, not a merge\n    # (container_episode.profiled_environment).\n    environment: !override\n      PATH: \"/opt/alkera/shims:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/toolbelt/bin\"\n      ALKERA_SHIM_BIN: \"/opt/alkera/shims\"\n      ALKERA_SHIM_WATCH: \"/world/var/warehouse/warehouse.duckdb\"\n      ALKERA_SHIM_WORKSPACE: \"/workspace\"\n      ALKERA_WORKSPACE: \"/workspace\"\n      ALKERA_VIRTUAL_TIME: \"2026-03-02T00:00:00Z\"\n      # the static table (compose.yml + compose.native.yml) minus what the\n      # profile excludes: AIRFLOW_API_URL, AIRFLOW_PASSWORD, AIRFLOW_USER,\n      # PGDATABASE, PGHOST, PGPASSWORD, PGPORT, PGUSER, SNOWFLAKE_ACCOUNT,\n      # SNOWFLAKE_HOST, SNOWFLAKE_PASSWORD, SNOWFLAKE_USER\n      ALKERA_BACKEND: \"${ALKERA_BACKEND:-postgres}\"\n      ALKERA_WAREHOUSES: \"${ALKERA_WAREHOUSES:-}\"\n      AIRBYTE_API_KEY: \"alkera-local-dev\"\n      AIRBYTE_URL: \"http://airbyte.internal:8001\"\n      ALERTMANAGER_URL: \"http://alertmanager.internal:9093\"\n      AWS_ACCESS_KEY_ID: \"alkera-local-dev\"\n      AWS_DEFAULT_REGION: \"us-east-1\"\n      AWS_ENDPOINT_URL: \"http://minio.internal:9000\"\n      AWS_SECRET_ACCESS_KEY: \"alkera-local-dev\"\n      CONFLUENCE_API_TOKEN: \"alkera-local-dev\"\n      CONFLUENCE_URL: \"http://confluence.internal:8090\"\n      CONFLUENCE_USER: \"alkera-local-dev\"\n      DBT_PROFILES_DIR: \"/root/.dbt\"\n      DEPLOY_API_TOKEN: \"alkera-local-dev\"\n      DEPLOY_URL: \"http://deploy.internal:8085\"\n      JIRA_API_TOKEN: \"alkera-local-dev\"\n      JIRA_URL: \"http://jira.internal:8080\"\n      JIRA_USER: \"alkera-local-dev\"\n      LOKI_ADDR: \"http://loki.internal:3100\"\n      LOKI_URL: \"http://loki.internal:3100\"\n      METABASE_API_KEY: \"alkera-local-dev\"\n      METABASE_URL: \"http://metabase.internal:3000\"\n      PROMETHEUS_URL: \"http://prometheus.internal:9090\"\n      SCHED_URL: \"http://sched.internal:8120\"\n      SLACK_BASE_URL: \"http://slack.internal:8081\"\n      SLACK_BOT_TOKEN: \"alkera-local-dev\"\n      ALKERA_NATIVE_AUDIT: \"/audit/actions.jsonl\"\n      HOME: \"/root\"\n      # what the profile plugs\n      BIGQUERY_API_URL: \"http://bigquery.internal:9050\"\n      BIGQUERY_PROJECT: \"alkera-local\"\n    volumes:\n      - \"/home/ubuntu/.cache/t13b/e2e/world/var/warehouse/warehouse.duckdb:/world/var/warehouse/warehouse.duckdb\"\n\n# ENVIRONMENT PROFILE de/gcp (plugs: {}).\n# native-services runs with --profile (ALKERA_NATIVE_PROFILE_ARGS), and the\n# aliases below REPLACE compose.native.yml's: an excluded service has no name\n# on episode_net at all.\n  native-services:\n    networks:\n      episode_net:\n        aliases: !override\n          - native-services.internal\n          - airbyte.internal\n          - metabase.internal\n          - prometheus.internal\n          - alertmanager.internal\n          - loki.internal\n          - deploy.internal\n          - jira.internal\n          - slack.internal\n          - confluence.internal\n          - bigquery.internal\n          - sched.internal\n      backend_net: {}\n    environment:\n      ALKERA_BIGQUERY_UPSTREAM: http://bigquery:9050\n      ALKERA_EPISODE_SUBNETS: 10.210.221.0/24\n    depends_on:\n      bigquery:\n        condition: service_started\n\n# HOSTED ENGINE bigquery: compose.yml's `bigquery` service (compose profile\n# `bigquery`, enabled by compose_env), on backend_net only. The episode reaches\n# it through the audited proxy in native-services, bigquery.internal:9050.\n  bigquery:\n    command: [\"--project=alkera-local\", \"--port=9050\", \"--grpc-port=9060\", \"--database=/bigquery-data/emulator.db\"]\n    networks:\n      backend_net:\n        aliases: !reset []\n\n# PEER FILTER: native-services is on backend_net for the engine, so its agent\n# listeners admit episode_net's peers only (ALKERA_EPISODE_SUBNETS, above). The\n# subnet is pinned here because the filter needs it before the network exists.\nnetworks:\n  episode_net:\n    ipam:\n      config:\n        - subnet: 10.210.221.0/24\n",
   "probe": {
+    "after_external": [
+      [
+        "engine still answers"
+      ]
+    ],
+    "after_external_seconds": 0.45,
     "alter": {
       "code": 501,
-      "message": "501 POST http://bigquery.internal:9050/bigquery/v2/projects/alkera-local/jobs?prettyPrint=false: BigQuery feature not available in this environment: ALTER statements (the engine acknowledges them and changes nothing); create the table again instead\n\nLocation: None\nJob ID: eff6b952-462d-4214-89fd-07917ba46486\n",
+      "message": "501 POST http://bigquery.internal:9050/bigquery/v2/projects/alkera-local/jobs?prettyPrint=false: BigQuery feature not available in this environment: ALTER statements (the engine acknowledges them and changes nothing); create the table again instead\n\nLocation: None\nJob ID: 120b2e7c-3e2b-465b-b3d0-a365cad1793c\n",
       "reason": "notImplemented",
       "seconds": 0.05
     },
     "bad_sql": {
       "code": 400,
-      "message": "400 failed to parse statements: failed to parse statement: Syntax error: Unexpected identifier \"SELEC\" [at 1:1]; message: failed to parse statements: failed to parse statement: Syntax error: Unexpected identifier \"SELEC\" [at 1:1], reason: invalidQuery\n\nLocation: None\nJob ID: 8f1f5432-6cd6-4726-8b82-700206fe5fd5\n",
+      "message": "400 failed to parse statements: failed to parse statement: Syntax error: Unexpected identifier \"SELEC\" [at 1:1]; message: failed to parse statements: failed to parse statement: Syntax error: Unexpected identifier \"SELEC\" [at 1:1], reason: invalidQuery\n\nLocation: None\nJob ID: 78a20101-25df-43c3-80aa-21ee13e3a2e4\n",
       "reason": "invalidQuery",
-      "seconds": 0.09
+      "seconds": 0.08
     },
     "counts": {
       "raw.customers": 339,
@@ -1195,7 +1381,7 @@
     "drop_script": "SELECT 1; /* tidy */ DROP TABLE `alkera-local.bq_e2e_scratch.drop_me`",
     "dry_run": {
       "code": 501,
-      "message": "501 POST http://bigquery.internal:9050/bigquery/v2/projects/alkera-local/jobs?prettyPrint=false: bigquery cost estimation is not modelled\n\nLocation: None\nJob ID: 926232bc-c14e-4f54-af6f-462df28d8cc2\n",
+      "message": "501 POST http://bigquery.internal:9050/bigquery/v2/projects/alkera-local/jobs?prettyPrint=false: bigquery cost estimation is not modelled\n\nLocation: None\nJob ID: 3d3b4e2e-1d20-4a94-8af5-5dc8e1390bb1\n",
       "reason": "notImplemented",
       "seconds": 0.05
     },
@@ -1204,9 +1390,27 @@
       "BIGQUERY_PROJECT": "alkera-local",
       "REQUESTS_CA_BUNDLE": "/etc/alkera/snowflake-tls/bundle.pem"
     },
+    "external_table_definition": {
+      "code": 501,
+      "message": "501 POST http://bigquery.internal:9050/bigquery/v2/projects/alkera-local/jobs?prettyPrint=false: BigQuery feature not available in this environment: external tables and other external data (CREATE EXTERNAL TABLE / SCHEMA, OPTIONS uris / format, a query's tableDefinitions, a table's externalDataConfiguration or biglakeConfiguration, a dataset's externalDatasetReference): they read Cloud Storage (gs",
+      "reason": "notImplemented",
+      "seconds": 0.05
+    },
+    "external_table_rest": {
+      "code": 501,
+      "message": "501 POST http://bigquery.internal:9050/bigquery/v2/projects/alkera-local/datasets/bq_e2e_scratch/tables?prettyPrint=false: BigQuery feature not available in this environment: external tables and other external data (CREATE EXTERNAL TABLE / SCHEMA, OPTIONS uris / format, a query's tableDefinitions, a table's externalDataConfiguration or biglakeConfiguration, a dataset's externalDatasetReference): t",
+      "reason": "notImplemented",
+      "seconds": 0.05
+    },
+    "external_table_sql": {
+      "code": 501,
+      "message": "501 POST http://bigquery.internal:9050/bigquery/v2/projects/alkera-local/jobs?prettyPrint=false: BigQuery feature not available in this environment: external tables and other external data (CREATE EXTERNAL TABLE / SCHEMA, OPTIONS uris / format, a query's tableDefinitions, a table's externalDataConfiguration or biglakeConfiguration, a dataset's externalDatasetReference): they read Cloud Storage (gs",
+      "reason": "notImplemented",
+      "seconds": 0.05
+    },
     "legacy_sql": {
       "code": 501,
-      "message": "501 POST http://bigquery.internal:9050/bigquery/v2/projects/alkera-local/jobs?prettyPrint=false: BigQuery feature not available in this environment: legacy SQL (useLegacySql=true); send GoogleSQL with useLegacySql=false\n\nLocation: None\nJob ID: e30d59d2-8d2d-46ac-abaf-322c451c2356\n",
+      "message": "501 POST http://bigquery.internal:9050/bigquery/v2/projects/alkera-local/jobs?prettyPrint=false: BigQuery feature not available in this environment: legacy SQL (useLegacySql=true); send GoogleSQL with useLegacySql=false\n\nLocation: None\nJob ID: a03ae0d8-2597-4c58-be99-f39817f8dacd\n",
       "reason": "notImplemented",
       "seconds": 0.05
     },
@@ -1252,6 +1456,12 @@
         "0"
       ]
     ],
+    "load_data": {
+      "code": 501,
+      "message": "501 POST http://bigquery.internal:9050/bigquery/v2/projects/alkera-local/jobs?prettyPrint=false: BigQuery feature not available in this environment: load jobs and LOAD DATA (Cloud Storage and file uploads); use INSERT statements or tabledata.insertAll\n\nLocation: None\nJob ID: aca5d6b9-8cc2-48a0-9268-ff8535037e45\n",
+      "reason": "notImplemented",
+      "seconds": 0.05
+    },
     "net_revenue_feb_2026": "2361224",
     "read_back": [
       [
@@ -1275,7 +1485,7 @@
     ],
     "scripting": {
       "code": 501,
-      "message": "501 POST http://bigquery.internal:9050/bigquery/v2/projects/alkera-local/jobs?prettyPrint=false: BigQuery feature not available in this environment: procedural scripting (IF, WHILE, LOOP, REPEAT, FOR, CASE, CALL, RAISE, CREATE PROCEDURE, ...): the engine answers success and runs none of the body; send the statements themselves\n\nLocation: None\nJob ID: c2b5c2fa-6aeb-47ad-b7a1-db6f3f384966\n",
+      "message": "501 POST http://bigquery.internal:9050/bigquery/v2/projects/alkera-local/jobs?prettyPrint=false: BigQuery feature not available in this environment: procedural scripting (IF, WHILE, LOOP, REPEAT, FOR, CASE, CALL, RAISE, CREATE PROCEDURE, ...): the engine answers success and runs none of the body; send the statements themselves\n\nLocation: None\nJob ID: 58cdd44a-3f3e-44ac-9a6c-42b4ca3edff9\n",
       "reason": "notImplemented",
       "seconds": 0.05
     },
@@ -1303,19 +1513,20 @@
       "CREATE OR REPLACE TABLE `alkera-local.bq_e2e_scratch.notes` (id INT64, note STRING)",
       "INSERT INTO `alkera-local.bq_e2e_scratch.notes` (id, note) VALUES (1, 'alpha'), (2, 'beta')",
       "SELECT id, note FROM `alkera-local.bq_e2e_scratch.notes` ORDER BY id",
+      "SELECT 'engine still answers' AS after_external",
       "CREATE TABLE `alkera-local.bq_e2e_scratch.drop_me` (a INT64)",
       "SELECT 1; /* tidy */ DROP TABLE `alkera-local.bq_e2e_scratch.drop_me`",
       "SELECT id, note FROM `alkera-local.bq_e2e_scratch.notes` ORDER BY id"
     ],
     "transaction": {
       "code": 501,
-      "message": "501 POST http://bigquery.internal:9050/bigquery/v2/projects/alkera-local/jobs?prettyPrint=false: BigQuery feature not available in this environment: transactions and BEGIN...END blocks (BEGIN [TRANSACTION], COMMIT, ROLLBACK): the engine keeps what ran before an error and cannot roll back; send the statements without them\n\nLocation: None\nJob ID: 6363e6c3-8762-4888-b58c-782407c7f531\n",
+      "message": "501 POST http://bigquery.internal:9050/bigquery/v2/projects/alkera-local/jobs?prettyPrint=false: BigQuery feature not available in this environment: transactions and BEGIN...END blocks (BEGIN [TRANSACTION], COMMIT, ROLLBACK): the engine keeps what ran before an error and cannot roll back; send the statements without them\n\nLocation: None\nJob ID: d495c259-eeff-4fab-b76e-e0e2d640f6b6\n",
       "reason": "notImplemented",
-      "seconds": 0.06
+      "seconds": 0.05
     },
     "untokenizable": {
       "code": 400,
-      "message": "400 POST http://bigquery.internal:9050/bigquery/v2/projects/alkera-local/jobs?prettyPrint=false: Syntax error: the query does not tokenize (Error tokenizing 'SELECT 'ab')\n\nLocation: None\nJob ID: 7dcb339e-fb25-4db6-83a1-3cd3bec4505c\n",
+      "message": "400 POST http://bigquery.internal:9050/bigquery/v2/projects/alkera-local/jobs?prettyPrint=false: Syntax error: the query does not tokenize (Error tokenizing 'SELECT 'ab')\n\nLocation: None\nJob ID: e750e963-12dd-40a0-bd27-5db8636635bd\n",
       "reason": "invalidQuery",
       "seconds": 0.05
     },
@@ -1374,14 +1585,51 @@
       "op_class": "exec",
       "seq": 58,
       "tool": "bigquery.statement"
+    },
+    {
+      "exit": "error",
+      "flags": [
+        "refused:external_table"
+      ],
+      "op_class": "ddl",
+      "seq": 60,
+      "tool": "bigquery.statement"
+    },
+    {
+      "exit": "error",
+      "flags": [
+        "refused:external_table"
+      ],
+      "op_class": "read",
+      "seq": 61,
+      "tool": "bigquery.statement"
+    },
+    {
+      "exit": "error",
+      "flags": [
+        "refused:external_table"
+      ],
+      "op_class": "ddl",
+      "seq": 62,
+      "tool": "bigquery.table_insert"
+    },
+    {
+      "exit": "error",
+      "flags": [
+        "outside_tool_surface",
+        "refused:load_job"
+      ],
+      "op_class": "exec",
+      "seq": 63,
+      "tool": "bigquery.statement"
     }
   ],
   "resolve": {
     "bigquery": "",
-    "bigquery.internal": "10.210.1.4      bigquery.internal"
+    "bigquery.internal": "10.210.221.4    bigquery.internal"
   },
   "result": "PASS",
-  "revision": "ab2fbd139a95763d47d4b9644a73474029c75a01",
+  "revision": "40b8847912109fac74a35427c1d99beeb5558434",
   "role_boundary": {
     "client_imports": {
       "nbformat": true,
@@ -1415,7 +1663,7 @@
     ],
     "project": "alkera-local",
     "rows": 140480,
-    "seconds": 11.798,
+    "seconds": 11.533,
     "seed": "bigquery",
     "tables": {
       "raw.customers": 339,
@@ -1433,7 +1681,7 @@
       "warehouse.fct_orders": 16825
     },
     "upstream": "http://bigquery:9050",
-    "wait_s": 0.041
+    "wait_s": 0.043
   },
   "services": [
     "bigquery",
@@ -1458,21 +1706,25 @@
     "ALTER TABLE `alkera-local.bq_e2e_scratch.notes` ADD COLUMN extra STRING",
     "BEGIN TRANSACTION; INSERT INTO `alkera-local.bq_e2e_scratch.notes` (id, note) VALUES (3, 'gamma'); SELECT ERROR('boom'); COMMIT TRANSACTION",
     "IF TRUE THEN SELECT 1; END IF",
-    "SELECT 'abc"
+    "SELECT 'abc",
+    "CREATE EXTERNAL TABLE `alkera-local.bq_e2e_scratch.ext_orders` OPTIONS (format = 'CSV', uris = ['gs://alkera-e2e/orders/*.csv'])",
+    "SELECT COUNT(*) FROM ext_orders",
+    "LOAD DATA INTO `alkera-local.bq_e2e_scratch.notes` FROM FILES (format = 'CSV', uris = ['gs://alkera-e2e/orders/*.csv'])"
   ],
-  "summary": "59/59 PASS; seed 140480 rows in 11.798 s; {'statement_rows': 41, 'engine_jobs': 35, 'statement_rows_with_job': 35, 'statement_rows_without_job': 6, 'rows_total': 134}",
+  "summary": "65/65 PASS; seed 140480 rows in 11.533 s; {'statement_rows': 45, 'engine_jobs': 36, 'statement_rows_with_job': 36, 'statement_rows_without_job': 9, 'rows_total': 141}",
   "tools": [
     "bigquery.dataset_list",
     "bigquery.job_upload",
     "bigquery.query_results",
     "bigquery.statement",
     "bigquery.table_get",
+    "bigquery.table_insert",
     "bigquery.table_list",
     "bigquery.tabledata_list",
     "shim.dbt",
     "shim.git"
   ],
-  "up_seconds": 18.5,
+  "up_seconds": 18.7,
   "warehouse_hash": {
     "after_down": "d79b90327f2bedea1d63f39d75ca3418af2a0e8610822a6709673f6673627d31",
     "before_up": "d79b90327f2bedea1d63f39d75ca3418af2a0e8610822a6709673f6673627d31"
@@ -1513,7 +1765,7 @@
     {
       "flags": [],
       "op_class": "ddl",
-      "seq": 60,
+      "seq": 67,
       "sql": "CREATE TABLE `alkera-local.bq_e2e_scratch.drop_me` (a INT64)",
       "targets": [
         "\"alkera-local\".\"bq_e2e_scratch\".\"drop_me\""
@@ -1525,7 +1777,7 @@
         "rows_affected_unreported"
       ],
       "op_class": "destructive",
-      "seq": 62,
+      "seq": 69,
       "sql": "SELECT 1; /* tidy */ DROP TABLE `alkera-local.bq_e2e_scratch.drop_me`",
       "targets": [
         "\"alkera-local\".\"bq_e2e_scratch\".\"drop_me\""
