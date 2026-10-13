@@ -63,6 +63,16 @@ authentication included, write their row too. Targets: `sigma:workbook:<id>`,
 `sigma:data-model:<id>`, `sigma:connection:<id>`, `sigma:query:<id>`,
 `sigma:session`; an export's `read_targets` are the warehouse relations it read.
 
+THE BROWSER UI (native/ui/sigma.py) is mounted in this app at the end of the
+module: workbook pages at the path of a document's `url`
+(`/alkera/workbook/<slug>-<urlId>`), its elements as the tables an export
+downloads, a column-formula editor that publishes through `_publish_workbook`,
+and data model pages. Its rows are `sigma.ui_*`, through the same `Ledger`. It
+signs in with a cookie session opened by UI_PASSWORD (`uiSessions` in the
+state), never by an API credential, and a session is never a bearer token. Its
+paths are all under `/alkera`; the `/{path:path}` fallback stays the last
+route (`_catch_all_last`), so every other path is still `unknown_route`.
+
 ELEMENT SQL AND COLUMNS (formats/sigma/elements.py). An element's `query` is
 the engine's query for it - the one an export runs - over the PUBLISHED
 workbook and data model, in the connection's table names
@@ -113,6 +123,13 @@ DEFAULT_LIMIT = 50
 MAX_LIMIT = 1000
 TOKEN_SECONDS = 3599
 EXPORT_TYPES = {"csv": "text/csv", "json": "application/json", "jsonl": "application/jsonl"}
+
+#: The browser UI's sign-in password (native/ui/sigma.py). Obviously fake, by
+#: the same repo rule as DEV_TOKEN, and deliberately NOT DEV_TOKEN: the UI and
+#: the API are two doors with two credentials, so `POST /v2/auth/token` refuses
+#: this, the sign-in form refuses the API secret, and a UI session cookie is
+#: not a bearer token (tests/test_ui_sigma.py).
+UI_PASSWORD = "alkera-local-ui"
 
 app = FastAPI(title="Sigma Computing REST API (alkera native surface)", docs_url=None,
               redoc_url=None, openapi_url=None)
@@ -239,6 +256,31 @@ class SigmaStore:
         observation.read_targets = ["sigma:session"]
         return {"access_token": access, "refresh_token": refresh, "token_type": "bearer",
                 "expires_in": TOKEN_SECONDS}
+
+    # ------------------------------------------------------ browser sessions
+    def sign_in(self, email: str, password: str, observation: Observation) -> str:
+        """Open a browser session (native/ui/sigma.py) and return its cookie.
+
+        UI_PASSWORD opens one and nothing else does. Sessions live in
+        `uiSessions`, which `authenticate` never reads, so a cookie is not a
+        bearer token; the state key appears only once someone signs in."""
+        _read(observation, "sigma:session")
+        if not email or password != UI_PASSWORD:
+            raise Refusal(401, "unauthorized", "Invalid email or password")
+        self.state["counter"] += 1
+        *_rest, common = _semantic()
+        cookie = common.base62("ui-session", email, str(self.state["counter"]), length=32)
+        self.state.setdefault("uiSessions", {})[cookie] = {"email": email,
+                                                           "signedInAt": self.clock()}
+        self.save()
+        return cookie
+
+    def ui_session(self, cookie: str | None) -> dict | None:
+        return self.state.get("uiSessions", {}).get(cookie or "")
+
+    def sign_out(self, cookie: str | None) -> None:
+        if self.state.get("uiSessions", {}).pop(cookie or "", None) is not None:
+            self.save()
 
     # -------------------------------------------------------------- documents
     def workbook(self, workbook_id: str) -> dict:
@@ -1117,4 +1159,23 @@ def not_found(path: str, request: Request) -> dict:
     return _serve(request, "unknown_route", call, auth=False)
 
 
-__all__ = ["HOST", "NAME", "PORT", "SigmaStore", "app"]
+__all__ = ["HOST", "NAME", "PORT", "UI_PASSWORD", "SigmaStore", "app"]
+
+
+# ------------------------------------------------------------ the browser UI
+def _catch_all_last(app: FastAPI) -> FastAPI:
+    """Move the `/{path:path}` fallback behind every other route. Starlette
+    tries routes in order and the fallback takes every path and method, so a
+    route included after it - the UI's - would never be reached."""
+    fallback = [r for r in app.router.routes if getattr(r, "endpoint", None) is not_found]
+    for route in fallback:
+        app.router.routes.remove(route)
+    app.router.routes.extend(fallback)
+    return app
+
+
+# Last, on purpose: ui/sigma.py imports this module too, at its own end, so
+# whichever of the two is imported first finds the other's names defined.
+from ..ui import sigma as _ui  # noqa: E402
+
+_catch_all_last(_ui.mount(app))
