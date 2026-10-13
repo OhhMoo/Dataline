@@ -102,10 +102,20 @@ job's WRITE_TRUNCATE (appends), a schema change through tables.patch / update
 (recorded, the data keeps the old one), CREATE OR REPLACE of a table its own
 query reads (the source would be dropped first), CREATE / DROP SCHEMA or CREATE OR
 REPLACE inside a multi-statement script (`preflight` acts statement by
-statement), load and extract jobs (both need Cloud Storage or an upload; the
-emulator's upload route crashes) - and anything the emulator itself fails at (the
-NOT_AVAILABLE prefix). Fenced by each statement's LEADING keyword from sqlglot's
-tokenizer (FENCED_VERBS), so a keyword in a string never counts. NOT fenced, and
+statement), load and extract jobs, LOAD DATA and EXPORT DATA among them (both
+need Cloud Storage or an upload; the emulator's upload route crashes, and LOAD
+DATA ... FROM FILES answers DONE having loaded nothing), external tables and
+other external data (`external_table`: CREATE EXTERNAL TABLE / SCHEMA, DROP
+EXTERNAL TABLE, an OPTIONS list naming `uris` or `format`, a query's
+tableDefinitions, a table's externalDataConfiguration or biglakeConfiguration
+on tables.insert / patch / update, a dataset's externalDatasetReference - with a
+gs:// URI the engine dials Cloud Storage, which has no route, and hangs past 30 s,
+it and every request after it; a BigLake table or a federated dataset it files
+as a plain one) - and anything the emulator itself fails at (the NOT_AVAILABLE
+prefix). No query can read an external table: none can be made here, and the
+seed makes none. Fenced by each statement's LEADING keyword from sqlglot's
+tokenizer (FENCED_VERBS), external data by its header and OPTIONS words
+(`external_data`), so a keyword in a string never counts. NOT fenced, and
 written down: INT64 arithmetic wraps on overflow where BigQuery raises. The
 Storage Read API (gRPC) is not proxied: the client library falls back to REST
 without google-cloud-bigquery-storage, which the client lock does not install.
@@ -166,9 +176,17 @@ REFUSALS = {
     "dry_run": COST_REFUSAL,
     "legacy_sql": (f"{NOT_AVAILABLE}: legacy SQL (useLegacySql=true); "
                    "send GoogleSQL with useLegacySql=false"),
-    "load_job": (f"{NOT_AVAILABLE}: load jobs (Cloud Storage and file uploads); "
-                 "use INSERT statements or tabledata.insertAll"),
-    "extract_job": f"{NOT_AVAILABLE}: extract jobs (they write to Cloud Storage)",
+    "load_job": (f"{NOT_AVAILABLE}: load jobs and LOAD DATA (Cloud Storage and file "
+                 "uploads); use INSERT statements or tabledata.insertAll"),
+    "extract_job": (f"{NOT_AVAILABLE}: extract jobs and EXPORT DATA (they write to "
+                    "Cloud Storage)"),
+    "external_table": (f"{NOT_AVAILABLE}: external tables and other external data "
+                       "(CREATE EXTERNAL TABLE / SCHEMA, OPTIONS uris / format, a query's "
+                       "tableDefinitions, a table's externalDataConfiguration or "
+                       "biglakeConfiguration, a dataset's externalDatasetReference): they "
+                       "read Cloud Storage (gs://) or another outside source, which this "
+                       "environment does not have; create a native table and load it with "
+                       "INSERT statements or tabledata.insertAll"),
     "alter": (f"{NOT_AVAILABLE}: ALTER statements (the engine acknowledges them and "
               "changes nothing); create the table again instead"),
     "transaction": (f"{NOT_AVAILABLE}: transactions and BEGIN...END blocks (BEGIN "
@@ -202,10 +220,17 @@ REFUSALS = {
 #: back to an opaque Command for `ALTER TABLE ... ALTER COLUMN` and `EXECUTE`.
 FENCED_VERBS = {"ALTER": "alter", "EXECUTE": "execute_immediate", "ASSERT": "assert",
                 "BEGIN": "transaction", "COMMIT": "transaction",
-                "ROLLBACK": "transaction",
+                "ROLLBACK": "transaction", "LOAD": "load_job", "EXPORT": "extract_job",
                 **dict.fromkeys(("IF", "WHILE", "LOOP", "REPEAT", "FOR", "CASE", "CALL",
                                  "RAISE", "LEAVE", "ITERATE", "BREAK", "CONTINUE",
                                  "RETURN"), "scripting")}
+#: The words that may stand between CREATE / DROP and EXTERNAL in a statement's
+#: header: CREATE [OR REPLACE] [TEMP] EXTERNAL TABLE (`external_data`).
+HEADER_WORDS = frozenset({"OR", "REPLACE", "TEMP", "TEMPORARY"})
+#: OPTIONS (...) keys only external data takes: where its files are, and their format.
+EXTERNAL_OPTIONS = frozenset({"URIS", "FORMAT"})
+#: A table resource's fields that put its data outside the engine.
+EXTERNAL_TABLE_FIELDS = ("externalDataConfiguration", "biglakeConfiguration")
 #: The flag a refused request's row carries, with the REFUSALS key after it.
 REFUSED_FLAG = "refused:"
 
@@ -610,6 +635,16 @@ class Plan:
             dest = config["copy"].get("destinationTable") or {}
             if dest.get("tableId"):
                 self.targets = [_ref_name(dest, self.project)]
+        elif op in ("table_insert", "table_patch", "table_update") and any(
+                self.body.get(key) for key in EXTERNAL_TABLE_FIELDS):
+            self.refuse("external_table")
+            ref = self.body.get("tableReference")
+            if op == "table_insert" and isinstance(ref, dict) and ref.get("tableId"):
+                self.targets = [_ref_name({"datasetId": params.get("dataset"), **ref},
+                                          self.project)]
+        elif op in ("dataset_insert", "dataset_patch", "dataset_update") \
+                and self.body.get("externalDatasetReference"):
+            self.refuse("external_table")
         elif op == "tabledata_insert_all":
             self.args["rows"] = len(self.body.get("rows") or [])
 
@@ -663,6 +698,8 @@ class Plan:
             self.refuse("dry_run")
         elif query.get("useLegacySql") is True:
             self.refuse("legacy_sql")
+        elif holder.get("tableDefinitions") or query.get("tableDefinitions"):
+            self.refuse("external_table")
         elif (feature := fence(self.sql, self.trees, self.project,
                                self.default_dataset)) is not None:
             self.refuse(feature)
@@ -729,6 +766,8 @@ def fence(sql: str, trees: list, project: str, dataset: str | None) -> str | Non
     for verb in verbs:
         if verb in FENCED_VERBS:
             return FENCED_VERBS[verb]
+    if external_data(sql):
+        return "external_table"
     try:
         words = [w for _, w in split_statements(sql)]
     except SqlglotError:
@@ -757,6 +796,47 @@ def fence(sql: str, trees: list, project: str, dataset: str | None) -> str | Non
         if target is not None and _ref_name(target, project) in sources:
             return "replace_reads_itself"
     return None
+
+
+def external_data(sql: str) -> bool:
+    """Whether a statement in `sql` makes, drops or describes external data:
+    CREATE [OR REPLACE] [TEMP] EXTERNAL TABLE / SCHEMA, DROP EXTERNAL TABLE, or an
+    OPTIONS (...) list with a `uris` or `format` key. Read from sqlglot's
+    tokenizer - it parses some of these and falls back to an opaque Command for
+    the rest - and only words count: never a string or a quoted name."""
+    from sqlglot.dialects.dialect import Dialect
+    from sqlglot.errors import SqlglotError
+    from sqlglot.tokens import TokenType
+
+    try:
+        tokens = Dialect.get_or_raise("bigquery").tokenize(sql)
+    except SqlglotError:
+        return False            # answered invalidQuery before any fence (`Plan`)
+    words = [None if t.token_type == TokenType.IDENTIFIER
+             or t.token_type.name.endswith("STRING") else t.text.upper() for t in tokens]
+    kinds = [t.token_type for t in tokens] + [None]     # None: past the last token
+    header = False
+    for i, word in enumerate(words):
+        if i == 0 or kinds[i - 1] == TokenType.SEMICOLON:
+            header = word in ("CREATE", "DROP")
+        elif header:
+            if word == "EXTERNAL":
+                return True
+            header = word in HEADER_WORDS
+        if word != "OPTIONS" or kinds[i + 1] != TokenType.L_PAREN:
+            continue
+        depth = 0
+        for j in range(i + 1, len(tokens)):
+            if kinds[j] in (TokenType.L_PAREN, TokenType.L_BRACKET):
+                depth += 1
+            elif kinds[j] in (TokenType.R_PAREN, TokenType.R_BRACKET):
+                depth -= 1
+                if depth == 0:
+                    break
+            elif depth == 1 and words[j] in EXTERNAL_OPTIONS and kinds[j + 1] == \
+                    TokenType.EQ and kinds[j - 1] in (TokenType.L_PAREN, TokenType.COMMA):
+                return True
+    return False
 
 
 def _prepared(tree) -> bool:

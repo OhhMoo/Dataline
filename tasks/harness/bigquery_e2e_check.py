@@ -16,8 +16,11 @@ INSIDE the episode container:
       INSERT + SELECT on a scratch dataset; the fences (dry run, legacy SQL, ALTER,
       a transaction - its INSERT never reaching the engine -, procedural
       scripting, a syntax error and an untokenizable query answered at once,
-      never retried), each refused query a `bigquery.statement` row flagged
-      `refused:<feature>`, the untokenizable one a single `unparsed_statement`
+      never retried; external data over gs:// - CREATE EXTERNAL TABLE, a query's
+      tableDefinitions, tables.insert with externalDataConfiguration - and LOAD
+      DATA, each refused at once and the engine answering right after: before the
+      fence it hung on Cloud Storage), each refused query a `bigquery.statement`
+      row flagged `refused:<feature>`, the untokenizable one a single `unparsed_statement`
       row; a `SELECT; DROP` script a destructive row; `list_rows(max_results=5)`
       five rows;
   (b) dbt-bigquery (gateway/docker/bigquery-clients.in) through the box's own dbt
@@ -135,6 +138,27 @@ out["transaction"] = refused(lambda: client.query(
 out["bad_sql"] = refused(lambda: client.query("SELEC 1").result())
 out["scripting"] = refused(lambda: client.query("IF TRUE THEN SELECT 1; END IF").result())
 out["untokenizable"] = refused(lambda: client.query("SELECT 'abc").result())
+# external data over gs://: no Cloud Storage here, and the engine hung on it
+gcs = "gs://alkera-e2e/orders/*.csv"
+external = bigquery.ExternalConfig("CSV")
+external.source_uris = [gcs]
+external.schema = [bigquery.SchemaField("id", "INT64")]
+ext_table = bigquery.Table(f"{project}.bq_e2e_scratch.ext_orders")
+ext_table.external_data_configuration = external
+out["external_table_sql"] = refused(lambda: client.query(
+    f"CREATE EXTERNAL TABLE `{project}.bq_e2e_scratch.ext_orders` "
+    f"OPTIONS (format = 'CSV', uris = ['{gcs}'])", timeout=30).result(timeout=30))
+out["external_table_definition"] = refused(lambda: client.query(
+    "SELECT COUNT(*) FROM ext_orders", timeout=30,
+    job_config=bigquery.QueryJobConfig(table_definitions={"ext_orders": external})
+).result(timeout=30))
+out["external_table_rest"] = refused(lambda: client.create_table(ext_table, timeout=30))
+out["load_data"] = refused(lambda: client.query(
+    f"LOAD DATA INTO `{project}.bq_e2e_scratch.notes` FROM FILES (format = 'CSV', "
+    f"uris = ['{gcs}'])", timeout=30).result(timeout=30))
+started = time.monotonic()
+out["after_external"] = run("SELECT 'engine still answers' AS after_external")[1]
+out["after_external_seconds"] = round(time.monotonic() - started, 2)
 run(f"CREATE TABLE `{project}.bq_e2e_scratch.drop_me` (a INT64)")
 out["drop_script"] = f"SELECT 1; /* tidy */ DROP TABLE `{project}.bq_e2e_scratch.drop_me`"
 run(out["drop_script"])
@@ -442,11 +466,20 @@ def main(argv=None) -> int:
                                  ("transaction", 501, "transactions"),
                                  ("scripting", 501, "procedural scripting"),
                                  ("untokenizable", 400, "Syntax error"),
-                                 ("bad_sql", 400, "Syntax error")):
+                                 ("bad_sql", 400, "Syntax error"),
+                                 ("external_table_sql", 501, "external tables"),
+                                 ("external_table_definition", 501, "external tables"),
+                                 ("external_table_rest", 501, "external tables"),
+                                 ("load_data", 501, "LOAD DATA")):
             seen = got.get(name) or {}
             check(f"fence: {name} refused by name, at once ({code})",
                   seen.get("code") == code and text in seen.get("message", "")
                   and seen.get("seconds", 99) < 10, seen)
+        check("fence: external data over gs:// never reached the engine - it answers "
+              "at once after every attempt",
+              got.get("after_external") == [["engine still answers"]]
+              and got.get("after_external_seconds", 99) < 10,
+              {k: got.get(k) for k in ("after_external", "after_external_seconds")})
         check("fence: the refused transaction's INSERT never reached the engine",
               got.get("read_back_after_fences") == [["1", "alpha"], ["2", "beta"]],
               got.get("read_back_after_fences"))
@@ -472,12 +505,18 @@ def main(argv=None) -> int:
             f.startswith("refused:") for f in r["flags"])]
         record["refused_rows"] = [{k: r[k] for k in ("seq", "tool", "op_class", "exit",
                                                      "flags")} for r in refusals]
+        queries = [r for r in refusals if r["tool"] == TOOL]
         check("audit: each refused query is a bigquery.statement row, exit error, "
               "flagged refused:<feature>",
-              {r["args"].get("feature") for r in refusals}
-              == {"dry_run", "legacy_sql", "alter", "transaction", "scripting"}
-              and all(r["tool"] == TOOL and r["exit"] == "error" and r["args"].get("sql")
-                      for r in refusals),
+              {r["args"].get("feature") for r in queries}
+              == {"dry_run", "legacy_sql", "alter", "transaction", "scripting",
+                  "external_table", "load_job"}
+              and all(r["exit"] == "error" and r["args"].get("sql") for r in queries),
+              record["refused_rows"])
+        check("audit: the external table over REST is one bigquery.table_insert row, "
+              "exit error, flagged refused:external_table",
+              [(r["tool"], r["exit"], r["flags"]) for r in refusals if r["tool"] != TOOL]
+              == [("bigquery.table_insert", "error", ["refused:external_table"])],
               record["refused_rows"])
         unparsed = [r for r in probe_rows if r["args"].get("sql") == "SELECT 'abc"]
         check("audit: an untokenizable query is exactly one statement row, "

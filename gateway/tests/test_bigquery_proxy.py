@@ -13,9 +13,11 @@ What is held: one 9.2.2 row per request, on file before the response starts; the
 seed's counts are the world's; Google's error envelope for a route BigQuery does
 not publish; GoogleSQL answers equal to DuckDB's on the same rows; and the fences -
 cost, legacy SQL, load jobs, ALTER, transactions, EXECUTE IMMEDIATE, ASSERT, a
-truncating destination, a schema patch - refused by name, never answered wrongly; and
-a refused query is still a `bigquery.statement` row (`refused:<feature>`, exit error),
-so the path rules read the attempt.
+truncating destination, a schema patch, external tables (no Cloud Storage here) -
+refused by name, never answered wrongly; and a refused query is still a
+`bigquery.statement` row (`refused:<feature>`, exit error), so the path rules read
+the attempt. The external-data fences are held against an engine double that hangs
+(`gcs_less_engine`), so they run without the emulator binary too.
 """
 from __future__ import annotations
 
@@ -747,6 +749,285 @@ def test_untokenizable_sql_is_one_row_and_a_400(client, emulator, audit):
             assert "unparsed_statement" in row["flags"]
     assert _statement(audit, "DROP TABLE x")["op_class"] == "destructive"
     assert set(upstream_jobs(emulator)) == jobs            # nothing was forwarded
+
+
+# ------------------------------------------- external data: no Cloud Storage here
+#: How long the engine double holds a request: what a gs:// URI did to the real
+#: engine in the container (gateway/docker/evidence/PEERS_2026-10-13.md: it dials
+#: Cloud Storage, which has no route, past a 30 s client timeout), cut short.
+ENGINE_HANG_S = 5.0
+#: A refusal by name is answered before any upstream call: well under a second.
+FAST_S = 1.0
+GCS_CSV = "gs://alkera-world/orders/*.csv"
+EXTERNAL_CONFIG = {"sourceUris": [GCS_CSV], "sourceFormat": "CSV",
+                   "schema": {"fields": [{"name": "order_id", "type": "INTEGER"}]}}
+
+
+@pytest.fixture
+def gcs_less_engine():
+    """A test double for the engine with no route to Cloud Storage: every request
+    is recorded, then held ENGINE_HANG_S before a bare `{}`. A request that
+    reaches it is seen, and slow."""
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+    from types import SimpleNamespace
+
+    seen: list[tuple[str, str]] = []
+
+    class Hang(BaseHTTPRequestHandler):
+        def hang(self):
+            seen.append((self.command, self.path))
+            time.sleep(ENGINE_HANG_S)
+            self.send_response(200)
+            self.send_header("content-type", "application/json")
+            self.send_header("content-length", "2")
+            self.end_headers()
+            self.wfile.write(b"{}")
+
+        do_GET = do_POST = do_PUT = do_PATCH = do_DELETE = hang
+
+        def log_message(self, *args):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Hang)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    yield SimpleNamespace(url=f"http://127.0.0.1:{server.server_address[1]}", requests=seen)
+    server.shutdown()
+    server.server_close()
+
+
+@pytest.fixture
+def gcs_less_client(gcs_less_engine, audit):
+    """The real client, through the proxy served on loopback, in front of the
+    engine double."""
+    import uvicorn
+    from google.api_core.client_options import ClientOptions
+    from google.auth.credentials import AnonymousCredentials
+    from google.cloud import bigquery
+
+    app = bq.build_app(upstream=gcs_less_engine.url, seed={"tables": {"x": 1}})
+    port = free_port()
+    server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port,
+                                           log_level="warning"))
+    thread = threading.Thread(target=server.run, daemon=True)
+    thread.start()
+    deadline = time.monotonic() + 10
+    while not server.started and time.monotonic() < deadline:
+        time.sleep(0.05)
+    made = bigquery.Client(project=PROJECT, credentials=AnonymousCredentials(),
+                           client_options=ClientOptions(api_endpoint=f"http://127.0.0.1:{port}"))
+    yield made
+    made.close()
+    server.should_exit = True
+    thread.join(timeout=10)
+
+
+def _refused_at_once(engine, audit, method: str, path: str, body: dict,
+                     feature: str = "external_table") -> dict:
+    """One request straight into the ASGI app: refused by name in well under a
+    second, the engine never called, Google's error envelope with the feature's
+    own message, and exactly one row - on file before the response - flagged
+    `refused:<feature>`. That row."""
+    app = bq.build_app(upstream=engine.url)
+    before = len(rows_of(audit))
+    started = time.monotonic()
+    seen = _asgi(app, method, path, json.dumps(body).encode())
+    elapsed = time.monotonic() - started
+    assert elapsed < FAST_S, f"{method} {path}: {elapsed:.2f} s - it reached the engine"
+    assert engine.requests == [], engine.requests
+    assert seen["status"] == 501, seen
+    error = json.loads(seen["body"])["error"]
+    assert error == {"code": 501, "status": "UNIMPLEMENTED",
+                     "message": bq.REFUSALS[feature],
+                     "errors": [{"message": bq.REFUSALS[feature], "domain": "global",
+                                 "reason": "notImplemented"}]}
+    assert seen["rows_at_start"] == before + 1           # the row, before the answer
+    rows = rows_of(audit)[before:]
+    assert len(rows) == 1, [r["tool"] for r in rows]
+    row = rows[0]
+    assert [f for f in row["flags"] if f.startswith(bq.REFUSED_FLAG)] == \
+        [f"{bq.REFUSED_FLAG}{feature}"]
+    assert row["exit"] == "error" and row["error"] == {"code": "not_available",
+                                                       "message": bq.REFUSALS[feature]}
+    assert row["args"]["feature"] == feature and set(row) == set(ROW_KEYS)
+    return row
+
+
+def _client_refused_at_once(engine, audit, call, text: str) -> dict:
+    """The real client's call raises the refusal at once, unretried, and leaves
+    exactly one new row, flagged; the engine never saw it. That row."""
+    from google.api_core import exceptions
+
+    before = len(rows_of(audit))
+    started = time.monotonic()
+    with pytest.raises(exceptions.GoogleAPICallError) as raised:
+        call()
+    assert time.monotonic() - started < FAST_S, "it reached the engine, or was retried"
+    assert raised.value.code == 501 and text in str(raised.value), raised.value
+    assert raised.value.errors[0]["reason"] == "notImplemented"
+    assert engine.requests == [], engine.requests
+    rows = rows_of(audit)[before:]
+    assert len(rows) == 1, [r["tool"] for r in rows]
+    assert "refused:external_table" in rows[0]["flags"]
+    return rows[0]
+
+
+def test_external_table_over_gcs_is_refused_by_name(gcs_less_engine, gcs_less_client,
+                                                     audit):
+    """CREATE EXTERNAL TABLE over gs:// URIs: the engine dials Cloud Storage, which
+    has no route here, and hangs - and every request after it. Refused by name,
+    before any engine call, on both statement routes; so is every other external
+    data statement, an OPTIONS list naming `uris` or `format` included, whether
+    sqlglot parses it or falls back to an opaque Command."""
+    jobs = f"/bigquery/v2/projects/{PROJECT}/jobs"
+    queries = f"/bigquery/v2/projects/{PROJECT}/queries"
+    for sql, op_class in (
+            (f"CREATE EXTERNAL TABLE `{PROJECT}.warehouse.ext_orders` "
+             f"OPTIONS (format = 'CSV', uris = ['{GCS_CSV}'])", "ddl"),
+            ("create or replace external table warehouse.ext_orders (order_id INT64) "
+             "options (format='PARQUET', uris=['gs://alkera-world/orders.parquet'])",
+             "destructive"),                       # a replace drops: the classifier's rule
+            ("CREATE EXTERNAL TABLE IF NOT EXISTS warehouse.ext_orders WITH CONNECTION "
+             f"`us.gcs` OPTIONS (format='CSV', uris=['{GCS_CSV}'])", "ddl"),
+            ("CREATE EXTERNAL TABLE warehouse.ext_orders WITH PARTITION COLUMNS OPTIONS "
+             "(format='CSV', uris=['gs://alkera-world/o/*'], "
+             "hive_partition_uri_prefix='gs://alkera-world/o')", "ddl"),
+            ("CREATE TEMP EXTERNAL TABLE ext OPTIONS (format='CSV', "
+             f"uris=['{GCS_CSV}'])", "ddl"),
+            (f"SELECT 1; CREATE EXTERNAL TABLE warehouse.ext_orders OPTIONS (format='CSV', "
+             f"uris=['{GCS_CSV}'])", "ddl"),
+            (f"CREATE TABLE warehouse.ext_orders OPTIONS (format='CSV', uris=['{GCS_CSV}'])",
+             "ddl"),
+            ("CREATE EXTERNAL SCHEMA fed WITH CONNECTION `us.glue` OPTIONS "
+             "(external_source='aws-glue://arn:aws:glue:us-east-1:1:database/x', "
+             "location='aws-us-east-1')", "ddl"),
+            ("DROP EXTERNAL TABLE warehouse.ext_orders", "destructive")):
+        for path, body in ((jobs, {"configuration": {"query": {
+                                "query": sql, "useLegacySql": False}}}),
+                           (queries, {"query": sql, "useLegacySql": False})):
+            row = _refused_at_once(gcs_less_engine, audit, "POST", path, body)
+            # a refused query is the statement it was, classified by its SQL
+            assert row["tool"] == "bigquery.statement" and row["args"]["sql"] == sql
+            assert row["op_class"] == op_class, (sql, row["op_class"])
+    assert "external tables" in bq.REFUSALS["external_table"]
+    assert "Cloud Storage" in bq.REFUSALS["external_table"]
+    # the real client, as the agent sends it
+    row = _client_refused_at_once(gcs_less_engine, audit, lambda: gcs_less_client.query(
+        f"CREATE EXTERNAL TABLE `{PROJECT}.warehouse.ext_orders` OPTIONS (format='CSV', "
+        f"uris=['{GCS_CSV}'])").result(), "external tables")
+    assert row["tool"] == "bigquery.statement"
+    # words only: a keyword in a string, a column or a table named like an
+    # option, a gs:// path in a description, FORMAT() the function - forwarded
+    for sql in ("SELECT 'CREATE EXTERNAL TABLE t OPTIONS (uris = [1])' AS s",
+                "CREATE TABLE warehouse.notes (uris STRING, format STRING) OPTIONS "
+                "(description = 'copied from gs://alkera-world/notes.csv')",
+                "SELECT uris, format FROM warehouse.notes WHERE uris = 'gs://x'",
+                f"CREATE TABLE `{PROJECT}.warehouse.external` (a INT64)",
+                "CREATE OR REPLACE TABLE warehouse.external AS SELECT FORMAT('%d', 1) AS f",
+                "DROP TABLE warehouse.external"):
+        assert bq.fence(sql, bq.statements(sql), PROJECT, None) is None, sql
+
+
+def test_query_with_external_table_definition_is_refused_by_name(gcs_less_engine,
+                                                                gcs_less_client, audit):
+    """A query job's tableDefinitions - a temporary table over gs:// files - would
+    send the engine to Cloud Storage; it answered `Table not found` for the name
+    it defines. Refused by name, the query still its statement row."""
+    from google.cloud import bigquery
+
+    sql = "SELECT COUNT(*) AS n FROM ext_orders"
+    defs = {"ext_orders": EXTERNAL_CONFIG}
+    row = _refused_at_once(gcs_less_engine, audit, "POST",
+                           f"/bigquery/v2/projects/{PROJECT}/jobs",
+                           {"jobReference": {"projectId": PROJECT, "jobId": "ext-defs"},
+                            "configuration": {"query": {"query": sql, "useLegacySql": False,
+                                                        "tableDefinitions": defs}}})
+    assert row["tool"] == "bigquery.statement" and row["args"]["sql"] == sql
+    assert row["op_class"] == "read"
+    # jobs.query does not publish tableDefinitions; sent anyway, it is refused too
+    row = _refused_at_once(gcs_less_engine, audit, "POST",
+                           f"/bigquery/v2/projects/{PROJECT}/queries",
+                           {"query": sql, "useLegacySql": False, "tableDefinitions": defs})
+    assert row["tool"] == "bigquery.statement"
+    # the real client's QueryJobConfig(table_definitions=...)
+    external = bigquery.ExternalConfig("CSV")
+    external.source_uris = [GCS_CSV]
+    external.schema = [bigquery.SchemaField("order_id", "INT64")]
+    row = _client_refused_at_once(gcs_less_engine, audit, lambda: gcs_less_client.query(
+        sql, job_config=bigquery.QueryJobConfig(table_definitions={"ext_orders": external})
+    ).result(), "external tables")
+    assert row["tool"] == "bigquery.statement" and row["args"]["sql"] == sql
+
+
+def test_tables_insert_with_external_data_configuration_is_refused(gcs_less_engine,
+                                                                  gcs_less_client, audit):
+    """tables.insert with externalDataConfiguration over gs:// is the measured
+    hang: the engine dialled Cloud Storage and every request after it timed out.
+    Refused by name on tables.insert / patch / update - and biglakeConfiguration
+    too, which the engine answers 200 and files as a plain table."""
+    from google.cloud import bigquery
+
+    tables = f"/bigquery/v2/projects/{PROJECT}/datasets/warehouse/tables"
+    ref = {"projectId": PROJECT, "datasetId": "warehouse", "tableId": "ext_orders"}
+    biglake = {"connectionId": "us.gcs", "storageUri": "gs://alkera-world/iceberg/",
+               "fileFormat": "PARQUET", "tableFormat": "ICEBERG"}
+    for method, path, body in (
+            ("POST", tables, {"tableReference": ref,
+                              "externalDataConfiguration": EXTERNAL_CONFIG}),
+            ("POST", tables, {"tableReference": ref, "biglakeConfiguration": biglake,
+                              "schema": EXTERNAL_CONFIG["schema"]}),
+            ("PATCH", f"{tables}/fct_orders", {"externalDataConfiguration": EXTERNAL_CONFIG}),
+            ("PUT", f"{tables}/fct_orders", {"tableReference": {**ref, "tableId": "fct_orders"},
+                                              "externalDataConfiguration": EXTERNAL_CONFIG})):
+        row = _refused_at_once(gcs_less_engine, audit, method, path, body)
+        assert row["op_class"] == "ddl"
+        name = "ext_orders" if method == "POST" else "fct_orders"
+        assert row["targets"] == [f"{PROJECT}.warehouse.{name}"], row["targets"]
+        assert row["tool"] == {"POST": "bigquery.table_insert", "PATCH": "bigquery.table_patch",
+                               "PUT": "bigquery.table_update"}[method]
+    # the real client's create_table with an ExternalConfig
+    table = bigquery.Table(f"{PROJECT}.warehouse.ext_orders")
+    external = bigquery.ExternalConfig("CSV")
+    external.source_uris = [GCS_CSV]
+    table.external_data_configuration = external
+    row = _client_refused_at_once(gcs_less_engine, audit,
+                                  lambda: gcs_less_client.create_table(table),
+                                  "external tables")
+    assert row["tool"] == "bigquery.table_insert"
+
+
+def test_federated_dataset_is_refused_as_external_data(gcs_less_engine, audit):
+    """datasets.insert with externalDatasetReference (CREATE EXTERNAL SCHEMA's REST
+    form): the engine answers 200 and files a plain, empty dataset."""
+    row = _refused_at_once(gcs_less_engine, audit, "POST",
+                           f"/bigquery/v2/projects/{PROJECT}/datasets",
+                           {"datasetReference": {"projectId": PROJECT, "datasetId": "fed"},
+                            "externalDatasetReference": {
+                                "externalSource": "aws-glue://arn:aws:glue:us-east-1:1:database/x",
+                                "connection": "projects/p/locations/aws-us-east-1/connections/c"}})
+    assert row["tool"] == "bigquery.dataset_insert" and row["op_class"] == "ddl"
+
+
+def test_load_and_export_data_statements_are_refused_as_load_and_extract_jobs(
+        gcs_less_engine, audit):
+    """LOAD DATA ... FROM FILES is a load job in SQL: the engine answers DONE and
+    loads nothing. EXPORT DATA is an extract job in SQL: it dials Cloud Storage.
+    Refused by name, as their REST forms are."""
+    jobs = f"/bigquery/v2/projects/{PROJECT}/jobs"
+    for sql, feature in (
+            (f"LOAD DATA INTO warehouse.fct_orders FROM FILES (format='CSV', "
+             f"uris=['{GCS_CSV}'])", "load_job"),
+            (f"load data overwrite warehouse.fresh (a INT64) from files (format='CSV', "
+             f"uris=['{GCS_CSV}'])", "load_job"),
+            (f"SELECT 1; LOAD DATA INTO warehouse.fct_orders FROM FILES (format='CSV', "
+             f"uris=['{GCS_CSV}'])", "load_job"),
+            ("EXPORT DATA OPTIONS (uri='gs://alkera-world/out/*.csv', format='CSV') AS "
+             "SELECT order_id FROM warehouse.fct_orders", "extract_job")):
+        row = _refused_at_once(gcs_less_engine, audit, "POST", jobs, {
+            "configuration": {"query": {"query": sql, "useLegacySql": False}}}, feature)
+        assert row["tool"] == "bigquery.statement" and row["args"]["sql"] == sql
+    assert "LOAD DATA" in bq.REFUSALS["load_job"] and "load jobs" in bq.REFUSALS["load_job"]
+    assert "EXPORT DATA" in bq.REFUSALS["extract_job"]
 
 
 # ---------------------------------------------------------- module contract
