@@ -123,11 +123,17 @@ the same `<rollout>/service-state/bi` - outside every directory the subject is
 pointed at, but a host subject can write anywhere, which is one more reason host
 native is not `measurement_valid`. Variables:
 
-| vendor | variables (values: the `.internal` URL, or `alkera-local-dev`) |
-|---|---|
-| powerbi | `POWERBI_API_URL`, `FABRIC_API_URL`, `AZURE_AUTHORITY_HOST` (one URL: one service answers all three hosts), `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_TENANT_ID` |
-| tableau | `TABLEAU_SERVER_URL`, `TABLEAU_SITE` (`""`, the Default site), `TABLEAU_PAT_NAME`, `TABLEAU_PAT_SECRET` |
-| sigma | `SIGMA_BASE_URL`, `SIGMA_CLIENT_ID`, `SIGMA_CLIENT_SECRET` |
+| vendor | variables (values: the `.internal` URL, or `alkera-local-dev`) | browser UI sign-in (in no box env) |
+|---|---|---|
+| powerbi | `POWERBI_API_URL`, `FABRIC_API_URL`, `AZURE_AUTHORITY_HOST` (one URL: one service answers all three hosts), `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_TENANT_ID` | none (no UI clone) |
+| tableau | `TABLEAU_SERVER_URL`, `TABLEAU_SITE` (`""`, the Default site), `TABLEAU_PAT_NAME`, `TABLEAU_PAT_SECRET` | `services.tableau.UI_PASSWORD`, any user name, at `/signin` (`native/ui/tableau.py`) |
+| sigma | `SIGMA_BASE_URL`, `SIGMA_CLIENT_ID`, `SIGMA_CLIENT_SECRET` | `services.sigma.UI_PASSWORD`, any email, at `/alkera/login` (`native/ui/sigma.py`) |
+
+Each UI password is a service constant of its own: the vendor's API refuses it and its
+UI refuses the API credential. It is deliberately in no box env and no discovery file
+(`.envrc`, `services.toml`, `docs/onboarding.md`, the plug env), so the BI001/BI002
+da/laptop worlds stay byte-identical; a task's brief hands it out
+(`docs/environments/UI_CLONE_PLAN.md`).
 
 ## The harness
 

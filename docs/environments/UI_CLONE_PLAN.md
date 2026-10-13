@@ -129,13 +129,45 @@ read. There is one source of truth, and the UI is one more client of it.
 - `gateway/tests/test_ui_tableau.py` (14 tests) adds the checks for all of the
   above; `test_tableau_service.py` adds `test_url_filter_matches_by_caption`.
 
+## Built (phase 3, Sigma, 2026-10-13)
+
+- `gateway/src/alkera_gateway/native/ui/sigma.py`, mounted at the end of
+  `services/sigma.py` (`_catch_all_last(_ui.mount(app))`), so `sigma.internal:8097`
+  serves the API and the browser from one process. Its pages are under `/alkera`
+  (the org of a document's API `url`): sign in and out, the workbook and data
+  model list, `/alkera/workbook/<slug>-<urlId>[/page/<pageId>]` (each element's
+  table, chart or KPIs, and columns), a column's formula editor
+  (`.../element/<id>/column/<id>`, GET/POST) and `/alkera/data-model/<slug>-<urlId>`
+  (read-only). Tool names are `sigma.ui_*`.
+- An element's table is the `POST /v2/workbooks/{id}/export` CSV, cell for cell. A
+  formula is published through `_publish_workbook`, as `PUT .../contents` does; a
+  refused one shows the front-end's message and publishes nothing, and a page
+  rendered from an older `documentVersion` gets Sigma's 409.
+- The `/{path:path}` fallback stays the last route, so every path outside `/alkera`,
+  `/v2/...` included, is still a `sigma.unknown_route` 404.
+- Its own sign-in: a cookie session (`sigma_session`, `uiSessions` in the state)
+  that only `services.sigma.UI_PASSWORD` opens. The token endpoint refuses that
+  password, the form refuses the API secret, and a session is not a bearer token.
+- Not imitated: editing anything but an existing column's formula, drafts, folders,
+  sharing, version history (the module docstring lists them).
+- `gateway/tests/test_ui_sigma.py` checks the above, including
+  `test_unknown_api_routes_still_404_after_ui_mount` and
+  `test_ui_password_is_not_an_api_token`.
+
+**UI passwords are service constants, not box env.** `services.tableau.UI_PASSWORD`
+and `services.sigma.UI_PASSWORD` are in no box env and no discovery file. A task's
+brief hands them out; the browser tour probes (`tasks/harness/tool_tour_probes/
+browser.py`) state them, as oracles. The discovery files are part of the BI001/BI002
+da/laptop worlds: wiring a UI password into them moves BI001's workspace digest
+(measured with Tableau's, phase 2 above).
+
 ## Phases
 
 | # | What | Size |
 |---|------|------|
 | 1 | Tableau slice (above) | done |
 | 2 | Wire `mount` into `services/tableau.py`; publicize helpers; add a `/projects` page; workbook-local calcs and embedded `.twb` data sources; `.tdsx` repack; URL filters (`?region=EMEA`, as Tableau view URLs take them); a UI password of its own | done |
-| 3 | Sigma: `/workbook/<slug>-<id>` pages, elements as tables/charts, a column-formula editor through `_publish_workbook` (insert routes before the catch-all), data-model page | M |
-| 4 | Agent harness: Playwright MCP / browser tool in the episode image (arm64 build check, +~300 MB); a task variant that is UI-only (no REST token in the brief); trajectory checks that a UI save produced the row | M |
+| 3 | Sigma: `/workbook/<slug>-<id>` pages, elements as tables/charts, a column-formula editor through `_publish_workbook` (insert routes before the catch-all), data-model page | done |
+| 4 | Agent harness: Playwright MCP / browser tool in the episode image (arm64 build check, +~300 MB); a task variant that is UI-only (no REST token in the brief); trajectory checks that a UI save produced the row | partial: Playwright and chromium-headless-shell are in the da/ds images (plan decision D5; +900 MB on the da image, `gateway/docker/TOOLBELT.md` "Cost, measured"; arm64 inputs resolve, not built), and the browser tour probes pass (`tasks/harness/evidence/tool_tour_browser.json`, 4/4). Open: a browser MCP and a UI-only graded arm |
 | 5 | Authoring depth: create calc, rename, revert/version history, new sheet from shelves (rows/cols/marks as forms, still server-rendered) | L |
 | 6 | Computer-use desktop (Xvfb/VNC), only if a task needs pixel-level chart reading | L |
