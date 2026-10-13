@@ -250,7 +250,14 @@ def _grader(tmp_path: Path) -> Path:
     return script
 
 
-def test_grade_substitutes_the_staged_copy(tmp_path):
+@pytest.mark.parametrize("sandbox", ["host", "container"])
+def test_grade_substitutes_the_staged_copy(sandbox, tmp_path):
+    """In both grading sandboxes (test_grade_sandbox.py): the container mounts
+    the grading zone at its own path, so the staged copy's path is the same."""
+    if sandbox == "container":
+        ok, why = episode.grade_sandbox_available()
+        if not ok:
+            pytest.skip(f"container grading not exercised: {why}")
     rollout = tmp_path / "r0"
     _state(rollout)
     grading = tmp_path / "grading"
@@ -259,7 +266,8 @@ def test_grade_substitutes_the_staged_copy(tmp_path):
     (tmp_path / "world").mkdir()
     spec = SimpleNamespace(grade_entrypoint=_grader(tmp_path),
                            grade_argv=["--bi-state", "{bi_state}", "--ledger", "{ledger}"])
-    score = episode.grade(spec, world, tmp_path / "final_report.json", rollout)
+    score = episode.grade(spec, world, tmp_path / "final_report.json", rollout,
+                          sandbox=sandbox)
     assert score["argv"] == ["--bi-state", str(grading / "bi_state"), "--ledger", ""]
     assert (grading / "bi_state" / "sigma" / "state.json").is_file()
 

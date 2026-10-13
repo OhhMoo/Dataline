@@ -15,6 +15,7 @@ import os
 import shutil
 import subprocess
 from pathlib import Path
+from typing import Literal
 
 import bistate
 import ledger as ledgerlib
@@ -487,14 +488,162 @@ def probe_surfaces(spec, world: dict, scratch: Path,
 
 
 # ----------------------------------------------------------------- grading
+#: Where a task's grader runs (decision D4). A grader parses files the agent
+#: wrote, so it is the harness process most exposed to the agent's input.
+#:
+#:   host       a host subprocess with venv_env() - the harness's own
+#:              environment - as graders always ran. The host topology's
+#:              default, and what every caller that passes nothing gets (Harbor's
+#:              verifier is in its own container already).
+#:   container  the same interpreter and the same argv inside `docker run
+#:              --network none --read-only --cap-drop ALL`, as the host uid,
+#:              seeing only its mounts (sandbox_command), with exactly the five
+#:              variables of grader_env(). The container topology's default.
+GRADE_SANDBOXES = ("host", "container")
+Sandbox = Literal["host", "container"]
+#: Overrides the topology's default sandbox for every rollout (grade_sandbox).
+GRADE_SANDBOX_ENV = "ALKERA_GRADE_SANDBOX"
+#: The image the container sandbox runs; only its userland is used (glibc for
+#: the host's interpreter, /usr/bin/env, sh and git for the safegit reads).
+#: container_episode.DEFAULT_IMAGE, which imports this module, so not imported.
+GRADE_IMAGE_ENV = "ALKERA_GRADE_IMAGE"
+DEFAULT_GRADE_IMAGE = "alkera-episode:head"
+
+
+def grade_sandbox(topology: str) -> Sandbox:
+    """The sandbox a rollout of `topology` grades in: ALKERA_GRADE_SANDBOX when
+    set, else `container` for the container topology and `host` for the host
+    topology. An unknown value is refused, never read as a default."""
+    chosen = os.environ.get(GRADE_SANDBOX_ENV) or (
+        "container" if topology == "container" else "host")
+    if chosen not in GRADE_SANDBOXES:
+        raise HarnessError(f"{GRADE_SANDBOX_ENV}={chosen!r}: the grading sandbox is one "
+                           f"of {', '.join(GRADE_SANDBOXES)}")
+    return chosen
+
+
+def grade_image() -> str:
+    return os.environ.get(GRADE_IMAGE_ENV) or DEFAULT_GRADE_IMAGE
+
+
+def grader_env(pythonpath: str | None = None) -> dict:
+    """The container grader's whole environment. Pinned rather than inherited:
+    no model token or operator variable reaches a process that parses agent
+    files, and locale, zone and hash seed cannot differ between two graders."""
+    return {"PYTHONPATH": pythonpath or str(TRACK_A), "PYTHONUTF8": "1",
+            "PYTHONHASHSEED": "0", "TZ": "UTC", "LC_ALL": "C.UTF-8"}
+
+
+def grade_sandbox_available(image: str | None = None) -> tuple[bool, str]:
+    """(usable, detail): docker answers and the grader image is present."""
+    image = image or grade_image()
+    try:
+        r = subprocess.run(["docker", "image", "inspect", "--format", "{{.Id}}", image],
+                           capture_output=True, text=True, timeout=60)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return False, f"docker: {type(exc).__name__}: {exc}"
+    if r.returncode != 0:
+        return False, f"`docker image inspect {image}`: {(r.stderr or r.stdout).strip()[:300]}"
+    return True, f"{image} {r.stdout.strip()}"
+
+
+def _interpreter_binds() -> dict[Path, Path]:
+    """target -> source for the base install PY's venv was made from (its
+    pyvenv.cfg `home`), at its real path and at the path the venv names when
+    that differs: uv's `cpython-3.11-...` is a symlink to the patch version's
+    directory, and a symlink cannot be bound, so the real directory is bound
+    under both names. The venv itself is under REPO."""
+    cfg = PY.parent.parent / "pyvenv.cfg"
+    try:
+        home = next(v.strip() for k, _, v in
+                    (line.partition("=") for line in
+                     cfg.read_text(encoding="utf-8").splitlines())
+                    if k.strip() == "home")
+    except (OSError, StopIteration):
+        raise HarnessError(f"{cfg} names no `home`: the container grader runs the "
+                           f"host's own venv and cannot find its interpreter") from None
+    named = Path(home).parent
+    real = named.resolve()
+    if len(real.parts) < 2 or real.parts[1] in ("usr", "bin", "lib", "lib64", "sbin", "etc"):
+        raise HarnessError(f"{PY} runs on {real}, a system directory: the container "
+                           f"grader needs a self-contained interpreter (uv's)")
+    return {real: real, named: real}
+
+
+def _bind(source: Path, target: Path, readonly: bool) -> str:
+    fields = ["type=bind", f"source={source}", f"target={target}"]
+    fields += ["readonly"] if readonly else []
+    # docker reads --mount as one CSV record
+    return ",".join(f'"{f.replace(chr(34), chr(34) * 2)}"' if ("," in f or '"' in f) else f
+                    for f in fields)
+
+
+def sandbox_command(argv: list, *, read_only, writable: Path | None,
+                    pythonpath: str | None = None, image: str | None = None) -> list[str]:
+    """`argv` as a docker command for the container grading sandbox.
+
+    Every mount is a bind at its own absolute path, so a report that embeds a
+    path is the host's byte for byte: REPO (the grader, the world package and
+    the venv) and the venv's base interpreter read-only, each existing path in
+    `read_only` read-only, and `writable` - the rollout directory - read-write.
+    A path inside a read-only mount is not bound again; one inside `writable`
+    is, read-only, on top. A symlink is never a source: docker would resolve
+    it as root, and the agent writes some of these paths."""
+    getuid, getgid = getattr(os, "getuid", None), getattr(os, "getgid", None)
+    if getuid is None or getgid is None:
+        raise HarnessError("container grading needs a POSIX host (a uid to run as)")
+    binds: dict[Path, tuple[Path, bool]] = {}
+    if writable is not None and Path(writable).is_dir():
+        w = Path(os.path.abspath(writable))
+        binds[w] = (w, False)
+    wanted = [(t, s) for t, s in _interpreter_binds().items()]
+    for p in [REPO, *read_only]:
+        p = Path(os.path.abspath(p))
+        if p.exists() and not os.path.islink(p):
+            wanted.append((p, p))
+    for target, source in sorted(wanted, key=lambda ts: (len(ts[0].parts), str(ts[0]))):
+        if target in binds:
+            continue
+        above = [t for t in binds if target.is_relative_to(t)]
+        if above and binds[max(above, key=lambda t: len(t.parts))][1]:
+            continue                       # already visible, read-only, through that one
+        binds[target] = (source, True)
+    command = ["docker", "run", "--rm", "--pull", "never", "--network", "none",
+               "--read-only", "--tmpfs", "/tmp", "--cap-drop", "ALL",
+               "--security-opt", "no-new-privileges", "--user", f"{getuid()}:{getgid()}",
+               "--workdir", "/tmp"]
+    from container_episode import selinux_enforcing             # noqa: PLC0415 (imports us)
+    if selinux_enforcing() and os.environ.get("ALKERA_SELINUX_LABEL") != "keep":
+        # as for the episode's own containers (container_episode.selinux_overlay):
+        # an enforcing host refuses unlabelled binds, and the boundary here is
+        # the mount set, which this option does not touch
+        command += ["--security-opt", "label=disable"]
+    for target in sorted(binds, key=lambda t: (len(t.parts), str(t))):
+        source, readonly = binds[target]
+        command += ["--mount", _bind(source, target, readonly)]
+    return [*command, "--entrypoint", "/usr/bin/env", image or grade_image(), "-i",
+            *(f"{k}={v}" for k, v in grader_env(pythonpath).items()), *map(str, argv)]
+
+
 def grade(spec, world: dict, artifact_path: Path, out_dir: Path,
-          bi_state_dir: Path | None = None) -> dict:
+          bi_state_dir: Path | None = None, *, sandbox: Sandbox = "host") -> dict:
     """Run the task's hidden grader. AFTER teardown. Never during the episode.
 
     `bi_state_dir` is where this episode's BI vendor services kept their
     published state; None means the harness default,
     `<out_dir>/service-state/bi` (bistate.py says why that is the same path on
-    every native topology, and why it is no longer under the audit dir)."""
+    every native topology, and why it is no longer under the audit dir).
+
+    `sandbox` is where the grader process runs (GRADE_SANDBOXES; a rollout
+    asks grade_sandbox()). Staging happens on the host either way. In the
+    container the world manifest's paths (the world root, the grading zone
+    with the staged copies in it), the artefact and the grader's directory are
+    read-only and `out_dir` is writable - GT007's grader reads
+    `<grading>/../audit` - and the score is the host's byte for byte
+    (test_grade_sandbox.py)."""
+    if sandbox not in GRADE_SANDBOXES:
+        raise HarnessError(f"unknown grading sandbox {sandbox!r}: one of "
+                           f"{', '.join(GRADE_SANDBOXES)}")
     # The publication ledger moves into the grading zone first
     # (world/README.md#publication-ledger). The grader reads that copy and not
     # <world_root>/var/ledger, for the same reason it reads no other evidence
@@ -512,11 +661,20 @@ def grade(spec, world: dict, artifact_path: Path, out_dir: Path,
             "bi_state": str(staged_bi) if staged_bi else "",
             "artifact": str(artifact_path)}
     argv = [a.format(**subs) for a in spec.grade_argv]
-    r = subprocess.run([str(PY), str(spec.grade_entrypoint), *argv],
-                       capture_output=True, text=True, env=venv_env())
+    command = [str(PY), str(spec.grade_entrypoint), *argv]
+    if sandbox == "container":
+        mounts = [*(v for v in world.values() if isinstance(v, str) and os.path.isabs(v)),
+                  artifact_path, Path(spec.grade_entrypoint).parent]
+        r = subprocess.run(sandbox_command(command, read_only=mounts, writable=out_dir),
+                           capture_output=True, text=True)
+    else:
+        r = subprocess.run(command, capture_output=True, text=True, env=venv_env())
     (out_dir / "grader.stderr.txt").write_text(r.stderr or "", encoding="utf-8")
     if r.returncode != 0:
-        raise HarnessError(f"grader exited {r.returncode}:\n{r.stderr[-2000:]}")
+        what = ("the grading sandbox did not start (docker exited 125)"
+                if sandbox == "container" and r.returncode == 125
+                else f"grader exited {r.returncode}")
+        raise HarnessError(f"{what}:\n{r.stderr[-2000:]}")
     try:
         score = json.loads(r.stdout)
     except ValueError as exc:
@@ -526,11 +684,12 @@ def grade(spec, world: dict, artifact_path: Path, out_dir: Path,
 
 
 def grade_twice(spec, world: dict, artifact_path: Path, out_dir: Path,
-                bi_state_dir: Path | None = None) -> tuple[dict, bool]:
+                bi_state_dir: Path | None = None, *,
+                sandbox: Sandbox = "host") -> tuple[dict, bool]:
     """Grade, then grade again. A grader whose score moves on an unchanged world
     is a grader defect, and it is the one grader defect detectable mechanically."""
-    first = grade(spec, world, artifact_path, out_dir, bi_state_dir)
-    second = grade(spec, world, artifact_path, out_dir, bi_state_dir)
+    first = grade(spec, world, artifact_path, out_dir, bi_state_dir, sandbox=sandbox)
+    second = grade(spec, world, artifact_path, out_dir, bi_state_dir, sandbox=sandbox)
     stable = (first.get("total") == second.get("total")
               and [c.get("points") for c in first.get("checks", [])]
               == [c.get("points") for c in second.get("checks", [])])

@@ -1105,7 +1105,8 @@ def regrade(rollout_dir, task: str | None = None,
     score, score_stable, grader_crashed = None, True, False
     try:
         score, score_stable = episode.grade_twice(
-            spec, world, artifact_path, rollout_dir)
+            spec, world, artifact_path, rollout_dir,
+            sandbox=episode.grade_sandbox(topology))
         rec.pop("grader_error", None)
     except episode.HarnessError as exc:
         grader_crashed = True
@@ -1806,7 +1807,8 @@ def run_rollout(args) -> dict:
     if world and harness_failure is None:
         try:
             score, score_stable = episode.grade_twice(
-                spec, world, Path(record["artifact_path"]), rollout_dir)
+                spec, world, Path(record["artifact_path"]), rollout_dir,
+                sandbox=episode.grade_sandbox(args.topology))
         except episode.HarnessError as exc:
             grader_crashed = True
             record["grader_error"] = str(exc)
