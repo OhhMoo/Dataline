@@ -1,26 +1,25 @@
 {
-  "compose_file": "/home/ubuntu/tool_implementation.wt/t4-containment/gateway/docker/compose.yml",
+  "compose_file": "/home/ubuntu/tool_implementation/gateway/docker/compose.yml",
   "compose_overlays": [
-    "/home/ubuntu/tool_implementation.wt/t4-containment/gateway/docker/compose.yml",
-    "/home/ubuntu/tool_implementation.wt/t4-containment/gateway/docker/compose.episode.yml",
-    "/home/ubuntu/tool_implementation.wt/t4-containment/gateway/docker/compose.native.yml",
-    "/home/ubuntu/.cache/alkera-harbor-work/t4/de-aws-1791882976/rollout/container/compose.native-mounts.yml"
+    "/home/ubuntu/tool_implementation/gateway/docker/compose.yml",
+    "/home/ubuntu/tool_implementation/gateway/docker/compose.episode.yml",
+    "/home/ubuntu/tool_implementation/gateway/docker/compose.native.yml",
+    "/home/ubuntu/.cache/coord-final/box-de-aws/rollout/container/compose.native-mounts.yml"
   ],
   "environment_profile": {
     "plugs": [],
     "profile": "de/aws",
     "source": "native-services argv"
   },
-  "generated": "2026-10-13T09:18:58+00:00",
+  "generated": "2026-10-13T13:48:33+00:00",
   "host": {
     "docker": "29.8.2",
     "platform": "Linux-7.0.0-1006-aws-x86_64-with-glibc2.43"
   },
   "mode": "native-attach",
   "not_audited": [
-    "10.210.2.1:22  NOT AN AUDITED DOOR: the bridge gateway, i.e. the HOST",
-    "10.210.2.3:8110  NOT AN AUDITED DOOR: MinIO audit receiver (serve.MINIO_AUDIT_PORT); the episode reaches it, and it answers only a POST carrying the per-rollout token",
-    "10.210.2.4:34433  NOT AN AUDITED DOOR: MinIO console (a random port; `minio server /data` has no --console-address)"
+    "10.210.4.1:22  NOT AN AUDITED DOOR: the bridge gateway, i.e. the HOST",
+    "10.210.4.3:8110  NOT AN AUDITED DOOR: MinIO audit receiver (serve.MINIO_AUDIT_PORT); the episode reaches it, and it answers only a POST carrying the per-rollout token"
   ],
   "not_measured_here": "P0-P5 describe the MCP-transport stack (evidence/containment.json) and P7 the episode's filesystem; this run measures P6 only.",
   "p6_only_fake_services_reachable": {
@@ -29,7 +28,8 @@
       "airflow-api",
       "bigquery",
       "databricks",
-      "snowflake"
+      "snowflake",
+      "spark"
     ],
     "backends_probed": [
       "minio.internal:9000",
@@ -39,10 +39,10 @@
       "sched.internal:8120"
     ],
     "compose_files": [
-      "/home/ubuntu/tool_implementation.wt/t4-containment/gateway/docker/compose.yml",
-      "/home/ubuntu/tool_implementation.wt/t4-containment/gateway/docker/compose.episode.yml",
-      "/home/ubuntu/tool_implementation.wt/t4-containment/gateway/docker/compose.native.yml",
-      "/home/ubuntu/.cache/alkera-harbor-work/t4/de-aws-1791882976/rollout/container/compose.native-mounts.yml"
+      "/home/ubuntu/tool_implementation/gateway/docker/compose.yml",
+      "/home/ubuntu/tool_implementation/gateway/docker/compose.episode.yml",
+      "/home/ubuntu/tool_implementation/gateway/docker/compose.native.yml",
+      "/home/ubuntu/.cache/coord-final/box-de-aws/rollout/container/compose.native-mounts.yml"
     ],
     "compose_names": [
       "episode",
@@ -65,7 +65,8 @@
       "airflow.internal",
       "bigquery.internal",
       "databricks.internal",
-      "snowflake.internal"
+      "snowflake.internal",
+      "spark_connect.internal"
     ],
     "controls_removed_because_on_episode_net": [],
     "declared_aliases": {},
@@ -75,11 +76,11 @@
       "profile": "de/aws"
     },
     "episode_network": {
-      "gateway": "10.210.2.1",
+      "gateway": "10.210.4.1",
       "gateway_source": "docker network inspect (IPAM)",
       "internal": true,
       "name": "alkera-t4b-de-aws_episode_net",
-      "subnet": "10.210.2.0/24"
+      "subnet": "10.210.4.0/24"
     },
     "every_open_port_is_an_expected_door": false,
     "expected": [
@@ -143,7 +144,7 @@
     "native_services_startup": "native-services: state /service-state (bi_state_dir /service-state/bi), config /service-state/native_gateway.json\nalkera native services  bind=0.0.0.0  audit=/audit  world=/world\nservice       alias                     port  state\nloki          loki.internal             3100  module\nairbyte       airbyte.internal          8001  module\njira          jira.internal             8080  module\nslack         slack.internal            8081  module\ndeploy        deploy.internal           8085  module\nconfluence    confluence.internal       8090  module\ntableau       tableau.internal          8096  module\nprometheus    prometheus.internal       9090  module\nalertmanager  alertmanager.internal     9093  module\nminio-audit   native-services.internal  8110  receiver (not a destination: the stack dials it, not the episode)\nsched         sched.internal            8120  scheduler\nloaded=11 missing=0 port_disagreements=0\nALKERA_GATEWAY_CONFIG=/service-state/native_gateway.json\nALKERA_NATIVE_AUDIT=/audit/actions.jsonl\nALKERA_SCHEDULER=/world/var/sched/state.json",
     "not_audited": [
       {
-        "address": "10.210.2.1",
+        "address": "10.210.4.1",
         "banner": {
           "spoke_first": "SSH-2.0-OpenSSH_10.2p1 Ubuntu-2ubuntu3.6\r\n"
         },
@@ -151,12 +152,12 @@
         "names": [],
         "port": 22,
         "service": null,
-        "target": "10.210.2.1:22"
+        "target": "10.210.4.1:22"
       },
       {
-        "address": "10.210.2.3",
+        "address": "10.210.4.3",
         "banner": {
-          "http_get_reply": "HTTP/1.1 405 Method Not Allowed\r\ndate: Tue, 13 Oct 2026 09:19:09 GMT\r\nserver: uvicorn\r\nallow: POST\r\ncontent-length: 31\r\ncontent-type: application/json\r\nConnection: close\r\n\r\n"
+          "http_get_reply": "HTTP/1.1 405 Method Not Allowed\r\ndate: Tue, 13 Oct 2026 13:48:45 GMT\r\nserver: uvicorn\r\nallow: POST\r\ncontent-length: 31\r\ncontent-type: application/json\r\nConnection: close\r\n\r\n{\"detail\":\"Method Not Allowed\"}"
         },
         "class": "NOT AN AUDITED DOOR: MinIO audit receiver (serve.MINIO_AUDIT_PORT); the episode reaches it, and it answers only a POST carrying the per-rollout token",
         "names": [
@@ -175,128 +176,114 @@
         ],
         "port": 8110,
         "service": "native-services",
-        "target": "10.210.2.3:8110"
-      },
-      {
-        "address": "10.210.2.4",
-        "banner": {
-          "http_get_reply": "HTTP/1.0 200 OK\r\nAccept-Ranges: bytes\r\nContent-Length: 1837\r\nContent-Security-Policy: default-src 'self' 'unsafe-eval' 'unsafe-inline'; script-src 'self' https://unpkg.com;  connect-src 'self' https://unpkg.com;\r\nContent-Type: text/html\r\nLast-Modified: Tue, 13 Oct 2026 09:19:11 GMT\r\nReferrer-Policy:"
-        },
-        "class": "NOT AN AUDITED DOOR: MinIO console (a random port; `minio server /data` has no --console-address)",
-        "names": [
-          "minio",
-          "minio.internal"
-        ],
-        "port": 34433,
-        "service": "minio",
-        "target": "10.210.2.4:34433"
+        "target": "10.210.4.3:8110"
       }
     ],
     "passed": true,
     "plugged_backends_not_carried": [],
     "probe": {
       "addresses_probed": [
-        "10.210.2.2",
-        "10.210.2.3",
-        "10.210.2.4",
-        "10.210.2.5"
+        "10.210.4.2",
+        "10.210.4.3",
+        "10.210.4.4",
+        "10.210.4.5"
       ],
       "closed_port_attempts": [
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.2.2:22"
+          "target": "10.210.4.2:22"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.2.2:80"
+          "target": "10.210.4.2:80"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.2.2:443"
+          "target": "10.210.4.2:443"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.2.2:3306"
+          "target": "10.210.4.2:3306"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.2.2:6379"
+          "target": "10.210.4.2:6379"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.2.2:8888"
+          "target": "10.210.4.2:8888"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.2.3:22"
+          "target": "10.210.4.3:22"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.2.3:80"
+          "target": "10.210.4.3:80"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.2.3:443"
+          "target": "10.210.4.3:443"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.2.3:3306"
+          "target": "10.210.4.3:3306"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.2.3:6379"
+          "target": "10.210.4.3:6379"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.2.3:8888"
+          "target": "10.210.4.3:8888"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.2.4:22"
+          "target": "10.210.4.4:22"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.2.4:80"
+          "target": "10.210.4.4:80"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.2.4:443"
+          "target": "10.210.4.4:443"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.2.4:3306"
+          "target": "10.210.4.4:3306"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.2.4:6379"
+          "target": "10.210.4.4:6379"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.2.4:8888"
+          "target": "10.210.4.4:8888"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.2.5:22"
+          "target": "10.210.4.5:22"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.2.5:80"
+          "target": "10.210.4.5:80"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.2.5:443"
+          "target": "10.210.4.5:443"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.2.5:3306"
+          "target": "10.210.4.5:3306"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.2.5:6379"
+          "target": "10.210.4.5:6379"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.2.5:8888"
+          "target": "10.210.4.5:8888"
         }
       ],
       "closed_ports_probed": [
@@ -311,35 +298,35 @@
       "compose_service_names": [
         {
           "addresses": [
-            "10.210.2.6"
+            "10.210.4.6"
           ],
           "name": "episode",
           "points_at_a_known_service": true
         },
         {
           "addresses": [
-            "10.210.2.4"
+            "10.210.4.2"
           ],
           "name": "minio",
           "points_at_a_known_service": true
         },
         {
           "addresses": [
-            "10.210.2.3"
+            "10.210.4.3"
           ],
           "name": "native-services",
           "points_at_a_known_service": true
         },
         {
           "addresses": [
-            "10.210.2.5"
+            "10.210.4.5"
           ],
           "name": "postgres",
           "points_at_a_known_service": true
         },
         {
           "addresses": [
-            "10.210.2.2"
+            "10.210.4.4"
           ],
           "name": "redshift",
           "points_at_a_known_service": true
@@ -401,6 +388,10 @@
         {
           "error": "gaierror",
           "name": "snowflake.internal"
+        },
+        {
+          "error": "gaierror",
+          "name": "spark_connect.internal"
         }
       ],
       "controls_that_resolved": [],
@@ -501,25 +492,25 @@
         ],
         "routes": [
           {
-            "dest": "10.210.2.0",
+            "dest": "10.210.4.0",
             "iface": "eth0"
           }
         ]
       },
       "not_audited": [
         {
-          "address": "10.210.2.1",
+          "address": "10.210.4.1",
           "banner": {
             "spoke_first": "SSH-2.0-OpenSSH_10.2p1 Ubuntu-2ubuntu3.6\r\n"
           },
           "names": [],
           "port": 22,
-          "target": "10.210.2.1:22"
+          "target": "10.210.4.1:22"
         },
         {
-          "address": "10.210.2.3",
+          "address": "10.210.4.3",
           "banner": {
-            "http_get_reply": "HTTP/1.1 405 Method Not Allowed\r\ndate: Tue, 13 Oct 2026 09:19:09 GMT\r\nserver: uvicorn\r\nallow: POST\r\ncontent-length: 31\r\ncontent-type: application/json\r\nConnection: close\r\n\r\n"
+            "http_get_reply": "HTTP/1.1 405 Method Not Allowed\r\ndate: Tue, 13 Oct 2026 13:48:45 GMT\r\nserver: uvicorn\r\nallow: POST\r\ncontent-length: 31\r\ncontent-type: application/json\r\nConnection: close\r\n\r\n{\"detail\":\"Method Not Allowed\"}"
           },
           "names": [
             "airbyte.internal",
@@ -536,29 +527,17 @@
             "tableau.internal"
           ],
           "port": 8110,
-          "target": "10.210.2.3:8110"
-        },
-        {
-          "address": "10.210.2.4",
-          "banner": {
-            "http_get_reply": "HTTP/1.0 200 OK\r\nAccept-Ranges: bytes\r\nContent-Length: 1837\r\nContent-Security-Policy: default-src 'self' 'unsafe-eval' 'unsafe-inline'; script-src 'self' https://unpkg.com;  connect-src 'self' https://unpkg.com;\r\nContent-Type: text/html\r\nLast-Modified: Tue, 13 Oct 2026 09:19:11 GMT\r\nReferrer-Policy:"
-          },
-          "names": [
-            "minio",
-            "minio.internal"
-          ],
-          "port": 34433,
-          "target": "10.210.2.4:34433"
+          "target": "10.210.4.3:8110"
         }
       ],
       "own_addresses": [
-        "10.210.2.6"
+        "10.210.4.6"
       ],
       "passed": true,
       "self_test": {
         "name_that_should_resolve": {
           "addresses": [
-            "10.210.2.3"
+            "10.210.4.3"
           ],
           "name": "airbyte.internal"
         },
@@ -577,7 +556,7 @@
           "reachable": true,
           "resolution": {
             "addresses": [
-              "10.210.2.3"
+              "10.210.4.3"
             ],
             "name": "airbyte.internal"
           },
@@ -591,7 +570,7 @@
           "reachable": true,
           "resolution": {
             "addresses": [
-              "10.210.2.3"
+              "10.210.4.3"
             ],
             "name": "alertmanager.internal"
           },
@@ -605,7 +584,7 @@
           "reachable": true,
           "resolution": {
             "addresses": [
-              "10.210.2.3"
+              "10.210.4.3"
             ],
             "name": "confluence.internal"
           },
@@ -619,7 +598,7 @@
           "reachable": true,
           "resolution": {
             "addresses": [
-              "10.210.2.3"
+              "10.210.4.3"
             ],
             "name": "deploy.internal"
           },
@@ -633,7 +612,7 @@
           "reachable": true,
           "resolution": {
             "addresses": [
-              "10.210.2.3"
+              "10.210.4.3"
             ],
             "name": "jira.internal"
           },
@@ -647,7 +626,7 @@
           "reachable": true,
           "resolution": {
             "addresses": [
-              "10.210.2.3"
+              "10.210.4.3"
             ],
             "name": "loki.internal"
           },
@@ -661,7 +640,7 @@
           "reachable": true,
           "resolution": {
             "addresses": [
-              "10.210.2.3"
+              "10.210.4.3"
             ],
             "name": "prometheus.internal"
           },
@@ -675,7 +654,7 @@
           "reachable": true,
           "resolution": {
             "addresses": [
-              "10.210.2.3"
+              "10.210.4.3"
             ],
             "name": "slack.internal"
           },
@@ -689,7 +668,7 @@
           "reachable": true,
           "resolution": {
             "addresses": [
-              "10.210.2.3"
+              "10.210.4.3"
             ],
             "name": "tableau.internal"
           },
@@ -703,7 +682,7 @@
           "reachable": true,
           "resolution": {
             "addresses": [
-              "10.210.2.4"
+              "10.210.4.2"
             ],
             "name": "minio.internal"
           },
@@ -717,7 +696,7 @@
           "reachable": true,
           "resolution": {
             "addresses": [
-              "10.210.2.3"
+              "10.210.4.3"
             ],
             "name": "native-services.internal"
           },
@@ -731,7 +710,7 @@
           "reachable": true,
           "resolution": {
             "addresses": [
-              "10.210.2.5"
+              "10.210.4.5"
             ],
             "name": "postgres.internal"
           },
@@ -745,7 +724,7 @@
           "reachable": true,
           "resolution": {
             "addresses": [
-              "10.210.2.2"
+              "10.210.4.4"
             ],
             "name": "redshift.internal"
           },
@@ -759,7 +738,7 @@
           "reachable": true,
           "resolution": {
             "addresses": [
-              "10.210.2.3"
+              "10.210.4.3"
             ],
             "name": "sched.internal"
           },
@@ -770,268 +749,268 @@
       "services_unreachable": [],
       "sweep": {
         "addresses_in_cidr": 254,
-        "cidr": "10.210.2.0/24",
+        "cidr": "10.210.4.0/24",
         "live_addresses": [
-          "10.210.2.1",
-          "10.210.2.2",
-          "10.210.2.3",
-          "10.210.2.4",
-          "10.210.2.5"
+          "10.210.4.1",
+          "10.210.4.2",
+          "10.210.4.3",
+          "10.210.4.4",
+          "10.210.4.5"
         ],
         "liveness": {
-          "10.210.2.1": "ConnectionRefusedError",
-          "10.210.2.10": "timeout",
-          "10.210.2.100": "timeout",
-          "10.210.2.101": "timeout",
-          "10.210.2.102": "timeout",
-          "10.210.2.103": "timeout",
-          "10.210.2.104": "timeout",
-          "10.210.2.105": "timeout",
-          "10.210.2.106": "timeout",
-          "10.210.2.107": "timeout",
-          "10.210.2.108": "timeout",
-          "10.210.2.109": "timeout",
-          "10.210.2.11": "timeout",
-          "10.210.2.110": "timeout",
-          "10.210.2.111": "timeout",
-          "10.210.2.112": "timeout",
-          "10.210.2.113": "timeout",
-          "10.210.2.114": "timeout",
-          "10.210.2.115": "timeout",
-          "10.210.2.116": "timeout",
-          "10.210.2.117": "timeout",
-          "10.210.2.118": "timeout",
-          "10.210.2.119": "timeout",
-          "10.210.2.12": "timeout",
-          "10.210.2.120": "timeout",
-          "10.210.2.121": "timeout",
-          "10.210.2.122": "timeout",
-          "10.210.2.123": "timeout",
-          "10.210.2.124": "timeout",
-          "10.210.2.125": "timeout",
-          "10.210.2.126": "timeout",
-          "10.210.2.127": "timeout",
-          "10.210.2.128": "timeout",
-          "10.210.2.129": "timeout",
-          "10.210.2.13": "timeout",
-          "10.210.2.130": "timeout",
-          "10.210.2.131": "timeout",
-          "10.210.2.132": "timeout",
-          "10.210.2.133": "timeout",
-          "10.210.2.134": "timeout",
-          "10.210.2.135": "timeout",
-          "10.210.2.136": "timeout",
-          "10.210.2.137": "timeout",
-          "10.210.2.138": "timeout",
-          "10.210.2.139": "timeout",
-          "10.210.2.14": "timeout",
-          "10.210.2.140": "timeout",
-          "10.210.2.141": "timeout",
-          "10.210.2.142": "timeout",
-          "10.210.2.143": "timeout",
-          "10.210.2.144": "timeout",
-          "10.210.2.145": "timeout",
-          "10.210.2.146": "timeout",
-          "10.210.2.147": "timeout",
-          "10.210.2.148": "timeout",
-          "10.210.2.149": "timeout",
-          "10.210.2.15": "timeout",
-          "10.210.2.150": "timeout",
-          "10.210.2.151": "timeout",
-          "10.210.2.152": "timeout",
-          "10.210.2.153": "timeout",
-          "10.210.2.154": "timeout",
-          "10.210.2.155": "timeout",
-          "10.210.2.156": "timeout",
-          "10.210.2.157": "timeout",
-          "10.210.2.158": "timeout",
-          "10.210.2.159": "timeout",
-          "10.210.2.16": "timeout",
-          "10.210.2.160": "timeout",
-          "10.210.2.161": "timeout",
-          "10.210.2.162": "timeout",
-          "10.210.2.163": "timeout",
-          "10.210.2.164": "timeout",
-          "10.210.2.165": "timeout",
-          "10.210.2.166": "timeout",
-          "10.210.2.167": "timeout",
-          "10.210.2.168": "timeout",
-          "10.210.2.169": "timeout",
-          "10.210.2.17": "timeout",
-          "10.210.2.170": "timeout",
-          "10.210.2.171": "timeout",
-          "10.210.2.172": "timeout",
-          "10.210.2.173": "timeout",
-          "10.210.2.174": "timeout",
-          "10.210.2.175": "timeout",
-          "10.210.2.176": "timeout",
-          "10.210.2.177": "timeout",
-          "10.210.2.178": "timeout",
-          "10.210.2.179": "timeout",
-          "10.210.2.18": "timeout",
-          "10.210.2.180": "timeout",
-          "10.210.2.181": "timeout",
-          "10.210.2.182": "timeout",
-          "10.210.2.183": "timeout",
-          "10.210.2.184": "timeout",
-          "10.210.2.185": "timeout",
-          "10.210.2.186": "timeout",
-          "10.210.2.187": "timeout",
-          "10.210.2.188": "timeout",
-          "10.210.2.189": "timeout",
-          "10.210.2.19": "timeout",
-          "10.210.2.190": "timeout",
-          "10.210.2.191": "timeout",
-          "10.210.2.192": "timeout",
-          "10.210.2.193": "timeout",
-          "10.210.2.194": "timeout",
-          "10.210.2.195": "timeout",
-          "10.210.2.196": "timeout",
-          "10.210.2.197": "timeout",
-          "10.210.2.198": "timeout",
-          "10.210.2.199": "timeout",
-          "10.210.2.2": "ConnectionRefusedError",
-          "10.210.2.20": "timeout",
-          "10.210.2.200": "timeout",
-          "10.210.2.201": "timeout",
-          "10.210.2.202": "timeout",
-          "10.210.2.203": "timeout",
-          "10.210.2.204": "timeout",
-          "10.210.2.205": "timeout",
-          "10.210.2.206": "timeout",
-          "10.210.2.207": "timeout",
-          "10.210.2.208": "timeout",
-          "10.210.2.209": "timeout",
-          "10.210.2.21": "timeout",
-          "10.210.2.210": "timeout",
-          "10.210.2.211": "timeout",
-          "10.210.2.212": "timeout",
-          "10.210.2.213": "timeout",
-          "10.210.2.214": "timeout",
-          "10.210.2.215": "timeout",
-          "10.210.2.216": "timeout",
-          "10.210.2.217": "timeout",
-          "10.210.2.218": "timeout",
-          "10.210.2.219": "timeout",
-          "10.210.2.22": "timeout",
-          "10.210.2.220": "timeout",
-          "10.210.2.221": "timeout",
-          "10.210.2.222": "timeout",
-          "10.210.2.223": "timeout",
-          "10.210.2.224": "timeout",
-          "10.210.2.225": "timeout",
-          "10.210.2.226": "timeout",
-          "10.210.2.227": "timeout",
-          "10.210.2.228": "timeout",
-          "10.210.2.229": "timeout",
-          "10.210.2.23": "timeout",
-          "10.210.2.230": "timeout",
-          "10.210.2.231": "timeout",
-          "10.210.2.232": "timeout",
-          "10.210.2.233": "timeout",
-          "10.210.2.234": "timeout",
-          "10.210.2.235": "timeout",
-          "10.210.2.236": "timeout",
-          "10.210.2.237": "timeout",
-          "10.210.2.238": "timeout",
-          "10.210.2.239": "timeout",
-          "10.210.2.24": "timeout",
-          "10.210.2.240": "timeout",
-          "10.210.2.241": "timeout",
-          "10.210.2.242": "timeout",
-          "10.210.2.243": "timeout",
-          "10.210.2.244": "timeout",
-          "10.210.2.245": "timeout",
-          "10.210.2.246": "timeout",
-          "10.210.2.247": "timeout",
-          "10.210.2.248": "timeout",
-          "10.210.2.249": "timeout",
-          "10.210.2.25": "timeout",
-          "10.210.2.250": "timeout",
-          "10.210.2.251": "timeout",
-          "10.210.2.252": "timeout",
-          "10.210.2.253": "timeout",
-          "10.210.2.254": "timeout",
-          "10.210.2.26": "timeout",
-          "10.210.2.27": "timeout",
-          "10.210.2.28": "timeout",
-          "10.210.2.29": "timeout",
-          "10.210.2.3": "ConnectionRefusedError",
-          "10.210.2.30": "timeout",
-          "10.210.2.31": "timeout",
-          "10.210.2.32": "timeout",
-          "10.210.2.33": "timeout",
-          "10.210.2.34": "timeout",
-          "10.210.2.35": "timeout",
-          "10.210.2.36": "timeout",
-          "10.210.2.37": "timeout",
-          "10.210.2.38": "timeout",
-          "10.210.2.39": "timeout",
-          "10.210.2.4": "ConnectionRefusedError",
-          "10.210.2.40": "timeout",
-          "10.210.2.41": "timeout",
-          "10.210.2.42": "timeout",
-          "10.210.2.43": "timeout",
-          "10.210.2.44": "timeout",
-          "10.210.2.45": "timeout",
-          "10.210.2.46": "timeout",
-          "10.210.2.47": "timeout",
-          "10.210.2.48": "timeout",
-          "10.210.2.49": "timeout",
-          "10.210.2.5": "ConnectionRefusedError",
-          "10.210.2.50": "timeout",
-          "10.210.2.51": "timeout",
-          "10.210.2.52": "timeout",
-          "10.210.2.53": "timeout",
-          "10.210.2.54": "timeout",
-          "10.210.2.55": "timeout",
-          "10.210.2.56": "timeout",
-          "10.210.2.57": "timeout",
-          "10.210.2.58": "timeout",
-          "10.210.2.59": "timeout",
-          "10.210.2.60": "timeout",
-          "10.210.2.61": "timeout",
-          "10.210.2.62": "timeout",
-          "10.210.2.63": "timeout",
-          "10.210.2.64": "timeout",
-          "10.210.2.65": "timeout",
-          "10.210.2.66": "timeout",
-          "10.210.2.67": "timeout",
-          "10.210.2.68": "timeout",
-          "10.210.2.69": "timeout",
-          "10.210.2.7": "timeout",
-          "10.210.2.70": "timeout",
-          "10.210.2.71": "timeout",
-          "10.210.2.72": "timeout",
-          "10.210.2.73": "timeout",
-          "10.210.2.74": "timeout",
-          "10.210.2.75": "timeout",
-          "10.210.2.76": "timeout",
-          "10.210.2.77": "timeout",
-          "10.210.2.78": "timeout",
-          "10.210.2.79": "timeout",
-          "10.210.2.8": "timeout",
-          "10.210.2.80": "timeout",
-          "10.210.2.81": "timeout",
-          "10.210.2.82": "timeout",
-          "10.210.2.83": "timeout",
-          "10.210.2.84": "timeout",
-          "10.210.2.85": "timeout",
-          "10.210.2.86": "timeout",
-          "10.210.2.87": "timeout",
-          "10.210.2.88": "timeout",
-          "10.210.2.89": "timeout",
-          "10.210.2.9": "timeout",
-          "10.210.2.90": "timeout",
-          "10.210.2.91": "timeout",
-          "10.210.2.92": "timeout",
-          "10.210.2.93": "timeout",
-          "10.210.2.94": "timeout",
-          "10.210.2.95": "timeout",
-          "10.210.2.96": "timeout",
-          "10.210.2.97": "timeout",
-          "10.210.2.98": "timeout",
-          "10.210.2.99": "timeout"
+          "10.210.4.1": "ConnectionRefusedError",
+          "10.210.4.10": "timeout",
+          "10.210.4.100": "timeout",
+          "10.210.4.101": "timeout",
+          "10.210.4.102": "timeout",
+          "10.210.4.103": "timeout",
+          "10.210.4.104": "timeout",
+          "10.210.4.105": "timeout",
+          "10.210.4.106": "timeout",
+          "10.210.4.107": "timeout",
+          "10.210.4.108": "timeout",
+          "10.210.4.109": "timeout",
+          "10.210.4.11": "timeout",
+          "10.210.4.110": "timeout",
+          "10.210.4.111": "timeout",
+          "10.210.4.112": "timeout",
+          "10.210.4.113": "timeout",
+          "10.210.4.114": "timeout",
+          "10.210.4.115": "timeout",
+          "10.210.4.116": "timeout",
+          "10.210.4.117": "timeout",
+          "10.210.4.118": "timeout",
+          "10.210.4.119": "timeout",
+          "10.210.4.12": "timeout",
+          "10.210.4.120": "timeout",
+          "10.210.4.121": "timeout",
+          "10.210.4.122": "timeout",
+          "10.210.4.123": "timeout",
+          "10.210.4.124": "timeout",
+          "10.210.4.125": "timeout",
+          "10.210.4.126": "timeout",
+          "10.210.4.127": "timeout",
+          "10.210.4.128": "timeout",
+          "10.210.4.129": "timeout",
+          "10.210.4.13": "timeout",
+          "10.210.4.130": "timeout",
+          "10.210.4.131": "timeout",
+          "10.210.4.132": "timeout",
+          "10.210.4.133": "timeout",
+          "10.210.4.134": "timeout",
+          "10.210.4.135": "timeout",
+          "10.210.4.136": "timeout",
+          "10.210.4.137": "timeout",
+          "10.210.4.138": "timeout",
+          "10.210.4.139": "timeout",
+          "10.210.4.14": "timeout",
+          "10.210.4.140": "timeout",
+          "10.210.4.141": "timeout",
+          "10.210.4.142": "timeout",
+          "10.210.4.143": "timeout",
+          "10.210.4.144": "timeout",
+          "10.210.4.145": "timeout",
+          "10.210.4.146": "timeout",
+          "10.210.4.147": "timeout",
+          "10.210.4.148": "timeout",
+          "10.210.4.149": "timeout",
+          "10.210.4.15": "timeout",
+          "10.210.4.150": "timeout",
+          "10.210.4.151": "timeout",
+          "10.210.4.152": "timeout",
+          "10.210.4.153": "timeout",
+          "10.210.4.154": "timeout",
+          "10.210.4.155": "timeout",
+          "10.210.4.156": "timeout",
+          "10.210.4.157": "timeout",
+          "10.210.4.158": "timeout",
+          "10.210.4.159": "timeout",
+          "10.210.4.16": "timeout",
+          "10.210.4.160": "timeout",
+          "10.210.4.161": "timeout",
+          "10.210.4.162": "timeout",
+          "10.210.4.163": "timeout",
+          "10.210.4.164": "timeout",
+          "10.210.4.165": "timeout",
+          "10.210.4.166": "timeout",
+          "10.210.4.167": "timeout",
+          "10.210.4.168": "timeout",
+          "10.210.4.169": "timeout",
+          "10.210.4.17": "timeout",
+          "10.210.4.170": "timeout",
+          "10.210.4.171": "timeout",
+          "10.210.4.172": "timeout",
+          "10.210.4.173": "timeout",
+          "10.210.4.174": "timeout",
+          "10.210.4.175": "timeout",
+          "10.210.4.176": "timeout",
+          "10.210.4.177": "timeout",
+          "10.210.4.178": "timeout",
+          "10.210.4.179": "timeout",
+          "10.210.4.18": "timeout",
+          "10.210.4.180": "timeout",
+          "10.210.4.181": "timeout",
+          "10.210.4.182": "timeout",
+          "10.210.4.183": "timeout",
+          "10.210.4.184": "timeout",
+          "10.210.4.185": "timeout",
+          "10.210.4.186": "timeout",
+          "10.210.4.187": "timeout",
+          "10.210.4.188": "timeout",
+          "10.210.4.189": "timeout",
+          "10.210.4.19": "timeout",
+          "10.210.4.190": "timeout",
+          "10.210.4.191": "timeout",
+          "10.210.4.192": "timeout",
+          "10.210.4.193": "timeout",
+          "10.210.4.194": "timeout",
+          "10.210.4.195": "timeout",
+          "10.210.4.196": "timeout",
+          "10.210.4.197": "timeout",
+          "10.210.4.198": "timeout",
+          "10.210.4.199": "timeout",
+          "10.210.4.2": "ConnectionRefusedError",
+          "10.210.4.20": "timeout",
+          "10.210.4.200": "timeout",
+          "10.210.4.201": "timeout",
+          "10.210.4.202": "timeout",
+          "10.210.4.203": "timeout",
+          "10.210.4.204": "timeout",
+          "10.210.4.205": "timeout",
+          "10.210.4.206": "timeout",
+          "10.210.4.207": "timeout",
+          "10.210.4.208": "timeout",
+          "10.210.4.209": "timeout",
+          "10.210.4.21": "timeout",
+          "10.210.4.210": "timeout",
+          "10.210.4.211": "timeout",
+          "10.210.4.212": "timeout",
+          "10.210.4.213": "timeout",
+          "10.210.4.214": "timeout",
+          "10.210.4.215": "timeout",
+          "10.210.4.216": "timeout",
+          "10.210.4.217": "timeout",
+          "10.210.4.218": "timeout",
+          "10.210.4.219": "timeout",
+          "10.210.4.22": "timeout",
+          "10.210.4.220": "timeout",
+          "10.210.4.221": "timeout",
+          "10.210.4.222": "timeout",
+          "10.210.4.223": "timeout",
+          "10.210.4.224": "timeout",
+          "10.210.4.225": "timeout",
+          "10.210.4.226": "timeout",
+          "10.210.4.227": "timeout",
+          "10.210.4.228": "timeout",
+          "10.210.4.229": "timeout",
+          "10.210.4.23": "timeout",
+          "10.210.4.230": "timeout",
+          "10.210.4.231": "timeout",
+          "10.210.4.232": "timeout",
+          "10.210.4.233": "timeout",
+          "10.210.4.234": "timeout",
+          "10.210.4.235": "timeout",
+          "10.210.4.236": "timeout",
+          "10.210.4.237": "timeout",
+          "10.210.4.238": "timeout",
+          "10.210.4.239": "timeout",
+          "10.210.4.24": "timeout",
+          "10.210.4.240": "timeout",
+          "10.210.4.241": "timeout",
+          "10.210.4.242": "timeout",
+          "10.210.4.243": "timeout",
+          "10.210.4.244": "timeout",
+          "10.210.4.245": "timeout",
+          "10.210.4.246": "timeout",
+          "10.210.4.247": "timeout",
+          "10.210.4.248": "timeout",
+          "10.210.4.249": "timeout",
+          "10.210.4.25": "timeout",
+          "10.210.4.250": "timeout",
+          "10.210.4.251": "timeout",
+          "10.210.4.252": "timeout",
+          "10.210.4.253": "timeout",
+          "10.210.4.254": "timeout",
+          "10.210.4.26": "timeout",
+          "10.210.4.27": "timeout",
+          "10.210.4.28": "timeout",
+          "10.210.4.29": "timeout",
+          "10.210.4.3": "ConnectionRefusedError",
+          "10.210.4.30": "timeout",
+          "10.210.4.31": "timeout",
+          "10.210.4.32": "timeout",
+          "10.210.4.33": "timeout",
+          "10.210.4.34": "timeout",
+          "10.210.4.35": "timeout",
+          "10.210.4.36": "timeout",
+          "10.210.4.37": "timeout",
+          "10.210.4.38": "timeout",
+          "10.210.4.39": "timeout",
+          "10.210.4.4": "ConnectionRefusedError",
+          "10.210.4.40": "timeout",
+          "10.210.4.41": "timeout",
+          "10.210.4.42": "timeout",
+          "10.210.4.43": "timeout",
+          "10.210.4.44": "timeout",
+          "10.210.4.45": "timeout",
+          "10.210.4.46": "timeout",
+          "10.210.4.47": "timeout",
+          "10.210.4.48": "timeout",
+          "10.210.4.49": "timeout",
+          "10.210.4.5": "ConnectionRefusedError",
+          "10.210.4.50": "timeout",
+          "10.210.4.51": "timeout",
+          "10.210.4.52": "timeout",
+          "10.210.4.53": "timeout",
+          "10.210.4.54": "timeout",
+          "10.210.4.55": "timeout",
+          "10.210.4.56": "timeout",
+          "10.210.4.57": "timeout",
+          "10.210.4.58": "timeout",
+          "10.210.4.59": "timeout",
+          "10.210.4.60": "timeout",
+          "10.210.4.61": "timeout",
+          "10.210.4.62": "timeout",
+          "10.210.4.63": "timeout",
+          "10.210.4.64": "timeout",
+          "10.210.4.65": "timeout",
+          "10.210.4.66": "timeout",
+          "10.210.4.67": "timeout",
+          "10.210.4.68": "timeout",
+          "10.210.4.69": "timeout",
+          "10.210.4.7": "timeout",
+          "10.210.4.70": "timeout",
+          "10.210.4.71": "timeout",
+          "10.210.4.72": "timeout",
+          "10.210.4.73": "timeout",
+          "10.210.4.74": "timeout",
+          "10.210.4.75": "timeout",
+          "10.210.4.76": "timeout",
+          "10.210.4.77": "timeout",
+          "10.210.4.78": "timeout",
+          "10.210.4.79": "timeout",
+          "10.210.4.8": "timeout",
+          "10.210.4.80": "timeout",
+          "10.210.4.81": "timeout",
+          "10.210.4.82": "timeout",
+          "10.210.4.83": "timeout",
+          "10.210.4.84": "timeout",
+          "10.210.4.85": "timeout",
+          "10.210.4.86": "timeout",
+          "10.210.4.87": "timeout",
+          "10.210.4.88": "timeout",
+          "10.210.4.89": "timeout",
+          "10.210.4.9": "timeout",
+          "10.210.4.90": "timeout",
+          "10.210.4.91": "timeout",
+          "10.210.4.92": "timeout",
+          "10.210.4.93": "timeout",
+          "10.210.4.94": "timeout",
+          "10.210.4.95": "timeout",
+          "10.210.4.96": "timeout",
+          "10.210.4.97": "timeout",
+          "10.210.4.98": "timeout",
+          "10.210.4.99": "timeout"
         },
         "liveness_ports": [
           9,
@@ -1042,48 +1021,51 @@
           6379,
           8888
         ],
-        "neither_open_nor_refused_first_200": [],
+        "neither_open_nor_refused_first_200": [
+          "10.210.4.1:32811",
+          "10.210.4.1:32812"
+        ],
         "open": [
-          "10.210.2.1:22",
-          "10.210.2.2:5439",
-          "10.210.2.3:3100",
-          "10.210.2.3:8001",
-          "10.210.2.3:8080",
-          "10.210.2.3:8081",
-          "10.210.2.3:8085",
-          "10.210.2.3:8090",
-          "10.210.2.3:8096",
-          "10.210.2.3:8099",
-          "10.210.2.3:8110",
-          "10.210.2.3:8120",
-          "10.210.2.3:9090",
-          "10.210.2.3:9093",
-          "10.210.2.4:9000",
-          "10.210.2.4:34433",
-          "10.210.2.5:5432"
+          "10.210.4.1:22",
+          "10.210.4.2:9000",
+          "10.210.4.3:3100",
+          "10.210.4.3:8001",
+          "10.210.4.3:8080",
+          "10.210.4.3:8081",
+          "10.210.4.3:8085",
+          "10.210.4.3:8090",
+          "10.210.4.3:8096",
+          "10.210.4.3:8099",
+          "10.210.4.3:8110",
+          "10.210.4.3:8120",
+          "10.210.4.3:9090",
+          "10.210.4.3:9093",
+          "10.210.4.4:5439",
+          "10.210.4.5:5432"
         ],
         "own_addresses_skipped": [
-          "10.210.2.6"
+          "10.210.4.6"
         ],
         "ports": "1-65535",
         "result_counts": {
-          "10.210.2.1": {
+          "10.210.4.1": {
+            "CONNECTED": 1,
+            "ConnectionRefusedError": 65532,
+            "timeout": 2
+          },
+          "10.210.4.2": {
             "CONNECTED": 1,
             "ConnectionRefusedError": 65534
           },
-          "10.210.2.2": {
-            "CONNECTED": 1,
-            "ConnectionRefusedError": 65534
-          },
-          "10.210.2.3": {
+          "10.210.4.3": {
             "CONNECTED": 12,
             "ConnectionRefusedError": 65523
           },
-          "10.210.2.4": {
-            "CONNECTED": 2,
-            "ConnectionRefusedError": 65533
+          "10.210.4.4": {
+            "CONNECTED": 1,
+            "ConnectionRefusedError": 65534
           },
-          "10.210.2.5": {
+          "10.210.4.5": {
             "CONNECTED": 1,
             "ConnectionRefusedError": 65534
           }
@@ -1145,16 +1127,16 @@
         ]
       },
       "container": "alkera-t4b-de-aws-episode-1",
-      "image": "alkera-episode:t4-redshift",
+      "image": "alkera-episode:head-redshift",
       "mounts": [
         {
           "rw": true,
-          "source": "/home/ubuntu/.cache/alkera-harbor-work/t4/de-aws-1791882976/audit",
+          "source": "/home/ubuntu/.cache/coord-final/box-de-aws/audit",
           "target": "/audit"
         },
         {
           "rw": true,
-          "source": "/home/ubuntu/.cache/alkera-harbor-work/t4/de-aws-1791882976/world/workspace",
+          "source": "/home/ubuntu/.cache/coord-final/box-de-aws/world/workspace",
           "target": "/workspace"
         },
         {
@@ -1164,13 +1146,13 @@
         },
         {
           "rw": true,
-          "source": "/home/ubuntu/.cache/alkera-harbor-work/t4/de-aws-1791882976/world/var/warehouse/warehouse.duckdb",
+          "source": "/home/ubuntu/.cache/coord-final/box-de-aws/world/var/warehouse/warehouse.duckdb",
           "target": "/world/var/warehouse/warehouse.duckdb"
         }
       ],
       "network_mode": "alkera-t4b-de-aws_episode_net",
       "networks": {
-        "alkera-t4b-de-aws_episode_net": "10.210.2.6"
+        "alkera-t4b-de-aws_episode_net": "10.210.4.6"
       },
       "published_ports": {},
       "service": "episode"
@@ -1192,7 +1174,7 @@
       "mounts": [
         {
           "rw": false,
-          "source": "/home/ubuntu/tool_implementation.wt/t4-containment/gateway/docker/postgres.sql",
+          "source": "/home/ubuntu/tool_implementation/gateway/docker/postgres.sql",
           "target": "/docker-entrypoint-initdb.d/seed.sql"
         },
         {
@@ -1203,11 +1185,65 @@
       ],
       "network_mode": "alkera-t4b-de-aws_backend_net",
       "networks": {
-        "alkera-t4b-de-aws_backend_net": "10.210.1.3",
-        "alkera-t4b-de-aws_episode_net": "10.210.2.5"
+        "alkera-t4b-de-aws_backend_net": "10.210.3.3",
+        "alkera-t4b-de-aws_episode_net": "10.210.4.5"
       },
       "published_ports": {},
       "service": "postgres"
+    },
+    {
+      "aliases": {
+        "alkera-t4b-de-aws_episode_net": [
+          "alkera-t4b-de-aws-native-services-1",
+          "native-services",
+          "native-services.internal",
+          "airbyte.internal",
+          "tableau.internal",
+          "prometheus.internal",
+          "alertmanager.internal",
+          "loki.internal",
+          "deploy.internal",
+          "jira.internal",
+          "slack.internal",
+          "confluence.internal",
+          "sched.internal"
+        ]
+      },
+      "container": "alkera-t4b-de-aws-native-services-1",
+      "image": "alkera-episode:head-redshift",
+      "mounts": [
+        {
+          "rw": true,
+          "source": "/home/ubuntu/.cache/coord-final/box-de-aws/audit",
+          "target": "/audit"
+        },
+        {
+          "rw": false,
+          "source": "alkera-t4b-de-aws_pgdata",
+          "target": "/pgdata"
+        },
+        {
+          "rw": true,
+          "source": "/home/ubuntu/.cache/coord-final/box-de-aws/rollout/service-state",
+          "target": "/service-state"
+        },
+        {
+          "rw": true,
+          "source": "/home/ubuntu/.cache/coord-final/box-de-aws/world",
+          "target": "/world"
+        },
+        {
+          "rw": false,
+          "source": "",
+          "target": "/world/var/ledger"
+        }
+      ],
+      "network_mode": "alkera-t4b-de-aws_episode_net",
+      "networks": {
+        "alkera-t4b-de-aws_episode_net": "10.210.4.3"
+      },
+      "published_ports": {},
+      "service": "native-services"
     },
     {
       "aliases": {
@@ -1233,12 +1269,22 @@
           "rw": true,
           "source": "alkera-t4b-de-aws_miniodata",
           "target": "/data"
+        },
+        {
+          "rw": false,
+          "source": "/home/ubuntu/tool_implementation/gateway/docker/minio_box_policy.json",
+          "target": "/opt/alkera/minio/box-policy.json"
+        },
+        {
+          "rw": false,
+          "source": "/home/ubuntu/tool_implementation/gateway/docker/minio_start.sh",
+          "target": "/opt/alkera/minio/start.sh"
         }
       ],
       "network_mode": "alkera-t4b-de-aws_backend_net",
       "networks": {
-        "alkera-t4b-de-aws_backend_net": "10.210.1.2",
-        "alkera-t4b-de-aws_episode_net": "10.210.2.4"
+        "alkera-t4b-de-aws_backend_net": "10.210.3.2",
+        "alkera-t4b-de-aws_episode_net": "10.210.4.2"
       },
       "published_ports": {},
       "service": "minio"
@@ -1252,11 +1298,11 @@
         ]
       },
       "container": "alkera-t4b-de-aws-redshift-1",
-      "image": "alkera-redshift:native-t4-redshift",
+      "image": "alkera-redshift:native-head-redshift",
       "mounts": [
         {
           "rw": true,
-          "source": "/home/ubuntu/.cache/alkera-harbor-work/t4/de-aws-1791882976/audit",
+          "source": "/home/ubuntu/.cache/coord-final/box-de-aws/audit",
           "target": "/audit"
         },
         {
@@ -1266,70 +1312,16 @@
         },
         {
           "rw": false,
-          "source": "/home/ubuntu/.cache/alkera-harbor-work/t4/de-aws-1791882976/world/var/warehouse/warehouse.duckdb",
+          "source": "/home/ubuntu/.cache/coord-final/box-de-aws/world/var/warehouse/warehouse.duckdb",
           "target": "/seed/warehouse.duckdb"
         }
       ],
       "network_mode": "alkera-t4b-de-aws_episode_net",
       "networks": {
-        "alkera-t4b-de-aws_episode_net": "10.210.2.2"
+        "alkera-t4b-de-aws_episode_net": "10.210.4.4"
       },
       "published_ports": {},
       "service": "redshift"
-    },
-    {
-      "aliases": {
-        "alkera-t4b-de-aws_episode_net": [
-          "alkera-t4b-de-aws-native-services-1",
-          "native-services",
-          "native-services.internal",
-          "airbyte.internal",
-          "tableau.internal",
-          "prometheus.internal",
-          "alertmanager.internal",
-          "loki.internal",
-          "deploy.internal",
-          "jira.internal",
-          "slack.internal",
-          "confluence.internal",
-          "sched.internal"
-        ]
-      },
-      "container": "alkera-t4b-de-aws-native-services-1",
-      "image": "alkera-episode:t4-redshift",
-      "mounts": [
-        {
-          "rw": true,
-          "source": "/home/ubuntu/.cache/alkera-harbor-work/t4/de-aws-1791882976/audit",
-          "target": "/audit"
-        },
-        {
-          "rw": false,
-          "source": "alkera-t4b-de-aws_pgdata",
-          "target": "/pgdata"
-        },
-        {
-          "rw": true,
-          "source": "/home/ubuntu/.cache/alkera-harbor-work/t4/de-aws-1791882976/rollout/service-state",
-          "target": "/service-state"
-        },
-        {
-          "rw": true,
-          "source": "/home/ubuntu/.cache/alkera-harbor-work/t4/de-aws-1791882976/world",
-          "target": "/world"
-        },
-        {
-          "rw": false,
-          "source": "",
-          "target": "/world/var/ledger"
-        }
-      ],
-      "network_mode": "alkera-t4b-de-aws_episode_net",
-      "networks": {
-        "alkera-t4b-de-aws_episode_net": "10.210.2.3"
-      },
-      "published_ports": {},
-      "service": "native-services"
     }
   ],
   "summary": {

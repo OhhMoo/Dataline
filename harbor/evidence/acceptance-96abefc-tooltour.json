@@ -1,0 +1,793 @@
+{
+  "dataset": "harbor/dist/alkera-tooltour",
+  "stamp": "20261013T135549",
+  "tasks": [
+    "alkera/airflow.airflowctl.commerce_nightly_schedule__tour",
+    "alkera/airflow.rest.dbt_build_successes__tour",
+    "alkera/browser.playwright.sigma_element_net_revenue__tour",
+    "alkera/browser.playwright.tableau_view_net_revenue__tour",
+    "alkera/databricks.connector.completed_orders_feb_2026__tour",
+    "alkera/databricks.dbt.net_revenue_feb_2026__tour",
+    "alkera/databricks.jobs.run_now_bi_refresh__tour",
+    "alkera/databricks.rest.net_revenue__tour",
+    "alkera/databricks.sdk.net_revenue_feb_2026__tour",
+    "alkera/databricks.uc.fct_orders_columns__tour",
+    "alkera/dbt.show.net_revenue__tour",
+    "alkera/dbt.show.ref_inline__tour",
+    "alkera/duckdb.cli.net_revenue_feb_2026__tour",
+    "alkera/excel.openpyxl.net_revenue_feb_2026_roundtrip__tour",
+    "alkera/human.confluence.net_revenue_page_version__tour",
+    "alkera/human.jira.ana238_status__tour",
+    "alkera/human.jira.ana238_status_da_snowflake__tour",
+    "alkera/human.jira.ana238_status_de_aws__tour",
+    "alkera/human.jira.ana238_status_de_databricks__tour",
+    "alkera/human.jira.ana238_status_de_laptop_airflow__tour",
+    "alkera/human.jira.ana238_status_de_postgres__tour",
+    "alkera/human.slack.analytics_eng_threads__tour",
+    "alkera/jupyter.default_kernel.completed_orders_feb_2026__tour",
+    "alkera/jupyter.kernel.completed_orders_feb_2026__tour",
+    "alkera/mf.query.net_revenue_feb_2026__tour",
+    "alkera/postgres.psql.net_revenue_feb_2026__tour",
+    "alkera/postgres_dbt.run.net_revenue_feb_2026__tour",
+    "alkera/powerbi.rest.net_revenue__tour",
+    "alkera/redshift.connector.net_revenue_feb_2026__tour",
+    "alkera/redshift.dbt.show_net_revenue_feb_2026__tour",
+    "alkera/redshift.psql.completed_orders_feb_2026__tour",
+    "alkera/sched.ops_sched.dbt_build_successes__tour",
+    "alkera/sigma.rest.net_revenue_feb_2026__tour",
+    "alkera/snowflake.connector.net_revenue_feb_2026__tour",
+    "alkera/tableau.tabcmd.net_revenue__tour"
+  ],
+  "jobs": {
+    "oracle": {
+      "job": "acceptance-oracle-20261013T135549",
+      "seconds": 2261,
+      "trials": [
+        {
+          "task": "alkera/airflow.airflowctl.commerce_nightly_schedule__tour",
+          "trial": "airflow.airflowctl.commerce_nigh__w4fYDUK",
+          "reward": 1,
+          "exception": null,
+          "outcome": "pass",
+          "path_penalty": null,
+          "missed": []
+        },
+        {
+          "task": "alkera/airflow.rest.dbt_build_successes__tour",
+          "trial": "airflow.rest.dbt_build_successes__Ftgsob6",
+          "reward": 1,
+          "exception": null,
+          "outcome": "pass",
+          "path_penalty": null,
+          "missed": []
+        },
+        {
+          "task": "alkera/browser.playwright.sigma_element_net_revenue__tour",
+          "trial": "browser.playwright.sigma_element__i3xR2Rj",
+          "reward": 1,
+          "exception": null,
+          "outcome": "pass",
+          "path_penalty": null,
+          "missed": []
+        },
+        {
+          "task": "alkera/browser.playwright.tableau_view_net_revenue__tour",
+          "trial": "browser.playwright.tableau_view__tGakY2g",
+          "reward": 1,
+          "exception": null,
+          "outcome": "pass",
+          "path_penalty": null,
+          "missed": []
+        },
+        {
+          "task": "alkera/databricks.connector.completed_orders_feb_2026__tour",
+          "trial": "databricks.connector.completed_o__RhTDtrw",
+          "reward": 1,
+          "exception": null,
+          "outcome": "pass",
+          "path_penalty": null,
+          "missed": []
+        },
+        {
+          "task": "alkera/databricks.dbt.net_revenue_feb_2026__tour",
+          "trial": "databricks.dbt.net_revenue_feb_2__tPj4BGf",
+          "reward": 1,
+          "exception": null,
+          "outcome": "pass",
+          "path_penalty": null,
+          "missed": []
+        },
+        {
+          "task": "alkera/databricks.jobs.run_now_bi_refresh__tour",
+          "trial": "databricks.jobs.run_now_bi_refre__wuuX3n9",
+          "reward": 1,
+          "exception": null,
+          "outcome": "pass",
+          "path_penalty": null,
+          "missed": []
+        },
+        {
+          "task": "alkera/databricks.rest.net_revenue__tour",
+          "trial": "databricks.rest.net_revenue__tou__VTzpSc7",
+          "reward": 1,
+          "exception": null,
+          "outcome": "pass",
+          "path_penalty": null,
+          "missed": []
+        },
+        {
+          "task": "alkera/databricks.sdk.net_revenue_feb_2026__tour",
+          "trial": "databricks.sdk.net_revenue_feb_2__soGdwSK",
+          "reward": 1,
+          "exception": null,
+          "outcome": "pass",
+          "path_penalty": null,
+          "missed": []
+        },
+        {
+          "task": "alkera/databricks.uc.fct_orders_columns__tour",
+          "trial": "databricks.uc.fct_orders_columns__t95uJW6",
+          "reward": 1,
+          "exception": null,
+          "outcome": "pass",
+          "path_penalty": null,
+          "missed": []
+        },
+        {
+          "task": "alkera/dbt.show.net_revenue__tour",
+          "trial": "dbt.show.net_revenue__tour__WAYrCBW",
+          "reward": 1,
+          "exception": null,
+          "outcome": "pass",
+          "path_penalty": null,
+          "missed": []
+        },
+        {
+          "task": "alkera/dbt.show.ref_inline__tour",
+          "trial": "dbt.show.ref_inline__tour__XMNhzXQ",
+          "reward": 1,
+          "exception": null,
+          "outcome": "pass",
+          "path_penalty": null,
+          "missed": []
+        },
+        {
+          "task": "alkera/duckdb.cli.net_revenue_feb_2026__tour",
+          "trial": "duckdb.cli.net_revenue_feb_2026__Xrxfzqc",
+          "reward": 1,
+          "exception": null,
+          "outcome": "pass",
+          "path_penalty": null,
+          "missed": []
+        },
+        {
+          "task": "alkera/excel.openpyxl.net_revenue_feb_2026_roundtrip__tour",
+          "trial": "excel.openpyxl.net_revenue_feb_2__kaBGsog",
+          "reward": 1,
+          "exception": null,
+          "outcome": "pass",
+          "path_penalty": null,
+          "missed": []
+        },
+        {
+          "task": "alkera/human.confluence.net_revenue_page_version__tour",
+          "trial": "human.confluence.net_revenue_pag__33zEK68",
+          "reward": 1,
+          "exception": null,
+          "outcome": "pass",
+          "path_penalty": null,
+          "missed": []
+        },
+        {
+          "task": "alkera/human.jira.ana238_status__tour",
+          "trial": "human.jira.ana238_status__tour__6VJQdHq",
+          "reward": 1,
+          "exception": null,
+          "outcome": "pass",
+          "path_penalty": null,
+          "missed": []
+        },
+        {
+          "task": "alkera/human.jira.ana238_status_da_snowflake__tour",
+          "trial": "human.jira.ana238_status_da_snow__p9MbfZU",
+          "reward": 1,
+          "exception": null,
+          "outcome": "pass",
+          "path_penalty": null,
+          "missed": []
+        },
+        {
+          "task": "alkera/human.jira.ana238_status_de_aws__tour",
+          "trial": "human.jira.ana238_status_de_aws__s4iPoZC",
+          "reward": 1,
+          "exception": null,
+          "outcome": "pass",
+          "path_penalty": null,
+          "missed": []
+        },
+        {
+          "task": "alkera/human.jira.ana238_status_de_databricks__tour",
+          "trial": "human.jira.ana238_status_de_data__TALAApT",
+          "reward": 1,
+          "exception": null,
+          "outcome": "pass",
+          "path_penalty": null,
+          "missed": []
+        },
+        {
+          "task": "alkera/human.jira.ana238_status_de_laptop_airflow__tour",
+          "trial": "human.jira.ana238_status_de_lapt__hihcLbL",
+          "reward": 1,
+          "exception": null,
+          "outcome": "pass",
+          "path_penalty": null,
+          "missed": []
+        },
+        {
+          "task": "alkera/human.jira.ana238_status_de_postgres__tour",
+          "trial": "human.jira.ana238_status_de_post__NBYZeRj",
+          "reward": 1,
+          "exception": null,
+          "outcome": "pass",
+          "path_penalty": null,
+          "missed": []
+        },
+        {
+          "task": "alkera/human.slack.analytics_eng_threads__tour",
+          "trial": "human.slack.analytics_eng_thread__ATeEKPG",
+          "reward": 1,
+          "exception": null,
+          "outcome": "pass",
+          "path_penalty": null,
+          "missed": []
+        },
+        {
+          "task": "alkera/jupyter.default_kernel.completed_orders_feb_2026__tour",
+          "trial": "jupyter.default_kernel.completed__wbdi2Kq",
+          "reward": 1,
+          "exception": null,
+          "outcome": "pass",
+          "path_penalty": null,
+          "missed": []
+        },
+        {
+          "task": "alkera/jupyter.kernel.completed_orders_feb_2026__tour",
+          "trial": "jupyter.kernel.completed_orders__Jodohpz",
+          "reward": 1,
+          "exception": null,
+          "outcome": "pass",
+          "path_penalty": null,
+          "missed": []
+        },
+        {
+          "task": "alkera/mf.query.net_revenue_feb_2026__tour",
+          "trial": "mf.query.net_revenue_feb_2026__t__2iZXRAW",
+          "reward": 1,
+          "exception": null,
+          "outcome": "pass",
+          "path_penalty": null,
+          "missed": []
+        },
+        {
+          "task": "alkera/postgres.psql.net_revenue_feb_2026__tour",
+          "trial": "postgres.psql.net_revenue_feb_20__t64KgUb",
+          "reward": 1,
+          "exception": null,
+          "outcome": "pass",
+          "path_penalty": null,
+          "missed": []
+        },
+        {
+          "task": "alkera/postgres_dbt.run.net_revenue_feb_2026__tour",
+          "trial": "postgres_dbt.run.net_revenue_feb__BPbjYqq",
+          "reward": 1,
+          "exception": null,
+          "outcome": "pass",
+          "path_penalty": null,
+          "missed": []
+        },
+        {
+          "task": "alkera/powerbi.rest.net_revenue__tour",
+          "trial": "powerbi.rest.net_revenue__tour__wr9XU2n",
+          "reward": 1,
+          "exception": null,
+          "outcome": "pass",
+          "path_penalty": null,
+          "missed": []
+        },
+        {
+          "task": "alkera/redshift.connector.net_revenue_feb_2026__tour",
+          "trial": "redshift.connector.net_revenue_f__ULikttj",
+          "reward": 1,
+          "exception": null,
+          "outcome": "pass",
+          "path_penalty": null,
+          "missed": []
+        },
+        {
+          "task": "alkera/redshift.dbt.show_net_revenue_feb_2026__tour",
+          "trial": "redshift.dbt.show_net_revenue_fe__fYkqrJB",
+          "reward": 1,
+          "exception": null,
+          "outcome": "pass",
+          "path_penalty": null,
+          "missed": []
+        },
+        {
+          "task": "alkera/redshift.psql.completed_orders_feb_2026__tour",
+          "trial": "redshift.psql.completed_orders_f__MDhEcyQ",
+          "reward": 1,
+          "exception": null,
+          "outcome": "pass",
+          "path_penalty": null,
+          "missed": []
+        },
+        {
+          "task": "alkera/sched.ops_sched.dbt_build_successes__tour",
+          "trial": "sched.ops_sched.dbt_build_succes__AvfXPon",
+          "reward": 1,
+          "exception": null,
+          "outcome": "pass",
+          "path_penalty": null,
+          "missed": []
+        },
+        {
+          "task": "alkera/sigma.rest.net_revenue_feb_2026__tour",
+          "trial": "sigma.rest.net_revenue_feb_2026__J4jkx4N",
+          "reward": 1,
+          "exception": null,
+          "outcome": "pass",
+          "path_penalty": null,
+          "missed": []
+        },
+        {
+          "task": "alkera/snowflake.connector.net_revenue_feb_2026__tour",
+          "trial": "snowflake.connector.net_revenue__hVNCHyZ",
+          "reward": 1,
+          "exception": null,
+          "outcome": "pass",
+          "path_penalty": null,
+          "missed": []
+        },
+        {
+          "task": "alkera/tableau.tabcmd.net_revenue__tour",
+          "trial": "tableau.tabcmd.net_revenue__tour__XHWUQqA",
+          "reward": 1,
+          "exception": null,
+          "outcome": "pass",
+          "path_penalty": null,
+          "missed": []
+        }
+      ],
+      "problems": []
+    },
+    "nop": {
+      "job": "acceptance-nop-20261013T135549",
+      "seconds": 1665,
+      "trials": [
+        {
+          "task": "alkera/airflow.airflowctl.commerce_nightly_schedule__tour",
+          "trial": "airflow.airflowctl.commerce_nigh__QxzgRdp",
+          "reward": 0,
+          "exception": null,
+          "outcome": "fail",
+          "path_penalty": null,
+          "missed": [
+            "answer",
+            "tools"
+          ]
+        },
+        {
+          "task": "alkera/airflow.rest.dbt_build_successes__tour",
+          "trial": "airflow.rest.dbt_build_successes__25N2vRW",
+          "reward": 0,
+          "exception": null,
+          "outcome": "fail",
+          "path_penalty": null,
+          "missed": [
+            "answer",
+            "tools"
+          ]
+        },
+        {
+          "task": "alkera/browser.playwright.sigma_element_net_revenue__tour",
+          "trial": "browser.playwright.sigma_element__Fop3xi9",
+          "reward": 0,
+          "exception": null,
+          "outcome": "fail",
+          "path_penalty": null,
+          "missed": [
+            "answer",
+            "tools"
+          ]
+        },
+        {
+          "task": "alkera/browser.playwright.tableau_view_net_revenue__tour",
+          "trial": "browser.playwright.tableau_view__M4j8UZd",
+          "reward": 0,
+          "exception": null,
+          "outcome": "fail",
+          "path_penalty": null,
+          "missed": [
+            "answer",
+            "tools"
+          ]
+        },
+        {
+          "task": "alkera/databricks.connector.completed_orders_feb_2026__tour",
+          "trial": "databricks.connector.completed_o__gT5gJC8",
+          "reward": 0,
+          "exception": null,
+          "outcome": "fail",
+          "path_penalty": null,
+          "missed": [
+            "answer",
+            "tools"
+          ]
+        },
+        {
+          "task": "alkera/databricks.dbt.net_revenue_feb_2026__tour",
+          "trial": "databricks.dbt.net_revenue_feb_2__NzyGtfp",
+          "reward": 0,
+          "exception": null,
+          "outcome": "fail",
+          "path_penalty": null,
+          "missed": [
+            "answer",
+            "tools"
+          ]
+        },
+        {
+          "task": "alkera/databricks.jobs.run_now_bi_refresh__tour",
+          "trial": "databricks.jobs.run_now_bi_refre__jwvqgfa",
+          "reward": 0,
+          "exception": null,
+          "outcome": "fail",
+          "path_penalty": null,
+          "missed": [
+            "answer",
+            "tools"
+          ]
+        },
+        {
+          "task": "alkera/databricks.rest.net_revenue__tour",
+          "trial": "databricks.rest.net_revenue__tou__M9BbuRs",
+          "reward": 0,
+          "exception": null,
+          "outcome": "fail",
+          "path_penalty": null,
+          "missed": [
+            "answer",
+            "tools"
+          ]
+        },
+        {
+          "task": "alkera/databricks.sdk.net_revenue_feb_2026__tour",
+          "trial": "databricks.sdk.net_revenue_feb_2__QgffTVy",
+          "reward": 0,
+          "exception": null,
+          "outcome": "fail",
+          "path_penalty": null,
+          "missed": [
+            "answer",
+            "tools"
+          ]
+        },
+        {
+          "task": "alkera/databricks.uc.fct_orders_columns__tour",
+          "trial": "databricks.uc.fct_orders_columns__etZai5E",
+          "reward": 0,
+          "exception": null,
+          "outcome": "fail",
+          "path_penalty": null,
+          "missed": [
+            "answer",
+            "tools"
+          ]
+        },
+        {
+          "task": "alkera/dbt.show.net_revenue__tour",
+          "trial": "dbt.show.net_revenue__tour__duMva9X",
+          "reward": 0,
+          "exception": null,
+          "outcome": "fail",
+          "path_penalty": null,
+          "missed": [
+            "answer",
+            "tools"
+          ]
+        },
+        {
+          "task": "alkera/dbt.show.ref_inline__tour",
+          "trial": "dbt.show.ref_inline__tour__fFqk4CT",
+          "reward": 0,
+          "exception": null,
+          "outcome": "fail",
+          "path_penalty": null,
+          "missed": [
+            "answer",
+            "tools"
+          ]
+        },
+        {
+          "task": "alkera/duckdb.cli.net_revenue_feb_2026__tour",
+          "trial": "duckdb.cli.net_revenue_feb_2026__4Qd9tst",
+          "reward": 0,
+          "exception": null,
+          "outcome": "fail",
+          "path_penalty": null,
+          "missed": [
+            "answer",
+            "tools"
+          ]
+        },
+        {
+          "task": "alkera/excel.openpyxl.net_revenue_feb_2026_roundtrip__tour",
+          "trial": "excel.openpyxl.net_revenue_feb_2__b6brvpF",
+          "reward": 0,
+          "exception": null,
+          "outcome": "fail",
+          "path_penalty": null,
+          "missed": [
+            "answer",
+            "tools"
+          ]
+        },
+        {
+          "task": "alkera/human.confluence.net_revenue_page_version__tour",
+          "trial": "human.confluence.net_revenue_pag__YtYFquX",
+          "reward": 0,
+          "exception": null,
+          "outcome": "fail",
+          "path_penalty": null,
+          "missed": [
+            "answer",
+            "tools"
+          ]
+        },
+        {
+          "task": "alkera/human.jira.ana238_status__tour",
+          "trial": "human.jira.ana238_status__tour__s5CQgaM",
+          "reward": 0,
+          "exception": null,
+          "outcome": "fail",
+          "path_penalty": null,
+          "missed": [
+            "answer",
+            "tools"
+          ]
+        },
+        {
+          "task": "alkera/human.jira.ana238_status_da_snowflake__tour",
+          "trial": "human.jira.ana238_status_da_snow__zaKhZJL",
+          "reward": 0,
+          "exception": null,
+          "outcome": "fail",
+          "path_penalty": null,
+          "missed": [
+            "answer",
+            "tools"
+          ]
+        },
+        {
+          "task": "alkera/human.jira.ana238_status_de_aws__tour",
+          "trial": "human.jira.ana238_status_de_aws__oeJ8GKu",
+          "reward": 0,
+          "exception": null,
+          "outcome": "fail",
+          "path_penalty": null,
+          "missed": [
+            "answer",
+            "tools"
+          ]
+        },
+        {
+          "task": "alkera/human.jira.ana238_status_de_databricks__tour",
+          "trial": "human.jira.ana238_status_de_data__4JW56XT",
+          "reward": 0,
+          "exception": null,
+          "outcome": "fail",
+          "path_penalty": null,
+          "missed": [
+            "answer",
+            "tools"
+          ]
+        },
+        {
+          "task": "alkera/human.jira.ana238_status_de_laptop_airflow__tour",
+          "trial": "human.jira.ana238_status_de_lapt__heWHVie",
+          "reward": 0,
+          "exception": null,
+          "outcome": "fail",
+          "path_penalty": null,
+          "missed": [
+            "answer",
+            "tools"
+          ]
+        },
+        {
+          "task": "alkera/human.jira.ana238_status_de_postgres__tour",
+          "trial": "human.jira.ana238_status_de_post__hBELHYu",
+          "reward": 0,
+          "exception": null,
+          "outcome": "fail",
+          "path_penalty": null,
+          "missed": [
+            "answer",
+            "tools"
+          ]
+        },
+        {
+          "task": "alkera/human.slack.analytics_eng_threads__tour",
+          "trial": "human.slack.analytics_eng_thread__JutG6i6",
+          "reward": 0,
+          "exception": null,
+          "outcome": "fail",
+          "path_penalty": null,
+          "missed": [
+            "answer",
+            "tools"
+          ]
+        },
+        {
+          "task": "alkera/jupyter.default_kernel.completed_orders_feb_2026__tour",
+          "trial": "jupyter.default_kernel.completed__RRDdBgo",
+          "reward": 0,
+          "exception": null,
+          "outcome": "fail",
+          "path_penalty": null,
+          "missed": [
+            "answer",
+            "tools"
+          ]
+        },
+        {
+          "task": "alkera/jupyter.kernel.completed_orders_feb_2026__tour",
+          "trial": "jupyter.kernel.completed_orders__PMKRf5G",
+          "reward": 0,
+          "exception": null,
+          "outcome": "fail",
+          "path_penalty": null,
+          "missed": [
+            "answer",
+            "tools"
+          ]
+        },
+        {
+          "task": "alkera/mf.query.net_revenue_feb_2026__tour",
+          "trial": "mf.query.net_revenue_feb_2026__t__9j2XYcg",
+          "reward": 0,
+          "exception": null,
+          "outcome": "fail",
+          "path_penalty": null,
+          "missed": [
+            "answer",
+            "tools"
+          ]
+        },
+        {
+          "task": "alkera/postgres.psql.net_revenue_feb_2026__tour",
+          "trial": "postgres.psql.net_revenue_feb_20__gHUqfUW",
+          "reward": 0,
+          "exception": null,
+          "outcome": "fail",
+          "path_penalty": null,
+          "missed": [
+            "answer",
+            "tools"
+          ]
+        },
+        {
+          "task": "alkera/postgres_dbt.run.net_revenue_feb_2026__tour",
+          "trial": "postgres_dbt.run.net_revenue_feb__HJkFWv8",
+          "reward": 0,
+          "exception": null,
+          "outcome": "fail",
+          "path_penalty": null,
+          "missed": [
+            "answer",
+            "tools"
+          ]
+        },
+        {
+          "task": "alkera/powerbi.rest.net_revenue__tour",
+          "trial": "powerbi.rest.net_revenue__tour__EqwJGaQ",
+          "reward": 0,
+          "exception": null,
+          "outcome": "fail",
+          "path_penalty": null,
+          "missed": [
+            "answer",
+            "tools"
+          ]
+        },
+        {
+          "task": "alkera/redshift.connector.net_revenue_feb_2026__tour",
+          "trial": "redshift.connector.net_revenue_f__WpDTTko",
+          "reward": 0,
+          "exception": null,
+          "outcome": "fail",
+          "path_penalty": null,
+          "missed": [
+            "answer",
+            "tools"
+          ]
+        },
+        {
+          "task": "alkera/redshift.dbt.show_net_revenue_feb_2026__tour",
+          "trial": "redshift.dbt.show_net_revenue_fe__jGmXWbH",
+          "reward": 0,
+          "exception": null,
+          "outcome": "fail",
+          "path_penalty": null,
+          "missed": [
+            "answer",
+            "tools"
+          ]
+        },
+        {
+          "task": "alkera/redshift.psql.completed_orders_feb_2026__tour",
+          "trial": "redshift.psql.completed_orders_f__LXL7k5e",
+          "reward": 0,
+          "exception": null,
+          "outcome": "fail",
+          "path_penalty": null,
+          "missed": [
+            "answer",
+            "tools"
+          ]
+        },
+        {
+          "task": "alkera/sched.ops_sched.dbt_build_successes__tour",
+          "trial": "sched.ops_sched.dbt_build_succes__Dzt9hJS",
+          "reward": 0,
+          "exception": null,
+          "outcome": "fail",
+          "path_penalty": null,
+          "missed": [
+            "answer",
+            "tools"
+          ]
+        },
+        {
+          "task": "alkera/sigma.rest.net_revenue_feb_2026__tour",
+          "trial": "sigma.rest.net_revenue_feb_2026__DtRPmAK",
+          "reward": 0,
+          "exception": null,
+          "outcome": "fail",
+          "path_penalty": null,
+          "missed": [
+            "answer",
+            "tools"
+          ]
+        },
+        {
+          "task": "alkera/snowflake.connector.net_revenue_feb_2026__tour",
+          "trial": "snowflake.connector.net_revenue__4hK6UM8",
+          "reward": 0,
+          "exception": null,
+          "outcome": "fail",
+          "path_penalty": null,
+          "missed": [
+            "answer",
+            "tools"
+          ]
+        },
+        {
+          "task": "alkera/tableau.tabcmd.net_revenue__tour",
+          "trial": "tableau.tabcmd.net_revenue__tour__TNUYbEK",
+          "reward": 0,
+          "exception": null,
+          "outcome": "fail",
+          "path_penalty": null,
+          "missed": [
+            "answer",
+            "tools"
+          ]
+        }
+      ],
+      "problems": []
+    }
+  },
+  "accepted": true
+}

@@ -1,17 +1,17 @@
 {
-  "compose_file": "/home/ubuntu/tool_implementation.wt/t14-spark/gateway/docker/compose.yml",
+  "compose_file": "/home/ubuntu/tool_implementation/gateway/docker/compose.yml",
   "compose_overlays": [
-    "/home/ubuntu/tool_implementation.wt/t14-spark/gateway/docker/compose.yml",
-    "/home/ubuntu/tool_implementation.wt/t14-spark/gateway/docker/compose.episode.yml",
-    "/home/ubuntu/tool_implementation.wt/t14-spark/gateway/docker/compose.native.yml",
-    "/home/ubuntu/.cache/t14/sweep/work/rollout/container/compose.native-mounts.yml"
+    "/home/ubuntu/tool_implementation/gateway/docker/compose.yml",
+    "/home/ubuntu/tool_implementation/gateway/docker/compose.episode.yml",
+    "/home/ubuntu/tool_implementation/gateway/docker/compose.native.yml",
+    "/home/ubuntu/.cache/coord-final/box-ds-databricks/rollout/container/compose.native-mounts.yml"
   ],
   "environment_profile": {
     "plugs": [],
     "profile": "ds/databricks",
     "source": "native-services argv"
   },
-  "generated": "2026-10-13T12:14:58+00:00",
+  "generated": "2026-10-13T13:54:44+00:00",
   "host": {
     "docker": "29.8.2",
     "platform": "Linux-7.0.0-1006-aws-x86_64-with-glibc2.43"
@@ -40,10 +40,10 @@
       "spark_connect.internal:15002"
     ],
     "compose_files": [
-      "/home/ubuntu/tool_implementation.wt/t14-spark/gateway/docker/compose.yml",
-      "/home/ubuntu/tool_implementation.wt/t14-spark/gateway/docker/compose.episode.yml",
-      "/home/ubuntu/tool_implementation.wt/t14-spark/gateway/docker/compose.native.yml",
-      "/home/ubuntu/.cache/t14/sweep/work/rollout/container/compose.native-mounts.yml"
+      "/home/ubuntu/tool_implementation/gateway/docker/compose.yml",
+      "/home/ubuntu/tool_implementation/gateway/docker/compose.episode.yml",
+      "/home/ubuntu/tool_implementation/gateway/docker/compose.native.yml",
+      "/home/ubuntu/.cache/coord-final/box-ds-databricks/rollout/container/compose.native-mounts.yml"
     ],
     "compose_names": [
       "episode",
@@ -116,7 +116,7 @@
       "spark",
       "alkera-t4b-ds-databricks-spark-1"
     ],
-    "native_services_startup": "native-services: state /service-state (bi_state_dir /service-state/bi), config /service-state/native_gateway.json\n{\"spark_connect\": \"engine answered\", \"upstream\": \"spark:15002\", \"waited_s\": 28.1}\nalkera native services  bind=0.0.0.0  audit=/audit  world=/world\nservice       alias                     port  state\ndatabricks    databricks.internal        443  module\njira          jira.internal             8080  module\nslack         slack.internal            8081  module\nconfluence    confluence.internal       8090  module\nspark_connect spark_connect.internal   15002  module (+/health items=0)\nminio-audit   native-services.internal  8110  receiver (not a destination: the stack dials it, not the episode)\nsched         sched.internal            8120  scheduler\nloaded=7 missing=0 port_disagreements=0\nALKERA_GATEWAY_CONFIG=/service-state/native_gateway.json\nALKERA_NATIVE_AUDIT=/audit/actions.jsonl\nALKERA_SCHEDULER=/world/var/sched/state.json\npeer filter: agent listeners admit 10.210.202.0/24 only (ALKERA_EPISODE_SUBNETS)",
+    "native_services_startup": "native-services: state /service-state (bi_state_dir /service-state/bi), config /service-state/native_gateway.json\n{\"spark_connect\": \"engine answered\", \"upstream\": \"spark:15002\", \"waited_s\": 25.6}\nalkera native services  bind=0.0.0.0  audit=/audit  world=/world\nservice       alias                     port  state\ndatabricks    databricks.internal        443  module\njira          jira.internal             8080  module\nslack         slack.internal            8081  module\nconfluence    confluence.internal       8090  module\nspark_connect spark_connect.internal   15002  module (+/health items=0)\nminio-audit   native-services.internal  8110  receiver (not a destination: the stack dials it, not the episode)\nsched         sched.internal            8120  scheduler\nloaded=7 missing=0 port_disagreements=0\nALKERA_GATEWAY_CONFIG=/service-state/native_gateway.json\nALKERA_NATIVE_AUDIT=/audit/actions.jsonl\nALKERA_SCHEDULER=/world/var/sched/state.json\npeer filter: agent listeners admit 10.210.202.0/24 only (ALKERA_EPISODE_SUBNETS)",
     "not_audited": [
       {
         "address": "10.210.202.1",
@@ -132,7 +132,7 @@
       {
         "address": "10.210.202.5",
         "banner": {
-          "http_get_reply": "HTTP/1.1 405 Method Not Allowed\r\ndate: Tue, 13 Oct 2026 12:15:09 GMT\r\nserver: uvicorn\r\nallow: POST\r\ncontent-length: 31\r\ncontent-type: application/json\r\nConnection: close\r\n\r\n"
+          "http_get_reply": "HTTP/1.1 405 Method Not Allowed\r\ndate: Tue, 13 Oct 2026 13:54:56 GMT\r\nserver: uvicorn\r\nallow: POST\r\ncontent-length: 31\r\ncontent-type: application/json\r\nConnection: close\r\n\r\n"
         },
         "class": "NOT AN AUDITED DOOR: MinIO audit receiver (serve.MINIO_AUDIT_PORT); the episode reaches it, and it answers only a POST carrying the per-rollout token",
         "names": [
@@ -451,7 +451,7 @@
         {
           "address": "10.210.202.5",
           "banner": {
-            "http_get_reply": "HTTP/1.1 405 Method Not Allowed\r\ndate: Tue, 13 Oct 2026 12:15:09 GMT\r\nserver: uvicorn\r\nallow: POST\r\ncontent-length: 31\r\ncontent-type: application/json\r\nConnection: close\r\n\r\n"
+            "http_get_reply": "HTTP/1.1 405 Method Not Allowed\r\ndate: Tue, 13 Oct 2026 13:54:56 GMT\r\nserver: uvicorn\r\nallow: POST\r\ncontent-length: 31\r\ncontent-type: application/json\r\nConnection: close\r\n\r\n"
           },
           "names": [
             "confluence.internal",
@@ -944,7 +944,7 @@
           }
         },
         "saw_every_expected_port_open": true,
-        "seconds": 10.1,
+        "seconds": 9.7,
         "timeout_s": 1.0
       },
       "unexpected_open": [],
@@ -1000,16 +1000,16 @@
         ]
       },
       "container": "alkera-t4b-ds-databricks-episode-1",
-      "image": "alkera-episode:t14-ds-databricks-spark",
+      "image": "alkera-episode:head-ds-databricks-spark",
       "mounts": [
         {
           "rw": true,
-          "source": "/home/ubuntu/.cache/t14/sweep/work/audit",
+          "source": "/home/ubuntu/.cache/coord-final/box-ds-databricks/audit",
           "target": "/audit"
         },
         {
           "rw": true,
-          "source": "/home/ubuntu/.cache/t14/sweep/work/world/workspace",
+          "source": "/home/ubuntu/.cache/coord-final/box-ds-databricks/world/workspace",
           "target": "/workspace"
         },
         {
@@ -1024,7 +1024,7 @@
         },
         {
           "rw": true,
-          "source": "/home/ubuntu/.cache/t14/sweep/work/world/var/warehouse/warehouse.duckdb",
+          "source": "/home/ubuntu/.cache/coord-final/box-ds-databricks/world/var/warehouse/warehouse.duckdb",
           "target": "/world/var/warehouse/warehouse.duckdb"
         }
       ],
@@ -1054,11 +1054,11 @@
         ]
       },
       "container": "alkera-t4b-ds-databricks-native-services-1",
-      "image": "alkera-episode:t14-ds-databricks-spark",
+      "image": "alkera-episode:head-ds-databricks-spark",
       "mounts": [
         {
           "rw": true,
-          "source": "/home/ubuntu/.cache/t14/sweep/work/audit",
+          "source": "/home/ubuntu/.cache/coord-final/box-ds-databricks/audit",
           "target": "/audit"
         },
         {
@@ -1068,12 +1068,12 @@
         },
         {
           "rw": true,
-          "source": "/home/ubuntu/.cache/t14/sweep/work/rollout/service-state",
+          "source": "/home/ubuntu/.cache/coord-final/box-ds-databricks/rollout/service-state",
           "target": "/service-state"
         },
         {
           "rw": true,
-          "source": "/home/ubuntu/.cache/t14/sweep/work/world",
+          "source": "/home/ubuntu/.cache/coord-final/box-ds-databricks/world",
           "target": "/world"
         },
         {
@@ -1089,7 +1089,7 @@
       ],
       "network_mode": "alkera-t4b-ds-databricks_backend_net",
       "networks": {
-        "alkera-t4b-ds-databricks_backend_net": "10.210.1.5",
+        "alkera-t4b-ds-databricks_backend_net": "10.210.2.5",
         "alkera-t4b-ds-databricks_episode_net": "10.210.202.5"
       },
       "published_ports": {},
@@ -1104,16 +1104,16 @@
         ]
       },
       "container": "alkera-t4b-ds-databricks-jupyter-1",
-      "image": "alkera-episode:t14-ds-databricks-spark",
+      "image": "alkera-episode:head-ds-databricks-spark",
       "mounts": [
         {
           "rw": true,
-          "source": "/home/ubuntu/.cache/t14/sweep/work/audit",
+          "source": "/home/ubuntu/.cache/coord-final/box-ds-databricks/audit",
           "target": "/audit"
         },
         {
           "rw": true,
-          "source": "/home/ubuntu/.cache/t14/sweep/work/world/workspace",
+          "source": "/home/ubuntu/.cache/coord-final/box-ds-databricks/world/workspace",
           "target": "/workspace"
         },
         {
@@ -1128,7 +1128,7 @@
         },
         {
           "rw": true,
-          "source": "/home/ubuntu/.cache/t14/sweep/work/world/var/warehouse/warehouse.duckdb",
+          "source": "/home/ubuntu/.cache/coord-final/box-ds-databricks/world/var/warehouse/warehouse.duckdb",
           "target": "/world/var/warehouse/warehouse.duckdb"
         }
       ],
@@ -1156,7 +1156,7 @@
       "mounts": [
         {
           "rw": false,
-          "source": "/home/ubuntu/tool_implementation.wt/t14-spark/gateway/docker/postgres.sql",
+          "source": "/home/ubuntu/tool_implementation/gateway/docker/postgres.sql",
           "target": "/docker-entrypoint-initdb.d/seed.sql"
         },
         {
@@ -1167,7 +1167,7 @@
       ],
       "network_mode": "alkera-t4b-ds-databricks_backend_net",
       "networks": {
-        "alkera-t4b-ds-databricks_backend_net": "10.210.1.4",
+        "alkera-t4b-ds-databricks_backend_net": "10.210.2.4",
         "alkera-t4b-ds-databricks_episode_net": "10.210.202.4"
       },
       "published_ports": {},
@@ -1197,11 +1197,21 @@
           "rw": true,
           "source": "alkera-t4b-ds-databricks_miniodata",
           "target": "/data"
+        },
+        {
+          "rw": false,
+          "source": "/home/ubuntu/tool_implementation/gateway/docker/minio_box_policy.json",
+          "target": "/opt/alkera/minio/box-policy.json"
+        },
+        {
+          "rw": false,
+          "source": "/home/ubuntu/tool_implementation/gateway/docker/minio_start.sh",
+          "target": "/opt/alkera/minio/start.sh"
         }
       ],
       "network_mode": "alkera-t4b-ds-databricks_backend_net",
       "networks": {
-        "alkera-t4b-ds-databricks_backend_net": "10.210.1.3",
+        "alkera-t4b-ds-databricks_backend_net": "10.210.2.3",
         "alkera-t4b-ds-databricks_episode_net": "10.210.202.3"
       },
       "published_ports": {},
@@ -1215,17 +1225,17 @@
         ]
       },
       "container": "alkera-t4b-ds-databricks-spark-1",
-      "image": "alkera-spark:native-t14-ds-databricks-spark",
+      "image": "alkera-spark:native-head-ds-databricks-spark",
       "mounts": [
         {
           "rw": false,
-          "source": "/home/ubuntu/.cache/t14/sweep/work/world/var/warehouse/warehouse.duckdb",
+          "source": "/home/ubuntu/.cache/coord-final/box-ds-databricks/world/var/warehouse/warehouse.duckdb",
           "target": "/seed/warehouse.duckdb"
         }
       ],
       "network_mode": "alkera-t4b-ds-databricks_backend_net",
       "networks": {
-        "alkera-t4b-ds-databricks_backend_net": "10.210.1.2"
+        "alkera-t4b-ds-databricks_backend_net": "10.210.2.2"
       },
       "published_ports": {},
       "service": "spark"

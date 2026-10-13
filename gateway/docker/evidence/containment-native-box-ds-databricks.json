@@ -8,8 +8,8 @@
           "episode"
         ]
       },
-      "id": "6c5490840d29a72309fb5ade584d877f888a97574e27eef35f6a793616a53a76",
-      "image": "alkera-episode:t14-ds-databricks-spark",
+      "id": "1f10c6d99112f25e4e51bae1814512c45b334e263bd442053dea4d7f047bdf08",
+      "image": "alkera-episode:head-ds-databricks-spark",
       "networks": {
         "alkera-t4b-ds-databricks_episode_net": "10.210.202.6"
       },
@@ -34,10 +34,10 @@
           "sched.internal"
         ]
       },
-      "id": "84d2a0dfd472d1c60917716159c7f34a711fd902aae4dd9da54e7ab35fd0ce42",
-      "image": "alkera-episode:t14-ds-databricks-spark",
+      "id": "d8ff3c3fd71d09179698d1fe8d7555f314b71660d365636964f90d81e94e9188",
+      "image": "alkera-episode:head-ds-databricks-spark",
       "networks": {
-        "alkera-t4b-ds-databricks_backend_net": "10.210.1.5",
+        "alkera-t4b-ds-databricks_backend_net": "10.210.2.5",
         "alkera-t4b-ds-databricks_episode_net": "10.210.202.5"
       },
       "published_ports": {},
@@ -51,8 +51,8 @@
           "jupyter.internal"
         ]
       },
-      "id": "84853c4642cd85081fd9e9fe6d828f86dea69404b76a90676d34d0ec3b0e921c",
-      "image": "alkera-episode:t14-ds-databricks-spark",
+      "id": "d688b4fe9328b72c0cbcb9106795067d4ca96daa45ac4eff7aae3d596425851d",
+      "image": "alkera-episode:head-ds-databricks-spark",
       "networks": {
         "alkera-t4b-ds-databricks_episode_net": "10.210.202.2"
       },
@@ -71,10 +71,10 @@
           "postgres.internal"
         ]
       },
-      "id": "2d64a619bd4ffbd6428f4d4595c59ebfb1e404c01b01d60b8b246963579cb5da",
+      "id": "efbc5309c19cd5cee8063b29a7b0f0a5c72089a88080eab56d7069357e6d99e3",
       "image": "postgres@sha256:f1c3376c26f2609ab9f29f71f824103fe2fcd8ee0346485cb6122a4f93df6f94",
       "networks": {
-        "alkera-t4b-ds-databricks_backend_net": "10.210.1.4",
+        "alkera-t4b-ds-databricks_backend_net": "10.210.2.4",
         "alkera-t4b-ds-databricks_episode_net": "10.210.202.4"
       },
       "published_ports": {},
@@ -92,10 +92,10 @@
           "minio.internal"
         ]
       },
-      "id": "7ef88a8d3cba75ac6986705beed57ce984325568a5cabcead62341fb2dd86e41",
+      "id": "3327a599fdc9178a575bf435fd36ea1231f388471cd738362c4f0cbeddf30939",
       "image": "docker.io/pgsty/minio@sha256:b6bfe7239bfc83fb90d31612d9704d86039dd714f7904b3f1ad68f211e602372",
       "networks": {
-        "alkera-t4b-ds-databricks_backend_net": "10.210.1.3",
+        "alkera-t4b-ds-databricks_backend_net": "10.210.2.3",
         "alkera-t4b-ds-databricks_episode_net": "10.210.202.3"
       },
       "published_ports": {},
@@ -108,10 +108,10 @@
           "spark"
         ]
       },
-      "id": "138741b81d041d91d9d97b28b2335cf12624a532dcec82a754eb4c9b2ac11d2c",
-      "image": "alkera-spark:native-t14-ds-databricks-spark",
+      "id": "4a7685a7a6e4e9f5975e41e974b832f0a601ce19519e6b2ce87bd127a22d2ac1",
+      "image": "alkera-spark:native-head-ds-databricks-spark",
       "networks": {
-        "alkera-t4b-ds-databricks_backend_net": "10.210.1.2"
+        "alkera-t4b-ds-databricks_backend_net": "10.210.2.2"
       },
       "published_ports": {},
       "service": "spark"
@@ -121,57 +121,57 @@
     {
       "count": 6,
       "file": "destinations.jsonl",
-      "first_ts": "2026-10-13T12:14:59Z",
+      "first_ts": "2026-10-13T13:54:45Z",
       "host": "databricks.internal",
-      "last_ts": "2026-10-13T12:15:12Z",
+      "last_ts": "2026-10-13T13:54:58Z",
       "port": 443
     },
     {
       "count": 5,
       "file": "destinations.jsonl",
-      "first_ts": "2026-10-13T12:14:59Z",
+      "first_ts": "2026-10-13T13:54:45Z",
       "host": "jira.internal",
-      "last_ts": "2026-10-13T12:15:21Z",
+      "last_ts": "2026-10-13T13:55:07Z",
       "port": 8080
     },
     {
       "count": 5,
       "file": "destinations.jsonl",
-      "first_ts": "2026-10-13T12:14:59Z",
+      "first_ts": "2026-10-13T13:54:45Z",
       "host": "slack.internal",
-      "last_ts": "2026-10-13T12:15:21Z",
+      "last_ts": "2026-10-13T13:55:07Z",
       "port": 8081
     },
     {
       "count": 9,
       "file": "destinations.jsonl",
-      "first_ts": "2026-10-13T12:14:59Z",
+      "first_ts": "2026-10-13T13:54:45Z",
       "host": "confluence.internal",
-      "last_ts": "2026-10-13T12:15:24Z",
+      "last_ts": "2026-10-13T13:55:10Z",
       "port": 8090
     },
     {
       "count": 4,
       "file": "destinations.jsonl",
-      "first_ts": "2026-10-13T12:14:59Z",
+      "first_ts": "2026-10-13T13:54:45Z",
       "host": "native-services.internal",
-      "last_ts": "2026-10-13T12:15:21Z",
+      "last_ts": "2026-10-13T13:55:07Z",
       "port": 8099
     },
     {
       "count": 5,
       "file": "destinations.jsonl",
-      "first_ts": "2026-10-13T12:14:59Z",
+      "first_ts": "2026-10-13T13:54:45Z",
       "host": "sched.internal",
-      "last_ts": "2026-10-13T12:15:21Z",
+      "last_ts": "2026-10-13T13:55:07Z",
       "port": 8120
     },
     {
       "count": 5,
       "file": "destinations.jsonl",
-      "first_ts": "2026-10-13T12:14:59Z",
+      "first_ts": "2026-10-13T13:54:45Z",
       "host": "spark_connect.internal",
-      "last_ts": "2026-10-13T12:15:21Z",
+      "last_ts": "2026-10-13T13:55:07Z",
       "port": 15002
     }
   ],
@@ -203,9 +203,9 @@
     "name": "alkera-t4b-ds-databricks_episode_net",
     "subnet": "10.210.202.0/24"
   },
-  "generated": "2026-10-13T12:15:25+00:00",
-  "image": "alkera-episode:t14-ds-databricks-spark",
-  "image_revision": "701b729ef7dc3f15472bec84f06365b411ebb25b",
+  "generated": "2026-10-13T13:55:10+00:00",
+  "image": "alkera-episode:head-ds-databricks-spark",
+  "image_revision": "96abefc1f89b3453e97981ad1d4ddea732262d8c",
   "not_audited": [
     {
       "banner": {
@@ -218,7 +218,7 @@
     },
     {
       "banner": {
-        "http_get_reply": "HTTP/1.1 405 Method Not Allowed\r\ndate: Tue, 13 Oct 2026 12:15:23 GMT\r\nserver: uvicorn\r\nallow: POST\r\ncontent-length: 31\r\ncontent-type: application/json\r\nConnection: close\r\n\r\n"
+        "http_get_reply": "HTTP/1.1 405 Method Not Allowed\r\ndate: Tue, 13 Oct 2026 13:55:09 GMT\r\nserver: uvicorn\r\nallow: POST\r\ncontent-length: 31\r\ncontent-type: application/json\r\nConnection: close\r\n\r\n"
       },
       "class": "NOT AN AUDITED DOOR: MinIO audit receiver (serve.MINIO_AUDIT_PORT); the episode reaches it, and it answers only a POST carrying the per-rollout token",
       "names": [
@@ -359,7 +359,7 @@
     },
     {
       "banner": {
-        "http_get_reply": "HTTP/1.1 405 Method Not Allowed\r\ndate: Tue, 13 Oct 2026 12:15:23 GMT\r\nserver: uvicorn\r\nallow: POST\r\ncontent-length: 31\r\ncontent-type: application/json\r\nConnection: close\r\n\r\n"
+        "http_get_reply": "HTTP/1.1 405 Method Not Allowed\r\ndate: Tue, 13 Oct 2026 13:55:09 GMT\r\nserver: uvicorn\r\nallow: POST\r\ncontent-length: 31\r\ncontent-type: application/json\r\nConnection: close\r\n\r\n"
       },
       "class": "NOT AN AUDITED DOOR: MinIO audit receiver (serve.MINIO_AUDIT_PORT); the episode reaches it, and it answers only a POST carrying the per-rollout token",
       "names": [
@@ -756,7 +756,7 @@
         {
           "address": "10.210.202.5",
           "banner": {
-            "http_get_reply": "HTTP/1.1 405 Method Not Allowed\r\ndate: Tue, 13 Oct 2026 12:15:23 GMT\r\nserver: uvicorn\r\nallow: POST\r\ncontent-length: 31\r\ncontent-type: application/json\r\nConnection: close\r\n\r\n"
+            "http_get_reply": "HTTP/1.1 405 Method Not Allowed\r\ndate: Tue, 13 Oct 2026 13:55:09 GMT\r\nserver: uvicorn\r\nallow: POST\r\ncontent-length: 31\r\ncontent-type: application/json\r\nConnection: close\r\n\r\n"
           },
           "names": [
             "confluence.internal",
@@ -1249,7 +1249,7 @@
           }
         },
         "saw_every_expected_port_open": true,
-        "seconds": 10.3,
+        "seconds": 9.7,
         "timeout_s": 1.0
       },
       "unexpected_open": [],
@@ -1259,8 +1259,8 @@
   },
   "p7": {
     "artifact": "containment-native-episode-ds-databricks.json",
-    "exit": 1,
-    "passed": false
+    "exit": 0,
+    "passed": true
   },
   "plugs": {},
   "project": "alkera-t4b-ds-databricks",
@@ -1277,7 +1277,7 @@
     "episode_role": false
   },
   "statement_log_lines_with_marker": [
-    "2026-10-13 12:15:24.927 UTC [313] alkera@alkeraLOG:  statement: select /* box-sweep-alkera-t4b-ds-databricks-alkera_role */ current_user, current_database()"
+    "2026-10-13 13:55:10.678 UTC [306] alkera@alkeraLOG:  statement: select /* box-sweep-alkera-t4b-ds-databricks-alkera_role */ current_user, current_database()"
   ],
   "sweep": {
     "cidr": "10.210.202.0/24",
@@ -1632,147 +1632,147 @@
     "off_network": [
       {
         "result": "OSError",
-        "target": "10.210.1.5:5432"
+        "target": "10.210.2.5:5432"
       },
       {
         "result": "OSError",
-        "target": "10.210.1.5:5439"
+        "target": "10.210.2.5:5439"
       },
       {
         "result": "OSError",
-        "target": "10.210.1.5:8443"
+        "target": "10.210.2.5:8443"
       },
       {
         "result": "OSError",
-        "target": "10.210.1.5:9000"
+        "target": "10.210.2.5:9000"
       },
       {
         "result": "OSError",
-        "target": "10.210.1.5:9050"
+        "target": "10.210.2.5:9050"
       },
       {
         "result": "OSError",
-        "target": "10.210.1.5:9060"
+        "target": "10.210.2.5:9060"
       },
       {
         "result": "OSError",
-        "target": "10.210.1.5:443"
+        "target": "10.210.2.5:443"
       },
       {
         "result": "OSError",
-        "target": "10.210.1.5:8080"
+        "target": "10.210.2.5:8080"
       },
       {
         "result": "OSError",
-        "target": "10.210.1.5:8100"
+        "target": "10.210.2.5:8100"
       },
       {
         "result": "OSError",
-        "target": "10.210.1.4:5432"
+        "target": "10.210.2.4:5432"
       },
       {
         "result": "OSError",
-        "target": "10.210.1.4:5439"
+        "target": "10.210.2.4:5439"
       },
       {
         "result": "OSError",
-        "target": "10.210.1.4:8443"
+        "target": "10.210.2.4:8443"
       },
       {
         "result": "OSError",
-        "target": "10.210.1.4:9000"
+        "target": "10.210.2.4:9000"
       },
       {
         "result": "OSError",
-        "target": "10.210.1.4:9050"
+        "target": "10.210.2.4:9050"
       },
       {
         "result": "OSError",
-        "target": "10.210.1.4:9060"
+        "target": "10.210.2.4:9060"
       },
       {
         "result": "OSError",
-        "target": "10.210.1.4:443"
+        "target": "10.210.2.4:443"
       },
       {
         "result": "OSError",
-        "target": "10.210.1.4:8080"
+        "target": "10.210.2.4:8080"
       },
       {
         "result": "OSError",
-        "target": "10.210.1.4:8100"
+        "target": "10.210.2.4:8100"
       },
       {
         "result": "OSError",
-        "target": "10.210.1.3:5432"
+        "target": "10.210.2.3:5432"
       },
       {
         "result": "OSError",
-        "target": "10.210.1.3:5439"
+        "target": "10.210.2.3:5439"
       },
       {
         "result": "OSError",
-        "target": "10.210.1.3:8443"
+        "target": "10.210.2.3:8443"
       },
       {
         "result": "OSError",
-        "target": "10.210.1.3:9000"
+        "target": "10.210.2.3:9000"
       },
       {
         "result": "OSError",
-        "target": "10.210.1.3:9050"
+        "target": "10.210.2.3:9050"
       },
       {
         "result": "OSError",
-        "target": "10.210.1.3:9060"
+        "target": "10.210.2.3:9060"
       },
       {
         "result": "OSError",
-        "target": "10.210.1.3:443"
+        "target": "10.210.2.3:443"
       },
       {
         "result": "OSError",
-        "target": "10.210.1.3:8080"
+        "target": "10.210.2.3:8080"
       },
       {
         "result": "OSError",
-        "target": "10.210.1.3:8100"
+        "target": "10.210.2.3:8100"
       },
       {
         "result": "OSError",
-        "target": "10.210.1.2:5432"
+        "target": "10.210.2.2:5432"
       },
       {
         "result": "OSError",
-        "target": "10.210.1.2:5439"
+        "target": "10.210.2.2:5439"
       },
       {
         "result": "OSError",
-        "target": "10.210.1.2:8443"
+        "target": "10.210.2.2:8443"
       },
       {
         "result": "OSError",
-        "target": "10.210.1.2:9000"
+        "target": "10.210.2.2:9000"
       },
       {
         "result": "OSError",
-        "target": "10.210.1.2:9050"
+        "target": "10.210.2.2:9050"
       },
       {
         "result": "OSError",
-        "target": "10.210.1.2:9060"
+        "target": "10.210.2.2:9060"
       },
       {
         "result": "OSError",
-        "target": "10.210.1.2:443"
+        "target": "10.210.2.2:443"
       },
       {
         "result": "OSError",
-        "target": "10.210.1.2:8080"
+        "target": "10.210.2.2:8080"
       },
       {
         "result": "OSError",
-        "target": "10.210.1.2:8100"
+        "target": "10.210.2.2:8100"
       }
     ],
     "own_addresses": [
@@ -1883,7 +1883,7 @@
         "mask": "255.255.255.0"
       }
     ],
-    "seconds": 12.9,
+    "seconds": 12.3,
     "vantage": "episode container (docker exec, /usr/local/bin/python)"
   }
 }
