@@ -1,11 +1,11 @@
 {
-  "compose_file": "/home/ubuntu/env_project/.claude/worktrees/agent-a9d585c786e098bb7/gateway/docker/compose.yml",
+  "compose_file": "/home/ubuntu/tool_implementation.wt/t4-containment/gateway/docker/compose.yml",
   "compose_overlays": [
-    "/home/ubuntu/env_project/.claude/worktrees/agent-a9d585c786e098bb7/gateway/docker/compose.episode.yml",
-    "/home/ubuntu/env_project/.claude/worktrees/agent-a9d585c786e098bb7/gateway/docker/compose.native.yml",
+    "/home/ubuntu/tool_implementation.wt/t4-containment/gateway/docker/compose.episode.yml",
+    "/home/ubuntu/tool_implementation.wt/t4-containment/gateway/docker/compose.native.yml",
     "+ the rollout's own compose.native-mounts.yml"
   ],
-  "generated": "2026-10-07T17:44:07+00:00",
+  "generated": "2026-10-13T09:25:31+00:00",
   "host": {
     "docker": "29.8.2",
     "platform": "Linux-7.0.0-1006-aws-x86_64-with-glibc2.43"
@@ -15,10 +15,14 @@
   "p7_native_episode_filesystem": {
     "checks_not_applicable": {},
     "compose_files": [
-      "/home/ubuntu/env_project/.claude/worktrees/agent-a9d585c786e098bb7/gateway/docker/compose.yml",
-      "/home/ubuntu/env_project/.claude/worktrees/agent-a9d585c786e098bb7/gateway/docker/compose.episode.yml",
-      "/home/ubuntu/env_project/.claude/worktrees/agent-a9d585c786e098bb7/gateway/docker/compose.native.yml"
+      "/home/ubuntu/tool_implementation.wt/t4-containment/gateway/docker/compose.yml",
+      "/home/ubuntu/tool_implementation.wt/t4-containment/gateway/docker/compose.episode.yml",
+      "/home/ubuntu/tool_implementation.wt/t4-containment/gateway/docker/compose.native.yml"
     ],
+    "doors_expected": {
+      "minio": "minio.internal:9000",
+      "postgres": "postgres.internal:5432"
+    },
     "environment_profile": {
       "plugs": [],
       "profile": "de/postgres",
@@ -40,6 +44,7 @@
       "checks": {
         "egress_refused": true,
         "every_declared_warehouse_is_mounted": true,
+        "every_plugged_door_accepts_tcp": true,
         "every_service_is_reachable_from_the_episode": true,
         "ledger_is_present_empty_and_read_only": true,
         "no_canary_and_no_marker_is_readable": true,
@@ -53,24 +58,46 @@
       },
       "checks_not_applicable": {},
       "contained": true,
+      "doors": [
+        {
+          "door": "minio",
+          "target": "minio.internal:9000",
+          "tcp": "CONNECTED"
+        },
+        {
+          "door": "postgres",
+          "target": "postgres.internal:5432",
+          "tcp": "CONNECTED"
+        }
+      ],
+      "doors_unreachable": [],
       "egress_blocked": true,
       "excluded_services": [
         {
           "addresses": [],
           "error": "gaierror",
           "host": "powerbi.internal",
+          "names": {
+            "powerbi.internal": []
+          },
           "service": "powerbi"
         },
         {
           "addresses": [],
           "error": "gaierror",
           "host": "sigma.internal",
+          "names": {
+            "sigma.internal": []
+          },
           "service": "sigma"
         },
         {
           "addresses": [],
           "error": "gaierror",
           "host": "tableau.internal",
+          "names": {
+            "tableau.internal": []
+          },
           "service": "tableau"
         }
       ],
@@ -120,13 +147,13 @@
         {
           "fstype": "ext4",
           "options": "rw,relatime",
-          "root": "/home/ubuntu/.cache/p6/box/de-postgres/audit",
+          "root": "/home/ubuntu/.cache/alkera-harbor-work/t4/de-postgres-1791883501/audit",
           "target": "/audit"
         },
         {
           "fstype": "ext4",
           "options": "rw,relatime",
-          "root": "/home/ubuntu/.cache/p6/box/de-postgres/world/workspace",
+          "root": "/home/ubuntu/.cache/alkera-harbor-work/t4/de-postgres-1791883501/world/workspace",
           "target": "/workspace"
         },
         {
@@ -138,7 +165,7 @@
         {
           "fstype": "ext4",
           "options": "rw,relatime",
-          "root": "/home/ubuntu/.cache/p6/box/de-postgres/world/var/warehouse/warehouse.duckdb",
+          "root": "/home/ubuntu/.cache/alkera-harbor-work/t4/de-postgres-1791883501/world/var/warehouse/warehouse.duckdb",
           "target": "/world/var/warehouse/warehouse.duckdb"
         }
       ],
@@ -178,7 +205,7 @@
         ],
         "routes": [
           {
-            "dest": "10.210.1.0",
+            "dest": "10.210.2.0",
             "iface": "eth0"
           }
         ]
@@ -220,7 +247,7 @@
       "service_state": {
         "mounts": [],
         "roots": [
-          "/home/ubuntu/.cache/p6/box/de-postgres/rollout/service-state"
+          "/home/ubuntu/.cache/alkera-harbor-work/t4/de-postgres-1791883501/rollout/service-state"
         ],
         "roots_present": [],
         "targets": [
@@ -355,7 +382,7 @@
     },
     "published_host_ports": {},
     "service_state_mounts": {
-      "host_dir": "/home/ubuntu/.cache/p6/box/de-postgres/rollout/service-state",
+      "host_dir": "/home/ubuntu/.cache/alkera-harbor-work/t4/de-postgres-1791883501/rollout/service-state",
       "isolated": true,
       "mounted_elsewhere": [],
       "mounted_read_write_in_owner": true,
@@ -364,7 +391,7 @@
           "destination": "/service-state",
           "rw": true,
           "service": "native-services",
-          "source": "/home/ubuntu/.cache/p6/box/de-postgres/rollout/service-state"
+          "source": "/home/ubuntu/.cache/alkera-harbor-work/t4/de-postgres-1791883501/rollout/service-state"
         }
       ],
       "owner": "native-services",
@@ -391,6 +418,7 @@
     "shadowed_paths_with_no_host_source": [
       "/world/var/ledger"
     ],
+    "tls_bundles": {},
     "vantage": "episode container, native topology",
     "warehouses_declared": [
       "var/warehouse/warehouse.duckdb"
@@ -401,27 +429,27 @@
     "world_binds_that_are_not_declared_warehouses": []
   },
   "passed": true,
-  "project": "alkera-p6b-de-postgres",
-  "service_state_dir_on_the_host": "/home/ubuntu/.cache/p6/box/de-postgres/rollout/service-state",
+  "project": "alkera-t4b-de-postgres",
+  "service_state_dir_on_the_host": "/home/ubuntu/.cache/alkera-harbor-work/t4/de-postgres-1791883501/rollout/service-state",
   "services": [
     {
       "aliases": {
-        "alkera-p6b-de-postgres_episode_net": [
-          "alkera-p6b-de-postgres-episode-1",
+        "alkera-t4b-de-postgres_episode_net": [
+          "alkera-t4b-de-postgres-episode-1",
           "episode"
         ]
       },
-      "container": "alkera-p6b-de-postgres-episode-1",
-      "image": "alkera-episode:p6",
+      "container": "alkera-t4b-de-postgres-episode-1",
+      "image": "alkera-episode:t4",
       "mounts": [
         {
           "rw": true,
-          "source": "/home/ubuntu/.cache/p6/box/de-postgres/audit",
+          "source": "/home/ubuntu/.cache/alkera-harbor-work/t4/de-postgres-1791883501/audit",
           "target": "/audit"
         },
         {
           "rw": true,
-          "source": "/home/ubuntu/.cache/p6/box/de-postgres/world/workspace",
+          "source": "/home/ubuntu/.cache/alkera-harbor-work/t4/de-postgres-1791883501/world/workspace",
           "target": "/workspace"
         },
         {
@@ -431,89 +459,21 @@
         },
         {
           "rw": true,
-          "source": "/home/ubuntu/.cache/p6/box/de-postgres/world/var/warehouse/warehouse.duckdb",
+          "source": "/home/ubuntu/.cache/alkera-harbor-work/t4/de-postgres-1791883501/world/var/warehouse/warehouse.duckdb",
           "target": "/world/var/warehouse/warehouse.duckdb"
         }
       ],
-      "network_mode": "alkera-p6b-de-postgres_episode_net",
+      "network_mode": "alkera-t4b-de-postgres_episode_net",
       "networks": {
-        "alkera-p6b-de-postgres_episode_net": "10.210.1.5"
+        "alkera-t4b-de-postgres_episode_net": "10.210.2.5"
       },
       "published_ports": {},
       "service": "episode"
     },
     {
       "aliases": {
-        "alkera-p6b-de-postgres_backend_net": [
-          "alkera-p6b-de-postgres-postgres-1",
-          "postgres"
-        ],
-        "alkera-p6b-de-postgres_episode_net": [
-          "alkera-p6b-de-postgres-postgres-1",
-          "postgres",
-          "postgres.internal"
-        ]
-      },
-      "container": "alkera-p6b-de-postgres-postgres-1",
-      "image": "postgres@sha256:f1c3376c26f2609ab9f29f71f824103fe2fcd8ee0346485cb6122a4f93df6f94",
-      "mounts": [
-        {
-          "rw": false,
-          "source": "/home/ubuntu/env_project/.claude/worktrees/agent-a9d585c786e098bb7/gateway/docker/postgres.sql",
-          "target": "/docker-entrypoint-initdb.d/seed.sql"
-        },
-        {
-          "rw": true,
-          "source": "alkera-p6b-de-postgres_pgdata",
-          "target": "/var/lib/postgresql/data"
-        }
-      ],
-      "network_mode": "alkera-p6b-de-postgres_backend_net",
-      "networks": {
-        "alkera-p6b-de-postgres_backend_net": "10.210.2.3",
-        "alkera-p6b-de-postgres_episode_net": "10.210.1.4"
-      },
-      "published_ports": {},
-      "service": "postgres"
-    },
-    {
-      "aliases": {
-        "alkera-p6b-de-postgres_backend_net": [
-          "alkera-p6b-de-postgres-minio-1",
-          "minio"
-        ],
-        "alkera-p6b-de-postgres_episode_net": [
-          "alkera-p6b-de-postgres-minio-1",
-          "minio",
-          "minio.internal"
-        ]
-      },
-      "container": "alkera-p6b-de-postgres-minio-1",
-      "image": "docker.io/pgsty/minio@sha256:b6bfe7239bfc83fb90d31612d9704d86039dd714f7904b3f1ad68f211e602372",
-      "mounts": [
-        {
-          "rw": true,
-          "source": "alkera-p6b-de-postgres_minioaudit",
-          "target": "/audit-spool"
-        },
-        {
-          "rw": true,
-          "source": "alkera-p6b-de-postgres_miniodata",
-          "target": "/data"
-        }
-      ],
-      "network_mode": "alkera-p6b-de-postgres_backend_net",
-      "networks": {
-        "alkera-p6b-de-postgres_backend_net": "10.210.2.2",
-        "alkera-p6b-de-postgres_episode_net": "10.210.1.2"
-      },
-      "published_ports": {},
-      "service": "minio"
-    },
-    {
-      "aliases": {
-        "alkera-p6b-de-postgres_episode_net": [
-          "alkera-p6b-de-postgres-native-services-1",
+        "alkera-t4b-de-postgres_episode_net": [
+          "alkera-t4b-de-postgres-native-services-1",
           "native-services",
           "native-services.internal",
           "airbyte.internal",
@@ -528,27 +488,27 @@
           "sched.internal"
         ]
       },
-      "container": "alkera-p6b-de-postgres-native-services-1",
-      "image": "alkera-episode:p6",
+      "container": "alkera-t4b-de-postgres-native-services-1",
+      "image": "alkera-episode:t4",
       "mounts": [
         {
           "rw": true,
-          "source": "/home/ubuntu/.cache/p6/box/de-postgres/audit",
+          "source": "/home/ubuntu/.cache/alkera-harbor-work/t4/de-postgres-1791883501/audit",
           "target": "/audit"
         },
         {
           "rw": false,
-          "source": "alkera-p6b-de-postgres_pgdata",
+          "source": "alkera-t4b-de-postgres_pgdata",
           "target": "/pgdata"
         },
         {
           "rw": true,
-          "source": "/home/ubuntu/.cache/p6/box/de-postgres/rollout/service-state",
+          "source": "/home/ubuntu/.cache/alkera-harbor-work/t4/de-postgres-1791883501/rollout/service-state",
           "target": "/service-state"
         },
         {
           "rw": true,
-          "source": "/home/ubuntu/.cache/p6/box/de-postgres/world",
+          "source": "/home/ubuntu/.cache/alkera-harbor-work/t4/de-postgres-1791883501/world",
           "target": "/world"
         },
         {
@@ -557,16 +517,84 @@
           "target": "/world/var/ledger"
         }
       ],
-      "network_mode": "alkera-p6b-de-postgres_episode_net",
+      "network_mode": "alkera-t4b-de-postgres_episode_net",
       "networks": {
-        "alkera-p6b-de-postgres_episode_net": "10.210.1.3"
+        "alkera-t4b-de-postgres_episode_net": "10.210.2.3"
       },
       "published_ports": {},
       "service": "native-services"
+    },
+    {
+      "aliases": {
+        "alkera-t4b-de-postgres_backend_net": [
+          "alkera-t4b-de-postgres-postgres-1",
+          "postgres"
+        ],
+        "alkera-t4b-de-postgres_episode_net": [
+          "alkera-t4b-de-postgres-postgres-1",
+          "postgres",
+          "postgres.internal"
+        ]
+      },
+      "container": "alkera-t4b-de-postgres-postgres-1",
+      "image": "postgres@sha256:f1c3376c26f2609ab9f29f71f824103fe2fcd8ee0346485cb6122a4f93df6f94",
+      "mounts": [
+        {
+          "rw": false,
+          "source": "/home/ubuntu/tool_implementation.wt/t4-containment/gateway/docker/postgres.sql",
+          "target": "/docker-entrypoint-initdb.d/seed.sql"
+        },
+        {
+          "rw": true,
+          "source": "alkera-t4b-de-postgres_pgdata",
+          "target": "/var/lib/postgresql/data"
+        }
+      ],
+      "network_mode": "alkera-t4b-de-postgres_backend_net",
+      "networks": {
+        "alkera-t4b-de-postgres_backend_net": "10.210.1.3",
+        "alkera-t4b-de-postgres_episode_net": "10.210.2.4"
+      },
+      "published_ports": {},
+      "service": "postgres"
+    },
+    {
+      "aliases": {
+        "alkera-t4b-de-postgres_backend_net": [
+          "alkera-t4b-de-postgres-minio-1",
+          "minio"
+        ],
+        "alkera-t4b-de-postgres_episode_net": [
+          "alkera-t4b-de-postgres-minio-1",
+          "minio",
+          "minio.internal"
+        ]
+      },
+      "container": "alkera-t4b-de-postgres-minio-1",
+      "image": "docker.io/pgsty/minio@sha256:b6bfe7239bfc83fb90d31612d9704d86039dd714f7904b3f1ad68f211e602372",
+      "mounts": [
+        {
+          "rw": true,
+          "source": "alkera-t4b-de-postgres_minioaudit",
+          "target": "/audit-spool"
+        },
+        {
+          "rw": true,
+          "source": "alkera-t4b-de-postgres_miniodata",
+          "target": "/data"
+        }
+      ],
+      "network_mode": "alkera-t4b-de-postgres_backend_net",
+      "networks": {
+        "alkera-t4b-de-postgres_backend_net": "10.210.1.2",
+        "alkera-t4b-de-postgres_episode_net": "10.210.2.2"
+      },
+      "published_ports": {},
+      "service": "minio"
     }
   ],
   "summary": {
     "p7_native_episode_filesystem": true
   },
-  "world_root_on_the_host": "/home/ubuntu/.cache/p6/box/de-postgres/world"
+  "world_root_on_the_host": "/home/ubuntu/.cache/alkera-harbor-work/t4/de-postgres-1791883501/world"
 }

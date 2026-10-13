@@ -139,18 +139,26 @@ for login in spec["logins"] if psycopg else []:
         with psycopg.connect(host=login["host"], port=login["port"],
                              dbname=login["dbname"], user=login["user"],
                              password=login["password"], connect_timeout=5) as conn:
+            conn.autocommit = True
             cur = conn.cursor()
             cur.execute("select /* %s */ current_user, current_database()" % login["marker"])
             row["identity"] = list(cur.fetchone())
-            cur.execute("select rolsuper from pg_roles where rolname = current_user")
-            row["superuser"] = cur.fetchone()[0]
-            cur.execute(SCHEMAS)
-            row["schemas"] = [[str(v) for v in r] for r in cur.fetchall()]
-            cur.execute(TABLES)
-            row["tables"] = [[str(v) for v in r] for r in cur.fetchall()]
-        row["connected"] = True
+            # Logged in. What the role may touch is recorded after, and a
+            # privilege error there (a schema closed to it) is not a failed login.
+            row["connected"] = True
+            for key, query in (("superuser", "select rolsuper from pg_roles "
+                                             "where rolname = current_user"),
+                               ("schemas", SCHEMAS), ("tables", TABLES)):
+                try:
+                    cur.execute(query)
+                    found = cur.fetchall()
+                    row[key] = found[0][0] if key == "superuser" else \
+                        [[str(v) for v in r] for r in found]
+                except Exception as exc:
+                    row.setdefault("privilege_errors", {})[key] = (
+                        "%s: %s" % (type(exc).__name__, exc))[:300]
     except Exception as exc:
-        row["connected"] = False
+        row.setdefault("connected", False)
         row["error"] = ("%s: %s" % (type(exc).__name__, exc))[:300]
     out["pg_logins"].append(row)
 print(json.dumps(out, sort_keys=True))
