@@ -556,9 +556,13 @@ def expects(profile: str | None = None, plugs=()) -> list[Expect]:
     backends, and by the static stack for postgres, minio and jupyter.
 
     A hosted backend whose registry row says `tls` (Databricks, 443) is an
-    `https` row with that row's bundle; every other served service is `http`;
-    the doors that are not HTTP services are `tcp`.
+    `https` row with that row's bundle; a hosted backend whose module serves
+    its own socket (`serve_socket`: Spark Connect's gRPC, which no HTTP/1.1
+    GET can ask) is `tcp`, as serve.mount serves it; every other served
+    service is `http`; the doors that are not HTTP services are `tcp`.
     """
+    import importlib
+
     from alkera_gateway import backends as registry_backends
     from alkera_gateway.native import serve
     from alkera_gateway.native import services as registry
@@ -572,7 +576,11 @@ def expects(profile: str | None = None, plugs=()) -> list[Expect]:
         if n not in serve.SERVICE_PORTS:
             continue
         b = registry_backends.BACKENDS.get(n)
-        if b is not None and b.tls:
+        if b is not None and b.hosted and hasattr(
+                importlib.import_module(f"{registry.__name__}.{n}"), "serve_socket"):
+            rows.append(Expect(n, f"{n}.internal", serve.SERVICE_PORTS[n], "tcp",
+                               source="alkera_gateway.backends (hosted, serve_socket)"))
+        elif b is not None and b.tls:
             rows.append(Expect(n, f"{n}.internal", serve.SERVICE_PORTS[n], "https",
                                bundle=registry_backends.bundle(b),
                                source="alkera_gateway.backends (hosted, tls)"))

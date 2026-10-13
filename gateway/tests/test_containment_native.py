@@ -290,6 +290,19 @@ def test_p7_tls_rows_are_probed_by_tcp_or_https_not_plain_http():
     assert "minio" not in nep.expectations("da/snowflake", {})["doors"]
 
 
+def test_p7_probes_a_socket_served_backend_by_tcp_not_http():
+    """Spark Connect is gRPC over HTTP/2, served by its module's `serve_socket`
+    (serve.Mounted), so an HTTP/1.1 `/health` gets a SETTINGS frame back and
+    reads as unreachable. P7 asks such a door with a connect, as serve.py
+    serves it."""
+    rows = {e.name: e for e in nep.expects("ds/databricks", {})}
+    assert rows["spark_connect"].scheme == "tcp"
+    assert rows["databricks"].scheme in ("tcp", "https")
+    got = nep.expectations("ds/databricks", {})
+    assert "spark_connect" in got["doors"]
+    assert "spark_connect" not in got["services"]
+
+
 def _run_probe(spec: dict) -> dict:
     spec = {**spec, "sweep_roots": [], "world_planes": [], "warehouses": []}
     program = f"SPEC = {json.dumps(json.dumps(spec))}\n{nep.PROBE}"
