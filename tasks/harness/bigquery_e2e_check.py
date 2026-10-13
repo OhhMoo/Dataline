@@ -20,10 +20,23 @@ INSIDE the episode container:
       `refused:<feature>`, the untokenizable one a single `unparsed_statement`
       row; a `SELECT; DROP` script a destructive row; `list_rows(max_results=5)`
       five rows;
-  (b) dbt: dbt-bigquery is NOT in the image (gateway/docker/bigquery-clients.in), so
-      the box's dbt profile (~/.dbt) is the world's own, with no bigquery target, and
-      the de image's role boundary holds (no pandas, pyarrow, nbformat or `jupyter` in
-      its system Python - what dbt-bigquery would have brought);
+  (b) dbt-bigquery (gateway/docker/bigquery-clients.in) through the box's own dbt
+      profile (~/.dbt, native_workspace.box_profiles_yaml), whose default target is
+      the proxy (method oauth-secrets, placeholder token, api_endpoint and project
+      from the box's variables): `dbt debug`, `dbt run` (a table from a source, a
+      view on it, an incremental model), a re-run (CREATE OR REPLACE), `dbt test`
+      (not_null, unique) and `dbt show --inline` in a scratch project - the model's
+      February 2026 Net Revenue equal to the world's DuckDB -, dbt's relation
+      listing (its cache) seeing every relation it built and the incremental
+      model's second run a MERGE, never a silent rebuild (dbt-bigquery is held
+      below 1.12, whose routines listing empties that cache here), `dbt seed`
+      refused by name (a load job), and a BARE `dbt debug` and
+      `dbt show --inline "... {{ ref() }}"` in the world's own project. Every statement dbt logs (its SQLQuery events) is one
+      `bigquery.statement` row, by text and in order. The de image's role boundary
+      holds with the adapter's dependencies in it: pandas, pyarrow, nbformat and
+      jupyter_core's `jupyter` dispatcher are there (toolbelt_check CLIENT_IMPORTS /
+      CLIENT_BINARIES, decision D2), and nothing else the gate forbids a de box -
+      no kernel, no Jupyter server, no nbclient, no matplotlib;
   (c) the audit: one `bigquery.statement` row per statement the probe sent, in order;
       statements = audit rows, by job id, against the EMULATOR's own job list (read
       straight upstream from native-services, which writes no row and creates no job);
@@ -35,10 +48,9 @@ INSIDE the episode container:
       write-class rows; and after teardown destinations.jsonl names
       bigquery.internal:9050 with no connection outside the profile's allowlist.
 
-The Task 8 spike is recorded in the evidence too: whether dbt-bigquery reaches a custom
-api_endpoint with a static token (DBT_SPIKE: measured on loopback against this proxy and
-the emulator binary, because the adapter is not in the image), and which platforms the
-pinned emulator image index carries (read here).
+The Task 8 spike's platform question is recorded in the evidence too: which platforms
+the pinned emulator image index carries (read here). Its dbt-bigquery half, measured on
+loopback when the adapter was not in the image, is now (b), measured in the episode.
 
 Evidence: tasks/harness/evidence/bigquery_e2e.json. Exit 1 on any FAIL.
 """
@@ -134,37 +146,100 @@ client.close()
 print("BQ-E2E " + json.dumps(out))
 '''
 
-#: The dbt-bigquery half of the spike, measured 2026-10-07 on loopback - the adapter
-#: is not in the image, so it cannot be measured inside the episode: a scratch venv
-#: (dbt-core 1.12.4, dbt-adapters 1.24.5, dbt-bigquery 1.12.1, google-cloud-bigquery
-#: 3.46.1) against `native/services/bigquery.build_app` on 127.0.0.1 in front of the
-#: emulator binary v0.8.1 (`docker/bigquery/fetch.py`), seeded from this world's
-#: commerce_analytics warehouse by `native/bigquery_seed.seed`.
-DBT_SPIKE = {
-    "custom_api_endpoint": True,
-    "profile": {"type": "bigquery", "method": "oauth-secrets", "token": "<static, fake>",
-                "project": "alkera-local", "api_endpoint": "<the proxy>",
-                "dataset": "dbt_spike"},
-    "credentials": "oauth-secrets with a static token is the one dbt-bigquery method "
-                   "that never calls Google; the proxy forwards no credential and the "
-                   "emulator checks none (`AnonymousCredentials` has no dbt equivalent)",
-    "against_the_raw_emulator": "dbt debug passed; dbt run failed: every job reports "
-                                "statementType SELECT, so dbt read the destination "
-                                "table of a CREATE SCHEMA (`'NoneType' object has no "
-                                "attribute 'path'`)",
-    "through_the_proxy": {"debug": "pass", "run (table + view)": "pass",
-                          "re-run (CREATE OR REPLACE)": "pass",
-                          "test (not_null, unique)": "pass", "show --inline": "pass",
-                          "seed": "refused by name: load jobs (501 notImplemented)"},
-    "shipped": False,
-    "why_not_shipped": "dbt-bigquery requires google-cloud-bigquery[pandas] and "
-                       "nbformat: pandas, pyarrow, nbformat and jupyter_core's "
-                       "`jupyter` in the system Python, which "
-                       "gateway/docker/toolbelt_check.py forbids on a de image; the "
-                       "de/gcp image built with them failed that gate "
-                       "(role_forbidden_present). A decision about the gate, left to "
-                       "the coordinator; DBT_ADAPTERS keeps it refused by name.",
+#: The scratch dbt project (b) runs, under the box profile (`world_dbt`, whose default
+#: target is the proxy): a table from a source, a view on it, two tests, an incremental
+#: model, a seed, and a macro that prints what dbt's relation listing (the input of its
+#: relation cache) finds in the project's dataset.
+#: Its models build into their own dataset - the world's generate_schema_name rule, a
+#: custom schema as given - so nothing lands beside the seeded marts.
+DBT_DIR = f"{IN_DIR}/dbt"
+DBT_DATASET = "bq_e2e_dbt"
+DBT_FILES = {
+    "dbt_project.yml": f"""name: bq_e2e
+version: "1.0"
+config-version: 2
+profile: world_dbt
+model-paths: [models]
+macro-paths: [macros]
+seed-paths: [seeds]
+models:
+  bq_e2e:
+    +schema: {DBT_DATASET}
+seeds:
+  bq_e2e:
+    +schema: {DBT_DATASET}
+""",
+    "macros/schema.sql": """{% macro generate_schema_name(custom_schema_name, node) -%}
+{{ custom_schema_name if custom_schema_name else target.schema }}
+{%- endmacro %}
+""",
+    "models/sources.yml": """version: 2
+sources:
+  - name: warehouse
+    schema: warehouse
+    tables:
+      - name: fct_orders
+models:
+  - name: bq_feb_revenue
+    columns:
+      - name: order_status
+        data_tests: [not_null, unique]
+""",
+    "models/bq_feb_revenue.sql": """{{ config(materialized='table') }}
+select order_status, count(*) as orders, sum(order_amount) as net_revenue
+from {{ source('warehouse', 'fct_orders') }}
+where order_status = 'completed'
+  and order_date >= '2026-02-01' and order_date < '2026-03-01'
+group by order_status
+""",
+    "models/bq_feb_revenue_v.sql": """{{ config(materialized='view') }}
+select * from {{ ref('bq_feb_revenue') }}
+""",
+    "models/bq_orders_inc.sql": """{{ config(materialized='incremental', unique_key='order_status') }}
+select order_status, count(*) as orders
+from {{ source('warehouse', 'fct_orders') }}
+group by order_status
+""",
+    "macros/relations_probe.sql": f"""{{% macro bq_e2e_relations() %}}
+  {{% set dataset = api.Relation.create(database=target.database, schema='{DBT_DATASET}') %}}
+  {{% set found = adapter.list_relations_without_caching(dataset) %}}
+  {{{{ print(found | map(attribute='identifier') | sort | join(',')) }}}}
+{{% endmacro %}}
+""",
+    "seeds/bq_seed.csv": "id,label\n1,alpha\n",
 }
+#: The world's project, as a bare `dbt` on the box finds it.
+WORLD_DBT = "/workspace/dbt_project"
+#: dbt's own record of each statement it sent: an SQLQuery event in its JSON file log.
+SQL_EVENT = "SQLQuery"
+
+
+def dbt_statements(log_text: str) -> list[str]:
+    """The SQL of every SQLQuery event in a dbt `--log-format-file json` log, in order."""
+    out = []
+    for line in log_text.splitlines():
+        try:
+            event = json.loads(line)
+        except ValueError:
+            continue
+        if (event.get("info") or {}).get("name") == SQL_EVENT:
+            out.append(event["data"]["sql"])
+    return out
+
+
+def gate_lists() -> tuple[tuple[str, ...], tuple[str, ...], tuple[str, ...], tuple[str, ...]]:
+    """(allowed imports, allowed scripts, forbidden imports, forbidden scripts) of a de
+    image with the bigquery clients, from the shipped gate itself."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "_toolbelt_check", REPO / "gateway" / "docker" / "toolbelt_check.py")
+    gate = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(gate)
+    return (gate.CLIENT_IMPORTS["bigquery"], gate.CLIENT_BINARIES["bigquery"],
+            gate.forbidden_imports("de", ("bigquery",)),
+            gate.forbidden_binaries("de", ("bigquery",)))
+
 
 #: The upstream job list, read from INSIDE native-services straight at the engine:
 #: no proxy, so no row; a GET, so no job. {job id: query text}.
@@ -416,17 +491,38 @@ def main(argv=None) -> int:
               len(script) == 1 and script[0]["op_class"] == "destructive",
               [{k: r[k] for k in ("seq", "op_class", "targets")} for r in script])
 
-        # (b) dbt: no adapter, so no bigquery target, and the role boundary holds
+        # (b) dbt-bigquery through the box profile, and the role boundary with it
         adapter = stack.exec_([PYTHON, "-c", "import dbt.adapters.bigquery"], check=False)
-        check("dbt-bigquery is not installed (a bigquery dbt_target is refused by name)",
-              adapter.returncode != 0, adapter.stdout + adapter.stderr[-300:])
-        leaked = {name: stack.exec_([PYTHON, "-c", f"import {name}"], check=False).returncode
-                  == 0 for name in ("pandas", "pyarrow", "nbformat")}
-        leaked["jupyter"] = stack.exec_(["sh", "-c", "command -v jupyter"],
-                                        check=False).returncode == 0
-        record["role_boundary"] = leaked
-        check("role boundary: no pandas, pyarrow, nbformat or jupyter in the de image",
-              not any(leaked.values()), leaked)
+        check("dbt-bigquery is installed (the bigquery client lock's adapter)",
+              adapter.returncode == 0, adapter.stdout + adapter.stderr[-300:])
+        allowed_mods, allowed_bins, forbidden_mods, forbidden_bins = gate_lists()
+
+        def importable(name):
+            return stack.exec_([PYTHON, "-c", f"import {name}"], check=False).returncode == 0
+
+        def on_disk(name):
+            found = (f"command -v {name} || test -e /usr/local/bin/{name} "
+                     f"|| test -e /opt/toolbelt/bin/{name}")
+            return stack.exec_(["sh", "-c", found], check=False).returncode == 0
+
+        boundary = {"client_imports": {m: importable(m) for m in allowed_mods},
+                    "client_scripts": {b: on_disk(b) for b in allowed_bins},
+                    "forbidden_imports": {m: importable(m) for m in forbidden_mods},
+                    "forbidden_scripts": {b: on_disk(b) for b in forbidden_bins}}
+        server = stack.exec_(["jupyter", "server", "--version"], check=False)
+        boundary["jupyter_server_runs"] = server.returncode == 0
+        record["role_boundary"] = boundary
+        check("role boundary: the adapter's pandas, pyarrow, nbformat and `jupyter` "
+              "dispatcher are in the de image (CLIENT_IMPORTS / CLIENT_BINARIES)",
+              all(boundary["client_imports"].values())
+              and all(boundary["client_scripts"].values()), boundary)
+        check("role boundary: nothing else the gate forbids a de box - no kernel, no "
+              "Jupyter server, no nbclient, no matplotlib, and `jupyter server` has "
+              "nothing to run",
+              not any(boundary["forbidden_imports"].values())
+              and not any(boundary["forbidden_scripts"].values())
+              and not boundary["jupyter_server_runs"],
+              {**boundary, "jupyter_server": (server.stdout + server.stderr)[-300:]})
         import yaml
 
         box = stack.exec_(["cat", "/root/.dbt/profiles.yml"], check=False)
@@ -436,11 +532,128 @@ def main(argv=None) -> int:
         except yaml.YAMLError:
             box_profile = {}
         outputs = box_profile.get("outputs") or {}
-        check("box profile (~/.dbt) is the world's own: DuckDB dev, no bigquery target",
-              box_profile.get("target") == "dev" and "bigquery" not in outputs
-              and outputs.get("dev", {}).get("type") == "duckdb",
+        target = outputs.get("bigquery") or {}
+        check("box profile (~/.dbt) defaults to the bigquery target through the proxy, "
+              "DuckDB dev kept",
+              box_profile.get("target") == "bigquery"
+              and outputs.get("dev", {}).get("type") == "duckdb"
+              and target.get("type") == "bigquery"
+              and target.get("method") == "oauth-secrets"
+              and target.get("api_endpoint") == "{{ env_var('BIGQUERY_API_URL') }}"
+              and target.get("project") == "{{ env_var('BIGQUERY_PROJECT') }}"
+              and "keyfile" not in target and "port" not in target,
               box.stdout[-800:] or box.stderr[-400:])
-        record["spike"]["dbt_bigquery"] = DBT_SPIKE
+
+        for rel, text in DBT_FILES.items():
+            local = work / "dbt" / rel
+            local.parent.mkdir(parents=True, exist_ok=True)
+            local.write_text(text, encoding="utf-8")
+            stack.exec_(["mkdir", "-p", str(Path(f"{DBT_DIR}/{rel}").parent)])
+            stack.copy_in(local, f"{DBT_DIR}/{rel}")
+        show_sql = ("select net_revenue, orders from {{ ref('bq_feb_revenue_v') }} "
+                    "where order_status = 'completed'")
+        world_sql = ("select sum(order_amount) as net_revenue from {{ ref('fct_orders') }} "
+                     "where order_status = 'completed' and order_date >= '2026-02-01' "
+                     "and order_date < '2026-03-01'")
+        steps = (("debug", DBT_DIR, "dbt debug"),
+                 ("run", DBT_DIR, "dbt run"),
+                 ("re-run", DBT_DIR, "dbt run --exclude bq_orders_inc"),
+                 ("relations", DBT_DIR, "dbt --quiet run-operation bq_e2e_relations"),
+                 ("incremental", DBT_DIR, "dbt run -s bq_orders_inc"),
+                 ("test", DBT_DIR, "dbt test"),
+                 ("show", DBT_DIR,
+                  f"dbt --quiet show --inline \"{show_sql}\" --output json"),
+                 ("seed", DBT_DIR, "dbt seed"),
+                 ("bare debug", WORLD_DBT, "dbt debug"),
+                 ("bare show", WORLD_DBT,
+                  f"dbt --quiet show --inline \"{world_sql}\" --output json"))
+        dbt: dict = {}
+        dbt_sent: list[str] = []
+        dbt_rows: list[dict] = []
+        for name, where, command in steps:
+            slug = name.replace(" ", "-")
+            logs = f"{DBT_DIR}/logs/{slug}"
+            # dbt's JSON file log is the statement list; `debug` takes no --target-path
+            extra = f" --log-path {logs} --log-format-file json" + (
+                "" if command == "dbt debug" else f" --target-path {DBT_DIR}/target/{slug}")
+            before = len(bi.read_rows(audit_file))
+            res = stack.exec_(["sh", "-c", f"cd {where} && {command}{extra}"],
+                              check=False, timeout=600)
+            step_rows = bi.read_rows(audit_file)[before:]
+            log = stack.exec_(["cat", f"{logs}/dbt.log"], check=False).stdout
+            sent = dbt_statements(log)
+            rows_sql = [r["args"]["sql"] for r in step_rows if r["tool"] == TOOL]
+            dbt[name] = {"rc": res.returncode, "statements": len(sent), "sent": sent,
+                         "statement_rows": len(rows_sql),
+                         "tools": sorted({r["tool"] for r in step_rows}),
+                         "refused": sorted({f for r in step_rows for f in r["flags"]
+                                            if f.startswith("refused:")}),
+                         "stdout": res.stdout[-1500:], "tail": res.stderr[-1200:]}
+            dbt_sent += sent
+            dbt_rows += [r for r in step_rows if r["tool"] == TOOL]
+            if name == "seed":
+                check("dbt seed is refused by name (a load job), loudly",
+                      res.returncode != 0 and "refused:load_job" in dbt[name]["refused"]
+                      and "load jobs" in res.stdout + res.stderr,
+                      {k: dbt[name][k] for k in ("rc", "refused", "stdout")})
+            elif name == "incremental":
+                # dbt saw the table it built (its relation cache), so the second run
+                # is a MERGE into it - never a silent rebuild; what the engine does
+                # with the MERGE is recorded, and a failure must name it
+                merged = [q for q in sent if "merge into" in q.lower()]
+                rebuilt = [q for q in sent if "create or replace table" in q.lower()
+                           and "bq_orders_inc`" in q and "__dbt_tmp" not in q]
+                out = res.stdout + res.stderr
+                check("dbt incremental: the second run MERGEs into the table dbt sees, "
+                      "never a silent rebuild; a failure is loud",
+                      bool(merged) and not rebuilt
+                      and (res.returncode == 0 or "MERGE" in out.upper()),
+                      {"rc": res.returncode, "merge": len(merged), "rebuilt": len(rebuilt),
+                       "tail": out[-800:]})
+            else:
+                check(f"dbt {name} through the box profile's bigquery target",
+                      res.returncode == 0, (res.stdout + res.stderr)[-1200:])
+        record["dbt"] = dbt
+        listed = dbt["relations"]["stdout"].strip().splitlines()
+        check("dbt's relation listing (its cache) sees every relation it built",
+              listed[-1:] == ["bq_feb_revenue,bq_feb_revenue_v,bq_orders_inc"], listed[-3:])
+        for name in ("debug", "bare debug"):
+            out = dbt[name]["stdout"] + dbt[name]["tail"]
+            check(f"dbt {name}: the bigquery adapter, and the connection test passes",
+                  "Registered adapter: bigquery" in out and "All checks passed" in out,
+                  out[-800:])
+
+        def shown(name):
+            try:
+                return json.loads(dbt[name]["stdout"])["show"][0]
+            except (ValueError, KeyError, IndexError, TypeError):
+                return {}
+
+        got_model, got_world = shown("show"), shown("bare show")
+        record["dbt_values"] = {"model": got_model, "world_project": got_world}
+        check("dbt: the model's February 2026 Net Revenue equals the world's DuckDB",
+              got_model.get("net_revenue") is not None
+              and float(got_model["net_revenue"]) == float(revenue),
+              {"got": got_model, "expected": str(revenue)})
+        check("dbt: `show --inline` with ref() in the world's own project equals the "
+              "world's DuckDB",
+              got_world.get("net_revenue") is not None
+              and float(got_world["net_revenue"]) == float(revenue),
+              {"got": got_world, "expected": str(revenue)})
+        record["dbt_statements"] = {"logged": len(dbt_sent), "rows": len(dbt_rows)}
+        check("audit: every statement dbt sent (its SQLQuery log) is one "
+              "bigquery.statement row, by text and in order",
+              bool(dbt_sent) and [r["args"]["sql"] for r in dbt_rows] == dbt_sent,
+              {"logged": len(dbt_sent), "rows": len(dbt_rows),
+               "first_mismatch": next(
+                   ({"logged": a[:300], "row": b[:300]} for a, b in zip(
+                       dbt_sent, [r["args"]["sql"] for r in dbt_rows], strict=False)
+                    if a != b), None)})
+        check("audit: dbt's writes are write-class rows naming their target",
+              any(r["op_class"] in ("write", "ddl", "destructive") and r["exit"] == "ok"
+                  and any(DBT_DATASET in t for t in r["targets"]) for r in dbt_rows),
+              [{k: r[k] for k in ("seq", "op_class", "targets")} for r in dbt_rows
+               if r["op_class"] != "read"][:6])
 
         # (c) statements = audit rows, by job id, against the engine's own job log
         listed = subprocess.run(["docker", "exec", services, PYTHON, "-c", UPSTREAM_JOBS],

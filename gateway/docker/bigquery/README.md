@@ -104,11 +104,20 @@ corrects what v0.8.1 gets wrong in a way a client would act on:
 
 The module docstring has each measurement.
 
-dbt-bigquery is NOT in the image (`docker/bigquery-clients.in`): measured against
-this proxy (method `oauth-secrets` with a static token, `api_endpoint`) it runs
-`debug`, `run`, re-`run`, `test` and `show` (`dbt seed` is a load job, refused by
-name), but it brings pandas, pyarrow and nbformat into the system Python, which a
-de image's toolbelt gate forbids. It stays refused by name in `DBT_ADAPTERS`.
+dbt-bigquery ships in the client lock (`docker/bigquery-clients.in`), and the box's
+dbt profile defaults to it (`warehouses.dbt_output`): method `oauth-secrets` with a
+placeholder token - the proxy forwards no credential and the emulator checks none -
+`api_endpoint` and `project` from `BIGQUERY_API_URL` / `BIGQUERY_PROJECT`, dataset
+`warehouse`. Through this proxy it runs `debug`, `run` (table and view), re-`run`
+(`CREATE OR REPLACE`), `test` and `show --inline`, every statement one
+`bigquery.statement` row; `dbt seed` is a load job and is refused by name. It brings
+pandas, pyarrow, nbformat and jupyter_core's `jupyter` dispatcher into the system
+Python, which a de image allows as the client's own dependencies (decision D2:
+`toolbelt_check.py` `CLIENT_IMPORTS` / `CLIENT_BINARIES`); the notebook stack itself
+stays absent. The adapter is held below 1.12: 1.12 also lists each dataset's routines,
+which the emulator cannot serve (this proxy answers an unknown route), and then
+reports no relations at all, so dbt's relation cache would be silently empty
+(incremental models rebuilt, snapshots restarted). 1.11 lists tables only.
 
 Measured end to end by `tasks/harness/bigquery_e2e_check.py` (evidence
 `tasks/harness/evidence/bigquery_e2e.json`); the tool tour's `bigquery` probes are in

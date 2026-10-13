@@ -76,7 +76,8 @@ def test_one_task_per_probe(exported):
         if probe_id.startswith("bigquery."):
             assert "warehouse=bigquery" in reason and "around the audited proxy" in reason, \
                 reason
-    assert sorted(r.status for r in report.results) == ["ok"] * 3 + ["skipped"] * 3
+    # the four bigquery probes (client, rest, tables, dbt) are the skipped ones
+    assert sorted(r.status for r in report.results) == ["ok"] * 3 + ["skipped"] * 4
 
     dataset = tomllib.loads((out / "dataset.toml").read_text(encoding="utf-8"))
     assert dataset["dataset"]["name"] == tooltour.DATASET_NAME

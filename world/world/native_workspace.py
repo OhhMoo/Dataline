@@ -376,22 +376,24 @@ DISCOVERY: dict[str, Discovery] = {
     # front of goccy's emulator), seeded from the world's warehouse: project
     # alkera-local, one dataset per warehouse schema (`warehouse.fct_orders`
     # is `alkera-local.warehouse.fct_orders`). The client needs no Google
-    # credential: AnonymousCredentials, and the endpoint as api_endpoint. No
-    # dbt target (`dbt_type` None): dbt-bigquery is not in the image
-    # (gateway/docker/bigquery-clients.in), so the box's dbt profile stays the
-    # world's own.
+    # credential: AnonymousCredentials, and the endpoint as api_endpoint. The
+    # box's dbt target is dbt-bigquery against the same endpoint and project
+    # (method oauth-secrets with a placeholder token: warehouses.dbt_output),
+    # building into the dataset services.toml names; the adapter is in images
+    # built with --warehouse-clients bigquery (gateway/docker/bigquery-clients.in).
     "bigquery": Discovery(
         backend="bigquery",
         label="the warehouse",
         clients=("google-cloud-bigquery: `bigquery.Client(project=BIGQUERY_PROJECT, "
                  "credentials=AnonymousCredentials(), client_options={\"api_endpoint\": "
-                 "BIGQUERY_API_URL})`, or the REST API v2 at that URL"),
+                 "BIGQUERY_API_URL})`, dbt-bigquery, or the REST API v2 at that URL"),
         services_toml={"host": "bigquery.internal", "port": "9050",
                        "endpoint": "http://bigquery.internal:9050",
                        "project": "alkera-local", "dataset": "warehouse"},
-        dbt_type=None,
+        dbt_type="bigquery",
         env={"BIGQUERY_API_URL": "http://bigquery.internal:9050",
              "BIGQUERY_PROJECT": "alkera-local"},
+        dbt_env={"project": "BIGQUERY_PROJECT", "api_endpoint": "BIGQUERY_API_URL"},
     ),
     # The Postgres-persona Redshift (gateway/docker/redshift_start.py): database
     # `dev` holds the world's schemas; `public` is where a session's own work
@@ -743,8 +745,10 @@ def box_profiles_yaml(world_profile: str, plugged: Sequence[str]) -> str:
                     f"the world's dbt profile already has an output named "
                     f"{d.backend!r}; the box target for the plugged {d.backend} "
                     f"backend would replace it")
+            # BigQuery has datasets, not schemas: its section names a `dataset`.
+            schema = d.services_toml.get("schema", d.services_toml.get("dataset"))
             profile["outputs"][d.backend] = dbt_output(
-                d.dbt_type, schema=d.services_toml["schema"], env=d.dbt_env,
+                d.dbt_type, schema=schema, env=d.dbt_env,
                 port=int(d.services_toml["port"]))
         profile["target"] = targets[0].backend
     return yaml.safe_dump(document, sort_keys=False)

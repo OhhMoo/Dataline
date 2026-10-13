@@ -170,12 +170,21 @@ def role_imports(role: str) -> tuple[str, ...]:
 #: allowed in an image built with that set (build_episode.py --warehouse-clients):
 #: databricks-sql-connector requires pandas, and dbt-databricks requires the connector
 #: with its pyarrow extra. They come with the client, not with a notebook - no
-#: Jupyter, no kernel - so the role's rule (no tool the role does not get) is kept for
-#: everything else. The installed sets are the client locks the image kept,
+#: Jupyter server, no kernel - so the role's rule (no tool the role does not get) is
+#: kept for everything else. The installed sets are the client locks the image kept,
 #: /opt/gateway/requirements-<c>.lock (the Dockerfile's client loop).
 CLIENT_IMPORTS: dict[str, tuple[str, ...]] = {
     # the connector's own dependencies: pandas, openpyxl; dbt-databricks adds pyarrow
     "databricks": ("openpyxl", "pandas", "pyarrow"),
+    # dbt-bigquery requires google-cloud-bigquery[pandas] (pandas, pyarrow) and
+    # nbformat (decision D2, docker/bigquery-clients.in)
+    "bigquery": ("nbformat", "pandas", "pyarrow"),
+}
+#: Role-forbidden console scripts a client set's dependencies install, allowed the
+#: same way: nbformat requires jupyter_core, whose `jupyter` dispatcher is all it
+#: brings - `jupyter server` / `kernelspec` / `execute` name scripts the image lacks.
+CLIENT_BINARIES: dict[str, tuple[str, ...]] = {
+    "bigquery": ("jupyter",),
 }
 CLIENT_LOCK = "/opt/gateway/requirements-{}.lock"
 
@@ -209,9 +218,12 @@ def system_forbidden(role: str, clients: tuple[str, ...] = ()) -> tuple[str, ...
     return tuple(sorted(every - set(SYSTEM_IMPORTS[role]) - allowed))
 
 
-def forbidden_binaries(role: str) -> tuple[str, ...]:
+def forbidden_binaries(role: str, clients: tuple[str, ...] = ()) -> tuple[str, ...]:
+    """Every script another role installs that this one must not have, less what an
+    installed warehouse client set brings (`CLIENT_BINARIES`)."""
     every = {b for bins in ROLE_BINARIES.values() for b in bins}
-    return tuple(sorted(every - set(ROLE_BINARIES[role])))
+    allowed = {b for c in clients for b in CLIENT_BINARIES.get(c, ())}
+    return tuple(sorted(every - set(ROLE_BINARIES[role]) - allowed))
 
 
 def unaudited_kernelspecs(listing: dict) -> list[str]:
@@ -338,7 +350,7 @@ def main() -> int:
     forbidden_present = sorted(
         {f"import {m} ({py})" for m in forbidden_imports(role, clients)
          for py in (ROLE_PYTHON, TOOLBELT_PYTHON) if importable(py, m)["ok"]}
-        | {f"binary {path}" for b in forbidden_binaries(role)
+        | {f"binary {path}" for b in forbidden_binaries(role, clients)
            for path in (shutil.which(b), f"/opt/toolbelt/bin/{b}", f"/usr/local/bin/{b}")
            if path and os.path.exists(path)}
         # The system interpreter only: /opt/toolbelt carries these for every role.

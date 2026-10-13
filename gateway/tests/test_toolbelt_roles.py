@@ -468,6 +468,79 @@ def test_toolbelt_check_probes_and_forbids_per_role():
     assert probes["mf"] == ("mf", "--version")
 
 
+#: A role-forbidden import's distribution, where the two names differ.
+_DISTRIBUTION = {"sklearn": "scikit-learn", "jupyter_client": "jupyter-client",
+                 "jupyter_server": "jupyter-server"}
+
+
+def test_bigquery_clients_may_carry_pandas_and_nbformat_in_de():
+    """D2 (option a): dbt-bigquery requires google-cloud-bigquery[pandas] and
+    nbformat, so an image built with --warehouse-clients bigquery has pandas,
+    pyarrow and nbformat in its system Python. They are the client's hard
+    dependencies and are allowed the way Databricks' are (CLIENT_IMPORTS) - exactly:
+    every role-forbidden module the lock installs, and none it does not. The rest of
+    the notebook stack (the kernel, the server, nbclient, matplotlib) stays forbidden
+    on a de box, so the role still has no notebook."""
+    check = _load("toolbelt_check")
+    locked = versions(client_lock("bigquery"))
+    assert "dbt-bigquery" in locked
+    role_modules = {m for r in ROLES for m in check.role_imports(r)}
+    brought = {m for m in role_modules if norm(_DISTRIBUTION.get(m, m)) in locked}
+    assert brought == {"pandas", "pyarrow", "nbformat"}
+    assert set(check.CLIENT_IMPORTS["bigquery"]) == brought
+    with_bq = set(check.forbidden_imports("de", ("bigquery",)))
+    assert not brought & with_bq
+    assert {"ipykernel", "jupyter_client", "jupyter_server", "nbclient", "matplotlib",
+            "polars", "sklearn", "alkera_gateway.native.notebook"} <= with_bq
+    # openpyxl does not come with it: still absent from the system interpreter
+    assert "openpyxl" not in locked
+    assert "openpyxl" in check.system_forbidden("de", ("bigquery",))
+    # one interpreter, one pandas: the version the da/ds role locks pin
+    for name in brought:
+        assert locked[name] == versions(GATEWAY / ROLE_LOCKS["da"])[name], name
+
+
+def test_jupyter_script_from_a_client_lock_is_not_a_role_leak(monkeypatch, capsys):
+    """nbformat requires jupyter_core, whose console script is `jupyter`, one of the
+    da/ds ROLE_BINARIES. On a de image with the bigquery clients it is that
+    dependency's dispatcher, not a notebook: `jupyter server` / `kernelspec` /
+    `execute` resolve to scripts the image does not have. So the client set allows
+    it as it allows the imports (CLIENT_BINARIES), every other jupyter*/ipython
+    script stays forbidden, and without the client set `jupyter` is still a leak."""
+    import types
+
+    check = _load("toolbelt_check")
+    assert "jupyter-core" in versions(client_lock("bigquery"))
+    assert "jupyter" in check.forbidden_binaries("de")
+    assert "jupyter" in check.forbidden_binaries("de", ("databricks",))
+    with_bq = set(check.forbidden_binaries("de", ("bigquery",)))
+    assert "jupyter" not in with_bq
+    assert {"jupyter-server", "jupyter-kernelspec", "jupyter-execute", "ipython"} <= with_bq
+    assert set(check.CLIENT_BINARIES) <= set(check.CLIENT_IMPORTS)
+
+    # The image check passes the installed client sets to the binary check too:
+    # a de box whose only role script is /usr/local/bin/jupyter.
+    on_disk = {"/usr/local/bin/jupyter"}
+    fake_os = types.SimpleNamespace(
+        environ={}, path=types.SimpleNamespace(exists=on_disk.__contains__,
+                                               isfile=lambda path: False))
+    which = {"jupyter": "/usr/local/bin/jupyter", "python": check.EXPECTED_PYTHON}
+    monkeypatch.setattr(check, "os", fake_os)
+    monkeypatch.setattr(check, "shutil", types.SimpleNamespace(which=which.get))
+    monkeypatch.setattr(check, "probe", lambda binary, argv, ok: {"binary": binary, "ok": True})
+    monkeypatch.setattr(check, "importable", lambda py, module: {"ok": False})
+    monkeypatch.setattr(check, "duckdb_extensions", lambda names: {})
+
+    def leaks(clients: tuple[str, ...]) -> list[str]:
+        monkeypatch.setattr(check, "installed_clients", lambda: clients)
+        check.main()
+        return json.loads(capsys.readouterr().out.splitlines()[-1])["role_forbidden_present"]
+
+    assert leaks(()) == ["binary /usr/local/bin/jupyter"]
+    assert leaks(("databricks",)) == ["binary /usr/local/bin/jupyter"]
+    assert leaks(("bigquery",)) == []
+
+
 def test_a_kernelspec_without_the_audit_extension_is_a_failure():
     """Any kernel a client can start by name must preload the audit extension;
     `python3` from ipykernel's own spec is the one an image gets by default."""
