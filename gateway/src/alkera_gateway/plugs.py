@@ -108,9 +108,9 @@ _CATALOG = (
               "procedural scripting (IF/FOR/WHILE/CALL/...), "
               "ALTER, EXECUTE IMMEDIATE, ASSERT, WRITE_TRUNCATE, schema patches, "
               "load jobs and legacy SQL refused by name; INT64 overflow wraps "
-              "instead of erroring (emulator, not fenced); no dbt-bigquery (works "
-              "against the proxy, but its pandas/nbformat break the de image's "
-              "role gate); container e2e only, arm64 not run, no task uses it"),
+              "instead of erroring (emulator, not fenced); dbt-bigquery through "
+              "the proxy (the box profile's default target; seed is a load job, "
+              "refused); container e2e only, arm64 not run, no task uses it"),
     Plug("databricks", "warehouse", "partial", surfaces=("databricks",),
          note="tier 1 at https://databricks.internal (native-services, port 443): SQL "
               "Statement Execution, Unity Catalog reads, SQL warehouses, SCIM Me and "

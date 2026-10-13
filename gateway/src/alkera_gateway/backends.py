@@ -141,8 +141,8 @@ BACKENDS: dict[str, Backend] = {
     # mount; native-services already mounts the world, so it stays False. The
     # client is google-cloud-bigquery with AnonymousCredentials and
     # client_options api_endpoint=BIGQUERY_API_URL: the proxy forwards no
-    # credential and the emulator checks none. No dbt-bigquery
-    # (docker/bigquery-clients.in says why).
+    # credential and the emulator checks none. dbt-bigquery reaches it the same
+    # way (warehouses.dbt_output; docker/bigquery-clients.in).
     "bigquery": Backend(
         name="bigquery",
         host="bigquery.internal",
