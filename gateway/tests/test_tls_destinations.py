@@ -42,14 +42,14 @@ def listening(port: int) -> bool:
 
 
 @contextlib.contextmanager
-def serving(mounted: list[serve.Mounted], log: serve.DestinationLog):
+def serving(mounted: list[serve.Mounted], log: serve.DestinationLog, allowed=()):
     """serve.py's own `serve_all`, on its own loop in a thread, until the block ends.
 
     Ready once every port is in LISTEN: `serve_all` binds the whole set before any
     uvicorn server starts, and a connection made in between waits in the listen
     backlog and is accepted once its server does."""
     loop = asyncio.new_event_loop()
-    task = loop.create_task(serve.serve_all(mounted, "127.0.0.1", log))
+    task = loop.create_task(serve.serve_all(mounted, "127.0.0.1", log, allowed=allowed))
     thread = threading.Thread(target=lambda: loop.run_until_complete(
         asyncio.gather(task, return_exceptions=True)), daemon=True)
     thread.start()

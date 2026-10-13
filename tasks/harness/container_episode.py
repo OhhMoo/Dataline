@@ -58,6 +58,8 @@ writer lock, so a second gateway on the same audit directory fails to start.
 
 from __future__ import annotations
 
+import hashlib
+import ipaddress
 import json
 import os
 import re
@@ -1053,6 +1055,48 @@ HOSTED_ENGINES = {
                                     "--grpc-port=9060",
                                     "--database=/bigquery-data/emulator.db")),
 }
+#: Where a pinned episode_net subnet comes from: the daemon's own pool on the
+#: hosts these stacks run on (/etc/docker/daemon.json, `default-address-pools`
+#: 10.210.0.0/16 in /24s). With a HOSTED_ENGINES backend plugged, native-services
+#: joins backend_net and its agent listeners answer there too; MinIO, a
+#: backend_net peer the box's root credential drives, was measured dialling
+#: them for the agent (gateway/docker/evidence/PEERS_2026-10-13.md). The filter
+#: that refuses such peers (serve.EPISODE_SUBNETS_ENV) needs episode_net's subnet
+#: before the network exists, so `profile_overlay` pins one (`episode_subnet`).
+EPISODE_SUBNET_POOL = ipaddress.IPv4Network("10.210.0.0/16")
+#: serve.EPISODE_SUBNETS_ENV, the same name: what native-services reads it from.
+EPISODE_SUBNETS_ENV = "ALKERA_EPISODE_SUBNETS"
+
+
+def docker_subnets() -> list[ipaddress.IPv4Network]:
+    """Every IPv4 subnet an existing docker network holds (`docker network
+    inspect` of all of them): what a pinned episode_net must not overlap."""
+    ids = _run(["docker", "network", "ls", "-q"]).stdout.split()
+    specs = json.loads(_run(["docker", "network", "inspect", *ids]).stdout) if ids else []
+    return [ipaddress.IPv4Network(config["Subnet"])
+            for spec in specs for config in (spec.get("IPAM") or {}).get("Config") or ()
+            if "." in str(config.get("Subnet", ""))]
+
+
+def free_episode_subnet(project: str,
+                        taken: list[ipaddress.IPv4Network]) -> ipaddress.IPv4Network:
+    """A /24 of EPISODE_SUBNET_POOL that overlaps nothing in `taken`.
+
+    Taken from the TOP half of the pool, downwards: the daemon hands its pool out
+    from the bottom up to every project that does not pin a subnet, so the two
+    meet only when the pool is nearly full. The starting /24 is a function of
+    the project name, which spreads rollouts that allocate at the same moment
+    and gives one project the same answer every time it asks."""
+    top = list(EPISODE_SUBNET_POOL.subnets(new_prefix=24))[::-1]
+    start = int.from_bytes(hashlib.sha256(project.encode()).digest()[:4], "big") % (
+        len(top) // 2)
+    for subnet in top[start:] + top[:start]:
+        if not any(subnet.overlaps(other) for other in taken):
+            return subnet
+    raise ContainerError(f"no free /24 in {EPISODE_SUBNET_POOL} for episode_net: "
+                         f"every one overlaps an existing docker network")
+
+
 #: The Snowflake plug, by name, as the checks and tests read it: where the
 #: world's warehouse files are bound in the `snowflake` service, the trust
 #: bundle its TLS proxy publishes (compose.yml's `snowflaketrust` volume), and
@@ -1846,6 +1890,9 @@ class NativeContainerEpisode:
     #: rollout a harness failure (rollout.py), or `skipped`. {} until `down()`.
     postgres_statements: dict = field(default_factory=dict)
     _up: bool = False
+    #: `episode_subnet()`'s answer, kept: the overlay's ipam pin and the
+    #: native-services variable must name the same /24.
+    _episode_subnet: str = ""
 
     # ---------------------------------------------------------------- paths
     @property
@@ -2000,6 +2047,38 @@ class NativeContainerEpisode:
         if not names:
             return ""
         return "\nvolumes:\n" + "".join(f"  {name}:\n" for name in names)
+
+    def episode_subnet(self) -> str:
+        """The /24 pinned on episode_net, "" when nothing is pinned.
+
+        Pinned only when native-services joins backend_net (a plugged
+        HOSTED_ENGINES backend, `profile_overlay`): only then does an agent
+        listener answer a peer that is not on episode_net, and the filter
+        (serve.EPISODE_SUBNETS_ENV) must name episode_net's subnet before compose
+        has created it. Every other stack - unprofiled above all - keeps
+        compose's own allocation, and its overlay is the bytes it always was."""
+        if not any(b.hosted and b.name in HOSTED_ENGINES for b in self.plugged_backends()):
+            return ""
+        if not self._episode_subnet:
+            self._episode_subnet = str(free_episode_subnet(self.project, docker_subnets()))
+        return self._episode_subnet
+
+    def episode_network(self) -> str:
+        """The top-level `networks:` that pins `episode_subnet()`, "" with none.
+        compose.yml's `internal: true` is merged with it, not replaced."""
+        subnet = self.episode_subnet()
+        if not subnet:
+            return ""
+        return f"""
+# PEER FILTER: native-services is on backend_net for the engine, so its agent
+# listeners admit episode_net's peers only ({EPISODE_SUBNETS_ENV}, above). The
+# subnet is pinned here because the filter needs it before the network exists.
+networks:
+  episode_net:
+    ipam:
+      config:
+        - subnet: {subnet}
+"""
 
     def fold_destinations(self) -> list[dict]:
         """Merge every plugged backend's destination counts
@@ -2222,6 +2301,9 @@ class NativeContainerEpisode:
             f"      ALKERA_{b.name.upper()}_UPSTREAM: "
             f"http://{HOSTED_ENGINES[b.name][0]}:{HOSTED_ENGINES[b.name][1]}\n"
             for b in engines)
+        # On backend_net its agent listeners answer the engine, postgres and
+        # minio too; they admit episode_net's pinned subnet only (`episode_network`).
+        text += f"      {EPISODE_SUBNETS_ENV}: {self.episode_subnet()}\n"
         text += "    depends_on:\n" + "".join(
             f"      {HOSTED_ENGINES[b.name][0]}:\n        condition: service_started\n"
             for b in engines)
@@ -2352,7 +2434,7 @@ services:
     volumes:
 {binds}
 """
-        body += self.backend_volumes()
+        body += self.backend_volumes() + self.episode_network()
         self.container_dir.mkdir(parents=True, exist_ok=True)
         with open(self.overlay, "w", encoding="utf-8", newline="") as stream:
             stream.write(body)

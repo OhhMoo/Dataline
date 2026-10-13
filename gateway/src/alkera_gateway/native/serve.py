@@ -56,6 +56,11 @@ The file is rewritten whole on every change - at most one row per service -
 rather than appended to, because a reader of an append-only file would have to
 fold duplicate keys before it could answer the question the file exists for.
 
+With `ALKERA_EPISODE_SUBNETS` set (`EPISODE_SUBNETS_ENV`), an agent listener
+admits only peers inside those subnets. Any other connection is closed at accept,
+written as one `native.refused_peer` row in `actions.jsonl`, and never counted
+here (`EpisodePeersOnly`).
+
 Usage::
 
     python -m alkera_gateway.native.serve --audit /audit --world /world
@@ -66,6 +71,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import contextlib
+import ipaddress
 import json
 import os
 import signal
@@ -204,6 +210,44 @@ SCHED_PORT = 8120
 #: mounted service at zero. `first_ts`/`last_ts` are ours; the harness ignores
 #: what it does not read.
 DESTINATIONS = "destinations.jsonl"
+#: The episode network's subnets, comma-separated: the only peers an agent
+#: listener admits when set.
+#:
+#: Set by `tasks/harness/container_episode.profile_overlay` only when
+#: native-services joins backend_net (a plugged HOSTED_ENGINES backend). There
+#: every agent listener, bound on 0.0.0.0, answers on that network too, and
+#: MinIO - a backend_net peer the box's root credential drives - was measured
+#: dialling them for the agent, each dial counted as the episode's own
+#: destination (gateway/docker/evidence/PEERS_2026-10-13.md). Unset (unprofiled
+#: stacks, every other profile, the host topology, Harbor's loopback) there is
+#: no filter: the peers are the episode's network or the loopback.
+EPISODE_SUBNETS_ENV = "ALKERA_EPISODE_SUBNETS"
+#: The row a refused peer leaves in actions.jsonl, one per refused connection.
+REFUSED_PEER_TOOL = "native.refused_peer"
+
+
+def episode_subnets(value: str) -> tuple[ipaddress.IPv4Network, ...]:
+    """`ALKERA_EPISODE_SUBNETS` parsed: () when empty, a ValueError naming the
+    variable for anything that is not an IPv4 network - never a silently empty
+    allow list, which would refuse the agent, or a silently absent one."""
+    networks = []
+    for part in value.replace(",", " ").split():
+        try:
+            networks.append(ipaddress.IPv4Network(part))
+        except ValueError as exc:
+            raise ValueError(f"{EPISODE_SUBNETS_ENV}={value!r}: {exc}") from None
+    return tuple(networks)
+
+
+def peer_allowed(peer: str, allowed: Sequence[ipaddress.IPv4Network]) -> bool:
+    """Is `peer` (an accepted socket's remote address) inside one of `allowed`?"""
+    try:
+        address = ipaddress.ip_address(peer)
+    except ValueError:
+        return False
+    if isinstance(address, ipaddress.IPv6Address) and address.ipv4_mapped:
+        address = address.ipv4_mapped
+    return any(address in network for network in allowed)
 
 
 def _now() -> str:
@@ -312,6 +356,49 @@ class AuditedH11Protocol(H11Protocol):
         sockname = transport.get_extra_info("sockname")
         if log is not None and sockname and not self._counted_at_accept:
             log.accepted(int(sockname[1]))
+
+
+def refused_peer(host: str, port: int, peer: str) -> None:
+    """One `native.refused_peer` row: `peer` dialled the agent listener
+    `host:port` from outside the episode network and was closed at accept."""
+    from . import audit
+
+    audit.record(tool=REFUSED_PEER_TOOL, args={"peer": peer, "host": host, "port": port},
+                 op_class="read", targets=[f"{host}:{port}"], read_targets=[],
+                 exit="error",
+                 error={"code": "refused_peer",
+                        "message": f"{peer} is not on the episode network "
+                                   f"({EPISODE_SUBNETS_ENV}); closed at accept"},
+                 actor="native-services")
+
+
+class EpisodePeersOnly(socket.socket):
+    """A listening socket whose `accept` hands asyncio the episode's peers only.
+
+    The refusal happens HERE, below the protocol, because of where a TLS door
+    counts: asyncio's accept loop calls `accept()` on the very socket `serve_all`
+    gives uvicorn and then the protocol factory, which is where
+    AuditedH11Protocol counts a TLS dial. Refused any later, a dial from a
+    backend_net peer would already be a destination. So a refused peer is closed
+    before asyncio sees it, written once as `native.refused_peer`, and the next
+    pending connection is taken; with none left, `accept` raises BlockingIOError,
+    which is how asyncio's loop expects a drained backlog to end.
+    """
+
+    def __init__(self, listener: socket.socket, host: str,
+                 allowed: Sequence[ipaddress.IPv4Network]) -> None:
+        super().__init__(listener.family, listener.type, listener.proto,
+                         fileno=listener.detach())
+        self.setblocking(False)
+        self.host, self.allowed = host, tuple(allowed)
+
+    def accept(self):
+        while True:
+            conn, peer = super().accept()
+            if peer_allowed(peer[0], self.allowed):
+                return conn, peer
+            conn.close()
+            refused_peer(self.host, self.getsockname()[1], peer[0])
 
 
 class JSONResponder:
@@ -676,9 +763,13 @@ def tls_options(item: Mounted) -> dict[str, str]:
     return {"ssl_certfile": str(certfile), "ssl_keyfile": str(keyfile)}
 
 
-async def serve_all(mounted: list[Mounted], bind: str,
-                    log: DestinationLog) -> None:
-    """Run every mounted service in this process, on one event loop."""
+async def serve_all(mounted: list[Mounted], bind: str, log: DestinationLog,
+                    allowed: Sequence[ipaddress.IPv4Network] = ()) -> None:
+    """Run every mounted service in this process, on one event loop.
+
+    `allowed` (EPISODE_SUBNETS_ENV) non-empty: every agent listener - each
+    `Mounted.destination` - admits only peers inside it (EpisodePeersOnly).
+    MinIO's audit receiver is not an agent listener and is not filtered."""
     AuditedH11Protocol.destinations = log
     servers = [
         _Server(uvicorn.Config(
@@ -713,6 +804,8 @@ async def serve_all(mounted: list[Mounted], bind: str,
             listener = socket.create_server(
                 (bind, item.port), family=socket.AF_INET6 if ":" in bind else socket.AF_INET
             )
+            if allowed and item.destination:
+                listener = EpisodePeersOnly(listener, item.host, allowed)
             listener.setblocking(False)
             sockets.append(listener)
         tasks = [asyncio.create_task(run(server, listener))
@@ -862,7 +955,8 @@ def main(argv: list[str] | None = None) -> int:
         names = selected_services(args.profile, args.plug)
         with_sched = sched_enabled(args.profile, args.plug)
         with_store = object_store_enabled(args.profile, args.plug)
-    except ProfileError as exc:
+        allowed = episode_subnets(os.environ.get(EPISODE_SUBNETS_ENV, ""))
+    except (ProfileError, ValueError) as exc:
         print(exc, file=sys.stderr, flush=True)
         return 2
 
@@ -920,6 +1014,9 @@ def main(argv: list[str] | None = None) -> int:
           flush=True)
     for name, value in sorted(environment.items()):
         print(f"{name}={value}", flush=True)
+    if allowed:
+        print(f"peer filter: agent listeners admit {', '.join(map(str, allowed))} "
+              f"only ({EPISODE_SUBNETS_ENV})", flush=True)
     if not mounted:
         print("nothing to serve: no service module imported and no --stub given",
               file=sys.stderr, flush=True)
@@ -944,7 +1041,7 @@ def main(argv: list[str] | None = None) -> int:
     log.flush()
     if args.print_only:
         return 0
-    asyncio.run(serve_all(mounted, args.bind, log))
+    asyncio.run(serve_all(mounted, args.bind, log, allowed))
     return 0
 
 
