@@ -1,0 +1,1150 @@
+{
+  "allowed_destinations": [
+    "confluence.internal:8090",
+    "databricks.internal:443",
+    "jira.internal:8080",
+    "minio.internal:9000",
+    "postgres.internal:5432",
+    "sched.internal:8120",
+    "slack.internal:8081",
+    "spark_connect.internal:15002"
+  ],
+  "audit_sample": [
+    {
+      "args": {
+        "config": {
+          "get": [
+            "spark.connect.session.planCompression.threshold",
+            "spark.connect.session.planCompression.defaultAlgorithm"
+          ]
+        },
+        "rpc": "Config",
+        "session_id": "f33218e6-f977-47c0-b6a3-4ce1f2dc7c12"
+      },
+      "args_hash": "308af67db0d31876cb1de8118b051e53483b0ea2c8cd0bc5a751d74863671589",
+      "args_summary": "{\"config\":{\"get\":[\"spark.connect.session.planCompression.threshold\",\"spark.connect.session.planCompression.defaultAlgorithm\"]},\"rpc\":\"Config\",\"session_id\":\"f33218e6-f977-47c0-b6a3-4ce1f2dc7c12\"}",
+      "disk_mb": null,
+      "error": null,
+      "exit": "ok",
+      "flags": [
+        "actor:spark_connect"
+      ],
+      "latency_ms": 0.103,
+      "op_class": "read",
+      "read_targets": [],
+      "result": {
+        "forwarded": true
+      },
+      "result_bytes": 18,
+      "result_hash": "37aa49c4d54a38910b50a36a0c72de870c6371a7e8bb0f0bebc0c1aaa57b4124",
+      "rows_affected": null,
+      "rss_mb": 211.203,
+      "schema_version": 1,
+      "seq": 63,
+      "target": null,
+      "targets": [],
+      "tool": "databricks.spark",
+      "transport": "native",
+      "vts": "2026-03-02T00:00:00Z",
+      "wts": 1791893427536
+    },
+    {
+      "args": {
+        "plan": "command:sql_command(sql)",
+        "rpc": "ExecutePlan",
+        "session_id": "f33218e6-f977-47c0-b6a3-4ce1f2dc7c12",
+        "sql": "SELECT count(*) FROM main.warehouse.dim_customer"
+      },
+      "args_hash": "1b2140539af874fd172b835c7f26a2577684b4d9b09e86c042a4da3b6e0ff944",
+      "args_summary": "{\"plan\":\"command:sql_command(sql)\",\"rpc\":\"ExecutePlan\",\"session_id\":\"f33218e6-f977-47c0-b6a3-4ce1f2dc7c12\",\"sql\":\"SELECT count(*) FROM main.warehouse.dim_customer\"}",
+      "disk_mb": null,
+      "error": null,
+      "exit": "ok",
+      "flags": [
+        "actor:spark_connect"
+      ],
+      "latency_ms": 1.112,
+      "op_class": "read",
+      "read_targets": [
+        "main.warehouse.dim_customer"
+      ],
+      "result": {
+        "forwarded": true
+      },
+      "result_bytes": 18,
+      "result_hash": "37aa49c4d54a38910b50a36a0c72de870c6371a7e8bb0f0bebc0c1aaa57b4124",
+      "rows_affected": null,
+      "rss_mb": 211.203,
+      "schema_version": 1,
+      "seq": 64,
+      "target": "main.warehouse.dim_customer",
+      "targets": [
+        "main.warehouse.dim_customer"
+      ],
+      "tool": "databricks.spark",
+      "transport": "native",
+      "vts": "2026-03-02T00:00:00Z",
+      "wts": 1791893427549
+    },
+    {
+      "args": {
+        "config": {
+          "set": [
+            "spark.sql.catalog.evil"
+          ]
+        },
+        "rpc": "Config",
+        "session_id": "f33218e6-f977-47c0-b6a3-4ce1f2dc7c12"
+      },
+      "args_hash": "9adcda804563716cc3e8a7d68415a91875e99e570bb7ab8e00b028a641d1720d",
+      "args_summary": "{\"config\":{\"set\":[\"spark.sql.catalog.evil\"]},\"rpc\":\"Config\",\"session_id\":\"f33218e6-f977-47c0-b6a3-4ce1f2dc7c12\"}",
+      "disk_mb": null,
+      "error": {
+        "code": "FAILED_PRECONDITION",
+        "message": "Spark feature not available in this environment: setting spark.sql.catalog.evil"
+      },
+      "exit": "error",
+      "flags": [
+        "refused:setting spark.sql.catalog.evil",
+        "actor:spark_connect"
+      ],
+      "latency_ms": 0.094,
+      "op_class": "exec",
+      "read_targets": [],
+      "result": {
+        "forwarded": false
+      },
+      "result_bytes": 19,
+      "result_hash": "a003b9c3534792979f284fb759fae48cece749d2a43c22c6577a3ea8310dc632",
+      "rows_affected": null,
+      "rss_mb": 211.27,
+      "schema_version": 1,
+      "seq": 254,
+      "target": null,
+      "targets": [],
+      "tool": "databricks.spark",
+      "transport": "native",
+      "vts": "2026-03-02T00:00:00Z",
+      "wts": 1791893435819
+    },
+    {
+      "args": {
+        "rpc": "ReleaseSession",
+        "session_id": "f33218e6-f977-47c0-b6a3-4ce1f2dc7c12"
+      },
+      "args_hash": "3ec1be1ad3421ad8fb85c16650a37c562749d62e19bab9af5972257a90e65d93",
+      "args_summary": "{\"rpc\":\"ReleaseSession\",\"session_id\":\"f33218e6-f977-47c0-b6a3-4ce1f2dc7c12\"}",
+      "disk_mb": null,
+      "error": null,
+      "exit": "ok",
+      "flags": [
+        "actor:spark_connect"
+      ],
+      "latency_ms": 0.02,
+      "op_class": "exec",
+      "read_targets": [],
+      "result": {
+        "forwarded": true
+      },
+      "result_bytes": 18,
+      "result_hash": "37aa49c4d54a38910b50a36a0c72de870c6371a7e8bb0f0bebc0c1aaa57b4124",
+      "rows_affected": null,
+      "rss_mb": 211.27,
+      "schema_version": 1,
+      "seq": 255,
+      "target": null,
+      "targets": [],
+      "tool": "databricks.spark",
+      "transport": "native",
+      "vts": "2026-03-02T00:00:00Z",
+      "wts": 1791893435825
+    }
+  ],
+  "checks": [
+    {
+      "check": "compose profile `spark` builds and starts the engine beside native-services",
+      "detail": [
+        "episode",
+        "jupyter",
+        "minio",
+        "native-services",
+        "postgres",
+        "spark"
+      ],
+      "result": "PASS"
+    },
+    {
+      "check": "the engine seeded every warehouse table with the world's count, then listened",
+      "detail": {
+        "listening": {
+          "listening_ms": 30902,
+          "port": 15002,
+          "seed": [
+            {
+              "rows": 339,
+              "table": "main.`raw`.`customers`"
+            },
+            {
+              "rows": 29200,
+              "table": "main.`raw`.`order_lines`"
+            },
+            {
+              "rows": 17768,
+              "table": "main.`raw`.`orders`"
+            },
+            {
+              "rows": 31,
+              "table": "main.`raw`.`products`"
+            },
+            {
+              "rows": 309,
+              "table": "main.`staging`.`stg_customers`"
+            },
+            {
+              "rows": 29200,
+              "table": "main.`staging`.`stg_order_lines`"
+            },
+            {
+              "rows": 16825,
+              "table": "main.`staging`.`stg_orders`"
+            },
+            {
+              "rows": 25,
+              "table": "main.`staging`.`stg_products`"
+            },
+            {
+              "rows": 309,
+              "table": "main.`warehouse`.`dim_customer`"
+            },
+            {
+              "rows": 424,
+              "table": "main.`warehouse`.`dim_date`"
+            },
+            {
+              "rows": 25,
+              "table": "main.`warehouse`.`dim_product`"
+            },
+            {
+              "rows": 29200,
+              "table": "main.`warehouse`.`fct_order_lines`"
+            },
+            {
+              "rows": 16825,
+              "table": "main.`warehouse`.`fct_orders`"
+            }
+          ],
+          "seed_ms": 30581,
+          "spark": "4.2.0",
+          "spark_connect": "listening"
+        },
+        "seed": {
+          "from": "warehouse.duckdb",
+          "not_seeded": [],
+          "seed": "spark",
+          "tables": {
+            "raw.customers": 339,
+            "raw.order_lines": 29200,
+            "raw.orders": 17768,
+            "raw.products": 31,
+            "staging.stg_customers": 309,
+            "staging.stg_order_lines": 29200,
+            "staging.stg_orders": 16825,
+            "staging.stg_products": 25,
+            "warehouse.dim_customer": 309,
+            "warehouse.dim_date": 424,
+            "warehouse.dim_product": 25,
+            "warehouse.fct_order_lines": 29200,
+            "warehouse.fct_orders": 16825
+          }
+        }
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "seeding wrote no audit row",
+      "detail": [],
+      "result": "PASS"
+    },
+    {
+      "check": "isolation: native-services is on backend_net and episode_net",
+      "detail": [
+        "alkera-tour-ds-databricks-1791893379_backend_net",
+        "alkera-tour-ds-databricks-1791893379_episode_net"
+      ],
+      "result": "PASS"
+    },
+    {
+      "check": "isolation: the engine is on backend_net only",
+      "detail": [
+        "alkera-tour-ds-databricks-1791893379_backend_net"
+      ],
+      "result": "PASS"
+    },
+    {
+      "check": "isolation: the episode is on episode_net only",
+      "detail": [
+        "alkera-tour-ds-databricks-1791893379_episode_net"
+      ],
+      "result": "PASS"
+    },
+    {
+      "check": "isolation: the episode cannot resolve the engine, only the proxy",
+      "detail": {
+        "spark": "",
+        "spark_connect.internal": "10.210.185.5    spark_connect.internal"
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "isolation: in the engine only Spark Connect's port listens off loopback",
+      "detail": [
+        [
+          "127.0.0.1",
+          38637,
+          true
+        ],
+        [
+          "127.0.0.1",
+          46869,
+          true
+        ],
+        [
+          "127.0.0.11",
+          33681,
+          true
+        ],
+        [
+          "::",
+          15002,
+          false
+        ]
+      ],
+      "result": "PASS"
+    },
+    {
+      "check": "thin-client probe ran inside the episode",
+      "detail": "xecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"Config\", \"ExecutePlan\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ExecutePlan\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"Config\", \"ExecutePlan\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ExecutePlan\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"Config\", \"ExecutePlan\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ExecutePlan\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"Config\", \"ExecutePlan\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ExecutePlan\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"Config\", \"ExecutePlan\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ExecutePlan\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"ReleaseExecute\", \"Config\", \"AddArtifacts\", \"Config\", \"AnalyzePlan\", \"ExecutePlan\", \"ReleaseExecute\", \"ExecutePlan\", \"ReleaseExecute\", \"ExecutePlan\", \"ReleaseExecute\", \"FetchErrorDetails\", \"Config\", \"ExecutePlan\", \"ReleaseExecute\", \"FetchErrorDetails\", \"Config\", \"ExecutePlan\", \"ReleaseExecute\", \"FetchErrorDetails\", \"Config\", \"Config\", \"ReleaseSession\"], \"sqls\": [\"SELECT count(*) FROM main.warehouse.dim_customer\", \"SELECT count(*) FROM main.warehouse.dim_date\", \"SELECT count(*) FROM main.warehouse.dim_product\", \"SELECT count(*) FROM main.warehouse.fct_order_lines\", \"SELECT count(*) FROM main.warehouse.fct_orders\", \"CREATE SCHEMA IF NOT EXISTS main.t14_scratch\", \"SELECT count(*) FROM main.t14_scratch.refunded\", \"INSERT INTO main.t14_scratch.refunded SELECT * FROM main.warehouse.fct_orders WHERE order_status = 'refunded' LIMIT 1\", \"SELECT count(*) FROM main.t14_scratch.refunded\", \"DELETE FROM main.warehouse.fct_orders WHERE order_status = 'refunded'\", \"SELECT count(*) FROM main.warehouse.fct_orders WHERE order_status = 'refunded'\", \"DESCRIBE HISTORY main.warehouse.fct_orders\"]}\n/usr/local/lib/python3.11/site-packages/pyspark/sql/connect/utils.py:41: FutureWarning: PySpark does not yet fully support pandas >= 3.0.0. Some features may not work correctly. It is recommended to use pandas < 3.0.0 for now.\n  require_minimum_pandas_version()\n/usr/local/lib/python3.11/site-packages/pyspark/testing/utils.py:127: FutureWarning: PySpark does not yet fully support pandas >= 3.0.0. Some features may not work correctly. It is recommended to use pandas < 3.0.0 for now.\n  require_minimum_pandas_version()\n/usr/local/lib/python3.11/site-packages/pyspark/sql/connect/udf.py:78: FutureWarning: PySpark does not yet fully support pandas >= 3.0.0. Some features may not work correctly. It is recommended to use pandas < 3.0.0 for now.\n  require_minimum_pandas_version()\n",
+      "result": "PASS"
+    },
+    {
+      "check": "discovery: SPARK_REMOTE (no token: plain gRPC) and SPARK_HOME",
+      "detail": {
+        "SPARK_HOME": "/usr/local/lib/python3.11/site-packages/pyspark",
+        "SPARK_REMOTE": "sc://spark_connect.internal:15002"
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "SparkSession.builder.getOrCreate() is a Spark Connect session",
+      "detail": "pyspark.sql.connect.session",
+      "result": "PASS"
+    },
+    {
+      "check": "SQL: February 2026 Net Revenue equals the world's DuckDB",
+      "detail": {
+        "got": "2361224.00",
+        "truth": "2361224.00"
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "SQL: every warehouse table's count equals the world's DuckDB",
+      "detail": {
+        "got": {
+          "dim_customer": 309,
+          "dim_date": 424,
+          "dim_product": 25,
+          "fct_order_lines": 29200,
+          "fct_orders": 16825
+        },
+        "truth": {
+          "dim_customer": 309,
+          "dim_date": 424,
+          "dim_product": 25,
+          "fct_order_lines": 29200,
+          "fct_orders": 16825
+        }
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "DataFrame API: filter / groupBy / agg equals the world's DuckDB",
+      "detail": {
+        "got": [
+          [
+            "cancelled",
+            "2343254.00"
+          ],
+          [
+            "completed",
+            "33733790.00"
+          ],
+          [
+            "refunded",
+            "1350534.00"
+          ]
+        ],
+        "truth": [
+          [
+            "cancelled",
+            "2343254.00"
+          ],
+          [
+            "completed",
+            "33733790.00"
+          ],
+          [
+            "refunded",
+            "1350534.00"
+          ]
+        ]
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "toPandas: an Arrow result becomes a pandas frame (pandas 3)",
+      "detail": {
+        "columns": [
+          "date_day",
+          "year",
+          "quarter",
+          "month",
+          "month_name",
+          "week_start",
+          "is_weekend"
+        ],
+        "first": "2025-01-01",
+        "rows": 3
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "writes: saveAsTable, INSERT and DELETE land in the copy and read back",
+      "detail": {
+        "after_insert": 642,
+        "copy_after_delete": 0,
+        "saved": 641
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "Delta: DESCRIBE HISTORY of the copy names the DELETE and the seed's create",
+      "detail": [
+        "DELETE",
+        "WRITE",
+        "CREATE TABLE"
+      ],
+      "result": "PASS"
+    },
+    {
+      "check": "test_remote_write_leaves_world_fingerprint_unchanged",
+      "detail": {
+        "after": "08670cae0aecf5f007bf1f5edb0fe8f7d7486e0b671def241b557a0522c5bc9c",
+        "before": "08670cae0aecf5f007bf1f5edb0fe8f7d7486e0b671def241b557a0522c5bc9c"
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "fence: AddArtifacts refused by name",
+      "detail": "SparkConnectGrpcException: <_InactiveRpcError of RPC that terminated with:\n\tstatus = StatusCode.FAILED_PRECONDITION\n\tdetails = \"Spark feature not available in this environment: AddArtifacts\"\n\tdebug_error_string = \"FAILED_PRECONDITION:Spark feature not available in this environment: AddArtifacts\"\n>",
+      "result": "PASS"
+    },
+    {
+      "check": "fence: python_udf refused by name",
+      "detail": "SparkConnectGrpcException: <_MultiThreadedRendezvous of RPC that terminated with:\n\tstatus = StatusCode.FAILED_PRECONDITION\n\tdetails = \"Spark feature not available in this environment: Python UDFs\"\n\tdebug_error_string = \"FAILED_PRECONDITION:Spark feature not available in this environment: Python UDFs\"\n>",
+      "result": "PASS"
+    },
+    {
+      "check": "fence: path_read refused by name",
+      "detail": "SparkConnectGrpcException: <_MultiThreadedRendezvous of RPC that terminated with:\n\tstatus = StatusCode.FAILED_PRECONDITION\n\tdetails = \"Spark feature not available in this environment: file paths and URLs (DBFS and cloud paths are not provided; read a table)\"\n\tdebug_error_string = \"FAILED_PRECONDITION:Spark feature not available in this environment: file paths and URLs (DBFS and cloud paths are not provided; read a table)\"\n>",
+      "result": "PASS"
+    },
+    {
+      "check": "fence: transform refused by name",
+      "detail": "UnsupportedOperationException: Spark feature not available in this environment: TRANSFORM (script transformation runs a command)\n\nJVM stacktrace:\njava.lang.UnsupportedOperationException\n\tat org.alkera.spark.Guard.check(Guard.java:136)\n\tat org.alkera.spark.Guard.lambda$apply$0(Guard.java:115)\n\tat org.apache.spark.sql.catalyst.analysis.CheckAnalysis.$anonfun$checkAnalysis0$58(CheckAnalysis.scala:1089)\n\tat org.apache.spark.sql.catalyst.analysis.CheckAnalysis.$anonfun$checkAnalysis0$58$adapted(CheckAnalysis.scala:1089)\n\tat scala.collection.immutable.List.foreach(List.scala:323)\n\tat org.apache.spar",
+      "result": "PASS"
+    },
+    {
+      "check": "fence: reflect refused by name",
+      "detail": "UnsupportedOperationException: Spark feature not available in this environment: reflect / java_method / try_reflect (calls a JVM method)\n\nJVM stacktrace:\njava.lang.UnsupportedOperationException\n\tat org.alkera.spark.Guard.checkExpression(Guard.java:162)\n\tat org.alkera.spark.Guard.check(Guard.java:139)\n\tat org.alkera.spark.Guard.lambda$apply$0(Guard.java:115)\n\tat org.apache.spark.sql.catalyst.analysis.CheckAnalysis.$anonfun$checkAnalysis0$58(CheckAnalysis.scala:1089)\n\tat org.apache.spark.sql.catalyst.analysis.CheckAnalysis.$anonfun$checkAnalysis0$58$adapted(CheckAnalysis.scala:1089)\n\tat scala.co",
+      "result": "PASS"
+    },
+    {
+      "check": "fence: parquet_path refused by name",
+      "detail": "UnsupportedOperationException: Spark feature not available in this environment: reading files by path (DBFS and cloud paths are not provided; use a table)\n\nJVM stacktrace:\njava.lang.UnsupportedOperationException\n\tat org.alkera.spark.Guard.check(Guard.java:136)\n\tat org.alkera.spark.Guard.lambda$apply$0(Guard.java:115)\n\tat org.apache.spark.sql.catalyst.analysis.CheckAnalysis.$anonfun$checkAnalysis0$58(CheckAnalysis.scala:1089)\n\tat org.apache.spark.sql.catalyst.analysis.CheckAnalysis.$anonfun$checkAnalysis0$58$adapted(CheckAnalysis.scala:1089)\n\tat scala.collection.immutable.List.foreach(List.scal",
+      "result": "PASS"
+    },
+    {
+      "check": "fence: config refused by name",
+      "detail": "SparkConnectGrpcException: <_InactiveRpcError of RPC that terminated with:\n\tstatus = StatusCode.FAILED_PRECONDITION\n\tdetails = \"Spark feature not available in this environment: setting spark.sql.catalog.evil\"\n\tdebug_error_string = \"FAILED_PRECONDITION:Spark feature not available in this environment: setting spark.sql.catalog.evil\"\n>",
+      "result": "PASS"
+    },
+    {
+      "check": "no dbutils: an honest NameError",
+      "detail": "NameError: name 'dbutils' is not defined",
+      "result": "PASS"
+    },
+    {
+      "check": "determinism: 3 sessions, one hash, equal to the world's rows hashed",
+      "detail": {
+        "got": [
+          "70730c9a1ef597fb52354c3202cb258fc78003b762c9f41d71bf3618c26d21db",
+          "70730c9a1ef597fb52354c3202cb258fc78003b762c9f41d71bf3618c26d21db",
+          "70730c9a1ef597fb52354c3202cb258fc78003b762c9f41d71bf3618c26d21db"
+        ],
+        "truth": "70730c9a1ef597fb52354c3202cb258fc78003b762c9f41d71bf3618c26d21db"
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "`python -c` with the thin client works on the box (SPARK_HOME)",
+      "detail": "andas >= 3.0.0. Some features may not work correctly. It is recommended to use pandas < 3.0.0 for now.\n  require_minimum_pandas_version()\n/usr/local/lib/python3.11/site-packages/pyspark/sql/connect/utils.py:41: FutureWarning: PySpark does not yet fully support pandas >= 3.0.0. Some features may not work correctly. It is recommended to use pandas < 3.0.0 for now.\n  require_minimum_pandas_version()\n",
+      "result": "PASS"
+    },
+    {
+      "check": "two data planes: tier 1 still answers the world's count after tier 2's DELETE",
+      "detail": {
+        "rows": [
+          [
+            "641"
+          ]
+        ],
+        "state": "SUCCEEDED"
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "audit: plans are 1:1 with rows - every ExecutePlan / AnalyzePlan the client sent is one row, in the order sent",
+      "detail": {
+        "by_rpc_rows": {
+          "AddArtifacts": 1,
+          "AnalyzePlan": 1,
+          "Config": 21,
+          "ExecutePlan": 32,
+          "FetchErrorDetails": 3,
+          "ReleaseExecute": 134,
+          "ReleaseSession": 1
+        },
+        "by_rpc_sent": {
+          "AddArtifacts": 1,
+          "AnalyzePlan": 1,
+          "Config": 21,
+          "ExecutePlan": 32,
+          "FetchErrorDetails": 3,
+          "ReleaseExecute": 134,
+          "ReleaseSession": 1
+        },
+        "rows_total": 271,
+        "session_rows": 193,
+        "session_rpcs_sent": 193
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "audit: every RPC the client sent is one row (housekeeping included)",
+      "detail": {
+        "by_rpc_rows": {
+          "AddArtifacts": 1,
+          "AnalyzePlan": 1,
+          "Config": 21,
+          "ExecutePlan": 32,
+          "FetchErrorDetails": 3,
+          "ReleaseExecute": 134,
+          "ReleaseSession": 1
+        },
+        "by_rpc_sent": {
+          "AddArtifacts": 1,
+          "AnalyzePlan": 1,
+          "Config": 21,
+          "ExecutePlan": 32,
+          "FetchErrorDetails": 3,
+          "ReleaseExecute": 134,
+          "ReleaseSession": 1
+        },
+        "rows_total": 271,
+        "session_rows": 193,
+        "session_rpcs_sent": 193
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "audit: each spark.sql text the client ran is in a row's args.sql",
+      "detail": {
+        "rows": [
+          "SELECT count(*) FROM main.warehouse.dim_customer",
+          "SELECT count(*) FROM main.warehouse.dim_customer",
+          "SELECT count(*) FROM main.warehouse.dim_date",
+          "SELECT count(*) FROM main.warehouse.dim_date",
+          "SELECT count(*) FROM main.warehouse.dim_product",
+          "SELECT count(*) FROM main.warehouse.dim_product",
+          "SELECT count(*) FROM main.warehouse.fct_order_lines",
+          "SELECT count(*) FROM main.warehouse.fct_order_lines"
+        ],
+        "sent": [
+          "SELECT count(*) FROM main.warehouse.dim_customer",
+          "SELECT count(*) FROM main.warehouse.dim_date",
+          "SELECT count(*) FROM main.warehouse.dim_product",
+          "SELECT count(*) FROM main.warehouse.fct_order_lines",
+          "SELECT count(*) FROM main.warehouse.fct_orders",
+          "CREATE SCHEMA IF NOT EXISTS main.t14_scratch",
+          "SELECT count(*) FROM main.t14_scratch.refunded",
+          "INSERT INTO main.t14_scratch.refunded SELECT * FROM main.warehouse.fct_orders WHERE order_status = 'refunded' LIMIT 1",
+          "SELECT count(*) FROM main.t14_scratch.refunded",
+          "DELETE FROM main.warehouse.fct_orders WHERE order_status = 'refunded'",
+          "SELECT count(*) FROM main.warehouse.fct_orders WHERE order_status = 'refunded'",
+          "DESCRIBE HISTORY main.warehouse.fct_orders"
+        ]
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "audit: saveAsTable is a write row naming its table",
+      "detail": [
+        {
+          "op_class": "write",
+          "targets": [
+            "main.t14_scratch.refunded"
+          ]
+        }
+      ],
+      "result": "PASS"
+    },
+    {
+      "check": "audit: the DELETE is a write-class row on the copy's fct_orders",
+      "detail": {
+        "op_class": "destructive",
+        "targets": [
+          "main.warehouse.fct_orders"
+        ]
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "audit: the proxy's refusals are error rows flagged refused:<feature>",
+      "detail": [
+        {
+          "flags": [
+            "refused:AddArtifacts",
+            "actor:spark_connect"
+          ],
+          "op_class": "exec",
+          "rpc": "AddArtifacts",
+          "seq": 235
+        },
+        {
+          "flags": [
+            "refused:Python UDFs",
+            "actor:spark_connect"
+          ],
+          "op_class": "exec",
+          "rpc": "ExecutePlan",
+          "seq": 238
+        },
+        {
+          "flags": [
+            "refused:file paths and URLs",
+            "actor:spark_connect"
+          ],
+          "op_class": "exec",
+          "rpc": "ExecutePlan",
+          "seq": 240
+        },
+        {
+          "flags": [
+            "refused:setting spark.sql.catalog.evil",
+            "actor:spark_connect"
+          ],
+          "op_class": "exec",
+          "rpc": "Config",
+          "seq": 254
+        },
+        {
+          "flags": [
+            "refused:Spark ML",
+            "actor:spark_connect"
+          ],
+          "op_class": "exec",
+          "rpc": "ExecutePlan",
+          "seq": 270
+        }
+      ],
+      "result": "PASS"
+    },
+    {
+      "check": "audit: rows carry exactly the 9.2.2 keys",
+      "detail": [],
+      "result": "PASS"
+    },
+    {
+      "check": "audit: seq is contiguous across writers",
+      "detail": [
+        267,
+        268,
+        269,
+        270,
+        271
+      ],
+      "result": "PASS"
+    },
+    {
+      "check": "the profile allows spark_connect.internal:15002",
+      "detail": [
+        "confluence.internal:8090",
+        "databricks.internal:443",
+        "jira.internal:8080",
+        "minio.internal:9000",
+        "postgres.internal:5432",
+        "sched.internal:8120",
+        "slack.internal:8081",
+        "spark_connect.internal:15002"
+      ],
+      "result": "PASS"
+    },
+    {
+      "check": "destinations.jsonl counts spark_connect.internal:15002 after teardown",
+      "detail": [
+        {
+          "count": 6,
+          "first_ts": "2026-10-13T12:10:22Z",
+          "host": "spark_connect.internal",
+          "last_ts": "2026-10-13T12:10:38Z",
+          "port": 15002
+        }
+      ],
+      "result": "PASS"
+    },
+    {
+      "check": "no destination outside the profile's allowlist",
+      "detail": [],
+      "result": "PASS"
+    },
+    {
+      "check": "the world's warehouse never changed (after every write and teardown)",
+      "detail": {
+        "after_down": "d79b90327f2bedea1d63f39d75ca3418af2a0e8610822a6709673f6673627d31",
+        "before_up": "d79b90327f2bedea1d63f39d75ca3418af2a0e8610822a6709673f6673627d31"
+      },
+      "result": "PASS"
+    }
+  ],
+  "compose_profiles": "notebook,spark",
+  "counts": {
+    "by_rpc_rows": {
+      "AddArtifacts": 1,
+      "AnalyzePlan": 1,
+      "Config": 21,
+      "ExecutePlan": 32,
+      "FetchErrorDetails": 3,
+      "ReleaseExecute": 134,
+      "ReleaseSession": 1
+    },
+    "by_rpc_sent": {
+      "AddArtifacts": 1,
+      "AnalyzePlan": 1,
+      "Config": 21,
+      "ExecutePlan": 32,
+      "FetchErrorDetails": 3,
+      "ReleaseExecute": 134,
+      "ReleaseSession": 1
+    },
+    "rows_total": 271,
+    "session_rows": 193,
+    "session_rpcs_sent": 193
+  },
+  "dash_c": "andas >= 3.0.0. Some features may not work correctly. It is recommended to use pandas < 3.0.0 for now.\n  require_minimum_pandas_version()\n/usr/local/lib/python3.11/site-packages/pyspark/sql/connect/utils.py:41: FutureWarning: PySpark does not yet fully support pandas >= 3.0.0. Some features may not work correctly. It is recommended to use pandas < 3.0.0 for now.\n  require_minimum_pandas_version()\n",
+  "destinations": [
+    {
+      "count": 1,
+      "first_ts": "2026-10-13T12:10:39Z",
+      "host": "databricks.internal",
+      "last_ts": "2026-10-13T12:10:39Z",
+      "port": 443
+    },
+    {
+      "count": 0,
+      "first_ts": null,
+      "host": "jira.internal",
+      "last_ts": null,
+      "port": 8080
+    },
+    {
+      "count": 0,
+      "first_ts": null,
+      "host": "slack.internal",
+      "last_ts": null,
+      "port": 8081
+    },
+    {
+      "count": 0,
+      "first_ts": null,
+      "host": "confluence.internal",
+      "last_ts": null,
+      "port": 8090
+    },
+    {
+      "count": 0,
+      "first_ts": null,
+      "host": "native-services.internal",
+      "last_ts": null,
+      "port": 8099
+    },
+    {
+      "count": 0,
+      "first_ts": null,
+      "host": "sched.internal",
+      "last_ts": null,
+      "port": 8120
+    },
+    {
+      "count": 6,
+      "first_ts": "2026-10-13T12:10:22Z",
+      "host": "spark_connect.internal",
+      "last_ts": "2026-10-13T12:10:38Z",
+      "port": 15002
+    }
+  ],
+  "engine": {
+    "listening_ms": 30902,
+    "port": 15002,
+    "seed": [
+      {
+        "rows": 339,
+        "table": "main.`raw`.`customers`"
+      },
+      {
+        "rows": 29200,
+        "table": "main.`raw`.`order_lines`"
+      },
+      {
+        "rows": 17768,
+        "table": "main.`raw`.`orders`"
+      },
+      {
+        "rows": 31,
+        "table": "main.`raw`.`products`"
+      },
+      {
+        "rows": 309,
+        "table": "main.`staging`.`stg_customers`"
+      },
+      {
+        "rows": 29200,
+        "table": "main.`staging`.`stg_order_lines`"
+      },
+      {
+        "rows": 16825,
+        "table": "main.`staging`.`stg_orders`"
+      },
+      {
+        "rows": 25,
+        "table": "main.`staging`.`stg_products`"
+      },
+      {
+        "rows": 309,
+        "table": "main.`warehouse`.`dim_customer`"
+      },
+      {
+        "rows": 424,
+        "table": "main.`warehouse`.`dim_date`"
+      },
+      {
+        "rows": 25,
+        "table": "main.`warehouse`.`dim_product`"
+      },
+      {
+        "rows": 29200,
+        "table": "main.`warehouse`.`fct_order_lines`"
+      },
+      {
+        "rows": 16825,
+        "table": "main.`warehouse`.`fct_orders`"
+      }
+    ],
+    "seed_ms": 30581,
+    "spark": "4.2.0",
+    "spark_connect": "listening"
+  },
+  "engine_listening": [
+    [
+      "127.0.0.1",
+      38637,
+      true
+    ],
+    [
+      "127.0.0.1",
+      46869,
+      true
+    ],
+    [
+      "127.0.0.11",
+      33681,
+      true
+    ],
+    [
+      "::",
+      15002,
+      false
+    ]
+  ],
+  "hashes": [
+    "70730c9a1ef597fb52354c3202cb258fc78003b762c9f41d71bf3618c26d21db",
+    "70730c9a1ef597fb52354c3202cb258fc78003b762c9f41d71bf3618c26d21db",
+    "70730c9a1ef597fb52354c3202cb258fc78003b762c9f41d71bf3618c26d21db"
+  ],
+  "image": "alkera-episode:t14-ds-databricks-spark",
+  "networks": {
+    "engine": [
+      "alkera-tour-ds-databricks-1791893379_backend_net"
+    ],
+    "episode": [
+      "alkera-tour-ds-databricks-1791893379_episode_net"
+    ],
+    "native-services": [
+      "alkera-tour-ds-databricks-1791893379_backend_net",
+      "alkera-tour-ds-databricks-1791893379_episode_net"
+    ]
+  },
+  "overlay": "# Generated per rollout by tasks/harness/container_episode.py. Do not edit:\n# it is rewritten on every `up()` and is kept here as the record of which host\n# files this episode's container could see.\n#\n# Three things compose.native.yml cannot say statically:\n#\n#   1. THE WAREHOUSE FILES. Their names and their number come from the world\n#      this rollout built (1 here), read by the same rule\n#      world/world/fingerprint.py hashes by. Each is bound as a FILE at its own\n#      world-relative path, so `/world/var/warehouse` is a directory of\n#      the CONTAINER's - and a `cp` beside the warehouse, which is what two of\n#      five GT001 native subjects did before deleting rows, lands there instead\n#      of in the world.\n#   2. THE SHIM PATH, and the CONTEXT VARIANT. The shims go in front of the\n#      image's own PATH, which is read off the image so /opt/toolbelt/bin\n#      survives; `ALKERA_TASK_VARIANT` appears only when this world was built\n#      from an arm, because an empty value is still a value to\n#      `taskspec.requested_variant`.\n#   3. THE WORLD'S CLOCK. `ALKERA_VIRTUAL_TIME` is this world's `vnow` as the\n#      episode starts, so the rows the shims and the notebook kernel write\n#      carry the world's time and not GatewayConfig's literal: `var/sched`,\n#      where the host topology reads it, is not mounted here (P7).\n#\n# NOT here, and it was here for one afternoon: published host ports. Both\n# compose networks are `internal: true`, and Docker cannot publish a host port\n# off an internal network - the bindings appear in `HostConfig.PortBindings`\n# and nothing ever listens. Measured: GT004's first container rollout failed\n# its surface gate with `WinError 10061` on all nine services while\n# `docker inspect` reported all nine mappings. The harness reaches the services\n# through `container_episode.ServiceGate` instead, one `docker exec` per\n# connection, and `published_host_ports: {}` stays true for every container\n# in the project.\nservices:\n  episode:\n    # ENVIRONMENT PROFILE: the complete mapping, not a merge\n    # (container_episode.profiled_environment).\n    environment: !override\n      PATH: \"/opt/alkera/shims:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/toolbelt/bin\"\n      ALKERA_SHIM_BIN: \"/opt/alkera/shims\"\n      ALKERA_SHIM_WATCH: \"/world/var/warehouse/warehouse.duckdb\"\n      ALKERA_SHIM_WORKSPACE: \"/workspace\"\n      ALKERA_WORKSPACE: \"/workspace\"\n      ALKERA_VIRTUAL_TIME: \"2026-03-02T00:00:00Z\"\n      JUPYTER_URL: \"http://jupyter.internal:8888\"\n      # the static table (compose.yml + compose.native.yml) minus what the\n      # profile excludes: AIRBYTE_API_KEY, AIRBYTE_URL, AIRFLOW_API_URL,\n      # AIRFLOW_PASSWORD, AIRFLOW_USER, ALERTMANAGER_URL, DEPLOY_API_TOKEN,\n      # DEPLOY_URL, LOKI_ADDR, LOKI_URL, METABASE_API_KEY, METABASE_URL,\n      # PGDATABASE, PGHOST, PGPASSWORD, PGPORT, PGUSER, PROMETHEUS_URL,\n      # SNOWFLAKE_ACCOUNT, SNOWFLAKE_HOST, SNOWFLAKE_PASSWORD, SNOWFLAKE_USER\n      ALKERA_BACKEND: \"${ALKERA_BACKEND:-postgres}\"\n      ALKERA_WAREHOUSES: \"${ALKERA_WAREHOUSES:-}\"\n      AWS_ACCESS_KEY_ID: \"alkera-local-dev\"\n      AWS_DEFAULT_REGION: \"us-east-1\"\n      AWS_ENDPOINT_URL: \"http://minio.internal:9000\"\n      AWS_SECRET_ACCESS_KEY: \"alkera-local-dev\"\n      CONFLUENCE_API_TOKEN: \"alkera-local-dev\"\n      CONFLUENCE_URL: \"http://confluence.internal:8090\"\n      CONFLUENCE_USER: \"alkera-local-dev\"\n      DBT_PROFILES_DIR: \"/root/.dbt\"\n      JIRA_API_TOKEN: \"alkera-local-dev\"\n      JIRA_URL: \"http://jira.internal:8080\"\n      JIRA_USER: \"alkera-local-dev\"\n      SCHED_URL: \"http://sched.internal:8120\"\n      SLACK_BASE_URL: \"http://slack.internal:8081\"\n      SLACK_BOT_TOKEN: \"alkera-local-dev\"\n      ALKERA_NATIVE_AUDIT: \"/audit/actions.jsonl\"\n      HOME: \"/root\"\n      # what the profile plugs\n      REQUESTS_CA_BUNDLE: \"/etc/alkera/databricks-tls/bundle.pem\"\n      DATABRICKS_HOST: \"https://databricks.internal\"\n      DATABRICKS_SERVER_HOSTNAME: \"databricks.internal\"\n      DATABRICKS_HTTP_PATH: \"/sql/1.0/warehouses/alkera\"\n      DATABRICKS_TOKEN: \"alkera-local-dev\"\n      SSL_CERT_FILE: \"/etc/alkera/databricks-tls/bundle.pem\"\n      SPARK_REMOTE: \"sc://spark_connect.internal:15002\"\n      SPARK_HOME: \"/usr/local/lib/python3.11/site-packages/pyspark\"\n    volumes:\n      - \"/home/ubuntu/alkera-rollouts/t14-spark/e2e/world/var/warehouse/warehouse.duckdb:/world/var/warehouse/warehouse.duckdb\"\n      - databrickstrust:/etc/alkera/databricks-tls:ro\n\n# ENVIRONMENT PROFILE ds/databricks (plugs: {}).\n# native-services runs with --profile (ALKERA_NATIVE_PROFILE_ARGS), and the\n# aliases below REPLACE compose.native.yml's: an excluded service has no name\n# on episode_net at all.\n  native-services:\n    networks:\n      episode_net:\n        aliases: !override\n          - native-services.internal\n          - jira.internal\n          - slack.internal\n          - confluence.internal\n          - databricks.internal\n          - spark_connect.internal\n          - sched.internal\n      backend_net: {}\n    volumes:\n      - databrickstrust:/etc/alkera/databricks-tls\n    environment:\n      ALKERA_SPARK_CONNECT_UPSTREAM: spark:15002\n      ALKERA_EPISODE_SUBNETS: 10.210.185.0/24\n    depends_on:\n      spark:\n        condition: service_started\n    healthcheck:\n      start_period: 600s\n\n# HOSTED ENGINE spark_connect: its own image (gateway/docker/spark/Dockerfile.spark),\n# compose profile `spark` (enabled by compose_env), on backend_net only and\n# seeded from this world's warehouse. The episode reaches it through the audited\n# proxy in native-services, spark_connect.internal:15002.\n  spark:\n    profiles: [spark]\n    image: alkera-spark:native-t14-ds-databricks-spark\n    pull_policy: build\n    build:\n      context: ../..\n      dockerfile: gateway/docker/spark/Dockerfile.spark\n    stop_grace_period: 5s\n    networks:\n      backend_net:\n        aliases: !reset []\n    volumes:\n      - \"/home/ubuntu/alkera-rollouts/t14-spark/e2e/world/var/warehouse/warehouse.duckdb:/seed/warehouse.duckdb:ro\"\n\n# NOTEBOOK PLUG: the `jupyter` service (compose profile `notebook`, enabled by\n# compose_env) sees exactly what the episode sees.\n  jupyter:\n    # ENVIRONMENT PROFILE: the complete mapping, not a merge\n    # (container_episode.profiled_environment).\n    environment: !override\n      PATH: \"/opt/alkera/shims:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/toolbelt/bin\"\n      ALKERA_SHIM_BIN: \"/opt/alkera/shims\"\n      ALKERA_SHIM_WATCH: \"/world/var/warehouse/warehouse.duckdb\"\n      ALKERA_SHIM_WORKSPACE: \"/workspace\"\n      ALKERA_WORKSPACE: \"/workspace\"\n      ALKERA_VIRTUAL_TIME: \"2026-03-02T00:00:00Z\"\n      # the static table (compose.yml + compose.native.yml) minus what the\n      # profile excludes: AIRBYTE_API_KEY, AIRBYTE_URL, AIRFLOW_API_URL,\n      # AIRFLOW_PASSWORD, AIRFLOW_USER, ALERTMANAGER_URL, DEPLOY_API_TOKEN,\n      # DEPLOY_URL, LOKI_ADDR, LOKI_URL, METABASE_API_KEY, METABASE_URL,\n      # PGDATABASE, PGHOST, PGPASSWORD, PGPORT, PGUSER, PROMETHEUS_URL,\n      # SNOWFLAKE_ACCOUNT, SNOWFLAKE_HOST, SNOWFLAKE_PASSWORD, SNOWFLAKE_USER\n      AWS_ACCESS_KEY_ID: \"alkera-local-dev\"\n      AWS_DEFAULT_REGION: \"us-east-1\"\n      AWS_ENDPOINT_URL: \"http://minio.internal:9000\"\n      AWS_SECRET_ACCESS_KEY: \"alkera-local-dev\"\n      CONFLUENCE_API_TOKEN: \"alkera-local-dev\"\n      CONFLUENCE_URL: \"http://confluence.internal:8090\"\n      CONFLUENCE_USER: \"alkera-local-dev\"\n      DBT_PROFILES_DIR: \"/root/.dbt\"\n      JIRA_API_TOKEN: \"alkera-local-dev\"\n      JIRA_URL: \"http://jira.internal:8080\"\n      JIRA_USER: \"alkera-local-dev\"\n      SCHED_URL: \"http://sched.internal:8120\"\n      SLACK_BASE_URL: \"http://slack.internal:8081\"\n      SLACK_BOT_TOKEN: \"alkera-local-dev\"\n      ALKERA_NATIVE_AUDIT: \"/audit/actions.jsonl\"\n      HOME: \"/root\"\n      # what the profile plugs\n      REQUESTS_CA_BUNDLE: \"/etc/alkera/databricks-tls/bundle.pem\"\n      DATABRICKS_HOST: \"https://databricks.internal\"\n      DATABRICKS_SERVER_HOSTNAME: \"databricks.internal\"\n      DATABRICKS_HTTP_PATH: \"/sql/1.0/warehouses/alkera\"\n      DATABRICKS_TOKEN: \"alkera-local-dev\"\n      SSL_CERT_FILE: \"/etc/alkera/databricks-tls/bundle.pem\"\n      SPARK_REMOTE: \"sc://spark_connect.internal:15002\"\n      SPARK_HOME: \"/usr/local/lib/python3.11/site-packages/pyspark\"\n    volumes:\n      - \"/home/ubuntu/alkera-rollouts/t14-spark/e2e/world/var/warehouse/warehouse.duckdb:/world/var/warehouse/warehouse.duckdb\"\n      - databrickstrust:/etc/alkera/databricks-tls:ro\n\nvolumes:\n  databrickstrust:\n\n# PEER FILTER: native-services is on backend_net for the engine, so its agent\n# listeners admit episode_net's peers only (ALKERA_EPISODE_SUBNETS, above). The\n# subnet is pinned here because the filter needs it before the network exists.\nnetworks:\n  episode_net:\n    ipam:\n      config:\n        - subnet: 10.210.185.0/24\n",
+  "probe": {
+    "after_insert": 642,
+    "by_status": [
+      [
+        "cancelled",
+        "2343254.00"
+      ],
+      [
+        "completed",
+        "33733790.00"
+      ],
+      [
+        "refunded",
+        "1350534.00"
+      ]
+    ],
+    "copy_after_delete": 0,
+    "counts": {
+      "dim_customer": 309,
+      "dim_date": 424,
+      "dim_product": 25,
+      "fct_order_lines": 29200,
+      "fct_orders": 16825
+    },
+    "dbutils": "NameError: name 'dbutils' is not defined",
+    "env": {
+      "SPARK_HOME": "/usr/local/lib/python3.11/site-packages/pyspark",
+      "SPARK_REMOTE": "sc://spark_connect.internal:15002"
+    },
+    "feb": "2361224.00",
+    "hashes": [
+      "70730c9a1ef597fb52354c3202cb258fc78003b762c9f41d71bf3618c26d21db",
+      "70730c9a1ef597fb52354c3202cb258fc78003b762c9f41d71bf3618c26d21db",
+      "70730c9a1ef597fb52354c3202cb258fc78003b762c9f41d71bf3618c26d21db"
+    ],
+    "history": [
+      "DELETE",
+      "WRITE",
+      "CREATE TABLE"
+    ],
+    "plain_type": "pyspark.sql.connect.session",
+    "refusals": {
+      "AddArtifacts": "SparkConnectGrpcException: <_InactiveRpcError of RPC that terminated with:\n\tstatus = StatusCode.FAILED_PRECONDITION\n\tdetails = \"Spark feature not available in this environment: AddArtifacts\"\n\tdebug_error_string = \"FAILED_PRECONDITION:Spark feature not available in this environment: AddArtifacts\"\n>",
+      "config": "SparkConnectGrpcException: <_InactiveRpcError of RPC that terminated with:\n\tstatus = StatusCode.FAILED_PRECONDITION\n\tdetails = \"Spark feature not available in this environment: setting spark.sql.catalog.evil\"\n\tdebug_error_string = \"FAILED_PRECONDITION:Spark feature not available in this environment: setting spark.sql.catalog.evil\"\n>",
+      "parquet_path": "UnsupportedOperationException: Spark feature not available in this environment: reading files by path (DBFS and cloud paths are not provided; use a table)\n\nJVM stacktrace:\njava.lang.UnsupportedOperationException\n\tat org.alkera.spark.Guard.check(Guard.java:136)\n\tat org.alkera.spark.Guard.lambda$apply$0(Guard.java:115)\n\tat org.apache.spark.sql.catalyst.analysis.CheckAnalysis.$anonfun$checkAnalysis0$58(CheckAnalysis.scala:1089)\n\tat org.apache.spark.sql.catalyst.analysis.CheckAnalysis.$anonfun$checkAnalysis0$58$adapted(CheckAnalysis.scala:1089)\n\tat scala.collection.immutable.List.foreach(List.scal",
+      "path_read": "SparkConnectGrpcException: <_MultiThreadedRendezvous of RPC that terminated with:\n\tstatus = StatusCode.FAILED_PRECONDITION\n\tdetails = \"Spark feature not available in this environment: file paths and URLs (DBFS and cloud paths are not provided; read a table)\"\n\tdebug_error_string = \"FAILED_PRECONDITION:Spark feature not available in this environment: file paths and URLs (DBFS and cloud paths are not provided; read a table)\"\n>",
+      "python_udf": "SparkConnectGrpcException: <_MultiThreadedRendezvous of RPC that terminated with:\n\tstatus = StatusCode.FAILED_PRECONDITION\n\tdetails = \"Spark feature not available in this environment: Python UDFs\"\n\tdebug_error_string = \"FAILED_PRECONDITION:Spark feature not available in this environment: Python UDFs\"\n>",
+      "reflect": "UnsupportedOperationException: Spark feature not available in this environment: reflect / java_method / try_reflect (calls a JVM method)\n\nJVM stacktrace:\njava.lang.UnsupportedOperationException\n\tat org.alkera.spark.Guard.checkExpression(Guard.java:162)\n\tat org.alkera.spark.Guard.check(Guard.java:139)\n\tat org.alkera.spark.Guard.lambda$apply$0(Guard.java:115)\n\tat org.apache.spark.sql.catalyst.analysis.CheckAnalysis.$anonfun$checkAnalysis0$58(CheckAnalysis.scala:1089)\n\tat org.apache.spark.sql.catalyst.analysis.CheckAnalysis.$anonfun$checkAnalysis0$58$adapted(CheckAnalysis.scala:1089)\n\tat scala.co",
+      "transform": "UnsupportedOperationException: Spark feature not available in this environment: TRANSFORM (script transformation runs a command)\n\nJVM stacktrace:\njava.lang.UnsupportedOperationException\n\tat org.alkera.spark.Guard.check(Guard.java:136)\n\tat org.alkera.spark.Guard.lambda$apply$0(Guard.java:115)\n\tat org.apache.spark.sql.catalyst.analysis.CheckAnalysis.$anonfun$checkAnalysis0$58(CheckAnalysis.scala:1089)\n\tat org.apache.spark.sql.catalyst.analysis.CheckAnalysis.$anonfun$checkAnalysis0$58$adapted(CheckAnalysis.scala:1089)\n\tat scala.collection.immutable.List.foreach(List.scala:323)\n\tat org.apache.spar"
+    },
+    "saved": 641,
+    "session_id": "f33218e6-f977-47c0-b6a3-4ce1f2dc7c12",
+    "sqls": [
+      "SELECT count(*) FROM main.warehouse.dim_customer",
+      "SELECT count(*) FROM main.warehouse.dim_date",
+      "SELECT count(*) FROM main.warehouse.dim_product",
+      "SELECT count(*) FROM main.warehouse.fct_order_lines",
+      "SELECT count(*) FROM main.warehouse.fct_orders",
+      "CREATE SCHEMA IF NOT EXISTS main.t14_scratch",
+      "SELECT count(*) FROM main.t14_scratch.refunded",
+      "INSERT INTO main.t14_scratch.refunded SELECT * FROM main.warehouse.fct_orders WHERE order_status = 'refunded' LIMIT 1",
+      "SELECT count(*) FROM main.t14_scratch.refunded",
+      "DELETE FROM main.warehouse.fct_orders WHERE order_status = 'refunded'",
+      "SELECT count(*) FROM main.warehouse.fct_orders WHERE order_status = 'refunded'",
+      "DESCRIBE HISTORY main.warehouse.fct_orders"
+    ],
+    "to_pandas": {
+      "columns": [
+        "date_day",
+        "year",
+        "quarter",
+        "month",
+        "month_name",
+        "week_start",
+        "is_weekend"
+      ],
+      "first": "2025-01-01",
+      "rows": 3
+    }
+  },
+  "profile": "ds/databricks",
+  "refused_rows": [
+    {
+      "flags": [
+        "refused:AddArtifacts",
+        "actor:spark_connect"
+      ],
+      "op_class": "exec",
+      "rpc": "AddArtifacts",
+      "seq": 235
+    },
+    {
+      "flags": [
+        "refused:Python UDFs",
+        "actor:spark_connect"
+      ],
+      "op_class": "exec",
+      "rpc": "ExecutePlan",
+      "seq": 238
+    },
+    {
+      "flags": [
+        "refused:file paths and URLs",
+        "actor:spark_connect"
+      ],
+      "op_class": "exec",
+      "rpc": "ExecutePlan",
+      "seq": 240
+    },
+    {
+      "flags": [
+        "refused:setting spark.sql.catalog.evil",
+        "actor:spark_connect"
+      ],
+      "op_class": "exec",
+      "rpc": "Config",
+      "seq": 254
+    },
+    {
+      "flags": [
+        "refused:Spark ML",
+        "actor:spark_connect"
+      ],
+      "op_class": "exec",
+      "rpc": "ExecutePlan",
+      "seq": 270
+    }
+  ],
+  "resolve": {
+    "spark": "",
+    "spark_connect.internal": "10.210.185.5    spark_connect.internal"
+  },
+  "result": "PASS",
+  "revision": "701b729ef7dc3f15472bec84f06365b411ebb25b",
+  "seed": {
+    "from": "warehouse.duckdb",
+    "not_seeded": [],
+    "seed": "spark",
+    "tables": {
+      "raw.customers": 339,
+      "raw.order_lines": 29200,
+      "raw.orders": 17768,
+      "raw.products": 31,
+      "staging.stg_customers": 309,
+      "staging.stg_order_lines": 29200,
+      "staging.stg_orders": 16825,
+      "staging.stg_products": 25,
+      "warehouse.dim_customer": 309,
+      "warehouse.dim_date": 424,
+      "warehouse.dim_product": 25,
+      "warehouse.fct_order_lines": 29200,
+      "warehouse.fct_orders": 16825
+    }
+  },
+  "services": [
+    "episode",
+    "jupyter",
+    "minio",
+    "native-services",
+    "postgres",
+    "spark"
+  ],
+  "summary": "41/41 PASS; up in 41.4 s; {'rows_total': 271, 'session_rows': 193, 'session_rpcs_sent': 193, 'by_rpc_sent': {'AddArtifacts': 1, 'AnalyzePlan': 1, 'Config': 21, 'ExecutePlan': 32, 'FetchErrorDetails': 3, 'ReleaseExecute': 134, 'ReleaseSession': 1}, 'by_rpc_rows': {'AddArtifacts': 1, 'AnalyzePlan': 1, 'Config': 21, 'ExecutePlan': 32, 'FetchErrorDetails': 3, 'ReleaseExecute': 134, 'ReleaseSession': 1}}",
+  "tier1_after_tier2_delete": {
+    "rows": [
+      [
+        "641"
+      ]
+    ],
+    "state": "SUCCEEDED"
+  },
+  "tools": [
+    "databricks.spark",
+    "databricks.statement"
+  ],
+  "truth": {
+    "by_status": [
+      [
+        "cancelled",
+        "2343254.00"
+      ],
+      [
+        "completed",
+        "33733790.00"
+      ],
+      [
+        "refunded",
+        "1350534.00"
+      ]
+    ],
+    "counts": {
+      "dim_customer": 309,
+      "dim_date": 424,
+      "dim_product": 25,
+      "fct_order_lines": 29200,
+      "fct_orders": 16825
+    },
+    "dim_date": 424,
+    "feb": "2361224.00",
+    "hash": "70730c9a1ef597fb52354c3202cb258fc78003b762c9f41d71bf3618c26d21db",
+    "refunded": 641
+  },
+  "up_seconds": 41.4,
+  "warehouse_hash": {
+    "after_down": "d79b90327f2bedea1d63f39d75ca3418af2a0e8610822a6709673f6673627d31",
+    "before_up": "d79b90327f2bedea1d63f39d75ca3418af2a0e8610822a6709673f6673627d31"
+  },
+  "write_rows": [
+    {
+      "op_class": "ddl",
+      "plan": "command:sql_command(sql)",
+      "seq": 143,
+      "targets": [
+        "main.t14_scratch"
+      ]
+    },
+    {
+      "op_class": "write",
+      "plan": "command:write_operation(filter(read))",
+      "seq": 156,
+      "targets": [
+        "main.t14_scratch.refunded"
+      ]
+    },
+    {
+      "op_class": "write",
+      "plan": "command:sql_command(sql)",
+      "seq": 171,
+      "targets": [
+        "main.t14_scratch.refunded",
+        "main.warehouse.fct_orders"
+      ]
+    },
+    {
+      "op_class": "destructive",
+      "plan": "command:sql_command(sql)",
+      "seq": 198,
+      "targets": [
+        "main.warehouse.fct_orders"
+      ]
+    }
+  ]
+}

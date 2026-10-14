@@ -111,7 +111,10 @@ table = w.tables.get("main.warehouse.fct_orders")
 print(json.dumps({"value": len(table.columns)}))
 PY
 """,
-        expect_tools=("databricks.table_get",),
+        # Unity Catalog answers this through either lookup: one table, or the schema's
+        # listing (the 10-10 live run's route) - either way the row names fct_orders.
+        expect_tools=(("databricks.table_get", "databricks.tables_list"),),
+        expect_targets=("main.warehouse.fct_orders",),
         truth_sql=("SELECT count(*) FROM information_schema.columns WHERE table_catalog = "
                    "'warehouse' AND table_schema = 'warehouse' AND table_name = 'fct_orders'"),
         instruction=(

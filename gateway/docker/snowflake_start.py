@@ -19,7 +19,8 @@ more things, each by one environment variable, and neither changes the MCP route
                           op_class/targets from `alkera_gateway.sql.inspect_sql`
                           with dialect snowflake) before the response returns -
                           so the row is ordered before anything the agent does
-                          next. Accepted connections are counted per port into
+                          next. Accepted connections are counted per port, at
+                          accept and before the TLS handshake, into
                           `ALKERA_SNOWFLAKE_DESTINATIONS` (serve.DestinationLog's
                           format), its own file because destinations.jsonl is
                           rewritten whole by native-services; the harness folds it
@@ -228,10 +229,13 @@ def upstream_route():
     return "http://fakesnow", SharedSocketTransport(uds=socket_path)
 
 
-def serve_native() -> None:
-    """snowflake_proxy.main, with accepted connections counted per port."""
-    import uvicorn
+def native_listener(host: str = "0.0.0.0") -> tuple[object, dict]:
+    """(the proxy app, uvicorn's options for it): the native door on PORT, over TLS.
 
+    With ALKERA_SNOWFLAKE_DESTINATIONS set the protocol is serve.AuditedH11Protocol,
+    which counts each accepted connection in uvicorn's protocol factory - at accept,
+    before the TLS handshake - so a dial that never completes one is a destination
+    too, as it is on the plain-TCP doors."""
     from alkera_gateway import snowflake_proxy
     from alkera_gateway.native.serve import AuditedH11Protocol, DestinationLog
 
@@ -242,11 +246,18 @@ def serve_native() -> None:
         log.flush()
         AuditedH11Protocol.destinations = log
     upstream_url, transport = upstream_route()
-    uvicorn.run(
-        snowflake_proxy.proxy_app(upstream_url, transport=transport),
-        host="0.0.0.0", port=PORT, ssl_certfile="/tls/server.crt",
-        ssl_keyfile="/tls/server.key",
-        http=AuditedH11Protocol if destinations else "auto")
+    return (snowflake_proxy.proxy_app(upstream_url, transport=transport),
+            {"host": host, "port": PORT, "ssl_certfile": str(TLS / "server.crt"),
+             "ssl_keyfile": str(TLS / "server.key"),
+             "http": AuditedH11Protocol if destinations else "auto"})
+
+
+def serve_native() -> None:
+    """snowflake_proxy.main, with accepted connections counted per port."""
+    import uvicorn
+
+    app, options = native_listener()
+    uvicorn.run(app, **options)
 
 
 def main() -> None:

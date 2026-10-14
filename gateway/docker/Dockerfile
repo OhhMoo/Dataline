@@ -172,6 +172,70 @@ RUN set -eu; \
     printf '%s\n' "$ALKERA_TOOLBELT" > /opt/toolbelt/ROLE
 LABEL org.alkera.toolbelt=$ALKERA_TOOLBELT
 ENV ALKERA_TOOLBELT=$ALKERA_TOOLBELT
+# ds/da: Playwright's headless Chromium. An analyst drives the Tableau and Sigma web
+# UIs with a real Playwright script over the shell (plan decision D5); the audit stays
+# the services' own `tableau.ui_*` / `sigma.ui_*` rows. TOOLBELT.md, "Roles".
+#   * libraries: what chrome-headless-shell links (readelf NEEDED, both arches,
+#     measured 2026-10-13) from the frozen snapshot the toolbelt's apt layer left in
+#     /etc/apt, plus fontconfig's config and one font family (Chrome's own
+#     fonts-liberation): with no font the browser aborts on the first glyph it lays
+#     out (Skia "Not implemented", measured). libgbm1 is most of the layer's apt
+#     cost - it hard-depends on mesa-libgallium and libllvm19 - for a library the
+#     shell links and never renders with (it ships SwiftShader).
+#   * the browser: what Playwright 1.63.0 (the role lock) pins - chromium_headless_
+#     shell-1243 = Chrome for Testing 153.0.8010.12, and the ffmpeg-1011 it installs
+#     with it - fetched by `playwright install` while the build has the network, into
+#     a fixed /opt/ms-playwright, and checked by sha256 per arch, so a CDN serving
+#     other bytes fails the build.
+#   * found by Playwright's DEFAULT lookup, ~/.cache/ms-playwright, linked for root
+#     (the agent here): no PLAYWRIGHT_BROWSERS_PATH in the box's environment. An ENV
+#     cannot be set for ds/da alone in this one-stage file, and a de box - every
+#     unprofiled episode - must not gain one.
+#   * launched once on about:blank, so a browser that cannot start fails the build;
+#     toolbelt_check.py's CHROMIUM_PROBE proves it again in the image as built.
+RUN set -eu; \
+    case "$ALKERA_TOOLBELT" in \
+      ds|da) \
+        apt-get update; \
+        apt-get install -y --no-install-recommends \
+          fontconfig-config=2.15.0-2.3 \
+          fonts-liberation=1:2.1.5-3 \
+          libasound2t64=1.2.14-1 \
+          libatk-bridge2.0-0t64=2.56.2-1+deb13u1 \
+          libatk1.0-0t64=2.56.2-1+deb13u1 \
+          libatspi2.0-0t64=2.56.2-1+deb13u1 \
+          libdbus-1-3=1.16.2-2 \
+          libgbm1=25.0.7-2+deb13u1 \
+          libglib2.0-0t64=2.84.4-3~deb13u3 \
+          libnspr4=2:4.36-1 \
+          libnss3=2:3.110-1+deb13u4 \
+          libx11-6=2:1.8.12-1 \
+          libxcb1=1.17.0-2+b1 \
+          libxcomposite1=1:0.4.6-1 \
+          libxdamage1=1:1.1.6-1+b2 \
+          libxext6=2:1.3.4-1+b3 \
+          libxfixes3=1:6.0.0-2+b4 \
+          libxkbcommon0=1.7.0-2 \
+          libxrandr2=2:1.5.4-1+b3 \
+        ; \
+        rm -rf /var/lib/apt/lists/*; \
+        PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright python -m playwright install --only-shell chromium; \
+        case "$(dpkg --print-architecture)" in \
+          amd64) shell=chrome-headless-shell-linux64; \
+                 shell_sum=ded93a9c9a53a1ae040f08124badcca95c938e9d5015ff340c3b5538c41bf39e; \
+                 ffmpeg_sum=460d44f3416005662f528d4b92e7b94ace924e8a0288106d3803b73c56eaadc8 ;; \
+          arm64) shell=chrome-headless-shell-linux-arm64; \
+                 shell_sum=f5d89353cc9ef8dc1541268bbee1f05ee40a31ce3d9799b3a274e5147f6a8cdb; \
+                 ffmpeg_sum=b662355fff37fa4a0c2a353b26b3255f16a5e7fd358d97231e5a5eedd511158c ;; \
+          *) echo "no pinned chromium-headless-shell for this architecture" >&2; exit 1 ;; \
+        esac; \
+        printf '%s  %s\n' \
+          "$shell_sum" "/opt/ms-playwright/chromium_headless_shell-1243/$shell/chrome-headless-shell" \
+          "$ffmpeg_sum" /opt/ms-playwright/ffmpeg-1011/ffmpeg-linux | sha256sum -c -; \
+        mkdir -p /root/.cache && ln -s /opt/ms-playwright /root/.cache/ms-playwright; \
+        python -c "from playwright.sync_api import sync_playwright; p = sync_playwright().start(); browser = p.chromium.launch(); page = browser.new_page(); page.goto('about:blank'); print('chromium', browser.version, page.url); browser.close(); p.stop()" ;; \
+      *) echo "toolbelt role $ALKERA_TOOLBELT: no browser" ;; \
+    esac
 # Warehouse clients beyond DuckDB/Postgres, opt-in per image, installed AFTER the
 # role so nothing later can undo their one divergence. ALKERA_WAREHOUSE_CLIENTS is
 # a comma-separated list of client sets (`clients` in alkera_gateway.backends;
@@ -231,14 +295,17 @@ COPY world/requirements.lock /opt/world/requirements.lock
 COPY world/docker/egress_test.py /opt/stack/egress_test.py
 COPY gateway/docker /opt/stack
 # ds/da: the Jupyter plug's audited kernelspec, installed system-wide so
-# `jupyter kernelspec list` names it in the image as built, and checked byte-equal
-# to the checked-in copy that docker/jupyter/launch.py (run from /opt/stack/jupyter
-# by the plug's own container) serves. /opt/stack is stripped from the EPISODE
-# container only (tasks/harness/container_episode.py STRIP_PATHS, exec'd into that
-# one container), so the jupyter container keeps its launcher.
+# `jupyter kernelspec list` names it in the image as built, under `alkera-python`
+# and over ipykernel's own `python3` (the name nbclient and `jupyter execute`
+# default to), each checked byte-equal to the checked-in copy that
+# docker/jupyter/launch.py (run from /opt/stack/jupyter by the plug's own
+# container) serves. /opt/stack is stripped from the EPISODE container only
+# (tasks/harness/container_episode.py STRIP_PATHS, exec'd into that one
+# container), so the jupyter container keeps its launcher.
 RUN case "$ALKERA_TOOLBELT" in \
-      ds|da) python -c "from alkera_gateway.native.notebook import install_kernelspec; install_kernelspec('/usr/local/share/jupyter', interpreter='/usr/local/bin/python')" \
-             && cmp /usr/local/share/jupyter/kernels/alkera-python/kernel.json /opt/stack/jupyter/kernels/alkera-python/kernel.json ;; \
+      ds|da) python -c "from alkera_gateway.native.notebook import install_audited_kernelspecs; install_audited_kernelspecs('/usr/local/share/jupyter', interpreter='/usr/local/bin/python')" \
+             && cmp /usr/local/share/jupyter/kernels/alkera-python/kernel.json /opt/stack/jupyter/kernels/alkera-python/kernel.json \
+             && cmp /usr/local/share/jupyter/kernels/python3/kernel.json /opt/stack/jupyter/kernels/alkera-python/kernel.json ;; \
     esac
 COPY gateway/tests /opt/gateway/tests
 # Local Snowflake trust store. Seeded with certifi so REQUESTS_CA_BUNDLE always names a

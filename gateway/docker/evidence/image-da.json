@@ -1,11 +1,11 @@
 {
   "architecture": "amd64",
-  "generated": "2026-10-04T08:01:47+00:00",
-  "head_revision": "6b88b39175472a8277e0c625ff1f81765767a9de",
-  "image_id": "sha256:947aa93d4a386177749f433f9a073bec6d88eab4bc1d4707fe027a6307c57d62",
+  "generated": "2026-10-13T13:36:44+00:00",
+  "head_revision": "96abefc1f89b3453e97981ad1d4ddea732262d8c",
+  "image_id": "sha256:554cf30b261693a6d75422d62b0150d4cccaf5368f6320180d7292107e61f1cb",
   "labels": {
-    "org.alkera.source.overlay": "304094179dfebac388fedecf9c321df71026cc0f34fa2ff2737ef6143b3112b1",
-    "org.alkera.source.revision": "6b88b39175472a8277e0c625ff1f81765767a9de",
+    "org.alkera.source.overlay": "",
+    "org.alkera.source.revision": "96abefc1f89b3453e97981ad1d4ddea732262d8c",
     "org.alkera.toolbelt": "da",
     "org.alkera.warehouse_clients": ""
   },
@@ -523,7 +523,7 @@
         ],
         "binary": "csvlook",
         "exit": 0,
-        "first_line": "csvlook 2.2.0",
+        "first_line": "csvlook 2.0.1",
         "ok": true,
         "path": "/opt/toolbelt/bin/csvlook",
         "reason": null
@@ -535,7 +535,7 @@
         ],
         "binary": "csvstat",
         "exit": 0,
-        "first_line": "csvstat 2.2.0",
+        "first_line": "csvstat 2.0.1",
         "ok": true,
         "path": "/opt/toolbelt/bin/csvstat",
         "reason": null
@@ -547,7 +547,7 @@
         ],
         "binary": "in2csv",
         "exit": 0,
-        "first_line": "in2csv 2.2.0",
+        "first_line": "in2csv 2.0.1",
         "ok": true,
         "path": "/opt/toolbelt/bin/in2csv",
         "reason": null
@@ -559,7 +559,7 @@
         ],
         "binary": "csvsql",
         "exit": 0,
-        "first_line": "csvsql 2.2.0",
+        "first_line": "csvsql 2.0.1",
         "ok": true,
         "path": "/opt/toolbelt/bin/csvsql",
         "reason": null
@@ -574,6 +574,18 @@
         "first_line": "Tableau Server Command Line Utility v2.0.21",
         "ok": true,
         "path": "/opt/toolbelt/bin/tabcmd",
+        "reason": null
+      },
+      {
+        "argv": [
+          "mf",
+          "--version"
+        ],
+        "binary": "mf",
+        "exit": 0,
+        "first_line": "mf, version 0.15.0",
+        "ok": true,
+        "path": "/opt/toolbelt/bin/mf",
         "reason": null
       },
       {
@@ -628,7 +640,7 @@
         "argv": [
           "/usr/local/bin/python",
           "-c",
-          "import pandas, pyarrow, matplotlib, ipykernel, jupyter_client, jupyter_server, nbclient, nbformat, alkera_gateway.native.notebook; print(pandas.__version__)"
+          "import pandas, pyarrow, matplotlib, ipykernel, jupyter_client, jupyter_server, nbclient, nbformat, alkera_gateway.native.notebook, playwright; print(pandas.__version__)"
         ],
         "binary": "/usr/local/bin/python",
         "exit": 0,
@@ -686,10 +698,50 @@
         "ok": true,
         "path": "/usr/local/bin/ipython",
         "reason": null
+      },
+      {
+        "argv": [
+          "/usr/local/bin/python",
+          "-c",
+          "import io, openpyxl, pandas; wb = openpyxl.Workbook(); ws = wb.active; ws.append(['metric', 'value']); ws.append(['net_revenue', 2361224.0]); buf = io.BytesIO(); wb.save(buf); buf.seek(0); got = pandas.read_excel(buf, engine='openpyxl')['value'].iloc[0]; assert float(got) == 2361224.0, f'read back {got!r}, wrote 2361224.0'; print(got)"
+        ],
+        "binary": "/usr/local/bin/python",
+        "exit": 0,
+        "first_line": "2361224",
+        "ok": true,
+        "path": "/usr/local/bin/python",
+        "reason": null
+      },
+      {
+        "argv": [
+          "playwright",
+          "--version"
+        ],
+        "binary": "playwright",
+        "exit": 0,
+        "first_line": "Version 1.63.0",
+        "ok": true,
+        "path": "/usr/local/bin/playwright",
+        "reason": null
+      },
+      {
+        "argv": [
+          "/usr/local/bin/python",
+          "-c",
+          "from playwright.sync_api import sync_playwright\nwith sync_playwright() as p:\n    browser = p.chromium.launch()\n    page = browser.new_page()\n    page.goto('about:blank')\n    assert page.url == 'about:blank', page.url\n    print('chromium', browser.version)\n    browser.close()\n"
+        ],
+        "binary": "/usr/local/bin/python",
+        "exit": 0,
+        "first_line": "chromium 153.0.8010.12",
+        "ok": true,
+        "path": "/usr/local/bin/python",
+        "reason": null
       }
     ],
     "binaries_failed": [],
     "binaries_ok": [
+      "/usr/local/bin/python",
+      "/usr/local/bin/python",
       "/usr/local/bin/python",
       "alkera-gateway",
       "awk",
@@ -720,6 +772,7 @@
       "less",
       "ls",
       "make",
+      "mf",
       "nano",
       "nc",
       "nslookup",
@@ -728,6 +781,7 @@
       "pg_isready",
       "ping",
       "pip",
+      "playwright",
       "ps",
       "psql",
       "python",
@@ -747,6 +801,7 @@
       "wc",
       "xargs"
     ],
+    "client_allowed_imports": {},
     "duckdb_extensions": {
       "postgres": {
         "canonical_name": "postgres_scanner",
@@ -764,7 +819,8 @@
         "alkera-python",
         "python3"
       ],
-      "reason": null
+      "reason": null,
+      "unaudited": []
     },
     "os_release": "Debian GNU/Linux 13 (trixie)",
     "passed": true,
@@ -809,7 +865,17 @@
         "ok": true,
         "reason": null
       },
+      "openpyxl": {
+        "interpreter": "/usr/local/bin/python",
+        "ok": true,
+        "reason": null
+      },
       "pandas": {
+        "interpreter": "/usr/local/bin/python",
+        "ok": true,
+        "reason": null
+      },
+      "playwright": {
         "interpreter": "/usr/local/bin/python",
         "ok": true,
         "reason": null
@@ -821,7 +887,7 @@
       }
     },
     "role_imports_failed": [],
-    "source_revision": "6b88b39175472a8277e0c625ff1f81765767a9de",
+    "source_revision": "96abefc1f89b3453e97981ad1d4ddea732262d8c",
     "tool_count": 63,
     "toolbelt_role": "da",
     "tools": [
@@ -892,58 +958,14 @@
     "tools_error": null
   },
   "overlay": {
-    "files": [
-      "gateway/docker/Dockerfile",
-      "gateway/docker/Dockerfile.snowflake",
-      "gateway/docker/Dockerfile.subject",
-      "gateway/docker/NATIVE_STACK.md",
-      "gateway/docker/TOOLBELT.md",
-      "gateway/docker/acceptance.py",
-      "gateway/docker/acceptance_inside.py",
-      "gateway/docker/aws-config",
-      "gateway/docker/aws-keys",
-      "gateway/docker/bigquery/README.md",
-      "gateway/docker/bigquery/fetch.py",
-      "gateway/docker/build_episode.py",
-      "gateway/docker/compose.episode.yml",
-      "gateway/docker/compose.native.yml",
-      "gateway/docker/compose.subject.yml",
-      "gateway/docker/compose.yml",
-      "gateway/docker/containment.py",
-      "gateway/docker/jupyter/README.md",
-      "gateway/docker/jupyter/kernels/alkera-python/kernel.json",
-      "gateway/docker/jupyter/launch.py",
-      "gateway/docker/ledger_probe.py",
-      "gateway/docker/lock_snowflake_clients.py",
-      "gateway/docker/native_episode_probe.py",
-      "gateway/docker/native_probe.py",
-      "gateway/docker/native_services.py",
-      "gateway/docker/postgres.sql",
-      "gateway/docker/snowflake-clients.in",
-      "gateway/docker/snowflake-clients.overrides",
-      "gateway/docker/snowflake-dev.in",
-      "gateway/docker/snowflake.in",
-      "gateway/docker/snowflake.lock",
-      "gateway/docker/snowflake_acceptance.py",
-      "gateway/docker/snowflake_fidelity.py",
-      "gateway/docker/snowflake_start.py",
-      "gateway/docker/start.py",
-      "gateway/docker/subject/bash_env.sh",
-      "gateway/docker/subject/egress_proxy.py",
-      "gateway/docker/subject/rexec.py",
-      "gateway/docker/toolbelt.arm64.lock",
-      "gateway/docker/toolbelt.in",
-      "gateway/docker/toolbelt.lock",
-      "gateway/docker/toolbelt_acceptance.py",
-      "gateway/docker/toolbelt_check.py"
-    ],
-    "hash": "304094179dfebac388fedecf9c321df71026cc0f34fa2ff2737ef6143b3112b1"
+    "files": [],
+    "hash": ""
   },
   "repo_digests": [
-    "alkera-episode@sha256:947aa93d4a386177749f433f9a073bec6d88eab4bc1d4707fe027a6307c57d62"
+    "alkera-episode@sha256:554cf30b261693a6d75422d62b0150d4cccaf5368f6320180d7292107e61f1cb"
   ],
-  "size_bytes": 2148696929,
-  "source_revision": "6b88b39175472a8277e0c625ff1f81765767a9de",
+  "size_bytes": 3450203395,
+  "source_revision": "96abefc1f89b3453e97981ad1d4ddea732262d8c",
   "tag": "alkera-episode:head-da",
   "toolbelt": {
     "label": "da",

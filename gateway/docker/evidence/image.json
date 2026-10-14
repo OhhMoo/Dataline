@@ -1,13 +1,13 @@
 {
   "architecture": "amd64",
-  "generated": "2026-10-08T04:18:37+00:00",
-  "head_revision": "21fed38c832dcab0f795775c3bd7dcc2583dc68b",
-  "image_id": "sha256:56c887f57c4000e8cb5452d12adc7b66c353b9696c8f95fd42f574ade8c1f5cd",
+  "generated": "2026-10-13T13:35:31+00:00",
+  "head_revision": "96abefc1f89b3453e97981ad1d4ddea732262d8c",
+  "image_id": "sha256:56a85a5b2e10cab1c8531a6e93e66414505fce4c961476964d703720f5c99dbc",
   "labels": {
-    "org.alkera.source.overlay": "3bcec0084e72940560fb337262010d68cdeed873945820d659f516ff74f75cb2",
-    "org.alkera.source.revision": "21fed38c832dcab0f795775c3bd7dcc2583dc68b",
+    "org.alkera.source.overlay": "",
+    "org.alkera.source.revision": "96abefc1f89b3453e97981ad1d4ddea732262d8c",
     "org.alkera.toolbelt": "de",
-    "org.alkera.warehouse_clients": "airflow"
+    "org.alkera.warehouse_clients": ""
   },
   "measured_inside_container": {
     "binaries": [
@@ -715,7 +715,7 @@
     "role_forbidden_present": [],
     "role_imports": {},
     "role_imports_failed": [],
-    "source_revision": "21fed38c832dcab0f795775c3bd7dcc2583dc68b",
+    "source_revision": "96abefc1f89b3453e97981ad1d4ddea732262d8c",
     "tool_count": 63,
     "toolbelt_role": "de",
     "tools": [
@@ -786,71 +786,15 @@
     "tools_error": null
   },
   "overlay": {
-    "files": [
-      "gateway/docker/Dockerfile",
-      "gateway/docker/Dockerfile.redshift",
-      "gateway/docker/Dockerfile.snowflake",
-      "gateway/docker/Dockerfile.subject",
-      "gateway/docker/NATIVE_STACK.md",
-      "gateway/docker/TOOLBELT.md",
-      "gateway/docker/acceptance.py",
-      "gateway/docker/acceptance_inside.py",
-      "gateway/docker/airflow-clients.in",
-      "gateway/docker/airflow-clients.overrides",
-      "gateway/docker/aws-config",
-      "gateway/docker/aws-keys",
-      "gateway/docker/bigquery/README.md",
-      "gateway/docker/bigquery/fetch.py",
-      "gateway/docker/bigquery-clients.in",
-      "gateway/docker/bigquery-clients.overrides",
-      "gateway/docker/build_episode.py",
-      "gateway/docker/compose.episode.yml",
-      "gateway/docker/compose.native.yml",
-      "gateway/docker/compose.subject.yml",
-      "gateway/docker/compose.yml",
-      "gateway/docker/containment.py",
-      "gateway/docker/databricks-clients.in",
-      "gateway/docker/databricks-clients.overrides",
-      "gateway/docker/jupyter/README.md",
-      "gateway/docker/jupyter/kernels/alkera-python/kernel.json",
-      "gateway/docker/jupyter/launch.py",
-      "gateway/docker/ledger_probe.py",
-      "gateway/docker/lock_snowflake_clients.py",
-      "gateway/docker/lock_warehouse_clients.py",
-      "gateway/docker/native_episode_probe.py",
-      "gateway/docker/native_probe.py",
-      "gateway/docker/native_services.py",
-      "gateway/docker/postgres.sql",
-      "gateway/docker/redshift-clients.in",
-      "gateway/docker/redshift-clients.overrides",
-      "gateway/docker/redshift_start.py",
-      "gateway/docker/snowflake-clients.in",
-      "gateway/docker/snowflake-clients.overrides",
-      "gateway/docker/snowflake-dev.in",
-      "gateway/docker/snowflake.in",
-      "gateway/docker/snowflake.lock",
-      "gateway/docker/snowflake_acceptance.py",
-      "gateway/docker/snowflake_fidelity.py",
-      "gateway/docker/snowflake_start.py",
-      "gateway/docker/start.py",
-      "gateway/docker/subject/bash_env.sh",
-      "gateway/docker/subject/egress_proxy.py",
-      "gateway/docker/subject/rexec.py",
-      "gateway/docker/toolbelt.arm64.lock",
-      "gateway/docker/toolbelt.in",
-      "gateway/docker/toolbelt.lock",
-      "gateway/docker/toolbelt_acceptance.py",
-      "gateway/docker/toolbelt_check.py",
-      "gateway/docker/warehouse_clients.py"
-    ],
-    "hash": "3bcec0084e72940560fb337262010d68cdeed873945820d659f516ff74f75cb2"
+    "files": [],
+    "hash": ""
   },
   "repo_digests": [
-    "alkera-episode@sha256:56c887f57c4000e8cb5452d12adc7b66c353b9696c8f95fd42f574ade8c1f5cd"
+    "alkera-episode@sha256:56a85a5b2e10cab1c8531a6e93e66414505fce4c961476964d703720f5c99dbc"
   ],
-  "size_bytes": 1885909547,
-  "source_revision": "21fed38c832dcab0f795775c3bd7dcc2583dc68b",
-  "tag": "alkera-episode:head-airflow",
+  "size_bytes": 1863012095,
+  "source_revision": "96abefc1f89b3453e97981ad1d4ddea732262d8c",
+  "tag": "alkera-episode:head",
   "toolbelt": {
     "label": "de",
     "matches": true,
@@ -858,9 +802,7 @@
     "requested": "de"
   },
   "warehouse_clients": {
-    "label": "airflow",
-    "requested": [
-      "airflow"
-    ]
+    "label": "",
+    "requested": []
   }
 }

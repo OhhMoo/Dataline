@@ -21,7 +21,7 @@
    "returncode": 0,
    "rows": 4,
    "rows_at": "call",
-   "seconds": 2.19,
+   "seconds": 2.9,
    "stderr_tail": "",
    "stdout_tail": "{\"value\": \"2361224\"}\n",
    "tool": "bigquery",
@@ -57,7 +57,7 @@
    "returncode": 0,
    "rows": 3,
    "rows_at": "call",
-   "seconds": 2.35,
+   "seconds": 2.46,
    "stderr_tail": "",
    "stdout_tail": "{\"value\": \"1068\"}\n",
    "tool": "bigquery",
@@ -92,7 +92,7 @@
    "returncode": 0,
    "rows": 2,
    "rows_at": "call",
-   "seconds": 1.61,
+   "seconds": 2.21,
    "stderr_tail": "",
    "stdout_tail": "{\"value\": 5}\n",
    "tool": "bigquery",
@@ -103,6 +103,49 @@
    "truth": 5,
    "truth_after": 5,
    "value": 5,
+   "value_ok": true,
+   "verdict": "PASS"
+  },
+  {
+   "command": "cd /workspace\nset -euo pipefail\ncd dbt_project\ndbt --quiet show --inline \"select sum(order_amount) as net_revenue from {{ ref('fct_orders') }} where order_status = 'completed' and order_date >= '2026-02-01' and order_date < '2026-03-01'\" --output json > /tmp/tour_bq_dbt_show.json\npython3 -c 'import json; print(json.dumps({\"value\": json.load(open(\"/tmp/tour_bq_dbt_show.json\"))[\"show\"][0][\"net_revenue\"]}))'\n",
+   "destinations": {
+    "bigquery.internal:9050": 3
+   },
+   "doc": null,
+   "drift": false,
+   "expect_args": [
+    "show"
+   ],
+   "expect_tools": [
+    "shim.dbt",
+    "bigquery.statement"
+   ],
+   "failures": [],
+   "id": "bigquery.dbt.show_net_revenue_feb_2026",
+   "known": null,
+   "missing_args": [],
+   "missing_tools": [],
+   "profile": "de/gcp",
+   "returncode": 0,
+   "rows": 8,
+   "rows_at": "call",
+   "seconds": 9.82,
+   "stderr_tail": "",
+   "stdout_tail": "{\"value\": 2361224.0}\n",
+   "tool": "bigquery",
+   "tools": [
+    "bigquery.table_list",
+    "bigquery.table_list",
+    "bigquery.statement",
+    "bigquery.query_results",
+    "bigquery.query_results",
+    "bigquery.table_get",
+    "shim.dbt",
+    "shim.python"
+   ],
+   "truth": "2361224.00",
+   "truth_after": "2361224.00",
+   "value": 2361224.0,
    "value_ok": true,
    "verdict": "PASS"
   }
@@ -190,10 +233,10 @@
       "port": 8120
      },
      {
-      "count": 3,
-      "first_ts": "2026-10-07T12:27:54Z",
+      "count": 6,
+      "first_ts": "2026-10-13T09:53:56Z",
       "host": "bigquery.internal",
-      "last_ts": "2026-10-07T12:27:59Z",
+      "last_ts": "2026-10-13T09:54:08Z",
       "port": 9050
      },
      {
@@ -214,29 +257,30 @@
     "network_violations": [],
     "no_stray_rows": true,
     "ok": true,
-    "rows_in_probes": 9,
-    "rows_total": 9,
+    "rows_in_probes": 17,
+    "rows_total": 17,
     "trace_valid": true
    },
-   "image": "alkera-episode:w1-bigquery",
+   "image": "alkera-episode:t13-bigquery",
    "image_gate": {
-    "head": "6e3678f68734521c939cea7f6038c9b69139a939",
-    "image": "alkera-episode:w1-bigquery",
-    "revision": "6e3678f68734521c939cea7f6038c9b69139a939"
+    "head": "ab2fbd139a95763d47d4b9644a73474029c75a01",
+    "image": "alkera-episode:t13-bigquery",
+    "revision": "ab2fbd139a95763d47d4b9644a73474029c75a01"
    },
    "ok": true,
    "plugs": {},
    "probes": [
     "bigquery.client.net_revenue_feb_2026",
     "bigquery.rest.completed_orders_feb_2026",
-    "bigquery.client.warehouse_tables"
+    "bigquery.client.warehouse_tables",
+    "bigquery.dbt.show_net_revenue_feb_2026"
    ],
    "profile": "de/gcp",
    "rows_at": "call",
-   "seconds": 38.9,
+   "seconds": 54.7,
    "seed": "# commerce_analytics world seed: a shop's nightly CDC extracts -> raw -> dbt\n# star schema + semantic layer -> Power BI / Tableau / Sigma dashboards.\ntheme: commerce_analytics    # world/world/themes/<name>/\nseed: 11\nvtime_start: \"2025-01-01T00:00:00Z\"\n# 425 nightly extracts: dt=2024-12-31 (the cutover snapshot: accounts and\n# catalogue, no orders) then dt=2025-01-01 .. dt=2026-02-28. Fourteen months of\n# orders, so last-year measures exist for January and February 2026. The world\n# clock opens at 2026-03-02T00:00Z, a Monday - business day 1 of the February\n# close.\ndays: 425\n\n# Scale. Every key is optional (gen.DEFAULTS); these are the defaults, spelled\n# out. Build time is dominated by dbt, not by volume - a 2x seed builds in about\n# the same time.\ncustomers: 220               # accounts on the platform at cutover\nsignup_pct: 18               # chance per day of a new account (a second at a quarter of it)\nupdate_pct: 9                # chance per day that one account is upgraded a segment\norders_per_day: [20, 60]     # base range, scaled by weekday, month, peak days and growth\nlines_per_order: [1, 4]\ncancel_pct: 6                # 70% the same day, the rest the next day\nrefund_pct: 4                # 3 to 45 days after the order\ngrowth_pct: 20               # year-over-year order volume growth\n\ngit_author: \"Analytics Engineering <analytics@example.com>\"\nnative: true\nfiles: {formats: [parquet]}\nprofile:\n  name: de/gcp\n  slots: [files, warehouse, transform, orchestrator, object_store, ingest, bi, observability, release, human]\n",
    "stack": {
-    "container_id": "241406dd9149",
+    "container_id": "1052d678a8a4",
     "episode_endpoints": {
      "airbyte": "http://airbyte.internal:8001",
      "alertmanager": "http://alertmanager.internal:9093",
@@ -262,8 +306,8 @@
      "sched": "http://sched.internal:8120",
      "slack": "http://slack.internal:8081"
     },
-    "image": "alkera-episode:w1-bigquery",
-    "image_digest": "sha256:2bd5b520ffa619b360acda96cd7663cf465db2776549f389de5fafce25265338",
+    "image": "alkera-episode:t13-bigquery",
+    "image_digest": "sha256:a7025cdabb5d0a3692bf595f02a771432719b5bef88f081b0959d4f3a798dde3",
     "services": [
      "bigquery",
      "episode",
@@ -281,7 +325,7 @@
      "ALKERA_SHIM_BIN": "/opt/alkera/shims",
      "ALKERA_SHIM_WATCH": "/world/var/warehouse/warehouse.duckdb",
      "ALKERA_SHIM_WORKSPACE": "/workspace",
-     "ALKERA_SOURCE_REV": "6e3678f68734521c939cea7f6038c9b69139a939",
+     "ALKERA_SOURCE_REV": "ab2fbd139a95763d47d4b9644a73474029c75a01",
      "ALKERA_TOOLBELT": "de",
      "ALKERA_VIRTUAL_TIME": "2026-03-02T00:00:00Z",
      "ALKERA_WAREHOUSES": "",
@@ -314,7 +358,7 @@
     "workspace_cli": {
      "cli": "ops/sched",
      "files": [
-      "/home/ubuntu/alkera-rollouts/w1-bigquery/tour/de-gcp/world/workspace/ops/sched"
+      "/home/ubuntu/alkera-rollouts/t13-bigquery/tour/de-gcp/world/workspace/ops/sched"
      ],
      "interpreter": "/usr/local/bin/python",
      "pythonpath": "/opt/world",
@@ -322,29 +366,29 @@
     }
    },
    "truths_read": "after the world build, before the stack came up",
-   "work": "/home/ubuntu/alkera-rollouts/w1-bigquery/tour/de-gcp",
+   "work": "/home/ubuntu/alkera-rollouts/t13-bigquery/tour/de-gcp",
    "world": {
-    "dashboards": "/home/ubuntu/alkera-rollouts/w1-bigquery/tour/de-gcp/world/var/bi/dashboards",
-    "grading": "/home/ubuntu/alkera-rollouts/w1-bigquery/tour/de-gcp/grading",
-    "profiles_dir": "/home/ubuntu/alkera-rollouts/w1-bigquery/tour/de-gcp/world/build",
-    "scheduler": "/home/ubuntu/alkera-rollouts/w1-bigquery/tour/de-gcp/world/var/sched/state.json",
-    "warehouse": "/home/ubuntu/alkera-rollouts/w1-bigquery/tour/de-gcp/world/var/warehouse/warehouse.duckdb",
-    "workflow_dir": "/home/ubuntu/alkera-rollouts/w1-bigquery/tour/de-gcp/world/var/workflow",
-    "workspace": "/home/ubuntu/alkera-rollouts/w1-bigquery/tour/de-gcp/world/workspace",
-    "world_root": "/home/ubuntu/alkera-rollouts/w1-bigquery/tour/de-gcp/world"
+    "dashboards": "/home/ubuntu/alkera-rollouts/t13-bigquery/tour/de-gcp/world/var/bi/dashboards",
+    "grading": "/home/ubuntu/alkera-rollouts/t13-bigquery/tour/de-gcp/grading",
+    "profiles_dir": "/home/ubuntu/alkera-rollouts/t13-bigquery/tour/de-gcp/world/build",
+    "scheduler": "/home/ubuntu/alkera-rollouts/t13-bigquery/tour/de-gcp/world/var/sched/state.json",
+    "warehouse": "/home/ubuntu/alkera-rollouts/t13-bigquery/tour/de-gcp/world/var/warehouse/warehouse.duckdb",
+    "workflow_dir": "/home/ubuntu/alkera-rollouts/t13-bigquery/tour/de-gcp/world/var/workflow",
+    "workspace": "/home/ubuntu/alkera-rollouts/t13-bigquery/tour/de-gcp/world/workspace",
+    "world_root": "/home/ubuntu/alkera-rollouts/t13-bigquery/tour/de-gcp/world"
    }
   }
  ],
- "revision": "6e3678f68734521c939cea7f6038c9b69139a939",
- "seconds": 38.9,
- "started": 1791376045.18784,
+ "revision": "ab2fbd139a95763d47d4b9644a73474029c75a01",
+ "seconds": 54.7,
+ "started": 1791885203.4888124,
  "summary": {
   "DOC": 0,
   "FAIL": 0,
-  "PASS": 3,
+  "PASS": 4,
   "profiles_ok": true
  },
- "table": "probe                                       profile       verdict   rows  value / truth\n---------------------------------------------------------------------------------------------------------------------\nbigquery.client.net_revenue_feb_2026        de/gcp        PASS         4  '2361224' / Decimal('2361224.00')\nbigquery.rest.completed_orders_feb_2026     de/gcp        PASS         3  '1068' / 1068\nbigquery.client.warehouse_tables            de/gcp        PASS         2  5 / 5",
+ "table": "probe                                       profile       verdict   rows  value / truth\n---------------------------------------------------------------------------------------------------------------------\nbigquery.client.net_revenue_feb_2026        de/gcp        PASS         4  '2361224' / Decimal('2361224.00')\nbigquery.rest.completed_orders_feb_2026     de/gcp        PASS         3  '1068' / 1068\nbigquery.client.warehouse_tables            de/gcp        PASS         2  5 / 5\nbigquery.dbt.show_net_revenue_feb_2026      de/gcp        PASS         8  2361224.0 / Decimal('2361224.00')",
  "tools": [
   "bigquery"
  ],

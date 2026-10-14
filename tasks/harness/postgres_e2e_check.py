@@ -9,10 +9,11 @@ A `de/postgres` box (a `commerce_analytics` world, seed 11). `prepare()` copies 
 world's `warehouse.*` into the stack's Postgres (`postgres_live.seed`); then, from
 INSIDE the episode container, as the agent's role with the box's own PG* variables:
 
-  (0) the seeded schema belongs to a NOLOGIN role, and `episode` - compose's owner,
-      whose statements the server does NOT log and whose credentials the box's
-      ALKERA_POSTGRES_DSN carries - is refused on it, so the seeded copy is reached
-      through the audited `alkera` role only;
+  (0) the seeded schema belongs to a NOLOGIN role and `episode` - compose's owner,
+      whose statements the server does NOT log - keeps no privilege on it; and
+      `episode` cannot log in at all (`episode_role_login_refused`: compose.native.yml
+      makes it NOLOGIN after compose's postgres.sql), so every statement on the box
+      is the audited `alkera` role's;
   (a) psql: every seeded table's row count and February 2026 Net Revenue equal the
       world's DuckDB warehouse read on the host; a scratch CREATE + INSERT in
       `staging`, and a DROP of a seeded table the role does not own (refused by the
@@ -31,7 +32,8 @@ INSIDE the episode container, as the agent's role with the box's own PG* variabl
 
 An UNPROFILED box (the same theme, no profile): `prepare()` seeds nothing, and the
 server holds what compose gave it - `warehouse.items`, 2 rows, in a schema `episode`
-owns - read with psql and audited at teardown the same way.
+owns, and `episode` cannot log in there either - read with psql and audited at
+teardown the same way.
 
 Evidence: tasks/harness/evidence/postgres_e2e.json. Exit 1 on any FAIL.
 """
@@ -67,10 +69,16 @@ SCRATCH = ["CREATE TABLE staging.pg_e2e_scratch (id integer, note text)",
            "INSERT INTO staging.pg_e2e_scratch VALUES (1, 'alpha'), (2, 'beta')",
            "SELECT id, note FROM staging.pg_e2e_scratch ORDER BY id"]
 REFUSED = "DROP TABLE warehouse.fct_orders"
-#: compose's schema owner (gateway/docker/postgres.sql), against the server's real
-#: database: the role is the one the box's ALKERA_POSTGRES_DSN names.
+#: compose's schema owner (gateway/docker/postgres.sql), with its own password,
+#: against the server's real database.
 EPISODE_URL = "postgresql://episode:episode-local@postgres.internal:5432/alkera"
 EPISODE_PROBE = "SELECT count(*) FROM warehouse.fct_orders"
+#: What the server answers a login as a NOLOGIN role (compose.native.yml).
+EPISODE_LOGIN_REFUSED = 'role "episode" is not permitted to log in'
+#: Read as `alkera` from the catalog: what `episode` holds on the seeded copy.
+EPISODE_PRIVILEGE_SQL = ("SELECT has_schema_privilege('episode', 'warehouse', 'USAGE') "
+                         "OR has_table_privilege('episode', 'warehouse.fct_orders', "
+                         "'SELECT')")
 OWNER_SQL = ("SELECT r.rolname || '|' || CASE WHEN r.rolcanlogin THEN 't' ELSE 'f' END "
              "FROM pg_namespace n JOIN pg_roles r ON r.oid = n.nspowner "
              "WHERE n.nspname = 'warehouse'")
@@ -182,6 +190,27 @@ def psql(topo, sql: str):
     return topo.run(f"psql -X -tA -v ON_ERROR_STOP=1 -c {json.dumps(sql)}", timeout=120)
 
 
+def episode_logins(topo) -> dict:
+    """psql as `episode` from inside the box: with its own password against the
+    server's database, and with whatever ALKERA_POSTGRES_DSN the box carries."""
+    tried = {}
+    for label, url in (("box_dsn", topo.container_env.get("ALKERA_POSTGRES_DSN")),
+                       ("episode_on_alkera_db", EPISODE_URL)):
+        if not url:
+            continue
+        done = topo.run(f"psql {json.dumps(url)} -X -tA -c {json.dumps(EPISODE_PROBE)}",
+                        timeout=120)
+        tried[label] = {"rc": done.returncode, "out": done.stdout.strip(),
+                        "err": done.stderr.strip()[-300:]}
+    return tried
+
+
+def login_refused(tried: dict) -> bool:
+    """Every login as `episode` failed, each refused for the role, not the network."""
+    return bool(tried) and all(t["rc"] not in (0, None) and EPISODE_LOGIN_REFUSED in t["err"]
+                               for t in tried.values())
+
+
 class Checks:
     def __init__(self):
         self.items: list[dict] = []
@@ -246,25 +275,22 @@ def run_profiled(args, check: Checks, record: dict) -> None:
               before_log == [], before_log[:5])
 
         # The seeded copy is reachable through the audited role only. `episode`
-        # (compose's schema owner, NOT logged) is the role ALKERA_POSTGRES_DSN in
-        # the box's environment names; it keeps nothing on the seeded schema.
+        # (compose's schema owner, NOT logged) cannot log in, and keeps nothing on
+        # the seeded schema should it ever be able to.
         record["episode_dsn_in_box"] = topo.container_env.get("ALKERA_POSTGRES_DSN")
-        as_episode = {}
-        for label, url in (("box_dsn", record["episode_dsn_in_box"]),
-                           ("episode_on_alkera_db", EPISODE_URL)):
-            if not url:
-                continue
-            done = topo.run(f"psql {json.dumps(url)} -X -tA -c "
-                            f"{json.dumps(EPISODE_PROBE)}", timeout=120)
-            as_episode[label] = {"rc": done.returncode, "out": done.stdout.strip(),
-                                 "err": done.stderr.strip()[-300:]}
+        check("the box carries no ALKERA_POSTGRES_DSN (compose.yml's MCP-gateway DSN)",
+              record["episode_dsn_in_box"] is None, record["episode_dsn_in_box"])
+        as_episode = episode_logins(topo)
         record["as_episode"] = as_episode
-        denied = as_episode.get("episode_on_alkera_db") or {}
-        check("the episode role (unlogged; the box's ALKERA_POSTGRES_DSN) cannot read "
-              "the seeded warehouse.fct_orders",
-              denied.get("rc") not in (0, None)
-              and "permission denied for schema warehouse" in denied.get("err", ""),
+        check("episode_role_login_refused: psql as episode (compose's unlogged owner) "
+              f"fails with '{EPISODE_LOGIN_REFUSED}'", login_refused(as_episode),
               as_episode)
+        sent.append(EPISODE_PRIVILEGE_SQL)
+        held = psql(topo, EPISODE_PRIVILEGE_SQL)
+        record["episode_privilege_on_seeded_copy"] = held.stdout.strip()
+        check("the episode role holds no privilege on the seeded warehouse.fct_orders",
+              held.returncode == 0 and held.stdout.strip() == "f",
+              held.stdout + held.stderr)
         sent.append(OWNER_SQL)
         owner = psql(topo, OWNER_SQL)
         record["seeded_schema_owner"] = owner.stdout.strip()
@@ -430,19 +456,28 @@ def run_unprofiled(args, check: Checks, record: dict) -> None:
     sent = ["SELECT string_agg(table_name, ',' ORDER BY table_name) FROM "
             "information_schema.tables WHERE table_schema = 'warehouse'",
             "SELECT count(*) FROM warehouse.items", OWNER_SQL]
-    out = []
+    out, as_episode = [], {}
     try:
         up = topo.up()
         record["prepared_keys"] = sorted(up["prepared"])
         check("unprofiled: prepare() seeds nothing", "postgres_seed" not in up["prepared"],
               up["prepared"].get("postgres_seed"))
         out = [psql(topo, sql) for sql in sent]
+        record["episode_dsn_in_box"] = topo.container_env.get("ALKERA_POSTGRES_DSN")
+        as_episode = episode_logins(topo)
+        record["as_episode"] = as_episode
     finally:
         topo.down()
     got = [o.stdout.strip() for o in out]
     record["server"] = got
     check("unprofiled: the server holds only warehouse.items, with 2 rows, its schema "
-          "owned by episode as compose made it", got == ["items", "2", "episode|t"], got)
+          "owned by episode as compose made it, and episode is NOLOGIN",
+          got == ["items", "2", "episode|f"], got)
+    check("unprofiled: the box carries no ALKERA_POSTGRES_DSN",
+          "episode_dsn_in_box" in record and record["episode_dsn_in_box"] is None,
+          record.get("episode_dsn_in_box"))
+    check("unprofiled: episode_role_login_refused: psql as episode fails with "
+          f"'{EPISODE_LOGIN_REFUSED}'", login_refused(as_episode), as_episode)
     rows = [r for r in read_rows(Path(topo.audit_dir)) if r["tool"] == TOOL]
     check("unprofiled: the three psql statements are audited at teardown",
           [r["args"]["sql"] for r in rows] == sent, [r["args"]["sql"] for r in rows])

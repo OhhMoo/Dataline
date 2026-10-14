@@ -16,6 +16,7 @@ exported task and recompute its digest.
 """
 from __future__ import annotations
 
+import dataclasses
 import json
 import shutil
 import subprocess
@@ -75,7 +76,8 @@ def test_one_task_per_probe(exported):
         if probe_id.startswith("bigquery."):
             assert "warehouse=bigquery" in reason and "around the audited proxy" in reason, \
                 reason
-    assert sorted(r.status for r in report.results) == ["ok"] * 3 + ["skipped"] * 3
+    # the four bigquery probes (client, rest, tables, dbt) are the skipped ones
+    assert sorted(r.status for r in report.results) == ["ok"] * 3 + ["skipped"] * 4
 
     dataset = tomllib.loads((out / "dataset.toml").read_text(encoding="utf-8"))
     assert dataset["dataset"]["name"] == tooltour.DATASET_NAME
@@ -106,7 +108,9 @@ def test_one_task_per_probe(exported):
         # the verifier: the probe, the shipped core, the sealed world
         shipped = json.loads((task / "tests/episode/probe.json").read_text(encoding="utf-8"))
         assert shipped["probe"]["id"] == probe_id
-        assert shipped["probe"]["expect_tools"] == list(probe.expect_tools)
+        assert shipped["schema"] == tooltour.PROBE_SCHEMA
+        assert shipped["probe"]["expect_tools"] == [list(g) for g in probe.expect_tools]
+        assert shipped["probe"]["expect_targets"] == list(probe.expect_targets)
         assert shipped["probe"]["truth_sql"] == probe.truth_sql
         assert (task / "tests/alkera/repo/tasks/harness/tool_tour_core.py").read_bytes() \
             == (support.REPO / "tasks/harness/tool_tour_core.py").read_bytes()
@@ -199,14 +203,15 @@ START_ROW = {"seq": 1, "tool": "episode.start", "op_class": "read", "targets": [
 SERVED = {"jira.internal:8080": 1, "duckdb.internal:8094": 0}
 
 
-def _row(seq: int, tool: str, *argv: str) -> dict:
-    return {"seq": seq, "tool": tool, "op_class": "read", "targets": [],
-            "actor": "engineer", "args": {"argv": list(argv)}, "result": {}}
+def _row(seq: int, tool: str, *argv: str, exit: str = "ok",
+         targets: tuple[str, ...] = ()) -> dict:
+    return {"seq": seq, "tool": tool, "op_class": "read", "targets": list(targets),
+            "exit": exit, "actor": "engineer", "args": {"argv": list(argv)}, "result": {}}
 
 
-def _duckdb_row(seq: int = 2) -> dict:
+def _duckdb_row(seq: int = 2, **kw) -> dict:
     return _row(seq, "duckdb.statement", "duckdb", "-readonly",
-                "/world/var/warehouse/warehouse.duckdb", "-c", "SELECT ...")
+                "/world/var/warehouse/warehouse.duckdb", "-c", "SELECT ...", **kw)
 
 
 def _artifacts(out: Path, tmp_path: Path, *, rows: list[dict], answer,
@@ -288,13 +293,57 @@ def test_verifier_rewards_zero_without_tool_rows(exported, sealed_truth, tmp_pat
     assert reward == 0, grading
     assert grading["checks"]["answer"]["passed"] is True
     assert grading["checks"]["tools"]["passed"] is False
-    assert grading["checks"]["tools"]["detail"]["missing_tools"] == ["duckdb.statement"]
+    assert grading["checks"]["tools"]["detail"]["missing_tools"] == [["duckdb.statement"]]
     # a row of another tool does not stand in for it
     root2, _ = _artifacts(exported[2], tmp_path / "other",
                           rows=[_row(2, "shim.python", "python3", "-c", "...")],
                           answer={"value": float(sealed_truth)})
     reward2, grading2 = _grade(root2, tests, tmp_path / "other")
     assert reward2 == 0 and grading2["checks"]["tools"]["passed"] is False
+
+
+def test_probe_json_carries_groups_and_targets(exported, sealed_truth, tmp_path):
+    """probe.json serialises a group of alternative tools as a list (expect_tools is a
+    list of lists) and carries expect_targets; verify_tool.py rebuilds that Probe and
+    judges it by tool_tour_core's rules: any tool of a group, on a row that exited ok,
+    whose targets match every glob."""
+    duckdb = next(iter(tooltour.load_probes(["duckdb"])))
+    probe = dataclasses.replace(duckdb, expect_tools=(("duckdb.describe", "duckdb.statement"),),
+                                expect_targets=("warehouse.*.fct_orders",))
+    doc = tooltour.probe_document(probe)
+    assert doc["schema"] == tooltour.PROBE_SCHEMA
+    assert doc["probe"]["expect_tools"] == [["duckdb.describe", "duckdb.statement"]]
+    assert doc["probe"]["expect_targets"] == ["warehouse.*.fct_orders"]
+    plain = tooltour.probe_document(duckdb)["probe"]
+    assert plain["expect_tools"] == [["duckdb.statement"]] and plain["expect_targets"] == []
+
+    tests = tmp_path / "tests"
+    shutil.copytree(_task(exported[2], DUCKDB) / "tests", tests, symlinks=True)
+    (tests / tooltour.PROBE_REL).write_text(json.dumps(doc, indent=2) + "\n",
+                                            encoding="utf-8")
+    answer = {"value": str(sealed_truth)}
+    fct = ("warehouse.warehouse.fct_orders",)
+    cases = {  # rows -> (reward, missing_tools, missing_targets)
+        "ok": ([_duckdb_row(targets=fct)], 1, [], []),
+        "error": ([_duckdb_row(targets=fct, exit="error")], 0,
+                  [["duckdb.describe", "duckdb.statement"]], ["warehouse.*.fct_orders"]),
+        "untargeted": ([_duckdb_row(targets=("warehouse.warehouse.dim_date",))], 0, [],
+                       ["warehouse.*.fct_orders"]),
+        "alternative": ([_duckdb_row(targets=fct, exit="error"),
+                         _row(3, "duckdb.describe", "duckdb", "-c", "DESCRIBE ...",
+                              targets=fct)], 1, [], []),
+    }
+    for name, (rows, want, missing_tools, missing_targets) in cases.items():
+        root, _ = _artifacts(exported[2], tmp_path / name, rows=rows, answer=answer)
+        reward, grading = _grade(root, tests, tmp_path / name)
+        assert reward == want, (name, grading)
+        tools = grading["checks"]["tools"]
+        assert tools["passed"] is (want == 1), (name, tools)
+        assert tools["detail"]["expect_tools"] == [["duckdb.describe", "duckdb.statement"]]
+        assert tools["detail"]["expect_targets"] == ["warehouse.*.fct_orders"]
+        assert tools["detail"]["missing_tools"] == missing_tools, name
+        assert tools["detail"]["missing_targets"] == missing_targets, name
+        assert grading["checks"]["answer"]["passed"] is True, name
 
 
 def test_verifier_rewards_zero_on_wrong_value(exported, sealed_truth, tmp_path):

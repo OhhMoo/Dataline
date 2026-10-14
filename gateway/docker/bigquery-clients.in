@@ -1,25 +1,36 @@
 # The BigQuery plug's client side, for episode images built with
 # `--warehouse-clients bigquery` (Dockerfile ALKERA_WAREHOUSE_CLIENTS): the
-# Python client, pointed at bigquery.internal:9050 (the audited proxy in front
-# of the emulator) with AnonymousCredentials and client_options api_endpoint.
+# Python client and the dbt adapter, both pointed at bigquery.internal:9050 (the
+# audited proxy in front of the emulator) - the client with AnonymousCredentials
+# and client_options api_endpoint, dbt-bigquery with method oauth-secrets, a
+# static token and api_endpoint (warehouses.dbt_output; the proxy forwards no
+# credential and the emulator checks none).
 #
-# The client ONLY - no `[pandas]` extra and no dbt-bigquery - measured
-# 2026-10-07. dbt-bigquery 1.12.1 works against the proxy (method
-# oauth-secrets with a static token + api_endpoint: debug, run, re-run, test and
-# show pass; seed is a load job and is refused by name), but it requires
-# google-cloud-bigquery[pandas] and nbformat, and with them pandas, pyarrow,
-# nbformat and jupyter_core's `jupyter` land in the image's system Python -
-# which gateway/docker/toolbelt_check.py forbids on a de image (ROLE_IMPORTS /
-# ROLE_BINARIES: the notebook libraries are the da/ds roles'). A de/gcp image
-# built with them failed that gate (`role_forbidden_present`). Shipping the
-# adapter is a decision about that gate, not about this lock; until it is
-# made, dbt-bigquery stays refused by name (warehouses.DBT_ADAPTERS). Without
-# the pandas extra, `to_dataframe()` says "Please install the 'db-dtypes'
-# package", loudly; rows, `to_arrow()` aside, read as they always do.
+# dbt-bigquery requires google-cloud-bigquery[pandas] and nbformat, so pandas,
+# pyarrow, nbformat and jupyter_core's `jupyter` dispatcher land in the image's
+# system Python - on a de image too, where the notebook libraries are otherwise
+# the da/ds roles' (toolbelt_check.py ROLE_IMPORTS / ROLE_BINARIES). Decision D2
+# (2026-10-13): they ship as the client's hard dependencies, allowed by name in
+# toolbelt_check.py CLIENT_IMPORTS / CLIENT_BINARIES the way Databricks' pandas
+# and pyarrow are; the rest of the notebook stack (ipykernel, jupyter-server,
+# nbclient, matplotlib) stays forbidden. `dbt seed` is a load job, which the
+# proxy refuses by name.
+#
+# Held below 1.12, measured 2026-10-13: dbt-bigquery 1.12 lists every dataset's
+# routines (routines.list) inside the same `try` that lists its tables, and
+# catches NotFound there by returning no relations at all. The emulator does not
+# serve routines.list ("unsupported bigquery.routines.list"), and the proxy
+# answers it as an unknown route (404), so under 1.12 dbt's relation cache is
+# empty for every dataset: an incremental model silently rebuilds as a table and
+# a snapshot silently starts over. 1.11 lists tables only and needs the same
+# dependencies. Lift the cap once the proxy answers routines.list truthfully (the
+# emulator runs CREATE FUNCTION but cannot list or get the routine it made).
 #
 # Compiled here, NOT in pyproject/uv.lock, like every backend's clients
 # (docker/lock_warehouse_clients.py): constrained to the base, native and ds
-# locks, so every package it shares with them is the same version; certifi is
-# the one deliberate exception (bigquery-clients.overrides). Regenerate with the
-# command in requirements-bigquery.lock's header.
+# locks, so every package it shares with them is the same version - pandas,
+# pyarrow and nbformat are the da/ds images' own; certifi is the one deliberate
+# exception (bigquery-clients.overrides). Regenerate with the command in
+# requirements-bigquery.lock's header.
 google-cloud-bigquery>=3.25,<4
+dbt-bigquery>=1.9,<1.12

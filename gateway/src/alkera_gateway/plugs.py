@@ -73,6 +73,18 @@ _CATALOG = (
               "in a container"),
     Plug("ml_workers", "compute", "planned", surfaces=("compute",)),
     Plug("mlflow", "compute", "planned", surfaces=("mlflow",)),
+    Plug("spark_connect", "compute", "partial", surfaces=("spark",),
+         note="Databricks tier 2: Spark 4.2.0 + Delta Lake 4.4.1 (local[1]) seeded from "
+              "the world, behind an audited gRPC proxy at spark_connect.internal:15002 "
+              "(native/services/spark_connect.py, a databricks.spark row per RPC); the "
+              "Spark Connect thin client (pyspark-client, no JVM in the box) only in "
+              "images built with --warehouse-clients spark; its Delta tables are a "
+              "second copy of the world, apart from tier 1's (a write in one is not seen "
+              "in the other); AddArtifacts, Python UDFs, file paths/DBFS, streaming, "
+              "reflect, TRANSFORM, ADD JAR, CREATE FUNCTION refused by name; no "
+              "dbutils; plain gRPC on 15002, not TLS on 443 (served through serve.py's "
+              "serve_socket hook, behind the episode-peer filter); Harbor export refuses "
+              "it; no task uses it"),
     Plug("duckdb", "warehouse", "shipped",
          surfaces=("duckdb", "duckdb_legacy", "streaming"),
          note="GT002's `streaming` surface is tables in the DuckDB file"),
@@ -107,10 +119,12 @@ _CATALOG = (
               "--warehouse-clients bigquery; cost not modelled; transactions, "
               "procedural scripting (IF/FOR/WHILE/CALL/...), "
               "ALTER, EXECUTE IMMEDIATE, ASSERT, WRITE_TRUNCATE, schema patches, "
-              "load jobs and legacy SQL refused by name; INT64 overflow wraps "
-              "instead of erroring (emulator, not fenced); no dbt-bigquery (works "
-              "against the proxy, but its pandas/nbformat break the de image's "
-              "role gate); container e2e only, arm64 not run, no task uses it"),
+              "load and extract jobs (LOAD DATA, EXPORT DATA), external tables "
+              "and other external data (over gs:// the engine would hang) and "
+              "legacy SQL refused by name; INT64 overflow wraps "
+              "instead of erroring (emulator, not fenced); dbt-bigquery through "
+              "the proxy (the box profile's default target; seed is a load job, "
+              "refused); container e2e only, arm64 not run, no task uses it"),
     Plug("databricks", "warehouse", "partial", surfaces=("databricks",),
          note="tier 1 at https://databricks.internal (native-services, port 443): SQL "
               "Statement Execution, Unity Catalog reads, SQL warehouses, SCIM Me and "
@@ -120,7 +134,8 @@ _CATALOG = (
               "databricks-sql-connector (use_sea=True: no Thrift) and dbt-databricks "
               "only in images built with --warehouse-clients "
               "databricks; no Delta log (time travel, OPTIMIZE, VACUUM, CLONE refused by "
-              "name), no PySpark (tier 2), no Databricks CLI (licence); no task uses it"),
+              "name), no Databricks CLI (licence); PySpark is tier 2, the spark_connect "
+              "compute plug (ds/databricks); no task uses it"),
     Plug("dbt", "transform", "shipped", surfaces=("dbt",)),
     Plug("ops_sched", "orchestrator", "shipped",
          surfaces=("scheduler", "orchestration_secondary"),
@@ -179,7 +194,8 @@ STACKS: dict[str, dict[str, tuple[str, ...]]] = {
     "laptop": _LAPTOP,
     "postgres": {**_LAPTOP, "warehouse": ("postgres",)},
     "snowflake": {**_LAPTOP, "warehouse": ("snowflake",), "bi": ("sigma",)},
-    "databricks": {**_LAPTOP, "warehouse": ("databricks",), "bi": ("powerbi",)},
+    "databricks": {**_LAPTOP, "warehouse": ("databricks",), "bi": ("powerbi",),
+                   "compute": ("spark_connect",)},
     "aws": {**_LAPTOP, "warehouse": ("redshift",), "bi": ("tableau",)},
     "gcp": {**_LAPTOP, "warehouse": ("bigquery",)},
 }

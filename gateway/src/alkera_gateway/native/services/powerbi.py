@@ -19,10 +19,16 @@ ENDPOINTS (one host serves the three Microsoft hosts' paths; none collide):
                               GET  /v1.0/myorg/groups/{g}/datasets/{d}/refreshes/{id}
                               POST /v1.0/myorg/groups/{g}/datasets/{d}/executeQueries
                               GET  /v1.0/myorg/groups/{g}/reports
+                              GET  /v1.0/myorg/groups/{g}/dashboards           none pinned
+                              GET  /v1.0/myorg/datasets, /v1.0/myorg/reports    My workspace
+                              GET  /v1.0/myorg/pipelines[/{id}[/stages]]        none
+                              GET  /v1.0/myorg/admin/pipelines                  401
   api.fabric.microsoft.com    GET  /v1/workspaces
+                              GET  /v1/workspaces/{w}/items[?type=]
                               GET  /v1/workspaces/{w}/semanticModels[/{id}]
                               POST /v1/workspaces/{w}/semanticModels/{id}/getDefinition
                               POST /v1/workspaces/{w}/semanticModels/{id}/updateDefinition
+                              GET  /v1/deploymentPipelines                      none
   /health                     like every native service
 
 AUTH. Entra client credentials: any tenant, any client id, the workspace's
@@ -75,17 +81,44 @@ values of every visual of every report bound to the dataset (rendered by the
 engine on the new snapshot) - evidence of what was published when, like
 BIStore.refresh's events. Graders still recompute from files.
 
+WHAT THE WORLD DOES NOT HAVE is answered the way Power BI answers it. These are
+the routes the 2026-10-05 BI002 rollouts reached for: deployment pipelines in
+14 of 16, then Fabric items, My workspace and a group's dashboards. Each one
+was a 404 with nothing behind it.
+- DEPLOYMENT PIPELINES. The team deploys from CI with updateDefinition
+  (PUBLISHED STATE above), so neither API lists a pipeline, and every
+  pipeline id is Power BI's entity 404. The admin API answers a Fabric
+  administrator, or a service principal the tenant lets use it. The
+  episode's identity is neither, so the call is refused with Power BI's 401
+  PowerBINotAuthorizedException.
+- MY WORKSPACE. Every model and report the store holds is published to its
+  one group workspace (`state["workspace"]`), and nothing to a personal one.
+  The episode also signs in as a service principal, which has no My
+  workspace content. So /myorg/datasets and /myorg/reports list nothing,
+  which is what Power BI answers a service principal.
+- DASHBOARDS. A PBIP project carries reports and semantic models. A
+  dashboard is pinned in the service, and the world pins none.
+- FABRIC ITEMS lists the workspace's semantic models, then its reports. Each
+  item is exactly what its type's own list answers.
+
 ROWS. Every request writes exactly one 9.2.2 row through native.context's
 Ledger, failures and refused credentials included: `powerbi.token`,
 `powerbi.groups_list`, `powerbi.datasets_list`, `powerbi.dataset_get`,
 `powerbi.refresh`, `powerbi.refreshes_list`, `powerbi.refresh_get`,
-`powerbi.execute_queries`, `powerbi.reports_list`, `powerbi.workspaces_list`,
+`powerbi.execute_queries`, `powerbi.reports_list`, `powerbi.dashboards_list`,
+`powerbi.my_datasets_list`, `powerbi.my_reports_list`,
+`powerbi.pipelines_list`, `powerbi.pipeline_get`,
+`powerbi.pipeline_stages_list`, `powerbi.admin_pipelines_list`,
+`powerbi.workspaces_list`, `powerbi.items_list`,
 `powerbi.semantic_models_list`, `powerbi.semantic_model_get`,
-`powerbi.get_definition`, `powerbi.update_definition`, `powerbi.health`.
+`powerbi.get_definition`, `powerbi.update_definition`,
+`powerbi.deployment_pipelines_list`, `powerbi.health`.
 There is no MCP twin to borrow a classification from, so PowerBIStore - the
 module the handlers call, like bi.BIStore - fills the observation: targets
-`powerbi:workspace:<name>`, `powerbi:semantic_model:<name>`,
-`powerbi:report:<name>`, `powerbi:token`; `op_class` `write` for refresh and
+`powerbi:workspace:<name>` (`My workspace` for the personal one),
+`powerbi:semantic_model:<name>`, `powerbi:report:<name>`, `powerbi:token`,
+`powerbi:pipelines` (the tenant's pipelines), `powerbi:pipeline:<id>`;
+`op_class` `write` for refresh and
 updateDefinition; a refresh's `read_targets` are the warehouse relations it
 copied (`warehouse.fct_orders`), a query's the semantic model it read.
 
@@ -99,11 +132,14 @@ Anything outside the DAX/TMDL subset is refused with the Unsupported message
 
 Sources: Power BI REST API reference (learn.microsoft.com/rest/api/power-bi/:
 groups/get-groups, datasets/get-datasets-in-group, get-dataset-in-group,
-refresh-dataset-in-group, get-refresh-history-in-group,
+get-datasets, refresh-dataset-in-group, get-refresh-history-in-group,
 get-refresh-execution-details-in-group, execute-queries-in-group,
-reports/get-reports-in-group); Fabric REST (learn.microsoft.com/rest/api/
-fabric/: core/workspaces/list-workspaces, semanticmodel/items/list-semantic-
-models, get-semantic-model, get-semantic-model-definition,
+reports/get-reports-in-group, get-reports, dashboards/get-dashboards-in-group,
+pipelines/get-pipelines, get-pipeline, get-pipeline-stages,
+admin/pipelines-get-pipelines-as-admin); Fabric REST (learn.microsoft.com/rest/
+api/fabric/: core/workspaces/list-workspaces, core/items/list-items,
+core/deployment-pipelines/list-deployment-pipelines, semanticmodel/items/
+list-semantic-models, get-semantic-model, get-semantic-model-definition,
 update-semantic-model-definition); Microsoft identity platform client
 credentials flow and AADSTS error codes (learn.microsoft.com/entra/
 identity-platform/v2-oauth2-client-creds-grant-flow, reference-error-codes);
@@ -548,10 +584,14 @@ class PowerBIStore:
                 temporary.unlink()
 
     # --------------------------------------------------------- lookups
-    def group(self, state: dict, group_id: str, observation: Observation) -> dict:
+    def group(self, state: dict, group_id: str, observation: Observation,
+              fabric: bool = False) -> dict:
         group = state["workspace"]
         if group_id.lower() != group["id"]:
             observation.targets = [f"powerbi:workspace:{group_id}"]
+            if fabric:
+                raise fabric_error(404, "WorkspaceNotFound", "The requested workspace was "
+                                                             "not found")
             raise powerbi_entity_error(404, "PowerBIEntityNotFound",
                                        f"workspace {group_id} not found")
         return group
@@ -1128,11 +1168,112 @@ def reports_list(group_id: str, request: Request) -> dict:
                               f"#reports", "value": values}
 
 
+@app.get("/v1.0/myorg/groups/{group_id}/dashboards")
+def dashboards_list(group_id: str, request: Request) -> dict:
+    """Get Dashboards In Group: none, since the world pins no dashboard
+    (DASHBOARDS above)."""
+    def run(store: PowerBIStore, observation: Observation):
+        group = store.group(store.load(), group_id, observation)
+        observation.targets = [f"powerbi:workspace:{group['name']}"]
+        return []
+
+    values = handled(request, "dashboards_list", {"groupId": group_id}, "powerbi", run)
+    return {"@odata.context": f"{base_url(request)}/v1.0/myorg/groups/{group_id}/$metadata"
+                              f"#dashboards", "value": values}
+
+
+# My workspace (MY WORKSPACE above): the store publishes nothing there.
+MY_WORKSPACE = "powerbi:workspace:My workspace"
+
+
+@app.get("/v1.0/myorg/datasets")
+def my_datasets_list(request: Request) -> dict:
+    def run(store: PowerBIStore, observation: Observation):
+        observation.targets = [MY_WORKSPACE]
+        return []
+
+    values = handled(request, "my_datasets_list", {}, "powerbi", run)
+    return {"@odata.context": odata(request, "datasets"), "value": values}
+
+
+@app.get("/v1.0/myorg/reports")
+def my_reports_list(request: Request) -> dict:
+    def run(store: PowerBIStore, observation: Observation):
+        observation.targets = [MY_WORKSPACE]
+        return []
+
+    values = handled(request, "my_reports_list", {}, "powerbi", run)
+    return {"@odata.context": odata(request, "reports"), "value": values}
+
+
+# Deployment pipelines (DEPLOYMENT PIPELINES above): the world has none.
+PIPELINES = "powerbi:pipelines"
+
+
+def no_pipelines(store: PowerBIStore, observation: Observation) -> list:
+    observation.targets = [PIPELINES]
+    return []
+
+
+def no_such_pipeline(pipeline_id: str):
+    def run(store: PowerBIStore, observation: Observation):
+        observation.targets = [f"powerbi:pipeline:{pipeline_id}"]
+        raise powerbi_entity_error(404, "PowerBIEntityNotFound",
+                                   f"pipeline {pipeline_id} not found: the world deploys "
+                                   f"from CI, through no deployment pipeline")
+    return run
+
+
+# Two paths: a rollout sent the trailing-slash form (BI002, 2026-10-05), and a
+# 307 would make its row depend on whether the client follows the redirect
+# (the same reason confluence.py serves both forms of content_create).
+@app.get("/v1.0/myorg/pipelines")
+@app.get("/v1.0/myorg/pipelines/")
+def pipelines_list(request: Request) -> dict:
+    values = handled(request, "pipelines_list", {"expand": request.query_params.get("$expand")},
+                     "powerbi", no_pipelines)
+    return {"@odata.context": odata(request, "pipelines"), "value": values}
+
+
+@app.get("/v1.0/myorg/pipelines/{pipeline_id}")
+def pipeline_get(pipeline_id: str, request: Request) -> dict:
+    return handled(request, "pipeline_get", {"pipelineId": pipeline_id,
+                                             "expand": request.query_params.get("$expand")},
+                   "powerbi", no_such_pipeline(pipeline_id))
+
+
+@app.get("/v1.0/myorg/pipelines/{pipeline_id}/stages")
+def pipeline_stages_list(pipeline_id: str, request: Request) -> dict:
+    return handled(request, "pipeline_stages_list", {"pipelineId": pipeline_id}, "powerbi",
+                   no_such_pipeline(pipeline_id))
+
+
+@app.get("/v1.0/myorg/admin/pipelines")
+def admin_pipelines_list(request: Request) -> dict:
+    """Get Pipelines As Admin, refused: the episode's identity is no admin."""
+    def run(store: PowerBIStore, observation: Observation):
+        observation.targets = [PIPELINES]
+        raise powerbi_entity_error(401, "PowerBINotAuthorizedException",
+                                   "the admin APIs answer a Fabric administrator or a service "
+                                   "principal the tenant allows to use them; this identity is "
+                                   "neither")
+
+    params = request.query_params
+    return handled(request, "admin_pipelines_list",
+                   {"expand": params.get("$expand"), "filter": params.get("$filter"),
+                    "top": params.get("$top")}, "powerbi", run)
+
+
 # --------------------------------------------------------------------------
 # Fabric REST
 # --------------------------------------------------------------------------
 def semantic_model_item(group: dict, dataset: dict) -> dict:
     return {"id": dataset["id"], "type": "SemanticModel", "displayName": dataset["name"],
+            "description": "", "workspaceId": group["id"]}
+
+
+def report_item(group: dict, report: dict) -> dict:
+    return {"id": report["id"], "type": "Report", "displayName": report["name"],
             "description": "", "workspaceId": group["id"]}
 
 
@@ -1147,15 +1288,33 @@ def workspaces_list(request: Request) -> dict:
     return {"value": handled(request, "workspaces_list", {}, "fabric", run)}
 
 
+@app.get("/v1/workspaces/{workspace_id}/items")
+def items_list(workspace_id: str, request: Request) -> dict:
+    """List Items: the semantic models, then the reports (FABRIC ITEMS
+    above). `type` keeps one item type, compared without case."""
+    kind = request.query_params.get("type")
+
+    def run(store: PowerBIStore, observation: Observation):
+        state = store.load()
+        group = store.group(state, workspace_id, observation, fabric=True)
+        found = [(store.target(d), semantic_model_item(group, d))
+                 for d in sorted(state["datasets"].values(), key=lambda d: d["name"])]
+        found += [(f"powerbi:report:{r['name']}", report_item(group, r))
+                  for r in sorted(state["reports"].values(), key=lambda r: r["name"])]
+        if kind is not None:
+            found = [(t, item) for t, item in found if item["type"].lower() == kind.lower()]
+        observation.targets = [t for t, _ in found] or [f"powerbi:workspace:{group['name']}"]
+        return [item for _, item in found]
+
+    return {"value": handled(request, "items_list", {"workspaceId": workspace_id,
+                                                     "type": kind}, "fabric", run)}
+
+
 @app.get("/v1/workspaces/{workspace_id}/semanticModels")
 def semantic_models_list(workspace_id: str, request: Request) -> dict:
     def run(store: PowerBIStore, observation: Observation):
         state = store.load()
-        group = state["workspace"]
-        if workspace_id.lower() != group["id"]:
-            observation.targets = [f"powerbi:workspace:{workspace_id}"]
-            raise fabric_error(404, "WorkspaceNotFound", "The requested workspace was not "
-                                                         "found")
+        group = store.group(state, workspace_id, observation, fabric=True)
         datasets = sorted(state["datasets"].values(), key=lambda d: d["name"])
         observation.targets = [store.target(d) for d in datasets] or [
             f"powerbi:workspace:{group['name']}"]
@@ -1233,6 +1392,12 @@ def update_definition(workspace_id: str, model_id: str, request: Request,
             if isinstance(parts, list) else None},
            "fabric", run)
     return Response(status_code=200)
+
+
+@app.get("/v1/deploymentPipelines")
+def deployment_pipelines_list(request: Request) -> dict:
+    """List Deployment Pipelines: none (DEPLOYMENT PIPELINES above)."""
+    return {"value": handled(request, "deployment_pipelines_list", {}, "fabric", no_pipelines)}
 
 
 __all__ = ["HOST", "NAME", "PORT", "PowerBIStore", "app", "mint", "verify"]

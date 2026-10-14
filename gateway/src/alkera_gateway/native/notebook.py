@@ -117,6 +117,9 @@ from .shims.run import (
 EXTENSION = __name__
 ACTOR = "notebook"
 KERNEL_NAME = "alkera-python"
+# Every name an image installs the audited spec under (install_audited_kernelspecs):
+# ours, and `python3`, the name a client starts when it is not told otherwise.
+AUDITED_KERNEL_NAMES: tuple[str, ...] = (KERNEL_NAME, "python3")
 DISPLAY_NAME = "Python 3 (alkera)"
 SOURCE_EXCERPT_CHARS = 2000
 # The attribute that marks a shell as already recording. On the shell, not in
@@ -431,6 +434,27 @@ def install_kernelspec(directory, *, interpreter: str | None = None,
     with open(path, "w", encoding="utf-8", newline="") as stream:
         stream.write(json.dumps(kernelspec(interpreter), indent=1, sort_keys=True) + "\n")
     return path
+
+
+def install_audited_kernelspecs(directory, *, interpreter: str | None = None) -> list[Path]:
+    """`install_kernelspec` once per AUDITED_KERNEL_NAMES entry, identical bytes.
+
+    `python3` is jupyter_client's NATIVE_KERNEL_NAME and the default of nbclient,
+    `jupyter execute` and a notebook with no kernelspec metadata. Unless it is
+    installed here, a client gets ipykernel's own spec - the
+    `share/jupyter/kernels/python3` its wheel ships, or with none on disk its
+    built-in fallback - and neither preloads anything. Measured in
+    alkera-episode:head-da (the wheel's file, /usr/local/share/jupyter):
+    nbclient on `python3` wrote 0 `jupyter.cell` rows where `alkera-python`
+    wrote 1. Installed into `<sys.prefix>/share/jupyter`, this replaces that file.
+
+    This covers the data dirs it is given, nothing more. A kernel.json the agent
+    writes into `~/.local/share/jupyter/kernels/` is searched first and is
+    honoured by any client in the box: the in-box kernel is best-effort, and the
+    server's AuditedKernelSpecManager (below) is the guarantee.
+    """
+    return [install_kernelspec(directory, interpreter=interpreter, name=name)
+            for name in AUDITED_KERNEL_NAMES]
 
 
 class AuditedKernelSpecManager(KernelSpecManager):

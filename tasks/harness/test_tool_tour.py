@@ -116,7 +116,14 @@ def test_probe_shapes_are_normalised_and_hashable():
     assert probe.plug_map() == {"bi": ("sigma",), "warehouse": ("snowflake",)}
     assert dataclasses.replace(probe, id="snowflake.a.b").plugs == probe.plugs
     assert len({probe, dataclasses.replace(probe), SF}) == 2
-    assert dataclasses.replace(SF, expect_tools=["a.b"]).expect_tools == ("a.b",)
+    assert dataclasses.replace(SF, expect_tools=["a.b"]).expect_tools == (("a.b",),)
+    assert dataclasses.replace(SF, expect_tools="a.b").expect_tools == (("a.b",),)
+    grouped = dataclasses.replace(SF, expect_tools=[["a.get", "a.list"], "b.run"],
+                                  expect_targets=["*.xlsx"])
+    assert grouped.expect_tools == (("a.get", "a.list"), ("b.run",))
+    assert grouped.expect_targets == ("*.xlsx",) and SF.expect_targets == ()
+    assert dataclasses.replace(grouped) == grouped
+    assert hash(dataclasses.replace(grouped)) == hash(grouped)
     for bad in ({"bi": 3}, {"bi": ()}, ["bi", "sigma"], "bi=sigma", {"bi": [""]}):
         with pytest.raises(TypeError):
             dataclasses.replace(SF, plugs=bad)
@@ -150,11 +157,45 @@ def test_dbt_and_mf_probes_name_their_subcommand():
 
 
 def test_jupyter_probe_notebook_is_valid_and_its_cell_compiles():
-    probe = next(p for p in tt.load_probes(["jupyter"]))
+    probe = next(p for p in tt.load_probes(["jupyter"])
+                 if p.id == "jupyter.kernel.completed_orders_feb_2026")
     text = re.search(r"<<'NB'\n(.*?)\nNB\n", probe.command, re.DOTALL).group(1)
     notebook = json.loads(text)
     assert notebook["metadata"]["kernelspec"]["name"] == "alkera-python"
     compile(notebook["cells"][0]["source"], "cell", "exec")
+
+
+def test_default_kernel_probe_runs_python3_with_no_kernel_flag():
+    """What a live agent does (the 10-10 Claude run: NotebookClient(kernel_name="python3")):
+    a notebook naming `python3`, run with no --kernel_name. Its cell must be audited too
+    (Task 1's audited default kernel); on an image without it this probe FAILs."""
+    probes = {p.id: p for p in tt.load_probes(["jupyter"])}
+    probe = probes["jupyter.default_kernel.completed_orders_feb_2026"]
+    text = re.search(r"<<'NB'\n(.*?)\nNB\n", probe.command, re.DOTALL).group(1)
+    notebook = json.loads(text)
+    assert notebook["metadata"]["kernelspec"]["name"] == "python3"
+    compile(notebook["cells"][0]["source"], "cell", "exec")
+    assert "jupyter execute " in probe.command and "--kernel_name" not in probe.command
+    assert probe.expect_tools == (("jupyter.cell",),)
+    audited = probes["jupyter.kernel.completed_orders_feb_2026"]
+    assert probe.truth_sql == audited.truth_sql and probe.plugs == audited.plugs
+    assert tt.group_key(probe) == tt.group_key(audited)
+
+
+def test_route_probes_name_groups_and_targets():
+    """The routes the 10-10 live run took are accepted: Unity Catalog through either the
+    table lookup or the table listing (each naming fct_orders), and Excel by the .xlsx
+    the python row wrote - a `python3 -` heredoc keeps no source in argv."""
+    probes = {p.id: p for p in tt.load_probes(["databricks", "excel"])}
+    uc = probes["databricks.uc.fct_orders_columns"]
+    assert uc.expect_tools == (("databricks.table_get", "databricks.tables_list"),)
+    assert uc.expect_targets == ("main.warehouse.fct_orders",)
+    excel = probes["excel.openpyxl.net_revenue_feb_2026_roundtrip"]
+    assert excel.expect_tools == (("shim.python",),)
+    assert excel.expect_args == () and excel.expect_targets == ("*.xlsx",)
+    # under /workspace, so the shim's workspace diff names the workbook it wrote
+    assert "d=/workspace/tour_excel\n" in excel.command
+    assert "/tmp/tour_excel" not in excel.command
 
 
 def test_postgres_probes_are_teardown_probes_over_the_seeded_world():
@@ -168,7 +209,7 @@ def test_postgres_probes_are_teardown_probes_over_the_seeded_world():
     for probe in probes:
         assert probe.rows_at == "teardown" and probe.profile == "de/postgres"
         assert probe.truth_sql == NET_REVENUE_FEB_2026_SQL
-        assert "psql.statement" in probe.expect_tools
+        assert ("psql.statement",) in probe.expect_tools
     known = tt.known_findings()
     assert set(known) <= {p.id for p in tt.load_probes()}
     assert not {p.id for p in probes} & set(known)
@@ -186,7 +227,7 @@ def test_verdict_fails_when_expected_tool_missing(audit):
     rows = [audit("shim.python", op_class="exec", targets=[])]
     result = judge(rows=rows)
     assert result["verdict"] == "FAIL"
-    assert result["missing_tools"] == ["snowflake.statement"]
+    assert result["missing_tools"] == [["snowflake.statement"]]
     assert judge(rows=[])["verdict"] == "FAIL"
 
 
@@ -203,6 +244,126 @@ def test_verdict_checks_expect_args_in_an_expected_rows_argv(audit):
     assert ok["verdict"] == "PASS", ok["failures"]
     bad = judge(probe, rows=[parse, elsewhere], stdout='{"value": 1}\n', truth=None)
     assert bad["verdict"] == "FAIL" and bad["missing_args"] == ["show"]
+
+
+def test_verdict_accepts_any_tool_of_a_group(audit):
+    probe = dataclasses.replace(SF, expect_tools=(("a.get", "a.list"),))
+    result = judge(probe, rows=[audit("a.list")])
+    assert result["verdict"] == "PASS", result["failures"]
+    assert result["expect_tools"] == [["a.get", "a.list"]] and result["missing_tools"] == []
+    # groups are all-of among themselves: each needs a row of its own
+    two = dataclasses.replace(SF, expect_tools=(("a.get", "a.list"), "b.run"))
+    result = judge(two, rows=[audit("a.list")])
+    assert result["verdict"] == "FAIL" and result["missing_tools"] == [["b.run"]]
+    assert judge(two, rows=[audit("a.get"), audit("b.run")])["verdict"] == "PASS"
+
+
+def test_alternative_tool_row_must_succeed(audit):
+    probe = dataclasses.replace(SF, expect_tools=(("a.get", "a.list"),))
+    failed = audit("a.list", exit="error", error="no such table")
+    result = judge(probe, rows=[failed])
+    assert result["verdict"] == "FAIL"
+    assert any("no audit row for" in f for f in result["failures"]), result["failures"]
+    assert result["missing_tools"] == [["a.get", "a.list"]]
+    # one alternative that succeeded beside it is the proof
+    assert judge(probe, rows=[failed, audit("a.get")])["verdict"] == "PASS"
+    # a one-tool group is held to the same rule, and a failed row's argv and targets
+    # prove nothing either
+    single = dataclasses.replace(SF, expect_args=("show",),
+                                 expect_targets=("warehouse.fct_orders",))
+    errored = audit("snowflake.statement", exit="error", args={"argv": ["snow", "show"]})
+    result = judge(single, rows=[errored])
+    assert result["verdict"] == "FAIL" and result["missing_tools"] == [["snowflake.statement"]]
+    assert result["missing_args"] == ["show"]
+    assert result["missing_targets"] == ["warehouse.fct_orders"]
+
+
+def test_expect_targets_match_a_target_of_an_expected_row(audit):
+    probe = dataclasses.replace(SF, expect_tools=("shim.python",), expect_targets=("*.xlsx",))
+    wrote = audit("shim.python", op_class="exec", targets=["output/close.xlsx"])
+    result = judge(probe, rows=[wrote])
+    assert result["verdict"] == "PASS", result["failures"]
+    assert result["expect_targets"] == ["*.xlsx"] and result["missing_targets"] == []
+    bare = judge(probe, rows=[audit("shim.python", op_class="exec", targets=[])])
+    assert bare["verdict"] == "FAIL" and bare["missing_targets"] == ["*.xlsx"]
+    assert any("*.xlsx" in f for f in bare["failures"]), bare["failures"]
+    # the target must be on a row that satisfies a group, not on any row
+    elsewhere = judge(probe, rows=[audit("shim.python", op_class="exec", targets=[]),
+                                   audit("shim.git", op_class="exec",
+                                         targets=["output/close.xlsx"])])
+    assert elsewhere["verdict"] == "FAIL" and elsewhere["missing_targets"] == ["*.xlsx"]
+    # globs are all-of, and each may be met by a different expected row
+    both = dataclasses.replace(probe, expect_targets=("*.xlsx", "output/*.csv"))
+    assert judge(both, rows=[wrote])["missing_targets"] == ["output/*.csv"]
+    csv = audit("shim.python", op_class="exec", targets=["output/close.csv"])
+    assert judge(both, rows=[wrote, csv])["verdict"] == "PASS"
+
+
+def test_probe_refuses_an_empty_alternative_group():
+    with pytest.raises(ValueError, match="empty"):
+        dataclasses.replace(SF, expect_tools=(("a.get", "a.list"), ()))
+    with pytest.raises(ValueError, match="empty"):
+        dataclasses.replace(SF, expect_tools=[[]])
+    for bad in ((("a.get", 3),), (("a.get", ""),), (3,)):
+        with pytest.raises(TypeError):
+            dataclasses.replace(SF, expect_tools=bad)
+    for bad in (("",), (3,), 3):
+        with pytest.raises(TypeError):
+            dataclasses.replace(SF, expect_targets=bad)
+
+
+#: Audit rows recorded by the 10-10 live Claude tour (harbor/evidence/
+#: tooltour-claude-f6943a1.json), copied verbatim from each trial's
+#: artifacts/audit/actions.jsonl (harbor/dist is gitignored): excel's shim.python
+#: rows (seq 22, 39), databricks.uc's first warehouse table listing (seq 37), and
+#: jupyter's shim.python rows (seq 28-35; the whole trial left no jupyter.cell row).
+LIVE = tt.HERE / "testdata" / "tooltour_live_f6943a1"
+
+
+def _live_rows(name: str) -> list[dict]:
+    return [json.loads(line)
+            for line in (LIVE / f"{name}.jsonl").read_text(encoding="utf-8").splitlines()]
+
+
+def test_the_live_misses_judge_as_their_routes_deserve():
+    """The three right answers the old probes failed: Excel and Unity Catalog took a
+    route the probe now accepts; Jupyter's kernel wrote no audit row at all, which is a
+    real miss and stays one (for both jupyter probes)."""
+    probes = {p.id: p for p in tt.load_probes(["excel", "databricks", "jupyter"])}
+    dbx = ("databricks.internal", 443)
+    cases = [  # probe, rows, the trial's answer and sealed truth, its connections, verdict
+        ("excel.openpyxl.net_revenue_feb_2026_roundtrip", "excel", 2361224.0,
+         Decimal("2361224.00"), {}, "PASS"),
+        ("databricks.uc.fct_orders_columns", "databricks_uc", 6, 6, {dbx: 8}, "PASS"),
+        ("jupyter.kernel.completed_orders_feb_2026", "jupyter", 1068, 1068, {}, "FAIL"),
+        ("jupyter.default_kernel.completed_orders_feb_2026", "jupyter", 1068, 1068, {},
+         "FAIL"),
+    ]
+    for probe_id, name, answer, fact, destinations, want in cases:
+        probe, rows = probes[probe_id], _live_rows(name)
+        result = tt.verdict(probe, returncode=0, stdout=json.dumps({"value": answer}),
+                            rows=rows, destinations=destinations, allowed={dbx},
+                            truth=fact, validate_row=bi.validate_row)
+        assert result["verdict"] == want, (probe_id, result["failures"])
+        assert result["value_ok"] is True, probe_id
+        if want == "FAIL":
+            assert result["missing_tools"] == [["jupyter.cell"]], result
+            assert result["failures"] == [f for f in result["failures"]
+                                          if "no audit row for" in f]
+    # and the probes as they were recorded (probe.json of the 10-10 export) failed
+    # excel and databricks.uc on the same rows
+    old = {"excel.openpyxl.net_revenue_feb_2026_roundtrip": (
+               "excel", {"expect_tools": ("shim.python",), "expect_args": ("read_excel",),
+                         "expect_targets": ()}, 2361224.0, Decimal("2361224.00"), {}),
+           "databricks.uc.fct_orders_columns": (
+               "databricks_uc", {"expect_tools": ("databricks.table_get",),
+                                 "expect_targets": ()}, 6, 6, {dbx: 8})}
+    for probe_id, (name, fields, answer, fact, destinations) in old.items():
+        before = dataclasses.replace(probes[probe_id], **fields)
+        result = tt.verdict(before, returncode=0, stdout=json.dumps({"value": answer}),
+                            rows=_live_rows(name), destinations=destinations,
+                            allowed={dbx}, truth=fact, validate_row=bi.validate_row)
+        assert result["verdict"] == "FAIL", probe_id
 
 
 def test_verdict_fails_on_value_mismatch(audit):
@@ -405,7 +566,7 @@ def test_teardown_rows_pass_only_a_teardown_probe(tmp_path, audit):
 def test_teardown_rows_fail_a_call_probe(tmp_path, audit):
     result, episode_ = _drive(tmp_path, audit, dataclasses.replace(PG, rows_at="call"),
                               row_lands="down")
-    assert result["verdict"] == "FAIL" and result["missing_tools"] == ["psql.statement"]
+    assert result["verdict"] == "FAIL" and result["missing_tools"] == [["psql.statement"]]
     assert not episode_["no_stray_rows"] and not episode_["ok"]
 
 

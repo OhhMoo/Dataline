@@ -93,6 +93,59 @@ class MainframeBatchThemeTest(unittest.TestCase):
         from world import executor
         self.assertEqual(executor.unreadable_views(self.w1), {})
 
+    def _dbt_inline(self, world: Path, command: str, sql: str) -> tuple[int, str]:
+        """`dbt <command> --inline <sql>` against the world, run the way
+        executor.dbt_invoke runs dbt (which takes no --inline)."""
+        import subprocess
+        from world import executor
+        out_dir = executor.write_profiles(world, world / "build" / "inline")
+        argv = [sys.executable, "-c", "from dbt.cli.main import cli; cli()", command,
+                "--quiet", "--inline", sql,
+                "--project-dir", str(world / "workspace" / "dbt_project"),
+                "--profiles-dir", str(out_dir),
+                "--target-path", str(out_dir / "target"),
+                "--log-path", str(out_dir / "logs")]
+        if command == "show":
+            argv += ["--output", "json"]
+        r = subprocess.run(argv, stdin=subprocess.DEVNULL, capture_output=True, text=True)
+        return r.returncode, (r.stdout or "") + (r.stderr or "")
+
+    def test_dbt_show_inline_ref_resolves(self):
+        """`dbt show --inline "... {{ ref('fct_claims_daily') }}"`: an inline
+        query is a `sql_operation` node, and macros/relations.sql must put the
+        database back on for it as it does for a test - two-part
+        `warehouse.fct_claims_daily` against a file whose catalog is also
+        `warehouse` is a Binder Error ("Ambiguous reference to catalog or
+        schema"). The count dbt returns is the one the warehouse holds, read
+        through the contract alias; afterwards `dbt build` still passes and
+        every stored view still reads through the alias (no catalog baked into
+        a body)."""
+        import json
+        import duckdb
+        from world import executor
+        world = shutil.copytree(self.w1, self.tmp / "dbt_inline")
+        con = duckdb.connect(":memory:")
+        con.execute("ATTACH '" + str(world / "var/warehouse/warehouse.duckdb")
+                    .replace("'", "''") + "' AS wh (READ_ONLY)")
+        truth = con.execute("select count(*) from wh.warehouse.fct_claims_daily").fetchone()[0]
+        con.close()
+        self.assertGreater(truth, 0)
+
+        rc, output = self._dbt_inline(
+            world, "compile", "select 1 from {{ ref('fct_claims_daily') }}")
+        self.assertEqual(rc, 0, output[-3000:])
+        self.assertIn('"warehouse"."warehouse"."fct_claims_daily"', output)
+
+        rc, output = self._dbt_inline(
+            world, "show", "select count(*) as n from {{ ref('fct_claims_daily') }}")
+        self.assertEqual(rc, 0, output[-3000:])
+        shown = json.loads(output[output.index("{"):output.rindex("}") + 1])
+        self.assertEqual(shown["show"][0]["n"], truth)
+
+        rc, output = executor.dbt_invoke(world, "build", out_dir=world / "build" / "b")
+        self.assertEqual(rc, 0, output[-3000:])
+        self.assertEqual(executor.unreadable_views(world), {})
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -106,6 +106,59 @@ def test_the_proxy_reaches_the_upstream_through_the_socket(tmp_path, monkeypatch
         thread.join(timeout=10)
 
 
+def test_snowflake_tls_bare_dial_is_counted(tmp_path, monkeypatch):
+    """The native door (serve_native's listener, as native_listener() gives it to
+    uvicorn.run: TLS on PORT, AuditedH11Protocol) counts a TCP dial that never
+    sends a ClientHello, as the plain-TCP doors count theirs
+    (CONTAINMENT_2026-10-07.md: snowflake.internal:8443 read `count: 0` after the
+    box probe had connected)."""
+    import json
+    import socket
+
+    from alkera_gateway.native import serve
+    from alkera_gateway.native.tls import mint
+
+    start = _start()
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        port = probe.getsockname()[1]
+    mint(start.HOSTNAME, tmp_path / "trust", private_dir=tmp_path / "tls",
+         alt_names=start.ALT_NAMES)
+    destinations = tmp_path / "audit" / "destinations.snowflake.jsonl"
+    monkeypatch.setattr(start, "TLS", tmp_path / "tls")
+    monkeypatch.setattr(start, "PORT", port)
+    monkeypatch.setattr(start, "upstream_route", lambda: ("http://127.0.0.1:9", None))
+    monkeypatch.setenv(start.DESTINATIONS_ENV, str(destinations))
+    monkeypatch.setattr(serve.AuditedH11Protocol, "destinations", None)
+
+    app, options = start.native_listener(host="127.0.0.1")
+    assert options["port"] == port and options["ssl_certfile"].startswith(str(tmp_path))
+    server = uvicorn.Server(uvicorn.Config(app, log_level="warning", **options))
+    thread = threading.Thread(target=server.run, daemon=True)
+    thread.start()
+
+    def counted() -> int:
+        rows = [json.loads(line) for line in destinations.read_text().splitlines()]
+        return {(r["host"], r["port"]): r["count"] for r in rows}[(start.NATIVE_HOST, port)]
+
+    try:
+        assert counted() == 0  # declared before the first socket opens
+        deadline = time.monotonic() + 20
+        while not server.started and thread.is_alive() and time.monotonic() < deadline:
+            time.sleep(0.05)
+        assert server.started
+        with socket.create_connection(("127.0.0.1", port), timeout=10):
+            pass  # no ClientHello: the handshake never starts
+        deadline = time.monotonic() + 10
+        while counted() < 1 and time.monotonic() < deadline:
+            time.sleep(0.05)
+        time.sleep(0.5)
+        assert counted() == 1
+    finally:
+        server.should_exit = True
+        thread.join(timeout=10)
+
+
 def test_a_socket_directory_of_another_user_is_refused(tmp_path, monkeypatch):
     start = _start()
     real = Path.stat

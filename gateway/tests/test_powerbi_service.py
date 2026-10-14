@@ -5,7 +5,9 @@ and whose workspace holds the Commerce PBIP project under bi/powerbi/:
 
 1. The documented REST shapes answer (Entra token, Power BI groups / datasets /
    refreshes / executeQueries / reports, Fabric workspaces / semantic models /
-   getDefinition / updateDefinition), driven in-process and - once - by the
+   getDefinition / updateDefinition, and the routes agents reach for that the
+   world has little or nothing behind: pipelines, Fabric items, My workspace,
+   group dashboards), driven in-process and - once - by the
    `requests` library over a real socket, which is what a DE's script uses
    (there is no official Python SDK; BI_BUILD_PLAN.md).
 2. The numbers are the warehouse's: executeQueries agrees with a hand-written
@@ -297,6 +299,140 @@ def test_groups_datasets_and_reports(plane):
     assert wrong_group.status_code == 404
     assert wrong_group.json()["error"]["pbi.error"]["code"] == "PowerBIEntityNotFound"
     assert plane.rows("dataset_get")[0]["targets"] == ["powerbi:semantic_model:Commerce"]
+
+
+# --------------------------------------------------------------------------
+# The routes agents reach for: the 2026-10-05 BI002 rollouts asked for
+# deployment pipelines in 14 of 16, Fabric `items`, My workspace and a group's
+# dashboards, and each got a 404 the service had no answer behind
+# --------------------------------------------------------------------------
+BASE = "http://powerbi.internal:8095"
+NO_SUCH_ID = "00000000-0000-0000-0000-000000000000"
+
+
+def test_pipelines_list_is_empty_and_audited(plane):
+    """The world deploys from CI with updateDefinition, not through a
+    deployment pipeline: both APIs list none, a pipeline id is Power BI's
+    entity 404, and the admin API refuses an identity without admin rights."""
+    assert plane.ok(plane.get("/v1.0/myorg/pipelines")) == {
+        "@odata.context": f"{BASE}/v1.0/myorg/$metadata#pipelines", "value": []}
+    assert plane.ok(plane.get("/v1.0/myorg/pipelines",
+                              params={"$expand": "stages"}))["value"] == []
+    assert plane.ok(plane.get("/v1/deploymentPipelines")) == {"value": []}
+    for path in (f"/v1.0/myorg/pipelines/{NO_SUCH_ID}",
+                 f"/v1.0/myorg/pipelines/{NO_SUCH_ID}/stages"):
+        missing = plane.get(path)
+        assert missing.status_code == 404, path
+        assert missing.json()["error"]["code"] == "PowerBIEntityNotFound"
+        assert missing.json()["error"]["pbi.error"]["code"] == "PowerBIEntityNotFound"
+    admin = plane.get("/v1.0/myorg/admin/pipelines")
+    assert admin.status_code == 401
+    assert admin.json()["error"]["pbi.error"]["code"] == "PowerBINotAuthorizedException"
+    rows = [r for r in plane.rows() if r["tool"] != "powerbi.token"]
+    assert [(r["tool"], r["exit"]) for r in rows] == [
+        ("powerbi.pipelines_list", "ok"), ("powerbi.pipelines_list", "ok"),
+        ("powerbi.deployment_pipelines_list", "ok"), ("powerbi.pipeline_get", "error"),
+        ("powerbi.pipeline_stages_list", "error"), ("powerbi.admin_pipelines_list", "error")]
+    assert all(r["op_class"] == "read" and r["read_targets"] == r["targets"] for r in rows)
+    assert [r["targets"] for r in rows] == [
+        ["powerbi:pipelines"], ["powerbi:pipelines"], ["powerbi:pipelines"],
+        [f"powerbi:pipeline:{NO_SUCH_ID}"], [f"powerbi:pipeline:{NO_SUCH_ID}"],
+        ["powerbi:pipelines"]]
+    assert rows[1]["args"]["expand"] == "stages"
+    assert rows[3]["error"]["code"] == "PowerBIEntityNotFound"
+    assert rows[5]["error"]["code"] == "PowerBINotAuthorizedException"
+
+
+def test_fabric_items_lists_the_semantic_model_and_report(plane):
+    group, dataset = plane.group(), plane.dataset()
+    report = plane.ok(plane.get(f"/v1.0/myorg/groups/{group}/reports"))["value"][0]["id"]
+    body = plane.ok(plane.get(f"/v1/workspaces/{group}/items"))
+    assert body == {"value": [
+        {"id": dataset, "type": "SemanticModel", "displayName": "Commerce", "description": "",
+         "workspaceId": group},
+        {"id": report, "type": "Report", "displayName": "Executive Overview",
+         "description": "", "workspaceId": group}]}
+    # The same item the semanticModels list answers, field for field.
+    assert body["value"][0] == plane.ok(
+        plane.get(f"/v1/workspaces/{group}/semanticModels"))["value"][0]
+    reports = plane.ok(plane.get(f"/v1/workspaces/{group}/items", params={"type": "Report"}))
+    assert [i["displayName"] for i in reports["value"]] == ["Executive Overview"]
+    assert plane.ok(plane.get(f"/v1/workspaces/{group}/items",
+                              params={"type": "Lakehouse"}))["value"] == []
+    missing = plane.get(f"/v1/workspaces/{NO_SUCH_ID}/items")
+    assert missing.status_code == 404 and missing.json()["errorCode"] == "WorkspaceNotFound"
+    every, only_reports, none, refused = plane.rows("items_list")
+    assert every["targets"] == every["read_targets"] == [
+        "powerbi:semantic_model:Commerce", "powerbi:report:Executive Overview"]
+    assert only_reports["args"]["type"] == "Report"
+    assert only_reports["targets"] == ["powerbi:report:Executive Overview"]
+    assert none["targets"] == ["powerbi:workspace:Analytics"]
+    assert refused["exit"] == "error" and refused["targets"] == [f"powerbi:workspace:{NO_SUCH_ID}"]
+
+
+def test_my_workspace_datasets_and_reports(plane):
+    """Every model and report the store holds is published to the Analytics
+    workspace, and the episode signs in as a service principal, which has no
+    My workspace content: both lists are empty, as Power BI answers a service
+    principal, and the group's lists are untouched."""
+    assert plane.ok(plane.get("/v1.0/myorg/datasets")) == {
+        "@odata.context": f"{BASE}/v1.0/myorg/$metadata#datasets", "value": []}
+    assert plane.ok(plane.get("/v1.0/myorg/reports")) == {
+        "@odata.context": f"{BASE}/v1.0/myorg/$metadata#reports", "value": []}
+    group = plane.group()
+    assert [d["name"] for d in plane.ok(
+        plane.get(f"/v1.0/myorg/groups/{group}/datasets"))["value"]] == ["Commerce"]
+    assert [r["name"] for r in plane.ok(
+        plane.get(f"/v1.0/myorg/groups/{group}/reports"))["value"]] == ["Executive Overview"]
+    rows = plane.rows("my_datasets_list") + plane.rows("my_reports_list")
+    assert [r["targets"] for r in rows] == [["powerbi:workspace:My workspace"]] * 2
+    assert all(r["exit"] == "ok" and r["read_targets"] == r["targets"] for r in rows)
+
+
+def test_group_dashboards_listed(plane):
+    """A PBIP project publishes reports; dashboards are pinned in the service
+    and the world pins none, so the group lists no dashboard."""
+    group = plane.group()
+    assert plane.ok(plane.get(f"/v1.0/myorg/groups/{group}/dashboards")) == {
+        "@odata.context": f"{BASE}/v1.0/myorg/groups/{group}/$metadata#dashboards",
+        "value": []}
+    missing = plane.get(f"/v1.0/myorg/groups/{NO_SUCH_ID}/dashboards")
+    assert missing.status_code == 404
+    assert missing.json()["error"]["pbi.error"]["code"] == "PowerBIEntityNotFound"
+    listed, refused = plane.rows("dashboards_list")
+    assert listed["exit"] == "ok" and listed["targets"] == ["powerbi:workspace:Analytics"]
+    assert refused["exit"] == "error" and refused["targets"] == [f"powerbi:workspace:{NO_SUCH_ID}"]
+
+
+NEW_ROUTES = [
+    ("/v1.0/myorg/pipelines", "pipelines_list"),
+    # The trailing-slash form a rollout sent (2026-10-05 r6): served, not
+    # redirected, so its row does not depend on the client following a 307.
+    ("/v1.0/myorg/pipelines/", "pipelines_list"),
+    (f"/v1.0/myorg/pipelines/{NO_SUCH_ID}", "pipeline_get"),
+    (f"/v1.0/myorg/pipelines/{NO_SUCH_ID}/stages", "pipeline_stages_list"),
+    ("/v1.0/myorg/admin/pipelines", "admin_pipelines_list"),
+    ("/v1/deploymentPipelines", "deployment_pipelines_list"),
+    ("/v1/workspaces/{group}/items", "items_list"),
+    ("/v1.0/myorg/datasets", "my_datasets_list"),
+    ("/v1.0/myorg/reports", "my_reports_list"),
+    ("/v1.0/myorg/groups/{group}/dashboards", "dashboards_list"),
+]
+
+
+@pytest.mark.parametrize("path, tool", NEW_ROUTES, ids=[t for _, t in NEW_ROUTES])
+def test_each_new_route_writes_one_row(plane, path, tool):
+    path = path.format(group=plane.group())
+    for headers in ({}, plane.auth()):
+        before = len(plane.rows())
+        response = plane.client.get(path, headers=headers, follow_redirects=False)
+        rows = plane.rows()[before:]
+        assert [r["tool"] for r in rows] == [f"powerbi.{tool}"], (path, response.status_code)
+        assert rows[0]["args"]["path"] == path
+        if not headers:
+            assert response.status_code == 401
+            assert rows[0]["exit"] == "error" and rows[0]["targets"] == []
+    assert plane.rows("request") == []
 
 
 # --------------------------------------------------------------------------

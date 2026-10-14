@@ -23,6 +23,16 @@ Three questions, each answered by trying, never by reading compose.native.yml:
   C. TCP to a port that is not on the list is refused, on the very addresses
      that answered in A - so "the service is reachable" cannot be confused with
      "the host is reachable".
+  D. (`--sweep-cidr`) EVERY address of the on-link subnet - the bridge gateway,
+     which is the host, included - and on each live one EVERY port, not six.
+     Each open port that is not an expected service's is a `not_audited` row,
+     with whatever it says first. C only ever looked at the addresses that
+     answered, so the host's sshd at `<episode_net>.1:22`, MinIO's console on a
+     random port and MinIO's audit receiver went unseen until a sweep found
+     them (gateway/docker/evidence/CONTAINMENT_2026-10-07.md). `passed` stays
+     the claim A-C make; the sweep's rows are reported beside it
+     (`every_open_port_is_expected`), because which of those doors are closed
+     is decided elsewhere (the host rule, the Postgres role, MinIO's console).
 
 Standard library only, so it runs under the episode image's interpreter with
 nothing installed. `gateway/docker/containment.py --native` runs it with
@@ -38,11 +48,16 @@ same positive control P2's egress probe carries.
 from __future__ import annotations
 
 import argparse
+import errno
+import ipaddress
 import json
+import selectors
 import socket
 import sys
+import time
 import urllib.error
 import urllib.request
+from collections import Counter
 
 #: Names that must NOT resolve from the episode container.
 #:   *.internal that is not a service  - the shape of a real alias, and not one
@@ -62,6 +77,28 @@ CONTROL_NAMES = ("example.internal", "warehouse.internal",
 CLOSED_PORTS = (22, 80, 443, 3306, 6379, 8888)
 HEALTH_TIMEOUT = 5
 CONNECT_TIMEOUT = 3
+#: The sweep (question D). An address is live when any of these ports - plus
+#: the closed-port list - answers at all, CONNECTED or refused; 9 (discard) is
+#: one nothing in the stack serves, so a refusal there is the cheapest "a host
+#: is here". Every port of a live address is then tried with SWEEP_TIMEOUT, at
+#: most SWEEP_WINDOW connections in flight (the episode's `ulimit -n` is 1024).
+LIVENESS_PORTS = (9,)
+SWEEP_TIMEOUT = 1.0
+SWEEP_WINDOW = 512
+BANNER_BYTES = 300
+
+
+def controls(on_episode_net=(), must_not_resolve=(),
+             base: tuple[str, ...] = CONTROL_NAMES) -> tuple[str, ...]:
+    """The control list for one stack: `base` minus every compose service name
+    that is ON episode_net (Docker registers it there and nothing unregisters
+    it, so it is pinned with `--compose-name` instead - `snowflake` on a box
+    that plugs Snowflake), plus `must_not_resolve` (the names of running
+    services that are NOT on episode_net, the hosts a profile excludes)."""
+    on = set(on_episode_net)
+    names = [n for n in base if n not in on]
+    names += [n for n in must_not_resolve if n not in on]
+    return tuple(dict.fromkeys(names))
 
 
 def registry_expectation() -> list[dict]:
@@ -147,6 +184,130 @@ def health(host: str, port: int) -> dict:
     return out
 
 
+def _result(code: int) -> str:
+    """An errno as the exception name `connect` would have recorded for it."""
+    if code == 0:
+        return "CONNECTED"
+    return type(OSError(code, "")).__name__
+
+
+def scan(targets, timeout: float = SWEEP_TIMEOUT,
+         window: int = SWEEP_WINDOW) -> dict[tuple[str, int], str]:
+    """Non-blocking TCP connects to every `(address, port)`, at most `window` in
+    flight: CONNECTED, the refusal's exception name, or "timeout". One thread,
+    so a full sweep of a /24's live hosts is seconds, not the hour a blocking
+    connect per port would take."""
+    results: dict[tuple[str, int], str] = {}
+    pending = iter(targets)
+    selector = selectors.DefaultSelector()
+    exhausted = False
+    try:
+        while True:
+            while not exhausted and len(selector.get_map()) < window:
+                target = next(pending, None)
+                if target is None:
+                    exhausted = True
+                    break
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.setblocking(False)
+                code = sock.connect_ex(target)
+                if code in (errno.EINPROGRESS, errno.EWOULDBLOCK, errno.EALREADY):
+                    selector.register(sock, selectors.EVENT_WRITE,
+                                      (target, time.monotonic() + timeout))
+                else:
+                    results[target] = _result(code)
+                    sock.close()
+            if not selector.get_map():
+                break
+            for key, _ in selector.select(timeout=0.05):
+                sock = key.fileobj
+                results[key.data[0]] = _result(
+                    sock.getsockopt(socket.SOL_SOCKET, socket.SO_ERROR))
+                selector.unregister(sock)
+                sock.close()
+            now = time.monotonic()
+            for key in list(selector.get_map().values()):
+                if key.data[1] <= now:
+                    results[key.data[0]] = "timeout"
+                    selector.unregister(key.fileobj)
+                    key.fileobj.close()
+    finally:
+        for key in list(selector.get_map().values()):
+            key.fileobj.close()
+        selector.close()
+    return results
+
+
+def banner(host: str, port: int) -> dict:
+    """What an open port says: first unprompted, then to `GET /`. Read-only -
+    a request line and nothing else - and recorded as text, cut short."""
+    try:
+        with socket.create_connection((host, port), timeout=CONNECT_TIMEOUT) as sock:
+            sock.settimeout(1.5)
+            try:
+                first = sock.recv(BANNER_BYTES)
+            except TimeoutError:
+                first = b""
+            if first:
+                return {"spoke_first": first.decode("utf-8", "replace")}
+            sock.sendall(b"GET / HTTP/1.0\r\nHost: " + host.encode() + b"\r\n\r\n")
+            try:
+                reply = sock.recv(BANNER_BYTES)
+            except TimeoutError:
+                reply = b""
+            return {"http_get_reply": reply.decode("utf-8", "replace")} if reply \
+                else {"silent": True}
+    except OSError as exc:
+        return {"error": f"{type(exc).__name__}: {exc}"[:200]}
+
+
+def _ports_label(ports: range) -> str:
+    return f"{ports.start}-{ports.stop - 1}" if len(ports) else "none"
+
+
+def sweep(cidr: str, ports: range, *, skip=(), extra_ports=()) -> dict:
+    """Question D: liveness of every host address of `cidr` (the gateway too),
+    then every port in `ports` on each live one. `skip` is the vantage's own
+    addresses - reaching yourself is not a door."""
+    started = time.monotonic()
+    network = ipaddress.ip_network(cidr, strict=False)
+    hosts = [str(a) for a in (network.hosts() if network.num_addresses > 2
+                              else network)]
+    own = sorted(set(skip) & set(hosts))
+    candidates = [a for a in hosts if a not in own]
+    liveness_ports = tuple(dict.fromkeys((*LIVENESS_PORTS, *extra_ports)))
+    first = scan([(a, p) for a in candidates for p in liveness_ports])
+    live = [a for a in candidates
+            if any(first[(a, p)] in ("CONNECTED", "ConnectionRefusedError")
+                   for p in liveness_ports)]
+    full = scan([(a, p) for a in live for p in ports if (a, p) not in first])
+    results = {**first, **full}
+    counts = {a: dict(Counter(r for (addr, _), r in results.items() if addr == a))
+              for a in live}
+    odd = sorted(f"{a}:{p}" for (a, p), r in full.items()
+                 if r not in ("CONNECTED", "ConnectionRefusedError"))
+    return {
+        "cidr": str(network),
+        "addresses_in_cidr": len(hosts),
+        "own_addresses_skipped": own,
+        "liveness_ports": list(liveness_ports),
+        "liveness": {a: first[(a, liveness_ports[0])] for a in candidates},
+        "live_addresses": live,
+        "ports": _ports_label(ports),
+        "timeout_s": SWEEP_TIMEOUT,
+        "result_counts": counts,
+        "neither_open_nor_refused_first_200": odd[:200],
+        "open": sorted((f"{a}:{p}" for (a, p), r in results.items() if r == "CONNECTED"),
+                       key=_target_key),
+        "seconds": round(time.monotonic() - started, 1),
+    }
+
+
+def _target_key(target: str) -> tuple:
+    address, _, port = target.rpartition(":")
+    return (tuple(int(x) for x in address.split(".")), int(port))
+
+
 def interfaces() -> dict:
     """The container's own network namespace, from /proc.
 
@@ -173,13 +334,21 @@ def interfaces() -> dict:
 
 def probe(expected: list[dict], controls: tuple[str, ...],
           closed_ports: tuple[int, ...],
-          compose_names: tuple[str, ...] = ()) -> dict:
+          compose_names: tuple[str, ...] = (), *,
+          sweep_cidr: str | None = None,
+          sweep_ports: range = range(1, 65536)) -> dict:
     services_out, addresses = [], set()
+    #: (address, port) of every expected door, and who is at each address -
+    #: what the sweep (D) holds its open ports against.
+    expected_targets, names_at = set(), {}
     for row in expected:
         found = resolve(row["host"])
         entry = {**row, "resolution": found}
         if found.get("addresses"):
             addresses.update(found["addresses"])
+            for address in found["addresses"]:
+                expected_targets.add((address, row["port"]))
+                names_at.setdefault(address, set()).add(row["host"])
             entry["tcp"] = connect(row["host"], row["port"])
             if row["probe"] == "health":
                 answer = health(row["host"], row["port"])
@@ -213,6 +382,8 @@ def probe(expected: list[dict], controls: tuple[str, ...],
         found["points_at_a_known_service"] = bool(
             found.get("addresses")) and set(found["addresses"]) <= (addresses | own)
         compose_rows.append(found)
+        for address in found.get("addresses") or []:
+            names_at.setdefault(address, set()).add(name)
 
     open_ports = {row["port"] for row in expected}
     refused = []
@@ -258,6 +429,22 @@ def probe(expected: list[dict], controls: tuple[str, ...],
         and out["closed_ports_probed"]          # a probe with nothing to refuse proves nothing
         and out["netns"].get("default_route") is False
     )
+    out["not_audited"] = []
+    if sweep_cidr:
+        found = sweep(sweep_cidr, sweep_ports, skip=own, extra_ports=closed_ports)
+        found["saw_every_expected_port_open"] = all(
+            f"{a}:{p}" in found["open"] for a, p in expected_targets
+            if p in sweep_ports and a not in own)
+        out["sweep"] = found
+        for target in found["open"]:
+            address, _, port = target.rpartition(":")
+            if (address, int(port)) in expected_targets:
+                continue
+            out["not_audited"].append({
+                "target": target, "address": address, "port": int(port),
+                "names": sorted(names_at.get(address, ())),
+                "banner": banner(address, int(port))})
+        out["every_open_port_is_expected"] = not out["not_audited"]
     return out
 
 
@@ -301,7 +488,15 @@ def main(argv: list[str] | None = None) -> int:
                              "replaces the default list")
     parser.add_argument("--self-test", action="store_true",
                         help="also record the positive control")
+    parser.add_argument("--sweep-cidr", default=None, metavar="CIDR",
+                        help="question D: every address of this subnet (the "
+                             "episode network's, gateway included), and every "
+                             "port of each live one")
+    parser.add_argument("--sweep-ports", default="1-65535", metavar="A-B",
+                        help="the ports D tries on each live address")
     args = parser.parse_args(argv)
+    low, _, high = args.sweep_ports.partition("-")
+    sweep_ports = range(int(low), int(high or low) + 1)
 
     expected = normalise(json.loads(args.expect)) if args.expect else registry_expectation()
     for item in args.backend:
@@ -311,7 +506,8 @@ def main(argv: list[str] | None = None) -> int:
     result = probe(expected,
                    tuple(args.control) or CONTROL_NAMES,
                    tuple(args.closed_port) or CLOSED_PORTS,
-                   tuple(args.compose_name))
+                   tuple(args.compose_name),
+                   sweep_cidr=args.sweep_cidr, sweep_ports=sweep_ports)
     if args.self_test:
         result["self_test"] = self_test(expected)
         result["passed"] = result["passed"] and result["self_test"].get(

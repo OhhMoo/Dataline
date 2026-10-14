@@ -107,7 +107,10 @@ docker compose -f gateway/docker/compose.yml build episode
 python gateway/docker/acceptance.py --project alkera-check --skip-containment
 python gateway/docker/containment.py --project alkera-check --profile snowflake   # P0-P5
 python gateway/docker/containment.py --native --project alkera-p6                 # P6
+python gateway/docker/containment.py --native --attach <live project>             # P6, on a profiled stack already up
 python gateway/docker/containment.py --native-episode --project <rollout> --world <world>  # P7, on a rollout's live stack
+python gateway/docker/box_sweep.py --up --env-profile de/databricks --image alkera-episode:<tag> \
+    --work <scratch> --slug de-databricks    # P6 --attach, P7 and the box sweep, then down
 python gateway/docker/snowflake_acceptance.py --project alkera-socket-check
 ```
 
@@ -121,11 +124,12 @@ image at `/opt/stack` and removed from the episode container before the agent st
 | `toolbelt_check.py` | executes every toolbelt binary inside the image | `build_episode.py`, `tests/test_image_parity.py` |
 | `toolbelt_acceptance.py` | drives the toolbelt against a live stack → `evidence/toolbelt.json` | operator |
 | `containment.py` | the containment battery → `evidence/containment*.json` (`--native` P6, `--native-episode` P7) | operator, `acceptance.py`, `ledger_probe.py` |
-| `native_probe.py` | the P6 network probe, run inside the episode container | `containment.py --native` |
+| `native_probe.py` | the P6 network probe, run inside the episode container; `--sweep-cidr` also dials every address of the episode network, the gateway included, on every port | `containment.py --native`, `box_sweep.py` |
 | `native_episode_probe.py` | the P7 filesystem probe | `containment.py --native-episode`; `tasks/harness/container_episode.py` on every native container rollout |
+| `box_sweep.py` | the box sweep: door by door, what a rollout-built box's episode network reaches and whether anything audits it (P6 `--attach`, P7, the full sweep, names resolved, Postgres logins checked against the role-scoped statement log) → `evidence/containment-native-box[-<slug>].json`; it dials every port, so never on a rollout that will be scored | operator, under `scripts/docker_slot.sh` |
 | `ledger_probe.py` | P5 alone → `evidence/containment-ledger.json` | operator |
 | `acceptance.py` + `acceptance_inside.py` | transport parity and live surfaces, then containment | operator |
-| `snowflake_start.py`, `snowflake_fidelity.py` | the optional fakesnow backend (`Dockerfile.snowflake`) | `compose.yml` profile `snowflake`; no task or rollout starts it |
+| `snowflake_start.py`, `snowflake_fidelity.py` | the optional fakesnow backend (`Dockerfile.snowflake`) | `compose.yml` profile `snowflake`; started by the per-rollout overlay of a profile plugging `warehouse: snowflake` (`da/snowflake`: the tool tour, `snowflake_e2e_check.py`); no graded task uses it yet |
 | `snowflake_acceptance.py` | TLS/DNS/wire checks on that backend → `evidence/snowflake_socket.json` | operator |
 | `subject/`, `Dockerfile.subject`, `compose.subject.yml` | the subject sandbox image and overlay | `tasks/harness/container_episode.py` |
 

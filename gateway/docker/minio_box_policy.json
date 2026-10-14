@@ -1,0 +1,34 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ListTheBuckets",
+      "Effect": "Allow",
+      "Action": ["s3:ListAllMyBuckets"],
+      "Resource": ["arn:aws:s3:::*"]
+    },
+    {
+      "Sid": "TheWorldsBucket",
+      "Effect": "Allow",
+      "Action": ["s3:GetBucketLocation", "s3:ListBucket", "s3:ListBucketMultipartUploads"],
+      "Resource": ["arn:aws:s3:::alkera"]
+    },
+    {
+      "Sid": "TheWorldsObjects",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject",
+                 "s3:AbortMultipartUpload", "s3:ListMultipartUploadParts"],
+      "Resource": ["arn:aws:s3:::alkera/*"]
+    },
+    {
+      "Sid": "NoAdminApi",
+      "Effect": "Deny",
+      "Action": ["admin:*"]
+    },
+    {
+      "Sid": "NoKmsApi",
+      "Effect": "Deny",
+      "Action": ["kms:*"]
+    }
+  ]
+}

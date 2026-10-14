@@ -159,6 +159,15 @@ services:
       # services write (gateway/src/alkera_gateway/native/audit.py).
       ALKERA_NATIVE_AUDIT: /audit/actions.jsonl
       HOME: /root
+      # compose.yml's DSN for the MCP gateway, as `episode`: a role that cannot
+      # log in on a native box (`pg_compose_owner` below). REMOVED, not emptied
+      # and not `null` (a null value passes the variable through from compose's
+      # own environment). Compose honours a per-key `!reset` here only because
+      # compose.episode.yml sets no episode environment between compose.yml and
+      # this file; measured on v5.6.0, a `!reset` one file further on does
+      # nothing. tasks/harness/test_profile_wiring.py
+      # test_native_episode_env_has_no_episode_role_dsn asks compose itself.
+      ALKERA_POSTGRES_DSN: !reset null
     # THE MOUNT SET, AND IT REPLACES compose.episode.yml'S. `!override` and not
     # a merge: the episode overlay binds the WHOLE world root at /world, and
     # that single mount is what made a host-topology native rollout
@@ -433,6 +442,8 @@ services:
     configs:
       - source: pg_native_role
         target: /docker-entrypoint-initdb.d/zz-native.sql
+      - source: pg_compose_owner
+        target: /docker-entrypoint-initdb.d/zz-native-owner.sql
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./postgres.sql:/docker-entrypoint-initdb.d/seed.sql:ro
@@ -463,20 +474,44 @@ services:
     # byte-identical storage with the Windows-era rollouts should `docker save`
     # the old digest on a machine that still has it and `docker load` it here.
     image: docker.io/pgsty/minio@sha256:b6bfe7239bfc83fb90d31612d9704d86039dd714f7904b3f1ad68f211e602372
-    # MinIO serves each top-level directory under /data as a bucket, so the
-    # bucket the harness ships (`alkera`, NATIVE_DRIVER_REQUESTS.md item 7) is
-    # created by making the directory rather than by a second container running
-    # `mc mb`. `HEAD /alkera` then answers 200, which is what the s3 surface
-    # check reads as live (item 8).
-    entrypoint: ["sh", "-c"]
-    command: ["mkdir -p /data/alkera && exec minio server /data"]
+    # THE BOX'S S3 IDENTITY IS NOT MINIO'S ROOT. The box's AWS_ACCESS_KEY_ID /
+    # AWS_SECRET_ACCESS_KEY (`alkera-local-dev`, &native-endpoints above) used to
+    # be MINIO_ROOT_USER / MINIO_ROOT_PASSWORD here, so the agent owned MinIO's
+    # admin API from the episode: a batch job or a notify_webhook target made
+    # MinIO dial any episode-network service for it, counted as the episode's
+    # own destination (evidence/PEERS_2026-10-13.md: jira.internal:8080 went 0
+    # to 4 with no dial from the episode). minio_start.sh (this directory) now
+    # mints the root credential inside this container on every start - it is in
+    # no file and no container config, and no other service has it - provisions
+    # the box's unchanged credential as a user holding minio_box_policy.json
+    # (the world bucket's S3 data actions; admin:* and kms:* denied) on a
+    # loopback server with no audit webhook, so provisioning writes no `minio.*`
+    # row, and then execs `minio server /data` as before. The bucket the harness
+    # ships (`alkera`, NATIVE_DRIVER_REQUESTS.md item 7) is still made as a
+    # directory under /data; `HEAD /alkera` answers 200 to the box's credential,
+    # which is what the s3 surface check reads as live (item 8).
+    # gateway/tests/test_minio_box_identity.py runs this stanza as compose
+    # resolves it; tasks/harness/minio_containment_check.py measures it per box.
+    entrypoint: ["sh", "/opt/alkera/minio/start.sh"]
     networks:
       backend_net: {}
       episode_net:
         aliases: [minio.internal]
     environment:
-      MINIO_ROOT_USER: alkera-local-dev
-      MINIO_ROOT_PASSWORD: alkera-local-dev
+      # The user minio_start.sh provisions: the box's own credential, the same
+      # values the episode carries, byte for byte.
+      ALKERA_MINIO_BOX_ACCESS_KEY: alkera-local-dev
+      ALKERA_MINIO_BOX_SECRET_KEY: alkera-local-dev
+      # No web console on episode_net. Measured on this build (RELEASE.2026-08-04,
+      # listeners read from /proc/net/tcp{,6}): `minio server /data` with no
+      # --console-address serves the console on a random port of EVERY address
+      # ([::]), so anything on episode_net could open it
+      # (evidence/CONTAINMENT_2026-10-07.md, `minio:<random port>`); with
+      # MINIO_BROWSER=off nothing listens but :9000. `--console-address
+      # 127.0.0.1:9001` instead only moves the console to loopback. The S3 API on
+      # :9000 is the one audited door; tasks/harness/minio_containment_check.py
+      # dials every port of MinIO's address and fails on any other.
+      MINIO_BROWSER: "off"
       MINIO_AUDIT_WEBHOOK_ENABLE_alkera: "on"
       MINIO_AUDIT_WEBHOOK_ENDPOINT_alkera: >-
         ${ALKERA_MINIO_AUDIT_ENDPOINT:-http://native-services.internal:8110/minio/audit}
@@ -509,7 +544,11 @@ services:
     volumes:
       - miniodata:/data
       - minioaudit:/audit-spool
+      - ./minio_start.sh:/opt/alkera/minio/start.sh:ro
+      - ./minio_box_policy.json:/opt/alkera/minio/box-policy.json:ro
     healthcheck:
+      # localhost:9000 answers only once minio_start.sh has provisioned the box's
+      # user and exec'd the real server (provisioning listens on 127.0.0.1:9100).
       test: ["CMD", "mc", "ready", "local"]
       interval: 2s
       timeout: 5s
@@ -599,6 +638,22 @@ configs:
       -- entry (native/PARITY.md, measured).
       ALTER ROLE alkera SET log_statement = 'all';
       ALTER ROLE alkera SET log_min_duration_statement = 0;
+  # compose.yml's postgres.sql creates `episode` LOGIN: the MCP gateway's role,
+  # which it reaches through compose.yml's ALKERA_POSTGRES_DSN. On a native box
+  # no client should be it. The server logs `alkera`'s statements and no one
+  # else's, so a session as `episode` was a second, unaudited way into
+  # raw/staging/warehouse, with its password in every box's environment
+  # (evidence/CONTAINMENT_2026-10-07.md, the `postgres.internal:5432 as role
+  # episode` row). It still owns what postgres.sql made it own; it just cannot
+  # log in. This is a script of its own and not a line in pg_native_role:
+  # that one is the agent's role, which Harbor's
+  # postgres_start.NATIVE_ROLE_SQL repeats statement for statement, and Harbor
+  # closes this same door with pg_hba instead (only `alkera` over TCP).
+  pg_compose_owner:
+    content: |
+      -- Native mode: compose's schema owner (gateway/docker/postgres.sql) cannot
+      -- log in. Its statements are not logged, so no client may be it.
+      ALTER ROLE episode NOLOGIN;
 
 volumes:
   miniodata:

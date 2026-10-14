@@ -18,9 +18,14 @@ that is refused by name; never both).
 
 The Probe's fields (tool_tour_core.Probe): `plugs` is written as a mapping
 (`{"bi": ("sigma",)}`, a bare string is one plug) and stored as sorted pairs, so a
-Probe is hashable; `expect_tools` must name at least one audit `tool`;
-`expect_args` are substrings that must appear in the argv of at least one of those
-rows (`("show",)` for `dbt show`); `rows_at="teardown"` is for a tool whose rows a
+Probe is hashable; `expect_tools` is all-of groups of any-of audit `tool` values (a
+bare tool is a one-tool group: `("shim.dbt",)`, or
+`(("databricks.table_get", "databricks.tables_list"),)`), at least one group and no
+empty one, and a row meets a group only when its `tool` is in it AND its `exit` is
+"ok" (a failed call proves nothing); `expect_args` are substrings that must appear in
+the argv of at least one of the rows that meet a group (`("show",)` for `dbt show`);
+`expect_targets` are fnmatch globs, all-of, each matching a `targets` entry of one of
+those rows (`("*.xlsx",)`); `rows_at="teardown"` is for a tool whose rows a
 tailer writes in the stack's `down()` - the probe then gets a stack of its own and
 is judged after teardown.
 

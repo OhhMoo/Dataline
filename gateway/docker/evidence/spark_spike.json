@@ -1,0 +1,477 @@
+{
+  "agent_image_size_delta": {
+    "delta_bytes": 86211460,
+    "delta_mb": 86.2,
+    "note": "the first ds images built: --toolbelt ds --warehouse-clients databricks[,spark]; the toolbelt check passed on both",
+    "with_spark": {
+      "size_bytes": 3192710616,
+      "source_revision": "64cfff6d5fca70f6928e5a4fdabdeaabb0283868",
+      "tag": "alkera-episode:t14-ds-databricks-spark"
+    },
+    "without_spark": {
+      "size_bytes": 3106499156,
+      "source_revision": "64cfff6d5fca70f6928e5a4fdabdeaabb0283868",
+      "tag": "alkera-episode:t14-ds-databricks"
+    }
+  },
+  "checks": [
+    {
+      "check": "the engine seeds and listens with --network none, every run",
+      "detail": [],
+      "result": "PASS"
+    },
+    {
+      "check": "the thin client's count of main.warehouse.fct_orders equals DuckDB truth",
+      "detail": {
+        "got": [
+          16825,
+          16825,
+          16825
+        ],
+        "truth": 16825
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "every row of fct_orders, hashed, equals DuckDB's rows hashed",
+      "detail": {
+        "got": [
+          "70730c9a1ef597fb52354c3202cb258fc78003b762c9f41d71bf3618c26d21db",
+          "70730c9a1ef597fb52354c3202cb258fc78003b762c9f41d71bf3618c26d21db",
+          "70730c9a1ef597fb52354c3202cb258fc78003b762c9f41d71bf3618c26d21db"
+        ],
+        "truth": "70730c9a1ef597fb52354c3202cb258fc78003b762c9f41d71bf3618c26d21db"
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "a DataFrame-API filter/groupBy/agg equals DuckDB truth",
+      "detail": {
+        "got": [
+          [
+            [
+              "cancelled",
+              "961",
+              "2341732.00"
+            ],
+            [
+              "completed",
+              "14648",
+              "33713855.00"
+            ],
+            [
+              "refunded",
+              "617",
+              "1349674.00"
+            ]
+          ],
+          [
+            [
+              "cancelled",
+              "961",
+              "2341732.00"
+            ],
+            [
+              "completed",
+              "14648",
+              "33713855.00"
+            ],
+            [
+              "refunded",
+              "617",
+              "1349674.00"
+            ]
+          ],
+          [
+            [
+              "cancelled",
+              "961",
+              "2341732.00"
+            ],
+            [
+              "completed",
+              "14648",
+              "33713855.00"
+            ],
+            [
+              "refunded",
+              "617",
+              "1349674.00"
+            ]
+          ]
+        ],
+        "truth": [
+          [
+            "cancelled",
+            "961",
+            "2341732.00"
+          ],
+          [
+            "completed",
+            "14648",
+            "33713855.00"
+          ],
+          [
+            "refunded",
+            "617",
+            "1349674.00"
+          ]
+        ]
+      },
+      "result": "PASS"
+    },
+    {
+      "check": "SPARK_REMOTE alone: builder.getOrCreate() works from a file, a heredoc, and `python -c` once SPARK_HOME is set",
+      "detail": [
+        "python -c rc=255 Could not find valid SPARK_HOME",
+        "python - (heredoc) rc=0 RESULT 16825",
+        "python file.py rc=0 RESULT 16825",
+        "SPARK_HOME=<pyspark dir> python -c rc=0 RESULT 16825"
+      ],
+      "result": "PASS"
+    },
+    {
+      "check": "the same result hash over 3 runs",
+      "detail": [
+        "70730c9a1ef597fb52354c3202cb258fc78003b762c9f41d71bf3618c26d21db",
+        "70730c9a1ef597fb52354c3202cb258fc78003b762c9f41d71bf3618c26d21db",
+        "70730c9a1ef597fb52354c3202cb258fc78003b762c9f41d71bf3618c26d21db"
+      ],
+      "result": "PASS"
+    }
+  ],
+  "cold_start_s": [
+    34.96,
+    27.72,
+    29.13
+  ],
+  "engine_image": "alkera-spark:t14",
+  "engine_image_id": "sha256:b6c63454145e7c0a56392c6ef25531a42ce3fe95d43cd6703705e3e8d8b5a730",
+  "engine_image_size_bytes": 1382715656,
+  "engine_image_size_mb": 1382.7,
+  "generated": "2026-10-13T09:47:08+00:00",
+  "offline": "every boot ran with --network none: all jars are in the image",
+  "passed": true,
+  "runs": [
+    {
+      "client": {
+        "agg": [
+          [
+            "cancelled",
+            "961",
+            "2341732.00"
+          ],
+          [
+            "completed",
+            "14648",
+            "33713855.00"
+          ],
+          [
+            "refunded",
+            "617",
+            "1349674.00"
+          ]
+        ],
+        "count": 16825,
+        "first_query_ms": 1809,
+        "hash": "70730c9a1ef597fb52354c3202cb258fc78003b762c9f41d71bf3618c26d21db",
+        "rows": 16825,
+        "spark": "4.2.0"
+      },
+      "cold_start_s": 34.96,
+      "engine": {
+        "listening_ms": 31508,
+        "port": 15002,
+        "seed": [
+          {
+            "rows": 2,
+            "table": "main.`raw`.`bi_refresh_history`"
+          },
+          {
+            "rows": 339,
+            "table": "main.`raw`.`customers`"
+          },
+          {
+            "rows": 29200,
+            "table": "main.`raw`.`order_lines`"
+          },
+          {
+            "rows": 17768,
+            "table": "main.`raw`.`orders`"
+          },
+          {
+            "rows": 31,
+            "table": "main.`raw`.`products`"
+          },
+          {
+            "rows": 309,
+            "table": "main.`staging`.`stg_customers`"
+          },
+          {
+            "rows": 29200,
+            "table": "main.`staging`.`stg_order_lines`"
+          },
+          {
+            "rows": 16825,
+            "table": "main.`staging`.`stg_orders`"
+          },
+          {
+            "rows": 25,
+            "table": "main.`staging`.`stg_products`"
+          },
+          {
+            "rows": 309,
+            "table": "main.`warehouse`.`dim_customer`"
+          },
+          {
+            "rows": 424,
+            "table": "main.`warehouse`.`dim_date`"
+          },
+          {
+            "rows": 25,
+            "table": "main.`warehouse`.`dim_product`"
+          },
+          {
+            "rows": 29200,
+            "table": "main.`warehouse`.`fct_order_lines`"
+          },
+          {
+            "rows": 16825,
+            "table": "main.`warehouse`.`fct_orders`"
+          }
+        ],
+        "seed_ms": 31201,
+        "spark": "4.2.0",
+        "spark_connect": "listening"
+      },
+      "engine_network": "none",
+      "invocations": [
+        "python -c rc=255 Could not find valid SPARK_HOME",
+        "python - (heredoc) rc=0 RESULT 16825",
+        "python file.py rc=0 RESULT 16825",
+        "SPARK_HOME=<pyspark dir> python -c rc=0 RESULT 16825"
+      ],
+      "listening": true
+    },
+    {
+      "client": {
+        "agg": [
+          [
+            "cancelled",
+            "961",
+            "2341732.00"
+          ],
+          [
+            "completed",
+            "14648",
+            "33713855.00"
+          ],
+          [
+            "refunded",
+            "617",
+            "1349674.00"
+          ]
+        ],
+        "count": 16825,
+        "first_query_ms": 1253,
+        "hash": "70730c9a1ef597fb52354c3202cb258fc78003b762c9f41d71bf3618c26d21db",
+        "rows": 16825,
+        "spark": "4.2.0"
+      },
+      "cold_start_s": 27.72,
+      "engine": {
+        "listening_ms": 26157,
+        "port": 15002,
+        "seed": [
+          {
+            "rows": 2,
+            "table": "main.`raw`.`bi_refresh_history`"
+          },
+          {
+            "rows": 339,
+            "table": "main.`raw`.`customers`"
+          },
+          {
+            "rows": 29200,
+            "table": "main.`raw`.`order_lines`"
+          },
+          {
+            "rows": 17768,
+            "table": "main.`raw`.`orders`"
+          },
+          {
+            "rows": 31,
+            "table": "main.`raw`.`products`"
+          },
+          {
+            "rows": 309,
+            "table": "main.`staging`.`stg_customers`"
+          },
+          {
+            "rows": 29200,
+            "table": "main.`staging`.`stg_order_lines`"
+          },
+          {
+            "rows": 16825,
+            "table": "main.`staging`.`stg_orders`"
+          },
+          {
+            "rows": 25,
+            "table": "main.`staging`.`stg_products`"
+          },
+          {
+            "rows": 309,
+            "table": "main.`warehouse`.`dim_customer`"
+          },
+          {
+            "rows": 424,
+            "table": "main.`warehouse`.`dim_date`"
+          },
+          {
+            "rows": 25,
+            "table": "main.`warehouse`.`dim_product`"
+          },
+          {
+            "rows": 29200,
+            "table": "main.`warehouse`.`fct_order_lines`"
+          },
+          {
+            "rows": 16825,
+            "table": "main.`warehouse`.`fct_orders`"
+          }
+        ],
+        "seed_ms": 26055,
+        "spark": "4.2.0",
+        "spark_connect": "listening"
+      },
+      "engine_network": "none",
+      "listening": true
+    },
+    {
+      "client": {
+        "agg": [
+          [
+            "cancelled",
+            "961",
+            "2341732.00"
+          ],
+          [
+            "completed",
+            "14648",
+            "33713855.00"
+          ],
+          [
+            "refunded",
+            "617",
+            "1349674.00"
+          ]
+        ],
+        "count": 16825,
+        "first_query_ms": 1633,
+        "hash": "70730c9a1ef597fb52354c3202cb258fc78003b762c9f41d71bf3618c26d21db",
+        "rows": 16825,
+        "spark": "4.2.0"
+      },
+      "cold_start_s": 29.13,
+      "engine": {
+        "listening_ms": 27339,
+        "port": 15002,
+        "seed": [
+          {
+            "rows": 2,
+            "table": "main.`raw`.`bi_refresh_history`"
+          },
+          {
+            "rows": 339,
+            "table": "main.`raw`.`customers`"
+          },
+          {
+            "rows": 29200,
+            "table": "main.`raw`.`order_lines`"
+          },
+          {
+            "rows": 17768,
+            "table": "main.`raw`.`orders`"
+          },
+          {
+            "rows": 31,
+            "table": "main.`raw`.`products`"
+          },
+          {
+            "rows": 309,
+            "table": "main.`staging`.`stg_customers`"
+          },
+          {
+            "rows": 29200,
+            "table": "main.`staging`.`stg_order_lines`"
+          },
+          {
+            "rows": 16825,
+            "table": "main.`staging`.`stg_orders`"
+          },
+          {
+            "rows": 25,
+            "table": "main.`staging`.`stg_products`"
+          },
+          {
+            "rows": 309,
+            "table": "main.`warehouse`.`dim_customer`"
+          },
+          {
+            "rows": 424,
+            "table": "main.`warehouse`.`dim_date`"
+          },
+          {
+            "rows": 25,
+            "table": "main.`warehouse`.`dim_product`"
+          },
+          {
+            "rows": 29200,
+            "table": "main.`warehouse`.`fct_order_lines`"
+          },
+          {
+            "rows": 16825,
+            "table": "main.`warehouse`.`fct_orders`"
+          }
+        ],
+        "seed_ms": 27209,
+        "spark": "4.2.0",
+        "spark_connect": "listening"
+      },
+      "engine_network": "none",
+      "listening": true
+    }
+  ],
+  "task": "T14 step 1 (gate)",
+  "truth": {
+    "agg": [
+      [
+        "cancelled",
+        "961",
+        "2341732.00"
+      ],
+      [
+        "completed",
+        "14648",
+        "33713855.00"
+      ],
+      [
+        "refunded",
+        "617",
+        "1349674.00"
+      ]
+    ],
+    "count": 16825,
+    "hash": "70730c9a1ef597fb52354c3202cb258fc78003b762c9f41d71bf3618c26d21db",
+    "rows": 16825
+  },
+  "versions": {
+    "client": "pyspark-client 4.2.0 (gateway/requirements-spark.lock)",
+    "delta": "delta-spark_4.2_2.13 4.4.1",
+    "jre": "openjdk-21-jre-headless 21.0.12.1+1-1~deb13u1 (snapshot 20260910T000000Z)",
+    "spark": "4.2.0 (spark-4.2.0-bin-hadoop3.tgz, Apache sha512)"
+  },
+  "world": "commerce_analytics world of the de/databricks tool tour (the world databricks_e2e_check builds); its warehouse.duckdb, by sha256 above",
+  "world_warehouse": "warehouse.duckdb (a copy, bound read-only at /seed)",
+  "world_warehouse_sha256": "c4543a852e02fa15d9694598b27756010fd25f37b0c16d3ca379d8e9af093bd6"
+}

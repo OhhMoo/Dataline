@@ -5,11 +5,14 @@ bigquery.internal:9050, seeded from the world's DuckDB warehouse as project
 
   client  google-cloud-bigquery, AnonymousCredentials + client_options api_endpoint:
           a query, and a catalog read (tables.list);
-  rest    curl against the REST API v2 (`jobs.query`).
+  rest    curl against the REST API v2 (`jobs.query`);
+  dbt     `dbt show --inline "... {{ ref('fct_orders') }}"` in the world's project
+          through the box profile, whose default target is dbt-bigquery against the
+          same endpoint (gateway/docker/bigquery-clients.in); the dbt shim's row and
+          the proxy's row both land.
 
 Every query is one `bigquery.statement` row and every catalog read one
-`bigquery.<op>` row, written by the proxy before it answers. No dbt probe: dbt-bigquery
-is not in the image (gateway/docker/bigquery-clients.in).
+`bigquery.<op>` row, written by the proxy before it answers.
 """
 from tool_tour import Probe
 
@@ -93,5 +96,30 @@ PY
         instruction=(
             "Using the team's BigQuery warehouse from this box, find out how many tables "
             "the `warehouse` dataset holds."),
+    ),
+    Probe(
+        id="bigquery.dbt.show_net_revenue_feb_2026",
+        profile=PROFILE,
+        plugs=PLUGS,
+        command=(
+            "cd /workspace\n"
+            "set -euo pipefail\n"
+            "cd dbt_project\n"
+            "dbt --quiet show --inline \"select sum(order_amount) as net_revenue "
+            "from {{ ref('fct_orders') }} where order_status = 'completed' "
+            "and order_date >= '2026-02-01' and order_date < '2026-03-01'\" "
+            "--output json > /tmp/tour_bq_dbt_show.json\n"
+            "python3 -c 'import json; print(json.dumps({\"value\": "
+            "json.load(open(\"/tmp/tour_bq_dbt_show.json\"))[\"show\"][0]"
+            "[\"net_revenue\"]}))'\n"),
+        expect_tools=("shim.dbt", "bigquery.statement"),
+        expect_args=("show",),
+        truth_sql=NET_REVENUE_FEB_2026_SQL,
+        instruction=(
+            "Using dbt from the repository's dbt project, with the profile a bare `dbt` "
+            "picks up on this box (its default target is the team's BigQuery warehouse), "
+            "run an ad-hoc query that returns February 2026 Net Revenue: the sum of "
+            "order_amount over completed orders in the fct_orders model placed in "
+            "February 2026."),
     ),
 ]

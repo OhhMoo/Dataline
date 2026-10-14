@@ -102,20 +102,28 @@ PROBES: tuple[tuple[str, tuple[str, ...], tuple[int, ...]], ...] = (
 ROLE_PYTHON = "/usr/local/bin/python"
 TOOLBELT_PYTHON = "/opt/toolbelt/bin/python"
 KERNEL_NAME = "alkera-python"
+# What the audited kernelspec preloads (alkera_gateway.native.notebook.kernelspec).
+# A kernelspec without it runs cells and writes no row.
+KERNEL_AUDIT_FLAG = "--IPKernelApp.extra_extensions=alkera_gateway.native.notebook"
 _NOTEBOOK = ("pandas", "pyarrow", "matplotlib", "ipykernel", "jupyter_client",
              "jupyter_server", "nbclient", "nbformat", "alkera_gateway.native.notebook")
+# Playwright for Python: how an analyst drives the BI vendors' web UIs (plan D5).
+_BROWSER = ("playwright",)
 ROLE_IMPORTS: dict[str, tuple[str, ...]] = {
     "de": (),
-    "da": _NOTEBOOK,
-    "ds": (*_NOTEBOOK, "polars", "sklearn"),
+    "da": (*_NOTEBOOK, *_BROWSER),
+    "ds": (*_NOTEBOOK, *_BROWSER, "polars", "sklearn"),
 }
 # Console scripts each role's lock installs into /usr/local/bin. `jupyter` is
 # jupyter_core's dispatcher: `jupyter server` and `jupyter kernelspec` resolve to the
-# jupyter-server / jupyter-kernelspec scripts beside it.
+# jupyter-server / jupyter-kernelspec scripts beside it. `playwright` is Playwright's
+# own CLI (`playwright install`, `playwright codegen`).
 ROLE_BINARIES: dict[str, tuple[str, ...]] = {
     "de": (),
-    "da": ("jupyter", "jupyter-server", "jupyter-kernelspec", "jupyter-execute", "ipython"),
-    "ds": ("jupyter", "jupyter-server", "jupyter-kernelspec", "jupyter-execute", "ipython"),
+    "da": ("jupyter", "jupyter-server", "jupyter-kernelspec", "jupyter-execute", "ipython",
+           "playwright"),
+    "ds": ("jupyter", "jupyter-server", "jupyter-kernelspec", "jupyter-execute", "ipython",
+           "playwright"),
 }
 
 
@@ -150,11 +158,29 @@ EXCEL_ROUNDTRIP = (
     "got = pandas.read_excel(buf, engine='openpyxl')['value'].iloc[0]; "
     "assert float(got) == 2361224.0, f'read back {got!r}, wrote 2361224.0'; print(got)")
 _EXCEL_PROBE = (ROLE_PYTHON, (ROLE_PYTHON, "-c", EXCEL_ROUNDTRIP), (0,))
+# Headless Chromium, launched the way the agent's own script launches it: Playwright's
+# default lookup (no PLAYWRIGHT_BROWSERS_PATH; the image links ~/.cache/ms-playwright
+# to the browsers it installed), loading about:blank, printing the browser's version.
+# A missing shared library, a browser revision the installed Playwright does not
+# expect, or a browser that cannot start in the image fails it (non-zero exit).
+CHROMIUM_PROBE = (
+    "from playwright.sync_api import sync_playwright\n"
+    "with sync_playwright() as p:\n"
+    "    browser = p.chromium.launch()\n"
+    "    page = browser.new_page()\n"
+    "    page.goto('about:blank')\n"
+    "    assert page.url == 'about:blank', page.url\n"
+    "    print('chromium', browser.version)\n"
+    "    browser.close()\n")
+_BROWSER_PROBES = (
+    ("playwright", ("playwright", "--version"), (0,)),
+    (ROLE_PYTHON, (ROLE_PYTHON, "-c", CHROMIUM_PROBE), (0,)),
+)
 
 ROLE_PROBES: dict[str, tuple[tuple[str, tuple[str, ...], tuple[int, ...]], ...]] = {
     "de": (),
-    "da": (*_role_probes(ROLE_IMPORTS["da"]), _EXCEL_PROBE),
-    "ds": (*_role_probes(ROLE_IMPORTS["ds"]), _EXCEL_PROBE),
+    "da": (*_role_probes(ROLE_IMPORTS["da"]), _EXCEL_PROBE, *_BROWSER_PROBES),
+    "ds": (*_role_probes(ROLE_IMPORTS["ds"]), _EXCEL_PROBE, *_BROWSER_PROBES),
 }
 ROLES = tuple(ROLE_IMPORTS)
 
@@ -167,12 +193,21 @@ def role_imports(role: str) -> tuple[str, ...]:
 #: allowed in an image built with that set (build_episode.py --warehouse-clients):
 #: databricks-sql-connector requires pandas, and dbt-databricks requires the connector
 #: with its pyarrow extra. They come with the client, not with a notebook - no
-#: Jupyter, no kernel - so the role's rule (no tool the role does not get) is kept for
-#: everything else. The installed sets are the client locks the image kept,
+#: Jupyter server, no kernel - so the role's rule (no tool the role does not get) is
+#: kept for everything else. The installed sets are the client locks the image kept,
 #: /opt/gateway/requirements-<c>.lock (the Dockerfile's client loop).
 CLIENT_IMPORTS: dict[str, tuple[str, ...]] = {
     # the connector's own dependencies: pandas, openpyxl; dbt-databricks adds pyarrow
     "databricks": ("openpyxl", "pandas", "pyarrow"),
+    # dbt-bigquery requires google-cloud-bigquery[pandas] (pandas, pyarrow) and
+    # nbformat (decision D2, docker/bigquery-clients.in)
+    "bigquery": ("nbformat", "pandas", "pyarrow"),
+}
+#: Role-forbidden console scripts a client set's dependencies install, allowed the
+#: same way: nbformat requires jupyter_core, whose `jupyter` dispatcher is all it
+#: brings - `jupyter server` / `kernelspec` / `execute` name scripts the image lacks.
+CLIENT_BINARIES: dict[str, tuple[str, ...]] = {
+    "bigquery": ("jupyter",),
 }
 CLIENT_LOCK = "/opt/gateway/requirements-{}.lock"
 
@@ -206,19 +241,34 @@ def system_forbidden(role: str, clients: tuple[str, ...] = ()) -> tuple[str, ...
     return tuple(sorted(every - set(SYSTEM_IMPORTS[role]) - allowed))
 
 
-def forbidden_binaries(role: str) -> tuple[str, ...]:
+def forbidden_binaries(role: str, clients: tuple[str, ...] = ()) -> tuple[str, ...]:
+    """Every script another role installs that this one must not have, less what an
+    installed warehouse client set brings (`CLIENT_BINARIES`)."""
     every = {b for bins in ROLE_BINARIES.values() for b in bins}
-    return tuple(sorted(every - set(ROLE_BINARIES[role])))
+    allowed = {b for c in clients for b in CLIENT_BINARIES.get(c, ())}
+    return tuple(sorted(every - set(ROLE_BINARIES[role]) - allowed))
+
+
+def unaudited_kernelspecs(listing: dict) -> list[str]:
+    """The names in a `jupyter kernelspec list --json` listing whose argv lacks
+    KERNEL_AUDIT_FLAG. A client starts any listed kernel by name, so one of these
+    is a way to run cells with no row: ipykernel's own `python3` is the one an
+    image has unless the audited spec is installed over it."""
+    return sorted(name for name, entry in listing["kernelspecs"].items()
+                  if KERNEL_AUDIT_FLAG not in entry["spec"]["argv"])
 
 
 def kernelspecs() -> dict:
-    """`jupyter kernelspec list --json`, or the reason it could not be read."""
+    """`jupyter kernelspec list --json` (the names, and which are unaudited), or
+    the reason it could not be read."""
     try:
         done = subprocess.run(["jupyter", "kernelspec", "list", "--json"],
                               capture_output=True, text=True, timeout=120, errors="replace")
-        return {"names": sorted(json.loads(done.stdout)["kernelspecs"]), "reason": None}
+        listing = json.loads(done.stdout)
+        return {"names": sorted(listing["kernelspecs"]),
+                "unaudited": unaudited_kernelspecs(listing), "reason": None}
     except Exception as exc:  # noqa: BLE001 - the reason is the finding
-        return {"names": [], "reason": f"{type(exc).__name__}: {exc}"[:200]}
+        return {"names": [], "unaudited": [], "reason": f"{type(exc).__name__}: {exc}"[:200]}
 
 
 def toolbelt_role() -> str:
@@ -323,7 +373,7 @@ def main() -> int:
     forbidden_present = sorted(
         {f"import {m} ({py})" for m in forbidden_imports(role, clients)
          for py in (ROLE_PYTHON, TOOLBELT_PYTHON) if importable(py, m)["ok"]}
-        | {f"binary {path}" for b in forbidden_binaries(role)
+        | {f"binary {path}" for b in forbidden_binaries(role, clients)
            for path in (shutil.which(b), f"/opt/toolbelt/bin/{b}", f"/usr/local/bin/{b}")
            if path and os.path.exists(path)}
         # The system interpreter only: /opt/toolbelt carries these for every role.
@@ -336,7 +386,8 @@ def main() -> int:
         "role_imports_failed": sorted(m for m, r in imports.items() if not r["ok"]),
         "role_forbidden_present": forbidden_present,
         "client_allowed_imports": {c: list(CLIENT_IMPORTS[c]) for c in clients},
-        # ds/da: the Jupyter plug's audited kernel must be the one installed.
+        # ds/da: the Jupyter plug's audited kernel must be installed, and every
+        # kernelspec a client can start by name (`python3` too) must be it.
         "kernelspecs": kernelspecs() if role_imports(role) else None,
         "source_revision": os.environ.get("ALKERA_SOURCE_REV") or None,
         "platform": platform.platform(),
@@ -376,7 +427,8 @@ def main() -> int:
         not report["binaries_failed"]
         and not report["role_imports_failed"]
         and not report["role_forbidden_present"]
-        and (not role_imports(role) or KERNEL_NAME in report["kernelspecs"]["names"])
+        and (not role_imports(role) or (KERNEL_NAME in report["kernelspecs"]["names"]
+                                        and not report["kernelspecs"]["unaudited"]))
         and report["python_not_shadowed"]
         and report["tool_count"] > 0
         and all(row["loaded"] for row in report["duckdb_extensions"].values())

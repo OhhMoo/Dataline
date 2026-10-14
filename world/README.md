@@ -289,9 +289,11 @@ into every view body it creates, so views were unreadable through the alias
 database qualifier; `executor.unreadable_views(root)` is the gate, asserted in every theme
 suite over every view `duckdb_views()` reports. A query dbt runs at once and never stores
 keeps the qualifier, because two-part `warehouse.<model>` is ambiguous against a catalog
-also named `warehouse`: a test in every theme, and on commerce_analytics only also an
-inline query (`dbt show --inline` / `dbt compile --inline`, a `sql_operation` node; the
-other themes' macros are unchanged so their worlds do not move).
+also named `warehouse`: a test, and an inline query (`dbt show --inline` / `dbt compile
+--inline`, a `sql_operation` node), in every theme. Each theme suite proves it with a
+`test_dbt_show_inline_ref_*` test (`test_world.py` for revenue_daily). GT001-GT009
+build from their own fixtures, not from these themes, so their worlds did not move when
+the four non-commerce themes took the `sql_operation` branch (measured on every arm).
 
 ## Trust zones and the acceptance battery
 

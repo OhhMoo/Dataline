@@ -54,14 +54,16 @@ property rather than an oversight.
 | `tableau.internal` | 8096 | native-services | same |
 | `sigma.internal` | 8097 | native-services | same |
 | `native-services.internal` | 8099 | native-services | ours: the aggregate `/health` |
-| `databricks.internal` | 443 | native-services | **live** for a profile plugging `warehouse: databricks` (hosted backend, `alkera_gateway.backends`; HTTPS with a certificate minted at boot, trust volume `databrickstrust`; seeded from the world's DuckDB into service state; one `databricks.statement` row per statement; `tasks/harness/databricks_e2e_check.py`, evidence `tasks/harness/evidence/databricks_e2e.json`); 443 and not 8098: `docs/environments/DATABRICKS_SPIKE.md`; containment P6 not yet re-run with it |
+| `databricks.internal` | 443 | native-services | **live** for a profile plugging `warehouse: databricks` (hosted backend, `alkera_gateway.backends`; HTTPS with a certificate minted at boot, trust volume `databrickstrust`; seeded from the world's DuckDB into service state; one `databricks.statement` row per statement; `tasks/harness/databricks_e2e_check.py`, evidence `tasks/harness/evidence/databricks_e2e.json`); 443 and not 8098: `docs/environments/DATABRICKS_SPIKE.md`; containment P6 `--attach` on de/databricks passed 2026-10-13 (`evidence/containment-native-de-databricks.json`) |
 | `postgres.internal` | 5432 | postgres | the warehouse, served. **Audited at teardown**: `NativeContainerEpisode.down()` runs `native/tailers/postgres.py` over the role-scoped statement log inside native-services before anything is torn down, one `psql.statement` row per `alkera` statement (`tasks/harness/postgres_live.py`). **Seeded** with the world's `warehouse.*` only for a profile plugging `warehouse: postgres` (`de/postgres`); every other box keeps compose's `warehouse.items` (2 rows). psql, psycopg and dbt-postgres live: `tasks/harness/postgres_e2e_check.py`, evidence `tasks/harness/evidence/postgres_e2e.json`. Its connections are not counted in `destinations.jsonl` |
 | `minio.internal` | 9000 | minio | object storage, bucket `alkera` |
 | `airflow.internal` | 8080 | airflow | *designed*, `--profile airflow` (real headless Airflow; never run) |
-| `airflow.internal` | 8100 | native-services | **live** for a profile plugging `orchestrator: airflow`: the Airflow 3 REST v2 fake over the world ledger (`native/services/airflow.py`, `world/world/airflow_view.py`), a hosted row of `alkera_gateway.backends.BACKENDS`; its alias and variables come from the registry, `./ops/sched` and `sched.internal` are dropped; `tasks/harness/airflow_e2e_check.py`, evidence `tasks/harness/evidence/airflow_e2e.json`; `containment.NATIVE_BACKENDS` key `airflow-api`, P6 not yet re-run with it |
-| `snowflake.internal` | 8443 | snowflake | **live** for a profile plugging `warehouse: snowflake` (compose profile `snowflake` via `container_episode.compose_env`; seeded from the world's DuckDB, one `snowflake.statement` row per statement; `tasks/harness/snowflake_e2e_check.py`, evidence `tasks/harness/evidence/snowflake_e2e.json`); containment P6 not yet re-run with it |
-| `bigquery.internal` | 9050 | native-services | **live** for a profile plugging `warehouse: bigquery` (`de/gcp`): the audited BigQuery REST proxy (`native/services/bigquery.py`, hosted row in `alkera_gateway.backends`), in front of compose.yml's `bigquery` emulator, which `container_episode.HOSTED_ENGINES` starts (compose profile `bigquery`) on backend_net only - native-services joins backend_net and reaches it as `bigquery:9050`, the episode cannot. Seeded from the world's DuckDB at native-services' import, before any port binds; one `bigquery.statement` row per query; `tasks/harness/bigquery_e2e_check.py`, evidence `tasks/harness/evidence/bigquery_e2e.json`; containment P6 not yet re-run with it |
-| `redshift.internal` | 5439 | redshift | **live** for a profile plugging `warehouse: redshift` (`de/aws`; the whole service is the per-rollout overlay's, `container_episode.backend_overlay`, compose profile `redshift`): the audited wire proxy in front of PostgreSQL 17, which opens no TCP port at all - only a unix socket in a 0700 directory of its own that the proxy dials - so it is never on `episode_net` and nothing reaches it without a row; seeded from the world's DuckDB (database `dev`), one `redshift.statement` row per statement; `tasks/harness/redshift_e2e_check.py`, evidence `tasks/harness/evidence/redshift_e2e.json`; containment P6 not yet re-run with it |
+| `airflow.internal` | 8100 | native-services | **live** for a profile plugging `orchestrator: airflow`: the Airflow 3 REST v2 fake over the world ledger (`native/services/airflow.py`, `world/world/airflow_view.py`), a hosted row of `alkera_gateway.backends.BACKENDS`; its alias and variables come from the registry, `./ops/sched` and `sched.internal` are dropped; `tasks/harness/airflow_e2e_check.py`, evidence `tasks/harness/evidence/airflow_e2e.json`; `containment.NATIVE_BACKENDS` key `airflow-api`, P6 `--attach` on de/laptop with `orchestrator=airflow` passed 2026-10-13 (`evidence/containment-native-de-laptop-airflow.json`) |
+| `snowflake.internal` | 8443 | snowflake | **live** for a profile plugging `warehouse: snowflake` (compose profile `snowflake` via `container_episode.compose_env`; seeded from the world's DuckDB, one `snowflake.statement` row per statement; `tasks/harness/snowflake_e2e_check.py`, evidence `tasks/harness/evidence/snowflake_e2e.json`); containment P6 `--attach` on da/snowflake passed 2026-10-13 (`evidence/containment-native-da-snowflake.json`) |
+| `bigquery.internal` | 9050 | native-services | **live** for a profile plugging `warehouse: bigquery` (`de/gcp`): the audited BigQuery REST proxy (`native/services/bigquery.py`, hosted row in `alkera_gateway.backends`), in front of compose.yml's `bigquery` emulator, which `container_episode.HOSTED_ENGINES` starts (compose profile `bigquery`) on backend_net only - native-services joins backend_net and reaches it as `bigquery:9050`, the episode cannot. Seeded from the world's DuckDB at native-services' import, before any port binds; one `bigquery.statement` row per query; `tasks/harness/bigquery_e2e_check.py`, evidence `tasks/harness/evidence/bigquery_e2e.json`; containment P6 `--attach` on de/gcp passed 2026-10-13 (`evidence/containment-native-de-gcp.json`) |
+| `spark_connect.internal` | 15002 | native-services | **live** for a profile plugging `compute: spark_connect` (`ds/databricks`): Databricks tier 2, the audited Spark Connect gRPC proxy (`native/services/spark_connect.py`, served through its own `serve_socket`, behind the episode-peer filter) in front of the `spark` engine on backend_net only (`container_episode.HOSTED_ENGINES`); one `databricks.spark` row per plan; `tasks/harness/spark_e2e_check.py`, evidence `tasks/harness/evidence/spark_e2e.json` |
+| `jupyter.internal` | 8888 | jupyter | the notebook plug (da/ds): jupyter-server serving only the audited `alkera-python` kernel (`gateway/docker/jupyter/README.md`) |
+| `redshift.internal` | 5439 | redshift | **live** for a profile plugging `warehouse: redshift` (`de/aws`; the whole service is the per-rollout overlay's, `container_episode.backend_overlay`, compose profile `redshift`): the audited wire proxy in front of PostgreSQL 17, which opens no TCP port at all - only a unix socket in a 0700 directory of its own that the proxy dials - so it is never on `episode_net` and nothing reaches it without a row; seeded from the world's DuckDB (database `dev`), one `redshift.statement` row per statement; `tasks/harness/redshift_e2e_check.py`, evidence `tasks/harness/evidence/redshift_e2e.json`; containment P6 `--attach` on de/aws passed 2026-10-13 (`evidence/containment-native-de-aws.json`) |
 
 One port per service, not one socket with `Host:` routing. The registry already
 declares `PORT` per service; P6's "TCP to anything but the listed ports is
@@ -218,6 +220,53 @@ What was measured from inside the episode container (`native_probe.py`):
 - `destinations.jsonl` was written before the first socket opened and carries
   ten rows; `native-services.internal:8099` ends at `count: 0` — offered,
   never dialled, which is the distinction the harness reads.
+
+### Since 2026-10-13: P6 on profiled boxes, and the box sweep
+
+The 2026-09-16 run measured the static stack only. Three instruments now
+measure a box a profile is served (`evidence/CONTAINMENT_2026-10-07.md`, "For
+Andrew", points 1-5):
+
+- **`containment.py --native --attach <project>`** runs P6 against a stack that
+  is already up (a rollout's, the tool tour's) and leaves it as it stands,
+  reading the environment profile off native-services (`--env-profile` /
+  `--env-plug` pin it, and must agree). `p6_plan` picks backends by the service
+  that carries each alias (`containment.NATIVE_CARRIERS`; a hosted row is
+  native-services'), gives compose names only for services on `episode_net`,
+  drops from the controls a name that is on `episode_net` (`snowflake`) and adds
+  every service off it (the BigQuery and Spark engines).
+- **`native_probe.py --sweep-cidr`** (question D) dials every address of the
+  episode network, the bridge gateway included, on every port of each live one.
+  An open port no expected door explains is a labelled `not_audited` row;
+  `passed` stays P6's claim, and `every_open_port_is_an_expected_door` is
+  reported beside it.
+- **`box_sweep.py`**, the box driver, kept outside the repository until
+  2026-10-13. It writes `evidence/containment-native-box[-<slug>].json`:
+  - P6's probe on the box, with the full sweep;
+  - the names the episode resolves, connects to every container's
+    `backend_net` address, and Postgres logins as `episode` and as `alkera`,
+    each looked up in the role-scoped statement log;
+  - each open port classed as an audited door, a designed door (the notebook
+    plug) or NOT an audited door;
+  - `not_audited`: the last kind, plus any login that leaves no statement.
+
+  `--project` attaches to a live stack. `--up --env-profile <role/stack>` (or
+  `--task`) builds the world and stack as the tool tour (or `container_episode.py
+  native-up`) does, runs P6 `--attach`, P7 and the sweep, and tears it down.
+  It dials every port, so the destination counts it reads are partly its own:
+  run it under `scripts/docker_slot.sh` on a stack built for measuring, never on
+  a rollout that will be scored.
+
+Measured 2026-10-13: P6 `--attach` passes on the unprofiled stack, da/snowflake,
+de/aws, de/databricks, de/gcp, de/laptop + `orchestrator=airflow`, de/postgres
+and ds/databricks (`evidence/containment-native{,-<slug>}.json`). Every box
+sweep lists the host's sshd at `<episode_net>.1:22` (open: the INPUT rule needs
+the host owner) and the token-only MinIO audit receiver on `native-services:8110`.
+The sweeps before plan Tasks 7-8 also list the `episode` Postgres login and
+MinIO's console, both closed since (`tasks/harness/evidence/postgres_e2e.json`,
+`tasks/harness/evidence/minio_containment.json`); the ds/databricks sweep, after
+them, lists only the two above. The da/snowflake sweep also caught a transient
+host listener at `10.210.2.1:49743`, gone seconds later.
 
 ## P7 — the episode's filesystem, measured 2026-09-16
 

@@ -9,8 +9,11 @@ project's `macros/relations.sql` renders every ref() without its database except
 a test, an inline query is a `sql_operation` node, and a two-part `warehouse.fct_orders`
 against a DuckDB file whose catalog is also `warehouse` is a Binder Error ("Ambiguous
 reference to catalog or schema"). The commerce_analytics theme's macro now restores the
-database for `sql_operation` nodes too (the four other themes still do not; see the
-macro's comment), so the probe passes.
+database for `sql_operation` nodes too, so the probe passes. Since 2026-10-13 every theme
+does (excel_close, mainframe_batch, revenue_daily and sftp_vendor took the same branch,
+each held by its suite's `test_dbt_show_inline_ref_resolves`). The commerce_analytics
+macro's own comment still calls the other four unfixed: it is workspace content, and
+editing it would move BI001/BI002's world digests.
 """
 from tool_tour import Probe
 

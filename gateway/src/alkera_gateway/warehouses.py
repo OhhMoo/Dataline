@@ -73,12 +73,11 @@ DBT_ADAPTERS = {
     "duckdb": ("dbt.adapters.duckdb", "dbt-duckdb"),
     "postgres": ("dbt.adapters.postgres", "dbt-postgres"),
     "snowflake": ("dbt.adapters.snowflake", "dbt-snowflake"),
-    # Not installed in any image: a bigquery `dbt_target` is refused at
-    # construction (dbt_adapter_missing) rather than failing inside dbt.
-    # Measured 2026-10-07: dbt-bigquery 1.12.1 runs against the container's
-    # BigQuery proxy, but it brings pandas, pyarrow and nbformat into the
-    # system Python, which a de image's toolbelt gate forbids
-    # (docker/bigquery-clients.in).
+    # In images built with `--warehouse-clients bigquery` only
+    # (requirements-bigquery.lock); the box target of a bigquery-plugged box,
+    # through the audited proxy. It brings pandas, pyarrow and nbformat into the
+    # system Python, allowed on a de image as the client's own dependencies
+    # (decision D2: docker/bigquery-clients.in, toolbelt_check.CLIENT_IMPORTS).
     "bigquery": ("dbt.adapters.bigquery", "dbt-bigquery"),
     # In images built with `--warehouse-clients redshift` only
     # (requirements-redshift.lock); the box target of a redshift-plugged box.
@@ -99,11 +98,20 @@ DBT_FIXED_FIELDS: dict[str, dict[str, str]] = {
 #: Fields a variable-backed output (`dbt_output(..., env=...)`) carries as constants:
 #: what is the same on every box and is not a credential. Databricks: the Unity
 #: Catalog catalog, and the connector's Statement Execution API transport - the fake
-#: workspace serves no Thrift (docs/environments/DATABRICKS_SPIKE.md). (Nested values,
-#: so a separate table from DBT_FIXED_FIELDS' flat strings, deep-copied per output.)
+#: workspace serves no Thrift (docs/environments/DATABRICKS_SPIKE.md). BigQuery: the
+#: one dbt-bigquery method that never calls Google, `oauth-secrets` with a static
+#: token and no refresh token - the proxy forwards no credential and the emulator
+#: checks none, so the token is a placeholder (the Python client's
+#: AnonymousCredentials), not a secret. (Nested values, so a separate table from
+#: DBT_FIXED_FIELDS' flat strings, deep-copied per output.)
 DBT_OUTPUT_CONSTANTS: dict[str, dict] = {
     "databricks": {"catalog": "main", "connection_parameters": {"use_sea": True}},
+    "bigquery": {"method": "oauth-secrets", "token": "anonymous"},
 }
+
+#: Backends whose variable-backed output takes no `port`: the endpoint variable is a
+#: URL that carries it (BigQuery's `api_endpoint`), and the adapter has no such field.
+DBT_PORT_IN_URL = frozenset({"bigquery"})
 
 
 def dbt_adapter_missing(backend: str) -> str | None:
@@ -151,16 +159,18 @@ def dbt_output(
     `native_workspace.DISCOVERY` row), each rendered `{{ env_var('VARIABLE') }}`.
     That is the target a bare `dbt` finds on a box that plugs the backend
     (`native_workspace.box_profiles_yaml`), and it carries no value either.
-    `port` is then written as a number: where the backend answers is not a
-    secret, and the box exports no variable for it; so are the backend's
-    `DBT_OUTPUT_CONSTANTS` (Databricks: its catalog and connector transport).
+    `port` is then written as a number - where the backend answers is not a
+    secret, and the box exports no variable for it - unless the endpoint is a
+    URL that already carries it (`DBT_PORT_IN_URL`); so are the backend's
+    `DBT_OUTPUT_CONSTANTS` (Databricks: its catalog and connector transport;
+    BigQuery: its credential-free auth method).
     """
     if env is not None:
         if backend == "duckdb" or backend not in DBT_ADAPTERS:
             raise ValueError(f"no variable-backed dbt output for backend {backend!r}")
         output = {"type": backend}
         output.update({name: f"{{{{ env_var('{var}') }}}}" for name, var in env.items()})
-        if port is not None:
+        if port is not None and backend not in DBT_PORT_IN_URL:
             output["port"] = int(port)
         output.update(copy.deepcopy(DBT_OUTPUT_CONSTANTS.get(backend, {})))
         output.update({"schema": schema, "threads": 1})

@@ -247,3 +247,120 @@ of the Databricks Services pursuant to the Agreement"
 (https://github.com/databricks/cli/blob/main/LICENSE, read 2026-10-07). A local fake is not
 the Databricks Services, so the CLI is not installed. The SDK, the SQL connector and
 dbt-databricks are Apache-2.0 (their wheel metadata), as is dbt-spark.
+
+# Tier 2: Spark Connect (2026-10-13)
+
+Task 14 of `docs/superpowers/plans/2026-10-13-remaining-work-multi-agent.md`, decision D1:
+Spark Connect, hosted and audited, for the data scientist's box (`ds/databricks`, `compute =
+spark_connect`).
+
+## What it is
+
+- **The engine** (`gateway/docker/spark/Dockerfile.spark`): Apache Spark **4.2.0**
+  (`spark-4.2.0-bin-hadoop3.tgz`, Apache's sha512) with **Delta Lake 4.4.1**
+  (`delta-spark_4.2_2.13`, the one Delta line built for 4.2) and the part of its closure the
+  distribution lacks, each jar by sha256 (`fetch.py`); `openjdk-21-jre-headless` from the base
+  image's Debian snapshot. Fetched at build time only; the running engine has no network. It is
+  its own image, not the episode's: no toolbelt, no gateway, and no Spark Python (a Python UDF
+  that got past both fences would find no worker). A compose service on **backend_net only**,
+  built by the per-rollout overlay (`container_episode.HOSTED_ENGINE_BUILDS`).
+- **The seed** (`spark_start.py`): the world's `warehouse.duckdb`, read-only at `/seed`, is
+  exported table by table with DuckDB's `COPY ... (FORMAT parquet)` and loaded with `CREATE
+  TABLE main.<schema>.<table> USING DELTA AS SELECT ... FROM parquet.<file>` inside the
+  server's own JVM (`org.alkera.spark.SeededConnectServer`: Spark's `SparkConnectServer` with
+  the seed in front) before the port is bound; every table is counted back against the world.
+  Views become tables of their rows; DuckDB's `main` schema is `default`; a column type with no
+  exact Spark equivalent stops the boot. `local[1]`, one shuffle partition, session time zone
+  UTC; the driver's RPC and block manager on loopback, the UI off.
+- **The proxy** (`native/services/spark_connect.py`), hosted in native-services at
+  `spark_connect.internal:15002`: one `databricks.spark` row per RPC, written before the RPC is
+  forwarded; requests are decoded with the descriptors of the client the image pins. The
+  engine's own check rule (`org.alkera.spark.Guard`) fences what only the analyzer sees.
+- **The client**: Spark's own thin client, `pyspark-client` 4.2.0 (Apache-2.0;
+  `gateway/requirements-spark.lock`, `--warehouse-clients spark`). `SparkSession.builder
+  .getOrCreate()` reads `SPARK_REMOTE`. No JVM in the agent's image (+86.2 MB over the same
+  ds/databricks image without it). Not `databricks-connect`, which is under the Databricks
+  License.
+
+## Measured
+
+- **Gate** (`gateway/docker/evidence/spark_spike.json`): three cold boots with `--network
+  none`; the thin client's `count(*)` of `main.warehouse.fct_orders` = 16825 = DuckDB, every
+  row hashed = DuckDB's rows hashed, a filter/groupBy/agg = DuckDB; one hash three times.
+  Engine image 1382.7 MB; cold start to listening 27.7-35.0 s, of which the seed (14 tables)
+  is 26-31 s.
+- **Container e2e** (`tasks/harness/evidence/spark_e2e.json`, 41/41 PASS): SQL, the DataFrame
+  API and toPandas against DuckDB truth; saveAsTable, INSERT and DELETE on the copy, DESCRIBE
+  HISTORY; every fence refused by name; rows 1:1 with every RPC the client sent (188 in the
+  recorded run, counted by a gRPC interceptor in the client); the world's fingerprint
+  unchanged; tier 1 still answering the world's count after tier 2's DELETE;
+  `spark_connect.internal:15002` in destinations.jsonl and nothing outside the allowlist;
+  the engine listening off loopback on 15002 only.
+- **Tour** `--tools spark`: 3/3 PASS (`tasks/harness/evidence/tool_tour_spark.json`).
+- **Containment on `ds/databricks`** (T4's instruments, `box_sweep.py --up`): P6 `--attach`
+  passes (only the fake services reachable; `spark_connect.internal:15002` probed, the
+  engine `spark` a must-not-resolve control); the box sweep classes 15002 an audited door
+  and reports two `not_audited` doors, neither tier 2's: the host's sshd at the bridge
+  gateway (`:22`, H1) and native-services' MinIO audit receiver (`:8110`, token-only),
+  as on every profiled box. P7 passes 11 of 12: "every service is reachable" fails only on
+  `spark_connect.internal:15002`, where P7's HTTP/1.1 GET meets the gRPC server's HTTP/2
+  SETTINGS frame - reachable, an instrument gap (P7 speaks TLS since T4, not gRPC).
+  `gateway/docker/evidence/containment-native{,-episode,-box}-ds-databricks.json`.
+
+## How serve.py serves it
+
+serve.py mounts every other module as a uvicorn server, HTTP/1.1 only; Spark Connect is
+gRPC over HTTP/2. A hosted module that defines `serve_socket(listener, destinations)` is
+served by that coroutine instead (`Mounted.serve_socket`, filled in `mount()`, awaited by
+`serve_all()`, cancelled by its `stop()`), on the listener `serve_all` bound - the same one
+every agent door gets. So the Spark Connect door has the same two properties as the others:
+with `ALKERA_EPISODE_SUBNETS` set (native-services is on backend_net for the engine), a
+peer outside the episode's subnet is closed at accept, written as one
+`native.refused_peer` row and never counted (Task 6's `EpisodePeersOnly`); and every
+accepted connection is counted at accept, a bare TCP dial included (Task 5's rule for a
+door). `test_spark_connect_listener_refuses_backend_net_peers`,
+`test_spark_connect_bare_dial_is_counted_once`.
+
+## Deviations from Databricks
+
+- **Two data planes.** Tier 1 (the SQL warehouse, DuckDB) and tier 2 (Spark, Delta) are two
+  copies of one snapshot: a write in one is not seen in the other. Same catalog names
+  (`main.warehouse.fct_orders`) in both.
+- **No dbutils, no DBFS, no paths.** `dbutils` is a NameError. Reading or writing a file
+  path or URL (`spark.read.load(path)`, `df.write.save(path)`, a direct query on
+  `parquet.<path>`, LOCATION, LOAD DATA, INSERT OVERWRITE DIRECTORY, Catalog createTable with
+  a path) is refused by name: tables only.
+- **Port 15002, plain gRPC, no token**, where Databricks Connect speaks TLS gRPC on 443 with
+  a token: the thin client turns TLS on whenever the URL carries `;token=`, so `SPARK_REMOTE`
+  is `sc://spark_connect.internal:15002` and nothing is authenticated (the episode network is
+  the boundary). The host is `spark_connect.internal`, not the workspace's
+  `databricks.internal`: the registry gives every row its own `<name>.internal`
+  (`test_every_row_is_a_plug_and_complete`); recorded as an amendment to D1's
+  `databricks.internal:15002`.
+- **`local[1]` never spills out**: one core in one 1 GB driver JVM, no executors; a plan
+  bigger than that fails instead of scaling.
+- **The catalog.** `main` is a delegating plugin over Spark's session catalog
+  (`org.alkera.spark.MainCatalog`), so `current_catalog()` answers `spark_catalog`; no Unity
+  Catalog (grants, volumes, lineage); tier 1's UC REST stays the catalog API. `CREATE TABLE`
+  without USING is Delta, as on Databricks.
+- **Delta is real here**: DESCRIBE HISTORY, time travel, OPTIMIZE and VACUUM work (tier 1
+  refuses them).
+- **Refused by name** (FAILED_PRECONDITION, or an UnsupportedOperationException from the
+  engine; "Spark feature not available in this environment: ..."): AddArtifacts (jars,
+  pyfiles, archives, and createDataFrame of local data above the inline limit, which the client
+  uploads as an artifact), Python UDFs / UDTFs / data sources (mapInPandas, applyInPandas,
+  udf.register, ...), Structured Streaming, reflect / java_method, TRANSFORM, ADD JAR / FILE /
+  ARCHIVE, CREATE FUNCTION (SQL UDFs too), Spark ML, resource profiles, external commands,
+  declarative pipelines, extensions, and setting `spark.sql.catalog.*`, `spark.jars*`,
+  `spark.hadoop.*` and the other keys in `FENCED_CONFS`.
+- **`python -c`**: pyspark-client 4.2.0 takes a `__main__` with no `__spec__` and no
+  `__file__` for a doctest run and exits 255 when it finds no SPARK_HOME, so the box sets
+  `SPARK_HOME` to the client's own package directory. A file or a heredoc never hits it.
+- **pandas 3**: the client warns it does not fully support pandas >= 3 (the ds lock's 3.0.6);
+  toPandas over Arrow was measured working.
+- **Not in Harbor**: `variant.REFUSED_PLUGS` refuses `compute=spark_connect` at export (the
+  engine's port takes no credential, and one container shares its loopback with the agent).
+- **arm64 not measured** (the JRE path is per architecture; the image was built on amd64).
+- **The client is an sdist**: Apache publishes PySpark as sdists only; pip builds this
+  pure-Python one with setuptools from its build isolation at image build time
+  (`test_toolbelt_roles.SDIST_OK`).

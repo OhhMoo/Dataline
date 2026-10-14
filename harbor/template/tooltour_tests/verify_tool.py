@@ -32,11 +32,14 @@ also a CTRF test):
            `truth_sql` returns on the SEALED copy. Never on R/world: anything
            the agent can write, it can make agree with its own answer. A probe
            with no truth_sql needs a non-null `value`.
-  tools    every `expect_tools` value is the `tool` of an audit row above the
-           watermark, and every `expect_args` substring is in the argv of one
-           of those rows. A probe whose rows a tailer writes
-           (rows_at="teardown") is judged the same way: world-down folds them
-           in before the artifacts are collected.
+  tools    every `expect_tools` group is met by an audit row above the
+           watermark: a row whose `tool` is one of the group's alternatives
+           and whose `exit` is "ok" (a failed call proves nothing). Over those
+           rows, every `expect_args` substring is in the argv of one, and every
+           `expect_targets` glob (fnmatch) matches a `targets` entry of one. A
+           probe whose rows a tailer writes (rows_at="teardown") is judged the
+           same way: world-down folds them in before the artifacts are
+           collected.
   network  every destination the episode connected to (destinations.jsonl
            and every destinations.<name>.jsonl, counts above the
            watermark's baseline) is one it was handed: the watermark's
@@ -72,9 +75,11 @@ import tempfile
 import traceback
 from pathlib import Path
 
-TOOLTOUR_VERSION = "1.0.0"
+TOOLTOUR_VERSION = "1.1.0"
 GRADING_SCHEMA = "alkera-harbor-tooltour-grading/1"
-PROBE_SCHEMA = "alkera-harbor-tooltour-probe/1"
+#: /2: expect_tools is a list of groups (lists of alternative tools), and the
+#: probe carries expect_targets.
+PROBE_SCHEMA = "alkera-harbor-tooltour-probe/2"
 PROBE_FILE = Path("episode") / "probe.json"
 EPISODE_FILE = Path("episode") / "episode.json"
 SEALED_WORLD = Path("episode") / "sealed" / "world"
@@ -92,14 +97,14 @@ STDERR_TAIL = 4000
 CTRF_TOOL = "alkera-tooltour"
 CHECKS = {
     "answer": "answer.json's value equals truth_sql on the sealed pre-agent world",
-    "tools": "every expected tool (and argv substring) is in the audit rows above "
-             "the watermark",
+    "tools": "every expected tool group (and argv substring, target glob) is met by "
+             "an audit row above the watermark that exited ok",
     "network": "every destination the episode connected to is one it was handed",
     "seq": "the action log's seq is contiguous (no row removed, inserted or "
            "renumbered)",
 }
 PROBE_FIELDS = ("id", "profile", "plugs", "command", "expect_tools", "truth_sql",
-                "instruction", "rows_at", "expect_args")
+                "instruction", "rows_at", "expect_args", "expect_targets")
 
 
 def _verify_module(tests: Path):
@@ -136,7 +141,8 @@ def load_probe(tests: Path, V) -> dict:
 def make_probe(core, doc: dict, V):
     fields = {k: doc["probe"][k] for k in PROBE_FIELDS}
     fields["plugs"] = {slot: tuple(names) for slot, names in (fields["plugs"] or {}).items()}
-    for key in ("expect_tools", "expect_args"):
+    # expect_tools: a list of groups, each a list of alternatives (Probe normalises them)
+    for key in ("expect_tools", "expect_args", "expect_targets"):
         fields[key] = tuple(fields[key] or ())
     try:
         return core.Probe(**fields)
@@ -356,11 +362,14 @@ def judge(tests: Path, work: Path) -> dict:
                               "value_ok": v["value_ok"],
                               "problem": answer_problem or (
                                   None if present else "no `value` in the answer object")}},
-        "tools": {"passed": not v["missing_tools"] and not v["missing_args"],
-                  "detail": {"expect_tools": list(probe.expect_tools),
+        "tools": {"passed": not (v["missing_tools"] or v["missing_args"]
+                                 or v["missing_targets"]),
+                  "detail": {"expect_tools": v["expect_tools"],
                              "missing_tools": v["missing_tools"],
-                             "expect_args": list(probe.expect_args),
-                             "missing_args": v["missing_args"]}},
+                             "expect_args": v["expect_args"],
+                             "missing_args": v["missing_args"],
+                             "expect_targets": v["expect_targets"],
+                             "missing_targets": v["missing_targets"]}},
         "network": {"passed": not outside,
                     "detail": {"outside": outside,
                                "connections": {f"{h}:{p}": n

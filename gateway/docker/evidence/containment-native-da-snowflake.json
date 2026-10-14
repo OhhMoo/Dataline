@@ -1,166 +1,227 @@
 {
-  "backend": "postgres (compose default)",
-  "compose_file": "/home/ubuntu/env_project/.claude/worktrees/agent-a9d585c786e098bb7/gateway/docker/compose.yml",
+  "compose_file": "/home/ubuntu/tool_implementation/gateway/docker/compose.yml",
   "compose_overlays": [
-    "/home/ubuntu/env_project/.claude/worktrees/agent-a9d585c786e098bb7/gateway/docker/compose.episode.yml",
-    "/home/ubuntu/env_project/.claude/worktrees/agent-a9d585c786e098bb7/gateway/docker/compose.native.yml"
+    "/home/ubuntu/tool_implementation/gateway/docker/compose.yml",
+    "/home/ubuntu/tool_implementation/gateway/docker/compose.episode.yml",
+    "/home/ubuntu/tool_implementation/gateway/docker/compose.native.yml",
+    "/home/ubuntu/.cache/coord-final/box-da-snowflake/rollout/container/compose.native-mounts.yml"
   ],
-  "generated": "2026-10-07T17:36:07+00:00",
+  "environment_profile": {
+    "plugs": [],
+    "profile": "da/snowflake",
+    "source": "native-services argv"
+  },
+  "generated": "2026-10-13T13:46:17+00:00",
   "host": {
     "docker": "29.8.2",
     "platform": "Linux-7.0.0-1006-aws-x86_64-with-glibc2.43"
   },
-  "mode": "native",
-  "not_measured_here": "P0-P5 describe the MCP-transport stack (evidence/containment.json); this run measures P6 only.",
+  "mode": "native-attach",
+  "not_audited": [
+    "10.210.3.1:22  NOT AN AUDITED DOOR: the bridge gateway, i.e. the HOST"
+  ],
+  "not_measured_here": "P0-P5 describe the MCP-transport stack (evidence/containment.json) and P7 the episode's filesystem; this run measures P6 only.",
   "p6_only_fake_services_reachable": {
-    "backends_declared_but_not_running": [
+    "backends_declared_but_not_carried": [
       "airflow",
       "airflow-api",
       "bigquery",
       "databricks",
-      "redshift"
+      "minio",
+      "redshift",
+      "spark"
     ],
     "backends_probed": [
-      "minio.internal:9000",
+      "jupyter.internal:8888",
+      "native-services.internal:8099",
       "postgres.internal:5432",
       "snowflake.internal:8443"
     ],
     "compose_files": [
-      "/home/ubuntu/env_project/.claude/worktrees/agent-a9d585c786e098bb7/gateway/docker/compose.yml",
-      "/home/ubuntu/env_project/.claude/worktrees/agent-a9d585c786e098bb7/gateway/docker/compose.episode.yml",
-      "/home/ubuntu/env_project/.claude/worktrees/agent-a9d585c786e098bb7/gateway/docker/compose.native.yml"
+      "/home/ubuntu/tool_implementation/gateway/docker/compose.yml",
+      "/home/ubuntu/tool_implementation/gateway/docker/compose.episode.yml",
+      "/home/ubuntu/tool_implementation/gateway/docker/compose.native.yml",
+      "/home/ubuntu/.cache/coord-final/box-da-snowflake/rollout/container/compose.native-mounts.yml"
     ],
-    "declared_aliases": {
-      "minio": [
-        "minio.internal"
-      ],
-      "native-services": [
-        "airbyte.internal",
-        "alertmanager.internal",
-        "confluence.internal",
-        "deploy.internal",
-        "jira.internal",
-        "loki.internal",
-        "metabase.internal",
-        "native-services.internal",
-        "prometheus.internal",
-        "sched.internal",
-        "slack.internal"
-      ],
-      "postgres": [
-        "postgres.internal"
-      ],
-      "snowflake": [
-        "acme.snowflake.local",
-        "snowflake.internal"
-      ]
-    },
+    "compose_names": [
+      "episode",
+      "jupyter",
+      "native-services",
+      "postgres",
+      "snowflake"
+    ],
+    "controls": [
+      "example.internal",
+      "warehouse.internal",
+      "s3",
+      "acme.snowflake.local",
+      "example.com",
+      "pypi.org",
+      "airbyte.internal",
+      "alertmanager.internal",
+      "deploy.internal",
+      "loki.internal",
+      "metabase.internal",
+      "minio",
+      "minio.internal",
+      "powerbi.internal",
+      "prometheus.internal",
+      "sched.internal",
+      "tableau.internal",
+      "airflow.internal",
+      "bigquery.internal",
+      "databricks.internal",
+      "redshift.internal",
+      "spark_connect.internal"
+    ],
+    "controls_removed_because_on_episode_net": [
+      "snowflake"
+    ],
+    "declared_aliases": {},
     "declared_aliases_missing_on_the_container": {},
-    "native_services_startup": "native-services: state /service-state (bi_state_dir /service-state/bi), config /service-state/native_gateway.json\nalkera native services  bind=0.0.0.0  audit=/audit  world=/world\nservice       alias                     port  state\nmetabase      metabase.internal         3000  module\nloki          loki.internal             3100  module\nairbyte       airbyte.internal          8001  module\njira          jira.internal             8080  module\nslack         slack.internal            8081  module\ndeploy        deploy.internal           8085  module\nconfluence    confluence.internal       8090  module\nprometheus    prometheus.internal       9090  module\nalertmanager  alertmanager.internal     9093  module\nminio-audit   native-services.internal  8110  receiver (not a destination: the stack dials it, not the episode)\nsched         sched.internal            8120  scheduler\nloaded=11 missing=0 port_disagreements=0\nALKERA_GATEWAY_CONFIG=/service-state/native_gateway.json\nALKERA_NATIVE_AUDIT=/audit/actions.jsonl\nALKERA_SCHEDULER=/world/var/sched/state.json",
-    "passed": false,
+    "environment_profile": {
+      "plugs": {},
+      "profile": "da/snowflake"
+    },
+    "episode_network": {
+      "gateway": "10.210.3.1",
+      "gateway_source": "docker network inspect (IPAM)",
+      "internal": true,
+      "name": "alkera-t4b-da-snowflake_episode_net",
+      "subnet": "10.210.3.0/24"
+    },
+    "every_open_port_is_an_expected_door": false,
+    "expected": [
+      {
+        "host": "confluence.internal",
+        "port": 8090,
+        "probe": "tcp",
+        "source": "native_episode_probe.expectations"
+      },
+      {
+        "host": "jira.internal",
+        "port": 8080,
+        "probe": "tcp",
+        "source": "native_episode_probe.expectations"
+      },
+      {
+        "host": "sigma.internal",
+        "port": 8097,
+        "probe": "tcp",
+        "source": "native_episode_probe.expectations"
+      },
+      {
+        "host": "slack.internal",
+        "port": 8081,
+        "probe": "tcp",
+        "source": "native_episode_probe.expectations"
+      }
+    ],
+    "expected_from": "native_episode_probe.expectations(profile, plugs), as TCP",
+    "must_not_resolve_off_episode_net": [],
+    "native_services_startup": "native-services: state /service-state (bi_state_dir /service-state/bi), config /service-state/native_gateway.json\nalkera native services  bind=0.0.0.0  audit=/audit  world=/world\nservice       alias                     port  state\njira          jira.internal             8080  module\nslack         slack.internal            8081  module\nconfluence    confluence.internal       8090  module\nsigma         sigma.internal            8097  module\nloaded=4 missing=0 port_disagreements=0\nALKERA_GATEWAY_CONFIG=/service-state/native_gateway.json\nALKERA_NATIVE_AUDIT=/audit/actions.jsonl\nALKERA_SCHEDULER=/world/var/sched/state.json",
+    "not_audited": [
+      {
+        "address": "10.210.3.1",
+        "banner": {
+          "spoke_first": "SSH-2.0-OpenSSH_10.2p1 Ubuntu-2ubuntu3.6\r\n"
+        },
+        "class": "NOT AN AUDITED DOOR: the bridge gateway, i.e. the HOST",
+        "names": [],
+        "port": 22,
+        "service": null,
+        "target": "10.210.3.1:22"
+      }
+    ],
+    "passed": true,
+    "plugged_backends_not_carried": [],
     "probe": {
       "addresses_probed": [
-        "10.210.1.2",
-        "10.210.1.3",
-        "10.210.1.4",
-        "10.210.1.5"
+        "10.210.3.2",
+        "10.210.3.3",
+        "10.210.3.4",
+        "10.210.3.5"
       ],
       "closed_port_attempts": [
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.1.2:22"
+          "target": "10.210.3.2:22"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.1.2:80"
+          "target": "10.210.3.2:80"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.1.2:443"
+          "target": "10.210.3.2:443"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.1.2:3306"
+          "target": "10.210.3.2:3306"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.1.2:6379"
+          "target": "10.210.3.2:6379"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.1.2:8888"
+          "target": "10.210.3.3:22"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.1.3:22"
+          "target": "10.210.3.3:80"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.1.3:80"
+          "target": "10.210.3.3:443"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.1.3:443"
+          "target": "10.210.3.3:3306"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.1.3:3306"
+          "target": "10.210.3.3:6379"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.1.3:6379"
+          "target": "10.210.3.4:22"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.1.3:8888"
+          "target": "10.210.3.4:80"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.1.4:22"
+          "target": "10.210.3.4:443"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.1.4:80"
+          "target": "10.210.3.4:3306"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.1.4:443"
+          "target": "10.210.3.4:6379"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.1.4:3306"
+          "target": "10.210.3.5:22"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.1.4:6379"
+          "target": "10.210.3.5:80"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.1.4:8888"
+          "target": "10.210.3.5:443"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.1.5:22"
+          "target": "10.210.3.5:3306"
         },
         {
           "result": "ConnectionRefusedError",
-          "target": "10.210.1.5:80"
-        },
-        {
-          "result": "ConnectionRefusedError",
-          "target": "10.210.1.5:443"
-        },
-        {
-          "result": "ConnectionRefusedError",
-          "target": "10.210.1.5:3306"
-        },
-        {
-          "result": "ConnectionRefusedError",
-          "target": "10.210.1.5:6379"
-        },
-        {
-          "result": "ConnectionRefusedError",
-          "target": "10.210.1.5:8888"
+          "target": "10.210.3.5:6379"
         }
       ],
       "closed_ports_probed": [
@@ -168,42 +229,41 @@
         80,
         443,
         3306,
-        6379,
-        8888
+        6379
       ],
       "compose_names_pointing_elsewhere": [],
       "compose_service_names": [
         {
           "addresses": [
-            "10.210.1.6"
+            "10.210.3.6"
           ],
           "name": "episode",
           "points_at_a_known_service": true
         },
         {
           "addresses": [
-            "10.210.1.3"
+            "10.210.3.2"
           ],
-          "name": "minio",
+          "name": "jupyter",
           "points_at_a_known_service": true
         },
         {
           "addresses": [
-            "10.210.1.4"
+            "10.210.3.3"
           ],
           "name": "native-services",
           "points_at_a_known_service": true
         },
         {
           "addresses": [
-            "10.210.1.5"
+            "10.210.3.5"
           ],
           "name": "postgres",
           "points_at_a_known_service": true
         },
         {
           "addresses": [
-            "10.210.1.2"
+            "10.210.3.4"
           ],
           "name": "snowflake",
           "points_at_a_known_service": true
@@ -223,12 +283,6 @@
           "name": "s3"
         },
         {
-          "addresses": [
-            "10.210.1.2"
-          ],
-          "name": "snowflake"
-        },
-        {
           "error": "gaierror",
           "name": "acme.snowflake.local"
         },
@@ -239,70 +293,110 @@
         {
           "error": "gaierror",
           "name": "pypi.org"
+        },
+        {
+          "error": "gaierror",
+          "name": "airbyte.internal"
+        },
+        {
+          "error": "gaierror",
+          "name": "alertmanager.internal"
+        },
+        {
+          "error": "gaierror",
+          "name": "deploy.internal"
+        },
+        {
+          "error": "gaierror",
+          "name": "loki.internal"
+        },
+        {
+          "error": "gaierror",
+          "name": "metabase.internal"
+        },
+        {
+          "error": "gaierror",
+          "name": "minio"
+        },
+        {
+          "error": "gaierror",
+          "name": "minio.internal"
+        },
+        {
+          "error": "gaierror",
+          "name": "powerbi.internal"
+        },
+        {
+          "error": "gaierror",
+          "name": "prometheus.internal"
+        },
+        {
+          "error": "gaierror",
+          "name": "sched.internal"
+        },
+        {
+          "error": "gaierror",
+          "name": "tableau.internal"
+        },
+        {
+          "error": "gaierror",
+          "name": "airflow.internal"
+        },
+        {
+          "error": "gaierror",
+          "name": "bigquery.internal"
+        },
+        {
+          "error": "gaierror",
+          "name": "databricks.internal"
+        },
+        {
+          "error": "gaierror",
+          "name": "redshift.internal"
+        },
+        {
+          "error": "gaierror",
+          "name": "spark_connect.internal"
         }
       ],
-      "controls_that_resolved": [
-        "snowflake"
-      ],
+      "controls_that_resolved": [],
       "dns_deviation": "Docker registers a container's compose service name on every network it joins and gives no way to unregister it, so the names below resolve in addition to the aliases. Each is pinned to an address that is already one of this stack's own services; a name resolving anywhere else fails this property. Removing them needs a resolver of our own in front of 127.0.0.11 - see gateway/docker/NATIVE_STACK.md.",
+      "every_open_port_is_expected": false,
+      "exit": 0,
       "expected": [
+        {
+          "host": "confluence.internal",
+          "port": 8090,
+          "probe": "tcp",
+          "source": "native_episode_probe.expectations"
+        },
         {
           "host": "jira.internal",
           "port": 8080,
-          "probe": "health",
-          "source": "module"
+          "probe": "tcp",
+          "source": "native_episode_probe.expectations"
+        },
+        {
+          "host": "sigma.internal",
+          "port": 8097,
+          "probe": "tcp",
+          "source": "native_episode_probe.expectations"
         },
         {
           "host": "slack.internal",
           "port": 8081,
-          "probe": "health",
-          "source": "module"
+          "probe": "tcp",
+          "source": "native_episode_probe.expectations"
         },
         {
-          "host": "confluence.internal",
-          "port": 8090,
-          "probe": "health",
-          "source": "module"
+          "host": "jupyter.internal",
+          "port": 8888,
+          "probe": "tcp",
+          "source": "--backend"
         },
         {
-          "host": "metabase.internal",
-          "port": 3000,
-          "probe": "health",
-          "source": "module"
-        },
-        {
-          "host": "prometheus.internal",
-          "port": 9090,
-          "probe": "health",
-          "source": "module"
-        },
-        {
-          "host": "alertmanager.internal",
-          "port": 9093,
-          "probe": "health",
-          "source": "module"
-        },
-        {
-          "host": "loki.internal",
-          "port": 3100,
-          "probe": "health",
-          "source": "module"
-        },
-        {
-          "host": "airbyte.internal",
-          "port": 8001,
-          "probe": "health",
-          "source": "module"
-        },
-        {
-          "host": "deploy.internal",
-          "port": 8085,
-          "probe": "health",
-          "source": "module"
-        },
-        {
-          "host": "minio.internal",
-          "port": 9000,
+          "host": "native-services.internal",
+          "port": 8099,
           "probe": "tcp",
           "source": "--backend"
         },
@@ -327,238 +421,121 @@
         ],
         "routes": [
           {
-            "dest": "10.210.1.0",
+            "dest": "10.210.3.0",
             "iface": "eth0"
           }
         ]
       },
-      "own_addresses": [
-        "10.210.1.6"
+      "not_audited": [
+        {
+          "address": "10.210.3.1",
+          "banner": {
+            "spoke_first": "SSH-2.0-OpenSSH_10.2p1 Ubuntu-2ubuntu3.6\r\n"
+          },
+          "names": [],
+          "port": 22,
+          "target": "10.210.3.1:22"
+        }
       ],
-      "passed": false,
+      "own_addresses": [
+        "10.210.3.6"
+      ],
+      "passed": true,
       "self_test": {
         "name_that_should_resolve": {
           "addresses": [
-            "10.210.1.4"
+            "10.210.3.3"
           ],
-          "name": "jira.internal"
+          "name": "confluence.internal"
         },
         "port_that_should_answer": {
           "result": "CONNECTED",
-          "target": "jira.internal:8080"
+          "target": "confluence.internal:8090"
         },
         "probe_can_see_an_open_name_and_port": true,
         "ran": true
       },
       "services": [
         {
-          "health": {
-            "body": "{\"ok\":true,\"service\":\"jira\",\"items\":8}",
-            "items": 8,
-            "ok": true,
-            "service": "jira",
-            "status": 200,
-            "url": "http://jira.internal:8080/health"
-          },
-          "host": "jira.internal",
-          "port": 8080,
-          "probe": "health",
-          "reachable": true,
-          "resolution": {
-            "addresses": [
-              "10.210.1.4"
-            ],
-            "name": "jira.internal"
-          },
-          "source": "module",
-          "tcp": "CONNECTED"
-        },
-        {
-          "health": {
-            "body": "{\"ok\":true,\"service\":\"slack\",\"items\":3}",
-            "items": 3,
-            "ok": true,
-            "service": "slack",
-            "status": 200,
-            "url": "http://slack.internal:8081/health"
-          },
-          "host": "slack.internal",
-          "port": 8081,
-          "probe": "health",
-          "reachable": true,
-          "resolution": {
-            "addresses": [
-              "10.210.1.4"
-            ],
-            "name": "slack.internal"
-          },
-          "source": "module",
-          "tcp": "CONNECTED"
-        },
-        {
-          "health": {
-            "body": "{\"ok\":true,\"service\":\"confluence\",\"items\":9}",
-            "items": 9,
-            "ok": true,
-            "service": "confluence",
-            "status": 200,
-            "url": "http://confluence.internal:8090/health"
-          },
           "host": "confluence.internal",
           "port": 8090,
-          "probe": "health",
-          "reachable": true,
-          "resolution": {
-            "addresses": [
-              "10.210.1.4"
-            ],
-            "name": "confluence.internal"
-          },
-          "source": "module",
-          "tcp": "CONNECTED"
-        },
-        {
-          "health": {
-            "body": "{\"ok\":true,\"service\":\"metabase\",\"items\":1}",
-            "items": 1,
-            "ok": true,
-            "service": "metabase",
-            "status": 200,
-            "url": "http://metabase.internal:3000/health"
-          },
-          "host": "metabase.internal",
-          "port": 3000,
-          "probe": "health",
-          "reachable": true,
-          "resolution": {
-            "addresses": [
-              "10.210.1.4"
-            ],
-            "name": "metabase.internal"
-          },
-          "source": "module",
-          "tcp": "CONNECTED"
-        },
-        {
-          "health": {
-            "body": "{\"ok\":true,\"service\":\"prometheus\",\"items\":10}",
-            "items": 10,
-            "ok": true,
-            "service": "prometheus",
-            "status": 200,
-            "url": "http://prometheus.internal:9090/health"
-          },
-          "host": "prometheus.internal",
-          "port": 9090,
-          "probe": "health",
-          "reachable": true,
-          "resolution": {
-            "addresses": [
-              "10.210.1.4"
-            ],
-            "name": "prometheus.internal"
-          },
-          "source": "module",
-          "tcp": "CONNECTED"
-        },
-        {
-          "health": {
-            "body": "{\"ok\":true,\"service\":\"alertmanager\",\"items\":5}",
-            "items": 5,
-            "ok": true,
-            "service": "alertmanager",
-            "status": 200,
-            "url": "http://alertmanager.internal:9093/health"
-          },
-          "host": "alertmanager.internal",
-          "port": 9093,
-          "probe": "health",
-          "reachable": true,
-          "resolution": {
-            "addresses": [
-              "10.210.1.4"
-            ],
-            "name": "alertmanager.internal"
-          },
-          "source": "module",
-          "tcp": "CONNECTED"
-        },
-        {
-          "health": {
-            "body": "{\"ok\":true,\"service\":\"loki\",\"items\":92}",
-            "items": 92,
-            "ok": true,
-            "service": "loki",
-            "status": 200,
-            "url": "http://loki.internal:3100/health"
-          },
-          "host": "loki.internal",
-          "port": 3100,
-          "probe": "health",
-          "reachable": true,
-          "resolution": {
-            "addresses": [
-              "10.210.1.4"
-            ],
-            "name": "loki.internal"
-          },
-          "source": "module",
-          "tcp": "CONNECTED"
-        },
-        {
-          "health": {
-            "body": "{\"ok\":true,\"service\":\"airbyte\",\"items\":2}",
-            "items": 2,
-            "ok": true,
-            "service": "airbyte",
-            "status": 200,
-            "url": "http://airbyte.internal:8001/health"
-          },
-          "host": "airbyte.internal",
-          "port": 8001,
-          "probe": "health",
-          "reachable": true,
-          "resolution": {
-            "addresses": [
-              "10.210.1.4"
-            ],
-            "name": "airbyte.internal"
-          },
-          "source": "module",
-          "tcp": "CONNECTED"
-        },
-        {
-          "health": {
-            "body": "{\"ok\":true,\"service\":\"deploy\",\"items\":1}",
-            "items": 1,
-            "ok": true,
-            "service": "deploy",
-            "status": 200,
-            "url": "http://deploy.internal:8085/health"
-          },
-          "host": "deploy.internal",
-          "port": 8085,
-          "probe": "health",
-          "reachable": true,
-          "resolution": {
-            "addresses": [
-              "10.210.1.4"
-            ],
-            "name": "deploy.internal"
-          },
-          "source": "module",
-          "tcp": "CONNECTED"
-        },
-        {
-          "host": "minio.internal",
-          "port": 9000,
           "probe": "tcp",
           "reachable": true,
           "resolution": {
             "addresses": [
-              "10.210.1.3"
+              "10.210.3.3"
             ],
-            "name": "minio.internal"
+            "name": "confluence.internal"
+          },
+          "source": "native_episode_probe.expectations",
+          "tcp": "CONNECTED"
+        },
+        {
+          "host": "jira.internal",
+          "port": 8080,
+          "probe": "tcp",
+          "reachable": true,
+          "resolution": {
+            "addresses": [
+              "10.210.3.3"
+            ],
+            "name": "jira.internal"
+          },
+          "source": "native_episode_probe.expectations",
+          "tcp": "CONNECTED"
+        },
+        {
+          "host": "sigma.internal",
+          "port": 8097,
+          "probe": "tcp",
+          "reachable": true,
+          "resolution": {
+            "addresses": [
+              "10.210.3.3"
+            ],
+            "name": "sigma.internal"
+          },
+          "source": "native_episode_probe.expectations",
+          "tcp": "CONNECTED"
+        },
+        {
+          "host": "slack.internal",
+          "port": 8081,
+          "probe": "tcp",
+          "reachable": true,
+          "resolution": {
+            "addresses": [
+              "10.210.3.3"
+            ],
+            "name": "slack.internal"
+          },
+          "source": "native_episode_probe.expectations",
+          "tcp": "CONNECTED"
+        },
+        {
+          "host": "jupyter.internal",
+          "port": 8888,
+          "probe": "tcp",
+          "reachable": true,
+          "resolution": {
+            "addresses": [
+              "10.210.3.2"
+            ],
+            "name": "jupyter.internal"
+          },
+          "source": "--backend",
+          "tcp": "CONNECTED"
+        },
+        {
+          "host": "native-services.internal",
+          "port": 8099,
+          "probe": "tcp",
+          "reachable": true,
+          "resolution": {
+            "addresses": [
+              "10.210.3.3"
+            ],
+            "name": "native-services.internal"
           },
           "source": "--backend",
           "tcp": "CONNECTED"
@@ -570,7 +547,7 @@
           "reachable": true,
           "resolution": {
             "addresses": [
-              "10.210.1.5"
+              "10.210.3.5"
             ],
             "name": "postgres.internal"
           },
@@ -584,7 +561,7 @@
           "reachable": true,
           "resolution": {
             "addresses": [
-              "10.210.1.2"
+              "10.210.3.4"
             ],
             "name": "snowflake.internal"
           },
@@ -593,161 +570,566 @@
         }
       ],
       "services_unreachable": [],
+      "sweep": {
+        "addresses_in_cidr": 254,
+        "cidr": "10.210.3.0/24",
+        "live_addresses": [
+          "10.210.3.1",
+          "10.210.3.2",
+          "10.210.3.3",
+          "10.210.3.4",
+          "10.210.3.5"
+        ],
+        "liveness": {
+          "10.210.3.1": "ConnectionRefusedError",
+          "10.210.3.10": "timeout",
+          "10.210.3.100": "timeout",
+          "10.210.3.101": "timeout",
+          "10.210.3.102": "timeout",
+          "10.210.3.103": "timeout",
+          "10.210.3.104": "timeout",
+          "10.210.3.105": "timeout",
+          "10.210.3.106": "timeout",
+          "10.210.3.107": "timeout",
+          "10.210.3.108": "timeout",
+          "10.210.3.109": "timeout",
+          "10.210.3.11": "timeout",
+          "10.210.3.110": "timeout",
+          "10.210.3.111": "timeout",
+          "10.210.3.112": "timeout",
+          "10.210.3.113": "timeout",
+          "10.210.3.114": "timeout",
+          "10.210.3.115": "timeout",
+          "10.210.3.116": "timeout",
+          "10.210.3.117": "timeout",
+          "10.210.3.118": "timeout",
+          "10.210.3.119": "timeout",
+          "10.210.3.12": "timeout",
+          "10.210.3.120": "timeout",
+          "10.210.3.121": "timeout",
+          "10.210.3.122": "timeout",
+          "10.210.3.123": "timeout",
+          "10.210.3.124": "timeout",
+          "10.210.3.125": "timeout",
+          "10.210.3.126": "timeout",
+          "10.210.3.127": "timeout",
+          "10.210.3.128": "timeout",
+          "10.210.3.129": "timeout",
+          "10.210.3.13": "timeout",
+          "10.210.3.130": "timeout",
+          "10.210.3.131": "timeout",
+          "10.210.3.132": "timeout",
+          "10.210.3.133": "timeout",
+          "10.210.3.134": "timeout",
+          "10.210.3.135": "timeout",
+          "10.210.3.136": "timeout",
+          "10.210.3.137": "timeout",
+          "10.210.3.138": "timeout",
+          "10.210.3.139": "timeout",
+          "10.210.3.14": "timeout",
+          "10.210.3.140": "timeout",
+          "10.210.3.141": "timeout",
+          "10.210.3.142": "timeout",
+          "10.210.3.143": "timeout",
+          "10.210.3.144": "timeout",
+          "10.210.3.145": "timeout",
+          "10.210.3.146": "timeout",
+          "10.210.3.147": "timeout",
+          "10.210.3.148": "timeout",
+          "10.210.3.149": "timeout",
+          "10.210.3.15": "timeout",
+          "10.210.3.150": "timeout",
+          "10.210.3.151": "timeout",
+          "10.210.3.152": "timeout",
+          "10.210.3.153": "timeout",
+          "10.210.3.154": "timeout",
+          "10.210.3.155": "timeout",
+          "10.210.3.156": "timeout",
+          "10.210.3.157": "timeout",
+          "10.210.3.158": "timeout",
+          "10.210.3.159": "timeout",
+          "10.210.3.16": "timeout",
+          "10.210.3.160": "timeout",
+          "10.210.3.161": "timeout",
+          "10.210.3.162": "timeout",
+          "10.210.3.163": "timeout",
+          "10.210.3.164": "timeout",
+          "10.210.3.165": "timeout",
+          "10.210.3.166": "timeout",
+          "10.210.3.167": "timeout",
+          "10.210.3.168": "timeout",
+          "10.210.3.169": "timeout",
+          "10.210.3.17": "timeout",
+          "10.210.3.170": "timeout",
+          "10.210.3.171": "timeout",
+          "10.210.3.172": "timeout",
+          "10.210.3.173": "timeout",
+          "10.210.3.174": "timeout",
+          "10.210.3.175": "timeout",
+          "10.210.3.176": "timeout",
+          "10.210.3.177": "timeout",
+          "10.210.3.178": "timeout",
+          "10.210.3.179": "timeout",
+          "10.210.3.18": "timeout",
+          "10.210.3.180": "timeout",
+          "10.210.3.181": "timeout",
+          "10.210.3.182": "timeout",
+          "10.210.3.183": "timeout",
+          "10.210.3.184": "timeout",
+          "10.210.3.185": "timeout",
+          "10.210.3.186": "timeout",
+          "10.210.3.187": "timeout",
+          "10.210.3.188": "timeout",
+          "10.210.3.189": "timeout",
+          "10.210.3.19": "timeout",
+          "10.210.3.190": "timeout",
+          "10.210.3.191": "timeout",
+          "10.210.3.192": "timeout",
+          "10.210.3.193": "timeout",
+          "10.210.3.194": "timeout",
+          "10.210.3.195": "timeout",
+          "10.210.3.196": "timeout",
+          "10.210.3.197": "timeout",
+          "10.210.3.198": "timeout",
+          "10.210.3.199": "timeout",
+          "10.210.3.2": "ConnectionRefusedError",
+          "10.210.3.20": "timeout",
+          "10.210.3.200": "timeout",
+          "10.210.3.201": "timeout",
+          "10.210.3.202": "timeout",
+          "10.210.3.203": "timeout",
+          "10.210.3.204": "timeout",
+          "10.210.3.205": "timeout",
+          "10.210.3.206": "timeout",
+          "10.210.3.207": "timeout",
+          "10.210.3.208": "timeout",
+          "10.210.3.209": "timeout",
+          "10.210.3.21": "timeout",
+          "10.210.3.210": "timeout",
+          "10.210.3.211": "timeout",
+          "10.210.3.212": "timeout",
+          "10.210.3.213": "timeout",
+          "10.210.3.214": "timeout",
+          "10.210.3.215": "timeout",
+          "10.210.3.216": "timeout",
+          "10.210.3.217": "timeout",
+          "10.210.3.218": "timeout",
+          "10.210.3.219": "timeout",
+          "10.210.3.22": "timeout",
+          "10.210.3.220": "timeout",
+          "10.210.3.221": "timeout",
+          "10.210.3.222": "timeout",
+          "10.210.3.223": "timeout",
+          "10.210.3.224": "timeout",
+          "10.210.3.225": "timeout",
+          "10.210.3.226": "timeout",
+          "10.210.3.227": "timeout",
+          "10.210.3.228": "timeout",
+          "10.210.3.229": "timeout",
+          "10.210.3.23": "timeout",
+          "10.210.3.230": "timeout",
+          "10.210.3.231": "timeout",
+          "10.210.3.232": "timeout",
+          "10.210.3.233": "timeout",
+          "10.210.3.234": "timeout",
+          "10.210.3.235": "timeout",
+          "10.210.3.236": "timeout",
+          "10.210.3.237": "timeout",
+          "10.210.3.238": "timeout",
+          "10.210.3.239": "timeout",
+          "10.210.3.24": "timeout",
+          "10.210.3.240": "timeout",
+          "10.210.3.241": "timeout",
+          "10.210.3.242": "timeout",
+          "10.210.3.243": "timeout",
+          "10.210.3.244": "timeout",
+          "10.210.3.245": "timeout",
+          "10.210.3.246": "timeout",
+          "10.210.3.247": "timeout",
+          "10.210.3.248": "timeout",
+          "10.210.3.249": "timeout",
+          "10.210.3.25": "timeout",
+          "10.210.3.250": "timeout",
+          "10.210.3.251": "timeout",
+          "10.210.3.252": "timeout",
+          "10.210.3.253": "timeout",
+          "10.210.3.254": "timeout",
+          "10.210.3.26": "timeout",
+          "10.210.3.27": "timeout",
+          "10.210.3.28": "timeout",
+          "10.210.3.29": "timeout",
+          "10.210.3.3": "ConnectionRefusedError",
+          "10.210.3.30": "timeout",
+          "10.210.3.31": "timeout",
+          "10.210.3.32": "timeout",
+          "10.210.3.33": "timeout",
+          "10.210.3.34": "timeout",
+          "10.210.3.35": "timeout",
+          "10.210.3.36": "timeout",
+          "10.210.3.37": "timeout",
+          "10.210.3.38": "timeout",
+          "10.210.3.39": "timeout",
+          "10.210.3.4": "ConnectionRefusedError",
+          "10.210.3.40": "timeout",
+          "10.210.3.41": "timeout",
+          "10.210.3.42": "timeout",
+          "10.210.3.43": "timeout",
+          "10.210.3.44": "timeout",
+          "10.210.3.45": "timeout",
+          "10.210.3.46": "timeout",
+          "10.210.3.47": "timeout",
+          "10.210.3.48": "timeout",
+          "10.210.3.49": "timeout",
+          "10.210.3.5": "ConnectionRefusedError",
+          "10.210.3.50": "timeout",
+          "10.210.3.51": "timeout",
+          "10.210.3.52": "timeout",
+          "10.210.3.53": "timeout",
+          "10.210.3.54": "timeout",
+          "10.210.3.55": "timeout",
+          "10.210.3.56": "timeout",
+          "10.210.3.57": "timeout",
+          "10.210.3.58": "timeout",
+          "10.210.3.59": "timeout",
+          "10.210.3.60": "timeout",
+          "10.210.3.61": "timeout",
+          "10.210.3.62": "timeout",
+          "10.210.3.63": "timeout",
+          "10.210.3.64": "timeout",
+          "10.210.3.65": "timeout",
+          "10.210.3.66": "timeout",
+          "10.210.3.67": "timeout",
+          "10.210.3.68": "timeout",
+          "10.210.3.69": "timeout",
+          "10.210.3.7": "timeout",
+          "10.210.3.70": "timeout",
+          "10.210.3.71": "timeout",
+          "10.210.3.72": "timeout",
+          "10.210.3.73": "timeout",
+          "10.210.3.74": "timeout",
+          "10.210.3.75": "timeout",
+          "10.210.3.76": "timeout",
+          "10.210.3.77": "timeout",
+          "10.210.3.78": "timeout",
+          "10.210.3.79": "timeout",
+          "10.210.3.8": "timeout",
+          "10.210.3.80": "timeout",
+          "10.210.3.81": "timeout",
+          "10.210.3.82": "timeout",
+          "10.210.3.83": "timeout",
+          "10.210.3.84": "timeout",
+          "10.210.3.85": "timeout",
+          "10.210.3.86": "timeout",
+          "10.210.3.87": "timeout",
+          "10.210.3.88": "timeout",
+          "10.210.3.89": "timeout",
+          "10.210.3.9": "timeout",
+          "10.210.3.90": "timeout",
+          "10.210.3.91": "timeout",
+          "10.210.3.92": "timeout",
+          "10.210.3.93": "timeout",
+          "10.210.3.94": "timeout",
+          "10.210.3.95": "timeout",
+          "10.210.3.96": "timeout",
+          "10.210.3.97": "timeout",
+          "10.210.3.98": "timeout",
+          "10.210.3.99": "timeout"
+        },
+        "liveness_ports": [
+          9,
+          22,
+          80,
+          443,
+          3306,
+          6379,
+          8888
+        ],
+        "neither_open_nor_refused_first_200": [],
+        "open": [
+          "10.210.3.1:22",
+          "10.210.3.2:8888",
+          "10.210.3.3:8080",
+          "10.210.3.3:8081",
+          "10.210.3.3:8090",
+          "10.210.3.3:8097",
+          "10.210.3.3:8099",
+          "10.210.3.4:8443",
+          "10.210.3.5:5432"
+        ],
+        "own_addresses_skipped": [
+          "10.210.3.6"
+        ],
+        "ports": "1-65535",
+        "result_counts": {
+          "10.210.3.1": {
+            "CONNECTED": 1,
+            "ConnectionRefusedError": 65534
+          },
+          "10.210.3.2": {
+            "CONNECTED": 1,
+            "ConnectionRefusedError": 65534
+          },
+          "10.210.3.3": {
+            "CONNECTED": 5,
+            "ConnectionRefusedError": 65530
+          },
+          "10.210.3.4": {
+            "CONNECTED": 1,
+            "ConnectionRefusedError": 65534
+          },
+          "10.210.3.5": {
+            "CONNECTED": 1,
+            "ConnectionRefusedError": 65534
+          }
+        },
+        "saw_every_expected_port_open": true,
+        "seconds": 11.4,
+        "timeout_s": 1.0
+      },
       "unexpected_open": [],
       "vantage": "episode container, episode_net only"
     },
     "published_host_ports": {},
     "running_aliases": {
       "episode": [
-        "alkera-p6m-da-snowflake-episode-1",
+        "alkera-t4b-da-snowflake-episode-1",
         "episode"
       ],
-      "minio": [
-        "alkera-p6m-da-snowflake-minio-1",
-        "minio",
-        "minio.internal"
+      "jupyter": [
+        "alkera-t4b-da-snowflake-jupyter-1",
+        "jupyter",
+        "jupyter.internal"
       ],
       "native-services": [
-        "airbyte.internal",
-        "alertmanager.internal",
-        "alkera-p6m-da-snowflake-native-services-1",
+        "alkera-t4b-da-snowflake-native-services-1",
         "confluence.internal",
-        "deploy.internal",
         "jira.internal",
-        "loki.internal",
-        "metabase.internal",
         "native-services",
         "native-services.internal",
-        "prometheus.internal",
-        "sched.internal",
+        "sigma.internal",
         "slack.internal"
       ],
       "postgres": [
-        "alkera-p6m-da-snowflake-postgres-1",
+        "alkera-t4b-da-snowflake-postgres-1",
         "postgres",
         "postgres.internal"
       ],
       "snowflake": [
         "acme.snowflake.local",
-        "alkera-p6m-da-snowflake-snowflake-1",
+        "alkera-t4b-da-snowflake-snowflake-1",
         "snowflake",
         "snowflake.internal"
       ]
     },
     "stub_services": ""
   },
-  "passed": false,
-  "profiles": [
-    "snowflake"
-  ],
-  "project": "alkera-p6m-da-snowflake",
+  "passed": true,
+  "project": "alkera-t4b-da-snowflake",
   "services": [
     {
       "aliases": {
-        "alkera-p6m-da-snowflake_episode_net": [
-          "alkera-p6m-da-snowflake-episode-1",
+        "alkera-t4b-da-snowflake_episode_net": [
+          "alkera-t4b-da-snowflake-episode-1",
           "episode"
         ]
       },
-      "container": "alkera-p6m-da-snowflake-episode-1",
-      "image": "alkera-episode:p6-da-snowflake",
+      "container": "alkera-t4b-da-snowflake-episode-1",
+      "image": "alkera-episode:head-da-snowflake",
       "mounts": [
         {
           "rw": true,
-          "source": "/home/ubuntu/.cache/p6/native/da-snowflake/audit",
+          "source": "/home/ubuntu/.cache/coord-final/box-da-snowflake/audit",
           "target": "/audit"
         },
         {
           "rw": true,
-          "source": "/home/ubuntu/.cache/p6/native/da-snowflake/world/workspace",
+          "source": "/home/ubuntu/.cache/coord-final/box-da-snowflake/world/workspace",
           "target": "/workspace"
+        },
+        {
+          "rw": false,
+          "source": "alkera-t4b-da-snowflake_snowflaketrust",
+          "target": "/etc/alkera/snowflake-tls"
         },
         {
           "rw": false,
           "source": "",
           "target": "/world/var/ledger"
+        },
+        {
+          "rw": true,
+          "source": "/home/ubuntu/.cache/coord-final/box-da-snowflake/world/var/warehouse/warehouse.duckdb",
+          "target": "/world/var/warehouse/warehouse.duckdb"
         }
       ],
-      "network_mode": "alkera-p6m-da-snowflake_episode_net",
+      "network_mode": "alkera-t4b-da-snowflake_episode_net",
       "networks": {
-        "alkera-p6m-da-snowflake_episode_net": "10.210.1.6"
+        "alkera-t4b-da-snowflake_episode_net": "10.210.3.6"
       },
       "published_ports": {},
       "service": "episode"
     },
     {
       "aliases": {
-        "alkera-p6m-da-snowflake_backend_net": [
-          "alkera-p6m-da-snowflake-minio-1",
-          "minio"
+        "alkera-t4b-da-snowflake_backend_net": [
+          "alkera-t4b-da-snowflake-snowflake-1",
+          "snowflake",
+          "acme.snowflake.local"
         ],
-        "alkera-p6m-da-snowflake_episode_net": [
-          "alkera-p6m-da-snowflake-minio-1",
-          "minio",
-          "minio.internal"
+        "alkera-t4b-da-snowflake_episode_net": [
+          "alkera-t4b-da-snowflake-snowflake-1",
+          "snowflake",
+          "snowflake.internal"
         ]
       },
-      "container": "alkera-p6m-da-snowflake-minio-1",
-      "image": "docker.io/pgsty/minio@sha256:b6bfe7239bfc83fb90d31612d9704d86039dd714f7904b3f1ad68f211e602372",
+      "container": "alkera-t4b-da-snowflake-snowflake-1",
+      "image": "alkera-snowflake:native-head-da-snowflake",
       "mounts": [
         {
           "rw": true,
-          "source": "alkera-p6m-da-snowflake_minioaudit",
-          "target": "/audit-spool"
+          "source": "/home/ubuntu/.cache/coord-final/box-da-snowflake/audit",
+          "target": "/audit"
         },
         {
           "rw": true,
-          "source": "alkera-p6m-da-snowflake_miniodata",
-          "target": "/data"
+          "source": "alkera-t4b-da-snowflake_snowflakedata",
+          "target": "/snowflake-data"
+        },
+        {
+          "rw": true,
+          "source": "alkera-t4b-da-snowflake_snowflaketls",
+          "target": "/tls"
+        },
+        {
+          "rw": false,
+          "source": "/home/ubuntu/.cache/coord-final/box-da-snowflake/world/var/warehouse/warehouse.duckdb",
+          "target": "/seed/warehouse.duckdb"
+        },
+        {
+          "rw": true,
+          "source": "alkera-t4b-da-snowflake_snowflaketrust",
+          "target": "/etc/alkera/snowflake-tls"
         }
       ],
-      "network_mode": "alkera-p6m-da-snowflake_backend_net",
+      "network_mode": "alkera-t4b-da-snowflake_backend_net",
       "networks": {
-        "alkera-p6m-da-snowflake_backend_net": "10.210.2.3",
-        "alkera-p6m-da-snowflake_episode_net": "10.210.1.3"
+        "alkera-t4b-da-snowflake_backend_net": "10.210.4.2",
+        "alkera-t4b-da-snowflake_episode_net": "10.210.3.4"
       },
       "published_ports": {},
-      "service": "minio"
+      "service": "snowflake"
     },
     {
       "aliases": {
-        "alkera-p6m-da-snowflake_episode_net": [
-          "alkera-p6m-da-snowflake-native-services-1",
-          "native-services",
-          "native-services.internal",
-          "jira.internal",
-          "confluence.internal",
-          "slack.internal",
-          "deploy.internal",
-          "airbyte.internal",
-          "metabase.internal",
-          "prometheus.internal",
-          "alertmanager.internal",
-          "loki.internal",
-          "sched.internal"
+        "alkera-t4b-da-snowflake_backend_net": [
+          "alkera-t4b-da-snowflake-postgres-1",
+          "postgres"
+        ],
+        "alkera-t4b-da-snowflake_episode_net": [
+          "alkera-t4b-da-snowflake-postgres-1",
+          "postgres",
+          "postgres.internal"
         ]
       },
-      "container": "alkera-p6m-da-snowflake-native-services-1",
-      "image": "alkera-episode:p6-da-snowflake",
+      "container": "alkera-t4b-da-snowflake-postgres-1",
+      "image": "postgres@sha256:f1c3376c26f2609ab9f29f71f824103fe2fcd8ee0346485cb6122a4f93df6f94",
+      "mounts": [
+        {
+          "rw": false,
+          "source": "/home/ubuntu/tool_implementation/gateway/docker/postgres.sql",
+          "target": "/docker-entrypoint-initdb.d/seed.sql"
+        },
+        {
+          "rw": true,
+          "source": "alkera-t4b-da-snowflake_pgdata",
+          "target": "/var/lib/postgresql/data"
+        }
+      ],
+      "network_mode": "alkera-t4b-da-snowflake_backend_net",
+      "networks": {
+        "alkera-t4b-da-snowflake_backend_net": "10.210.4.3",
+        "alkera-t4b-da-snowflake_episode_net": "10.210.3.5"
+      },
+      "published_ports": {},
+      "service": "postgres"
+    },
+    {
+      "aliases": {
+        "alkera-t4b-da-snowflake_episode_net": [
+          "alkera-t4b-da-snowflake-jupyter-1",
+          "jupyter",
+          "jupyter.internal"
+        ]
+      },
+      "container": "alkera-t4b-da-snowflake-jupyter-1",
+      "image": "alkera-episode:head-da-snowflake",
       "mounts": [
         {
           "rw": true,
-          "source": "/home/ubuntu/.cache/p6/native/da-snowflake/audit",
+          "source": "/home/ubuntu/.cache/coord-final/box-da-snowflake/audit",
+          "target": "/audit"
+        },
+        {
+          "rw": true,
+          "source": "/home/ubuntu/.cache/coord-final/box-da-snowflake/world/workspace",
+          "target": "/workspace"
+        },
+        {
+          "rw": false,
+          "source": "alkera-t4b-da-snowflake_snowflaketrust",
+          "target": "/etc/alkera/snowflake-tls"
+        },
+        {
+          "rw": false,
+          "source": "",
+          "target": "/world/var/ledger"
+        },
+        {
+          "rw": true,
+          "source": "/home/ubuntu/.cache/coord-final/box-da-snowflake/world/var/warehouse/warehouse.duckdb",
+          "target": "/world/var/warehouse/warehouse.duckdb"
+        }
+      ],
+      "network_mode": "alkera-t4b-da-snowflake_episode_net",
+      "networks": {
+        "alkera-t4b-da-snowflake_episode_net": "10.210.3.2"
+      },
+      "published_ports": {},
+      "service": "jupyter"
+    },
+    {
+      "aliases": {
+        "alkera-t4b-da-snowflake_episode_net": [
+          "alkera-t4b-da-snowflake-native-services-1",
+          "native-services",
+          "native-services.internal",
+          "sigma.internal",
+          "jira.internal",
+          "slack.internal",
+          "confluence.internal"
+        ]
+      },
+      "container": "alkera-t4b-da-snowflake-native-services-1",
+      "image": "alkera-episode:head-da-snowflake",
+      "mounts": [
+        {
+          "rw": true,
+          "source": "/home/ubuntu/.cache/coord-final/box-da-snowflake/audit",
           "target": "/audit"
         },
         {
           "rw": false,
-          "source": "alkera-p6m-da-snowflake_pgdata",
+          "source": "alkera-t4b-da-snowflake_pgdata",
           "target": "/pgdata"
         },
         {
           "rw": true,
-          "source": "/home/ubuntu/.cache/p6/native/da-snowflake/service-state",
+          "source": "/home/ubuntu/.cache/coord-final/box-da-snowflake/rollout/service-state",
           "target": "/service-state"
         },
         {
           "rw": true,
-          "source": "/home/ubuntu/.cache/p6/native/da-snowflake/world",
+          "source": "/home/ubuntu/.cache/coord-final/box-da-snowflake/world",
           "target": "/world"
         },
         {
@@ -756,90 +1138,16 @@
           "target": "/world/var/ledger"
         }
       ],
-      "network_mode": "alkera-p6m-da-snowflake_episode_net",
+      "network_mode": "alkera-t4b-da-snowflake_episode_net",
       "networks": {
-        "alkera-p6m-da-snowflake_episode_net": "10.210.1.4"
+        "alkera-t4b-da-snowflake_episode_net": "10.210.3.3"
       },
       "published_ports": {},
       "service": "native-services"
-    },
-    {
-      "aliases": {
-        "alkera-p6m-da-snowflake_backend_net": [
-          "alkera-p6m-da-snowflake-postgres-1",
-          "postgres"
-        ],
-        "alkera-p6m-da-snowflake_episode_net": [
-          "alkera-p6m-da-snowflake-postgres-1",
-          "postgres",
-          "postgres.internal"
-        ]
-      },
-      "container": "alkera-p6m-da-snowflake-postgres-1",
-      "image": "postgres@sha256:f1c3376c26f2609ab9f29f71f824103fe2fcd8ee0346485cb6122a4f93df6f94",
-      "mounts": [
-        {
-          "rw": false,
-          "source": "/home/ubuntu/env_project/.claude/worktrees/agent-a9d585c786e098bb7/gateway/docker/postgres.sql",
-          "target": "/docker-entrypoint-initdb.d/seed.sql"
-        },
-        {
-          "rw": true,
-          "source": "alkera-p6m-da-snowflake_pgdata",
-          "target": "/var/lib/postgresql/data"
-        }
-      ],
-      "network_mode": "alkera-p6m-da-snowflake_backend_net",
-      "networks": {
-        "alkera-p6m-da-snowflake_backend_net": "10.210.2.4",
-        "alkera-p6m-da-snowflake_episode_net": "10.210.1.5"
-      },
-      "published_ports": {},
-      "service": "postgres"
-    },
-    {
-      "aliases": {
-        "alkera-p6m-da-snowflake_backend_net": [
-          "alkera-p6m-da-snowflake-snowflake-1",
-          "snowflake",
-          "acme.snowflake.local"
-        ],
-        "alkera-p6m-da-snowflake_episode_net": [
-          "alkera-p6m-da-snowflake-snowflake-1",
-          "snowflake",
-          "snowflake.internal"
-        ]
-      },
-      "container": "alkera-p6m-da-snowflake-snowflake-1",
-      "image": "alkera-snowflake:plumbing",
-      "mounts": [
-        {
-          "rw": true,
-          "source": "alkera-p6m-da-snowflake_snowflakedata",
-          "target": "/snowflake-data"
-        },
-        {
-          "rw": true,
-          "source": "alkera-p6m-da-snowflake_snowflaketls",
-          "target": "/tls"
-        },
-        {
-          "rw": true,
-          "source": "alkera-p6m-da-snowflake_snowflaketrust",
-          "target": "/etc/alkera/snowflake-tls"
-        }
-      ],
-      "network_mode": "alkera-p6m-da-snowflake_backend_net",
-      "networks": {
-        "alkera-p6m-da-snowflake_backend_net": "10.210.2.2",
-        "alkera-p6m-da-snowflake_episode_net": "10.210.1.2"
-      },
-      "published_ports": {},
-      "service": "snowflake"
     }
   ],
   "summary": {
-    "p6_only_fake_services_reachable": false
-  },
-  "warehouses": []
+    "p6_every_open_port_is_an_expected_door": false,
+    "p6_only_fake_services_reachable": true
+  }
 }

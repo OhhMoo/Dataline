@@ -1,0 +1,28 @@
+# Databricks tier 2's client side (the `spark_connect` compute plug), for
+# episode images built with `--warehouse-clients spark` (Dockerfile
+# ALKERA_WAREHOUSE_CLIENTS): Apache Spark's own Spark Connect thin client, which
+# `SparkSession.builder.getOrCreate()` points at $SPARK_REMOTE - the audited
+# gRPC proxy native-services hosts in front of the Spark engine
+# (docs/environments/DATABRICKS_SPIKE.md, "Tier 2"). Pure Python over grpcio: no JVM in the
+# agent's image. Apache-2.0 (its PKG-INFO). Not databricks-connect, which is
+# under the Databricks License and only connects to the Databricks Services.
+#
+# The SAME client version as the engine (gateway/docker/spark/fetch.py
+# SPARK_VERSION): Spark Connect speaks one protocol per release.
+#
+# The proxy reads the client's own protobuf definitions
+# (pyspark.sql.connect.proto) to audit each plan, so native-services, which runs
+# on the episode image, needs this lock as much as the agent does.
+#
+# grpcio, grpcio-status and googleapis-common-protos are held to the BigQuery
+# client lock's pins: an image built with two client sets installs both locks
+# into one interpreter, and every package two client locks share must be one
+# version (test_toolbelt_roles.test_client_locks_agree_with_each_other).
+#
+# Compiled here, NOT in pyproject/uv.lock, like every backend's clients
+# (docker/lock_warehouse_clients.py): constrained to the base, native and ds
+# locks. Regenerate with the command in requirements-spark.lock's header.
+pyspark-client==4.2.0
+grpcio==1.84.0
+grpcio-status==1.84.0
+googleapis-common-protos==1.75.5

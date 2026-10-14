@@ -8,9 +8,12 @@ THE VERDICT (`verdict`) holds a probe to four things:
 
   (a) the command exits 0 and its LAST stdout line is a JSON object with exactly one of
       `value` (the answer) or `doc` (a path refused by name or coarser by design);
-  (b) every `expect_tools` value appears as the `tool` of an audit row the command left,
-      every `expect_args` substring appears in the argv of at least one of those rows,
-      and every row passes the caller's 9.2.2 check (`validate_row`);
+  (b) every `expect_tools` group is met by an audit row the command left: a row whose
+      `tool` is one of the group's alternatives AND whose `exit` is "ok" (a failed call
+      proves nothing). Over the rows that meet a group, every `expect_args` substring
+      appears in the argv of at least one, and every `expect_targets` glob (fnmatch)
+      matches a `targets` entry of at least one. Every row passes the caller's 9.2.2
+      check (`validate_row`);
   (c) every connection it made is to an allowed (host, port);
   (d) `value` equals `truth` - the scalar `truth_sql` returned from the world BEFORE
       the probe's stack came up (`truth`). A NULL truth is a failed check, never a pass.
@@ -23,6 +26,7 @@ import json
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from decimal import Decimal, InvalidOperation
+from fnmatch import fnmatchcase
 from pathlib import Path
 from typing import Any, Literal
 
@@ -38,6 +42,8 @@ WAREHOUSE_REL = Path("var") / "warehouse" / "warehouse.duckdb"
 PLACES = 6
 
 Plugs = tuple[tuple[str, tuple[str, ...]], ...]
+#: expect_tools as stored: all-of groups, each a tuple of any-of tool names.
+Groups = tuple[tuple[str, ...], ...]
 
 
 def _plugs(value: Any, probe_id: str) -> Plugs:
@@ -77,6 +83,30 @@ def _strings(value: Any, name: str, probe_id: str) -> tuple[str, ...]:
     return tuple(value)
 
 
+def _groups(value: Any, probe_id: str) -> Groups:
+    """expect_tools -> ((tool, ...), ...): each entry one tool (a bare string) or a group
+    of alternatives (a tuple or list of them); a bare string is one tool. An empty group
+    could never be met, so it is refused, as an empty expect_tools is."""
+    if isinstance(value, str):
+        value = (value,)
+    if not isinstance(value, (tuple, list)):
+        raise TypeError(f"probe {probe_id!r}: expect_tools must be a tuple of tools or "
+                        f"groups of tools, not {value!r}")
+    if not value:
+        raise ValueError(f"probe {probe_id!r}: expect_tools is empty - a probe proves "
+                         f"a tool by the audit rows it leaves")
+    out = []
+    for entry in value:
+        if not isinstance(entry, (str, tuple, list)):
+            raise TypeError(f"probe {probe_id!r}: expect_tools entry {entry!r} is neither "
+                            f"a tool nor a group of tools")
+        if not isinstance(entry, str) and not entry:
+            raise ValueError(f"probe {probe_id!r}: expect_tools has an empty group of "
+                             f"alternatives - no row could ever meet it")
+        out.append(_strings(entry, "an expect_tools group", probe_id))
+    return tuple(out)
+
+
 @dataclass(frozen=True)
 class Probe:
     """One fact read through one tool's real client.
@@ -90,24 +120,24 @@ class Probe:
     plugs: Plugs                   # written {slot: (plug, ...)}; stored as sorted pairs
     command: str                   # bash, run in the episode as the agent user;
                                    # last stdout line is JSON {"value": ...}
-    expect_tools: tuple[str, ...]  # audit `tool` values that must appear,
-                                   # e.g. ("snowflake.statement",)
+    expect_tools: Groups           # all-of groups of any-of audit `tool` values, each met by
+                                   # a row with exit "ok"; written ("snowflake.statement",)
+                                   # or (("databricks.table_get", "databricks.tables_list"),)
+                                   # and stored as ((tool, ...), ...)
     truth_sql: str | None          # DuckDB SQL over the world warehouse; scalar must equal "value"
     instruction: str               # one-paragraph brief for the Harbor live-agent run (Task 11)
     rows_at: RowsAt = "call"       # "teardown": the rows land in the stack's down()
     expect_args: tuple[str, ...] = field(default=())  # substrings of an expected row's argv
+    expect_targets: tuple[str, ...] = field(default=())  # fnmatch globs, all-of, each
+                                                        # matching an expected row's target
 
     def __post_init__(self) -> None:
         if not isinstance(self.id, str) or self.id.count(".") < 2:
             raise ValueError(f"probe id {self.id!r} is not '<tool>.<client>.<what>'")
         object.__setattr__(self, "plugs", _plugs(self.plugs, self.id))
-        tools = _strings(self.expect_tools, "expect_tools", self.id)
-        if not tools:
-            raise ValueError(f"probe {self.id!r}: expect_tools is empty - a probe proves "
-                             f"a tool by the audit rows it leaves")
-        object.__setattr__(self, "expect_tools", tools)
-        object.__setattr__(self, "expect_args",
-                           _strings(self.expect_args, "expect_args", self.id))
+        object.__setattr__(self, "expect_tools", _groups(self.expect_tools, self.id))
+        for name in ("expect_args", "expect_targets"):
+            object.__setattr__(self, name, _strings(getattr(self, name), name, self.id))
         if self.rows_at not in ROWS_AT:
             raise ValueError(f"probe {self.id!r}: rows_at {self.rows_at!r} not in {ROWS_AT}")
         for name in ("profile", "command", "instruction"):
@@ -211,6 +241,18 @@ def _argv(row: dict) -> str:
     return " ".join(map(str, argv)) if isinstance(argv, list) else ""
 
 
+def _targets(row: dict) -> list[str]:
+    targets = row.get("targets")
+    return [str(t) for t in targets] if isinstance(targets, list) else []
+
+
+def meets(row: dict, group: Sequence[str]) -> bool:
+    """A row meets a group when its `tool` is one of the group's alternatives and the
+    call succeeded: a `databricks.tables_list` that exited "error" proves nothing."""
+    tool = row.get("tool")
+    return isinstance(tool, str) and tool in group and row.get("exit") == "ok"
+
+
 def verdict(probe: Probe, *, returncode: int, stdout: str, rows: Sequence[dict],
             destinations: Mapping[tuple[str, int], int],
             allowed: set[tuple[str, int]] | None, truth: Any = None,
@@ -238,14 +280,25 @@ def verdict(probe: Probe, *, returncode: int, stdout: str, rows: Sequence[dict],
     else:
         value, has_value = final["value"], True
     tools = [r.get("tool") for r in rows]
-    missing = [t for t in probe.expect_tools if t not in tools]
+    groups = [list(g) for g in probe.expect_tools]
+    missing = [list(g) for g in probe.expect_tools if not any(meets(r, g) for r in rows)]
     if missing:
-        failures.append(f"no audit row for {missing} (the command left "
-                        f"{sorted(set(map(str, tools))) or 'no rows'})")
-    argvs = [_argv(r) for r in rows if r.get("tool") in probe.expect_tools]
+        failed = sorted({str(r.get("tool")) for r in rows
+                         if any(r.get("tool") in g for g in missing)})
+        failures.append(f"no audit row for {missing} with exit \"ok\" (the command left "
+                        f"{sorted(set(map(str, tools))) or 'no rows'}"
+                        + (f"; {failed} did not exit ok" if failed else "") + ")")
+    expected = [r for r in rows if any(meets(r, g) for g in probe.expect_tools)]
+    argvs = [_argv(r) for r in expected]
     missing_args = [a for a in probe.expect_args if not any(a in argv for argv in argvs)]
     if missing_args:
-        failures.append(f"no {list(probe.expect_tools)} row's argv contains {missing_args}")
+        failures.append(f"no {groups} row's argv contains {missing_args}")
+    targets = sorted({t for r in expected for t in _targets(r)})
+    missing_targets = [g for g in probe.expect_targets
+                       if not any(fnmatchcase(t, g) for t in targets)]
+    if missing_targets:
+        failures.append(f"no {groups} row's targets match {missing_targets} (they name "
+                        f"{targets[:20] or 'nothing'})")
     if validate_row is not None:
         schema = {r.get("seq"): problems for r in rows if (problems := validate_row(r))}
         if schema:
@@ -268,8 +321,9 @@ def verdict(probe: Probe, *, returncode: int, stdout: str, rows: Sequence[dict],
         "verdict": "FAIL" if failures else ("DOC" if doc is not None else "PASS"),
         "failures": failures, "doc": doc,
         "value": value, "truth": fact, "value_ok": value_ok,
-        "expect_tools": list(probe.expect_tools), "missing_tools": missing,
+        "expect_tools": groups, "missing_tools": missing,
         "expect_args": list(probe.expect_args), "missing_args": missing_args,
+        "expect_targets": list(probe.expect_targets), "missing_targets": missing_targets,
         "rows": len(rows), "tools": tools,
         "destinations": {f"{h}:{p}": n for (h, p), n in sorted(destinations.items())},
         "returncode": returncode,

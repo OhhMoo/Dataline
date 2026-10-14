@@ -32,9 +32,10 @@ a Harbor task an agent must solve itself:
 
 SKIPPED, BY NAME. A probe the current tree cannot serve in Harbor is not
 exported: either its variant is refused (variant.variant_of /
-backend_specs: a warehouse the Harbor image refuses to serve - BigQuery, whose
-emulator one container cannot fence from the agent - or a backend it has no
-process for), or it is a
+backend_specs: a backend the Harbor image refuses to serve - BigQuery, whose
+emulator one container cannot fence from the agent, and Spark Connect
+(variant.REFUSED_PLUGS), whose JVM engine has no place in the one container -
+or a backend it has no process for), or it is a
 KNOWN finding of the container tour (its module's KNOWN: the probe's own
 command fails, for a cause owned elsewhere, so the oracle could not pass).
 manifest.json `skipped` names each probe with its reason.
@@ -88,7 +89,9 @@ ANSWER_LINE = 'When done, write {"value": <answer>} to /workspace/answer.json.'
 TOOLTOUR_TEMPLATE = "tooltour_tests"
 #: From the task verifier template, verbatim: its image and its helpers.
 SHARED_TESTS_FILES = ("Dockerfile", "verify.py")
-PROBE_SCHEMA = "alkera-harbor-tooltour-probe/1"
+#: verify_tool.PROBE_SCHEMA: /2 serialises expect_tools as groups (lists of
+#: alternative tools) and carries expect_targets.
+PROBE_SCHEMA = "alkera-harbor-tooltour-probe/2"
 #: Under tests/: the probe, and the sealed pre-agent world truth_sql runs on.
 #: Both under `episode/`, the per-task part of tests/ (checks.static_fingerprint).
 PROBE_REL = "episode/probe.json"
@@ -153,8 +156,10 @@ def probe_document(probe) -> dict:
     return {"schema": PROBE_SCHEMA, "harbor_name": probe_ref(probe).harbor_name,
             "probe": {"id": probe.id, "profile": probe.profile,
                       "plugs": {slot: list(names) for slot, names in probe.plugs},
-                      "command": probe.command, "expect_tools": list(probe.expect_tools),
+                      "command": probe.command,
+                      "expect_tools": [list(group) for group in probe.expect_tools],
                       "expect_args": list(probe.expect_args),
+                      "expect_targets": list(probe.expect_targets),
                       "truth_sql": probe.truth_sql, "instruction": probe.instruction,
                       "rows_at": probe.rows_at}}
 
@@ -644,6 +649,7 @@ def task_readme(ref: ArmRef, probe, variant) -> str:
     rows_at = ("as each call returns" if probe.rows_at == "call" else
                "at teardown (world-down folds the server's log in before the "
                "artifacts are collected)")
+    tools = ", ".join(" or ".join(f"`{t}`" for t in group) for group in probe.expect_tools)
     return "\n".join([
         f"# {ref.harbor_name}",
         "",
@@ -665,10 +671,12 @@ def task_readme(ref: ArmRef, probe, variant) -> str:
         "1. **answer** - the answer's `value` equals the scalar `truth_sql` returns "
         "on the SEALED pre-agent copy of the world (`tests/episode/sealed/world`), "
         "never the agent's `/world`;",
-        f"2. **tools** - every expected tool ({', '.join(f'`{t}`' for t in probe.expect_tools)}) "
-        "is in the audit rows above the episode watermark"
+        f"2. **tools** - every expected tool ({tools}) is in an audit row above the "
+        "episode watermark that exited ok"
         + (f", with argv containing {', '.join(f'`{a}`' for a in probe.expect_args)}"
-           if probe.expect_args else "") + f" (the rows land {rows_at});",
+           if probe.expect_args else "")
+        + (f", with targets matching {', '.join(f'`{g}`' for g in probe.expect_targets)}"
+           if probe.expect_targets else "") + f" (the rows land {rows_at});",
         "3. **network** - no destination outside what the episode was handed;",
         "4. **seq** - the action log's seq is contiguous (untampered).",
         "",

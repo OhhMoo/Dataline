@@ -438,13 +438,44 @@ def test_primary_and_peer_configs_read_the_bigquery_variable(world, tmp_path):
     assert derive_config(cfg, peer).bigquery_options_env == "PEER_BQ"
 
 
-def test_bigquery_peer_cannot_attach_or_be_a_dbt_target(world, tmp_path):
+def test_bigquery_peer_cannot_attach_but_can_be_a_dbt_target(world, tmp_path, monkeypatch):
+    """A bigquery peer is never attached to a catalog. It is a dbt target like any
+    other where dbt-bigquery is installed - images built with --warehouse-clients
+    bigquery (requirements-bigquery.lock) - and refused at construction, by name,
+    in an image without it."""
+    from alkera_gateway import warehouses
+
     with pytest.raises(ValueError, match="bigquery and cannot be attached"):
         Gateway(config(world, tmp_path / "a", "x",
                        warehouses=[{"name": "bq", "backend": "bigquery",
                                     "attach": True}]))
-    if importlib.util.find_spec("dbt.adapters.bigquery") is None:
-        with pytest.raises(ValueError, match="dbt-bigquery"):
-            Gateway(config(world, tmp_path / "b", "x",
-                           warehouses=[{"name": "bq", "backend": "bigquery",
-                                        "attach": False, "dbt_target": "bq"}]))
+    cfg = config(world, tmp_path / "b", "x",
+                 warehouses=[{"name": "bq", "backend": "bigquery",
+                              "attach": False, "dbt_target": "bq"}])
+    specs = warehouses.warehouse_specs(cfg)
+    assert warehouses.DBT_ADAPTERS["bigquery"] == ("dbt.adapters.bigquery", "dbt-bigquery")
+    monkeypatch.setattr(warehouses, "dbt_adapter_missing", lambda backend: None)
+    assert warehouses._peer_plan(cfg, specs) == ([], {"bq": "attach disabled by the world"})
+    monkeypatch.setattr(warehouses, "dbt_adapter_missing",
+                        lambda backend: "dbt-bigquery" if backend == "bigquery" else None)
+    with pytest.raises(ValueError, match="the dbt-bigquery adapter is not installed"):
+        warehouses._peer_plan(cfg, specs)
+
+
+def test_dbt_bigquery_is_held_below_the_routines_listing():
+    """dbt-bigquery 1.12 lists each dataset's routines inside the `try` that lists its
+    tables, and answers NotFound with no relations at all. The emulator cannot serve
+    routines.list, and the proxy answers it as an unknown route (404), so under 1.12
+    dbt's relation cache would be empty everywhere: an incremental model silently
+    rebuilt, a snapshot silently restarted. The client lock holds the adapter at 1.11
+    (tables only) for as long as the proxy has no routines.list route
+    (docker/bigquery-clients.in)."""
+    import re
+
+    from alkera_gateway.native.services import bigquery as proxy
+
+    assert proxy.route("GET", "/bigquery/v2/projects/p/datasets/d/routines") is None
+    lock = (Path(__file__).resolve().parents[1] / "requirements-bigquery.lock").read_text(
+        encoding="utf-8")
+    major, minor = re.search(r"^dbt-bigquery==(\d+)\.(\d+)\.", lock, re.MULTILINE).groups()
+    assert (int(major), int(minor)) < (1, 12)

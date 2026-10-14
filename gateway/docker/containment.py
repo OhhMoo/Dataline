@@ -38,6 +38,11 @@ Usage::
     python containment.py --profile snowflake   # + the fakesnow socket
     python containment.py --native \\
         --out evidence/containment-native.json  # the native stack, P6 alone
+    python containment.py --native --attach <live project> \\
+        --out evidence/containment-native-<slug>.json
+        # P6 against a rollout-built stack that is ALREADY UP (no up, no
+        # down): the box an environment profile is served. The profile is read
+        # off the running native-services; --env-profile/--env-plug pin it
     python containment.py --native-episode --project <live project> \\
         --world <the rollout's world root> \\
         --out evidence/containment-native-episode.json          # P7 alone
@@ -64,35 +69,70 @@ COMPOSE_FILE = HERE / "compose.yml"
 # (compose.native.yml layers on the episode overlay, never instead of it).
 EPISODE_OVERLAY = HERE / "compose.episode.yml"
 NATIVE_OVERLAY = HERE / "compose.native.yml"
-NATIVE_PROBE = "/opt/stack/native_probe.py"
-# The real backends compose.native.yml gives an episode_net alias, by the
-# compose service that carries it. Only the ones actually running are probed:
-# `airflow` and `snowflake` are behind profiles, and a P6 that claimed an alias
-# nobody was serving would fail for the wrong reason.
+#: The P6 probe's source, sent to the episode's own interpreter on stdin
+#: (`run_native_probe`): the copy baked into an image at /opt/stack is the
+#: image's revision, not this checkout's, and `python` on the episode's PATH is
+#: the audited shim.
+NATIVE_PROBE_SOURCE = HERE / "native_probe.py"
+CONTAINER_PYTHON = "/usr/local/bin/python"
+# The real backends an episode reaches over episode_net, by the alias each
+# answers on, and (NATIVE_CARRIERS) the compose service that CARRIES that
+# alias - which is what P6 selects by (`p6_plan`), never "which compose service
+# is running":
+#   - a HOSTED backend (alkera_gateway.backends, hosted=True) is a module
+#     inside native-services, so no compose service of its name ever runs and
+#     the carrier is native-services: `airflow-api`, `bigquery` (its alias is
+#     the audited proxy's, while the engine sits on backend_net only, so the
+#     engine is a must-not-resolve control), `databricks`, and `spark` (Databricks
+#     tier 2: the Spark Connect proxy's alias, its engine on backend_net only);
+#   - `airflow.internal` names two rows: 8080 is the designed real-Airflow
+#     compose service, 8100 the hosted REST fake. The carrier tells them apart;
+#   - `redshift` and `snowflake` are containers of their own.
+# A row whose carrier carries its alias on episode_net is probed; a backend the
+# environment profile plugs (`backends.plugged`) is probed whether or not
+# anyone carries it, and one nobody carries fails P6
+# (`plugged_backends_not_carried`). Pinned to the registry by
+# gateway/tests/test_containment_native.py.
 NATIVE_BACKENDS = {
     "postgres": ("postgres.internal", 5432),
     "minio": ("minio.internal", 9000),
     "airflow": ("airflow.internal", 8080),
     "snowflake": ("snowflake.internal", 8443),
-    # The Airflow REST v2 fake (alkera_gateway.backends.BACKENDS["airflow"]):
-    # HOSTED in native-services, which carries the alias only when the
-    # profile plugs `orchestrator = airflow`. Its own key, not "airflow" (that
-    # is the designed real-Airflow compose service on 8080, above). No compose
-    # service of that name exists, so P6 as written (it probes the backends of
-    # RUNNING compose services) lists it under `backends_declared_but_not_running`
-    # and never dials it: measuring it means a P6 run with the profile plugged
-    # that probes the hosted alias on native-services (the Task 12 re-measure).
     "airflow-api": ("airflow.internal", 8100),
-    # Keyed by the ENGINE's compose service (compose.yml `bigquery`, profile
-    # `bigquery`): when it runs, the alias is native-services' audited proxy in
-    # front of it (tasks/harness/container_episode.HOSTED_ENGINES); the engine
-    # itself is on backend_net only.
     "bigquery": ("bigquery.internal", 9050),
     "redshift": ("redshift.internal", 5439),
-    # hosted in native-services (alkera_gateway.backends), so never a running compose
-    # service of its own: listed for the P6 re-measure (Task 12)
     "databricks": ("databricks.internal", 443),
+    # Databricks tier 2, keyed by its ENGINE's compose service (`spark`, the
+    # overlay's HOSTED_ENGINE_BUILDS block): when it runs, the alias is
+    # native-services' audited Spark Connect proxy in front of it; the engine
+    # itself is on backend_net only.
+    "spark": ("spark_connect.internal", 15002),
 }
+#: Doors that are not backends and not one of the nine, selected the same way:
+#: native-services' aggregate /health (serve.AGGREGATE_PORT), the scheduler
+#: plane (serve.SCHED_PORT) and the notebook plug. Without them a full sweep
+#: would report designed doors as unaudited ones.
+NATIVE_PLANES = {
+    "aggregate": ("native-services.internal", 8099),
+    "sched": ("sched.internal", 8120),
+    "jupyter": ("jupyter.internal", 8888),
+}
+#: The compose service that carries each row's alias on episode_net.
+NATIVE_CARRIERS = {
+    "postgres": "postgres", "minio": "minio", "airflow": "airflow",
+    "snowflake": "snowflake", "airflow-api": "native-services",
+    "bigquery": "native-services", "redshift": "redshift",
+    "databricks": "native-services",
+    # Databricks tier 2: the alias is the audited Spark Connect proxy's, carried by
+    # native-services; the `spark` engine sits on backend_net only, so it is a
+    # must-not-resolve control, as bigquery's engine is
+    "spark": "native-services",
+    "aggregate": "native-services", "sched": "native-services", "jupyter": "jupyter",
+}
+MINIO_PORT = 9000
+#: serve.MINIO_AUDIT_PORT: MinIO's audit receiver, on native-services. MinIO
+#: dials it; the episode can reach it, and it is not a destination.
+MINIO_AUDIT_PORT = 8110
 PROBE_IMAGE = "alkera-stack:track-b"
 ALL_PROFILES = ("harness", "grading", "snowflake")
 
@@ -356,6 +396,19 @@ class Stack:
     def containers(self):
         ids = out([*self.base, "ps", "-q"]).splitlines()
         return [json.loads(out(["docker", "inspect", cid]))[0] for cid in ids if cid]
+
+    # What P6 asks of a stack (`property_6_native`); `AttachedStack` answers
+    # the same three for a stack this script did not bring up.
+    rollout_built = False
+
+    def episode_network(self) -> dict:
+        return network_facts(f"{self.project}_episode_net")
+
+    def native_probe(self, argv) -> dict:
+        return run_native_probe(out([*self.base, "ps", "-q", "episode"]), argv)
+
+    def service_logs(self, service: str) -> str:
+        return self.compose("logs", "--no-log-prefix", service, check=False).stdout.strip()
 
     def netns_probe(self, container_id, code=NETNS_PROBE, args=()):
         return json.loads(
@@ -927,78 +980,297 @@ def property_1_grading_after_teardown(stack, evidence):
 # --------------------------------------------------------------------------
 
 
-def property_6_native(stack, evidence):
+def run_native_probe(container: str, argv) -> dict:
+    """`native_probe.py` inside `container`: its source on stdin to the
+    episode's own interpreter, `argv` after `-`. Never the copy at /opt/stack
+    (the image's revision) and never `python` (the audited shim, whose row
+    would land in the episode's action log)."""
+    result = subprocess.run(
+        ["docker", "exec", "-i", container, CONTAINER_PYTHON, "-", *argv],
+        input=NATIVE_PROBE_SOURCE.read_text(encoding="utf-8"), capture_output=True,
+        text=True, encoding="utf-8", errors="replace", timeout=1800)
+    lines = [line for line in result.stdout.splitlines() if line.strip()]
+    if not lines:
+        raise RuntimeError(f"the P6 probe printed nothing in {container[:12]}: "
+                           f"{result.stderr[-2000:]}")
+    probe = json.loads(lines[-1])
+    probe["exit"] = result.returncode
+    return probe
+
+
+def network_facts(name: str) -> dict:
+    """The episode network's subnet and gateway, from `docker network inspect`.
+    The gateway is the bridge's address on that subnet - the HOST."""
+    spec = json.loads(out(["docker", "network", "inspect", name]))[0]
+    config = ((spec.get("IPAM") or {}).get("Config") or [{}])[0]
+    subnet = config.get("Subnet")
+    gateway = config.get("Gateway")
+    source = "docker network inspect (IPAM)"
+    if subnet and not gateway:
+        import ipaddress
+
+        gateway = str(next(ipaddress.ip_network(subnet).hosts()))
+        source = "first host of the subnet (IPAM names no gateway)"
+    return {"name": name, "subnet": subnet, "gateway": gateway,
+            "internal": spec.get("Internal"), "gateway_source": source}
+
+
+def project_specs(project: str) -> list[dict]:
+    """`docker inspect` of every running container of a compose project, found
+    by the label compose stamps - so attaching never interpolates the
+    rollout's own compose variables."""
+    ids = out(["docker", "ps", "-q", "--filter",
+               f"label=com.docker.compose.project={project}"]).split()
+    return [json.loads(out(["docker", "inspect", cid]))[0] for cid in ids]
+
+
+class AttachedStack:
+    """A native stack someone else brought up - a rollout's, the tool tour's -
+    measured as it stands: no up, no down, nothing interpolated."""
+
+    rollout_built = True
+
+    def __init__(self, project: str, specs: list[dict]):
+        self.project = project
+        self.specs = specs
+        labels = specs[0]["Config"]["Labels"] if specs else {}
+        self.files = [f for f in (labels.get("com.docker.compose.project.config_files")
+                                  or "").split(",") if f]
+
+    def _container(self, service: str) -> str:
+        for spec in self.specs:
+            if spec["Config"]["Labels"].get("com.docker.compose.service") == service:
+                return spec["Id"]
+        raise RuntimeError(f"no `{service}` container in {self.project}")
+
+    def episode_network(self) -> dict:
+        return network_facts(episode_network_name(self.specs, self.project))
+
+    def native_probe(self, argv) -> dict:
+        return run_native_probe(self._container("episode"), argv)
+
+    def service_logs(self, service: str) -> str:
+        return run(["docker", "logs", self._container(service)],
+                   check=False).stdout.strip()
+
+
+def episode_network_name(specs: list[dict], project: str) -> str:
+    """The episode's own network, read off the episode container."""
+    for spec in specs:
+        if spec["Config"]["Labels"].get("com.docker.compose.service") == "episode":
+            for name in spec["NetworkSettings"]["Networks"]:
+                if name.endswith("episode_net"):
+                    return name
+    return f"{project}_episode_net"
+
+
+def door_label(address: str, port: int, *, gateway: str | None,
+               service: str | None) -> str:
+    """What an open port that no expected door explains IS, for the reader."""
+    if address == gateway:
+        return "NOT AN AUDITED DOOR: the bridge gateway, i.e. the HOST"
+    if service == "minio" and port != MINIO_PORT:
+        return ("NOT AN AUDITED DOOR: MinIO console (a random port; `minio server "
+                "/data` has no --console-address)")
+    if service == "native-services" and port == MINIO_AUDIT_PORT:
+        return ("NOT AN AUDITED DOOR: MinIO audit receiver (serve.MINIO_AUDIT_PORT); "
+                "the episode reaches it, and it answers only a POST carrying the "
+                "per-rollout token")
+    return f"NOT AN AUDITED DOOR: {service or 'no known service'} :{port}, unclassified"
+
+
+def _host_port(url: str) -> tuple[str, int]:
+    from urllib.parse import urlsplit
+
+    parts = urlsplit(url)
+    return parts.hostname, parts.port or (443 if parts.scheme == "https" else 80)
+
+
+def p6_plan(rows: list[dict], network: str, *, profile: str | None = None,
+            plugs=None, rollout_built: bool = False) -> dict:
+    """What P6 asks of this stack, from who is on `network` (episode_net) and
+    what each container carries there - CONTAINMENT_2026-10-07.md, "For
+    Andrew", points 1-3:
+
+      expected       a rollout-built box: every service the environment
+                     profile serves (`native_episode_probe.expectations`), as
+                     TCP reachability - their `/health` content is P7's and the
+                     surface gate's question. The static stack (None): the
+                     registry's nine with `items > 0`, asked inside the probe
+      backends       NATIVE_BACKENDS and NATIVE_PLANES rows whose carrier
+                     carries the alias on episode_net, plus every backend the
+                     profile plugs (`backends.plugged`), carried or not
+      compose_names  the compose service names ON episode_net, pinned to known
+                     addresses; never one that is not on it
+      controls       CONTROL_NAMES minus those names, plus the names (service
+                     and container) of every running service NOT on
+                     episode_net, every host the profile excludes, and every
+                     backend alias nobody carries
+    """
+    import native_episode_probe
+
+    from alkera_gateway import backends as registry
+    from alkera_gateway.plugs import resolve
+
+    plugs = {slot: tuple(names) for slot, names in (plugs or {}).items()}
+    plug_values = native_episode_probe.plug_args(plugs)
+    carried = {row["service"]: set(row["aliases"].get(network) or [])
+               for row in rows if network in row["networks"]}
+    off_net = [row for row in rows if network not in row["networks"]]
+
+    def select(table):
+        return {key: (host, port) for key, (host, port) in table.items()
+                if host in carried.get(NATIVE_CARRIERS[key], ())}
+
+    chosen = {**select(NATIVE_BACKENDS), **select(NATIVE_PLANES)}
+    not_carried = []
+    resolved = resolve(profile, plugs) if profile else None
+    for b in registry.plugged(resolved.slots) if resolved else ():
+        if (b.host, b.port) not in chosen.values():
+            not_carried.append(f"{b.host}:{b.port}")
+            key = next((k for k, target in NATIVE_BACKENDS.items()
+                        if target == (b.host, b.port)), b.name)
+            chosen[key] = (b.host, b.port)
+    targets = sorted({f"{host}:{port}" for host, port in chosen.values()})
+    expectation = native_episode_probe.expectations(profile, plug_values)
+    expected = None
+    if rollout_built:
+        # A hosted backend and the scheduler plane are served services too;
+        # they are asked once, as the backend/plane row they are.
+        expected = []
+        for url in expectation["services"].values():
+            host, port = _host_port(url)
+            if f"{host}:{port}" not in targets:
+                expected.append({"host": host, "port": port, "probe": "tcp",
+                                 "source": "native_episode_probe.expectations"})
+    chosen_hosts = {host for host, _ in chosen.values()}
+    nobody = sorted({host for host, _ in NATIVE_BACKENDS.values()} - chosen_hosts
+                    - {h for names in carried.values() for h in names})
+    excluded = sorted({name for hosts in expectation["excluded"].values()
+                       for name in ([hosts] if isinstance(hosts, str) else hosts)})
+    must_not = [n for row in off_net for n in (row["service"], row["container"])]
+    controls = native_probe.controls(sorted(carried), [*must_not, *excluded, *nobody])
+    argv = []
+    if expected is not None:
+        argv += ["--expect", json.dumps(expected)]
+    for target in targets:
+        argv += ["--backend", target]
+    for name in controls:
+        argv += ["--control", name]
+    for name in sorted(carried):
+        argv += ["--compose-name", name]
+    return {
+        "expected_from": ("native_episode_probe.expectations(profile, plugs), as TCP"
+                          if rollout_built else
+                          "the service registry inside the probe (GET /health, items > 0)"),
+        "expected": expected,
+        "backends_probed": targets,
+        "backends_declared_but_not_carried": sorted(
+            k for k in NATIVE_BACKENDS if k not in chosen),
+        "plugged_backends_not_carried": not_carried,
+        "controls": list(controls),
+        "controls_removed_because_on_episode_net": [
+            n for n in native_probe.CONTROL_NAMES if n in carried],
+        "must_not_resolve_off_episode_net": must_not,
+        "compose_names": sorted(carried),
+        "argv": argv,
+    }
+
+
+def property_6_native(stack, evidence, *, profile: str | None = None,
+                      plugs=None) -> dict:
     """Only the fake services are reachable from the episode container.
 
     In native mode the agent has bash and no tool list, so P3's boundary - the
     tool surface - is gone and the network is the whole of it. The measurement
     is `native_probe.py`, run from inside the episode container: it resolves
-    every `<name>.internal`, asks each for `/health`, resolves a set of control
-    names that must fail, and tries ports that are not service ports on the
-    very addresses that answered.
+    every `<name>.internal`, asks each for `/health` (or connects), resolves a
+    set of control names that must fail, tries ports that are not service
+    ports on the very addresses that answered, and sweeps every address of the
+    episode network - the gateway, which is the host, included - and every
+    port of each live one (question D).
+
+    `stack` is the static stack this script brought up (`Stack`, no
+    environment profile) or a rollout-built one it attached to
+    (`AttachedStack`), and `profile`/`plugs` are the environment profile that
+    stack serves. What is asked is `p6_plan`'s, chosen by who carries each
+    alias rather than by which compose service is running.
 
     Two things are checked here rather than in the probe, because they are
     properties of the stack and not of the vantage: the aliases compose
     declared are the aliases the running containers actually carry (an alias in
-    a YAML file is not an alias on a container), and nothing publishes a host
-    port.
+    a YAML file is not an alias on a container; the static stack only - an
+    attached stack's compose files belong to its rollout), and nothing
+    publishes a host port.
+
+    `passed` is the claim P6 always made, now about the box the profile is
+    served. The sweep's open ports that no expected door explains are reported
+    beside it, labelled (`not_audited`, `every_open_port_is_an_expected_door`):
+    which of those are closed is the host's rule and the services' own tasks.
     """
     rows = [service_facts(spec) for spec in evidence["_specs"]]
     evidence["services"] = rows
-    declared = evidence["_declared"]["services"]
-    declared_aliases = {
-        service: sorted(
-            alias
-            for net in (spec.get("networks") or {}).values()
-            for alias in ((net or {}).get("aliases") or [])
-        )
-        for service, spec in declared.items()
-    }
+    network = stack.episode_network()
+    plan = p6_plan(rows, network["name"], profile=profile, plugs=plugs,
+                   rollout_built=getattr(stack, "rollout_built", False))
     running_aliases = {
         row["service"]: sorted({a for names in row["aliases"].values() for a in names})
         for row in rows
     }
-    # A container always carries its own short id and service name as aliases;
-    # the claim is about the declared ones, so compare only those.
-    missing_aliases = {
-        service: sorted(set(names) - set(running_aliases.get(service, [])))
-        for service, names in declared_aliases.items()
-        if names and service in running_aliases
-        and set(names) - set(running_aliases.get(service, []))
-    }
-    running = {row["service"] for row in rows}
-    backends = [f"{host}:{port}" for service, (host, port) in sorted(NATIVE_BACKENDS.items())
-                if service in running]
-    backend_args = [arg for target in backends for arg in ("--backend", target)]
-    # Every compose service name the episode shares a network with. Docker
-    # registers each of them in the embedded resolver whether we want it or
-    # not, so they are named to the probe and pinned there rather than left to
-    # fail as controls - the deviation is real and is recorded, not excused.
-    compose_args = [arg for service in sorted(running)
-                    for arg in ("--compose-name", service)]
-    result = stack.compose("exec", "-T", "episode", "python", NATIVE_PROBE,
-                           "--self-test", *backend_args, *compose_args, check=False)
-    probe = json.loads(result.stdout.strip().splitlines()[-1])
+    declared_aliases, missing_aliases = {}, {}
+    if evidence.get("_declared"):
+        declared = evidence["_declared"]["services"]
+        declared_aliases = {
+            service: sorted(
+                alias
+                for net in (spec.get("networks") or {}).values()
+                for alias in ((net or {}).get("aliases") or [])
+            )
+            for service, spec in declared.items()
+        }
+        # A container always carries its own short id and service name as
+        # aliases; the claim is about the declared ones, so compare only those.
+        missing_aliases = {
+            service: sorted(set(names) - set(running_aliases.get(service, [])))
+            for service, names in declared_aliases.items()
+            if names and service in running_aliases
+            and set(names) - set(running_aliases.get(service, []))
+        }
+    argv = [*plan.pop("argv"), "--self-test"]
+    if network.get("subnet"):
+        argv += ["--sweep-cidr", network["subnet"]]
+    probe = stack.native_probe(argv)
+    service_at = {address: row["service"] for row in rows
+                  for net, address in row["networks"].items() if net == network["name"]}
+    not_audited = [
+        {**row, "service": service_at.get(row["address"]),
+         "class": door_label(row["address"], row["port"], gateway=network.get("gateway"),
+                             service=service_at.get(row["address"]))}
+        for row in probe.get("not_audited") or []]
     section = {
         "compose_files": [str(p) for p in stack.files],
-        "backends_probed": backends,
-        "backends_declared_but_not_running": sorted(
-            service for service in NATIVE_BACKENDS if service not in running),
+        "environment_profile": {"profile": profile,
+                                "plugs": {k: list(v) for k, v in (plugs or {}).items()}},
+        "episode_network": network,
+        **plan,
         "stub_services": os.environ.get("ALKERA_NATIVE_STUBS", ""),
-        "native_services_startup": stack.compose(
-            "logs", "--no-log-prefix", "native-services", check=False).stdout.strip(),
+        "native_services_startup": stack.service_logs("native-services"),
         "declared_aliases": {s: a for s, a in declared_aliases.items() if a},
         "running_aliases": running_aliases,
         "declared_aliases_missing_on_the_container": missing_aliases,
         "published_host_ports": {
             row["service"]: row["published_ports"] for row in rows if row["published_ports"]
         },
+        "not_audited": not_audited,
+        "every_open_port_is_an_expected_door": (
+            not not_audited if "sweep" in probe or not_audited else None),
         "probe": probe,
     }
     section["passed"] = bool(
         probe["passed"]
         and not missing_aliases
         and not section["published_host_ports"]
+        and not plan["plugged_backends_not_carried"]
     )
     evidence["p6_only_fake_services_reachable"] = section
     return section
@@ -1052,6 +1324,7 @@ def property_7_native_episode(stack, evidence, warehouses, expected,
         container,
         native_episode_probe.spec(
             warehouses=warehouses, services=expected["services"],
+            tls_bundles=expected.get("tls_bundles"), doors=expected.get("doors"),
             excluded=expected["excluded"], scheduler=expected["scheduler"],
             not_applicable=expected["not_applicable"],
             service_state={"targets": [native_episode_probe.SERVICE_STATE_TARGET],
@@ -1089,6 +1362,8 @@ def property_7_native_episode(stack, evidence, warehouses, expected,
                                 "plugs": expected["plugs"],
                                 "source": expected.get("source")},
         "services_expected": expected["services"],
+        "tls_bundles": expected.get("tls_bundles", {}),
+        "doors_expected": expected.get("doors", {}),
         "services_excluded": expected["excluded"],
         "checks_not_applicable": probe.get("checks_not_applicable", {}),
         "service_state_mounts": isolation,
@@ -1127,6 +1402,87 @@ def served_profile(specs) -> tuple[str | None, list[str]]:
         return profile, plugs
     raise SystemExit("no native-services container in this project; P7 cannot "
                      "say which box it is measuring")
+
+
+def agreed_profile(specs, args, what: str) -> tuple[str | None, list[str]]:
+    """The environment profile the running native-services serves, and the
+    one `--env-profile/--env-plug` names when given: they must agree."""
+    served = served_profile(specs)
+    if args.env_profile or args.env_plug:
+        named = (args.env_profile or None, sorted(args.env_plug))
+        if named != (served[0], sorted(served[1])):
+            raise SystemExit(
+                f"--env-profile/--env-plug {named} is not what native-services "
+                f"is serving {served}; {what} describes the running box")
+    return served
+
+
+def native_attach_main(args):
+    """P6 against a native stack that is ALREADY UP (`--attach` names it). No
+    `up`, no `down`, for the reason P7 has none: the box an environment
+    profile is served exists only as a rollout builds it - `profile_overlay`'s
+    aliases, `backend_overlay`'s containers, the per-rollout environment - and
+    the static overlays this script brings up for `--native` are none of
+    those. Reads the profile off native-services like P7 does."""
+    from alkera_gateway.plugs import parse_plug_args
+
+    specs = project_specs(args.attach)
+    if not specs:
+        raise SystemExit(
+            f"no running containers in compose project {args.attach!r}; "
+            f"--attach measures a stack that is up, and this one is not")
+    profile, plug_values = agreed_profile(specs, args, "P6")
+    stack = AttachedStack(args.attach, specs)
+    evidence = {
+        "generated": datetime.now(UTC).isoformat(timespec="seconds"),
+        "project": args.attach,
+        "mode": "native-attach",
+        "compose_file": str(COMPOSE_FILE),
+        "compose_overlays": stack.files,
+        "environment_profile": {"profile": profile, "plugs": plug_values,
+                                "source": "native-services argv"},
+        "host": {
+            "platform": platform.platform(),
+            "docker": out(["docker", "version", "--format", "{{.Server.Version}}"]),
+        },
+        "_specs": specs,
+    }
+    p6 = property_6_native(stack, evidence, profile=profile,
+                           plugs=parse_plug_args(plug_values))
+    return finish_p6(args, evidence, p6)
+
+
+def finish_p6(args, evidence, p6) -> int:
+    """Write the P6 artifact and print its summary; the exit is P6's verdict."""
+    for key in [k for k in evidence if k.startswith("_")]:
+        evidence.pop(key)
+    evidence["summary"] = {
+        "p6_only_fake_services_reachable": p6["passed"],
+        "p6_every_open_port_is_an_expected_door": p6["every_open_port_is_an_expected_door"],
+    }
+    evidence["not_audited"] = [f"{row['target']}  {row['class']}"
+                               for row in p6["not_audited"]]
+    evidence["not_measured_here"] = (
+        "P0-P5 describe the MCP-transport stack (evidence/containment.json) and "
+        "P7 the episode's filesystem; this run measures P6 only.")
+    evidence["passed"] = p6["passed"]
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    args.out.write_text(json.dumps(evidence, indent=2, sort_keys=True), encoding="utf-8")
+    print(json.dumps({
+        "artifact": str(args.out),
+        **evidence["summary"],
+        "backends_probed": p6["backends_probed"],
+        "services_unreachable": p6["probe"]["services_unreachable"],
+        "controls_that_resolved": p6["probe"]["controls_that_resolved"],
+        "compose_names_pointing_elsewhere": p6["probe"].get(
+            "compose_names_pointing_elsewhere"),
+        "unexpected_open": p6["probe"]["unexpected_open"],
+        "not_audited": evidence["not_audited"],
+        "probe_can_see_an_open_name_and_port":
+            p6["probe"].get("self_test", {}).get("probe_can_see_an_open_name_and_port"),
+        "passed": evidence["passed"],
+    }, indent=2))
+    return 0 if evidence["passed"] else 1
 
 
 def served_state_dir(specs) -> str | None:
@@ -1175,17 +1531,14 @@ def native_episode_main(args):
     # serve.py's own rules). Read off the RUNNING native-services' command
     # line - what was actually served - unless named here, and a name that
     # disagrees with what is served is a refusal, not a choice.
-    served = served_profile(specs)
-    if args.env_profile or args.env_plug:
-        named = (args.env_profile or None, sorted(args.env_plug))
-        if named != (served[0], sorted(served[1])):
-            raise SystemExit(
-                f"--env-profile/--env-plug {named} is not what native-services "
-                f"is serving {served}; P7 describes the running box")
+    served = agreed_profile(specs, args, "P7")
     expected = native_episode_probe.expectations(served[0], served[1])
     expected["source"] = ("native-services argv" if served[0]
                           else "native-services argv (no --profile: the "
                                "unprofiled box)")
+    # Question G asks an excluded compose service by its container name too.
+    expected["excluded"] = native_episode_probe.with_container_names(
+        expected["excluded"], args.project)
     # The registry's own table for the unprofiled nine, as a cross-check
     # that `expectations` and P6's expectation agree on it.
     if served[0] is None:
@@ -1273,6 +1626,13 @@ def main():
              "nobody runs that way. Use `python containment.py` for those.",
     )
     parser.add_argument(
+        "--attach", default=None, metavar="PROJECT",
+        help="with --native: measure P6 against this compose project, which is "
+             "ALREADY UP (a rollout's, the tool tour's), and leave it as it "
+             "stands. The environment profile is read off its native-services; "
+             "--env-profile/--env-plug pin it (and must agree).",
+    )
+    parser.add_argument(
         "--native-episode", action="store_true",
         help="measure P7 alone against a native episode stack that is ALREADY "
              "UP (`--project` names it). Lifecycle is deliberately not this "
@@ -1290,14 +1650,14 @@ def main():
     )
     parser.add_argument(
         "--env-profile", default=None, metavar="ROLE/STACK",
-        help="with --native-episode: the environment profile the stack serves "
+        help="with --native-episode or --attach: the environment profile the stack serves "
              "(alkera_gateway.plugs). Read off the running native-services' "
              "--profile when omitted; a value that disagrees is refused. Not "
              "--profile, which names compose profiles here.",
     )
     parser.add_argument(
         "--env-plug", action="append", default=[], metavar="SLOT=PLUG[,PLUG]",
-        help="with --native-episode: one --plug of that profile; repeatable",
+        help="with --native-episode or --attach: one --plug of that profile; repeatable",
     )
     parser.add_argument(
         "--service-state", default=None, metavar="HOST_DIR",
@@ -1323,6 +1683,10 @@ def main():
 
     if args.native_episode:
         return native_episode_main(args)
+    if args.attach:
+        if not args.native:
+            raise SystemExit("--attach measures P6 and needs --native")
+        return native_attach_main(args)
 
     overlays = (EPISODE_OVERLAY, NATIVE_OVERLAY) if args.native else ()
     if args.native and not os.environ.get("ALKERA_EPISODE_SERVICE_STATE"):
@@ -1361,29 +1725,7 @@ def main():
         finally:
             if not args.keep_up:
                 stack.compose("down", "-v", "-t", "5", check=False)
-        for key in [k for k in evidence if k.startswith("_")]:
-            evidence.pop(key)
-        evidence["summary"] = {"p6_only_fake_services_reachable": p6["passed"]}
-        evidence["not_measured_here"] = (
-            "P0-P5 describe the MCP-transport stack (evidence/containment.json); "
-            "this run measures P6 only.")
-        evidence["passed"] = p6["passed"]
-        args.out.parent.mkdir(parents=True, exist_ok=True)
-        args.out.write_text(json.dumps(evidence, indent=2, sort_keys=True), encoding="utf-8")
-        print(json.dumps({
-            "artifact": str(args.out),
-            **evidence["summary"],
-            "services_unreachable": p6["probe"]["services_unreachable"],
-            "controls_that_resolved": p6["probe"]["controls_that_resolved"],
-            "compose_names_that_also_resolve": [
-                row["name"] for row in p6["probe"]["compose_service_names"]
-                if row.get("addresses")],
-            "unexpected_open": p6["probe"]["unexpected_open"],
-            "probe_can_see_an_open_name_and_port":
-                p6["probe"].get("self_test", {}).get("probe_can_see_an_open_name_and_port"),
-            "passed": evidence["passed"],
-        }, indent=2))
-        return 0 if evidence["passed"] else 1
+        return finish_p6(args, evidence, p6)
 
     try:
         stack.compose("up", "-d", "--wait")

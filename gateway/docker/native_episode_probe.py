@@ -36,6 +36,15 @@ Eight questions, each answered by trying:
      `sched.sched_trigger` row and the run log appearing in the HOST world - is
      asserted by `tasks/harness/test_native_container.py` and by the GT004
      acceptance, where moving the world is the point.
+     A service whose URL is `https://` (a TLS backend hosted in native-
+     services: Databricks on 443) is asked by TCP connect first and then over
+     https, trusting the box's own bundle - the one its clients are given
+     (`tls_bundles`, else the episode's REQUESTS_CA_BUNDLE). Asking a TLS port
+     in plain HTTP gets no answer at all, which is how P7 on de/databricks
+     failed a box that was fine (CONTAINMENT_2026-10-07.md).
+     The DOORS that are not HTTP services - postgres, minio when the store is
+     plugged, a container backend (snowflake, redshift), jupyter - are asked by
+     TCP connect (`doors`), so every door the box plugs is asked about.
   F. egress is refused - TCP and DNS, with the interface and route list read
      from `/proc` so a second interface nobody declared cannot hide.
   G. what the environment profile EXCLUDES does not even resolve: an excluded
@@ -44,7 +53,11 @@ Eight questions, each answered by trying:
      object store. A profile with no orchestrator is served no scheduler plane
      BY DESIGN, so for it question E's scheduler half is recorded under
      `checks_not_applicable` with its reason - never silently dropped - and
-     this question asserts the stronger negative in its place.
+     this question asserts the stronger negative in its place. An excluded
+     service that is a COMPOSE service (minio) is also asked by its compose
+     name and, when the caller knows the project, its container name: with
+     only its alias gone, `minio` still resolved on every da/* box and G
+     passed (finding 1 of CONTAINMENT_2026-10-07.md).
   H. the native services' OWN state (`/service-state` in native-services: the
      BI vendors' published content, the config the services read) is not
      mounted here under any name, and its host path does not exist here. It
@@ -78,11 +91,13 @@ import argparse
 import json
 import subprocess
 import sys
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 #: The probe body. Read as text and piped to `python -`; never imported.
 PROBE = r"""
-import json, os, socket, urllib.error, urllib.request
+import json, os, socket, ssl, urllib.error, urllib.parse, urllib.request
 
 spec = json.loads(SPEC)
 out = {}
@@ -221,11 +236,32 @@ work = {"workspace_writable": bool(os.access("/workspace", os.W_OK)),
 out["work"] = work
 
 # --- E. the nine services, from this vantage -------------------------------
+def tcp(host, port):
+    try:
+        socket.create_connection((host, port), timeout=5).close()
+        return "CONNECTED"
+    except OSError as exc:
+        return type(exc).__name__
+
+bundles = spec.get("tls_bundles") or {}
 services = []
 for name, url in sorted(spec["services"].items()):
     row = {"service": name, "url": url}
+    parts = urllib.parse.urlsplit(url)
+    opener = {}
+    if parts.scheme == "https":
+        # TCP first, then TLS trusting the bundle the box's clients are given.
+        row["tcp"] = tcp(parts.hostname, parts.port or 443)
+        row["bundle"] = (bundles.get(name) or os.environ.get("REQUESTS_CA_BUNDLE")
+                         or os.environ.get("SSL_CERT_FILE"))
+        try:
+            opener["context"] = ssl.create_default_context(cafile=row["bundle"])
+        except (OSError, ssl.SSLError) as exc:
+            row["error"] = "%s: %s" % (type(exc).__name__, exc)
     try:
-        with urllib.request.urlopen(url + "/health", timeout=5) as response:
+        if "error" in row:
+            raise OSError(row["error"])
+        with urllib.request.urlopen(url + "/health", timeout=5, **opener) as response:
             body = response.read(4096).decode("utf-8", "replace")
             row["status"] = response.status
             payload = json.loads(body)
@@ -234,7 +270,7 @@ for name, url in sorted(spec["services"].items()):
     except urllib.error.HTTPError as exc:
         row["status"] = exc.code
     except Exception as exc:
-        row["error"] = "%s: %s" % (type(exc).__name__, exc)
+        row.setdefault("error", "%s: %s" % (type(exc).__name__, exc))
     # REACHABLE, not populated. A 503 carrying a health document is a service
     # answering about a world plane this task's seed does not have
     # (`native/context.service_health`), and six of GT001's nine answer exactly
@@ -256,6 +292,13 @@ out["services_with_no_content"] = [r["service"] for r in services
 # cannot be asked to schedule anything in. `items` is the job count.
 out["scheduler"] = next((r for r in services if r["service"] == spec["scheduler"]),
                         None)
+# The doors that are not HTTP services, by TCP connect.
+doors = []
+for name, target in sorted((spec.get("doors") or {}).items()):
+    host, _, port = target.rpartition(":")
+    doors.append({"door": name, "target": target, "tcp": tcp(host, int(port))})
+out["doors"] = doors
+out["doors_unreachable"] = [d["door"] for d in doors if d["tcp"] != "CONNECTED"]
 
 # --- F. egress -------------------------------------------------------------
 ifaces, routes = [], []
@@ -294,13 +337,19 @@ out["egress_blocked"] = (all(r["result"] != "CONNECTED" for r in tcp)
 
 # --- G. what the profile excludes does not resolve ---------------------------
 excluded = []
-for name, host in sorted((spec.get("excluded") or {}).items()):
-    row = {"service": name, "host": host}
-    try:
-        row["addresses"] = sorted({a[4][0] for a in socket.getaddrinfo(host, None)})
-    except OSError as exc:
-        row["addresses"] = []
-        row["error"] = type(exc).__name__
+for name, hosts in sorted((spec.get("excluded") or {}).items()):
+    # one host, or the alias plus the compose and container names
+    hosts = [hosts] if isinstance(hosts, str) else list(hosts)
+    row = {"service": name, "host": hosts[0], "names": {}}
+    found = set()
+    for host in hosts:
+        try:
+            row["names"][host] = sorted({a[4][0] for a in socket.getaddrinfo(host, None)})
+        except OSError as exc:
+            row["names"][host] = []
+            row.setdefault("error", type(exc).__name__)
+        found.update(row["names"][host])
+    row["addresses"] = sorted(found)
     excluded.append(row)
 out["excluded_services"] = excluded
 out["excluded_that_resolve"] = [r["service"] for r in excluded if r["addresses"]]
@@ -347,6 +396,8 @@ if spec["scheduler"]:
         bool(out["scheduler"]) and out["scheduler"].get("populated") is True)
 if spec.get("excluded"):
     out["checks"]["no_excluded_service_resolves"] = not out["excluded_that_resolve"]
+if spec.get("doors"):
+    out["checks"]["every_plugged_door_accepts_tcp"] = not out["doors_unreachable"]
 if state.get("targets") or state.get("roots"):
     # A plain directory the subject made at that path is its own container's
     # and reaches nothing; a MOUNT is the leak, and so is the host path.
@@ -391,22 +442,65 @@ SERVICE_STATE_OWNER = "native-services"
 CONTAINER_PYTHON = "/usr/local/bin/python"
 SWEEP_ROOTS = ("/world", "/workspace", "/audit", "/root", "/opt/episode", "/tmp")
 SWEEP_LIMIT = 40_000
+#: Excluded services that are compose services of their own rather than
+#: modules inside native-services, by compose service name: question G asks
+#: their compose name (and container name) too, not only the alias.
+COMPOSE_EXCLUDABLE = {"minio": "minio"}
+#: The doors every native box serves that are not HTTP services of serve.py,
+#: by the static stack (compose.native.yml): postgres always, minio when the
+#: object store is plugged; and the notebook plug's (container_episode's
+#: JUPYTER_URL). Container backends come from `alkera_gateway.backends`.
+POSTGRES_DOOR = ("postgres.internal", 5432)
+MINIO_DOOR = ("minio.internal", 9000)
+JUPYTER_DOOR = ("jupyter.internal", 8888)
+
+Scheme = Literal["http", "https", "tcp"]
+
+
+@dataclass(frozen=True)
+class Expect:
+    """One door the episode must reach, and how it is asked.
+
+    `http`: `GET /health` (question E). `https`: TCP connect, then `GET
+    /health` over TLS trusting `bundle` - the bundle the box's clients are
+    given - so a TLS port is never asked in plain HTTP. `tcp`: a connect, for
+    the doors that are not HTTP services (postgres, minio, a container
+    backend, jupyter).
+    """
+
+    name: str
+    host: str
+    port: int
+    scheme: Scheme
+    bundle: str | None = None
+    source: str = ""
+
+    @property
+    def url(self) -> str:
+        return f"{self.scheme}://{self.host}:{self.port}"
+
+    @property
+    def target(self) -> str:
+        return f"{self.host}:{self.port}"
 
 
 def spec(*, warehouses, services, forbidden_files=(), host_paths=(),
          canaries=(), repo_root="", world_planes=WORLD_PLANES,
          sweep_roots=SWEEP_ROOTS, sweep_limit=SWEEP_LIMIT,
          scheduler=SCHEDULER_SERVICE, excluded=None, not_applicable=None,
-         service_state=None) -> dict:
+         service_state=None, tls_bundles=None, doors=None) -> dict:
     """The probe's one JSON argument, built in one place.
 
     `warehouses` are world-relative posix paths (`var/warehouse/x.duckdb`) and
     `services` is `{name: base_url}` as the EPISODE addresses them, never as the
     harness does: the question P7 answers is what the episode's own vantage can
-    reach. `excluded` is `{name: host}` that must NOT resolve (question G);
-    `expectations()` builds `services`, `excluded`, `scheduler` and
-    `not_applicable` together from an environment profile. `service_state` is
-    `{"targets": [...], "roots": [<host path>]}` (question H).
+    reach. An `https://` service is asked over TLS trusting
+    `tls_bundles[name]` (else the episode's REQUESTS_CA_BUNDLE). `doors` is
+    `{name: "host:port"}` asked by TCP connect. `excluded` is `{name: host}`
+    or `{name: [host, compose name, ...]}` that must NOT resolve (question G);
+    `expectations()` builds `services`, `tls_bundles`, `doors`, `excluded`,
+    `scheduler` and `not_applicable` together from an environment profile.
+    `service_state` is `{"targets": [...], "roots": [<host path>]}` (question H).
 
     `scheduler=None` means "this box is served no scheduler plane by design",
     and it is refused unless the reason is recorded (`not_applicable`) and
@@ -428,6 +522,8 @@ def spec(*, warehouses, services, forbidden_files=(), host_paths=(),
         "warehouses": sorted(warehouses),
         "world_planes": list(world_planes),
         "services": dict(services),
+        "tls_bundles": dict(tls_bundles or {}),
+        "doors": dict(doors or {}),
         "excluded": excluded,
         "not_applicable": not_applicable,
         "service_state": dict(service_state or {}),
@@ -449,6 +545,67 @@ def plug_args(plugs: dict | None) -> list[str]:
     return [f"{slot}={','.join(names)}" for slot, names in (plugs or {}).items()]
 
 
+def _plug_values(plugs) -> list[str]:
+    return plug_args(plugs) if isinstance(plugs, dict) else list(plugs or ())
+
+
+def expects(profile: str | None = None, plugs=()) -> list[Expect]:
+    """Every door a box served for `profile` (None: the unprofiled box) must
+    answer from the episode, each with the way it is asked - by serve.py's own
+    rules for what native-services serves, by `alkera_gateway.backends` for the
+    backends, and by the static stack for postgres, minio and jupyter.
+
+    A hosted backend whose registry row says `tls` (Databricks, 443) is an
+    `https` row with that row's bundle; a hosted backend whose module serves
+    its own socket (`serve_socket`: Spark Connect's gRPC, which no HTTP/1.1
+    GET can ask) is `tcp`, as serve.mount serves it; every other served
+    service is `http`; the doors that are not HTTP services are `tcp`.
+    """
+    import importlib
+
+    from alkera_gateway import backends as registry_backends
+    from alkera_gateway.native import serve
+    from alkera_gateway.native import services as registry
+    from alkera_gateway.plugs import parse_plug_args, resolve
+
+    args = _plug_values(plugs)
+    profile = profile or None
+    names = serve.selected_services(profile, args)
+    rows = []
+    for n in (registry.NAMES if names is None else names):
+        if n not in serve.SERVICE_PORTS:
+            continue
+        b = registry_backends.BACKENDS.get(n)
+        if b is not None and b.hosted and hasattr(
+                importlib.import_module(f"{registry.__name__}.{n}"), "serve_socket"):
+            rows.append(Expect(n, f"{n}.internal", serve.SERVICE_PORTS[n], "tcp",
+                               source="alkera_gateway.backends (hosted, serve_socket)"))
+        elif b is not None and b.tls:
+            rows.append(Expect(n, f"{n}.internal", serve.SERVICE_PORTS[n], "https",
+                               bundle=registry_backends.bundle(b),
+                               source="alkera_gateway.backends (hosted, tls)"))
+        else:
+            rows.append(Expect(n, f"{n}.internal", serve.SERVICE_PORTS[n], "http",
+                               source="serve.selected_services"))
+    if serve.sched_enabled(profile, args):
+        rows.append(Expect(SCHEDULER_SERVICE, f"{SCHEDULER_SERVICE}.internal",
+                           serve.SCHED_PORT, "http", source="serve.sched_enabled"))
+    rows.append(Expect("postgres", *POSTGRES_DOOR, "tcp",
+                       source="compose.native.yml (every native box)"))
+    if serve.object_store_enabled(profile, args):
+        rows.append(Expect("minio", *MINIO_DOOR, "tcp",
+                           source="serve.object_store_enabled"))
+    resolved = None if profile is None else resolve(profile, parse_plug_args(args))
+    if resolved is not None:
+        rows += [Expect(b.name, b.host, b.port, "tcp",
+                        source="alkera_gateway.backends.plugged (own container)")
+                 for b in registry_backends.plugged(resolved.slots) if not b.hosted]
+        if "notebook" in resolved.slots:
+            rows.append(Expect("jupyter", *JUPYTER_DOOR, "tcp",
+                               source="the notebook plug"))
+    return rows
+
+
 def expectations(profile: str | None = None, plugs=()) -> dict:
     """What the episode must reach, and what must not even resolve, on a box
     served for `profile` (None: the unprofiled box), by serve.py's own rules.
@@ -457,14 +614,19 @@ def expectations(profile: str | None = None, plugs=()) -> dict:
     `{slot: [plug]}` mapping a task declares. The answer is computed by the
     functions `native/serve.py --profile` itself serves by -
     `selected_services`, `sched_enabled`, `object_store_enabled` - so P7 asks
-    about exactly the set the native-services process mounted:
+    about exactly the set the native-services process mounted (`expects`):
 
       services        every served vendor service (the nine, or the profile's
                       own, plugged BI vendors included) plus the scheduler
-                      plane when `ops_sched` is plugged, as `{name: url}`
+                      plane when `ops_sched` is plugged, as `{name: url}`;
+                      `https://` for a TLS backend
+      tls_bundles     `{name: bundle}` for the `https://` ones
+      doors           `{name: "host:port"}`, the doors that are not HTTP
+                      services, asked by TCP
       excluded        every other one of the nine and of the BI vendors,
                       `sched` without `ops_sched`, `minio` without an object
-                      store, as `{name: host}` - question G
+                      store (by alias AND compose name), as `{name: host}` or
+                      `{name: [host, ...]}` - question G
       scheduler       SCHEDULER_SERVICE, or None when not served
       not_applicable  `{SCHEDULER_CHECK: reason}` when not served
 
@@ -474,18 +636,16 @@ def expectations(profile: str | None = None, plugs=()) -> dict:
     from alkera_gateway.native import serve
     from alkera_gateway.native import services as registry
 
-    args = plug_args(plugs) if isinstance(plugs, dict) else list(plugs or ())
+    args = _plug_values(plugs)
     profile = profile or None
-    names = serve.selected_services(profile, args)
-    served = [n for n in (registry.NAMES if names is None else names)
-              if n in serve.SERVICE_PORTS]
-    services = {n: f"http://{n}.internal:{serve.SERVICE_PORTS[n]}" for n in served}
+    rows = expects(profile, args)
+    services = {e.name: e.url for e in rows if e.scheme != "tcp"}
+    tls_bundles = {e.name: e.bundle for e in rows if e.scheme == "https" and e.bundle}
+    doors = {e.name: e.target for e in rows if e.scheme == "tcp"}
     excluded = {n: f"{n}.internal" for n in (*registry.NAMES, *registry.PLUG_NAMES)
                 if n not in services}
     not_applicable = {}
-    if serve.sched_enabled(profile, args):
-        services[SCHEDULER_SERVICE] = (f"http://{SCHEDULER_SERVICE}.internal:"
-                                       f"{serve.SCHED_PORT}")
+    if SCHEDULER_SERVICE in services:
         scheduler = SCHEDULER_SERVICE
     else:
         excluded[SCHEDULER_SERVICE] = f"{SCHEDULER_SERVICE}.internal"
@@ -496,11 +656,26 @@ def expectations(profile: str | None = None, plugs=()) -> dict:
             f"answer; `{SCHEDULER_SERVICE}.internal` must instead NOT resolve "
             f"(no_excluded_service_resolves)")
     if not serve.object_store_enabled(profile, args):
-        excluded["minio"] = "minio.internal"
+        excluded["minio"] = ["minio.internal", COMPOSE_EXCLUDABLE["minio"]]
     return {"profile": profile, "plugs": args,
             "services": dict(sorted(services.items())),
+            "tls_bundles": tls_bundles,
+            "doors": dict(sorted(doors.items())),
             "excluded": dict(sorted(excluded.items())),
             "scheduler": scheduler, "not_applicable": not_applicable}
+
+
+def with_container_names(excluded: dict, project: str) -> dict:
+    """`excluded` plus the container name compose gives each excluded compose
+    service in `project` (`<project>-<service>-1`): question G then asks the
+    alias, the compose name and the container name."""
+    out = {}
+    for name, hosts in excluded.items():
+        hosts = [hosts] if isinstance(hosts, str) else list(hosts)
+        if name in COMPOSE_EXCLUDABLE:
+            hosts.append(f"{project}-{COMPOSE_EXCLUDABLE[name]}-1")
+        out[name] = hosts if len(hosts) > 1 else hosts[0]
+    return out
 
 
 def _under(path: str, base: str) -> bool:

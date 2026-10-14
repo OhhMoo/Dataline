@@ -48,11 +48,11 @@
     "sql_rows": 16,
     "sql_rows_naming_a_warehouse": 16
   },
-  "builder": "C:\\Users\\OhhMoo\\AppData\\Local\\Temp\\claude\\C--Users-OhhMoo-desktop-research-alkera\\8e0194ed-9fad-4596-a2aa-3db725359add\\scratchpad\\proof\\world\\scripts\\dual_world_builder.py",
+  "builder": "/home/ubuntu/tool_implementation.wt/t3-theme-macro/world/scripts/dual_world_builder.py",
   "containment": {
     "audit_writable": true,
     "contained": true,
-    "container_id": "b6375b4def9d",
+    "container_id": "07f1c6886b57",
     "dbt_profiles_rerooted": [
       "world_dbt.dev",
       "world_dbt.legacy",
@@ -63,7 +63,9 @@
       "ALKERA_BACKEND",
       "ALKERA_POSTGRES_DSN",
       "ALKERA_SOURCE_REV",
+      "ALKERA_TOOLBELT",
       "ALKERA_WAREHOUSES",
+      "ALKERA_WAREHOUSE_CLIENTS",
       "GPG_KEY",
       "HOME",
       "HOSTNAME",
@@ -118,8 +120,8 @@
         "result": "FileNotFoundError: [Errno 2] No such file or directory: '/tests/manifest.yaml'"
       },
       {
-        "path": "C:/Users/OhhMoo/AppData/Local/Temp/alkera-dual-check/1789530913/grading/manifest.yaml",
-        "result": "FileNotFoundError: [Errno 2] No such file or directory: 'C:/Users/OhhMoo/AppData/Local/Temp/alkera-dual-check/1789530913/grading/manifest.yaml'"
+        "path": "/home/ubuntu/.cache/alkera-harbor-work/tmp/alkera-dual-check/1791881983/grading/manifest.yaml",
+        "result": "FileNotFoundError: [Errno 2] No such file or directory: '/home/ubuntu/.cache/alkera-harbor-work/tmp/alkera-dual-check/1791881983/grading/manifest.yaml'"
       }
     ],
     "host_paths_present": [],
@@ -128,11 +130,21 @@
       "gid": 0,
       "uid": 0
     },
-    "image": "alkera-episode:substrate",
-    "image_digest": "sha256:1fadc539b47326749e042b1402d4f3b614ee38492a02dbfedcb6da94dcae1d44",
+    "image": "alkera-episode:head",
+    "image_digest": "sha256:f129ad32f20380da5f47ae40a7d816b7390c662943eebeed1a627405416aedc1",
     "marker_sweep": {
-      "files_scanned": 354,
+      "files_scanned": 556,
       "hits": [
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/gateway/src/alkera_gateway/scheduling.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "task.toml",
+          "path": "/opt/gateway/src/alkera_gateway/plugs.py"
+        },
         {
           "kind": "marker_in_file",
           "name": "3_track.md",
@@ -146,12 +158,72 @@
         {
           "kind": "marker_in_file",
           "name": "agent.md",
-          "path": "/opt/gateway/src/alkera_gateway/scheduling.py"
+          "path": "/opt/gateway/src/alkera_gateway/native/PARITY.md"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/gateway/src/alkera_gateway/native/serve.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/gateway/src/alkera_gateway/native/context.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/gateway/src/alkera_gateway/native/audit.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "task.toml",
+          "path": "/opt/gateway/src/alkera_gateway/native/shims/sched_cli.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/gateway/src/alkera_gateway/native/shims/install.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/gateway/src/alkera_gateway/native/tailers/__init__.py"
         },
         {
           "kind": "marker_in_file",
           "name": "agent.md",
           "path": "/opt/world/seed.yaml"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/world/world/build.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/world/world/ledger.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/world/world/gateway_scheduler.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/world/world/bi.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/world/world/__init__.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/world/world/scheduler.py"
         },
         {
           "kind": "marker_in_file",
@@ -166,42 +238,17 @@
         {
           "kind": "marker_in_file",
           "name": "agent.md",
-          "path": "/opt/world/world/build.py"
-        },
-        {
-          "kind": "marker_in_file",
-          "name": "agent.md",
-          "path": "/opt/world/world/__init__.py"
-        },
-        {
-          "kind": "marker_in_file",
-          "name": "agent.md",
-          "path": "/opt/world/world/bi.py"
-        },
-        {
-          "kind": "marker_in_file",
-          "name": "agent.md",
-          "path": "/opt/world/world/scheduler.py"
-        },
-        {
-          "kind": "marker_in_file",
-          "name": "agent.md",
-          "path": "/opt/world/world/gateway_scheduler.py"
-        },
-        {
-          "kind": "marker_in_file",
-          "name": "agent.md",
-          "path": "/opt/world/world/airflow_bridge.py"
-        },
-        {
-          "kind": "marker_in_file",
-          "name": "agent.md",
           "path": "/opt/world/world/themes/mainframe_batch/workspace/dbt_project/macros/relations.sql"
         },
         {
           "kind": "marker_in_file",
           "name": "agent.md",
           "path": "/opt/world/world/themes/excel_close/workspace/dbt_project/macros/relations.sql"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/world/world/themes/commerce_analytics/workspace/dbt_project/macros/relations.sql"
         },
         {
           "kind": "marker_in_file",
@@ -220,6 +267,16 @@
         },
         {
           "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/usr/local/lib/python3.11/site-packages/alkera_gateway/scheduling.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "task.toml",
+          "path": "/usr/local/lib/python3.11/site-packages/alkera_gateway/plugs.py"
+        },
+        {
+          "kind": "marker_in_file",
           "name": "3_track.md",
           "path": "/usr/local/lib/python3.11/site-packages/alkera_gateway/config.py"
         },
@@ -231,21 +288,51 @@
         {
           "kind": "marker_in_file",
           "name": "agent.md",
-          "path": "/usr/local/lib/python3.11/site-packages/alkera_gateway/scheduling.py"
+          "path": "/usr/local/lib/python3.11/site-packages/alkera_gateway/native/PARITY.md"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/usr/local/lib/python3.11/site-packages/alkera_gateway/native/serve.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/usr/local/lib/python3.11/site-packages/alkera_gateway/native/context.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/usr/local/lib/python3.11/site-packages/alkera_gateway/native/audit.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "task.toml",
+          "path": "/usr/local/lib/python3.11/site-packages/alkera_gateway/native/shims/sched_cli.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/usr/local/lib/python3.11/site-packages/alkera_gateway/native/shims/install.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/usr/local/lib/python3.11/site-packages/alkera_gateway/native/tailers/__init__.py"
         }
       ],
       "truncated": false
     },
     "mount_roots": [
       "/",
-      "/Users/OhhMoo/AppData/Local/Temp/alkera-dual-check/1789530913/audit",
-      "/Users/OhhMoo/AppData/Local/Temp/alkera-dual-check/1789530913/world",
-      "/Users/OhhMoo/AppData/Local/Temp/alkera-dual-check/1789530913/world/workspace",
-      "/data/docker/containers/b6375b4def9dd56d3bbb101e6d7e178bad8ae1ee89c8ff2d811a3be29993bf3c/hostname",
-      "/data/docker/containers/b6375b4def9dd56d3bbb101e6d7e178bad8ae1ee89c8ff2d811a3be29993bf3c/hosts",
-      "/data/docker/containers/b6375b4def9dd56d3bbb101e6d7e178bad8ae1ee89c8ff2d811a3be29993bf3c/resolv.conf",
-      "/data/docker/volumes/alkera-dualcheck_bistate/_data",
-      "/data/docker/volumes/alkera-dualcheck_snowflaketrust/_data"
+      "/home/ubuntu/.cache/alkera-harbor-work/tmp/alkera-dual-check/1791881983/audit",
+      "/home/ubuntu/.cache/alkera-harbor-work/tmp/alkera-dual-check/1791881983/world",
+      "/home/ubuntu/.cache/alkera-harbor-work/tmp/alkera-dual-check/1791881983/world/workspace",
+      "/var/lib/docker/containers/07f1c6886b572d46f03af331eaa54e5c58423a7ec2799c2a2a95b0549873b15e/hostname",
+      "/var/lib/docker/containers/07f1c6886b572d46f03af331eaa54e5c58423a7ec2799c2a2a95b0549873b15e/hosts",
+      "/var/lib/docker/containers/07f1c6886b572d46f03af331eaa54e5c58423a7ec2799c2a2a95b0549873b15e/resolv.conf",
+      "/var/lib/docker/volumes/alkera-dual-1791881983_bistate/_data",
+      "/var/lib/docker/volumes/alkera-dual-1791881983_snowflaketrust/_data"
     ],
     "mount_roots_naming_repo": [],
     "mounts": [
@@ -257,59 +344,59 @@
         "target": "/"
       },
       {
-        "fstype": "9p",
-        "options": "rw,noatime",
-        "root": "/Users/OhhMoo/AppData/Local/Temp/alkera-dual-check/1789530913/audit",
-        "source": "C:\\134",
+        "fstype": "ext4",
+        "options": "rw,relatime",
+        "root": "/home/ubuntu/.cache/alkera-harbor-work/tmp/alkera-dual-check/1791881983/audit",
+        "source": "/dev/root",
         "target": "/audit"
       },
       {
-        "fstype": "9p",
-        "options": "rw,noatime",
-        "root": "/Users/OhhMoo/AppData/Local/Temp/alkera-dual-check/1789530913/world",
-        "source": "C:\\134",
-        "target": "/world"
-      },
-      {
-        "fstype": "9p",
-        "options": "rw,noatime",
-        "root": "/Users/OhhMoo/AppData/Local/Temp/alkera-dual-check/1789530913/world/workspace",
-        "source": "C:\\134",
+        "fstype": "ext4",
+        "options": "rw,relatime",
+        "root": "/home/ubuntu/.cache/alkera-harbor-work/tmp/alkera-dual-check/1791881983/world/workspace",
+        "source": "/dev/root",
         "target": "/workspace"
       },
       {
         "fstype": "ext4",
         "options": "rw,relatime",
-        "root": "/data/docker/volumes/alkera-dualcheck_bistate/_data",
-        "source": "/dev/sdd",
-        "target": "/service-state/bi"
+        "root": "/home/ubuntu/.cache/alkera-harbor-work/tmp/alkera-dual-check/1791881983/world",
+        "source": "/dev/root",
+        "target": "/world"
       },
       {
         "fstype": "ext4",
         "options": "rw,relatime",
-        "root": "/data/docker/containers/b6375b4def9dd56d3bbb101e6d7e178bad8ae1ee89c8ff2d811a3be29993bf3c/resolv.conf",
-        "source": "/dev/sdd",
-        "target": "/etc/resolv.conf"
-      },
-      {
-        "fstype": "ext4",
-        "options": "rw,relatime",
-        "root": "/data/docker/containers/b6375b4def9dd56d3bbb101e6d7e178bad8ae1ee89c8ff2d811a3be29993bf3c/hostname",
-        "source": "/dev/sdd",
+        "root": "/var/lib/docker/containers/07f1c6886b572d46f03af331eaa54e5c58423a7ec2799c2a2a95b0549873b15e/hostname",
+        "source": "/dev/root",
         "target": "/etc/hostname"
       },
       {
         "fstype": "ext4",
         "options": "rw,relatime",
-        "root": "/data/docker/containers/b6375b4def9dd56d3bbb101e6d7e178bad8ae1ee89c8ff2d811a3be29993bf3c/hosts",
-        "source": "/dev/sdd",
+        "root": "/var/lib/docker/containers/07f1c6886b572d46f03af331eaa54e5c58423a7ec2799c2a2a95b0549873b15e/hosts",
+        "source": "/dev/root",
         "target": "/etc/hosts"
       },
       {
         "fstype": "ext4",
         "options": "rw,relatime",
-        "root": "/data/docker/volumes/alkera-dualcheck_snowflaketrust/_data",
-        "source": "/dev/sdd",
+        "root": "/var/lib/docker/containers/07f1c6886b572d46f03af331eaa54e5c58423a7ec2799c2a2a95b0549873b15e/resolv.conf",
+        "source": "/dev/root",
+        "target": "/etc/resolv.conf"
+      },
+      {
+        "fstype": "ext4",
+        "options": "rw,relatime",
+        "root": "/var/lib/docker/volumes/alkera-dual-1791881983_bistate/_data",
+        "source": "/dev/root",
+        "target": "/service-state/bi"
+      },
+      {
+        "fstype": "ext4",
+        "options": "rw,relatime",
+        "root": "/var/lib/docker/volumes/alkera-dual-1791881983_snowflaketrust/_data",
+        "source": "/dev/root",
         "target": "/etc/alkera/snowflake-tls"
       }
     ],
@@ -350,12 +437,12 @@
       ],
       "routes": [
         {
-          "dest": "172.22.0.0",
-          "iface": "eth0"
+          "dest": "10.210.3.0",
+          "iface": "eth1"
         },
         {
-          "dest": "172.23.0.0",
-          "iface": "eth1"
+          "dest": "10.210.4.0",
+          "iface": "eth0"
         }
       ]
     },
@@ -426,7 +513,7 @@
   "containment_after": {
     "audit_writable": true,
     "contained": true,
-    "container_id": "b6375b4def9d",
+    "container_id": "07f1c6886b57",
     "dbt_profiles_rerooted": [
       "world_dbt.dev",
       "world_dbt.legacy",
@@ -437,7 +524,9 @@
       "ALKERA_BACKEND",
       "ALKERA_POSTGRES_DSN",
       "ALKERA_SOURCE_REV",
+      "ALKERA_TOOLBELT",
       "ALKERA_WAREHOUSES",
+      "ALKERA_WAREHOUSE_CLIENTS",
       "GPG_KEY",
       "HOME",
       "HOSTNAME",
@@ -498,11 +587,21 @@
       "gid": 0,
       "uid": 0
     },
-    "image": "alkera-episode:substrate",
-    "image_digest": "sha256:1fadc539b47326749e042b1402d4f3b614ee38492a02dbfedcb6da94dcae1d44",
+    "image": "alkera-episode:head",
+    "image_digest": "sha256:f129ad32f20380da5f47ae40a7d816b7390c662943eebeed1a627405416aedc1",
     "marker_sweep": {
-      "files_scanned": 354,
+      "files_scanned": 556,
       "hits": [
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/gateway/src/alkera_gateway/scheduling.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "task.toml",
+          "path": "/opt/gateway/src/alkera_gateway/plugs.py"
+        },
         {
           "kind": "marker_in_file",
           "name": "3_track.md",
@@ -516,12 +615,72 @@
         {
           "kind": "marker_in_file",
           "name": "agent.md",
-          "path": "/opt/gateway/src/alkera_gateway/scheduling.py"
+          "path": "/opt/gateway/src/alkera_gateway/native/PARITY.md"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/gateway/src/alkera_gateway/native/serve.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/gateway/src/alkera_gateway/native/context.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/gateway/src/alkera_gateway/native/audit.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "task.toml",
+          "path": "/opt/gateway/src/alkera_gateway/native/shims/sched_cli.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/gateway/src/alkera_gateway/native/shims/install.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/gateway/src/alkera_gateway/native/tailers/__init__.py"
         },
         {
           "kind": "marker_in_file",
           "name": "agent.md",
           "path": "/opt/world/seed.yaml"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/world/world/build.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/world/world/ledger.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/world/world/gateway_scheduler.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/world/world/bi.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/world/world/__init__.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/world/world/scheduler.py"
         },
         {
           "kind": "marker_in_file",
@@ -536,42 +695,17 @@
         {
           "kind": "marker_in_file",
           "name": "agent.md",
-          "path": "/opt/world/world/build.py"
-        },
-        {
-          "kind": "marker_in_file",
-          "name": "agent.md",
-          "path": "/opt/world/world/__init__.py"
-        },
-        {
-          "kind": "marker_in_file",
-          "name": "agent.md",
-          "path": "/opt/world/world/bi.py"
-        },
-        {
-          "kind": "marker_in_file",
-          "name": "agent.md",
-          "path": "/opt/world/world/scheduler.py"
-        },
-        {
-          "kind": "marker_in_file",
-          "name": "agent.md",
-          "path": "/opt/world/world/gateway_scheduler.py"
-        },
-        {
-          "kind": "marker_in_file",
-          "name": "agent.md",
-          "path": "/opt/world/world/airflow_bridge.py"
-        },
-        {
-          "kind": "marker_in_file",
-          "name": "agent.md",
           "path": "/opt/world/world/themes/mainframe_batch/workspace/dbt_project/macros/relations.sql"
         },
         {
           "kind": "marker_in_file",
           "name": "agent.md",
           "path": "/opt/world/world/themes/excel_close/workspace/dbt_project/macros/relations.sql"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/opt/world/world/themes/commerce_analytics/workspace/dbt_project/macros/relations.sql"
         },
         {
           "kind": "marker_in_file",
@@ -590,6 +724,16 @@
         },
         {
           "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/usr/local/lib/python3.11/site-packages/alkera_gateway/scheduling.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "task.toml",
+          "path": "/usr/local/lib/python3.11/site-packages/alkera_gateway/plugs.py"
+        },
+        {
+          "kind": "marker_in_file",
           "name": "3_track.md",
           "path": "/usr/local/lib/python3.11/site-packages/alkera_gateway/config.py"
         },
@@ -601,21 +745,51 @@
         {
           "kind": "marker_in_file",
           "name": "agent.md",
-          "path": "/usr/local/lib/python3.11/site-packages/alkera_gateway/scheduling.py"
+          "path": "/usr/local/lib/python3.11/site-packages/alkera_gateway/native/PARITY.md"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/usr/local/lib/python3.11/site-packages/alkera_gateway/native/serve.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/usr/local/lib/python3.11/site-packages/alkera_gateway/native/context.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/usr/local/lib/python3.11/site-packages/alkera_gateway/native/audit.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "task.toml",
+          "path": "/usr/local/lib/python3.11/site-packages/alkera_gateway/native/shims/sched_cli.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/usr/local/lib/python3.11/site-packages/alkera_gateway/native/shims/install.py"
+        },
+        {
+          "kind": "marker_in_file",
+          "name": "agent.md",
+          "path": "/usr/local/lib/python3.11/site-packages/alkera_gateway/native/tailers/__init__.py"
         }
       ],
       "truncated": false
     },
     "mount_roots": [
       "/",
-      "/Users/OhhMoo/AppData/Local/Temp/alkera-dual-check/1789530913/audit",
-      "/Users/OhhMoo/AppData/Local/Temp/alkera-dual-check/1789530913/world",
-      "/Users/OhhMoo/AppData/Local/Temp/alkera-dual-check/1789530913/world/workspace",
-      "/data/docker/containers/b6375b4def9dd56d3bbb101e6d7e178bad8ae1ee89c8ff2d811a3be29993bf3c/hostname",
-      "/data/docker/containers/b6375b4def9dd56d3bbb101e6d7e178bad8ae1ee89c8ff2d811a3be29993bf3c/hosts",
-      "/data/docker/containers/b6375b4def9dd56d3bbb101e6d7e178bad8ae1ee89c8ff2d811a3be29993bf3c/resolv.conf",
-      "/data/docker/volumes/alkera-dualcheck_bistate/_data",
-      "/data/docker/volumes/alkera-dualcheck_snowflaketrust/_data"
+      "/home/ubuntu/.cache/alkera-harbor-work/tmp/alkera-dual-check/1791881983/audit",
+      "/home/ubuntu/.cache/alkera-harbor-work/tmp/alkera-dual-check/1791881983/world",
+      "/home/ubuntu/.cache/alkera-harbor-work/tmp/alkera-dual-check/1791881983/world/workspace",
+      "/var/lib/docker/containers/07f1c6886b572d46f03af331eaa54e5c58423a7ec2799c2a2a95b0549873b15e/hostname",
+      "/var/lib/docker/containers/07f1c6886b572d46f03af331eaa54e5c58423a7ec2799c2a2a95b0549873b15e/hosts",
+      "/var/lib/docker/containers/07f1c6886b572d46f03af331eaa54e5c58423a7ec2799c2a2a95b0549873b15e/resolv.conf",
+      "/var/lib/docker/volumes/alkera-dual-1791881983_bistate/_data",
+      "/var/lib/docker/volumes/alkera-dual-1791881983_snowflaketrust/_data"
     ],
     "mount_roots_naming_repo": [],
     "mounts": [
@@ -627,59 +801,59 @@
         "target": "/"
       },
       {
-        "fstype": "9p",
-        "options": "rw,noatime",
-        "root": "/Users/OhhMoo/AppData/Local/Temp/alkera-dual-check/1789530913/audit",
-        "source": "C:\\134",
+        "fstype": "ext4",
+        "options": "rw,relatime",
+        "root": "/home/ubuntu/.cache/alkera-harbor-work/tmp/alkera-dual-check/1791881983/audit",
+        "source": "/dev/root",
         "target": "/audit"
       },
       {
-        "fstype": "9p",
-        "options": "rw,noatime",
-        "root": "/Users/OhhMoo/AppData/Local/Temp/alkera-dual-check/1789530913/world",
-        "source": "C:\\134",
-        "target": "/world"
-      },
-      {
-        "fstype": "9p",
-        "options": "rw,noatime",
-        "root": "/Users/OhhMoo/AppData/Local/Temp/alkera-dual-check/1789530913/world/workspace",
-        "source": "C:\\134",
+        "fstype": "ext4",
+        "options": "rw,relatime",
+        "root": "/home/ubuntu/.cache/alkera-harbor-work/tmp/alkera-dual-check/1791881983/world/workspace",
+        "source": "/dev/root",
         "target": "/workspace"
       },
       {
         "fstype": "ext4",
         "options": "rw,relatime",
-        "root": "/data/docker/volumes/alkera-dualcheck_bistate/_data",
-        "source": "/dev/sdd",
-        "target": "/service-state/bi"
+        "root": "/home/ubuntu/.cache/alkera-harbor-work/tmp/alkera-dual-check/1791881983/world",
+        "source": "/dev/root",
+        "target": "/world"
       },
       {
         "fstype": "ext4",
         "options": "rw,relatime",
-        "root": "/data/docker/containers/b6375b4def9dd56d3bbb101e6d7e178bad8ae1ee89c8ff2d811a3be29993bf3c/resolv.conf",
-        "source": "/dev/sdd",
-        "target": "/etc/resolv.conf"
-      },
-      {
-        "fstype": "ext4",
-        "options": "rw,relatime",
-        "root": "/data/docker/containers/b6375b4def9dd56d3bbb101e6d7e178bad8ae1ee89c8ff2d811a3be29993bf3c/hostname",
-        "source": "/dev/sdd",
+        "root": "/var/lib/docker/containers/07f1c6886b572d46f03af331eaa54e5c58423a7ec2799c2a2a95b0549873b15e/hostname",
+        "source": "/dev/root",
         "target": "/etc/hostname"
       },
       {
         "fstype": "ext4",
         "options": "rw,relatime",
-        "root": "/data/docker/containers/b6375b4def9dd56d3bbb101e6d7e178bad8ae1ee89c8ff2d811a3be29993bf3c/hosts",
-        "source": "/dev/sdd",
+        "root": "/var/lib/docker/containers/07f1c6886b572d46f03af331eaa54e5c58423a7ec2799c2a2a95b0549873b15e/hosts",
+        "source": "/dev/root",
         "target": "/etc/hosts"
       },
       {
         "fstype": "ext4",
         "options": "rw,relatime",
-        "root": "/data/docker/volumes/alkera-dualcheck_snowflaketrust/_data",
-        "source": "/dev/sdd",
+        "root": "/var/lib/docker/containers/07f1c6886b572d46f03af331eaa54e5c58423a7ec2799c2a2a95b0549873b15e/resolv.conf",
+        "source": "/dev/root",
+        "target": "/etc/resolv.conf"
+      },
+      {
+        "fstype": "ext4",
+        "options": "rw,relatime",
+        "root": "/var/lib/docker/volumes/alkera-dual-1791881983_bistate/_data",
+        "source": "/dev/root",
+        "target": "/service-state/bi"
+      },
+      {
+        "fstype": "ext4",
+        "options": "rw,relatime",
+        "root": "/var/lib/docker/volumes/alkera-dual-1791881983_snowflaketrust/_data",
+        "source": "/dev/root",
         "target": "/etc/alkera/snowflake-tls"
       }
     ],
@@ -720,12 +894,12 @@
       ],
       "routes": [
         {
-          "dest": "172.22.0.0",
-          "iface": "eth0"
+          "dest": "10.210.3.0",
+          "iface": "eth1"
         },
         {
-          "dest": "172.23.0.0",
-          "iface": "eth1"
+          "dest": "10.210.4.0",
+          "iface": "eth0"
         }
       ]
     },
@@ -798,12 +972,12 @@
     "world_dbt.legacy",
     "world_dbt.target"
   ],
-  "docker_server": "29.5.2",
+  "docker_server": "29.8.2",
   "gateway_config_in_container": {
     "audit_dir": "/audit",
     "dashboards": "/world/var/bi/dashboards",
     "episode_id": "dual-check",
-    "initial_world_fp": "5a96610ef33e7fc4b6e77e06c344127724f0dbee1ac90f00a3437e548b2daa1b",
+    "initial_world_fp": "60175c86b9af5518bc395687f4f28e835f4a8e0b83da6ead5f285b246ae96888",
     "obs_samples": "/world/var/obs/samples.jsonl",
     "observability": "/world/var/obs/observability.yml",
     "profiles_dir": "/opt/episode/dbt",
@@ -837,11 +1011,11 @@
     "workspace": "/workspace",
     "world_root": "/world"
   },
-  "generated_utc": "2026-09-16T03:55:13Z",
-  "host_fingerprint_after": "006181100e1f46495f92586ca5b0e1176d00e98e6f755a9fc6bf316459dd87cf",
-  "host_fingerprint_before": "fb7a242acc87b11dc11ba99e497743c84746b3581eb3e4fcd76764767fe5fb99",
-  "image": "alkera-episode:substrate",
-  "image_digest": "sha256:1fadc539b47326749e042b1402d4f3b614ee38492a02dbfedcb6da94dcae1d44",
+  "generated_utc": "2026-10-13T08:59:43Z",
+  "host_fingerprint_after": "07a90f894e44213249c06a94e42eab1fc28b0b67a239edda2356dadbb735258c",
+  "host_fingerprint_before": "acee4062872a24db0970221177e8473dcf269c0414ef62e0c5eef5dce4efbebf",
+  "image": "alkera-episode:head",
+  "image_digest": "sha256:f129ad32f20380da5f47ae40a7d816b7390c662943eebeed1a627405416aedc1",
   "mcp": {
     "argv": [
       "docker",
@@ -853,7 +1027,7 @@
       "PYTHONUNBUFFERED=1",
       "-w",
       "/workspace",
-      "b6375b4def9dd56d3bbb101e6d7e178bad8ae1ee89c8ff2d811a3be29993bf3c",
+      "07f1c6886b572d46f03af331eaa54e5c58423a7ec2799c2a2a95b0549873b15e",
       "python",
       "/opt/episode/shim.py",
       "serve",
@@ -1065,7 +1239,7 @@
         "label": "dbt builds the PRIMARY (no warehouse argument)",
         "message": "",
         "ok": true,
-        "output_tail": " warehouse.fct_revenue ........................ [OK in 0.11s]\n03:56:40  \n03:56:40  Finished running 1 table model, 1 view model in 0 hours 0 minutes and 0.52 seconds (0.52s).\n03:56:40  \n03:56:40  Completed successfully\n03:56:40  \n03:56:40  Done. PASS=2 WARN=0 ERROR=0 SKIP=0 NO-OP=0 REUSED=0 TOTAL=2\n",
+        "output_tail": " warehouse.fct_revenue ........................ [OK in 0.10s]\n09:00:24  \n09:00:24  Finished running 1 table model, 1 view model in 0 hours 0 minutes and 0.47 seconds (0.47s).\n09:00:24  \n09:00:24  Completed successfully\n09:00:24  \n09:00:24  Done. PASS=2 WARN=0 ERROR=0 SKIP=0 NO-OP=0 REUSED=0 TOTAL=2\n",
         "returncode": 0,
         "tool": "dbt_run"
       },
@@ -1080,7 +1254,7 @@
         "label": "dbt builds the TARGET by name",
         "message": "",
         "ok": true,
-        "output_tail": " warehouse.fct_revenue ........................ [OK in 0.10s]\n03:56:48  \n03:56:48  Finished running 1 table model, 1 view model in 0 hours 0 minutes and 0.47 seconds (0.47s).\n03:56:48  \n03:56:48  Completed successfully\n03:56:48  \n03:56:48  Done. PASS=2 WARN=0 ERROR=0 SKIP=0 NO-OP=0 REUSED=0 TOTAL=2\n",
+        "output_tail": " warehouse.fct_revenue ........................ [OK in 0.09s]\n09:00:30  \n09:00:30  Finished running 1 table model, 1 view model in 0 hours 0 minutes and 0.34 seconds (0.34s).\n09:00:30  \n09:00:30  Completed successfully\n09:00:30  \n09:00:30  Done. PASS=2 WARN=0 ERROR=0 SKIP=0 NO-OP=0 REUSED=0 TOTAL=2\n",
         "returncode": 0,
         "tool": "dbt_run"
       },
@@ -1181,7 +1355,7 @@
   },
   "passed": true,
   "postgres_seed": {
-    "initial_world_fp": "5a96610ef33e7fc4b6e77e06c344127724f0dbee1ac90f00a3437e548b2daa1b",
+    "initial_world_fp": "60175c86b9af5518bc395687f4f28e835f4a8e0b83da6ead5f285b246ae96888",
     "legacy_hash": "6069de45b227903d0c29c04d0ab91dc2adfe05a030330f6d5c2e03964a0e606f",
     "legacy_tables": {
       "raw.daily_revenue": "07201d4e3f93cb9b5f7c0445c0258f7a6aa8fe4536d7b1f52f1d8fc9d27d7d05",
@@ -1197,7 +1371,7 @@
       "warehouse.items": "5458a4a899d72ec4d0eb269f1e80efae0107ed0832a7fcf4abd7a2dfa026a02c"
     },
     "same_data_same_hash": true,
-    "tree_hash": "fb7a242acc87b11dc11ba99e497743c84746b3581eb3e4fcd76764767fe5fb99"
+    "tree_hash": "acee4062872a24db0970221177e8473dcf269c0414ef62e0c5eef5dce4efbebf"
   },
   "services": [
     "episode",
@@ -1234,7 +1408,7 @@
         "error": null,
         "error_code": null,
         "live": true,
-        "result_summary": "{\"returncode\": 0, \"output\": \"03:55:53  Running with dbt=1.12.4\\n03:55:53  Registered adapter: duckdb=1.11.0\\n03:55:53  Unable to do partial parsing because saved manifest not found. Starting full parse.\\n03:55:55  Found 2 models, 8 data tests, 1 source, 504 macros\\n03:55:55  \\n03:55:55  Concurrency:",
+        "result_summary": "{\"returncode\": 0, \"output\": \"09:00:09  Running with dbt=1.12.4\\n09:00:09  Registered adapter: duckdb=1.11.0\\n09:00:09  Unable to do partial parsing because saved manifest not found. Starting full parse.\\n09:00:12  Found 2 models, 8 data tests, 1 source, 504 macros\\n09:00:12  \\n09:00:12  Concurrency:",
         "tool": "dbt_compile"
       },
       "legacy": {
@@ -1343,23 +1517,23 @@
   ],
   "with_postgres": true,
   "world_manifest": {
-    "dashboards": "C:\\Users\\OhhMoo\\AppData\\Local\\Temp\\alkera-dual-check\\1789530913\\world\\var\\bi\\dashboards",
-    "obs_samples": "C:\\Users\\OhhMoo\\AppData\\Local\\Temp\\alkera-dual-check\\1789530913\\world\\var\\obs\\samples.jsonl",
-    "observability": "C:\\Users\\OhhMoo\\AppData\\Local\\Temp\\alkera-dual-check\\1789530913\\world\\var\\obs\\observability.yml",
-    "profiles_dir": "C:\\Users\\OhhMoo\\AppData\\Local\\Temp\\alkera-dual-check\\1789530913\\world\\build",
+    "dashboards": "/home/ubuntu/.cache/alkera-harbor-work/tmp/alkera-dual-check/1791881983/world/var/bi/dashboards",
+    "obs_samples": "/home/ubuntu/.cache/alkera-harbor-work/tmp/alkera-dual-check/1791881983/world/var/obs/samples.jsonl",
+    "observability": "/home/ubuntu/.cache/alkera-harbor-work/tmp/alkera-dual-check/1791881983/world/var/obs/observability.yml",
+    "profiles_dir": "/home/ubuntu/.cache/alkera-harbor-work/tmp/alkera-dual-check/1791881983/world/build",
     "remote_unseeded": [
       "pg"
     ],
-    "scheduler": "C:\\Users\\OhhMoo\\AppData\\Local\\Temp\\alkera-dual-check\\1789530913\\world\\var\\sched\\state.json",
+    "scheduler": "/home/ubuntu/.cache/alkera-harbor-work/tmp/alkera-dual-check/1791881983/world/var/sched/state.json",
     "seed": 1,
     "virtual_time": "2026-03-03T00:00:00Z",
-    "warehouse": "C:\\Users\\OhhMoo\\AppData\\Local\\Temp\\alkera-dual-check\\1789530913\\world\\var\\warehouse\\warehouse.duckdb",
+    "warehouse": "/home/ubuntu/.cache/alkera-harbor-work/tmp/alkera-dual-check/1791881983/world/var/warehouse/warehouse.duckdb",
     "warehouses": [
       {
         "attach": true,
         "backend": "duckdb",
         "name": "legacy",
-        "path": "C:\\Users\\OhhMoo\\AppData\\Local\\Temp\\alkera-dual-check\\1789530913\\world\\var\\warehouse\\legacy.duckdb",
+        "path": "/home/ubuntu/.cache/alkera-harbor-work/tmp/alkera-dual-check/1791881983/world/var/warehouse/legacy.duckdb",
         "read_only": true
       },
       {
@@ -1367,7 +1541,7 @@
         "backend": "duckdb",
         "dbt_target": "target",
         "name": "target",
-        "path": "C:\\Users\\OhhMoo\\AppData\\Local\\Temp\\alkera-dual-check\\1789530913\\world\\var\\warehouse\\target.duckdb",
+        "path": "/home/ubuntu/.cache/alkera-harbor-work/tmp/alkera-dual-check/1791881983/world/var/warehouse/target.duckdb",
         "read_only": false
       },
       {
@@ -1377,8 +1551,8 @@
         "read_only": false
       }
     ],
-    "workflow_dir": "C:\\Users\\OhhMoo\\AppData\\Local\\Temp\\alkera-dual-check\\1789530913\\world\\var\\workflow",
-    "workspace": "C:\\Users\\OhhMoo\\AppData\\Local\\Temp\\alkera-dual-check\\1789530913\\world\\workspace",
-    "world_root": "C:\\Users\\OhhMoo\\AppData\\Local\\Temp\\alkera-dual-check\\1789530913\\world"
+    "workflow_dir": "/home/ubuntu/.cache/alkera-harbor-work/tmp/alkera-dual-check/1791881983/world/var/workflow",
+    "workspace": "/home/ubuntu/.cache/alkera-harbor-work/tmp/alkera-dual-check/1791881983/world/workspace",
+    "world_root": "/home/ubuntu/.cache/alkera-harbor-work/tmp/alkera-dual-check/1791881983/world"
   }
 }

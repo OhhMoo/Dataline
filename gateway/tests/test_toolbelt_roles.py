@@ -50,12 +50,14 @@ ROLE_LOCKS = {"ds": "requirements-ds.lock", "da": "requirements-da.lock"}
 # jupyter-server is in da too: the da profile has the `notebook` slot, whose plug IS
 # a jupyter-server (docker/jupyter/launch.py). openpyxl is what `pandas.read_excel`
 # needs for .xlsx (measured missing from the da/ds system python on 2026-10-06).
+# playwright is how an analyst drives the BI vendors' web UIs (plan decision D5).
 ADDED = {
     "de": set(),
     "ds": {"pandas", "pyarrow", "polars", "scikit-learn", "matplotlib", "ipykernel",
-           "jupyter-client", "jupyter-server", "nbclient", "nbformat", "openpyxl"},
+           "jupyter-client", "jupyter-server", "nbclient", "nbformat", "openpyxl",
+           "playwright"},
     "da": {"pandas", "pyarrow", "matplotlib", "ipykernel", "jupyter-client",
-           "jupyter-server", "nbclient", "nbformat", "openpyxl"},
+           "jupyter-server", "nbclient", "nbformat", "openpyxl", "playwright"},
 }
 DS_ONLY = ADDED["ds"] - ADDED["da"]
 # In the /opt/toolbelt venv too, on purpose and for every role: csvkit brings it for
@@ -65,7 +67,7 @@ ALSO_IN_TOOLBELT_VENV = {"openpyxl"}
 # Packages that ship platform wheels and so need one per arch.
 COMPILED = {"numpy", "pandas", "pyarrow", "polars-runtime-32", "scikit-learn", "scipy",
             "matplotlib", "pyzmq", "tornado", "psutil", "kiwisolver", "pillow",
-            "contourpy"}
+            "contourpy", "playwright", "greenlet"}
 
 # Locked as an sdist on purpose, with the reason. Anything else sdist-only fails.
 SDIST_OK = {
@@ -73,6 +75,11 @@ SDIST_OK = {
     # dbt-core GitHub release and checks a sha256 embedded in the sdist; the manifest
     # lists manylinux_2_28_x86_64 and manylinux_2_28_aarch64. Via dbt-core.
     "dbt-core-experimental-parser",
+    # Spark's own Spark Connect thin client (requirements-spark.lock): Apache
+    # publishes every PySpark distribution as an sdist only. Pure Python - pip
+    # builds it with setuptools (fetched by its build isolation at image build
+    # time), no compiler - measured building in the python:3.11-slim base.
+    "pyspark-client",
 }
 
 _REQ = re.compile(r"^([A-Za-z0-9][A-Za-z0-9._-]*)==([^\s;\\]+)(?:\s*;\s*([^\\]+?))?\s*\\?$")
@@ -415,9 +422,12 @@ def test_dockerfile_installs_role_libraries_into_the_system_python():
     role_install = text.index("/opt/gateway/requirements-$ALKERA_TOOLBELT.lock")
     gateway_install = text.index("--no-deps /opt/gateway")
     assert role_install < gateway_install, "role libraries go in before the gateway"
-    # the audited kernelspec is installed system-wide, and checked against the
-    # checked-in copy the Jupyter plug's launcher serves from /opt/stack/jupyter
-    assert "install_kernelspec('/usr/local/share/jupyter'" in text
+    # the audited kernelspec is installed system-wide under both names (python3
+    # over ipykernel's own), and each is checked against the checked-in copy the
+    # Jupyter plug's launcher serves from /opt/stack/jupyter
+    assert "install_audited_kernelspecs('/usr/local/share/jupyter'" in text
+    for name in ("alkera-python", "python3"):
+        assert f"/usr/local/share/jupyter/kernels/{name}/kernel.json" in text
     assert "/opt/stack/jupyter/kernels/alkera-python/kernel.json" in text
 
 
@@ -465,6 +475,90 @@ def test_toolbelt_check_probes_and_forbids_per_role():
     assert probes["mf"] == ("mf", "--version")
 
 
+#: A role-forbidden import's distribution, where the two names differ.
+_DISTRIBUTION = {"sklearn": "scikit-learn", "jupyter_client": "jupyter-client",
+                 "jupyter_server": "jupyter-server"}
+
+
+def test_bigquery_clients_may_carry_pandas_and_nbformat_in_de():
+    """D2 (option a): dbt-bigquery requires google-cloud-bigquery[pandas] and
+    nbformat, so an image built with --warehouse-clients bigquery has pandas,
+    pyarrow and nbformat in its system Python. They are the client's hard
+    dependencies and are allowed the way Databricks' are (CLIENT_IMPORTS) - exactly:
+    every role-forbidden module the lock installs, and none it does not. The rest of
+    the notebook stack (the kernel, the server, nbclient, matplotlib) stays forbidden
+    on a de box, so the role still has no notebook."""
+    check = _load("toolbelt_check")
+    locked = versions(client_lock("bigquery"))
+    assert "dbt-bigquery" in locked
+    role_modules = {m for r in ROLES for m in check.role_imports(r)}
+    brought = {m for m in role_modules if norm(_DISTRIBUTION.get(m, m)) in locked}
+    assert brought == {"pandas", "pyarrow", "nbformat"}
+    assert set(check.CLIENT_IMPORTS["bigquery"]) == brought
+    with_bq = set(check.forbidden_imports("de", ("bigquery",)))
+    assert not brought & with_bq
+    assert {"ipykernel", "jupyter_client", "jupyter_server", "nbclient", "matplotlib",
+            "polars", "sklearn", "alkera_gateway.native.notebook"} <= with_bq
+    # openpyxl does not come with it: still absent from the system interpreter
+    assert "openpyxl" not in locked
+    assert "openpyxl" in check.system_forbidden("de", ("bigquery",))
+    # one interpreter, one pandas: the version the da/ds role locks pin
+    for name in brought:
+        assert locked[name] == versions(GATEWAY / ROLE_LOCKS["da"])[name], name
+
+
+def test_jupyter_script_from_a_client_lock_is_not_a_role_leak(monkeypatch, capsys):
+    """nbformat requires jupyter_core, whose console script is `jupyter`, one of the
+    da/ds ROLE_BINARIES. On a de image with the bigquery clients it is that
+    dependency's dispatcher, not a notebook: `jupyter server` / `kernelspec` /
+    `execute` resolve to scripts the image does not have. So the client set allows
+    it as it allows the imports (CLIENT_BINARIES), every other jupyter*/ipython
+    script stays forbidden, and without the client set `jupyter` is still a leak."""
+    import types
+
+    check = _load("toolbelt_check")
+    assert "jupyter-core" in versions(client_lock("bigquery"))
+    assert "jupyter" in check.forbidden_binaries("de")
+    assert "jupyter" in check.forbidden_binaries("de", ("databricks",))
+    with_bq = set(check.forbidden_binaries("de", ("bigquery",)))
+    assert "jupyter" not in with_bq
+    assert {"jupyter-server", "jupyter-kernelspec", "jupyter-execute", "ipython"} <= with_bq
+    assert set(check.CLIENT_BINARIES) <= set(check.CLIENT_IMPORTS)
+
+    # The image check passes the installed client sets to the binary check too:
+    # a de box whose only role script is /usr/local/bin/jupyter.
+    on_disk = {"/usr/local/bin/jupyter"}
+    fake_os = types.SimpleNamespace(
+        environ={}, path=types.SimpleNamespace(exists=on_disk.__contains__,
+                                               isfile=lambda path: False))
+    which = {"jupyter": "/usr/local/bin/jupyter", "python": check.EXPECTED_PYTHON}
+    monkeypatch.setattr(check, "os", fake_os)
+    monkeypatch.setattr(check, "shutil", types.SimpleNamespace(which=which.get))
+    monkeypatch.setattr(check, "probe", lambda binary, argv, ok: {"binary": binary, "ok": True})
+    monkeypatch.setattr(check, "importable", lambda py, module: {"ok": False})
+    monkeypatch.setattr(check, "duckdb_extensions", lambda names: {})
+
+    def leaks(clients: tuple[str, ...]) -> list[str]:
+        monkeypatch.setattr(check, "installed_clients", lambda: clients)
+        check.main()
+        return json.loads(capsys.readouterr().out.splitlines()[-1])["role_forbidden_present"]
+
+    assert leaks(()) == ["binary /usr/local/bin/jupyter"]
+    assert leaks(("databricks",)) == ["binary /usr/local/bin/jupyter"]
+    assert leaks(("bigquery",)) == []
+
+
+def test_a_kernelspec_without_the_audit_extension_is_a_failure():
+    """Any kernel a client can start by name must preload the audit extension;
+    `python3` from ipykernel's own spec is the one an image gets by default."""
+    check = _load("toolbelt_check")
+    listing = {"kernelspecs": {
+        "alkera-python": {"spec": {"argv": ["/usr/local/bin/python", "-m", "ipykernel_launcher",
+            "-f", "{connection_file}", "--IPKernelApp.extra_extensions=alkera_gateway.native.notebook"]}},
+        "python3": {"spec": {"argv": ["python", "-m", "ipykernel_launcher", "-f", "{connection_file}"]}}}}
+    assert check.unaudited_kernelspecs(listing) == ["python3"]
+
+
 @pytest.mark.parametrize("role", ("da", "ds"))
 def test_da_and_ds_images_import_openpyxl_in_system_python(role):
     """The role probe: openpyxl is checked in the SYSTEM interpreter of a da/ds image
@@ -495,3 +589,91 @@ def test_de_image_unchanged_by_openpyxl():
     assert "openpyxl" not in every_role_import
     assert "openpyxl" not in check.forbidden_imports("de")
     assert versions(DOCKER / "toolbelt.lock")["openpyxl"] == "3.1.5"
+
+
+# --- Playwright and headless Chromium (plan decision D5) --------------------------------
+
+#: The Playwright for Python the role locks pin, and the browser revision that version
+#: downloads for `playwright install --only-shell chromium` (its driver's
+#: browsers.json: chromium-headless-shell 1243 = Chrome for Testing 153.0.8010.12).
+PLAYWRIGHT = "1.63.0"
+CHROMIUM_SHELL_DIR = "/opt/ms-playwright/chromium_headless_shell-1243"
+
+
+def dockerfile_run(text: str, needle: str) -> str:
+    """The one RUN instruction of a Dockerfile that contains `needle`, its backslash
+    continuations joined."""
+    runs, current = [], None
+    for line in text.splitlines():
+        if current is None and not line.startswith("RUN "):
+            continue
+        current = (current or "") + line.rstrip("\\").strip() + " "
+        if not line.endswith("\\"):
+            runs.append(current)
+            current = None
+    hits = [r for r in runs if needle in r]
+    assert len(hits) == 1, (needle, len(hits))
+    return hits[0]
+
+
+def apt_pins(run: str) -> list[str]:
+    """The `name=version` arguments of a RUN's `apt-get install`."""
+    tail = run.split("apt-get install -y --no-install-recommends", 1)[1]
+    return tail.split(";", 1)[0].split()
+
+
+def test_da_role_carries_playwright_and_de_does_not():
+    """An analyst drives the Tableau and Sigma web UIs with a real Playwright script
+    (D5), so da and ds carry Playwright for Python - in both role locks at one
+    version, from the one uv.lock - and the headless Chromium shell that version
+    pins, installed by a da/ds-only Dockerfile step whose shared libraries come
+    from the frozen apt snapshot and whose browser binary is checked by sha256 per
+    arch. de carries neither: `playwright` is a forbidden import and binary there,
+    its image gets no browser and no probe."""
+    for role in ("da", "ds"):
+        pins = versions(GATEWAY / ROLE_LOCKS[role])
+        assert pins["playwright"] == PLAYWRIGHT, role
+        assert {"greenlet", "pyee"} <= set(pins), role
+    assert not {"playwright", "greenlet", "pyee"} & set(installed("de"))
+
+    check = _load("toolbelt_check")
+    for role in ("da", "ds"):
+        assert "playwright" in check.role_imports(role)
+        assert "playwright" in check.ROLE_BINARIES[role]
+        argvs = [tuple(argv) for _, argv, _ in check.role_probes(role)]
+        assert (check.ROLE_PYTHON, "-c", check.CHROMIUM_PROBE) in argvs
+        assert ("playwright", "--version") in argvs
+    # headless Chromium launched through Playwright's default lookup, as the
+    # agent's own script would, and loading about:blank
+    assert "sync_playwright" in check.CHROMIUM_PROBE
+    assert "chromium.launch()" in check.CHROMIUM_PROBE
+    assert "about:blank" in check.CHROMIUM_PROBE
+    assert "PLAYWRIGHT_BROWSERS_PATH" not in check.CHROMIUM_PROBE
+    assert "playwright" in check.forbidden_imports("de")
+    assert "playwright" in check.forbidden_binaries("de")
+    assert "playwright" not in check.forbidden_imports("da")
+    assert not check.role_probes("de")
+
+    text = (DOCKER / "Dockerfile").read_text(encoding="utf-8")
+    step = dockerfile_run(text, "playwright install --only-shell chromium")
+    assert 'case "$ALKERA_TOOLBELT" in' in step and "ds|da)" in step
+    assert "PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright python -m playwright install" in step
+    pins = apt_pins(step)
+    assert pins and all(re.fullmatch(r"[a-z0-9.+-]+=[0-9][A-Za-z0-9.+:~-]*", p)
+                        for p in pins), pins
+    assert {"libnss3", "libgbm1", "libasound2t64"} <= {p.split("=")[0] for p in pins}
+    # the browser and the ffmpeg Playwright installs with it, per arch, are the
+    # bytes this Playwright version pins
+    assert CHROMIUM_SHELL_DIR in step and "/opt/ms-playwright/ffmpeg-1011/" in step
+    assert len(set(re.findall(r"\b[0-9a-f]{64}\b", step))) == 4
+    assert "sha256sum -c" in step
+    # fontconfig's config and a font: without one the browser aborts on its first glyph
+    assert {"fontconfig-config", "fonts-liberation"} <= {p.split("=")[0] for p in pins}
+    # found where Playwright looks by default for the agent (root, HOME=/root):
+    # no environment variable, so the box's environment is unchanged
+    assert "/root/.cache/ms-playwright" in step
+    assert "ENV PLAYWRIGHT_BROWSERS_PATH" not in text
+    # after the role lock that installs Playwright, before the gateway itself
+    assert text.index("/opt/gateway/requirements-$ALKERA_TOOLBELT.lock") < \
+        text.index("playwright install --only-shell chromium") < \
+        text.index("--no-deps /opt/gateway")

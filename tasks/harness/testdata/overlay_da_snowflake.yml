@@ -49,7 +49,6 @@ services:
       # DEPLOY_API_TOKEN, DEPLOY_URL, LOKI_ADDR, LOKI_URL, METABASE_API_KEY,
       # METABASE_URL, PGDATABASE, PGHOST, PGPASSWORD, PGPORT, PGUSER,
       # PROMETHEUS_URL, SCHED_URL
-      ALKERA_POSTGRES_DSN: "postgresql://episode:episode-local@postgres/episode"
       ALKERA_BACKEND: "${ALKERA_BACKEND:-postgres}"
       ALKERA_WAREHOUSES: "${ALKERA_WAREHOUSES:-}"
       CONFLUENCE_API_TOKEN: "alkera-local-dev"
