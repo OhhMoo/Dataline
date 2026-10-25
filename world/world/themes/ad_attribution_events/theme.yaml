@@ -1,0 +1,69 @@
+name: ad_attribution_events
+dbt_profile: world_dbt
+
+# Human context for an ad-network attribution and partner-finance team.
+workflow:
+  dir: workflow
+  actor: agent
+  project: {key: ADN, name: Ad network data}
+  statuses: [backlog, todo, in_progress, blocked, done, wont_do]
+  workspace: signal-forge
+  space: {key: ATTR, name: Attribution Engineering}
+
+# The export for event date D arrives at D+1 00:30 UTC. The three jobs run on
+# that arrival calendar day, which makes one complete cycle execute in the
+# first 24 hours after a fresh build.
+jobs:
+  ingest_events:
+    command: load_ad_event_exports
+    duration_s: 60
+    time: "01:00"
+    day_offset: 0
+    after: null
+    detail: null
+    exec:
+      kind: theme
+      op: load_raw
+      args: [workspace, db]
+      tables: [raw.impressions, raw.clicks, raw.conversions, raw.partners,
+               raw.bot_exclusions, raw.attribution_rules]
+  attribute_conversions:
+    command: dbt_build_attribution
+    duration_s: 120
+    after: {job: ingest_events, minutes: 10}
+    detail: null
+    exec:
+      kind: dbt
+      command: build
+      selector: fct_attributed_conversions
+      tables: [warehouse.fct_attributed_conversions]
+    publishes:
+      - {target: warehouse.fct_attributed_conversions, kind: table,
+         consumer: attribution-api}
+  lock_partner_billing:
+    command: dbt_build_partner_billing
+    duration_s: 90
+    after: {job: attribute_conversions, minutes: 10}
+    detail: null
+    exec:
+      kind: dbt
+      command: build
+      selector: partner_payout_handoff billing_lock
+      tables: [warehouse.partner_payout_handoff, warehouse.billing_lock]
+    publishes:
+      - {target: warehouse.partner_payout_handoff, kind: table,
+         consumer: partner-finance-sftp}
+      - {target: warehouse.billing_lock, kind: table,
+         consumer: billing-close-controls}
+
+live:
+  params: [seed, impressions_per_day, clicks_per_day, conversions_per_day, users,
+           conversion_amount_cents, bot_traffic_pct, unattributed_pct,
+           duplicate_postback_pct, attribution_lookback_days,
+           max_conversion_lag_days, billing_lag_days]
+  arrival:
+    name: ad_event_export
+    op: write_day
+    at: {day_offset: 0, time: "00:30"}
+  # The clean seed has no fault catalogue. Duplicate S2S postbacks and bot
+  # traffic are ordinary source data, not scheduler faults.

@@ -1,0 +1,58 @@
+{
+  "agent": "kimi",
+  "phase": 2,
+  "status": "complete",
+  "completed_at_utc": "2026-10-18T10:15:32Z",
+  "summary": "All 12 themes have a theme_contract.yaml naming only tables and columns the theme builds. A 96-hour advance of each clean seed writes at least 4 publication receipts with a real table hash. The five original themes opt into those publications with publish_receipts on seed.example.yaml, so historical seeds keep the recorded live.json fingerprint.",
+  "verification": {
+    "command": "cd /home/ubuntu/env_project && PYTHONPATH=/home/ubuntu/env_project/world:/home/ubuntu/env_project /home/ubuntu/env_project/gateway/.venv/bin/python world/world/themes/verify_all_themes.py --out /home/ubuntu/alkera_factory_1017/theme_phase2_b",
+    "output_root": "/home/ubuntu/alkera_factory_1017/theme_phase2_b",
+    "output_root_reason": "theme_phase2 was already in use by another verifier",
+    "report": "/home/ubuntu/alkera_factory_1017/theme_phase2_b/verify_report.json",
+    "passed": 12,
+    "failed": 0,
+    "hash_equal": 12,
+    "crashes": 0,
+    "receipts_minimum": 4,
+    "historical_revenue_daily_hash_matches_acceptance": true,
+    "acceptance_hash": "27fb32eec8599e4557403f423095d0f944edf38950c790e6d43940ece07116b5"
+  },
+  "receipts": {
+    "commerce_analytics": 12,
+    "revenue_daily": 6,
+    "sftp_vendor": 9,
+    "mainframe_batch": 8,
+    "excel_close": 9,
+    "settlement_clearing": 12,
+    "saas_subscription_mrr": 9,
+    "ad_attribution_events": 12,
+    "supply_chain_inventory": 15,
+    "healthcare_claims_edi": 16,
+    "fintech_kyc_risk_limits": 8,
+    "iot_telemetry_billing": 12
+  },
+  "gt_fixture_builds": {
+    "command": "tests/build_world.py --root /home/ubuntu/alkera_factory_1017/gt_phase2_kimi/<task>/root --grading .../grading",
+    "GT001-aov-halving": "pass",
+    "GT002-orders-flatline": "pass",
+    "GT003-tuesday-figure": "pass",
+    "GT004-doubling-window": "pass",
+    "GT005-assertion-never-ran": "pass",
+    "GT006-quality-gate-drops-rows": "pass",
+    "GT007-ran-long-or-started-late": "pass",
+    "GT008-warehouse-cutover": "pass",
+    "GT009-settlement-cutoff": "pass"
+  },
+  "publication_hook": {
+    "five_original_themes": ["commerce_analytics", "revenue_daily", "sftp_vendor", "mainframe_batch", "excel_close"],
+    "mechanism": "theme.yaml declares publishes on the nightly fact (and the load that feeds it, where one target per night is fewer than 4 receipts in 96 hours). publication_opt_in copies those targets into var/world/live.json only when the seed sets publish_receipts: true. seed.example.yaml sets it. world/seed.example.yaml and the GT fixture builders do not, so their fingerprinted live section is unchanged.",
+    "fact_targets": {
+      "commerce_analytics": "warehouse.fct_orders",
+      "revenue_daily": "warehouse.fct_revenue",
+      "sftp_vendor": "warehouse.fct_orders_daily",
+      "mainframe_batch": "warehouse.fct_claims_daily",
+      "excel_close": "warehouse.fct_gl_monthly"
+    }
+  },
+  "logs": "Each theme's generator writes deterministic var/logs/ingest_daemon.log, sftp_sync.log, and scheduler_audit.log from the virtual clock. All 12 built worlds contain those three files."
+}

@@ -1,0 +1,7 @@
+dashboard: healthcare_claims_edi
+panels:
+- name: daily_fct_adjudicated_claims
+  sql: select * from warehouse.fct_adjudicated_claims order by service_date desc limit
+    30
+- name: published_actuarial_reserve_handoff
+  sql: select * from warehouse."actuarial_reserve_handoff" limit 30

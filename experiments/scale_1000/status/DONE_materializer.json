@@ -1,0 +1,28 @@
+{
+  "agent": "gemini-2-materializer",
+  "status": "complete",
+  "function": "materialize(blueprint: dict, out_root: Path) -> Path",
+  "task_id": "FT0001-settlement-clearing-ft01-auth-a",
+  "task_dir": "/home/ubuntu/alkera_factory_1017/tasks/FT0001-settlement-clearing-ft01-auth-a",
+  "catalog_record": "first line of experiments/scale_1000/catalog_1080.jsonl",
+  "pytest": "3 passed in 78.03s",
+  "pytest_command": "PYTHONPATH=/home/ubuntu/env_project:/home/ubuntu/env_project/world /home/ubuntu/env_project/gateway/.venv/bin/python -m pytest -q tasks/factory/compiler/tests/test_task_materializer.py",
+  "unavailable_integrations": [],
+  "wired": [
+    "world.themes.load_theme",
+    "tasks.factory.stressors",
+    "tasks.factory.hazards",
+    "tasks.factory.stressors.oracle_composer.compose_task",
+    "tasks.factory.governance.twin_state_machine.compile_twin",
+    "tasks.factory.narrative.corecraft_synthesizer.write_narrative",
+    "tasks.factory.narrative.discoverability_and_spoiler_linter.lint_task",
+    "tasks.factory.grader.declarative_grade"
+  ],
+  "notes": [
+    "Only the first catalog blueprint was materialized.",
+    "Oracle composer, theme loader, stressors, hazards, governance twin, narrative writer, spoiler linter, and declarative grader all imported and ran.",
+    "tests/grade.py calls tasks.factory.grader.declarative_grade.main.",
+    "tests/run_baselines.py delegates scoring to tasks.factory.grader.baseline_runner.",
+    "Narrative lint ok with coverage 1.0."
+  ]
+}

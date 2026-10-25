@@ -1,0 +1,57 @@
+# Domain-native surface contract for the Alkera RL-environment factory compiler.
+# Every table/column/dir below is verified against this theme's dbt models
+# (workspace/dbt_project/models/), gen.py landing writer, and theme.yaml jobs.
+theme: healthcare_claims_edi
+
+# Nightly 837 claim / 835 remit arrivals land under here as
+# edi_837_claims/dt=<date>/ and edi_835_remits/dt=<date>/ (gen.write_day);
+# the provider roster snapshot lands once under provider_roster/dt=<date>/.
+landing_dir: data/landing
+
+# Primary raw event/landing table: 837 claim versions as received, including
+# replacements (frequency 7) and voids (8) (raw schema, loaded by
+# workspace/loader/load_edi.py; declared in models/sources.yml).
+raw_table: raw.edi_837_claims
+
+# Primary fact: one current adjudicated claim per claim_id, joined to its 835
+# (models/warehouse/fct_adjudicated_claims.sql).
+fact_table: warehouse.fct_adjudicated_claims
+
+# IBNR reserve extract handed off to actuarial_reserving
+# (models/warehouse/actuarial_reserve_handoff.sql; built by the
+# settlement_handoffs job). provider_capitation_settlement is the sibling
+# handoff to provider_settlement.
+handoff_table: warehouse.actuarial_reserve_handoff
+
+# Prior-month CMS encounter submission cutoff calendar and eligibility counts
+# (models/warehouse/cms_submission_window.sql; built by cms_window_close).
+close_window_table: warehouse.cms_submission_window
+
+# No separate corrections table: corrections are native claim versions
+# (frequency_code 7/8) carried inside the fact itself, keyed by
+# (claim_id, claim_version) upstream of the current-version fold.
+corrections_table: null
+
+# fct_adjudicated_claims grain: one current row per claim_id
+# (dbt data_test unique on claim_id).
+grain_keys: [claim_id]
+
+# Primary money measure on the fact (decimal(18,2), not_null tested).
+amount_column: payer_paid_amount
+
+# Claim version carried on the fact; the raw stream is versioned per claim_id.
+version_column: claim_version
+
+# CMS submission cutoff hour (seed: cms_cutoff_hour; UTC) on cms_cutoff_day of
+# the month following the service month.
+cutoff_time_utc: "18:00"
+
+# Scheduler jobs exactly as declared in theme.yaml.
+scheduled_jobs:
+  - nightly_edi_load
+  - adjudication_build
+  - settlement_handoffs
+  - cms_window_close
+
+# Deployment schedule mirrored from theme.yaml jobs (workspace-relative).
+schedule_file: orchestration/schedule.yml

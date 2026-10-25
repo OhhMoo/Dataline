@@ -1,0 +1,53 @@
+{
+  "agent": "opus",
+  "phase": "1020",
+  "status": "DONE",
+  "tests_passed": true,
+  "completed_at_utc": "2026-10-21T06:20:00Z",
+  "git_commit": false,
+  "files_modified": [
+    "tasks/factory/grader/receipt_engine.py",
+    "tasks/factory/grader/declarative_grade.py"
+  ],
+  "files_created": [
+    "tasks/factory/grader/tests/test_source_partition_tolerance.py",
+    "experiments/scale_1000/status/opus_1020_offline_regrade.json"
+  ],
+  "rule": {
+    "C0": "raw.factory_events.source_partition '.../dt=X/events-retry.csv' is compared as '.../dt=X/events.csv' on both agent and oracle rows; event_id grain, duplicate-key and full-row multiset checks unchanged",
+    "R1..R4": "a raw.factory_events receipt is re-hashed with the ledger's own rule from per-night SQL snapshots; it is credited only if the stored table reproduces the agent's receipt hash and a copy relabelled to all-primary or all-retry (for event_ids delivered in both files of one dt= folder, read from the t0 landing folders and factory_future) reproduces an oracle receipt with the same row count"
+  },
+  "tests": {
+    "tasks/factory/grader/tests": "221 passed",
+    "tasks/contracts": "112 passed",
+    "tasks/harness/test_cursor_subject.py": "14 passed",
+    "s03_stage0_rivals": "FT0385 and FT0047: oracle 20/20, all rivals < 20"
+  },
+  "offline_regrade": {
+    "summary": "experiments/scale_1000/status/opus_1020_offline_regrade.json",
+    "rollouts": 39,
+    "errors": 0,
+    "score_changed": 27,
+    "pass_changed": 25,
+    "regressions": 0,
+    "pass_at_1": {
+      "FT0047-settlement-clearing-ft08-hold-b|clean-20261021-k3-stage1": "0.3333 -> 1.0",
+      "FT0047-settlement-clearing-ft08-hold-b|clean-20261021-k5-stage2": "0.2 -> 1.0",
+      "FT0385-mainframe-batch-ft05-auth-a|clean-20261021-k3-stage1": "0.0 -> 1.0",
+      "FT0386-mainframe-batch-ft05-hold-a|clean-20261021-k3-stage1": "0.0 -> 0.6667",
+      "FT0387-mainframe-batch-ft05-esc-a|clean-20261021-k3-stage1": "0.0 -> 1.0",
+      "FT0676-ad-attribution-events-ft08-auth-b|clean-20261021-k3-stage1": "0.6667 -> 1.0",
+      "FT0676-ad-attribution-events-ft08-auth-b|clean-20261021-k5-stage2": "0.2 -> 1.0",
+      "FT0677-ad-attribution-events-ft08-hold-b|clean-20261018-k3-stage1": "0.3333 -> 0.6667",
+      "FT0677-ad-attribution-events-ft08-hold-b|clean-20261018-k5-stage2": "0.4 -> 0.8",
+      "FT0678-ad-attribution-events-ft08-esc-b|clean-20261021-k3-stage1": "0.0 -> 0.3333",
+      "FT0836-healthcare-claims-edi-ft05-hold-a|clean-20261021-k3-stage1": "0.0 -> 0.6667"
+    }
+  },
+  "notes": [
+    "calibration_runs/ does not exist; the Phase 3 rollouts are under runs_phase2/<task>/clean-20261021-*. FT0677 has no Phase 3 run, so its Phase 2 runs were regraded.",
+    "FT0047 and FT0676 (certified at 0.20 in Phase 3) recompute to 5/5: their misses were this source_partition artifact. FT0677 moves 0.40 -> 0.80.",
+    "Rollouts still failing fail for real reasons: a retained duplicate event_id (FT0677 r0), wrong fact/handoff rows (FT0678), later-night misses (FT0386 r0, FT0836 r2).",
+    "C0 watermark tolerance is gated by a loader probe (deployed factory_load run with the clock 5 days ahead and no new files); FT0961 r2, whose loader still advances on the calendar, keeps failing C0."
+  ]
+}

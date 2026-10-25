@@ -1,0 +1,31 @@
+version: 1
+retention:
+  days: 14
+metrics:
+- id: fintech_kyc_risk_limits_fact_rows
+  kind: row_count
+  unit: rows
+  title: Merchant disputes and reserve risk fact rows
+  source:
+    table: warehouse.fct_merchant_exposure
+- id: fintech_kyc_risk_limits_freshness
+  kind: freshness
+  unit: seconds
+  title: Merchant disputes and reserve risk freshness
+  source:
+    table: warehouse.fct_merchant_exposure
+    timestamp_column: event_date
+- id: fintech_kyc_risk_limits_load_error_rate
+  kind: job_error_rate
+  unit: ratio
+  title: Ingest error rate
+  job: ingest_risk_feeds
+  window_runs: 10
+alarms:
+- id: fintech_kyc_risk_limits_load_failing
+  metric: fintech_kyc_risk_limits_load_error_rate
+  comparison: gte
+  threshold: 0.2
+  severity: warning
+  title: Nightly ingest is failing
+  runbook: docs/contract.md

@@ -1,0 +1,138 @@
+version: 1
+retention: {days: 21}
+
+metrics:
+  - id: payments_held
+    kind: row_count
+    unit: payments
+    title: Current non-void payments
+    source: {table: warehouse.fct_payments}
+    series: {bucket_column: payment_day}
+  - id: raw_payment_events
+    kind: row_count
+    unit: events
+    title: Raw network events and recovery deliveries
+    source: {table: raw.payments_events}
+    series: {bucket_column: dt}
+  - id: feed_freshness
+    kind: freshness
+    unit: seconds
+    title: Seconds since the newest network delivery
+    source: {table: raw.payments_events, timestamp_column: delivered_at}
+  - id: settled_days
+    kind: sql_scalar
+    unit: days
+    title: Settlement days in the bank handoff
+    source:
+      sql: select count(distinct settlement_day) from warehouse.settlement_handoff
+  - id: settled_net_cents
+    kind: sql_scalar
+    unit: cents
+    title: Network settlement handed to the bank
+    source:
+      sql: select coalesce(sum(net_cents), 0) from warehouse.settlement_handoff
+    series:
+      sql: >-
+        select cast(settlement_day as varchar) as bucket, sum(net_cents) as value
+        from warehouse.settlement_handoff group by settlement_day order by settlement_day
+  - id: interchange_cents
+    kind: sql_scalar
+    unit: cents
+    title: Interchange across current payments
+    source:
+      sql: select coalesce(sum(interchange_cents), 0) from warehouse.interchange_ledger
+  - id: sla_breaches
+    kind: sql_scalar
+    unit: rows
+    title: Historical empty cutoff records
+    source:
+      sql: select count(*) from warehouse.clearing_window where status = 'SLA_BREACH'
+  - id: unsettled_days
+    kind: sql_scalar
+    unit: days
+    title: Cutoff-observed days absent from the handoff
+    source:
+      sql: >-
+        select count(*) from (
+          select distinct settlement_day from warehouse.clearing_window
+          except select distinct settlement_day from warehouse.settlement_handoff)
+  - id: payments_load_error_rate
+    kind: job_error_rate
+    unit: ratio
+    title: Payment load failure rate
+    job: payments_nightly
+    window_runs: 10
+  - id: payments_load_duration
+    kind: job_duration
+    unit: seconds
+    title: Payment load duration
+    job: payments_nightly
+  - id: dbt_payments_error_rate
+    kind: job_error_rate
+    unit: ratio
+    title: Payment dbt build failure rate
+    job: dbt_payments
+    window_runs: 10
+  - id: settlement_publish_error_rate
+    kind: job_error_rate
+    unit: ratio
+    title: Settlement publisher failure rate
+    job: settlement_publish
+    window_runs: 10
+  - id: clearing_close_error_rate
+    kind: job_error_rate
+    unit: ratio
+    title: Clearing cutoff failure rate
+    job: clearing_window_close
+    window_runs: 10
+
+alarms:
+  - id: settlement_missing
+    metric: unsettled_days
+    comparison: gt
+    threshold: 0
+    severity: critical
+    title: A cutoff-observed day has no bank handoff
+    runbook: docs/runbook_settlement_nightly.md
+    evaluate_on: value
+  - id: breach_recorded
+    metric: sla_breaches
+    comparison: gt
+    threshold: 0
+    severity: warning
+    title: A clearing window closed without a settlement
+    runbook: docs/runbook_settlement_nightly.md
+    evaluate_on: value
+  - id: payments_load_failing
+    metric: payments_load_error_rate
+    comparison: gte
+    threshold: 0.2
+    severity: warning
+    title: Payment loads are failing
+    runbook: docs/runbook_settlement_nightly.md
+  - id: settlement_publish_failing
+    metric: settlement_publish_error_rate
+    comparison: gte
+    threshold: 0.2
+    severity: critical
+    title: Settlement publication is failing
+    runbook: docs/runbook_settlement_nightly.md
+  - id: clearing_close_failing
+    metric: clearing_close_error_rate
+    comparison: gte
+    threshold: 0.2
+    severity: critical
+    title: Clearing cutoff is failing
+    runbook: docs/runbook_settlement_nightly.md
+
+deploys:
+  - id: rebuild_payments
+    kind: dbt
+    title: Rebuild current payments and interchange
+    selector: fct_payments interchange_ledger
+    canary:
+      metrics: [payments_held, settled_days, settled_net_cents, interchange_cents]
+      alarms: [settlement_missing]
+      guards:
+        - {metric: payments_held, max_decrease_pct: 5}
+        - {metric: settled_net_cents, max_decrease_pct: 50}

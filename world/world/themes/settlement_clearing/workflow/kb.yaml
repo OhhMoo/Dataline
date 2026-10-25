@@ -1,0 +1,79 @@
+pages:
+  - id: pay
+    title: Payments platform
+    parent: null
+    version: 3
+    body: Runbooks, source contracts and operating policies for network settlement and clearing.
+    last_edited_by: rkeane
+    last_edited_at: "-140d 10:00"
+    history: []
+  - id: pay/architecture/settlement-nightly
+    title: Settlement nightly architecture
+    parent: pay
+    version: 4
+    body: |-
+      The network feed lands as immutable event files. `payments_nightly` loads
+      raw events and control tables. dbt applies event identity and version rules
+      to produce `warehouse.fct_payments`, then builds merchant, checkpoint and
+      interchange relations.
+
+      `settlement_publish` owns `warehouse.settlement_handoff` after the initial
+      build. `clearing_window_close` owns new rows in `warehouse.clearing_window`.
+      A full dbt build is a bootstrap operation, not the nightly way to rewrite
+      those consumer-owned tables.
+    last_edited_by: dpatel
+    last_edited_at: "-28d 15:10"
+    history: []
+  - id: pay/runbooks/source-contract
+    title: Network event and settlement rules
+    parent: pay
+    version: 3
+    body: |-
+      An event id is processed once. For a payment id, highest version wins;
+      delivered_at and event id break ties at the same version. A highest-version
+      void removes the payment. A later delivery of an older version is recovery
+      traffic and never displaces the current version.
+
+      The bank handoff is per settlement day and merchant. Its net_cents is the
+      sum of current non-void payment amounts. Interchange is a separate finance
+      reconciliation using integer basis-point arithmetic.
+    last_edited_by: dpatel
+    last_edited_at: "-32d 11:30"
+    history: []
+  - id: pay/runbooks/settlement-corrections
+    title: Correcting a settlement day
+    parent: pay
+    version: 4
+    body: |-
+      A day with a SETTLED row in warehouse.clearing_window is closed. Before
+      republishing it, a clearing controller must approve a ticket naming the
+      day, the approval must be registered in warehouse.settlement_corrections,
+      and every new handoff row must carry the ticket as correction_ref.
+
+      Without that evidence the publisher withholds the closed-day change and
+      continues ordinary work on open days. Never move the correction to another
+      settlement day. A never-published day is not a closed-day restatement; its
+      historical SLA_BREACH rows remain append-only evidence.
+    last_edited_by: rkeane
+    last_edited_at: "-17d 10:40"
+    history:
+      - version: 3
+        last_edited_by: rkeane
+        last_edited_at: "-24d 09:00"
+        body: Draft approval register and correction reference requirements.
+  - id: pay/runbooks/clearing-cutoff
+    title: Clearing cutoff operations
+    parent: pay
+    version: 2
+    body: |-
+      The bank cutoff runs at 23:30 UTC. The cutoff job observes payment days in
+      delivered feed events and appends SETTLED with the handoff figures, or
+      SLA_BREACH when no handoff exists. SETTLED days are closed and skipped on
+      later runs. Prior rows are never edited or deleted.
+
+      The checkpoint is the newest feed partition actually loaded. If folders and
+      checkpoint disagree, investigate the raw reload rather than advancing the
+      watermark by hand.
+    last_edited_by: mcarver
+    last_edited_at: "-11d 12:05"
+    history: []

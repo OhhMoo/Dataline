@@ -1,0 +1,23 @@
+{
+  "agent": "opus-2 contracts",
+  "status": "complete",
+  "scope": [
+    "tasks/contracts/consumer_consistency.py",
+    "tasks/contracts/version_precedence.py",
+    "tasks/contracts/auditability.py",
+    "tasks/factory/grader/tests/test_contracts_real_world.py"
+  ],
+  "changes": {
+    "consumer_consistency": "Receipt canonical_hash is checked against params.expected or digest(oracle(receipt, ctx)) on a real warehouse. Real table samples are length-checked; dict samples must still hash to the recorded canonical_hash. Optional bindings compare Power BI, Tableau, Sigma, and YAML extracts to the warehouse mart and fail closed on drift.",
+    "version_precedence": "runner snapshot reads var/warehouse/warehouse.duckdb against events or feed_dir. runner advance copies the world, runs python -m world.scheduler, and grades the copy. An arrival-order loader fails highest_version and scores 0.",
+    "auditability": "runner advance copies the world, applies plant_sql, and executes the scheduler. A failed or unexecuted job is red. An assertion that stays green on the input it should catch scores 0."
+  },
+  "unchanged": [
+    "tasks/contracts/_world.py already provided run_advance via subprocess -m world.scheduler; no further edit was required"
+  ],
+  "verification": {
+    "command": "PYTHONPATH=/home/ubuntu/env_project:/home/ubuntu/env_project/world gateway/.venv/bin/python -m pytest -q tasks/contracts/tests/test_version_precedence.py tasks/contracts/tests/test_auditability.py tasks/contracts/tests/test_consumer_consistency.py tasks/contracts/tests/test_registry.py tasks/factory/grader/tests/test_contracts_real_world.py",
+    "pytest": "56 passed in 3.20s",
+    "dependency_rule": "tasks/contracts/tests/test_registry.py passed. No module under tasks/contracts/ imports a task package, world, or gateway. duckdb remains the only third-party import. Scheduler advance stays a subprocess."
+  }
+}

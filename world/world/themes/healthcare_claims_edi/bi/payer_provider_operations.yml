@@ -1,0 +1,69 @@
+version: 1
+dashboard: payer_provider_operations
+title: Payer and Provider Operations
+owner: Claims Data Platform
+metrics:
+  - name: payer_paid_amount
+    expression: sum(payer_paid_amount) excluding voided claims
+    owner: Claims Finance
+    doc: Current-version 835 payer payment; replacements supersede originals and voids pay zero.
+  - name: capitation_settlement_amount
+    expression: member_months * capitation_pmpm - quality_withhold_amount
+    owner: Provider Settlement
+panels:
+  - name: daily_adjudication
+    title: Daily Claim Adjudication
+    sql: >-
+      select service_date,
+             count(*) filter (where claim_status <> 'voided') as adjudicated_claims,
+             count(*) filter (where cob_flag) as cob_claims,
+             sum(payer_paid_amount) as payer_paid_amount
+      from warehouse.fct_adjudicated_claims
+      group by service_date
+      order by service_date
+  - name: claim_status_mix
+    title: Current Claim Status and Frequency
+    sql: >-
+      select frequency_code, claim_status, count(*) as claims,
+             sum(billed_amount) as billed_amount,
+             sum(payer_paid_amount) as payer_paid_amount
+      from warehouse.fct_adjudicated_claims
+      group by frequency_code, claim_status
+      order by frequency_code, claim_status
+  - name: cob_by_provider
+    title: Coordination of Benefits by Provider
+    sql: >-
+      select p.provider_id, p.provider_name, p.specialty,
+             count(*) filter (where c.cob_flag) as cob_claims,
+             sum(c.other_payer_paid_amount) as other_payer_paid_amount,
+             sum(c.cob_adjustment_amount) as cob_adjustment_amount,
+             sum(c.payer_paid_amount) as payer_paid_amount
+      from warehouse.fct_adjudicated_claims as c
+      join warehouse.dim_provider as p on p.provider_id = c.provider_id
+      group by p.provider_id, p.provider_name, p.specialty
+      order by cob_claims desc, p.provider_id
+  - name: provider_capitation
+    title: Monthly Provider Capitation Settlement
+    sql: >-
+      select s.service_month, p.provider_id, p.provider_name, p.specialty,
+             s.member_months, s.capitation_pmpm, s.quality_withhold_amount,
+             s.capitation_settlement_amount, s.payment_date
+      from warehouse.provider_capitation_settlement as s
+      join warehouse.dim_provider as p on p.provider_id = s.provider_id
+      order by s.service_month, p.provider_id
+  - name: reserve_handoff
+    title: Recent Actuarial Reserve Handoff
+    sql: >-
+      select service_date, data_through_date, incurred_amount, payer_paid_amount,
+             reserve_open_days, ibnr_reserve_amount, handoff_status
+      from warehouse.actuarial_reserve_handoff
+      order by service_date desc
+      limit 14
+  - name: cms_windows
+    title: CMS Encounter Submission Windows
+    sql: >-
+      select window_id, service_month, submission_open_date, cms_cutoff_at,
+             acceptance_as_of_date, eligible_claims, late_claims,
+             voided_claims_excluded, eligible_payer_paid_amount
+      from warehouse.cms_submission_window
+      order by service_month

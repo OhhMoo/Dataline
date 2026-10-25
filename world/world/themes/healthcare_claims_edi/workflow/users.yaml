@@ -1,0 +1,9 @@
+users:
+  - {id: asingh, name: Anita Singh, role: Claims operations lead, team: Claims Operations}
+  - {id: mbennett, name: Marcus Bennett, role: EDI analyst, team: EDI Operations}
+  - {id: lchen, name: Lena Chen, role: Actuarial analyst, team: Actuarial}
+  - {id: rortiz, name: Rafael Ortiz, role: Provider settlement manager, team: Provider Finance}
+  - {id: kkaur, name: Kirandeep Kaur, role: CMS compliance analyst, team: Regulatory Operations}
+  - {id: jwilson, name: Jordan Wilson, role: Claims data engineer, team: Claims Data Platform}
+  - {id: alertbot, name: Claims alert bot, role: Automation, team: Claims Data Platform}
+  - {id: agent, name: On-call claims data engineer, role: On call, team: Claims Data Platform}

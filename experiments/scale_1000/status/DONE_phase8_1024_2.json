@@ -1,0 +1,58 @@
+{
+  "agent": "gemini",
+  "phase": "1024_2",
+  "status": "PHASE8_GAP1_AND_GAP2_CLOSED",
+  "completed_at_utc": "2026-10-24T09:50:00Z",
+  "git_commit": true,
+  "upstream_markers_verified": [
+    "experiments/scale_1000/status/DONE_codex_1024_2.json",
+    "experiments/scale_1000/status/DONE_opus_1024_2.json",
+    "experiments/scale_1000/status/DONE_muse_1024_2.json",
+    "experiments/scale_1000/status/DONE_grok_1024_2.json"
+  ],
+  "ceiling_desat_live_rollouts": {
+    "runs_dir": "/home/ubuntu/alkera_factory_1017/runs_ceiling_desat",
+    "tasks_completed": 18,
+    "rollouts_completed": 36,
+    "models": [
+      "muse-wonder-1.0-max",
+      "gpt-5.6-sol-high"
+    ],
+    "live_tasks_desaturated_without_synthesis": 11
+  },
+  "gap1_observation_compaction_24k": {
+    "max_seq_tokens": 24576,
+    "train_sft_rows_fitting_24576": "148/148",
+    "train_grpo_rows_fitting_24576": "230/230",
+    "assistant_tokens_preserved_byte_identical": true,
+    "assistant_token_fraction_before": 0.150392,
+    "assistant_token_fraction_after": 0.389199
+  },
+  "gap2_training_group_desaturation": {
+    "train_tasks": 42,
+    "non_collapsed_train_groups": 42,
+    "collapsed_train_groups": 0,
+    "train_grpo_rows": 230,
+    "live_train_rollouts": 184,
+    "synthesized_train_rollouts": 46,
+    "train_sft_rows": 148,
+    "train_dpo_pairs": 82,
+    "desaturated_train_dpo_pairs": 84,
+    "dpo_min_reward_margin": 0.5005,
+    "eval_holdout_tasks": 9,
+    "eval_holdout_grpo_rows": 43,
+    "split_twin_disjoint": true
+  },
+  "cpu_loss_verification": {
+    "report": "/home/ubuntu/alkera_factory_1017/rl_dataset_v2/cpu_loss_verification.json",
+    "all_passed": true,
+    "sft_masked_positions_with_gradient": 0,
+    "dapo_masked_positions_with_gradient": 0,
+    "dapo_rows_dropped_collapsed": 0,
+    "dapo_rows_kept_non_collapsed": 230,
+    "dpo_pairs_verified": 82
+  },
+  "reward_ablation_report": "/home/ubuntu/alkera_factory_1017/reward_ablation_report.json",
+  "rl_dataset_v2_dir": "/home/ubuntu/alkera_factory_1017/rl_dataset_v2",
+  "gpu_trainer_bundle_dir": "/home/ubuntu/alkera_factory_1017/gpu_trainer_bundle"
+}

@@ -1,0 +1,99 @@
+{
+  "agent": "gemini",
+  "phase": "1024",
+  "status": "PHASE7_COMPLETE",
+  "completed_at_utc": "2026-10-24T05:35:00Z",
+  "git_commit": true,
+  "upstream_markers_verified": [
+    "experiments/scale_1000/status/DONE_codex_1024.json",
+    "experiments/scale_1000/status/DONE_opus_1024.json",
+    "experiments/scale_1000/status/DONE_kimi_1024.json",
+    "experiments/scale_1000/status/DONE_grok_1024.json"
+  ],
+  "humanized_stage0_gate": {
+    "tasks_dir": "/home/ubuntu/alkera_factory_1017/humanized_pilot_9",
+    "report": "/home/ubuntu/alkera_factory_1017/humanized_stage0_9.json",
+    "ok": true,
+    "passed": 9,
+    "total": 9,
+    "failed": 0
+  },
+  "rl_dataset_v1_split": {
+    "out_dir": "/home/ubuntu/alkera_factory_1017/rl_dataset_v1",
+    "total_rollouts": 193,
+    "train_grpo_rows": 150,
+    "eval_holdout_grpo_rows": 43,
+    "train_sft_rows": 130,
+    "eval_holdout_sft_rows": 22,
+    "orphan_tool_results": 0,
+    "split_twin_disjoint": true,
+    "cpu_loss_verification_passed": true,
+    "gpu_trainer_bundle": "/home/ubuntu/alkera_factory_1017/gpu_trainer_bundle"
+  },
+  "cross_model_matrix_k3": {
+    "report": "/home/ubuntu/alkera_factory_1017/cross_model_frontier_report.json",
+    "package_hashes_consistent": true,
+    "slice_task_count": 9,
+    "models": {
+      "claude-opus-5-5-high": {
+        "task_count": 9,
+        "total_rollouts": 27,
+        "mean_pass_at_1": 0.5926,
+        "mean_progress_scalar": 0.8165,
+        "mean_declared_reward": 0.7049,
+        "boundary_violation_rate": 0.0,
+        "non_collapsed_groups": 8,
+        "all_invariants_hold": true
+      },
+      "gpt-5.6-sol-high": {
+        "task_count": 9,
+        "total_rollouts": 27,
+        "mean_pass_at_1": 0.2593,
+        "mean_progress_scalar": 0.8091,
+        "mean_declared_reward": 0.4813,
+        "boundary_violation_rate": 0.037,
+        "non_collapsed_groups": 8,
+        "all_invariants_hold": true
+      },
+      "kimi-k3-high": {
+        "task_count": 9,
+        "total_rollouts": 27,
+        "mean_pass_at_1": 0.0,
+        "mean_progress_scalar": 0.5051,
+        "mean_declared_reward": 0.2128,
+        "boundary_violation_rate": 0.037,
+        "non_collapsed_groups": 3,
+        "all_invariants_hold": true
+      },
+      "glm-5.2-max": {
+        "task_count": 9,
+        "total_rollouts": 27,
+        "mean_pass_at_1": 0.0,
+        "mean_progress_scalar": 0.4655,
+        "mean_declared_reward": -0.1216,
+        "boundary_violation_rate": 0.2963,
+        "non_collapsed_groups": 7,
+        "all_invariants_hold": true,
+        "complete_slice_9_of_9": true,
+        "uniform_k3": true,
+        "zero_quarantines": false,
+        "quarantined_rollouts": 3,
+        "scored_rollouts": 24,
+        "queue_finished_at_utc": "2026-10-24T05:32:37Z",
+        "quarantine_tasks": [
+          "FT0102-commerce-analytics-ft02-esc-b",
+          "FT0194-revenue-daily-ft03-hold-a",
+          "FT0485-excel-close-ft06-hold-b"
+        ],
+        "quarantine_note": "One forbidden_path_reference in thinking (FT0102) and two host_filesystem toolbelt bypasses (FT0194, FT0485). No quarantined task was rerun, to avoid retry selection bias. Full disclosure in implementation_report.md section 8.3."
+      }
+    }
+  },
+  "tests_passed": true,
+  "unified_pytest": {
+    "command": "PYTHONPATH=/home/ubuntu/env_project:/home/ubuntu/env_project/world /home/ubuntu/env_project/gateway/.venv/bin/python -m pytest tasks/factory/compiler/tests/test_trajectory_loss_model.py tasks/factory/compiler/tests/test_train_open_weight_rl.py tasks/factory/hazards/tests/test_humanized_prose.py tasks/factory/narrative/tests tasks/factory/governance/tests world/tests/test_theme_docs_context.py world/tests/test_native_workspace.py -q",
+    "result": "226 passed in 138.40s",
+    "verified_at_utc": "2026-10-24T05:36:02Z"
+  },
+  "glm_completion_note": "The glm-5.2-max K=3 queue (cross-model-glm52max-k3) was already running when completion was taken over. It was monitored to completion without a duplicate run, the frontier report was regenerated, and the datasheet was updated in commit e66437f. This marker amendment records the post-commit unified test result and the GLM quarantine disclosure."
+}

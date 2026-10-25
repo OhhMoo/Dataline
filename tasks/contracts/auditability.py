@@ -77,8 +77,11 @@ def _run_phase(ctx: Context, phase: dict) -> tuple:
     which of the two it requires; three out of four is zero, because each phase
     exists to kill a different way of faking the others.
     """
+    runner = phase.get("runner") or ctx.param("runner", "pipeline")
     steps = W.normalise_steps(phase.get("steps") or ctx.param("pipeline.steps"))
-    if not steps:
+    if runner not in ("pipeline", "advance"):
+        raise ContractNotEvaluable(f"unknown runner {runner!r}")
+    if runner == "pipeline" and not steps:
         raise ContractNotEvaluable(
             f"phase {phase.get('name')!r} declares no steps and "
             f"params.pipeline.steps is unset, so there is nothing to fire")
@@ -103,7 +106,18 @@ def _run_phase(ctx: Context, phase: dict) -> tuple:
                 con.close()
         if phase.get("plant"):
             planted.append(W.plant(root, phase["plant"]))
-        log = W.run_pipeline(root, steps)
+        if runner == "advance":
+            runs = W.run_advance(root, float(phase.get("advance_hours") or
+                                             ctx.param("advance_hours", 24)),
+                                 require_success=False,
+                                 advance=ctx.param("advance"))
+            log = [{"step": r.get("job", "?"),
+                    "error": r.get("error") or
+                             (None if r.get("status") == "success" and r.get("executed")
+                              else str(r.get("status") or "not executed"))}
+                   for r in runs]
+        else:
+            log = W.run_pipeline(root, steps)
     finally:
         import shutil
         shutil.rmtree(tmp, ignore_errors=True)
@@ -137,11 +151,14 @@ def _evaluate(ctx: Context) -> list:
              f"{never_ran[:4]} - declared is not the same as parsed, and parsed "
              f"is not the same as run"),
             weight=0.30))
-        indefinite = sorted(_name_of(r) for r in rows
-                            if _status_of(r) not in definite)
+        # Only the declared rows are judged: a real dbt run_results.json also
+        # records exposures and saved queries, as `no-op`, and those are not
+        # assertions.
+        indefinite = sorted(_name_of(r) for r in rows if _name_of(r) in set(declared)
+                            and _status_of(r) not in definite)
         clauses.append(Clause.make(
             f"{NAME}.result_definite", not indefinite,
-            (f"every recorded result carries a definite verdict "
+            (f"every declared assertion's result carries a definite verdict "
              f"{list(definite)}" if not indefinite else
              f"{len(indefinite)} recorded result(s) carry no definite verdict "
              f"({indefinite[:4]}): 'skipped' and 'insufficient_data' are the "

@@ -17,6 +17,8 @@ import sys
 from datetime import timedelta
 from pathlib import Path
 
+import yaml
+
 from world.hashing import json_canon
 from world import faults, scheduler, workflow
 from world.scheduler import iso, parse_vtime
@@ -79,6 +81,207 @@ def write_landing(workspace: Path, seed: dict) -> None:
     start = parse_vtime(seed["vtime_start"])
     for i in range(seed["days"]):
         write_day(workspace, seed, i, (start + timedelta(days=i)).date())
+    write_ops_logs(workspace, seed)
+
+
+# --------------------------------------------------------------------------
+# historical ops logs (var/logs)
+# --------------------------------------------------------------------------
+
+def _occurrence_runs(spec: dict, at, fault: dict | None, missed: str | None,
+                     duration: int) -> list[tuple]:
+    """The recorded runs of one job occurrence: (at, duration_s, status, error,
+    try_number, max_tries) per attempt, mirroring scheduler.initial_state's
+    per-occurrence fault logic so the audit log and the run history describe
+    the same night."""
+    kind = fault["kind"] if fault else None
+    params = fault["params"] if fault else {}
+    status = "failed" if missed else "success"
+    if kind == "job_timeout":
+        timeout_s = int(params.get("timeout_s", duration))
+        return [(at, timeout_s, "failed",
+                 params.get("error")
+                 or (f"job exceeded its {timeout_s}s timeout and was killed "
+                     f"(SIGKILL) before it produced any output"), None, None)]
+    if kind == "job_retry":
+        attempts = max(2, int(params.get("attempts", 2)))
+        delay = int(params.get("retry_delay_minutes", 10))
+        message = params.get("error") or "connection reset by peer"
+        fail_after = int(params.get("fail_after_s", 5))
+        runs = []
+        for n in range(1, attempts):
+            runs.append((at, fail_after, "failed", message, n, attempts))
+            at = at + timedelta(minutes=delay)
+        runs.append((at, duration, status, missed, attempts, attempts))
+        return runs
+    if kind == "job_overrun":
+        secs = (int(duration * float(params.get("multiplier", 1.0)))
+                + int(params.get("extra_minutes", 0)) * 60)
+        return [(at, secs, status, missed, None, None)]
+    return [(at, duration, status, missed, None, None)]
+
+
+def write_ops_logs(workspace: Path, seed: dict) -> None:
+    """The platform-side record of the seeded backstory: three rotated daemon
+    logs under var/logs/, covering every seeded day on the virtual clock.
+
+    - sftp_sync.log       the transfer daemon pulling each vendor's nightly
+                          file into data/drop (05:00Z; on a vendor_late_delivery
+                          night the 05:00 cycle finds nothing and the pull lands
+                          at the deferred time)
+    - ingest_daemon.log   the connector syncs at 05:31/05:32Z, on the same
+                          owed/found decision write_ingest seeds into
+                          var/ingest/state.json - a late night is a failed
+                          zero-row sync and the next morning carries both
+    - scheduler_audit.log the platform's audit trail of the night's three job
+                          runs (sftp_poll, vendor_load, dbt_build), mirroring
+                          initial_state's draws: a connection-reset retry, or
+                          the day-scoped poll counting 0 files on a late night
+
+    A pure function of the seed: jitter comes from one stream per day,
+    `Random(f"{seed}:logs:{day_index}")`, timestamps derive from
+    seed['vtime_start'], and the fault nights come from the SAME
+    history_catalogue / history_arrivals / job_decision draws the seeded run
+    history and the connector state read - one decision, four surfaces. Never
+    a wall clock. Two builds of one seed write byte-identical logs. Called
+    from write_landing (build time) only: the live arrival stream calls
+    write_day directly and appends nothing here.
+    """
+    start = parse_vtime(seed["vtime_start"])
+    folder = Path(workspace).parent / "var" / "logs"
+    folder.mkdir(parents=True, exist_ok=True)
+    manifest = yaml.safe_load(
+        (Path(__file__).resolve().parent / "theme.yaml")
+        .read_text(encoding="utf-8"))
+    jobs = manifest["jobs"]
+    connectors = manifest["ingest"]["connectors"]
+    catalogue = faults.history_catalogue(manifest, seed)
+    ctx = {"faults": catalogue, "fault_seed": seed["seed"]}
+    late = faults.history_arrivals(catalogue, seed["seed"], seed["days"])
+    rows_per_day = []
+    for i in range(seed["days"]):
+        day = (start + timedelta(days=i)).date()
+        orders, returns = day_rows(seed["seed"], i, day, seed)
+        rows_per_day.append({"orders": len(orders), "returns": len(returns)})
+    sync, ingest, audit = [], [], []
+    owed = {"orders": [], "returns": []}   # late data days not yet picked up
+    loaded_days = 0                        # order dates present in raw so far
+    for i in range(seed["days"]):
+        rng = random.Random(f"{seed['seed']}:logs:{i}")
+        day = (start + timedelta(days=i)).date()
+        compact = day.strftime("%Y%m%d")
+        tokens = {"day": day.isoformat(), "day_compact": compact}
+        # --- sftp_sync.log: the 05:00Z pull from each vendor's outbox. A late
+        # night defers BOTH feeds - the arrival event is one decision.
+        pull = start + timedelta(days=i + 1, hours=5)
+        if i in late:
+            delay = int(late[i]["params"].get("delay_minutes", 60))
+            for vendor in ("acme", "globex"):
+                sync.append(
+                    f"{iso(pull + timedelta(seconds=rng.randrange(20)))} WARN "
+                    f"sftp-sync[611]: no new file in /outbound on "
+                    f"{vendor}.sftp.example.com for {compact} (vendor window "
+                    f"05:00Z); next cycle in {delay // 60}h{delay % 60:02d}m")
+            pull = pull + timedelta(minutes=delay)
+        for vendor, prefix, key in (("acme", "ORDERS", "orders"),
+                                    ("globex", "RETURNS", "returns")):
+            n = rows_per_day[i][key]
+            size = (workspace / "data" / "drop" / vendor
+                    / f"{prefix}_{compact}.csv").stat().st_size
+            at = pull + timedelta(seconds=rng.randrange(5, 90))
+            sync.append(
+                f"{iso(at)} INFO sftp-sync[611]: connected "
+                f"{vendor}.sftp.example.com:22 (host key verified)")
+            sync.append(
+                f"{iso(at + timedelta(seconds=1))} INFO sftp-sync[611]: get "
+                f"/outbound/{prefix}_{compact}.csv -> data/drop/{vendor}/"
+                f"{prefix}_{compact}.csv records={n} bytes={size} ok")
+            sync.append(
+                f"{iso(at + timedelta(seconds=2))} INFO sftp-sync[611]: "
+                f"sentinel data/drop/{vendor}/{prefix}_{compact}.done "
+                f"written ({n})")
+        # --- ingest_daemon.log: the connector syncs at their cron slots, on
+        # the same owed/found decision write_ingest makes - times and row
+        # counts match var/ingest/state.json to the second and the row.
+        found = {}
+        for key in ("orders", "returns"):
+            found[key] = owed[key] + ([] if i in late else [i])
+            owed[key] = [i] if i in late else []
+        for cid, spec in connectors.items():
+            key = spec["feed"]
+            hh, mm = (int(x) for x in spec["time"].split(":"))
+            table = (f"{spec['destination']['schema']}."
+                     f"{spec['destination']['tables'][0]}")
+            t0 = start + timedelta(days=i + 1, hours=hh, minutes=mm)
+            t1 = t0 + timedelta(seconds=spec["duration_s"])
+            ingest.append(
+                f"{iso(t0)} INFO ingest-daemon[872]: sync {cid} started "
+                f"(cron {spec['schedule']})")
+            if found[key]:
+                n = sum(rows_per_day[j][key] for j in found[key])
+                ingest.append(
+                    f"{iso(t1)} INFO ingest-daemon[872]: sync {cid} ok: "
+                    f"{table} +{n} row(s) from {len(found[key])} file(s)")
+            else:
+                ingest.append(
+                    f"{iso(t1)} WARN ingest-daemon[872]: sync {cid} failed: "
+                    f"no new file in {spec['source']['location']} for "
+                    f"{day.isoformat()}; 0 rows synced")
+                ingest.append(
+                    f"{iso(t1 + timedelta(seconds=1))} WARN "
+                    f"ingest-daemon[872]: alert sync_failed raised for "
+                    f"connector {cid}")
+        loaded_days += 1 if found["orders"] else 0
+        # --- scheduler_audit.log: the night's job runs, attempt by attempt,
+        # exactly as initial_state recorded them.
+        starts = scheduler.job_starts(jobs, start + timedelta(days=i))
+        arrival = faults.arrival_decision(ctx, i)
+        notes = {
+            "sftp_poll": f"matched=2 pattern=*/*_{compact}.done",
+            "vendor_load": (
+                f"raw.vendor_orders=+"
+                f"{sum(rows_per_day[j]['orders'] for j in found['orders'])} "
+                f"raw.vendor_returns=+"
+                f"{sum(rows_per_day[j]['returns'] for j in found['returns'])}"),
+            "dbt_build": f"warehouse.fct_orders_daily_rows={loaded_days}",
+        }
+        for name, spec in jobs.items():
+            at = starts[name]
+            detail = (spec["detail"].format(day=day.isoformat())
+                      if spec.get("detail") else None)
+            fault = faults.job_decision(ctx, name, iso(at))
+            missed = faults.missed_by(arrival, name, tokens)
+            duration = int(spec["duration_s"])
+            tag = f" {detail}" if detail else ""
+            for begin, took, status, error, try_n, max_n in _occurrence_runs(
+                    spec, at, fault, missed, duration):
+                attempt = f" attempt={try_n}/{max_n}" if try_n else ""
+                audit.append(
+                    f"{iso(begin)} INFO sched-audit[220]: job={name}{tag} "
+                    f"started{attempt}")
+                end = begin + timedelta(seconds=took)
+                if status == "success":
+                    level = "WARN" if took > duration else "INFO"
+                    note = f" {notes.get(name, '')}".rstrip()
+                    extra = (f" overran_window=true nominal_s={duration}"
+                             if took > duration else "")
+                    audit.append(
+                        f"{iso(end)} {level} sched-audit[220]: job={name} "
+                        f"status=success duration_s={took}{attempt}"
+                        f"{extra}{note}")
+                else:
+                    level = "WARN" if try_n and try_n < max_n else "ERROR"
+                    audit.append(
+                        f"{iso(end)} {level} sched-audit[220]: job={name} "
+                        f"status=failed duration_s={took}{attempt} "
+                        f"error={error}")
+    for name, lines in (("ingest_daemon.log", ingest),
+                        ("sftp_sync.log", sync),
+                        ("scheduler_audit.log", audit)):
+        # LF like the landing CSVs: var/logs sits beside the fingerprinted
+        # planes, so the bytes are the same on every host.
+        (folder / name).write_text("".join(f"{line}\n" for line in lines),
+                                   encoding="utf-8")
 
 
 def load_raw(workspace: Path, db_path: Path) -> None:

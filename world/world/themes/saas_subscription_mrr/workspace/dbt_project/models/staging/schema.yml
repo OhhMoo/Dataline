@@ -1,0 +1,39 @@
+version: 2
+models:
+  - name: stg_subscription_events
+    description: Typed, effective-dated subscription snapshots from the event feed.
+    columns:
+      - name: event_id
+        tests: [not_null, unique]
+      - name: account_id
+        tests: [not_null]
+      - name: event_type
+        tests:
+          - not_null
+          - accepted_values:
+              values: [subscription_started, seat_upgraded, seat_downgraded, subscription_churned]
+      - name: effective_date
+        tests: [not_null]
+      - name: seats
+        tests: [not_null]
+      - name: unit_price_cents
+        tests: [not_null]
+      - name: revrec_days
+        tests: [not_null]
+  - name: stg_invoice_webhooks
+    description: Finalized invoice and credit-note webhooks with signed integer-cent amounts.
+    columns:
+      - name: webhook_id
+        tests: [not_null, unique]
+      - name: invoice_id
+        tests: [not_null, unique]
+      - name: account_id
+        tests: [not_null]
+      - name: invoice_type
+        tests:
+          - accepted_values:
+              values: [recurring, proration_charge, proration_credit]
+      - name: amount_cents
+        tests: [not_null]
+      - name: service_period_end
+        tests: [not_null]

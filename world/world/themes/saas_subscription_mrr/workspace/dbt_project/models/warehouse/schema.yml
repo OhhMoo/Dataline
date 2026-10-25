@@ -1,0 +1,52 @@
+version: 2
+models:
+  - name: fct_mrr_daily
+    description: One folded subscription state per account and metric date.
+    columns:
+      - name: metric_date
+        tests: [not_null]
+      - name: account_id
+        tests: [not_null]
+      - name: source_event_id
+        tests: [not_null]
+      - name: mrr_cents
+        description: Active seats times monthly unit price; zero after churn.
+        tests: [not_null]
+      - name: arr_cents
+        description: Twelve times MRR, in integer cents.
+        tests: [not_null]
+      - name: recognized_revenue_cents
+        description: Straight-line daily ASC-606 recognition over revrec_days.
+        tests: [not_null]
+  - name: dim_account
+    description: Latest subscription state and contract attributes for each account.
+    columns:
+      - name: account_id
+        tests: [not_null, unique]
+      - name: subscription_id
+        tests: [not_null, unique]
+      - name: subscription_status
+        tests:
+          - accepted_values:
+              values: [active, churned]
+      - name: as_of_date
+        tests: [not_null]
+  - name: revrec_close_window
+    description: Account-period ASC-606 recognition, billing and deferred-revenue close ledger.
+    columns:
+      - name: close_id
+        tests: [not_null, unique]
+      - name: period
+        tests: [not_null]
+      - name: account_id
+        tests: [not_null]
+      - name: close_status
+        tests:
+          - accepted_values:
+              values: [open, closed]
+      - name: recognized_revenue_cents
+        tests: [not_null]
+      - name: proration_credit_cents
+        tests: [not_null]
+      - name: deferred_revenue_cents
+        tests: [not_null]

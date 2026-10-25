@@ -170,11 +170,94 @@ def write_day(workspace: Path, seed: dict, day_index: int, day) -> dict:
     return {"workbook": f"CLOSE_{period}.xlsx", "lines": len(bucket["lines"])}
 
 
+# --------------------------------------------------------------------------
+# Historical ops logs (var/logs). The factory's breadcrumb generator appends
+# to these three files, so they must be a pure function of the seed: every
+# timestamp derives from seed["vtime_start"], and every jitter comes from one
+# RNG keyed on the seed. No wall clock is read anywhere below.
+# --------------------------------------------------------------------------
+
+def write_ops_logs(workspace: Path, seed: dict) -> None:
+    """Deterministic historical ops logs under ``<world>/var/logs``.
+
+    One nightly close cycle per seeded day: the controller's SFTP drop syncs
+    the month's workbook (rewritten with every day posted so far), the ingest
+    daemon validates the sheets, and the scheduler runs close_import plus
+    dbt_build for that morning. Line counts replay months_upto - the same
+    pure function the landing writer uses - so the log narrative matches the
+    workbook bytes on disk, and two builds of one seed are byte-identical.
+    """
+    start = parse_vtime(seed["vtime_start"])
+    days = int(seed["days"])
+    rng = random.Random(f"{seed['seed']}:logs")
+    sftp, ingest, audit = [], [], []
+    for day_index in range(days):
+        day = (start + timedelta(days=day_index)).date()
+        # The workbook for close day `day` is posted the next morning
+        # (theme.yaml live.arrival: day_offset 1 at 07:00).
+        post = day + timedelta(days=1)
+        period = f"{day:%Y%m}"
+        bucket = months_upto(seed, day_index + 1)[period]
+        lines, adj = len(bucket["lines"]), len(bucket["adj"])
+
+        def ts(hour: int, minute: int) -> str:
+            return (f"{post.isoformat()}T{hour:02d}:{minute:02d}:"
+                    f"{rng.randint(0, 59):02d}Z")
+
+        sftp.append(f"{ts(6, 54)} INFO sftp_sync: connected to"
+                    f" sftp.controller-office.example:22 user=fin_close")
+        sftp.append(f"{ts(6, 55)} INFO sftp_sync: get /outbox/CLOSE_{period}.xlsx"
+                    f" -> finance/workbooks/CLOSE_{period}.xlsx"
+                    f" gl_lines={lines} sha256 ok")
+        if rng.random() < 0.12:
+            sftp.append(f"{ts(6, 57)} WARN sftp_sync: transfer reset by peer for"
+                        f" CLOSE_{period}.xlsx; retry 1/3 succeeded")
+        ingest.append(f"{ts(7, 0)} INFO ingest_daemon: workbook_watch"
+                      f" CLOSE_{period}.xlsx rewritten for close day"
+                      f" {day.isoformat()}; GL_LINES rows={lines}"
+                      f" MANUAL_ADJ rows={adj}")
+        ingest.append(f"{ts(7, 1)} INFO ingest_daemon: validated"
+                      f" CLOSE_{period}.xlsx period={period} headers ok")
+        if rng.random() < 0.15:
+            ingest.append(f"{ts(7, 2)} WARN ingest_daemon: MANUAL_ADJ rows={adj}"
+                          f" in CLOSE_{period}.xlsx still need owner sign-off;"
+                          f" import proceeds (the sheet is the audit trail)")
+        for job, hour, minute, base in (("close_import", 8, 0, 60),
+                                        ("dbt_build", 8, 10, 90)):
+            audit.append(f"{ts(hour, minute)} INFO scheduler_audit: job={job}"
+                         f" run_date={post.isoformat()} status=SUCCESS"
+                         f" duration_s={base + rng.randint(-3, 6)}")
+        audit.append(f"{ts(8, 1)} INFO scheduler_audit: job=close_import"
+                     f" published target=raw.gl_lines kind=table"
+                     f" consumer=consolidation_reporting")
+        audit.append(f"{ts(8, 1)} INFO scheduler_audit: job=close_import"
+                     f" published target=raw.manual_adj kind=table"
+                     f" consumer=external_audit")
+        audit.append(f"{ts(8, 12)} INFO scheduler_audit: job=dbt_build"
+                     f" published target=warehouse.fct_gl_monthly kind=table"
+                     f" consumer=fp_and_a")
+        if day_index % 7 == 6:
+            for name, lines_list in (("ingest_daemon.log", ingest),
+                                     ("sftp_sync.log", sftp),
+                                     ("scheduler_audit.log", audit)):
+                lines_list.append(
+                    f"{post.isoformat()}T23:59:{rng.randint(0, 59):02d}Z"
+                    f" INFO rotate: archived {name}.1.gz after 7 day(s)")
+    logs_dir = Path(workspace).parent / "var" / "logs"
+    logs_dir.mkdir(parents=True, exist_ok=True)
+    for name, lines_list in (("ingest_daemon.log", ingest),
+                             ("sftp_sync.log", sftp),
+                             ("scheduler_audit.log", audit)):
+        (logs_dir / name).write_text(
+            "".join(f"{line}\n" for line in lines_list), encoding="utf-8")
+
+
 def write_landing(workspace: Path, seed: dict) -> None:
     """Write finance/workbooks/CLOSE_YYYYMM.xlsx for each covered month."""
     months = months_upto(seed, seed["days"])
     for period in sorted(months):
         _write_workbook(workspace, period, months[period])
+    write_ops_logs(workspace, seed)
 
 
 def load_raw(workspace: Path, db_path: Path) -> None:

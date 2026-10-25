@@ -1,0 +1,96 @@
+issues:
+  - id: IOT-164
+    title: Document reboot behavior for cumulative meter counters
+    body: |-
+      Field teams have asked whether a device reboot makes its first heartbeat
+      negative usage. Add the counter-rebase rule and one example to the public
+      metering handbook, including how it differs from a delta heartbeat.
+    status: done
+    reporter: rsubramanian
+    assignee: jlee
+    labels: [documentation, counters]
+    created_at: "-42d 10:10"
+    updated_at: "-39d 14:25"
+    comments:
+      - id: IOT-164#1
+        author: jlee
+        at: "-39d 14:25"
+        body: Published with the data dictionary and linked it from the edge onboarding checklist.
+    history:
+      - {at: "-39d 14:25", actor: jlee, field: status, from: in_progress, to: done}
+    links: []
+
+  - id: IOT-171
+    title: Add gateway flush delay to the usage dashboard
+    body: |-
+      Customer Operations wants to distinguish low device usage from usage that
+      is still buffered at a disconnected site. Show rollup collection delay by
+      gateway and flag windows that took more than one day to arrive.
+    status: done
+    reporter: ngarcia
+    assignee: mokafor
+    labels: [dashboard, edge-gateway]
+    created_at: "-21d 09:30"
+    updated_at: "-12d 16:40"
+    comments:
+      - id: IOT-171#1
+        author: mokafor
+        at: "-12d 16:40"
+        body: The IoT Usage and Enterprise Billing dashboard now has a gateway backfill panel.
+    history:
+      - {at: "-12d 16:40", actor: mokafor, field: status, from: in_progress, to: done}
+    links: []
+
+  - id: IOT-178
+    title: February committed-tier invoice close checklist
+    body: |-
+      Please confirm all customer contracts are present, the February period
+      locks after the grace window, and the ERP handoff reconciles to billable
+      usage. Review excluded post-cutoff units with Billing before sign-off;
+      any adjustment to a locked invoice goes through the memo process.
+    status: todo
+    reporter: kbennett
+    assignee: null
+    labels: [billing-close, february, erp]
+    created_at: "-4d 11:15"
+    updated_at: "-4d 11:15"
+    comments: []
+    history: []
+    links:
+      - {type: relates_to, issue: IOT-180}
+
+  - id: IOT-180
+    title: Clarify who may approve a locked-period billing memo
+    body: |-
+      The close policy says Billing Operations owns the memo process, while an
+      older customer escalation template names the account manager. Confirm the
+      approval chain and update the template before the February close.
+    status: in_progress
+    reporter: ngarcia
+    assignee: kbennett
+    labels: [policy, billing-close]
+    created_at: "-7d 13:20"
+    updated_at: "-2d 15:05"
+    comments:
+      - id: IOT-180#1
+        author: fdubois
+        at: "-2d 15:05"
+        body: Revenue Control approves the memo amount; Billing Operations posts it. Account managers communicate but do not approve.
+    history: []
+    links: []
+
+  - id: IOT-183
+    title: Standardize edge gateway clock health alerts
+    body: |-
+      We alert on cloud collection freshness but not on the age of the oldest
+      buffered window at a site. Draft an alert that Fleet Operations can act on
+      without treating every multi-day store-and-forward flush as lost usage.
+    status: backlog
+    reporter: rsubramanian
+    assignee: null
+    labels: [observability, edge-gateway]
+    created_at: "-1d 16:10"
+    updated_at: "-1d 16:10"
+    comments: []
+    history: []
+    links: []

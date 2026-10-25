@@ -1,0 +1,18 @@
+{
+  "agent": "opus",
+  "phase": "1022",
+  "status": "DONE",
+  "tests_passed": true,
+  "completed_at_utc": "2026-10-22T08:41:00Z",
+  "git_commit": false,
+  "audit_report": "experiments/scale_1000/status/opus_1022_rollout_audit.json",
+  "grader_change": "none. No benign artifact causes any C0/R1..R4 failure, so no tolerance was added.",
+  "summary": {
+    "rollouts_in_window": 175,
+    "failed": 74,
+    "reasoning_failures": 62,
+    "S08_cutover_9_10_count": 37,
+    "S06_fanout_2x_count": 36,
+    "false_negative_artifacts": []
+  }
+}

@@ -1,0 +1,43 @@
+# Phase-2 domain contract: sftp_vendor's native fault-injection surface, for
+# the factory compiler (tasks/factory/compiler). Every name below exists in
+# this theme: the drop dir under workspace/, the tables built nightly by the
+# loader (workspace/loader/vendor_load.py, run via gen.py load_raw) and the
+# dbt project (workspace/dbt_project/models/), the columns in the warehouse
+# schema contract (models/warehouse/schema.yml), the jobs in theme.yaml.
+# Concepts the theme does not have are null rather than invented.
+theme: sftp_vendor
+# Nightly vendor deliveries: data/drop/<vendor>/<FEED>_<YYYYMMDD>.csv plus a
+# <name>.done row-count sentinel per file (gen.py write_day; theme.yaml
+# live.arrival lands them at 05:00 UTC on D+1 for data day D).
+landing_dir: data/drop
+# Primary landing table: one row per vendor order, append-only and matched to
+# redeliveries by _source_file (loader/vendor_load.py FEEDS; models/sources.yml).
+# The paired raw.vendor_returns table carries the globex returns feed.
+raw_table: raw.vendor_orders
+# Primary fact: one row per order date - orders, returns, gross_revenue,
+# return_total, net_revenue (models/warehouse/fct_orders_daily.sql). Rebuilt
+# nightly by the dbt_build job.
+fact_table: warehouse.fct_orders_daily
+# This theme has no handoff/extract, close/window or corrections table: the
+# pipeline ends at the daily fact and the vendor_daily dashboard.
+handoff_table: null
+close_window_table: null
+corrections_table: null
+# fct_orders_daily grain - order_date is not_null + unique
+# (models/warehouse/schema.yml).
+grain_keys: [order_date]
+# Headline measure: gross_revenue - return_total (models/warehouse/schema.yml;
+# the vendor_daily dashboard's daily_net_revenue panel reads it).
+amount_column: net_revenue
+# No version/CDC column anywhere in the pipeline: a vendor redelivery replaces
+# its earlier rows via _source_file (loader --on-redelivery overwrite), so raw
+# carries the latest file's rows and nothing versioned.
+version_column: null
+# The delivery for data day D is due before the day-scoped poll at 05:30 UTC
+# on D+1 (theme.yaml jobs.sftp_poll.time; live.arrival lands it at 05:00).
+cutoff_time_utc: "05:30"
+# Job names exactly as in theme.yaml.
+scheduled_jobs: [sftp_poll, vendor_load, dbt_build]
+# Nightly schedule mirrored from theme.yaml jobs; the scheduler sync hook reads
+# it as the timing source of truth (path relative to workspace/).
+schedule_file: orchestration/schedule.yml

@@ -1,0 +1,108 @@
+pages:
+  - id: mb/architecture
+    title: Metering and billing architecture
+    parent: null
+    labels: [architecture]
+    body: |-
+      # Metering and billing architecture
+
+      Direct devices send cumulative-counter or delta heartbeats. Edge devices
+      send non-overlapping daily rollups through store-and-forward gateways.
+      Contracts arrive as monthly customer commits.
+
+      At 00:30 UTC the landing flush arrives. `load_usage` rebuilds raw tables
+      at 01:00 and `finalize_billing` runs dbt at 01:10. The warehouse exposes
+      `fct_billable_usage`, `billing_period_lock`, and `invoice_run_handoff`.
+      The Usage and Enterprise Billing dashboard reads those warehouse tables.
+
+      - [Metering semantics](mb/architecture/metering-semantics)
+      - [Close policy](mb/policies/billing-close)
+    version: 4
+    author: mokafor
+    last_edited_by: jlee
+    last_edited_at: "-18d 10:30"
+    edit_comment: Add the three warehouse consumers
+    history:
+      - {version: 3, at: "-70d 14:00", by: mokafor, comment: Gateway rollups}
+      - {version: 2, at: "-130d 11:00", by: jlee, comment: Contract commits}
+      - {version: 1, at: "-210d 09:00", by: mokafor, comment: null}
+
+  - id: mb/architecture/metering-semantics
+    title: Counter, delta, and rollup semantics
+    parent: mb/architecture
+    labels: [metering, reference]
+    body: |-
+      # Counter, delta, and rollup semantics
+
+      A cumulative counter uses the difference from the prior heartbeat for the
+      same device. When the reading decreases, treat it as a reset and count the
+      current reading as that heartbeat's usage. Never emit a negative delta.
+
+      A delta event already contains its window usage. A daily edge rollup
+      already contains the sum of its source windows. Neither is subtracted from
+      its predecessor. Rollup ids are stable across gateway retries.
+
+      Direct and edge devices are disjoint. Usage is attributed to
+      `usage_date`; `collected_at` records arrival and drives close lateness.
+    version: 3
+    author: jlee
+    last_edited_by: jlee
+    last_edited_at: "-39d 14:20"
+    edit_comment: Counter reboot example
+    history:
+      - {version: 2, at: "-90d 10:00", by: jlee, comment: Rollup idempotency}
+      - {version: 1, at: "-180d 10:00", by: mokafor, comment: null}
+
+  - id: mb/runbooks/nightly
+    title: Nightly metering runbook
+    parent: null
+    labels: [runbook, on-call]
+    body: |-
+      # Nightly metering runbook
+
+      Investigate `load_usage` before `finalize_billing`. The loader rereads all
+      landed partitions, so a recovered gateway needs no manual backfill command.
+      Check rollup ids and original usage-day folders after a multi-day flush.
+
+      A dbt conservation failure means reported or billable units are invalid;
+      inspect the raw device sequence. Do not suppress resets or move late rows
+      to a different usage date. Rerun the loader and build after the source
+      delivery is intact.
+    version: 5
+    author: mokafor
+    last_edited_by: jlee
+    last_edited_at: "-12d 15:00"
+    edit_comment: Recovered gateway checks
+    history:
+      - {version: 4, at: "-60d 12:00", by: mokafor, comment: null}
+      - {version: 3, at: "-120d 12:00", by: jlee, comment: null}
+
+  - id: mb/policies/billing-close
+    title: Enterprise billing close policy
+    parent: null
+    labels: [policy, billing-close]
+    body: |-
+      # Enterprise billing close policy
+
+      The contract commit is the authority for committed units, monthly minimum,
+      overage rate, and grace days. Overage is charged in 1,000-unit blocks with
+      a partial block rounded up. Money is calculated in integer cents.
+
+      A customer-month locks when the telemetry collection watermark reaches the
+      month-end grace cutoff. Only locked months enter the ERP handoff. Telemetry
+      collected at or after the cutoff remains in the usage fact with zero
+      billable units and appears in `late_units_excluded`.
+
+      Billing Operations and Revenue Control reconcile the lock and handoff.
+      Locked invoices are not rewritten for late telemetry. An approved
+      adjustment is posted as a separate memo: Revenue Control approves the
+      amount and Billing Operations posts it.
+    version: 6
+    author: kbennett
+    last_edited_by: fdubois
+    last_edited_at: "-2d 15:10"
+    edit_comment: Memo approval roles
+    history:
+      - {version: 5, at: "-35d 09:00", by: kbennett, comment: Late telemetry}
+      - {version: 4, at: "-95d 09:00", by: fdubois, comment: Overage blocks}
+      - {version: 3, at: "-160d 09:00", by: kbennett, comment: null}

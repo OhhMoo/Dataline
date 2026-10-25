@@ -1,0 +1,84 @@
+channels:
+  - id: claims-data
+    topic: 837/835 loads, adjudication marts, and claim lifecycle rules
+    purpose: Daily coordination between EDI Operations and Claims Data Platform.
+    members: [asingh, mbennett, jwilson, alertbot, agent]
+    messages:
+      - id: claims-data/0001
+        author: alertbot
+        at: "-1d 01:45"
+        thread_id: null
+        text: Nightly EDI load, adjudication build, settlement handoffs, and CMS window build completed.
+        reactions: {}
+      - id: claims-data/0002
+        author: mbennett
+        at: "-1d 09:10"
+        thread_id: null
+        text: |-
+          Reminder for the operations pack: raw 837 files contain every transmission.
+          Current claim reporting uses the latest version for each claim_id.
+        reactions: {}
+      - id: claims-data/0003
+        author: asingh
+        at: "-1d 09:18"
+        thread_id: claims-data/0002
+        text: Thanks. We need originals, replacements, and voids visible as separate categories.
+        reactions: {}
+      - id: claims-data/0004
+        author: jwilson
+        at: "-1d 09:26"
+        thread_id: claims-data/0002
+        text: The claim_status_mix panel has that breakout and reads the adjudicated fact.
+        reactions: {}
+      - id: claims-data/0005
+        author: asingh
+        at: "-1d 11:30"
+        thread_id: null
+        text: For COB review, please keep other-payer payment and our payer payment as separate columns.
+        reactions: {}
+  - id: provider-finance
+    topic: Capitation statements and provider reconciliation
+    purpose: Provider Finance and Claims Data Platform coordinate monthly statements.
+    members: [rortiz, jwilson, lchen, agent]
+    messages:
+      - id: provider-finance/0001
+        author: rortiz
+        at: "-3d 13:00"
+        thread_id: null
+        text: February statements should show member months and PMPM before the quality withhold.
+        reactions: {}
+      - id: provider-finance/0002
+        author: jwilson
+        at: "-3d 13:12"
+        thread_id: provider-finance/0001
+        text: The provider_capitation panel includes gross terms, withhold, net settlement, and payment date.
+        reactions: {}
+      - id: provider-finance/0003
+        author: lchen
+        at: "-2d 10:40"
+        thread_id: null
+        text: Actuarial also reads the reserve handoff; that estimate is not netted against capitation.
+        reactions: {}
+  - id: regulatory-ops
+    topic: CMS encounter submission calendar and compliance review
+    purpose: Cutoff calendar announcements and aggregate encounter reconciliation.
+    members: [kkaur, mbennett, asingh, jwilson, agent]
+    messages:
+      - id: regulatory-ops/0001
+        author: kkaur
+        at: "-5d 08:30"
+        thread_id: null
+        text: February encounter review will use the standard next-month cutoff and two-day acceptance lag.
+        reactions: {}
+      - id: regulatory-ops/0002
+        author: mbennett
+        at: "-5d 08:44"
+        thread_id: regulatory-ops/0001
+        text: We will reconcile eligible, late, denied, and void-excluded counts from the CMS window table.
+        reactions: {}
+      - id: regulatory-ops/0003
+        author: kkaur
+        at: "-2d 08:55"
+        thread_id: null
+        text: Please keep the review aggregate. No member-level extracts are needed for cutoff sign-off.
+        reactions: {}

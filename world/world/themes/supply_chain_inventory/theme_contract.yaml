@@ -1,0 +1,55 @@
+# Domain-native surface contract for the Alkera RL-environment factory compiler.
+# Every table/column/dir below is verified against this theme's dbt models
+# (workspace/dbt_project/models/), gen.py landing writer, and theme.yaml jobs.
+theme: supply_chain_inventory
+
+# Nightly 856 ASN / EDI feed partitions land here as dt=<date>/*.csv
+# (gen.write_day; theme.yaml jobs.edi_poll scans this path).
+landing_dir: data/landing/inventory_edi
+
+# Primary raw event/landing table: ASN ship/receive events (raw schema,
+# loaded by workspace/loader/load_inventory.py; declared in models/sources.yml).
+raw_table: raw.asn_receipts
+
+# Primary fact: end-of-day DC/SKU inventory position
+# (models/warehouse/fct_inventory_position.sql).
+fact_table: warehouse.fct_inventory_position
+
+# 3PL billing extract handed off to atlas-3pl-billing
+# (models/warehouse/threepl_settlement_extract.sql; exported by
+# scripts/export_threepl.py in the threepl_handoff job).
+handoff_table: warehouse.threepl_settlement_extract
+
+# Customs declaration freeze windows vs. the latest loaded business day
+# (models/warehouse/customs_cutoff.sql; advanced by the customs_close job).
+close_window_table: warehouse.customs_cutoff
+
+# Physical count vs. book reconciliation; SHRINKAGE rows correct book stock
+# (models/warehouse/cycle_count_reconciliation.sql).
+corrections_table: warehouse.cycle_count_reconciliation
+
+# fct_inventory_position grain: one row per position_date x warehouse_id x sku_id
+# (dbt test assert_inventory_position_key_unique).
+grain_keys: [position_date, warehouse_id, sku_id]
+
+# The fact is quantity-native (no money column); on_hand_each is its primary
+# measure. Monetary amounts live in the handoff (total_charge_cents).
+amount_column: on_hand_each
+
+# No version column on the fact (document_version exists only on
+# raw.customs_declarations, not on the position fact).
+version_column: null
+
+# Customs document freeze cutoff (seed: customs_cutoff_hour; UTC per seed docs).
+cutoff_time_utc: "18:00"
+
+# Scheduler jobs exactly as declared in theme.yaml.
+scheduled_jobs:
+  - edi_poll
+  - inventory_load
+  - inventory_dbt
+  - threepl_handoff
+  - customs_close
+
+# Deployment schedule mirrored from theme.yaml jobs (workspace-relative).
+schedule_file: orchestration/schedule.yml

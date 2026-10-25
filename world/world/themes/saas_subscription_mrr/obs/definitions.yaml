@@ -1,0 +1,100 @@
+version: 1
+retention: {days: 60}
+metrics:
+  - id: subscription_event_freshness
+    kind: freshness
+    unit: seconds
+    title: Subscription event freshness
+    source: {table: raw.subscription_events, timestamp_column: occurred_at}
+  - id: subscription_event_rows
+    kind: row_count
+    unit: rows
+    title: Landed subscription events
+    source: {table: raw.subscription_events}
+    series: {bucket_column: source_date}
+  - id: invoice_webhook_rows
+    kind: row_count
+    unit: rows
+    title: Landed invoice and credit-note webhooks
+    source: {table: raw.invoice_webhooks}
+    series: {bucket_column: source_date}
+  - id: subscription_account_null_rate
+    kind: null_rate
+    unit: ratio
+    title: Subscription events missing an account
+    source: {table: raw.subscription_events, column: account_id}
+  - id: current_arr_cents
+    kind: sql_scalar
+    unit: cents
+    title: Current annual recurring revenue
+    source:
+      sql: select sum(arr_cents) from warehouse.dim_account
+    series:
+      sql: select segment as bucket, sum(arr_cents) as value from warehouse.dim_account group by segment order by segment
+  - id: open_period_recognized_cents
+    kind: sql_scalar
+    unit: cents
+    title: Recognized revenue in the open period
+    source:
+      sql: select sum(recognized_revenue_cents) from warehouse.revrec_close_window where close_status = 'open'
+  - id: open_period_proration_credit_cents
+    kind: sql_scalar
+    unit: cents
+    title: Signed proration credits in the open period
+    source:
+      sql: select sum(proration_credit_cents) from warehouse.revrec_close_window where close_status = 'open'
+  - id: ingest_webhooks_duration
+    kind: job_duration
+    unit: seconds
+    title: Webhook ingest duration
+    job: ingest_webhooks
+  - id: ingest_webhooks_error_rate
+    kind: job_error_rate
+    unit: ratio
+    title: Webhook ingest error rate
+    job: ingest_webhooks
+    window_runs: 10
+  - id: fold_subscriptions_duration
+    kind: job_duration
+    unit: seconds
+    title: Subscription fold duration
+    job: fold_subscriptions
+  - id: revrec_window_close_duration
+    kind: job_duration
+    unit: seconds
+    title: Revenue recognition close duration
+    job: revrec_window_close
+  - id: revrec_window_close_error_rate
+    kind: job_error_rate
+    unit: ratio
+    title: Revenue recognition close error rate
+    job: revrec_window_close
+    window_runs: 10
+alarms:
+  - id: subscription_events_stale
+    metric: subscription_event_freshness
+    comparison: gt
+    threshold: 172800
+    severity: critical
+    title: Subscription events are more than two days old
+    runbook: docs/runbook_nightly.md
+  - id: ingest_webhooks_failing
+    metric: ingest_webhooks_error_rate
+    comparison: gte
+    threshold: 0.2
+    severity: critical
+    title: Webhook ingest failure rate is elevated
+    runbook: docs/runbook_nightly.md
+  - id: revrec_window_close_failing
+    metric: revrec_window_close_error_rate
+    comparison: gte
+    threshold: 0.2
+    severity: critical
+    title: Revenue recognition close failure rate is elevated
+    runbook: docs/runbook_nightly.md
+  - id: subscription_account_missing
+    metric: subscription_account_null_rate
+    comparison: gt
+    threshold: 0.0
+    severity: warning
+    title: Subscription events are missing account identifiers

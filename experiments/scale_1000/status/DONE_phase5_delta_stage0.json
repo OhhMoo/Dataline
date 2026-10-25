@@ -1,0 +1,26 @@
+{
+  "agent": "gemini",
+  "phase": "1022",
+  "status": "STAGE0_READY",
+  "tests_passed": true,
+  "completed_at_utc": "2026-10-22T09:48:15Z",
+  "git_commit": false,
+  "upstream_markers_verified": [
+    "experiments/scale_1000/status/DONE_codex_1022.json",
+    "experiments/scale_1000/status/DONE_opus_1022.json",
+    "experiments/scale_1000/status/DONE_kimi_1022.json",
+    "experiments/scale_1000/status/DONE_grok_1022.json"
+  ],
+  "delta_materialization": {
+    "preserved_certified": 15,
+    "rematerialized": 36,
+    "report": "/home/ubuntu/alkera_factory_1017/phase2_pilot_51/phase3_delta_materialization_report.json"
+  },
+  "stage0_verification": {
+    "ok": true,
+    "total": 51,
+    "passed": 51,
+    "failed": 0,
+    "report": "/home/ubuntu/alkera_factory_1017/phase5_stage0_51.json"
+  }
+}

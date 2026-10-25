@@ -1,0 +1,41 @@
+{
+  "observed_utc": "2026-10-18T07:23:57.689328+00:00",
+  "catalog": {
+    "candidate_blueprints": 1080,
+    "unique_ids": 1080,
+    "twin_groups": 360
+  },
+  "themes": {
+    "clean_seed_passed": 12,
+    "total": 12,
+    "report": "/home/ubuntu/alkera_factory_1017/theme_final_kimi2/verify_report.json"
+  },
+  "pilot": {
+    "materialized": 36,
+    "composed": 36,
+    "task_spec_loads": 108,
+    "stage0_passed": 36,
+    "stage0_failed": 0,
+    "report": "/home/ubuntu/alkera_factory_1017/pilot_stage0_sealed_final.json",
+    "private_future": true
+  },
+  "compiler_tests": {
+    "focused_passed": 21,
+    "failed": 0
+  },
+  "calibration": {
+    "status": "complete_no_core_admission",
+    "wrapper_candidates": 10,
+    "mixed_stage1_candidates": 1,
+    "stage2_attempted": 1,
+    "stage2_scored": 4,
+    "stage2_quarantined": 1,
+    "certified_core": 0,
+    "evidence_index": "/home/ubuntu/env_project/experiments/scale_1000/CALIBRATION_EVIDENCE.json"
+  },
+  "limits": [
+    "The 1080 catalog entries are candidate blueprints; only 36 pilot tasks were materialized and fully mechanically verified.",
+    "The newer opus second-pass grader worktree was not integrated by this role.",
+    "No core task was certified: the only mixed Stage 1 candidate had one quarantined K=5 rollout."
+  ]
+}

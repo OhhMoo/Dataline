@@ -1,0 +1,10 @@
+version: 2
+sources:
+  - name: raw
+    schema: raw
+    tables:
+      - {name: asn_receipts}
+      - {name: dc_movements}
+      - {name: cycle_counts}
+      - {name: uom_conversions}
+      - {name: customs_declarations}

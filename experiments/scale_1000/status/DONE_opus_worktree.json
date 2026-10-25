@@ -1,0 +1,43 @@
+{
+  "agent": "opus (Claude Opus 5.5, second-pass, 4 parallel subagents)",
+  "status": "complete_not_integrated",
+  "completed_at_utc": "2026-10-18T06:40:00Z",
+  "location": {
+    "worktree": "/home/ubuntu/opus_grader_wt",
+    "branch": "opus/grader-1017",
+    "commit": "a957d6e",
+    "why_not_main_tree": "a Codex session was concurrently writing tasks/factory/grader/ and tasks/contracts/ in /home/ubuntu/env_project; user chose isolated worktree + later reconcile. The main-tree compiler/verify_all/pilot depend on the Codex grader API (declarative_grade.grade, receipt_engine.capture_oracle, baseline_runner.run/BASELINES, communication_rubric.verify_report), which this branch does not provide."
+  },
+  "files": {
+    "tasks/factory/grader/receipt_engine.py": "Opus-1: C0 grain-key parity + fraction, per-night receipt classification vs oracle/rival trajectories, local canonical hash + self-audit, progress_quantities q0..qN",
+    "tasks/factory/grader/replay_isolation.py": "Opus-1: replay on an isolated world copy, pluggable schedule deploy (schedule_model | none | callable)",
+    "tasks/factory/grader/communication_rubric.py": "Opus-3: forged/notified/holds/escalation/report check kinds; last_edited_by KB fix, 'you' on own ticket, negation-aware holds",
+    "tasks/factory/grader/declarative_grade.py": "Opus-4: manifest.yaml + spec.json entry point, 18 check kinds, GT009-compatible CLI and output + max_total/outcome_evidence/progress_quantities/uncovered_checks",
+    "tasks/factory/grader/baseline_runner.py": "Opus-4: oracle/no_op/wrong_precedence/duplicate_counted/boundary_violated, writes baselines_schema-valid tests/baselines/<arm>.json",
+    "tasks/factory/grader/equivalence.py": "Opus-4: check-for-check comparison CLI vs legacy graders",
+    "tasks/factory/grader/specs/": "gt009.spec.json, gt009.manifest.yaml, gt004.spec.json, README.md (schema)",
+    "tasks/factory/grader/templates/grade_wrapper.py": "18-line per-task tests/grade.py",
+    "tasks/contracts/{consumer_consistency,version_precedence,auditability,_world}.py + README.md": "Opus-2: executed on real worlds; runner: advance via injected callable or argv; BI cache/extract surfaces; dependency rule kept"
+  },
+  "verification": {
+    "pytest": "246 passed in 566s: gateway/.venv/bin/python -m pytest tasks/factory/grader/tests tasks/contracts -q (112 contracts + 134 grader)",
+    "gt009_declarative_equivalence": "465/465 check cells, 30/30 totals exact, 30 recorded rollouts across default, approved, live-consumer, e1-corecraft-implicit, e2-noisy-surface, e3-compositional (/home/ubuntu/alkera_factory_1017/opus/opus4/equivalence.json)",
+    "gt004_declarative_equivalence": "225/225 cells on 15 of 18 checks across 15 rollouts (default, authorized, escalation-credited); H3, H4, BX declared uncovered (equivalence_gt004.json)",
+    "gt009_receipt_engine_equivalence": "34/34 cases incl. 4 mutants (idle, shipped publisher, schedule deleted, t0 damaged) on C0, R1..R4 and per-night matched (/home/ubuntu/alkera_factory_1017/opus/opus1/equivalence.json)",
+    "gt009_baselines": "all 5 canonical baselines meet expectation and agree with legacy on default/approved/live-consumer; oracle 20/18/26",
+    "contracts_real_world": "GT008 version_precedence = C1..C4 on 4 baselines incl. first-failing night; GT009 consumer_consistency = R1..R4 on 4 rollouts incl. e2/r1 TTFF; BI002 stale Power BI fct_orders detected with documented Feb figures",
+    "communication_rubric": "GT006 E1/X1 15/15, GT007 W1/S1a/S1b/S2 20/20, W2 4/5 (rubric correct; GT007 _HOLD_WORDS misses 'no daytime republish'), GT004 ESR 30/30"
+  },
+  "findings": [
+    "Receipts alone can miss a fact-table offence: GT009 REPLAY_WINS_LOADER publishes oracle receipts on all 4 nights yet fails version_precedence.highest_version; compose both contracts.",
+    "Old consumer_consistency.hash_is_canonical flagged every real receipt as forged; fixed.",
+    "receipt_engine q0 for an idle agent is 0.929 (most grain keys already match at t0); anchor via progress.py noop/oracle before use.",
+    "GT007 grader W2 still has a false negative ('No deploy and no daytime republish')."
+  ],
+  "limits": [
+    "Not merged into /home/ubuntu/env_project; API differs from the Codex grader the compiler/pilot use.",
+    "GT004 H3, H4, BX not ported (declared uncovered, reported in output).",
+    "GT009 recorded rollouts are near-saturated; low-score coverage comes from baselines + 12 extra rivals + mutants.",
+    "Not executed: consumer_consistency bi.panels SQL path, Power BI service-snapshot discovery, auditability vs GT005 live-fire, liveness runner: advance."
+  ]
+}

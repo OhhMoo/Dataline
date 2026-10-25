@@ -1,0 +1,49 @@
+# Domain-native surface of the saas_subscription_mrr theme, consumed by the
+# Alkera factory compiler (tasks/factory/compiler) to place faults on real
+# tables, columns and directories. Every name below is verified against
+# workspace/dbt_project/models/, workspace/loader/ingest_webhooks.py,
+# gen.py and theme.yaml.
+theme: saas_subscription_mrr
+
+# Nightly billing feed: write_day lands
+# data/landing/{subscription_events,invoice_webhooks}/dt=YYYY-MM-DD/*.csv
+# (workspace-relative).
+landing_dir: data/landing
+
+# Primary raw event table rebuilt by ingest_webhooks (the billing feed's
+# second table is raw.invoice_webhooks).
+raw_table: raw.subscription_events
+
+# Primary fact: one folded subscription state per account and metric date
+# (grain asserted by dbt_project/tests/assert_fct_mrr_daily_grain.sql).
+fact_table: warehouse.fct_mrr_daily
+
+# No extract/handoff model exists in this theme; the close ledger is the
+# terminal published surface.
+handoff_table: null
+
+# Account-period ASC-606 close ledger (open/closed close_status per period).
+close_window_table: warehouse.revrec_close_window
+
+# No corrections/exception table exists; proration credits are signed rows
+# inside the close ledger, not a separate table.
+corrections_table: null
+
+# Grain of warehouse.fct_mrr_daily.
+grain_keys: [metric_date, account_id]
+
+# Integer-cents money column on the fact (arr_cents derives from it).
+amount_column: mrr_cents
+
+# No row-version column; history is effective-dated via source_event_id.
+version_column: null
+
+# The source day's feed seals at 00:00 UTC on the following day
+# (live.arrival at 00:00, day_offset 1); the nightly chain starts 01:00.
+cutoff_time_utc: "00:00"
+
+# Scheduler jobs, exactly as declared in theme.yaml.
+scheduled_jobs: [ingest_webhooks, fold_subscriptions, revrec_window_close]
+
+# Deployment schedule mirrored from theme.yaml jobs (workspace-relative).
+schedule_file: orchestration/schedule.yml

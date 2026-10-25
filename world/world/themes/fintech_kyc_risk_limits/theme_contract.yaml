@@ -1,0 +1,49 @@
+# Domain-native surface contract for the Alkera RL-environment factory compiler.
+# Every table/column/dir below is verified against gen.py,
+# workspace/loader/load_risk_feeds.py, workspace/dbt_project/models/, and
+# theme.yaml. Concepts this theme genuinely lacks are null - nothing invented.
+theme: fintech_kyc_risk_limits
+
+# Nightly processor feed drop: workspace/data/landing/<entity>/dt=<date>/<entity>.csv
+# written by gen.write_day (arrival at 00:30 covers business date D-1).
+landing_dir: data/landing
+
+# Primary landing table: one row per merchant per business date; it is the
+# calendar driver for the exposure fact's grain (raw.dispute_events,
+# raw.kyc_reviews, and raw.payout_holds are the sibling event feeds).
+raw_table: raw.merchant_volume
+
+fact_table: warehouse.fct_merchant_exposure
+handoff_table: warehouse.treasury_reserve_handoff
+
+# Reserve releases cannot reach treasury until the risk committee/officer
+# gate closes on them; this is the theme's close/sign-off surface.
+close_window_table: warehouse.risk_committee_signoff
+
+# No corrections/exception table exists in this theme (no corrections schema,
+# no adjustment model in dbt, no such loader feed).
+corrections_table: null
+
+# Grain of warehouse.fct_merchant_exposure (pinned by dbt tests
+# assert_exposure_grain.sql and the not_null tests in warehouse/_warehouse.yml).
+grain_keys: [merchant_id, exposure_date]
+
+# Headline money measure of the fact (decimal USD, computed nightly).
+amount_column: reserve_required_amount
+
+# The theme versions nothing: feeds are append-only daily CSVs and no model
+# carries a version/sequence column.
+version_column: null
+
+# Nightly feed cutoff: the arrival lands at 00:30 UTC for business date D-1
+# (theme.yaml live.arrival); the first batch job starts at 01:00 UTC.
+cutoff_time_utc: "00:30"
+
+# Job names exactly as declared in theme.yaml jobs:.
+scheduled_jobs:
+  - risk_feed_load
+  - merchant_exposure_build
+  - reserve_handoff
+
+# Deployment schedule mirrored from theme.yaml jobs (workspace-relative).
+schedule_file: orchestration/schedule.yml

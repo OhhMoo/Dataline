@@ -1,0 +1,36 @@
+version: 2
+models:
+  - name: fct_inventory_position
+    description: End-of-day DC/SKU position in EACH, including open ASN transit and count shrinkage.
+    columns:
+      - name: position_date
+        tests: [not_null]
+      - name: on_hand_each
+        tests: [not_null]
+      - name: in_transit_each
+        tests: [not_null]
+  - name: cycle_count_reconciliation
+    description: One row per physical count; positive shrinkage reduces subsequent book stock.
+    columns:
+      - name: count_id
+        tests: [unique, not_null]
+      - name: reconciliation_status
+        tests:
+          - accepted_values:
+              values: [MATCHED, SHRINKAGE]
+  - name: threepl_settlement_extract
+    description: Daily DC/SKU 3PL invoice extract with integer-cent charges.
+    columns:
+      - name: settlement_id
+        tests: [unique, not_null]
+      - name: total_charge_cents
+        tests: [not_null]
+  - name: customs_cutoff
+    description: Declaration freeze windows evaluated against the latest loaded business day.
+    columns:
+      - name: declaration_id
+        tests: [unique, not_null]
+      - name: window_status
+        tests:
+          - accepted_values:
+              values: [OPEN, FROZEN]

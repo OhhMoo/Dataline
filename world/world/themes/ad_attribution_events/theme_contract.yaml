@@ -1,0 +1,51 @@
+# Domain-native surface of the ad_attribution_events theme, consumed by the
+# Alkera factory compiler (tasks/factory/compiler) to place faults on real
+# tables, columns and directories. Every name below is verified against
+# workspace/dbt_project/models/, workspace/loader/load_events.py,
+# gen.py and theme.yaml.
+theme: ad_attribution_events
+
+# Nightly export feed: write_day lands
+# data/landing/{impressions,clicks,conversions}/dt=YYYY-MM-DD/*.csv
+# (workspace-relative), partitioned by event date (arrival day minus one).
+landing_dir: data/landing
+
+# Primary raw event table: the S2S conversion postbacks the fact table is
+# built from (traffic feeds are raw.impressions / raw.clicks; config feeds
+# are raw.partners / raw.bot_exclusions / raw.attribution_rules).
+raw_table: raw.conversions
+
+# Primary fact: one last-click-attributed row per deduplicated conversion
+# (conversion_id tested not_null + unique in models/warehouse/_warehouse.yml).
+fact_table: warehouse.fct_attributed_conversions
+
+# Partner/day payout extract handed to Partner Finance over SFTP.
+handoff_table: warehouse.partner_payout_handoff
+
+# Immutable locked partner/day amounts eligible for the billing close
+# (dates through max(event_date) - billing_lag_days).
+close_window_table: warehouse.billing_lock
+
+# No corrections/exception table exists; locked rows are never edited -
+# corrections arrive as separate adjustment postbacks in raw.conversions.
+corrections_table: null
+
+# Grain of warehouse.fct_attributed_conversions.
+grain_keys: [conversion_id]
+
+# Integer-cents order revenue on the fact (payout_cents derives from it).
+amount_column: revenue_cents
+
+# No row-version column; postback dedup keeps the earliest received_at per
+# conversion_id instead of versioning rows.
+version_column: null
+
+# The export for event date D lands at D+1 00:30 UTC (live.arrival);
+# the nightly chain starts 01:00.
+cutoff_time_utc: "00:30"
+
+# Scheduler jobs, exactly as declared in theme.yaml.
+scheduled_jobs: [ingest_events, attribute_conversions, lock_partner_billing]
+
+# Deployment schedule mirrored from theme.yaml jobs (workspace-relative).
+schedule_file: orchestration/schedule.yml

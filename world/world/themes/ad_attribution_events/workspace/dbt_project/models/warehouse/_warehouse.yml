@@ -1,0 +1,31 @@
+version: 2
+models:
+  - name: fct_attributed_conversions
+    description: One last-click-attributed row per eligible deduplicated conversion.
+    columns:
+      - name: conversion_id
+        tests: [not_null, unique]
+      - name: click_id
+        tests: [not_null]
+      - name: revenue_cents
+        tests: [not_null]
+      - name: payout_cents
+        tests: [not_null]
+  - name: partner_payout_handoff
+    description: Partner/day payout grain with the nightly billing state.
+    columns:
+      - name: handoff_id
+        tests: [not_null, unique]
+      - name: billing_status
+        tests:
+          - not_null
+          - accepted_values: {values: [open, locked]}
+  - name: billing_lock
+    description: Immutable partner/day amounts eligible for the billing close.
+    columns:
+      - name: lock_id
+        tests: [not_null, unique]
+      - name: handoff_id
+        tests: [not_null, unique]
+      - name: locked_at
+        tests: [not_null]

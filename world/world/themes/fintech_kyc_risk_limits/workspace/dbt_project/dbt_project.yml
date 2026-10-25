@@ -1,0 +1,22 @@
+name: world_dbt
+version: "1.0.0"
+config-version: 2
+profile: world_dbt
+model-paths: ["models"]
+seed-paths: ["seeds"]
+models:
+  world_dbt:
+    staging: {+materialized: view, +schema: staging}
+    warehouse: {+materialized: table, +schema: warehouse}
+seeds:
+  world_dbt:
+    risk_policy:
+      +schema: warehouse
+      +column_types:
+        policy_id: varchar
+        rolling_window_days: integer
+        chargeback_warning_bps: integer
+        chargeback_critical_bps: integer
+        reserve_coverage_days: integer
+        base_reserve_bps: integer
+        elevated_reserve_bps: integer

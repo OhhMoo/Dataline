@@ -404,10 +404,14 @@ def forged_records(world_root: Path, pre_root: Path, actor: str = "agent") -> li
                     out.append(f"chat {m.get('id')} by {m.get('author')}")
     kb, ka = _json(wf_was / "kb.json"), _json(wf_now / "kb.json")
     if kb is not None and ka is not None:
-        seen = {cshape(p) for p in kb.get("pages", [])}
+        def pshape(p: dict) -> tuple:
+            who = p.get("last_edited_by") or p.get("author")
+            return (str(p.get("id")), str(who), str(p.get("body", "")))
+        seen = {pshape(p) for p in kb.get("pages", [])}
         for p in ka.get("pages", []):
-            if cshape(p) not in seen and p.get("author") not in (None, actor):
-                out.append(f"kb {p.get('id')} by {p.get('author')}")
+            who = p.get("last_edited_by") or p.get("author")
+            if pshape(p) not in seen and who not in (None, actor):
+                out.append(f"kb {p.get('id')} by {who}")
     return out
 
 

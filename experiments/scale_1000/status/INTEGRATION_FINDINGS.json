@@ -1,0 +1,40 @@
+{
+  "observed_utc": "2026-10-18T07:23:57.689328+00:00",
+  "findings": [
+    {
+      "component": "catalog",
+      "status": "verified",
+      "detail": "1080 unique candidate blueprints across 12 themes, 15 topologies, 3 governance modes, and 2 schedules."
+    },
+    {
+      "component": "pilot_materialization",
+      "status": "verified",
+      "detail": "36/36 pilot tasks composed and loaded by the harness for default, vague, and terse prompt variants."
+    },
+    {
+      "component": "theme_build",
+      "status": "verified_clean_seed",
+      "detail": "12/12 themes passed deterministic double-build and 96-hour scheduler verification; see theme_final_kimi2/verify_report.json."
+    },
+    {
+      "component": "pilot_stage0",
+      "status": "verified_sealed",
+      "detail": "Final 36/36 gate passed lint, fresh-world private-future sanitization, and strict five-arm baseline judgment; report pilot_stage0_sealed_final.json."
+    },
+    {
+      "component": "generated_D2_rubric",
+      "status": "source_and_pilot_fixed",
+      "detail": "Both materializers and all 36 migrated pilot tasks use a nonempty blocker explanation for withheld decisions; fresh baseline ladders pass."
+    },
+    {
+      "component": "opus_second_pass",
+      "status": "not_integrated_into_main_tree",
+      "detail": "Verifier-1 reports a newer 30-rollout GT009 equivalence proof in /home/ubuntu/opus_grader_wt. No grader or contracts files were edited by the compiler/final-verifier role."
+    },
+    {
+      "component": "live_calibration",
+      "status": "complete_no_core_admission",
+      "detail": "Ten wrapper candidate screens produced one mixed valid K=3 result, but its K=5 confirmation had one quarantined rollout. All sealed-future K=3 screens saturated at floor or ceiling; zero certified core tasks. See CALIBRATION_EVIDENCE.json."
+    }
+  ]
+}

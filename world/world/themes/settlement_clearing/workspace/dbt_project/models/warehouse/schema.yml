@@ -1,0 +1,57 @@
+version: 2
+
+models:
+  - name: fct_payments
+    description: Current non-void state of each payment after highest-version precedence.
+    columns:
+      - name: payment_id
+        tests: [not_null, unique]
+      - name: payment_day
+        tests: [not_null]
+      - name: merchant_id
+        tests: [not_null]
+      - name: amount_cents
+        tests: [not_null]
+      - name: version
+        tests: [not_null]
+  - name: dim_merchant
+    columns:
+      - name: merchant_id
+        tests: [not_null, unique]
+  - name: settlement_handoff
+    description: Bank-facing merchant/day settlement; correction_ref is null for ordinary publication.
+    columns:
+      - name: settlement_day
+        tests: [not_null]
+      - name: merchant_id
+        tests: [not_null]
+      - name: payments
+        tests: [not_null]
+      - name: net_cents
+        tests: [not_null]
+  - name: clearing_window
+    description: Append-only bank cutoff acknowledgement; SETTLED closes a day.
+    columns:
+      - name: closed_on
+        tests: [not_null]
+      - name: settlement_day
+        tests: [not_null]
+      - name: status
+        tests:
+          - accepted_values: {values: [SETTLED, SLA_BREACH]}
+  - name: settlement_corrections
+    description: Registered controller approvals for closed-day corrections.
+  - name: load_checkpoint
+    description: Newest source partition actually present in raw, never a clock-only watermark.
+    columns:
+      - name: through_day
+        tests: [not_null]
+  - name: interchange_ledger
+    description: Integer-cent merchant/day fee reconciliation beside the bank handoff.
+    columns:
+      - name: settlement_day
+        tests: [not_null]
+      - name: merchant_id
+        tests: [not_null]
+      - name: interchange_cents
+        tests: [not_null]

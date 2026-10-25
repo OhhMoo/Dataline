@@ -1,0 +1,11 @@
+version: 2
+sources:
+  - name: raw
+    schema: raw
+    tables:
+      - {name: impressions}
+      - {name: clicks}
+      - {name: conversions}
+      - {name: partners}
+      - {name: bot_exclusions}
+      - {name: attribution_rules}

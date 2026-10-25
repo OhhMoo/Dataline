@@ -1,0 +1,45 @@
+version: 2
+models:
+  - name: stg_claims_current
+    description: Latest 837 version for each synthetic claim.
+    columns:
+      - name: claim_id
+        data_tests: [unique, not_null]
+      - name: claim_version
+        data_tests: [not_null]
+      - name: frequency_code
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: ['1', '7', '8']}
+      - name: provider_id
+        data_tests: [not_null]
+      - name: member_id
+        data_tests: [not_null]
+      - name: service_date
+        data_tests: [not_null]
+      - name: billed_amount
+        data_tests: [not_null]
+  - name: stg_remits_current
+    description: Latest 835 remittance for each synthetic claim.
+    columns:
+      - name: remit_id
+        data_tests: [unique, not_null]
+      - name: claim_id
+        data_tests: [unique, not_null]
+      - name: claim_version
+        data_tests: [not_null]
+      - name: adjudication_status
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [paid, adjusted, denied, voided]}
+  - name: stg_provider_roster
+    description: Latest synthetic provider contract snapshot.
+    columns:
+      - name: provider_id
+        data_tests: [unique, not_null]
+      - name: capitated_members
+        data_tests: [not_null]
+      - name: capitation_pmpm
+        data_tests: [not_null]

@@ -1,0 +1,54 @@
+channels:
+  - id: revenue-close
+    topic: Subscription recognition and Finance close
+    purpose: Daily close coordination between Revenue Accounting and Billing.
+    members: [n.ellis, a.shah, m.costa, t.okafor, financebot, agent]
+    messages:
+      - id: revenue-close/0001
+        author: financebot
+        at: "-3d 01:22"
+        thread_id: null
+        text: Nightly ingest, subscription fold, and revrec close completed. The latest recognition window remains open for review.
+        reactions: {}
+      - id: revenue-close/0002
+        author: a.shah
+        at: "-2d 09:15"
+        thread_id: null
+        text: Please keep invoice credits and MRR movements in separate columns in the review packet. They answer different questions.
+        reactions: {"+1": 2}
+      - id: revenue-close/0003
+        author: m.costa
+        at: "-2d 09:28"
+        thread_id: revenue-close/0002
+        text: Agreed. Billing can supply webhook identifiers for any credit note that needs contract review.
+        reactions: {}
+      - id: revenue-close/0004
+        author: n.ellis
+        at: "-1d 15:40"
+        thread_id: null
+        text: For tomorrow's review, use the close ledger after revrec_window_close finishes rather than an earlier warehouse extract.
+        reactions: {}
+
+  - id: revenue-data
+    topic: Subscription data models and pipeline operations
+    purpose: Model changes, deployments, and source-contract questions.
+    members: [t.okafor, m.costa, a.shah, financebot, agent]
+    messages:
+      - id: revenue-data/0001
+        author: t.okafor
+        at: "-17d 11:10"
+        thread_id: null
+        text: The event feed carries full plan and seat snapshots. Effective date drives the daily fold; emission time only breaks ties.
+        reactions: {}
+      - id: revenue-data/0002
+        author: m.costa
+        at: "-12d 16:05"
+        thread_id: null
+        text: Billing confirmed that credit-note amounts are signed negative and service-period end dates are exclusive.
+        reactions: {"+1": 1}
+      - id: revenue-data/0003
+        author: financebot
+        at: "-1d 01:22"
+        thread_id: null
+        text: fold_subscriptions and revrec_window_close completed successfully; Finance publication is ready.
+        reactions: {}

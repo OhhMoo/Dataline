@@ -1,0 +1,11 @@
+version: 2
+sources:
+  - name: raw
+    schema: raw
+    tables:
+      - name: edi_837_claims
+        description: Synthetic 837 claim versions as received, including replacements and voids.
+      - name: edi_835_remits
+        description: Synthetic 835 remittance for every received claim version.
+      - name: provider_roster
+        description: Synthetic contracted provider and capitation roster snapshot.

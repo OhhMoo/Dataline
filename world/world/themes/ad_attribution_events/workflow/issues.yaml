@@ -1,0 +1,78 @@
+issues:
+  - id: ADN-418
+    title: Confirm partner lock coverage before the weekly payout file
+    body: |-
+      Partner Finance signs the weekly file on Friday. Please confirm that every
+      locked partner/date in the handoff has a billing lock and that the current
+      open dates are clearly separated from the close population.
+    status: todo
+    reporter: lchen
+    assignee: rsilva
+    labels: [partner-billing, close]
+    created_at: "-2d 09:20"
+    updated_at: "-2d 10:05"
+    comments:
+      - id: ADN-418#1
+        author: rsilva
+        at: "-2d 10:05"
+        body: I will check the handoff-to-lock reconciliation after tonight's run.
+    history:
+      - {at: "-2d 09:45", actor: mokafor, field: status, from: backlog, to: todo}
+    links: []
+
+  - id: ADN-421
+    title: Add placement to the partner traffic-quality review
+    body: |-
+      Partner Operations reviews click and exclusion volumes by placement during
+      the Tuesday partner call. Add placement to the working dashboard draft;
+      do not change payout or attribution definitions.
+    status: in_progress
+    reporter: tbrown
+    assignee: mokafor
+    labels: [dashboard, traffic-quality]
+    created_at: "-4d 13:10"
+    updated_at: "-1d 16:30"
+    comments:
+      - id: ADN-421#1
+        author: mokafor
+        at: "-1d 16:30"
+        body: The source columns are present. I am checking the layout with Partner Ops.
+    history:
+      - {at: "-3d 08:50", actor: mokafor, field: status, from: todo, to: in_progress}
+    links: []
+
+  - id: ADN-409
+    title: Document approval route for bot-exclusion changes
+    body: |-
+      The exclusion feed now has a named Ad Quality owner. Record the review and
+      effective-date process so partner-facing teams know when a change applies.
+    status: done
+    reporter: npatel
+    assignee: rsilva
+    labels: [documentation, ad-quality]
+    created_at: "-18d 11:00"
+    updated_at: "-12d 15:45"
+    comments:
+      - id: ADN-409#1
+        author: rsilva
+        at: "-12d 15:45"
+        body: Published under attr/policies/bot-exclusions.
+    history:
+      - {at: "-12d 15:45", actor: npatel, field: status, from: in_progress, to: done}
+    links: []
+
+  - id: ADN-425
+    title: Separate direct conversions in the monthly channel review
+    body: |-
+      The monthly review currently discusses attributed partner conversions only.
+      Direct and unattributed demand needs its own count so nobody interprets the
+      partner table as the whole business.
+    status: backlog
+    reporter: tbrown
+    assignee: null
+    labels: [reporting, enhancement]
+    created_at: "-1d 14:15"
+    updated_at: "-1d 14:15"
+    comments: []
+    history: []
+    links: []

@@ -1,0 +1,7 @@
+method: daily_straight_line
+currency: USD
+amount_unit: integer_cents
+service_period_end: exclusive
+close_grain: [period, account_id]
+closed_period_rule: before_latest_materialized_period
+credit_rule: signed_proration_credits_reduce_net_billing

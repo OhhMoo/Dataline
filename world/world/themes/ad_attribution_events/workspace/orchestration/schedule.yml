@@ -1,0 +1,20 @@
+# Deployment source of truth for the ad_attribution_events nightly, all times UTC.
+feed_window: {lands_at: "00:30"}
+jobs:
+  ingest_events:
+    time: "01:00"
+    command: load_ad_event_exports
+  attribute_conversions:
+    after: {job: ingest_events, minutes: 10}
+    command: dbt_build_attribution
+    publishes:
+      - {target: warehouse.fct_attributed_conversions, kind: table,
+         consumer: attribution-api}
+  lock_partner_billing:
+    after: {job: attribute_conversions, minutes: 10}
+    command: dbt_build_partner_billing
+    publishes:
+      - {target: warehouse.partner_payout_handoff, kind: table,
+         consumer: partner-finance-sftp}
+      - {target: warehouse.billing_lock, kind: table,
+         consumer: billing-close-controls}
