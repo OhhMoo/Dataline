@@ -41,6 +41,7 @@ import argparse
 import copy
 import importlib.util
 import json
+import os
 import shutil
 import sys
 import tempfile
@@ -193,6 +194,9 @@ def report(states: dict) -> int:
 
 
 def main() -> int:
+    # The shipped shell oracle invokes `python`; use the interpreter running
+    # this equivalence command even on hosts with no global python symlink.
+    os.environ["PATH"] = str(Path(sys.executable).parent) + os.pathsep + os.environ.get("PATH", "")
     ap = argparse.ArgumentParser()
     ap.add_argument("--keep", action="store_true",
                     help="leave the staged worlds on disk for inspection")
@@ -220,6 +224,9 @@ def main() -> int:
                             "make_fixture_world")
     rb.W = rb.World(contract)
     rb.CONTRACT_DIR = contract_py.parent
+    # run_baselines.py now keeps the authored contract separately from its
+    # variant-adjusted copy; staging reads this original for virtual_now.
+    rb.CONTRACT_OF_RECORD = contract
 
     import yaml
     manifest = yaml.safe_load(manifest_path.read_text(encoding="utf-8")) or {}

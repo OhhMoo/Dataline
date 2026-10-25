@@ -1,0 +1,96 @@
+version: 1
+retention:
+  days: 21
+metrics:
+  - id: edi_claims_freshness
+    kind: freshness
+    unit: seconds
+    title: 837 landing freshness
+    source: {table: raw.edi_837_claims, timestamp_column: dt}
+  - id: raw_claim_rows
+    kind: row_count
+    unit: rows
+    title: Raw 837 claim versions
+    source: {table: raw.edi_837_claims}
+    series: {bucket_column: dt}
+  - id: adjudicated_claim_rows
+    kind: row_count
+    unit: rows
+    title: Current adjudicated claims
+    source: {table: warehouse.fct_adjudicated_claims}
+    series: {bucket_column: service_date}
+  - id: cob_claims
+    kind: sql_scalar
+    unit: claims
+    title: Current COB claims
+    source:
+      sql: select count(*) from warehouse.fct_adjudicated_claims where cob_flag
+    series:
+      sql: >-
+        select cast(service_date as varchar) as bucket, count(*) as value
+        from warehouse.fct_adjudicated_claims where cob_flag
+        group by service_date order by service_date
+  - id: voided_claims
+    kind: sql_scalar
+    unit: claims
+    title: Claims superseded by a void
+    source:
+      sql: select count(*) from warehouse.fct_adjudicated_claims where frequency_code = '8'
+  - id: latest_cms_eligible_claims
+    kind: sql_scalar
+    unit: claims
+    title: Eligible claims in latest CMS service month
+    source:
+      sql: >-
+        select eligible_claims from warehouse.cms_submission_window
+        order by service_month desc limit 1
+  - id: reserve_handoff_rows
+    kind: row_count
+    unit: rows
+    title: Actuarial reserve handoff rows
+    source: {table: warehouse.actuarial_reserve_handoff}
+    series: {bucket_column: service_date}
+  - id: nightly_edi_load_duration
+    kind: job_duration
+    unit: seconds
+    title: Nightly EDI load duration
+    job: nightly_edi_load
+  - id: nightly_edi_load_error_rate
+    kind: job_error_rate
+    unit: ratio
+    title: Nightly EDI load error rate
+    job: nightly_edi_load
+    window_runs: 10
+  - id: adjudication_build_error_rate
+    kind: job_error_rate
+    unit: ratio
+    title: Adjudication build error rate
+    job: adjudication_build
+    window_runs: 10
+  - id: cms_window_close_duration
+    kind: job_duration
+    unit: seconds
+    title: CMS window build duration
+    job: cms_window_close
+alarms:
+  - id: edi_claims_stale
+    metric: edi_claims_freshness
+    comparison: gt
+    threshold: 180000
+    severity: critical
+    title: 837 deliveries are more than fifty hours old
+    runbook: docs/runbook_nightly.md
+  - id: nightly_edi_load_failing
+    metric: nightly_edi_load_error_rate
+    comparison: gte
+    threshold: 0.2
+    severity: warning
+    title: Nightly EDI loads are failing
+    runbook: docs/runbook_nightly.md
+  - id: adjudication_build_failing
+    metric: adjudication_build_error_rate
+    comparison: gt
+    threshold: 0.0
+    severity: critical
+    title: The adjudication build failed
+    runbook: docs/runbook_nightly.md

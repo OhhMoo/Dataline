@@ -1,0 +1,2 @@
+policy_id,rolling_window_days,chargeback_warning_bps,chargeback_critical_bps,reserve_coverage_days,base_reserve_bps,elevated_reserve_bps
+merchant_risk_policy,30,100,150,7,250,500

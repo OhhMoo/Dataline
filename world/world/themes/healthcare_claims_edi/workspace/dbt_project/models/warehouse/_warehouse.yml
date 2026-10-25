@@ -1,0 +1,73 @@
+version: 2
+models:
+  - name: dim_provider
+    description: Contracted synthetic providers and their capitation terms.
+    columns:
+      - name: provider_id
+        data_tests: [unique, not_null]
+      - name: provider_name
+        data_tests: [not_null]
+      - name: specialty
+        data_tests: [not_null]
+  - name: fct_adjudicated_claims
+    description: One current adjudicated claim per claim_id; voids remain visible with zero payment.
+    columns:
+      - name: claim_id
+        data_tests: [unique, not_null]
+      - name: frequency_code
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: ['1', '7', '8']}
+      - name: provider_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('dim_provider'), field: provider_id}
+      - name: claim_status
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [paid, adjusted, denied, voided]}
+      - name: service_date
+        data_tests: [not_null]
+      - name: payer_paid_amount
+        data_tests: [not_null]
+      - name: cob_adjustment_amount
+        data_tests: [not_null]
+  - name: actuarial_reserve_handoff
+    description: Daily incurred and paid amounts with an age-weighted synthetic IBNR reserve.
+    columns:
+      - name: handoff_id
+        data_tests: [unique, not_null]
+      - name: service_date
+        data_tests: [unique, not_null]
+      - name: data_through_date
+        data_tests: [not_null]
+      - name: ibnr_reserve_amount
+        data_tests: [not_null]
+  - name: provider_capitation_settlement
+    description: Monthly PMPM settlement by provider, less the quality withhold.
+    columns:
+      - name: settlement_id
+        data_tests: [unique, not_null]
+      - name: service_month
+        data_tests: [not_null]
+      - name: provider_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('dim_provider'), field: provider_id}
+      - name: capitation_settlement_amount
+        data_tests: [not_null]
+  - name: cms_submission_window
+    description: Prior-month CMS cutoff calendar and encounter eligibility counts.
+    columns:
+      - name: window_id
+        data_tests: [unique, not_null]
+      - name: service_month
+        data_tests: [unique, not_null]
+      - name: cms_cutoff_at
+        data_tests: [not_null]
+      - name: eligible_claims
+        data_tests: [not_null]

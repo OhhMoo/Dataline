@@ -1,0 +1,48 @@
+# FSDP full-shard config for 1 node x 8x H100-80GB (or 8x A100-80GB), 24k context.
+# Used by run_sft_lora.py / run_offline_rloo_dpo.py via accelerate / Trainer FSDP.
+# Dry-run validity is checked on CPU; this file has not been launched on GPU.
+cluster:
+  nodes: 1
+  gpus_per_node: 8
+  cluster_gpus: 8
+  gpu_model: "H100-80GB or A100-80GB"
+  supported_cluster_gpus: [4, 8]
+model:
+  name_or_path: "Qwen/Qwen2.5-Coder-14B-Instruct"
+  supported_models:
+    - "Qwen/Qwen2.5-Coder-7B-Instruct"
+    - "Qwen/Qwen2.5-Coder-14B-Instruct"
+    - "Qwen/Qwen2.5-Coder-32B-Instruct"
+  torch_dtype: bfloat16
+  attn_implementation: flash_attention_2
+data:
+  max_seq_len: 24576
+  compact_max_tokens: 24576
+  truncation_side: left_obs_first
+  assistant_tokens_truncated: 0
+  train_sft_file: train_sft.jsonl
+  train_grpo_file: train_grpo.jsonl
+  train_dpo_pairs_file: train_dpo_pairs.jsonl
+fsdp:
+  enabled: true
+  sharding_strategy: FULL_SHARD
+  auto_wrap_policy: TRANSFORMER_BASED_AUTO_WRAP
+  backward_prefetch: BACKWARD_PRE
+  forward_prefetch: true
+  use_orig_params: true
+  cpu_offload: false
+  activation_checkpointing: true
+training:
+  per_device_train_batch_size: 1
+  gradient_accumulation_steps: 8
+  learning_rate: 0.0001
+  lr_scheduler_type: cosine
+  warmup_ratio: 0.03
+  num_train_epochs: 2
+  bf16: true
+  gradient_checkpointing: true
+  logging_steps: 1
+  save_strategy: "no"
+dpo:
+  beta: 0.1
+  loss: "-log sigmoid(beta*((pol_chosen-ref_chosen)-(pol_rejected-ref_rejected)))"

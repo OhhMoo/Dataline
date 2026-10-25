@@ -1,7 +1,8 @@
 {
   "schema": "acceptance/1",
-  "generated_at": "2026-10-13T09:15:47+00:00",
-  "git_head": "d9b8a8ce6ab91b2a2e7449edadd2d6fb921b7c70",
+  "generated_at": "2026-10-24T09:50:00+00:00",
+  "git_head": "7c79689a39065a0b341391ef1175f05ff48efbf8",
+  "repin_note": "2026-10-24: re-pinned for merged main (sql_operation in macros/relations.sql) + factory workspace docs (reconciliation_sla.md and architecture_overview.md across 12 themes). Warehouse/scheduler/bi/live sections and the four native discovery-file byte pins unchanged.",
   "world_tree_dirty": true,
   "python": "3.11.17",
   "gates_passed": [
@@ -18,8 +19,8 @@
     "6",
     "7"
   ],
-  "gate1_host_semantic_hash": "d5576283a3666e1713810d51591de484b109e83b382d8c9dfbea81957e76ea01",
-  "gate3_container_semantic_hash": "d5576283a3666e1713810d51591de484b109e83b382d8c9dfbea81957e76ea01",
+  "gate1_host_semantic_hash": "e27034044b1733c192cd8797a6ba7244d0e26fa32d8d2622465787179ea6d3a3",
+  "gate3_container_semantic_hash": "e27034044b1733c192cd8797a6ba7244d0e26fa32d8d2622465787179ea6d3a3",
   "cross_host": true,
   "gate7_grading_unreachable": {
     "ran": true,

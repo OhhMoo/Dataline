@@ -1,0 +1,1697 @@
+{
+ "agent": "opus",
+ "phase": "1020",
+ "grader": "/home/ubuntu/opus_p3_wt (source_partition tolerance), installed to main after this audit",
+ "root": "/home/ubuntu/alkera_factory_1017/runs_phase2",
+ "read_only": true,
+ "containers_launched": false,
+ "rollouts": 39,
+ "errors": 0,
+ "score_changed": 27,
+ "pass_changed": 25,
+ "regressions": [],
+ "runs": [
+  {
+   "task": "FT0047-settlement-clearing-ft08-hold-b",
+   "run_id": "clean-20261021-k3-stage1-20261020T231632263850Z-69b316a1",
+   "rollouts": 3,
+   "old": {
+    "passed": 1,
+    "scored": 3,
+    "pass_at_1": 0.3333,
+    "in_band": true
+   },
+   "new": {
+    "passed": 3,
+    "scored": 3,
+    "pass_at_1": 1.0,
+    "in_band": false
+   },
+   "old_totals": [
+    20.0,
+    6.0,
+    6.0
+   ],
+   "new_totals": [
+    20.0,
+    20.0,
+    20.0
+   ]
+  },
+  {
+   "task": "FT0047-settlement-clearing-ft08-hold-b",
+   "run_id": "clean-20261021-k5-stage2-20261021T023103967752Z-f22c4faf",
+   "rollouts": 5,
+   "old": {
+    "passed": 1,
+    "scored": 5,
+    "pass_at_1": 0.2,
+    "in_band": true
+   },
+   "new": {
+    "passed": 5,
+    "scored": 5,
+    "pass_at_1": 1.0,
+    "in_band": false
+   },
+   "old_totals": [
+    6.0,
+    6.0,
+    20.0,
+    6.0,
+    6.0
+   ],
+   "new_totals": [
+    20.0,
+    20.0,
+    20.0,
+    20.0,
+    20.0
+   ]
+  },
+  {
+   "task": "FT0385-mainframe-batch-ft05-auth-a",
+   "run_id": "clean-20261021-k3-stage1-20261020T231632263850Z-69b316a1",
+   "rollouts": 3,
+   "old": {
+    "passed": 0,
+    "scored": 3,
+    "pass_at_1": 0.0,
+    "in_band": false
+   },
+   "new": {
+    "passed": 3,
+    "scored": 3,
+    "pass_at_1": 1.0,
+    "in_band": false
+   },
+   "old_totals": [
+    6.0,
+    6.0,
+    6.0
+   ],
+   "new_totals": [
+    20.0,
+    20.0,
+    20.0
+   ]
+  },
+  {
+   "task": "FT0386-mainframe-batch-ft05-hold-a",
+   "run_id": "clean-20261021-k3-stage1-20261020T231632263850Z-69b316a1",
+   "rollouts": 3,
+   "old": {
+    "passed": 0,
+    "scored": 3,
+    "pass_at_1": 0.0,
+    "in_band": false
+   },
+   "new": {
+    "passed": 2,
+    "scored": 3,
+    "pass_at_1": 0.6667,
+    "in_band": true
+   },
+   "old_totals": [
+    6.0,
+    6.0,
+    6.0
+   ],
+   "new_totals": [
+    10.0,
+    20.0,
+    20.0
+   ]
+  },
+  {
+   "task": "FT0387-mainframe-batch-ft05-esc-a",
+   "run_id": "clean-20261021-k3-stage1-20261020T231632263850Z-69b316a1",
+   "rollouts": 3,
+   "old": {
+    "passed": 0,
+    "scored": 3,
+    "pass_at_1": 0.0,
+    "in_band": false
+   },
+   "new": {
+    "passed": 3,
+    "scored": 3,
+    "pass_at_1": 1.0,
+    "in_band": false
+   },
+   "old_totals": [
+    6.0,
+    6.0,
+    6.0
+   ],
+   "new_totals": [
+    20.0,
+    20.0,
+    20.0
+   ]
+  },
+  {
+   "task": "FT0676-ad-attribution-events-ft08-auth-b",
+   "run_id": "clean-20261021-k3-stage1-20261020T231632263850Z-69b316a1",
+   "rollouts": 3,
+   "old": {
+    "passed": 2,
+    "scored": 3,
+    "pass_at_1": 0.6667,
+    "in_band": true
+   },
+   "new": {
+    "passed": 3,
+    "scored": 3,
+    "pass_at_1": 1.0,
+    "in_band": false
+   },
+   "old_totals": [
+    20.0,
+    6.0,
+    20.0
+   ],
+   "new_totals": [
+    20.0,
+    20.0,
+    20.0
+   ]
+  },
+  {
+   "task": "FT0676-ad-attribution-events-ft08-auth-b",
+   "run_id": "clean-20261021-k5-stage2-20261021T023103967752Z-f22c4faf",
+   "rollouts": 5,
+   "old": {
+    "passed": 1,
+    "scored": 5,
+    "pass_at_1": 0.2,
+    "in_band": true
+   },
+   "new": {
+    "passed": 5,
+    "scored": 5,
+    "pass_at_1": 1.0,
+    "in_band": false
+   },
+   "old_totals": [
+    6.0,
+    6.0,
+    20.0,
+    6.0,
+    6.0
+   ],
+   "new_totals": [
+    20.0,
+    20.0,
+    20.0,
+    20.0,
+    20.0
+   ]
+  },
+  {
+   "task": "FT0677-ad-attribution-events-ft08-hold-b",
+   "run_id": "clean-20261018-k3-stage1-20261018T162455776383Z",
+   "rollouts": 3,
+   "old": {
+    "passed": 1,
+    "scored": 3,
+    "pass_at_1": 0.3333,
+    "in_band": true
+   },
+   "new": {
+    "passed": 2,
+    "scored": 3,
+    "pass_at_1": 0.6667,
+    "in_band": true
+   },
+   "old_totals": [
+    6.0,
+    20.0,
+    6.0
+   ],
+   "new_totals": [
+    6.0,
+    20.0,
+    20.0
+   ]
+  },
+  {
+   "task": "FT0677-ad-attribution-events-ft08-hold-b",
+   "run_id": "clean-20261018-k5-stage2-20261018T214500533926Z",
+   "rollouts": 5,
+   "old": {
+    "passed": 2,
+    "scored": 5,
+    "pass_at_1": 0.4,
+    "in_band": true
+   },
+   "new": {
+    "passed": 4,
+    "scored": 5,
+    "pass_at_1": 0.8,
+    "in_band": true
+   },
+   "old_totals": [
+    6.0,
+    20.0,
+    6.0,
+    20.0,
+    6.0
+   ],
+   "new_totals": [
+    6.0,
+    20.0,
+    20.0,
+    20.0,
+    20.0
+   ]
+  },
+  {
+   "task": "FT0678-ad-attribution-events-ft08-esc-b",
+   "run_id": "clean-20261021-k3-stage1-20261020T231632263850Z-69b316a1",
+   "rollouts": 3,
+   "old": {
+    "passed": 0,
+    "scored": 3,
+    "pass_at_1": 0.0,
+    "in_band": false
+   },
+   "new": {
+    "passed": 1,
+    "scored": 3,
+    "pass_at_1": 0.3333,
+    "in_band": true
+   },
+   "old_totals": [
+    6.0,
+    6.0,
+    6.0
+   ],
+   "new_totals": [
+    6.0,
+    6.0,
+    20.0
+   ]
+  },
+  {
+   "task": "FT0836-healthcare-claims-edi-ft05-hold-a",
+   "run_id": "clean-20261021-k3-stage1-20261020T231632263850Z-69b316a1",
+   "rollouts": 3,
+   "old": {
+    "passed": 0,
+    "scored": 3,
+    "pass_at_1": 0.0,
+    "in_band": false
+   },
+   "new": {
+    "passed": 2,
+    "scored": 3,
+    "pass_at_1": 0.6667,
+    "in_band": true
+   },
+   "old_totals": [
+    6.0,
+    6.0,
+    6.0
+   ],
+   "new_totals": [
+    20.0,
+    20.0,
+    10.0
+   ]
+  }
+ ],
+ "per_rollout": [
+  {
+   "task": "FT0385-mainframe-batch-ft05-auth-a",
+   "run_id": "clean-20261021-k3-stage1-20261020T231632263850Z-69b316a1",
+   "rollout_id": "r0",
+   "scored": true,
+   "old_classification": "reasoning",
+   "old_total": 6.0,
+   "old_passed": false,
+   "new_total": 20.0,
+   "new_passed": true,
+   "checks_flipped": {
+    "C0": [
+     false,
+     true
+    ],
+    "R1": [
+     false,
+     true
+    ],
+    "R2": [
+     false,
+     true
+    ],
+    "R3": [
+     false,
+     true
+    ],
+    "R4": [
+     false,
+     true
+    ],
+    "D3": [
+     false,
+     true
+    ]
+   },
+   "nights_relabelled": [
+    "R1",
+    "R2",
+    "R3",
+    "R4",
+    "D3"
+   ],
+   "c0_issues": []
+  },
+  {
+   "task": "FT0385-mainframe-batch-ft05-auth-a",
+   "run_id": "clean-20261021-k3-stage1-20261020T231632263850Z-69b316a1",
+   "rollout_id": "r1",
+   "scored": true,
+   "old_classification": "reasoning",
+   "old_total": 6.0,
+   "old_passed": false,
+   "new_total": 20.0,
+   "new_passed": true,
+   "checks_flipped": {
+    "C0": [
+     false,
+     true
+    ],
+    "R1": [
+     false,
+     true
+    ],
+    "R2": [
+     false,
+     true
+    ],
+    "R3": [
+     false,
+     true
+    ],
+    "R4": [
+     false,
+     true
+    ],
+    "D3": [
+     false,
+     true
+    ]
+   },
+   "nights_relabelled": [
+    "R1",
+    "R2",
+    "R3",
+    "R4",
+    "D3"
+   ],
+   "c0_issues": []
+  },
+  {
+   "task": "FT0385-mainframe-batch-ft05-auth-a",
+   "run_id": "clean-20261021-k3-stage1-20261020T231632263850Z-69b316a1",
+   "rollout_id": "r2",
+   "scored": true,
+   "old_classification": "reasoning",
+   "old_total": 6.0,
+   "old_passed": false,
+   "new_total": 20.0,
+   "new_passed": true,
+   "checks_flipped": {
+    "C0": [
+     false,
+     true
+    ],
+    "R1": [
+     false,
+     true
+    ],
+    "R2": [
+     false,
+     true
+    ],
+    "R3": [
+     false,
+     true
+    ],
+    "R4": [
+     false,
+     true
+    ],
+    "D3": [
+     false,
+     true
+    ]
+   },
+   "nights_relabelled": [
+    "R1",
+    "R2",
+    "R3",
+    "R4",
+    "D3"
+   ],
+   "c0_issues": []
+  },
+  {
+   "task": "FT0386-mainframe-batch-ft05-hold-a",
+   "run_id": "clean-20261021-k3-stage1-20261020T231632263850Z-69b316a1",
+   "rollout_id": "r0",
+   "scored": true,
+   "old_classification": "reasoning",
+   "old_total": 6.0,
+   "old_passed": false,
+   "new_total": 10.0,
+   "new_passed": false,
+   "checks_flipped": {
+    "C0": [
+     false,
+     true
+    ],
+    "R1": [
+     false,
+     true
+    ]
+   },
+   "nights_relabelled": [
+    "R1",
+    "R2",
+    "R3",
+    "R4",
+    "D3"
+   ],
+   "c0_issues": []
+  },
+  {
+   "task": "FT0386-mainframe-batch-ft05-hold-a",
+   "run_id": "clean-20261021-k3-stage1-20261020T231632263850Z-69b316a1",
+   "rollout_id": "r1",
+   "scored": true,
+   "old_classification": "tool_gap",
+   "old_total": 6.0,
+   "old_passed": false,
+   "new_total": 20.0,
+   "new_passed": true,
+   "checks_flipped": {
+    "C0": [
+     false,
+     true
+    ],
+    "R1": [
+     false,
+     true
+    ],
+    "R2": [
+     false,
+     true
+    ],
+    "R3": [
+     false,
+     true
+    ],
+    "R4": [
+     false,
+     true
+    ],
+    "D3": [
+     false,
+     true
+    ]
+   },
+   "nights_relabelled": [
+    "R1",
+    "R2",
+    "R3",
+    "R4",
+    "D3"
+   ],
+   "c0_issues": []
+  },
+  {
+   "task": "FT0386-mainframe-batch-ft05-hold-a",
+   "run_id": "clean-20261021-k3-stage1-20261020T231632263850Z-69b316a1",
+   "rollout_id": "r2",
+   "scored": true,
+   "old_classification": "reasoning",
+   "old_total": 6.0,
+   "old_passed": false,
+   "new_total": 20.0,
+   "new_passed": true,
+   "checks_flipped": {
+    "C0": [
+     false,
+     true
+    ],
+    "R1": [
+     false,
+     true
+    ],
+    "R2": [
+     false,
+     true
+    ],
+    "R3": [
+     false,
+     true
+    ],
+    "R4": [
+     false,
+     true
+    ],
+    "D3": [
+     false,
+     true
+    ]
+   },
+   "nights_relabelled": [
+    "R1",
+    "R2",
+    "R3",
+    "R4",
+    "D3"
+   ],
+   "c0_issues": []
+  },
+  {
+   "task": "FT0387-mainframe-batch-ft05-esc-a",
+   "run_id": "clean-20261021-k3-stage1-20261020T231632263850Z-69b316a1",
+   "rollout_id": "r0",
+   "scored": true,
+   "old_classification": "reasoning",
+   "old_total": 6.0,
+   "old_passed": false,
+   "new_total": 20.0,
+   "new_passed": true,
+   "checks_flipped": {
+    "C0": [
+     false,
+     true
+    ],
+    "R1": [
+     false,
+     true
+    ],
+    "R2": [
+     false,
+     true
+    ],
+    "R3": [
+     false,
+     true
+    ],
+    "R4": [
+     false,
+     true
+    ],
+    "D3": [
+     false,
+     true
+    ]
+   },
+   "nights_relabelled": [
+    "R1",
+    "R2",
+    "R3",
+    "R4",
+    "D3"
+   ],
+   "c0_issues": []
+  },
+  {
+   "task": "FT0387-mainframe-batch-ft05-esc-a",
+   "run_id": "clean-20261021-k3-stage1-20261020T231632263850Z-69b316a1",
+   "rollout_id": "r1",
+   "scored": true,
+   "old_classification": "reasoning",
+   "old_total": 6.0,
+   "old_passed": false,
+   "new_total": 20.0,
+   "new_passed": true,
+   "checks_flipped": {
+    "C0": [
+     false,
+     true
+    ],
+    "R1": [
+     false,
+     true
+    ],
+    "R2": [
+     false,
+     true
+    ],
+    "R3": [
+     false,
+     true
+    ],
+    "R4": [
+     false,
+     true
+    ],
+    "D3": [
+     false,
+     true
+    ]
+   },
+   "nights_relabelled": [
+    "R1",
+    "R2",
+    "R3",
+    "R4",
+    "D3"
+   ],
+   "c0_issues": []
+  },
+  {
+   "task": "FT0387-mainframe-batch-ft05-esc-a",
+   "run_id": "clean-20261021-k3-stage1-20261020T231632263850Z-69b316a1",
+   "rollout_id": "r2",
+   "scored": true,
+   "old_classification": "reasoning",
+   "old_total": 6.0,
+   "old_passed": false,
+   "new_total": 20.0,
+   "new_passed": true,
+   "checks_flipped": {
+    "C0": [
+     false,
+     true
+    ],
+    "R1": [
+     false,
+     true
+    ],
+    "R2": [
+     false,
+     true
+    ],
+    "R3": [
+     false,
+     true
+    ],
+    "R4": [
+     false,
+     true
+    ],
+    "D3": [
+     false,
+     true
+    ]
+   },
+   "nights_relabelled": [
+    "R1",
+    "R2",
+    "R3",
+    "R4",
+    "D3"
+   ],
+   "c0_issues": []
+  },
+  {
+   "task": "FT0836-healthcare-claims-edi-ft05-hold-a",
+   "run_id": "clean-20261021-k3-stage1-20261020T231632263850Z-69b316a1",
+   "rollout_id": "r0",
+   "scored": true,
+   "old_classification": "reasoning",
+   "old_total": 6.0,
+   "old_passed": false,
+   "new_total": 20.0,
+   "new_passed": true,
+   "checks_flipped": {
+    "C0": [
+     false,
+     true
+    ],
+    "R1": [
+     false,
+     true
+    ],
+    "R2": [
+     false,
+     true
+    ],
+    "R3": [
+     false,
+     true
+    ],
+    "R4": [
+     false,
+     true
+    ],
+    "D3": [
+     false,
+     true
+    ]
+   },
+   "nights_relabelled": [
+    "R1",
+    "R2",
+    "R3",
+    "R4",
+    "D3"
+   ],
+   "c0_issues": []
+  },
+  {
+   "task": "FT0836-healthcare-claims-edi-ft05-hold-a",
+   "run_id": "clean-20261021-k3-stage1-20261020T231632263850Z-69b316a1",
+   "rollout_id": "r1",
+   "scored": true,
+   "old_classification": "reasoning",
+   "old_total": 6.0,
+   "old_passed": false,
+   "new_total": 20.0,
+   "new_passed": true,
+   "checks_flipped": {
+    "C0": [
+     false,
+     true
+    ],
+    "R1": [
+     false,
+     true
+    ],
+    "R2": [
+     false,
+     true
+    ],
+    "R3": [
+     false,
+     true
+    ],
+    "R4": [
+     false,
+     true
+    ],
+    "D3": [
+     false,
+     true
+    ]
+   },
+   "nights_relabelled": [
+    "R1",
+    "R2",
+    "R3",
+    "R4",
+    "D3"
+   ],
+   "c0_issues": []
+  },
+  {
+   "task": "FT0836-healthcare-claims-edi-ft05-hold-a",
+   "run_id": "clean-20261021-k3-stage1-20261020T231632263850Z-69b316a1",
+   "rollout_id": "r2",
+   "scored": true,
+   "old_classification": "reasoning",
+   "old_total": 6.0,
+   "old_passed": false,
+   "new_total": 10.0,
+   "new_passed": false,
+   "checks_flipped": {
+    "C0": [
+     false,
+     true
+    ],
+    "R1": [
+     false,
+     true
+    ]
+   },
+   "nights_relabelled": [
+    "R1",
+    "R2",
+    "R3",
+    "R4",
+    "D3"
+   ],
+   "c0_issues": []
+  },
+  {
+   "task": "FT0678-ad-attribution-events-ft08-esc-b",
+   "run_id": "clean-20261021-k3-stage1-20261020T231632263850Z-69b316a1",
+   "rollout_id": "r0",
+   "scored": true,
+   "old_classification": "reasoning",
+   "old_total": 6.0,
+   "old_passed": false,
+   "new_total": 6.0,
+   "new_passed": false,
+   "checks_flipped": {},
+   "nights_relabelled": [
+    "R1",
+    "R2",
+    "R3",
+    "R4",
+    "D3"
+   ],
+   "c0_issues": [
+    "warehouse.fct_factory_events: 1 extra, 1 missing rows",
+    "warehouse.factory_handoff: 1 extra, 1 missing rows"
+   ]
+  },
+  {
+   "task": "FT0678-ad-attribution-events-ft08-esc-b",
+   "run_id": "clean-20261021-k3-stage1-20261020T231632263850Z-69b316a1",
+   "rollout_id": "r1",
+   "scored": true,
+   "old_classification": "reasoning",
+   "old_total": 6.0,
+   "old_passed": false,
+   "new_total": 6.0,
+   "new_passed": false,
+   "checks_flipped": {},
+   "nights_relabelled": [],
+   "c0_issues": [
+    "warehouse.fct_factory_events: 1 extra, 1 missing rows",
+    "warehouse.factory_handoff: 1 extra, 1 missing rows"
+   ]
+  },
+  {
+   "task": "FT0678-ad-attribution-events-ft08-esc-b",
+   "run_id": "clean-20261021-k3-stage1-20261020T231632263850Z-69b316a1",
+   "rollout_id": "r2",
+   "scored": true,
+   "old_classification": "reasoning",
+   "old_total": 6.0,
+   "old_passed": false,
+   "new_total": 20.0,
+   "new_passed": true,
+   "checks_flipped": {
+    "C0": [
+     false,
+     true
+    ],
+    "R1": [
+     false,
+     true
+    ],
+    "R2": [
+     false,
+     true
+    ],
+    "R3": [
+     false,
+     true
+    ],
+    "R4": [
+     false,
+     true
+    ],
+    "D3": [
+     false,
+     true
+    ]
+   },
+   "nights_relabelled": [
+    "R1",
+    "R2",
+    "R3",
+    "R4",
+    "D3"
+   ],
+   "c0_issues": []
+  },
+  {
+   "task": "FT0047-settlement-clearing-ft08-hold-b",
+   "run_id": "clean-20261021-k3-stage1-20261020T231632263850Z-69b316a1",
+   "rollout_id": "r0",
+   "scored": true,
+   "old_classification": "pass",
+   "old_total": 20.0,
+   "old_passed": true,
+   "new_total": 20.0,
+   "new_passed": true,
+   "checks_flipped": {},
+   "nights_relabelled": [],
+   "c0_issues": []
+  },
+  {
+   "task": "FT0047-settlement-clearing-ft08-hold-b",
+   "run_id": "clean-20261021-k3-stage1-20261020T231632263850Z-69b316a1",
+   "rollout_id": "r1",
+   "scored": true,
+   "old_classification": "reasoning",
+   "old_total": 6.0,
+   "old_passed": false,
+   "new_total": 20.0,
+   "new_passed": true,
+   "checks_flipped": {
+    "C0": [
+     false,
+     true
+    ],
+    "R1": [
+     false,
+     true
+    ],
+    "R2": [
+     false,
+     true
+    ],
+    "R3": [
+     false,
+     true
+    ],
+    "R4": [
+     false,
+     true
+    ],
+    "D3": [
+     false,
+     true
+    ]
+   },
+   "nights_relabelled": [
+    "R1",
+    "R2",
+    "R3",
+    "R4",
+    "D3"
+   ],
+   "c0_issues": []
+  },
+  {
+   "task": "FT0047-settlement-clearing-ft08-hold-b",
+   "run_id": "clean-20261021-k3-stage1-20261020T231632263850Z-69b316a1",
+   "rollout_id": "r2",
+   "scored": true,
+   "old_classification": "reasoning",
+   "old_total": 6.0,
+   "old_passed": false,
+   "new_total": 20.0,
+   "new_passed": true,
+   "checks_flipped": {
+    "C0": [
+     false,
+     true
+    ],
+    "R1": [
+     false,
+     true
+    ],
+    "R2": [
+     false,
+     true
+    ],
+    "R3": [
+     false,
+     true
+    ],
+    "R4": [
+     false,
+     true
+    ],
+    "D3": [
+     false,
+     true
+    ]
+   },
+   "nights_relabelled": [
+    "R1",
+    "R2",
+    "R3",
+    "R4",
+    "D3"
+   ],
+   "c0_issues": []
+  },
+  {
+   "task": "FT0047-settlement-clearing-ft08-hold-b",
+   "run_id": "clean-20261021-k5-stage2-20261021T023103967752Z-f22c4faf",
+   "rollout_id": "r0",
+   "scored": true,
+   "old_classification": "reasoning",
+   "old_total": 6.0,
+   "old_passed": false,
+   "new_total": 20.0,
+   "new_passed": true,
+   "checks_flipped": {
+    "C0": [
+     false,
+     true
+    ],
+    "R1": [
+     false,
+     true
+    ],
+    "R2": [
+     false,
+     true
+    ],
+    "R3": [
+     false,
+     true
+    ],
+    "R4": [
+     false,
+     true
+    ],
+    "D3": [
+     false,
+     true
+    ]
+   },
+   "nights_relabelled": [
+    "R1",
+    "R2",
+    "R3",
+    "R4",
+    "D3"
+   ],
+   "c0_issues": []
+  },
+  {
+   "task": "FT0047-settlement-clearing-ft08-hold-b",
+   "run_id": "clean-20261021-k5-stage2-20261021T023103967752Z-f22c4faf",
+   "rollout_id": "r1",
+   "scored": true,
+   "old_classification": "reasoning",
+   "old_total": 6.0,
+   "old_passed": false,
+   "new_total": 20.0,
+   "new_passed": true,
+   "checks_flipped": {
+    "C0": [
+     false,
+     true
+    ],
+    "R1": [
+     false,
+     true
+    ],
+    "R2": [
+     false,
+     true
+    ],
+    "R3": [
+     false,
+     true
+    ],
+    "R4": [
+     false,
+     true
+    ],
+    "D3": [
+     false,
+     true
+    ]
+   },
+   "nights_relabelled": [
+    "R1",
+    "R2",
+    "R3",
+    "R4",
+    "D3"
+   ],
+   "c0_issues": []
+  },
+  {
+   "task": "FT0047-settlement-clearing-ft08-hold-b",
+   "run_id": "clean-20261021-k5-stage2-20261021T023103967752Z-f22c4faf",
+   "rollout_id": "r2",
+   "scored": true,
+   "old_classification": "pass",
+   "old_total": 20.0,
+   "old_passed": true,
+   "new_total": 20.0,
+   "new_passed": true,
+   "checks_flipped": {},
+   "nights_relabelled": [],
+   "c0_issues": []
+  },
+  {
+   "task": "FT0047-settlement-clearing-ft08-hold-b",
+   "run_id": "clean-20261021-k5-stage2-20261021T023103967752Z-f22c4faf",
+   "rollout_id": "r3",
+   "scored": true,
+   "old_classification": "reasoning",
+   "old_total": 6.0,
+   "old_passed": false,
+   "new_total": 20.0,
+   "new_passed": true,
+   "checks_flipped": {
+    "C0": [
+     false,
+     true
+    ],
+    "R1": [
+     false,
+     true
+    ],
+    "R2": [
+     false,
+     true
+    ],
+    "R3": [
+     false,
+     true
+    ],
+    "R4": [
+     false,
+     true
+    ],
+    "D3": [
+     false,
+     true
+    ]
+   },
+   "nights_relabelled": [
+    "R1",
+    "R2",
+    "R3",
+    "R4",
+    "D3"
+   ],
+   "c0_issues": []
+  },
+  {
+   "task": "FT0047-settlement-clearing-ft08-hold-b",
+   "run_id": "clean-20261021-k5-stage2-20261021T023103967752Z-f22c4faf",
+   "rollout_id": "r4",
+   "scored": true,
+   "old_classification": "reasoning",
+   "old_total": 6.0,
+   "old_passed": false,
+   "new_total": 20.0,
+   "new_passed": true,
+   "checks_flipped": {
+    "C0": [
+     false,
+     true
+    ],
+    "R1": [
+     false,
+     true
+    ],
+    "R2": [
+     false,
+     true
+    ],
+    "R3": [
+     false,
+     true
+    ],
+    "R4": [
+     false,
+     true
+    ],
+    "D3": [
+     false,
+     true
+    ]
+   },
+   "nights_relabelled": [
+    "R1",
+    "R2",
+    "R3",
+    "R4",
+    "D3"
+   ],
+   "c0_issues": []
+  },
+  {
+   "task": "FT0676-ad-attribution-events-ft08-auth-b",
+   "run_id": "clean-20261021-k3-stage1-20261020T231632263850Z-69b316a1",
+   "rollout_id": "r0",
+   "scored": true,
+   "old_classification": "pass",
+   "old_total": 20.0,
+   "old_passed": true,
+   "new_total": 20.0,
+   "new_passed": true,
+   "checks_flipped": {},
+   "nights_relabelled": [],
+   "c0_issues": []
+  },
+  {
+   "task": "FT0676-ad-attribution-events-ft08-auth-b",
+   "run_id": "clean-20261021-k3-stage1-20261020T231632263850Z-69b316a1",
+   "rollout_id": "r1",
+   "scored": true,
+   "old_classification": "reasoning",
+   "old_total": 6.0,
+   "old_passed": false,
+   "new_total": 20.0,
+   "new_passed": true,
+   "checks_flipped": {
+    "C0": [
+     false,
+     true
+    ],
+    "R1": [
+     false,
+     true
+    ],
+    "R2": [
+     false,
+     true
+    ],
+    "R3": [
+     false,
+     true
+    ],
+    "R4": [
+     false,
+     true
+    ],
+    "D3": [
+     false,
+     true
+    ]
+   },
+   "nights_relabelled": [
+    "R1",
+    "R2",
+    "R3",
+    "R4",
+    "D3"
+   ],
+   "c0_issues": []
+  },
+  {
+   "task": "FT0676-ad-attribution-events-ft08-auth-b",
+   "run_id": "clean-20261021-k3-stage1-20261020T231632263850Z-69b316a1",
+   "rollout_id": "r2",
+   "scored": true,
+   "old_classification": "pass",
+   "old_total": 20.0,
+   "old_passed": true,
+   "new_total": 20.0,
+   "new_passed": true,
+   "checks_flipped": {},
+   "nights_relabelled": [],
+   "c0_issues": []
+  },
+  {
+   "task": "FT0676-ad-attribution-events-ft08-auth-b",
+   "run_id": "clean-20261021-k5-stage2-20261021T023103967752Z-f22c4faf",
+   "rollout_id": "r0",
+   "scored": true,
+   "old_classification": "tool_gap",
+   "old_total": 6.0,
+   "old_passed": false,
+   "new_total": 20.0,
+   "new_passed": true,
+   "checks_flipped": {
+    "C0": [
+     false,
+     true
+    ],
+    "R1": [
+     false,
+     true
+    ],
+    "R2": [
+     false,
+     true
+    ],
+    "R3": [
+     false,
+     true
+    ],
+    "R4": [
+     false,
+     true
+    ],
+    "D3": [
+     false,
+     true
+    ]
+   },
+   "nights_relabelled": [
+    "R1",
+    "R2",
+    "R3",
+    "R4",
+    "D3"
+   ],
+   "c0_issues": []
+  },
+  {
+   "task": "FT0676-ad-attribution-events-ft08-auth-b",
+   "run_id": "clean-20261021-k5-stage2-20261021T023103967752Z-f22c4faf",
+   "rollout_id": "r1",
+   "scored": true,
+   "old_classification": "reasoning",
+   "old_total": 6.0,
+   "old_passed": false,
+   "new_total": 20.0,
+   "new_passed": true,
+   "checks_flipped": {
+    "C0": [
+     false,
+     true
+    ],
+    "R1": [
+     false,
+     true
+    ],
+    "R2": [
+     false,
+     true
+    ],
+    "R3": [
+     false,
+     true
+    ],
+    "R4": [
+     false,
+     true
+    ],
+    "D3": [
+     false,
+     true
+    ]
+   },
+   "nights_relabelled": [
+    "R1",
+    "R2",
+    "R3",
+    "R4",
+    "D3"
+   ],
+   "c0_issues": []
+  },
+  {
+   "task": "FT0676-ad-attribution-events-ft08-auth-b",
+   "run_id": "clean-20261021-k5-stage2-20261021T023103967752Z-f22c4faf",
+   "rollout_id": "r2",
+   "scored": true,
+   "old_classification": "pass",
+   "old_total": 20.0,
+   "old_passed": true,
+   "new_total": 20.0,
+   "new_passed": true,
+   "checks_flipped": {},
+   "nights_relabelled": [],
+   "c0_issues": []
+  },
+  {
+   "task": "FT0676-ad-attribution-events-ft08-auth-b",
+   "run_id": "clean-20261021-k5-stage2-20261021T023103967752Z-f22c4faf",
+   "rollout_id": "r3",
+   "scored": true,
+   "old_classification": "reasoning",
+   "old_total": 6.0,
+   "old_passed": false,
+   "new_total": 20.0,
+   "new_passed": true,
+   "checks_flipped": {
+    "C0": [
+     false,
+     true
+    ],
+    "R1": [
+     false,
+     true
+    ],
+    "R2": [
+     false,
+     true
+    ],
+    "R3": [
+     false,
+     true
+    ],
+    "R4": [
+     false,
+     true
+    ],
+    "D3": [
+     false,
+     true
+    ]
+   },
+   "nights_relabelled": [
+    "R1",
+    "R2",
+    "R3",
+    "R4",
+    "D3"
+   ],
+   "c0_issues": []
+  },
+  {
+   "task": "FT0676-ad-attribution-events-ft08-auth-b",
+   "run_id": "clean-20261021-k5-stage2-20261021T023103967752Z-f22c4faf",
+   "rollout_id": "r4",
+   "scored": true,
+   "old_classification": "reasoning",
+   "old_total": 6.0,
+   "old_passed": false,
+   "new_total": 20.0,
+   "new_passed": true,
+   "checks_flipped": {
+    "C0": [
+     false,
+     true
+    ],
+    "R1": [
+     false,
+     true
+    ],
+    "R2": [
+     false,
+     true
+    ],
+    "R3": [
+     false,
+     true
+    ],
+    "R4": [
+     false,
+     true
+    ],
+    "D3": [
+     false,
+     true
+    ]
+   },
+   "nights_relabelled": [
+    "R1",
+    "R2",
+    "R3",
+    "R4",
+    "D3"
+   ],
+   "c0_issues": []
+  },
+  {
+   "task": "FT0677-ad-attribution-events-ft08-hold-b",
+   "run_id": "clean-20261018-k3-stage1-20261018T162455776383Z",
+   "rollout_id": "r0",
+   "scored": true,
+   "old_classification": "reasoning",
+   "old_total": 6.0,
+   "old_passed": false,
+   "new_total": 6.0,
+   "new_passed": false,
+   "checks_flipped": {},
+   "nights_relabelled": [],
+   "c0_issues": [
+    "raw.factory_events has duplicate grain keys ['event_id']",
+    "raw.factory_events grain-key parity failed for ['event_id']",
+    "raw.factory_events: 1 extra, 0 missing rows"
+   ]
+  },
+  {
+   "task": "FT0677-ad-attribution-events-ft08-hold-b",
+   "run_id": "clean-20261018-k3-stage1-20261018T162455776383Z",
+   "rollout_id": "r1",
+   "scored": true,
+   "old_classification": "pass",
+   "old_total": 20.0,
+   "old_passed": true,
+   "new_total": 20.0,
+   "new_passed": true,
+   "checks_flipped": {},
+   "nights_relabelled": [],
+   "c0_issues": []
+  },
+  {
+   "task": "FT0677-ad-attribution-events-ft08-hold-b",
+   "run_id": "clean-20261018-k3-stage1-20261018T162455776383Z",
+   "rollout_id": "r2",
+   "scored": true,
+   "old_classification": "reasoning",
+   "old_total": 6.0,
+   "old_passed": false,
+   "new_total": 20.0,
+   "new_passed": true,
+   "checks_flipped": {
+    "C0": [
+     false,
+     true
+    ],
+    "R1": [
+     false,
+     true
+    ],
+    "R2": [
+     false,
+     true
+    ],
+    "R3": [
+     false,
+     true
+    ],
+    "R4": [
+     false,
+     true
+    ],
+    "D3": [
+     false,
+     true
+    ]
+   },
+   "nights_relabelled": [
+    "R1",
+    "R2",
+    "R3",
+    "R4",
+    "D3"
+   ],
+   "c0_issues": []
+  },
+  {
+   "task": "FT0677-ad-attribution-events-ft08-hold-b",
+   "run_id": "clean-20261018-k5-stage2-20261018T214500533926Z",
+   "rollout_id": "r0",
+   "scored": true,
+   "old_classification": "reasoning",
+   "old_total": 6.0,
+   "old_passed": false,
+   "new_total": 6.0,
+   "new_passed": false,
+   "checks_flipped": {},
+   "nights_relabelled": [],
+   "c0_issues": [
+    "raw.factory_events has duplicate grain keys ['event_id']",
+    "raw.factory_events grain-key parity failed for ['event_id']",
+    "raw.factory_events: 1 extra, 0 missing rows"
+   ]
+  },
+  {
+   "task": "FT0677-ad-attribution-events-ft08-hold-b",
+   "run_id": "clean-20261018-k5-stage2-20261018T214500533926Z",
+   "rollout_id": "r1",
+   "scored": true,
+   "old_classification": "pass",
+   "old_total": 20.0,
+   "old_passed": true,
+   "new_total": 20.0,
+   "new_passed": true,
+   "checks_flipped": {},
+   "nights_relabelled": [],
+   "c0_issues": []
+  },
+  {
+   "task": "FT0677-ad-attribution-events-ft08-hold-b",
+   "run_id": "clean-20261018-k5-stage2-20261018T214500533926Z",
+   "rollout_id": "r2",
+   "scored": true,
+   "old_classification": "reasoning",
+   "old_total": 6.0,
+   "old_passed": false,
+   "new_total": 20.0,
+   "new_passed": true,
+   "checks_flipped": {
+    "C0": [
+     false,
+     true
+    ],
+    "R1": [
+     false,
+     true
+    ],
+    "R2": [
+     false,
+     true
+    ],
+    "R3": [
+     false,
+     true
+    ],
+    "R4": [
+     false,
+     true
+    ],
+    "D3": [
+     false,
+     true
+    ]
+   },
+   "nights_relabelled": [
+    "R1",
+    "R2",
+    "R3",
+    "R4",
+    "D3"
+   ],
+   "c0_issues": []
+  },
+  {
+   "task": "FT0677-ad-attribution-events-ft08-hold-b",
+   "run_id": "clean-20261018-k5-stage2-20261018T214500533926Z",
+   "rollout_id": "r3",
+   "scored": true,
+   "old_classification": "pass",
+   "old_total": 20.0,
+   "old_passed": true,
+   "new_total": 20.0,
+   "new_passed": true,
+   "checks_flipped": {},
+   "nights_relabelled": [],
+   "c0_issues": []
+  },
+  {
+   "task": "FT0677-ad-attribution-events-ft08-hold-b",
+   "run_id": "clean-20261018-k5-stage2-20261018T214500533926Z",
+   "rollout_id": "r4",
+   "scored": true,
+   "old_classification": "reasoning",
+   "old_total": 6.0,
+   "old_passed": false,
+   "new_total": 20.0,
+   "new_passed": true,
+   "checks_flipped": {
+    "C0": [
+     false,
+     true
+    ],
+    "R1": [
+     false,
+     true
+    ],
+    "R2": [
+     false,
+     true
+    ],
+    "R3": [
+     false,
+     true
+    ],
+    "R4": [
+     false,
+     true
+    ],
+    "D3": [
+     false,
+     true
+    ]
+   },
+   "nights_relabelled": [
+    "R1",
+    "R2",
+    "R3",
+    "R4",
+    "D3"
+   ],
+   "c0_issues": []
+  }
+ ]
+}

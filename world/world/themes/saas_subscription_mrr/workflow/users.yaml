@@ -1,0 +1,7 @@
+users:
+  - {id: n.ellis, name: Nora Ellis, role: Corporate controller, team: Finance}
+  - {id: a.shah, name: Anika Shah, role: Revenue accounting lead, team: Finance}
+  - {id: m.costa, name: Mateo Costa, role: Billing operations manager, team: Revenue operations}
+  - {id: t.okafor, name: Tobi Okafor, role: Analytics engineer, team: Revenue data}
+  - {id: financebot, name: Finance pipeline monitor, role: Automation, team: Revenue data}
+  - {id: agent, name: On-call analytics engineer, role: On call, team: Revenue data}

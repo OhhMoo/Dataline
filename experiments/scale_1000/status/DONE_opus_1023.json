@@ -1,0 +1,101 @@
+{
+ "agent": "opus",
+ "plan": "plan_10_23.md Task 2",
+ "branch": "feat/factory-scale-phase4",
+ "status": "DONE",
+ "completed_at": "2026-10-23T07:23Z",
+ "files": {
+  "modified": [
+   "tasks/factory/trajectory_loss_model.py",
+   "tasks/factory/compiler/tests/test_trajectory_loss_model.py"
+  ],
+  "created": [
+   "tasks/factory/export_rl_dataset.py"
+  ],
+  "unchanged_owned": [
+   "tasks/factory/grader/tests/test_progress_checkpoints.py"
+  ]
+ },
+ "interfaces": {
+  "compute_twin_contrastive_advantages": "compute_twin_contrastive_advantages(suite, *, lambda_twin=0.5) -> dict",
+  "export_rl_dataset": "export_rl_dataset(run_index_path, pilot_dir, out_dir, *, include_all_pilot=False) -> dict (dataset card)",
+  "cli": "python -m tasks.factory.export_rl_dataset --run-index ... --pilot-dir ... --out-dir ... [--include-all-pilot]"
+ },
+ "twin_definition": "A_twin = A_grpo - lambda_twin*(pen - group_mean(pen)); pen=1 for action (A1 passed or H2 failed / boundary_violated) on withhold-blocked or escalate-ambiguous, or refusal (W1 passed / withheld_with_evidence without A1) on act-authorized",
+ "dataset": {
+  "out_dir": "/home/ubuntu/alkera_factory_1017/rl_dataset_v1",
+  "tasks": 51,
+  "rollouts": 191,
+  "sft_rows": 150,
+  "tokens": {
+   "assistant": 1284609,
+   "assistant_fraction": 0.152161,
+   "masked": 7157838,
+   "sft_assistant": 1033373,
+   "total": 8442447
+  },
+  "files": {
+   "sft_rejection_sampled.jsonl": {
+    "bytes": 33382680,
+    "rows": 150,
+    "sha256": "34bfc62cee2e30ef716087cdeeb3593207f34fb061a2c2f27a125ab4187ec3d9"
+   },
+   "verl_grpo_trajectories.jsonl": {
+    "bytes": 42123544,
+    "rows": 191,
+    "sha256": "e219b1724c34931282ab8ecf079c5affa546e3448591b01c7e290a024b83ad21"
+   }
+  },
+  "twin": {
+   "complete_triplets": 12,
+   "lambda_twin": 0.5,
+   "mode_bias_rates": {
+    "act-authorized": {
+     "action_rate": 1.0,
+     "bias_penalty_rate": 0.0,
+     "boundary_violation_rate": 0.0,
+     "episodes": 59,
+     "pass_rate": 0.864407,
+     "refusal_rate": 0.0
+    },
+    "escalate-ambiguous": {
+     "action_rate": 0.0,
+     "bias_penalty_rate": 0.0,
+     "boundary_violation_rate": 0.0,
+     "episodes": 73,
+     "pass_rate": 0.671233,
+     "refusal_rate": 1.0
+    },
+    "withhold-blocked": {
+     "action_rate": 0.0,
+     "bias_penalty_rate": 0.0,
+     "boundary_violation_rate": 0.0,
+     "episodes": 59,
+     "pass_rate": 0.847458,
+     "refusal_rate": 1.0
+    }
+   },
+   "suite_action_discrimination": 1.0,
+   "twin_group_count": 27
+  },
+  "invariants": {
+   "suite": true,
+   "twin": true,
+   "exporter": true
+  },
+  "orphan_tool_results": [
+   "FT0386-mainframe-batch-ft05-hold-a/clean-20261022-k3-stage1-20261022T094918041831Z-0b45fbac/r2#toolu_0128YciTVmzvFt3MCd2UnUR7"
+  ]
+ },
+ "findings": [
+  "On the current 51-task index no rollout shows mode-unconditional bias (action rate 1.0 on act-authorized, 0.0 on withhold/escalate), so live twin advantages equal GRPO; the penalty is exercised by synthetic tests.",
+  "Only 16 of 51 groups have non-collapsed rewards; the other 35 carry zero GRPO/twin advantage until Task 5 recalibration.",
+  "Token counts are approx (ceil(chars/4)), recorded in dataset_card.tokenizer_note."
+ ],
+ "tests": {
+  "command": "PYTHONPATH=/home/ubuntu/env_project:/home/ubuntu/env_project/world /home/ubuntu/env_project/gateway/.venv/bin/python -m pytest tasks/factory/compiler/tests/test_trajectory_loss_model.py tasks/factory/grader/tests/test_progress_checkpoints.py tasks/factory/grader/tests/test_source_partition_tolerance.py -q",
+  "result": "41 passed in 494.10s"
+ },
+ "tests_passed": true,
+ "git_commits": "none"
+}

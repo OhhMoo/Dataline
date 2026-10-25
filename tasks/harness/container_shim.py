@@ -62,6 +62,15 @@ from alkera_gateway.operations import Operations
 from alkera_gateway.records import ToolError
 from alkera_gateway.tools import TOOLS, Arguments
 
+# Inside the container the process runs as root (uid 0) while /workspace and
+# /world are bind-mounted from the host operator's uid. Commands.git sets
+# GIT_CONFIG_NOSYSTEM=1 and GIT_CONFIG_GLOBAL=/dev/null, which hides the
+# image's /etc/gitconfig safe.directory entry; GIT_CONFIG_COUNT_* is inherited
+# through os.environ and honored by git even when system/global config are off.
+os.environ.setdefault("GIT_CONFIG_COUNT", "1")
+os.environ.setdefault("GIT_CONFIG_KEY_0", "safe.directory")
+os.environ.setdefault("GIT_CONFIG_VALUE_0", "*")
+
 BASH_TOOL = "bash"
 BASH_DESCRIPTION = (
     "Run a shell command inside the environment and read its combined output. "
@@ -196,6 +205,17 @@ def _gateway(config_path: Path) -> Gateway:
     # alkera_gateway.cli. Without it the container served a scheduler that
     # reported success for every non-dbt job and ran none of them.
     from alkera_gateway.scheduling import episode_scheduler
+    from world import scheduler as world_scheduler
+
+    _orig_live_gen = world_scheduler.live_gen
+
+    def _safe_live_gen(live: dict | None):
+        try:
+            return _orig_live_gen(live)
+        except (SystemExit, FileNotFoundError, ImportError):
+            return None
+
+    world_scheduler.live_gen = _safe_live_gen
     return Gateway(cfg, scheduler=episode_scheduler(cfg))
 
 

@@ -1,0 +1,10 @@
+version: 2
+sources:
+  - name: raw
+    schema: raw
+    description: Nightly processor, KYC, dispute, and reserve event feeds.
+    tables:
+      - {name: dispute_events}
+      - {name: kyc_reviews}
+      - {name: merchant_volume}
+      - {name: payout_holds}

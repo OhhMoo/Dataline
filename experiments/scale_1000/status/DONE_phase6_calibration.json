@@ -1,0 +1,62 @@
+{
+  "agent": "gemini",
+  "phase": "1023",
+  "status": "CALIBRATION_AND_EXPORT_COMPLETE",
+  "completed_at_utc": "2026-10-23T11:36:00Z",
+  "git_commit": true,
+  "screened": 51,
+  "reused_certified": 16,
+  "delta_rematerialized_and_screened": 35,
+  "admitted_to_stage2": 20,
+  "certified_count": 16,
+  "floor_count": 0,
+  "missing_live_provenance": 0,
+  "quarantined_count": 0,
+  "certified_tasks": [
+    "FT0100-commerce-analytics-ft02-auth-b",
+    "FT0102-commerce-analytics-ft02-esc-b",
+    "FT0193-revenue-daily-ft03-auth-a",
+    "FT0194-revenue-daily-ft03-hold-a",
+    "FT0195-revenue-daily-ft03-esc-a",
+    "FT0294-sftp-vendor-ft04-esc-b",
+    "FT0484-excel-close-ft06-auth-b",
+    "FT0485-excel-close-ft06-hold-b",
+    "FT0486-excel-close-ft06-esc-b",
+    "FT0501-excel-close-ft09-esc-a",
+    "FT0677-ad-attribution-events-ft08-hold-b",
+    "FT0678-ad-attribution-events-ft08-esc-b",
+    "FT0792-supply-chain-inventory-ft12-esc-b",
+    "FT0870-healthcare-claims-edi-ft10-esc-b",
+    "FT1005-iot-telemetry-billing-ft03-esc-a",
+    "FT1062-iot-telemetry-billing-ft12-esc-b"
+  ],
+  "stage1_breakdown": {
+    "admit_to_stage2": 20,
+    "saturated_ceiling": 31,
+    "saturated_floor": 0,
+    "invalid": 0,
+    "quarantined": 0
+  },
+  "rl_dataset_v1": {
+    "out_dir": "/home/ubuntu/alkera_factory_1017/rl_dataset_v1",
+    "tasks": 51,
+    "rollouts": 193,
+    "sft_rows": 152,
+    "total_tokens": 8731354,
+    "assistant_tokens": 1313126,
+    "masked_tokens": 7418228,
+    "assistant_token_fraction": 0.150392,
+    "suite_all_invariants_hold": true,
+    "twin_all_invariants_hold": true,
+    "exporter_all_hold": true
+  },
+  "artifacts": {
+    "calibration_summary": "/home/ubuntu/alkera_factory_1017/runs_phase2/calibration_summary.json",
+    "stage0_report": "/home/ubuntu/alkera_factory_1017/phase6_stage0_51.json",
+    "run_index": "/home/ubuntu/alkera_factory_1017/phase2_run_index.json",
+    "hardness_report": "/home/ubuntu/alkera_factory_1017/phase6_hardness_51.json",
+    "trajectory_loss_report": "/home/ubuntu/alkera_factory_1017/phase6_trajectory_loss_model.json",
+    "rl_dataset_dir": "/home/ubuntu/alkera_factory_1017/rl_dataset_v1",
+    "datasheet": "/home/ubuntu/env_project/experiments/scale_1000/implementation_report.md"
+  }
+}

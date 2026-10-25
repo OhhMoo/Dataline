@@ -1,0 +1,25 @@
+version: 2
+
+models:
+  - name: stg_payment_events
+    description: One typed row per network event id after exact event redelivery is folded.
+    columns:
+      - name: event_id
+        tests: [not_null, unique]
+      - name: payment_id
+        tests: [not_null]
+      - name: payment_day
+        tests: [not_null]
+      - name: version
+        tests: [not_null]
+      - name: event_type
+        tests:
+          - accepted_values: {values: [settle, void]}
+      - name: amount_cents
+        tests: [not_null]
+  - name: stg_merchant_terms
+    columns:
+      - name: merchant_id
+        tests: [not_null, unique]
+      - name: interchange_bps
+        tests: [not_null]

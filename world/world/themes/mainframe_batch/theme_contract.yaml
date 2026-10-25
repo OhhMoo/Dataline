@@ -1,0 +1,42 @@
+# Phase-2 domain contract: mainframe_batch's native fault-injection surface,
+# for the factory compiler (tasks/factory/compiler). Every name below exists
+# in this theme: the landing dir under workspace/, the tables built nightly by
+# the loader (workspace/loader/load_extract.py, run via gen.py load_raw) and
+# the dbt project (workspace/dbt_project/models/), the columns in the
+# warehouse schema contract (models/warehouse/schema.yml), the jobs in
+# theme.yaml. Concepts the theme does not have are null rather than invented.
+theme: mainframe_batch
+# Nightly EBCDIC extract: data/landing/claims_extract/dt=YYYY-MM-DD/CLAIMS.DAT,
+# fixed-block 31-byte records (cp037 text + COMP-3 amount) per
+# copybooks/CLAIMS.CPY (gen.py write_day; theme.yaml live.arrival cuts it at
+# 23:00 UTC on the data day itself).
+landing_dir: data/landing/claims_extract
+# Primary landing table: one row per claim, rebuilt from all dt=* partitions
+# by the batch_load job (loader/load_extract.py; models/sources.yml).
+raw_table: raw.claims_extract
+# Primary fact: one row per claim date - claims, total_amount
+# (models/warehouse/fct_claims_daily.sql). Rebuilt nightly by the dbt_build
+# job.
+fact_table: warehouse.fct_claims_daily
+# This theme has no handoff/extract, close/window or corrections table: the
+# batch window ends at the daily fact and the claims_daily dashboard.
+handoff_table: null
+close_window_table: null
+corrections_table: null
+# fct_claims_daily grain - claim_date is not_null + unique
+# (models/warehouse/schema.yml).
+grain_keys: [claim_date]
+# Sum of claim_amt over the claim date (models/warehouse/fct_claims_daily.sql).
+amount_column: total_amount
+# No version/CDC column anywhere in the pipeline: one extract per night,
+# delivered once and loaded as-is; raw.claims_extract carries claim_id,
+# claim_date, cust_id, claim_amt, dt and nothing versioned.
+version_column: null
+# The extract for data day D is cut at 23:00 UTC on D, and the nightly_extract
+# job verifies it at 23:00 (theme.yaml jobs.nightly_extract.time).
+cutoff_time_utc: "23:00"
+# Job names exactly as in theme.yaml.
+scheduled_jobs: [nightly_extract, batch_load, dbt_build]
+# Nightly schedule mirrored from theme.yaml jobs; the scheduler sync hook reads
+# it as the timing source of truth (path relative to workspace/).
+schedule_file: orchestration/schedule.yml

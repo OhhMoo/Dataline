@@ -1,0 +1,171 @@
+pages:
+  - id: cdp/architecture
+    title: Claims data architecture
+    parent: null
+    labels: [architecture, edi]
+    body: |-
+      # Claims data architecture
+
+      Nightly synthetic 837 and 835 CSV deliveries land under `data/landing/` and
+      rebuild `raw.edi_837_claims`, `raw.edi_835_remits`, and the raw provider roster.
+      dbt selects the current claim and remit versions into
+      `warehouse.fct_adjudicated_claims`.
+
+      Three consumer products follow the fact: `actuarial_reserve_handoff`,
+      `provider_capitation_settlement`, and `cms_submission_window`.
+      `warehouse.dim_provider` carries contract terms used by provider reporting.
+      The payer_provider_operations dashboard reads only warehouse tables.
+    version: 3
+    author: jwilson
+    last_edited_by: jwilson
+    last_edited_at: "-16d 12:00"
+    edit_comment: add CMS and capitation consumers
+    history:
+      - {version: 2, at: "-60d 10:00", by: jwilson, comment: "add settlement handoff"}
+      - {version: 1, at: "-120d 10:00", by: mbennett, comment: null}
+  - id: cdp/policies
+    title: Claims data policies
+    parent: null
+    labels: [index, policy]
+    body: |-
+      # Claims data policies
+
+      - [Synthetic data handling](cdp/policies/synthetic-data)
+      - [EDI adjustment rules](cdp/policies/edi-adjustments)
+    version: 2
+    author: asingh
+    last_edited_by: asingh
+    last_edited_at: "-40d 09:00"
+    edit_comment: link adjustment rules
+    history:
+      - {version: 1, at: "-100d 09:00", by: asingh, comment: null}
+  - id: cdp/policies/synthetic-data
+    title: Synthetic data handling
+    parent: cdp/policies
+    labels: [policy, privacy]
+    body: |-
+      # Synthetic data handling
+
+      This environment is fully synthetic. Member IDs are generated tokens and are
+      not real subscriber, patient, or insurance identifiers. The world contains no
+      patient names, birth dates, addresses, clinical notes, or real EDI transactions.
+
+      Operational reviews should still use aggregate outputs. Member-level exports
+      are not needed for CMS cutoff, capitation, COB, or reserve reconciliation.
+    version: 1
+    author: kkaur
+    last_edited_by: kkaur
+    last_edited_at: "-70d 14:00"
+    edit_comment: null
+    history: []
+  - id: cdp/policies/edi-adjustments
+    title: EDI adjustment rules
+    parent: cdp/policies
+    labels: [policy, edi, cob]
+    body: |-
+      # EDI adjustment rules
+
+      Frequency code 1 is an original claim, 7 is a replacement, and 8 is a void.
+      A replacement or void supersedes the earlier version of the same `claim_id`.
+      Voids remain in the current fact for traceability and have zero allowed and
+      payer-paid amounts.
+
+      For COB claims, `other_payer_paid_amount` equals `cob_adjustment_amount`.
+      The simplified remittance identity is billed amount equals payer payment plus
+      member responsibility plus contractual adjustment plus COB adjustment.
+      Other-payer payment is displayed separately for reconciliation and is not
+      added a second time.
+    version: 4
+    author: mbennett
+    last_edited_by: mbennett
+    last_edited_at: "-2d 14:10"
+    edit_comment: clarify COB identity
+    history:
+      - {version: 3, at: "-35d 11:00", by: mbennett, comment: "define void payment"}
+      - {version: 2, at: "-80d 11:00", by: asingh, comment: null}
+      - {version: 1, at: "-130d 11:00", by: mbennett, comment: null}
+  - id: cdp/runbooks
+    title: Claims operations runbooks
+    parent: null
+    labels: [index, runbook]
+    body: |-
+      # Claims operations runbooks
+
+      - [Nightly EDI cycle](cdp/runbooks/nightly-edi)
+      - [CMS submission calendar](cdp/runbooks/cms-calendar)
+      - [Provider capitation settlement](cdp/runbooks/capitation)
+    version: 2
+    author: jwilson
+    last_edited_by: jwilson
+    last_edited_at: "-10d 15:00"
+    edit_comment: link provider settlement
+    history:
+      - {version: 1, at: "-90d 15:00", by: jwilson, comment: null}
+  - id: cdp/runbooks/nightly-edi
+    title: Nightly EDI cycle
+    parent: cdp/runbooks
+    labels: [runbook, scheduler]
+    body: |-
+      # Nightly EDI cycle
+
+      The 837/835 delivery lands at 00:30 UTC. `nightly_edi_load` reloads every raw
+      table at 01:10, followed by `adjudication_build`, `settlement_handoffs`, and
+      `cms_window_close` on their declared dependencies.
+
+      The loader is a full reload. To recover a corrected partition, place it under
+      the same `dt=` folder and rerun the load followed by the downstream jobs in
+      DAG order. Do not delete individual raw rows. Check the first failed scheduler
+      run and the dbt error before rerunning anything.
+    version: 5
+    author: jwilson
+    last_edited_by: jwilson
+    last_edited_at: "-8d 16:00"
+    edit_comment: align job names with scheduler
+    history:
+      - {version: 4, at: "-45d 16:00", by: mbennett, comment: "add recovery order"}
+      - {version: 3, at: "-85d 16:00", by: jwilson, comment: null}
+  - id: cdp/runbooks/cms-calendar
+    title: CMS submission calendar
+    parent: cdp/runbooks
+    labels: [runbook, cms, cutoff]
+    body: |-
+      # CMS submission calendar
+
+      Each service month opens for submission on the first day of the following
+      month. The standard synthetic regulatory calendar closes on day 5 at 18:00 UTC.
+      The acceptance as-of date is two calendar days before the cutoff date.
+
+      Current non-void claims received on or before the acceptance as-of date count
+      as eligible. Later receipts count as late. Voids are excluded from eligible
+      encounters and reported separately. The cutoff values in dbt vars are the
+      machine-readable source for the table.
+    version: 3
+    author: kkaur
+    last_edited_by: kkaur
+    last_edited_at: "-5d 08:20"
+    edit_comment: restate acceptance lag
+    history:
+      - {version: 2, at: "-50d 08:20", by: kkaur, comment: "add void treatment"}
+      - {version: 1, at: "-110d 08:20", by: mbennett, comment: null}
+  - id: cdp/runbooks/capitation
+    title: Provider capitation settlement
+    parent: cdp/runbooks
+    labels: [runbook, capitation, provider]
+    body: |-
+      # Provider capitation settlement
+
+      Monthly settlement equals contracted member months times PMPM, less the quality
+      withhold. The default withhold is 500 basis points and the scheduled payment
+      day is the 15th of the following month. Roster terms come from
+      `warehouse.dim_provider`.
+
+      Fee-for-service 835 payments and actuarial IBNR are not subtracted from the
+      capitation settlement. Provider statements show gross, withhold, and net amounts
+      so Provider Finance can reconcile each component.
+    version: 2
+    author: rortiz
+    last_edited_by: rortiz
+    last_edited_at: "-3d 12:45"
+    edit_comment: separate FFS and capitation
+    history:
+      - {version: 1, at: "-65d 12:45", by: rortiz, comment: null}

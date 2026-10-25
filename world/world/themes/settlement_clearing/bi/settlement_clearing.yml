@@ -1,0 +1,47 @@
+version: 1
+dashboard: settlement_clearing
+title: Clearing bank - settlement and cutoff
+owner: Payments data platform
+metrics:
+  - name: net_settlement
+    expression: sum(net_cents)
+    owner: Payments data platform
+    doc: Network settlement in integer cents before interchange fees.
+  - name: interchange
+    expression: sum(interchange_cents)
+    owner: Finance reconciliation
+panels:
+  - name: settlement_by_day
+    title: Settlement handed to the bank
+    metric: net_settlement
+    sql: >-
+      select settlement_day, sum(payments) as payments,
+             sum(net_cents) as net_cents, max(correction_ref) as correction_ref
+      from warehouse.settlement_handoff
+      group by settlement_day order by settlement_day
+    watermark_sql: select max(settlement_day) as data_through from warehouse.settlement_handoff
+  - name: window_status
+    title: Append-only cutoff outcomes
+    sql: >-
+      select settlement_day, closed_on, status, payments, net_cents
+      from warehouse.clearing_window
+      order by settlement_day, closed_on, status
+  - name: merchant_interchange
+    title: Merchant fee reconciliation
+    metric: interchange
+    sql: >-
+      select i.settlement_day, m.merchant_name, i.gross_cents,
+             i.interchange_bps, i.interchange_cents, i.net_after_interchange_cents
+      from warehouse.interchange_ledger as i
+      join warehouse.dim_merchant as m on m.merchant_id = i.merchant_id
+      order by i.settlement_day, m.merchant_name
+  - name: open_exposure
+    title: Observed days without a handoff
+    sql: >-
+      select settlement_day from (
+        select distinct settlement_day from warehouse.clearing_window
+        except select distinct settlement_day from warehouse.settlement_handoff
+      ) as exposure order by settlement_day
+  - name: load_watermark
+    title: Raw partition checkpoint
+    sql: select through_day, updated_at from warehouse.load_checkpoint

@@ -1,0 +1,109 @@
+{
+  "agent": "opus",
+  "status": "complete",
+  "completed_at_utc": "2026-10-18T10:14:15Z",
+  "public_functions_preserved": [
+    "tasks.factory.grader.declarative_grade.grade",
+    "tasks.factory.grader.receipt_engine.capture_oracle",
+    "tasks.factory.grader.baseline_runner.run",
+    "tasks.factory.grader.baseline_runner.BASELINES",
+    "tasks.factory.grader.communication_rubric.verify_report"
+  ],
+  "public_api": {
+    "grade": "grade(world_root, grading_dir, artifact=None, variant=None) positional",
+    "capture_oracle": "capture_oracle(world_root, grading, spec)",
+    "baseline_runner.run": "run(worlds_dir, grading, variant='default', output=None)",
+    "BASELINES": ["oracle", "no_op", "wrong_precedence", "duplicate_counted", "boundary_violated"],
+    "verify_report": "verify_report(artifact, requirements)",
+    "also_emitted": "progress_quantities still include compiler q0..q4 (t0 fraction, then one fraction per night)"
+  },
+  "progress_keys": [
+    "q0_raw_loaded",
+    "q1_t0_dedup_and_precedence",
+    "q2_t0_handoff_parity",
+    "q3_r1_parity",
+    "q4_r2_parity",
+    "q5_r3_parity",
+    "q6_r4_parity"
+  ],
+  "progress_scalar": {
+    "weights": {
+      "q0_raw_loaded": 1,
+      "q1_t0_dedup_and_precedence": 1,
+      "q2_t0_handoff_parity": 1,
+      "q3_r1_parity": 1,
+      "q4_r2_parity": 2,
+      "q5_r3_parity": 4,
+      "q6_r4_parity": 8
+    },
+    "denominator": 18,
+    "test": "tasks/factory/grader/tests/test_progress_checkpoints.py::test_failing_r2_r3_and_r4_produce_three_scalars"
+  },
+  "recorded_check_kinds": [
+    "partition_parity",
+    "key_uniqueness",
+    "whole_object",
+    "object_parity",
+    "escalate_not_take",
+    "probe",
+    "diagnosis",
+    "claims",
+    "t0_parity",
+    "night_receipt",
+    "consumer_book",
+    "register_row",
+    "decision",
+    "liveness",
+    "report",
+    "hygiene",
+    "contract",
+    "comm"
+  ],
+  "recorded_package": "tasks/factory/grader/recorded",
+  "specs_copied": [
+    "tasks/factory/grader/specs/gt009.spec.json",
+    "tasks/factory/grader/specs/gt009.manifest.yaml",
+    "tasks/factory/grader/specs/gt004.spec.json"
+  ],
+  "gt004_h3_h4_bx": {
+    "in_worktree_spec": "uncovered_checks only; no check bindings",
+    "added_as_declarative_bindings": false,
+    "cells_regraded": 0,
+    "note": "Did not claim 18/18 or 30/30. Worktree figures were not recomputed."
+  },
+  "contracts": {
+    "version_precedence": "multi-night runner advance uses run_nights; single advance without nights still uses run_advance; snapshot aliases end_state",
+    "consumer_consistency": "ledger hash no longer flags real receipts; BI surfaces kept; existing bindings clause kept",
+    "auditability": "result_definite judges declared rows only; runner advance via run_advance kept",
+    "scheduler_advance": "subprocess (world.scheduler); not imported by the contract package"
+  },
+  "pytest": {
+    "command": "cd /home/ubuntu/env_project && export PYTHONPATH=/home/ubuntu/env_project:/home/ubuntu/env_project/world && /home/ubuntu/env_project/gateway/.venv/bin/python -m pytest -q tasks/factory/grader/tests tasks/contracts/tests",
+    "exit_code": 0,
+    "passed": 139,
+    "failed": 0,
+    "duration_s": 247.22
+  },
+  "regrade": {
+    "root": "/home/ubuntu/alkera_factory_1017/runs",
+    "new_container_rollouts": false,
+    "episodes_found": 51,
+    "graded": 51,
+    "skipped": 0,
+    "errors": 0,
+    "distinct_count": 4,
+    "distinct_progress_scalars": [0.166667, 0.222222, 0.333333, 1.0],
+    "counts_by_scalar": {
+      "0.166667": 1,
+      "0.222222": 24,
+      "0.333333": 3,
+      "1.0": 23
+    },
+    "night_pattern_by_scalar": {
+      "0.166667": "q0 q1 q2 = 1; R1 R2 R3 R4 = 0 (3/18)",
+      "0.222222": "q0 q1 q2 and R1 = 1; R2 R3 R4 = 0 (4/18)",
+      "0.333333": "q0 q1 q2 R1 R2 = 1; R3 R4 = 0 (6/18)",
+      "1.0": "all seven quantities 1 (18/18)"
+    }
+  }
+}

@@ -1,0 +1,8 @@
+users:
+  - {id: mokafor, name: Mina Okafor, role: Attribution engineering lead, team: Data}
+  - {id: rsilva, name: Rafael Silva, role: Data engineer, team: Data}
+  - {id: lchen, name: Lauren Chen, role: Partner finance manager, team: Finance}
+  - {id: tbrown, name: Theo Brown, role: Partner operations analyst, team: Partnerships}
+  - {id: npatel, name: Neha Patel, role: Ad quality analyst, team: Trust and Safety}
+  - {id: schedulebot, name: Attribution scheduler, role: Automation, team: Data}
+  - {id: agent, name: On-call data engineer, role: On call, team: Data}

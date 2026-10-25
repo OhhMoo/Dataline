@@ -1,0 +1,79 @@
+version: 1
+dashboard: usage_billing
+title: IoT Usage and Enterprise Billing
+owner: Metering and Billing Operations
+metrics:
+  - name: reported_units
+    expression: sum(reported_units)
+    owner: Metering Platform
+  - name: billable_units
+    expression: sum(billable_units)
+    owner: Billing Operations
+  - name: invoice_total
+    expression: sum(invoice_total)
+    owner: Billing Operations
+panels:
+  - name: close_kpis
+    title: Usage and close KPIs
+    metric: billable_units
+    sql: >-
+      select sum(reported_units) as reported_units,
+             sum(billable_units) as billable_units,
+             sum(reported_units - billable_units) as post_cutoff_units,
+             count(distinct device_id) as active_devices
+      from warehouse.fct_billable_usage
+    watermark_sql: select max(usage_date) as data_through from warehouse.fct_billable_usage
+  - name: daily_usage
+    title: Daily reported and billable usage
+    metric: billable_units
+    sql: >-
+      select usage_date,
+             sum(reported_units) as reported_units,
+             sum(billable_units) as billable_units,
+             count(distinct device_id) as devices
+      from warehouse.fct_billable_usage
+      group by usage_date
+      order by usage_date
+  - name: source_normalization
+    title: Source kinds and counter resets
+    sql: >-
+      select source_kind,
+             count(*) as usage_rows,
+             count(*) filter (where counter_reset) as counter_resets,
+             sum(reported_units) as reported_units,
+             sum(billable_units) as billable_units
+      from warehouse.fct_billable_usage
+      group by source_kind
+      order by source_kind
+  - name: gateway_backfills
+    title: Edge rollup collection delay by gateway
+    sql: >-
+      select gateway_id,
+             count(*) as rollup_windows,
+             max(date_diff('day', usage_date, cast(collected_at as date)))
+               as maximum_collection_delay_days,
+             count(*) filter (
+               where date_diff('day', usage_date, cast(collected_at as date)) > 1
+             ) as multi_day_backfills,
+             sum(reported_units) as reported_units
+      from warehouse.fct_billable_usage
+      where source_kind = 'edge_rollup'
+      group by gateway_id
+      order by gateway_id
+  - name: invoice_handoff
+    title: Locked ERP invoice handoff
+    metric: invoice_total
+    sql: >-
+      select invoice_run_id, customer_id, customer_name, billing_month,
+             committed_units, billable_units, overage_units,
+             late_units_excluded, invoice_total_cents, invoice_total,
+             currency, handoff_status
+      from warehouse.invoice_run_handoff
+      order by billing_month, customer_id
+  - name: period_locks
+    title: Billing period lock control
+    sql: >-
+      select customer_id, billing_month, lock_cutoff, source_watermark,
+             lock_status, late_units_excluded
+      from warehouse.billing_period_lock
+      order by billing_month, customer_id

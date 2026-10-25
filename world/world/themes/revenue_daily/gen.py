@@ -7,6 +7,7 @@ load_raw: hive-partitioned CSVs -> raw.daily_revenue; PRAGMA threads=1 +
 ORDER BY so duckdb page layout is deterministic.
 """
 import csv
+import hashlib
 import random
 from collections import OrderedDict
 from datetime import timedelta
@@ -55,6 +56,97 @@ def write_landing(workspace: Path, seed: dict) -> None:
     start = parse_vtime(seed["vtime_start"])
     for i in range(seed["days"]):
         write_day(workspace, seed, i, (start + timedelta(days=i)).date())
+    write_ops_logs(workspace, seed)
+
+
+# --------------------------------------------------------------------------
+# historical ops logs (var/logs)
+# --------------------------------------------------------------------------
+
+def write_ops_logs(workspace: Path, seed: dict) -> None:
+    """The platform-side record of the seeded backstory: three rotated daemon
+    logs under var/logs/, covering every seeded day on the virtual clock.
+
+    - ingest_daemon.log   the ERP's nightly revenue batch sealing each
+                          business date's export at 00:00 the next morning
+    - sftp_sync.log       the sync that pushes revenue.csv to the landing zone
+                          (size and checksum of what actually landed)
+    - scheduler_audit.log the data platform's audit trail of the night's two
+                          job runs (01:00 daily_load, 01:05 dbt_build) for the
+                          partition just landed
+
+    A pure function of the seed: jitter comes from one stream per day,
+    `Random(f"{seed}:logs:{day_index}")`, and every timestamp is derived from
+    seed['vtime_start'] - never a wall clock. Two builds of one seed write
+    byte-identical logs. Called from write_landing (build time) only: the live
+    arrival stream calls write_day directly and appends nothing here.
+    """
+    start = parse_vtime(seed["vtime_start"])
+    folder = Path(workspace).parent / "var" / "logs"
+    folder.mkdir(parents=True, exist_ok=True)
+    ingest, sftp, audit = [], [], []
+    for i in range(seed["days"]):
+        rng = random.Random(f"{seed['seed']}:logs:{i}")
+        day = (start + timedelta(days=i)).date()   # the partition's business date
+        run_day = start + timedelta(days=i + 1)    # it lands at 00:00 the next day
+        rows = day_rows(seed["seed"], i, day, seed)
+        file = (Path(workspace) / "data" / "landing" / "daily_revenue"
+                / f"dt={day.isoformat()}" / "revenue.csv")
+        data = file.read_bytes()
+
+        # the ERP batch: sealed at 00:00 (+jitter), after the day's close
+        seal = run_day + timedelta(seconds=rng.randrange(2, 20))
+        elapsed = rng.randrange(2, 9)
+        if rng.randrange(100) < 4:
+            ingest.append(
+                f"{scheduler.iso(seal - timedelta(seconds=elapsed))} WARN "
+                f"ingestd[412]: totals query on the POS replica ran long "
+                f"({rng.randrange(20, 90)}s); caught up without loss")
+        ingest.append(
+            f"{scheduler.iso(seal)} INFO ingestd[412]: batch sealed "
+            f"dt={day.isoformat()} orders={len(rows)} bytes={len(data)} "
+            f"elapsed_s={elapsed}")
+
+        # the sftp push of the bytes that actually landed
+        push = seal + timedelta(seconds=rng.randrange(5, 40))
+        if rng.randrange(100) < 3:
+            ingest_warn_at = push
+            push += timedelta(seconds=rng.randrange(4, 15))
+            sftp.append(
+                f"{scheduler.iso(ingest_warn_at)} WARN sftp-sync[17]: push "
+                f"daily_revenue/dt={day.isoformat()}/revenue.csv stalled on "
+                f"first ACK; re-sending")
+        sftp.append(
+            f"{scheduler.iso(push)} INFO sftp-sync[17]: push "
+            f"daily_revenue/dt={day.isoformat()}/revenue.csv bytes={len(data)} "
+            f"sha256={hashlib.sha256(data).hexdigest()[:16]} attempts=1 ok")
+
+        # the scheduler's audit trail of the night's two runs
+        for name, hhmm, nominal in (("daily_load", "01:00", 45),
+                                    ("dbt_build", "01:05", 90)):
+            hh, mm = (int(x) for x in hhmm.split(":"))
+            begin = run_day + timedelta(hours=hh, minutes=mm,
+                                        seconds=rng.randrange(0, 30))
+            took = max(3, nominal + rng.randrange(-nominal // 6, nominal // 5))
+            level, note = "INFO", ""
+            if rng.randrange(100) < 4:
+                took = int(nominal * 1.6) + rng.randrange(20)
+                level, note = "WARN", f" above_p90={int(nominal * 1.5)}"
+            audit.append(
+                f"{scheduler.iso(begin)} INFO sched-audit[3]: job={name} "
+                f"trigger=scheduled dt={day.isoformat()} started")
+            audit.append(
+                f"{scheduler.iso(begin + timedelta(seconds=took))} {level} "
+                f"sched-audit[3]: job={name} status=success "
+                f"duration_s={took}{note}")
+
+    for name, lines in (("ingest_daemon.log", ingest),
+                        ("sftp_sync.log", sftp),
+                        ("scheduler_audit.log", audit)):
+        # LF like the landing CSVs: var/logs sits beside the fingerprinted
+        # planes, so the bytes are the same on every host.
+        (folder / name).write_text("".join(f"{line}\n" for line in lines),
+                                   encoding="utf-8")
 
 
 def load_raw(workspace: Path, db_path: Path) -> None:

@@ -1,0 +1,7 @@
+timezone: UTC
+metric: telemetry_units
+overage_block_units: 1000
+partial_overage_block: round_up
+currency: USD
+lock_basis: source_collection_watermark
+late_usage: retain_in_fact_and_exclude_from_invoice

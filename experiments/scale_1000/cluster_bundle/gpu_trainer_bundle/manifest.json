@@ -1,0 +1,30 @@
+{
+  "cluster_configs": [
+    "configs/fsdp_8xh100_24k.yaml",
+    "configs/deepspeed_zero3_4xa100_24k.json"
+  ],
+  "data_dir": "/home/ubuntu/alkera_factory_1017/rl_dataset_v2",
+  "files": {
+    "README.md": "5c4cbe794882933216ad2213aadd46f7985941d6fb6818603f100a3d0b2304ef",
+    "configs/deepspeed_zero3_4xa100_24k.json": "03c4c9a89663d84205862dae6c383bc93c5434dd1569f4abb769028272e5dcff",
+    "configs/fsdp_8xh100_24k.yaml": "368dd4c6f3f9c431e25a1f50de99efedbcdd41fecf5fe436bc7824cda33a32f8",
+    "cpu_loss_verification.json": "29e5be177f37d44d0bb4d35a5bed3f6eb7be13d5e5e7f64c9e9717ec35a37a9a",
+    "launch_gpu.sh": "c036932e7b8fe90df44e942d4f0f053d7139036ec7b79257098b5314fe1bbe8d",
+    "requirements-gpu.txt": "db8a9528956709b8121f8d2d6d06ad38e59e55b829145611a2a97afcfbd98df9",
+    "run_offline_rloo_dpo.py": "0004c6c9b850461a7030a87e551403816622d6a61efd6638021f1dd27097e925",
+    "run_online_grpo_verl.py": "b08c0cdf383de3830a5d6baa167524e3671e59d914b60d069d90662b10a99add",
+    "run_sft_lora.py": "eee776fb70c40170505e511052ccbf4af0779ac838ca81e529283ece4f1dbc0b"
+  },
+  "max_seq_tokens": 24576,
+  "supported_cluster_gpus": [
+    4,
+    8
+  ],
+  "supported_models": [
+    "Qwen/Qwen2.5-Coder-7B-Instruct",
+    "Qwen/Qwen2.5-Coder-14B-Instruct",
+    "Qwen/Qwen2.5-Coder-32B-Instruct"
+  ],
+  "truncation_side": "left_obs_first",
+  "verification_all_passed": true
+}

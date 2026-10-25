@@ -1,0 +1,42 @@
+{
+  "agent": "gemini",
+  "phase": "1020",
+  "status": "CALIBRATION_COMPLETE",
+  "completed_at_utc": "2026-10-21T14:15:00Z",
+  "git_commit": false,
+  "screened": 51,
+  "reused_certified": 10,
+  "delta_rematerialized_and_screened": 41,
+  "admitted_to_stage2": 18,
+  "certified_count": 15,
+  "certified_tasks": [
+    "FT0100-commerce-analytics-ft02-auth-b",
+    "FT0102-commerce-analytics-ft02-esc-b",
+    "FT0193-revenue-daily-ft03-auth-a",
+    "FT0194-revenue-daily-ft03-hold-a",
+    "FT0195-revenue-daily-ft03-esc-a",
+    "FT0294-sftp-vendor-ft04-esc-b",
+    "FT0484-excel-close-ft06-auth-b",
+    "FT0485-excel-close-ft06-hold-b",
+    "FT0486-excel-close-ft06-esc-b",
+    "FT0677-ad-attribution-events-ft08-hold-b",
+    "FT0678-ad-attribution-events-ft08-esc-b",
+    "FT0792-supply-chain-inventory-ft12-esc-b",
+    "FT0870-healthcare-claims-edi-ft10-esc-b",
+    "FT1005-iot-telemetry-billing-ft03-esc-a",
+    "FT1062-iot-telemetry-billing-ft12-esc-b"
+  ],
+  "stage1_breakdown": {
+    "admit_to_stage2": 18,
+    "saturated_ceiling": 22,
+    "saturated_floor": 11,
+    "invalid": 0,
+    "quarantined": 0
+  },
+  "artifacts": {
+    "calibration_summary": "/home/ubuntu/alkera_factory_1017/runs_phase2/calibration_summary.json",
+    "stage0_report": "/home/ubuntu/alkera_factory_1017/phase4_stage0_51.json",
+    "run_index": "/home/ubuntu/alkera_factory_1017/phase2_run_index.json",
+    "hardness_report": "/home/ubuntu/alkera_factory_1017/phase4_hardness_51.json"
+  }
+}

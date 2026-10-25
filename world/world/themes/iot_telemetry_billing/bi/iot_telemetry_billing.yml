@@ -1,0 +1,6 @@
+dashboard: iot_telemetry_billing
+panels:
+- name: daily_fct_billable_usage
+  sql: select * from warehouse.fct_billable_usage order by usage_date desc limit 30
+- name: published_invoice_run_handoff
+  sql: select * from warehouse."invoice_run_handoff" limit 30

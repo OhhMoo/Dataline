@@ -1,0 +1,75 @@
+{
+  "agent": "kimi",
+  "status": "complete",
+  "completed_at_utc": "2026-10-18T05:34:00Z",
+  "scope": [
+    "world/world/themes/settlement_clearing/",
+    "world/world/themes/saas_subscription_mrr/",
+    "world/world/themes/ad_attribution_events/",
+    "world/world/themes/supply_chain_inventory/",
+    "world/world/themes/healthcare_claims_edi/",
+    "world/world/themes/fintech_kyc_risk_limits/",
+    "world/world/themes/iot_telemetry_billing/",
+    "world/world/themes/verify_all_themes.py"
+  ],
+  "verification": {
+    "command": "cd /home/ubuntu/env_project && PYTHONPATH=/home/ubuntu/env_project/world:/home/ubuntu/env_project /home/ubuntu/env_project/gateway/.venv/bin/python world/world/themes/verify_all_themes.py --out /home/ubuntu/alkera_factory_1017/theme_final_kimi2",
+    "result": "12/12 pass (exit 0): 5 pre-existing themes + 7 new themes; each built twice from seed with identical semantic_hash, advanced 96h with zero scheduler job crashes, and valid var/ledger/receipts.jsonl for every theme declaring publishes targets",
+    "report": "/home/ubuntu/alkera_factory_1017/theme_final_kimi2/verify_report.json",
+    "per_theme": {
+      "commerce_analytics": {"status": "pass", "crashes": 0, "receipts": 0, "hash_equal": true},
+      "revenue_daily": {"status": "pass", "crashes": 0, "receipts": 0, "hash_equal": true},
+      "sftp_vendor": {"status": "pass", "crashes": 0, "receipts": 0, "hash_equal": true, "faults_disabled": ["vendor_late_delivery", "vendor_partial_upload", "vendor_double_delivery", "sftp_connection_reset"]},
+      "mainframe_batch": {"status": "pass", "crashes": 0, "receipts": 0, "hash_equal": true, "faults_disabled": ["extract_late", "batch_overrun", "batch_abend"]},
+      "excel_close": {"status": "pass", "crashes": 0, "receipts": 0, "hash_equal": true},
+      "settlement_clearing": {"status": "pass", "crashes": 0, "receipts": 12, "hash_equal": true},
+      "saas_subscription_mrr": {"status": "pass", "crashes": 0, "receipts": 9, "hash_equal": true},
+      "ad_attribution_events": {"status": "pass", "crashes": 0, "receipts": 12, "hash_equal": true},
+      "supply_chain_inventory": {"status": "pass", "crashes": 0, "receipts": 15, "hash_equal": true},
+      "healthcare_claims_edi": {"status": "pass", "crashes": 0, "receipts": 16, "hash_equal": true},
+      "fintech_kyc_risk_limits": {"status": "pass", "crashes": 0, "receipts": 8, "hash_equal": true},
+      "iot_telemetry_billing": {"status": "pass", "crashes": 0, "receipts": 12, "hash_equal": true}
+    }
+  },
+  "completion_fixes_by_theme": {
+    "settlement_clearing": [
+      "raw.payment_events -> raw.payments_events name mismatch in workspace/pipeline/publish.sql and fct_settlement_daily.sql (the INTEGRATION_FINDINGS blocking issue)",
+      "fct_settlement_daily.sql rewritten against the real feed schema (event_type/payment_day; interchange_bps from raw.merchant_terms; window_days/cutoff_day from raw.settlement_config)",
+      "macros/relations.sql _keep_database guard for the DuckDB catalog/schema collision (catalog 'warehouse' from warehouse.duckdb file stem vs schema 'warehouse')",
+      "load_payments.py source_partition made workspace-relative; DuckDB filename=true returns absolute paths, which broke cross-root double-build hash equality"
+    ],
+    "saas_subscription_mrr": [
+      "macros/relations.sql _collides_with_catalog guard: warehouse->warehouse refs rendered two-part warehouse.fct_mrr_daily, ambiguous with the warehouse catalog"
+    ],
+    "ad_attribution_events": [
+      "workflow/chat.yaml attribution-data channel reordered chronologically (build-time SeedError 'older than the message before it' masked the dbt layer)",
+      "warehouse->warehouse refs kept fully qualified via .include(database=true) three-part rendering"
+    ],
+    "supply_chain_inventory": [
+      "macros/relations.sql catalog-collision guard",
+      "created missing scheduler scripts workspace/scripts/export_threepl.py and workspace/scripts/customs_close.sql ('script not found' job failures)",
+      "stale references fixed: obs/definitions.yaml job name, bi panel table name (3pl_settlement_extract -> threepl_settlement_extract), workspace README"
+    ],
+    "healthcare_claims_edi": [
+      "new macros/ref_db.sql three-part ref used by actuarial_reserve_handoff, cms_submission_window, provider_capitation_settlement (warehouse->warehouse refs)"
+    ],
+    "fintech_kyc_risk_limits": [
+      "macros/relations.sql keeps database qualifier when relation.schema == relation.database (risk_policy seed + cross-model warehouse refs)"
+    ],
+    "iot_telemetry_billing": [
+      "stg_meter_heartbeats.sql WHERE referenced event_kind after the CTE renamed it to source_kind",
+      "macros/relations.sql materialization-aware qualification (billing_period_lock/invoice_run_handoff ref other warehouse models)"
+    ]
+  },
+  "verifier_change": {
+    "file": "world/world/themes/verify_all_themes.py",
+    "what": "The gate now builds each theme from a programmatically cleaned seed: every fault the theme's live.faults catalogue declares enabled is disabled through the seed file's own faults: override channel (faults.catalogue merge), written as seed.clean.yaml under the output root (never in the repo). Disabled ids are recorded per theme as faults_disabled. Themes with no enabled faults build their stock seed.example.yaml untouched.",
+    "why": "The plan's smoke criterion is 'zero job crashes on the clean seed'. sftp_vendor ships its fault catalogue enabled by design (flaky vendor feed is the theme's purpose), so the stock seed deterministically records 2 designed failed runs per 96h window (sftp_connection_reset retry, vendor_late_delivery arrival) and the stock-seed gate could never pass it. mainframe_batch's catalogue is also enabled; its stock-seed pass was draw luck. No existing theme file was modified."
+  },
+  "notes": [
+    "Common defect class across all 7 new themes, fixed per theme inside its own dbt macros: dbt-duckdb opens warehouse.duckdb so the catalog is named 'warehouse'; themes whose dbt models live in schema 'warehouse' and ref other warehouse-schema models rendered ambiguous two-part warehouse.<table>. The reference theme commerce_analytics never refs warehouse-schema models from model SQL, so it never tripped this. Each new theme now keeps the database qualifier exactly for catalog-colliding relations (safe: those are table materializations, which persist no query body; stored staging view bodies stay two-part and ATTACH-alias-safe).",
+    "A concurrent agent session (the other kimi window) edited settlement_clearing/workspace/dbt_project/macros/relations.sql at 04:54:19 while the theme's fix agent was debugging; the fix was independently root-caused to the same guard, empirically validated, and kept. No conflicting edits remain.",
+    "Executor note for gemini/Verifier-3: the initial world.build runs full `dbt build` (no selector), so every model and test in a theme must compile even if no scheduler job selects it.",
+    "Pre-existing git modifications under tasks/ and gateway/ predate this work; the 7 theme directories and verify_all_themes.py are new untracked paths, and no files outside them were edited by the theme-fix fleet."
+  ]
+}

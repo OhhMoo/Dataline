@@ -1,0 +1,59 @@
+{
+  "agent": "kimi",
+  "phase": "1020",
+  "status": "DONE",
+  "tests_passed": true,
+  "completed_at_utc": "2026-10-21T07:35:00Z",
+  "summary": "All 12 themes now ship enriched workspace/docs context (new architecture_overview.md + reconciliation_sla.md per theme: SLA windows grounded in each theme's real schedule, partner/vendor onboarding history, legacy migration notes framing provisional rates/splits/cutover logic as live configuration that must be verified against warehouse.factory_corrections, var/logs/ingest_daemon.log, var/logs/sftp_sync.log and fixtures/workflow/issues.yaml before alteration, and a DuckDB schema overview of the theme's real tables). No partner_feed_contract.md or ops_runbook.md was created or modified; no spoiler phrases anywhere under workspace/docs (word-boundary R1-R4 / H01-H14 / S01-S10, EV-FUT-, factory_future, oracle_, test_spec, build_manifest, case-insensitive); all docs ASCII-only. scheduler.py needed no change: both schedule-sync suites pass 100% with the comment-free shipped schedule.yml files.",
+  "tests": {
+    "plan_command": "gateway/.venv/bin/pytest world/tests/test_theme_docs_context.py world/tests/test_schedule_sync.py world/tests/test_workspace_schedule_sync.py -q",
+    "plan_command_result": "67 passed",
+    "new_gate": "world/tests/test_theme_docs_context.py: 12 themes discovered; per-theme enriched-docs presence + >=2000 chars + required live-state pointers + ASCII; spoiler scan over every docs/**/*.md; generated doc names absent; subprocess re-run of both schedule-sync suites asserting exit 0",
+    "recorded_hash_battery": "world/tests/test_bi_projects.py + test_native_workspace.py + test_profile_world.py + test_theme_commerce_analytics.py: 154 passed",
+    "theme_gate": {
+      "command": "PYTHONPATH=/home/ubuntu/env_project/world:/home/ubuntu/env_project gateway/.venv/bin/python world/world/themes/verify_all_themes.py --out /home/ubuntu/alkera_factory_1017/theme_docs_1020",
+      "passed": 12,
+      "failed": 0,
+      "hash_equal": 12,
+      "crashes": 0,
+      "receipts_minimum": 4,
+      "receipts": {
+        "commerce_analytics": 12,
+        "revenue_daily": 6,
+        "sftp_vendor": 9,
+        "mainframe_batch": 8,
+        "excel_close": 9,
+        "settlement_clearing": 12,
+        "saas_subscription_mrr": 9,
+        "ad_attribution_events": 12,
+        "supply_chain_inventory": 15,
+        "healthcare_claims_edi": 16,
+        "fintech_kyc_risk_limits": 8,
+        "iot_telemetry_billing": 12
+      }
+    }
+  },
+  "docs_added": {
+    "count": 24,
+    "files": "world/world/themes/<theme>/workspace/docs/{architecture_overview.md,reconciliation_sla.md} for all 12 themes",
+    "size_range_chars": [3639, 5543],
+    "existing_files_modified": false
+  },
+  "repin": {
+    "what": "world/evidence/acceptance.json gate1_host_semantic_hash + gate3_container_semantic_hash 27fb32... -> 1b641a7a541c68072aeada353e62be1dd4836cb328b255d194b40a0e13466939; test_native_workspace.py flagged-build pin e2a0b8ae... -> 39ecd4ea111c45d484e0aeddcfcdad05144ee8dfb12dd30de542efccee2c4f02",
+    "why": "The semantic hash covers the workspace tree byte-exactly (fingerprint.py semantic(): workspace = tree_hash(root/'workspace')), so the plan-mandated docs enrichment (and the Phase 3 schedule.yml surface) intentionally moved the recorded hash. The battery had actually been red since Phase 3's schedule.yml landed; an earlier green observation was a test/write race on this shared host.",
+    "evidence": "Three-build section comparison on seed.example.yaml (current / minus new docs / minus docs minus schedule.yml): warehouse, scheduler, bi, live section hashes byte-identical across all three; only the workspace tree section moved; minus-docs-minus-schedule.yml reproduces the old 27fb32... exactly. All four native discovery-file byte pins (workspace/.envrc, docs/onboarding.md, home/.dbt/profiles.yml, home/.config/alkera/services.toml) unchanged.",
+    "scope_note": "acceptance.json and test_native_workspace.py sit outside the section-3 kimi ownership list; re-pinned because the drift is the intended consequence of the kimi docs assignment and no other agent owns those files."
+  },
+  "incident": "revenue_daily/workspace/orchestration/schedule.yml (created in Phase 3) was deleted by a concurrent process on this shared host between 2026-10-20 ~22:15 and 2026-10-21 ~05:30; restored byte-conservatively from theme.yaml (jobs daily_load 01:00 day_offset 1, dbt_build after+5m; feed_window lands_at 00:00 day_offset 1) in the same format as the other 11 themes. theme_contract.yaml schedule_file pointer had survived; 12/12 theme gate re-verified after restoration.",
+  "files_changed": [
+    "world/world/themes/*/workspace/docs/architecture_overview.md (12 new)",
+    "world/world/themes/*/workspace/docs/reconciliation_sla.md (12 new)",
+    "world/world/themes/revenue_daily/workspace/orchestration/schedule.yml (restored)",
+    "world/tests/test_theme_docs_context.py (new)",
+    "world/evidence/acceptance.json (re-pinned)",
+    "world/tests/test_native_workspace.py (flagged-build pin re-pinned)"
+  ],
+  "scheduler_py_changed": false,
+  "git_commits": 0
+}

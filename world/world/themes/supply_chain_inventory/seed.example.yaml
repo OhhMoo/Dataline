@@ -1,0 +1,28 @@
+# Multi-DC inventory, EDI receipt transitions, 3PL billing, and customs cutoffs.
+theme: supply_chain_inventory
+seed: 41
+vtime_start: "2026-02-01T00:00:00Z"
+days: 30
+git_author: "Supply Chain Data <sc-data@example.com>"
+
+# Ordered distribution-center identifiers used in every warehouse/SKU position.
+distribution_centers: [DC_EAST, DC_CENTRAL, DC_WEST]
+sku_count: 12                    # SKU-0001 .. SKU-0012
+case_pack_options: [6, 12, 24]   # EACH units per CASE, assigned round-robin by SKU
+
+# Inclusive per-day volume ranges.
+asns_per_day: [3, 5]
+lines_per_asn: [1, 3]
+movements_per_day: [8, 12]
+cycle_counts_per_day: [2, 4]
+
+# ASN receipt lag and customs document controls. All cutoff times are UTC.
+transit_days: [2, 4]
+customs_freeze_hours: 48
+customs_cutoff_hour: 18
+customs_declaration_modulo: 3    # one declaration for every third ASN
+
+# Integer-cent 3PL rates; no floating-point money is generated.
+threepl_receipt_cents_per_each: 2
+threepl_outbound_cents_per_each: 4
+threepl_storage_cents_per_each: 1

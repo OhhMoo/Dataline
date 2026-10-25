@@ -1,0 +1,54 @@
+version: 2
+models:
+  - name: fct_merchant_exposure
+    description: >-
+      Daily merchant exposure with rolling-calendar-day dispute ratios, latest
+      KYC attributes, open dispute liability, and reserve capacity. The _30d
+      fields use the window length supplied by the risk_policy seed.
+    columns:
+      - {name: merchant_id, data_tests: [not_null]}
+      - {name: exposure_date, data_tests: [not_null]}
+      - {name: legal_name, data_tests: [not_null]}
+      - {name: kyc_status, data_tests: [not_null]}
+      - {name: settled_transactions_30d, data_tests: [not_null]}
+      - {name: opened_disputes_30d, data_tests: [not_null]}
+      - {name: chargeback_ratio_bps, data_tests: [not_null]}
+      - {name: reserve_required_amount, data_tests: [not_null]}
+      - {name: reserve_held_amount, data_tests: [not_null]}
+      - name: exposure_status
+        data_tests:
+          - accepted_values:
+              arguments: {values: [normal, watch, critical, kyc_review]}
+  - name: risk_committee_signoff
+    description: One reserve-release request and its latest risk-officer decision.
+    columns:
+      - {name: request_id, data_tests: [unique, not_null]}
+      - {name: merchant_id, data_tests: [not_null]}
+      - {name: requested_amount, data_tests: [not_null]}
+      - name: signoff_status
+        data_tests:
+          - accepted_values:
+              arguments: {values: [pending, approved, rejected]}
+  - name: treasury_reserve_handoff
+    description: >-
+      Treasury instruction per release request. A positive release requires an
+      officer approval, approved KYC, a subcritical ratio, and excess reserve.
+    columns:
+      - {name: handoff_id, data_tests: [unique, not_null]}
+      - {name: request_id, data_tests: [unique, not_null]}
+      - {name: treasury_release_amount, data_tests: [not_null]}
+      - name: handoff_status
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [awaiting_risk_signoff, rejected_by_risk, blocked_by_kyc,
+                         blocked_by_chargeback_ratio, blocked_no_excess_reserve,
+                         ready_for_treasury]
+seeds:
+  - name: risk_policy
+    description: One-row merchant risk policy generated from the world seed.
+    columns:
+      - {name: policy_id, data_tests: [unique, not_null]}
+      - {name: rolling_window_days, data_tests: [not_null]}
+      - {name: chargeback_warning_bps, data_tests: [not_null]}
+      - {name: chargeback_critical_bps, data_tests: [not_null]}

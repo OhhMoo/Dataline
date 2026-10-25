@@ -1,0 +1,149 @@
+{
+  "all_passed": true,
+  "data_files": {
+    "dataset_card.json": "c65a7847385aed895fba12a47888dc40f9a4b88d7cfad6e936d9dab29c8fe586",
+    "eval_holdout_grpo.jsonl": "f7cb265f3dd9703161a1241340019219c8af6419cb35072b43f71d1b886b34fb",
+    "train_grpo.jsonl": "6c489f48d57d23b8f35d4d7a4df1968ac1b9c3a94101f7a0655db1cf903ae79b",
+    "train_sft.jsonl": "31bf84648dde7e59c330bc77763f40254e9a3384e752df496ce2737bd57ea41e"
+  },
+  "live_checks": {
+    "advantages_recomputed": {
+      "advantage_mismatches": [],
+      "collapsed_groups": 1,
+      "groups": 51,
+      "lambda_twin": 0.5,
+      "passed": true,
+      "phase_residual_nonzero": []
+    },
+    "dapo_surrogate_gradient": {
+      "clip_bounds": [
+        0.8,
+        1.28
+      ],
+      "clipped_active_positions": 17640,
+      "finite_difference_failures": [],
+      "masked_positions_with_gradient": 0,
+      "passed": true,
+      "rows_dropped_collapsed": 0,
+      "rows_kept_non_collapsed": 230
+    },
+    "dpo_pairs": {
+      "bad_pairs": [],
+      "dpo_beta_reference": 0.1,
+      "dpo_loss_formula": "-log sigmoid(beta*((pol_c-ref_c)-(pol_r-ref_r)))",
+      "pairs": 82,
+      "passed": true,
+      "present": true,
+      "tasks": 42
+    },
+    "label_masking": {
+      "bad_rows": [],
+      "passed": true,
+      "rows": 421
+    },
+    "sft_loss_gradient": {
+      "active_positions": 32189,
+      "finite_difference_failures": [],
+      "masked_positions": 22166,
+      "masked_positions_with_gradient": 0,
+      "passed": true,
+      "rows": 148
+    },
+    "split_disjoint": {
+      "eval_tasks": 9,
+      "passed": true,
+      "shared_keys": [],
+      "train_tasks": 42
+    }
+  },
+  "reference_checks": {
+    "dapo_asymmetric_clip_closed_form": {
+      "expected_loss": -0.77,
+      "loss": -0.77,
+      "passed": true
+    },
+    "dapo_collapsed_group_zero_gradient": {
+      "passed": true
+    },
+    "dapo_finite_difference": {
+      "passed": true
+    },
+    "dapo_on_policy_equals_negative_mean_advantage": {
+      "passed": true
+    },
+    "dpo_all_masked_sequences_have_zero_sequence_gradient": {
+      "passed": true
+    },
+    "dpo_finite_difference": {
+      "passed": true
+    },
+    "dpo_gradient_closed_form": {
+      "grad_chosen": [
+        -0.047502081252106004,
+        -0.047502081252106004,
+        0.0
+      ],
+      "grad_rejected": [
+        0.047502081252106004,
+        0.0
+      ],
+      "passed": true
+    },
+    "dpo_margin_loss_closed_form": {
+      "expected_loss": 0.6443966600735709,
+      "loss": 0.6443966600735709,
+      "passed": true
+    },
+    "grpo_closed_form": {
+      "passed": true
+    },
+    "grpo_collapsed_group_zero": {
+      "passed": true
+    },
+    "phase_step_closed_form": {
+      "passed": true
+    },
+    "rloo_closed_form": {
+      "passed": true
+    },
+    "sft_all_masked_is_zero": {
+      "passed": true
+    },
+    "sft_finite_difference": {
+      "passed": true
+    },
+    "sft_masked_rows_zero_gradient": {
+      "passed": true
+    },
+    "sft_uniform_closed_form": {
+      "expected_loss": 1.3862943611198906,
+      "loss": 1.3862943611198906,
+      "passed": true
+    },
+    "twin_closed_form": {
+      "passed": true
+    },
+    "twin_without_penalty_variance_equals_grpo": {
+      "passed": true
+    }
+  },
+  "rows": {
+    "eval_holdout_grpo": 43,
+    "train_dpo_pairs": 82,
+    "train_grpo": 230,
+    "train_sft": 148
+  },
+  "schema_version": 1,
+  "settings": {
+    "alpha_outcome": 0.7,
+    "clip_bounds": [
+      0.8,
+      1.28
+    ],
+    "finite_difference_step": 1e-06,
+    "finite_difference_tolerance": 1e-05,
+    "ignore_index": -100,
+    "lambda_twin": 0.5,
+    "live_tokens_per_message": 3
+  }
+}

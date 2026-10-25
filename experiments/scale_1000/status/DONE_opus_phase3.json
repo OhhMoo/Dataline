@@ -1,0 +1,88 @@
+{
+  "agent": "opus",
+  "phase": "phase3",
+  "status": "completed",
+  "completed_at_utc": "2026-10-20T22:02:08Z",
+  "git_commit": false,
+  "files_modified": [
+    "tasks/harness/blindness.py",
+    "tasks/harness/test_cursor_subject.py",
+    "tasks/factory/grader/receipt_engine.py",
+    "tasks/factory/grader/declarative_grade.py"
+  ],
+  "files_created": [
+    "tasks/factory/grader/tests/test_checkpoint_watermark.py",
+    "experiments/scale_1000/status/opus_phase3_offline_regrade.json",
+    "experiments/scale_1000/status/DONE_opus_phase3.json"
+  ],
+  "blindness": {
+    "rule": "English pairs such as reference/solution territory and problem/solution in thinking or assistant prose are not forbidden_path_reference. Path forms stay hard: /solution/, ../solution/, solution/oracle, solution/solve.py, and tool calls that read those paths.",
+    "ft0002_r2": {
+      "requested_path": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0002-commerce-analytics-ft01-hold-a/clean-20261018T171429Z-stage1/r2/agent.stdout.txt",
+      "requested_path_present": false,
+      "scored_transcript": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0002-settlement-clearing-ft01-hold-a/clean-20261018-k3-stage1-20261018T162455776383Z/r2/transcript.jsonl",
+      "phrase_present": "reference/solution territory",
+      "old_hard_kinds": ["forbidden_path_reference"],
+      "hard_count": 0,
+      "hard_kinds": [],
+      "quarantined": false
+    }
+  },
+  "c0_checkpoint": {
+    "rule": "When the only mismatch on a single-row warehouse.factory_checkpoint is through_day, and raw.factory_events, warehouse.fct_factory_events, and warehouse.factory_handoff match the oracle, a non-empty DATE in [feed_day, t0_day] passes C0. Spec feed_day and t0_day are used when both are declared. Otherwise the window is the scheduler date and the day before it. no_op, a partial repair that leaves a data table wrong, and a wrong fact table still fail C0. The five baseline arms stay separable.",
+    "tests": "tasks/factory/grader/tests/test_checkpoint_watermark.py"
+  },
+  "verification": {
+    "command": "cd /home/ubuntu/env_project && PYTHONPATH=/home/ubuntu/env_project:/home/ubuntu/env_project/world /home/ubuntu/env_project/gateway/.venv/bin/python -m pytest -q tasks/factory/grader/tests tasks/harness/test_cursor_subject.py",
+    "result": "221 passed in 500.73s",
+    "exit_code": 0
+  },
+  "offline_regrade": {
+    "summary": "experiments/scale_1000/status/opus_phase3_offline_regrade.json",
+    "root": "/home/ubuntu/alkera_factory_1017/runs_phase2",
+    "containers_launched": false,
+    "rollout_dirs": 208,
+    "rescored": 208,
+    "skipped": 0,
+    "errors": 0,
+    "rollouts_changed": 22,
+    "tasks_changed": [
+      "FT0002-settlement-clearing-ft01-hold-a",
+      "FT0091-commerce-analytics-ft01-auth-a",
+      "FT0332-sftp-vendor-ft11-hold-a",
+      "FT0961-fintech-kyc-risk-limits-ft11-auth-a",
+      "FT0962-fintech-kyc-risk-limits-ft11-hold-a",
+      "FT0963-fintech-kyc-risk-limits-ft11-esc-a",
+      "FT1077-iot-telemetry-billing-ft15-esc-a"
+    ],
+    "pass_at_1_from_scored_non_quarantined": {
+      "FT0002-settlement-clearing-ft01-hold-a": {
+        "stage1_k3": {"old": "2/2 = 1.0", "new": "3/3 = 1.0", "note": "r2 left quarantine; it already scored 20/20"}
+      },
+      "FT0961-fintech-kyc-risk-limits-ft11-auth-a": {
+        "stage1_k3": {"old": "0/3 = 0.0", "new": "3/3 = 1.0"}
+      },
+      "FT0962-fintech-kyc-risk-limits-ft11-hold-a": {
+        "stage1_k3": {"old": "0/3 = 0.0", "new": "3/3 = 1.0", "note": "r0 moved from tool_gap to pass because C0 was the failing required check"}
+      },
+      "FT0091-commerce-analytics-ft01-auth-a": {
+        "stage1_k3": {"old": "2/3", "new": "3/3 = 1.0"},
+        "stage2_k5": {"old": "4/5 = 0.8", "new": "5/5 = 1.0"}
+      },
+      "FT0332-sftp-vendor-ft11-hold-a": {
+        "stage1_k3": {"old": "2/3", "new": "3/3 = 1.0"},
+        "stage2_k5": {"old": "1/5 = 0.2", "new": "5/5 = 1.0"}
+      },
+      "FT0963-fintech-kyc-risk-limits-ft11-esc-a": {
+        "stage1_k3": {"old": "1/3", "new": "3/3 = 1.0"},
+        "stage2_k5": {"old": "1/5 = 0.2", "new": "5/5 = 1.0"}
+      },
+      "FT1077-iot-telemetry-billing-ft15-esc-a": {
+        "stage1_k3": {"old": "2/3", "new": "3/3 = 1.0"},
+        "stage2_k5": {"old": "4/5 = 0.8", "new": "5/5 = 1.0"}
+      }
+    },
+    "newly_certified": [],
+    "certification_note": "No task is newly certified. FT0961 and FT0962 have only the stage-1 K=3 run, and their recomputed pass@1 is 1.0, outside [0.15, 0.80]. Stage-2 arms that moved (FT0091, FT0332, FT0963, FT1077) recompute to 5/5 = 1.0, also outside that band. Rollout records have no score.reward, so scalar variance was not recomputed above 0. Certification was not claimed for any task."
+  }
+}

@@ -1,0 +1,38 @@
+version: 2
+models:
+  - name: stg_conversions
+    description: One conversion per conversion_id after deterministic S2S postback deduplication.
+    columns:
+      - name: conversion_id
+        tests: [not_null, unique]
+      - name: postback_id
+        tests: [not_null, unique]
+      - name: revenue_cents
+        tests: [not_null]
+  - name: stg_clicks
+    description: Typed clickstream with the current bot-exclusion decision on each row.
+    columns:
+      - name: click_id
+        tests: [not_null, unique]
+      - name: is_bot
+        tests: [not_null]
+  - name: stg_impressions
+    columns:
+      - name: impression_id
+        tests: [not_null, unique]
+  - name: stg_attribution_rules
+    columns:
+      - name: rule_id
+        tests: [not_null, unique]
+      - name: lookback_days
+        tests: [not_null]
+      - name: billing_lag_days
+        tests: [not_null]
+  - name: stg_partners
+    columns:
+      - name: partner_id
+        tests: [not_null, unique]
+  - name: stg_bot_exclusions
+    columns:
+      - name: exclusion_id
+        tests: [not_null, unique]

@@ -1,0 +1,66 @@
+channels:
+  - id: metering-ops
+    topic: Device metering, gateway flushes, and the nightly pipeline
+    purpose: Operational coordination for telemetry collection.
+    members: [mokafor, jlee, rsubramanian, ngarcia, meterbot, agent]
+    messages:
+      - id: metering-ops/0001
+        author: rsubramanian
+        at: "-13d 08:45"
+        thread_id: null
+        text: |-
+          The cold-chain sites are back online. Their gateways buffered full
+          daily windows while the radios were down, so expect older usage-day
+          partitions in the next flush. The rollup ids are unchanged on retry.
+        reactions: {"+1": 2}
+      - id: metering-ops/0002
+        author: jlee
+        at: "-13d 09:02"
+        thread_id: metering-ops/0001
+        text: Thanks. The full reload will pick them up; no manual partition moves. We will check collection delay separately from device volume.
+        reactions: {}
+      - id: metering-ops/0003
+        author: jlee
+        at: "-6d 12:30"
+        thread_id: null
+        text: |-
+          Counter note for the runbook: a lower cumulative reading after reboot
+          is rebased to the current reading. Delta heartbeats do not use that
+          rule because each one is already a window increment.
+        reactions: {"+1": 3}
+      - id: metering-ops/0004
+        author: ngarcia
+        at: "-1d 10:20"
+        thread_id: null
+        text: The backfill panel is helping support already. Please keep the usage date visible; arrival date alone made the old dashboard look like a sudden traffic spike.
+        reactions: {"+1": 1}
+
+  - id: billing-close
+    topic: Committed contracts, period locks, and ERP handoff
+    purpose: Finance and Metering coordinate monthly invoice finalization.
+    members: [mokafor, kbennett, fdubois, jlee, agent]
+    messages:
+      - id: billing-close/0001
+        author: kbennett
+        at: "-27d 09:10"
+        thread_id: null
+        text: January sign-off is complete using the locked handoff. If another site flushes January windows now, keep them visible as excluded units rather than rewriting the invoice.
+        reactions: {"+1": 2}
+      - id: billing-close/0002
+        author: fdubois
+        at: "-27d 09:25"
+        thread_id: billing-close/0001
+        text: Agreed. Any approved adjustment will be a separate memo linked to the original invoice run.
+        reactions: {}
+      - id: billing-close/0003
+        author: kbennett
+        at: "-4d 11:20"
+        thread_id: null
+        text: Opened IOT-178 for February. Please reconcile committed units, overage blocks, and late exclusions before Revenue Control signs off.
+        reactions: {}
+      - id: billing-close/0004
+        author: mokafor
+        at: "-4d 11:35"
+        thread_id: billing-close/0003
+        text: The handoff only contains locked customer-months. Open periods remain visible in the lock control table until the collection watermark passes the cutoff.
+        reactions: {"+1": 1}

@@ -1,0 +1,115 @@
+version: 1
+retention:
+  days: 14
+metrics:
+  - id: billable_usage_freshness
+    kind: freshness
+    unit: seconds
+    title: Newest usage date in the billable fact
+    source: {table: warehouse.fct_billable_usage, timestamp_column: usage_date}
+  - id: raw_heartbeat_rows
+    kind: row_count
+    unit: rows
+    title: Direct device heartbeats loaded
+    source: {table: raw.meter_heartbeats}
+    series: {bucket_column: dt}
+  - id: raw_rollup_rows
+    kind: row_count
+    unit: rows
+    title: Edge gateway rollups loaded
+    source: {table: raw.usage_rollups}
+    series: {bucket_column: dt}
+  - id: billable_usage_rows
+    kind: row_count
+    unit: rows
+    title: Normalized billable usage rows
+    source: {table: warehouse.fct_billable_usage}
+    series: {bucket_column: usage_date}
+  - id: latest_day_units
+    kind: sql_scalar
+    unit: telemetry_units
+    title: Reported and billable units on the newest usage day
+    source:
+      sql: >-
+        select sum(reported_units) - sum(billable_units)
+        from warehouse.fct_billable_usage
+        where usage_date = (select max(usage_date) from warehouse.fct_billable_usage)
+    series:
+      sql: >-
+        select cast(usage_date as varchar) as bucket,
+               sum(billable_units) as value
+        from warehouse.fct_billable_usage
+        group by usage_date order by usage_date
+  - id: post_cutoff_units
+    kind: sql_scalar
+    unit: telemetry_units
+    title: Reported units excluded by billing cutoffs
+    source:
+      sql: >-
+        select sum(reported_units - billable_units)
+        from warehouse.fct_billable_usage
+  - id: counter_resets
+    kind: sql_scalar
+    unit: devices
+    title: Counter reset heartbeats normalized
+    source:
+      sql: select count(*) from warehouse.fct_billable_usage where counter_reset
+  - id: locked_invoice_rows
+    kind: row_count
+    unit: rows
+    title: ERP-ready locked invoices
+    source: {table: warehouse.invoice_run_handoff}
+    series: {bucket_column: billing_month}
+  - id: open_billing_periods
+    kind: sql_scalar
+    unit: periods
+    title: Customer billing periods still open
+    source:
+      sql: select count(*) from warehouse.billing_period_lock where not is_locked
+  - id: load_usage_duration
+    kind: job_duration
+    unit: seconds
+    title: Telemetry raw load duration
+    job: load_usage
+  - id: load_usage_error_rate
+    kind: job_error_rate
+    unit: ratio
+    title: Telemetry raw load failure rate
+    job: load_usage
+    window_runs: 10
+  - id: finalize_billing_duration
+    kind: job_duration
+    unit: seconds
+    title: Usage build and invoice finalization duration
+    job: finalize_billing
+  - id: finalize_billing_error_rate
+    kind: job_error_rate
+    unit: ratio
+    title: Usage build and invoice finalization failure rate
+    job: finalize_billing
+    window_runs: 10
+alarms:
+  - id: usage_stale
+    metric: billable_usage_freshness
+    comparison: gt
+    threshold: 190000
+    severity: critical
+    title: Billable usage has not advanced on schedule
+    runbook: docs/runbook_nightly.md
+  - id: billing_build_failing
+    metric: finalize_billing_error_rate
+    comparison: gte
+    threshold: 0.1
+    severity: warning
+    title: Invoice finalization failed in the recent run window
+    runbook: docs/runbook_nightly.md
+deploys:
+  - id: rebuild_billing
+    kind: dbt
+    title: Rebuild usage and invoice marts
+    selector: warehouse
+    canary:
+      metrics: [billable_usage_rows, post_cutoff_units, locked_invoice_rows]
+      alarms: [usage_stale, billing_build_failing]
+      guards:
+        - {metric: billable_usage_rows, max_decrease_pct: 1}

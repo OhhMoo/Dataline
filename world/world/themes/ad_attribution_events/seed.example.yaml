@@ -1,0 +1,25 @@
+# Digital ad-network event exports -> raw -> dbt attribution -> partner payout
+# handoff and billing locks. All timestamps are UTC and all money is integer cents.
+theme: ad_attribution_events
+seed: 23
+vtime_start: "2026-02-01T00:00:00Z"
+days: 35                       # daily exports; event dates are arrival date minus one day
+git_author: "Attribution Engineering <attribution@example.com>"
+
+# Deterministic volume and population controls. Ranges are inclusive.
+impressions_per_day: [90, 120]
+clicks_per_day: [24, 36]
+conversions_per_day: [8, 14]
+users: 120                     # addressable user pool; direct conversions use separate IDs
+conversion_amount_cents: [1500, 25000]
+
+# Traffic and postback shape, expressed as integer percentages.
+bot_traffic_pct: 8             # clicks/impressions matching the exclusion feed
+unattributed_pct: 10           # direct/organic conversions with no click identifier
+duplicate_postback_pct: 35     # conversions sent by S2S more than once
+
+# Window controls. The default attribution rule is last eligible click within
+# seven days. Lags beyond that window deliberately produce unattributed demand.
+attribution_lookback_days: 7
+max_conversion_lag_days: 10    # generator may choose clicks this many days back
+billing_lag_days: 1            # dates up to max(event_date) - 1 are locked nightly

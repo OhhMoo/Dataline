@@ -1,0 +1,284 @@
+{
+  "driver": "cursor",
+  "model": "claude-opus-5-5-high",
+  "runs": {
+    "FT0001-settlement-clearing-ft01-auth-a": {
+      "fingerprint": "67fd360fb201a9934fbdb7451bc52e9d396c5e8d47f4586009b6ebd4c6974703",
+      "k3": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0001-settlement-clearing-ft01-auth-a/clean-20261023-k3-stage1-20261023T080557246571Z-a982787f",
+      "task_integrity": "11712668a7172e0ad6e4acb5c81018bbc661060b9515a707bdf4e4f8a44631ee"
+    },
+    "FT0002-settlement-clearing-ft01-hold-a": {
+      "fingerprint": "6bae218fc32638091789f0cb63ba90cf506771474be375bd4cbc31b5ea174f4f",
+      "k3": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0002-settlement-clearing-ft01-hold-a/clean-20261023-k3-stage1-20261023T080557246571Z-a982787f",
+      "task_integrity": "bced22b9d7a9c69ffd19a5eec2a4c257b41be78a7c685552220f63af56fc6943"
+    },
+    "FT0003-settlement-clearing-ft01-esc-a": {
+      "fingerprint": "f5cd0812f0e57afa21240ce3930ebb63fdbc0ffdf90adfc07b4c6287a424d5f5",
+      "k3": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0003-settlement-clearing-ft01-esc-a/clean-20261023-k3-stage1-20261023T080557246571Z-a982787f",
+      "task_integrity": "6a9c01dbe98347120c0e8c03eb74a02c3018e6d9e16fa509bb2ad78aec6f5e10"
+    },
+    "FT0047-settlement-clearing-ft08-hold-b": {
+      "fingerprint": "992f0d1281afed1157113c52c87cb90ae4aafa51d38d2e847a7938141f919d82",
+      "k3": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0047-settlement-clearing-ft08-hold-b/clean-20261023-k3-stage1-20261023T080557246571Z-a982787f",
+      "task_integrity": "e008a597cc88d1de1224e523fa08acbc65921827cbccc6f41d3fb7a9b7812651"
+    },
+    "FT0091-commerce-analytics-ft01-auth-a": {
+      "fingerprint": "94c859f48307e1e79c788e2ced54ae88eb66e4a44c19c2b8d3767fcd20dc03ca",
+      "k3": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0091-commerce-analytics-ft01-auth-a/clean-20261023-k3-stage1-20261023T080557246571Z-a982787f",
+      "task_integrity": "f6796130dd6b115a26746e687313fc394c01e6de2c5024d5989acd72fc3b6f8a"
+    },
+    "FT0100-commerce-analytics-ft02-auth-b": {
+      "fingerprint": "53ce816cbdc455215e372a08fb04fddf1623981213b48746851a6fd63b19b0ae",
+      "k3": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0100-commerce-analytics-ft02-auth-b/clean-20261021-k3-stage1-20261021T082954567686Z-7b365fe7",
+      "k5": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0100-commerce-analytics-ft02-auth-b/clean-20261021-k5-stage2-20261021T125225351571Z-7cacfbfe",
+      "task_integrity": "2f147947d15831f29c6865aa0327ad5db3ebf932d492d39c4271b0b8f829ce4b"
+    },
+    "FT0101-commerce-analytics-ft02-hold-b": {
+      "fingerprint": "9b850c91b135f453b6c05c6a736408bd183fc189e1f031f3aeddc92021ad92fe",
+      "k3": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0101-commerce-analytics-ft02-hold-b/clean-20261023-k3-stage1-20261023T080557246571Z-a982787f",
+      "task_integrity": "b5c067e7ed068320b7bf9b8107919d165673c264f2541c0142487c33203e1cb0"
+    },
+    "FT0102-commerce-analytics-ft02-esc-b": {
+      "fingerprint": "8fa43a60573d5a705ecdd6875494faa8bc8a1924c454fb36b767ee13b21b3040",
+      "k3": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0102-commerce-analytics-ft02-esc-b/clean-20261021-k3-stage1-20261021T082954567686Z-7b365fe7",
+      "k5": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0102-commerce-analytics-ft02-esc-b/clean-20261021-k5-stage2-20261021T125225351571Z-7cacfbfe",
+      "task_integrity": "d1bbe327de6d77695cfacde2352bedc8f690025624bb7fac4ba0a512d34fc6ef"
+    },
+    "FT0163-commerce-analytics-ft13-auth-a": {
+      "fingerprint": "0194f4690e6d114953b4df5b322fcf9dc4ccf1a015f4e4c5999bd7788f112007",
+      "k3": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0163-commerce-analytics-ft13-auth-a/clean-20261023-k3-stage1-20261023T080557246571Z-a982787f",
+      "task_integrity": "6eb8cea43d93e7c565cc5ebc488849b0753a1ff4c33d573b40ced6990b261559"
+    },
+    "FT0193-revenue-daily-ft03-auth-a": {
+      "fingerprint": "06a95127f124153b4cced421f60c030890ba67184308427b944e60ff72a14a90",
+      "k3": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0193-revenue-daily-ft03-auth-a/clean-20261018-k3-stage1-20261018T162455776383Z",
+      "k5": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0193-revenue-daily-ft03-auth-a/clean-20261018-k5-stage2-20261018T214500533926Z",
+      "task_integrity": "582964c4edcbf914040b61dc3a873ca5c7fe4b0db417e90f46a972933ceb4eb8"
+    },
+    "FT0194-revenue-daily-ft03-hold-a": {
+      "fingerprint": "76fef04a85c8121bf1898a461bbf94518f7d120682d5685534909730bcf77b6a",
+      "k3": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0194-revenue-daily-ft03-hold-a/clean-20261018-k3-stage1-20261018T162455776383Z",
+      "k5": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0194-revenue-daily-ft03-hold-a/clean-20261018-k5-stage2-20261018T214500533926Z",
+      "task_integrity": "7cc59f2e9123b2249c9f964d0487b823eb312b606d416c6278a2d790ec13c088"
+    },
+    "FT0195-revenue-daily-ft03-esc-a": {
+      "fingerprint": "504c7b0745b973933dbb29656bec5eab66711d5c1a57bd371d19880d18a7b591",
+      "k3": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0195-revenue-daily-ft03-esc-a/clean-20261018-k3-stage1-20261018T162455776383Z",
+      "k5": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0195-revenue-daily-ft03-esc-a/clean-20261018-k5-stage2-20261018T214500533926Z",
+      "task_integrity": "af95b2fee7556e3476aaef8d777ea34797c103aad9da50facc4698eab78b79b1"
+    },
+    "FT0216-revenue-daily-ft06-esc-b": {
+      "fingerprint": "591de4bc548495a69abda8466d4e84233ac7417c6d62086db5da7cf1471138a7",
+      "k3": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0216-revenue-daily-ft06-esc-b/clean-20261023-k3-stage1-20261023T080557246571Z-a982787f",
+      "task_integrity": "3183173f8488704b906f86579b93240b37526c6038a0baffffd8ca5880a45772"
+    },
+    "FT0292-sftp-vendor-ft04-auth-b": {
+      "fingerprint": "1bc234f007b9cf894dd240df19f78fc6ca64e225cb29dbb64e9f9696af94bdca",
+      "k3": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0292-sftp-vendor-ft04-auth-b/clean-20261023-k3-stage1-20261023T080557246571Z-a982787f",
+      "task_integrity": "0995d41956151b97e5dd491273e4d6e554a9658c0d3eab113d4d436ec736fdf8"
+    },
+    "FT0293-sftp-vendor-ft04-hold-b": {
+      "fingerprint": "faec24db126c313b4d032ce6f036dfe3ac31184e558dcddd45376cdb704b9686",
+      "k3": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0293-sftp-vendor-ft04-hold-b/clean-20261023-k3-stage1-20261023T080557246571Z-a982787f",
+      "task_integrity": "564573d228ad1663276cab096749c0013a534ef8b0d7f812c9a1d82f83d8b21f"
+    },
+    "FT0294-sftp-vendor-ft04-esc-b": {
+      "fingerprint": "b65d4244effba01c897850aeea367824fe7d66b8f96aebfa103e494db760650d",
+      "k3": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0294-sftp-vendor-ft04-esc-b/clean-20261021-k3-stage1-20261020T231632263850Z-69b316a1",
+      "k5": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0294-sftp-vendor-ft04-esc-b/clean-20261021-k5-stage2-20261021T023103967752Z-f22c4faf",
+      "task_integrity": "6dd0fbdd7e816fb309ceb17a2feca35170f3d377316b84bae74c2e16248c7a51"
+    },
+    "FT0332-sftp-vendor-ft11-hold-a": {
+      "fingerprint": "3c439e646a9e0d9036500d65b13bb37fc173a411127b6f3f7ca08ee39952d7da",
+      "k3": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0332-sftp-vendor-ft11-hold-a/clean-20261023-k3-stage1-20261023T080557246571Z-a982787f",
+      "k5": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0332-sftp-vendor-ft11-hold-a/clean-20261023-k5-stage2-20261023T105700882512Z-70e35c4f",
+      "task_integrity": "9cdaf0329a68d2adb55bb438a899bec9838dbaa50c4441dd8ea936d90f44df7f"
+    },
+    "FT0382-mainframe-batch-ft04-auth-b": {
+      "fingerprint": "ceba6683963e6a19df46a7604a95239b4e015b1a639cfe5b899b3275250e3fcb",
+      "k3": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0382-mainframe-batch-ft04-auth-b/clean-20261023-k3-stage1-20261023T080557246571Z-a982787f",
+      "task_integrity": "8872ac646584c646dd7cfe45403af6e8ab6e7d34dbbb5e8fd0e7f6d146c584da"
+    },
+    "FT0385-mainframe-batch-ft05-auth-a": {
+      "fingerprint": "76093dfc0b2d862ff3a1b9b9160113c36e728f4d7f12c87aeb297f833488e9fb",
+      "k3": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0385-mainframe-batch-ft05-auth-a/clean-20261023-k3-stage1-20261023T080557246571Z-a982787f",
+      "task_integrity": "15fa970ea7d4dbb5954c3ab24d7888b23f2b6b8bd13f7ebfb405673be5d8ad09"
+    },
+    "FT0386-mainframe-batch-ft05-hold-a": {
+      "fingerprint": "59752782edcc4ebbb9586646446eacabeb324af02a686cc418bf4b98a25ea813",
+      "k3": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0386-mainframe-batch-ft05-hold-a/clean-20261023-k3-stage1-20261023T080557246571Z-a982787f",
+      "task_integrity": "ad2a19d76f34c6705c60e2e54bee60bbe807f86a61d918d9d1ab9602a244e233"
+    },
+    "FT0387-mainframe-batch-ft05-esc-a": {
+      "fingerprint": "a55c9230a7a47a328379af35d8ef35906d3f6c46f3093472c35c4ea60513ffe5",
+      "k3": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0387-mainframe-batch-ft05-esc-a/clean-20261023-k3-stage1-20261023T080557246571Z-a982787f",
+      "task_integrity": "d10a46c816d0314d8b8a3576ec1c1f5d59dbd86a808d69e1b51f4cd43e5a031a"
+    },
+    "FT0484-excel-close-ft06-auth-b": {
+      "fingerprint": "089e0c179d6ebbc6ad7ee0fd40a9575cac2543177dd7b83418de3c8525877be0",
+      "k3": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0484-excel-close-ft06-auth-b/clean-20261021-k3-stage1-20261021T082954567686Z-7b365fe7",
+      "k5": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0484-excel-close-ft06-auth-b/clean-20261021-k5-stage2-20261021T125225351571Z-7cacfbfe",
+      "task_integrity": "2ef45720c0a4f383acce29fe724e4fb7cd88e4333841fdaae71acee9f188f44a"
+    },
+    "FT0485-excel-close-ft06-hold-b": {
+      "fingerprint": "32b1ddc3fd6cc477e44da405a50358e9a76b570e4e6f6eab99d7e5525b3197b4",
+      "k3": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0485-excel-close-ft06-hold-b/clean-20261018-k3-stage1-20261018T162455776383Z",
+      "k5": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0485-excel-close-ft06-hold-b/clean-20261018-k5-stage2-20261018T214500533926Z",
+      "task_integrity": "043b661c5a6990e3b656acd7d78c015c1d73f6dc0b2ce7ad32b8c9b1aa31684d"
+    },
+    "FT0486-excel-close-ft06-esc-b": {
+      "fingerprint": "fa5d320a0a14b7fc4c4f5a066f58a38068a7ca910227731c540e83edc7190c02",
+      "k3": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0486-excel-close-ft06-esc-b/clean-20261021-k3-stage1-20261021T135853744919Z-8da0c10a",
+      "k5": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0486-excel-close-ft06-esc-b/clean-20261021-k5-stage2-20261021T140303042140Z-fdf43f63",
+      "task_integrity": "5d6070648ea6773793381fa72064a2d928d9615f918f25b2d1802f2a87e92c2a"
+    },
+    "FT0501-excel-close-ft09-esc-a": {
+      "fingerprint": "fd0e9fbaf44caf6dbe2b3538d2ada07e341590bd941a8ba45487c4a0aff6bd4a",
+      "k3": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0501-excel-close-ft09-esc-a/clean-20261022-k3-stage1-20261022T094918041831Z-0b45fbac",
+      "k5": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0501-excel-close-ft09-esc-a/clean-20261022-k5-stage2-20261022T124214281153Z-b9f8af5a",
+      "task_integrity": "555ff8e96130eb9fbad44fffdd953ab080696dff84237f568e90c10944227701"
+    },
+    "FT0551-saas-subscription-mrr-ft02-hold-b": {
+      "fingerprint": "7b31a9e180e462b50e3751693f9fbb997ed6a1ec3fd86ed8a5528f21dba10dbf",
+      "k3": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0551-saas-subscription-mrr-ft02-hold-b/clean-20261023-k3-stage1-20261023T080557246571Z-a982787f",
+      "task_integrity": "1515362ca2e74a49c8796185fd745793c0fede931e77f27d518845e6f2dbaff4"
+    },
+    "FT0577-saas-subscription-mrr-ft07-auth-a": {
+      "fingerprint": "17829e4f72807d1a9f754fae920a90a995ba62064ffee2a12089357ccfda1f48",
+      "k3": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0577-saas-subscription-mrr-ft07-auth-a/clean-20261023-k3-stage1-20261023T080557246571Z-a982787f",
+      "task_integrity": "e6aa501f9dbc277ed9c349f9e60fea4e2bb7d679e5699068496d82db5bfc743a"
+    },
+    "FT0578-saas-subscription-mrr-ft07-hold-a": {
+      "fingerprint": "ece6d59b8ff7e577c1373c7c35af4ed50ac75fa653af13042799b5d04a3bfe4a",
+      "k3": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0578-saas-subscription-mrr-ft07-hold-a/clean-20261023-k3-stage1-20261023T080557246571Z-a982787f",
+      "task_integrity": "b3ff2ec5b214fe52a36e9707a5a02da4d6887557fad9a62a996e49a8e75c2018"
+    },
+    "FT0579-saas-subscription-mrr-ft07-esc-a": {
+      "fingerprint": "aea857b98ac799bcb7649b2baf61602d9d3f80d4ebc5b820229ea17b7785ebff",
+      "k3": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0579-saas-subscription-mrr-ft07-esc-a/clean-20261023-k3-stage1-20261023T080557246571Z-a982787f",
+      "k5": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0579-saas-subscription-mrr-ft07-esc-a/clean-20261023-k5-stage2-20261023T105700882512Z-70e35c4f",
+      "task_integrity": "d18488de2a7e3888e908ad7693f39e15c9dcbbe07cef056d2fac2822a12bb50f"
+    },
+    "FT0623-saas-subscription-mrr-ft14-hold-b": {
+      "fingerprint": "43efa1c97902fd385e670f590ec31c4a3f0171a83499b2c34a0cd072548684c5",
+      "k3": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0623-saas-subscription-mrr-ft14-hold-b/clean-20261023-k3-stage1-20261023T080557246571Z-a982787f",
+      "task_integrity": "96a050b92c56d1fce3ca7f90a5c5d9ef49d493aad7eabfea9ddd8d1eb9d531e7"
+    },
+    "FT0667-ad-attribution-events-ft07-auth-a": {
+      "fingerprint": "c9698c55ab5faf4c6842a4bfd87f912bd7720904c7cd7897d93a6bec89ae6f79",
+      "k3": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0667-ad-attribution-events-ft07-auth-a/clean-20261023-k3-stage1-20261023T080557246571Z-a982787f",
+      "task_integrity": "a84b8a130246c2a38d06d15718e93fd624b09fd94c21804318f3f2ede5100e33"
+    },
+    "FT0676-ad-attribution-events-ft08-auth-b": {
+      "fingerprint": "753b4cbb7080ff3f101ded2c6fe03713382c792dad5ebb7957bceddcc445694d",
+      "k3": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0676-ad-attribution-events-ft08-auth-b/clean-20261023-k3-stage1-20261023T080557246571Z-a982787f",
+      "task_integrity": "06e0665971101f77b28b7474a3639635a1e411cf607d5fca91e8eb34290aa84f"
+    },
+    "FT0677-ad-attribution-events-ft08-hold-b": {
+      "fingerprint": "3a741582aa85b56ffc213a9a93a5e0f96fd36d1c9f6a0789e8b573a74154a292",
+      "k3": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0677-ad-attribution-events-ft08-hold-b/clean-20261018-k3-stage1-20261018T162455776383Z",
+      "k5": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0677-ad-attribution-events-ft08-hold-b/clean-20261018-k5-stage2-20261018T214500533926Z",
+      "task_integrity": "557efc1defa6f13fcaae905020a7b70ff94959094ad3c07269bf797b2acd3aa3"
+    },
+    "FT0678-ad-attribution-events-ft08-esc-b": {
+      "fingerprint": "d30b9251d6e69f33a60e2961c55bf472582230c1712af12b3269c0f25707f565",
+      "k3": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0678-ad-attribution-events-ft08-esc-b/clean-20261021-k3-stage1-20261021T101752898595Z-16efe7d8",
+      "k5": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0678-ad-attribution-events-ft08-esc-b/clean-20261021-k5-stage2-20261021T125225351571Z-7cacfbfe",
+      "task_integrity": "58469e2814a1255a66b7a6284e702457668ae0323b2f0a56ea3f20cbfb999ca7"
+    },
+    "FT0769-supply-chain-inventory-ft09-auth-a": {
+      "fingerprint": "aeec107e079b0c27b5757ca2adb4786f1947a15303a130af64dd03c88b80176b",
+      "k3": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0769-supply-chain-inventory-ft09-auth-a/clean-20261023-k3-stage1-20261023T080557246571Z-a982787f",
+      "task_integrity": "6ee5bdf01e820c9470a1e3bce674710b31b9dee5b0afa1cefc17e03f241f3566"
+    },
+    "FT0770-supply-chain-inventory-ft09-hold-a": {
+      "fingerprint": "e1f7477b7bad4dc48c0660c5defc4a59853a644e18f93b581b4e37e1f3743f0d",
+      "k3": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0770-supply-chain-inventory-ft09-hold-a/clean-20261023-k3-stage1-20261023T080557246571Z-a982787f",
+      "task_integrity": "94c5e88777dae7de82075b0225db9494b5415b9c7b3e4aff749b17c28523d30c"
+    },
+    "FT0771-supply-chain-inventory-ft09-esc-a": {
+      "fingerprint": "aaafef6e2467080a19b66286f5533773f85f455aff09a39ea50a18b1c3a9528f",
+      "k3": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0771-supply-chain-inventory-ft09-esc-a/clean-20261023-k3-stage1-20261023T080557246571Z-a982787f",
+      "task_integrity": "886379cce5ab9f59dd3d8d1168ca3b3621818f1d8b1b9aab747334f09bca642c"
+    },
+    "FT0792-supply-chain-inventory-ft12-esc-b": {
+      "fingerprint": "9ac7cfe91a1246bb6c2e023dc25b75d12085056850dafe0bf4ba863d6d055ef7",
+      "k3": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0792-supply-chain-inventory-ft12-esc-b/clean-20261021-k3-stage1-20261020T231632263850Z-69b316a1",
+      "k5": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0792-supply-chain-inventory-ft12-esc-b/clean-20261021-k5-stage2-20261021T023103967752Z-f22c4faf",
+      "task_integrity": "e9ddb63caa6be1434637ae9b8cdae8a7bbdb67e72de9a45a60a78efc3980f4f8"
+    },
+    "FT0836-healthcare-claims-edi-ft05-hold-a": {
+      "fingerprint": "2355f619b0ab468c3692d3d8404977f9d7f47d47bbbd057f4df2f342d7828370",
+      "k3": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0836-healthcare-claims-edi-ft05-hold-a/clean-20261023-k3-stage1-20261023T080557246571Z-a982787f",
+      "task_integrity": "9e94f187b555ba65112fb66011792ce092479452a7067064f1537445c3d4c1b9"
+    },
+    "FT0868-healthcare-claims-edi-ft10-auth-b": {
+      "fingerprint": "bf1962d109bd3304a7f13304d5e8106ffe67dcf91d5f37c7035a3c5d48655c59",
+      "k3": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0868-healthcare-claims-edi-ft10-auth-b/clean-20261023-k3-stage1-20261023T080557246571Z-a982787f",
+      "task_integrity": "74c9ad0a7499253ac1ec9b942bc2e84b44bfc13479ca7dd743f7009426773888"
+    },
+    "FT0869-healthcare-claims-edi-ft10-hold-b": {
+      "fingerprint": "eec4a35ef0a5c6b9937ddf1ecb13fe34be62ede6ef9fa80d79172bfd43c2e7bc",
+      "k3": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0869-healthcare-claims-edi-ft10-hold-b/clean-20261023-k3-stage1-20261023T080557246571Z-a982787f",
+      "task_integrity": "f1992ad0e5be804274934a16d7dca4864c495028d297f7da1bf023ac4e9dc1f4"
+    },
+    "FT0870-healthcare-claims-edi-ft10-esc-b": {
+      "fingerprint": "7dc2ae6f06dd878abe13dab858f27542c2254f6346525904ecb8ab0dfcd1f088",
+      "k3": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0870-healthcare-claims-edi-ft10-esc-b/clean-20261021-k3-stage1-20261020T231632263850Z-69b316a1",
+      "k5": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0870-healthcare-claims-edi-ft10-esc-b/clean-20261021-k5-stage2-20261021T023103967752Z-f22c4faf",
+      "task_integrity": "2d3159c0c19c98e02a73a5e7829e940a44edc08267fc698ce6f711d7d55f1903"
+    },
+    "FT0958-fintech-kyc-risk-limits-ft10-auth-b": {
+      "fingerprint": "b6ff0443885870aff427cba581f83107e6651184e99b57981aa8de7e31f2b495",
+      "k3": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0958-fintech-kyc-risk-limits-ft10-auth-b/clean-20261023-k3-stage1-20261023T080557246571Z-a982787f",
+      "k5": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0958-fintech-kyc-risk-limits-ft10-auth-b/clean-20261023-k5-stage2-20261023T105700882512Z-70e35c4f",
+      "task_integrity": "6b0110f1fae79fdb79a31cb40f574ea25a193aec297d70b675b4ff45688ab725"
+    },
+    "FT0961-fintech-kyc-risk-limits-ft11-auth-a": {
+      "fingerprint": "afeda4172cdbcbdc52176dc271d73c8ab98597222e7948c12194cdbbf7a7e029",
+      "k3": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0961-fintech-kyc-risk-limits-ft11-auth-a/clean-20261023-k3-stage1-20261023T080557246571Z-a982787f",
+      "task_integrity": "99712d469f2c13b3ca4127e12edd9a7be812afcd6fdf475027a869e9a34ed225"
+    },
+    "FT0962-fintech-kyc-risk-limits-ft11-hold-a": {
+      "fingerprint": "401d5014d831451dc63357697c89bd574d27e93d60936f5c2fde4717b4fd950a",
+      "k3": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0962-fintech-kyc-risk-limits-ft11-hold-a/clean-20261023-k3-stage1-20261023T080557246571Z-a982787f",
+      "task_integrity": "10d795c643deb39c0090cf4d63cd8f88aafd709b4b45297db281855e162529f8"
+    },
+    "FT0963-fintech-kyc-risk-limits-ft11-esc-a": {
+      "fingerprint": "62fc2698b87ed297ac5b33bd91c8f3e3be3acd2745f0558b52cd590b6554df46",
+      "k3": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT0963-fintech-kyc-risk-limits-ft11-esc-a/clean-20261023-k3-stage1-20261023T080557246571Z-a982787f",
+      "task_integrity": "3aa8f561a0e3a6e6acb80645ffed015f12d4c9d6f63825d780c25d9eab6e9032"
+    },
+    "FT1005-iot-telemetry-billing-ft03-esc-a": {
+      "fingerprint": "da0982f4c3efc2392fc75c17e63cd8c3f097da3bd8550ff2258e3b4b464ed886",
+      "k3": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT1005-iot-telemetry-billing-ft03-esc-a/clean-20261018-k3-stage1-20261018T162455776383Z",
+      "k5": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT1005-iot-telemetry-billing-ft03-esc-a/clean-20261018-k5-stage2-20261018T214500533926Z",
+      "task_integrity": "0212a7f395e12ab147d7a3b875dab7edba1740a82cc768f522967558b09a90ec"
+    },
+    "FT1060-iot-telemetry-billing-ft12-auth-b": {
+      "fingerprint": "66b97b2b1c7266ab11f8fa911e217ff0f8bf39f6b0742e911c1237a074a3420a",
+      "k3": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT1060-iot-telemetry-billing-ft12-auth-b/clean-20261023-k3-stage1-20261023T080557246571Z-a982787f",
+      "task_integrity": "1797785a804a1a348c303d357ef42adde8cb3c60ea8a1668ef985ce2a2c581f5"
+    },
+    "FT1061-iot-telemetry-billing-ft12-hold-b": {
+      "fingerprint": "8e25c8b72d1c72eb386e189c698a0a8f1495293cfd26cedec56bf91caa278422",
+      "k3": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT1061-iot-telemetry-billing-ft12-hold-b/clean-20261023-k3-stage1-20261023T080557246571Z-a982787f",
+      "task_integrity": "3fd950e5e10c18037837b4dddf3826a3262dfbf8248ff316ba1b65ed9b37fcbb"
+    },
+    "FT1062-iot-telemetry-billing-ft12-esc-b": {
+      "fingerprint": "ebebff6b6a726e39ea56ed53caf529611360297e71e42e2413ae27c7dfba3b8f",
+      "k3": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT1062-iot-telemetry-billing-ft12-esc-b/clean-20261021-k3-stage1-20261020T231632263850Z-69b316a1",
+      "k5": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT1062-iot-telemetry-billing-ft12-esc-b/clean-20261021-k5-stage2-20261021T023103967752Z-f22c4faf",
+      "task_integrity": "50dcdfc3bc2c489fe07e4674a7bc4d02f271eca908e1dcc405d3840b6b2a9e27"
+    },
+    "FT1077-iot-telemetry-billing-ft15-esc-a": {
+      "fingerprint": "ce15b6d80041f954b352e37c0d024dc4d298f09eb72868e819f9c893ca5588fd",
+      "k3": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT1077-iot-telemetry-billing-ft15-esc-a/clean-20261023-k3-stage1-20261023T080557246571Z-a982787f",
+      "k5": "/home/ubuntu/alkera_factory_1017/runs_phase2/FT1077-iot-telemetry-billing-ft15-esc-a/clean-20261023-k5-stage2-20261023T105700882512Z-70e35c4f",
+      "task_integrity": "b8f1c6af710cb8849a2a913762c2b12f60b21c16ba7ee833771c467dd3775553"
+    }
+  },
+  "schema_version": 1,
+  "topology": "container",
+  "updated_utc": "2026-10-23T11:34:15.118925+00:00"
+}

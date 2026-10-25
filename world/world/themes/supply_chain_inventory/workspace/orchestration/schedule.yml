@@ -1,0 +1,33 @@
+# Deployment source of truth for the supply_chain_inventory nightly, all times UTC.
+feed_window: {lands_at: "00:00"}
+jobs:
+  edi_poll:
+    time: "00:30"
+    day_offset: 1
+    command: poll_inventory_edi
+  inventory_load:
+    after: {job: edi_poll, minutes: 5}
+    command: load_inventory_edi
+  inventory_dbt:
+    after: {job: inventory_load, minutes: 10}
+    command: build_inventory_marts
+    publishes:
+      - {target: warehouse.fct_inventory_position, kind: table,
+         consumer: supply-chain-dashboard}
+      - {target: warehouse.cycle_count_reconciliation, kind: table,
+         consumer: inventory-control}
+  threepl_handoff:
+    after: {job: inventory_dbt, minutes: 10}
+    script: scripts/export_threepl.py
+    command: export_threepl_settlement
+    publishes:
+      - {target: warehouse.threepl_settlement_extract, kind: table,
+         consumer: atlas-3pl-billing}
+      - {target: data/exports/threepl/threepl_settlement.csv, kind: file,
+         consumer: atlas-3pl-billing}
+  customs_close:
+    after: {job: threepl_handoff, minutes: 5}
+    command: close_customs_windows
+    publishes:
+      - {target: warehouse.customs_cutoff, kind: table,
+         consumer: customs-compliance}

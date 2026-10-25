@@ -1,0 +1,46 @@
+dashboard: partner_attribution
+panels:
+  - name: partner_totals
+    sql: >-
+      select partner_id, partner_name,
+             sum(attributed_conversions) as attributed_conversions,
+             sum(revenue_cents) as revenue_cents,
+             sum(payout_cents) as payout_cents
+      from warehouse.partner_payout_handoff
+      group by partner_id, partner_name
+      order by partner_id
+  - name: daily_partner_payout
+    sql: >-
+      select conversion_date, partner_id, partner_name, attributed_conversions,
+             revenue_cents, payout_cents, billing_cutoff_date, billing_status
+      from warehouse.partner_payout_handoff
+      order by conversion_date, partner_id
+  - name: billing_lock_coverage
+    sql: >-
+      select conversion_date, count(*) as locked_partners,
+             sum(attributed_conversions) as locked_conversions,
+             sum(payout_cents) as locked_payout_cents
+      from warehouse.billing_lock
+      group by conversion_date
+      order by conversion_date
+  - name: postback_identity
+    sql: >-
+      select count(*) as postbacks,
+             count(distinct conversion_id) as unique_conversions,
+             count(*) - count(distinct conversion_id) as duplicate_deliveries
+      from raw.conversions
+  - name: click_quality_by_day
+    sql: >-
+      select c.dt,
+             count(*) as raw_clicks,
+             sum(case when exists (
+               select 1 from raw.bot_exclusions as b
+               where b.active and (
+                 (b.exclusion_type = 'ip_prefix' and b.exclusion_value = c.ip_prefix)
+                 or (b.exclusion_type = 'user_agent'
+                     and lower(c.user_agent) like '%' || lower(b.exclusion_value) || '%')
+               )
+             ) then 1 else 0 end) as excluded_clicks
+      from raw.clicks as c
+      group by c.dt
+      order by c.dt

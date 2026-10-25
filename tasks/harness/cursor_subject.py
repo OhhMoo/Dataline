@@ -62,7 +62,7 @@ CURSOR_BIN = (os.environ.get("ALKERA_CURSOR_BIN")
               or shutil.which("agent")
               or (str(_DEFAULT_BIN) if _DEFAULT_BIN.exists() else None))
 
-from blindness import POLICY_REFUSAL  # the marker blindness.detect reads
+from blindness import POLICY_REFUSAL, RUNTIME_REFUSAL  # the markers blindness.detect reads
 
 #: Built-in tool families the CLI can be told to refuse: the permission tokens
 #: its docs define (cursor.com/docs/cli/reference/permissions - Shell, Read,
@@ -101,6 +101,8 @@ _KIND_NAMES = {
     "updateTodosToolCall": "TodoWrite",
     # reads the gateway's own tool schema; bookkeeping, never a world access
     "getMcpToolsToolCall": "ToolSearch",
+    # cursor-agent wait/sleep bookkeeping primitive
+    "awaitToolCall": "ToolSearch",
 }
 
 #: top-level event types that carry transport state and nothing of the
@@ -168,6 +170,18 @@ def write_mcp_config(workspace: Path, gateway_cfg: Path, py: Path,
 def subject_env(base: dict, home: Path) -> dict:
     env = {**base, "HOME": str(home), "USERPROFILE": str(home),
            "PYTHONUTF8": "1"}
+    real_home = base.get("HOME")
+    if real_home and "XDG_CONFIG_HOME" not in env:
+        auth_src = Path(real_home) / ".config" / "cursor" / "auth.json"
+        if auth_src.is_file():
+            xdg_dir = Path(home).parent / "cursor_xdg"
+            cursor_cfg_dir = xdg_dir / "cursor"
+            cursor_cfg_dir.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(auth_src, cursor_cfg_dir / "auth.json")
+            cli_cfg = Path(home) / ".cursor" / "cli-config.json"
+            if cli_cfg.is_file():
+                shutil.copy2(cli_cfg, cursor_cfg_dir / "cli-config.json")
+            env["XDG_CONFIG_HOME"] = str(xdg_dir)
     for k in ("CURSOR_PROJECT_DIR", "CLAUDE_PROJECT_DIR"):
         env.pop(k, None)
     return env
@@ -214,18 +228,21 @@ def _result_block(kind: str, result, call_id: str) -> dict:
         if not isinstance(content, str):
             content = json.dumps(ok, ensure_ascii=False)
         return {"type": "tool_result", "tool_use_id": call_id, "content": content}
-    for key in ("permissionDenied", "rejected"):
-        if key in result:
+    for key in result:
+        if key == "rejected" or key.lower().endswith("permissiondenied"):
             return {"type": "tool_result", "tool_use_id": call_id, "is_error": True,
                     "content": f"{POLICY_REFUSAL}: {key} "
                                f"{json.dumps(result[key], ensure_ascii=False)}"}
     if "error" in result:
         err = result["error"]
-        msg = err.get("errorMessage", "") if isinstance(err, dict) else str(err)
+        msg = (err.get("errorMessage") or err.get("error") or "") if isinstance(err, dict) else str(err)
         refused = ("Permission denied" in msg and kind != "mcpToolCall")
+        not_found = (kind == "mcpToolCall" and "was not found" in msg)
+        prefix = (f"{POLICY_REFUSAL}: error " if refused
+                  else f"{RUNTIME_REFUSAL}: error " if not_found
+                  else "error ")
         return {"type": "tool_result", "tool_use_id": call_id, "is_error": True,
-                "content": (f"{POLICY_REFUSAL}: error " if refused else "error ")
-                           + json.dumps(err, ensure_ascii=False)}
+                "content": prefix + json.dumps(err, ensure_ascii=False)}
     return {"type": "tool_result", "tool_use_id": call_id,
             "content": json.dumps(result, ensure_ascii=False)}
 
@@ -411,7 +428,7 @@ def translate(raw_path: Path, out_path: Path, mcp_server: str = "alkera") -> dic
                 k = kinds.get(call_id, kind)
                 block = _result_block(k, body.get("result"), call_id)
                 if block.get("is_error") and str(block.get("content", "")
-                                                  ).startswith(POLICY_REFUSAL):
+                                                  ).startswith((POLICY_REFUSAL, RUNTIME_REFUSAL)):
                     n_refused += 1
                 events.append({"type": "user", "message": {
                     "role": "user", "content": [block]}})

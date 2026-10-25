@@ -1,0 +1,62 @@
+# Domain-native surface contract for the Alkera RL-environment factory compiler.
+# Every table/column/dir below is verified against gen.py,
+# workspace/pipelines/*.py, workspace/dbt_project/models/, and theme.yaml.
+# Concepts this theme genuinely lacks are null - nothing invented.
+theme: settlement_clearing
+
+# Nightly card-network feed partitions land here as
+# dt=<date>/{events,recovery}.csv (gen.write_day; theme.yaml live.arrival at
+# 04:00 UTC; control CSVs - merchant_terms, settlement_config,
+# settlement_corrections - land once under data/control).
+landing_dir: data/payments_feed
+
+# Primary event/landing table: every delivered event version and recovery
+# replay, with its source partition (raw schema, loaded by
+# pipelines/load_payments.py in the payments_nightly job; models/sources.yml).
+raw_table: raw.payments_events
+
+# Primary fact: current non-void state of each payment after highest-version
+# precedence (models/warehouse/fct_payments.sql; not_null + unique tests on
+# payment_id). Rebuilt nightly by the dbt_payments job.
+fact_table: warehouse.fct_payments
+
+# Bank-facing merchant/day settlement handoff, initialised by dbt and owned
+# afterwards by the settlement_publish job
+# (models/warehouse/settlement_handoff.sql + pipelines/publish_settlement.py).
+handoff_table: warehouse.settlement_handoff
+
+# Append-only bank cutoff acknowledgement; SETTLED closes a day
+# (models/warehouse/clearing_window.sql; appended only by
+# pipelines/clearing_window_close.py in the clearing_window_close job).
+close_window_table: warehouse.clearing_window
+
+# Controller-approved corrections eligible for closed-window republication,
+# landed from data/control/settlement_corrections.csv
+# (raw.settlement_corrections in models/sources.yml; mirrored by
+# models/warehouse/settlement_corrections.sql).
+corrections_table: raw.settlement_corrections
+
+# fct_payments grain: one row per payment_id (the latest non-void version).
+grain_keys: [payment_id]
+
+# Headline measure of the fact: settled payment amount in integer cents.
+amount_column: amount_cents
+
+# Highest-version precedence is the theme's core rule (versioned events plus
+# stale v1 recovery replays); the fact carries the winning event's version.
+version_column: version
+
+# Nightly clearing cutoff declared on the clearing_window_close job
+# (theme.yaml jobs.clearing_window_close.time).
+cutoff_time_utc: "23:30"
+
+# Job names exactly as declared in theme.yaml jobs:.
+scheduled_jobs:
+  - payments_nightly
+  - dbt_payments
+  - settlement_publish
+  - clearing_window_close
+
+# Nightly schedule mirrored from theme.yaml jobs; the scheduler sync hook reads
+# it as the timing source of truth (path relative to workspace/).
+schedule_file: orchestration/schedule.yml

@@ -1,6 +1,11 @@
 name: commerce_analytics
 dbt_profile: world_dbt
 
+# Job `publishes` targets enter var/world/live.json only when the seed sets
+# publish_receipts: true. seed.example.yaml turns that on; historical seeds
+# omit it, so their fingerprinted live section stays as it was.
+publication_opt_in: true
+
 # An analytics-engineering shop: a nightly change-data-capture extract from the
 # shop platform, a dbt star schema (schema `warehouse`: dim_customer,
 # dim_product, dim_date, fct_orders, fct_order_lines - the shape
@@ -81,6 +86,8 @@ jobs:
       op: load_raw
       args: [workspace, db]
       tables: [raw.orders, raw.order_lines, raw.customers, raw.products]
+    publishes:
+      - {target: raw.orders, kind: table, consumer: dbt_marts}
   dbt_build:
     command: dbt_build
     duration_s: 240
@@ -94,6 +101,8 @@ jobs:
       kind: dbt
       command: build
       tables: [warehouse.fct_orders, warehouse.fct_order_lines, warehouse.dim_customer]
+    publishes:
+      - {target: warehouse.fct_orders, kind: table, consumer: executive_overview}
   bi_refresh:
     command: refresh_dashboards
     duration_s: 420
@@ -112,6 +121,8 @@ jobs:
       op: refresh_bi
       args: [root]
       tables: [raw.bi_refresh_history]
+    publishes:
+      - {target: raw.bi_refresh_history, kind: table, consumer: observability}
 
 live:
   # The ONLY seed keys carried into the built world (var/world/live.json).

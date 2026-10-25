@@ -1,0 +1,57 @@
+# Domain-native surface contract for the Alkera RL-environment factory compiler.
+# Every table/column/dir below is verified against gen.py,
+# workspace/loader/import_close.py, workspace/dbt_project/models/, and
+# theme.yaml. Concepts this theme genuinely lacks are null - nothing invented.
+theme: excel_close
+
+# Monthly close workbooks CLOSE_YYYYMM.xlsx land here; Excel is the integration
+# layer, so each morning the month's workbook is rewritten with every day
+# posted so far (gen.write_day / gen._write_workbook). The close_import job's
+# theme load_raw hook parses them via the workspace's own loader/import_close.py.
+landing_dir: finance/workbooks
+
+# Primary landing table: GL lines parsed from the workbook's GL_LINES sheet
+# (raw schema, loaded by loader/import_close.py; declared in models/sources.yml).
+raw_table: raw.gl_lines
+
+# Primary fact: period-by-account summary of the close, one row per period per
+# account (models/warehouse/fct_gl_monthly.sql; dbt test
+# assert_gl_monthly_one_row_per_period_account). Refreshed by the dbt_build job.
+fact_table: warehouse.fct_gl_monthly
+
+# No handoff/extract table exists: the close is reviewed in place on the
+# close_summary dashboard and signed, not handed to a downstream system.
+handoff_table: null
+
+# No close/window/cutoff table exists: the warehouse carries fct_gl_monthly
+# only, and nothing models a cutoff window.
+close_window_table: null
+
+# Manual adjustments from the workbook's MANUAL_ADJ sheet - accrual true-ups,
+# prior-period corrections, write-offs (raw.manual_adj in models/sources.yml;
+# joined into fct_gl_monthly as adj_total, never folded into net_amount).
+corrections_table: raw.manual_adj
+
+# fct_gl_monthly grain: one row per period x account.
+grain_keys: [period, account]
+
+# Headline measure of the fact: sum of the signed GL line amounts.
+amount_column: net_amount
+
+# The theme versions nothing: each workbook rewrite replaces the month in
+# full and no table carries a version/sequence column.
+version_column: null
+
+# The de-facto nightly cutoff: the controller posts the month's workbook by
+# 07:00 UTC the morning after each close day (theme.yaml live.arrival); the
+# close_workbook_late fault measures its 180-minute delay against this time.
+cutoff_time_utc: "07:00"
+
+# Job names exactly as declared in theme.yaml jobs:.
+scheduled_jobs:
+  - close_import
+  - dbt_build
+
+# Nightly schedule mirrored from theme.yaml jobs; the scheduler sync hook reads
+# it as the timing source of truth (path relative to workspace/).
+schedule_file: orchestration/schedule.yml

@@ -1294,13 +1294,12 @@ def run_rollout(args) -> dict:
             record["native_workspace_cli"] = native_stack.install_workspace_cli(
                 world, args.topology)
             record["native_discovery"] = native_stack.stage_discovery(world)
+        if args.driver == "native" or args.topology == "container":
             # The author-side material comes OUT of the staged world here, for
-            # the same ordering reason: a native subject reads files, not tool
-            # responses, and the strip must be part of the "before" picture or
-            # the fingerprint hashes a world the subject never saw (STATUS
-            # 4.3). No-op in the container topology, where these files are
-            # never mounted - but the strip is what keeps that guarantee if the
-            # mount set ever grows.
+            # the same ordering reason: a native or container-bash subject reads
+            # files, not just tool responses, and the strip must be part of the
+            # "before" picture or the fingerprint hashes a world the subject
+            # never saw (STATUS 4.3).
             record["native_world_sanitised"] = native_stack.sanitize_world_files(
                 world)
         canaries = _plant_canaries(rollout_dir, grading)
@@ -1408,9 +1407,9 @@ def run_rollout(args) -> dict:
             # rollout's own container has been probed and found sealed; if the
             # probe does not run or does not pass, blindness.detect() quarantines
             # the rollout rather than letting it into the number.
-            if args.driver != "mcp":
+            if args.driver not in ("mcp", "cursor"):
                 raise episode.HarnessError(
-                    f"--topology container is wired for the mcp and native "
+                    f"--topology container is wired for the mcp, cursor, and native "
                     f"drivers only, not {args.driver!r}.")
             ok, docker_version = container_episode.docker_available()
             if not ok:

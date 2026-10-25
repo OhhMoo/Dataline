@@ -1,0 +1,16 @@
+# B2B subscription billing, MRR/ARR and ASC-606 close world.
+theme: saas_subscription_mrr
+seed: 17
+vtime_start: "2026-01-01T00:00:00Z"
+days: 45                       # initial source days; vnow starts at 2026-02-15
+account_count: 18              # one subscription per account
+# Daily effective-dated seat changes, excluding starts and scheduled churn.
+events_per_day: [4, 8]
+base_seats: [5, 40]            # initial seats per account
+seat_delta: [1, 8]             # absolute seats added or removed per change
+# Monthly list price per seat, in integer cents. No floating-point money.
+plan_prices_cents: {starter: 1900, growth: 4900, scale: 9900}
+revrec_window_days: 30         # straight-line service and recognition window
+churn_cadence_days: 9          # one backdated cancellation every ninth source day
+backdated_churn_lag_days: [2, 4]
+git_author: "Revenue Data <revenue-data@example.com>"

@@ -1,0 +1,57 @@
+name: saas_subscription_mrr
+dbt_profile: world_dbt
+
+workflow:
+  dir: workflow
+  actor: agent
+  project: {key: REV, name: Revenue data}
+  statuses: [open, triage, in_progress, blocked, done, wontfix]
+  workspace: saas-finance
+  space: {key: FIN, name: Subscription Finance}
+
+jobs:
+  ingest_webhooks:
+    command: ingest_webhooks
+    duration_s: 45
+    time: "01:00"
+    day_offset: 1
+    after: null
+    detail: "billing_dt={day}"
+    exec:
+      kind: theme
+      op: load_raw
+      args: [workspace, db]
+      tables: [raw.subscription_events, raw.invoice_webhooks]
+  fold_subscriptions:
+    command: fold_subscriptions
+    duration_s: 90
+    after: {job: ingest_webhooks, minutes: 10}
+    detail: "subscription_dt={day}"
+    exec:
+      kind: dbt
+      command: build
+      selector: "tag:fold_subscriptions"
+      tables: [warehouse.fct_mrr_daily, warehouse.dim_account]
+  revrec_window_close:
+    command: revrec_window_close
+    duration_s: 60
+    after: {job: fold_subscriptions, minutes: 10}
+    detail: "revrec_dt={day}"
+    exec:
+      kind: dbt
+      command: build
+      selector: revrec_window_close
+      tables: [warehouse.revrec_close_window]
+    publishes:
+      - {target: warehouse.fct_mrr_daily, kind: table, consumer: finance_arr_dashboard}
+      - {target: warehouse.dim_account, kind: table, consumer: finance_arr_dashboard}
+      - {target: warehouse.revrec_close_window, kind: table, consumer: asc606_close_ledger}
+
+live:
+  params: [seed, account_count, events_per_day, base_seats, seat_delta,
+           plan_prices_cents, revrec_window_days, churn_cadence_days,
+           backdated_churn_lag_days]
+  arrival:
+    name: subscription_billing_webhooks
+    op: write_day
+    at: {day_offset: 1, time: "00:00"}

@@ -1,0 +1,38 @@
+version: 2
+models:
+  - name: fct_billable_usage
+    description: Normalized counter deltas, delta events, and edge windows with lock-aware billable units.
+    columns:
+      - name: usage_id
+        data_tests: [not_null, unique]
+      - name: customer_id
+        data_tests: [not_null]
+      - name: reported_units
+        data_tests: [not_null]
+      - name: source_kind
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [counter, delta, edge_rollup]
+  - name: billing_period_lock
+    description: One open or locked row for every customer billing month.
+    columns:
+      - name: lock_id
+        data_tests: [not_null, unique]
+      - name: lock_status
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [open, locked]
+  - name: invoice_run_handoff
+    description: Locked customer-month invoices ready for the ERP consumer.
+    columns:
+      - name: invoice_run_id
+        data_tests: [not_null, unique]
+      - name: invoice_total_cents
+        data_tests: [not_null]
+      - name: handoff_status
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [ready_for_erp]

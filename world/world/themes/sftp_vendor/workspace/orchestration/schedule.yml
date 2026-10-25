@@ -1,0 +1,18 @@
+# Deployment source of truth for the sftp_vendor nightly, all times UTC.
+feed_window: {lands_at: "05:00", day_offset: 1}
+jobs:
+  sftp_poll:
+    time: "05:30"
+    day_offset: 1
+    command: sftp_poll
+  vendor_load:
+    after: {job: sftp_poll, minutes: 10}
+    command: vendor_load
+    publishes:
+      - {target: raw.vendor_orders, kind: table, consumer: dbt_marts}
+      - {target: raw.vendor_returns, kind: table, consumer: dbt_marts}
+  dbt_build:
+    after: {job: vendor_load, minutes: 5}
+    command: dbt_build
+    publishes:
+      - {target: warehouse.fct_orders_daily, kind: table, consumer: vendor_daily_dashboard}

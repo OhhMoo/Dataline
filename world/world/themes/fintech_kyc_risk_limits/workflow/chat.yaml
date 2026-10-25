@@ -1,0 +1,16 @@
+channels:
+- id: operations
+  topic: Merchant disputes and reserve risk
+  purpose: Nightly data handoff and cutoff review
+  members:
+  - owner
+  - engineer
+  - agent
+  messages:
+  - id: operations/0001
+    author: owner
+    at: -2d 10:40
+    thread_id: null
+    text: The nightly handoff should be checked against the current contract before
+      close. Please keep any historical restatement behind controller signoff.
+    reactions: {}

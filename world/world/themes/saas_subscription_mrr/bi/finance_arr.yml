@@ -1,0 +1,32 @@
+dashboard: finance_arr
+panels:
+  - name: current_arr_by_segment
+    sql: >-
+      select segment, sum(mrr_cents) as mrr_cents, sum(arr_cents) as arr_cents,
+             sum(case when subscription_status = 'active' then 1 else 0 end) as active_accounts
+      from warehouse.dim_account
+      group by segment
+      order by segment
+  - name: daily_arr_trend
+    sql: >-
+      select metric_date, sum(mrr_cents) as mrr_cents, sum(arr_cents) as arr_cents,
+             sum(recognized_revenue_cents) as recognized_revenue_cents
+      from warehouse.fct_mrr_daily
+      group by metric_date
+      order by metric_date
+  - name: asc606_close_ledger
+    sql: >-
+      select period, close_status,
+             sum(billed_cents) as billed_cents,
+             sum(proration_credit_cents) as proration_credit_cents,
+             sum(recognized_revenue_cents) as recognized_revenue_cents,
+             sum(deferred_revenue_cents) as deferred_revenue_cents
+      from warehouse.revrec_close_window
+      group by period, close_status
+      order by period, close_status
+  - name: current_account_run_rate
+    sql: >-
+      select account_id, account_name, plan_code, seats, mrr_cents, arr_cents
+      from warehouse.dim_account
+      where subscription_status = 'active'
+      order by arr_cents desc, account_id

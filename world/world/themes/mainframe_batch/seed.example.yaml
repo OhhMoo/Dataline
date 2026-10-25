@@ -4,6 +4,9 @@
 # COMP-3 packed decimal) into raw, dbt builds staging/warehouse, a dashboard
 # reads the result.
 theme: mainframe_batch      # world/world/themes/<name>/
+# Copy this theme's job `publishes` targets into the built world. Historical
+# seeds omit the key, so their fingerprinted live.json does not move.
+publish_receipts: true
 seed: 1
 vtime_start: "2026-02-01T00:00:00Z"
 days: 30                    # landing partitions dt=2026-02-01 .. dt=2026-03-02

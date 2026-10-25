@@ -1,0 +1,76 @@
+issues:
+  - id: REV-398
+    title: Publish the close calendar for billing operations
+    body: |-
+      Billing and Revenue Accounting need one calendar showing when webhook
+      ingestion, subscription folding, and the recognition handoff complete.
+    status: done
+    reporter: m.costa
+    assignee: t.okafor
+    labels: [close, documentation]
+    created_at: "-32d 10:15"
+    updated_at: "-28d 16:20"
+    comments:
+      - id: REV-398#1
+        author: t.okafor
+        at: "-28d 16:20"
+        body: The calendar and nightly runbook are linked from the Finance wiki.
+    history:
+      - {at: "-28d 16:20", actor: t.okafor, field: status, from: in_progress, to: done}
+    links: []
+
+  - id: REV-412
+    title: Include credit-note traceability in the close packet
+    body: |-
+      Controllers can see the proration credit total by period, but the packet
+      should also point reviewers to the source webhook identifiers. Please
+      propose an extract that keeps the account-period ledger as its grain.
+    status: in_progress
+    reporter: a.shah
+    assignee: t.okafor
+    labels: [revrec, audit-trail]
+    created_at: "-9d 11:30"
+    updated_at: "-6d 14:10"
+    comments:
+      - id: REV-412#1
+        author: m.costa
+        at: "-6d 14:10"
+        body: Billing keeps both invoice_id and webhook_id; either can be traced to the customer contract.
+    history: []
+    links: []
+
+  - id: REV-417
+    title: Customer success wants a weekly seat-downgrade view
+    body: |-
+      The account dimension has current seats but not the prior-seat comparison
+      that the customer-success weekly review uses. Draft the requirements with
+      the CS operations team before adding another dashboard.
+    status: open
+    reporter: m.costa
+    assignee: null
+    labels: [analytics, customer-success]
+    created_at: "-4d 09:45"
+    updated_at: "-4d 09:45"
+    comments: []
+    history: []
+    links: []
+
+  - id: REV-421
+    title: Confirm backdated cancellation language in the Finance glossary
+    body: |-
+      A cancellation can arrive after its contract effective date. Please make
+      sure the glossary distinguishes that effective date from webhook receipt
+      time so ARR reviewers use consistent language.
+    status: triage
+    reporter: n.ellis
+    assignee: a.shah
+    labels: [arr, documentation]
+    created_at: "-2d 13:20"
+    updated_at: "-1d 10:05"
+    comments:
+      - id: REV-421#1
+        author: a.shah
+        at: "-1d 10:05"
+        body: The recognition policy has the rule; I will cross-link it from the ARR definition.
+    history: []
+    links: []

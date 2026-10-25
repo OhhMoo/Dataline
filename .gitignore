@@ -112,3 +112,11 @@ docs/private/
 # Harbor export (harbor/export.py): generated datasets are build artifacts,
 # regenerated from the generator + templates. Never commit them.
 harbor/dist/
+
+# Local experiment plan markdown files and scratch symlinks
+experiments/**/plan*.md
+experiments/desaturation_20261017
+experiments/scale_1000/output
+autoresearch/
+
+

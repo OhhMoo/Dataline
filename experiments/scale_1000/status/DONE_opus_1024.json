@@ -1,0 +1,108 @@
+{
+ "agent": "opus",
+ "plan": "plan_10_24.md \u00a73.2",
+ "branch": "feat/factory-scale-phase4",
+ "status": "DONE",
+ "completed_at": "2026-10-24T02:30Z",
+ "files": {
+  "modified": [
+   "tasks/factory/export_rl_dataset.py"
+  ],
+  "created": [
+   "tasks/factory/train_open_weight_rl.py",
+   "tasks/factory/compiler/tests/test_train_open_weight_rl.py"
+  ]
+ },
+ "dataset": {
+  "out_dir": "/home/ubuntu/alkera_factory_1017/rl_dataset_v1",
+  "rollouts": 193,
+  "by_split": {
+   "eval_holdout": 43,
+   "train": 150
+  },
+  "sft_by_split": {
+   "eval_holdout": 22,
+   "train": 130
+  },
+  "eval_holdout_tasks_present": [
+   "FT0100-commerce-analytics-ft02-auth-b",
+   "FT0101-commerce-analytics-ft02-hold-b",
+   "FT0102-commerce-analytics-ft02-esc-b",
+   "FT0193-revenue-daily-ft03-auth-a",
+   "FT0194-revenue-daily-ft03-hold-a",
+   "FT0195-revenue-daily-ft03-esc-a",
+   "FT0484-excel-close-ft06-auth-b",
+   "FT0485-excel-close-ft06-hold-b",
+   "FT0486-excel-close-ft06-esc-b"
+  ],
+  "dropped_orphan_tool_results": 2,
+  "dropped_orphan_tool_result_ids": [
+   "FT0579-saas-subscription-mrr-ft07-esc-a/clean-20261023-k5-stage2-20261023T105700882512Z-70e35c4f/r2#toolu_vrtx_01PGDQoTsjL9nR3cdFmECwh3",
+   "FT0769-supply-chain-inventory-ft09-auth-a/clean-20261023-k3-stage1-20261023T080557246571Z-a982787f/r2#toolu_012cvXojAQeByU1QzHHa2Wr1"
+  ],
+  "orphan_tool_results": [],
+  "exporter_invariants": {
+   "grpo_advantage_group_zero_sum": true,
+   "loss_mask_is_assistant_role": true,
+   "rle_tokens_match_message_tokens": true,
+   "seven_progress_keys_present": true,
+   "sft_rows_subset_of_passed": true,
+   "split_twin_disjoint": true,
+   "tool_results_paired": true,
+   "twin_advantage_group_zero_sum": true
+  },
+  "files": {
+   "eval_holdout_grpo.jsonl": 43,
+   "sft_rejection_sampled.jsonl": 152,
+   "train_grpo.jsonl": 150,
+   "train_sft.jsonl": 130,
+   "verl_grpo_trajectories.jsonl": 193
+  }
+ },
+ "cpu_verification": {
+  "all_passed": true,
+  "rows": {
+   "eval_holdout_grpo": 43,
+   "train_grpo": 150,
+   "train_sft": 130
+  },
+  "live": {
+   "advantages_recomputed": true,
+   "dapo_surrogate_gradient": true,
+   "label_masking": true,
+   "sft_loss_gradient": true,
+   "split_disjoint": true
+  },
+  "reference_checks_passed": 14,
+  "reference_checks_total": 14
+ },
+ "gpu_bundle": {
+  "out_dir": "/home/ubuntu/alkera_factory_1017/gpu_trainer_bundle",
+  "files": [
+   "README.md",
+   "cpu_loss_verification.json",
+   "launch_gpu.sh",
+   "requirements-gpu.txt",
+   "run_offline_rloo_dpo.py",
+   "run_online_grpo_verl.py",
+   "run_sft_lora.py"
+  ],
+  "dry_runs_on_live_data": "run_sft_lora, run_offline_rloo_dpo (awr, dpo), run_online_grpo_verl and DRY_RUN=1 launch_gpu.sh all exit 0",
+  "executed_on_gpu": false,
+  "known_limits": [
+   "All 130 train_sft rows exceed the default --max-seq-len 32768 (approx 32.8k-65.9k tokens); truncation keeps the start and cuts the reporting phase. Choose longer context, windowing or tail-keeping before training.",
+   "Offline AWR/DPO keep only 8 of 42 train groups (40 of 150 rows) because 34 groups have collapsed rewards.",
+   "verl dynamic group filtering (algorithm.filter_groups) is likely only honoured by recipe.dapo.main_dapo; online GRPO needs a real --env-endpoint grading service, which does not exist yet."
+  ]
+ },
+ "tests": {
+  "command": "PYTHONPATH=/home/ubuntu/env_project:/home/ubuntu/env_project/world /home/ubuntu/env_project/gateway/.venv/bin/python -m pytest tasks/factory/compiler/tests/test_train_open_weight_rl.py tasks/factory/compiler/tests/test_trajectory_loss_model.py -q",
+  "result": "29 passed, 1 failed",
+  "owned_test_file": "test_train_open_weight_rl.py: 14 passed",
+  "failure": "test_trajectory_loss_model.py:388 (gemini-owned) pins the SFT row key set; the plan requires the new 'split' key on SFT rows. Fix: add \"split\" to the expected set on that line."
+ },
+ "tests_passed": false,
+ "owned_tests_passed": true,
+ "requires_gemini_test_update": true,
+ "git_commits": "none"
+}

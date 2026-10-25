@@ -1,0 +1,54 @@
+channels:
+  - id: attribution-data
+    topic: Event exports, attribution, and dbt
+    purpose: Attribution Engineering working channel.
+    members: [mokafor, rsilva, npatel, schedulebot, agent]
+    messages:
+      - id: attribution-data/0001
+        author: rsilva
+        at: "-3d 10:20"
+        thread_id: null
+        text: S2S retry volume is higher this week. The business count to use is distinct conversion_id; postback_id is the delivery attempt.
+        reactions: {"+1": 2}
+      - id: attribution-data/0002
+        author: npatel
+        at: "-3d 10:35"
+        thread_id: attribution-data/0001
+        text: The new hosting-range exclusion is active too. Please keep raw traffic counts visible alongside eligible clicks for the partner review.
+        reactions: {}
+      - id: attribution-data/0003
+        author: schedulebot
+        at: "-1d 01:22"
+        thread_id: null
+        text: Nightly attribution and partner billing completed. The handoff and lock reconciliation is green.
+        reactions: {}
+      - id: attribution-data/0004
+        author: mokafor
+        at: "-1d 15:10"
+        thread_id: null
+        text: Reminder that last click means latest eligible click inside the configured lookback, not latest raw click regardless of age or traffic quality.
+        reactions: {"+1": 1}
+
+  - id: partner-finance
+    topic: Partner payout operations
+    purpose: Partner Finance, Partner Operations, and Attribution Engineering.
+    members: [lchen, tbrown, mokafor, rsilva, agent]
+    messages:
+      - id: partner-finance/0001
+        author: lchen
+        at: "-2d 09:25"
+        thread_id: null
+        text: Weekly payout sign-off is Friday. I need locked partner/date totals and a list of anything still open; I have raised ADN-418.
+        reactions: {}
+      - id: partner-finance/0002
+        author: rsilva
+        at: "-2d 10:10"
+        thread_id: partner-finance/0001
+        text: The nightly lock covers dates through the cutoff in the handoff. I will reconcile counts and payout cents before the file goes out.
+        reactions: {"+1": 1}
+      - id: partner-finance/0003
+        author: tbrown
+        at: "-1d 14:20"
+        thread_id: null
+        text: For the monthly channel review, can we show direct demand separately? The attributed partner table is not meant to account for it.
+        reactions: {}

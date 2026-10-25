@@ -1,0 +1,47 @@
+version: 2
+models:
+  - name: stg_uom_conversions
+    description: Current CASE-to-EACH conversion and integer-cent billing terms per DC/SKU.
+    columns:
+      - name: units_per_case
+        tests: [not_null]
+  - name: stg_asn_receipts
+    description: EDI 856 SHIPPED events and their full RECEIVED transitions, normalized to EACH.
+    columns:
+      - name: event_id
+        tests: [unique, not_null]
+      - name: event_type
+        tests:
+          - accepted_values:
+              values: [SHIPPED, RECEIVED]
+      - name: quantity_each
+        tests: [not_null]
+  - name: stg_dc_movements
+    description: Outbound shipments and customer returns at DC/SKU grain.
+    columns:
+      - name: movement_id
+        tests: [unique, not_null]
+      - name: movement_type
+        tests:
+          - accepted_values:
+              values: [OUTBOUND_SHIP, RETURN_RECEIPT]
+  - name: stg_cycle_counts
+    description: RF cycle counts with WMS book stock and physical stock in EACH.
+    columns:
+      - name: count_id
+        tests: [unique, not_null]
+      - name: shrinkage_each
+        tests: [not_null]
+  - name: stg_customs_declarations
+    description: Customs entries and their document-freeze windows, all timestamps UTC.
+    columns:
+      - name: declaration_id
+        tests: [unique, not_null]
+      - name: declaration_status
+        tests:
+          - accepted_values:
+              values: [SUBMITTED, CLEARED]
+  - name: stg_inventory_calendar
+    columns:
+      - name: position_date
+        tests: [unique, not_null]

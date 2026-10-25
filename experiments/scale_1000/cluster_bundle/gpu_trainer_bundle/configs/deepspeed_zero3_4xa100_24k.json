@@ -1,0 +1,49 @@
+{
+  "cluster": {
+    "nodes": 1,
+    "gpus_per_node": 4,
+    "cluster_gpus": 4,
+    "gpu_model": "A100-80GB or H100-80GB",
+    "supported_cluster_gpus": [4, 8]
+  },
+  "model": {
+    "name_or_path": "Qwen/Qwen2.5-Coder-14B-Instruct",
+    "supported_models": [
+      "Qwen/Qwen2.5-Coder-7B-Instruct",
+      "Qwen/Qwen2.5-Coder-14B-Instruct",
+      "Qwen/Qwen2.5-Coder-32B-Instruct"
+    ],
+    "torch_dtype": "bfloat16",
+    "attn_implementation": "flash_attention_2"
+  },
+  "data": {
+    "max_seq_len": 24576,
+    "compact_max_tokens": 24576,
+    "truncation_side": "left_obs_first",
+    "assistant_tokens_truncated": 0,
+    "train_sft_file": "train_sft.jsonl",
+    "train_grpo_file": "train_grpo.jsonl",
+    "train_dpo_pairs_file": "train_dpo_pairs.jsonl"
+  },
+  "train_batch_size": 32,
+  "train_micro_batch_size_per_gpu": 1,
+  "gradient_accumulation_steps": 8,
+  "gradient_clipping": 1.0,
+  "bf16": {"enabled": true},
+  "zero_optimization": {
+    "stage": 3,
+    "overlap_comm": true,
+    "contiguous_gradients": true,
+    "sub_group_size": 1000000000,
+    "reduce_bucket_size": 500000000,
+    "stage3_prefetch_bucket_size": 500000000,
+    "stage3_param_persistence_threshold": 100000,
+    "stage3_max_live_parameters": 1000000000,
+    "stage3_max_reuse_distance": 1000000000,
+    "stage3_gather_16bit_weights_on_model_save": true
+  },
+  "optimizer": {"type": "AdamW", "params": {"lr": 0.00002, "betas": [0.9, 0.999], "eps": 1e-08, "weight_decay": 0.0}},
+  "scheduler": {"type": "WarmupCosineLR", "params": {"warmup_min_ratio": 0.03, "warmup_num_steps": 20, "total_num_steps": 1000}},
+  "gradient_checkpointing": true,
+  "dpo": {"beta": 0.1, "loss": "-log sigmoid(beta*((pol_chosen-ref_chosen)-(pol_rejected-ref_rejected)))"}
+}

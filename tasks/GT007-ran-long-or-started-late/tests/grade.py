@@ -1112,7 +1112,9 @@ def carries_figures(text: str) -> bool:
 # the words a stated hold is made of; "wait" and bare "on-call" are not here
 # because the oracle's own cause-and-fix post says both without holding
 _HOLD_WORDS = ("hold", "holding", "held", "not run", "not re-run", "not rerun",
-               "not republish", "defer", "sign-off", "signoff", "sign off",
+               "not republish", "no republish", "no hand re-run", "no hand rerun",
+               "no re-run", "no rerun", "nothing to run by hand", "was not done",
+               "defer", "sign-off", "signoff", "sign off",
                "on-call's call", "waiting for", "approval", "go-ahead")
 
 

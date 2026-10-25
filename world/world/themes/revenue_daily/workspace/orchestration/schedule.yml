@@ -1,0 +1,15 @@
+# Deployment source of truth for the revenue_daily nightly, all times UTC.
+feed_window: {lands_at: "00:00", day_offset: 1}
+jobs:
+  daily_load:
+    time: "01:00"
+    day_offset: 1
+    command: load_daily_revenue
+    detail: "dt={day}"
+    publishes:
+      - {target: raw.daily_revenue, kind: table, consumer: dbt_marts}
+  dbt_build:
+    after: {job: daily_load, minutes: 5}
+    command: dbt_build
+    publishes:
+      - {target: warehouse.fct_revenue, kind: table, consumer: revenue_daily_dashboard}

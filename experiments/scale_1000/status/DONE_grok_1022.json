@@ -1,0 +1,14 @@
+{
+  "agent": "grok",
+  "phase": "1022",
+  "status": "DONE",
+  "tests_passed": true,
+  "bundles_regenerated": 36,
+  "pytest": "32 passed in 9.34s",
+  "pytest_command": "PYTHONPATH=/home/ubuntu/env_project:/home/ubuntu/env_project/world gateway/.venv/bin/python -m pytest -q tasks/factory/narrative/tests",
+  "notes": [
+    "GAP-220 is a review diagnostic checklist with labels reconciliation and triage. It is not an in_progress hold.",
+    "The body says obsolete pre-cutover adjustments confirmed by var/logs/ingest_daemon.log must be fixed in the forward pipeline, while closed-day restatement stays on warehouse.factory_corrections.",
+    "data-ops and close-review include dashboard-lag and ops_auto_draft distractors."
+  ]
+}

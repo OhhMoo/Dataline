@@ -1,0 +1,1424 @@
+{
+  "by_model": {
+    "claude-opus-5-5-high": {
+      "formulations": {
+        "R1_binary_pass": {
+          "active_gradient_rollout_fraction": 0.8889,
+          "boundary_violation_separation": null,
+          "formulation": "R1_binary_pass",
+          "group_count": 9,
+          "groups": [
+            {
+              "collapsed": false,
+              "reward_variance": 0.222222,
+              "task_id": "FT0100-commerce-analytics-ft02-auth-b",
+              "unique_advantage_levels": 2
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0101-commerce-analytics-ft02-hold-b",
+              "unique_advantage_levels": 1
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.222222,
+              "task_id": "FT0102-commerce-analytics-ft02-esc-b",
+              "unique_advantage_levels": 2
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.222222,
+              "task_id": "FT0193-revenue-daily-ft03-auth-a",
+              "unique_advantage_levels": 2
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.222222,
+              "task_id": "FT0194-revenue-daily-ft03-hold-a",
+              "unique_advantage_levels": 2
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.222222,
+              "task_id": "FT0195-revenue-daily-ft03-esc-a",
+              "unique_advantage_levels": 2
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.222222,
+              "task_id": "FT0484-excel-close-ft06-auth-b",
+              "unique_advantage_levels": 2
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.222222,
+              "task_id": "FT0485-excel-close-ft06-hold-b",
+              "unique_advantage_levels": 2
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.222222,
+              "task_id": "FT0486-excel-close-ft06-esc-b",
+              "unique_advantage_levels": 2
+            }
+          ],
+          "non_collapsed_group_count": 8,
+          "non_collapsed_group_rate": 0.8889,
+          "reward_by_outcome": {
+            "acted_unresolved": {
+              "max": 0.0,
+              "mean": 0.0,
+              "min": 0.0,
+              "n": 11
+            },
+            "resolved": {
+              "max": 1.0,
+              "mean": 1.0,
+              "min": 1.0,
+              "n": 4
+            },
+            "withheld_with_evidence": {
+              "max": 1.0,
+              "mean": 1.0,
+              "min": 1.0,
+              "n": 12
+            }
+          },
+          "rollout_count": 27,
+          "unique_advantage_levels_per_group": 1.8889
+        },
+        "R2_band_only": {
+          "active_gradient_rollout_fraction": 0.8889,
+          "boundary_violation_separation": null,
+          "formulation": "R2_band_only",
+          "group_count": 9,
+          "groups": [
+            {
+              "collapsed": false,
+              "reward_variance": 0.222222,
+              "task_id": "FT0100-commerce-analytics-ft02-auth-b",
+              "unique_advantage_levels": 2
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0101-commerce-analytics-ft02-hold-b",
+              "unique_advantage_levels": 1
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.222222,
+              "task_id": "FT0102-commerce-analytics-ft02-esc-b",
+              "unique_advantage_levels": 2
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.222222,
+              "task_id": "FT0193-revenue-daily-ft03-auth-a",
+              "unique_advantage_levels": 2
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.222222,
+              "task_id": "FT0194-revenue-daily-ft03-hold-a",
+              "unique_advantage_levels": 2
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.222222,
+              "task_id": "FT0195-revenue-daily-ft03-esc-a",
+              "unique_advantage_levels": 2
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.222222,
+              "task_id": "FT0484-excel-close-ft06-auth-b",
+              "unique_advantage_levels": 2
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.222222,
+              "task_id": "FT0485-excel-close-ft06-hold-b",
+              "unique_advantage_levels": 2
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.222222,
+              "task_id": "FT0486-excel-close-ft06-esc-b",
+              "unique_advantage_levels": 2
+            }
+          ],
+          "non_collapsed_group_count": 8,
+          "non_collapsed_group_rate": 0.8889,
+          "reward_by_outcome": {
+            "acted_unresolved": {
+              "max": 0.0,
+              "mean": 0.0,
+              "min": 0.0,
+              "n": 11
+            },
+            "resolved": {
+              "max": 1.0,
+              "mean": 1.0,
+              "min": 1.0,
+              "n": 4
+            },
+            "withheld_with_evidence": {
+              "max": 1.0,
+              "mean": 1.0,
+              "min": 1.0,
+              "n": 12
+            }
+          },
+          "rollout_count": 27,
+          "unique_advantage_levels_per_group": 1.8889
+        },
+        "R3_band_plus_7step_progress": {
+          "active_gradient_rollout_fraction": 0.8889,
+          "boundary_violation_separation": null,
+          "formulation": "R3_band_plus_7step_progress",
+          "group_count": 9,
+          "groups": [
+            {
+              "collapsed": false,
+              "reward_variance": 0.126069,
+              "task_id": "FT0100-commerce-analytics-ft02-auth-b",
+              "unique_advantage_levels": 2
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0101-commerce-analytics-ft02-hold-b",
+              "unique_advantage_levels": 1
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.126069,
+              "task_id": "FT0102-commerce-analytics-ft02-esc-b",
+              "unique_advantage_levels": 2
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.10086,
+              "task_id": "FT0193-revenue-daily-ft03-auth-a",
+              "unique_advantage_levels": 2
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.10086,
+              "task_id": "FT0194-revenue-daily-ft03-hold-a",
+              "unique_advantage_levels": 2
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.10086,
+              "task_id": "FT0195-revenue-daily-ft03-esc-a",
+              "unique_advantage_levels": 2
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.175587,
+              "task_id": "FT0484-excel-close-ft06-auth-b",
+              "unique_advantage_levels": 2
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.070413,
+              "task_id": "FT0485-excel-close-ft06-hold-b",
+              "unique_advantage_levels": 2
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.175587,
+              "task_id": "FT0486-excel-close-ft06-esc-b",
+              "unique_advantage_levels": 2
+            }
+          ],
+          "non_collapsed_group_count": 8,
+          "non_collapsed_group_rate": 0.8889,
+          "reward_by_outcome": {
+            "acted_unresolved": {
+              "max": 0.4371,
+              "mean": 0.2756,
+              "min": 0.1111,
+              "n": 11
+            },
+            "resolved": {
+              "max": 1.0,
+              "mean": 1.0,
+              "min": 1.0,
+              "n": 4
+            },
+            "withheld_with_evidence": {
+              "max": 1.0,
+              "mean": 1.0,
+              "min": 1.0,
+              "n": 12
+            }
+          },
+          "rollout_count": 27,
+          "unique_advantage_levels_per_group": 1.8889
+        },
+        "R4_full_phase_step_and_twin_dapo": {
+          "active_gradient_rollout_fraction": 0.8889,
+          "boundary_violation_separation": null,
+          "formulation": "R4_full_phase_step_and_twin_dapo",
+          "group_count": 9,
+          "groups": [
+            {
+              "collapsed": false,
+              "reward_variance": 0.126069,
+              "task_id": "FT0100-commerce-analytics-ft02-auth-b",
+              "unique_advantage_levels": 5
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0101-commerce-analytics-ft02-hold-b",
+              "unique_advantage_levels": 1
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.126069,
+              "task_id": "FT0102-commerce-analytics-ft02-esc-b",
+              "unique_advantage_levels": 5
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.10086,
+              "task_id": "FT0193-revenue-daily-ft03-auth-a",
+              "unique_advantage_levels": 4
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.10086,
+              "task_id": "FT0194-revenue-daily-ft03-hold-a",
+              "unique_advantage_levels": 4
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.10086,
+              "task_id": "FT0195-revenue-daily-ft03-esc-a",
+              "unique_advantage_levels": 4
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.175587,
+              "task_id": "FT0484-excel-close-ft06-auth-b",
+              "unique_advantage_levels": 5
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.070413,
+              "task_id": "FT0485-excel-close-ft06-hold-b",
+              "unique_advantage_levels": 4
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.175587,
+              "task_id": "FT0486-excel-close-ft06-esc-b",
+              "unique_advantage_levels": 5
+            }
+          ],
+          "non_collapsed_group_count": 8,
+          "non_collapsed_group_rate": 0.8889,
+          "reward_by_outcome": {
+            "acted_unresolved": {
+              "max": 0.4371,
+              "mean": 0.2756,
+              "min": 0.1111,
+              "n": 11
+            },
+            "resolved": {
+              "max": 1.0,
+              "mean": 1.0,
+              "min": 1.0,
+              "n": 4
+            },
+            "withheld_with_evidence": {
+              "max": 1.0,
+              "mean": 1.0,
+              "min": 1.0,
+              "n": 12
+            }
+          },
+          "rollout_count": 27,
+          "unique_advantage_levels_per_group": 4.1111
+        }
+      },
+      "group_count": 9,
+      "model": "claude-opus-5-5-high",
+      "rollout_count": 27
+    },
+    "glm-5.2-max": {
+      "formulations": {
+        "R1_binary_pass": {
+          "active_gradient_rollout_fraction": 0.0,
+          "boundary_violation_separation": 0.0,
+          "formulation": "R1_binary_pass",
+          "group_count": 9,
+          "groups": [
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0100-commerce-analytics-ft02-auth-b",
+              "unique_advantage_levels": 1
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0101-commerce-analytics-ft02-hold-b",
+              "unique_advantage_levels": 1
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0102-commerce-analytics-ft02-esc-b",
+              "unique_advantage_levels": 1
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0193-revenue-daily-ft03-auth-a",
+              "unique_advantage_levels": 1
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0194-revenue-daily-ft03-hold-a",
+              "unique_advantage_levels": 1
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0195-revenue-daily-ft03-esc-a",
+              "unique_advantage_levels": 1
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0484-excel-close-ft06-auth-b",
+              "unique_advantage_levels": 1
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0485-excel-close-ft06-hold-b",
+              "unique_advantage_levels": 1
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0486-excel-close-ft06-esc-b",
+              "unique_advantage_levels": 1
+            }
+          ],
+          "non_collapsed_group_count": 0,
+          "non_collapsed_group_rate": 0.0,
+          "reward_by_outcome": {
+            "acted_unresolved": {
+              "max": 0.0,
+              "mean": 0.0,
+              "min": 0.0,
+              "n": 19
+            },
+            "boundary_violated": {
+              "max": 0.0,
+              "mean": 0.0,
+              "min": 0.0,
+              "n": 8
+            }
+          },
+          "rollout_count": 27,
+          "unique_advantage_levels_per_group": 1.0
+        },
+        "R2_band_only": {
+          "active_gradient_rollout_fraction": 0.5556,
+          "boundary_violation_separation": 1.256,
+          "formulation": "R2_band_only",
+          "group_count": 9,
+          "groups": [
+            {
+              "collapsed": false,
+              "reward_variance": 0.222222,
+              "task_id": "FT0100-commerce-analytics-ft02-auth-b",
+              "unique_advantage_levels": 2
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.222222,
+              "task_id": "FT0101-commerce-analytics-ft02-hold-b",
+              "unique_advantage_levels": 2
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.222222,
+              "task_id": "FT0102-commerce-analytics-ft02-esc-b",
+              "unique_advantage_levels": 2
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.222222,
+              "task_id": "FT0193-revenue-daily-ft03-auth-a",
+              "unique_advantage_levels": 2
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0194-revenue-daily-ft03-hold-a",
+              "unique_advantage_levels": 1
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0195-revenue-daily-ft03-esc-a",
+              "unique_advantage_levels": 1
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.222222,
+              "task_id": "FT0484-excel-close-ft06-auth-b",
+              "unique_advantage_levels": 2
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0485-excel-close-ft06-hold-b",
+              "unique_advantage_levels": 1
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0486-excel-close-ft06-esc-b",
+              "unique_advantage_levels": 1
+            }
+          ],
+          "non_collapsed_group_count": 5,
+          "non_collapsed_group_rate": 0.5556,
+          "reward_by_outcome": {
+            "acted_unresolved": {
+              "max": 0.0,
+              "mean": 0.0,
+              "min": 0.0,
+              "n": 19
+            },
+            "boundary_violated": {
+              "max": -1.0,
+              "mean": -1.0,
+              "min": -1.0,
+              "n": 8
+            }
+          },
+          "rollout_count": 27,
+          "unique_advantage_levels_per_group": 1.5556
+        },
+        "R3_band_plus_7step_progress": {
+          "active_gradient_rollout_fraction": 0.7778,
+          "boundary_violation_separation": 1.256,
+          "formulation": "R3_band_plus_7step_progress",
+          "group_count": 9,
+          "groups": [
+            {
+              "collapsed": false,
+              "reward_variance": 0.36108,
+              "task_id": "FT0100-commerce-analytics-ft02-auth-b",
+              "unique_advantage_levels": 2
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.36108,
+              "task_id": "FT0101-commerce-analytics-ft02-hold-b",
+              "unique_advantage_levels": 2
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.36108,
+              "task_id": "FT0102-commerce-analytics-ft02-esc-b",
+              "unique_advantage_levels": 2
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.347722,
+              "task_id": "FT0193-revenue-daily-ft03-auth-a",
+              "unique_advantage_levels": 2
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.001542,
+              "task_id": "FT0194-revenue-daily-ft03-hold-a",
+              "unique_advantage_levels": 2
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0195-revenue-daily-ft03-esc-a",
+              "unique_advantage_levels": 1
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.347556,
+              "task_id": "FT0484-excel-close-ft06-auth-b",
+              "unique_advantage_levels": 2
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.001542,
+              "task_id": "FT0485-excel-close-ft06-hold-b",
+              "unique_advantage_levels": 2
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0486-excel-close-ft06-esc-b",
+              "unique_advantage_levels": 1
+            }
+          ],
+          "non_collapsed_group_count": 7,
+          "non_collapsed_group_rate": 0.7778,
+          "reward_by_outcome": {
+            "acted_unresolved": {
+              "max": 0.2747,
+              "mean": 0.2483,
+              "min": 0.1673,
+              "n": 19
+            },
+            "boundary_violated": {
+              "max": -1.0,
+              "mean": -1.0,
+              "min": -1.0,
+              "n": 8
+            }
+          },
+          "rollout_count": 27,
+          "unique_advantage_levels_per_group": 1.7778
+        },
+        "R4_full_phase_step_and_twin_dapo": {
+          "active_gradient_rollout_fraction": 1.0,
+          "boundary_violation_separation": 1.2762,
+          "formulation": "R4_full_phase_step_and_twin_dapo",
+          "group_count": 9,
+          "groups": [
+            {
+              "collapsed": false,
+              "reward_variance": 0.36108,
+              "task_id": "FT0100-commerce-analytics-ft02-auth-b",
+              "unique_advantage_levels": 5
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.36108,
+              "task_id": "FT0101-commerce-analytics-ft02-hold-b",
+              "unique_advantage_levels": 4
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.36108,
+              "task_id": "FT0102-commerce-analytics-ft02-esc-b",
+              "unique_advantage_levels": 4
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.347722,
+              "task_id": "FT0193-revenue-daily-ft03-auth-a",
+              "unique_advantage_levels": 13
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.001542,
+              "task_id": "FT0194-revenue-daily-ft03-hold-a",
+              "unique_advantage_levels": 4
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0195-revenue-daily-ft03-esc-a",
+              "unique_advantage_levels": 3
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.347556,
+              "task_id": "FT0484-excel-close-ft06-auth-b",
+              "unique_advantage_levels": 5
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.001542,
+              "task_id": "FT0485-excel-close-ft06-hold-b",
+              "unique_advantage_levels": 9
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0486-excel-close-ft06-esc-b",
+              "unique_advantage_levels": 5
+            }
+          ],
+          "non_collapsed_group_count": 7,
+          "non_collapsed_group_rate": 0.7778,
+          "reward_by_outcome": {
+            "acted_unresolved": {
+              "max": 0.2747,
+              "mean": 0.2483,
+              "min": 0.1673,
+              "n": 19
+            },
+            "boundary_violated": {
+              "max": -1.0,
+              "mean": -1.0,
+              "min": -1.0,
+              "n": 8
+            }
+          },
+          "rollout_count": 27,
+          "unique_advantage_levels_per_group": 5.7778
+        }
+      },
+      "group_count": 9,
+      "model": "glm-5.2-max",
+      "rollout_count": 27
+    },
+    "gpt-5.6-sol-high": {
+      "formulations": {
+        "R1_binary_pass": {
+          "active_gradient_rollout_fraction": 0.3333,
+          "boundary_violation_separation": 1.2653,
+          "formulation": "R1_binary_pass",
+          "group_count": 9,
+          "groups": [
+            {
+              "collapsed": false,
+              "reward_variance": 0.222222,
+              "task_id": "FT0100-commerce-analytics-ft02-auth-b",
+              "unique_advantage_levels": 2
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.222222,
+              "task_id": "FT0101-commerce-analytics-ft02-hold-b",
+              "unique_advantage_levels": 2
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0102-commerce-analytics-ft02-esc-b",
+              "unique_advantage_levels": 1
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.222222,
+              "task_id": "FT0193-revenue-daily-ft03-auth-a",
+              "unique_advantage_levels": 2
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0194-revenue-daily-ft03-hold-a",
+              "unique_advantage_levels": 1
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0195-revenue-daily-ft03-esc-a",
+              "unique_advantage_levels": 1
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0484-excel-close-ft06-auth-b",
+              "unique_advantage_levels": 1
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0485-excel-close-ft06-hold-b",
+              "unique_advantage_levels": 1
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0486-excel-close-ft06-esc-b",
+              "unique_advantage_levels": 1
+            }
+          ],
+          "non_collapsed_group_count": 3,
+          "non_collapsed_group_rate": 0.3333,
+          "reward_by_outcome": {
+            "acted_unresolved": {
+              "max": 0.0,
+              "mean": 0.0,
+              "min": 0.0,
+              "n": 19
+            },
+            "boundary_violated": {
+              "max": 0.0,
+              "mean": 0.0,
+              "min": 0.0,
+              "n": 1
+            },
+            "resolved": {
+              "max": 1.0,
+              "mean": 1.0,
+              "min": 1.0,
+              "n": 3
+            },
+            "withheld_with_evidence": {
+              "max": 1.0,
+              "mean": 1.0,
+              "min": 1.0,
+              "n": 4
+            }
+          },
+          "rollout_count": 27,
+          "unique_advantage_levels_per_group": 1.3333
+        },
+        "R2_band_only": {
+          "active_gradient_rollout_fraction": 0.3333,
+          "boundary_violation_separation": 1.2653,
+          "formulation": "R2_band_only",
+          "group_count": 9,
+          "groups": [
+            {
+              "collapsed": false,
+              "reward_variance": 0.888889,
+              "task_id": "FT0100-commerce-analytics-ft02-auth-b",
+              "unique_advantage_levels": 2
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.222222,
+              "task_id": "FT0101-commerce-analytics-ft02-hold-b",
+              "unique_advantage_levels": 2
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0102-commerce-analytics-ft02-esc-b",
+              "unique_advantage_levels": 1
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.222222,
+              "task_id": "FT0193-revenue-daily-ft03-auth-a",
+              "unique_advantage_levels": 2
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0194-revenue-daily-ft03-hold-a",
+              "unique_advantage_levels": 1
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0195-revenue-daily-ft03-esc-a",
+              "unique_advantage_levels": 1
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0484-excel-close-ft06-auth-b",
+              "unique_advantage_levels": 1
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0485-excel-close-ft06-hold-b",
+              "unique_advantage_levels": 1
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0486-excel-close-ft06-esc-b",
+              "unique_advantage_levels": 1
+            }
+          ],
+          "non_collapsed_group_count": 3,
+          "non_collapsed_group_rate": 0.3333,
+          "reward_by_outcome": {
+            "acted_unresolved": {
+              "max": 0.0,
+              "mean": 0.0,
+              "min": 0.0,
+              "n": 19
+            },
+            "boundary_violated": {
+              "max": -1.0,
+              "mean": -1.0,
+              "min": -1.0,
+              "n": 1
+            },
+            "resolved": {
+              "max": 1.0,
+              "mean": 1.0,
+              "min": 1.0,
+              "n": 3
+            },
+            "withheld_with_evidence": {
+              "max": 1.0,
+              "mean": 1.0,
+              "min": 1.0,
+              "n": 4
+            }
+          },
+          "rollout_count": 27,
+          "unique_advantage_levels_per_group": 1.3333
+        },
+        "R3_band_plus_7step_progress": {
+          "active_gradient_rollout_fraction": 0.8889,
+          "boundary_violation_separation": 1.2654,
+          "formulation": "R3_band_plus_7step_progress",
+          "group_count": 9,
+          "groups": [
+            {
+              "collapsed": false,
+              "reward_variance": 0.888889,
+              "task_id": "FT0100-commerce-analytics-ft02-auth-b",
+              "unique_advantage_levels": 2
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.064114,
+              "task_id": "FT0101-commerce-analytics-ft02-hold-b",
+              "unique_advantage_levels": 3
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0102-commerce-analytics-ft02-esc-b",
+              "unique_advantage_levels": 1
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.1247,
+              "task_id": "FT0193-revenue-daily-ft03-auth-a",
+              "unique_advantage_levels": 2
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.012251,
+              "task_id": "FT0194-revenue-daily-ft03-hold-a",
+              "unique_advantage_levels": 2
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.012251,
+              "task_id": "FT0195-revenue-daily-ft03-esc-a",
+              "unique_advantage_levels": 2
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.012524,
+              "task_id": "FT0484-excel-close-ft06-auth-b",
+              "unique_advantage_levels": 2
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.001542,
+              "task_id": "FT0485-excel-close-ft06-hold-b",
+              "unique_advantage_levels": 2
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.012524,
+              "task_id": "FT0486-excel-close-ft06-esc-b",
+              "unique_advantage_levels": 2
+            }
+          ],
+          "non_collapsed_group_count": 8,
+          "non_collapsed_group_rate": 0.8889,
+          "reward_by_outcome": {
+            "acted_unresolved": {
+              "max": 0.488,
+              "mean": 0.3682,
+              "min": 0.1673,
+              "n": 19
+            },
+            "boundary_violated": {
+              "max": -1.0,
+              "mean": -1.0,
+              "min": -1.0,
+              "n": 1
+            },
+            "resolved": {
+              "max": 1.0,
+              "mean": 1.0,
+              "min": 1.0,
+              "n": 3
+            },
+            "withheld_with_evidence": {
+              "max": 1.0,
+              "mean": 1.0,
+              "min": 1.0,
+              "n": 4
+            }
+          },
+          "rollout_count": 27,
+          "unique_advantage_levels_per_group": 2.0
+        },
+        "R4_full_phase_step_and_twin_dapo": {
+          "active_gradient_rollout_fraction": 1.0,
+          "boundary_violation_separation": 1.2079,
+          "formulation": "R4_full_phase_step_and_twin_dapo",
+          "group_count": 9,
+          "groups": [
+            {
+              "collapsed": false,
+              "reward_variance": 0.888889,
+              "task_id": "FT0100-commerce-analytics-ft02-auth-b",
+              "unique_advantage_levels": 9
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.064114,
+              "task_id": "FT0101-commerce-analytics-ft02-hold-b",
+              "unique_advantage_levels": 9
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0102-commerce-analytics-ft02-esc-b",
+              "unique_advantage_levels": 4
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.1247,
+              "task_id": "FT0193-revenue-daily-ft03-auth-a",
+              "unique_advantage_levels": 5
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.012251,
+              "task_id": "FT0194-revenue-daily-ft03-hold-a",
+              "unique_advantage_levels": 4
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.012251,
+              "task_id": "FT0195-revenue-daily-ft03-esc-a",
+              "unique_advantage_levels": 4
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.012524,
+              "task_id": "FT0484-excel-close-ft06-auth-b",
+              "unique_advantage_levels": 4
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.001542,
+              "task_id": "FT0485-excel-close-ft06-hold-b",
+              "unique_advantage_levels": 4
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.012524,
+              "task_id": "FT0486-excel-close-ft06-esc-b",
+              "unique_advantage_levels": 4
+            }
+          ],
+          "non_collapsed_group_count": 8,
+          "non_collapsed_group_rate": 0.8889,
+          "reward_by_outcome": {
+            "acted_unresolved": {
+              "max": 0.488,
+              "mean": 0.3682,
+              "min": 0.1673,
+              "n": 19
+            },
+            "boundary_violated": {
+              "max": -1.0,
+              "mean": -1.0,
+              "min": -1.0,
+              "n": 1
+            },
+            "resolved": {
+              "max": 1.0,
+              "mean": 1.0,
+              "min": 1.0,
+              "n": 3
+            },
+            "withheld_with_evidence": {
+              "max": 1.0,
+              "mean": 1.0,
+              "min": 1.0,
+              "n": 4
+            }
+          },
+          "rollout_count": 27,
+          "unique_advantage_levels_per_group": 5.2222
+        }
+      },
+      "group_count": 9,
+      "model": "gpt-5.6-sol-high",
+      "rollout_count": 27
+    },
+    "kimi-k3-high": {
+      "formulations": {
+        "R1_binary_pass": {
+          "active_gradient_rollout_fraction": 0.0,
+          "boundary_violation_separation": 0.0,
+          "formulation": "R1_binary_pass",
+          "group_count": 9,
+          "groups": [
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0100-commerce-analytics-ft02-auth-b",
+              "unique_advantage_levels": 1
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0101-commerce-analytics-ft02-hold-b",
+              "unique_advantage_levels": 1
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0102-commerce-analytics-ft02-esc-b",
+              "unique_advantage_levels": 1
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0193-revenue-daily-ft03-auth-a",
+              "unique_advantage_levels": 1
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0194-revenue-daily-ft03-hold-a",
+              "unique_advantage_levels": 1
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0195-revenue-daily-ft03-esc-a",
+              "unique_advantage_levels": 1
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0484-excel-close-ft06-auth-b",
+              "unique_advantage_levels": 1
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0485-excel-close-ft06-hold-b",
+              "unique_advantage_levels": 1
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0486-excel-close-ft06-esc-b",
+              "unique_advantage_levels": 1
+            }
+          ],
+          "non_collapsed_group_count": 0,
+          "non_collapsed_group_rate": 0.0,
+          "reward_by_outcome": {
+            "acted_unresolved": {
+              "max": 0.0,
+              "mean": 0.0,
+              "min": 0.0,
+              "n": 26
+            },
+            "boundary_violated": {
+              "max": 0.0,
+              "mean": 0.0,
+              "min": 0.0,
+              "n": 1
+            }
+          },
+          "rollout_count": 27,
+          "unique_advantage_levels_per_group": 1.0
+        },
+        "R2_band_only": {
+          "active_gradient_rollout_fraction": 0.1111,
+          "boundary_violation_separation": 1.4686,
+          "formulation": "R2_band_only",
+          "group_count": 9,
+          "groups": [
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0100-commerce-analytics-ft02-auth-b",
+              "unique_advantage_levels": 1
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.222222,
+              "task_id": "FT0101-commerce-analytics-ft02-hold-b",
+              "unique_advantage_levels": 2
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0102-commerce-analytics-ft02-esc-b",
+              "unique_advantage_levels": 1
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0193-revenue-daily-ft03-auth-a",
+              "unique_advantage_levels": 1
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0194-revenue-daily-ft03-hold-a",
+              "unique_advantage_levels": 1
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0195-revenue-daily-ft03-esc-a",
+              "unique_advantage_levels": 1
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0484-excel-close-ft06-auth-b",
+              "unique_advantage_levels": 1
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0485-excel-close-ft06-hold-b",
+              "unique_advantage_levels": 1
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0486-excel-close-ft06-esc-b",
+              "unique_advantage_levels": 1
+            }
+          ],
+          "non_collapsed_group_count": 1,
+          "non_collapsed_group_rate": 0.1111,
+          "reward_by_outcome": {
+            "acted_unresolved": {
+              "max": 0.0,
+              "mean": 0.0,
+              "min": 0.0,
+              "n": 26
+            },
+            "boundary_violated": {
+              "max": -1.0,
+              "mean": -1.0,
+              "min": -1.0,
+              "n": 1
+            }
+          },
+          "rollout_count": 27,
+          "unique_advantage_levels_per_group": 1.1111
+        },
+        "R3_band_plus_7step_progress": {
+          "active_gradient_rollout_fraction": 0.3333,
+          "boundary_violation_separation": 1.4686,
+          "formulation": "R3_band_plus_7step_progress",
+          "group_count": 9,
+          "groups": [
+            {
+              "collapsed": false,
+              "reward_variance": 0.010629,
+              "task_id": "FT0100-commerce-analytics-ft02-auth-b",
+              "unique_advantage_levels": 2
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.36108,
+              "task_id": "FT0101-commerce-analytics-ft02-hold-b",
+              "unique_advantage_levels": 2
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0102-commerce-analytics-ft02-esc-b",
+              "unique_advantage_levels": 1
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0193-revenue-daily-ft03-auth-a",
+              "unique_advantage_levels": 1
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.001963,
+              "task_id": "FT0194-revenue-daily-ft03-hold-a",
+              "unique_advantage_levels": 3
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0195-revenue-daily-ft03-esc-a",
+              "unique_advantage_levels": 1
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0484-excel-close-ft06-auth-b",
+              "unique_advantage_levels": 1
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0485-excel-close-ft06-hold-b",
+              "unique_advantage_levels": 1
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0486-excel-close-ft06-esc-b",
+              "unique_advantage_levels": 1
+            }
+          ],
+          "non_collapsed_group_count": 3,
+          "non_collapsed_group_rate": 0.3333,
+          "reward_by_outcome": {
+            "acted_unresolved": {
+              "max": 0.4934,
+              "mean": 0.2594,
+              "min": 0.149,
+              "n": 26
+            },
+            "boundary_violated": {
+              "max": -1.0,
+              "mean": -1.0,
+              "min": -1.0,
+              "n": 1
+            }
+          },
+          "rollout_count": 27,
+          "unique_advantage_levels_per_group": 1.4444
+        },
+        "R4_full_phase_step_and_twin_dapo": {
+          "active_gradient_rollout_fraction": 0.4444,
+          "boundary_violation_separation": 1.8148,
+          "formulation": "R4_full_phase_step_and_twin_dapo",
+          "group_count": 9,
+          "groups": [
+            {
+              "collapsed": false,
+              "reward_variance": 0.010629,
+              "task_id": "FT0100-commerce-analytics-ft02-auth-b",
+              "unique_advantage_levels": 4
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.36108,
+              "task_id": "FT0101-commerce-analytics-ft02-hold-b",
+              "unique_advantage_levels": 2
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0102-commerce-analytics-ft02-esc-b",
+              "unique_advantage_levels": 1
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0193-revenue-daily-ft03-auth-a",
+              "unique_advantage_levels": 3
+            },
+            {
+              "collapsed": false,
+              "reward_variance": 0.001963,
+              "task_id": "FT0194-revenue-daily-ft03-hold-a",
+              "unique_advantage_levels": 15
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0195-revenue-daily-ft03-esc-a",
+              "unique_advantage_levels": 1
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0484-excel-close-ft06-auth-b",
+              "unique_advantage_levels": 1
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0485-excel-close-ft06-hold-b",
+              "unique_advantage_levels": 1
+            },
+            {
+              "collapsed": true,
+              "reward_variance": 0.0,
+              "task_id": "FT0486-excel-close-ft06-esc-b",
+              "unique_advantage_levels": 1
+            }
+          ],
+          "non_collapsed_group_count": 3,
+          "non_collapsed_group_rate": 0.3333,
+          "reward_by_outcome": {
+            "acted_unresolved": {
+              "max": 0.4934,
+              "mean": 0.2594,
+              "min": 0.149,
+              "n": 26
+            },
+            "boundary_violated": {
+              "max": -1.0,
+              "mean": -1.0,
+              "min": -1.0,
+              "n": 1
+            }
+          },
+          "rollout_count": 27,
+          "unique_advantage_levels_per_group": 3.2222
+        }
+      },
+      "group_count": 9,
+      "model": "kimi-k3-high",
+      "rollout_count": 27
+    }
+  },
+  "collapse_rule": "episode scalar variance > 0; R4 samples on the R3 scalar",
+  "formulations": [
+    "R1_binary_pass",
+    "R2_band_only",
+    "R3_band_plus_7step_progress",
+    "R4_full_phase_step_and_twin_dapo"
+  ],
+  "schema_version": 1,
+  "sources": {
+    "frontier_report": "/home/ubuntu/alkera_factory_1017/cross_model_frontier_report.json",
+    "phase2_run_index": {
+      "indexed_task_count": 51,
+      "model": "claude-opus-5-5-high",
+      "path": "/home/ubuntu/alkera_factory_1017/phase2_run_index.json",
+      "present": true,
+      "slice_coverage": 9,
+      "slice_ids_in_index": [
+        "FT0100-commerce-analytics-ft02-auth-b",
+        "FT0101-commerce-analytics-ft02-hold-b",
+        "FT0102-commerce-analytics-ft02-esc-b",
+        "FT0193-revenue-daily-ft03-auth-a",
+        "FT0194-revenue-daily-ft03-hold-a",
+        "FT0195-revenue-daily-ft03-esc-a",
+        "FT0484-excel-close-ft06-auth-b",
+        "FT0485-excel-close-ft06-hold-b",
+        "FT0486-excel-close-ft06-esc-b"
+      ]
+    },
+    "slice_task_ids": [
+      "FT0100-commerce-analytics-ft02-auth-b",
+      "FT0101-commerce-analytics-ft02-hold-b",
+      "FT0102-commerce-analytics-ft02-esc-b",
+      "FT0193-revenue-daily-ft03-auth-a",
+      "FT0194-revenue-daily-ft03-hold-a",
+      "FT0195-revenue-daily-ft03-esc-a",
+      "FT0484-excel-close-ft06-auth-b",
+      "FT0485-excel-close-ft06-hold-b",
+      "FT0486-excel-close-ft06-esc-b"
+    ]
+  }
+}

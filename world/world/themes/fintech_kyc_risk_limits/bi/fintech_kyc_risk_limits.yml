@@ -1,0 +1,7 @@
+dashboard: fintech_kyc_risk_limits
+panels:
+- name: daily_fct_merchant_exposure
+  sql: select * from warehouse.fct_merchant_exposure order by event_date desc limit
+    30
+- name: published_treasury_reserve_handoff
+  sql: select * from warehouse."treasury_reserve_handoff" limit 30

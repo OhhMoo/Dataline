@@ -1,0 +1,14 @@
+{
+  "agent": "grok",
+  "phase": "1024_2",
+  "status": "DONE",
+  "tests_passed": true,
+  "pytest": "2 passed in 0.12s",
+  "pytest_command": "PYTHONPATH=/home/ubuntu/env_project:/home/ubuntu/env_project/world gateway/.venv/bin/python -m pytest -q tasks/factory/narrative/tests/test_ablation_reward_models.py",
+  "report": "/home/ubuntu/alkera_factory_1017/reward_ablation_report.json",
+  "notes": [
+    "R1 is the pass bit. On gpt-5.6-sol-high it leaves 3/9 groups non-collapsed. On kimi-k3-high and glm-5.2-max it leaves 0/9.",
+    "R3 is band + 0.5 * seven-step progress + path. It lifts gpt to 8/9, kimi to 3/9, and glm to 7/9. acted_unresolved stays above 0 and boundary_violated stays at -1.",
+    "R4 samples on that same episode scalar, so those group counts do not move, and adds 0.7 GRPO + 0.3 phase credit plus the twin penalty. Its mean distinct advantage levels are strictly higher than R1, R2, and R3 on all four models."
+  ]
+}

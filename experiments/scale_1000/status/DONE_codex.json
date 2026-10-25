@@ -1,0 +1,63 @@
+{
+  "agent": "codex",
+  "status": "complete",
+  "pytest": {
+    "command": "cd /home/ubuntu/env_project && PYTHONPATH=/home/ubuntu/env_project:/home/ubuntu/env_project/world /home/ubuntu/env_project/gateway/.venv/bin/python -m pytest -q tasks/factory/hazards/tests/test_composition_matrix.py",
+    "passed": 24,
+    "failed": 0,
+    "summary": "24 passed in 202.24s",
+    "composition_cases": 20
+  },
+  "files_created": [
+    "tasks/factory/hazards/tests/test_composition_matrix.py"
+  ],
+  "files_updated": [
+    "tasks/factory/stressors/oracle_composer.py"
+  ],
+  "files_unchanged": [
+    "tasks/factory/stressors/__init__.py",
+    "tasks/factory/stressors/t0_pipeline_stressors.py",
+    "tasks/factory/stressors/runtime_template.py",
+    "tasks/factory/hazards/arrival_file_hazards.py",
+    "tasks/factory/hazards/temporal_contract_hazards.py"
+  ],
+  "api_added": {
+    "compose_task": "compose_task(theme, stressors, hazards, governance_mode, seed, out_dir) -> dict",
+    "also_accepts": "compose_task(task_dir, blueprint, theme_world_dir) -> dict",
+    "id_canonicalization": "S01_name, H01_name, and {hazard_id|stressor_id|id|code} map to S01/H01 before apply_stressors and apply_*_hazards",
+    "minimal_world": "When out_dir is passed, compose_task load_theme()s the theme and stages a DuckDB scheduler shell under out_dir/world. No dbt and no world.build. out_dir inside /home/ubuntu/env_project is refused.",
+    "artifacts": [
+      "world/workspace/pipelines/factory_events.py",
+      "solution/solve.py",
+      "solution/solution.sh",
+      "solution/partial_fix.py",
+      "solution/wrong_precedence.py",
+      "solution/duplicate_counted.py",
+      "solution/boundary_violated.py"
+    ],
+    "governance": "act-authorized seeds a controller approval and the oracle republishes the closed day (net 2020). withhold-blocked and escalate-ambiguous leave the frozen closed day at 1000 and record withhold_closed_restatement or escalate_and_withhold in workspace/final_report.json."
+  },
+  "combinations": [
+    {"theme": "settlement_clearing", "stressors": ["S01"], "hazards": ["H01", "H04"], "governance_mode": "act-authorized", "seed": 1017},
+    {"theme": "commerce_analytics", "stressors": ["S02"], "hazards": ["H02", "H09"], "governance_mode": "withhold-blocked", "seed": 1018},
+    {"theme": "settlement_clearing", "stressors": ["S03"], "hazards": ["H03", "H14"], "governance_mode": "escalate-ambiguous", "seed": 1019},
+    {"theme": "commerce_analytics", "stressors": ["S04"], "hazards": ["H04", "H05"], "governance_mode": "act-authorized", "seed": 1020},
+    {"theme": "settlement_clearing", "stressors": ["S05"], "hazards": ["H05", "H10"], "governance_mode": "withhold-blocked", "seed": 1021},
+    {"theme": "commerce_analytics", "stressors": ["S06"], "hazards": ["H01", "H06"], "governance_mode": "escalate-ambiguous", "seed": 1022},
+    {"theme": "settlement_clearing", "stressors": ["S07"], "hazards": ["H06", "H07"], "governance_mode": "act-authorized", "seed": 1023},
+    {"theme": "commerce_analytics", "stressors": ["S08"], "hazards": ["H08", "H11"], "governance_mode": "withhold-blocked", "seed": 1024},
+    {"theme": "settlement_clearing", "stressors": ["S09"], "hazards": ["H02", "H09"], "governance_mode": "escalate-ambiguous", "seed": 1025},
+    {"theme": "commerce_analytics", "stressors": ["S10"], "hazards": ["H07", "H11"], "governance_mode": "act-authorized", "seed": 1026},
+    {"theme": "settlement_clearing", "stressors": ["S01"], "hazards": ["H12", "H13"], "governance_mode": "withhold-blocked", "seed": 1027},
+    {"theme": "commerce_analytics", "stressors": ["S02"], "hazards": ["H03", "H14"], "governance_mode": "escalate-ambiguous", "seed": 1028},
+    {"theme": "settlement_clearing", "stressors": ["S03"], "hazards": ["H01", "H08"], "governance_mode": "act-authorized", "seed": 1029},
+    {"theme": "commerce_analytics", "stressors": ["S04"], "hazards": ["H02", "H13"], "governance_mode": "withhold-blocked", "seed": 1030},
+    {"theme": "settlement_clearing", "stressors": ["S05"], "hazards": ["H03", "H04"], "governance_mode": "escalate-ambiguous", "seed": 1031},
+    {"theme": "commerce_analytics", "stressors": ["S06"], "hazards": ["H04", "H09"], "governance_mode": "act-authorized", "seed": 1032},
+    {"theme": "settlement_clearing", "stressors": ["S07"], "hazards": ["H05", "H14"], "governance_mode": "withhold-blocked", "seed": 1033},
+    {"theme": "commerce_analytics", "stressors": ["S08"], "hazards": ["H05", "H06"], "governance_mode": "escalate-ambiguous", "seed": 1034},
+    {"theme": "settlement_clearing", "stressors": ["S09"], "hazards": ["H07", "H10"], "governance_mode": "act-authorized", "seed": 1035},
+    {"theme": "commerce_analytics", "stressors": ["S10"], "hazards": ["H01", "H08"], "governance_mode": "withhold-blocked", "seed": 1036}
+  ],
+  "separation": "For each of the 20 draws, oracle passes C0 and R1-R4 on the real scheduler; no_op fails C0; partial_fix matches C0 and diverges on R2, R3, or R4. wrong_precedence, duplicate_counted, and boundary_violated each diverge on a future night for an H02 draw. Worlds stay in pytest tmp_path, outside the git repo. settlement_clearing and commerce_analytics both load; settlement_platform does not."
+}

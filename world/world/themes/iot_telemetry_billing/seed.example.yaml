@@ -1,0 +1,32 @@
+# Cloud/IoT metering -> raw landing files -> dbt billable usage, period locks,
+# and ERP invoice handoff. The initial world opens at 2026-03-01T00:00:00Z.
+theme: iot_telemetry_billing
+seed: 23
+vtime_start: "2026-01-02T00:00:00Z"
+days: 58                       # arrivals Jan 02..Feb 28; usage Jan 01..Feb 27
+
+# Fleet and metering shape. Device 01 of each customer is an edge-rollup
+# device; odd-numbered remaining devices emit monotonic counters and the rest
+# emit delta events. Four heartbeats divide the UTC day into six-hour windows.
+customers: 6
+devices_per_customer: 4        # minimum 3, so all three source kinds are present
+heartbeats_per_day: 4          # a divisor of 24
+usage_per_heartbeat: [400, 900] # inclusive integer units before scaling
+usage_scale_pct: 100           # deterministic fleet-wide scaling, integer percent
+
+# Counter and disconnected-gateway behavior. Counter devices reboot every six
+# usage days. Each gateway has a recurring three-day offline window in its
+# twelve-day cycle and flushes all buffered daily rollups on reconnection.
+counter_reset_days: 6
+gateway_cycle_days: 12
+gateway_offline_days: 3
+
+# Enterprise pricing. Each customer/month receives a deterministic contract
+# inside these inclusive integer ranges. Money stays in cents; overage is
+# charged per block of 1,000 units, rounding partial blocks up.
+committed_units: [240000, 360000]
+monthly_minimum_cents: [240000, 420000]
+overage_cents_per_1000: [160, 280]
+lock_grace_days: 2             # months lock this many UTC days after month end
+
+git_author: "Metering Platform <metering@example.com>"

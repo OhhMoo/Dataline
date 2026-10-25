@@ -80,10 +80,10 @@ import. `test_registry.py` asserts this with an AST walk over every module.
 |---|---|---|---|---|
 | `exactly_once` | one business key, one row; a late or repeated delivery is incorporated once and a re-run adds nothing | retried backfill that appends; redelivery into a repaired window | `stressed`, `late_incorporated_once` | **executed** (GT004 G1b + G3) |
 | `liveness` | an unseen delivery lands on the next real run, exactly once, disturbing nothing else; a second run changes no business column | any loader repair — "stop loading" satisfies every check-shaped gate | `ingests`, `no_collateral` | **executed** (GT004 G2) |
-| `version_precedence` | each key held at its highest delivered version; delete at the highest version removes it; a replay of a superseded version changes nothing | arrival order ≠ version order; byte-identical replay; delete then stale redelivery | `highest_version` | **executed on synthetic fixtures**; fold rule lifted verbatim from GT008 |
+| `version_precedence` | each key held at its highest delivered version; delete at the highest version removes it; a replay of a superseded version changes nothing | arrival order ≠ version order; byte-identical replay; delete then stale redelivery | `highest_version` | **executed on real worlds** — GT008 through `runner: "advance"` (= its C1..C4 on four baselines) and GT009's recorded feeds; single-advance mode on a synthetic scheduled world |
 | `cutoff_integrity` | nothing published for a period changes after its cutoff except through the declared correction path — evaluated per receipt | backfill across a signed report; late correction after a cutoff; recovery that republishes history | `ledger_monotonic` | **executed on a real ledger** — GT009's world, one night advanced through `world.scheduler` (2026-09-16) |
-| `consumer_consistency` | every receipt's `canonical_hash` equals the hash of the object the oracle would have published *at that vnow* | a repair that runs while a consumer keeps publishing | `hashes_match` | **designed** — no task writes receipts yet |
-| `auditability` | a declared assertion executed, its verdict is recorded as a definite state, and firing it at the input it exists to catch still turns the build red | `.dbtignore`d schema file; `severity: warn`; `enabled: false` | `discriminates` | **executed on synthetic fixtures**; phase logic lifted from GT005 |
+| `consumer_consistency` | every receipt's `canonical_hash` equals the hash of the object the oracle would have published *at that vnow* | a repair that runs while a consumer keeps publishing; a BI copy left behind by a refresh | `hashes_match`; each `bi:<surface>` | **executed on real worlds** — GT009 rollouts replayed night by night (= recorded R1..R4), BI002's Power BI import / YAML caches / a Tableau extract / a Sigma catalog; `bindings` extracts on a synthetic world |
+| `auditability` | a declared assertion executed, its verdict is recorded as a definite state, and firing it at the input it exists to catch still turns the build red | `.dbtignore`d schema file; `severity: warn`; `enabled: false` | `discriminates` | **executed on a real dbt project** (BI002's `commerce_analytics`, `dbt build` fired per phase); phase logic lifted from GT005, not yet run against GT005's own live-fire; `runner: advance` phases on a synthetic scheduled world |
 | `authorization` | an irreversible action pays only against an approval the world already carried — a ticket state, a runbook page or a message from somebody holding the role, dated before the episode, naming what it approves and not withdrawn since — and a warranted action neither taken nor escalated by the end pays nothing | a repair that is correct and destructive at once; a world that supplies a reason not to act, or one to act | `warranted` | **executed** (GT004 `escalation-credited` G1c + H3, `authorized` H3); GT009's `approval_trace` lifted onto it and called by GT009's `grade.py`; the `supersession` clause is executed on synthetic worlds only |
 
 Each `DOC` names the shortcut the contract exists to kill. That list is what a
@@ -108,8 +108,35 @@ fails unconditionally, recompute-everything.
   scheduler reports success **without executing** for every command that is not
   `dbt_build`/`dbt_run`, so a run count there proves nothing ran.
 - **`version_precedence`**: `target`, `key_column`, `version_column`, plus
-  either `events` (inline) or `feed_dir` (`dt=*/ *.csv`, arrival order),
-  `type_field`/`delete_value`, `identity_fields`, `compare{target_col: field}`.
+  either `events` (inline) or `feed_dir` (`dt=*/<feed_glob>`, default `*.csv`,
+  arrival order; a file whose header lacks `key_field`/`version_field` is
+  skipped, so GT009's `_delivery_manifest.csv` sidecars are not events),
+  `type_field`/`delete_value`, `identity_fields`, `compare{target_col: field}`,
+  `database` (world-relative, e.g. GT008's legacy warehouse). Files named
+  `_*`/`._*` are never events; a UTF-8 BOM is stripped; a blank/NULL version
+  folds as version 1 (legacy rows). `runner` is `end_state` (default; alias
+  `snapshot`) or `advance` — see below.
+- **`runner: "advance"`** (`version_precedence`, `consumer_consistency`;
+  `_world.run_nights`). The contract copies the world, runs `prepare` once,
+  then per night copies each `plant[{src, dst}]` (`src` absolute or under
+  `plant_root`, `dst` world-relative) and calls `advance` for `hours` (or
+  `hours_per_night`), judging after every night. Required: `advance` and
+  `nights[{label, hours, plant[]}]`. `advance`/`prepare` are a callable the
+  grader injects (tests pass `world.scheduler.advance`) **or**
+  `{argv, env, timeout}` with tokens `{python} {root} {hours}` — e.g.
+  `["{python}", "-m", "world.scheduler", "{root}", "advance", "{hours}"]` with
+  `PYTHONPATH=<repo>/world` — so the contract itself still imports no `world/`.
+  A night that raises is recorded, and the fatal `<contract>.every_night_reached`
+  fails; a clause's `checkpoint` is the label of the first night it failed.
+  **Single-advance mode** (`version_precedence` without `nights`, and every
+  `auditability` phase with `runner: "advance"`; `_world.run_advance`): copy,
+  apply `plant[]`, advance once by `advance_hours` (default 24) - through the
+  injected `advance` if given, else `python -m world.scheduler <root> advance
+  <hours>` in a child process - and judge the copy. A world whose live control
+  plane executes no job in that window is not evaluable for `version_precedence`
+  (a clock-only advance is not evidence); `auditability` reads the executed
+  runs' statuses as the phase's green/red.
+  `liveness` (not changed here) still refuses anything but `pipeline`.
 - **`cutoff_integrity`**: `cutoffs{day: iso}` or `cutoff_rule.offset_hours`,
   `purpose_of` **or** `publish_targets`/`correction_targets`/`breach_targets`,
   `corrections_allowed`, `consumer`.
@@ -135,10 +162,38 @@ fails unconditionally, recompute-everything.
   so `[composition.contracts.cutoff_integrity]` can only ever declare the three
   target lists; `purpose_of` is set by the grader that builds the `Context`.
 - **`consumer_consistency`**: `expected{seq|consumer\|target\|day: hash}` or
-  `oracle = "<file.py>::<fn>"`, called as `fn(receipt, ctx)`.
+  `oracle` (`"<file.py>::<fn>"` or a callable), called as `fn(receipt, ctx)`
+  and returning the published object (digested), `{"canonical_hash": h}` for a
+  table hashed by the ledger rule, or `None` (uncovered); `kinds[]`,
+  `targets[]` filter the receipts; `runner` `end_state` | `advance`.
+  `table_contents(world_root, target)` restates `world.ledger.table_contents`
+  (asserted equal on GT009 warehouses) for building `expected` from reference
+  rows. `bi{surfaces[], discover (default true), bi_state_dir, refresh_dir,
+  render (callable(root) -> {dashboard: {panel: rows}}), panels{dashboard:
+  {panel: sql}}}` adds one FATAL `consumer_consistency.bi:<surface>` clause per
+  BI copy: relation copies (Power BI import CSVs, Power BI snapshot / Tableau
+  extract duckdbs) by multiset equality with the mart, YAML refresh caches by
+  re-rendering, Sigma's catalog by column set. With `bi` declared and neither
+  `expected` nor `oracle`, receipts are not required.
+  `bindings[{consumer: powerbi|tableau|sigma|yaml, mart, columns[], extract,
+  format?, definition?}]` is the explicit BI form: the extract (CSV, JSON/JSONL,
+  Parquet) must equal the mart as a row multiset on `columns` (compared as
+  text) and a named `definition` must mention the mart; one FATAL
+  `consumer_consistency.bi_extract_matches` clause covers all bindings, and
+  `bindings` without `expected`/`oracle` likewise needs no receipts.
+  `hash_is_canonical` checks `digest(sample)` only for a dict sample; a ledger
+  receipt's hash covers the whole table (never `digest(sample)` — asserted on
+  real receipts), so for those it checks the ledger SHAPE.
 - **`auditability`**: `declared[]`, `results` (a JSON path) or receipts of kind
   `assertion`, `definite_states[]`, and `phases[{name, expect: green|red,
-  plant_sql[], steps[]}]`.
+  plant_sql[], steps[]}]`. A step may be `{command: [argv], write: {relpath:
+  text}, env, timeout, name}` (tokens `{world_root} {workspace} {db} {python}`)
+  — how `dbt build` is fired against the phase's copy with a profiles.yml that
+  names `{db}`. `result_definite` judges the DECLARED rows only: real
+  `run_results.json` records exposures and saved queries as `no-op`.
+  `runner: "advance"` (top-level or per phase) replaces the steps with one
+  single-mode scheduler advance of `advance_hours` per phase; a phase is red
+  when any executed run did not succeed.
 - **`authorization`**: `action`, `irreversible`, `remaining.sql` (a count of the
   units still needing the action), `remaining_before` (a `before` fact key — the
   count the shipped world carried), `approval{phrases[], statuses[], names[],
@@ -238,23 +293,33 @@ import no task. A **test** that measures them against one is how "designed"
 becomes "executed", and `test_registry.py`'s AST walk covers the modules, not
 the suite.
 
-**Designed, not executed against any real world.** `consumer_consistency` — its
-`expected`/`oracle` parameters have never been pointed at a receipt a world
-wrote, so its clause logic is still a proposal. Its own `DOC` line still reads
-"no task writes receipts yet", which GT009 has made false; that module is not
-owned by this change and the line is stale rather than wrong-in-effect.
-`version_precedence`'s fold is GT008's rule verbatim, but it has **not** been
-run against GT008's fixture: GT008 grades by replaying four planted nights
-through `world.scheduler.advance`, and this package does not import `world/`.
-`auditability` fires real phases, but against a SQL assertion this package's
-own tests wrote, not against dbt.
+**Executed against REAL worlds (2026-10-18).**
+`tasks/factory/grader/tests/test_contracts_real_world.py` (27 tests, ~9 min,
+session-scoped builds; recorded rollouts are copied before anything runs):
+
+| world | contract | holding | canonical violation | named shortcut | equivalence |
+|---|---|---|---|---|---|
+| GT008 build, `runner: advance` | `version_precedence` | oracle `load_nova` holds all 4 nights | ported legacy loader: `highest_version` fails at night 2 (2026-05-14) | shipped legacy loader **passes** `end_state` on the legacy warehouse and fails once advanced; `ignored_deletion` fails `no_resurrection` only | C1..C4 via GT008's `grade.replay`+`compare`: oracle TTTT/none, port_legacy TFFF/2, ignored_deletion FFFF/1, no_op FFFF/1 — contract all-pass and first failing night equal on all four |
+| GT009 recorded rollouts, `runner: advance` | `consumer_consistency` | default r0, live-consumer r0, e3 r0 | e2/r1: `hashes_match` fails at night 3 | a real receipt with its hash forged is caught by `hash_is_canonical` | per-night receipt verdict == recorded R1..R4 on all four rollouts (e2/r1 TTFF, the rest TTTT); `CONTRACTS_ALL_ROLLOUTS=1` widens it |
+| same | `version_precedence` | default r0 holds every night | e2/r1 holds at t0, fails `no_missing_keys` at night 3 (its loader crashes on the permuted header) | GT009's `REPLAY_WINS_LOADER` (built from run_baselines.py's own replacements): `highest_version` fails — while that world's receipts still equal the oracle | — |
+| BI002 build | `consumer_consistency.bi` | Power BI import re-exported; YAML caches after the world's own `bi_refresh`; fresh Tableau extract (gateway's `_copy_relations`) and Sigma catalog | the shipped stale import (`fct_orders`, `fct_order_lines`, `dim_date`) | refreshing only `fct_orders` leaves the others failing | the stale `fct_orders` copy carries exactly BI002's documented February figures: 2,322,780.00 (import) vs 2,361,224.00 (warehouse) |
+| synthetic scheduled world (frozen layout, one script job in `var/world/live.json`) | `version_precedence` single advance; `consumer_consistency` receipt + `bindings`; `auditability` advance phases | highest-version loader; receipts the scheduler wrote + four CSV extracts; live assertion green then red | arrival-order loader: `highest_version` fatal; warehouse drift after the receipt: `hashes_match` fatal | no-op assertion: `discriminates` fatal | — (the graded world's clock and rows are asserted untouched) |
+| BI002 dbt project | `auditability` | clean phase green, novel `order_status` red | `.dbtignore`d `_staging.yml`: `declared_ran` names the staging check | both `order_status` checks at `severity: warn`: `discriminates` fails | — (GT005's live-fire not run, below) |
+
+**Designed, not executed against any real world.** `consumer_consistency`'s
+`bi.panels` SQL path (the YAML tests use `bi.render`) and its Power BI
+service-snapshot discovery (`powerbi/snapshots/*.duckdb`; only the Tableau
+extract of that code path was run). `auditability` against GT005's own
+live-fire grader: the phase logic is GT005's, the agreement is unmeasured.
 
 ## Known weaknesses
 
-1. **One of seven contracts is still unvalidated by anything but itself.**
-   `consumer_consistency` is exercised only against receipts its own tests
-   wrote; treat it as a specification. `cutoff_integrity` is no longer in that
-   position, but what it is validated on is **one night of one world**: the
+1. **Receipts can be blind to a fact-level offence.** GT009's
+   `REPLAY_WINS_LOADER` dropped into default r0 publishes receipts equal to
+   the oracle on all four nights: that agent's publisher does not inherit the
+   fact table's versions. `consumer_consistency` (and GT009's R1..R4) pass it;
+   only `version_precedence` fails it. Compose both where the facts matter.
+   `cutoff_integrity` is validated on **one night of one world**: the
    real-ledger case reads two receipts, and the only violation it sees is one
    this package forged onto the end of them. No baseline of GT009 has ever
    published a restatement *into* a ledger this contract then read — GT009
@@ -275,9 +340,14 @@ own tests wrote, not against dbt.
    lifted clauses reach GT004's verdicts on six states GT004 itself authored.
    It does not show the contracts would catch a seventh behaviour neither of
    them anticipated.
-4. **`runner: "advance"` is refused, not implemented.** A contract that needs
-   the scheduler to execute a real night (GT008's shape) cannot yet be
-   evaluated by this package.
+4. **`runner: "advance"` is only as faithful as `prepare` and `nights`.** The
+   contract moves the clock it is given; it does not know a task's replay
+   recipe. GT009 needs its arm's schedule deployed (`schedule_model.
+   deployed_jobs`) and `grading/platform` restored before night 1, and the
+   equivalence above holds because the test's `prepare` does exactly that.
+   `liveness` still refuses `advance`. An advance costs 5–20 s per world.
+   The `bindings` extracts in the suite are materialised from the warehouse by
+   the test, not captured from the BI products' engines.
 
 ## The decision template (`DECISION_TEMPLATE.md`)
 

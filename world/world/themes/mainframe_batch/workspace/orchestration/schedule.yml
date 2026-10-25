@@ -1,0 +1,16 @@
+# Deployment source of truth for the mainframe_batch nightly, all times UTC.
+feed_window: {lands_at: "23:00"}
+jobs:
+  nightly_extract:
+    time: "23:00"
+    command: extract_claims
+  batch_load:
+    after: {job: nightly_extract, minutes: 45}
+    command: load_claims_extract
+    publishes:
+      - {target: raw.claims_extract, kind: table, consumer: dbt_marts}
+  dbt_build:
+    after: {job: batch_load, minutes: 10}
+    command: dbt_build
+    publishes:
+      - {target: warehouse.fct_claims_daily, kind: table, consumer: claims_daily_dashboard}

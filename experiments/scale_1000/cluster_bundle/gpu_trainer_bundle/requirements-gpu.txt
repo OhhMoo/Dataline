@@ -1,0 +1,12 @@
+# Minimum versions. Not tested together on GPU; pin exact versions after the first working run.
+torch>=2.4
+transformers>=4.46
+trl>=0.12
+peft>=0.13
+accelerate>=1.0
+datasets>=3.0
+pyarrow>=14
+verl>=0.4
+vllm>=0.8
+# Optional, used automatically when importable (--attn-impl auto):
+# flash-attn>=2.6

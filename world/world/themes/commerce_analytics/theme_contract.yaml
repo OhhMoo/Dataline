@@ -1,0 +1,34 @@
+# Phase-2 domain contract: commerce_analytics' native fault-injection surface,
+# for the factory compiler (tasks/factory/compiler). Every name below exists in
+# this theme: the landing dir under workspace/, the tables built nightly by
+# loader/load_extracts.py and the dbt project (workspace/dbt_project/models/),
+# the columns in the dbt marts contract (_marts.yml), the jobs in theme.yaml.
+# Concepts the theme does not have are null rather than invented.
+theme: commerce_analytics
+# Nightly shop CDC extract: data/landing/<entity>/dt=YYYY-MM-DD/<entity>.csv
+# for orders, order_lines, customers, products (gen.py write_day).
+landing_dir: data/landing
+# Primary landing table: every version of every order, as landed (CDC).
+# Rebuilt from all partitions by daily_load (loader/load_extracts.py).
+raw_table: raw.orders
+# Primary fact: one row per order at its latest status (marts/fct_orders.sql).
+fact_table: warehouse.fct_orders
+# This theme has no handoff/extract, close/window or corrections table.
+handoff_table: null
+close_window_table: null
+corrections_table: null
+# fct_orders grain (unique + not_null in marts/_marts.yml).
+grain_keys: [order_id]
+# Merchandise subtotal, decimal(12,2); excludes shipping (_marts.yml).
+amount_column: order_amount
+# CDC version timestamp on raw.orders; stg_orders keeps the latest version of
+# each order ordered by updated_at desc, dt desc.
+version_column: updated_at
+# The nightly shop extract is due at 02:00 UTC (theme.yaml live.arrival);
+# daily_load follows at 02:30. A late extract is late against this time.
+cutoff_time_utc: "02:00"
+# Job names exactly as in theme.yaml.
+scheduled_jobs: [daily_load, dbt_build, bi_refresh]
+# Nightly schedule mirrored from theme.yaml jobs; the scheduler sync hook reads
+# it as the timing source of truth (path relative to workspace/).
+schedule_file: orchestration/schedule.yml

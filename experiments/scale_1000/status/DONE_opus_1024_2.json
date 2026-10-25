@@ -1,0 +1,56 @@
+{
+  "agent": "opus",
+  "plan": "plan_10_24_2.md \u00a74.2 (Gap 1B)",
+  "branch": "feat/factory-scale-phase4",
+  "status": "DONE",
+  "tests_passed": true,
+  "tests": {
+    "command": "PYTHONPATH=/home/ubuntu/env_project:/home/ubuntu/env_project/world /home/ubuntu/env_project/gateway/.venv/bin/python -m pytest tasks/factory/compiler/tests/test_train_open_weight_rl.py -q",
+    "result": "21 passed",
+    "also_checked": "tasks/factory/compiler/tests/test_trajectory_loss_model.py: 16 passed"
+  },
+  "files": {
+    "modified": [
+      "tasks/factory/export_rl_dataset.py",
+      "tasks/factory/train_open_weight_rl.py",
+      "tasks/factory/compiler/tests/test_train_open_weight_rl.py"
+    ],
+    "regenerated": [
+      "/home/ubuntu/alkera_factory_1017/gpu_trainer_bundle/**"
+    ]
+  },
+  "deliverables": {
+    "train_dpo_pairs_jsonl": "chosen reward==1.0 vs lower-reward rejected on same task_id; fields chosen, rejected, reward_chosen, reward_rejected, reward_margin, progress_margin, split=='train'; eval holdout tasks excluded",
+    "compact_max_tokens": "--compact-max-tokens (default None, unchanged defaults/key sets); observation_compactor used when available with validation, built-in tool-only fallback otherwise; assistant messages byte-identical",
+    "extra_runs_roots": "--extra-runs-roots merges cross-model/counterfactual JSONL trajectories (incl. desaturated DPO chosen/rejected unfolding), holdout-filtered, group advantages recomputed",
+    "trainer_24k_loader": "load_rows_within_token_budget / apply_left_obs_first_truncation: 0 assistant tokens truncated at 24576, final pipeline_repair/final_report.json turns never cut",
+    "dpo_cpu_verification": "L=-log sigmoid(beta*((pol_chosen-ref_chosen)-(pol_rejected-ref_rejected))) with exact analytic gradient and finite-difference checks alongside SFT/RLOO/DAPO; dL/dlogp is negative on chosen and positive on rejected, so the descent step is positive on chosen and negative on rejected; loss_mask==0 gradient exactly 0.0",
+    "cluster_configs": [
+      "configs/fsdp_8xh100_24k.yaml",
+      "configs/deepspeed_zero3_4xa100_24k.json"
+    ],
+    "bundle_algos": "run_offline_rloo_dpo.py --algo awr|rloo|dpo (DPO consumes train_dpo_pairs.jsonl when present); launch_gpu.sh supports CLUSTER_GPUS=4|8 and Qwen2.5-Coder-7B/14B/32B-Instruct"
+  },
+  "live_numbers_computed_in_tmp": {
+    "export_out_dir": "/tmp/rl_v2_opus_check (not committed, for verification only)",
+    "dpo_pairs": 20,
+    "dpo_pair_tasks": 8,
+    "compacted_rows_fitting_24576": "193/193",
+    "max_compacted_train_tokens": 23486,
+    "assistant_tokens_preserved": true
+  },
+  "gpu_bundle_files": [
+    "README.md",
+    "configs/deepspeed_zero3_4xa100_24k.json",
+    "configs/fsdp_8xh100_24k.yaml",
+    "cpu_loss_verification.json",
+    "launch_gpu.sh",
+    "manifest.json",
+    "requirements-gpu.txt",
+    "run_offline_rloo_dpo.py",
+    "run_online_grpo_verl.py",
+    "run_sft_lora.py"
+  ],
+  "executed_on_gpu": false,
+  "git_commits": "none"
+}

@@ -1,0 +1,12 @@
+# run.sh sets DBT_PROFILES_DIR=config and DBT_WAREHOUSE_PATH for the dev target.
+world_dbt:
+  target: "{{ env_var('DBT_TARGET', 'dev') }}"
+  outputs:
+    dev:
+      type: duckdb
+      path: "{{ env_var('DBT_WAREHOUSE_PATH', '../var/warehouse/warehouse.duckdb') }}"
+      threads: 1
+    ci:
+      type: duckdb
+      path: "/tmp/settlement_clearing_ci.duckdb"
+      threads: 1
