@@ -1,0 +1,40 @@
+{
+  "status": "complete",
+  "task_count": 50,
+  "themes_covered": 12,
+  "topologies_covered": 15,
+  "governance_modes_covered": 3,
+  "governance_modes": [
+    "act-authorized",
+    "withhold-blocked",
+    "escalate-ambiguous"
+  ],
+  "schedule_seed": "H4_seedA",
+  "selection": {
+    "stratified_twins": 36,
+    "added_settlement_clearing_act_authorized": 14,
+    "already_covered": [
+      {
+        "fault_topology_id": "FT01",
+        "task_id": "FT0001-settlement-clearing-ft01-auth-a",
+        "theme": "settlement_clearing",
+        "governance_mode": "act-authorized",
+        "schedule_seed_id": "H4_seedA",
+        "status": "already_covered"
+      }
+    ]
+  },
+  "output_root": "/home/ubuntu/alkera_factory_1017/phase2_pilot_51",
+  "verify_all": {
+    "command": "PYTHONPATH=/home/ubuntu/env_project:/home/ubuntu/env_project/world /home/ubuntu/env_project/gateway/.venv/bin/python -m tasks.factory.verify_all --tasks-dir /home/ubuntu/alkera_factory_1017/phase2_pilot_51 --workers 8 --json /home/ubuntu/alkera_factory_1017/phase2_stage0_51.json",
+    "report": "/home/ubuntu/alkera_factory_1017/phase2_stage0_51.json",
+    "ok": true,
+    "total": 50,
+    "passed": 50,
+    "failed": 0,
+    "workers": 8,
+    "phase2": false,
+    "strict_phase2": false,
+    "grader": "packaged_baseline_runner"
+  }
+}

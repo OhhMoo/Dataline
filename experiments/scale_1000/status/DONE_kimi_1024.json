@@ -1,0 +1,28 @@
+{
+  "agent": "kimi",
+  "phase": "1024",
+  "status": "DONE",
+  "tests_passed": true,
+  "completed_at_utc": "2026-10-24T02:35:00Z",
+  "summary": "Humanized all 24 theme docs (reconciliation_sla.md and architecture_overview.md across all 12 themes) per plan_10_24 section 3.3: removed all 169 spaced parenthetical hyphens in non-table prose, split overlong sentences so every prose, bullet, and numbered sentence is at most 34 words, and confirmed zero em-dashes, en-dashes, and AI-tell vocabulary. All prior invariants preserved: ASCII-only, at least 2000 characters per file, required snippets, exact Legacy and provisional rules sections, no trap phrases, and no spoiler tokens. Added test_theme_docs_humanized_no_spaced_dashes_or_ai_tells and re-pinned the revenue_daily semantic hashes.",
+  "files_changed": [
+    "world/world/themes/*/workspace/docs/reconciliation_sla.md (12 edited)",
+    "world/world/themes/*/workspace/docs/architecture_overview.md (12 edited)",
+    "world/tests/test_theme_docs_context.py (humanizer test added)",
+    "world/evidence/acceptance.json (re-pinned)",
+    "world/tests/test_native_workspace.py (flagged-build pin re-pinned)"
+  ],
+  "verification": {
+    "plan_command": "PYTHONPATH=/home/ubuntu/env_project:/home/ubuntu/env_project/world /home/ubuntu/env_project/gateway/.venv/bin/python -m pytest world/tests/test_theme_docs_context.py world/tests/test_native_workspace.py world/tests/test_bi_projects.py -q",
+    "plan_command_result": "121 passed in 199.83s",
+    "docs_constraints": "all 24 edited files ASCII-only, >=2000 chars, zero ' - ' in non-table lines, zero em/en dashes, zero AI-tell terms, no prose/bullet/numbered sentence over 34 words, mandatory live-state paths intact, zero spoiler or trap phrases, numeric tokens preserved"
+  },
+  "repin": {
+    "gate1_host_semantic_hash": "b37b9ce146c0299f22f29d967bcb27033546fe451d86ecfd8294d730e9af921f",
+    "gate3_container_semantic_hash": "b37b9ce146c0299f22f29d967bcb27033546fe451d86ecfd8294d730e9af921f",
+    "native_flagged_pin": "19495fe2ac7c6171854ddc62bbd8dc1d54d88786cc31e3c9388aea53847e3088",
+    "evidence": "workspace docs are the only delta; the four native discovery-file byte pins are unchanged, and warehouse/scheduler/bi/live sections were untouched by the docs-only edit"
+  },
+  "execution": "Completed via dispatching-parallel-agents: 4 parallel subagents, each owning 3 disjoint themes (6 files), plus coordinator fixes, test, and re-pin. No git commit or push.",
+  "git_commits": 0
+}

@@ -1,0 +1,31 @@
+{
+  "agent": "grok",
+  "status": "complete",
+  "pytest": {
+    "command": "pytest -q tasks/factory/governance/tests tasks/factory/narrative/tests",
+    "summary": "43 passed in 0.37s",
+    "bundles_36": "36/36",
+    "coverage": 1.0,
+    "spoiler_leaks": 0
+  },
+  "files_changed": [
+    "tasks/factory/governance/tests/test_lexicon.py"
+  ],
+  "linter_gaps_closed": [],
+  "linter": "Existing linter already rejects solution snippets, bug line numbers, and the word decoy used as a ticket label. Discoverability for D1, D2, D2b, S1, and S2 is traced from the decision record onto kb, issues, chat, prompts, and workspace docs. grading/ and var/obs/definitions.yaml do not satisfy those anchors.",
+  "sample": {
+    "path": "/home/ubuntu/alkera_factory_1017/governance_samples/settlement_clearing-withhold-blocked",
+    "theme": "settlement_clearing",
+    "mode": "withhold-blocked",
+    "blocker": "scope_date_mismatch",
+    "target_outcome": "withheld_with_evidence",
+    "lint_ok": true,
+    "coverage": 1.0
+  },
+  "scope": [
+    "tasks/factory/governance/lexicon_rebinder.py",
+    "tasks/factory/governance/twin_state_machine.py",
+    "tasks/factory/narrative/corecraft_synthesizer.py",
+    "tasks/factory/narrative/discoverability_and_spoiler_linter.py"
+  ]
+}

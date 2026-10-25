@@ -1,0 +1,22 @@
+# Deployment source of truth for the healthcare_claims_edi nightly, all times UTC.
+feed_window: {lands_at: "00:30"}
+jobs:
+  nightly_edi_load:
+    time: "01:10"
+    command: load_edi_837_835
+  adjudication_build:
+    after: {job: nightly_edi_load, minutes: 10}
+    command: dbt_adjudication_build
+    publishes:
+      - {target: warehouse.fct_adjudicated_claims, kind: table, consumer: payer_provider_operations}
+  settlement_handoffs:
+    after: {job: adjudication_build, minutes: 15}
+    command: dbt_settlement_handoffs
+    publishes:
+      - {target: warehouse.actuarial_reserve_handoff, kind: table, consumer: actuarial_reserving}
+      - {target: warehouse.provider_capitation_settlement, kind: table, consumer: provider_settlement}
+  cms_window_close:
+    after: {job: settlement_handoffs, minutes: 10}
+    command: dbt_cms_window_close
+    publishes:
+      - {target: warehouse.cms_submission_window, kind: table, consumer: cms_encounter_submission}

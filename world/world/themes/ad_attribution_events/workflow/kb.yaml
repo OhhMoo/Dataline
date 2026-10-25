@@ -1,0 +1,126 @@
+pages:
+  - id: attr/home
+    title: Attribution Engineering
+    parent: null
+    labels: [index]
+    body: |-
+      # Attribution Engineering
+
+      - [Attribution contract](attr/contracts/last-click)
+      - [Nightly operations](attr/runbooks/nightly)
+      - [Bot-exclusion change control](attr/policies/bot-exclusions)
+      - [Partner billing close](attr/runbooks/partner-close)
+    version: 4
+    author: mokafor
+    last_edited_by: mokafor
+    last_edited_at: "-12d 16:00"
+    edit_comment: link the exclusion and close pages
+    history:
+      - {version: 3, at: "-45d 10:00", by: mokafor, comment: null}
+      - {version: 2, at: "-90d 10:00", by: rsilva, comment: null}
+      - {version: 1, at: "-160d 10:00", by: rsilva, comment: null}
+
+  - id: attr/contracts/last-click
+    title: Last-click attribution contract
+    parent: attr/home
+    labels: [contract, attribution]
+    body: |-
+      # Last-click attribution contract
+
+      One `conversion_id` is processed once even when S2S delivers multiple
+      postbacks. The earliest received postback wins, with `postback_id` as the
+      tie-break.
+
+      A conversion receives the latest eligible click by the same user at or
+      before the event and within the lookback in `raw.attribution_rules`. The
+      shipped lookback is seven days. Equal-time clicks use descending `click_id`.
+      Active bot exclusions remove clicks from eligibility; they do not delete
+      the raw traffic.
+
+      Unmatched conversions are not assigned to a partner. Revenue and payout
+      are integer cents, with partner revenue share applied per conversion.
+      The repository page `docs/attribution_contract.md` is the engineering
+      companion to this business contract.
+    version: 6
+    author: mokafor
+    last_edited_by: mokafor
+    last_edited_at: "-20d 11:30"
+    edit_comment: clarify conversion and postback identities
+    history:
+      - {version: 5, at: "-70d 09:00", by: mokafor, comment: null}
+      - {version: 4, at: "-130d 09:00", by: rsilva, comment: null}
+
+  - id: attr/policies/bot-exclusions
+    title: Bot-exclusion change control
+    parent: attr/home
+    labels: [policy, ad-quality]
+    body: |-
+      # Bot-exclusion change control
+
+      Ad Quality owns IP-prefix and user-agent exclusions. A change needs an Ad
+      Quality reviewer and an effective date before it is activated. Keep the
+      exclusion row and reason after retirement by setting `active` false rather
+      than rewriting history.
+
+      Attribution reads active rules at build time. Raw impressions and clicks
+      remain available so traffic-quality reporting can show both total and
+      excluded volume. Partner Finance does not approve traffic exclusions;
+      Partner Operations is consulted when a change affects a partner review.
+    version: 2
+    author: npatel
+    last_edited_by: npatel
+    last_edited_at: "-12d 15:40"
+    edit_comment: publish the review route from ADN-409
+    history:
+      - {version: 1, at: "-80d 13:00", by: npatel, comment: null}
+
+  - id: attr/runbooks/nightly
+    title: Nightly attribution operations
+    parent: attr/home
+    labels: [runbook, scheduling]
+    body: |-
+      # Nightly attribution operations
+
+      The event export arrives at 00:30 UTC. `ingest_events` runs at 01:00,
+      followed by `attribute_conversions` and `lock_partner_billing`. Task names
+      in `dags/ad_attribution_nightly.py` match `sched_state`.
+
+      Ingestion is a full reload of every immutable partition. A rerun is the
+      normal catch-up mechanism after a missed delivery. dbt tests must pass
+      before treating the nightly handoff as ready. Raw postback volume may
+      exceed conversion volume because retries are expected.
+    version: 3
+    author: rsilva
+    last_edited_by: rsilva
+    last_edited_at: "-8d 09:15"
+    edit_comment: add the catch-up note
+    history:
+      - {version: 2, at: "-50d 09:00", by: rsilva, comment: null}
+      - {version: 1, at: "-120d 09:00", by: mokafor, comment: null}
+
+  - id: attr/runbooks/partner-close
+    title: Partner billing close
+    parent: attr/home
+    labels: [runbook, partner-billing]
+    body: |-
+      # Partner billing close
+
+      The handoff grain is event date plus partner. Each row states its billing
+      cutoff and whether it is open or locked. With the shipped one-day lag, a
+      night whose newest event date is D locks dates through D-1.
+
+      `warehouse.billing_lock` is the close population. Reconcile its handoff
+      IDs, conversion counts, and payout cents before Partner Finance signs the
+      payout file. Open rows are informational and are not yet approved for
+      payment.
+
+      Do not reopen or edit a locked row in the nightly pipeline. Partner Finance
+      handles a correction as a separate approved adjustment.
+    version: 5
+    author: lchen
+    last_edited_by: lchen
+    last_edited_at: "-15d 14:00"
+    edit_comment: state the open-row payment rule
+    history:
+      - {version: 4, at: "-75d 14:00", by: lchen, comment: null}
+      - {version: 3, at: "-140d 14:00", by: lchen, comment: null}

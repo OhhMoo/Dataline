@@ -1,0 +1,49 @@
+# Domain-native surface contract for the Alkera RL-environment factory compiler.
+# Every table/column/dir below is verified against gen.py,
+# workspace/loader/load_usage.py, workspace/dbt_project/models/, and
+# theme.yaml. Concepts this theme genuinely lacks are null - nothing invented.
+theme: iot_telemetry_billing
+
+# Nightly gateway flush: workspace/data/landing/<entity>/dt=<date>/*.csv
+# written by gen.write_day (arrival at 00:30 carries usage day D-1, plus
+# buffered windows from store-and-forward gateways).
+landing_dir: data/landing
+
+# Primary event stream: counter/delta heartbeats from directly connected
+# devices (raw.usage_rollups and raw.contract_commits are the sibling feeds).
+raw_table: raw.meter_heartbeats
+
+fact_table: warehouse.fct_billable_usage
+handoff_table: warehouse.invoice_run_handoff
+
+# Billing months lock lock_grace_days after period end; usage collected at or
+# after lock_cutoff is excluded from billing. This is the close/window surface.
+close_window_table: warehouse.billing_period_lock
+
+# No corrections/exception table exists in this theme (late usage is excluded
+# via billing_period_lock, not adjusted through a corrections table).
+corrections_table: null
+
+# Grain of warehouse.fct_billable_usage: one row per metered usage event
+# (heartbeat window or edge rollup window), unique on usage_id per
+# warehouse/schema.yml data tests.
+grain_keys: [usage_id]
+
+# Headline measure of the fact: units billable after the lock cutoff rule.
+amount_column: billable_units
+
+# The theme versions nothing: usage rows are immutable once collected and no
+# model carries a version/sequence column.
+version_column: null
+
+# Nightly feed cutoff: the gateway flush lands at 00:30 UTC for usage day D-1
+# (theme.yaml live.arrival); the first batch job starts at 01:00 UTC.
+cutoff_time_utc: "00:30"
+
+# Job names exactly as declared in theme.yaml jobs:.
+scheduled_jobs:
+  - load_usage
+  - finalize_billing
+
+# Deployment schedule mirrored from theme.yaml jobs (workspace-relative).
+schedule_file: orchestration/schedule.yml

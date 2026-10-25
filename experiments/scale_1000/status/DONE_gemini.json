@@ -1,0 +1,31 @@
+{
+  "agent": "gemini",
+  "role": "compiler_and_final_verifier",
+  "status": "complete_with_limits",
+  "updated_at_utc": "2026-10-18T07:23:57.689328+00:00",
+  "catalog_blueprints": 1080,
+  "pilot_tasks_materialized": 36,
+  "pilot_stage0": {
+    "passed": 36,
+    "failed": 0,
+    "report": "/home/ubuntu/alkera_factory_1017/pilot_stage0_sealed_final.json",
+    "private_future": true,
+    "fresh_world_sanitization": true
+  },
+  "live_calibration": {
+    "wrapper_candidates": 10,
+    "stage1_mixed_valid": 1,
+    "stage2_attempted": 1,
+    "stage2_scored": 4,
+    "stage2_quarantined": 1,
+    "certified_core": 0,
+    "admission_status": "rejected_no_valid_core",
+    "evidence_index": "/home/ubuntu/env_project/experiments/scale_1000/CALIBRATION_EVIDENCE.json"
+  },
+  "final_report": "/home/ubuntu/env_project/experiments/scale_1000/implementation_report.md",
+  "compiler_tests": {
+    "focused_passed": 21,
+    "failed": 0
+  },
+  "ownership_boundary": "Only compiler/verifier/calibration files, experiment reports, and generated output were edited by this role."
+}

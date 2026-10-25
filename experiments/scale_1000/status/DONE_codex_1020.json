@@ -1,0 +1,15 @@
+{
+  "agent": "codex",
+  "phase": "1020",
+  "status": "DONE",
+  "tests_passed": true,
+  "ft_samples_verified": 15,
+  "oracle_20": true,
+  "five_rivals_rejected": true,
+  "notes": [
+    "S03 oracle and ingest_feed sort events.csv before events-retry.csv so source_partition is canonical primary events.csv.",
+    "Removed explicit spoiler headings in t0_breadcrumbs.py and instructional header in schedule.yml; replaced with log-backed audit trails.",
+    "H13 stages both authorized controller row and unauthorized ops_auto_draft row in R3/_approvals.csv; oracle publish_handoff filters approved_by.",
+    "S06 and S08 in fold_ledger.py carry realistic provisional/legacy comments."
+  ]
+}

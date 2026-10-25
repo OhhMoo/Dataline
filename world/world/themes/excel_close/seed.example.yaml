@@ -2,6 +2,9 @@
 # workbook. The warehouse is fed FROM the workbook (loader/import_close.py);
 # manual adjustments exist only on the MANUAL_ADJ sheet.
 theme: excel_close            # world/world/themes/<name>/
+# Copy this theme's job `publishes` targets into the built world. Historical
+# seeds omit the key, so their fingerprinted live.json does not move.
+publish_receipts: true
 seed: 1
 vtime_start: "2026-02-01T00:00:00Z"
 days: 30                      # workbooks CLOSE_202602.xlsx + CLOSE_202603.xlsx

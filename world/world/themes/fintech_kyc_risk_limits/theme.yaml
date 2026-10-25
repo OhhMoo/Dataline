@@ -1,0 +1,61 @@
+name: fintech_kyc_risk_limits
+dbt_profile: world_dbt
+
+workflow:
+  dir: workflow
+  actor: agent
+  project: {key: RISK, name: Merchant Risk Operations}
+  statuses: [open, triage, in_progress, blocked, done, wontfix]
+  workspace: meridian-risk-ops
+  space: {key: MR, name: Merchant Risk}
+
+# An arrival at 00:30 covers the previous UTC business date. The three jobs
+# below execute the loader and the dbt DAG; none is a simulated status writer.
+jobs:
+  risk_feed_load:
+    command: load_risk_feeds
+    duration_s: 60
+    time: "01:00"
+    day_offset: 0
+    after: null
+    detail: null
+    exec:
+      kind: theme
+      op: load_raw
+      args: [workspace, db]
+      tables: [raw.dispute_events, raw.kyc_reviews, raw.merchant_volume, raw.payout_holds]
+  merchant_exposure_build:
+    command: dbt_build_exposure
+    duration_s: 150
+    after: {job: risk_feed_load, minutes: 10}
+    detail: null
+    exec:
+      kind: dbt
+      command: build
+      selector: "+fct_merchant_exposure"
+      tables: [warehouse.fct_merchant_exposure]
+  reserve_handoff:
+    command: dbt_build_reserve_handoff
+    duration_s: 120
+    after: {job: merchant_exposure_build, minutes: 5}
+    detail: null
+    exec:
+      kind: dbt
+      command: build
+      selector: "risk_committee_signoff treasury_reserve_handoff"
+      tables: [warehouse.risk_committee_signoff, warehouse.treasury_reserve_handoff]
+    publishes:
+      - {target: warehouse.risk_committee_signoff, kind: table, consumer: risk_committee}
+      - {target: warehouse.treasury_reserve_handoff, kind: table, consumer: treasury_ops}
+
+live:
+  params: [seed, merchants, transactions_per_day, average_ticket_cents,
+           disputes_per_day, dispute_amount_cents, representment_lag_days,
+           representment_win_pct, kyc_review_interval_days, hold_cycle_days,
+           hold_volume_pct, release_request_lag_days, signoff_lag_days,
+           rolling_window_days, chargeback_warning_bps, chargeback_critical_bps,
+           reserve_coverage_days, base_reserve_bps, elevated_reserve_bps]
+  arrival:
+    name: merchant_risk_feeds
+    op: write_day
+    at: {day_offset: 0, time: "00:30"}

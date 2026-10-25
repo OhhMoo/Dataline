@@ -1,0 +1,65 @@
+{
+  "agent": "codex",
+  "phase": 2,
+  "status": "complete",
+  "completed_at_utc": "2026-10-18T10:31:29Z",
+  "pytest": {
+    "command": "PYTHONPATH=/home/ubuntu/env_project:/home/ubuntu/env_project/world /home/ubuntu/env_project/gateway/.venv/bin/python -m pytest -q tasks/factory/hazards/tests/test_phase2_no_policy_leaks.py tasks/factory/hazards/tests/test_composition_matrix.py",
+    "summary": "44 passed in 953.12s",
+    "exit_code": 0
+  },
+  "files": [
+    "tasks/factory/stressors/runtime_template.py",
+    "tasks/factory/stressors/oracle_composer.py",
+    "tasks/factory/stressors/t0_pipeline_stressors.py",
+    "tasks/factory/stressors/domain_schema_adapter.py",
+    "tasks/factory/stressors/README.md",
+    "tasks/factory/hazards/t0_breadcrumbs.py",
+    "tasks/factory/hazards/tests/test_phase2_no_policy_leaks.py",
+    "tasks/factory/hazards/tests/test_composition_matrix.py"
+  ],
+  "shipped_module_contract": {
+    "compose": "compose_task(theme, stressors, hazards, governance_mode, seed, out_dir)",
+    "compose_in_place": "compose_task(task_dir, blueprint, theme_world_dir)",
+    "counts": "1..3 distinct stressors and 1..3 distinct hazards",
+    "canonical_ids": "S01_name -> S01 and H01_name -> H01 via the first underscore token",
+    "blueprint_keys": ["theme", "stressors|t0_stressors", "hazards|r_hazards", "governance_mode", "seed", "closed_day", "ticket", "controller"],
+    "shipped_modules": [
+      "workspace/pipelines/ingest_feed.py",
+      "workspace/pipelines/fold_ledger.py",
+      "workspace/pipelines/publish_handoff.py"
+    ],
+    "actions": {
+      "ingest_feed.py": ["arrive", "load", "retry"],
+      "fold_ledger.py": ["fold"],
+      "publish_handoff.py": ["publish", "close"]
+    },
+    "jobs": {
+      "factory_arrive": "pipelines/ingest_feed.py arrive",
+      "factory_load": "pipelines/ingest_feed.py load",
+      "factory_load_retry": "pipelines/ingest_feed.py retry, only when H12 is active",
+      "factory_publish": "pipelines/publish_handoff.py publish",
+      "factory_close": "pipelines/publish_handoff.py close"
+    },
+    "load_calls_fold": "ingest_feed.load starts fold_ledger.py fold in a subprocess after the raw commit",
+    "absent": ["workspace/pipelines/factory_events.py", "POLICY", "if POLICY["],
+    "oracle": "solution/oracle/{ingest_feed.py,fold_ledger.py,publish_handoff.py} plus solution/solve.py",
+    "partial_fix": "solution/partial_fix.py repairs t0 with the oracle modules, then copies solution/partial/ over the workspace",
+    "rivals": [
+      "solution/wrong_precedence.py",
+      "solution/duplicate_counted.py",
+      "solution/boundary_violated.py"
+    ],
+    "grade_from": "tests/factory_sidecar_spec.json",
+    "execution_tables": "spec.execution_tables and result['t0_tables'] are the relations actually written, including the checkpoint",
+    "future_tables": "spec.future_tables and result['future_tables'] are raw, fact, and handoff for R1-R4",
+    "publication_table": "result['publication_table'] is the handoff that was written",
+    "declared_tables": "spec.tables lists native contract surfaces; execution_tables binds the physical relations written by the three modules",
+    "physical_tables": "result['physical_tables'] is the binding baked into the three modules",
+    "fallback": "If a built theme already owns the contract table with a different column set, execution binds physical_tables and does not drop the native table. Grade execution_tables in that case.",
+    "null_handoff": "A null handoff_table, close_window_table, or corrections_table executes on the physical publication/close/corrections relations bound in execution_tables.",
+    "grain_keys": "Physical feed columns stay event_id, business_id, business_day, entity_id, amount_cents, version. Theme grain is spec.domain_grain_keys and spec.domain.",
+    "breadcrumbs": "Active H01-H14 clues are under workspace/docs/ or var/logs/. R1-R4 payloads stay in build/factory_future.",
+    "worlds": "/home/ubuntu/alkera_factory_1017/phase2_codex/ and other paths outside the git repo"
+  }
+}

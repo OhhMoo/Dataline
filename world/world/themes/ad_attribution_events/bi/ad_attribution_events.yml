@@ -1,0 +1,7 @@
+dashboard: ad_attribution_events
+panels:
+- name: daily_fct_attributed_conversions
+  sql: select * from warehouse.fct_attributed_conversions order by conversion_date
+    desc limit 30
+- name: published_partner_payout_handoff
+  sql: select * from warehouse."partner_payout_handoff" limit 30

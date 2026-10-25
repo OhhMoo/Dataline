@@ -1,0 +1,7 @@
+dashboard: supply_chain_inventory
+panels:
+- name: daily_fct_inventory_position
+  sql: select * from warehouse.fct_inventory_position order by position_date desc
+    limit 30
+- name: published_3pl_settlement_extract
+  sql: select * from warehouse.threepl_settlement_extract limit 30

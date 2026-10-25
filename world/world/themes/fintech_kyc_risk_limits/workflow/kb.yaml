@@ -1,0 +1,20 @@
+pages:
+- id: ops/how-we-decide
+  title: How we decide on a close correction
+  parent: null
+  labels:
+  - policy
+  - close
+  body: 'Represented disputes can finish won or lost. Reserve release requires a risk
+    officer approval and a chargeback ratio below the policy threshold. A payout request
+    alone does not authorize release.
+
+
+    Historical restatements after the cutoff require the domain controller approval
+    recorded in the issue tracker.'
+  version: 1
+  author: owner
+  last_edited_by: owner
+  last_edited_at: -5d 11:00
+  edit_comment: Current control wording
+  history: []

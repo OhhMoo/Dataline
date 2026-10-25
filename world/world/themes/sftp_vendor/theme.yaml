@@ -1,6 +1,11 @@
 name: sftp_vendor
 dbt_profile: world_dbt
 
+# Job `publishes` targets enter var/world/live.json only when the seed sets
+# publish_receipts: true. seed.example.yaml turns that on; historical seeds
+# omit it, so their fingerprinted live section stays as it was.
+publication_opt_in: true
+
 # The human-context plane (gateway/SURFACES.md#workflow). Content is data, in
 # workflow/{users,issues,chat,kb}.yaml; timestamps are offsets from the world
 # clock ("-12d 09:15"), resolved at build time.
@@ -64,6 +69,9 @@ jobs:
       op: load_raw
       args: [workspace, db]
       tables: [raw.vendor_orders, raw.vendor_returns]
+    publishes:
+      - {target: raw.vendor_orders, kind: table, consumer: dbt_marts}
+      - {target: raw.vendor_returns, kind: table, consumer: dbt_marts}
   dbt_build:
     command: dbt_build
     duration_s: 90
@@ -73,6 +81,8 @@ jobs:
       kind: dbt
       command: build
       tables: [warehouse.fct_orders_daily]
+    publishes:
+      - {target: warehouse.fct_orders_daily, kind: table, consumer: vendor_daily_dashboard}
 
 live:
   params: [seed, orders_per_day, returns_per_day, customers, amount_cents]

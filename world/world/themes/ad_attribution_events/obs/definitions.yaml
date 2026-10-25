@@ -1,0 +1,143 @@
+version: 1
+retention:
+  days: 14
+
+metrics:
+  - id: attribution_freshness
+    kind: freshness
+    unit: seconds
+    title: Attributed conversion freshness
+    source: {table: warehouse.fct_attributed_conversions, timestamp_column: conversion_time}
+  - id: raw_impression_rows
+    kind: row_count
+    unit: rows
+    title: Raw impressions
+    source: {table: raw.impressions}
+    series: {bucket_column: dt}
+  - id: raw_click_rows
+    kind: row_count
+    unit: rows
+    title: Raw clicks
+    source: {table: raw.clicks}
+    series: {bucket_column: dt}
+  - id: raw_postback_rows
+    kind: row_count
+    unit: rows
+    title: Raw S2S postbacks
+    source: {table: raw.conversions}
+    series: {bucket_column: dt}
+  - id: attributed_conversion_rows
+    kind: row_count
+    unit: rows
+    title: Attributed conversions
+    source: {table: warehouse.fct_attributed_conversions}
+    series: {bucket_column: conversion_date}
+  - id: duplicate_postbacks
+    kind: sql_scalar
+    unit: rows
+    title: Duplicate S2S delivery attempts
+    source:
+      sql: select count(*) - count(distinct conversion_id) from raw.conversions
+  - id: latest_attributed_conversions
+    kind: sql_scalar
+    unit: conversions
+    title: Conversions on the latest attributed date
+    source:
+      sql: >-
+        select count(*) from warehouse.fct_attributed_conversions
+        where conversion_date = (select max(conversion_date) from warehouse.fct_attributed_conversions)
+    series:
+      sql: >-
+        select cast(conversion_date as varchar) as bucket, count(*) as value
+        from warehouse.fct_attributed_conversions group by conversion_date order by conversion_date
+  - id: locked_payout_cents_latest
+    kind: sql_scalar
+    unit: cents
+    title: Payout on the latest locked date
+    source:
+      sql: >-
+        select sum(payout_cents) from warehouse.billing_lock
+        where conversion_date = (select max(conversion_date) from warehouse.billing_lock)
+  - id: ingest_events_duration
+    kind: job_duration
+    unit: seconds
+    title: Event ingestion duration
+    job: ingest_events
+  - id: ingest_events_error_rate
+    kind: job_error_rate
+    unit: ratio
+    title: Event ingestion error rate
+    job: ingest_events
+    window_runs: 10
+  - id: attribution_duration
+    kind: job_duration
+    unit: seconds
+    title: Attribution build duration
+    job: attribute_conversions
+  - id: attribution_error_rate
+    kind: job_error_rate
+    unit: ratio
+    title: Attribution build error rate
+    job: attribute_conversions
+    window_runs: 10
+  - id: billing_lock_duration
+    kind: job_duration
+    unit: seconds
+    title: Partner billing lock duration
+    job: lock_partner_billing
+  - id: billing_lock_error_rate
+    kind: job_error_rate
+    unit: ratio
+    title: Partner billing lock error rate
+    job: lock_partner_billing
+    window_runs: 10
+
+alarms:
+  - id: attribution_stale
+    metric: attribution_freshness
+    comparison: gt
+    threshold: 180000
+    severity: critical
+    title: Attribution is more than fifty hours old
+    runbook: docs/runbook_nightly.md
+  - id: attribution_volume_floor
+    metric: latest_attributed_conversions
+    comparison: lt
+    threshold: 3
+    severity: warning
+    title: Latest attributed conversion volume is unusually low
+    runbook: docs/runbook_nightly.md
+  - id: ingestion_failing
+    metric: ingest_events_error_rate
+    comparison: gt
+    threshold: 0.0
+    severity: critical
+    title: Event ingestion failed in the last ten runs
+    runbook: docs/runbook_nightly.md
+  - id: attribution_failing
+    metric: attribution_error_rate
+    comparison: gt
+    threshold: 0.0
+    severity: critical
+    title: Attribution failed in the last ten runs
+    runbook: docs/runbook_nightly.md
+  - id: billing_lock_failing
+    metric: billing_lock_error_rate
+    comparison: gt
+    threshold: 0.0
+    severity: critical
+    title: Partner billing lock failed in the last ten runs
+    runbook: docs/runbook_nightly.md
+
+deploys:
+  - id: rebuild_attribution
+    kind: dbt
+    title: Rebuild attributed conversions
+    selector: fct_attributed_conversions
+    canary:
+      metrics: [raw_postback_rows, attributed_conversion_rows,
+                latest_attributed_conversions, attribution_freshness]
+      alarms: [attribution_stale, attribution_volume_floor]
+      guards:
+        - {metric: attributed_conversion_rows, max_decrease_pct: 10}
+        - {metric: latest_attributed_conversions, max_decrease_pct: 50}

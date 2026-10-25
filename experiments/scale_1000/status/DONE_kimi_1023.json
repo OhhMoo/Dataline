@@ -1,0 +1,22 @@
+{
+  "agent": "kimi",
+  "phase": "1023",
+  "status": "DONE",
+  "tests_passed": true,
+  "completed_at_utc": "2026-10-23T07:20:00Z",
+  "summary": "Fixed the settlement_clearing ~bi_list surface-audit defect: bi/settlement_clearing.yml declared dashboard: clearing_settlement while the surface probe keys dashboards by filename stem, failing ~bi_list with invalid_dashboard and triggering missing_live_provenance on the theme's FT0001/FT0002/FT0003/FT0047 rollouts. dashboard: settlement_clearing now; a repo-wide grep confirms clearing_settlement no longer appears anywhere. A new gate test pins the invariant for all 16 bi ymls across the 12 themes.",
+  "root_cause": "dashboard id/filename stem mismatch in world/world/themes/settlement_clearing/bi/settlement_clearing.yml line 2 (the only occurrence of clearing_settlement in the repo)",
+  "files_changed": [
+    "world/world/themes/settlement_clearing/bi/settlement_clearing.yml (dashboard: clearing_settlement -> settlement_clearing)",
+    "world/tests/test_theme_docs_context.py (new test_all_theme_bi_dashboard_ids_match_filenames over world/world/themes/*/bi/*.yml)"
+  ],
+  "tdd": "test_all_theme_bi_dashboard_ids_match_filenames seen RED (dashboard='clearing_settlement' != stem 'settlement_clearing') before the fix, GREEN after",
+  "repin": "not needed: acceptance.json gates and the test_native_workspace.py flagged pin cover seed.example.yaml (revenue_daily) builds only; the settlement theme is not in any fingerprint pin, and no world test file records settlement hashes",
+  "verification": {
+    "plan_command": "PYTHONPATH=/home/ubuntu/env_project:/home/ubuntu/env_project/world gateway/.venv/bin/python -m pytest world/tests/test_theme_docs_context.py world/tests/test_native_workspace.py world/tests/test_bi_projects.py -q",
+    "plan_command_result": "120 passed",
+    "settlement_smoke": "verify_all_themes.py --themes settlement_clearing: pass hash_equal=True crashes=0 receipts=12 (/home/ubuntu/alkera_factory_1017/theme_p6_settlement/verify_report.json)",
+    "bi_ymls_checked": 16
+  },
+  "git_commits": 0
+}

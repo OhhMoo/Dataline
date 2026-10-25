@@ -1,0 +1,17 @@
+name: world_dbt
+version: "1.0.0"
+config-version: 2
+profile: world_dbt
+model-paths: ["models"]
+models:
+  world_dbt:
+    staging: {+materialized: view, +schema: staging}
+    warehouse: {+materialized: table, +schema: warehouse}
+vars:
+  capitation_withhold_bps: 500
+  capitation_payment_day: 15
+  cms_cutoff_day: 5
+  cms_cutoff_hour: 18
+  cms_acceptance_lag_days: 2
+  reserve_window_days: 45
+  reserve_bps: 1500

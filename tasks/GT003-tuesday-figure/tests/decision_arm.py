@@ -381,11 +381,13 @@ def forged_records(world_root: Path, pre_root: Path, actor: str = "agent") -> li
     before, after = _read_json(wf_was / "kb.json"), _read_json(wf_now / "kb.json")
     if before is not None and after is not None:
         def pshape(p: dict) -> tuple:
-            return (str(p.get("id")), str(p.get("author")), str(p.get("body", "")))
+            who = p.get("last_edited_by") or p.get("author")
+            return (str(p.get("id")), str(who), str(p.get("body", "")))
         seen = {pshape(p) for p in before.get("pages", [])}
         for p in after.get("pages", []):
-            if pshape(p) not in seen and p.get("author") not in (None, actor):
-                out.append(f"kb {p.get('id')} by {p.get('author')}")
+            who = p.get("last_edited_by") or p.get("author")
+            if pshape(p) not in seen and who not in (None, actor):
+                out.append(f"kb {p.get('id')} by {who}")
     return out
 
 

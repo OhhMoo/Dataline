@@ -1,0 +1,65 @@
+{
+  "agent": "codex",
+  "phase": 3,
+  "status": "complete",
+  "completed_at_utc": "2026-10-20T22:16:17Z",
+  "summary": "Floor traps H13, S09, S07, S03, and S01 now share the t0 controller, a visible schedule, non-spoiler contract sentences, and a feed-day watermark. Ceiling topologies FT02, FT04, FT05, FT10, and FT13 each span ingest, fold, and publish. FT01 already did; its H08 clue is indirect. FT03 and FT15 are unchanged.",
+  "files_changed": [
+    "tasks/factory/hazards/temporal_contract_hazards.py",
+    "tasks/factory/hazards/t0_breadcrumbs.py",
+    "tasks/factory/hazards/tests/test_phase3_floor.py",
+    "tasks/factory/stressors/oracle_composer.py",
+    "tasks/factory/stressors/runtime_template.py",
+    "tasks/factory/stressors/t0_pipeline_stressors.py",
+    "tasks/factory/compiler/blueprint_matrix.py",
+    "tasks/factory/compiler/tests/test_blueprint_matrix.py",
+    "experiments/scale_1000/catalog_1080.jsonl",
+    "/home/ubuntu/alkera_factory_1017/phase2_pilot_51/phase2_selection.json"
+  ],
+  "ceiling_t0_stressors": {
+    "FT01": [
+      "S01_checkpoint_calendar_advance_on_gap",
+      "S10_closed_window_unconditional_delete_reinsert"
+    ],
+    "FT02": [
+      "S02_checkpoint_filter_blocks_backfill",
+      "S06_fanout_join_in_mart_or_bi",
+      "S10_closed_window_unconditional_delete_reinsert"
+    ],
+    "FT04": [
+      "S04_delivered_at_beats_version_precedence",
+      "S08_stale_pre_cutover_tax_or_fx_formula",
+      "S10_closed_window_unconditional_delete_reinsert"
+    ],
+    "FT05": [
+      "S05_void_folded_as_zero_row_instead_of_excluded",
+      "S03_retry_batch_append_without_dedup",
+      "S10_closed_window_unconditional_delete_reinsert"
+    ],
+    "FT10": [
+      "S10_closed_window_unconditional_delete_reinsert",
+      "S04_delivered_at_beats_version_precedence",
+      "S08_stale_pre_cutover_tax_or_fx_formula"
+    ],
+    "FT13": [
+      "S06_fanout_join_in_mart_or_bi",
+      "S04_delivered_at_beats_version_precedence",
+      "S10_closed_window_unconditional_delete_reinsert"
+    ]
+  },
+  "ft01_note": "Left at S01 and S10. With H08 that already spans ingest_feed.py, fold_ledger.py, and publish_handoff.py. A third stressor would make the next ceiling mutation four stressors, which the derived-catalog check rejects. H08's t0 clue is now an indirect log, not a repair recipe.",
+  "certified_unchanged": ["FT03", "FT15"],
+  "scheduler_contract": "workspace/orchestration/schedule.yml is overlaid by world.scheduler.advance. If that file places factory_publish after factory_load (after: {job: factory_load, minutes: 20}, or a later clock time), advance runs factory_publish after factory_load. scheduler.py was not edited.",
+  "proofs": {
+    "H13": "settlement_clearing, controller gward: warehouse corrections approved_by and R3/_approvals.csv approved_by are both gward.",
+    "S09": "schedule.yml starts with factory_publish at 21:50 and factory_load at 22:00. solution/solve.py rewrites schedule.yml and var/world/live.json so factory_publish is after factory_load by 20 minutes.",
+    "S07_S03": "partner_feed_contract.md keeps blank or null entity_id in fct_factory_events and factory_handoff, and states raw.factory_events is unique on event_id with events-retry.csv deduplicated before the ledger is folded. The page does not name ingest_feed, fold_ledger, or publish_handoff.",
+    "S01": "vnow 2026-06-15 leaves through_day 2026-06-14 and raw without dt=2026-06-14. Removing the day<=through gate and running solve.py both leave through_day 2026-06-14."
+  },
+  "verification": {
+    "command": "cd /home/ubuntu/env_project && PYTHONPATH=/home/ubuntu/env_project:/home/ubuntu/env_project/world /home/ubuntu/env_project/gateway/.venv/bin/python -m pytest -q tasks/factory/hazards/tests tasks/factory/compiler/tests tasks/factory/stressors/tests",
+    "result": "177 passed in 478.25s",
+    "stressors_tests": "tasks/factory/stressors/tests exists and contains no test modules."
+  },
+  "catalog_sha256": "2dc99fdd0c512ea21c76a0000c04c2b7d80d3f3f901329e7affdaf48edb0b400"
+}

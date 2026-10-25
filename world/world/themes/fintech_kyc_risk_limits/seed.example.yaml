@@ -1,0 +1,34 @@
+# Merchant underwriting, disputes, and reserve-release world.
+theme: fintech_kyc_risk_limits
+seed: 1017
+vtime_start: "2026-05-01T00:00:00Z"
+days: 45                       # arrivals cover 2026-04-30 through 2026-06-13
+git_author: "Merchant Risk Data <risk-data@example.com>"
+
+# Merchant and daily processing-volume scale.
+merchants: 10
+transactions_per_day: [45, 85] # per merchant, before profile and weekday scaling
+average_ticket_cents: [3000, 11000]
+
+# Dispute openings and later representment outcomes. A won outcome reverses the
+# open exposure; both won and lost outcomes close the dispute.
+disputes_per_day: [0, 2]       # per merchant; high-risk profiles can receive one more
+dispute_amount_cents: [2500, 24000]
+representment_lag_days: [3, 9]
+representment_win_pct: 55
+
+# KYC review cadence and deterministic reserve case timings.
+kyc_review_interval_days: 21
+hold_cycle_days: 18
+hold_volume_pct: 40            # placement as a percentage of that day's settled volume
+release_request_lag_days: 4
+signoff_lag_days: 2
+
+# dbt seed policy used by the exposure and handoff models. Ratios are integer
+# basis points: 100 = 1.00%. The rolling window is calendar days.
+rolling_window_days: 30
+chargeback_warning_bps: 100
+chargeback_critical_bps: 150
+reserve_coverage_days: 7
+base_reserve_bps: 250
+elevated_reserve_bps: 500      # added when the critical ratio is reached

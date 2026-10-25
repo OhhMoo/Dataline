@@ -1,0 +1,185 @@
+{
+  "agent": "gemini",
+  "role": "phase3_integrator",
+  "phase": 3,
+  "stage": "delta_stage0",
+  "status": "complete",
+  "completed_at_utc": "2026-10-21T00:05:07Z",
+  "pilot_dir": "/home/ubuntu/alkera_factory_1017/phase2_pilot_51",
+  "lanes_complete": [
+    "experiments/scale_1000/status/DONE_codex_phase3.json",
+    "experiments/scale_1000/status/DONE_opus_phase3.json",
+    "experiments/scale_1000/status/DONE_kimi_phase3.json",
+    "experiments/scale_1000/status/DONE_grok_phase3.json"
+  ],
+  "selective_mode": {
+    "module": "tasks.factory.compiler.peer_materializer",
+    "entry": "materialize_phase3_delta",
+    "flags": [
+      "--delta-only",
+      "--skip-certified",
+      "--only-topologies",
+      "--workers"
+    ],
+    "workers": 1,
+    "mutated_topologies": [
+      "FT01",
+      "FT02",
+      "FT04",
+      "FT05",
+      "FT06",
+      "FT07",
+      "FT08",
+      "FT09",
+      "FT10",
+      "FT11",
+      "FT12",
+      "FT13",
+      "FT14"
+    ],
+    "certified_topologies": [
+      "FT03",
+      "FT15"
+    ],
+    "certified_task_ids": [
+      "FT0091",
+      "FT0332",
+      "FT0485",
+      "FT0677",
+      "FT0963"
+    ]
+  },
+  "rebuilt_task_ids": [
+    "FT0001-settlement-clearing-ft01-auth-a",
+    "FT0002-settlement-clearing-ft01-hold-a",
+    "FT0003-settlement-clearing-ft01-esc-a",
+    "FT0047-settlement-clearing-ft08-hold-b",
+    "FT0100-commerce-analytics-ft02-auth-b",
+    "FT0101-commerce-analytics-ft02-hold-b",
+    "FT0102-commerce-analytics-ft02-esc-b",
+    "FT0163-commerce-analytics-ft13-auth-a",
+    "FT0216-revenue-daily-ft06-esc-b",
+    "FT0292-sftp-vendor-ft04-auth-b",
+    "FT0293-sftp-vendor-ft04-hold-b",
+    "FT0294-sftp-vendor-ft04-esc-b",
+    "FT0382-mainframe-batch-ft04-auth-b",
+    "FT0385-mainframe-batch-ft05-auth-a",
+    "FT0386-mainframe-batch-ft05-hold-a",
+    "FT0387-mainframe-batch-ft05-esc-a",
+    "FT0484-excel-close-ft06-auth-b",
+    "FT0486-excel-close-ft06-esc-b",
+    "FT0501-excel-close-ft09-esc-a",
+    "FT0551-saas-subscription-mrr-ft02-hold-b",
+    "FT0577-saas-subscription-mrr-ft07-auth-a",
+    "FT0578-saas-subscription-mrr-ft07-hold-a",
+    "FT0579-saas-subscription-mrr-ft07-esc-a",
+    "FT0623-saas-subscription-mrr-ft14-hold-b",
+    "FT0667-ad-attribution-events-ft07-auth-a",
+    "FT0676-ad-attribution-events-ft08-auth-b",
+    "FT0678-ad-attribution-events-ft08-esc-b",
+    "FT0769-supply-chain-inventory-ft09-auth-a",
+    "FT0770-supply-chain-inventory-ft09-hold-a",
+    "FT0771-supply-chain-inventory-ft09-esc-a",
+    "FT0792-supply-chain-inventory-ft12-esc-b",
+    "FT0836-healthcare-claims-edi-ft05-hold-a",
+    "FT0868-healthcare-claims-edi-ft10-auth-b",
+    "FT0869-healthcare-claims-edi-ft10-hold-b",
+    "FT0870-healthcare-claims-edi-ft10-esc-b",
+    "FT0958-fintech-kyc-risk-limits-ft10-auth-b",
+    "FT0961-fintech-kyc-risk-limits-ft11-auth-a",
+    "FT0962-fintech-kyc-risk-limits-ft11-hold-a",
+    "FT1060-iot-telemetry-billing-ft12-auth-b",
+    "FT1061-iot-telemetry-billing-ft12-hold-b",
+    "FT1062-iot-telemetry-billing-ft12-esc-b"
+  ],
+  "skipped_certified_ids": [
+    "FT0091-commerce-analytics-ft01-auth-a",
+    "FT0193-revenue-daily-ft03-auth-a",
+    "FT0194-revenue-daily-ft03-hold-a",
+    "FT0195-revenue-daily-ft03-esc-a",
+    "FT0332-sftp-vendor-ft11-hold-a",
+    "FT0485-excel-close-ft06-hold-b",
+    "FT0677-ad-attribution-events-ft08-hold-b",
+    "FT0963-fintech-kyc-risk-limits-ft11-esc-a",
+    "FT1005-iot-telemetry-billing-ft03-esc-a",
+    "FT1077-iot-telemetry-billing-ft15-esc-a"
+  ],
+  "skipped_certified": [
+    {
+      "task_id": "FT0091-commerce-analytics-ft01-auth-a",
+      "fault_topology_id": "FT01",
+      "reason": "certified_task_id"
+    },
+    {
+      "task_id": "FT0193-revenue-daily-ft03-auth-a",
+      "fault_topology_id": "FT03",
+      "reason": "certified_topology"
+    },
+    {
+      "task_id": "FT0194-revenue-daily-ft03-hold-a",
+      "fault_topology_id": "FT03",
+      "reason": "certified_topology"
+    },
+    {
+      "task_id": "FT0195-revenue-daily-ft03-esc-a",
+      "fault_topology_id": "FT03",
+      "reason": "certified_topology"
+    },
+    {
+      "task_id": "FT0332-sftp-vendor-ft11-hold-a",
+      "fault_topology_id": "FT11",
+      "reason": "certified_task_id"
+    },
+    {
+      "task_id": "FT0485-excel-close-ft06-hold-b",
+      "fault_topology_id": "FT06",
+      "reason": "certified_task_id"
+    },
+    {
+      "task_id": "FT0677-ad-attribution-events-ft08-hold-b",
+      "fault_topology_id": "FT08",
+      "reason": "certified_task_id"
+    },
+    {
+      "task_id": "FT0963-fintech-kyc-risk-limits-ft11-esc-a",
+      "fault_topology_id": "FT11",
+      "reason": "certified_task_id"
+    },
+    {
+      "task_id": "FT1005-iot-telemetry-billing-ft03-esc-a",
+      "fault_topology_id": "FT03",
+      "reason": "certified_topology"
+    },
+    {
+      "task_id": "FT1077-iot-telemetry-billing-ft15-esc-a",
+      "fault_topology_id": "FT15",
+      "reason": "certified_topology"
+    }
+  ],
+  "package_check": {
+    "required": [
+      "tests/oracle_receipts.json",
+      "tests/governance.json",
+      "solution/"
+    ],
+    "rebuilt_count": 41,
+    "rebuilt_missing": [],
+    "oracle_receipt_nights": 4
+  },
+  "retries": [],
+  "verify": {
+    "command": "cd /home/ubuntu/env_project && PYTHONPATH=/home/ubuntu/env_project:/home/ubuntu/env_project/world /home/ubuntu/env_project/gateway/.venv/bin/python -m tasks.factory.verify_all --tasks-dir /home/ubuntu/alkera_factory_1017/phase2_pilot_51 --workers 8 --json /home/ubuntu/alkera_factory_1017/phase3_stage0_delta.json",
+    "json": "/home/ubuntu/alkera_factory_1017/phase3_stage0_delta.json",
+    "workers": 8,
+    "total": 51,
+    "passed": 51,
+    "failed": 0,
+    "ok": true
+  },
+  "containers_launched": false,
+  "notes": [
+    "All 41 mutated pilot tasks were materialized on 2026-10-20 with materialize() after the four Phase 3 lanes. Each has tests/oracle_receipts.json with 4 nights, tests/governance.json, and solution/solve.py.",
+    "FT03, FT15, and FT0091, FT0332, FT0485, FT0677, FT0963 were not rebuilt. Their solution and oracle files remain the 2026-10-18 packages.",
+    "verify_all graded every pilot task and wrote tests/baselines/default.json, including on the certified tasks. No task was missing a baseline, and none failed because duplicate_counted passed a future night."
+  ]
+}

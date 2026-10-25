@@ -1,0 +1,229 @@
+{
+  "generated_utc": "2026-10-18T07:23:29.785830+00:00",
+  "model": "claude-opus-5-5-high",
+  "driver": "cursor",
+  "topology": "container",
+  "wrapper_runs": [
+    {
+      "candidate": "FT0182-revenue-daily-ft01-hold-a-v2",
+      "summary": "/home/ubuntu/alkera_factory_1017/runs/calibration_summary_calibrate-stage1-k3-20261018T060340720927Z.json",
+      "stage1": {
+        "k": 3,
+        "scored": 3,
+        "passed": 2,
+        "pass_at_1": 0.667,
+        "mean_score": 0.867,
+        "scalar_variance": 0.116902,
+        "quarantined_count": 0,
+        "measurement_valid": true,
+        "status": "admit_to_stage2",
+        "classification": "admit_to_stage2",
+        "prescription_action": "admit_to_stage2"
+      },
+      "stage2": {
+        "k": 5,
+        "scored": 4,
+        "passed": 3,
+        "pass_at_1": 0.75,
+        "mean_score": 0.875,
+        "scalar_variance": 0.12006,
+        "quarantined_count": 1,
+        "measurement_valid": true,
+        "status": "rejected",
+        "prescription_action": "admit_to_stage2",
+        "certified": false,
+        "band": "admit_to_stage2"
+      },
+      "stage1_run_dir": "/home/ubuntu/alkera_factory_1017/runs/FT0182-revenue-daily-ft01-hold-a-v2/clean-20261018-k3-stage1-20261018T060340720927Z",
+      "stage2_run_dir": "/home/ubuntu/alkera_factory_1017/runs/FT0182-revenue-daily-ft01-hold-a-v2/clean-20261018-k5-stage2-20261018T061138934180Z"
+    },
+    {
+      "candidate": "FT0182-revenue-daily-ft01-hold-a-v2:vague_prompt",
+      "summary": "/home/ubuntu/alkera_factory_1017/runs/calibration_summary_calibrate-stage1-k3-20261018T060857730456Z.json",
+      "stage1": {
+        "k": 3,
+        "scored": 3,
+        "passed": 0,
+        "pass_at_1": 0.0,
+        "mean_score": 0.6,
+        "scalar_variance": 0.0,
+        "quarantined_count": 0,
+        "measurement_valid": true,
+        "status": "saturated_floor",
+        "classification": "saturated_floor",
+        "prescription_action": "reduce_hazard_count"
+      },
+      "stage2": null,
+      "stage1_run_dir": "/home/ubuntu/alkera_factory_1017/runs/FT0182-revenue-daily-ft01-hold-a-v2/vague_prompt-20261018-k3-stage1-20261018T060857730456Z",
+      "stage2_run_dir": null
+    },
+    {
+      "candidate": "FT0182-revenue-daily-ft01-hold-a-v3",
+      "summary": "/home/ubuntu/alkera_factory_1017/runs/calibration_summary_calibrate-stage1-k3-20261018T061916848874Z.json",
+      "stage1": {
+        "k": 3,
+        "scored": 3,
+        "passed": 0,
+        "pass_at_1": 0.0,
+        "mean_score": 0.6,
+        "scalar_variance": 0.0,
+        "quarantined_count": 0,
+        "measurement_valid": true,
+        "status": "saturated_floor",
+        "classification": "saturated_floor",
+        "prescription_action": "reduce_hazard_count"
+      },
+      "stage2": null,
+      "stage1_run_dir": "/home/ubuntu/alkera_factory_1017/runs/FT0182-revenue-daily-ft01-hold-a-v3/clean-20261018-k3-stage1-20261018T061916848874Z",
+      "stage2_run_dir": null
+    },
+    {
+      "candidate": "FT0181-revenue-daily-ft01-auth-a-h08h12-sealed",
+      "summary": "/home/ubuntu/alkera_factory_1017/runs/calibration_summary_calibrate-stage1-k3-20261018T062924678437Z.json",
+      "stage1": {
+        "k": 3,
+        "scored": 3,
+        "passed": 3,
+        "pass_at_1": 1.0,
+        "mean_score": 1.0,
+        "scalar_variance": 0.0,
+        "quarantined_count": 0,
+        "measurement_valid": true,
+        "status": "saturated_ceiling",
+        "classification": "saturated_ceiling",
+        "prescription_action": "increase_difficulty"
+      },
+      "stage2": null,
+      "stage1_run_dir": "/home/ubuntu/alkera_factory_1017/runs/FT0181-revenue-daily-ft01-auth-a-h08h12-sealed/clean-20261018-k3-stage1-20261018T062924678437Z",
+      "stage2_run_dir": null
+    },
+    {
+      "candidate": "FT0181-revenue-daily-ft01-auth-a-h08h12-sealed:vague",
+      "summary": "/home/ubuntu/alkera_factory_1017/runs/calibration_summary_calibrate-stage1-k3-20261018T063846238722Z.json",
+      "stage1": {
+        "k": 3,
+        "scored": 3,
+        "passed": 3,
+        "pass_at_1": 1.0,
+        "mean_score": 1.0,
+        "scalar_variance": 0.0,
+        "quarantined_count": 0,
+        "measurement_valid": true,
+        "status": "saturated_ceiling",
+        "classification": "saturated_ceiling",
+        "prescription_action": "increase_difficulty"
+      },
+      "stage2": null,
+      "stage1_run_dir": "/home/ubuntu/alkera_factory_1017/runs/FT0181-revenue-daily-ft01-auth-a-h08h12-sealed/vague-20261018-k3-stage1-20261018T063846238722Z",
+      "stage2_run_dir": null
+    },
+    {
+      "candidate": "FT0182-revenue-daily-ft01-hold-a-h08h12-sealed",
+      "summary": "/home/ubuntu/alkera_factory_1017/runs/calibration_summary_calibrate-stage1-k3-20261018T064538234051Z.json",
+      "stage1": {
+        "k": 3,
+        "scored": 3,
+        "passed": 3,
+        "pass_at_1": 1.0,
+        "mean_score": 1.0,
+        "scalar_variance": 0.0,
+        "quarantined_count": 0,
+        "measurement_valid": true,
+        "status": "saturated_ceiling",
+        "classification": "saturated_ceiling",
+        "prescription_action": "increase_difficulty"
+      },
+      "stage2": null,
+      "stage1_run_dir": "/home/ubuntu/alkera_factory_1017/runs/FT0182-revenue-daily-ft01-hold-a-h08h12-sealed/clean-20261018-k3-stage1-20261018T064538234051Z",
+      "stage2_run_dir": null
+    },
+    {
+      "candidate": "FT0181-revenue-daily-ft01-auth-a-h01h12-sealed",
+      "summary": "/home/ubuntu/alkera_factory_1017/runs/calibration_summary_calibrate-stage1-k3-20261018T065216996413Z.json",
+      "stage1": {
+        "k": 3,
+        "scored": 3,
+        "passed": 0,
+        "pass_at_1": 0.0,
+        "mean_score": 0.556,
+        "scalar_variance": 0.0,
+        "quarantined_count": 0,
+        "measurement_valid": true,
+        "status": "saturated_floor",
+        "classification": "saturated_floor",
+        "prescription_action": "reduce_hazard_count"
+      },
+      "stage2": null,
+      "stage1_run_dir": "/home/ubuntu/alkera_factory_1017/runs/FT0181-revenue-daily-ft01-auth-a-h01h12-sealed/clean-20261018-k3-stage1-20261018T065216996413Z",
+      "stage2_run_dir": null
+    },
+    {
+      "candidate": "FT0181-revenue-daily-ft01-auth-a-h03h12-sealed",
+      "summary": "/home/ubuntu/alkera_factory_1017/runs/calibration_summary_calibrate-stage1-k3-20261018T065926578988Z.json",
+      "stage1": {
+        "k": 3,
+        "scored": 3,
+        "passed": 0,
+        "pass_at_1": 0.0,
+        "mean_score": 0.556,
+        "scalar_variance": 0.0,
+        "quarantined_count": 0,
+        "measurement_valid": true,
+        "status": "saturated_floor",
+        "classification": "saturated_floor",
+        "prescription_action": "reduce_hazard_count"
+      },
+      "stage2": null,
+      "stage1_run_dir": "/home/ubuntu/alkera_factory_1017/runs/FT0181-revenue-daily-ft01-auth-a-h03h12-sealed/clean-20261018-k3-stage1-20261018T065926578988Z",
+      "stage2_run_dir": null
+    },
+    {
+      "candidate": "FT0181-revenue-daily-ft01-auth-a-h04h12-sealed",
+      "summary": "/home/ubuntu/alkera_factory_1017/runs/calibration_summary_calibrate-stage1-k3-20261018T070831642562Z.json",
+      "stage1": {
+        "k": 3,
+        "scored": 3,
+        "passed": 0,
+        "pass_at_1": 0.0,
+        "mean_score": 0.667,
+        "scalar_variance": 0.0,
+        "quarantined_count": 0,
+        "measurement_valid": true,
+        "status": "saturated_floor",
+        "classification": "saturated_floor",
+        "prescription_action": "reduce_hazard_count"
+      },
+      "stage2": null,
+      "stage1_run_dir": "/home/ubuntu/alkera_factory_1017/runs/FT0181-revenue-daily-ft01-auth-a-h04h12-sealed/clean-20261018-k3-stage1-20261018T070831642562Z",
+      "stage2_run_dir": null
+    },
+    {
+      "candidate": "FT0183-revenue-daily-ft01-esc-a-h08h12-sealed",
+      "summary": "/home/ubuntu/alkera_factory_1017/runs/calibration_summary_calibrate-stage1-k3-20261018T071554237842Z.json",
+      "stage1": {
+        "k": 3,
+        "scored": 3,
+        "passed": 3,
+        "pass_at_1": 1.0,
+        "mean_score": 1.0,
+        "scalar_variance": 0.0,
+        "quarantined_count": 0,
+        "measurement_valid": true,
+        "status": "saturated_ceiling",
+        "classification": "saturated_ceiling",
+        "prescription_action": "increase_difficulty"
+      },
+      "stage2": null,
+      "stage1_run_dir": "/home/ubuntu/alkera_factory_1017/runs/FT0183-revenue-daily-ft01-esc-a-h08h12-sealed/clean-20261018-k3-stage1-20261018T071554237842Z",
+      "stage2_run_dir": null
+    }
+  ],
+  "older_exploratory_reports": {
+    "FT0181 vague v1 invalid": "/home/ubuntu/alkera_factory_1017/calibration_FT0181_v1_invalid.json",
+    "FT0181 vague corrected": "/home/ubuntu/alkera_factory_1017/calibration_FT0181_v2_stage1.json",
+    "FT0181 specific": "/home/ubuntu/alkera_factory_1017/calibration_FT0181_specific.json",
+    "FT0182 specific v1 invalid": "/home/ubuntu/alkera_factory_1017/calibration_FT0182_specific_v1.json",
+    "FT0181 H08+H12 visible-future invalid": "/home/ubuntu/alkera_factory_1017/calibration_FT0181_h08h12_invalid.json"
+  },
+  "core_certified": 0
+}

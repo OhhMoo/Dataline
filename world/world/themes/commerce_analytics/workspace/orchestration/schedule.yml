@@ -1,0 +1,18 @@
+# Deployment source of truth for the commerce_analytics nightly, all times UTC.
+feed_window: {lands_at: "02:00"}
+jobs:
+  daily_load:
+    time: "02:30"
+    command: load_shop_extracts
+    publishes:
+      - {target: raw.orders, kind: table, consumer: dbt_marts}
+  dbt_build:
+    after: {job: daily_load, minutes: 10}
+    command: dbt_build
+    publishes:
+      - {target: warehouse.fct_orders, kind: table, consumer: executive_overview}
+  bi_refresh:
+    time: "06:00"
+    command: refresh_dashboards
+    publishes:
+      - {target: raw.bi_refresh_history, kind: table, consumer: observability}

@@ -1,0 +1,15 @@
+world_dbt:
+  target: "{{ env_var('DBT_TARGET', 'dev') }}"
+  outputs:
+    dev:
+      type: duckdb
+      path: "{{ env_var('DBT_WAREHOUSE_PATH', '../var/warehouse/warehouse.duckdb') }}"
+      threads: 1
+    ci:
+      type: duckdb
+      path: "{{ env_var('DBT_WAREHOUSE_PATH', '/tmp/ci_risk_warehouse.duckdb') }}"
+      threads: 1
+    prod:
+      type: duckdb
+      path: "{{ env_var('DBT_PROD_WAREHOUSE_PATH', '/mnt/warehouse/risk/warehouse.duckdb') }}"
+      threads: 1

@@ -1,0 +1,22 @@
+# Deployment source of truth for the settlement nightly, all times UTC.
+feed_window: {lands_at: "04:00"}
+jobs:
+  payments_nightly:
+    time: "20:00"
+    script: pipelines/load_payments.py
+    args: [--workspace, /workspace, --db, /var/warehouse/warehouse.duckdb]
+  dbt_payments:
+    after: {job: payments_nightly, minutes: 10}
+    command: ./run.sh build
+  settlement_publish:
+    after: {job: dbt_payments, minutes: 10}
+    script: pipelines/publish_settlement.py
+    publishes:
+      - {target: warehouse.settlement_handoff, consumer: clearing_bank}
+      - {target: warehouse.interchange_ledger, consumer: finance_reconciliation}
+  clearing_window_close:
+    time: "23:30"
+    after: {job: settlement_publish, minutes: 20}
+    script: pipelines/clearing_window_close.py
+    publishes:
+      - {target: warehouse.clearing_window, consumer: clearing_bank}

@@ -1,0 +1,9 @@
+users:
+  - {id: mokafor, name: Maya Okafor, role: Metering platform lead, team: Data Platform}
+  - {id: jlee, name: Julian Lee, role: Telemetry engineer, team: Data Platform}
+  - {id: rsubramanian, name: Ravi Subramanian, role: Edge operations engineer, team: Fleet Operations}
+  - {id: kbennett, name: Keira Bennett, role: Billing operations manager, team: Finance}
+  - {id: fdubois, name: Felix Dubois, role: Revenue controller, team: Finance}
+  - {id: ngarcia, name: Nuria Garcia, role: Customer operations lead, team: Customer Success}
+  - {id: meterbot, name: Metering monitor, role: Automation, team: Data Platform}
+  - {id: agent, name: On-call metering engineer, role: On call, team: Data Platform}

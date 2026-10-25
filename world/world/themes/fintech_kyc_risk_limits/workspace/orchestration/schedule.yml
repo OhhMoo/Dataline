@@ -1,0 +1,15 @@
+# Deployment source of truth for the fintech_kyc_risk_limits nightly, all times UTC.
+feed_window: {lands_at: "00:30"}
+jobs:
+  risk_feed_load:
+    time: "01:00"
+    command: load_risk_feeds
+  merchant_exposure_build:
+    after: {job: risk_feed_load, minutes: 10}
+    command: dbt_build_exposure
+  reserve_handoff:
+    after: {job: merchant_exposure_build, minutes: 5}
+    command: dbt_build_reserve_handoff
+    publishes:
+      - {target: warehouse.risk_committee_signoff, kind: table, consumer: risk_committee}
+      - {target: warehouse.treasury_reserve_handoff, kind: table, consumer: treasury_ops}

@@ -1,0 +1,15 @@
+# Deployment source of truth for the excel_close nightly, all times UTC.
+feed_window: {lands_at: "07:00", day_offset: 1}
+jobs:
+  close_import:
+    time: "08:00"
+    day_offset: 1
+    command: import_close
+    publishes:
+      - {target: raw.gl_lines, kind: table, consumer: consolidation_reporting}
+      - {target: raw.manual_adj, kind: table, consumer: external_audit}
+  dbt_build:
+    after: {job: close_import, minutes: 10}
+    command: dbt_build
+    publishes:
+      - {target: warehouse.fct_gl_monthly, kind: table, consumer: fp_and_a}

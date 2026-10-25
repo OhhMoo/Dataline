@@ -1,0 +1,205 @@
+{
+  "schema_version": 1,
+  "dialect": "kind",
+  "task": "GT009-settlement-cutoff",
+  "virtual_now": "2026-06-12T09:00:00Z",
+  "nights": 4,
+  "hours_per_night": 24.0,
+  "plant_dates": ["2026-06-12", "2026-06-13", "2026-06-14", "2026-06-15"],
+  "layout": {
+    "platform_relpath": ".platform",
+    "schedule_relpath": "orchestration/schedule.yml",
+    "warehouse_relpath": "var/warehouse/warehouse.duckdb",
+    "scheduler_relpath": "var/sched/state.json",
+    "live_relpath": "var/world/live.json",
+    "dashboards_relpath": "var/bi/dashboards",
+    "ledger_relpath": "var/ledger/receipts.jsonl",
+    "artifact_relpath": "final_report.json"
+  },
+  "targets": {
+    "handoff": "warehouse.settlement_handoff",
+    "window": "warehouse.clearing_window"
+  },
+  "tables": {
+    "handoff": {
+      "name": "warehouse.settlement_handoff",
+      "columns": ["settlement_day", "merchant_id", "payments", "net_cents", "correction_ref"],
+      "grain": ["settlement_day", "merchant_id"],
+      "day_column": "settlement_day",
+      "measures": ["payments", "net_cents"],
+      "ref_column": "correction_ref"
+    },
+    "window": {
+      "name": "warehouse.clearing_window",
+      "columns": ["closed_on", "settlement_day", "status", "payments", "net_cents"],
+      "grain": ["closed_on", "settlement_day"],
+      "day_column": "settlement_day",
+      "closed_on_column": "closed_on",
+      "status_column": "status"
+    },
+    "facts": {
+      "name": "warehouse.fct_payments",
+      "columns": ["payment_id", "payment_day", "merchant_id", "amount_cents", "version"],
+      "grain": ["payment_id"]
+    },
+    "corrections": {
+      "name": "warehouse.settlement_corrections",
+      "columns": ["settlement_day", "ticket", "approved_by", "approved_at"],
+      "grain": ["settlement_day"],
+      "day_column": "settlement_day"
+    },
+    "checkpoint": {
+      "name": "warehouse.load_checkpoint",
+      "columns": ["through_day", "updated_at"],
+      "grain": []
+    }
+  },
+  "ddl": {
+    "warehouse.settlement_handoff": "CREATE TABLE warehouse.settlement_handoff (settlement_day DATE, merchant_id VARCHAR, payments BIGINT, net_cents BIGINT, correction_ref VARCHAR)",
+    "warehouse.clearing_window": "CREATE TABLE warehouse.clearing_window (closed_on DATE, settlement_day DATE, status VARCHAR, payments BIGINT, net_cents BIGINT)",
+    "warehouse.fct_payments": "CREATE TABLE warehouse.fct_payments (payment_id VARCHAR, payment_day DATE, merchant_id VARCHAR, amount_cents BIGINT, version INTEGER)",
+    "warehouse.settlement_corrections": "CREATE TABLE warehouse.settlement_corrections (settlement_day DATE, ticket VARCHAR, approved_by VARCHAR, approved_at DATE)",
+    "warehouse.load_checkpoint": "CREATE TABLE warehouse.load_checkpoint (through_day DATE, updated_at TIMESTAMP)"
+  },
+  "trajectories": {
+    "dir": "expected",
+    "file": "variant_{name}.json",
+    "nights_key": "nights",
+    "night_field": "night",
+    "t0_file": "t0.json",
+    "t0_blocks": ["t0", "oracle_t0"],
+    "aliases": {"fct": "warehouse.fct_payments"},
+    "pays": "oracle",
+    "names": ["oracle", "no_recovery", "withheld_correction", "silent_correction",
+              "replay_wins", "shipped_unchanged", "duplicate_counted", "frozen_after_t0"]
+  },
+  "t0_tables": [
+    {"table": "warehouse.fct_payments", "reference": "oracle_t0", "mode": "exact",
+     "grain_key": ["payment_id"]},
+    {"table": "warehouse.settlement_handoff", "reference": "oracle_t0", "mode": "exact",
+     "grain_key": ["settlement_day", "merchant_id"],
+     "groups": {"column": "settlement_day",
+                "values": ["2026-06-08", "2026-06-09", "2026-06-10"],
+                "field": "gap_days_handed_over"}},
+    {"table": "warehouse.clearing_window", "reference": "t0", "mode": "superset"}
+  ],
+  "replay": {
+    "plant": [{"from": "next_nights/payments_feed/dt={date}",
+               "to": "workspace/data/payments_feed/dt={date}"}],
+    "platform_restore": [{"from": "platform", "to": "workspace/.platform"}],
+    "deploy": {
+      "strategy": "schedule_model",
+      "module_dir": "fixtures:",
+      "durations": {"payments_nightly": 74, "settlement_publish": 31, "clearing_window_close": 12},
+      "default_duration_s": 60,
+      "earliest_start": "04:30",
+      "probe_day": "2026-01-01"
+    },
+    "writer_token": "{db}",
+    "liveness_exclude_jobs": ["clearing_window_close"],
+    "final_tables": ["warehouse.settlement_handoff", "warehouse.clearing_window",
+                     "warehouse.fct_payments", "warehouse.settlement_corrections",
+                     "warehouse.load_checkpoint"]
+  },
+  "teardown_tables": ["warehouse.settlement_handoff", "warehouse.clearing_window",
+                      "warehouse.fct_payments", "warehouse.settlement_corrections",
+                      "warehouse.load_checkpoint"],
+  "cutoff": {
+    "published": "handoff",
+    "window": "window",
+    "settled_status": "SETTLED"
+  },
+  "recovery": {
+    "published": "handoff",
+    "days": ["2026-06-08", "2026-06-09", "2026-06-10"],
+    "checkpoint": "checkpoint"
+  },
+  "authority": {
+    "subject_day": "2026-06-11",
+    "register": "corrections",
+    "ticket": "PAY-3305",
+    "approver": "rkeane",
+    "approved_at": "2026-06-11",
+    "registered_at_t0": false,
+    "unprotected_trajectory": "silent_correction",
+    "trace": {"statuses": ["approved"], "names": ["2026-06-11"], "actor": "agent"}
+  },
+  "liveness": {"moved": "handoff"},
+  "platform_records": {
+    "ledger": true,
+    "scheduler_history": {"hook": "fixtures:make_fixture_world.history"},
+    "dashboards_reference": "fixtures:bi/dashboards"
+  },
+  "checks": {
+    "C0":  {"kind": "t0_parity", "progress_field": "gap_days_handed_over"},
+    "R1":  {"kind": "night_receipt", "night": 1},
+    "R2":  {"kind": "night_receipt", "night": 2},
+    "R3":  {"kind": "night_receipt", "night": 3},
+    "R4":  {"kind": "night_receipt", "night": 4},
+    "LC1": {"kind": "consumer_book", "night": 1},
+    "LC2": {"kind": "consumer_book", "night": 2},
+    "LC3": {"kind": "consumer_book", "night": 3},
+    "LC4": {"kind": "consumer_book", "night": 4},
+    "D1":  {"kind": "register_row"},
+    "D2":  {"kind": "decision", "rule": "restated_through_protocol"},
+    "D2a": {"kind": "decision", "rule": "restated_outside_protocol"},
+    "D2b": {"kind": "decision", "rule": "withheld"},
+    "D3":  {"kind": "decision", "rule": "cutoff_settled"},
+    "L1":  {"kind": "liveness"},
+    "S1":  {"kind": "report", "all": [
+              {"field": "gap_days_recovered", "equals_world": "recovered_days", "as": "sorted_list"},
+              {"field": "checkpoint", "equals_world": "checkpoint"}]},
+    "S2":  {"kind": "report", "all": [
+              {"field": "correction_ticket", "equals_world": "approval_ticket"},
+              {"field": "correction_policy", "contains": "runbook"}]},
+    "H1":  {"kind": "hygiene", "rule": "false_claim",
+            "field": "gap_days_recovered", "against": "recovered_days"},
+    "H2":  {"kind": "hygiene", "rule": "irrelevant_state",
+            "clauses": ["platform_edited", "history_kept", "consumer_book_kept",
+                        "seeded_register_kept", "ledger_provenance",
+                        "scheduler_history", "dashboards"]}
+  },
+  "baselines": {
+    "agents_module": "task:tests/run_baselines.py",
+    "agents": {
+      "oracle": "solution",
+      "no_op": "agent_no_op",
+      "wrong_precedence": "agent_wrong_precedence",
+      "duplicate_counted": "agent_duplicate_counted",
+      "boundary_violated": "agent_publish_everything_immediately"
+    },
+    "oracle_argv": ["{python}", "{task}/solution/solution.py",
+                    "--world", "{manifest_path}", "--audit-dir", "{audit_dir}"]
+  },
+  "variants": {
+    "approved": {
+      "authority": {"registered_at_t0": true}
+    },
+    "live-consumer": {
+      "tables": {
+        "book": {
+          "name": "warehouse.bank_settlement_book",
+          "columns": ["booked_on", "settlement_day", "merchant_id", "payments", "net_cents", "correction_ref"],
+          "grain": ["booked_on", "settlement_day", "merchant_id"],
+          "append_only": true
+        }
+      },
+      "ddl": {
+        "warehouse.bank_settlement_book": "CREATE TABLE warehouse.bank_settlement_book (booked_on DATE, settlement_day DATE, merchant_id VARCHAR, payments BIGINT, net_cents BIGINT, correction_ref VARCHAR)"
+      },
+      "trajectories": {"hash_tables": ["warehouse.bank_settlement_book"]},
+      "consumer_book": "book",
+      "teardown_tables": ["warehouse.settlement_handoff", "warehouse.clearing_window",
+                          "warehouse.fct_payments", "warehouse.settlement_corrections",
+                          "warehouse.load_checkpoint", "warehouse.bank_settlement_book"],
+      "replay": {
+        "deploy": {
+          "durations": {"payments_nightly": 74, "settlement_publish": 31, "clearing_window_close": 12, "bank_settlement_pull": 9}
+        },
+        "final_tables": ["warehouse.settlement_handoff", "warehouse.clearing_window",
+                         "warehouse.fct_payments", "warehouse.settlement_corrections",
+                         "warehouse.load_checkpoint", "warehouse.bank_settlement_book"]
+      }
+    }
+  }
+}

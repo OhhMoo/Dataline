@@ -1179,14 +1179,26 @@ def quota_probe(*, driver: str, model: str, cwd: Path) -> dict:
     rec["argv"] = argv
     import container_episode
     env = container_episode.subject_base_env(probe_env)
-    try:
-        r = subprocess.run(argv, cwd=str(cwd), env=env,
-                           input=(PROBE_PROMPT if driver != "kimi" else None),
-                           capture_output=True, text=True, encoding="utf-8",
-                           errors="replace", timeout=PROBE_TIMEOUT_S)
-    except subprocess.TimeoutExpired:
-        return {**rec, "status": "error", "why": f"no answer in {PROBE_TIMEOUT_S}s",
-                "wall_clock_s": round(time.time() - started, 1)}
+    r = None
+    for attempt in range(3):
+        try:
+            r = subprocess.run(argv, cwd=str(cwd), env=env,
+                               input=(PROBE_PROMPT if driver != "kimi" else None),
+                               capture_output=True, text=True, encoding="utf-8",
+                               errors="replace", timeout=PROBE_TIMEOUT_S)
+        except subprocess.TimeoutExpired:
+            if attempt < 2:
+                time.sleep(5)
+                continue
+            return {**rec, "status": "error", "why": f"no answer in {PROBE_TIMEOUT_S}s",
+                    "wall_clock_s": round(time.time() - started, 1)}
+        if r.returncode == 0 or attempt == 2:
+            break
+        err_l = (r.stderr or "").lower()
+        if any(tok in err_l for tok in ("try again in a moment", "trouble connecting", "retriableerror", "resource_exhausted")):
+            time.sleep(10 * (attempt + 1))
+            continue
+        break
     rec["returncode"] = r.returncode
     rec["wall_clock_s"] = round(time.time() - started, 1)
     rec["stderr_tail"] = (r.stderr or "")[-1500:]

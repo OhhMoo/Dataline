@@ -1,0 +1,6 @@
+{
+  "status": "DONE",
+  "tests_passed": true,
+  "test_command": "PYTHONPATH=/home/ubuntu/env_project:/home/ubuntu/env_project/world /home/ubuntu/env_project/gateway/.venv/bin/python -m pytest tasks/factory/hazards/tests/test_humanized_prose.py tasks/factory/hazards/tests/test_phase3_floor.py tasks/factory/compiler/tests/test_phase2_stage0_wiring.py tasks/factory/compiler/tests/test_phase4_desaturation.py -q",
+  "test_result": "75 passed in 976.85s (0:16:16)"
+}

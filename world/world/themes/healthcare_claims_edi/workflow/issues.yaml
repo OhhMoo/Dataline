@@ -1,0 +1,92 @@
+issues:
+  - id: CLM-204
+    title: Document the 835 COB adjustment reconciliation
+    body: |-
+      Claims Operations wants a short reconciliation note for the weekly payer review.
+      Tie other-payer payments to the COB adjustment and payer payment on the current
+      claim version. Use aggregate synthetic claims only; do not export member-level rows.
+    status: in_progress
+    reporter: asingh
+    assignee: jwilson
+    labels: [cob, reconciliation, reporting]
+    created_at: "-12d 10:15"
+    updated_at: "-2d 14:20"
+    comments:
+      - id: CLM-204#1
+        author: mbennett
+        at: "-2d 14:20"
+        body: The EDI mapping page now has the financial identity and the field mapping.
+    history: []
+    links: []
+  - id: CLM-211
+    title: Review replacement and void counts in the operations pack
+    body: |-
+      Please confirm that the operations pack distinguishes originals (frequency 1),
+      replacements (frequency 7), and voids (frequency 8). The pack should show current
+      claim versions, not a sum over every raw transmission.
+    status: open
+    reporter: asingh
+    assignee: null
+    labels: [claim-lifecycle, dashboard]
+    created_at: "-4d 09:40"
+    updated_at: "-4d 09:40"
+    comments: []
+    history: []
+    links: []
+  - id: CLM-218
+    title: Publish February provider capitation statements
+    body: |-
+      Provider Finance needs the monthly PMPM statement by practice, including member
+      months, quality withhold, settlement amount, and scheduled payment date. Coordinate
+      any late roster change before the provider statement distribution.
+    status: open
+    reporter: rortiz
+    assignee: jwilson
+    labels: [capitation, provider-settlement]
+    created_at: "-3d 11:05"
+    updated_at: "-1d 16:35"
+    comments:
+      - id: CLM-218#1
+        author: rortiz
+        at: "-1d 16:35"
+        body: Use the contracted roster snapshot and keep fee-for-service remits separate.
+    history: []
+    links: []
+  - id: CLM-223
+    title: Confirm February CMS encounter cutoff calendar
+    body: |-
+      Regulatory Operations is reviewing the February submission window. Confirm the
+      cutoff timestamp, acceptance as-of date, eligible count, late count, and excluded
+      void count shown in the CMS window table.
+    status: triage
+    reporter: kkaur
+    assignee: mbennett
+    labels: [cms, cutoff, encounters]
+    created_at: "-2d 08:50"
+    updated_at: "-2d 13:10"
+    comments:
+      - id: CLM-223#1
+        author: kkaur
+        at: "-2d 13:10"
+        body: The regulatory calendar page is the authority for the cutoff rule.
+    history: []
+    links: []
+  - id: CLM-197
+    title: Add reserve handoff to the actuarial morning checklist
+    body: |-
+      Add the reserve handoff watermark and recent IBNR amounts to the morning checklist.
+      The handoff is an analytical estimate and is not a provider payment instruction.
+    status: done
+    reporter: lchen
+    assignee: jwilson
+    labels: [actuarial, reserve, documentation]
+    created_at: "-25d 15:30"
+    updated_at: "-18d 10:05"
+    comments:
+      - id: CLM-197#1
+        author: jwilson
+        at: "-18d 10:05"
+        body: Checklist updated with the data-through date and reserve window definition.
+    history:
+      - {at: "-18d 10:05", actor: jwilson, field: status, from: in_progress, to: done}
+    links: []

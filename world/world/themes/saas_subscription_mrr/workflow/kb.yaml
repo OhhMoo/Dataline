@@ -1,0 +1,96 @@
+pages:
+  - id: fin/subscriptions
+    title: Subscription finance
+    parent: null
+    labels: [index]
+    body: |-
+      # Subscription finance
+
+      - [ARR and MRR definition](fin/subscriptions/arr-definition)
+      - [Revenue recognition policy](fin/subscriptions/revrec-policy)
+      - [Close calendar](fin/subscriptions/close-calendar)
+    version: 3
+    author: a.shah
+    last_edited_by: a.shah
+    last_edited_at: "-20d 10:00"
+    edit_comment: index the Finance subscription pages
+    history:
+      - {version: 2, at: "-55d 09:30", by: a.shah, comment: null}
+      - {version: 1, at: "-90d 14:00", by: n.ellis, comment: null}
+
+  - id: fin/subscriptions/arr-definition
+    title: ARR and MRR definition
+    parent: fin/subscriptions
+    labels: [arr, mrr, current]
+    body: |-
+      # ARR and MRR definition
+
+      MRR is active seats multiplied by the monthly per-seat contract price.
+      ARR is twelve times MRR. Both are contractual run-rate measures, not
+      recognized revenue or cash.
+
+      Seat upgrades and downgrades take effect on the event's `effective_date`.
+      A churned subscription contributes zero from its effective date, even if
+      the cancellation webhook arrives later. Proration charges and credit
+      notes never enter MRR directly.
+
+      The Finance dashboard reads `warehouse.dim_account` for the current state
+      and `warehouse.fct_mrr_daily` for history.
+    version: 4
+    author: a.shah
+    last_edited_by: t.okafor
+    last_edited_at: "-8d 12:10"
+    edit_comment: clarify effective-dated churn and credits
+    history:
+      - {version: 3, at: "-44d 10:20", by: a.shah, comment: null}
+      - {version: 2, at: "-72d 11:00", by: t.okafor, comment: null}
+      - {version: 1, at: "-90d 14:10", by: a.shah, comment: null}
+
+  - id: fin/subscriptions/revrec-policy
+    title: Revenue recognition policy
+    parent: fin/subscriptions
+    labels: [asc606, revrec, policy]
+    body: |-
+      # Revenue recognition policy
+
+      Subscription consideration is recognized daily, straight line over the
+      service window carried by each subscription event. Amounts are integer
+      cents. Positive billing and signed credits are shown separately from
+      recognition.
+
+      `warehouse.revrec_close_window` is the account-period ASC-606 subledger.
+      Its deferred balance is cumulative net billing less cumulative recognized
+      revenue. Periods before the latest materialized period are closed; the
+      current period remains open while new daily recognition arrives.
+
+      Source corrections belong in Billing. Do not post manual warehouse
+      adjustments to make the dashboard and close packet agree.
+    version: 2
+    author: a.shah
+    last_edited_by: n.ellis
+    last_edited_at: "-14d 16:30"
+    edit_comment: approve the account-period close rule
+    history:
+      - {version: 1, at: "-48d 13:45", by: a.shah, comment: null}
+
+  - id: fin/subscriptions/close-calendar
+    title: Close calendar and data handoff
+    parent: fin/subscriptions
+    labels: [close, operations]
+    body: |-
+      # Close calendar and data handoff
+
+      All times UTC. Source files land at 00:00 on the day after their business
+      date. `ingest_webhooks` starts at 01:00, `fold_subscriptions` at 01:10,
+      and `revrec_window_close` at 01:20.
+
+      Finance uses the published tables only after the closing job succeeds.
+      The detailed operating checks are in `docs/runbook_nightly.md` in the
+      revenue-data repository.
+    version: 2
+    author: t.okafor
+    last_edited_by: t.okafor
+    last_edited_at: "-28d 16:15"
+    edit_comment: publish the three-stage nightly calendar
+    history:
+      - {version: 1, at: "-60d 09:00", by: t.okafor, comment: null}

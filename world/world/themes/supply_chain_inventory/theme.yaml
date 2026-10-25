@@ -1,0 +1,87 @@
+name: supply_chain_inventory
+dbt_profile: world_dbt
+
+workflow:
+  dir: workflow
+  actor: agent
+  project: {key: INV, name: Inventory data}
+  statuses: [open, in_progress, waiting_on_partner, done, wontfix]
+  workspace: northstar-logistics
+  space: {key: SC, name: Supply chain data}
+
+jobs:
+  edi_poll:
+    command: poll_inventory_edi
+    duration_s: 20
+    time: "00:30"
+    day_offset: 1
+    after: null
+    detail: "dt={day}"
+    exec:
+      kind: scan
+      path: data/landing/inventory_edi
+      pattern: "dt={day}/*.csv"
+      min: 5
+  inventory_load:
+    command: load_inventory_edi
+    duration_s: 75
+    after: {job: edi_poll, minutes: 5}
+    detail: "dt={day}"
+    exec:
+      kind: theme
+      op: load_raw
+      args: [workspace, db]
+      tables: [raw.asn_receipts, raw.dc_movements, raw.cycle_counts,
+               raw.uom_conversions, raw.customs_declarations]
+  inventory_dbt:
+    command: build_inventory_marts
+    duration_s: 180
+    after: {job: inventory_load, minutes: 10}
+    detail: null
+    exec:
+      kind: dbt
+      command: build
+      tables: [warehouse.fct_inventory_position,
+               warehouse.cycle_count_reconciliation,
+               warehouse.threepl_settlement_extract, warehouse.customs_cutoff]
+    publishes:
+      - {target: warehouse.fct_inventory_position, kind: table,
+         consumer: supply-chain-dashboard}
+      - {target: warehouse.cycle_count_reconciliation, kind: table,
+         consumer: inventory-control}
+  threepl_handoff:
+    command: export_threepl_settlement
+    duration_s: 45
+    after: {job: inventory_dbt, minutes: 10}
+    detail: null
+    exec:
+      kind: script
+      path: scripts/export_threepl.py
+      args: ["--db", "{db}", "--out", "{workspace}/data/exports/threepl"]
+    publishes:
+      - {target: warehouse.threepl_settlement_extract, kind: table,
+         consumer: atlas-3pl-billing}
+      - {target: data/exports/threepl/threepl_settlement.csv, kind: file,
+         consumer: atlas-3pl-billing}
+  customs_close:
+    command: close_customs_windows
+    duration_s: 30
+    after: {job: threepl_handoff, minutes: 5}
+    detail: null
+    exec:
+      kind: sql
+      script: scripts/customs_close.sql
+    publishes:
+      - {target: warehouse.customs_cutoff, kind: table,
+         consumer: customs-compliance}
+
+live:
+  params: [seed, distribution_centers, sku_count, case_pack_options,
+           asns_per_day, lines_per_asn, movements_per_day, cycle_counts_per_day,
+           transit_days, customs_freeze_hours, customs_cutoff_hour,
+           customs_declaration_modulo, threepl_receipt_cents_per_each,
+           threepl_outbound_cents_per_each, threepl_storage_cents_per_each]
+  arrival:
+    name: inventory_edi
+    op: write_day
+    at: {day_offset: 1, time: "00:00"}

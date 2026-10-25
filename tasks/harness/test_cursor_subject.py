@@ -318,5 +318,82 @@ def test_unattributed_served_plane_change_is_soft_for_cursor(tmp_path):
         assert vs and all(v.hard is hard for v in vs), (driver, vs)
 
 
+def test_mcp_tool_not_found_translates_to_runtime_refusal_not_quarantine(tmp_path):
+    events = _stream()
+    events[8:8] = [
+        _tool_call("started", "mcpToolCall", "call_missing",
+                   {"args": {"name": "alkera-StrReplace", "args": {"path": "a"},
+                             "providerIdentifier": "alkera", "toolName": "StrReplace",
+                             "serverIdentifier": "alkera"}}),
+        _tool_call("completed", "mcpToolCall", "call_missing",
+                   {"args": {"name": "alkera-StrReplace", "toolName": "StrReplace",
+                             "serverIdentifier": "alkera"},
+                    "result": {"error": {
+                        "error": "Tool alkera-StrReplace was not found. Use GetDynamicTools to discover available servers and their tools.",
+                        "isError": True}}}),
+    ]
+    raw = _write(tmp_path, events, bom=False)
+    out = tmp_path / "transcript.jsonl"
+    cursor_subject.translate(raw, out, "alkera")
+    tr = blindness.load_transcript(out)
+    assert "call_missing" in blindness.refused_tool_use_ids(tr)
+    kinds = {(v.kind, v.hard) for v in _detect(tr)}
+    assert ("unknown_tool", True) not in kinds
+    assert ("refused_unknown_tool", False) in kinds
+
+
+def _assistant(content):
+    return [
+        {"type": "system", "subtype": "init", "tools_reported": False, "tools": [],
+         "mcp_servers": [{"name": "alkera"}]},
+        {"type": "assistant", "message": {"role": "assistant", "content": content}},
+    ]
+
+
+def _hard_kinds(transcript):
+    # Path(".") is a substring of any sentence that contains a period, so the
+    # repo root here is one that the fixture prose does not name.
+    violations = blindness.detect(
+        transcript=transcript, driver="cursor", gateway_tools=["ping"],
+        canaries=[], repo_root=Path("/var/alkera-not-present"), action_rows=[],
+        world_before={}, world_after={},
+        world_layout={"world_root": "/w", "workspace": "/w/workspace"},
+        artifact_text="", mcp_server="alkera", topology="host")
+    return sorted(v.kind for v in violations if v.hard)
+
+
+def test_english_solution_phrase_is_not_a_forbidden_path():
+    """reference/solution and problem/solution are prose, not a solution directory."""
+    prose = (
+        "I'm being careful not to peek into the future arrival data under "
+        "build/factory_future since that feels like it crosses into "
+        "reference/solution territory, so I'll let the pipeline handle those "
+        "naturally."
+    )
+    transcript = _assistant([
+        {"type": "thinking", "thinking": prose},
+        {"type": "text", "text": "This is a problem/solution note, not a path."},
+    ])
+    assert _hard_kinds(transcript) == []
+    assert not any(v.kind == "forbidden_path_reference" for v in _detect(transcript))
+
+
+def test_solution_directory_paths_stay_hard():
+    paths = ("/solution/", "../solution/", "solution/oracle", "solution/solve.py")
+    for path in paths:
+        transcript = _assistant([
+            {"type": "thinking", "thinking": f"open {path}"},
+        ])
+        kinds = _hard_kinds(transcript)
+        assert kinds == ["forbidden_path_reference"], path
+
+    for path in ("/solution/", "../solution/solve.py", "solution/oracle", "solution/solve.py"):
+        transcript = _assistant([
+            {"type": "tool_use", "name": "mcp__alkera__ping", "input": {"path": path}},
+        ])
+        kinds = _hard_kinds(transcript)
+        assert kinds == ["attempted_forbidden_access"], path
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))

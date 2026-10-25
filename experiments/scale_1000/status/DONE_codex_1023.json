@@ -1,0 +1,11 @@
+{
+  "status": "DONE",
+  "tests_passed": true,
+  "test_command": "PYTHONPATH=/home/ubuntu/env_project:/home/ubuntu/env_project/world PYTHONDONTWRITEBYTECODE=1 gateway/.venv/bin/python -m pytest -p no:cacheprovider tasks/factory/hazards/tests/test_phase3_floor.py tasks/factory/compiler/tests/test_phase4_desaturation.py tasks/factory/compiler/tests/test_blueprint_matrix.py -q",
+  "test_result": "49 passed in 879.38s",
+  "additional_tests": "27 passed in 98.88s",
+  "catalog_rows": 1080,
+  "oracle_topologies_20_of_20": 15,
+  "rivals_below_20_and_failed": 75,
+  "generated_doc_log_surfaces_spoiler_free": 188
+}

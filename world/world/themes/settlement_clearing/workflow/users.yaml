@@ -1,0 +1,7 @@
+users:
+  - {id: rkeane, name: Rosa Keane, role: Clearing controller, team: Payments}
+  - {id: dpatel, name: Dev Patel, role: Payments engineer, team: Data}
+  - {id: jnorth, name: Jamie North, role: Analytics engineer, team: Data}
+  - {id: mcarver, name: Mel Carver, role: On-call SRE, team: Platform}
+  - {id: bnguyen, name: Bao Nguyen, role: Clearing operations analyst, team: Bank operations}
+  - {id: agent, name: On-call data engineer, role: On call, team: Data}

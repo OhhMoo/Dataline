@@ -1,0 +1,38 @@
+{
+  "agent": "grok",
+  "phase": 2,
+  "status": "complete",
+  "pytest": {
+    "command": "PYTHONPATH=/home/ubuntu/env_project:/home/ubuntu/env_project/world /home/ubuntu/env_project/gateway/.venv/bin/python -m pytest -q tasks/factory/governance/tests tasks/factory/narrative/tests",
+    "passed": 75,
+    "summary": "75 passed in 4.72s",
+    "bundles_36": "36/36",
+    "withhold_submodes": [
+      "delegation_expired_or_revoked",
+      "threshold_cap_exceeded",
+      "conditional_prerequisite_unmet"
+    ]
+  },
+  "signatures": {
+    "compile_twin": "compile_twin(theme: str, mode: str, seed: int | str, *, closed_day: str | None = None, submode: str | None = None) -> dict",
+    "write_narrative": "write_narrative(task_dir: Path, bundle: dict[str, Any], theme: str, *, variant: str = 'default', hazard_ids: list[str] | tuple[str, ...] | None = None) -> dict[str, str]"
+  },
+  "sample": {
+    "path": "/home/ubuntu/alkera_factory_1017/governance_samples/phase2-withhold-threshold",
+    "theme": "settlement_clearing",
+    "mode": "withhold-blocked",
+    "blocker": "threshold_cap_exceeded",
+    "target_outcome": "withheld_with_evidence",
+    "hazard_ids": ["H01", "H08"],
+    "governance_hops": 4,
+    "lint_ok": true,
+    "coverage": 1.0
+  },
+  "scope": [
+    "tasks/factory/governance/twin_state_machine.py",
+    "tasks/factory/governance/tests/test_twins.py",
+    "tasks/factory/narrative/corecraft_synthesizer.py",
+    "tasks/factory/narrative/discoverability_and_spoiler_linter.py",
+    "tasks/factory/narrative/tests/test_hazard_clues.py"
+  ]
+}

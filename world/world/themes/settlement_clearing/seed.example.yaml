@@ -1,0 +1,16 @@
+# Clean card-network settlement world: versioned payment events, ordinary stale
+# recovery replays, settlement publication, and the clearing bank cutoff.
+theme: settlement_clearing
+seed: 9009
+vtime_start: "2026-05-14T00:00:00Z"
+days: 29                       # feed partitions 2026-05-14 .. 2026-06-11
+git_author: "Payments Data Platform <payments-data@example.com>"
+
+# Domain parameters. All money remains integer cents.
+payments_per_day: [28, 40]     # original settle events per daily partition
+amount_cents: [1150, 48000]    # inclusive payment amount range
+merchants: 6                   # positive count, or an explicit list of merchant ids
+interchange_bps: 175           # merchant/day fee rate used by interchange_ledger
+window_days: 14                # trailing calendar days examined by each cutoff run
+cutoff_day: -1                 # latest initially closed feed day; negative counts from the end
+late_gap_days: 2               # delivery lag for stale version-1 recovery replays; 0 disables

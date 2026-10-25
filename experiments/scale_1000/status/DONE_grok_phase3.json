@@ -1,0 +1,35 @@
+{
+  "agent": "grok",
+  "phase": 3,
+  "status": "complete",
+  "pytest": {
+    "command": "PYTHONPATH=/home/ubuntu/env_project:/home/ubuntu/env_project/world /home/ubuntu/env_project/gateway/.venv/bin/python -m pytest -q tasks/factory/governance/tests tasks/factory/narrative/tests",
+    "passed": 86,
+    "summary": "86 passed in 3.47s"
+  },
+  "signatures": {
+    "write_narrative": "write_narrative(task_dir: Path, bundle: dict[str, Any], theme: str, *, variant: str = 'default', hazard_ids: list[str] | tuple[str, ...] | None = None, stressors: list[str] | tuple[str, ...] | None = None) -> dict[str, str]"
+  },
+  "bundles": {
+    "path": "/home/ubuntu/alkera_factory_1017/narrative_bundles",
+    "total": 36,
+    "lint_passed": 36,
+    "samples": {
+      "S09": "commerce_analytics/act-authorized",
+      "S07": "revenue_daily/withhold-blocked",
+      "S03": "sftp_vendor/escalate-ambiguous"
+    }
+  },
+  "clues": {
+    "S09": "#platform-alerts: handoff snapshot about 10 minutes before the 22:00 UTC feed loader; orchestration/schedule.yml pinned factory_publish at 21:50 instead of after factory_load",
+    "S07": "#data-ops: blank entity_id rows belong in the unattributed house bucket and stay in fct_factory_events and factory_handoff",
+    "S03": "#data-ops: raw.factory_events is unique on event_id before folding, including retry files",
+    "linter_required": ["S07", "S09"]
+  },
+  "scope": [
+    "tasks/factory/narrative/corecraft_synthesizer.py",
+    "tasks/factory/narrative/discoverability_and_spoiler_linter.py",
+    "tasks/factory/narrative/tests/test_stressor_clues.py",
+    "experiments/scale_1000/status/DONE_grok_phase3.json"
+  ]
+}

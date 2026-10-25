@@ -22,7 +22,14 @@ What `trigger` and `advance` now do:
   own error. A job with no `exec` block fails as `unsupported` - the one thing
   this module will never do is report a status it did not observe.
 - `advance(root, hours)` materialises the span: new source partitions land and
-  scheduled jobs fire, in virtual-time order, executing for real.
+  scheduled jobs fire, in virtual-time order, executing for real. Before
+  planning, the agent-editable `workspace/orchestration/schedule.yml` is
+  overlaid onto the in-memory jobs (`_sync_workspace_schedule`) - in memory
+  only, so live.json on disk stays canonical and every advance re-reads the
+  file; an absent or malformed file is simply ignored. When that file places
+  `factory_publish` after `factory_load` (an `after` mapping, a bare job
+  name, or a later clock time), the planned run starts publish after the load
+  has finished, and after `factory_load_retry` when that job exists.
 - `enqueue(root, job)` accepts a run without running it: one entry under
   state.json's `queue` key, `vnow` and `runs` untouched. The next `advance`
   executes the queue first, at its own start (`_drain`). This is the control
@@ -56,6 +63,7 @@ fingerprinted:
   cannot erase an earlier bad publication. See world/README.md#publication-ledger.
 """
 import argparse
+import copy
 import json
 import sys
 from datetime import datetime, timedelta, timezone
@@ -140,7 +148,34 @@ def live_gen(live: dict | None):
     if not live or not live.get("theme"):
         return None
     from .themes import load_theme          # local: gen hooks import this module
-    return load_theme(live["theme"]).gen
+    try:
+        return load_theme(live["theme"]).gen
+    except (SystemExit, FileNotFoundError, ImportError):
+        return None
+
+
+def _jobs_for_live(theme, seed: dict) -> dict:
+    """Job specs carried into live.json.
+
+    A theme with top-level ``publication_opt_in: true`` may declare
+    ``publishes`` on its jobs without moving every recorded fingerprint.
+    Those targets are copied into live.json only when the seed sets
+    ``publish_receipts: true`` (the theme's seed.example.yaml). A historical
+    seed omits the key, the targets are dropped here, and live.json matches
+    the world from before the hook. The manifest dict is not mutated.
+    """
+    jobs = theme.manifest["jobs"]
+    if not theme.manifest.get("publication_opt_in") or seed.get("publish_receipts"):
+        return jobs
+    gated = copy.deepcopy(jobs)
+    for spec in gated.values():
+        if not isinstance(spec, dict):
+            continue
+        spec.pop("publishes", None)
+        exec_block = spec.get("exec")
+        if isinstance(exec_block, dict):
+            exec_block.pop("publishes", None)
+    return gated
 
 
 def initial_live(seed: dict, theme) -> dict | None:
@@ -157,7 +192,7 @@ def initial_live(seed: dict, theme) -> dict | None:
         # world - an explicit, auditable list, not the whole seed
         "params": {k: seed[k] for k in spec.get("params", []) if k in seed},
         "arrival": spec.get("arrival"),
-        "jobs": theme.manifest["jobs"],
+        "jobs": _jobs_for_live(theme, seed),
     }
     # The fault catalogue and its bookkeeping appear ONLY when the theme
     # declares faults, on the same conditional-section rule as everything else
@@ -865,6 +900,247 @@ def _cap_events(state: dict, planned: list) -> None:
             f"event(s) (cap {MAX_EVENTS}); advance in smaller steps")
 
 
+# --------------------------------------------------------------------------
+# workspace schedule sync
+#
+# `workspace/orchestration/schedule.yml` is the deployment surface an
+# operator (or an agent) actually edits; `var/world/live.json` stays the
+# canonical control plane ON DISK. `advance` overlays the file onto the
+# in-memory jobs before planning, and restores the pristine jobs before
+# `save_live`, so every advance re-reads the file and re-syncs from a clean
+# base - the world on disk never changes shape because of the overlay.
+# --------------------------------------------------------------------------
+
+#: The agent-editable deployment schedule, relative to the world root.
+WORKSPACE_SCHEDULE = Path("workspace/orchestration/schedule.yml")
+
+
+def _is_int(value) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def _valid_hhmm(value) -> bool:
+    """A "HH:MM" string `job_starts` can place; anything else is ignored.
+
+    YAML parses an unquoted 20:00 as the sexagesimal integer 1200, so a
+    non-string here is how a mistyped file is skipped rather than crashed
+    on."""
+    if not isinstance(value, str):
+        return False
+    parts = value.split(":")
+    if len(parts) != 2:
+        return False
+    try:
+        hh, mm = int(parts[0]), int(parts[1])
+    except ValueError:
+        return False
+    return 0 <= hh < 24 and 0 <= mm < 60
+
+
+def _sync_job_fields(job: dict, spec: dict, jobs: dict) -> None:
+    """Overlay one schedule.yml entry onto one live job spec, in place.
+
+    Only the fields the scheduler understands are synced, and only when
+    well-formed; anything else in the entry (script, args, publishes, ...)
+    is documentation as far as the clock is concerned. An `after` is
+    applied only when the job it names exists in the live set - an `after`
+    pointing at an unknown job would make `job_starts` raise 'unresolvable
+    job schedule', and this file must never be able to do that.
+    """
+    at = spec.get("time")
+    if _valid_hhmm(at):
+        job["time"] = at
+    after = spec.get("after")
+    if isinstance(after, dict):
+        ref = after.get("job")
+        minutes = after.get("minutes")
+        if isinstance(ref, str) and ref in jobs:
+            job["after"] = {"job": ref,
+                            "minutes": minutes if _is_int(minutes) else 0}
+    elif isinstance(after, str) and after in jobs:
+        # bare-string form, with wait_minutes as the optional delay
+        wait = spec.get("wait_minutes")
+        job["after"] = {"job": after,
+                        "minutes": wait if _is_int(wait) else 0}
+    offset = spec.get("day_offset")
+    if _is_int(offset) and "time" in job:
+        # day_offset is read only on the `time` branch of job_starts
+        job["day_offset"] = offset
+
+
+def _clock_minutes(value) -> int | None:
+    """Minutes from midnight for a valid "HH:MM", else None."""
+    if not _valid_hhmm(value):
+        return None
+    hh, mm = (int(x) for x in value.split(":"))
+    return hh * 60 + mm
+
+
+def _minute_offset(seconds: int) -> int:
+    """Whole minutes that land at or after `seconds` from the same origin.
+
+    An exact multiple of 60 stays on that minute. Any remainder rounds up, so
+    a start that must fall strictly after a job's end does.
+    """
+    if seconds <= 0:
+        return 0
+    return (seconds + 59) // 60
+
+
+def _publish_follows_load(spec: dict, load: dict) -> tuple[bool, int]:
+    """Whether this schedule entry places factory_publish after factory_load.
+
+    Three forms, and an `after` that names any other job is not one of them:
+
+    - ``after: {job: factory_load, minutes: N}``
+    - ``after: factory_load`` (delay from sibling ``wait_minutes``, default 0)
+    - ``time`` strictly later than factory_load's clock time
+
+    Returns ``(True, minutes after factory_load's start)`` or ``(False, 0)``.
+    """
+    after = spec.get("after")
+    if isinstance(after, dict):
+        if after.get("job") != "factory_load":
+            return False, 0
+        minutes = after.get("minutes")
+        return True, minutes if _is_int(minutes) else 0
+    if isinstance(after, str):
+        if after != "factory_load":
+            return False, 0
+        wait = spec.get("wait_minutes")
+        return True, wait if _is_int(wait) else 0
+    load_m = _clock_minutes(load.get("time"))
+    pub_m = _clock_minutes(spec.get("time"))
+    if load_m is None or pub_m is None or pub_m <= load_m:
+        return False, 0
+    return True, pub_m - load_m
+
+
+def _duration_seconds(job: dict) -> int:
+    value = job.get("duration_s")
+    return value if _is_int(value) and value > 0 else 0
+
+
+def _retry_offset_seconds(retry: dict, load: dict) -> int | None:
+    """Seconds from factory_load's start to factory_load_retry's start."""
+    after = retry.get("after")
+    if (isinstance(after, dict) and after.get("job") == "factory_load"
+            and _is_int(after.get("minutes"))):
+        return after["minutes"] * 60
+    load_m = _clock_minutes(load.get("time"))
+    retry_m = _clock_minutes(retry.get("time"))
+    if load_m is None or retry_m is None or retry_m < load_m:
+        return None
+    return (retry_m - load_m) * 60
+
+
+def _apply_factory_publish_order(synced: dict, sched: dict) -> None:
+    """Start factory_publish after factory_load finishes, and after a retry.
+
+    ``job_starts`` measures ``after.minutes`` from the predecessor's START.
+    A repair of ``after: factory_load`` with no delay would therefore start
+    the handoff together with the load, still before the load's end. The
+    offset is raised so publish's start is strictly after that end. When
+    ``factory_load_retry`` is already a live job, publish is chained after
+    the retry, with the same guarantee against the retry's end, so the
+    handoff cannot land between the load and its retry.
+    """
+    spec = sched.get("factory_publish")
+    publish = synced.get("factory_publish")
+    load = synced.get("factory_load")
+    if not (isinstance(spec, dict) and isinstance(publish, dict)
+            and isinstance(load, dict)):
+        return
+    follows, minutes = _publish_follows_load(spec, load)
+    if not follows:
+        return
+    load_end = _duration_seconds(load)
+    earliest = max(minutes * 60, (load_end + 1) if load_end else 0)
+    retry = synced.get("factory_load_retry")
+    if not isinstance(retry, dict):
+        publish["after"] = {"job": "factory_load",
+                            "minutes": _minute_offset(earliest)}
+        return
+    offset = _retry_offset_seconds(retry, load)
+    retry_end = _duration_seconds(retry)
+    if offset is None:
+        need = max(minutes, _minute_offset(retry_end + 1) if retry_end else 0)
+        publish["after"] = {"job": "factory_load_retry", "minutes": need}
+        return
+    past_retry = offset + retry_end + (1 if (retry_end or offset) else 0)
+    earliest = max(earliest, past_retry)
+    lag = earliest - offset
+    publish["after"] = {"job": "factory_load_retry",
+                        "minutes": _minute_offset(lag if lag > 0 else 0)}
+
+
+def _sync_workspace_schedule(root: Path, live: dict) -> None:
+    """Overlay workspace/orchestration/schedule.yml onto live["jobs"],
+    IN MEMORY ONLY. The caller restores the pristine jobs before save_live.
+
+    Sync rules, per schedule.yml job that exists in live["jobs"] (unknown
+    names are ignored; factory_arrive, factory_load, factory_publish,
+    factory_close and factory_load_retry are the ones a repaired factory
+    world writes):
+
+    - `time` (a valid "HH:MM" string) replaces the job's `time`.
+    - `after: {job, minutes}` replaces the job's `after`, only when the
+      referenced job also exists in live["jobs"].
+    - bare-string `after: <name>` normalises to {job, minutes}, the minutes
+      taken from a sibling `wait_minutes` (default 0); same unknown-job
+      guard.
+    - `day_offset` (an int) syncs only for jobs that carry a `time`.
+    - when the factory_publish entry places that job after factory_load by
+      any of the three forms above (including a later clock such as 22:20
+      against factory_load at 22:00), publish is planned so its start is
+      after the load's end, and after factory_load_retry when that job
+      exists. See `_apply_factory_publish_order`.
+
+    A missing file, unreadable or malformed YAML, a document without a
+    `jobs:` mapping, or an overlay that would leave the schedule
+    unresolvable (a re-chained `after` that loops) discards the whole
+    overlay: the file is an editable surface and the clock must never
+    crash because of it. When the overlay changes nothing - the shipped
+    files mirror the manifest - the live jobs object is left untouched.
+    """
+    jobs = live.get("jobs")
+    if not isinstance(jobs, dict) or not jobs:
+        return
+    try:
+        import yaml                 # local: only advance needs it
+    except ImportError:
+        return
+    path = Path(root) / WORKSPACE_SCHEDULE
+    try:
+        if not path.is_file():
+            return
+        doc = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except Exception:
+        return
+    if not isinstance(doc, dict):
+        return
+    sched = doc.get("jobs")
+    if not isinstance(sched, dict):
+        return
+    synced = copy.deepcopy(jobs)
+    for name in sched:
+        spec = sched[name]
+        job = synced.get(name)
+        if isinstance(spec, dict) and isinstance(job, dict):
+            _sync_job_fields(job, spec, synced)
+    _apply_factory_publish_order(synced, sched)
+    if synced == jobs:
+        return                      # a mirroring file is a no-op
+    try:
+        job_starts(synced, datetime(1970, 1, 1, tzinfo=timezone.utc))
+    except (Exception, SystemExit):
+        # an overlay that leaves the schedule unresolvable (a re-chained
+        # `after` that loops, a time job with no day_offset) is discarded
+        # wholesale - job_starts raises SystemExit, not an Exception
+        return
+    live["jobs"] = synced
+
+
 def advance(root: Path, hours: float) -> dict:
     """Move the clock by `hours`, materialising everything in the span.
 
@@ -896,6 +1172,13 @@ def advance(root: Path, hours: float) -> dict:
             out["note"] = ("no live-world control plane (var/world/live.json): "
                            "the clock moved and only the queued runs were executed")
         return out
+
+    # The agent-editable workspace schedule overlays the control plane for
+    # this pass only: `_sync_workspace_schedule` swaps in the overlaid jobs,
+    # and the pristine jobs go back before `save_live` so live.json on disk
+    # stays canonical and every advance re-reads schedule.yml.
+    canonical_jobs = live.get("jobs")
+    _sync_workspace_schedule(root, live)
 
     gen, seed = live_gen(live), live_seed(live)
     arrivals, cursor, deferred = ([], None, None)
@@ -962,6 +1245,10 @@ def advance(root: Path, hours: float) -> dict:
                                   else live["days_landed"])
         live["deferred_arrivals"] = deferred or {}
         live["deferred_runs"] = runs_later
+    if canonical_jobs is not None:
+        # The workspace overlay was in-memory only: what lands on disk is
+        # the canonical schedule this advance started from.
+        live["jobs"] = canonical_jobs
     save(root, state)
     save_live(root, live)
     return {"vnow": state["vnow"], "live": True, "events": log}

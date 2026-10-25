@@ -1,0 +1,13 @@
+users:
+- id: owner
+  name: Morgan Lee
+  role: Domain controller
+  team: Operations
+- id: engineer
+  name: Ari Patel
+  role: Data engineer
+  team: Data
+- id: agent
+  name: On-call data engineer
+  role: On call
+  team: Data

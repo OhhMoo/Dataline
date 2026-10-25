@@ -1,0 +1,63 @@
+name: iot_telemetry_billing
+dbt_profile: world_dbt
+
+workflow:
+  dir: workflow
+  actor: agent
+  project: {key: IOT, name: Metering and billing}
+  statuses: [backlog, todo, in_progress, blocked, done, wont_do]
+  workspace: northstar-metering
+  space: {key: MB, name: Metering and Billing}
+
+# Arrival day N carries telemetry for UTC business day N-1. Direct devices
+# stream counter or delta heartbeats; store-and-forward gateways can flush
+# several older daily windows in the same arrival. All times are UTC.
+jobs:
+  load_usage:
+    command: load_iot_telemetry
+    duration_s: 60
+    time: "01:00"
+    day_offset: 0
+    after: null
+    detail: null
+    exec:
+      kind: theme
+      op: load_raw
+      args: [workspace, db]
+      tables: [raw.meter_heartbeats, raw.usage_rollups, raw.contract_commits]
+  finalize_billing:
+    command: build_usage_and_finalize_invoices
+    duration_s: 180
+    after: {job: load_usage, minutes: 10}
+    detail: null
+    exec:
+      kind: dbt
+      command: build
+      tables:
+        - warehouse.fct_billable_usage
+        - warehouse.invoice_run_handoff
+        - warehouse.billing_period_lock
+    publishes:
+      - {target: warehouse.fct_billable_usage, kind: table, consumer: usage_billing_dashboard}
+      - {target: warehouse.invoice_run_handoff, kind: table, consumer: enterprise_erp}
+      - {target: warehouse.billing_period_lock, kind: table, consumer: billing_close_control}
+
+live:
+  params:
+    - seed
+    - customers
+    - devices_per_customer
+    - heartbeats_per_day
+    - usage_per_heartbeat
+    - usage_scale_pct
+    - counter_reset_days
+    - gateway_cycle_days
+    - gateway_offline_days
+    - committed_units
+    - monthly_minimum_cents
+    - overage_cents_per_1000
+    - lock_grace_days
+  arrival:
+    name: iot_gateway_flush
+    op: write_day
+    at: {day_offset: 0, time: "00:30"}

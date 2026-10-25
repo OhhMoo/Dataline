@@ -1,0 +1,55 @@
+{
+  "agent": "opus_grader",
+  "status": "complete",
+  "pytest": {
+    "command": "cd /home/ubuntu/env_project && PYTHONPATH=/home/ubuntu/env_project:/home/ubuntu/env_project/world /home/ubuntu/env_project/gateway/.venv/bin/python -m pytest -q tasks/factory/grader/tests --ignore=tasks/factory/grader/tests/test_contracts_real_world.py",
+    "summary": "18 passed in 214.87s",
+    "ignored": "tasks/factory/grader/tests/test_contracts_real_world.py"
+  },
+  "files_touched": [
+    "tasks/factory/grader/receipt_engine.py",
+    "tasks/factory/grader/replay_isolation.py",
+    "tasks/factory/grader/communication_rubric.py",
+    "tasks/factory/grader/declarative_grade.py",
+    "tasks/factory/grader/baseline_runner.py",
+    "tasks/factory/grader/tests/test_receipt_engine.py",
+    "tasks/factory/grader/tests/test_replay_isolation.py",
+    "tasks/factory/grader/tests/test_communication_rubric.py",
+    "tasks/factory/grader/tests/test_declarative_schema.py",
+    "tasks/factory/grader/tests/test_baseline_runner.py",
+    "tasks/factory/grader/tests/test_equivalence.py",
+    "experiments/scale_1000/status/DONE_opus_grader.json"
+  ],
+  "baseline_runner": "Calls declarative_grade.grade for oracle, no_op, wrong_precedence, duplicate_counted, and boundary_violated and writes grading/baselines/<variant>.json. It does not shell out to a per-task grade.py.",
+  "equivalence": {
+    "legacy_source": "Stored rollout.json scores produced by tests/grade.py. grade.py was not re-executed on these worlds.",
+    "world_outputs": "/home/ubuntu/alkera_factory_1017/grader_equiv/",
+    "agreement_record": "/home/ubuntu/alkera_factory_1017/grader_equiv/agreement.json",
+    "gt009": {
+      "variants_graded": [
+        "default",
+        "e1-corecraft-implicit",
+        "e2-noisy-surface",
+        "e3-compositional"
+      ],
+      "episodes": {
+        "default": "/home/ubuntu/alkera_rollouts/GT009-settlement-cutoff/default-20261017-k5-opus55h/r0",
+        "e1-corecraft-implicit": "/home/ubuntu/desaturation_experiment_20261017/runs/GT009-settlement-cutoff/e1-corecraft-implicit-20261017-k5-opus55h/r0",
+        "e2-noisy-surface": "/home/ubuntu/desaturation_experiment_20261017/runs/GT009-settlement-cutoff/e2-noisy-surface-20261017-k5-opus55h/r0",
+        "e3-compositional": "/home/ubuntu/desaturation_experiment_20261017/runs/GT009-settlement-cutoff/e3-compositional-20261017-k5-opus55h/r0"
+      },
+      "agreed_on_every_variant": ["C0", "R1", "R2", "R3", "R4", "S1", "S2"],
+      "disagreed": [],
+      "not_compared": ["D1", "D2", "D2a", "D2b", "D3", "L1", "H1", "H2"],
+      "not_compared_reason": "Decision, liveness, and hygiene checks encode GT009's trajectory classifier and were not reimplemented as declarative probes."
+    },
+    "gt004": {
+      "variant": "default",
+      "episode": "/home/ubuntu/alkera_rollouts/GT004-doubling-window/default-20261017-k5-opus55h/r0",
+      "agreed": ["G1b"],
+      "disagreed": [],
+      "not_compared": ["BX", "CSM", "ESC", "ESR", "G1a", "G1c", "G2", "G3", "G4", "G5", "G6", "G7", "H1a", "H1b", "H2", "H4"],
+      "not_compared_reason": "G1a, G1c, and the lifecycle probes re-execute pipelines against expected.duckdb. Only the duplicate-key bit of G1b is a single SQL assert."
+    }
+  }
+}

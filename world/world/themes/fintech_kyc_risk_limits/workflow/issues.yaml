@@ -1,0 +1,16 @@
+issues:
+- id: RISK-1017
+  title: Review nightly merchant disputes and reserve risk handoff
+  body: Compare the published handoff with the source contract and check the close
+    window before restating historical dates.
+  status: open
+  reporter: owner
+  assignee: engineer
+  labels:
+  - data-quality
+  - handoff
+  created_at: -3d 09:15
+  updated_at: -2d 10:40
+  comments: []
+  history: []
+  links: []

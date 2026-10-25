@@ -1,0 +1,53 @@
+{
+  "agent": "opus",
+  "phase": "7.2.B",
+  "status": "complete",
+  "completed_at_utc": "2026-10-18T17:00:00Z",
+  "supersedes_note": "DONE_opus_phase2.json (10:14Z) predates this merge and is left untouched",
+  "installed_into": ["tasks/factory/grader", "tasks/contracts"],
+  "main_backup_before_install": "/home/ubuntu/alkera_factory_1017/opus_p2/main_backup_pre_install/grader_contracts.tgz",
+  "staging_repo": "/home/ubuntu/opus_p2_stage (three-way merge of opus worktree a957d6e + Codex main-tree grader/contracts)",
+  "item1_grader_merge": {
+    "public_api_preserved": [
+      "declarative_grade.grade", "receipt_engine.capture_oracle", "baseline_runner.run",
+      "baseline_runner.BASELINES", "communication_rubric.verify_report"
+    ],
+    "dialects": "probe (factory, default) and kind (spec 'dialect': 'kind'; GT009, GT004)",
+    "probe_dialect_equivalence": "230/230 cases identical to pre-merge grader",
+    "gt009_equivalence": "465/465"
+  },
+  "item2_progress_checkpoints": {
+    "keys": ["q0_raw_loaded", "q1_t0_dedup_and_precedence", "q2_t0_handoff_parity",
+             "q3_r1_parity", "q4_r2_parity", "q5_r3_parity", "q6_r4_parity"],
+    "module": "tasks/factory/grader/progress_checkpoints.py (row-level, per-night windowed Jaccard)",
+    "fallback": "a key the row-level module cannot measure (unresolved role, no oracle t0 table, night without row snapshots) is left to receipt_engine.seven_step_progress",
+    "three_distinct_scalars": {
+      "fixture": "phase2_pilot_51/FT0001 + H04 on night 3 + H09 on night 4 (test_progress_checkpoints.py, real tests)",
+      "oracle": 0.999, "no_op": 0.0, "miss_H01_night2": 0.5494,
+      "miss_H04_night3": 0.6993, "miss_H09_night4": 0.9867
+    }
+  },
+  "item3_contracts_and_gt004": {
+    "contracts_suite": "merged; dependency-rule AST test passes",
+    "gt004_checks": "18/18 incl. H3 authorization_penalty, H4 false_claim, BX boundary_crossed",
+    "gt004_equivalence": "265/265 rollout cells, 1254/1254 baseline cells"
+  },
+  "item4_verification": {
+    "pytest_main_tree": "tasks/factory + tasks/contracts: 540 passed, 1 failed (pre-existing, also fails before install: compiler/tests/test_phase2_readiness.py::test_materializer_fails_before_writing_without_phase2_inputs)",
+    "verify_all_stage0_pilot50_staging": "50/50 (/home/ubuntu/alkera_factory_1017/opus_p2/gate/stage0_merged.json)",
+    "verify_all_main_tree_10_tasks": "10/10 (/home/ubuntu/alkera_factory_1017/opus_p2/gate/main10.json)",
+    "calibration_regrade": {
+      "audit": "/home/ubuntu/alkera_factory_1017/opus_p2/p2_4/regrade_audit.md",
+      "rollouts": 35, "runs": 11, "errors": 0, "score_regressions": 0,
+      "old_scalar_reproduced": "35/35",
+      "within_run_variance_gained": 0,
+      "reason": "every failing rollout stalls the whole pipeline from its hazard night on (loader raises on new columns / sidecar / temp files), so row-level parity is the same 0/1 step as receipts"
+    }
+  },
+  "handoffs_to_codex": [
+    "H04 is inert in the Phase 2 runtime: arrival_file_hazards cuts events.csv.part at 31 bytes (inside the header), so even a reader that accepts .part files loses nothing. The progress fixture rewrites it mid-row to make H04 bite.",
+    "H04 now lands on night 2, the same night as H01 (arrival_file_hazards change at 15:32Z); tasks with both cannot separate them by night.",
+    "Within-task progress variance needs hazards that partially corrupt a night's rows rather than crash the loader.",
+    "receipt_engine.compare_nights reports jobs_ok=any(run succeeded); night details show jobs_ok=true when factory_load failed. Scores unaffected."
+  ]
+}

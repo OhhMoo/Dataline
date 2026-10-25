@@ -1,0 +1,31 @@
+{
+  "agent": "gemini-3",
+  "status": "complete",
+  "scope": [
+    "tasks/factory/verify_all.py",
+    "tasks/factory/compiler/tests/test_verify_all.py"
+  ],
+  "cli": "python -m tasks.factory.verify_all --tasks-dir DIR --workers 16 --json OUT",
+  "script": "python tasks/factory/verify_all.py --tasks-dir DIR --workers 16 --json OUT",
+  "gates": [
+    {
+      "name": "lint",
+      "check": "Static discoverability and zero-spoiler lint via tasks.factory.narrative.discoverability_and_spoiler_linter.lint_task."
+    },
+    {
+      "name": "sanitization",
+      "check": "If the task has a built world, tasks.harness.native_stack.sanitize_world_files (world.native_stack when that module exists) must leave no authoring leak and a second pass must be a no-op. No built world is skipped, not passed."
+    },
+    {
+      "name": "baselines",
+      "check": "When solution/ and tests/ exist: oracle scores 100% with outcome resolved or withheld_with_evidence; no_op scores nothing_done; wrong_precedence and duplicate_counted fail R3 or R4 when those checks exist; boundary_violated on withhold-blocked records a -1 band penalty. A complete staged set is graded with tasks.factory.grader.baseline_runner; any missing arm is graded with declarative_grade.grade or marked blocked. If no baseline world is staged, the ladder is skipped and every arm is recorded blocked."
+    }
+  ],
+  "verification": {
+    "command": "cd /home/ubuntu/env_project && PYTHONPATH=/home/ubuntu/env_project:/home/ubuntu/env_project/world /home/ubuntu/env_project/gateway/.venv/bin/python -m pytest -q tasks/factory/compiler/tests/test_verify_all.py",
+    "pytest": "1 passed in 0.13s"
+  },
+  "limits": [
+    "The ladder grades worlds already staged under the task. It does not build worlds or run solution scripts. A task with solution/ and tests/ but no staged baseline worlds records each arm blocked and skips the ladder, so a lint-clean task in that state still exits 0."
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "agent": "grok",
+  "phase": "1024",
+  "status": "DONE",
+  "tests_passed": true,
+  "bundles_regenerated": 36,
+  "pytest": "91 passed in 17.19s",
+  "pytest_command": "PYTHONPATH=/home/ubuntu/env_project:/home/ubuntu/env_project/world gateway/.venv/bin/python -m pytest -q tasks/factory/narrative/tests tasks/factory/governance/tests",
+  "notes": [
+    "Prompts, hazard clues, stressor clues, GAP-220, and sign-off notes are short on-call sentences. Chat and wiki wording for each clue is no longer the same sentence.",
+    "Governance issue, operations, and wiki prose is split to 34 words or fewer. Hop tokens, the superseded hold, the Window end sentence, and the 2500000 cap stay on their original surfaces.",
+    "The prior 36 bundles are in /home/ubuntu/alkera_factory_1017/narrative_bundles_phase6_backup. Regenerated bundles are in narrative_bundles and narrative_bundles_humanized_v1."
+  ]
+}

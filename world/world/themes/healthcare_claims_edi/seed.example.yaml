@@ -1,0 +1,38 @@
+# Synthetic healthcare payer 837/835 adjudication and provider settlement world.
+theme: healthcare_claims_edi
+seed: 41
+vtime_start: "2026-01-15T00:00:00Z"
+days: 45
+git_author: "Claims Data Platform <claims-data@example.com>"
+
+# Provider/member and daily 837 volume. Member identifiers are synthetic tokens;
+# no names, birth dates, addresses, or real patient identifiers are generated.
+providers: 14
+member_pool: 2000
+claims_per_day: [24, 36]
+
+# Claim lifecycle probabilities (integer percentages). A replacement (7) or
+# void (8) arrives 1-3 days after its original (1); every version has an 835.
+replacement_pct: 8
+void_pct: 3
+cob_pct: 20
+denial_pct: 6
+allowed_bps: [7000, 9200]
+followup_lag_days: [1, 3]
+
+# Monthly capitation settlement. Money ranges are integer cents, never floats.
+capitated_lives_per_provider: [90, 220]
+capitation_pmpm_cents: [2400, 5200]
+capitation_withhold_bps: 500
+capitation_payment_day: 15
+
+# CMS submission calendar: prior-month encounters close on this day/hour UTC.
+# Only remits received on or before cutoff minus the acceptance lag are eligible.
+cms_cutoff_day: 5
+cms_cutoff_hour: 18
+cms_acceptance_lag_days: 2
+
+# Actuarial handoff: an age-weighted reserve applies for this many days after
+# service, starting at reserve_bps of allowed amount and declining linearly.
+reserve_window_days: 45
+reserve_bps: 1500

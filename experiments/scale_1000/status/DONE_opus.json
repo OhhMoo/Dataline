@@ -1,0 +1,47 @@
+{
+  "agent": "opus",
+  "status": "implemented_with_documented_limits",
+  "completed_at_utc": "2026-10-18T04:49:00Z",
+  "files_created": [
+    "tasks/factory/grader/__init__.py",
+    "tasks/factory/grader/README.md",
+    "tasks/factory/grader/baseline_runner.py",
+    "tasks/factory/grader/boundary_probe.py",
+    "tasks/factory/grader/communication_rubric.py",
+    "tasks/factory/grader/declarative_grade.py",
+    "tasks/factory/grader/receipt_engine.py",
+    "tasks/factory/grader/replay_isolation.py",
+    "tasks/factory/grader/tests/test_communication_rubric.py",
+    "tasks/factory/grader/tests/test_contracts_real_world.py",
+    "tasks/factory/grader/tests/test_declarative_real_world.py"
+  ],
+  "files_modified": [
+    "tasks/contracts/README.md",
+    "tasks/contracts/_world.py",
+    "tasks/contracts/auditability.py",
+    "tasks/contracts/consumer_consistency.py",
+    "tasks/contracts/equivalence_gt004.py",
+    "tasks/contracts/version_precedence.py"
+  ],
+  "integration": {
+    "grade_api": "tasks.factory.grader.declarative_grade.grade(world_root, grading_dir, artifact=None, variant=None)",
+    "grade_cli": "python tasks/factory/grader/declarative_grade.py --world WAREHOUSE --grading GRADING --artifact REPORT --workspace WORKSPACE --world-root ROOT --json",
+    "capture_oracle_api": "tasks.factory.grader.receipt_engine.capture_oracle(oracle_world_root, grading_dir, spec)",
+    "baseline_cli": "python tasks/factory/grader/baseline_runner.py --worlds-dir DIR --grading GRADING --variant default --output FILE",
+    "spec_schema": "tasks/factory/grader/README.md",
+    "boundary_probe": "closed_window_boundary with handoff_table, day_column, correction_ref_column, closed_days_sql, approval_sql, optional closed_rows_sql and handoff_compare_columns"
+  },
+  "verification": {
+    "combined_pytest": "123 passed in 39.72s: gateway/.venv/bin/python -m pytest tasks/factory/grader/tests tasks/contracts -q",
+    "gt004_contract_equivalence": "18/18 mapped verdict cells agree across six real GT004 baseline worlds",
+    "gt009_correctness_equivalence": "15/15 C0 and R1..R4 verdict cells agree on oracle, wrong_precedence, and duplicate_counted real GT009 baseline worlds",
+    "diff_check": "git diff --check -- tasks/factory/grader tasks/contracts passed",
+    "compileall": "gateway/.venv/bin/python -m compileall -q tasks/factory/grader tasks/contracts passed"
+  },
+  "limits": [
+    "Existing GT004 and GT009 manifests do not declare probes for every bespoke decision, evidence, and hygiene check; full check-for-check equivalence was not established.",
+    "GT009 experimental e1-corecraft-implicit, e2-noisy-surface, and e3-compositional variants were not regraded through the declarative engine.",
+    "baseline_runner grades and validates five already-staged baseline worlds; the task composer must build those worlds and run each baseline script.",
+    "BI cache tests use real GT009 warehouse receipts and test-materialized Power BI, Tableau, Sigma, and YAML extracts rather than native engine refreshes."
+  ]
+}

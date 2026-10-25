@@ -93,7 +93,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("entries", nargs="+", type=parse_entry,
                     metavar="TASK[:VARIANT]")
     ap.add_argument("--driver", default="native",
-                    choices=["mcp", "cli", "scripted", "kimi", "native"],
+                    choices=["mcp", "cli", "scripted", "kimi", "cursor", "native"],
                     help="measurement substrate is native; mcp is the "
                          "comparison arm (default: native)")
     ap.add_argument("--model", default="opus",
@@ -105,6 +105,8 @@ def main(argv: list[str] | None = None) -> int:
                     help="container is the measurement topology; host is not "
                          "measurement_valid for native (default: container)")
     ap.add_argument("--out", default=str(DEFAULT_OUT))
+    ap.add_argument("--tasks-dir", default=None,
+                    help="override --tasks-dir passed to run_rollouts.py")
     ap.add_argument("--run-id-suffix", default="",
                     help="appended to every run id, e.g. `rerun`, so a queued "
                          "run never lands in an existing run directory")
@@ -142,6 +144,8 @@ def main(argv: list[str] | None = None) -> int:
                "--run-id", run_id, "--concurrency", str(a.concurrency)]
         if variant:
             cmd += ["--variant", variant]
+        if a.tasks_dir:
+            cmd += ["--tasks-dir", str(Path(a.tasks_dir).resolve())]
         print(f"\n[{i + 1}/{len(a.entries)}] {task}"
               + (f" · variant {variant}" if variant else "")
               + f" · run {run_id}")

@@ -1,0 +1,31 @@
+version: 1
+retention:
+  days: 14
+metrics:
+- id: supply_chain_inventory_fact_rows
+  kind: row_count
+  unit: rows
+  title: Multi-DC inventory and customs cutoff fact rows
+  source:
+    table: warehouse.fct_inventory_position
+- id: supply_chain_inventory_freshness
+  kind: freshness
+  unit: seconds
+  title: Multi-DC inventory and customs cutoff freshness
+  source:
+    table: warehouse.fct_inventory_position
+    timestamp_column: position_date
+- id: supply_chain_inventory_load_error_rate
+  kind: job_error_rate
+  unit: ratio
+  title: Ingest error rate
+  job: inventory_load
+  window_runs: 10
+alarms:
+- id: supply_chain_inventory_load_failing
+  metric: supply_chain_inventory_load_error_rate
+  comparison: gte
+  threshold: 0.2
+  severity: warning
+  title: Nightly ingest is failing
+  runbook: docs/contract.md

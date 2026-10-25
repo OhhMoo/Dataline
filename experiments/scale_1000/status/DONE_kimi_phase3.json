@@ -1,0 +1,48 @@
+{
+  "agent": "kimi",
+  "phase": 3,
+  "status": "complete",
+  "completed_at_utc": "2026-10-20T22:15:00Z",
+  "summary": "The FT09/FT14 floor trap is fixed: the scheduler read job order only from hidden var/world/live.json, so agent edits to the visible workspace/orchestration/schedule.yml were ignored. scheduler.advance() now overlays schedule.yml onto the in-memory control plane on every pass (unknown jobs ignored, malformed overlays discarded, live.json on disk stays canonical), and all 12 themes ship a schedule.yml that mirrors theme.yaml exactly, with theme_contract.yaml pointing at it via schedule_file.",
+  "verification": {
+    "command": "cd /home/ubuntu/env_project && PYTHONPATH=/home/ubuntu/env_project/world:/home/ubuntu/env_project /home/ubuntu/env_project/gateway/.venv/bin/python world/world/themes/verify_all_themes.py --out /home/ubuntu/alkera_factory_1017/theme_phase3",
+    "output_root": "/home/ubuntu/alkera_factory_1017/theme_phase3",
+    "report": "/home/ubuntu/alkera_factory_1017/theme_phase3/verify_report.json",
+    "passed": 12,
+    "failed": 0,
+    "hash_equal": 12,
+    "crashes": 0,
+    "receipts_minimum": 4
+  },
+  "receipts": {
+    "commerce_analytics": 12,
+    "revenue_daily": 6,
+    "sftp_vendor": 9,
+    "mainframe_batch": 8,
+    "excel_close": 9,
+    "settlement_clearing": 12,
+    "saas_subscription_mrr": 9,
+    "ad_attribution_events": 12,
+    "supply_chain_inventory": 15,
+    "healthcare_claims_edi": 16,
+    "fintech_kyc_risk_limits": 8,
+    "iot_telemetry_billing": 12
+  },
+  "scheduler_hook": {
+    "file": "world/world/scheduler.py",
+    "change": "+260/-1, new _sync_workspace_schedule called from advance() after load_live; pristine jobs restored before save_live so live.json stays canonical",
+    "rules": "Per schedule.yml job that exists in live['jobs']: sync time (validated HH:MM string), after ({job, minutes}; job must exist; bare-string after normalized using wait_minutes), day_offset (time-carrying jobs only). Whole overlay discarded on missing file, malformed YAML, wrong shape, or an unresolvable re-chain (validated via job_starts on the synced copy). Never raises; no-op fast path when the file mirrors the manifest.",
+    "tests": "world/tests/test_schedule_sync.py: 23 passed. Builds real settlement_clearing, re-chains via schedule.yml, asserts new order honored across advances, disk live.json canonical, byte-identical advance for shipped mirrored files, and no-crash negatives (deleted file, malformed YAML, unknown after target, phantom job, re-chain loop).",
+    "world_suite": "956 passed, 1 skipped (test_file_formats.py ignored: pre-existing missing pyarrow in venv)"
+  },
+  "schedule_files": {
+    "count": 12,
+    "jobs_total": 41,
+    "contract_key": "schedule_file: orchestration/schedule.yml added to all 12 theme_contract.yaml files, existing keys preserved",
+    "notes": "Every job name, time, non-zero day_offset, and after chain programmatically cross-checked against theme.yaml; every after reference resolves. settlement_clearing's pre-existing file was repaired (literal '10|'/'20|' paste artifacts removed; informational script/command/publishes annotations made accurate). feed_window.lands_at mirrors live.arrival.at."
+  },
+  "regressions": {
+    "tasks_contracts_pytest": "112 passed",
+    "GT007-ran-long-or-started-late": "tests/test_gt007_definitions_sanitised.py 4 passed; tests/grade.py compiles"
+  }
+}

@@ -1,0 +1,8 @@
+version: 2
+sources:
+  - name: raw
+    schema: raw
+    description: Billing webhook extracts rebuilt by ingest_webhooks.
+    tables:
+      - name: subscription_events
+      - name: invoice_webhooks

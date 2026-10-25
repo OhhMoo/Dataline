@@ -1,0 +1,59 @@
+channels:
+  - id: payments
+    topic: Network feed, settlement nightly and correction protocol
+    purpose: Payments data engineering and platform operations.
+    members: [rkeane, dpatel, jnorth, mcarver, agent]
+    messages:
+      - id: payments/0001
+        author: dpatel
+        at: "-19d 09:05"
+        thread_id: null
+        text: Recovery traffic is normal on this feed. Please do not treat a late old version as a new correction.
+        reactions: {}
+      - id: payments/0002
+        author: rkeane
+        at: "-19d 09:18"
+        thread_id: payments/0001
+        text: And a closed settlement day still needs the controller register entry before it can be republished.
+        reactions: {"+1": 2}
+      - id: payments/0003
+        author: mcarver
+        at: "-7d 20:35"
+        thread_id: null
+        text: Nightly handoff is green. Reminder that the bank cutoff is a separate append-only job at 23:30 UTC.
+        reactions: {}
+      - id: payments/0004
+        author: jnorth
+        at: "-6d 13:20"
+        thread_id: null
+        text: The fee panel now reads merchant names from dim_merchant; PAY-256 is ready for operations review.
+        reactions: {}
+      - id: payments/0005
+        author: dpatel
+        at: "-1d 16:40"
+        thread_id: null
+        text: For recovery checks, compare load_checkpoint with the folders on disk. The watermark describes data read, not simply tonight's date.
+        reactions: {}
+  - id: clearing-ops
+    topic: Clearing bank reconciliation
+    purpose: Shared operational context for settlement consumers.
+    members: [rkeane, dpatel, bnguyen, agent]
+    messages:
+      - id: clearing-ops/0001
+        author: bnguyen
+        at: "-12d 10:05"
+        thread_id: null
+        text: We reconcile net_cents to the network report and use interchange_ledger separately for fees.
+        reactions: {}
+      - id: clearing-ops/0002
+        author: rkeane
+        at: "-12d 10:14"
+        thread_id: clearing-ops/0001
+        text: Correct. A correction_ref identifies an approved closed-day republication; ordinary settlements leave it null.
+        reactions: {}
+      - id: clearing-ops/0003
+        author: bnguyen
+        at: "-2d 08:55"
+        thread_id: null
+        text: Opened PAY-267 for the retention review. No request to rewrite prior SLA_BREACH rows.
+        reactions: {}

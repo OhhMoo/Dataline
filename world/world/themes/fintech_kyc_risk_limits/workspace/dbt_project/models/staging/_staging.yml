@@ -1,0 +1,46 @@
+version: 2
+models:
+  - name: stg_merchant_volume
+    description: One settled-volume aggregate per merchant and UTC business date.
+    columns:
+      - {name: merchant_id, data_tests: [not_null]}
+      - {name: business_date, data_tests: [not_null]}
+      - {name: settled_transactions, data_tests: [not_null]}
+      - {name: settled_volume, data_tests: [not_null]}
+  - name: stg_dispute_events
+    description: Immutable dispute openings and representment outcomes.
+    columns:
+      - {name: event_id, data_tests: [unique, not_null]}
+      - {name: dispute_id, data_tests: [not_null]}
+      - {name: merchant_id, data_tests: [not_null]}
+      - name: event_type
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [dispute_opened, representment_won, representment_lost]
+      - {name: dispute_amount, data_tests: [not_null]}
+  - name: stg_kyc_reviews
+    description: Merchant attributes and underwriting decisions effective at review time.
+    columns:
+      - {name: review_id, data_tests: [unique, not_null]}
+      - {name: merchant_id, data_tests: [not_null]}
+      - {name: legal_name, data_tests: [not_null]}
+      - name: kyc_status
+        data_tests:
+          - accepted_values:
+              arguments: {values: [approved, pending, restricted]}
+      - name: risk_tier
+        data_tests:
+          - accepted_values:
+              arguments: {values: [low, standard, high]}
+  - name: stg_payout_holds
+    description: Reserve placements, release requests, and risk-officer decisions.
+    columns:
+      - {name: event_id, data_tests: [unique, not_null]}
+      - {name: hold_id, data_tests: [not_null]}
+      - {name: merchant_id, data_tests: [not_null]}
+      - name: event_type
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [hold_placed, release_requested, release_approved, release_rejected]

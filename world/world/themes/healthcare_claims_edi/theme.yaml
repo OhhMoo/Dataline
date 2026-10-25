@@ -1,0 +1,72 @@
+name: healthcare_claims_edi
+dbt_profile: world_dbt
+
+workflow:
+  dir: workflow
+  actor: agent
+  project: {key: CLM, name: Claims data platform}
+  statuses: [open, triage, in_progress, blocked, done, wontfix]
+  workspace: payer-data
+  space: {key: CDP, name: Claims Data Platform}
+
+jobs:
+  nightly_edi_load:
+    command: load_edi_837_835
+    duration_s: 60
+    time: "01:10"
+    day_offset: 0
+    after: null
+    detail: "service_partition={day}"
+    exec:
+      kind: theme
+      op: load_raw
+      args: [workspace, db]
+      tables: [raw.edi_837_claims, raw.edi_835_remits, raw.provider_roster]
+  adjudication_build:
+    command: dbt_adjudication_build
+    duration_s: 150
+    after: {job: nightly_edi_load, minutes: 10}
+    detail: null
+    exec:
+      kind: dbt
+      command: build
+      selector: fct_adjudicated_claims dim_provider
+      tables: [warehouse.fct_adjudicated_claims, warehouse.dim_provider]
+    publishes:
+      - {target: warehouse.fct_adjudicated_claims, kind: table, consumer: payer_provider_operations}
+  settlement_handoffs:
+    command: dbt_settlement_handoffs
+    duration_s: 120
+    after: {job: adjudication_build, minutes: 15}
+    detail: null
+    exec:
+      kind: dbt
+      command: build
+      selector: actuarial_reserve_handoff provider_capitation_settlement
+      tables: [warehouse.actuarial_reserve_handoff, warehouse.provider_capitation_settlement]
+    publishes:
+      - {target: warehouse.actuarial_reserve_handoff, kind: table, consumer: actuarial_reserving}
+      - {target: warehouse.provider_capitation_settlement, kind: table, consumer: provider_settlement}
+  cms_window_close:
+    command: dbt_cms_window_close
+    duration_s: 90
+    after: {job: settlement_handoffs, minutes: 10}
+    detail: null
+    exec:
+      kind: dbt
+      command: build
+      selector: cms_submission_window
+      tables: [warehouse.cms_submission_window]
+    publishes:
+      - {target: warehouse.cms_submission_window, kind: table, consumer: cms_encounter_submission}
+
+live:
+  params: [seed, vtime_start, providers, member_pool, claims_per_day, replacement_pct,
+           void_pct, cob_pct, denial_pct, allowed_bps, followup_lag_days,
+           capitated_lives_per_provider, capitation_pmpm_cents,
+           capitation_withhold_bps, capitation_payment_day, cms_cutoff_day,
+           cms_cutoff_hour, cms_acceptance_lag_days, reserve_window_days, reserve_bps]
+  arrival:
+    name: edi_claims_remit_delivery
+    op: write_day
+    at: {day_offset: 0, time: "00:30"}

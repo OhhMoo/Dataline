@@ -56,6 +56,7 @@ process (the live arrival stream) recomputes the look-back, a long-running one
 """
 import bisect
 import csv
+import hashlib
 import json
 import random
 import shutil
@@ -619,6 +620,108 @@ def write_landing(workspace: Path, seed: dict) -> None:
     start = parse_vtime(seed["vtime_start"])
     for i in range(seed["days"]):
         write_day(workspace, seed, i, (start + timedelta(days=i)).date())
+    write_ops_logs(workspace, seed)
+
+
+# --------------------------------------------------------------------------
+# historical ops logs (var/logs)
+# --------------------------------------------------------------------------
+
+def write_ops_logs(workspace: Path, seed: dict) -> None:
+    """The platform-side record of the seeded backstory: three rotated daemon
+    logs under var/logs/, covering every seeded night on the virtual clock.
+
+    - ingest_daemon.log   the shop platform's CDC extract daemon sealing each
+                          night's four-file extract at 02:00
+    - sftp_sync.log       the sync that pushes those files to the landing zone
+                          (sizes and checksums of what actually landed)
+    - scheduler_audit.log the data platform's audit trail of the night's three
+                          job runs (02:30 daily_load, 02:40 dbt_build, 06:00
+                          bi_refresh) processing the business date just landed
+
+    A pure function of the seed: jitter comes from one stream per night,
+    `Random(f"{seed}:logs:{day_index}")`, and every timestamp is derived from
+    seed['vtime_start'] - never a wall clock. Two builds of one seed write
+    byte-identical logs. Called from write_landing (build time) only: the live
+    arrival stream calls write_day directly and appends nothing here.
+    """
+    s = shop(seed)
+    start = parse_vtime(seed["vtime_start"])
+    folder = Path(workspace).parent / "var" / "logs"
+    folder.mkdir(parents=True, exist_ok=True)
+    ingest, sftp, audit = [], [], []
+    for i in range(seed["days"]):
+        rng = random.Random(f"{seed['seed']}:logs:{i}")
+        run_day = start + timedelta(days=i)
+        bdate = business_date(s.p, i)           # the business date the extract covers
+        rows = s.extract(i)
+        counts = {e: len(rows[e]) for e in ENTITIES}
+
+        # the extract daemon: sealed at 02:00 (+jitter), after the source poll
+        seal = run_day + timedelta(hours=2, seconds=rng.randrange(4, 40))
+        elapsed = rng.randrange(9, 28)
+        if rng.randrange(100) < 4:
+            ingest.append(
+                f"{scheduler.iso(seal - timedelta(seconds=elapsed))} WARN "
+                f"ingestd[1142]: source cursor on orders stalled "
+                f"{rng.randrange(2, 9)}s; resumed without loss")
+        ingest.append(
+            f"{scheduler.iso(seal)} INFO ingestd[1142]: extract sealed "
+            f"dt={bdate.isoformat()} "
+            + " ".join(f"{e}={counts[e]}" for e in ENTITIES)
+            + f" elapsed_s={elapsed}")
+        if counts["customers"] == 0:
+            ingest.append(
+                f"{scheduler.iso(seal + timedelta(seconds=1))} INFO "
+                f"ingestd[1142]: quiet night on customers "
+                f"dt={bdate.isoformat()} - header-only file delivered")
+
+        # the sftp sync: one push per file, of the bytes that actually landed
+        sent = seal + timedelta(seconds=rng.randrange(20, 90))
+        for entity in ENTITIES:
+            file = (Path(workspace) / "data" / "landing" / entity
+                    / f"dt={bdate.isoformat()}" / f"{entity}.csv")
+            data = file.read_bytes()
+            if rng.randrange(100) < 3:
+                sftp.append(
+                    f"{scheduler.iso(sent)} WARN sftp-sync[88]: push "
+                    f"{entity}/dt={bdate.isoformat()}/{entity}.csv stalled on "
+                    f"first ACK; re-sending")
+                sent += timedelta(seconds=rng.randrange(4, 15))
+            sftp.append(
+                f"{scheduler.iso(sent)} INFO sftp-sync[88]: push "
+                f"{entity}/dt={bdate.isoformat()}/{entity}.csv "
+                f"bytes={len(data)} sha256={hashlib.sha256(data).hexdigest()[:16]} "
+                f"attempts=1 ok")
+            sent += timedelta(seconds=rng.randrange(1, 9))
+
+        # the scheduler's audit trail of the night's three runs
+        for name, hhmm, nominal in (("daily_load", "02:30", 75),
+                                    ("dbt_build", "02:40", 240),
+                                    ("bi_refresh", "06:00", 420)):
+            hh, mm = (int(x) for x in hhmm.split(":"))
+            begin = run_day + timedelta(hours=hh, minutes=mm,
+                                        seconds=rng.randrange(0, 45))
+            took = max(5, nominal + rng.randrange(-nominal // 6, nominal // 5))
+            level, note = "INFO", ""
+            if rng.randrange(100) < 4:
+                took = int(nominal * 1.6) + rng.randrange(30)
+                level, note = "WARN", f" above_p90={int(nominal * 1.5)}"
+            audit.append(
+                f"{scheduler.iso(begin)} INFO sched-audit[7]: job={name} "
+                f"trigger=scheduled biz_dt={bdate.isoformat()} started")
+            audit.append(
+                f"{scheduler.iso(begin + timedelta(seconds=took))} {level} "
+                f"sched-audit[7]: job={name} status=success "
+                f"duration_s={took}{note}")
+
+    for name, lines in (("ingest_daemon.log", ingest),
+                        ("sftp_sync.log", sftp),
+                        ("scheduler_audit.log", audit)):
+        # newline="\n" like the landing CSVs: var/logs sits beside the
+        # fingerprinted planes, so the bytes are LF on every host.
+        (folder / name).write_text("".join(f"{line}\n" for line in lines),
+                                   encoding="utf-8")
 
 
 def load_raw(workspace: Path, db_path: Path, landing: Path | None = None) -> None:

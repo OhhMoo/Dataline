@@ -1,0 +1,28 @@
+{
+  "agent": "kimi",
+  "phase": "1022",
+  "status": "DONE",
+  "tests_passed": true,
+  "completed_at_utc": "2026-10-22T08:05:00Z",
+  "summary": "Removed the Phase-4 floor trap from all 12 themes' docs: 'provisional logic stays until a signed ticket retires it' (which made agents refuse to remove obsolete pre-cutover feed adjustments) is replaced everywhere by the two-rule retirement distinction - (a) closed-window restatements are governance and reopen only via controller sign-off in warehouse.factory_corrections plus tracker ticket, (b) pre-cutover feed bridge adjustments (split multipliers, retention haircuts in the fold layer) retire on log evidence once var/logs/ingest_daemon.log records the partner cutover delivering net amount_cents directly, and any leftover bridge double-adjusts rows and must be removed. Both reconciliation_sla.md (Legacy and provisional rules rewritten) and architecture_overview.md (ticket-only framing harmonized) were updated in all 12 themes.",
+  "files_changed": [
+    "world/world/themes/*/workspace/docs/reconciliation_sla.md (12 edited)",
+    "world/world/themes/*/workspace/docs/architecture_overview.md (12 edited)",
+    "world/tests/test_theme_docs_context.py (trap-phrase test + cutover-source assertion + banned identifiers ingest_feed/fold_ledger/publish_handoff/B-FANOUT/B-CUTOVER added to spoiler scan)",
+    "world/evidence/acceptance.json (re-pinned)",
+    "world/tests/test_native_workspace.py (flagged-build pin re-pinned)"
+  ],
+  "verification": {
+    "plan_command": "PYTHONPATH=/home/ubuntu/env_project:/home/ubuntu/env_project/world gateway/.venv/bin/python -m pytest world/tests/test_theme_docs_context.py world/tests/test_native_workspace.py -q",
+    "plan_command_result": "78 passed",
+    "recorded_hash_battery": "world/tests/test_bi_projects.py + test_profile_world.py + test_theme_commerce_analytics.py: 126 passed",
+    "docs_constraints": "all 24 edited files ASCII-only, >=2000 chars, mandatory live-state paths intact, zero banned tokens (old spoiler set + ingest_feed/fold_ledger/publish_handoff/B-FANOUT/B-CUTOVER), zero occurrences of the trap phrases"
+  },
+  "repin": {
+    "gate1_host_semantic_hash": "cf27262a05643e8d6accfbd1f6f21c763b35296e751385dc34e502e47ef61012",
+    "gate3_container_semantic_hash": "cf27262a05643e8d6accfbd1f6f21c763b35296e751385dc34e502e47ef61012",
+    "native_flagged_pin": "8cf8e821c8b1fb7dd724b2918513e48009c7bd86364ca6df429d19e25d7bd2e0",
+    "evidence": "workspace docs are the only delta; the four native discovery-file byte pins (workspace/.envrc, docs/onboarding.md, home/.dbt/profiles.yml, home/.config/alkera/services.toml) are unchanged, and warehouse/scheduler/bi/live sections were untouched by the docs-only edit"
+  },
+  "git_commits": 0
+}
