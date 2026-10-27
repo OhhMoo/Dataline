@@ -1,4 +1,4 @@
-# Alkera-DE Benchmark
+# Dataline: RL Environments for Data Engineering Agents
 
 A training and evaluation substrate for AI data agents: a data engineer's working
 computer (warehouse, dbt, scheduler, BI, issues, chat, wiki), reproducible from a seed,
